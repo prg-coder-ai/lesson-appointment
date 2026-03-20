@@ -12,16 +12,16 @@
 <body>
   <!-- 头部区域 -->
   <header class="header">
-    <div class="logo">
+    <div class="logo" align="center">
       <img src="https://via.placeholder.com/40x40/722ed1/ffffff?text=管" alt="管理端logo">
       <span class="logo-text">语言教学预约系统（管理端）</span>
     </div>
-    <div class="header-actions">
+    <!-- div class="header-actions">
       <div class="user-info">
         <div class="avatar">管</div>
         <span class="user-name">系统管理员</span>
       </div>
-    </div>
+    </ div --->
   </header>
 
   <!-- 布局容器 -->
@@ -231,7 +231,8 @@
           </table>
         </div>
       </div>
-
+<!-- 其他管理端页面内容（教师管理、学生管理、课程列表等）将在动态内容区加载显示 -->
+ <!-- 把动态加载区域作为主内容的一部分，初始状态为空，点击侧边栏菜单时通过JavaScript动态加载对应页面内容，以侧边菜单并列布局 -->
       <!-- 动态加载的内容区域（初始隐藏） -->
       <div id="dynamic-content"></div>
     </main>
