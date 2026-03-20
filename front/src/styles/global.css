@@ -1,0 +1,152 @@
+/* globalcss 全局样式重置 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Microsoft YaHei", Arial, sans-serif;
+}
+
+/* 根变量定义 */
+:root {
+  --primary-color: #1890ff; /* 主题蓝 */
+  --secondary-color: #f5f5f5; /* 背景浅灰 */
+  --text-color: #333333; /* 主文本色 */
+  --text-light-color: #666666; /* 次要文本色 */
+  --border-color: #e8e8e8; /* 边框色 */
+  --sidebar-width: 220px; /* 侧边栏宽度 */
+  --header-height: 60px; /* 头部高度 */
+}
+
+/* 页面主体 */
+body {
+  color: var(--text-color);
+  background-color: #fafafa;
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* 头部样式 */
+.header {
+  height: var(--header-height);
+  background-color: #fff;
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  position: relative;
+  z-index: 10;
+}
+
+.header .logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header .logo img {
+  height: 40px;
+}
+
+.header .logo-text {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.header .user-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.header .user-info .avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: var(--primary-color);
+  color: #fff;
+  text-align: center;
+  line-height: 36px;
+  font-size: 14px;
+}
+
+/* 布局容器 */
+.layout-container {
+  display: flex;
+  height: calc(100vh - var(--header-height));
+}
+
+/* 侧边栏样式 */
+.sidebar {
+  width: var(--sidebar-width);
+  background-color: #fff;
+  border-right: 1px solid var(--border-color);
+  height: 100%;
+  overflow-y: auto;
+  transition: all 0.3s ease;
+}
+
+.sidebar .menu-item {
+  padding: 12px 20px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-left: 3px solid transparent;
+}
+
+.sidebar .menu-item:hover {
+  background-color: var(--secondary-color);
+}
+
+.sidebar .menu-item.active {
+  background-color: rgba(24, 144, 255, 0.1);
+  border-left-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+/* 主内容区域 */
+.content {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  background-color: #fafafa;
+}
+
+.content .page-title {
+  font-size: 20px;
+  margin-bottom: 20px;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.content .card {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin-bottom: 20px;
+}
+
+/* 响应式适配 */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 60px;
+  }
+
+  .sidebar .menu-item span {
+    display: none;
+  }
+
+  .sidebar .menu-item {
+    justify-content: center;
+    padding: 12px 0;
+  }
+
+  .content {
+    padding: 10px;
+  }
+}

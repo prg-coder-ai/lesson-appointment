@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.language.reservation.mapper.OrderMapper">
+
+    <!-- 通用结果集映射 -->
+    <resultMap id="orderResultMap" type="com.language.reservation.entity.Order">
+        <result column="order_id" property="orderId"/>
+        <result column="schedule_id" property="scheduleId"/>
+        <result column="student_id" property="studentId"/>
+<result column="order_amount" property="orderAmount"/>
+        <result column="order_status" property="orderStatus"/>
+        <result column="create_time" property="createTime"/>
+        <result column="pay_time" property="payTime"/>
+        <result column="pay_type" property="payType"/>
+    </resultMap>
+
+    <!-- 根据订单ID查询订单 -->
+    <!-- 根据学生ID查询订单列表 -->
+    <!-- 根据排期ID查询订单（校验排期是否已被预约） -->
+    <!-- 插入订单 -->
+    <insert id="insertOrder" parameterType="com.language.reservation.entity.Order">
+        INSERT INTO `order` (
+            order_id, schedule_id, student_id, order_amount,
+            order_status, create_time, pay_time, pay_type
+        ) VALUES (
+            #{orderId}, #{scheduleId}, #{studentId}, #{orderAmount},
+            #{orderStatus}, #{createTime}, #{payTime}, #{payType}
+        )
+    </insert>
+
+   <!-- 更新订单状态 -->
+    <update id="updateOrderStatus" parameterType="com.language.reservation.entity.Order">
+        UPDATE `order`
+        <set>
+            <if test="orderStatus != null and orderStatus != ''">order_status = #{orderStatus},</if>
+            <if test="payTime != null">pay_time = #{payTime},</if>
+            <if test="payType != null and payType != ''">pay_type = #{payType},</if>
+        </set>
+        WHERE order_id = #{orderId}
+    </update>
+
+</mapper>

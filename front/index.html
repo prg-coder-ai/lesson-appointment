@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>语言教学预约系统 - 统一登录入口</title>
+  <!-- 引入公共样式 -->
+  <link rel="stylesheet" href="./src/styles/common.css">
+  <!-- 引入图标库 -->
+  <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <!-- 登录容器 -->
+  <div class="login-container">
+    <div class="login-header">
+      <div class="logo"><i class="fa fa-graduation-cap"></i></div>
+      <div class="title">语言教学预约系统</div>
+      <div class="subtitle">请选择身份并登录</div>
+    </div>
+
+    <!-- 登录表单 -->
+    <form id="login-form">
+      <div class="form-item">
+        <label for="user-role">用户身份</label>
+        <select id="user-role" required>
+          <option value="">请选择身份</option>
+          <option value="admin">系统管理员</option>
+          <option value="teacher">教师</option>
+          <option value="student">学生</option>
+        </select>
+        <div class="error-tip" id="role-error">请选择用户身份</div>
+      </div>
+
+      <div class="form-item">
+        <label for="username">账号</label>
+        <input type="text" id="username" placeholder="请输入账号" required>
+        <div class="error-tip" id="username-error">请输入账号</div>
+      </div>
+
+      <div class="form-item">
+        <label for="password">密码</label>
+        <input type="password" id="password" placeholder="请输入密码" required>
+        <div class="error-tip" id="password-error">请输入密码</div>
+      </div>
+
+      <button type="submit" class="btn" id="login-btn">
+        <span id="btn-text">登录系统</span>
+      </button>
+      <div class="error-tip" id="login-error" style="text-align: center; margin-top: 16px;">账号或密码错误，请重试</div>
+    </form>
+  </div>
+
+  <!-- JavaScript核心逻辑 -->
+  <script>
+    // 模拟用户数据库（实际项目中从后端获取）
+    const userDatabase = [
+      // 管理员账号
+      { role: 'admin', username: 'admin', password: 'admin123', name: '系统管理员' },
+      // 教师账号
+      { role: 'teacher', username: 'teacher01', password: 'teacher123', name: '李老师' },
+      { role: 'teacher', username: 'teacher02', password: 'teacher123', name: '王老师' },
+      // 学生账号
+      { role: 'student', username: 'student01', password: 'student123', name: '张三' },
+      { role: 'student', username: 'student02', password: 'student123', name: '李四' }
+    ];
+
+    // DOM元素获取
+    const loginForm = document.getElementById('login-form');
+    const userRole = document.getElementById('user-role');
+    const username = document.getElementById('username');
+    const password = document.getElementById('password');
+    const loginBtn = document.getElementById('login-btn');
+    const btnText = document.getElementById('btn-text');
+    
+    // 错误提示元素
+    const roleError = document.getElementById('role-error');
+    const usernameError = document.getElementById('username-error');
+    const passwordError = document.getElementById('password-error');
+    const loginError = document.getElementById('login-error');
+
+    // 表单验证函数
+    function validateForm() {
+      let isValid = true;
+      
+      // 重置所有错误提示
+      roleError.style.display = 'none';
+      usernameError.style.display = 'none';
+      passwordError.style.display = 'none';
+      loginError.style.display = 'none';
+
+      // 验证身份选择
+      if (!userRole.value) {
+        roleError.style.display = 'block';
+        isValid = false;
+      }
+
+      // 验证账号
+      if (!username.value.trim()) {
+        usernameError.style.display = 'block';
+        isValid = false;
+      }
+
+      // 验证密码
+      if (!password.value.trim()) {
+        passwordError.style.display = 'block';
+        isValid = false;
+      }
+
+      return isValid;
+    }
+
+    // 用户认证函数
+    function authenticateUser(role, uname, pwd) {
+      // 模拟后端验证（实际项目中替换为fetch请求）
+      return new Promise((resolve, reject) => {
+        setTimeout(() => {
+          const user = userDatabase.find(
+            u => u.role === role && u.username === uname && u.password === pwd
+          );
+          
+          if (user) {
+            resolve(user);
+          } else {
+            reject('账号或密码错误，请重试');
+          }
+        }, 800); // 模拟网络延迟
+      });
+    }
+
+    // 页面跳转函数（根据用户角色）
+    function redirectToUserPage(user) {
+      // 存储用户信息到本地（实际项目中使用token）
+      localStorage.setItem('currentUser', JSON.stringify(user));
+      
+      // 根据角色跳转对应页面
+      switch(user.role) {
+        case 'admin':
+          window.location.href = './src/pages/admin.html'; // 管理端页面
+          break;
+        case 'teacher':
+          window.location.href = './src/pages/teacher.html'; // 教师端页面
+          break;
+        case 'student':
+          window.location.href = './src/pages/student.html'; // 学生端页面
+          break;
+        default:
+          alert('未知用户身份，请联系管理员');
+          resetLoginForm();
+      }
+    }
+
+    // 重置登录表单
+    function resetLoginForm() {
+      loginForm.reset();
+      loginBtn.disabled = false;
+      btnText.innerHTML = '登录系统';
+    }
+
+    // 登录表单提交事件
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault(); // 阻止表单默认提交
+
+      // 表单验证
+      if (!validateForm()) {
+        return;
+      }
+
+      // 显示加载状态
+      loginBtn.disabled = true;
+      btnText.innerHTML = '<span class="loading"></span> 登录中...';
+
+      try {
+        // 用户认证
+        const user = await authenticateUser(
+          userRole.value,
+          username.value.trim(),
+          password.value.trim()
+        );
+        
+        // 认证成功，跳转对应页面
+        redirectToUserPage(user);
+      } catch (error) {
+        // 认证失败，显示错误提示
+        loginError.style.display = 'block';
+        loginError.textContent = error;
+        
+        // 恢复按钮状态
+        loginBtn.disabled = false;
+        btnText.innerHTML = '登录系统';
+        
+        // 清空密码框
+        password.value = '';
+      }
+    });
+
+    // 页面加载完成后初始化
+    window.onload = function() {
+      console.log('系统统一登录入口加载完成');
+      
+      // 检查是否有已登录用户（刷新页面后保持登录状态）
+      const currentUser = localStorage.getItem('currentUser');
+      if (currentUser) {
+        const user = JSON.parse(currentUser);
+        // 直接跳转到对应页面
+        redirectToUserPage(user);
+      }
+    };
+  </script>
+</body>
+</html>
+<!---
+语言教学预约系统/
+├── common.css          # 全局公共样式（登录页使用）
+├── index.html          # 系统总入口（登录+路由）
+├── admin-global.css    # 管理端样式
+├── admin-index.html    # 管理端页面
+├── teacher-global.css  # 教师端样式
+├── teacher-index.html  # 教师端页面
+├── student-global.css  # 学生端样式
+└── student-index.html  # 学生端页面
+-- >
+
+-->

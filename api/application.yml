@@ -1,0 +1,22 @@
+#application.yml
+server:
+  port: 8080
+  servlet:
+    context-path: /api/v1  # 对应设计2.1 基础配置-接口基础路径
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/language_reservation?useUnicode=true&characterEncoding=utf-8&serverTimezone=GMT%2B8
+    username: root
+    password: 123456
+mybatis:
+  mapper-locations: classpath:mapper/**/*.xml
+  type-aliases-package: com.language.reservation.entity
+# JWT配置（对应设计2.3 安全设计-Token）
+jwt:
+  secret: language_reservation_system_2026  # 加密密钥
+  expiration: 604800000  # Token有效期7天（对应设计2.2.1 登录接口说明）
+# 接口频率限制（对应设计2.3 安全设计-接口防护）
+rate-limit:
+  enabled: true
+  limit: 100  # 每分钟最大请求数

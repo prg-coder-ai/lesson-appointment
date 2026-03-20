@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd"><mapper namespace="com.language.reservation.mapper.CourseFeedbackMapper"><!-- 通用结果集映射，与CourseFeedback实体字段一一对应 -->
+<resultMap id="feedbackResultMap" type="com.language.reservation.entity.CourseFeedback">
+        <result column="feedback_id" property="feedbackId"/><result column="course_id" property="courseId"/>
+        <result column="user_id" property="userId"/>
+        <result column="feedback_type" property="feedbackType"/>
+        <result column="feedback_content" property="feedbackContent"/>
+        <result column="feedback_status" property="feedbackStatus"/>
+        <result column="reply_content" property="replyContent"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <!-- 插入课程反馈（学生/教师提交反馈） -->
+    <insert id="insertFeedback" parameterType="com.language.reservation.entity.CourseFeedback">
+        INSERT INTO course_feedback (
+            feedback_id, course_id, user_id, feedback_type,
+            feedback_content, feedback_status, reply_content, create_time, update_time
+        ) VALUES (
+            #{feedbackId}, #{courseId}, #{userId}, #{feedbackType},
+            #{feedbackContent}, #{feedbackStatus}, #{replyContent}, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP()
+        )
+    </insert>
+
+    <!-- 根据反馈ID查询反馈（用于反馈详情查看、回复） -->
+    <!-- 根据反馈人ID查询反馈列表（用户查看自身提交的反馈） -->
+    <!-- 根据课程ID查询反馈列表（教师查看对应课程的反馈） -->
+    <!-- 根据反馈状态查询反馈列表（管理员处理反馈） -->
+    <!-- 更新反馈状态及回复内容（管理员处理反馈时调用） -->
+    <update id="updateFeedbackStatusAndReply" parameterType="com.language.reservation.entity.CourseFeedback">
+        UPDATE course_feedback
+<set>
+            <if test="feedbackStatus != null and feedbackStatus != ''">feedback_status = #{feedbackStatus},</if>
+            <if test="replyContent != null and replyContent != ''">reply_content = #{replyContent},</if>
+            update_time = CURRENT_TIMESTAMP()
+        </set>
+        WHERE feedback_id = #{feedbackId}
+    </update>
+
+</mapper>

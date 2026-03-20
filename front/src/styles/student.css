@@ -1,0 +1,338 @@
+/* 全局样式重置 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Microsoft YaHei", Arial, sans-serif;
+}
+
+/* 根变量定义（学生端主题色：蓝色系） */
+:root {
+  --primary-color: #1890ff; /* 学生端主题蓝 */
+  --secondary-color: #e6f7ff; /* 背景浅蓝 */
+  --text-color: #333333; /* 主文本色 */
+  --text-light-color: #666666; /* 次要文本色 */
+  --border-color: #e8e8e8; /* 边框色 */
+  --sidebar-width: 220px; /* 侧边栏宽度 */
+  --header-height: 60px; /* 头部高度 */
+  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  --orange-color: #fa8c16; /* 辅助色-橙色（评分/提醒） */
+  --red-color: #f5222d; /* 辅助色-红色（取消/错误） */
+}
+
+/* 页面主体 */
+body {
+  color: var(--text-color);
+  background-color: #fafafa;
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* 头部样式 */
+.header {
+  height: var(--header-height);
+  background-color: #fff;
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--card-shadow);
+  position: relative;
+  z-index: 10;
+}
+
+.header .logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header .logo img {
+  height: 40px;
+}
+
+.header .logo-text {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.header .user-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.header .user-info .avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: var(--primary-color);
+  color: #fff;
+  text-align: center;
+  line-height: 36px;
+  font-size: 14px;
+}
+
+/* 布局容器 */
+.layout-container {
+  display: flex;
+  height: calc(100vh - var(--header-height));
+}
+
+/* 侧边栏样式 */
+.sidebar {
+  width: var(--sidebar-width);
+  background-color: #fff;
+  border-right: 1px solid var(--border-color);
+  height: 100%;
+  overflow-y: auto;
+  transition: all 0.3s ease;
+}
+
+.sidebar .menu-item {
+  padding: 12px 20px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-left: 3px solid transparent;
+}
+
+.sidebar .menu-item:hover {
+  background-color: var(--secondary-color);
+}
+
+.sidebar .menu-item.active {
+  background-color: rgba(24, 144, 255, 0.1);
+  border-left-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+/* 主内容区域 */
+.content {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  background-color: #fafafa;
+}
+
+.content .page-title {
+  font-size: 20px;
+  margin-bottom: 20px;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.content .card {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: var(--card-shadow);
+  margin-bottom: 20px;
+}
+
+/* 学生端专属样式 - 课程卡片 */
+.course-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.course-card:last-child {
+  border-bottom: none;
+}
+
+.course-info h4 {
+  font-size: 16px;
+  margin-bottom: 5px;
+}
+
+.course-info p {
+  font-size: 14px;
+  color: var(--text-light-color);
+  line-height: 1.5;
+}
+
+.course-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* 按钮样式 */
+.btn {
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  color: #fff;
+}
+
+.btn-gray {
+  background-color: #f5f5f5;
+  color: var(--text-light-color);
+}
+
+.btn-danger {
+  background-color: var(--red-color);
+  color: #fff;
+}
+
+/* 预约日历样式 */
+.calendar-container {
+  margin-top: 15px;
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.calendar-month {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+.calendar-day {
+  height: 40px;
+  line-height: 40px;
+  text-align: center;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.calendar-day.available {
+  background-color: var(--secondary-color);
+  color: var(--primary-color);
+}
+
+.calendar-day.selected {
+  background-color: var(--primary-color);
+  color: #fff;
+}
+
+.calendar-day.disabled {
+  color: var(--text-light-color);
+  cursor: not-allowed;
+  background-color: #f5f5f5;
+}
+
+/* 时间段选择 */
+.time-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.time-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.time-btn.available {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.time-btn.selected {
+  background-color: var(--primary-color);
+  color: #fff;
+}
+
+.time-btn.disabled {
+  color: var(--text-light-color);
+  cursor: not-allowed;
+  border-color: var(--border-color);
+}
+
+/* 评价表单样式 */
+.evaluation-form {
+  margin-top: 15px;
+}
+
+.star-rating {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 15px;
+  font-size: 24px;
+  color: var(--orange-color);
+}
+
+.star {
+  cursor: pointer;
+}
+
+.evaluation-textarea {
+  width: 100%;
+  height: 120px;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  resize: none;
+  margin-bottom: 15px;
+  font-size: 14px;
+}
+
+/* 响应式适配 */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 60px;
+  }
+
+  .sidebar .menu-item span {
+    display: none;
+  }
+
+  .sidebar .menu-item {
+    justify-content: center;
+    padding: 12px 0;
+  }
+
+  .content {
+    padding: 10px;
+  }
+
+  .course-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .course-actions {
+    align-self: flex-end;
+  }
+
+  .calendar-grid {
+    gap: 4px;
+  }
+
+  .calendar-day {
+    height: 30px;
+    line-height: 30px;
+    font-size: 12px;
+  }
+}

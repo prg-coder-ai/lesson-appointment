@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.language.reservation.mapper.ScheduleMapper"&gt;
+
+    <!-- 通用结果集映射 -->
+    <resultMap id="scheduleResultMap" type="com.language.reservation.entity.Schedule">
+        <result column="schedule_id" property="scheduleId"/>
+        <result column="course_id" property="courseId"/>
+        <result column="start_time" property="startTime"/>
+        <result column="end_time" property="endTime"/>
+        <result column="is_repeat" property="isRepeat"/>
+        <result column="repeat_week" property="repeatWeek"/>
+        <result column="status" property="status"/>
+    </resultMap&gt;
+
+    <!-- 根据排期ID查询排期 -->
+    <select id="selectScheduleById" parameterType="String" resultMap="scheduleResultMap">
+        SELECT * FROM schedule WHERE schedule_id = #{scheduleId}
+    &lt;/select&gt;
+
+    <!-- 校验非重复排期的时间冲突 -->
+    <select id="selectScheduleByTime" resultMap="scheduleResultMap">
+        SELECT * FROM schedule 
+        WHERE course_id = #{courseId}
+        AND (
+            -- 开始时间在已有排期时间段内
+            (start_time BETWEEN #{startTime} AND #{endTime})
+            -- 结束时间在已有排期时间段内
+            OR (end_time BETWEEN #{startTime} AND #{endTime})
+            -- 已有排期时间段包含当前排期
+            OR (start_time <= #{startTime} AND end_time >= #{endTime})
+        )
+    &lt;/select&gt;
+
+    <!-- 根据排期ID查询关联的教师ID -->
+    <select id="selectTeacherIdByScheduleId" parameterType="String" resultType="String">
+        SELECT c.teacher_id 
+        FROM schedule s
+        LEFT JOIN course c ON s.course_id = c.course_id
+        WHERE s.schedule_id = #{scheduleId}
+    </select>
+
+    <!-- 插入课程排期 -->
+    <insert id="insertSchedule" parameterType="com.language.reservation.entity.Schedule">
+        INSERT INTO schedule (
+            schedule_id, course_id, start_time, end_time,
+            is_repeat, repeat_week, status
+        ) VALUES (
+            #{scheduleId}, #{courseId}, #{startTime}, #{endTime},
+            #{isRepeat}, #{repeatWeek}, #{status}
+        )
+    &lt;/insert&gt;
+
+    <!-- 更新课程排期 -->
+    <update id="updateSchedule" parameterType="com.language.reservation.entity.Schedule">
+        UPDATE schedule 
+        <set>
+            <if test="startTime != null and startTime != ''">start_time = #{startTime},</if>
+            <if test="endTime != null and endTime != ''">end_time = #{endTime},</if>
+            <if test="isRepeat != null">is_repeat = #{isRepeat},</if>
+            <if test="repeatWeek != null">repeat_week = #{repeatWeek},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+        </set>
+        WHERE schedule_id = #{scheduleId}
+    </update>
+
+</mapper>
