@@ -1,0 +1,157 @@
+/* 全局样式重置 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Microsoft YaHei", Arial, sans-serif;
+}
+
+/* 根变量 - 公共主题色 */
+:root {
+  --primary-color: #1890ff; /* 基础主题蓝 */
+  --success-color: #52c41a; /* 成功色 */
+  --warning-color: #fa8c16; /* 警告色 */
+  --danger-color: #f5222d; /* 危险色 */
+  --text-primary: #1f2329; /* 主文本色 */
+  --text-secondary: #4e5969; /* 次要文本色 */
+  --text-tertiary: #86909c; /* 辅助文本色 */
+  --border-color: #e5e6eb; /* 边框色 */
+  --bg-color: #f7f8fa; /* 页面背景色 */
+  --card-bg: #ffffff; /* 卡片背景色 */
+  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --transition: all 0.3s ease;
+}
+
+/* 页面主体 */
+body {
+  color: var(--text-primary);
+  background-color: var(--bg-color);
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* 登录容器 */
+.login-container {
+  width: 100%;
+  max-width: 400px;
+  padding: 24px;
+  background-color: var(--card-bg);
+  border-radius: 8px;
+  box-shadow: var(--card-shadow);
+}
+
+/* 登录头部 */
+.login-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.login-header .logo {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  background-color: var(--primary-color);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #fff;
+  font-size: 28px;
+}
+
+.login-header .title {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.login-header .subtitle {
+  font-size: 14px;
+  color: var(--text-tertiary);
+  margin-top: 8px;
+}
+
+/* 表单样式 */
+.form-item {
+  margin-bottom: 16px;
+}
+
+.form-item label {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+}
+
+.form-item input,
+.form-item select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 14px;
+  transition: var(--transition);
+}
+
+.form-item input:focus,
+.form-item select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
+}
+
+/* 按钮样式 */
+.btn {
+  width: 100%;
+  padding: 12px 0;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  border: none;
+  transition: var(--transition);
+  background-color: var(--primary-color);
+  color: #fff;
+  font-weight: 500;
+}
+
+.btn:hover {
+  background-color: #40a9ff;
+}
+
+.btn:disabled {
+  background-color: var(--text-tertiary);
+  cursor: not-allowed;
+}
+
+/* 错误提示 */
+.error-tip {
+  color: var(--danger-color);
+  font-size: 12px;
+  margin-top: 8px;
+  display: none;
+}
+
+/* 响应式适配 */
+@media (max-width: 480px) {
+  .login-container {
+    width: 90%;
+    padding: 16px;
+  }
+}
+
+/* 加载动画 */
+.loading {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255,255,255,.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 1s ease-in-out infinite;
+  margin-right: 8px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

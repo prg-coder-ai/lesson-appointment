@@ -1,0 +1,19 @@
+{
+  "name": "language-teaching-system",
+  "version": "1.0.0",
+  "description": "语言教学预约系统 - 前端",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",          // 开发环境运行（热更新）
+    "build": "vite build",  // 生产环境打包
+    "preview": "vite preview" // 预览打包后的文件
+  },
+  "dependencies": {
+    // 可选：如果需要UI组件/网络请求等可添加
+    "axios": "^1.6.8"       // 网络请求库（对接后端API用）
+  },
+  "devDependencies": {
+    "vite": "^5.2.0",       // Vite核心构建工具
+    "sass": "^1.72.0"       // 可选：支持SCSS（如果需要）
+  }
+}

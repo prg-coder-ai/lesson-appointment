@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.language.reservation.mapper.PayInfoMapper">
+
+    <!-- 通用结果集映射 -->
+    <resultMap id="payInfoResultMap" type="com.language.reservation.entity.PayInfo">
+        <result column="order_id" property="orderId"/>
+        <result column="pay_type" property="payType"/>
+        <result column="pay_params" property="payParams"/>
+        <result column="pay_sign" property="paySign"/>
+    </resultMap>
+
+    <!-- 根据订单ID查询支付信息 -->
+    <!-- 插入支付信息 -->
+    <insert id="insertPayInfo" parameterType="com.language.reservation.entity.PayInfo">
+        INSERT INTO pay_info (
+            id, order_id, pay_type, pay_params, pay_sign, create_time
+        ) VALUES (
+            REPLACE(UUID(), '-', ''), #{orderId}, #{payType}, #{payParams}, #{paySign}, CURRENT_TIMESTAMP()
+        )
+    </insert>
+
+    <!-- 根据订单ID更新支付信息 -->
+   <update id="updatePayInfoByOrderId" parameterType="com.language.reservation.entity.PayInfo">
+        UPDATE pay_info
+        <set>
+           <if test="payParams != null and payParams != ''">pay_params = #{payParams},</if>
+            <if test="paySign != null and paySign != ''">pay_sign = #{paySign},</if>
+        </set>
+        WHERE order_id = #{orderId}
+    </update>
+
+</mapper>
