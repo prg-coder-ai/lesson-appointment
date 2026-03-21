@@ -8,6 +8,19 @@ import java.math.BigDecimal;
 import java.util.Date;
 
 @Data
+public class Booking {
+    private String BookingId;  // 系统生成唯一标识（UUID），对应通用校验规则-ID类参数
+    @NotBlank(message = "排期ID不能为空")
+    private String scheduleId;  // 关联排期，对应设计2.2.3 预约接口请求参数
+    @NotBlank(message = "学生ID不能为空")
+    private String studentId;  // 关联学生，对应权限校验   
+    @NotBlank(message = "订单状态不能为空")
+    private String status;  //'预约状态（1 booked：已预约，2 cancelled：已取消，3 completed：已完成）',
+    private Date createTime;  // 订单创建时间
+    private Date update_time;  // 更新时间' 
+}
+
+@Data
 public class Order {
     private String orderId;  // 系统生成唯一标识（UUID），对应通用校验规则-ID类参数
     @NotBlank(message = "排期ID不能为空")
@@ -22,7 +35,6 @@ public class Order {
     private Date payTime;  // 支付时间
     private String payType;  // 支付方式，枚举值：wechat/alipay/balance（对应设计2.2.3 支付接口）
 }
-
 // 支付信息实体（对应设计2.2.3 支付接口请求参数）
 @Data
 public class PayInfo {
