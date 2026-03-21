@@ -1,14 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd"><mapper namespace="com.language.reservation.mapper.CourseFeedbackMapper"><!-- 通用结果集映射，与CourseFeedback实体字段一一对应 -->
 <resultMap id="feedbackResultMap" type="com.language.reservation.entity.CourseFeedback">
-        <result column="feedback_id" property="feedbackId"/><result column="course_id" property="courseId"/>
+        <result column="feedback_id" property="feedbackId"/>
+        <result column="course_id" property="courseId"/>
         <result column="user_id" property="userId"/>
-        <result column="feedback_type" property="feedbackType"/>
-        <result column="feedback_content" property="feedbackContent"/>
-        <result column="feedback_status" property="feedbackStatus"/>
-        <result column="reply_content" property="replyContent"/>
+     <!--  <result column="feedback_type" property="feedbackType"/> --><!-- 设计2.4 课程反馈功能要求学生和教师都可提交反馈，暂时不区分反馈类型 -->
+        <result column="content" property="Content"/>
         <result column="create_time" property="createTime"/>
-        <result column="update_time" property="updateTime"/>
+         <result column="handle_id" property="handleId"/>
+        <result column="handle_status" property="handleStatus"/>
+        <result column="handle_content" property="handle_Content"/>       
+        <result column="handle_time" property="handleTime"/>
     </resultMap>
 
     <!-- 插入课程反馈（学生/教师提交反馈） -->

@@ -5,23 +5,23 @@
     <!-- 通用结果集映射 -->
     <resultMap id="evaluationResultMap" type="com.language.reservation.entity.CourseEvaluation">
         <result column="evaluation_id" property="evaluationId"/>
-        <result column="order_id" property="orderId"/>
+        <result column="booking_id" property="bookingId"/>
         <result column="student_id" property="studentId"/>
         <result column="teacher_id" property="teacherId"/>
         <result column="course_id" property="courseId"/>
         <result column="score" property="score"/>
-        <result column="content" property="content"/>
+        <result column="comment" property="comment"/>
         <result column="create_time" property="createTime"/>
     </resultMap>
 
     <!-- 新补充：插入课程评价 -->
     <insert id="insertEvaluation" parameterType="com.language.reservation.entity.CourseEvaluation">
         INSERT INTO course_evaluation (
-            evaluation_id, order_id, student_id, teacher_id,
-            course_id, score, content, create_time
+            evaluation_id, booking_id, student_id, teacher_id,
+            course_id, score, comment, create_time
         ) VALUES (
-            #{evaluationId}, #{orderId}, #{studentId}, #{teacherId},
-            #{courseId}, #{score}, #{content}, CURRENT_TIMESTAMP()
+            #{evaluationId}, #{bookingId}, #{studentId}, #{teacherId},
+            #{courseId}, #{score}, #{comment}, CURRENT_TIMESTAMP()
         )
     </insert>
 

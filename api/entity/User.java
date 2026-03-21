@@ -15,7 +15,7 @@ public class User {
 
     // 手机号校验（对应通用校验规则-手机号）
     @NotBlank(message = "手机号不能为空")
-    @Pattern(regexp = "^1[3456789]\\d{9}$", message = "手机号格式错误")
+  //  @Pattern(regexp = "^1[3456789]\\d{9}$", message = "手机号格式错误")
     private String phone;
 
     // 邮箱校验（对应通用校验规则-邮箱）
@@ -29,7 +29,7 @@ public class User {
     @Pattern(regexp = "^(?=.*[a-zA-Z])(?=.*\\d).{8,20}$", message = "密码需包含字母和数字")
     private String password;
 
-    // 角色（student/teacher/admin），对应设计2.2.1 登录接口返回角色信息
+    // 角色（student/teacher/admin），对应设计2.2.1 登录接口返回角色信息,1 student：学生，2teacher：教师，3admin：管理员）'
     private String role;
 
     // 学生专属参数（对应设计2.2.1 学生注册接口）
