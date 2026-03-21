@@ -31,7 +31,7 @@
       background: #f5f5f5;
     }
 
-    /* 头部样式 */
+    /* 头部样式 - 新增退出按钮适配 */
     .header {
       height: 60px;
       background: #fff;
@@ -62,6 +62,13 @@
       color: #333;
     }
 
+    /* 优化用户信息区域，添加退出按钮容器 */
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
     .user-info {
       display: flex;
       align-items: center;
@@ -78,6 +85,27 @@
       align-items: center;
       justify-content: center;
       font-size: 14px;
+    }
+
+    .user-name {
+      font-size: 14px;
+      color: #333;
+    }
+
+    /* 退出按钮样式 */
+    .logout-btn {
+      padding: 6px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: #f8f9fa;
+      color: #333;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .logout-btn:hover {
+      background: #e9ecef;
     }
 
     /* 核心布局样式 */
@@ -362,15 +390,19 @@
   </style>
 </head>
 <body>
-  <!-- 头部区域 -->
+  <!-- 头部区域 - 新增退出按钮 -->
   <header class="header">
     <div class="logo">
       <img src="https://via.placeholder.com/40x40/1890ff/ffffff?text=学" alt="学生端logo">
       <span class="logo-text">语言教学预约系统（学生端）</span>
     </div>
-    <div class="user-info">
-      <span style="font-size: 14px;">张三</span>
-      <div class="avatar">张</div>
+    <!-- 重构用户信息区域，添加退出按钮 -->
+    <div class="header-actions">
+      <div class="user-info">
+        <span class="user-name">张三</span>
+        <div class="avatar">张</div>
+      </div>
+      <button class="logout-btn" onclick="logout()"><i class="fa fa-sign-out-alt"></i> 退出登录</button>
     </div>
   </header>
 
@@ -378,23 +410,23 @@
   <div class="layout-container">
     <!-- 侧边栏 -->
     <aside class="sidebar">
-      <div class="menu-item">
+      <div class="menu-item" data-menu="首页">
         <i class="fa fa-home"></i>
         <span>首页</span>
       </div>
-      <div class="menu-item active">
+      <div class="menu-item active" data-menu="课程预约">
         <i class="fa fa-calendar-plus-o"></i>
         <span>课程预约</span>
       </div>
-      <div class="menu-item">
+      <div class="menu-item" data-menu="我的预约">
         <i class="fa fa-list-alt"></i>
         <span>我的预约</span>
       </div>
-      <div class="menu-item">
+      <div class="menu-item" data-menu="课程评价">
         <i class="fa fa-star-half-o"></i>
         <span>课程评价</span>
       </div>
-      <div class="menu-item">
+      <div class="menu-item" data-menu="个人中心">
         <i class="fa fa-user"></i>
         <span>个人中心</span>
       </div>
@@ -408,99 +440,8 @@
       </div>
       
       <!-- 中心内容区域 -->
-      <div class="dynamic-content-center">
-        <!-- 课程列表卡片（预约入口） -->
-        <div class="card" id="course-list-card">
-          <h3><i class="fa fa-book"></i> 可预约课程</h3>
-          <div id="course-list">
-            <div class="course-card">
-              <div class="course-info">
-                <h4>英语初级口语 - 小班课</h4>
-                <p>授课教师：李老师 | 难度：初级 | 课时：45分钟 | 价格：80元/节</p>
-                <p>剩余可预约名额：5/10</p>
-              </div>
-              <div class="course-actions">
-                <button class="btn btn-primary" onclick="showReservationModal('英语初级口语 - 小班课', '李老师')">立即预约</button>
-              </div>
-            </div>
-            <div class="course-card">
-              <div class="course-info">
-                <h4>英语进阶写作</h4>
-                <p>授课教师：李老师 | 难度：进阶 | 课时：60分钟 | 价格：100元/节</p>
-                <p>剩余可预约名额：3/8</p>
-              </div>
-              <div class="course-actions">
-                <button class="btn btn-primary" onclick="showReservationModal('英语进阶写作', '李老师')">立即预约</button>
-              </div>
-            </div>
-            <div class="course-card">
-              <div class="course-info">
-                <h4>日语入门</h4>
-                <p>授课教师：王老师 | 难度：入门 | 课时：45分钟 | 价格：70元/节</p>
-                <p>剩余可预约名额：8/12</p>
-              </div>
-              <div class="course-actions">
-                <button class="btn btn-primary" onclick="showReservationModal('日语入门', '王老师')">立即预约</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 我的预约卡片 -->
-        <div class="card" id="my-reservation-card">
-          <h3><i class="fa fa-calendar-check-o"></i> 我的近期预约</h3>
-          <div id="my-reservations">
-            <div class="course-card">
-              <div class="course-info">
-                <h4>英语初级口语 - 小班课</h4>
-                <p>授课教师：李老师 | 预约时间：2026-03-20 14:00 | 状态：待确认</p>
-              </div>
-              <div class="course-actions">
-                <button class="btn btn-gray" onclick="cancelReservation(this)">取消预约</button>
-                <button class="btn btn-gray" onclick="viewMyReservationDetail(this)">查看详情</button>
-              </div>
-            </div>
-            <div class="course-card">
-              <div class="course-info">
-                <h4>英语进阶写作</h4>
-                <p>授课教师：李老师 | 预约时间：2026-03-20 16:00 | 状态：已确认</p>
-              </div>
-              <div class="course-actions">
-                <button class="btn btn-gray" onclick="evaluateCourse(this)">评价课程</button>
-                <button class="btn btn-gray" onclick="viewMyReservationDetail(this)">查看详情</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 评价列表卡片（默认隐藏，切换菜单显示） -->
-        <div class="card" id="evaluation-card" style="display: none;">
-          <h3><i class="fa fa-star-half-o"></i> 我的课程评价</h3>
-          <div id="my-evaluations">
-            <div class="course-card">
-              <div class="course-info">
-                <h4>英语初级口语 - 一对一</h4>
-                <p>授课教师：李老师 | 上课时间：2026-03-15 10:00</p>
-                <p>评分：★★★★★ | 评价时间：2026-03-15 11:00</p>
-                <p style="margin-top: 5px;">评价内容：李老师讲课非常细致，口语发音纠正很到位，收获很大！</p>
-              </div>
-              <div class="course-actions">
-                <button class="btn btn-gray" onclick="editEvaluation(this)">编辑评价</button>
-              </div>
-            </div>
-            <div class="course-card">
-              <div class="course-info">
-                <h4>日语入门</h4>
-                <p>授课教师：王老师 | 上课时间：2026-03-10 09:00</p>
-                <p>评分：★★★★☆ | 评价时间：2026-03-10 10:00</p>
-                <p style="margin-top: 5px;">评价内容：王老师的日语入门课很易懂，语法讲解清晰，推荐！</p>
-              </div>
-              <div class="course-actions">
-                <button class="btn btn-gray" onclick="editEvaluation(this)">编辑评价</button>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div class="dynamic-content-center" id="dynamic-content-center">
+        <!-- 初始内容由JS加载 -->
       </div>
     </div>
   </div>
@@ -581,86 +522,240 @@
     </div>
   </div>
 
-  <!-- JavaScript交互逻辑 -->
+  <!-- JavaScript交互逻辑 - 重构菜单响应 -->
   <script>
-    // 侧边栏菜单切换逻辑
+    // 核心变量定义
     const menuItems = document.querySelectorAll('.menu-item');
     const pageTitle = document.querySelector('.page-title');
-    const courseListCard = document.querySelector('#course-list-card');
-    const myReservationCard = document.querySelector('#my-reservation-card');
-    const evaluationCard = document.querySelector('#evaluation-card');
-    const dynamicContentCenter = document.querySelector('.dynamic-content-center');
+    const dynamicContentCenter = document.getElementById('dynamic-content-center');
     
+    // 初始化页面（加载默认内容）
+    window.onload = function() {
+      console.log('学生端页面加载完成');
+      loadPageContent('课程预约'); // 默认加载课程预约页面
+      updateStarRating(); // 初始化评分显示
+    };
+
+    // 1. 重构菜单点击响应逻辑（核心修复）
     menuItems.forEach(item => {
       item.addEventListener('click', function() {
         // 移除所有激活状态
         menuItems.forEach(menu => menu.classList.remove('active'));
         // 为当前点击项添加激活状态
         this.classList.add('active');
+        // 获取菜单名称（通过data属性，更稳定）
+        const menuName = this.getAttribute('data-menu');
         // 更新页面标题
-        const titleText = this.querySelector('span').textContent;
-        pageTitle.textContent = titleText;
-        
-        // 根据菜单切换显示内容
-        switch(titleText) {
-          case '课程预约':
-            courseListCard.style.display = 'block';
-            myReservationCard.style.display = 'block';
-            evaluationCard.style.display = 'none';
-            break;
-          case '我的预约':
-            courseListCard.style.display = 'none';
-            myReservationCard.style.display = 'block';
-            evaluationCard.style.display = 'none';
-            break;
-          case '课程评价':
-            courseListCard.style.display = 'none';
-            myReservationCard.style.display = 'none';
-            evaluationCard.style.display = 'block';
-            break;
-          case '首页':
-            courseListCard.style.display = 'block';
-            myReservationCard.style.display = 'block';
-            evaluationCard.style.display = 'none';
-            break;
-          case '个人中心':
-            courseListCard.style.display = 'none';
-            myReservationCard.style.display = 'none';
-            evaluationCard.style.display = 'none';
-            // 清空中心内容并添加个人中心内容
-            dynamicContentCenter.innerHTML = `
-              <div class="card">
-                <h3>个人信息</h3>
-                <div style="margin-top: 15px; display: flex; gap: 20px;">
-                  <div style="width: 80px; height: 80px; border-radius: 50%; background-color: var(--primary-color); color: #fff; text-align: center; line-height: 80px; font-size: 32px;">张</div>
-                  <div style="flex: 1;">
-                    <div style="margin-bottom: 10px;">
-                      <span style="color: var(--text-light-color); width: 80px; display: inline-block;">姓名：</span>
-                      <span>张三</span>
-                    </div>
-                    <div style="margin-bottom: 10px;">
-                      <span style="color: var(--text-light-color); width: 80px; display: inline-block;">学号：</span>
-                      <span>2026001</span>
-                    </div>
-                    <div style="margin-bottom: 10px;">
-                      <span style="color: var(--text-light-color); width: 80px; display: inline-block;">电话：</span>
-                      <span>13800138000</span>
-                    </div>
-                    <div style="margin-bottom: 10px;">
-                      <span style="color: var(--text-light-color); width: 80px; display: inline-block;">已预约课程：</span>
-                      <span>8节</span>
-                    </div>
-                    <button class="btn btn-primary" style="margin-top: 10px;">编辑信息</button>
-                  </div>
-                </div>
-              </div>
-            `;
-            break;
-        }
+        pageTitle.textContent = menuName;
+        // 加载对应页面内容
+        loadPageContent(menuName);
       });
     });
 
-    // 预约弹窗相关函数
+    // 2. 页面内容加载函数（统一管理所有菜单内容）
+    function loadPageContent(menuName) {
+      // 清空原有内容
+      dynamicContentCenter.innerHTML = '';
+      
+      // 根据菜单名称加载对应内容
+      switch(menuName) {
+        case '首页':
+        case '课程预约':
+          dynamicContentCenter.innerHTML = `
+            <!-- 课程列表卡片（预约入口） -->
+            <div class="card" id="course-list-card">
+              <h3><i class="fa fa-book"></i> 可预约课程</h3>
+              <div id="course-list">
+                <div class="course-card">
+                  <div class="course-info">
+                    <h4>英语初级口语 - 小班课</h4>
+                    <p>授课教师：李老师 | 难度：初级 | 课时：45分钟 | 价格：80元/节</p>
+                    <p>剩余可预约名额：5/10</p>
+                  </div>
+                  <div class="course-actions">
+                    <button class="btn btn-primary" onclick="showReservationModal('英语初级口语 - 小班课', '李老师')">立即预约</button>
+                  </div>
+                </div>
+                <div class="course-card">
+                  <div class="course-info">
+                    <h4>英语进阶写作</h4>
+                    <p>授课教师：李老师 | 难度：进阶 | 课时：60分钟 | 价格：100元/节</p>
+                    <p>剩余可预约名额：3/8</p>
+                  </div>
+                  <div class="course-actions">
+                    <button class="btn btn-primary" onclick="showReservationModal('英语进阶写作', '李老师')">立即预约</button>
+                  </div>
+                </div>
+                <div class="course-card">
+                  <div class="course-info">
+                    <h4>日语入门</h4>
+                    <p>授课教师：王老师 | 难度：入门 | 课时：45分钟 | 价格：70元/节</p>
+                    <p>剩余可预约名额：8/12</p>
+                  </div>
+                  <div class="course-actions">
+                    <button class="btn btn-primary" onclick="showReservationModal('日语入门', '王老师')">立即预约</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- 我的预约卡片 -->
+            <div class="card" id="my-reservation-card">
+              <h3><i class="fa fa-calendar-check-o"></i> 我的近期预约</h3>
+              <div id="my-reservations">
+                <div class="course-card">
+                  <div class="course-info">
+                    <h4>英语初级口语 - 小班课</h4>
+                    <p>授课教师：李老师 | 预约时间：2026-03-20 14:00 | 状态：待确认</p>
+                  </div>
+                  <div class="course-actions">
+                    <button class="btn btn-gray" onclick="cancelReservation(this)">取消预约</button>
+                    <button class="btn btn-gray" onclick="viewMyReservationDetail(this)">查看详情</button>
+                  </div>
+                </div>
+                <div class="course-card">
+                  <div class="course-info">
+                    <h4>英语进阶写作</h4>
+                    <p>授课教师：李老师 | 预约时间：2026-03-20 16:00 | 状态：已确认</p>
+                  </div>
+                  <div class="course-actions">
+                    <button class="btn btn-gray" onclick="evaluateCourse(this)">评价课程</button>
+                    <button class="btn btn-gray" onclick="viewMyReservationDetail(this)">查看详情</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+          break;
+          
+        case '我的预约':
+          dynamicContentCenter.innerHTML = `
+            <div class="card">
+              <h3><i class="fa fa-calendar-check-o"></i> 我的全部预约</h3>
+              <div id="my-reservations">
+                <div class="course-card">
+                  <div class="course-info">
+                    <h4>英语初级口语 - 小班课</h4>
+                    <p>授课教师：李老师 | 预约时间：2026-03-20 14:00 | 状态：待确认</p>
+                  </div>
+                  <div class="course-actions">
+                    <button class="btn btn-gray" onclick="cancelReservation(this)">取消预约</button>
+                    <button class="btn btn-gray" onclick="viewMyReservationDetail(this)">查看详情</button>
+                  </div>
+                </div>
+                <div class="course-card">
+                  <div class="course-info">
+                    <h4>英语进阶写作</h4>
+                    <p>授课教师：李老师 | 预约时间：2026-03-20 16:00 | 状态：已确认</p>
+                  </div>
+                  <div class="course-actions">
+                    <button class="btn btn-gray" onclick="evaluateCourse(this)">评价课程</button>
+                    <button class="btn btn-gray" onclick="viewMyReservationDetail(this)">查看详情</button>
+                  </div>
+                </div>
+                <div class="course-card">
+                  <div class="course-info">
+                    <h4>日语入门</h4>
+                    <p>授课教师：王老师 | 预约时间：2026-03-18 09:00 | 状态：已取消</p>
+                  </div>
+                  <div class="course-actions">
+                    <button class="btn btn-gray" disabled>已取消</button>
+                    <button class="btn btn-gray" onclick="viewMyReservationDetail(this)">查看详情</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+          break;
+          
+        case '课程评价':
+          dynamicContentCenter.innerHTML = `
+            <div class="card" id="evaluation-card">
+              <h3><i class="fa fa-star-half-o"></i> 我的课程评价</h3>
+              <div id="my-evaluations">
+                <div class="course-card">
+                  <div class="course-info">
+                    <h4>英语初级口语 - 一对一</h4>
+                    <p>授课教师：李老师 | 上课时间：2026-03-15 10:00</p>
+                    <p>评分：★★★★★ | 评价时间：2026-03-15 11:00</p>
+                    <p style="margin-top: 5px;">评价内容：李老师讲课非常细致，口语发音纠正很到位，收获很大！</p>
+                  </div>
+                  <div class="course-actions">
+                    <button class="btn btn-gray" onclick="editEvaluation(this)">编辑评价</button>
+                  </div>
+                </div>
+                <div class="course-card">
+                  <div class="course-info">
+                    <h4>日语入门</h4>
+                    <p>授课教师：王老师 | 上课时间：2026-03-10 09:00</p>
+                    <p>评分：★★★★☆ | 评价时间：2026-03-10 10:00</p>
+                    <p style="margin-top: 5px;">评价内容：王老师的日语入门课很易懂，语法讲解清晰，推荐！</p>
+                  </div>
+                  <div class="course-actions">
+                    <button class="btn btn-gray" onclick="editEvaluation(this)">编辑评价</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+          break;
+          
+        case '个人中心':
+          dynamicContentCenter.innerHTML = `
+            <div class="card">
+              <h3>个人信息</h3>
+              <div style="margin-top: 15px; display: flex; gap: 20px;">
+                <div style="width: 80px; height: 80px; border-radius: 50%; background-color: var(--primary-color); color: #fff; text-align: center; line-height: 80px; font-size: 32px;">张</div>
+                <div style="flex: 1;">
+                  <div style="margin-bottom: 10px;">
+                    <span style="color: var(--text-light-color); width: 80px; display: inline-block;">姓名：</span>
+                    <span>张三</span>
+                  </div>
+                  <div style="margin-bottom: 10px;">
+                    <span style="color: var(--text-light-color); width: 80px; display: inline-block;">学号：</span>
+                    <span>2026001</span>
+                  </div>
+                  <div style="margin-bottom: 10px;">
+                    <span style="color: var(--text-light-color); width: 80px; display: inline-block;">电话：</span>
+                    <span>13800138000</span>
+                  </div>
+                  <div style="margin-bottom: 10px;">
+                    <span style="color: var(--text-light-color); width: 80px; display: inline-block;">已预约课程：</span>
+                    <span>8节</span>
+                  </div>
+                  <button class="btn btn-primary" style="margin-top: 10px;">编辑信息</button>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <h3>账号设置</h3>
+              <div style="margin-top: 15px; padding: 0 20px 20px;">
+                <div style="margin-bottom: 15px;">
+                  <button class="btn btn-gray" style="width: 100%; text-align: left; padding: 10px 15px;">
+                    <i class="fa fa-lock"></i> 修改密码
+                  </button>
+                </div>
+                <div>
+                  <button class="btn btn-gray" style="width: 100%; text-align: left; padding: 10px 15px;">
+                    <i class="fa fa-bell"></i> 消息通知设置
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+          break;
+      }
+    }
+
+    // 3. 新增退出登录函数
+    function logout() {
+      if (confirm('确定要退出登录吗？')) {
+        alert('退出登录成功！即将返回登录页面');
+        // 实际项目中可添加跳转登录页的逻辑
+        // window.location.href = 'login.html';
+      }
+    }
+
+    // 预约弹窗相关函数（保留原有功能）
     function showReservationModal(courseName, teacherName) {
       document.getElementById('reservation-modal').style.display = 'flex';
       document.getElementById('modal-course-title').textContent = `预约：${courseName}`;
@@ -711,7 +806,7 @@
       // 可在此处调用API提交预约数据
     }
 
-    // 评价弹窗相关函数
+    // 评价弹窗相关函数（保留原有功能）
     let selectedStarCount = 5; // 默认5星
     function evaluateCourse(el) {
       document.getElementById('evaluation-modal').style.display = 'flex';
@@ -756,7 +851,7 @@
       // 可在此处调用API提交评价数据
     }
 
-    // 我的预约相关函数
+    // 我的预约相关函数（保留原有功能）
     function cancelReservation(el) {
       if (confirm('确定要取消该预约吗？取消后将无法恢复！')) {
         const courseCard = el.closest('.course-card');
@@ -779,16 +874,6 @@
     function editEvaluation(el) {
       evaluateCourse(el); // 复用评价弹窗
     }
-
-    // 页面初始化
-    window.onload = function() {
-      console.log('学生端页面加载完成');
-      updateStarRating(); // 初始化评分显示
-      // 可在此处调用API加载课程、预约、评价数据
-      // fetch('/api/student/courses').then(res => res.json()).then(data => {
-      //   // 渲染课程列表
-      // });
-    };
   </script>
 </body>
 </html>
