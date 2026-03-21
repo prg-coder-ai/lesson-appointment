@@ -4,10 +4,362 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>语言教学预约系统 - 学生端</title>
-  <!-- 引入学生端全局样式 -->
-  <link rel="stylesheet" href="student-global.css">
   <!-- 引入图标库 -->
   <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* 全局样式重置与基础设置 */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --primary-color: #722ed1;
+      --success-color: #52c41a;
+      --warning-color: #faad14;
+      --danger-color: #f5222d;
+      --border-color: #e9ecef;
+      --text-color: #333;
+      --text-light-color: #999;
+      --orange-color: #fa8c16;
+    }
+
+    body {
+      font-family: "Microsoft Yahei", sans-serif;
+      color: var(--text-color);
+      background: #f5f5f5;
+    }
+
+    /* 头部样式 */
+    .header {
+      height: 60px;
+      background: #fff;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 20px;
+      position: relative;
+      z-index: 10;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+    }
+
+    .logo-text {
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .avatar {
+      width: 36px;
+      height: 36px;
+      background: var(--primary-color);
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    /* 核心布局样式 */
+    .layout-container {
+      display: flex;
+      height: calc(100vh - 60px);
+      overflow: hidden;
+    }
+
+    .sidebar {
+      width: 220px;
+      background: #f8f9fa;
+      border-right: 1px solid var(--border-color);
+      height: 100%;
+      flex-shrink: 0;
+    }
+
+    /* 侧边栏菜单样式 */
+    .menu-item {
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      color: #333;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .menu-item:hover {
+      background: #e9ecef;
+    }
+
+    .menu-item.active {
+      background: var(--primary-color);
+      color: #fff;
+    }
+
+    /* 内容区域样式 */
+    .content-wrapper {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+
+    .content-header {
+      margin-bottom: 20px;
+    }
+
+    .page-title {
+      margin: 0;
+      font-size: 24px;
+      color: #333;
+    }
+
+    /* 中心内容容器 */
+    .dynamic-content-center {
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      flex: 1;
+    }
+
+    /* 卡片样式 */
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+      overflow: hidden;
+      padding: 20px;
+    }
+
+    .card h3 {
+      margin-bottom: 15px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    /* 课程卡片样式 */
+    .course-card {
+      padding: 15px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .course-card:last-child {
+      border-bottom: none;
+    }
+
+    .course-info h4 {
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+
+    .course-info p {
+      font-size: 12px;
+      color: #666;
+      line-height: 1.5;
+    }
+
+    .course-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    /* 按钮样式 */
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      opacity: 0.9;
+    }
+
+    .btn-primary {
+      background: var(--primary-color);
+      color: #fff;
+    }
+
+    .btn-gray {
+      background: #f8f9fa;
+      color: #333;
+      border: 1px solid var(--border-color);
+    }
+
+    /* 日历和时间选择样式 */
+    .calendar-container {
+      margin: 15px 0;
+    }
+
+    .calendar-header {
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px;
+      margin-bottom: 15px;
+    }
+
+    .calendar-day {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .calendar-day.available {
+      background: #f8f9fa;
+    }
+
+    .calendar-day.available:hover {
+      background: #e9ecef;
+    }
+
+    .calendar-day.disabled {
+      color: #ccc;
+      cursor: not-allowed;
+    }
+
+    .calendar-day.selected {
+      background: var(--primary-color);
+      color: #fff;
+    }
+
+    .time-selector {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .time-btn {
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      border: 1px solid var(--border-color);
+    }
+
+    .time-btn.available {
+      background: #f8f9fa;
+    }
+
+    .time-btn.available:hover {
+      background: #e9ecef;
+    }
+
+    .time-btn.disabled {
+      color: #ccc;
+      cursor: not-allowed;
+      background: #fafafa;
+    }
+
+    .time-btn.selected {
+      background: var(--primary-color);
+      color: #fff;
+      border-color: var(--primary-color);
+    }
+
+    /* 评价相关样式 */
+    .star-rating {
+      font-size: 24px;
+      margin-bottom: 15px;
+    }
+
+    .star-rating .star {
+      cursor: pointer;
+      color: #ccc;
+    }
+
+    .star-rating .star.active {
+      color: var(--orange-color);
+    }
+
+    .evaluation-textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      resize: vertical;
+      min-height: 100px;
+      margin-bottom: 15px;
+    }
+
+    /* 弹窗样式 */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 999;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      background: #fff;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 500px;
+      padding: 20px;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .modal-header h3 {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .modal-close {
+      cursor: pointer;
+      font-size: 20px;
+    }
+  </style>
 </head>
 <body>
   <!-- 头部区域 -->
@@ -17,7 +369,7 @@
       <span class="logo-text">语言教学预约系统（学生端）</span>
     </div>
     <div class="user-info">
-      <span>张三</span>
+      <span style="font-size: 14px;">张三</span>
       <div class="avatar">张</div>
     </div>
   </header>
@@ -48,111 +400,117 @@
       </div>
     </aside>
 
-    <!-- 主内容区域 -->
-    <main class="content">
-      <h1 class="page-title">课程预约</h1>
+    <!-- 主内容包装器 -->
+    <div class="content-wrapper">
+      <!-- 内容头部 -->
+      <div class="content-header">
+        <h1 class="page-title">课程预约</h1>
+      </div>
       
-      <!-- 课程列表卡片（预约入口） -->
-      <div class="card">
-        <h3><i class="fa fa-book"></i> 可预约课程</h3>
-        <div id="course-list">
-          <div class="course-card">
-            <div class="course-info">
-              <h4>英语初级口语 - 小班课</h4>
-              <p>授课教师：李老师 | 难度：初级 | 课时：45分钟 | 价格：80元/节</p>
-              <p>剩余可预约名额：5/10</p>
+      <!-- 中心内容区域 -->
+      <div class="dynamic-content-center">
+        <!-- 课程列表卡片（预约入口） -->
+        <div class="card" id="course-list-card">
+          <h3><i class="fa fa-book"></i> 可预约课程</h3>
+          <div id="course-list">
+            <div class="course-card">
+              <div class="course-info">
+                <h4>英语初级口语 - 小班课</h4>
+                <p>授课教师：李老师 | 难度：初级 | 课时：45分钟 | 价格：80元/节</p>
+                <p>剩余可预约名额：5/10</p>
+              </div>
+              <div class="course-actions">
+                <button class="btn btn-primary" onclick="showReservationModal('英语初级口语 - 小班课', '李老师')">立即预约</button>
+              </div>
             </div>
-            <div class="course-actions">
-              <button class="btn btn-primary" onclick="showReservationModal('英语初级口语 - 小班课', '李老师')">立即预约</button>
+            <div class="course-card">
+              <div class="course-info">
+                <h4>英语进阶写作</h4>
+                <p>授课教师：李老师 | 难度：进阶 | 课时：60分钟 | 价格：100元/节</p>
+                <p>剩余可预约名额：3/8</p>
+              </div>
+              <div class="course-actions">
+                <button class="btn btn-primary" onclick="showReservationModal('英语进阶写作', '李老师')">立即预约</button>
+              </div>
             </div>
-          </div>
-          <div class="course-card">
-            <div class="course-info">
-              <h4>英语进阶写作</h4>
-              <p>授课教师：李老师 | 难度：进阶 | 课时：60分钟 | 价格：100元/节</p>
-              <p>剩余可预约名额：3/8</p>
-            </div>
-            <div class="course-actions">
-              <button class="btn btn-primary" onclick="showReservationModal('英语进阶写作', '李老师')">立即预约</button>
-            </div>
-          </div>
-          <div class="course-card">
-            <div class="course-info">
-              <h4>日语入门</h4>
-              <p>授课教师：王老师 | 难度：入门 | 课时：45分钟 | 价格：70元/节</p>
-              <p>剩余可预约名额：8/12</p>
-            </div>
-            <div class="course-actions">
-              <button class="btn btn-primary" onclick="showReservationModal('日语入门', '王老师')">立即预约</button>
+            <div class="course-card">
+              <div class="course-info">
+                <h4>日语入门</h4>
+                <p>授课教师：王老师 | 难度：入门 | 课时：45分钟 | 价格：70元/节</p>
+                <p>剩余可预约名额：8/12</p>
+              </div>
+              <div class="course-actions">
+                <button class="btn btn-primary" onclick="showReservationModal('日语入门', '王老师')">立即预约</button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- 我的预约卡片 -->
-      <div class="card" id="my-reservation-card">
-        <h3><i class="fa fa-calendar-check-o"></i> 我的近期预约</h3>
-        <div id="my-reservations">
-          <div class="course-card">
-            <div class="course-info">
-              <h4>英语初级口语 - 小班课</h4>
-              <p>授课教师：李老师 | 预约时间：2026-03-20 14:00 | 状态：待确认</p>
+        <!-- 我的预约卡片 -->
+        <div class="card" id="my-reservation-card">
+          <h3><i class="fa fa-calendar-check-o"></i> 我的近期预约</h3>
+          <div id="my-reservations">
+            <div class="course-card">
+              <div class="course-info">
+                <h4>英语初级口语 - 小班课</h4>
+                <p>授课教师：李老师 | 预约时间：2026-03-20 14:00 | 状态：待确认</p>
+              </div>
+              <div class="course-actions">
+                <button class="btn btn-gray" onclick="cancelReservation(this)">取消预约</button>
+                <button class="btn btn-gray" onclick="viewMyReservationDetail(this)">查看详情</button>
+              </div>
             </div>
-            <div class="course-actions">
-              <button class="btn btn-gray" onclick="cancelReservation(this)">取消预约</button>
-              <button class="btn btn-gray" onclick="viewMyReservationDetail(this)">查看详情</button>
-            </div>
-          </div>
-          <div class="course-card">
-            <div class="course-info">
-              <h4>英语进阶写作</h4>
-              <p>授课教师：李老师 | 预约时间：2026-03-20 16:00 | 状态：已确认</p>
-            </div>
-            <div class="course-actions">
-              <button class="btn btn-gray" onclick="evaluateCourse(this)">评价课程</button>
-              <button class="btn btn-gray" onclick="viewMyReservationDetail(this)">查看详情</button>
+            <div class="course-card">
+              <div class="course-info">
+                <h4>英语进阶写作</h4>
+                <p>授课教师：李老师 | 预约时间：2026-03-20 16:00 | 状态：已确认</p>
+              </div>
+              <div class="course-actions">
+                <button class="btn btn-gray" onclick="evaluateCourse(this)">评价课程</button>
+                <button class="btn btn-gray" onclick="viewMyReservationDetail(this)">查看详情</button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- 评价列表卡片（默认隐藏，切换菜单显示） -->
-      <div class="card" id="evaluation-card" style="display: none;">
-        <h3><i class="fa fa-star-half-o"></i> 我的课程评价</h3>
-        <div id="my-evaluations">
-          <div class="course-card">
-            <div class="course-info">
-              <h4>英语初级口语 - 一对一</h4>
-              <p>授课教师：李老师 | 上课时间：2026-03-15 10:00</p>
-              <p>评分：★★★★★ | 评价时间：2026-03-15 11:00</p>
-              <p style="margin-top: 5px;">评价内容：李老师讲课非常细致，口语发音纠正很到位，收获很大！</p>
+        <!-- 评价列表卡片（默认隐藏，切换菜单显示） -->
+        <div class="card" id="evaluation-card" style="display: none;">
+          <h3><i class="fa fa-star-half-o"></i> 我的课程评价</h3>
+          <div id="my-evaluations">
+            <div class="course-card">
+              <div class="course-info">
+                <h4>英语初级口语 - 一对一</h4>
+                <p>授课教师：李老师 | 上课时间：2026-03-15 10:00</p>
+                <p>评分：★★★★★ | 评价时间：2026-03-15 11:00</p>
+                <p style="margin-top: 5px;">评价内容：李老师讲课非常细致，口语发音纠正很到位，收获很大！</p>
+              </div>
+              <div class="course-actions">
+                <button class="btn btn-gray" onclick="editEvaluation(this)">编辑评价</button>
+              </div>
             </div>
-            <div class="course-actions">
-              <button class="btn btn-gray" onclick="editEvaluation(this)">编辑评价</button>
-            </div>
-          </div>
-          <div class="course-card">
-            <div class="course-info">
-              <h4>日语入门</h4>
-              <p>授课教师：王老师 | 上课时间：2026-03-10 09:00</p>
-              <p>评分：★★★★☆ | 评价时间：2026-03-10 10:00</p>
-              <p style="margin-top: 5px;">评价内容：王老师的日语入门课很易懂，语法讲解清晰，推荐！</p>
-            </div>
-            <div class="course-actions">
-              <button class="btn btn-gray" onclick="editEvaluation(this)">编辑评价</button>
+            <div class="course-card">
+              <div class="course-info">
+                <h4>日语入门</h4>
+                <p>授课教师：王老师 | 上课时间：2026-03-10 09:00</p>
+                <p>评分：★★★★☆ | 评价时间：2026-03-10 10:00</p>
+                <p style="margin-top: 5px;">评价内容：王老师的日语入门课很易懂，语法讲解清晰，推荐！</p>
+              </div>
+              <div class="course-actions">
+                <button class="btn btn-gray" onclick="editEvaluation(this)">编辑评价</button>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </main>
+    </div>
   </div>
 
   <!-- 预约弹窗（默认隐藏） -->
-  <div id="reservation-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; justify-content: center; align-items: center;">
-    <div style="background: #fff; border-radius: 8px; width: 90%; max-width: 500px; padding: 20px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-        <h3 style="font-size: 18px; font-weight: 600;" id="modal-course-title">预约：英语初级口语 - 小班课</h3>
-        <span style="cursor: pointer; font-size: 20px;" onclick="closeReservationModal()">×</span>
+  <div id="reservation-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-course-title">预约：英语初级口语 - 小班课</h3>
+        <span class="modal-close" onclick="closeReservationModal()">×</span>
       </div>
       <div style="margin-bottom: 15px;">
         <p style="margin-bottom: 10px; font-size: 14px;"><strong>授课教师：</strong><span id="modal-teacher-name">李老师</span></p>
@@ -195,21 +553,21 @@
   </div>
 
   <!-- 评价弹窗（默认隐藏） -->
-  <div id="evaluation-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; justify-content: center; align-items: center;">
-    <div style="background: #fff; border-radius: 8px; width: 90%; max-width: 500px; padding: 20px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-        <h3 style="font-size: 18px; font-weight: 600;">评价课程</h3>
-        <span style="cursor: pointer; font-size: 20px;" onclick="closeEvaluationModal()">×</span>
+  <div id="evaluation-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>评价课程</h3>
+        <span class="modal-close" onclick="closeEvaluationModal()">×</span>
       </div>
       
       <div class="evaluation-form">
         <p style="margin-bottom: 10px; font-size: 14px;">请为课程评分：</p>
         <div class="star-rating" id="star-rating">
-          <span class="star" onclick="selectStar(1)">★</span>
-          <span class="star" onclick="selectStar(2)">★</span>
-          <span class="star" onclick="selectStar(3)">★</span>
-          <span class="star" onclick="selectStar(4)">★</span>
-          <span class="star" onclick="selectStar(5)">★</span>
+          <span class="star active" onclick="selectStar(1)">★</span>
+          <span class="star active" onclick="selectStar(2)">★</span>
+          <span class="star active" onclick="selectStar(3)">★</span>
+          <span class="star active" onclick="selectStar(4)">★</span>
+          <span class="star active" onclick="selectStar(5)">★</span>
         </div>
         
         <p style="margin-bottom: 10px; font-size: 14px;">评价内容：</p>
@@ -228,9 +586,10 @@
     // 侧边栏菜单切换逻辑
     const menuItems = document.querySelectorAll('.menu-item');
     const pageTitle = document.querySelector('.page-title');
-    const courseListCard = document.querySelector('#course-list').closest('.card');
+    const courseListCard = document.querySelector('#course-list-card');
     const myReservationCard = document.querySelector('#my-reservation-card');
     const evaluationCard = document.querySelector('#evaluation-card');
+    const dynamicContentCenter = document.querySelector('.dynamic-content-center');
     
     menuItems.forEach(item => {
       item.addEventListener('click', function() {
@@ -268,8 +627,8 @@
             courseListCard.style.display = 'none';
             myReservationCard.style.display = 'none';
             evaluationCard.style.display = 'none';
-            pageTitle.textContent = '个人中心';
-            document.querySelector('.content').innerHTML += `
+            // 清空中心内容并添加个人中心内容
+            dynamicContentCenter.innerHTML = `
               <div class="card">
                 <h3>个人信息</h3>
                 <div style="margin-top: 15px; display: flex; gap: 20px;">
@@ -376,9 +735,11 @@
       const stars = document.querySelectorAll('#star-rating .star');
       stars.forEach((star, index) => {
         if (index < selectedStarCount) {
-          star.style.color = var(--orange-color);
+          star.style.color = 'var(--orange-color)';
+          star.classList.add('active');
         } else {
           star.style.color = '#ccc';
+          star.classList.remove('active');
         }
       });
     }
