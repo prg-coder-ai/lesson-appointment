@@ -43,15 +43,15 @@ public class CourseExecutionService {
      */
     @Transactional
     public void studentCheckIn(CourseCheckIn checkIn) {
-        // 1. 校验订单是否存在且已支付
-        ReservationOrder order = orderMapper.selectOrderById(checkIn.getOrderId());
+        // 1. 校验订单是否存在且已支付-->检查预约单是否存在 且状态为已支付（paid），对应设计2.4 签到规则
+      /*   ReservationOrder order = orderMapper.selectOrderById(checkIn..getOrderId());
         if (order == null) {
             throw new ResourceNotFoundException("订单不存在，无法签到");
         }
         if (!"paid".equals(order.getOrderStatus())) {
             throw new BusinessException("订单未支付，无法签到");
         }
-
+*/
         // 2. 校验排期是否存在
         Schedule schedule = scheduleMapper.selectScheduleById(checkIn.getScheduleId());
         if (schedule == null) {
