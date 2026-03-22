@@ -162,7 +162,7 @@ CREATE TABLE IF NOT EXISTS `course_evaluation` (
   CONSTRAINT `fk_evaluation_course` FOREIGN KEY (`course_id`) REFERENCES `course` (`course_id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CHECK (`score` BETWEEN 1 AND 5) -- 校验分数范围
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='课程评价表';
---数据库设计说明：
+--数据库设计说明： 
 --1. 用户表（user）：存储学生、教师、管理员的基本信息，包括手机号、邮箱、密码（加密存储）、角色、学生的学习目标和语言水平、教师的姓名、资质图片和教授语言类型，以及账号状态等。通过角色字段区分不同类型用户，满足权限控制需求。
 --2. 课程模板表（course_template）：存储统一的课程模板信息，包括   语言类型、难度等级、课时费、课程时长、课程形式和课程描述等。通过语言类型和难度等级的唯一索引，避免重复创建相同类型的课程模板。
 --3. 教师课程表（course）：存储教师基于模板创建的具体课程信息，包括课程名称、教学内容、课程特色和关联的教师ID等。通过外键关联课程模板和教师，确保数据一致性。

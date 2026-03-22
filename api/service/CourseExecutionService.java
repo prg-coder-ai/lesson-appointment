@@ -232,4 +232,9 @@ public class CourseExecutionService {
         }
         Course course = courseMapper.selectCourseById(schedule.getCourseId());
         if (!course.getTeacherId().equals(teacherId)) {
-            throw
+            throw    new BusinessException("您无权操作该排期");
+        } else {// 校验通过，教师是该排期所属课程的教师
+            return;  
+    }
+    }
+}

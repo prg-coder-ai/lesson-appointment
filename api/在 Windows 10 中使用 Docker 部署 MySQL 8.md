@@ -24,7 +24,7 @@ docker pull mysql:8.4.3
 
 # 验证镜像是否拉取成功
 docker images | findstr mysql
-```
+```  
 
 ### 二、方式1：图形化操作（Docker Desktop 界面，新手推荐）
 #### 1. 创建本地挂载目录（持久化数据/配置）

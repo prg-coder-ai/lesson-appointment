@@ -113,3 +113,15 @@ public class CourseService {
         if (existingSchedule == null) {
             throw new ResourceNotFoundException("排期不存在，无法更新");
         }
+        // 2. 校验时间格式和逻辑
+        validateScheduleTime(schedule.getStartTime(), schedule.getEndTime());
+        // 3. 校验重复排期规则
+        if (schedule.getIsRepeat()) {
+            if (schedule.getRepeatWeek() == null || schedule.getRepeatWeek() < 1 || schedule.getRepeatWeek() > 7) {
+                throw new BusinessException("重复排期需指定每周重复日期（1-7，对应周一至周日）");
+            }
+        }
+        // 4. 更新排期信息（仅允许更新时间和重复规则，状态由系统控制）
+        existingSchedule.setStartTime(schedule.getStartTime());     
+    }
+}
