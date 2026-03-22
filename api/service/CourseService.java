@@ -4,6 +4,7 @@ import com.language.reservation.entity.Course;
 import com.language.reservation.entity.CourseTemplate;
 import com.language.reservation.entity.Schedule;
 import com.language.reservation.exception.BusinessException;
+// 重点：确认这行导入的包路径和类名完全匹配
 import com.language.reservation.exception.ResourceNotFoundException;
 import com.language.reservation.mapper.CourseMapper;
 import com.language.reservation.mapper.ScheduleMapper;
@@ -107,21 +108,30 @@ public class CourseService {
      * 更新课程排期，对应设计2.2.2 排期更新接口，仅教师可操作
      */
     @Transactional
-    public void updateSchedule(Schedule schedule) {
-        // 1. 校验排期是否存在
-        Schedule existingSchedule = scheduleMapper.selectScheduleById(schedule.getScheduleId());
-        if (existingSchedule == null) {
-            throw new ResourceNotFoundException("排期不存在，无法更新");
-        }
-        // 2. 校验时间格式和逻辑
-        validateScheduleTime(schedule.getStartTime(), schedule.getEndTime());
-        // 3. 校验重复排期规则
-        if (schedule.getIsRepeat()) {
-            if (schedule.getRepeatWeek() == null || schedule.getRepeatWeek() < 1 || schedule.getRepeatWeek() > 7) {
-                throw new BusinessException("重复排期需指定每周重复日期（1-7，对应周一至周日）");
-            }
-        }
-        // 4. 更新排期信息（仅允许更新时间和重复规则，状态由系统控制）
-        existingSchedule.setStartTime(schedule.getStartTime());     
+  /**
+ * 更新课程排期，对应设计2.2.2 排期更新接口，仅教师可操作
+ */
+@Transactional
+public void updateSchedule(Schedule schedule) {
+    // 1. 校验排期是否存在
+    Schedule existingSchedule = scheduleMapper.selectScheduleById(schedule.getScheduleId());
+    if (existingSchedule == null) {
+        throw new ResourceNotFoundException("排期不存在，无法更新");
     }
+    // 2. 校验时间格式和逻辑
+    validateScheduleTime(schedule.getStartTime(), schedule.getEndTime());
+    // 3. 校验重复排期规则
+    if (schedule.getIsRepeat()) {
+        if (schedule.getRepeatWeek() == null || schedule.getRepeatWeek() < 1 || schedule.getRepeatWeek() > 7) {
+            throw new BusinessException("重复排期需指定每周重复日期（1-7，对应周一至周日）");
+        }
+    }
+    // 4. 更新排期信息（补充缺失的字段）
+    existingSchedule.setStartTime(schedule.getStartTime());
+    existingSchedule.setEndTime(schedule.getEndTime()); // 补充endTime更新
+    existingSchedule.setIsRepeat(schedule.getIsRepeat()); // 补充重复标识更新
+    existingSchedule.setRepeatWeek(schedule.getRepeatWeek()); // 补充重复周更新
+    // 5. 执行数据库更新（核心：原代码缺失这一步，修改不会持久化）
+    scheduleMapper.updateSchedule(existingSchedule);
+}
 }

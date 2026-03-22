@@ -94,8 +94,15 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
-    </dependencies>
 
+<dependency>
+    <groupId>org.projectlombok</groupId>
+    <artifactId>lombok</artifactId>
+    <version>1.18.30</version> <!-- 推荐使用稳定版，可根据需求调整 -->
+    <scope>provided</scope> <!-- 仅编译期生效，不打入最终包 -->
+</dependency>
+
+    </dependencies>
     <!-- 5. 构建配置（核心：Spring Boot打包插件，生成可执行JAR） -->
    
     <!-- 5. 构建配置（核心：指定mainClass+打包插件） -->
