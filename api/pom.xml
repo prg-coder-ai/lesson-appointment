@@ -15,7 +15,7 @@
     </parent>
 
     <!-- 2. 当前模块的基本信息（必写） -->
-    <groupId>com.clearsky.booking</groupId> <!-- 自定义：公司/组织+项目名 -->
+    <groupId>com.language.reservation</groupId> <!-- 自定义：公司/组织+项目名 -->
     <artifactId>api</artifactId>  <!-- 模块名，对应文件夹名api -->
     <version>1.0.0-SNAPSHOT</version> <!-- 版本号：快照版（开发中）/RELEASE（正式版） -->
     <name>api</name>
@@ -30,7 +30,11 @@
         <mybatis-spring-boot.version>2.3.0</mybatis-spring-boot.version>
         <mysql-connector.version>8.0.33</mysql-connector.version>
         <jjwt.version>0.11.5</jjwt.version>
+        <spring-boot.version>2.7.15</spring-boot.version>
+         <mainClass>com.language.reservation.LanguageReservationApplication</mainClass>
     </properties>
+
+ 
 
     <!-- 4. 依赖配置 -->
     <dependencies>
@@ -93,16 +97,23 @@
     </dependencies>
 
     <!-- 5. 构建配置（核心：Spring Boot打包插件，生成可执行JAR） -->
+   
+    <!-- 5. 构建配置（核心：指定mainClass+打包插件） -->
     <build>
+    <sourceDirectory>. </sourceDirectory>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <version>2.7.15</version> <!-- 继承父工程版本 -->
+                <version>${spring-boot.version}</version>
+                <configuration>
+                    <!-- 手动指定启动类全路径（和properties中保持一致） -->
+                    <mainClass>${mainClass}</mainClass>
+                </configuration>
                 <executions>
                     <execution>
                         <goals>
-                            <goal>repackage</goal> <!-- 重新打包为可执行JAR -->
+                            <goal>repackage</goal> <!-- 打包为可执行JAR -->
                         </goals>
                     </execution>
                 </executions>
