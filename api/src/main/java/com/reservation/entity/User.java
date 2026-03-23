@@ -1,4 +1,4 @@
-package com.reservation.entity;
+package src.main.java.com.reservation.entity;
 
 import lombok.Data;
 import javax.validation.constraints.Email;

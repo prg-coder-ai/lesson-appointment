@@ -1,13 +1,13 @@
 /*StudentReservationController.java*/
 
-package com.reservation.controller;
+package src.main.java.com.reservation.controller;
 
-import com.reservation.common.Result;
-import com.reservation.entity.CourseQueryParam;
-import com.reservation.entity.Order;
-import com.reservation.entity.PayInfo;
-import com.reservation.service.StudentReservationService;
-import com.reservation.utils.PermissionCheck;
+import  src.main.java.com.reservation.common.Result;
+import  src.main.java.com.reservation.entity.CourseQueryParam;
+import  src.main.java.com.reservation.entity.Order;
+import  src.main.java.com.reservation.entity.PayInfo;
+import  src.main.java.com.reservation.service.OrderService;
+import  src.main.java.com.reservation.utils.PermissionCheck;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -23,8 +23,8 @@ import java.util.Map;
 @Validated
 public class StudentPayController {
 
-    @Autowired
-    private StudentPayService payService;
+  //  @Autowired
+  //  private StudentPayService payService;
     @Autowired
     private PermissionCheck permissionCheck;
 
@@ -38,7 +38,7 @@ public class StudentPayController {
         // 权限校验：仅学生可操作（对应设计2.3 安全设计-权限控制）
         permissionCheck.checkStudent(token);
         // 调用服务层查询课程，返回课程列表（包含课程信息、教师信息、排期信息）
-        List<Map<String, Object>> courseList = reservationService.getCourseList(queryParam);
+        List<Map<String, Object>> courseList = OrderService.getCourseList(queryParam);
         Map<String, List<Map<String, Object>>> resultMap = Map.of("courseList", courseList);
         return Result.success(resultMap, "课程列表查询成功");
     }

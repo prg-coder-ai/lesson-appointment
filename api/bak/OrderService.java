@@ -1,14 +1,11 @@
-package com.language.reservation.service;
+package src.main.java.com.reservation.service;
 
-import com.language.reservation.entity.CourseQueryParam;
-import com.language.reservation.entity.Order;
-import com.language.reservation.entity.PayInfo;
-import com.language.reservation.entity.Schedule;
-import com.language.reservation.exception.BusinessException;
-import com.language.reservation.exception.ResourceNotFoundException;
-import com.language.reservation.mapper.CourseMapper;
-import com.language.reservation.mapper.OrderMapper;
-import com.language.reservation.mapper.ScheduleMapper;
+import src.main.java.com.reservation.entity.*;
+import src.main.java.com.reservation.exception.BusinessException;
+import src.main.java.com.reservation.exception.ResourceNotFoundException;
+import src.main.java.com.reservation.mapper.CourseMapper;
+import src.main.java.com.reservation.mapper.OrderMapper;
+import src.main.java.com.reservation.mapper.ScheduleMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +23,7 @@ import java.util.UUID;
  * 学生预约模块服务层，对应设计2.2.3 学生预约模块所有接口的业务逻辑，严格贴合校验规则和功能说明
  */
 @Service
-public class StudentReservationService {
+public class OrderService {
 
     @Autowired
     private CourseMapper courseMapper;
@@ -64,9 +61,9 @@ public class StudentReservationService {
      * 学生创建预约订单，对应设计2.2.3 接口：/api/v1/order/create
      */
     @Transactional
-    public Map<String, String> createOrder(String scheduleId, String studentId) {
+    public Map<String, String> createOrder(String courseId, String studentId) {
         // 1. 校验排期是否存在（对应通用校验规则-ID类参数）
-        Schedule schedule = scheduleMapper.selectById(scheduleId);
+        Course schedule = CourseMapper.selectById(courseId);
         if (schedule == null) {
             throw new ResourceNotFoundException("排期不存在");
         }

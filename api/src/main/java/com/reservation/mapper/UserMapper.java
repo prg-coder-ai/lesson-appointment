@@ -1,6 +1,6 @@
-package com.language.reservation.mapper;
+package src.main.java.com.reservation.mapper;
 
-import com.language.reservation.entity.User;
+import src.main.java.com.reservation.entity.User;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

@@ -1,13 +1,12 @@
-package com.reservation.controller;
+package src.main.java.com.reservation.controller;
 
-import com.reservation.common.Result;
-import com.reservation.entity.CourseCheckIn;
-import com.reservation.entity.CourseEvaluation;
-import com.reservation.entity.CourseFeedback;
-import com.reservation.service.CourseExecutionService;
-import com.reservation.utils.PermissionCheck;
-import com.reservation.exception .BusinessException;
-import com.reservation.exception.ResourceNotFoundException;
+import  src.main.java.com.reservation.common.Result;
+import src.main.java.com.reservation.entity.CourseCheckIn;
+import  src.main.java.com.reservation.entity.CourseEvaluation;
+import  src.main.java.com.reservation.entity.CourseFeedback;
+import  src.main.java.com.reservation.service.CourseExecutionService;
+import  src.main.java.com.reservation.utils.PermissionCheck;
+import  src.main.java.com.reservation.exception .BusinessException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;

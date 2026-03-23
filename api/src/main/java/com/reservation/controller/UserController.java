@@ -1,8 +1,8 @@
-package com.reservation.controller;
+package src.main.java.com.reservation.controller;
 
-import com.reservation.common.Result;
-import com.reservation.entity.User;
-import com.reservation.service.UserService;
+import src.main.java.com.reservation.common.Result;
+import src.main.java.com.reservation.entity.User;
+import src.main.java.com.reservation.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;

@@ -1,6 +1,6 @@
-package com.reservation.mapper;
+package src.main.java.com.reservation.mapper;
 
-import com.reservation.entity.CourseEvaluation;
+import src.main.java.com.reservation.entity.CourseEvaluation;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

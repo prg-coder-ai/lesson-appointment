@@ -1,5 +1,5 @@
 // 课程模板实体（对应设计2.2.2 课程模板相关接口）
-package com.reservation.entity;
+package src.main.java.com.reservation.entity;
 
 import lombok.Data;
 import javax.validation.constraints.NotBlank;

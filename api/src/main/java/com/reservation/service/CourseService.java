@@ -1,13 +1,13 @@
-package com.language.reservation.service;
+package src.main.java.com.reservation.service;
 
-import com.language.reservation.entity.Course;
-import com.language.reservation.entity.CourseTemplate;
-import com.language.reservation.entity.Schedule;
-import com.language.reservation.exception.BusinessException;
+import src.main.java.com.reservation.entity.Course;
+import src.main.java.com.reservation.entity.CourseTemplate;
+import src.main.java.com.reservation.entity.Schedule;
+import src.main.java.com.reservation.exception.BusinessException;
 // 重点：确认这行导入的包路径和类名完全匹配
-import com.language.reservation.exception.ResourceNotFoundException;
-import com.language.reservation.mapper.CourseMapper;
-import com.language.reservation.mapper.ScheduleMapper;
+import src.main.java.com.reservation.exception.ResourceNotFoundException;
+import src.main.java.com.reservation.mapper.CourseMapper;
+import src.main.java.com.reservation.mapper.ScheduleMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
