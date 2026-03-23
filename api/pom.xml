@@ -15,7 +15,7 @@
     </parent>
 
     <!-- 2. 当前模块的基本信息（必写） -->
-    <groupId>com.language.reservation</groupId> <!-- 自定义：公司/组织+项目名 -->
+    <groupId>com.reservation</groupId> <!-- 自定义：公司/组织+项目名 -->
     <artifactId>api</artifactId>  <!-- 模块名，对应文件夹名api -->
     <version>1.0.0-SNAPSHOT</version> <!-- 版本号：快照版（开发中）/RELEASE（正式版） -->
     <name>api</name>
