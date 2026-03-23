@@ -1,3 +1,4 @@
 /docker/mysql8/data
 /api/bin
 /api/target
+/lesson-appointment-springboot/springboot-project/target
