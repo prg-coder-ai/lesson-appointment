@@ -9,6 +9,16 @@ spring:
     url: jdbc:mysql://localhost:3306/language_reservation?useUnicode=true&characterEncoding=utf-8&serverTimezone=GMT%2B8
     username: root
     password: 123456
+     # Hibernate 配置（若使用 JPA/hibernate）
+  jpa:
+    database-platform: org.hibernate.dialect.MySQL8Dialect # 适配 MySQL 8.0+
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        connection:
+          characterEncoding: utf8 # 此处填 utf8（驱动会自动映射为 utf8mb4）
+        dialect: org.hibernate.dialect.MySQL8Dialect
 mybatis:
   mapper-locations: classpath:mapper/**/*.xml
   type-aliases-package: com.language.reservation.entity

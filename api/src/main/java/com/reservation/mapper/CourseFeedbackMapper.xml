@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd"><mapper namespace="com.reservation.mapper.CourseFeedbackMapper"><!-- 通用结果集映射，与CourseFeedback实体字段一一对应 -->
+<resultMap id="feedbackResultMap" type="com.reservation.entity.CourseFeedback">
+        <result column="feedback_id" property="feedbackId"/>
+        <result column="course_id" property="courseId"/>
+        <result column="user_id" property="userId"/>
+     <!--  <result column="feedback_type" property="feedbackType"/> --><!-- 设计2.4 课程反馈功能要求学生和教师都可提交反馈，暂时不区分反馈类型 -->
+        <result column="content" property="Content"/>
+        <result column="create_time" property="createTime"/>
+         <result column="handle_id" property="handleId"/>
+        <result column="handle_status" property="handleStatus"/>
+        <result column="handle_content" property="handle_Content"/>       
+        <result column="handle_time" property="handleTime"/>
+    </resultMap>
+
+    <!-- 插入课程反馈（学生/教师提交反馈） -->
+    <insert id="insertFeedback" parameterType="com.reservation.entity.CourseFeedback">
+        INSERT INTO course_feedback (
+            feedback_id, course_id, user_id, feedback_type,
+            feedback_content, feedback_status, reply_content, create_time, update_time
+        ) VALUES (
+            #{feedbackId}, #{courseId}, #{userId}, #{feedbackType},
+            #{feedbackContent}, #{feedbackStatus}, #{replyContent}, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP()
+        )
+    </insert>
+
+    <!-- 根据反馈ID查询反馈（用于反馈详情查看、回复） -->
+    <!-- 根据反馈人ID查询反馈列表（用户查看自身提交的反馈） -->
+    <!-- 根据课程ID查询反馈列表（教师查看对应课程的反馈） -->
+    <!-- 根据反馈状态查询反馈列表（管理员处理反馈） -->
+    <!-- 更新反馈状态及回复内容（管理员处理反馈时调用） -->
+    <update id="updateFeedbackStatusAndReply" parameterType="com.reservation.entity.CourseFeedback">
+        UPDATE course_feedback
+<set>
+            <if test="handle_status != null and handle_status != ''">handle_status = #{handle_status},</if>
+            <if test="handle_content != null and handle_content != ''">handle_content = #{handle_content},</if>
+            handle_time = CURRENT_TIMESTAMP()
+        </set>
+        WHERE feedback_id = #{feedbackId}
+    </update>
+// 设计2.4 课程反馈功能要求管理员可以修改处理内容，增加单独接口
+    <update id="updateFeedbackHandleContent" parameterType="map">
+        UPDATE course_feedback
+        SET handle_content = #{handleContent}, update_time = CURRENT_TIMESTAMP()
+        WHERE feedback_id = #{feedbackId}
+    </update>
+
+
+</mapper>
