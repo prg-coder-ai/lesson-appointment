@@ -1,6 +1,6 @@
-package com.language.reservation.mapper;
+package src.main.java.com.reservation.mapper;
 
-import com.language.reservation.entity.PayInfo;
+import src.main.java.com.reservation.entity.PayInfo;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

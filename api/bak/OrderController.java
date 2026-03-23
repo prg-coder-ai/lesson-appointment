@@ -1,47 +1,54 @@
+ package src.main.java.com.reservation.controller;
 
-
-import com.reservation.common.Result;
-import com.reservation.entity.CourseEvaluation;
-/*import com.reservation.entity.ReservationQuery;*/
-import com.reservation.service.StudentReservationService;
-import com.reservation.utils.PermissionCheck;
+import  src.main.java.com.reservation.common.Result;
+import  src.main.java.com.reservation.entity.Course;
+import  src.main.java.com.reservation.entity.CourseService;
+import src.main.java.com.reservation.entity.Booking;
+import src.main.java.com.reservation.entity.BookingService;
+import src.main.java.com.reservation.entity.Order;
+import src.main.java. com.reservation.service.OrderService;
+import  src.main.java.com.reservation.utils.PermissionCheck;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.validation.constraints.NotBlank;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 学生预约模块控制器，对应设计2.3 学生预约模块所有接口
+/** 订单---取消订单时判断是否已经预约
+ * 学生订单模块控制器，对应设计2.3 学生预约模块所有接口
  * 接口权限：仅学生可操作（通过PermissionCheck校验）
  */
 @RestController
-@RequestMapping("/reservation")
+@RequestMapping("/order")
 @Validated
-public class StudentReservationController {
+public class OrderController {
 
     @Autowired
-    private StudentReservationService reservationService;
+    private OrderService reservationService;
     @Autowired
     private PermissionCheck permissionCheck;
 
     /**
      * 预约下单接口，对应设计2.3 接口：/api/v1/reservation/create（学生权限）
      * 功能：学生选择排期创建预约订单，生成待支付订单
+     * 输入：排期id
      */
     @PostMapping("/create")
-    public Result<Map<String, String>> createReservation(
-            @Validated @RequestBody ReservationOrder order,
+    public Result<Map<String, String>> createOrder(
+            @Validated @RequestBody Course Course,
             @RequestHeader("Authorization") String token) {
         // 权限校验：仅学生可操作
         permissionCheck.checkStudent(token);
         // 校验订单归属当前学生（确保学生只能创建自己的订单）
         String studentId = permissionCheck.getUserIdFromToken(token);
-        order.setStudentId(studentId);
+        Order bk=new Order();
+        bk.setStudentId(studentId);
+        bk.setScheduleId(Course.getCourseId());
         // 调用服务层创建订单
-        Map<String, String> resultMap = reservationService.createReservation(order);
+        Map<String, String> resultMap = OrderService.insertOrder(bk);
         return Result.success(resultMap, "预约订单创建成功，请尽快支付");
     }
 

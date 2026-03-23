@@ -1,10 +1,10 @@
-package com.reservation.entity;
+package src.main.java.com.reservation.entity;
 
 import lombok.Data;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
-
+import  java.util.Date;
 /**
  * 课程签到实体类，对应设计2.4 课程执行-签到功能
  */

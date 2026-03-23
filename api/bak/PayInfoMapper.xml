@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.language.reservation.mapper.PayInfoMapper">
+<mapper namespace="src.main.java.com.reservation.mapper.PayInfoMapper">
 
     <!-- 通用结果集映射 -->
     <resultMap id="payInfoResultMap" type="com.language.reservation.entity.PayInfo">

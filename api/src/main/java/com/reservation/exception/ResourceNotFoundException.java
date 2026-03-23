@@ -1,4 +1,4 @@
-package com.reservation.exception;
+package src.main.java.com.reservation.exception;
 
 /**
  * 资源不存在异常（如课程/排期/模板不存在时抛出）

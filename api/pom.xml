@@ -105,8 +105,6 @@
 
     </dependencies>
     <!-- 5. 构建配置（核心：Spring Boot打包插件，生成可执行JAR） -->
-   
-    <!-- 5. 构建配置（核心：指定mainClass+打包插件） -->
     <build>
     <sourceDirectory>. </sourceDirectory>
         <plugins>

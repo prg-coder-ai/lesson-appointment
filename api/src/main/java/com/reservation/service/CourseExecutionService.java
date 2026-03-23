@@ -1,9 +1,9 @@
-package com.language.reservation.service;
+package src.main.java.com.reservation.service;
 
-import com.language.reservation.entity.*;
-import com.language.reservation.exception.BusinessException;
-import com.language.reservation.exception.ResourceNotFoundException;
-import com.language.reservation.mapper.*;
+import src.main.java.com.reservation.entity.*;
+import src.main.java.com.reservation.exception.BusinessException;
+import src.main.java.com.reservation.exception.ResourceNotFoundException;
+import src.main.java.com.reservation.mapper.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,8 +28,8 @@ public class CourseExecutionService {
     private CourseEvaluationMapper evaluationMapper;
     @Autowired
     private CourseFeedbackMapper feedbackMapper;
-    @Autowired
-    private ReservationOrderMapper orderMapper;
+   // @Autowired
+   // private ReservationOrderMapper orderMapper;
     @Autowired
     private ScheduleMapper scheduleMapper;
     @Autowired

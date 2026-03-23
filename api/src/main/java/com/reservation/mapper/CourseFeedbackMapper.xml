@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd"><mapper namespace="com.reservation.mapper.CourseFeedbackMapper"><!-- 通用结果集映射，与CourseFeedback实体字段一一对应 -->
-<resultMap id="feedbackResultMap" type="com.reservation.entity.CourseFeedback">
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="src.main.java.com.reservation.mapper.CourseFeedbackMapper">
+
+    <!-- 通用结果集映射，与CourseFeedback实体字段一一对应 -->
+    <resultMap id="feedbackResultMap" type="com.reservation.entity.CourseFeedback">
         <result column="feedback_id" property="feedbackId"/>
         <result column="course_id" property="courseId"/>
         <result column="user_id" property="userId"/>
@@ -31,7 +34,7 @@
     <!-- 更新反馈状态及回复内容（管理员处理反馈时调用） -->
     <update id="updateFeedbackStatusAndReply" parameterType="com.reservation.entity.CourseFeedback">
         UPDATE course_feedback
-<set>
+        <set>
             <if test="handle_status != null and handle_status != ''">handle_status = #{handle_status},</if>
             <if test="handle_content != null and handle_content != ''">handle_content = #{handle_content},</if>
             handle_time = CURRENT_TIMESTAMP()
@@ -44,6 +47,4 @@
         SET handle_content = #{handleContent}, update_time = CURRENT_TIMESTAMP()
         WHERE feedback_id = #{feedbackId}
     </update>
-
-
 </mapper>

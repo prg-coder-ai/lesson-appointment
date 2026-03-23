@@ -1,4 +1,4 @@
-package com.reservation.common;
+package src.main.java.com.reservation.common;
 
 import lombok.Data;
 

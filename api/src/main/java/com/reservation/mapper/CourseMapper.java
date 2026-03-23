@@ -1,8 +1,8 @@
 /*CourseMapper.java*/
-package com.reservation.mapper;
+package src.main.java.com.reservation.mapper;
 
-import com.reservation.entity.Course;
-import com.reservation.entity.CourseTemplate;
+import src.main.java.com.reservation.entity.Course;
+import src.main.java.com.reservation.entity.CourseTemplate;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

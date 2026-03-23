@@ -1,4 +1,4 @@
-package com.language.reservation.utils;
+package src.main.java.com.reservation.utils;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;

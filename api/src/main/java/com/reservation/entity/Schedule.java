@@ -1,11 +1,10 @@
 // 课程模板实体（对应设计2.2.2 课程模板相关接口）
-package com.reservation.entity;
+package src.main.java.com.reservation.entity;
 
 import lombok.Data;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
-import java.math.BigDecimal;
+import java.util.Date;
  
 // 课程排期实体（对应设计2.2.2 排期相关接口）
 @Data

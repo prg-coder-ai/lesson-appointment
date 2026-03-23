@@ -1,11 +1,11 @@
-package com.reservation.controller;
+package src.main.java.com.reservation.controller;
 
-import com.reservation.common.Result;
-import com.reservation.entity.Course;
-import com.reservation.entity.CourseTemplate;
-import com.reservation.entity.Schedule;
-import com.reservation.service.CourseService;
-import com.reservation.utils.PermissionCheck;
+import src.main.java.com.reservation.common.Result;
+import  src.main.java.com.reservation.entity.Course;
+import  src.main.java.com.reservation.entity.CourseTemplate;
+import  src.main.java.com.reservation.entity.Schedule;
+import  src.main.java.com.reservation.service.CourseService;
+import  src.main.java.com.reservation.utils.PermissionCheck;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
