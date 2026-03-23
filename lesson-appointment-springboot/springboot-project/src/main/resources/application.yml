@@ -14,7 +14,12 @@ spring:
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.MySQLDialect
+        connection:
+           characterEncoding: utf8 # 此处填 utf8（驱动会自动映射为 utf8mb4）
+        dialect: org.hibernate.dialect.MySQL8Dialect
+    #database-platform: org.hibernate.dialect.MySQL8Dialect # 适配 MySQL 8.0+
+
+
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: Asia/Shanghai
