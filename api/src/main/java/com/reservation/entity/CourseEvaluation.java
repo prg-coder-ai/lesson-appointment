@@ -1,16 +1,17 @@
 package src.main.java.com.reservation.entity;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
- import java.util.Date;
 
+ import java.util.Date;
+import java.io.Serializable;
 /**
  * 课程评价实体类，对应设计2.4 后续流程-课程评价功能
  */
 @Data
-public class CourseEvaluation {
+public class CourseEvaluation implements Serializable {
     private String evaluationId;  // 唯一标识（UUID）
     @NotBlank(message = "课程ID不能为空")
     private String course_id;       // 关联预约订单（课程结束后可评价）

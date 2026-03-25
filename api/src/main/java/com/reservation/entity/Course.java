@@ -2,15 +2,17 @@
 package src.main.java.com.reservation.entity;
 
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
+
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.util.Date;
+import java.io.Serializable;
 // 教师课程实体（对应设计2.2.2 教师课程相关接口）
 @Data
-public class Course {
+public class Course implements Serializable {
     private String courseId;
     @NotBlank(message = "模板ID不能为空")
     private String templateId;

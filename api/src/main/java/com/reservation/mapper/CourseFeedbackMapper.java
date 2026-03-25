@@ -55,4 +55,8 @@ public interface CourseFeedbackMapper {
     int updateFeedbackStatusAndReply(CourseFeedback feedback);
 
     int updateFeedbackHandleContent(@Param("feedbackId") String feedbackId, @Param("handleContent") String handleContent);
+//
+    void updateFeedback(CourseFeedback feedback);
+
+    List<CourseFeedback> selectFeedbackListByStatus(String handleStatus);
 }

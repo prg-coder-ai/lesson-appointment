@@ -44,6 +44,23 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+            <dependency>
+                <groupId>jakarta.validation</groupId>
+                <artifactId>jakarta.validation-api</artifactId>
+                <version>3.0.2</version>
+            </dependency>
+            <dependency>
+                <groupId>org.hibernate.validator</groupId>
+                <artifactId>hibernate-validator</artifactId>
+                <version>8.0.1.Final</version>
+            </dependency>
+          
+          <dependency>
+    <groupId>org.openjfx</groupId>
+    <artifactId>javafx-fxml</artifactId>
+    <version>21</version>
+</dependency>
+
         <!-- 数据校验（对应设计2.4 异常处理、参数校验） -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -101,7 +118,15 @@
             <artifactId>lombok</artifactId>
             <version>1.18.30</version> <!-- 推荐使用稳定版，可根据需求调整 -->
             <scope>provided</scope> <!-- 仅编译期生效，不打入最终包 -->
+             <optional>true</optional>
         </dependency>
+
+<!-- MyBatis-Plus -->
+<dependency>
+    <groupId>com.baomidou</groupId>
+    <artifactId>mybatis-plus-boot-starter</artifactId>
+    <version>3.5.3.1</version>
+</dependency>
 
     </dependencies>
     <!-- 5. 构建配置（核心：Spring Boot打包插件，生成可执行JAR） -->

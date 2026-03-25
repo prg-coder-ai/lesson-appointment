@@ -1,14 +1,15 @@
 // 课程模板实体（对应设计2.2.2 课程模板相关接口）
 package src.main.java.com.reservation.entity;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
-
+import java.io.Serializable;
 @Data
-public class CourseTemplate {
+public class CourseTemplate implements Serializable{
     private String templateId;  // 唯一标识
     @NotBlank(message = "语言类型不能为空")
     private String languageType;  // 枚举值（对应教师注册languageType）
