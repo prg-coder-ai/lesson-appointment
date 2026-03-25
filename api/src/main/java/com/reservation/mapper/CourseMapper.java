@@ -2,9 +2,13 @@
 package src.main.java.com.reservation.mapper;
 
 import src.main.java.com.reservation.entity.Course;
+import src.main.java.com.reservation.entity.CourseQueryParam;
 import src.main.java.com.reservation.entity.CourseTemplate;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * CourseMapper接口，对应course表CRUD操作，匹配CourseService中的方法
@@ -32,4 +36,14 @@ public interface CourseMapper {
      * @return 影响行数
      */
     int insertCourse(Course course);
+
+    List<CourseTemplate> selectTemplateByLangAndLevel(String languageType, String difficultyLevel);
+
+    void insertTemplate(CourseTemplate template);
+
+    CourseTemplate selectTemplateById(String templateId);
+
+    List<Course> selectAvailableCourseList();
+
+    List<Map<String, Object>> selectCourseListByStudent(CourseQueryParam queryParam);
 }

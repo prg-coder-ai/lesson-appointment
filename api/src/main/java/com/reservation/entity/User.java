@@ -1,25 +1,31 @@
 package src.main.java.com.reservation.entity;
 
 import lombok.Data;
-import javax.validation.constraints.Email;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Pattern;
-import javax.validation.constraints.Size;
 
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+import src.main.java.com.reservation.common.AtLeastOneNotBlank;
+
+import java.io.Serializable;
 /**
  * 用户实体类，对应设计2.2.1 所有接口的请求参数
  */
 @Data
-public class User {
+// 加这一行：校验 phone 和 email 至少一个不为空
+@AtLeastOneNotBlank(firstField = "phone", secondField = "email")
+public class User implements Serializable{
     private String userId;  // 系统生成唯一标识（UUID），对应通用校验规则-ID类参数
+//检验条件：手机和邮箱不能都为空，至少有一个不为空
 
     // 手机号校验（对应通用校验规则-手机号）
-    @NotBlank(message = "手机号不能为空")
+  //  @NotBlank(message = "手机号不能为空")
   //  @Pattern(regexp = "^1[3456789]\\d{9}$", message = "手机号格式错误")
     private String phone;
 
     // 邮箱校验（对应通用校验规则-邮箱）
-    @NotBlank(message = "邮箱不能为空")
+   // @NotBlank(message = "邮箱不能为空")
     @Email(message = "邮箱格式错误")
     private String email;
 

@@ -2,13 +2,13 @@
 package src.main.java.com.reservation.entity;
 
 import lombok.Data;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.util.Date;
- 
+import java.io.Serializable;
 // 课程排期实体（对应设计2.2.2 排期相关接口）
 @Data
-public class Schedule {
+public class Schedule implements Serializable {
     private String scheduleId;
     @NotBlank(message = "课程ID不能为空")
     private String courseId;

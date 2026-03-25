@@ -1,13 +1,17 @@
-/*StudentReservationController.java*/
-
+/*StudentReservationController.java*/ 
 package src.main.java.com.reservation.controller;
 
+import javafx.concurrent.ScheduledService;
 import  src.main.java.com.reservation.common.Result;
 import  src.main.java.com.reservation.entity.CourseQueryParam;
-import  src.main.java.com.reservation.entity.Order;
-import  src.main.java.com.reservation.entity.PayInfo;
-import  src.main.java.com.reservation.service.OrderService;
+//import  src.main.java.com.reservation.entity.Order;
+//import  src.main.java.com.reservation.entity.PayInfo;
+import src.main.java.com.reservation.entity.Schedule;
+import src.main.java.com.reservation.service.CourseService;
+//import  src.main.java.com.reservation.service.OrderService;
+import src.main.java.com.reservation.service.ScheduleService;
 import  src.main.java.com.reservation.utils.PermissionCheck;
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -38,7 +42,7 @@ public class StudentController {
         // 权限校验：仅学生可操作（对应设计2.3 安全设计-权限控制）
         permissionCheck.checkStudent(token);
         // 调用服务层查询课程，返回课程列表（包含课程信息、教师信息、排期信息）
-        List<Map<String, Object>> courseList = OrderService.getCourseList(queryParam);
+        List<Map<String, Object>> courseList = ScheduleService.getCourseList(queryParam);
         Map<String, List<Map<String, Object>>> resultMap = Map.of("courseList", courseList);
         return Result.success(resultMap, "课程列表查询成功");
     }
@@ -46,6 +50,7 @@ public class StudentController {
     /**
      * 学生创建预约订单，对应设计2.2.3 接口：/api/v1/order/create（学生权限）
      */
+    /*
     @PostMapping("/order/create")
     public Result<Map<String, String>> createOrder(
             @NotBlank(message = "排期ID不能为空") String scheduleId,
@@ -58,11 +63,11 @@ public class StudentController {
         Map<String, String> resultMap = reservationService.createOrder(scheduleId, studentId);
         return Result.success(resultMap, "预约订单创建成功，请尽快支付");
     }
-
+*/
     /**
      * 学生支付订单，对应设计2.2.3 接口：/api/v1/pay/process（学生权限）
      */
-    @PostMapping("/pay/process")
+  /*  @PostMapping("/pay/process")
     public Result<Map<String, String>> processPay(
             @Validated @RequestBody PayInfo payInfo,
             @RequestHeader("Authorization") String token) {
@@ -74,11 +79,11 @@ public class StudentController {
         Map<String, String> resultMap = reservationService.processPay(payInfo, studentId);
         return Result.success(resultMap, "支付处理成功");
     }
-
+*/
     /**
      * 学生查询个人预约订单列表，对应设计2.2.3 接口：/api/v1/order/student/list（学生权限）
      */
-    @GetMapping("/order/list")
+   /* @GetMapping("/order/list")
     public Result<Map<String, List<Order>>> getStudentOrderList(
             @RequestParam(required = false) String orderStatus,
             @RequestHeader("Authorization") String token) {
@@ -90,11 +95,11 @@ public class StudentController {
         Map<String, List<Order>> resultMap = Map.of("orderList", orderList);
         return Result.success(resultMap, "订单列表查询成功");
     }
-
+*/
     /**
      * 学生取消预约订单，对应设计2.2.3 接口：/api/v1/order/cancel/student（学生权限）
      */
-    @PostMapping("/order/cancel")
+   /* @PostMapping("/order/cancel")
     public Result<Void> cancelOrder(
             @NotBlank(message = "订单ID不能为空") String orderId,
             @RequestHeader("Authorization") String token) {
@@ -104,5 +109,5 @@ public class StudentController {
         // 调用服务层取消订单（校验取消时间限制，对应设计2.2.3 专属校验规则）
         reservationService.cancelOrder(studentId, orderId);
         return Result.success(null, "订单取消成功");
-    }
+    }*/
 }

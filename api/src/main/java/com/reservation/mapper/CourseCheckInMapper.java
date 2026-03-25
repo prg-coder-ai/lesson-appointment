@@ -1,4 +1,5 @@
 package src.main.java.com.reservation.mapper;
+import src.main.java.com.reservation.entity.CourseCheckIn;
 import src.main.java.com.reservation.entity.CourseEvaluation;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -14,13 +15,16 @@ public interface   CourseCheckInMapper {
      * @param checkIn 签到实体
      * @return 影响行数
      */
-    int insertCheckIn(CourseEvaluation checkIn);
+    int insertCheckIn(CourseCheckIn checkIn);
   
 
     /**
      * 根据订单ID查询签到记录（校验该订单是否已签到）
-     * @param orderId 订单ID
+     * @param bookingId 预定id
      * @return 签到信息（无签到则返回null）
      */
-    CourseEvaluation selectCheckInByOrderId(@Param("orderId") String orderId);
+    CourseCheckIn selectCheckInByOrderId(@Param("orderId") String bookingId);
+//多人的情况，获取当前课程的checkin信息
+    List<CourseCheckIn> selectByScheduleId(String scheduleId);
+
 }

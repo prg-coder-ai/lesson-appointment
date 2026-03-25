@@ -96,7 +96,7 @@ public class CourseController {
         // 权限校验：教师或管理员可操作
         permissionCheck.checkTeacherOrAdmin(token);
         // 调用服务层查询模板（支持按languageType筛选，对应设计2.2.2 模板查询功能说明）
-        List<CourseTemplate> templates = courseService.getTemplateList(languageType);
+        List<CourseTemplate> templates = courseService.getTemplateListByLanguage(languageType);
         Map<String, List<CourseTemplate>> resultMap = Map.of("templates", templates);
         return Result.success(resultMap, "查询成功");
     }

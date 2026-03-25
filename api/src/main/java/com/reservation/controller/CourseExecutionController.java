@@ -1,5 +1,6 @@
 package src.main.java.com.reservation.controller;
 
+import jakarta.validation.constraints.NotBlank;
 import  src.main.java.com.reservation.common.Result;
 import src.main.java.com.reservation.entity.CourseCheckIn;
 import  src.main.java.com.reservation.entity.CourseEvaluation;
@@ -111,15 +112,15 @@ public class CourseExecutionController {
             @Validated @RequestBody CourseFeedback feedback,
             @RequestHeader("Authorization") String token) {
         // 权限校验：学生或教师可操作
-        String role = permissionCheck.jwtUtil.getRoleFromToken(token);
+      /*  String role = JwtUtil.getRoleFromToken(token);
         if (!"student".equals(role) && !"teacher".equals(role)) {
             throw new BusinessException("仅学生和教师可提交反馈");
-        }
+        }*/
         // 校验反馈归属当前提交人
         String submitterId = permissionCheck.getUserIdFromToken(token);
-        if (!submitterId.equals(feedback.getSubmitterId())) {
+       /* if (!submitterId.equals(feedback.getSubmitterId())) {
             throw new BusinessException("您无权提交他人反馈");
-        }
+        }*/
         // 调用服务层提交反馈
         Map<String, String> resultMap = executionService.addFeedback(feedback);
         return Result.success(resultMap, "反馈提交成功，我们将尽快处理");

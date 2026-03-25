@@ -39,4 +39,6 @@ public interface CourseEvaluationMapper {
      * @return 课程评价列表
      */
     List<CourseEvaluation> selectEvaluationByCourseId(@Param("courseId") String courseId);
+
+    List<CourseEvaluation> selectByTeacherId(String teacherId);
 }

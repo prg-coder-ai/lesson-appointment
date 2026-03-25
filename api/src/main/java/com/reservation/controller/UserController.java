@@ -1,5 +1,6 @@
 package src.main.java.com.reservation.controller;
 
+import jakarta.validation.constraints.NotBlank;
 import src.main.java.com.reservation.common.Result;
 import src.main.java.com.reservation.entity.User;
 import src.main.java.com.reservation.service.UserService;
@@ -10,8 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Pattern;
+import jakarta.validation.constraints.Pattern;
 import java.util.Map;
 
 /**

@@ -59,37 +59,35 @@ public class CourseExecutionService {
         }
 
         // 3. 校验签到时间（课程开始后30分钟内可签到，对应设计2.4 签到规则）
-        try {
-            Date startTime = DATE_FORMAT.parse(schedule.getStartTime());
-            Date currentTime = new Date();
-            Date endCheckInTime = new Date(startTime.getTime() + 30 * 60 * 1000);
-            if (currentTime.before(startTime)) {
-                throw new BusinessException("课程未开始，无法签到");
-            }
-            if (currentTime.after(endCheckInTime)) {
-                throw new BusinessException("签到时间已过，无法签到");
-            }
-        } catch (ParseException e) {
-            throw new BusinessException("时间格式错误，无法签到");
+        Date startTime =  schedule.getStartTime();
+        Date currentTime = new Date();
+        Date endCheckInTime = new Date(startTime.getTime() + 30 * 60 * 1000);
+        if (currentTime.before(startTime)) {
+            throw new BusinessException("课程未开始，无法签到");
+        }
+        if (currentTime.after(endCheckInTime)) {
+            throw new BusinessException("签到时间已过，无法签到");
         }
 
-        // 4. 校验是否已签到（避免重复签到）
+      /*  // 4. 校验是否已签到（避免重复签到）
         if (checkInMapper.selectByOrderAndStudent(checkIn.getOrderId(), checkIn.getStudentId()) != null) {
             throw new BusinessException("您已完成签到，无需重复操作");
         }
-
+*/
         // 5. 补充教师ID（从课程中获取）
-        Course course = courseMapper.selectCourseById(order.getCourseId());
+        Course course = courseMapper.selectCourseById(checkIn.getCourseId());
         checkIn.setTeacherId(course.getTeacherId());
 
         // 6. 生成签到ID，设置签到状态和时间
         String checkInId = UUID.randomUUID().toString();
         checkIn.setCheckInId(checkInId);
         checkIn.setCheckInStatus("checked");
-        checkIn.setCheckInTime(DATE_FORMAT.format(new Date()));
+        checkIn.setCheckInTime(new Date());
 
         // 7. 插入签到记录到数据库
         checkInMapper.insertCheckIn(checkIn);
+        //8 更新该学生的预约为完成状态
+
     }
 
     /**
@@ -106,19 +104,20 @@ public class CourseExecutionService {
 
     /**
      * 学生提交课程评价，对应设计2.4 评价功能
+     * 输入参数：当前的
      */
     @Transactional
     public Map<String, String> addEvaluation(CourseEvaluation evaluation) {
         // 1. 校验订单是否存在且已支付、课程已结束
-        ReservationOrder order = orderMapper.selectOrderById(evaluation.getOrderId());
+      /*  Booking order = BookingMapper.selectOrderById(evaluation.getOrderId());
         if (order == null) {
             throw new ResourceNotFoundException("订单不存在，无法提交评价");
         }
         if (!"paid".equals(order.getOrderStatus())) {
             throw new BusinessException("订单未支付，无法提交评价");
         }
-
-        // 2. 校验课程是否已结束（仅课程结束后可评价，对应设计2.4 评价规则）
+*/
+      /*   // 2. 校验课程是否已结束（仅课程结束后可评价，对应设计2.4 评价规则）
         Schedule schedule = scheduleMapper.selectScheduleById(order.getScheduleId());
         try {
             Date endTime = DATE_FORMAT.parse(schedule.getEndTime());
@@ -139,11 +138,11 @@ public class CourseExecutionService {
         if (evaluation.getScore() < 1 || evaluation.getScore() > 5) {
             throw new BusinessException("评价分数需为1-5分");
         }
-
+*/
         // 5. 生成评价ID，设置评价时间
         String evaluationId = UUID.randomUUID().toString();
         evaluation.setEvaluationId(evaluationId);
-        evaluation.setCreateTime(DATE_FORMAT.format(new Date()));
+        evaluation.setCreateTime( new Date());
 
         // 6. 插入评价到数据库
         evaluationMapper.insertEvaluation(evaluation);
@@ -166,23 +165,13 @@ public class CourseExecutionService {
      */
     @Transactional
     public Map<String, String> addFeedback(CourseFeedback feedback) {
-        // 1. 校验订单是否存在
-        ReservationOrder order = orderMapper.selectOrderById(feedback.getOrderId());
-        if (order == null) {
-            throw new ResourceNotFoundException("订单不存在，无法提交反馈");
-        }
-
-        // 2. 校验提交人角色（仅学生/教师可提交）
-        if (!"student".equals(feedback.getSubmitterRole()) && !"teacher".equals(feedback.getSubmitterRole())) {
-            throw new BusinessException("仅学生和教师可提交反馈");
-        }
 
         // 3. 生成反馈ID，设置默认状态和反馈时间
         String feedbackId = UUID.randomUUID().toString();
         feedback.setFeedbackId(feedbackId);
         
         feedback.setHandleStatus("pending");
-        feedback.setCreateTime(DATE_FORMAT.format(new Date()));
+        feedback.setCreateTime( new Date());
 
         // 4. 插入反馈到数据库
         feedbackMapper.insertFeedback(feedback);
@@ -211,7 +200,7 @@ public class CourseExecutionService {
         // 3. 更新反馈处理状态、内容和时间
         feedback.setHandleStatus("handled");
         feedback.setHandleContent(handleContent);
-        feedback.setHandleTime(DATE_FORMAT.format(new Date()));
+        feedback.setHandleTime(new Date());
         feedbackMapper.updateFeedback(feedback);
     }
 
@@ -220,7 +209,7 @@ public class CourseExecutionService {
      */
     public List<CourseFeedback> getFeedbackList(String handleStatus) {
         // 按处理状态查询反馈（handleStatus为空则查询所有）
-        return feedbackMapper.selectFeedbackList(handleStatus);
+        return feedbackMapper.selectFeedbackListByStatus(handleStatus);
     }
 
     /**
