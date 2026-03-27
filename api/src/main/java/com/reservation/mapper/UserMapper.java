@@ -10,6 +10,7 @@ import org.apache.ibatis.annotations.Param;
 @Mapper
 public interface UserMapper {
 
+    
     /**
      * 根据手机号查询用户
      * @param phone 手机号

@@ -44,6 +44,7 @@ public class UserService {
         // 设置角色为student，状态为active（对应设计2.2.1 学生注册逻辑）
         user.setRole("student");
         user.setStatus("active");
+        
         // 插入数据库
         userMapper.insert(user);
         // 生成Token（对应设计2.3 安全设计-Token）
@@ -103,7 +104,27 @@ public class UserService {
         resultMap.put("token", token);
         return resultMap;
     }
+        public void logout() {
+                // 解析Token获取用户信息（对应设计2.3 安全设计-Token）
+                String userId = jwtUtil.getCurrentUserId();
+                // Token失效（在缓存中删除对应用户的Token）
+                jwtUtil.invalidateToken(userId); 
+            }
 
+    public void sendForgotCode(String account) {
+        // 查找用户
+        User user = userMapper.selectByPhoneOrEmail(account);
+        if (user == null) {
+            throw new ResourceNotFoundException("账号不存在");
+        }
+        
+        //生成随机验证码（对应设计2.2.1 密码找回逻辑）
+        String verifyCode = "123456"; //  生成随机验证码
+        //1 发送验证码到邮箱或者手机短信（对应设计2.2.1 密码找回逻辑）
+        //2 将验证码存储到缓存中，key为account，value为verifyCode，设置过期时间为5分钟
+        
+         
+    }
     // 验证码验证（密码找回），对应设计2.2.1 密码找回接口
     public void verifyForgotCode(String account, String verifyCode) {
         // 查找用户
@@ -112,6 +133,7 @@ public class UserService {
             throw new ResourceNotFoundException("账号不存在");
         }
         // 校验验证码（模拟：实际需对接短信/邮箱接口，校验时效性5分钟，对应通用校验规则-验证码）
+        // 从缓存中获取对应账号的验证码进行校验
         if (!"123456".equals(verifyCode)) {  // 模拟验证码，实际需从缓存获取
             throw new BusinessException("验证码错误或已过期");
         }
@@ -125,9 +147,9 @@ public class UserService {
         // 查找用户
         User user = userMapper.selectByPhoneOrEmail(account);
         // 校验新密码与原密码是否相同（对应通用校验规则-密码）
-        if (passwordEncoder.matches(newPassword, user.getPassword())) {
-            throw new BusinessException("新密码不能与原密码相同");
-        }
+       // if (passwordEncoder.matches(newPassword, user.getPassword())) {
+       //     throw new BusinessException("新密码不能与原密码相同");
+       // }
         // 加密新密码并更新
         user.setPassword(passwordEncoder.encode(newPassword));
         userMapper.updatePassword(user);

@@ -1,24 +1,33 @@
 package src.main.java.com.reservation.controller;
 
+import src.main.java.com.reservation.utils.CorsConfig;
+ 
 import jakarta.validation.constraints.NotBlank;
 import src.main.java.com.reservation.common.Result;
 import src.main.java.com.reservation.entity.User;
 import src.main.java.com.reservation.service.UserService;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
+// 核心导入：RequestMethod 所在包
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.constraints.Pattern;
 import java.util.Map;
 
+
+ 
 /**
  * 用户注册与认证控制器，对应设计2.2.1 所有接口
  */
 @RestController
 @RequestMapping("/user")
+@CrossOrigin(origins = "127.0.0.1", allowedHeaders = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.OPTIONS}) // 加这一行
 @Validated
 public class UserController {
 
@@ -29,6 +38,7 @@ public class UserController {
      * 学生注册接口，对应设计2.2.1 接口：/api/v1/user/student/register
      */
     @PostMapping("/student/register")
+     @CrossOrigin(origins = "127.0.0.1")    
     public Result<Map<String, String>> studentRegister(@Validated @RequestBody User user) {
         // 调用服务层实现注册逻辑，返回userId和Token（对应设计2.2.1 学生注册返回数据）
         Map<String, String> resultMap = userService.studentRegister(user);
@@ -39,6 +49,7 @@ public class UserController {
      * 教师注册接口，对应设计2.2.1 接口：/api/v1/user/teacher/register
      */
     @PostMapping("/teacher/register")
+     
     public Result<Void> teacherRegister(@Validated @RequestBody User user) {
         // 调用服务层提交注册申请，等待管理员审核（对应设计2.2.1 教师注册功能说明）
         userService.teacherRegister(user);
