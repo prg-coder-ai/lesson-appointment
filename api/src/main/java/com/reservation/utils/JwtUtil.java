@@ -86,4 +86,15 @@ public String getCurrentUserId(String token) {
          // 但具体实现可能需要根据你的安全配置进行调整
          return (String) SecurityContextHolder.getContext().getAuthentication().getCredentials();
      }
+     //设置本地token无效
+     public boolean invalidateToken(String user)
+     {
+     // 设置本地token为空
+     // 这里只是本地让SecurityContextHolder中的Token失效（实际场景下需要配合缓存/数据库等机制以彻底失效）
+     SecurityContextHolder.clearContext();
+     // TODO: 清除与该用户相关的Token缓存（如使用Redis等中间件，需要在此处删除缓存中的Token记录）
+     // 示例（伪代码，需根据你的实际缓存实现）:
+     // redisTemplate.delete("USER_TOKEN_" + user);
+        return true;// 
+     }
 }
