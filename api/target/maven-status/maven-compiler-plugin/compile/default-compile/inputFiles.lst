@@ -16,6 +16,7 @@ C:\2026\lesson-appointment\api\src\main\java\com\reservation\entity\CourseCheckI
 C:\2026\lesson-appointment\api\src\main\java\com\reservation\entity\CourseQueryParam.java
 C:\2026\lesson-appointment\api\src\main\java\com\reservation\entity\Booking.java
 C:\2026\lesson-appointment\api\src\main\java\com\reservation\exception\NoPermissionException.java
+C:\2026\lesson-appointment\api\src\main\java\com\reservation\utils\CorsConfig.java
 C:\2026\lesson-appointment\api\src\main\java\com\reservation\exception\GlobalExceptionHandler.java
 C:\2026\lesson-appointment\api\src\main\java\com\reservation\service\UserService.java
 C:\2026\lesson-appointment\api\src\main\java\com\reservation\common\AtLeastOneNotBlankValidator.java

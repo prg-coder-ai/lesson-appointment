@@ -130,7 +130,7 @@
       </div>
 
       <div class="form-item">
-        <label for="username">账号</label>
+        <label for="username">账号(Email or PhoneNumber)</label>
         <input type="text" id="username" placeholder="请输入账号" required>
         <div class="error-tip" id="username-error">请输入账号</div>
       </div>
@@ -172,7 +172,7 @@
           <div class="error-tip" id="register-role-error">请选择注册身份</div>
         </div>
         <div class="form-item">
-          <label for="register-username">账号</label>
+          <label for="register-username">账号(邮箱或电话号码)</label>
           <input type="text" id="register-username" placeholder="请设置账号（字母/数字）" required>
           <div class="error-tip" id="register-username-error">请输入账号</div>
         </div>
@@ -181,19 +181,7 @@
           <input type="text" id="register-name" placeholder="请输入真实姓名" required>
           <div class="error-tip" id="register-name-error">请输入真实姓名</div>
         </div>
-        <div class="form-item">
-          <!-- 【修改】修正label文本：email → 邮箱 -->
-          <label for="register-email">邮箱</label>
-          <input type="text" id="register-email" placeholder="请输入邮箱" required>
-          <div class="error-tip" id="register-email-error">请输入正确的邮箱地址</div>
-        </div>
-        <div class="form-item">
-          <!-- 【修改】修正label文本：email → 电话号码 -->
-          <label for="register-phone">电话号码</label>
-          <input type="text" id="register-phone" placeholder="请输入电话号码">
-          <!-- 【修改】修正错误提示文本：phone占位符移除 -->
-          <div class="error-tip" id="register-phone-error">请输入正确的电话号码</div>
-        </div>
+        
         <div class="form-item">
           <label for="register-password">密码</label>
           <input type="password" id="register-password" placeholder="请设置密码" required>
@@ -250,8 +238,9 @@
     const registerRole = document.getElementById('register-role');
     const registerUsername = document.getElementById('register-username');
     const registerName = document.getElementById('register-name');
-    const registerEmail = document.getElementById('register-email');
-    const registerPhone = document.getElementById('register-phone');
+
+     var   registerEmail  ="";// document.getElementById('register-email');
+     var   registerPhone =""; //document.getElementById('register-phone');
 
     const registerPassword = document.getElementById('register-password');
     const registerConfirmPwd = document.getElementById('register-confirm-pwd');
@@ -261,8 +250,8 @@
     const registerRoleError = document.getElementById('register-role-error');
     const registerUsernameError = document.getElementById('register-username-error');
     const registerNameError = document.getElementById('register-name-error');
-    const registerEmailError = document.getElementById('register-email-error');
-    const registerPhoneError = document.getElementById('register-phone-error');
+    // const registerEmailError = document.getElementById('register-email-error');
+    // const registerPhoneError = document.getElementById('register-phone-error');
     const registerPasswordError = document.getElementById('register-password-error');
     const registerConfirmError = document.getElementById('register-confirm-error');
     const registerSuccess = document.getElementById('register-success');
@@ -323,44 +312,45 @@
         registerUsernameError.style.display = 'block';
         isValid = false;
       } else {
-        // 检查账号是否已存在
+        // 账号格式校验（邮箱或电话号码）
+        // 【修改】新增：根据输入内容判断是邮箱还是电话号码，并进行相应格式校验
+        // 账号包含"@"符号，判断为邮箱，否则判断为电话号码 
+        if (registerUsername.value.includes("@")) {
+           //判断为邮箱，检查是否合规
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailPattern.test(registerUsername.value.trim())) {
+          registerUsernameError.textContent = '请输入有效的邮箱地址';
+          registerUsernameError.style.display = 'block';
+          isValid = false;
+      }else {
+          registerEmail = registerUsername.value.trim();
+        }
+    }else{
+        const phonePattern = /^[\d-]{1,19}$/;
+        if (!phonePattern.test(registerUsername.value.trim())) {
+          registerUsernameError.textContent = '请输入有效的电话号码（最多19位，仅限数字和“-”分隔符）';
+          registerUsernameError.style.display = 'block';
+          isValid = false;
+        } else {
+          registerPhone = registerUsername.value.trim();
+        }
+      }
+      if(isValid)
+       { // 检查账号是否已存在
         const isExist = userDatabase.some(u => u.username === registerUsername.value.trim());
         if (isExist) {
           registerError.style.display = 'block';
           isValid = false;
         }
       }
+    } 
 
       // 验证真实姓名
       if (!registerName.value.trim()) {
         registerNameError.style.display = 'block';
         isValid = false;
       }
-
-      // 【修改】重构邮箱验证逻辑：先验证必填，再验证格式
-      if (!registerEmail.value.trim()) {
-        registerEmailError.textContent = '请输入邮箱地址';
-        registerEmailError.style.display = 'block';
-        isValid = false;
-      } else {
-        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailPattern.test(registerEmail.value.trim())) {
-          registerEmailError.textContent = '请输入有效的邮箱地址';
-          registerEmailError.style.display = 'block';
-          isValid = false;
-        }
-      }
-
-      // 验证手机号
-      if (registerPhone.value && registerPhone.value.trim() !== '') {
-        // 电话号码可包含数字和短横线-，最多19位
-        const phonePattern = /^[\d-]{1,19}$/;
-        if (!phonePattern.test(registerPhone.value.trim())) {
-          registerPhoneError.textContent = '请输入有效的电话号码（最多19位，仅限数字和“-”分隔符）';
-          registerPhoneError.style.display = 'block';
-          isValid = false;
-        }
-      }
+            
 
       // 验证密码
       if (!registerPassword.value.trim()) {
@@ -393,16 +383,16 @@
           // 构造注册信息
           const registerInfo = {
             role: registerRole.value, 
-            email:registerEmail.value,
-            phone:registerPhone.value,
+            email: registerEmail,
+            phone: registerPhone,
             username: registerUsername.value.trim(),
             name: registerName.value.trim(),
             password: registerPassword.value.trim(),
-            status: 'inactive' // 待审核状态
+            status: 'pendding' // 待审核状态
           };
           
-          // 存储到本地（模拟后端暂存）
-          let pendingRegisters = JSON.parse(localStorage.getItem('pendingRegisters') || '[]');
+          // 存储到本地,只保存最近1个记录（模拟后端暂存）
+          let pendingRegisters =JSON.parse('[]');// JSON.parse(localStorage.getItem('pendingRegisters') || '[]');
           pendingRegisters.push(registerInfo);
           localStorage.setItem('pendingRegisters', JSON.stringify(pendingRegisters));
           
@@ -413,7 +403,7 @@
             method: 'POST',
             headers: {
               'Content-Type': 'application/json' ,
-              credentials: 'include'
+              'credentials': 'include'
             },
             body: JSON.stringify(registerInfo)
           })
@@ -428,7 +418,7 @@
             // 可以根据后端返回结果做进一步处理
             // 例如根据 data.status 判断是否提交成功
             if (data && data.status === 'duplicate') {
-              alert('该用户名已存在，请更换用户名后重试');
+              alert('该账号已存在，请更换账号后重试');
             } else if (data && data.status === 'success') {
               // 【修改】移除admin分支（注册身份无admin）+ 改为提示不跳转
               registerSuccess.style.display = 'block';
