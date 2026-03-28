@@ -28,7 +28,6 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/user")
-// @ CrossOrigin(origins = "127.0.0.1", allowedHeaders = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.OPTIONS}) // 加这一行
 @Validated
 public class UserController {
 
@@ -39,7 +38,7 @@ public class UserController {
      * 学生注册接口，对应设计2.2.1 接口：/api/v1/user/student/register
      */
     @PostMapping("/student/register")
-     @CrossOrigin(origins = "127.0.0.1")    
+    
     public Result<Map<String, String>> studentRegister(@Validated @RequestBody User user) {
         // 调用服务层实现注册逻辑，返回userId和Token（对应设计2.2.1 学生注册返回数据）
         Map<String, String> resultMap = userService.studentRegister(user);
