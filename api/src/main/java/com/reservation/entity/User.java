@@ -17,7 +17,7 @@ import java.io.Serializable;
 @AtLeastOneNotBlank(firstField = "phone", secondField = "email")
 public class User implements Serializable{
     private String userId;  // 系统生成唯一标识（UUID），对应通用校验规则-ID类参数
-//检验条件：手机和邮箱不能都为空，至少有一个不为空
+//检验条件：手机和邮箱不能都为空，至少有一个不为空，作为账号
 
     // 手机号校验（对应通用校验规则-手机号）
   //  @NotBlank(message = "手机号不能为空")
@@ -42,11 +42,12 @@ public class User implements Serializable{
     private String learnGoal;
     private String languageLevel;  // 枚举值：入门/进阶/中级/高级/精通
 
+  // private String username;//账号--邮箱或电话
     // 教师专属参数（对应设计2.2.1 教师注册接口）
     private String name;
     private String qualification;  // Base64编码的资质图片
     private String languageType;  // 枚举值：英语/日语/韩语/法语/德语/西班牙语
 
-    // 账号状态（active/inactive/frozen），对应设计2.2.1 教师注册审核、设计2.2.5 用户管理
+    // 账号状态（padding/active/inactive/frozen），对应设计2.2.1 教师注册审核、设计2.2.5 用户管理
     private String status;
 }

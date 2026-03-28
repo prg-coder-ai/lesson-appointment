@@ -35,13 +35,13 @@
         SELECT * FROM `user` WHERE user_id = #{userId}
     &lt;/select&gt;
 
-    <!-- 插入用户 -->
+    <!-- 插入用户 user_id  自动创建-->
     <insert id="insert" parameterType="com.language.reservation.entity.User">
         INSERT INTO `user` (
-            user_id, phone, email, password, role,
+             phone, email, password, role,
             learn_goal, language_level, name, qualification, language_type, status
         ) VALUES (
-            #{userId}, #{phone}, #{email}, #{password}, #{role},
+           #{phone}, #{email}, #{password}, #{role},
             #{learnGoal}, #{languageLevel}, #{name}, #{qualification}, #{languageType}, #{status}
         )
     &lt;/insert&gt;

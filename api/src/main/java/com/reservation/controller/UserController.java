@@ -12,6 +12,7 @@ import org.springframework.validation.annotation.Validated;
 // 核心导入：RequestMethod 所在包
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -27,7 +28,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/user")
-@CrossOrigin(origins = "127.0.0.1", allowedHeaders = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.OPTIONS}) // 加这一行
+// @ CrossOrigin(origins = "127.0.0.1", allowedHeaders = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.OPTIONS}) // 加这一行
 @Validated
 public class UserController {
 
