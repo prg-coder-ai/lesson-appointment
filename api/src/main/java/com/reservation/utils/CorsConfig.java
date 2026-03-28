@@ -14,7 +14,7 @@ public class CorsConfig {
         CorsConfiguration config = new CorsConfiguration();
         
         // 允许所有来源（本地开发用这个） Pattern生产环境不要用*，配合credentials需指定具体域名）
-        config.addAllowedOrigin("http://localhost");    
+        config.addAllowedOrigin("http://localhost:8080");    
          // 允许携带Cookie
         config.setAllowCredentials(true);  
 
