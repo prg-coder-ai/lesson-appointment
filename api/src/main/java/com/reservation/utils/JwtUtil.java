@@ -14,6 +14,10 @@ import java.util.Date;
  */
 @Component
 public class JwtUtil {
+    // 提示：需要在 application.properties 或 application.yml 文件中添加 jwt.secret 和 jwt.expiration 配置
+    // 例如 application.properties:
+    // jwt.secret=请替换为你自己的JWT密钥
+    // jwt.expiration=3600000  # 1小时，单位：毫秒
 
     @Value("${jwt.secret}")
     private String secret;

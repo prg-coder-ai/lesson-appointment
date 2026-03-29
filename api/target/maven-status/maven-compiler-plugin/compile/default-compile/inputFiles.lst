@@ -14,6 +14,7 @@ C:\2026\lesson-appointment\api\src\main\java\com\reservation\service\UserService
 C:\2026\lesson-appointment\api\src\main\java\com\reservation\common\AtLeastOneNotBlankValidator.java
 C:\2026\lesson-appointment\api\src\main\java\com\reservation\entity\User.java
 C:\2026\lesson-appointment\api\src\main\java\com\reservation\entity\CourseEvaluation.java
+C:\2026\lesson-appointment\api\src\main\java\com\reservation\config\SecurityConfig.java
 C:\2026\lesson-appointment\api\src\main\java\com\reservation\controller\UserController.java
 C:\2026\lesson-appointment\api\src\main\java\com\reservation\entity\Course.java
 C:\2026\lesson-appointment\api\src\main\java\com\reservation\entity\CourseTemplate.java
