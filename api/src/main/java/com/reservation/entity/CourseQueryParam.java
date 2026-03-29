@@ -1,5 +1,5 @@
 // 预约订单实体（对应设计2.2.3 预约、支付相关接口）
-package src.main.java.com.reservation.entity;
+package com.reservation.entity;
 
 import lombok.Data;
 import jakarta.validation.constraints.NotBlank;

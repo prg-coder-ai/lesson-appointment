@@ -18,8 +18,8 @@
     <groupId>com.reservation</groupId> <!-- 自定义：公司/组织+项目名 -->
     <artifactId>api</artifactId>  <!-- 模块名，对应文件夹名api -->
     <version>1.0.0-SNAPSHOT</version> <!-- 版本号：快照版（开发中）/RELEASE（正式版） -->
-    <name>api</name>
-    <description>lesson booking API</description>
+    <name>api_web</name>
+    <description>lesson booking system</description>
 
     <!-- 3. 基础属性配置（统一编码、JDK版本） -->
     <properties>
@@ -31,7 +31,7 @@
         <mysql-connector.version>8.0.33</mysql-connector.version>
         <jjwt.version>0.11.5</jjwt.version>
         <spring-boot.version>2.7.15</spring-boot.version>
-         <mainClass>com.language.reservation.LanguageReservationApplication</mainClass>
+        <mainClass>com.reservation.SpringBootMergeApplication</mainClass>
     </properties>
 
  
@@ -39,10 +39,17 @@
     <!-- 4. 依赖配置 -->
     <dependencies>
         <!-- pom.xml 基础依赖 -->
+        <!-- 热部署核心依赖：spring-boot-devtools -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <optional>true</optional> <!-- 避免依赖传递，仅当前项目生效，生产环境不引入 -->
+            <scope>runtime</scope> <!-- 仅运行时有效，不影响编译过程 -->
         </dependency>
+			<dependency>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-starter-web</artifactId>
+			</dependency>
 
             <dependency>
                 <groupId>jakarta.validation</groupId>
@@ -55,11 +62,11 @@
                 <version>8.0.1.Final</version>
             </dependency>
           
-          <dependency>
-    <groupId>org.openjfx</groupId>
-    <artifactId>javafx-fxml</artifactId>
-    <version>21</version>
-</dependency>
+			<dependency>
+				<groupId>org.openjfx</groupId>
+				<artifactId>javafx-fxml</artifactId>
+				<version>21</version>
+			</dependency>
 
         <!-- 数据校验（对应设计2.4 异常处理、参数校验） -->
         <dependency>
@@ -102,7 +109,7 @@
         <dependency>
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
-            <version>8.0.33</version> <!-- 适配 MySQL 5.7+/8.0+，支持 utf8mb4 -->
+            <version>${mysql-connector.version}</version> <!-- 适配 MySQL 5.7+/8.0+，支持 utf8mb4 -->
             <scope>runtime</scope>
         </dependency>
 
@@ -121,17 +128,17 @@
              <optional>true</optional>
         </dependency>
 
-<!-- MyBatis-Plus -->
-<dependency>
-    <groupId>com.baomidou</groupId>
-    <artifactId>mybatis-plus-boot-starter</artifactId>
-    <version>3.5.3.1</version>
-</dependency>
+		<!-- MyBatis-Plus -->
+		<dependency>
+			<groupId>com.baomidou</groupId>
+			<artifactId>mybatis-plus-boot-starter</artifactId>
+			<version>3.5.3.1</version>
+		</dependency>
 
     </dependencies>
     <!-- 5. 构建配置（核心：Spring Boot打包插件，生成可执行JAR） -->
     <build>
-    <sourceDirectory>. </sourceDirectory>
+     
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
@@ -140,6 +147,14 @@
                 <configuration>
                     <!-- 手动指定启动类全路径（和properties中保持一致） -->
                     <mainClass>${mainClass}</mainClass>
+					<excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                    <!-- 关键配置：开启独立进程，确保热部署生效 -->
+                <fork>true</fork> 
                 </configuration>
                 <executions>
                     <execution>

@@ -1,4 +1,4 @@
-package src.main.java.com.reservation.entity;
+package com.reservation.entity;
 
 import lombok.Data;
 import jakarta.validation.constraints.NotBlank;

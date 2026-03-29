@@ -1,4 +1,4 @@
-package src.main.java.com.reservation.entity;
+package com.reservation.entity;
 
 import lombok.Data;
 
@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import src.main.java.com.reservation.common.AtLeastOneNotBlank;
+import com.reservation.common.AtLeastOneNotBlank;
 
 import java.io.Serializable;
 /**
