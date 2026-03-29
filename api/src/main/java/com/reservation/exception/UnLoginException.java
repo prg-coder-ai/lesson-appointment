@@ -1,4 +1,4 @@
-package src.main.java.com.reservation.exception;
+package com.reservation.exception;
  
 public class UnLoginException extends RuntimeException {
 

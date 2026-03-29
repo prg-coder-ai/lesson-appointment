@@ -1,9 +1,9 @@
-package src.main.java.com.reservation.utils;
+package com.reservation.utils;
 
-import src.main.java.com.reservation.exception.NoPermissionException;
-import src.main.java.com.reservation.exception.UnLoginException;
-import src.main.java.com.reservation.mapper.UserMapper;
-import src.main.java.com.reservation.entity.User;
+import com.reservation.exception.NoPermissionException;
+import com.reservation.exception.UnLoginException;
+import com.reservation.mapper.UserMapper;
+import com.reservation.entity.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 

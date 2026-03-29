@@ -1,4 +1,4 @@
-package src.main.java.com.reservation.exception;
+package com.reservation.exception;
 /**
  * 业务异常类（如权限不足、操作不合法等业务逻辑错误时抛出）
  * 继承RuntimeException，无需手动捕获，由全局异常处理器处理

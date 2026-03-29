@@ -1,11 +1,11 @@
-package src.main.java.com.reservation.controller;
+package com.reservation.controller;
 
-import src.main.java.com.reservation.utils.CorsConfig;
+ import com.reservation.config.CorsConfig; 
  
 import jakarta.validation.constraints.NotBlank;
-import src.main.java.com.reservation.common.Result;
-import src.main.java.com.reservation.entity.User;
-import src.main.java.com.reservation.service.UserService;
+import com.reservation.common.Result;
+import com.reservation.entity.User;
+import com.reservation.service.UserService;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.constraints.Pattern;
 import java.util.Map;
+
 
 
  

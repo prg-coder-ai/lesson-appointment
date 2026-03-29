@@ -1,10 +1,10 @@
-package src.main.java.com.reservation.service;
+package com.reservation.service;
 
-import src.main.java.com.reservation.entity.User;
-import src.main.java.com.reservation.exception.BusinessException;
-import src.main.java.com.reservation.exception.ResourceNotFoundException;
-import src.main.java.com.reservation.mapper.UserMapper;
-import src.main.java.com.reservation.utils.JwtUtil;
+import com.reservation.entity.User;
+import com.reservation.exception.BusinessException;
+import com.reservation.exception.ResourceNotFoundException;
+import com.reservation.mapper.UserMapper;
+import com.reservation.utils.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;

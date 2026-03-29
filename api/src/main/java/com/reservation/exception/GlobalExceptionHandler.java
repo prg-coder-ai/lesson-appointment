@@ -1,6 +1,6 @@
-package src.main.java.com.reservation.exception;
+package com.reservation.exception;
 
-import src.main.java.com.reservation.common.Result;
+import com.reservation.common.Result;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;

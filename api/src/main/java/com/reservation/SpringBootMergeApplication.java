@@ -1,4 +1,4 @@
-package com.language.reservation;
+package com.reservation;
 
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
@@ -12,13 +12,13 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
  */
 @SpringBootApplication  // 关联点1：自动扫描当前包（com.language.reservation）及其子包下所有组件
                        // 涵盖所有controller、service、utils、exception、common等包下的注解类（@RestController、@Service、@Component等）
-@MapperScan("com.language.reservation.mapper")  // 关联点2：扫描MyBatis映射接口（UserMapper、CourseMapper等）
+@MapperScan("com.reservation.mapper")  // 关联点2：扫描MyBatis映射接口（UserMapper、CourseMapper等）
                                                // 对应1.2 application.yml中mybatis.type-aliases-package配置，确保mapper接口被Spring管理
-public class LanguageReservationApplication {
+public class SpringBootMergeApplication  {
 
     public static void main(String[] args) {
         // 启动Spring Boot项目，加载所有配置和组件（关联所有基础配置、业务模块）
-        SpringApplication.run(LanguageReservationApplication.class, args);
+        SpringApplication.run(SpringBootMergeApplication.class, args);
     }
 
     /**

@@ -1,4 +1,4 @@
-package src.main.java.com.reservation.common;
+package com.reservation.common;
 
 import jakarta.validation.Constraint;
 import jakarta.validation.Payload;

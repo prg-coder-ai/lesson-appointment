@@ -1,4 +1,4 @@
-package src.main.java.com.reservation.entity;
+package com.reservation.entity;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
