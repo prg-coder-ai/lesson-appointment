@@ -9,6 +9,22 @@ import org.springframework.security.config.annotation.web.configuration.WebSecur
  * SecurityConfig类，负责Spring Security安全配置
  * 用于设置URL访问权限、安全过滤链等 /endpoint-list
  */
+/**
+ * antMatchers(...) 方法用于配置URL路径的访问权限控制，是Spring Security授权机制的重要组成部分。
+ * 
+ * 主要作用：
+ *   - 指定哪些 HTTP 请求路径（URL）可以被哪些角色、用户或匿名访问。
+ *   - 常用方式如：.antMatchers("/admin/**").hasRole("ADMIN") 只允许ADMIN角色访问 /admin 下的所有接口
+ *   - .antMatchers("/public/**").permitAll() 允许所有用户（包括未登录）访问 /public 下所有接口
+ *   - 多次调用 .antMatchers 可依次添加多组规则，顺序自上而下匹配，匹配到后不再继续往下。
+ *
+ * 在本配置中：
+ *   .antMatchers("/", "/index", "/index.html", ...) 
+ *   表示允许所有用户（无需登录）访问这些路径，其它路径则需认证。
+ * 
+ * 官方文档：https://docs.spring.io/spring-security/site/docs/current/api/org/springframework/security/config/annotation/web/AbstractRequestMatcherRegistry.html#antMatchers-java.lang.String...-
+ */
+
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
@@ -17,7 +33,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     protected void configure(HttpSecurity http) throws Exception {
         http
             .authorizeRequests() 
-            .antMatchers("/", "/index", "/index.html","/interfaces","/api/v1").permitAll() // 允许匿名访问首页
+            .antMatchers("/", "/index", "/index.html","/interfaces","/user/teacher/register","/user/student/register").permitAll() // 允许匿名访问首页
                 // ... 其它授权规则
             .anyRequest().authenticated()
             .and()

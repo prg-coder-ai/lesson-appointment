@@ -19,10 +19,7 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.constraints.Pattern;
-import java.util.Map;
-
-
-
+import java.util.Map; 
  
 /**
  * 用户注册与认证控制器，对应设计2.2.1 所有接口
