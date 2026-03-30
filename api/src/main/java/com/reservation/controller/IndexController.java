@@ -68,17 +68,126 @@ public String root() {
   * - 403通常是安全配置问题，检查SecurityConfig；404多为文件路径/部署问题。
   * - 建议根据需求将 index.html 放在 static/ 目录以支持直链访问，并配置 permitAll("/index.html")。
   */
+/**
+ * @ResponseBody 注解的作用：
+ *
+ * 标注在 Controller 的方法上时，表示该方法的返回值不会被解析为视图（View），
+ * 而是直接写入HTTP响应体（Response Body），常用于返回JSON、XML、字符串等数据。
+ *
+ * 典型场景：开发RESTful接口、API返回数据时使用。
+ * Spring MVC 会自动将返回对象序列化为 JSON（需引入 jackson 依赖）。
+ *
+ * 示例：
+ *  @ResponseBody
+ *  @GetMapping("/hello")
+ *  public String hello() {
+ *      return "Hello, World!"; // 浏览器显示原文，而不是跳转页面
+ *  }
+ *
+ * - 若只想渲染页面，不加 @ResponseBody。
+ * - 若想返回数据而不是页面，加 @ResponseBody。
+ *
+ * 补充：@RestController = @Controller + @ResponseBody，默认所有方法返回响应体数据。
+ */
 
  
 @Controller
-@RequestMapping({"", "/"})
 public class IndexController {
 
     // 注入业务层（自动装配，无需手动创建）
 
     // 1. 渲染动态页面（HTML），访问路径：http://localhost:8081
-    @RequestMapping({"", "/"})
-    public String index() {
+    /**
+     * 404（Not Found）错误分析：访问 "http://localhost:8081" 报 404 的常见原因如下：
+     *
+     * 1. 控制器未正确映射根路径（"/" 或 ""）：
+     *    - 应有一个Controller方法（如本类）用 @GetMapping({"", "/"}) 或 @RequestMapping({"", "/"}) 注解，并返回视图名"index"。
+     *    - 若Controller未生效、路径配置不对，则Spring找不到对应页面，返回404。
+     *
+     * 2. 模板页面 index.html 未放置于正确目录：
+     *    - 如果采用Thymeleaf/JSP等模板引擎，应将index.html存放在 resources/templates/ 目录下。
+     *    - 且Controller应返回"index"（不带.html后缀），由Spring MVC转发解析。
+     *    - 若仅将index.html放在 static/ 下但未配置静态资源访问，直接访问根路径不会命中，需访问 /index.html 直链。
+     *
+     * 3. 静态资源配置异常或未启用相关目录：
+     *    - application.properties 需配置 spring.web.resources.static-locations（如 classpath:/static/）。
+     *    - 未配置或配置有误，导致静态资源不被扫描。
+     *
+     * 4. 首页未被Spring Security放开，实际通常会403，但有些情况下安全配置影响也可能导致404。
+     *
+     * 5. 项目启动未报错但未加载Controller，因包扫描范围覆盖不到当前Controller。
+     *    - 确保@SpringBootApplication注解类（主启动类）在父包下（如 com.reservation），能扫描到此Controller。
+     *
+     * 6. 热部署或编译未生效，实际代码、模板未被编译进target目录。
+     *
+     * 【排查建议】
+     * - 确认本类IndexController被正确扫描/注册，并包含根路径的 @GetMapping 或 @RequestMapping。
+     * - 确认 templates 目录下有 index.html 文件，且无拼写/大小写错误。
+     * - 若希望支持 /index.html 直链，须将index.html放入static/目录，并在SecurityConfig里permitAll("/index.html")。
+     * - 检查 application.properties的模板与静态资源相关设置。
+     *
+     * 参考：Spring官方文档关于静态资源与模板视图解析配置。
+     */
+    /**
+     * 补充分析：
+     * 目前 @GetMapping({"", "/"}) 方法被调用时报404，而 @GetMapping("interfaces") 方法可以正常返回数据，
+     * 这通常说明控制器已被扫描注册，但根路径映射未生效。其主要可能原因如下：
+     * 
+     * 1. 方法上加了 @ResponseBody，却返回"index"字符串（造成直接返回文本"index"，而不是跳转至视图页面）。
+     *    - @ResponseBody 表示方法返回值就是响应体内容，不做视图跳转。
+     *    - 若仅需渲染/index.html，应去掉 @ResponseBody，仅返回视图名，由视图解析器寻找模板页面。
+     * 
+     * 2. Security 配置问题已排除（参见 SecurityConfig，已 permitAll("/")）。
+     * 
+     * 3. templates/index.html 确实存在，且application.properties未特殊配置模板路径。
+     * 
+     * 4. @Controller + @RequestMapping({"", "/"}) 已正确配置，因此只需改正方法注解。
+     * 
+     * 【解决建议】
+     * - 去除 @ResponseBody，仅保留 @GetMapping({"", "/"})，返回 "index" 触发视图解析。
+     * - 若要返回字符串（如API），需要 @ResponseBody；若要跳转页面，不需要。
+     */
+    
+    /**
+     * @GetMapping 注解用于处理HTTP GET请求，常用于访问页面或查询数据接口。
+     *
+     * 基本用法：
+     *
+     * // 1. 映射单一URL
+     * @GetMapping("/hello")
+     * public String hello() {
+     *     return "hello"; // 返回视图名（模板页面），或加@ResponseBody返回内容
+     * }
+     *
+     * // 2. 映射多个URL（数组形式）
+     * @GetMapping(value = {"/", "/index"})
+     * public String index() {
+     *     return "index";
+     * }
+     *
+     * // 3. 带参数
+     * @GetMapping("/user/{id}")
+     * public String getUser(@PathVariable Long id) {
+     *     //...
+     * }
+     *
+     * 说明：
+     * - 作用于方法上，等价于 @RequestMapping(value="/path", method=RequestMethod.GET)
+     * - 返回字符串时若无 @ResponseBody，默认跳转到同名模板页面（如：index -> templates/index.html）
+     * - 若返回JSON数据，加 @ResponseBody 或使用@RestController
+     * - 可结合 @RequestParam、@PathVariable 获取请求参数
+     *
+     * 示例：
+     * @GetMapping("/welcome")
+     * @ResponseBody
+     * public String welcome() {
+     *     return "Welcome!"; // 直接返回文本
+     * }
+     *
+     * 文档参考：https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/web/bind/annotation/GetMapping.html
+     */
+    @GetMapping({"","/","/index.html"})
+    public String toIndex() {
         // 跳转到templates/index.html页面（无需传参，JS将通过API请求数据） 
         return "index";
     }
