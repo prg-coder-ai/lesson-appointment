@@ -5,13 +5,11 @@ import com.reservation.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
+import java.util.Set;
 // 由于程序启动后默认没有跳转到 index.html 而是跳到了 login，说明 Spring Security 可能拦截了首页（/）请求，要求认证。
 // 解决办法之一是将首页（/ 或 /index.html）设置为 permitAll，不需要登录即可访问。
 // 此处可添加一个欢迎页面的重定向控制器（如果不希望Spring Security拦截首页）： 
@@ -73,19 +71,11 @@ public String root() {
 
  
 @Controller
-@RequestMapping({"", "/", "/index"})
+@RequestMapping({"", "/"})
 public class IndexController {
 
-     @ExceptionHandler(Exception.class)
-    public String handleError(HttpServletRequest req, Exception ex, Model model) {
-        model.addAttribute("status", 500);
-        model.addAttribute("error", "服务器内部错误");
-        model.addAttribute("message", ex.getMessage());
-        model.addAttribute("timestamp", new java.util.Date());
-        model.addAttribute("path", req.getRequestURI());
-        return "errorpage";
-    }
     // 注入业务层（自动装配，无需手动创建）
+
     // 1. 渲染动态页面（HTML），访问路径：http://localhost:8081
     @RequestMapping({"", "/"})
     public String index() {
@@ -116,10 +106,19 @@ public class IndexController {
              org.springframework.web.servlet.mvc.method.RequestMappingInfo info = entry.getKey();
 
              // 处理每个路径
-             java.util.Set<String> patterns = info.getPatternsCondition().getPatterns();
-             java.util.Set<org.springframework.http.HttpMethod> httpMethods = info.getMethodsCondition().getMethods();
+             //判断info为空、nfo.getPatternsCondition()为null的情况
+             if (info == null || info.getPatternsCondition() == null) {
+                 continue;
+             }
 
+             java.util.Set<String> patterns = info.getPatternsCondition().getPatterns();
+
+             if (info.getMethodsCondition() == null) {
+                 continue;
+             }
+             Set<RequestMethod> httpMethods = info.getMethodsCondition().getMethods();
              String methodStr = httpMethods.isEmpty() ? "[ALL]" : httpMethods.toString();
+             
              for (String pattern : patterns) {
                  endpoints.add(methodStr + " " + pattern);
              }
@@ -128,15 +127,6 @@ public class IndexController {
          java.util.Collections.sort(endpoints);
          return endpoints;
      }
-
-    
-    // 2. 提供API接口（给JS调用，返回JSON数据），访问路径：http://localhost:8088/api/data/list
-   /* @GetMapping("/api/data/list")
-    @ResponseBody // 标记返回JSON，而非页面
-    public List<Data> getDataList() {
-        // 调用业务层，从数据库获取数据，返回给JS
-        return dataService.getDataList();
-    }*/
 
 }
 /**
@@ -162,7 +152,8 @@ public class IndexController {
  *    - @RequestMapping 可以配合 params、headers 进行更细粒度的控制。
  *    - @GetMapping 仅限于 GET 请求，代码更简洁、易读。
  */
- /*
+
+ /**
  分析：
  
  在IndexController中已经有如下方法：
