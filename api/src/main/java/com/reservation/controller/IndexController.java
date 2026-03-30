@@ -90,8 +90,10 @@ public String root() {
  * 补充：@RestController = @Controller + @ResponseBody，默认所有方法返回响应体数据。
  */
 
- 
+    
 @Controller
+@RequestMapping({"", "/"})
+//此时。interfaces可达，但是返回的数据为空
 public class IndexController {
 
     // 注入业务层（自动装配，无需手动创建）
@@ -186,7 +188,8 @@ public class IndexController {
      *
      * 文档参考：https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/web/bind/annotation/GetMapping.html
      */
-    @GetMapping({"","/","/index.html"})
+    @GetMapping({"","/"})
+    @ResponseBody
     public String toIndex() {
         // 跳转到templates/index.html页面（无需传参，JS将通过API请求数据） 
         return "index";
@@ -234,6 +237,7 @@ public class IndexController {
          }
 
          java.util.Collections.sort(endpoints);
+         //endpoints.add( "test");//可达
          return endpoints;
      }
 
