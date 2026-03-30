@@ -17,7 +17,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     protected void configure(HttpSecurity http) throws Exception {
         http
             .authorizeRequests() 
-            .antMatchers("/", "index", "index.html","interfaces","api/v1").permitAll() // 允许匿名访问首页
+            .antMatchers("/", "/index", "/index.html","/interfaces","/api/v1").permitAll() // 允许匿名访问首页
                 // ... 其它授权规则
             .anyRequest().authenticated()
             .and()
@@ -54,3 +54,67 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 参考链接：
 https://docs.spring.io/spring-boot/docs/current/reference/html/web.html#web.servlet.spring-mvc.static-content
 */
+
+/*
+MyBatis 使用方法简介：
+
+1. 添加依赖
+   - Maven项目需引入mybatis-spring-boot-starter依赖：
+     <dependency>
+       <groupId>org.mybatis.spring.boot</groupId>
+       <artifactId>mybatis-spring-boot-starter</artifactId>
+       <version>2.2.2</version>
+     </dependency>
+   - （本项目已集成）
+
+2. 配置数据库信息
+   - 在 application.properties 中配置数据库连接参数（已配置）。
+   - 常见配置项有 spring.datasource.url、username、password 等。
+
+3. 创建实体类（Entity）
+   - 每个表对应一个Java实体类（如 User.java）。
+   - 字段需与表结构对应。
+
+4. 编写Mapper接口
+   - 使用 @Mapper 注解标识接口，例如 UserMapper。
+   - 定义数据库操作方法（如 selectById, insert）。
+   - 方法名与对应的SQL语句一致，入参和返回值类型要匹配。
+
+5. 编写Mapper XML（可选）
+   - 在 resources/mybatis/mapper 目录下，为每个Mapper接口编写对应的XML文件，定义SQL语句。
+   - 也可以使用注解（如 @Select, @Insert）在接口方法上直接写SQL。
+
+6. 配置扫描路径
+   - 在启动类加 @MapperScan("com.reservation.mapper")，或在每个Mapper接口加 @Mapper 注解，都可；本项目均有设置。
+
+7. 在Service层注入并调用Mapper
+   - 使用 @Autowired 注入Mapper接口。
+   - 调用接口方法，即可操作数据库。
+
+8. 示例代码
+   // 实体类
+   public class User { private String id; private String name; ... }
+
+   // Mapper接口
+   @Mapper
+   public interface UserMapper {
+       User selectById(@Param("id") String id);
+   }
+
+   // Service
+   @Service
+   public class UserService {
+       @Autowired
+       private UserMapper userMapper;
+       public User getUser(String id) {
+           return userMapper.selectById(id);
+       }
+   }
+
+9. 返回结果
+   - MyBatis 会自动将查询结果映射为Java对象/集合。
+   - 支持分页、动态SQL、复杂关联等高级特性。
+
+更多详见官方文档：https://mybatis.org/spring-boot-starter/mybatis-spring-boot-autoconfigure/
+*/
+
