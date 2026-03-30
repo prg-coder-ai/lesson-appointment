@@ -154,4 +154,24 @@ public class UserService {
         user.setPassword(passwordEncoder.encode(newPassword));
         userMapper.updatePassword(user);
     }
+
+ /**
+     * 根据手机号查询用户（判空 + 抛自定义异常）
+     */
+    public User selectByPhone(String phone) {
+      return userMapper.selectByPhone(phone)
+            .orElseThrow(() -> new UserNotFoundException("手机号【" + phone + "】对应的用户不存在"));
+
+        return user;
+    }
+ /**
+     * 根据手机号/邮箱查询用户（登录专用）
+     */
+    public User selectByPhoneOrEmail(String account) {
+        User user = userMapper.selectByPhoneOrEmail(account);
+        if (user == null) {
+            throw new UserNotFoundException("账号【" + account + "】不存在");
+        }
+        return user;
+    }
 }
