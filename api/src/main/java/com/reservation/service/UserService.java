@@ -3,6 +3,7 @@ package com.reservation.service;
 import com.reservation.entity.User;
 import com.reservation.exception.BusinessException;
 import com.reservation.exception.ResourceNotFoundException;
+import com.reservation.exception.UserNotFoundException;
 import com.reservation.mapper.UserMapper;
 import com.reservation.utils.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-
+import java.util.Optional;
 /**
  * 用户注册与认证服务，对应设计2.2.1 所有接口的业务逻辑
  */
@@ -159,8 +160,30 @@ public class UserService {
      * 根据手机号查询用户（判空 + 抛自定义异常）
      */
     public User selectByPhone(String phone) {
-      return userMapper.selectByPhone(phone)
-            .orElseThrow(() -> new UserNotFoundException("手机号【" + phone + "】对应的用户不存在"));
+     // return userMapper.selectByPhone(phone)
+       //     .orElseThrow(() -> new UserNotFoundException("手机号【" + phone + "】对应的用户不存在"));
+        User user = userMapper.selectByPhone(phone);
+        if(user ==null)
+            new UserNotFoundException("手机号【" + phone + "】对应的用户不存在");
+
+        return user;
+    }
+ public User selectByEmail(String email) {
+      //return userMapper.selectByEmail(email)
+        //    .orElseThrow(() ->
+     User user = userMapper.selectByEmail(email);
+     if(user ==null)
+             new UserNotFoundException("email" + email + "】对应的用户不存在");
+
+        return user;
+    }
+ 
+public User selectById(String userId) {
+        User user = userMapper.selectById(userId);
+      //return userMapper.selectById(userId)
+        //    .orElseThrow(() ->
+      if(user==null)
+           new UserNotFoundException("userId" + userId + "】对应的用户不存在");
 
         return user;
     }
