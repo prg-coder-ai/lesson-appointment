@@ -188,9 +188,8 @@ public class IndexController {
      *
      * 文档参考：https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/web/bind/annotation/GetMapping.html
      */
-    @GetMapping({"","/"})
-    @ResponseBody
-    public String toIndex() {
+    @GetMapping({"","/"}) 
+    public String Index() {
         // 跳转到templates/index.html页面（无需传参，JS将通过API请求数据） 
         return "index";
     }
