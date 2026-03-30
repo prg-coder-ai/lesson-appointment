@@ -3,7 +3,7 @@
 <mapper namespace="com.reservation.mapper.UserMapper">;
 
     <!-- 通用结果集映射 -->
-    <resultMap id="userResultMap" type="com.language.reservation.entity.User">
+    <resultMap id="userResultMap" type="com.reservation.entity.User">
         <result column="user_id" property="userId"/>
         <result column="phone" property="phone"/>
         <result column="email" property="email"/>
@@ -15,28 +15,29 @@
         <result column="qualification" property="qualification"/>
         <result column="language_type" property="languageType"/>
         <result column="status" property="status"/>
-    &lt;/resultMap&gt;
+    </resultMap>;
 
-    <!-- 根据手机号查询用户 -->
+    <!-- 根据手机号查询用户 selectByPhone -->
     <select id="selectByPhone" parameterType="String" resultMap="userResultMap">
         SELECT * FROM `user` WHERE phone = #{phone}
-    </select&gt;
+    </select>;
 
     <!-- 根据邮箱查询用户 -->
     <select id="selectByEmail" parameterType="String" resultMap="userResultMap">
         SELECT * FROM `user` WHERE email = #{email}
-    </select><!-- 根据手机号或邮箱查询用户 -->
+    </select>
+    <!-- 根据手机号或邮箱查询用户 -->
     <select id="selectByPhoneOrEmail" parameterType="String" resultMap="userResultMap">
         SELECT * FROM `user` WHERE phone = #{account} OR email = #{account}
-    &lt;/select&gt;
+    </select>;
 
     <!-- 根据用户ID查询用户 -->
     <select id="selectById" parameterType="String" resultMap="userResultMap">
         SELECT * FROM `user` WHERE user_id = #{userId}
-    &lt;/select&gt;
+   </select>;
 
     <!-- 插入用户 user_id  自动创建-->
-    <insert id="insert" parameterType="com.language.reservation.entity.User">
+    <insert id="insert" parameterType="com.reservation.entity.User">
         INSERT INTO `user` (
              phone, email, password, role,
             learn_goal, language_level, name, qualification, language_type, status
@@ -44,10 +45,10 @@
            #{phone}, #{email}, #{password}, #{role},
             #{learnGoal}, #{languageLevel}, #{name}, #{qualification}, #{languageType}, #{status}
         )
-    &lt;/insert&gt;
+    </insert>;
 
     <!-- 更新用户密码 -->
-    <update id="updatePassword" parameterType="com.language.reservation.entity.User">
+    <update id="updatePassword" parameterType="com.reservation.entity.User">
         UPDATE `user` SET password = #{password} WHERE user_id = #{userId}
     </update>
 
