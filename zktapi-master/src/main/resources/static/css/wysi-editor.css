@@ -1,0 +1,73 @@
+﻿  body {
+    font-family: Verdana;
+    font-size: 11px;
+  }
+  
+  h2 {
+    margin-bottom: 0;
+  }
+  
+  small {
+    display: block;
+    margin-top: 40px;
+    font-size: 9px;
+  }
+  
+  small,
+  small a {
+    color: #666;
+  }
+  
+  a {
+    color: #000;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  
+  #toolbar [data-wysihtml5-action] {
+    float: right;
+  }
+  
+  #toolbar,
+  textarea {
+    width: 920px;
+    padding: 5px;
+    -webkit-box-sizing: border-box;
+    -ms-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+  }
+  
+  textarea {
+    height: 280px;
+    border: 2px solid green;
+    font-family: Verdana;
+    font-size: 11px;
+  }
+  
+  textarea:focus {
+    color: black;
+    border: 2px solid black;
+  }
+  
+  .wysihtml5-command-active {
+    font-weight: bold;
+  }
+  
+  [data-wysihtml5-dialog] {
+    margin: 5px 0 0;
+    padding: 5px;
+    border: 1px solid #666;
+  }
+  
+  a[data-wysihtml5-command-value="red"] {
+    color: red;
+  }
+  
+  a[data-wysihtml5-command-value="green"] {
+    color: green;
+  }
+  
+  a[data-wysihtml5-command-value="blue"] {
+    color: blue;
+  }

@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ih.api.dal.HeatexchangestationMapper">
+
+    <resultMap type="com.ih.api.model.Heatexchangestation" id="heatexchangestationMap">
+        <id column="id" property="id"/>
+        <result column="Name" property="name"/>
+        <result column="CompanyID" property="companyID"/>
+        <result column="Lati" property="lati"/>
+        <result column="longi" property="longi"/>
+        <result column="Height" property="height"/>
+        <result column="Rsv1" property="note1"/>
+        <result column="Rsv2" property="note2"/>
+        <result column="Status" property="status"/>
+        <result column="CreaterID" property="createrID"/>
+        <result column="CreateTime" property="createTime"/>
+        <result column="ParentID" property="parentID"/>
+
+        <result column="heatingArea" property="heatingArea"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        `id`,`Name`,`CompanyID`,`Lati`,`longi`,`Height`,`Rsv1`,`Rsv2`,
+        `Status`,`CreaterID`,`CreateTime`,`ParentID`,
+        `heatingArea`
+    </sql>
+
+    <select id="getPaging" resultType="com.ih.api.model.Heatexchangestation"
+            resultMap="heatexchangestationMap">
+        SELECT
+        hes.`id`,hes.`Name`,hes.`CompanyID`,hes.`Lati`,hes.`longi`,hes.`Height`,hes.`Rsv1`,hes.`Rsv2`,hes.`Status`,hes.`CreaterID`,hes.`CreateTime`,hes.`ParentID`,com.name
+        AS companyName, hes1.`Name` AS  parentName ,
+         hes.`heatingArea`
+        FROM heatexchangestation hes
+        LEFT JOIN heatexchangestation hes1 ON hes.`ParentID` = hes1.`id`
+        LEFT JOIN company com ON hes.CompanyID=com.id
+        WHERE hes.Status!=3
+        <if test="name!=''">
+            and hes.`Name` LIKE '%${name}%'
+        </if>
+        <if test="companyID!=-1">
+            and  com.id = #{companyID}
+        </if>
+        <if test="parentID!=-1">
+            and hes.`ParentID` = #{parentID}
+        </if>
+
+         group by hes.id
+        order by ${orderBy} limit #{offset},#{pageSize}
+    </select>
+
+    <select id="getStations" resultType="com.ih.api.model.Heatexchangestation"
+            resultMap="heatexchangestationMap">
+        SELECT
+        hes.`id`,hes.`Name`,hes.`CompanyID`,hes.`Lati`,hes.`longi`,hes.`Height`,hes.`Rsv1`,hes.`Rsv2`,hes.`Status`,hes.`CreaterID`,hes.`CreateTime`,hes.`ParentID`,com.name
+        AS companyName, hes1.`Name` AS  parentName ,  hes.`heatingArea`
+        FROM heatexchangestation hes
+        LEFT JOIN heatexchangestation hes1 ON hes.`ParentID` = hes1.`id`
+        INNER JOIN company as com ON hes.CompanyID = com.id
+        WHERE hes.Status!=3
+        <if test="companyID!=-1">
+            and (com.id = #{companyID} or  com.ParentID = #{companyID})
+        </if>
+        order by ${orderBy} limit #{offset},#{pageSize}
+    </select>
+
+    <select id="get" resultType="com.ih.api.model.Heatexchangestation"
+            resultMap="heatexchangestationMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM heatexchangestation
+        WHERE id=#{id}
+    </select>
+
+    <update id="update" parameterType="com.ih.api.model.Heatexchangestation"
+            flushCache="true"
+            statementType="PREPARED"
+            timeout="20">
+        Update heatexchangestation   hes
+        <set>
+            <if test="model.name!=null">
+                hes.`Name`=#{model.name},
+            </if>
+            <if test="model.companyID!=null">
+                hes.`CompanyID`=#{model.companyID},
+            </if>
+            <if test="model.lati!=null">
+                hes.`Lati`=#{model.lati},
+            </if>
+            <if test="model.longi!=null">
+                hes.`longi`=#{model.longi},
+            </if>
+            <if test="model.height!=null">
+                hes.`Height`=#{model.height},
+            </if>
+            <if test="model.note1!=null">
+                hes.`Rsv1`=#{model.note1},
+            </if>
+            <if test="model.note2!=null">
+                hes.`Rsv2`=#{model.note2},
+            </if>
+            <if test="model.status!=null">
+                hes. `Status`=#{model.status},
+            </if>
+            <if test="model.createrID!=null">
+                hes.`CreaterID`=#{model.createrID},
+            </if>
+            <if test="model.createTime!=null">
+                hes.`CreateTime`=#{model.createTime},
+            </if>
+            <if test="model.parentID!=null">
+                hes.`ParentID`=#{model.parentID},
+            </if>
+            <if test="model.heatingArea!=null">
+                hes.`heatingArea`=#{model.heatingArea},
+            </if>
+        </set>
+        WHERE hes.id=#{model.id}
+    </update>
+
+    <update id="delete" parameterType="java.lang.Integer" statementType="PREPARED"
+            timeout="20">
+        update heatexchangestation set Status=3 WHERE id=#{id}
+    </update>
+
+    <insert id="insert" parameterType="com.ih.api.model.Heatexchangestation"
+            flushCache="true"
+            statementType="PREPARED"
+            keyProperty="id"
+            keyColumn=""
+            useGeneratedKeys="true"
+            timeout="20">
+        INSERT INTO heatexchangestation(`Name`,`CompanyID`,`Lati`,`longi`,`Height`,`Rsv1`,`Rsv2`,`Status`,`CreaterID`,`CreateTime`,`ParentID`,`heatingArea`)
+        VALUES(#{model.name},#{model.companyID},#{model.lati},#{model.longi},#{model.height},#{model.note1},#{model.note2},#{model.status},#{model.createrID},#{model.createTime},#{model.parentID},#{model.heatingArea})
+    </insert>
+
+
+    <select id="getCount" parameterType="java.lang.String" resultType="java.lang.Integer">
+        SELECT count(*) FROM heatexchangestation WHERE Status!=3
+        <if test="name!=''">
+            and `Name` LIKE '%${name}%'
+        </if>
+        <if test="companyID!=-1">
+            and `CompanyID` = #{companyID}
+        </if>
+        <if test="parentID!=-1">
+            and `ParentID` = #{parentID}
+        </if>
+    </select>
+
+    <select id="getByName" resultType="com.ih.api.model.Heatexchangestation">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM heatexchangestation WHERE Status != 3 and `CompanyID` = #{companyID} and `Name` = #{name}
+    </select>
+</mapper>

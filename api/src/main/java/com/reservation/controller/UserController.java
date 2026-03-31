@@ -92,4 +92,14 @@ public class UserController {
         userService.resetPassword(account, newPassword, verifyCode);
         return Result.success(null, "密码重置成功");
     }
+
+    @PostMapping("/user/update")
+    public Result<Void> updateUser(  User user) {
+            int ret= userService.update(user);//
+        if (ret>0) {
+            return Result.success(null, "数据更新成功");
+        }
+        return Result.success(null, "数据更新失败");
+    }
+
 }

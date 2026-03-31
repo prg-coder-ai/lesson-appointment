@@ -1,10 +1,19 @@
 package com.reservation.service;
-
+//
 import com.reservation.entity.User;
 import com.reservation.exception.BusinessException;
 import com.reservation.exception.ResourceNotFoundException;
 import com.reservation.exception.UserNotFoundException;
 import com.reservation.mapper.UserMapper;
+// 原因可能有以下几种：
+// 1. 你的项目中没有 UserMapper 这个类，或者它的包名不是 com.reservation.mapper。
+// 请确保 src/main/java/com/reservation/mapper/UserMapper.java 文件存在且包声明正确。
+// 2. 你的 IDE 没有识别或者刷新工程。可以尝试重新加载/刷新项目，让 IDE 检测到新创建的文件。
+// 3. UserMapper 生成的位置不在源码目录下（如生成在 test 或 build 文件夹等），导致主工程无法识别。
+// 4. IDEA/Maven 的编译配置问题，比如未将相关目录标记为 Source Root。
+// 5. 代码中包名拼写错误，与实际包名不符。请检查 import 路径、包声明大小写和文件夹结构一致。
+// 解决办法：确认 com.reservation.mapper.UserMapper 类文件在项目对应目录下，并且包名、文件名拼写无误，之后点击IDE“Invalidate Caches”或重启。
+
 import com.reservation.utils.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -14,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.Optional;
+
 /**
  * 用户注册与认证服务，对应设计2.2.1 所有接口的业务逻辑
  */
@@ -161,31 +170,28 @@ public class UserService {
      */
     public User selectByPhone(String phone) {
      // return userMapper.selectByPhone(phone)
-       //     .orElseThrow(() -> new UserNotFoundException("手机号【" + phone + "】对应的用户不存在"));
-        User user = userMapper.selectByPhone(phone);
-        if(user ==null)
-            new UserNotFoundException("手机号【" + phone + "】对应的用户不存在");
-
+     //       .orElseThrow(() -> new UserNotFoundException("手机号【" + phone + "】对应的用户不存在"));
+      User user= userMapper.selectByPhone(phone);
+       if(user==null)
+           throw new UserNotFoundException("手机号【" + phone + "】对应的用户不存在");
         return user;
     }
  public User selectByEmail(String email) {
-      //return userMapper.selectByEmail(email)
-        //    .orElseThrow(() ->
-     User user = userMapper.selectByEmail(email);
-     if(user ==null)
-             new UserNotFoundException("email" + email + "】对应的用户不存在");
-
+     // return userMapper.selectByEmail(email)
+      //      .orElseThrow(() -> new UserNotFoundException("email" + email + "】对应的用户不存在"));
+     User user= userMapper.selectByEmail(email);
+     if(user==null)
+         throw new UserNotFoundException("email" + email + "】对应的用户不存在");
         return user;
     }
  
 public User selectById(String userId) {
-        User user = userMapper.selectById(userId);
-      //return userMapper.selectById(userId)
-        //    .orElseThrow(() ->
-      if(user==null)
-           new UserNotFoundException("userId" + userId + "】对应的用户不存在");
-
-        return user;
+     //  return userMapper.selectById(userId)
+     //       .orElseThrow(() -> new UserNotFoundException("userId" + userId + "】对应的用户不存在"));
+    User user= userMapper.selectById(userId);
+    if(user==null)
+        throw new UserNotFoundException("userId" + userId + "】对应的用户不存在");
+    return user;
     }
  /**
      * 根据手机号/邮箱查询用户（登录专用）
@@ -197,4 +203,79 @@ public User selectById(String userId) {
         }
         return user;
     }
+
+    public int update(User user)
+    {
+        // 校验 userId 是否存在
+        if (user == null || user.getUserId() == null || user.getUserId().isEmpty()) {
+            throw new IllegalArgumentException("用户ID不能为空");
+        }
+        // 可加入其他合法性校验，如手机、邮箱等
+        int ret = userMapper.update(user);
+        if (ret <= 0) {
+            throw new UserNotFoundException("用户信息更新失败，用户不存在");
+        }
+        return ret;
+    }
+    public int updatePassword(User user)
+    {
+        // 密码加密
+       // if (user.getPassword() != null && !user.getPassword().isEmpty()) {
+        //    user.setPassword(passwordEncoder.encode(user.getPassword()));
+       // }
+        // 更新密码
+        int ret = userMapper.updatePassword(user);
+        return ret;
+    }
 }
+
+/*
+错误分析：
+异常 `org.apache.ibatis.binding.BindingException: Invalid bound statement (not found): com.reservation.mapper.UserMapper.selectByPhone` 表示 MyBatis 在运行时没有找到 `UserMapper` 接口的 `selectByPhone` 方法在 XML 中的 SQL 映射。原因可能如下：
+
+1. XML 映射文件（UserMapper.xml）中未正确声明或注册该方法。须检查 `<select id="selectByPhone"` ...> 标签。
+2. Mapper 接口和 XML 中方法名字、参数、namespace是否完全匹配。namespace 必须为 `com.reservation.mapper.UserMapper`，方法 id 必须为 `selectByPhone`。
+3. XML 文件位置和命名需与 MyBatis 配置一致，确保已被正确扫描。
+4. 某些 MyBatis 配置或拼写错误导致 XML 文件未加载。
+
+解决方法：
+- 确认 `UserMapper.xml` 文件内容无误且已在 resource 路径下（通常为 `src/main/resources/mybatis/mapper/UserMapper.xml`）。
+- `<mapper namespace="com.reservation.mapper.UserMapper">` 正确。
+- 有如下内容：
+    <select id="selectByPhone" parameterType="String" resultMap="userResultMap">
+        SELECT * FROM `user` WHERE phone = #{phone}
+    </select>
+- 若注解和 XML 同时配置，推荐优先用其中之一（避免混用）。
+- 检查配置文件（如 application.yml/properties）的 mybatis.mapper-locations 路径是否正确指向 mapper 文件夹。
+
+结论：
+此错误通常是 XML 路径、namespace、方法名未匹配或 XML 未加载导致的。
+*/
+/**
+ * 使用 MyBatis 时，既可以只用 Mapper 的 Java 接口+注解（直接在接口方法上用 @Select、@Insert 等注解编写 SQL），
+ * 也可以只用 Java 接口 + XML（把 SQL 写到 XML 配置文件里），
+ * 但推荐写 XML，便于维护和复杂 SQL。
+ * 
+ * 一般情况下：
+ * - 如果在 Java 接口方法中使用注解（如 @Select），可以不用对应的 XML 文件。
+ * - 如果在 XML 文件中写了 SQL（如 <select>），Java 接口方法只需要声明，无需注解，必须要有与 XML 对应的方法名和参数。
+ * 
+ * 不能单独只有 Java 接口而无任何 SQL 来源（注解或 XML），也不能只有 XML 而没有 Java 接口。
+ * 
+ * 生产中建议分离 SQL 和代码逻辑，把 SQL 都写在 XML 文件里，Java 方法和 XML 方法保持一致。
+ * 
+ * 结论：只要有注解SQL或XML SQL其一即可。但都需有 Java Mapper 接口类。
+ */
+/**
+ * MyBatis 的 Java Mapper 接口（如 UserMapper.java）通常放在 `src/main/java/` 下对应的包中，
+ * 推荐的目录结构为：
+ *   src/main/java/com/yourcompany/project/mapper/
+ * 
+ * 也就是和 entity（实体）、service、controller 等并列，比如：
+ *   com.reservation.mapper.UserMapper (即 /src/main/java/com/reservation/mapper/UserMapper.java)
+ * 
+ * 保证和 XML Mapper 文件的 namespace 属性 (`namespace="com.reservation.mapper.UserMapper"`) 保持一致。
+ * 
+ * XML 文件则一般放在：
+ *   src/main/resources/mybatis/mapper/UserMapper.xml
+ */

@@ -1,0 +1,97 @@
+﻿body {
+    background: url("../images/login_bg.png") no-repeat;
+}
+
+.container {
+    width: 400px;
+    height: 350px;
+    margin: 200px auto;
+    background: rgba(88, 86, 110, 0.2);
+    border-radius: 8px;
+    padding: 60px 0;
+}
+
+.login_logo {
+    background: url("../images/logo.png");
+    width: 80px;
+    height: 80px;
+    margin: 0 auto;
+}
+
+.login_title {
+    width: 240px;
+    height: 28px;
+    font-size: 24px;
+    font-family: PingFangSC-Medium;
+    font-weight: 500;
+    color: rgba(55, 203, 239, 1);
+    line-height: 28px;
+    margin: 20px auto;
+}
+
+.login_area {
+    margin-top: 40px;
+    width: 100%;
+    text-align: center;
+}
+
+.login_area input {
+    width: 230px;
+    padding: 8px 8px 8px 45px;
+    height: 22px;
+    line-height: 22px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 0;
+    border-radius: 8px;
+    color:rgba(255,255,255,0.8);
+    font-size: 14px;
+    font-family: PingFangSC-Regular;
+    font-weight: 400;
+}
+
+.login_area .login_username {
+    position: relative;
+    width: 320px;
+    margin: 0 auto;
+}
+
+.login_area .login_username i {
+    width: 15px;
+    height: 15px;
+    background: url("../images/icon_phone.png") no-repeat;
+    background-size: 15px;
+    opacity:0.8;
+    position: absolute;
+    top: 12px;
+    left: 32px;
+}
+
+.login_area .login_password {
+    position: relative;
+    width: 320px;
+    margin: 20px auto 0;
+}
+
+.login_area .login_password i {
+    width: 15px;
+    height: 15px;
+    background: url("../images/icon_password.png") no-repeat;
+    background-size: 15px;
+    opacity:0.8;
+    position: absolute;
+    top: 12px;
+    left: 32px;
+}
+
+#LoginButton {
+    width: 280px;
+    height: 40px;
+    background: rgba(55, 203, 239, 1);
+    border-radius: 8px;
+    border: 0;
+    font-size: 16px;
+    font-family: PingFangSC-Semibold;
+    font-weight: 550;
+    color: rgba(255, 255, 255, 1);
+    margin-top: 15px;
+}

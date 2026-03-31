@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.reservation.mapper.UserMapper">;
-
+            
     <!-- 通用结果集映射 -->
     <resultMap id="userResultMap" type="com.reservation.entity.User">
         <result column="user_id" property="userId"/>
@@ -51,5 +51,23 @@
     <update id="updatePassword" parameterType="com.reservation.entity.User">
         UPDATE `user` SET password = #{password} WHERE user_id = #{userId}
     </update>
+    <!-- 更新用户信息， -->
+    <update id="update" parameterType="com.reservation.entity.User">
+        UPDATE `user`
+        <set>
+            <if test="phone != null and phone != ''">phone = #{phone},</if>
+            <if test="email != null and email != ''">email = #{email},</if>
+         //   <if test="password != null and password != ''">password = #{password},</if>
+            <if test="role != null and role != ''">role = #{role},</if>
+            <if test="learnGoal != null and learnGoal != ''">learn_goal = #{learnGoal},</if>
+            <if test="languageLevel != null and languageLevel != ''">language_level = #{languageLevel},</if>
+            <if test="name != null and name != ''">name = #{name},</if>
+            <if test="qualification != null and qualification != ''">qualification = #{qualification},</if>
+            <if test="languageType != null and languageType != ''">language_type = #{languageType},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+        </set>
+        WHERE user_id = #{userId}
+    </update>
+    
 
 </mapper>

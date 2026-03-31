@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ih.api.dal.CompanyMapper">
+
+    <resultMap type="com.ih.api.model.company" id="companyMap">
+        <id column="id" property="id"/>
+        <result column="Name" property="name"/>
+        <result column="Address" property="address"/>
+        <result column="Contact" property="contact"/>
+        <result column="ContactWay" property="contactWay"/>
+        <result column="ParentID" property="parentID"/>
+        <result column="Status" property="status"/>
+        <result column="CreateTime" property="createTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        `id`,`Name`,`Address`,`Contact`,`ContactWay`,`ParentID`,`Status`,`CreateTime`
+    </sql>
+
+    <select id="pgetPaging" resultType="com.ih.api.model.company" resultMap="companyMap">
+        SELECT
+        c1.`id`,c1.`Name`,c1.`Address`,c1.`Contact`,c1.`ContactWay`,c1.`ParentID`,c1.`Status`,c1.`CreateTime`,c2.`Name`
+        AS parentCompanyName
+        FROM company c1 LEFT JOIN company c2 ON c1.ParentID=c2.id WHERE c1.Status != 3
+        <if test="name!=''">
+            and c1.name LIKE '%${name}%'
+        </if>
+        <if test="searchCompanyID!=-1">
+            <choose>
+                <when  test="searchParentID!=-1">
+                    and ( (c1.id = #{searchCompanyID} ) OR ( c1.parentID = #{searchParentID} ) )
+                </when>
+                <otherwise>
+                    and (c1.id = #{searchCompanyID} )
+                </otherwise>
+            </choose>
+        </if>
+
+        <if test="searchParentID!=-1 and searchCompanyID==-1">
+                    and ( (c1.id = #{searchParentID} ) OR ( c1.parentID = #{searchParentID} ) )
+        </if>
+        order by ${orderBy} limit #{offset},#{pageSize}
+    </select>
+
+    <select id="getPaging" resultType="com.ih.api.model.company" resultMap="companyMap">
+        SELECT
+        c1.`id`,c1.`Name`,c1.`Address`,c1.`Contact`,c1.`ContactWay`,c1.`ParentID`,c1.`Status`,
+        c1.`CreateTime`,c2.`Name`  AS parentCompanyName
+        FROM company c1
+        LEFT JOIN company c2 ON c1.ParentID=c2.id
+        WHERE c1.Status != 3
+        <if test="name!=''">
+            and c1.name LIKE '%${name}%'
+        </if>
+        <if test="searchCompanyID!=-1">
+            <choose>
+                <when  test="searchParentID!=-1">
+                    and ( (c1.id = #{searchCompanyID} ) OR ( c1.parentID = #{searchParentID} ) )
+                </when>
+                <otherwise>
+                    and (c1.id = #{searchCompanyID} )
+                </otherwise>
+            </choose>
+        </if>
+        <if test="searchParentID!=-1 and searchCompanyID==-1">
+            and ( (c1.id = #{searchParentID} ) OR ( c1.parentID = #{searchParentID} ) )
+        </if>
+        order by ${orderBy} limit #{offset},#{pageSize}
+    </select>
+
+    <select id="get" resultType="com.ih.api.model.company" resultMap="companyMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM company WHERE id=#{id}
+    </select>
+
+    <update id="update" parameterType="com.ih.api.model.company"
+            flushCache="true"
+            statementType="PREPARED"
+            timeout="20">
+        Update company
+        <set>
+            <if test="model.name!=null">
+                `Name`=#{model.name},
+            </if>
+            <if test="model.address!=null">
+                `Address`=#{model.address},
+            </if>
+            <if test="model.contact!=null">
+                `Contact`=#{model.contact},
+            </if>
+            <if test="model.contactWay!=null">
+                `ContactWay`=#{model.contactWay},
+            </if>
+            <if test="model.parentID!=null">
+                `ParentID`=#{model.parentID},
+            </if>
+            <if test="model.status!=null">
+                `Status`=#{model.status},
+            </if>
+            <if test="model.createTime!=null">
+                `CreateTime`=#{model.createTime},
+            </if>
+        </set>
+        WHERE id=#{model.id}
+    </update>
+
+    <update id="delete" parameterType="java.lang.Integer" statementType="PREPARED"
+            timeout="20">
+        update company set status=3 WHERE id=#{id}
+    </update>
+
+    <insert id="insert" parameterType="com.ih.api.model.company"
+            flushCache="true"
+            statementType="PREPARED"
+            keyProperty="id"
+            keyColumn=""
+            useGeneratedKeys="true"
+            timeout="20">
+        INSERT INTO company(`Name`,`Address`,`Contact`,`ContactWay`,`ParentID`,`Status`,`CreateTime`)
+        VALUES(#{model.name},#{model.address},#{model.contact},#{model.contactWay},#{model.parentID},#{model.status},#{model.createTime})
+    </insert>
+
+
+    <select id="getCount" parameterType="java.lang.String" resultType="java.lang.Integer">
+        SELECT count(*) FROM company WHERE Status != 3
+        <if test="name!=''">
+            and name LIKE '%${name}%'
+        </if>
+        <if test="parentID!=-1">
+            and parentID=#{parentID}
+        </if>
+    </select>
+
+    <select id="getByName" parameterType="java.lang.String" resultType="com.ih.api.model.company">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM company WHERE Status != 3  and `Name` = #{name}
+    </select>
+</mapper>

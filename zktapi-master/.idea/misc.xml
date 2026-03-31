@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ExternalStorageConfigurationManager" enabled="true" />
+  <component name="ProjectPlainTextFileTypeManager">
+    <file url="file://$PROJECT_DIR$/ParaListData-structure.sql" />
+    <file url="file://$PROJECT_DIR$/ParaListData.sql" />
+    <file url="file://$PROJECT_DIR$/src/main/kotlin/com/fastrun/TempCollection/controller/AlarmconfigController.kt" />
+    <file url="file://$PROJECT_DIR$/src/main/kotlin/com/fastrun/TempCollection/controller/BuildingController.kt" />
+    <file url="file://$PROJECT_DIR$/src/main/kotlin/com/fastrun/TempCollection/controller/CommandlistController.kt" />
+    <file url="file://$PROJECT_DIR$/src/main/kotlin/com/fastrun/TempCollection/controller/CommunityController.kt" />
+    <file url="file://$PROJECT_DIR$/src/main/kotlin/com/fastrun/TempCollection/controller/DeviceController.kt" />
+    <file url="file://$PROJECT_DIR$/src/main/kotlin/com/fastrun/TempCollection/controller/DeviceinstallController.kt" />
+    <file url="file://$PROJECT_DIR$/src/main/kotlin/com/fastrun/TempCollection/controller/DevicemonitorController.kt" />
+    <file url="file://$PROJECT_DIR$/src/main/kotlin/com/fastrun/TempCollection/controller/DevicetypeController.kt" />
+    <file url="file://$PROJECT_DIR$/src/main/kotlin/com/fastrun/TempCollection/controller/PositionController.kt" />
+    <file url="file://$PROJECT_DIR$/src/main/kotlin/com/fastrun/TempCollection/controller/PositiontempController.kt" />
+    <file url="file://$PROJECT_DIR$/src/main/kotlin/com/fastrun/TempCollection/controller/RoomController.kt" />
+    <file url="file://$PROJECT_DIR$/src/main/kotlin/com/fastrun/TempCollection/controller/StationrecommunityController.kt" />
+    <file url="file://$PROJECT_DIR$/src/main/kotlin/com/fastrun/TempCollection/controller/TemppercentstatisticsController.kt" />
+    <file url="file://$PROJECT_DIR$/src/main/kotlin/com/fastrun/TempCollection/controller/TempratureController.kt" />
+    <file url="file://$PROJECT_DIR$/src/main/kotlin/com/fastrun/TempCollection/controller/TempstatisticsController.kt" />
+    <file url="file://$PROJECT_DIR$/zktdb.sql" />
+  </component>
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_1_8" default="true" project-jdk-name="1.8" project-jdk-type="JavaSDK">
+    <output url="file://$PROJECT_DIR$/classes" />
+  </component>
+</project>

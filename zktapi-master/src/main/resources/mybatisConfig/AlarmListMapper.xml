@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--定义paralist数据库定义
+-->
+<mapper namespace="com.ih.api.dal.AlarmListMapper">
+
+    <resultMap type="com.ih.api.model.AlarmList" id="AlarmListMap">
+        <id column="id" property="id"/>
+        <result column="companyID" property="companyID"/>
+        <result column="companyCode" property="companyCode"/>
+        <result column="state" property="state"/>
+
+        <result column="ALARMNO" property="ALARMNO"/>
+        <result column="ALARMCLRNO" property="ALARMCLRNO"/>
+        <result column="alarmCounter" property="alarmCounter"/>
+        <result column="ALMTEXT" property="ALMTEXT"/>
+        <result column="unAckAlarmCounter" property="unAckAlarmCounter"/>
+        <result column="newAlarm" property="newAlarm"/>
+        <result column="enableAlarm" property="enableAlarm"/>
+        <result column="addTime" property="addTime"/>
+
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        `id`     ,    `companyID`,   `companyCode`,  `state`, `addTime`,
+        `ALARMNO`,    `ALARMCLRNO`,   `alarmCounter`,  `ALMTEXT`,
+        `unAckAlarmCounter`,  `newAlarm`,    `enableAlarm`,        `addTime`
+    </sql>
+
+    <select id="get" resultType="com.ih.api.model.AlarmList" resultMap="AlarmListMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM `systemalarm_realtime` WHERE id=#{id}
+    </select>
+
+
+    <select id="getCount" parameterType="java.lang.String" resultType="java.lang.Integer">
+        SELECT count(*) FROM `systemalarm_realtime` r
+        WHERE  True
+        <if test="companyID!='-1'">
+            and   (r.`companyID` =  #{companyID})
+        </if>
+    </select>
+
+    <select id="getPaging" resultType="com.ih.api.model.AlarmList" resultMap="AlarmListMap">
+        SELECT
+        r.`id`,
+        r.`companyID`,
+        c.Name  as companyCode,
+        r.`addTime`,  r.`ALARMNO`,  r.`ALARMCLRNO`,  r.`alarmCounter`,
+        r.`newAlarm`,  r.`unAckAlarmCounter`,  r.`enableAlarm`,
+        r.AlMTEXT,  r.`state`
+        FROM `systemalarm_realtime` r
+        LEFT JOIN company as c ON c.id = r.`companyID`
+        WHERE TRUE
+        <!-- 此处的名称，与dal.maper定义的相对应 -->
+        <if test="companyID!=-1">
+            and ( (r.`companyID` =  #{companyID}) OR (c.`ParentID` =  #{companyID} ) )
+        </if>
+    </select>
+
+    <select id="getHistList" resultType="com.ih.api.model.AlarmList" resultMap="AlarmListMap">
+        SELECT
+        r.`id`,
+        r.`companyID`,
+        c.Name  as companyCode,
+        r.`addTime`,  r.`ALARMNO`,  r.`ALARMCLRNO`,  r.`alarmCounter`,
+        r.`newAlarm`,  r.`unAckAlarmCounter`,  r.`enableAlarm`,
+        r.AlMTEXT,  r.`state`
+        FROM `systemalarm_history` r
+        LEFT JOIN company as c ON c.id = r.`companyID`
+        WHERE TRUE
+        <!-- 此处的名称，与dal.maper定义的相对应 -->
+        <if test="companyID!=-1">
+            and ( (r.`companyID` =  #{companyID}) OR (c.`ParentID` =  #{companyID} ) )
+        </if>
+
+        <!-- order by ${orderBy} -->
+        limit #{offset},#{pageSize}
+
+    </select>
+</mapper>

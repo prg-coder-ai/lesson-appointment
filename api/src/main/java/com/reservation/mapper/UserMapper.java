@@ -1,5 +1,5 @@
 package com.reservation.mapper;
-
+//     "com.reservation.mapper.UserMapper"
 import com.reservation.entity.User;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -48,10 +48,11 @@ public interface UserMapper {
 
     /**
      * 更新用户密码（用于密码重置）
-     * @param user 用户实体（含userId和新密码）
+     * @param user 用户实体（含userId和新密码以及其它参数）
      * @return 影响行数
      */
     int updatePassword(User user);
+    int update(User user);
 
- 
+
 }
