@@ -100,6 +100,7 @@ CREATE TABLE IF NOT EXISTS `booking` (
 CREATE TABLE IF NOT EXISTS `course_evaluation` (
   `evaluation_id` varchar(36) NOT NULL COMMENT '评价唯一标识（UUID）',
   `course_id` varchar(36) NOT NULL COMMENT '关联的课程ID',
+  `booking_id`  varchar(36) NOT NULL COMMENT '关联的预约ID',
   `student_id` varchar(36) NOT NULL COMMENT '关联的学生ID（对应user表的user_id）',
   `rating` int NOT NULL COMMENT '评分（1-5）',
   `comment` varchar(1000) DEFAULT NULL COMMENT '评价内容（最多1000字）',
@@ -176,7 +177,7 @@ CREATE TABLE IF NOT EXISTS `course_evaluation` (
 ---注意：以上SQL脚本仅为数据库设计的初步方案，实际开发中可能需要根据具体业务需求进行调整和优化，例如增加更多的字段、索引或表来满足新的功能需求。同时，在生产环境中部署数据库时，还需要考虑数据安全、备份和恢复等方面的措施。
 --数据库使用mysql，字符集设置为utf8mb4以支持多语言字符，表引擎使用InnoDB以支持事务和外键约束。，运行在docker容器中，数据库连接信息（如用户名、密码、端口等）可以通过环境变量进行配置，以便在不同环境中灵活使用。
 --数据库名称：lesson_appointment
---数据库版本：MySQL 8.0
+--数据库版本：MySQL 8.0 
 --数据库设计者：doubao
 --key：123456
 --docker mysql数据库保存在 docker/mysql8/data目录下，数据持久化，容器重启后数据不丢失。

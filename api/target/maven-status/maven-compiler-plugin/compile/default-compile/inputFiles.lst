@@ -9,6 +9,7 @@ C:\2026\lesson-appointment\api\src\main\java\com\reservation\common\AtLeastOneNo
 C:\2026\lesson-appointment\api\src\main\java\com\reservation\entity\Schedule.java
 C:\2026\lesson-appointment\api\src\main\java\com\reservation\entity\CourseCheckIn.java
 C:\2026\lesson-appointment\api\src\main\java\com\reservation\entity\Booking.java
+C:\2026\lesson-appointment\api\src\main\java\com\reservation\exception\UserNotFoundException.java
 C:\2026\lesson-appointment\api\src\main\java\com\reservation\exception\GlobalExceptionHandler.java
 C:\2026\lesson-appointment\api\src\main\java\com\reservation\service\UserService.java
 C:\2026\lesson-appointment\api\src\main\java\com\reservation\common\AtLeastOneNotBlankValidator.java

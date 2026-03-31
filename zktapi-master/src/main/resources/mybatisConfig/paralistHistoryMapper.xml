@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--定义paralist数据库定义
+-->
+<mapper namespace="com.ih.api.dal.ParalistHistoryMapper">
+
+    <resultMap type="com.ih.api.model.Paralist" id="paralistHistoryMap">
+        <id column="id" property="id"/>
+        <result column="stationCode" property="stationCode"/>
+        <result column="subID" property="subID"/>
+        <result column="fieldsNum" property="fieldsNum"/>
+        <result column="FrameCounter" property="frameCounter" javaType="int"/>
+        <result column="DataLength" property="dataLength"/>
+        <result column="AddTime" property="addTime"/>
+
+            <result column="p4001" property="ar_RUN"/>
+            <result column="p4002" property="ar_MOD11"/>
+            <result column="p4003" property="ar_OPEN"/>
+            <result column="p4004" property="ar_TMP11"/>
+            <result column="p4005" property="ar_MOD21"/>
+            <result column="p4006" property="ar_HZ21" javaType="float"/>
+            <result column="p4007" property="ar_PT21"/>
+            <result column="p4009" property="ar_PT31"/>
+            <result column="p4011" property="ai_TT11"/>
+            <result column="p4012" property="ai_TT12"/>
+            <result column="p4013" property="ai_TT21"/>
+            <result column="p4014" property="ai_TT22"/>
+            <result column="p4015" property="ai_PT11"/>
+            <result column="p4016" property="ai_PT12"/>
+            <result column="p4017" property="ai_PT21"/>
+            <result column="p4018" property="ai_PT22"/>
+
+            <result column="p4021" property="ai_OPEN"/>
+
+            <result column="p4023" property="ai_HZ21"/>
+            <result column="p4024" property="ai_IA21"/>
+            <result column="p4025" property="ai_ER21"/>
+            <result column="p4026" property="ai_HZ31"/>
+            <result column="p4027" property="ai_IA31"/>
+            <result column="p4028" property="ai_ER31"/>
+            <result column="p4029" property="ai_LEVEL"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        `id`        ,
+        `stationCode`,        `subID`,
+        `fieldsNum`,        `FrameCounter`,        `DataLength`,        `AddTime`,
+        `p4001`,        `p4002`,        `p4003`,        `p4004`,        `p4005`,
+        `p4006`,        `p4007`,        `p4009`,
+        `p4011`,        `p4012`,        `p4013`,        `p4014`,        `p4015`,
+        `p4016`,        `p4017`,        `p4018`,
+        `p4021`,         `p4023`,        `p4024`,        `p4025`,
+        `p4026`,        `p4027`,        `p4028`,         `p4029`
+    </sql>
+
+    <select id="get" resultType="com.ih.api.model.Paralist" resultMap="paralistHistoryMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM `ParalistHistory` WHERE id=#{id}
+    </select>
+
+    <update id="update" parameterType="com.ih.api.model.Paralist"
+            flushCache="true"
+            statementType="PREPARED"
+            timeout="20">
+           Update `ParalistHistory`
+        <set>
+            <if test="model.stationCode!=null">
+                `stationCode`=#{model.stationCode},
+            </if>
+            <if test="model.subID!=null">
+                `subID`=#{model.subID},
+            </if>
+
+            <if test="model.fieldsNum!=null">
+                `fieldsNum`=#{model.fieldsNum},
+            </if>
+        </set>
+        WHERE id=#{model.id}
+    </update>
+
+    <update id="delete" parameterType="java.lang.Integer" statementType="PREPARED"
+            timeout="20">
+        update `ParalistHistory`
+        set Status=3
+        WHERE id = #{id}
+    </update>
+
+    <insert id="insert" parameterType="com.ih.api.model.Paralist"
+            flushCache="true"
+            statementType="PREPARED"
+            keyProperty="id"
+            keyColumn=""
+            useGeneratedKeys="true"
+            timeout="20">
+        INSERT INTO `ParalistHistory`( `stationCode`,  `stationID`      `subID`,
+            `fieldsNum`,        `FrameCounter`,        `DataLength`,        `AddTime`,
+            `p4001`,        `p4002`,        `p4003`,        `p4004`,        `p4005`,
+            `p4006`,        `p4007`,        `p4009`,        `p4011`,        `p4012`,
+            `p4013`,        `p4014`,        `p4015`,        `p4016`,        `p4017`,
+            `p4018`,        `p4021`,        `p4023`,        `p4024`,        `p4025`,
+            `p4026`,        `p4027`,        `p4028`,        `p4029`)
+        VALUES ( #{model.stationCode},#{model.stationID}, #{model.subID}, #{model.fieldsNum}, #{model.FrameCounter},
+                #{model.dataLength}, #{model.addTime},
+        <!--   #{model.p4001}, #{model.p4002},   #{model.p4003},  #{model.p4004}, #{model.p4005},
+         #{model.p4006}, #{model.p4007},   #{model.p4009},  #{model.p4011}, #{model.p4012},
+         #{model.p4013}, #{model.p4014},   #{model.p4015},  #{model.p4016}, #{model.p4017},
+         #{model.p4018}, #{model.p4021},   #{model.p4022},  #{model.p4023}, #{model.p4024},
+         #{model.p4025}, #{model.p4026},   #{model.p4027},  #{model.p4028}, #{model.p4029}
+        -->
+         #{model.ar_RUN}, #{model.ar_MOD11},   #{model.ar_OPEN},  #{model.ar_TMP11}, #{model.ar_MOD21},
+          #{model.ar_HZ21}, #{model.ar_PT21},   #{model.ar_PT31},  #{model.ai_TT11}, #{model.ai_TT12},
+          #{model.ai_TT21}, #{model.ai_TT22},   #{model.ai_PT11},  #{model.ai_PT12}, #{model.ai_PT21},
+          #{model.ai_PT22}, #{model.aiOPEN},   #{model.ai_HZ21},  #{model.ai_IA21}, #{model.ai_ER21},
+          #{model.ai_HZ31}, #{model.ai_IA31},   #{model.ai_ER31},  #{model.ai_LEVEL}
+
+                 )
+    </insert>
+
+
+    <select id="getCount" parameterType="java.lang.String" resultType="java.lang.Integer">
+        SELECT count(*) FROM `ParalistHistory` r
+        LEFT JOIN rtustation as t on r.stationCode = t.stationCode
+        WHERE  True
+        <if test="StationID!='-1'">
+            and t.`stationID` = #{StationID}
+        </if>
+        <if test="subID!=-1">
+            and r.`subID` = #{subID}
+        </if>
+        <!--
+      <if test="MinDate!=''">
+          and r.`Addtime` > #{MinDate}
+      </if>
+      <if test="MaxDate!=''">
+          and  #{MaxDate} > r.`Addtime`
+      </if>
+              TBD2020 filtered by paraName
+              paraidx
+              <if test="tempLow>0">
+                  and d.`Temp1` &gt;=#{tempLow}
+              </if>
+              <if test="tempHigh>0">
+                  and d.`Temp1` &lt;=#{tempHigh}
+              </if>
+              -->
+    </select>
+
+<!--为什么传入的#{StationID}，首字母大写，而 #{subID}首字母是小写？20201213？-->
+    <select id="getPaging" resultMap="paralistHistoryMap">
+        SELECT
+        r.`id`,
+        r.`stationCode`,r.`subID`,
+        r.`fieldsNum`,r.`FrameCounter`,r.`DataLength`,   r.`DataLength`,r.`AddTime`,
+        r.`P4001`,r.`p4002`,r.`p4003`,r.`p4004`,
+        r.`p4005`,r.`p4006`,r.`p4007`,
+        r.`p4009`  ,
+        r.`p4011`,r.`p4012`,r.`p4013`,r.`p4014`,
+        r.`p4015`,r.`p4016`,r.`p4017`,
+        r.`p4018`,
+        r.`p4021`,r.`p4023`,r.`p4024`,
+        r.`p4025`,r.`p4026`,r.`p4027`,
+        r.`p4028`,r.`p4029`
+
+        FROM `ParalistHistory` r
+         LEFT JOIN rtustation as t on r.stationCode = t.stationCode
+        WHERE TRUE
+        <if test="StationID!=-1">
+            and t.`StationID`= #{StationID}
+        </if>
+        <if test="subID!=-1">
+            and r.`subID` = #{subID}
+        </if>
+<!--
+        <if test="MinDate!=''">
+            and r.`Addtime` > #{MinDate}
+        </if>
+        <if test="MaxDate!=''">
+            and  #{MaxDate} > r.`Addtime`
+        </if>
+        -->
+        order by ${orderBy} limit #{offset},#{pageSize}
+    </select>
+
+
+</mapper>

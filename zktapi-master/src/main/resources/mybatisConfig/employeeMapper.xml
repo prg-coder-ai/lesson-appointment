@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ih.api.dal.EmployeeMapper">
+
+    <resultMap type="com.ih.api.model.employee" id="employeeMap">
+        <id column="id" property="id"/>
+        <result column="Account" property="account"/>
+        <result column="Password" property="password"/>
+        <result column="Name1" property="name1"/>
+        <result column="Name2" property="name2"/>
+        <result column="StationID" property="stationID"/>
+        <result column="CompanyID" property="companyID"/>
+        <result column="Department" property="department"/>
+        <result column="Privilege" property="privilege"/>
+        <result column="Status" property="status"/>
+        <result column="CreaterID" property="createrID"/>
+        <result column="CreateTime" property="createTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        `id`,`Account`,`Password`,`Name1`,`Name2`,`StationID`,`CompanyID`,`Department`,`Privilege`,`Status`,`CreaterID`,`CreateTime`
+    </sql>
+
+    <select id="getPaging" resultType="com.ih.api.model.employee" resultMap="employeeMap">
+        SELECT
+        e.`id`,e.`Account`,e.`Password`,e.`Name1`,e.`Name2`,e.`StationID`,e.`CompanyID`,e.`Department`,e.`Privilege`,e.`Status`,e.`CreaterID`,e.`CreateTime`,concat_ws('',e.`Name1`,e.`Name2`)
+        AS name,com.`Name` AS companyName,hes.`Name` AS stationName
+        FROM Employee e LEFT JOIN Company com ON e.`CompanyID`=com.`id` LEFT JOIN HeatExchangeStation hes ON
+        e.`StationID`=hes.`id` WHERE e.`Status`!=3 AND e.`id` > 1
+        <if test="companyID!=-1">
+            and e.`CompanyID` = #{companyID}
+        </if>
+        <if test="stationID!=-1">
+            and e.`StationID` = #{stationID}
+        </if>
+        <if test="account!=''">
+            and e.`Account` LIKE '%${account}%'
+        </if>
+        order by ${orderBy} limit #{offset},#{pageSize}
+    </select>
+
+    <select id="get" resultType="com.ih.api.model.employee" resultMap="employeeMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM employee WHERE `id`=#{id}
+    </select>
+
+    <update id="update" parameterType="com.ih.api.model.employee"
+            flushCache="true"
+            statementType="PREPARED"
+            timeout="20">
+        Update employee
+        <set>
+            <if test="model.account!=null">
+                `Account`=#{model.account},
+            </if>
+             <if test="model.password!=null">
+                `Password`=#{model.password},
+            </if>
+            <if test="model.name1!=null">
+                `Name1`=#{model.name1},
+            </if>
+            <if test="model.name2!=null">
+                `Name2`=#{model.name2},
+            </if>
+            <if test="model.stationID!=null">
+                `StationID`=#{model.stationID},
+            </if>
+            <if test="model.companyID!=null">
+                `CompanyID`=#{model.companyID},
+            </if>
+            <if test="model.department!=null">
+                `Department`=#{model.department},
+            </if>
+            <if test="model.privilege!=null">
+                `Privilege`=#{model.privilege},
+            </if>
+            <if test="model.status!=null">
+                `Status`=#{model.status},
+            </if>
+            <if test="model.createrID!=null">
+                `CreaterID`=#{model.createrID},
+            </if>
+            <if test="model.createTime!=null">
+                `CreateTime`=#{model.createTime},
+            </if>
+        </set>
+        WHERE id=#{model.id}
+    </update>
+
+    <update id="delete" parameterType="java.lang.Integer" statementType="PREPARED"
+            timeout="20">
+        update employee set `Status`=3 WHERE id=#{id}
+    </update>
+
+    <insert id="insert" parameterType="com.ih.api.model.employee"
+            flushCache="true"
+            statementType="PREPARED"
+            keyProperty="id"
+            keyColumn=""
+            useGeneratedKeys="true"
+            timeout="20">
+        INSERT INTO employee(`Account`,`Password`,`Name1`,`Name2`,`StationID`,`CompanyID`,`Department`,`Privilege`,`Status`,`CreaterID`,`CreateTime`) VALUES(#{model.account},#{model.password},#{model.name1},#{model.name2},#{model.stationID},#{model.companyID},#{model.department},#{model.privilege},#{model.status},#{model.createrID},#{model.createTime})
+    </insert>
+
+
+    <select id="getCount" parameterType="java.lang.String" resultType="java.lang.Integer">
+        SELECT count(*) FROM `employee` WHERE `Status`!=3 AND `id` > 1
+        <if test="companyID!=-1">
+            and `CompanyID` = #{companyID}
+        </if>
+        <if test="stationID!=-1">
+            and `StationID` = #{stationID}
+        </if>
+        <if test="account!=''">
+            and `Account` LIKE '%${account}%'
+        </if>
+    </select>
+
+    <!-- select id="findByAccount" parameterType="java.lang.String" resultMap="employeeMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM `employee`
+        WHERE `Status`!=3 and `Account`=#{account} limit 1
+    </select -->
+
+
+    <select id="findByAccount" parameterType="java.lang.String" resultMap="employeeMap">
+        SELECT
+        e.`id`,        e.`Account`,e.`Name1`,e.`Name2`,
+        e.`Password`,        e.`StationID`,
+        e.`CompanyID`,        e.`Department`,
+        e.`Privilege`,        e.`Status`,
+        e.`CreaterID`,        e.`CreateTime`,
+        concat_ws('',e.`Name1`,e.`Name2`)    AS name,
+        com.`Name` AS companyName,
+        hes.`Name` AS stationName
+        FROM employee e
+        LEFT JOIN company com ON e.`CompanyID`=com.`id`
+        LEFT JOIN heatexchangestation hes ON   e.`StationID`=hes.`id`
+        WHERE e.`Status`!=3 AND e.`id` > 1
+            AND e.Account   = #{account}
+    </select>
+
+
+
+    <update id="resetPassword" flushCache="true" statementType="PREPARED" timeout="20">
+        Update `employee` set `Password`=#{newPassword}  WHERE id=#{id}
+    </update>
+
+    <update id="changPassword" flushCache="true"
+            statementType="PREPARED"
+            timeout="20">
+        Update `employee`
+        <set>
+            `Password`=#{password}
+        </set>
+        <where>
+            `id`=#{id}
+        </where>
+    </update>
+
+    <select id="getByName" resultType="com.ih.api.model.employee">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM `employee` WHERE `Status` != 3 AND `Account` = #{account}
+    </select>
+</mapper>

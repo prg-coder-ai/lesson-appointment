@@ -1,0 +1,10 @@
+<component name="ArtifactManager">
+  <artifact name="Drchanwar">
+    <output-path>$PROJECT_DIR$/classes/artifacts/Drchanwar</output-path>
+    <root id="root">
+      <element id="archive" name="drchan.war">
+        <element id="dir-copy" path="$PROJECT_DIR$/src/main/resources" />
+      </element>
+    </root>
+  </artifact>
+</component>

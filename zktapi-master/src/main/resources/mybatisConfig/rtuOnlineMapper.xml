@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--定义paralist数据库定义
+-->
+<mapper namespace="com.ih.api.dal.rtuOnlineMapper">
+
+    <resultMap type="com.ih.api.model.rtuOnline" id="rtuOnlineMap">
+        <id column="id" property="id"/>
+        <result column="companyID" property="companyID"/>
+        <result column="companyName" property="companyName"/>
+        <result column="stationID" property="stationID"/>
+        <result column="stationCode" property="stationCode"/>
+        <result column="stationName" property="stationName"/>
+         <result column="online" property="online"/>
+        <result column="addTime" property="addTime"/>
+
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        `id`     ,    `companyID`,   `stationID`,   `companyCode`,   `stationCode`,
+        `stationName`, `companyName`,
+            `online`,        `addTime`
+    </sql>
+
+    <select id="get" resultType="com.ih.api.model.rtuOnline" resultMap="rtuOnlineMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM `stationonline_realtime` WHERE id=#{id}
+    </select>
+
+    <select id="getCount" parameterType="java.lang.String" resultType="java.lang.Integer">
+        SELECT count(*)
+        FROM `stationonline_realtime` r
+        LEFT JOIN rtustation as s ON s.stationCode = r.`stationCode`
+        LEFT JOIN HeatExchangeStation as  h ON s.stationID = h.id
+        LEFT JOIN company as c ON c.id = h.`companyID`
+        WHERE TRUE
+        <if test="companyID!=-1">
+            and h.`companyID` =  #{companyID}
+        </if>
+        <if test="stationID!=-1">
+            and r.`stationID` =  #{stationID}
+        </if>
+    </select>
+
+    <select id="getPaging" resultType="com.ih.api.model.rtuOnline"
+            resultMap="rtuOnlineMap">
+        SELECT
+        r.`id`,
+        c.id as companyID,
+        c.Name  as companyName,
+        s.stationCode as stationCode,
+        s.stationName as stationName,
+        r.`addTime`,
+        r.`offline`
+        FROM `stationonline_realtime` r
+        LEFT JOIN rtustation as s ON s.stationCode = r.`stationCode`
+        LEFT JOIN HeatExchangeStation as  h ON s.stationID = h.id
+        LEFT JOIN company as c ON c.id = h.`companyID`
+        WHERE TRUE
+        <if test="companyID!=-1">
+            and h.`companyID` =  #{companyID}
+        </if>
+        <if test="stationID!=-1">
+            and r.`stationID` =  #{stationID}
+        </if>
+    </select>
+
+    <select id="getHistList" resultType="com.ih.api.model.AlarmList" resultMap="rtuOnlineMap">
+        r.`id`,
+        c.Name  as companyName,
+        s.stationCode as stationCode,
+        s.stationName as stationName,
+        r.`addTime`,
+        r.`offline`
+        FROM `stationonline_history` r
+        LEFT JOIN rtustation as s ON s.stationID = r.`stationID`
+        LEFT JOIN HeatExchangeStation as  h ON s.stationID = h.id
+        LEFT JOIN company as c ON c.id = h.`companyID`
+        WHERE TRUE
+        <!-- 此处的名称，与dal.maper定义的相对应 -->
+        <if test="companyID!=-1">
+            and ( ( h.`companyID` =  #{companyID})  OR (c.ParentID =  #{companyID} ))
+        </if>
+        <if test="stationID!=-1">
+            and r.`stationID` =  #{stationID}
+        </if>
+        <!-- order by ${orderBy} -->
+        limit #{offset},#{pageSize}
+
+    </select>
+</mapper>
