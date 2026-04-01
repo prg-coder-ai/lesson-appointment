@@ -25,10 +25,11 @@
 
     <!-- 根据邮箱查询用户 -->
     <select id="selectByEmail" parameterType="String" resultMap="com.reservation.entity.User">
-        SELECT * FROM `user` WHERE email = #{email}
+        SELECT * FROM user  WHERE email = #{email}
     </select>
+
     <!-- 根据手机号或邮箱查询用户 -->
-    <select id="selectByPhoneOrEmail" parameterType="String" resultMap="userResultMap">
+    <select id="selectByPhoneOrEmail" parameterType="String" resultMap="com.reservation.entity.User">
         SELECT * FROM `user` WHERE phone = #{account} OR email = #{account}
     </select>;
 

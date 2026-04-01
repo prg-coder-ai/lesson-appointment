@@ -26,7 +26,7 @@ public class User implements Serializable{
 
     // 邮箱校验（对应通用校验规则-邮箱）
    // @NotBlank(message = "邮箱不能为空")
-    @Email(message = "邮箱格式错误")
+   // @Email(message = "邮箱格式错误")
     private String email;
 
     // 密码校验（对应通用校验规则-密码）

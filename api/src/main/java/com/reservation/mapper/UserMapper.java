@@ -4,6 +4,7 @@ import com.reservation.entity.User;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,8 +19,8 @@ public interface UserMapper {
      * @return 用户信息
      */
     // 注解版正确写法（无XML时）
-    @Select("select * from user where phone = #{phone}")
-    public User selectByPhone(@Param("phone") String phone);
+      @Select("select * from user where phone = #{phone}")
+     User selectByPhone(@Param("phone") String phone);
     //public User selectByPhone(@Param("phone") String phone);
 
     /**
@@ -27,14 +28,16 @@ public interface UserMapper {
      * @param email 邮箱
      * @return 用户信息
      */
-    /*Optional<User>*/  public User selectByEmail(@Param("email") String email);
+     @Select("select * from user where email = #{email}")
+     User selectByEmail(@Param("email") String email);
 
     /**
      * 根据手机号或邮箱查询用户（用于登录）
      * @param account 手机号或邮箱
      * @return 用户信息
      */
-    /*Optional<User>*/ public  User selectByPhoneOrEmail(@Param("account") String account);
+    @Select("SELECT * FROM user WHERE phone = #{account} OR email = #{account}")
+    User selectByPhoneOrEmail(@Param("account") String account);
 
     /**
      * 根据用户ID查询用户
@@ -42,20 +45,28 @@ public interface UserMapper {
      * @return 用户信息
      */
     /*Optional<User>*/  User selectById(@Param("userId") String userId);
+    @Select("SELECT * FROM user WHERE user_id = #{userId}")
     List<User> list( ) ;
     /**
      * 插入用户（用于学生、教师注册）
      * @param user 用户实体
      * @return 影响行数
      */
-    public  int insert(User user);
+    @org.apache.ibatis.annotations.Insert("INSERT INTO user(user_id, name, password, phone, email, role, status) "
+            + "VALUES(#{userId},#{name}, #{password}, #{phone}, #{email}, #{role}, #{status})")
+    int insert(User user);
+
+   
 
     /**
      * 更新用户密码（用于密码重置）
      * @param user 用户实体（含userId和新密码以及其它参数）
      * @return 影响行数
      */
+    @Update("UPDATE user SET password = #{password} WHERE user_id = #{userId}")
     public int updatePassword(User user);
+
+     @Update("UPDATE user SET password = #{password} WHERE user_id = #{userId}")
     public int update(User user);
 
 

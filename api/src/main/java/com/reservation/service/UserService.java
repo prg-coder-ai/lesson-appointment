@@ -77,6 +77,7 @@ public class UserService {
         if (userMapper.selectByEmail(user.getEmail()) != null) {
             throw new BusinessException("该邮箱已注册,请登录");
         }
+
         // 密码加密（对应设计2.3 安全设计-密码加密）
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         // 生成唯一userId
@@ -86,12 +87,14 @@ public class UserService {
         user.setStatus("pending");
         // 插入数据库
         userMapper.insert(user);
+        System.out.println("教师注册成功，用户信息：" + user);
         // 生成Token（对应设计2.3 安全设计-Token）
         String token = jwtUtil.generateToken(user.getUserId(), user.getRole());
         // 组装返回数据
         Map<String, String> resultMap = new HashMap<>();
         resultMap.put("userId", user.getUserId());
         resultMap.put("token", token);
+        System.out.println("教师注册成功，返回数据：" + resultMap);
         return resultMap;
 
     }
