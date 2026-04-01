@@ -324,9 +324,11 @@
           isValid = false;
       }else {
           registerEmail = registerUsername.value.trim();
+          registerPhone = null;
         }
     }else{
-        const phonePattern = /^[\d-]{1,19}$/;
+        registerEmail=null;
+        const phonePattern = /^[\d-]{1,30}$/;
         if (!phonePattern.test(registerUsername.value.trim())) {
           registerUsernameError.textContent = '请输入有效的电话号码（最多19位，仅限数字和“-”分隔符）';
           registerUsernameError.style.display = 'block';
@@ -337,7 +339,10 @@
       }
       if(isValid)
        { // 检查账号是否已存在
-        const isExist = userDatabase.some(u => u.username === registerUsername.value.trim());
+
+        const isExist = userDatabase.some(u => ( u.email === registerUsername.value.trim()
+        || u.phone === registerUsername.value.trim())
+        );
         if (isExist) {
           registerError.style.display = 'block';
           isValid = false;
@@ -384,9 +389,9 @@
           // 构造注册信息
           const registerInfo = {
             role: registerRole.value, 
-            email: registerEmail,
-            phone: registerPhone,
-            username: registerUsername.value.trim(),
+             email: registerEmail,
+             phone: registerPhone,
+
             name: registerName.value.trim(),
             password: registerPassword.value.trim(),
             status: 'pendding' // 待审核状态
@@ -410,12 +415,15 @@
           })
           // 【修改】新增HTTP状态码异常处理
           .then(response => {
+            console.error('注册result:', response);
             if (!response.ok) {
               throw new Error(`HTTP错误！状态码：${response.status}`);
             }
+
             return response.json();
           })
           .then(data => {
+           console.error('data:', data);
             // 可以根据后端返回结果做进一步处理
             // 例如根据 data.status 判断是否提交成功
             if (data && data.status === 'duplicate') {
@@ -448,7 +456,7 @@
       return new Promise((resolve, reject) => {
         setTimeout(() => {
           const user = userDatabase.find(
-            u => u.role === role && u.username === uname && u.password === pwd
+            u => u.role === role && ( u.email === uname || u.phone === uname) && u.password === pwd
           );
           
           if (user) {

@@ -1,5 +1,6 @@
 package com.reservation.service;
 //
+import com.reservation.common.Result;
 import com.reservation.entity.User;
 import com.reservation.exception.BusinessException;
 import com.reservation.exception.ResourceNotFoundException;
@@ -40,7 +41,7 @@ public class UserService {
 
     // 学生注册（对应设计2.2.1 学生注册接口）
     @Transactional
-    public Map<String, String> studentRegister(User user) {
+    public Result studentRegister(User user) {
         // 校验手机号/邮箱是否已注册（对应业务异常校验）
         if (userMapper.selectByPhone(user.getPhone()) != null) {
             throw new BusinessException("该手机号已注册");
@@ -58,25 +59,43 @@ public class UserService {
         
         // 插入数据库
         userMapper.insert(user);
+
         // 生成Token（对应设计2.3 安全设计-Token）
-        String token = jwtUtil.generateToken(user.getUserId(), user.getRole());
-        // 组装返回数据（对应设计2.2.1 学生注册返回数据）
+        // String token = jwtUtil.generateToken(user.getUserId(), user.getRole());
+        // 组装返回数据 ----TBD: result  对象
+
         Map<String, String> resultMap = new HashMap<>();
-        resultMap.put("userId", user.getUserId());
-        resultMap.put("token", token);
-        return resultMap;
+         resultMap.put("userId", user.getUserId());
+        // resultMap.put("token", token);
+        //resultMap.put("result","successful");
+        Result rslt = Result.success(resultMap   ,"注册成功，请登录等待验证");
+        // System.out.println("教师注册成功，返回数据：" + resultMap);
+        return rslt;
     }
 
     // 教师注册（对应设计2.2.1 教师注册接口）
     @Transactional
-    public Map<String, String>  teacherRegister(User user) {
+    public Result  teacherRegister(User user) {
+        System.out.println("input：" + user);
+        Map<String, String> resultMap = new HashMap<>();
         // 校验手机号/邮箱是否已注册
+        if( user.getPhone()!="")
         if (userMapper.selectByPhone(user.getPhone()) != null) {
-            throw new BusinessException("该手机号已注册，请登录");
+            {   Result rslt = Result.fail(301,"该手机号已注册，请登录");
+                //throw new BusinessException("该手机号已注册，请登录");
+                return  rslt;
+            }
         }
+
         if (userMapper.selectByEmail(user.getEmail()) != null) {
-            throw new BusinessException("该邮箱已注册,请登录");
+            {
+                //throw new BusinessException("该邮箱已注册,请登录");
+                Result rslt = Result.fail(301,"该邮箱已注册,请登录");
+                //throw new BusinessException("该手机号已注册，请登录");
+                return  rslt;
+            }
         }
+
 
         // 密码加密（对应设计2.3 安全设计-密码加密）
         user.setPassword(passwordEncoder.encode(user.getPassword()));
@@ -86,22 +105,24 @@ public class UserService {
         user.setRole("teacher");
         user.setStatus("pending");
         // 插入数据库
+
         userMapper.insert(user);
-        System.out.println("教师注册成功，用户信息：" + user);
         // 生成Token（对应设计2.3 安全设计-Token）
-        String token = jwtUtil.generateToken(user.getUserId(), user.getRole());
-        // 组装返回数据
-        Map<String, String> resultMap = new HashMap<>();
+       // String token = jwtUtil.generateToken(user.getUserId(), user.getRole());
+        // 组装返回数据 ----TBD: result  对象
+
+
         resultMap.put("userId", user.getUserId());
-        resultMap.put("token", token);
-        System.out.println("教师注册成功，返回数据：" + resultMap);
-        return resultMap;
+        Result rslt = Result.success(resultMap,"注册成功，请登录等待验证");
+        System.out.println("return：" + rslt);
+        return rslt;
 
     }
 
     // 用户登录（对应设计2.2.1 登录接口）
     public Map<String, String> login(String account, String password) {
         // 查找用户（账号可为手机号/邮箱，对应设计2.2.1 登录接口请求参数）
+          System.out.println("login：" + account+" "+password);
         User user = userMapper.selectByPhoneOrEmail(account);
         if (user == null) {
             throw new ResourceNotFoundException("账号不存在");
@@ -124,6 +145,7 @@ public class UserService {
         resultMap.put("userId", user.getUserId());
         resultMap.put("role", user.getRole());
         resultMap.put("token", token);
+        System.out.println("login ok：" +resultMap);
         return resultMap;
     }
         public void logout() {
