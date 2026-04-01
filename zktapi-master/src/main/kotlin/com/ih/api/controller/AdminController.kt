@@ -9,7 +9,7 @@ class AdminController {
     @GetMapping("/admin/index")
     fun AdminIndex(): ModelAndView {
         var view = ModelAndView()
-        view.viewName = "admin/index"
+        view.viewName = "/pages/index"
         return view
     }
 
