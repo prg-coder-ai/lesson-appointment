@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -53,7 +54,7 @@ public class UserService {
         user.setUserId(UUID.randomUUID().toString());
         // 设置角色为student，状态为active（对应设计2.2.1 学生注册逻辑）
         user.setRole("student");
-        user.setStatus("active");
+        user.setStatus("pending");
         
         // 插入数据库
         userMapper.insert(user);
@@ -68,13 +69,13 @@ public class UserService {
 
     // 教师注册（对应设计2.2.1 教师注册接口）
     @Transactional
-    public void teacherRegister(User user) {
+    public Map<String, String>  teacherRegister(User user) {
         // 校验手机号/邮箱是否已注册
         if (userMapper.selectByPhone(user.getPhone()) != null) {
-            throw new BusinessException("该手机号已注册");
+            throw new BusinessException("该手机号已注册，请登录");
         }
         if (userMapper.selectByEmail(user.getEmail()) != null) {
-            throw new BusinessException("该邮箱已注册");
+            throw new BusinessException("该邮箱已注册,请登录");
         }
         // 密码加密（对应设计2.3 安全设计-密码加密）
         user.setPassword(passwordEncoder.encode(user.getPassword()));
@@ -82,9 +83,17 @@ public class UserService {
         user.setUserId(UUID.randomUUID().toString());
         // 设置角色为teacher，状态为inactive（待审核，对应设计2.2.1 教师注册逻辑）
         user.setRole("teacher");
-        user.setStatus("inactive");
+        user.setStatus("pending");
         // 插入数据库
         userMapper.insert(user);
+        // 生成Token（对应设计2.3 安全设计-Token）
+        String token = jwtUtil.generateToken(user.getUserId(), user.getRole());
+        // 组装返回数据
+        Map<String, String> resultMap = new HashMap<>();
+        resultMap.put("userId", user.getUserId());
+        resultMap.put("token", token);
+        return resultMap;
+
     }
 
     // 用户登录（对应设计2.2.1 登录接口）
@@ -132,8 +141,6 @@ public class UserService {
         String verifyCode = "123456"; //  生成随机验证码
         //1 发送验证码到邮箱或者手机短信（对应设计2.2.1 密码找回逻辑）
         //2 将验证码存储到缓存中，key为account，value为verifyCode，设置过期时间为5分钟
-        
-         
     }
     // 验证码验证（密码找回），对应设计2.2.1 密码找回接口
     public void verifyForgotCode(String account, String verifyCode) {
@@ -168,10 +175,9 @@ public class UserService {
  /**
      * 根据手机号查询用户（判空 + 抛自定义异常）
      */
+
     public User selectByPhone(String phone) {
-     // return userMapper.selectByPhone(phone)
-     //       .orElseThrow(() -> new UserNotFoundException("手机号【" + phone + "】对应的用户不存在"));
-      User user= userMapper.selectByPhone(phone);
+        User user= userMapper.selectByPhone(phone);
        if(user==null)
            throw new UserNotFoundException("手机号【" + phone + "】对应的用户不存在");
         return user;
@@ -219,12 +225,15 @@ public User selectById(String userId) {
     }
     public int updatePassword(User user)
     {
-        // 密码加密
-       // if (user.getPassword() != null && !user.getPassword().isEmpty()) {
-        //    user.setPassword(passwordEncoder.encode(user.getPassword()));
-       // }
         // 更新密码
         int ret = userMapper.updatePassword(user);
+        return ret;
+    }
+
+    public List<User> list()
+    {
+        List <User> ret = userMapper.list();
+
         return ret;
     }
 }

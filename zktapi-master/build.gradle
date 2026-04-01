@@ -84,6 +84,7 @@ dependencies {
 	runtime('org.springframework.boot:spring-boot-devtools')
 	/*runtime('mysql:mysql-connector-java')*/
 	runtime('mysql:mysql-connector-java')
+
 	compile( group: 'com.fasterxml.jackson.core', name: 'jackson-databind' )
 	compileOnly "org.springframework.boot:spring-boot-configuration-processor"
 	/*testCompile('org.springframework.boot:spring-boot-starter-test')*/

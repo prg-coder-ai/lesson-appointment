@@ -72,9 +72,10 @@ class LoginController {
     @GetMapping("/")
     @ResponseBody
     fun loginForm(@RequestParam(required = false, defaultValue = "") returnUrl: String): ModelAndView {
-        return ModelAndView("login")
+        return ModelAndView("/pages/index")
     }
-/*
+/*    return ModelAndView("/login")
+    @GetMapping("login")
     @GetMapping("login")
     @ResponseBody
     fun loginForm1(@RequestParam(required = false, defaultValue = "") returnUrl: String): ModelAndView {

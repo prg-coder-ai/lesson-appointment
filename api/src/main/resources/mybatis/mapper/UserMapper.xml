@@ -18,12 +18,13 @@
     </resultMap>;
 
     <!-- 根据手机号查询用户 selectByPhone -->
-    <select id="selectByPhone" parameterType="String" resultMap="userResultMap">
-        SELECT * FROM `user` WHERE phone = #{phone}
-    </select>;
+    <!-- 正确写法 -->
+    <select id="selectByPhone" parameterType="String" resultType="com.reservation.entity.User">
+        select * from user where phone = #{phone}
+    </select>
 
     <!-- 根据邮箱查询用户 -->
-    <select id="selectByEmail" parameterType="String" resultMap="userResultMap">
+    <select id="selectByEmail" parameterType="String" resultMap="com.reservation.entity.User">
         SELECT * FROM `user` WHERE email = #{email}
     </select>
     <!-- 根据手机号或邮箱查询用户 -->
@@ -36,6 +37,9 @@
         SELECT * FROM `user` WHERE user_id = #{userId}
    </select>;
 
+    <select id="list"  resultMap="userResultMap">
+        SELECT * FROM `user` WHERE  true;
+    </select>;
     <!-- 插入用户 user_id  自动创建-->
     <insert id="insert" parameterType="com.reservation.entity.User">
         INSERT INTO `user` (
@@ -57,7 +61,6 @@
         <set>
             <if test="phone != null and phone != ''">phone = #{phone},</if>
             <if test="email != null and email != ''">email = #{email},</if>
-         //   <if test="password != null and password != ''">password = #{password},</if>
             <if test="role != null and role != ''">role = #{role},</if>
             <if test="learnGoal != null and learnGoal != ''">learn_goal = #{learnGoal},</if>
             <if test="languageLevel != null and languageLevel != ''">language_level = #{languageLevel},</if>
@@ -68,6 +71,5 @@
         </set>
         WHERE user_id = #{userId}
     </update>
-    
 
 </mapper>
