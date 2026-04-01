@@ -39,10 +39,10 @@ public class UserController {
      * 学生注册接口，对应设计2.2.1 接口：/api/v1/user/student/register
      */
     @PostMapping("/student/register")
-    public Result<Map<String, String>> studentRegister(@Validated @RequestBody User user) {
+    public Result<Void> studentRegister(@Validated @RequestBody User user) {
         // 调用服务层实现注册逻辑，返回userId和Token（对应设计2.2.1 学生注册返回数据）
-        Map<String, String> resultMap = userService.studentRegister(user);
-        return Result.success(resultMap, "注册成功");
+        Result rst = userService.studentRegister(user);
+        return rst;//Result.success(rst, "注册成功,请等待管理员审核");
     }
 
     /**
@@ -52,8 +52,9 @@ public class UserController {
      
     public Result<Void> teacherRegister(@Validated @RequestBody User user) {
         // 调用服务层提交注册申请，等待管理员审核（对应设计2.2.1 教师注册功能说明）
-        userService.teacherRegister(user);
-        return Result.success(null, "注册申请提交成功，请等待管理员审核");
+        Result rst = userService.teacherRegister(user);
+// 判断的rst
+        return rst;// Result.success(null, "注册申请提交成功，请等待管理员审核");
     }
 
     /**
