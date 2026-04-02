@@ -8,12 +8,16 @@ import com.reservation.entity.User;
 import com.reservation.service.UserService;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.validation.annotation.Validated;
+ import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+ import org.springframework.security.core.authority.SimpleGrantedAuthority;
+ import org.springframework.security.core.context.SecurityContextHolder;
+ import org.springframework.validation.annotation.Validated;
 // 核心导入：RequestMethod 所在包
  import org.springframework.web.bind.annotation.*;
 
  import jakarta.validation.constraints.Pattern;
 
+ import java.util.Collections;
  import java.util.List;
  import java.util.Map;
  
@@ -73,6 +77,18 @@ public class UserController {
         System.out.println("controller login input:"+ account+ password);
         // 调用服务层实现登录逻辑，返回userId、role、Token（对应设计2.2.1 登录返回数据）
         Result rst= userService.login(account, password);
+
+        // 3. 登录成功：设置安全状态（核心步骤） ?token?
+        // 封装用户认证信息（角色需和数据库一致，如teacher/student）
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                account, // 用户名（可用邮箱/手机号）
+                password, // 密码（可传null，不影响验证）
+                Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole())) // 角色（必须加ROLE_前缀）
+        );
+
+        // 将认证信息存入安全上下文（自动维护会话，无需手动管理）
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
         return rst;//Result.success(resultMap, "登录成功");
     }
 

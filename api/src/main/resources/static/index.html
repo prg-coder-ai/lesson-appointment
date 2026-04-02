@@ -524,7 +524,7 @@
     // 页面跳转函数（根据用户角色）
     function redirectToUserPage(user) {
       // 存储用户信息到本地（实际项目中使用token）
-      localStorage.setItem('currentUser', JSON.stringify(user));
+     // localStorage.setItem('currentUser', JSON.stringify(user));
       
       // 根据角色跳转对应页面
       switch(user.role) {
@@ -532,7 +532,7 @@
           window.location.href = '/admin.html'; // 管理端页面
           break;
         case 'teacher':
-          window.location.href = 'teacher.html'; // 教师端页面
+          window.location.href = '/teacher.html'; // 教师端页面
           break;
         case 'student':
           window.location.href = '/student.html'; // 学生端页面
