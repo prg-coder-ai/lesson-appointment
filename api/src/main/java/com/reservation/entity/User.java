@@ -17,6 +17,9 @@ import java.io.Serializable;
 @AtLeastOneNotBlank(firstField = "phone", secondField = "email")
 public class User implements Serializable{
     private String userId;  // 系统生成唯一标识（UUID），对应通用校验规则-ID类参数
+
+    @NotBlank(message = "账号不能为空")
+    private String account;
 //检验条件：手机和邮箱不能都为空，至少有一个不为空，作为账号
 
     // 手机号校验（对应通用校验规则-手机号）
@@ -31,7 +34,7 @@ public class User implements Serializable{
 
     // 密码校验（对应通用校验规则-密码）
     @NotBlank(message = "密码不能为空")
-    @Size(min = 8, max = 20, message = "密码长度需8-20位")
+    @Size(min = 1, max = 20, message = "密码长度需8-20位")
     @Pattern(regexp = "^(?=.*[a-zA-Z])(?=.*\\d).{8,20}$", message = "密码需包含字母和数字")
     private String password;
 

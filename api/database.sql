@@ -5,8 +5,9 @@ USE lesson_appointment;
 -- 用户表：存储学生、教师、管理员信息，对应User实体
 CREATE TABLE IF NOT EXISTS `user` (
   `user_id` varchar(36) NOT NULL COMMENT '用户唯一标识（UUID）',
-  `phone` varchar(11) NOT NULL COMMENT '手机号（11位，符合手机号格式）',
-  `email` varchar(50) NOT NULL COMMENT '邮箱（符合邮箱格式）',
+  'account' varchar(50) NOT NULL   COMMENT '账号,识别为email或电话‘
+  `phone` varchar(50) DEFAULT NULL COMMENT '手机号（11位，符合手机号格式）',
+  `email` varchar(50) DEFAULT NULL COMMENT '邮箱（符合邮箱格式）',
   `password` varchar(100) NOT NULL COMMENT '加密后的密码（BCrypt加密，长度8-20位，含字母和数字）',
   `role` varchar(10) NOT NULL COMMENT '角色（student：学生，teacher：教师，admin：管理员）',
   `learn_goal` varchar(200) DEFAULT NULL COMMENT '学生学习目标（学生专属）',
