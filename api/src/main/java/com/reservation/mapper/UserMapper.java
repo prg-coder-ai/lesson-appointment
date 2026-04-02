@@ -13,6 +13,9 @@ import java.util.Optional;
  */
 @Mapper
 public interface UserMapper {
+
+    @Select("select * from user where account = #{account}")
+    User selectByAccount(@Param("account") String account);
     /**
      * 根据手机号查询用户
      * @param phone 手机号
@@ -52,8 +55,8 @@ public interface UserMapper {
      * @param user 用户实体
      * @return 影响行数
      */
-    @org.apache.ibatis.annotations.Insert("INSERT INTO user(user_id, name, password, phone, email, role, status) "
-            + "VALUES(#{userId},#{name}, #{password}, #{phone}, #{email}, #{role}, #{status})")
+    @org.apache.ibatis.annotations.Insert("INSERT INTO user(user_id, account ,name, password, phone, email, role, status) "
+            + "VALUES(#{userId},#{account},#{name}, #{password}, #{phone}, #{email}, #{role}, #{status})")
     int insert(User user);
 
    

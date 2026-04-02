@@ -40,95 +40,57 @@ public class UserService {
     private JwtUtil jwtUtil;
 
     // 学生注册（对应设计2.2.1 学生注册接口）
+    // 注册（对应设计2.2.1 注册接口）
     @Transactional
-    public Result studentRegister(User user) {
+    public Result Register(User user) {
         // 校验手机号/邮箱是否已注册（对应业务异常校验）
+         System.out.println("input：" + user);
+          if( user.getPhone()!="")
         if (userMapper.selectByPhone(user.getPhone()) != null) {
             throw new BusinessException("该手机号已注册");
         }
+        if( user.getEmail()!="")
         if (userMapper.selectByEmail(user.getEmail()) != null) {
             throw new BusinessException("该邮箱已注册");
         }
         // 密码加密（对应设计2.3 安全设计-密码加密）
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         // 生成唯一userId（对应通用校验规则-ID类参数）
-        user.setUserId(UUID.randomUUID().toString());
-        // 设置角色为student，状态为active（对应设计2.2.1 学生注册逻辑）
-        user.setRole("student");
-        user.setStatus("pending");
-        
+        user.setUserId(UUID.randomUUID().toString());  
         // 插入数据库
         userMapper.insert(user);
-
-        // 生成Token（对应设计2.3 安全设计-Token）
-        // String token = jwtUtil.generateToken(user.getUserId(), user.getRole());
-        // 组装返回数据 ----TBD: result  对象
-
-        Map<String, String> resultMap = new HashMap<>();
+ 
+         Map<String, String> resultMap = new HashMap<>();
          resultMap.put("userId", user.getUserId());
-        // resultMap.put("token", token);
-        //resultMap.put("result","successful");
-        Result rslt = Result.success(resultMap   ,"注册成功，请登录等待验证");
-        // System.out.println("教师注册成功，返回数据：" + resultMap);
+         resultMap.put("account", user.getAccount());
+         //计算token
+         String token = jwtUtil.generateToken(user.getUserId(), user.getRole());
+         resultMap.put("token", token);
+         resultMap.put("role", user.getRole());
+                               //data,message
+         Result rslt = Result.success(resultMap   ,"注册成功，请登录等待验证");
+        
         return rslt;
     }
 
-    // 教师注册（对应设计2.2.1 教师注册接口）
-    @Transactional
-    public Result  teacherRegister(User user) {
-        System.out.println("input：" + user);
-        Map<String, String> resultMap = new HashMap<>();
-        // 校验手机号/邮箱是否已注册
-        if( user.getPhone()!="")
-        if (userMapper.selectByPhone(user.getPhone()) != null) {
-            {   Result rslt = Result.fail(301,"该手机号已注册，请登录");
-                //throw new BusinessException("该手机号已注册，请登录");
-                return  rslt;
-            }
-        }
-
-        if (userMapper.selectByEmail(user.getEmail()) != null) {
-            {
-                //throw new BusinessException("该邮箱已注册,请登录");
-                Result rslt = Result.fail(301,"该邮箱已注册,请登录");
-                //throw new BusinessException("该手机号已注册，请登录");
-                return  rslt;
-            }
-        }
-
-
-        // 密码加密（对应设计2.3 安全设计-密码加密）
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        // 生成唯一userId
-        user.setUserId(UUID.randomUUID().toString());
-        // 设置角色为teacher，状态为inactive（待审核，对应设计2.2.1 教师注册逻辑）
-        user.setRole("teacher");
-        user.setStatus("pending");
-        // 插入数据库
-
-        userMapper.insert(user);
-        // 生成Token（对应设计2.3 安全设计-Token）
-       // String token = jwtUtil.generateToken(user.getUserId(), user.getRole());
-        // 组装返回数据 ----TBD: result  对象
-
-
-        resultMap.put("userId", user.getUserId());
-        Result rslt = Result.success(resultMap,"注册成功，请登录等待验证");
-        System.out.println("return：" + rslt);
-        return rslt;
-
-    }
 
     // 用户登录（对应设计2.2.1 登录接口）
-    public Map<String, String> login(String account, String password) {
+    public Result login(String account, String password) {
         // 查找用户（账号可为手机号/邮箱，对应设计2.2.1 登录接口请求参数）
-          System.out.println("login：" + account+" "+password);
-        User user = userMapper.selectByPhoneOrEmail(account);
+       //   System.out.println("login：" + account+"   "+password);
+        User user = userMapper.selectByAccount(account);
         if (user == null) {
             throw new ResourceNotFoundException("账号不存在");
         }
-        // 校验密码
-        if (!passwordEncoder.matches(password, user.getPassword())) {
+        // 校验密码,把password加密后与user.getPassword()比较
+       // String encodedPassword = passwordEncoder.encode(password);
+       // System.out.println("encode：" + encodedPassword);
+       // System.out.println("usercode：" + user.getPassword());
+       // if (!encodedPassword.equals(user.getPassword())) {
+         //   throw new BusinessException("密码错误");
+        //}
+       if(! passwordEncoder.matches(password,user.getPassword()))
+        {
             throw new BusinessException("密码错误");
         }
         // 校验账号状态（冻结/未审核）
@@ -143,10 +105,13 @@ public class UserService {
         // 组装返回数据（对应设计2.2.1 登录返回数据）
         Map<String, String> resultMap = new HashMap<>();
         resultMap.put("userId", user.getUserId());
+        resultMap.put("account", user.getAccount());
         resultMap.put("role", user.getRole());
         resultMap.put("token", token);
         System.out.println("login ok：" +resultMap);
-        return resultMap;
+
+        Result rslt = Result.success(resultMap   ,"登陆成功");
+        return rslt;
     }
         public void logout() {
                 // 解析Token获取用户信息（对应设计2.3 安全设计-Token）
@@ -192,8 +157,8 @@ public class UserService {
        // if (passwordEncoder.matches(newPassword, user.getPassword())) {
        //     throw new BusinessException("新密码不能与原密码相同");
        // }
-        // 加密新密码并更新
-        user.setPassword(passwordEncoder.encode(newPassword));
+        // 加密新密码并更新--重置为固定码，用户自行更改
+        user.setPassword(passwordEncoder.encode("12345678"));
         userMapper.updatePassword(user);
     }
 

@@ -41,7 +41,10 @@ public class UserController {
     @PostMapping("/student/register")
     public Result<Void> studentRegister(@Validated @RequestBody User user) {
         // 调用服务层实现注册逻辑，返回userId和Token（对应设计2.2.1 学生注册返回数据）
-        Result rst = userService.studentRegister(user);
+         user.setRole("student");
+        user.setStatus("pending");
+        Result rst = userService.Register(user);
+        System.out.println("rst：" + rst);
         return rst;//Result.success(rst, "注册成功,请等待管理员审核");
     }
 
@@ -52,7 +55,9 @@ public class UserController {
      
     public Result<Void> teacherRegister(@Validated @RequestBody User user) {
         // 调用服务层提交注册申请，等待管理员审核（对应设计2.2.1 教师注册功能说明）
-        Result rst = userService.teacherRegister(user);
+         user.setRole("teacher");
+        user.setStatus("pending");
+        Result rst = userService.Register(user);
 // 判断的rst
         return rst;// Result.success(null, "注册申请提交成功，请等待管理员审核");
     }
@@ -61,12 +66,14 @@ public class UserController {
      * 用户登录接口，对应设计2.2.1 接口：/api/v1/user/login
      */
     @PostMapping("/login")
-    public Result<Map<String, String>> login(
-            @NotBlank(message = "账号不能为空") String account,
-            @NotBlank(message = "密码不能为空") String password) {
+    public Result  <Void>  toLogin( @Validated @RequestBody User user){
+             String account = user.getAccount();
+             String password = user.getPassword();
+        //打印输入参数
+        System.out.println("controller login input:"+ account+ password);
         // 调用服务层实现登录逻辑，返回userId、role、Token（对应设计2.2.1 登录返回数据）
-        Map<String, String> resultMap = userService.login(account, password);
-        return Result.success(resultMap, "登录成功");
+        Result rst= userService.login(account, password);
+        return rst;//Result.success(resultMap, "登录成功");
     }
 
     /**

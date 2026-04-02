@@ -239,9 +239,9 @@
     const registerUsername = document.getElementById('register-username');
     const registerName = document.getElementById('register-name');
 
-     var   registerEmail  ="";// document.getElementById('register-email');
+     var   registerEmail ="";// document.getElementById('register-email');
      var   registerPhone =""; //document.getElementById('register-phone');
-
+      var registerAccount="";
     const registerPassword = document.getElementById('register-password');
     const registerConfirmPwd = document.getElementById('register-confirm-pwd');
     const registerBtn = document.getElementById('register-btn');
@@ -324,17 +324,19 @@
           isValid = false;
       }else {
           registerEmail = registerUsername.value.trim();
-          registerPhone = null;
+          registerAccount = registerEmail;
+          registerPhone = "";
         }
     }else{
-        registerEmail=null;
+        registerEmail="";
         const phonePattern = /^[\d-]{1,30}$/;
         if (!phonePattern.test(registerUsername.value.trim())) {
-          registerUsernameError.textContent = '请输入有效的电话号码（最多19位，仅限数字和“-”分隔符）';
+          registerUsernameError.textContent = '请输入有效的电话号码（最多30位，仅限数字和“-”分隔符）';
           registerUsernameError.style.display = 'block';
           isValid = false;
         } else {
           registerPhone = registerUsername.value.trim();
+          registerAccount = registerPhone;
         }
       }
       if(isValid)
@@ -388,7 +390,8 @@
         setTimeout(() => {
           // 构造注册信息
           const registerInfo = {
-            role: registerRole.value, 
+             role: registerRole.value,
+             account:registerAccount,
              email: registerEmail,
              phone: registerPhone,
 
@@ -405,6 +408,22 @@
           // 【修改】移除URL变量前多余空格 + 优化为模板字符串
           const URL = `${API_BASE_URL}/user/${registerInfo.role}/register`;
           
+          /*
+            本段处理逻辑解析：
+
+            1. 使用 fetch 向后端接口 URL 提交注册信息(registerInfo)，方法为 POST，数据格式为 JSON。
+            2. headers 里包含 'Content-Type: application/json' 以表明数据格式。credentials 字段写入 header 实际无效（credentials 应为 fetch 第二参数顶层）。
+            3. 发起请求后，处理返回响应：
+              a) 首先检查 response.ok（是否HTTP 200系列）。如果不是，则抛出异常进入catch分支。
+              b) 如正常，则解析返回体为 JSON。
+            4. 获取返回数据 data 后，根据 data.status 业务字段进行分支判断：
+              - 若 status 为 'duplicate'，提示账号已存在。
+              - 若 status 为 'success'，显示注册成功的提示，并延迟2秒关闭注册弹窗且重置表单。
+              - 其它情况，弹窗提示注册失败。
+            5. 若抓到异常（如网络错误或HTTP异常），提示用户“网络异常，请检查后重试”。
+            6. 控制台分别打印 response 和 data 便于调试。
+            整体逻辑实现了前端的注册异步请求、异常处理与用户交互提示。
+          */
           fetch(URL, {
             method: 'POST',
             headers: {
@@ -413,30 +432,36 @@
             },
             body: JSON.stringify(registerInfo)
           })
-          // 【修改】新增HTTP状态码异常处理
-          .then(response => {
-            console.error('注册result:', response);
-            if (!response.ok) {
-              throw new Error(`HTTP错误！状态码：${response.status}`);
+          .then(response => {             
+            console.log('注册result:', response);
+            if (!(response.status==200)) {
+              alert(`HTTP错误！状态码：${response.status}`);
             }
-
             return response.json();
           })
           .then(data => {
-           console.error('data:', data);
-            // 可以根据后端返回结果做进一步处理
-            // 例如根据 data.status 判断是否提交成功
-            if (data && data.status === 'duplicate') {
-              alert('该账号已存在，请更换账号后重试');
-            } else if (data && data.status === 'success') {
-              // 【修改】移除admin分支（注册身份无admin）+ 改为提示不跳转
+          /*    ( "userId", user.getUserId());
+               ("account", user.getAccount());
+               ("token", token);
+              ("role", user.getRole());*/
+
+            console.log('data:', data);
+            if (data && data.code === 400) {
+              //alert('该账号已存在，请更换账号或登录该账号');
+               registerError.style.display ='block';
+               registerSuccess.textContent = '该账号已存在，请更换账号或登录该账号';
+            }else if (data && data.code === 200) {  
               registerSuccess.style.display = 'block';
+              registerSuccess.textContent = data.message; //在注册页面显示data.message
+              localStorage.setItem('currentUser', JSON.stringify(data.data));//保存用户信息到本地,userId,role,token
               setTimeout(() => {
-                registerModal.style.display = 'none';
+                registerModal.style.display = 'none';  
                 resetRegisterForm();
+                //返回登录页面
+               window.location.href = './index.html';
               }, 2000);
             } else {
-              alert('注册失败，请稍后重试');
+              alert(data.message);
             }
           })
           .catch(error => {
@@ -452,19 +477,47 @@
 
     // 用户认证函数（登录）
     function authenticateUser(role, uname, pwd) {
-      // 模拟后端验证（实际项目中替换为fetch请求）
-      return new Promise((resolve, reject) => {
-        setTimeout(() => {
-          const user = userDatabase.find(
-            u => u.role === role && ( u.email === uname || u.phone === uname) && u.password === pwd
-          );
-          
-          if (user) {
-            resolve(user);
-          } else {
-            reject('账号或密码错误，请重试');
-          }
-        }, 800); // 模拟网络延迟
+        const registerInfo = {
+             account:uname,
+             password: pwd
+          };
+    //  console.log('authenticate:', role, uname, pwd);
+      console.log("body:",JSON.stringify(registerInfo));
+      const URL = `${API_BASE_URL}/user/login`;
+      fetch(URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json' ,
+          'credentials': 'include'
+        },
+        body: JSON.stringify(registerInfo)
+      })
+      .then(response => {
+        console.log('登录result:', response);
+        if (!(response.status==200)) {
+          alert(`HTTP错误！状态码：${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+      /*  data.data
+       resultMap.put("userId", user.getUserId());
+        resultMap.put("account", user.getAccount());
+        resultMap.put("role", user.getRole());
+        resultMap.put("token", token);
+      */
+        console.log('post ret data:', data);
+        if (data && data.code === 400) {
+          alert('账号或密码错误，请重试');
+        }else if (data && data.code === 200) {
+           localStorage.setItem('currentUser', JSON.stringify(data.data));//保存用户信息到本地,userId,role,token
+           redirectToUserPage(data.data);
+              }
+      //  return data.data;
+      })
+      .catch(error => {
+        console.error('登录请求出错:', error);
+        alert('网络异常，请检查后重试');
       });
     }
 
@@ -476,13 +529,13 @@
       // 根据角色跳转对应页面
       switch(user.role) {
         case 'admin':
-          window.location.href = './src/pages/admin.html'; // 管理端页面
+          window.location.href = '/admin.html'; // 管理端页面
           break;
         case 'teacher':
-          window.location.href = './src/pages/teacher.html'; // 教师端页面
+          window.location.href = 'teacher.html'; // 教师端页面
           break;
         case 'student':
-          window.location.href = './src/pages/student.html'; // 学生端页面
+          window.location.href = '/student.html'; // 学生端页面
           break;
         default:
           alert('未知用户身份，请联系管理员');
@@ -519,6 +572,7 @@
       btnText.innerHTML = '<span class="loading"></span> 登录中...';
 
       try {
+        console.log('login input:', userRole.value, username.value.trim(), password.value.trim());
         // 用户认证
         const user = await authenticateUser(
           userRole.value,
@@ -526,6 +580,7 @@
           password.value.trim()
         );
         
+        console.log('login 1 ret data:', user);
         // 认证成功，跳转对应页面
         redirectToUserPage(user);
       } catch (error) {
