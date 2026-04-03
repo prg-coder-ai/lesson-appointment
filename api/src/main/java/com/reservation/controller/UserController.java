@@ -34,10 +34,39 @@ public class UserController {
 
     @GetMapping("/list")
     @ResponseBody
-    public String listUser( ) {
-      // Result<List<User>>   List<User>  ret= userService.list();//
-
-        return "ancd";//Result.success(null, "hello");
+    //TBD条件：role,所属机构
+    public Result listUser(@Validated @RequestBody User user ) {
+      // Result<List<User>>  
+         // INSERT_YOUR_CODE
+         // 1. 解析user对象，提取其中非空字段作为条件，放入map
+         Map<String, Object> condition = new java.util.HashMap<>();
+         if (user.getRole() != null && !user.getRole().isEmpty()) {
+             condition.put("role", user.getRole());
+         }
+        /* if (user.getOrgId() != null) {
+             condition.put("orgId", user.getOrgId());
+         }*/
+         if (user.getStatus() != null && !user.getStatus().isEmpty()) {
+             condition.put("status", user.getStatus());
+         }
+         if (user.getName() != null && !user.getName().isEmpty()) {
+             condition.put("name", user.getName());
+         }
+         if (user.getEmail() != null && !user.getEmail().isEmpty()) {
+             condition.put("email", user.getEmail());
+         }
+         if (user.getPhone() != null && !user.getPhone().isEmpty()) {
+             condition.put("phone", user.getPhone());
+         }
+         if (user.getUserId() != null) {
+             condition.put("userId", user.getUserId());
+         }
+         if (user.getAccount() != null && !user.getAccount().isEmpty()) {
+             condition.put("account", user.getAccount());
+         }
+         // 2. 查询
+         List<User> users = userService.listByCondition(condition);
+         return Result.success(users, "查询成功");
     }
     /**
      * 学生注册接口，对应设计2.2.1 接口：/api/v1/user/student/register
