@@ -1,4 +1,14 @@
 // API请求封装（简化JS请求，避免重复代码）
+
+    // 全局定义API服务器地址及端口号、根路径（可根据实际情况修改）
+    const API_SERVER_HOST = 'http://localhost';
+    const API_SERVER_PORT = '8081';
+    const API_BASE_PATH = '';
+    //'/api/v1';
+
+    // API完整前缀
+    const API_BASE_URL = `${API_SERVER_HOST}:${API_SERVER_PORT}${API_BASE_PATH}`;
+
 const api = {
     // 后端API接口地址（相对路径，端口由Spring Boot配置决定，无需写localhost:8088）
     getDataList: "/api/v1/data/list" // 对应后端IndexController的API接口
@@ -20,3 +30,26 @@ function getRequest(url, callback) {
         console.error("API请求失败：", error);
     });
 }
+
+//按照传入的条件，检索用户列表，eg：const conditionJson = { role: 'teacher' };
+//TBD条件：公司、分部、管理员
+async function fetchUserList(conditionJson) {
+    try {
+      const URL = `${API_BASE_URL}/user/list`;
+      const response = await fetch(URL, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json' ,
+          'credentials': 'include'
+        },
+        body: JSON.stringify(conditionJson)
+      }); 
+      if (!response.ok) throw new Error("获取列表失败");
+      const result = await response.json();
+      // 假设后端返回数据结构 { code: 200, data: [{userId, name, email, phone, status, ...}], ... }
+      return result.data || [];
+    } catch (e) {
+      alert(e.message || "网络错误，无法获取数据");
+      return [];
+    }
+  }

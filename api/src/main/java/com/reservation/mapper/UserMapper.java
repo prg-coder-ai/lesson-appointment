@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 /**
  * UserMapper接口，对应user表CRUD操作，匹配UserService中的方法
@@ -72,5 +73,44 @@ public interface UserMapper {
      @Update("UPDATE user SET password = #{password} WHERE user_id = #{userId}")
     public int update(User user);
 
-
+        // INSERT_YOUR_CODE
+        /**
+         * 根据条件查询用户列表
+         * 支持条件字段：userId, role, status, orgId, name, email, phone, account
+         * @param condition 查询条件
+         * @return 用户列表
+         *   "  <if test='condition.orgId != null'>",
+            "    AND org_id LIKE CONCAT('%', #{condition.orgId}, '%')",
+            "  </if>",
+         */
+        // INSERT_YOUR_CODE
+        @org.apache.ibatis.annotations.Select({ 
+            "SELECT * FROM user",
+            "<where>",
+            "  <if test='condition.userId != null'>",
+            "    AND user_id LIKE CONCAT('%', #{condition.userId}, '%')",
+            "  </if>",
+            "  <if test='condition.role != null'>",
+            "    AND role = #{condition.role}",
+            "  </if>",
+            "  <if test='condition.status != null'>",
+            "    AND status LIKE CONCAT('%', #{condition.status}, '%')",
+            "  </if>",
+          
+            "  <if test='condition.name != null'>",
+            "    AND name LIKE CONCAT('%', #{condition.name}, '%')",
+            "  </if>",
+            "  <if test='condition.email != null'>",
+            "    AND email LIKE CONCAT('%', #{condition.email}, '%')",
+            "  </if>",
+            "  <if test='condition.phone != null'>",
+            "    AND phone LIKE CONCAT('%', #{condition.phone}, '%')",
+            "  </if>",
+            "  <if test='condition.account != null'>",
+            "    AND account LIKE CONCAT('%', #{condition.account}, '%')",
+            "  </if>",
+            "</where>" 
+        })
+        List<User> listByCondition(@Param("condition") Map<String, Object> condition);
+ 
 }
