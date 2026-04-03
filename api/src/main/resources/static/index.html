@@ -10,6 +10,14 @@
   <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     /* 新增注册弹窗样式（可整合到common.css） */
+    .login-container {
+     width: 90%;
+      max-width: 400px;
+      background: #fff;
+      border-radius: 8px;
+      padding: 24px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+    }
     .modal-mask {
       position: fixed;
       top: 0;
@@ -113,24 +121,14 @@
     <div class="login-header">
       <div class="logo"><i class="fa fa-graduation-cap"></i></div>
       <div class="title">语言教学预约系统</div>
-      <div class="subtitle">请选择身份并登录</div>
+      <div class="subtitle">请登录</div>
     </div>
 
     <!-- 登录表单 -->
     <form id="login-form">
-      <div class="form-item">
-        <label for="user-role">用户身份</label>
-        <select id="user-role" required>
-          <option value="">请选择身份</option>
-          <option value="admin">系统管理员</option>
-          <option value="teacher">教师</option>
-          <option value="student">学生</option>
-        </select>
-        <div class="error-tip" id="role-error">请选择用户身份</div>
-      </div>
 
       <div class="form-item">
-        <label for="username">账号(Email or PhoneNumber)</label>
+        <label for="username">账号(Email or Phone)</label>
         <input type="text" id="username" placeholder="请输入账号" required>
         <div class="error-tip" id="username-error">请输入账号</div>
       </div>
@@ -203,28 +201,16 @@
 
   <!-- JavaScript核心逻辑 -->
   <script>
-    // 模拟用户数据库（实际项目中从后端获取）
-    const userDatabase = [
-      // 管理员账号
-      { role: 'admin', username: 'admin', password: 'admin123', name: '系统管理员' },
-      // 教师账号
-      { role: 'teacher', username: 'teacher01', password: 'teacher123', name: '李老师' },
-      { role: 'teacher', username: 'teacher02', password: 'teacher123', name: '王老师' },
-      // 学生账号
-      { role: 'student', username: 'student01', password: 'student123', name: '张三' },
-      { role: 'student', username: 'student02', password: 'student123', name: '李四' }
-    ];
-
     // DOM元素获取（登录相关）
     const loginForm = document.getElementById('login-form');
-    const userRole = document.getElementById('user-role');
+    //const userRole = document.getElementById('user-role');
     const username = document.getElementById('username');
     const password = document.getElementById('password');
     const loginBtn = document.getElementById('login-btn');
     const btnText = document.getElementById('btn-text');
     
     // 错误提示元素（登录）
-    const roleError = document.getElementById('role-error');
+   // const roleError = document.getElementById('role-error');
     const usernameError = document.getElementById('username-error');
     const passwordError = document.getElementById('password-error');
     const loginError = document.getElementById('login-error');
@@ -262,16 +248,16 @@
       let isValid = true;
       
       // 重置所有错误提示
-      roleError.style.display = 'none';
+      //roleError.style.display = 'none';
       usernameError.style.display = 'none';
       passwordError.style.display = 'none';
       loginError.style.display = 'none';
 
       // 验证身份选择
-      if (!userRole.value) {
-        roleError.style.display = 'block';
-        isValid = false;
-      }
+    //  if (!userRole.value) {
+    //    roleError.style.display = 'block';
+    //    isValid = false;
+     // }
 
       // 验证账号
       if (!username.value.trim()) {
@@ -476,13 +462,13 @@
     }
 
     // 用户认证函数（登录）
-    function authenticateUser(role, uname, pwd) {
+    function authenticateUser(  uname, pwd) {
         const registerInfo = {
              account:uname,
              password: pwd
           };
-    //  console.log('authenticate:', role, uname, pwd);
-      console.log("body:",JSON.stringify(registerInfo));
+
+     // console.log("body:",JSON.stringify(registerInfo));
       const URL = `${API_BASE_URL}/user/login`;
       fetch(URL, {
         method: 'POST',
@@ -492,28 +478,25 @@
         },
         body: JSON.stringify(registerInfo)
       })
-      .then(response => {
-        console.log('登录result:', response);
-        if (!(response.status==200)) {
-          alert(`HTTP错误！状态码：${response.status}`);
-        }
-        return response.json();
-      })
+      .then(response =>response.json()  )
       .then(data => {
-      /*  data.data
-       resultMap.put("userId", user.getUserId());
-        resultMap.put("account", user.getAccount());
-        resultMap.put("role", user.getRole());
-        resultMap.put("token", token);
-      */
-        console.log('post ret data:', data);
+        console.log('post ret data:', data  );
         if (data && data.code === 400) {
           alert('账号或密码错误，请重试');
         }else if (data && data.code === 200) {
-           localStorage.setItem('currentUser', JSON.stringify(data.data));//保存用户信息到本地,userId,role,token
-           redirectToUserPage(data.data);
+            // TBD:data.message
+             console.log('login 1 ret data:', data.data);
+             localStorage.setItem('currentUser', JSON.stringify(data.data));//保存用户信息到本地,userId,role,token
+
+              setTimeout(() => {
+                registerModal.style.display = 'none';
+                  loginError.style.display = 'block';
+                  loginError.textContent = data.message;
+
+               // 认证成功，跳转对应页面
+               redirectToUserPage(data.data);
+              }, 2000);
               }
-      //  return data.data;
       })
       .catch(error => {
         console.error('登录请求出错:', error);
@@ -523,6 +506,7 @@
 
     // 页面跳转函数（根据用户角色）
     function redirectToUserPage(user) {
+     console.log('redirectToUserPage', user );
       // 存储用户信息到本地（实际项目中使用token）
      // localStorage.setItem('currentUser', JSON.stringify(user));
       
@@ -572,17 +556,13 @@
       btnText.innerHTML = '<span class="loading"></span> 登录中...';
 
       try {
-        console.log('login input:', userRole.value, username.value.trim(), password.value.trim());
+        console.log('login input:',username.value.trim(), password.value.trim());
         // 用户认证
         const user = await authenticateUser(
-          userRole.value,
           username.value.trim(),
           password.value.trim()
         );
-        
-        console.log('login 1 ret data:', user);
-        // 认证成功，跳转对应页面
-        redirectToUserPage(user);
+
       } catch (error) {
         // 认证失败，显示错误提示
         loginError.style.display = 'block';
@@ -645,3 +625,86 @@
  
 </body>
 </html>
+
+<!-- INSERT_YOUR_CODE -->
+<!-- 
+【fetch 的使用方法说明】
+
+1. fetch 是原生 JavaScript 用于发起 HTTP 请求获取数据的函数。其基本用法如下：
+
+fetch(请求地址, 配置项)
+  .then(response => response.json()) // 解析响应体为 JSON
+  .then(data => {
+    // 对 data 进行处理（data 是 JSON 解析出来的 JS 对象）
+  })
+  .catch(error => {
+    // 处理网络异常等错误
+  });
+
+2. 参数和链式调用说明：
+- 第一个参数：字符串类型，接口地址（如 '/api/v1/user/login'）。
+- 配置项通常为对象，定义 method、headers、body 等（如 POST 请求时要加上 body 和 Content-Type）。
+
+示例（以 POST 登录为例）：
+fetch('/api/v1/user/login', {
+  method: 'POST',
+  headers: {'Content-Type': 'application/json'},
+  body: JSON.stringify({account: 'abc', password: '123456'})
+})
+  .then(response => response.json()) // 将 Response 对象解析为 JS 对象
+  .then(data => {
+    // data 是后端返回的JSON对象，比如: {code: 0, msg: "成功", data: {...}}
+    if (data.code === 0) {
+      // 登录成功处理
+    } else {
+      // 登录失败逻辑
+    }
+  })
+  .catch(err => {
+    // 网络或接口异常处理
+    alert('请求失败: ' + err);
+  });
+
+3. 链式 then 的顺序：
+- 第一个 then 得到 Response 对象，用 response.json() 转成 JS 对象，返回 Promise。
+- 第二个 then 的 data 参数就是已经解析好的 JS 数据对象。
+- catch 用于捕获整个 Promise 链中的异常。
+
+【注意点】
+- fetch 只会 reject 网络级错误，对于 HTTP 状态码错误（比如 400、500 等）不会自动抛异常，需要在 then(response => ...) 里判断 response.ok 决定是否解析 response.json()。
+-->
+
+<!-- 
+fetch 的 then 用法以及两个 then 的先后关系说明：
+
+1. then 的链式调用解析
+
+fetch("接口地址")
+  .then(response => response.json())
+  .then(data => {
+    // 这里处理 JSON 数据
+    console.log(data);
+  });
+
+- 第一个 then（response => response.json()）的作用是将 fetch 返回的 Response 对象解析为 JSON 数据。即第一个 then 的返回值是一个 Promise，表示解析 JSON 的过程。
+- 第二个 then（data => ...）是在第一个 then 完成并把 JSON 数据返回后接着执行的。此时 data 参数就是解析出来的 JS 对象。
+
+2. 两个 then 的先后关系
+
+- 它们是**顺序执行**的：第二个 then 必须等第一个 then 完成（即 response.json() 解析成功，并且返回了解析后的数据）之后，才会执行。
+- 换句话说，第一个 then 的返回值会作为第二个 then 的输入参数。
+
+3. 举例说明
+fetch('/api/v1/user/login', {...})
+  .then(response => response.json()) // 这一步把 Response 变成 JS 对象
+  .then(data => {                   // data 是解析出来的内容
+    // 只有等上一步成功解析了 JSON，这步才会运行
+    if (data.code === 0) {
+      // 成功逻辑
+    } else {
+      // 失败逻辑
+    }
+  });
+
+因此：**then 是链式、顺序执行的，后一个 then 只有在前一个 then 成功完成后才会执行。**
+-->
