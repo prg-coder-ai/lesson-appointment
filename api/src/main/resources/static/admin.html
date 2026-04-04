@@ -479,9 +479,44 @@
     </div>
   </div>
 
-  <script type="application/javascript" src="/js/app.js"></script>
   <!-- JavaScript交互逻辑 -->
   <script>
+    const API_SERVER_HOST = 'http://localhost';
+    const API_SERVER_PORT = '8081';
+    const API_BASE_PATH = '';
+    //'/api/v1';
+// API完整前缀
+    const API_BASE_URL = `${API_SERVER_HOST}:${API_SERVER_PORT}${API_BASE_PATH}`;
+async function fetchUserList(conditionJson) {
+    try {
+      const URL = `${API_BASE_URL}/user/list`;
+      // 修改为GET参数拼接的方式传递
+      const params = new URLSearchParams();
+      if (conditionJson && typeof conditionJson === 'object') {
+        Object.entries(conditionJson).forEach(([key, value]) => {
+          if (value !== undefined && value !== null && value !== "") {
+            params.append(key, value);
+          }
+        });
+      }
+      const response = await fetch(`${URL}?${params.toString()}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
+      console.log("fetchUserList"+ response);
+      if (!response.ok) throw new Error("获取列表失败");
+      const result = await response.json();
+      console.log("fetchUserList"+ result);
+      // 假设后端返回数据结构 { code: 200, data: [{userId, name, email, phone, status, ...}], ... }
+      return result.data || [];
+    } catch (e) {
+      alert(e.message || "网络错误，无法获取数据");
+      return [];
+    }
+  }
     
     // 侧边栏菜单切换逻辑
     const menuItems = document.querySelectorAll('.menu-item');
@@ -660,73 +695,93 @@
           break;
           
         case '教师管理':
-        const URL = `${API_BASE_URL}/user/login`;
-      fetch(URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json' ,
-          'credentials': 'include'
-        },
-        body: JSON.stringify(registerInfo)
-      })
-      .then(response =>response.json()  )
-      .then(data => {
-        console.log('post ret data:', data  );
-        if (data && data.code === 400) {
-         // alert('账号或密码错误，请重试');抛出异常
-
-          loginError.style.display = 'block';
-          loginError.textContent = '账号或密码错误，请重试';
-           loginBtn.disabled = false;
-           btnText.innerHTML = '登录系统';
-        }else if (data && data.code === 200) {
-            // TBD:data.message
-             //console.log('login 1 ret data:', data.data);
-             localStorage.setItem('currentUser', JSON.stringify(data.data));//保存用户信息到本地,userId,role,token
-             loginError.style.display = 'block';
-             loginError.style.color = 'green';
-             loginError.textContent = data.message; 
-
-              setTimeout(() => {
-                loginError.style.display = 'none';
-                loginError.style.color = 'red';
-                // 认证成功，跳转对应页面
-                redirectToUserPage(data.data);
-              }, 2000);
-            }
-          })
-          .catch(error => {
-            console.error('登录请求出错:', error);
-            alert('网络异常，请检查后重试');
-          });
-        }
-
-           
-            // 操作按钮事件示例（仅展示结构，实际可补充实现 AJAX、刷新页面等逻辑）
+            // 操作按钮事件 
             function logoutTeacher(userId) {
+              // 调用 update(User) 把 status 设置为 inactive
+              const user = { userId, status: "inactive" };
+              fetch(`${API_BASE_URL}/user/update`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify(user)
+              }).then(response => response.json())
+                .then(res => {
+                  if (res && res.code === 200) {
+                    alert("教师已注销");
+                    // 可以在此调用刷新教师列表逻辑，如 renderTeacherCards()
+                  } else {
+                    alert(res.message || "注销失败");
+                  }
+                }).catch(e => {
+                  alert("网络错误，注销失败");
+                });
               alert("注销教师: " + userId);
+
               // TODO: 调用注销接口，刷新列表
             }
             function disableTeacher(userId) {
+             // 调用 update(User) 把 status 设置为 inactive
               alert("禁用教师: " + userId);
+              logoutTeacher(userId);
               // TODO: 调用禁用接口，刷新列表
             }
             function confirmTeacher(userId) {
+              // 如果用户状态为pending/inactive/frozen，修改为active
+              fetch(`${API_BASE_URL}/user/update`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({ userId, status: "active" })
+              }).then(response => response.json())
+                .then(res => {
+                  if (res && res.code === 200) {
+                    alert("教师已确认，状态已激活");
+                    // 可在此调用刷新教师列表的逻辑，如 renderTeacherCards()
+                  } else {
+                    alert(res.message || "确认失败");
+                  }
+                }).catch(e => {
+                  alert("网络错误，确认失败");
+                });
               alert("确认教师: " + userId);
               // TODO: 调用确认接口，刷新列表
             }
             function deleteTeacher(userId) {
               if (confirm("确定要删除该教师吗？")) {
-                alert("删除教师: " + userId);
+               // alert("删除教师: " + userId);
+                fetch(`${API_BASE_URL}/user/update`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  credentials: 'include',
+                  body: JSON.stringify({ userId, status: "frozen" })
+                }).then(response => response.json())
+                  .then(res => {
+                    if (res && res.code === 200) {
+                      alert("教师已删除");
+                      // 可以在此调用刷新教师列表逻辑，如 
+                      renderTeacherCards();
+                    } else {
+                      alert(res.message || "删除失败");
+                    }
+                  }).catch(e => {
+                    alert("网络错误，删除失败");
+                  });
                 // TODO: 调用删除接口，刷新列表
               }
             }
 
             async function renderTeacherCards() {
               dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';
-            
-              const conditionJson = { role: 'teacher' };
+              console.log("enter");
+              const conditionJson = { role: 'teacher' };//TBD:当前admin所属的群组等过滤条件
               const teachers = await fetchUserList(conditionJson);
+              console.log("list:"+teachers);
               let html = `
                 <div class="card">
                   <div class="card-header">
