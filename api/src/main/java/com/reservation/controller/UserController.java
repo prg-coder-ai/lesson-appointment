@@ -32,42 +32,39 @@ public class UserController {
     @Autowired
     private UserService userService;
 
+
+    //TBD条件：role,所属机构
+    // INSERT_YOUR_CODE
+    /**
+     * 用户列表查询（支持 GET 参数传递）
+     * 支持前端通过 URL 查询参数“/user/list?role=teacher&status=active”
+     * 推荐使用@RequestParam 映射各参数，或者用Map接收全部参数
+     */
     @GetMapping("/list")
     @ResponseBody
-    //TBD条件：role,所属机构
-    public Result listUser(@Validated @RequestBody User user ) {
-      // Result<List<User>>  
-         // INSERT_YOUR_CODE
-         // 1. 解析user对象，提取其中非空字段作为条件，放入map
-         Map<String, Object> condition = new java.util.HashMap<>();
-         if (user.getRole() != null && !user.getRole().isEmpty()) {
-             condition.put("role", user.getRole());
-         }
-        /* if (user.getOrgId() != null) {
-             condition.put("orgId", user.getOrgId());
-         }*/
-         if (user.getStatus() != null && !user.getStatus().isEmpty()) {
-             condition.put("status", user.getStatus());
-         }
-         if (user.getName() != null && !user.getName().isEmpty()) {
-             condition.put("name", user.getName());
-         }
-         if (user.getEmail() != null && !user.getEmail().isEmpty()) {
-             condition.put("email", user.getEmail());
-         }
-         if (user.getPhone() != null && !user.getPhone().isEmpty()) {
-             condition.put("phone", user.getPhone());
-         }
-         if (user.getUserId() != null) {
-             condition.put("userId", user.getUserId());
-         }
-         if (user.getAccount() != null && !user.getAccount().isEmpty()) {
-             condition.put("account", user.getAccount());
-         }
-         // 2. 查询
-         List<User> users = userService.listByCondition(condition);
-         return Result.success(users, "查询成功");
+    public Result<List<User>> listUserByGet(
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) String phone,
+            @RequestParam(required = false) String userId,
+            @RequestParam(required = false) String account
+    ) {
+        Map<String, Object> condition = new java.util.HashMap<>();
+        if (role != null && !role.isEmpty()) condition.put("role", role);
+        if (status != null && !status.isEmpty()) condition.put("status", status);
+        if (name != null && !name.isEmpty()) condition.put("name", name);
+        if (email != null && !email.isEmpty()) condition.put("email", email);
+        if (phone != null && !phone.isEmpty()) condition.put("phone", phone);
+        if (userId != null && !userId.isEmpty()) condition.put("userId", userId);
+        if (account != null && !account.isEmpty()) condition.put("account", account);
+
+        List<User> users = userService.listByCondition(condition);
+         System.out.println("out:" + users);
+        return Result.success(users, "查询成功");
     }
+     
     /**
      * 学生注册接口，对应设计2.2.1 接口：/api/v1/user/student/register
      */

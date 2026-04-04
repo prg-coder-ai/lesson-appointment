@@ -15,10 +15,12 @@
         <result column="qualification" property="qualification"/>
         <result column="language_type" property="languageType"/>
         <result column="status" property="status"/>
-    </resultMap>;
+    </resultMap>; 
 
-    <!-- 根据手机号查询用户 selectByPhone -->
-    <!-- 正确写法 -->
+        <select id="selectByAccount" parameterType="String" resultType="com.reservation.entity.User">
+        select * from user where account = #{account}
+    </select>
+       <!-- 根据手机号查询用户 selectByPhone -->
     <select id="selectByPhone" parameterType="String" resultType="com.reservation.entity.User">
         select * from user where phone = #{phone}
     </select>
@@ -38,9 +40,10 @@
         SELECT * FROM `user` WHERE user_id = #{userId}
    </select>;
 
-    <select id="list"  resultMap="userResultMap">
+      <select id="list"  resultMap="userResultMap">
         SELECT * FROM `user` WHERE  true;
-    </select>;
+    </select>; 
+
     <!-- 插入用户 user_id  自动创建-->
     <insert id="insert" parameterType="com.reservation.entity.User">
         INSERT INTO `user` (
@@ -72,5 +75,33 @@
         </set>
         WHERE user_id = #{userId}
     </update>
-
+ 
+    <!-- 根据条件动态查询用户列表 -->
+    <select id="listByCondition" parameterType="map" resultMap="userResultMap">
+        SELECT * FROM `user`
+        <where> 1=1
+            <if test="condition.userId != null and condition.userId != ''">
+               AND user_id = #{condition.userId}
+            </if>
+            <if test="condition.role != null and condition.role != ''">
+                AND role = #{condition.role}
+            </if>
+            <if test="condition.status != null and condition.status != ''">
+                AND status = #{condition.status}
+            </if>
+            
+            <if test="condition.name != null and condition.name != ''">
+                AND name LIKE CONCAT('%', #{condition.name}, '%')
+            </if>
+            <if test="condition.email != null and condition.email != ''">
+                AND email = #{condition.email}
+            </if>
+            <if test="condition.phone != null and condition.phone != ''">
+                AND phone = #{condition.phone}
+            </if>
+            <if test="condition.account != null and condition.account != ''">
+                AND account = #{condition.account}
+            </if>
+        </where>
+    </select>
 </mapper>

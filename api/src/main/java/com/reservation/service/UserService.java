@@ -219,13 +219,13 @@ public User selectById(String userId) {
         int ret = userMapper.updatePassword(user);
         return ret;
     }
-
+/*
     public List<User> list()
     {
         List <User> ret = userMapper.list();
 
         return ret;
-    }
+    }*/
     public List<User>   listByCondition(Map<String, Object> condition)
     {
         List <User> ret = userMapper.listByCondition(condition);

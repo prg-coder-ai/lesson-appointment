@@ -200,10 +200,14 @@
   </div>
 
   <!-- JavaScript核心逻辑 -->
+  <script>
+  const API_SERVER_HOST = 'http://localhost';
+    const API_SERVER_PORT = '8081';
+    const API_BASE_PATH = '';
+    //'/api/v1';
 
-
-  <script type="application/javascript" src="/js/app.js"></script>
-  <script> 
+    // API完整前缀
+    const API_BASE_URL = `${API_SERVER_HOST}:${API_SERVER_PORT}${API_BASE_PATH}`;
     // DOM元素获取（登录相关）
     const loginForm = document.getElementById('login-form');
     //const userRole = document.getElementById('user-role');
