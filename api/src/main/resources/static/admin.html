@@ -239,6 +239,10 @@
       background: #f5222d;
       color: #fff;
     }
+    .btn-warning {
+      background: #f5e722e8;
+      color: #fff;
+    }
     .btn-default {
       background: #f8f9fa;
       color: #333;
@@ -489,17 +493,9 @@
     const API_BASE_URL = `${API_SERVER_HOST}:${API_SERVER_PORT}${API_BASE_PATH}`;
 async function fetchUserList(conditionJson) {
     try {
-      const URL = `${API_BASE_URL}/user/list`;
-      // 修改为GET参数拼接的方式传递
-      const params = new URLSearchParams();
-      if (conditionJson && typeof conditionJson === 'object') {
-        Object.entries(conditionJson).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && value !== "") {
-            params.append(key, value);
-          }
-        });
-      }
-      const response = await fetch(`${URL}?${params.toString()}`, {
+      const URL = `${API_BASE_URL}/user/${conditionJson.role}/list`; 
+      console.log("URL"+ URL); 
+      const response = await fetch(`${URL}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -695,136 +691,9 @@ async function fetchUserList(conditionJson) {
           break;
           
         case '教师管理':
-            // 操作按钮事件 
-            function logoutTeacher(userId) {
-              // 调用 update(User) 把 status 设置为 inactive
-              const user = { userId, status: "inactive" };
-              fetch(`${API_BASE_URL}/user/update`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                credentials: 'include',
-                body: JSON.stringify(user)
-              }).then(response => response.json())
-                .then(res => {
-                  if (res && res.code === 200) {
-                    alert("教师已注销");
-                    // 可以在此调用刷新教师列表逻辑，如 renderTeacherCards()
-                  } else {
-                    alert(res.message || "注销失败");
-                  }
-                }).catch(e => {
-                  alert("网络错误，注销失败");
-                });
-              alert("注销教师: " + userId);
-
-              // TODO: 调用注销接口，刷新列表
-            }
-            function disableTeacher(userId) {
-             // 调用 update(User) 把 status 设置为 inactive
-              alert("禁用教师: " + userId);
-              logoutTeacher(userId);
-              // TODO: 调用禁用接口，刷新列表
-            }
-            function confirmTeacher(userId) {
-              // 如果用户状态为pending/inactive/frozen，修改为active
-              fetch(`${API_BASE_URL}/user/update`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                credentials: 'include',
-                body: JSON.stringify({ userId, status: "active" })
-              }).then(response => response.json())
-                .then(res => {
-                  if (res && res.code === 200) {
-                    alert("教师已确认，状态已激活");
-                    // 可在此调用刷新教师列表的逻辑，如 renderTeacherCards()
-                  } else {
-                    alert(res.message || "确认失败");
-                  }
-                }).catch(e => {
-                  alert("网络错误，确认失败");
-                });
-              alert("确认教师: " + userId);
-              // TODO: 调用确认接口，刷新列表
-            }
-            function deleteTeacher(userId) {
-              if (confirm("确定要删除该教师吗？")) {
-               // alert("删除教师: " + userId);
-                fetch(`${API_BASE_URL}/user/update`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json'
-                  },
-                  credentials: 'include',
-                  body: JSON.stringify({ userId, status: "frozen" })
-                }).then(response => response.json())
-                  .then(res => {
-                    if (res && res.code === 200) {
-                      alert("教师已删除");
-                      // 可以在此调用刷新教师列表逻辑，如 
-                      renderTeacherCards();
-                    } else {
-                      alert(res.message || "删除失败");
-                    }
-                  }).catch(e => {
-                    alert("网络错误，删除失败");
-                  });
-                // TODO: 调用删除接口，刷新列表
-              }
-            }
-
-            async function renderTeacherCards() {
-              dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';
-              console.log("enter");
-              const conditionJson = { role: 'teacher' };//TBD:当前admin所属的群组等过滤条件
-              const teachers = await fetchUserList(conditionJson);
-              console.log("list:"+teachers);
-              let html = `
-                <div class="card">
-                  <div class="card-header">
-                    <div class="card-title"><i class="fa fa-chalkboard-teacher"></i> 教师列表</div>
-                    <button class="btn btn-primary" onclick="alert('TODO: 打开添加教师弹窗')"><i class="fa fa-plus"></i> 添加教师</button>
-                  </div>
-                  <div class="teacher-list-cards" style="margin:16px 0;display:flex;flex-direction:column;gap:16px;">
-              `;
-
-              if (!teachers.length) {
-                html += `<div style="padding:40px 0;text-align:center;color:#999;">暂无教师数据</div>`;
-              } else {
-                teachers.forEach(tea => {
-                  html += `
-                    <div class="teacher-card" style="background:#fff;border:1px solid #e9ecef;padding:16px;border-radius:8px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px #0000000a;">
-                      <div style="display:flex;gap:36px;">
-                        <div><strong>ID:</strong> ${tea.userId || ""}</div>
-                        <div><strong>姓名:</strong> ${tea.name || ""}</div>
-                        <div><strong>Email:</strong> ${tea.email || ""}</div>
-                        <div><strong>手机号:</strong> ${tea.phone || ""}</div>
-                        <div>
-                          <strong>状态:</strong>
-                          ${ tea.status === "pending" ? '<span style="color:#faad14;">待审核</span>' :
-                            tea.status === "active" ? '<span style="color:#52c41a;">正常</span>' :
-                            tea.status === "inactive" ? '<span style="color:#faad14;">待启用</span>' :
-                            tea.status === "frozen" ? '<span style="color:#f5222d;">已禁用</span>' :
-                            `<span>${tea.status||"未知"}</span>`
-                          }
-                        </div>
-                      </div>
-                      <div class="teacher-actions" style="display:flex;gap:10px;flex-shrink:0;">
-                        <button class="btn btn-default" onclick="logoutTeacher('${tea.userId}')"><i class="fa fa-sign-out-alt"></i> 注销</button>
-                        <button class="btn btn-danger" onclick="disableTeacher('${tea.userId}')"><i class="fa fa-ban"></i> 禁用</button>
-                        <button class="btn btn-success" onclick="confirmTeacher('${tea.userId}')"><i class="fa fa-check"></i> 确认</button>
-                        <button class="btn btn-danger" onclick="deleteTeacher('${tea.userId}')"><i class="fa fa-trash"></i> 删除</button>
-                      </div>
-                    </div>
-                  `;
-                });
-              }
-              html += `</div></div>`;
-              dynamicContentCenter.innerHTML = html;
-            }
+            // 操作按钮事件 --checkout----set online =false TBD
+          
+           
             
             if (window.loadAdminPageContent) {
               // 覆盖 "教师管理" 渲染逻辑
@@ -1208,17 +1077,137 @@ async function fetchUserList(conditionJson) {
       alert(`编辑教师：${teacherName}（可在此处打开编辑弹窗）`);
     }
 
-    function disableTeacher(el) {
-      const row = el.closest('tr');
-      const teacherName = row.querySelectorAll('td')[1].textContent;
-      if (confirm(`确定要禁用教师 ${teacherName} 吗？`)) {
-        const statusCell = row.querySelectorAll('td')[4];
-        statusCell.style.color = '#f5222d';
-        statusCell.textContent = '禁用';
-        alert(`教师 ${teacherName} 已禁用！`);
-      }
-    }
+      //禁用
+    async  function disableTeacher(userId) { 
+              // 调用 update(User) 把 status 设置为 inactive
+              const user = {userId: userId, status: "inactive" };
+              fetch(`${API_BASE_URL}/user/updateStatus`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify(user)
+              }).then(response => response.json())
+                .then(res => {
+                  if (res && res.code === 200) {
+                    //alert("教师已禁用"); 
+                    renderTeacherCards();
+                  } else {
+                    alert(res.message || "禁用失败");
+                  }
+                }).catch(e => {
+                  alert("网络错误，禁用失败");
+                });
+              
+            }
+  //启用、正常
+            function confirmTeacher(userId) {
+              // 如果用户状态为pending/inactive/frozen，修改为active
+              fetch(`${API_BASE_URL}/user/updateStatus`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({ userId: userId, status: "active" })
+              }).then(response => response.json())
+                .then(res => {
+                  if (res && res.code === 200) {
+                    //alert("教师已确认，状态已激活"); 
+                    renderTeacherCards();
+                  } else {
+                    alert(res.message || "确认失败");
+                  }
+                }).catch(e => {
+                  alert("网络错误，确认失败");
+                });
+                
+            }
+//删除--冻结
+            function deleteTeacher(userId) {
+              if (confirm("确定要删除该教师吗？")) {
+               // alert("删除教师: " + userId);
+                fetch(`${API_BASE_URL}/user/updateStatus`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  credentials: 'include',
+                  body: JSON.stringify({ userId: userId, status: "frozen" })
+                }).then(response => response.json())
+                  .then(res => {
+                    if (res && res.code === 200) {
+                     // alert("教师已删除"); 
+                     //  刷新列表
+                      renderTeacherCards();
+                    } else {
+                      alert(res.message || "删除失败");
+                    }
+                  }).catch(e => {
+                    alert("网络错误，删除失败");
+                  });
+                
+              }
+            }
+            async function renderTeacherCards() {
+              dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';
+              console.log("enter");
+              const conditionJson = { role: 'teacher' };//TBD:当前admin所属的群组等过滤条件
+              const teachers = await fetchUserList(conditionJson);
+              console.log("list:"+teachers);
+              let html = `
+                <div class="card">
+                  <div class="card-header">
+                    <div class="card-title"><i class="fa fa-chalkboard-teacher"></i> 教师列表</div>
+                    <button class="btn btn-primary" onclick="alert('TODO: 打开添加教师弹窗')"><i class="fa fa-plus"></i> 添加教师</button>
+                  </div>
+                  <div class="teacher-list-cards" style="margin:16px 0;display:flex;flex-direction:column;gap:16px;">
+              `;
 
+              if (!teachers.length) {
+                html += `<div style="padding:40px 0;text-align:center;color:#999;">暂无教师数据</div>`;
+              } else {
+                <!-- INSERT_YOUR_CODE -->
+                html += `
+                  <div style="display:flex;gap:36px;font-weight:bold;border-bottom:1px solid #e9ecef;padding-bottom:8px;margin-bottom:4px;">
+                    <div style="width:120px;"><strong>ID</strong></div>
+                    <div style="width:90px;"><strong>姓名</strong></div>
+                    <div style="width:180px;"><strong>电子邮箱</strong></div>
+                    <div style="width:130px;"><strong>手机号</strong></div>
+                    <div style="width:120px;"><strong>状态</strong></div>
+                    <div style="width:240px;"><strong>操作</strong></div>
+                  </div>
+                `;
+                teachers.forEach(tea => {
+                  html += `
+                    <div class="teacher-card" style="background:#fff;border:1px solid #e9ecef;padding:16px;border-radius:8px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px #0000000a;">
+                      <div style="display:flex;gap:36px;">
+                        <div>${tea.userId || ""}</div>
+                        <div>${tea.name || ""}</div>
+                        <div>${tea.email || ""}</div>
+                        <div>${tea.phone || ""}</div>
+                        <div>                          
+                          ${ tea.status === "pending" ? '<span style="color:#faad14;">待审核</span>' :
+                            tea.status === "active" ? '<span style="color:#52c41a;">正常</span>' :
+                            tea.status === "inactive" ? '<span style="color:#faad14;">待启用</span>' :
+                            tea.status === "frozen" ? '<span style="color:#f5222d;">已删除</span>' :
+                            `<span>${tea.status||"未知"}</span>`
+                          }
+                        </div>
+                      </div>
+                      <div class="teacher-actions" style="display:flex;gap:10px;flex-shrink:0;"> 
+                        <button class="btn btn-success" onclick="confirmTeacher('${tea.userId}')"><i class="fa fa-check"></i> 确认/启用</button>
+                         <button class="btn btn-warning" onclick="disableTeacher('${tea.userId}')"><i class="fa fa-ban"></i> 禁用</button>
+                        <button class="btn btn-danger" onclick="deleteTeacher('${tea.userId}')"><i class="fa fa-trash"></i> 删除</button>
+                      </div>
+                    </div>
+                  `;
+                });
+              }
+              html += `</div></div>`;
+              dynamicContentCenter.innerHTML = html;
+            }
     // 学生管理相关函数
     function editStudent(el) {
       const row = el.closest('tr');

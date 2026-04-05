@@ -59,8 +59,8 @@ public class UserController {
         if (phone != null && !phone.isEmpty()) condition.put("phone", phone);
         if (userId != null && !userId.isEmpty()) condition.put("userId", userId);
         if (account != null && !account.isEmpty()) condition.put("account", account);
-
-        List<User> users = userService.listByCondition(condition);
+ 
+         List<User> users = userService.listByCondition(condition); 
          System.out.println("out:" + users);
         return Result.success(users, "查询成功");
     }
@@ -69,6 +69,7 @@ public class UserController {
      * 学生注册接口，对应设计2.2.1 接口：/api/v1/user/student/register
      */
     @PostMapping("/student/register")
+      @ResponseBody
     public Result<Void> studentRegister(@Validated @RequestBody User user) {
         // 调用服务层实现注册逻辑，返回userId和Token（对应设计2.2.1 学生注册返回数据）
          user.setRole("student");
@@ -81,30 +82,55 @@ public class UserController {
     /**
      * 教师注册接口，对应设计2.2.1 接口：/api/v1/user/teacher/register
      */
-    @PostMapping("/teacher/register")
-     
+    @PostMapping("/teacher/register") 
+      @ResponseBody
     public Result<Void> teacherRegister(@Validated @RequestBody User user) {
         // 调用服务层提交注册申请，等待管理员审核（对应设计2.2.1 教师注册功能说明）
          user.setRole("teacher");
         user.setStatus("pending");
-        Result rst = userService.Register(user);
-// 判断的rst
-        return rst;// Result.success(null, "注册申请提交成功，请等待管理员审核");
+        Result rst = userService.Register(user); 
+        return rst; 
     }
+     @PostMapping("/updateStatus") 
+       @ResponseBody
+    public Result<Void> updateStatus(@Validated @RequestBody User user) {  
+        int rst = userService.updateStatus(user); 
+         
+        return   Result.success(null, "修改成功");
+    }
+  
+
+//按角色查询用户列表
+    @GetMapping("/student/list")
+    @ResponseBody
+    public Result<List<User>>  studentList() { 
+          String role="student";
+          List<User> users = userService.listByRole(role);
+         System.out.println("out:" + users);
+        return Result.success(users, "查询成功");
+    } 
+    @GetMapping("/teacher/list")
+    @ResponseBody
+    public Result<List<User>>  teacherList() { 
+          String role="teacher";
+          List<User> users = userService.listByRole(role);
+         System.out.println("out:" + users);
+        return Result.success(users, "查询成功");
+    } 
 
     /**
      * 用户登录接口，对应设计2.2.1 接口：/api/v1/user/login
+     * TBD：在线状态online：yes/no
      */
     @PostMapping("/login")
     @ResponseBody
     public Result  <Void>  toLogin( @Validated @RequestBody User user){
              String account = user.getAccount();
              String password = user.getPassword();
-        //打印输入参数
-        //System.out.println("controller login input:"+ account+ password);
+    
         // 调用服务层实现登录逻辑，返回userId、role、Token（对应设计2.2.1 登录返回数据）
-        Result rst= userService.login(account, password);
-
+        Result rst= userService.login(account, password); //setOnline(false)
+          
         // 3. 登录成功：设置安全状态（核心步骤） ?token?
         // 封装用户认证信息（角色需和数据库一致，如teacher/student）
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
@@ -116,14 +142,28 @@ public class UserController {
         // 将认证信息存入安全上下文（自动维护会话，无需手动管理）
         SecurityContextHolder.getContext().setAuthentication(authentication);
        // System.out.println("controller login out:"+rst);
+  
         return rst;//Result.success(resultMap, "登录成功");
     }
+    @PostMapping("/logout")
+    @ResponseBody
+    public Result    toLogout( @Validated @RequestBody User user){
+             String account = user.getAccount(); 
+        //System.out.println("controller login input:"+ account+ password);
+        // 调用服务层实现登录逻辑，返回userId、role、Token（对应设计2.2.1 登录返回数据）
+        Result rst;//= userService.setOnline(false);
 
+        // 清理当前用户的认证信息（登出时需清除 Spring Security 上下文）
+        SecurityContextHolder.clearContext(); 
+       // System.out.println("controller login out:"+rst);
+        return Result.success(account,"已退出"); 
+    }
     /**
      * 密码找回（验证码验证），对应设计2.2.1 接口：/api/v1/user/password/forgot
      */
     @PostMapping("/password/forgot")
-    public Result<Void> forgotPassword(
+      @ResponseBody
+    public Result  forgotPassword(
             @NotBlank(message = "账号不能为空") String account,
             @NotBlank(message = "验证码不能为空")
             @Pattern(regexp = "^\\d{6}$", message = "验证码格式错误") String verifyCode) {
@@ -136,16 +176,17 @@ public class UserController {
      * 密码重置，对应设计2.2.1 接口：/api/v1/user/password/reset
      */
     @PostMapping("/password/reset")
-    public Result<Void> resetPassword(
-            @NotBlank(message = "账号不能为空") String account,
-            @NotBlank(message = "新密码不能为空")
-            @Pattern(regexp = "^(?=.*[a-zA-Z])(?=.*\\d).{8,20}$", message = "新密码需包含字母和数字，长度8-20位") String newPassword,
-            @NotBlank(message = "验证码不能为空") String verifyCode) {
+      @ResponseBody
+    public Result  resetPassword(
+            @NotBlank(message = "账号不能为空") String account)
+            {
         // 调用服务层重置密码（对应设计2.2.1 密码重置功能说明）
-        userService.resetPassword(account, newPassword, verifyCode);
+        userService.resetPassword(account);
         return Result.success(null, "密码重置成功");
     }
 
+//TBD: 更新非空参数
+/*
     @PostMapping("/user/update")
     public Result<Void> updateUser(  User user) {
             int ret= userService.update(user);//
@@ -154,6 +195,6 @@ public class UserController {
         }
         return Result.success(null, "数据更新失败");
     }
-
+*/
 
 }
