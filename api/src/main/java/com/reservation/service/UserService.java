@@ -83,12 +83,7 @@ public class UserService {
             throw new ResourceNotFoundException("账号不存在");
         }
         // 校验密码,把password加密后与user.getPassword()比较
-       // String encodedPassword = passwordEncoder.encode(password);
-       // System.out.println("encode：" + encodedPassword);
-       // System.out.println("usercode：" + user.getPassword());
-       // if (!encodedPassword.equals(user.getPassword())) {
-         //   throw new BusinessException("密码错误");
-        //}
+       // String encodedPassword = passwordEncoder.encode(password); 
        if(! passwordEncoder.matches(password,user.getPassword()))
         {
             throw new BusinessException("密码错误");
@@ -113,12 +108,12 @@ public class UserService {
         Result rslt = Result.success(resultMap   ,"登陆成功");
         return rslt;
     }
-        public void logout() {
-                // 解析Token获取用户信息（对应设计2.3 安全设计-Token）
-                String userId = jwtUtil.getCurrentUserId();
-                // Token失效（在缓存中删除对应用户的Token）
-                jwtUtil.invalidateToken(userId); 
-            }
+    public void logout() {
+            // 解析Token获取用户信息（对应设计2.3 安全设计-Token）
+            String userId = jwtUtil.getCurrentUserId();
+            // Token失效（在缓存中删除对应用户的Token）
+            jwtUtil.invalidateToken(userId); 
+        }
 
     public void sendForgotCode(String account) {
         // 查找用户
@@ -146,25 +141,20 @@ public class UserService {
         }
     }
 
-    // 密码重置，对应设计2.2.1 密码重置接口
+    // 密码重置，对应设计2.2.1 密码重置接口 "12345678"
     @Transactional
-    public void resetPassword(String account, String newPassword, String verifyCode) {
-        // 先校验验证码
-        verifyForgotCode(account, verifyCode);
+    public void resetPassword(String account) { 
         // 查找用户
-        User user = userMapper.selectByPhoneOrEmail(account);
-        // 校验新密码与原密码是否相同（对应通用校验规则-密码）
-       // if (passwordEncoder.matches(newPassword, user.getPassword())) {
-       //     throw new BusinessException("新密码不能与原密码相同");
-       // }
+        User user = userMapper.selectByAccount(account); 
+        if(user!= null ) { 
         // 加密新密码并更新--重置为固定码，用户自行更改
         user.setPassword(passwordEncoder.encode("12345678"));
-        userMapper.updatePassword(user);
-    }
-
- /**
-     * 根据手机号查询用户（判空 + 抛自定义异常）
-     */
+        userMapper.updatePassword(user.getUserId(),user.getPassword());
+        } else {
+           
+           throw new UserNotFoundException("账号 【" + account + "】对应的用户不存在"); 
+        }
+    } 
 
     public User selectByPhone(String phone) {
         User user= userMapper.selectByPhone(phone);
@@ -177,7 +167,7 @@ public class UserService {
       //      .orElseThrow(() -> new UserNotFoundException("email" + email + "】对应的用户不存在"));
      User user= userMapper.selectByEmail(email);
      if(user==null)
-         throw new UserNotFoundException("email" + email + "】对应的用户不存在");
+         throw new UserNotFoundException("email 【" + email + "】对应的用户不存在");
         return user;
     }
  
@@ -186,7 +176,7 @@ public User selectById(String userId) {
      //       .orElseThrow(() -> new UserNotFoundException("userId" + userId + "】对应的用户不存在"));
     User user= userMapper.selectById(userId);
     if(user==null)
-        throw new UserNotFoundException("userId" + userId + "】对应的用户不存在");
+        throw new UserNotFoundException("userId 【" + userId + "】对应的用户不存在");
     return user;
     }
  /**
@@ -199,7 +189,7 @@ public User selectById(String userId) {
         }
         return user;
     }
-
+/* TBD：full fileds
     public int update(User user)
     {
         // 校验 userId 是否存在
@@ -212,26 +202,38 @@ public User selectById(String userId) {
             throw new UserNotFoundException("用户信息更新失败，用户不存在");
         }
         return ret;
-    }
+    }*/
+
     public int updatePassword(User user)
     {
         // 更新密码
-        int ret = userMapper.updatePassword(user);
+         String useid = user.getUserId();
+          String password= user.getPassword();
+        int ret = userMapper.updatePassword(useid,password);
         return ret;
     }
-/*
-    public List<User> list()
-    {
-        List <User> ret = userMapper.list();
-
-        return ret;
-    }*/
+    
+    //更新状态
+     public int updateStatus(User user)
+    {     String useid = user.getUserId();
+          String status= user.getStatus();
+           return  userMapper.updateStatus(useid,status);
+       
+    }
+   
     public List<User>   listByCondition(Map<String, Object> condition)
     {
-        List <User> ret = userMapper.listByCondition(condition);
-
+        List <User> ret = userMapper.listByCondition(condition); 
         return ret;
     };
+ 
+    public List<User> listByRole(String role) {
+        List<User> users = userMapper.listByRole(role); 
+        if (users == null || users.isEmpty()) {
+            throw new UserNotFoundException("不存在【" + role + "】的用户");
+        } 
+        return users;
+    }
 }
 
 /*
