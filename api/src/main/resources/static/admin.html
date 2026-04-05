@@ -240,7 +240,7 @@
       color: #fff;
     }
     .btn-warning {
-      background: #f5e722e8;
+      background: #faad14;;
       color: #fff;
     }
     .btn-default {
@@ -266,9 +266,9 @@
     </div>
     <!-- 头部操作区 - 退出按钮 -->
     <div class="header-actions">
-      <div class="user-info">
-        <div class="avatar">管</div>
-        <span class="user-name">系统管理员</span>
+      <div class="user-info">  
+        <div class="avatar" id="id_firstLetter">A</div>
+        <span class="user-name" id="id_username">Admin</span>
       </div>
       <button class="btn btn-default" style="padding: 6px 12px;" onclick="logout()">
         <i class="fa fa-sign-out-alt"></i> 退出
@@ -691,10 +691,7 @@ async function fetchUserList(conditionJson) {
           break;
           
         case '教师管理':
-            // 操作按钮事件 --checkout----set online =false TBD
-          
-           
-            
+            // 操作按钮事件 --checkout----set online =false TBD 
             if (window.loadAdminPageContent) {
               // 覆盖 "教师管理" 渲染逻辑
               loadAdminPageContent = (function(orig){
@@ -713,63 +710,24 @@ async function fetchUserList(conditionJson) {
           break;
           
         case '学生管理':
-          dynamicContentCenter.innerHTML = `
-            <div class="card">
-              <div class="card-header">
-                <div class="card-title"><i class="fa fa-user-graduate"></i> 学生列表</div>
-                <button class="btn btn-primary"><i class="fa fa-plus"></i> 添加学生</button>
-              </div>
-              <div class="filter-bar">
-                <div class="filter-item">
-                  <label>姓名：</label>
-                  <input type="text" placeholder="请输入学生姓名">
-                </div>
-                <div class="filter-item">
-                  <label>学号：</label>
-                  <input type="text" placeholder="请输入学号">
-                </div>
-                <button class="btn btn-default"><i class="fa fa-search"></i> 搜索</button>
-              </div>
-              <div class="table-container">
-                <table class="data-table">
-                  <thead>
-                    <tr>
-                      <th>学生ID</th>
-                      <th>姓名</th>
-                      <th>学号</th>
-                      <th>预约课程数</th>
-                      <th>状态</th>
-                      <th>操作</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>STD2026001</td>
-                      <td>张三</td>
-                      <td>2026001</td>
-                      <td>8</td>
-                      <td style="color: #52c41a;">正常</td>
-                      <td>
-                        <button class="btn btn-default" onclick="editStudent(this)"><i class="fa fa-edit"></i> 编辑</button>
-                        <button class="btn btn-default" onclick="viewStudentReservation(this)"><i class="fa fa-calendar"></i> 预约记录</button>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>STD2026002</td>
-                      <td>李四</td>
-                      <td>2026002</td>
-                      <td>12</td>
-                      <td style="color: #52c41a;">正常</td>
-                      <td>
-                        <button class="btn btn-default" onclick="editStudent(this)"><i class="fa fa-edit"></i> 编辑</button>
-                        <button class="btn btn-default" onclick="viewStudentReservation(this)"><i class="fa fa-calendar"></i> 预约记录</button>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          `;
+
+        // 操作按钮事件 --checkout----set online =false TBD 
+        if (window.loadAdminPageContent) {
+              // 覆盖 "教师管理" 渲染逻辑
+              loadAdminPageContent = (function(orig){
+                return function(title) {
+                  if(title === '学生管理'){
+                    renderStudentCards();
+                  } else {
+                    orig(title);
+                  }
+                }
+              })(loadAdminPageContent);
+            } else {
+              // 兼容性 fallback: 尝试直接渲染（首次页面加载时）
+              renderStudentCards();
+            }  
+ 
           break;
           
         case '课程列表':
@@ -981,7 +939,7 @@ async function fetchUserList(conditionJson) {
       }
     }
 
-    // 退出登录函数
+    // 退出登录函数 TBD:设置离线状态 online=false
     function logout() {
       if (confirm('确定要退出系统吗？')) {
         // 清除本地存储的用户信息
@@ -995,17 +953,38 @@ async function fetchUserList(conditionJson) {
     // 页面加载时验证登录状态（注释掉跳转，方便测试）
     window.onload = function() {
       // 模拟登录状态，避免跳转
-      localStorage.setItem('currentUser', JSON.stringify({
+     /* localStorage.setItem('currentUser', JSON.stringify({
         name: '系统管理员',
         role: 'admin'
-      }));
+      }));*/
+      // 读取名为 currentUser 的 cookie值，并设置回 localStorage，避免用户刷新管理端丢失状态  
       
+        function getCookie(name) {
+          const matches = document.cookie.match(
+            new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()[\]\\/+^])/g, '\\$1') + '=([^;]*)')
+          );
+          return matches ? decodeURIComponent(matches[1]) : undefined;
+        }
+
+        // 从cookie读取currentUser，写回localStorage
+        const cookieUser = getCookie('currentUser');
+        if (cookieUser && !localStorage.getItem('currentUser')) {
+          // 只在localStorage没有该项时写入，防止不必要覆盖
+          localStorage.setItem('currentUser', cookieUser);
+          // 也可考虑刷新时覆盖，直接写入都可
+        }
+       
       // 解析用户信息并渲染
       const currentUser = localStorage.getItem('currentUser');
       const user = JSON.parse(currentUser);
-      console.log(`${user.name}（${user.role}）已登录管理端`);
-      
-      console.log('管理端页面加载完成，所有交互功能已启用');
+      console.log(`${user.name}（${user.role}）已登录管理端`); 
+     // console.log('管理端页面加载完成，所有交互功能已启用');
+      // 设置用户首字母和用户名
+      if (user && user.name) {
+        document.getElementById('id_firstLetter').innerHTML = user.name.length > 0 ? user.name[0] : '';
+        document.getElementById('id_username').innerHTML  = user.name  ;
+      }
+ 
     };
     
     // 预约审核相关函数
@@ -1078,7 +1057,7 @@ async function fetchUserList(conditionJson) {
     }
 
       //禁用
-    async  function disableTeacher(userId) { 
+    async  function disableTeacher(userId,role) { 
               // 调用 update(User) 把 status 设置为 inactive
               const user = {userId: userId, status: "inactive" };
               fetch(`${API_BASE_URL}/user/updateStatus`, {
@@ -1091,18 +1070,16 @@ async function fetchUserList(conditionJson) {
               }).then(response => response.json())
                 .then(res => {
                   if (res && res.code === 200) {
-                    //alert("教师已禁用"); 
-                    renderTeacherCards();
+                    renderCards(role);
                   } else {
                     alert(res.message || "禁用失败");
                   }
                 }).catch(e => {
                   alert("网络错误，禁用失败");
-                });
-              
+                });              
             }
-  //启用、正常
-            function confirmTeacher(userId) {
+  //启用或确认--》正常状态
+            function confirmTeacher(userId,role) {
               // 如果用户状态为pending/inactive/frozen，修改为active
               fetch(`${API_BASE_URL}/user/updateStatus`, {
                 method: 'POST',
@@ -1113,9 +1090,8 @@ async function fetchUserList(conditionJson) {
                 body: JSON.stringify({ userId: userId, status: "active" })
               }).then(response => response.json())
                 .then(res => {
-                  if (res && res.code === 200) {
-                    //alert("教师已确认，状态已激活"); 
-                    renderTeacherCards();
+                  if (res && res.code === 200) { 
+                    renderCards(role);
                   } else {
                     alert(res.message || "确认失败");
                   }
@@ -1125,9 +1101,8 @@ async function fetchUserList(conditionJson) {
                 
             }
 //删除--冻结
-            function deleteTeacher(userId) {
-              if (confirm("确定要删除该教师吗？")) {
-               // alert("删除教师: " + userId);
+            function deleteTeacher(userId,role) {
+              if (confirm("确定要删除吗？")) { 
                 fetch(`${API_BASE_URL}/user/updateStatus`, {
                   method: 'POST',
                   headers: {
@@ -1137,10 +1112,9 @@ async function fetchUserList(conditionJson) {
                   body: JSON.stringify({ userId: userId, status: "frozen" })
                 }).then(response => response.json())
                   .then(res => {
-                    if (res && res.code === 200) {
-                     // alert("教师已删除"); 
+                    if (res && res.code === 200) { 
                      //  刷新列表
-                      renderTeacherCards();
+                      renderCards(role);
                     } else {
                       alert(res.message || "删除失败");
                     }
@@ -1149,6 +1123,12 @@ async function fetchUserList(conditionJson) {
                   });
                 
               }
+            }
+            function    renderCards(role){
+                    if(role=="teacher")
+                       renderTeacherCards();
+                      else  if(role=="student")
+                      renderStudentCards();
             }
             async function renderTeacherCards() {
               dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';
@@ -1167,8 +1147,7 @@ async function fetchUserList(conditionJson) {
 
               if (!teachers.length) {
                 html += `<div style="padding:40px 0;text-align:center;color:#999;">暂无教师数据</div>`;
-              } else {
-                <!-- INSERT_YOUR_CODE -->
+              } else { 
                 html += `
                   <div style="display:flex;gap:36px;font-weight:bold;border-bottom:1px solid #e9ecef;padding-bottom:8px;margin-bottom:4px;">
                     <div style="width:120px;"><strong>ID</strong></div>
@@ -1197,9 +1176,74 @@ async function fetchUserList(conditionJson) {
                         </div>
                       </div>
                       <div class="teacher-actions" style="display:flex;gap:10px;flex-shrink:0;"> 
-                        <button class="btn btn-success" onclick="confirmTeacher('${tea.userId}')"><i class="fa fa-check"></i> 确认/启用</button>
-                         <button class="btn btn-warning" onclick="disableTeacher('${tea.userId}')"><i class="fa fa-ban"></i> 禁用</button>
-                        <button class="btn btn-danger" onclick="deleteTeacher('${tea.userId}')"><i class="fa fa-trash"></i> 删除</button>
+                        <button class="btn btn-success" onclick="confirmTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-check"></i> 确认/启用</button>
+                        <button class="btn btn-warning" onclick="disableTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-ban"></i> 禁用</button>
+                        <button class="btn btn-danger" onclick="deleteTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-trash"></i> 删除</button>
+                      </div>
+                    </div>
+                  `;
+                });
+              }
+              html += `</div></div>`;
+              dynamicContentCenter.innerHTML = html;
+            }
+
+            async function renderStudentCards() {
+              dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';
+              console.log("enter");
+              const conditionJson = { role: 'student' };//TBD:当前admin所属的群组等过滤条件
+              const students = await fetchUserList(conditionJson);
+             // console.log("list:"+students);
+              let html = `
+                <div class="card">
+                  <div class="card-header">
+                    <div class="card-title"><i class="fa fa-chalkboard-teacher"></i> 学员列表</div>
+                    <button class="btn btn-primary" onclick="alert('TODO: 打开添加学员弹窗')"><i class="fa fa-plus"></i> 添加学员</button>
+                  </div>
+                   <div class="filter-bar">
+                <div class="filter-item">
+                  <label>查询：</label>
+                  <input type="text" placeholder="请输入学生姓名/账号/手机号">
+                </div> 
+                <button class="btn btn-default"><i class="fa fa-search"></i> 搜索</button>
+              </div>
+                  <div class="teacher-list-cards" style="margin:16px 0;display:flex;flex-direction:column;gap:16px;">
+              `;
+
+              if (!students.length) {
+                html += `<div style="padding:40px 0;text-align:center;color:#999;">暂无数据</div>`;
+              } else { 
+                html += `
+                  <div style="display:flex;gap:36px;font-weight:bold;border-bottom:1px solid #e9ecef;padding-bottom:8px;margin-bottom:4px;">
+                    <div style="width:120px;"><strong>ID</strong></div>
+                    <div style="width:90px;"><strong>姓名</strong></div>
+                    <div style="width:180px;"><strong>电子邮箱</strong></div>
+                    <div style="width:130px;"><strong>手机号</strong></div>
+                    <div style="width:120px;"><strong>状态</strong></div>
+                    <div style="width:240px;"><strong>操作</strong></div>
+                  </div>
+                `;
+                students.forEach(tea => {
+                  html += `
+                    <div class="teacher-card" style="background:#fff;border:1px solid #e9ecef;padding:16px;border-radius:8px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px #0000000a;">
+                      <div style="display:flex;gap:36px;">
+                        <div>${tea.userId || ""}</div>
+                        <div>${tea.name || ""}</div>
+                        <div>${tea.email || ""}</div>
+                        <div>${tea.phone || ""}</div>
+                        <div>                          
+                          ${ tea.status === "pending" ? '<span style="color:#faad14;">待审核</span>' :
+                            tea.status === "active" ? '<span style="color:#52c41a;">正常</span>' :
+                            tea.status === "inactive" ? '<span style="color:#faad14;">待启用</span>' :
+                            tea.status === "frozen" ? '<span style="color:#f5222d;">已删除</span>' :
+                            `<span>${tea.status||"未知"}</span>`
+                          }
+                        </div>
+                      </div>
+                      <div class="teacher-actions" style="display:flex;gap:10px;flex-shrink:0;"> 
+                        <button class="btn btn-success" onclick="confirmTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-check"></i> 确认/启用</button>
+                         <button class="btn btn-warning" onclick="disableTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-ban"></i> 禁用</button>
+                        <button class="btn btn-danger" onclick="deleteTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-trash"></i> 删除</button>
                       </div>
                     </div>
                   `;

@@ -482,7 +482,7 @@
            btnText.innerHTML = '登录系统';
         }else if (data && data.code === 200) {
             // TBD:data.message
-             //console.log('login 1 ret data:', data.data);
+             console.log('login  ret data、currentUser:', data.data);
              localStorage.setItem('currentUser', JSON.stringify(data.data));//保存用户信息到本地,userId,role,token
              loginError.style.display = 'block';
              loginError.style.color = 'green';
