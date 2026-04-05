@@ -88,11 +88,11 @@ public class UserService {
         {
             throw new BusinessException("密码错误");
         }
-        // 校验账号状态（冻结/未审核）
+        // 校验账号状态（冻结/未审核） && "teacher".equals(user.getRole())
         if ("frozen".equals(user.getStatus())) {
             throw new BusinessException("账号已冻结，请联系管理员");
         }
-        if ("inactive".equals(user.getStatus()) && "teacher".equals(user.getRole())) {
+        if ("inactive".equals(user.getStatus()) ) {
             throw new BusinessException("账号未审核，请等待管理员审核");
         }//其它情况--进入相应的页面，若为pendding则等待审核。其他情况，显示正常项目内容。
         // 生成Token
@@ -101,10 +101,11 @@ public class UserService {
         Map<String, String> resultMap = new HashMap<>();
         resultMap.put("userId", user.getUserId());
         resultMap.put("account", user.getAccount());
+        resultMap.put("name", user.getName());
         resultMap.put("role", user.getRole());
         resultMap.put("token", token);
-        System.out.println("login ok：" +resultMap);
-
+        
+       System.out.println("login ok with account：" +user.getAccount());
         Result rslt = Result.success(resultMap   ,"登陆成功");
         return rslt;
     }
