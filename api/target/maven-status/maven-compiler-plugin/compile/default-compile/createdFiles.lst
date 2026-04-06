@@ -7,9 +7,14 @@ com\reservation\entity\Schedule.class
 com\reservation\common\AtLeastOneNotBlankValidator.class
 com\reservation\common\Result.class
 com\reservation\mapper\UserMapper.class
+com\reservation\mapper\CourseMapper.class
+com\reservation\mapper\ScheduleMapper.class
+com\reservation\service\CourseService.class
 com\reservation\entity\Booking.class
+com\reservation\controller\CourseController.class
 com\reservation\entity\CourseFeedback.class
 com\reservation\entity\CourseTemplate.class
+com\reservation\mapper\CourseTemplateMapper.class
 com\reservation\service\UserService.class
 com\reservation\config\CorsConfig.class
 com\reservation\exception\NoPermissionException.class

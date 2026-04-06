@@ -431,7 +431,18 @@
               registerSuccess.style.display = 'block';
               registerSuccess.textContent = data.message; //在注册页面显示data.message
               localStorage.setItem('currentUser', JSON.stringify(data.data));//保存用户信息到本地,userId,role,token
-              
+              // 保存localStorage的currentUser到cookie（简单实现，2小时有效期）
+              try {
+                const userStr = localStorage.getItem('currentUser');
+                if (userStr) {
+                  // 设置cookie名为currentUser，值为encodeURIComponent后的userStr，过期2小时
+                  const d = new Date();
+                  d.setTime(d.getTime() + (2*60*60*1000));  // 2小时
+                  document.cookie = `currentUser=${encodeURIComponent(userStr)};expires=${d.toUTCString()};path=/`;
+                }
+              } catch(e) {
+                console.error("写入cookie失败", e);
+              }
               setTimeout(() => {
                 registerModal.style.display = 'none';  
                 resetRegisterForm();
@@ -488,6 +499,18 @@
              loginError.style.color = 'green';
              loginError.textContent = data.message; 
 
+             try {
+                const userStr = localStorage.getItem('currentUser');
+                if (userStr) {
+                  // 设置cookie名为currentUser，值为encodeURIComponent后的userStr，过期2小时
+                  const d = new Date();
+                  d.setTime(d.getTime() + (2*60*60*1000));  // 2小时
+                  document.cookie = `currentUser=${encodeURIComponent(userStr)};expires=${d.toUTCString()};path=/`;
+                }
+              } catch(e) {
+                console.error("写入cookie失败", e);
+              }
+              
               setTimeout(() => {
                 loginError.style.display = 'none';
                 loginError.style.color = 'red';
