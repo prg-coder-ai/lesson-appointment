@@ -304,6 +304,10 @@
         <div class="menu-group-title">课程管理</div>
         <div class="menu-item">
           <i class="fa fa-book-open"></i>
+          <span>课程模板</span>
+        </div>
+        <div class="menu-item">
+          <i class="fa fa-book-open"></i>
           <span>课程列表</span>
         </div>
         <div class="menu-item">
@@ -484,6 +488,7 @@
   </div>
 
   <!-- JavaScript交互逻辑 -->
+ 
   <script>
     const API_SERVER_HOST = 'http://localhost';
     const API_SERVER_PORT = '8081';
@@ -729,7 +734,22 @@ async function fetchUserList(conditionJson) {
             }  
  
           break;
-          
+         case '课程模板':
+            if (window.loadAdminPageContent) { 
+              loadAdminPageContent = (function(orig){
+                return function(title) {
+                  if(title === '课程模板'){
+                    renderTemplateCards();
+                  } else {
+                    orig(title);
+                  }
+                }
+              })(loadAdminPageContent);
+            } else {
+              // 兼容性 fallback: 尝试直接渲染（首次页面加载时）
+              renderCourseCards();
+            }  
+            break;
         case '课程列表':
           dynamicContentCenter.innerHTML = `
             <div class="card">
@@ -1287,5 +1307,7 @@ async function fetchUserList(conditionJson) {
       alert(`已刷新 ${month} 月份的教师授课统计数据！`);
     }
   </script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+   <script src="admin-template.js"></script>
 </body>
 </html>
