@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理员后台 - 课程模板管理</title>
+  <!-- 引入Element Plus CDN（适配快速开发，生产环境建议本地引入） -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus/dist/index.css">
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-plus"></script>
+  <!-- 引入Axios用于接口请求 -->
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <style>
+    /* 基础样式适配，贴合系统设计规范 */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    .admin-template-container {
+      width: 95%;
+      margin: 20px auto;
+    }
+    .template-search-bar {
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .el-table {
+      --el-table-header-text-color: #333;
+      --el-table-row-hover-bg-color: #f5f7fa;
+    }
+    @media (max-width: 768px) {
+      .template-search-bar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="adminApp" class="admin-template-container">
+    <!-- 课程模板管理标题+操作区 -->
+    <div class="template-search-bar">
+      <h2>课程模板管理</h2>
+      <el-button type="primary" icon="Plus" @click="openAddTemplateDialog">新增课程模板</el-button>
+    </div>
+
+    <!-- 模板筛选+列表 -->
+    <el-card shadow="hover">
+      <!-- 筛选条件 -->
+      <el-form :inline="true" :model="searchForm" class="mb-4">
+        <el-form-item label="语言类型">
+          <el-select v-model="searchForm.languageType" placeholder="请选择">
+            <el-option label="英语" value="英语"></el-option>
+            <el-option label="日语" value="日语"></el-option>
+            <el-option label="韩语" value="韩语"></el-option>
+            <el-option label="法语" value="法语"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="难度等级">
+          <el-select v-model="searchForm.difficultyLevel" placeholder="请选择">
+            <el-option label="入门" value="入门"></el-option>
+            <el-option label="初级" value="初级"></el-option>
+            <el-option label="中级" value="中级"></el-option>
+            <el-option label="高级" value="高级"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="getTemplateList">查询</el-button>
+          <el-button @click="resetSearchForm">重置</el-button>
+        </el-form-item>
+      </el-form>
+
+      <!-- 模板列表 -->
+      <el-table :data="templateList" border stripe v-loading="loading" style="width: 100%;">
+        <el-table-column prop="templateId" label="模板ID" align="center" min-width="120"></el-table-column>
+        <el-table-column prop="languageType" label="语言类型" align="center"></el-table-column>
+        <el-table-column prop="difficultyLevel" label="难度等级" align="center"></el-table-column>
+        <el-table-column prop="classForm" label="课程形式" align="center"></el-table-column>
+        <el-table-column prop="classDuration" label="课时时长(分钟)" align="center"></el-table-column>
+        <el-table-column prop="classFee" label="课时费(元)" align="center"></el-table-column>
+        <el-table-column prop="status" label="状态" align="center">
+          <template #default="scope">
+            <el-tag type="success" v-if="scope.row.status === 'publish'">已发布</el-tag>
+            <el-tag type="warning" v-else>已回收</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="description" label="模板描述" show-overflow-tooltip></el-table-column>
+        <el-table-column label="操作" align="center" min-width="200">
+          <template #default="scope">
+            <el-button type="text" @click="openEditTemplateDialog(scope.row)">修改</el-button>
+            <el-button type="text" color="success" @click="operateTemplate(scope.row, 'publish')" v-if="scope.row.status === 'recycle'">发布</el-button>
+            <el-button type="text" color="warning" @click="operateTemplate(scope.row, 'recycle')" v-else>回收</el-button>
+            <el-button type="text" color="danger" @click="deleteTemplate(scope.row.templateId)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <!-- 分页 -->
+      <el-pagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        :total="total"
+        layout="prev, pager, next, jumper, ->, total"
+        @size-change="getTemplateList"
+        @current-change="getTemplateList"
+        class="mt-4"
+        style="text-align: right;"
+      >
+      </el-pagination>
+    </el-card>
+
+    <!-- 新增/修改模板弹窗 -->
+    <el-dialog :title="dialogTitle" v-model="templateDialogVisible" width="600px" @close="resetTemplateForm">
+      <el-form :model="templateForm" :rules="templateRules" ref="templateFormRef" label-width="120px">
+        <el-form-item label="语言类型" prop="languageType">
+          <el-select v-model="templateForm.languageType" placeholder="请选择语言类型">
+            <el-option label="英语" value="英语"></el-option>
+            <el-option label="日语" value="日语"></el-option>
+            <el-option label="韩语" value="韩语"></el-option>
+            <el-option label="法语" value="法语"></el-option>
+            <el-option label="西班牙语" value="西班牙语"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="难度等级" prop="difficultyLevel">
+          <el-select v-model="templateForm.difficultyLevel" placeholder="请选择难度等级">
+            <el-option label="入门" value="入门"></el-option>
+            <el-option label="初级" value="初级"></el-option>
+            <el-option label="中级" value="中级"></el-option>
+            <el-option label="高级" value="高级"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="课程形式" prop="classForm">
+          <el-select v-model="templateForm.classForm" placeholder="请选择课程形式">
+            <el-option label="一对一" value="一对一"></el-option>
+            <el-option label="小班课(2-5人)" value="小班课(2-5人)"></el-option>
+            <el-option label="大班课(6+人)" value="大班课(6+人)"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="课时时长" prop="classDuration">
+          <el-input-number v-model="templateForm.classDuration" placeholder="请输入课时时长" :min="10" :step="10" suffix="分钟"></el-input-number>
+        </el-form-item>
+        <el-form-item label="课时费" prop="classFee">
+          <el-input-number v-model="templateForm.classFee" placeholder="请输入课时费" :min="10" :step="10" suffix="元"></el-input-number>
+        </el-form-item>
+        <el-form-item label="模板描述" prop="description">
+          <el-input v-model="templateForm.description" type="textarea" rows="4" placeholder="请输入模板基础描述"></el-input>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="templateDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="submitTemplateForm">确定</el-button>
+        </span>
+      </template>
+    </el-dialog>
+  </div>
+
+  <script>
+    const { createApp, ref, reactive, onMounted, computed } = Vue;
+    const app = createApp({
+      setup() {
+        // 引入Element Plus组件
+        const { ElButton, ElCard, ElTable, ElTableColumn, ElForm, ElFormItem, ElSelect, ElOption, ElPagination, ElDialog, ElInput, ElInputNumber, ElTag, ElMessage, ElLoading } = ElementPlus;
+        
+        // 加载状态
+        const loading = ref(false);
+        // 模板列表数据
+        const templateList = ref([]);
+        // 分页参数
+        const currentPage = ref(1);
+        const pageSize = ref(10);
+        const total = ref(0);
+        // 筛选表单
+        const searchForm = reactive({
+          languageType: '',
+          difficultyLevel: ''
+        });
+        // 弹窗状态
+        const templateDialogVisible = ref(false);
+        const dialogTitle = ref('新增课程模板');
+        // 模板表单Ref（用于校验）
+        const templateFormRef = ref(null);
+        // 新增/修改模板表单
+        const templateForm = reactive({
+          templateId: '', // 仅修改时赋值
+          languageType: '',
+          difficultyLevel: '',
+          classForm: '',
+          classDuration: '',
+          classFee: '',
+          description: ''
+        });
+        // 模板表单校验规则
+        const templateRules = reactive({
+          languageType: [{ required: true, message: '请选择语言类型', trigger: 'change' }],
+          difficultyLevel: [{ required: true, message: '请选择难度等级', trigger: 'change' }],
+          classForm: [{ required: true, message: '请选择课程形式', trigger: 'change' }],
+          classDuration: [{ required: true, message: '请输入课时时长', trigger: 'blur' }],
+          classFee: [{ required: true, message: '请输入课时费', trigger: 'blur' }],
+          description: [{ required: true, message: '请输入模板描述', trigger: 'blur' }]
+        });
+
+        // 接口基础路径（与系统设计一致）
+        const baseUrl = '/api/v1';
+        // 设置Axios请求头（携带Token，与系统权限控制一致）
+        axios.defaults.headers.common['Authorization'] = 'Bearer ' + localStorage.getItem('adminToken');
+        axios.defaults.headers.post['Content-Type'] = 'application/json';
+
+        // 页面加载时获取模板列表
+        onMounted(() => {
+          getTemplateList();
+        });
+
+        // 1. 获取模板列表（对接/api/v1/course/template/list）
+        const getTemplateList = async () => {
+          loading.value = true;
+          try {
+            const res = await axios.get(`${baseUrl}/course/template/list`, {
+              params: {
+                ...searchForm,
+                page: currentPage.value,
+                size: pageSize.value
+              }
+            });
+            if (res.data.code === 200) {
+              templateList.value = res.data.data.templates;
+              total.value = res.data.data.total; // 接口需返回总条数
+              // 为模板添加状态（publish/recyle，默认发布）
+              templateList.value.forEach(item => {
+                if (!item.status) item.status = 'publish';
+              });
+            } else {
+              ElMessage.error(res.data.message || '获取模板列表失败');
+            }
+          } catch (err) {
+            ElMessage.error('网络异常，获取模板列表失败');
+            console.error(err);
+          } finally {
+            loading.value = false;
+          }
+        };
+
+        // 重置筛选表单
+        const resetSearchForm = () => {
+          searchForm.languageType = '';
+          searchForm.difficultyLevel = '';
+          getTemplateList();
+        };
+
+        // 打开新增模板弹窗
+        const openAddTemplateDialog = () => {
+          dialogTitle.value = '新增课程模板';
+          templateDialogVisible.value = true;
+        };
+
+        // 打开修改模板弹窗（对接/admin/course/manage编辑逻辑）
+        const openEditTemplateDialog = (row) => {
+          dialogTitle.value = '修改课程模板';
+          // 赋值表单数据
+          for (const key in templateForm) {
+            templateForm[key] = row[key] || '';
+          }
+          templateDialogVisible.value = true;
+        };
+
+        // 重置模板表单
+        const resetTemplateForm = () => {
+          templateFormRef.value?.resetFields();
+          for (const key in templateForm) {
+            templateForm[key] = '';
+          }
+        };
+
+        // 2. 提交新增/修改模板（新增：/course/template/add；修改：/admin/course/manage）
+        const submitTemplateForm = async () => {
+          // 表单校验
+          const valid = await templateFormRef.value.validate();
+          if (!valid) return;
+          try {
+            let res;
+            if (templateForm.templateId) {
+              // 修改模板：对接管理员编辑接口
+              res = await axios.put(`${baseUrl}/admin/course/manage`, {
+                templateId: templateForm.templateId,
+                operation: 'edit',
+                data: {
+                  languageType: templateForm.languageType,
+                  difficultyLevel: templateForm.difficultyLevel,
+                  classForm: templateForm.classForm,
+                  classDuration: templateForm.classDuration,
+                  classFee: templateForm.classFee,
+                  description: templateForm.description
+                }
+              });
+            } else {
+              // 新增模板：对接模板创建接口
+              res = await axios.post(`${baseUrl}/course/template/add`, templateForm);
+            }
+            if (res.data.code === 200) {
+              ElMessage.success(templateForm.templateId ? '模板修改成功' : '模板新增成功');
+              templateDialogVisible.value = false;
+              getTemplateList(); // 刷新列表
+            } else {
+              ElMessage.error(res.data.message || (templateForm.templateId ? '模板修改失败' : '模板新增失败'));
+            }
+          } catch (err) {
+            ElMessage.error('网络异常，操作失败');
+            console.error(err);
+          }
+        };
+
+        // 3. 模板发布/回收操作（对接/admin/course/manage状态修改）
+        const operateTemplate = async (row, type) => {
+          try {
+            const res = await axios.put(`${baseUrl}/admin/course/manage`, {
+              templateId: row.templateId,
+              operation: 'edit',
+              data: { status: type }
+            });
+            if (res.data.code === 200) {
+              ElMessage.success(type === 'publish' ? '模板发布成功' : '模板回收成功');
+              getTemplateList(); // 刷新列表
+            } else {
+              ElMessage.error(res.data.message || (type === 'publish' ? '模板发布失败' : '模板回收失败'));
+            }
+          } catch (err) {
+            ElMessage.error('网络异常，操作失败');
+            console.error(err);
+          }
+        };
+
+        // 4. 删除模板（对接/admin/course/manage删除接口）
+        const deleteTemplate = async (templateId) => {
+          ElementPlus.ElMessageBox.confirm(
+            '确定要删除该课程模板吗？删除后基于该模板的课程基础参数将不受统一管控！',
+            '温馨提示',
+            {
+              confirmButtonText: '确定',
+              cancelButtonText: '取消',
+              type: 'warning'
+            }
+          ).then(async () => {
+            try {
+              const res = await axios.put(`${baseUrl}/admin/course/manage`, {
+                templateId: templateId,
+                operation: 'delete'
+              });
+              if (res.data.code === 200) {
+                ElMessage.success('模板删除成功');
+                getTemplateList(); // 刷新列表
+              } else {
+                ElMessage.error(res.data.message || '模板删除失败');
+              }
+            } catch (err) {
+              ElMessage.error('网络异常，删除失败');
+              console.error(err);
+            }
+          }).catch(() => {
+            ElMessage.info('已取消删除');
+          });
+        };
+
+        return {
+          loading,
+          templateList,
+          currentPage,
+          pageSize,
+          total,
+          searchForm,
+          templateDialogVisible,
+          dialogTitle,
+          templateFormRef,
+          templateForm,
+          templateRules,
+          getTemplateList,
+          resetSearchForm,
+          openAddTemplateDialog,
+          openEditTemplateDialog,
+          resetTemplateForm,
+          submitTemplateForm,
+          operateTemplate,
+          deleteTemplate
+        };
+      }
+    });
+
+    // 注册Element Plus组件
+    for (const key in ElementPlus) {
+      app.component(key, ElementPlus[key]);
+    }
+    app.mount('#adminApp');
+  </script>
+</body>
+</html>

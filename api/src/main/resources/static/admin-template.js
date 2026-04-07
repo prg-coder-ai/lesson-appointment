@@ -59,15 +59,25 @@ function getToken() {
     return currentUser.token || '';
 }
 
-function openEditTemplateDialog( )
+function openEditTemplateDialog(template )
 { 
   const formDiv = document.getElementById('template_form');
   formDiv.style="show";
 
+  if(template==null)  {
+    template = {
+      templateId:0,
+      languageType:"English",
+      difficultyLevel: "",
+      classForm: "",
+      classDuration: 0,
+      classFee: 0,
+      description: '请输入模板描述' 
+  }
+}
     formEl = document.getElementById('templateForm');
   //显示出来 from
-    formEl.innerHTML =`<!-- 表单片段：id="form-content" -->
-  
+    formEl.innerHTML =`<!-- 表单片段：id="form-content" --> 
             <!-- 隐藏域：模板ID（编辑时赋值） -->
             <input type="hidden" name="templateId" th:value="${template.templateId}">
             <div class="row g-3">
@@ -115,7 +125,10 @@ function openEditTemplateDialog( )
                     <textarea name="description" class="form-control" rows="3" th:text="${template.description}" required></textarea>
                     <div class="form-error" id="descriptionError"></div>
                 </div>
-            </div>      
+            </div> 
+    <div class="mt-4 text-end">
+        <button type="button" class="btn btn-primary" onclick="submitTemplateForm()">提交</button>
+    </div>
     ` ;
 }
 /**
@@ -133,6 +146,7 @@ async function submitTemplateForm() {
     }
     // 2. 获取表单数据 
     const formData = {
+        templateId:formEl.templateId.value,
         languageType: formEl.languageType.value,
         difficultyLevel: formEl.difficultyLevel.value,
         classForm: formEl.classForm.value,
@@ -141,6 +155,7 @@ async function submitTemplateForm() {
         description: formEl.description.value
     };
     // 3. 调用接口提交
+    //根据templateId判断新增还是修改
     const token = getToken();
     try {
         const res = await axios.post(
@@ -245,18 +260,18 @@ async function renderTemplateCards() {
             html += `
                 <div class="teacher-card">
                     <div style="display:flex;gap:36px;">
-                        <div style="hidden">${template.templateId || ''}</div>
+                        <div style="display:none;">${template.templateId || ''}</div>
                         <div>${template.languageType || ''}</div>
                         <div>${template.difficultyLevel || ''}</div>
-                        <div>${template.classForm| ''}</div>
-                        <div>${template.classDuration| '4'}</div>
-                        <div>${template.classFee| '0'}</div> 
+                        <div>${template.classForm || ''}</div>
+                        <div>${template.classDuration || '4'}</div>
+                        <div>${template.classFee || '0'}</div> 
                         <div>${statusHtml}</div>
                   
                         <button class="btn btn-success" onclick="openEditTemplateDialog('${template}')">修改</button>
                         <button class="btn btn-success" onclick="operateTemplate('${template.id}', 'active')">发布</button>
                         <button class="btn btn-warning" onclick="operateTemplate('${template.id}', 'inactive')">回收</button>
-                        <button class="btn btn-danger" onclick="deleteTemplate('${template.id}')">删除</button>
+                        <button class="btn btn-danger" onclick="operateTemplate('${template.id}', 'delete')">删除</button>
                     </div>
                 </div>
             `;
@@ -348,20 +363,20 @@ async function handleCurrentPageChange(val) {
 /**
  * 发布/回收模板
  */
-async function operateTemplate(templateId, type) {
+async function operateTemplate(templateId, action) {
     const token = getToken();
     try {
         const res = await axios.put(`${baseUrl}/course/manage`, {
             templateId: templateId,
             operation: 'edit',
-            data: { status: type }
+            data: { status: action }
         }, { headers: { "Authorization": "Bearer " + token } });
 
         if (res.data.code === 200) {
-          console.success(type === 'active' ? '模板发布成功' : '模板回收成功');
+          console.success( '模板操作成功');
             await renderTemplateCards();
         } else {
-            alert(res.data.message || (type === 'active' ? '模板发布失败' : '模板回收失败'));
+            alert( '模板操作失败');
         }
     } catch (err) {
         alert('网络异常，操作失败');
@@ -374,7 +389,7 @@ async function operateTemplate(templateId, type) {
  */
 async function deleteTemplate(templateId) {
     try {
-        await ElMessageBox.confirm(
+        await message.confirm(
             '确定要删除该课程模板吗？删除后基于该模板的课程基础参数将不受统一管控！',
             '温馨提示',
             { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
