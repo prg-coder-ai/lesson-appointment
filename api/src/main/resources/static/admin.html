@@ -747,7 +747,7 @@ async function fetchUserList(conditionJson) {
               })(loadAdminPageContent);
             } else {
               // 兼容性 fallback: 尝试直接渲染（首次页面加载时）
-              renderCourseCards();
+              renderTemplateCards();
             }  
             break;
         case '课程列表':
@@ -1301,7 +1301,7 @@ async function fetchUserList(conditionJson) {
       }
     }
 
-    // 统计刷新函数
+    // renderTemplateCards
     function refreshTeacherStats() {
       const month = document.getElementById('month-select').value;
       alert(`已刷新 ${month} 月份的教师授课统计数据！`);

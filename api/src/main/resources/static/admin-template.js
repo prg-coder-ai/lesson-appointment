@@ -10,9 +10,9 @@ let total = 0;               // 总条数
 let templateDialogVisible = false; // 弹窗状态
 let dialogTitle = '新增课程模板'; // 弹窗标题
 let currentTemplateId = '';  // 当前操作的模板ID
-
+let formEl ='';
 // 表单验证规则（适配Element Plus原生用法）
-const templateRules = {
+/*const templateRules = {
     languageType: [{ required: true, message: '请选择语言类型', trigger: 'change' }],
     difficultyLevel: [{ required: true, message: '请选择难度等级', trigger: 'change' }],
     classForm: [{ required: true, message: '请选择课程形式', trigger: 'change' }],
@@ -20,25 +20,34 @@ const templateRules = {
     classFee: [{ required: true, message: '请输入课时费', trigger: 'blur' }],
     description: [{ required: true, message: '请输入模板描述', trigger: 'blur' }]
 };
-
-// 初始化Element Plus表单验证
-const templateFormRef = ElForm.useForm({
-    model: {
-        templateId: '',
-        languageType: '',
-        difficultyLevel: '',
-        classForm: '',
-        classDuration: '',
-        classFee: '',
-        description: ''
-    },
-    rules: templateRules
-});
-
+ */ 
 // ===================== 核心函数 =====================
+function validateForm() {
+  let isValid = true;
+  const form = document.getElementById("templateForm");
+  const inputs = form.querySelectorAll("[required]");
+  
+  // 清空所有错误提示
+  document.querySelectorAll(".form-error").forEach(el => el.innerText = "");
+
+  // 逐个校验必填项
+  inputs.forEach(input => {
+      if (!input.value.trim()) {
+          const errorId = input.name + "Error";
+          const errorEl = document.getElementById(errorId);
+          if (errorEl) {
+              errorEl.innerText = "此项为必填项";
+          }
+          isValid = false;
+      }
+  });
+  return isValid;
+}
+
 /**
  * 获取Token（修复localStorage解析逻辑）
  */
+
 function getToken() {
     const currentUserStr = localStorage.getItem('currentUser');
     if (!currentUserStr) {
@@ -50,20 +59,127 @@ function getToken() {
     return currentUser.token || '';
 }
 
+function openEditTemplateDialog( )
+{ 
+  const formDiv = document.getElementById('template_form');
+  formDiv.style="show";
+
+    formEl = document.getElementById('templateForm');
+  //显示出来 from
+    formEl.innerHTML =`<!-- 表单片段：id="form-content" -->
+  
+            <!-- 隐藏域：模板ID（编辑时赋值） -->
+            <input type="hidden" name="templateId" th:value="${template.templateId}">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label required">语言类型</label>
+                    <select name="languageType" class="form-select" th:value="${template.languageType}" required>
+                        <option value="">请选择</option>
+                        <option value="english">英语</option>
+                        <option value="french">法语</option>
+                    </select>
+                    <div class="form-error" id="languageTypeError"></div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label required">难度等级</label>
+                    <select name="difficultyLevel" class="form-select" th:value="${template.difficultyLevel}" required>
+                        <option value="">请选择</option>
+                        <option value="B1">B1</option>
+                        <option value="B2">B2</option>
+                         <option value="B3">B3</option>
+                        <option value="B4">B4</option>
+                    </select>
+                    <div class="form-error" id="difficultyLevelError"></div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label required">课程形式</label>
+                    <select name="classForm" class="form-select" th:value="${template.classForm}" required>
+                        <option value="">请选择</option>
+                        <option value="online">线上</option>
+                        <option value="offline">线下</option>
+                    </select>
+                    <div class="form-error" id="classFormError"></div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label required">课时时长（分钟）</label>
+                    <input type="number" name="classDuration" class="form-control" th:value="${template.classDuration}" required>
+                    <div class="form-error" id="classDurationError"></div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label required">课时费（元）</label>
+                    <input type="number" step="0.01" name="classFee" class="form-control" th:value="${template.classFee}" required>
+                    <div class="form-error" id="classFeeError"></div>
+                </div>
+                <div class="col-md-12">
+                    <label class="form-label required">模板描述</label>
+                    <textarea name="description" class="form-control" rows="3" th:text="${template.description}" required></textarea>
+                    <div class="form-error" id="descriptionError"></div>
+                </div>
+            </div>      
+    ` ;
+}
+/**
+ * 新增模板响应函数
+ * 1. 校验表单
+ * 2. 获取表单数据
+ * 3. 调用接口提交
+ * 4. 响应成功/失败
+ */
+async function submitTemplateForm() {
+
+    // 1. 校验表单
+    if (!validateForm()) {
+        return;
+    }
+    // 2. 获取表单数据 
+    const formData = {
+        languageType: formEl.languageType.value,
+        difficultyLevel: formEl.difficultyLevel.value,
+        classForm: formEl.classForm.value,
+        classDuration: formEl.classDuration.value,
+        classFee: formEl.classFee.value,
+        description: formEl.description.value
+    };
+    // 3. 调用接口提交
+    const token = getToken();
+    try {
+        const res = await axios.post(
+            `${baseUrl}/course/template/add`,
+            formData,
+            {
+                headers: { "Authorization": "Bearer " + token }
+            }
+        );
+        // 4. 响应成功/失败
+        if (res.data && res.data.code === 200) {
+           log.success('模板新增成功');
+            // 关闭弹窗，如果有的话
+            const formEl_div = document.getElementById('template_form');
+            formEl_div.style="hidden";
+            // 刷新模板列表
+            await renderTemplateCards();
+        } else {
+            alert(res.data && res.data.message ? res.data.message : '模板新增失败');
+        }
+    } catch (err) {
+        alert('网络异常，模板新增失败');
+        console.error(err);
+    }
+}
 /**
  * 渲染模板列表（核心：原生JS操作DOM）
  */
 async function renderTemplateCards() {
-    const dynamicContentCenter = document.getElementById('dynamicContentCenter');
-    if (!dynamicContentCenter) return;
+   // const dynamicContentCenter = document.getElementById('dynamicContentCenter');
+    //if (!dynamicContentCenter) return;
 
     // 显示加载中
     dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';
 
     // 构建筛选条件
     const conditionJson = {
-        language: document.getElementById('languageType').value,
-        level: document.getElementById('difficultyLevel').value,
+        //language: document.getElementById('languageType').value,
+      //  level: document.getElementById('difficultyLevel').value,
         pageRow: pageSize,
         pageNum: currentPage
     };
@@ -76,6 +192,10 @@ async function renderTemplateCards() {
     if (!templateList.length) {
         html = '<div style="padding:40px 0;text-align:center;color:#999;">暂无模板数据</div>';
     } else {
+      html += `<div id="template_form" th:fragment="form-content">
+      <form id="templateForm">
+      </form>
+      </div>`;
       html += `<div class="card">
             <div class="card-title"><i class="fa fa-filter"></i> 筛选条件</div>
             <div class="search-form" style="display: flex; gap: 20px; margin-bottom: 16px;">
@@ -83,18 +203,18 @@ async function renderTemplateCards() {
                     <label>语言类型：</label>
                     <select id="languageType" onchange="handleSearchChange()">
                         <option value="">全部</option>
-                        <option value="france" th:selected="${searchForm.languageType == 'france'}">法语</option>
-                        <option value="english" th:selected="${searchForm.languageType == 'english'}">英语</option> 
+                        <option value="france">法语</option>
+                        <option value="english">英语</option> 
                     </select>
                 </div>
                 <div>
                     <label>难度等级：</label>
                     <select id="difficultyLevel" onchange="handleSearchChange()">
                         <option value="">全部</option>
-                        <option value="B1" th:selected="${searchForm.difficultyLevel == 'B1'}">B1入门</option>
-                        <option value="B2" th:selected="${searchForm.difficultyLevel == 'B2'}">B2初级</option>
-                        <option value="B3" th:selected="${searchForm.difficultyLevel == 'B3'}">B3中级</option>
-                        <option value="B4" th:selected="${searchForm.difficultyLevel == 'B4'}">B4高级</option> 
+                        <option value="B1">B1入门</option>
+                        <option value="B2">B2初级</option>
+                        <option value="B3">B3中级</option>
+                        <option value="B4">B4高级</option> 
                     </select>
                 </div>
                 <button class="btn btn-default" onclick="resetSearchForm()">重置</button>
@@ -103,7 +223,7 @@ async function renderTemplateCards() {
            `;
         html += `
             <div style="display:flex;gap:36px;font-weight:bold;border-bottom:1px solid #e9ecef;padding-bottom:8px;margin-bottom:4px;">
-                <div style="width:120px;"><strong>模板ID</strong></div>
+                <div style="width:120px;hidden"><strong>模板ID</strong></div>
                 <div style="width:90px;"><strong>语言类型</strong></div>
                 <div style="width:180px;"><strong>难度等级</strong></div>
                 <div style="width:130px;"><strong>课程形式</strong></div>
@@ -125,14 +245,15 @@ async function renderTemplateCards() {
             html += `
                 <div class="teacher-card">
                     <div style="display:flex;gap:36px;">
-                        <div>${template.id || ''}</div>
-                        <div>${template.language || ''}</div>
-                        <div>${template.level || ''}</div>
-                        <div>${template.courseFormat || ''}</div>
+                        <div style="hidden">${template.templateId || ''}</div>
+                        <div>${template.languageType || ''}</div>
+                        <div>${template.difficultyLevel || ''}</div>
+                        <div>${template.classForm| ''}</div>
+                        <div>${template.classDuration| '4'}</div>
+                        <div>${template.classFee| '0'}</div> 
                         <div>${statusHtml}</div>
-                    </div>
-                    <div class="teacher-actions">
-                        <button class="btn btn-success" onclick="openEditTemplateDialog('${template.id}')">修改</button>
+                  
+                        <button class="btn btn-success" onclick="openEditTemplateDialog('${template}')">修改</button>
                         <button class="btn btn-success" onclick="operateTemplate('${template.id}', 'active')">发布</button>
                         <button class="btn btn-warning" onclick="operateTemplate('${template.id}', 'inactive')">回收</button>
                         <button class="btn btn-danger" onclick="deleteTemplate('${template.id}')">删除</button>
@@ -166,10 +287,14 @@ async function fetchTemplateList(conditionJson) {
             params: conditionJson // 筛选条件通过params传递
         });
         const res = response.data;
-
+        console.info("get:",res);
         if (res && res.code === 200) {
-            templateList = res.data.data.templates || [];
-            total = res.data.data.total || 0;
+          
+            templateList = res.data.templates|| [];
+
+            total = templateList.length|| 0;
+            
+            console.info("total:",total);
             // 补全默认状态
             templateList.forEach(item => {
                 if (!item.status) item.status = 'active';
@@ -218,109 +343,7 @@ async function handleCurrentPageChange(val) {
     await renderTemplateCards();
 }
 
-/**
- * 打开新增模板弹窗
- */
-function openAddTemplateDialog() {
-    dialogTitle = '新增课程模板';
-    resetTemplateForm();
-    templateDialogVisible = true;
-    // 显示Element Plus弹窗
-    ElDialog.open({
-        id: 'templateDialog',
-        title: dialogTitle,
-        visible: true
-    });
-}
-
-/**
- * 打开修改模板弹窗
- */
-async function openEditTemplateDialog(templateId) {
-    currentTemplateId = templateId;
-    dialogTitle = '修改课程模板';
-    resetTemplateForm();
-
-    // 获取模板详情
-    const token = getToken();
-    try {
-        const response = await axios.get(`${API_BASE_URL}/course/template/detail/${templateId}`, {
-            headers: { "Authorization": "Bearer " + token }
-        });
-        const template = response.data.data;
-        // 填充表单
-        templateFormRef.model.templateId = template.id;
-        templateFormRef.model.languageType = template.language;
-        templateFormRef.model.difficultyLevel = template.level;
-        templateFormRef.model.classForm = template.courseFormat;
-        templateFormRef.model.classDuration = template.classDuration;
-        templateFormRef.model.classFee = template.classFee;
-        templateFormRef.model.description = template.description;
-    } catch (e) {
-        alert('获取模板详情失败');
-        console.error(e);
-    }
-
-    // 显示弹窗
-    templateDialogVisible = true;
-    ElDialog.open({ id: 'templateDialog', title: dialogTitle, visible: true });
-}
-
-/**
- * 重置模板表单
- */
-function resetTemplateForm() {
-    templateFormRef.resetFields(); // Element Plus表单重置
-    templateFormRef.model = {
-        templateId: '',
-        languageType: '',
-        difficultyLevel: '',
-        classForm: '',
-        classDuration: '',
-        classFee: '',
-        description: ''
-    };
-}
-
-/**
- * 提交模板表单（新增/修改）
- */
-async function submitTemplateForm() {
-    // 表单验证
-    const valid = await templateFormRef.validate();
-    if (!valid) return;
-
-    const token = getToken();
-    const formData = templateFormRef.model;
-    try {
-        let res;
-        if (formData.templateId) {
-            // 修改模板
-            res = await axios.put(`${baseUrl}/course/manage`, {
-                templateId: formData.templateId,
-                operation: 'edit',
-                data: formData
-            }, { headers: { "Authorization": "Bearer " + token } });
-        } else {
-            // 新增模板
-            res = await axios.post(`${baseUrl}/course/template/add`, formData, {
-                headers: { "Authorization": "Bearer " + token }
-            });
-        }
-
-        if (res.data.code === 200) {
-            ElMessage.success(formData.templateId ? '模板修改成功' : '模板新增成功');
-            templateDialogVisible = false;
-            ElDialog.close('templateDialog'); // 关闭弹窗
-            await renderTemplateCards(); // 刷新列表
-        } else {
-            alert(res.data.message || (formData.templateId ? '模板修改失败' : '模板新增失败'));
-        }
-    } catch (err) {
-        alert('网络异常，操作失败');
-        console.error(err);
-    }
-}
+  
 
 /**
  * 发布/回收模板
@@ -335,7 +358,7 @@ async function operateTemplate(templateId, type) {
         }, { headers: { "Authorization": "Bearer " + token } });
 
         if (res.data.code === 200) {
-            ElMessage.success(type === 'active' ? '模板发布成功' : '模板回收成功');
+          console.success(type === 'active' ? '模板发布成功' : '模板回收成功');
             await renderTemplateCards();
         } else {
             alert(res.data.message || (type === 'active' ? '模板发布失败' : '模板回收失败'));
@@ -364,7 +387,7 @@ async function deleteTemplate(templateId) {
         }, { headers: { "Authorization": "Bearer " + token } });
 
         if (res.data.code === 200) {
-            ElMessage.success('模板删除成功');
+          console.success('模板删除成功');
             await renderTemplateCards();
         } else {
             alert(res.data.message || '模板删除失败');
@@ -374,12 +397,12 @@ async function deleteTemplate(templateId) {
             alert('网络异常，删除失败');
             console.error(err);
         } else {
-            ElMessage.info('已取消删除');
+          console.info('已取消删除');
         }
     }
 }
 
 // 页面初始化
-window.onload = async function() {
+/*window.onload = async function() {
     await renderTemplateCards();
-};
+};*/
