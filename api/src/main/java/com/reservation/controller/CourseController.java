@@ -88,6 +88,8 @@ public class CourseController {
         Map<String, String> resultMap = courseService.addCourse(course);
         return Result.success(resultMap, "课程创建成功");
     }
+    //TBD:修改模板状态
+    
     /**
      * 查询课程列表，对应设计2.2.2 接口：/api/v1/course/list（教师、管理员权限）
      */

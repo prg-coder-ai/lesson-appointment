@@ -69,15 +69,29 @@ function openEditTemplateDialog(template )
 const modalTitle = document.getElementById('modalTitle');
 modalTitle.innerText = template && template.templateId ? '编辑课程模板' : '新增课程模板';
  // 3. 初始化默认模板数据
- const defaultTemplate = template || {
-    templateId: "",
-    languageType: "", // 清空默认值，让用户选择
-    difficultyLevel: "",
-    classForm: "",
-    classDuration: "",
-    classFee: "",
-    description: '请输入模板描述'
-  }; 
+  // INSERT_YOUR_CODE
+  // 将template安全地转为json对象
+  let defaultTemplate = {};
+  if (!template) {
+    defaultTemplate = {
+      templateId: "",
+      languageType: "",
+      difficultyLevel: "",
+      classForm: "",
+      classDuration: "",
+      classFee: "",
+      description: "请输入模板描述"
+    };
+  } else if (typeof template === "string") {
+    try {
+      defaultTemplate = JSON.parse(template);
+    } catch (e) {
+      defaultTemplate = {};
+    }
+  } else if (typeof template === "object") {
+    defaultTemplate = { ...template };
+  }
+ 
    // 4. 生成表单HTML（复用index.html表单结构，适配样式） 
   //显示出来 from
   const formHtml = `
