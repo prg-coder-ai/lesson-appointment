@@ -398,10 +398,30 @@ async function handleCurrentPageChange(val) {
 async function operateTemplate(templateId, action) {
     const token = getToken();
     try {
-        const res = await axios.put(`${baseUrl}/course/template/manage`, {
-            templateId: templateId, 
-                status: action  
-        }, { headers: { "Authorization": "Bearer " + token } });
+        // 这里分析参数带入方式：接口说明需要 templateId 和 action（操作类型/状态）作为参数。
+        // axios.put 发送到 /course/template/manage，后端期望参数格式为 { templateId, action } （或 status）。
+        // 但你的写法是 { templateId: ..., status: ... }，后端如期望 action 字段，需要修正字段名。
+        // 根据后端接口 CourseController.updateTemplate 需要 {templateid, action} 作为 JSON 请求体字段（不是直接字符串参数）。
+        // 且参数名注意为 templateid（小写），后端 Spring 不能自动映射 templateId，需和后端代码严格匹配
+        // 如果后端 Controller 层要求 RequestBody Json对象，请传:
+        // { templateid: templateId, action: action }
+        // 不是 params、不是 query、不是 array；是object。
+        // axios 等库请求时，发送 request body 只需将数据对象作为第二个参数（POST、PUT），第三个参数为 headers 配置。
+        // 例如：axios.put(url, { key1: value1, key2: value2 }, { headers: { ... } })
+        // 在 fetch，用 fetch(url, { method: 'POST', body: JSON.stringify(data), headers: { ... } });
+        // 后端 expects @RequestBody JSON，所以务必用对象并确保字段名与后端参数完全一致
+        const payload = {
+            templateid: templateId,  // 注意小写，和后端命名对应
+            action: action
+        };
+        const res = await axios.put(
+            `${baseUrl}/course/template/manage`,
+            {
+                templateId: templateId, 
+                action: action // 使用 action 字段传递类型（如 edit, publish, recall, ...）
+            },
+            { headers: { "Authorization": "Bearer " + token } }         
+        );
 
         if (res.data.code === 200) {
           console.success( '模板操作成功');

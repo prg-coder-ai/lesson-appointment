@@ -68,6 +68,6 @@ public interface CourseTemplateMapper {
    int updateTemplate(@Param("courseTemplate") CourseTemplate courseTemplate);
 
    @org.apache.ibatis.annotations.Update("UPDATE course_template SET status = #{action} WHERE template_id = #{templateId}") 
-   int updateTemplateStatus(@Param("templateId") String templateId,@Param("action") String action)
+   int updateTemplateStatus(@Param("templateId") String templateId,@Param("action") String action);
     
 }
