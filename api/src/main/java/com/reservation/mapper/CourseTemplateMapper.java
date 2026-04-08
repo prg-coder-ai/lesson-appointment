@@ -29,7 +29,7 @@ public interface CourseTemplateMapper {
      *   VALUES (#{templateId}, #{languageType}, #{difficultyLevel}, #{templateName}, #{description}, NOW(), NOW())
      * </insert>
      */
-     @org.apache.ibatis.annotations.Insert( "INSERT INTO course_template (template_id, language_type, difficulty_level, template_name, description, create_time, update_time)  VALUES (#{templateId}, #{languageType}, #{difficultyLevel}, #{templateName}, #{description}, NOW(), NOW())")
+     @org.apache.ibatis.annotations.Insert( "INSERT INTO course_template (template_id, language_type, difficulty_level, class_duration,class_form,class_fee, description, create_time, update_time)     VALUES (#{templateId}, #{languageType}, #{difficultyLevel},#{classDuration},#{classForm},#{classFee}, #{description}, NOW(), NOW())")
     int insertTemplate(CourseTemplate template);
 
     /**
@@ -64,7 +64,7 @@ public interface CourseTemplateMapper {
     CourseTemplate selectTemplateById(@Param("templateId") String templateId);
 
    // INSERT_YOUR_CODE
-   @org.apache.ibatis.annotations.Update("UPDATE course_template SET language_type = #{courseTemplate.languageType}, difficulty_level = #{courseTemplate.difficultyLevel}, template_name = #{courseTemplate.templateName}, description = #{courseTemplate.description}, update_time = NOW() WHERE template_id = #{courseTemplate.templateId}")
+   @org.apache.ibatis.annotations.Update("UPDATE course_template SET language_type = #{courseTemplate.languageType}, difficulty_level = #{courseTemplate.difficultyLevel}, class_duration = #{courseTemplate.classDuration}, class_form = #{courseTemplate.classForm}, class_fee = #{courseTemplate.classFee},description = #{courseTemplate.description}, update_time = NOW() WHERE template_id = #{courseTemplate.templateId}")
    int updateTemplate(@Param("courseTemplate") CourseTemplate courseTemplate);
     
 }
