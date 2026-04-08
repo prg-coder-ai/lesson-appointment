@@ -59,6 +59,16 @@ public class CourseController {
         return Result.success(resultMap, "课程模板修改成功");
     }
 
+  @PostMapping("/template/manage")
+   public Result<Map<String, String>> updateTemplate(@Validated @RequestBody String  templateid,@Validated @RequestBody String  action,
+                                                   @RequestHeader("Authorization") String token) {
+        // 权限校验：仅管理员可操作（对应设计2.3 安全设计-权限控制）
+        permissionCheck.checkAdmin(token);
+        // 调用服务层创建模板，返回templateId（对应设计2.2.2 模板创建返回数据）
+        Map<String, String> resultMap = courseService.updateTemplateStatus(templateid,action);
+        return Result.success(resultMap, "课程模板状态修改成功");
+    }
+
     /**
      * 查询课程模板列表，对应设计2.2.2 接口：/api/v1/course/template/list（教师、管理员权限）
      */

@@ -70,6 +70,13 @@ public class CourseService {
         return Collections.singletonMap("templateId", template.getTemplateId());
     }
    
+   @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
+    public Map<String, String> updateTemplateStatus(String templateid, String action) { 
+        // 更新模板信息
+        courseTemplateMapper.updateTemplateStatus(templateid,action);
+        return Collections.singletonMap("status", action);
+    }
+
     public List<CourseTemplate> getTemplateListByLanguage(String languageType) {
         // 如果languageType为空或为"all"，查询所有模板，否则按languageType筛选
         if (languageType == null || languageType.trim().isEmpty() || "all".equalsIgnoreCase(languageType.trim())) {
