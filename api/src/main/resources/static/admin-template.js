@@ -393,15 +393,14 @@ async function handleCurrentPageChange(val) {
   
 
 /**
- * 发布/回收模板
+ * 发布/回收模板、
  */
 async function operateTemplate(templateId, action) {
     const token = getToken();
     try {
-        const res = await axios.put(`${baseUrl}/course/manage`, {
-            templateId: templateId,
-            operation: 'edit',
-            data: { status: action }
+        const res = await axios.put(`${baseUrl}/course/template/manage`, {
+            templateId: templateId, 
+                status: action  
         }, { headers: { "Authorization": "Bearer " + token } });
 
         if (res.data.code === 200) {

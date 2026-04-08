@@ -66,5 +66,8 @@ public interface CourseTemplateMapper {
    // INSERT_YOUR_CODE
    @org.apache.ibatis.annotations.Update("UPDATE course_template SET language_type = #{courseTemplate.languageType}, difficulty_level = #{courseTemplate.difficultyLevel}, class_duration = #{courseTemplate.classDuration}, class_form = #{courseTemplate.classForm}, class_fee = #{courseTemplate.classFee},description = #{courseTemplate.description}, update_time = NOW() WHERE template_id = #{courseTemplate.templateId}")
    int updateTemplate(@Param("courseTemplate") CourseTemplate courseTemplate);
+
+   @org.apache.ibatis.annotations.Update("UPDATE course_template SET status = #{action} WHERE template_id = #{templateId}") 
+   int updateTemplateStatus(@Param("templateId") String templateId,@Param("action") String action)
     
 }
