@@ -39,22 +39,23 @@ public class CourseController {
     /**
      * 创建课程模板，对应设计2.2.2 接口：/api/v1/course/template/add（管理员权限）
      */
-    @PostMapping("/template/add")
-    public Result<Map<String, String>> addTemplate(@Validated @RequestBody CourseTemplate template,
+    @PostMapping("/template/insert")
+    public Result<Map<String, String>> insertTemplate(@Validated @RequestBody CourseTemplate template,
                                                    @RequestHeader("Authorization") String token) {
         // 权限校验：仅管理员可操作（对应设计2.3 安全设计-权限控制）
         permissionCheck.checkAdmin(token);
         // 调用服务层创建模板，返回templateId（对应设计2.2.2 模板创建返回数据）
-        Map<String, String> resultMap = courseService.addTemplate(template);
+        Map<String, String> resultMap = courseService.insertTemplate(template);
         return Result.success(resultMap, "课程模板创建成功");
     }
-   @PostMapping("/template/edit")
-    public Result<Map<String, String>> editTemplate(@Validated @RequestBody CourseTemplate template,
+
+    @PostMapping("/template/update")
+    public Result<Map<String, String>> updateTemplate(@Validated @RequestBody CourseTemplate template,
                                                    @RequestHeader("Authorization") String token) {
         // 权限校验：仅管理员可操作（对应设计2.3 安全设计-权限控制）
         permissionCheck.checkAdmin(token);
         // 调用服务层创建模板，返回templateId（对应设计2.2.2 模板创建返回数据）
-        Map<String, String> resultMap = courseService.editTemplate(template);
+        Map<String, String> resultMap = courseService.updateTemplate(template);
         return Result.success(resultMap, "课程模板修改成功");
     }
 

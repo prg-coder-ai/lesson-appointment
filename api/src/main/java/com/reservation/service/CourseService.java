@@ -41,19 +41,20 @@ public class CourseService {
      * 创建课程模板，对应设计2.2.2 课程模板创建接口，仅管理员可操作
      */
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
-    public Map<String, String> addTemplate(CourseTemplate template) {
+    public Map<String, String> insertTemplate(CourseTemplate template) {
         if (courseTemplateMapper.selectTemplatesByLangAndLevel(template.getLanguageType(), template.getDifficultyLevel())
                 != null) {
             throw new BusinessException("该语言类型+难度等级的课程模板已存在");
         }
         String templateId = UUID.randomUUID().toString().replace("-", ""); // 移除UUID分隔符
         template.setTemplateId(templateId);
+         
         courseTemplateMapper.insertTemplate(template);
         return Collections.singletonMap("templateId", templateId); // 替换Map.of，兼容低版本Java
     }
 
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
-    public Map<String, String> editTemplate(CourseTemplate template) {
+    public Map<String, String> updateTemplate(CourseTemplate template) {
         // 检查模板ID是否存在
         CourseTemplate exist = courseTemplateMapper.selectTemplateById(template.getTemplateId());
         if (exist == null) {
