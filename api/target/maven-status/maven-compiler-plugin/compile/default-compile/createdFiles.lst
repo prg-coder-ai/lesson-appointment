@@ -11,6 +11,7 @@ com\reservation\mapper\CourseMapper.class
 com\reservation\mapper\ScheduleMapper.class
 com\reservation\service\CourseService.class
 com\reservation\entity\Booking.class
+com\reservation\controller\CourseController$UpdateTemplateStatusRequest.class
 com\reservation\controller\CourseController.class
 com\reservation\entity\CourseFeedback.class
 com\reservation\entity\CourseTemplate.class

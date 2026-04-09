@@ -59,20 +59,16 @@ function getToken() {
     return currentUser.token || '';
 }
 
-function openEditTemplateDialog(template )
+function openEditTemplateDialog(templateJsonStr )
 { 
  // 1. 显示弹窗
  const modal = document.getElementById('templateModal');
  modal.style.display = 'flex';
- console.info("edit:",template);
-// 2. 设置弹窗标题
-const modalTitle = document.getElementById('modalTitle');
-modalTitle.innerText = template && template.templateId ? '编辑课程模板' : '新增课程模板';
- // 3. 初始化默认模板数据
-  // INSERT_YOUR_CODE
-  // 将template安全地转为json对象
+ console.info("edit:",templateJsonStr); 
+
+ // 2. 初始化默认模板数据 
   let defaultTemplate = {};
-  if (!template) {
+  if (!templateJsonStr) {
     defaultTemplate = {
       templateId: "",
       languageType: "",
@@ -82,16 +78,15 @@ modalTitle.innerText = template && template.templateId ? '编辑课程模板' : 
       classFee: "",
       description: "请输入模板描述"
     };
-  } else if (typeof template === "string") {
+  } else  
     try {
-      defaultTemplate = JSON.parse(template);
+      defaultTemplate = JSON.parse(templateJsonStr);   // 将template安全地转为json对象
     } catch (e) {
       defaultTemplate = {};
-    }
-  } else if (typeof template === "object") {
-    defaultTemplate = { ...template };
-  }
- 
+    } 
+  // 2. 设置弹窗标题
+  const modalTitle = document.getElementById('modalTitle');
+  modalTitle.innerText = (defaultTemplate.templateId !="")? '编辑课程模板' : '新增课程模板';
    // 4. 生成表单HTML（复用index.html表单结构，适配样式） 
   //显示出来 from
   const formHtml = `
@@ -268,7 +263,7 @@ async function renderTemplateCards() {
              // 列表表头
         html += `
             <div style="display:flex;gap:36px;font-weight:bold;border-bottom:1px solid #e9ecef;padding-bottom:8px;margin-bottom:4px;">
-                <div style="width:0px;" type="hidden"><strong>模板ID</strong></div>
+                <div style="width:0px;" display= 'none'><strong>模板ID</strong></div>
                 <div style="width:90px;"><strong>语言类型</strong></div>
                 <div style="width:180px;"><strong>难度等级</strong></div>
                 <div style="width:130px;"><strong>课程形式</strong></div>
@@ -279,6 +274,7 @@ async function renderTemplateCards() {
             </div>
         `;
         templateList.forEach(template => {
+          console.log(template);
             // 状态渲染
             let statusHtml = '';
             if (template.status === 'pending') statusHtml = '<span style="color:#faad14;">待审核</span>';
@@ -291,18 +287,26 @@ async function renderTemplateCards() {
                 <div class="teacher-card" style="margin:8px 0;padding:8px 0;border-bottom:1px solid #f5f5f5;">
                     
                 <div style="display:flex;gap:36px;align-items:center;">
-                    <div style="width:0px;" type="hidden" >${template.templateId || ''}</div>
+                    <div style="width:0px;" display= 'none'>${template.templateId || ''}</div>
                     <div style="width:90px;">${template.languageType || ''}</div>
                     <div style="width:180px;">${template.difficultyLevel || ''}</div>
                     <div style="width:130px;">${template.classForm || ''}</div>
                     <div style="width:130px;">${template.classDuration || ''}</div>
                     <div style="width:130px;">${template.classFee || ''}</div> 
-                    <div style="width:120px;">${statusHtml}</div>
+                    
+                     <div style="width:120px;">                          
+                          ${ template.status === "pending" ? '<span style="color:#faad14;">待审核</span>' :
+                            template.status === "active" ? '<span style="color:#52c41a;">正常</span>' :
+                            template.status === "inactive" ? '<span style="color:#faad14;">待启用</span>' :
+                            template.status === "frozen" ? '<span style="color:#f5222d;">已删除</span>' :
+                            `<span>${template.status||"未知"}</span>`
+                          }
+                        </div>
                     <div style="width:240px;display:flex;gap:8px;">
                         <button class="btn btn-success" onclick="openEditTemplateDialog(${JSON.stringify(template)})">修改</button>
                         <button class="btn btn-success" onclick="operateTemplate('${template.templateId}', 'active')">发布</button>
-                        <button class="btn btn-warning" onclick="operateTemplate('${template.templateId}', 'inactive')">回收</button>
-                        <button class="btn btn-danger" onclick="operateTemplate('${template.templateId}', 'frozen')">删除</button>
+                        <button class="btn btn-warning" onclick="operateTemplate('${template.templateId}', 'inactive')">撤回</button>
+                        <button class="btn btn-danger" onclick="deleteTemplate('${template.templateId}')">删除</button>
                     </div>
                 </div>
             </div>
@@ -341,7 +345,7 @@ async function fetchTemplateList(conditionJson) {
 
             total = templateList.length|| 0;
             
-            console.info("total:",total);
+            console.info("total:",total,templateList);
             // 补全默认状态
             templateList.forEach(item => {
                 if (!item.status) item.status = 'active';
@@ -397,7 +401,11 @@ async function handleCurrentPageChange(val) {
  */
 async function operateTemplate(templateId, action) {
     const token = getToken();
-    try {
+    const payload = {
+      templateid: templateId,  // 注意小写，和后端命名对应
+      status: action
+  };
+   
         // 这里分析参数带入方式：接口说明需要 templateId 和 action（操作类型/状态）作为参数。
         // axios.put 发送到 /course/template/manage，后端期望参数格式为 { templateId, action } （或 status）。
         // 但你的写法是 { templateId: ..., status: ... }，后端如期望 action 字段，需要修正字段名。
@@ -410,15 +418,13 @@ async function operateTemplate(templateId, action) {
         // 例如：axios.put(url, { key1: value1, key2: value2 }, { headers: { ... } })
         // 在 fetch，用 fetch(url, { method: 'POST', body: JSON.stringify(data), headers: { ... } });
         // 后端 expects @RequestBody JSON，所以务必用对象并确保字段名与后端参数完全一致
-        const payload = {
-            templateid: templateId,  // 注意小写，和后端命名对应
-            action: action
-        };
-        const res = await axios.put(
-            `${baseUrl}/course/template/manage`,
+        
+       /* const res = await axios.put(
+            `${baseUrl}/course/template/updateStatus`,
             {
-                templateId: templateId, 
-                action: action // 使用 action 字段传递类型（如 edit, publish, recall, ...）
+              data:{  templateId: templateId, 
+                status: action // 使用 action 字段传递类型（如 edit, publish, recall, ...）
+              }
             },
             { headers: { "Authorization": "Bearer " + token } }         
         );
@@ -432,41 +438,70 @@ async function operateTemplate(templateId, action) {
     } catch (err) {
         alert('网络异常，操作失败');
         console.error(err);
-    }
-}
+    }*/
 
+    // 这段代码中 `res && res.code === 200` 会出现异常的根本原因可能如下：
+    // 1. fetch的response未必能被正常解析为json（如接口返回204/空/非json字符串），那么response.json()会抛出异常，进入catch。
+    // 2. 如果后端接口出错返回了HTML、null、undefined或其他非对象内容，.then(res => ...)这里的res不是期望的对象，访问res.code会抛出。
+    // 3. 某些情况下res实际为null/undefined或格式不符（如res为字符串），则res.code === 200会抛异常。
+    //
+    // 更安全的写法，需先确认res为对象且有code属性，再判断。推荐加类型检查与默认值防御。
+
+    fetch(`${API_BASE_URL}/course/template/updateStatus`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        "Authorization": "Bearer " + token
+      },
+      credentials: 'include',
+      body: JSON.stringify(payload)
+    })
+    .then(response => {
+      // 判定http请求结果，如果不是2xx，直接抛出
+      if (!response.ok) {
+        throw new Error(`服务器错误，状态码: ${response.status}`);
+      }
+      // 某些接口如204/无内容, 直接返回空对象防止解析异常
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        return response.json();
+      }
+      // 不是json时返回空对象，避免res为undefined或字符串
+      return {};
+    })
+    .then(res => {
+      // 防御：确认res是对象且有code字段
+      const code = typeof res === "object" && res !== null && "code" in res ? res.code : undefined;
+      const msg = (typeof res === "object" && res !== null && res.message) ? res.message : '';
+      if (code === 200) { 
+        if (console.success) {
+          console.success(msg);
+          console.success('模板操作成功');
+        }
+        renderTemplateCards(); 
+      } else {
+        alert(msg || '模板操作失败');
+      }
+    })
+    .catch(e => {
+      // 网络错误或json解析异常都能捕获
+      alert("网络错误或数据解析异常，操作失败");
+      console.error(e);
+    });
+   
+    }  
 /**
  * 删除模板
  */
 async function deleteTemplate(templateId) {
-    try {
-        await message.confirm(
-            '确定要删除该课程模板吗？删除后基于该模板的课程基础参数将不受统一管控！',
-            '温馨提示',
-            { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
-        );
-
-        const token = getToken();
-        const res = await axios.put(`${baseUrl}/admin/course/manage`, {
-            templateId: templateId,
-            operation: 'delete'
-        }, { headers: { "Authorization": "Bearer " + token } });
-
-        if (res.data.code === 200) {
-          console.success('模板删除成功');
-            await renderTemplateCards();
-        } else {
-            alert(res.data.message || '模板删除失败');
+    
+        if (!window.confirm('确定要删除该课程模板吗？删除后基于该模板的课程基础参数将不受统一管控！')) {
+            return;
         }
-    } catch (err) {
-        if (err.name !== 'Error') {
-            alert('网络异常，删除失败');
-            console.error(err);
-        } else {
-          console.info('已取消删除');
-        }
-    }
+   
+        operateTemplate(templateId,"frozen"); 
 }
+
 // 点击弹窗遮罩层关闭
 document.getElementById('templateModal').addEventListener('click', (e) => {
     if (e.target === document.getElementById('templateModal')) {
