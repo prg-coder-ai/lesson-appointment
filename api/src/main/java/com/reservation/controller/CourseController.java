@@ -40,6 +40,7 @@ public class CourseController {
      * 创建课程模板，对应设计2.2.2 接口：/api/v1/course/template/add（管理员权限）
      */
     @PostMapping("/template/insert")
+     @ResponseBody
     public Result<Map<String, String>> insertTemplate(@Validated @RequestBody CourseTemplate template,
                                                    @RequestHeader("Authorization") String token) {
         // 权限校验：仅管理员可操作（对应设计2.3 安全设计-权限控制）
@@ -50,6 +51,7 @@ public class CourseController {
     }
 
     @PostMapping("/template/update")
+     @ResponseBody
     public Result<Map<String, String>> updateTemplate(@Validated @RequestBody CourseTemplate template,
                                                    @RequestHeader("Authorization") String token) {
         // 权限校验：仅管理员可操作（对应设计2.3 安全设计-权限控制）
@@ -59,15 +61,33 @@ public class CourseController {
         return Result.success(null, "课程模板修改成功");
     }
 
-  @PutMapping("/template/manage")
-   public Result<Map<String, String>> updateTemplateStatus(@Validated @RequestBody String  templateid,@Validated @RequestBody String  action,
-                                                   @RequestHeader("Authorization") String token) {
-        // 权限校验：仅管理员可操作（对应设计2.3 安全设计-权限控制）
-        permissionCheck.checkAdmin(token);
-        // 调用服务层创建模板，返回templateId（对应设计2.2.2 模板创建返回数据）
-          courseService.updateTemplateStatus(templateid,action);
-        return Result.success(null, "课程模板状态修改成功");
-    }
+  /**
+   * 模板状态更新接口（正确的写法：需要定义DTO接收JSON BODY，不要用多个@RequestBody参数）
+   * 修正说明：
+   *  - SpringMVC只允许一个@RequestBody参数。
+   *  - 推荐前端POST JSON对象（如 { "templateid":"T001", "status":"active" }），后端定义DTO类接收。
+   *  - 原因：此类报错多因方法参数写了两个@RequestBody，Spring无法匹配。
+   */
+  public static class UpdateTemplateStatusRequest {
+      private String templateid;
+      private String status;
+
+      // getter/setter
+      public String getTemplateid() { return templateid; }
+      public void setTemplateid(String templateid) { this.templateid = templateid; }
+      public String getStatus() { return status; }
+      public void setStatus(String status) { this.status = status; }
+  }
+
+  @PostMapping("/template/updateStatus")
+  @ResponseBody
+  public Result<Void> updateTemplateStatus(@Validated @RequestBody UpdateTemplateStatusRequest req,
+                                          @RequestHeader("Authorization") String token) {
+      // 权限校验：仅管理员可操作
+      permissionCheck.checkAdmin(token);
+      courseService.updateTemplateStatus(req.getTemplateid(), req.getStatus());
+      return Result.success(null, "课程模板状态修改成功");
+  }
 
     /**
      * 查询课程模板列表，对应设计2.2.2 接口：/api/v1/course/template/list（教师、管理员权限）

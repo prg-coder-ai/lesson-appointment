@@ -24,5 +24,8 @@ public class CourseTemplate implements Serializable{
     @NotBlank(message = "课程描述不能为空")
     @Size(min = 10, max = 500, message = "课程描述长度需10-500字")
     private String description;
+
+    @NotBlank(message = "课程模板状态不能空")
+    private String status;//pending/active/inactive/frozen
 }
  
