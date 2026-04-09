@@ -11,6 +11,7 @@ let templateDialogVisible = false; // 弹窗状态
 let dialogTitle = '新增课程模板'; // 弹窗标题
 let currentTemplateId = '';  // 当前操作的模板ID
 let formEl ='';
+var testFormContainer =null;
 // 表单验证规则（适配Element Plus原生用法）
 /*const templateRules = {
     languageType: [{ required: true, message: '请选择语言类型', trigger: 'change' }],
@@ -68,7 +69,7 @@ function openEditTemplateDialog(templateJsonStr )
 
  // 2. 初始化默认模板数据 
   let defaultTemplate = {};
-  if (!templateJsonStr) {
+  if (templateJsonStr==null) {
     defaultTemplate = {
       templateId: "",
       languageType: "",
@@ -80,10 +81,12 @@ function openEditTemplateDialog(templateJsonStr )
     };
   } else  
     try {
-      defaultTemplate = JSON.parse(templateJsonStr);   // 将template安全地转为json对象
+      defaultTemplate = templateJsonStr;//JSON.parse(templateJsonStr);   // 将template安全地转为json对象 
     } catch (e) {
       defaultTemplate = {};
+      console.error(e);
     } 
+    console.log("edit json:",defaultTemplate); 
   // 2. 设置弹窗标题
   const modalTitle = document.getElementById('modalTitle');
   modalTitle.innerText = (defaultTemplate.templateId !="")? '编辑课程模板' : '新增课程模板';
@@ -151,7 +154,31 @@ function openEditTemplateDialog(templateJsonStr )
   </form>
 `;
   // 5. 渲染表单到弹窗容器
-  document.getElementById('templateFormContainer').innerHTML = formHtml;
+ 
+  // templateFormContainer 是模板编辑/新增弹窗里的表单内容区域，其在 admin.html 中作为 <div id="templateFormContainer"></div> 预留。
+  // 这里我们直接通过 document.getElementById('templateFormContainer') 获取并动态赋值其 innerHTML。
+  // 本JS无须"创建"该元素，只需确保 admin.html 文件里已存在对应的 <div id="templateFormContainer"></div>，否则需在弹窗容器结构内手动加上：
+  // <div id="templateFormContainer"></div>
+  // 本函数给 templateFormContainer 动态赋表单内容即可。
+  // 说明：如果你遇到 document.getElementById('templateFormContainer') 获取到 undefined/null，
+  // 最常见原因是本 JS 文件的 <script src="admin-template.js"></script> 引入时机在 admin.html 里太早，DOM 还未生成。
+  // 你应确保 <div id="templateFormContainer"></div> 已经渲染在页面上（一般在弹窗结构内），
+  // 并且 <script src="admin-template.js"></script> 应当放在 </body> 前，确保页面所有 DOM 元素都已解析后再加载 JS。
+  // 检查方法：
+  // 1. 检查 HTML 结构中模态弹窗已有 <div id="templateFormContainer"></div>
+  // 2. 检查 JS 是否在 DOMContentLoaded 之前运行——如果是，应将JS引入放到底部
+  // 3. 若本 JS 需要处理的 DOM 不是实时可见，可以先确保 modal 弹窗 stype.display = 'block' 后再渲染内容
+  // 4. 若仍有疑问，建议在本处加如下防御代码进行排查：
+
+  // Debug: 如果找不到 templateFormContainer，弹详细报错
+ // const testFormContainer = document.getElementById('templateFormContainer');
+  if (!testFormContainer) {
+    alert("无法找到 templateFormContainer 元素！\n" +
+      "请确认 admin.html 页面内存在 <div id=\"templateFormContainer\"></div> 并且 <script src=\"admin-template.js\"></script> 是在 DOM 加载完后引入的。");
+    // 可在此 return 或抛异常以避免后续报错
+    return;
+  }
+  testFormContainer.innerHTML = formHtml;
   // 6. 保存表单元素引用
   formEl = document.getElementById('templateForm');
 }
@@ -263,7 +290,7 @@ async function renderTemplateCards() {
              // 列表表头
         html += `
             <div style="display:flex;gap:36px;font-weight:bold;border-bottom:1px solid #e9ecef;padding-bottom:8px;margin-bottom:4px;">
-                <div style="width:0px;" display= 'none'><strong>模板ID</strong></div>
+                  <div style="width:40px;"><strong>序号</strong></div>
                 <div style="width:90px;"><strong>语言类型</strong></div>
                 <div style="width:180px;"><strong>难度等级</strong></div>
                 <div style="width:130px;"><strong>课程形式</strong></div>
@@ -273,28 +300,22 @@ async function renderTemplateCards() {
                 <div style="width:240px;"><strong>操作</strong></div>
             </div>
         `;
+        var index=0;
         templateList.forEach(template => {
-          console.log(template);
-            // 状态渲染
-            let statusHtml = '';
-            if (template.status === 'pending') statusHtml = '<span style="color:#faad14;">待审核</span>';
-            else if (template.status === 'active') statusHtml = '<span style="color:#52c41a;">正常</span>';
-            else if (template.status === 'inactive') statusHtml = '<span style="color:#faad14;">待启用</span>';
-            else if (template.status === 'frozen') statusHtml = '<span style="color:#f5222d;">已删除</span>';
-            else statusHtml = `<span>${template.status || '未知'}</span>`;
-
+         // console.log(template);
+           index ++;
             html += `
                 <div class="teacher-card" style="margin:8px 0;padding:8px 0;border-bottom:1px solid #f5f5f5;">
                     
-                <div style="display:flex;gap:36px;align-items:center;">
-                    <div style="width:0px;" display= 'none'>${template.templateId || ''}</div>
+                <div style="display:flex;gap:36px;align-items:center;"> 
+                   <div style="width:40px;">${index  }</div> 
                     <div style="width:90px;">${template.languageType || ''}</div>
                     <div style="width:180px;">${template.difficultyLevel || ''}</div>
                     <div style="width:130px;">${template.classForm || ''}</div>
                     <div style="width:130px;">${template.classDuration || ''}</div>
                     <div style="width:130px;">${template.classFee || ''}</div> 
                     
-                     <div style="width:120px;">                          
+                     <div style="width:120px;">                       
                           ${ template.status === "pending" ? '<span style="color:#faad14;">待审核</span>' :
                             template.status === "active" ? '<span style="color:#52c41a;">正常</span>' :
                             template.status === "inactive" ? '<span style="color:#faad14;">待启用</span>' :
@@ -303,7 +324,8 @@ async function renderTemplateCards() {
                           }
                         </div>
                     <div style="width:240px;display:flex;gap:8px;">
-                        <button class="btn btn-success" onclick="openEditTemplateDialog(${JSON.stringify(template)})">修改</button>
+                        <button class="btn btn-success" onclick='openEditTemplateDialog(${JSON.stringify(template).replace(/'/g, "\\'")})'>修改</button>
+                   
                         <button class="btn btn-success" onclick="operateTemplate('${template.templateId}', 'active')">发布</button>
                         <button class="btn btn-warning" onclick="operateTemplate('${template.templateId}', 'inactive')">撤回</button>
                         <button class="btn btn-danger" onclick="deleteTemplate('${template.templateId}')">删除</button>

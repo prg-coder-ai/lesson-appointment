@@ -1047,7 +1047,7 @@ async function fetchUserList(conditionJson) {
           break;
       }
     }
-
+    var testFormContainer =null;
     // 退出登录函数 TBD:设置离线状态 online=false
     function logout() {
       if (confirm('确定要退出系统吗？')) {
@@ -1061,13 +1061,9 @@ async function fetchUserList(conditionJson) {
 
     // 页面加载时验证登录状态（注释掉跳转，方便测试）
     window.onload = function() {
-      // 模拟登录状态，避免跳转
-     /* localStorage.setItem('currentUser', JSON.stringify({
-        name: '系统管理员',
-        role: 'admin'
-      }));*/
-      // 读取名为 currentUser 的 cookie值，并设置回 localStorage，避免用户刷新管理端丢失状态  
-      
+       testFormContainer = document.getElementById('templateFormContainer');
+       console.log("onload",testFormContainer); 
+      // 读取名为 currentUser 的 cookie值，并设置回 localStorage，避免用户刷新管理端丢失状态   
         function getCookie(name) {
           const matches = document.cookie.match(
             new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()[\]\\/+^])/g, '\\$1') + '=([^;]*)')
@@ -1396,7 +1392,7 @@ async function fetchUserList(conditionJson) {
       alert(`已刷新 ${month} 月份的教师授课统计数据！`);
     }
   </script>
-    import { ref } from 'vue'; // 需先引入 ref
+ 
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
    <script src="admin-template.js"></script>
 </body>
