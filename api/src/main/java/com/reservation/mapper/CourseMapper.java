@@ -65,7 +65,7 @@ public interface CourseMapper {
      * @param courseId 课程ID
      * @return 课程信息
      */
-    @Select("SELECT * from courese WHERE courese_id = #{courseId}")
+    @Select("SELECT * from course WHERE course_id = #{courseId}")
     Course selectCourseById(@Param("courseId") String courseId);
 
     /**

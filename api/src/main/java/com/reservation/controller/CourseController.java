@@ -109,11 +109,15 @@ public class CourseController {
     @PostMapping("/insert")
     public Result<Map<String, String>> addCourse(@Validated @RequestBody Course course,
                                                    @RequestHeader("Authorization") String token) {
-        // 权限校验：仅教师可操作
-        permissionCheck.checkTeacher(token);
+        // 权限校验：教师、管理员均可操作
+        permissionCheck.checkTeacherOrAdmin(token);
         // 校验教师ID与Token中的用户ID一致（对应设计2.3 安全设计-权限控制）
         String teacherId = permissionCheck.getUserIdFromToken(token);
-        course.setTeacherId(teacherId);
+        //如果当前操作者是admin，则直接使用代入的老师，否则使用当前登录者
+         String role = permissionCheck.getRoleFromToken(token);
+          if ("teacher".equals(role))  {
+           course.setTeacherId(teacherId);
+          }
         // 调用服务层创建课程，返回courseId（对应设计2.2.2 课程创建返回数据）
         Map<String, String> resultMap = courseService.addCourse(course);
         return Result.success(resultMap, "课程创建成功");
@@ -129,10 +133,9 @@ public class CourseController {
     public Result<Void> updateCourseStatus(
            @Validated @RequestBody UpdateCourseStatusRequest req,
             @RequestHeader("Authorization") String token) {
-        // 权限校验：仅教师可操作
-        permissionCheck.checkTeacher(token);
+        permissionCheck.checkTeacherOrAdmin(token);
         String courseid = req.getCourseid();
-        // 校验课程归属
+        // 校验课程归属， 检查课程归属权，若courseId不存在或非teacherId归属，抛出业务异常
         String teacherId = permissionCheck.getUserIdFromToken(token);
         courseService.checkCourseOwner(courseid, teacherId); 
 
@@ -145,8 +148,8 @@ public class CourseController {
     public Result<Void> updateCourse(
            @Validated @RequestBody Course req,
             @RequestHeader("Authorization") String token) {
-        // 权限校验：仅教师可操作
-        permissionCheck.checkTeacher(token);
+        // 权限校验： 
+        permissionCheck.checkTeacherOrAdmin(token);
         // 校验课程归属
         String courseId = req.getCourseId();
         String teacherId = permissionCheck.getUserIdFromToken(token);
