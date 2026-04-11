@@ -28,18 +28,14 @@ public interface CourseMapper {
      */   
     @org.apache.ibatis.annotations.Insert("INSERT INTO course(course_id, template_id, teacher_id, course_name, description, status, create_time, update_time) " +
         "VALUES(#{courseId}, #{templateId}, #{teacherId}, #{courseName}, #{description}, #{status}, #{createTime}, #{updateTime})")
-    int insertCourse(Course course);
-    // INSERT_YOUR_CODE
+    int insertCourse(Course course); 
     /**
      * 条件查询课程列表
      * @param params 查询条件，可包含teacherId、templateId、status等
      * @return 课程列表
-     */
-    // INSERT_YOUR_CODE
-    @org.apache.ibatis.annotations.Select({
-        "<script>",
+     * "<script>",
         "SELECT * FROM course",
-        "<where>",
+        ",<where>",
         "  <if test='params.teacherId != null and params.teacherId != \"\"'>",
         "    AND teacher_id = #{params.teacherId}",
         "  </if>",
@@ -51,6 +47,10 @@ public interface CourseMapper {
         "  </if>",
         "</where>",
         "</script>"
+     */
+    // INSERT_YOUR_CODE
+        @org.apache.ibatis.annotations.Select({
+        "SELECT * FROM course"
     })
     List<Course> selectCourseList(@Param("params") Map<String, Object> params); 
 
@@ -58,6 +58,8 @@ public interface CourseMapper {
      @org.apache.ibatis.annotations.Update("UPDATE course SET status = #{status} WHERE course_id = #{courseId}")
      int updateCourseStatus(@Param("courseId") String courseId, @Param("status") String status); 
 
+    @org.apache.ibatis.annotations.Update("UPDATE course SET templateId = #{course.templateId}, courseName = #{course.courseName}, content = #{course.content}, feature = #{course.feature}, teacherId = #{course.teacherId}, update_time = NOW() WHERE courseId = #{course.courseId}")
+   int updateCourse(@Param("course") Course course);
     /**
      * 根据课程ID查询课程
      * @param courseId 课程ID

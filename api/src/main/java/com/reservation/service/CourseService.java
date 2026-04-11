@@ -101,6 +101,26 @@ public class CourseService {
         courseMapper.insertCourse(course);
         return Collections.singletonMap("courseId", courseId);
     }
+ 
+@Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
+    public Map<String, String> updateCourseStatus (String id,String status) {
+        Course course = courseMapper.selectCourseById(id);
+        if (course == null) {
+            throw new ResourceNotFoundException("课程不存在");
+        } 
+         courseMapper.updateCourseStatus(id,status);
+        return Collections.singletonMap("courseId", id);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
+    public Map<String, String> update (Course  course) {
+        Course course_exist = courseMapper.selectCourseById(course.getCourseId());
+        if (course_exist == null) {
+            throw new ResourceNotFoundException("课程不存在");
+        } 
+         courseMapper.updateCourse(course);
+        return Collections.singletonMap("courseId", course_exist.getCourseId());
+    }
 
     /**
      * 获取课程列表（含可用排期），补充实现体，避免编译错误
@@ -133,7 +153,7 @@ public class CourseService {
             throw new ResourceNotFoundException("课程不存在，无法删除");
         }
       
-        courseMapper.updateCourseStatus(courseId, "delete");
+        courseMapper.updateCourseStatus(courseId, "forzen");
     }
 
     /**
