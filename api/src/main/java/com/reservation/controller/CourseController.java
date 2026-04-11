@@ -106,7 +106,7 @@ public class CourseController {
     /**
      * 教师创建课程，对应设计2.2.2 接口：/api/v1/course/teacher/add（教师权限）
      */
-    @PostMapping("/add")
+    @PostMapping("/insert")
     public Result<Map<String, String>> addCourse(@Validated @RequestBody Course course,
                                                    @RequestHeader("Authorization") String token) {
         // 权限校验：仅教师可操作
@@ -118,8 +118,45 @@ public class CourseController {
         Map<String, String> resultMap = courseService.addCourse(course);
         return Result.success(resultMap, "课程创建成功");
     }
-    //TBD:修改模板状态
-    
+     
+    /**
+     * 课程管理：发布、删除、回收->修改模板状态
+     * 接口: /api/v1/course/manage
+     * 输入参数: courseId, opertion=[active 发布、delete删除、inactive回收]
+     * 权限: 仅教师可操作，且只能操作自己的课程
+     */
+    @PostMapping("/updateStatus")
+    public Result<Void> updateCourseStatus(
+           @Validated @RequestBody UpdateCourseStatusRequest req,
+            @RequestHeader("Authorization") String token) {
+        // 权限校验：仅教师可操作
+        permissionCheck.checkTeacher(token);
+        String courseid = req.getCourseid();
+        // 校验课程归属
+        String teacherId = permissionCheck.getUserIdFromToken(token);
+        courseService.checkCourseOwner(courseid, teacherId); 
+
+        // 执行对应操作
+        courseService.updateCourseStatus(courseid, req.getStatus()); 
+        return Result.success(null, "课程状态修改成功");
+    }
+
+    @PostMapping("/update")
+    public Result<Void> updateCourse(
+           @Validated @RequestBody Course req,
+            @RequestHeader("Authorization") String token) {
+        // 权限校验：仅教师可操作
+        permissionCheck.checkTeacher(token);
+        // 校验课程归属
+        String courseId = req.getCourseId();
+        String teacherId = permissionCheck.getUserIdFromToken(token);
+        courseService.checkCourseOwner(courseId, teacherId); 
+
+        // 执行对应操作
+        courseService.update(req); 
+        return Result.success(null, "课程修改成功");
+    }
+
     /**
      * 查询课程列表，对应设计2.2.2 接口：/api/v1/course/list（教师、管理员权限）
      */
@@ -133,37 +170,19 @@ public class CourseController {
         Map<String, List<Course>> resultMap = Map.of("courses", courseList);
         return Result.success(resultMap, "查询成功");
     }
-    /**
-     * 课程管理：发布、删除、回收
-     * 接口: /api/v1/course/manage
-     * 输入参数: courseId, opertion=[active 发布、delete删除、inactive回收]
-     * 权限: 仅教师可操作，且只能操作自己的课程
-     */
-    @PostMapping("/manage")
-    public Result<Void> manageCourse(
-            @RequestParam String courseId,
-            @RequestParam String opertion,
-            @RequestHeader("Authorization") String token) {
-        // 权限校验：仅教师可操作
-        permissionCheck.checkTeacher(token);
-        // 校验课程归属
-        String teacherId = permissionCheck.getUserIdFromToken(token);
-        courseService.checkCourseOwner(courseId, teacherId); 
-        // 执行对应操作
-        switch (opertion) {
-            case "active":
-                courseService.publishCourse(courseId);
-                return Result.success(null, "课程已发布");
-            case "delete":
-                courseService.deleteCourse(courseId);
-                return Result.success(null, "课程已删除");
-            case "inactive":
-                courseService.recycleCourse(courseId);
-                return Result.success(null, "课程已回收");
-            default:
-                return Result.fail(null,"无效的操作参数: " + opertion);
-        }
-    }
+
+      public static class UpdateCourseStatusRequest {
+      private String courseid;
+      private String status;
+
+      // getter/setter
+      public String getCourseid() { return courseid; }
+      public void setCourseid(String courseid) { this.courseid = courseid; }
+      public String getStatus() { return status; }
+      public void setStatus(String status) { this.status = status; }
+  }
+    
+
     /**
      * 设置课程排期，对应设计2.2.2 接口：/api/v1/course/schedule/set（教师权限）
      */

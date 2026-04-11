@@ -1,8 +1,0 @@
-<component name="ArtifactManager">
-  <artifact type="jar" name="temp1">
-    <output-path>$PROJECT_DIR$/classes/artifacts/temp1</output-path>
-    <root id="archive" name="temp1.jar">
-      <element id="module-output" name="TempCollection_main" />
-    </root>
-  </artifact>
-</component>

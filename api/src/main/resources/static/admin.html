@@ -840,67 +840,21 @@ async function fetchUserList(conditionJson) {
             }  
             break;
         case '课程列表':
-          dynamicContentCenter.innerHTML = `
-            <div class="card">
-              <div class="card-header">
-                <div class="card-title"><i class="fa fa-book-open"></i> 课程列表</div>
-                <button class="btn btn-primary"><i class="fa fa-plus"></i> 添加课程</button>
-              </div>
-              <div class="filter-bar">
-                <div class="filter-item">
-                  <label>课程名称：</label>
-                  <input type="text" placeholder="请输入课程名称">
-                </div>
-                <div class="filter-item">
-                  <label>授课教师：</label>
-                  <select>
-                    <option value="all">全部</option>
-                    <option value="李老师">李老师</option>
-                    <option value="王老师">王老师</option>
-                  </select>
-                </div>
-                <button class="btn btn-default"><i class="fa fa-search"></i> 搜索</button>
-              </div>
-              <div class="table-container">
-                <table class="data-table">
-                  <thead>
-                    <tr>
-                      <th>课程ID</th>
-                      <th>课程名称</th>
-                      <th>授课教师</th>
-                      <th>课时/价格</th>
-                      <th>预约人数</th>
-                      <th>操作</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>COS2026001</td>
-                      <td>英语初级口语 - 小班课</td>
-                      <td>李老师</td>
-                      <td>45分钟/80元</td>
-                      <td>128</td>
-                      <td>
-                        <button class="btn btn-default" onclick="editCourse(this)"><i class="fa fa-edit"></i> 编辑</button>
-                        <button class="btn btn-danger" onclick="deleteCourse(this)"><i class="fa fa-trash"></i> 删除</button>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>COS2026002</td>
-                      <td>日语入门</td>
-                      <td>王老师</td>
-                      <td>45分钟/70元</td>
-                      <td>96</td>
-                      <td>
-                        <button class="btn btn-default" onclick="editCourse(this)"><i class="fa fa-edit"></i> 编辑</button>
-                        <button class="btn btn-danger" onclick="deleteCourse(this)"><i class="fa fa-trash"></i> 删除</button>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          `;
+          console.log("course...");
+        if (window.loadAdminPageContent) { 
+              loadAdminPageContent = (function(orig){
+                return function(title) {
+                  if(title === '课程列表'){
+                    renderCourseCards();
+                  } else {
+                    orig(title);
+                  }
+                }
+              })(loadAdminPageContent);
+            } else {
+              // 兼容性 fallback: 尝试直接渲染（首次页面加载时）
+              renderCourseCards();
+            }  
           break;
           
         case '预约审核':
@@ -1047,7 +1001,7 @@ async function fetchUserList(conditionJson) {
           break;
       }
     }
-    var testFormContainer =null;
+   
     // 退出登录函数 TBD:设置离线状态 online=false
     function logout() {
       if (confirm('确定要退出系统吗？')) {
@@ -1391,9 +1345,15 @@ async function fetchUserList(conditionJson) {
       const month = document.getElementById('month-select').value;
       alert(`已刷新 ${month} 月份的教师授课统计数据！`);
     }
+
+    var testFormContainer =null;
   </script>
  
-  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-   <script src="admin-template.js"></script>
+   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+   <script src="js/admin-template.js"></script>
+   <script src="js/admin-course.js"></script>
+   <script>
+   console.log("end of body...")
+   </script>
 </body>
 </html>

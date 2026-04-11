@@ -21,6 +21,7 @@ com\reservation\config\CorsConfig.class
 com\reservation\exception\NoPermissionException.class
 com\reservation\config\SecurityConfig.class
 com\reservation\entity\CourseQueryParam.class
+com\reservation\controller\CourseController$UpdateCourseStatusRequest.class
 com\reservation\entity\CourseEvaluation.class
 com\reservation\controller\UserController.class
 com\reservation\entity\Course.class
