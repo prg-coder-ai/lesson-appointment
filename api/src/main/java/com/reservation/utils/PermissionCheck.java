@@ -47,7 +47,7 @@ public class PermissionCheck {
         // 2. 校验教师账号状态为active（对应设计2.2.1 教师注册审核逻辑）
         User teacher = userMapper.selectById(userId);
         if (teacher == null || !"active".equals(teacher.getStatus())) {
-            throw new NoPermissionException("教师账号未审核或已冻结，无法执行操作");
+            throw new NoPermissionException("教师账号未审核或已冻结，请联系管理员");
         }
     }
 
@@ -103,6 +103,13 @@ public class PermissionCheck {
         }
     }
 
+   public String getRoleFromToken(String token) {
+        try {
+           return jwtUtil.getRoleFromToken(token);
+        } catch (Exception e) {
+            throw new UnLoginException("Token解析失败，请重新登录");
+        }
+    }
     /**
      * 辅助校验：教师创建课程/排期时，校验课程归属（课程的teacherId与Token中userId一致）
      * @param token Token

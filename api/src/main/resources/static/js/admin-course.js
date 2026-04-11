@@ -364,6 +364,14 @@ async function handleCurrentPageChange(val) {
 }
 
   
+async function deleteCourse(CourseId) {
+    
+  if (!window.confirm('确定要删除该课程吗？删除后基于该课程的预约数据将不受统一管控！')) {
+      return;
+  }   
+  operateCourse(CourseId,"frozen"); 
+}
+
 
 /**
  * 发布/回收模板、
@@ -371,7 +379,7 @@ async function handleCurrentPageChange(val) {
 async function operateCourse(CourseId, action) {
     const token = getToken();
     const payload = {
-      Courseid: CourseId,  // 注意小写，和后端命名对应
+      courseid: CourseId,  // 注意小写，和后端命名对应
       status: action
   };
        
@@ -419,14 +427,6 @@ async function operateCourse(CourseId, action) {
    
     }  
  
-async function deleteCourse(CourseId) {
-    
-        if (!window.confirm('确定要删除该课程吗？删除后基于该课程的预约数据将不受统一管控！')) {
-            return;
-        }   
-        operateCourse(CourseId,"frozen"); 
-}
-/*
 // 点击弹窗遮罩层关闭
   document.getElementById('TemplateModal').addEventListener('click', (e) => {
     if (e.target === document.getElementById('TemplateModal')) {
@@ -434,4 +434,4 @@ async function deleteCourse(CourseId) {
     }
   });
   // 点击关闭按钮关闭
-  document.getElementById('closeModal').addEventListener('click', closeTemplateModal);*/
+  document.getElementById('closeModal').addEventListener('click', closeTemplateModal); 
