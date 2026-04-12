@@ -14,3 +14,4 @@ zktapi-master/.idea/.name
 /zktapi-master
 /api/target
 /api/target
+*.lst
