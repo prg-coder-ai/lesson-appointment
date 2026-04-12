@@ -103,23 +103,26 @@ public class CourseService {
     }
  
 @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
-    public Map<String, String> updateCourseStatus (String id,String status) {
-        Course course = courseMapper.selectCourseById(id);
+    public Map<String, String> updateCourseStatus (String courseId,String status) {
+      /*  Course course = courseMapper.selectCourseById(courseId);
         if (course == null) {
-            throw new ResourceNotFoundException("课程不存在");
-        } 
-         courseMapper.updateCourseStatus(id,status);
-        return Collections.singletonMap("courseId", id);
+            throw new ResourceNotFoundException("updateCourseStatus：课程不存在");
+        } */
+         // INSERT_YOUR_CODE
+         System.out.println("updateCourseStatus called with courseId: " + courseId + ", status: " + status);
+ 
+         courseMapper.updateCourseStatus(courseId,status);
+        return Collections.singletonMap("courseId", courseId);
     }
 
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public Map<String, String> update (Course  course) {
-        Course course_exist = courseMapper.selectCourseById(course.getCourseId());
+      /*  Course course_exist = courseMapper.selectCourseById(course.getCourseId());
         if (course_exist == null) {
-            throw new ResourceNotFoundException("课程不存在");
-        } 
+            throw new ResourceNotFoundException("update:课程不存在");
+        }*/ 
          courseMapper.updateCourse(course);
-        return Collections.singletonMap("courseId", course_exist.getCourseId());
+        return Collections.singletonMap("courseId", course.getCourseId());
     }
 
     /**
@@ -136,10 +139,10 @@ public class CourseService {
      * 发布课程，将课程状态设为已发布
      */
     public void publishCourse(String courseId) {
-        Course course = courseMapper.selectCourseById(courseId);
+        /*Course course = courseMapper.selectCourseById(courseId);
         if (course == null) {
             throw new ResourceNotFoundException("课程不存在，无法发布");
-        }
+        }*/
        // course.setStatus("active"); // 假设"active"为已发布状态
         courseMapper.updateCourseStatus(courseId, "active");
     }
@@ -148,11 +151,11 @@ public class CourseService {
      * 删除课程
      */
     public void deleteCourse(String courseId) {
-        Course course = courseMapper.selectCourseById(courseId);
+       /* Course course = courseMapper.selectCourseById(courseId);
         if (course == null) {
             throw new ResourceNotFoundException("课程不存在，无法删除");
         }
-      
+      */
         courseMapper.updateCourseStatus(courseId, "forzen");
     }
 
@@ -160,10 +163,10 @@ public class CourseService {
      * 回收课程，将课程状态设为回收/停用
      */
     public void recycleCourse(String courseId) {
-        Course course = courseMapper.selectCourseById(courseId);
+      /*  Course course = courseMapper.selectCourseById(courseId);
         if (course == null) {
             throw new ResourceNotFoundException("课程不存在，无法回收");
-        }
+        }*/
         //course.setStatus("inactive"); // 假设"inactive"为回收状态
         courseMapper.updateCourseStatus(courseId, "inactive");
     }

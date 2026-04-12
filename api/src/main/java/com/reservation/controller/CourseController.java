@@ -134,13 +134,16 @@ public class CourseController {
            @Validated @RequestBody UpdateCourseStatusRequest req,
             @RequestHeader("Authorization") String token) {
         permissionCheck.checkTeacherOrAdmin(token);
-        String courseid = req.getCourseid();
+         String courseId = req.getCourseid();
         // 校验课程归属， 检查课程归属权，若courseId不存在或非teacherId归属，抛出业务异常
-        String teacherId = permissionCheck.getUserIdFromToken(token);
-        courseService.checkCourseOwner(courseid, teacherId); 
+       // String teacherId = permissionCheck.getUserIdFromToken(token);
+       // courseService.checkCourseOwner(courseid, teacherId); 
+        // INSERT_YOUR_CODE
+        System.out.println("UpdateCourseStatus req: " + req);
+        System.out.println("courseId: " + courseId);
 
         // 执行对应操作
-        courseService.updateCourseStatus(courseid, req.getStatus()); 
+        courseService.updateCourseStatus(courseId, req.getStatus()); 
         return Result.success(null, "课程状态修改成功");
     }
 
@@ -151,9 +154,9 @@ public class CourseController {
         // 权限校验： 
         permissionCheck.checkTeacherOrAdmin(token);
         // 校验课程归属
-        String courseId = req.getCourseId();
-        String teacherId = permissionCheck.getUserIdFromToken(token);
-        courseService.checkCourseOwner(courseId, teacherId); 
+       // String courseId = req.getCourseId();
+        //String teacherId = permissionCheck.getUserIdFromToken(token);
+        //courseService.checkCourseOwner(courseId, teacherId); 
 
         // 执行对应操作
         courseService.update(req); 

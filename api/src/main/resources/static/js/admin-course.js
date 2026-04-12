@@ -36,9 +36,9 @@ function validateCourseForm() {
     return isValid;
   }
   var templateCondition=[];//模板检索
-  var templateList = await  fetchTemplateList(templateCondition); 
-  const conditionJsonForTeacher = { role: 'teacher' }; 
-   const teacherList = await fetchUserList(conditionJsonForTeacher);
+ // var templateList = [];//await  fetchTemplateList(templateCondition); 
+   const conditionJsonForTeacher = { role: 'teacher' }; 
+   var teacherList =[];// await fetchUserList(conditionJsonForTeacher);
 
 async function openEditCourseDialog(CourseJsonStr )
 { 
@@ -53,11 +53,12 @@ async function openEditCourseDialog(CourseJsonStr )
   let defaultCourse = {};
   if (CourseJsonStr==null) {
     defaultCourse = {
-      CourseId: "",
+      courseId: "",
       templateId: "",
       courseName: "",
       content: "",
       feature: "",
+      status:"",
       teacherId: "" 
     };
   } else  
@@ -71,14 +72,14 @@ async function openEditCourseDialog(CourseJsonStr )
   // 2. 设置弹窗标题
   const modalTitle = document.getElementById('modalTitle');
   console.log("edit json2:",modalTitle); 
-  modalTitle.innerText = (defaultCourse.CourseId !="")? '编辑课程' : '新增课程';
+  modalTitle.innerText = (defaultCourse.courseId !="")? '编辑课程' : '新增课程';
    // 4. 生成表单HTML（复用index.html表单结构，适配样式） 
   //显示出来 from
   //获取模板列表----TBD
  
  let  formHtml = `
   <form id="CourseForm"> 
-    <input type="hidden" name="CourseId" value="${defaultCourse.CourseId}">
+    <input type="hidden" name="courseId" value="${defaultCourse.courseId}">
 
     <div class="form-item">
       <label>模板ID <span style="color:red">*</span></label>
@@ -169,7 +170,7 @@ async function submitCourseForm() {
     }
     // 2. 获取表单数据 
     const formData = {
-        CourseId:   localParamter.formEl.CourseId.value,
+        courseId:   localParamter.formEl.courseId.value,
         templateId: localParamter.formEl.templateId.value,
         courseName: localParamter.formEl.courseName.value,
         content:    localParamter.formEl.content.value,
@@ -178,21 +179,21 @@ async function submitCourseForm() {
     };
   // 3. 调用接口提交（区分新增/编辑）
     //根据CourseId判断新增还是修改
-    console.info("submit:",formData.CourseId);
+    console.info("submit:",formData.courseId);
     const token = getToken();
-    const url = formData.CourseId !=""? `${baseUrl}/course/update` : `${baseUrl}/course/insert`;
-  
+    const url = formData.courseId !=""? `${baseUrl}/course/update` : `${baseUrl}/course/insert`;
+  console.log("update",formData);
     try {
         const res = await axios.post(url, formData, {
             headers: { "Authorization": "Bearer " + token }
         });
         // 4.  响应处理 响应成功/失败
         if (res.data && res.data.code === 200) {
-            alert(formData.CourseId !="" ? '编辑成功' : '新增成功');
+            alert(formData.courseId !="" ? '编辑成功' : '新增成功');
             closeCourseModal(); // 关闭弹窗
           await renderCourseCards(); // 刷新列表
         } else {
-            alert(res.data?.message || (formData.CourseId!=""  ? '编辑失败' : '新增失败'));
+            alert(res.data?.message || (formData.courseId!=""  ? '编辑失败' : '新增失败'));
         }
     } catch (err) {
         alert('网络异常，操作失败');
@@ -218,6 +219,9 @@ async function renderCourseCards() {
         pageRow: localParamter.pageSize,
         pageNum: localParamter.currentPage
     };
+
+      templateList = await  fetchTemplateList(templateCondition);  
+      teacherList  = await  fetchUserList(conditionJsonForTeacher);
 
     // 获取模板列表数据
     await fetchCourseList(conditionJson);
@@ -268,6 +272,7 @@ async function renderCourseCards() {
          html += `
             <div style="display:flex;gap:36px;font-weight:bold;border-bottom:1px solid #e9ecef;padding-bottom:8px;margin-bottom:4px;">
                   <div style="width:40px;"><strong>序号</strong></div>  
+                    <div style="width:0px;display:none"><strong>Id</strong></div>  
                   <div style="width:130px;"><strong>模板</strong></div>
                 <div style="width:130px;"><strong>名称</strong></div>
                 <div style="width:130px;"><strong>内容</strong></div>
@@ -287,15 +292,16 @@ async function renderCourseCards() {
          const templateObj = templateList.find(t => t.templateId === Course.templateId);
          const teacherObj = templateList.find(t => t.userId === Course.teacherId);
          
-         let tempInfo=templateObj? templateObj.languageType+ " "+ templateObj.difficultyLevel + " "+template.templateObj+ " "+templateObj.classFee : "" ;
+         let tempInfo=templateObj? templateObj.languageType+ " "+ templateObj.difficultyLevel + " "+templateObj.classFee : "" ;
          let teacherInfo=teacherObj? teacherObj.name+ " "+ teacherObj.phone + " "+ teacherObj.email : "" ;
+         console.log("course:",Course);
            index ++;
             html += `
                 <div class="teacher-card" style="margin:8px 0;padding:8px 0;border-bottom:1px solid #f5f5f5;">
                     
                 <div style="display:flex;gap:36px;align-items:center;"> 
                    <div style="width:40px;">${index  }</div> 
-                    
+                     <div style="width:0px;display:none"> ${Course.courseId || ''} </div>   
                      <div style="width:130px;">${tempInfo || ''}</div> 
                       <div style="width:130px;">${Course.courseName || ''}</div> 
                       <div style="width:130px;">${Course.content || ''}</div> 
@@ -312,9 +318,9 @@ async function renderCourseCards() {
                         </div>
                     <div style="width:240px;display:flex;gap:8px;">
                         <button class="btn btn-success" onclick='openEditCourseDialog(${JSON.stringify(Course).replace(/'/g, "\\'")})'>修改</button>                   
-                        <button class="btn btn-success" onclick="operateCourse('${Course.CourseId}', 'active')">发布</button>
-                        <button class="btn btn-warning" onclick="operateCourse('${Course.CourseId}', 'inactive')">撤回</button>
-                        <button class="btn btn-danger" onclick="deleteCourse('${Course.CourseId}')">删除</button>
+                        <button class="btn btn-success" onclick="operateCourse('${Course.courseId}', 'active')">发布</button>
+                        <button class="btn btn-warning" onclick="operateCourse('${Course.courseId}', 'inactive')">撤回</button>
+                        <button class="btn btn-danger"  onclick="deleteCourse ('${Course.courseId}')">删除</button>
                     </div>
                 </div>
             </div>
@@ -404,25 +410,25 @@ async function handleCurrentPageChange(val) {
 }
 
   
-async function deleteCourse(CourseId) {
+async function deleteCourse(courseId) {
     
   if (!window.confirm('确定要删除该课程吗？删除后基于该课程的预约数据将不受统一管控！')) {
       return;
   }   
-  operateCourse(CourseId,"frozen"); 
+  operateCourse(courseId,"frozen"); 
 }
 
 
 /**
  * 发布/回收模板、
  */
-async function operateCourse(CourseId, action) {
+async function operateCourse(courseId, action) {
     const token = getToken();
     const payload = {
-      courseid: CourseId,  // 注意小写，和后端命名对应
+      courseid: courseId,  // 注意小写，和后端命名对应
       status: action
   };
-       
+      console.log("payload：",payload); 
     fetch(`${API_BASE_URL}/course/updateStatus`, {
       method: 'POST',
       headers: {

@@ -58,7 +58,7 @@ public interface CourseMapper {
      @org.apache.ibatis.annotations.Update("UPDATE course SET status = #{status} , update_time = NOW() WHERE course_id = #{courseId}")
      int updateCourseStatus(@Param("courseId") String courseId, @Param("status") String status); 
 
-    @org.apache.ibatis.annotations.Update("UPDATE course SET templateId = #{course.templateId}, courseName = #{course.courseName}, content = #{course.content}, feature = #{course.feature}, teacherId = #{course.teacherId}, update_time = NOW() WHERE courseId = #{course.courseId}")
+    @org.apache.ibatis.annotations.Update("UPDATE course SET template_id = #{course.templateId}, course_name = #{course.courseName}, content = #{course.content}, feature = #{course.feature}, teacher_id = #{course.teacherId}, update_time = NOW() WHERE course_id = #{course.courseId}")
    int updateCourse(@Param("course") Course course);
    
     /**
