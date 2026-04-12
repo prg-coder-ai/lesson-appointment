@@ -1,4 +1,7 @@
 # lesson-appointment
+
+ # Api---前后端结合 使用mvn 。全部代码在api目录下。
+ # 前端原型页面
 lesson-appointment/  # 项目根目录-- 前端结构
 ├── index.html             # 入口HTML（登录页）
 ├── package.json           # 项目依赖+脚本配置
@@ -23,7 +26,8 @@ lesson-appointment/  # 项目根目录-- 前端结构
         ├── admin.js       # 管理端逻辑
         ├── teacher.js     # 教师端逻辑
         └── student.js     # 学生端逻辑
- Api---前后端结合 使用mvn 
+        
+
  
 # 前端核心配置文件
         package.json（项目依赖 + 运行 / 打包脚本
