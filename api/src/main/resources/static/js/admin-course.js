@@ -36,7 +36,10 @@ function validateCourseForm() {
     return isValid;
   }
   var templateCondition=[];//模板检索
-   
+  var templateList = await  fetchTemplateList(templateCondition); 
+  const conditionJsonForTeacher = { role: 'teacher' }; 
+   const teacherList = await fetchUserList(conditionJsonForTeacher);
+
 async function openEditCourseDialog(CourseJsonStr )
 { 
  // 1. 显示弹窗
@@ -72,10 +75,7 @@ async function openEditCourseDialog(CourseJsonStr )
    // 4. 生成表单HTML（复用index.html表单结构，适配样式） 
   //显示出来 from
   //获取模板列表----TBD
-  var templateList = await  fetchTemplateList(templateCondition);
-   
-  const conditionJsonForTeacher = { role: 'teacher' }; 
-   const teacherList = await fetchUserList(conditionJsonForTeacher);
+ 
  let  formHtml = `
   <form id="CourseForm"> 
     <input type="hidden" name="CourseId" value="${defaultCourse.CourseId}">
@@ -282,7 +282,13 @@ async function renderCourseCards() {
       } else
         { var index=0;
         CourseList.forEach(Course => {
-         // console.log(Course);
+         // INSERT_YOUR_CODE
+         // 根据Course.templateId在templateList中查找对应的模板对象
+         const templateObj = templateList.find(t => t.templateId === Course.templateId);
+         const teacherObj = templateList.find(t => t.userId === Course.teacherId);
+         
+         let tempInfo=templateObj? templateObj.languageType+ " "+ templateObj.difficultyLevel + " "+template.templateObj+ " "+templateObj.classFee : "" ;
+         let teacherInfo=teacherObj? teacherObj.name+ " "+ teacherObj.phone + " "+ teacherObj.email : "" ;
            index ++;
             html += `
                 <div class="teacher-card" style="margin:8px 0;padding:8px 0;border-bottom:1px solid #f5f5f5;">
@@ -290,11 +296,11 @@ async function renderCourseCards() {
                 <div style="display:flex;gap:36px;align-items:center;"> 
                    <div style="width:40px;">${index  }</div> 
                     
-                     <div style="width:130px;">${Course.templateId || ''}</div> 
+                     <div style="width:130px;">${tempInfo || ''}</div> 
                       <div style="width:130px;">${Course.courseName || ''}</div> 
                       <div style="width:130px;">${Course.content || ''}</div> 
                       <div style="width:130px;">${Course.feature || ''}</div> 
-                      <div style="width:130px;">${Course.teacherId || ''}</div> 
+                      <div style="width:130px;">${teacherInfo || ''}</div> 
 
                      <div style="width:120px;">                       
                           ${ Course.status === "pending" ? '<span style="color:#faad14;">待审核</span>' :
@@ -305,8 +311,7 @@ async function renderCourseCards() {
                           }
                         </div>
                     <div style="width:240px;display:flex;gap:8px;">
-                        <button class="btn btn-success" onclick='openEditCourseDialog(${JSON.stringify(Course).replace(/'/g, "\\'")})'>修改</button>
-                   
+                        <button class="btn btn-success" onclick='openEditCourseDialog(${JSON.stringify(Course).replace(/'/g, "\\'")})'>修改</button>                   
                         <button class="btn btn-success" onclick="operateCourse('${Course.CourseId}', 'active')">发布</button>
                         <button class="btn btn-warning" onclick="operateCourse('${Course.CourseId}', 'inactive')">撤回</button>
                         <button class="btn btn-danger" onclick="deleteCourse('${Course.CourseId}')">删除</button>
