@@ -1,5 +1,8 @@
 # lesson-appointment
-lesson-appointment/  # 项目根目录
+
+ # Api---前后端结合 使用mvn 。全部代码在api目录下。
+ # 前端原型页面
+lesson-appointment/  # 项目根目录-- 前端结构
 ├── index.html             # 入口HTML（登录页）
 ├── package.json           # 项目依赖+脚本配置
 ├── vite.config.js         # Vite核心配置文件
@@ -23,7 +26,10 @@ lesson-appointment/  # 项目根目录
         ├── admin.js       # 管理端逻辑
         ├── teacher.js     # 教师端逻辑
         └── student.js     # 学生端逻辑
-# 核心配置文件
+        
+
+ 
+# 前端核心配置文件
         package.json（项目依赖 + 运行 / 打包脚本
 # vite.config.js（Vite 打包 / 运行配置）
 自定义 Vite 的构建规则，比如打包输出目录、静态资源处理、端口等
