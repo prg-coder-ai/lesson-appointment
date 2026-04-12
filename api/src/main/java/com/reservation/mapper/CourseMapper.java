@@ -26,8 +26,8 @@ public interface CourseMapper {
      * @param course 课程实体
      * @return 影响行数
      */   
-    @org.apache.ibatis.annotations.Insert("INSERT INTO course(course_id, template_id, teacher_id, course_name, description, status, create_time, update_time) " +
-        "VALUES(#{courseId}, #{templateId}, #{teacherId}, #{courseName}, #{description}, #{status}, #{createTime}, #{updateTime})")
+    @org.apache.ibatis.annotations.Insert("INSERT INTO course(course_id, template_id, teacher_id, course_name, content, feature,status ) " +
+        "VALUES(#{courseId}, #{templateId}, #{teacherId}, #{courseName}, #{content}, #{feature},#{status} )")
     int insertCourse(Course course); 
     /**
      * 条件查询课程列表
@@ -55,11 +55,12 @@ public interface CourseMapper {
     List<Course> selectCourseList(@Param("params") Map<String, Object> params); 
 
     
-     @org.apache.ibatis.annotations.Update("UPDATE course SET status = #{status} WHERE course_id = #{courseId}")
+     @org.apache.ibatis.annotations.Update("UPDATE course SET status = #{status} , update_time = NOW() WHERE course_id = #{courseId}")
      int updateCourseStatus(@Param("courseId") String courseId, @Param("status") String status); 
 
     @org.apache.ibatis.annotations.Update("UPDATE course SET templateId = #{course.templateId}, courseName = #{course.courseName}, content = #{course.content}, feature = #{course.feature}, teacherId = #{course.teacherId}, update_time = NOW() WHERE courseId = #{course.courseId}")
    int updateCourse(@Param("course") Course course);
+   
     /**
      * 根据课程ID查询课程
      * @param courseId 课程ID

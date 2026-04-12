@@ -25,6 +25,12 @@ public class Course implements Serializable {
     @NotBlank(message = "课程特色不能为空")
     @Size(min = 10, max = 1000, message = "课程特色长度需10-1000字")
     private String feature;
+
+    
     @NotBlank(message = "教师ID不能为空")
     private String teacherId;
+
+     @NotBlank(message = "课程状态默认为pending")
+   
+    private String status = "pending"; 
 }
