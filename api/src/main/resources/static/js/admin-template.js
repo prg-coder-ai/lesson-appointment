@@ -65,7 +65,7 @@ function openEditTemplateDialog(templateJsonStr )
  // 1. 显示弹窗
  const modal = document.getElementById('templateModal');
  modal.style.display = 'flex';
- console.info("edit:",templateJsonStr); 
+ //console.info("edit:",templateJsonStr); 
 
  // 2. 初始化默认模板数据 
   let defaultTemplate = {};
@@ -86,7 +86,7 @@ function openEditTemplateDialog(templateJsonStr )
       defaultTemplate = {};
       console.error(e);
     } 
-    console.log("edit json:",defaultTemplate); 
+    //console.log("edit json:",defaultTemplate); 
   // 2. 设置弹窗标题
   const modalTitle = document.getElementById('modalTitle');
   modalTitle.innerText = (defaultTemplate.templateId !="")? '编辑课程模板' : '新增课程模板';
@@ -123,8 +123,9 @@ function openEditTemplateDialog(templateJsonStr )
       <label>课程形式 <span style="color:red">*</span></label>
       <select name="classForm" class="form-select" required>
         <option value="">请选择</option>
-        <option value="online" ${defaultTemplate.classForm === 'online' ? 'selected' : ''}>线上</option>
-        <option value="offline" ${defaultTemplate.classForm === 'offline' ? 'selected' : ''}>线下</option>
+        <option value="1p1" ${defaultTemplate.classForm === '1p1' ? 'selected' : ''}>1p1</option>
+        <option value="1pn" ${defaultTemplate.classForm === '1pn' ? 'selected' : ''}>小班</option>
+          
       </select>
       <div class="form-error" id="classFormError"></div>
     </div>
@@ -254,7 +255,7 @@ async function renderTemplateCards() {
     };
 
     // 获取模板列表数据
-    await fetchTemplateList(conditionJson);
+    templateList = await  fetchTemplateList(conditionJson);
 
     // 渲染HTML
     let html = '';
@@ -351,7 +352,7 @@ async function renderTemplateCards() {
  */
 async function fetchTemplateList(conditionJson) {
     const token = getToken();
-    if (!token) return;
+    if (!token) return null;
 
     try {
         // Axios GET请求（修复response.json()错误，Axios已自动解析）
@@ -362,7 +363,6 @@ async function fetchTemplateList(conditionJson) {
         const res = response.data;
         console.info("get:",res);
         if (res && res.code === 200) {
-          
             templateList = res.data.templates|| [];
 
             total = templateList.length|| 0;
@@ -372,14 +372,18 @@ async function fetchTemplateList(conditionJson) {
             templateList.forEach(item => {
                 if (!item.status) item.status = 'active';
             });
+            return templateList;
         } else {
             alert(res?.message || '获取模板列表失败');
+            return null;
         }
     } catch (e) {
         alert("网络错误，获取模板列表失败");
         console.error(e);
+        return null;
     }
 }
+     
 
 // ===================== 交互函数 =====================
 /**

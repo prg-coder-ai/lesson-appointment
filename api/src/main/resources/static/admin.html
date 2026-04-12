@@ -363,7 +363,19 @@
       <!-- 表单内容由JS动态生成 -->
     </div>
   </div>
-</div>
+</div> 
+
+<div class="modal-mask" id="courseModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="modalTitle">新增课程</h3>
+      <span class="modal-close" id="closeModal"><i class="fa fa-times"></i></span>
+    </div>
+    <div id="formContainer">
+      <!-- 表单内容由JS动态生成 -->
+    </div>
+  </div>
+</div> 
 
   <!-- 布局容器 -->
   <div class="layout-container">
@@ -1017,6 +1029,10 @@ async function fetchUserList(conditionJson) {
     window.onload = function() {
        testFormContainer = document.getElementById('templateFormContainer');
        console.log("onload",testFormContainer); 
+
+        formContainer = document.getElementById('formContainer');
+        console.log("onload",formContainer); 
+
       // 读取名为 currentUser 的 cookie值，并设置回 localStorage，避免用户刷新管理端丢失状态   
         function getCookie(name) {
           const matches = document.cookie.match(
@@ -1347,6 +1363,7 @@ async function fetchUserList(conditionJson) {
     }
 
     var testFormContainer =null;
+    var formContainer = null;
   </script>
  
    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>

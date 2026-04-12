@@ -1,6 +1,5 @@
  
-// 全局常量（后端可通过Thymeleaf注入，如 th:inline="javascript"）
-//const baseUrl = API_BASE_URL;
+// 全局常量（后端可通过Thymeleaf注入，如 th:inline="javascript"） 
 
 // 全局变量（替代Vue响应式，直接操作DOM/变量）
 let CourseList = [];       // 课程列表
@@ -11,22 +10,22 @@ var localParamter ={
   CourseDialogVisible: false, // 弹窗状态
   dialogTitle : '新增课程', // 弹窗标题
   currentCourseId: '', // 当前操作的课程ID
-  formEl :'',
-  //testFormContainer :null
+  formEl :'', 
 };
 // ===================== 核心函数 =====================
+//编辑时，courseId、templateId、teacherId可以为空，但是发布时必须设置
 function validateCourseForm() {
     let isValid = true;
     if (!localParamter.formEl) return false;
     
     // 清空所有错误提示
     document.querySelectorAll(".form-error").forEach(el => el.innerText = "");
-  
+   
     // 逐个校验必填项
-    const requiredFields = ['courseId', 'templateId', 'courseName', 'content', 'feature', 'teacherId'];
+    const requiredFields = [ 'courseName', 'content', 'feature'];
     requiredFields.forEach(field => {
         const input = localParamter.formEl[field];
-        if (!input.value.trim()) {
+        if (!input.value || (!input.value.trim()) ){
             const errorEl = document.getElementById(`${field}Error`);
             if (errorEl) {
                 errorEl.innerText = "此项为必填项";
@@ -36,15 +35,16 @@ function validateCourseForm() {
     });
     return isValid;
   }
- 
-function openEditCourseDialog(CourseJsonStr )
+  var templateCondition=[];//模板检索
+   
+async function openEditCourseDialog(CourseJsonStr )
 { 
  // 1. 显示弹窗
- const modal = document.getElementById('TemplateModal');
+ const modal = document.getElementById('courseModal');
  if(modal) { 
  modal.style.display = 'flex';
  }
- console.info("edit:",CourseJsonStr); 
+ console.info("edit:",CourseJsonStr,modal); 
 
  // 2. 初始化默认模板数据 
   let defaultCourse = {};
@@ -67,22 +67,33 @@ function openEditCourseDialog(CourseJsonStr )
     console.log("edit json:",defaultCourse); 
   // 2. 设置弹窗标题
   const modalTitle = document.getElementById('modalTitle');
+  console.log("edit json2:",modalTitle); 
   modalTitle.innerText = (defaultCourse.CourseId !="")? '编辑课程' : '新增课程';
    // 4. 生成表单HTML（复用index.html表单结构，适配样式） 
   //显示出来 from
   //获取模板列表----TBD
-  const formHtml = `
-  <form id="CourseForm">
-    <!-- 隐藏域：ID -->
+  var templateList = await  fetchTemplateList(templateCondition);
+   
+  const conditionJsonForTeacher = { role: 'teacher' }; 
+   const teacherList = await fetchUserList(conditionJsonForTeacher);
+ let  formHtml = `
+  <form id="CourseForm"> 
     <input type="hidden" name="CourseId" value="${defaultCourse.CourseId}">
-    
+
     <div class="form-item">
       <label>模板ID <span style="color:red">*</span></label>
       <select name="templateId" class="form-select" required>
-        <option value="">请选择</option>        
-      </select>
+      <option value="">请选择</option> 
+       `;
+       //显示，每个模板的内容
+      templateList.forEach(template => { 
+       var str = template.languageType+ " "+ template.difficultyLevel + " "+template.classDuration+ " "+template.classFee ;
+        formHtml += ` <option value= ${template.templateId } ${template.templateId === defaultCourse.templateId ? "selected" : ""}> ${str}</option>` 
+      });
+
+      formHtml += `</select>
       <div class="form-error" id="templateIdError"></div>
-    </div>
+       </div>
 
     <div class="form-item">
       <label>课程名称 <span style="color:red">*</span></label>
@@ -92,21 +103,28 @@ function openEditCourseDialog(CourseJsonStr )
 
     <div class="form-item">
       <label>教学内容 <span style="color:red">*</span></label> 
-       <textarea name="description" rows="3" required>${defaultCourse.content}</textarea>
-      <div class="form-error" id="courseNameError"></div>
+       <textarea name="content" rows="3" required>${defaultCourse.content}</textarea>
+      <div class="form-error" id="contentError"></div>
     </div>
  
     <div class="form-item">
       <label>课程特色 <span style="color:red">*</span></label> 
-       <textarea name="description" rows="3" required>${defaultCourse.feature}</textarea>
+       <textarea name="feature" rows="3" required>${defaultCourse.feature}</textarea>
       <div class="form-error" id="featureError"></div>
     </div> 
 
     <div class="form-item">
       <label>授课教师 <span style="color:red">*</span></label>
       <select name="teacherId" class="form-select" required>
-        <option value="">请选择</option>        
-      </select>
+        `;
+       //显示，每个模板的内容
+      teacherList.forEach(teacher => { 
+        var str = teacher.name+ " "+ teacher.languageType + " "+teacher.phone+ " "+teacher.email ;
+        formHtml += ` <option value="${teacher.userId}" ${teacher.userId === defaultCourse.teacherId ? "selected" : ""}> ${str}</option>`;
+     
+      });
+
+      formHtml += `</select>
       <div class="form-error" id="teacherIdError"></div>
     </div>
 
@@ -117,20 +135,24 @@ function openEditCourseDialog(CourseJsonStr )
   </form>
 `;
   // 5. 渲染表单到弹窗容器 
-  if (!testFormContainer) {
-    alert("无法找到 templateFormContainer 元素！\n" +
-      "请确认 admin.html 页面内存在 <div id=\"templateFormContainer\"></div> 并且 <script src=\"admin-Course.js\"></script> 是在 DOM 加载完后引入的。");
+  if (!formContainer) {
+    alert("无法找到 formContainer 元素！\n" +
+      "请确认 admin.html 页面内存在 <div id=\"formContainer\"></div> 并且 <script src=\"admin-Course.js\"></script> 是在 DOM 加载完后引入的。");
     // 可在此 return 或抛异常以避免后续报错
     return;
   }
-  testFormContainer.innerHTML = formHtml;
+  formContainer.innerHTML = formHtml;
   // 6. 保存表单元素引用
   localParamter.formEl = document.getElementById('CourseForm');
 }
 
 // 新增：关闭弹窗函数
 function closeCourseModal() {
-    closeTemplateModal();//借用一个form进行编辑
+  
+  const modal = document.getElementById('courseModal');
+  modal.style.display = 'none';
+  // 清空表单错误提示
+  document.querySelectorAll(".form-error").forEach(el => el.innerText = "");
   }
 /**
  * 响应函数
@@ -167,7 +189,7 @@ async function submitCourseForm() {
         // 4.  响应处理 响应成功/失败
         if (res.data && res.data.code === 200) {
             alert(formData.CourseId !="" ? '编辑成功' : '新增成功');
-            closeTemplateModal(); // 关闭弹窗
+            closeCourseModal(); // 关闭弹窗
           await renderCourseCards(); // 刷新列表
         } else {
             alert(res.data?.message || (formData.CourseId!=""  ? '编辑失败' : '新增失败'));
@@ -203,6 +225,19 @@ async function renderCourseCards() {
     // 渲染HTML
     let html = '';
     { 
+      html += `     
+    <div class="modal-mask" id="courseModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="modalTitle">新增课程</h3>
+          <span class="modal-close" id="closeModal"><i class="fa fa-times"></i></span>
+        </div>
+        <div id="formContainer">
+          <!-- 表单内容由JS动态生成 -->
+        </div>
+      </div>
+    </div> `;
+    
       html += `<div class="card">
             <div class="card-title"><i class="fa fa-filter"></i> 筛选条件</div>
             <div class="search-form" style="display: flex; gap: 20px; margin-bottom: 16px;">
@@ -428,10 +463,11 @@ async function operateCourse(CourseId, action) {
     }  
  
 // 点击弹窗遮罩层关闭
-  document.getElementById('TemplateModal').addEventListener('click', (e) => {
-    if (e.target === document.getElementById('TemplateModal')) {
-      closeTemplateModal();
+  document.getElementById('courseModal').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('courseModal')) {
+      closeCourseModal();
     }
   });
+ 
   // 点击关闭按钮关闭
-  document.getElementById('closeModal').addEventListener('click', closeTemplateModal); 
+  document.getElementById('closeModal').addEventListener('click', closeCourseModal); 
