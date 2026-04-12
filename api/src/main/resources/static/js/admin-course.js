@@ -290,11 +290,11 @@ async function renderCourseCards() {
          // INSERT_YOUR_CODE
          // 根据Course.templateId在templateList中查找对应的模板对象
          const templateObj = templateList.find(t => t.templateId === Course.templateId);
-         const teacherObj = templateList.find(t => t.userId === Course.teacherId);
+         const teacherObj = teacherList.find(t => t.userId === Course.teacherId);
          
          let tempInfo=templateObj? templateObj.languageType+ " "+ templateObj.difficultyLevel + " "+templateObj.classFee : "" ;
-         let teacherInfo=teacherObj? teacherObj.name+ " "+ teacherObj.phone + " "+ teacherObj.email : "" ;
-         console.log("course:",Course);
+         let teacherInfo=teacherObj? teacherObj.name+ " "+ teacherObj.phone + " "+ teacherObj.email : "n/a" ;
+         
            index ++;
             html += `
                 <div class="teacher-card" style="margin:8px 0;padding:8px 0;border-bottom:1px solid #f5f5f5;">
