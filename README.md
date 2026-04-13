@@ -1,6 +1,7 @@
 # lesson-appointment
 
  # Api---前后端结合 使用mvn 。全部代码在api目录下。
+   http://localhost:8081
  # 前端原型页面
 lesson-appointment/  # 项目根目录-- 前端结构
 ├── index.html             # 入口HTML（登录页）
