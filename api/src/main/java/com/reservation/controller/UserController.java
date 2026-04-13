@@ -1,7 +1,6 @@
 package com.reservation.controller;
 
- import com.reservation.config.CorsConfig; 
- 
+ import com.reservation.config.CorsConfig;  
 import jakarta.validation.constraints.NotBlank;
 import com.reservation.common.Result;
 import com.reservation.entity.User;
@@ -13,10 +12,8 @@ import org.springframework.beans.factory.annotation.Autowired;
  import org.springframework.security.core.context.SecurityContextHolder;
  import org.springframework.validation.annotation.Validated;
 // 核心导入：RequestMethod 所在包
- import org.springframework.web.bind.annotation.*;
-
- import jakarta.validation.constraints.Pattern;
-
+ import org.springframework.web.bind.annotation.*; 
+ import jakarta.validation.constraints.Pattern; 
  import java.util.Collections;
  import java.util.List;
  import java.util.Map;
@@ -83,11 +80,11 @@ public class UserController {
      * 教师注册接口，对应设计2.2.1 接口：/api/v1/user/teacher/register
      */
     @PostMapping("/teacher/register") 
-      @ResponseBody
+    @ResponseBody
     public Result<Void> teacherRegister(@Validated @RequestBody User user) {
         // 调用服务层提交注册申请，等待管理员审核（对应设计2.2.1 教师注册功能说明）
          user.setRole("teacher");
-        user.setStatus("pending");
+         user.setStatus("pending");
         Result rst = userService.Register(user); 
         return rst; 
     }
@@ -145,25 +142,28 @@ public class UserController {
   
         return rst;//Result.success(resultMap, "登录成功");
     }
-    @PostMapping("/logout")
-    @ResponseBody
-    public Result    toLogout( @Validated @RequestBody User user){
-             String account = user.getAccount(); 
-        //System.out.println("controller login input:"+ account+ password);
-        // 调用服务层实现登录逻辑，返回userId、role、Token（对应设计2.2.1 登录返回数据）
-        Result rst;//= userService.setOnline(false);
+ 
+  @PostMapping("/logout")
+  @ResponseBody
+public Result<String> logout(HttpServletResponse response) {
+    // 1. 清空认证
+    SecurityContextHolder.clearContext();
 
-        // 清理当前用户的认证信息（登出时需清除 Spring Security 上下文）
-        SecurityContextHolder.clearContext(); 
-       // System.out.println("controller login out:"+rst);
-        return Result.success(account,"已退出"); 
-    }
+    // 2. 清除 Cookie（真正登出）
+    Cookie cookie = new Cookie("token", null);
+    cookie.setPath("/");
+    cookie.setHttpOnly(true);
+    cookie.setMaxAge(0);
+    response.addCookie(cookie);
+
+    return Result.success("登出成功");
+}
     /**
      * 密码找回（验证码验证），对应设计2.2.1 接口：/api/v1/user/password/forgot
      */
     @PostMapping("/password/forgot")
       @ResponseBody
-    public Result  forgotPassword(
+    public Result<void>  forgotPassword(
             @NotBlank(message = "账号不能为空") String account,
             @NotBlank(message = "验证码不能为空")
             @Pattern(regexp = "^\\d{6}$", message = "验证码格式错误") String verifyCode) {
