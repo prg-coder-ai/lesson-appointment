@@ -65,9 +65,14 @@ CREATE TABLE IF NOT EXISTS `schedule` (
   `course_id` varchar(36) NOT NULL COMMENT '关联的教师课程ID',
   `start_time` datetime NOT NULL COMMENT '排期开始时间（格式：YYYY-MM-DD HH:mm:ss）',
   `end_time` datetime NOT NULL COMMENT '排期结束时间（格式：YYYY-MM-DD HH:mm:ss）',
-  `is_repeat` tinyint(1) NOT NULL COMMENT '是否重复（0：不重复，1：重复）',
-  `repeat_week` int DEFAULT NULL COMMENT '重复日期（1-7，对应周一至周日，is_repeat=1时必填）',
-  `status` varchar(20) NOT NULL DEFAULT 'available' COMMENT '排期状态（available：可预约，unavailable：不可预约）',
+
+  `repeat_type` tinyint(1) DEFAULT 0 COMMENT '重复类型：0=不重复，1=每天，2=每周，3=每月',
+  `repeat_interval` tinyint(1) DEFAULT 1 COMMENT '重复间隔（如每2周一次=2）',
+  `repeat_days` VARCHAR(255) COMMENT '重复的星期几：1=周一，2=周二...7=周日，逗号分隔（仅repeat_type=2时有效），type=3时为1-31,当月的那几天',
+  `repeat_end_date` DATETIME COMMENT '重复结束时间（精确到秒）',
+
+   `available` varchar(20) NOT NULL DEFAULT 'available' COMMENT '可用状态（available：可预约，unavailable：不可预约,已排满）',
+  `status` varchar(20) NOT NULL DEFAULT 'pending' COMMENT '排期状态（pending/active/inactive/frozen/overtime：已结束（自动更新））',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`schedule_id`),
@@ -78,8 +83,9 @@ CREATE TABLE IF NOT EXISTS `schedule` (
   -- 校验结束时间大于开始时间
   CHECK (`end_time` > `start_time`),
   -- 校验重复排期时repeat_week必填且在1-7之间
-  CHECK ((`is_repeat` = 0 AND `repeat_week` IS NULL) OR (`is_repeat` = 1 AND `repeat_week` BETWEEN 1 AND 7))
+  -- CHECK ((`repeat_type` = 2 AND `repeat_week` IS NULL) OR (`is_repeat` = 1 AND `repeat_week` BETWEEN 1 AND 7))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='课程排期表';
+ 
 
 -- 预约表：存储学生预约课程的信息，对应Booking实体
 CREATE TABLE IF NOT EXISTS `booking` (  

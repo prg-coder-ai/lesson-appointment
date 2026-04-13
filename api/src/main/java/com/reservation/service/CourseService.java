@@ -114,17 +114,7 @@ public class CourseService {
          courseMapper.updateCourseStatus(courseId,status);
         return Collections.singletonMap("courseId", courseId);
     }
-
-    @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
-    public Map<String, String> update (Course  course) {
-      /*  Course course_exist = courseMapper.selectCourseById(course.getCourseId());
-        if (course_exist == null) {
-            throw new ResourceNotFoundException("update:课程不存在");
-        }*/ 
-         courseMapper.updateCourse(course);
-        return Collections.singletonMap("courseId", course.getCourseId());
-    }
-
+ 
     /**
      * 获取课程列表（含可用排期），补充实现体，避免编译错误
      * 参数为语言、等级
