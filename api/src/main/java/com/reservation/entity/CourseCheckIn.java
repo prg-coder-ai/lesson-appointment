@@ -10,7 +10,8 @@ import java.io.Serializable;
  * 课程签到实体类，对应设计2.4 课程执行-签到功能
  */
 @Data
-public class CourseCheckIn implements Serializable {
+public class CourseCheckIn implements Serializable { 
+    private static final long serialVersionUID = 1L;
     private String checkInId;  // 唯一标识（UUID）
     @NotBlank(message = "订单ID不能为空")
     private String booking_id;    // 关联预约订单

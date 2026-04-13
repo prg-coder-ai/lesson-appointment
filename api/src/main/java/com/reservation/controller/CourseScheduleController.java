@@ -1,13 +1,14 @@
 package com.reservation.controller;
 
 import com.reservation.common.Result;
-import com.reservation.entity.Course;
 import com.reservation.entity.CourseSchedule;
 import com.reservation.entity.CourseScheduleCreateDTO;
 import com.reservation.entity.IncSiteBody;
 import com.reservation.entity.StatusBody;
 import com.reservation.service.CourseScheduleService;
 
+import com.reservation.utils.PermissionCheck;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.validation.annotation.Validated;
 import javax.annotation.Resource;
@@ -20,48 +21,63 @@ public class CourseScheduleController {
 
     @Resource
     private CourseScheduleService scheduleService;
-
+    @Autowired
+    private PermissionCheck permissionCheck;
     // 创建排期
     @PostMapping("/create")
-    public Result<String> createSchedule(@Validated @RequestBody CourseScheduleCreateDTO dto) {
-        String scheduleId = scheduleService.createSchedule(dto);
-        return Result.success(scheduleId);
+    @ResponseBody
+    public Result<Map<String, String>>  createSchedule(@Validated @RequestBody CourseScheduleCreateDTO dto,
+                                                   @RequestHeader("Authorization") String token) {
+         permissionCheck.checkTeacherOrAdmin(token);
+         Map<String, String> resultMap = scheduleService.createSchedule(dto);
+        return Result.success(resultMap,"ok");
     }
 
     // 修改排期
     @PostMapping("/update")
-    public Result<String> createSchedule(@Validated @RequestBody CourseSchedule dto) {
+    @ResponseBody
+    public Result<Map<String, String>> createSchedule(@Validated @RequestBody CourseSchedule dto,
+                                                   @RequestHeader("Authorization") String token) {
+         permissionCheck.checkTeacherOrAdmin(token);
         String scheduleId = scheduleService.update(dto);
-        return Result.success(scheduleId);
+        return Result.success( null);
     }
 
  // 更新可用数incSiteBody { "inc":1、-1 ，"id":scheduleId)
     @PostMapping("/incSite")
-    public Result<String> createSchedule(@Validated @RequestBody IncSiteBody dto) {
+    @ResponseBody
+    public Result<Void> ScheduleIncSite(@Validated @RequestBody IncSiteBody dto,
+                                    @RequestHeader("Authorization") String token) {
+         permissionCheck.checkTeacherOrAdmin(token);
         String scheduleId = scheduleService.updateScheduleSites(dto);
-        return Result.success( );
+        return Result.success(null,scheduleId);
     }
     
     // 更新状态 (scheduleId，status)
     @PostMapping("/updateStatus")
-    public Result<String> updateStatus(@Validated @RequestBody StatusBody dto) {
+     @ResponseBody
+    public Result<Void> updateStatus(@Validated @RequestBody StatusBody dto) {
 
         String scheduleId = scheduleService.updateStatus(dto);
-        return Result.success( );
+       
+        return Result.success(null,scheduleId);
     }
     
     // 查询排期详情（含展开后的实例，用于前端展示）
     @GetMapping("/detail/{id}")
+     @ResponseBody
     public Result<CourseSchedule> getScheduleDetail(@PathVariable String id) {
         CourseSchedule schedule = scheduleService.selectById(id);
-        return Result.success( );
+        return Result.success(   schedule,"ok");
     }
 
 //输入可能的检索参数，暂保留
     @GetMapping("/list")
-    public Result<List<CourseSchedule>> getScheduleList(@Validated @RequestBody CourseScheduleCreateDTO dto) {
+     @ResponseBody
+    public Result<List<CourseSchedule>> getScheduleList(@Validated @RequestBody CourseScheduleCreateDTO dto,
+                   @RequestHeader("Authorization") String token) {
         List<CourseSchedule> schedules = scheduleService.selectList(dto);
-        Map<String, List<CourseSchedule>> resultMap = Map.of("schedules", schedules);
-        return Result.success(resultMap);
+      //  Map<String, List<CourseSchedule>> resultMap = Map.of("schedules", schedules);
+        return Result.success(schedules,"ok");
     }
 }

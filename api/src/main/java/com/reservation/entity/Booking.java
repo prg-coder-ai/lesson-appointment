@@ -8,7 +8,8 @@ import java.math.BigDecimal;
 import java.util.Date;
 import java.io.Serializable;
 @Data
-public class Booking {
+public class Booking   implements Serializable{
+    private static final long serialVersionUID = 1L;
     private String BookingId;  // 系统生成唯一标识（UUID），对应通用校验规则-ID类参数
     @NotBlank(message = "排期ID不能为空")
     private String scheduleId;  // 关联排期，对应设计2.2.3 预约接口请求参数

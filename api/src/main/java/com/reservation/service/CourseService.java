@@ -2,21 +2,17 @@ package com.reservation.service;
 
 //import com.reservation.controller.CourseExecutionController;
 import com.reservation.entity.Course;
-
 import com.reservation.entity.CourseTemplate;
-
 import com.reservation.exception.BusinessException;
 import com.reservation.exception.ResourceNotFoundException;
-
 import com.reservation.mapper.CourseTemplateMapper;
 import com.reservation.mapper.CourseMapper;
-import com.reservation.mapper.ScheduleMapper;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Propagation;
 
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -30,8 +26,6 @@ public class CourseService {
     private CourseMapper courseMapper;
      @Autowired
     private CourseTemplateMapper courseTemplateMapper;
-    @Autowired
-    private ScheduleMapper scheduleMapper;
 
     // 显式声明私有访问修饰符，规范常量定义
     private static final SimpleDateFormat COURSE_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");

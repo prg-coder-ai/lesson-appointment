@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 import java.io.Serializable;
 @Data
 public class CourseTemplate implements Serializable{
+    private static final long serialVersionUID = 1L;
     private String templateId;  // 唯一标识
     @NotBlank(message = "语言类型不能为空")
     private String languageType;  // 枚举值（对应教师注册languageType）

@@ -140,6 +140,28 @@
     <build>
      
         <plugins>
+                <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.12.1</version> <!-- 用最新稳定版 -->
+        <configuration>
+            <source>17</source>   <!-- 你的Java版本 -->
+            <target>17</target>
+            <encoding>UTF-8</encoding>
+
+                <!-- 启用所有警告，再排除个别不需要的 -->
+                <compilerArgs>
+                <arg>-Xlint:all</arg>           <!-- 开启全部警告 -->
+                <arg>-Xlint:-processing</arg>    <!-- 关闭注解处理警告（可选） -->
+                <arg>-Xlint:-unchecked</arg>     <!-- 关闭泛型未检查警告（可选） -->
+                </compilerArgs>
+
+                <!-- 显示警告、不因为警告失败构建 -->
+                <showWarnings>true</showWarnings>
+                <showDeprecation>true</showDeprecation>
+                <failOnWarning>false</failOnWarning>
+            </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
