@@ -8,6 +8,10 @@
   <link rel="stylesheet" href="./src/styles/admin.css">
   <!-- 引入图标库 -->
   <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+   <!-- FullCalendar CSS -->
+   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
+
   <style>
     /* 新增头部样式，确保布局正常 */
     
@@ -410,6 +414,10 @@
         <div class="menu-item">
           <i class="fa fa-book-open"></i>
           <span>课程列表</span>
+        </div>
+        <div class="menu-item">
+          <i class="fa fa-book-open"></i>
+          <span>课程排期</span>
         </div>
         <div class="menu-item">
           <i class="fa fa-calendar-alt"></i>
@@ -867,8 +875,26 @@ async function fetchUserList(conditionJson) {
               // 兼容性 fallback: 尝试直接渲染（首次页面加载时）
               renderCourseCards();
             }  
-          break;
+          break;//课程排期
+        
           
+        case '课程排期':
+          console.log("course...");
+        if (window.loadAdminPageContent) { 
+              loadAdminPageContent = (function(orig){
+                return function(title) {
+                  if(title === '课程排期'){
+                    renderScheduleCards();
+                  } else {
+                    orig(title);
+                  }
+                }
+              })(loadAdminPageContent);
+            } else {
+              // 兼容性 fallback: 尝试直接渲染（首次页面加载时）
+              renderScheduleCards();
+            }  
+          break;//课程排期
         case '预约审核':
           dynamicContentCenter.innerHTML = `
             <div class="card">
@@ -1366,9 +1392,12 @@ async function fetchUserList(conditionJson) {
     var formContainer = null;
   </script>
  
+   <!-- FullCalendar JS -->
+   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script> 
    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
    <script src="js/admin-template.js"></script>
    <script src="js/admin-course.js"></script>
+   <script src="js/admin-course-schedule.js"></script>
    <script>
    console.log("end of body...")
    </script>
