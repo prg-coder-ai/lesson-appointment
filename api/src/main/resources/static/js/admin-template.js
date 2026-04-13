@@ -362,8 +362,8 @@ async function fetchTemplateList(conditionJson) {
         });
         const res = response.data;
         console.info("get:",res);
-        if (res && res.code === 200) {
-            templateList = res.data.templates|| [];
+        if (res && res.code === 200) { //.templates-->data
+            templateList = res.data || [];
 
             total = templateList.length|| 0;
             

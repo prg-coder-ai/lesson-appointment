@@ -355,11 +355,9 @@ async function fetchCourseList(conditionJson) {
         const res = response.data;
         console.info("get response data:",res);
         if (res && res.code === 200) {
-          //console.info("data.courses:",res.courses);
-            CourseList = res.data.courses|| [];
-
+          //console.info("data.courses:",res.courses);  .courses
+            CourseList = res.data|| [];
             localParamter.total = CourseList.length|| 0;
-            
             console.info("total:",localParamter.total,CourseList);
             // 补全默认状态
             CourseList.forEach(item => {

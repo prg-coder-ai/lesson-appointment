@@ -16,6 +16,7 @@ import java.io.Serializable;
 // 加这一行：校验 phone 和 email 至少一个不为空
 @AtLeastOneNotBlank(firstField = "phone", secondField = "email")
 public class User implements Serializable{
+   private static final long serialVersionUID = 1L;
     private String userId;  // 系统生成唯一标识（UUID），对应通用校验规则-ID类参数
 
     @NotBlank(message = "账号不能为空")

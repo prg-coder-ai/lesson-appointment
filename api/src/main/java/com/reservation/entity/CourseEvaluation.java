@@ -12,6 +12,7 @@ import java.io.Serializable;
  */
 @Data
 public class CourseEvaluation implements Serializable {
+     private static final long serialVersionUID = 1L;
     private String evaluationId;  // 唯一标识（UUID）
     @NotBlank(message = "课程ID不能为空")
     private String course_id;       // 关联预约订单（课程结束后可评价）

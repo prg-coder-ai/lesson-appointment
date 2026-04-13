@@ -60,23 +60,6 @@ public class CourseController {
         return Result.success(null, "课程模板修改成功");
     }
 
-  /**
-   * 模板状态更新接口（正确的写法：需要定义DTO接收JSON BODY，不要用多个@RequestBody参数）
-   * 修正说明：
-   *  - SpringMVC只允许一个@RequestBody参数。
-   *  - 推荐前端POST JSON对象（如 { "templateid":"T001", "status":"active" }），后端定义DTO类接收。
-   *  - 原因：此类报错多因方法参数写了两个@RequestBody，Spring无法匹配。
-   */
-  public static class UpdateTemplateStatusRequest {
-      private String templateid;
-      private String status;
-
-      // getter/setter
-      public String getTemplateid() { return templateid; }
-      public void setTemplateid(String templateid) { this.templateid = templateid; }
-      public String getStatus() { return status; }
-      public void setStatus(String status) { this.status = status; }
-  }
 
   @PostMapping("/template/updateStatus")
   @ResponseBody
@@ -92,14 +75,14 @@ public class CourseController {
      * 查询课程模板列表，对应设计2.2.2 接口：/api/v1/course/template/list（教师、管理员权限）
      */
     @GetMapping("/template/list")
-    public Result<Map<String, List<CourseTemplate>>> getTemplateList(
+    public Result<List<CourseTemplate>> getTemplateList(
             String languageType, @RequestHeader("Authorization") String token) {
         // 权限校验：教师或管理员可操作
         permissionCheck.checkTeacherOrAdmin(token);
         // 调用服务层查询模板（支持按languageType筛选，对应设计2.2.2 模板查询功能说明）
         List<CourseTemplate> templates = courseService.getTemplateListByLanguage(languageType);
-        Map<String, List<CourseTemplate>> resultMap = Map.of("templates", templates);
-        return Result.success(resultMap, "查询成功");
+        //Map<String, List<CourseTemplate>> resultMap = Map.of("templates", templates);
+        return Result.success(templates, "查询成功");
     }
 
     /**
@@ -166,14 +149,14 @@ public class CourseController {
      * 查询课程列表，对应设计2.2.2 接口：/api/v1/course/list（教师、管理员权限）
      */
     @GetMapping("/list")
-    public Result<Map<String, List<Course>>> getCourseList(@RequestBody(required = false) Map<String, Object> searchParams, 
+    public Result<List<Course>> getCourseList(@RequestBody(required = false) Map<String, Object> searchParams,
                                                           @RequestHeader("Authorization") String token) {
         // 权限校验：教师或管理员可操作
         permissionCheck.checkTeacherOrAdmin(token);
         // 调用服务层查询课程列表
         List<Course> courseList = courseService.getCourseList(searchParams);
-        Map<String, List<Course>> resultMap = Map.of("courses", courseList);
-        return Result.success(resultMap, "查询成功");
+        //Map<String, List<Course>> resultMap = Map.of("courses", courseList);
+        return Result.success(courseList, "查询成功");
     }
 
       public static class UpdateCourseStatusRequest {
@@ -187,4 +170,22 @@ public class CourseController {
       public void setStatus(String status) { this.status = status; }
   }
     
+    
+  /**
+   * 模板状态更新接口（正确的写法：需要定义DTO接收JSON BODY，不要用多个@RequestBody参数）
+   * 修正说明：
+   *  - SpringMVC只允许一个@RequestBody参数。
+   *  - 推荐前端POST JSON对象（如 { "templateid":"T001", "status":"active" }），后端定义DTO类接收。
+   *  - 原因：此类报错多因方法参数写了两个@RequestBody，Spring无法匹配。
+   */
+  public static class UpdateTemplateStatusRequest {
+      private String templateid;
+      private String status;
+
+      // getter/setter
+      public String getTemplateid() { return templateid; }
+      public void setTemplateid(String templateid) { this.templateid = templateid; }
+      public String getStatus() { return status; }
+      public void setStatus(String status) { this.status = status; }
+  }
 }

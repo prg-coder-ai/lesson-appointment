@@ -1,7 +1,0 @@
-com\reservation\entity\CourseSchedule.class
-com\reservation\entity\CourseScheduleCreateDTO.class
-com\reservation\entity\ScheduleException.class
-com\reservation\mapper\ScheduleMapper.class
-com\reservation\mapper\CourseScheduleMapper.class
-com\reservation\exception\BusinessException.class
-com\reservation\entity\IncSiteBody.class

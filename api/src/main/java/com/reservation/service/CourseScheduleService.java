@@ -1,25 +1,20 @@
 package com.reservation.service;
 
-import com.reservation.entity.Course;
 import com.reservation.entity.CourseSchedule;
 import com.reservation.entity.CourseScheduleCreateDTO;
 import com.reservation.entity.IncSiteBody;
 import com.reservation.entity.StatusBody;
-import com.reservation.exception.BusinessException;
-import com.reservation.exception.ResourceNotFoundException;
 import com.reservation.mapper.CourseScheduleMapper;
-
 import com.reservation.mapper.ScheduleExceptionMapper;
+
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.BeanUtils;
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
-import java.time.DayOfWeek;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -32,7 +27,7 @@ public class CourseScheduleService {
 
     // 创建排期（含冲突检测）
     @Transactional(rollbackFor = Exception.class)
-    public String createSchedule(CourseScheduleCreateDTO dto) {
+    public Map<String, String> createSchedule(CourseScheduleCreateDTO dto) {
         // 1. 基础校验：结束时间 > 开始时间
         if (dto.getEndTime().isBefore(dto.getStartTime())) {
             throw new IllegalArgumentException("结束时间必须晚于开始时间");
@@ -60,17 +55,19 @@ public class CourseScheduleService {
                 throw new IllegalArgumentException("时间冲突：" + start + " 至 " + end + " 教师或教室已被占用");
             }
         }
-
+        String  Id = UUID.randomUUID().toString().replace("-", ""); // 移除UUID分隔符
+        schedule.setScheduleId( Id);
         // 4. 插入排期
-        scheduleMapper.insert(schedule);
-        return schedule.getScheduleId();
+        scheduleMapper.insertSchedule(schedule);
+       
+        return  Collections.singletonMap("Id", Id);
     }
 
     // 展开重复规则，生成所有排期实例（返回 [开始时间, 结束时间] 的列表）
     private List<LocalDateTime[]> expandScheduleInstances(CourseSchedule schedule) {
         List<LocalDateTime[]> instances = new ArrayList<>();
-        LocalDateTime currentStart = schedule.getStartTime();
-        LocalDateTime currentEnd = schedule.getEndTime();
+        @NotBlank(message = "开始时间不能为空") Date currentStart = schedule.getStartTime();
+        @NotBlank(message = "结束时间不能为空") Date currentEnd = schedule.getEndTime();
         long durationMinutes = java.time.Duration.between(currentStart, currentEnd).toMinutes();
 
         // 不重复：直接添加
@@ -130,7 +127,7 @@ public class CourseScheduleService {
     public   String updateStatus (StatusBody data) {       
          System.out.println("updateStatus called with scheduleId: " + data);
          scheduleMapper.updateStatus(data);
-        return  scheduleId;
+        return  data.getScheduleId();
     }
 
   @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
@@ -153,7 +150,7 @@ public class CourseScheduleService {
   @Transactional(propagation = Propagation.REQUIRED )
     public CourseSchedule selectById(String id) { 
             
-         return scheduleMapper.selectById(id); 
+         return scheduleMapper.selectById(id);
     }
 
 @Transactional(propagation = Propagation.REQUIRED)

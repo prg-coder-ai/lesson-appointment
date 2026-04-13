@@ -1,6 +1,10 @@
 package com.reservation.common;
 
+import com.reservation.entity.CourseSchedule;
 import lombok.Data;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * 统一返回结果封装，对应设计2.1中“返回格式：code、message、data”
@@ -15,7 +19,7 @@ public class Result<T> {
     private T data;
 
     // 成功返回（无数据）
-    public static <T> Result<T> success() {
+    public static <T> Result<T> success(Map<String, List<CourseSchedule>> resultMap) {
         Result<T> result = new Result<>();
         result.setCode(200);  // 200-成功（对应设计2.1）
         result.setMessage("操作成功");
