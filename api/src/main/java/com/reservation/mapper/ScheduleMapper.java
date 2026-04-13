@@ -1,16 +1,8 @@
-package com.reservation.mapper; 
-import com.reservation.entity.Schedule;
+package com.reservation.mapper;
 
-import com.baomidou.mybatisplus.core.mapper.BaseMapper; 
- 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-
+import com.reservation.entity.CourseSchedule;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
-import org.apache.ibatis.annotations.Update;
-
  
 import java.util.Optional;
 import java.util.List;
@@ -19,13 +11,13 @@ import java.util.Date;
  
 
 @Mapper
-public interface ScheduleMapper extends BaseMapper<Schedule> {
-    void insertSchedule(Schedule schedule);
+public interface ScheduleMapper extends BaseMapper<CourseSchedule> {
+    void insertSchedule(CourseSchedule schedule);
 
-    Schedule selectScheduleById(String scheduleId);
+    CourseSchedule selectScheduleById(String scheduleId);
 
-    List<Schedule> selectScheduleByTime(String courseId, Date startTime, Date endTime);
+    List<CourseSchedule> selectScheduleByTime(String courseId, Date startTime, Date endTime);
 
-    void updateSchedule(Schedule existingSchedule);
+    void updateSchedule(CourseSchedule existingSchedule);
     // 无需编写SQL，BaseMapper已提供CRUD方法
 }

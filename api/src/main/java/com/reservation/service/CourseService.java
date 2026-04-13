@@ -2,8 +2,9 @@ package com.reservation.service;
 
 //import com.reservation.controller.CourseExecutionController;
 import com.reservation.entity.Course;
+
 import com.reservation.entity.CourseTemplate;
-import com.reservation.entity.Schedule;
+
 import com.reservation.exception.BusinessException;
 import com.reservation.exception.ResourceNotFoundException;
 
@@ -114,7 +115,14 @@ public class CourseService {
          courseMapper.updateCourseStatus(courseId,status);
         return Collections.singletonMap("courseId", courseId);
     }
- 
+
+    @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
+    public Map<String, String> update (Course obj) {
+
+        courseMapper.updateCourse(obj);
+        return Collections.singletonMap("courseId", obj.getCourseId());
+    }
+
     /**
      * 获取课程列表（含可用排期），补充实现体，避免编译错误
      * 参数为语言、等级
@@ -162,81 +170,6 @@ public class CourseService {
     }
 
     /**
-     * 设置课程排期，对应设计2.2.2 排期设置接口，仅教师可操作
-     */
-    @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
-    public void setSchedule(Schedule schedule) {
-        Course course = courseMapper.selectCourseById(schedule.getCourseId());
-        if (course == null) {
-            throw new ResourceNotFoundException("课程不存在，无法设置排期");
-        }
-        // 校验时间（已实现方法，处理异常）
-        validateScheduleTime(SimpleDateFormat.getInstance().format(schedule.getStartTime()),
-                SimpleDateFormat.getInstance().format( schedule.getEndTime()));
-        if (schedule.getIsRepeat()) {
-            if (schedule.getRepeatWeek() == null || schedule.getRepeatWeek() < 1 || schedule.getRepeatWeek() > 7) {
-                throw new BusinessException("重复排期需指定每周重复日期（1-7，对应周一至周日）");
-            }
-        } else {
-            if (scheduleMapper.selectScheduleByTime(schedule.getCourseId(), schedule.getStartTime(), schedule.getEndTime()) != null) {
-                throw new BusinessException("该时间段已存在排期，请勿重复设置");
-            }
-        }
-        String scheduleId = UUID.randomUUID().toString().replace("-", "");
-        schedule.setScheduleId(scheduleId);
-        schedule.setStatus("available");
-        scheduleMapper.insertSchedule(schedule);
-    }
-
-    /**
-     * 更新课程排期，对应设计2.2.2 排期更新接口，仅教师可操作
-     */
-    @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
-    public void updateSchedule(Schedule schedule) {
-        Schedule existingSchedule = scheduleMapper.selectScheduleById(schedule.getScheduleId());
-        if (existingSchedule == null) {
-            throw new ResourceNotFoundException("排期不存在，无法更新");
-        }
-        //validateScheduleTime(schedule.getStartTime(), schedule.getEndTime());
-        validateScheduleTime(COURSE_DATE_FORMAT.format(schedule.getStartTime()),
-                COURSE_DATE_FORMAT.format( schedule.getEndTime()));
-        if (schedule.getIsRepeat()) {
-            if (schedule.getRepeatWeek() == null || schedule.getRepeatWeek() < 1 || schedule.getRepeatWeek() > 7) {
-                throw new BusinessException("重复排期需指定每周重复日期（1-7，对应周一至周日）");
-            }
-        }
-        // 更新排期字段
-        existingSchedule.setStartTime(schedule.getStartTime());
-        existingSchedule.setEndTime(schedule.getEndTime());
-        existingSchedule.setIsRepeat(schedule.getIsRepeat());
-        existingSchedule.setRepeatWeek(schedule.getRepeatWeek());
-        // 执行数据库更新
-        scheduleMapper.updateSchedule(existingSchedule);
-    }
-
-    /**
-     * 补充缺失的时间校验方法，处理ParseException，抛出业务异常
-     * 校验规则：格式正确、结束时间晚于开始时间
-     */
-    private void validateScheduleTime(String startTime, String endTime) {
-        // 1. 校验时间格式是否匹配YYYY-MM-DD HH:mm:ss
-        if (startTime == null || !startTime.matches(TIME_PATTERN) || endTime == null || !endTime.matches(TIME_PATTERN)) {
-            throw new BusinessException("时间格式错误，请遵循YYYY-MM-DD HH:mm:ss格式");
-        }
-        // 2. 校验结束时间晚于开始时间，处理ParseException
-        try {
-            Date start = COURSE_DATE_FORMAT.parse(startTime);
-            Date end = COURSE_DATE_FORMAT.parse(endTime);
-            if (end.before(start) || end.equals(start)) {
-                throw new BusinessException("结束时间必须晚于开始时间");
-            }
-        } catch (ParseException e) {
-            // 捕获解析异常，转为业务异常
-            throw new BusinessException("时间解析失败，请检查时间格式：" + e.getMessage());
-        }
-    }
-
-    /**
      * 检查课程归属权，若courseId不存在或非teacherId归属，抛出业务异常
      */
     public void checkCourseOwner(String courseId, String teacherId) {
@@ -247,28 +180,6 @@ public class CourseService {
         if (!teacherId.equals(course.getTeacherId())) {
             throw new BusinessException("没有操作该课程的权限");
         }
-    }
- 
-// checkScheduleOwner：
-// 用于检查排期(scheduleId)是否归属于指定教师(teacherId)。先查找排期，若不存在则抛出“排期不存在”；
-// 再取排期对应课程ID，校验课程有效且归属该教师，否则抛出无权限或资源不存在等业务异常。
-
-    public void checkScheduleOwner(String scheduleId, String teacherId) {
-    Schedule schedule = scheduleMapper.selectScheduleById(scheduleId);
-    if (schedule == null) {
-        throw new ResourceNotFoundException("排期不存在");
-    }
-    String courseId = schedule.getCourseId();
-    if (courseId == null) {
-        throw new BusinessException("排期关联的课程无效");
-    }
-    Course course = courseMapper.selectCourseById(courseId);
-    if (course == null) {
-        throw new ResourceNotFoundException("排期关联的课程不存在");
-    }
-    if (!teacherId.equals(course.getTeacherId())) {
-        throw new BusinessException("没有操作该排期的权限");
-    }
     }
 
     

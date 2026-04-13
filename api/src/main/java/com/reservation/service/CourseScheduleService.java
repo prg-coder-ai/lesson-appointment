@@ -1,4 +1,17 @@
+package com.reservation.service;
+
+import com.reservation.entity.Course;
+import com.reservation.entity.CourseSchedule;
+import com.reservation.entity.CourseScheduleCreateDTO;
+import com.reservation.entity.IncSiteBody;
+import com.reservation.entity.StatusBody;
+import com.reservation.exception.BusinessException;
+import com.reservation.exception.ResourceNotFoundException;
+import com.reservation.mapper.CourseScheduleMapper;
+
+import com.reservation.mapper.ScheduleExceptionMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.BeanUtils;
 import javax.annotation.Resource;
@@ -19,7 +32,7 @@ public class CourseScheduleService {
 
     // 创建排期（含冲突检测）
     @Transactional(rollbackFor = Exception.class)
-    public Long createSchedule(CourseScheduleCreateDTO dto) {
+    public String createSchedule(CourseScheduleCreateDTO dto) {
         // 1. 基础校验：结束时间 > 开始时间
         if (dto.getEndTime().isBefore(dto.getStartTime())) {
             throw new IllegalArgumentException("结束时间必须晚于开始时间");
@@ -50,7 +63,7 @@ public class CourseScheduleService {
 
         // 4. 插入排期
         scheduleMapper.insert(schedule);
-        return schedule.getId();
+        return schedule.getScheduleId();
     }
 
     // 展开重复规则，生成所有排期实例（返回 [开始时间, 结束时间] 的列表）
@@ -114,9 +127,9 @@ public class CourseScheduleService {
 
     
 @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
-    public   String updateStatus (String scheduleId,String status) {       
-         System.out.println("updateStatus called with scheduleId: " + scheduleId + ", status: " + status);
-         scheduleMapper.updateStatus(scheduleId,status);
+    public   String updateStatus (StatusBody data) {       
+         System.out.println("updateStatus called with scheduleId: " + data);
+         scheduleMapper.updateStatus(data);
         return  scheduleId;
     }
 
@@ -124,28 +137,52 @@ public class CourseScheduleService {
     public String update(CourseSchedule Obj) { 
          System.out.println("update : " +Obj);         
          scheduleMapper.update(Obj);
-        return obj.cheduleId;
+        return Obj.getScheduleId();
     }
 
 //更新可用数 incSiteBody { "inc":1、-1 ，"id":scheduleId)
   @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
-    public String updateScheduleSites(incSiteBody Obj) { 
+    public String updateScheduleSites(IncSiteBody Obj) {
          System.out.println("updateScheduleSites : " +Obj);         
-         scheduleMapper.updateScheduleSites(Obj);
-        return obj.cheduleId;
+         scheduleMapper.updateSites(Obj);
+        return Obj.getScheduleId();
     }
 
 
 // 
-  @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
+  @Transactional(propagation = Propagation.REQUIRED )
     public CourseSchedule selectById(String id) { 
             
          return scheduleMapper.selectById(id); 
     }
 
-@Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
-    public List<CourseSchedule> selectList(CourseSchedule obj) { 
+@Transactional(propagation = Propagation.REQUIRED)
+    public List<CourseSchedule> selectList(CourseScheduleCreateDTO obj) {
             
          return scheduleMapper.selectList(obj); 
     }
 }
+
+
+// checkScheduleOwner：
+// 用于检查排期(scheduleId)是否归属于指定教师(teacherId)。先查找排期，若不存在则抛出“排期不存在”；
+// 再取排期对应课程ID，校验课程有效且归属该教师，否则抛出无权限或资源不存在等业务异常。
+/*
+    public void checkScheduleOwner(String scheduleId, String teacherId) {
+        CourseSchedule schedule = scheduleMapper.selectById(scheduleId);
+        if (schedule == null) {
+            throw new ResourceNotFoundException("排期不存在");
+        }
+        String courseId = schedule.getCourseId();
+        if (courseId == null) {
+            throw new BusinessException("排期关联的课程无效");
+        }
+        Course course = courseMapper.selectCourseById(courseId);
+        if (course == null) {
+            throw new ResourceNotFoundException("排期关联的课程不存在");
+        }
+        if (!teacherId.equals(course.getTeacherId())) {
+            throw new BusinessException("没有操作该排期的权限");
+        }
+    }
+*/
