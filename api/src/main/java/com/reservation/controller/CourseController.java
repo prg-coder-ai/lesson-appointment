@@ -3,7 +3,6 @@ package com.reservation.controller;
 import com.reservation.common.Result;
 import  com.reservation.entity.Course;
 import  com.reservation.entity.CourseTemplate;
-import  com.reservation.entity.Schedule;
 import  com.reservation.service.CourseService;
 import  com.reservation.utils.PermissionCheck;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -188,37 +187,4 @@ public class CourseController {
       public void setStatus(String status) { this.status = status; }
   }
     
-
-    /**
-     * 设置课程排期，对应设计2.2.2 接口：/api/v1/course/schedule/set（教师权限）
-     */
-    @PostMapping("/schedule/add")
-    public Result<Void> setSchedule(@Validated @RequestBody Schedule schedule,
-                                    @RequestHeader("Authorization") String token) {
-        // 权限校验：仅教师可操作
-        permissionCheck.checkTeacher(token);
-        // 校验课程属于当前教师
-        String teacherId = permissionCheck.getUserIdFromToken(token);
-        courseService.checkCourseOwner(schedule.getCourseId(), teacherId);
-        // 调用服务层设置排期（对应设计2.2.2 排期设置功能说明）
-        courseService.setSchedule(schedule);
-        return Result.success(null, "排期设置成功");
-    }
-
-    /**
-     * 更新课程排期，对应设计2.2.2 接口：/api/v1/course/schedule/update（教师权限）
-     */
-    @PutMapping("/schedule/edit")
-    public Result<Void> updateSchedule(@Validated @RequestBody Schedule schedule,
-                                       @RequestHeader("Authorization") String token) {
-        // 权限校验：仅教师可操作
-        permissionCheck.checkTeacher(token);
-        // 校验排期属于当前教师
-        String teacherId = permissionCheck.getUserIdFromToken(token);
-        courseService.checkScheduleOwner(schedule.getScheduleId(), teacherId);
-        // 调用服务层更新排期（对应设计2.2.2 排期更新功能说明）
-        courseService.updateSchedule(schedule);
-        return Result.success(null, "排期更新成功");
-    }
-
 }
