@@ -36,6 +36,4 @@ public interface CourseScheduleMapper {
 
     void insertSchedule(CourseSchedule schedule);
     List<CourseSchedule> selectScheduleByTime(String courseId, Date startTime, Date endTime);
-    // 无需编写SQL，BaseMapper已提供CRUD方法
-
 }
