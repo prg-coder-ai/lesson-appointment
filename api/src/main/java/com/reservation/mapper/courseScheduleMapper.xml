@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.example.mapper.CourseScheduleMapper">
+<mapper namespace="com.reservation.mapper.CourseScheduleMapper">
         <!--, classroom_id  #{classroomId}, -->
-    <insert id="insert" parameterType="com.example.entity.CourseSchedule" useGeneratedKeys="true" keyProperty="id">
+    <insert id="insert" parameterType="com.reservation.entity.CourseSchedule" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO course_schedule (course_id, teacher_id, start_time, end_time, repeat_type, repeat_interval, repeat_days, repeat_end_date, description)
         VALUES (#{courseId}, #{teacherId}, #{startTime}, #{endTime}, #{repeatType}, #{repeatInterval}, #{repeatDays}, #{repeatEndDate}, #{description})
     </insert>
 
-    <select id="selectById" resultType="com.example.entity.CourseSchedule">
+    <select id="selectById" resultType="com.reservation.entity.CourseSchedule">
         SELECT * FROM course_schedule WHERE id = #{id}
     </select>
  
@@ -26,10 +26,11 @@
                 AND classroom_id = #{classroomId}
             </if>  -->
             <if test="startTime != null">
-                AND start_time >= #{startTime}
+                AND start_time &gt;= #{startTime}
             </if>
+     
             <if test="endTime != null">
-                AND end_time <= #{endTime}
+                AND end_time &lt; #{endTime}
             </if>
             <if test="repeatType != null">
                 AND repeat_type = #{repeatType}
@@ -97,18 +98,18 @@
 
     
     <!-- 冲突检测核心SQL：查询时间区间有交集的排期 AND (teacher_id = #{teacherId} OR classroom_id = #{classroomId} -->
-    <select id="selectConflictingSchedules" resultType="com.example.entity.CourseSchedule">
+    <select id="selectConflictingSchedules" resultType="com.reservation.entity.CourseSchedule">
         SELECT * FROM course_schedule
         WHERE status = 1
-        AND (teacher_id = #{teacherId} )
-        AND start_time < #{endTime}  -- 新排期开始 < 已有排期结束
-        AND end_time > #{startTime}    -- 新排期结束 > 已有排期开始
+        AND (teacher_id = #{teacherId})
+        AND start_time &lt; #{endTime}  -- 新排期开始 &lt; 已有排期结束
+        AND end_time &gt; #{startTime}    -- 新排期结束 &gt; 已有排期开始
         <if test="excludeScheduleId != null">
             AND id != #{excludeScheduleId}
         </if>
     </select>
 
-    <select id="selectExceptionsByScheduleId" resultType="com.example.entity.ScheduleException">
+    <select id="selectExceptionsByScheduleId" resultType="com.reservation.entity.ScheduleException">
         SELECT * FROM schedule_exception WHERE schedule_id = #{scheduleId}
     </select>
 

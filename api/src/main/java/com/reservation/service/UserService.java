@@ -42,7 +42,7 @@ public class UserService {
     // 学生注册（对应设计2.2.1 学生注册接口）
     // 注册（对应设计2.2.1 注册接口）
     @Transactional
-    public Result<void>Register(User user) {
+    public Result Register(User user) {
         // 校验手机号/邮箱是否已注册（对应业务异常校验）
          System.out.println("input：" + user);
           if( user.getPhone()!="")
@@ -75,7 +75,7 @@ public class UserService {
 
 
     // 用户登录（对应设计2.2.1 登录接口）
-    public Result<void>login(String account, String password) {
+    public Result login(String account, String password) {
         // 查找用户（账号可为手机号/邮箱，对应设计2.2.1 登录接口请求参数）
        //   System.out.println("login：" + account+"   "+password);
         User user = userMapper.selectByAccount(account);
@@ -96,7 +96,7 @@ public class UserService {
             throw new BusinessException("账号未审核，请等待管理员审核");
         }//其它情况--进入相应的页面，若为pendding则等待审核。其他情况，显示正常项目内容。
         // 生成Token
-        String token = jwtUtil.generateToken(user.getUserId(), user.getRole(),user.getEmail());
+        String token = jwtUtil.generateToken(user.getUserId(), user.getRole());
         // 组装返回数据（对应设计2.2.1 登录返回数据）
         Map<String, String> resultMap = new HashMap<>();
         resultMap.put("userId", user.getUserId());

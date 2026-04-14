@@ -18,79 +18,42 @@ public class JwtUtil {
     // 例如 application.properties:
     // jwt.secret=请替换为你自己的JWT密钥
     // jwt.expiration=3600000  # 1小时，单位：毫秒
-    //private static final String SECRET_KEY = "comreservationapp1234567890123456";
-  //  private static final long EXPIRATION = 86400000;
+
     @Value("${jwt.secret}")
     private String secret;
 
     @Value("${jwt.expiration}")
     private Long expiration;
 
-       // 新版：创建安全的 Key 对象（不再用 String 直接签名）
-    private Key getSigningKey() {
-        return Keys.hmacShaKeyFor(secret.getBytes());
-    }
     // 生成Token（对应设计2.2.1 登录、学生注册返回Token）
-  public String generateToken(Long userId, String role, String email) {
-    return Jwts.builder()
-            .setSubject(email)
-            .claim("userId", userId)   // 新增：存入用户ID
-            .claim("role", role)
-            .setExpiration(new Date(System.currentTimeMillis() + expiration))
-            .signWith(getSigningKey())
-            .compact();
-}
-    // 验证 Token
-    public boolean validateToken(String token) {
-        try {
-            Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
-                .build()
-                .parseClaimsJws(token);
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-        // 从 Token 获取邮箱
-    public String getEmailFromToken(String token) {
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
-        return claims.getSubject();
+    public String generateToken(String userId, String role) {
+        Date now = new Date();
+        Date expireDate = new Date(now.getTime() + expiration);
+        return Jwts.builder()
+                .setSubject(userId)  // 存储用户ID
+                .claim("role", role)  // 存储角色信息
+                .setIssuedAt(now)
+                .setExpiration(expireDate)
+                .signWith(SignatureAlgorithm.HS512, secret)
+                .compact();
     }
 
     // 解析Token，获取用户ID
-   /* public String getUserIdFromToken(String token) {
+    public String getUserIdFromToken(String token) {
         Claims claims = Jwts.parser()
                 .setSigningKey(secret)
                 .parseClaimsJws(token.replace("Bearer ", ""))
                 .getBody();
         return claims.getSubject();
     }
-*/
-public String getUserIdFromToken(String token) {
-    try {
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
-        return claims.get("userId", String.class);
-    } catch (Exception e) {
-        return null;
-    }
- }
-    // 解析Token，获取角色 
+
+    // 解析Token，获取角色
     public String getRoleFromToken(String token) {
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
-                .build()
-                .parseClaimsJws(token)
+        Claims claims = Jwts.parser()
+                .setSigningKey(secret)
+                .parseClaimsJws(token.replace("Bearer ", ""))
                 .getBody();
-        return claims.get("role", String.class);
+        return (String) claims.get("role");
     }
 
     // 校验Token是否过期,boolean isTokenExpired(String token) 方法用于检查Token是否过期，返回true表示过期，false表示未过期。

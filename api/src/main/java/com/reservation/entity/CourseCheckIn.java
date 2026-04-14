@@ -24,14 +24,4 @@ public class CourseCheckIn implements Serializable {
     @NotBlank(message = "签到状态不能为空")
     private String checkInStatus; // 枚举值：1 checked（已签到）/0 unchecked（未签到）
     private Date checkInTime;   // 签到时间，格式YYYY-MM-DD HH:mm:ss
-
-    public String getScheduleId() {
-        //从booking_id查询ScheduleId
-            return null;
-    }
-
-    public String getCourseId() {
-        //查询booking库的booking-id，获取CourseId,
-        return null;
-    }
 }

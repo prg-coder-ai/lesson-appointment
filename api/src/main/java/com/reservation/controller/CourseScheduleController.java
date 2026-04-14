@@ -40,7 +40,7 @@ public class CourseScheduleController {
                                                    @RequestHeader("Authorization") String token) {
          permissionCheck.checkTeacherOrAdmin(token);
         String scheduleId = scheduleService.update(dto);
-        return Result.success( null);
+        return Result.success( );
     }
 
  // 更新可用数incSiteBody { "inc":1、-1 ，"id":scheduleId)

@@ -13,7 +13,9 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.BeanUtils;
 import javax.annotation.Resource;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -66,8 +68,8 @@ public class CourseScheduleService {
     // 展开重复规则，生成所有排期实例（返回 [开始时间, 结束时间] 的列表）
     private List<LocalDateTime[]> expandScheduleInstances(CourseSchedule schedule) {
         List<LocalDateTime[]> instances = new ArrayList<>();
-        @NotBlank(message = "开始时间不能为空") Date currentStart = schedule.getStartTime();
-        @NotBlank(message = "结束时间不能为空") Date currentEnd = schedule.getEndTime();
+        @NotBlank(message = "开始时间不能为空") LocalDateTime currentStart = schedule.getStartTime();
+        @NotBlank(message = "结束时间不能为空") LocalDateTime currentEnd = schedule.getEndTime();
         long durationMinutes = java.time.Duration.between(currentStart, currentEnd).toMinutes();
 
         // 不重复：直接添加
@@ -77,7 +79,16 @@ public class CourseScheduleService {
         }
 
         // 重复排期：循环生成直到结束时间
-        LocalDateTime repeatEnd = schedule.getRepeatEndDate() != null ? schedule.getRepeatEndDate() : currentStart.plusYears(1); // 默认重复1年
+        LocalDateTime endT;
+        LocalDate endDate =schedule.getRepeatEndDate();
+        // 把endDate转为包含时间的endT
+        if (endDate != null) {
+            // 用排期的起始时间的小时分钟秒补全endDate
+            endT = endDate.atTime(currentStart.getHour(), currentStart.getMinute(), currentStart.getSecond());
+        } else {
+            endT = null;
+        }
+        LocalDateTime repeatEnd = endT != null ? endT : currentStart.plusYears(1); // 默认重复1年
         List<Integer> repeatDaysList = parseRepeatDays(schedule.getRepeatDays());
 
         while (currentStart.isBefore(repeatEnd)) {
@@ -183,3 +194,17 @@ public class CourseScheduleService {
         }
     }
 */
+/**
+ * 分析: BeanCreationException 和 SAXParseException 很可能是 CourseScheduleMapper.xml 配置错误（如 XML 第32行有非法字符、标签不闭合等）。
+ * 1. 通常是 XML 配置里 <resultMap>、<select>、<update>、<sql> 等标签书写有误，引发 SAX 解析异常。
+ * 2. 修复方法:
+ *    - 仔细检查 CourseScheduleMapper.xml 第32行左右是否有:
+ *      a. 非法字符（如 &、<、> 未转义等）
+ *      b. 标签未闭合或写法错误（如 <if test="..."> 未正确结束、缺</if>）
+ *      c. 属性拼写/引号丢失
+ *    - 通常MyBatis相关Bean注入失败均为XML配置或Mapper接口/注解问题，与Service层无关。
+ * 3. 建议:
+ *   - 打开 CourseScheduleMapper.xml，用带行号的编辑器定位第32行，逐一排查。
+ *   - 确认所有 XML 标签已闭合，字符实体(&)等已转义，SQL片段无冗余尖括号。
+ * 4. 该 Service 层无需额外代码（问题在Mapper XML层），建议修复XML后重启服务即可。
+ */

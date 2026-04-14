@@ -145,8 +145,8 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.12.1</version> <!-- 用最新稳定版 -->
         <configuration>
-            <source>17</source>   <!-- 你的Java版本 -->
-            <target>17</target>
+            <source>16</source>   <!-- 你的Java版本 -->
+            <target>16</target>
             <encoding>UTF-8</encoding>
 
                 <!-- 启用所有警告，再排除个别不需要的 -->

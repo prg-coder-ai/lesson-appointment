@@ -19,7 +19,7 @@ public class Result<T> {
     private T data;
 
     // 成功返回（无数据）
-    public static <T> Result<T> success(Map<String, List<CourseSchedule>> resultMap) {
+    public static <T> Result<T> success() {
         Result<T> result = new Result<>();
         result.setCode(200);  // 200-成功（对应设计2.1）
         result.setMessage("操作成功");

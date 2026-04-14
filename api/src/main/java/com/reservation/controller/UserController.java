@@ -13,7 +13,10 @@ import org.springframework.beans.factory.annotation.Autowired;
  import org.springframework.validation.annotation.Validated;
 // 核心导入：RequestMethod 所在包
  import org.springframework.web.bind.annotation.*; 
- import jakarta.validation.constraints.Pattern; 
+ import jakarta.validation.constraints.Pattern;
+
+ import javax.servlet.http.Cookie;
+ import javax.servlet.http.HttpServletResponse;
  import java.util.Collections;
  import java.util.List;
  import java.util.Map;
@@ -156,14 +159,14 @@ public Result<String> logout(HttpServletResponse response) {
     cookie.setMaxAge(0);
     response.addCookie(cookie);
 
-    return Result.success("登出成功");
+    return Result.success();
 }
     /**
      * 密码找回（验证码验证），对应设计2.2.1 接口：/api/v1/user/password/forgot
      */
     @PostMapping("/password/forgot")
       @ResponseBody
-    public Result<void>  forgotPassword(
+    public Result  forgotPassword(
             @NotBlank(message = "账号不能为空") String account,
             @NotBlank(message = "验证码不能为空")
             @Pattern(regexp = "^\\d{6}$", message = "验证码格式错误") String verifyCode) {
