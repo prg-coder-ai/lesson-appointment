@@ -111,6 +111,6 @@
 
     <select id="selectExceptionsByScheduleId" resultType="com.reservation.entity.ScheduleException">
         SELECT * FROM schedule_exception WHERE schedule_id = #{scheduleId}
-    </select>
+    </select> 
 
 </mapper>

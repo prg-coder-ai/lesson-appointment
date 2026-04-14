@@ -15,7 +15,6 @@ import org.springframework.beans.BeanUtils;
 import javax.annotation.Resource;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -70,6 +69,7 @@ public class CourseScheduleService {
         List<LocalDateTime[]> instances = new ArrayList<>();
         @NotBlank(message = "开始时间不能为空") LocalDateTime currentStart = schedule.getStartTime();
         @NotBlank(message = "结束时间不能为空") LocalDateTime currentEnd = schedule.getEndTime();
+        
         long durationMinutes = java.time.Duration.between(currentStart, currentEnd).toMinutes();
 
         // 不重复：直接添加
@@ -169,6 +169,7 @@ public class CourseScheduleService {
             
          return scheduleMapper.selectList(obj); 
     }
+
 }
 
 

@@ -147,6 +147,12 @@ public class CourseController {
 
     /**
      * 查询课程列表，对应设计2.2.2 接口：/api/v1/course/list（教师、管理员权限）
+     * 
+     * TBD: courseName: document.getElementById('courseName').value,
+      languageType: document.getElementById('language').value,
+      difficultyLevel: document.getElementById('difficulty').value,
+      teacher: document.getElementById('teacher').value
+      复合查询--关联模板库、user库--->课程难度、语言、老师等信息
      */
     @GetMapping("/list")
     public Result<List<Course>> getCourseList(@RequestBody(required = false) Map<String, Object> searchParams,

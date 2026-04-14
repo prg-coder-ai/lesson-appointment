@@ -76,8 +76,17 @@ public class CourseScheduleController {
      @ResponseBody
     public Result<List<CourseSchedule>> getScheduleList(@Validated @RequestBody CourseScheduleCreateDTO dto,
                    @RequestHeader("Authorization") String token) {
-        List<CourseSchedule> schedules = scheduleService.selectList(dto);
-      //  Map<String, List<CourseSchedule>> resultMap = Map.of("schedules", schedules);
+        List<CourseSchedule> schedules = scheduleService.selectList(dto); 
         return Result.success(schedules,"ok");
     }
+
+    @GetMapping("/selectByCourseId")
+     @ResponseBody
+    public Result<List<CourseSchedule>> getScheduleByCourseId(@PathVariable CourseScheduleCreateDTO dto, @RequestHeader("Authorization") String token) {
+            // CourseScheduleCreateDTO dto;
+            // dto.setCourseid(cid);
+             List<CourseSchedule> schedules = scheduleService.selectList(dto);
+           
+       return Result.success(schedules,"ok");
+    } 
 }

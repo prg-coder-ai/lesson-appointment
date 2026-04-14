@@ -36,4 +36,7 @@ public interface CourseScheduleMapper {
 
     void insertSchedule(CourseSchedule schedule);
     List<CourseSchedule> selectScheduleByTime(String courseId, Date startTime, Date endTime);
+
+ 
+    
 }
