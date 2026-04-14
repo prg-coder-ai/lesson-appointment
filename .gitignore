@@ -16,3 +16,5 @@ zktapi-master/.idea/.name
 /api/target
 *.lst
 *.lst
+/api/.idea/compiler.xml
+/api/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst
