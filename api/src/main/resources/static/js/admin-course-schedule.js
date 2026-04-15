@@ -159,7 +159,7 @@ async function renderScheduleCards() {
             monthDaysHtml += `<label><input type="checkbox" value="${i}">${i}</label>`;
             if (i % 10 === 0 && i !== 31) monthDaysHtml += '<br>';
         } 
-        document.getElementById('monthDaysBox').innerHTML = monthDaysHtml;
+        document.getElementById('monthDays').innerHTML = monthDaysHtml;
 
     
     searchCourse(); 
@@ -208,11 +208,7 @@ async function getCourseList(conditionJson) {
         await  getCourseList( params); 
   } catch (e) {
       // 模拟数据
-      courseList = [
-          { id: 1, courseName: "Java 入门" },
-          { id: 2, courseName: "前端实战" },
-          { id: 3, courseName: "英语口语" }
-      ];
+      courseList = [ ];
      
       //alert("模拟课程加载成功");
   }
@@ -282,18 +278,28 @@ function renderSchedule() {
      }
 
      // 刷新每周/每月重复星期（如有）
-     if ( (scheduleObject.repeatType === "week"|| scheduleObject.repeatType === "month") 
+     if ( scheduleObject.repeatType === "week" 
               && Array.isArray(scheduleObject.weekDays)) {
          const checkboxes = document.querySelectorAll('#weekDays input[type="checkbox"]');
          checkboxes.forEach(cb => {
              cb.checked = scheduleObject.weekDays.includes(Number(cb.value));
          });
-     } else {
-         const checkboxes = document.querySelectorAll('#weekDays input[type="checkbox"]');
-         checkboxes.forEach(cb => {
-             cb.checked = false;
-         });
-     }
+     } else   if ( scheduleObject.repeatType === "month" 
+        && Array.isArray(scheduleObject.weekDays)) {
+   const checkboxes = document.querySelectorAll('#monthDays input[type="checkbox"]');
+   checkboxes.forEach(cb => {
+       cb.checked = scheduleObject.weekDays.includes(Number(cb.value));
+   });
+    } else{
+            const checkboxes = document.querySelectorAll('#weekDays input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = false;
+            });
+              checkboxes = document.querySelectorAll('#monthDays input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = false;
+            });
+        }
 }
 
 /**
@@ -353,20 +359,6 @@ async function fetchScheduleList( cid) {
     async function loadSchedule() {
       const cid = document.getElementById('courseSelect').value;
       if (!cid) return;
-      
-      try {
-        scheduleList =   await fetchScheduleList(cid);
-          //alert("加载课程排期成功");
-          if (scheduleList && scheduleList.length > 0) {
-              // 列表长度大于0 ,  //TBD：根据列表长度，添加1个下拉框选择。暂时选择第一个
-            scheduleObject = scheduleList[0];
-            renderSchedule();
-            return;
-            //更新排期的显示
-          }
-      } catch (e) {
-          alert("加载排期失败");
-      } 
         // 清理scheduleObject的各个字段
         scheduleObject = {
             scheduleId: "",
@@ -412,6 +404,20 @@ async function fetchScheduleList( cid) {
             status: "pending", 
        
         };  
+      try {
+        scheduleList =   await fetchScheduleList(cid);
+          //alert("加载课程排期成功");
+          if (scheduleList && scheduleList.length > 0) {
+              // 列表长度大于0 ,  //TBD：根据列表长度，添加1个下拉框选择。暂时选择第一个
+            scheduleObject = scheduleList[0];
+            renderSchedule(); 
+            //更新排期的显示
+          }
+          return;
+      } catch (e) {
+          alert("加载排期失败",e);
+      } 
+      
   }
 
    function  getFormData(){
@@ -426,12 +432,22 @@ async function fetchScheduleList( cid) {
         repeatDays: (() => {
             // 仅当repeatType为week/month时读取，其他情况为空数组
             const repeatTypeVal = document.getElementById('repeatType').value;
-            if (repeatTypeVal === 'week'|| repeatTypeVal === 'month' ) {
+            if (repeatTypeVal === 'week' ) {
                 const weekDayInputs = document.querySelectorAll('#weekDays input[type=checkbox]');
                 let arr = [];
                 weekDayInputs.forEach(cb => { 
                     if (cb.checked) arr.push(Number(cb.value));
                 });
+                return arr;
+            } else  if ( repeatTypeVal === 'month' ) {
+
+                const weekDayInputs = document.querySelectorAll('#monthDays input[type=checkbox]');
+                console.log("days",weekDayInputs);
+                let arr = [];
+                weekDayInputs.forEach(cb => { 
+                    if (cb.checked) arr.push(Number(cb.value));
+                });
+                console.log("days arr",arr);
                 return arr;
             } else {
                 return [];
@@ -439,6 +455,7 @@ async function fetchScheduleList( cid) {
         })(),
         endDate: document.getElementById('endDate').value
     }; 
+    console.log("form:",form);
     return form;
    }
    // 预览排期
@@ -462,7 +479,19 @@ async function fetchScheduleList( cid) {
 const generateScheduleList = (form) => {
     const { startDate, startTime, repeatType, interval, repeatDays, endDate } = form;
     const result = [];
-  
+    // INSERT_YOUR_CODE
+    /**
+     * 获取Date对象在当月的天数（即当月第几天，序号，从1开始）
+     * 方法: Date对象的getDate()方法——返回当前是当月的第几天
+     * 例:
+     *    let date = new Date(2024, 5, 10); // 2024年6月10日
+     *    let dayOfMonth = date.getDate(); // 10，表示6月10日在6月为第10天
+     *
+     * 封装函数如下：
+     *    function getDayOfMonth(date) {
+     *        return date.getDate();
+     *    }
+     */
     // 开始/结束 日期对象
     let current = new Date(startDate);
     const end = new Date(endDate);
@@ -474,28 +503,69 @@ const generateScheduleList = (form) => {
   
     // 格式化日期：yyyy-MM-dd
     const formatDate = (d) => d.toISOString().split('T')[0];
-  
+     console.log("repeatDays:",repeatDays);
     // 循环生成排期
     while (current <= end) {
       const dateStr = formatDate(new Date(current));
-  
+     
       // 条件匹配（语法糖写法）
+      console.log("monthDay",current,current.getDate()  );
       const match = {
         none: () => true, // 不重复 → 只添加一次
         day: () => true,  // 每天 → 全部匹配
         week: () => repeatDays.includes(current.getDay() || 7), // 周日=7
-        month: () => true // 每月 → 全部匹配
+        month: () => repeatDays.includes(current.getDate() ) // 每月 → 全部匹配
       }[repeatType]();
   
       if (match) result.push({ date: dateStr, time: startTime });
   
+      
       // 步进（语法糖 + 策略模式）
-      current = {
-        none: () => addMonths(current, 999), // 直接结束循环
-        day: () => addDays(new Date(current), Number(interval)),
-        week: () => addDays(new Date(current), Number(interval) * 7),
-        month: () => addMonths(new Date(current), Number(interval))
-      }[repeatType]();
+      if (repeatType === 'none') {
+        current = addMonths(current, 999); // 直接结束循环
+      } else if (repeatType === 'day') {
+        current = addDays(new Date(current), Number(interval));
+      } else if (repeatType === 'week') {
+        // 找到下一个被选中的星期几（周一~周日可多选）
+        let temp = new Date(current);
+        let found = false;
+        for (let i = 1; i <= 7 * Number(interval); i++) {
+          temp = addDays(new Date(current), i);
+          // 周日处理：getDay() 0=>7（与repeatDays一致）
+          let day = temp.getDay();
+          day = day === 0 ? 7 : day;
+          if (repeatDays.includes(day)) {
+            found = true;
+            break;
+          }
+        }
+        current = found ? temp : addDays(new Date(current), Number(interval) * 7);
+      } else if (repeatType === 'month') {
+        // 月内可多天（如每月1/10/15日等），找到下一个被选中的"日"
+        let temp = new Date(current);
+        let curDay = temp.getDate();
+        let curMonth = temp.getMonth();
+        // 搜索当月剩余选中的日
+        let daysAvailable = repeatDays.filter(d => d > curDay).sort((a,b) => a-b);
+        if (daysAvailable.length > 0) {
+          // 本月下一个选中的日
+          temp.setDate(daysAvailable[0]);
+          // 注意：如果跳天会超出当月长度，Date会进下月，需要判断
+          // forceSameMonth
+          if (temp.getMonth() !== curMonth) {
+            // 跳到下一个月
+            temp = new Date(current);
+            temp.setMonth(temp.getMonth() + Number(interval));
+            temp.setDate(repeatDays.sort((a,b) => a-b)[0]);
+          }
+        } else {
+          // 本月已无剩余选中的日，跳下月的第一个选中日
+          temp.setMonth(temp.getMonth() + Number(interval));
+          temp.setDate(repeatDays.sort((a,b) => a-b)[0]);
+        }
+        current = temp;
+      }
+      
     }
   
     return result;
