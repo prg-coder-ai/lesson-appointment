@@ -29,7 +29,7 @@ public class CourseScheduleController {
     public Result<Map<String, String>>  createSchedule(@Validated @RequestBody CourseScheduleCreateDTO dto,
                                                    @RequestHeader("Authorization") String token) {
          permissionCheck.checkTeacherOrAdmin(token);
-         Map<String, String> resultMap = scheduleService.createSchedule(dto);
+         Map<String, String> resultMap = scheduleService.createSchedule(dto);//////TBD: local->UTC switch
         return Result.success(resultMap,"ok");
     }
 
@@ -39,7 +39,7 @@ public class CourseScheduleController {
     public Result<Map<String, String>> createSchedule(@Validated @RequestBody CourseSchedule dto,
                                                    @RequestHeader("Authorization") String token) {
          permissionCheck.checkTeacherOrAdmin(token);
-        String scheduleId = scheduleService.update(dto);
+        String scheduleId = scheduleService.update(dto);//////TBD: local->UTC switch
         return Result.success( );
     }
 
@@ -58,7 +58,7 @@ public class CourseScheduleController {
      @ResponseBody
     public Result<Void> updateStatus(@Validated @RequestBody StatusBody dto) {
 
-        String scheduleId = scheduleService.updateStatus(dto);
+        String scheduleId = scheduleService.updateStatus(dto);////TBD: local->UTC switch
        
         return Result.success(null,scheduleId);
     }
@@ -67,7 +67,7 @@ public class CourseScheduleController {
     @GetMapping("/detail/{id}")
      @ResponseBody
     public Result<CourseSchedule> getScheduleDetail(@PathVariable String id) {
-        CourseSchedule schedule = scheduleService.selectById(id);
+        CourseSchedule schedule = scheduleService.selectById(id);////TBD: UTC-->local switch
         return Result.success(   schedule,"ok");
     }
 
@@ -76,7 +76,7 @@ public class CourseScheduleController {
      @ResponseBody
     public Result<List<CourseSchedule>> getScheduleList(@Validated @RequestBody CourseScheduleCreateDTO dto,
                    @RequestHeader("Authorization") String token) {
-        List<CourseSchedule> schedules = scheduleService.selectList(dto); 
+        List<CourseSchedule> schedules = scheduleService.selectList(dto); //TBD: UTC-->local switch
         return Result.success(schedules,"ok");
     }
 
@@ -89,6 +89,35 @@ public class CourseScheduleController {
        return Result.success(schedules,"ok");
     } 
  
+  @PostMapping("/generate")
+    public Result<List<ScheduleVO>> generateList(@RequestBody ScheduleGenerateDTO dto) {
+        // 1. 生成用户时区排期（星期正确）
+        List<LocalDateTime> userZoneList = ScheduleGenerator.generateUserZoneSchedule(dto);
+
+        // 2. 转 UTC 存库
+      /*  List<SchedulePO> poList = userZoneList.stream().map(userTime -> {
+            LocalDateTime utcTime = ScheduleGenerator.toUtc(userTime, dto.getTimeZone());
+            SchedulePO po = new SchedulePO();
+            po.setCourseId(1L); // 你自己的课程ID
+            po.setScheduleUtc(utcTime);
+            po.setTimeZone(dto.getTimeZone());
+            return po;
+        }).collect(Collectors.toList());
+
+        // 批量保存
+        scheduleMapper.insertBatch(poList);
+*/
+        // 3. 转回用户时区返回前端
+        List<ScheduleVO> voList = userZoneList.stream().map(time -> {
+            ScheduleVO vo = new ScheduleVO();
+            vo.setDate(time.toLocalDate().toString());
+            vo.setTime(time.toLocalTime().toString());
+            return vo;
+        }).collect(Collectors.toList());
+
+        return Result.success(voList);
+    }
+
 }
 
 

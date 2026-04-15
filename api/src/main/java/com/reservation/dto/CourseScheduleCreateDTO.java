@@ -25,4 +25,6 @@ public class CourseScheduleCreateDTO {
     private Integer repeatInterval = 1;
     private List<Integer> repeatDays; // 前端传数组，如 [1,3,5]
     private LocalDateTime repeatEndDate;
+    
+    private String timeZone;      // 前端传的用户时区
 }

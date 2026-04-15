@@ -14,7 +14,8 @@ var localParamter ={
   formEl :'', 
 };
 // ===================== 核心函数 =====================
- 
+ // 获取用户时区（关键）
+const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 /**
  * 渲染课程列表（核心：原生JS操作DOM）
  */
@@ -453,7 +454,8 @@ async function fetchScheduleList( cid) {
                 return [];
             }
         })(),
-        endDate: document.getElementById('endDate').value
+        endDate: document.getElementById('endDate').value,
+        timeZone: userTimeZone  // 必须传
     }; 
     console.log("form:",form);
     return form;
@@ -461,7 +463,7 @@ async function fetchScheduleList( cid) {
    // 预览排期
    async function previewSchedule() {
      const form = getFormData();
-    console.log("form:",form) ;
+    //console.log("form:",form) ;
     // 生成排期列表
     scheduleResult = generateScheduleList(form);
     console.log("result:",scheduleResult) ;
