@@ -86,6 +86,16 @@ async function renderScheduleCards() {
             <span id="repeatUnit">天</span>
         </div>
 
+        <div class="form-line">
+            <label>状态</label>
+           <select id="status">
+                <option value="pending">待发布</option>
+                <option value="inactive">生效</option>
+                <option value="active">正常</option>
+                <option value="forzen">已删除</option>
+            </select>
+        </div>
+
         <!-- 每周重复：星期选择 -->
         <div class="form-line" id="weekDaysBox" style="display:none;">
             <label>重复星期：</label>
@@ -258,6 +268,12 @@ function renderSchedule() {
          document.getElementById('interval').value = 1;
      }
 
+     if (scheduleObject.status) {
+        document.getElementById('status').value = scheduleObject.status;
+    } else {
+        document.getElementById('status').value = "pending";
+    }
+
      // 刷新结束日期
      if (scheduleObject.endDate) {
          document.getElementById('endDate').value = scheduleObject.endDate;
@@ -398,13 +414,14 @@ async function fetchScheduleList( cid) {
         };  
   }
 
-   // 预览排期
-   async function previewSchedule() {
+   function  getFormData(){
     const form = {
+        scheduleId: document.getElementById('scheduleId').value,
         startDate: document.getElementById('startDate').value,
         startTime: document.getElementById('startTime').value,
         repeatType: document.getElementById('repeatType').value,
         interval: document.getElementById('interval').value,
+        status:  document.getElementById('status').value,
         // 根据选择获取repeatDays的数组
         repeatDays: (() => {
             // 仅当repeatType为week/month时读取，其他情况为空数组
@@ -422,6 +439,11 @@ async function fetchScheduleList( cid) {
         })(),
         endDate: document.getElementById('endDate').value
     }; 
+    return form;
+   }
+   // 预览排期
+   async function previewSchedule() {
+     const form = getFormData();
     console.log("form:",form) ;
     // 生成排期列表
     scheduleResult = generateScheduleList(form);
@@ -496,9 +518,9 @@ function renderResult() {
   const cal = document.getElementById('calendar');
   cal.innerHTML = '';
   const dateSet = new Set(scheduleResult.map(i => i.date));
-
+console.log("r",dateSet);
   // 简单显示最近30天
-  for (let i = 1; i <= 31; i++) {
+  for (let i = 0; i <= 30; i++) {
       const d = new Date();
       d.setDate(d.getDate() + i);
       const dateStr = d.toISOString().split('T')[0];
@@ -513,29 +535,40 @@ function renderResult() {
     // 发布--修改当前的排期状态并保存
     async function publishSchedule() {
       const cid = document.getElementById('courseSelect').value;
-      //TBD "active"
-      //
+    
       saveSchedule();
      // alert("发布成功");
   }
   /**
- *  const token = getToken();
+ * 
    
  */ 
   // 保存 uodate or insert 
   async function saveSchedule() {
-    const url = scheduleObject.scheduleId !=""? `course/schedule/update` : `course/schedule/insert`;
-     result= await fetch(`${API_BASE_URL}/${url}`, {
+    const form = getFormData();
+    const url = form.scheduleId !=""? `course/schedule/update` : `course/schedule/create`;
+    
+    const token = getToken();
+    try{
+      const res= await fetch(`${API_BASE_URL}/${url}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           "Authorization": "Bearer " + token
         },
         credentials: 'include',
-        body: JSON.stringify(scheduleObject)
+        body: JSON.stringify(form)
       });
-   
-
+       // 4.  响应处理 响应成功/失败
+       if (res.data && res.data.code === 200) {
+        alert(formData.scheduleId !="" ? '编辑成功' : '新增成功'); 
+    } else {
+        alert(res.data?.message || (formData.courseId!=""  ? '编辑失败' : '新增失败'));
+    }
+    }catch(err){
+        alert('网络异常，操作失败');
+        console.error(err);  
+    } 
   }
 
   // 删除
