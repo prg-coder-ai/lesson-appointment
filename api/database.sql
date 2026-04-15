@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS `schedule` (
   `start_time` datetime NOT NULL COMMENT '排期开始时间（格式：YYYY-MM-DD HH:mm:ss）',
   `end_time` datetime NOT NULL COMMENT '排期结束时间（格式：YYYY-MM-DD HH:mm:ss）',
 
-  `repeat_type` tinyint(1) DEFAULT 0 COMMENT '重复类型：0=不重复，1=每天，2=每周，3=每月',
+  `repeat_type` (1) DEFAULT 0 COMMENT '重复类型：0=不重复，1=每天，2=每周，3=每月',
   `repeat_interval` tinyint(1) DEFAULT 1 COMMENT '重复间隔（如每2周一次=2）',
   `repeat_days` VARCHAR(255) COMMENT '重复的星期几：1=周一，2=周二...7=周日，逗号分隔（仅repeat_type=2时有效），type=3时为1-31,当月的那几天',
   `repeat_end_date` DATETIME COMMENT '重复结束时间（精确到秒）',

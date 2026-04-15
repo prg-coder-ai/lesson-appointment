@@ -80,13 +80,17 @@ public class CourseScheduleController {
         return Result.success(schedules,"ok");
     }
 
-    @GetMapping("/selectByCourseId")
+    @GetMapping("/selectByCourseId/{courseId}")
      @ResponseBody
-    public Result<List<CourseSchedule>> getScheduleByCourseId(@PathVariable CourseScheduleCreateDTO dto, @RequestHeader("Authorization") String token) {
-            // CourseScheduleCreateDTO dto;
-            // dto.setCourseid(cid);
-             List<CourseSchedule> schedules = scheduleService.selectList(dto);
-           
+    public Result<List<CourseSchedule>> getScheduleByCourseId(@PathVariable String courseId, @RequestHeader("Authorization") String token) {
+              CourseScheduleCreateDTO dto = new CourseScheduleCreateDTO();
+              dto.setCourseId(courseId); // courseId
+              List<CourseSchedule> schedules = scheduleService.selectList(dto); 
        return Result.success(schedules,"ok");
     } 
+ 
 }
+
+
+
+ 
