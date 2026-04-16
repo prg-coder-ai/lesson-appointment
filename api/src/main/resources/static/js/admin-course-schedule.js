@@ -54,16 +54,22 @@ async function renderScheduleCards() {
             <option value="">请先检索课程</option>
         </select>
     </div>
-
+     <!-- 排期选择下拉 -->
+       <div class="form-line">
+        <label>选择排期：</label>
+        <select id="scheduleSelect" onchange="displySchedule()">
+            <option value="">请选择课程排期</option>
+        </select>
+    </div>
     <div class="section">
         <div class="section-title">排期设置</div>
 
         <div class="form-line" style="display:none;">
-            <label>Id</label>
+            <label>Id</label> 
             <input type="label" id="scheduleId">
         </div>
 
-        <div class="form-line" style="display:flex;">
+        <div class="form-line" style="display:none;">
             <label>cId</label>
             <input type="label" id="courseId">
         </div>
@@ -103,8 +109,8 @@ async function renderScheduleCards() {
             <label>状态</label>
            <select id="status">
                 <option value="pending">待发布</option>
-                <option value="inactive">生效</option>
-                <option value="active">正常</option>
+                <option value="inactive">已回收</option>
+                <option value="active">已发布</option>
                 <option value="forzen">已删除</option>
             </select>
         </div>
@@ -139,9 +145,9 @@ async function renderScheduleCards() {
 
     <!-- 操作按钮 -->
     <div class="btn-group">
-        <button onclick="previewSchedule()">预览</button>
-        <button class="btn-primary" onclick="publishSchedule()">发布</button>
-        <button class="btn-success" onclick="operateScheduleInactive()">保留</button>
+        <button onclick="previewSchedule()">预览排期</button>
+        <button class="btn-primary" onclick="publishSchedule()">保存</button>
+        <button class="btn-success" onclick="operateScheduleInactive()">重置</button>
         <button class="btn-danger" onclick="deleteSchedule()">删除</button>
     </div>
 
@@ -222,8 +228,7 @@ async function getCourseList(conditionJson) {
 }
 
  // 1. 检索课程（原生 fetch）
- async function searchCourse() {
- 
+ async function searchCourse() { 
   const params = {
     courseName: document.getElementById('courseName').value,
     languageType: document.getElementById('language').value,
@@ -243,6 +248,7 @@ async function getCourseList(conditionJson) {
   renderCourseSelect();
 }
 
+//把courseList列在下拉框中
 function renderCourseSelect() {
   const sel = document.getElementById('courseSelect');
   sel.innerHTML = '<option value="">请选择课程</option>';
@@ -257,9 +263,12 @@ function renderCourseSelect() {
 function renderSchedule() {
      if (!scheduleObject) return;
       console.log("renderSchedule",scheduleObject);
+
        // 刷新开始日期
        if (scheduleObject.scheduleId) {
         document.getElementById('scheduleId').value = scheduleObject.scheduleId;
+        console.log("scheduleId",scheduleObject.scheduleId);
+        console.log("scheduleId", document.getElementById('scheduleId').value);
     } else {
         document.getElementById('scheduleId').value = '';
     }
@@ -303,42 +312,30 @@ function renderSchedule() {
          document.getElementById('endDate').value = scheduleObject.endDate;
      } else {
          document.getElementById('endDate').value = '';
-     }
-     List <int> repeatDays ;
-     // INSERT_YOUR_CODE
-     // 把逗号分隔的数字字符串转为数组
-     if (scheduleObject.repeatDays && typeof scheduleObject.repeatDays === 'string') {
-         repeatDays = scheduleObject.repeatDays
-             .split(',')
-             .map(s => s.trim())
-             .filter(s => s !== '')
-             .map(Number)
-             .filter(n => !isNaN(n));
-     }
+     } 
+      
+     console.log("repeatDs:",scheduleObject.repeatDays,scheduleObject.repeatType);
+     
+     // 获取下拉框
+    const sel = document.getElementById('repeatType');
+    if(sel!= null) {
+        sel.selectedIndex = scheduleObject.repeatType;   
+    }
 
      // 刷新每周/每月重复星期（如有）
-     if ( scheduleObject.repeatType === "week" 
-              && Array.isArray(repeatDays)) {
+     if ( scheduleObject.repeatType === 2 && Array.isArray( scheduleObject.repeatDays)) {
          const checkboxes = document.querySelectorAll('#weekDays input[type="checkbox"]');
          checkboxes.forEach(cb => {
-             cb.checked = repeatDays.includes(Number(cb.value));
+             cb.checked =  scheduleObject.repeatDays.includes(Number(cb.value));
          });
-     } else   if ( scheduleObject.repeatType === "month" 
-        && Array.isArray(repeatDays)) {
-   const checkboxes = document.querySelectorAll('#monthDays input[type="checkbox"]');
-   checkboxes.forEach(cb => {
-       cb.checked = repeatDays.includes(Number(cb.value));
-   });
-    } else{
-            const checkboxes = document.querySelectorAll('#weekDays input[type="checkbox"]');
+
+     } else   if ( scheduleObject.repeatType === 3  && Array.isArray( scheduleObject.repeatDays)) {
+            const checkboxes = document.querySelectorAll('#monthDays input[type="checkbox"]');
             checkboxes.forEach(cb => {
-                cb.checked = false;
+                cb.checked =  scheduleObject.repeatDays.includes(Number(cb.value));
             });
-              checkboxes = document.querySelectorAll('#monthDays input[type="checkbox"]');
-            checkboxes.forEach(cb => {
-                cb.checked = false;
-            });
-        }
+    } 
+    onRepeatTypeChange(); 
 }
 
 /**
@@ -347,8 +344,7 @@ function renderSchedule() {
 async function fetchScheduleList( cid) {
     const token = getToken();
     if (!token) return;
-    
-    //dto.setCourseId(cid);
+     
     try {
         // Axios GET请求（修复response.json()错误，Axios已自动解析）
         // 这里使用axios进行GET请求，获取指定课程ID的排期列表
@@ -367,12 +363,12 @@ async function fetchScheduleList( cid) {
 
             localParamter.total = scheduleList.length|| 0;
             
-            console.info("total:",localParamter.total,scheduleList);
+            //console.info("total:",localParamter.total,scheduleList);
             // 补全默认状态
             scheduleList.forEach(item => {
                 if (!item.status) item.status = 'active';
             });
-            console.info("selectByCourseId scheduleList:",scheduleList);
+            //console.info("selectByCourseId scheduleList:",scheduleList);
         } else {
             alert(res?.message || '获取排期失败');
         }
@@ -399,7 +395,59 @@ async function fetchScheduleList( cid) {
    window.onRepeatTypeChange = onRepeatTypeChange;
    window.renderCalendar = renderCalendar ;
    window.publishSchedule = publishSchedule ;
+   window.displySchedule = displySchedule ;
 
+   function resetScheduleObject(){
+  // 清理scheduleObject的各个字段
+  scheduleObject = {
+    scheduleId: "",
+    courseId: cid,
+    courseName: "",
+    teacherId: "",
+    teacherName: "",
+    startDate: (function() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    })(),
+
+    repeatEndDate: (function() {
+        // repeatEndDate = startDate + 30 days
+        let startDate = new Date();
+        startDate.setDate(startDate.getDate() + 30);
+        // 格式化为YYYY-MM-DD
+        let month = String(startDate.getMonth() + 1).padStart(2, '0');
+        let day = String(startDate.getDate()).padStart(2, '0');
+        return `${startDate.getFullYear()}-${month}-${day}`;
+    })(),
+
+    startTime: (function() {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        return `${hours}:${minutes}`;
+    })(),
+    endTime: (function() {
+        const now = new Date();
+        now.setHours(now.getHours() + 1);
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        return `${hours}:${minutes}`;
+    })(),
+
+    repeatType: 0,
+    interval: 1,
+    repeatDays: [],
+    status: "pending", 
+    timeZone:userTimeZone,
+    userTimeZone:userTimeZone       
+};  
+return 
+   }
+
+   
      // 加载课程排期
     async function loadSchedule() {
       const cid = document.getElementById('courseSelect').value;
@@ -411,61 +459,39 @@ async function fetchScheduleList( cid) {
         if (courseIdElem) {
             courseIdElem.value = cid;
         }
-
-        // 清理scheduleObject的各个字段
-        scheduleObject = {
-            scheduleId: "",
-            courseId: cid,
-            courseName: "",
-            teacherId: "",
-            teacherName: "",
-            startDate: (function() {
-                const now = new Date();
-                const year = now.getFullYear();
-                const month = String(now.getMonth() + 1).padStart(2, '0');
-                const day = String(now.getDate()).padStart(2, '0');
-                return `${year}-${month}-${day}`;
-            })(),
-       
-            repeatEndDate: (function() {
-                // repeatEndDate = startDate + 30 days
-                let startDate = new Date();
-                startDate.setDate(startDate.getDate() + 30);
-                // 格式化为YYYY-MM-DD
-                let month = String(startDate.getMonth() + 1).padStart(2, '0');
-                let day = String(startDate.getDate()).padStart(2, '0');
-                return `${startDate.getFullYear()}-${month}-${day}`;
-            })(),
  
-            startTime: (function() {
-                const now = new Date();
-                const hours = String(now.getHours()).padStart(2, '0');
-                const minutes = String(now.getMinutes()).padStart(2, '0');
-                return `${hours}:${minutes}`;
-            })(),
-            endTime: (function() {
-                const now = new Date();
-                now.setHours(now.getHours() + 1);
-                const hours = String(now.getHours()).padStart(2, '0');
-                const minutes = String(now.getMinutes()).padStart(2, '0');
-                return `${hours}:${minutes}`;
-            })(),
-       
-            repeatType: 0,
-            interval: 1,
-            repeatDays: [],
-            status: "pending", 
-            timeZone:userTimeZone,
-            userTimeZone:userTimeZone       
-        };  
       try {
            await fetchScheduleList(cid);
      
           if (scheduleList && scheduleList.length > 0) {
               // 列表长度大于0 ,  //TBD：根据列表长度，添加1个下拉框选择。暂时选择第一个
-            scheduleObject = scheduleList[0];
-            alert("加载课程"+scheduleObject);
-            renderSchedule(); 
+           // scheduleObject = scheduleList[0];
+            // INSERT_YOUR_CODE
+            // 把scheduleList列表按scheduleId值添加到scheduleSelect下拉列表中
+            const scheduleSelect = document.getElementById('scheduleSelect');
+            if (scheduleSelect) {
+                // 先清空原有选项
+                scheduleSelect.innerHTML = '<option value="">请选择课程排期</option>';
+                scheduleList.forEach(schedule => {
+                    // scheduleId和排期信息（可展示更多）
+                    const opt = document.createElement('option');
+                    opt.value = schedule.scheduleId;
+                    // 展示排期信息，如果有startDate等可拼接
+                    let displayText = `排期ID: ${schedule.scheduleId}`;
+                    if (schedule.startDate && schedule.startTime) {
+                        displayText += ` / ${schedule.startDate} ${schedule.startTime}`;
+                    } else if (schedule.startDate) {
+                        displayText += ` / ${schedule.startDate}`;
+                    }
+                    opt.innerText = displayText;
+                    scheduleSelect.appendChild(opt);
+                });
+                // 如果有当前scheduleObject，选中它
+              //  if (scheduleObject && scheduleObject.scheduleId) {
+                //    scheduleSelect.value = scheduleObject.scheduleId;
+                //}
+            }
+           
             //更新排期的显示
           }
           return;
@@ -474,7 +500,28 @@ async function fetchScheduleList( cid) {
       } 
       
   }
-
+   function displySchedule() {
+   // INSERT_YOUR_CODE
+   // 查询scheduleSelect下拉框的当前，获取数据，调用 renderSchedule 更新当前选择
+   const scheduleSelect = document.getElementById('scheduleSelect');
+   if (!scheduleSelect) return;
+   const selectedId = scheduleSelect.value;
+   if (!selectedId) return;
+   
+   // 在 scheduleList 中查找对应的排期对象
+   const selectedSchedule = scheduleList.find(s => String(s.scheduleId) === String(selectedId));
+   if (selectedSchedule) {
+       scheduleObject = selectedSchedule;
+       // 调用 renderSchedule （假设有此函数用于渲染/刷新当前排期到表单）
+      
+   } else {
+       resetScheduleObject();//
+   }
+        if (typeof renderSchedule === 'function') {
+            renderSchedule();
+        }
+   }
+  
    function  getFormData(){
     const form = {
         courseId: document.getElementById('courseId').value,
@@ -637,6 +684,8 @@ function renderResult() {
      console.log("Inactive:",sid);
      operateSchedule(sid,"inactive");
    }
+
+
  //CourseScheduleCreateDTO;
     // 发布--修改当前的排期状态并保存 
   // 保存 uodate or insert 
@@ -655,10 +704,10 @@ function renderResult() {
       ClassroomId: formData.ClassroomId || "",
       // 后端CourseScheduleCreateDTO是LocalDateTime/Date类型，这里传 yyyy-MM-dd 或 hh:mm:ss 字符串即可
       startDate:  formData.startDate  ? formData.startDate  : "",
-      startTime: formData.startTime+ ":00" || "",
+      startTime: formData.startTime   || "",
       endDate: formData.endDate ? formData.endDate : "",
  
-      endTime: formData.startTime +":00" || "",
+      endTime: formData.startTime  || "",
       //repeatType: formData.repeatType || 0,
       repeatInterval: formData.interval || 1,
       repeatDays: formData.repeatDays || [],
@@ -788,3 +837,50 @@ async function operateSchedule(scheduleId, action) {
  * 
  * 
  **/
+// INSERT_YOUR_CODE
+/**
+/**
+ * 隐藏 DIV 元素但仍可通过 JS 访问其内容/属性的常用方法：
+ * 1. 使用 style="display:none" —— DIV 不可见且不占位，但仍保留在 DOM，可通过 JS 读写 innerText/innerHTML 等。
+ * 2. 使用 style="visibility:hidden" —— DIV 不可见但仍占位，也可被 JS 正常访问内容。
+ * 3. 用页面外定位：如 style="position:absolute; left:-9999px;"，视觉上不可见但依然在 DOM，也可聚焦/访问内容。
+ * 4. 用 aria-hidden="true" 属性 —— 仅影响无障碍，不影响 JS 获取内容。
+ *
+ * 示例：
+ * <div id="a" style="display:none">foo</div>
+ * <div id="b" style="visibility:hidden">bar</div>
+ * <div id="c" style="position:absolute;left:-9999px;">baz</div>
+ * <div id="d" aria-hidden="true">hidden by aria</div>
+ * // JS:
+ * console.log(
+ *   document.getElementById('a').innerText,
+ *   document.getElementById('b').innerText,
+ *   document.getElementById('c').innerText,
+ *   document.getElementById('d').innerText
+ * );
+ *
+ * // 只要 DIV 未从 DOM 移除，其内容都能通过 JavaScript 获取和修改。
+ */
+ // INSERT_YOUR_CODE
+
+// 示例：在display:none的DIV中包含一个input，依然可以通过JS读取其值
+
+// 假设有如下HTML
+// <div id="hiddenDiv" style="display:none;">
+//   <input type="text" id="hiddenInput" value="隐藏的值">
+// </div>
+
+// 通过JS读取和设置input的值
+/*function readHiddenInputValue() {
+    var input = document.getElementById('hiddenInput');
+    if (input) {
+        console.log("隐藏的input值:", input.value);
+        // 也可以赋新值
+        input.value = "新值";
+        console.log("赋新值后:", input.value);
+    }
+}*/
+// 调用示例
+// readHiddenInputValue();
+
+// 结论：只要元素还在DOM树中，display:none不会影响JS用value/innerText等API访问或修改其内容

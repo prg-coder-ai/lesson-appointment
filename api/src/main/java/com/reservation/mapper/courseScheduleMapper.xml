@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.reservation.mapper.CourseScheduleMapper">
-        <!--, classroom_id  #{classroomId}, -->
-    <!-- 新增 insertSchedule 方法，参数类型可根据需要调整为DTO类型（如CourseScheduleCreateDTO） -->
+     
     <insert id="insertSchedule" parameterType="com.reservation.entity.CourseSchedule" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO course_schedule
         (schedule_id, course_id, time_zone, start_time, end_time, repeat_type, repeat_interval, repeat_days, status, available_sites)
@@ -100,10 +99,10 @@
             <if test="courseId != null and courseId != ''">
                 course_id = #{courseId},
             </if>
-            <if test="teacherId != null and teacherId != ''">
+             <!--  <if test="teacherId != null and teacherId != ''">
                 teacher_id = #{teacherId},
             </if>
-            <!--  <if test="classroomId != null and classroomId != ''">
+           <if test="classroomId != null and classroomId != ''">
                 classroom_id = #{classroomId},
             </if> -->
             <if test="startTime != null">
@@ -122,10 +121,10 @@
                 repeat_days = #{repeatDays},
             </if> 
              <if test="timeZone != null">
-                AND time_zone = #{timeZone}
+                 time_zone = #{timeZone},
             </if>
             <if test="status != null">
-                AND status = #{status}
+                 status = #{status}
             </if> 
         </set>
         WHERE schedule_id = #{scheduleId}

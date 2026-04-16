@@ -43,30 +43,30 @@ public class CourseScheduleController {
     @PostMapping("/update")
     @ResponseBody
     public Result<Map<String, String>> updateSchedule(@Validated @RequestBody CourseScheduleCreateDTO dto,
-                                                   @RequestHeader("Authorization") String token) {
-         permissionCheck.checkTeacherOrAdmin(token);
-        String scheduleId = scheduleService.update(dto);//////TBD: local->UTC switch
-        return Result.success( );
+                                      @RequestHeader("Authorization") String token) {
+        permissionCheck.checkTeacherOrAdmin(token);
+        Map<String, String> rst = scheduleService.update(dto); // TBD: local->UTC switch
+        return Result.success(rst,"更新成功");
     }
 
  // 更新可用数incSiteBody { "inc":1、-1 ，"id":scheduleId)
     @PostMapping("/incSite")
     @ResponseBody
-    public Result<Void> ScheduleIncSite(@Validated @RequestBody IncSiteBody dto,
+    public Result<String> ScheduleIncSite(@Validated @RequestBody IncSiteBody dto,
                                     @RequestHeader("Authorization") String token) {
          permissionCheck.checkTeacherOrAdmin(token);
         String scheduleId = scheduleService.updateScheduleSites(dto);
-        return Result.success(null,scheduleId);
+        return Result.success(scheduleId,"");
     }
     
     // 更新状态 (scheduleId，status)
     @PostMapping("/updateStatus")
      @ResponseBody
-    public Result<Void> updateStatus(@Validated @RequestBody StatusBody dto) {
+    public Result<String> updateStatus(@Validated @RequestBody StatusBody dto) {
 
         String scheduleId = scheduleService.updateStatus(dto);////TBD: local->UTC switch
        
-        return Result.success(null,scheduleId);
+        return Result.success(scheduleId,"");
     }
     
     // 查询排期详情（含展开后的实例，用于前端展示）

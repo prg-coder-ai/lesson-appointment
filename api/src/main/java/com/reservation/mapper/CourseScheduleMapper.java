@@ -19,7 +19,7 @@ public interface CourseScheduleMapper {
 
     String updateScheduleSites(IncSiteBody opPara);
     //根据输入的非空参数更新
-    String update(CourseSchedule newData);
+    void update(CourseSchedule newData);
     void updateStatus(StatusBody scheduleStatus);
     void updateSites(IncSiteBody scheduleSitsInc);
     // 查询时间区间内的冲突排期（用于冲突检测）
