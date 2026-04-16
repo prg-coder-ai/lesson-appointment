@@ -15,23 +15,58 @@
     </select>
  
  
-    <select id="selectList" parameterType="com.reservation.entity.CourseSchedule" resultType="com.reservation.entity.CourseSchedule">
+    <!--
+        <select> 元素定义了一个SQL查询语句，可被MyBatis映射为接口方法。
+        - id="selectList"：指定该SQL映射在接口中的方法名为 selectList。
+        - parameterType="com.reservation.entity.CourseSchedule"：传入参数使用 CourseSchedule 类型（通常用于条件过滤）。
+        - resultType="com.reservation.entity.CourseSchedule"：查询结果将映射为 CourseSchedule 类型的对象列表。
+
+        查询内容和<where>语句通过条件拼接实现多条件动态查询，方便灵活组合搜索条件。
+    -->
+    <!-- 
+        语法分析：
+        <select> 标签定义了一个MyBatis的SQL查询语句映射方法。
+        - id="selectList"：对应接口中的方法名。
+        - parameterType="com.reservation.entity.CourseScheduleCreateDTO"：传入参数类型。
+        - resultType="com.reservation.entity.CourseSchedule"：查询结果映射类型。
+
+        <where> 标签的作用是自动处理AND/OR连接，会自动去除多余的AND或OR，拼接成有效SQL的WHERE部分。
+        其中的 (1==1) 其实是无意义的表达式，通常应为1=1作为占位，或省略。
+        <if test="..."> 控制SQL片段是否拼接，test是OGNL表达式，判断DTO属性是否为非空。
+
+        生成的SQL:
         SELECT * FROM course_schedule
-        <where>  ( 1==1 ) 
+        WHERE
+            [AND schedule_id=...]   // 如果scheduleId非空
+            [AND course_id=...]     // 如果courseId非空
+            [AND start_time>=...]   // 如果startTime非空
+            [AND end_time< ...]     // 如果endTime非空
+            [AND repeat_type=...]   // 如果repeatType非空
+            [AND repeat_interval=...] // 如果repeatInterval非空
+            [AND repeat_days=...]   // 如果repeatDays非空且不为''
+
+        注意事项：
+        - OGNL表达式用 test="xxx != null and xxx != ''" 判断字符串和对象类型的非空。
+        - 大于/小于用 &gt;= 和 &lt; 转义。
+        - MyBatis会根据参数动态生成实际SQL，避免无谓的AND叠加。
+    -->
+    <select id="selectList" parameterType="com.reservation.entity.CourseScheduleCreateDTO" resultType="com.reservation.entity.CourseSchedule">
+        SELECT * FROM course_schedule
+        <where>
             <if test="scheduleId != null and scheduleId != ''">
                 AND schedule_id = #{scheduleId}
             </if>
-              <if test="courseId != null and courseId != ''">
+            <if test="courseId != null and courseId != ''">
                 AND course_id = #{courseId}
             </if>
             <!--
             <if test="classroomId != null and classroomId != ''">
                 AND classroom_id = #{classroomId}
-            </if>  -->
+            </if>
+            -->
             <if test="startTime != null">
                 AND start_time &gt;= #{startTime}
             </if>
-     
             <if test="endTime != null">
                 AND end_time &lt; #{endTime}
             </if>
@@ -44,7 +79,6 @@
             <if test="repeatDays != null and repeatDays != ''">
                 AND repeat_days = #{repeatDays}
             </if>
-              
         </where>
     </select>
        
