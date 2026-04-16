@@ -90,7 +90,25 @@ public class CourseScheduleController {
      @ResponseBody
     public Result<List<CourseScheduleCreateDTO>> getScheduleByCourseId(@PathVariable String courseId, @RequestHeader("Authorization") String token) {
               CourseScheduleCreateDTO dto = new CourseScheduleCreateDTO();
+              // INSERT_YOUR_CODE
+              dto.setScheduleId(null);
+             // dto.setCourseId(null);
+             // dto.setCourseName(null);
+               dto.setTeacherId(null);
+             // dto.setTeacherName(null);
+              dto.setStartDate(null);
+              dto.setAvailableSites(null);
+              dto.setStartTime(null);
+              dto.setEndTime(null);
+              dto.setRepeatType(null);
+              dto.setRepeatInterval(null);
+              dto.setRepeatDays(null);
+              dto.setStatus(null);
+              dto.setTimeZone(null);
+      
               dto.setCourseId(courseId); // courseId
+ 
+    ////System.out .println("getScheduleByCourseId dto:" + dto);
               List<CourseScheduleCreateDTO> schedules = scheduleService.selectList(dto); 
 
        return Result.success(schedules,"ok");

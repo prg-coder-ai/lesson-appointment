@@ -141,7 +141,7 @@ async function renderScheduleCards() {
     <div class="btn-group">
         <button onclick="previewSchedule()">预览</button>
         <button class="btn-primary" onclick="publishSchedule()">发布</button>
-        <button class="btn-success" onclick="saveSchedule()">保留</button>
+        <button class="btn-success" onclick="operateScheduleInactive()">保留</button>
         <button class="btn-danger" onclick="deleteSchedule()">删除</button>
     </div>
 
@@ -256,7 +256,7 @@ function renderCourseSelect() {
 //更新scheduleObject相关内容 --待细化
 function renderSchedule() {
      if (!scheduleObject) return;
-
+      console.log("renderSchedule",scheduleObject);
        // 刷新开始日期
        if (scheduleObject.scheduleId) {
         document.getElementById('scheduleId').value = scheduleObject.scheduleId;
@@ -348,17 +348,22 @@ async function fetchScheduleList( cid) {
     const token = getToken();
     if (!token) return;
     
-    dto.setCourseId(cid);
+    //dto.setCourseId(cid);
     try {
         // Axios GET请求（修复response.json()错误，Axios已自动解析）
+        // 这里使用axios进行GET请求，获取指定课程ID的排期列表
+        // axios.get返回一个promise，最终response包含HTTP响应的整个对象
+        // response.data才是后端接口返回的json包（含code/data/message等）
         const response = await axios.get(`${API_BASE_URL}/course/schedule/selectByCourseId/${cid}`, {
-            headers: { "Authorization": "Bearer " + token }, 
+            headers: { "Authorization": "Bearer " + token },
         });
+        // response对象结构：{ status, statusText, headers, config, data }
+        // 通常我们只关心response.data，它对应后端的Result结构
         const res = response.data;
-        console.info("get response data:",res);
+        
         if (res && res.code === 200) {
           //console.info("data.schedules:",res.schedules);
-            scheduleList = res.data.schedules|| []; // TBD:对于多个排期的情况进行区分
+            scheduleList = res.data|| []; // TBD:对于多个排期的情况进行区分
 
             localParamter.total = scheduleList.length|| 0;
             
@@ -367,11 +372,12 @@ async function fetchScheduleList( cid) {
             scheduleList.forEach(item => {
                 if (!item.status) item.status = 'active';
             });
+            console.info("selectByCourseId scheduleList:",scheduleList);
         } else {
-            ;//alert(res?.message || '获取课程列表失败');
+            alert(res?.message || '获取排期失败');
         }
     } catch (e) {
-        alert("网络错误，获取模板列表失败");
+        alert("网络错误，获取排期失败");
         console.error(e);
     }
 }
@@ -397,8 +403,9 @@ async function fetchScheduleList( cid) {
      // 加载课程排期
     async function loadSchedule() {
       const cid = document.getElementById('courseSelect').value;
+
       if (!cid) return;
-        // INSERT_YOUR_CODE
+       
         // 把页面的courseId节点内容设置为cid
         const courseIdElem = document.getElementById('courseId');
         if (courseIdElem) {
@@ -452,11 +459,12 @@ async function fetchScheduleList( cid) {
             userTimeZone:userTimeZone       
         };  
       try {
-        scheduleList =   await fetchScheduleList(cid);
-          //alert("加载课程排期成功");
+           await fetchScheduleList(cid);
+     
           if (scheduleList && scheduleList.length > 0) {
               // 列表长度大于0 ,  //TBD：根据列表长度，添加1个下拉框选择。暂时选择第一个
             scheduleObject = scheduleList[0];
+            alert("加载课程"+scheduleObject);
             renderSchedule(); 
             //更新排期的显示
           }
@@ -622,6 +630,13 @@ function renderResult() {
       cal.appendChild(div);
   }
 }
+    //设置为inactive
+   function operateScheduleInactive() {
+     const formData = getFormData();
+     let sid=formData.scheduleId;
+     console.log("Inactive:",sid);
+     operateSchedule(sid,"inactive");
+   }
  //CourseScheduleCreateDTO;
     // 发布--修改当前的排期状态并保存 
   // 保存 uodate or insert 
@@ -674,8 +689,9 @@ function renderResult() {
         body: JSON.stringify(dto)
       });
       const result = await res.json();
-       // 4.  响应处理 响应成功/失败
-       if (result.data && result.data.code === 200) {
+      console.log("res:",result);
+       // 4.  响应处理 响应成功/失败 result.data.id = new id
+       if (result && result.code === 200) {
         alert(formData.scheduleId !="" ? '编辑成功' : '新增成功'); 
     } else {
         alert(result.data?.message || (formData.courseId!=""  ? '编辑失败' : '新增失败'));
@@ -687,8 +703,9 @@ function renderResult() {
   }
 
   // 删除
-  async function deleteSchedule(scheduleId) {
-      
+  async function deleteSchedule() {
+    const formData = getFormData();
+    const scheduleId = formData.scheduleId;
        await operateSchedule(scheduleId,"frozen");
       scheduleResult = [];
       renderResult();

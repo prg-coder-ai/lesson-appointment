@@ -75,7 +75,7 @@ public class CourseScheduleService {
         
         String  Id = UUID.randomUUID().toString().replace("-", ""); // 移除UUID分隔符
         schedule.setScheduleId( Id);
-         System.out.println("setScheduleId: " + schedule);
+         //System.out .println("setScheduleId: " + schedule);
         // 4. 插入排期
         scheduleMapper.insertSchedule(schedule);
        
@@ -84,9 +84,13 @@ public class CourseScheduleService {
 
     // 解析repeatDays字符串为整数列表
     private List<Integer> parseRepeatDays(String repeatDays) {
+
         if (repeatDays == null || repeatDays.isEmpty()) {
             return new ArrayList<>();
         }
+        repeatDays=repeatDays.trim();
+        if(repeatDays.isEmpty())
+            return new ArrayList<>();
         return Arrays.stream(repeatDays.split(","))
             .map(Integer::parseInt)  
             .collect(Collectors.toList());
@@ -94,14 +98,14 @@ public class CourseScheduleService {
   
 @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public   String updateStatus (StatusBody data) {       
-         System.out.println("updateStatus called with scheduleId: " + data);
+         //System.out .println("updateStatus called with scheduleId: " + data);
          scheduleMapper.updateStatus(data);
         return  data.getScheduleId();
     }
 
   @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public String update(CourseScheduleCreateDTO dto) { 
-         System.out.println("update : " +dto); 
+         //System.out .println("update : " +dto); 
           CourseSchedule schedule = DtoToObject(dto);        
           scheduleMapper.update(schedule);
         return dto.getScheduleId();
@@ -127,14 +131,18 @@ public class CourseScheduleService {
     public List<CourseScheduleCreateDTO> selectList(CourseScheduleCreateDTO obj) {
          
           List<CourseSchedule> s = scheduleMapper.selectList(obj);//获取原始排期
-          return ObjectToDto(s);
+            //System.out .println("selectList : " +s); 
+          return ListObjectToDto(s);
     }
  
- private  List<CourseScheduleCreateDTO> ObjectToDto(List<CourseSchedule> objList){
+ private  List<CourseScheduleCreateDTO> ListObjectToDto(List<CourseSchedule> objList){
          List<CourseScheduleCreateDTO> result = new ArrayList<>();
            for (CourseSchedule cs : objList) {
+               //System.out .println("ListObjectToDto : " +cs); 
+
                CourseScheduleCreateDTO dto = new CourseScheduleCreateDTO();
-               dto.setCourseId(cs.getCourseId());
+                dto.setScheduleId(cs.getScheduleId());
+                dto.setCourseId(cs.getCourseId());
                // CourseSchedule 里没有 teacherId / ClassroomId 字段, 若需要请补充
                dto.setTeacherId(null);
                dto.setClassroomId(null);
@@ -145,8 +153,10 @@ public class CourseScheduleService {
                        dto.setStartDate(java.time.LocalDate.parse(cs.getStartTime().substring(0, 10)));
                   
                    } catch (Exception ex) { dto.setStartDate(null); }
+
                    try {
-                       dto.setStartTime(java.time.LocalTime.parse(cs.getStartTime().substring(0, 19).replace(' ', 'T')));
+                      String timePart = cs.getEndTime().length() >= 19 ? cs.getEndTime().substring(11, 19) : null;
+                       dto.setStartTime(java.time.LocalTime.parse(timePart));
                    } catch (Exception ex) { dto.setStartTime(null); }
                } 
 
@@ -155,8 +165,13 @@ public class CourseScheduleService {
                        dto.setEndDate(java.time.LocalDate.parse(cs.getEndTime().substring(0, 10)));
                    } catch (Exception ex) { dto.setEndDate(null); }
                     try {
-                       dto.setEndTime(java.time.LocalTime.parse(cs.getEndTime().substring(0, 19).replace(' ', 'T')));
-                   } catch (Exception ex) { dto.setEndTime(null); }
+                       // INSERT_YOUR_CODE
+                       String timePart = cs.getEndTime().length() >= 19 ? cs.getEndTime().substring(11, 19) : null; 
+                       dto.setEndTime(java.time.LocalTime.parse(timePart));
+                   } catch (Exception ex) { dto.setEndTime(null); 
+                      System.out.println("setEndTime : " +ex);   
+                      System.out.println(java.time.LocalTime.parse(cs.getEndTime().substring(0, 19)));
+                   }
                }  
                // repeatType = 课程中是int, DTO是Integer
                dto.setRepeatType(cs.getRepeatType());
@@ -178,7 +193,7 @@ private CourseSchedule  DtoToObject(CourseScheduleCreateDTO dto){
     cs.setCourseId(dto.getCourseId());
     cs.setScheduleId(dto.getScheduleId());
     // cs.setClassroomId(dto.getClassroomId());
-   System.out.println("DtoToObject : " +dto);         
+   //System.out .println("DtoToObject : " +dto);         
     // LocalDateTime 转 String（假定格式为 "yyyy-MM-dd HH:mm:ss"）
     // 错误分析:
     // 1. dto.getStartDate() 和 dto.getStartTime() 已分别是 LocalDate 和 LocalTime，无需再调用 toLocalDate()/toLocalTime()

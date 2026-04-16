@@ -23,8 +23,8 @@ public class CourseScheduleCreateDTO {
     private LocalDate endDate;
     private LocalTime endTime;
     
-    private Integer repeatType = 0 ; // day/week/month
-    private Integer repeatInterval = 1;
+    private Integer repeatType  ; // day/week/month
+    private Integer repeatInterval;
     private List<Integer> repeatDays; // 前端传数组，如 [1,3,5] 
     private String timeZone;      // 前端传的排期时区
     private Integer availableSites;//
