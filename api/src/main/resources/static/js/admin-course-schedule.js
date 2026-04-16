@@ -3,7 +3,8 @@
 let courseList = [];       // 课程列表
 let scheduleObject=null;       // 排期
 let scheduleList =[];
-
+let currentCourseId=null;
+let currentCourseIndex =-1,currentScheduleIndex=-1;
 var localParamter ={ 
   currentPage:1,         // 当前页码（初始值由Thymeleaf渲染）
   pageSize : 10,           // 页大小
@@ -51,14 +52,14 @@ async function renderScheduleCards() {
     <div class="form-line">
         <label>选择课程：</label>
         <select id="courseSelect" onchange="loadSchedule()">
-            <option value="">请先检索课程</option>
+            <option value="">请先选择课程</option>
         </select>
     </div>
      <!-- 排期选择下拉 -->
        <div class="form-line">
         <label>选择排期：</label>
         <select id="scheduleSelect" onchange="displySchedule()">
-            <option value="">请选择课程排期</option>
+            <option value="">请选择排期</option>
         </select>
     </div>
     <div class="section">
@@ -73,22 +74,28 @@ async function renderScheduleCards() {
             <label>cId</label>
             <input type="label" id="courseId">
         </div>
-           <div class="form-line">
+           
+        <div class="form-line">
             <label>时区</label>
             <input type="label" id="timeZone" value=${userTimeZone}>
         </div>
 
-        <div class="form-line">
-            <label>开始日期：</label>
-            <input type="date" id="startDate" value="${(new Date()).toISOString().split('T')[0]}">
-       
-        </div>
-        <div class="form-line">
-            <label>开始时间：</label>
-            <input type="time" id="startTime" value="${(function(){ let d = new Date(); return d.toTimeString().slice(0,5); })()}">
-       
-        </div>
+        <div class="form-line" style="display: flex;"> 
+                <label>开始日期：</label>
+                <input type="date"  align-items: right; id="startDate" value="${(new Date()).toISOString().split('T')[0]}">
+            </div>
 
+            <div class="form-line">
+                <label >上课时间：</label>
+                <input type="time" id="startTime" value="${(function(){ let d = new Date(); return d.toTimeString().slice(0,5); })()}">
+            </div>
+         
+    
+        <div class="form-line" > 
+                <label>结束日期：</label>
+                <input type="date" id="endDate" value="">
+            </div> 
+         
         <div class="form-line">
             <label>重复类型：</label>
             <select id="repeatType" onchange="onRepeatTypeChange()">
@@ -106,7 +113,7 @@ async function renderScheduleCards() {
         </div>
 
         <div class="form-line">
-            <label>状态</label>
+            <label>状态：</label>
            <select id="status">
                 <option value="pending">待发布</option>
                 <option value="inactive">已回收</option>
@@ -132,24 +139,20 @@ async function renderScheduleCards() {
          <!-- 每月重复： -->
         <div class="form-line" id="monthDaysBox" style="display:none;">
             <label>重复日期：</label>
-            <div id="monthDays">
-                  
+            <div id="monthDays">                  
             </div>
         </div>
-        <div class="form-line">
-            <label>结束日期：</label>
-            <input type="date" id="endDate" value="">
-       
-        </div>
+      
     </div>
 
     <!-- 操作按钮 -->
     <div class="btn-group">
-        <button onclick="previewSchedule()">预览排期</button>
-        <button class="btn-primary" onclick="publishSchedule()">保存</button>
-        <button class="btn-success" onclick="operateScheduleInactive()">重置</button>
-        <button class="btn-danger" onclick="deleteSchedule()">删除</button>
-    </div>
+       <button class="btn-success" onclick="resetSchedule()">新建</button>
+        <button class="btn-primary" onclick="previewSchedule()">预览排期</button>
+        <button class="btn-primary" onclick="saveScheduleToDB()">保存</button> 
+        <button class="btn-danger"  onclick="deleteSchedule()">删除</button>
+        <button class="btn-success" onclick="refreshData()">刷新</button>
+    </div> 
 
     <!-- 排期结果 -->
     <div class="section">
@@ -193,10 +196,10 @@ async function renderScheduleCards() {
             const day = String(today.getDate()).padStart(2, '0');
             endDateInput.value = `${year}-${month}-${day}`;
           } ;
-    
-
+      
     
     searchCourse(); 
+
 
 async function getCourseList(conditionJson) { 
   const token = getToken();
@@ -245,7 +248,7 @@ async function getCourseList(conditionJson) {
      
       //alert("模拟课程加载成功");
   }
-  renderCourseSelect();
+     renderCourseSelect();
 }
 
 //把courseList列在下拉框中
@@ -258,6 +261,10 @@ function renderCourseSelect() {
       opt.innerText = item.courseName;
       sel.appendChild(opt);
   });
+  if(currentCourseIndex ==-1)
+    currentCourseId =0;
+    sel.index =currentCourseId;
+    
 }
 //更新scheduleObject相关内容 --待细化
 function renderSchedule() {
@@ -394,14 +401,24 @@ async function fetchScheduleList( cid) {
    window.previewSchedule = previewSchedule;
    window.onRepeatTypeChange = onRepeatTypeChange;
    window.renderCalendar = renderCalendar ;
-   window.publishSchedule = publishSchedule ;
+   window.saveScheduleToDB = saveScheduleToDB ;
    window.displySchedule = displySchedule ;
+   window.deleteSchedule = deleteSchedule ;
 
+   window.resetSchedule = resetSchedule ;   
+   window.refreshData = refreshData ;
+
+   //将当前排期数值为初始值，方便修改
+   function resetSchedule(){
+    resetScheduleObject();
+    renderSchedule(); 
+   }
+   
    function resetScheduleObject(){
   // 清理scheduleObject的各个字段
   scheduleObject = {
     scheduleId: "",
-    courseId: cid,
+    courseId: currentCourseId,
     courseName: "",
     teacherId: "",
     teacherName: "",
@@ -413,7 +430,7 @@ async function fetchScheduleList( cid) {
         return `${year}-${month}-${day}`;
     })(),
 
-    repeatEndDate: (function() {
+    endDate: (function() {
         // repeatEndDate = startDate + 30 days
         let startDate = new Date();
         startDate.setDate(startDate.getDate() + 30);
@@ -444,15 +461,16 @@ async function fetchScheduleList( cid) {
     timeZone:userTimeZone,
     userTimeZone:userTimeZone       
 };  
-return 
+return ;
    }
 
    
      // 加载课程排期
     async function loadSchedule() {
       const cid = document.getElementById('courseSelect').value;
-
+      
       if (!cid) return;
+      currentCourseId = cid;
        
         // 把页面的courseId节点内容设置为cid
         const courseIdElem = document.getElementById('courseId');
@@ -493,13 +511,19 @@ return
             }
            
             //更新排期的显示
+            if(currentScheduleIndex==-1)
+              if(scheduleList.length>0)
+                currentScheduleIndex =0;
+            scheduleSelect.index = currentScheduleIndex;
           }
+
           return;
       } catch (e) {
           alert("加载排期失败",e);
       } 
       
   }
+  //当排期列表选择变化时，重新显示排期计划
    function displySchedule() {
    // INSERT_YOUR_CODE
    // 查询scheduleSelect下拉框的当前，获取数据，调用 renderSchedule 更新当前选择
@@ -517,9 +541,9 @@ return
    } else {
        resetScheduleObject();//
    }
-        if (typeof renderSchedule === 'function') {
-            renderSchedule();
-        }
+    if (typeof renderSchedule === 'function') {
+        renderSchedule();
+    }
    }
   
    function  getFormData(){
@@ -570,7 +594,7 @@ return
     //console.log("form:",form) ;
     // 生成排期列表 localDateTime List<Date,TIME>
     scheduleResult = await generateScheduleListFromServer(form);
-    console.log("result:",scheduleResult) ;
+    //console.log("result:",scheduleResult) ;
     renderResult();
     renderCalendar();
     //alert("预览成功");
@@ -676,20 +700,12 @@ function renderResult() {
       div.innerText = d.getDate();
       cal.appendChild(div);
   }
-}
-    //设置为inactive
-   function operateScheduleInactive() {
-     const formData = getFormData();
-     let sid=formData.scheduleId;
-     console.log("Inactive:",sid);
-     operateSchedule(sid,"inactive");
-   }
-
+} 
 
  //CourseScheduleCreateDTO;
     // 发布--修改当前的排期状态并保存 
   // 保存 uodate or insert 
-  async function publishSchedule() {
+  async function saveScheduleToDB() {
     const token = getToken();
     const formData = getFormData();
     console.log("save form:",formData);
@@ -761,7 +777,13 @@ function renderResult() {
       renderCalendar();
       alert("删除成功");
   }
+
+ function refreshData(){
+    //再次读取排期数据并显示
+    loadSchedule();
  
+ }
+
 /**
  * 发布/回收模板、
  */
