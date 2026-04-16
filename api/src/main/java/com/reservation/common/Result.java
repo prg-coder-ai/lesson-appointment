@@ -27,6 +27,7 @@ public class Result<T> {
     }
 
     // 成功返回（有数据）
+    // T 是泛型类型参数，即返回数据 data 的类型，可以是任意类型（如 Map、List、对象等），调用时由编译器自动推断。
     public static <T> Result<T> success(T data, String message) {
         Result<T> result = new Result<>();
         result.setCode(200);

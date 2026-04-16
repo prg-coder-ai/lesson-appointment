@@ -96,19 +96,14 @@ public class CourseScheduleService {
             .collect(Collectors.toList());
     }
   
-@Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
-    public   String updateStatus (StatusBody data) {       
-         //System.out .println("updateStatus called with scheduleId: " + data);
-         scheduleMapper.updateStatus(data);
-        return  data.getScheduleId();
-    }
-
+//TBD:与createSchedule一样，需要检查排期冲突问题
   @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
-    public String update(CourseScheduleCreateDTO dto) { 
-         //System.out .println("update : " +dto); 
-          CourseSchedule schedule = DtoToObject(dto);        
+    public Map<String, String> update(CourseScheduleCreateDTO dto) { 
+          System.out .println("update : " +dto); 
+          CourseSchedule schedule = DtoToObject(dto);     
+          System.out .println("update : " + schedule); 
           scheduleMapper.update(schedule);
-        return dto.getScheduleId();
+        return Collections.singletonMap("Id", dto.getScheduleId());
     }
 
 //更新可用数 incSiteBody { "inc":1、-1 ，"id":scheduleId)
@@ -119,6 +114,13 @@ public class CourseScheduleService {
         return Obj.getScheduleId();
     }
 
+
+@Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
+    public   String updateStatus (StatusBody data) {       
+         //System.out .println("updateStatus called with scheduleId: " + data);
+         scheduleMapper.updateStatus(data);
+        return  data.getScheduleId();
+    }
 
 // 
   @Transactional(propagation = Propagation.REQUIRED )
@@ -174,7 +176,9 @@ public class CourseScheduleService {
                    }
                }  
                // repeatType = 课程中是int, DTO是Integer
+
                dto.setRepeatType(cs.getRepeatType());
+
                dto.setRepeatInterval(cs.getRepeatInterval());
                // repeatDays: 字符串转 List<Integer>
                dto.setRepeatDays(parseRepeatDays(cs.getRepeatDays())); 
