@@ -54,7 +54,7 @@ public class ScheduleGenerator {
             current = nextDate(current, type, interval,repeatDays);
         }
         // INSERT_YOUR_CODE
-        System.out.println("userSchedule: " + userSchedule);
+        //System.out.println("userSchedule: " + userSchedule);
 
         // 把userSchedule的元素转为UserTimeZone对应的数据  
         List<ScheduleVO> convertedSchedule = new ArrayList<ScheduleVO>();
@@ -74,7 +74,7 @@ public class ScheduleGenerator {
            ScheduleVO item = new ScheduleVO(); 
            item.setDate(dateStr);
            item.setTime(timeStr);
-           System.out.println("item: " + item);
+          // System.out.println("item: " + item);
            convertedSchedule.add(item); 
         }
 
