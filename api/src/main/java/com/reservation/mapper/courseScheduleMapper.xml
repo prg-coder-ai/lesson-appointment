@@ -84,13 +84,13 @@
     <update id="updateSites" parameterType="com.reservation.entity.IncSiteBody">
         UPDATE course_schedule
         SET available_sites = available_sites + #{inc}
-        WHERE id = # {scheduleId}
+        WHERE schedule_id = # {scheduleId}
     </update>
     
      <update id="updateStatus" parameterType="com.reservation.entity.StatusBody">
         UPDATE course_schedule
         SET status = # {status}
-        WHERE id = # {scheduleId}
+        WHERE schedule_id= # {scheduleId}
     </update>
 
     <update id="update" parameterType="com.reservation.entity.CourseSchedule">
