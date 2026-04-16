@@ -63,15 +63,16 @@ CREATE TABLE IF NOT EXISTS `course` (
 CREATE TABLE IF NOT EXISTS `schedule` (
   `schedule_id` varchar(36) NOT NULL COMMENT '排期唯一标识（UUID）',
   `course_id` varchar(36) NOT NULL COMMENT '关联的教师课程ID',
-  `start_time` datetime NOT NULL COMMENT '排期开始时间（格式：YYYY-MM-DD HH:mm:ss）',
+  `time_zone` varchar(36) NOT NULL COMMENT '排期所用的时区',
+  `start_time` datetime NOT NULL COMMENT '排期开始时间（格式：YYYY-MM-DD HH:mm:ss） 包含起始日期',
   `end_time` datetime NOT NULL COMMENT '排期结束时间（格式：YYYY-MM-DD HH:mm:ss）',
 
   `repeat_type` (1) DEFAULT 0 COMMENT '重复类型：0=不重复，1=每天，2=每周，3=每月',
   `repeat_interval` tinyint(1) DEFAULT 1 COMMENT '重复间隔（如每2周一次=2）',
   `repeat_days` VARCHAR(255) COMMENT '重复的星期几：1=周一，2=周二...7=周日，逗号分隔（仅repeat_type=2时有效），type=3时为1-31,当月的那几天',
-  `repeat_end_date` DATETIME COMMENT '重复结束时间（精确到秒）',
+  --- `repeat_end_date` DATETIME COMMENT '重复结束时间（精确到秒）',
 
-   `available` varchar(20) NOT NULL DEFAULT 'available' COMMENT '可用状态（available：可预约，unavailable：不可预约,已排满）',
+   `available_sites` tinyint(1)  NOT NULL DEFAULT 1 COMMENT '剩余席位',
   `status` varchar(20) NOT NULL DEFAULT 'pending' COMMENT '排期状态（pending/active/inactive/frozen/overtime：已结束（自动更新））',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',

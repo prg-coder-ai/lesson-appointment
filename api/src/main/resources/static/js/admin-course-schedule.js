@@ -16,6 +16,7 @@ var localParamter ={
 // ===================== 核心函数 =====================
  // 获取用户时区（关键）
 const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+console.log("tz",userTimeZone);
 /**
  * 渲染课程列表（核心：原生JS操作DOM）
  */
@@ -62,13 +63,20 @@ async function renderScheduleCards() {
             <input type="label" id="scheduleId">
         </div>
 
+           <div class="form-line">
+            <label>时区</label>
+            <input type="label" id="timeZone" value=${userTimeZone}>
+        </div>
+
         <div class="form-line">
             <label>开始日期：</label>
-            <input type="date" id="startDate">
+            <input type="date" id="startDate" value="${(new Date()).toISOString().split('T')[0]}">
+       
         </div>
         <div class="form-line">
             <label>开始时间：</label>
-            <input type="time" id="startTime">
+            <input type="time" id="startTime" value="${(function(){ let d = new Date(); return d.toTimeString().slice(0,5); })()}">
+       
         </div>
 
         <div class="form-line">
@@ -82,7 +90,7 @@ async function renderScheduleCards() {
         </div>
 
         <div class="form-line">
-            <label>重复间隔：</label>
+            <label>重复周期：</label>
             <input type="number" id="interval" value="1" min="1" style="width:80px">
             <span id="repeatUnit">天</span>
         </div>
@@ -120,7 +128,8 @@ async function renderScheduleCards() {
         </div>
         <div class="form-line">
             <label>结束日期：</label>
-            <input type="date" id="endDate">
+            <input type="date" id="endDate" value="">
+       
         </div>
     </div>
 
@@ -161,6 +170,20 @@ async function renderScheduleCards() {
             if (i % 10 === 0 && i !== 31) monthDaysHtml += '<br>';
         } 
         document.getElementById('monthDays').innerHTML = monthDaysHtml;
+
+         
+        // 设置默认结束日期为今天+30天
+       
+          const endDateInput = document.getElementById("endDate");
+          if (endDateInput) {
+            const today = new Date();
+            today.setDate(today.getDate() + 30);
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            endDateInput.value = `${year}-${month}-${day}`;
+          } ;
+    
 
     
     searchCourse(); 
@@ -277,19 +300,30 @@ function renderSchedule() {
      } else {
          document.getElementById('endDate').value = '';
      }
+     List <int> repeatDays ;
+     // INSERT_YOUR_CODE
+     // 把逗号分隔的数字字符串转为数组
+     if (scheduleObject.repeatDays && typeof scheduleObject.repeatDays === 'string') {
+         repeatDays = scheduleObject.repeatDays
+             .split(',')
+             .map(s => s.trim())
+             .filter(s => s !== '')
+             .map(Number)
+             .filter(n => !isNaN(n));
+     }
 
      // 刷新每周/每月重复星期（如有）
      if ( scheduleObject.repeatType === "week" 
-              && Array.isArray(scheduleObject.weekDays)) {
+              && Array.isArray(repeatDays)) {
          const checkboxes = document.querySelectorAll('#weekDays input[type="checkbox"]');
          checkboxes.forEach(cb => {
-             cb.checked = scheduleObject.weekDays.includes(Number(cb.value));
+             cb.checked = repeatDays.includes(Number(cb.value));
          });
      } else   if ( scheduleObject.repeatType === "month" 
-        && Array.isArray(scheduleObject.weekDays)) {
+        && Array.isArray(repeatDays)) {
    const checkboxes = document.querySelectorAll('#monthDays input[type="checkbox"]');
    checkboxes.forEach(cb => {
-       cb.checked = scheduleObject.weekDays.includes(Number(cb.value));
+       cb.checked = repeatDays.includes(Number(cb.value));
    });
     } else{
             const checkboxes = document.querySelectorAll('#weekDays input[type="checkbox"]');
@@ -330,7 +364,7 @@ async function fetchScheduleList( cid) {
                 if (!item.status) item.status = 'active';
             });
         } else {
-            alert(res?.message || '获取课程列表失败');
+            ;//alert(res?.message || '获取课程列表失败');
         }
     } catch (e) {
         alert("网络错误，获取模板列表失败");
@@ -403,7 +437,8 @@ async function fetchScheduleList( cid) {
             interval: 1,
             repeatDays: [],
             status: "pending", 
-       
+            timeZone:userTimeZone,
+            userTimeZone:userTimeZone       
         };  
       try {
         scheduleList =   await fetchScheduleList(cid);
@@ -429,6 +464,8 @@ async function fetchScheduleList( cid) {
         repeatType: document.getElementById('repeatType').value,
         interval: document.getElementById('interval').value,
         status:  document.getElementById('status').value,
+        timeZone: document.getElementById('timeZone').value, //保持原始时区---排期的时区
+        userTimeZone:userTimeZone, //输出时间的时区
         // 根据选择获取repeatDays的数组
         repeatDays: (() => {
             // 仅当repeatType为week/month时读取，其他情况为空数组
@@ -455,7 +492,7 @@ async function fetchScheduleList( cid) {
             }
         })(),
         endDate: document.getElementById('endDate').value,
-        timeZone: userTimeZone  // 必须传
+      
     }; 
     console.log("form:",form);
     return form;
@@ -464,21 +501,47 @@ async function fetchScheduleList( cid) {
    async function previewSchedule() {
      const form = getFormData();
     //console.log("form:",form) ;
-    // 生成排期列表
-    scheduleResult = generateScheduleList(form);
+    // 生成排期列表 localDateTime List<Date,TIME>
+    scheduleResult = await generateScheduleListFromServer(form);
     console.log("result:",scheduleResult) ;
     renderResult();
     renderCalendar();
     //alert("预览成功");
 }
 
-
+ 
+ async function generateScheduleListFromServer(form) { 
+    const url = `course/schedule/generate` ;
+    
+    const token = getToken();
+    try{
+      const res= await fetch(`${API_BASE_URL}/${url}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          "Authorization": "Bearer " + token
+        },
+        credentials: 'include',
+        body: JSON.stringify(form)
+         });
+       // 4.  响应处理 响应成功/失败
+       console.log("res",res);
+       if (res.data && res.data.code === 200) {
+         return res.data;
+            } else {
+                alert(res.data?.message || '获取排期失败');
+            }
+    }catch(err){
+        alert('获取排期失败');
+        console.error(err);  
+    } 
+  }
 /**
  * 根据表单参数生成排期日期列表（完整版 + 语法糖）
  * @param {Object} form - 前端传入的排期表单
  * @returns {Array} 排期日期时间列表 [{ date: '2026-05-01', time: '09:30' }]
  */
-const generateScheduleList = (form) => {
+const generateScheduleListXXX = (form) => {
     const { startDate, startTime, repeatType, interval, repeatDays, endDate } = form;
     const result = [];
     // INSERT_YOUR_CODE
@@ -578,17 +641,23 @@ const generateScheduleList = (form) => {
 function renderResult() {
     const body = document.getElementById('resultBody');
     body.innerHTML = '';
+    if(scheduleResult!= null ) {
     scheduleResult.forEach(item => {
         const tr = document.createElement('tr');
+        
         tr.innerHTML = `<td>${scheduleResult.indexOf(item) + 1}</td><td>${item.date}</td><td>${item.time}</td>`;
    
         body.appendChild(tr);
     });
+        }
   }
  // 渲染日历
  function renderCalendar() {
   const cal = document.getElementById('calendar');
   cal.innerHTML = '';
+  if(scheduleResult == null )
+    return;
+
   const dateSet = new Set(scheduleResult.map(i => i.date));
 console.log("r",dateSet);
   // 简单显示最近30天
@@ -611,10 +680,7 @@ console.log("r",dateSet);
       saveSchedule();
      // alert("发布成功");
   }
-  /**
- * 
-   
- */ 
+ 
   // 保存 uodate or insert 
   async function saveSchedule() {
     const form = getFormData();

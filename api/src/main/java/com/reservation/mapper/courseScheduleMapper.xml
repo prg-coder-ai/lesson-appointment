@@ -3,8 +3,8 @@
 <mapper namespace="com.reservation.mapper.CourseScheduleMapper">
         <!--, classroom_id  #{classroomId}, -->
     <insert id="insert" parameterType="com.reservation.entity.CourseSchedule" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO course_schedule (course_id, teacher_id, start_time, end_time, repeat_type, repeat_interval, repeat_days, repeat_end_date, description)
-        VALUES (#{courseId}, #{teacherId}, #{startTime}, #{endTime}, #{repeatType}, #{repeatInterval}, #{repeatDays}, #{repeatEndDate}, #{description})
+        INSERT INTO course_schedule (schedule_id,course_id, time_zone,start_time, end_time, repeat_type, repeat_interval, repeat_days, status,available_sites)
+        VALUES (#{scheduleId},#{courseId},  #{timeZone}, #{startTime}, #{endTime}, #{repeatType}, #{repeatInterval}, #{repeatDays},  #{status},#{availableSites})
     </insert>
 
     <select id="selectById" resultType="com.reservation.entity.CourseSchedule">
@@ -15,8 +15,8 @@
     <select id="selectList" parameterType="com.reservation.entity.CourseSchedule" resultType="com.reservation.entity.CourseSchedule">
         SELECT * FROM course_schedule
         <where>  ( 1==1 ) 
-            <if test="teacherId != null and teacherId != ''">
-                AND teacher_id = #{teacherId}
+            <if test="scheduleId != null and scheduleId != ''">
+                AND schedule_id = #{scheduleId}
             </if>
               <if test="courseId != null and courseId != ''">
                 AND course_id = #{courseId}
@@ -41,9 +41,7 @@
             <if test="repeatDays != null and repeatDays != ''">
                 AND repeat_days = #{repeatDays}
             </if>
-            <if test="repeatEndDate != null">
-                AND repeat_end_date = #{repeatEndDate}
-            </if> 
+              
         </where>
     </select>
        
@@ -85,28 +83,28 @@
             </if>
             <if test="repeatDays != null and repeatDays != ''">
                 repeat_days = #{repeatDays},
+            </if> 
+             <if test="timeZone != null">
+                AND time_zone = #{timeZone}
             </if>
-            <if test="repeatEndDate != null">
-                repeat_end_date = #{repeatEndDate},
-            </if>
-            <if test="description != null and description != ''">
-                description = #{description},
-            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if> 
         </set>
         WHERE schedule_id = #{scheduleId}
     </update>
 
     
-    <!-- 冲突检测核心SQL：查询时间区间有交集的排期 AND (teacher_id = #{teacherId} OR classroom_id = #{classroomId} -->
+    <!-- 冲突检测核心SQL：查询时间区间有交集的排期，判断教师及时间 -->
     <select id="selectConflictingSchedules" resultType="com.reservation.entity.CourseSchedule">
         SELECT * FROM course_schedule
-        WHERE status = 1
-        AND (teacher_id = #{teacherId})
-        AND start_time &lt; #{endTime}  -- 新排期开始 &lt; 已有排期结束
-        AND end_time &gt; #{startTime}    -- 新排期结束 &gt; 已有排期开始
-        <if test="excludeScheduleId != null">
-            AND id != #{excludeScheduleId}
-        </if>
+        WHERE status ="active"
+                AND (course_id = #{course_id})
+                AND start_time &lt; #{endTime}  -- 新排期开始 &lt; 已有排期结束
+                AND end_time &gt; #{startTime}    -- 新排期结束 &gt; 已有排期开始
+                <if test="excludeScheduleId != null">
+                    AND id != #{excludeScheduleId}
+                </if>
     </select>
 
     <select id="selectExceptionsByScheduleId" resultType="com.reservation.entity.ScheduleException">
