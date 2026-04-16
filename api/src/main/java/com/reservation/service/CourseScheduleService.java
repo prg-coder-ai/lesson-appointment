@@ -33,14 +33,14 @@ public class CourseScheduleService {
     @Transactional(rollbackFor = Exception.class)
     public Map<String, String> createSchedule(CourseScheduleCreateDTO dto) {
         // 1. 基础校验：结束时间 > 开始时间
-        if (dto.getEndTime().isBefore(dto.getStartTime())) {
+        /*if (dto.getEndTime().isBefore(dto.getStartTime())) {
             throw new IllegalArgumentException("结束时间必须晚于开始时间");
-        }
+        }*/
 
         // 2. 转换DTO为实体
         CourseSchedule schedule = DtoToObject(dto);
          // 3. 冲突检测：先展开重复规则，检查每个实例是否冲突--TBD：课程+room是否冲突
-        ScheduleGenerateDTO gto;
+       /* ScheduleGenerateDTO gto;
         // 复制dto的字段到gto, userTimezone = timeZone
         gto = new ScheduleGenerateDTO();
         if(dto.getStartDate() != null) gto.setStartDate(dto.getStartDate().toLocalDate());
@@ -61,7 +61,7 @@ public class CourseScheduleService {
         gto.setTimeZone(dto.getTimeZone());
         gto.setUserTimeZone(dto.getTimeZone());
        
-        /* List<LocalDateTime> scheduleInstances = ScheduleGenerator.generateUserZoneSchedule(gto);
+         List<LocalDateTime> scheduleInstances = ScheduleGenerator.generateUserZoneSchedule(gto);
         for (LocalDateTime instance : scheduleInstances) {
             LocalDateTime start = instance[0];
             LocalDateTime end = instance[1];
@@ -72,8 +72,10 @@ public class CourseScheduleService {
                 throw new IllegalArgumentException("时间冲突：" + start + " 至 " + end + " 教师或教室已被占用");
             }
         }*/
+        
         String  Id = UUID.randomUUID().toString().replace("-", ""); // 移除UUID分隔符
         schedule.setScheduleId( Id);
+         System.out.println("setScheduleId: " + schedule);
         // 4. 插入排期
         scheduleMapper.insertSchedule(schedule);
        
@@ -140,19 +142,20 @@ public class CourseScheduleService {
                // startTime-->statDate,startTime, endTime 转换为 LocalDateTime
                if (cs.getStartTime() != null && !cs.getStartTime().isEmpty()) {
                    try {
-                       dto.setStartDate(java.time.LocalDateTime.parse(cs.getStartTime().substring(0, 19).replace(' ', 'T')));
+                       dto.setStartDate(java.time.LocalDate.parse(cs.getStartTime().substring(0, 10)));
+                  
                    } catch (Exception ex) { dto.setStartDate(null); }
                    try {
-                       dto.setStartTime(java.time.LocalDateTime.parse(cs.getStartTime().substring(0, 19).replace(' ', 'T')));
+                       dto.setStartTime(java.time.LocalTime.parse(cs.getStartTime().substring(0, 19).replace(' ', 'T')));
                    } catch (Exception ex) { dto.setStartTime(null); }
                } 
 
                if (cs.getEndTime() != null && !cs.getEndTime().isEmpty()) {
                    try {
-                       dto.setEndDate(java.time.LocalDateTime.parse(cs.getEndTime().substring(0, 19).replace(' ', 'T')));
+                       dto.setEndDate(java.time.LocalDate.parse(cs.getEndTime().substring(0, 10)));
                    } catch (Exception ex) { dto.setEndDate(null); }
                     try {
-                       dto.setEndTime(java.time.LocalDateTime.parse(cs.getEndTime().substring(0, 19).replace(' ', 'T')));
+                       dto.setEndTime(java.time.LocalTime.parse(cs.getEndTime().substring(0, 19).replace(' ', 'T')));
                    } catch (Exception ex) { dto.setEndTime(null); }
                }  
                // repeatType = 课程中是int, DTO是Integer
@@ -174,22 +177,27 @@ private CourseSchedule  DtoToObject(CourseScheduleCreateDTO dto){
     CourseSchedule cs = new CourseSchedule();
     cs.setCourseId(dto.getCourseId());
     cs.setScheduleId(dto.getScheduleId());
-   // cs.setClassroomId(dto.getClassroomId());
-
+    // cs.setClassroomId(dto.getClassroomId());
+   System.out.println("DtoToObject : " +dto);         
     // LocalDateTime 转 String（假定格式为 "yyyy-MM-dd HH:mm:ss"）
+    // 错误分析:
+    // 1. dto.getStartDate() 和 dto.getStartTime() 已分别是 LocalDate 和 LocalTime，无需再调用 toLocalDate()/toLocalTime()
+    // 2. LocalDateTime.of(LocalDate, LocalTime) 直接使用即可，否则会抛异常（因为 LocalDate 没有 toLocalDate 方法）
+    // 3. toString().replace('T', ' ') 得到"yyyy-MM-dd HH:mm:ss.nnn"，但 endTime 可能需要格式化去掉纳秒部分
+
     if (dto.getStartDate() != null && dto.getStartTime() != null) {
-        cs.setStartTime(java.time.LocalDateTime.of(
-            dto.getStartDate().toLocalDate(), 
-            dto.getStartTime().toLocalTime()
-        ).toString().replace('T', ' ')); // "yyyy-MM-dd HH:mm:ss"
+        LocalDateTime ldt = LocalDateTime.of(dto.getStartDate(), dto.getStartTime());
+        // 格式化为"yyyy-MM-dd HH:mm:ss"
+        String strTime = ldt.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        cs.setStartTime(strTime);
     }
 
     // endDate and startTime are merged to form endTime
     // 若dto.getEndDate()和dto.getEndTime()都不为空，取其LocalDate, LocalTime组装endTime
     if (dto.getEndDate() != null && dto.getStartTime() != null) {
-        cs.setEndTime(java.time.LocalDateTime.of(
-            dto.getEndDate().toLocalDate(), // 采用startDate作为endTime的date组件
-            dto.getEndTime().toLocalTime()
+        cs.setEndTime(LocalDateTime.of(
+            dto.getEndDate() , // 采用startDate作为endTime的date组件
+            dto.getEndTime() 
         ).toString().replace('T', ' ')); // "yyyy-MM-dd HH:mm:ss"
     } 
 
@@ -198,12 +206,13 @@ private CourseSchedule  DtoToObject(CourseScheduleCreateDTO dto){
     cs.setAvailableSites(dto.getAvailableSites());
     // 将 List<Integer> repeatDays 转为字符串存储（如 "1,3,5"）
     if (dto.getRepeatDays() != null && !dto.getRepeatDays().isEmpty()) {
-        cs.setRepeatDays(dto.getRepeatDays().stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(",")));
+        cs.setRepeatDays(dto.getRepeatDays().stream().map(String::valueOf).collect(Collectors.joining(",")));
     } else {
-        cs.setRepeatDays(null);
+        cs.setRepeatDays(" ");
     }
  
     cs.setTimeZone(dto.getTimeZone());
+    cs.setStatus(dto.getStatus());
     return cs;
 }
 }

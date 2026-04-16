@@ -58,11 +58,15 @@ async function renderScheduleCards() {
     <div class="section">
         <div class="section-title">排期设置</div>
 
-        <div class="form-line" style="display:none;".>
+        <div class="form-line" style="display:none;">
             <label>Id</label>
             <input type="label" id="scheduleId">
         </div>
 
+        <div class="form-line" style="display:flex;">
+            <label>cId</label>
+            <input type="label" id="courseId">
+        </div>
            <div class="form-line">
             <label>时区</label>
             <input type="label" id="timeZone" value=${userTimeZone}>
@@ -244,7 +248,7 @@ function renderCourseSelect() {
   sel.innerHTML = '<option value="">请选择课程</option>';
   courseList.forEach(item => {
       const opt = document.createElement('option');
-      opt.value = item.id;
+      opt.value = item.courseId;
       opt.innerText = item.courseName;
       sel.appendChild(opt);
   });
@@ -394,10 +398,17 @@ async function fetchScheduleList( cid) {
     async function loadSchedule() {
       const cid = document.getElementById('courseSelect').value;
       if (!cid) return;
+        // INSERT_YOUR_CODE
+        // 把页面的courseId节点内容设置为cid
+        const courseIdElem = document.getElementById('courseId');
+        if (courseIdElem) {
+            courseIdElem.value = cid;
+        }
+
         // 清理scheduleObject的各个字段
         scheduleObject = {
             scheduleId: "",
-            courseId: "",
+            courseId: cid,
             courseName: "",
             teacherId: "",
             teacherName: "",
@@ -458,6 +469,7 @@ async function fetchScheduleList( cid) {
 
    function  getFormData(){
     const form = {
+        courseId: document.getElementById('courseId').value,
         scheduleId: document.getElementById('scheduleId').value,
         startDate: document.getElementById('startDate').value,
         startTime: document.getElementById('startTime').value,
@@ -566,7 +578,7 @@ function renderResult() {
     return;
 
   const dateSet = new Set(scheduleResult.map(i => i.date));
-console.log("r",dateSet);
+   //console.log("r",dateSet);
   // INSERT_YOUR_CODE
   // 将dateSet的第一项（若存在）转为日期变量
   let firstDateVar = null;
@@ -610,21 +622,47 @@ console.log("r",dateSet);
       cal.appendChild(div);
   }
 }
-
-    // 发布--修改当前的排期状态并保存
-    async function publishSchedule() {
-      const cid = document.getElementById('courseSelect').value;
-    
-      saveSchedule();
-     // alert("发布成功");
-  }
- 
+ //CourseScheduleCreateDTO;
+    // 发布--修改当前的排期状态并保存 
   // 保存 uodate or insert 
-  async function saveSchedule() {
-    const form = getFormData();
-    const url = form.scheduleId !=""? `course/schedule/update` : `course/schedule/create`;
-    
+  async function publishSchedule() {
     const token = getToken();
+    const formData = getFormData();
+    console.log("save form:",formData);
+    // INSERT_YOUR_CODE
+    // 引用CourseScheduleCreateDTO, 把formData赋值到dto对象
+    // 注意：前端js中无class，直接构造一个对象与后端CourseScheduleCreateDTO字段一致即可
+
+    let dto = {
+      scheduleId: formData.scheduleId || "",
+      courseId: formData.courseId || "",
+      teacherId: formData.teacherId || "",
+      ClassroomId: formData.ClassroomId || "",
+      // 后端CourseScheduleCreateDTO是LocalDateTime/Date类型，这里传 yyyy-MM-dd 或 hh:mm:ss 字符串即可
+      startDate:  formData.startDate  ? formData.startDate  : "",
+      startTime: formData.startTime+ ":00" || "",
+      endDate: formData.endDate ? formData.endDate : "",
+ 
+      endTime: formData.startTime +":00" || "",
+      //repeatType: formData.repeatType || 0,
+      repeatInterval: formData.interval || 1,
+      repeatDays: formData.repeatDays || [],
+      timeZone: formData.timeZone || userTimeZone || "",
+      availableSites: formData.availableSites || 1,
+      status: formData.status || ""
+    };
+      // repeatType 映射优化
+      const repeatTypeMap = {
+        "none": 0,
+        "day": 1,
+        "week": 2,
+        "month": 3
+      };
+      dto.repeatType = repeatTypeMap[formData.repeatType] ?? 0;
+
+    console.log("save dto:",dto);
+    const url = formData.scheduleId !=""? `course/schedule/update` : `course/schedule/create`; 
+    
     try{
       const res= await fetch(`${API_BASE_URL}/${url}`, {
         method: 'POST',
@@ -633,13 +671,14 @@ console.log("r",dateSet);
           "Authorization": "Bearer " + token
         },
         credentials: 'include',
-        body: JSON.stringify(form)
+        body: JSON.stringify(dto)
       });
+      const result = await res.json();
        // 4.  响应处理 响应成功/失败
-       if (res.data && res.data.code === 200) {
+       if (result.data && result.data.code === 200) {
         alert(formData.scheduleId !="" ? '编辑成功' : '新增成功'); 
     } else {
-        alert(res.data?.message || (formData.courseId!=""  ? '编辑失败' : '新增失败'));
+        alert(result.data?.message || (formData.courseId!=""  ? '编辑失败' : '新增失败'));
     }
     }catch(err){
         alert('网络异常，操作失败');
