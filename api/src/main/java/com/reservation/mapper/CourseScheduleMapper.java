@@ -24,8 +24,7 @@ public interface CourseScheduleMapper {
     void updateSites(IncSiteBody scheduleSitsInc);
     // 查询时间区间内的冲突排期（用于冲突检测）
     List<CourseSchedule> selectConflictingSchedules(
-        @Param("teacherId") String teacherId,
-        @Param("classroomId") String classroomId,
+        @Param("courseId") String courseId, 
         @Param("startTime") LocalDateTime startTime,
         @Param("endTime") LocalDateTime endTime,
         @Param("excludeScheduleId") String excludeScheduleId // 排除当前排期（修改时用）

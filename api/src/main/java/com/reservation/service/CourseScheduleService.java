@@ -1,11 +1,13 @@
 package com.reservation.service;
 
 import com.reservation.entity.CourseSchedule;
-import com.reservation.entity.CourseScheduleCreateDTO;
+import com.reservation.entity.CourseScheduleCreateDTO; 
+import com.reservation.entity.ScheduleGenerateDTO;  
 import com.reservation.entity.IncSiteBody;
 import com.reservation.entity.StatusBody;
 import com.reservation.mapper.CourseScheduleMapper;
 import com.reservation.mapper.ScheduleExceptionMapper;
+import com.reservation.common.ScheduleGenerator;
 
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+ 
 
 @Service
 public class CourseScheduleService {
@@ -35,27 +38,40 @@ public class CourseScheduleService {
         }
 
         // 2. 转换DTO为实体
-        CourseSchedule schedule = new CourseSchedule();
-        BeanUtils.copyProperties(dto, schedule);
-        // 将repeatDays数组转为逗号分隔的字符串
-        if (dto.getRepeatDays() != null && !dto.getRepeatDays().isEmpty()) {
-            schedule.setRepeatDays(dto.getRepeatDays().stream()
-                .map(String::valueOf)
-                .collect(Collectors.joining(",")));
+        CourseSchedule schedule = DtoToObject(dto);
+         // 3. 冲突检测：先展开重复规则，检查每个实例是否冲突--TBD：课程+room是否冲突
+        ScheduleGenerateDTO gto;
+        // 复制dto的字段到gto, userTimezone = timeZone
+        gto = new ScheduleGenerateDTO();
+        if(dto.getStartDate() != null) gto.setStartDate(dto.getStartDate().toLocalDate());
+        if(dto.getEndDate() != null) gto.setEndDate(dto.getEndDate().toLocalDate());
+        if(dto.getStartTime() != null) gto.setStartTime(dto.getStartTime().toLocalTime());
+        // repeatType转换：CourseScheduleCreateDTO为Integer，ScheduleGenerateDTO为String
+        if(dto.getRepeatType() == 0) {
+            gto.setRepeatType("none");
+        } else if(dto.getRepeatType() == 1) {
+            gto.setRepeatType("day");
+        } else if(dto.getRepeatType() == 2) {
+            gto.setRepeatType("week");
+        } else if(dto.getRepeatType() == 3) {
+            gto.setRepeatType("month");
         }
-
-        // 3. 冲突检测：先展开重复规则，检查每个实例是否冲突
-        List<LocalDateTime[]> scheduleInstances = expandScheduleInstances(schedule);
-        for (LocalDateTime[] instance : scheduleInstances) {
+        gto.setInterval(dto.getRepeatInterval());
+        gto.setRepeatDays(dto.getRepeatDays());
+        gto.setTimeZone(dto.getTimeZone());
+        gto.setUserTimeZone(dto.getTimeZone());
+       
+        /* List<LocalDateTime> scheduleInstances = ScheduleGenerator.generateUserZoneSchedule(gto);
+        for (LocalDateTime instance : scheduleInstances) {
             LocalDateTime start = instance[0];
             LocalDateTime end = instance[1];
             List<CourseSchedule> conflicts = scheduleMapper.selectConflictingSchedules(
-                dto.getTeacherId(), dto.getClassroomId(), start, end, null
+                dto.getTeacherId(),  start, end, null
             );
             if (!conflicts.isEmpty()) {
                 throw new IllegalArgumentException("时间冲突：" + start + " 至 " + end + " 教师或教室已被占用");
             }
-        }
+        }*/
         String  Id = UUID.randomUUID().toString().replace("-", ""); // 移除UUID分隔符
         schedule.setScheduleId( Id);
         // 4. 插入排期
@@ -64,76 +80,16 @@ public class CourseScheduleService {
         return  Collections.singletonMap("Id", Id);
     }
 
-    // 展开重复规则，生成所有排期实例（返回 [开始时间, 结束时间] 的列表）
-    private List<LocalDateTime[]> expandScheduleInstances(CourseSchedule schedule) {
-        List<LocalDateTime[]> instances = new ArrayList<>();
-        @NotBlank(message = "开始时间不能为空") LocalDateTime currentStart = schedule.getStartTime();
-        @NotBlank(message = "结束时间不能为空") LocalDateTime currentEnd = schedule.getEndTime();
-        
-        long durationMinutes = java.time.Duration.between(currentStart, currentEnd).toMinutes();
-
-        // 不重复：直接添加
-        if (schedule.getRepeatType() == 0) {
-            instances.add(new LocalDateTime[]{currentStart, currentEnd});
-            return instances;
-        }
-
-        // 重复排期：循环生成直到结束时间
-        LocalDateTime endT;
-        LocalDate endDate =schedule.getRepeatEndDate();
-        // 把endDate转为包含时间的endT
-        if (endDate != null) {
-            // 用排期的起始时间的小时分钟秒补全endDate
-            endT = endDate.atTime(currentStart.getHour(), currentStart.getMinute(), currentStart.getSecond());
-        } else {
-            endT = null;
-        }
-        LocalDateTime repeatEnd = endT != null ? endT : currentStart.plusYears(1); // 默认重复1年
-        List<Integer> repeatDaysList = parseRepeatDays(schedule.getRepeatDays());
-
-        while (currentStart.isBefore(repeatEnd)) {
-            // 每周重复：检查当前日期是否在repeatDays中
-            if (schedule.getRepeatType() == 2) {
-                int dayOfWeek = currentStart.getDayOfWeek().getValue(); // 1=周一...7=周日
-                if (!repeatDaysList.contains(dayOfWeek)) {
-                    currentStart = currentStart.plusDays(1);
-                    currentEnd = currentStart.plusMinutes(durationMinutes);
-                    continue;
-                }
-            }
-
-            // 添加当前实例
-            instances.add(new LocalDateTime[]{currentStart, currentEnd});
-
-            // 移动到下一个重复周期
-            switch (schedule.getRepeatType()) {
-                case 1: // 每天
-                    currentStart = currentStart.plusDays(schedule.getRepeatInterval());
-                    break;
-                case 2: // 每周
-                    currentStart = currentStart.plusWeeks(schedule.getRepeatInterval());
-                    break;
-                case 3: // 每月
-                    currentStart = currentStart.plusMonths(schedule.getRepeatInterval());
-                    break;
-            }
-            currentEnd = currentStart.plusMinutes(durationMinutes);
-        }
-
-        return instances;
-    }
-
     // 解析repeatDays字符串为整数列表
     private List<Integer> parseRepeatDays(String repeatDays) {
         if (repeatDays == null || repeatDays.isEmpty()) {
             return new ArrayList<>();
         }
         return Arrays.stream(repeatDays.split(","))
-            .map(Integer::parseInt)
+            .map(Integer::parseInt)  
             .collect(Collectors.toList());
     }
-
-    
+  
 @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public   String updateStatus (StatusBody data) {       
          System.out.println("updateStatus called with scheduleId: " + data);
@@ -142,10 +98,11 @@ public class CourseScheduleService {
     }
 
   @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
-    public String update(CourseSchedule Obj) { 
-         System.out.println("update : " +Obj);         
-         scheduleMapper.update(Obj);
-        return Obj.getScheduleId();
+    public String update(CourseScheduleCreateDTO dto) { 
+         System.out.println("update : " +dto); 
+          CourseSchedule schedule = DtoToObject(dto);        
+          scheduleMapper.update(schedule);
+        return dto.getScheduleId();
     }
 
 //更新可用数 incSiteBody { "inc":1、-1 ，"id":scheduleId)
@@ -165,11 +122,90 @@ public class CourseScheduleService {
     }
 
 @Transactional(propagation = Propagation.REQUIRED)
-    public List<CourseSchedule> selectList(CourseScheduleCreateDTO obj) {
-            
-         return scheduleMapper.selectList(obj); 
+    public List<CourseScheduleCreateDTO> selectList(CourseScheduleCreateDTO obj) {
+         
+          List<CourseSchedule> s = scheduleMapper.selectList(obj);//获取原始排期
+          return ObjectToDto(s);
+    }
+ 
+ private  List<CourseScheduleCreateDTO> ObjectToDto(List<CourseSchedule> objList){
+         List<CourseScheduleCreateDTO> result = new ArrayList<>();
+           for (CourseSchedule cs : objList) {
+               CourseScheduleCreateDTO dto = new CourseScheduleCreateDTO();
+               dto.setCourseId(cs.getCourseId());
+               // CourseSchedule 里没有 teacherId / ClassroomId 字段, 若需要请补充
+               dto.setTeacherId(null);
+               dto.setClassroomId(null);
+
+               // startTime-->statDate,startTime, endTime 转换为 LocalDateTime
+               if (cs.getStartTime() != null && !cs.getStartTime().isEmpty()) {
+                   try {
+                       dto.setStartDate(java.time.LocalDateTime.parse(cs.getStartTime().substring(0, 19).replace(' ', 'T')));
+                   } catch (Exception ex) { dto.setStartDate(null); }
+                   try {
+                       dto.setStartTime(java.time.LocalDateTime.parse(cs.getStartTime().substring(0, 19).replace(' ', 'T')));
+                   } catch (Exception ex) { dto.setStartTime(null); }
+               } 
+
+               if (cs.getEndTime() != null && !cs.getEndTime().isEmpty()) {
+                   try {
+                       dto.setEndDate(java.time.LocalDateTime.parse(cs.getEndTime().substring(0, 19).replace(' ', 'T')));
+                   } catch (Exception ex) { dto.setEndDate(null); }
+                    try {
+                       dto.setEndTime(java.time.LocalDateTime.parse(cs.getEndTime().substring(0, 19).replace(' ', 'T')));
+                   } catch (Exception ex) { dto.setEndTime(null); }
+               }  
+               // repeatType = 课程中是int, DTO是Integer
+               dto.setRepeatType(cs.getRepeatType());
+               dto.setRepeatInterval(cs.getRepeatInterval());
+               // repeatDays: 字符串转 List<Integer>
+               dto.setRepeatDays(parseRepeatDays(cs.getRepeatDays())); 
+               
+               dto.setTimeZone(cs.getTimeZone()); 
+                dto.setStatus(cs.getStatus()); 
+               dto.setAvailableSites(cs.getAvailableSites());
+               result.add(dto);
+           }
+           return result;
+ }
+ //用于保存到数据库
+private CourseSchedule  DtoToObject(CourseScheduleCreateDTO dto){
+    if (dto == null) return null;
+    CourseSchedule cs = new CourseSchedule();
+    cs.setCourseId(dto.getCourseId());
+    cs.setScheduleId(dto.getScheduleId());
+   // cs.setClassroomId(dto.getClassroomId());
+
+    // LocalDateTime 转 String（假定格式为 "yyyy-MM-dd HH:mm:ss"）
+    if (dto.getStartDate() != null && dto.getStartTime() != null) {
+        cs.setStartTime(java.time.LocalDateTime.of(
+            dto.getStartDate().toLocalDate(), 
+            dto.getStartTime().toLocalTime()
+        ).toString().replace('T', ' ')); // "yyyy-MM-dd HH:mm:ss"
     }
 
+    // endDate and startTime are merged to form endTime
+    // 若dto.getEndDate()和dto.getEndTime()都不为空，取其LocalDate, LocalTime组装endTime
+    if (dto.getEndDate() != null && dto.getStartTime() != null) {
+        cs.setEndTime(java.time.LocalDateTime.of(
+            dto.getEndDate().toLocalDate(), // 采用startDate作为endTime的date组件
+            dto.getEndTime().toLocalTime()
+        ).toString().replace('T', ' ')); // "yyyy-MM-dd HH:mm:ss"
+    } 
+
+    cs.setRepeatType(dto.getRepeatType());
+    cs.setRepeatInterval(dto.getRepeatInterval());
+    cs.setAvailableSites(dto.getAvailableSites());
+    // 将 List<Integer> repeatDays 转为字符串存储（如 "1,3,5"）
+    if (dto.getRepeatDays() != null && !dto.getRepeatDays().isEmpty()) {
+        cs.setRepeatDays(dto.getRepeatDays().stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(",")));
+    } else {
+        cs.setRepeatDays(null);
+    }
+ 
+    cs.setTimeZone(dto.getTimeZone());
+    return cs;
+}
 }
 
 

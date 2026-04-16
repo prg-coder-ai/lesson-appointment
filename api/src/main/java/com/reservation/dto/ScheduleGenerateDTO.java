@@ -13,5 +13,6 @@ public class ScheduleGenerateDTO {
     private String repeatType;    // none/day/week/month
     private Integer interval;//重复周期
     private List<Integer> repeatDays; // 1=周一 ... 7=周日，1~31日 
-    private String timeZone;      // 前端传的用户时区
+    private String timeZone;      //排期计划所用的时区
+    private String userTimeZone;      // 前端传的用户时区
 }
