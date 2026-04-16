@@ -510,32 +510,40 @@ async function fetchScheduleList( cid) {
 }
 
  
- async function generateScheduleListFromServer(form) { 
+// 后端Controller返回的是Result<List<ScheduleVO>>，即{ code, message, data: [日期列表] }
+// fetch获取的是原始Response对象，并非直接解结构（必须手动res.json()）
+// 不要直接访问res.data，fetch不自动解析JSON
+async function generateScheduleListFromServer(form) { 
     const url = `course/schedule/generate` ;
-    
     const token = getToken();
-    try{
-      const res= await fetch(`${API_BASE_URL}/${url}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          "Authorization": "Bearer " + token
-        },
-        credentials: 'include',
-        body: JSON.stringify(form)
-         });
-       // 4.  响应处理 响应成功/失败
-       console.log("res",res);
-       if (res.data && res.data.code === 200) {
-         return res.data;
-            } else {
-                alert(res.data?.message || '获取排期失败');
-            }
-    }catch(err){
+    try {
+        const res = await fetch(`${API_BASE_URL}/${url}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                "Authorization": "Bearer " + token
+            },
+            credentials: 'include',
+            body: JSON.stringify(form)
+        });
+
+        // 1. fetch需要await res.json()，不能直接用res.data
+        const result = await res.json();
+        console.log("server result data:", result);
+
+        // 2. Spring Controller返回结构参考Result.success(userZoneList, "localtime list")
+        // 即 { code: 200, message: "...", data: [...] }
+        if (result && result.code === 200) {
+            // result.data 是 List<ScheduleVO>
+            return result.data; // 前端期望直接得到数组
+        } else {
+            alert(result?.message || '获取排期失败');
+        }
+    } catch (err) {
         alert('获取排期失败');
         console.error(err);  
-    } 
-  }
+    }
+}
 /**
  * 根据表单参数生成排期日期列表（完整版 + 语法糖）
  * @param {Object} form - 前端传入的排期表单
