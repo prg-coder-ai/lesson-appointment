@@ -2,9 +2,12 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.reservation.mapper.CourseScheduleMapper">
         <!--, classroom_id  #{classroomId}, -->
-    <insert id="insert" parameterType="com.reservation.entity.CourseSchedule" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO course_schedule (schedule_id,course_id, time_zone,start_time, end_time, repeat_type, repeat_interval, repeat_days, status,available_sites)
-        VALUES (#{scheduleId},#{courseId},  #{timeZone}, #{startTime}, #{endTime}, #{repeatType}, #{repeatInterval}, #{repeatDays},  #{status},#{availableSites})
+    <!-- 新增 insertSchedule 方法，参数类型可根据需要调整为DTO类型（如CourseScheduleCreateDTO） -->
+    <insert id="insertSchedule" parameterType="com.reservation.entity.CourseSchedule" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO course_schedule
+        (schedule_id, course_id, time_zone, start_time, end_time, repeat_type, repeat_interval, repeat_days, status, available_sites)
+        VALUES
+        (#{scheduleId}, #{courseId}, #{timeZone}, #{startTime}, #{endTime}, #{repeatType}, #{repeatInterval}, #{repeatDays}, #{status}, #{availableSites})
     </insert>
 
     <select id="selectById" resultType="com.reservation.entity.CourseSchedule">
