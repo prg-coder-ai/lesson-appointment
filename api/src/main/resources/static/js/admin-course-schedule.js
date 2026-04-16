@@ -510,9 +510,7 @@ async function fetchScheduleList( cid) {
 }
 
  
-// 后端Controller返回的是Result<List<ScheduleVO>>，即{ code, message, data: [日期列表] }
-// fetch获取的是原始Response对象，并非直接解结构（必须手动res.json()）
-// 不要直接访问res.data，fetch不自动解析JSON
+// 分析：可能由于日期时区或构造Date的方式导致了前端和后端实际天数偏差。例如直接用new Date('yyyy-MM-dd')会因时区差别导致日期减少1天。可以尝试使用new Date(year, month, day)规避。
 async function generateScheduleListFromServer(form) { 
     const url = `course/schedule/generate` ;
     const token = getToken();
@@ -527,15 +525,16 @@ async function generateScheduleListFromServer(form) {
             body: JSON.stringify(form)
         });
 
-        // 1. fetch需要await res.json()，不能直接用res.data
         const result = await res.json();
-        console.log("server result data:", result);
-
-        // 2. Spring Controller返回结构参考Result.success(userZoneList, "localtime list")
-        // 即 { code: 200, message: "...", data: [...] }
+        
+        // 修正后端返回的日期数组，确保日期不因本地解析减少1天
+        // 尝试将日期转为本地日期字符串再渲染
         if (result && result.code === 200) {
-            // result.data 是 List<ScheduleVO>
-            return result.data; // 前端期望直接得到数组
+            // result.data: [{date:'2024-06-01',time:'09:00'}, ...]
+            // 兼容性修正：如后端返回的date为'yyyy-MM-dd'字符串，前端用new Date(date)在不同时区下解析会出现日期偏移。
+            // 方案：把date字符串分解为年月日，用new Date(year, month-1, day)组成本地时间，或渲染时直接使用原字符串。
+            // 这里只返回数据，渲染时renderCalendar里（下方）再修正用法
+            return result.data;
         } else {
             alert(result?.message || '获取排期失败');
         }
@@ -543,107 +542,7 @@ async function generateScheduleListFromServer(form) {
         alert('获取排期失败');
         console.error(err);  
     }
-}
-/**
- * 根据表单参数生成排期日期列表（完整版 + 语法糖）
- * @param {Object} form - 前端传入的排期表单
- * @returns {Array} 排期日期时间列表 [{ date: '2026-05-01', time: '09:30' }]
- */
-const generateScheduleListXXX = (form) => {
-    const { startDate, startTime, repeatType, interval, repeatDays, endDate } = form;
-    const result = [];
-    // INSERT_YOUR_CODE
-    /**
-     * 获取Date对象在当月的天数（即当月第几天，序号，从1开始）
-     * 方法: Date对象的getDate()方法——返回当前是当月的第几天
-     * 例:
-     *    let date = new Date(2024, 5, 10); // 2024年6月10日
-     *    let dayOfMonth = date.getDate(); // 10，表示6月10日在6月为第10天
-     *
-     * 封装函数如下：
-     *    function getDayOfMonth(date) {
-     *        return date.getDate();
-     *    }
-     */
-    // 开始/结束 日期对象
-    let current = new Date(startDate);
-    const end = new Date(endDate);
-  
-    // 语法糖：日期 + 天
-    const addDays = (date, days) => new Date(date.setDate(date.getDate() + days));
-    // 语法糖：日期 + 月
-    const addMonths = (date, months) => new Date(date.setMonth(date.getMonth() + months));
-  
-    // 格式化日期：yyyy-MM-dd
-    const formatDate = (d) => d.toISOString().split('T')[0];
-     console.log("repeatDays:",repeatDays);
-    // 循环生成排期
-    while (current <= end) {
-      const dateStr = formatDate(new Date(current));
-     
-      // 条件匹配（语法糖写法）
-      console.log("monthDay",current,current.getDate()  );
-      const match = {
-        none: () => true, // 不重复 → 只添加一次
-        day: () => true,  // 每天 → 全部匹配
-        week: () => repeatDays.includes(current.getDay() || 7), // 周日=7
-        month: () => repeatDays.includes(current.getDate() ) // 每月 → 全部匹配
-      }[repeatType]();
-  
-      if (match) result.push({ date: dateStr, time: startTime });
-  
-      
-      // 步进（语法糖 + 策略模式）
-      if (repeatType === 'none') {
-        current = addMonths(current, 999); // 直接结束循环
-      } else if (repeatType === 'day') {
-        current = addDays(new Date(current), Number(interval));
-      } else if (repeatType === 'week') {
-        // 找到下一个被选中的星期几（周一~周日可多选）
-        let temp = new Date(current);
-        let found = false;
-        for (let i = 1; i <= 7 * Number(interval); i++) {
-          temp = addDays(new Date(current), i);
-          // 周日处理：getDay() 0=>7（与repeatDays一致）
-          let day = temp.getDay();
-          day = day === 0 ? 7 : day;
-          if (repeatDays.includes(day)) {
-            found = true;
-            break;
-          }
-        }
-        current = found ? temp : addDays(new Date(current), Number(interval) * 7);
-      } else if (repeatType === 'month') {
-        // 月内可多天（如每月1/10/15日等），找到下一个被选中的"日"
-        let temp = new Date(current);
-        let curDay = temp.getDate();
-        let curMonth = temp.getMonth();
-        // 搜索当月剩余选中的日
-        let daysAvailable = repeatDays.filter(d => d > curDay).sort((a,b) => a-b);
-        if (daysAvailable.length > 0) {
-          // 本月下一个选中的日
-          temp.setDate(daysAvailable[0]);
-          // 注意：如果跳天会超出当月长度，Date会进下月，需要判断
-          // forceSameMonth
-          if (temp.getMonth() !== curMonth) {
-            // 跳到下一个月
-            temp = new Date(current);
-            temp.setMonth(temp.getMonth() + Number(interval));
-            temp.setDate(repeatDays.sort((a,b) => a-b)[0]);
-          }
-        } else {
-          // 本月已无剩余选中的日，跳下月的第一个选中日
-          temp.setMonth(temp.getMonth() + Number(interval));
-          temp.setDate(repeatDays.sort((a,b) => a-b)[0]);
-        }
-        current = temp;
-      }
-      
-    }
-  
-    return result;
-  };
-
+} 
   
 // 渲染排期列表
 function renderResult() {
@@ -669,10 +568,17 @@ function renderResult() {
   const dateSet = new Set(scheduleResult.map(i => i.date));
 console.log("r",dateSet);
   // 简单显示最近30天
+  // 按照本地时区设置日历（始终从今天本地0点，不用toISOString防止跨时区丢失）
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // 本地0点
   for (let i = 0; i <= 30; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() + i);
-      const dateStr = d.toISOString().split('T')[0];
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      // 保证是本地时区的年月日
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
       const div = document.createElement('div');
       div.className = 'calendar-day';
       if (dateSet.has(dateStr)) div.classList.add('marked');
