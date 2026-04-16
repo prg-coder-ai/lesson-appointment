@@ -127,7 +127,7 @@ public class CourseScheduleController {
       List<ScheduleVO> userZoneList = ScheduleGenerator.generateUserZoneSchedule(dto);
 
       // 3. 打印日志（便于开发调试，实际生产可去除）
-      System.out.println("ret:" + Result.success(userZoneList, "localtime list"));
+     // System.out.println("ret:" + Result.success(userZoneList, "localtime list"));
 
       // 4. 返回统一数据结构（包含 code/message/data 字段）
       return Result.success(userZoneList, "localtime list");
