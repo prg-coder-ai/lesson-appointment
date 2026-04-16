@@ -569,9 +569,17 @@ function renderResult() {
 console.log("r",dateSet);
   // 简单显示最近30天
   // 按照本地时区设置日历（始终从今天本地0点，不用toISOString防止跨时区丢失）
-  const today = new Date();
+  let startDate = new Date();
+  const dayOfWeek = startDate.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+  const diffToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
+  startDate.setDate(startDate.getDate() + diffToMonday);
+
+  // 显示35天，横向排列，每行7天
+  const daysToShow = 35;
+
+  const today = new Date(startDate);
   today.setHours(0, 0, 0, 0); // 本地0点
-  for (let i = 0; i <= 30; i++) {
+  for (let i = 0; i <= daysToShow; i++) {
       const d = new Date(today);
       d.setDate(today.getDate() + i);
       // 保证是本地时区的年月日
