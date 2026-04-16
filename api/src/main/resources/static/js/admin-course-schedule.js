@@ -567,9 +567,25 @@ function renderResult() {
 
   const dateSet = new Set(scheduleResult.map(i => i.date));
 console.log("r",dateSet);
-  // 简单显示最近30天
-  // 按照本地时区设置日历（始终从今天本地0点，不用toISOString防止跨时区丢失）
-  let startDate = new Date();
+  // INSERT_YOUR_CODE
+  // 将dateSet的第一项（若存在）转为日期变量
+  let firstDateVar = null;
+  if (dateSet.size > 0) {
+      const firstDateStr = Array.from(dateSet)[0];
+      // 假设格式为'yyyy-MM-dd'
+      const [year, month, day] = firstDateStr.split('-');
+      firstDateVar = new Date(Number(year), Number(month) - 1, Number(day));
+      console.log('firstDateVar:', firstDateVar);
+  }
+
+  // startDate设置为dateSet第一项表示的日期（如果有），否则用今天
+  let startDate;
+  if (firstDateVar) {
+      startDate = new Date(firstDateVar); // 已在本地，0点时间
+  } else {
+      startDate = new Date();
+  }
+ 
   const dayOfWeek = startDate.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
   const diffToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
   startDate.setDate(startDate.getDate() + diffToMonday);
