@@ -116,9 +116,9 @@ async function renderScheduleCards() {
             <label>状态：</label>
            <select id="status">
                 <option value="pending">待发布</option>
-                <option value="inactive">已回收</option>
+                <option value="inactive">已收回</option>
                 <option value="active">已发布</option>
-                <option value="forzen">已删除</option>
+                <option value="frozen">已删除</option>
             </select>
         </div>
 
@@ -772,10 +772,10 @@ function renderResult() {
     const formData = getFormData();
     const scheduleId = formData.scheduleId;
        await operateSchedule(scheduleId,"frozen");
-      scheduleResult = [];
-      renderResult();
-      renderCalendar();
-      alert("删除成功");
+      //scheduleResult = [];
+     // renderResult();
+     // renderCalendar();
+      //alert("删除成功");
   }
 
  function refreshData(){
@@ -790,8 +790,8 @@ function renderResult() {
 async function operateSchedule(scheduleId, action) {
     const token = getToken();
     const payload = {
-      scheduleid: scheduleId,  // 注意小写，和后端命名对应
-      status: action
+        scheduleId: scheduleId,  // 注意小写，和后端命名对应
+        status: action
   };
       console.log("payload：",payload); 
     fetch(`${API_BASE_URL}/course/schedule/updateStatus`, {
