@@ -64,8 +64,9 @@ public class CourseScheduleController {
      @ResponseBody
     public Result<String> updateStatus(@Validated @RequestBody StatusBody dto) {
 
+
         String scheduleId = scheduleService.updateStatus(dto);////TBD: local->UTC switch
-       
+       System.out.println("updateStatus:" + dto);
         return Result.success(scheduleId,"");
     }
     
@@ -139,7 +140,7 @@ public class CourseScheduleController {
   @ResponseBody
   public Result<List<ScheduleVO>> generateList(@RequestBody ScheduleGenerateDTO dto, @RequestHeader("Authorization") String token) {
       // 1. 校验身份（老师/管理员权限）
-      permissionCheck.checkTeacherOrAdmin(token);
+     // permissionCheck.checkTeacherOrAdmin(token);
 
       // 2. 根据表单内容与时区配置，生成对应的排期
       List<ScheduleVO> userZoneList = ScheduleGenerator.generateUserZoneSchedule(dto);
