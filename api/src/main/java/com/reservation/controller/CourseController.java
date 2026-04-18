@@ -157,8 +157,8 @@ public class CourseController {
     @GetMapping("/list")
     public Result<List<Course>> getCourseList(@RequestBody(required = false) Map<String, Object> searchParams,
                                                           @RequestHeader("Authorization") String token) {
-        // 权限校验：教师或管理员可操作
-        permissionCheck.checkTeacherOrAdmin(token);
+        // 权限校验：教师或管理员、学生均可操作
+        //permissionCheck.checkTeacherOrAdmin(token);
         // 调用服务层查询课程列表
         List<Course> courseList = courseService.getCourseList(searchParams);
         //Map<String, List<Course>> resultMap = Map.of("courses", courseList);

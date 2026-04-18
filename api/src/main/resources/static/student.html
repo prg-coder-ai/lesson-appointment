@@ -6,6 +6,7 @@
   <title>语言教学预约系统 - 学生端</title>
   <!-- 引入图标库 -->
   <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/scheduleTable.css">
   <style>
     /* 全局样式重置与基础设置 */
     * {
@@ -561,70 +562,23 @@
       switch(menuName) {
         case '首页':
         case '课程预约':
-          dynamicContentCenter.innerHTML = `
-            <!-- 课程列表卡片（预约入口） -->
-            <div class="card" id="course-list-card">
-              <h3><i class="fa fa-book"></i> 可预约课程</h3>
-              <div id="course-list">
-                <div class="course-card">
-                  <div class="course-info">
-                    <h4>英语初级口语 - 小班课</h4>
-                    <p>授课教师：李老师 | 难度：初级 | 课时：45分钟 | 价格：80元/节</p>
-                    <p>剩余可预约名额：5/10</p>
-                  </div>
-                  <div class="course-actions">
-                    <button class="btn btn-primary" onclick="showReservationModal('英语初级口语 - 小班课', '李老师')">立即预约</button>
-                  </div>
-                </div>
-                <div class="course-card">
-                  <div class="course-info">
-                    <h4>英语进阶写作</h4>
-                    <p>授课教师：李老师 | 难度：进阶 | 课时：60分钟 | 价格：100元/节</p>
-                    <p>剩余可预约名额：3/8</p>
-                  </div>
-                  <div class="course-actions">
-                    <button class="btn btn-primary" onclick="showReservationModal('英语进阶写作', '李老师')">立即预约</button>
-                  </div>
-                </div>
-                <div class="course-card">
-                  <div class="course-info">
-                    <h4>日语入门</h4>
-                    <p>授课教师：王老师 | 难度：入门 | 课时：45分钟 | 价格：70元/节</p>
-                    <p>剩余可预约名额：8/12</p>
-                  </div>
-                  <div class="course-actions">
-                    <button class="btn btn-primary" onclick="showReservationModal('日语入门', '王老师')">立即预约</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <!-- 我的预约卡片 -->
-            <div class="card" id="my-reservation-card">
-              <h3><i class="fa fa-calendar-check-o"></i> 我的近期预约</h3>
-              <div id="my-reservations">
-                <div class="course-card">
-                  <div class="course-info">
-                    <h4>英语初级口语 - 小班课</h4>
-                    <p>授课教师：李老师 | 预约时间：2026-03-20 14:00 | 状态：待确认</p>
-                  </div>
-                  <div class="course-actions">
-                    <button class="btn btn-gray" onclick="cancelReservation(this)">取消预约</button>
-                    <button class="btn btn-gray" onclick="viewMyReservationDetail(this)">查看详情</button>
-                  </div>
-                </div>
-                <div class="course-card">
-                  <div class="course-info">
-                    <h4>英语进阶写作</h4>
-                    <p>授课教师：李老师 | 预约时间：2026-03-20 16:00 | 状态：已确认</p>
-                  </div>
-                  <div class="course-actions">
-                    <button class="btn btn-gray" onclick="evaluateCourse(this)">评价课程</button>
-                    <button class="btn btn-gray" onclick="viewMyReservationDetail(this)">查看详情</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          `;
+// 操作按钮事件 --checkout----set online =false TBD 
+if (window.loadAdminPageContent) {
+              // 覆盖 "教师管理" 渲染逻辑
+              loadAdminPageContent = (function(orig){
+                return function(title) {
+                  if(title === '课程预约'){
+                    renderStudentBookingCards();
+                  } else {
+                    orig(title);
+                  }
+                }
+              })(loadAdminPageContent);
+            } else {
+              // 兼容性 fallback: 尝试直接渲染（首次页面加载时）
+              renderStudentBookingCards();
+            }  
+       
           break;
           
         case '我的预约':
@@ -879,5 +833,16 @@
       evaluateCourse(el); // 复用评价弹窗
     }
   </script>
+ <!-- 
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script> 
+-->
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script> 
+
+<script src="js/public/api.js"></script>
+<script src="js/public/courseAndBooking.js"></script>
+<script src="js/student-course-booking.js"></script>
+<script>
+console.log("end of body...")
+</script>
 </body>
 </html>

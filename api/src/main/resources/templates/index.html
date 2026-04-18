@@ -204,7 +204,7 @@
   <!-- JavaScript核心逻辑 -->
   <script>
     // 模拟用户数据库（实际项目中从后端获取）
-    const userDatabase = [
+    /*const userDatabase = [
       // 管理员账号
       { role: 'admin', username: 'admin', password: 'admin123', name: '系统管理员' },
       // 教师账号
@@ -214,7 +214,7 @@
       { role: 'student', username: 'student01', password: 'student123', name: '张三' },
       { role: 'student', username: 'student02', password: 'student123', name: '李四' }
     ];
-
+*/
     // DOM元素获取（登录相关）
     const loginForm = document.getElementById('login-form');
     const userRole = document.getElementById('user-role');
@@ -336,13 +336,13 @@
         }
       }
       if(isValid)
-       { // 检查账号是否已存在
-        const isExist = userDatabase.some(u => u.username === registerUsername.value.trim());
+       { // 检查账号是否已存在查询数据库，是否存在相同的账号 TBD
+        const isExist = false;//.some(u => u.username === registerUsername.value.trim());
         if (isExist) {
           registerError.style.display = 'block';
           isValid = false;
         }
-      }
+      } 
     } 
 
       // 验证真实姓名
@@ -417,8 +417,8 @@
           })
           .then(data => {
             // 可以根据后端返回结果做进一步处理
-            // 例如根据 data.status 判断是否提交成功
-            if (data && data.status === 'duplicate') {
+            // 例如根据 data.status 判断是否提交成功  
+            if (data && data.status === 'duplicate') { //TBD:判断
               alert('该账号已存在，请更换账号后重试');
             } else if (data && data.status === 'success') {
               // 【修改】移除admin分支（注册身份无admin）+ 改为提示不跳转

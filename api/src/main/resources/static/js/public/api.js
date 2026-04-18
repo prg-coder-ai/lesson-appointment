@@ -53,3 +53,19 @@ async function fetchUserList(conditionJson) {
       return [];
     }
   }
+
+  
+/**
+ * 获取Token（修复localStorage解析逻辑）
+ */
+
+function getToken() {
+  const currentUserStr = localStorage.getItem('currentUser');
+  if (!currentUserStr) {
+      alert('未登录，请重新登录');
+      window.location.href = '/login'; // 跳转到登录页
+      return '';
+  }
+  const currentUser = JSON.parse(currentUserStr);
+  return currentUser.token || '';
+}
