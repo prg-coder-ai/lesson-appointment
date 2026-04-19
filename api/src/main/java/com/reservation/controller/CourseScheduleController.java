@@ -83,13 +83,19 @@ public class CourseScheduleController {
      @ResponseBody
     public Result<List<CourseScheduleCreateDTO>> getScheduleList(@Validated @RequestBody CourseScheduleCreateDTO dto,
                    @RequestHeader("Authorization") String token) {
+                    System.out .println("getScheduleList dto:" + dto);
         List<CourseScheduleCreateDTO> schedules = scheduleService.selectList(dto); //TBD: UTC-->local switch
         return Result.success(schedules,"ok");
     }
 
     @GetMapping("/selectByCourseId/{courseId}")
      @ResponseBody
-    public Result<List<CourseScheduleCreateDTO>> getScheduleByCourseId(@PathVariable String courseId, @RequestHeader("Authorization") String token) {
+    public Result<List<CourseScheduleCreateDTO>> getScheduleByCourseId(@PathVariable String courseId, 
+     @RequestParam(required = false) String status,
+    @RequestHeader("Authorization") String token) {
+
+        System.out.println("rselectByCourseId status:" +status);
+
               CourseScheduleCreateDTO dto = new CourseScheduleCreateDTO();
               // INSERT_YOUR_CODE
               dto.setScheduleId(null);
@@ -104,7 +110,11 @@ public class CourseScheduleController {
               dto.setRepeatType(null);
               dto.setRepeatInterval(null);
               dto.setRepeatDays(null);
+              if(status!= null)
+               dto.setStatus(status);
+              else
               dto.setStatus(null);
+
               dto.setTimeZone(null);
       
               dto.setCourseId(courseId); // courseId
