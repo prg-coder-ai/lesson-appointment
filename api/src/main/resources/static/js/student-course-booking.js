@@ -154,8 +154,7 @@ async function renderStudentBookingCards() {
         <label><input type="checkbox" id="bookingStatusCancel" value="canceled">取消预约</label>
     </div>
     <!-- 操作按钮 -->
-    <div class="btn-group">
-       <button class="btn-success"  onclick="resetSchedule()">新建</button>
+    <div class="btn-group"> 
         <button class="btn-primary" onclick="previewSchedule()">预览排期</button>
         <button class="btn-primary" onclick="saveBookingToDB()">预定课程</button>
         <button class="btn-danger"  onclick="cancelBooking()">取消预定</button> 
@@ -212,14 +211,14 @@ async function renderStudentBookingCards() {
 
  // 1. 检索课程（原生 fetch）,只检索status:"active" 已发布课程
  async function searchCourse() { 
-  const params = {
-    courseName: document.getElementById('courseName').value,
-    languageType: document.getElementById('language').value,
-    difficultyLevel: document.getElementById('difficulty').value,
-    teacher: document.getElementById('teacher').value,
-    status:"active"
-}; 
- console.log("search",params);//TBD---
+        const params = {
+            courseName: document.getElementById('courseName').value,
+            languageType: document.getElementById('language').value,
+            difficultyLevel: document.getElementById('difficulty').value,
+            teacher: document.getElementById('teacher').value,
+            status:"active"
+        }; 
+  console.log("search",params);//TBD---
   lastCourseIndex =currentCourseIndex;
   currentCourseIndex =-1;
   try { 
@@ -230,6 +229,7 @@ async function renderStudentBookingCards() {
      
       //alert("模拟课程加载成功");
   }
+  console.log("search",courseList);
      renderCourseSelect();
 }
 
@@ -790,7 +790,7 @@ async function operateSchedule(scheduleId, action) {
     console.log("schedule page END");
 }
 /**
- * 排期管理页面：
+ * 学生课程预定管理页面：
  * 1、课程选择：提供检索字段：课程名称、语言、难度、教师
  *     1.1 用下拉菜单显示检索到的课程列表，单选
  *     
@@ -800,57 +800,16 @@ async function operateSchedule(scheduleId, action) {
  *        重复间隔：N（天、周、月)
  *        重复时间： 周一~周日（每周）或者 月初到月末（每月）
  *        结束日期： 
- *    2.2 显示操作按钮：预览、发布、保留、删除
+ *    2.2 读取用户对当前排期的预定
+ *    2.2 显示操作按钮：预览、预定、取消预定、删除
  *    2.3 排期结果显示区域：
  *    2.3.1 列表显示：年月日、时分
  *    2.3.2 日历显示：在日历上标记所有的排期日期
  * 
- * 
- **/
-// INSERT_YOUR_CODE
-/**
-/**
- * 隐藏 DIV 元素但仍可通过 JS 访问其内容/属性的常用方法：
- * 1. 使用 style="display:none" —— DIV 不可见且不占位，但仍保留在 DOM，可通过 JS 读写 innerText/innerHTML 等。
- * 2. 使用 style="visibility:hidden" —— DIV 不可见但仍占位，也可被 JS 正常访问内容。
- * 3. 用页面外定位：如 style="position:absolute; left:-9999px;"，视觉上不可见但依然在 DOM，也可聚焦/访问内容。
- * 4. 用 aria-hidden="true" 属性 —— 仅影响无障碍，不影响 JS 获取内容。
- *
- * 示例：
- * <div id="a" style="display:none">foo</div>
- * <div id="b" style="visibility:hidden">bar</div>
- * <div id="c" style="position:absolute;left:-9999px;">baz</div>
- * <div id="d" aria-hidden="true">hidden by aria</div>
- * // JS:
- * console.log(
- *   document.getElementById('a').innerText,
- *   document.getElementById('b').innerText,
- *   document.getElementById('c').innerText,
- *   document.getElementById('d').innerText
- * );
- *
- * // 只要 DIV 未从 DOM 移除，其内容都能通过 JavaScript 获取和修改。
- */
- // INSERT_YOUR_CODE
-
-// 示例：在display:none的DIV中包含一个input，依然可以通过JS读取其值
-
-// 假设有如下HTML
-// <div id="hiddenDiv" style="display:none;">
-//   <input type="text" id="hiddenInput" value="隐藏的值">
-// </div>
-
-// 通过JS读取和设置input的值
-/*function readHiddenInputValue() {
-    var input = document.getElementById('hiddenInput');
-    if (input) {
-        console.log("隐藏的input值:", input.value);
-        // 也可以赋新值
-        input.value = "新值";
-        console.log("赋新值后:", input.value);
-    }
-}*/
-// 调用示例
-// readHiddenInputValue();
-
+ * 日历显示属性：
+ *   排期中已经设置的日期----用背景色块表示
+ *   TBD:1 检查不可选择的排期（已报满） 
+ *   TBD:2 按天预约的情况：已排期--可用、不可用、选择、不选择的情况
+ **/ 
+  // 只要 DIV 未从 DOM 移除，其内容都能通过 JavaScript 获取和修改。 
 // 结论：只要元素还在DOM树中，display:none不会影响JS用value/innerText等API访问或修改其内容

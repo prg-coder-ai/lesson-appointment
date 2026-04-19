@@ -6,6 +6,7 @@
  */
 async function getCourseList(conditionJson) { 
     const token = getToken();
+    
     if (!token) return [];
     try {
         const response = await axios.get(`${API_BASE_URL}/course/list`, {
