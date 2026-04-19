@@ -662,8 +662,7 @@ function renderResult() {
   }
 } 
 
- //CourseScheduleCreateDTO;
-    // 预定排期 -- TBD
+ //CourseScheduleCreateDTO; 
   //   uodate or insert 
   async function saveBookingToDB() {
     const token = getToken();
@@ -674,19 +673,11 @@ function renderResult() {
     // 注意：前端js中无class，直接构造一个对象与后端CourseScheduleCreateDTO字段一致即可
 
     let dto = {
+        id: formData.bookId || "",
       scheduleId: formData.scheduleId || "",
       courseId: formData.courseId || "",
-      teacherId: formData.teacherId || "",
-      ClassroomId: formData.ClassroomId || "",
-      // 后端CourseScheduleCreateDTO是LocalDateTime/Date类型，这里传 yyyy-MM-dd 或 hh:mm:ss 字符串即可
-      startDate:  formData.startDate  ? formData.startDate  : "",
-      startTime: formData.startTime   || "",
-      endDate: formData.endDate ? formData.endDate : "",
- 
-      endTime: formData.startTime  || "",
-      //repeatType: formData.repeatType || 0,
-      repeatInterval: formData.interval || 1,
-      repeatDays: formData.repeatDays || [],
+      teacherId: formData.teacherId || "", 
+   
       timeZone: formData.timeZone || userTimeZone || "",
       availableSites: formData.availableSites || 1,
       status: formData.status || ""
@@ -823,6 +814,17 @@ async function operateSchedule(scheduleId, action) {
  *   排期中已经设置的日期----用背景色块表示
  *   TBD:1 检查不可选择的排期（已报满） 
  *   TBD:2 按天预约的情况：已排期--可用、不可用、选择、不选择的情况
- **/ 
+ * 
+ * 
+ * 数据操作：对于学生，新建booking： 添加booking，把排期时间列表插入到appointment数据表
+ *                   修改booking状态： 取消（预定如果没有被确认）、预定（取消如果没有被确认）、删除（如果没有待确认的取消，没有已确认的预定，可自行删除）
+ *                                    修改的同时，更新对应的appointment中的对应数据（按booking.id ）
+ *  booking:对于教师： 1、检查自己的所有预定
+ *                    2、确认 预定、确认预订取消
+ *                    3、临时调整已预定的个别课次的时间：（appointment）
+ *  对应的controller：
+ *        insert、update、updateStatus
+ * 
+ * **/ 
   // 只要 DIV 未从 DOM 移除，其内容都能通过 JavaScript 获取和修改。 
 // 结论：只要元素还在DOM树中，display:none不会影响JS用value/innerText等API访问或修改其内容
