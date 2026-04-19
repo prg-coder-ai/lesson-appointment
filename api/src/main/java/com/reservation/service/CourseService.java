@@ -2,6 +2,7 @@ package com.reservation.service;
 
 //import com.reservation.controller.CourseExecutionController;
 import com.reservation.entity.Course;
+import com.reservation.entity.CourseQueryParam;
 import com.reservation.entity.CourseTemplate;
 import com.reservation.exception.BusinessException;
 import com.reservation.exception.ResourceNotFoundException;
@@ -120,10 +121,12 @@ public class CourseService {
     /**
      * 获取课程列表（含可用排期），补充实现体，避免编译错误
      * 参数为语言、等级
+     * CourseQueryParam
      */
-    public List<Course> getCourseList(Map<String, Object> searchParams) {
+    public List<Course> getCourseList(CourseQueryParam  params) {
         // 实现逻辑：调用Mapper查询，无结果返回空集合，避免空指针
-        List<Course> courseList = courseMapper.selectCourseList(searchParams); // 假设Mapper有该方法
+         //System.out.println("service:params: " + params);
+        List<Course> courseList = courseMapper.selectCourseList(params); // 假设Mapper有该方法
         return Optional.ofNullable(courseList).orElse(Collections.emptyList());
     } 
 

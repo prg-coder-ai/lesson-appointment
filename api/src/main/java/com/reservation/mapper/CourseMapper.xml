@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.reservation.mapper.CourseMapper">
+
+   <!--
+   SQL 语法分析：
+
+   <select id="selectCourseList" parameterType="com.reservation.entity.CourseQueryParam" resultType="com.reservation.entity.Course">
+     - 定义了一个 MyBatis 的查询方法，返回类型为 Course 实体类，查询参数为 CourseQueryParam 对象
+
+   SELECT c.*
+   FROM course c
+     LEFT JOIN course_template t ON c.template_id = t.template_id
+     - 查询 course 表（别名 c），左连接 course_template 表（别名 t），连接条件是 c.template_id = t.template_id
+     - 这样可以查出课程及其模版相关的字段
+
+   <where>
+     - MyBatis 的 <where> 标签：自动处理条件前的 AND，并忽略所有条件为空时的多余关键字
+
+     <if test="courseName != null andcourseName != ''">
+         c.course_name LIKE CONCAT('%', #{courseName}, '%')
+     </if>
+     - 如果传入的 courseName 不为空，则添加条件：c.course_name LIKE '%courseName%'
+     - 支持按课程名称模糊搜索
+     - 但 andcourseName 拼写有误，应该是 and courseName
+
+     <if test="languageType != null and languageType != ''">
+         t.language_type = #{languageType}
+     </if>
+     - 如果 languageType 不为空，要求模版表中的 language_type 等于指定值
+
+     <if test="difficultyLevel != null and difficultyLevel != ''">
+         t.difficulty_level = #{params.difficultyLevel}
+     </if>
+     - 如果 difficultyLevel 不为空，要求模版表中的 difficulty_level 等于指定值
+     - 这里 #{params.difficultyLevel} 写法一般不对，直接 #{difficultyLevel}（参见 parameterType 说明）
+
+     <if test="teacherId != null and teacherId != ''">
+         c.teacher_id = #{params.teacherId}
+     </if>
+     - 如果 teacherId 不为空，要求主表中的 teacher_id 等于指定值
+     - 同理 #{params.teacherId} 应为 #{teacherId}
+
+     <if test="status != null and status != ''">
+         c.status = #{status}
+     </if>
+     - 如果 status 不为空，要求课程状态等于指定值
+
+   </where>
+   </select>
+
+   主要问题汇总：
+   1. andcourseName 拼写错误，少了空格，应该是 "and courseName"
+   2. #{params.xxx} 在 parameterType 直接为对象时推荐写成 #{xxx}
+   -->
+
+   <select id="selectCourseList" parameterType="com.reservation.entity.CourseQueryParam" resultType="com.reservation.entity.Course">
+      SELECT c.*
+      FROM course c
+      LEFT JOIN course_template t ON c.template_id = t.template_id
+      <where>
+        <if test="courseName != null and courseName != ''">
+          c.course_name LIKE CONCAT('%', #{courseName}, '%')
+        </if>
+        <if test="languageType != null and languageType != ''">
+          t.language_type = #{languageType}
+        </if>
+        <if test="difficultyLevel != null and difficultyLevel != ''">
+          t.difficulty_level = #{difficultyLevel}
+        </if>
+        <if test="teacherId != null and teacherId != ''">
+          c.teacher_id = #{teacherId}
+        </if>
+        <if test="status != null and status != ''">
+          c.status = #{status}
+        </if>
+      </where>
+   </select>
+</mapper>

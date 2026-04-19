@@ -204,11 +204,12 @@ async function renderScheduleCards() {
 async function getCourseList(conditionJson) { 
   const token = getToken();
   if (!token) return; 
+  
   try {
       // Axios GET请求（修复response.json()错误，Axios已自动解析）
       const response = await axios.get(`${API_BASE_URL}/course/list`, {
           headers: { "Authorization": "Bearer " + token },
-          params: conditionJson // 筛选条件通过params传递
+         params:conditionJson  // 筛选条件通过params传递
       });
       const res = response.data;
       console.info("get response data:",res);
@@ -219,8 +220,9 @@ async function getCourseList(conditionJson) {
           console.info("total:",localParamter.total,courseList);
           // 补全默认状态
           courseList.forEach(item => {
-              if (!item.status) item.status = 'active';
+              if (!item.status) item.status = 'inactive';
           });
+     
       } else {
           alert(res?.message || '获取课程列表失败');
       }
@@ -274,8 +276,8 @@ function renderSchedule() {
        // 刷新开始日期
        if (scheduleObject.scheduleId) {
         document.getElementById('scheduleId').value = scheduleObject.scheduleId;
-        console.log("scheduleId",scheduleObject.scheduleId);
-        console.log("scheduleId", document.getElementById('scheduleId').value);
+        //console.log("scheduleId",scheduleObject.scheduleId);
+      //  console.log("scheduleId", document.getElementById('scheduleId').value);
     } else {
         document.getElementById('scheduleId').value = '';
     }

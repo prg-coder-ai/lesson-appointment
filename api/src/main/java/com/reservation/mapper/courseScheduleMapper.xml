@@ -58,11 +58,11 @@
             <if test="courseId != null and courseId != ''">
                 AND course_id = #{courseId}
             </if>
-            <!--
-            <if test="classroomId != null and classroomId != ''">
-                AND classroom_id = #{classroomId}
+             
+            <if test="status != null and status != ''">
+                AND status = #{status}
             </if>
-            -->
+            
             <if test="startTime != null">
                 AND start_time &gt;= #{startTime}
             </if>

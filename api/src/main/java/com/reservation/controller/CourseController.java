@@ -2,6 +2,7 @@ package com.reservation.controller;
 
 import com.reservation.common.Result;
 import  com.reservation.entity.Course;
+import  com.reservation.entity.CourseQueryParam;
 import  com.reservation.entity.CourseTemplate;
 import  com.reservation.service.CourseService;
 import  com.reservation.utils.PermissionCheck;
@@ -155,12 +156,14 @@ public class CourseController {
       复合查询--关联模板库、user库--->课程难度、语言、老师等信息
      */
     @GetMapping("/list")
-    public Result<List<Course>> getCourseList(@RequestBody(required = false) Map<String, Object> searchParams,
-                                                          @RequestHeader("Authorization") String token) {
+    @ResponseBody
         // 权限校验：教师或管理员、学生均可操作
+   public Result<List<Course>> getCourseList(@Validated @RequestBody(required = false) CourseQueryParam params,
+                                                          @RequestHeader("Authorization") String token) {
         //permissionCheck.checkTeacherOrAdmin(token);
         // 调用服务层查询课程列表
-        List<Course> courseList = courseService.getCourseList(searchParams);
+         System.out.println("getCourseList controller: " + params);
+        List<Course> courseList = courseService.getCourseList(params);
         //Map<String, List<Course>> resultMap = Map.of("courses", courseList);
         return Result.success(courseList, "查询成功");
     }

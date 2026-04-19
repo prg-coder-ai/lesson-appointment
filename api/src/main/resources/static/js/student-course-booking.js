@@ -210,12 +210,13 @@ async function renderStudentBookingCards() {
 
 
  // 1. 检索课程（原生 fetch）,只检索status:"active" 已发布课程
+ // 从course中的teacherid-》姓名
  async function searchCourse() { 
         const params = {
-            courseName: document.getElementById('courseName').value,
-            languageType: document.getElementById('language').value,
-            difficultyLevel: document.getElementById('difficulty').value,
-            teacher: document.getElementById('teacher').value,
+            courseName: document.getElementById('courseName').value||"",
+            languageType: document.getElementById('language').value||"",
+            difficultyLevel: document.getElementById('difficulty').value||"",
+            teacherId: document.getElementById('teacher').value|| "",
             status:"active"
         }; 
   console.log("search",params);//TBD---
@@ -238,10 +239,12 @@ function renderCourseSelect() {
   const sel = document.getElementById('courseSelect');
   sel.innerHTML = '<option value="">请选择课程</option>';
   courseList.forEach(item => {
+    if(item.status=='active'){
       const opt = document.createElement('option');
       opt.value = item.courseId;
       opt.innerText = item.courseName;
       sel.appendChild(opt);
+    }
   });
   if(lastCourseIndex>=0)
   {
@@ -429,8 +432,9 @@ return  scheduleObject;
         if (courseIdElem) {
             courseIdElem.value = cid;
         }
- 
+  
       try {
+        let cnt=0;
         scheduleList = await fetchScheduleList(cid,"active");
      
           if (scheduleList && scheduleList.length > 0) {           
@@ -440,6 +444,8 @@ return  scheduleObject;
                 // 先清空原有选项
                 scheduleSelect.innerHTML = '<option value="">请选择课程排期</option>';
                 scheduleList.forEach(schedule => {
+                    if(schedule.status=='active'){ //TBD:--过滤在后端完成
+                        cnt++;
                     // scheduleId和排期信息（可展示更多）
                     const opt = document.createElement('option');
                     opt.value = schedule.scheduleId;
@@ -452,7 +458,9 @@ return  scheduleObject;
                     }
                     opt.innerText = displayText;
                     scheduleSelect.appendChild(opt);
-                }); 
+                }
+                });
+               
             }
            
             //更新排期的显示
@@ -466,7 +474,11 @@ return  scheduleObject;
             lastCourseIndex =currentScheduleIndex ;
 
           }
-
+          if(cnt==0)  {
+            scheduleSelect.innerHTML = '<option value="">暂时该课程没有排期</option>';
+            scheduleObject = resetScheduleObject();//清理显示区
+            renderSchedule(scheduleObject);
+        }
           return;
       } catch (e) {
           alert("没有找到该课程的排期，请联系老师",e);
@@ -477,6 +489,9 @@ return  scheduleObject;
    function displySchedule() {
    // INSERT_YOUR_CODE
    // 查询scheduleSelect下拉框的当前，获取数据，调用 renderSchedule 更新当前选择
+
+  
+
    const scheduleSelect = document.getElementById('scheduleSelect');
    if (!scheduleSelect) return;
    const selectedId = scheduleSelect.value;
@@ -488,9 +503,7 @@ return  scheduleObject;
        scheduleObject = selectedSchedule;
        // 调用 renderSchedule （假设有此函数用于渲染/刷新当前排期到表单）
       
-   } else {
-    scheduleObject = resetScheduleObject();//
-   }
+   } 
     if (typeof renderSchedule === 'function') {
         renderSchedule(scheduleObject);
     }
