@@ -7,6 +7,8 @@
   <!-- 引入图标库 -->
   <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="css/scheduleTable.css">
+    <!-- FullCalendar CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
   <style>
     /* 全局样式重置与基础设置 */
     * {
@@ -15,16 +17,6 @@
       box-sizing: border-box;
     }
 
-    :root {
-      --primary-color: #722ed1;
-      --success-color: #52c41a;
-      --warning-color: #faad14;
-      --danger-color: #f5222d;
-      --border-color: #e9ecef;
-      --text-color: #333;
-      --text-light-color: #999;
-      --orange-color: #fa8c16;
-    }
 
     body {
       font-family: "Microsoft Yahei", sans-serif;
@@ -219,76 +211,6 @@
       gap: 10px;
     }
 
-    /* 按钮样式 */
-    .btn {
-      padding: 8px 16px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-      transition: all 0.2s;
-    }
-
-    .btn:hover {
-      opacity: 0.9;
-    }
-
-    .btn-primary {
-      background: var(--primary-color);
-      color: #fff;
-    }
-
-    .btn-gray {
-      background: #f8f9fa;
-      color: #333;
-      border: 1px solid var(--border-color);
-    }
-
-    /* 日历和时间选择样式 */
-    .calendar-container {
-      margin: 15px 0;
-    }
-
-    .calendar-header {
-      margin-bottom: 10px;
-      font-weight: 600;
-    }
-
-    .calendar-grid {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 8px;
-      margin-bottom: 15px;
-    }
-
-    .calendar-day {
-      width: 36px;
-      height: 36px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 12px;
-    }
-
-    .calendar-day.available {
-      background: #f8f9fa;
-    }
-
-    .calendar-day.available:hover {
-      background: #e9ecef;
-    }
-
-    .calendar-day.disabled {
-      color: #ccc;
-      cursor: not-allowed;
-    }
-
-    .calendar-day.selected {
-      background: var(--primary-color);
-      color: #fff;
-    }
 
     .time-selector {
       display: flex;
@@ -349,45 +271,6 @@
       margin-bottom: 15px;
     }
 
-    /* 弹窗样式 */
-    .modal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.5);
-      z-index: 999;
-      justify-content: center;
-      align-items: center;
-    }
-
-    .modal-content {
-      background: #fff;
-      border-radius: 8px;
-      width: 90%;
-      max-width: 500px;
-      padding: 20px;
-    }
-
-    .modal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 15px;
-    }
-
-    .modal-header h3 {
-      font-size: 18px;
-      font-weight: 600;
-      margin: 0;
-    }
-
-    .modal-close {
-      cursor: pointer;
-      font-size: 20px;
-    }
   </style>
 </head>
 <body>
@@ -833,9 +716,8 @@ if (window.loadAdminPageContent) {
       evaluateCourse(el); // 复用评价弹窗
     }
   </script>
- <!-- 
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script> 
--->
+  
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>  
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script> 
 
 <script src="js/public/api.js"></script>
