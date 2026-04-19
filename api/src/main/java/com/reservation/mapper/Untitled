@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.reservation.mapper.BookingMapper">
+
+    <!-- 插入一条新预约 -->
+    <insert id="insert" parameterType="com.reservation.entity.Booking">
+        INSERT INTO booking
+        (id, schedule_id, student_id, status 
+        )
+        VALUES
+        (#{id}, #{scheduleId}, #{studentId}, #{status} 
+        )
+    </insert>
+
+    <!-- 更新预约信息 -->
+    <update id="update" parameterType="com.reservation.entity.Booking">
+        UPDATE booking
+        <set>
+            <if test="scheduleId != null">schedule_id = #{scheduleId},</if>
+            <if test="studentId != null">student_id = #{studentId},</if>
+            <if test="status != null">status = #{status},</if>
+           
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 根据ID变更状态 -->
+    <update id="updateStatus">
+        UPDATE booking SET status = #{status}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 根据ID查询 -->
+    <select id="selectById" parameterType="string" resultType="com.reservation.entity.Booking">
+        SELECT * FROM booking WHERE id = #{id}
+    </select>
+
+    <!-- 条件批量查询 -->
+    <select id="selectList" parameterType="com.reservation.entity.BookingDTO" resultType="com.reservation.entity.Booking">
+        SELECT * FROM booking
+        <where>
+            <if test="id != null">AND id = #{id}</if>
+            <if test="scheduleId != null">AND schedule_id = #{scheduleId}</if>
+            <if test="studentId != null">AND student_id = #{studentId}</if>
+            <if test="status != null">AND status = #{status}</if> 
+        </where>
+        ORDER BY create_time DESC
+    </select>
+    
+    <!-- 删除预约 -->
+    <delete id="delete" parameterType="string">
+        DELETE FROM booking WHERE id = #{id}
+    </delete>
+
+</mapper>
