@@ -397,7 +397,9 @@ document.getElementById('timeZone').value = userTimeZone;
 
    window.resetSchedule = resetSchedule ;   
    window.refreshData   = refreshData 
-   window.loadSchedule  = loadSchedule;;
+   window.loadSchedule  = loadSchedule;
+   window.reloadBooking = reloadBooking ;
+   window.operateBookingStatus  = operateBookingStatus;
 
    //将当前排期数值为初始值，方便修改
    function resetSchedule(){
@@ -502,8 +504,7 @@ return  scheduleObject;
                     opt.innerText = displayText;
                     scheduleSelect.appendChild(opt);
                 }
-                });
-               
+                }); 
             }
            
             //更新排期的显示
@@ -822,8 +823,8 @@ function renderResult() {
 
   function getBookFormData(){
 
-    const bid = document.getElementById("bookingId");
-    const bst = document.getElementById("bookingStatus");
+    const bid = document.getElementById("bookingId").value;
+    const bst = document.getElementById("bookingStatus").value;
     return  { bookingid:bid,status: bst};
 
   }
@@ -841,7 +842,8 @@ function renderResult() {
   //判断预约状态，如果是booking则可直接取消，如果是booked,则设置为canceling，等待确认
   async function cancelBooking() { 
      const formData = getBookFormData(); 
-     await operateBookStatus(formData.bookingid,formData.status != "booked"?"canceled":"canceling");  
+
+     await operateBookingStatus(formData.bookingid,formData.status != "booked"?"canceled":"canceling");  
   }
 
  function refreshData(){
@@ -850,11 +852,11 @@ function renderResult() {
  }
 
     //在状态变化时，更新预约状态，参数暂无用
-    function  reloadBooking(bookingid){ 
+    async function  reloadBooking(bookingid){ 
          //const bidItem = document.getElementById("bookingId");
          //bidItem.value = bookingid;
          if(selectedScheuleId != null) {
-            const bookingObjectList =    getBookingInfo(selectedScheuleId,userRole,userId); 
+            const bookingObjectList =    await getBookingInfo(selectedScheuleId,userRole,userId); 
             console.log("bookingObjectList:",bookingObjectList)
             if(bookingObjectList!= null && bookingObjectList.length >0)
             { renderStudentBookingStatus(bookingObjectList[0]);  //获取 用户的预定信息
