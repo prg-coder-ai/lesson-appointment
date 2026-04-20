@@ -69,3 +69,10 @@ function getToken() {
   const currentUser = JSON.parse(currentUserStr);
   return currentUser.token || '';
 }
+
+function  getCurrentUserInfo() { 
+const userStr = localStorage.getItem('currentUser');
+  if(userStr)
+     return  JSON.parse(userStr);
+}
+ 
