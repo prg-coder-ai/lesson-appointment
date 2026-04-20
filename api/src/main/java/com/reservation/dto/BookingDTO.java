@@ -14,3 +14,4 @@ public class BookingDTO   implements Serializable{
     private String status;  //'预约状态（ 空''/1 booked：已预约/bookProved/cancelling/canceled：已取消/3 completed：已完成/overtime：已过时）',
  
 }
+ 

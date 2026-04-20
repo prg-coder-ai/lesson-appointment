@@ -504,7 +504,7 @@
                 if (userStr) {
                   // 设置cookie名为currentUser，值为encodeURIComponent后的userStr，过期2小时
                   const d = new Date();
-                  d.setTime(d.getTime() + (2*60*60*1000));  // 2小时
+                  d.setTime(d.getTime() + (20*60*60*1000));  // 2小时
                   document.cookie = `currentUser=${encodeURIComponent(userStr)};expires=${d.toUTCString()};path=/`;
                 }
               } catch(e) {

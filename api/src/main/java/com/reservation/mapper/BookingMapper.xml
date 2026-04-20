@@ -40,7 +40,7 @@
     </select>
 
     <!-- 条件批量查询 -->
-    <select id="selectList" parameterType="com.reservation.entity.BookingDTO" resultType="com.reservation.entity.Booking">
+    <select id="selectList" parameterType="com.reservation.entity.BookingQueryParaDTO" resultType="com.reservation.entity.Booking">
         SELECT * FROM booking
         <where>
             <if test="id != null">AND id = #{id}</if>

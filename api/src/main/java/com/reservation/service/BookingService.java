@@ -2,6 +2,7 @@ package com.reservation.service;
 
 import com.reservation.entity.Booking;
 import com.reservation.entity.BookingDTO;
+import com.reservation.entity.BookingQueryParaDTO;
 import com.reservation.mapper.BookingMapper;
 
 import org.springframework.stereotype.Service;
@@ -22,8 +23,7 @@ public class BookingService {
         String id = UUID.randomUUID().toString().replace("-", ""); // 移除UUID分隔符
         booking.setId(id);
 
-        bookingMapper.insert(booking);
-
+        bookingMapper.insert(booking); 
         return   id;
     }
 
@@ -37,8 +37,13 @@ public class BookingService {
     }
 
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
-    public String updateStatus(String id, String status) {
-        bookingMapper.updateStatus(id, status);
+    public String updateStatus( BookingDTO dto) {
+         String id=dto.getId();
+          String status =dto.getStatus();
+          if(status=="delete")
+              bookingMapper.delete(id);
+              else 
+            bookingMapper.updateStatus(id, status);
         return id;
     }
 
@@ -48,7 +53,7 @@ public class BookingService {
     }
 
     @Transactional(propagation = Propagation.REQUIRED)
-    public List<Booking> selectList(BookingDTO dto) {
+    public List<Booking> selectList(BookingQueryParaDTO dto) {
         return bookingMapper.selectList(dto);
     }
 

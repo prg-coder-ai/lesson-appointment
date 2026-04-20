@@ -2,6 +2,7 @@ package com.reservation.controller;
 
 import com.reservation.common.Result;
 import com.reservation.entity.Booking;
+import com.reservation.entity.BookingQueryParaDTO;
 import com.reservation.entity.BookingDTO;
 import com.reservation.service.BookingService;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +15,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class BookingController { 
     private final BookingService bookingService;
-
+//create/update/updateStatus：返回id
  @PostMapping
     public Result<String> create(@RequestBody Booking booking) {
         try {
@@ -33,10 +34,10 @@ public class BookingController {
         }
     }
 
-    @PutMapping("/updateStatus/{id}")
-    public Result<String> updateStatus(@PathVariable String id, @RequestParam(required = true) String status) {
+    @PutMapping("/updateStatus")
+    public Result<String> updateStatus(@PathVariable String id, @RequestBody(required = true) BookingDTO dto) {
         try {
-            String rs = bookingService.updateStatus(id, status);
+            String rs = bookingService.updateStatus(dto);
             return Result.success(rs,"ok");
         } catch (RuntimeException e) {
             return Result.fail(null,e.getMessage());
@@ -45,7 +46,7 @@ public class BookingController {
 
     @GetMapping("/list")
     @ResponseBody
-    public Result<List<Booking>> list(@RequestBody BookingDTO dto) {
+    public Result<List<Booking>> list(@RequestBody BookingQueryParaDTO dto) {
            List<Booking> rs = bookingService.selectList(dto);
         return Result.success(rs,"ok");
     }
@@ -58,7 +59,7 @@ public class BookingController {
 
     // 经检查，当前 BookingController.java 文件不存在明显的语法错误。所有注解、方法和 Java 语法均正常。如果还需优化具体业务逻辑或风格，请明确说明需求。
 
-    @DeleteMapping("/delete/{id}")
+    /*@DeleteMapping("/delete/{id}")
     public Result<Void> delete(@PathVariable String id) {
         try {
             bookingService.delete(id);
@@ -66,5 +67,5 @@ public class BookingController {
         } catch (RuntimeException e) {
             return Result.fail(null,e.getMessage());
         }
-    }
+    }*/
 }

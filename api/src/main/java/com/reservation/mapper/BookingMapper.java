@@ -3,7 +3,7 @@
 package com.reservation.mapper;
 
 import com.reservation.entity.Booking;
-import com.reservation.entity.BookingDTO;
+import com.reservation.entity.BookingQueryParaDTO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -24,7 +24,7 @@ public interface BookingMapper {
     Booking selectById(@Param("id") String id);
 
     // 条件批量查询
-    List<Booking> selectList(BookingDTO dto);
+    List<Booking> selectList(BookingQueryParaDTO dto);
 
     // 删除预约
     int delete(@Param("id") String id);

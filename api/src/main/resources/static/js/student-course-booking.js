@@ -148,15 +148,22 @@ async function renderStudentBookingCards() {
     </div>
   
     <!-- 预约状态显示和选择 TBD -->
-    <div class="form-line" id="bookingStatusBox">
+    <div class="form-line">
         <label>预约操作：</label>
-        <label><input type="checkbox" id="bookingStatusBooked" value="booked">预约</label>
-        <label><input type="checkbox" id="bookingStatusCancel" value="canceled">取消预约</label>
+         <label><input type="label" id="bookingId" value="" display:flex>无预约</label>  
+          <select id="bookingStatus">
+                <option value="none">无预约</option>
+                <option value="booking">已预约,待确认</option>
+                <option value="booked">预约成功</option>
+                <option value="canceling">取消待确认</option>
+                <option value="canceled">已取消</option>
+                 <option value="completed">已完成</option> 
+            </select>
     </div>
     <!-- 操作按钮 -->
     <div class="btn-group"> 
         <button class="btn-primary" onclick="previewSchedule()">预览排期</button>
-        <button class="btn-primary" onclick="saveBookingToDB()">预定课程</button>
+        <button class="btn-primary" onclick="makeOneBooking()">预定课程</button>
         <button class="btn-danger"  onclick="cancelBooking()">取消预定</button> 
         <button class="btn-danger"  onclick="deleteBooking()">删除预定</button>
         <button class="btn-success" onclick="refreshData()">刷新</button>
@@ -355,7 +362,7 @@ function renderSchedule(scheduleObject) {
    window.renderCalendar    = renderCalendar ;
   
    window.displySchedule  = displySchedule ;
-   window.saveBookingToDB = saveBookingToDB ;//make a apointment
+   window.makeOneBooking = makeOneBooking ;//make a apointment
 
    window.deleteBooking   = deleteBooking ;
    window.cancelBooking   = cancelBooking ;
@@ -488,10 +495,7 @@ return  scheduleObject;
   //当排期列表选择变化时，重新显示排期计划及预定情况
    function displySchedule() {
    // INSERT_YOUR_CODE
-   // 查询scheduleSelect下拉框的当前，获取数据，调用 renderSchedule 更新当前选择
-
-  
-
+   // 查询scheduleSelect下拉框的当前，获取数据，调用 renderSchedule 更新当前选择 
    const scheduleSelect = document.getElementById('scheduleSelect');
    if (!scheduleSelect) return;
    const selectedId = scheduleSelect.value;
@@ -500,18 +504,29 @@ return  scheduleObject;
    // 在 scheduleList 中查找对应的排期对象
    const selectedSchedule = scheduleList.find(s => String(s.scheduleId) === String(selectedId));
    if (selectedSchedule) {
-       scheduleObject = selectedSchedule;
-       // 调用 renderSchedule （假设有此函数用于渲染/刷新当前排期到表单）
-      
-   } 
-    if (typeof renderSchedule === 'function') {
-        renderSchedule(scheduleObject);
-    }
+       scheduleObject = selectedSchedule;  
+        if (typeof renderSchedule === 'function') {
+                renderSchedule(scheduleObject);
+            }
+        let useid= getUser ();
+     // INSERT_YOUR_CODE
+
+     // 从token中获取用户的id和role
+     let token =getToken();// localStorage.getItem('token') || sessionStorage.getItem('token');
+     let userId = getUserIdFromToken(token);
+     let userRole = getRoleFromToken(token);;
+     
+      BookingObject =   getBookingInfo(selectedId,userRole,userId);
+      renderStudentBookingStatus(BookingObject);
+        } 
+    //获取 用户的预定信息
+
     //TBD：读取当前用户对应该排期的预定信息并显示：预定时间、状态（预定、取消、老师确认）
     // 如果没有则显示未预定
    }
+ 
   
-   function  getFormData(){
+   function  getScheduleFormData(){
     const form = {
         courseId: document.getElementById('courseId').value,
         scheduleId: document.getElementById('scheduleId').value,
@@ -555,7 +570,7 @@ return  scheduleObject;
    }
    // 预览排期
    async function previewSchedule() {
-     const form = getFormData();
+     const form = getScheduleFormData();
    
     // 生成排期列表 localDateTime List<Date,TIME>
     scheduleResult = await generateScheduleListFromServer(form); 
@@ -596,7 +611,59 @@ async function generateScheduleListFromServer(form) {
     }
     return [];
 } 
-  
+
+  //根据排期id、用户角色和用户id，查询预约信息。可复用于检索教师的预约
+  //返回 Booking 列表
+  //在排期列表选择变化时调用，更新对应的预定状态
+  let bookingList=[];
+async function getBookingInfo(scheduleid, userRole,useid) { 
+    const url = `course/booking/list` ;
+    const token = getToken();
+     params = {  scheduleId:scheduleid,
+                 userRole:userRole,
+                 userId: useid
+             };
+ 
+    try {
+        const res = await fetch(`${API_BASE_URL}/${url}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                "Authorization": "Bearer " + token
+            },
+            credentials: 'include',
+            body: JSON.stringify(params)
+        });
+
+        const result = await res.json();
+       
+        if (result && result.code === 200) {
+        
+            return result.data;
+        } else {
+            alert(result?.message || '排期时间表为空，请联系老师');
+        }
+        return [];
+    } catch (err) {
+        alert('获取排期时间表失败');
+        console.error(err);  
+    }
+    return [];
+} 
+
+  //根据bookingObject的状态，显示是否已预定
+  function renderStudentBookingStatus(bObj) {
+    console.log("bk:",bObj);
+    const bidItem = document.getElementById('bookingId');
+    bidItem.value=(bObj)?bObj.id:"";
+    const listStatus = document.getElementById('bookingStatus');
+  if (bObj == null) {
+    listStatus.value ="none";
+  } else {
+    listStatus.value =bObj.status;
+  } 
+  }
+
 // 渲染排期列表
 function renderResult() {
     const body = document.getElementById('resultBody');
@@ -661,38 +728,29 @@ function renderResult() {
       cal.appendChild(div);
   }
 } 
-
- //CourseScheduleCreateDTO; 
+ //TBD:修改一个预约后，按照预约id，查询获取预约对象，更新预约号状态
   //   uodate or insert 
-  async function saveBookingToDB() {
+  async function makeOneBooking() {
     const token = getToken();
-    const formData = getFormData();
-    console.log("save form:",formData);
-    // INSERT_YOUR_CODE
-    // 引用CourseScheduleCreateDTO, 把formData赋值到dto对象
-    // 注意：前端js中无class，直接构造一个对象与后端CourseScheduleCreateDTO字段一致即可
-
+    const formData = getScheduleFormData();
+    console.log("save form:",formData);   
+/*  private String bookingId;  
+    private String scheduleId;  
+    private String studentId;   
+    private String status;
+*/
+     const bidItem = document.getElementById("bookingId");
+       let bookingid=  bidItem.value;
+       const status = "booking"; 
     let dto = {
-        id: formData.bookId || "",
-      scheduleId: formData.scheduleId || "",
-      courseId: formData.courseId || "",
-      teacherId: formData.teacherId || "", 
-   
-      timeZone: formData.timeZone || userTimeZone || "",
-      availableSites: formData.availableSites || 1,
-      status: formData.status || ""
+        bookingId: bookingid|| "",
+        scheduleId: formData.scheduleId || "", 
+        studentId:userId,
+        status:status
     };
-      // repeatType 映射优化
-      const repeatTypeMap = {
-        "none": 0,
-        "day": 1,
-        "week": 2,
-        "month": 3
-      };
-      dto.repeatType = repeatTypeMap[formData.repeatType] ?? 0;
-
-    console.log("save dto:",dto);
-    const url = formData.scheduleId !=""? `student/booking/update` : `student/booking/create`; 
+      
+    console.log("BK save  dto:",dto);
+    const url = bookingid !=""? `course/booking/update/${bookingid}` : `course/booking/create`; 
     
     try{
       const res= await fetch(`${API_BASE_URL}/${url}`, {
@@ -708,26 +766,40 @@ function renderResult() {
       console.log("res:",result);
        // 4.  响应处理 响应成功/失败 result.data.id = new id
        if (result && result.code === 200) {
-        alert(formData.scheduleId !="" ? '编辑成功' : '新增成功'); 
+        alert(bookingid !="" ? '修改成功' : '提交成功'); 
+        //TBD：设置新的状态---- result返回完整的booking参数，更新显示，直接更新
+      reloadBooking(result.data);
     } else {
-        alert(result.data?.message || (formData.courseId!=""  ? '编辑失败' : '新增失败'));
+        alert(result.data?.message + (bookingid!=""  ? '修改失败' : '修改失败'));
     }
     }catch(err){
         alert('网络异常，操作失败');
         console.error(err);  
     } 
   }
-//预定状态：booking 、book-proved、canceling，cancel-proved，删除delete
-  // 删除--
-  async function deleteBooking() {
-    const formData = getFormData();
-    const scheduleId = formData.scheduleId;
-       await operateSchedule(scheduleId,"frozen"); 
+
+  function getBookFormData(){
+
+    const bid = document.getElementById("bookingId");
+    const bst = document.getElementById("bookingStatus");
+    return  { bookingid:bid,status: bst};
+
   }
-  async function cancelBooking() {
-    const formData = getFormData();
-    const scheduleId = formData.scheduleId;
-       await operateSchedule(scheduleId,"cancle"); 
+//预定状态：booking 、book-proved、canceling，cancel-proved，删除delete
+  // 删除--只有没有确认的预约，或者已经确认取消的才可由学生自行删除，不涉及时间列表。
+  // 管理员确认取消后，可删除该预约及对应的预约时间列表
+  async function deleteBooking() {
+    const formData = getBookFormData();
+    if ( (formData.status=="booking") ||  (formData.status=="canceled") )
+       await operateBookingStatus(formData.bookingid,"delete"); 
+    else   { 
+    alert("请联系老师，确认后才能删除");
+    }
+  }
+  //判断预约状态，如果是booking则可直接取消，如果是booked,则设置为canceling，等待确认
+  async function cancelBooking() { 
+     const formData = getBookFormData(); 
+     await operateBookStatus(formData.bookingid,formData.status != "booked"?"canceled":"canceling");  
   }
 
  function refreshData(){
@@ -737,16 +809,16 @@ function renderResult() {
  }
 
 /**
- * 发布/回收模板、
+ *取消、删除
  */
-async function operateSchedule(scheduleId, action) {
+async function operateBookingStatus(bookid, action) {
     const token = getToken();
     const payload = {
-        scheduleId: scheduleId,  // 注意小写，和后端命名对应
+        id: bookid,  // 注意小写，和后端命名对应
         status: action
   };
       console.log("payload：",payload); 
-    fetch(`${API_BASE_URL}/course/schedule/updateStatus`, {
+    fetch(`${API_BASE_URL}/course/booking/updateStatus`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -763,7 +835,9 @@ async function operateSchedule(scheduleId, action) {
       // 某些接口如204/无内容, 直接返回空对象防止解析异常
       const contentType = response.headers.get("content-type") || "";
       if (contentType.includes("application/json")) {
-        return response.json();
+        {
+            return response.json();
+        }
       }
       // 不是json时返回空对象，避免res为undefined或字符串
       return {};
@@ -777,7 +851,9 @@ async function operateSchedule(scheduleId, action) {
           console.success(msg);
           console.success('操作成功');
         }
-        renderScheduleCards(); 
+        const bid = result.data;
+        reloadBooking(bid);
+        
       } else {
         alert(msg || '操作失败');
       }
@@ -790,7 +866,21 @@ async function operateSchedule(scheduleId, action) {
    
     } ;
       
+    //在状态变化时，更新预约状态，参数暂无用
+    function  reloadBooking(bookingid){ 
+         const bidItem = document.getElementById("bookingId");
+         bidItem.value = bookingid;
+        const BookingObject =   getBookingInfo(selectedId,userRole,userId); 
+        renderStudentBookingStatus(BookingObject);
+      }
     }
+
+   /* 
+    <label><input type="label" id="bookingId" value="" display:flex>无预约</label>
+    <label><input type="checkbox" id="bookingStatusNone" value="none">新课程</label>
+    <label><input type="checkbox" id="bookingStatusBooked" value="booked">预约</label>
+    <label><input type="checkbox" id="bookingStatusCancel" value="canceled">取消预约</label>
+    */
     console.log("schedule page END");
 }
 /**
@@ -825,6 +915,14 @@ async function operateSchedule(scheduleId, action) {
  *  对应的controller：
  *        insert、update、updateStatus
  * 
+ * <select id="bookingStatus">
+                <option value="none">无预约</option>
+                <option value="booking">已预约,待确认</option>
+                <option value="booked">预约成功</option>
+                <option value="canceling">取消待确认</option>
+                <option value="canceled">已取消</option>
+                 <option value="completed">已完成</option> 
+            </select>
  * **/ 
   // 只要 DIV 未从 DOM 移除，其内容都能通过 JavaScript 获取和修改。 
 // 结论：只要元素还在DOM树中，display:none不会影响JS用value/innerText等API访问或修改其内容
