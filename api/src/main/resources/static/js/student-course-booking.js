@@ -65,6 +65,7 @@ async function renderStudentBookingCards() {
     <!-- 课程选择下拉 -->
     <div class="form-line">
         <label>选择课程：</label>
+        <input type="text" display:none id="teacherIdForCourse">
         <select id="courseSelect" onchange="loadSchedule()">
             <option value="">请先选择课程</option>
         </select>
@@ -165,8 +166,11 @@ async function renderStudentBookingCards() {
   
     <!-- 预约状态显示和选择 TBD -->
     <div class="form-line">
-        <label>预约状态：</label>
-         <label><input type="label" id="bookingId" value="" display:flex>无预约</label>  
+        
+          <label><input type="label" id="bookingId" value="" display:flex></label>  
+    </div>
+    <div class="form-line">
+      <label>预约状态：</label>
           <select id="bookingStatus">
                 <option value="none">无预约</option>
                 <option value="booking">已预约,待确认</option>
@@ -239,7 +243,7 @@ async function renderStudentBookingCards() {
             courseName: document.getElementById('courseName').value||"",
             languageType: document.getElementById('language').value||"",
             difficultyLevel: document.getElementById('difficulty').value||"",
-            teacherId: document.getElementById('teacher').value|| "",
+            teacherName: document.getElementById('teacher').value|| "",
             status:"active"
         }; 
   console.log("search",params);//TBD---
@@ -260,6 +264,8 @@ async function renderStudentBookingCards() {
 //把courseList列在下拉框中
 function renderCourseSelect() {
   const sel = document.getElementById('courseSelect');
+
+
   sel.innerHTML = '<option value="">请选择课程</option>';
   courseList.forEach(item => {
     if(item.status=='active'){
@@ -461,7 +467,15 @@ return  scheduleObject;
         if (courseIdElem) {
             courseIdElem.value = cid;
         }
-  
+      // 根据 courseList 查询指定 id = cid 的元素
+      let selectedCourse = null;
+      if (Array.isArray(courseList)) {
+          selectedCourse = courseList.find(course => course.courseId === cid);
+          if (selectedCourse!= null){//更新当前教师ID
+            document.getElementById('teacherIdForCourse').value= selectedCourse.teacherId; 
+            //TBD:显示教师名称
+          }
+      }
       try {
         let cnt=0;
         scheduleList = await fetchScheduleList(cid,"active");
@@ -516,27 +530,22 @@ return  scheduleObject;
   }
   //当排期列表选择变化时，重新显示排期计划及预定情况
    function displaySchedule() {
-   // 查询scheduleSelect下拉框的当前，获取数据，调用 renderSchedule 更新当前选择 
-   const scheduleSelect = document.getElementById('scheduleSelect');
-   if (!scheduleSelect) return;
-   const selectedId = scheduleSelect.value;
-   if (!selectedId) return;
-   
-   // 在 scheduleList 中查找对应的排期对象
-   const selectedSchedule = scheduleList.find(s => String(s.scheduleId) === String(selectedId));
-   if (selectedSchedule) {
-       scheduleObject = selectedSchedule;  
-        if (typeof renderSchedule === 'function') {
-                renderSchedule(scheduleObject);
-            }
-            selectedScheuleId = selectedId;
-            reloadBooking();
-    /*  const bookingObjectList =   getBookingInfo(selectedId,userRole,userId);
-      console.log("BookingObject:",bookingObjectList)
-      if(bookingObjectList!= null && bookingObjectList.length >0)
-      renderStudentBookingStatus(bookingObjectList[0]);  //获取 用户的预定信息
-      */
-        }  
+        // 查询scheduleSelect下拉框的当前，获取数据，调用 renderSchedule 更新当前选择 
+        const scheduleSelect = document.getElementById('scheduleSelect');
+        if (!scheduleSelect) return;
+        const selectedId = scheduleSelect.value;
+        if (!selectedId) return;
+        
+        // 在 scheduleList 中查找对应的排期对象
+        const selectedSchedule = scheduleList.find(s => String(s.scheduleId) === String(selectedId));
+        if (selectedSchedule) {
+            scheduleObject = selectedSchedule;  
+                if (typeof renderSchedule === 'function') {
+                        renderSchedule(scheduleObject);
+                    }
+                    selectedScheuleId = selectedId;
+                    reloadBooking("");
+                }  
    }
  
   
@@ -597,16 +606,16 @@ return  scheduleObject;
 async function generateScheduleListFromServer(form) { 
     const url = `course/schedule/generate` ;
     const token = getToken();
-    const queryString = new URLSearchParams(form).toString();
+  //  const queryString = new URLSearchParams(form).toString(); ccc?${queryString}
     try {
-        const res = await fetch(`${API_BASE_URL}/${url}?${queryString}`, {
-            method: 'GET',
+        const res = await fetch(`${API_BASE_URL}/${url}`, {
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 "Authorization": "Bearer " + token
             },
             credentials: 'include',
-           
+           body: JSON.stringify(form)
         });
 
         const result = await res.json();
@@ -630,18 +639,34 @@ async function generateScheduleListFromServer(form) {
   //根据排期id、用户角色和用户id，查询预约信息。可复用于检索教师的预约
   //返回 Booking 列表
   //在排期列表选择变化时调用，更新对应的预定状态
-
-async function getBookingInfo(scheduleid, userRole,useid) { 
+/**
+ * 错误分析：
+ * 
+ * 出现该错误的原因是：后端接口 `@RequestBody BookingQueryParaDTO dto` 预期接收的是一个 JSON 对象（单个BookingQueryParaDTO实例），
+ * 而前端请求发送了一个JSON数组或body格式不符合预期。
+ * 
+ * 对照当前getBookingInfo的实现，发现：
+ *   body:params 直接赋值一个对象并没有转换为JSON字符串，fetch请求的body如果是对象会被序列化为[object Object]，不是有效的JSON。
+ * 正确做法应为：
+ *   - 使用JSON.stringify(params)
+ *   - Content-Type: application/json
+ * 
+ * 另外，接口期望"POST /course/booking/list"发送JSON对象，不是数组。
+ * 
+ * 修正如下：
+ */
+async function getBookingInfo(scheduleid, userRole, useid) { 
     const url = `course/booking/list` ;
     const token = getToken();
-     params = {  scheduleId:scheduleid,
-                 userRole:userRole,
-                 userId: useid
-             };
- 
+    const params = {  
+        id:null,
+        scheduleId: scheduleid,
+        userRole: userRole,
+        userId: useid,
+        status: null
+    };
+        
     try {
-        // GET请求不能设置body参数，需将参数拼接到URL查询字符串中
-        //const queryString = new URLSearchParams(params).toString();?${queryString}
         const res = await fetch(`${API_BASE_URL}/${url}`, {
             method: 'POST',
             headers: {
@@ -649,13 +674,12 @@ async function getBookingInfo(scheduleid, userRole,useid) {
                 "Authorization": "Bearer " + token
             },
             credentials: 'include',
-            body:params
+            body: JSON.stringify(params)
         });
-
-
-        const result = await res.json(); 
-        if (result && result.code === 200) {
         
+        const result = await res.json(); 
+        console.log('getBookingInfo: result', result);
+        if (result && result.code === 200) {
             return result.data;
         } else {
             alert(result?.message || '排期时间表为空，请联系老师');
@@ -666,11 +690,11 @@ async function getBookingInfo(scheduleid, userRole,useid) {
         console.error(err);  
     }
     return [];
-} 
-
+}
+ 
   //根据bookingObject的状态，显示是否已预定
   function renderStudentBookingStatus(bObj) {
-    console.log("bk:",bObj);
+    console.log("renderStudentBookingStatus:",bObj);
     const bidItem = document.getElementById('bookingId');
     bidItem.value=(bObj)?bObj.id:"";
     const listStatus = document.getElementById('bookingStatus');
@@ -750,6 +774,7 @@ function renderResult() {
   async function makeOneBooking() { 
     const status = "booking"; 
     const formData = getScheduleFormData(); 
+    const teacharId = document.getElementById('teacherIdForCourse').value;
     console.log("save form:",formData,userId,userRole);   
 /*  private String bookingId;  
     private String scheduleId;  
@@ -762,12 +787,13 @@ function renderResult() {
         bookingId: bookingid|| "",
         scheduleId: formData.scheduleId || "", 
         studentId:  userId,
+        teacherId:  teacharId,
         status:status
     };
       
     console.log("BK save  dto:",dto);
-    const url = bookingid !=""? `course/booking/update/${bookingid}` : `course/booking/create`; 
-    
+    const url = bookingid !=""? `course/booking/update/${bookingid}` : `course/booking`; 
+    console.log("BK save  dto url:",url);
     try{
       const res= await fetch(`${API_BASE_URL}/${url}`, {
         method: 'POST',
@@ -782,11 +808,11 @@ function renderResult() {
       console.log("res:",result);
        // 4.  响应处理 响应成功/失败 result.data.id = new id
        if (result && result.code === 200) {
-        alert(bookingid !="" ? '修改成功' : '提交成功'); 
+        alert(bookingid !="" ? '修改成功' : '创建成功'); 
         // 设置新的状态---- result返回的booking的id，更新显示，直接更新
-         reloadBooking(result.data.data );
+         reloadBooking(result.data );
     } else {
-        alert(result.data?.message + (bookingid!=""  ? '修改失败' : '修改失败'));
+        alert(result.data?.message + (bookingid!=""  ? '修改失败' : '创建失败'));
     }
     }catch(err){
         alert('网络异常，操作失败');
@@ -827,14 +853,14 @@ function renderResult() {
     function  reloadBooking(bookingid){ 
          //const bidItem = document.getElementById("bookingId");
          //bidItem.value = bookingid;
-         if(selectedScheuleId!=null) {
-        const bookingObjectList =   getBookingInfo(selectedScheuleId,userRole,userId); 
-        console.log("bookingObjectList:",bookingObjectList)
-        if(bookingObjectList!= null && bookingObjectList.length >0)
-          { renderStudentBookingStatus(bookingObjectList[0]);  //获取 用户的预定信息
-          } else {  
-             renderStudentBookingStatus(null);
-          }
+         if(selectedScheuleId != null) {
+            const bookingObjectList =    getBookingInfo(selectedScheuleId,userRole,userId); 
+            console.log("bookingObjectList:",bookingObjectList)
+            if(bookingObjectList!= null && bookingObjectList.length >0)
+            { renderStudentBookingStatus(bookingObjectList[0]);  //获取 用户的预定信息
+            } else {  
+                renderStudentBookingStatus(null);
+            }
       }
     }//
     } 
