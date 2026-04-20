@@ -44,7 +44,7 @@ public class BookingController {
         }
     }
 
-    @GetMapping("/list")
+    @PostMapping("/list")
     @ResponseBody
     public Result<List<Booking>> list(@RequestBody BookingQueryParaDTO dto) {
            List<Booking> rs = bookingService.selectList(dto);
