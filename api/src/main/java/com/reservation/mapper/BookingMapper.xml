@@ -8,10 +8,10 @@
     <!-- 插入一条新预约 -->
     <insert id="insert" parameterType="com.reservation.entity.Booking">
         INSERT INTO booking
-        (id, schedule_id, student_id, status
+        (id, schedule_id, student_id, teacher_id, status
         )
         VALUES
-        (#{id}, #{scheduleId}, #{studentId}, #{status}
+        (#{id}, #{scheduleId}, #{studentId}, #{teacherId}, #{status}
         )
     </insert>
 
@@ -19,6 +19,7 @@
     <update id="update" parameterType="com.reservation.entity.Booking">
         UPDATE booking
         <set>
+        <if test="teacherId != null"> teacher_id = #{teacherId},</if>
             <if test="scheduleId != null">schedule_id = #{scheduleId},</if>
             <if test="studentId != null">student_id = #{studentId},</if>
             <if test="status != null">status = #{status},</if>
@@ -45,9 +46,16 @@
         <where>
             <if test="id != null">AND id = #{id}</if>
             <if test="scheduleId != null">AND schedule_id = #{scheduleId}</if>
-            <if test="studentId != null">AND student_id = #{studentId}</if>
+            <if test="userRole != null">
+                <if test="userRole == 'student'">
+                    <if test="userId != null">AND student_id = #{userId}</if>
+                </if>
+                <if test="userRole == 'teacher'">
+                    <if test="userId != null">AND teacher_id = #{userId}</if>
+                </if>
+            </if>
             <if test="status != null">AND status = #{status}</if>
-            <!-- 如bookingDTO有其他筛选项，继续添加 -->
+            <!-- If bookingDTO has other filter fields, continue adding here -->
         </where>
         ORDER BY create_time DESC
     </select>

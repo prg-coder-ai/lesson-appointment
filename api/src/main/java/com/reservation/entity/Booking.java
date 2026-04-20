@@ -15,6 +15,8 @@ public class Booking   implements Serializable{
     private String scheduleId;  // 关联排期，对应设计2.2.3 预约接口请求参数
     @NotBlank(message = "学生ID不能为空")
     private String studentId;  // 关联学生，对应权限校验   
+        @NotBlank(message = "教师ID不能为空")
+    private String teacherId;  // 关联教师，对应权限校验   
     @NotBlank(message = "订单状态不能为空")
     private String status;  //'预约状态（1 booked：已预约/bookProved/cancelling/canceled：已取消/3 completed：已完成/overtime：已过时）',
     private Date createTime;  // 订单创建时间

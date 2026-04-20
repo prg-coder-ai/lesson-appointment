@@ -18,15 +18,16 @@ async function getCourseList(conditionJson) {
     console.log("getCourseList",conditionJson);
     try {
         // axios GET请求不能使用 body/params 的用法如下, 正确是用 params 字段传递 URL 查询参数
-        const response = await axios.get(`${API_BASE_URL}/course/list`, {
+        const response = axios.get(`${API_BASE_URL}/course/list`, {
             headers: { "Authorization": "Bearer " + token },
             params: conditionJson // 正确传递查询参数
-        });
+           });
 
         const res = response.data;
         console.info("get response data:", res);
         if (res && res.code === 200) {
             let courseList = res.data || [];
+            console.log("getCourseList",conditionJson);
             //localParamter.total = courseList.length || 0;
             //console.info("total:", localParamter.total, courseList);
             courseList.forEach(item => {

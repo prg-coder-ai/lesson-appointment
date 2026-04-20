@@ -11,6 +11,7 @@ import java.io.Serializable;
 @Data
 public class BookingQueryParaDTO   implements Serializable{
     private static final long serialVersionUID = 1L;
+    private String id;//Booking id
     private String scheduleId;  //  
     private String userRole;
     private String userId;  

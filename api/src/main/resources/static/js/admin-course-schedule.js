@@ -637,7 +637,7 @@ async function generateScheduleListFromServer(form) {
     }
 } 
   
-// 渲染排期列表
+// 渲染排期时间列表
 function renderResult() {
     const body = document.getElementById('resultBody');
     body.innerHTML = '';

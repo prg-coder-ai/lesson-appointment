@@ -25,7 +25,7 @@ public class BookingController {
         }
     }
 
-    @PutMapping("/update/{id}")
+    @PostMapping("/update/{id}")
     public Result<String> update(@PathVariable String id, @RequestBody Booking booking) {
         try {
             return Result.success(bookingService.update(id, booking),"ok");
@@ -46,9 +46,17 @@ public class BookingController {
 
     @PostMapping("/list")
     @ResponseBody
-    public Result<List<Booking>> list(@RequestBody BookingQueryParaDTO dto) {
+    public Result<List<Booking>> filterList(@RequestBody BookingQueryParaDTO dto) {
+         try {
            List<Booking> rs = bookingService.selectList(dto);
-        return Result.success(rs,"ok");
+          
+             System.out.println("filterList 返回预约列表: " + rs);
+        
+             return Result.success(rs,"ok");
+            } catch (RuntimeException e) {
+                  System.out.println("filterList fail: " + e.getMessage());
+             return Result.fail(null,e.getMessage());
+        } 
     }
 
     @GetMapping("/{id}")
