@@ -18,7 +18,7 @@ async function getCourseList(conditionJson) {
     console.log("getCourseList",conditionJson);
     try {
         // axios GET请求不能使用 body/params 的用法如下, 正确是用 params 字段传递 URL 查询参数
-        const response = axios.get(`${API_BASE_URL}/course/list`, {
+        const response = await axios.get(`${API_BASE_URL}/course/list`, {
             headers: { "Authorization": "Bearer " + token },
             params: conditionJson // 正确传递查询参数
            });
@@ -27,7 +27,7 @@ async function getCourseList(conditionJson) {
         console.info("get response data:", res);
         if (res && res.code === 200) {
             let courseList = res.data || [];
-            console.log("getCourseList",conditionJson);
+            console.log("courseList:",courseList);
             //localParamter.total = courseList.length || 0;
             //console.info("total:", localParamter.total, courseList);
             courseList.forEach(item => {
@@ -128,15 +128,10 @@ async function fetchScheduleList( cid,status) {
       // 防御：确认res是对象且有code字段
       const code = typeof res === "object" && res !== null && "code" in res ? res.code : undefined;
       const msg = (typeof res === "object" && res !== null && res.message) ? res.message : '';
-      if (code === 200) { 
-        if (console.success) {
-          console.success(msg);
-          console.success('操作成功');
-        }
-        console.success( result.data);
-        const bid = result.data;
-        reloadBooking(bid);
-        
+      if (code === 200) {  
+          console.log('操作成功');//+msg+res.data); 
+        const bid = res.data;
+        reloadBooking(bid); 
       } else {
         alert(msg || '操作失败');
       }

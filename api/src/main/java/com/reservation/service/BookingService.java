@@ -38,12 +38,14 @@ public class BookingService {
 
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public String updateStatus( BookingDTO dto) {
-         String id=dto.getId();
+        System.out.println("updateStatus dto: " + dto);
+          String id= dto.getId();
           String status =dto.getStatus();
-          if(status=="delete")
+          if ("delete".equals(status)) {
               bookingMapper.delete(id);
-              else 
+          }    else  {
             bookingMapper.updateStatus(id, status);
+              }
         return id;
     }
 

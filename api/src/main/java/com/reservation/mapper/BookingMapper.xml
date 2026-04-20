@@ -28,10 +28,9 @@
         WHERE id = #{id}
     </update>
 
-    <!-- 根据ID变更状态 -->
+    <!-- 根据ID变更状态  -->
     <update id="updateStatus">
-        UPDATE booking SET status = #{status}
-        <if test="updateTime != null">, update_time = #{updateTime}</if>
+        UPDATE booking SET status = #{status} 
         WHERE id = #{id}
     </update>
 

@@ -33,9 +33,9 @@ public class BookingController {
             return Result.fail(null,e.getMessage());
         }
     }
-
-    @PutMapping("/updateStatus")
-    public Result<String> updateStatus(@PathVariable String id, @RequestBody(required = true) BookingDTO dto) {
+//@PathVariable String id, 
+    @PostMapping("/updateStatus")
+    public Result<String> updateStatus(@RequestBody(required = true) BookingDTO dto) {
         try {
             String rs = bookingService.updateStatus(dto);
             return Result.success(rs,"ok");
