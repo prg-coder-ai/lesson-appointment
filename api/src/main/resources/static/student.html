@@ -270,7 +270,22 @@
       min-height: 100px;
       margin-bottom: 15px;
     }
-
+    .nofocus {
+        pointer-events: none;    /* 禁止鼠标交互，包括点击、选中、聚焦 */
+        user-select: none;       /* 禁止选中内容 */
+        outline: none !important; 
+   
+      pointer-events: none;    /* 禁用交互（点击、输入、焦点） */
+      user-select: none;
+      filter: grayscale(0.8);
+    }   
+    .readonly-style {
+      background: #f5f5f5;
+      color: #999;
+      border-color: #ddd;
+      pointer-events: none;    /* 禁用交互（点击、输入、焦点） */
+      user-select: none;
+    }
   </style>
 </head>
 <body>
