@@ -62,10 +62,11 @@ async function renderStudentBookingCards() {
         <button class="btn-primary" onclick="searchCourse()">检索课程</button>
     </div>
 
-    <!-- 课程选择下拉 -->
+    <!-- 课程选择下拉 隐含教师ID-->
     <div class="form-line">
         <label>选择课程：</label>
-        <input type="text" display:none id="teacherIdForCourse">
+        <input type="text" id="teacherIdForCourse" style="display:none;">
+   
         <select id="courseSelect" onchange="loadSchedule()">
             <option value="">请先选择课程</option>
         </select>
@@ -78,7 +79,7 @@ async function renderStudentBookingCards() {
         </select>
     </div>
     <div class="section">
-        <div class="section-title">排期设置</div>
+        <div class="section-title">排期信息</div>
 
         <div class="form-line" style="display:none;">
             <label>Id</label> 
@@ -90,51 +91,51 @@ async function renderStudentBookingCards() {
             <input type="label" id="courseId">
         </div>
            
-         <div class="form-line">
+         <div class="form-line" style="display:none;">
             <label>排期时区</label>
-            <input type="label" id="originalTimeZone" value="">
+            <input type="label" id="originalTimeZone" value=""  style="display:none;">
         </div>
-        <div class="form-line">
+        <div class="form-line  nofocus">
             <label>时区</label>
             <input type="label" id="timeZone" value="">
        
         </div>
 
-        <div class="form-line" style="display: flex;"> 
+        <div class="form-line  nofocus" style="display: flex;"> 
                 <label>开始日期：</label>
                 <input type="date"  align-items: right; id="startDate" value="${(new Date()).toISOString().split('T')[0]}">
             </div>
 
-            <div class="form-line">
+            <div class="form-line  nofocus">
                 <label >上课时间：</label>
                 <input type="time" id="startTime" value="${(function(){ let d = new Date(); return d.toTimeString().slice(0,5); })()}">
             </div>
          
     
-        <div class="form-line" > 
+        <div class="form-line  nofocus" > 
                 <label>结束日期：</label>
                 <input type="date" id="endDate" value="">
             </div> 
          
-        <div class="form-line">
+        <div class="form-line  nofocus">
             <label>重复类型：</label>
             <select id="repeatType" onchange="freshByRepeatType()">
-                <option value="none">不重复</option>
-                <option value="day">每天</option>
-                <option value="week">每周</option>
-                <option value="month">每月</option>
+                <option value="none" disabled:true>不重复</option>
+                <option value="day" disabled:true>每天</option>
+                <option value="week" disabled:true>每周</option>
+                <option value="month" disabled:true>每月</option>
             </select>
         </div>
 
-        <div class="form-line">
+        <div class="form-line  nofocus">
             <label>重复周期：</label>
             <input type="number" id="interval" value="1" min="1" style="width:80px">
             <span id="repeatUnit">天</span>
         </div>
 
-        <div class="form-line">
+        <div class="form-line  nofocus" style="display:none;">
             <label>状态：</label>
-           <select id="status">
+           <select id="status" style="display:none;">
                 <option value="pending">待发布</option>
                 <option value="inactive">已收回</option>
                 <option value="active">已发布</option>
@@ -143,21 +144,21 @@ async function renderStudentBookingCards() {
         </div>
 
         <!-- 每周重复：星期选择 -->
-        <div class="form-line" id="weekDaysBox" style="display:none;">
+        <div class="form-line  nofocus" id="weekDaysBox" style="display:none;">
             <label>重复星期：</label>
             <div id="weekDays">
-                <label><input type="checkbox" value="1">周一</label>
-                <label><input type="checkbox" value="2">周二</label>
-                <label><input type="checkbox" value="3">周三</label>
-                <label><input type="checkbox" value="4">周四</label>
-                <label><input type="checkbox" value="5">周五</label>
-                <label><input type="checkbox" value="6">周六</label>
-                <label><input type="checkbox" value="7">周日</label>
+                <label><input type="checkbox" value="1"  >周一</label>
+                <label><input type="checkbox" value="2" >周二</label>
+                <label><input type="checkbox" value="3" >周三</label>
+                <label><input type="checkbox" value="4"  >周四</label>
+                <label><input type="checkbox" value="5"  >周五</label>
+                <label><input type="checkbox" value="6"  >周六</label>
+                <label><input type="checkbox" value="7"  >周日</label>
             </div>
         </div>
 
          <!-- 每月重复： -->
-        <div class="form-line" id="monthDaysBox" style="display:none;">
+        <div class="form-line nofocus" id="monthDaysBox" style="display:none;">
             <label>重复日期：</label>
             <div id="monthDays">                  
             </div>
@@ -165,11 +166,10 @@ async function renderStudentBookingCards() {
     </div>
   
     <!-- 预约状态显示和选择 TBD -->
-    <div class="form-line">
-        
-          <label><input type="label" id="bookingId" value="" display:flex></label>  
+    <div class="form-line">        
+          <label><input type="label" id="bookingId" value=""   style="display:none;"></label>  
     </div>
-    <div class="form-line">
+    <div class="form-line  nofocus">
       <label>预约状态：</label>
           <select id="bookingStatus">
                 <option value="none">无预约</option>
@@ -208,7 +208,7 @@ async function renderStudentBookingCards() {
         <div class="section-title">日历视图</div>
         <div id="calendar" class="calendar"></div>
     </div>`;
-        
+    
     dynamicContentCenter.innerHTML = html;
 
        // 动态生成每月1-31号复选框，每10个换一行 
@@ -546,7 +546,8 @@ return  scheduleObject;
                     }
                     selectedScheuleId = selectedId;
                     reloadBooking("");
-                }  
+                } 
+             //   selectedScheuleReadonly();//重新设置只读状态 
    }
  
   
@@ -792,9 +793,9 @@ function renderResult() {
         status:status
     };
       
-    console.log("BK save  dto:",dto);
+    //console.log("BK save  dto:",dto);
     const url = bookingid !=""? `course/booking/update/${bookingid}` : `course/booking`; 
-    console.log("BK save  dto url:",url);
+    //console.log("BK save  dto url:",url);
     try{
       const res= await fetch(`${API_BASE_URL}/${url}`, {
         method: 'POST',
@@ -806,7 +807,7 @@ function renderResult() {
         body: JSON.stringify(dto)
       });
       const result = await res.json();
-      console.log("res:",result);
+     // console.log("res:",result);
        // 4.  响应处理 响应成功/失败 result.data.id = new id
        if (result && result.code === 200) {
         alert(bookingid !="" ? '修改成功' : '创建成功'); 
@@ -863,11 +864,33 @@ function renderResult() {
             } else {  
                 renderStudentBookingStatus(null);
             }
-      }
-    }//
-    } 
+         }
+            }//
+        }
+    //setReadOnlyKeepStyle 
+    function selectedScheuleReadonly(){
+          let readOnlyIDs = [
+               "startDate", "startTime", "endDate", "repeatType", "interval", 
+               "status", "week1", "monthDays",
+               "bookingStatus"
+          ];      
+   
+      readOnlyIDs.forEach(function(id) {
+           setReadOnlyById(id);
+        });  
+        }
+    //selectedScheuleReadonly();
     console.log("schedule page END");
 }
+
+// 设置下拉框为禁止选择（只读/不可操作），可以为元素加 disabled 属性，例如：
+// document.getElementById("bookingStatus").disabled = true;
+
+// 恢复可选择：
+// document.getElementById("bookingStatus").disabled = false;
+
+
+
 /**
  * 学生课程预定管理页面：
  * 1、课程选择：提供检索字段：课程名称、语言、难度、教师
