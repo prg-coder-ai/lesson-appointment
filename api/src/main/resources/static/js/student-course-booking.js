@@ -547,7 +547,7 @@ return  scheduleObject;
                     selectedScheuleId = selectedId;
                     reloadBooking("");
                 } 
-             //   selectedScheuleReadonly();//重新设置只读状态 
+                selectedScheuleReadonly();//重新设置只读状态 
    }
  
   
@@ -654,45 +654,8 @@ async function generateScheduleListFromServer(form) {
  *   - Content-Type: application/json
  * 
  * 另外，接口期望"POST /course/booking/list"发送JSON对象，不是数组。
- * 
- * 修正如下：
+ *  
  */
-async function getBookingInfo(scheduleid, userRole, useid) { 
-    const url = `course/booking/list` ;
-    const token = getToken();
-    const params = {  
-        id:null,
-        scheduleId: scheduleid,
-        userRole: userRole,
-        userId: useid,
-        status: null
-    };
-        
-    try {
-        const res = await fetch(`${API_BASE_URL}/${url}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                "Authorization": "Bearer " + token
-            },
-            credentials: 'include',
-            body: JSON.stringify(params)
-        });
-        
-        const result = await res.json(); 
-        console.log('getBookingInfo: result', result);
-        if (result && result.code === 200) {
-            return result.data;
-        } else {
-            alert(result?.message || '排期时间表为空，请联系老师');
-        }
-        return [];
-    } catch (err) {
-        alert('获取排期时间表失败');
-        console.error(err);  
-    }
-    return [];
-}
  
   //根据bookingObject的状态，显示是否已预定
   function renderStudentBookingStatus(bObj) {
