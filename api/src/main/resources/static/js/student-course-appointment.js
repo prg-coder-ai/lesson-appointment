@@ -94,13 +94,13 @@ async function renderStudentBookingBrowserCards() {
                  if (classObject != null) {
                      let cardItems = {
                          bookingId: booking.id,
-                         className: classObject.className,
+                         className: classObject.courseName,
                          teacherName: classObject.teacherId,
                          scheduleInfo: scheduleInfoStr,
                          status: booking.status
                      }
                      let cardContent = formACourseCard(cardItems);
-                     console.log("cardContent:", cardContent);
+                  
                      bookingsHtml += cardContent;
                  }
              }
@@ -108,7 +108,7 @@ async function renderStudentBookingBrowserCards() {
      }
 
      // 只有在全部异步处理后再输出和渲染
-     console.info("bookingsHtml:", bookingsHtml);
+     //console.info("bookingsHtml:", bookingsHtml);
      let bookingContainer = document.getElementById("my-bookings");
      if (bookingContainer) {
          bookingContainer.innerHTML = `<div class="bookings-list">${bookingsHtml}</div>`;
@@ -163,21 +163,34 @@ async function fetchCourseList(conditionJson) {
     scheduleInfo:"",
     status:""
    }*/
-     function  formACourseCard(cardInfo){
-         return `
-         <div class="course-card">
-                  <div class="course-info">
-                    <h4>${cardInfo.className}</h4>
-                    <p>授课教师：${cardInfo.teacherName} | 预约时间：${cardInfo.schdeuleInfo} | 状态：${cardInfo.status}</p>
-                  </div>
-                  <div class="course-actions">
-                    <button class="btn btn-gray" onclick="cancelReservation(${cardInfo.bookingId})">取消预约</button>
-                    <button class="btn btn-gray" onclick="viewMyReservationDetail(${cardInfo.bookingId})">查看详情</button>
-                  </div>
-                </div>
-         `
+     /**
+      * 生成课程卡片的HTML字符串
+      * @param {Object} cardInfo - 课程卡片数据对象
+      * 语法分析：
+      * - function formACourseCard(cardInfo){}：声明一个函数，参数是cardInfo对象。
+      * - 内部用模板字符串``拼接HTML，插值用${}的方式，安全前提是数据已消毒，涉及属性有cardInfo.className等。
+      * - .course-card等类用于样式分块，结构内嵌various div用于分组信息、按钮区域。
+      * - “取消预约”与“查看详情”按钮的点击事件调用window作用域下函数，参数是cardInfo.bookingId，直接插值。
+      * - 最终返回拼接好的HTML字符串，并通过console输出调试信息。
+      */
+     function formACourseCard(cardInfo) {
+         console.log("cardInfo:", cardInfo);
+
+         const info = `
+             <div class="course-card">
+                 <div class="course-info">
+                     <h4>${cardInfo.className}</h4>
+                     <p>授课教师：${cardInfo.teacherName} | 预约时间：${cardInfo.scheduleInfo} | 状态：${cardInfo.status}</p>
+                 </div>
+                 <div class="course-actions">
+                     <button class="btn btn-gray" onclick="cancelReservation(${cardInfo.bookingId})">取消预约</button>
+                     <button class="btn btn-gray" onclick="viewMyReservationDetail(${cardInfo.bookingId})">查看详情</button>
+                 </div>
+             </div>
+         `;
+         console.log("cardContent:", info);
+         return info;
      }
-      
  
 //更新scheduleObject相关内容 --待细化
 //可简化为：日期范围，时间，排期计划
