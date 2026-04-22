@@ -58,40 +58,61 @@ async function renderStudentBookingBrowserCards() {
     dynamicContentCenter.innerHTML = html; 
     refreshData();   
     
- async function refreshData(){
-         let status=null;//不限制状态
-         bookingList = await getBookingData( userRole, userId,status);
-         console.log("books:",bookingList);
+ /**
+  * 问题分析：
+  * 程序第94行为：console.info("bookingsHtml:",bookingsHtml);
+  * 但实际在页面运行时，bookingsHtml 可能一直为空字符串，导致未显示课程卡片。
+  * 进一步排查发现代码的主要问题如下：
+  * 
+  * 1. forEach(async (booking) => {...}) 并不会等待异步操作完成，也就是 bookingList.forEach 不能与 async/await 配合“同步执行”。
+  * 2. bookingsHtml 的累加基于一系列异步操作，但实际的 bookingsHtml += cardContent; 在 then 之后才赋值，而外层 forEach 并不会等待它们结束。
+  * 3. 由于 forEach 不等待异步返回，forEach 后面马上执行 console.info("bookingsHtml:",bookingsHtml)，这时 bookingsHtml 还没填充任何 cardContent。
+  * 4. bookingContainer.innerHTML 也在 forEach 之后立即执行，导致页面展现为空。
+  * 
+  * 所以第94行始终打不出最终内容。
+  * 
+  * 解决方案：使用 for...of 循环+await，或者 Promise.all 并在 then 内赋值，保证异步结果全部收集后再渲染。
+  */
 
-        // 遍历bookingList，对每个元素查询其scheduleId，获取排期信息scheduleInfo
-        let bookingsHtml ="";
-        if (Array.isArray(bookingList)) {
-            bookingList.forEach(async (booking) => {
-            // 查询排期信息，假设有 getScheduleInfoById 方法返回 Promise
-            
-                const scheduleObject = await fetchSchedule(booking.scheduleId);
-                if(scheduleObject != null) {
-                        let scheduleInfoStr =  getScheduleInfo(scheduleObject);
-                        const classObject = await getCourseById(scheduleObject.courseId) ;
-                        //TBD teacherId + user库--》teacherName
-                        let cardItems = {
-                            bookingId: booking.id,
-                            className:classObject.className,
-                            teacherName:classObject.teacherId,
-                            scheduleInfo:scheduleInfoStr,
-                            status:booking.status
-                        }
-                        let cardContent = formACourseCard(cardItems);
-                        bookingsHtml += cardContent; 
-                    }
-            });
-      }
-      let bookingContainer =  document.getElementById("my-bookings");
- if (bookingContainer) {
-     // 清空并插入新的内容
-     bookingContainer.innerHTML = `<div class="bookings-list">${bookingsHtml}</div>`;
- }
-    
+ async function refreshData(){
+     let status = null; //不限制状态
+     bookingList = await getBookingData(userRole, userId, status);
+
+     let bookingsHtml = "";
+
+     if (Array.isArray(bookingList)) {
+         // 用for...of+await，等待所有异步操作完成
+         for (let booking of bookingList) {
+             console.log("booking:", bookingList.indexOf(booking), booking);
+             const scheduleObject = await fetchSchedule(booking.scheduleId);
+             console.log("scheduleObject:", scheduleObject);
+             if (scheduleObject != null) {
+                 let scheduleInfoStr = getScheduleInfo(scheduleObject);
+                 const classObject = await getCourseById(scheduleObject.courseId);
+                 //TBD teacherId + user库--》teacherName
+                 console.log("classObject:", classObject);
+                 if (classObject != null) {
+                     let cardItems = {
+                         bookingId: booking.id,
+                         className: classObject.className,
+                         teacherName: classObject.teacherId,
+                         scheduleInfo: scheduleInfoStr,
+                         status: booking.status
+                     }
+                     let cardContent = formACourseCard(cardItems);
+                     console.log("cardContent:", cardContent);
+                     bookingsHtml += cardContent;
+                 }
+             }
+         }
+     }
+
+     // 只有在全部异步处理后再输出和渲染
+     console.info("bookingsHtml:", bookingsHtml);
+     let bookingContainer = document.getElementById("my-bookings");
+     if (bookingContainer) {
+         bookingContainer.innerHTML = `<div class="bookings-list">${bookingsHtml}</div>`;
+     }
  }
  
  async function getCourseById( courseId) {
@@ -101,9 +122,11 @@ async function renderStudentBookingBrowserCards() {
       templateId:"",
       status:"" 
     };
-
-    objList= await   fetchCourseList(conditionJson);
-    
+let objList = await   fetchCourseList(conditionJson);
+if(objList != null && objList.length>0)
+    return  objList[0];
+else 
+return null;
  }
  
 async function fetchCourseList(conditionJson) {
@@ -117,16 +140,18 @@ async function fetchCourseList(conditionJson) {
             params: conditionJson // 筛选条件通过params传递
         });
         const res = response.data;
-        console.info("get response data:",res);
+        //console.info("fetchCourseList:",res);
         if (res && res.code === 200) {
           //console.info("data.courses:",res.courses);  .courses
-            CourseList = res.data|| []; 
+           return  res.data|| []; 
         } else {
-            alert(res?.message || '获取课程列表失败');
+           // alert(res?.message || '获取课程列表失败');
+            return   [];
         }
     } catch (e) {
-        alert("网络错误，获取模板列表失败");
+        //alert("网络错误，获取课程列表失败");
         console.error(e);
+        return   [];
     }
 }
 

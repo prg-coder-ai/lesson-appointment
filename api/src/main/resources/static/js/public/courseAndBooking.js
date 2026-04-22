@@ -152,9 +152,9 @@ async function fetchSchedule( scheduleid) {
   try { 
       const response = await axios.get(`${API_BASE_URL}/course/schedule/detail/${scheduleid}`, {
           headers: { "Authorization": "Bearer " + token },
-          params: JSON.stringify([]) // 对应后端@RequestParam， 
+         // params: JSON.stringify([]) // 对应后端@RequestParam， 
         });
-        
+        console.log("fetchSchedule:" ,response.data);
         const res = response.data;
         if (res && res.code === 200) {
             console.info("fetchSchedule:",res.data);
