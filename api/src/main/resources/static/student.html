@@ -298,8 +298,8 @@
     <!-- 重构用户信息区域，添加退出按钮 -->
     <div class="header-actions">
       <div class="user-info">
-        <span class="user-name">张三</span>
-        <div class="avatar">张</div>
+        <span class="user-name">${userName}</span>
+        <div class="avatar"> </div>
       </div>
       <button class="logout-btn" onclick="logout()"><i class="fa fa-sign-out-alt"></i> 退出登录</button>
     </div>
@@ -421,8 +421,28 @@
     </div>
   </div>
 
-  <!-- JavaScript交互逻辑 - 重构菜单响应 -->
+  <script src="js/public/api.js"></script>
   <script>
+    // 从token中获取用户的id和role
+   let token =getToken(); 
+   const userInfo= getCurrentUserInfo();
+   console.log("userInfo",userInfo);
+   let userId = userInfo.userId;
+   let userRole = userInfo.role;
+    // 获取用户时区（关键）
+const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+console.log("tz",userTimeZone);
+
+
+let courseList = [];       // 课程列表
+let scheduleObject=null;       // 排期
+let scheduleList =[];
+let bookingList=[];
+let currentCourseId=null;
+let selectedScheuleId = null;
+let currentCourseIndex =-1,currentScheduleIndex =-1;
+let    lastCourseIndex =-1,   lastScheduleIndex =-1;
+
     // 核心变量定义
     const menuItems = document.querySelectorAll('.menu-item');
     const pageTitle = document.querySelector('.page-title');
@@ -480,43 +500,23 @@ if (window.loadAdminPageContent) {
           break;
           
         case '我的预约':
-          dynamicContentCenter.innerHTML = `
-            <div class="card">
-              <h3><i class="fa fa-calendar-check-o"></i> 我的全部预约</h3>
-              <div id="my-reservations">
-                <div class="course-card">
-                  <div class="course-info">
-                    <h4>英语初级口语 - 小班课</h4>
-                    <p>授课教师：李老师 | 预约时间：2026-03-20 14:00 | 状态：待确认</p>
-                  </div>
-                  <div class="course-actions">
-                    <button class="btn btn-gray" onclick="cancelReservation(this)">取消预约</button>
-                    <button class="btn btn-gray" onclick="viewMyReservationDetail(this)">查看详情</button>
-                  </div>
-                </div>
-                <div class="course-card">
-                  <div class="course-info">
-                    <h4>英语进阶写作</h4>
-                    <p>授课教师：李老师 | 预约时间：2026-03-20 16:00 | 状态：已确认</p>
-                  </div>
-                  <div class="course-actions">
-                    <button class="btn btn-gray" onclick="evaluateCourse(this)">评价课程</button>
-                    <button class="btn btn-gray" onclick="viewMyReservationDetail(this)">查看详情</button>
-                  </div>
-                </div>
-                <div class="course-card">
-                  <div class="course-info">
-                    <h4>日语入门</h4>
-                    <p>授课教师：王老师 | 预约时间：2026-03-18 09:00 | 状态：已取消</p>
-                  </div>
-                  <div class="course-actions">
-                    <button class="btn btn-gray" disabled>已取消</button>
-                    <button class="btn btn-gray" onclick="viewMyReservationDetail(this)">查看详情</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          `;
+          // 操作按钮事件 --checkout----set online =false TBD 
+if (window.loadAdminPageContent) {
+              // 覆盖 "教师管理" 渲染逻辑
+              loadAdminPageContent = (function(orig){
+                return function(title) {
+                  if(title === '我的预约'){
+                    renderStudentBookingBrowserCards();
+                  } else {
+                    orig(title);
+                  }
+                }
+              })(loadAdminPageContent);
+            } else {
+              // 兼容性 fallback: 尝试直接渲染（首次页面加载时）
+              renderStudentBookingBrowserCards();
+            }  
+       
           break;
           
         case '课程评价':
@@ -732,14 +732,58 @@ if (window.loadAdminPageContent) {
     }
   </script>
   
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>  
-<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script> 
 
-<script src="js/public/api.js"></script>
-<script src="js/public/courseAndBooking.js"></script>
-<script src="js/student-course-booking.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>  
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>  
+  <script src="js/public/courseAndBooking.js"></script>
+  <script src="js/student-course-booking.js"></script>
+  <script src="js/student-course-appointment.js"></script>
 <script>
 console.log("end of body...")
 </script>
 </body>
 </html>
+
+
+<!-- 
+
+          dynamicContentCenter.innerHTML = `
+            <div class="card">
+              <h3><i class="fa fa-calendar-check-o"></i> 我的全部预约</h3>
+              <div id="my-reservations">
+                <div class="course-card">
+                  <div class="course-info">
+                    <h4>英语初级口语 - 小班课</h4>
+                    <p>授课教师：李老师 | 预约时间：2026-03-20 14:00 | 状态：待确认</p>
+                  </div>
+                  <div class="course-actions">
+                    <button class="btn btn-gray" onclick="cancelReservation(this)">取消预约</button>
+                    <button class="btn btn-gray" onclick="viewMyReservationDetail(this)">查看详情</button>
+                  </div>
+                </div>
+                <div class="course-card">
+                  <div class="course-info">
+                    <h4>英语进阶写作</h4>
+                    <p>授课教师：李老师 | 预约时间：2026-03-20 16:00 | 状态：已确认</p>
+                  </div>
+                  <div class="course-actions">
+                    <button class="btn btn-gray" onclick="evaluateCourse(this)">评价课程</button>
+                    <button class="btn btn-gray" onclick="viewMyReservationDetail(this)">查看详情</button>
+                  </div>
+                </div>
+                <div class="course-card">
+                  <div class="course-info">
+                    <h4>日语入门</h4>
+                    <p>授课教师：王老师 | 预约时间：2026-03-18 09:00 | 状态：已取消</p>
+                  </div>
+                  <div class="course-actions">
+                    <button class="btn btn-gray" disabled>已取消</button>
+                    <button class="btn btn-gray" onclick="viewMyReservationDetail(this)">查看详情</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+
+
+-->
