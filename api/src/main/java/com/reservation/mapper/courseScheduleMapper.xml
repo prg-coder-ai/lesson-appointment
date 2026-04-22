@@ -10,7 +10,7 @@
     </insert>
 
     <select id="selectById" resultType="com.reservation.entity.CourseSchedule">
-        SELECT * FROM course_schedule WHERE id = #{id}
+        SELECT * FROM course_schedule WHERE schedule_id = #{id}
     </select>
  
  

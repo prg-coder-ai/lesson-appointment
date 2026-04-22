@@ -1,33 +1,22 @@
  //排期管理--页面
  // student-course-booking.js
- console.log("student appointment  page");
+ console.log("student book a appointment  page");
    // 从token中获取用户的id和role
-   let token =getToken();// localStorage.getItem('token') || sessionStorage.getItem('token');
-   const userInfo= getCurrentUserInfo();
-   console.log("userInfo",userInfo);
-   let userId = userInfo.userId;
-   let userRole = userInfo.role;
+ //  let token =getToken();// localStorage.getItem('token') || sessionStorage.getItem('token');
+  // const userInfo= getCurrentUserInfo();
+  // console.log("userInfo",userInfo);
+  // let userId = userInfo.userId;
+  // let userRole = userInfo.role;
     // 获取用户时区（关键）
-const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-console.log("tz",userTimeZone);
+//const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+//console.log("tz",userTimeZone);
 
-let courseList = [];       // 课程列表
-let scheduleObject=null;       // 排期
-let scheduleList =[];
-let bookingList=[];
-let currentCourseId=null;
-let selectedScheuleId = null;
-let currentCourseIndex =-1,currentScheduleIndex =-1;
-let    lastCourseIndex =-1,   lastScheduleIndex =-1;
-var localParameter ={
-  currentPage:1,         // 当前页码（初始值由Thymeleaf渲染）
-  pageSize : 10,           // 页大小
-  total : 0 ,              // 总条数
-  ScheduleDialogVisible: false, // 弹窗状态
-  dialogTitle : '新增课程', // 弹窗标题
-  currentId: '', // 当前操作的课程ID
-  formEl :'' 
-};
+//let courseList = [];       // 课程列表
+//let scheduleObject=null;       // 排期
+//let scheduleList =[];
+//let bookingList=[];
+
+ 
 // ===================== 核心函数 =====================
 
 /**
@@ -546,8 +535,7 @@ return  scheduleObject;
                     }
                     selectedScheuleId = selectedId;
                     reloadBooking("");
-                } 
-                selectedScheuleReadonly();//重新设置只读状态 
+                }  
    }
  
   
@@ -593,6 +581,7 @@ return  scheduleObject;
     console.log("form:",form);
     return form;
    }
+
    // 预览排期
    async function previewSchedule() {
      const form = getScheduleFormData();
@@ -603,41 +592,8 @@ return  scheduleObject;
     renderCalendar(); 
 }
 
+// 
  
-// 分析：可能由于日期时区或构造Date的方式导致了前端和后端实际天数偏差。例如直接用new Date('yyyy-MM-dd')会因时区差别导致日期减少1天。可以尝试使用new Date(year, month, day)规避。
-async function generateScheduleListFromServer(form) { 
-    const url = `course/schedule/generate` ;
-    const token = getToken();
-  //  const queryString = new URLSearchParams(form).toString(); ccc?${queryString}
-    try {
-        const res = await fetch(`${API_BASE_URL}/${url}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                "Authorization": "Bearer " + token
-            },
-            credentials: 'include',
-           body: JSON.stringify(form)
-        });
-
-        const result = await res.json();
-        
-        // 修正后端返回的日期数组，确保日期不因本地解析减少1天
-        // 尝试将日期转为本地日期字符串再渲染
-        if (result && result.code === 200) {
-            // result.data: [{date:'2024-06-01',time:'09:00'}, ...] 
-            return result.data;
-        } else {
-            alert(result?.message || '排期时间表为空，请联系老师');
-        }
-        return [];
-    } catch (err) {
-        alert('获取排期时间表失败');
-        console.error(err);  
-    }
-    return [];
-} 
-
   //根据排期id、用户角色和用户id，查询预约信息。可复用于检索教师的预约
   //返回 Booking 列表
   //在排期列表选择变化时调用，更新对应的预定状态
@@ -829,20 +785,9 @@ function renderResult() {
             }
          }
             }//
-        }
-    //setReadOnlyKeepStyle 
-    function selectedScheuleReadonly(){
-          let readOnlyIDs = [
-               "startDate", "startTime", "endDate", "repeatType", "interval", 
-               "status", "week1", "monthDays",
-               "bookingStatus"
-          ];      
-   
-      readOnlyIDs.forEach(function(id) {
-           setReadOnlyById(id);
-        });  
-        }
-    //selectedScheuleReadonly();
+        } 
+    
+  
     console.log("schedule page END");
 }
 

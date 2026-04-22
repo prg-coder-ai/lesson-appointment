@@ -79,12 +79,12 @@ async function fetchScheduleList( cid,status) {
             return  res.data|| []; // TBD:对于多个排期的情况进行区分
  
         } else {
-            alert(res?.message || '获取排期失败');
+           // alert(res?.message || '获取排期失败');
             return [];
         }
     } catch (e) {
-        alert("网络错误，获取排期失败");
-        console.error(e);
+       // alert("网络错误，获取排期失败");
+        console.error("网络错误"+e);
         return [];
     }
 }
@@ -152,7 +152,7 @@ async function fetchSchedule( scheduleid) {
   try { 
       const response = await axios.get(`${API_BASE_URL}/course/schedule/detail/${scheduleid}`, {
           headers: { "Authorization": "Bearer " + token },
-          params: conditionJson // 对应后端@RequestParam，如果controller未定义status参数会被忽略
+          params: JSON.stringify([]) // 对应后端@RequestParam， 
         });
         
         const res = response.data;
@@ -161,43 +161,42 @@ async function fetchSchedule( scheduleid) {
             return  res.data|| null; //
  
         } else {
-            alert(res?.message || '获取排期失败');
+           console.log(res?.message  ,'获取排期失败');
             return null;
         }
     } catch (e) {
-        alert("网络错误，获取排期失败");
-        console.error(e);
+       // alert("网络错误，获取排期失败");
+        console.error("网络错误，获取排期失败",e);
         return null;
     }
 }
-
- function getBookingInfo(scheduleid, userRole, useid) { 
+//根据排期id及用户信息，获取预定信息
+ function getBookingInfo(scheduleid, userRole, userid) { 
  
   const params = {  
       id:null,
       scheduleId: scheduleid,
       userRole: userRole,
-      userId: useid,
+      userId: userid,
       status: null
   }; 
   return  getBookingInfoByCondition(params) ;
 }
 
 //获取指定用户的所有排期--可指定状态
-async function getBookingList( userRole, useid,status) { 
-  const url = `course/booking/list` ;
-  const token = getToken();
+async function getBookingList( userRole, userid,status) { 
+ 
   const params = {  
       id:null,
       scheduleId: null,
       userRole: userRole,
-      userId: useid,
+      userId: userid,
       status: status
   }; 
   return  getBookingInfoByCondition(params) ; 
 }
 
-async function  getBookingInfoByCondition(param) {
+async function  getBookingInfoByCondition(params) {
   const url = `course/booking/list` ;
   const token = getToken();
 try {
@@ -220,8 +219,8 @@ try {
   }
   return [];
 } catch (err) {
-  alert('获取排期时间表失败');
-  console.error(err);  
+  //alert('获取排期时间表失败');
+  console.error('获取排期时间表失败'+err);  
 }
 return [];
 }

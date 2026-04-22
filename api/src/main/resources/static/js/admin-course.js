@@ -480,3 +480,4 @@ async function operateCourse(courseId, action) {
  
   // 点击关闭按钮关闭
   document.getElementById('closeModal').addEventListener('click', closeCourseModal); 
+  

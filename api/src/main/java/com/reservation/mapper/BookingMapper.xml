@@ -53,8 +53,7 @@
                     <if test="userId != null">AND teacher_id = #{userId}</if>
                 </if>
             </if>
-            <if test="status != null">AND status = #{status}</if>
-            <!-- If bookingDTO has other filter fields, continue adding here -->
+            <if test="status != null"> AND status = #{status}</if> 
         </where>
         ORDER BY create_time DESC
     </select>
