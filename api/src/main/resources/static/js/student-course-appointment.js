@@ -83,14 +83,16 @@ async function renderStudentBookingBrowserCards() {
      if (Array.isArray(bookingList)) {
          // 用for...of+await，等待所有异步操作完成
          for (let booking of bookingList) {
-             console.log("booking:", bookingList.indexOf(booking), booking);
+           //  console.log("booking:", bookingList.indexOf(booking), booking);
              const scheduleObject = await fetchSchedule(booking.scheduleId);
-             console.log("scheduleObject:", scheduleObject);
+             //console.log("scheduleObject:", scheduleObject);
              if (scheduleObject != null) {
                  let scheduleInfoStr = getScheduleInfo(scheduleObject);
                  const classObject = await getCourseById(scheduleObject.courseId);
+
+                 testGetList(scheduleObject.courseId);
                  //TBD teacherId + user库--》teacherName
-                 console.log("classObject:", classObject);
+                 //console.log("classObject:", classObject);
                  if (classObject != null) {
                      let cardItems = {
                          bookingId: booking.id,
@@ -116,19 +118,42 @@ async function renderStudentBookingBrowserCards() {
  }
  
  async function getCourseById( courseId) {
+    const token = getToken();
+    if (!token) return;
+
+    try {
+        // Axios GET请求（修复response.json()错误，Axios已自动解析）
+        const response = await axios.get(`${API_BASE_URL}/course/${courseId}`, {
+            headers: { "Authorization": "Bearer " + token },
+           // params: conditionJson // 筛选条件通过params传递
+        });
+        const res = response.data; 
+        if (res && res.code === 200) {
+           console.info("data.courses:",res.data);   
+           return  res.data ; 
+        } else {
+           // alert(res?.message || '获取课程列表失败');
+            return  null;
+        }
+    } catch (e) {
+        //alert("网络错误，获取课程列表失败");
+        console.error(e);
+        return   null;
+    }
+ }
+ async function  testGetList(courseId){
     const conditionJson = { 
         courseId:courseId,
       teacherId:"",
       templateId:"",
       status:"" 
     };
-let objList = await   fetchCourseList(conditionJson);
-if(objList != null && objList.length>0)
-    return  objList[0];
-else 
-return null;
- }
+   const rlist = await fetchCourseList(conditionJson);
+   const one = await getCourseById(courseId);
+  console.log(one,rlist);
+   }
  
+ //TBD To Be test ,if the conditionJson tooked infact.
 async function fetchCourseList(conditionJson) {
     const token = getToken();
     if (!token) return;
@@ -142,7 +167,7 @@ async function fetchCourseList(conditionJson) {
         const res = response.data;
         //console.info("fetchCourseList:",res);
         if (res && res.code === 200) {
-          //console.info("data.courses:",res.courses);  .courses
+           console.info("data.courses:",res.data);   
            return  res.data|| []; 
         } else {
            // alert(res?.message || '获取课程列表失败');
@@ -174,7 +199,7 @@ async function fetchCourseList(conditionJson) {
       * - 最终返回拼接好的HTML字符串，并通过console输出调试信息。
       */
      function formACourseCard(cardInfo) {
-         console.log("cardInfo:", cardInfo);
+         //console.log("cardInfo:", cardInfo);
 
          const info = `
              <div class="course-card">
@@ -188,7 +213,7 @@ async function fetchCourseList(conditionJson) {
                  </div>
              </div>
          `;
-         console.log("cardContent:", info);
+        // console.log("cardContent:", info);
          return info;
      }
  
@@ -202,20 +227,19 @@ function getScheduleInfo(scheduleObject) {
       if (scheduleObject.scheduleId)          info += scheduleObject.scheduleId;
 
     // 起始日期、结束日期和上课时间组成一句简洁文字
-    if (scheduleObject.startDate || scheduleObject.endDate || scheduleObject.startTime) {
+    if (scheduleObject.startTime || scheduleObject.endTime ) {
         let dateStr = '';
-        if (scheduleObject.startDate && scheduleObject.endDate && scheduleObject.startDate !== scheduleObject.endDate) {
-            dateStr = `${scheduleObject.startDate} ~ ${scheduleObject.endDate}`;
-        } else if (scheduleObject.startDate) {
-            dateStr = scheduleObject.startDate;
-        }
-        if (scheduleObject.startTime) {
-            if (dateStr) {
-                dateStr += ` / ${scheduleObject.startTime} 开课`;
-            } else {
-                dateStr = `${scheduleObject.startTime} 开课`;
-            }
-        }
+        if (scheduleObject.startTime && scheduleObject.endTime && scheduleObject.startTime !== scheduleObject.endTime) {
+            // 截取日期部分（假设startTime/endTime为"yyyy-MM-dd HH:mm:ss"格式，仅取日期部分）
+            const startDate = scheduleObject.startTime ? scheduleObject.startTime.split(" ")[0] : "";
+            const endDate = scheduleObject.endTime ? scheduleObject.endTime.split(" ")[0] : "";
+            const startTime =  scheduleObject.startTime?scheduleObject.startTime.split(" ")[1] : "";
+            dateStr = `${startDate} ~ ${endDate} ${startTime}`;
+    
+        } else if (scheduleObject.startTime) {
+            dateStr = scheduleObject.startTime;
+        } 
+        
         info += dateStr ? ` ${dateStr}` : '';
     }
 

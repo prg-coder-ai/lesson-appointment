@@ -155,7 +155,7 @@ public interface CourseMapper {
      *    - <if test="params != null and params.xxx != null and params.xxx != ''"> ... </if> 
      */
     List<Course> selectCourseList(  CourseQueryParam params); 
-
+    
     
      @org.apache.ibatis.annotations.Update("UPDATE course SET status = #{status} , update_time = NOW() WHERE course_id = #{courseId}")
      int updateCourseStatus(@Param("courseId") String courseId, @Param("status") String status); 
@@ -169,7 +169,7 @@ public interface CourseMapper {
      * @return 课程信息
      */
     @Select("SELECT * from course WHERE course_id = #{courseId}")
-    Course selectCourseById(@Param("courseId") String courseId);
+    Course getCourseById(@Param("courseId") String courseId);
 
     /**
      * 根据课程ID查询关联的教师ID（用于排期归属校验）
