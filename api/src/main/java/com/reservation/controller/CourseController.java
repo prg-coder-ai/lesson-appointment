@@ -168,6 +168,19 @@ public class CourseController {
         return Result.success(courseList, "查询成功");
     }
 
+    @GetMapping("/{courseid}")
+    @ResponseBody
+        // 权限校验：教师或管理员、学生均可操作
+   public Result<Course> getCourseById(@PathVariable String courseid,
+                                                          @RequestHeader("Authorization") String token) {
+        //permissionCheck.checkTeacherOrAdmin(token);
+        // 调用服务层查询课程列表
+         System.out.println("getCourseByID controller: " + courseid);
+         Course  course  = courseService.getCourseById(courseid);
+        //Map<String, List<Course>> resultMap = Map.of("courses", courseList);
+        return Result.success(course, "查询成功");
+    }
+
       public static class UpdateCourseStatusRequest {
       private String courseid;
       private String status;

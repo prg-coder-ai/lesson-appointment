@@ -130,6 +130,12 @@ public class CourseService {
         return Optional.ofNullable(courseList).orElse(Collections.emptyList());
     } 
 
+  public  Course getCourseById(String id) {
+        // 实现逻辑：调用Mapper查询，无结果返回空集合，避免空指针
+         //System.out.println("service:params: " + params);
+         Course  course = courseMapper.getCourseById(id); // 假设Mapper有该方法
+        return Optional.ofNullable(course).orElse(null);
+    } 
     /** manageCourse相关的函数
      * 发布课程，将课程状态设为已发布
      */
@@ -170,7 +176,7 @@ public class CourseService {
      * 检查课程归属权，若courseId不存在或非teacherId归属，抛出业务异常
      */
     public void checkCourseOwner(String courseId, String teacherId) {
-        Course course = courseMapper.selectCourseById(courseId);
+        Course course = courseMapper.getCourseById(courseId);
         if (course == null) {
             throw new ResourceNotFoundException("课程不存在");
         }
