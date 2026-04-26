@@ -298,8 +298,8 @@
     <!-- 重构用户信息区域，添加退出按钮 -->
     <div class="header-actions">
       <div class="user-info">
-        <span class="user-name">${userName}</span>
-        <div class="avatar"> </div>
+        <div class="avatar" id="avatar"> </div>
+        <span class="user-name" id="user-name"></span> 
       </div>
       <button class="logout-btn" onclick="logout()"><i class="fa fa-sign-out-alt"></i> 退出登录</button>
     </div>
@@ -429,6 +429,8 @@
    console.log("userInfo",userInfo);
    let userId = userInfo.userId;
    let userRole = userInfo.role;
+
+   
     // 获取用户时区（关键）
 const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 console.log("tz",userTimeZone);
@@ -449,9 +451,19 @@ let    lastCourseIndex =-1,   lastScheduleIndex =-1;
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
     
     // 初始化页面（加载默认内容）
-    window.onload = function() {
+    window.onload = function() { 
       console.log('学生端页面加载完成');
-      loadPageContent('课程预约'); // 默认加载课程预约页面
+      const nameid=document.getElementById("user-name");
+       if(nameid) nameid.innerHTML= userInfo.name;
+       
+       // 设置头像元素为用户名首字母
+       const avatarElem = document.getElementById("avatar");
+       if (avatarElem && userInfo && userInfo.name && userInfo.name.length > 0) {
+         avatarElem.textContent = userInfo.name.charAt(0);
+       }
+  
+     //  console.log(nameid);
+      loadPageContent('首页'); // 默认加载课程预约页面 课程预约TBD-- remember last choose
       updateStarRating(); // 初始化评分显示
     };
 
@@ -739,6 +751,7 @@ if (window.loadAdminPageContent) {
   <script src="js/student-course-booking.js"></script>
   <script src="js/student-course-appointment.js"></script>
 <script>
+
 console.log("end of body...")
 </script>
 </body>

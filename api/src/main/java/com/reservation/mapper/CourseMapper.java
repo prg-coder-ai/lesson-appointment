@@ -54,25 +54,7 @@ public interface CourseMapper {
      * @return 课程列表
      * */ 
         // 按照params条件动态查询课程列表，实际SQL建议在XML用<where><if>动态语句实现，Java注解不便支持Map参数动态SQL
-        // 推荐切换到XML配置（见CourseMapper.xml），这里为示意写法，常用的MyBatis XML风格如下所示：
-        /*
-        <select id="selectCourseList" parameterType="map" resultType="com.reservation.entity.Course">
-            SELECT * FROM course
-            <where>
-                <if test="params.teacherId != null and params.teacherId != ''">
-                    AND teacher_id = #{params.teacherId}
-                </if>
-                <if test="params.templateId != null and params.templateId != ''">
-                    AND template_id = #{params.templateId}
-                </if>
-                <if test="params.status != null and params.status != ''">
-                    AND status = #{params.status}
-                </if>
-            </where>
-        </select>
-        */
-        // 如果必须用注解实现，只能硬编码处理可选字段，表达能力有限：
-        // 建议在XML实现动态条件（以上注释即为可复制到Mapper XML的SQL）。
+        // 推荐切换到XML配置（见CourseMapper.xml） 
  /*
 
   /**
