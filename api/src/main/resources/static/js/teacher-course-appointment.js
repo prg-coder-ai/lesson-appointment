@@ -1,10 +1,14 @@
- //预约管理--预约结果详情--页面
-  //展示本人的所有预约列表，提供预约详情---展示排期列表（使用“取消预约”操作）
-   // student-course-appointment.js
-// 区别于booking页面，booking页面负责查询课程、检查排期，以便预约1个课程，
-//本页面，浏览预约结果和具体时间列表
- console.log("student appointment  page");
-   
+ /* /教师预约管理--预约结果详情--页面
+  //展示与教师本人相关的所有预约列表，提供预约详情---展示排期列表（使用“取消预约”操作）
+   // teacher-course-appointment.js
+// 区别于：学生booking页面，booking页面负责查询课程、检查排期，以便预约1个课程，
+          admin-course-schedule页面：负责课程排期--创建、维护
+
+//本页面，浏览预约结果和具体时间列表，管理学生的booking，确认后，把具体时间表添加到appointment数据表中
+
+ console.log("teacher appointment  page"); 
+ */
+
 /*
 let courseList = [];       // 课程列表
 let scheduleObject=null;       // 排期
@@ -17,10 +21,9 @@ let    lastCourseIndex =-1,   lastScheduleIndex =-1;
  */
 // ===================== 核心函数 ===================== 
 /**
- *  课程预约列表（核心：原生JS操作DOM）
- * 对于学生， 显示本人预定的课程，详情显示预约排期，可设置请假、临时改期
+ *  检索本人的所有预约课程，点击列举具体时间表，确认后，创建预约时间表----列举所有预约
  */
-async function renderStudentBookingBrowserCards() {
+async function renderTeacherAppointmentBrowserCards() {
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
     //console.log("container:",dynamicContentCenter);
     if (!dynamicContentCenter) return; 
