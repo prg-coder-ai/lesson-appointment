@@ -9,6 +9,25 @@
     // API完整前缀
     const API_BASE_URL = `${API_SERVER_HOST}:${API_SERVER_PORT}${API_BASE_PATH}`;
 
+    let token =getToken(); 
+   const userInfo= getCurrentUserInfo();
+   console.log("userInfo",userInfo);
+   let userId = userInfo.userId;
+   let userRole = userInfo.role;
+
+   console.log("userRole:",userRole);
+    // 获取用户时区（关键）
+const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+console.log("tz",userTimeZone);
+
+
+  let courseList = [];       // 课程列表
+  let scheduleObject=null;       // 排期
+  let scheduleList =[];
+  let bookingList=[];
+  let currentCourseId=null;
+  let selectedScheuleId = null
+
 const api = {
     // 后端API接口地址（相对路径，端口由Spring Boot配置决定，无需写localhost:8088）
     getDataList: "/api/v1/data/list" // 对应后端IndexController的API接口
@@ -76,3 +95,4 @@ const userStr = localStorage.getItem('currentUser');
      return  JSON.parse(userStr);
 }
  
+

@@ -122,7 +122,7 @@ public class CourseScheduleService {
         return  data.getScheduleId();
     }
 
-// 
+// 可以返回DTO对象，TBD
   @Transactional(propagation = Propagation.REQUIRED )
     public CourseSchedule selectById(String id) { 
             
@@ -141,7 +141,12 @@ public class CourseScheduleService {
          List<CourseScheduleCreateDTO> result = new ArrayList<>();
            for (CourseSchedule cs : objList) {
                //System.out .println("ListObjectToDto : " +cs); 
-
+            CourseScheduleCreateDTO dto = ObjectToDto(cs);
+               result.add(dto);
+           }
+           return result;
+ }
+ private CourseScheduleCreateDTO ObjectToDto (CourseSchedule cs){ 
                CourseScheduleCreateDTO dto = new CourseScheduleCreateDTO();
                 dto.setScheduleId(cs.getScheduleId());
                 dto.setCourseId(cs.getCourseId());
@@ -186,9 +191,7 @@ public class CourseScheduleService {
                dto.setTimeZone(cs.getTimeZone()); 
                 dto.setStatus(cs.getStatus()); 
                dto.setAvailableSites(cs.getAvailableSites());
-               result.add(dto);
-           }
-           return result;
+               return dto;
  }
  //用于保存到数据库
 private CourseSchedule  DtoToObject(CourseScheduleCreateDTO dto){

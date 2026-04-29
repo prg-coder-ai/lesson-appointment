@@ -70,7 +70,7 @@ public class CourseScheduleController {
         return Result.success(scheduleId,"");
     }
     
-    // 查询排期详情（含展开后的实例，用于前端展示）
+    // 查询排期详情（不含展开后的实例，用于前端展示）
     @GetMapping("/detail/{id}")
      @ResponseBody
     public Result<CourseSchedule> getScheduleDetail(@PathVariable String id) {
