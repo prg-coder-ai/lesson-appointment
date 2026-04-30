@@ -451,9 +451,9 @@ function renderResult(dateTimeList) {
  //booking--》booked
   // 获取时间列表 
      if(status == "booked"  ){
-    const appointmentResults = await generateAppointmentList (bookingObj.scheduleId,scheduleInfo.timeZone );
+        const appointmentResults = await generateAppointmentList (bookingObj.scheduleId,scheduleInfo.timeZone );
      // 遍历scheduleResult数组的每个元素，添加到appointment_datetime中
-     console.log("list:",appointmentResults);
+        console.log("list:",appointmentResults);
      let appointmentDateTimeList = [];
      if (Array.isArray(appointmentResults)) {
         appointmentResults.forEach(item => {
@@ -484,13 +484,37 @@ function renderResult(dateTimeList) {
     await cancelBooking(bookingid);//
  }  else if(status == "booking"  ){ // 
    //删除所有相关预约列表，并把book状态设置为booking
-    await operateBookingStatus( bookingid, "booking") ;
-    
+    await operateBookingStatus( bookingid, "booking") ;    
  } else if(status == "cancelling"  ){ 
   //把相关预约列表的状态设置为cancelling--未确定状态
-   
      await operateBookingStatus( bookingid, "cancelling") ;
  }
+   // 由于大多数数据库的写操作（如插入、更新、删除）是异步或延迟提交（如MySQL的默认事务提交、JPA的延迟刷新等），有时在执行完写操作后立刻去读数据，会出现"读到旧数据"的问题，尤其是在分布式或有缓存的环境中。
+   // 如果你想保证"写后读"的数据同步，常见做法有：
+
+   // 1. 确保后端的数据库操作是同步且事务已提交。比如你的operateBookingStatus接口需要等到真正完成后再返回（即接口返回时数据已更新）。如果接口有延迟处理或批量异步任务，就会出现读到旧数据的问题。
+
+   // 2. 在前端写后读时引入短暂延迟，可以用await sleep(100~300ms)等，给后端/数据库一些缓冲时间：
+   async function sleep(ms) {
+     return new Promise(resolve => setTimeout(resolve, ms));
+   }
+
+   // 比如：写操作后，延迟一小段时间再读刷新最新数据
+   // await operateBookingStatus(bookingid, "booked");
+   // await sleep(200);           // <-- 等待200毫秒
+   // refreshData();
+
+   // 3. 更彻底方案：让后端接口写操作返回时，确保数据"真的"写入。即写接口返回后必然可读到更新。
+   // 如果API不能100%保证写后读一致，则只能在写后加sleep延迟，或多次轮询，直至读到最新数据：
+
+   // 示例代码：使用sleep在写-读之间插入短暂延时
+   // 例如，在operateBookingStatus等写操作后：
+   // await operateBookingStatus(bookingid, "booked");
+   // await sleep(200); // 保证数据已刷新到数据库
+   // refreshData();
+
+   // 如果有定时刷新，也可以通过多次轮询，等数据一致后再渲染。
+   await sleep(200);  
    refreshData();
   }
 
