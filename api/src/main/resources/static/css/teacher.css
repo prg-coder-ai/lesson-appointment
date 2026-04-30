@@ -1,6 +1,6 @@
 /*teacher.html:1 Refused to apply style from 'http://localhost:8081/src/css/teacher.css' because its MIME type ('application/json') is not a supported stylesheet MIME type, and strict MIME checking is enabled.
 */
-/\/\*\*/ 
+  
 /**
  * 错误分析与解决：
  * 
@@ -322,13 +322,7 @@
     --text-color: #333;
     --text-light-color: #999;
   }
-  
-  .calendar {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 5px;
-    margin-top: 15px;
-} 
+ 
 /* 日历和时间选择样式 */
 .calendar-container {
 margin: 15px 0;
@@ -339,30 +333,22 @@ margin-bottom: 10px;
 font-weight: 600;
 }
 
-.calendar-grid {
-display: grid;
-grid-template-columns: repeat(7, 1fr);
-gap: 8px;
-margin-bottom: 15px;
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  margin-top: 15px;
 }
-
 .calendar-day {
-width: 36px;
-height: 36px;
-display: flex;
-align-items: center;
-justify-content: center;
-border-radius: 4px;
-cursor: pointer;
-font-size: 12px;
+  padding: 10px;
+  border: 1px solid #eee;
+  text-align: center;
+  border-radius: 4px;
 }
 
-.calendar-day.available {
-background: #f8f9fa;
-}
 .calendar-day.marked {
-background: #f8f9fa;
-    font-weight: bold;
+  background: #d1e7ff;
+  font-weight: bold;
 }
 
 .calendar-day.available:hover {
