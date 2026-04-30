@@ -534,7 +534,7 @@ return  scheduleObject;
                         renderSchedule(scheduleObject);
                     }
                     selectedScheuleId = selectedId;
-                    reloadBooking("");
+                    reloadBooking();
                 }  
    }
  
@@ -730,8 +730,8 @@ function renderResult() {
        // 4.  响应处理 响应成功/失败 result.data.id = new id
        if (result && result.code === 200) {
         alert(bookingid !="" ? '修改成功' : '创建成功'); 
-        // 设置新的状态---- result返回的booking的id，更新显示，直接更新
-         reloadBooking(result.data );
+        // 设置新的状态---- result.data ：result返回的booking的id，更新显示，直接更新
+         reloadBooking( );
     } else {
         alert(result.data?.message + (bookingid!=""  ? '修改失败' : '创建失败'));
     }
@@ -753,8 +753,10 @@ function renderResult() {
   // 管理员确认取消后，可删除该预约及对应的预约时间列表
   async function deleteBooking() {
     const formData = getBookFormData();
-    if ( (formData.status=="booking") ||  (formData.status=="canceled") )
+    if ( (formData.status=="booking") ||  (formData.status=="canceled") ){
        await operateBookingStatus(formData.bookingid,"delete"); 
+       reloadBooking( );
+    }
     else   { 
     alert("请联系老师，确认后才能删除");
     }
@@ -764,6 +766,7 @@ function renderResult() {
      const formData = getBookFormData(); 
 
      await operateBookingStatus(formData.bookingid,formData.status != "booked"?"canceled":"canceling");  
+     reloadBooking();
   }
 
  function refreshData(){
@@ -772,7 +775,7 @@ function renderResult() {
  }
 
     //在状态变化时，更新预约状态，参数暂无用
-    async function  reloadBooking(bookingid){ 
+    async function  reloadBooking(){ 
          //const bidItem = document.getElementById("bookingId");
          //bidItem.value = bookingid;
          if(selectedScheuleId != null) {

@@ -134,7 +134,7 @@ async function fetchScheduleList( cid,status) {
       if (code === 200) {  
           console.log('操作成功');//+msg+res.data); 
         const bid = res.data;
-        reloadBooking(bid); 
+       // reloadBooking(bid);  调用者提供刷新
       } else {
         alert(msg || '操作失败');
       }
@@ -173,7 +173,7 @@ async function fetchSchedule( scheduleid) {
         return null;
     }
 }
-//根据排期id及用户信息，获取预定信息
+//根据排期id及用户信息，获取所有的预定信息
  function getBookingInfo(scheduleid, userRole, userid) { 
  
   const params = {  
