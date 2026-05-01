@@ -68,7 +68,7 @@ public class ScheduleGenerator {
             System.out.println("zonedTo: " + zonedTo);
 
             String dateStr = zonedTo.toLocalDate().toString(); // yyyy-MM-dd
-            String timeStr = String.format("%02d:%02d", zonedTo.getHour(), zonedTo.getMinute());
+            String timeStr = String.format("%02d:%02d:00", zonedTo.getHour(), zonedTo.getMinute());
            // INSERT_YOUR_CODE
           
            ScheduleVO item = new ScheduleVO(); 
@@ -172,5 +172,23 @@ public class ScheduleGenerator {
         return utcDateTime.atZone(ZoneId.of("UTC"))
                 .withZoneSameInstant(userZone)
                 .toLocalDateTime();
+    }
+    // 把一个时区的时间转为另一个时区的时间
+    public static LocalDateTime timeSwitchWidthZone(LocalDateTime dateTime, String fromZoneId, String toZoneId) {
+        ZoneId fromZone = ZoneId.of(fromZoneId);
+        ZoneId toZone = ZoneId.of(toZoneId);
+
+        // 将原始时间带上原时区
+        ZonedDateTime zonedFrom = dateTime.atZone(fromZone);
+
+        // 转换到目标时区
+        ZonedDateTime zonedTo = zonedFrom.withZoneSameInstant(toZone);
+
+        // 调试输出，可根据需求保留或删除
+        System.out.println("zonedFrom: " + zonedFrom);
+        System.out.println("zonedTo: " + zonedTo);
+
+        // 返回目标时区下的本地日期时间
+        return zonedTo.toLocalDateTime();
     }
 }

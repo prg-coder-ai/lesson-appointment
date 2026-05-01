@@ -312,13 +312,13 @@ async function viewMyReservationDetail(bookingId,scheduleId,status){
         renderResult(appointmentResults);
         renderCalendar(appointmentResults);
 }
-//把预约时间从数据库中读出,并转为用户时区的时间----
+//把预约时间从数据库中读出,并转为用户时区的时间----List <Appointment>
 async function  getAppointmentList(bookingId,userTimeZone) {
-    //TBD 
-    return [];
+     const  alist= await  getAppointmentsByBookingId(bookingId);
+     //TBD：时间时区变换
+    return alist;
 }
-///获取排期的时间列表
-
+///获取排期的时间列表 
  async function generateAppointmentList( scheduleId ,timeZone){
     const scheduleInfo = await fetchSchedule(scheduleId);
 
@@ -437,17 +437,7 @@ function renderResult(dateTimeList) {
      const scheduleInfo = await fetchSchedule(bookingObj.scheduleId);
     
      //按照排期所用的时区时刻
-    let AppointmentData ={
-        bookingId:bookingid,
-        teacherId: bookingObj.teacherId,
-        courseId: scheduleInfo.courseId,
-        scheduleId:bookingObj.scheduleId,
-        studentId:bookingObj.studentId, 
-        timeZone:   scheduleInfo.timeZone ,// 排期所用的时区为用
-        appointmemnt_datetime:null,
-        last_datetime:null,
-        lessenIndex:0, 
-      }
+    
  //booking--》booked
   // 获取时间列表 
      if(status == "booked"  ){
@@ -468,13 +458,29 @@ function renderResult(dateTimeList) {
      console.log("list2:",appointmentDateTimeList);
    // 遍历appointmentDateTimeList，将日期、时刻赋值到AppointmentData.appointmemnt_datetime
    //TBD:save to db
+
    appointmentDateTimeList.forEach(dt => {
        // 假设 dt 为字符串，如 "2024-06-10 09:00"
        // 如果需要结构拆解可在此处理
-       AppointmentData.appointmemnt_datetime= dt;
-       AppointmentData.index = appointmentDateTimeList.indexOf(dt);
+       let AppointmentData ={
+        bookingId:bookingid,
+        teacherId: bookingObj.teacherId,
+        courseId: scheduleInfo.courseId,
+        scheduleId:bookingObj.scheduleId,
+        studentId:bookingObj.studentId, 
+        timeZone:   scheduleInfo.timeZone ,// 排期所用的时区为用
+        appointmemnt_datetime:dt,
+        last_datetime:dt,
+        lessenIndex:dt, 
+      }
+       //AppointmentData.appointmemnt_datetime= dt;
+      // AppointmentData.lessenIndex = c
   
-       console.log("list2:",AppointmentData);
+       console.log("list3:",AppointmentData.lessenIndex,AppointmentData);
+
+         //把booking-》booked,添加时间列表  
+      
+         saveAppointment(AppointmentData);
        //TBD：save to db
    });
   
@@ -518,21 +524,17 @@ function renderResult(dateTimeList) {
    refreshData();
   }
 
-  async function cancelBooking(bookingid){
-   //将appointment的bookingid=bookingid的所有项的状态设置为“cancelled”
-      await operateBookingStatus( bookingid, "cancelled") ;
-        }
-
+  
     async function validBooking(bookingid){
-
-       //TBD将appointment的bookingid=bookingid的所有项的状态设置为“cancelling->cancelled/booking->booked”
+     
       await operateBookingStatus( bookingid, "booked"); 
         } 
 
-    async function validBooking(bookingid){
 
-       //TBD将appointment的bookingid=bookingid的所有项的状态设置为“cancelling->cancelled/booking->booked”
-      await operateBookingStatus( bookingid, "booked"); 
+    async function cancelBooking(bookingid){
+          
+       //TBD将appointment的bookingid=bookingid的所有项的状态设置为“cancelled->cancelling ->booked-->booking
+      await operateBookingStatus( bookingid, "cancelling"); 
         } 
 
      // 解决“找不到函数loadSchedule”问题：确保loadSchedule在window作用域下暴露 

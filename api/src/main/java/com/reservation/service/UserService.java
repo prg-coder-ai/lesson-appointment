@@ -42,7 +42,7 @@ public class UserService {
     // 学生注册（对应设计2.2.1 学生注册接口）
     // 注册（对应设计2.2.1 注册接口）
     @Transactional
-    public Result Register(User user) {
+    public Result<HashMap> Register(User user) {
         // 校验手机号/邮箱是否已注册（对应业务异常校验）
          System.out.println("input：" + user);
           if( user.getPhone()!="")
@@ -68,14 +68,45 @@ public class UserService {
          resultMap.put("token", token);
          resultMap.put("role", user.getRole());
                                //data,message
-         Result rslt = Result.success(resultMap   ,"注册成功，请登录等待验证");
+         Result  rslt = Result.success(resultMap   ,"注册成功，请登录等待验证");
         
         return rslt;
     }
 
+    // 修复泛型警告: 为 Result 指定类型参数<User>，提升类型安全和可读性
+   /* @Transactional
+    public Result<User> RegisterV2(User user) {
+        // 校验手机号/邮箱是否已注册
+        System.out.println("input：" + user);
+        if (user.getPhone() != null && !"".equals(user.getPhone()))
+            if (userMapper.selectByPhone(user.getPhone()) != null) {
+                throw new BusinessException("该手机号已注册");
+            }
+        if (user.getEmail() != null && !"".equals(user.getEmail()))
+            if (userMapper.selectByEmail(user.getEmail()) != null) {
+                throw new BusinessException("该邮箱已注册");
+            }
+        // 密码加密
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        // 生成唯一userId
+        user.setUserId(UUID.randomUUID().toString());
+        // 插入数据库
+        userMapper.insert(user);
 
+        // 重新从数据库查出，保证和配置一致（也可直接return user无硬性要求）
+        User registered = userMapper.selectByAccount(user.getAccount());
+
+        // 生成token等信息
+        String token = jwtUtil.generateToken(user.getUserId(), user.getRole());
+        // 在data部分返回user对象（可选：也可以仿原Map组装返回）
+        registered.setToken(token);
+
+        Result<User> rslt = Result.success(registered, "注册成功，请登录等待验证");
+        return rslt;
+    }
+*/
     // 用户登录（对应设计2.2.1 登录接口）
-    public Result login(String account, String password) {
+    public Result<HashMap> login(String account, String password) {
         // 查找用户（账号可为手机号/邮箱，对应设计2.2.1 登录接口请求参数）
        //   System.out.println("login：" + account+"   "+password);
         User user = userMapper.selectByAccount(account);
@@ -106,7 +137,7 @@ public class UserService {
         resultMap.put("token", token);
         
        System.out.println("login ok with account：" +user.getAccount());
-        Result rslt = Result.success(resultMap   ,"登陆成功");
+        Result  rslt = Result.success(resultMap   ,"登陆成功");
         return rslt;
     }
     public void logout() {
