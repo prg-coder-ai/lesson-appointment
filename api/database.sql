@@ -104,6 +104,17 @@ CREATE TABLE IF NOT EXISTS `booking` (
   CONSTRAINT `fk_booking_student` FOREIGN KEY (`student_id`) REFERENCES `user` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='预约表';
 
+DROP TABLE IF EXISTS `appointment`; 
+CREATE TABLE `appointment` (
+  `id` int NOT NULL AUTO_INCREMENT COMMENT '唯一编号',
+  `booking_id` varchar(36) DEFAULT NULL COMMENT '预约id',
+  `class_index` int DEFAULT '1' COMMENT '课时序号',
+  `appointmemnt_datetime` datetime DEFAULT NULL COMMENT '排期预约中的一个课时时间',
+  `last_datetime` datetime DEFAULT NULL COMMENT '可能修改前的日期时间',
+  `status` varchar(16) NOT NULL DEFAULT 'active' COMMENT '本预约时间的状态:active生效/noted已发通知1/2/completed已完成/已改期changed',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='预约时间列表';
+
 -- 课程评价：存储学生对课程的评价信息，对应CourseEvaluation实体
 CREATE TABLE IF NOT EXISTS `course_evaluation` (
   `evaluation_id` varchar(36) NOT NULL COMMENT '评价唯一标识（UUID）',
@@ -149,28 +160,7 @@ CREATE TABLE IF NOT EXISTS `course_check_in` (
   KEY `fk_booking_id` (`booking_id`) COMMENT '关联预约索引',
   CONSTRAINT `fk_check_in_booking` FOREIGN KEY (`booking_id`) REFERENCES `booking` (`booking_id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='课程签到表';
-
---2 课程评价表：存储学生上完课后的评价信息，对应CourseEvaluation实体
-CREATE TABLE IF NOT EXISTS `course_evaluation` (
-  `evaluation_id` varchar(36) NOT NULL COMMENT '评价唯一标识（UUID）',
-  `booking_id` varchar(36) NOT NULL COMMENT '关联的预约ID（课程结束后可评价）',
-  `student_id` varchar(36) NOT NULL COMMENT '评价学生ID（对应user表，角色为student）',
-  `teacher_id` varchar(36) NOT NULL COMMENT '被评价教师ID（对应user表，角色为teacher）',
-  `course_id` varchar(36) NOT NULL COMMENT '被评价课程ID（对应course表）',
-  `score` int NOT NULL COMMENT '评价分数（1-5分，必填）',
-  `content` varchar(500) DEFAULT NULL COMMENT '评价内容（0-500字，可选）',
-  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '评价创建时间',
-  PRIMARY KEY (`evaluation_id`),
-  UNIQUE KEY `uk_booking_id` (`booking_id`) COMMENT '一个预约对应一条评价，避免重复评价',
-  KEY `fk_student_id` (`student_id`) COMMENT '关联学生索引，用于学生评价查询',
-  KEY `fk_teacher_id` (`teacher_id`) COMMENT '关联教师索引，用于教师评价统计',
-  KEY `fk_course_id` (`course_id`) COMMENT '关联课程索引，用于课程评价查询',
-  CONSTRAINT `fk_evaluation_booking` FOREIGN KEY (`booking_id`) REFERENCES `booking` (`booking_id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `fk_evaluation_student` FOREIGN KEY (`student_id`) REFERENCES `user` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `fk_evaluation_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `user` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `fk_evaluation_course` FOREIGN KEY (`course_id`) REFERENCES `course` (`course_id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CHECK (`score` BETWEEN 1 AND 5) -- 校验分数范围
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='课程评价表';
+;
 --数据库设计说明： 
 --1. 用户表（user）：存储学生、教师、管理员的基本信息，包括手机号、邮箱、密码（加密存储）、角色、学生的学习目标和语言水平、教师的姓名、资质图片和教授语言类型，以及账号状态等。通过角色字段区分不同类型用户，满足权限控制需求。
 --2. 课程模板表（course_template）：存储统一的课程模板信息，包括   语言类型、难度等级、课时费、课程时长、课程形式和课程描述等。通过语言类型和难度等级的唯一索引，避免重复创建相同类型的课程模板。

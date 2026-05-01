@@ -4,7 +4,7 @@ package com.reservation.exception;
  * 继承RuntimeException，无需手动捕获，由全局异常处理器处理
  */
 public class NoPermissionException extends RuntimeException {
-
+     private static final long serialVersionUID = 1L;
     // 无参构造
     public NoPermissionException() {
         super();

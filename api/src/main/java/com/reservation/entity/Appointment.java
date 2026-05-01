@@ -1,6 +1,8 @@
 // 预约时间实体（对应设计2.2.3 预约、支付相关接口 ，保存预约对应的所有时间列表）
 package com.reservation.entity;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
 import lombok.Data;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -33,18 +35,21 @@ import java.time.LocalDateTime;
 @Data 
  public  class  Appointment    implements Serializable{
     private static final long serialVersionUID = 1L;
+      // 主键自增
+    @TableId(type = IdType.AUTO)
     private int id;//顺序自增  系统生成唯一标识（UUID），对应通用校验规则-ID类参数
-    private String BookingId;  // 对应的预约Id 
+    private String bookingId;  // 对应的预约Id 
     @NotBlank(message = "排期ID对应的课次")
-    private Integer lessenIndex;  // 关联排期对应的课次 0~N-1，-1默认
+    private Integer classIndex;  // 关联排期对应的课次 0~N-1，-1默认
   
-    private LocalDateTime appointmemnt_datetime;  //当前有效 预约时间，默认时间长度
-    private LocalDateTime last_datetime;  //原始的 预约时间，默认时间长度 ，用于修改的情况
+    private LocalDateTime appointmentDatetime;  //当前有效 预约时间，默认时间长度
+    private LocalDateTime lastDatetime;  //原始的 预约时间，默认时间长度 ，用于修改的情况
      
     private String status;  //'预约状态（active生效/noted已发通知1/2/completed已完成（自动移到历史库中，实时库中删除，降低数据量）/已改期changed'、',
     private LocalDateTime createTime;  // 订单创建时间
-    private LocalDateTime update_time;  // 更新时间'
+    private LocalDateTime updateTime;  // 更新时间'
 }
+
 //从book——id获取schedule_id、course_id、tearcher_id、student_id
 //用于查询
 /*
