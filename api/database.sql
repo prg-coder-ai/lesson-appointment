@@ -109,7 +109,7 @@ CREATE TABLE `appointment` (
   `id` int NOT NULL AUTO_INCREMENT COMMENT '唯一编号',
   `booking_id` varchar(36) DEFAULT NULL COMMENT '预约id',
   `class_index` int DEFAULT '1' COMMENT '课时序号',
-  `appointmemnt_datetime` datetime DEFAULT NULL COMMENT '排期预约中的一个课时时间',
+  `appointment_datetime` datetime DEFAULT NULL COMMENT '排期预约中的一个课时时间',
   `last_datetime` datetime DEFAULT NULL COMMENT '可能修改前的日期时间',
   `status` varchar(16) NOT NULL DEFAULT 'active' COMMENT '本预约时间的状态:active生效/noted已发通知1/2/completed已完成/已改期changed',
   PRIMARY KEY (`id`)

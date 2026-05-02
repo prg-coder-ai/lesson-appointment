@@ -61,7 +61,5 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
     // 调用 AppointmentMapper 的 updateStatusByBookingId 方法
     int updated = baseMapper.updateStatusByBookingId(bookingId, status);
     return updated > 0;
-
-
     }
 }

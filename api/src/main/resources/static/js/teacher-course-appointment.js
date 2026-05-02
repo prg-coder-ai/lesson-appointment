@@ -375,7 +375,7 @@ function renderResult(dateTimeList) {
   }
 
  // 渲染日历
- function renderCalendar(dateTimeList) {
+function renderCalendar(dateTimeList) {
   const cal = document.getElementById('calendar');
   cal.innerHTML = '';
   if(dateTimeList == null  || dateTimeList == [] )
@@ -436,11 +436,8 @@ function renderResult(dateTimeList) {
      
      const scheduleInfo = await fetchSchedule(bookingObj.scheduleId);
     
-     //按照排期所用的时区时刻
-    
- //booking--》booked
-  // 获取时间列表 
-     if(status == "booked"  ){
+     //按照排期所用的时区时刻 
+     if(status == "booked"  ){   // 获取时间列表  booking--》booked
         const appointmentResults = await generateAppointmentList (bookingObj.scheduleId,scheduleInfo.timeZone );
      // 遍历scheduleResult数组的每个元素，添加到appointment_datetime中
         console.log("list:",appointmentResults);
@@ -451,37 +448,53 @@ function renderResult(dateTimeList) {
              // 这里假设item就是约定的预约时间对象或类似格式
              // 如果item有date和time字段，合成为一个appointment_datetime字段（如 "2024-06-10 09:00"）
              if (item.date && item.time) {
-                 appointmentDateTimeList.push(`${item.date} ${item.time}`); 
+                 appointmentDateTimeList.push(`${item.date}T${item.time}`); 
              }
          });
      } 
-     console.log("list2:",appointmentDateTimeList);
-   // 遍历appointmentDateTimeList，将日期、时刻赋值到AppointmentData.appointmemnt_datetime
-   //TBD:save to db
+   
+   // 遍历appointmentDateTimeList，将日期、时刻赋值到AppointmentData.appointmemnt_datetime 
+   // 你的问题“为什么传入saveAppointment(AppointmentData)的参数为空值？”
+   // 可能形成空值的原因：（1）appointmentDateTimeList为空，（2）dt本身无值，（3）bookingid/bookingObj/scheduleInfo没准备好。
+   // 建议加打印/检查赋值。
+   appointmentDateTimeList.forEach(async (dt, idx) => {
+       // 检查所有相关对象打印一遍
+      /* console.log("debug: dt=", dt);
+       console.log("debug: bookingid=", bookingid);
+       console.log("debug: bookingObj=", bookingObj);
+       console.log("debug: scheduleInfo=", scheduleInfo);
+       */
+       // 字段名应为 appointmentDatetime 而不是 appointmemntDatetime（避免拼写错误）
+       let AppointmentData = {
+         bookingId: bookingid,
+         appointmentDatetime: dt,  // 拼写修正
+         lastDatetime: dt,
+         classIndex: idx+1,          // 用forEach的下标，避免indexOf找不到
+         // 你可以解开以下注释，把缺的字段都补上
+        /* teacherId: bookingObj?.teacherId,
+         courseId: scheduleInfo?.courseId,
+         scheduleId: bookingObj?.scheduleId,
+         studentId: bookingObj?.studentId,
+         timeZone: scheduleInfo?.timeZone || undefined // 为空时也正常输出
+         */
+       };
 
-   appointmentDateTimeList.forEach(dt => {
-       // 假设 dt 为字符串，如 "2024-06-10 09:00"
-       // 如果需要结构拆解可在此处理
-       let AppointmentData ={
-        bookingId:bookingid,
-        teacherId: bookingObj.teacherId,
-        courseId: scheduleInfo.courseId,
-        scheduleId:bookingObj.scheduleId,
-        studentId:bookingObj.studentId, 
-        timeZone:   scheduleInfo.timeZone ,// 排期所用的时区为用
-        appointmemnt_datetime:dt,
-        last_datetime:dt,
-        lessenIndex:dt, 
-      }
-       //AppointmentData.appointmemnt_datetime= dt;
-      // AppointmentData.lessenIndex = c
-  
-       console.log("list3:",AppointmentData.lessenIndex,AppointmentData);
+       // 清理掉undefined属性（只保留有效字段）
+       Object.keys(AppointmentData).forEach(
+         key => AppointmentData[key] === undefined && delete AppointmentData[key]
+       );
 
-         //把booking-》booked,添加时间列表  
-      
-         saveAppointment(AppointmentData);
-       //TBD：save to db
+       // 最终入库前再打印一次
+       console.log("构造的AppointmentData：", AppointmentData);
+
+       // 如果核心值有空，进行警告
+       if (!bookingid || !dt) {
+         console.warn("警告：bookingid或appointmentDatetime为空！", AppointmentData);
+         return;
+       }
+
+       //把booking-》booked,添加时间列表  
+       await saveAppointment(AppointmentData);
    });
   
    validBooking(bookingid);
@@ -493,6 +506,7 @@ function renderResult(dateTimeList) {
     await operateBookingStatus( bookingid, "booking") ;    
  } else if(status == "cancelling"  ){ 
   //把相关预约列表的状态设置为cancelling--未确定状态
+     await updateAppointmentsStatusByBookingId(bookingid, "cancelling");
      await operateBookingStatus( bookingid, "cancelling") ;
  }
    // 由于大多数数据库的写操作（如插入、更新、删除）是异步或延迟提交（如MySQL的默认事务提交、JPA的延迟刷新等），有时在执行完写操作后立刻去读数据，会出现"读到旧数据"的问题，尤其是在分布式或有缓存的环境中。
@@ -526,15 +540,17 @@ function renderResult(dateTimeList) {
 
   
     async function validBooking(bookingid){
-     
+       
       await operateBookingStatus( bookingid, "booked"); 
         } 
 
 
     async function cancelBooking(bookingid){
           
-       //TBD将appointment的bookingid=bookingid的所有项的状态设置为“cancelled->cancelling ->booked-->booking
-      await operateBookingStatus( bookingid, "cancelling"); 
+       //将appointment的bookingid=bookingid的所有项的状态设置为“cancelled->cancelling ->booked-->booking
+       await updateAppointmentsStatusByBookingId(bookingid, "cancelling");
+       //更新booking预定状态
+       await operateBookingStatus( bookingid, "cancelling"); 
         } 
 
      // 解决“找不到函数loadSchedule”问题：确保loadSchedule在window作用域下暴露 

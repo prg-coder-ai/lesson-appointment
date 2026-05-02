@@ -175,7 +175,7 @@ public class CourseController {
                                                           @RequestHeader("Authorization") String token) {
         //permissionCheck.checkTeacherOrAdmin(token);
         // 调用服务层查询课程列表
-         System.out.println("getCourseByID controller: " + courseid);
+        // System.out.println("getCourseByID controller: " + courseid);
          Course  course  = courseService.getCourseById(courseid);
         //Map<String, List<Course>> resultMap = Map.of("courses", courseList);
         return Result.success(course, "查询成功");

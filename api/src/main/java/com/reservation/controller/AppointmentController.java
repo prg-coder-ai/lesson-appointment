@@ -39,15 +39,31 @@ public class AppointmentController {
      * 1. 新增预约时间
      */
     @PostMapping("/add")
+    /**
+     * 新增预约时间接口
+     * 
+     * 插入数据处理流程分析：
+     * 1. 客户端发送 POST 请求，JSON 中包含 Appointment 字段。
+     * 2. SpringMVC 通过 @RequestBody 自动反序列化 JSON 到 Appointment 类型。
+     * 3. 控制器收到 Appointment 对象。可在此进行参数校验、日志记录。
+     * 4. 调用 appointmentService.save(appointment)，即调用 MyBatis-Plus 通用 save 方法：
+     *    - 内部校验 appointment 的主键/必需字段。
+     *    - 构造 SQL INSERT 语句，将 appointment 对象属性映射到数据库表字段。
+     *    - 执行插入操作，写入 appointment 表。
+     *    - 保存成功返回 true，否则抛出异常或返回 false。
+     * 5. 返回统一 Result<Boolean> 响应，data 为 true/false，message 统一为 "ok"。
+     */
     public Result<Boolean> add(@RequestBody Appointment appointment) {
-         return Result.success(appointmentService.save(appointment),"ok");
-    }
+        System.out.println("add controller: " + appointment); // 日志：打印待插入实体内容
+        boolean success = appointmentService.save(appointment); // 实际写入数据库表
+        return Result.success(success, "ok");
+    } 
 //批量添加时间表
-@PostMapping("/addBatch")
+ /*   @PostMapping("/addBatch")
     public Result<Boolean> add(@RequestBody List<Appointment> appointment) {
          return Result.success(appointmentService.saveBatch(appointment),"ok");
     }
-
+*/
     /**
      * 2. 根据ID删除
      */
@@ -64,7 +80,7 @@ public class AppointmentController {
         return Result.success(appointmentService.updateById(appointment),"ok");
     }
 
-@PutMapping("/updateStatusByBookingId")
+    @PutMapping("/updateStatusByBookingId")
     public Result<Boolean> update(@RequestParam String bookingId,@RequestParam String status) {
         return Result.success(appointmentService.updateStatusByBookingId(bookingId,status),"ok");
     }
