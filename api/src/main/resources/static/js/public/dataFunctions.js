@@ -26,6 +26,7 @@ async function getCourseById( courseId) {
     }
  }
 
+ //TBD:根据bookingId查询预约时间列表--List <Appointment>
  async function getAppointmentsByBookingId( bookingId) {
     const token = getToken();
     if (!token) return;
@@ -34,20 +35,12 @@ async function getCourseById( courseId) {
         // Axios GET请求（修复response.json()错误，Axios已自动解析）
         const response = await axios.get(`${API_BASE_URL}/course/appointment/getByBookingId`, {
             headers: { "Authorization": "Bearer " + token },
-             params: bookingId // 筛选条件通过params传递
+             params:{ bookingId:bookingId } // 筛选条件通过params传递
         });
-        const res = response.data; 
-        if (res && res.code === 200) {
-           console.info("ppointments:",res.data);   
-           return  res.data ; 
-        } else {
-           // alert(res?.message || '获取课程列表失败');
-            return  null;
-        }
+        return response.data.data;
     } catch (e) {
-        //alert("网络错误，获取课程列表失败");
         console.error(e);
-        return   null;
+        return [];
     }
  }
 
@@ -106,6 +99,31 @@ async function getCourseById( courseId) {
         console.error(e);
         return   false;
     }
+ }
+ async function deleteAppointmentsByBookingId( bookingId) {
+    const token = getToken();
+    if (!token) return;
+
+    try {
+        // Axios GET请求（修复response.json()错误，Axios已自动解析）
+        const response = await axios.delete(`${API_BASE_URL}/course/appointment/deleteByBookingId`, {
+            headers: { "Authorization": "Bearer " + token },
+             params: {bookingId:bookingId} // 筛选条件通过params传递
+        });
+        const res = response.data; 
+        if (res && res.code === 200) {
+           
+           return  true ; 
+        } else {
+           // alert(res?.message || '获取课程列表失败');
+            return  false;
+        }
+    } catch (e) {
+        //alert("网络错误，获取课程列表失败");
+        console.error(e);
+        return   false;
+    }
+
  }
  /*
  async function saveAppointmentList( appointdataList) {

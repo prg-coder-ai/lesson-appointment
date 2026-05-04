@@ -71,7 +71,17 @@ public class AppointmentController {
     public Result<Boolean> delete(@PathVariable Integer id) {
         return Result.success(appointmentService.removeById(id),"ok");
     }
-
+    /**
+     * 对应前端 axios:
+     * axios.delete(`${API_BASE_URL}/course/appointment/deleteByBookingId`, {
+     *     headers: { "Authorization": "Bearer " + token },
+     *     params: { bookingId }
+     * });
+     */
+    @DeleteMapping("/deleteByBookingId")
+    public Result<Boolean> deleteByBookingId(@RequestParam String bookingId) {
+        return Result.success(appointmentService.removeByBookingId(bookingId),"ok");
+    }
     /**
      * 3. 根据ID修改
      */
