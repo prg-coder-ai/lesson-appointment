@@ -150,6 +150,7 @@ async function fetchScheduleList( cid,status) {
     
 //返回1个排期对象
 async function fetchSchedule( scheduleid) {
+  console.log("fetchSchedule  " ,'scheduleid');
   const token = getToken();
   if (!token)  return []; 
   try { 
@@ -157,19 +158,19 @@ async function fetchSchedule( scheduleid) {
           headers: { "Authorization": "Bearer " + token },
          // params: JSON.stringify([]) // 对应后端@RequestParam， 
         });
-        console.log("fetchSchedule:" ,response.data);
+       // console.log("fetchSchedule:" ,response.data);
         const res = response.data;
         if (res && res.code === 200) {
-            console.info("fetchSchedule:",res.data);
+            //console.info("fetchSchedule:",res.data);
             return  res.data|| null; //
  
         } else {
-           console.log(res?.message  ,'获取排期失败');
+           console.log(res?.message  ,'获取排期失败',scheduleid);
             return null;
         }
     } catch (e) {
        // alert("网络错误，获取排期失败");
-        console.error("网络错误，获取排期失败",e);
+        console.error("网络错误，获取排期失败",e,scheduleid);
         return null;
     }
 }

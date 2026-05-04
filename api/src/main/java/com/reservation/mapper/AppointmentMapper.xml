@@ -10,4 +10,26 @@
         SET status = #{status}
         WHERE booking_id = #{bookingId}
     </update>
+    <!-- 删除预约时间 -->
+    <delete id="deleteByBookingId">
+        DELETE FROM appointment WHERE booking_id = #{bookingId}  AND id > 0;
+    </delete>
+ 
+<!-- 
+错误码 1175 出现在 MySQL Workbench 的 safe update mode 时，
+当你执行 update/delete 操作且 where 子句未用上主键或唯一键时会被拦截。比如：
+    DELETE FROM appointment WHERE booking_id = #{bookingId}
+如果 booking_id 不是主键或唯一索引，则可能报 1175。
+解决方法有三个方法（实际放在代码注释，便于开发与运维理解）：
+
+1. 生产建议使用“安全模式”，建议 WHERE 条件加唯一性约束字段。若 booking_id 是唯一键可忽略。
+2. 开发时报错，可在 MySQL 会话前临时关闭安全模式：
+    SET SQL_SAFE_UPDATES = 0;
+   执行完毕后记得恢复：
+    SET SQL_SAFE_UPDATES = 1;
+3. 或者调整表结构令 booking_id 唯一（如有业务合理性）。
+
+注意：此 SQL 文件无需更改，仅提醒开发在执行时注意 safe update mode 的影响。
+-->
 </mapper>
+

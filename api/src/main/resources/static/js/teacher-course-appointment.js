@@ -305,16 +305,48 @@ async function viewMyReservationDetail(bookingId,scheduleId,status){
     let  appointmentResults=[];
     if(status=="booking")
             appointmentResults = await generateAppointmentList (scheduleId,userTimeZone);
-        else 
-          appointmentResults =  await getAppointmentList (bookingId,userTimeZone);
+        else {//返回为appointment实体对象，显示列表只要日期和时间，故做转化。status待用
+          const  results =  await getAppointmentList (bookingId,userTimeZone);
+          console.log("results:",results);
+          // INSERT_YOUR_CODE
+          if (Array.isArray(results)) {
+            appointmentResults = results.map(item => {
+              let date = "";
+              let time = "";
+              if (item.appointmentDatetime) {
+                // 兼容 'YYYY-MM-DD HH:mm' 或 'YYYY-MM-DDTHH:mm'
+                const dtString = item.appointmentDatetime.replace('T', ' ');
+                const [d, t] = dtString.split(' ');
+                date = d;
+                time = t;
+              }
+              return {
+                date: date,
+                time: time,
+                status: item.status
+              };
+            });
+          } else {
+            appointmentResults = [];
+          }
+          
+        }
  // 日期时间-为用户当前时区
-
+        if(appointmentResults!= null  && appointmentResults!= []) {
+            console.log("appointmentResults:",appointmentResults);  
         renderResult(appointmentResults);
         renderCalendar(appointmentResults);
+        }
+        else {
+            const tr = document.createElement('tr'); 
+            tr.innerHTML = `<td> 暂无预约时间</td>`; 
+            document.getElementById('resultBody').appendChild(tr); 
+        }
 }
 //把预约时间从数据库中读出,并转为用户时区的时间----List <Appointment>
 async function  getAppointmentList(bookingId,userTimeZone) {
      const  alist= await  getAppointmentsByBookingId(bookingId);
+     console.log("getAppointmentList alist:",alist);
      //TBD：时间时区变换
     return alist;
 }
@@ -359,6 +391,7 @@ async function  getAppointmentList(bookingId,userTimeZone) {
 function renderResult(dateTimeList) {
     const body = document.getElementById('resultBody');
     body.innerHTML = '';
+    console.log("renderResult dateTimeList:",dateTimeList);
     if(dateTimeList!= null  && dateTimeList!= []) {
         dateTimeList.forEach(item => {
         const tr = document.createElement('tr');
@@ -503,7 +536,9 @@ function renderCalendar(dateTimeList) {
     await cancelBooking(bookingid);//
  }  else if(status == "booking"  ){ // 
    //删除所有相关预约列表，并把book状态设置为booking
-    await operateBookingStatus( bookingid, "booking") ;    
+    await deleteAppointmentsByBookingId(bookingid);
+    await operateBookingStatus( bookingid, "booking") ;  
+    
  } else if(status == "cancelling"  ){ 
   //把相关预约列表的状态设置为cancelling--未确定状态
      await updateAppointmentsStatusByBookingId(bookingid, "cancelling");
