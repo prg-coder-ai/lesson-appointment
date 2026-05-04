@@ -91,7 +91,7 @@ public class AppointmentController {
     }
 
     @PutMapping("/updateStatusByBookingId")
-    public Result<Boolean> update(@RequestParam String bookingId,@RequestParam String status) {
+    public Result<Boolean> updateStatusByBookingId(@RequestParam String bookingId,@RequestParam String status) {
         return Result.success(appointmentService.updateStatusByBookingId(bookingId,status),"ok");
     }
     /**
