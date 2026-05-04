@@ -10,6 +10,7 @@
         SET status = #{status}
         WHERE booking_id = #{bookingId}
     </update>
+    
     <!-- 删除预约时间 -->
     <delete id="deleteByBookingId">
         DELETE FROM appointment WHERE booking_id = #{bookingId}  AND id > 0;
