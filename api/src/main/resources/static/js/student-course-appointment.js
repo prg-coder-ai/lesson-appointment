@@ -3,18 +3,7 @@
    // student-course-appointment.js
 // 区别于booking页面，booking页面负责查询课程、检查排期，以便预约1个课程，
 //本页面，浏览预约结果和具体时间列表
- console.log("student appointment  page");
-   
-/*
-let courseList = [];       // 课程列表
-let scheduleObject=null;       // 排期
-let scheduleList =[];
-let bookingList=[];
-let currentCourseId=null;
-let selectedScheuleId = null;
-let currentCourseIndex =-1,currentScheduleIndex =-1;
-let    lastCourseIndex =-1,   lastScheduleIndex =-1;
- */
+ console.log("student appointment  page"); 
 // ===================== 核心函数 ===================== 
 /**
  *  课程预约列表（核心：原生JS操作DOM）
@@ -97,6 +86,7 @@ async function renderStudentBookingBrowserCards() {
                  //console.log("classObject:", classObject);
                  if (classObject != null) {
                      let cardItems = {
+                         scheduleId:scheduleObject.scheduleId,
                          bookingId: booking.id,
                          className: classObject.courseName,
                          teacherName: classObject.teacherId,
@@ -207,11 +197,39 @@ async function fetchCourseList(conditionJson) {
              <div class="course-card">
                  <div class="course-info">
                      <h4>${cardInfo.className}</h4>
-                     <p>授课教师：${cardInfo.teacherName} | 预约时间：${cardInfo.scheduleInfo} | 状态：${cardInfo.status}</p>
+                     <p>授课教师：${cardInfo.teacherName} | 预约时间：${cardInfo.scheduleInfo} | 状态：${
+                        {
+                            none: "无预约",
+                            booking: "已预约,待确认",
+                            booked: "预约成功",
+                            cancelling: "取消待确认",
+                            cancelled: "已取消",
+                            canceling: "取消待确认",
+                            canceled: "已取消",
+                            completed: "已完成"
+                        }[cardInfo.status] || cardInfo.status
+                     }</p>
+                
                  </div>
                  <div class="course-actions">
-                     <button class="btn btn-gray" onclick="cancelReservation(${cardInfo.bookingId})">取消预约</button>
-                     <button class="btn btn-gray" onclick="viewMyReservationDetail(${cardInfo.bookingId})">查看详情</button>
+                     ${
+                        cardInfo.status === 'booking'
+                          ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','none')">撤销</button>`
+                          : cardInfo.status === 'booked'
+                          ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','cancelling')">申请取消</button>`
+                          : (cardInfo.status === 'canceling' || cardInfo.status === 'cancelling')
+                          ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','booked')">撤销</button>`
+                          : (cardInfo.status === 'canceled' ||  cardInfo.status === 'cancelled' )
+                          ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','booking')">重新申请</button>`
+                          : ''
+                     }
+
+                 ${ //正在预约或者已经取消：显示计算的排期列表，否则显示排期表中的数据
+                     ( cardInfo.status === 'booking' || cardInfo.status === 'canceled' ||  cardInfo.status === 'cancelled' )
+                          ? `<button class="btn btn-gray" onclick="previewSchedule('${cardInfo.scheduleId}')">预览详情</button>`
+                          : `<button class="btn btn-gray" onclick="viewMyReservationDetail('${cardInfo.bookingId}')">查看详情</button>`
+                     }
+                     
                  </div>
              </div>
          `;
@@ -253,11 +271,14 @@ function getScheduleInfo(scheduleObject) {
  
      // 解决“找不到函数loadSchedule”问题：确保loadSchedule在window作用域下暴露
    window.previewSchedule   = previewSchedule; 
+   window.viewMyReservationDetail   = viewMyReservationDetail  ;
+
    window.renderCalendar    = renderCalendar ; 
-   window.displaySchedule  = displaySchedule ;  
-   window.cancelBooking   = cancelBooking ; 
-   window.refreshData   = refreshData  ; 
-   window.formACourseCard   = formACourseCard  ;
+   window.displaySchedule   = displaySchedule ;  
+   window.actionForButton   = actionForButton ; 
+   window.refreshData       = refreshData  ; 
+   window.formACourseCard   = formACourseCard  ; 
+   
     /*
     /**
      * 生成重复周期的说明语句
@@ -281,24 +302,11 @@ function getScheduleInfo(scheduleObject) {
     }
      
  
-   // 预览排期--TBD：带入createDTO，而不是form--调入时保存
-   async function previewSchedule(courseScheduleCreateDTO) {
-    //courseScheduleCreateDTO的样式：
-    /*let form = {
-        courseId:  scheduleObject.courseId ,
-               scheduleId:scheduleObject.courseId  ,
-               startDate:  scheduleObject.startDate,
-               startTime: scheduleObject.startTime,
-               repeatType:  scheduleObject.repeatType,
-               interval:  
-               status:   
-               timeZone:  
-               userTimeZone:  
-               repeatDays: []
-               endDate:  
-           };*/
+   // 预览排期--对于未确认的排期查看
+   async function previewSchedule(scheduleid) { 
+      console.log("previewSchedule",scheduleid);
     // 生成排期列表 localDateTime List<Date,TIME>
-    scheduleResult = await generateScheduleListFromServer(courseScheduleCreateDTO); 
+    scheduleResult = await generateAppointmentList(scheduleid,userTimeZone); //courseAndBooking.js
     renderResult();
     renderCalendar(); 
 }
@@ -309,11 +317,12 @@ async function getBookingData( userRole, useid,status) {
     return await getBookingList(userRole, useid,status);
 }
  
-//读取排期时间表，显示在排期时间列表和日历上. 待appointment数据库完成TBD
+//预览排期--对于已确认的排期查看 读取排期时间表，显示在排期时间列表和日历上.  
 async function viewMyReservationDetail(bookingId){
-   let scheduleResult = [ { date:"2026-4-19",time:"14:15:00"},
-    { date:"2026-4-20",time:"14:15:00"}  
-   ] ;// 日期时间-》转为用户当前时区
+
+   let scheduleResult = await getAppointmentsByBookingId(bookingId);// 日期时间-》转为用户当前时区
+   //
+   //时区变换----TBD
    renderResult(scheduleResult);
    renderCalendar(dateTimeList);
 }
@@ -384,9 +393,9 @@ function renderResult(dateTimeList) {
 }   
  
   //判断预约状态，如果是booking则可直接取消，如果是booked,则设置为canceling，等待确认
-  async function cancelBooking(bookingid) { 
-     const formData = getBookFormData();  
-     await operateBookingStatus( bookingid,formData.status != "booked"?"canceled":"canceling");  
+  async function actionForButton(bookingid,newStatus) { 
+     //const formData = getBookFormData();  
+     await operateBookingStatus( bookingid, newStatus);  
   }
 
     //在状态变化时，更新预约状态， --指定元素名称--约定-ID = bk-${bookingid}

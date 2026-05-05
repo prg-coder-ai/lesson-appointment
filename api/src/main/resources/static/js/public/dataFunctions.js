@@ -26,7 +26,7 @@ async function getCourseById( courseId) {
     }
  }
 
- //TBD:根据bookingId查询预约时间列表--List <Appointment>
+ //根据bookingId查询预约时间列表--List <Appointment>->List {date:date,time:time }
  async function getAppointmentsByBookingId( bookingId) {
     const token = getToken();
     if (!token) return;
@@ -35,9 +35,30 @@ async function getCourseById( courseId) {
         // Axios GET请求（修复response.json()错误，Axios已自动解析）
         const response = await axios.get(`${API_BASE_URL}/course/appointment/getByBookingId`, {
             headers: { "Authorization": "Bearer " + token },
-             params:{ bookingId:bookingId } // 筛选条件通过params传递
+            params:{ bookingId:bookingId } // 筛选条件通过params传递
         });
-        return response.data.data;
+        const results =   response.data.data;
+        if (Array.isArray(results)) {
+            appointmentResults = results.map(item => {
+              let date = "";
+              let time = "";
+              if (item.appointmentDatetime) {
+                // 兼容 'YYYY-MM-DD HH:mm' 或 'YYYY-MM-DDTHH:mm'
+                const dtString = item.appointmentDatetime.replace('T', ' ');
+                const [d, t] = dtString.split(' ');
+                date = d;
+                time = t;
+              }
+              return {
+                date: date,
+                time: time,
+                status: item.status
+              };
+            });
+          } else {
+            appointmentResults = [];
+          }
+        return appointmentResults;
     } catch (e) {
         console.error(e);
         return [];
