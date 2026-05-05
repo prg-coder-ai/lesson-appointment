@@ -308,29 +308,9 @@ async function viewMyReservationDetail(bookingId,scheduleId,status){
     if(status=="booking")
             appointmentResults = await generateAppointmentList (scheduleId,userTimeZone);
         else {//返回为appointment实体对象，显示列表只要日期和时间，故做转化。status待用
-          const  results =  await getAppointmentList (bookingId,userTimeZone);
+            appointmentResults =  await getAppointmentList (bookingId,userTimeZone);
           //console.log("results:",results);
-          // INSERT_YOUR_CODE
-          if (Array.isArray(results)) {
-            appointmentResults = results.map(item => {
-              let date = "";
-              let time = "";
-              if (item.appointmentDatetime) {
-                // 兼容 'YYYY-MM-DD HH:mm' 或 'YYYY-MM-DDTHH:mm'
-                const dtString = item.appointmentDatetime.replace('T', ' ');
-                const [d, t] = dtString.split(' ');
-                date = d;
-                time = t;
-              }
-              return {
-                date: date,
-                time: time,
-                status: item.status
-              };
-            });
-          } else {
-            appointmentResults = [];
-          }
+          // INSERT_YOUR_CODE     
           
         }
  // 日期时间-为用户当前时区
@@ -352,6 +332,7 @@ async function  getAppointmentList(bookingId,userTimeZone) {
      //TBD：时间时区变换
     return alist;
 }
+/*
 ///获取排期的时间列表 
  async function generateAppointmentList( scheduleId ,timeZone){
     const scheduleInfo = await fetchSchedule(scheduleId);
@@ -388,7 +369,7 @@ async function  getAppointmentList(bookingId,userTimeZone) {
 
   return appointmentResults;
  }
-
+*/
 // 渲染排期列表
 function renderResult(dateTimeList) {
     const body = document.getElementById('resultBody');

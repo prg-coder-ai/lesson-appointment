@@ -1,22 +1,7 @@
  //排期管理--页面
  // student-course-booking.js
  console.log("student book a appointment  page");
-   // 从token中获取用户的id和role
- //  let token =getToken();// localStorage.getItem('token') || sessionStorage.getItem('token');
-  // const userInfo= getCurrentUserInfo();
-  // console.log("userInfo",userInfo);
-  // let userId = userInfo.userId;
-  // let userRole = userInfo.role;
-    // 获取用户时区（关键）
-//const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-//console.log("tz",userTimeZone);
-
-//let courseList = [];       // 课程列表
-//let scheduleObject=null;       // 排期
-//let scheduleList =[];
-//let bookingList=[];
-
- 
+   // 从token中获取用户的id和role api.js 
 // ===================== 核心函数 =====================
 
 /**
@@ -705,6 +690,7 @@ function renderResult() {
     private String status;
 */
      const bidItem = document.getElementById("bookingId");
+     const token =getToken();
      let bookingid=  bidItem.value;  
     let dto = {
         bookingId: bookingid|| "",

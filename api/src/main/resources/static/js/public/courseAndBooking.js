@@ -102,14 +102,15 @@ async function fetchScheduleList( cid,status) {
         id: bookid,  // 注意小写，和后端命名对应
         status: action
   };
-      console.log("payload：",payload); 
+      console.log("payload：",payload,token); 
+    // credentials 与 Authorization 并不冲突，credentials: 'include' 用于携带 cookie，而 Authorization 是用于 token 鉴权，通常二者可以并存
     fetch(`${API_BASE_URL}/course/booking/updateStatus`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         "Authorization": "Bearer " + token
       },
-      credentials: 'include',
+      credentials: 'include', // 如果后端要求带 cookie，这里就需要；仅用 Authorization 也可以鉴权，二者不会冲突
       body: JSON.stringify(payload)
     })
     .then(response => {
@@ -150,7 +151,7 @@ async function fetchScheduleList( cid,status) {
     
 //返回1个排期对象
 async function fetchSchedule( scheduleid) {
-  console.log("fetchSchedule  " ,'scheduleid');
+  console.log("fetchSchedule :" ,'scheduleid');
   const token = getToken();
   if (!token)  return []; 
   try { 
@@ -174,6 +175,43 @@ async function fetchSchedule( scheduleid) {
         return null;
     }
 }
+
+
+
+///获取排期的时间列表 
+async function generateAppointmentList( scheduleId ,timeZone){
+  const scheduleInfo = await fetchSchedule(scheduleId); 
+  let ScheduleGenerateDTO= {
+   courseId:  scheduleInfo.courseId,
+   scheduleId:  scheduleInfo.scheduleId,
+   startDate:  scheduleInfo.startTime.split(' ')[0], 
+   startTime: scheduleInfo.startTime.split(' ')[1],
+
+   repeatType: (function(val) {
+       if (val == 0 || val === "0" || val === "none") return "none";
+       if (val == 1 || val === "1" || val === "day") return "day";
+       if (val == 2 || val === "2" || val === "week") return "week";
+       if (val == 3 || val === "3" || val === "month") return "month";
+       return val; // fallback
+   })(scheduleInfo.repeatType),
+
+   interval:  scheduleInfo.repeatInterval,
+   status:    scheduleInfo.status,
+   timeZone:  scheduleInfo.timeZone,
+   userTimeZone:timeZone,
+   repeatDays: scheduleInfo.repeatDays
+     ? scheduleInfo.repeatDays.split(',').map(s => Number(s.trim())).filter(n => !isNaN(n))
+     : [],
+
+   endDate:  scheduleInfo.endTime.split(" ")[0]
+  }
+  //console.log("ScheduleGenerateDTO:",ScheduleGenerateDTO);
+  const appointmentResults = await generateScheduleListFromServer(ScheduleGenerateDTO); 
+  //console.log("appointmentResults:",appointmentResults);
+
+return appointmentResults;
+}
+
 //根据排期id及用户信息，获取所有的预定信息
  function getBookingInfo(scheduleid, userRole, userid) { 
  
