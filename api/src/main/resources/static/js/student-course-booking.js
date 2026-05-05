@@ -236,8 +236,8 @@ async function renderStudentBookingCards() {
             status:"active"
         }; 
   console.log("search",params);//TBD---
-  lastCourseIndex =currentCourseIndex;
-  currentCourseIndex =-1;
+  //lastCourseIndex =currentCourseIndex;
+ // currentCourseIndex =-1;
   try { 
     courseList=  await  getCourseList( params); 
   } catch (e) {
@@ -264,17 +264,17 @@ function renderCourseSelect() {
       sel.appendChild(opt);
     }
   });
-  if(lastCourseIndex>=0)
+ /* if(lastCourseIndex>=0)
   {
    if(courseList.length>lastCourseIndex )
-    currentCourseIndex = lastCourseIndex;
-
+    currentCourseIndex = lastCourseIndex; 
   }
   if(currentCourseIndex ==-1)
     currentCourseId =0;
     sel.index =currentCourseIndex; 
+    */
 }
- 
+
 //更新scheduleObject相关内容 --待细化
 //可简化为：日期范围，时间，排期计划
 function renderSchedule(scheduleObject) {
@@ -374,12 +374,13 @@ document.getElementById('timeZone').value = userTimeZone;
   }
    
      // 解决“找不到函数loadSchedule”问题：确保loadSchedule在window作用域下暴露
-   window.previewSchedule   = previewSchedule;
+   window.searchCourse      = searchCourse;  
+   window.previewSchedule   = previewSchedule;  
    window.freshByRepeatType = freshByRepeatType;
    window.renderCalendar    = renderCalendar ;
   
    window.displaySchedule  = displaySchedule ;
-   window.makeOneBooking = makeOneBooking ;//make a apointment
+   window.makeOneBooking   = makeOneBooking ;//make a apointment
 
    window.deleteBooking   = deleteBooking ;
    window.cancelBooking   = cancelBooking ;
@@ -468,10 +469,11 @@ return  scheduleObject;
           }
       }
       try {
-        let cnt=0;
+        let cnt=0; //查找指定课程的有效排期
         scheduleList = await fetchScheduleList(cid,"active");
-     
-          if (scheduleList && scheduleList.length > 0) {           
+        console.log(" scheduleList",scheduleList) ;
+
+        if (scheduleList && scheduleList.length > 0) {           
             // 把scheduleList列表按scheduleId值添加到scheduleSelect下拉列表中
             const scheduleSelect = document.getElementById('scheduleSelect');
             if (scheduleSelect) {
@@ -497,7 +499,7 @@ return  scheduleObject;
             }
            
             //更新排期的显示
-            if(lastCourseIndex != -1)
+            /*if(lastCourseIndex != -1)
               if(scheduleList.length>currentScheduleIndex)
                 { currentScheduleIndex = lastCourseIndex;
                 }else {
@@ -505,18 +507,18 @@ return  scheduleObject;
                 }
             scheduleSelect.index = currentScheduleIndex;
             lastCourseIndex =currentScheduleIndex ;
-
-          }
-          if(cnt==0)  {
-            scheduleSelect.innerHTML = '<option value="">暂时该课程没有排期</option>';
-            scheduleObject = resetScheduleObject();//清理显示区
-            renderSchedule(scheduleObject);
-        }
-          return;
+             */
+          } 
+        if(cnt > 0) return;
       } catch (e) {
-          alert("没有找到该课程的排期，请联系老师",e);
+        //  alert("没有找到该课程的排期，请联系老师",e);
+        cnt = 0;
       } 
-      
+      if(cnt==0)  {
+        scheduleSelect.innerHTML = '<option value="">暂时该课程没有排期</option>';
+        scheduleObject = resetScheduleObject();//清理显示区
+        renderSchedule(scheduleObject);
+    } 
   }
   //当排期列表选择变化时，重新显示排期计划及预定情况
    function displaySchedule() {

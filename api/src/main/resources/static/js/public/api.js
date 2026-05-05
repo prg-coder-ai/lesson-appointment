@@ -9,7 +9,7 @@
     // API完整前缀
     const API_BASE_URL = `${API_SERVER_HOST}:${API_SERVER_PORT}${API_BASE_PATH}`;
 
-    let token =getToken(); 
+   // let token =getToken(); 
    const userInfo= getCurrentUserInfo();
    console.log("userInfo",userInfo);
    let userId = userInfo.userId;
