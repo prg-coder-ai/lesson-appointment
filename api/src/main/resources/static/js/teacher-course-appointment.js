@@ -309,9 +309,7 @@ async function viewMyReservationDetail(bookingId,scheduleId,status){
             appointmentResults = await generateAppointmentList (scheduleId,userTimeZone);
         else {//返回为appointment实体对象，显示列表只要日期和时间，故做转化。status待用
             appointmentResults =  await getAppointmentList (bookingId,userTimeZone);
-          //console.log("results:",results);
-          // INSERT_YOUR_CODE     
-          
+           console.log("getAppointmentList:",appointmentResults); 
         }
  // 日期时间-为用户当前时区
         if(appointmentResults!= null  && appointmentResults!= []) {

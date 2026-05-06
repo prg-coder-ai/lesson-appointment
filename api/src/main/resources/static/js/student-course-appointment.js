@@ -278,6 +278,8 @@ function getScheduleInfo(scheduleObject) {
    window.actionForButton   = actionForButton ; 
    window.refreshData       = refreshData  ; 
    window.formACourseCard   = formACourseCard  ; 
+   window.getAppointmentsByBookingId   = getAppointmentsByBookingId;// defined in dataFunction.js 
+   
    
     /*
     /**
@@ -307,8 +309,8 @@ function getScheduleInfo(scheduleObject) {
       console.log("previewSchedule",scheduleid);
     // 生成排期列表 localDateTime List<Date,TIME>
     scheduleResult = await generateAppointmentList(scheduleid,userTimeZone); //courseAndBooking.js
-    renderResult();
-    renderCalendar(); 
+    renderResult(scheduleResult);
+    renderCalendar(scheduleResult); 
 }
  
  
@@ -320,11 +322,11 @@ async function getBookingData( userRole, useid,status) {
 //预览排期--对于已确认的排期查看 读取排期时间表，显示在排期时间列表和日历上.  
 async function viewMyReservationDetail(bookingId){
 
-   let scheduleResult = await getAppointmentsByBookingId(bookingId);// 日期时间-》转为用户当前时区
+     scheduleResult = await getAppointmentsByBookingId(bookingId);// 日期时间-》转为用户当前时区
    //
    //时区变换----TBD
    renderResult(scheduleResult);
-   renderCalendar(dateTimeList);
+   renderCalendar(scheduleResult);
 }
 // 渲染排期列表
 function renderResult(dateTimeList) {
