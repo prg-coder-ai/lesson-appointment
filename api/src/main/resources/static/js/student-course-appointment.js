@@ -86,6 +86,7 @@ async function renderStudentBookingBrowserCards() {
                  //console.log("classObject:", classObject);
                  if (classObject != null) {
                      let cardItems = {
+                         origTz: scheduleObject.timeZone,
                          scheduleId:scheduleObject.scheduleId,
                          bookingId: booking.id,
                          className: classObject.courseName,
@@ -226,8 +227,8 @@ async function fetchCourseList(conditionJson) {
 
                  ${ //正在预约或者已经取消：显示计算的排期列表，否则显示排期表中的数据
                      ( cardInfo.status === 'booking' || cardInfo.status === 'canceled' ||  cardInfo.status === 'cancelled' )
-                          ? `<button class="btn btn-gray" onclick="previewSchedule('${cardInfo.scheduleId}')">预览详情</button>`
-                          : `<button class="btn btn-gray" onclick="viewMyReservationDetail('${cardInfo.bookingId}')">查看详情</button>`
+                          ? `<button class="btn btn-gray" onclick="previewSchedule('${cardInfo.scheduleId}','${cardInfo.origTz}')">预览详情</button>`
+                          : `<button class="btn btn-gray" onclick="viewMyReservationDetail('${cardInfo.bookingId}','${cardInfo.origTz}')">查看详情</button>`
                      }
                      
                  </div>
@@ -305,7 +306,7 @@ function getScheduleInfo(scheduleObject) {
      
  
    // 预览排期--对于未确认的排期查看
-   async function previewSchedule(scheduleid) { 
+   async function previewSchedule(scheduleid,origTzTimeZone) { 
       console.log("previewSchedule",scheduleid);
     // 生成排期列表 localDateTime List<Date,TIME>
     scheduleResult = await generateAppointmentList(scheduleid,userTimeZone); //courseAndBooking.js
@@ -320,13 +321,36 @@ async function getBookingData( userRole, useid,status) {
 }
  
 //预览排期--对于已确认的排期查看 读取排期时间表，显示在排期时间列表和日历上.  
-async function viewMyReservationDetail(bookingId){
+async function viewMyReservationDetail(bookingId,origTzTimeZone){
+   // 北京: "Asia/Shanghai"
+   // 巴黎: "Europe/Paris"
+   // 卡尔加里: "America/Edmonton"
 
-     scheduleResult = await getAppointmentsByBookingId(bookingId);// 日期时间-》转为用户当前时区
-   //
+   scheduleResult = await getAppointmentsByBookingId(bookingId);// 日期时间-》转为用户当前时区
+   // origTzTimeZone,userTimeZOne
    //时区变换----TBD
-   renderResult(scheduleResult);
-   renderCalendar(scheduleResult);
+   // 遍历scheduleResult，处理每一项（此处仅做遍历，如果要具体操作可添加逻辑）
+   let restlts=[];// date:xx,time:xx
+   const testTz = "Asia/Shanghai";
+//userTimeZone = testTz;
+   // forEach + async 会导致 restlts.push(newDt) 并发执行、顺序不可靠，需改为顺序执行，保证渲染和restlts填充完成
+   if (Array.isArray(scheduleResult)) {
+       restlts = [];
+       for (let i = 0; i < scheduleResult.length; i++) {
+           const item = scheduleResult[i];
+           const dateTime = item.date + " " + item.time;
+           const userDateTime = await tzSwitchTo(origTzTimeZone, dateTime, testTz);
+
+           const newDate = userDateTime.dateTime.split(' ')[0];
+           const newTime = userDateTime.dateTime.split(' ')[1];
+           const newDt = { date: newDate, time: newTime, weekday: userDateTime.weekday, status: item.status }
+           console.log(item, newDt);
+           restlts.push(newDt);
+       }
+   }
+   console.log(restlts);
+   renderResult(restlts);
+   renderCalendar(restlts);
 }
 // 渲染排期列表
 function renderResult(dateTimeList) {
@@ -335,8 +359,18 @@ function renderResult(dateTimeList) {
     if(dateTimeList!= null ) {
         dateTimeList.forEach(item => {
         const tr = document.createElement('tr');
-        
-        tr.innerHTML = `<td>${dateTimeList.indexOf(item) + 1}</td><td>${item.date}</td><td>${item.time}</td>`;
+        // 获取item.date的周几
+        let weekday = "";
+        if(item.date){
+            const dateParts = item.date.split('-');
+            if(dateParts.length === 3){
+                const d = new Date(Number(dateParts[0]), Number(dateParts[1])-1, Number(dateParts[2]));
+                // JS: 0=Sunday ... 6=Saturday
+                const weekdays = ['周日','周一','周二','周三','周四','周五','周六'];
+                weekday = weekdays[d.getDay()];
+            }
+        }
+        tr.innerHTML = `<td>${dateTimeList.indexOf(item) + 1}</td><td>${item.date} ${weekday}</td><td>${item.time}</td>`;
    
         body.appendChild(tr);
     });

@@ -21,7 +21,9 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
     public List<Appointment> getByBookingId(String bookingId) {
         return lambdaQuery()
                 .eq(Appointment::getBookingId, bookingId)
+                .orderByAsc(Appointment::getAppointmentDatetime)
                 .list();
+           
     }
 
     /**
