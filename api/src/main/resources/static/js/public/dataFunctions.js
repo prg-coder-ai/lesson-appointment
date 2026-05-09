@@ -67,7 +67,7 @@ async function getCourseById( courseId) {
 
  
  async function saveAppointment( appointdata) {
-    console.log("save appoint:",appointdata.classIndex);
+   // console.log("save appoint:",appointdata.classIndex);
     const token = getToken();
     if (!token) return;
  
@@ -86,7 +86,7 @@ async function getCourseById( courseId) {
         );
         const res = response.data; 
         if (res && res.code === 200) {
-           console.info("saveAppointment:",res.data);   
+         //  console.info("saveAppointment:",res.data);   
            return  res.data ; 
         } else {
             return  false;
@@ -137,8 +137,7 @@ async function getCourseById( courseId) {
              params: {bookingId:bookingId} // 筛选条件通过params传递
         });
         const res = response.data; 
-        if (res && res.code === 200) {
-           
+        if (res && res.code === 200) {           
            return  true ; 
         } else {
            // alert(res?.message || '获取课程列表失败');
@@ -151,7 +150,34 @@ async function getCourseById( courseId) {
     }
 
  } 
-  
+   //把tzDataPO格式数据
+ async function tzSwitchTo( tz,dateTime,userTz){
+    const dataIn = {timeZone:tz,
+        dateTime:dateTime,
+        switchToTimeZone:userTz
+     }
+     const token = getToken();
+     try {
+        // Axios GET请求（修复response.json()错误，Axios已自动解析）
+        const response = await axios.post(`${API_BASE_URL}/tz/switch`, 
+            dataIn,{
+             headers: { "Authorization": "Bearer " + token },
+              
+        });
+        const res = response.data; 
+        if (res && res.code === 200) {           
+           return  res.data ; 
+        } else {
+           // alert(res?.message || '获取课程列表失败');
+            return  null;
+        }
+    } catch (e) {
+        //alert("网络错误，获取课程列表失败");
+        console.error(e);
+        return   null;
+    }
+
+ }
  
    /**
     * 详细介绍 fetch 在 GET、POST、PUT、DELETE、PATCH 等方法中携带参数的方式
