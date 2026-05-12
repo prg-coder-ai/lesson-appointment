@@ -500,7 +500,7 @@
 
     // 用户认证函数（登录）
     function authenticateUser(  uname, pwd) {
-        const registerInfo = {
+        const loginInfo = {
              account:uname,
              password: pwd
           };
@@ -513,7 +513,7 @@
           'Content-Type': 'application/json' ,
           'credentials': 'include'
         },
-        body: JSON.stringify(registerInfo)
+        body: JSON.stringify(loginInfo)
       })
       .then(response =>response.json()  )
       .then(data => {
@@ -696,11 +696,169 @@
         btnText.innerHTML = '登录系统';
     }, 2500);
   };
-  
+  window.onload = function() { 
+    // 自动登录：检测本地登录信息并校验token有效性
+    (function autoLoginCheck() {
+      // 读取本地 localStorage 保存的用户信息
+      const userStr = localStorage.getItem('currentUser');
+      if (!userStr) {
+        // 未登录过，留在登录页
+        return;
+      }
+      let userInfo;
+      try {
+        userInfo = JSON.parse(userStr);
+      } catch (e) {
+        localStorage.removeItem('currentUser');
+        return;
+      }
+      if (!userInfo || !userInfo.token) {
+        // 信息不全，清理，停留
+        localStorage.removeItem('currentUser');
+        return;
+      }
+      
+      // 这里假设token是JWT，尝试判断是否过期
+      function isJwtExpired(token) {
+        if (!token) return true;
+        const parts = token.split('.');
+        if (parts.length !== 3) return false; // 不一定是JWT，视实际情况而定
+        try {
+          const payload = JSON.parse(atob(parts[1]));
+          if (payload.exp) {
+            const now = Math.floor(Date.now() / 1000);
+            return now > payload.exp;
+          }
+        } catch (e) {
+          // 解码失败，忽略
+        }
+        return false; // 没有exp就当未过期
+      }
+
+      // 检查token是否过期
+      if (isJwtExpired(userInfo.token)) {
+        localStorage.removeItem('currentUser');
+        // 清除Cookie
+        document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
+        alert('登录状态已过期，请重新登录');
+        return;
+      }
+
+      const loginInfo = {
+             account:userInfo.account,
+             password: userInfo.password
+          };
+
+      // 调用后端接口验证token有效性（推荐，防止本地token无效）
+      fetch(`${API_BASE_URL}/user/login`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Authorization': userInfo.token ? `Bearer ${userInfo.token}` : ''
+        },
+        body: JSON.stringify(loginInfo)
+      })
+      .then(response => {
+        if (response.status === 403) {
+          // token已过期或服务端不认，清理并跳转
+          localStorage.removeItem('currentUser');
+          document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
+          alert('登录状态已过期，请重新登录');
+          window.location.href = './index.html';
+          throw new Error('未登录或登录已失效');
+        }
+        return response.json();
+      })
+      .then(data => {
+        // 如果验证通过，根据用户角色跳转到对应主页
+        if (data && data.code === 200 && data.data) {
+          const role = data.data.role || userInfo.role;
+          // 按角色跳转
+          if (role === 'admin') {
+            window.location.href = './admin.html';
+          } else if (role === 'teacher') {
+            window.location.href = './teacher.html';
+          } else if (role === 'student') {
+            window.location.href = './student.html';
+          }
+        } else if (data && data.code === 401) {
+          // 失效处理
+          localStorage.removeItem('currentUser');
+          document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
+          alert('登录状态已过期，请重新登录');
+        }
+      })
+      .catch(err => {
+        // 自动登录错误（如网络），这里一般保守处理不跳转
+        console.error('自动登录校验异常:', err);
+      });
+    })();
+  };
   </script>
  
 </body>
 </html>
+ 
+<!-- 
+在使用 fetch 进行自动登录（如刷新页面后检查 localStorage/cookie 自动登录）时出现 403 错误，原因可能有：
+
+1. **会话凭证丢失**：后端通常通过 Cookie（如 JSESSIONID、token 等）验证登录态。刷新页面时，如果前端未携带或丢失这些凭证（如本地未种 cookie，或 fetch 没加 credentials 配置），后端会拒绝请求返回 403。
+
+2. **跨域未携带认证信息**：fetch 请求如果未设置 `credentials: 'include'`，跨域情况下不会自动携带 cookie，导致登录态失效。
+
+3. **token 已过期或状态与后端不一致**：localStorage 的用户信息只是前端存储，若 session 已失效、token 过期、cookie 被手动清理，前端以为有“已登录”信息但后端拒绝认证，请求接口就会 403。
+
+4. **CSRF 校验失败**：有些后端对 POST/登录敏感接口做了 CSRF 校验，header/token 不对时也会 403。
+
+**排查与修复建议：**
+- 检查 fetch 是否正确带上了 Cookie（如需要跨域，必须加 `credentials: 'include'`）。
+- 检查 localStorage 或 cookie 的登录态是否和服务端保持一致。
+- 手动清除 localStorage 及 cookie，重新登录一次，观察是否能恢复正常。
+- 检查后端日志确认 403 详细原因。
+<!-- 
+1. 在自动登录的 fetch 请求之后，判断 response.status 是否为 403。
+2. 如果遇到 403，前端需要清理本地的登录信息（localStorage.removeItem('currentUser')，或清除 cookie），然后跳转回登录页。
+3. 示例如下：
+
+fetch('/api/v1/user/info', {
+  method: 'GET',
+  credentials: 'include'
+})
+  .then(response => {
+    if (response.status === 403) {
+      // 清除前端登录存储信息
+      localStorage.removeItem('currentUser');
+      document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
+      // 可根据需要加提示
+      alert('登录状态已过期，请重新登录');
+      // 跳回登录页
+      window.location.href = './index.html';
+      throw new Error('未登录或登录已失效');
+    }
+    return response.json();
+  })
+  .then(data => {
+    // 根据 data 继续后续逻辑
+  })
+  .catch(err => {
+    // 这里可根据需要处理其它异常
+    console.error('自动登录失败:', err);
+  });
+
+4. 自动登录相关位置总结（例如页面 onload 或初始化检测登录态时）都应加上述 403 处理分支。
+ 
+
+**fetch 用法举例（含携带 cookie）**：
+fetch('/api/v1/user/info', {
+  method: 'GET',
+  credentials: 'include', // 重要！带上 cookie
+})
+  .then(resp => resp.json())
+  .then(data => {
+    // 判定登录态
+  });
+
+-->
 
 <!-- INSERT_YOUR_CODE -->
 <!-- 
