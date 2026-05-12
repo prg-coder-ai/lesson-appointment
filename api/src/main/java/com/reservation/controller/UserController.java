@@ -33,8 +33,7 @@ public class UserController {
     private UserService userService;
 
 
-    //TBD条件：role,所属机构
-    // INSERT_YOUR_CODE
+    //TBD条件：role,所属机构 
     /**
      * 用户列表查询（支持 GET 参数传递）
      * 支持前端通过 URL 查询参数“/user/list?role=teacher&status=active”
@@ -74,7 +73,9 @@ public class UserController {
         // 调用服务层实现注册逻辑，返回userId和Token（对应设计2.2.1 学生注册返回数据）
          user.setRole("student");
         user.setStatus("pending");
+       
         Result rst = userService.Register(user);
+    
        // System.out.println("rst：" + rst);
         return rst;//Result.success(rst, "注册成功,请等待管理员审核");
     }
@@ -91,6 +92,7 @@ public class UserController {
         Result rst = userService.Register(user); 
         return rst; 
     }
+
      @PostMapping("/updateStatus") 
        @ResponseBody
     public Result<Void> updateStatus(@Validated @RequestBody User user) {  
@@ -186,6 +188,21 @@ public Result<String> logout(HttpServletResponse response) {
         // 调用服务层重置密码（对应设计2.2.1 密码重置功能说明）
         userService.resetPassword(account);
         return Result.success(null, "密码重置成功");
+    }
+// INSERT_YOUR_CODE
+    /**
+     * 查询账号（邮箱/电话）是否已存在
+     * 前端调用：GET /user/account/exist?account=xxx
+     * 返回 Result<Boolean>
+     */
+    @GetMapping("/account/exist")
+    @ResponseBody
+    public Result<Boolean> accountExist(@RequestParam("account") String account) {
+        if (account == null || account.trim().isEmpty()) {
+            return Result.success(false, "账号不能为空");
+        }
+        boolean existed = userService.existAccount(account.trim());
+        return Result.success(existed, existed ? "账号已存在" : "账号可用");
     }
 
 //TBD: 更新非空参数
