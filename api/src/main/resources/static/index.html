@@ -350,10 +350,10 @@
       if(isValid)
        { // 检查账号是否已存在  
         const isExist = await checkAccountExists(registerAccount); 
-        if (isExist) {
-          registerError.style.display = 'block';
-          isValid = false;
-          registerError.innerHTML="账号已存在"; //可根据需要屏蔽
+        if (isExist) { 
+          isValid = false; 
+          registerUsernameError.textContent = '账号已存在';
+          registerUsernameError.style.display = 'block';
         }
       }
     } 
@@ -460,7 +460,7 @@
             if (data && data.code === 400) {
               //alert('该账号已存在，请更换账号或登录该账号');
                registerError.style.display ='block';
-               registerSuccess.textContent = '该账号已存在，请更换账号或登录该账号';
+               registerError.textContent = '该账号已存在，请更换账号或登录该账号';
             }else if (data && data.code === 200) {  
               registerSuccess.style.display = 'block';
               registerSuccess.textContent = data.message; //在注册页面显示data.message
@@ -518,9 +518,9 @@
       .then(response =>response.json()  )
       .then(data => {
         console.log('post ret data:', data  );
-        if (data && data.code === 500) {
+        if (data && data.code >= 500) {
           showApiError(data.message || '服务器异常' );
-        }   if (data && data.code === 400) {
+        }   if (data && ( data.code >= 400)) {
          // alert('账号或密码错误，请重试');抛出异常 
            loginError.style.display = 'block';
            loginError.textContent = '账号或密码错误，请重试';
