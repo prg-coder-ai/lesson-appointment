@@ -113,6 +113,20 @@
       background: #909399;
       margin-top: 8px;
     }
+   /* #api-error-tip {
+    display: none;
+  
+    transform: translate(-50%, 0);
+    background: #ff5555;
+    color: white;
+    padding: 12px 30px;
+    font-size: 16px;
+    border-radius: 8px;
+    z-index: 99999;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.15);
+    
+    text-align: center;
+  }*/
   </style>
 </head>
 <body>
@@ -144,11 +158,12 @@
       </button>
       <!-- 【修改】新增 display: none 隐藏初始错误提示 -->
       <div class="error-tip" id="login-error" style="text-align: center; margin-top: 16px; display: none;">账号或密码错误，请重试</div>
-      
+      <div class="error-tip" id="api-error-tip"></div>
       <!-- 新增注册按钮 -->
       <div class="register-btn">
         <a href="javascript:;" id="show-register">还没有账号？点击注册</a>
       </div>
+      
     </form>
   </div>
 
@@ -282,7 +297,7 @@
     }
 
     // 新增：注册表单验证函数
-    function validateRegisterForm() {
+    async function validateRegisterForm() {
       let isValid = true;
       
       // 重置所有提示
@@ -333,14 +348,12 @@
         }
       }
       if(isValid)
-       { // 检查账号是否已存在
-
-        const isExist = userDatabase.some(u => ( u.email === registerUsername.value.trim()
-        || u.phone === registerUsername.value.trim())
-        );
+       { // 检查账号是否已存在  
+        const isExist = await checkAccountExists(registerAccount); 
         if (isExist) {
           registerError.style.display = 'block';
           isValid = false;
+          registerError.innerHTML="账号已存在"; //可根据需要屏蔽
         }
       }
     } 
@@ -366,7 +379,28 @@
 
       return isValid;
     }
-
+   
+   // 利用后端 "/account/exist" 检查账号是否已经存在
+   // 该函数会对输入账号发起GET请求，返回Promise<boolean>
+   async function checkAccountExists(registerAccount) {
+     if (!registerAccount) return false; // 没有账号直接认为不存在（交给前面表单校验）
+     try { 
+       const resp = await fetch(`${API_BASE_URL}/user/account/exist?account=${encodeURIComponent(registerAccount)}`);
+       if (!resp.ok) {
+         // 网络异常一律视为未占用，但需给出alert以便排查问题
+          alert("网络异常，无法校验账号是否存在,稍等再试"); //可根据需要屏蔽
+         return false;
+       }
+       const data = await resp.json();
+       // 期望后端返回 { code: ..., data: true/false }
+       return !!(data && data.data === true);
+     } catch (e) {
+       // 网络或js异常视为未占用
+        alert("连接后端失败，无法判断账号是否已存在,稍等再试");
+       return false;
+     } 
+   }
+   
     // 新增：提交注册申请
     function submitRegister() {
       // 模拟提交到后端（实际项目用fetch/post）
@@ -422,7 +456,7 @@
             return response.json();
           })
           .then(data => { 
-            //console.log('data:', data);
+           console.log('data:', data);
             if (data && data.code === 400) {
               //alert('该账号已存在，请更换账号或登录该账号');
                registerError.style.display ='block';
@@ -484,11 +518,12 @@
       .then(response =>response.json()  )
       .then(data => {
         console.log('post ret data:', data  );
-        if (data && data.code === 400) {
-         // alert('账号或密码错误，请重试');抛出异常
-
-          loginError.style.display = 'block';
-          loginError.textContent = '账号或密码错误，请重试';
+        if (data && data.code === 500) {
+          showApiError(data.message || '服务器异常' );
+        }   if (data && data.code === 400) {
+         // alert('账号或密码错误，请重试');抛出异常 
+           loginError.style.display = 'block';
+           loginError.textContent = '账号或密码错误，请重试';
            loginBtn.disabled = false;
            btnText.innerHTML = '登录系统';
         }else if (data && data.code === 200) {
@@ -521,7 +556,8 @@
           })
           .catch(error => {
             console.error('登录请求出错:', error);
-            alert('网络异常，请检查后重试');
+            //alert('网络异常，请检查后重试');
+            showApiError('网络或异常，请检查后重试'+error );
           });
         }
 
@@ -563,6 +599,7 @@
       registerError.style.display = 'none';
     }
 
+    
     // 登录表单提交事件
     loginForm.addEventListener('submit', async (e) => {
       e.preventDefault(); // 阻止表单默认提交
@@ -626,7 +663,7 @@
       e.preventDefault();
       
       // 验证表单
-      if (!validateRegisterForm()) {
+      if (!(await validateRegisterForm())) {
         return;
       }
 
@@ -640,7 +677,25 @@
         alert('注册申请提交失败，请稍后重试');
         registerBtn.disabled = false;
       }
-    });
+    })
+    
+    /**
+   * 优化的全局API错误提示
+   * @param {string} msg 要提示的内容
+   */
+  function showApiError(msg) {
+    const tip = document.getElementById('api-error-tip');
+    if (!tip) return alert(msg);
+    tip.textContent = msg || '服务异常，请稍后再试';
+    tip.style.display = 'block';
+    clearTimeout(window.__apiErrorTimer);
+    window.__apiErrorTimer = setTimeout(() => {
+      tip.style.display = 'none';
+      // 恢复按钮状态
+        loginBtn.disabled = false;
+        btnText.innerHTML = '登录系统';
+    }, 2500);
+  };
   
   </script>
  
@@ -764,4 +819,62 @@ setTimeout(() => {
   registerModal.style.display = 'none';
 }, 2000);
 
+-->
+
+<!-- 
+优化后的后端数据请求失败响应提示函数，可全局复用。调用 showApiError(msg) 显示错误提示。
+示例：fetch(...).catch(err => showApiError("网络连接失败，请稍后再试"));
+
+可放置在页面脚本区靠前位置。
+
+使用一个弹窗覆盖层/提示条（也可直接 alert 作为简化）。
+
+示例弹窗实现如下。需在HTML头部<body>中加上id="api-error-tip"的提示条DOM（若本页面已有类似元素可复用）。
+
+
+
+<style>
+  #api-error-tip {
+    display: none;
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translate(-50%, 0);
+    background: #ff5555;
+    color: white;
+    padding: 12px 30px;
+    font-size: 16px;
+    border-radius: 8px;
+    z-index: 99999;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.15);
+    min-width: 220px;
+    text-align: center;
+  }
+</style>
+<div id="api-error-tip"></div>
+<script>
+  /**
+   * 优化的全局API错误提示
+   * @param {string} msg 要提示的内容
+   */
+  function showApiError(msg) {
+    const tip = document.getElementById('api-error-tip');
+    if (!tip) return alert(msg);
+    tip.textContent = msg || '服务异常，请稍后再试';
+    tip.style.display = 'block';
+    clearTimeout(window.__apiErrorTimer);
+    window.__apiErrorTimer = setTimeout(() => {
+      tip.style.display = 'none';
+    }, 2500);
+  }
+</script>
+  使用方式参考： 
+ 
+fetch(apiUrl)
+  .then(resp=> {
+    if (!resp.ok) throw new Error('服务无响应：' + resp.status);
+    return resp.json();
+  })
+  .then(data=>{ ... })
+  .catch(err=> showApiError(err.message));
 -->

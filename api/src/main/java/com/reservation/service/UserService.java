@@ -45,14 +45,12 @@ public class UserService {
     public Result<HashMap> Register(User user) {
         // 校验手机号/邮箱是否已注册（对应业务异常校验）
          System.out.println("input：" + user);
-          if( user.getPhone()!="")
-        if (userMapper.selectByPhone(user.getPhone()) != null) {
-            throw new BusinessException("该手机号已注册");
+         if(existAccount(user.getAccount())) {
+            //throw new BusinessException("该账号已注册");
+            Result  rslt = Result.fail(400   ,"该账号已注册，请登录或重置密码");
+            return rslt;
         }
-        if( user.getEmail()!="")
-        if (userMapper.selectByEmail(user.getEmail()) != null) {
-            throw new BusinessException("该邮箱已注册");
-        }
+       
         // 密码加密（对应设计2.3 安全设计-密码加密）
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         // 生成唯一userId（对应通用校验规则-ID类参数）
@@ -265,6 +263,26 @@ public User selectById(String userId) {
             throw new UserNotFoundException("不存在【" + role + "】的用户");
         } 
         return users;
+    }
+
+    /**
+     * 检查账号（手机号或邮箱）是否已注册
+     * @param account 用户账号（手机号或邮箱）
+     * @return 是否已存在
+     */
+    public boolean existAccount(String account) {
+        if (account == null || account.trim().isEmpty()) {
+            return false;
+        }
+        // 判断账号是手机号还是邮箱
+        boolean isEmail = account.contains("@");
+        User user = null;
+        if (isEmail) {
+            user =  selectByEmail(account);
+        } else {
+            user =  selectByPhone(account);
+        }
+        return user != null;
     }
 }
 

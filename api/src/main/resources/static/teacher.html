@@ -23,8 +23,8 @@
     </div>
     <div class="header-actions">
       <div class="user-info">
-        <div class="avatar" id="id_firstLetter" >李</div>
-        <span class="user-name" id="id_username">李老师</span>
+        <div class="avatar" id="avatar" >李</div>
+        <span class="user-name" id="user-name">李老师</span>
       </div>
       <button class="btn btn-default" style="padding: 6px 12px;" onclick="logout()">
         <i class="fa fa-sign-out-alt"></i> 退出
@@ -320,22 +320,26 @@
 
     // 页面初始化：加载默认的"我的工作台"内容
     window.onload = function() {
-      console.log('教师端页面加载完成');
+      
       loadTeacherPageContent('预约管理');
 
       const nameid=document.getElementById("user-name");
-       if(nameid) nameid.innerHTML= userInfo.name;
-       
+       if(nameid)
+         { nameid.innerHTML= userInfo.name;
+         }
+        console.log(userInfo.name);
        // 设置头像元素为用户名首字母
        const avatarElem = document.getElementById("avatar");
        if (avatarElem && userInfo && userInfo.name && userInfo.name.length > 0) {
-         avatarElem.textContent = userInfo.name.charAt(0);
+       // console.log( userInfo.name.charAt(0));
+         avatarElem.innerHTML = userInfo.name.charAt(0);
        }
 
       // 可在此处对接API加载真实数据
       // fetch('/api/teacher/home').then(res => res.json()).then(data => {
       //   // 渲染真实的预约、统计数据
-      // });   
+      // }); 
+      console.log('教师端页面加载完成');  
     };
 
   </script>
