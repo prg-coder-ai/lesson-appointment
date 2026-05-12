@@ -151,8 +151,8 @@ public class CourseScheduleService {
                 dto.setScheduleId(cs.getScheduleId());
                 dto.setCourseId(cs.getCourseId());
                // CourseSchedule 里没有 teacherId / ClassroomId 字段, 若需要请补充
-               dto.setTeacherId(null);
-               dto.setClassroomId(null);
+              // dto.setTeacherId(null);
+              // dto.setClassroomId(null);
 
                // startTime-->statDate,startTime, endTime 转换为 LocalDateTime
                if (cs.getStartTime() != null && !cs.getStartTime().isEmpty()) {
@@ -191,6 +191,7 @@ public class CourseScheduleService {
                dto.setTimeZone(cs.getTimeZone()); 
                 dto.setStatus(cs.getStatus()); 
                dto.setAvailableSites(cs.getAvailableSites());
+               dto.setName(cs.getName());
                return dto;
  }
  //用于保存到数据库
@@ -235,6 +236,7 @@ private CourseSchedule  DtoToObject(CourseScheduleCreateDTO dto){
  
     cs.setTimeZone(dto.getTimeZone());
     cs.setStatus(dto.getStatus());
+    cs.setName(dto.getName());
     return cs;
 }
 }

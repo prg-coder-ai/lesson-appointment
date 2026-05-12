@@ -15,10 +15,10 @@
    let userId = userInfo.userId;
    let userRole = userInfo.role;
 
-   console.log("userRole:",userRole);
+    console.log("userRole:",userRole);
     // 获取用户时区（关键）
-const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-console.log("tz",userTimeZone);
+    const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    console.log("tz",userTimeZone);
 
 
   let courseList = [];       // 课程列表
@@ -53,22 +53,29 @@ function getRequest(url, callback) {
 //按照传入的条件，检索用户列表，eg：const conditionJson = { role: 'teacher' };
 //TBD条件：公司、分部、管理员
 async function fetchUserList(conditionJson) {
-    try {
-      const URL = `${API_BASE_URL}/user/list`;
-      const response = await fetch(URL, {
+  const URL = `${API_BASE_URL}/user/${conditionJson.role}/list`; 
+  console.log("URL"+ URL); 
+    try { 
+      // 语法分析：使用ES6的await等待fetch请求，URL通过模板字符串拼接。配置对象包含：
+      // method: 请求方法为'GET'
+      // headers: 指定内容类型为'application/json'
+      // credentials: 'include'用于携带cookie以实现跨域认证
+      const response = await fetch(`${URL}`, {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json' ,
-          'credentials': 'include'
-        },
-        body: JSON.stringify(conditionJson)
-      }); 
-      if (!response.ok) throw new Error("获取列表失败");
+          'Content-Type': 'application/json',
+          credentials: 'include'
+        } 
+      });
+  
       const result = await response.json();
+      console.log("fetchUserList"+ response);
+      if (!response.ok) throw new Error("获取列表失败");
+      console.log("fetchUserList"+ result);
       // 假设后端返回数据结构 { code: 200, data: [{userId, name, email, phone, status, ...}], ... }
       return result.data || [];
     } catch (e) {
-      alert(e.message || "网络错误，无法获取数据");
+      alert(e.message + "网络错误，无法获取数据");
       return [];
     }
   }

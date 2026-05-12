@@ -101,7 +101,7 @@ public class CourseScheduleController {
               dto.setScheduleId(null);
              // dto.setCourseId(null);
              // dto.setCourseName(null);
-               dto.setTeacherId(null);
+             //  dto.setTeacherId(null);
              // dto.setTeacherName(null);
               dto.setStartDate(null);
               dto.setAvailableSites(null);

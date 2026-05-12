@@ -2,7 +2,7 @@
 // 全局常量（后端可通过Thymeleaf注入，如 th:inline="javascript"） 
 
 // 全局变量（替代Vue响应式，直接操作DOM/变量）
-let CourseList = [];       // 课程列表
+//let CourseList = [];       // 课程列表
 var localParamter ={ 
   currentPage:1,         // 当前页码（初始值由Thymeleaf渲染）
   pageSize : 10,           // 页大小

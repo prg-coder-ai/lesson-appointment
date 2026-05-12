@@ -1,10 +1,10 @@
  //排期管理--页面
  console.log("schedule page");
-let courseList = [];       // 课程列表
-let scheduleObject=null;       // 排期
-let scheduleList =[];
-let currentCourseId=null;
-let currentCourseIndex =-1,currentScheduleIndex=-1;
+//let courseList = [];       // 课程列表
+//let scheduleObject=null;       // 排期
+//let scheduleList =[];
+//let currentCourseId=null;
+ let currentCourseIndex =-1,currentScheduleIndex=-1;
 var localParamter ={ 
   currentPage:1,         // 当前页码（初始值由Thymeleaf渲染）
   pageSize : 10,           // 页大小
@@ -16,8 +16,8 @@ var localParamter ={
 };
 // ===================== 核心函数 =====================
  // 获取用户时区（关键）
-const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-console.log("tz",userTimeZone);
+//const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+//console.log("tz",userTimeZone);
 /**
  * 渲染课程列表（核心：原生JS操作DOM）
  */
@@ -74,7 +74,10 @@ async function renderScheduleCards() {
             <label>cId</label>
             <input type="label" id="courseId">
         </div>
-           
+           <div class="form-line">
+            <label>排期名称</label>
+            <input type="label" id="scheduleName" >
+        </div>
         <div class="form-line">
             <label>时区</label>
             <input type="label" id="timeZone" value=${userTimeZone}>
@@ -282,6 +285,7 @@ function renderSchedule() {
         document.getElementById('scheduleId').value = '';
     }
 
+     document.getElementById('scheduleName').value = scheduleObject.name;
      // 刷新开始日期
      if (scheduleObject.startDate) {
          document.getElementById('startDate').value = scheduleObject.startDate;
@@ -420,9 +424,10 @@ async function fetchScheduleList( cid) {
   // 清理scheduleObject的各个字段
   scheduleObject = {
     scheduleId: "",
+    name:"",
     courseId: currentCourseId,
     courseName: "",
-    teacherId: "",
+    //teacherId: "",
     teacherName: "",
     startDate: (function() {
         const now = new Date();
@@ -482,7 +487,7 @@ return ;
  
       try {
            await fetchScheduleList(cid);
-     
+            console.log(scheduleList );
           if (scheduleList && scheduleList.length > 0) {
               // 列表长度大于0 ,  //TBD：根据列表长度，添加1个下拉框选择。暂时选择第一个
            // scheduleObject = scheduleList[0];
@@ -497,7 +502,7 @@ return ;
                     const opt = document.createElement('option');
                     opt.value = schedule.scheduleId;
                     // 展示排期信息，如果有startDate等可拼接
-                    let displayText = `排期ID: ${schedule.scheduleId}`;
+                    let displayText = `排期: ${schedule.name}`;
                     if (schedule.startDate && schedule.startTime) {
                         displayText += ` / ${schedule.startDate} ${schedule.startTime}`;
                     } else if (schedule.startDate) {
@@ -550,6 +555,7 @@ return ;
   
    function  getFormData(){
     const form = {
+        name: document.getElementById('scheduleName').value,
         courseId: document.getElementById('courseId').value,
         scheduleId: document.getElementById('scheduleId').value,
         startDate: document.getElementById('startDate').value,
@@ -718,8 +724,8 @@ function renderResult() {
     let dto = {
       scheduleId: formData.scheduleId || "",
       courseId: formData.courseId || "",
-      teacherId: formData.teacherId || "",
-      ClassroomId: formData.ClassroomId || "",
+     // teacherId: formData.teacherId || "",
+     // ClassroomId: formData.ClassroomId || "",
       // 后端CourseScheduleCreateDTO是LocalDateTime/Date类型，这里传 yyyy-MM-dd 或 hh:mm:ss 字符串即可
       startDate:  formData.startDate  ? formData.startDate  : "",
       startTime: formData.startTime   || "",
@@ -731,7 +737,8 @@ function renderResult() {
       repeatDays: formData.repeatDays || [],
       timeZone: formData.timeZone || userTimeZone || "",
       availableSites: formData.availableSites || 1,
-      status: formData.status || ""
+      status: formData.status || "",
+      name:formData.name ||""
     };
       // repeatType 映射优化
       const repeatTypeMap = {

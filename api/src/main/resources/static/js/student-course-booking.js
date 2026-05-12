@@ -482,17 +482,7 @@ return  scheduleObject;
                 }
                 }); 
             }
-           
-            //更新排期的显示
-            /*if(lastCourseIndex != -1)
-              if(scheduleList.length>currentScheduleIndex)
-                { currentScheduleIndex = lastCourseIndex;
-                }else {
-                    currentScheduleIndex = 0;  
-                }
-            scheduleSelect.index = currentScheduleIndex;
-            lastCourseIndex =currentScheduleIndex ;
-             */
+            
           } 
         if(cnt > 0) return;
       } catch (e) {

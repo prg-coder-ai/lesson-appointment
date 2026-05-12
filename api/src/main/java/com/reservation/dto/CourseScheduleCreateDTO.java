@@ -15,8 +15,8 @@ import java.util.List;
 public class CourseScheduleCreateDTO {
     private String scheduleId;
     private String courseId;
-    private String teacherId;
-    private String ClassroomId;
+    //private String teacherId;
+    //private String ClassroomId;
 
     private LocalDate startDate;
     private LocalTime startTime;
@@ -29,5 +29,6 @@ public class CourseScheduleCreateDTO {
     private String timeZone;      // 前端传的排期时区
     private Integer availableSites;//
     private String status;
+    private String name;
 
 }
