@@ -280,34 +280,13 @@
   <!-- JavaScript交互逻辑 -->
  
   <script>
-    const API_SERVER_HOST = 'http://localhost';
-    const API_SERVER_PORT = '8081';
-    const API_BASE_PATH = '';
+  //  const API_SERVER_HOST = 'http://localhost';
+   // const API_SERVER_PORT = '8081';
+  //  const API_BASE_PATH = '';
     //'/api/v1';
 // API完整前缀
-    const API_BASE_URL = `${API_SERVER_HOST}:${API_SERVER_PORT}${API_BASE_PATH}`;
-async function fetchUserList(conditionJson) {
-    try {
-      const URL = `${API_BASE_URL}/user/${conditionJson.role}/list`; 
-      console.log("URL"+ URL); 
-      const response = await fetch(`${URL}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
-      });
-      console.log("fetchUserList"+ response);
-      if (!response.ok) throw new Error("获取列表失败");
-      const result = await response.json();
-      console.log("fetchUserList"+ result);
-      // 假设后端返回数据结构 { code: 200, data: [{userId, name, email, phone, status, ...}], ... }
-      return result.data || [];
-    } catch (e) {
-      alert(e.message || "网络错误，无法获取数据");
-      return [];
-    }
-  }
+  //  const API_BASE_URL = `${API_SERVER_HOST}:${API_SERVER_PORT}${API_BASE_PATH}`;
+
     
     // 侧边栏菜单切换逻辑
     const menuItems = document.querySelectorAll('.menu-item');
@@ -924,31 +903,31 @@ async function fetchUserList(conditionJson) {
                     <div class="card-title"><i class="fa fa-chalkboard-teacher"></i> 教师列表</div>
                     <button class="btn btn-primary" onclick="alert('TODO: 打开添加教师弹窗')"><i class="fa fa-plus"></i> 添加教师</button>
                   </div>
-                  <div class="teacher-list-cards" style="margin:16px 0;display:flex;flex-direction:column;gap:16px;">
+                  <div class="teacher-list-cards" style="margin:6px 0;display:flex;flex-direction:column;gap:16px;">
               `;
 
               if (!teachers.length) {
                 html += `<div style="padding:40px 0;text-align:center;color:#999;">暂无教师数据</div>`;
               } else { 
                 html += `
-                  <div style="display:flex;gap:36px;font-weight:bold;border-bottom:1px solid #e9ecef;padding-bottom:8px;margin-bottom:4px;">
-                    <div style="width:120px;"><strong>ID</strong></div>
+                  <div class="teacher-card"  style="display:flex;gap:36px;font-weight:bold;border-bottom:1px solid #e9ecef;padding-left:8px;padding-bottom:8px;margin-bottom:4px;">
+                    <div style="width:120px;display:none;"><strong>ID</strong></div>
                     <div style="width:90px;"><strong>姓名</strong></div>
                     <div style="width:180px;"><strong>电子邮箱</strong></div>
                     <div style="width:130px;"><strong>手机号</strong></div>
                     <div style="width:120px;"><strong>状态</strong></div>
-                    <div style="width:240px;"><strong>操作</strong></div>
+                    <div style="width:120px;display:none;"><strong>操作</strong></div>
                   </div>
                 `;
                 teachers.forEach(tea => {
                   html += `
                     <div class="teacher-card" style="background:#fff;border:1px solid #e9ecef;padding:16px;border-radius:8px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px #0000000a;">
                       <div style="display:flex;gap:36px;">
-                        <div>${tea.userId || ""}</div>
-                        <div>${tea.name || ""}</div>
-                        <div>${tea.email || ""}</div>
-                        <div>${tea.phone || ""}</div>
-                        <div>                          
+                        <div style="display:none;">${tea.userId || ""}</div>
+                        <div style="width:90px;" title="${tea.userId || ''}" >${tea.name || ""}</div>
+                        <div style="width:180px;">${tea.email || ""}</div>
+                        <div style="width:130px;">${tea.phone || ""}</div>
+                        <div style="width:120px;">                          
                           ${ tea.status === "pending" ? '<span style="color:#faad14;">待审核</span>' :
                             tea.status === "active" ? '<span style="color:#52c41a;">正常</span>' :
                             tea.status === "inactive" ? '<span style="color:#faad14;">待启用</span>' :
@@ -958,7 +937,7 @@ async function fetchUserList(conditionJson) {
                         </div>
                       </div>
                       <div class="teacher-actions" style="display:flex;gap:10px;flex-shrink:0;"> 
-                        <button class="btn btn-success" onclick="confirmTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-check"></i> 确认/启用</button>
+                        <button class="btn btn-success"  onclick="confirmTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-check"></i> 确认/启用</button>
                         <button class="btn btn-warning" onclick="disableTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-ban"></i> 禁用</button>
                         <button class="btn btn-danger" onclick="deleteTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-trash"></i> 删除</button>
                       </div>
@@ -996,24 +975,25 @@ async function fetchUserList(conditionJson) {
                 html += `<div style="padding:40px 0;text-align:center;color:#999;">暂无数据</div>`;
               } else { 
                 html += `
-                  <div style="display:flex;gap:36px;font-weight:bold;border-bottom:1px solid #e9ecef;padding-bottom:8px;margin-bottom:4px;">
-                    <div style="width:120px;"><strong>ID</strong></div>
+                  <div class="teacher-card"  style="display:flex;gap:36px;font-weight:bold;border-bottom:1px solid #e9ecef;padding-left:8px;padding-bottom:8px;margin-bottom:4px;">
+                    <div style="width:120px;display:none;"><strong>ID</strong></div>
                     <div style="width:90px;"><strong>姓名</strong></div>
                     <div style="width:180px;"><strong>电子邮箱</strong></div>
                     <div style="width:130px;"><strong>手机号</strong></div>
                     <div style="width:120px;"><strong>状态</strong></div>
-                    <div style="width:240px;"><strong>操作</strong></div>
+                    <div style="width:240px;display:none;"><strong>操作</strong></div>
                   </div>
                 `;
                 students.forEach(tea => {
                   html += `
                     <div class="teacher-card" style="background:#fff;border:1px solid #e9ecef;padding:16px;border-radius:8px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px #0000000a;">
                       <div style="display:flex;gap:36px;">
-                        <div>${tea.userId || ""}</div>
-                        <div>${tea.name || ""}</div>
-                        <div>${tea.email || ""}</div>
-                        <div>${tea.phone || ""}</div>
-                        <div>                          
+                        <div style="display:none;">${tea.userId || ""}</div>
+                        <div style="width:90px;" title="${tea.userId || ''}">${tea.name || ""}</div>
+                  
+                        <div style="width:180px;">${tea.email || ""}</div>
+                        <div style="width:130px;">${tea.phone || ""}</div>
+                        <div style="width:120px;">                          
                           ${ tea.status === "pending" ? '<span style="color:#faad14;">待审核</span>' :
                             tea.status === "active" ? '<span style="color:#52c41a;">正常</span>' :
                             tea.status === "inactive" ? '<span style="color:#faad14;">待启用</span>' :

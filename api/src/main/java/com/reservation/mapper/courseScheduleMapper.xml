@@ -4,9 +4,9 @@
      
     <insert id="insertSchedule" parameterType="com.reservation.entity.CourseSchedule" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO course_schedule
-        (schedule_id, course_id, time_zone, start_time, end_time, repeat_type, repeat_interval, repeat_days, status, available_sites)
+        (schedule_id, name,course_id,  time_zone, start_time, end_time, repeat_type, repeat_interval, repeat_days, status, available_sites)
         VALUES
-        (#{scheduleId}, #{courseId}, #{timeZone}, #{startTime}, #{endTime}, #{repeatType}, #{repeatInterval}, #{repeatDays}, #{status}, #{availableSites})
+        (#{scheduleId}, #{name}, #{courseId} ,  #{timeZone}, #{startTime}, #{endTime}, #{repeatType}, #{repeatInterval}, #{repeatDays}, #{status}, #{availableSites})
     </insert>
 
     <select id="selectById" resultType="com.reservation.entity.CourseSchedule">
@@ -99,12 +99,12 @@
             <if test="courseId != null and courseId != ''">
                 course_id = #{courseId},
             </if>
-             <!--  <if test="teacherId != null and teacherId != ''">
+            <!--  <if test="teacherId != null and teacherId != ''">
                 teacher_id = #{teacherId},
             </if>
            <if test="classroomId != null and classroomId != ''">
                 classroom_id = #{classroomId},
-            </if> -->
+            </if>   --> 
             <if test="startTime != null">
                 start_time = #{startTime},
             </if>
@@ -124,7 +124,10 @@
                  time_zone = #{timeZone},
             </if>
             <if test="status != null">
-                 status = #{status}
+                 status = #{status},
+            </if> 
+              <if test="name != null">
+                 name = #{name}
             </if> 
         </set>
         WHERE schedule_id = #{scheduleId}

@@ -18,7 +18,7 @@ public class CourseSchedule implements Serializable {
 
     private String scheduleId;
     @NotBlank(message = "课程ID不能为空")
-    private String courseId;
+    private String courseId; 
     @NotBlank(message = "开始时间不能为空")
     private String startTime;  // 格式YYYY-MM-DD HH:mm:ss-（对应通用校验规则-时间）-暗含起始日期 
     @NotBlank(message = "结束时间不能为空")
@@ -31,5 +31,6 @@ public class CourseSchedule implements Serializable {
     private int availableSites;//可预定数量，缺省为1，可填写，
     private String status;  // 枚举值：pending/active/inactive/frozen
     private String timeZone;//排期计划的时区
+     private String name;//排期名称
 }
 //简化版本：每个排期只包含1次课（repeate_type=0),只允许available_sites个人参与预定，available_sites可以编辑（将来可从模板、课程中带入）。
