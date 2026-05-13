@@ -1,6 +1,3 @@
-   
-
-
 async function getCourseById( courseId) {
     const token = getToken();
     if (!token) return;
@@ -151,7 +148,7 @@ async function getCourseById( courseId) {
 
  } 
    //把tzDataPO格式数据
- async function tzSwitchTo( tz,dateTime,userTz){
+  async function tzSwitchTo( tz,dateTime,userTz){
     const dataIn = {timeZone:tz,
         dateTime:dateTime,
         switchToTimeZone:userTz

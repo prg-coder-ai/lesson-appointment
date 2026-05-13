@@ -53,32 +53,38 @@ public class ScheduleGenerator {
 
             current = nextDate(current, type, interval,repeatDays);
         }
-        // INSERT_YOUR_CODE
-        //System.out.println("userSchedule: " + userSchedule);
+            List<ScheduleVO> convertedSchedule = new ArrayList<ScheduleVO>();
+        if(fromZone == toZone) { 
+                for (LocalDateTime ldt : userSchedule) {
+                    ZonedDateTime zonedFrom = ldt.atZone(fromZone); 
 
-        // 把userSchedule的元素转为UserTimeZone对应的数据  
-        List<ScheduleVO> convertedSchedule = new ArrayList<ScheduleVO>();
-        
+                    String dateStr = zonedFrom.toLocalDate().toString(); // yyyy-MM-dd
+                    String timeStr = String.format("%02d:%02d:00", zonedFrom.getHour(), zonedFrom.getMinute()); 
+                ScheduleVO item = new ScheduleVO(); 
+                item.setDate(dateStr);
+                item.setTime(timeStr); 
+                convertedSchedule.add(item); 
+                }
+        }else  {    // 把userSchedule的元素转为UserTimeZone对应的数据   
+                for (LocalDateTime ldt : userSchedule) {
+                    ZonedDateTime zonedFrom = ldt.atZone(fromZone);
+                    System.out.println("zonedFrom: " + zonedFrom);
 
-        for (LocalDateTime ldt : userSchedule) {
-            ZonedDateTime zonedFrom = ldt.atZone(fromZone);
-             System.out.println("zonedFrom: " + zonedFrom);
+                    ZonedDateTime zonedTo = zonedFrom.withZoneSameInstant(toZone);
+                    System.out.println("zonedTo: " + zonedTo);
 
-            ZonedDateTime zonedTo = zonedFrom.withZoneSameInstant(toZone);
-            System.out.println("zonedTo: " + zonedTo);
-
-            String dateStr = zonedTo.toLocalDate().toString(); // yyyy-MM-dd
-            String timeStr = String.format("%02d:%02d:00", zonedTo.getHour(), zonedTo.getMinute());
-           // INSERT_YOUR_CODE
-          
-           ScheduleVO item = new ScheduleVO(); 
-           item.setDate(dateStr);
-           item.setTime(timeStr);
-          // System.out.println("item: " + item);
-           convertedSchedule.add(item); 
-        }
-
-        return convertedSchedule; 
+                    String dateStr = zonedTo.toLocalDate().toString(); // yyyy-MM-dd
+                    String timeStr = String.format("%02d:%02d:00", zonedTo.getHour(), zonedTo.getMinute());
+                // INSERT_YOUR_CODE
+                
+                ScheduleVO item = new ScheduleVO(); 
+                item.setDate(dateStr);
+                item.setTime(timeStr);
+                // System.out.println("item: " + item);
+                convertedSchedule.add(item); 
+                } 
+             } 
+         return convertedSchedule;
     }
 
     // 判断星期（按用户时区，绝对正确）

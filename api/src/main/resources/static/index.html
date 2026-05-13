@@ -11,11 +11,15 @@
   <style>
     /* 新增注册弹窗样式（可整合到common.css） */
     .login-container {
-     width: 90%;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 90%;
       max-width: 400px;
       background: #fff;
       border-radius: 8px;
-      padding: 24px;
+      padding: 24px; 
       box-shadow: 0 2px 12px rgba(0,0,0,0.1);
     }
     .modal-mask {
@@ -138,8 +142,8 @@
       <div class="subtitle">请登录</div>
     </div>
 
-    <!-- 登录表单 -->
-    <form id="login-form">
+    <!--class="modal-content"  登录表单 -->
+    <form class="modal-content"  id="login-form">
 
       <div class="form-item">
         <label for="username">账号(Email or Phone)</label>
@@ -216,13 +220,13 @@
 
   <!-- JavaScript核心逻辑 -->
   <script>
-   //const API_SERVER_HOST = 'http://localhost';
-   // const API_SERVER_PORT = '8081';
-    //const API_BASE_PATH = '';
+    const API_SERVER_HOST = 'http://localhost';
+     const API_SERVER_PORT = '8081';
+    const API_BASE_PATH = '';
     //'/api/v1';
 
     // API完整前缀
-    //const API_BASE_URL = `${API_SERVER_HOST}:${API_SERVER_PORT}${API_BASE_PATH}`;
+    const API_BASE_URL = `${API_SERVER_HOST}:${API_SERVER_PORT}${API_BASE_PATH}`;
     // DOM元素获取（登录相关）
     const loginForm = document.getElementById('login-form');
     //const userRole = document.getElementById('user-role');
@@ -795,7 +799,7 @@
     })();
   };
   </script>
- 
+  
 </body>
 </html>
  
