@@ -54,7 +54,11 @@ public class ScheduleGenerator {
             current = nextDate(current, type, interval,repeatDays);
         }
             List<ScheduleVO> convertedSchedule = new ArrayList<ScheduleVO>();
-        if(fromZone == toZone) { 
+        // INSERT_YOUR_CODE
+        boolean isSameZone = fromZone.equals(toZone);
+
+        if(isSameZone) { 
+            System.out.println("zonedFrom: " + fromZone);
                 for (LocalDateTime ldt : userSchedule) {
                     ZonedDateTime zonedFrom = ldt.atZone(fromZone); 
 
@@ -66,6 +70,7 @@ public class ScheduleGenerator {
                 convertedSchedule.add(item); 
                 }
         }else  {    // 把userSchedule的元素转为UserTimeZone对应的数据   
+         System.out.println("zonedFrom: " + fromZone +"-->"+toZone );
                 for (LocalDateTime ldt : userSchedule) {
                     ZonedDateTime zonedFrom = ldt.atZone(fromZone);
                     System.out.println("zonedFrom: " + zonedFrom);
