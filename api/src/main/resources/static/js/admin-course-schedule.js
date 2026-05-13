@@ -74,30 +74,75 @@ async function renderScheduleCards() {
             <label>cId</label>
             <input type="label" id="courseId">
         </div>
-           <div class="form-line">
-            <label>排期名称</label>
-            <input type="label" id="scheduleName" >
-        </div>
-        <div class="form-line">
-            <label>时区</label>
-            <input type="label" id="timeZone" value=${userTimeZone}>
-        </div>
-
-        <div class="form-line" style="display: flex;"> 
-                <label>开始日期：</label>
-                <input type="date"  align-items: right; id="startDate" value="${(new Date()).toISOString().split('T')[0]}">
-            </div>
-
-            <div class="form-line">
-                <label >上课时间：</label>
-                <input type="time" id="startTime" value="${(function(){ let d = new Date(); return d.toTimeString().slice(0,5); })()}">
-            </div>
-         
-    
-        <div class="form-line" > 
+           
+         <div style="display: flex; gap: 32px;">
+           <!-- 左侧：当前逻辑 -->
+           <div style="flex: 1;">
+             <div class="form-line">
+                <label>排期名称</label>
+                <input type="label" id="scheduleName" >  
+             </div>
+             <div class="form-line">
+                <label>排期时区</label>
+                <input type="label" id="timeZone" value=${userTimeZone} readonly>
+             </div>
+       
+             <div class="form-line" style="display: flex;"> 
+                  <label>开始日期：</label>
+                  <input type="date" align-items: right; id="startDate" value="${(new Date()).toISOString().split('T')[0]}">
+             </div>
+  
+              <div class="form-line">
+                  <label>上课时间：</label>
+                  <input type="time" id="startTime" value="${(function(){ let d = new Date(); return d.toTimeString().slice(0,5); })()}">
+              </div>
+               <div class="form-line" > 
                 <label>结束日期：</label>
                 <input type="date" id="endDate" value="">
             </div> 
+           </div>
+           <!-- 右侧：并排显示新一列 -->
+           <div style="flex: 1;">
+                <div class="form-line" > 
+                    <label>
+                    <input type="checkbox" id="toggleUserTimeZone" unchecked onchange="document.getElementById('testTimeZoneForm').style.display=this.checked?'':'none';getTestDatetime();getTestEndDatetime();">
+                    用户时间
+                    </label>
+                </div>
+            <div  id="testTimeZoneForm" style="display:none">
+             <div class="form-line" > 
+                <label>用户时区</label>
+                <select id="testTimeZone">
+                    <option value="Europe/London">伦敦 (Europe/London)</option>
+                    <option value="Europe/Paris">巴黎 (Europe/Paris)</option>
+                    <option value="Europe/Berlin">柏林 (Europe/Berlin)</option>
+                    <option value="Europe/Moscow">莫斯科 (Europe/Moscow)</option>
+                    <option value="Asia/Shanghai">上海 (Asia/Shanghai)</option>
+                    <option value="Asia/Tokyo">东京 (Asia/Tokyo)</option>
+                    <option value="Asia/Singapore">新加坡 (Asia/Singapore)</option>
+                    <option value="Asia/Hong_Kong">香港 (Asia/Hong_Kong)</option>
+                    <option value="America/New_York">纽约 (America/New_York)</option>
+                    <option value="America/Chicago">芝加哥 (America/Chicago)</option>
+                    <option value="America/Los_Angeles">洛杉矶 (America/Los_Angeles)</option>
+                    <option value="America/Vancouver">温哥华 (America/Vancouver)</option> 
+                     <option value="America/Edmonton">卡尔加里 (America/Edmonton)</option>
+                </select>           
+             </div>
+             <div class="form-line" style="display: flex;">
+                <label>日期：</label>  
+                <input type="date" id="displayStartDate" readonly> <input type="text" id="displayStartDate_weekday"  readonly>
+             </div>
+             <div class="form-line">
+                <label>时间：</label>  
+                <input type="time" id="displayStartTime" readonly> 
+             </div>
+              <div class="form-line" > 
+                <label>结束日期：</label>
+                <input type="date" id="displayEndDate" readonly> <input type="text" id="displayEndDate_weekday"  readonly>
+            </div> 
+           </div>
+           </div> 
+         </div> 
          
         <div class="form-line">
             <label>重复类型：</label>
@@ -185,8 +230,7 @@ async function renderScheduleCards() {
             monthDaysHtml += `<label><input type="checkbox" value="${i}">${i}</label>`;
             if (i % 10 === 0 && i !== 31) monthDaysHtml += '<br>';
         } 
-        document.getElementById('monthDays').innerHTML = monthDaysHtml;
-
+        document.getElementById('monthDays').innerHTML = monthDaysHtml; 
          
         // 设置默认结束日期为今天+30天
        
@@ -200,10 +244,123 @@ async function renderScheduleCards() {
             endDateInput.value = `${year}-${month}-${day}`;
           } ;
       
-    
-    searchCourse(); 
+    // INSERT_YOUR_CODE
+    // 关联 testTimeZone 下拉菜单与 handleTestTimeZoneChange 处理
+    handleTestTimeZoneChange();
+    //document.addEventListener('DOMContentLoaded', () => {
+    //    handleTestTimeZoneChange();
+    //});
+    searchCourse();  
 
+// 处理下拉菜单"testTimeZone"的变更，读取表单的timeZone、startDate、startTime及新选择的时区，调用后端获取转换后的时间和日期
+function handleTestTimeZoneChange() {
+    const select = document.getElementById('testTimeZone');
+    //console.log(" handleTestTimeZoneChange",select);
+    if (select) {
+        select.addEventListener('change', async (e) => {
+            //const switchToTimeZone = e.target.value;
+            //console.log( e.target.value);
+            getTestDatetime(); 
+            getTestEndDatetime();
+        });
+    }
+}
+ // INSERT_YOUR_CODE
+ // 监听 startDate 和 startTime 的变更，调用 getTestDatetime
+    const bindGetTestDatetimeToInputs = () => {
+        const startDateInput = document.getElementById('startDate'); 
+        // 避免重复绑定
+        if (startDateInput && !startDateInput.__bindGetTestDatetime) {
+            startDateInput.addEventListener('change', getTestDatetime);
+            startDateInput.__bindGetTestDatetime = true;
+        }
 
+        const startTimeInput = document.getElementById('startTime');
+        if (startTimeInput && !startTimeInput.__bindGetTestDatetime) {
+            startTimeInput.addEventListener('change', getTestDatetime);
+            startTimeInput.__bindGetTestDatetime = true;
+        }
+
+        const endtDateInput = document.getElementById('endDate'); 
+        // 避免重复绑定
+        if (endtDateInput && !endtDateInput.__bindGetTestDatetime) {
+            endtDateInput.addEventListener('change', getTestEndDatetime);
+            endtDateInput.__bindGetTestDatetime = true;
+        }
+    };
+
+    // 保证在HTML渲染后执行绑定
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bindGetTestDatetimeToInputs);
+    } else {
+        bindGetTestDatetimeToInputs();
+    }
+
+ async function getTestDatetime() {
+    const displayTzInput = document.getElementById('testTimeZone');
+     // 读取原时区、日期与时间。这些输入框id需与页面实际结构对应
+     const timeZoneInput = document.getElementById('timeZone');
+     const startDateInput = document.getElementById('startDate');
+     const startTimeInput = document.getElementById('startTime');
+
+     const fromZone = timeZoneInput ? timeZoneInput.value : (window.formData && window.formData.timeZone) || "";
+     const startDate = startDateInput ? startDateInput.value : "";
+     const startTime = startTimeInput ? startTimeInput.value : "";
+
+     const toTz= displayTzInput.value;
+     // 组装为 DateTime 字符串（假定格式为: yyyy-MM-dd HH:mm:ss）
+     const dateTimeStr = `${startDate} ${startTime.length === 5 ? startTime + ":00" : startTime}`;
+     try { 
+        
+         let newTzDateTime = await tzSwitchTo(fromZone, dateTimeStr, toTz);
+         //console.log("切换时区为", toTz, newTzDateTime, "原区:", fromZone, "原日期时间:", dateTimeStr);
+        const newDateTime = newTzDateTime?newTzDateTime.dateTime:"";
+         // newDateTime.split(' ') 报错的原因通常是 newDateTime 不是字符串或者为 null/undefined
+         // 比如 tzSwitchTo 返回 null、undefined 或对象/数组时无法使用 split 方法
+         // 建议：先判断 newDateTime 是否为字符串类型且非空
+         if (typeof newDateTime === "string" && newDateTime.trim().length > 0 && newDateTime.includes(' ')) { 
+             const [newDate, newTime] = newDateTime.split(' '); 
+             document.getElementById('displayStartDate').value = newDate;
+             document.getElementById('displayStartTime').value = newTime; 
+             document.getElementById('displayStartDate_weekday').value = newTzDateTime.weekday; 
+         } else {
+             // 错误提示辅助调试
+           //  console.error("tzSwitchTo 返回的 newDateTime 不是有效的字符串，值为：", newDateTime);
+         }
+            
+     } catch (err) {
+         alert("调用时区转换接口失败");
+         console.error(err);
+     } 
+ }
+ async function getTestEndDatetime() {
+    const displayTzInput = document.getElementById('testTimeZone');
+     // 读取原时区、日期与时间。这些输入框id需与页面实际结构对应
+     const timeZoneInput = document.getElementById('timeZone');
+     const startDateInput = document.getElementById('endDate');
+     const startTimeInput = document.getElementById('startTime');
+
+     const fromZone = timeZoneInput ? timeZoneInput.value :   "";
+     const startDate = startDateInput ? startDateInput.value : "";
+     const startTime = startTimeInput ? startTimeInput.value : "";
+
+     const toTz= displayTzInput.value;
+     // 组装为 DateTime 字符串（假定格式为: yyyy-MM-dd HH:mm:ss）
+     const dateTimeStr = `${startDate} ${startTime.length === 5 ? startTime + ":00" : startTime}`;
+     try { 
+         const newDateTime= await tzSwitchTo(fromZone,dateTimeStr,toTz);
+          if(newDateTime) {
+             const newDate = newDateTime.dateTime.split(' ')[0]; 
+             document.getElementById('displayEndDate').value =newDate ;
+             document.getElementById('displayEndDate_weekday').value = newDateTime.weekday ;
+             //document.getElementById('startTime').innerHTML =newTime ; 
+          }
+            // console.log("切换时区为", switchToTimeZone, "原区:", fromZone, "原日期时间:", dateTimeStr);
+     } catch (err) {
+         alert("调用时区转换接口失败");
+         console.error(err);
+     } 
+ }
 async function getCourseList(conditionJson) { 
   const token = getToken();
   if (!token) return; 
@@ -215,12 +372,12 @@ async function getCourseList(conditionJson) {
          params:conditionJson  // 筛选条件通过params传递
       });
       const res = response.data;
-      console.info("get response data:",res);
+     // console.info("get response data:",res);
       if (res && res.code === 200) {
         //console.info("data.courses:",res.courses);  .courses
           courseList = res.data|| [];
           localParamter.total = courseList.length|| 0;
-          console.info("total:",localParamter.total,courseList);
+        //  console.info("total:",localParamter.total,courseList);
           // 补全默认状态
           courseList.forEach(item => {
               if (!item.status) item.status = 'inactive';
@@ -237,12 +394,12 @@ async function getCourseList(conditionJson) {
 
  // 1. 检索课程（原生 fetch）
  async function searchCourse() { 
-  const params = {
-    courseName: document.getElementById('courseName').value,
-    languageType: document.getElementById('language').value,
-    difficultyLevel: document.getElementById('difficulty').value,
-    teacher: document.getElementById('teacher').value
-};
+    const params = {
+        courseName: document.getElementById('courseName').value,
+        languageType: document.getElementById('language').value,
+        difficultyLevel: document.getElementById('difficulty').value,
+        teacher: document.getElementById('teacher').value
+    };
  console.log("search",params);//TBD---
   
   try { 
@@ -414,6 +571,8 @@ async function fetchScheduleList( cid) {
    window.resetSchedule = resetSchedule ;   
    window.refreshData = refreshData ;
 
+   window.getTestDatetime = getTestDatetime ;   
+   window.getTestEndDatetime = getTestEndDatetime ;
    //将当前排期数值为初始值，方便修改
    function resetSchedule(){
     resetScheduleObject();
@@ -550,6 +709,12 @@ return ;
    }
     if (typeof renderSchedule === 'function') {
         renderSchedule();
+    }
+    // 判断 toggleUserTimeZone 的选中状态，如果选中则更新用户时区
+    const toggleUserTimeZone = document.getElementById('toggleUserTimeZone');
+    if (toggleUserTimeZone && toggleUserTimeZone.checked) {
+        getTestDatetime();
+        getTestEndDatetime();
     }
    }
   

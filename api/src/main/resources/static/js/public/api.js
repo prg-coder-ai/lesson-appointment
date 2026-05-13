@@ -1,5 +1,4 @@
-// API请求封装（简化JS请求，避免重复代码）
-
+// API请求封装（简化JS请求，避免重复代码） 
     // 全局定义API服务器地址及端口号、根路径（可根据实际情况修改）
     const API_SERVER_HOST = 'http://localhost';
     const API_SERVER_PORT = '8081';
