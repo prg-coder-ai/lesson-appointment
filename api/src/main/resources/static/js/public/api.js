@@ -101,4 +101,100 @@ const userStr = localStorage.getItem('currentUser');
      return  JSON.parse(userStr);
 }
  
+ function autoLoginCheck() {
+  // 读取本地 localStorage 保存的用户信息
+  const userStr = localStorage.getItem('currentUser');
+  if (!userStr) {
+    window.location.href = './admin.html';
+    return;
+  }
+  let userInfo;
+  try {
+    userInfo = JSON.parse(userStr);
+  } catch (e) {
+    localStorage.removeItem('currentUser');
+    window.location.href = './admin.html';
+    return;
+  }
+  if (!userInfo || !userInfo.token) {
+    // 信息不全，清理，停留
+    localStorage.removeItem('currentUser');
+    window.location.href = './admin.html';
+    return;
+  }
+  
+  // 这里假设token是JWT，尝试判断是否过期
+  function isJwtExpired(token) {
+    if (!token) return true;
+    const parts = token.split('.');
+    if (parts.length !== 3) return false; // 不一定是JWT，视实际情况而定
+    try {
+      const payload = JSON.parse(atob(parts[1]));
+      if (payload.exp) {
+        const now = Math.floor(Date.now() / 1000);
+        return now > payload.exp;
+      }
+    } catch (e) {
+      // 解码失败，忽略
+    }
+    return false; // 没有exp就当未过期
+  }
 
+  // 检查token是否过期
+  if (isJwtExpired(userInfo.token)) {
+    localStorage.removeItem('currentUser');
+    // 清除Cookie
+    document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
+    alert('登录状态已过期，请重新登录');
+    window.location.href = './admin.html';
+    return;
+  } 
+  const loginInfo = {
+         account:userInfo.account,
+         password: userInfo.password
+      };
+
+  // 调用后端接口验证token有效性（推荐，防止本地token无效）
+  fetch(`${API_BASE_URL}/user/login`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Authorization': userInfo.token ? `Bearer ${userInfo.token}` : ''
+    },
+    body: JSON.stringify(loginInfo)
+  })
+  .then(response => {
+    if (response.status === 403) {
+      // token已过期或服务端不认，清理并跳转
+      localStorage.removeItem('currentUser');
+      document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
+      alert('403登录状态已过期，请重新登录');
+      window.location.href = './index.html';
+     throw new Error('未登录或登录已失效');
+    }
+    return response.json();
+  })
+  .then(data => {
+    // 如果验证通过，根据用户角色跳转到对应主页
+    if (data && data.code === 200 && data.data) {
+      const role = data.data.role || userInfo.role;
+      // 按角色跳转
+      if (role === 'admin') {
+        window.location.href = './admin.html';
+      } else if (role === 'teacher') {
+        window.location.href = './teacher.html';
+      } else if (role === 'student') {
+        window.location.href = './student.html';
+      }
+    } else if (data && data.code === 401) {
+      // 失效处理
+      localStorage.removeItem('currentUser');
+      document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
+      alert('登录状态已过期，请重新登录');
+    }
+  })
+  .catch(err => {
+    // 自动登录错误（如网络），这里一般保守处理不跳转
+    console.error('自动登录校验异常:', err);
+  });
+} ;

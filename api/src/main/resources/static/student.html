@@ -147,7 +147,7 @@
     </div>
   </div>
 
-  <script src="js/public/api.js"></script>
+ 
   <script>
     // 从token中获取用户的id和role
    /* --define in api.js  let token =getToken(); 
@@ -178,6 +178,10 @@ let    lastCourseIndex =-1,   lastScheduleIndex =-1;
     
     // 初始化页面（加载默认内容）
     window.onload = function() { 
+      autoLoginCheck();
+       // 自动登录：检测本地登录信息并校验token有效性
+   
+
       console.log('学生端页面加载完成');
       const nameid=document.getElementById("user-name");
        if(nameid) nameid.innerHTML= userInfo.name;
@@ -473,6 +477,7 @@ if (window.loadAdminPageContent) {
 
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>  
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>  
+  <script src="js/public/api.js"></script>
   <script src="js/public/dataFunctions.js"></script>
   <script src="js/public/courseAndBooking.js"></script>
   <script src="js/student-course-booking.js"></script>

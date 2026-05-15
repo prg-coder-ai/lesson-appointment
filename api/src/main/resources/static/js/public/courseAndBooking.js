@@ -26,26 +26,30 @@ async function getCourseList(conditionJson) {
             params: conditionJson // 正确传递查询参数
            });
 
-        const res = response.data;
+        const res = await response.data;
         console.info("get response data:", res);
-        if (res && res.code === 200) {
+        if (res && res.code === 403) { 
+          window.location.href = "./index.html";
+      } else    if (res && res.code === 200) {
             let courseList = res.data || [];
             console.log("courseList:",courseList);
             //localParamter.total = courseList.length || 0;
             //console.info("total:", localParamter.total, courseList);
             courseList.forEach(item => {
                 if (!item.status) item.status = 'inactive';
-            });
-            
-     
+            }); 
             return courseList || [];
         } else {
             alert(res?.message || '获取课程列表失败');
             return [];
         }
     } catch (e) {
-        alert("网络错误，获取模板列表失败");
-        console.error(e);
+        alert("网络错误，获取课程列表失败");
+        console.error(e); 
+        // 判断是否是403错误
+        if (e && e.response && e.response.status === 403) {
+            window.location.href = "./index.html";
+        }
         return [];
     }
   }
@@ -75,7 +79,7 @@ async function fetchScheduleList( cid,status) {
         });
         // response对象结构：{ status, statusText, headers, config, data }
         // 通常我们只关心response.data，它对应后端的Result结构
-        const res = response.data;
+        const res = await response.data;
         
         if (res && res.code === 200) {
             console.info("fetchScheduleList:",res.data);
@@ -160,7 +164,7 @@ async function fetchSchedule( scheduleid) {
          // params: JSON.stringify([]) // 对应后端@RequestParam， 
         });
        // console.log("fetchSchedule:" ,response.data);
-        const res = response.data;
+        const res = await response.data;
         if (res && res.code === 200) {
             //console.info("fetchSchedule:",res.data);
             return  res.data|| null; //
@@ -254,7 +258,9 @@ try {
   
   const result = await res.json(); 
   console.log('getBookingInfo: result', result);
-  if (result && result.code === 200) {
+  if (result && result.code === 403) { 
+    window.location.href = "./index.html";
+} else  if (result && result.code === 200) {
       return result.data;
   } else {
       alert(result?.message || '排期时间表为空，请联系老师');
