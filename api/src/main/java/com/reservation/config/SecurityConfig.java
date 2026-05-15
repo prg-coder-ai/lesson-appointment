@@ -33,7 +33,15 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     protected void configure(HttpSecurity http) throws Exception {
         http
             .authorizeRequests() 
-            .antMatchers("/", "/index","/user/login","/user/register", "/index.html","/interfaces","/user/list","/user/teacher/register","/user/student/register").permitAll() // 允许匿名访问首页
+            .antMatchers("/", 
+            "/index",
+            "/user/login",
+            "/user/register", 
+            "/index.html", "/admin.html", "/student.html", "/teacher.html",
+             "/interfaces",
+            "/user/list","/user/teacher/register","/user/student/register",
+             "/js/**", "/css/**", "/images/**", "/favicon.ico"  // 静态资源
+            ).permitAll() // 允许匿名访问首页
                 // ... 其它授权规则
             .anyRequest().authenticated()
             .and()

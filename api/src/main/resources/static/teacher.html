@@ -320,7 +320,7 @@
 
     // 页面初始化：加载默认的"我的工作台"内容
     window.onload = function() {
-      
+      autoLoginCheck();
       loadTeacherPageContent('预约管理');
 
       const nameid=document.getElementById("user-name");
@@ -334,11 +334,7 @@
        // console.log( userInfo.name.charAt(0));
          avatarElem.innerHTML = userInfo.name.charAt(0);
        }
-
-      // 可在此处对接API加载真实数据
-      // fetch('/api/teacher/home').then(res => res.json()).then(data => {
-      //   // 渲染真实的预约、统计数据
-      // }); 
+ 
       console.log('教师端页面加载完成');  
     };
 
