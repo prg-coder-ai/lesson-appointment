@@ -47,6 +47,7 @@ async function renderStudentBookingCards() {
     </div>
      <!-- 排期选择下拉 -->
        <div class="form-line">
+       <input type="text" id="teacherNameForCourse" style="display:flex;">
         <label>选择排期：</label>
         <select id="scheduleSelect" onchange="displaySchedule()">
             <option value="">请选择排期</option>
@@ -212,6 +213,7 @@ async function renderStudentBookingCards() {
 
  // 1. 检索课程（原生 fetch）,只检索status:"active" 已发布课程
  // 从course中的teacherid-》姓名
+ // TBD 
  async function searchCourse() { 
         const params = {
             courseName: document.getElementById('courseName').value||"",
@@ -269,8 +271,8 @@ function renderSchedule(scheduleObject) {
       // 刷新开始日期
       if (scheduleObject.scheduleId) {
        document.getElementById('scheduleId').value = scheduleObject.scheduleId;
-       console.log("scheduleId",scheduleObject.scheduleId);
-       console.log("scheduleId", document.getElementById('scheduleId').value);
+     //  console.log("scheduleId",scheduleObject.scheduleId);
+    //   console.log("scheduleId", document.getElementById('scheduleId').value);
    } else {
        document.getElementById('scheduleId').value = '';
    }
@@ -451,6 +453,8 @@ return  scheduleObject;
           if (selectedCourse!= null){//更新当前教师ID
             document.getElementById('teacherIdForCourse').value= selectedCourse.teacherId; 
             //TBD:显示教师名称
+            const teacherName= await getUserNameById(selectedCourse.teacherId);
+            document.getElementById('teacherNameForCourse').value= teacherName;
           }
       }
       try {
@@ -471,7 +475,7 @@ return  scheduleObject;
                     const opt = document.createElement('option');
                     opt.value = schedule.scheduleId;
                     // 展示排期信息，如果有startDate等可拼接
-                    let displayText = `排期ID: ${schedule.scheduleId}`;
+                    let displayText = `排期: ${schedule.name}`;
                     if (schedule.startDate && schedule.startTime) {
                         displayText += ` / ${schedule.startDate} ${schedule.startTime}`;
                     } else if (schedule.startDate) {

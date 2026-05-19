@@ -64,6 +64,22 @@ public class UserController {
         return Result.success(users, "查询成功");
     }
      
+     @GetMapping("/name/{userId}")
+    @ResponseBody
+    public Result<String> getUserById( @PathVariable  String userId ) {
+        Map<String, Object> condition = new java.util.HashMap<>(); 
+        if (userId != null && !userId.isEmpty()) condition.put("userId", userId);  
+         List<User> users = userService.listByCondition(condition); 
+         
+         System.out.println("out:" + users);
+         if(users != null && !users.isEmpty()) { 
+            return Result.success(users.get(0).getName(), "查询成功");
+       
+    } else  {
+       return Result.success("N/A", "查询成功");
+    } 
+    }
+     
     /**
      * 学生注册接口，对应设计2.2.1 接口：/api/v1/user/student/register
      */

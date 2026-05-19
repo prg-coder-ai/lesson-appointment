@@ -83,16 +83,17 @@ async function renderStudentBookingBrowserCards() {
 
                  testGetList(scheduleObject.courseId);
                  //TBD teacherId + user库--》teacherName
+                 const teacherName= await getUserNameById(classObject.teacherId);
                  //console.log("classObject:", classObject);
                  if (classObject != null) {
                      let cardItems = {
-                         origTz: scheduleObject.timeZone,
-                         scheduleId:scheduleObject.scheduleId,
-                         bookingId: booking.id,
-                         className: classObject.courseName,
-                         teacherName: classObject.teacherId,
-                         scheduleInfo: scheduleInfoStr,
-                         status: booking.status
+                         origTz:        scheduleObject.timeZone,
+                         scheduleId:    scheduleObject.scheduleId,
+                         bookingId:     booking.id,
+                         className:     classObject.courseName,
+                         teacherName:   teacherName,
+                         scheduleInfo:  scheduleInfoStr,
+                         status:        booking.status
                      }
                      let cardContent = formACourseCard(cardItems);
                   
@@ -244,8 +245,8 @@ function getScheduleInfo(scheduleObject) {
     if (!scheduleObject) return;
      let info="";
 
-      // TBD:替代为排期名称
-      if (scheduleObject.scheduleId)          info += scheduleObject.scheduleId;
+      // 排期名称
+      if (scheduleObject.name)          info += scheduleObject.name;
 
     // 起始日期、结束日期和上课时间组成一句简洁文字
     if (scheduleObject.startTime || scheduleObject.endTime ) {
