@@ -3,7 +3,7 @@
  console.log("student book a appointment  page");
    // 从token中获取用户的id和role api.js 
 // ===================== 核心函数 =====================
-
+userTimeZoneDisplay="none";
 /**
  * 渲染课程列表（核心：原生JS操作DOM）
  * 对于学生，仅显示已发布的课程（status=active）
@@ -46,8 +46,7 @@ async function renderStudentBookingCards() {
         </select>
     </div>
      <!-- 排期选择下拉 -->
-       <div class="form-line">
-       <input type="text" id="teacherNameForCourse" style="display:flex;">
+       <div class="form-line">       
         <label>选择排期：</label>
         <select id="scheduleSelect" onchange="displaySchedule()">
             <option value="">请选择排期</option>
@@ -64,34 +63,53 @@ async function renderStudentBookingCards() {
         <div class="form-line" style="display:none;">
             <label>cId</label>
             <input type="label" id="courseId">
-        </div>
+        </div>  
+         <div class="form-line nofocus"  style="display:flex;">
+            <label>教师</label>
+            <input type="label" id="teacherNameForCourse" value=""  style="display:flex;">
+        </div>  
+        <div style="display: flex; gap: 16px;">
            
-         <div class="form-line" style="display:none;">
-            <label>排期时区</label>
-            <input type="label" id="originalTimeZone" value=""  style="display:none;">
-        </div>
-        <div class="form-line  nofocus">
-            <label>时区</label>
-            <input type="label" id="timeZone" value="">
-       
-        </div>
+           <div style="flex: 1;">    
+                    <div class="form-line nofocus" style="display:flex;">
+                    <label>排期时区</label>
+                    <input type="label" id="originalTimeZone" value=""  readonly>
+                    </div> 
+                    <div class="form-line  nofocus" style="display: flex;"> 
+                        <label>开始日期：</label>
+                        <input type="date"  align-items: right; id="startDate" readonly value="${(new Date()).toISOString().split('T')[0]}">
+                    </div>
 
-        <div class="form-line  nofocus" style="display: flex;"> 
-                <label>开始日期：</label>
-                <input type="date"  align-items: right; id="startDate" value="${(new Date()).toISOString().split('T')[0]}">
-            </div>
+                    <div class="form-line  nofocus">
+                        <label >上课时间：</label>
+                        <input type="time" id="startTime" readonly  value="${(function(){ let d = new Date(); return d.toTimeString().slice(0,5); })()}">
+                    </div>               
+            
+                    <div class="form-line  nofocus" > 
+                            <label>结束日期：</label>
+                            <input type="date" id="endDate" readonly value="">
+                    </div> 
+                 </div>
+               <!-- 右侧：并排显示新一列 -->
+            <div class="form-line"  id="rightBlock" style="flex: 1;display:${userTimeZoneDisplay};">
+                    <div class="form-line  nofocus">
+                    <label style="display:flex;">我的时区</label><input type="label" id="timeZone" value=${userTimeZone};> 
+                    </div>
+                    
+                    <div class="form-line nofocus">
+                        <label>开始日期：</label>  <input type="date"  id="displayStartDate" readonly> <input type="text"  id="displayStartDate_weekday"  readonly>
+                    </div>
 
-            <div class="form-line  nofocus">
-                <label >上课时间：</label>
-                <input type="time" id="startTime" value="${(function(){ let d = new Date(); return d.toTimeString().slice(0,5); })()}">
+                    <div class="form-line nofocus">
+                    <label id="displayStartTimeLabel">上课时间：</label><input type="time" id="displayStartTime" readonly> 
+                    </div>
+
+                    <div class="form-line nofocus" > 
+                    <label >结束日期：</label><input  type="date" id="displayEndDate" readonly>  <input  type="text" id="displayEndDate_weekday"  readonly>
+                    </div> 
+                    
+                </div>
             </div>
-         
-    
-        <div class="form-line  nofocus" > 
-                <label>结束日期：</label>
-                <input type="date" id="endDate" value="">
-            </div> 
-         
         <div class="form-line  nofocus">
             <label>重复类型：</label>
             <select id="repeatType" onchange="freshByRepeatType()">
@@ -122,13 +140,13 @@ async function renderStudentBookingCards() {
         <div class="form-line  nofocus" id="weekDaysBox" style="display:none;">
             <label>重复星期：</label>
             <div id="weekDays">
-                <label><input type="checkbox" value="1"  >周一</label>
-                <label><input type="checkbox" value="2" >周二</label>
-                <label><input type="checkbox" value="3" >周三</label>
-                <label><input type="checkbox" value="4"  >周四</label>
-                <label><input type="checkbox" value="5"  >周五</label>
-                <label><input type="checkbox" value="6"  >周六</label>
-                <label><input type="checkbox" value="7"  >周日</label>
+                <label><input type="checkbox" value="1">周一</label>
+                <label><input type="checkbox" value="2">周二</label>
+                <label><input type="checkbox" value="3">周三</label>
+                <label><input type="checkbox" value="4">周四</label>
+                <label><input type="checkbox" value="5">周五</label>
+                <label><input type="checkbox" value="6">周六</label>
+                <label><input type="checkbox" value="7">周日</label>
             </div>
         </div>
 
@@ -277,13 +295,13 @@ function renderSchedule(scheduleObject) {
        document.getElementById('scheduleId').value = '';
    }
   
- // 刷新开始日期
- if (scheduleObject.startDate) {//原排期时区--用于测试比较
-    document.getElementById('originalTimeZone').value = scheduleObject.timeZone;
-} else {
-    document.getElementById('originalTimeZone').value = '';
-}
-document.getElementById('timeZone').value = userTimeZone;
+    // 刷新开始日期
+    if (scheduleObject.startDate) {//原排期时区--用于测试比较
+        document.getElementById('originalTimeZone').value = scheduleObject.timeZone;
+    } else {
+        document.getElementById('originalTimeZone').value = '';
+    }
+    document.getElementById('timeZone').value = userTimeZone;
 
     // 刷新开始日期
     if (scheduleObject.startDate) {
@@ -360,6 +378,68 @@ document.getElementById('timeZone').value = userTimeZone;
       document.getElementById('monthDaysBox').style.display = ( type === 'month') ? 'flex' : 'none';
   }
    
+  
+ async function getMyDatetime() {
+     const displayTzInput = document.getElementById('timeZone');
+     // 读取原时区、日期与时间。这些输入框id需与页面实际结构对应
+     const timeZoneInput = document.getElementById('originalTimeZone');
+     const startDateInput = document.getElementById('startDate');
+     const startTimeInput = document.getElementById('startTime');
+
+     const fromZone = timeZoneInput ? timeZoneInput.value : (window.formData && window.formData.timeZone) || "";
+     const startDate = startDateInput ? startDateInput.value : "";
+     const startTime = startTimeInput ? startTimeInput.value : "";
+
+     const toTz= displayTzInput.value;
+     // 组装为 DateTime 字符串（假定格式为: yyyy-MM-dd HH:mm:ss）
+     const dateTimeStr = `${startDate} ${startTime.length === 5 ? startTime + ":00" : startTime}`;
+     try { 
+        
+         let newTzDateTime = await tzSwitchTo(fromZone, dateTimeStr, toTz); 
+         const newDateTime = newTzDateTime?newTzDateTime.dateTime:""; 
+         if (typeof newDateTime === "string" && newDateTime.trim().length > 0 && newDateTime.includes(' ')) { 
+             const [newDate, newTime] = newDateTime.split(' '); 
+             document.getElementById('displayStartDate').value = newDate;
+             document.getElementById('displayStartTime').value = newTime; 
+             document.getElementById('displayStartDate_weekday').value = newTzDateTime.weekday; 
+         } else {
+             // 错误提示辅助调试
+             console.error("tzSwitchTo 返回的 newDateTime 不是有效的字符串，值为：", newDateTime);
+         }
+            
+     } catch (err) {
+         alert("调用时区转换接口失败");
+         console.error(err);
+     } 
+ }
+ async function getMyEndDatetime() {
+      const displayTzInput = document.getElementById('timeZone');
+     // 读取原时区、日期与时间。这些输入框id需与页面实际结构对应
+     const timeZoneInput = document.getElementById('originalTimeZone');
+     const startDateInput = document.getElementById('endDate');
+     const startTimeInput = document.getElementById('startTime');
+
+     const fromZone = timeZoneInput ? timeZoneInput.value :   "";
+     const startDate = startDateInput ? startDateInput.value : "";
+     const startTime = startTimeInput ? startTimeInput.value : "";
+
+     const toTz= displayTzInput.value;
+     // 组装为 DateTime 字符串（假定格式为: yyyy-MM-dd HH:mm:ss）
+     const dateTimeStr = `${startDate} ${startTime.length === 5 ? startTime + ":00" : startTime}`;
+     try { 
+         const newDateTime= await tzSwitchTo(fromZone,dateTimeStr,toTz);
+          if(newDateTime) {
+             const newDate = newDateTime.dateTime.split(' ')[0]; 
+             document.getElementById('displayEndDate').value =newDate ;
+             document.getElementById('displayEndDate_weekday').value = newDateTime.weekday ;
+             //document.getElementById('startTime').innerHTML =newTime ; 
+          } 
+     } catch (err) {
+         alert("调用时区转换接口失败");
+         console.error(err);
+     } 
+ }
+
      // 解决“找不到函数loadSchedule”问题：确保loadSchedule在window作用域下暴露
    window.searchCourse      = searchCourse;  
    window.previewSchedule   = previewSchedule;  
@@ -516,6 +596,22 @@ return  scheduleObject;
                     }
                     selectedScheuleId = selectedId;
                     reloadBooking();
+                  //如果排期时区与用户当前时区不一致的情况下，显示用户时区的时间
+                  if (selectedSchedule.timeZone !== userTimeZone) { 
+                    userTimeZoneDisplay="flex";
+                    document.getElementById('rightBlock').style.display =userTimeZoneDisplay;
+                    getMyDatetime();//同步更新用户时区的时间
+                    getMyEndDatetime();//
+                  } else {
+                    userTimeZoneDisplay="none";
+                    document.getElementById('rightBlock').style.display =userTimeZoneDisplay;
+                  // 通过设置元素的style.display属性，可以控制其显示或隐藏。
+                  // 例如，隐藏某个元素: document.getElementById('someId').style.display = 'none';
+                  // 显示某个元素（如块级元素）: document.getElementById('someId').style.display = 'block';
+                  // 对于flex布局的容器，也可用: document.getElementById('someId').style.display = 'flex';
+                  // 例如：document.getElementById('myElement').style.display = 'none'; // 隐藏
+                  //       document.getElementById('myElement').style.display = 'block'; // 显示
+                  }
                 }  
    }
  
