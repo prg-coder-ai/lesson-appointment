@@ -66,45 +66,61 @@ async function renderStudentBookingCards() {
         </div>  
          <div class="form-line nofocus"  style="display:flex;">
             <label>教师</label>
-            <input type="label" id="teacherNameForCourse" value=""  style="display:flex;">
+            <input type="label" id="teacherNameForCourse" value="" class="readonly" style="display:flex;">
         </div>  
-        <div style="display: flex; gap: 2px;"> 
-           <div style="flex: 1;width: 48%;">    
-                    <div class="form-line nofocus" style="display:flex;">
-                    <label>排期时区</label>
-                    <input type="label" id="originalTimeZone" value=""  readonly>
-                    </div> 
-                    <div class="form-line  nofocus" style="display: flex;"> 
-                        <label>开始日期：</label>
-                        <input type="date"  align-items: right; id="startDate" readonly value="${(new Date()).toISOString().split('T')[0]}">
-                    </div>
 
-                    <div class="form-line  nofocus">
-                        <label >上课时间：</label>
-                        <input type="time" id="startTime" readonly  value="${(function(){ let d = new Date(); return d.toTimeString().slice(0,5); })()}">
-                    </div>               
-            
-                    <div class="form-line  nofocus" > 
-                            <label>结束日期：</label>
-                            <input type="date" id="endDate" readonly value="">
-                    </div> 
-             </div>
-               <!-- 右侧：并排显示新一列 -->
-            <div   id="rightBlock" style="flex: 1;width: 48%; margin-left: 4%;display:${userTimeZoneDisplay};">
-                    <div class="form-line  nofocus">
-                        <label style="display:flex;">我的时区</label><input type="label" id="timeZone" value=${userTimeZone};> 
-                    </div>                    
-                    <div class="form-line nofocus">
-                        <label>开始日期：</label>  <input type="date"  id="displayStartDate" readonly> <input type="text"  id="displayStartDate_weekday"  readonly>
-                    </div>
-                    <div class="form-line nofocus">
-                        <label id="displayStartTimeLabel">上课时间：</label><input type="time" id="displayStartTime" readonly> 
-                    </div>
-                    <div class="form-line nofocus" > 
-                         <label >结束日期：</label><input  type="date" id="displayEndDate" readonly>  <input  type="text" id="displayEndDate_weekday"  readonly>
-                    </div>                     
-             </div>
+      <div class="schedule-container" style="display:flex;">    
+    <!-- 左侧 -->
+    <div class="schedule-column">
+        <div class="form-line">
+            <label>排期时区：</label>
+            <input type="text" id="originalTimeZone" readonly>
         </div>
+
+        <div class="form-line">
+            <label>开始日期：</label>
+            <input type="date" id="startDate" class="readonly">
+        </div>
+
+        <div class="form-line">
+            <label>上课时间：</label>
+            <input type="time" id="startTime" class="readonly">
+        </div>
+
+        <div class="form-line">
+            <label>结束日期：</label>
+            <input type="date" id="endDate" class="readonly">
+        </div>
+    </div>
+
+    <!-- 右侧 -->
+    <div class="schedule-column" id="rightBlock"  style="flex: 1;display:${userTimeZoneDisplay};">
+        <div class="form-line">
+            <label>我的时区：</label>
+            <input type="text" id="timeZone" class="readonly">
+        </div>
+
+        <div class="form-line">
+            <label>开始日期：</label>
+            <input type="date" id="displayStartDate" readonly>
+            <input type="text" id="displayStartDate_weekday" class="readonly">
+        </div>
+
+        <div class="form-line">
+            <label>上课时间：</label>
+            <input type="time" id="displayStartTime" class="readonly">
+        </div>
+
+        <div class="form-line">
+            <label>结束日期：</label>
+            <input type="date" id="displayEndDate" readonly>
+            <input type="text" id="displayEndDate_weekday" class="readonly">
+        </div>
+    </div>
+
+</div>
+
+
         <div class="form-line  nofocus">
             <label>重复类型：</label>
             <select id="repeatType" onchange="freshByRepeatType()">
