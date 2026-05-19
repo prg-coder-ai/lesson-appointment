@@ -68,9 +68,8 @@ async function renderStudentBookingCards() {
             <label>教师</label>
             <input type="label" id="teacherNameForCourse" value=""  style="display:flex;">
         </div>  
-        <div style="display: flex; gap: 16px;">
-           
-           <div style="flex: 1;">    
+        <div style="display: flex; gap: 2px;"> 
+           <div style="flex: 1;width: 48%;">    
                     <div class="form-line nofocus" style="display:flex;">
                     <label>排期时区</label>
                     <input type="label" id="originalTimeZone" value=""  readonly>
@@ -89,27 +88,23 @@ async function renderStudentBookingCards() {
                             <label>结束日期：</label>
                             <input type="date" id="endDate" readonly value="">
                     </div> 
-                 </div>
+             </div>
                <!-- 右侧：并排显示新一列 -->
-            <div class="form-line"  id="rightBlock" style="flex: 1;display:${userTimeZoneDisplay};">
+            <div   id="rightBlock" style="flex: 1;width: 48%; margin-left: 4%;display:${userTimeZoneDisplay};">
                     <div class="form-line  nofocus">
-                    <label style="display:flex;">我的时区</label><input type="label" id="timeZone" value=${userTimeZone};> 
-                    </div>
-                    
+                        <label style="display:flex;">我的时区</label><input type="label" id="timeZone" value=${userTimeZone};> 
+                    </div>                    
                     <div class="form-line nofocus">
                         <label>开始日期：</label>  <input type="date"  id="displayStartDate" readonly> <input type="text"  id="displayStartDate_weekday"  readonly>
                     </div>
-
                     <div class="form-line nofocus">
-                    <label id="displayStartTimeLabel">上课时间：</label><input type="time" id="displayStartTime" readonly> 
+                        <label id="displayStartTimeLabel">上课时间：</label><input type="time" id="displayStartTime" readonly> 
                     </div>
-
                     <div class="form-line nofocus" > 
-                    <label >结束日期：</label><input  type="date" id="displayEndDate" readonly>  <input  type="text" id="displayEndDate_weekday"  readonly>
-                    </div> 
-                    
-                </div>
-            </div>
+                         <label >结束日期：</label><input  type="date" id="displayEndDate" readonly>  <input  type="text" id="displayEndDate_weekday"  readonly>
+                    </div>                     
+             </div>
+        </div>
         <div class="form-line  nofocus">
             <label>重复类型：</label>
             <select id="repeatType" onchange="freshByRepeatType()">
@@ -598,7 +593,7 @@ return  scheduleObject;
                     reloadBooking();
                   //如果排期时区与用户当前时区不一致的情况下，显示用户时区的时间
                   if (selectedSchedule.timeZone !== userTimeZone) { 
-                    userTimeZoneDisplay="flex";
+                    userTimeZoneDisplay="block";
                     document.getElementById('rightBlock').style.display =userTimeZoneDisplay;
                     getMyDatetime();//同步更新用户时区的时间
                     getMyEndDatetime();//
