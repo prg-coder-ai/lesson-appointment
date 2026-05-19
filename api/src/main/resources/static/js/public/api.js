@@ -79,6 +79,29 @@ async function fetchUserList(conditionJson) {
     }
   }
 
+  async function  getUserNameById(teacherId) {
+    const URL = `${API_BASE_URL}/user/name/${teacherId}`; 
+    console.log("URL"+ URL); 
+      try {    
+        const response = await fetch(`${URL}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            credentials: 'include'
+          } 
+        });
+    
+        const result = await response.json();
+        console.log("getUserNameById"+ result);
+        if (!response.ok) throw new Error("获取失败");
+        console.log("getUserNameById"+ result.data);
+        // 假设后端返回数据结构 { code: 200, data: [{userId, name, email, phone, status, ...}], ... }
+        return result.data || "n/a";
+      } catch (e) {
+        alert(e.message + "网络错误，无法获取数据");
+        return "n/a";
+      } 
+  }
   
 /**
  * 获取Token（修复localStorage解析逻辑）
@@ -100,7 +123,6 @@ const userStr = localStorage.getItem('currentUser');
   if(userStr)
      return  JSON.parse(userStr);
 }
- 
  function autoLoginCheck() {
   // 读取本地 localStorage 保存的用户信息
   const userStr = localStorage.getItem('currentUser');
