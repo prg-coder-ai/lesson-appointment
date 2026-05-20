@@ -278,44 +278,23 @@
   /* 外层容器：左右两列 */
 .schedule-container {
   display: flex;
-  gap: 10px; /* 控制两列间距 */
+  gap: 1px; /* 控制两列间距 */
   align-items: flex-start;
   max-width: 2200px;
-    width: 100%;
+  width: 100%;
 }
 
 /* 每一列 */
 .schedule-column {
   flex: 1;
   display: flex;
-  flex-direction: column;
- /* gap: 12px;*/ /* 控制每行之间的间距 */
-  
+  flex-direction: column; 
 }
 
 /* 每一行（label + input） */
 .form-line {
   display: flex;
-  align-items: left;
+  align-items: flex-start;
   gap: 8px;
-}
-
-/* label 统一宽度，让左右两列完美对齐 */
- .form-line label {
-  width: 90px;  
-  font-weight: 500;
-}
- 
-/* input 统一样式 */
-.form-line input {
-  flex: 1;
-  padding: 4px 6px; 
-  max-width: 280px;   /* 你想要的正常宽度 */
-   width: 100%; 
-}
-
-#weekDaysBox ,#monthDaysBox { 
-    display: flex;
-    gap: 1px; /* 控制星期之间的间距 */
-    flex-wrap: wrap; /* 如果太长会自动换行 */ 
+  margin-bottom: 16px; /* 控制行间距 */
 }
