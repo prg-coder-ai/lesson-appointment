@@ -94,7 +94,7 @@ async function renderStudentBookingCards() {
     </div>
 
     <!-- 右侧 -->
-    <div class="schedule-column" id="rightBlock"  style="flex: 1;display:${userTimeZoneDisplay};">
+    <div class="schedule-column" id="rightBlock"  style="display:${userTimeZoneDisplay};">
         <div class="form-line">
             <label>我的时区：</label>
             <input type="text" id="timeZone" class="readonly">

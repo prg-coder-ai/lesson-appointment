@@ -35,6 +35,8 @@ async function renderStudentBookingBrowserCards() {
                     <th>课次</th>
                     <th>日期</th>
                     <th>时间</th>
+                      <th>状态</th> 
+                      <th> 请假</th>
                 </tr>
             </thead>
             <tbody id="resultBody"></tbody>

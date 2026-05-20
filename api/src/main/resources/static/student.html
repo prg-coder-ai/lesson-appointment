@@ -70,53 +70,7 @@
       </div>
     </div>
   </div>
-
-  <!-- 预约弹窗（默认隐藏） -->
-  <div id="reservation-modal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 id="modal-course-title">预约：英语初级口语 - 小班课</h3>
-        <span class="modal-close" onclick="closeReservationModal()">×</span>
-      </div>
-      <div style="margin-bottom: 15px;">
-        <p style="margin-bottom: 10px; font-size: 14px;"><strong>授课教师：</strong><span id="modal-teacher-name">李老师</span></p>
-        <p style="font-size: 14px; color: var(--text-light-color);">请选择预约日期和时间段</p>
-      </div>
-      
-      <!-- 预约日历 -->
-      <div class="calendar-container">
-        <div class="calendar-header">
-          <span class="calendar-month">2026年3月</span>
-        </div>
-        <div class="calendar-grid">
-          <div class="calendar-day disabled">日</div>
-          <div class="calendar-day disabled">一</div>
-          <div class="calendar-day disabled">二</div>
-          <div class="calendar-day available" onclick="selectCalendarDay(this)">20</div>
-          <div class="calendar-day available" onclick="selectCalendarDay(this)">21</div>
-          <div class="calendar-day available" onclick="selectCalendarDay(this)">22</div>
-          <div class="calendar-day disabled">23</div>
-        </div>
-        
-        <!-- 时间段选择 -->
-        <div>
-          <p style="margin-bottom: 10px; font-size: 14px;">可选时间段：</p>
-          <div class="time-selector">
-            <div class="time-btn available" onclick="selectTimeSlot(this)">10:00-11:00</div>
-            <div class="time-btn available" onclick="selectTimeSlot(this)">14:00-15:00</div>
-            <div class="time-btn available" onclick="selectTimeSlot(this)">16:00-17:00</div>
-            <div class="time-btn disabled">09:00-10:00</div>
-            <div class="time-btn disabled">15:00-16:00</div>
-          </div>
-        </div>
-      </div>
-      
-      <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
-        <button class="btn btn-gray" onclick="closeReservationModal()">取消</button>
-        <button class="btn btn-primary" onclick="submitReservation()">确认预约</button>
-      </div>
-    </div>
-  </div>
+ 
 
   <!-- 评价弹窗（默认隐藏） -->
   <div id="evaluation-modal" class="modal">
@@ -352,57 +306,8 @@ if (window.loadAdminPageContent) {
       }
     }
 
-
-    // 预约弹窗相关函数（保留原有功能）
-    function showReservationModal(courseName, teacherName) {
-      document.getElementById('reservation-modal').style.display = 'flex';
-      document.getElementById('modal-course-title').textContent = `预约：${courseName}`;
-      document.getElementById('modal-teacher-name').textContent = teacherName;
-    }
-
-    function closeReservationModal() {
-      document.getElementById('reservation-modal').style.display = 'none';
-      // 重置日历和时间段选择
-      document.querySelectorAll('.calendar-day.selected').forEach(day => {
-        day.classList.remove('selected');
-      });
-      document.querySelectorAll('.time-btn.selected').forEach(time => {
-        time.classList.remove('selected');
-      });
-    }
-
-    function selectCalendarDay(el) {
-      // 移除其他日期的选中状态
-      document.querySelectorAll('.calendar-day.selected').forEach(day => {
-        day.classList.remove('selected');
-      });
-      // 添加当前日期选中状态
-      el.classList.add('selected');
-    }
-
-    function selectTimeSlot(el) {
-      if (el.classList.contains('disabled')) return;
-      // 移除其他时间段的选中状态
-      document.querySelectorAll('.time-btn.selected').forEach(time => {
-        time.classList.remove('selected');
-      });
-      // 添加当前时间段选中状态
-      el.classList.add('selected');
-    }
-
-    function submitReservation() {
-      const selectedDay = document.querySelector('.calendar-day.selected');
-      const selectedTime = document.querySelector('.time-btn.selected');
-      
-      if (!selectedDay || !selectedTime) {
-        alert('请选择预约日期和时间段！');
-        return;
-      }
-      
-      alert(`预约成功！\n课程：${document.getElementById('modal-course-title').textContent.replace('预约：', '')}\n教师：${document.getElementById('modal-teacher-name').textContent}\n时间：2026年3月${selectedDay.textContent}日 ${selectedTime.textContent}`);
-      closeReservationModal();
-      // 可在此处调用API提交预约数据
-    }
+ 
+  
 
     // 评价弹窗相关函数（保留原有功能）
     let selectedStarCount = 5; // 默认5星
@@ -487,47 +392,4 @@ console.log("end of body...")
 </script>
 </body>
 </html>
-
-
-<!-- 
-
-          dynamicContentCenter.innerHTML = `
-            <div class="card">
-              <h3><i class="fa fa-calendar-check-o"></i> 我的全部预约</h3>
-              <div id="my-reservations">
-                <div class="course-card">
-                  <div class="course-info">
-                    <h4>英语初级口语 - 小班课</h4>
-                    <p>授课教师：李老师 | 预约时间：2026-03-20 14:00 | 状态：待确认</p>
-                  </div>
-                  <div class="course-actions">
-                    <button class="btn btn-gray" onclick="cancelReservation(this)">取消预约</button>
-                    <button class="btn btn-gray" onclick="viewMyReservationDetail(this)">查看详情</button>
-                  </div>
-                </div>
-                <div class="course-card">
-                  <div class="course-info">
-                    <h4>英语进阶写作</h4>
-                    <p>授课教师：李老师 | 预约时间：2026-03-20 16:00 | 状态：已确认</p>
-                  </div>
-                  <div class="course-actions">
-                    <button class="btn btn-gray" onclick="evaluateCourse(this)">评价课程</button>
-                    <button class="btn btn-gray" onclick="viewMyReservationDetail(this)">查看详情</button>
-                  </div>
-                </div>
-                <div class="course-card">
-                  <div class="course-info">
-                    <h4>日语入门</h4>
-                    <p>授课教师：王老师 | 预约时间：2026-03-18 09:00 | 状态：已取消</p>
-                  </div>
-                  <div class="course-actions">
-                    <button class="btn btn-gray" disabled>已取消</button>
-                    <button class="btn btn-gray" onclick="viewMyReservationDetail(this)">查看详情</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          `;
-
-
--->
+  
