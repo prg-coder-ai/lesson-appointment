@@ -786,7 +786,7 @@
           } else if (role === 'student') {
             window.location.href = './student.html';
           }
-        } else if (data && data.code === 401) {
+        } else {//if (data && data.code === 401) 
           // 失效处理
           localStorage.removeItem('currentUser');
           document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';

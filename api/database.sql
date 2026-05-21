@@ -111,7 +111,7 @@ CREATE TABLE `appointment` (
   `class_index` int DEFAULT '1' COMMENT '课时序号',
   `appointment_datetime` datetime DEFAULT NULL COMMENT '排期预约中的一个课时时间',
   `last_datetime` datetime DEFAULT NULL COMMENT '可能修改前的日期时间',
-  `status` varchar(16) NOT NULL DEFAULT 'active' COMMENT '本预约时间的状态:active生效/noted已发通知1/2/completed已完成/已改期changed',
+  `status` varchar(16) NOT NULL DEFAULT 'active' COMMENT '本预约时间的状态:active生效/noted1、2已发通知/completed已完成/已改期cancelled/申请取消cancelling',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='预约时间列表';
 

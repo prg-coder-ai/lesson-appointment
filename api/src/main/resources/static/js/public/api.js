@@ -11,14 +11,17 @@
    // let token =getToken(); 
    const userInfo= getCurrentUserInfo();
    console.log("userInfo",userInfo);
+   if(userInfo==null)
+   { 
+   document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
+   window.location.href  =  './index.html';
+   }
    let userId = userInfo.userId;
    let userRole = userInfo.role;
-
-    console.log("userRole:",userRole);
+ 
     // 获取用户时区（关键）
     const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    console.log("tz",userTimeZone);
-
+    console.log("tz",userTimeZone); 
 
   let courseList = [];       // 课程列表
   let scheduleObject=null;       // 排期
