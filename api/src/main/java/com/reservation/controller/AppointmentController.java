@@ -1,6 +1,7 @@
 package  com.reservation.controller;
 
 import com.reservation.entity.Appointment;
+import com.reservation.entity.BookingDTO;//借用数据定义
 import com.reservation.service.AppointmentService;
 import com.reservation.common.Result;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -94,6 +95,14 @@ public class AppointmentController {
     public Result<Boolean> updateStatusByBookingId(@RequestParam String bookingId,@RequestParam String status) {
         return Result.success(appointmentService.updateStatusByBookingId(bookingId,status),"ok");
     }
+
+      @PutMapping("/updateStatusById")
+    public Result<Boolean> updateStatusById(@RequestBody BookingDTO  params) {
+        String id = params.getId();
+        String status = params.getStatus();
+        return Result.success(appointmentService.updateStatusById(id, status), "ok");
+    }
+
     /**
      * 4. 根据ID查询单条
      */

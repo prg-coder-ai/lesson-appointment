@@ -47,6 +47,7 @@ async function getCourseById( courseId) {
                 time = t;
               }
               return {
+                id  : item.id,
                 date: date,
                 time: time,
                 status: item.status

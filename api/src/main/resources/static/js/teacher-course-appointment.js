@@ -560,7 +560,7 @@ function renderCalendar(dateTimeList) {
       await operateBookingStatus( bookingid, "booked"); 
         } 
 
-
+//确认取消----
     async function validCancelBooking(bookingid){
           
        //将appointment的bookingid=bookingid的所有项的状态设置为“cancelled->cancelling ->booked-->booking

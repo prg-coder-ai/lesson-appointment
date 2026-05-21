@@ -231,7 +231,7 @@ async function fetchCourseList(conditionJson) {
 
                  ${ //正在预约或者已经取消：显示计算的排期列表，否则显示排期表中的数据
                      ( cardInfo.status === 'booking' || cardInfo.status === 'canceled' ||  cardInfo.status === 'cancelled' )
-                          ? `<button class="btn btn-gray" onclick="previewSchedule('${cardInfo.scheduleId}','${cardInfo.origTz}')">预览详情</button>`
+                          ? `<label> </label>`
                           : `<button class="btn btn-gray" onclick="viewMyReservationDetail('${cardInfo.bookingId}','${cardInfo.origTz}')">查看详情</button>`
                      }
                      
@@ -330,12 +330,11 @@ async function viewMyReservationDetail(bookingId,origTzTimeZone){
    // 巴黎: "Europe/Paris"
    // 卡尔加里: "America/Edmonton"
 
-   scheduleResult = await getAppointmentsByBookingId(bookingId);// 日期时间-》转为用户当前时区
+   scheduleResult = await getAppointmentsByBookingId(bookingId);// dataFunction.js 日期时间-》转为用户当前时区
    // origTzTimeZone,userTimeZOne 
    // 遍历scheduleResult，处理每一项（此处仅做遍历，如果要具体操作可添加逻辑）
    let restlts=[];// date:xx,time:xx
-  // const testTz = "Asia/Shanghai";
-  //  userTimeZone = testTz;
+  // const testTz = "Asia/Shanghai"; 
    // forEach + async 会导致 restlts.push(newDt) 并发执行、顺序不可靠，需改为顺序执行，保证渲染和restlts填充完成
    if (Array.isArray(scheduleResult)) {
        restlts = [];
@@ -346,8 +345,8 @@ async function viewMyReservationDetail(bookingId,origTzTimeZone){
           // console.log("userDateTime", userDateTime);
            const newDate = userDateTime.dateTime.split(' ')[0];
            const newTime = userDateTime.dateTime.split(' ')[1];
-           const newDt = { date: newDate, time: newTime, weekday: userDateTime.weekday, status: item.status }
-          // console.log(item, newDt);
+           const newDt = {id:item.id, date: newDate, time: newTime, weekday: userDateTime.weekday, status: item.status }
+           // console.log(item, newDt);
            restlts.push(newDt);
        }
    }
@@ -358,43 +357,60 @@ async function viewMyReservationDetail(bookingId,origTzTimeZone){
 // 渲染排期列表-有星期
 function renderResult(dateTimeList) {
     const body = document.getElementById('resultBody');
-    body.innerHTML = '';
-    let status="active";
+    body.innerHTML = ''; 
+    // 不同状态对应的提示
+            // status: active=生效, noted1/2=已通知, completed=已完成, cancelled=已改期, cancelling=申请取消
+    function getStatusLabel(status) {
+        switch (status) {
+            case 'active': return '生效';
+            case 'noted1': return '第一次通知';
+            case 'noted2': return '第二次通知';
+            case 'completed': return '已完成';
+            case 'cancelled': return '已改期';
+            case 'cancelling': return '申请改期';
+            default: return status;
+        }
+    }
     if(dateTimeList!= null ) {
         dateTimeList.forEach(item => {
-        const tr = document.createElement('tr');
-        // 获取item.date的周几
-        let weekday = item.weekday;
-       /* if(item.date){
-            const dateParts = item.date.split('-');
-            if(dateParts.length === 3){
-                const d = new Date(Number(dateParts[0]), Number(dateParts[1])-1, Number(dateParts[2]));
-                // JS: 0=Sunday ... 6=Saturday
-                const weekdays = ['周日','周一','周二','周三','周四','周五','周六'];
-                weekday = weekdays[d.getDay()];
+            const tr = document.createElement('tr');
+            // 获取item.date的周几
+            let weekday = item.weekday; 
+            let statusName = getStatusLabel(item.status);
+            tr.innerHTML = `<td>${dateTimeList.indexOf(item) + 1}</td><td>${item.date} ${weekday}</td><td>${item.time}</td> <td>${statusName}</td>`;
+
+            const canCancel=item.status!= "completed"  && item.status!= "cancelled" && item.status!= "cancelling";// 可延期、 如果为cancelling--则可撤回
+            const applyDelayBtn = document.createElement('button');
+            applyDelayBtn.className = 'btn btn-warning'; // 给按钮加一些样式，非必须可移除
+            if(canCancel) {  
+                applyDelayBtn.textContent = '申请延期'; 
+                applyDelayBtn.onclick = function() {
+                    cancellingAppointment(item.id,true);
+                } 
+            }  else if(item.status == "cancelling") {
+                    applyDelayBtn.textContent = '收回申请'; 
+                    applyDelayBtn.onclick = function() {
+                        cancellingAppointment(item.id,false);
+                    } 
             }
-        }*/
-        // 不同状态对应的中文提示
-        // status: active=生效, noted1/2=已通知, completed=已完成, cancelled=已改期, cancelling=申请取消
-        function getStatusLabel(status) {
-            switch (status) {
-                case 'active': return '生效';
-                case 'noted1': return '已发通知1';
-                case 'noted2': return '已发通知2';
-                case 'completed': return '已完成';
-                case 'cancelled': return '已改期';
-                case 'cancelling': return '申请取消';
-                default: return status;
-            }
-        }
-        let statusName = getStatusLabel(item.status);
-        tr.innerHTML = `<td>${dateTimeList.indexOf(item) + 1}</td><td>${item.date} ${weekday}</td><td>${item.time}</td> <td>${item.status}</td>`;
-   
-        body.appendChild(tr);
-    });
+            const tdBtn = document.createElement('td');
+            tdBtn.appendChild(applyDelayBtn);
+            tr.appendChild(tdBtn);   
+            body.appendChild(tr);
+        });
         }
   }
 
+  async function cancellingAppointment(appointmentId,bCancelling){
+     let status="";
+     if(bCancelling){
+        status= "cancelling";
+     } else {
+        status= "active";
+     }
+    await operateAppointmentStatus(appointmentId,status);
+    return ;
+  }
  // 渲染日历
  function renderCalendar(dateTimeList) {
   const cal = document.getElementById('calendar');

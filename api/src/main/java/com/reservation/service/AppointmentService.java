@@ -64,6 +64,13 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
     int updated = baseMapper.updateStatusByBookingId(bookingId, status);
     return updated > 0;
     }
+
+      @Transactional
+    public boolean updateStatusById(String id,String status){ 
+    int updated = baseMapper.updateStatusById(id, status);
+    return updated > 0;
+    }
+
     public boolean removeByBookingId(String bookingId){
         System.out.println("removeByBookingId: " + bookingId);
         int deleted = baseMapper.deleteByBookingId(bookingId);
