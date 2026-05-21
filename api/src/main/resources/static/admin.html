@@ -738,10 +738,11 @@
       // 解析用户信息并渲染
       const currentUser = localStorage.getItem('currentUser');
       const user = JSON.parse(currentUser);
-      console.log(`${user.name}（${user.role}）已登录管理端`); 
+      
      // console.log('管理端页面加载完成，所有交互功能已启用');
       // 设置用户首字母和用户名
-      if (user && user.name) {
+      if (user && user.name) { 
+        console.log(`${user.name}（${user.role}）已登录管理端`); 
         document.getElementById('id_firstLetter').innerHTML = user.name.length > 0 ? user.name[0] : '';
         document.getElementById('id_username').innerHTML  = user.name  ;
       }

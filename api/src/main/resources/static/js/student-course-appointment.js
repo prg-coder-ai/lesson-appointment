@@ -36,7 +36,7 @@ async function renderStudentBookingBrowserCards() {
                     <th>日期</th>
                     <th>时间</th>
                       <th>状态</th> 
-                      <th> 请假</th>
+                      <th>请假</th>
                 </tr>
             </thead>
             <tbody id="resultBody"></tbody>
@@ -51,7 +51,8 @@ async function renderStudentBookingBrowserCards() {
     dynamicContentCenter.innerHTML = html; 
     refreshData();   
     
- /**
+ /** SELECT `status` FROM `lesson_appointment`.`appointment`;
+'本预约时间的状态:active生效/noted1、2已发通知/completed已完成/已改期changed/申请取消changing'
   * 问题分析：
   * 程序第94行为：console.info("bookingsHtml:",bookingsHtml);
   * 但实际在页面运行时，bookingsHtml 可能一直为空字符串，导致未显示课程卡片。
@@ -330,24 +331,23 @@ async function viewMyReservationDetail(bookingId,origTzTimeZone){
    // 卡尔加里: "America/Edmonton"
 
    scheduleResult = await getAppointmentsByBookingId(bookingId);// 日期时间-》转为用户当前时区
-   // origTzTimeZone,userTimeZOne
-   //时区变换----TBD
+   // origTzTimeZone,userTimeZOne 
    // 遍历scheduleResult，处理每一项（此处仅做遍历，如果要具体操作可添加逻辑）
    let restlts=[];// date:xx,time:xx
-   const testTz = "Asia/Shanghai";
-//userTimeZone = testTz;
+  // const testTz = "Asia/Shanghai";
+  //  userTimeZone = testTz;
    // forEach + async 会导致 restlts.push(newDt) 并发执行、顺序不可靠，需改为顺序执行，保证渲染和restlts填充完成
    if (Array.isArray(scheduleResult)) {
        restlts = [];
        for (let i = 0; i < scheduleResult.length; i++) {
            const item = scheduleResult[i];
            const dateTime = item.date + " " + item.time;
-           const userDateTime = await tzSwitchTo(origTzTimeZone, dateTime, testTz);
-
+           const userDateTime = await tzSwitchTo(origTzTimeZone, dateTime, userTimeZone);
+          // console.log("userDateTime", userDateTime);
            const newDate = userDateTime.dateTime.split(' ')[0];
            const newTime = userDateTime.dateTime.split(' ')[1];
            const newDt = { date: newDate, time: newTime, weekday: userDateTime.weekday, status: item.status }
-           console.log(item, newDt);
+          // console.log(item, newDt);
            restlts.push(newDt);
        }
    }
@@ -355,16 +355,17 @@ async function viewMyReservationDetail(bookingId,origTzTimeZone){
    renderResult(restlts);
    renderCalendar(restlts);
 }
-// 渲染排期列表
+// 渲染排期列表-有星期
 function renderResult(dateTimeList) {
     const body = document.getElementById('resultBody');
     body.innerHTML = '';
+    let status="active";
     if(dateTimeList!= null ) {
         dateTimeList.forEach(item => {
         const tr = document.createElement('tr');
         // 获取item.date的周几
-        let weekday = "";
-        if(item.date){
+        let weekday = item.weekday;
+       /* if(item.date){
             const dateParts = item.date.split('-');
             if(dateParts.length === 3){
                 const d = new Date(Number(dateParts[0]), Number(dateParts[1])-1, Number(dateParts[2]));
@@ -372,8 +373,22 @@ function renderResult(dateTimeList) {
                 const weekdays = ['周日','周一','周二','周三','周四','周五','周六'];
                 weekday = weekdays[d.getDay()];
             }
+        }*/
+        // 不同状态对应的中文提示
+        // status: active=生效, noted1/2=已通知, completed=已完成, cancelled=已改期, cancelling=申请取消
+        function getStatusLabel(status) {
+            switch (status) {
+                case 'active': return '生效';
+                case 'noted1': return '已发通知1';
+                case 'noted2': return '已发通知2';
+                case 'completed': return '已完成';
+                case 'cancelled': return '已改期';
+                case 'cancelling': return '申请取消';
+                default: return status;
+            }
         }
-        tr.innerHTML = `<td>${dateTimeList.indexOf(item) + 1}</td><td>${item.date} ${weekday}</td><td>${item.time}</td>`;
+        let statusName = getStatusLabel(item.status);
+        tr.innerHTML = `<td>${dateTimeList.indexOf(item) + 1}</td><td>${item.date} ${weekday}</td><td>${item.time}</td> <td>${item.status}</td>`;
    
         body.appendChild(tr);
     });
@@ -425,7 +440,7 @@ function renderResult(dateTimeList) {
       const dateStr = `${year}-${month}-${day}`;
       const div = document.createElement('div');
       div.className = 'calendar-day';
-      if (dateSet.has(dateStr)) div.classList.add('marked');
+      if (dateSet.has(dateStr)) div.classList.add('marked');//TBD: 取消cancelled、cancelling
       div.innerText = d.getDate();
       cal.appendChild(div);
   }

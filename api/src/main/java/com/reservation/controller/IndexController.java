@@ -188,13 +188,13 @@ public class IndexController {
      *
      * 文档参考：https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/web/bind/annotation/GetMapping.html
      */
-    @GetMapping({"","/"})
+    @GetMapping({"","/","/login"})
     // @ResponseBody
     public String Index() {
         // 跳转到templates/index.html页面（无需传参，JS将通过API请求数据） 
         return "index.html";
     }
-   
+    
      // 列出本项目对外暴露的所有接口，并返回
      // 利用 Spring 的 ApplicationContext 获取所有带有 @RequestMapping/@GetMapping/@PostMapping 等注解的方法及其路径
 
