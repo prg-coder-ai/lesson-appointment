@@ -280,15 +280,7 @@ function renderCourseSelect() {
       sel.appendChild(opt);
     }
   });
- /* if(lastCourseIndex>=0)
-  {
-   if(courseList.length>lastCourseIndex )
-    currentCourseIndex = lastCourseIndex; 
-  }
-  if(currentCourseIndex ==-1)
-    currentCourseId =0;
-    sel.index =currentCourseIndex; 
-    */
+ 
 }
 
 //更新scheduleObject相关内容 --待细化
