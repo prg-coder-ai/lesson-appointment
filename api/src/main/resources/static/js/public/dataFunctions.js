@@ -96,6 +96,53 @@ async function getCourseById( courseId) {
     }
  }
 
+//设置一个预约时间的状态--学生提出
+ async function cancellingAppointment(appointmentId,bCancelling){
+    let status="";
+    if(bCancelling){
+       status= "cancelling";
+    } else {
+       status= "active";
+    }
+   await operateAppointmentStatus(appointmentId,status);//courseAndBooking.js
+   return ;
+ }
+
+ //教师、管理员提出的确认或拒绝
+ async function confirmCancellingAppointment(appointmentId,bCancelled){
+    let status="";
+    if(bCancelled){
+       status= "cancelled";
+    } else {
+       status= "reject";
+    }
+   await operateAppointmentStatus(appointmentId,status);//courseAndBooking.js
+   return ;
+ }
+
+ //教师申请延期与撤回
+ async function teacherCancellingAppointment(appointmentId,bCancelling){
+    let status="";
+    if(bCancelling){
+       status= "t-cancelling";
+    } else {
+       status= "active";
+    }
+   await operateAppointmentStatus(appointmentId,status);//courseAndBooking.js
+   return ;
+ }
+
+ //对教师延期申请的确认或拒绝
+ async function teacherConfirmCancellingAppointment(appointmentId,bCancelled){
+    let status="";
+    if(bCancelled){
+       status= "t-cancelled";
+    } else {
+       status= "t-reject";
+    }
+   await operateAppointmentStatus(appointmentId,status);//courseAndBooking.js
+   return ;
+ }
  //根据bookingId更新所有相关的预约时间状态
  async function updateAppointmentsStatusByBookingId( bookingId,status) {
     const token = getToken();

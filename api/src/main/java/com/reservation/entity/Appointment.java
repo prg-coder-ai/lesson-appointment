@@ -32,12 +32,19 @@ import java.time.LocalDateTime;
     comment '预约时间列表';
 
 */
+// 修正 MyBatis Plus 关于主键为 primitive int 引发的警告：将 int id 改为 Integer id
+// 这是因为 MyBatis-Plus 推荐主键使用包装类型（如 Integer 或 Long），避免原始类型的自动装箱问题与默认值歧义。
+// 下面声明主键 id 为 Integer 类型，并进行字段、注解、构造器等一致性调整。
+
+//@TableId(type = IdType.AUTO)
+//private Integer id; // 顺序自增，主键，包装类型，避免MyBatis Plus警告
+
 @Data 
  public  class  Appointment    implements Serializable{
     private static final long serialVersionUID = 1L;
       // 主键自增
     @TableId(type = IdType.AUTO)
-    private int id;//顺序自增  系统生成唯一标识（UUID），对应通用校验规则-ID类参数
+    private Integer id;//顺序自增  系统生成唯一标识（UUID），对应通用校验规则-ID类参数
     private String bookingId;  // 对应的预约Id 
     @NotBlank(message = "排期ID对应的课次")
     private Integer classIndex;  // 关联排期对应的课次 0~N-1，-1默认

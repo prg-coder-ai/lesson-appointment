@@ -84,14 +84,14 @@ async function renderStudentBookingBrowserCards() {
                  let scheduleInfoStr = getScheduleInfo(scheduleObject);
                  const classObject = await getCourseById(scheduleObject.courseId);
 
-                 testGetList(scheduleObject.courseId);
+                // testGetList(scheduleObject.courseId);
                  //TBD teacherId + user库--》teacherName
                  const teacherName= await getUserNameById(classObject.teacherId);
                  //console.log("classObject:", classObject);
                  if (classObject != null) {
-                     let cardItems = {
-                         origTz:        scheduleObject.timeZone,
+                     let cardItems = { 
                          scheduleId:    scheduleObject.scheduleId,
+                         origTz:        scheduleObject.timeZone,
                          bookingId:     booking.id,
                          className:     classObject.courseName,
                          teacherName:   teacherName,
@@ -232,7 +232,7 @@ async function fetchCourseList(conditionJson) {
                  ${ //正在预约或者已经取消：显示计算的排期列表，否则显示排期表中的数据
                      ( cardInfo.status === 'booking' || cardInfo.status === 'canceled' ||  cardInfo.status === 'cancelled' )
                           ? `<label> </label>`
-                          : `<button class="btn btn-gray" onclick="viewMyReservationDetail('${cardInfo.bookingId}','${cardInfo.origTz}')">查看详情</button>`
+                          : `<button class="btn btn-gray" onclick="viewMyReservationDetail('${cardInfo.bookingId}','${cardInfo.origTz}')">预约详情</button>`
                      }
                      
                  </div>
@@ -243,37 +243,7 @@ async function fetchCourseList(conditionJson) {
      }
  
 //更新scheduleObject相关内容 --待细化
-//可简化为：日期范围，时间，排期计划
-function getScheduleInfo(scheduleObject) {
-    if (!scheduleObject) return;
-     let info="";
 
-      // 排期名称
-      if (scheduleObject.name)          info += scheduleObject.name;
-
-    // 起始日期、结束日期和上课时间组成一句简洁文字
-    if (scheduleObject.startTime || scheduleObject.endTime ) {
-        let dateStr = '';
-        if (scheduleObject.startTime && scheduleObject.endTime && scheduleObject.startTime !== scheduleObject.endTime) {
-            // 截取日期部分（假设startTime/endTime为"yyyy-MM-dd HH:mm:ss"格式，仅取日期部分）
-            const startDate = scheduleObject.startTime ? scheduleObject.startTime.split(" ")[0] : "";
-            const endDate = scheduleObject.endTime ? scheduleObject.endTime.split(" ")[0] : "";
-            const startTime =  scheduleObject.startTime?scheduleObject.startTime.split(" ")[1] : "";
-            dateStr = `${startDate} ~ ${endDate} ${startTime}`;
-    
-        } else if (scheduleObject.startTime) {
-            dateStr = scheduleObject.startTime;
-        } 
-        
-        info += dateStr ? ` ${dateStr}` : '';
-    }
-
-    // 刷新重复类型 
-    info += getRepeatDescription(scheduleObject.repeatType, scheduleObject.interval);
-   //TBD:每x周 xx/xx/xx 或者每x月 xx/xx/xx/ 
-        return info;
-}
- 
      // 解决“找不到函数loadSchedule”问题：确保loadSchedule在window作用域下暴露
    window.previewSchedule   = previewSchedule; 
    window.viewMyReservationDetail   = viewMyReservationDetail  ;
@@ -286,30 +256,9 @@ function getScheduleInfo(scheduleObject) {
    window.getAppointmentsByBookingId   = getAppointmentsByBookingId;// defined in dataFunction.js 
    
    
-    /*
-    /**
-     * 生成重复周期的说明语句
-     * @param {string} repeatType - 重复类型，可为 "none", "day", "week", "month"
-     * @param {number} interval - 重复周期，如每几天/周/月一次
-     * @returns {string} - 周期说明语句
-     */
-    function getRepeatDescription(repeatType, interval) {
-        switch (repeatType) {
-            case "none":
-                return "单次课";
-            case "day":
-                return `每${interval > 1 ? interval : ''}天一次`;
-            case "week":
-                return `每${interval > 1 ? interval : ''}周一次`;
-            case "month":
-                return `每${interval > 1 ? interval : ''}月一次`;
-            default:
-                return "";
-        }
-    }
-     
+   
  
-   // 预览排期--对于未确认的排期查看
+   // 预览排期--对于未确认的排期查看--已优化掉--可到预约页面查看
    async function previewSchedule(scheduleid,origTzTimeZone) { 
       console.log("previewSchedule",scheduleid);
     // 生成排期列表 localDateTime List<Date,TIME>
@@ -353,7 +302,7 @@ async function viewMyReservationDetail(bookingId,origTzTimeZone){
    console.log(restlts);
    renderResult(restlts);
    renderCalendar(restlts);
-}
+} 
 // 渲染排期列表-有星期
 function renderResult(dateTimeList) {
     const body = document.getElementById('resultBody');
@@ -366,11 +315,18 @@ function renderResult(dateTimeList) {
             case 'noted1': return '第一次通知';
             case 'noted2': return '第二次通知';
             case 'completed': return '已完成';
-            case 'cancelled': return '已改期';
+            case 'cancelled': return '已改期'; 
+
             case 'cancelling': return '申请改期';
+            case 'reject': return '拒绝改期'; 
+            
+            case 't-cancelling': return '老师申请改期';
+            case 't-cancelled':  return '老师已改期';
+            case 't-reject': return '生效';
             default: return status;
         }
     }
+    //TBD：比较时间与当前时间，对于过去时间，2天内的，不允许延期、视为已完成
     if(dateTimeList!= null ) {
         dateTimeList.forEach(item => {
             const tr = document.createElement('tr');
@@ -379,7 +335,7 @@ function renderResult(dateTimeList) {
             let statusName = getStatusLabel(item.status);
             tr.innerHTML = `<td>${dateTimeList.indexOf(item) + 1}</td><td>${item.date} ${weekday}</td><td>${item.time}</td> <td>${statusName}</td>`;
 
-            const canCancel=item.status!= "completed"  && item.status!= "cancelled" && item.status!= "cancelling";// 可延期、 如果为cancelling--则可撤回
+            const canCancel=item.status!= "completed"  && item.status!= "cancelled" && item.status!= "cancelling"  && item.status!= "cancelled" && item.status!= "t-cancelling";// 可延期、 如果为cancelling--则可撤回
             const applyDelayBtn = document.createElement('button');
             applyDelayBtn.className = 'btn btn-warning'; // 给按钮加一些样式，非必须可移除
             if(canCancel) {  
@@ -401,16 +357,6 @@ function renderResult(dateTimeList) {
         }
   }
 
-  async function cancellingAppointment(appointmentId,bCancelling){
-     let status="";
-     if(bCancelling){
-        status= "cancelling";
-     } else {
-        status= "active";
-     }
-    await operateAppointmentStatus(appointmentId,status);
-    return ;
-  }
  // 渲染日历
  function renderCalendar(dateTimeList) {
   const cal = document.getElementById('calendar');
@@ -468,6 +414,7 @@ function renderResult(dateTimeList) {
      await operateBookingStatus( bookingid, newStatus);  
   }
 
+  //TBD:在预约时间的请假、等状态变化时，刷新状态显示----详情列表await
     //在状态变化时，更新预约状态， --指定元素名称--约定-ID = bk-${bookingid}
     async function  reloadBooking(bookingid){ 
          //const bidItem = document.getElementById("bookingId");

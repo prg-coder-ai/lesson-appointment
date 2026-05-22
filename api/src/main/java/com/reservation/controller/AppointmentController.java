@@ -102,7 +102,6 @@ public class AppointmentController {
         String status = params.getStatus();
         return Result.success(appointmentService.updateStatusById(id, status), "ok");
     }
-
     /**
      * 4. 根据ID查询单条
      */

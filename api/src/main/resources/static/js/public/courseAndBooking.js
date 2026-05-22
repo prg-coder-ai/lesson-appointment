@@ -538,3 +538,55 @@ async function operateAppointmentStatus(aid, action) {
 
 /* 用法举例： */
 // forbidInput(document.getElementById('yourInputId'));
+
+//更具排期数据构造可读描述，用于teacher排期管理和student预约管理
+//可简化为：日期范围，时间，排期计划
+function getScheduleInfo(scheduleObject) {
+  if (!scheduleObject) return;
+   let info="";
+
+    // 排期名称
+    if (scheduleObject.name)          info += scheduleObject.name;
+
+  // 起始日期、结束日期和上课时间组成一句简洁文字
+  if (scheduleObject.startTime || scheduleObject.endTime ) {
+      let dateStr = '';
+      if (scheduleObject.startTime && scheduleObject.endTime && scheduleObject.startTime !== scheduleObject.endTime) {
+          // 截取日期部分（假设startTime/endTime为"yyyy-MM-dd HH:mm:ss"格式，仅取日期部分）
+          const startDate = scheduleObject.startTime ? scheduleObject.startTime.split(" ")[0] : "";
+          const endDate = scheduleObject.endTime ? scheduleObject.endTime.split(" ")[0] : "";
+          const startTime =  scheduleObject.startTime?scheduleObject.startTime.split(" ")[1] : "";
+          dateStr = `${startDate} ~ ${endDate} ${startTime}`;
+  
+      } else if (scheduleObject.startTime) {
+          dateStr = scheduleObject.startTime;
+      } 
+      
+      info += dateStr ? ` ${dateStr}` : '';
+  }
+
+  // 刷新重复类型 
+  info += getRepeatDescription(scheduleObject.repeatType, scheduleObject.interval);
+ //TBD:每x周 xx/xx/xx 或者每x月 xx/xx/xx/ 
+      return info;
+}
+/* 
+   * 生成重复周期的说明语句
+   * @param {string} repeatType - 重复类型，可为 "none", "day", "week", "month"
+   * @param {number} interval - 重复周期，如每几天/周/月一次
+   * @returns {string} - 周期说明语句
+   */
+function getRepeatDescription(repeatType, interval) {
+  switch (repeatType) {
+      case "none":
+          return "单次课";
+      case "day":
+          return `每${interval > 1 ? interval : ''}天一次`;
+      case "week":
+          return `每${interval > 1 ? interval : ''}周一次`;
+      case "month":
+          return `每${interval > 1 ? interval : ''}月一次`;
+      default:
+          return "";
+  }
+}

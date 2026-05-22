@@ -67,14 +67,10 @@ public class UserController {
      @GetMapping("/name/{userId}")
     @ResponseBody
     public Result<String> getUserById( @PathVariable  String userId ) {
-        Map<String, Object> condition = new java.util.HashMap<>(); 
-        if (userId != null && !userId.isEmpty()) condition.put("userId", userId);  
-         List<User> users = userService.listByCondition(condition); 
-         
-         System.out.println("out:" + users);
-         if(users != null && !users.isEmpty()) { 
-            return Result.success(users.get(0).getName(), "查询成功");
-       
+        Map<String, Object> condition = new java.util.HashMap<>();  
+          User  user  = userService.selectById(userId);  
+         if(user != null ) { 
+            return Result.success(user.getName(), "查询成功"); 
     } else  {
        return Result.success("N/A", "查询成功");
     } 
