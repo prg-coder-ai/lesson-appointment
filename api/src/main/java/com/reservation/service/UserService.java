@@ -250,7 +250,7 @@ public User selectById(String userId) {
            return  userMapper.updateStatus(useid,status);
        
     }
-   
+   //TBD: test
     public List<User>   listByCondition(Map<String, Object> condition)
     {
         List <User> ret = userMapper.listByCondition(condition); 
