@@ -158,6 +158,23 @@
           `;
           break;
         case '我的课程':
+          // 操作按钮事件 --checkout----set online =false TBD 
+          if (window.loadAdminPageContent) {
+                        // 覆盖 "教师管理" 渲染逻辑
+                        loadAdminPageContent = (function(orig){
+                          return function(title) {
+                            if(title === '预约管理'){
+                              renderTeacherCourseBrowserCards();
+                            } else {
+                              orig(title);
+                            }
+                          }
+                        })(loadAdminPageContent);
+                      } else {
+                        // 兼容性 fallback: 尝试直接渲染（首次页面加载时）
+                        renderTeacherCourseBrowserCards();
+                      }  
+       /*
           dynamicContent.innerHTML = `
             <div class="card">
               <h3 style="padding: 16px 20px; margin: 0; border-bottom: 1px solid var(--border-color);">课程列表</h3>
@@ -185,7 +202,7 @@
                 <button class="btn btn-primary" style="margin-top: 15px;">新增课程</button>
               </div>
             </div>
-          `;
+          `;*/
           break;
         case '预约管理':
                    // 操作按钮事件 --checkout----set online =false TBD 
@@ -342,7 +359,8 @@
    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
    <script src="js/public/api.js"></script> 
    <script src="js/public/dataFunctions.js"></script> 
-   <script src="js/public/courseAndBooking.js"></script>     
+   <script src="js/public/courseAndBooking.js"></script>  
+   <script src="js/teacher-course.js"></script>     
    <script src="js/teacher-course-appointment.js"></script>
    <script> 
       console.log("end of body...")

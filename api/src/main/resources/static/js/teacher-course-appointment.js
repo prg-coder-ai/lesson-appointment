@@ -583,3 +583,26 @@ function renderCalendar(dateTimeList) {
                 <option value="cancelled">已取消</option>
                  <option value="completed">已完成</option>  
  * **/  
+/*
+对于 MySQL 8 的官方镜像，已经自带自动启动 MySQL 服务的配置。  
+你只需要用下面的方式运行容器，MySQL 会随着容器启动自动运行：
+
+docker run --name some-mysql -e MYSQL_ROOT_PASSWORD=my-secret-pw -d mysql:8
+
+参数说明：
+--name some-mysql            # 给容器自定义个名字
+-e MYSQL_ROOT_PASSWORD=xxx   # 设置 root 用户的初始密码（必须）
+-d                           # 后台运行
+mysql:8                      # 指定镜像
+
+只要容器启动，MySQL 服务就会自动启动，无需额外指定启动命令。
+
+如果容器停止后想让它随 Docker 启动自动重启，可以加上 --restart=always 参数：
+
+docker run --name some-mysql \
+    -e MYSQL_ROOT_PASSWORD=my-secret-pw \
+    --restart=always \
+    -d mysql:8
+
+这样如果主机重启或 docker daemon 重启，MySQL 容器也会自动启动并运行 MySQL 服务。
+*/
