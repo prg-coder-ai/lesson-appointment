@@ -50,12 +50,11 @@ public class BookingController {
          try {
            List<Booking> rs = bookingService.selectList(dto);
           
-           //  System.out.println("filterList 返回预约列表: " + rs);
-        
+            System.out.println("filterList 返回预约列表: " + rs); 
              return Result.success(rs,"ok");
             } catch (RuntimeException e) {
                   System.out.println("filterList fail: " + e.getMessage());
-             return Result.fail(null,e.getMessage());
+             return Result.fail(403,e.getMessage());
         } 
     }
 

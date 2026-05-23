@@ -11,11 +11,10 @@
    // let token =getToken(); 
    const userInfo= getCurrentUserInfo();
    console.log("userInfo",userInfo);
-   if(userInfo==null)
-   { 
-   document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
-   window.location.href  =  './index.html';
-   }
+   if(userInfo==null) { 
+      document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
+      window.location.href  =  './index.html';
+      }
    let userId = userInfo.userId;
    let userRole = userInfo.role;
  
@@ -171,7 +170,7 @@ const userStr = localStorage.getItem('currentUser');
     // 清除Cookie
     document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
     alert('登录状态已过期，请重新登录');
-    window.location.href = './admin.html';
+    window.location.href = './index.html';
     return;
   } 
   const loginInfo = {
