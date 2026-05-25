@@ -364,3 +364,20 @@ cursor: not-allowed;
 background: var(--primary-color);
 color: #fff;
 }
+
+.nofocus {
+  pointer-events: none;    /* 禁止鼠标交互，包括点击、选中、聚焦 */
+  user-select: none;       /* 禁止选中内容 */
+  outline: none !important; 
+
+pointer-events: none;    /* 禁用交互（点击、输入、焦点） */
+background: #f5f5f5;
+filter: grayscale(0.8);
+}   
+.readonly {
+background: #f5f5f5;
+color: #999; 
+outline: none; 
+pointer-events: none;    /* 禁用交互（点击、输入、焦点） */
+user-select: none;
+}
