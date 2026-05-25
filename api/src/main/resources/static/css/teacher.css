@@ -253,6 +253,7 @@
     padding: 12px 15px;
     border-bottom: 1px solid #e9ecef;
     text-align: left;
+    font-weight:300;
   }
   .data-table th {
     background: #f8f9fa;
