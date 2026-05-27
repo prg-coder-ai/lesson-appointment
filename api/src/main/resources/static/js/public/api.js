@@ -68,7 +68,10 @@ async function fetchUserList(conditionJson) {
           credentials: 'include'
         } 
       });
-  
+      console.log("fetchUserList  response:",response); 
+         if (response && response.status === 403) { 
+            window.location.href = "./index.html";
+        } 
       const result = await response.json();
       console.log("fetchUserList"+ response);
       if (!response.ok) throw new Error("获取列表失败");
@@ -92,7 +95,10 @@ async function fetchUserList(conditionJson) {
             credentials: 'include'
           } 
         });
-    
+        console.log("getUserNameById  response:",response); 
+         if (response && response.status === 403) { 
+            window.location.href = "./index.html";
+        } 
         const result = await response.json();
         console.log("getUserNameById"+ result);
         if (!response.ok) throw new Error("获取失败");

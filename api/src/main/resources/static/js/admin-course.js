@@ -204,7 +204,9 @@ async function submitCourseForm() {
  * 渲染课程列表（核心：原生JS操作DOM）
  */
 async function renderCourseCards() {
+ 
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
+    console.log("renderCourseCards:",dynamicContentCenter);
     if (!dynamicContentCenter) return; 
     // 显示加载中
     dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';
