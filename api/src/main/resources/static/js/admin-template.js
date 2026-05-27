@@ -241,7 +241,9 @@ async function submitTemplateForm() {
  * 渲染模板列表（核心：原生JS操作DOM）
  */
 async function renderTemplateCards() {
+  
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
+    console.log("renderTemplateCards:",dynamicContentCenter);
     if (!dynamicContentCenter) return; 
     // 显示加载中
     dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';
@@ -259,7 +261,7 @@ async function renderTemplateCards() {
 
     // 渲染HTML
     let html = '';
-    if (!templateList.length) {
+    if (templateList && templateList.length ==0 ) {
         html = '<div style="padding:40px 0;text-align:center;color:#999;">暂无模板数据</div>';
     } else { 
       html += `<div class="card">
@@ -360,6 +362,11 @@ async function fetchTemplateList(conditionJson) {
             headers: { "Authorization": "Bearer " + token },
             params: conditionJson // 筛选条件通过params传递
         });
+        if(!response.ok) 
+          {
+            if ( response.status === 403)   
+              window.location.href = "./index.html";
+          }  
         const res = response.data;
         console.info("get:",res);
         if (res && res.code === 200) { //.templates-->data

@@ -23,7 +23,7 @@ var localParamter ={
  */
 async function renderScheduleCards() {
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
-    console.log("container:",dynamicContentCenter);
+    console.log("renderScheduleCards:",dynamicContentCenter);
     if (!dynamicContentCenter) return; 
     // 显示加载中
     dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';  
@@ -371,6 +371,9 @@ async function getCourseList(conditionJson) {
           headers: { "Authorization": "Bearer " + token },
          params:conditionJson  // 筛选条件通过params传递
       });
+      if (response && response.status === 403) { 
+        window.location.href = "./index.html";
+    } 
       const res = response.data;
      // console.info("get response data:",res);
       if (res && res.code === 200) {
