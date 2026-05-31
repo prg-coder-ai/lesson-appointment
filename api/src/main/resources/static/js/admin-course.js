@@ -1,7 +1,5 @@
- 
-// 全局常量（后端可通过Thymeleaf注入，如 th:inline="javascript"） 
-
-// 全局变量（替代Vue响应式，直接操作DOM/变量）
+  /* js for overall page
+  */
 //let CourseList = [];       // 课程列表
 var localParamter ={ 
   currentPage:1,         // 当前页码（初始值由Thymeleaf渲染）
@@ -12,29 +10,7 @@ var localParamter ={
   currentCourseId: '', // 当前操作的课程ID
   formEl :'', 
 };
-// ===================== 核心函数 =====================
-//编辑时，courseId、templateId、teacherId可以为空，但是发布时必须设置
-function validateCourseForm() {
-    let isValid = true;
-    if (!localParamter.formEl) return false;
-    
-    // 清空所有错误提示
-    document.querySelectorAll(".form-error").forEach(el => el.innerText = "");
-   
-    // 逐个校验必填项
-    const requiredFields = [ 'courseName', 'content', 'feature'];
-    requiredFields.forEach(field => {
-        const input = localParamter.formEl[field];
-        if (!input.value || (!input.value.trim()) ){
-            const errorEl = document.getElementById(`${field}Error`);
-            if (errorEl) {
-                errorEl.innerText = "此项为必填项";
-            }
-            isValid = false;
-        }
-    });
-    return isValid;
-  }
+// ===================== 核心函数 ===================== 
   var templateCondition=[];//模板检索
  // var templateList = [];//await  fetchTemplateList(templateCondition); 
    const conditionJsonForTeacher = { role: 'teacher' }; 

@@ -130,8 +130,7 @@
   </div>
 
   <!-- JavaScript交互逻辑 --> 
-  <script> 
-// API完整前缀
+  <script>  
   //  const API_BASE_URL = `${API_SERVER_HOST}:${API_SERVER_PORT}${API_BASE_PATH}`; 
     // 侧边栏菜单切换逻辑
     // 管理端页面内容加载逻辑（核心修改：渲染到中央区域）
@@ -148,23 +147,28 @@
             <div class="stats-panel">
               <div class="stats-item">
                 <div class="stats-label">总教师数</div>
-                <div class="stats-value">12</div>
-                <div class="stats-desc"><i class="fa fa-arrow-up" style="color: #52c41a;"></i> 2 人 (本月新增)</div>
+                <div class="stats-value">${monthTotalTeacher}</div>
+                <div class="stats-desc"><i class="fa" style="color: #52c41a;"></i> ${monthTotalTeacher-lastMonthTotalTeacher} 人 (本月新增)</div>
               </div>
               <div class="stats-item success">
                 <div class="stats-label">总学生数</div>
-                <div class="stats-value">256</div>
-                <div class="stats-desc"><i class="fa fa-arrow-up" style="color: #52c41a;"></i> 18 人 (本月新增)</div>
+                <div class="stats-value">${monthTotalStudent}</div>
+                <div class="stats-desc"><i class="fa" style="color: #52c41a;"></i> ${monthTotalStudent-lastMonthTotalStudent}  人 (本月新增)</div>
               </div>
               <div class="stats-item warning">
                 <div class="stats-label">总课程数</div>
-                <div class="stats-value">48</div>
-                <div class="stats-desc"><i class="fa fa-arrow-up" style="color: #52c41a;"></i> 5 门 (本月新增)</div>
+                <div class="stats-value">${monthTotalCourse}</div>
+                <div class="stats-desc"><i class="fa" style="color: #52c41a;"></i>${monthTotalCourse-lastMonthTotalCourse}  门 (本月新增)</div>
               </div>
               <div class="stats-item danger">
                 <div class="stats-label">本月预约数</div>
-                <div class="stats-value">328</div>
-                <div class="stats-desc"><i class="fa fa-arrow-down" style="color: #f5222d;"></i> 12 单 (环比下降)</div>
+                <div class="stats-value">${monthTotalBooking}</div>
+                <div class="stats-desc"><i class="fa" style="color: #f5222d;"></i> ${monthTotalBooking-lastMonthTotalBooking} 单 </div>
+              </div>
+               <div class="stats-item danger">
+                <div class="stats-label">本月预约课时</div>
+                <div class="stats-value">${monthTotalAppoint}</div>
+                <div class="stats-desc"><i class="fa" style="color: #f5222d;"></i> ${monthTotalAppoint-lastMonthTotalAppoint} 课次  </div>
               </div>
             </div>
 
@@ -178,7 +182,8 @@
                 <table class="data-table">
                   <thead>
                     <tr>
-                      <th>预约ID</th>
+                       <th>序号</th>
+                      <th >预约ID</th>
                       <th>课程名称</th>
                       <th>学生姓名</th>
                       <th>教师姓名</th>
@@ -188,42 +193,7 @@
                     </tr>
                   </thead>
                   <tbody id="pending-reservations">
-                    <tr>
-                      <td>预约20260320001</td>
-                      <td>英语初级口语 - 小班课</td>
-                      <td>张三</td>
-                      <td>李老师</td>
-                      <td>2026-03-20 14:00</td>
-                      <td style="color: #faad14;">待审核</td>
-                      <td>
-                        <button class="btn btn-success" onclick="approveReservation(this)"><i class="fa fa-check"></i> 通过</button>
-                        <button class="btn btn-danger" onclick="rejectReservation(this)"><i class="fa fa-times"></i> 拒绝</button>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>预约20260320002</td>
-                      <td>日语入门</td>
-                      <td>李四</td>
-                      <td>王老师</td>
-                      <td>2026-03-21 10:00</td>
-                      <td style="color: #faad14;">待审核</td>
-                      <td>
-                        <button class="btn btn-success" onclick="approveReservation(this)"><i class="fa fa-check"></i> 通过</button>
-                        <button class="btn btn-danger" onclick="rejectReservation(this)"><i class="fa fa-times"></i> 拒绝</button>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>预约20260320003</td>
-                      <td>英语进阶写作</td>
-                      <td>王五</td>
-                      <td>李老师</td>
-                      <td>2026-03-22 16:00</td>
-                      <td style="color: #faad14;">待审核</td>
-                      <td>
-                        <button class="btn btn-success" onclick="approveReservation(this)"><i class="fa fa-check"></i> 通过</button>
-                        <button class="btn btn-danger" onclick="rejectReservation(this)"><i class="fa fa-times"></i> 拒绝</button>
-                      </td>
-                    </tr>
+                   
                   </tbody>
                 </table>
               </div>
@@ -256,39 +226,14 @@
                       <th>操作</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    <tr>
-                      <td>李老师</td>
-                      <td>42</td>
-                      <td>98%</td>
-                      <td>4.9 <i class="fa fa-star" style="color: #faad14;"></i></td>
-                      <td>
-                        <button class="btn btn-default" onclick="viewTeacherDetail(this)"><i class="fa fa-eye"></i> 详情</button>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>王老师</td>
-                      <td>36</td>
-                      <td>95%</td>
-                      <td>4.7 <i class="fa fa-star" style="color: #faad14;"></i></td>
-                      <td>
-                        <button class="btn btn-default" onclick="viewTeacherDetail(this)"><i class="fa fa-eye"></i> 详情</button>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>张老师</td>
-                      <td>28</td>
-                      <td>92%</td>
-                      <td>4.8 <i class="fa fa-star" style="color: #faad14;"></i></td>
-                      <td>
-                        <button class="btn btn-default" onclick="viewTeacherDetail(this)"><i class="fa fa-eye"></i> 详情</button>
-                      </td>
-                    </tr>
+                  <tbody id="activity-teachers"> 
                   </tbody>
                 </table>
               </div>
             </div>
           `;
+          refreshOverallpage();
+        
           break;
           
         case '教师管理':
@@ -944,9 +889,11 @@
    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script> 
    <script src="js/public/api.js"></script>
    <script src="js/public/dataFunctions.js"></script> 
+   <script src="js/public/courseAndBooking.js"></script>  
    <script src="js/admin-template.js"></script> 
    <script src="js/admin-course.js"></script>
    <script src="js/admin-course-schedule.js"></script>
+   <script src="js/admin-overall.js"></script>
    <script>
    console.log("end of body...")
    </script>
