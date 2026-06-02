@@ -98,6 +98,7 @@ async function fetchScheduleList( cid,status) {
  *取消、删除
  */
  async function operateBookingStatus(bookid, action) {
+  console.log("operateBookingStatus",bookid,action);
     const token = getToken();
     const payload = {
         id: bookid,  // 注意小写，和后端命名对应

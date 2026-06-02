@@ -9,6 +9,7 @@ var localParamter ={
   currentCourseId: '', // 当前操作的课程ID
   formEl :'', 
 };
+
 // ===================== 核心函数 =====================
 
 /*
@@ -29,6 +30,7 @@ let monthTotalTeacher=0,monthTotalStudent=0,monthTotalCourse=0,monthTotalBooking
 let lastMonthTotalTeacher=0,lastMonthTotalStudent=0,lastMonthTotalCourse=0,lastMonthTotalBooking=0,lastMonthTotalAppoint=0;
 let pendingBooking=[];// ID,ciurseName,studentName,teacherName,dateTime(创建时间),状态、操作（预览、确认、拒绝）
 let activeDataForTearcher=[];// id="activity-teachers" 教师姓名 授课总节数  预约完成率  学生平均评分  操作
+let BookingCount=0,CancelBookingCount=0;
 /**  <tr>
                       <td>李老师</td>
                       <td>42</td>
@@ -95,112 +97,16 @@ async function renderStatisCards() {
 
 //刷新按钮也做同样的动作：读取数据库，更新显示
  async function showAppointments(){
- //search current pendding booking items ,and dispaly here /pendingBooking
-     id="pending-reservations";
-     pendingBooking = [];
- 
-     let userRole = null,userId=null,status = null;//TB TEST "pending";
-     bookingList = await getBookingList(userRole, userId, status);
-  //console.log("refreshData:",bookingList);
-     let bookingsHtml = "";
+ //search current pendding booking items ,and dispaly here /pendingBooking 
+     let userRole = null,userId=null,status ='cancelling';//TB TEST "pending";
+     bookingList1 = await getBookingList(userRole, userId, status);
+     bookingList2 = await getBookingList(userRole, userId, 'booking');
+   
+     CancelBookingCount= bookingList1.length;
+     BookingCount = bookingList2.length; 
+     console.log("BookingCount:", BookingCount,CancelBookingCount);  
+ }   
 
-     if (Array.isArray(bookingList)) {
-         // 用for...of+await，等待所有异步操作完成
-         for (let booking of bookingList) {
-         //  
-             const scheduleObject = await fetchSchedule(booking.scheduleId); 
-             if (scheduleObject != null) {
-                 let scheduleInfoStr = getScheduleInfo(scheduleObject); 
-                 const classObject = await getCourseById(scheduleObject.courseId); 
-                 const studentName = await getUserNameById(booking.studentId);
-                 const teacherName = await getUserNameById(classObject.teacherId);
-
-                 console.log("studentName:", booking.studentId,studentName);
-                 console.log("teacherName:", booking.teacherId,teacherName);
-                 if (classObject != null) {
-                     let cardItems = {
-                         scheduleId:    scheduleObject.scheduleId, 
-                         origTz:        scheduleObject.timeZone,
-                         bookingId: booking.id,
-                         className: classObject.courseName,
-                         studentName: studentName,//-->name/phone/email
-                         teacherName: teacherName,
-                         scheduleInfo: scheduleInfoStr, 
-                         status: booking.status
-                     }
-                     let cardContent = formACourseCardForTeacher(cardItems);//TBD: table TR
-                 
-                     bookingsHtml += cardContent;
-                 }
-             }
-         }
-     }
-
-     //在全部异步处理后再输出和渲染 
-     let bookingContainer = document.getElementById("pending-reservations");
-     if (bookingContainer) {
-         bookingContainer.innerHTML = `<div class="bookings-list">${bookingsHtml}</div>`;
-     }
-
- }
- function formACourseCardForTeacher(cardInfo) {
-  // console.log("cardInfo:", cardInfo);
-
-   const info = `
-       <div class="course-card">
-           <div class="course-info">
-               <h4>${cardInfo.className}</h4>
-               <p>
-                  学生：${cardInfo.studentName} 老师：${cardInfo.teacherName} | 
-                  排期：${cardInfo.scheduleInfo} | 
-                  状态：${
-                    cardInfo.status === 'booking' ? '预定待确认' :
-                    cardInfo.status === 'booked' ? '预定已确认' :
-                    cardInfo.status === 'cancelling' ? '取消待确认' :
-                    cardInfo.status === 'cancelled' ? '已取消' :
-                    cardInfo.status === 'delete' ? '已删除' :
-                    cardInfo.status || ''
-                  }
-               </p>
-          
-           </div>
-           <div class="course-actions">
-        
-               ${
-                  cardInfo.status === 'booking'
-                  ? `
-                      <button class="btn btn-success" onclick="validOrCancelReservation('${cardInfo.bookingId}','booked')">确认</button>
-                      <button class="btn btn-danger" onclick="validOrCancelReservation('${cardInfo.bookingId}','cancelled')">拒绝</button>
-                    `
-                  : cardInfo.status === 'cancelling' || cardInfo.status === 'canceling'
-                  ? `
-                      <button class="btn btn-danger" onclick="validOrCancelReservation('${cardInfo.bookingId}','cancelled')">确认撤销</button>
-                      <button class="btn btn-warning" onclick="validOrCancelReservation('${cardInfo.bookingId}','booked')">撤回请求</button>
-                    `
-                  : cardInfo.status === 'booked'
-                  ? `
-                      <button class="btn btn-danger" onclick="validOrCancelReservation('${cardInfo.bookingId}','booking')">撤回确认</button>
-                      <button class="btn btn-warning" onclick="validOrCancelReservation('${cardInfo.bookingId}','cancelling')">取消预约</button>
-                    `
-                  : cardInfo.status === 'cancelled' || cardInfo.status === 'canceled'
-                  ? ` <button class="btn btn-danger" onclick="validOrCancelReservation('${cardInfo.bookingId}','cancelling')">撤回确认</button>
-                       <button class="btn btn-warning" onclick="validOrCancelReservation('${cardInfo.bookingId}','booking')">取消确认</button>
-                    `
-                  : ''
-               }
-
-              ${
-                  cardInfo.status === 'booked' || cardInfo.status === 'cancelling'
-                    ? `<button class="btn btn-gray" onclick="viewMyReservationDetail('${cardInfo.bookingId}', '${cardInfo.origTz}')">预约详情</button>`
-                    : `<button class="btn btn-gray" onclick="previewSchedule('${cardInfo.scheduleId}', '${userTimeZone}')">排期详情</button>`
-              }
-         
-           </div>
-       </div>
-   `;
-  // console.log("cardContent:", info);
-   return info;
-} 
 /**
  * 调用后端接口获取模板列表
  */
