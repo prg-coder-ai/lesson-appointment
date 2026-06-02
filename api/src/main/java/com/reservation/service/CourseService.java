@@ -184,6 +184,17 @@ public class CourseService {
             throw new BusinessException("没有操作该课程的权限");
         }
     }
-
+// INSERT_YOUR_CODE
+    /**
+     * 统计截至指定时间点已发布的课程数（含指定时间）
+     * @param dateTime 截止时间点
+     * @return 已发布课程数
+     */
+    public int countPublishedCourseAtDate(java.time.LocalDateTime dateTime) {
+        // 需将java.time.LocalDateTime转换为数据库可用的时间格式（如Timestamp）
+        java.sql.Timestamp timestamp = java.sql.Timestamp.valueOf(dateTime);
+        // 假定"active"为已发布课程状态，需要CourseMapper提供对应查询
+        return courseMapper.countPublishedCourseAtDate(timestamp, "active");
+    }
     
 }

@@ -284,8 +284,24 @@ public User selectById(String userId) {
         }
         return user != null;
     }
-}
+    /**
+     * 统计截至某一天指定角色的用户数量
+     * @param role 用户角色（如 "teacher", "student"）
+     * @param dateTime 截止时间（含，LocalDateTime）
+     * @return 截止该时间点的累计指定角色用户数
+     */
+    public  Integer   countByRoleAtDate(String role, java.time.LocalDateTime dateTime) {
+        if (role == null || dateTime == null) {
+            return 0;
+        }
+        // 由于数据库类型、时间字段名不确定，这里假设有create_time字段记录注册时间
+        // Mapper 需提供 countByRoleAtDate(role, datetime)
+        // 将 LocalDateTime 转换为 java.util.Date 以兼容常用 MyBatis Mapper
+        java.util.Date until = java.sql.Timestamp.valueOf(dateTime);
+        return userMapper.countByRoleAtDate(role, until);
+    }
 
+} 
 /*
 错误分析：
 异常 `org.apache.ibatis.binding.BindingException: Invalid bound statement (not found): com.reservation.mapper.UserMapper.selectByPhone` 表示 MyBatis 在运行时没有找到 `UserMapper` 接口的 `selectByPhone` 方法在 XML 中的 SQL 映射。原因可能如下：

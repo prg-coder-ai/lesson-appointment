@@ -90,9 +90,28 @@ async function renderStatisCards() {
         pagination.total       = localParamter.total;
     }
 */
+    // INSERT_YOUR_CODE
+    // 获取当前日期的年、月
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // getMonth() 返回 0-11，因此要 +1
+
     monthTotalTeacher=10;monthTotalStudent=20;monthTotalCourse=30;monthTotalBooking=40;monthTotalAppoint=50;
     lastMonthTotalTeacher=1;lastMonthTotalStudent=2;lastMonthTotalCourse=3;lastMonthTotalBooking=4;lastMonthTotalAppoint=5;
- 
+    const stats = await getUserStatisticByMonth(currentYear, currentMonth);
+    if (stats) { console.log(stats.teacherMonthStart, stats.studentMonthEnd); 
+          monthTotalTeacher= stats.teacherMonthEnd;
+          lastMonthTotalTeacher = stats.teacherMonthStart;
+
+          monthTotalStudent =   stats.studentMonthEnd;
+          lastMonthTotalStudent = stats.studentMonthStart;
+        }
+        const stats2 = await getCourseStaticsByMonth(currentYear, currentMonth);
+        if (stats2) { console.log(stats2.courseMonthEnd, stats.courseMonthStart); 
+          monthTotalCourse = stats2.courseMonthEnd;
+          lastMonthTotalCourse =   stats2.courseMonthStart;
+        }
+        
 }
 
 //刷新按钮也做同样的动作：读取数据库，更新显示

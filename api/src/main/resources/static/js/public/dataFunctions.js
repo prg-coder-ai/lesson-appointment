@@ -224,6 +224,74 @@ async function getCourseById( courseId) {
 
  }
  
+ // 截至指定月份，检索教师人数，
+ 
+/**
+ * 前端 JS 使用 axios 查询用户月度统计的示例方法
+ * 后端接口文档: GET /user/statics/byMonth?year=2024&month=06
+ * 响应示例: { code: 200, message: "查询成功", data: { teacherMonthStart: 100, teacherMonthEnd: 110, studentMonthStart: 250, studentMonthEnd: 270 } }
+ * 
+ * 推荐前端 dataFunctions.js 添加如下函数:
+ * */
+   // 获取某年月的教师/学生月初月末统计
+   async function getUserStatisticByMonth(year, month) {
+    const token = getToken && typeof getToken === 'function' ? getToken() : '';
+   try {
+       const response = await axios.get(`${API_BASE_URL}/user/statistical/byMonth`, {
+         headers: { "Authorization": "Bearer " + token },
+        params: { year, month }
+      });
+     const res = response.data;
+     if (res && res.code === 200) {
+       // 返回统计结果对象，如:{ teacherMonthStart, teacherMonthEnd, studentMonthStart, studentMonthEnd }
+         return res.data;
+       } else {
+       // 可以自定义错误处理
+         return null;
+    }
+     } catch (e) {
+       // 网络或服务器异常处理
+      console.error(e);
+      return null;
+     }
+   }
+
+    /* 
+ * // 用法示例:
+ * // const stats = await getUserStaticsByMonth(2024, 6);
+ * // if (stats) { console.log(stats.teacherMonthStart, stats.studentMonthEnd); }
+ */
+  // INSERT_YOUR_CODE
+
+  /**
+   * 获取某年月的课程月初（月初0点）和月末（23:59:59）已发布数量
+   * 对应后端接口: GET /course/statistical/byMonth?year=2024&month=6
+   * 返回示例: { courseMonthStart: 10, courseMonthEnd: 12 }
+   */
+  async function getCourseStaticsByMonth(year, month) {
+    const token = getToken && typeof getToken === 'function' ? getToken() : '';
+    try {
+      const response = await axios.get(`${API_BASE_URL}/course/statistical/byMonth`, {
+        headers: { "Authorization": "Bearer " + token },
+        params: { year, month }
+      });
+      const res = response.data;
+      if (res && res.code === 200) {
+        // 返回: { courseMonthStart, courseMonthEnd }
+        return res.data;
+      } else {
+        // 可以自定义错误处理（如弹窗）
+        return null;
+      }
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  }
+
+ 
+
+
    /**
     * 详细介绍 fetch 在 GET、POST、PUT、DELETE、PATCH 等方法中携带参数的方式
     * 

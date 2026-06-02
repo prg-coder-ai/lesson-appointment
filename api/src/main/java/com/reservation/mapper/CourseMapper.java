@@ -167,4 +167,13 @@ public interface CourseMapper {
 
     List<Map<String, Object>> selectCourseListByStudent(CourseQueryParam queryParam);
     */
+// INSERT_YOUR_CODE
+    /**
+     * 统计截至指定时间点、指定状态（如已发布"active"）的课程数量（含指定时间）
+     * @param dateTime 创建时间上限（包含，通常为Timestamp）
+     * @param status 状态（如"active"）
+     * @return 数量
+     */
+    @Select("SELECT COUNT(*) FROM course WHERE status = #{status} AND create_time <= #{dateTime}")
+    int countPublishedCourseAtDate(@Param("dateTime") java.sql.Timestamp dateTime, @Param("status") String status);
 }

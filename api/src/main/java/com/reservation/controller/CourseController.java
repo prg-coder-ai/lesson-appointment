@@ -210,4 +210,32 @@ public class CourseController {
       public String getStatus() { return status; }
       public void setStatus(String status) { this.status = status; }
   }
+
+// INSERT_YOUR_CODE
+
+    /**
+     * 按月统计已发布课程数
+     * 前端调用: GET /course/statistical/byMonth?year=2024&month=6
+     * 返回: { "courseMonthStart": 10, "courseMonthEnd": 12 }
+     */
+    @GetMapping("/statistical/byMonth")
+    @ResponseBody
+    public Result<Map<String, Integer>> getCourseStaticsByMonth(
+            @RequestParam("year") int year,
+            @RequestParam("month") int month
+    ) {
+        // 计算当月起止日期
+        java.time.LocalDate monthStart = java.time.LocalDate.of(year, month, 1);
+        java.time.LocalDate monthEnd = monthStart.with(java.time.temporal.TemporalAdjusters.lastDayOfMonth());
+
+        // 统计截至月初0点已发布课程数（含月初当天0点）；截至月末23:59:59已发布课程数
+        int courseMonthStart = courseService.countPublishedCourseAtDate(monthStart.atStartOfDay());
+        int courseMonthEnd = courseService.countPublishedCourseAtDate(monthEnd.atTime(23, 59, 59));
+
+        Map<String, Integer> data = new java.util.HashMap<>();
+        data.put("courseMonthStart", courseMonthStart);
+        data.put("courseMonthEnd", courseMonthEnd);
+
+        return Result.success(data, "查询成功");
+    }
 }

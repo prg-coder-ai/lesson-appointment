@@ -228,5 +228,43 @@ public Result<String> logout(HttpServletResponse response) {
         return Result.success(null, "数据更新失败");
     }
 */
+// INSERT_YOUR_CODE
+
+    /**
+     * 查询截至指定月份的教师和学生总数（含月初、月末）
+     * 前端调用: GET /user/static/byMonth?year=2024&month=06
+     * 返回: {
+     *   "teacherMonthStart": 100,
+     *   "teacherMonthEnd": 110,
+     *   "studentMonthStart": 250,
+     *   "studentMonthEnd": 270
+     * } statistical
+     */
+    @GetMapping("/statistical/byMonth")
+    @ResponseBody
+    public Result<Map<String, Integer>> getUserStaticsByMonth(
+            @RequestParam("year") int year,
+            @RequestParam("month") int month
+    ) {
+        // 计算指定年月的月初与月末日期
+        java.time.LocalDate monthStart = java.time.LocalDate.of(year, month, 1);
+        java.time.LocalDate monthEnd = monthStart.with(java.time.temporal.TemporalAdjusters.lastDayOfMonth());
+
+        // 教师数
+        int teacherMonthStart = userService.countByRoleAtDate("teacher", monthStart.atStartOfDay());
+        int teacherMonthEnd = userService.countByRoleAtDate("teacher", monthEnd.atTime(0, 0, 0));
+        // 学生数
+        int studentMonthStart = userService.countByRoleAtDate("student", monthStart.atStartOfDay());
+        int studentMonthEnd = userService.countByRoleAtDate("student", monthEnd.atTime(23, 59, 59));
+
+        Map<String, Integer> data = new java.util.HashMap<>();
+        data.put("teacherMonthStart", teacherMonthStart);
+        data.put("teacherMonthEnd", teacherMonthEnd);
+        data.put("studentMonthStart", studentMonthStart);
+        data.put("studentMonthEnd", studentMonthEnd);
+
+        return Result.success(data, "查询成功");
+    }
 
 }
+ 
