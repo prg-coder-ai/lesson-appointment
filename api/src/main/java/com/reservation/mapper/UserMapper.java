@@ -112,7 +112,13 @@ public interface UserMapper {
       @Select("SELECT * FROM user WHERE role = #{role}")
        List<User> listByRole(@Param("role") String role);
 
-       
-      
- 
+// INSERT_YOUR_CODE
+    /**
+     * 统计截至某一天指定角色的用户数量
+     * @param role 用户角色（如 "teacher", "student"）
+     * @param until 截止时间（含，java.util.Date）
+     * @return 截止该时间点的累计指定角色用户数
+     */
+    @Select("SELECT COUNT(*) FROM user WHERE role = #{role} AND create_time <= #{until}")
+    int countByRoleAtDate(@Param("role") String role, @Param("until") java.util.Date until); 
 }
