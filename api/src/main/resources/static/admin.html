@@ -177,26 +177,17 @@
               <div class="card-header">
                 <div class="card-title"><i class="fa fa-calendar-check"></i> 待审核预约</div>
                 <button class="btn btn-primary"><i class="fa fa-refresh"></i> 刷新</button>
-              </div>
-              <div class="table-container">
-                <table class="data-table">
-                  <thead>
-                    <tr>
-                       <th>序号</th>
-                      <th >预约ID</th>
-                      <th>课程名称</th>
-                      <th>学生姓名</th>
-                      <th>教师姓名</th>
-                      <th>预约时间</th>
-                      <th>状态</th>
-                      <th>操作</th>
-                    </tr>
-                  </thead>
-                  <tbody id="pending-reservations">
-                   
-                  </tbody>
-                </table>
-              </div>
+              </div>  
+                  <div class="stats-panel">
+                    <div class="stats-item">
+                      <div class="stats-label">预约待确认</div>
+                      <div class="stats-value">${BookingCount||0}</div> 
+                    </div>
+                    <div class="stats-item success">
+                      <div class="stats-label">取消待确认</div>
+                      <div class="stats-value">${CancelBookingCount||0}</div>
+                    </div>
+                  </div>
             </div>
 
             <!-- 教师活跃度统计卡片 -->
@@ -242,8 +233,9 @@
             if (window.loadAdminPageContent) {
               // 覆盖 "教师管理" 渲染逻辑
               loadAdminPageContent = (function(orig){
-                console.log("loadAdminPageContent title ", window.title);
+              
                 return function(title) {
+                  console.log("loadAdminPageContent title ", title);
                   if(title === '教师管理'){
                     renderTeacherCards();
                   } else {
@@ -367,14 +359,15 @@
           dynamicContentCenter.innerHTML = `
             <div class="card">
               <div class="card-header">
-                <div class="card-title"><i class="fa fa-calendar-alt"></i> 所有预约记录</div>
-                <button class="btn btn-primary"><i class="fa fa-refresh"></i> 刷新</button>
+                <div class="card-title"><i class="fa fa-calendar-alt"></i>预约列表</div>
+                <button class="btn btn-primary" onclick="provingBooking()"><i class="fa fa-refresh"></i> 刷新</button>
               </div>
               <div class="table-container">
                 <table class="data-table">
                   <thead>
                     <tr>
-                      <th>预约ID</th>
+                      <th>序号</th>
+                      <th  style="display:none;">预约ID</th>
                       <th>课程名称</th>
                       <th>学生姓名</th>
                       <th>教师姓名</th>
@@ -383,46 +376,14 @@
                       <th>操作</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    <tr>
-                      <td>预约20260320001</td>
-                      <td>英语初级口语 - 小班课</td>
-                      <td>张三</td>
-                      <td>李老师</td>
-                      <td>2026-03-20 14:00</td>
-                      <td style="color: #faad14;">待审核</td>
-                      <td>
-                        <button class="btn btn-success" onclick="approveReservation(this)"><i class="fa fa-check"></i> 通过</button>
-                        <button class="btn btn-danger" onclick="rejectReservation(this)"><i class="fa fa-times"></i> 拒绝</button>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>预约20260320002</td>
-                      <td>日语入门</td>
-                      <td>李四</td>
-                      <td>王老师</td>
-                      <td>2026-03-21 10:00</td>
-                      <td style="color: #52c41a;">已通过</td>
-                      <td>
-                        <button class="btn btn-default" onclick="viewReservationDetail(this)"><i class="fa fa-eye"></i> 详情</button>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>预约20260320003</td>
-                      <td>英语进阶写作</td>
-                      <td>王五</td>
-                      <td>李老师</td>
-                      <td>2026-03-22 16:00</td>
-                      <td style="color: #f5222d;">已拒绝</td>
-                      <td>
-                        <button class="btn btn-default" onclick="viewReservationDetail(this)"><i class="fa fa-eye"></i> 详情</button>
-                      </td>
-                    </tr>
+                  <tbody id="pending-reservations">
+                    
                   </tbody>
                 </table>
               </div>
             </div>
           `;
+          provingBooking();
           break;
           
         case '基础配置':
@@ -893,7 +854,8 @@
    <script src="js/admin-template.js"></script> 
    <script src="js/admin-course.js"></script>
    <script src="js/admin-course-schedule.js"></script>
-   <script src="js/admin-overall.js"></script>
+    <script src="js/admin-overall.js"></script>
+    <script src="js/admin-provingBooking.js"></script>
    <script>
    console.log("end of body...")
    </script>
