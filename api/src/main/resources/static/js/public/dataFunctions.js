@@ -288,6 +288,33 @@ async function getCourseById( courseId) {
       return null;
     }
   }
+   // INSERT_YOUR_CODE
+
+   /**
+    * 获取某年月的预定（Booking）月初（月初0点）和月末（23:59:59）数量
+    * 对应后端接口: GET /course/booking/statistical/byMonth?year=2024&month=6
+    * 返回示例: { bookingMonth: 32, bookingMonthLast: 44 }
+    */
+   async function getBookingStaticsByMonth(year, month) {
+     const token = getToken && typeof getToken === 'function' ? getToken() : '';
+     try {
+       const response = await axios.get(`${API_BASE_URL}/course/booking/statistical/byMonth`, {
+         headers: { "Authorization": "Bearer " + token },
+         params: { year, month }
+       });
+       const res = response.data;
+       if (res && res.code === 200) {
+         // 返回: { bookingMonthLast, bookingMonth }
+         return res.data;
+       } else {
+         // 可自定义错误处理（如弹窗提示）
+         return null;
+       }
+     } catch (e) {
+       console.error(e);
+       return null;
+     }
+   }
 
  
 

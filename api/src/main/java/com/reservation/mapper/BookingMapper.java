@@ -29,5 +29,14 @@ public interface BookingMapper {
     // 删除预约
     int delete(@Param("id") String id);
 
+    // INSERT_YOUR_CODE
+    /**
+     * 统计截至指定时间（含当时）所有预约（Booking）的数量，可指定状态。
+     * @param dateTime 截止时间（精确到秒，包含当天该时刻）
+     * @param status 预定状态（如"booked"/"active"/"cancelled"等；可据业务自定义）
+     * @return 截至该时间的指定状态预约数量
+     */
+    int countBookingAtDate(@Param("dateTimeFrom") java.sql.Timestamp dateTimeFrom, @Param("dateTimeTo") java.sql.Timestamp dateTimeTo,@Param("status") String status);
+
     // 以下可根据实际需要扩展
 } 

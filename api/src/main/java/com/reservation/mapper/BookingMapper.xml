@@ -62,5 +62,15 @@
     <delete id="delete" parameterType="string">
         DELETE FROM booking WHERE id = #{id}
     </delete>
+ 
+    <!-- 统计截至指定时间（含当时）所有预约（Booking）的数量，可指定状态 -->
+    <select id="countBookingAtDate" parameterType="map" resultType="int">
+        SELECT COUNT(*) FROM booking 
+        WHERE create_time &gt;= #{dateTimeFrom} 
+          AND create_time &lt;= #{dateTimeTo}
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+    </select>
 
 </mapper> 
