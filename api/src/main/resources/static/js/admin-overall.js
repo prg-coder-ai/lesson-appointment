@@ -27,7 +27,7 @@ var localParamter ={
                     </tr> 
 */ 
 let monthTotalTeacher=0,monthTotalStudent=0,monthTotalCourse=0,monthTotalBooking=0,monthTotalAppoint=0;
-let lastMonthTotalTeacher=0,lastMonthTotalStudent=0,lastMonthTotalCourse=0,lastMonthTotalBooking=0,lastMonthTotalAppoint=0;
+let lastMonthTotalTeacher=0,lastMonthTotalStudent=0,lastMonthTotalCourse=0,lastMonthTotalBooking=0;
 let pendingBooking=[];// ID,ciurseName,studentName,teacherName,dateTime(创建时间),状态、操作（预览、确认、拒绝）
 let activeDataForTearcher=[];// id="activity-teachers" 教师姓名 授课总节数  预约完成率  学生平均评分  操作
 let BookingCount=0,CancelBookingCount=0;
@@ -65,38 +65,7 @@ window.getBookingList  = getBookingList ;
  }
 
  //刷新月度统计
-async function renderStatisCards() {
- 
-   /* const dynamicContentCenter = document.getElementById('dynamic-content-center');
-    console.log("renderCourseCards:",dynamicContentCenter);
-    if (!dynamicContentCenter) return; 
-    // 显示加载中
-    dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';
-
-    // 构建筛选条件 TBD
-    const conditionJson = {
-        //language: document.getElementById('languageType').value,
-      //  level: document.getElementById('difficultyLevel').value,
-      teacherId:"",
-      templateId:"",
-      status:"",
-        pageRow: localParamter.pageSize,
-        pageNum: localParamter.currentPage
-    };
-
-      templateList = await  fetchTemplateList(templateCondition);  
-      teacherList  = await  fetchUserList(conditionJsonForTeacher);
-
-    // 获取模板列表数据
-    await fetchCourseList(conditionJson);  
-    const pagination = document.getElementById('pagination');
-    if (pagination) {
-        pagination.currentPage = localParamter.currentPage;
-        pagination.pageSize    = localParamter.pageSize;
-        pagination.total       = localParamter.total;
-    }
-*/
-    // INSERT_YOUR_CODE
+async function renderStatisCards() { 
     // 获取当前日期的年、月
     const now = new Date();
     const currentYear = now.getFullYear();
@@ -135,7 +104,16 @@ async function renderStatisCards() {
       let delt= monthTotalBooking-lastMonthTotalBooking;
       monthTotalBookingIcon=getFaiconAndStr(delt);
     }
-    monthTotalAppointIcon=getFaiconAndStr(0);
+
+    const appData = await getAppointmentStatisticByMonth(currentYear, currentMonth);
+    if(appData){
+      console.log(appData); 
+       monthTotalAppoint = appData .appMonth  ;
+     // lastMonthTotalAppoint =   appData .appMonthLast  ; 
+
+      let delt= appData .appMonth-appData .appMonthLast  ;
+      monthTotalAppointIcon=getFaiconAndStr(delt);
+    }
 }
  function getFaiconAndStr( v) {
    if(v==0) return {icon:"",str:"持平",v:v ,color:"#52c41a"};
