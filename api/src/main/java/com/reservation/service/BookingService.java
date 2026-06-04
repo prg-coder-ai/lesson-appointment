@@ -63,4 +63,16 @@ public class BookingService {
     public void delete(String id) {
         bookingMapper.delete(id);
     }
+// INSERT_YOUR_CODE
+
+    /**
+     * 统计截至某一时刻（含当时）所有预约（Booking）数量
+     * @param dateTimeFrom ~To 区间时间（时间点，精确到秒）
+     * @return 统计时点所有预约数量
+     */
+    @Transactional(readOnly = true)
+    public int countBookingAtDate(java.sql.Timestamp dateTimeFrom,java.sql.Timestamp dateTimeTo) {
+        // 可根据业务需求增加状态条件（如只统计"active"预约等）——此处统计所有状态
+        return bookingMapper.countBookingAtDate(dateTimeFrom,dateTimeTo,"booked");
+    }
 } 

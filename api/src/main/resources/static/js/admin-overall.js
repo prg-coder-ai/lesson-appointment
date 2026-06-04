@@ -106,12 +106,18 @@ async function renderStatisCards() {
           monthTotalStudent =   stats.studentMonthEnd;
           lastMonthTotalStudent = stats.studentMonthStart;
         }
-        const stats2 = await getCourseStaticsByMonth(currentYear, currentMonth);
-        if (stats2) { console.log(stats2.courseMonthEnd, stats.courseMonthStart); 
-          monthTotalCourse = stats2.courseMonthEnd;
-          lastMonthTotalCourse =   stats2.courseMonthStart;
-        }
-        
+    const stats2 = await getCourseStaticsByMonth(currentYear, currentMonth);
+    if (stats2) { console.log(stats2.courseMonthEnd, stats.courseMonthStart); 
+      monthTotalCourse = stats2.courseMonthEnd;
+      lastMonthTotalCourse =   stats2.courseMonthStart;
+    }
+    //”booked“ --> 当前的预约数，如何计算: booked--本月预约数，上月预约数 
+    BookingCount = await   getBookingStaticsByMonth(currentYear, currentMonth); 
+    if(BookingCount) { 
+      console.log( BookingCount .bookingMonthLast, BookingCount .bookingMonth ); 
+      monthTotalBooking = BookingCount .bookingMonth  ;
+      lastMonthTotalBooking =   BookingCount .bookingMonthLast  ; 
+    }
 }
 
 //刷新按钮也做同样的动作：读取数据库，更新显示
