@@ -256,6 +256,27 @@ async function getCourseById( courseId) {
      }
    }
 
+   async function getAppointmentStatisticByMonth(year, month ) {
+    const token = getToken && typeof getToken === 'function' ? getToken() : '';
+   try {
+       const response = await axios.get(`${API_BASE_URL}/course/appointment/statistical/byMonth`, {
+         headers: { "Authorization": "Bearer " + token },
+        params: { year:year, month:month }
+      });
+     const res = response.data;
+     if (res && res.code === 200) {
+       // 返回统计结果对象，如:{ teacherMonthStart, teacherMonthEnd, studentMonthStart, studentMonthEnd }
+         return res.data;
+       } else {
+       // 可以自定义错误处理
+         return null;
+    }
+     } catch (e) {
+       // 网络或服务器异常处理
+      console.error(e);
+      return null;
+     }
+   }
     /* 
  * // 用法示例:
  * // const stats = await getUserStaticsByMonth(2024, 6);

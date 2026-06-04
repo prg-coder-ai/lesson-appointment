@@ -129,4 +129,60 @@ public class AppointmentController {
     public Result<List<Appointment>> getByStatus(@RequestParam String status) {
         return Result.success(appointmentService.getByStatus(status),"ok");
     }
+// INSERT_YOUR_CODE
+/**
+ * 查询指定时间段内状态为approved或completed的预约数量
+ * @param start 开始时间（格式：yyyy-MM-dd HH:mm:ss）
+ * @param end 结束时间（格式：yyyy-MM-dd HH:mm:ss）
+ * @return 满足条件的预约数量
+ */
+@GetMapping("/countByTimeAndStatus")
+public Result<Integer> countByTimeAndStatus(
+        @RequestParam("start") String start,
+        @RequestParam("end") String end) {
+    // 直接用字符串转为LocalDateTime，格式要求yyyy-MM-dd HH:mm:ss
+    java.time.LocalDateTime startTime = java.time.LocalDateTime.parse(start, java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+    java.time.LocalDateTime endTime = java.time.LocalDateTime.parse(end, java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+    // 查询approved、completed状态数量
+    int count = appointmentService.countByTimeAndStatuses(
+            startTime, endTime, java.util.Arrays.asList("approved", "completed"));
+    return Result.success(count, "ok");
+}
+
+  @GetMapping("/statistical/byMonth")
+    @ResponseBody
+    public Result<java.util.Map<String, Integer>> countByTimeAndStatus(
+            @RequestParam("year") int year,
+            @RequestParam("month") int month
+    ) {
+        // 获取月初和月末的具体时间
+        java.time.LocalDate monthStart = java.time.LocalDate.of(year, month, 1);
+        java.time.LocalDate monthEnd = monthStart.with(java.time.temporal.TemporalAdjusters.lastDayOfMonth());
+
+        // 月初：00:00:00
+        java.time.LocalDateTime monthStartTime = monthStart.atStartOfDay();
+        // 月末：23:59:59
+        java.time.LocalDateTime monthEndTime = monthEnd.atTime(23, 59, 59);
+
+        // 统计月初到月末预约数量 统计某年月的预约（Booking）数量 
+        int bookingMonth  = appointmentService.countByTimeAndStatuses(java.sql.Timestamp.valueOf(monthStartTime),java.sql.Timestamp.valueOf(monthEndTime), java.util.Arrays.asList("active", "completed"));
+
+    // 计算上一月的起始和结束时间
+        java.time.LocalDate prevMonth = monthStart.minusMonths(1);
+        java.time.LocalDate prevMonthStart = prevMonth.withDayOfMonth(1);
+        java.time.LocalDate prevMonthEnd = prevMonth.with(java.time.temporal.TemporalAdjusters.lastDayOfMonth());
+        java.time.LocalDateTime prevMonthStartTime = prevMonthStart.atStartOfDay();
+        java.time.LocalDateTime prevMonthEndTime = prevMonthEnd.atTime(23, 59, 59);
+
+   // 上月统计月初到月末预约数量 统计某年月的预约（Booking）数量 
+        int bookingMonthLast  = appointmentService.countByTimeAndStatuses(java.sql.Timestamp.valueOf(prevMonthStartTime),java.sql.Timestamp.valueOf(prevMonthEndTime), java.util.Arrays.asList("active", "completed"));
+
+       // System.out.println(" /statistical/byMonth:"+year+","+month+","+monthStartTime+","+monthEndTime+","+prevMonthStartTime+","+prevMonthEndTime);
+        java.util.Map<String, Integer> data = new java.util.HashMap<>();
+        data.put("appMonth", bookingMonth);
+        data.put("appMonthLast", bookingMonthLast);
+
+        return Result.success(data, "查询成功");
+    }
+
 }
