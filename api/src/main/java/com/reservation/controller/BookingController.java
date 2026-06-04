@@ -99,7 +99,7 @@ public class BookingController {
    // 上月统计月初到月末预约数量 统计某年月的预约（Booking）数量 
         int bookingMonthLast  = bookingService.countBookingAtDate(java.sql.Timestamp.valueOf(prevMonthStartTime),java.sql.Timestamp.valueOf(prevMonthEndTime));
 
-        System.out.println(" /statistical/byMonth:"+year+","+month+","+monthStartTime+","+monthEndTime+","+prevMonthStartTime+","+prevMonthEndTime);
+       // System.out.println(" /statistical/byMonth:"+year+","+month+","+monthStartTime+","+monthEndTime+","+prevMonthStartTime+","+prevMonthEndTime);
         java.util.Map<String, Integer> data = new java.util.HashMap<>();
         data.put("bookingMonth", bookingMonth);
         data.put("bookingMonthLast", bookingMonthLast);

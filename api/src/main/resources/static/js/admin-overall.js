@@ -31,6 +31,12 @@ let lastMonthTotalTeacher=0,lastMonthTotalStudent=0,lastMonthTotalCourse=0,lastM
 let pendingBooking=[];// ID,ciurseName,studentName,teacherName,dateTime(创建时间),状态、操作（预览、确认、拒绝）
 let activeDataForTearcher=[];// id="activity-teachers" 教师姓名 授课总节数  预约完成率  学生平均评分  操作
 let BookingCount=0,CancelBookingCount=0;
+let  monthTotalTeacherIcon={},
+    monthTotalStudentIcon= {},
+    monthTotalCourseIcon= { },
+    monthTotalBookingIcon={};
+    monthTotalAppointIcon ={ }
+
 /**  <tr>
                       <td>李老师</td>
                       <td>42</td>
@@ -103,23 +109,39 @@ async function renderStatisCards() {
           monthTotalTeacher= stats.teacherMonthEnd;
           lastMonthTotalTeacher = stats.teacherMonthStart;
 
+          let delt= monthTotalTeacher-lastMonthTotalTeacher;
+          monthTotalTeacherIcon=getFaiconAndStr(delt);
+
           monthTotalStudent =   stats.studentMonthEnd;
           lastMonthTotalStudent = stats.studentMonthStart;
+          delt= monthTotalStudent-lastMonthTotalStudent;
+          monthTotalStudentIcon=getFaiconAndStr(delt);
         }
     const stats2 = await getCourseStaticsByMonth(currentYear, currentMonth);
     if (stats2) { console.log(stats2.courseMonthEnd, stats.courseMonthStart); 
       monthTotalCourse = stats2.courseMonthEnd;
       lastMonthTotalCourse =   stats2.courseMonthStart;
+
+      let delt= monthTotalCourse-lastMonthTotalCourse;
+      monthTotalCourseIcon=getFaiconAndStr(delt);
     }
     //”booked“ --> 当前的预约数，如何计算: booked--本月预约数，上月预约数 
-    BookingCount = await   getBookingStaticsByMonth(currentYear, currentMonth); 
-    if(BookingCount) { 
-      console.log( BookingCount .bookingMonthLast, BookingCount .bookingMonth ); 
-      monthTotalBooking = BookingCount .bookingMonth  ;
-      lastMonthTotalBooking =   BookingCount .bookingMonthLast  ; 
-    }
-}
+   const  BookingMonthCount = await   getBookingStaticsByMonth(currentYear, currentMonth); 
+    if(BookingMonthCount) { 
+      console.log( BookingMonthCount .bookingMonthLast, BookingMonthCount .bookingMonth ); 
+      monthTotalBooking = BookingMonthCount .bookingMonth  ;
+      lastMonthTotalBooking =   BookingMonthCount .bookingMonthLast  ; 
 
+      let delt= monthTotalBooking-lastMonthTotalBooking;
+      monthTotalBookingIcon=getFaiconAndStr(delt);
+    }
+    monthTotalAppointIcon=getFaiconAndStr(0);
+}
+ function getFaiconAndStr( v) {
+   if(v==0) return {icon:"",str:"持平",v:v ,color:"#52c41a"};
+   else  if(v>0) return {icon:"fa-arrow-up",str:"增加",v:v  ,color:"#52c41a"};
+   else   return {icon:"fa-arrow-down",str:"减少",v:-v  ,color:"#f5222d"}; 
+ }
 //刷新按钮也做同样的动作：读取数据库，更新显示
  async function showAppointments(){
  //search current pendding booking items ,and dispaly here /pendingBooking 

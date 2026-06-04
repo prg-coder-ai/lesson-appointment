@@ -234,12 +234,12 @@ async function getCourseById( courseId) {
  * 推荐前端 dataFunctions.js 添加如下函数:
  * */
    // 获取某年月的教师/学生月初月末统计
-   async function getUserStatisticByMonth(year, month) {
+   async function getUserStatisticByMonth(year, month ) {
     const token = getToken && typeof getToken === 'function' ? getToken() : '';
    try {
        const response = await axios.get(`${API_BASE_URL}/user/statistical/byMonth`, {
          headers: { "Authorization": "Bearer " + token },
-        params: { year, month }
+        params: { year:year, month:month }
       });
      const res = response.data;
      if (res && res.code === 200) {
