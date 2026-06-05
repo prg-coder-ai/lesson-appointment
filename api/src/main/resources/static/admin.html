@@ -6,8 +6,10 @@
   <title>语言教学预约系统 - 管理端</title>
   <!-- 引入管理端全局样式 -->
   <link rel="stylesheet" href="css/admin.css"> 
-  <!-- 引入图标库 -->
-  <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- 引入图标库 
+  < link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
    <!-- FullCalendar CSS -->
    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
@@ -148,32 +150,32 @@
               <div class="stats-item">
                 <div class="stats-label">总教师数</div>
                 <div class="stats-value">${monthTotalTeacher}</div>
-                <div class="stats-desc"><i class="fa ${monthTotalTeacherIcon.icon};" style="color:  ${monthTotalTeacherIcon.color};"></i>${monthTotalTeacherIcon.v} 人 (${monthTotalTeacherIcon.str})</div>
+                <div class="stats-desc"><i class="fa ${monthTotalTeacherIcon.icon}" style="color:  ${monthTotalTeacherIcon.color};"></i>${monthTotalTeacherIcon.v} 人 (${monthTotalTeacherIcon.str})</div>
               </div>
               <div class="stats-item success">
                 <div class="stats-label">总学生数</div>
                 <div class="stats-value">${monthTotalStudent}</div>
-                <div class="stats-desc"><i class="fa ${monthTotalStudentIcon.icon};" style="color: ${monthTotalStudentIcon.color};"></i> ${monthTotalStudentIcon.v}  人 (${monthTotalStudentIcon.str})</div>
+                <div class="stats-desc"><i class="fa ${monthTotalStudentIcon.icon}" style="color: ${monthTotalStudentIcon.color};"></i> ${monthTotalStudentIcon.v}  人 (${monthTotalStudentIcon.str})</div>
               </div>
               <div class="stats-item warning">
                 <div class="stats-label">总课程数</div>
                 <div class="stats-value">${monthTotalCourse}</div>  
-                <div class="stats-desc"><i class="fa  ${monthTotalCourseIcon.icon};" style="color: ${monthTotalCourseIcon.color};"></i> ${monthTotalCourseIcon.v} 门  (${monthTotalCourseIcon.str})</div>
+                <div class="stats-desc"><i class="fa  ${monthTotalCourseIcon.icon}" style="color: ${monthTotalCourseIcon.color};"></i> ${monthTotalCourseIcon.v} 门  (${monthTotalCourseIcon.str})</div>
               </div>
               <div class="stats-item danger">
                 <div class="stats-label">本月预约数</div>
                 <div class="stats-value">${monthTotalBooking}</div> 
               
-                <div class="stats-desc"><i class="fa  ${monthTotalBookingIcon.icon};" style="color:${monthTotalBookingIcon.color};"></i>${monthTotalBookingIcon.v} 单  (${monthTotalBookingIcon.str})</div>
+                <div class="stats-desc"><i class="fa  ${monthTotalBookingIcon.icon}" style="color:${monthTotalBookingIcon.color};"></i>${monthTotalBookingIcon.v} 单  (${monthTotalBookingIcon.str})</div>
               </div>
                <div class="stats-item danger">
                 <div class="stats-label">本月预约课时</div>
                 <div class="stats-value">${monthTotalAppoint}</div>
-                <div class="stats-desc"><i class="fa ${monthTotalAppointIcon.icon};" style="color: ${monthTotalAppointIcon.color};"></i> ${monthTotalAppointIcon.v} 课次(${monthTotalAppointIcon.str})  </div>
+                <div class="stats-desc"><i class="fa  ${monthTotalAppointIcon.icon}" style="color: ${monthTotalAppointIcon.color};"></i> ${monthTotalAppointIcon.v} 课次(${monthTotalAppointIcon.str})  </div>
               </div>
             </div>
 
-            <!-- 近期预约审核卡片 -->
+            <!-- 近期预约审核卡片  -->
             <div class="card">
               <div class="card-header">
                 <div class="card-title"><i class="fa fa-calendar-check"></i> 待审核预约</div>

@@ -116,9 +116,9 @@ async function renderStatisCards() {
     }
 }
  function getFaiconAndStr( v) {
-   if(v==0) return {icon:"",str:"持平",v:v ,color:"#52c41a"};
-   else  if(v>0) return {icon:"fa-arrow-up",str:"增加",v:v  ,color:"#52c41a"};
-   else   return {icon:"fa-arrow-down",str:"减少",v:-v  ,color:"#f5222d"}; 
+   if(v==0) return {icon: "",str:"持平",v:v ,color:"#52c41a"};
+   else  if(v>0) return {icon:" fa-arrow-up",str:"增加",v:v  ,color:"#52c41a"};
+   else   return {icon:" fa-arrow-down",str:"减少",v:-v  ,color:"#f5222d"}; 
  }
 //刷新按钮也做同样的动作：读取数据库，更新显示
  async function showAppointments(){
