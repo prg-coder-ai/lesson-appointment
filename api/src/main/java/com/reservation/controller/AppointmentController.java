@@ -55,7 +55,7 @@ public class AppointmentController {
      * 5. 返回统一 Result<Boolean> 响应，data 为 true/false，message 统一为 "ok"。
      */
     public Result<Boolean> add(@RequestBody Appointment appointment) {
-        System.out.println("add controller: " + appointment); // 日志：打印待插入实体内容
+       // System.out.println("add controller: " + appointment); // 日志：打印待插入实体内容
         boolean success = appointmentService.save(appointment); // 实际写入数据库表
         return Result.success(success, "ok");
     } 
@@ -129,27 +129,9 @@ public class AppointmentController {
     public Result<List<Appointment>> getByStatus(@RequestParam String status) {
         return Result.success(appointmentService.getByStatus(status),"ok");
     }
-// INSERT_YOUR_CODE
-/**
- * 查询指定时间段内状态为approved或completed的预约数量
- * @param start 开始时间（格式：yyyy-MM-dd HH:mm:ss）
- * @param end 结束时间（格式：yyyy-MM-dd HH:mm:ss）
- * @return 满足条件的预约数量
- */
-@GetMapping("/countByTimeAndStatus")
-public Result<Integer> countByTimeAndStatus(
-        @RequestParam("start") String start,
-        @RequestParam("end") String end) {
-    // 直接用字符串转为LocalDateTime，格式要求yyyy-MM-dd HH:mm:ss
-    java.time.LocalDateTime startTime = java.time.LocalDateTime.parse(start, java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-    java.time.LocalDateTime endTime = java.time.LocalDateTime.parse(end, java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-    // 查询approved、completed状态数量
-    int count = appointmentService.countByTimeAndStatuses(
-            startTime, endTime, java.util.Arrays.asList("approved", "completed"));
-    return Result.success(count, "ok");
-}
+ 
 
-  @GetMapping("/statistical/byMonth")
+    @GetMapping("/statistical/byMonth")
     @ResponseBody
     public Result<java.util.Map<String, Integer>> countByTimeAndStatus(
             @RequestParam("year") int year,
@@ -167,17 +149,16 @@ public Result<Integer> countByTimeAndStatus(
         // 统计月初到月末预约数量 统计某年月的预约（Booking）数量 
         int bookingMonth  = appointmentService.countByTimeAndStatuses(java.sql.Timestamp.valueOf(monthStartTime),java.sql.Timestamp.valueOf(monthEndTime), java.util.Arrays.asList("active", "completed"));
 
-    // 计算上一月的起始和结束时间
+        // 计算上一月的起始和结束时间
         java.time.LocalDate prevMonth = monthStart.minusMonths(1);
         java.time.LocalDate prevMonthStart = prevMonth.withDayOfMonth(1);
         java.time.LocalDate prevMonthEnd = prevMonth.with(java.time.temporal.TemporalAdjusters.lastDayOfMonth());
         java.time.LocalDateTime prevMonthStartTime = prevMonthStart.atStartOfDay();
         java.time.LocalDateTime prevMonthEndTime = prevMonthEnd.atTime(23, 59, 59);
 
-   // 上月统计月初到月末预约数量 统计某年月的预约（Booking）数量 
+        // 上月统计月初到月末预约数量 统计某年月的预约（Booking）数量 
         int bookingMonthLast  = appointmentService.countByTimeAndStatuses(java.sql.Timestamp.valueOf(prevMonthStartTime),java.sql.Timestamp.valueOf(prevMonthEndTime), java.util.Arrays.asList("active", "completed"));
 
-       // System.out.println(" /statistical/byMonth:"+year+","+month+","+monthStartTime+","+monthEndTime+","+prevMonthStartTime+","+prevMonthEndTime);
         java.util.Map<String, Integer> data = new java.util.HashMap<>();
         data.put("appMonth", bookingMonth);
         data.put("appMonthLast", bookingMonthLast);
@@ -185,4 +166,60 @@ public Result<Integer> countByTimeAndStatus(
         return Result.success(data, "查询成功");
     }
 
+    /**
+     * 统计指定天数days内的预约（appointment）预约列表（含active/completed状态）
+     * @param days 近几天（如3表示近3天）
+     * @return 预约列表
+     */
+    @GetMapping("/statistical/listByDays")
+    @ResponseBody
+    public Result<List<Appointment>> listByDays(
+            @RequestParam("days") int days
+    ) {
+
+         System.out.println("listByDays  listByDays 参数：days = " + days);
+        // 获取当前时间（now）和days天之后的相同时间
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        java.time.LocalDateTime endOfPeriod = now.plusDays(days);
+   
+ //getBetweenTime
+        List<Appointment> appList
+         = appointmentService.getBetweenTime(
+                java.sql.Timestamp.valueOf(now),
+                java.sql.Timestamp.valueOf(endOfPeriod));
+
+       // java.util.Map<String, Integer> data = new java.util.HashMap<>();
+      //  data.put("appDays", bookingCount);
+
+        return Result.success(appList, "查询成功");
+    }
+// 
+
+ 
+/**
+     * 统计指定天数days内的预约（appointment）数量 
+     * @param days 近几天（如3表示近3天）
+     * @return 预约数量
+     */
+    @GetMapping("/statistical/onDays")
+    @ResponseBody
+    public Result<Integer> countByTimeOnDays(
+            @RequestParam("ondays") int days
+    ) { 
+        // INSERT_YOUR_CODE
+        System.out.println("onDays countByTimeOnDays ondays = " + days);
+
+        // now为当日零点
+        java.time.LocalDateTime now = java.time.LocalDate.now().atStartOfDay();
+        // endOfPeriod为days后的零点（不含最后一天）
+        java.time.LocalDateTime endOfPeriod = now.plusDays(days);
+   
+ //getBetweenTime
+        int count
+         = appointmentService.getCountBetweenTime(
+                java.sql.Timestamp.valueOf(now),
+                java.sql.Timestamp.valueOf(endOfPeriod));
+ 
+        return Result.success(count, "查询成功");
+    }
 }
