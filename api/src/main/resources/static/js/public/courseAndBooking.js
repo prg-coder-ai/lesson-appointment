@@ -153,7 +153,7 @@ async function fetchScheduleList( cid,status) {
     
 //返回1个排期对象
 async function fetchSchedule( scheduleid) {
-  console.log("fetchSchedule :" ,'scheduleid');
+  console.log("fetchSchedule :" ,scheduleid);
   const token = getToken();
   if (!token)  return []; 
   try { 
@@ -214,6 +214,42 @@ async function generateAppointmentList( scheduleId ,timeZone){
 return appointmentResults;
 }
 
+
+//根据排期id及用户信息，获取所有的预定信息
+function getBookingObject(bookingId) { 
+ 
+  const params = {  
+      id:bookingId,
+      scheduleId: null,
+      userRole: null,
+      userId: null,
+      status: null
+  }; 
+  return  getBookingInfoByCondition(params) ;
+}
+//same as getBookingObject TBTEST
+async function fetchBooking( bookingId) {
+  const token = getToken();
+  if (!token) return; 
+  try {
+      // Axios GET请求（修复response.json()错误，Axios已自动解析）
+      const response = await axios.get(`${API_BASE_URL}/course/booking/${bookingId}`, {
+           headers: { "Authorization": "Bearer " + token }  
+      });
+      const res = response.data; 
+      if (res && res.code === 200) {           
+         return  true ; 
+      } else {
+         // alert(res?.message || '获取课程列表失败');
+          return  false;
+      }
+  } catch (e) {
+      //alert("网络错误，获取课程列表失败");
+      console.error(e);
+      return   false;
+  }
+
+}
 //根据排期id及用户信息，获取所有的预定信息
  function getBookingInfo(scheduleid, userRole, userid) { 
  

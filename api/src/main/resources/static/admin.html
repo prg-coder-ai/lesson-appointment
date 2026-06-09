@@ -104,6 +104,11 @@
           <i class="fa fa-calendar-alt"></i>
           <span>预约审核</span>
         </div>
+
+        <div class="menu-item">
+          <i class="fa fa-calendar-alt"></i>
+          <span>课程通知</span>
+        </div>
       </div>
 
       <div class="menu-group">
@@ -142,7 +147,34 @@
       dynamicContentCenter.innerHTML = '';
       
       switch(title) {
+        case '课程通知': //列出3日课程内， 显示课程名称、教师、学生、时间、课程状态，操作：发送通知1、2、3           
+          // 渲染数据总览面板
+          dynamicContentCenter.innerHTML = `
+             <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>序号</th>
+                      <th  style="display:none;">预约ID</th>
+                      <th>课程名称</th>
+                      <th>学生姓名</th>
+                      <th>教师姓名</th>
+                      <th>预约时间</th>
+                      <th>状态</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="days-appointment">
+                    
+                  </tbody>
+                </table>
+              </div>
+             `;
+           
+            refreshAppointmentNotes();
+            break;
         case '数据总览':
+
           // 渲染数据总览面板
           dynamicContentCenter.innerHTML = `
             <!-- 数据统计面板 -->
@@ -190,6 +222,11 @@
                       <div class="stats-label">取消待确认</div>
                       <div class="stats-value">${CancelBookingCount||0}</div>
                     </div>
+                    <div class="stats-item success">
+                      <div class="stats-label">今日课程</div>
+                       <!--24小时内的预约课程 booked/completed、active -->
+                      <div class="stats-value">${TodayLessonsCount||0}</div>
+                    </div>
                   </div>
             </div>
 
@@ -229,7 +266,7 @@
           refreshOverallpage();
         
           break;
-          
+        
         case '教师管理':
             // 操作按钮事件 --checkout----set online =false TBD 
             console.log("window.loadAdminPageContent", window.loadAdminPageContent);
@@ -859,6 +896,7 @@
    <script src="js/admin-course-schedule.js"></script>
     <script src="js/admin-overall.js"></script>
     <script src="js/admin-provingBooking.js"></script>
+    <script src="js/admin-AppointmentNotes.js"></script>
    <script>
    console.log("end of body...")
    </script>

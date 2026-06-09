@@ -27,15 +27,15 @@ var localParamter ={
                     </tr> 
 */ 
 let monthTotalTeacher=0,monthTotalStudent=0,monthTotalCourse=0,monthTotalBooking=0,monthTotalAppoint=0;
-let lastMonthTotalTeacher=0,lastMonthTotalStudent=0,lastMonthTotalCourse=0,lastMonthTotalBooking=0;
+//let lastMonthTotalTeacher=0,lastMonthTotalStudent=0,lastMonthTotalCourse=0,lastMonthTotalBooking=0;
 let pendingBooking=[];// ID,ciurseName,studentName,teacherName,dateTime(创建时间),状态、操作（预览、确认、拒绝）
 let activeDataForTearcher=[];// id="activity-teachers" 教师姓名 授课总节数  预约完成率  学生平均评分  操作
-let BookingCount=0,CancelBookingCount=0;
+let BookingCount=0,CancelBookingCount=0,TodayLessonsCount;//本周待处理预定单数、今日课程数，宏观显示
 let  monthTotalTeacherIcon={},
     monthTotalStudentIcon= {},
     monthTotalCourseIcon= { },
-    monthTotalBookingIcon={};
-    monthTotalAppointIcon ={ }
+    monthTotalBookingIcon={},
+    monthTotalAppointIcon ={ };
 
 /**  <tr>
                       <td>李老师</td>
@@ -71,49 +71,51 @@ async function renderStatisCards() {
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1; // getMonth() 返回 0-11，因此要 +1
 
-    monthTotalTeacher=10;monthTotalStudent=20;monthTotalCourse=30;monthTotalBooking=40;monthTotalAppoint=50;
-    lastMonthTotalTeacher=1;lastMonthTotalStudent=2;lastMonthTotalCourse=3;lastMonthTotalBooking=4;lastMonthTotalAppoint=5;
+   /* monthTotalTeacher=10;monthTotalStudent=20;monthTotalCourse=30;monthTotalBooking=40;monthTotalAppoint=0;
+    lastMonthTotalTeacher=1;lastMonthTotalStudent=2;lastMonthTotalCourse=3;lastMonthTotalBooking=4;lastMonthTotalAppoint=5;*/
     const stats = await getUserStatisticByMonth(currentYear, currentMonth);
     if (stats) { console.log(stats.teacherMonthStart, stats.studentMonthEnd); 
           monthTotalTeacher= stats.teacherMonthEnd;
-          lastMonthTotalTeacher = stats.teacherMonthStart;
+         // lastMonthTotalTeacher = stats.teacherMonthStart;
 
-          let delt= monthTotalTeacher-lastMonthTotalTeacher;
+          let delt= monthTotalTeacher-stats.teacherMonthStart;;
           monthTotalTeacherIcon=getFaiconAndStr(delt);
 
           monthTotalStudent =   stats.studentMonthEnd;
-          lastMonthTotalStudent = stats.studentMonthStart;
-          delt= monthTotalStudent-lastMonthTotalStudent;
+          //lastMonthTotalStudent = stats.studentMonthStart;
+          delt= monthTotalStudent- stats.studentMonthStart;
           monthTotalStudentIcon=getFaiconAndStr(delt);
         }
     const stats2 = await getCourseStaticsByMonth(currentYear, currentMonth);
-    if (stats2) { console.log(stats2.courseMonthEnd, stats.courseMonthStart); 
+    if (stats2) { console.log(stats2.courseMonthEnd, stats2.courseMonthStart); 
       monthTotalCourse = stats2.courseMonthEnd;
-      lastMonthTotalCourse =   stats2.courseMonthStart;
+      //lastMonthTotalCourse =   stats2.courseMonthStart;
 
-      let delt= monthTotalCourse-lastMonthTotalCourse;
+      let delt= monthTotalCourse- stats2.courseMonthStart;
       monthTotalCourseIcon=getFaiconAndStr(delt);
     }
     //”booked“ --> 当前的预约数，如何计算: booked--本月预约数，上月预约数 
    const  BookingMonthCount = await   getBookingStaticsByMonth(currentYear, currentMonth); 
+   console.log( BookingMonthCount  ); 
     if(BookingMonthCount) { 
-      console.log( BookingMonthCount .bookingMonthLast, BookingMonthCount .bookingMonth ); 
+    
       monthTotalBooking = BookingMonthCount .bookingMonth  ;
-      lastMonthTotalBooking =   BookingMonthCount .bookingMonthLast  ; 
+     // lastMonthTotalBooking =   BookingMonthCount .bookingMonthLast  ; 
 
-      let delt= monthTotalBooking-lastMonthTotalBooking;
+      let delt= monthTotalBooking-BookingMonthCount .bookingMonthLast;
       monthTotalBookingIcon=getFaiconAndStr(delt);
-    }
+    } else { monthTotalBooking =-1;  monthTotalBookingIcon=getFaiconAndStr(0);}
 
     const appData = await getAppointmentStatisticByMonth(currentYear, currentMonth);
-    if(appData){
-      console.log(appData); 
-       monthTotalAppoint = appData .appMonth  ;
-     // lastMonthTotalAppoint =   appData .appMonthLast  ; 
-
+    console.log(appData); 
+    if(appData){ 
+       monthTotalAppoint = appData .appMonth  ; 
       let delt= appData .appMonth-appData .appMonthLast  ;
       monthTotalAppointIcon=getFaiconAndStr(delt);
-    }
+    } else {      monthTotalAppoint = 0  ; 
+                  let delt= 0  ;
+                  monthTotalAppointIcon=getFaiconAndStr(delt);
+               }
 }
  function getFaiconAndStr( v) {
    if(v==0) return {icon: "",str:"持平",v:v ,color:"#52c41a"};
@@ -130,6 +132,8 @@ async function renderStatisCards() {
      CancelBookingCount= bookingList1.length;
      BookingCount = bookingList2.length; 
      console.log("BookingCount:", BookingCount,CancelBookingCount);  
+
+     TodayLessonsCount = await getCountOfTodayAppointment();//获取今日课程数量
  }   
 
 /**

@@ -38,16 +38,28 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
     /**
      * 查询某个时间段内的预约
      */
-    public List<Appointment> getBetweenTime(String startTime, String endTime) {
+    public List<Appointment> getBetweenTime(java.sql.Timestamp startTime, java.sql.Timestamp endTime) {
         return lambdaQuery()
-                .between(Appointment::getAppointmentDatetime,
-                        LocalDateTime.parse(startTime),
-                        LocalDateTime.parse(endTime))
+                .between(Appointment::getAppointmentDatetime,     startTime, endTime)
                 .list();
     }
 
-
-  /*  public boolean saveBatch(List<Appointment> lists){ 
+     public int  getCountBetweenTime(java.sql.Timestamp startTime, java.sql.Timestamp endTime) {
+       Long result =  lambdaQuery()
+                .between(Appointment::getAppointmentDatetime,     startTime, endTime)
+                .count();
+         return result == null ? 0 : result.intValue();
+    }
+ 
+  /* 
+   Long result = lambdaQuery()
+            .ge(Appointment::getAppointmentDatetime, startTs.toLocalDateTime())
+            .le(Appointment::getAppointmentDatetime, endTs.toLocalDateTime())
+            .in(Appointment::getStatus, statuses)
+            .count();
+    return result == null ? 0 : result.intValue();
+  
+   public boolean saveBatch(List<Appointment> lists){ 
     boolean allSuccess = true;
     for (Appointment appointment : lists) {
         boolean success = this.add(appointment);
@@ -97,15 +109,18 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
  * @param statuses 状态列表
  * @return 满足条件的预约数量（long类型）
  */
-public long countLongByTimeAndStatuses(java.sql.Timestamp startTime, java.sql.Timestamp endTime, java.util.List<String> statuses) {
+/*public int countLongByTimeAndStatuses(Object startTime, Object endTime,  java.util.List<String> statuses) {
     // 使用 lambdaQuery 构建查询，返回long
-    return lambdaQuery()
+    Long result= lambdaQuery()
             .ge(Appointment::getAppointmentDatetime, startTime.toLocalDateTime())
             .le(Appointment::getAppointmentDatetime, endTime.toLocalDateTime())
             .in(Appointment::getStatus, statuses)
             .count();
+
+          return    result == null ? 0 : result.intValue();
 }
-// INSERT_YOUR_CODE
+*/
+
 
 /**
  * 统计指定时间段以及状态下的预约数量（int）

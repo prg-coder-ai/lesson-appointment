@@ -195,6 +195,7 @@ async function getCourseById( courseId) {
     }
 
  } 
+ 
    //把tzDataPO格式数据
   async function tzSwitchTo( tz,dateTime,userTz){
     const dataIn = {timeZone:tz,
@@ -255,12 +256,86 @@ async function getCourseById( courseId) {
       return null;
      }
    }
+// 获取课程数量,当日 days=1,一周内 days=7
+async function getCountOfTodayAppointment() {
 
+  const token = getToken && typeof getToken === 'function' ? getToken() : '';
+  let days =1;
+  try { //指定天数内的预约课程数
+      const response = await axios.get(`${API_BASE_URL}/course/appointment/statistical/onDays`, {
+        headers: { "Authorization": "Bearer " + token },
+        params: { ondays:days }
+     });
+    const res = response.data;
+    if (res && res.code === 200) {
+      // 返回统计结果对象，如:{ teacherMonthStart, teacherMonthEnd, studentMonthStart, studentMonthEnd }
+        return res.data;
+      } else {
+      // 可以自定义错误处理
+        return null;
+   }
+    } catch (e) {
+      // 网络或服务器异常处理
+     console.error(e);
+     return null;
+    }
+} //获取今日预约次数
+
+//获取最近days天的课程
+async function getAppointmentList(days ) {
+  const token = getToken && typeof getToken === 'function' ? getToken() : '';
+ try {
+     const response = await axios.get(`${API_BASE_URL}/course/appointment/statistical/listByDays`, {
+       headers: { "Authorization": "Bearer " + token },
+       params: {  days:days }
+    });
+    console.log("getAppointmentList:", response);  
+   const res = await  response.data;
+   console.log("getAppointmentList:", response);  
+   if (res && res.code === 200) {
+     // 返回统计结果对象， array
+       return res.data;
+     } else {
+     // 可以自定义错误处理
+       return null;
+  }
+   } catch (e) {
+     // 网络或服务器异常处理
+    console.error(e);
+    return null;
+   }
+ }
+   // INSERT_YOUR_CODE
+   /*
+    分析错误原因：
+
+    错误信息：
+    org.springframework.web.bind.MissingServletRequestParameterException: Required request parameter 'days' for method parameter type int is not present
+    ...
+    2026-06-08 18:23:05.570  WARN ... Resolved [org.springframework.web.bind.MissingServletRequestParameterException: Required request parameter 'days' for method parameter type int is not present]
+
+    主要分析：
+    1. 出错接口（从堆栈可判断及项目约定推测）：某个Controller的方法需要days这个请求参数（@RequestParam），类型为int。
+    2. 前端在调对应接口时，没有提供days参数，导致Spring无法将参数绑定到方法参数上，抛出MissingServletRequestParameterException。
+    3. 此异常是常见的请求参数缺失，后端接口已经定义days为必填项（没有required=false），前端未传或者写错参数名。
+
+    排查（解决）思路：
+    - 检查前端调用时URL和参数拼接，确认days是否传递。搜索所有相关axios/fetch请求代码。
+    - 检查后端Controller方法签名，如：public Result xx(@RequestParam int days, ...) 是否存在，没有默认值，且required=true。
+    - 可以给@RequestParam增加required=false或默认值，如 @RequestParam(defaultValue="1")
+    - 优先修复前端，确保所有请求days参数都传递且非空。
+
+    结合前端代码（如 getCountOfTodayAppointment/getAppointmentList），应始终传days参数，切勿遗漏。
+
+    总结：
+    - 问题本质：前端未传必填的days参数，或参数名写错
+    - 解决方法：确保前端传days，后端可视情况给参数加默认值
+   */
    async function getAppointmentStatisticByMonth(year, month ) {
     const token = getToken && typeof getToken === 'function' ? getToken() : '';
    try {
        const response = await axios.get(`${API_BASE_URL}/course/appointment/statistical/byMonth`, {
-         headers: { "Authorization": "Bearer " + token },
+        headers: { "Authorization": "Bearer " + token },
         params: { year:year, month:month }
       });
      const res = response.data;
