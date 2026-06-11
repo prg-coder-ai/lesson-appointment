@@ -52,7 +52,7 @@ import java.time.LocalDateTime;
     private LocalDateTime appointmentDatetime;  //当前有效 预约时间，默认时间长度
     private LocalDateTime lastDatetime;  //原始的 预约时间，默认时间长度 ，用于修改的情况
      
-    private String status;  //'预约状态（active生效/noted已发通知1/2/completed已完成（自动移到历史库中，实时库中删除，降低数据量）/已改期changed'、',
+    private String status;  //'预约状态（active生效/noted已发通知1/2/cancelled/s-cancelling/t-cancelling/completed已完成（自动移到历史库中，实时库中删除，降低数据量）/已改期changed'、',
    // private LocalDateTime createTime;  // 订单创建时间
   //  private LocalDateTime updateTime;  // 更新时间'
 }
