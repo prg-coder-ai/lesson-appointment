@@ -252,7 +252,7 @@ async function sendNotesToUsers( cardInfo){
      default:
        studentNote = `【课程通知】关于《${cardInfo.className}》（老师：${cardInfo.teacherName}）有新动态，请及时查阅详情。`;
    }
-   sendNotesTo(userId, `${cardInfo.studentName}`+【studentNote);  
+   sendNotesTo(userId, `${cardInfo.studentName}`+studentNote);  
 }  
 //把信息发送到站内信箱-----创建添加、修改状态（已发送、已阅读、删除到垃圾箱、删除），最初：只发送+显示（创建数据库表：发件人、收件人、内容、状态）
 async function sendNotesTo(userId,infor) {
