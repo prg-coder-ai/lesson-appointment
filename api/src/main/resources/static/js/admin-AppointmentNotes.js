@@ -82,10 +82,16 @@ window.refreshAppointmentNotes  = refreshAppointmentNotes ;
      }
 
  }
- //检查status，只有待确认的booking、cancelling才显示待确认，并显示相应的按钮
+ //检查status，只有待确认的booking、cancelling才显示待确认，并显示相应的按钮 3天、1天前、当天
  function checkAppointmentStatus(status) {
   if (status === 'active' ) {
     return '正常';
+  } else   if   (status === 'noted1') {
+    return '正常'+'3日通知已发送';
+  }  else   if   (status === 'noted2') {
+    return '正常'+' 当日通知已发送';
+  } else   if   (status === 'completed') {
+    return '完成'+' 通知已发送';
   } else   if   (status === 'cancelling' || status === 'canceling') {
     return '取消待确认';
   } else if (status === 'booked') {
@@ -112,7 +118,7 @@ window.refreshAppointmentNotes  = refreshAppointmentNotes ;
             ${
               (cardInfo.status === 'cancelled' || cardInfo.status === 'active')
                 ? `<td class="course-info">
-                    <button class="btn btn-success" onclick="sendNotesToUsers('${cardInfo.teacherId}', '${cardInfo.studentId}','${cardInfo}')"><i class="fa fa-check"></i> 通知教师</button>
+                    <button class="btn btn-success" onclick="sendNotesToUsers('${cardInfo.teacherId}', '${cardInfo.studentId}','${cardInfo}')"><i class="fa fa-check"></i> 发送通知</button>
  
                    </td>`
                 : `<td class="course-info"></td>`
@@ -122,6 +128,33 @@ window.refreshAppointmentNotes  = refreshAppointmentNotes ;
  // console.log("cardContent:", info);
    return info;
 } 
+ function checkStatusAndDate(appointmentTime,status,timeZone){
+
+  let canSendInfo=false;
+  const appointmentTime = new Date( appointmentTime.replace(/-/g, '/')); // 兼容IOS
+  const userTzTime =  tzSwitchTo( timeZone,appointmentTime,userTimeZone);   //把预约时间转为当前用户时区
+  const now = new Date();
+
+  const diffMs = appointmentTime - now;
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+  // 只允许状态推进，不能倒退
+  if ( status === 'completed' ||  status === 'cancelled' || status === 'canceled') {
+      // 已完成/已取消，不发送任何通知
+      return canSendInfo;
+  }
+
+  // 如果预约已过并且未标记为 completed，则标记为 completed
+  if (diffMs <= 0 &&  status == 'noted2') {
+    canSendInfo =true;
+  } else if (diffDays <= 1 &&  status == 'noted1') {
+     canSendInfo =true;;
+  } else if (diffDays <= 3 && diffDays <= 7 &&  status == 'active') {
+    canSendInfo =true;
+  }  
+  
+    return canSendInfo; 
+ }
 
 async function sendNotesToUsers( cardInfo){
     //判断时间与状态： active ：七天内，noted1：3天内 noted2:1天内，completed：1天内或者过后
@@ -129,28 +162,9 @@ async function sendNotesToUsers( cardInfo){
     // 根据预约时间与当前时间比较，判断应发送何种通知
     // active ：七天内，noted1：3天内，noted2:1天内，completed：1天内或已过
     // cardInfo.appointmentTime format 假设为 "YYYY-MM-DD HH:mm:ss" 或类似
-    const appointmentTime = new Date(cardInfo.appointmentTime.replace(/-/g, '/')); // 兼容IOS
-    const now = new Date();
-    const diffMs = appointmentTime - now;
-    const diffDays = diffMs / (1000 * 60 * 60 * 24);
-
-    // 只允许状态推进，不能倒退
-    if (cardInfo.status === 'completed' || cardInfo.status === 'cancelled' || cardInfo.status === 'canceled') {
-        // 已完成/已取消，不发送任何通知
-        return;
-    }
-   let canSendInfo=false;
-    // 如果预约已过并且未标记为 completed，则标记为 completed
-    if (diffMs <= 0 && cardInfo.status == 'noted2') {
-      canSendInfo =true;
-    } else if (diffDays <= 1 && cardInfo.status == 'noted1') {
-       canSendInfo =true;;
-    } else if (diffDays <= 3 && diffDays <= 7 &&   cardInfo.status == 'active') {
-      canSendInfo =true;
-    }  
-    if(canSendInfo==false){
-      return ;
-    }
+    
+   let canSendInfo=checkStatusAndDate(cardInfo.appointmentDatetime,cardInfo.status);
+     
     sendNotesToTeacher(cardInfo.teacherId,cardInfo);
     sendNotesToStudent(cardInfo.studentId,cardInfo);
     // 根据当前状态，得出新的状态并返回
@@ -163,7 +177,9 @@ async function sendNotesToUsers( cardInfo){
         newStatus = 'completed';
     }
     // 调用后端API更新状态
-    await operateAppointmentStatus(cardInfo.appointmentId,newStatus);//courseAndBooking.js 
+    if(newStatus != cardInfo.status) {
+        await operateAppointmentStatus(cardInfo.appointmentId,newStatus);//courseAndBooking.js 
+    }
     
 }
 // 需要根据status， 发送通知--上课通知1、2（发送到双方） 或者停课通知（发送给没有提出停课的乙方）
