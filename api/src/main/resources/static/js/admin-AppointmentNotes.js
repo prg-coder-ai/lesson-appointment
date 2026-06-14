@@ -8,7 +8,7 @@ let DaysAppointmentList=[];// ID,ciurseName,studentName,teacherName,dateTime(创
 window.refreshAppointmentNotes  = refreshAppointmentNotes ;  
 
  async function refreshAppointmentNotes(){
-    let days = 1; //TBD 选择 7天、3天、当天1
+    let days = 7; //TBD 选择 7天、3天、当天1
     await getAppointmentListData(days);
     const id="days-appointment";
     showAppointmentList( id); 
@@ -66,7 +66,7 @@ window.refreshAppointmentNotes  = refreshAppointmentNotes ;
                     
                          status: appointment.status
                      }
-                     let cardContent = formBookingTr(cardItems);//TBD: table TR 
+                     let cardContent = formAppointmentTr(cardItems);//TBD: table TR 
                      pendingBookingsHtml += cardContent;
                  } 
          }
@@ -87,7 +87,7 @@ window.refreshAppointmentNotes  = refreshAppointmentNotes ;
   if (status === 'active' ) {
     return '正常';
   } else   if   (status === 'noted1') {
-    return '正常'+'3日通知已发送';
+    return '正常'+'3~7日通知已发送';
   }  else   if   (status === 'noted2') {
     return '正常'+' 当日通知已发送';
   } else   if   (status === 'completed') {
@@ -103,8 +103,8 @@ window.refreshAppointmentNotes  = refreshAppointmentNotes ;
   }
   return status;
  }
- function formBookingTr(cardInfo) {
-  // console.log("cardInfo:", cardInfo); 
+ function formAppointmentTr(cardInfo) {
+    console.log("cardInfo:", cardInfo); 
    const info = `
         <tr class="course-card">
             <td class="course-info">   ${cardInfo.index}</td>
@@ -116,10 +116,9 @@ window.refreshAppointmentNotes  = refreshAppointmentNotes ;
            <td class="course-info">   ${cardInfo.appointmentTime} ${cardInfo.origTz}</td>
            <td class="course-info">    ${checkAppointmentStatus(cardInfo.status)}</td>
             ${
-              (cardInfo.status === 'cancelled' || cardInfo.status === 'active')
+              true //(checkStatusAndDate(cardInfo.appointmentTime,cardInfo.status,cardInfo.origTz))//判断是否需要发送通知，
                 ? `<td class="course-info">
-                    <button class="btn btn-success" onclick="sendNotesToUsers('${cardInfo.teacherId}', '${cardInfo.studentId}','${cardInfo}')"><i class="fa fa-check"></i> 发送通知</button>
- 
+                    <button class="btn btn-success" onclick='sendNotesToUsers(${JSON.stringify(cardInfo)})'><i class="fa fa-check"></i> 发送通知</button>  
                    </td>`
                 : `<td class="course-info"></td>`
             } 
@@ -128,43 +127,71 @@ window.refreshAppointmentNotes  = refreshAppointmentNotes ;
  // console.log("cardContent:", info);
    return info;
 } 
- function checkStatusAndDate(appointmentTime,status,timeZone){
+async  function checkStatusAndDate(appointmentTime,status,timeZone){
 
-  let canSendInfo=false;
-  const appointmentTime = new Date( appointmentTime.replace(/-/g, '/')); // 兼容IOS
-  const userTzTime =  tzSwitchTo( timeZone,appointmentTime,userTimeZone);   //把预约时间转为当前用户时区
-  const now = new Date();
+  let needSendInfo=false;
+  console.log("1:",appointmentTime,"timeZone",timeZone ,userTimeZone);
 
-  const diffMs = appointmentTime - now;
+  // 将传入的 appointmentTime 字符串中的所有“-”替换为“/”，
+  // 然后用 new Date() 构造日期对象，目的是为了在 iOS 设备也能正确解析日期格式。
+  // 注意：new Date() 没有明确时区参数，若字符串不含时区信息，则默认按浏览器本地时区解析
+  // 若传入字符串中带有 'Z'（UTC）或 +08:00 这种信息，则能按指定时区解析
+  // 这里假设 appointmentTime 是"yyyy-MM-dd HH:mm:ss"格式（无时区），建议未来处理带时区的情况
+ 
+    const now = new Date();//浏览器获取的时区的当前时间
+    let userTime = appointmentTime;
+    if(timeZone!= userTimeZone){
+     const userTzTime = await tzSwitchTo(timeZone, appointmentTime, userTimeZone);   //把预约时间转为当前用户时区  
+     console.log("now:",now,"app：",appointmentTime,"to usertz：",userTzTime,userTimeZone);
+     userTime =  new Date(userTzTime.dateTime);//浏览器当前时区
+    } 
+  if (!(now instanceof Date)) {
+    console.error("now 不是有效的日期对象:", now);
+    return false;
+  }
+  const diffMs = userTime - now;
   const diffDays = diffMs / (1000 * 60 * 60 * 24);
-
+  console.log("now:",now,"app",appointmentTime,userTime,diffMs,diffDays);
   // 只允许状态推进，不能倒退
   if ( status === 'completed' ||  status === 'cancelled' || status === 'canceled') {
-      // 已完成/已取消，不发送任何通知
-      return canSendInfo;
+      // 已完成/已取消，不发送任何通知.有关消息在相应的确认处理中发送 TBD
+      return needSendInfo;
   }
 
-  // 如果预约已过并且未标记为 completed，则标记为 completed
-  if (diffMs <= 0 &&  status == 'noted2') {
-    canSendInfo =true;
+  // 如果预约时间接近1小时并且未标记为 completed，则标记为 completed
+  if (diffMs <= 60*60*1000 &&  status == 'noted2') {
+    needSendInfo =true;
   } else if (diffDays <= 1 &&  status == 'noted1') {
-     canSendInfo =true;;
+     needSendInfo =true;//->noted2
   } else if (diffDays <= 3 && diffDays <= 7 &&  status == 'active') {
-    canSendInfo =true;
+    needSendInfo =true;//-->noted1
   }  
   
-    return canSendInfo; 
+    return needSendInfo; 
  }
 
 async function sendNotesToUsers( cardInfo){
     //判断时间与状态： active ：七天内，noted1：3天内 noted2:1天内，completed：1天内或者过后
     // INSERT_YOUR_CODE
     // 根据预约时间与当前时间比较，判断应发送何种通知
-    // active ：七天内，noted1：3天内，noted2:1天内，completed：1天内或已过
+    // active ：七天内，noted1：3天内，noted2:1天内，completed：1h内或已过
     // cardInfo.appointmentTime format 假设为 "YYYY-MM-DD HH:mm:ss" 或类似
-    
-   let canSendInfo=checkStatusAndDate(cardInfo.appointmentDatetime,cardInfo.status);
-     
+   
+    // 如果 cardInfo 是字符串（通过 innerHTML 的 onclick '${cardInfo}' 方式传递），需要从 JSON 字符串还原为对象
+    // 如果已经是对象可以跳过
+    if (typeof cardInfo === "string") {
+        try {
+            cardInfo = JSON.parse(cardInfo.replace(/'/g, '"'));
+        } catch (e) {
+            console.error("cardInfo解析失败，请确保传递格式为JSON字符串，或改用对象传递", cardInfo, e);
+            return;
+        }
+    }
+    //console.log(cardInfo,cardInfo.origTz);
+    let needSendInfo=checkStatusAndDate(cardInfo.appointmentTime,cardInfo.status,cardInfo.origTz);
+    if(needSendInfo==false)
+      return ;
+ 
     sendNotesToTeacher(cardInfo.teacherId,cardInfo);
     sendNotesToStudent(cardInfo.studentId,cardInfo);
     // 根据当前状态，得出新的状态并返回
@@ -197,7 +224,7 @@ async function sendNotesToUsers( cardInfo){
  function sendNotesToTeacher(userId,cardInfo) {
  
    console.log(" sendNotesToTeacher:",userId, cardInfo);
-  
+   
    // 根据 cardInfo.status 重新编写 teacherNote，内容更清晰并细分所有状态
    let teacherNote = '';
    switch (cardInfo.status) {

@@ -198,6 +198,7 @@ async function getCourseById( courseId) {
  
    //把tzDataPO格式数据
   async function tzSwitchTo( tz,dateTime,userTz){
+     
     const dataIn = {timeZone:tz,
         dateTime:dateTime,
         switchToTimeZone:userTz
@@ -210,7 +211,7 @@ async function getCourseById( courseId) {
              headers: { "Authorization": "Bearer " + token },
               
         });
-        const res = response.data; 
+        const res = await response.data; 
         if (res && res.code === 200) {           
            return  res.data ; 
         } else {
