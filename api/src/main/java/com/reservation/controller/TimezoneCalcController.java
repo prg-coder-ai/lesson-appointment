@@ -36,14 +36,14 @@ public class TimezoneCalcController {
                                                    @RequestHeader("Authorization") String token) { 
         // 把dataIn的日期时间按照时区进行转化，同时计算星期几（中文名）与周内序号（周一为1，周日为7）
         //TzSwitchVO resultMap = new TzSwitchVO();
-         System.out.println("Tz/switch_to resultMap: " + dataIn );
+        // System.out.println("Tz/switch_to resultMap: " + dataIn );
         try {
             TzSwitchVO  resultMap =  tzSwitchService. tzSwitchTo( dataIn) ; 
               // INSERT_YOUR_CODE
-        System.out.println("Tz/switch_to resultMap: " + dataIn+"->" +resultMap);
+      //  System.out.println("Tz/switch_to resultMap: " + dataIn+"->" +resultMap);
             return Result.success(resultMap, "ok");
         } catch (Exception e) {
-             System.out.println("Tz/switch_to resultMap: " + dataIn+"->" +"时间格式或时区错误: " + e.getMessage());
+           //  System.out.println("Tz/switch_to resultMap: " + dataIn+"->" +"时间格式或时区错误: " + e.getMessage());
             return Result.success(null,  "时间格式或时区错误: " + e.getMessage());
         } 
     }
