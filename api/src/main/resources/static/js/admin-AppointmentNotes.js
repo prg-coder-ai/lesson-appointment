@@ -129,7 +129,7 @@ window.refreshAppointmentNotes  = refreshAppointmentNotes ;
 } 
 async  function checkStatusAndDate(appointmentTime,status,timeZone){
 
-  let needSendInfo=false;
+  let retPara = { needSendInfo:false,timeTag:3,userTime:appointmentTime};
   console.log("1:",appointmentTime,"timeZone",timeZone ,userTimeZone);
 
   // 将传入的 appointmentTime 字符串中的所有“-”替换为“/”，
@@ -147,7 +147,7 @@ async  function checkStatusAndDate(appointmentTime,status,timeZone){
     } 
   if (!(now instanceof Date)) {
     console.error("now 不是有效的日期对象:", now);
-    return false;
+    return retPara;
   }
   const diffMs = userTime - now;
   const diffDays = diffMs / (1000 * 60 * 60 * 24);
@@ -155,23 +155,23 @@ async  function checkStatusAndDate(appointmentTime,status,timeZone){
   // 只允许状态推进，不能倒退
   if ( status === 'completed' ||  status === 'cancelled' || status === 'canceled') {
       // 已完成/已取消，不发送任何通知.有关消息在相应的确认处理中发送 TBD
-      return needSendInfo;
+      return retPara;
   }
-
+  retPara.userTime = userTime;//
   // 如果预约时间接近1小时并且未标记为 completed，则标记为 completed
-  if (diffMs <= 60*60*1000 &&  status == 'noted2') {
-    needSendInfo =true;
-  } else if (diffDays <= 1 &&  status == 'noted1') {
-     needSendInfo =true;//->noted2
-  } else if (diffDays <= 3 && diffDays <= 7 &&  status == 'active') {
-    needSendInfo =true;//-->noted1
+  if (diffMs <= 1*60*60*1000 &&  ( status == 'noted2' || status == 'noted1' || status == 'active')) {
+    retPara.needSendInfo =true;retPara.timeTag =0;
+  } else if (diffDays >= 1 &&  ( status == 'noted1' ||  status == 'active')) {
+    retPara.needSendInfo =true;retPara.timeTag =1;//->noted2
+  } else if (diffDays >= 3 && diffDays <= 7 &&  status == 'active') {
+    retPara.needSendInfo =true;retPara.timeTag =2;//-->noted1
   }  
   
-    return needSendInfo; 
+    return retPara; 
  }
 
 async function sendNotesToUsers( cardInfo){
-    //判断时间与状态： active ：七天内，noted1：3天内 noted2:1天内，completed：1天内或者过后
+    //判断时间与状态： active ：七天内~3天内，noted1：1天前，  noted2:completed：不超过1小时
     // INSERT_YOUR_CODE
     // 根据预约时间与当前时间比较，判断应发送何种通知
     // active ：七天内，noted1：3天内，noted2:1天内，completed：1h内或已过
@@ -188,19 +188,19 @@ async function sendNotesToUsers( cardInfo){
         }
     }
     //console.log(cardInfo,cardInfo.origTz);
-    let needSendInfo=checkStatusAndDate(cardInfo.appointmentTime,cardInfo.status,cardInfo.origTz);
-    if(needSendInfo==false)
+    let resultCheck= await checkStatusAndDate(cardInfo.appointmentTime,cardInfo.status,cardInfo.origTz);
+    if(resultCheck.needSendInfo==false)
       return ;
  
-    sendNotesToTeacher(cardInfo.teacherId,cardInfo);
-    sendNotesToStudent(cardInfo.studentId,cardInfo);
+    sendNotesToTeacher(cardInfo.teacherId,cardInfo,resultCheck.timeTag);
+    sendNotesToStudent(cardInfo.studentId,cardInfo,resultCheck.timeTag);
     // 根据当前状态，得出新的状态并返回
     let newStatus = cardInfo.status;
-    if (cardInfo.status === 'active') {
+    if (resultCheck.timeTag==2) {
         newStatus = 'noted1';
-    } else if (cardInfo.status === 'noted1') {
+    } else if ( resultCheck.timeTag==1) {
         newStatus = 'noted2';
-    } else if (cardInfo.status === 'noted2') {
+    } else if ( resultCheck.timeTag==0) {
         newStatus = 'completed';
     }
     // 调用后端API更新状态
@@ -221,26 +221,32 @@ async function sendNotesToUsers( cardInfo){
    //   completed   —— 课程已完成
    //   changed     —— 课程已改期
    // 输出信息需简明扼要：正常/提醒时强调上课时间、课程与学生，取消/发起取消时强调情况说明，完成/改期则提醒查看详情或历史。
- function sendNotesToTeacher(userId,cardInfo) {
- 
+ function sendNotesToTeacher(userId,cardInfo,timeTag) {
+ //timeTag0---完成 1---1天前 2--三天
    console.log(" sendNotesToTeacher:",userId, cardInfo);
    
    // 根据 cardInfo.status 重新编写 teacherNote，内容更清晰并细分所有状态
    let teacherNote = '';
    switch (cardInfo.status) {
-     case 'active'://-->noted1
-       teacherNote = `【课程提醒】距上课还有3天：${cardInfo.appointmentTime}，《${cardInfo.className}》，学生：${cardInfo.studentName}。请提前做好准备。`;
+     case 'active'://-->noted1 
+     case 'noted1'://-->noted2 
+       case 'noted2': //-->completed 
+     
+      switch(timeTag){
+        case 2: 
+            teacherNote = `【课程提醒】距上课还有3天：${cardInfo.appointmentTime}，《${cardInfo.className}》，学生：${cardInfo.studentName}。请提前做好准备。`;
+          break;
+        case 1: 
+          teacherNote = `【今日上课提醒】今天有课程：${cardInfo.appointmentTime}，《${cardInfo.className}》，学生：${cardInfo.studentName}。请准时上课。`;
+          break;
+        case 0:
+            teacherNote = `【上课通知】您有一节即将开始的课程：${cardInfo.appointmentTime}，课程：《${cardInfo.className}》，学生：${cardInfo.studentName}。请准时上课。` ;   
+            break;
+      }
        break;
-     case 'noted1'://-->noted2
-       teacherNote = `【今日上课提醒】今天有课程：${cardInfo.appointmentTime}，《${cardInfo.className}》，学生：${cardInfo.studentName}。请准时上课。`;
-       break;
-       case 'noted2': //-->completed
-      teacherNote = `【上课通知】您有一节即将开始的课程：${cardInfo.appointmentTime}，课程：《${cardInfo.className}》，学生：${cardInfo.studentName}。请准时上课。`;
-      break;
-      case 'completed':
-       teacherNote = `【上课完成】您与学生 ${cardInfo.studentName} 的《${cardInfo.className}》（${cardInfo.appointmentTime}）课程已完成，请查阅课后反馈。`;
-       break;
-       
+       case 'completed':
+        teacherNote = `【上课完成】您与学生 ${cardInfo.studentName} 的《${cardInfo.className}》（${cardInfo.appointmentTime}）课程已完成，请查阅课后反馈。`;
+        break;
      case 'cancelling':
      case 'canceling':
        teacherNote = `【取消申请提醒】学生已申请取消 ${cardInfo.appointmentTime} 的《${cardInfo.className}》课程，学生：${cardInfo.studentName}。请关注处理进度。`;
@@ -262,19 +268,28 @@ async function sendNotesToUsers( cardInfo){
    //cardInfo.noteContent = teacherNote;
    sendNotesTo(userId,teacherNote);
 }
-  function sendNotesToStudent(userId,cardInfo) {
+//TBD:预约时间与用户时间的转换
+  function sendNotesToStudent(userId,cardInfo,timeTag) {
   
    let studentNote = '';
    switch (cardInfo.status) {
-     case 'active': // -->noted1
-       studentNote = `课程提醒】距上课还有3天：${cardInfo.appointmentTime}，课程：《${cardInfo.className}》，老师：${cardInfo.teacherName}。请提前做好准备。`;
-       break;
-     case 'noted1': // -->noted2
-       studentNote = `【今日上课提醒】今天有课程：${cardInfo.appointmentTime}，课程：《${cardInfo.className}》，老师：${cardInfo.teacherName}。请准时上课。`;
-       break;
+     case 'active': // -->noted1 
+     case 'noted1': // -->noted2 
      case 'noted2': // -->completed
-       studentNote = `【上课通知】您有一节即将开始的课程：${cardInfo.appointmentTime}，课程：《${cardInfo.className}》，老师：${cardInfo.teacherName}。请准时参加。`;
+      
+       switch(timeTag){
+        case 2: 
+          studentNote = `【课程提醒】距上课还有3天：${cardInfo.appointmentTime}，课程：《${cardInfo.className}》，老师：${cardInfo.teacherName}。请提前做好准备。`;
+          break;
+        case 1: 
+        studentNote = `【今日上课提醒】今天有课程：${cardInfo.appointmentTime}，课程：《${cardInfo.className}》，老师：${cardInfo.teacherName}。请准时上课。`;
+          break;
+        case 0:
+          studentNote = `【上课通知】您有一节即将开始的课程：${cardInfo.appointmentTime}，课程：《${cardInfo.className}》，老师：${cardInfo.teacherName}。请准时参加。`;
+            break;
+      }
        break;
+
      case 'completed':
        studentNote = `【课程已完成】您与老师 ${cardInfo.teacherName} 的《${cardInfo.className}》（${cardInfo.appointmentTime}）课程已结束，欢迎查看课后反馈。`;
        break;
