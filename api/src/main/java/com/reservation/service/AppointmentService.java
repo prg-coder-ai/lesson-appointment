@@ -39,12 +39,18 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
      * 查询某个时间段内的预约
      */
     public List<Appointment> getBetweenTime(java.sql.Timestamp startTime, java.sql.Timestamp endTime) {
+        // INSERT_YOUR_CODE
+        // 将 startTime、endTime 格式化为 "yyyy-MM-dd HH:mm:ss"
+        java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        String formattedStart = startTime.toLocalDateTime().format(formatter);
+        String formattedEnd = endTime.toLocalDateTime().format(formatter);
         return lambdaQuery()
-                .between(Appointment::getAppointmentDatetime,     startTime, endTime)
+                .between(Appointment::getAppointmentDatetime,     formattedStart, formattedEnd)
                 .list();
     }
 
      public int  getCountBetweenTime(java.sql.Timestamp startTime, java.sql.Timestamp endTime) {
+
        Long result =  lambdaQuery()
                 .between(Appointment::getAppointmentDatetime,     startTime, endTime)
                 .count();
