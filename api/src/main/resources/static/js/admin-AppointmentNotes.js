@@ -130,7 +130,7 @@ window.refreshAppointmentNotes  = refreshAppointmentNotes ;
 async  function checkStatusAndDate(appointmentTime,status,timeZone){
 
   let retPara = { needSendInfo:false,timeTag:3,userTime:appointmentTime};
-  console.log("1:",appointmentTime,"timeZone",timeZone ,userTimeZone);
+  console.log("1:",appointmentTime,"timeZone",timeZone ,status,userTimeZone);
 
   // 将传入的 appointmentTime 字符串中的所有“-”替换为“/”，
   // 然后用 new Date() 构造日期对象，目的是为了在 iOS 设备也能正确解析日期格式。
@@ -139,7 +139,7 @@ async  function checkStatusAndDate(appointmentTime,status,timeZone){
   // 这里假设 appointmentTime 是"yyyy-MM-dd HH:mm:ss"格式（无时区），建议未来处理带时区的情况
  
     const now = new Date();//浏览器获取的时区的当前时间
-    let userTime = appointmentTime;
+    let userTime = new Date(appointmentTime);
     if(timeZone!= userTimeZone){
      const userTzTime = await tzSwitchTo(timeZone, appointmentTime, userTimeZone);   //把预约时间转为当前用户时区  
      console.log("now:",now,"app：",appointmentTime,"to usertz：",userTzTime,userTimeZone);
@@ -149,6 +149,7 @@ async  function checkStatusAndDate(appointmentTime,status,timeZone){
     console.error("now 不是有效的日期对象:", now);
     return retPara;
   }
+  console.log(" userTime:", userTime);
   const diffMs = userTime - now;
   const diffDays = diffMs / (1000 * 60 * 60 * 24);
   console.log("now:",now,"app",appointmentTime,userTime,diffMs,diffDays);
@@ -159,14 +160,20 @@ async  function checkStatusAndDate(appointmentTime,status,timeZone){
   }
   retPara.userTime = userTime;//
   // 如果预约时间接近1小时并且未标记为 completed，则标记为 completed
-  if (diffMs <= 1*60*60*1000 &&  ( status == 'noted2' || status == 'noted1' || status == 'active')) {
-    retPara.needSendInfo =true;retPara.timeTag =0;
-  } else if (diffDays >= 1 &&  ( status == 'noted1' ||  status == 'active')) {
-    retPara.needSendInfo =true;retPara.timeTag =1;//->noted2
-  } else if (diffDays >= 3 && diffDays <= 7 &&  status == 'active') {
-    retPara.needSendInfo =true;retPara.timeTag =2;//-->noted1
-  }  
-  
+  if (diffDays >= 3 && diffDays <= 7){
+     if(status == 'active') {
+        retPara.needSendInfo =true;retPara.timeTag =2;//-->noted1
+     }
+  }   else if (diffDays >= 1 ) {
+         if( status == 'noted1' ||  status == 'active') {
+          retPara.needSendInfo =true;retPara.timeTag =1;//->noted2
+         }
+  } else if (diffMs <= 1*60*60*1000 ) {
+     if ( status == 'noted2' || status == 'noted1' || status == 'active') {
+         retPara.needSendInfo =true;retPara.timeTag =0;
+     }
+  }
+  console.log("retPara",retPara);
     return retPara; 
  }
 
@@ -189,6 +196,7 @@ async function sendNotesToUsers( cardInfo){
     }
     //console.log(cardInfo,cardInfo.origTz);
     let resultCheck= await checkStatusAndDate(cardInfo.appointmentTime,cardInfo.status,cardInfo.origTz);
+
     if(resultCheck.needSendInfo==false)
       return ;
  
@@ -234,7 +242,7 @@ async function sendNotesToUsers( cardInfo){
      
       switch(timeTag){
         case 2: 
-            teacherNote = `【课程提醒】距上课还有3天：${cardInfo.appointmentTime}，《${cardInfo.className}》，学生：${cardInfo.studentName}。请提前做好准备。`;
+            teacherNote = `【课程提醒】3天后有课：${cardInfo.appointmentTime}，《${cardInfo.className}》，学生：${cardInfo.studentName}。请提前做好准备。`;
           break;
         case 1: 
           teacherNote = `【今日上课提醒】今天有课程：${cardInfo.appointmentTime}，《${cardInfo.className}》，学生：${cardInfo.studentName}。请准时上课。`;
@@ -279,7 +287,7 @@ async function sendNotesToUsers( cardInfo){
       
        switch(timeTag){
         case 2: 
-          studentNote = `【课程提醒】距上课还有3天：${cardInfo.appointmentTime}，课程：《${cardInfo.className}》，老师：${cardInfo.teacherName}。请提前做好准备。`;
+          studentNote = `【课程提醒】3天后有课：${cardInfo.appointmentTime}，课程：《${cardInfo.className}》，老师：${cardInfo.teacherName}。请提前做好准备。`;
           break;
         case 1: 
         studentNote = `【今日上课提醒】今天有课程：${cardInfo.appointmentTime}，课程：《${cardInfo.className}》，老师：${cardInfo.teacherName}。请准时上课。`;
@@ -318,3 +326,27 @@ async function sendNotesTo(userId,infor) {
   //await operateBookingStatus(bookingId, 'rejected');
    console.log("TBD sendNotesTo:", userId,infor); 
 } 
+
+// INSERT_YOUR_CODE
+// 根据你的描述，应该是 order by 要放在 where 之后。正确语句如下：
+
+// SELECT * FROM lesson_appointment.appointment 
+// WHERE appointment_datetime BETWEEN '2026-06-14 00:19:45' AND '2026-06-21 00:19:45'
+// ORDER BY id, appointment_datetime;
+// INSERT_YOUR_CODE
+
+// 解释：在MySQL命令行直接执行该SQL（包含毫秒部分），能正常查出数据；但是后台mapper中的执行结果有时不一致，常见原因有：
+// 1. MySQL中的DATETIME类型默认精度为到秒，小数点后7位会被截断，BETWEEN筛选实际是以'2026-06-14 00:19:45' ~ '2026-06-21 00:19:45'对比。
+// 2. 后台传入的时间参数类型如果是java.util.Date或LocalDateTime，默认只到秒，毫秒部分失效；或者数据本身在DB里没毫秒。
+// 3. Mapper用字符串参数且包含小数秒时，某些驱动或MyBatis配置处理不一致，导致where条件失效或自动截断等。
+
+// 建议：
+// - 检查数据库appointment_datetime字段类型（建议DATETIME/无毫秒，TIMESTAMP有秒级）
+// - 后台Mapper SQL建议参数用标准格式字符串'yyyy-MM-dd HH:mm:ss'，不要包含小数点后的部分
+// - 入库和查询都统一为不带毫秒的时间字符串
+// - 如需精度到毫秒，数据库字段需为DATETIME(3)/TIMESTAMP(3)且前后端参数都精准传递
+
+// 示例后端MyBatis参数（去掉毫秒，再查询）
+// select * from lesson_appointment.appointment 
+// where appointment_datetime between #{startTime} and #{endTime}
+// （#{}的传参建议为'yyyy-MM-dd HH:mm:ss'格式、无毫秒）
