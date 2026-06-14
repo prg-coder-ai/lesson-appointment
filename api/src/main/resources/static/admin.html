@@ -280,7 +280,7 @@
         case '教师管理':
             // 操作按钮事件 --checkout----set online =false TBD 
             console.log("window.loadAdminPageContent", window.loadAdminPageContent);
-            if (window.loadAdminPageContent) {
+          /*  if (window.loadAdminPageContent) {
               // 覆盖 "教师管理" 渲染逻辑
               loadAdminPageContent = (function(orig){
               
@@ -296,13 +296,14 @@
             } else {
               // 兼容性 fallback: 尝试直接渲染（首次页面加载时）
               renderTeacherCards();
-            }  
+            }  */
+            renderTeacherCards();
           break;
           
         // 分析：本块逻辑用于根据导航栏点击选择，切换到“学生管理”页面时加载不同内容
         case '学生管理':
           // 判断loadAdminPageContent函数是否已定义（用于页面内容加载和切换）
-          if (window.loadAdminPageContent) {
+         // if (window.loadAdminPageContent) {
             // 如果已存在，利用高阶函数包装原有处理逻辑
             // 这样“学生管理”对应点击时会执行自定义的renderStudentCards()，
             // 其他tab仍然调用原本的loadAdminPageContent
@@ -323,7 +324,7 @@
 
               4. (function(orig){...})(loadAdminPageContent) 的意义是“闭包包装+增强”原有的 loadAdminPageContent，无缝扩展一个特殊分支。
             */
-            loadAdminPageContent = (function(orig){
+           /* loadAdminPageContent = (function(orig){
               console.log("window.loadAdminPageContent", title);
               return function(title) {
                
@@ -342,12 +343,13 @@
             // 直接渲染学生卡片内容作为兼容处理
             console.log("window.loadAdminPageContent =false");
             renderStudentCards();
-          }
+          }*/
+          renderStudentCards();
           // 跳出switch
           break;
    
          case '课程模板':
-            if (window.loadAdminPageContent) { 
+            /*if (window.loadAdminPageContent) { 
               loadAdminPageContent = (function(orig){
                 console.log("window.loadAdminPageContent", title);
                 return function(title) {
@@ -364,11 +366,12 @@
               // 兼容性 fallback: 尝试直接渲染（首次页面加载时）
               console.log("renderTemplateCards");
               renderTemplateCards();
-            }  
+            }  */
+            renderTemplateCards();
             break;
         case '课程列表':
           console.log("course...");
-        if (window.loadAdminPageContent) { 
+       /* if (window.loadAdminPageContent) { 
           console.log("window.loadAdminPageContent", window.loadAdminPageContent,title);
               loadAdminPageContent = (function(orig){
                 return function(title) {
@@ -384,12 +387,13 @@
               console.log("renderCourseCards", renderCourseCards);
               renderCourseCards();
             }  
+            */ renderCourseCards();
           break;//课程排期
         
           
         case '课程排期':
           console.log("ScheduleCards...课程排期");
-        if (window.loadAdminPageContent) { 
+        /*if (window.loadAdminPageContent) { 
               loadAdminPageContent = (function(orig){
                 return function(title) {
                   if(title === '课程排期'){
@@ -402,7 +406,8 @@
             } else {
               // 兼容性 fallback: 尝试直接渲染（首次页面加载时）
               renderScheduleCards();
-            }  
+            }  */
+            renderScheduleCards();
           break;//课程排期
         case '预约审核'://TBD
         if(dynamicContentCenter)
