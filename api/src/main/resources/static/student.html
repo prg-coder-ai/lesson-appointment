@@ -4,12 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>语言教学预约系统 - 学生端</title>
-  <!-- 引入图标库 -->
+  <!-- 引入图标库
   <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+   -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+ 
   <link rel="stylesheet" href="css/scheduleTable.css">
   <link rel="stylesheet" href="css/student.css"> 
     <!-- FullCalendar CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
+  <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css">
   <style>
     
   </style>
@@ -35,9 +38,9 @@
   <div class="layout-container">
     <!-- 侧边栏 -->
     <aside class="sidebar">
-      <div class="menu-item" data-menu="首页">
+      <div class="menu-item" data-menu="我的工作台">
         <i class="fa fa-home"></i>
-        <span>首页</span>
+        <span>我的工作台</span>
       </div>
       <div class="menu-item active" data-menu="课程预约">
         <i class="fa fa-calendar-plus-o"></i>
@@ -47,10 +50,10 @@
         <i class="fa fa-list-alt"></i>
         <span>我的预约</span>
       </div>
-      <div class="menu-item" data-menu="课程评价">
+      <!-- <div class="menu-item" data-menu="课程评价">
         <i class="fa fa-star-half-o"></i>
         <span>课程评价</span>
-      </div>
+      </div>-->
       <div class="menu-item" data-menu="个人中心">
         <i class="fa fa-user"></i>
         <span>个人中心</span>
@@ -61,7 +64,10 @@
     <div class="content-wrapper">
       <!-- 内容头部 -->
       <div class="content-header">
-        <h1 class="page-title">课程预约</h1>
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <h1 class="page-title" style="margin: 0;">我的工作台</h1>
+          <button class="btn btn-primary" onclick='refreshRightPage()'><i class="fa fa-refresh"></i> 刷新</button>
+        </div>
       </div>
       
       <!-- 中心内容区域 -->
@@ -99,32 +105,9 @@
         </div>
       </div>
     </div>
-  </div>
-
+  </div> 
  
-  <script>
-    // 从token中获取用户的id和role
-   /* --define in api.js  let token =getToken(); 
-   const userInfo= getCurrentUserInfo();
-   console.log("userInfo",userInfo);
-   let userId = userInfo.userId;
-   let userRole = userInfo.role;
-
-   
-    // 获取用户时区（关键）
-const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-console.log("tz",userTimeZone);
-
-
-let courseList = [];       // 课程列表
-let scheduleObject=null;       // 排期
-let scheduleList =[];
-let bookingList=[];
-let currentCourseId=null;
-let selectedScheuleId = null;
-let currentCourseIndex =-1,currentScheduleIndex =-1;
-let    lastCourseIndex =-1,   lastScheduleIndex =-1;
-*/
+  <script> 
     // 核心变量定义
     const menuItems = document.querySelectorAll('.menu-item');
     const pageTitle = document.querySelector('.page-title');
@@ -133,10 +116,7 @@ let    lastCourseIndex =-1,   lastScheduleIndex =-1;
     // 初始化页面（加载默认内容）
     window.onload = function() { 
       autoLoginCheck();
-       // 自动登录：检测本地登录信息并校验token有效性
-   
-
-      console.log('学生端页面加载完成');
+       // 自动登录：检测本地登录信息并校验token有效性  
       const nameid=document.getElementById("user-name");
        if(nameid) nameid.innerHTML= userInfo.name;
        
@@ -147,8 +127,9 @@ let    lastCourseIndex =-1,   lastScheduleIndex =-1;
        }
   
      //  console.log(nameid);
-      loadPageContent('首页'); // 默认加载课程预约页面 课程预约TBD-- remember last choose
-      updateStarRating(); // 初始化评分显示
+       loadAdminPageContent('我的工作台'); // 默认加载课程预约页面 课程预约TBD-- remember last choose
+      //updateStarRating(); // 初始化评分显示
+      console.log('学生端页面加载完成');
     };
 
     // 1. 重构菜单点击响应逻辑（核心修复）
@@ -163,56 +144,49 @@ let    lastCourseIndex =-1,   lastScheduleIndex =-1;
         // 更新页面标题
         pageTitle.textContent = menuName;
         // 加载对应页面内容
-        loadPageContent(menuName);
+        loadAdminPageContent(menuName);
       });
     });
 
     // 2. 页面内容加载函数（统一管理所有菜单内容）
-    function loadPageContent(menuName) {
+    function loadAdminPageContent(menuName) {
       // 清空原有内容
       dynamicContentCenter.innerHTML = '';
       
       // 根据菜单名称加载对应内容
       switch(menuName) {
-        case '首页':
-        case '课程预约':
-// 操作按钮事件 --checkout----set online =false TBD 
-if (window.loadAdminPageContent) {
-              // 覆盖 "教师管理" 渲染逻辑
-              loadAdminPageContent = (function(orig){
-                return function(title) {
-                  if(title === '课程预约'){
-                    renderStudentBookingCards();
-                  } else {
-                    orig(title);
-                  }
-                }
-              })(loadAdminPageContent);
-            } else {
-              // 兼容性 fallback: 尝试直接渲染（首次页面加载时）
-              renderStudentBookingCards();
-            }  
-       
+        case '我的工作台':
+        dynamicContentCenter.innerHTML = `
+             <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>序号</th>
+                      <th  style="display:none;">预约ID</th>
+                      <th>课程名称</th>
+                      <th>学生姓名</th>
+                      <th>教师姓名</th>
+                      <th>预约时间</th>
+                      <th>状态</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="days-appointment-student">
+                    
+                  </tbody>
+                </table>
+              </div>
+             `;
+           
+             refreshAppointmentNotesForStudent("days-appointment-student" );
+
+        break;
+        case '课程预约': 
+              renderStudentBookingCards(); 
           break;
           
-        case '我的预约':
-          // 操作按钮事件 --checkout----set online =false TBD 
-if (window.loadAdminPageContent) {
-              // 覆盖 "教师管理" 渲染逻辑
-              loadAdminPageContent = (function(orig){
-                return function(title) {
-                  if(title === '我的预约'){
-                    renderStudentBookingBrowserCards();
-                  } else {
-                    orig(title);
-                  }
-                }
-              })(loadAdminPageContent);
-            } else {
-              // 兼容性 fallback: 尝试直接渲染（首次页面加载时）
-              renderStudentBookingBrowserCards();
-            }  
-       
+        case '我的预约': 
+              renderStudentBookingBrowserCards(); 
           break;
           
         case '课程评价':
@@ -385,8 +359,10 @@ if (window.loadAdminPageContent) {
   <script src="js/public/api.js"></script>
   <script src="js/public/dataFunctions.js"></script>
   <script src="js/public/courseAndBooking.js"></script>
+  <script src="js/public/appointmentNotes.js"></script> 
   <script src="js/student-course-booking.js"></script>
   <script src="js/student-course-appointment.js"></script>
+  <script src="js/student-AppointmentNotes.js"></script>
 <script> 
 console.log("end of body...")
 </script>
