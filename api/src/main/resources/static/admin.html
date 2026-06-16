@@ -142,12 +142,6 @@
   <!-- JavaScript交互逻辑 --> 
   <script>  
 
-   function refreshRightPage() {
-    console.log("refresh",pageTitle.textContent)
-    if(pageTitle.textContent!= ""){
-       loadAdminPageContent(pageTitle.textContent); 
-    }
-   }
   //  const API_BASE_URL = `${API_SERVER_HOST}:${API_SERVER_PORT}${API_BASE_PATH}`; 
     // 侧边栏菜单切换逻辑
     // 管理端页面内容加载逻辑（核心修改：渲染到中央区域）
@@ -157,32 +151,7 @@
       dynamicContentCenter.innerHTML = '';
       
       switch(title) {
-        case '课程通知': //列出3日课程内， 显示课程名称、教师、学生、时间、课程状态，操作：发送通知1、2、3           
-          // 渲染数据总览面板
-          dynamicContentCenter.innerHTML = `
-             <div class="table-container">
-                <table class="data-table">
-                  <thead>
-                    <tr>
-                      <th>序号</th>
-                      <th  style="display:none;">预约ID</th>
-                      <th>课程名称</th>
-                      <th>学生姓名</th>
-                      <th>教师姓名</th>
-                      <th>预约时间</th>
-                      <th>状态</th>
-                      <th>操作</th>
-                    </tr>
-                  </thead>
-                  <tbody id="days-appointment">
-                    
-                  </tbody>
-                </table>
-              </div>
-             `;
-           
-            refreshAppointmentNotes();
-            break;
+       
         case '数据总览':
 
           // 渲染数据总览面板
@@ -280,23 +249,7 @@
         case '教师管理':
             // 操作按钮事件 --checkout----set online =false TBD 
             console.log("window.loadAdminPageContent", window.loadAdminPageContent);
-          /*  if (window.loadAdminPageContent) {
-              // 覆盖 "教师管理" 渲染逻辑
-              loadAdminPageContent = (function(orig){
-              
-                return function(title) {
-                  console.log("loadAdminPageContent title ", title);
-                  if(title === '教师管理'){
-                    renderTeacherCards();
-                  } else {
-                    orig(title);
-                  }
-                }
-              })(loadAdminPageContent);
-            } else {
-              // 兼容性 fallback: 尝试直接渲染（首次页面加载时）
-              renderTeacherCards();
-            }  */
+           
             renderTeacherCards();
           break;
           
@@ -323,90 +276,22 @@
                 - 否则（其他 tab），调用 orig(title)，也就是原先的 loadAdminPageContent(title)，保留原有逻辑
 
               4. (function(orig){...})(loadAdminPageContent) 的意义是“闭包包装+增强”原有的 loadAdminPageContent，无缝扩展一个特殊分支。
-            */
-           /* loadAdminPageContent = (function(orig){
-              console.log("window.loadAdminPageContent", title);
-              return function(title) {
-               
-                if (title === '学生管理') {
-                  // “学生管理”特殊处理：渲染学生管理界面
-                  renderStudentCards();
-                } else {
-                  // 其余标题交回原始逻辑
-                  orig(title);
-                }
-              }
-            })(loadAdminPageContent);
-       
-          } else {
-            // 若未定义（首次渲染，页面初次加载时）
-            // 直接渲染学生卡片内容作为兼容处理
-            console.log("window.loadAdminPageContent =false");
-            renderStudentCards();
-          }*/
+            */ 
           renderStudentCards();
           // 跳出switch
           break;
    
          case '课程模板':
-            /*if (window.loadAdminPageContent) { 
-              loadAdminPageContent = (function(orig){
-                console.log("window.loadAdminPageContent", title);
-                return function(title) {
-                  if(title === '课程模板'){
-                    console.log("title === 课程模板");
-                    renderTemplateCards();
-                  } else {
-                    console.log(" orig(title)",title);
-                    orig(title);
-                  }
-                }
-              })(loadAdminPageContent);
-            } else {
-              // 兼容性 fallback: 尝试直接渲染（首次页面加载时）
-              console.log("renderTemplateCards");
-              renderTemplateCards();
-            }  */
+             
             renderTemplateCards();
             break;
         case '课程列表':
-          console.log("course...");
-       /* if (window.loadAdminPageContent) { 
-          console.log("window.loadAdminPageContent", window.loadAdminPageContent,title);
-              loadAdminPageContent = (function(orig){
-                return function(title) {
-                  if(title === '课程列表'){
-                    renderCourseCards();
-                  } else {
-                    orig(title);
-                  }
-                }
-              })(loadAdminPageContent);
-            } else {
-              // 兼容性 fallback: 尝试直接渲染（首次页面加载时）
-              console.log("renderCourseCards", renderCourseCards);
-              renderCourseCards();
-            }  
-            */ renderCourseCards();
+          console.log("course..."); renderCourseCards();
           break;//课程排期
         
           
         case '课程排期':
-          console.log("ScheduleCards...课程排期");
-        /*if (window.loadAdminPageContent) { 
-              loadAdminPageContent = (function(orig){
-                return function(title) {
-                  if(title === '课程排期'){
-                    renderScheduleCards();
-                  } else {
-                    orig(title);
-                  }
-                }
-              })(loadAdminPageContent);
-            } else {
-              // 兼容性 fallback: 尝试直接渲染（首次页面加载时）
-              renderScheduleCards();
-            }  */
+          console.log("ScheduleCards...课程排期"); 
             renderScheduleCards();
           break;//课程排期
         case '预约审核'://TBD
@@ -440,7 +325,32 @@
           `;
           provingBooking();
           break;
-          
+          case '课程通知': //列出3日课程内， 显示课程名称、教师、学生、时间、课程状态，操作：发送通知1、2、3           
+          // 渲染数据总览面板
+          dynamicContentCenter.innerHTML = `
+             <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>序号</th>
+                      <th  style="display:none;">预约ID</th>
+                      <th>课程名称</th>
+                      <th>学生姓名</th>
+                      <th>教师姓名</th>
+                      <th>预约时间</th>
+                      <th>状态</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="days-appointment-admin">
+                    
+                  </tbody>
+                </table>
+              </div>
+             `;
+           
+            refreshAppointmentNotes("days-appointment-admin");
+            break;  
         case '基础配置':
         if(dynamicContentCenter)
           dynamicContentCenter.innerHTML = `
@@ -906,6 +816,7 @@
    <script src="js/public/api.js"></script>
    <script src="js/public/dataFunctions.js"></script> 
    <script src="js/public/courseAndBooking.js"></script>  
+   <script src="js/public/appointmentNotes.js"></script>  
    <script src="js/admin-template.js"></script> 
    <script src="js/admin-course.js"></script>
    <script src="js/admin-course-schedule.js"></script>

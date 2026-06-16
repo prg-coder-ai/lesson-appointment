@@ -267,7 +267,7 @@ async function renderCourseList(){
         }   
         const tdBtn = document.createElement('td');
         tdBtn.appendChild(applyAddSchBtn);
-        tr.appendChild(tdBtn);  
+       // tr.appendChild(tdBtn);  
 
         const applyBrwSchBtn = document.createElement('button');
         applyBrwSchBtn.className = 'btn btn-success'; //  
@@ -275,9 +275,10 @@ async function renderCourseList(){
         applyBrwSchBtn.onclick = function() {
           browseScheduleforTheCourse(item.courseId); 
         }   
-        const tdBtn2 = document.createElement('td');
-        tdBtn2.appendChild(applyBrwSchBtn);
-        tr.appendChild(tdBtn2);  
+        tdBtn.appendChild(applyBrwSchBtn);
+      //  const tdBtn2 = document.createElement('td');
+       // tdBtn2.appendChild(applyBrwSchBtn);
+        tr.appendChild(tdBtn);  
 
         body.appendChild(tr);
     });
