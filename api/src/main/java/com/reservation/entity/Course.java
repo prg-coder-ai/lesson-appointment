@@ -13,6 +13,7 @@ import java.io.Serializable;
 // 教师课程实体（对应设计2.2.2 教师课程相关接口）
 @Data
 public class Course implements Serializable {
+      private static final long serialVersionUID = 1L;
     private String courseId;
 
     @NotBlank(message = "模板ID不能为空")

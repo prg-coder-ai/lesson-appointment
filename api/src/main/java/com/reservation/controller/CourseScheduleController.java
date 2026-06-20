@@ -162,6 +162,45 @@ public class CourseScheduleController {
       return Result.success(userZoneList, "localtime list");
   }
 
+// INSERT_YOUR_CODE
+/**
+ * 指定学生预约排期，并生成appointment，保障原子性
+ * 前端传 scheduleId, studentId，后端调用service事务处理
+ * 成功返回ok，异常返回fail
+ */
+@PostMapping("/assign-student")
+@ResponseBody
+public Result<Boolean> assignStudentToSchedule(@RequestBody Map<String, Object> params, @RequestHeader("Authorization") String token) {
+     
+    try {
+        // 校验权限（可选，根据需要开启）
+        // permissionCheck.checkTeacherOrAdmin(token);
+
+        Object schIdObj = params.get("scheduleId");
+        Object stuIdObj = params.get("studentId");
+        Object tecIdObj = params.get("teacherId");
+        if (schIdObj == null || stuIdObj == null|| tecIdObj == null) {
+            
+            return Result.fail(500,    " parameter omitted"); 
+             
+        }
+        String scheduleId = schIdObj.toString();
+        String studentId = stuIdObj.toString();
+         String teacherId = tecIdObj.toString();
+
+        // 调用service执行原子操作
+        boolean ok = scheduleService.asgn_student(scheduleId, studentId,teacherId);
+        if (ok) {
+           return Result.success(  true, "ok"); 
+        } else { 
+          return Result.fail( 500,"分配失败，请检查参数与数据库。");
+        }
+    } catch (Exception e) {
+         
+         return Result.fail(500,   "error:" + e.getMessage()); 
+    } 
+}
+
 }
 
 

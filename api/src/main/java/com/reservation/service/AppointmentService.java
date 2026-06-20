@@ -14,6 +14,15 @@ import java.time.LocalDateTime;
 
 @Service
 public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointment> {
+
+    // 批量插入Appointment对象到数据库
+    @Transactional(rollbackFor = Exception.class)
+    public void insertAppointmentList(List<Appointment> appointmentList) {
+        if (appointmentList == null || appointmentList.isEmpty()) {
+            return;
+        }
+        this.saveBatch(appointmentList);
+    }
     // ==================== 自定义查询方法 ====================
     /**
      * 根据 bookingId 查询所有预约记录
