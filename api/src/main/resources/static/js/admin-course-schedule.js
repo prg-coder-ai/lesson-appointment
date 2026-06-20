@@ -262,13 +262,7 @@ async function renderScheduleCards() {
     //});
     searchCourse();  
     //添加学生列表 ---
-    addStudentList();
-  /*  <input type="checkbox" id="assignStudentCheckbox" style="vertical-align: middle; margin-right:2px;"> 指定学生
-    </label>
-    <select id="assignStudentSelect" style="font-size: 1em;"> 
-        */ 
-       /* assignStudentToTheSchedule功能：创建studentId对指定排期scdid的预定，并创建对应的appointment数据。
-        */
+    addStudentList(); 
         
        /*
         * assignStudentToTheSchedule: 指定学生studentId预约排期scdid，并生成对应的appointment数据，保障原子性。
@@ -304,7 +298,7 @@ async function renderScheduleCards() {
             try {
                 // 调用后端接口 - 需要后端事先开发该接口，并保证事务
                 // 假设API地址如下，并POST传参
-                const response = await fetch('/course/schedule/assign-student', {
+                const response = await fetch( '${API_BASE_URL}/course/schedule/assign-student', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -998,7 +992,7 @@ function renderResult() {
        assignStudent = false;
        assignStudentId = "";
     }
-    console.log("saveScheduleToDB",assignStudent,assignStudentId);
+    console.log("saveScheduleToDB",assignStudent,assignStudentId,teacherId);
     let dto = {
       scheduleId: formData.scheduleId || "",
       courseId: formData.courseId || "",
@@ -1041,19 +1035,20 @@ function renderResult() {
         body: JSON.stringify(dto)
       });
       const result = await res.json();
-      console.log("res:",result);
+      console.log("result:",result);
        // 4.  响应处理 响应成功/失败 result.data.id = new id
        if (result && result.code === 200) {
         alert(formData.scheduleId !="" ? '编辑成功' : '新增成功'); 
         if(assignStudent )  {
         // INSERT_YOUR_CODE
         // 查看 assignStudentSelect 当前选择的值
-        const assignStudentSelect = document.getElementById('assignStudentSelect');
-        const selectedStudentId = assignStudentSelect ? assignStudentSelect.value : "";
-        console.log("当前选择的学生ID", selectedStudentId);
-        let bookingid = result.data.date.id;
-        console.log("new bookingid:",bookingid);
-        assignStudentToTheSchedule(bookingid,selectedStudentId,teacherId);
+       // const assignStudentSelect = document.getElementById('assignStudentSelect');
+       // const selectedStudentId = assignStudentSelect ? assignStudentSelect.value : "";
+        console.log("当前选择的学生ID", assignStudentId);
+        let scdid = result.data.Id;
+        console.log("new scdid:",scdid);
+        const ret = await assignStudentToTheSchedule(scdid,assignStudentId,teacherId);
+        console.log("assignStudentToTheSchedule ret :",ret);
         }
     } else {
         alert(result.data?.message || (formData.courseId!=""  ? '编辑失败' : '新增失败'));
