@@ -1,14 +1,17 @@
 package com.reservation.service;
 
-import com.reservation.entity.CourseSchedule;
-import com.reservation.entity.CourseScheduleCreateDTO; 
-import com.reservation.entity.ScheduleGenerateDTO;  
+import com.reservation.entity.*;
+import com.reservation.entity.CourseScheduleCreateDTO;
 import com.reservation.entity.IncSiteBody;
+import com.reservation.entity.ScheduleGenerateDTO;
 import com.reservation.entity.StatusBody;
 import com.reservation.mapper.CourseScheduleMapper;
 import com.reservation.mapper.ScheduleExceptionMapper;
 import com.reservation.common.ScheduleGenerator;
 
+import com.reservation.mapper.BookingMapper;
+import com.reservation.service.AppointmentService;
+      
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -28,6 +31,11 @@ public class CourseScheduleService {
     private CourseScheduleMapper scheduleMapper;
     @Resource
     private ScheduleExceptionMapper exceptionMapper;
+
+  @Resource
+    private BookingMapper bookingMapper;
+     @Resource
+    private AppointmentService appointmentService;
 
     // 创建排期（含冲突检测）
     @Transactional(rollbackFor = Exception.class)
@@ -239,6 +247,84 @@ private CourseSchedule  DtoToObject(CourseScheduleCreateDTO dto){
     cs.setName(dto.getName());
     return cs;
 }
+
+  // 完成指定学生预约排期：创建booking，批量创建appointments，并入库
+  // 1. 创建 booking 数据，状态为 booked
+  // 2. 基于排期 scheduleId 生成 appointment 列表，状态 active
+  // 3. 将 booking、appointment 插入到数据库，事务保障原子性
+  // 返回 true=成功, false=异常时抛出或返回false
+
+  // 假设有以下依赖： BookingMapper bookingMapper; AppointmentMapper appointmentMapper;
+  //              CourseScheduleMapper scheduleMapper;
+
+  @Transactional(rollbackFor = Exception.class)
+  public boolean asgn_student(String scheduleId, String studentId,String teacherId) {
+      // 1. 创建 booking 数据
+      Booking booking = new Booking();
+      String bookingId = UUID.randomUUID().toString();
+      booking.setId(bookingId);
+      booking.setScheduleId(scheduleId);
+      booking.setStudentId(studentId);
+      booking.setTeacherId(teacherId);
+      booking.setStatus("booked");
+    //  booking.setCreateTime(LocalDateTime.now());
+      bookingMapper.insert(booking);
+
+      // 2. 根据 scheduleId 获取排期详情（比如起止日期、重复规则）
+      CourseSchedule schedule = scheduleMapper.selectById(scheduleId);
+      if (schedule == null) {
+          throw new RuntimeException("排期不存在");
+      }
+      // 构造 generateDTO 用于生成 appointment 时间列表 ScheduleGenerateDTO
+      CourseScheduleCreateDTO crtDto= ObjectToDto(schedule);
+
+      ScheduleGenerateDTO genDto   = new ScheduleGenerateDTO();
+        genDto.setStartDate(crtDto.getStartDate());
+        genDto.setEndDate(crtDto.getEndDate());
+        genDto.setStartTime(crtDto.getStartTime());
+        String  repeatType = "none";
+        switch(crtDto.getRepeatType()){ 
+            case 0: break;
+            case 1:repeatType="day";break;
+            case 2:repeatType="week";break;
+            case 3:repeatType="month";break;
+            default:repeatType = "none";
+        }
+        genDto.setRepeatType(repeatType);
+
+        genDto.setInterval(crtDto.getRepeatInterval());
+        genDto.setRepeatDays(crtDto.getRepeatDays());
+        genDto.setTimeZone(crtDto.getTimeZone());
+        genDto.setUserTimeZone(crtDto.getTimeZone());
+System.out .println("asgn_student genDto:" + genDto);
+      // 3. 由工具类展开实例日期+时间
+      List<com.reservation.entity.ScheduleVO> instanceList = ScheduleGenerator.generateUserZoneSchedule(genDto);
+System.out .println("asgn_student instanceList:" + instanceList);
+
+      List<Appointment> appointmentList = new ArrayList<>();
+      int index =1;
+      for (com.reservation.entity.ScheduleVO vo : instanceList) {
+          Appointment appt = new Appointment();
+         // appt.setAppointmentId(UUID.randomUUID().toString());
+         appt.setBookingId(bookingId); 
+          appt.setClassIndex(index++); 
+              String appointmentDateTime = vo.getDate() + " " + vo.getTime(); 
+          // 将 appointmentDateTime 字符串转为 LocalDateTime
+          LocalDateTime localDateTime = LocalDateTime.parse(appointmentDateTime, java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+          appt.setAppointmentDatetime(localDateTime);
+           appt.setLastDatetime(localDateTime); 
+         
+          appt.setStatus("active");  
+          appointmentList.add(appt);
+      }
+      System.out .println("asgn_student appointmentList:" + appointmentList);
+      // 批量插入 appointments
+      if (!appointmentList.isEmpty()) {
+          appointmentService.insertAppointmentList(appointmentList);
+      }
+      // 成功
+      return true;
+  }
 }
 
 
