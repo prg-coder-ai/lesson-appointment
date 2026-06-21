@@ -269,6 +269,7 @@ private CourseSchedule  DtoToObject(CourseScheduleCreateDTO dto){
       booking.setStatus("booked");
     //  booking.setCreateTime(LocalDateTime.now());
       bookingMapper.insert(booking);
+ System.out .println("insert Book:" + booking);
 
       // 2. 根据 scheduleId 获取排期详情（比如起止日期、重复规则）
       CourseSchedule schedule = scheduleMapper.selectById(scheduleId);
@@ -276,8 +277,7 @@ private CourseSchedule  DtoToObject(CourseScheduleCreateDTO dto){
           throw new RuntimeException("排期不存在");
       }
       // 构造 generateDTO 用于生成 appointment 时间列表 ScheduleGenerateDTO
-      CourseScheduleCreateDTO crtDto= ObjectToDto(schedule);
-
+      CourseScheduleCreateDTO crtDto= ObjectToDto(schedule); 
       ScheduleGenerateDTO genDto   = new ScheduleGenerateDTO();
         genDto.setStartDate(crtDto.getStartDate());
         genDto.setEndDate(crtDto.getEndDate());
@@ -296,10 +296,10 @@ private CourseSchedule  DtoToObject(CourseScheduleCreateDTO dto){
         genDto.setRepeatDays(crtDto.getRepeatDays());
         genDto.setTimeZone(crtDto.getTimeZone());
         genDto.setUserTimeZone(crtDto.getTimeZone());
-System.out .println("asgn_student genDto:" + genDto);
+//.out .println("asgn_student genDto:" + genDto);
       // 3. 由工具类展开实例日期+时间
       List<com.reservation.entity.ScheduleVO> instanceList = ScheduleGenerator.generateUserZoneSchedule(genDto);
-System.out .println("asgn_student instanceList:" + instanceList);
+//System.out .println("asgn_student instanceList:" + instanceList);
 
       List<Appointment> appointmentList = new ArrayList<>();
       int index =1;
@@ -317,10 +317,11 @@ System.out .println("asgn_student instanceList:" + instanceList);
           appt.setStatus("active");  
           appointmentList.add(appt);
       }
-      System.out .println("asgn_student appointmentList:" + appointmentList);
+     // System.out .println("asgn_student appointmentList:" + appointmentList);
       // 批量插入 appointments
       if (!appointmentList.isEmpty()) {
           appointmentService.insertAppointmentList(appointmentList);
+         // System.out .println("asgn_student:insertAppointmentList");
       }
       // 成功
       return true;
