@@ -329,8 +329,9 @@ async function renderScheduleCards() {
                 });
                 const result = await response.json();
                 console.log("result:",result);
-                if (response.data==true) {
-                    alert("学生成功分配并预约课程！");
+                if (typeof result.data === 'boolean' && result.data === true) {
+           
+                    alert("学生成功分配排期的课程并完成预约！");
                     // 可选：刷新界面或数据
                     return true;
                 } else {
