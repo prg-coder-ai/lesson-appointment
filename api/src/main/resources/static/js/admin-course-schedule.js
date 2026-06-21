@@ -28,8 +28,7 @@ async function renderScheduleCards() {
     // 显示加载中
     dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';  
     // 渲染HTML
-    let html = '';
-    { 
+    let html = ''; 
       html += `     
      <div class="search-bar">
         <input type="text" id="courseName" placeholder="课程名称">
@@ -256,25 +255,35 @@ async function renderScheduleCards() {
       
     // INSERT_YOUR_CODE
     // 关联 testTimeZone 下拉菜单与 handleTestTimeZoneChange 处理
-    handleTestTimeZoneChange();
-    //document.addEventListener('DOMContentLoaded', () => {
-    //    handleTestTimeZoneChange();
-    //});
+    handleTestTimeZoneChange(); 
     searchCourse();  
     //添加学生列表 ---
     addStudentList(); 
-        
-       /*
-        * assignStudentToTheSchedule: 指定学生studentId预约排期scdid，并生成对应的appointment数据，保障原子性。
-        * 由于JS前端不具备数据库事务能力，此处通过调用后端API完成实际的事务创建。
-        * 若失败则友好提示。
-        */
+
+     // 解决“找不到函数loadSchedule”问题：确保loadSchedule在window作用域下暴露
+  window.loadSchedule = loadSchedule;
+  window.previewSchedule = previewSchedule;
+  window.onRepeatTypeChange = onRepeatTypeChange;
+  window.renderCalendar = renderCalendar ;
+  window.saveScheduleToDB = saveScheduleToDB ;
+  window.displySchedule = displySchedule ;
+  window.deleteSchedule = deleteSchedule ;
+
+  window.resetSchedule = resetSchedule ;   
+  window.refreshData = refreshData ;
+
+  window.getTestDatetime = getTestDatetime ;   
+  window.getTestEndDatetime = getTestEndDatetime ;
+
+  window.assignStudentToTheSchedule = assignStudentToTheSchedule;
+    console.log("schedule page END");
+  } //renderScheduleCards
+    
        async function addStudentList() {
         const conditionJson = { role: 'student' };//TBD:当前admin所属的群组等过滤条件
         const students = await fetchUserList(conditionJson);
-        if(students){
-        
-        if (Array.isArray(students)) {
+        if(students){ 
+         if (Array.isArray(students)) {
             const select = document.getElementById('assignStudentSelect');
             if (select) {
                 select.innerHTML = ""; // 清空原有选项
@@ -289,19 +298,28 @@ async function renderScheduleCards() {
         }
 
         }
+        return ;
        }
+
+          /*
+        * assignStudentToTheSchedule: 指定学生studentId预约排期scdid，并生成对应的appointment数据，保障原子性。
+        * 由于JS前端不具备数据库事务能力，此处通过调用后端API完成实际的事务创建。
+        * 若失败则友好提示。
+        */
        async function assignStudentToTheSchedule(scdid, studentId,teacherId) {
             if (!scdid || !studentId) {
                 alert("排期或学生ID无效！");
-                return;
+                return false ;
             }
             try {
-                // 调用后端接口 - 需要后端事先开发该接口，并保证事务
-                // 假设API地址如下，并POST传参
-                const response = await fetch( '${API_BASE_URL}/course/schedule/assign-student', {
+                const url = `course/schedule/assign-student`;
+                const token =getToken();
+                // 调用后端接口 - 需要后端事先开发该接口，并保证事务并POST传参
+                const response = await fetch(`${API_BASE_URL}/${url}`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        "Authorization": "Bearer " + token
                     },
                     body: JSON.stringify({
                         scheduleId: scdid,
@@ -310,19 +328,20 @@ async function renderScheduleCards() {
                     })
                 });
                 const result = await response.json();
-                if (response.ok && result.success) {
+                console.log("result:",result);
+                if (response.data==true) {
                     alert("学生成功分配并预约课程！");
                     // 可选：刷新界面或数据
+                    return true;
                 } else {
                     alert("操作失败: " + (result.message || "请检查后端接口与数据。"));
                 }
             } catch (error) {
                 alert("分配学生到排期时发生错误: " + error.message);
             }
+            return false;
        }
-
-
-       }
+ 
 // 处理下拉菜单"testTimeZone"的变更，读取表单的timeZone、startDate、startTime及新选择的时区，调用后端获取转换后的时间和日期
 function handleTestTimeZoneChange() {
     const select = document.getElementById('testTimeZone');
@@ -366,6 +385,7 @@ function handleTestTimeZoneChange() {
     } else {
         bindGetTestDatetimeToInputs();
     }
+
 
  async function getTestDatetime() {
     const displayTzInput = document.getElementById('testTimeZone');
@@ -499,10 +519,10 @@ function renderCourseSelect() {
       opt.setAttribute('data-teacher-id', item.teacherId || '');
       sel.appendChild(opt);
   });
-  if(currentCourseIndex ==-1)
+  if(currentCourseIndex ==-1){
     currentCourseId =0;
     sel.index =currentCourseId;
-    
+  }
 }
 
 //更新scheduleObject相关内容 --待细化
@@ -636,22 +656,7 @@ async function fetchScheduleList( cid) {
       document.getElementById('monthDaysBox').style.display = ( type === 'month') ? 'flex' : 'none';
   }
      // INSERT_YOUR_CODE
-     // 解决“找不到函数loadSchedule”问题：确保loadSchedule在window作用域下暴露
-   window.loadSchedule = loadSchedule;
-   window.previewSchedule = previewSchedule;
-   window.onRepeatTypeChange = onRepeatTypeChange;
-   window.renderCalendar = renderCalendar ;
-   window.saveScheduleToDB = saveScheduleToDB ;
-   window.displySchedule = displySchedule ;
-   window.deleteSchedule = deleteSchedule ;
-
-   window.resetSchedule = resetSchedule ;   
-   window.refreshData = refreshData ;
-
-   window.getTestDatetime = getTestDatetime ;   
-   window.getTestEndDatetime = getTestEndDatetime ;
-
-   window.assignStudentToTheSchedule = assignStudentToTheSchedule;
+   
    //将当前排期数值为初始值，方便修改
    function resetSchedule(){
     resetScheduleObject();
@@ -728,8 +733,7 @@ return ;
             console.log(scheduleList );
           if (scheduleList && scheduleList.length > 0) {
               // 列表长度大于0 ,  //TBD：根据列表长度，添加1个下拉框选择。暂时选择第一个
-           // scheduleObject = scheduleList[0];
-            // INSERT_YOUR_CODE
+           // scheduleObject = scheduleList[0]; 
             // 把scheduleList列表按scheduleId值添加到scheduleSelect下拉列表中
             const scheduleSelect = document.getElementById('scheduleSelect');
             if (scheduleSelect) {
@@ -769,8 +773,7 @@ return ;
       
   }
   //当排期列表选择变化时，重新显示排期计划
-   function displySchedule() {
-   // INSERT_YOUR_CODE
+   function displySchedule() { 
    // 查询scheduleSelect下拉框的当前，获取数据，调用 renderSchedule 更新当前选择
    const scheduleSelect = document.getElementById('scheduleSelect');
    if (!scheduleSelect) return;
@@ -840,6 +843,7 @@ return ;
     console.log("form:",form);
     return form;
    }
+   
    // 预览排期
    async function previewSchedule() {
      const form = getFormData();
@@ -964,10 +968,7 @@ function renderResult() {
     console.log("save form:",formData); 
     // 引用CourseScheduleCreateDTO, 把formData赋值到dto对象
     // 注意：前端js中无class，直接构造一个对象与后端CourseScheduleCreateDTO字段一致即可
-// id="assignStudentCheckbox"
- /* 从course的选择中获取teacherId
-  opt.setAttribute('data-teacher-id', item.teacherId || '');
-  */
+ 
   const sel = document.getElementById('courseSelect'); 
     // 读取sel的当前选择，并读取其中的teacherId
     let teacherId = "";
@@ -995,8 +996,7 @@ function renderResult() {
     console.log("saveScheduleToDB",assignStudent,assignStudentId,teacherId);
     let dto = {
       scheduleId: formData.scheduleId || "",
-      courseId: formData.courseId || "",
-     // teacherId: formData.teacherId || "",
+      courseId: formData.courseId || "", 
      // ClassroomId: formData.ClassroomId || "",
       // 后端CourseScheduleCreateDTO是LocalDateTime/Date类型，这里传 yyyy-MM-dd 或 hh:mm:ss 字符串即可
       startDate:  formData.startDate  ? formData.startDate  : "",
@@ -1038,7 +1038,7 @@ function renderResult() {
       console.log("result:",result);
        // 4.  响应处理 响应成功/失败 result.data.id = new id
        if (result && result.code === 200) {
-        alert(formData.scheduleId !="" ? '编辑成功' : '新增成功'); 
+        //alert(formData.scheduleId !="" ? '编辑成功' : '新增成功'); 
         if(assignStudent )  {
         // INSERT_YOUR_CODE
         // 查看 assignStudentSelect 当前选择的值
@@ -1051,7 +1051,7 @@ function renderResult() {
         console.log("assignStudentToTheSchedule ret :",ret);
         }
     } else {
-        alert(result.data?.message || (formData.courseId!=""  ? '编辑失败' : '新增失败'));
+        alert("err:"+result.data?.message || (formData.courseId!=""  ? '编辑失败' : '新增失败'));
     }
     }catch(err){
         alert('网络异常，操作失败');
@@ -1127,9 +1127,8 @@ async function operateSchedule(scheduleId, action) {
    
     } ;
       
-
-    console.log("schedule page END");
-}//这个render过程结束
+ 
+ //这个render过程结束
 /**
  * 排期管理页面：
  * 1、课程选择：提供检索字段：课程名称、语言、难度、教师
