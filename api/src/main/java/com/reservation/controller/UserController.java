@@ -132,75 +132,7 @@ public class UserController {
         return Result.success(users, "查询成功");
     } 
 
-    /**
-     * 用户登录接口，对应设计2.2.1 接口：/api/v1/user/login
-     * TBD：在线状态online：yes/no
-     */
-    @PostMapping("/login")
-    @ResponseBody
-    public Result  <Void>  toLogin( @Validated @RequestBody User user){
-             String account = user.getAccount();
-             String password = user.getPassword();
-    
-        // 调用服务层实现登录逻辑，返回userId、role、Token（对应设计2.2.1 登录返回数据）
-        Result rst= userService.login(account, password); //setOnline(false)
-          
-        // 3. 登录成功：设置安全状态（核心步骤） ?token?
-        // 封装用户认证信息（角色需和数据库一致，如teacher/student）
-        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                account, // 用户名（可用邮箱/手机号）
-                password, // 密码（可传null，不影响验证）
-                Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole())) // 角色（必须加ROLE_前缀）
-        );
-
-        // 将认证信息存入安全上下文（自动维护会话，无需手动管理）
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-       // System.out.println("controller login out:"+rst);
-  
-        return rst;//Result.success(resultMap, "登录成功");
-    }
  
-  @PostMapping("/logout")
-  @ResponseBody
-public Result<String> logout(HttpServletResponse response) {
-    // 1. 清空认证
-    SecurityContextHolder.clearContext();
-
-    // 2. 清除 Cookie（真正登出）
-    Cookie cookie = new Cookie("token", null);
-    cookie.setPath("/");
-    cookie.setHttpOnly(true);
-    cookie.setMaxAge(0);
-    response.addCookie(cookie);
-
-    return Result.success();
-}
-    /**
-     * 密码找回（验证码验证），对应设计2.2.1 接口：/api/v1/user/password/forgot
-     */
-    @PostMapping("/password/forgot")
-      @ResponseBody
-    public Result  forgotPassword(
-            @NotBlank(message = "账号不能为空") String account,
-            @NotBlank(message = "验证码不能为空")
-            @Pattern(regexp = "^\\d{6}$", message = "验证码格式错误") String verifyCode) {
-        // 调用服务层验证验证码（对应设计2.2.1 密码找回功能说明）
-        userService.verifyForgotCode(account, verifyCode);
-        return Result.success(null, "验证码验证成功，请重置密码");
-    }
-
-    /**
-     * 密码重置，对应设计2.2.1 接口：/api/v1/user/password/reset
-     */
-    @PostMapping("/password/reset")
-      @ResponseBody
-    public Result  resetPassword(
-            @NotBlank(message = "账号不能为空") String account)
-            {
-        // 调用服务层重置密码（对应设计2.2.1 密码重置功能说明）
-        userService.resetPassword(account);
-        return Result.success(null, "密码重置成功");
-    }
 // INSERT_YOUR_CODE
     /**
      * 查询账号（邮箱/电话）是否已存在
