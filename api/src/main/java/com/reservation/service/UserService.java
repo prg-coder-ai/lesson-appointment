@@ -133,8 +133,16 @@ public class UserService {
         resultMap.put("name", user.getName());
         resultMap.put("role", user.getRole());
         resultMap.put("token", token);
+            
+    // 2. 生成双Token
+       // String accessToken = jwtUtil.generateAccessToken(account);
+        String refreshToken = jwtUtil.generateRefreshToken(user.getUserId());
+          resultMap.put("refreshToken", refreshToken);
+       
+       // 3. 持久化刷新Token到数据库
+        refreshTokenService.saveNewToken(user.getUserId(), refreshToken, jwtUtil.getRefreshExpireTime());
         
-       System.out.println("login ok with account：" +user.getAccount());
+      // System.out.println("login ok with account：" +user.getAccount());
         Result  rslt = Result.success(resultMap   ,"登陆成功");
         return rslt;
     }

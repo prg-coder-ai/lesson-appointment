@@ -43,4 +43,11 @@ public class Result<T> {
         result.setMessage(message);
         return result;
     }
+
+     public static <T> Result<T> unauthorized(String msg) {
+        Result<T> r = new Result<>();
+        r.setCode(401);
+        r.setMessage(msg);
+        return r;
+    }
 }

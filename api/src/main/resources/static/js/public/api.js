@@ -1,5 +1,23 @@
 // API请求封装（简化JS请求，避免重复代码） 
     // 全局定义API服务器地址及端口号、根路径（可根据实际情况修改）
+   
+    import request from '@/public/utility_request'
+    // INSERT_YOUR_CODE
+    // 解释：import request from '@/utils/request'
+    // 这句代码的作用是引入一个封装好的网络请求工具（request 实例），
+    // 它一般基于 axios 或 fetch 做了统一的请求/响应拦截、错误处理等，
+    // 用于项目中统一发起 HTTP 网络请求，便于接口复用和维护。
+    // 注意：本环境如果没有支持 ES module 的 import 语法，
+    // 可使用 require 或直接引用全局 request 对象。
+    // INSERT_YOUR_CODE
+    // '@/utils/request' 的含义：
+    // 这是一个路径别名（@ 通常被配置为 src 目录），/utils/request 指的是 src/utils/request.js 文件。
+    // 此文件通常封装了 axios（或 fetch）的实例，进行了全局的请求与响应拦截、token处理、错误统一提示等。
+    // 作用是让项目统一导入并复用标准的 HTTP 请求工具，减少重复代码，方便维护和统一错误处理。
+    // 前端其他模块可以通过 import request from '@/utils/request' 便捷地引用它。
+
+
+    
     const API_SERVER_HOST = 'http://localhost';
     const API_SERVER_PORT = '8081';
     const API_BASE_PATH = '';

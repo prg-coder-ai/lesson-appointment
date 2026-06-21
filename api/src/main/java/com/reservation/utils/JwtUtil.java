@@ -18,14 +18,18 @@ public class JwtUtil {
     // 例如 application.properties:
     // jwt.secret=请替换为你自己的JWT密钥
     // jwt.expiration=3600000  # 1小时，单位：毫秒
-
+// AccessToken 5分钟
+    private static final long ACCESS_EXPIRE = 5 * 60 * 1000;
+    // RefreshToken 7天
+    private static final long REFRESH_EXPIRE = 7 * 24 * 60 * 60 * 1000;
+    private static final String SECRET_KEY = "jwt-secret-key-2026-custom";
     @Value("${jwt.secret}")
     private String secret;
 
     @Value("${jwt.expiration}")
     private Long expiration;
 
-    // 生成Token（对应设计2.2.1 登录、学生注册返回Token）
+    // 生成Token 生成短期访问token （对应设计2.2.1 登录、学生注册返回Token）
     public String generateToken(String userId, String role) {
         Date now = new Date();
         Date expireDate = new Date(now.getTime() + expiration);
@@ -37,7 +41,15 @@ public class JwtUtil {
                 .signWith(SignatureAlgorithm.HS512, secret)
                 .compact();
     }
-
+   // 生成长期刷新token
+    public String generateRefreshToken(Long userId) {
+        Date expire = new Date(System.currentTimeMillis() + REFRESH_EXPIRE);
+        return Jwts.builder()
+                .setSubject(userId.toString())
+                .setExpiration(expire)
+                .signWith(SignatureAlgorithm.HS256, SECRET_KEY)
+                .compact();
+    }
     // 解析Token，获取用户ID
     public String getUserIdFromToken(String token) {
         Claims claims = Jwts.parser()
@@ -56,6 +68,30 @@ public class JwtUtil {
         return (String) claims.get("role");
     }
 
+    // 获取刷新Token过期时间（存入数据库）
+    public LocalDateTime getRefreshExpireTime() {
+        return new Date(System.currentTimeMillis() + REFRESH_EXPIRE)
+                .toInstant()
+                .atZone(ZoneId.systemDefault())
+                .toLocalDateTime();
+    }
+ // 从刷新Token解析用户ID
+    public Long getUserIdByRefreshToken(String token) {
+        Jws<Claims> claimsJws = Jwts.parser().setSigningKey(SECRET_KEY).parseClaimsJws(token);
+        String uid = claimsJws.getBody().getSubject();
+        return Long.valueOf(uid);
+    }
+
+
+    // 校验AccessToken（拦截器鉴权使用）
+    public boolean verifyAccessToken(String token) {
+        try {
+            Jwts.parser().setSigningKey(SECRET_KEY).parseClaimsJws(token);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
     // 校验Token是否过期,boolean isTokenExpired(String token) 方法用于检查Token是否过期，返回true表示过期，false表示未过期。
     // 解析Token获取过期时间，并与当前时间进行比较，如果过期时间在当前时间之前，则表示Token已过期。
     //
