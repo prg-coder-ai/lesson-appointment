@@ -1,5 +1,7 @@
 package com.reservation.mapper;
 
+
+import com.reservation.entity.RefreshTokenPO;
 import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Param;
@@ -14,7 +16,7 @@ public interface RefreshTokenMapper {
 
     // 根据用户ID删除所有记录（踢下线）
     @Delete("DELETE FROM user_refresh_token WHERE user_id = #{userId}")
-    int deleteByUserId(@Param("userId") Long userId);
+    int deleteByUserId(@Param("userId") String userId);
 
     // 删除单条旧刷新token（刷新后失效旧凭证）
     @Delete("DELETE FROM user_refresh_token WHERE refresh_token = #{refreshToken}")

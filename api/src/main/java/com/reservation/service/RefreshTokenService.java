@@ -1,5 +1,7 @@
 package com.reservation.service;
 
+import com.reservation.mapper.RefreshTokenMapper;
+import com.reservation.entity.RefreshTokenPO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,7 +17,7 @@ public class RefreshTokenService {
      * 保存新刷新Token，删除该用户旧凭证（单设备登录）
      */
     @Transactional(rollbackFor = Exception.class)
-    public void saveNewToken(Long userId, String refreshToken, LocalDateTime expireTime) {
+    public void saveNewToken(String userId, String refreshToken, LocalDateTime expireTime) {
         // 可选：实现单设备登录，登录时删除该用户全部旧刷新Token
         refreshTokenMapper.deleteByUserId(userId);
 
@@ -52,7 +54,7 @@ public class RefreshTokenService {
      * 踢出指定用户：删除该用户所有刷新凭证
      */
     @Transactional(rollbackFor = Exception.class)
-    public int kickUser(Long userId) {
+    public int kickUser(String userId) {
         return refreshTokenMapper.deleteByUserId(userId);
     }
 

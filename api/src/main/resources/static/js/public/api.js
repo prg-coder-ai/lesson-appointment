@@ -1,7 +1,9 @@
 // API请求封装（简化JS请求，避免重复代码） 
     // 全局定义API服务器地址及端口号、根路径（可根据实际情况修改）
    
-    import request from '@/public/utility_request'
+    // 可以使用 ES6 的 import 语法引用指定模块，如下：
+ 
+
     // INSERT_YOUR_CODE
     // 解释：import request from '@/utils/request'
     // 这句代码的作用是引入一个封装好的网络请求工具（request 实例），
@@ -29,10 +31,17 @@
    // let token =getToken(); 
    const userInfo= getCurrentUserInfo();
    console.log("userInfo",userInfo);
-   if(userInfo==null) { 
+   if(userInfo == null || typeof userInfo === 'undefined') { 
       document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
-      window.location.href  =  './index.html';
+      // 判断是否是当前页面
+      // 检查当前页面是否为登录页，如果不是则重定向到首页
+      // 用于防止未登录用户强行访问需要权限的页面
+     // if (!window.location.pathname.endsWith('index.html')) 
+        { 
+          window.location.href  =  './index.html';
+        }
       }
+
    let userId = userInfo.userId;
    let userRole = userInfo.role;
  
@@ -148,6 +157,7 @@ function  getCurrentUserInfo() {
 const userStr = localStorage.getItem('currentUser');
   if(userStr)
      return  JSON.parse(userStr);
+    else return null;
 }
  function autoLoginCheck() {
   // 读取本地 localStorage 保存的用户信息
