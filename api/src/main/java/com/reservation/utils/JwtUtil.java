@@ -1,12 +1,15 @@
 package com.reservation.utils;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Date;
 
 /**
@@ -42,7 +45,7 @@ public class JwtUtil {
                 .compact();
     }
    // 生成长期刷新token
-    public String generateRefreshToken(Long userId) {
+    public String generateRefreshToken(String userId) {
         Date expire = new Date(System.currentTimeMillis() + REFRESH_EXPIRE);
         return Jwts.builder()
                 .setSubject(userId.toString())
@@ -76,10 +79,10 @@ public class JwtUtil {
                 .toLocalDateTime();
     }
  // 从刷新Token解析用户ID
-    public Long getUserIdByRefreshToken(String token) {
+    public String getUserIdByRefreshToken(String token) {
         Jws<Claims> claimsJws = Jwts.parser().setSigningKey(SECRET_KEY).parseClaimsJws(token);
         String uid = claimsJws.getBody().getSubject();
-        return Long.valueOf(uid);
+        return  uid ;
     }
 
 

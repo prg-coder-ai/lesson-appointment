@@ -1,11 +1,17 @@
 package  com.reservation.controller;
 
- import com.reservation.config.CorsConfig;  
-import jakarta.validation.constraints.NotBlank;
+ import  com.reservation.entity.RefreshDTO;
+ import com.reservation.entity.RefreshTokenPO;
+ import com.reservation.entity.TokenDTO;
+
 import com.reservation.common.Result;
 import com.reservation.entity.User;
 import com.reservation.service.UserService;
+ import com.reservation.service.RefreshTokenService;
 
+ import com.reservation.utils.JwtUtil;
+
+ import jakarta.validation.constraints.NotBlank;
 import org.springframework.beans.factory.annotation.Autowired;
  import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
  import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -28,6 +34,8 @@ public class authController {
     
     @Autowired
     private UserService userService;
+     @Autowired
+     private RefreshTokenService refreshTokenService;
    /**
      * 用户登录接口，对应设计2.2.1 接口：/api/v1/user/login
      * TBD：在线状态online：yes/no
@@ -68,10 +76,11 @@ public class authController {
         if (tokenPo == null) {
             return Result.unauthorized("刷新凭证已失效，请重新登录");
         }
-        Long userId = tokenPo.getUserId();
-
+        String userId = tokenPo.getUserId();
+        String role =   tokenPo.getRole();
+        JwtUtil jwtUtil = new JwtUtil();
         // 2. 生成新双Token
-        String newAccess = jwtUtil.generateAccessToken(userId);
+        String newAccess = jwtUtil.generateToken(userId,role);
         String newRefresh = jwtUtil.generateRefreshToken(userId);
 
         // 3. 删除旧刷新Token，存入新凭证（旧凭证立即失效）
@@ -81,7 +90,7 @@ public class authController {
         TokenDTO dto = new TokenDTO();
         dto.setToken(newAccess);
         dto.setRefreshToken(newRefresh);
-        return Result.success(dto);
+        return Result.success(dto,"refreshToken ok");
     }
 
  /* @PostMapping("/logout")
@@ -108,7 +117,7 @@ public Result<void> logout(HttpServletResponse response) {
     @PostMapping("/logout")
     public Result<Void> logout(@RequestBody RefreshDTO refreshDTO) {
         refreshTokenService.logout(refreshDTO.getRefreshToken());
-        return Result.success(null);
+        return Result.success(null,"ok" );
     }
 
     /**
@@ -116,9 +125,11 @@ public Result<void> logout(HttpServletResponse response) {
      * 调用后该用户所有页面401自动跳转登录
      */
     @DeleteMapping("/kick/{userId}")
-    public Result<Integer> kickUser(@PathVariable Long userId) {
+    public Result kickUser(@PathVariable String userId) {
         int count = refreshTokenService.kickUser(userId);
-        return Result.success(count);
+        if(count  !=0 )
+        return Result.success( true,"ok"     );
+        else  return  Result.fail( 500,"kick failed"     );
     }
     /**
      * 密码找回（验证码验证），对应设计2.2.1 接口：/api/v1/user/password/forgot
