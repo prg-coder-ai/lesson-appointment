@@ -218,6 +218,11 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="js/public/api.js"></script>
+  <script src="js/public/utility_request.js"></script>
+  <script src="js/public/auth.js"></script>
+
   <!-- JavaScript核心逻辑 -->
   <script>
     //const API_SERVER_HOST = 'http://localhost';
@@ -512,13 +517,13 @@
       // 根据角色跳转对应页面
       switch(user.role) {
         case 'admin':
-          window.location.href = '/admin.html'; // 管理端页面
+          window.location.href = './admin.html';
           break;
         case 'teacher':
-          window.location.href = '/teacher.html'; // 教师端页面
+          window.location.href = './teacher.html';
           break;
         case 'student':
-          window.location.href = '/student.html'; // 学生端页面
+          window.location.href = './student.html';
           break;
         default:
           alert('未知用户身份，请联系管理员');
@@ -556,27 +561,22 @@
       btnText.innerHTML = '<span class="loading"></span> 登录中...';
 
       try {
-        console.log('login input:',username.value.trim(), password.value.trim());
-        // 用户认证
         const user = await authenticateUser(
           username.value.trim(),
           password.value.trim()
         );
-         if(user){
-
-
-          
-         }
-      } catch (error) {
-        // 认证失败，显示错误提示
         loginError.style.display = 'block';
-        loginError.textContent = error;
-        
-        // 恢复按钮状态
+        loginError.style.color = 'green';
+        loginError.textContent = '登录成功，正在跳转...';
+        setTimeout(() => redirectToUserPage(user), 800);
+      } catch (error) {
+        loginError.style.display = 'block';
+        loginError.style.color = 'red';
+        loginError.textContent =
+          typeof error === 'string' ? error : (error.message || '账号或密码错误，请重试');
+
         loginBtn.disabled = false;
         btnText.innerHTML = '登录系统';
-        
-        // 清空密码框
         password.value = '';
       }
     });
@@ -642,13 +642,10 @@
         btnText.innerHTML = '登录系统';
     }, 2500);
   };
-  window.onload = function() { 
-    // 自动登录：检测本地登录信息并校验token有效性
+  window.onload = function() {
     (function autoLoginCheck() {
-      // 读取本地 localStorage 保存的用户信息
       const userStr = localStorage.getItem('currentUser');
       if (!userStr) {
-        // 未登录过，留在登录页
         return;
       }
       let userInfo;
@@ -656,95 +653,46 @@
         userInfo = JSON.parse(userStr);
       } catch (e) {
         localStorage.removeItem('currentUser');
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
         return;
       }
-      if (!userInfo || !userInfo.token) {
-        // 信息不全，清理，停留
+
+      const token = userInfo.token || localStorage.getItem('token');
+      if (!token || !userInfo.role) {
         localStorage.removeItem('currentUser');
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
         return;
       }
-      
-      // 这里假设token是JWT，尝试判断是否过期
-      function isJwtExpired(token) {
-        if (!token) return true;
-        const parts = token.split('.');
-        if (parts.length !== 3) return false; // 不一定是JWT，视实际情况而定
+
+      function isJwtExpired(jwtToken) {
+        if (!jwtToken) return true;
+        const parts = jwtToken.split('.');
+        if (parts.length !== 3) return false;
         try {
           const payload = JSON.parse(atob(parts[1]));
           if (payload.exp) {
-            const now = Math.floor(Date.now() / 1000);
-            return now > payload.exp;
+            return Math.floor(Date.now() / 1000) > payload.exp;
           }
         } catch (e) {
           // 解码失败，忽略
         }
-        return false; // 没有exp就当未过期
+        return false;
       }
 
-      // 检查token是否过期
-      if (isJwtExpired(userInfo.token)) {
+      if (isJwtExpired(token)) {
         localStorage.removeItem('currentUser');
-        // 清除Cookie
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
         document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
-        alert('登录状态已过期，请重新登录');
         return;
       }
 
-      const loginInfo = {
-             account:userInfo.account,
-             password: userInfo.password
-          };
-
-      // 调用后端接口验证token有效性（推荐，防止本地token无效）
-      fetch(`${API_BASE_URL}/user/login`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Authorization': userInfo.token ? `Bearer ${userInfo.token}` : ''
-        },
-        body: JSON.stringify(loginInfo)
-      })
-      .then(response => {
-        if (response.status === 403) {
-          // token已过期或服务端不认，清理并跳转
-          localStorage.removeItem('currentUser');
-          document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
-          alert('登录状态已过期，请重新登录');
-          window.location.href = './index.html';
-          throw new Error('未登录或登录已失效');
-        }
-        return response.json();
-      })
-      .then(data => {
-        // 如果验证通过，根据用户角色跳转到对应主页
-        if (data && data.code === 200 && data.data) {
-          const role = data.data.role || userInfo.role;
-          // 按角色跳转
-          if (role === 'admin') {
-            window.location.href = './admin.html';
-          } else if (role === 'teacher') {
-            window.location.href = './teacher.html';
-          } else if (role === 'student') {
-            window.location.href = './student.html';
-          }
-        } else {//if (data && data.code === 401) 
-          // 失效处理
-          localStorage.removeItem('currentUser');
-          document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
-          alert('登录状态已过期，请重新登录');
-        }
-      })
-      .catch(err => {
-        // 自动登录错误（如网络），这里一般保守处理不跳转
-        console.error('自动登录校验异常:', err);
-      });
+      redirectToUserPage(userInfo);
     })();
   };
   </script>
-  
- 
-  <script src="js/public/api.js"></script> 
-  <script src="js/public/auth.js"></script> 
 </body>
 </html>
  

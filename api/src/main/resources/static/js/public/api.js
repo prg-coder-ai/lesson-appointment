@@ -25,6 +25,7 @@
 
     // API完整前缀
     const API_BASE_URL = `${API_SERVER_HOST}:${API_SERVER_PORT}${API_BASE_PATH}`;
+    window.API_BASE_URL = API_BASE_URL;
     let courseList = [];       // 课程列表
     let scheduleObject=null;       // 排期
     let scheduleList =[];
