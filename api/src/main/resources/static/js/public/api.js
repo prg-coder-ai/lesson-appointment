@@ -2,9 +2,7 @@
     // 全局定义API服务器地址及端口号、根路径（可根据实际情况修改）
    
     // 可以使用 ES6 的 import 语法引用指定模块，如下：
- 
-
-    // INSERT_YOUR_CODE
+  
     // 解释：import request from '@/utils/request'
     // 这句代码的作用是引入一个封装好的网络请求工具（request 实例），
     // 它一般基于 axios 或 fetch 做了统一的请求/响应拦截、错误处理等，
@@ -27,8 +25,22 @@
 
     // API完整前缀
     const API_BASE_URL = `${API_SERVER_HOST}:${API_SERVER_PORT}${API_BASE_PATH}`;
+    let courseList = [];       // 课程列表
+    let scheduleObject=null;       // 排期
+    let scheduleList =[];
+    let bookingList=[];
+    let currentCourseId=null;
+    let selectedScheuleId = null;
 
-   // let token =getToken(); 
+    let userId = "";
+    let userRole =  "";
+
+      // 获取用户时区（关键）
+      const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      console.log("tz",userTimeZone); 
+      InitUserInfo();
+      
+   function InitUserInfo() {
    const userInfo= getCurrentUserInfo();
    console.log("userInfo",userInfo);
    if(userInfo == null || typeof userInfo === 'undefined') { 
@@ -36,25 +48,15 @@
       // 判断是否是当前页面
       // 检查当前页面是否为登录页，如果不是则重定向到首页
       // 用于防止未登录用户强行访问需要权限的页面
-     // if (!window.location.pathname.endsWith('index.html')) 
+      if (!window.location.pathname.endsWith('index.html')) 
         { 
           window.location.href  =  './index.html';
         }
-      }
-
-   let userId = userInfo.userId;
-   let userRole = userInfo.role;
- 
-    // 获取用户时区（关键）
-    const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    console.log("tz",userTimeZone); 
-
-  let courseList = [];       // 课程列表
-  let scheduleObject=null;       // 排期
-  let scheduleList =[];
-  let bookingList=[];
-  let currentCourseId=null;
-  let selectedScheuleId = null
+      } else  { 
+     userId = userInfo.userId;
+     userRole = userInfo.role; 
+     }
+    }
 
 const api = {
     // 后端API接口地址（相对路径，端口由Spring Boot配置决定，无需写localhost:8088）
