@@ -36,6 +36,8 @@ public class authController {
     private UserService userService;
      @Autowired
      private RefreshTokenService refreshTokenService;
+     @Autowired
+     private JwtUtil jwtUtil;
    /**
      * 用户登录接口，对应设计2.2.1 接口：/api/v1/user/login
      * TBD：在线状态online：yes/no
@@ -77,8 +79,7 @@ public class authController {
             return Result.unauthorized("刷新凭证已失效，请重新登录");
         }
         String userId = tokenPo.getUserId();
-        String role =   tokenPo.getRole();
-        JwtUtil jwtUtil = new JwtUtil();
+        String role = tokenPo.getRole();
         // 2. 生成新双Token
         String newAccess = jwtUtil.generateToken(userId,role);
         String newRefresh = jwtUtil.generateRefreshToken(userId);
@@ -158,3 +159,16 @@ public Result<void> logout(HttpServletResponse response) {
         return Result.success(null, "密码重置成功");
     }
 }
+/**
+ 
+CREATE TABLE `user_refresh_token` (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
+  user_id  varchar(36) NOT NULL COMMENT '登录用户ID',
+  refresh_token VARCHAR(512) NOT NULL COMMENT '刷新凭证',
+  expire_time DATETIME NOT NULL COMMENT '过期时间',
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_user_id (user_id),
+  INDEX idx_refresh_token (refresh_token)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT '用户刷新Token持久化表'; 
+ */

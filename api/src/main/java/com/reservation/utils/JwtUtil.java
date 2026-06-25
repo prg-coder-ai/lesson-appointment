@@ -1,143 +1,302 @@
 package com.reservation.utils;
 
+
+
 import io.jsonwebtoken.Claims;
+
 import io.jsonwebtoken.Jws;
+
 import io.jsonwebtoken.Jwts;
+
 import io.jsonwebtoken.SignatureAlgorithm;
+
+import io.jsonwebtoken.security.Keys;
+
 import org.springframework.beans.factory.annotation.Value;
+
 import org.springframework.security.core.context.SecurityContextHolder;
+
 import org.springframework.stereotype.Component;
 
+
+
+import javax.annotation.PostConstruct;
+
+import javax.crypto.SecretKey;
+
+import java.nio.charset.StandardCharsets;
+
 import java.time.LocalDateTime;
+
 import java.time.ZoneId;
+
 import java.util.Date;
 
+
+
 /**
+
  * JWT工具类，用于生成、解析Token，对应设计2.3 安全设计-Token加密
+
  */
+
 @Component
+
 public class JwtUtil {
-    // 提示：需要在 application.properties 或 application.yml 文件中添加 jwt.secret 和 jwt.expiration 配置
-    // 例如 application.properties:
-    // jwt.secret=请替换为你自己的JWT密钥
-    // jwt.expiration=3600000  # 1小时，单位：毫秒
-// AccessToken 5分钟
-    private static final long ACCESS_EXPIRE = 5 * 60 * 1000;
+
     // RefreshToken 7天
+
     private static final long REFRESH_EXPIRE = 7 * 24 * 60 * 60 * 1000;
-    private static final String SECRET_KEY = "jwt-secret-key-2026-custom";
+
+
+
     @Value("${jwt.secret}")
+
     private String secret;
 
+
+
     @Value("${jwt.expiration}")
+
     private Long expiration;
 
-    // 生成Token 生成短期访问token （对应设计2.2.1 登录、学生注册返回Token）
-    public String generateToken(String userId, String role) {
-        Date now = new Date();
-        Date expireDate = new Date(now.getTime() + expiration);
-        return Jwts.builder()
-                .setSubject(userId)  // 存储用户ID
-                .claim("role", role)  // 存储角色信息
-                .setIssuedAt(now)
-                .setExpiration(expireDate)
-                .signWith(SignatureAlgorithm.HS512, secret)
-                .compact();
-    }
-   // 生成长期刷新token
-    public String generateRefreshToken(String userId) {
-        Date expire = new Date(System.currentTimeMillis() + REFRESH_EXPIRE);
-        return Jwts.builder()
-                .setSubject(userId.toString())
-                .setExpiration(expire)
-                .signWith(SignatureAlgorithm.HS256, SECRET_KEY)
-                .compact();
-    }
-    // 解析Token，获取用户ID
-    public String getUserIdFromToken(String token) {
-        Claims claims = Jwts.parser()
-                .setSigningKey(secret)
-                .parseClaimsJws(token.replace("Bearer ", ""))
-                .getBody();
-        return claims.getSubject();
-    }
-
-    // 解析Token，获取角色
-    public String getRoleFromToken(String token) {
-        Claims claims = Jwts.parser()
-                .setSigningKey(secret)
-                .parseClaimsJws(token.replace("Bearer ", ""))
-                .getBody();
-        return (String) claims.get("role");
-    }
-
-    // 获取刷新Token过期时间（存入数据库）
-    public LocalDateTime getRefreshExpireTime() {
-        return new Date(System.currentTimeMillis() + REFRESH_EXPIRE)
-                .toInstant()
-                .atZone(ZoneId.systemDefault())
-                .toLocalDateTime();
-    }
- // 从刷新Token解析用户ID
-    public String getUserIdByRefreshToken(String token) {
-        Jws<Claims> claimsJws = Jwts.parser().setSigningKey(SECRET_KEY).parseClaimsJws(token);
-        String uid = claimsJws.getBody().getSubject();
-        return  uid ;
-    }
 
 
-    // 校验AccessToken（拦截器鉴权使用）
-    public boolean verifyAccessToken(String token) {
-        try {
-            Jwts.parser().setSigningKey(SECRET_KEY).parseClaimsJws(token);
-            return true;
-        } catch (Exception e) {
-            return false;
+    private SecretKey signingKey;
+
+
+
+    @PostConstruct
+
+    private void initSigningKey() {
+
+        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+
+        if (keyBytes.length < 64) {
+
+            throw new IllegalStateException("jwt.secret 长度不足，HS512 至少需要 64 字节");
+
         }
-    }
-    // 校验Token是否过期,boolean isTokenExpired(String token) 方法用于检查Token是否过期，返回true表示过期，false表示未过期。
-    // 解析Token获取过期时间，并与当前时间进行比较，如果过期时间在当前时间之前，则表示Token已过期。
-    //
-    public boolean isTokenExpired(String token) {
-        Claims claims = Jwts.parser()
-                .setSigningKey(secret)
-                .parseClaimsJws(token.replace("Bearer ", ""))
-                .getBody();
-        Date expirationDate = claims.getExpiration();
-        return expirationDate.before(new Date());
+
+        signingKey = Keys.hmacShaKeyFor(keyBytes);
+
     }
 
-public String getCurrentUserId(String token) {
-        //读取当前的session或者SecurityContextHolder中的认证信息，获取当前用户的Token，然后调用getUserIdFromToken方法解析出用户ID并返回。
-        // 这里需要获取当前请求的Token，通常通过Spring Security的上下文获取
-        // 例如：SecurityContextHolder.getContext().getAuthentication().getPrincipal()
-        // 但具体实现可能需要根据你的安全配置进行调整
-        //context.getAuthentication().getCredentials() 获取Token
+
+
+    private String stripBearerPrefix(String token) {
+
+        if (token == null) {
+
+            return "";
+
+        }
+
+        return token.replace("Bearer ", "");
+
+    }
+
+
+
+    // 生成短期访问 Token（对应设计2.2.1 登录、学生注册返回Token）
+
+    public String generateToken(String userId, String role) {
+
+        Date now = new Date();
+
+        Date expireDate = new Date(now.getTime() + expiration);
+
+        return Jwts.builder()
+
+                .setSubject(userId)
+
+                .claim("role", role)
+
+                .setIssuedAt(now)
+
+                .setExpiration(expireDate)
+
+                .signWith(signingKey, SignatureAlgorithm.HS512)
+
+                .compact();
+
+    }
+
+
+
+    // 生成长期刷新 Token
+
+    public String generateRefreshToken(String userId) {
+
+        Date expire = new Date(System.currentTimeMillis() + REFRESH_EXPIRE);
+
+        return Jwts.builder()
+
+                .setSubject(userId)
+
+                .setExpiration(expire)
+
+                .signWith(signingKey, SignatureAlgorithm.HS256)
+
+                .compact();
+
+    }
+
+
+
+    // 解析 Token，获取用户 ID
+
+    public String getUserIdFromToken(String token) {
+
+        Claims claims = Jwts.parserBuilder()
+
+                .setSigningKey(signingKey)
+
+                .build()
+
+                .parseClaimsJws(stripBearerPrefix(token))
+
+                .getBody();
+
+        return claims.getSubject();
+
+    }
+
+
+
+    // 解析 Token，获取角色
+
+    public String getRoleFromToken(String token) {
+
+        Claims claims = Jwts.parserBuilder()
+
+                .setSigningKey(signingKey)
+
+                .build()
+
+                .parseClaimsJws(stripBearerPrefix(token))
+
+                .getBody();
+
+        return (String) claims.get("role");
+
+    }
+
+
+
+    // 获取刷新 Token 过期时间（存入数据库）
+
+    public LocalDateTime getRefreshExpireTime() {
+
+        return new Date(System.currentTimeMillis() + REFRESH_EXPIRE)
+
+                .toInstant()
+
+                .atZone(ZoneId.systemDefault())
+
+                .toLocalDateTime();
+
+    }
+
+
+
+    // 从刷新 Token 解析用户 ID
+
+    public String getUserIdByRefreshToken(String token) {
+
+        Jws<Claims> claimsJws = Jwts.parserBuilder()
+
+                .setSigningKey(signingKey)
+
+                .build()
+
+                .parseClaimsJws(stripBearerPrefix(token));
+
+        return claimsJws.getBody().getSubject();
+
+    }
+
+
+
+    // 校验 AccessToken（拦截器鉴权使用）
+
+    public boolean verifyAccessToken(String token) {
+
+        try {
+
+            Jwts.parserBuilder()
+
+                    .setSigningKey(signingKey)
+
+                    .build()
+
+                    .parseClaimsJws(stripBearerPrefix(token));
+
+            return true;
+
+        } catch (Exception e) {
+
+            return false;
+
+        }
+
+    }
+
+
+
+    public boolean isTokenExpired(String token) {
+
+        Claims claims = Jwts.parserBuilder()
+
+                .setSigningKey(signingKey)
+
+                .build()
+
+                .parseClaimsJws(stripBearerPrefix(token))
+
+                .getBody();
+
+        Date expirationDate = claims.getExpiration();
+
+        return expirationDate.before(new Date());
+
+    }
+
+
+
+    public String getCurrentUserId(String token) {
 
         return getUserIdFromToken(token);
+
     }
+
+
 
     public String getCurrentUserId() {
-        String token= getCurrentToken();
+
+        String token = getCurrentToken();
 
         return getUserIdFromToken(token);
+
     }
-     //从会话中获取token    p
-     public String getCurrentToken() {
-         // 这里需要获取当前请求的Token，通常通过Spring Security的上下文获取
-         // 例如：SecurityContextHolder.getContext().getAuthentication().getCredentials()
-         // 但具体实现可能需要根据你的安全配置进行调整
-         return (String) SecurityContextHolder.getContext().getAuthentication().getCredentials();
-     }
-     //设置本地token无效
-     public boolean invalidateToken(String user)
-     {
-     // 设置本地token为空
-     // 这里只是本地让SecurityContextHolder中的Token失效（实际场景下需要配合缓存/数据库等机制以彻底失效）
-     SecurityContextHolder.clearContext();
-     // TODO: 清除与该用户相关的Token缓存（如使用Redis等中间件，需要在此处删除缓存中的Token记录）
-     // 示例（伪代码，需根据你的实际缓存实现）:
-     // redisTemplate.delete("USER_TOKEN_" + user);
-        return true;// 
-     }
+
+
+
+    public String getCurrentToken() {
+
+        return (String) SecurityContextHolder.getContext().getAuthentication().getCredentials();
+
+    }
+
+
+
+    public boolean invalidateToken(String user) {
+
+        SecurityContextHolder.clearContext();
+
+        return true;
+
+    }
+
 }
+
