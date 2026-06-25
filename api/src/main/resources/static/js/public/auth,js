@@ -1,4 +1,5 @@
-import request from '@/utils/request'
+import request from '@/public/utility_request.js'
+
 export function login(data) {
   return request({ url: '/auth/login', method: 'post', data })
 }
@@ -33,10 +34,14 @@ export async function handleLogin() {
              password: pwd
           };
         const res = await login(loginInfo);
+        console.log('res:', res  );
+        if(res!= null){
         localStorage.setItem('token', res.token);
         localStorage.setItem('refreshToken', res.refreshToken);
-  
-        console.log('res:', res  );
+         
+        }
+        return res;
+       
       /*  if (data && data.code >= 500) {
           showApiError(data.message || '服务器异常' );
         }   
