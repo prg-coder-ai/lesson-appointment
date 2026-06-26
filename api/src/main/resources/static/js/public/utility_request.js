@@ -57,6 +57,8 @@
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+      console.log("请求 URL：", config.url, "请求参数：", config.params || config.data);
+ 
       if (config.customLoading !== false) {
         startLoading();
       }
@@ -120,6 +122,7 @@
         isRefreshing = true;
         try {
           const refreshRes = await getNewToken();
+          console.error("000 getNewToken:",refreshRes);
           const result = refreshRes.data;
           if (result.code === 200) {
             const { token, refreshToken } = result.data;
@@ -132,6 +135,9 @@
           }
           throw new Error(result.message || result.msg || '刷新凭证失败');
         } catch (refreshErr) {
+
+          console.error("001 getNewToken:",refreshErr);
+
           localStorage.removeItem('token');
           localStorage.removeItem('refreshToken');
           localStorage.removeItem('currentUser');
