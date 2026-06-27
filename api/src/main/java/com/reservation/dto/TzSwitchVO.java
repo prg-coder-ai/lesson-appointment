@@ -1,12 +1,13 @@
 //时区转后的输出
-package com.reservation.entity;
+package com.reservation.dto;
 
 import lombok.Data;
+import java.io.Serializable;/*
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
-import java.util.Date;
-import java.io.Serializable;
+import java.util.Date;*/
+
 
 @Data
 public class TzSwitchVO   implements Serializable{

@@ -1,24 +1,15 @@
 package com.reservation.controller;
 
- import com.reservation.config.CorsConfig;  
-import jakarta.validation.constraints.NotBlank;
+
 import com.reservation.common.Result;
 import com.reservation.entity.User;
-import com.reservation.service.UserService;
-
-import org.springframework.beans.factory.annotation.Autowired;
- import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
- import org.springframework.security.core.authority.SimpleGrantedAuthority;
- import org.springframework.security.core.context.SecurityContextHolder;
+import com.reservation.service.UserService; 
  import org.springframework.validation.annotation.Validated;
 // 核心导入：RequestMethod 所在包
- import org.springframework.web.bind.annotation.*; 
- import jakarta.validation.constraints.Pattern;
+ import org.springframework.web.bind.annotation.*;
 
- import javax.servlet.http.Cookie;
- import javax.servlet.http.HttpServletResponse;
- import java.util.Collections;
- import java.util.List;
+//import java.util.HashMap;
+import java.util.List;
  import java.util.Map;
  
 /**
@@ -27,9 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 @RestController
 @RequestMapping("/user")
 @Validated
-public class UserController {
-
-    @Autowired
+public class UserController { 
     private UserService userService;
 
 
@@ -67,7 +56,7 @@ public class UserController {
      @GetMapping("/name/{userId}")
     @ResponseBody
     public Result<String> getUserById( @PathVariable  String userId ) {
-        Map<String, Object> condition = new java.util.HashMap<>();  
+       // HashMap<String, Object> condition = new java.util.HashMap<>();  
           User  user  = userService.selectById(userId);  
          if(user != null ) { 
             return Result.success(user.getName(), "查询成功"); 
@@ -81,12 +70,12 @@ public class UserController {
      */
     @PostMapping("/student/register")
       @ResponseBody
-    public Result<Void> studentRegister(@Validated @RequestBody User user) {
+    public Result<Object> studentRegister(@Validated @RequestBody User user) {
         // 调用服务层实现注册逻辑，返回userId和Token（对应设计2.2.1 学生注册返回数据）
          user.setRole("student");
         user.setStatus("pending");
        
-        Result rst = userService.Register(user);
+        Result<Object> rst = userService.Register(user);
     
        // System.out.println("rst：" + rst);
         return rst;//Result.success(rst, "注册成功,请等待管理员审核");
@@ -97,20 +86,20 @@ public class UserController {
      */
     @PostMapping("/teacher/register") 
     @ResponseBody
-    public Result<Void> teacherRegister(@Validated @RequestBody User user) {
+    public Result<Object> teacherRegister(@Validated @RequestBody User user) {
         // 调用服务层提交注册申请，等待管理员审核（对应设计2.2.1 教师注册功能说明）
          user.setRole("teacher");
          user.setStatus("pending");
-        Result rst = userService.Register(user); 
+        Result<Object> rst = userService.Register(user); 
         return rst; 
     }
 
      @PostMapping("/updateStatus") 
        @ResponseBody
-    public Result<Void> updateStatus(@Validated @RequestBody User user) {  
-        int rst = userService.updateStatus(user); 
+    public Result<Object> updateStatus(@Validated @RequestBody User user) {  
+        int ret = userService.updateStatus(user); 
          
-        return   Result.success(null, "修改成功");
+        return   Result.success(ret, "修改成功");
     }
   
 

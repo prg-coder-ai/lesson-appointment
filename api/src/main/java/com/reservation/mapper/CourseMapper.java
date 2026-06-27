@@ -2,18 +2,18 @@
 package com.reservation.mapper;
 
 import com.reservation.entity.Course;
-import com.reservation.entity.CourseQueryParam;
-import com.reservation.entity.CourseTemplate;
+import com.reservation.dto.CourseQueryParam;
+//import com.reservation.entity.CourseTemplate;
  
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
-import org.apache.ibatis.annotations.Update;
+//import org.apache.ibatis.annotations.Update;
 
  
-import java.util.Optional;
+//import java.util.Optional;
 import java.util.List;
-import java.util.Map;
+//import java.util.Map;
 
 /**
  * CourseMapper接口，对应course表CRUD操作，匹配CourseService中的方法

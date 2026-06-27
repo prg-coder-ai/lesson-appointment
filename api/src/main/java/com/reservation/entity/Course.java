@@ -4,12 +4,12 @@ package com.reservation.entity;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
-
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import java.math.BigDecimal;
-import java.util.Date;
 import java.io.Serializable;
+//import jakarta.validation.constraints.NotNull;
+//import java.math.BigDecimal;
+//import java.util.Date;
+
 // 教师课程实体（对应设计2.2.2 教师课程相关接口）
 @Data
 public class Course implements Serializable {

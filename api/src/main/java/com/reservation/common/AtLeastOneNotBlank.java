@@ -3,8 +3,10 @@ package com.reservation.common;
 import jakarta.validation.Constraint;
 import jakarta.validation.Payload;
 import java.lang.annotation.*;
-import jakarta.validation.ConstraintValidator;
+/********import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
+-** 校验两个字段至少一个不为空
+ */
 /**
  * 校验两个字段至少一个不为空
  */

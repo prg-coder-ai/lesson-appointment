@@ -3,12 +3,13 @@ package com.reservation.mapper;
 import com.reservation.entity.CourseTemplate;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param; 
+/* 
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
  
 import java.util.Optional; 
-import java.util.Map;
+import java.util.Map;*/
 import java.util.List;
 
 /**

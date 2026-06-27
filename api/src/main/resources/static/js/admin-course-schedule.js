@@ -306,42 +306,7 @@ async function renderScheduleCards() {
         * 由于JS前端不具备数据库事务能力，此处通过调用后端API完成实际的事务创建。
         * 若失败则友好提示。
         */
-       async function assignStudentToTheSchedule(scdid, studentId,teacherId) {
-            if (!scdid || !studentId) {
-                alert("排期或学生ID无效！");
-                return false ;
-            }
-            try {
-                const url = `course/schedule/assign-student`;
-                const token =getToken();
-                // 调用后端接口 - 需要后端事先开发该接口，并保证事务并POST传参
-                const response = await fetch(`${API_BASE_URL}/${url}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        "Authorization": "Bearer " + token
-                    },
-                    body: JSON.stringify({
-                        scheduleId: scdid,
-                        studentId: studentId,
-                        teacherId: teacherId
-                    })
-                });
-                const result = await response.json();
-                console.log("result:",result);
-                if (typeof result.data === 'boolean' && result.data === true) {
-           
-                    alert("学生成功分配排期的课程并完成预约！");
-                    // 可选：刷新界面或数据
-                    return true;
-                } else {
-                    alert("操作失败: " + (result.message || "请检查后端接口与数据。"));
-                }
-            } catch (error) {
-                alert("分配学生到排期时发生错误: " + error.message);
-            }
-            return false;
-       }
+    
  
 // 处理下拉菜单"testTimeZone"的变更，读取表单的timeZone、startDate、startTime及新选择的时区，调用后端获取转换后的时间和日期
 function handleTestTimeZoneChange() {
@@ -858,39 +823,6 @@ return ;
 }
 
  
-// 分析：可能由于日期时区或构造Date的方式导致了前端和后端实际天数偏差。例如直接用new Date('yyyy-MM-dd')会因时区差别导致日期减少1天。可以尝试使用new Date(year, month, day)规避。
-async function generateScheduleListFromServer(form) { 
-    const url = `course/schedule/generate` ;
-    const token = getToken();
-    try {
-        const res = await fetch(`${API_BASE_URL}/${url}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                "Authorization": "Bearer " + token
-            },
-            credentials: 'include',
-            body: JSON.stringify(form)
-        });
-
-        const result = await res.json();
-        
-        // 修正后端返回的日期数组，确保日期不因本地解析减少1天
-        // 尝试将日期转为本地日期字符串再渲染
-        if (result && result.code === 200) {
-            // result.data: [{date:'2024-06-01',time:'09:00'}, ...]
-            // 兼容性修正：如后端返回的date为'yyyy-MM-dd'字符串，前端用new Date(date)在不同时区下解析会出现日期偏移。
-            // 方案：把date字符串分解为年月日，用new Date(year, month-1, day)组成本地时间，或渲染时直接使用原字符串。
-            // 这里只返回数据，渲染时renderCalendar里（下方）再修正用法
-            return result.data;
-        } else {
-            alert(result?.message || '获取排期失败');
-        }
-    } catch (err) {
-        alert('获取排期失败');
-        console.error(err);  
-    }
-} 
   
 // 渲染排期时间列表
 function renderResult() {
@@ -1020,27 +952,18 @@ function renderResult() {
         "week": 2,
         "month": 3
       };
-      dto.repeatType = repeatTypeMap[formData.repeatType] ?? 0;
+      dto.repeatType =formData.repeatType in repeatTypeMap ? repeatTypeMap[formData.repeatType] : 0;
 
     console.log("save dto:",dto);
-    const url = formData.scheduleId !=""? `course/schedule/update` : `course/schedule/create`; 
-    
-    try{
-      const res= await fetch(`${API_BASE_URL}/${url}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          "Authorization": "Bearer " + token
-        },
-        credentials: 'include',
-        body: JSON.stringify(dto)
-      });
-      const result = await res.json();
-      console.log("result:",result);
+    let bExists = formData.scheduleId && formData.scheduleId !== "";
+//TBD:remove To public  url /dto
+   let res = await saveScheduleToServer(bExists,dto);
+ console.log("saveScheduleToServer", res);
+    if(res && res.code === 200) {    
        // 4.  响应处理 响应成功/失败 result.data.id = new id
        if (result && result.code === 200) {
         //alert(formData.scheduleId !="" ? '编辑成功' : '新增成功'); 
-        if(assignStudent )  {
+        if(assignStudent )  { //,assignStudent,assignStudentId,teacherId
         // INSERT_YOUR_CODE
         // 查看 assignStudentSelect 当前选择的值
        // const assignStudentSelect = document.getElementById('assignStudentSelect');
@@ -1048,18 +971,28 @@ function renderResult() {
         console.log("当前选择的学生ID", assignStudentId);
         let scdid = result.data.Id;
         console.log("new scdid:",scdid);
+        if (!scdid || !studentId) {
+            alert("排期或学生ID无效！");
+            
+        } else {
+
         const ret = await assignStudentToTheSchedule(scdid,assignStudentId,teacherId);
-        console.log("assignStudentToTheSchedule ret :",ret);
+        if ( ret  ) {
+            alert("学生成功分配排期的课程并完成预约！");
+            // 可选：刷新界面或数据 
+        } else {
+            alert("操作失败: " + "请检查后端接口与数据。");
         }
-    } else {
-        alert("err:"+result.data?.message || (formData.courseId!=""  ? '编辑失败' : '新增失败'));
-    }
-    }catch(err){
-        alert('网络异常，操作失败');
-        console.error(err);  
-    } 
+
+        //console.log("assignStudentToTheSchedule ret :",ret);
+        }
+        }
   }
-  
+    }   else {
+        alert("err:"+result.data?.message || (formData.courseId!=""  ? '编辑失败' : '新增失败'));
+    } 
+
+}
   // 删除
   async function deleteSchedule() {
     const formData = getFormData();
@@ -1074,59 +1007,6 @@ function renderResult() {
  
  }
 
-/**
- * 发布/回收模板、
- */
-async function operateSchedule(scheduleId, action) {
-    const token = getToken();
-    const payload = {
-        scheduleId: scheduleId,  // 注意小写，和后端命名对应
-        status: action
-      };
-      console.log("payload：",payload); 
-    fetch(`${API_BASE_URL}/course/schedule/updateStatus`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        "Authorization": "Bearer " + token
-      },
-      credentials: 'include',
-      body: JSON.stringify(payload)
-    })
-    .then(response => {
-      // 判定http请求结果，如果不是2xx，直接抛出
-      if (!response.ok) {
-        throw new Error(`服务器错误，状态码: ${response.status}`);
-      }
-      // 某些接口如204/无内容, 直接返回空对象防止解析异常
-      const contentType = response.headers.get("content-type") || "";
-      if (contentType.includes("application/json")) {
-        return response.json();
-      }
-      // 不是json时返回空对象，避免res为undefined或字符串
-      return {};
-    })
-    .then(res => {
-      // 防御：确认res是对象且有code字段
-      const code = typeof res === "object" && res !== null && "code" in res ? res.code : undefined;
-      const msg = (typeof res === "object" && res !== null && res.message) ? res.message : '';
-      if (code === 200) { 
-        if (console.success) {
-          console.success(msg);
-          console.success('操作成功');
-        }
-        renderScheduleCards(); 
-      } else {
-        alert(msg || '操作失败');
-      }
-    })
-    .catch(e => {
-      // 网络错误或json解析异常都能捕获
-      alert("网络错误或数据解析异常，操作失败");
-      console.error(e);
-    });
-   
-    } ;
       
  
  //这个render过程结束

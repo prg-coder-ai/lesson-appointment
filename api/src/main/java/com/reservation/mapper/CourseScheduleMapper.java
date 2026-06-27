@@ -1,6 +1,7 @@
 package com.reservation.mapper;
 
 import com.reservation.entity.*;
+import com.reservation.dto.*;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import java.time.LocalDateTime;

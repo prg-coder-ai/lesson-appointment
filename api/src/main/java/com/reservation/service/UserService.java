@@ -45,12 +45,12 @@ public class UserService {
     // 学生注册（对应设计2.2.1 学生注册接口）
     // 注册（对应设计2.2.1 注册接口）
     @Transactional
-    public Result<HashMap> Register(User user) {
+    public Result< Object> Register(User user) {
         // 校验手机号/邮箱是否已注册（对应业务异常校验）
          System.out.println("input：" + user);
          if(existAccount(user.getAccount())) {
             //throw new BusinessException("该账号已注册");
-            Result  rslt = Result.fail(400   ,"该账号已注册，请登录或重置密码");
+            Result< Object> rslt = Result.fail(400   ,"该账号已注册，请登录或重置密码");
             return rslt;
         }
        
@@ -69,7 +69,7 @@ public class UserService {
          resultMap.put("token", token);
          resultMap.put("role", user.getRole());
                                //data,message
-         Result  rslt = Result.success(resultMap   ,"注册成功，请登录等待验证");
+         Result< Object> rslt = Result.success(resultMap   ,"注册成功，请登录等待验证");
         
         return rslt;
     }
@@ -107,7 +107,7 @@ public class UserService {
     }
 */
     // 用户登录（对应设计2.2.1 登录接口）
-    public Result<HashMap> login(String account, String password) {
+    public Result<HashMap<String, Object>> login(String account, String password) {
         // 查找用户（账号可为手机号/邮箱，对应设计2.2.1 登录接口请求参数）
        //   System.out.println("login：" + account+"   "+password);
         User user = userMapper.selectByAccount(account);
@@ -130,7 +130,7 @@ public class UserService {
         // 生成Token
         String token = jwtUtil.generateToken(user.getUserId(), user.getRole());
         // 组装返回数据（对应设计2.2.1 登录返回数据）
-        Map<String, String> resultMap = new HashMap<>();
+        HashMap<String, Object> resultMap = new HashMap<>();
         resultMap.put("userId", user.getUserId());
         resultMap.put("account", user.getAccount());
         resultMap.put("name", user.getName());
@@ -145,9 +145,8 @@ public class UserService {
        // 3. 持久化刷新Token到数据库
         refreshTokenService.saveNewToken(user.getUserId(), refreshToken, jwtUtil.getRefreshExpireTime());
         
-      // System.out.println("login ok with account：" +user.getAccount());
-        Result  rslt = Result.success(resultMap   ,"登陆成功");
-        return rslt;
+      // System.out.println("login ok with account：" +user.getAccount()); 
+        return Result.success(resultMap   ,"登陆成功");
     }
     public void logout() {
             // 解析Token获取用户信息（对应设计2.3 安全设计-Token）
@@ -164,7 +163,7 @@ public class UserService {
         }
         
         //生成随机验证码（对应设计2.2.1 密码找回逻辑）
-        String verifyCode = "123456"; //  生成随机验证码
+       // String verifyCode = "123456"; //  生成随机验证码
         //1 发送验证码到邮箱或者手机短信（对应设计2.2.1 密码找回逻辑）
         //2 将验证码存储到缓存中，key为account，value为verifyCode，设置过期时间为5分钟
     }

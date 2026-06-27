@@ -1,13 +1,14 @@
 package com.reservation.controller;
 
 //import com.reservation.entity;
-import com.reservation.service.*;
+//import com.reservation.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
+//import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.condition.PatternsRequestCondition;
 
-import javax.servlet.http.HttpServletRequest;
+//import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Set;
 // 由于程序启动后默认没有跳转到 index.html 而是跳到了 login，说明 Spring Security 可能拦截了首页（/）请求，要求认证。
@@ -197,10 +198,10 @@ public class IndexController {
     
      // 列出本项目对外暴露的所有接口，并返回
      // 利用 Spring 的 ApplicationContext 获取所有带有 @RequestMapping/@GetMapping/@PostMapping 等注解的方法及其路径
-
+/* 
      @Autowired
      private org.springframework.context.ApplicationContext applicationContext;
-
+*/
      @Autowired
      private org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping requestMappingHandlerMapping;
 
@@ -218,30 +219,31 @@ public class IndexController {
              org.springframework.web.servlet.mvc.method.RequestMappingInfo info = entry.getKey();
 
              // 处理每个路径
-             //判断info为空、nfo.getPatternsCondition()为null的情况
-             if (info == null || info.getPatternsCondition() == null) {
-                 continue;
-             }
-
-             java.util.Set<String> patterns = info.getPatternsCondition().getPatterns();
-
-             if (info.getMethodsCondition() == null) {
-                 continue;
-             }
+             // 判断 info 为空或 getPatternsCondition() 为 null 的情况
+             java.util.Set<String> patterns = null;
+             if ( info!= null   ) {
+                 //org.springframework.web.servlet.mvc.condition.Request
+                PatternsRequestCondition patternsCondition = info.getPatternsCondition();
+                if(patternsCondition != null) {
+                    patterns = patternsCondition.getPatterns(); 
+               }
+              if (patterns == null) {
+                    continue;
+                } 
              Set<RequestMethod> httpMethods = info.getMethodsCondition().getMethods();
              String methodStr = httpMethods.isEmpty() ? "[ALL]" : httpMethods.toString();
              
              for (String pattern : patterns) {
                  endpoints.add(methodStr + " " + pattern);
              }
-         }
-
-         java.util.Collections.sort(endpoints);
+         } 
+        }
          //endpoints.add( "test");//可达
+          java.util.Collections.sort(endpoints);
          return endpoints;
-     }
+     } 
 
-}
+    }
 /**
  * RequestMapping和GetMapping的区别说明：
  *

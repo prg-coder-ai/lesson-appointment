@@ -1,9 +1,8 @@
 package com.reservation.service;
 
 //import com.reservation.controller.CourseExecutionController;
-import com.reservation.entity.Course;
-import com.reservation.entity.CourseQueryParam;
-import com.reservation.entity.CourseTemplate;
+ import com.reservation.entity.*; 
+import com.reservation.dto.*; 
 import com.reservation.exception.BusinessException;
 import com.reservation.exception.ResourceNotFoundException;
 import com.reservation.mapper.CourseTemplateMapper;
@@ -14,7 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Propagation;
 
-import java.text.SimpleDateFormat;
+//import java.text.SimpleDateFormat;
 import java.util.*;
 
 /**
@@ -27,11 +26,6 @@ public class CourseService {
     private CourseMapper courseMapper;
      @Autowired
     private CourseTemplateMapper courseTemplateMapper;
-
-    // 显式声明私有访问修饰符，规范常量定义
-    private static final SimpleDateFormat COURSE_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-    // 时间格式正则，辅助校验
-    private static final String TIME_PATTERN = "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}$";
 
     /**
      * 创建课程模板，对应设计2.2.2 课程模板创建接口，仅管理员可操作

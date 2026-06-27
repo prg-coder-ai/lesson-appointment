@@ -114,30 +114,6 @@ async function renderStudentBookingBrowserCards() {
      }
  }
  
- async function getCourseById( courseId) {
-    const token = getToken();
-    if (!token) return;
-
-    try {
-        // Axios GET请求（修复response.json()错误，Axios已自动解析）
-        const response = await axios.get(`${API_BASE_URL}/course/${courseId}`, {
-            headers: { "Authorization": "Bearer " + token },
-           // params: conditionJson // 筛选条件通过params传递
-        });
-        const res = response.data; 
-        if (res && res.code === 200) {
-           console.info("data.courses:",res.data);   
-           return  res.data ; 
-        } else {
-           // alert(res?.message || '获取课程列表失败');
-            return  null;
-        }
-    } catch (e) {
-        //alert("网络错误，获取课程列表失败");
-        console.error(e);
-        return   null;
-    }
- }
  async function  testGetList(courseId){
     const conditionJson = { 
         courseId:courseId,
@@ -150,33 +126,6 @@ async function renderStudentBookingBrowserCards() {
   console.log(one,rlist);
    }
  
- //TBD To Be test ,if the conditionJson tooked infact.
-async function fetchCourseList(conditionJson) {
-    const token = getToken();
-    if (!token) return;
-
-    try {
-        // Axios GET请求（修复response.json()错误，Axios已自动解析）
-        const response = await axios.get(`${API_BASE_URL}/course/list`, {
-            headers: { "Authorization": "Bearer " + token },
-            params: conditionJson // 筛选条件通过params传递
-        });
-        const res = response.data;
-        //console.info("fetchCourseList:",res);
-        if (res && res.code === 200) {
-           console.info("data.courses:",res.data);   
-           return  res.data|| []; 
-        } else {
-           // alert(res?.message || '获取课程列表失败');
-            return   [];
-        }
-    } catch (e) {
-        //alert("网络错误，获取课程列表失败");
-        console.error(e);
-        return   [];
-    }
-}
-
    /*cardInfo的数据形式：
      cardContent ={
     bookingId:"",

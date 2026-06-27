@@ -3,8 +3,8 @@ package com.reservation.entity;
 
 import lombok.Data;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import java.math.BigDecimal;
+//import jakarta.validation.constraints.NotNull;
+//import java.math.BigDecimal;
 import java.util.Date;
 import java.io.Serializable;
 @Data

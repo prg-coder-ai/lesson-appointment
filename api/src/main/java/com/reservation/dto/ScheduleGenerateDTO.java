@@ -1,4 +1,4 @@
-package com.reservation.entity;
+package com.reservation.dto;
 import lombok.Data;
 import java.time.LocalDate;
 import java.time.LocalTime;

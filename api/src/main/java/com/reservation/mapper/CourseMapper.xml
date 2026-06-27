@@ -54,7 +54,7 @@
    2. #{params.xxx} 在 parameterType 直接为对象时推荐写成 #{xxx}
    -->
 
-   <select id="selectCourseList" parameterType="com.reservation.entity.CourseQueryParam" resultType="com.reservation.entity.Course">
+   <select id="selectCourseList" parameterType="com.reservation.dto.CourseQueryParam" resultType="com.reservation.entity.Course">
       SELECT c.*
       FROM course c
       LEFT JOIN course_template t ON c.template_id = t.template_id

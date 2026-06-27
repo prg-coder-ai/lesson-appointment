@@ -1,8 +1,8 @@
 package  com.reservation.controller;
 
- import  com.reservation.entity.RefreshDTO;
- import com.reservation.entity.RefreshTokenPO;
- import com.reservation.entity.TokenDTO;
+ import  com.reservation.dto.RefreshDTO;
+ import com.reservation.dto.RefreshTokenPO;
+ import com.reservation.dto.TokenDTO;
 
 import com.reservation.common.Result;
 import com.reservation.entity.User;
@@ -20,12 +20,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 // 核心导入：RequestMethod 所在包
  import org.springframework.web.bind.annotation.*; 
  import jakarta.validation.constraints.Pattern;
-
+ import java.util.Collections;
+import java.util.HashMap;
+/*
  import javax.servlet.http.Cookie;
  import javax.servlet.http.HttpServletResponse;
- import java.util.Collections;
- import java.util.List;
- import java.util.Map;
+
+import java.util.List;
+ import java.util.Map;*/
 
  @RestController
 @RequestMapping("/auth")
@@ -44,13 +46,13 @@ public class authController {
      */
     @PostMapping("/login")
     @ResponseBody
-    public Result  <Void>  toLogin( @Validated @RequestBody User user){
+    public Result  <HashMap<String, Object>>  toLogin( @Validated @RequestBody User user){
              String account = user.getAccount();
              String password = user.getPassword();
 
 
         // 调用服务层实现登录逻辑，返回userId、role、Token,freshToken（对应设计2.2.1 登录返回数据）
-        Result rst= userService.login(account, password); //setOnline(false)
+        Result<HashMap<String, Object>> rst= userService.login(account, password); //setOnline(false)
           
         // 3. 登录成功：设置安全状态（核心步骤） ?token?
         // 封装用户认证信息（角色需和数据库一致，如teacher/student）
@@ -127,7 +129,7 @@ public Result<void> logout(HttpServletResponse response) {
      * 调用后该用户所有页面401自动跳转登录
      */
     @DeleteMapping("/kick/{userId}")
-    public Result kickUser(@PathVariable String userId) {
+    public Result <Object> kickUser(@PathVariable String userId) {
         int count = refreshTokenService.kickUser(userId);
          System.out.println("controller kick: "+count);
         if(count  !=0 )
@@ -139,7 +141,7 @@ public Result<void> logout(HttpServletResponse response) {
      */
     @PostMapping("/password/forgot")
       @ResponseBody
-    public Result  forgotPassword(
+    public Result <Object>   forgotPassword(
             @NotBlank(message = "账号不能为空") String account,
             @NotBlank(message = "验证码不能为空")
             @Pattern(regexp = "^\\d{6}$", message = "验证码格式错误") String verifyCode) {
@@ -153,7 +155,7 @@ public Result<void> logout(HttpServletResponse response) {
      */
     @PostMapping("/password/reset")
       @ResponseBody
-    public Result  resetPassword(
+    public Result <Object>  resetPassword(
             @NotBlank(message = "账号不能为空") String account)
             {
         // 调用服务层重置密码（对应设计2.2.1 密码重置功能说明）

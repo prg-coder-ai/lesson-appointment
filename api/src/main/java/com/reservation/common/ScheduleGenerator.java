@@ -1,6 +1,6 @@
 package com.reservation.common;
-import com.reservation.entity.ScheduleGenerateDTO;
-import com.reservation.entity.ScheduleVO;
+import com.reservation.dto.ScheduleGenerateDTO;
+import com.reservation.dto.ScheduleVO;
 import java.time.*;
 import java.util.ArrayList;
 import java.util.List;

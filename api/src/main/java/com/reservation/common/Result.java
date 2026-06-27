@@ -1,10 +1,9 @@
 package com.reservation.common;
-
-import com.reservation.entity.CourseSchedule;
 import lombok.Data;
-
+/* 
+import com.reservation.entity.CourseSchedule; 
 import java.util.List;
-import java.util.Map;
+import java.util.Map;*/
 
 /**
  * 统一返回结果封装，对应设计2.1中“返回格式：code、message、data”

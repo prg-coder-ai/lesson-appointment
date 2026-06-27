@@ -8,7 +8,7 @@ import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+ 
 /**
  * UserMapper接口，对应user表CRUD操作，匹配UserService中的方法
  */

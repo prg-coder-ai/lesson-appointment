@@ -2,8 +2,8 @@ package com.reservation.controller;
 
 import com.reservation.common.Result;
 import com.reservation.entity.Booking;
-import com.reservation.entity.BookingQueryParaDTO;
-import com.reservation.entity.BookingDTO;
+import com.reservation.dto.BookingQueryParaDTO;
+import com.reservation.dto.BookingDTO;
 import com.reservation.service.BookingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;

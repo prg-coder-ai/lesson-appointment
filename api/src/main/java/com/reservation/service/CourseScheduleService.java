@@ -1,24 +1,23 @@
 package com.reservation.service;
 
-import com.reservation.entity.*;
-import com.reservation.entity.CourseScheduleCreateDTO;
-import com.reservation.entity.IncSiteBody;
-import com.reservation.entity.ScheduleGenerateDTO;
-import com.reservation.entity.StatusBody;
+ import com.reservation.entity.*; 
+import com.reservation.dto.*; 
+
 import com.reservation.mapper.CourseScheduleMapper;
 import com.reservation.mapper.ScheduleExceptionMapper;
 import com.reservation.common.ScheduleGenerator;
 
 import com.reservation.mapper.BookingMapper;
-import com.reservation.service.AppointmentService;
-      
+/*import com.reservation.service.AppointmentService;
+      import java.time.LocalDate;
 import jakarta.validation.constraints.NotBlank;
+import org.springframework.beans.BeanUtils;*/
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.beans.BeanUtils;
+
 import javax.annotation.Resource;
-import java.time.LocalDate;
+
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -204,6 +203,7 @@ public class CourseScheduleService {
  }
  //用于保存到数据库
 private CourseSchedule  DtoToObject(CourseScheduleCreateDTO dto){
+    System.out .println("DtoToObject : " +dto);
     if (dto == null) return null;
     CourseSchedule cs = new CourseSchedule();
     cs.setCourseId(dto.getCourseId());
@@ -231,7 +231,7 @@ private CourseSchedule  DtoToObject(CourseScheduleCreateDTO dto){
             dto.getEndTime() 
         ).toString().replace('T', ' ')); // "yyyy-MM-dd HH:mm:ss"
     } 
-
+ 
     cs.setRepeatType(dto.getRepeatType());
     cs.setRepeatInterval(dto.getRepeatInterval());
     cs.setAvailableSites(dto.getAvailableSites());
@@ -298,12 +298,12 @@ private CourseSchedule  DtoToObject(CourseScheduleCreateDTO dto){
         genDto.setUserTimeZone(crtDto.getTimeZone());
 //.out .println("asgn_student genDto:" + genDto);
       // 3. 由工具类展开实例日期+时间
-      List<com.reservation.entity.ScheduleVO> instanceList = ScheduleGenerator.generateUserZoneSchedule(genDto);
+      List<ScheduleVO> instanceList = ScheduleGenerator.generateUserZoneSchedule(genDto);
 //System.out .println("asgn_student instanceList:" + instanceList);
 
       List<Appointment> appointmentList = new ArrayList<>();
       int index =1;
-      for (com.reservation.entity.ScheduleVO vo : instanceList) {
+      for (ScheduleVO vo : instanceList) {
           Appointment appt = new Appointment();
          // appt.setAppointmentId(UUID.randomUUID().toString());
          appt.setBookingId(bookingId); 
