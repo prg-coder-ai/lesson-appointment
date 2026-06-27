@@ -1,7 +1,7 @@
 package com.reservation.service;
 
 import com.reservation.mapper.RefreshTokenMapper;
-import com.reservation.entity.RefreshTokenPO;
+import com.reservation.dto.RefreshTokenPO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

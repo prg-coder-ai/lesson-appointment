@@ -1,4 +1,4 @@
-package com.reservation.entity;
+package com.reservation.dto;
 import lombok.Data;
 @Data
 public class RefreshDTO {

@@ -1,8 +1,8 @@
 package com.reservation.service;
 
 import com.reservation.entity.Booking;
-import com.reservation.entity.BookingDTO;
-import com.reservation.entity.BookingQueryParaDTO;
+import com.reservation.dto.BookingDTO;
+import com.reservation.dto.BookingQueryParaDTO;
 import com.reservation.mapper.BookingMapper;
 
 import org.springframework.stereotype.Service;

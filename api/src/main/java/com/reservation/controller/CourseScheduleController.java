@@ -2,12 +2,12 @@ package com.reservation.controller;
 
 import com.reservation.common.Result;
 import com.reservation.entity.CourseSchedule;
-import com.reservation.entity.CourseScheduleCreateDTO; 
+import com.reservation.dto.*;/*.CourseScheduleCreateDTO; 
 import com.reservation.entity.IncSiteBody;
 import com.reservation.entity.StatusBody;
 import com.reservation.entity.SchedulePO;
 import com.reservation.entity.ScheduleVO;
-import com.reservation.entity.ScheduleGenerateDTO;
+import com.reservation.entity.ScheduleGenerateDTO;*/
 
 import com.reservation.service.CourseScheduleService; 
 import  com.reservation.common.ScheduleGenerator; 
@@ -19,7 +19,7 @@ import org.springframework.validation.annotation.Validated;
 import javax.annotation.Resource;
 import java.util.List;
 import java.util.Map;
-import java.time.*;
+//import java.time.*;
 
 @RestController
 @RequestMapping("/course/schedule")

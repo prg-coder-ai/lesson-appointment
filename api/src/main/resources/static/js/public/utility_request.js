@@ -81,6 +81,10 @@
       if (res.code === 200) {
         return res.data;
       }
+      if(res.code == 403){
+        window.href ="./index.html";
+
+      }
       const errMsg = res.message || res.msg || '操作失败';
       if (config.customErrorMsg !== false) {
         showError(errMsg);
@@ -110,7 +114,7 @@
       const status = error.response.status;
       const originalRequest = config;
 
-      if (status === 401) {
+      if (status === 401 || status== 403) {
         if (isRefreshing) {
           return new Promise((resolve) => {
             requestQueue.push((newToken) => {

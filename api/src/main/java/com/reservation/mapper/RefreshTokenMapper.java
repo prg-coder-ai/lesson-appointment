@@ -1,7 +1,7 @@
 package com.reservation.mapper;
 
 
-import com.reservation.entity.RefreshTokenPO;
+import com.reservation.dto.RefreshTokenPO;
 import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Param;

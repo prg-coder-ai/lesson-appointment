@@ -3,7 +3,7 @@
 package com.reservation.mapper;
 
 import com.reservation.entity.Booking;
-import com.reservation.entity.BookingQueryParaDTO;
+import com.reservation.dto.BookingQueryParaDTO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

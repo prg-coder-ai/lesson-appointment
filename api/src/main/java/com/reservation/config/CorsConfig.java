@@ -24,7 +24,13 @@ import org.springframework.web.filter.CorsFilter;
 - Controller未加@CrossOrigin注解、或CorsConfig全局配置路径未涵盖全部API。
 建议修正包名，并确认CORS Config类被自动扫描且配置路径无误。
 */
- 
+ /*
+    // 显式声明私有访问修饰符，规范常量定义
+    private static final SimpleDateFormat COURSE_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    // 时间格式正则，辅助校验
+    private static final String TIME_PATTERN = "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}$";
+*/
+
 @Configuration 
 public class CorsConfig {
 

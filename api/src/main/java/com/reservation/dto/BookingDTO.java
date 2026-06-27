@@ -1,10 +1,10 @@
-package com.reservation.entity;
+package com.reservation.dto;
 
 import lombok.Data;
-import jakarta.validation.constraints.NotBlank;
+/*import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
-import java.util.Date;
+import java.util.Date;*/
 import java.io.Serializable;
 //用于设置预约状态
 @Data

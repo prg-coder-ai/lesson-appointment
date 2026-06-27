@@ -65,7 +65,7 @@ const api = {
 };
 
 // 封装GET请求（获取数据库数据）
-function getRequest(url, callback) {
+/*function getRequest(url, callback) {
     fetch(url, {
         method: "GET",
         headers: {
@@ -80,7 +80,7 @@ function getRequest(url, callback) {
         console.error("API请求失败：", error);
     });
 }
-
+*/
 //按照传入的条件，检索用户列表，eg：const conditionJson = { role: 'teacher' };
 //TBD条件：公司、分部、管理员
 async function fetchUserList(conditionJson) {

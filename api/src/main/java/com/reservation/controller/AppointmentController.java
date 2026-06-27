@@ -1,7 +1,7 @@
 package  com.reservation.controller;
 
 import com.reservation.entity.Appointment;
-import com.reservation.entity.BookingDTO;//借用数据定义
+import com.reservation.dto.BookingDTO;//借用数据定义
 import com.reservation.service.AppointmentService;
 import com.reservation.common.Result;
 import org.springframework.beans.factory.annotation.Autowired;

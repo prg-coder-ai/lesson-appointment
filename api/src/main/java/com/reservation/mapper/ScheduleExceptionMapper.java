@@ -1,5 +1,5 @@
 package com.reservation.mapper;
-import com.reservation.entity.ScheduleException;
+import com.reservation.dto.ScheduleException;
 import org.apache.ibatis.annotations.Mapper;
 @Mapper
 public interface ScheduleExceptionMapper {

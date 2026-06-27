@@ -9,20 +9,24 @@
 
   const request = window.request;
 
+  // 登录 API：参数应当放在 data 中
   function login(data) {
+    // data: { account: 'xxx', password: 'yyy' }
     return request({
       url: '/auth/login',
       method: 'post',
-      data,
+      data: data,             // 参数传递方式正确
       customErrorMsg: false
     });
   }
 
+  // 登出 API：refreshToken 作为 data 传递，符合一般 POST 格式
   function logout(refreshToken) {
+    // 后端如要求 JSON 格式：{ refreshToken: ... }
     return request({
       url: '/auth/logout',
       method: 'post',
-      data: { refreshToken }
+      data: { refreshToken: refreshToken } // 参数传递方式正确
     });
   }
 

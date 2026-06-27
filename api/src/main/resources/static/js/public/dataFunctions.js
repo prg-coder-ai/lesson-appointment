@@ -1,200 +1,4 @@
-async function getCourseById( courseId) {
-    const token = getToken();
-    if (!token) return;
 
-    try {
-        // Axios GET请求（修复response.json()错误，Axios已自动解析）
-        const response = await axios.get(`${API_BASE_URL}/course/${courseId}`, {
-            headers: { "Authorization": "Bearer " + token },
-           // params: conditionJson // 筛选条件通过params传递
-        });
-        const res = response.data; 
-        if (res && res.code === 200) {
-           console.info("data.courses:",res.data);   
-           return  res.data ; 
-        } else {
-           // alert(res?.message || '获取课程列表失败');
-            return  null;
-        }
-    } catch (e) {
-        //alert("网络错误，获取课程列表失败");
-        console.error(e);
-        return   null;
-    }
- }
-
- //根据bookingId查询预约时间列表--List <Appointment>->List {date:date,time:time }
- async function getAppointmentsByBookingId( bookingId) {
-    const token = getToken();
-    if (!token) return;
-
-    try {
-        // Axios GET请求（修复response.json()错误，Axios已自动解析）
-        const response = await axios.get(`${API_BASE_URL}/course/appointment/getByBookingId`, {
-            headers: { "Authorization": "Bearer " + token },
-            params:{ bookingId:bookingId } // 筛选条件通过params传递
-        });
-        const results =   response.data.data;
-        if (Array.isArray(results)) {
-            appointmentResults = results.map(item => {
-              let date = "";
-              let time = "";
-              if (item.appointmentDatetime) {
-                // 兼容 'YYYY-MM-DD HH:mm' 或 'YYYY-MM-DDTHH:mm'
-                const dtString = item.appointmentDatetime.replace('T', ' ');
-                const [d, t] = dtString.split(' ');
-                date = d;
-                time = t;
-              }
-              return {
-                id  : item.id,
-                date: date,
-                time: time,
-                status: item.status
-              };
-            });
-          } else {
-            appointmentResults = [];
-          }
-        return appointmentResults;
-    } catch (e) {
-        console.error(e);
-        return [];
-    }
- }
-
- 
- async function saveAppointment( appointdata) {
-   // console.log("save appoint:",appointdata.classIndex);
-    const token = getToken();
-    if (!token) return;
- 
-    // 分析参数传递是否正确
-    // 正确写法：axios.post(url, data, config)
-    // 原代码把headers和params放在了data里，实际上应该放在第三个参数
-    try {
-        // Axios POST请求 
-        const response = await axios.post(
-            `${API_BASE_URL}/course/appointment/add`,
-            appointdata, // appointdata 在这里作为POST请求体body传递
-            {
-                headers: { "Authorization": "Bearer " + token }
-                // 不需要用params，添加预约应走body
-            }
-        );
-        const res = response.data; 
-        if (res && res.code === 200) {
-         //  console.info("saveAppointment:",res.data);   
-           return  res.data ; 
-        } else {
-            return  false;
-        }
-    } catch (e) {
-        //alert("网络错误，获取课程列表失败");
-        console.error(e);
-        return   false;
-    }
- }
-
-//设置一个预约时间的状态--学生提出
- async function cancellingAppointment(appointmentId,bCancelling){
-    let status="";
-    if(bCancelling){
-       status= "cancelling";
-    } else {
-       status= "active";
-    }
-   await operateAppointmentStatus(appointmentId,status);//courseAndBooking.js
-   return ;
- }
-
- //教师、管理员提出的确认或拒绝
- async function confirmCancellingAppointment(appointmentId,bCancelled){
-    let status="";
-    if(bCancelled){
-       status= "cancelled";
-    } else {
-       status= "reject";
-    }
-   await operateAppointmentStatus(appointmentId,status);//courseAndBooking.js
-   return ;
- }
-
- //教师申请延期与撤回
- async function teacherCancellingAppointment(appointmentId,bCancelling){
-    let status="";
-    if(bCancelling){
-       status= "t-cancelling";
-    } else {
-       status= "active";
-    }
-   await operateAppointmentStatus(appointmentId,status);//courseAndBooking.js
-   return ;
- }
-
- //对教师延期申请的确认或拒绝
- async function teacherConfirmCancellingAppointment(appointmentId,bCancelled){
-    let status="";
-    if(bCancelled){
-       status= "t-cancelled";
-    } else {
-       status= "t-reject";
-    }
-   await operateAppointmentStatus(appointmentId,status);//courseAndBooking.js
-   return ;
- }
- //根据bookingId更新所有相关的预约时间状态
- async function updateAppointmentsStatusByBookingId( bookingId,status) {
-    const token = getToken();
-    if (!token) return;
-
-    try {
-        // 注意：后端接口 @RequestParam 需要参数在 params/query，不应放在 body
-        // 必须通过 params 配置传递 bookingId 和 status，否则会报“Required request parameter 'bookingId' is not present”
-        const response = await axios.put(
-            `${API_BASE_URL}/course/appointment/updateStatusByBookingId`,
-            null, // PUT无body，参数全部通过params
-            {
-                headers: { "Authorization": "Bearer " + token },
-                params: { bookingId: bookingId, status: status }
-            }
-        );
-        const res = response.data; 
-        if (res && res.code === 200) {
-            console.info("appointments:", res.data);   
-            return res.data ; 
-        } else { 
-            return false;
-        }
-    } catch (e) {        
-        console.error(e);
-        return false;
-    }
- }
- async function deleteAppointmentsByBookingId( bookingId) {
-    const token = getToken();
-    if (!token) return;
-
-    try {
-        // Axios GET请求（修复response.json()错误，Axios已自动解析）
-        const response = await axios.delete(`${API_BASE_URL}/course/appointment/deleteByBookingId`, {
-             headers: { "Authorization": "Bearer " + token },
-             params: {bookingId:bookingId} // 筛选条件通过params传递
-        });
-        const res = response.data; 
-        if (res && res.code === 200) {           
-           return  true ; 
-        } else {
-           // alert(res?.message || '获取课程列表失败');
-            return  false;
-        }
-    } catch (e) {
-        //alert("网络错误，获取课程列表失败");
-        console.error(e);
-        return   false;
-    }
-
- } 
  
    //把tzDataPO格式数据
   async function tzSwitchTo( tz,dateTime,userTz){
@@ -206,18 +10,15 @@ async function getCourseById( courseId) {
      const token = getToken();
      try {
         // Axios GET请求（修复response.json()错误，Axios已自动解析）
-        const response = await axios.post(`${API_BASE_URL}/tz/switch`, 
-            dataIn,{
-             headers: { "Authorization": "Bearer " + token },
-              
-        });
-        const res = await response.data; 
-        if (res && res.code === 200) {           
-           return  res.data ; 
-        } else {
-           // alert(res?.message || '获取课程列表失败');
-            return  null;
-        }
+        const res  = request({url:`${API_BASE_URL}/tz/switch`, 
+            data:{ dataIn}, 
+            Method:"get"});
+
+            if (res && res.code === 200) { 
+              return res.data ; 
+          } else { 
+              return false;
+          }
     } catch (e) {
         //alert("网络错误，获取课程列表失败");
         console.error(e);
@@ -237,20 +38,19 @@ async function getCourseById( courseId) {
  * */
    // 获取某年月的教师/学生月初月末统计
    async function getUserStatisticByMonth(year, month ) {
-    const token = getToken && typeof getToken === 'function' ? getToken() : '';
+  //  const token = getToken && typeof getToken === 'function' ? getToken() : '';
    try {
-       const response = await axios.get(`${API_BASE_URL}/user/statistical/byMonth`, {
-         headers: { "Authorization": "Bearer " + token },
-        params: { year:year, month:month }
+       const res  = request({ url:`${API_BASE_URL}/user/statistical/byMonth`,
+        Method:"get", 
+        data: { year:year, month:month }
       });
-     const res = response.data;
-     if (res && res.code === 200) {
+  
        // 返回统计结果对象，如:{ teacherMonthStart, teacherMonthEnd, studentMonthStart, studentMonthEnd }
-         return res.data;
-       } else {
-       // 可以自定义错误处理
-         return null;
-    }
+        if (res && res.code === 200) { 
+          return res.data ; 
+      } else { 
+          return false;
+      }
      } catch (e) {
        // 网络或服务器异常处理
       console.error(e);
@@ -263,18 +63,18 @@ async function getCountOfTodayAppointment() {
   const token = getToken && typeof getToken === 'function' ? getToken() : '';
   let days =1;
   try { //指定天数内的预约课程数
-      const response = await axios.get(`${API_BASE_URL}/course/appointment/statistical/onDays`, {
-        headers: { "Authorization": "Bearer " + token },
+      const res  = request({url:`${API_BASE_URL}/course/appointment/statistical/onDays`, 
+        Method:"get",  
         params: { ondays:days }
      });
-    const res = response.data;
-    if (res && res.code === 200) {
+    
       // 返回统计结果对象，如:{ teacherMonthStart, teacherMonthEnd, studentMonthStart, studentMonthEnd }
-        return res.data;
-      } else {
-      // 可以自定义错误处理
-        return null;
-   }
+      if (res && res.code === 200) { 
+        return res.data ; 
+    } else { 
+        return false;
+    }
+      
     } catch (e) {
       // 网络或服务器异常处理
      console.error(e);
@@ -286,19 +86,19 @@ async function getCountOfTodayAppointment() {
 async function getAppointmentList(days ) {
   const token = getToken && typeof getToken === 'function' ? getToken() : '';
  try {
-     const response = await axios.get(`${API_BASE_URL}/course/appointment/statistical/listByDays`, {
-       headers: { "Authorization": "Bearer " + token },
+     const res  = request({url:`${API_BASE_URL}/course/appointment/statistical/listByDays`, 
+      Method:"get", 
        params: {  days:days }
     });
     console.log("getAppointmentList:", response);  
-   const res = await  response.data;
-   console.log("getAppointmentList:", response);  
-   if (res && res.code === 200) {
+  // const res = await  response.data;
+  // console.log("getAppointmentList:", response);  
+   
      // 返回统计结果对象， array
-       return res.data;
-     } else {
-     // 可以自定义错误处理
-       return null;
+     if (res && res.code === 200) { 
+      return res.data ; 
+  } else { 
+      return false;
   }
    } catch (e) {
      // 网络或服务器异常处理
@@ -332,21 +132,20 @@ async function getAppointmentList(days ) {
     - 问题本质：前端未传必填的days参数，或参数名写错
     - 解决方法：确保前端传days，后端可视情况给参数加默认值
    */
-   async function getAppointmentStatisticByMonth(year, month ) {
-    const token = getToken && typeof getToken === 'function' ? getToken() : '';
+   async function getAppointmentStatisticByMonth(year, month ) { 
    try {
-       const response = await axios.get(`${API_BASE_URL}/course/appointment/statistical/byMonth`, {
-        headers: { "Authorization": "Bearer " + token },
-        params: { year:year, month:month }
+       const res  = request({url:`${API_BASE_URL}/course/appointment/statistical/byMonth`,  
+        Method:"get", 
+        params: { year:year, month:month }//TBD data:
       });
-     const res = response.data;
-     if (res && res.code === 200) {
+    
        // 返回统计结果对象，如:{ teacherMonthStart, teacherMonthEnd, studentMonthStart, studentMonthEnd }
-         return res.data;
-       } else {
-       // 可以自定义错误处理
-         return null;
-    }
+            if (res && res.code === 200) { 
+              return res.data ; 
+          } else { 
+              return false;
+          }
+       
      } catch (e) {
        // 网络或服务器异常处理
       console.error(e);
@@ -368,18 +167,17 @@ async function getAppointmentList(days ) {
   async function getCourseStaticsByMonth(year, month) {
     const token = getToken && typeof getToken === 'function' ? getToken() : '';
     try {
-      const response = await axios.get(`${API_BASE_URL}/course/statistical/byMonth`, {
-        headers: { "Authorization": "Bearer " + token },
-        params: { year, month }
+      const res  = request({url:`${API_BASE_URL}/course/statistical/byMonth`,  
+        Method:"get", 
+        data: { year, month }
       });
-      const res = response.data;
-      if (res && res.code === 200) {
+     
         // 返回: { courseMonthStart, courseMonthEnd }
-        return res.data;
-      } else {
-        // 可以自定义错误处理（如弹窗）
-        return null;
-      }
+        if (res && res.code === 200) { 
+          return res.data ; 
+      } else { 
+          return false;
+      } 
     } catch (e) {
       console.error(e);
       return null;
@@ -395,20 +193,19 @@ async function getAppointmentList(days ) {
    async function getBookingStaticsByMonth(year, month) {
      const token = getToken && typeof getToken === 'function' ? getToken() : '';
      try {
-       const response = await axios.get(`${API_BASE_URL}/course/booking/statistical/byMonth`, {
-         headers: { "Authorization": "Bearer " + token },
-         params: { year, month }
-       });
-       const res = response.data;
-       if (res && res.code === 200) {
+       const res  = request({url:`${API_BASE_URL}/course/booking/statistical/byMonth`,  
+        Method:"get", 
+         data: { year, month }
+       }); 
          // 返回: { bookingMonthLast, bookingMonth }
-         return res.data;
-       } else {
-         // 可自定义错误处理（如弹窗提示）
-         return null;
-       }
+         if (res && res.code === 200) { 
+          return res.data ; 
+      } else { 
+          return false;
+      }
+       
      } catch (e) {
-       console.error(e);
+       console.error("getBookingStaticsByMonth"+e);
        return null;
      }
    }

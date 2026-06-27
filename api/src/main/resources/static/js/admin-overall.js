@@ -136,90 +136,11 @@ async function renderStatisCards() {
      TodayLessonsCount = await getCountOfTodayAppointment();//获取今日课程数量
  }   
 
+// ===================== 交互函数 =====================  
+ 
+ 
 /**
  * 调用后端接口获取模板列表
- */
-async function fetchCourseList(conditionJson) {
-    const token = getToken();
-    if (!token) return;
+ */ 
 
-    try {
-        // Axios GET请求（修复response.json()错误，Axios已自动解析）
-        const response = await axios.get(`${API_BASE_URL}/course/list`, {
-            headers: { "Authorization": "Bearer " + token },
-            params: conditionJson // 筛选条件通过params传递
-        });
-        const res = response.data;
-        console.info("get response data:",res);
-        if (res && res.code === 200) {
-          //console.info("data.courses:",res.courses);  .courses
-            CourseList = res.data|| [];
-            localParamter.total = CourseList.length|| 0;
-            console.info("total:",localParamter.total,CourseList);
-            // 补全默认状态
-            CourseList.forEach(item => {
-                if (!item.status) item.status = 'active';
-            });
-        } else {
-            alert(res?.message || '获取课程列表失败');
-        }
-    } catch (e) {
-        alert("网络错误，获取模板列表失败");
-        console.error(e);
-    }
-}
-
-// ===================== 交互函数 =====================    
-async function operateCourse(courseId, action) {
-    const token = getToken();
-    const payload = {
-      courseid: courseId,  // 注意小写，和后端命名对应
-      status: action
-  };
-      console.log("payload：",payload); 
-    fetch(`${API_BASE_URL}/course/updateStatus`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        "Authorization": "Bearer " + token
-      },
-      credentials: 'include',
-      body: JSON.stringify(payload)
-    })
-    .then(response => {
-      // 判定http请求结果，如果不是2xx，直接抛出
-      if (!response.ok) {
-        throw new Error(`服务器错误，状态码: ${response.status}`);
-      }
-      // 某些接口如204/无内容, 直接返回空对象防止解析异常
-      const contentType = response.headers.get("content-type") || "";
-      if (contentType.includes("application/json")) {
-        return response.json();
-      }
-      // 不是json时返回空对象，避免res为undefined或字符串
-      return {};
-    })
-    .then(res => {
-      // 防御：确认res是对象且有code字段
-      const code = typeof res === "object" && res !== null && "code" in res ? res.code : undefined;
-      const msg = (typeof res === "object" && res !== null && res.message) ? res.message : '';
-      if (code === 200) { 
-        if (console.success) {
-          console.success(msg);
-          console.success('操作成功');
-        }
-        renderCourseCards(); 
-      } else {
-        alert(msg || '操作失败');
-      }
-    })
-    .catch(e => {
-      // 网络错误或json解析异常都能捕获
-      alert("网络错误或数据解析异常，操作失败");
-      console.error(e);
-    });
-   
-    }  
- 
- 
   

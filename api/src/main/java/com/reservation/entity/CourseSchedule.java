@@ -4,12 +4,13 @@ package com.reservation.entity;
 import lombok.Data;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-
+import java.io.Serializable;
+/*
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Date;
-import java.io.Serializable;
-import java.util.List;
+
+import java.util.List;*/
 
 // 课程排期实体（对应设计2.2.2 排期相关接口）
 @Data

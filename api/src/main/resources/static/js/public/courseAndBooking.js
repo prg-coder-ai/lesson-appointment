@@ -1,7 +1,26 @@
-// INSERT_YOUR_CODE
+ 
 // axios 依赖应由HTML或全局引入，如未引入，请在页面头部 
-
-
+ 
+async function getCourseById( courseId) { 
+  try {
+      // Axios GET请求（修复response.json()错误，Axios已自动解析）
+      const res  = await request({url:`${API_BASE_URL}/course/${courseId}`,  
+      });
+    
+      if (res && res.code === 200) {
+         console.info("getCourseById:",res.data);   
+         return  res.data ; 
+      } else {
+         // alert(res?.message || '获取课程列表失败');
+          return  null;
+      } 
+  } catch (e) {
+      //alert("网络错误，获取课程列表失败");
+      console.error("getCourseById",e);
+      return   null;
+  }
+}
+ 
 /**
  *条件：{status:active}等
  * @param {*} conditionJson 
@@ -14,30 +33,26 @@
 // 示例：如果没有 teacherId，也要传 { teacherId: null } 或 {}，不要直接传 null。
 // 代码层建议：查询前如果参数为 null，置为 {}。MyBatis XML 可增加 <if test="params != null and params.teacherId != null ..."> 保护。
 
-async function getCourseList(conditionJson) { 
-    const token = getToken();
-
-    if (!token) return [];
+async function getCourseList(conditionJson) {  
     console.log("getCourseList",conditionJson);
     try {
         // axios GET请求不能使用 body/params 的用法如下, 正确是用 params 字段传递 URL 查询参数
-        const response = await axios.get(`${API_BASE_URL}/course/list`, {
-            headers: { "Authorization": "Bearer " + token },
-            params: conditionJson // 正确传递查询参数
-           });
+        const res = await request({
+            url: `${API_BASE_URL}/course/list`,
+            method: 'GET',
+            params: conditionJson, // 正确传递查询参数，自动加到URL上 
+        });
 
-           console.log("courseList  response:",response); 
-         if (response && response.status === 403) { 
-            window.location.href = "./index.html";
-        }  
-        const res = await response.data;//Result 
-        console.info("courseList  data:", res);
-         if (res && res.code === 200) {
+        console.log("courseList response:", res);
+         
+        // 若是标准result结构
+        // res.code, res.data
+        console.info("courseList data:", res.data);
+        if (res && res.code === 200) {
             let courseList = res.data || [];
-           // console.log("courseList:",courseList); 
             courseList.forEach(item => {
                 if (!item.status) item.status = 'inactive';
-            }); 
+            });
             return courseList || [];
         } else {
             alert(res?.message || '获取课程列表失败');
@@ -56,8 +71,7 @@ async function getCourseList(conditionJson) {
  * 返回：排期列表或[]
  */
 async function fetchScheduleList( cid,status) {
-    const token = getToken();
-    if (!token)  return [];
+   
    let conditionJson ={ status:status};
     try { 
         // 如果希望让前端通过URL参数传递 status 或其它过滤条件，应在后端controller方法参数上用 @RequestParam 注解接收，而不是 @RequestBody。
@@ -69,21 +83,19 @@ async function fetchScheduleList( cid,status) {
         //     @RequestHeader("Authorization") String token) { ... }
         // 前端 axios GET 的 params 字段会自动附加在URL参数上，被@RequestParam接收。
 
-        const response = await axios.get(`${API_BASE_URL}/course/schedule/selectByCourseId/${cid}`, {
-            headers: { "Authorization": "Bearer " + token },
-            params: conditionJson // 对应后端@RequestParam，如果controller未定义status参数会被忽略
+        // 用 request 方法改写 axios GET
+        const res = await request({
+            url: `${API_BASE_URL}/course/schedule/selectByCourseId/${cid}`,
+            method: 'GET',
+            params: conditionJson // params 自动附加到 URL 上（被 @RequestParam 接收） 
         });
-        // response对象结构：{ status, statusText, headers, config, data }
-        // 通常我们只关心response.data，它对应后端的Result结构
 
-        const res = await response.data;
-        
         if (res && res.code === 200) {
-            console.info("fetchScheduleList:",res.data);
-            return  res.data|| []; // TBD:对于多个排期的情况进行区分
- 
+            console.info("fetchScheduleList:", res.data);
+            return res.data || []; // TBD: 对于多个排期的情况进行区分
+
         } else {
-           // alert(res?.message || '获取排期失败');
+            // alert(res?.message || '获取排期失败');
             return [];
         }
     } catch (e) {
@@ -99,78 +111,53 @@ async function fetchScheduleList( cid,status) {
  */
  async function operateBookingStatus(bookid, action) {
   console.log("operateBookingStatus",bookid,action);
-    const token = getToken();
+  
     const payload = {
         id: bookid,  // 注意小写，和后端命名对应
         status: action
   };
-      console.log("payload：",payload,token); 
+    //  console.log("payload：",payload,token); 
     // credentials 与 Authorization 并不冲突，credentials: 'include' 用于携带 cookie，而 Authorization 是用于 token 鉴权，通常二者可以并存
-    fetch(`${API_BASE_URL}/course/booking/updateStatus`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        "Authorization": "Bearer " + token
-      },
-      credentials: 'include', // 如果后端要求带 cookie，这里就需要；仅用 Authorization 也可以鉴权，二者不会冲突
-      body: JSON.stringify(payload)
-    })
-    .then(response => {
-      // 判定http请求结果，如果不是2xx，直接抛出
-      if (!response.ok) {
-        throw new Error(`服务器错误，状态码: ${response.status}`);
-      }
-      // 某些接口如204/无内容, 直接返回空对象防止解析异常
-      const contentType = response.headers.get("content-type") || "";
-      if (contentType.includes("application/json")) {
-        {
-            return response.json();
-        }
-      }
-      // 不是json时返回空对象，避免res为undefined或字符串
-      return {};
-    })
-    .then(res => {
+    try {
+      const res = await request({
+        url: `${API_BASE_URL}/course/booking/updateStatus`,
+        method: 'POST',
+        data: payload 
+      });
       // 防御：确认res是对象且有code字段
       const code = typeof res === "object" && res !== null && "code" in res ? res.code : undefined;
       const msg = (typeof res === "object" && res !== null && res.message) ? res.message : '';
-      if (code === 200) {  
-          console.log('操作成功');//+msg+res.data); 
-        const bid = res.data;
-       // reloadBooking(bid);  调用者提供刷新
+      if (code === 200) {
+        console.log('操作成功');
+       // const bid = res.data;
+        // reloadBooking(bid); // 调用者提供刷新
       } else {
         alert(msg || '操作失败');
       }
-    })
-    .catch(e => {
-      // 网络错误或json解析异常都能捕获
+    } catch (e) {
       alert("网络错误或数据解析异常，操作失败");
       console.error(e);
-    });
+    }
    
     } ;
      
     
 //返回1个排期对象
 async function fetchSchedule( scheduleid) {
-  console.log("fetchSchedule :" ,scheduleid);
-  const token = getToken();
-  if (!token)  return []; 
+  console.log("fetchSchedule :" ,scheduleid); 
   try { 
-      const response = await axios.get(`${API_BASE_URL}/course/schedule/detail/${scheduleid}`, {
-          headers: { "Authorization": "Bearer " + token },
-         // params: JSON.stringify([]) // 对应后端@RequestParam， 
-        });
-       // console.log("fetchSchedule:" ,response.data);
-        const res = await response.data;
-        if (res && res.code === 200) {
-            //console.info("fetchSchedule:",res.data);
-            return  res.data|| null; //
+      const res = await request({
+        url: `${API_BASE_URL}/course/schedule/detail/${scheduleid}`,
+        method: 'GET' 
+      });
+      if (res && res.code === 200) {
+          //console.info("fetchSchedule:",res.data);
+          return res.data || null; //
+      } else {
+          console.log(res?.message, '获取排期失败', scheduleid);
+          return null;
+      }
  
-        } else {
-           console.log(res?.message  ,'获取排期失败',scheduleid);
-            return null;
-        }
     } catch (e) {
        // alert("网络错误，获取排期失败");
         console.error("网络错误，获取排期失败",e,scheduleid);
@@ -179,6 +166,43 @@ async function fetchSchedule( scheduleid) {
 }
 
 
+/**
+ * 发布/回收排期、
+ */
+async function operateSchedule(scheduleId, action) { 
+    const payload = {
+        scheduleId: scheduleId,  // 注意小写，和后端命名对应
+        status: action
+      };
+      console.log("payload：",payload); 
+    const  res = await request({url:`${API_BASE_URL}/course/schedule/updateStatus`,  
+      method: 'POST', 
+      data:  {payload}
+    });
+      if(res && res.code==200)
+        return res.data;
+       else 
+      // 不是json时返回空对象，避免res为undefined或字符串
+      return {};  
+   
+    } ;
+
+// 
+    async function saveScheduleToServer(bExists,dto) {
+       const url = bExists? `course/schedule/update` : `course/schedule/create`; 
+    try{
+      const result = await request({url: `${API_BASE_URL}/${url}`, 
+                method: 'POST',     
+                 data:{ dto}
+                      });
+       //  console.log("res:",res);   
+      console.log("result:",result);
+      return result.data;
+    }  catch(err){
+        alert('网络异常，操作失败');
+        console.error(err);  
+    }  
+  }
 
 ///获取排期的时间列表 
 async function generateAppointmentList( scheduleId ,timeZone){
@@ -228,21 +252,14 @@ function getBookingObject(bookingId) {
   return  getBookingInfoByCondition(params) ;
 }
 //same as getBookingObject TBTEST
-async function fetchBooking( bookingId) {
-  const token = getToken();
-  if (!token) return; 
+async function fetchBooking( bookingId) { 
   try {
       // Axios GET请求（修复response.json()错误，Axios已自动解析）
-      const response = await axios.get(`${API_BASE_URL}/course/booking/${bookingId}`, {
-           headers: { "Authorization": "Bearer " + token }  
-      });
-      const res = response.data; 
-      if (res && res.code === 200) {           
-         return  true ; 
-      } else {
-         // alert(res?.message || '获取课程列表失败');
-          return  false;
-      }
+      const res =await request({ url:`${API_BASE_URL}/course/booking/${bookingId}` 
+      });    
+      if (res && res.code === 200) { 
+         return  res.data ;  
+      } else  return   false;
   } catch (e) {
       //alert("网络错误，获取课程列表失败");
       console.error(e);
@@ -277,32 +294,15 @@ async function getBookingList( userRole, userid,status) {
 }
 
 async function  getBookingInfoByCondition(params) {
-  const url = `course/booking/list` ;
-  const token = getToken();
+  const url = `course/booking/list` ; 
 try {
-      const res = await fetch(`${API_BASE_URL}/${url}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                "Authorization": "Bearer " + token
-            },
-            credentials: 'include',
-            body: JSON.stringify(params)
-        });
-  console.log('getBookingInfo: res', res);
-  if(!res.ok) 
-    {
-      if ( res.status === 403)   
-        window.location.href = "./index.html";
-    }  
-   const result = await res.json(); 
-   console.log('getBookingInfo: result', result);
-   if (result && result.code === 200) {
-      return result.data;
-  } else {
-      alert(result?.message || '排期时间表为空，请联系老师');
+      const res =await request( { url:`${API_BASE_URL}/${url}`,method: 'POST',data:{params}}) ; 
+  console.log('getBookingInfoByCondition: res', res);
+  if (res && res.code === 200) {
+  return res.data;
   }
-  return [];
+    //  alert(result?.message || '排期时间表为空，请联系老师');
+  
 } catch (err) {
   //alert('获取排期时间表失败');
   console.error('获取排期时间表失败'+err);  
@@ -327,21 +327,13 @@ return [];
 // 分析：可能由于日期时区或构造Date的方式导致了前端和后端实际天数偏差。例如直接用new Date('yyyy-MM-dd')会因时区差别导致日期减少1天。可以尝试使用new Date(year, month, day)规避。
 async function generateScheduleListFromServer(form) { 
   const url = `course/schedule/generate` ;
-  const token = getToken();
+ // const token = getToken();
 //  const queryString = new URLSearchParams(form).toString(); ccc?${queryString}
-  try {
-      const res = await fetch(`${API_BASE_URL}/${url}`, {
-          method: 'POST',
-          headers: {
-              'Content-Type': 'application/json',
-              "Authorization": "Bearer " + token
-          },
-          credentials: 'include',
-         body: JSON.stringify(form)
-      });
-
-      const result = await res.json();
-      
+  try { 
+      const result = request({url:`${API_BASE_URL}/${url}`, 
+        method: 'POST', 
+       data: { form}
+    });
       // 修正后端返回的日期数组，确保日期不因本地解析减少1天
       // 尝试将日期转为本地日期字符串再渲染
       if (result && result.code === 200) {
@@ -482,54 +474,32 @@ fetch('your-api-url', {
 */
 
 //更新预约时间的状态
-async function operateAppointmentStatus(aid, action) {
-  const token = getToken();
+async function operateAppointmentStatus(aid, action) { 
   const payload = {
           id: aid,  // 注意小写，和后端命名对应
           status: action
     };
     console.log(" operateAppointmentStatus- payload：",payload ); 
-   fetch(`${API_BASE_URL}/course/appointment/updateStatusById`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      "Authorization": "Bearer " + token
-    },
-    credentials: 'include',  
-    body: JSON.stringify(payload)
-  })
-  .then(response => {
-    // 判定http请求结果，如果不是2xx，直接抛出
-    if (!response.ok) {
-      throw new Error(`服务器错误，状态码: ${response.status}`);
-    }
-    // 某些接口如204/无内容, 直接返回空对象防止解析异常
-    const contentType = response.headers.get("content-type") || "";
-    if (contentType.includes("application/json")) {
-      {
-          return response.json();
-      }
-    }
-    // 不是json时返回空对象，避免res为undefined或字符串
-    return {};
-  })
-  .then(res => {
-    // 防御：确认res是对象且有code字段
-    const code = typeof res === "object" && res !== null && "code" in res ? res.code : undefined;
-    const msg = (typeof res === "object" && res !== null && res.message) ? res.message : '';
-    if (code === 200) {  
-        console.log('操作成功');//+msg+res.data); 
-     // const bid = res.data;
-     // reloadBooking(bid);  调用者提供刷新
-    } else {
-      alert(msg || '操作失败');
-    }
-  })
-  .catch(e => {
-    // 网络错误或json解析异常都能捕获
-    alert("网络错误或数据解析异常，操作失败");
-    console.error(e);
-  });
+   try {
+     const res = request({
+       url: `${API_BASE_URL}/course/appointment/updateStatusById`,
+       method: 'PUT',
+       data: payload
+     });
+     // 防御：确保res对象和有code字段
+     const code = typeof res === "object" && res !== null && "code" in res ? res.code : undefined;
+     const msg = (typeof res === "object" && res !== null && res.message) ? res.message : '';
+     if (code === 200) {  
+       console.log('更新预约时间 操作成功'); 
+       // const bid = res.data;
+       // reloadBooking(bid);  调用者提供刷新
+     } else {
+       alert("更新预约时间"+(msg || '操作失败'));
+     }
+   } catch (e) {
+     alert("网络错误或数据解析异常，操作失败");
+     console.error(e);
+   }
  
   } ;
    
@@ -654,3 +624,234 @@ function getRepeatDescription(repeatType, interval) {
           return "";
   }
 }
+
+
+/**
+ * 发布/回收模板、
+ */
+async function operateTemplate(templateId, action) {
+ // const token = getToken();
+  const payload = {
+    templateid: templateId,  // 注意小写，和后端命名对应
+    status: action
+};
+ 
+      // 这里分析参数带入方式：接口说明需要 templateId 和 action（操作类型/状态）作为参数。
+      // axios.put 发送到 /course/template/manage，后端期望参数格式为 { templateId, action } （或 status）。
+      // 但你的写法是 { templateId: ..., status: ... }，后端如期望 action 字段，需要修正字段名。
+      // 根据后端接口 CourseController.updateTemplate 需要 {templateid, action} 作为 JSON 请求体字段（不是直接字符串参数）。
+      // 且参数名注意为 templateid（小写），后端 Spring 不能自动映射 templateId，需和后端代码严格匹配
+      // 如果后端 Controller 层要求 RequestBody Json对象，请传:
+      // { templateid: templateId, action: action }
+      // 不是 params、不是 query、不是 array；是object。
+      // axios 等库请求时，发送 request body 只需将数据对象作为第二个参数（POST、PUT），第三个参数为 headers 配置。
+      // 例如：axios.put(url, { key1: value1, key2: value2 }, { headers: { ... } })
+      // 在 fetch，用 fetch(url, { method: 'POST', body: JSON.stringify(data), headers: { ... } });
+      // 后端 expects @RequestBody JSON，所以务必用对象并确保字段名与后端参数完全一致
+      
+     /* const res = await axios.put(
+          `${baseUrl}/course/template/updateStatus`,
+          {
+            data:{  templateId: templateId, 
+              status: action // 使用 action 字段传递类型（如 edit, publish, recall, ...）
+            }
+          },
+          { headers: { "Authorization": "Bearer " + token } }         
+      );
+
+      if (res.data.code === 200) {
+        console.success( '模板操作成功');
+          await renderTemplateCards();
+      } else {
+          alert( '模板操作失败');
+      }
+  } catch (err) {
+      alert('网络异常，操作失败');
+      console.error(err);
+  }*/
+
+  // 这段代码中 `res && res.code === 200` 会出现异常的根本原因可能如下：
+  // 1. fetch的response未必能被正常解析为json（如接口返回204/空/非json字符串），那么response.json()会抛出异常，进入catch。
+  // 2. 如果后端接口出错返回了HTML、null、undefined或其他非对象内容，.then(res => ...)这里的res不是期望的对象，访问res.code会抛出。
+  // 3. 某些情况下res实际为null/undefined或格式不符（如res为字符串），则res.code === 200会抛异常。
+  //
+  // 更安全的写法，需先确认res为对象且有code属性，再判断。推荐加类型检查与默认值防御。
+  request({
+    url: `${API_BASE_URL}/course/template/updateStatus`,
+    method: 'POST' ,
+    data: payload 
+  })
+  .then(res => {
+    // res对象：{ data, code, message ... }
+    const code = typeof res === "object" && res !== null && "code" in res ? res.code : undefined;
+    const msg = (typeof res === "object" && res !== null && res.message) ? res.message : '';
+    if (code === 200) { 
+      if (console.success) {
+        console.success(msg);
+        console.success('模板操作成功');
+      }
+      //renderTemplateCards(); 
+    } else {
+      alert(msg || '模板操作失败');
+    }
+  })
+  .catch(e => {
+    alert("网络错误或数据解析异常，操作失败");
+    console.error(e);
+  });
+ 
+  }   
+
+  
+/**
+ * 调用后端接口获取模板列表
+ */
+async function fetchTemplateList(conditionJson) { 
+  try {
+      // 用 request 方法替换 axios
+      const res = await request({
+          url: `${API_BASE_URL}/course/template/list`,
+          method: 'GET', 
+          params: conditionJson // 筛选条件通过params传递
+      }); 
+      console.info("fetchTemplateList:", res);
+      if (res && res.code === 200) { //.templates-->data
+          templateList = res.data || [];
+
+          total = templateList.length || 0;
+
+          console.info("total:", total, templateList);
+          // 补全默认状态
+          templateList.forEach(item => {
+              if (!item.status) item.status = 'active';
+          });
+          return templateList;
+      } else {
+          alert(res?.message || '获取模板列表失败');
+          return null;
+      }
+  } catch (e) {
+      alert("网络错误，获取模板列表失败");
+      console.error(e);
+      return null;
+  }
+}
+   
+ 
+
+ //TBD To Be test ,if the conditionJson tooked infact.
+ async function fetchCourseList(conditionJson) {
+  
+  try {
+      // 用 request 方法替换 axios
+      const res = await request({
+          url: `${API_BASE_URL}/course/list`,
+          method: 'GET', 
+          params: conditionJson // 筛选条件通过params传递
+      });
+      if (res && res.code === 200) {
+         console.info("data.courses:", res.data);   
+         return res.data || []; 
+      } else {
+         // alert(res?.message || '获取课程列表失败');
+         return [];
+      }
+  } catch (e) {
+      //alert("网络错误，获取课程列表失败");
+      console.error(e);
+      return [];
+  }
+}
+
+/**
+ * 
+ * 发布/回收课程
+ */
+async function operateCourse(courseId, action) { 
+  const payload = {
+    courseid: courseId,  // 注意小写，和后端命名对应
+    status: action
+};
+    console.log("payload：",payload); 
+  try {
+    const res = await request({
+      url: `${API_BASE_URL}/course/updateStatus`,
+      method: 'POST',
+      data: payload
+    });
+    const code = typeof res === "object" && res !== null && "code" in res ? res.code : undefined;
+    const msg = (typeof res === "object" && res !== null && res.message) ? res.message : '';
+    if (code === 200) { 
+      if (console.success) {
+        console.success(msg);
+        console.success('操作成功');
+      }
+      renderCourseCards();
+    } else {
+      alert(msg || '操作失败');
+    }
+  } catch (e) {
+    alert("网络错误或数据解析异常，操作失败");
+    console.error(e);
+  }
+  }  
+ 
+          /*
+        * assignStudentToTheSchedule: 指定学生studentId预约排期scdid，并生成对应的appointment数据，保障原子性。
+        * 由于JS前端不具备数据库事务能力，此处通过调用后端API完成实际的事务创建。
+        * 若失败则友好提示。
+        */
+          async function assignStudentToTheSchedule(scdid, studentId,teacherId) {
+            if (!scdid || !studentId) {
+                //alert("排期或学生ID无效！");
+                return false ;
+            }
+            try {
+                const url = `course/schedule/assign-student`; 
+                // 用 request 方法发送请求
+                const result = await request({
+                    url: `${API_BASE_URL}/${url}`,
+                    method: 'POST',
+                    data: {
+                        scheduleId: scdid,
+                        studentId: studentId,
+                        teacherId: teacherId
+                    }
+                });
+                console.log("result:", result); 
+            } catch (error) {
+                alert("分配学生到排期时发生错误: " + error.message);
+            }
+            return false;
+       }
+ 
+
+       
+// 分析：可能由于日期时区或构造Date的方式导致了前端和后端实际天数偏差。例如直接用new Date('yyyy-MM-dd')会因时区差别导致日期减少1天。可以尝试使用new Date(year, month, day)规避。
+//用request方法改写
+async function generateScheduleListFromServer(form) { 
+  const url = `course/schedule/generate` ; 
+  try {
+      // 用 request 方法改写
+      const result = await request({
+          url: `${API_BASE_URL}/${url}`,
+          method: 'POST',
+          data: form
+      });
+
+      // 修正后端返回的日期数组，确保日期不因本地解析减少1天
+      // 尝试将日期转为本地日期字符串再渲染
+      if (result && result.code === 200) {
+          // result.data: [{date:'2024-06-01',time:'09:00'}, ...]
+          // 兼容性修正：如后端返回的date为'yyyy-MM-dd'字符串，前端用new Date(date)在不同时区下解析会出现日期偏移。
+          // 方案：把date字符串分解为年月日，用new Date(year, month-1, day)组成本地时间，或渲染时直接使用原字符串。
+          // 这里只返回数据，渲染时renderCalendar里（下方）再修正用法
+          return result.data;
+      } else {
+          alert(result?.message || '获取排期失败');
+      }
+  } catch (err) {
+      alert('获取排期失败');
+      console.error(err);  
+  }
+} 

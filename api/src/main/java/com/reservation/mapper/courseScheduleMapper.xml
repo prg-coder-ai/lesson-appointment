@@ -49,7 +49,7 @@
         - 大于/小于用 &gt;= 和 &lt; 转义。
         - MyBatis会根据参数动态生成实际SQL，避免无谓的AND叠加。
     -->
-    <select id="selectList" parameterType="com.reservation.entity.CourseScheduleCreateDTO" resultType="com.reservation.entity.CourseSchedule">
+    <select id="selectList" parameterType="com.reservation.dto.CourseScheduleCreateDTO" resultType="com.reservation.entity.CourseSchedule">
         SELECT * FROM course_schedule
         <where>
             <if test="scheduleId != null and scheduleId != ''">
@@ -81,13 +81,13 @@
         </where>
     </select>
        
-    <update id="updateSites" parameterType="com.reservation.entity.IncSiteBody">
+    <update id="updateSites" parameterType="com.reservation.dto.IncSiteBody">
         UPDATE course_schedule
         SET available_sites = available_sites + #{inc}
         WHERE schedule_id = #{scheduleId}
     </update>
     
-     <update id="updateStatus" parameterType="com.reservation.entity.StatusBody">
+     <update id="updateStatus" parameterType="com.reservation.dto.StatusBody">
         UPDATE course_schedule
         SET status = #{status}
         WHERE schedule_id= #{scheduleId}
@@ -146,7 +146,7 @@
                 </if>
     </select>
 
-    <select id="selectExceptionsByScheduleId" resultType="com.reservation.entity.ScheduleException">
+    <select id="selectExceptionsByScheduleId" resultType="com.reservation.dto.ScheduleException">
         SELECT * FROM schedule_exception WHERE schedule_id = #{scheduleId}
     </select> 
 

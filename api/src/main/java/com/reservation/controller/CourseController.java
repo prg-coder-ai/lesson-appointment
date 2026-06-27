@@ -2,7 +2,7 @@ package com.reservation.controller;
 
 import com.reservation.common.Result;
 import  com.reservation.entity.Course;
-import  com.reservation.entity.CourseQueryParam;
+import  com.reservation.dto.CourseQueryParam;
 import  com.reservation.entity.CourseTemplate;
 import  com.reservation.service.CourseService;
 import  com.reservation.utils.PermissionCheck;

@@ -304,6 +304,7 @@ async function renderTemplateCards() {
             </div>
         `;
         var index=0;
+        if (templateList && templateList.length >0 )
         templateList.forEach(template => {
          // console.log(template);
            index ++;
@@ -349,49 +350,6 @@ async function renderTemplateCards() {
     }
 }
 
-/**
- * 调用后端接口获取模板列表
- */
-async function fetchTemplateList(conditionJson) {
-    const token = getToken();
-    if (!token) return null;
-
-    try {
-        // Axios GET请求（修复response.json()错误，Axios已自动解析）
-        const response = await axios.get(`${API_BASE_URL}/course/template/list`, {
-            headers: { "Authorization": "Bearer " + token },
-            params: conditionJson // 筛选条件通过params传递
-        });
-        if(!response.ok) 
-          {
-            if ( response.status === 403)   
-              window.location.href = "./index.html";
-          }  
-        const res = response.data;
-        console.info("get:",res);
-        if (res && res.code === 200) { //.templates-->data
-            templateList = res.data || [];
-
-            total = templateList.length|| 0;
-            
-            console.info("total:",total,templateList);
-            // 补全默认状态
-            templateList.forEach(item => {
-                if (!item.status) item.status = 'active';
-            });
-            return templateList;
-        } else {
-            alert(res?.message || '获取模板列表失败');
-            return null;
-        }
-    } catch (e) {
-        alert("网络错误，获取模板列表失败");
-        console.error(e);
-        return null;
-    }
-}
-     
-
 // ===================== 交互函数 =====================
 /**
  * 筛选条件变化
@@ -430,100 +388,6 @@ async function handleCurrentPageChange(val) {
   
 
 /**
- * 发布/回收模板、
- */
-async function operateTemplate(templateId, action) {
-    const token = getToken();
-    const payload = {
-      templateid: templateId,  // 注意小写，和后端命名对应
-      status: action
-  };
-   
-        // 这里分析参数带入方式：接口说明需要 templateId 和 action（操作类型/状态）作为参数。
-        // axios.put 发送到 /course/template/manage，后端期望参数格式为 { templateId, action } （或 status）。
-        // 但你的写法是 { templateId: ..., status: ... }，后端如期望 action 字段，需要修正字段名。
-        // 根据后端接口 CourseController.updateTemplate 需要 {templateid, action} 作为 JSON 请求体字段（不是直接字符串参数）。
-        // 且参数名注意为 templateid（小写），后端 Spring 不能自动映射 templateId，需和后端代码严格匹配
-        // 如果后端 Controller 层要求 RequestBody Json对象，请传:
-        // { templateid: templateId, action: action }
-        // 不是 params、不是 query、不是 array；是object。
-        // axios 等库请求时，发送 request body 只需将数据对象作为第二个参数（POST、PUT），第三个参数为 headers 配置。
-        // 例如：axios.put(url, { key1: value1, key2: value2 }, { headers: { ... } })
-        // 在 fetch，用 fetch(url, { method: 'POST', body: JSON.stringify(data), headers: { ... } });
-        // 后端 expects @RequestBody JSON，所以务必用对象并确保字段名与后端参数完全一致
-        
-       /* const res = await axios.put(
-            `${baseUrl}/course/template/updateStatus`,
-            {
-              data:{  templateId: templateId, 
-                status: action // 使用 action 字段传递类型（如 edit, publish, recall, ...）
-              }
-            },
-            { headers: { "Authorization": "Bearer " + token } }         
-        );
-
-        if (res.data.code === 200) {
-          console.success( '模板操作成功');
-            await renderTemplateCards();
-        } else {
-            alert( '模板操作失败');
-        }
-    } catch (err) {
-        alert('网络异常，操作失败');
-        console.error(err);
-    }*/
-
-    // 这段代码中 `res && res.code === 200` 会出现异常的根本原因可能如下：
-    // 1. fetch的response未必能被正常解析为json（如接口返回204/空/非json字符串），那么response.json()会抛出异常，进入catch。
-    // 2. 如果后端接口出错返回了HTML、null、undefined或其他非对象内容，.then(res => ...)这里的res不是期望的对象，访问res.code会抛出。
-    // 3. 某些情况下res实际为null/undefined或格式不符（如res为字符串），则res.code === 200会抛异常。
-    //
-    // 更安全的写法，需先确认res为对象且有code属性，再判断。推荐加类型检查与默认值防御。
-
-    fetch(`${API_BASE_URL}/course/template/updateStatus`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        "Authorization": "Bearer " + token
-      },
-      credentials: 'include',
-      body: JSON.stringify(payload)
-    })
-    .then(response => {
-      // 判定http请求结果，如果不是2xx，直接抛出
-      if (!response.ok) {
-        throw new Error(`服务器错误，状态码: ${response.status}`);
-      }
-      // 某些接口如204/无内容, 直接返回空对象防止解析异常
-      const contentType = response.headers.get("content-type") || "";
-      if (contentType.includes("application/json")) {
-        return response.json();
-      }
-      // 不是json时返回空对象，避免res为undefined或字符串
-      return {};
-    })
-    .then(res => {
-      // 防御：确认res是对象且有code字段
-      const code = typeof res === "object" && res !== null && "code" in res ? res.code : undefined;
-      const msg = (typeof res === "object" && res !== null && res.message) ? res.message : '';
-      if (code === 200) { 
-        if (console.success) {
-          console.success(msg);
-          console.success('模板操作成功');
-        }
-        renderTemplateCards(); 
-      } else {
-        alert(msg || '模板操作失败');
-      }
-    })
-    .catch(e => {
-      // 网络错误或json解析异常都能捕获
-      alert("网络错误或数据解析异常，操作失败");
-      console.error(e);
-    });
-   
-    }  
-/**
  * 删除模板
  */
 async function deleteTemplate(templateId) {
@@ -533,6 +397,7 @@ async function deleteTemplate(templateId) {
         }
    
         operateTemplate(templateId,"frozen"); 
+        renderTemplateCards(); 
 }
 
 // 点击弹窗遮罩层关闭

@@ -1,18 +1,19 @@
 package com.reservation.controller;
 
 import com.reservation.common.Result;
-import com.reservation.entity.TzSwitchPO;
-import com.reservation.entity.TzSwitchVO;
+import com.reservation.dto.TzSwitchPO;
+import com.reservation.dto.TzSwitchVO;
   
 import com.reservation.service.TzSwitchService ;
-
-import  com.reservation.utils.PermissionCheck;
+/*
+import  com.reservation.utils.PermissionCheck;*/
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
+/*import com.reservation.common.Result;
+import com.reservation.dto.TzSwitchPO;  
 import java.util.List;
-import java.util.Map;
+import java.util.Map;*/
 
 /**
  * 操作       对接接口地址      请求方式        接口说明
@@ -24,9 +25,7 @@ import java.util.Map;
 public class TimezoneCalcController {  
        @Autowired
     private TzSwitchService tzSwitchService;
-
-    @Autowired
-    private PermissionCheck permissionCheck; 
+ 
     /**
      * 
      */

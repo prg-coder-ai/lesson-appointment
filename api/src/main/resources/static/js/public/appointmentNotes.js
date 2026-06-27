@@ -320,3 +320,166 @@ function refreshRightPage() {
      console.log("TBD sendNotesTo:", userId,infor); 
   } 
    
+  
+ //根据bookingId查询预约时间列表--List <Appointment>->List {date:date,time:time }
+ async function getAppointmentsByBookingId( bookingId) {
+  const token = getToken();
+  if (!token) return;
+
+  try {
+      // Axios GET请求（修复response.json()错误，Axios已自动解析）
+      const res  = request({url:`${API_BASE_URL}/course/appointment/getByBookingId`,  
+          params:{ bookingId:bookingId } // 筛选条件通过params传递
+      });
+      const results =   res.data;
+      if (Array.isArray(results)) {
+          appointmentResults = results.map(item => {
+            let date = "";
+            let time = "";
+            if (item.appointmentDatetime) {
+              // 兼容 'YYYY-MM-DD HH:mm' 或 'YYYY-MM-DDTHH:mm'
+              const dtString = item.appointmentDatetime.replace('T', ' ');
+              const [d, t] = dtString.split(' ');
+              date = d;
+              time = t;
+            }
+            return {
+              id  : item.id,
+              date: date,
+              time: time,
+              status: item.status
+            };
+          });
+        } else {
+          appointmentResults = [];
+        }
+      return appointmentResults;
+  } catch (e) {
+      console.error(e);
+      return [];
+  }
+}
+
+
+async function saveAppointment( appointdata) {
+ // console.log("save appoint:",appointdata.classIndex);
+  const token = getToken();
+  if (!token) return;
+
+  // 分析参数传递是否正确
+  // 正确写法：axios.post(url, data, config)
+  // 原代码把headers和params放在了data里，实际上应该放在第三个参数
+  try {
+      // Axios POST请求 
+      const res  =request({url:
+          `${API_BASE_URL}/course/appointment/add`,
+          data:{ appointdata}   // appointdata 在这里作为POST请求体body传递 
+  });
+      
+      if (res && res.code === 200) {
+       //  console.info("saveAppointment:",res.data);   
+         return  res.data ; 
+      } else {
+          return  false;
+      }
+  } catch (e) {
+      //alert("网络错误，获取课程列表失败");
+      console.error(e);
+      return   false;
+  }
+}
+
+//设置一个预约时间的状态--学生提出
+async function cancellingAppointment(appointmentId,bCancelling){
+  let status="";
+  if(bCancelling){
+     status= "cancelling";
+  } else {
+     status= "active";
+  }
+ await operateAppointmentStatus(appointmentId,status);//courseAndBooking.js
+ return ;
+}
+
+//教师、管理员提出的确认或拒绝
+async function confirmCancellingAppointment(appointmentId,bCancelled){
+  let status="";
+  if(bCancelled){
+     status= "cancelled";
+  } else {
+     status= "reject";
+  }
+ await operateAppointmentStatus(appointmentId,status);//courseAndBooking.js
+ return ;
+}
+
+//教师申请延期与撤回
+async function teacherCancellingAppointment(appointmentId,bCancelling){
+  let status="";
+  if(bCancelling){
+     status= "t-cancelling";
+  } else {
+     status= "active";
+  }
+ await operateAppointmentStatus(appointmentId,status);//courseAndBooking.js
+ return ;
+}
+
+//对教师延期申请的确认或拒绝
+async function teacherConfirmCancellingAppointment(appointmentId,bCancelled){
+  let status="";
+  if(bCancelled){
+     status= "t-cancelled";
+  } else {
+     status= "t-reject";
+  }
+ await operateAppointmentStatus(appointmentId,status);//courseAndBooking.js
+ return ;
+}
+//根据bookingId更新所有相关的预约时间状态
+async function updateAppointmentsStatusByBookingId( bookingId,status) {
+  const token = getToken();
+  if (!token) return;
+
+  try {
+      // 注意：后端接口 @RequestParam 需要参数在 params/query，不应放在 body
+      // 必须通过 params 配置传递 bookingId 和 status，否则会报“Required request parameter 'bookingId' is not present”
+      // PUT无body，参数全部通过params
+      const res = request({url: `${API_BASE_URL}/course/appointment/updateStatusByBookingId`, 
+             method:"put",
+              params: { bookingId: bookingId, status: status }
+          }
+      ); 
+      if (res && res.code === 200) {
+          console.info("appointments:", res.data);   
+          return res.data ; 
+      } else { 
+          return false;
+      }
+  } catch (e) {        
+      console.error(e);
+      return false;
+  }
+}
+async function deleteAppointmentsByBookingId( bookingId) {
+  const token = getToken();
+  if (!token) return;
+
+  try {
+      // Axios GET请求（修复response.json()错误，Axios已自动解析）
+      const res  = request({url:`${API_BASE_URL}/course/appointment/deleteByBookingId`,
+        method:"delete",  
+           params: {bookingId:bookingId} // 筛选条件通过params传递
+      });
+      if (res && res.code === 200) { 
+        return res.data ; 
+    } else { 
+        return false;
+    }
+  } catch (e) {
+      //alert("网络错误，获取课程列表失败");
+      console.error(e);
+      return   false;
+  }
+
+} 

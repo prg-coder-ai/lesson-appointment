@@ -1,30 +1,21 @@
 package com.reservation.service;
-//
-import com.reservation.common.Result; 
-import com.reservation.entity.TzSwitchPO;
-import com.reservation.entity.TzSwitchVO;
-import com.reservation.exception.BusinessException;
-import com.reservation.exception.ResourceNotFoundException;
  
+import com.reservation.dto.TzSwitchPO;
+import com.reservation.dto.TzSwitchVO;
+ 
+ /*
 import com.reservation.utils.JwtUtil;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.beans.factory.annotation.Autowired;*/
+ 
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+ 
 
 /**
  *  
  */
 @Service
 public class TzSwitchService { 
-    @Autowired
-    private JwtUtil jwtUtil;
- 
+  
     public  TzSwitchVO tzSwitchTo(TzSwitchPO dataIn) { 
          TzSwitchVO resultMap = new TzSwitchVO();
         try{
@@ -48,7 +39,7 @@ public class TzSwitchService {
 
             // 解析输入时间
              String tmPattern = "yyyy-MM-dd HH:mm:ss";
-            if(dateTimeStr.contains("/"))
+            if(dateTimeStr != null && dateTimeStr.contains("/"))
                  tmPattern = "yyyy/MM/dd HH:mm:ss";
             java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern(tmPattern);
             java.time.LocalDateTime localDateTime = java.time.LocalDateTime.parse(dateTimeStr, formatter);
