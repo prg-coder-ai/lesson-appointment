@@ -6,14 +6,8 @@ async function getCourseById( courseId) {
       // Axios GET请求（修复response.json()错误，Axios已自动解析）
       const res  = await request({url:`${API_BASE_URL}/course/${courseId}`,  
       });
-    
-      if (res && res.code === 200) {
-         console.info("getCourseById:",res.data);   
-         return  res.data ; 
-      } else {
-         // alert(res?.message || '获取课程列表失败');
-          return  null;
-      } 
+     
+         return  res ; 
   } catch (e) {
       //alert("网络错误，获取课程列表失败");
       console.error("getCourseById",e);
@@ -45,19 +39,13 @@ async function getCourseList(conditionJson) {
 
         console.log("courseList response:", res);
          
-        // 若是标准result结构
-        // res.code, res.data
-        console.info("courseList data:", res.data);
-        if (res && res.code === 200) {
-            let courseList = res.data || [];
+        // 若是标准result结构  
+            let courseList = res || [];
             courseList.forEach(item => {
                 if (!item.status) item.status = 'inactive';
             });
             return courseList || [];
-        } else {
-            alert(res?.message || '获取课程列表失败');
-            return [];
-        }
+        
     } catch (e) {
         alert("网络错误，获取课程列表失败");
         console.error(e); 
@@ -88,16 +76,10 @@ async function fetchScheduleList( cid,status) {
             url: `${API_BASE_URL}/course/schedule/selectByCourseId/${cid}`,
             method: 'GET',
             params: conditionJson // params 自动附加到 URL 上（被 @RequestParam 接收） 
-        });
-
-        if (res && res.code === 200) {
-            console.info("fetchScheduleList:", res.data);
+        }); 
+            console.info("fetchScheduleList:", res );
             return res.data || []; // TBD: 对于多个排期的情况进行区分
-
-        } else {
-            // alert(res?.message || '获取排期失败');
-            return [];
-        }
+ 
     } catch (e) {
        // alert("网络错误，获取排期失败");
         console.error("网络错误"+e);
@@ -124,16 +106,7 @@ async function fetchScheduleList( cid,status) {
         method: 'POST',
         data: payload 
       });
-      // 防御：确认res是对象且有code字段
-      const code = typeof res === "object" && res !== null && "code" in res ? res.code : undefined;
-      const msg = (typeof res === "object" && res !== null && res.message) ? res.message : '';
-      if (code === 200) {
-        console.log('操作成功');
-       // const bid = res.data;
-        // reloadBooking(bid); // 调用者提供刷新
-      } else {
-        alert(msg || '操作失败');
-      }
+     console.log('operateBookingStatus',res); 
     } catch (e) {
       alert("网络错误或数据解析异常，操作失败");
       console.error(e);
@@ -149,15 +122,9 @@ async function fetchSchedule( scheduleid) {
       const res = await request({
         url: `${API_BASE_URL}/course/schedule/detail/${scheduleid}`,
         method: 'GET' 
-      });
-      if (res && res.code === 200) {
+      }); 
           //console.info("fetchSchedule:",res.data);
-          return res.data || null; //
-      } else {
-          console.log(res?.message, '获取排期失败', scheduleid);
-          return null;
-      }
- 
+          return res || null; // 
     } catch (e) {
        // alert("网络错误，获取排期失败");
         console.error("网络错误，获取排期失败",e,scheduleid);
@@ -179,12 +146,8 @@ async function operateSchedule(scheduleId, action) {
       method: 'POST', 
       data:  {payload}
     });
-      if(res && res.code==200)
-        return res.data;
-       else 
-      // 不是json时返回空对象，避免res为undefined或字符串
-      return {};  
-   
+       
+        return res ;   
     } ;
 
 // 
@@ -197,7 +160,7 @@ async function operateSchedule(scheduleId, action) {
                       });
        //  console.log("res:",res);   
       console.log("result:",result);
-      return result.data;
+      return result ;
     }  catch(err){
         alert('网络异常，操作失败');
         console.error(err);  
@@ -257,9 +220,8 @@ async function fetchBooking( bookingId) {
       // Axios GET请求（修复response.json()错误，Axios已自动解析）
       const res =await request({ url:`${API_BASE_URL}/course/booking/${bookingId}` 
       });    
-      if (res && res.code === 200) { 
-         return  res.data ;  
-      } else  return   false;
+       
+         return  res ;   
   } catch (e) {
       //alert("网络错误，获取课程列表失败");
       console.error(e);
@@ -297,10 +259,8 @@ async function  getBookingInfoByCondition(params) {
   const url = `course/booking/list` ; 
 try {
       const res =await request( { url:`${API_BASE_URL}/${url}`,method: 'POST',data:{params}}) ; 
-  console.log('getBookingInfoByCondition: res', res);
-  if (res && res.code === 200) {
-  return res.data;
-  }
+  console.log('getBookingInfoByCondition: res', res); 
+  return res ; 
     //  alert(result?.message || '排期时间表为空，请联系老师');
   
 } catch (err) {
@@ -322,8 +282,7 @@ return [];
         userTimeZone:  
         repeatDays: 
         endDate:  
-    }; 
-*/
+    }; */
 // 分析：可能由于日期时区或构造Date的方式导致了前端和后端实际天数偏差。例如直接用new Date('yyyy-MM-dd')会因时区差别导致日期减少1天。可以尝试使用new Date(year, month, day)规避。
 async function generateScheduleListFromServer(form) { 
   const url = `course/schedule/generate` ;
@@ -336,13 +295,9 @@ async function generateScheduleListFromServer(form) {
     });
       // 修正后端返回的日期数组，确保日期不因本地解析减少1天
       // 尝试将日期转为本地日期字符串再渲染
-      if (result && result.code === 200) {
+     
           // result.data: [{date:'2024-06-01',time:'09:00'}, ...] 
-          return result.data;
-      } else {
-          alert(result?.message || '排期时间表为空，请联系老师');
-      }
-      return [];
+          return result ;  
   } catch (err) {
       alert('获取排期时间表失败');
       console.error(err);  
@@ -489,7 +444,7 @@ async function operateAppointmentStatus(aid, action) {
      // 防御：确保res对象和有code字段
      const code = typeof res === "object" && res !== null && "code" in res ? res.code : undefined;
      const msg = (typeof res === "object" && res !== null && res.message) ? res.message : '';
-     if (code === 200) {  
+     if (res != "") {  
        console.log('更新预约时间 操作成功'); 
        // const bid = res.data;
        // reloadBooking(bid);  调用者提供刷新
@@ -682,18 +637,11 @@ async function operateTemplate(templateId, action) {
     data: payload 
   })
   .then(res => {
-    // res对象：{ data, code, message ... }
-    const code = typeof res === "object" && res !== null && "code" in res ? res.code : undefined;
-    const msg = (typeof res === "object" && res !== null && res.message) ? res.message : '';
-    if (code === 200) { 
-      if (console.success) {
-        console.success(msg);
-        console.success('模板操作成功');
+    // res对象：{ data, code, message ... }  
+      if (console.success) { 
+        console.success('模板操作成功',res);
       }
       //renderTemplateCards(); 
-    } else {
-      alert(msg || '模板操作失败');
-    }
   })
   .catch(e => {
     alert("网络错误或数据解析异常，操作失败");
@@ -714,9 +662,8 @@ async function fetchTemplateList(conditionJson) {
           method: 'GET', 
           params: conditionJson // 筛选条件通过params传递
       }); 
-      console.info("fetchTemplateList:", res);
-      if (res && res.code === 200) { //.templates-->data
-          templateList = res.data || [];
+      console.info("fetchTemplateList:", res); 
+          templateList = res  || [];
 
           total = templateList.length || 0;
 
@@ -725,11 +672,7 @@ async function fetchTemplateList(conditionJson) {
           templateList.forEach(item => {
               if (!item.status) item.status = 'active';
           });
-          return templateList;
-      } else {
-          alert(res?.message || '获取模板列表失败');
-          return null;
-      }
+          return templateList; 
   } catch (e) {
       alert("网络错误，获取模板列表失败");
       console.error(e);
@@ -748,14 +691,10 @@ async function fetchTemplateList(conditionJson) {
           url: `${API_BASE_URL}/course/list`,
           method: 'GET', 
           params: conditionJson // 筛选条件通过params传递
-      });
-      if (res && res.code === 200) {
-         console.info("data.courses:", res.data);   
-         return res.data || []; 
-      } else {
-         // alert(res?.message || '获取课程列表失败');
-         return [];
-      }
+      }); 
+         console.info("data.courses:", res );   
+         return res  || []; 
+     
   } catch (e) {
       //alert("网络错误，获取课程列表失败");
       console.error(e);
@@ -778,18 +717,13 @@ async function operateCourse(courseId, action) {
       url: `${API_BASE_URL}/course/updateStatus`,
       method: 'POST',
       data: payload
-    });
-    const code = typeof res === "object" && res !== null && "code" in res ? res.code : undefined;
-    const msg = (typeof res === "object" && res !== null && res.message) ? res.message : '';
-    if (code === 200) { 
+    });   
       if (console.success) {
         console.success(msg);
         console.success('操作成功');
       }
-      renderCourseCards();
-    } else {
-      alert(msg || '操作失败');
-    }
+      renderCourseCards();//TBD
+     
   } catch (e) {
     alert("网络错误或数据解析异常，操作失败");
     console.error(e);
@@ -840,16 +774,13 @@ async function generateScheduleListFromServer(form) {
       });
 
       // 修正后端返回的日期数组，确保日期不因本地解析减少1天
-      // 尝试将日期转为本地日期字符串再渲染
-      if (result && result.code === 200) {
+      // 尝试将日期转为本地日期字符串再渲染 
           // result.data: [{date:'2024-06-01',time:'09:00'}, ...]
           // 兼容性修正：如后端返回的date为'yyyy-MM-dd'字符串，前端用new Date(date)在不同时区下解析会出现日期偏移。
           // 方案：把date字符串分解为年月日，用new Date(year, month-1, day)组成本地时间，或渲染时直接使用原字符串。
           // 这里只返回数据，渲染时renderCalendar里（下方）再修正用法
           return result.data;
-      } else {
-          alert(result?.message || '获取排期失败');
-      }
+      
   } catch (err) {
       alert('获取排期失败');
       console.error(err);  

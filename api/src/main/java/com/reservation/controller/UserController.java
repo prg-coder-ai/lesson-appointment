@@ -7,7 +7,7 @@ import com.reservation.service.UserService;
  import org.springframework.validation.annotation.Validated;
 // 核心导入：RequestMethod 所在包
  import org.springframework.web.bind.annotation.*;
-
+import org.springframework.beans.factory.annotation.Autowired;
 //import java.util.HashMap;
 import java.util.List;
  import java.util.Map;
@@ -19,6 +19,7 @@ import java.util.List;
 @RequestMapping("/user")
 @Validated
 public class UserController { 
+     @Autowired
     private UserService userService;
 
 

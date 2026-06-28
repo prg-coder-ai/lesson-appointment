@@ -6,19 +6,17 @@
     const dataIn = {timeZone:tz,
         dateTime:dateTime,
         switchToTimeZone:userTz
-     }
-     const token = getToken();
+     } 
      try {
         // Axios GET请求（修复response.json()错误，Axios已自动解析）
-        const res  = request({url:`${API_BASE_URL}/tz/switch`, 
+        const res  = await request({url:`${API_BASE_URL}/tz/switch`, 
             data:{ dataIn}, 
-            Method:"get"});
+            Method:"get"
+          });
 
-            if (res && res.code === 200) { 
-              return res.data ; 
-          } else { 
-              return false;
-          }
+          //  if (res && res.code === 200) { 
+              return res  ; 
+           
     } catch (e) {
         //alert("网络错误，获取课程列表失败");
         console.error(e);
@@ -40,17 +38,14 @@
    async function getUserStatisticByMonth(year, month ) {
   //  const token = getToken && typeof getToken === 'function' ? getToken() : '';
    try {
-       const res  = request({ url:`${API_BASE_URL}/user/statistical/byMonth`,
+       const res  =  await  request({ url:`${API_BASE_URL}/user/statistical/byMonth`,
         Method:"get", 
-        data: { year:year, month:month }
+        params: { year:year, month:month }
       });
   
        // 返回统计结果对象，如:{ teacherMonthStart, teacherMonthEnd, studentMonthStart, studentMonthEnd }
-        if (res && res.code === 200) { 
-          return res.data ; 
-      } else { 
-          return false;
-      }
+         
+          return res  ;  
      } catch (e) {
        // 网络或服务器异常处理
       console.error(e);
@@ -60,20 +55,17 @@
 // 获取课程数量,当日 days=1,一周内 days=7
 async function getCountOfTodayAppointment() {
 
-  const token = getToken && typeof getToken === 'function' ? getToken() : '';
+  //const token = getToken && typeof getToken === 'function' ? getToken() : '';
   let days =1;
   try { //指定天数内的预约课程数
-      const res  = request({url:`${API_BASE_URL}/course/appointment/statistical/onDays`, 
+      const res  =  await  request({url:`${API_BASE_URL}/course/appointment/statistical/onDays`, 
         Method:"get",  
         params: { ondays:days }
      });
     
       // 返回统计结果对象，如:{ teacherMonthStart, teacherMonthEnd, studentMonthStart, studentMonthEnd }
-      if (res && res.code === 200) { 
-        return res.data ; 
-    } else { 
-        return false;
-    }
+     
+        return res  ;  
       
     } catch (e) {
       // 网络或服务器异常处理
@@ -84,22 +76,15 @@ async function getCountOfTodayAppointment() {
 
 //获取最近days天的课程
 async function getAppointmentList(days ) {
-  const token = getToken && typeof getToken === 'function' ? getToken() : '';
+ // const token = getToken && typeof getToken === 'function' ? getToken() : '';
  try {
-     const res  = request({url:`${API_BASE_URL}/course/appointment/statistical/listByDays`, 
+     const res  = await request({url:`${API_BASE_URL}/course/appointment/statistical/listByDays`, 
       Method:"get", 
-       params: {  days:days }
+      params: {  days:days }
     });
-    console.log("getAppointmentList:", response);  
-  // const res = await  response.data;
-  // console.log("getAppointmentList:", response);  
-   
+    console.log("getAppointmentList:", res);   
      // 返回统计结果对象， array
-     if (res && res.code === 200) { 
-      return res.data ; 
-  } else { 
-      return false;
-  }
+     return res  ;  
    } catch (e) {
      // 网络或服务器异常处理
     console.error(e);
@@ -134,17 +119,13 @@ async function getAppointmentList(days ) {
    */
    async function getAppointmentStatisticByMonth(year, month ) { 
    try {
-       const res  = request({url:`${API_BASE_URL}/course/appointment/statistical/byMonth`,  
+       const res  = await request({url:`${API_BASE_URL}/course/appointment/statistical/byMonth`,  
         Method:"get", 
-        params: { year:year, month:month }//TBD data:
+        params: { year:year, month:month } //TBD data:
       });
     
        // 返回统计结果对象，如:{ teacherMonthStart, teacherMonthEnd, studentMonthStart, studentMonthEnd }
-            if (res && res.code === 200) { 
-              return res.data ; 
-          } else { 
-              return false;
-          }
+       return res  ; 
        
      } catch (e) {
        // 网络或服务器异常处理
@@ -165,19 +146,15 @@ async function getAppointmentList(days ) {
    * 返回示例: { courseMonthStart: 10, courseMonthEnd: 12 }
    */
   async function getCourseStaticsByMonth(year, month) {
-    const token = getToken && typeof getToken === 'function' ? getToken() : '';
+   // const token = getToken && typeof getToken === 'function' ? getToken() : '';
     try {
-      const res  = request({url:`${API_BASE_URL}/course/statistical/byMonth`,  
+      const res  = await request({url:`${API_BASE_URL}/course/statistical/byMonth`,  
         Method:"get", 
-        data: { year, month }
+        params: { year:year, month:month }
       });
      
-        // 返回: { courseMonthStart, courseMonthEnd }
-        if (res && res.code === 200) { 
-          return res.data ; 
-      } else { 
-          return false;
-      } 
+        // 返回: { courseMonthStart, courseMonthEnd } 
+          return res ; 
     } catch (e) {
       console.error(e);
       return null;
@@ -191,18 +168,15 @@ async function getAppointmentList(days ) {
     * 返回示例: { bookingMonth: 32, bookingMonthLast: 44 }
     */
    async function getBookingStaticsByMonth(year, month) {
-     const token = getToken && typeof getToken === 'function' ? getToken() : '';
+    // const token = getToken && typeof getToken === 'function' ? getToken() : '';
      try {
-       const res  = request({url:`${API_BASE_URL}/course/booking/statistical/byMonth`,  
+       const res  = await request({url:`${API_BASE_URL}/course/booking/statistical/byMonth`,  
         Method:"get", 
-         data: { year, month }
+        params: { year, month }
        }); 
          // 返回: { bookingMonthLast, bookingMonth }
-         if (res && res.code === 200) { 
-          return res.data ; 
-      } else { 
-          return false;
-      }
+    
+          return res ;
        
      } catch (e) {
        console.error("getBookingStaticsByMonth"+e);
