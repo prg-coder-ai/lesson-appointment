@@ -51,13 +51,26 @@
     }
   });
 
+  // 在 axios 的 config 中，params 和 data 的区别如下：
+  // - params: 只用于 GET、DELETE 等方法，作为 URL 查询参数（如 ?id=1&name=xx）拼接在 URL 上（会经过 encodeURIComponent），
+  //           后端通过 @RequestParam 可获取；参数放在 config.params。
+  // - data:   只用于 POST、PUT、PATCH 等方法，用作请求体(body)，发送到服务器（需要序列化，通常为 JSON）。
+  //           后端通常用 @RequestBody 或 request.getInputStream() 读 body 内容，参数放在 config.data。
+  // - 注意：GET/DELETE 方法 axios 不会自动把 data 带给后端（除非特殊配置），POST/PUT/PATCH 方法 params 会拼 URL，data 是体。
+  // - 实战建议：GET/DELETE 参数用 params，POST/PUT/PATCH 参数用 data。
+  // 参考 dataFunctions.js 的注释/示例和官方文档！
   service.interceptors.request.use(
     (config) => {
       const token = localStorage.getItem('token');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
-      console.log("请求 URL：", config.url, "请求参数：", config.params || config.data);
+      // 这里可以同时输出 params 和 data，方便前端调试和区分：
+      console.log(
+        "请求 URL：", config.url,
+        "url参数 params：", config.params,
+        "请求体 data：", config.data
+      );
  
       if (config.customLoading !== false) {
         startLoading();
@@ -78,7 +91,9 @@
         closeLoading();
       }
       const res = response.data;
+     
       if (res.code === 200) {
+        console.log("resp:",res.data);
         return res.data;
       }
       if(res.code == 403){

@@ -42,21 +42,21 @@
       InitUserInfo();
       
    function InitUserInfo() {
-   const userInfo= getCurrentUserInfo();
-   console.log("userInfo",userInfo);
-   if(userInfo == null || typeof userInfo === 'undefined') { 
-      document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
-      // 判断是否是当前页面
-      // 检查当前页面是否为登录页，如果不是则重定向到首页
-      // 用于防止未登录用户强行访问需要权限的页面
-      if (!window.location.pathname.endsWith('index.html')) 
-        { 
-          window.location.href  =  './index.html';
+      const userInfo= getCurrentUserInfo();
+      console.log("userInfo",userInfo);
+      if(userInfo == null || typeof userInfo === 'undefined') { 
+          document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
+          // 判断是否是当前页面
+          // 检查当前页面是否为登录页，如果不是则重定向到首页
+          // 用于防止未登录用户强行访问需要权限的页面
+          if (!window.location.pathname.endsWith('index.html')) 
+            { 
+              window.location.href  =  './index.html';
+            }
+          } else  { 
+        userId = userInfo.userId;
+        userRole = userInfo.role; 
         }
-      } else  { 
-     userId = userInfo.userId;
-     userRole = userInfo.role; 
-     }
     }
 
 const api = {
@@ -91,23 +91,17 @@ async function fetchUserList(conditionJson) {
       // method: 请求方法为'GET'
       // headers: 指定内容类型为'application/json'
       // credentials: 'include'用于携带cookie以实现跨域认证
-      const response = await fetch(`${URL}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          credentials: 'include'
-        } 
+      // 使用封装的request方法改写
+      const res = await request({
+        url: URL,
+        method: "get",
+        data: {}, // 没有请求体
+        // 可选：如果request已经统一处理token/cookie，则无需额外添加headers
       });
-      console.log("fetchUserList  response:",response); 
-         if (response && response.status === 403) { 
-            window.location.href = "./index.html";
-        } 
-      const result = await response.json();
-      console.log("fetchUserList"+ response);
-      if (!response.ok) throw new Error("获取列表失败");
-      console.log("fetchUserList"+ result);
-      // 假设后端返回数据结构 { code: 200, data: [{userId, name, email, phone, status, ...}], ... }
-      return result.data || [];
+      console.log("fetchUserList response:", res); 
+     // console.log("fetchUserList result:", res.data);
+      // 假设后端返回数据结构 { code: 200, data: [...] }
+      return res  || [];
     } catch (e) {
       alert(e.message + "网络错误，无法获取数据");
       return [];
@@ -118,23 +112,20 @@ async function fetchUserList(conditionJson) {
     const URL = `${API_BASE_URL}/user/name/${teacherId}`; 
     console.log("URL"+ URL); 
       try {    
-        const response = await fetch(`${URL}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            credentials: 'include'
-          } 
+        // 用request改写
+        const res = await request({
+          url: URL,
+          method: "get",
+          data: {}, // 无请求体
         });
-        console.log("getUserNameById  response:",response); 
-         if (response && response.status === 403) { 
-            window.location.href = "./index.html";
-        } 
-        const result = await response.json();
-        console.log("getUserNameById"+ result);
-        if (!response.ok) throw new Error("获取失败");
-        console.log("getUserNameById"+ result.data);
-        // 假设后端返回数据结构 { code: 200, data: [{userId, name, email, phone, status, ...}], ... }
-        return result.data || "n/a";
+        console.log("getUserNameById response:", res);
+ 
+      //  if (!res || res.code !== 200) throw new Error("获取失败");
+
+        console.log("getUserNameById", res);
+
+        // 假设后端返回数据结构 { code: 200, data: [{userId, name, ...}], ... }
+        return res  || "n/a";
       } catch (e) {
         alert(e.message + "网络错误，无法获取数据");
         return "n/a";
@@ -216,26 +207,13 @@ const userStr = localStorage.getItem('currentUser');
       };
 
   // 调用后端接口验证token有效性（推荐，防止本地token无效）
-  fetch(`${API_BASE_URL}/user/login`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: {
-      'Authorization': userInfo.token ? `Bearer ${userInfo.token}` : ''
-    },
-    body: JSON.stringify(loginInfo)
-  })
-  .then(response => {
-    if (response.status === 403) {
-      // token已过期或服务端不认，清理并跳转
-      localStorage.removeItem('currentUser');
-      document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
-      alert('403登录状态已过期，请重新登录');
-      window.location.href = './index.html';
-     throw new Error('未登录或登录已失效');
-    }
-    return response.json();
+  request({
+    url: `${API_BASE_URL}/user/login`,
+    method: 'POST' ,
+    data: loginInfo
   })
   .then(data => {
+    // 由于这里request返回的是已解析的data，无需response.json()
     // 如果验证通过，根据用户角色跳转到对应主页
     if (data && data.code === 200 && data.data) {
       const role = data.data.role || userInfo.role;
@@ -247,12 +225,19 @@ const userStr = localStorage.getItem('currentUser');
       } else if (role === 'student') {
         window.location.href = './student.html';
       }
-    } else if (data && data.code === 401) {
+    } /*else if (data && data.code === 401) {
       // 失效处理
       localStorage.removeItem('currentUser');
       document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
       alert('登录状态已过期，请重新登录');
-    }
+    } else if (data && data.code === 403) {
+      // token已过期或服务端不认，清理并跳转
+      localStorage.removeItem('currentUser');
+      document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
+      alert('403登录状态已过期，请重新登录');
+      window.location.href = './index.html';
+      throw new Error('未登录或登录已失效');
+    }*/
   })
   .catch(err => {
     // 自动登录错误（如网络），这里一般保守处理不跳转

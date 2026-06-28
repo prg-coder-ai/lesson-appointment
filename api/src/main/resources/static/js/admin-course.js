@@ -264,12 +264,13 @@ async function renderCourseCards() {
           html += '<div style="padding:40px 0;text-align:center;color:#999;">暂无数据</div>';
       } else
         { var index=0;
+
         CourseList.forEach(Course => {
          // INSERT_YOUR_CODE
          // 根据Course.templateId在templateList中查找对应的模板对象
-         const templateObj = templateList.find(t => t.templateId === Course.templateId);
-         const teacherObj = teacherList.find(t => t.userId === Course.teacherId);
-         
+         const templateObj = templateList?templateList.find(t => t.templateId === Course.templateId) : null;
+         const teacherObj = teacherList?teacherList.find(t => t.userId === Course.teacherId) : null;
+
          let tempInfo=templateObj? templateObj.languageType+ " "+ templateObj.difficultyLevel + " "+templateObj.classFee : "" ;
          let teacherInfo=teacherObj? teacherObj.name+ " "+ teacherObj.phone + " "+ teacherObj.email : "n/a" ;
          
