@@ -53,8 +53,8 @@ public class BookingController {
           //  System.out.println("filterList 返回预约列表: " + rs); 
              return Result.success(rs,"ok");
             } catch (RuntimeException e) {
-                  System.out.println("filterList fail: " + e.getMessage());
-             return Result.fail(403,e.getMessage());
+                 // System.out.println("filterList fail: " + e.getMessage());
+             return Result.fail(0,e.getMessage());
         } 
     }
 

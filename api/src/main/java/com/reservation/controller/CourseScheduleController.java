@@ -62,11 +62,10 @@ public class CourseScheduleController {
     // 更新状态 (scheduleId，status)
     @PostMapping("/updateStatus")
      @ResponseBody
-    public Result<String> updateStatus(@Validated @RequestBody StatusBody dto) {
-
+    public Result<String> updateStatus(@Validated @RequestBody StatusBody dto) { 
 
         String scheduleId = scheduleService.updateStatus(dto);////TBD: local->UTC switch
-       System.out.println("updateStatus:" + dto);
+     //  System.out.println("updateStatus:" + dto);
         return Result.success(scheduleId,"");
     }
     
@@ -83,7 +82,7 @@ public class CourseScheduleController {
      @ResponseBody
     public Result<List<CourseScheduleCreateDTO>> getScheduleList(@Validated @RequestBody CourseScheduleCreateDTO dto,
                    @RequestHeader("Authorization") String token) {
-                    System.out .println("getScheduleList dto:" + dto);
+               //     System.out .println("getScheduleList dto:" + dto);
         List<CourseScheduleCreateDTO> schedules = scheduleService.selectList(dto); //TBD: UTC-->local switch
         return Result.success(schedules,"ok");
     }
@@ -94,7 +93,7 @@ public class CourseScheduleController {
      @RequestParam(required = false) String status,
     @RequestHeader("Authorization") String token) {
 
-        System.out.println("rselectByCourseId status:" +status);
+    //    System.out.println("selectByCourseId status:" +status);
 
               CourseScheduleCreateDTO dto = new CourseScheduleCreateDTO();
               // INSERT_YOUR_CODE
@@ -159,7 +158,7 @@ public class CourseScheduleController {
      // System.out.println("ret:" + Result.success(userZoneList, "localtime list"));
 
       // 4. 返回统一数据结构（包含 code/message/data 字段）
-      return Result.success(userZoneList, "localtime list");
+      return Result.success(userZoneList, "user localtime list");
   }
 
 // INSERT_YOUR_CODE

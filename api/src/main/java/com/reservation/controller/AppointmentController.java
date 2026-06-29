@@ -176,7 +176,7 @@ public class AppointmentController {
     public Result<List<Appointment>> listByDays(
             @RequestParam("days") int days
     ) { 
-         System.out.println("listByDays  listByDays 参数：days = " + days);
+       //  System.out.println("listByDays  listByDays 参数：days = " + days);
         // 获取当前时间（now）和days天之后的相同时间
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
         java.time.LocalDateTime endOfPeriod = now.plusDays(days);
@@ -206,7 +206,7 @@ public class AppointmentController {
             @RequestParam("ondays") int days
     ) { 
         // INSERT_YOUR_CODE
-        System.out.println("onDays countByTimeOnDays ondays = " + days);
+       // System.out.println("onDays countByTimeOnDays ondays = " + days);
 
         // now为当日零点
         java.time.LocalDateTime now = java.time.LocalDate.now().atStartOfDay();

@@ -64,7 +64,7 @@ public class authController {
 
         // 将认证信息存入安全上下文（自动维护会话，无需手动管理）
         SecurityContextHolder.getContext().setAuthentication(authentication);
-        System.out.println("controller login:"+rst);
+         System.out.println("controller login:"+rst);
   
         return rst;//Result.success(resultMap, "登录成功");
     }
@@ -93,7 +93,7 @@ public class authController {
         TokenDTO dto = new TokenDTO();
         dto.setToken(newAccess);
         dto.setRefreshToken(newRefresh);
-          System.out.println("controller refreshToken:"+dto);
+         System.out.println("controller refreshToken:"+dto);
         return Result.success(dto,"refreshToken ok");
     }
 

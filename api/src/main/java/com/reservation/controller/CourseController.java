@@ -121,9 +121,9 @@ public class CourseController {
         // 校验课程归属， 检查课程归属权，若courseId不存在或非teacherId归属，抛出业务异常
        // String teacherId = permissionCheck.getUserIdFromToken(token);
        // courseService.checkCourseOwner(courseid, teacherId); 
-        // INSERT_YOUR_CODE
-        System.out.println("UpdateCourseStatus req: " + req);
-        System.out.println("courseId: " + courseId);
+       
+      //  System.out.println("UpdateCourseStatus req: " + req);
+      //  System.out.println("courseId: " + courseId);
 
         // 执行对应操作
         courseService.updateCourseStatus(courseId, req.getStatus()); 
@@ -162,7 +162,7 @@ public class CourseController {
                                                           @RequestHeader("Authorization") String token) {
         //permissionCheck.checkTeacherOrAdmin(token);
         // 调用服务层查询课程列表
-         System.out.println("getCourseList controller: " + params);
+       //  System.out.println("getCourseList controller: " + params);
         List<Course> courseList = courseService.getCourseList(params);
         //Map<String, List<Course>> resultMap = Map.of("courses", courseList);
         return Result.success(courseList, "查询成功");
