@@ -79,7 +79,7 @@ public class CourseScheduleService {
                 throw new IllegalArgumentException("时间冲突：" + start + " 至 " + end + " 教师或教室已被占用");
             }
         }*/
-        
+         System.out .println("create : " +dto+"-->"+ schedule); 
         String  Id = UUID.randomUUID().toString().replace("-", ""); // 移除UUID分隔符
         schedule.setScheduleId( Id);
          //System.out .println("setScheduleId: " + schedule);

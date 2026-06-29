@@ -278,7 +278,8 @@ async function renderScheduleCards() {
   window.assignStudentToTheSchedule = assignStudentToTheSchedule;
     console.log("schedule page END");
   } //renderScheduleCards
-    
+
+    //选择学生，添加到学生列表
        async function addStudentList() {
         const conditionJson = { role: 'student' };//TBD:当前admin所属的群组等过滤条件
         const students = await fetchUserList(conditionJson);
@@ -367,11 +368,10 @@ function handleTestTimeZoneChange() {
      const toTz= displayTzInput.value;
      // 组装为 DateTime 字符串（假定格式为: yyyy-MM-dd HH:mm:ss）
      const dateTimeStr = `${startDate} ${startTime.length === 5 ? startTime + ":00" : startTime}`;
-     try { 
-        
+     try {  
          let newTzDateTime = await tzSwitchTo(fromZone, dateTimeStr, toTz);
          //console.log("切换时区为", toTz, newTzDateTime, "原区:", fromZone, "原日期时间:", dateTimeStr);
-        const newDateTime = newTzDateTime?newTzDateTime.dateTime:"";
+        const newDateTime = newTzDateTime? newTzDateTime.dateTime: "";
          // newDateTime.split(' ') 报错的原因通常是 newDateTime 不是字符串或者为 null/undefined
          // 比如 tzSwitchTo 返回 null、undefined 或对象/数组时无法使用 split 方法
          // 建议：先判断 newDateTime 是否为字符串类型且非空
@@ -417,40 +417,7 @@ function handleTestTimeZoneChange() {
          alert("调用时区转换接口失败");
          console.error(err);
      } 
- }
-async function getCourseList(conditionJson) { 
-  const token = getToken();
-  if (!token) return; 
-  
-  try {
-      // Axios GET请求（修复response.json()错误，Axios已自动解析）
-      const response = await axios.get(`${API_BASE_URL}/course/list`, {
-          headers: { "Authorization": "Bearer " + token },
-         params:conditionJson  // 筛选条件通过params传递
-      });
-      if (response && response.status === 403) { 
-        window.location.href = "./index.html";
-    } 
-      const res = response.data;
-     // console.info("get response data:",res);
-      if (res && res.code === 200) {
-        //console.info("data.courses:",res.courses);  .courses
-          courseList = res.data|| [];
-          localParamter.total = courseList.length|| 0;
-        //  console.info("total:",localParamter.total,courseList);
-          // 补全默认状态
-          courseList.forEach(item => {
-              if (!item.status) item.status = 'inactive';
-          });
-     
-      } else {
-          alert(res?.message || '获取课程列表失败');
-      }
-  } catch (e) {
-      alert("网络错误，获取模板列表失败");
-      console.error(e);
-  }
-}
+} 
 
  // 1. 检索课程（原生 fetch）
  async function searchCourse() { 
@@ -460,10 +427,10 @@ async function getCourseList(conditionJson) {
         difficultyLevel: document.getElementById('difficulty').value,
         teacher: document.getElementById('teacher').value
     };
- console.log("search",params);//TBD---
+ console.log("searchCourse ",params);//TBD---
   
   try { 
-        await  getCourseList( params); 
+    courseList = await  getCourseList( params); 
   } catch (e) {
       // 模拟数据
       courseList = [ ];
@@ -570,48 +537,7 @@ function renderSchedule() {
     } 
     onRepeatTypeChange(); 
 }
-
-/**
- * 根据课程id，调用后端接口获取模板列表
- */
-async function fetchScheduleList( cid) {
-    const token = getToken();
-    if (!token) return;
-     
-    try {
-        // Axios GET请求（修复response.json()错误，Axios已自动解析）
-        // 这里使用axios进行GET请求，获取指定课程ID的排期列表
-        // axios.get返回一个promise，最终response包含HTTP响应的整个对象
-        // response.data才是后端接口返回的json包（含code/data/message等）
-        const response = await axios.get(`${API_BASE_URL}/course/schedule/selectByCourseId/${cid}`, {
-            headers: { "Authorization": "Bearer " + token },
-        });
-        // response对象结构：{ status, statusText, headers, config, data }
-        // 通常我们只关心response.data，它对应后端的Result结构
-        const res = response.data;
-        
-        if (res && res.code === 200) {
-          //console.info("data.schedules:",res.schedules);
-            scheduleList = res.data|| []; // TBD:对于多个排期的情况进行区分
-
-            localParamter.total = scheduleList.length|| 0;
-            
-            //console.info("total:",localParamter.total,scheduleList);
-            // 补全默认状态
-            scheduleList.forEach(item => {
-                if (!item.status) item.status = 'active';
-            });
-            //console.info("selectByCourseId scheduleList:",scheduleList);
-        } else {
-            alert(res?.message || '获取排期失败');
-        }
-    } catch (e) {
-        alert("网络错误，获取排期失败");
-        console.error(e);
-    }
-}
-
-
+ 
 
     // 切换重复类型:更新复选的重复天数：周一~7，月（1-31）
     function onRepeatTypeChange() {
@@ -695,8 +621,12 @@ return ;
         }
  
       try {
-           await fetchScheduleList(cid);
+        scheduleList = await fetchScheduleList(cid);
             console.log(scheduleList );
+            // 补全默认状态
+            scheduleList.forEach(item => {
+                if (!item.status) item.status = 'active';
+            });
           if (scheduleList && scheduleList.length > 0) {
               // 列表长度大于0 ,  //TBD：根据列表长度，添加1个下拉框选择。暂时选择第一个
            // scheduleObject = scheduleList[0]; 
@@ -803,8 +733,7 @@ return ;
                 return [];
             }
         })(),
-        endDate: document.getElementById('endDate').value,
-      
+        endDate: document.getElementById('endDate').value  
     }; 
     console.log("form:",form);
     return form;
@@ -815,8 +744,8 @@ return ;
      const form = getFormData();
     //console.log("form:",form) ;
     // 生成排期列表 localDateTime List<Date,TIME>
-    scheduleResult = await generateScheduleListFromServer(form);
-    //console.log("result:",scheduleResult) ;
+     scheduleResult = await generateScheduleListFromServer(form);
+     console.log("result:",scheduleResult) ;
     renderResult();
     renderCalendar();
     //alert("预览成功");
@@ -896,7 +825,9 @@ function renderResult() {
   // 保存 update or insert 
   //判断是否需要:assignStudentToTheSchedule
   async function saveScheduleToDB() {
-    const token = getToken();
+
+    //TBD :判断排期是否已经存在---
+   // const token = getToken();
     const formData = getFormData();
     console.log("save form:",formData); 
     // 引用CourseScheduleCreateDTO, 把formData赋值到dto对象
@@ -956,41 +887,30 @@ function renderResult() {
 
     console.log("save dto:",dto);
     let bExists = formData.scheduleId && formData.scheduleId !== "";
-//TBD:remove To public  url /dto
-   let res = await saveScheduleToServer(bExists,dto);
- console.log("saveScheduleToServer", res);
-    if(res && res.code === 200) {    
-       // 4.  响应处理 响应成功/失败 result.data.id = new id
-       if (result && result.code === 200) {
+// 返回当前或新增的schedule的id
+   let result = await saveScheduleToServer(bExists,dto);
+        console.log("saveScheduleToServer", result); 
+       // 4.  响应处理 响应成功/失败 result.data.id = new id 
         //alert(formData.scheduleId !="" ? '编辑成功' : '新增成功'); 
-        if(assignStudent )  { //,assignStudent,assignStudentId,teacherId
-        // INSERT_YOUR_CODE
-        // 查看 assignStudentSelect 当前选择的值
-       // const assignStudentSelect = document.getElementById('assignStudentSelect');
-       // const selectedStudentId = assignStudentSelect ? assignStudentSelect.value : "";
+    if(assignStudent )  { //,assignStudent,assignStudentId,teacherId
+         
         console.log("当前选择的学生ID", assignStudentId);
-        let scdid = result.data.Id;
+        let scdid = result.Id ;
         console.log("new scdid:",scdid);
         if (!scdid || !studentId) {
-            alert("排期或学生ID无效！");
-            
-        } else {
-
-        const ret = await assignStudentToTheSchedule(scdid,assignStudentId,teacherId);
-        if ( ret  ) {
-            alert("学生成功分配排期的课程并完成预约！");
-            // 可选：刷新界面或数据 
-        } else {
-            alert("操作失败: " + "请检查后端接口与数据。");
-        }
-
-        //console.log("assignStudentToTheSchedule ret :",ret);
-        }
-        }
-  }
-    }   else {
+            alert("排期或学生ID无效！"); 
+        } else { 
+            const ret = await assignStudentToTheSchedule(scdid,assignStudentId,teacherId);
+            if ( ret  ) {
+                alert("学生成功分配排期的课程并完成预约！");
+                // 可选：刷新界面或数据 
+            } else {
+                alert("操作失败: " + "请检查后端接口与数据。");
+            } 
+        }  
+    }  /* else {
         alert("err:"+result.data?.message || (formData.courseId!=""  ? '编辑失败' : '新增失败'));
-    } 
+    } */
 
 }
   // 删除

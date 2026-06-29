@@ -42,7 +42,8 @@ async function getCourseList(conditionJson) {
         // 若是标准result结构  
             let courseList = res || [];
             courseList.forEach(item => {
-                if (!item.status) item.status = 'inactive';
+                if (!item.status)
+                   item.status = 'inactive';
             });
             return courseList || [];
         
@@ -78,7 +79,7 @@ async function fetchScheduleList( cid,status) {
             params: conditionJson // params 自动附加到 URL 上（被 @RequestParam 接收） 
         }); 
             console.info("fetchScheduleList:", res );
-            return res.data || []; // TBD: 对于多个排期的情况进行区分
+            return res  || []; // TBD: 对于多个排期的情况进行区分
  
     } catch (e) {
        // alert("网络错误，获取排期失败");
@@ -289,20 +290,19 @@ async function generateScheduleListFromServer(form) {
  // const token = getToken();
 //  const queryString = new URLSearchParams(form).toString(); ccc?${queryString}
   try { 
-      const result = request({url:`${API_BASE_URL}/${url}`, 
-        method: 'POST', 
-       data: { form}
-    });
+       const result = await  request({url:`${API_BASE_URL}/${url}`, 
+                              method: 'POST', 
+                              data: { form}
+                                        });
       // 修正后端返回的日期数组，确保日期不因本地解析减少1天
-      // 尝试将日期转为本地日期字符串再渲染
-     
-          // result.data: [{date:'2024-06-01',time:'09:00'}, ...] 
+      // 尝试将日期转为本地日期字符串再渲染 
+          // result : [{date:'2024-06-01',time:'09:00'}, ...] 
           return result ;  
   } catch (err) {
       alert('获取排期时间表失败');
       console.error(err);  
-  }
-  return [];
+      return [];
+  } 
 } 
 
     /**
@@ -436,7 +436,7 @@ async function operateAppointmentStatus(aid, action) {
     };
     console.log(" operateAppointmentStatus- payload：",payload ); 
    try {
-     const res = request({
+     const res = await request({
        url: `${API_BASE_URL}/course/appointment/updateStatusById`,
        method: 'PUT',
        data: payload
@@ -586,10 +586,10 @@ function getRepeatDescription(repeatType, interval) {
  */
 async function operateTemplate(templateId, action) {
  // const token = getToken();
-  const payload = {
-    templateid: templateId,  // 注意小写，和后端命名对应
-    status: action
-};
+      const payload = {
+        templateid: templateId,  // 注意小写，和后端命名对应
+        status: action
+    };
  
       // 这里分析参数带入方式：接口说明需要 templateId 和 action（操作类型/状态）作为参数。
       // axios.put 发送到 /course/template/manage，后端期望参数格式为 { templateId, action } （或 status）。
@@ -631,7 +631,7 @@ async function operateTemplate(templateId, action) {
   // 3. 某些情况下res实际为null/undefined或格式不符（如res为字符串），则res.code === 200会抛异常。
   //
   // 更安全的写法，需先确认res为对象且有code属性，再判断。推荐加类型检查与默认值防御。
-  request({
+  await request({
     url: `${API_BASE_URL}/course/template/updateStatus`,
     method: 'POST' ,
     data: payload 
@@ -779,7 +779,7 @@ async function generateScheduleListFromServer(form) {
           // 兼容性修正：如后端返回的date为'yyyy-MM-dd'字符串，前端用new Date(date)在不同时区下解析会出现日期偏移。
           // 方案：把date字符串分解为年月日，用new Date(year, month-1, day)组成本地时间，或渲染时直接使用原字符串。
           // 这里只返回数据，渲染时renderCalendar里（下方）再修正用法
-          return result.data;
+          return result ;
       
   } catch (err) {
       alert('获取排期失败');
