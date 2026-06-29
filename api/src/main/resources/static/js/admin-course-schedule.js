@@ -858,7 +858,14 @@ function renderResult() {
        assignStudentId = "";
     }
     console.log("saveScheduleToDB",assignStudent,assignStudentId,teacherId);
-    let dto = {
+     // repeatType 映射优化
+     const repeatTypeMap = {
+        "none": 0,
+        "day": 1,
+        "week": 2,
+        "month": 3
+      };
+    let createdto = {
       scheduleId: formData.scheduleId || "",
       courseId: formData.courseId || "", 
      // ClassroomId: formData.ClassroomId || "",
@@ -874,30 +881,27 @@ function renderResult() {
       timeZone: formData.timeZone || userTimeZone || "",
       availableSites: formData.availableSites || 1,
       status: formData.status || "",
-      name:formData.name ||""
+      name:formData.name ||"",
+      repeatType: formData.repeatType in repeatTypeMap ? repeatTypeMap[formData.repeatType] : 0
     };
-      // repeatType 映射优化
-      const repeatTypeMap = {
-        "none": 0,
-        "day": 1,
-        "week": 2,
-        "month": 3
-      };
-      dto.repeatType =formData.repeatType in repeatTypeMap ? repeatTypeMap[formData.repeatType] : 0;
-
-    console.log("save dto:",dto);
+      
+    console.log("save createdto:",createdto);
     let bExists = formData.scheduleId && formData.scheduleId !== "";
 // 返回当前或新增的schedule的id
-   let result = await saveScheduleToServer(bExists,dto);
+    let result = await saveScheduleToServer(bExists , createdto);
         console.log("saveScheduleToServer", result); 
        // 4.  响应处理 响应成功/失败 result.data.id = new id 
         //alert(formData.scheduleId !="" ? '编辑成功' : '新增成功'); 
-    if(assignStudent )  { //,assignStudent,assignStudentId,teacherId
-         
+        if ((typeof result === "undefined") || result == null) {
+   
+            alert("saveScheduleToServer err:" + (bExists ? '编辑失败' : '新增失败'));
+            return;
+        }
+    if(assignStudent )  { //,assignStudent,assignStudentId,teacherId 
         console.log("当前选择的学生ID", assignStudentId);
         let scdid = result.Id ;
         console.log("new scdid:",scdid);
-        if (!scdid || !studentId) {
+        if (!scdid || !assignStudentId) {
             alert("排期或学生ID无效！"); 
         } else { 
             const ret = await assignStudentToTheSchedule(scdid,assignStudentId,teacherId);
@@ -905,13 +909,10 @@ function renderResult() {
                 alert("学生成功分配排期的课程并完成预约！");
                 // 可选：刷新界面或数据 
             } else {
-                alert("操作失败: " + "请检查后端接口与数据。");
+                alert("学生分配排期失败: " + "请检查后端接口与数据。");
             } 
         }  
-    }  /* else {
-        alert("err:"+result.data?.message || (formData.courseId!=""  ? '编辑失败' : '新增失败'));
-    } */
-
+    }   
 }
   // 删除
   async function deleteSchedule() {
