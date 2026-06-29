@@ -50,7 +50,7 @@ public class UserController {
         if (account != null && !account.isEmpty()) condition.put("account", account);
  
          List<User> users = userService.listByCondition(condition); 
-         System.out.println("out:" + users);
+        // System.out.println("out:" + users);
         return Result.success(users, "查询成功");
     }
      
@@ -110,7 +110,7 @@ public class UserController {
     public Result<List<User>>  studentList() { 
           String role="student";
           List<User> users = userService.listByRole(role);
-         System.out.println("out:" + users);
+        // System.out.println("out:" + users);
         return Result.success(users, "查询成功");
     } 
     @GetMapping("/teacher/list")
@@ -118,7 +118,7 @@ public class UserController {
     public Result<List<User>>  teacherList() { 
           String role="teacher";
           List<User> users = userService.listByRole(role);
-         System.out.println("out:" + users);
+         //System.out.println("out:" + users);
         return Result.success(users, "查询成功");
     } 
 
