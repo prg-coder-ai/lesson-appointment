@@ -154,18 +154,20 @@ async function operateSchedule(scheduleId, action) {
 // 
     async function saveScheduleToServer(bExists,dto) {
        const url = bExists? `course/schedule/update` : `course/schedule/create`; 
+       console.log("saveScheduleToServer:",bExists,dto);
     try{
       const result = await request({url: `${API_BASE_URL}/${url}`, 
                 method: 'POST',     
-                 data:{ dto}
+                 data:  dto  //ok--
                       });
        //  console.log("res:",res);   
       console.log("result:",result);
-      return result ;
+      return result ;//{id:id}
     }  catch(err){
         alert('网络异常，操作失败');
         console.error(err);  
-    }  
+    } 
+    return null; 
   }
 
 ///获取排期的时间列表 
@@ -719,13 +721,13 @@ async function operateCourse(courseId, action) {
       data: payload
     });   
       if (console.success) {
-        console.success(msg);
+       // console.success(msg);
         console.success('操作成功');
       }
       renderCourseCards();//TBD
      
   } catch (e) {
-    alert("网络错误或数据解析异常，操作失败");
+    alert("operateCourse:网络错误或数据解析异常，操作失败");
     console.error(e);
   }
   }  
@@ -752,7 +754,8 @@ async function operateCourse(courseId, action) {
                         teacherId: teacherId
                     }
                 });
-                console.log("result:", result); 
+                console.log("assignStudentToTheSchedule result:", result); 
+                return  result;
             } catch (error) {
                 alert("分配学生到排期时发生错误: " + error.message);
             }
