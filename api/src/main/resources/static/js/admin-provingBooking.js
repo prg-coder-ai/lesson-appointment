@@ -32,7 +32,7 @@ window.provingBooking  = provingBooking ;
           index++;
              const scheduleObject = await fetchSchedule(booking.scheduleId); 
              if (scheduleObject != null) {
-                 let scheduleInfoStr = getScheduleInfo(scheduleObject); 
+                 let scheduleInfoStr = getScheduleInfo(scheduleObject,false); 
                  const classObject = await getCourseById(scheduleObject.courseId); 
                  const studentName = await getUserNameById(booking.studentId);
                  const teacherName = await getUserNameById(classObject.teacherId);
@@ -45,7 +45,7 @@ window.provingBooking  = provingBooking ;
                          scheduleId:    scheduleObject.scheduleId, 
                          origTz:        scheduleObject.timeZone,
                          bookingId: booking.id,
-                         className: classObject.courseName,
+                         className: classObject.courseName+ " " + scheduleObject.name,
                          studentName: studentName,//-->name/phone/email
                          teacherName: teacherName,
                          scheduleInfo: scheduleInfoStr, 
