@@ -47,15 +47,47 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
     /**
      * 查询某个时间段内的预约
      */
-    public List<Appointment> getBetweenTime(java.sql.Timestamp startTime, java.sql.Timestamp endTime) {
-        // INSERT_YOUR_CODE
+    public List<Appointment> getBetweenTime(java.sql.Timestamp startTime, java.sql.Timestamp endTime,    
+                String sortField,
+                String sortOrder) { 
         // 将 startTime、endTime 格式化为 "yyyy-MM-dd HH:mm:ss"
         java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         String formattedStart = startTime.toLocalDateTime().format(formatter);
         String formattedEnd = endTime.toLocalDateTime().format(formatter);
-        return lambdaQuery()
-                .between(Appointment::getAppointmentDatetime,     formattedStart, formattedEnd)
-                .list();
+        // 支持动态排序：将排序参数带入lambdaQuery
+        // sortField和sortOrder是参数（假定sortField为数据库字段名字符串，sortOrder为"asc"/"desc"）
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment> queryWrapper = 
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment>()
+                    .between(Appointment::getAppointmentDatetime, formattedStart, formattedEnd);
+           
+
+        // 按需求将字段字符串动态映射到对应的属性，再做排序
+        // 可以只支持常用字段，避免SQL注入   // 其它可扩展字段排序逻辑...
+        // 检查多个字段排序，修正写法，保证 queryWrapper 为 LambdaQueryWrapper，可链式多字段排序
+        // 1. 支持 appointmentDatetime、bookingId、status 三个字段，多字段传入时，sortField 可为逗号分隔字符串
+        // 2. 每种排序用 orderBy(true, ...) 方式链式追加
+        if (sortField != null && !sortField.isEmpty()) {
+            String[] fields = sortField.split(",");
+            for (String field : fields) {
+                field = field.trim();
+                if ("appointmentDatetime".equals(field)) {
+                    queryWrapper = "asc".equalsIgnoreCase(sortOrder)
+                            ? queryWrapper.orderByAsc(Appointment::getAppointmentDatetime)
+                            : queryWrapper.orderByDesc(Appointment::getAppointmentDatetime);
+                } else if ("bookingId".equals(field) || "bookId".equals(field)) { // bookId 校正为 bookingId
+                    queryWrapper = "asc".equalsIgnoreCase(sortOrder)
+                            ? queryWrapper.orderByAsc(Appointment::getBookingId)
+                            : queryWrapper.orderByDesc(Appointment::getBookingId);
+                } else if ("status".equals(field)) {
+                    queryWrapper = "asc".equalsIgnoreCase(sortOrder)
+                            ? queryWrapper.orderByAsc(Appointment::getStatus)
+                            : queryWrapper.orderByDesc(Appointment::getStatus);
+                }
+                // 其它字段可以继续扩展
+            }
+        }
+        return this.list(queryWrapper);
+   
     }
 
      public int  getCountBetweenTime(java.sql.Timestamp startTime, java.sql.Timestamp endTime) {

@@ -11,8 +11,56 @@ function refreshRightPage() {
  async function getAppointmentListData(days){ 
     DaysAppointmentList = await getAppointmentList(days);  
     console.log("DaysAppointmentList:", DaysAppointmentList); 
+
 } 
 
+
+// 获取课程数量,当日 days=1,一周内 days=7
+async function getCountOfTodayAppointment() {
+
+  //const token = getToken && typeof getToken === 'function' ? getToken() : '';
+  let days =1;
+  try { //指定天数内的预约课程数
+      const res  =  await  request({url:`${API_BASE_URL}/course/appointment/statistical/onDays`, 
+        Method:"get",  
+        params: { ondays:days }//controller: @RequestParam("ondays") int days
+     });
+    
+      // 返回统计结果对象，如:{ teacherMonthStart, teacherMonthEnd, studentMonthStart, studentMonthEnd }
+     
+        return res  ;  
+      
+    } catch (e) {
+      // 网络或服务器异常处理
+     console.error(e);
+     return null;
+    }
+} //获取今日预约次数
+
+//获取最近days天的课程
+async function getAppointmentList(days ) {
+ // const token = getToken && typeof getToken === 'function' ? getToken() : '';
+ try {
+     // 允许传递排序字段和排序方式（如 appointmentTime 字段降序）
+     const res  = await request({
+       url: `${API_BASE_URL}/course/appointment/statistical/listByDays`, 
+       Method: "get", 
+       params: { 
+         days: days, // controller: @RequestParam("days") int days
+         // 向后端传递排序参数，需后端Controller方法新增@RequestParam("sortField")和@RequestParam("sortOrder")参数，并在Service/Mapper中根据这两个参数动态设置order by子句
+         sortField: "appointmentDatetime",   // 例如后端：@RequestParam(required = false, defaultValue = "appointmentTime") String sortField
+         sortOrder: "asc"               // 例如后端：@RequestParam(required = false, defaultValue = "desc") String sortOrder
+       }
+     });
+    console.log("getAppointmentList:", res);   
+     // 返回统计结果对象， array
+     return res  ;  
+   } catch (e) {
+     // 网络或服务器异常处理
+    console.error(e);
+    return null;
+   }
+ }
  //显示待确认预约
  async function showAppointmentList(id){
     //   const id = "pending-reservations";
@@ -142,10 +190,10 @@ function refreshRightPage() {
       //console.error("now 不是有效的日期对象:", now);
       return retPara;
     }
-    console.log(" userTime:", userTime);
+    //console.log(" userTime:", userTime);
     const diffMs = userTime - now;
     const diffDays = diffMs / (1000 * 60 * 60 * 24);
-    //console.log("now:",now,"app",appointmentTime,userTime,diffMs,diffDays);
+    console.log("now:",now,"app",appointmentTime,userTime,diffMs,diffDays);
     // 只允许状态推进，不能倒退
     if ( status === 'completed' ||  status === 'cancelled' || status === 'canceled') {
         // 已完成/已取消，不发送任何通知.有关消息在相应的确认处理中发送 TBD
@@ -155,15 +203,18 @@ function refreshRightPage() {
     // 如果预约时间接近1小时并且未标记为 completed，则标记为 completed
     if (diffDays >= 3 && diffDays <= 7){
        if(status == 'active') {
-          retPara.needSendInfo =true;retPara.timeTag =2;//-->noted1
+          retPara.needSendInfo =true;
+          retPara.timeTag =2;//-->noted1
        }
     }   else if (diffDays >= 1 ) {
            if( status == 'noted1' ||  status == 'active') {
-            retPara.needSendInfo =true;retPara.timeTag =1;//->noted2
+            retPara.needSendInfo =true;
+            retPara.timeTag =1;//->noted2
            }
     } else if (diffMs <= 1*60*60*1000 ) {
        if ( status == 'noted2' || status == 'noted1' || status == 'active') {
-           retPara.needSendInfo =true;retPara.timeTag =0;
+           retPara.needSendInfo =true;
+           retPara.timeTag =0;
        }
     }
     //console.log("retPara",retPara);
@@ -172,7 +223,6 @@ function refreshRightPage() {
   
   async function sendNotesToUsers( cardInfo){
       //判断时间与状态： active ：七天内~3天内，noted1：1天前，  noted2:completed：不超过1小时
-      // INSERT_YOUR_CODE
       // 根据预约时间与当前时间比较，判断应发送何种通知
       // active ：七天内，noted1：3天内，noted2:1天内，completed：1h内或已过
       // cardInfo.appointmentTime format 假设为 "YYYY-MM-DD HH:mm:ss" 或类似
@@ -323,15 +373,15 @@ function refreshRightPage() {
   
  //根据bookingId查询预约时间列表--List <Appointment>->List {date:date,time:time }
  async function getAppointmentsByBookingId( bookingId) {
-  const token = getToken();
-  if (!token) return;
-
+ 
   try {
       // Axios GET请求（修复response.json()错误，Axios已自动解析）
-      const res  = request({url:`${API_BASE_URL}/course/appointment/getByBookingId`,  
+      const res  = await request(
+          {url:`${API_BASE_URL}/course/appointment/getByBookingId`,  
+          method:"get",
           params:{ bookingId:bookingId } // 筛选条件通过params传递
       });
-      const results =   res.data;
+      const results =   res ;
       if (Array.isArray(results)) {
           appointmentResults = results.map(item => {
             let date = "";
@@ -361,27 +411,18 @@ function refreshRightPage() {
 }
 
 
-async function saveAppointment( appointdata) {
- // console.log("save appoint:",appointdata.classIndex);
-  const token = getToken();
-  if (!token) return;
-
+async function saveAppointment( appointdata) { 
   // 分析参数传递是否正确
   // 正确写法：axios.post(url, data, config)
   // 原代码把headers和params放在了data里，实际上应该放在第三个参数
   try {
       // Axios POST请求 
-      const res  =request({url:
-          `${API_BASE_URL}/course/appointment/add`,
-          data:{ appointdata}   // appointdata 在这里作为POST请求体body传递 
-  });
-      
-      if (res && res.code === 200) {
-       //  console.info("saveAppointment:",res.data);   
-         return  res.data ; 
-      } else {
-          return  false;
-      }
+      const res  =await request({
+           url:`${API_BASE_URL}/course/appointment/add`,
+           method:"post",
+           data:  appointdata   // appointdata 在这里作为POST请求体body传递 
+          });
+         return  res; 
   } catch (e) {
       //alert("网络错误，获取课程列表失败");
       console.error(e);
@@ -437,45 +478,31 @@ async function teacherConfirmCancellingAppointment(appointmentId,bCancelled){
  return ;
 }
 //根据bookingId更新所有相关的预约时间状态
-async function updateAppointmentsStatusByBookingId( bookingId,status) {
-  const token = getToken();
-  if (!token) return;
-
+async function updateAppointmentsStatusByBookingId( bookingId,status) { 
   try {
       // 注意：后端接口 @RequestParam 需要参数在 params/query，不应放在 body
       // 必须通过 params 配置传递 bookingId 和 status，否则会报“Required request parameter 'bookingId' is not present”
       // PUT无body，参数全部通过params
-      const res = request({url: `${API_BASE_URL}/course/appointment/updateStatusByBookingId`, 
+      const res = await request({url: `${API_BASE_URL}/course/appointment/updateStatusByBookingId`, 
              method:"put",
               params: { bookingId: bookingId, status: status }
           }
       ); 
-      if (res && res.code === 200) {
-          console.info("appointments:", res.data);   
-          return res.data ; 
-      } else { 
-          return false;
-      }
+      console.info("appointments:", res );  
+          return res  ;  
   } catch (e) {        
       console.error(e);
       return false;
   }
 }
-async function deleteAppointmentsByBookingId( bookingId) {
-  const token = getToken();
-  if (!token) return;
-
+async function deleteAppointmentsByBookingId( bookingId) { 
   try {
       // Axios GET请求（修复response.json()错误，Axios已自动解析）
-      const res  = request({url:`${API_BASE_URL}/course/appointment/deleteByBookingId`,
-        method:"delete",  
+      const res  = await request({url:`${API_BASE_URL}/course/appointment/deleteByBookingId`,
+           method:"delete",  
            params: {bookingId:bookingId} // 筛选条件通过params传递
       });
-      if (res && res.code === 200) { 
-        return res.data ; 
-    } else { 
-        return false;
-    }
+        return res ; 
   } catch (e) {
       //alert("网络错误，获取课程列表失败");
       console.error(e);
@@ -483,3 +510,75 @@ async function deleteAppointmentsByBookingId( bookingId) {
   }
 
 } 
+/////////////////////////////////////////////////////2026-7-1 /////////////////////////////////////////////////////
+/*
+ * ================================ Token 前后端协同原理简述 ================================
+ * 
+ * 1. Token是什么？
+ *    Token（令牌）一般指JWT（JSON Web Token），是一种前后端分离应用中常用的身份认证机制。
+ *    后端通过签发Token给登录用户，Token中包含用户ID、角色等信息，并用密钥签名防篡改。
+ *    前端拿到Token后，在后续请求中携带该Token，实现"无状态"的身份认证。
+ * 
+ * 2. 协同流程
+ *    （1）登录阶段：
+ *       - 前端调用登录API（如 /login），后端验证用户名密码，验证通过后生成Token（带过期时间），返回给前端。
+ *    （2）携带Token访问API：
+ *       - 前端收到Token后，通常以 "Bearer {token}" 形式放入每次API请求的Header（如 Authorization 字段）。
+ *    （3）后端校验Token：
+ *       - 后端拦截API请求，提取并校验Token是否合法、是否过期，再确定用户身份。Token有效则放行，无效则返回未授权。
+ *    （4）前端Token管理：
+ *       - 前端可把Token保存在localStorage、sessionStorage等，每次需要访问受保护API时取出Token携带。Token过期后需重新登录获取。
+ * 
+ * 3. 典型代码参考（发送请求时携带Token）：
+ *    (假设已拿到token变量)
+ *    await request({
+ *        url: API_BASE_URL + "/some/protected/api",
+ *        method: "get",
+ *        headers: {
+ *           Authorization: "Bearer " + token
+ *        }
+ *    });
+ * 
+ * 4. 如何安全协同？
+ *    - Token一般不建议长期存储在cookie中（防止XSS/CSRF漏洞），推荐存在localStorage/sessionStorage，仅每次请求时在header中携带。
+ *    - 后端只信任自己签发且尚未过期的Token，且保证签名密钥安全不可泄露。
+ *    - 未携带或非法Token的请求应被拦截（如通过Spring Security等机制）。
+ * 
+ * 5. Token用途拓展
+ *    - 携带角色信息，后端根据token自动鉴权（如区分管理员与普通用户）。
+ *    - 支持单点登录、刷新token机制、"登出"直接令前端删除本地token。
+ * 
+ * 总结：Token是现代Web应用前后端分离情况下实现身份认证和权限控制的核心手段之一，能让前端在无需保存会话的情况下参与安全通信，且提高了扩展性和安全性。
+ */
+// INSERT_YOUR_CODE
+/**
+ * 后端验证 Token 合法性的大致流程如下：
+ * 
+ * 1. 获取 Token：后端读取 HTTP 请求头（通常是 Authorization 字段，内容类似 "Bearer xxx.yyy.zzz"）。
+ * 
+ * 2. 校验签名：使用后端保存的签名密钥，对客户端传来的 Token 进行解码，并验证其签名是否合法、是否被篡改。
+ *    （比如使用 jjwt、java-jwt 等库。密钥通常只在后端保存，前端无法伪造签名）
+ * 
+ * 3. 校验过期时间：解码后的 JWT payload 中包含 exp 字段，后端检查当前时间是否在有效时间范围（如果 Token 已过期则拒绝）
+ * 
+ * 4. 校验格式/内容：比如检查 Token 的类型、Payload 是否完整（用户ID、角色等信息），有无黑名单等。
+ * 
+ * 典型后端验证伪代码（Java/Spring 示例，见 JwtUtil.java）：
+ * 
+ *  String token = ... // 从请求头获取
+ *  Claims claims = Jwts.parserBuilder()
+ *      .setSigningKey(signingKey)         // 设置签名密钥
+ *      .build()
+ *      .parseClaimsJws(token)             // 解析与验证token
+ *      .getBody();
+ *  // 验证过期时间
+ *  Date expirationDate = claims.getExpiration();
+ *  if (expirationDate.before(new Date())) {
+ *      // Token已过期
+ *  }
+ *  // 可附加更多校验如用户状态/权限等
+ * 
+ * 结论：只有签名有效且未过期的 Token，后端才认为是“合法”的，进而确认当前访问用户身份和权限。
+ */
+
+ 
