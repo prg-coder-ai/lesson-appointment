@@ -37,10 +37,12 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             "/index",
             "/login",
             "/auth/login",
+             "/auth/refreshToken",
             "/user/login",
             "/user/register", 
-            "/index.html", "/admin.html", "/student.html", "/teacher.html",
-             "/interfaces",
+            "/index.html",
+            // "/admin.html", "/student.html", "/teacher.html",
+             "/interfaces", 
             "/user/list","/user/teacher/register","/user/student/register",
              "/js/**", "/css/**", "/images/**", "/favicon.ico"  // 静态资源
             ).permitAll() // 允许匿名访问首页
