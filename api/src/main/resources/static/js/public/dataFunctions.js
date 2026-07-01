@@ -50,45 +50,6 @@
       return null;
      }
    }
-// 获取课程数量,当日 days=1,一周内 days=7
-async function getCountOfTodayAppointment() {
-
-  //const token = getToken && typeof getToken === 'function' ? getToken() : '';
-  let days =1;
-  try { //指定天数内的预约课程数
-      const res  =  await  request({url:`${API_BASE_URL}/course/appointment/statistical/onDays`, 
-        Method:"get",  
-        params: { ondays:days }//controller: @RequestParam("ondays") int days
-     });
-    
-      // 返回统计结果对象，如:{ teacherMonthStart, teacherMonthEnd, studentMonthStart, studentMonthEnd }
-     
-        return res  ;  
-      
-    } catch (e) {
-      // 网络或服务器异常处理
-     console.error(e);
-     return null;
-    }
-} //获取今日预约次数
-
-//获取最近days天的课程
-async function getAppointmentList(days ) {
- // const token = getToken && typeof getToken === 'function' ? getToken() : '';
- try {
-     const res  = await request({url:`${API_BASE_URL}/course/appointment/statistical/listByDays`, 
-      Method:"get", 
-      params: {  days:days }//controller: @RequestParam("days") int days
-    });
-    console.log("getAppointmentList:", res);   
-     // 返回统计结果对象， array
-     return res  ;  
-   } catch (e) {
-     // 网络或服务器异常处理
-    console.error(e);
-    return null;
-   }
- }
    // INSERT_YOUR_CODE
    /*
     分析错误原因：
