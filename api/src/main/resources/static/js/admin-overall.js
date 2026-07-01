@@ -72,7 +72,8 @@ async function renderStatisCards() {
     const currentMonth = now.getMonth() + 1; // getMonth() 返回 0-11，因此要 +1
 
    /* monthTotalTeacher=10;monthTotalStudent=20;monthTotalCourse=30;monthTotalBooking=40;monthTotalAppoint=0;
-    lastMonthTotalTeacher=1;lastMonthTotalStudent=2;lastMonthTotalCourse=3;lastMonthTotalBooking=4;lastMonthTotalAppoint=5;*/
+    lastMonthTotalTeacher=1;lastMonthTotalStudent=2;lastMonthTotalCourse=3;
+    lastMonthTotalBooking=4;lastMonthTotalAppoint=5;*/
     const stats = await getUserStatisticByMonth(currentYear, currentMonth);
     if (stats) { console.log(stats.teacherMonthStart, stats.studentMonthEnd); 
           monthTotalTeacher= stats.teacherMonthEnd;
@@ -117,6 +118,7 @@ async function renderStatisCards() {
                   monthTotalAppointIcon=getFaiconAndStr(delt);
                }
 }
+
  function getFaiconAndStr( v) {
    if(v==0) return {icon: "",str:"持平",v:v ,color:"#52c41a"};
    else  if(v>0) return {icon:" fa-arrow-up",str:"增加",v:v  ,color:"#52c41a"};

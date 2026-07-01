@@ -9,11 +9,11 @@ window.refreshAppointmentNotesForTeacher  = refreshAppointmentNotesForTeacher ;
 
  async function refreshAppointmentNotesForTeacher(renderTo){
     let days = 7; //TBD 选择 7天、3天、当天1
-    let userid = userId;//
-    let role=  userRole ;
+   // let userid = userId;//
+   // let role=  userRole ;
     await getAppointmentListData(days);
     const renderId=renderTo;
-    showAppointmentList( renderId); 
+    showAppointmentList( renderId); //defined in appointmentNotes.js
  }  
      
  /*我的工作台 模板1

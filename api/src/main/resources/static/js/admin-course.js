@@ -23,7 +23,7 @@ async function openEditCourseDialog(CourseJsonStr )
  if(modal) { 
  modal.style.display = 'flex';
  }
- console.info("edit:",CourseJsonStr,modal); 
+ //console.info("edit:",CourseJsonStr,modal); 
 
  // 2. 初始化默认模板数据 
   let defaultCourse = {};
@@ -157,24 +157,16 @@ async function submitCourseForm() {
     //根据CourseId判断新增还是修改
     console.info("submit:",formData.courseId);
     const token = getToken();
-    const url = formData.courseId !=""? `${baseUrl}/course/update` : `${baseUrl}/course/insert`;
-  console.log("update",formData);
-    try {
-        const res = await axios.post(url, formData, {
-            headers: { "Authorization": "Bearer " + token }
-        });
-        // 4.  响应处理 响应成功/失败
-        if (res.data && res.data.code === 200) {
-            alert(formData.courseId !="" ? '编辑成功' : '新增成功');
-            closeCourseModal(); // 关闭弹窗
-          await renderCourseCards(); // 刷新列表
-        } else {
-            alert(res.data?.message || (formData.courseId!=""  ? '编辑失败' : '新增失败'));
-        }
-    } catch (err) {
-        alert('网络异常，操作失败');
-        console.error(err);
-    }
+    const url = formData.courseId !=""? `course/update` : `course/insert`;
+    console.log("update",formData);
+   let res = await updateORCreateCourse(url, formData);
+   if(res!=""){
+    alert(formData.courseId !="" ? '编辑成功' : '新增成功');
+    closeCourseModal(); // 关闭弹窗
+    await renderCourseCards(); // 刷新列表
+   } else {
+    alert( formData.courseId!=""  ? '编辑失败' : '新增失败');
+   } 
 }
 /**
  * 渲染课程列表（核心：原生JS操作DOM）
@@ -202,7 +194,7 @@ async function renderCourseCards() {
       teacherList  = await  fetchUserList(conditionJsonForTeacher);
 
     // 获取模板列表数据
-    await fetchCourseList(conditionJson);
+    CourseList =await fetchCourseList(conditionJson);
 
     // 渲染HTML
     let html = '';
@@ -297,8 +289,8 @@ async function renderCourseCards() {
                         </div>
                     <div style="width:240px;display:flex;gap:8px;">
                         <button class="btn btn-success" onclick='openEditCourseDialog(${JSON.stringify(Course).replace(/'/g, "\\'")})'>修改</button>                   
-                        <button class="btn btn-success" onclick="operateCourse('${Course.courseId}', 'active')">发布</button>
-                        <button class="btn btn-warning" onclick="operateCourse('${Course.courseId}', 'inactive')">撤回</button>
+                        <button class="btn btn-success" onclick="changeCourseStatus('${Course.courseId}', 'active')">发布</button>
+                        <button class="btn btn-warning" onclick="changeCourseStatus('${Course.courseId}', 'inactive')">撤回</button>
                         <button class="btn btn-danger"  onclick="deleteCourse ('${Course.courseId}')">删除</button>
                     </div>
                 </div>
@@ -318,38 +310,6 @@ async function renderCourseCards() {
     }
 }
 
-/**
- * 调用后端接口获取模板列表
- */
-async function fetchCourseList(conditionJson) {
-    const token = getToken();
-    if (!token) return;
-
-    try {
-        // Axios GET请求（修复response.json()错误，Axios已自动解析）
-        const response = await axios.get(`${API_BASE_URL}/course/list`, {
-            headers: { "Authorization": "Bearer " + token },
-            params: conditionJson // 筛选条件通过params传递
-        });
-        const res = response.data;
-        console.info("get response data:",res);
-        if (res && res.code === 200) {
-          //console.info("data.courses:",res.courses);  .courses
-            CourseList = res.data|| [];
-            localParamter.total = CourseList.length|| 0;
-            console.info("total:",localParamter.total,CourseList);
-            // 补全默认状态
-            CourseList.forEach(item => {
-                if (!item.status) item.status = 'active';
-            });
-        } else {
-            alert(res?.message || '获取课程列表失败');
-        }
-    } catch (e) {
-        alert("网络错误，获取模板列表失败");
-        console.error(e);
-    }
-}
 
 // ===================== 交互函数 =====================
 /**
@@ -370,6 +330,10 @@ async function resetSearchForm() {
     await renderCourseCards();
 }
 
+function changeCourseStatus(courseId, status) { 
+  operateCourse(courseId, status);
+  renderCourseCards();
+} 
 /**
  * 分页大小变化
  */
@@ -392,7 +356,10 @@ async function deleteCourse(courseId) {
   if (!window.confirm('确定要删除该课程吗？删除后基于该课程的预约数据将不受统一管控！')) {
       return;
   }   
-  operateCourse(courseId,"frozen"); 
+  //TBD 判断是否可以删除：条件是该课程的排期的预约数为0，且课程状态为正常（active）
+  //如果可以删除，则删除该课程
+  //如果不能删除，则提示用户 
+  changeCourseStatus(courseId,"frozen"); 
 }
 
 

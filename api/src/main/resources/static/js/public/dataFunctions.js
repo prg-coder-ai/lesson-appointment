@@ -10,12 +10,10 @@
      try {
         // Axios GET请求（修复response.json()错误，Axios已自动解析）
         const res  = await request({url:`${API_BASE_URL}/tz/switch`, 
-            data:{ dataIn}, 
-            Method:"get"
-          });
-
-          //  if (res && res.code === 200) { 
-              return res  ; 
+           method:"POST",
+          data:  dataIn   //controller: @RequestBody TzSwitchPO dataIn
+           }); 
+        return res  ; 
            
     } catch (e) {
         //alert("网络错误，获取课程列表失败");
@@ -40,7 +38,7 @@
    try {
        const res  =  await  request({ url:`${API_BASE_URL}/user/statistical/byMonth`,
         Method:"get", 
-        params: { year:year, month:month }
+        params: { year:year, month:month }//controller: @RequestParam("year") int year, @RequestParam("month") int month
       });
   
        // 返回统计结果对象，如:{ teacherMonthStart, teacherMonthEnd, studentMonthStart, studentMonthEnd }
@@ -60,7 +58,7 @@ async function getCountOfTodayAppointment() {
   try { //指定天数内的预约课程数
       const res  =  await  request({url:`${API_BASE_URL}/course/appointment/statistical/onDays`, 
         Method:"get",  
-        params: { ondays:days }
+        params: { ondays:days }//controller: @RequestParam("ondays") int days
      });
     
       // 返回统计结果对象，如:{ teacherMonthStart, teacherMonthEnd, studentMonthStart, studentMonthEnd }
@@ -80,7 +78,7 @@ async function getAppointmentList(days ) {
  try {
      const res  = await request({url:`${API_BASE_URL}/course/appointment/statistical/listByDays`, 
       Method:"get", 
-      params: {  days:days }
+      params: {  days:days }//controller: @RequestParam("days") int days
     });
     console.log("getAppointmentList:", res);   
      // 返回统计结果对象， array
@@ -138,8 +136,7 @@ async function getAppointmentList(days ) {
  * // const stats = await getUserStaticsByMonth(2024, 6);
  * // if (stats) { console.log(stats.teacherMonthStart, stats.studentMonthEnd); }
  */
-  // INSERT_YOUR_CODE
-
+  
   /**
    * 获取某年月的课程月初（月初0点）和月末（23:59:59）已发布数量
    * 对应后端接口: GET /course/statistical/byMonth?year=2024&month=6
