@@ -11,7 +11,7 @@ window.refreshAppointmentNotes  = refreshAppointmentNotes ;
     let days = 7; //TBD 选择 7天、3天、当天1
     await getAppointmentListData(days);
     const id=renderTo;
-    showAppointmentList( id); 
+    showAppointmentList( id); //defined in appointmentNotes.js
  }   
      
 // INSERT_YOUR_CODE

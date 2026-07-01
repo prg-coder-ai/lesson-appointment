@@ -145,7 +145,7 @@ async function operateSchedule(scheduleId, action) {
       console.log("payload：",payload); 
     const  res = await request({url:`${API_BASE_URL}/course/schedule/updateStatus`,  
       method: 'POST', 
-      data:  {payload}
+      data:  payload  //controller: @RequestBody IncSiteBody dto
     });
        
         return res ;   
@@ -246,7 +246,7 @@ async function fetchBooking( bookingId) {
 }
 
 //获取指定用户的所有排期--可指定状态
-async function getBookingList( userRole, userid,status) { 
+async function getBookingList( userRole, userid, status) { 
  
   const params = {  
       id:null,
@@ -255,14 +255,16 @@ async function getBookingList( userRole, userid,status) {
       userId: userid,
       status: status
   }; 
-  return  getBookingInfoByCondition(params) ; 
+  //console.log("getBookingList: params", params); 
+  return  await getBookingInfoByCondition(params) ; 
 }
 
 async function  getBookingInfoByCondition(params) {
   const url = `course/booking/list` ; 
+  //console.log("getBookingInfoByCondition- params：", params); 
 try {
-      const res =await request( { url:`${API_BASE_URL}/${url}`,method: 'POST',data:{params}}) ; 
-  console.log('getBookingInfoByCondition: res', res); 
+      const res =await request( { url:`${API_BASE_URL}/${url}`,method: 'POST',data:params}) ; //data:{params}-->data:params
+  //console.log('getBookingInfoByCondition: res', res); 
   return res ; 
     //  alert(result?.message || '排期时间表为空，请联系老师');
   
@@ -287,14 +289,14 @@ return [];
         endDate:  
     }; */
 // 分析：可能由于日期时区或构造Date的方式导致了前端和后端实际天数偏差。例如直接用new Date('yyyy-MM-dd')会因时区差别导致日期减少1天。可以尝试使用new Date(year, month, day)规避。
-async function generateScheduleListFromServer(form) { 
+async function generateScheduleListFromServer(formData) { 
   const url = `course/schedule/generate` ;
  // const token = getToken();
 //  const queryString = new URLSearchParams(form).toString(); ccc?${queryString}
   try { 
        const result = await  request({url:`${API_BASE_URL}/${url}`, 
                               method: 'POST', 
-                              data: { form}
+                              data:    formData//controller: @RequestBody ScheduleGenerateDTO dto
                                         });
       // 修正后端返回的日期数组，确保日期不因本地解析减少1天
       // 尝试将日期转为本地日期字符串再渲染 
@@ -506,12 +508,12 @@ async function operateAppointmentStatus(aid, action) {
 //更具排期数据构造可读描述，用于teacher排期管理和student预约管理
 //可简化为：日期范围，时间，排期计划
 //此处为scdedule Entity,从数据库读取的
-function getScheduleInfo(scheduleObject) {
+function getScheduleInfo(scheduleObject,withName=true) {
   if (!scheduleObject) return;
    let info="";
 
-    // 排期名称
-    if (scheduleObject.name)          info += scheduleObject.name;
+    // 排期名称 在预约审核中不显示在时间信息中，在学生预约管理中显示
+    if (withName && scheduleObject.name)          info += scheduleObject.name;
 
   // 起始日期、结束日期和上课时间组成一句简洁文字
   if (scheduleObject.startTime || scheduleObject.endTime ) {
@@ -694,7 +696,7 @@ async function fetchTemplateList(conditionJson) {
           method: 'GET', 
           params: conditionJson // 筛选条件通过params传递
       }); 
-         console.info("data.courses:", res );   
+         //console.info("data.courses:", res );   
          return res  || []; 
      
   } catch (e) {
@@ -720,18 +722,34 @@ async function operateCourse(courseId, action) {
       method: 'POST',
       data: payload
     });   
-      if (console.success) {
+    //  if (console.success) {
        // console.success(msg);
-        console.success('操作成功');
-      }
-      renderCourseCards();//TBD
-     
+     //   console.success('操作成功');
+    //  }
+    //  renderCourseCards();//TBD
+    return res;
   } catch (e) {
     alert("operateCourse:网络错误或数据解析异常，操作失败");
     console.error(e);
   }
   }  
  
+ async function updateORCreateCourse(url, formData) { 
+    try {
+      const res = await request({
+        url: `${API_BASE_URL}/${url}`,
+        method: 'POST',
+        data: formData
+      });
+      return res;//return id
+  } catch (err) {
+      alert('网络异常，操作失败');
+      console.error(err);
+      return null;
+  }
+  
+  }
+
           /*
         * assignStudentToTheSchedule: 指定学生studentId预约排期scdid，并生成对应的appointment数据，保障原子性。
         * 由于JS前端不具备数据库事务能力，此处通过调用后端API完成实际的事务创建。
@@ -766,14 +784,15 @@ async function operateCourse(courseId, action) {
        
 // 分析：可能由于日期时区或构造Date的方式导致了前端和后端实际天数偏差。例如直接用new Date('yyyy-MM-dd')会因时区差别导致日期减少1天。可以尝试使用new Date(year, month, day)规避。
 //用request方法改写
-async function generateScheduleListFromServer(form) { 
+//controller: @RequestBody ScheduleGenerateDTO dto
+async function generateScheduleListFromServer(formData) { 
   const url = `course/schedule/generate` ; 
   try {
       // 用 request 方法改写
       const result = await request({
           url: `${API_BASE_URL}/${url}`,
           method: 'POST',
-          data: form
+          data: formData
       });
 
       // 修正后端返回的日期数组，确保日期不因本地解析减少1天

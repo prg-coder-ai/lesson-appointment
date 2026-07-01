@@ -47,6 +47,7 @@ public class BookingController {
     @PostMapping("/list")
     @ResponseBody
     public Result<List<Booking>> filterList(@RequestBody BookingQueryParaDTO dto) {
+        //  System.out.println("booking list input dto: " + dto); 
          try {
            List<Booking> rs = bookingService.selectList(dto);
           

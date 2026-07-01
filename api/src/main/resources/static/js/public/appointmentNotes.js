@@ -117,13 +117,13 @@ function refreshRightPage() {
               } 
               </tr>
      `; 
-     console.log("cardInfo:", info); 
+     //console.log("cardInfo:", info); 
      return info;
   } 
   async  function checkStatusAndDate(appointmentTime,status,timeZone){
   
     let retPara = { needSendInfo:false,timeTag:3,userTime:appointmentTime};
-    console.log("1:",appointmentTime,"timeZone",timeZone ,status,userTimeZone);
+    //console.log("1:",appointmentTime,"timeZone",timeZone ,status,userTimeZone);
   
     // 将传入的 appointmentTime 字符串中的所有“-”替换为“/”，
     // 然后用 new Date() 构造日期对象，目的是为了在 iOS 设备也能正确解析日期格式。
@@ -139,13 +139,13 @@ function refreshRightPage() {
        userTime =  new Date(userTzTime.dateTime);//浏览器当前时区
       } 
     if (!(now instanceof Date)) {
-      console.error("now 不是有效的日期对象:", now);
+      //console.error("now 不是有效的日期对象:", now);
       return retPara;
     }
     console.log(" userTime:", userTime);
     const diffMs = userTime - now;
     const diffDays = diffMs / (1000 * 60 * 60 * 24);
-    console.log("now:",now,"app",appointmentTime,userTime,diffMs,diffDays);
+    //console.log("now:",now,"app",appointmentTime,userTime,diffMs,diffDays);
     // 只允许状态推进，不能倒退
     if ( status === 'completed' ||  status === 'cancelled' || status === 'canceled') {
         // 已完成/已取消，不发送任何通知.有关消息在相应的确认处理中发送 TBD
@@ -166,7 +166,7 @@ function refreshRightPage() {
            retPara.needSendInfo =true;retPara.timeTag =0;
        }
     }
-    console.log("retPara",retPara);
+    //console.log("retPara",retPara);
       return retPara; 
    }
   
@@ -224,7 +224,7 @@ function refreshRightPage() {
      // 输出信息需简明扼要：正常/提醒时强调上课时间、课程与学生，取消/发起取消时强调情况说明，完成/改期则提醒查看详情或历史。
    function sendNotesToTeacher(userId,cardInfo,timeTag) {
    //timeTag0---完成 1---1天前 2--三天
-     console.log(" sendNotesToTeacher:",userId, cardInfo);
+     //console.log(" sendNotesToTeacher:",userId, cardInfo);
      
      // 根据 cardInfo.status 重新编写 teacherNote，内容更清晰并细分所有状态
      let teacherNote = '';
