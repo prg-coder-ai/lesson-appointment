@@ -303,7 +303,7 @@
 
     // 页面初始化：加载默认的"我的工作台"内容
     window.onload = function() {
-      autoLoginCheck(); 
+      userInfo = autoLoginCheck(); 
       const nameid=document.getElementById("user-name");
        if(nameid)
          { nameid.innerHTML= userInfo.name;

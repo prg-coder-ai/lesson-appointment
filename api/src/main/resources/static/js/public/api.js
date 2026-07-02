@@ -35,6 +35,7 @@
 
     let userId = "";
     let userRole =  "";
+    let userInfo = {};
 
       // 获取用户时区（关键）
       const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -42,7 +43,7 @@
       InitUserInfo();
       
    function InitUserInfo() {
-      const userInfo= getCurrentUserInfo();
+       userInfo= getCurrentUserInfo();
       console.log("userInfo",userInfo);
       if(userInfo == null || typeof userInfo === 'undefined') { 
           document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
@@ -59,10 +60,10 @@
         }
     }
 
-const api = {
+//const api = {
     // 后端API接口地址（相对路径，端口由Spring Boot配置决定，无需写localhost:8088）
-    getDataList: "/api/v1/data/list" // 对应后端IndexController的API接口
-};
+   // getDataList: "/api/v1/data/list" // 对应后端IndexController的API接口
+//};
 
 // 封装GET请求（获取数据库数据）
 /*function getRequest(url, callback) {
@@ -153,25 +154,109 @@ const userStr = localStorage.getItem('currentUser');
      return  JSON.parse(userStr);
     else return null;
 }
+
+ // 页面跳转函数（根据用户角色）
+ function redirectToUserPage(user) {
+       
+  //alert('redirectToUserPage:'+ user.role );
+  // 存储用户信息到本地（实际项目中使用token）
+ // localStorage.setItem('currentUser', JSON.stringify(user));
+  if(user && user.role){
+  // 根据角色跳转对应页面
+  switch(user.role) {
+    case 'admin':
+      window.location.href = './admin.html';
+      break;
+    case 'teacher':
+      window.location.href = './teacher.html';
+      break;
+    case 'student':
+      window.location.href = './student.html';
+      break;
+    default:
+      alert('未知用户身份，请联系管理员1');
+      resetLoginForm();
+      window.location.href = './index.html';
+  } 
+} else {
+ // alert('未知用户身份，请联系管理员2');
+      // 判断当前页面是否为index.html
+      const isIndexPage = window.location.pathname.endsWith('index.html') || window.location.pathname === '/' || window.location.pathname === '';
+     if(isIndexPage ) resetLoginForm(); 
+      else 
+      window.location.href = './index.html'; 
+}
+}
+
+  // 这里假设token是JWT，尝试判断是否过期
+  function isJwtExpired(token) {
+    if (!token) return true;
+    const parts = token.split('.');
+    if (parts.length !== 3) return false; // 不一定是JWT，视实际情况而定
+    try {
+      const payload = JSON.parse(atob(parts[1]));
+      if (payload.exp) {
+        const now = Math.floor(Date.now() / 1000);
+        return now > payload.exp;
+      }
+    } catch (e) {
+      // 解码失败，忽略
+    }
+    return false; // 没有exp就当未过期
+  }
+
  function autoLoginCheck() {
-  // 读取本地 localStorage 保存的用户信息
   const userStr = localStorage.getItem('currentUser');
   if (!userStr) {
-    window.location.href = './admin.html';
-    return;
+    return null;
   }
   let userInfo;
   try {
     userInfo = JSON.parse(userStr);
   } catch (e) {
     localStorage.removeItem('currentUser');
-    window.location.href = './admin.html';
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    return;
+  }
+
+  const token = userInfo.token || localStorage.getItem('token');
+  if (!token || !userInfo.role) {
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    return;
+  } 
+
+  if (isJwtExpired(token)) {
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
+    return;
+  }
+  return userInfo;
+}
+
+ function autoLoginCheck1() {
+  // 读取本地 localStorage 保存的用户信息
+  const userStr = localStorage.getItem('currentUser');
+  if (!userStr) {
+    window.location.href = './index.html';
+    return;
+  }
+  //let userInfo;
+  try {
+    userInfo = JSON.parse(userStr);
+  } catch (e) {
+    localStorage.removeItem('currentUser');
+    window.location.href = './index.html';
     return;
   }
   if (!userInfo || !userInfo.token) {
     // 信息不全，清理，停留
     localStorage.removeItem('currentUser');
-    window.location.href = './admin.html';
+    window.location.href = './index.html';
     return;
   }
   
@@ -215,8 +300,8 @@ const userStr = localStorage.getItem('currentUser');
   .then(data => {
     // 由于这里request返回的是已解析的data，无需response.json()
     // 如果验证通过，根据用户角色跳转到对应主页
-    if (data && data.code === 200 && data.data) {
-      const role = data.data.role || userInfo.role;
+     {
+      const role = data.role || userInfo.role;
       // 按角色跳转
       if (role === 'admin') {
         window.location.href = './admin.html';

@@ -114,10 +114,10 @@
     
     // 初始化页面（加载默认内容）
     window.onload = function() { 
-      autoLoginCheck();
+      userInfo =autoLoginCheck();
        // 自动登录：检测本地登录信息并校验token有效性  
       const nameid=document.getElementById("user-name");
-       if(nameid) nameid.innerHTML= userInfo.name;
+       if(nameid) nameid.innerHTML= userInfo && userInfo.name;
        
        // 设置头像元素为用户名首字母
        const avatarElem = document.getElementById("avatar");
