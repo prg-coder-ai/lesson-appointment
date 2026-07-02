@@ -37,16 +37,14 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             "/index",
             "/login",
             "/auth/login",
-             "/auth/refreshToken",
-            "/user/login",
-            "/user/register", 
+             "/auth/refreshToken",  
             "/index.html",
-            // "/admin.html", "/student.html", "/teacher.html",
+              "/admin.html", "/student.html", "/teacher.html",
              "/interfaces", 
-            "/user/list","/user/teacher/register","/user/student/register",
+            "/user/teacher/register","/user/student/register",
              "/js/**", "/css/**", "/images/**", "/favicon.ico"  // 静态资源
             ).permitAll() // 允许匿名访问首页
-                // ... 其它授权规则
+                // ... 其它授权规则  "/user/list",
             .anyRequest().authenticated()
             .and()
             .csrf().disable(); // 根据实际情况（如需要支持POST跨域），可关闭CSRF

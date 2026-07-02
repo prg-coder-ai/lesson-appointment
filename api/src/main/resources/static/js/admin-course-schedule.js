@@ -830,6 +830,7 @@ function renderResult() {
    // const token = getToken();
     const formData = getFormData();
     console.log("save form:",formData); 
+
     // 引用CourseScheduleCreateDTO, 把formData赋值到dto对象
     // 注意：前端js中无class，直接构造一个对象与后端CourseScheduleCreateDTO字段一致即可
  
@@ -841,6 +842,10 @@ function renderResult() {
       if (selectedOption) {
         teacherId = selectedOption.getAttribute('data-teacher-id') || "";
       }
+    } else {
+    // INSERT_YOUR_CODE
+    alert("请先选择课程！");
+    return;
     }
     let assignStudent=false;
     let assignStudentId ="";
@@ -857,7 +862,7 @@ function renderResult() {
        assignStudent = false;
        assignStudentId = "";
     }
-    console.log("saveScheduleToDB",assignStudent,assignStudentId,teacherId);
+   // console.log("saveScheduleToDB",assignStudent,assignStudentId,teacherId);
      // repeatType 映射优化
      const repeatTypeMap = {
         "none": 0,
@@ -885,22 +890,25 @@ function renderResult() {
       repeatType: formData.repeatType in repeatTypeMap ? repeatTypeMap[formData.repeatType] : 0
     };
       
-    console.log("save createdto:",createdto);
+   // console.log("save createdto:",createdto);
     let bExists = formData.scheduleId && formData.scheduleId !== "";
+
 // 返回当前或新增的schedule的id
     let result = await saveScheduleToServer(bExists , createdto);
-        console.log("saveScheduleToServer", result); 
+       // console.log("saveScheduleToServer", result); 
        // 4.  响应处理 响应成功/失败 result.data.id = new id 
         //alert(formData.scheduleId !="" ? '编辑成功' : '新增成功'); 
         if ((typeof result === "undefined") || result == null) {
    
-            alert("saveScheduleToServer err:" + (bExists ? '编辑失败' : '新增失败'));
+            alert(bExists ? '编辑失败' : '新增失败');
             return;
+        }else {
+            alert(bExists ? '编辑成功' : '新增成功'); 
         }
     if(assignStudent )  { //,assignStudent,assignStudentId,teacherId 
         console.log("当前选择的学生ID", assignStudentId);
         let scdid = result.Id ;
-        console.log("new scdid:",scdid);
+      //  console.log("new scdid:",scdid);
         if (!scdid || !assignStudentId) {
             alert("排期或学生ID无效！"); 
         } else { 
