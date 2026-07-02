@@ -198,7 +198,7 @@ async function renderStudentBookingBrowserCards() {
    window.viewMyReservationDetail   = viewMyReservationDetail  ;
 
    window.renderCalendar    = renderCalendar ; 
-   window.displaySchedule   = displaySchedule ;  
+   //window.displaySchedule   = displaySchedule ;  
    window.actionForButton   = actionForButton ; 
    window.refreshData       = refreshData  ; 
    window.formACourseCard   = formACourseCard  ; 

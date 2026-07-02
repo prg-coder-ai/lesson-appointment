@@ -451,34 +451,23 @@
             6. 控制台分别打印 response 和 data 便于调试。
             整体逻辑实现了前端的注册异步请求、异常处理与用户交互提示。
           */
-          fetch(URL, {
+          request({
+            url: URL,
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json' ,
-              'credentials': 'include'
-            },
-            body: JSON.stringify(registerInfo)
-          })
-          .then(response => {             
-            console.log('注册result:', response);
-            
-            return response.json();
-          })
-          .then(data => { 
-           console.log('data:', data);
-            if (data && data.code === 400) {
-              //alert('该账号已存在，请更换账号或登录该账号');
-               registerError.style.display ='block';
-               registerError.textContent = '该账号已存在，请更换账号或登录该账号';
-            }else if (data && data.code === 200) {  
+            data: registerInfo
+          }).then(data => {
+            console.log('data:', data);
+           // if (data && data.code === 400) {
+           //   registerError.style.display = 'block';
+           //   registerError.textContent = '该账号已存在，请更换账号或登录该账号';
+           // } else if (data && data.code === 200) {
               registerSuccess.style.display = 'block';
               registerSuccess.textContent = data.message; //在注册页面显示data.message
-              localStorage.setItem('currentUser', JSON.stringify(data.data));//保存用户信息到本地,userId,role,token
+              localStorage.setItem('currentUser', JSON.stringify(data));//保存用户信息到本地,userId,role,token
               // 保存localStorage的currentUser到cookie（简单实现，2小时有效期）
               try {
                 const userStr = localStorage.getItem('currentUser');
                 if (userStr) {
-                  // 设置cookie名为currentUser，值为encodeURIComponent后的userStr，过期2小时
                   const d = new Date();
                   d.setTime(d.getTime() + (2*60*60*1000));  // 2小时
                   document.cookie = `currentUser=${encodeURIComponent(userStr)};expires=${d.toUTCString()};path=/`;
@@ -489,48 +478,24 @@
               setTimeout(() => {
                 registerModal.style.display = 'none';  
                 resetRegisterForm();
-                //返回登录页面
-               window.location.href = './index.html';
+                window.location.href = './index.html';
               }, 2000);
-            } else {
-              alert(data.message);
-            }
-          })
-          .catch(error => {
+           // } else {
+            //  alert(data.message);
+           // }
+          }).catch(error => {
             // 错误处理
             console.error('注册请求出错:', error);
             alert('网络异常，请检查后重试');
           });
+     
           
           resolve();
         }, 800);
       });
     }
 
-    // 页面跳转函数（根据用户角色）
-    function redirectToUserPage(user) {
-       
-      //alert('redirectToUserPage:'+ user.role );
-      // 存储用户信息到本地（实际项目中使用token）
-     // localStorage.setItem('currentUser', JSON.stringify(user));
-      
-      // 根据角色跳转对应页面
-      switch(user.role) {
-        case 'admin':
-          window.location.href = './admin.html';
-          break;
-        case 'teacher':
-          window.location.href = './teacher.html';
-          break;
-        case 'student':
-          window.location.href = './student.html';
-          break;
-        default:
-          alert('未知用户身份，请联系管理员');
-          resetLoginForm();
-      }
-    }
-
+   
     // 重置登录表单
     function resetLoginForm() {
       loginForm.reset();
@@ -643,54 +608,8 @@
     }, 2500);
   };
   window.onload = function() {
-    (function autoLoginCheck() {
-      const userStr = localStorage.getItem('currentUser');
-      if (!userStr) {
-        return;
-      }
-      let userInfo;
-      try {
-        userInfo = JSON.parse(userStr);
-      } catch (e) {
-        localStorage.removeItem('currentUser');
-        localStorage.removeItem('token');
-        localStorage.removeItem('refreshToken');
-        return;
-      }
-
-      const token = userInfo.token || localStorage.getItem('token');
-      if (!token || !userInfo.role) {
-        localStorage.removeItem('currentUser');
-        localStorage.removeItem('token');
-        localStorage.removeItem('refreshToken');
-        return;
-      }
-
-      function isJwtExpired(jwtToken) {
-        if (!jwtToken) return true;
-        const parts = jwtToken.split('.');
-        if (parts.length !== 3) return false;
-        try {
-          const payload = JSON.parse(atob(parts[1]));
-          if (payload.exp) {
-            return Math.floor(Date.now() / 1000) > payload.exp;
-          }
-        } catch (e) {
-          // 解码失败，忽略
-        }
-        return false;
-      }
-
-      if (isJwtExpired(token)) {
-        localStorage.removeItem('currentUser');
-        localStorage.removeItem('token');
-        localStorage.removeItem('refreshToken');
-        document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
-        return;
-      }
-
-      redirectToUserPage(userInfo);
-    })();
+       userInfo = autoLoginCheck() ;
+       redirectToUserPage(userInfo); 
   };
   </script>
 </body>
