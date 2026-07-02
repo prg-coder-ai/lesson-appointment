@@ -208,7 +208,7 @@ const userStr = localStorage.getItem('currentUser');
 
   // 调用后端接口验证token有效性（推荐，防止本地token无效）
   request({
-    url: `${API_BASE_URL}/user/login`,
+    url: `${API_BASE_URL}/auth/login`,
     method: 'POST' ,
     data: loginInfo
   })
