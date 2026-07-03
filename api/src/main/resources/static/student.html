@@ -37,11 +37,11 @@
   <div class="layout-container">
     <!-- 侧边栏 -->
     <aside class="sidebar">
-      <div class="menu-item" data-menu="我的工作台">
+      <div class="menu-item active" data-menu="我的工作台">
         <i class="fa fa-home"></i>
         <span>我的工作台</span>
       </div>
-      <div class="menu-item active" data-menu="课程预订">
+      <div class="menu-item" data-menu="课程预订">
         <i class="fa fa-calendar-plus"></i>
         <span>课程预订</span>
       </div>
@@ -112,6 +112,12 @@
     const pageTitle = document.querySelector('.page-title');
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
     
+    function syncActiveMenu(menuName) {
+      menuItems.forEach(menu => {
+        menu.classList.toggle('active', menu.getAttribute('data-menu') === menuName);
+      });
+    }
+
     // 初始化页面（加载默认内容）
     window.onload = function() { 
       userInfo = autoLoginCheck();
@@ -127,7 +133,9 @@
   
      //  console.log(nameid);
       
-       loadAdminPageContent(pageTitle.textContent); // 默认加载课程预约页面 课程预约TBD-- remember last choose
+       const initialMenu = pageTitle.textContent.trim() || '我的工作台';
+       syncActiveMenu(initialMenu);
+       loadAdminPageContent(initialMenu);
       //updateStarRating(); // 初始化评分显示
       console.log('学生端页面加载完成');
     };
