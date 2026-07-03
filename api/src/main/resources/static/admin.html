@@ -102,12 +102,12 @@
         </div>
         <div class="menu-item">
           <i class="fa fa-calendar-alt"></i>
-          <span>预约审核</span>
+          <span>预订审核</span>
         </div>
 
         <div class="menu-item">
           <i class="fa fa-calendar-alt"></i>
-          <span>课程通知</span>
+          <span>上课通知</span>
         </div>
       </div>
       <!--
@@ -299,12 +299,12 @@
           console.log("ScheduleCards...课程排期"); 
             renderScheduleCards();
           break;//课程排期
-        case '预约审核'://TBD
+        case '预订审核'://TBD
         if(dynamicContentCenter)
           dynamicContentCenter.innerHTML = `
             <div class="card">
               <div class="card-header">
-                <div class="card-title"><i class="fa fa-calendar-alt"></i>预约列表</div>
+                <div class="card-title"><i class="fa fa-calendar-alt"></i>预订列表</div>
                 <!--  <button class="btn btn-primary" onclick="provingBooking()"><i class="fa fa-refresh"></i> 刷新</button>  -->
               </div>
               <div class="table-container">
@@ -312,11 +312,11 @@
                   <thead>
                     <tr>
                       <th>序号</th>
-                      <th  style="display:none;">预约ID</th>
+                      <th  style="display:none;">预订ID</th>
                       <th>课程名称</th>
                       <th>学生姓名</th>
                       <th>教师姓名</th>
-                      <th>预约时间</th>
+                      <th>上课时间</th>
                       <th>状态</th>
                       <th>操作</th>
                     </tr>
@@ -330,7 +330,7 @@
           `;
           provingBooking();
           break;
-          case '课程通知': //列出3日课程内， 显示课程名称、教师、学生、时间、课程状态，操作：发送通知1、2、3           
+          case '上课通知': //列出3日课程内， 显示课程名称、教师、学生、时间、课程状态，操作：发送通知1、2、3           
           // 渲染数据总览面板
           dynamicContentCenter.innerHTML = `
              <div class="table-container">
@@ -342,7 +342,7 @@
                       <th>课程名称</th>
                       <th>学生姓名</th>
                       <th>教师姓名</th>
-                      <th>预约时间</th>
+                      <th>上课时间</th>
                       <th>状态</th>
                       <th>操作</th>
                     </tr>
