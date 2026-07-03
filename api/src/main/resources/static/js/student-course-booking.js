@@ -262,7 +262,7 @@ async function renderStudentBookingCards() {
      
       //alert("模拟课程加载成功");
   }
-  console.log("search",courseList);
+ // console.log("search",courseList);
      renderCourseSelect();
 }
 
@@ -782,8 +782,7 @@ function renderResult() {
     private String studentId;   
     private String status;
 */
-     const bidItem = document.getElementById("bookingId");
-     const token =getToken();
+     const bidItem = document.getElementById("bookingId"); 
      let bookingid=  bidItem.value;  
     let dto = {
         bookingId: bookingid|| "",
@@ -793,33 +792,16 @@ function renderResult() {
         status:status
     };
       
-    //console.log("BK save  dto:",dto);
-    const url = bookingid !=""? `course/booking/update/${bookingid}` : `course/booking`; 
+    //console.log("BK save  dto:",dto); 
     //console.log("BK save  dto url:",url);
-    try{
-      const res= await fetch(`${API_BASE_URL}/${url}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          "Authorization": "Bearer " + token
-        },
-        credentials: 'include',
-        body: JSON.stringify(dto)
-      });
-      const result = await res.json();
-     // console.log("res:",result);
-       // 4.  响应处理 响应成功/失败 result.data.id = new id
-       if (result && result.code === 200) {
-        alert(bookingid !="" ? '修改成功' : '创建成功'); 
-        // 设置新的状态---- result.data ：result返回的booking的id，更新显示，直接更新
-         reloadBooking( );
-    } else {
-        alert(result.data?.message + (bookingid!=""  ? '修改失败' : '创建失败'));
-    }
-    }catch(err){
-        alert('网络异常，操作失败');
-        console.error(err);  
-    } 
+    const retId = createOrUpdateBookingObj(bookingid,dto);
+    if(retId != null)
+    {
+        alert(bookingid !== "" ? '修改成功' : '创建成功'); 
+    }  else { 
+            alert( '重试：' + (bookingid !== "" ? '修改失败' : '创建失败'));
+          }    
+    reloadBooking(); 
   }
 
   function getBookFormData(){

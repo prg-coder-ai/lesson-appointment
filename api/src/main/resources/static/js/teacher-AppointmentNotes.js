@@ -11,9 +11,10 @@ window.refreshAppointmentNotesForTeacher  = refreshAppointmentNotesForTeacher ;
     let days = 7; //TBD 选择 7天、3天、当天1
    // let userid = userId;//
    // let role=  userRole ;
-    await getAppointmentListData(days);
+ 
+    DaysAppointmentList =  await getAppointmentListData({Days:days,UserId:userId,Role:userRole});//利用userid的过滤 ok
     const renderId=renderTo;
-    showAppointmentList( renderId); //defined in appointmentNotes.js
+    showAppointmentList( DaysAppointmentList,renderId);  //defined in appointmentNotes.js
  }  
      
  /*我的工作台 模板1

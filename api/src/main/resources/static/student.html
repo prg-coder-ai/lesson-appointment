@@ -41,22 +41,22 @@
         <i class="fa fa-home"></i>
         <span>我的工作台</span>
       </div>
-      <div class="menu-item active" data-menu="课程预约">
-        <i class="fa fa-calendar-plus-o"></i>
-        <span>课程预约</span>
+      <div class="menu-item active" data-menu="课程预订">
+        <i class="fa fa-calendar-plus"></i>
+        <span>课程预订</span>
       </div>
-      <div class="menu-item" data-menu="我的预约">
+      <div class="menu-item" data-menu="我的预订">
         <i class="fa fa-list-alt"></i>
-        <span>我的预约</span>
+        <span>我的预订</span>
       </div>
       <!-- <div class="menu-item" data-menu="课程评价">
         <i class="fa fa-star-half-o"></i>
         <span>课程评价</span>
-      </div>-->
+      </div>
       <div class="menu-item" data-menu="个人中心">
         <i class="fa fa-user"></i>
         <span>个人中心</span>
-      </div>
+      </div> -->
     </aside>
 
     <!-- 主内容包装器 -->
@@ -114,7 +114,7 @@
     
     // 初始化页面（加载默认内容）
     window.onload = function() { 
-      userInfo =autoLoginCheck();
+      userInfo = autoLoginCheck();
        // 自动登录：检测本地登录信息并校验token有效性  
       const nameid=document.getElementById("user-name");
        if(nameid) nameid.innerHTML= userInfo && userInfo.name;
@@ -126,7 +126,8 @@
        }
   
      //  console.log(nameid);
-       loadAdminPageContent('我的工作台'); // 默认加载课程预约页面 课程预约TBD-- remember last choose
+      
+       loadAdminPageContent(pageTitle.textContent); // 默认加载课程预约页面 课程预约TBD-- remember last choose
       //updateStarRating(); // 初始化评分显示
       console.log('学生端页面加载完成');
     };
@@ -151,7 +152,9 @@
     function loadAdminPageContent(menuName) {
       // 清空原有内容
       dynamicContentCenter.innerHTML = '';
-      
+      if(menuName=="") {
+         menuName = '我的工作台';
+      }
       // 根据菜单名称加载对应内容
       switch(menuName) {
         case '我的工作台':
@@ -165,7 +168,7 @@
                       <th>课程名称</th>
                       <th>学生姓名</th>
                       <th>教师姓名</th>
-                      <th>预约时间</th>
+                      <th>上课时间</th>
                       <th>状态</th>
                       <th>操作</th>
                     </tr>
@@ -179,12 +182,12 @@
            
              refreshAppointmentNotesForStudent("days-appointment-student" );
 
-        break;
-        case '课程预约': 
+           break;
+        case '课程预订': 
               renderStudentBookingCards(); 
           break;
           
-        case '我的预约': 
+        case '我的预订': 
               renderStudentBookingBrowserCards(); 
           break;
           

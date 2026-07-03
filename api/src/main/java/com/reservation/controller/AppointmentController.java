@@ -174,9 +174,11 @@ public class AppointmentController {
     @GetMapping("/statistical/listByDays")
     @ResponseBody
     public Result<List<Appointment>> listByDays(
-            @RequestParam("days") int days,
-            @RequestParam(required = false, defaultValue = "appointmentDatetime") String sortField,
-            @RequestParam(required = false, defaultValue = "desc") String sortOrder
+             @RequestParam("days") int days,
+             @RequestParam(required = false, defaultValue = "") String userId,
+             @RequestParam(required = false, defaultValue = "")  String role,
+             @RequestParam(required = false, defaultValue = "appointmentDatetime") String sortField,
+             @RequestParam(required = false, defaultValue = "asc") String sortOrder
     ) { 
        //  System.out.println("listByDays  listByDays 参数：days = " + days);
         // 获取当前时间（now）和days天之后的相同时间
@@ -186,16 +188,11 @@ public class AppointmentController {
  //getBetweenTime
         List<Appointment> appList
          = appointmentService.getBetweenTime(
+                userId,role,
                 java.sql.Timestamp.valueOf(now),
                 java.sql.Timestamp.valueOf(endOfPeriod),
-                sortField,
-                sortOrder
-         );
-           
-
-       // java.util.Map<String, Integer> data = new java.util.HashMap<>();
-      //  data.put("appDays", bookingCount);
-
+                sortField, sortOrder
+         ); 
         return Result.success(appList, "查询成功");
     }
 // 

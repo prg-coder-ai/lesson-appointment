@@ -88,7 +88,23 @@ async function fetchScheduleList( cid,status) {
     }
 }
 
-
+ async function createOrUpdateBookingObj(bookingid,bookingCreateDTO ){
+  const url = bookingid !=""? `course/booking/update/${bookingid}` : `course/booking`;
+    try {
+      const result = await request({
+        url: `${API_BASE_URL}/${url}`,
+        method: 'POST', 
+        data: bookingCreateDTO,
+        // credentials: 'include' // 如果request实现中默认带cookie则无需此项
+      });
+    console.log("createOrUpdateBookingObj:",result);
+   return result;//id    
+  } catch (err) {
+    //alert('网络异常，操作失败');
+    console.error(err);  
+    return null;
+  }
+  }
 /**
  *取消、删除
  */
@@ -207,7 +223,7 @@ return appointmentResults;
 
 //根据排期id及用户信息，获取所有的预定信息
 function getBookingObject(bookingId) { 
- 
+ /*
   const params = {  
       id:bookingId,
       scheduleId: null,
@@ -215,7 +231,8 @@ function getBookingObject(bookingId) {
       userId: null,
       status: null
   }; 
-  return  getBookingInfoByCondition(params) ;
+  return  getBookingInfoByCondition(params) ;*/
+  return fetchBooking(bookingId);
 }
 //same as getBookingObject TBTEST
 async function fetchBooking( bookingId) { 

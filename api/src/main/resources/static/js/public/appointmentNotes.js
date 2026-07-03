@@ -8,10 +8,13 @@ function refreshRightPage() {
    }
 
  //获取days天数以内的预约列表
- async function getAppointmentListData(days){ 
-    DaysAppointmentList = await getAppointmentList(days);  
-    console.log("DaysAppointmentList:", DaysAppointmentList); 
-
+ /*private String UserId;  //
+    private String Role;     
+    private int Days; */
+ async function getAppointmentListData(conditions ){ 
+    
+    return await getAppointmentList(conditions);  
+   // console.log("DaysAppointmentList:", DaysAppointmentList); 
 } 
 
 
@@ -38,7 +41,7 @@ async function getCountOfTodayAppointment() {
 } //获取今日预约次数
 
 //获取最近days天的课程
-async function getAppointmentList(days ) {
+async function getAppointmentList(conditions ) {
  // const token = getToken && typeof getToken === 'function' ? getToken() : '';
  try {
      // 允许传递排序字段和排序方式（如 appointmentTime 字段降序）
@@ -46,13 +49,15 @@ async function getAppointmentList(days ) {
        url: `${API_BASE_URL}/course/appointment/statistical/listByDays`, 
        Method: "get", 
        params: { 
-         days: days, // controller: @RequestParam("days") int days
+         days:    conditions.Days, // controller: @RequestParam("days") int days
+         userId:  conditions.UserId,
+         role:    conditions.Role,
          // 向后端传递排序参数，需后端Controller方法新增@RequestParam("sortField")和@RequestParam("sortOrder")参数，并在Service/Mapper中根据这两个参数动态设置order by子句
          sortField: "appointmentDatetime",   // 例如后端：@RequestParam(required = false, defaultValue = "appointmentTime") String sortField
          sortOrder: "asc"               // 例如后端：@RequestParam(required = false, defaultValue = "desc") String sortOrder
        }
      });
-    console.log("getAppointmentList:", res);   
+  //  console.log("getAppointmentList:", res);   
      // 返回统计结果对象， array
      return res  ;  
    } catch (e) {
@@ -62,22 +67,26 @@ async function getAppointmentList(days ) {
    }
  }
  //显示待确认预约
- async function showAppointmentList(id){
+ async function showAppointmentList(appointmentList,id){
     //   const id = "pending-reservations";
        let pendingBookingsHtml = "";
        let index = 0;
-       console.log("showAppointmentList:", DaysAppointmentList);  
-   
-       if (Array.isArray(DaysAppointmentList)) {
+    //   console.log("showAppointmentList:", DaysAppointmentList);  
+      let count=0;
+       if (Array.isArray(appointmentList)) {
            // 用for...of+await，等待所有异步操作完成
-           for (let appointment of DaysAppointmentList) { 
+           count = appointmentList.length;
+           for (let appointment of appointmentList) { 
             index++;//读取对应的预定ID
-            let  bookedObjectList = await getBookingObject(appointment.booking_id); 
-            let bookedObject = bookedObjectList[0];
+            console.log("appointment :", appointment );
+            let  bookedObject = await getBookingObject(appointment.bookingId); 
+      
             if(bookedObject == null )
               continue;
+            console.log("bookedObject:", bookedObject);  
             const scheduleObject = await fetchSchedule(bookedObject.scheduleId); 
                if (scheduleObject != null) {
+                console.log("scheduleObject:", scheduleObject.courseId,bookedObject.studentId,bookedObject.teacherId,scheduleObject.name);  
                    //let scheduleInfoStr = getScheduleInfo(scheduleObject); 
                    const classObject = await getCourseById(scheduleObject.courseId); 
                    const studentName = await getUserNameById(bookedObject.studentId);
@@ -91,7 +100,7 @@ async function getAppointmentList(days ) {
                            scheduleId:    scheduleObject.scheduleId, 
                            origTz:        scheduleObject.timeZone,
                            appointmentId: appointment.id,
-                           bookingId: bookedObject.id,
+                           bookingId:     bookedObject.id,
   
                            className: classObject.courseName+ " " + scheduleObject.name,
                            
@@ -112,8 +121,10 @@ async function getAppointmentList(days ) {
                    } 
            }
        }
-      } else {
-        pendingBookingsHtml +="<tr> <td> n/a </td> <td> n/a </td><td> n/a </td><td> n/a </td> <td> n/a </td></tr>";
+      } 
+      
+      if(count==0)  {
+        pendingBookingsHtml +="<div> 近7日内没有课程</div>";//<tr> <td> n/a </td> <td> n/a </td><td> n/a </td><td> n/a </td> <td> n/a </td> <td>   </td> <td>  </td></tr>";
       }
   
        //在全部异步处理后再输出和渲染 
@@ -128,7 +139,7 @@ async function getAppointmentList(days ) {
     if (status === 'active' ) {
       return '正常';
     } else   if   (status === 'noted1') {
-      return '正常'+'3~7日通知已发送';
+      return '正常'+' 3~7日通知已发送';
     }  else   if   (status === 'noted2') {
       return '正常'+' 当日通知已发送';
     } else   if   (status === 'completed') {

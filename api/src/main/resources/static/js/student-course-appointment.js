@@ -248,7 +248,7 @@ async function viewMyReservationDetail(bookingId,origTzTimeZone){
            restlts.push(newDt);
        }
    }
-   console.log(restlts);
+ //  console.log(restlts);
    renderResult(restlts);
    renderCalendar(restlts);
 } 
@@ -303,6 +303,9 @@ function renderResult(dateTimeList) {
             tr.appendChild(tdBtn);   
             body.appendChild(tr);
         });
+        } else {
+            body.innerHTML = '<div> 暂无数据 </div>'; 
+
         }
   }
 
