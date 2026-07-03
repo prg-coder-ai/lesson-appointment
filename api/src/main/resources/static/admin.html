@@ -68,7 +68,7 @@
     <aside class="sidebar">
       <div class="menu-group">
         <div class="menu-group-title">系统概览</div>
-        <div class="menu-item active">
+        <div class="menu-item">
           <i class="fa fa-tachometer-alt"></i>
           <span>数据总览</span>
         </div>
@@ -110,7 +110,7 @@
           <span>课程通知</span>
         </div>
       </div>
-
+      <!--
       <div class="menu-group">
         <div class="menu-group-title">系统设置</div>
         <div class="menu-item">
@@ -122,6 +122,7 @@
           <span>操作日志</span>
         </div>
       </div>
+      -->
     </aside>
 
     <!-- 主内容容器（包含标题和中央动态区域） -->
@@ -149,7 +150,11 @@
       // 清空中央内容区
       if(dynamicContentCenter)
       dynamicContentCenter.innerHTML = '';
-      
+      <!-- INSERT_YOUR_CODE -->
+      // 如果 title 没有定义或者为空，则强制为“数据总览”
+      if (typeof title === 'undefined' || title === null || (typeof title === 'string' && title.trim() === '')) {
+        title = '数据总览';
+      }
       switch(title) {
        
         case '数据总览':

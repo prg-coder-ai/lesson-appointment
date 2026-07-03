@@ -4,6 +4,8 @@
 //let scheduleObject=null;       // 排期
 //let scheduleList =[];
 //let currentCourseId=null;
+let currentScheduleId= "";
+let teacherId = "";
  let currentCourseIndex =-1,currentScheduleIndex=-1;
 var localParamter ={ 
   currentPage:1,         // 当前页码（初始值由Thymeleaf渲染）
@@ -64,13 +66,7 @@ async function renderScheduleCards() {
     <div class="section">
         <div style="display: flex; align-items: center; gap: 20px;">
             <div class="section-title" style="margin: 0;">排期设置</div>
-            <label style="font-weight: normal; margin-left:8px;">
-                <input type="checkbox" id="assignStudentCheckbox" style="vertical-align: middle; margin-right:2px;"> 指定学生
-            </label>
-            <select id="assignStudentSelect" style="font-size: 1em;">
-                <option value="">请选择学生</option>
-                <!-- 这里可以用JS渲染学生选项 -->
-            </select>
+            
         </div>
    
 
@@ -209,6 +205,13 @@ async function renderScheduleCards() {
         <button class="btn-primary" onclick="saveScheduleToDB()">保存</button> 
         <button class="btn-danger"  onclick="deleteSchedule()">删除</button>
         <button class="btn-success" onclick="refreshData()">刷新</button>
+
+        <label style="font-weight: normal; margin-left:8px;">
+                <button class="btn-primary"  onclick="assignStudentToSchedule()">指定学生</button>
+            <select id="assignStudentSelect" style="font-size: 1em;">
+                <option value="">请选择学生</option>
+                <!-- 这里可以用JS渲染学生选项 -->
+            </select>
     </div> 
 
     <!-- 排期结果 -->
@@ -674,7 +677,9 @@ return ;
    const scheduleSelect = document.getElementById('scheduleSelect');
    if (!scheduleSelect) return;
    const selectedId = scheduleSelect.value;
+
    if (!selectedId) return;
+   currentScheduleId = selectedId;
    
    // 在 scheduleList 中查找对应的排期对象
    const selectedSchedule = scheduleList.find(s => String(s.scheduleId) === String(selectedId));
@@ -739,7 +744,7 @@ return ;
     return form;
    }
    
-   // 预览排期
+   // 预览排期--列出排期的所有时间及日历
    async function previewSchedule() {
      const form = getFormData();
     //console.log("form:",form) ;
@@ -836,7 +841,7 @@ function renderResult() {
  
   const sel = document.getElementById('courseSelect'); 
     // 读取sel的当前选择，并读取其中的teacherId
-    let teacherId = "";
+    
     if (sel && sel.value) {
       const selectedOption = sel.options[sel.selectedIndex];
       if (selectedOption) {
@@ -847,21 +852,7 @@ function renderResult() {
     alert("请先选择课程！");
     return;
     }
-    let assignStudent=false;
-    let assignStudentId ="";
-    // 判断id="assignStudentCheckbox"的是否勾选
-    const assignStudentCheckbox = document.getElementById("assignStudentCheckbox");
-    if (assignStudentCheckbox && assignStudentCheckbox.checked) {
-      assignStudent = true;
-      // 赋值选中的学生id
-      const assignStudentSelect = document.getElementById("assignStudentSelect");
-      if (assignStudentSelect && assignStudentSelect.value) {
-         assignStudentId = assignStudentSelect.value;
-      }
-    } else {
-       assignStudent = false;
-       assignStudentId = "";
-    }
+   
    // console.log("saveScheduleToDB",assignStudent,assignStudentId,teacherId);
      // repeatType 映射优化
      const repeatTypeMap = {
@@ -903,24 +894,46 @@ function renderResult() {
             alert(bExists ? '编辑失败' : '新增失败');
             return;
         }else {
+            currentScheduleId = result.Id;
             alert(bExists ? '编辑成功' : '新增成功'); 
         }
-    if(assignStudent )  { //,assignStudent,assignStudentId,teacherId 
+     
+}
+async function assignStudentToSchedule( ) {
+   
+    console.log("assignStudentToSchedule  teacherId :",teacherId);
+    if (teacherId=="") { 
+        alert("请先选择课程！");
+         return;
+    }
+    let scdid = currentScheduleId;
+        console.log("currentScheduleId:",currentScheduleId);
+        if (!scdid  ) {
+            alert("请选择排期！"); 
+        }
+ 
+    let assignStudentId ="";
+    // 判断id="assignStudentCheckbox"的是否勾选 
+      // 赋值选中的学生id
+      const assignStudentSelect = document.getElementById("assignStudentSelect");
+      if (assignStudentSelect && assignStudentSelect.value) {
+         assignStudentId = assignStudentSelect.value;
+      } else 
+      {
+        alert("请选择学生！");
+        return;
+      }
+   
         console.log("当前选择的学生ID", assignStudentId);
-        let scdid = result.Id ;
-      //  console.log("new scdid:",scdid);
-        if (!scdid || !assignStudentId) {
-            alert("排期或学生ID无效！"); 
-        } else { 
-            const ret = await assignStudentToTheSchedule(scdid,assignStudentId,teacherId);
-            if ( ret  ) {
-                alert("学生成功分配排期的课程并完成预约！");
-                // 可选：刷新界面或数据 
-            } else {
-                alert("学生分配排期失败: " + "请检查后端接口与数据。");
-            } 
+       
+        const ret = await assignStudentToTheSchedule(scdid,assignStudentId,teacherId);
+        if ( ret  ) {
+            alert("学生成功分配排期的课程并完成预约！");
+            // 可选：刷新界面或数据 
+        } else {
+            alert("学生分配排期失败: " + "请检查后端接口与数据。");
         }  
-    }   
+        return ;
 }
   // 删除
   async function deleteSchedule() {
