@@ -9,9 +9,9 @@ window.refreshAppointmentNotes  = refreshAppointmentNotes ;
 
  async function refreshAppointmentNotes(renderTo){
     let days = 7; //TBD 选择 7天、3天、当天1
-    await getAppointmentListData(days);
+    DaysAppointmentList = await getAppointmentListData({Days:days,UserId:null,Role:null});
     const id=renderTo;
-    showAppointmentList( id); //defined in appointmentNotes.js
+    showAppointmentList( DaysAppointmentList,id); //defined in appointmentNotes.js
  }   
      
 // INSERT_YOUR_CODE
