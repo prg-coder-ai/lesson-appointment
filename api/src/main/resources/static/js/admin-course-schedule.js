@@ -886,28 +886,26 @@ function renderResult() {
 
 // 返回当前或新增的schedule的id
     let result = await saveScheduleToServer(bExists , createdto);
-       // console.log("saveScheduleToServer", result); 
+       // console.log("saveScheduleToServer return id:", result.Id); 
        // 4.  响应处理 响应成功/失败 result.data.id = new id 
-        //alert(formData.scheduleId !="" ? '编辑成功' : '新增成功'); 
-        if ((typeof result === "undefined") || result == null) {
-   
-            alert(bExists ? '编辑失败' : '新增失败');
-            return;
+         
+        if ((typeof result === "undefined") || result == null) { 
+            alert(bExists ? '编辑失败' : '新增失败'); 
         }else {
             currentScheduleId = result.Id;
             alert(bExists ? '编辑成功' : '新增成功'); 
-        }
-     
+        } 
 }
+
 async function assignStudentToSchedule( ) {
    
-    console.log("assignStudentToSchedule  teacherId :",teacherId);
+   // console.log("assignStudentToSchedule  teacherId :",teacherId);
     if (teacherId=="") { 
         alert("请先选择课程！");
          return;
     }
     let scdid = currentScheduleId;
-        console.log("currentScheduleId:",currentScheduleId);
+      //  console.log("currentScheduleId:",currentScheduleId);
         if (!scdid  ) {
             alert("请选择排期！"); 
         }
