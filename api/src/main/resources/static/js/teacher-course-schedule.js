@@ -17,7 +17,7 @@ let userTimeZoneDisplay="none";
 /**
  * 渲染课程列表（核心：原生JS操作DOM）
  */
-async function renderTeacherCourseBrowserCards() {
+async function renderTeacherCourseAndScheduleBrowserCards() {
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
     if (!dynamicContentCenter) return; 
     // 显示加载中
@@ -259,12 +259,12 @@ async function renderCourseList(){
             item.status === "frozen" ? '<td>已删除</td>' :
               `<td>${item.status||"未知"}</td>` 
          
-        const applyAddSchBtn = document.createElement('button');
+       /*  const applyAddSchBtn = document.createElement('button');
         applyAddSchBtn.className = 'btn btn-success'; //  
         applyAddSchBtn.textContent = '增加排期'; 
         applyAddSchBtn.onclick = function() {
           AddScheduleforTheCourse(item.courseId); 
-        }   
+        }  */ 
         const tdBtn = document.createElement('td');
         tdBtn.appendChild(applyAddSchBtn);
        // tr.appendChild(tdBtn);  
@@ -275,11 +275,8 @@ async function renderCourseList(){
         applyBrwSchBtn.onclick = function() {
           browseScheduleforTheCourse(item.courseId); 
         }   
-        tdBtn.appendChild(applyBrwSchBtn);
-      //  const tdBtn2 = document.createElement('td');
-       // tdBtn2.appendChild(applyBrwSchBtn);
-        tr.appendChild(tdBtn);  
-
+        tdBtn.appendChild(applyBrwSchBtn); 
+        tr.appendChild(tdBtn);   
         body.appendChild(tr);
     });
     

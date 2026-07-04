@@ -39,24 +39,25 @@
   <div class="layout-container">
     <!-- 侧边栏 -->
     <aside class="sidebar"> 
-      <div class="menu-group-title">我的工作台</div>
+       <div class="menu-group-title">我的工作台</div>
       <div class="menu-item">
         <i class="fa fa-home"></i>
-        <span>我的工作台</span>
-      </div>
+        <span>今日课程</span>
+      </div>  
 
       <div class="menu-item">
         <i class="fa fa-book"></i>
         <span>我的课程</span>
       </div>
       <div class="menu-item">
+        <i class="fa fa-calendar"></i>
+        <span>预定管理</span>
+      </div>
+      <div class="menu-item">
         <i class="fa fa-calendar-alt"></i>
         <span>课程通知</span>
       </div>
-      <div class="menu-item active">
-        <i class="fa fa-calendar"></i>
-        <span>预约管理</span>
-      </div>
+      
       <!--
       <div class="menu-item">
         <i class="fa fa-star"></i>
@@ -114,18 +115,29 @@
       dynamicContent.innerHTML = '';
 
       switch(title) {
-        case '我的工作台':
-          dynamicContent.innerHTML = `
-            <!-- 今日预约卡片 -->
-            <div class="card">
-              <h3><i class="fa fa-calendar-check-o"></i> 今日预约 _TBD</h3>
-              <div id="today-reservations"> 
-               
-                </div>
-                
+        case '今日课程': 
+           dynamicContent.innerHTML = `
+             <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>序号</th>
+                      <th  style="display:none;">预约ID</th>
+                      <th>课程名称</th>
+                      <th>学生姓名</th>
+                      <th>教师姓名</th>
+                      <th>预约时间</th>
+                      <th>状态</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="oneday-appointment-teacher">
+                    
+                  </tbody>
+                </table>
               </div>
-            </div>
-            <!-- 课程统计卡片 -->
+             
+            <!-- 课程统计卡片
             <div class="card">
               <h3><i class="fa fa-bar-chart"></i> 本月课程统计</h3>
               <div style="display: flex; gap: 20px; margin-top: 15px; padding: 0 20px;">
@@ -143,6 +155,7 @@
                 </div>
               </div>
             </div>
+             -->
             <!-- 待办事项卡片 
             <div class="card">
               <h3><i class="fa fa-tasks"></i> 待办事项</h3>
@@ -154,11 +167,12 @@
             </div>
             -->
           `;
+          refreshOnedayAppointmentNotesForTeacher("oneday-appointment-teacher"); 
           break;
         case '我的课程':
           // 操作按钮事件 --checkout----set online =false TBD 
            // 兼容性 fallback: 尝试直接渲染（首次页面加载时）
-                        renderTeacherCourseBrowserCards(); 
+           renderTeacherCourseAndScheduleBrowserCards(); 
           break;
           case '课程通知': //列出7日课程内， 显示课程名称、教师、学生、时间、课程状态，操作：发送通知1、2、3           
           // 渲染数据总览面板
@@ -186,8 +200,8 @@
            
              refreshAppointmentNotesForTeacher("days-appointment-teacher" );
             break;
-        case '预约管理': 
-                        renderTeacherAppointmentBrowserCards();  
+        case '预定管理': //booking
+            renderTeacherBookingandAppointmentBrowserCards();  
           break;
         case '学生评价':
           dynamicContent.innerHTML = `
@@ -327,8 +341,8 @@
    <script src="js/public/dataFunctions.js"></script> 
    <script src="js/public/courseAndBooking.js"></script>  
    <script src="js/public/appointmentNotes.js"></script>  
-   <script src="js/teacher-course.js"></script>     
-   <script src="js/teacher-course-appointment.js"></script>
+   <script src="js/teacher-course-schedule.js"></script>     
+   <script src="js/teacher-course-booking-appointment.js"></script>// 预定及日期
    <script src="js/teacher-AppointmentNotes.js"></script>
    <script> 
       console.log("end of body...")
