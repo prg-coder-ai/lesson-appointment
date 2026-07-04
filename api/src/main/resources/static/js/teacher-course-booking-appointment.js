@@ -25,7 +25,7 @@ let    lastCourseIndex =-1,   lastScheduleIndex =-1;
  * 
  */
     
-async function renderTeacherAppointmentBrowserCards() {
+async function renderTeacherBookingandAppointmentBrowserCards() {
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
     //console.log("container:",dynamicContentCenter);
     if (!dynamicContentCenter) return; 
@@ -37,7 +37,7 @@ async function renderTeacherAppointmentBrowserCards() {
       html += `  
     <!-- 预约状态显示和选择 TBD -->
    <div class="card">
-              <h3><i class="fa fa-calendar-check-o"></i> 我的全部预约</h3>
+              <h3><i class="fa fa-calendar-check-o"></i> 我的全部预定</h3>
               <div id="my-bookings">
 
               </div>      
@@ -126,33 +126,7 @@ async function renderTeacherAppointmentBrowserCards() {
             bookingContainer.innerHTML = `<div class="bookings-list">${bookingsHtml}</div>`;
         }
     }
-  
-    //TBD To Be test ,if the conditionJson tooked infact.
-    async function fetchCourseList(conditionJson) {
-        const token = getToken();
-        if (!token) return; 
-        try {
-            // Axios GET请求（修复response.json()错误，Axios已自动解析）
-            const response = await axios.get(`${API_BASE_URL}/course/list`, {
-                headers: { "Authorization": "Bearer " + token },
-                params: conditionJson // 筛选条件通过params传递
-            });
-            const res =  response.data;
-            //console.info("fetchCourseList:",res);
-            if (res && res.code === 200) {
-            console.info("data.courses:",res.data);   
-            return  res.data|| []; 
-            } else {
-            // alert(res?.message || '获取课程列表失败');
-                return   [];
-            }
-        } catch (e) {
-            //alert("网络错误，获取课程列表失败");
-            console.error(e);
-            return   [];
-        }
-    }
-
+   
    /*cardInfo的数据形式： 
      cardContent ={
     bookingId:"",
@@ -193,7 +167,7 @@ async function renderTeacherAppointmentBrowserCards() {
                 
                  </div>
                  <div class="course-actions">
-              
+                <!-- 教师不管理只查看
                      ${
                         cardInfo.status === 'booking'
                         ? `
@@ -216,7 +190,7 @@ async function renderTeacherAppointmentBrowserCards() {
                           `
                         : ''
                      }
-
+                 -->
                     ${
                         cardInfo.status === 'booked' || cardInfo.status === 'cancelling'
                           ? `<button class="btn btn-gray" onclick="viewMyReservationDetail('${cardInfo.bookingId}', '${cardInfo.origTz}')">预约详情</button>`
@@ -423,7 +397,7 @@ function renderCalendar(dateTimeList) {
   //     cancelling-->cancelled ,把预约时间列表各项的状态修改为取消 ，
   // ”删除命令“则删除bookID对应的booking、及对应的所有预约事件列表
 
-  async function validOrCancelReservation(bookingid,status) { 
+  async function validOrCancelReservationx(bookingid,status) { 
      // 根据bookingid在bookingList中查找对应的booking对象
      const bookingObj = Array.isArray(bookingList) ? bookingList.find(b => b.id === bookingid) : null; 
      const scheduleInfo = await fetchSchedule(bookingObj.scheduleId);
@@ -533,7 +507,7 @@ function renderCalendar(dateTimeList) {
    refreshData();
   }
 
-  
+  /* move to admin-provingBooking.js
     async function validBooking(bookingid){
        
       await operateBookingStatus( bookingid, "booked"); 
@@ -556,11 +530,13 @@ function renderCalendar(dateTimeList) {
             //更新booking预定状态
             await operateBookingStatus( bookingid, "t-cancelling"); 
              }
+             */
      // 解决“找不到函数loadSchedule”问题：确保loadSchedule在window作用域下暴露 
      window.renderCalendar    = renderCalendar ; 
-     window.getBookingList  = getBookingList ;  
-     window.cancelBooking   = cancelBooking ; 
-     window.validBooking   = validBooking ; 
+     window.getBookingList  = getBookingList ; 
+     
+    // window.cancelBooking   = cancelBooking ; 
+   //  window.validBooking   = validBooking ; 
      window.refreshData   = refreshData  ; 
      window.formACourseCardForTeacher   = formACourseCardForTeacher  ;  
      
