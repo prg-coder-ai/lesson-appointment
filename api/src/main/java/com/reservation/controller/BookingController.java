@@ -65,7 +65,6 @@ public class BookingController {
         return  Result.success(bk,"ok");
     }
 
-    // INSERT_YOUR_CODE
 
     /**
      * 统计某年月的预约（Booking）数量：月初（0点）和月末（23:59:59）

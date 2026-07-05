@@ -837,8 +837,8 @@ function renderResult() {
     const formData = getFormData();
     console.log("save form:",formData); 
 
-    // 引用CourseScheduleCreateDTO, 把formData赋值到dto对象
-    // 注意：前端js中无class，直接构造一个对象与后端CourseScheduleCreateDTO字段一致即可
+    // 引用ScheduleCreateDTO, 把formData赋值到dto对象
+    // 注意：前端js中无class，直接构造一个对象与后端ScheduleCreateDTO字段一致即可
  
   const sel = document.getElementById('courseSelect'); 
     // 读取sel的当前选择，并读取其中的teacherId
@@ -854,33 +854,7 @@ function renderResult() {
     return;
     }
    
-   // console.log("saveScheduleToDB",assignStudent,assignStudentId,teacherId);
-     // repeatType 映射优化
-     const repeatTypeMap = {
-        "none": 0,
-        "day": 1,
-        "week": 2,
-        "month": 3
-      };
-    let createdto = {
-      scheduleId: formData.scheduleId || "",
-      courseId: formData.courseId || "", 
-     // ClassroomId: formData.ClassroomId || "",
-      // 后端CourseScheduleCreateDTO是LocalDateTime/Date类型，这里传 yyyy-MM-dd 或 hh:mm:ss 字符串即可
-      startDate:  formData.startDate  ? formData.startDate  : "",
-      startTime: formData.startTime   || "",
-      endDate: formData.endDate ? formData.endDate : "",
- 
-      endTime: formData.startTime  || "",
-      //repeatType: formData.repeatType || 0,
-      repeatInterval: formData.interval || 1,
-      repeatDays: formData.repeatDays || [],
-      timeZone: formData.timeZone || userTimeZone || "",
-      availableSites: formData.availableSites || 1,
-      status: formData.status || "",
-      name:formData.name ||"",
-      repeatType: formData.repeatType in repeatTypeMap ? repeatTypeMap[formData.repeatType] : 0
-    };
+    let createdto = toScheduleCreateDto(formData);
       
    // console.log("save createdto:",createdto);
     let bExists = formData.scheduleId && formData.scheduleId !== "";
@@ -950,8 +924,8 @@ async function assignStudentToSchedule( ) {
  function checkSchedule(){ 
    // 检查排期冲突返回 clist
    // 由于 clist = checkScheduleConflict(cto); 是异步函数，应加 await 并处理返回值
-   const createdto = getFormData();
-   console.log("form:",form) ;
+   const createdto = toScheduleCreateDto(getFormData());
+   console.log("checkSchedule:",createdto) ;
    (async function(){
        // 注意：checkScheduleConflict 应当是 async，返回 {code, message, data}
        let clist = await checkScheduleConflict(createdto);

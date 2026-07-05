@@ -39,11 +39,14 @@ public class CourseScheduleService {
 
 // 3. 冲突检测：先展开重复规则，检查每个实例是否冲突--TBD：课程+room是否冲突
 // 参数excludeSchid 在修改已存在的排期时，带
-/*  约定：排期使用dto带入的用户时区
+/*  约定：排期使用dto带入的时区
+ 检查方法：1、与同一课程的其它排期的时间进行比较 ---采用--保守算法
+             2、与同一课程的已经预订的排期时间表进行比较 --精确算法
 */
-    public boolean checkScheduleOwnerConflict(ScheduleCreateDTO dto){ 
+    public Map<String,String>  checkScheduleOwnerConflict(ScheduleCreateDTO dto){
         ScheduleGenerateDTO  gto =CreateDtoToGenerateDto(dto);// new ScheduleGenerateDTO();
-        String timeZone = dto.getUserTimeZone();
+        String timeZone = dto.getTimeZone();//使用同一时区
+           gto.setUserTimeZone(timeZone);
         String excludeSchid = null;
         try {  excludeSchid = dto.getScheduleId();//
             if (excludeSchid == null || excludeSchid.trim().isEmpty()) {
@@ -63,36 +66,42 @@ public class CourseScheduleService {
          );
          if(excludeSchid!= null){
          // 从scheduleList中去除scheduleId对应的排期（即排除本身）
-         scheduleList.removeIf(sch -> excludeSchid.equals(sch.getScheduleId())); 
+             String finalExcludeSchid = excludeSchid;
+             scheduleList.removeIf(sch -> finalExcludeSchid.equals(sch.getScheduleId()));
          }
- 
+         
          List<com.reservation.dto.ScheduleVO> scheduleInstances = ScheduleGenerator.generateUserZoneSchedule(gto);
 
          //对于每一个的排期，调用generateUserZoneSchedule创建排期时间表，然后与scheduleInstances内的日期和时间进行比较，比较的标准是，两个时间在1小时内没有重叠。如果有重叠，则把该排期的scheduleID加入一个冲突列表
         // 对每个已存在的排期，生成其实例时间表，然后与待新增的 scheduleInstances 中每个实例比较，判重
-        Set<String,String> conflictScheduleIds = new HashSet<>();
+        Map<String,String> conflictScheduleIds = null;
+          if (conflictScheduleIds == null) {
+                            conflictScheduleIds = new HashMap<>();
+                        }
         // scheduleInstances 是当前待创建的实例时间列表
         // scheduleList 是数据库已有、同课程的其它排期
         for (CourseSchedule existSchedule : scheduleList) {
             // 构造 ScheduleGenerateDTO，转换 existSchedule 的各字段
-            ScheduleGenerateDTO existGto = CreateDtoToGenerateDto( ObjectToCreateDto(existSchedule));
+            ScheduleGenerateDTO existGto = CreateDtoToGenerateDto( ObjectToCreateDto(existSchedule));//object->create->Gto
                                existGto.setUserTimeZone(timeZone);//使用相同的时区进行比较
             List<com.reservation.dto.ScheduleVO> existInstances = ScheduleGenerator.generateUserZoneSchedule(existGto);
 
             // 两个实例表逐个比较
             for (com.reservation.dto.ScheduleVO existInst : existInstances) {
 
-                LocalDate existDate = existInst.getDate();
+                String existDate = existInst.getDate();
 
-                LocalTime existTime = existInst.getTime();
-                LocalDateTime existStart = LocalDateTime.of(existDate, existTime);
+                String existTime = existInst.getTime();
+                // 合并字符串日期和时间为一个日期时间对象
+                LocalDateTime existStart = LocalDateTime.parse(existDate + "T" + existTime); 
 
                 for (com.reservation.dto.ScheduleVO newInst : scheduleInstances) {
-                    LocalDate newDate = newInst.getDate();
-                    LocalTime newTime = newInst.getTime();
+                    String newDate = newInst.getDate();
+                    String newTime = newInst.getTime();
                     if(existDate!= newDate)
                      continue;//日期不同
-                    LocalDateTime newStart = LocalDateTime.of(newDate, newTime);
+                    LocalDateTime newStart = LocalDateTime.parse(newDate + "T" + newTime); 
+
 
                     // 比较新旧两个排期实例是否重叠（以1小时为互斥区间, 可视为每节课持续1小时）
                     LocalDateTime existEnd = existStart.plusHours(1);
@@ -101,7 +110,9 @@ public class CourseScheduleService {
                     // overlap: 两段有交集（即不是完全前后）
                     boolean overlap = !(newEnd.isBefore(existStart) || newStart.isAfter(existEnd));
                     if (overlap) {
-                        conflictScheduleIds.add(existSchedule.getScheduleId(),existSchedule.getName());
+                      
+                        conflictScheduleIds.put(existSchedule.getScheduleId(), existSchedule.getName());
+                   
                     }
                 }
             }
