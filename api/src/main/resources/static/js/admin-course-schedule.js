@@ -55,6 +55,7 @@ async function renderScheduleCards() {
         <select id="courseSelect" onchange="loadSchedule()">
             <option value="">请先选择课程</option>
         </select>
+         <button class="btn-success" onclick="refreshData()">刷新</button>
     </div>
      <!-- 排期选择下拉 -->
        <div class="form-line">
@@ -65,11 +66,8 @@ async function renderScheduleCards() {
     </div>
     <div class="section">
         <div style="display: flex; align-items: center; gap: 20px;">
-            <div class="section-title" style="margin: 0;">排期设置</div>
-            
-        </div>
-   
-
+            <div class="section-title" style="margin: 0;">排期设置</div> 
+        </div> 
         <div class="form-line" style="display:none;">
             <label>Id</label> 
             <input type="label" id="scheduleId">
@@ -172,7 +170,8 @@ async function renderScheduleCards() {
                 <option value="inactive">已收回</option>
                 <option value="active">已发布</option>
                 <option value="frozen">已删除</option>
-            </select>
+            </select>  
+            <div id="conflictMessage"></div>
         </div>
 
         <!-- 每周重复：星期选择 -->
@@ -205,7 +204,7 @@ async function renderScheduleCards() {
         <button class="btn-warning" onclick="checkSchedule()">检查冲突</button>
         <button class="btn-primary" onclick="saveScheduleToDB()">保存</button> 
         <button class="btn-danger"  onclick="deleteSchedule()">删除</button>
-        <button class="btn-success" onclick="refreshData()">刷新</button>
+       
 
         <label style="font-weight: normal; margin-left:8px;">
                 <button class="btn-primary"  onclick="assignStudentToSchedule()">指定学生</button>
@@ -612,7 +611,8 @@ return ;
 
    
      // 加载课程排期
-    async function loadSchedule() {
+    async function loadSchedule() { 
+       
       const cid = document.getElementById('courseSelect').value;
       
       if (!cid) return;
@@ -674,6 +674,12 @@ return ;
   }
   //当排期列表选择变化时，重新显示排期计划
    function displySchedule() { 
+
+    const conflictMessageElem = document.getElementById('conflictMessage');
+    if (conflictMessageElem) {
+        conflictMessageElem.textContent = '';
+    }
+
    // 查询scheduleSelect下拉框的当前，获取数据，调用 renderSchedule 更新当前选择
    const scheduleSelect = document.getElementById('scheduleSelect');
    if (!scheduleSelect) return;
@@ -924,6 +930,11 @@ async function assignStudentToSchedule( ) {
  function checkSchedule(){ 
    // 检查排期冲突返回 clist
    // 由于 clist = checkScheduleConflict(cto); 是异步函数，应加 await 并处理返回值
+   // INSERT_YOUR_CODE
+   const conflictMessageElem = document.getElementById('conflictMessage');
+   if (conflictMessageElem) {
+      conflictMessageElem.textContent = '正在检查';
+   }
    const createdto = toScheduleCreateDto(getFormData());
    console.log("checkSchedule:",createdto) ;
    (async function(){
@@ -940,19 +951,27 @@ async function assignStudentToSchedule( ) {
        if (conflictData && Array.isArray(conflictData) && conflictData.length > 0) {
            // 解析id与name
            let msg = "当前与该课程的以下排期存在冲突：\n";
-           conflictData.forEach(item => {
+           conflictData.forEach(item => {                
                // 可能是对象{id,name}，也可能是字符串 item.id 
-               if (typeof item === "object" &&   item.name ) {
-                 msg += `排期名称: ${item.name || ''}\n`;
+               if (typeof item === "object" && item.name ) {
+                 msg += ` ${item.name || ''}\n`;
                } else if (typeof item === "string") {
                  msg += item + "\n";
                } else {
                  msg += JSON.stringify(item) + "\n";
                }
            });
-           alert(msg);
+          // alert(msg);
+           if (conflictMessageElem) { 
+            conflictMessageElem.style.color = 'red';
+            conflictMessageElem.textContent = msg; 
+         }
        } else {
-           alert("该排期与该课程的其它排期没有冲突。");
+          // alert("该排期与该课程的其它排期没有冲突。");
+           if (conflictMessageElem) {
+            conflictMessageElem.style.color = 'green';
+            conflictMessageElem.textContent = "该排期与该课程的其它排期没有冲突。";
+         }
        }
    })(); 
  }
