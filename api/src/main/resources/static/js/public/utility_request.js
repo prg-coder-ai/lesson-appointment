@@ -137,6 +137,7 @@
               resolve(service(originalRequest));
             });
           });
+         
         }
         isRefreshing = true;
         try {
@@ -150,12 +151,14 @@
             originalRequest.headers.Authorization = `Bearer ${token}`;
             requestQueue.forEach((cb) => cb(token));
             requestQueue = [];
+            isRefreshing = false;
+
             return service(originalRequest);
           }
           throw new Error(result.message || result.msg || '刷新凭证失败');
         } catch (refreshErr) {
 
-          console.error("001 getNewToken:",refreshErr);
+        //  console.error("001 getNewToken:",refreshErr);
 
           localStorage.removeItem('token');
           localStorage.removeItem('refreshToken');
@@ -168,6 +171,25 @@
           isRefreshing = false;
         }
       }
+      /**
+       * 代码解释：
+       * 
+       * 上述代码片段是前端 axios 拦截器的 response 错误处理部分，主要关注 401 和 403 错误码（未授权和无权限）。
+       * 
+       * 1. 当请求返回 401 或 403 时，判断当前是否已经在执行刷新 token 的操作（isRefreshing）。
+       *    - 如果正在刷新，后续相同错误请求进入队列，等 token 刷新完再重新发请求。
+       *    - 如果没有刷新，则调用 getNewToken()（发起 /auth/refreshToken 请求），拿到新 token 后本地存储，并重放所有等待中的请求。
+       *    - 若刷新失败，则清空 token 和刷新队列，跳转回登录页。
+       * 2. 其他错误（404、500 等）进行友好提示。
+       * 
+       * 循环可能性分析：
+       * - 如果 /auth/refreshToken 这个请求也被同样的拦截器处理，并它返回 401/403，再次触发刷新，则会陷入死循环（即刷新接口也自动带 token 且因无效 token 被拦截）。
+       * - 但此代码中 getNewToken() 用的是 refreshTokenAxios 实例，理论上 refreshTokenAxios 没有挂全局拦截器，所以不会对 refreshToken 的调用再次进入自动刷新逻辑——因此**前端此处避免了循环**。
+       * 
+       * 总结：只要 refreshTokenAxios 没有挂载同样拦截，且 /auth/refreshToken API 逻辑不异常递归抛 401/403，前端这里不会进入逻辑死循环。
+       * 遇到循环多因 refreshToken 请求也被拦截/或后端实现问题导致反复 401。
+       */
+
 
       let errMsg = '';
       switch (status) {
@@ -192,3 +214,35 @@
 
   window.request = service;
 })();
+
+/*
+在刷新token时出现循环：更新、删除、插入一直在重复，说明在对user_refresh_token表的 CURD 操作时，前端/后端产生了意料之外的递归调用或死循环。
+
+常见原因及排查步骤如下：
+
+1. 后端 refreshToken 接口实现存在问题：
+   - 若 refreshToken 的接口在数据库操作（如 insert/update/delete user_refresh_token）时异常（如抛出异常未捕获），前端收到 401 或异常码后，重发刷新 token 请求，导致死循环。
+   - 或者刷新 token 的请求也被拦截器拦下，再次自动刷新，导致循环。
+
+2. 前端拦截器逻辑错误导致循环刷新：
+   - 如果前端的 axios 拦截器里，refreshToken 的请求响应被同一拦截器再次捕获（即 refreshToken 的接口本身也被自动附带 token、自动刷新），会引发无限递归。
+   - 应该为 refreshToken 请求单独设置 instance 或排除它不进入全局 response 拦截。
+
+3. 数据库 user_refresh_token 插入或更新逻辑错误：
+   - 业务层未能正常 upsert，触发插入、更新、删除的异常组合。
+   - 检查是否对同一用户的 refreshToken 进行了多余的 insert/delete。
+
+【解决建议：】
+
+A. 前端：
+   - 确认 refreshToken 请求不会再被拦截器进入自动刷新逻辑，可以通过为刷新专门创建一个 axios 实例，在拦截器加判断（如 config.url），或在请求头加特殊标识跳过。
+
+B. 后端：
+   - 检查 refreshToken 相关的数据库操作（user_refresh_token 表）逻辑，确认不会异常抛出并导致接口反复调用；
+   - 对 user_refresh_token 表采用「先查后改/插入」，避免因主键冲突、重复插入、并发更新导致异常。
+
+C. 日志追踪：
+   - 打印 token 刷新接口每一次调用的日志，确保没有多次触发。
+
+建议先检查 axios 拦截器逻辑以及数据库 token 处理代码，判断递归调用和死循环来源，通常是刷新 token 的请求本身被重复拦截或 CURD 异常未妥善处理。
+*/
