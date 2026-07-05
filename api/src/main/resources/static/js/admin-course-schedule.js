@@ -163,16 +163,7 @@ async function renderScheduleCards() {
             <span id="repeatUnit">天</span>
         </div>
 
-        <div class="form-line">
-            <label>状态：</label>
-           <select id="status">
-                <option value="pending">待发布</option>
-                <option value="inactive">已收回</option>
-                <option value="active">已发布</option>
-                <option value="frozen">已删除</option>
-            </select>  
-            <div id="conflictMessage"></div>
-        </div>
+       
 
         <!-- 每周重复：星期选择 -->
         <div class="form-line" id="weekDaysBox" style="display:none;">
@@ -194,7 +185,16 @@ async function renderScheduleCards() {
             <div id="monthDays">                  
             </div>
         </div>
-      
+       <div class="form-line">
+            <label>状态：</label>
+           <select id="status">
+                <option value="pending">待发布</option>
+                <option value="inactive">已收回</option>
+                <option value="active">已发布</option>
+                <option value="frozen">已删除</option>
+            </select>  
+            <div id="conflictMessage"></div>
+        </div>
     </div>
 
     <!-- 操作按钮 -->
@@ -954,15 +954,21 @@ async function assignStudentToSchedule( ) {
            conflictData.forEach(item => {                
                // 可能是对象{id,name}，也可能是字符串 item.id 
                if (typeof item === "object" && item.name ) {
-                 msg += ` ${item.name || ''}\n`;
+                 msg += `${item.name || ''}`+ "@@";
                } else if (typeof item === "string") {
-                 msg += item + "\n";
+                 msg += item + "@@";
                } else {
-                 msg += JSON.stringify(item) + "\n";
+                 msg += JSON.stringify(item)  ;
                }
            });
           // alert(msg);
            if (conflictMessageElem) { 
+            // INSERT_YOUR_CODE
+            // 把msg中的首尾的字符@@去掉，把中间的@@更换为逗号
+            msg = msg.replace(/^@@|@@$/g, ''); // 去除首尾@@
+            msg = msg.replace(/@@/g, '，');    // 替换中间的@@为逗号
+ 
+
             conflictMessageElem.style.color = 'red';
             conflictMessageElem.textContent = msg; 
          }

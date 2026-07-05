@@ -122,10 +122,17 @@ public class CourseScheduleService {
                     // 比较新旧两个排期实例是否重叠（以1小时为互斥区间, 可视为每节课持续1小时）
                     LocalDateTime existEnd = existStart.plusHours(1);
                     LocalDateTime newEnd = newStart.plusHours(1);
-
+                    // INSERT_YOUR_CODE
+                    // 如果结束时间与开始时间相同，认为是不冲突
+                    if (existEnd.equals(newStart) || newEnd.equals(existStart)) {
+                        continue; // 不算冲突，跳过
+                    }
+          
                     // overlap: 两段有交集（即不是完全前后）
                     boolean overlap = !(newEnd.isBefore(existStart) || newStart.isAfter(existEnd));
-                   // System.out .println(cnt*1000+cntapp +"cmp : newdate"+newStart +"---"+newEnd+"existEnd:" +existStart+"---"+existEnd +"overlap"+overlap);
+                    if(overlap){
+                     System.out .println(cnt*1000+cntapp +"cmp : newdate"+newStart +"---"+newEnd+"existEnd:" +existStart+"---"+existEnd +"overlap"+overlap);
+                    }
                    // cntapp= cntapp+1;
                     if (overlap) { 
 
@@ -147,31 +154,7 @@ public class CourseScheduleService {
                 }//for
             }
         }
-       // if (!conflictScheduleIds.isEmpty()) {
-         //   throw new IllegalArgumentException("时间冲突，已存在排期scheduleId: " + String.join(",", conflictScheduleIds));
-        //}
-        // INSERT_YOUR_CODE
-        // 定义一个由Json对象（如com.alibaba.fastjson.JSONObject）组成的List
-        // 方式1：如果使用fastjson
-        // List<JSONObject> jsonList = new ArrayList<>();
-
-        // 方式2：如果使用Jackson
-        // List<com.fasterxml.jackson.databind.JsonNode> jsonList = new ArrayList<>();
-
-        // 方式3：如果用通用的Map表示Json对象:
-        // List<Map<String, Object>> jsonList = new ArrayList<>();
-        // INSERT_YOUR_CODE
-        // 假设我们有一些数据，比如要把conflictScheduleIds（Map<String,String>）转为List<Map<String, Object>>
-      /*  List<Map<String, Object>> jsonList = new ArrayList<>();
-        for (Map.Entry<String, String> entry : conflictScheduleIds.entrySet()) {
-            Map<String, Object> map = new HashMap<>();
-            map.put("id", entry.getKey());
-            map.put("name", entry.getValue());
-            jsonList.add(map);
-        }
-*/
-        // 具体使用哪种取决于你的依赖库和业务场景
-
+       
        // System.out .println("conflictScheduleIds:"+conflictScheduleIds);
       return  conflictScheduleIds;  
     }
@@ -489,3 +472,28 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
  *   - 确认所有 XML 标签已闭合，字符实体(&)等已转义，SQL片段无冗余尖括号。
  * 4. 该 Service 层无需额外代码（问题在Mapper XML层），建议修复XML后重启服务即可。
  */
+
+// if (!conflictScheduleIds.isEmpty()) {
+         //   throw new IllegalArgumentException("时间冲突，已存在排期scheduleId: " + String.join(",", conflictScheduleIds));
+        //}
+        // INSERT_YOUR_CODE
+        // 定义一个由Json对象（如com.alibaba.fastjson.JSONObject）组成的List
+        // 方式1：如果使用fastjson
+        // List<JSONObject> jsonList = new ArrayList<>();
+
+        // 方式2：如果使用Jackson
+        // List<com.fasterxml.jackson.databind.JsonNode> jsonList = new ArrayList<>();
+
+        // 方式3：如果用通用的Map表示Json对象:
+        // List<Map<String, Object>> jsonList = new ArrayList<>();
+        // INSERT_YOUR_CODE
+        // 假设我们有一些数据，比如要把conflictScheduleIds（Map<String,String>）转为List<Map<String, Object>>
+      /*  List<Map<String, Object>> jsonList = new ArrayList<>();
+        for (Map.Entry<String, String> entry : conflictScheduleIds.entrySet()) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", entry.getKey());
+            map.put("name", entry.getValue());
+            jsonList.add(map);
+        }
+*/
+        // 具体使用哪种取决于你的依赖库和业务场景
