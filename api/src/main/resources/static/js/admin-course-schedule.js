@@ -929,13 +929,14 @@ async function assignStudentToSchedule( ) {
    (async function(){
        // 注意：checkScheduleConflict 应当是 async，返回 {code, message, data}
        let clist = await checkScheduleConflict(createdto);
+       console.log("checkSchedule:",clist);
        if (!clist) {
           alert("检测排期冲突时发生错误！");
           return;
        }
-       // clist.data 预期为冲突列表，Set<String,String>，通常为 array of {id, name} 或 string id
+       // clist  预期为冲突列表，Map<String,String>，通常为 array of {id, name}  
        // 分情况处理
-       let conflictData = clist.data;
+       let conflictData = clist ;
        if (conflictData && Array.isArray(conflictData) && conflictData.length > 0) {
            // 解析id与name
            let msg = "存在冲突排期：\n";
