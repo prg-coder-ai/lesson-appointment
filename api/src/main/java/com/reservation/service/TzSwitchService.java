@@ -21,14 +21,14 @@ public class TzSwitchService {
         try{
             // 示例：DateTime 格式假设为 "yyyy-MM-dd HH:mm:ss"
             String dateTimeStr = dataIn.getDateTime();
-            // INSERT_YOUR_CODE
+         
             if (dateTimeStr != null && dateTimeStr.contains("T")) {
                 dateTimeStr = dateTimeStr.replace("T", " ");
                // if(dateTimeStr.contains("Z")) {
                // dateTimeStr = dateTimeStr.replace("Z", "");
               //  }
             }
-            // INSERT_YOUR_CODE
+           
             // 如果dateTimeStr包含小数点，则删除小数点及其后的字符串
             if (dateTimeStr != null && dateTimeStr.contains(".")) {
                 dateTimeStr = dateTimeStr.substring(0, dateTimeStr.indexOf('.'));

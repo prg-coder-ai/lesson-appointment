@@ -43,10 +43,12 @@ public class CourseScheduleService {
  检查方法：1、与同一课程的其它排期的时间进行比较 ---采用--保守算法
              2、与同一课程的已经预订的排期时间表进行比较 --精确算法
 */
+
     public Map<String,String>  checkScheduleOwnerConflict(ScheduleCreateDTO dto){
         ScheduleGenerateDTO  gto =CreateDtoToGenerateDto(dto);// new ScheduleGenerateDTO();
         String timeZone = dto.getTimeZone();//使用同一时区
            gto.setUserTimeZone(timeZone);
+           
         String excludeSchid = null;
         try {  excludeSchid = dto.getScheduleId();//
             if (excludeSchid == null || excludeSchid.trim().isEmpty()) {
