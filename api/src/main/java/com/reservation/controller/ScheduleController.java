@@ -165,9 +165,9 @@ public class ScheduleController {
 //检查指定的排期是否与相同课程的其它排期冲突，返回冲突的排除id和name
      @PostMapping("/checkConflict")
     @ResponseBody
-  public Result<Map<String,String>> checkConflict(@RequestBody ScheduleCreateDTO cto, @RequestHeader("Authorization") String token) {
+  public Result< List<Map<String, Object>> > checkConflict(@RequestBody ScheduleCreateDTO cto, @RequestHeader("Authorization") String token) {
      
-      Map<String,String> confictScds = scheduleService.checkScheduleOwnerConflict(cto);
+       List<Map<String, Object>> confictScds = scheduleService.checkScheduleOwnerConflict(cto);
  
       //   返回统一数据结构（包含 code/message/data 字段）
       return Result.success(confictScds,  "confict schedule list for   id and name ");

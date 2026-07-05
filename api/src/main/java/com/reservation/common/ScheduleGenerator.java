@@ -58,7 +58,7 @@ public class ScheduleGenerator {
         boolean isSameZone = fromZone.equals(toZone);
 
         if(isSameZone) { 
-            System.out.println("zonedFrom: " + fromZone);
+           // System.out.println("zonedFrom: " + fromZone);
                 for (LocalDateTime ldt : userSchedule) {
                     ZonedDateTime zonedFrom = ldt.atZone(fromZone); 
 
@@ -70,13 +70,13 @@ public class ScheduleGenerator {
                 convertedSchedule.add(item); 
                 }
         }else  {    // 把userSchedule的元素转为UserTimeZone对应的数据   
-         System.out.println("zonedFrom: " + fromZone +"-->"+toZone );
+       //  System.out.println("zonedFrom: " + fromZone +"-->"+toZone );
                 for (LocalDateTime ldt : userSchedule) {
                     ZonedDateTime zonedFrom = ldt.atZone(fromZone);
-                    System.out.println("zonedFrom: " + zonedFrom);
+                   // System.out.println("zonedFrom: " + zonedFrom);
 
                     ZonedDateTime zonedTo = zonedFrom.withZoneSameInstant(toZone);
-                    System.out.println("zonedTo: " + zonedTo);
+                  //  System.out.println("zonedTo: " + zonedTo);
 
                     String dateStr = zonedTo.toLocalDate().toString(); // yyyy-MM-dd
                     String timeStr = String.format("%02d:%02d:00", zonedTo.getHour(), zonedTo.getMinute());
@@ -185,7 +185,7 @@ public class ScheduleGenerator {
                 .toLocalDateTime();
     }
     // 把一个时区的时间转为另一个时区的时间
-    public static LocalDateTime timeSwitchWidthZone(LocalDateTime dateTime, String fromZoneId, String toZoneId) {
+    public static LocalDateTime timeSwitchWithZone(LocalDateTime dateTime, String fromZoneId, String toZoneId) {
         ZoneId fromZone = ZoneId.of(fromZoneId);
         ZoneId toZone = ZoneId.of(toZoneId);
 
@@ -196,8 +196,8 @@ public class ScheduleGenerator {
         ZonedDateTime zonedTo = zonedFrom.withZoneSameInstant(toZone);
 
         // 调试输出，可根据需求保留或删除
-        System.out.println("zonedFrom: " + zonedFrom);
-        System.out.println("zonedTo: " + zonedTo);
+     //   System.out.println("zonedFrom: " + zonedFrom);
+       // System.out.println("zonedTo: " + zonedTo);
 
         // 返回目标时区下的本地日期时间
         return zonedTo.toLocalDateTime();
