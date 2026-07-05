@@ -44,7 +44,7 @@ public class CourseScheduleService {
              2、与同一课程的已经预订的排期时间表进行比较 --精确算法
 */
 
-    public Map<String,String>  checkScheduleOwnerConflict(ScheduleCreateDTO dto){
+    public  List<Map<String, Object>>   checkScheduleOwnerConflict(ScheduleCreateDTO dto){
         ScheduleGenerateDTO  gto =CreateDtoToGenerateDto(dto);// new ScheduleGenerateDTO();
         String timeZone = dto.getTimeZone();//使用同一时区
            gto.setUserTimeZone(timeZone);
@@ -72,87 +72,108 @@ public class CourseScheduleService {
              scheduleList.removeIf(sch -> finalExcludeSchid.equals(sch.getScheduleId()));
          }
          
-         List<com.reservation.dto.ScheduleVO> scheduleInstances = ScheduleGenerator.generateUserZoneSchedule(gto);
+         List< ScheduleVO> scheduleInstances = ScheduleGenerator.generateUserZoneSchedule(gto);
 
          //对于每一个的排期，调用generateUserZoneSchedule创建排期时间表，然后与scheduleInstances内的日期和时间进行比较，比较的标准是，两个时间在1小时内没有重叠。如果有重叠，则把该排期的scheduleID加入一个冲突列表
         // 对每个已存在的排期，生成其实例时间表，然后与待新增的 scheduleInstances 中每个实例比较，判重
-        Map<String,String> conflictScheduleIds = null;
-          if (conflictScheduleIds == null) {
-                            conflictScheduleIds = new HashMap<>();
-                        }
+        //Map<String,String> conflictScheduleIds = null;
+        List<Map<String, Object>> conflictScheduleIds = new ArrayList<>(); 
+       // System.out .println("compared in tz : " +timeZone );
+     //   System.out .println("scheduleInstances : " +scheduleInstances );
         // scheduleInstances 是当前待创建的实例时间列表
         // scheduleList 是数据库已有、同课程的其它排期
+        int cnt=0;
+
+        //System.out .println("newSchedule : "+cnt +" newGto:" +gto );
         for (CourseSchedule existSchedule : scheduleList) {
             // 构造 ScheduleGenerateDTO，转换 existSchedule 的各字段
             ScheduleGenerateDTO existGto = CreateDtoToGenerateDto( ObjectToCreateDto(existSchedule));//object->create->Gto
-                               existGto.setUserTimeZone(timeZone);//使用相同的时区进行比较
-            List<com.reservation.dto.ScheduleVO> existInstances = ScheduleGenerator.generateUserZoneSchedule(existGto);
+            existGto.setUserTimeZone(timeZone);//使用相同的时区进行比较
 
+            //System.out .println("existSchedule : "+cnt +" existGto:" +existGto );
+            List<com.reservation.dto.ScheduleVO> existInstances = ScheduleGenerator.generateUserZoneSchedule(existGto);
+          cnt++;
             // 两个实例表逐个比较
-            for (com.reservation.dto.ScheduleVO existInst : existInstances) {
+            for (ScheduleVO existInst : existInstances) {
 
                 String existDate = existInst.getDate();
-
                 String existTime = existInst.getTime();
                 // 合并字符串日期和时间为一个日期时间对象
                 LocalDateTime existStart = LocalDateTime.parse(existDate + "T" + existTime); 
-
-                for (com.reservation.dto.ScheduleVO newInst : scheduleInstances) {
+                int cntapp=0;
+                for ( ScheduleVO newInst : scheduleInstances) {
                     String newDate = newInst.getDate();
                     String newTime = newInst.getTime();
-                    if(existDate!= newDate)
-                     continue;//日期不同
-                    LocalDateTime newStart = LocalDateTime.parse(newDate + "T" + newTime); 
-
-
+                  //  System.out .println(cnt*1000+cntapp +"  newdate "+newDate +" "+newTime+" exist: " +existDate +" "+existTime+"org:"+newInst);
+                   
+                    // 判断existDate和newDate是否是系统的字符串
+                    // 这里可以检查是否为null、并且是否为字符串类型（在Java中如果变量类型是String一般不用再判断类型，但可防御性书写如下）
+                    if (!(existDate instanceof String) || !(newDate instanceof String)) {
+                        System.out.println("existDate或newDate不是字符串类型，existDate=" + existDate + ", newDate=" + newDate);
+                        continue; // 跳过本次比较
+                    }
+                
+                    if (!existDate.equals(newDate)) {
+                        continue; // 日期不同则跳过本次比较
+                    }
+            
+                    LocalDateTime newStart = LocalDateTime.parse(newDate + "T" + newTime);
+                  //  System.out .println(cnt*1000+cntapp +"newStart:"+newStart+"exist:"+existStart);
                     // 比较新旧两个排期实例是否重叠（以1小时为互斥区间, 可视为每节课持续1小时）
                     LocalDateTime existEnd = existStart.plusHours(1);
                     LocalDateTime newEnd = newStart.plusHours(1);
 
                     // overlap: 两段有交集（即不是完全前后）
                     boolean overlap = !(newEnd.isBefore(existStart) || newStart.isAfter(existEnd));
-                    if (overlap) {
-                      
-                        conflictScheduleIds.put(existSchedule.getScheduleId(), existSchedule.getName());
-                   
+                   // System.out .println(cnt*1000+cntapp +"cmp : newdate"+newStart +"---"+newEnd+"existEnd:" +existStart+"---"+existEnd +"overlap"+overlap);
+                   // cntapp= cntapp+1;
+                    if (overlap) { 
+
+                         Map<String, Object> map = new HashMap<>();
+                            map.put("id", existSchedule.getScheduleId());
+                            map.put("name", existSchedule.getName());
+                            
+                            boolean alreadyExists = false;
+                            for (Map<String, Object> existing : conflictScheduleIds) {
+                                if (existing.get("id") != null && existing.get("id").equals(map.get("id"))) {
+                                    alreadyExists = true;
+                                    break;
+                                }
+                            }
+                            if (!alreadyExists) {                        
+                            conflictScheduleIds.add(map);
                     }
-                }
+                    }
+                }//for
             }
         }
        // if (!conflictScheduleIds.isEmpty()) {
          //   throw new IllegalArgumentException("时间冲突，已存在排期scheduleId: " + String.join(",", conflictScheduleIds));
         //}
-      return  conflictScheduleIds;
-        /*
-        这段冲突检测的原理如下：
+        // INSERT_YOUR_CODE
+        // 定义一个由Json对象（如com.alibaba.fastjson.JSONObject）组成的List
+        // 方式1：如果使用fastjson
+        // List<JSONObject> jsonList = new ArrayList<>();
 
-        1. 首先将排期创建DTO（ScheduleCreateDTO）中的排期参数（起止日期、起止时间、重复规则等）转换为调度规则DTO（ScheduleGenerateDTO）的格式。
-        2. 根据排期的重复类型（如每日、每周、每月），调用ScheduleGenerator.generateUserZoneSchedule(gto)方法，生成所有要创建的排期的时间区间（如多次课程的所有开始和结束时间）。
-        3. 对于每一个生成的时间区间（instance），通过
-           scheduleMapper.selectConflictingSchedules(
-                dto.getTeacherId(),  start, end, null
-            );
-           
-           )
-           查询数据库中是否已经有同一位教师在该时间段内的其他排期（可选教室冲突检查）。
-        4. 如果查询结果不为空，说明教师或教室在该时间段已被占用，直接抛出时间冲突异常。
+        // 方式2：如果使用Jackson
+        // List<com.fasterxml.jackson.databind.JsonNode> jsonList = new ArrayList<>();
 
-        能否实现对同一个教师的课程排期重叠检查？
+        // 方式3：如果用通用的Map表示Json对象:
+        // List<Map<String, Object>> jsonList = new ArrayList<>();
+        // INSERT_YOUR_CODE
+        // 假设我们有一些数据，比如要把conflictScheduleIds（Map<String,String>）转为List<Map<String, Object>>
+      /*  List<Map<String, Object>> jsonList = new ArrayList<>();
+        for (Map.Entry<String, String> entry : conflictScheduleIds.entrySet()) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", entry.getKey());
+            map.put("name", entry.getValue());
+            jsonList.add(map);
+        }
+*/
+        // 具体使用哪种取决于你的依赖库和业务场景
 
-        答：可以实现教师课程排期的重叠检查。
-
-        主要原因是：
-        - 检查逻辑明确用到了教师ID（dto.getTeacherId()）作为selectConflictingSchedules的查询条件。
-        - 每一个要创建的新排期区间都会和数据库中当前已存在的排期进行重叠判断。
-        - 只要有任何与教师ID相关的重叠排期存在，都会抛出异常阻止创建。
-
-        注意事项：
-        - selectConflictingSchedules方法的SQL实现需正确判断时间重叠（例如 NOT (end1 <= start2 OR start1 >= end2)）。
-        - 新增排期的 courseId 或 scheduleId 与排除本身编辑时重叠的情况也需注意。
-
-        结论：该段逻辑能够实现教师课程排期的重叠检测。
-        */
-
+       // System.out .println("conflictScheduleIds:"+conflictScheduleIds);
+      return  conflictScheduleIds;  
     }
     // 创建排期（含冲突检测）
     @Transactional(rollbackFor = Exception.class)

@@ -939,11 +939,11 @@ async function assignStudentToSchedule( ) {
        let conflictData = clist ;
        if (conflictData && Array.isArray(conflictData) && conflictData.length > 0) {
            // 解析id与name
-           let msg = "存在冲突排期：\n";
+           let msg = "当前与该课程的以下排期存在冲突：\n";
            conflictData.forEach(item => {
-               // 可能是对象{id,name}，也可能是字符串
-               if (typeof item === "object" && (item.id || item.name)) {
-                 msg += `ID: ${item.id || ''}，名称: ${item.name || ''}\n`;
+               // 可能是对象{id,name}，也可能是字符串 item.id 
+               if (typeof item === "object" &&   item.name ) {
+                 msg += `排期名称: ${item.name || ''}\n`;
                } else if (typeof item === "string") {
                  msg += item + "\n";
                } else {
@@ -954,9 +954,7 @@ async function assignStudentToSchedule( ) {
        } else {
            alert("该排期与该课程的其它排期没有冲突。");
        }
-   })();
-
- 
+   })(); 
  }
  
  //这个render过程结束
