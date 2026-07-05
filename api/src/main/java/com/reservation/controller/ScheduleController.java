@@ -2,7 +2,7 @@ package com.reservation.controller;
 
 import com.reservation.common.Result;
 import com.reservation.entity.CourseSchedule;
-import com.reservation.dto.*;/*.CourseScheduleCreateDTO; 
+import com.reservation.dto.*;/*.ScheduleCreateDTO; 
 import com.reservation.entity.IncSiteBody;
 import com.reservation.entity.StatusBody;
 import com.reservation.entity.SchedulePO;
@@ -19,11 +19,12 @@ import org.springframework.validation.annotation.Validated;
 import javax.annotation.Resource;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 //import java.time.*;
-
+// /course/schedule-->/schedule
 @RestController
-@RequestMapping("/course/schedule")
-public class CourseScheduleController {
+@RequestMapping("/schedule")
+public class ScheduleController {
 
     @Resource
     private CourseScheduleService scheduleService;
@@ -32,7 +33,7 @@ public class CourseScheduleController {
     // 创建排期
     @PostMapping("/create")
     @ResponseBody
-    public Result<Map<String, String>>  createSchedule(@Validated @RequestBody CourseScheduleCreateDTO dto,
+    public Result<Map<String, String>>  createSchedule(@Validated @RequestBody ScheduleCreateDTO dto,
                                                    @RequestHeader("Authorization") String token) {
          permissionCheck.checkTeacherOrAdmin(token);
          Map<String, String> resultMap = scheduleService.createSchedule(dto);//////TBD: local->UTC switch
@@ -42,7 +43,7 @@ public class CourseScheduleController {
     // 修改排期
     @PostMapping("/update")
     @ResponseBody
-    public Result<Map<String, String>> updateSchedule(@Validated @RequestBody CourseScheduleCreateDTO dto,
+    public Result<Map<String, String>> updateSchedule(@Validated @RequestBody ScheduleCreateDTO dto,
                                       @RequestHeader("Authorization") String token) {
         permissionCheck.checkTeacherOrAdmin(token);
         Map<String, String> rst = scheduleService.update(dto); // TBD: local->UTC switch
@@ -80,23 +81,23 @@ public class CourseScheduleController {
 //输入可能的检索参数，暂保留
     @GetMapping("/list")
      @ResponseBody
-    public Result<List<CourseScheduleCreateDTO>> getScheduleList(@Validated @RequestBody CourseScheduleCreateDTO dto,
+    public Result<List<ScheduleCreateDTO>> getScheduleList(@Validated @RequestBody ScheduleCreateDTO dto,
                    @RequestHeader("Authorization") String token) {
                //     System.out .println("getScheduleList dto:" + dto);
-        List<CourseScheduleCreateDTO> schedules = scheduleService.selectList(dto); //TBD: UTC-->local switch
+        List<ScheduleCreateDTO> schedules = scheduleService.selectList(dto); //TBD: UTC-->local switch
         return Result.success(schedules,"ok");
     }
 
     @GetMapping("/selectByCourseId/{courseId}")
      @ResponseBody
-    public Result<List<CourseScheduleCreateDTO>> getScheduleByCourseId(@PathVariable String courseId, 
+    public Result<List<ScheduleCreateDTO>> getScheduleByCourseId(@PathVariable String courseId, 
      @RequestParam(required = false) String status,
     @RequestHeader("Authorization") String token) {
 
     //    System.out.println("selectByCourseId status:" +status);
 
-              CourseScheduleCreateDTO dto = new CourseScheduleCreateDTO();
-              // INSERT_YOUR_CODE
+              ScheduleCreateDTO dto = new ScheduleCreateDTO();
+              
               dto.setScheduleId(null);
              // dto.setCourseId(null);
              // dto.setCourseName(null);
@@ -119,7 +120,7 @@ public class CourseScheduleController {
               dto.setCourseId(courseId); // courseId
  
     ////System.out .println("getScheduleByCourseId dto:" + dto);
-              List<CourseScheduleCreateDTO> schedules = scheduleService.selectList(dto); 
+              List<ScheduleCreateDTO> schedules = scheduleService.selectList(dto); 
 
        return Result.success(schedules,"ok");
     } 
@@ -160,8 +161,18 @@ public class CourseScheduleController {
       // 4. 返回统一数据结构（包含 code/message/data 字段）
       return Result.success(userZoneList, "user localtime list");
   }
-
-// INSERT_YOUR_CODE
+   
+//检查指定的排期是否与相同课程的其它排期冲突，返回冲突的排除id和name
+     @PostMapping("/checkConflict")
+    @ResponseBody
+  public Result<Set<String,String>> checkConflict(@RequestBody ScheduleCreateDTO cto, @RequestHeader("Authorization") String token) {
+     
+      Set<String,String> confictScds = scheduleService.checkScheduleOwnerConflict(cto);
+ 
+      //   返回统一数据结构（包含 code/message/data 字段）
+      return Result.success(confictScds,  "confict schedule list for   id and name ");
+  }
+ 
 /**
  * 指定学生预约排期，并生成appointment，保障原子性
  * 前端传 scheduleId, studentId，后端调用service事务处理

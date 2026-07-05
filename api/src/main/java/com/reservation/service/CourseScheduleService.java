@@ -17,7 +17,8 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
-
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -36,53 +37,125 @@ public class CourseScheduleService {
      @Resource
     private AppointmentService appointmentService;
 
+// 3. 冲突检测：先展开重复规则，检查每个实例是否冲突--TBD：课程+room是否冲突
+// 参数excludeSchid 在修改已存在的排期时，带
+/*  约定：排期使用dto带入的用户时区
+*/
+    public boolean checkScheduleOwnerConflict(ScheduleCreateDTO dto){ 
+        ScheduleGenerateDTO  gto =CreateDtoToGenerateDto(dto);// new ScheduleGenerateDTO();
+        String timeZone = dto.getUserTimeZone();
+        String excludeSchid = null;
+        try {  excludeSchid = dto.getScheduleId();//
+            if (excludeSchid == null || excludeSchid.trim().isEmpty()) {
+                excludeSchid = null;
+            }
+        } catch (Exception ex) {
+                   excludeSchid = null;
+                   System.out.println(" checkScheduleOwnerConflict Error getting scheduleId: " + ex.getMessage());
+               }
+    
+       
+         // 获取courseID= dto.getCourseId()的所有排期，以List方式输出
+         List<CourseSchedule> scheduleList = scheduleMapper.selectList(
+             new ScheduleCreateDTO() {{
+                 setCourseId(dto.getCourseId());
+             }}
+         );
+         if(excludeSchid!= null){
+         // 从scheduleList中去除scheduleId对应的排期（即排除本身）
+         scheduleList.removeIf(sch -> excludeSchid.equals(sch.getScheduleId())); 
+         }
+ 
+         List<com.reservation.dto.ScheduleVO> scheduleInstances = ScheduleGenerator.generateUserZoneSchedule(gto);
+
+         //对于每一个的排期，调用generateUserZoneSchedule创建排期时间表，然后与scheduleInstances内的日期和时间进行比较，比较的标准是，两个时间在1小时内没有重叠。如果有重叠，则把该排期的scheduleID加入一个冲突列表
+        // 对每个已存在的排期，生成其实例时间表，然后与待新增的 scheduleInstances 中每个实例比较，判重
+        Set<String,String> conflictScheduleIds = new HashSet<>();
+        // scheduleInstances 是当前待创建的实例时间列表
+        // scheduleList 是数据库已有、同课程的其它排期
+        for (CourseSchedule existSchedule : scheduleList) {
+            // 构造 ScheduleGenerateDTO，转换 existSchedule 的各字段
+            ScheduleGenerateDTO existGto = CreateDtoToGenerateDto( ObjectToCreateDto(existSchedule));
+                               existGto.setUserTimeZone(timeZone);//使用相同的时区进行比较
+            List<com.reservation.dto.ScheduleVO> existInstances = ScheduleGenerator.generateUserZoneSchedule(existGto);
+
+            // 两个实例表逐个比较
+            for (com.reservation.dto.ScheduleVO existInst : existInstances) {
+
+                LocalDate existDate = existInst.getDate();
+
+                LocalTime existTime = existInst.getTime();
+                LocalDateTime existStart = LocalDateTime.of(existDate, existTime);
+
+                for (com.reservation.dto.ScheduleVO newInst : scheduleInstances) {
+                    LocalDate newDate = newInst.getDate();
+                    LocalTime newTime = newInst.getTime();
+                    if(existDate!= newDate)
+                     continue;//日期不同
+                    LocalDateTime newStart = LocalDateTime.of(newDate, newTime);
+
+                    // 比较新旧两个排期实例是否重叠（以1小时为互斥区间, 可视为每节课持续1小时）
+                    LocalDateTime existEnd = existStart.plusHours(1);
+                    LocalDateTime newEnd = newStart.plusHours(1);
+
+                    // overlap: 两段有交集（即不是完全前后）
+                    boolean overlap = !(newEnd.isBefore(existStart) || newStart.isAfter(existEnd));
+                    if (overlap) {
+                        conflictScheduleIds.add(existSchedule.getScheduleId(),existSchedule.getName());
+                    }
+                }
+            }
+        }
+       // if (!conflictScheduleIds.isEmpty()) {
+         //   throw new IllegalArgumentException("时间冲突，已存在排期scheduleId: " + String.join(",", conflictScheduleIds));
+        //}
+      return  conflictScheduleIds;
+        /*
+        这段冲突检测的原理如下：
+
+        1. 首先将排期创建DTO（ScheduleCreateDTO）中的排期参数（起止日期、起止时间、重复规则等）转换为调度规则DTO（ScheduleGenerateDTO）的格式。
+        2. 根据排期的重复类型（如每日、每周、每月），调用ScheduleGenerator.generateUserZoneSchedule(gto)方法，生成所有要创建的排期的时间区间（如多次课程的所有开始和结束时间）。
+        3. 对于每一个生成的时间区间（instance），通过
+           scheduleMapper.selectConflictingSchedules(
+                dto.getTeacherId(),  start, end, null
+            );
+           
+           )
+           查询数据库中是否已经有同一位教师在该时间段内的其他排期（可选教室冲突检查）。
+        4. 如果查询结果不为空，说明教师或教室在该时间段已被占用，直接抛出时间冲突异常。
+
+        能否实现对同一个教师的课程排期重叠检查？
+
+        答：可以实现教师课程排期的重叠检查。
+
+        主要原因是：
+        - 检查逻辑明确用到了教师ID（dto.getTeacherId()）作为selectConflictingSchedules的查询条件。
+        - 每一个要创建的新排期区间都会和数据库中当前已存在的排期进行重叠判断。
+        - 只要有任何与教师ID相关的重叠排期存在，都会抛出异常阻止创建。
+
+        注意事项：
+        - selectConflictingSchedules方法的SQL实现需正确判断时间重叠（例如 NOT (end1 <= start2 OR start1 >= end2)）。
+        - 新增排期的 courseId 或 scheduleId 与排除本身编辑时重叠的情况也需注意。
+
+        结论：该段逻辑能够实现教师课程排期的重叠检测。
+        */
+
+    }
     // 创建排期（含冲突检测）
     @Transactional(rollbackFor = Exception.class)
-    public Map<String, String> createSchedule(CourseScheduleCreateDTO dto) {
+    public Map<String, String> createSchedule(ScheduleCreateDTO dto) {
         // 1. 基础校验：结束时间 > 开始时间
         /*if (dto.getEndTime().isBefore(dto.getStartTime())) {
             throw new IllegalArgumentException("结束时间必须晚于开始时间");
         }*/
 
         // 2. 转换DTO为实体
-        CourseSchedule schedule = DtoToObject(dto);
-         // 3. 冲突检测：先展开重复规则，检查每个实例是否冲突--TBD：课程+room是否冲突
-       /* ScheduleGenerateDTO gto;
-        // 复制dto的字段到gto, userTimezone = timeZone
-        gto = new ScheduleGenerateDTO();
-        if(dto.getStartDate() != null) gto.setStartDate(dto.getStartDate().toLocalDate());
-        if(dto.getEndDate() != null) gto.setEndDate(dto.getEndDate().toLocalDate());
-        if(dto.getStartTime() != null) gto.setStartTime(dto.getStartTime().toLocalTime());
-        // repeatType转换：CourseScheduleCreateDTO为Integer，ScheduleGenerateDTO为String
-        if(dto.getRepeatType() == 0) {
-            gto.setRepeatType("none");
-        } else if(dto.getRepeatType() == 1) {
-            gto.setRepeatType("day");
-        } else if(dto.getRepeatType() == 2) {
-            gto.setRepeatType("week");
-        } else if(dto.getRepeatType() == 3) {
-            gto.setRepeatType("month");
-        }
-        gto.setInterval(dto.getRepeatInterval());
-        gto.setRepeatDays(dto.getRepeatDays());
-        gto.setTimeZone(dto.getTimeZone());
-        gto.setUserTimeZone(dto.getTimeZone());
-       
-         List<LocalDateTime> scheduleInstances = ScheduleGenerator.generateUserZoneSchedule(gto);
-        for (LocalDateTime instance : scheduleInstances) {
-            LocalDateTime start = instance[0];
-            LocalDateTime end = instance[1];
-            List<CourseSchedule> conflicts = scheduleMapper.selectConflictingSchedules(
-                dto.getTeacherId(),  start, end, null
-            );
-            if (!conflicts.isEmpty()) {
-                throw new IllegalArgumentException("时间冲突：" + start + " 至 " + end + " 教师或教室已被占用");
-            }
-        }*/
-         System.out .println("create : " +dto+"-->"+ schedule); 
+        CourseSchedule schedule = CreateDtoToObject(dto); 
+     //    System.out .println("create : " +dto+"-->"+ schedule); 
         String  Id = UUID.randomUUID().toString().replace("-", ""); // 移除UUID分隔符
         schedule.setScheduleId( Id);
          //System.out .println("setScheduleId: " + schedule);
+         //3-- 检查冲突---由其它程序完成，
         // 4. 插入排期
         scheduleMapper.insertSchedule(schedule);
        
@@ -105,10 +178,10 @@ public class CourseScheduleService {
   
 //TBD:与createSchedule一样，需要检查排期冲突问题
   @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
-    public Map<String, String> update(CourseScheduleCreateDTO dto) { 
-          System.out .println("update : " +dto); 
-          CourseSchedule schedule = DtoToObject(dto);     
-          System.out .println("update : " + schedule); 
+    public Map<String, String> update(ScheduleCreateDTO dto) { 
+        //  System.out .println("update : " +dto); 
+          CourseSchedule schedule = CreateDtoToObject(dto);     
+         // System.out .println("update : " + schedule); 
           scheduleMapper.update(schedule);
         return Collections.singletonMap("Id", dto.getScheduleId());
     }
@@ -116,7 +189,7 @@ public class CourseScheduleService {
 //更新可用数 incSiteBody { "inc":1、-1 ，"id":scheduleId)
   @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public String updateScheduleSites(IncSiteBody Obj) {
-         System.out.println("updateScheduleSites : " +Obj);         
+         //System.out.println("updateScheduleSites : " +Obj);         
          scheduleMapper.updateSites(Obj);
         return Obj.getScheduleId();
     }
@@ -137,29 +210,37 @@ public class CourseScheduleService {
     }
 
 @Transactional(propagation = Propagation.REQUIRED)
-    public List<CourseScheduleCreateDTO> selectList(CourseScheduleCreateDTO obj) {
+    public List<ScheduleCreateDTO> selectList(ScheduleCreateDTO obj) {
          
           List<CourseSchedule> s = scheduleMapper.selectList(obj);//获取原始排期
             //System.out .println("selectList : " +s); 
-          return ListObjectToDto(s);
+          return ListObjectToCreateDto(s);
     }
  
- private  List<CourseScheduleCreateDTO> ListObjectToDto(List<CourseSchedule> objList){
-         List<CourseScheduleCreateDTO> result = new ArrayList<>();
+ private  List<ScheduleCreateDTO> ListObjectToCreateDto(List<CourseSchedule> objList){
+         List<ScheduleCreateDTO> result = new ArrayList<>();
            for (CourseSchedule cs : objList) {
-               //System.out .println("ListObjectToDto : " +cs); 
-            CourseScheduleCreateDTO dto = ObjectToDto(cs);
+               //System.out .println("ListObjectToCreateDto : " +cs); 
+            ScheduleCreateDTO dto = ObjectToCreateDto(cs);
                result.add(dto);
            }
            return result;
  }
- private CourseScheduleCreateDTO ObjectToDto (CourseSchedule cs){ 
-               CourseScheduleCreateDTO dto = new CourseScheduleCreateDTO();
+ private ScheduleCreateDTO ObjectToCreateDto (CourseSchedule cs){ 
+               ScheduleCreateDTO dto = new ScheduleCreateDTO();
+               String sid =null; 
+               try {
+                   sid = cs.getScheduleId();
+               } catch (Exception ex) {
+                   sid = null;
+                   System.out.println("ObjectToCreateDto Error getting scheduleId: " + ex.getMessage());
+               }
+          
                 dto.setScheduleId(cs.getScheduleId());
                 dto.setCourseId(cs.getCourseId());
                // CourseSchedule 里没有 teacherId / ClassroomId 字段, 若需要请补充
-              // dto.setTeacherId(null);
-              // dto.setClassroomId(null);
+              // dto.setTeacherId(null);--》courseObject
+              // dto.setClassroomId(null);TBD
 
                // startTime-->statDate,startTime, endTime 转换为 LocalDateTime
                if (cs.getStartTime() != null && !cs.getStartTime().isEmpty()) {
@@ -178,8 +259,7 @@ public class CourseScheduleService {
                    try {
                        dto.setEndDate(java.time.LocalDate.parse(cs.getEndTime().substring(0, 10)));
                    } catch (Exception ex) { dto.setEndDate(null); }
-                    try {
-                       // INSERT_YOUR_CODE
+                    try { 
                        String timePart = cs.getEndTime().length() >= 19 ? cs.getEndTime().substring(11, 19) : null; 
                        dto.setEndTime(java.time.LocalTime.parse(timePart));
                    } catch (Exception ex) { dto.setEndTime(null); 
@@ -202,14 +282,14 @@ public class CourseScheduleService {
                return dto;
  }
  //用于保存到数据库
-private CourseSchedule  DtoToObject(CourseScheduleCreateDTO dto){
-    System.out .println("DtoToObject : " +dto);
+private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
+  //  System.out .println("CreateDtoToObject : " +dto);
     if (dto == null) return null;
     CourseSchedule cs = new CourseSchedule();
     cs.setCourseId(dto.getCourseId());
     cs.setScheduleId(dto.getScheduleId());
     // cs.setClassroomId(dto.getClassroomId());
-   //System.out .println("DtoToObject : " +dto);         
+   //System.out .println("CreateDtoToObject : " +dto);         
     // LocalDateTime 转 String（假定格式为 "yyyy-MM-dd HH:mm:ss"）
     // 错误分析:
     // 1. dto.getStartDate() 和 dto.getStartTime() 已分别是 LocalDate 和 LocalTime，无需再调用 toLocalDate()/toLocalTime()
@@ -256,33 +336,18 @@ private CourseSchedule  DtoToObject(CourseScheduleCreateDTO dto){
 
   // 假设有以下依赖： BookingMapper bookingMapper; AppointmentMapper appointmentMapper;
   //              CourseScheduleMapper scheduleMapper;
+ 
+ public ScheduleGenerateDTO CreateDtoToGenerateDto(ScheduleCreateDTO crtDto ){
+    ScheduleGenerateDTO genDto   = new ScheduleGenerateDTO();
+      genDto.setStartDate(crtDto.getStartDate());
+         genDto.setEndDate(crtDto.getEndDate());
+         genDto.setStartTime(crtDto.getStartTime());
+           // genDto.setStartDate(crtDto.getStartTime() != null ? LocalDate.parse(crtDto.getStartTime().substring(0, 10)) : null);
+           // genDto.setStartTime(crtDto.getStartTime() != null ? LocalTime.parse(crtDto.getStartTime().substring(11, 19)) : null);
+          //  genDto.setEndDate(crtDto.getEndTime() != null ? LocalDate.parse(crtDto.getEndTime().substring(0, 10)) : null); 
 
-  @Transactional(rollbackFor = Exception.class)
-  public boolean asgn_student(String scheduleId, String studentId,String teacherId) {
-      // 1. 创建 booking 数据
-      Booking booking = new Booking();
-      String bookingId = UUID.randomUUID().toString();
-      booking.setId(bookingId);
-      booking.setScheduleId(scheduleId);
-      booking.setStudentId(studentId);
-      booking.setTeacherId(teacherId);
-      booking.setStatus("booked");
-    //  booking.setCreateTime(LocalDateTime.now());
-      bookingMapper.insert(booking);
- System.out .println("insert Book:" + booking);
-
-      // 2. 根据 scheduleId 获取排期详情（比如起止日期、重复规则）
-      CourseSchedule schedule = scheduleMapper.selectById(scheduleId);
-      if (schedule == null) {
-          throw new RuntimeException("排期不存在");
-      }
-      // 构造 generateDTO 用于生成 appointment 时间列表 ScheduleGenerateDTO
-      CourseScheduleCreateDTO crtDto= ObjectToDto(schedule); 
-      ScheduleGenerateDTO genDto   = new ScheduleGenerateDTO();
-        genDto.setStartDate(crtDto.getStartDate());
-        genDto.setEndDate(crtDto.getEndDate());
-        genDto.setStartTime(crtDto.getStartTime());
         String  repeatType = "none";
+        if (crtDto.getRepeatType() != null) 
         switch(crtDto.getRepeatType()){ 
             case 0: break;
             case 1:repeatType="day";break;
@@ -296,6 +361,31 @@ private CourseSchedule  DtoToObject(CourseScheduleCreateDTO dto){
         genDto.setRepeatDays(crtDto.getRepeatDays());
         genDto.setTimeZone(crtDto.getTimeZone());
         genDto.setUserTimeZone(crtDto.getTimeZone());
+        return genDto;
+}
+
+  @Transactional(rollbackFor = Exception.class)
+  public boolean asgn_student(String scheduleId, String studentId,String teacherId) {
+      // 1. 创建 booking 数据
+      Booking booking = new Booking();
+      String bookingId = UUID.randomUUID().toString();
+      booking.setId(bookingId);
+      booking.setScheduleId(scheduleId);
+      booking.setStudentId(studentId);
+      booking.setTeacherId(teacherId);
+      booking.setStatus("booked");
+    //  booking.setCreateTime(LocalDateTime.now());
+      bookingMapper.insert(booking);
+ //System.out .println("insert Book:" + booking);
+
+      // 2. 根据 scheduleId 获取排期详情（比如起止日期、重复规则）
+      CourseSchedule schedule = scheduleMapper.selectById(scheduleId);
+      if (schedule == null) {
+          throw new RuntimeException("排期不存在");
+      }
+      // 构造 generateDTO 用于生成 appointment 时间列表 ScheduleGenerateDTO
+      ScheduleCreateDTO crtDto= ObjectToCreateDto(schedule); 
+      ScheduleGenerateDTO genDto   =  CreateDtoToGenerateDto(crtDto);
 //.out .println("asgn_student genDto:" + genDto);
       // 3. 由工具类展开实例日期+时间
       List<ScheduleVO> instanceList = ScheduleGenerator.generateUserZoneSchedule(genDto);

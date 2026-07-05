@@ -6,10 +6,10 @@ import java.util.List;
 
 @Data
 public class ScheduleGenerateDTO {
-    private LocalDate startDate;
-    private LocalDate endDate;
+    private LocalDate startDate;//
+    private LocalDate endDate;//包含结束日期，
 
-    private LocalTime startTime;
+    private LocalTime startTime;//每次默认1小时
     private String repeatType;    // none/day/week/month
     private Integer interval;//重复周期
     private List<Integer> repeatDays; // 1=周一 ... 7=周日，1~31日 

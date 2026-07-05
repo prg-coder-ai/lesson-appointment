@@ -202,6 +202,7 @@ async function renderScheduleCards() {
     <div class="btn-group">
        <button class="btn-success" onclick="resetSchedule()">新建</button>
         <button class="btn-primary" onclick="previewSchedule()">预览排期</button>
+        <button class="btn-warning" onclick="checkSchedule()">检查冲突</button>
         <button class="btn-primary" onclick="saveScheduleToDB()">保存</button> 
         <button class="btn-danger"  onclick="deleteSchedule()">删除</button>
         <button class="btn-success" onclick="refreshData()">刷新</button>
@@ -274,7 +275,7 @@ async function renderScheduleCards() {
 
   window.resetSchedule = resetSchedule ;   
   window.refreshData = refreshData ;
-
+  window.checkSchedule = checkSchedule ;
   window.getTestDatetime = getTestDatetime ;   
   window.getTestEndDatetime = getTestEndDatetime ;
 
@@ -747,7 +748,7 @@ return ;
    // 预览排期--列出排期的所有时间及日历
    async function previewSchedule() {
      const form = getFormData();
-    //console.log("form:",form) ;
+    // console.log("form:",form) ;
     // 生成排期列表 localDateTime List<Date,TIME>
      scheduleResult = await generateScheduleListFromServer(form);
      console.log("result:",scheduleResult) ;
@@ -943,11 +944,45 @@ async function assignStudentToSchedule( ) {
 
  function refreshData(){
     //再次读取排期数据并显示
-    loadSchedule();
- 
+    loadSchedule(); 
  }
 
-      
+ function checkSchedule(){ 
+   // 检查排期冲突返回 clist
+   // 由于 clist = checkScheduleConflict(cto); 是异步函数，应加 await 并处理返回值
+   const createdto = getFormData();
+   console.log("form:",form) ;
+   (async function(){
+       // 注意：checkScheduleConflict 应当是 async，返回 {code, message, data}
+       let clist = await checkScheduleConflict(createdto);
+       if (!clist) {
+          alert("检测排期冲突时发生错误！");
+          return;
+       }
+       // clist.data 预期为冲突列表，Set<String,String>，通常为 array of {id, name} 或 string id
+       // 分情况处理
+       let conflictData = clist.data;
+       if (conflictData && Array.isArray(conflictData) && conflictData.length > 0) {
+           // 解析id与name
+           let msg = "存在冲突排期：\n";
+           conflictData.forEach(item => {
+               // 可能是对象{id,name}，也可能是字符串
+               if (typeof item === "object" && (item.id || item.name)) {
+                 msg += `ID: ${item.id || ''}，名称: ${item.name || ''}\n`;
+               } else if (typeof item === "string") {
+                 msg += item + "\n";
+               } else {
+                 msg += JSON.stringify(item) + "\n";
+               }
+           });
+           alert(msg);
+       } else {
+           alert("该排期与该课程的其它排期没有冲突。");
+       }
+   })();
+
+ 
+ }
  
  //这个render过程结束
 /**

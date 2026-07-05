@@ -134,7 +134,10 @@
     </update>
 
     
-    <!-- 冲突检测核心SQL：查询时间区间有交集的排期，判断教师及时间 -->
+    <!-- 冲突检测核心SQL：查询时间区间有交集的排期，判断教师及时间 
+    检查方法：1、与同一课程的其它排期的时间进行比较
+             2、与同一课程的已经预订的排期时间表进行比较
+    -->
     <select id="selectConflictingSchedules" resultType="com.reservation.entity.CourseSchedule">
         SELECT * FROM course_schedule
         WHERE status ="active"

@@ -74,7 +74,7 @@ async function fetchScheduleList( cid,status) {
 
         // 用 request 方法改写 axios GET
         const res = await request({
-            url: `${API_BASE_URL}/course/schedule/selectByCourseId/${cid}`,
+            url: `${API_BASE_URL}/schedule/selectByCourseId/${cid}`,
             method: 'GET',
             params: conditionJson // params 自动附加到 URL 上（被 @RequestParam 接收） 
         }); 
@@ -137,7 +137,7 @@ async function fetchSchedule( scheduleid) {
   console.log("fetchSchedule :" ,scheduleid); 
   try { 
       const res = await request({
-        url: `${API_BASE_URL}/course/schedule/detail/${scheduleid}`,
+        url: `${API_BASE_URL}/schedule/detail/${scheduleid}`,
         method: 'GET' 
       }); 
           //console.info("fetchSchedule:",res.data);
@@ -159,7 +159,7 @@ async function operateSchedule(scheduleId, action) {
         status: action
       };
       console.log("payload：",payload); 
-    const  res = await request({url:`${API_BASE_URL}/course/schedule/updateStatus`,  
+    const  res = await request({url:`${API_BASE_URL}/schedule/updateStatus`,  
       method: 'POST', 
       data:  payload  //controller: @RequestBody IncSiteBody dto
     });
@@ -169,7 +169,7 @@ async function operateSchedule(scheduleId, action) {
 
 // 
     async function saveScheduleToServer(bExists,dto) {
-       const url = bExists? `course/schedule/update` : `course/schedule/create`; 
+       const url = bExists? `schedule/update` : `schedule/create`; 
        console.log("saveScheduleToServer:",bExists,dto);
     try{
       const result = await request({url: `${API_BASE_URL}/${url}`, 
@@ -307,7 +307,7 @@ return [];
     }; */
 // 分析：可能由于日期时区或构造Date的方式导致了前端和后端实际天数偏差。例如直接用new Date('yyyy-MM-dd')会因时区差别导致日期减少1天。可以尝试使用new Date(year, month, day)规避。
 async function generateScheduleListFromServer(formData) { 
-  const url = `course/schedule/generate` ;
+  const url = `schedule/generate` ;
  // const token = getToken();
 //  const queryString = new URLSearchParams(form).toString(); ccc?${queryString}
   try { 
@@ -778,7 +778,7 @@ async function operateCourse(courseId, action) {
                 return false ;
             }
             try {
-                const url = `course/schedule/assign-student`; 
+                const url = `schedule/assign-student`; 
                 // 用 request 方法发送请求
                 const result = await request({
                     url: `${API_BASE_URL}/${url}`,
@@ -803,7 +803,7 @@ async function operateCourse(courseId, action) {
 //用request方法改写
 //controller: @RequestBody ScheduleGenerateDTO dto
 async function generateScheduleListFromServer(formData) { 
-  const url = `course/schedule/generate` ; 
+  const url = `schedule/generate` ; 
   try {
       // 用 request 方法改写
       const result = await request({
@@ -825,3 +825,24 @@ async function generateScheduleListFromServer(formData) {
       console.error(err);  
   }
 } 
+//CourseScheduleCreateDTO
+async function checkScheduleConflict(cto){
+// INSERT_YOUR_CODE
+    // cto: CourseScheduleCreateDTO 结构
+    const url = `schedule/checkConflict`;
+    try {
+        const result = await request({
+            url: `${API_BASE_URL}/${url}`,
+            method: 'POST',
+            data: cto
+        });
+        // 预期返回：Result<Set<String,String>>，即冲突的排期 scheduleId 与 name 的集合
+        return result; // {code, message, data}
+    } catch (err) {
+        alert('检测排期冲突失败');
+        console.error(err);
+        return null;
+    }
+
+   
+}
