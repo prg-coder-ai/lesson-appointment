@@ -167,6 +167,35 @@ async function operateSchedule(scheduleId, action) {
         return res ;   
     } ;
 
+/** 将表单数据转为后端 ScheduleCreateDTO（repeatType 为 0-3 整数） */
+function toScheduleCreateDto(formData) {
+    const repeatTypeMap = { none: 0, day: 1, week: 2, month: 3 };
+    const raw = formData.repeatType;
+    let repeatType = 0;
+    if (typeof raw === 'number') {
+        repeatType = raw;
+    } else if (raw != null && raw in repeatTypeMap) {
+        repeatType = repeatTypeMap[raw];
+    } else if (raw != null && !isNaN(Number(raw))) {
+        repeatType = Number(raw);
+    }
+    return {
+        scheduleId: formData.scheduleId || '',
+        courseId: formData.courseId || '',
+        startDate: formData.startDate || '',
+        startTime: formData.startTime || '',
+        endDate: formData.endDate || '',
+        endTime: formData.endTime || formData.startTime || '',
+        repeatType,
+        repeatInterval: formData.repeatInterval ?? formData.interval ?? 1,
+        repeatDays: formData.repeatDays || [],
+        timeZone: formData.timeZone || (typeof userTimeZone !== 'undefined' ? userTimeZone : '') || '',
+        availableSites: formData.availableSites || 1,
+        status: formData.status || '',
+        name: formData.name || ''
+    };
+}
+
 // 
     async function saveScheduleToServer(bExists,dto) {
        const url = bExists? `schedule/update` : `schedule/create`; 
