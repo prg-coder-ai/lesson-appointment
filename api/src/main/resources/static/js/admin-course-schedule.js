@@ -7,6 +7,8 @@
 let currentScheduleId= "";
 let teacherId = "";
  let currentCourseIndex =-1,currentScheduleIndex=-1;
+ let  conflictMessageElem =null;//conflictMessage
+ let  resultBodyElem =null,resultCalendarElem=null;// id= resultBody,Id="calendar";
 var localParamter ={ 
   currentPage:1,         // 当前页码（初始值由Thymeleaf渲染）
   pageSize : 10,           // 页大小
@@ -25,14 +27,14 @@ var localParamter ={
  */
 async function renderScheduleCards() {
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
-    console.log("renderScheduleCards:",dynamicContentCenter);
+   // console.log("renderScheduleCards:",dynamicContentCenter);
     if (!dynamicContentCenter) return; 
     // 显示加载中
     dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';  
     // 渲染HTML
     let html = ''; 
       html += `     
-     <div class="search-bar">
+     <div class="search-bar" style="display:none">
         <input type="text" id="courseName" placeholder="课程名称">
         <select id="language">
             <option value="">语言</option>
@@ -259,7 +261,7 @@ async function renderScheduleCards() {
     // INSERT_YOUR_CODE
     // 关联 testTimeZone 下拉菜单与 handleTestTimeZoneChange 处理
     handleTestTimeZoneChange(); 
-    searchCourse();  
+     searchCourse();  //display 
     //添加学生列表 ---
     addStudentList(); 
 
@@ -279,6 +281,10 @@ async function renderScheduleCards() {
   window.getTestEndDatetime = getTestEndDatetime ;
 
   window.assignStudentToTheSchedule = assignStudentToTheSchedule;
+
+  conflictMessageElem = document.getElementById('conflictMessage'); 
+  resultBodyElem =document.getElementById('resultBody'); 
+  resultCalendarElem=document.getElementById('calendar');;// id= resultBody,Id="calendar";
     console.log("schedule page END");
   } //renderScheduleCards
 
@@ -423,25 +429,24 @@ function handleTestTimeZoneChange() {
 } 
 
  // 1. 检索课程（原生 fetch）
- async function searchCourse() { 
+   async function searchCourse() { 
     const params = {
         courseName: document.getElementById('courseName').value,
         languageType: document.getElementById('language').value,
         difficultyLevel: document.getElementById('difficulty').value,
         teacher: document.getElementById('teacher').value
     };
- console.log("searchCourse ",params);//TBD---
+// console.log("searchCourse ",params);//TBD---
   
   try { 
     courseList = await  getCourseList( params); 
   } catch (e) {
       // 模拟数据
-      courseList = [ ];
-     
-      //alert("模拟课程加载成功");
+      courseList = [ ]; 
   }
      renderCourseSelect();
 }
+      
 
 //把courseList列在下拉框中
 function renderCourseSelect() {
@@ -675,11 +680,17 @@ return ;
   //当排期列表选择变化时，重新显示排期计划
    function displySchedule() { 
 
-    const conflictMessageElem = document.getElementById('conflictMessage');
+   // const conflictMessageElem = document.getElementById('conflictMessage');
     if (conflictMessageElem) {
         conflictMessageElem.textContent = '';
     }
-
+   if(resultCalendarElem)  {
+    resultCalendarElem.hidden = true;
+    resultCalendarElem.innerHTML='';
+   }
+   if(resultBodyElem) {
+      resultBodyElem.hidden = true;
+   }
    // 查询scheduleSelect下拉框的当前，获取数据，调用 renderSchedule 更新当前选择
    const scheduleSelect = document.getElementById('scheduleSelect');
    if (!scheduleSelect) return;
@@ -757,7 +768,13 @@ return ;
     // console.log("form:",form) ;
     // 生成排期列表 localDateTime List<Date,TIME>
      scheduleResult = await generateScheduleListFromServer(form);
-     console.log("result:",scheduleResult) ;
+    // console.log("result:",scheduleResult) ;
+     if(resultCalendarElem)  {
+        resultCalendarElem.hidden = false;
+       }
+       if(resultBodyElem) {
+          resultBodyElem.hidden = false;
+       }
     renderResult();
     renderCalendar();
     //alert("预览成功");
@@ -796,7 +813,7 @@ function renderResult() {
       // 假设格式为'yyyy-MM-dd'
       const [year, month, day] = firstDateStr.split('-');
       firstDateVar = new Date(Number(year), Number(month) - 1, Number(day));
-      console.log('firstDateVar:', firstDateVar);
+     // console.log('firstDateVar:', firstDateVar);
   }
 
   // startDate设置为dateSet第一项表示的日期（如果有），否则用今天
@@ -841,14 +858,13 @@ function renderResult() {
     //TBD :判断排期是否已经存在---
    // const token = getToken();
     const formData = getFormData();
-    console.log("save form:",formData); 
+   // console.log("save form:",formData); 
 
     // 引用ScheduleCreateDTO, 把formData赋值到dto对象
     // 注意：前端js中无class，直接构造一个对象与后端ScheduleCreateDTO字段一致即可
  
   const sel = document.getElementById('courseSelect'); 
-    // 读取sel的当前选择，并读取其中的teacherId
-    
+    // 读取sel的当前选择，并读取其中的teacherId 
     if (sel && sel.value) {
       const selectedOption = sel.options[sel.selectedIndex];
       if (selectedOption) {
@@ -856,12 +872,11 @@ function renderResult() {
       }
     } else {
     // INSERT_YOUR_CODE
-    alert("请先选择课程！");
+    alert("请选择课程！");
     return;
     }
    
-    let createdto = toScheduleCreateDto(formData);
-      
+    let createdto = toScheduleCreateDto(formData);      
    // console.log("save createdto:",createdto);
     let bExists = formData.scheduleId && formData.scheduleId !== "";
 
@@ -950,11 +965,11 @@ async function assignStudentToSchedule( ) {
        let conflictData = clist ;
        if (conflictData && Array.isArray(conflictData) && conflictData.length > 0) {
            // 解析id与name
-           let msg = "当前与该课程的以下排期存在冲突：\n";
+           let msg = "与以下排期存在冲突：\n";
            conflictData.forEach(item => {                
                // 可能是对象{id,name}，也可能是字符串 item.id 
                if (typeof item === "object" && item.name ) {
-                 msg += `${item.name || ''}`+ "@@";
+                 msg += `${item.name}`+ "@@";
                } else if (typeof item === "string") {
                  msg += item + "@@";
                } else {
