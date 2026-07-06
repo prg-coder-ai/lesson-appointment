@@ -1,5 +1,5 @@
  //排期管理--页面
- console.log("schedule page");
+ console.log("admin schedule page");
 //let courseList = [];       // 课程列表
 //let scheduleObject=null;       // 排期
 //let scheduleList =[];
@@ -95,6 +95,7 @@ async function renderScheduleCards() {
              <div class="form-line" style="display: flex;"> 
                   <label>开始日期：</label>
                   <input type="date" align-items: right; id="startDate" value="${(new Date()).toISOString().split('T')[0]}">
+                  <input type="text" id="startDate_weekday"  readonly>
              </div>
   
               <div class="form-line">
@@ -104,6 +105,7 @@ async function renderScheduleCards() {
                <div class="form-line" > 
                 <label>结束日期：</label>
                 <input type="date" id="endDate" value="">
+                 <input type="text" id="endDate_weekday"  readonly>
             </div> 
            </div>
            <!-- 右侧：并排显示新一列 -->
@@ -135,7 +137,8 @@ async function renderScheduleCards() {
              </div>
              <div class="form-line" style="display: flex;">
                 <label>日期：</label>  
-                <input type="date" id="displayStartDate" readonly> <input type="text" id="displayStartDate_weekday"  readonly>
+                <input type="date" id="displayStartDate" readonly>  
+                 <input type="text" id="displayStartDate_weekday"  readonly>
              </div>
              <div class="form-line">
                 <label>时间：</label>  
@@ -319,6 +322,7 @@ async function renderScheduleCards() {
     
  
 // 处理下拉菜单"testTimeZone"的变更，读取表单的timeZone、startDate、startTime及新选择的时区，调用后端获取转换后的时间和日期
+
 function handleTestTimeZoneChange() {
     const select = document.getElementById('testTimeZone');
     //console.log(" handleTestTimeZoneChange",select);
@@ -330,11 +334,31 @@ function handleTestTimeZoneChange() {
             getTestEndDatetime();
         });
     }
+    const StartDateElm = document.getElementById('startDate');
+    if (StartDateElm) {
+        StartDateElm.addEventListener('change', async (e) => { 
+            getTestDatetime();  
+        });
+    }
+
+    const StartTimeElm = document.getElementById('startTime');
+    if (StartTimeElm) {
+        StartTimeElm.addEventListener('change', async (e) => { 
+            getTestDatetime();  
+        });
+    }
+
+    const EndDateElm = document.getElementById('endDate');
+    if (EndDateElm) {
+        EndDateElm.addEventListener('change', async (e) => {  
+            getTestEndDatetime();
+        });
+    }
 }
  // INSERT_YOUR_CODE
- // 监听 startDate 和 startTime 的变更，调用 getTestDatetime
+ // 监听 startDate 和 startTime 的变更，调用 getTestDatetime --not actived 
     const bindGetTestDatetimeToInputs = () => {
-        const startDateInput = document.getElementById('startDate'); 
+        /*const startDateInput = document.getElementById('startDate'); 
         // 避免重复绑定
         if (startDateInput && !startDateInput.__bindGetTestDatetime) {
             startDateInput.addEventListener('change', getTestDatetime);
@@ -352,7 +376,7 @@ function handleTestTimeZoneChange() {
         if (endtDateInput && !endtDateInput.__bindGetTestDatetime) {
             endtDateInput.addEventListener('change', getTestEndDatetime);
             endtDateInput.__bindGetTestDatetime = true;
-        }
+        }*/
     };
 
     // 保证在HTML渲染后执行绑定
@@ -362,7 +386,7 @@ function handleTestTimeZoneChange() {
         bindGetTestDatetimeToInputs();
     }
 
-
+// 按照左侧 的时间和日期，同步修改右侧指定时区的显示
  async function getTestDatetime() {
     const displayTzInput = document.getElementById('testTimeZone');
      // 读取原时区、日期与时间。这些输入框id需与页面实际结构对应
@@ -377,6 +401,10 @@ function handleTestTimeZoneChange() {
      const toTz= displayTzInput.value;
      // 组装为 DateTime 字符串（假定格式为: yyyy-MM-dd HH:mm:ss）
      const dateTimeStr = `${startDate} ${startTime.length === 5 ? startTime + ":00" : startTime}`;
+     // INSERT_YOUR_CODE
+  
+     document.getElementById('startDate_weekday').value =getWeekdayFromDateTime(dateTimeStr);// newTzDateTime.weekday; 
+
      try {  
          let newTzDateTime = await tzSwitchTo(fromZone, dateTimeStr, toTz);
          //console.log("切换时区为", toTz, newTzDateTime, "原区:", fromZone, "原日期时间:", dateTimeStr);
@@ -388,7 +416,7 @@ function handleTestTimeZoneChange() {
              const [newDate, newTime] = newDateTime.split(' '); 
              document.getElementById('displayStartDate').value = newDate;
              document.getElementById('displayStartTime').value = newTime; 
-             document.getElementById('displayStartDate_weekday').value = newTzDateTime.weekday; 
+             document.getElementById('displayStartDate_weekday').value = getWeekdayFromDateTime(newDate);//newTzDateTime.weekday; 
          } else {
              // 错误提示辅助调试
            //  console.error("tzSwitchTo 返回的 newDateTime 不是有效的字符串，值为：", newDateTime);
@@ -413,12 +441,15 @@ function handleTestTimeZoneChange() {
      const toTz= displayTzInput.value;
      // 组装为 DateTime 字符串（假定格式为: yyyy-MM-dd HH:mm:ss）
      const dateTimeStr = `${startDate} ${startTime.length === 5 ? startTime + ":00" : startTime}`;
+
+     document.getElementById('endDate_weekday').value =getWeekdayFromDateTime(dateTimeStr);// newTzDateTime.weekday; 
+
      try { 
          const newDateTime= await tzSwitchTo(fromZone,dateTimeStr,toTz);
           if(newDateTime) {
              const newDate = newDateTime.dateTime.split(' ')[0]; 
              document.getElementById('displayEndDate').value =newDate ;
-             document.getElementById('displayEndDate_weekday').value = newDateTime.weekday ;
+             document.getElementById('displayEndDate_weekday').value =getWeekdayFromDateTime(newDate);// newDateTime.weekday ;
              //document.getElementById('startTime').innerHTML =newTime ; 
           }
             // console.log("切换时区为", switchToTimeZone, "原区:", fromZone, "原日期时间:", dateTimeStr);
@@ -484,6 +515,8 @@ function renderSchedule() {
      // 刷新开始日期
      if (scheduleObject.startDate) {
          document.getElementById('startDate').value = scheduleObject.startDate;
+         document.getElementById('startDate_weekday').value =getWeekdayFromDateTime(scheduleObject.startDate);// newTzDateTime.weekday; 
+
      } else {
          document.getElementById('startDate').value = '';
      }
@@ -517,7 +550,9 @@ function renderSchedule() {
 
      // 刷新结束日期
      if (scheduleObject.endDate) {
-         document.getElementById('endDate').value = scheduleObject.endDate;
+         document.getElementById('endDate').value = scheduleObject.endDate; 
+         document.getElementById('endDate_weekday').value =getWeekdayFromDateTime(scheduleObject.endDate);// newTzDateTime.weekday; 
+
      } else {
          document.getElementById('endDate').value = '';
      } 
@@ -991,7 +1026,7 @@ async function assignStudentToSchedule( ) {
           // alert("该排期与该课程的其它排期没有冲突。");
            if (conflictMessageElem) {
             conflictMessageElem.style.color = 'green';
-            conflictMessageElem.textContent = "该排期与该课程的其它排期没有冲突。";
+            conflictMessageElem.textContent = "该排期没有时间冲突。";
          }
        }
    })(); 
