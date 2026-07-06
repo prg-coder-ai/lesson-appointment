@@ -329,3 +329,46 @@ const userStr = localStorage.getItem('currentUser');
     console.error('自动登录校验异常:', err);
   });
 } ;
+
+   // 计算日期 dateTimeStr 对应的 weekday（1=周一, 2=周二,...,7=周日），可用于调试辅助
+   function getWeekdayFromDateTime(dateTimeStr) {
+    // dateTimeStr 形如 'yyyy-MM-dd HH:mm:ss' 或 'yyyy-MM-dd'
+    if (!dateTimeStr) return "";
+    let datePart = dateTimeStr.split(" ")[0];
+    let d = new Date(datePart);
+    // JS getDay(): 0=Sunday, 1=Monday,...6=Saturday
+    //let jsDay = d.getDay();
+    //let cursorWeek = jsDay === 0 ? 7 : jsDay; // 1=Monday,...7=Sunday 
+    // 获取浏览器当前的文化区域设置
+    function getBrowserLocale() {
+      // 获取首选语言环境，形如 "zh-CN"、"en-US" 等
+      if (navigator.languages && navigator.languages.length > 0) {
+        return navigator.languages[0];
+      }
+      return navigator.language || navigator.userLanguage || "en-US";
+    }
+  
+    // 利用Intl.DateTimeFormat获得浏览器当前语言下的星期名称
+    function getWeekdayNameInBrowserLang(dateObj) { 
+      if (!(dateObj instanceof Date)) return "";
+      // 使用浏览器语言
+      const locale = getBrowserLocale();
+      console.log(locale,dateObj);
+      try {
+        // 'weekday' 选项设置为 'long' 表示全名
+        // 修正：将日期对象加1天，防止获取的星期提前一天
+        const correctedDate = new Date(dateObj.getTime() + 24 * 60 * 60 * 1000);
+        const wkd = new Intl.DateTimeFormat(locale, { weekday: 'long' }).format(correctedDate);
+
+        console.log(wkd);
+        return  wkd;
+      } catch (e) {
+        // 兼容错误时返回中文，或英文
+        const fallbackNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+        // getDay: 0=Sunday~6
+        return fallbackNames[dateObj.getDay()];
+      }
+    }
+
+    return getWeekdayNameInBrowserLang(d);
+}
