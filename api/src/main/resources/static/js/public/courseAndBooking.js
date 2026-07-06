@@ -26,7 +26,13 @@ async function getCourseById( courseId) {
 // 解决方案：确保接口层传入 params 时，永远传一个对象/Map，哪怕没有实际筛选条件。
 // 示例：如果没有 teacherId，也要传 { teacherId: null } 或 {}，不要直接传 null。
 // 代码层建议：查询前如果参数为 null，置为 {}。MyBatis XML 可增加 <if test="params != null and params.teacherId != null ..."> 保护。
-
+/*const params = {
+        courseName: document.getElementById('courseName').value,
+        languageType: document.getElementById('language').value,
+        difficultyLevel: document.getElementById('difficulty').value,
+        teacher: document.getElementById('teacher').value
+    };
+*/
 async function getCourseList(conditionJson) {  
     console.log("getCourseList",conditionJson);
     try {
@@ -37,7 +43,7 @@ async function getCourseList(conditionJson) {
             params: conditionJson, // 正确传递查询参数，自动加到URL上 
         });
 
-        console.log("courseList response:", res);
+        //console.log("courseList response:", res);
          
         // 若是标准result结构  
             let courseList = res || [];
