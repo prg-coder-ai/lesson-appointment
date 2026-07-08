@@ -142,7 +142,7 @@
         isRefreshing = true;
         try {
           const refreshRes = await getNewToken();
-          console.error("000 getNewToken:",refreshRes);
+          console.log("000 getNewToken:",refreshRes.code,refreshRes.data);
           const result = refreshRes.data;
           if (result.code === 200) {
             const { token, refreshToken } = result.data;
@@ -151,22 +151,10 @@
             originalRequest.headers.Authorization = `Bearer ${token}`;
             requestQueue.forEach((cb) => cb(token));
             requestQueue = [];
-            isRefreshing = false;
-            console.error("200 originalRequest:",originalRequest);
+            //isRefreshing = false;
+            console.log("200 originalRequest:",originalRequest);
             return service(originalRequest);
-          // INSERT_YOUR_CODE
-          /**
-           * 本代码位置在 utility_request.js 中 149-156 行，属于 axios 响应拦截器的 token 刷新逻辑。
-           * 作用流程如下：
-           * 1. 当后端返回 401/403（token 失效/无权限），会尝试用 refreshToken 请求新 token。
-           * 2. 如果新 token 获取成功（result.code === 200），
-           *    - 将新 token 和 refreshToken 存入 localStorage，更新请求头 Authorization。
-           *    - 所有等待刷新的请求（requestQueue）依次用新 token 重发。
-           *    - 清空等待队列，标记刷新已完成，重新执行原始请求并返回结果（return service(originalRequest);）。
-           * 3. 如果刷新 token 失败，则最终会进入 catch，清理本地 token、清空队列并跳转登录页面。
-           * 
-           * 此插入位置是整个“token 刷新并重试原请求”控制流程的核心出口。
-           */
+          
           // INSERT_YOUR_CODE
           /**
            * service(originalRequest) 的含义是：
@@ -180,12 +168,13 @@
            * service(originalRequest) 相当于 axios(originalRequest)，只是这里 service 是 axios 封装对象，可以带一些默认配置。
            */
  
+          } else { //直接去重新登陆
+            showError('登录已过期，请重新登录q');
+            location.href = './index.html';
+            return Promise.reject(refreshErr); 
           }
-          throw new Error(result.message || result.msg || '刷新凭证失败');
-        } catch (refreshErr) {
-
-        //  console.error("001 getNewToken:",refreshErr);
-
+         // throw new Error(result.message || result.msg || '刷新凭证失败');
+        } catch (refreshErr) { 
           localStorage.removeItem('token');
           localStorage.removeItem('refreshToken');
           localStorage.removeItem('currentUser');

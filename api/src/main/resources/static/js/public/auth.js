@@ -96,4 +96,5 @@
   window.kickUser = kickUser;
   window.handleLogout = handleLogout;
   window.authenticateUser = authenticateUser;
+ 
 })();

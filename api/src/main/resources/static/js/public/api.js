@@ -372,3 +372,68 @@ const userStr = localStorage.getItem('currentUser');
 
     return getWeekdayNameInBrowserLang(d);
 }
+
+// INSERT_YOUR_CODE
+
+  /**
+   * 更换密码接口，调用后端API完成用户密码修改
+   * @param {string} userId  当前用户Id
+   * @param {string} newPwd 新密码
+   * @returns {Promise<object>} API返回数据
+   */
+  async function changePasswordAPI(userId, newPwd) {
+   // if (!getToken()) throw new Error('用户未登录');
+    try {
+     
+       const res = await request({
+        url: '/user/account/changePassword',
+        method: "post",
+        params: {
+          userId: userId,
+          password: newPwd
+        }, 
+      });
+      return res;
+    } catch (e) {
+      console.error("changePasswordAPI:",e);
+      throw e;
+    }
+  }
+
+  /**
+   * 绑定到界面：弹出修改密码窗口，用户输入旧密码和新密码并提交
+   */
+  function showChangePasswordDialog() {
+    // 简单的prompt实现；可替换为更友好的UI弹窗
+   // const currentPwd = window.prompt('请输入当前密码:');
+   // if (!currentPwd) return;
+    const newPwd = window.prompt('请输入新密码:');
+    if (!newPwd) return;
+
+    changePasswordAPI(userId, newPwd)
+      .then((data) => {
+        alert(data.message || '密码修改成功');
+        // 可选：修改密码成功后自动登出
+        // handleLogout();
+      })
+      .catch((err) => {
+        alert(typeof err === 'string' ? err : (err.message || '密码修改失败'));
+      });
+  }
+
+
+  function addChangePasswordButton(){
+    // 找到一个合适的容器插入按钮（例如头部或用户菜单），此处假设有id="user-menu"
+  let menu = document.getElementById('user_info');
+  if (menu) {
+      const btn = document.createElement('button');
+      btn.textContent = '修改密码';
+      btn.style.marginLeft = '16px';
+      btn.onclick = showChangePasswordDialog;
+      menu.appendChild(btn);
+      } 
+  }
+  // 在页面全局导出
+  window.changePasswordAPI = changePasswordAPI;
+  window.showChangePasswordDialog = showChangePasswordDialog;
+  window.addChangePasswordButton = addChangePasswordButton;

@@ -27,13 +27,14 @@
     </div>
     <!-- 头部操作区 - 退出按钮 -->
     <div class="header-actions">
-      <div class="user-info">  
+      <div class="user-info" id="user_info">  
         <div class="avatar" id="id_firstLetter">A</div>
         <span class="user-name" id="id_username">Admin</span>
       </div>
       <button class="btn btn-default" style="padding: 6px 12px;" onclick="logout()">
         <i class="fa fa-sign-out-alt"></i> 退出
       </button>
+
     </div>
   </header>
 
@@ -509,6 +510,8 @@
       });
     });
     loadAdminPageContent(pageTitle.textContent);
+    addChangePasswordButton();
+       
     };
     
     // 预约审核相关函数
@@ -584,68 +587,47 @@
     async  function disableTeacher(userId,role) { 
               // 调用 update(User) 把 status 设置为 inactive
               const user = {userId: userId, status: "inactive" };
-              fetch(`${API_BASE_URL}/user/updateStatus`, {
+              request({
+                url: `${API_BASE_URL}/user/updateStatus`,
                 method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                credentials: 'include',
-                body: JSON.stringify(user)
-              }).then(response => response.json())
-                .then(res => {
-                  if (res && res.code === 200) {
-                    renderCards(role);
-                  } else {
-                    alert(res.message || "禁用失败");
-                  }
-                }).catch(e => {
-                  alert("网络错误，禁用失败");
-                });              
+                data: user
+              }).then(res => {
+                
+                  renderCards(role); 
+              }).catch(e => {
+                alert("网络错误，禁用失败");
+              });
+           
             }
   //启用或确认--》正常状态
             function confirmTeacher(userId,role) {
               // 如果用户状态为pending/inactive/frozen，修改为active
-              fetch(`${API_BASE_URL}/user/updateStatus`, {
+              request({
+                url: `${API_BASE_URL}/user/updateStatus`,
                 method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                credentials: 'include',
-                body: JSON.stringify({ userId: userId, status: "active" })
-              }).then(response => response.json())
-                .then(res => {
-                  if (res && res.code === 200) { 
-                    renderCards(role);
-                  } else {
-                    alert(res.message || "确认失败");
-                  }
-                }).catch(e => {
-                  alert("网络错误，确认失败");
-                });
+                data: { userId: userId, status: "active" }
+              }).then(res => { 
+                  renderCards(role); 
+              }).catch(e => {
+                alert("网络错误，确认失败");
+              });
+           
                 
             }
 //删除--冻结
             function deleteTeacher(userId,role) {
               if (confirm("确定要删除吗？")) { 
-                fetch(`${API_BASE_URL}/user/updateStatus`, {
+                request({
+                  url: `${API_BASE_URL}/user/updateStatus`,
                   method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json'
-                  },
-                  credentials: 'include',
-                  body: JSON.stringify({ userId: userId, status: "frozen" })
-                }).then(response => response.json())
-                  .then(res => {
-                    if (res && res.code === 200) { 
-                     //  刷新列表
-                      renderCards(role);
-                    } else {
-                      alert(res.message || "删除失败");
-                    }
-                  }).catch(e => {
-                    alert("网络错误，删除失败");
-                  });
-                
+                  data: { userId: userId, status: "frozen" }
+                }).then(res => {  
+                    //  刷新列表
+                    renderCards(role); 
+                }).catch(e => {
+                  alert("网络错误，删除失败");
+                });
+             
               }
             }
             function    renderCards(role){
