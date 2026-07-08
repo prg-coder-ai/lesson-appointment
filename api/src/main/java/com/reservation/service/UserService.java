@@ -189,17 +189,34 @@ public class UserService {
         if(user!= null ) { 
         // 加密新密码并更新--重置为固定码，用户自行更改
         user.setPassword(passwordEncoder.encode("12345678"));
-        userMapper.updatePassword(user.getUserId(),user.getPassword());
+        updatePassword(user);
+       // userMapper.updatePassword(user.getUserId(),user.getPassword());
         } else {
            
            throw new UserNotFoundException("账号 【" + account + "】对应的用户不存在"); 
         }
     } 
 
+ @Transactional
+    public boolean changePassword(String userId,String password) { 
+        // 查找用户
+        User user = new User();// userMapper.selectByAccount(account); 
+        user.setUserId(userId); 
+        // 加密新密码并更新- 
+         user.setPassword(passwordEncoder.encode(password));
+         try {
+         updatePassword(user);
+         return true;
+         } catch (Exception ex) {
+            System.out.println("changePassword Error:userId= "+userId);
+         };
+          return false ;  
+    } 
     public User selectByPhone(String phone) {
         User user= userMapper.selectByPhone(phone);
-       if(user==null)
-           throw new UserNotFoundException("手机号【" + phone + "】对应的用户不存在");
+       if(user==null){
+            System.out.println("手机号【" + phone + "】对应的用户不存在");
+       }
         return user;
     }
  public User selectByEmail(String email) {
@@ -207,7 +224,7 @@ public class UserService {
       //      .orElseThrow(() -> new UserNotFoundException("email" + email + "】对应的用户不存在"));
      User user= userMapper.selectByEmail(email);
      if(user==null)
-         throw new UserNotFoundException("email 【" + email + "】对应的用户不存在");
+         System.out.println("email 【" + email + "】对应的用户不存在");
         return user;
     }
  
@@ -216,7 +233,7 @@ public User selectById(String userId) {
      //       .orElseThrow(() -> new UserNotFoundException("userId" + userId + "】对应的用户不存在"));
     User user= userMapper.selectById(userId);
     if(user==null)
-        throw new UserNotFoundException("userId 【" + userId + "】对应的用户不存在");
+        System.out.println("userId 【" + userId + "】对应的用户不存在");
     return user;
     }
  /**
@@ -225,7 +242,7 @@ public User selectById(String userId) {
     public User selectByPhoneOrEmail(String account) {
         User user = userMapper.selectByPhoneOrEmail(account);
         if (user == null) {
-            throw new UserNotFoundException("账号【" + account + "】不存在");
+           System.out.println("账号【" + account + "】不存在");
         }
         return user;
     }
@@ -244,12 +261,12 @@ public User selectById(String userId) {
         return ret;
     }*/
 
-    public int updatePassword(User user)
+    private int updatePassword(User user)
     {
-        // 更新密码
-         String useid = user.getUserId();
+        // 更新密码--已经hash变换
+          String useid = user.getUserId();
           String password= user.getPassword();
-        int ret = userMapper.updatePassword(useid,password);
+          int ret = userMapper.updatePassword(useid,password);
         return ret;
     }
     
@@ -270,7 +287,7 @@ public User selectById(String userId) {
     public List<User> listByRole(String role) {
         List<User> users = userMapper.listByRole(role); 
         if (users == null || users.isEmpty()) {
-            throw new UserNotFoundException("不存在【" + role + "】的用户");
+            System.out.println("不存在【" + role + "】的用户");
         } 
         return users;
     }

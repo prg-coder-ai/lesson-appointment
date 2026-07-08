@@ -139,6 +139,18 @@ public class UserController {
         return Result.success(existed, existed ? "账号已存在" : "账号可用");
     }
 
+
+    @PostMapping("/account/changePassword")
+    @ResponseBody
+    public Result<Boolean> changePassword(@RequestParam("userId") String userId,
+                                          @RequestParam("password") String password) {
+                                            
+        if (userId == null || userId.trim().isEmpty()) {
+            return Result.success(false, "用户Id不能为空");
+        }
+        boolean bok = userService.changePassword(userId.trim(),password);
+        return Result.success(bok, bok ? "修改成功" : "修改失败");
+    }
 //TBD: 更新非空参数
 /*
     @PostMapping("/user/update")
