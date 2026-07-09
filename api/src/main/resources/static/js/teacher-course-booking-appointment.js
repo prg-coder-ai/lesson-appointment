@@ -37,7 +37,7 @@ async function renderTeacherBookingandAppointmentBrowserCards() {
       html += `  
     <!-- 预约状态显示和选择 TBD -->
    <div class="card">
-              <h3><i class="fa fa-calendar-check-o"></i> 我的全部预定</h3>
+              <h3><i class="fa fa-calendar-check-o"></i> 我的全部预订</h3>
               <div id="my-bookings">
 
               </div>      
@@ -81,7 +81,7 @@ async function renderTeacherBookingandAppointmentBrowserCards() {
   * 
   * 解决方案：使用 for...of 循环+await，或者 Promise.all 并在 then 内赋值，保证异步结果全部收集后再渲染。
   */
-    //读取并显示与教师相关的--学生预定
+    //读取并显示与教师相关的--学生预订
     async function refreshData(){
         let status = null; //不限制状态
         bookingList = await getBookingData(userRole, userId, status);
@@ -99,8 +99,8 @@ async function renderTeacherBookingandAppointmentBrowserCards() {
                     const studentName = await getUserNameById(booking.studentId);
                     const teacherName = await getUserNameById(classObject.teacherId);
 
-                    console.log("studentName:", booking.studentId,studentName);
-                    console.log("teacherName:", booking.teacherId,teacherName);
+                   // console.log("studentName:", booking.studentId,studentName);
+                    //console.log("teacherName:", booking.teacherId,teacherName);
                     if (classObject != null) {
                         let cardItems = {
                             scheduleId:    scheduleObject.scheduleId, 
@@ -156,8 +156,8 @@ async function renderTeacherBookingandAppointmentBrowserCards() {
                         学生：${cardInfo.studentName} 老师：${cardInfo.teacherName} | 
                         排期：${cardInfo.scheduleInfo} | 
                         状态：${
-                          cardInfo.status === 'booking' ? '预定待确认' :
-                          cardInfo.status === 'booked' ? '预定已确认' :
+                          cardInfo.status === 'booking' ? '预订待确认' :
+                          cardInfo.status === 'booked' ? '预订已确认' :
                           cardInfo.status === 'cancelling' ? '取消待确认' :
                           cardInfo.status === 'cancelled' ? '已取消' :
                           cardInfo.status === 'delete' ? '已删除' :
@@ -356,7 +356,7 @@ function renderCalendar(dateTimeList) {
       // 假设格式为'yyyy-MM-dd'
       const [year, month, day] = firstDateStr.split('-');
       firstDateVar = new Date(Number(year), Number(month) - 1, Number(day));
-      console.log('firstDateVar:', firstDateVar);
+      //console.log('firstDateVar:', firstDateVar);
   }
 
   // startDate设置为dateSet第一项表示的日期（如果有），否则用今天
@@ -519,7 +519,7 @@ function renderCalendar(dateTimeList) {
        //将appointment的bookingid=bookingid的所有项的状态设置为“cancelled->cancelling ->booked-->booking
        console.log("validCancelBooking updateAppointmentsStatusByBookingId bookingid:",bookingid);
        await updateAppointmentsStatusByBookingId(bookingid, "cancelled");
-       //更新booking预定状态
+       //更新booking预订状态
        await operateBookingStatus( bookingid, "cancelled"); 
         } 
 
@@ -527,7 +527,7 @@ function renderCalendar(dateTimeList) {
             //将appointment的bookingid=bookingid的所有项的状态设置为“cancelled->cancelling ->booked-->booking
             console.log("validCancelBooking updateAppointmentsStatusByBookingId bookingid:",bookingid);
             await updateAppointmentsStatusByBookingId(bookingid, "cancelling");
-            //更新booking预定状态
+            //更新booking预订状态
             await operateBookingStatus( bookingid, "t-cancelling"); 
              }
              */

@@ -121,7 +121,7 @@
    // INSERT_YOUR_CODE
 
    /**
-    * 获取某年月的预定（Booking）月初（月初0点）和月末（23:59:59）数量
+    * 获取某年月的预订（Booking）月初（月初0点）和月末（23:59:59）数量
     * 对应后端接口: GET /course/booking/statistical/byMonth?year=2024&month=6
     * 返回示例: { bookingMonth: 32, bookingMonthLast: 44 }
     */

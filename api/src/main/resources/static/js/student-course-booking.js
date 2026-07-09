@@ -169,16 +169,16 @@ async function renderStudentBookingCards() {
         </div>      
     </div>
   
-    <!-- 预约状态显示和选择 TBD -->
+    <!-- 预订状态显示和选择 TBD -->
     <div class="form-line">        
           <label><input type="label" id="bookingId" value=""   style="display:none;"></label>  
     </div>
     <div class="form-line  nofocus">
-      <label>预约状态：</label>
+      <label>预订状态：</label>
           <select id="bookingStatus">
-                <option value="none">无预约</option>
-                <option value="booking">已预约,待确认</option>
-                <option value="booked">预约成功</option>
+                <option value="none">无预订</option>
+                <option value="booking">已预订,待确认</option>
+                <option value="booked">预订成功</option>
                 <option value="canceling">取消待确认</option>
                 <option value="canceled">已取消</option>
                  <option value="completed">已完成</option> 
@@ -251,7 +251,7 @@ async function renderStudentBookingCards() {
             teacherName: document.getElementById('teacher').value|| "",
             status:"active"
         }; 
-  console.log("search",params);//TBD---
+  //console.log("search",params);//TBD---
   //lastCourseIndex =currentCourseIndex;
  // currentCourseIndex =-1;
   try { 
@@ -268,9 +268,7 @@ async function renderStudentBookingCards() {
 
 //把courseList列在下拉框中
 function renderCourseSelect() {
-  const sel = document.getElementById('courseSelect');
-
-
+  const sel = document.getElementById('courseSelect'); 
   sel.innerHTML = '<option value="">请选择课程</option>';
   courseList.forEach(item => {
     if(item.status=='active'){
@@ -287,7 +285,7 @@ function renderCourseSelect() {
 //可简化为：日期范围，时间，排期计划
 function renderSchedule(scheduleObject) {
     if (!scheduleObject) return;
-     console.log("renderSchedule",scheduleObject);
+    // console.log("renderSchedule",scheduleObject);
 
       // 刷新开始日期
       if (scheduleObject.scheduleId) {
@@ -347,7 +345,7 @@ function renderSchedule(scheduleObject) {
         document.getElementById('endDate').value = '';
     } 
      
-    console.log("repeatDs:",scheduleObject.repeatDays,scheduleObject.repeatType);
+    //console.log("repeatDs:",scheduleObject.repeatDays,scheduleObject.repeatType);
     
     // 获取下拉框
    const sel = document.getElementById('repeatType');
@@ -543,7 +541,7 @@ return  scheduleObject;
       try {
         let cnt=0; //查找指定课程的有效排期
         scheduleList = await fetchScheduleList(cid,"active");
-        console.log(" scheduleList",scheduleList) ;
+     //   console.log(" scheduleList",scheduleList) ;
 
         if (scheduleList && scheduleList.length > 0) {           
             // 把scheduleList列表按scheduleId值添加到scheduleSelect下拉列表中
@@ -582,9 +580,26 @@ return  scheduleObject;
         renderSchedule(scheduleObject);
     } 
   }
+  function checkCourseAndSchedule(scheduleCheck,courseCheck){
+    
+    if(courseCheck) {
+        const cid = document.getElementById('courseSelect') ; 
+        if (!cid.value) { 
+            alert("请选择课程");
+            return false; } //alart
+        }
+        if(scheduleCheck == true) {
+            const scheduleSelect = document.getElementById('scheduleSelect');
+            if (!scheduleSelect.value) { 
+                alert("请选择排期") ;return false;
+             }
+        }    
+    return true;
+  }
   //当排期列表选择变化时，重新显示排期计划及预定情况
    function displaySchedule() {
         // 查询scheduleSelect下拉框的当前，获取数据，调用 renderSchedule 更新当前选择 
+        
         const scheduleSelect = document.getElementById('scheduleSelect');
         if (!scheduleSelect) return;
         const selectedId = scheduleSelect.value;
@@ -644,12 +659,12 @@ return  scheduleObject;
             } else  if ( repeatTypeVal === 'month' ) {
 
                 const weekDayInputs = document.querySelectorAll('#monthDays input[type=checkbox]');
-                console.log("days",weekDayInputs);
+             //   console.log("days",weekDayInputs);
                 let arr = [];
                 weekDayInputs.forEach(cb => { 
                     if (cb.checked) arr.push(Number(cb.value));
                 });
-                console.log("days arr",arr);
+              //  console.log("days arr",arr);
                 return arr;
             } else {
                 return [];
@@ -658,12 +673,14 @@ return  scheduleObject;
         endDate: document.getElementById('endDate').value,
       
     }; 
-    console.log("form:",form);
+   // console.log("form:",form);
     return form;
    }
 
    // 预览排期
    async function previewSchedule() {
+     if(!checkCourseAndSchedule(true,true))
+        return ;//判断选择有效性
      const form = getScheduleFormData();
    
     // 生成排期列表 localDateTime List<Date,TIME>
@@ -674,7 +691,7 @@ return  scheduleObject;
 
 // 
  
-  //根据排期id、用户角色和用户id，查询预约信息。可复用于检索教师的预约
+  //根据排期id、用户角色和用户id，查询预订信息。可复用于检索教师的预订
   //返回 Booking 列表
   //在排期列表选择变化时调用，更新对应的预定状态
 /**
@@ -695,7 +712,7 @@ return  scheduleObject;
  
   //根据bookingObject的状态，显示是否已预定
   function renderStudentBookingStatus(bObj) {
-    console.log("renderStudentBookingStatus:",bObj);
+  //  console.log("renderStudentBookingStatus:",bObj);
     const bidItem = document.getElementById('bookingId');
     bidItem.value=(bObj)?bObj.id:"";
     const listStatus = document.getElementById('bookingStatus');
@@ -735,7 +752,7 @@ function renderResult() {
       // 假设格式为'yyyy-MM-dd'
       const [year, month, day] = firstDateStr.split('-');
       firstDateVar = new Date(Number(year), Number(month) - 1, Number(day));
-      console.log('firstDateVar:', firstDateVar);
+      //console.log('firstDateVar:', firstDateVar);
   }
 
   // startDate设置为dateSet第一项表示的日期（如果有），否则用今天
@@ -770,13 +787,17 @@ function renderResult() {
       cal.appendChild(div);
   }
 } 
- //TBD:修改一个预约后，按照预约id，查询获取预约对象，更新预约号状态
+ //TBD:修改一个预订后，按照预订id，查询获取预订对象，更新预订号状态
   //   uodate or insert 
   async function makeOneBooking() { 
+
+    if(!checkCourseAndSchedule(true,true))
+        return ;//判断选择有效性
+
     const status = "booking"; 
     const formData = getScheduleFormData(); 
     const teacharId = document.getElementById('teacherIdForCourse').value;
-    console.log("save form:",formData,userId,userRole);   
+   // console.log("save form:",formData,userId,userRole);   
 /*  private String bookingId;  
     private String scheduleId;  
     private String studentId;   
@@ -812,9 +833,11 @@ function renderResult() {
 
   }
 //预定状态：booking 、book-proved、canceling，cancel-proved，删除delete
-  // 删除--只有没有确认的预约，或者已经确认取消的才可由学生自行删除，不涉及时间列表。
-  // 管理员确认取消后，可删除该预约及对应的预约时间列表
+  // 删除--只有没有确认的预订，或者已经确认取消的才可由学生自行删除，不涉及时间列表。
+  // 管理员确认取消后，可删除该预订及对应的预订时间列表
   async function deleteBooking() {
+    if(!checkCourseAndSchedule(true,true))
+        return ;
     const formData = getBookFormData();
     if ( (formData.status=="booking") ||  (formData.status=="canceled") ){
        await operateBookingStatus(formData.bookingid,"delete"); 
@@ -824,8 +847,10 @@ function renderResult() {
     alert("请联系老师，确认后才能删除");
     }
   }
-  //判断预约状态，如果是booking则可直接取消，如果是booked,则设置为canceling，等待确认
+  //判断预订状态，如果是booking则可直接取消，如果是booked,则设置为canceling，等待确认
   async function cancelBooking() { 
+    if(!checkCourseAndSchedule(true,true))
+        return ;
      const formData = getBookFormData(); 
 
      await operateBookingStatus(formData.bookingid,formData.status != "booked"?"canceled":"canceling");  
@@ -835,15 +860,17 @@ function renderResult() {
  function refreshData(){
     //再次读取排期数据并显示
     loadSchedule(); 
+
+    //TBD :如果原来的排期ID存在，则显示原排期--selected指定相应的id
  }
 
-    //在状态变化时，更新预约状态，参数暂无用
+    //在状态变化时，更新预订状态，参数暂无用
     async function  reloadBooking(){ 
          //const bidItem = document.getElementById("bookingId");
          //bidItem.value = bookingid;
          if(selectedScheuleId != null) {
             const bookingObjectList =    await getBookingInfo(selectedScheuleId,userRole,userId); 
-            console.log("bookingObjectList:",bookingObjectList)
+           // console.log("bookingObjectList:",bookingObjectList)
             if(bookingObjectList!= null && bookingObjectList.length >0)
             { renderStudentBookingStatus(bookingObjectList[0]);  //获取 用户的预定信息
             } else {  
@@ -885,7 +912,7 @@ function renderResult() {
  * 日历显示属性：
  *   排期中已经设置的日期----用背景色块表示
  *   TBD:1 检查不可选择的排期（已报满） 
- *   TBD:2 按天预约的情况：已排期--可用、不可用、选择、不选择的情况
+ *   TBD:2 按天预订的情况：已排期--可用、不可用、选择、不选择的情况
  * 
  * 
  * 数据操作：对于学生，新建booking： 添加booking，把排期时间列表插入到appointment数据表
@@ -898,9 +925,9 @@ function renderResult() {
  *        insert、update、updateStatus
  * 
  * <select id="bookingStatus">
-                <option value="none">无预约</option>
-                <option value="booking">已预约,待确认</option>
-                <option value="booked">预约成功</option>
+                <option value="none">无预订</option>
+                <option value="booking">已预订,待确认</option>
+                <option value="booked">预订成功</option>
                 <option value="canceling">取消待确认</option>
                 <option value="canceled">已取消</option>
                  <option value="completed">已完成</option> 
