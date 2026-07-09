@@ -500,7 +500,7 @@ function renderCourseSelect() {
 //更新scheduleObject相关内容 --待细化
 function renderSchedule() {
      if (!scheduleObject) return;
-      console.log("renderSchedule",scheduleObject);
+     // console.log("renderSchedule",scheduleObject);
 
        // 刷新开始日期
        if (scheduleObject.scheduleId) {
@@ -652,7 +652,7 @@ return ;
    
      // 加载课程排期
     async function loadSchedule() { 
-       
+        
       const cid = document.getElementById('courseSelect').value;
       
       if (!cid) return;
@@ -714,7 +714,8 @@ return ;
   }
   //当排期列表选择变化时，重新显示排期计划
    function displySchedule() { 
-
+    if(! checkCourseAndSchedule(true,true))
+        return ;
    // const conflictMessageElem = document.getElementById('conflictMessage');
     if (conflictMessageElem) {
         conflictMessageElem.textContent = '';
@@ -799,6 +800,8 @@ return ;
    
    // 预览排期--列出排期的所有时间及日历
    async function previewSchedule() {
+    if(! checkCourseAndSchedule(true,true))
+        return ;
      const form = getFormData();
     // console.log("form:",form) ;
     // 生成排期列表 localDateTime List<Date,TIME>
@@ -889,7 +892,8 @@ function renderResult() {
   // 保存 update or insert 
   //判断是否需要:assignStudentToTheSchedule
   async function saveScheduleToDB() {
-
+    if(! checkCourseAndSchedule(true,true))
+        return ;
     //TBD :判断排期是否已经存在---
    // const token = getToken();
     const formData = getFormData();
@@ -929,17 +933,19 @@ function renderResult() {
 }
 
 async function assignStudentToSchedule( ) {
-   
+     
+    if(! checkCourseAndSchedule(true,true))
+        return ;
    // console.log("assignStudentToSchedule  teacherId :",teacherId);
-    if (teacherId=="") { 
-        alert("请先选择课程！");
-         return;
-    }
+   // if (teacherId=="") { 
+    //    alert("请先选择课程！");
+    //     return;
+    //}
     let scdid = currentScheduleId;
       //  console.log("currentScheduleId:",currentScheduleId);
-        if (!scdid  ) {
-            alert("请选择排期！"); 
-        }
+     //   if (!scdid  ) {
+      //      alert("请选择排期！"); 
+      //  }
  
     let assignStudentId ="";
     // 判断id="assignStudentCheckbox"的是否勾选 
@@ -966,6 +972,8 @@ async function assignStudentToSchedule( ) {
 }
   // 删除
   async function deleteSchedule() {
+    if(! checkCourseAndSchedule(true,true))
+        return ;
     const formData = getFormData();
     const scheduleId = formData.scheduleId;
     await operateSchedule(scheduleId,"frozen"); 

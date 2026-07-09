@@ -29,7 +29,7 @@
         <div class="avatar" id="avatar"> </div>
         <span class="user-name" id="user-name"></span> 
       </div>
-      <button class="logout-btn" onclick="logout()"><i class="fa fa-sign-out-alt"></i> 退出登录</button>
+      <button class="logout-btn" onclick="handleLogout()"><i class="fa fa-sign-out-alt"></i> 退出登录</button>
     </div>
   </header>
 
@@ -37,9 +37,10 @@
   <div class="layout-container">
     <!-- 侧边栏 -->
     <aside class="sidebar">
-      <div class="menu-item active" data-menu="我的工作台">
+      <div class="menu-group-title">我的工作台</div>
+      <div class="menu-item" data-menu="今日课程">
         <i class="fa fa-home"></i>
-        <span>我的工作台</span>
+        <span>今日课程</span>
       </div>
       <div class="menu-item" data-menu="课程预订">
         <i class="fa fa-calendar-plus"></i>
@@ -64,7 +65,7 @@
       <!-- 内容头部 -->
       <div class="content-header">
         <div style="display: flex; align-items: center; justify-content: space-between;">
-          <h1 class="page-title" style="margin: 0;">我的工作台</h1>
+          <h1 class="page-title" style="margin: 0;">今日课程</h1>
           <button class="btn btn-primary" onclick='refreshRightPage()'><i class="fa fa-refresh"></i> 刷新</button>
         </div>
       </div>
@@ -111,13 +112,14 @@
     const menuItems = document.querySelectorAll('.menu-item');
     const pageTitle = document.querySelector('.page-title');
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
-    let currentMenuitem = '我的工作台';
-    function syncActiveMenu(menuName) {
+    let currentMenuitem = '今日课程';
+
+    /*function syncActiveMenu(menuName) {
       menuItems.forEach(menu => {
         menu.classList.toggle('active', menu.getAttribute('data-menu') === menuName);
       });
     }
-      
+      */
     // 初始化页面（加载默认内容）
     window.onload = function() { 
       userInfo = autoLoginCheck();
@@ -167,7 +169,7 @@
       currentMenuitem = menuName;
       // 根据菜单名称加载对应内容
       switch(menuName) {
-        case '我的工作台':
+        case '今日课程':
         dynamicContentCenter.innerHTML = `
              <div class="table-container">
                 <table class="data-table">
@@ -189,7 +191,7 @@
                 </table>
               </div>
              `;
-           
+            //借用student页面内容，显示一致
              refreshAppointmentNotesForStudent("days-appointment-student" );
 
            break;
@@ -282,7 +284,7 @@
 
     // 3. 新增退出登录函数
     // 退出登录函数
-    function logout() {
+   /* function logout() {
       if (confirm('确定要退出系统吗？')) {
         // 清除本地存储的用户信息
         localStorage.removeItem('currentUser');
@@ -290,7 +292,7 @@
          window.location.href = 'index.html';
        // alert('已退出登录！');
       }
-    }
+    }*/
 
  
   
@@ -370,6 +372,7 @@
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>  
   
   <script src="js/public/utility_request.js"></script>
+  <script src="js/public/auth.js"></script>
   <script src="js/public/api.js"></script>
   <script src="js/public/dataFunctions.js"></script>
   <script src="js/public/courseAndBooking.js"></script>
