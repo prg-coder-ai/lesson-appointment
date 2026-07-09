@@ -877,7 +877,21 @@ async function checkScheduleConflict(cto){
         alert('检测排期冲突失败');
         console.error(err);
         return null;
-    }
-
-   
+    } 
+}
+//检查是否选择了课程或排期---
+function checkCourseAndSchedule(scheduleCheck,courseCheck){    
+  if(courseCheck) {
+      const cid = document.getElementById('courseSelect') ; 
+      if (!cid.value) { 
+          alert("请选择课程");
+          return false; } //alart
+      }
+      if(scheduleCheck == true) {
+          const scheduleSelect = document.getElementById('scheduleSelect');
+          if (!scheduleSelect.value) { 
+              alert("请选择排期") ;return false;
+           }
+      }    
+  return true;
 }

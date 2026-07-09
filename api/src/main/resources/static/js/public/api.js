@@ -464,8 +464,8 @@ const userStr = localStorage.getItem('currentUser');
     logoutItem.onclick = function(e) {
       e.stopPropagation();
       dropdown.style.display = 'none';
-      if (typeof logout === 'function') {
-        logout();
+      if (typeof window.handleLogout === 'function') {
+        window.handleLogout();
       } else if (window.parent && window.parent.logout) {
         window.parent.logout();
       }

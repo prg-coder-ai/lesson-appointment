@@ -31,7 +31,7 @@
         <div class="avatar" id="avatar">A</div>
         <span class="user-name" id="user-name">Admin</span>
       </div>
-      <button class="btn btn-default" style="padding: 6px 12px;" onclick="logout()">
+      <button class="btn btn-default" style="padding: 6px 12px;" onclick="handleLogout()">
         <i class="fa fa-sign-out-alt"></i> 退出
       </button>
 
@@ -443,7 +443,7 @@
     }
    
     // 退出登录函数 TBD:设置离线状态 online=false--TBD:handleLogout
-    function logout() {
+   /* function logout() {
       if (confirm('确定要退出系统吗？')) {
         // 清除本地存储的用户信息
         localStorage.removeItem('currentUser');
@@ -451,7 +451,7 @@
          window.location.href = 'index.html';
        // alert('已退出登录！');
       }
-    }
+    }*/
     let menuItems=[]  ;
     let pageTitle="" ;
     let dynamicContentCenter = null;//document.getElementById('dynamic-content-center');
@@ -801,6 +801,7 @@
   
    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script> 
    <script src="js/public/utility_request.js"></script>
+   <script src="js/public/auth.js"></script>
    <script src="js/public/api.js"></script>
    <script src="js/public/dataFunctions.js"></script> 
    <script src="js/public/courseAndBooking.js"></script>  

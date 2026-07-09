@@ -580,22 +580,7 @@ return  scheduleObject;
         renderSchedule(scheduleObject);
     } 
   }
-  function checkCourseAndSchedule(scheduleCheck,courseCheck){
-    
-    if(courseCheck) {
-        const cid = document.getElementById('courseSelect') ; 
-        if (!cid.value) { 
-            alert("请选择课程");
-            return false; } //alart
-        }
-        if(scheduleCheck == true) {
-            const scheduleSelect = document.getElementById('scheduleSelect');
-            if (!scheduleSelect.value) { 
-                alert("请选择排期") ;return false;
-             }
-        }    
-    return true;
-  }
+ 
   //当排期列表选择变化时，重新显示排期计划及预定情况
    function displaySchedule() {
         // 查询scheduleSelect下拉框的当前，获取数据，调用 renderSchedule 更新当前选择 
