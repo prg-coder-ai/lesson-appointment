@@ -51,7 +51,7 @@
       </div>
       <div class="menu-item">
         <i class="fa fa-calendar"></i>
-        <span>预定管理</span>
+        <span>预订管理</span>
       </div>
       <div class="menu-item">
         <i class="fa fa-calendar-alt"></i>
@@ -200,7 +200,7 @@
            
              refreshAppointmentNotesForTeacher("days-appointment-teacher" );
             break;
-        case '预定管理': //booking
+        case '预订管理': //booking
             renderTeacherBookingandAppointmentBrowserCards();  
           break;
         case '学生评价':
@@ -322,14 +322,14 @@
        if(nameid)
          { nameid.innerHTML= userInfo.name;
          }
-        console.log(userInfo.name);
+        //console.log(userInfo.name);
        // 设置头像元素为用户名首字母
        const avatarElem = document.getElementById("avatar");
        if (avatarElem && userInfo && userInfo.name && userInfo.name.length > 0) {
        // console.log( userInfo.name.charAt(0));
          avatarElem.innerHTML = userInfo.name.charAt(0);
        }
- 
+       addChangePasswordButton();
       console.log('教师端页面加载完成');  
     };
 
@@ -342,7 +342,7 @@
    <script src="js/public/courseAndBooking.js"></script>  
    <script src="js/public/appointmentNotes.js"></script>  
    <script src="js/teacher-course-schedule.js"></script>     
-   <script src="js/teacher-course-booking-appointment.js"></script>// 预定及日期
+   <script src="js/teacher-course-booking-appointment.js"></script>// 预订及日期
    <script src="js/teacher-AppointmentNotes.js"></script>
    <script> 
       console.log("end of body...")

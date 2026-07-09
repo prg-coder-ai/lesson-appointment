@@ -424,14 +424,92 @@ const userStr = localStorage.getItem('currentUser');
 
   function addChangePasswordButton(){
     // 找到一个合适的容器插入按钮（例如头部或用户菜单），此处假设有id="user-menu"
-  let menu = document.getElementById('user_info');
-  if (menu) {
+  let menu = document.getElementById('user-name');
+  // 创建二级菜单，绑定到"user-name"元素旁作为触发点，点击出现下拉菜单
+  // 确保菜单只创建一次
+  if (!document.getElementById('custom-user-dropdown')) {
+    // 创建下拉菜单容器
+    const dropdown = document.createElement('div');
+    dropdown.id = 'custom-user-dropdown';
+    dropdown.style.position = 'absolute';
+    dropdown.style.minWidth = '120px';
+    dropdown.style.background = '#fff';
+    dropdown.style.border = '1px solid #eee';
+    dropdown.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
+    dropdown.style.display = 'none';
+    dropdown.style.zIndex = 1000;
+    dropdown.style.fontSize = '14px';
+
+    // 菜单项 - 修改密码
+    const changePwdItem = document.createElement('div');
+    changePwdItem.textContent = '修改密码';
+    changePwdItem.style.padding = '10px 16px';
+    changePwdItem.style.cursor = 'pointer';
+    changePwdItem.onmouseover = function() { changePwdItem.style.background = "#f5f5f5"; };
+    changePwdItem.onmouseout = function() { changePwdItem.style.background = "#fff"; };
+    changePwdItem.onclick = function(e) {
+      e.stopPropagation();
+      dropdown.style.display = 'none';
+      showChangePasswordDialog();
+    };
+    dropdown.appendChild(changePwdItem);
+
+    // 菜单项 - 退出登录
+    const logoutItem = document.createElement('div');
+    logoutItem.textContent = '退出登录';
+    logoutItem.style.padding = '10px 16px';
+    logoutItem.style.cursor = 'pointer';
+    logoutItem.onmouseover = function() { logoutItem.style.background = "#f5f5f5"; };
+    logoutItem.onmouseout = function() { logoutItem.style.background = "#fff"; };
+    logoutItem.onclick = function(e) {
+      e.stopPropagation();
+      dropdown.style.display = 'none';
+      if (typeof logout === 'function') {
+        logout();
+      } else if (window.parent && window.parent.logout) {
+        window.parent.logout();
+      }
+    };
+    dropdown.appendChild(logoutItem);
+
+    document.body.appendChild(dropdown);
+
+    // 触发器: user-name 元素
+    if (menu) {
+      menu.style.cursor = 'pointer'; 
+        menu.style.textDecoration = 'underline';  
+ 
+      menu.onclick = function(event) {
+        event.stopPropagation();
+        // 计算位置
+        const rect = menu.getBoundingClientRect();
+        dropdown.style.left = (rect.left + window.scrollX) + "px";
+        dropdown.style.top = (rect.bottom + window.scrollY + 3) + "px";
+        dropdown.style.display = (dropdown.style.display === "none" ? "block" : "none");
+      };
+      // menu鼠标悬浮时变色可选增加 underline
+      menu.onmouseover = function() { menu.style.fontWeight = 'bold'; }
+      menu.onmouseout = function() { menu.style.fontWeight = 'normal'; }
+ 
+    }
+
+    // 点击页面其他地方自动收起菜单
+    document.addEventListener('click', function() {
+      dropdown.style.display = 'none';
+    });
+    dropdown.addEventListener('click', function(e){
+      e.stopPropagation(); // 防止点击菜单本身也触发隐藏
+    });
+  }
+  /*if (menu) {
       const btn = document.createElement('button');
       btn.textContent = '修改密码';
       btn.style.marginLeft = '16px';
       btn.onclick = showChangePasswordDialog;
       menu.appendChild(btn);
       } 
+*/
+      
   }
   // 在页面全局导出
   window.changePasswordAPI = changePasswordAPI;

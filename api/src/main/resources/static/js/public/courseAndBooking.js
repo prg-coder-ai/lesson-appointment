@@ -256,7 +256,7 @@ return appointmentResults;
 }
 
 
-//根据排期id及用户信息，获取所有的预定信息
+//根据排期id及用户信息，获取所有的预订信息
 function getBookingObject(bookingId) { 
  /*
   const params = {  
@@ -284,7 +284,7 @@ async function fetchBooking( bookingId) {
   }
 
 }
-//根据排期id及用户信息，获取所有的预定信息
+//根据排期id及用户信息，获取所有的预订信息
  function getBookingInfo(scheduleid, userRole, userid) { 
  
   const params = {  

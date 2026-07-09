@@ -264,11 +264,12 @@ async function renderCourseList(){
         applyAddSchBtn.textContent = '增加排期'; 
         applyAddSchBtn.onclick = function() {
           AddScheduleforTheCourse(item.courseId); 
-        }  */ 
-        const tdBtn = document.createElement('td');
+        } 
+       
         tdBtn.appendChild(applyAddSchBtn);
-       // tr.appendChild(tdBtn);  
-
+         tr.appendChild(tdBtn);  
+ */ 
+         const tdBtn = document.createElement('td');
         const applyBrwSchBtn = document.createElement('button');
         applyBrwSchBtn.className = 'btn btn-success'; //  
         applyBrwSchBtn.textContent = '查看排期'; 
@@ -322,9 +323,8 @@ function  AddScheduleforTheCourse(courseId){
         const applyAddSchBtn = document.createElement('button');
         applyAddSchBtn.className = 'btn btn-success'; //  
         applyAddSchBtn.textContent = '查看详情'; 
-        applyAddSchBtn.onclick = function() {
-
-         showScheduleCard(item); //显示排期卡片----双时区----admin相关页面
+        applyAddSchBtn.onclick = function() { 
+              showScheduleCard(item); //显示排期卡片----双时区----admin相关页面
         }   
         const tdBtn = document.createElement('td');
         tdBtn.appendChild(applyAddSchBtn);

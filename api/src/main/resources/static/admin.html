@@ -25,11 +25,11 @@
       <img src="https://via.placeholder.com/40x40/722ed1/ffffff?text=管" alt="管理端logo">
       <span class="logo-text">语言教学预约系统（管理端）</span>
     </div>
-    <!-- 头部操作区 - 退出按钮 -->
+    <!-- 头部操作区 - 退出按钮  id_firstLetter  id_username" -->
     <div class="header-actions">
       <div class="user-info" id="user_info">  
-        <div class="avatar" id="id_firstLetter">A</div>
-        <span class="user-name" id="id_username">Admin</span>
+        <div class="avatar" id="avatar">A</div>
+        <span class="user-name" id="user-name">Admin</span>
       </div>
       <button class="btn btn-default" style="padding: 6px 12px;" onclick="logout()">
         <i class="fa fa-sign-out-alt"></i> 退出
@@ -487,8 +487,8 @@
       // 设置用户首字母和用户名
       if (user && user.name) { 
         console.log(`${user.name}（${user.role}）已登录管理端`); 
-        document.getElementById('id_firstLetter').innerHTML = user.name.length > 0 ? user.name[0] : '';
-        document.getElementById('id_username').innerHTML  = user.name  ;
+        document.getElementById('avatar').innerHTML = user.name.length > 0 ? user.name[0] : '';
+        document.getElementById('user-name').innerHTML  = user.name  ;
       }
  
      menuItems = document.querySelectorAll('.menu-item');
@@ -504,7 +504,7 @@
         // 更新页面标题
         const titleText = this.querySelector('span').textContent;
         pageTitle.textContent = titleText;
-        console.log(" click  titleText ",titleText);
+      //  console.log(" click  titleText ",titleText);
         // 加载对应页面内容到中央区域
         loadAdminPageContent(titleText);
       });
