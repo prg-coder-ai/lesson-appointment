@@ -685,6 +685,7 @@
                         <button class="btn btn-success"  onclick="confirmTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-check"></i> 确认/启用</button>
                         <button class="btn btn-warning" onclick="disableTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-ban"></i> 禁用</button>
                         <button class="btn btn-danger" onclick="deleteTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-trash"></i> 删除</button>
+                        <button class="btn btn-warning" onclick="resetUserPasswd('${tea.userId}')"><i class="fa fa-trash"></i> 重置密码</button>
                       </div>
                     </div>
                   `;
@@ -751,6 +752,7 @@
                         <button class="btn btn-success" onclick="confirmTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-check"></i> 确认/启用</button>
                          <button class="btn btn-warning" onclick="disableTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-ban"></i> 禁用</button>
                         <button class="btn btn-danger" onclick="deleteTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-trash"></i> 删除</button>
+                         <button class="btn btn-warning" onclick="resetUserPasswd('${tea.userId}')"><i class="fa fa-trash"></i> 重置密码</button>
                       </div>
                     </div>
                   `;
@@ -793,7 +795,14 @@
       const month = document.getElementById('month-select').value;
       alert(`已刷新 ${month} 月份的教师授课统计数据！`);
     }
-
+//利用changepasswordapi设置用户密码为缺省值
+    function resetUserPasswd(userId) {
+      <!-- INSERT_YOUR_CODE -->
+      if (!confirm("确定要重置此用户的密码为默认值吗？")) {
+        return;
+      }
+      changePasswordAPI(userId,"123456");
+    }
     var testFormContainer =null;
     var formContainer = null;
   
