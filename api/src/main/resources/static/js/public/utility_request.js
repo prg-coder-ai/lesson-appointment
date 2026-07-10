@@ -37,10 +37,45 @@
     baseURL: API_BASE_URL,
     timeout: 10000
   });
+  /**
+   * getNewToken 的功能及原理：
+   * 
+   * 功能简介：
+   *   getNewToken 方法用于通过 refreshToken 向后端请求新的访问令牌（token）。当用户的 token 过期后，
+   *   前端可调用此方法获取最新的 token，以实现无感刷新登录态，提高用户体验。
+   * 
+   * 原理解析：
+   *   1. 从 localStorage 获取当前保存的 refreshToken。
+   *   2. 使用单独的 axios 实例（refreshTokenAxios）发起 POST 请求，请求路径为 /auth/refreshToken，
+   *      请求体（body）中携带 { refreshToken }。
+   *   3. 后端收到请求后校验 refreshToken，若合法返回新的 token（和新的 refreshToken），否则拒绝（如过期或被踢出）。
+   *   4. 请求结果返回 Promise，前端收到新 token 后应适时更新 localStorage 并重试原始请求。
+   * 
+   * 典型场景：
+   *   - 用户已经登录，但 token 过期，自动刷新 token 无需重新登录。
+   *   - 实现 token 失效自动续约流程时常用。
+   * 
+   * 安全提示：
+   *   - refreshToken 通常有效期比 token 长，只保存在客户端本地，不随请求自动发送，建议存储和传输均走 HTTPS。
+   *   - 后端应防止 refreshToken 泄露被重放攻击，合理设置其有效期，且发现异常可将其失效。
+   */
 
   function getNewToken() {
     const refreshToken = localStorage.getItem('refreshToken');
-    return refreshTokenAxios.post('/auth/refreshToken', { refreshToken });
+    // 获取当前登录者的账号account
+    const cuser =  localStorage.getItem('currentUser');
+    const account = cuser.getAccount('account');
+    const role = cuser.getRole('role');
+    /*const currentUser = {
+      userId: user.userId,
+      account: user.account,
+      name: user.name,
+      role: user.role,
+      token: user.token
+    };
+    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+*/
+    return refreshTokenAxios.post('/auth/refreshToken', { refreshToken:refreshToken,account:account,role:role });
   }
 
   const service = axios.create({

@@ -140,10 +140,6 @@ function closeCourseModal() {
  */
 async function submitCourseForm() {
 
-    // 1. 校验表单
-    if (!validateCourseForm()) {
-        return;
-    }
     // 2. 获取表单数据 
     const formData = {
         courseId:   localParamter.formEl.courseId.value,
@@ -153,12 +149,18 @@ async function submitCourseForm() {
         feature:    localParamter.formEl.feature.value, 
         teacherId:  localParamter.formEl.teacherId.value
     };
+
+    
+    // 1. 校验表单
+    if (!validateCourseForm(formData)) {
+      return;
+  }
   // 3. 调用接口提交（区分新增/编辑）
     //根据CourseId判断新增还是修改
-    console.info("submit:",formData.courseId);
-    const token = getToken();
+    //console.info("submit:",formData.courseId);
+    //const token = getToken();
     const url = formData.courseId !=""? `course/update` : `course/insert`;
-    console.log("update",formData);
+  //  console.log("update",formData);
    let res = await updateORCreateCourse(url, formData);
    if(res!=""){
     alert(formData.courseId !="" ? '编辑成功' : '新增成功');
@@ -167,6 +169,48 @@ async function submitCourseForm() {
    } else {
     alert( formData.courseId!=""  ? '编辑失败' : '新增失败');
    } 
+}
+
+function validateCourseForm(formData){
+  // 检查 templateId, courseName, teacherId 均不为空
+  if (!formData.templateId || !formData.courseName || !formData.teacherId) {
+    // 可以针对每项提供单独提示
+    if (!formData.templateId) {
+      showFormError('templateId', '请选择模板');
+    }
+    if (!formData.courseName) {
+      showFormError('courseName', '课程名称不能为空');
+    }
+    if (!formData.teacherId) {
+      showFormError('teacherId', '请选择教师');
+    }
+    return false;
+  }
+  // 其它可选校验
+
+  // 校验通过
+  clearFormErrors();
+  return true;
+
+  // 辅助：显示错误
+  function showFormError(field, msg) {
+    const el = document.querySelector(`[name="${field}"]`);
+    if (el) {
+      let errEl = el.parentElement.querySelector('.form-error');
+      if (!errEl) {
+        errEl = document.createElement('div');
+        errEl.className = 'form-error';
+        errEl.style.color = 'red';
+        el.parentElement.appendChild(errEl);
+      }
+      errEl.innerText = msg;
+    }
+  }
+  function clearFormErrors() {
+    document.querySelectorAll('.form-error').forEach(el => el.innerText = '');
+  }
+
+  
 }
 /**
  * 渲染课程列表（核心：原生JS操作DOM）

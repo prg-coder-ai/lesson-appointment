@@ -88,6 +88,7 @@ public class CourseController {
 
     /**
      * 教师创建课程，对应设计2.2.2 接口：/api/v1/course/teacher/add（教师权限）
+     * TBD：管理员添加课程的情况，增加teacherId参数
      */
     @PostMapping("/insert")
     public Result<Map<String, String>> addCourse(@Validated @RequestBody Course course,
