@@ -83,6 +83,7 @@ public class authController {
      */
     @PostMapping("/refreshToken")
     public Result<TokenDTO> refreshToken(@RequestBody RefreshDTO refreshDTO) {
+        System.out.println("refreshToken refreshDTO:"+refreshDTO);
         String oldRefreshToken = refreshDTO.getRefreshToken();
         String account = refreshDTO.getAccount(); 
         String role = refreshDTO.getRole();
@@ -135,7 +136,7 @@ UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthent
         TokenDTO dto = new TokenDTO();
         dto.setToken(newAccess);//userid role
         dto.setRefreshToken(newRefresh);//userid
-         //System.out.println("controller refreshToken:"+dto);
+        System.out.println("controller refreshToken:"+dto);
         return Result.success(dto,"refreshToken ok");
     }
 

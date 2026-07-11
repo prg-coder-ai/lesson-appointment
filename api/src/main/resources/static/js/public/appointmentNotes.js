@@ -83,7 +83,7 @@ async function getAppointmentList(conditions ) {
       
             if(bookedObject == null )
               continue;
-            console.log("bookedObject:", bookedObject);  
+         //   console.log("bookedObject:", bookedObject);  
             const scheduleObject = await fetchSchedule(bookedObject.scheduleId); 
                if (scheduleObject != null) {
                 console.log("scheduleObject:", scheduleObject.courseId,bookedObject.studentId,bookedObject.teacherId,scheduleObject.name);  

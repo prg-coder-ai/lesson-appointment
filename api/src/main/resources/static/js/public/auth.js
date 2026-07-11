@@ -124,6 +124,7 @@
       if (!res || !res.token) {
         throw new Error('登录失败，未返回有效凭证');
       }
+      console.log("authenticateUser",res);
       return saveCurrentUserSession(res);
     } catch (err) {
       const msg =

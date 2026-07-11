@@ -64,8 +64,9 @@
     const refreshToken = localStorage.getItem('refreshToken');
     // 获取当前登录者的账号account
     const cuser =  localStorage.getItem('currentUser');
-    const account = cuser.getAccount('account');
-    const role = cuser.getRole('role');
+    console.error("getNewTaken currentUser",cuser);
+    const account = cuser.account;
+    const role = cuser.role;
     /*const currentUser = {
       userId: user.userId,
       account: user.account,
@@ -177,17 +178,20 @@
         isRefreshing = true;
         try {
           const refreshRes = await getNewToken();
-          console.log("000 getNewToken:",refreshRes.code,refreshRes.data);
-          const result = refreshRes.data;
-          if (result.code === 200) {
-            const { token, refreshToken } = result.data;
+          console.error("000 getNewToken:",refreshRes );
+         // 
+          if (refreshRes.status === 200) 
+         {  const result = refreshRes.data;
+          console.error("000 getNewToken result:",result );
+            const { token, refreshToken } =   result.data ;
             localStorage.setItem('token', token);
             localStorage.setItem('refreshToken', refreshToken);
             originalRequest.headers.Authorization = `Bearer ${token}`;
             requestQueue.forEach((cb) => cb(token));
             requestQueue = [];
             //isRefreshing = false;
-            console.log("200 originalRequest:",originalRequest);
+            console.error("200 originalRequest:",originalRequest);
+
             return service(originalRequest);
           
           // INSERT_YOUR_CODE
@@ -203,11 +207,11 @@
            * service(originalRequest) 相当于 axios(originalRequest)，只是这里 service 是 axios 封装对象，可以带一些默认配置。
            */
  
-          } else { //直接去重新登陆
+          } /*else { //直接去重新登陆
             showError('登录已过期，请重新登录q');
             location.href = './index.html';
             return Promise.reject(refreshErr); 
-          }
+          }*/
          // throw new Error(result.message || result.msg || '刷新凭证失败');
         } catch (refreshErr) { 
           localStorage.removeItem('token');
