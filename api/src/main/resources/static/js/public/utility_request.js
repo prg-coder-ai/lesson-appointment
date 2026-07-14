@@ -129,7 +129,7 @@
       const res = response.data;
      
       if (res.code === 200) {
-        console.log("resp:",res.data);
+        //console .log("resp:",res.data);
         return res.data;
       }
       if(res.code == 403){
@@ -178,11 +178,11 @@
         isRefreshing = true;
         try {
           const refreshRes = await getNewToken();
-          console.error("000 getNewToken:",refreshRes );
+        //  console.error("000 getNewToken:",refreshRes );
          // 
           if (refreshRes.status === 200) 
          {  const result = refreshRes.data;
-          console.error("000 getNewToken result:",result );
+          //console.error("000 getNewToken result:",result );
             const { token, refreshToken } =   result.data ;
             localStorage.setItem('token', token);
             localStorage.setItem('refreshToken', refreshToken);
@@ -190,7 +190,7 @@
             requestQueue.forEach((cb) => cb(token));
             requestQueue = [];
             //isRefreshing = false;
-            console.error("200 originalRequest:",originalRequest);
+            //console.error("200 originalRequest:",originalRequest);
 
             return service(originalRequest);
           
@@ -225,26 +225,7 @@
           isRefreshing = false;
         }
       }
-      /**
-       * 代码解释：
-       * 
-       * 上述代码片段是前端 axios 拦截器的 response 错误处理部分，主要关注 401 和 403 错误码（未授权和无权限）。
-       * 
-       * 1. 当请求返回 401 或 403 时，判断当前是否已经在执行刷新 token 的操作（isRefreshing）。
-       *    - 如果正在刷新，后续相同错误请求进入队列，等 token 刷新完再重新发请求。
-       *    - 如果没有刷新，则调用 getNewToken()（发起 /auth/refreshToken 请求），拿到新 token 后本地存储，并重放所有等待中的请求。
-       *    - 若刷新失败，则清空 token 和刷新队列，跳转回登录页。
-       * 2. 其他错误（404、500 等）进行友好提示。
-       * 
-       * 循环可能性分析：
-       * - 如果 /auth/refreshToken 这个请求也被同样的拦截器处理，并它返回 401/403，再次触发刷新，则会陷入死循环（即刷新接口也自动带 token 且因无效 token 被拦截）。
-       * - 但此代码中 getNewToken() 用的是 refreshTokenAxios 实例，理论上 refreshTokenAxios 没有挂全局拦截器，所以不会对 refreshToken 的调用再次进入自动刷新逻辑——因此**前端此处避免了循环**。
-       * 
-       * 总结：只要 refreshTokenAxios 没有挂载同样拦截，且 /auth/refreshToken API 逻辑不异常递归抛 401/403，前端这里不会进入逻辑死循环。
-       * 遇到循环多因 refreshToken 请求也被拦截/或后端实现问题导致反复 401。
-       */
-
-
+    
       let errMsg = '';
       switch (status) {
         case 403:

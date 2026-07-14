@@ -110,6 +110,11 @@
           <i class="fa fa-calendar-alt"></i>
           <span>上课通知</span>
         </div>
+
+        <div class="menu-item">
+          <i class="fa fa-calendar-alt"></i>
+          <span>测试-批量创建数据</span>
+        </div>
       </div>
       <!--
       <div class="menu-group">
@@ -149,6 +154,7 @@
     // 管理端页面内容加载逻辑（核心修改：渲染到中央区域）
     function loadAdminPageContent(title) {
       // 清空中央内容区
+      dynamicContentCenter = document.getElementById('dynamic-content-center');
       if(dynamicContentCenter)
       dynamicContentCenter.innerHTML = '';
       <!-- INSERT_YOUR_CODE -->
@@ -157,7 +163,9 @@
         title = '数据总览';
       }
       switch(title) {
-       
+        case "测试-批量创建数据":
+             dynamicContentCenter.innerHTML = makeTestPage();
+        break;
         case '数据总览':
 
           // 渲染数据总览面板
@@ -254,7 +262,7 @@
         
         case '教师管理':
             // 操作按钮事件 --checkout----set online =false TBD 
-            console.log("window.loadAdminPageContent", window.loadAdminPageContent);
+            //console .log("window.loadAdminPageContent", window.loadAdminPageContent);
            
             renderTeacherCards();
           break;
@@ -292,12 +300,13 @@
             renderTemplateCards();
             break;
         case '课程列表':
-          console.log("course..."); renderCourseCards();
+          //console .log("course...");
+          renderCourseCards();
           break;//课程排期
         
           
         case '课程排期':
-          console.log("ScheduleCards...课程排期"); 
+          //console .log("ScheduleCards...课程排期");
             renderScheduleCards();
           break;//课程排期
         case '预订审核'://TBD
@@ -457,6 +466,7 @@
     let dynamicContentCenter = null;//document.getElementById('dynamic-content-center');
     // 页面加载时验证登录状态（注释掉跳转，方便测试）
     window.onload = function() {
+      window.makeTestPage = makeTestPage;//test
        testFormContainer = document.getElementById('templateFormContainer');
        console.log("onload",testFormContainer); 
 
@@ -821,6 +831,8 @@
     <script src="js/admin-overall.js"></script>
     <script src="js/admin-provingBooking.js"></script>
     <script src="js/admin-AppointmentNotes.js"></script>
+
+    <script src="js/test/testData.js"></script>
    <script>
    console.log("end of body...")
    </script>

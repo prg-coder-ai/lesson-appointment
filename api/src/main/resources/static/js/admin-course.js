@@ -44,10 +44,10 @@ async function openEditCourseDialog(CourseJsonStr )
       defaultCourse = {};
       console.error(e);
     } 
-    console.log("edit json:",defaultCourse); 
+    //console .log("edit json:",defaultCourse);
   // 2. 设置弹窗标题
   const modalTitle = document.getElementById('modalTitle');
-  console.log("edit json2:",modalTitle); 
+  //console .log("edit json2:",modalTitle);
   modalTitle.innerText = (defaultCourse.courseId !="")? '编辑课程' : '新增课程';
    // 4. 生成表单HTML（复用index.html表单结构，适配样式） 
   //显示出来 from
@@ -218,7 +218,7 @@ function validateCourseForm(formData){
 async function renderCourseCards() {
  
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
-    console.log("renderCourseCards:",dynamicContentCenter);
+    //console .log("renderCourseCards:",dynamicContentCenter);
     if (!dynamicContentCenter) return; 
     // 显示加载中
     dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';
