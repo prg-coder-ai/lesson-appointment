@@ -39,8 +39,8 @@ window.validBooking   = validBooking ;
                  const studentName = await getUserNameById(booking.studentId);
                  const teacherName = await getUserNameById(classObject.teacherId);
 
-                 console.log("studentName:", booking.studentId,studentName);
-                 console.log("teacherName:", booking.teacherId,teacherName);
+                 //console .log("studentName:", booking.studentId,studentName);
+                 //console .log("teacherName:", booking.teacherId,teacherName);
                  if (classObject != null) {
                      let cardItems = {
                          index: index,
@@ -142,14 +142,14 @@ window.validBooking   = validBooking ;
 } 
 //TBD：需要根据status，判断是批准还是拒绝，仅显示待批准的项目个数----预约确认、取消预约的个数---具体确认在相应的页面进行
 async function approveReservation(bookingId,status) {
-  console.log("approveReservation:", bookingId);
+  //console .log("approveReservation:", bookingId);
    await  operateBookingStatus(bookingId, status);
-   console.log("approveReservation:", bookingId);
+   //console .log("approveReservation:", bookingId);
 }
 async function rejectReservation(bookingId) {
   
    await operateBookingStatus(bookingId, 'rejected');
-   console.log("rejectReservation:", bookingId);
+   //console .log("rejectReservation:", bookingId);
  
 }  
 
@@ -164,7 +164,7 @@ async function validOrCancelReservation(bookingid,status) {
   if(status == "booked"  ){   // 获取时间列表  booking--》booked
          const appointmentResults = await generateAppointmentList (bookingObj.scheduleId,scheduleInfo.timeZone );
          // 遍历scheduleResult数组的每个元素，添加到appointment_datetime中
-      //   console.log("list:",appointmentResults);
+      //   //console .log("list:",appointmentResults);
          let appointmentDateTimeList = [];
          if (Array.isArray(appointmentResults)) {
          appointmentResults.forEach(item => {
@@ -203,7 +203,7 @@ async function validOrCancelReservation(bookingid,status) {
          );  
          // 如果核心值有空，进行警告
          if (!bookingid || !dt) {
-             console.warn("警告：bookingid或appointmentDatetime为空！", AppointmentData);
+             //console .warn("警告：bookingid或appointmentDatetime为空！", AppointmentData);
              return;
          }
 

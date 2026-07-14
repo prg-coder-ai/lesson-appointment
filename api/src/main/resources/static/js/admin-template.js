@@ -216,7 +216,7 @@ async function submitTemplateForm() {
     };
   // 3. 调用接口提交（区分新增/编辑）
     //根据templateId判断新增还是修改
-    console.info("submit:",formData.templateId);
+    //console .info("submit:",formData.templateId);
     const token = getToken();
     const url = formData.templateId !=""? `${baseUrl}/course/template/update` : `${baseUrl}/course/template/insert`;
   
@@ -234,7 +234,7 @@ async function submitTemplateForm() {
         }
     } catch (err) {
         alert('网络异常，操作失败');
-        console.error(err);
+        //console .error(err);
     }
 }
 /**
@@ -243,7 +243,7 @@ async function submitTemplateForm() {
 async function renderTemplateCards() {
   
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
-    console.log("renderTemplateCards:",dynamicContentCenter);
+    //console .log("renderTemplateCards:",dynamicContentCenter);
     if (!dynamicContentCenter) return; 
     // 显示加载中
     dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';

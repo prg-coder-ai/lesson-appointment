@@ -34,7 +34,7 @@ async function getCourseById( courseId) {
     };
 */
 async function getCourseList(conditionJson) {  
-    console.log("getCourseList",conditionJson);
+    //console .log("getCourseList",conditionJson);
     try {
         // axios GET请求不能使用 body/params 的用法如下, 正确是用 params 字段传递 URL 查询参数
         const res = await request({
@@ -43,7 +43,7 @@ async function getCourseList(conditionJson) {
             params: conditionJson, // 正确传递查询参数，自动加到URL上 
         });
 
-        //console.log("courseList response:", res);
+        ////console .log("courseList response:", res);
          
         // 若是标准result结构  
             let courseList = res || [];
@@ -103,7 +103,7 @@ async function fetchScheduleList( cid,status) {
         data: bookingCreateDTO,
         // credentials: 'include' // 如果request实现中默认带cookie则无需此项
       });
-    console.log("createOrUpdateBookingObj:",result);
+    //console .log("createOrUpdateBookingObj:",result);
    return result;//id    
   } catch (err) {
     //alert('网络异常，操作失败');
@@ -129,7 +129,7 @@ async function fetchScheduleList( cid,status) {
         method: 'POST',
         data: payload 
       });
-     console.log('operateBookingStatus',res); 
+     //console .log('operateBookingStatus',res);
     } catch (e) {
       alert("网络错误或数据解析异常，操作失败");
       console.error(e);
@@ -164,7 +164,7 @@ async function operateSchedule(scheduleId, action) {
         scheduleId: scheduleId,  // 注意小写，和后端命名对应
         status: action
       };
-      console.log("payload：",payload); 
+      //console .log("payload：",payload);
     const  res = await request({url:`${API_BASE_URL}/schedule/updateStatus`,  
       method: 'POST', 
       data:  payload  //controller: @RequestBody IncSiteBody dto
@@ -205,17 +205,17 @@ function toScheduleCreateDto(formData) {
 // 
     async function saveScheduleToServer(bExists,dto) {
        const url = bExists? `schedule/update` : `schedule/create`; 
-       console.log("saveScheduleToServer:",bExists,dto);
+       //console .log("saveScheduleToServer:",bExists,dto);
     try{
       const result = await request({url: `${API_BASE_URL}/${url}`, 
                 method: 'POST',     
                  data:  dto  //ok--
                       });
-       //  console.log("res:",res);   
-      console.log("result:",result);
+       //  //console .log("res:",res);
+      //console .log("result:",result);
       return result ;//{id:id}
     }  catch(err){
-        alert('网络异常，操作失败');
+       // alert('网络异常，操作失败');
         console.error(err);  
     } 
     return null; 

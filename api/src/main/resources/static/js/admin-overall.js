@@ -75,7 +75,7 @@ async function renderStatisCards() {
     lastMonthTotalTeacher=1;lastMonthTotalStudent=2;lastMonthTotalCourse=3;
     lastMonthTotalBooking=4;lastMonthTotalAppoint=5;*/
     const stats = await getUserStatisticByMonth(currentYear, currentMonth);
-    if (stats) { console.log(stats.teacherMonthStart, stats.studentMonthEnd); 
+    if (stats) { //console .log(stats.teacherMonthStart, stats.studentMonthEnd);
           monthTotalTeacher= stats.teacherMonthEnd;
          // lastMonthTotalTeacher = stats.teacherMonthStart;
 
@@ -88,7 +88,7 @@ async function renderStatisCards() {
           monthTotalStudentIcon=getFaiconAndStr(delt);
         }
     const stats2 = await getCourseStaticsByMonth(currentYear, currentMonth);
-    if (stats2) { console.log(stats2.courseMonthEnd, stats2.courseMonthStart); 
+    if (stats2) { //console .log(stats2.courseMonthEnd, stats2.courseMonthStart);
       monthTotalCourse = stats2.courseMonthEnd;
       //lastMonthTotalCourse =   stats2.courseMonthStart;
 
@@ -97,7 +97,7 @@ async function renderStatisCards() {
     }
     //”booked“ --> 当前的预约数，如何计算: booked--本月预约数，上月预约数 
    const  BookingMonthCount = await   getBookingStaticsByMonth(currentYear, currentMonth); 
-   console.log( BookingMonthCount  ); 
+   //console .log( BookingMonthCount  );
     if(BookingMonthCount) { 
     
       monthTotalBooking = BookingMonthCount .bookingMonth  ;
@@ -108,7 +108,7 @@ async function renderStatisCards() {
     } else { monthTotalBooking =-1;  monthTotalBookingIcon=getFaiconAndStr(0);}
 
     const appData = await getAppointmentStatisticByMonth(currentYear, currentMonth);
-    console.log(appData); 
+    //console .log(appData);
     if(appData){ 
        monthTotalAppoint = appData .appMonth  ; 
       let delt= appData .appMonth-appData .appMonthLast  ;
@@ -133,7 +133,7 @@ async function renderStatisCards() {
    
      CancelBookingCount= bookingList1.length;
      BookingCount = bookingList2.length; 
-     console.log("BookingCount:", BookingCount,CancelBookingCount);  
+     //console .log("BookingCount:", BookingCount,CancelBookingCount);
 
      TodayLessonsCount = await getCountOfTodayAppointment();//获取今日课程数量
  }   
