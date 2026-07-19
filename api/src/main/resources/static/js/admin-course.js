@@ -60,14 +60,15 @@ async function openEditCourseDialog(CourseJsonStr )
     <div class="form-item">
       <label>模板ID <span style="color:red">*</span></label>
       <select name="templateId" class="form-select" required>
-      <option value="">请选择</option> 
+      <option value="">请选择模板</option> 
        `;
        //显示，每个模板的内容
-      templateList.forEach(template => { 
+       if (templateList &&  (Array.isArray(templateList) && templateList.length > 0))  
+     { templateList.forEach(template => { 
        var str = template.languageType+ " "+ template.difficultyLevel + " "+template.classDuration+ " "+template.classFee ;
         formHtml += ` <option value= ${template.templateId } ${template.templateId === defaultCourse.templateId ? "selected" : ""}> ${str}</option>` 
       });
-
+    }
       formHtml += `</select>
       <div class="form-error" id="templateIdError"></div>
        </div>
@@ -223,9 +224,9 @@ async function renderCourseCards() {
     // 显示加载中
     dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';
 
-    // 构建筛选条件 TBD
+    // 构建筛选条件 TBD ----
     const conditionJson = {
-        //language: document.getElementById('languageType').value,
+        // language: document.getElementById('languageType').value,
       //  level: document.getElementById('difficultyLevel').value,
       teacherId:"",
       templateId:"",
@@ -233,8 +234,8 @@ async function renderCourseCards() {
         pageRow: localParamter.pageSize,
         pageNum: localParamter.currentPage
     };
-
-      templateList = await  fetchTemplateList(templateCondition);  
+        let language = document.getElementById('languageType');
+      templateList = await  fetchTemplateList(language?language.value:'all');  
       teacherList  = await  fetchUserList(conditionJsonForTeacher);
 
     // 获取模板列表数据

@@ -16,7 +16,7 @@ import java.util.List;
 public class BookingController { 
     private final BookingService bookingService;
 //create/update/updateStatus：返回id
- @PostMapping
+    @PostMapping("/create")
     public Result<String> create(@RequestBody Booking booking) {
         try {
             return Result.success(bookingService.create(booking),"ok");
@@ -106,7 +106,7 @@ public class BookingController {
 
         return Result.success(data, "查询成功");
     }
-
+    
     // 经检查，当前 BookingController.java 文件不存在明显的语法错误。所有注解、方法和 Java 语法均正常。如果还需优化具体业务逻辑或风格，请明确说明需求。
 
     /*@DeleteMapping("/delete/{id}")

@@ -44,7 +44,8 @@ public class CourseController {
     public Result<Map<String, String>> insertTemplate(@Validated @RequestBody CourseTemplate template,
                                                    @RequestHeader("Authorization") String token) {
         // 权限校验：仅管理员可操作（对应设计2.3 安全设计-权限控制）
-        permissionCheck.checkAdmin(token);
+        
+       // permissionCheck.checkAdmin(token);
         // 调用服务层创建模板，返回templateId（对应设计2.2.2 模板创建返回数据）
         Map<String, String> resultMap = courseService.insertTemplate(template);
         return Result.success(resultMap, "课程模板创建成功");
@@ -55,7 +56,7 @@ public class CourseController {
     public Result<Map<String, String>> updateTemplate(@Validated @RequestBody CourseTemplate template,
                                                    @RequestHeader("Authorization") String token) {
         // 权限校验：仅管理员可操作（对应设计2.3 安全设计-权限控制）
-        permissionCheck.checkAdmin(token);
+        //permissionCheck.checkAdmin(token);
         // 调用服务层创建模板，返回templateId（对应设计2.2.2 模板创建返回数据）
            courseService.updateTemplate(template);
         return Result.success(null, "课程模板修改成功");
@@ -77,9 +78,11 @@ public class CourseController {
      */
     @GetMapping("/template/list")
     public Result<List<CourseTemplate>> getTemplateList(
-            String languageType, @RequestHeader("Authorization") String token) {
+            @RequestParam(defaultValue = "all") String languageType, 
+            @RequestHeader("Authorization") String token) {
+       
         // 权限校验：教师或管理员可操作
-        permissionCheck.checkTeacherOrAdmin(token);
+      //  permissionCheck.checkTeacherOrAdmin(token);
         // 调用服务层查询模板（支持按languageType筛选，对应设计2.2.2 模板查询功能说明）
         List<CourseTemplate> templates = courseService.getTemplateListByLanguage(languageType);
         //Map<String, List<CourseTemplate>> resultMap = Map.of("templates", templates);
