@@ -81,9 +81,26 @@ public class ScheduleController {
 //输入可能的检索参数，暂保留
     @GetMapping("/list")
      @ResponseBody
-    public Result<List<ScheduleCreateDTO>> getScheduleList(@Validated @RequestBody ScheduleCreateDTO dto,
+    public Result<List<ScheduleCreateDTO>> getScheduleList(@Validated  @RequestBody(required = false) ScheduleCreateDTO dtoA,
                    @RequestHeader("Authorization") String token) {
-               //     System.out .println("getScheduleList dto:" + dto);
+                     ScheduleCreateDTO dto = new ScheduleCreateDTO();
+                             System.out .println("getScheduleList dto:" + dtoA);
+              dto.setScheduleId(null); 
+              dto.setStartDate(null);
+              dto.setAvailableSites(null);
+              dto.setStartTime(null);
+              dto.setEndTime(null);
+              dto.setRepeatType(null);
+              dto.setRepeatInterval(null);
+              dto.setRepeatDays(null);
+          
+               dto.setStatus("active");
+               
+              dto.setTimeZone(null);
+         
+              dto.setCourseId(null); // courseId
+
+
         List<ScheduleCreateDTO> schedules = scheduleService.selectList(dto); //TBD: UTC-->local switch
         return Result.success(schedules,"ok");
     }
@@ -116,7 +133,7 @@ public class ScheduleController {
               dto.setStatus(null);
 
               dto.setTimeZone(null);
-      
+        if(courseId!= null)
               dto.setCourseId(courseId); // courseId
  
     ////System.out .println("getScheduleByCourseId dto:" + dto);

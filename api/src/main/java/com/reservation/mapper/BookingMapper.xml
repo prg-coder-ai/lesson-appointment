@@ -8,7 +8,7 @@
     <!-- 插入一条新预约 -->
     <insert id="insert" parameterType="com.reservation.entity.Booking">
         INSERT INTO booking
-        (id, schedule_id, student_id, teacher_id, status
+        (id, schedule_id, student_id, teacher_id,status
         )
         VALUES
         (#{id}, #{scheduleId}, #{studentId}, #{teacherId}, #{status}

@@ -7,6 +7,8 @@
  * 调用示例：test_genUser(10, "student");
  */
 function test_genUser(number, role) {
+
+  alert(`添加 `+role+" "+number+"人");
   const users = [];
   for (let i = 1; i <= number; i++) {
     const account = role + i;
@@ -20,14 +22,16 @@ function test_genUser(number, role) {
       role: role,
       phone: '',
       avatar: '',
-      status: 1,  // 正常
-      remark: ''
+      status: 'active',  // 正常
+      remark: ' for test,auto add'
     };
     users.push(user);
   }
   console.log("批量生成用户:", users);
   // 如需发送到后端，可循环请求or批量接口
     users.forEach(u => { request.post('/user/add', u) })
+
+    alert(`已添加 `+role+" "+number+"人");
   return users;
 }
 
@@ -95,7 +99,7 @@ async function batchAddCourseTemplates() {
   const templates = [
     {
       templateId: "CT001",
-      languageType: "英文",
+      languageType: "english",
       difficultyLevel: "1入门",
       classFee: 100,
       classDuration: 30,
@@ -105,7 +109,7 @@ async function batchAddCourseTemplates() {
     },
     {
       templateId: "CT002",
-      languageType: "日语",
+      languageType: "japanese",
       difficultyLevel: "2进阶",
       classFee: 120,
       classDuration: 45,
@@ -115,7 +119,7 @@ async function batchAddCourseTemplates() {
     },
     {
       templateId: "CT003",
-      languageType: "韩语",
+      languageType: "kr",
       difficultyLevel: "1入门",
       classFee: 90,
       classDuration: 30,
@@ -125,7 +129,7 @@ async function batchAddCourseTemplates() {
     },
     {
       templateId: "CT004",
-      languageType: "英文",
+      languageType: "english",
       difficultyLevel: "3中级",
       classFee: 150,
       classDuration: 60,
@@ -135,7 +139,7 @@ async function batchAddCourseTemplates() {
     },
     {
       templateId: "CT005",
-      languageType: "法语",
+      languageType: "france",
       difficultyLevel: "2进阶",
       classFee: 110,
       classDuration: 45,
@@ -155,7 +159,7 @@ async function batchAddCourseTemplates() {
     },
     {
       templateId: "CT007",
-      languageType: "中文",
+      languageType: "chinese",
       difficultyLevel: "1入门",
       classFee: 80,
       classDuration: 30,
@@ -185,7 +189,7 @@ async function batchAddCourseTemplates() {
     },
     {
       templateId: "CT010",
-      languageType: "英文",
+      languageType: "english",
       difficultyLevel: "4高级",
       classFee: 260,
       classDuration: 90,
@@ -194,13 +198,22 @@ async function batchAddCourseTemplates() {
       status: "active"
     }
   ];
-
+  let i=0;
   for (const tpl of templates) {
     try {
       // 使用封装的request.post方法发送请求，实现更优雅的调用和兼容性
-      const result = await request.post('/courseTemplate/add', tpl);
+     // const result = await request.post('/course/template/insert', tpl);
+      const result = await request({
+        url: `${API_BASE_URL}/course/template/insert`,
+        method: 'POST',
+        data: tpl, // 正确传递查询参数，自动加到URL上 
+        });
+
       // 可根据result结构展示反馈
-      if (result && result.code === 200) {
+      if(i==0)
+         console.log("course/template/insert:",result);
+        i++;
+      if (result  ) {
         console.log(`模板${tpl.templateId}添加成功`);
       } else {
         console.warn(`模板${tpl.templateId}添加失败`, result && result.msg);
@@ -222,9 +235,12 @@ async function batchAddCoursesForTemplates() {
   // 首先获取所有role=teacher的用户ID
   let teacherIDs = [];
   try {
-    const data = await request.get("/user/list?role=teacher");
-    if (data && data.code === 200 && Array.isArray(data.data)) {
-      teacherIDs = data.data.map(user => user.userId).filter(Boolean);
+    //const data = await request.get("/user/list?role=teacher");
+    //if (data && data.code === 200 && Array.isArray(data.data)) 
+    const conditionJson = { role: 'teacher' };//TBD:当前admin所属的群组等过滤条件
+    const data = await fetchUserList(conditionJson);
+    {
+      teacherIDs = data.map(user => user.userId).filter(Boolean);
     }
   } catch (e) {
     console.error("获取教师ID列表失败", e);
@@ -235,6 +251,7 @@ async function batchAddCoursesForTemplates() {
     alert("没有可用教师账号，无法生成课程。");
     return;
   }
+   let templates =  await fetchTemplateList('all');
 
   // 10个模板
   for (const tpl of templates) {
@@ -244,17 +261,20 @@ async function batchAddCoursesForTemplates() {
       const newCourse = {
         templateId: tpl.templateId,
         teacherId: teacherId,
+        courseName:tpl.languageType+"-"+tpl.difficultyLevel+"-"+tpl.classForm+"-"+(i+1),
         languageType: tpl.languageType,
         difficultyLevel: tpl.difficultyLevel,
         classFee: tpl.classFee,
         classDuration: tpl.classDuration,
         classForm: tpl.classForm,
+        content:tpl.description,
+        feature:tpl.classForm,
         description: tpl.description + `（自动生成课程${i+1}）`,
         status: "active"
         // 其他Course属性可按需补充
       };
       try {
-        const result = await request.post("/course/add", newCourse);
+        const result = await request.post("/course/insert", newCourse);
         if (result  ) {
           console.log(`模板${tpl.templateId}第${i+1}个课程添加成功，教师:${teacherId}`);
         } else {
@@ -268,19 +288,22 @@ async function batchAddCoursesForTemplates() {
 }
 /**
  * 为每个课程批量创建10个排期，并添加到数据库（适用于演示/测试/初始化）
- * 需配合后端API /courseSchedule/add (POST)
+ * 需配合后端saveScheduleToServer (POST)
  * 每次执行，所有课程各生成10条排期，自动分配上课时间
+ * -------
  */
 async function batchAddCourseSchedulesPerCourse() {
   try {
     // 1. 获取所有课程列表
-    const coursesJson = await request.get("/course/list");
-    if (!coursesJson || coursesJson.code !== 200 || !Array.isArray(coursesJson.data)) {
-      alert("获取课程列表失败：" + (coursesJson && coursesJson.msg));
+    const coursesJson = await fetchCourseList({status:'active'});
+    console.error(coursesJson);
+    if (!coursesJson ) {
+      alert("获取课程列表失败 "  );
       return;
     }
-    const courses = coursesJson.data;
-    if (!courses.length) {
+   
+
+    if (!coursesJson.length) {
       alert("没有课程数据，无法批量生成课程排期。");
       return;
     }
@@ -288,7 +311,7 @@ async function batchAddCourseSchedulesPerCourse() {
     // 2. 为每个课程生成10条排期对象
     const schedules = [];
     const today = new Date();
-    for (const course of courses) {
+    for (const course of coursesJson) {
       for (let i = 0; i < 10; i++) {
         // 自动分配上课时间: 从明天开始，每隔1天一条
         const classDate = new Date(today);
@@ -296,22 +319,34 @@ async function batchAddCourseSchedulesPerCourse() {
         // 生成上课时间段
         const startHour = 8 + (i % 10); // 8~17点
         const duration = course.classDuration || 30; // 单位分钟
-        const startTime = `${startHour.toString().padStart(2, '0')}:00`;
+        const startTime = `${startHour.toString().padStart(2, '0')}:00:00`;
         const endMinute = (0 + duration) % 60;
         const endHour = startHour + Math.floor(duration / 60) + Math.floor((0 + duration) / 60);
-        const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+        const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}:00`;
 
         // 构造CourseSchedule对象属性，自行调整字段名
         const scheduleObj = {
+          scheduleId: Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b=>b.toString(16).padStart(2,'0')).join(''),
+     
           courseId: course.courseId,
           teacherId: course.teacherId || "",
           templateId: course.templateId,
-          classDate: classDate.toISOString().slice(0, 10), // yyyy-MM-dd
-          classStart: startTime, // "HH:mm"
-          classEnd: endTime,     // "HH:mm"
-          status: "available",   // 可预约
+        //  classDate: classDate.toISOString().slice(0, 10), // yyyy-MM-dd
+          startTime: startTime, // "HH:mm"
+          endTime: endTime,     // "HH:mm"
+        
+          startDate:classDate.toISOString().slice(0, 10),
+          endDate:classDate.toISOString().slice(0, 10),
+          status: "active",   // 可预约
           classroom: "教室-" + ((i % 5) + 1),
           remark: `自动生成-${i+1}`,
+
+          repeatType:0,
+          repeatInterval: 1,
+          repeatDays:  [],
+          timeZone:  "America/Edmonton",
+          availableSites: 1, 
+          name:   course.courseName+(i+1)
         };
         schedules.push(scheduleObj);
       }
@@ -321,18 +356,17 @@ async function batchAddCourseSchedulesPerCourse() {
     let okCount = 0, failCount = 0;
     for (const sched of schedules) {
       try {
-        const result = await request.post("/courseSchedule/add", sched);
-        if (result && result.code === 200) {
+        const result = saveScheduleToServer(false,sched);//await request.post("/courseSchedule/add", sched);
+        if (result ) {
           okCount++;
         } else {
-          failCount++;
-          console.warn("排期添加失败", sched, result && result.msg);
+          failCount++; 
         }
       } catch (e) {
         failCount++;
         console.error("排期添加接口异常", sched, e);
       }
- 
+        
     }
 
     alert(`批量为课程生成排期完成！成功：${okCount}，失败：${failCount}`);
@@ -346,9 +380,11 @@ async function batchAddCourseSchedulesPerCourse() {
 // 1. 查询全部学生列表
 async function getAllStudentIds() {
   try {
-    const resp = await request.get("/user/student/list");
-    if (resp && resp.code === 200 && Array.isArray(resp.data)) {
-      return resp.data.map(u => u.userId);
+    //TBD /user/list con={role:student,status:active }
+    const resp = await request({url:"/user/student/list",method:"get"});
+    if (resp  ) {
+      // 将后端返回的学生用户对象数组 resp 映射为只包含 userId 的纯数组，即提取所有学生的 userId 构成一个新数组返回
+      return resp.map(u => u.userId);
     } else {
       return [];
     }
@@ -357,7 +393,7 @@ async function getAllStudentIds() {
     return [];
   }
 }
-
+ 
 // 2. 帮全部排期随机指定给1个学生
 async function assignSchedulesRandomStudent() {
   const studentIds = await getAllStudentIds();
@@ -365,41 +401,70 @@ async function assignSchedulesRandomStudent() {
     alert("没有可用学生，无法分配排期");
     return;
   }
-  let schedules = await getScheduleList();
+  let schedulesList = await getScheduleList();
   let ok = 0, fail = 0;
-  for (const sch of schedules) {
-    const sid = studentIds[Math.floor(Math.random() * studentIds.length)];
+  //console.error("schedules",schedulesIdList);
+  let teacherId=null;
+  for (const scdObj of schedulesList) { 
+    teacherId=null
+      if(scdObj){
+         let cObj = await getCourseById(scdObj.courseId);
+         console.warn(" getCourseById", cObj ); 
+         if(cObj)
+            teacherId = cObj.teacherId;
+          else 
+          {
+            console.warn("search no getCourseById", scdObj ); 
+          }
+      }  
+       if(teacherId == null)
+       {
+        console.warn("search no teacherid", scdObj );
+        continue;
+       }
+     const sid = studentIds[Math.floor(Math.random() * studentIds.length)]; 
     // 构造预约对象
-    const orderObj = {
-      userId: sid,
-      scheduleId: sch.scheduleId || sch.id || sch.scheduleId, // 兼容可能的字段名
-      status: "pending", // 可根据实际业务调整
-      remark: "自动分配"
+    const orderDto = {
+      //id: Math.random().toString(36).slice(2, 10), // 生成8位随机字符串
+      studentId: sid,
+      scheduleId: scdObj.scheduleId, // 兼容可能的字段名
+      teacherId:  teacherId,
+      status: "booked", // 可根据实际业务调整pending
+     // remark: "自动分配"
+ 
     };
+
     try {
-      const rst = await request.post("/booking/add", orderObj);
-      if (rst && rst.code === 200) {
+      const rst = await request({url:`${API_BASE_URL}/course/booking/create`,
+        method:`POST`,
+        data: orderDto});
+      if (rst) {
         ok++;
       } else {
         fail++;
-        console.warn("学生预约失败", orderObj, rst && rst.msg);
-      }
+        console.warn("学生预约失败", orderDto, rst && rst.msg);
+        break;//only once for test
+      } 
     } catch(e) {
       fail++;
-      console.error("分配学生预约接口异常", orderObj, e);
+      console.error("分配学生预约接口异常", orderDto, e);
+      break;
     }
   }
   alert(`随机分配排期给学生已完成，成功：${ok}，失败：${fail}`);
 }
+
  function test_genUser_student() {
+  
   let number = 300;
   let role = "student";
-  test_genUser(number.role);
+
+  test_genUser(number,role);
  }
  function test_genUser_teacher() {
   let number = 100;
   let role = "teacher";
-  test_genUser(number.role);
+  test_genUser(number,role);
  }
 // 用法示例：
 // assignSchedulesRandomStudent(schedules); // 其中schedules是排期对象数组
@@ -408,16 +473,16 @@ async function assignSchedulesRandomStudent() {
 
         let testHtml ="<div>";
         let number = 300,role = "student";
-        testHtml += ' <div class="card"> <button class="btn btn-default" onclick="test_genUser_student()"> 添加学生</button></div>';
+        testHtml += ' <div > <button class="btn btn-default" onclick="test_genUser_student()"> 添加学生</button></div>';
         number = 100,role = "teacher";
-        testHtml += ' <div class="card"> <button class="btn" onclick="test_genUser_teacher()"> 添加教师</button></div>';
+        testHtml += ' <div > <button class="btn" onclick="test_genUser_teacher()"> 添加教师</button></div>';
       
-        testHtml += ' <div class="card"> <button class="btn" onclick="batchAddCourseTemplates()"> 添加课程模板</button></div>';
-        testHtml += ' <div class="card"> <button class="btn" onclick="batchAddCoursesForTemplates()"> 添加课程</button></div>';
+        testHtml += ' <div > <button class="btn" onclick="batchAddCourseTemplates()"> 添加课程模板</button></div>';
+        testHtml += ' <div > <button class="btn" onclick="batchAddCoursesForTemplates()"> 添加课程</button></div>';
 
-        testHtml += ' <div class="card"> <button class="btn" onclick="batchAddCourseSchedulesPerCourse()"> 添加课程排期</button></div>';
+        testHtml += ' <div> <button class="btn" onclick="batchAddCourseSchedulesPerCourse()"> 添加课程排期</button></div>';
 
-        testHtml += ' <div class="card"> <button class="btn" onclick="assignSchedulesRandomStudent()"> 添加课程预定</button></div>';
+        testHtml += ' <div > <button class="btn" onclick="assignSchedulesRandomStudent()"> 添加课程预定</button></div>';
         testHtml += '</div>';
 
         return testHtml; 
