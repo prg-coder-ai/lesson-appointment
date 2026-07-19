@@ -1,4 +1,4 @@
-# HTML+JavaScript前端 + Spring Boot API 合并（完整目录+配置）
+# HTML+JavaScript前端 + Spring Boot API 合并（完整目录+配置+开发启动步骤）
 
 ## 一、完整项目目录结构（最终合并后，非8080端口）
 
@@ -77,8 +77,7 @@ spring-boot-merge-project/  # 合并后的总项目名（可自定义）
 
         <!-- 2. 核心依赖：Thymeleaf（动态页面渲染，必须加，支持HTML+JS读取后端数据） -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-thymeleaf</artifactId>
+            <groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-thymeleaf</artifactId>
         </dependency>
 
         <!-- 3. 数据库依赖：MySQL驱动（根据你的数据库替换，如Oracle/SQL Server） -->
@@ -111,9 +110,9 @@ spring-boot-merge-project/  # 合并后的总项目名（可自定义）
     </dependencies>
 
     <build>
-<plugins>
+        <plugins>
             <!-- Spring Boot 打包插件（必须加，打包为可运行jar） -->
-            <plugin>
+           <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
@@ -179,22 +178,23 @@ spring.web.resources.static-locations=classpath:/static/
 
 ```html
 <!DOCTYPE html>
-动态页面（HTML+JS）从数据库读取的数据（HTML+JS动态渲染）<!-- 动态渲染区域（JS请求API获取数据，渲染到这里） --><!-- 引用static文件夹下的JS（先引api.js，再引main.js，顺序不能乱） -->
+动态页面（HTML+JS）从数据库读取的数据（HTML+JS动态渲染）<!-- 动态渲染区域（JS请求API获取数据，渲染到这里） -->
+    <!-- 引用static文件夹下的JS（先引api.js，再引main.js，顺序不能乱） -->
     
 ```
 
 #### （2）static/js/api.js（API请求封装，统一调用后端接口，适配非8080端口）
 
-核心：请求地址要匹配你的端口（如8088），无需写完整域名，直接用相对路径即可。
+核心：请求地址用相对路径，无需写端口，端口由Spring Boot配置决定，避免端口冲突。
 
 ```javascript
 // API请求封装（简化JS请求，避免重复代码）
 const api = {
-    // 后端API接口地址（相对路径，端口由Spring Boot配置决定，无需写localhost:8088）
-    getDataList: "/api/data/list" // 对应后端IndexController的API接口
+    // 后端API接口地址（相对路径，对应后端IndexController的API接口）
+    getDataList: "/api/data/list"
 };
 
-// 封装GET请求（获取数据库数据）
+// 封装GET请求（获取数据库数据，供main.js调用）
 function getRequest(url, callback) {
     fetch(url, {
         method: "GET",
@@ -215,7 +215,7 @@ function getRequest(url, callback) {
 #### （3）static/js/main.js（页面交互+数据渲染，联动HTML和API）
 
 ```javascript
-// 页面加载完成后，自动请求API，渲染数据
+// 页面加载完成后，自动请求API，渲染数据库数据
 window.onload = function() {
     // 调用api.js中的请求方法，获取数据库数据
     getRequest(api.getDataList, function(dataList) {
@@ -224,11 +224,11 @@ window.onload = function() {
         // 清空容器（避免重复渲染）
         container.innerHTML = "";
         
-        // 循环渲染数据（根据后端返回的实体类字段调整，如name、value）
+        // 循环渲染数据（根据后端返回的实体类字段调整，如item.id、item.name）
         dataList.forEach(item => {
             const itemDiv = document.createElement("div");
             itemDiv.className = "data-item";
-            // 渲染数据（替换为你的实体类字段，如item.id、item.name）
+            // 渲染数据（替换为你的实体类字段）
             itemDiv.innerHTML = `
                 ID：${item.id}名称：${item.name}内容：${item.content}
             `;
@@ -285,14 +285,14 @@ public class IndexController {
     @Autowired
     private DataService dataService;
 
-    // 1. 渲染动态页面（HTML），访问路径：http://localhost:8088/（你的端口）
+    // 1. 渲染动态页面（HTML），访问路径：http://localhost:你的端口/
     @GetMapping("/")
     public String index() {
         // 跳转到templates/index.html页面（无需传参，JS将通过API请求数据）
         return "index";
     }
 
-    // 2. 提供API接口（给JS调用，返回JSON数据），访问路径：http://localhost:8088/api/data/list
+    // 2. 提供API接口（给JS调用，返回JSON数据），访问路径：http://localhost:你的端口/api/data/list
     @GetMapping("/api/data/list")
     @ResponseBody // 标记返回JSON，而非页面
     public List<Data> getDataList() {
@@ -317,7 +317,54 @@ public class IndexController {
 
 - 打包部署：合并后只需打包Spring Boot项目（mvn package），生成的jar包可直接运行（java -jar 包名.jar），无需单独部署前端。
 
-## 四、最终访问效果（替换为你的端口）
+## 四、开发阶段启动web服务和API服务（核心步骤）
+
+核心说明：本项目为「前后端合并项目」，只需启动Spring Boot服务，即可同时启动Web服务（前端页面）和API服务，无需单独启动前端服务器（如nginx、live-server），简化开发流程。
+
+### 前提准备（启动前必做）
+
+1. 确认数据库已启动：打开本地MySQL（或其他数据库），确保数据库服务正常运行，且application.properties中配置的数据库名称、用户名、密码正确（需提前创建对应数据库）。
+
+2. 确认依赖已加载：打开IDE（如IDEA、Eclipse），导入项目后，等待Maven自动下载pom.xml中的所有依赖，无红色报错（若有依赖报错，刷新Maven或手动下载对应依赖）。
+
+3. 确认端口未被占用：打开cmd（Windows）或终端（Mac/Linux），输入命令 `netstat -ano | findstr 你的端口`（如8088），若无结果则端口未被占用；若有结果，关闭占用端口的进程，避免启动失败。
+
+### 启动步骤（以IDEA为例，通用适配所有IDE）
+
+1. 打开项目：在IDEA中打开合并后的spring-boot-merge-project项目，等待项目加载完成（底部状态栏无加载进度）。
+
+2. 找到启动类：在左侧项目目录中，定位到 `com.yourpackage.SpringBootMergeApplication.java`（项目主类，带有@SpringBootApplication注解）。
+
+3. 启动Spring Boot服务：
+            
+
+    - 方式1（右键启动）：右键点击SpringBootMergeApplication.java文件，选择「Run 'SpringBootMergeApplication'」（或「运行'SpringBootMergeApplication'」）。
+
+    - 方式2（顶部启动）：找到IDEA顶部工具栏，选择SpringBootMergeApplication对应的启动按钮（绿色三角图标），点击启动。
+
+4. 验证服务启动成功：启动后，查看底部「Run」控制台，出现以下信息即表示Web服务和API服务同时启动成功：
+            `Tomcat started on port(s): 8088 (http) with context path ''
+Started SpringBootMergeApplication in x.xxx seconds (JVM running for x.xxx)`
+            （说明：8088为你配置的端口，若配置为其他端口，此处显示对应端口）
+        
+
+### 启动后验证（确保Web和API服务正常可用）
+
+1. 验证Web服务（前端页面）：打开浏览器，输入 `http://localhost:你的端口/`（如http://localhost:8088/），能正常显示index.html页面，且无404、500错误，即Web服务启动成功。
+
+2. 验证API服务：打开浏览器或Postman，输入 `http://localhost:你的端口/api/data/list`（如http://localhost:8088/api/data/list），能返回JSON格式的数据（即使为空数组，无报错），即API服务启动成功。
+
+3. 验证动态渲染：若数据库中有数据，刷新Web页面（http://localhost:你的端口/），页面能正常渲染出数据库中的数据，即前后端联动成功。
+
+### 开发阶段便捷调试技巧（提升效率）
+
+- 前端调试：修改templates下的HTML、static下的CSS/JS后，无需重启Spring Boot服务，直接刷新浏览器即可生效（因application.properties中已配置spring.thymeleaf.cache=false，关闭了模板缓存）。
+
+- 后端调试：修改Java代码（如Controller、Service、Mapper）后，需重启Spring Boot服务才能生效；可开启IDEA的「热部署」（需添加热部署依赖），实现代码修改后自动重启，无需手动点击启动。
+
+- 端口修改：若需修改端口，直接修改application.properties中的server.port，重启服务即可，前端JS无需修改（因请求用的是相对路径）。
+
+## 五、最终访问效果（替换为你的端口）
 
 - 动态页面（HTML+JS，读取数据库）：http://localhost:8088/（你的端口，如8090则改为localhost:8090）
 
