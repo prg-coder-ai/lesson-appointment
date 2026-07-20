@@ -394,7 +394,7 @@ async function getAllStudentIds() {
   }
 }
  
-// 2. 帮全部排期随机指定给1个学生
+// 2. 帮全部排期随机指定给1个学生 ----TBD：直接assign-student
 async function assignSchedulesRandomStudent() {
   const studentIds = await getAllStudentIds();
   if (!studentIds.length) {
@@ -452,6 +452,84 @@ async function assignSchedulesRandomStudent() {
     }
   }
   alert(`随机分配排期给学生已完成，成功：${ok}，失败：${fail}`);
+}
+ 
+  //
+//  利用public下的已有函数getBookingList读取已经预定的booking对象(status="booked")，
+// 然后判断在appointment数据表中如果不存在booking.id则把booking对象转为ScheduleGenerateDTO ，
+// 调用generateScheduleListFromServer创建预定对象的预约时间
+async function generateAppointmentListByBooking() {
+  // 1. 获取已预约的booking对象列表
+  let bookingList = await getBookingList({ status: "booked" });
+  if (!Array.isArray(bookingList)) {
+    console.warn("getBookingList 未获取到数组数据，实际为:", bookingList);
+    return;
+  }
+  console.log(`[generateAppointmentListByBooking] 已获取booking数量:`, bookingList.length);
+
+  // 2. 遍历booking对象，判断appointment表中是否已经存在，如果不存在则生成ScheduleGenerateDTO并生成预约
+  let countInserted = 0, countSkipped = 0, errors = 0;
+  for (let i = 0; i < bookingList.length; i++) {
+    const booking = bookingList[i];
+
+    // 检查appointment数据表中是否已经存在该预约
+    let exists = false;
+    try {
+      exists = await checkAppointmentExistsByBookingId(booking.id);
+    } catch (e) {
+      console.error(`检查appointment是否存在异常:`, booking.id, e);
+      errors++;
+      continue;
+    }
+
+    if (exists) {
+      console.log(`[generateAppointmentListByBooking] 已存在的预约，跳过 bookingId=`, booking.id);
+      countSkipped++;
+      continue;
+    }
+
+    // booking对象转为ScheduleGenerateDTO
+    //let generateDTO =  toScheduleCreateDto( booking);
+    
+    try {
+      let rst = await generateAppointmentList(booking.scheduleId,null);
+      if (rst  ) {
+        countInserted++;
+        console.log(`[generateAppointmentListByBooking] 已为bookingId=${booking.id}创建预约`, rst);
+        //TBD --保存到数据库
+      } else {
+        errors++;
+        console.warn(`[generateAppointmentListByBooking] 生成预约失败 bookingId=`, booking.id, rst && rst.msg);
+      }
+    } catch (e) {
+      errors++;
+      console.error(`[generateAppointmentListByBooking] generateScheduleListFromServer 调用异常`, booking.id, e);
+    }
+  }
+
+  alert(`预约导入完成。成功创建: ${countInserted}，已存在跳过: ${countSkipped}，错误: ${errors}`);
+}
+
+async  function checkAppointmentExistsByBookingId(booking_id){
+// INSERT_YOUR_CODE
+  // 调用API，appointment/getByBookingId 判断是否为空
+  // 返回true表示已存在，false表示不存在
+  try {
+    const res = await request({
+      url: `${API_BASE_URL}/appointment/getByBookingId`,
+      method: "GET",
+      params: { bookingId: booking_id }
+    });
+    // 这里假定res.data为预约数组，且接口包一层Result
+    if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+      return true;  // 存在
+    }
+    return false;   // 不存在
+  } catch (e) {
+    // 网络/服务器异常，抛出上层处理
+    throw e;
+  }
+ 
 }
 
  function test_genUser_student() {

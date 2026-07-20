@@ -219,18 +219,15 @@ async function submitTemplateForm() {
     //console .info("submit:",formData.templateId);
     const token = getToken();
     const url = formData.templateId !=""? `${baseUrl}/course/template/update` : `${baseUrl}/course/template/insert`;
-  
-    try {
-        const res = await axios.post(url, formData, {
-            headers: { "Authorization": "Bearer " + token }
-        });
+      try{
+          let res = await  updateORCreateTemplate(formData);
         // 4.  响应处理 响应成功/失败
-        if (res.data && res.data.code === 200) {
+        if (res ) {
             alert(formData.templateId !="" ? '模板编辑成功' : '模板新增成功');
-          closeTemplateModal(); // 关闭弹窗
-          await renderTemplateCards(); // 刷新列表
+            closeTemplateModal(); // 关闭弹窗
+           await renderTemplateCards(); // 刷新列表
         } else {
-            alert(res.data?.message || (formData.templateId!=""  ? '模板编辑失败' : '模板新增失败'));
+            alert( formData.templateId!=""  ? '模板编辑失败' : '模板新增失败');
         }
     } catch (err) {
         alert('网络异常，操作失败');
