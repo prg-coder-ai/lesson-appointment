@@ -57,7 +57,7 @@ let  monthTotalTeacherIcon={},
  * 3、 教师统计信息
  */
 refreshOverallpage();
-window.getBookingList  = getBookingList ;  
+ 
 
  async function refreshOverallpage(){
   renderStatisCards();
