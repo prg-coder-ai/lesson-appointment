@@ -118,6 +118,16 @@ public class AppointmentController {
         return Result.success(appointmentService.list(),"ok");
     }
  
+    // INSERT_YOUR_CODE
+    /**
+     * 查询指定 bookingId 的预约列表
+     * GET /course/appointment/listByBookingId?bookingId=xxx
+     */
+   // @GetMapping("/listByBookingId")
+    //public Result<List<Appointment>> listByBookingId(@RequestParam String bookingId) {
+    //    return Result.success(appointmentService.getByBookingId(bookingId), "ok");
+    //}
+
     // 根据 bookingId 查询
     @GetMapping("/getByBookingId")
     public Result<List<Appointment>> getByBookingId(@RequestParam String bookingId) {
