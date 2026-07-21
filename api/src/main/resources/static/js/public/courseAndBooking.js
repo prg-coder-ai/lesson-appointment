@@ -11,7 +11,23 @@ async function operateTemplate(templateId, action) {
          templateid: templateId,  // 注意小写，和后端命名对应
          status: action
      };
-  
+
+  async function updateORCreateTemplate(formData){
+    const url = formData.templateId !=""? `${baseUrl}/course/template/update` : `${baseUrl}/course/template/insert`;
+
+    try {
+        const res = await request ( {
+                   url:url,
+                   method: 'POST' ,
+                   data:formData                  
+                    });
+          return res;
+        } catch (err) {
+            alert('网络异常，操作失败');
+             console .error(err);
+             return null;
+        }
+    }
        // 这里分析参数带入方式：接口说明需要 templateId 和 action（操作类型/状态）作为参数。
        // axios.put 发送到 /course/template/manage，后端期望参数格式为 { templateId, action } （或 status）。
        // 但你的写法是 { templateId: ..., status: ... }，后端如期望 action 字段，需要修正字段名。
@@ -390,7 +406,7 @@ async function generateAppointmentList( scheduleId ,timeZone){
    interval:  scheduleInfo.repeatInterval,
    status:    scheduleInfo.status,
    timeZone:  scheduleInfo.timeZone,
-   userTimeZone:timeZone,
+   userTimeZone:timeZone==null?scheduleInfo.timeZone:timeZone,
    repeatDays: scheduleInfo.repeatDays
      ? scheduleInfo.repeatDays.split(',').map(s => Number(s.trim())).filter(n => !isNaN(n))
      : [],
@@ -504,6 +520,8 @@ async function getBookingList( userRole, userid, status) {
   //console.log("getBookingList: params", params); 
   return  await getBookingInfoByCondition(params) ; 
 }
+
+window.getBookingInfo = getBookingInfo;
 
 async function  getBookingInfoByCondition(params) {
   const url = `course/booking/list` ; 
