@@ -8,7 +8,7 @@ let DaysAppointmentList=[];// ID,ciurseName,studentName,teacherName,dateTime(创
 window.refreshAppointmentNotesForStudent  = refreshAppointmentNotesForStudent ;  
 
  async function refreshAppointmentNotesForStudent(renderTo){
-     let days = 7; //TBD 选择 7天、3天、当天1
+     let days = 1; //TBD 选择 7天、3天、当天1
   //  let userid = userId;//
    // let role=  userRole ;
    DaysAppointmentList =  await getAppointmentListData({Days:days,UserId:userId,Role:userRole});//TBD:添加 userid的限制

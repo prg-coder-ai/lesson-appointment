@@ -358,7 +358,7 @@
       }
       if(isValid)
        { // 检查账号是否已存在  
-        const isExist = await checkAccountExists(registerAccount); 
+        const isExist = await toCheckAccountExists(registerAccount);
         if (isExist) { 
           isValid = false; 
           registerUsernameError.textContent = '账号已存在';
@@ -388,28 +388,27 @@
 
       return isValid;
     }
-   
+
    // 利用后端 "/account/exist" 检查账号是否已经存在
    // 该函数会对输入账号发起GET请求，返回Promise<boolean>
-   async function checkAccountExists(registerAccount) {
+   async function toCheckAccountExists(registerAccount) {
      if (!registerAccount) return false; // 没有账号直接认为不存在（交给前面表单校验）
-     try { 
-       const resp = await fetch(`${API_BASE_URL}/user/account/exist?account=${encodeURIComponent(registerAccount)}`);
-       if (!resp.ok) {
+     try {
+       const resp = checkAccountExists(registerAccount);
+       if (!resp) {
          // 网络异常一律视为未占用，但需给出alert以便排查问题
           alert("网络异常，无法校验账号是否存在,稍等再试"); //可根据需要屏蔽
-         return false;
+         //return false;
        }
-       const data = await resp.json();
+     //  const data = await resp.json();
        // 期望后端返回 { code: ..., data: true/false }
-       return !!(data && data.data === true);
+     //  return !!(data && data.data === true);
      } catch (e) {
        // 网络或js异常视为未占用
         alert("连接后端失败，无法判断账号是否已存在,稍等再试");
-       return false;
-     } 
+      // return false;
+     }
    }
-   
     // 新增：提交注册申请
     function submitRegister() {
       // 模拟提交到后端（实际项目用fetch/post）
@@ -431,9 +430,7 @@
           let pendingRegisters =JSON.parse('[]');// JSON.parse(localStorage.getItem('pendingRegisters') || '[]');
           pendingRegisters.push(registerInfo);
           localStorage.setItem('pendingRegisters', JSON.stringify(pendingRegisters));
-          
-          // 【修改】移除URL变量前多余空格 + 优化为模板字符串
-          const URL = `${API_BASE_URL}/user/${registerInfo.role}/register`;
+
           
           /*
             本段处理逻辑解析：
@@ -451,6 +448,9 @@
             6. 控制台分别打印 response 和 data 便于调试。
             整体逻辑实现了前端的注册异步请求、异常处理与用户交互提示。
           */
+
+          // 【修改】移除URL变量前多余空格 + 优化为模板字符串
+          const URL = `${API_BASE_URL}/user/${registerInfo.role}/register`;
           request({
             url: URL,
             method: 'POST',
@@ -632,7 +632,7 @@
 - 检查 localStorage 或 cookie 的登录态是否和服务端保持一致。
 - 手动清除 localStorage 及 cookie，重新登录一次，观察是否能恢复正常。
 - 检查后端日志确认 403 详细原因。
-<!-- 
+
 1. 在自动登录的 fetch 请求之后，判断 response.status 是否为 403。
 2. 如果遇到 403，前端需要清理本地的登录信息（localStorage.removeItem('currentUser')，或清除 cookie），然后跳转回登录页。
 3. 示例如下：

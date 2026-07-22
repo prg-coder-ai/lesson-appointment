@@ -42,16 +42,25 @@ public class authController {
      private JwtUtil jwtUtil;
    /**
      * 用户登录接口，对应设计2.2.1 接口：/api/v1/user/login
-     * TBD：在线状态online：yes/no
-     */
+     * TBD：在线状态online：yes/no 
+          * 功能说明：
+          * 1. 用户登录接口，接收用户提交的账号(account)和密码(password)信息。
+          * 2. 调用 UserService.login(account, password) 完成账户密码校验、用户状态检查（冻结/未审核）、Token/refreshToken 生成、Token 持久化等核心登录流程。
+          * 3. 登录成功后，封装 Spring Security 所需 UsernamePasswordAuthenticationToken，对认证信息（角色权限等）进行安全上下文设置，实现后续接口的身份感知和权限控制。
+          * 4. controller 至此已将核心安全信息写入 Spring Security 上下文，实现与前端登录流程的状态同步。
+          *
+          * 原理解析：
+          * - 前后端分离应用采用 Token 鉴权，登录接口返回 accessToken 和 refreshToken，accessToken 短时用于资源访问，refreshToken 支持免登刷新。
+          * - 控制层主动生成 Spring Security 认证对象（含角色/权限），写入全局安全上下文，解决 token 场景下无 session/用户态的问题，为后续接口自动注入当前用户凭据。
+          * - 支持多端、token机制下的灵活身份自动识别和权限管控，是现代前后端分离项目的安全核心做法。
+          */
     @PostMapping("/login")
     @ResponseBody
     public Result  <HashMap<String, Object>>  toLogin( @Validated @RequestBody User user){
              String account = user.getAccount();
              String password = user.getPassword();
 
-
-        // 调用服务层实现登录逻辑，返回userId、role、Token,freshToken（对应设计2.2.1 登录返回数据）
+        // 调用服务层实现登录逻辑，返回userId、name，role、account、Token,freshToken（对应设计2.2.1 登录返回数据）
         Result<HashMap<String, Object>> rst= userService.login(account, password); //setOnline(false)
           
         // 3. 登录成功：设置安全状态（核心步骤） ?token?
@@ -63,7 +72,7 @@ public class authController {
         );
 
         // 将认证信息存入安全上下文（自动维护会话，无需手动管理）
-        SecurityContextHolder.getContext().setAuthentication(authentication);
+        SecurityContextHolder.getContext().setAuthentication(authentication); 
          System.out.println("controller login:"+rst);
   
         return rst;//Result.success(resultMap, "登录成功");
@@ -74,14 +83,18 @@ public class authController {
      */
     @PostMapping("/refreshToken")
     public Result<TokenDTO> refreshToken(@RequestBody RefreshDTO refreshDTO) {
+        System.out.println("refreshToken refreshDTO:"+refreshDTO);
         String oldRefreshToken = refreshDTO.getRefreshToken();
+        String account = refreshDTO.getAccount(); 
+        String role = refreshDTO.getRole();
+
         // 1. 校验数据库中凭证是否存在、未过期
         RefreshTokenPO tokenPo = refreshTokenService.checkValidToken(oldRefreshToken);
         if (tokenPo == null) {
             return Result.unauthorized("刷新凭证已失效，请重新登录");
         }
         String userId = tokenPo.getUserId();
-        String role = tokenPo.getRole();
+       
         // 2. 生成新双Token
         String newAccess = jwtUtil.generateToken(userId,role);
         String newRefresh = jwtUtil.generateRefreshToken(userId);
@@ -90,10 +103,40 @@ public class authController {
         refreshTokenService.removeOldToken(oldRefreshToken);
         refreshTokenService.saveNewToken(userId, newRefresh, jwtUtil.getRefreshExpireTime());
 
+//
+UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                account, // 用户名（可用邮箱/手机号）
+                null, // 密码（可传null，不影响验证）
+                Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role)) // 角色（必须加ROLE_前缀）
+        ); 
+        // 将认证信息存入安全上下文（自动维护会话，无需手动管理）
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        /*
+         * 下面几行代码的原理说明：
+         * 
+         * UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+         *         account,
+         *         null,
+         *         Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role))
+         * );
+         * 这行代码的作用是根据当前用户的账号（account）、其角色（role），
+         * 封装一个Spring Security的认证对象（UsernamePasswordAuthenticationToken），
+         * 其中密码可以为null不影响后续验证，角色需要加"ROLE_"前缀以便Spring Security识别。
+         *
+         * SecurityContextHolder.getContext().setAuthentication(authentication);
+         * 这行代码将上述生成的认证对象security token存入Spring Security的全局上下文中，
+         * 使得后续请求能够感知到当前用户的身份，实现token机制下无session情况下的安全身份管理。
+         *
+         * 这样做的好处是：即使没有传统的session和cookie认证，后续接口可以直接通过
+         * SecurityContextHolder获取到当前用户的角色、账号等认证信息，支持基于注解
+         * 或Spring Security统一权限拦截。
+         */
+  
+
         TokenDTO dto = new TokenDTO();
-        dto.setToken(newAccess);
-        dto.setRefreshToken(newRefresh);
-         System.out.println("controller refreshToken:"+dto);
+        dto.setToken(newAccess);//userid role
+        dto.setRefreshToken(newRefresh);//userid
+        System.out.println("controller refreshToken:"+dto);
         return Result.success(dto,"refreshToken ok");
     }
 
@@ -119,9 +162,18 @@ public Result<void> logout(HttpServletResponse response) {
      * 用户主动登出，销毁当前刷新凭证
      */
     @PostMapping("/logout")
-    public Result<Void> logout(@RequestBody RefreshDTO refreshDTO) {
+    public Result<Boolean> logout(@RequestBody RefreshDTO refreshDTO) {
+      // 1. 清空认证
+    SecurityContextHolder.clearContext();
+/*
+    // 2. 清除 Cookie（真正登出）
+    Cookie cookie = new Cookie("token", null);
+    cookie.setPath("/");
+    cookie.setHttpOnly(true);
+    cookie.setMaxAge(0);
+    response.addCookie(cookie);*/
         refreshTokenService.logout(refreshDTO.getRefreshToken());
-        return Result.success(null,"ok" );
+        return Result.success(true,"ok" );
     }
 
     /**
@@ -138,8 +190,9 @@ public Result<void> logout(HttpServletResponse response) {
     }
     /**
      * 密码找回（验证码验证），对应设计2.2.1 接口：/api/v1/user/password/forgot
+     * ---》用户密码忘记后，通过管理员重置该用户的密码，然后用户登录后自行修改密码
      */
-    @PostMapping("/password/forgot")
+    /*@PostMapping("/password/forgot")
       @ResponseBody
     public Result <Object>   forgotPassword(
             @NotBlank(message = "账号不能为空") String account,
@@ -149,11 +202,11 @@ public Result<void> logout(HttpServletResponse response) {
         userService.verifyForgotCode(account, verifyCode);
         return Result.success(null, "验证码验证成功，请重置密码");
     }
-
+*/
     /**
      * 密码重置，对应设计2.2.1 接口：/api/v1/user/password/reset
      */
-    @PostMapping("/password/reset")
+      @PostMapping("/password/reset")
       @ResponseBody
     public Result <Object>  resetPassword(
             @NotBlank(message = "账号不能为空") String account)

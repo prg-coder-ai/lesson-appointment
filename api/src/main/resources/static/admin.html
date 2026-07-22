@@ -110,6 +110,11 @@
           <i class="fa fa-calendar-alt"></i>
           <span>上课通知</span>
         </div>
+
+        <div class="menu-item">
+          <i class="fa fa-calendar-alt"></i>
+          <span>测试-批量创建数据</span>
+        </div>
       </div>
       <!--
       <div class="menu-group">
@@ -149,6 +154,7 @@
     // 管理端页面内容加载逻辑（核心修改：渲染到中央区域）
     function loadAdminPageContent(title) {
       // 清空中央内容区
+      dynamicContentCenter = document.getElementById('dynamic-content-center');
       if(dynamicContentCenter)
       dynamicContentCenter.innerHTML = '';
       <!-- INSERT_YOUR_CODE -->
@@ -157,7 +163,9 @@
         title = '数据总览';
       }
       switch(title) {
-       
+        case "测试-批量创建数据":
+             dynamicContentCenter.innerHTML = makeTestPage();
+        break;
         case '数据总览':
 
           // 渲染数据总览面板
@@ -254,7 +262,7 @@
         
         case '教师管理':
             // 操作按钮事件 --checkout----set online =false TBD 
-            console.log("window.loadAdminPageContent", window.loadAdminPageContent);
+            //console .log("window.loadAdminPageContent", window.loadAdminPageContent);
            
             renderTeacherCards();
           break;
@@ -292,12 +300,13 @@
             renderTemplateCards();
             break;
         case '课程列表':
-          console.log("course..."); renderCourseCards();
+          //console .log("course...");
+          renderCourseCards();
           break;//课程排期
         
           
         case '课程排期':
-          console.log("ScheduleCards...课程排期"); 
+          //console .log("ScheduleCards...课程排期");
             renderScheduleCards();
           break;//课程排期
         case '预订审核'://TBD
@@ -457,6 +466,7 @@
     let dynamicContentCenter = null;//document.getElementById('dynamic-content-center');
     // 页面加载时验证登录状态（注释掉跳转，方便测试）
     window.onload = function() {
+      window.makeTestPage = makeTestPage;//test
        testFormContainer = document.getElementById('templateFormContainer');
        console.log("onload",testFormContainer); 
 
@@ -583,181 +593,13 @@
       alert(`编辑教师：${teacherName}（可在此处打开编辑弹窗）`);
     }
 
-      //禁用
-    async  function disableTeacher(userId,role) { 
-              // 调用 update(User) 把 status 设置为 inactive
-              const user = {userId: userId, status: "inactive" };
-              request({
-                url: `${API_BASE_URL}/user/updateStatus`,
-                method: 'POST',
-                data: user
-              }).then(res => {
-                
-                  renderCards(role); 
-              }).catch(e => {
-                alert("网络错误，禁用失败");
-              });
-           
-            }
-  //启用或确认--》正常状态
-            function confirmTeacher(userId,role) {
-              // 如果用户状态为pending/inactive/frozen，修改为active
-              request({
-                url: `${API_BASE_URL}/user/updateStatus`,
-                method: 'POST',
-                data: { userId: userId, status: "active" }
-              }).then(res => { 
-                  renderCards(role); 
-              }).catch(e => {
-                alert("网络错误，确认失败");
-              });
-           
-                
-            }
-//删除--冻结
-            function deleteTeacher(userId,role) {
-              if (confirm("确定要删除吗？")) { 
-                request({
-                  url: `${API_BASE_URL}/user/updateStatus`,
-                  method: 'POST',
-                  data: { userId: userId, status: "frozen" }
-                }).then(res => {  
-                    //  刷新列表
-                    renderCards(role); 
-                }).catch(e => {
-                  alert("网络错误，删除失败");
-                });
-             
-              }
-            }
+
+
             function    renderCards(role){
                     if(role=="teacher")
                        renderTeacherCards();
                       else  if(role=="student")
                       renderStudentCards();
-            }
-            async function renderTeacherCards() {
-              dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';
-              console.log("enter");
-              const conditionJson = { role: 'teacher' };//TBD:当前admin所属的群组等过滤条件
-              const teachers = await fetchUserList(conditionJson);
-              console.log("list:"+teachers);
-              let html = `
-                <div class="card">
-                  <div class="card-header">
-                    <div class="card-title"><i class="fa fa-chalkboard-teacher"></i> 教师列表</div>
-                    <button class="btn btn-primary" onclick="alert('TODO: 打开添加教师弹窗')"><i class="fa fa-plus"></i> 添加教师</button>
-                  </div>
-                  <div class="teacher-list-cards" style="margin:6px 0;display:flex;flex-direction:column;gap:16px;">
-              `;
-
-              if (!teachers.length) {
-                html += `<div style="padding:40px 0;text-align:center;color:#999;">暂无教师数据</div>`;
-              } else { 
-                html += `
-                  <div class="teacher-card"  style="display:flex;gap:36px;font-weight:bold;border-bottom:1px solid #e9ecef;padding-left:8px;padding-bottom:8px;margin-bottom:4px;">
-                    <div style="width:120px;display:none;"><strong>ID</strong></div>
-                    <div style="width:90px;"><strong>姓名</strong></div>
-                    <div style="width:180px;"><strong>电子邮箱</strong></div>
-                    <div style="width:130px;"><strong>手机号</strong></div>
-                    <div style="width:120px;"><strong>状态</strong></div>
-                    <div style="width:120px;display:none;"><strong>操作</strong></div>
-                  </div>
-                `;
-                teachers.forEach(tea => {
-                  html += `
-                    <div class="teacher-card" style="background:#fff;border:1px solid #e9ecef;padding:16px;border-radius:8px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px #0000000a;">
-                      <div style="display:flex;gap:36px;">
-                        <div style="display:none;">${tea.userId || ""}</div>
-                        <div style="width:90px;" title="${tea.userId || ''}" >${tea.name || ""}</div>
-                        <div style="width:180px;">${tea.email || ""}</div>
-                        <div style="width:130px;">${tea.phone || ""}</div>
-                        <div style="width:120px;">                          
-                          ${ tea.status === "pending" ? '<span style="color:#faad14;">待审核</span>' :
-                            tea.status === "active" ? '<span style="color:#52c41a;">正常</span>' :
-                            tea.status === "inactive" ? '<span style="color:#faad14;">待启用</span>' :
-                            tea.status === "frozen" ? '<span style="color:#f5222d;">已删除</span>' :
-                            `<span>${tea.status||"未知"}</span>`
-                          }
-                        </div>
-                      </div>
-                      <div class="teacher-actions" style="display:flex;gap:10px;flex-shrink:0;"> 
-                        <button class="btn btn-success"  onclick="confirmTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-check"></i> 确认/启用</button>
-                        <button class="btn btn-warning" onclick="disableTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-ban"></i> 禁用</button>
-                        <button class="btn btn-danger" onclick="deleteTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-trash"></i> 删除</button>
-                      </div>
-                    </div>
-                  `;
-                });
-              }
-              html += `</div></div>`;
-              dynamicContentCenter.innerHTML = html;
-            }
-
-            async function renderStudentCards() {
-              dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';
-              console.log("enter");
-              const conditionJson = { role: 'student' };//TBD:当前admin所属的群组等过滤条件
-              const students = await fetchUserList(conditionJson);
-             // console.log("list:"+students);
-              let html = `
-                <div class="card">
-                  <div class="card-header">
-                    <div class="card-title"><i class="fa fa-chalkboard-teacher"></i> 学员列表</div>
-                    <button class="btn btn-primary" onclick="alert('TODO: 打开添加学员弹窗')"><i class="fa fa-plus"></i> 添加学员</button>
-                  </div>
-                   <div class="filter-bar">
-                <div class="filter-item">
-                  <label>查询：</label>
-                  <input type="text" placeholder="请输入学生姓名/账号/手机号">
-                </div> 
-                <button class="btn btn-default"><i class="fa fa-search"></i> 搜索</button>
-              </div>
-                  <div class="teacher-list-cards" style="margin:16px 0;display:flex;flex-direction:column;gap:16px;">
-              `;
-
-              if (!students.length) {
-                html += `<div style="padding:40px 0;text-align:center;color:#999;">暂无数据</div>`;
-              } else { 
-                html += `
-                  <div class="teacher-card"  style="display:flex;gap:36px;font-weight:bold;border-bottom:1px solid #e9ecef;padding-left:8px;padding-bottom:8px;margin-bottom:4px;">
-                    <div style="width:120px;display:none;"><strong>ID</strong></div>
-                    <div style="width:90px;"><strong>姓名</strong></div>
-                    <div style="width:180px;"><strong>电子邮箱</strong></div>
-                    <div style="width:130px;"><strong>手机号</strong></div>
-                    <div style="width:120px;"><strong>状态</strong></div>
-                    <div style="width:240px;display:none;"><strong>操作</strong></div>
-                  </div>
-                `;
-                students.forEach(tea => {
-                  html += `
-                    <div class="teacher-card" style="background:#fff;border:1px solid #e9ecef;padding:16px;border-radius:8px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px #0000000a;">
-                      <div style="display:flex;gap:36px;">
-                        <div style="display:none;">${tea.userId || ""}</div>
-                        <div style="width:90px;" title="${tea.userId || ''}">${tea.name || ""}</div>
-                  
-                        <div style="width:180px;">${tea.email || ""}</div>
-                        <div style="width:130px;">${tea.phone || ""}</div>
-                        <div style="width:120px;">                          
-                          ${ tea.status === "pending" ? '<span style="color:#faad14;">待审核</span>' :
-                            tea.status === "active" ? '<span style="color:#52c41a;">正常</span>' :
-                            tea.status === "inactive" ? '<span style="color:#faad14;">待启用</span>' :
-                            tea.status === "frozen" ? '<span style="color:#f5222d;">已删除</span>' :
-                            `<span>${tea.status||"未知"}</span>`
-                          }
-                        </div>
-                      </div>
-                      <div class="teacher-actions" style="display:flex;gap:10px;flex-shrink:0;"> 
-                        <button class="btn btn-success" onclick="confirmTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-check"></i> 确认/启用</button>
-                         <button class="btn btn-warning" onclick="disableTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-ban"></i> 禁用</button>
-                        <button class="btn btn-danger" onclick="deleteTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-trash"></i> 删除</button>
-                      </div>
-                    </div>
-                  `;
-                });
-              }
-              html += `</div></div>`;
-              dynamicContentCenter.innerHTML = html;
             }
     // 学生管理相关函数
     function editStudent(el) {
@@ -793,7 +635,14 @@
       const month = document.getElementById('month-select').value;
       alert(`已刷新 ${month} 月份的教师授课统计数据！`);
     }
-
+//利用changepasswordapi设置用户密码为缺省值
+    function resetUserPasswd(userId) {
+      <!-- INSERT_YOUR_CODE -->
+      if (!confirm("确定要重置此用户的密码为默认值吗？")) {
+        return;
+      }
+      changePasswordAPI(userId,"123456");
+    }
     var testFormContainer =null;
     var formContainer = null;
   
@@ -808,12 +657,61 @@
    <script src="js/public/appointmentNotes.js"></script>  
    <script src="js/admin-template.js"></script> 
    <script src="js/admin-course.js"></script>
+    <script src="js/admin-user.js"></script>
    <script src="js/admin-course-schedule.js"></script>
     <script src="js/admin-overall.js"></script>
     <script src="js/admin-provingBooking.js"></script>
     <script src="js/admin-AppointmentNotes.js"></script>
+
+    <script src="js/test/testData.js"></script>
    <script>
    console.log("end of body...")
    </script>
 </body>
 </html>
+<!-- INSERT_YOUR_CODE -->
+<!--
+【语言教学预约系统-管理端使用说明】
+
+1. 课程管理
+   - 查看课程列表：在“课程管理”菜单下可浏览所有课程信息。
+   - 新增课程：点击页面上的“新增课程”按钮，填写相关信息后保存。
+   - 编辑课程：点击某课程右侧的“编辑”按钮，在弹出的窗口中进行课程信息修改并保存。
+   - 删除课程：点击“删除”按钮并确认后，可移除对应课程。
+
+2. 教师管理
+   - 查看教师列表：可浏览教师基本资料及状态。
+   - 新增教师：通过“新增教师”按钮创建新教师账号，并设置初始密码。
+   - 编辑教师信息：点击“编辑”按钮修改教师资料。
+   - 重置教师密码：点击“重置密码”为教师账号重置为默认密码（123456）。
+
+3. 学生管理
+   - 查看学生列表：支持查阅所有学生信息。
+   - 新增/编辑/删除学生与操作教师类似。
+   - 重置学生密码：同教师，通过“重置密码”功能恢复默认密码。
+
+4. 课程排期管理
+   - 管理员可在“课程排期”菜单下添加、修改和删除排课计划。
+   - 选择课程和教师，设置上课时间、教室等安排。
+   - 支持批量操作与高级排期筛选。
+
+5. 预约管理
+   - 浏览所有学生的课程预约情况，查看排课明细。
+   - 审批或拒绝学生预约申请，支持快速查找与状态筛选。
+
+6. 教师授课统计
+   - 按月份、课程或教师统计各类授课数据。
+   - 点击“刷新”可获取最新授课统计。
+   - 结果可导出或打印，便于教务部门管理。
+
+7. 课程反馈与评价
+   - 查看学生提交的课程评价。
+   - 可根据课程、教师、日期快速检索历史评价记录。
+   - 支持对异常评价进行备注或标记。
+
+8. 其它说明
+   - 屏幕右上角“退出登录”用于安全退出后台系统。
+   - 如有操作权限不足或页面异常，请联系系统管理员。
+   - 页面大部分操作均通过弹窗进行交互，请注意弹窗中提示信息。
+
+-->
