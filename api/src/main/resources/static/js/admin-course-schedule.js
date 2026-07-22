@@ -800,8 +800,8 @@ return ;
    
    // 预览排期--列出排期的所有时间及日历
    async function previewSchedule() {
-    if(! checkCourseAndSchedule(true,true))
-        return ;
+     if(! checkCourseAndSchedule(false,true))
+       return ; //对于新建排期，不需要检查scheduleID
      const form = getFormData();
     // console.log("form:",form) ;
     // 生成排期列表 localDateTime List<Date,TIME>
