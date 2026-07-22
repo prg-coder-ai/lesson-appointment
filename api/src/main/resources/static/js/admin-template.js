@@ -216,25 +216,22 @@ async function submitTemplateForm() {
     };
   // 3. 调用接口提交（区分新增/编辑）
     //根据templateId判断新增还是修改
-    console.info("submit:",formData.templateId);
+    //console .info("submit:",formData.templateId);
     const token = getToken();
     const url = formData.templateId !=""? `${baseUrl}/course/template/update` : `${baseUrl}/course/template/insert`;
-  
-    try {
-        const res = await axios.post(url, formData, {
-            headers: { "Authorization": "Bearer " + token }
-        });
+      try{
+          let res = await  updateORCreateTemplate(formData);
         // 4.  响应处理 响应成功/失败
-        if (res.data && res.data.code === 200) {
+        if (res ) {
             alert(formData.templateId !="" ? '模板编辑成功' : '模板新增成功');
-          closeTemplateModal(); // 关闭弹窗
-          await renderTemplateCards(); // 刷新列表
+            closeTemplateModal(); // 关闭弹窗
+           await renderTemplateCards(); // 刷新列表
         } else {
-            alert(res.data?.message || (formData.templateId!=""  ? '模板编辑失败' : '模板新增失败'));
+            alert( formData.templateId!=""  ? '模板编辑失败' : '模板新增失败');
         }
     } catch (err) {
         alert('网络异常，操作失败');
-        console.error(err);
+        //console .error(err);
     }
 }
 /**
@@ -243,7 +240,7 @@ async function submitTemplateForm() {
 async function renderTemplateCards() {
   
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
-    console.log("renderTemplateCards:",dynamicContentCenter);
+    //console .log("renderTemplateCards:",dynamicContentCenter);
     if (!dynamicContentCenter) return; 
     // 显示加载中
     dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';

@@ -1,7 +1,7 @@
 
 
 function refreshRightPage() {
-    console.log("refresh",pageTitle.textContent)
+   // console.log("refresh",pageTitle.textContent)
     if(pageTitle.textContent!= ""){
        loadAdminPageContent(pageTitle.textContent); 
     }
@@ -35,7 +35,7 @@ async function getCountOfTodayAppointment() {
       
     } catch (e) {
       // 网络或服务器异常处理
-     console.error(e);
+     console.error("getCountOfTodayAppointment",e);
      return null;
     }
 } //获取今日预约次数
@@ -62,7 +62,7 @@ async function getAppointmentList(conditions ) {
      return res  ;  
    } catch (e) {
      // 网络或服务器异常处理
-    console.error(e);
+    console.error("getAppointmentList",e);
     return null;
    }
  }
@@ -78,15 +78,15 @@ async function getAppointmentList(conditions ) {
            count = appointmentList.length;
            for (let appointment of appointmentList) { 
             index++;//读取对应的预定ID
-            console.log("appointment :", appointment );
+            //console .log("appointment :", appointment );
             let  bookedObject = await getBookingObject(appointment.bookingId); 
       
             if(bookedObject == null )
               continue;
-            console.log("bookedObject:", bookedObject);  
+         //   console.log("bookedObject:", bookedObject);  
             const scheduleObject = await fetchSchedule(bookedObject.scheduleId); 
                if (scheduleObject != null) {
-                console.log("scheduleObject:", scheduleObject.courseId,bookedObject.studentId,bookedObject.teacherId,scheduleObject.name);  
+                //console.log("scheduleObject:", scheduleObject.courseId,bookedObject.studentId,bookedObject.teacherId,scheduleObject.name);
                    //let scheduleInfoStr = getScheduleInfo(scheduleObject); 
                    const classObject = await getCourseById(scheduleObject.courseId); 
                    const studentName = await getUserNameById(bookedObject.studentId);
@@ -156,7 +156,7 @@ async function getAppointmentList(conditions ) {
     return status;
    }
    function formAppointmentTr(cardInfo) {
-      console.log("cardInfo:", cardInfo); 
+      //console .log("cardInfo:", cardInfo);
      const info = `
           <tr  >
               <td  >   ${cardInfo.index}</td>
@@ -194,7 +194,7 @@ async function getAppointmentList(conditions ) {
       let userTime = new Date(appointmentTime);
       if(timeZone!= userTimeZone){
        const userTzTime = await tzSwitchTo(timeZone, appointmentTime, userTimeZone);   //把预约时间转为当前用户时区  
-       console.log("now:",now,"app：",appointmentTime,"to usertz：",userTzTime,userTimeZone);
+    //   console.log("now:",now,"app：",appointmentTime,"to usertz：",userTzTime,userTimeZone);
        userTime =  new Date(userTzTime.dateTime);//浏览器当前时区
       } 
     if (!(now instanceof Date)) {
@@ -204,7 +204,7 @@ async function getAppointmentList(conditions ) {
     //console.log(" userTime:", userTime);
     const diffMs = userTime - now;
     const diffDays = diffMs / (1000 * 60 * 60 * 24);
-    console.log("now:",now,"app",appointmentTime,userTime,diffMs,diffDays);
+    //console.log("now:",now,"app",appointmentTime,userTime,diffMs,diffDays);
     // 只允许状态推进，不能倒退
     if ( status === 'completed' ||  status === 'cancelled' || status === 'canceled') {
         // 已完成/已取消，不发送任何通知.有关消息在相应的确认处理中发送 TBD
@@ -373,13 +373,7 @@ async function getAppointmentList(conditions ) {
          studentNote = `【课程通知】关于《${cardInfo.className}》（老师：${cardInfo.teacherName}）有新动态，请及时查阅详情。`;
      }
      sendNotesTo(userId, `${cardInfo.studentName}`+studentNote);  
-  }  
-  //把信息发送到站内信箱-----创建添加、修改状态（已发送、已阅读、删除到垃圾箱、删除），最初：只发送+显示（创建数据库表：发件人、收件人、内容、状态）
-  async function sendNotesTo(userId,infor) {
-    
-    //await operateBookingStatus(bookingId, 'rejected');
-     console.log("TBD sendNotesTo:", userId,infor); 
-  } 
+  }
    
   
  //根据bookingId查询预约时间列表--List <Appointment>->List {date:date,time:time }
@@ -520,7 +514,15 @@ async function deleteAppointmentsByBookingId( bookingId) {
       return   false;
   }
 
-} 
+}
+
+
+  //把信息发送到站内信箱-----创建添加、修改状态（已发送、已阅读、删除到垃圾箱、删除），最初：只发送+显示（创建数据库表：发件人、收件人、内容、状态）
+  async function sendNotesTo(userId,infor) {
+
+    //await operateBookingStatus(bookingId, 'rejected');
+     console.log("TBD sendNotesTo:", userId,infor);
+  }
 /////////////////////////////////////////////////////2026-7-1 /////////////////////////////////////////////////////
 /*
  * ================================ Token 前后端协同原理简述 ================================

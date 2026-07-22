@@ -44,10 +44,10 @@ async function openEditCourseDialog(CourseJsonStr )
       defaultCourse = {};
       console.error(e);
     } 
-    console.log("edit json:",defaultCourse); 
+    //console .log("edit json:",defaultCourse);
   // 2. 设置弹窗标题
   const modalTitle = document.getElementById('modalTitle');
-  console.log("edit json2:",modalTitle); 
+  //console .log("edit json2:",modalTitle);
   modalTitle.innerText = (defaultCourse.courseId !="")? '编辑课程' : '新增课程';
    // 4. 生成表单HTML（复用index.html表单结构，适配样式） 
   //显示出来 from
@@ -60,14 +60,15 @@ async function openEditCourseDialog(CourseJsonStr )
     <div class="form-item">
       <label>模板ID <span style="color:red">*</span></label>
       <select name="templateId" class="form-select" required>
-      <option value="">请选择</option> 
+      <option value="">请选择模板</option> 
        `;
        //显示，每个模板的内容
-      templateList.forEach(template => { 
+       if (templateList &&  (Array.isArray(templateList) && templateList.length > 0))  
+     { templateList.forEach(template => { 
        var str = template.languageType+ " "+ template.difficultyLevel + " "+template.classDuration+ " "+template.classFee ;
         formHtml += ` <option value= ${template.templateId } ${template.templateId === defaultCourse.templateId ? "selected" : ""}> ${str}</option>` 
       });
-
+    }
       formHtml += `</select>
       <div class="form-error" id="templateIdError"></div>
        </div>
@@ -140,10 +141,6 @@ function closeCourseModal() {
  */
 async function submitCourseForm() {
 
-    // 1. 校验表单
-    if (!validateCourseForm()) {
-        return;
-    }
     // 2. 获取表单数据 
     const formData = {
         courseId:   localParamter.formEl.courseId.value,
@@ -153,12 +150,18 @@ async function submitCourseForm() {
         feature:    localParamter.formEl.feature.value, 
         teacherId:  localParamter.formEl.teacherId.value
     };
+
+    
+    // 1. 校验表单
+    if (!validateCourseForm(formData)) {
+      return;
+  }
   // 3. 调用接口提交（区分新增/编辑）
     //根据CourseId判断新增还是修改
-    console.info("submit:",formData.courseId);
-    const token = getToken();
+    //console.info("submit:",formData.courseId);
+    //const token = getToken();
     const url = formData.courseId !=""? `course/update` : `course/insert`;
-    console.log("update",formData);
+  //  console.log("update",formData);
    let res = await updateORCreateCourse(url, formData);
    if(res!=""){
     alert(formData.courseId !="" ? '编辑成功' : '新增成功');
@@ -168,20 +171,62 @@ async function submitCourseForm() {
     alert( formData.courseId!=""  ? '编辑失败' : '新增失败');
    } 
 }
+
+function validateCourseForm(formData){
+  // 检查 templateId, courseName, teacherId 均不为空
+  if (!formData.templateId || !formData.courseName || !formData.teacherId) {
+    // 可以针对每项提供单独提示
+    if (!formData.templateId) {
+      showFormError('templateId', '请选择模板');
+    }
+    if (!formData.courseName) {
+      showFormError('courseName', '课程名称不能为空');
+    }
+    if (!formData.teacherId) {
+      showFormError('teacherId', '请选择教师');
+    }
+    return false;
+  }
+  // 其它可选校验
+
+  // 校验通过
+  clearFormErrors();
+  return true;
+
+  // 辅助：显示错误
+  function showFormError(field, msg) {
+    const el = document.querySelector(`[name="${field}"]`);
+    if (el) {
+      let errEl = el.parentElement.querySelector('.form-error');
+      if (!errEl) {
+        errEl = document.createElement('div');
+        errEl.className = 'form-error';
+        errEl.style.color = 'red';
+        el.parentElement.appendChild(errEl);
+      }
+      errEl.innerText = msg;
+    }
+  }
+  function clearFormErrors() {
+    document.querySelectorAll('.form-error').forEach(el => el.innerText = '');
+  }
+
+  
+}
 /**
  * 渲染课程列表（核心：原生JS操作DOM）
  */
 async function renderCourseCards() {
  
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
-    console.log("renderCourseCards:",dynamicContentCenter);
+    //console .log("renderCourseCards:",dynamicContentCenter);
     if (!dynamicContentCenter) return; 
     // 显示加载中
     dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';
 
-    // 构建筛选条件 TBD
+    // 构建筛选条件 TBD ----
     const conditionJson = {
-        //language: document.getElementById('languageType').value,
+        // language: document.getElementById('languageType').value,
       //  level: document.getElementById('difficultyLevel').value,
       teacherId:"",
       templateId:"",
@@ -189,8 +234,8 @@ async function renderCourseCards() {
         pageRow: localParamter.pageSize,
         pageNum: localParamter.currentPage
     };
-
-      templateList = await  fetchTemplateList(templateCondition);  
+        let language = document.getElementById('languageType');
+      templateList = await  fetchTemplateList(language?language.value:'all');  
       teacherList  = await  fetchUserList(conditionJsonForTeacher);
 
     // 获取模板列表数据

@@ -37,10 +37,46 @@
     baseURL: API_BASE_URL,
     timeout: 10000
   });
+  /**
+   * getNewToken 的功能及原理：
+   * 
+   * 功能简介：
+   *   getNewToken 方法用于通过 refreshToken 向后端请求新的访问令牌（token）。当用户的 token 过期后，
+   *   前端可调用此方法获取最新的 token，以实现无感刷新登录态，提高用户体验。
+   * 
+   * 原理解析：
+   *   1. 从 localStorage 获取当前保存的 refreshToken。
+   *   2. 使用单独的 axios 实例（refreshTokenAxios）发起 POST 请求，请求路径为 /auth/refreshToken，
+   *      请求体（body）中携带 { refreshToken }。
+   *   3. 后端收到请求后校验 refreshToken，若合法返回新的 token（和新的 refreshToken），否则拒绝（如过期或被踢出）。
+   *   4. 请求结果返回 Promise，前端收到新 token 后应适时更新 localStorage 并重试原始请求。
+   * 
+   * 典型场景：
+   *   - 用户已经登录，但 token 过期，自动刷新 token 无需重新登录。
+   *   - 实现 token 失效自动续约流程时常用。
+   * 
+   * 安全提示：
+   *   - refreshToken 通常有效期比 token 长，只保存在客户端本地，不随请求自动发送，建议存储和传输均走 HTTPS。
+   *   - 后端应防止 refreshToken 泄露被重放攻击，合理设置其有效期，且发现异常可将其失效。
+   */
 
   function getNewToken() {
     const refreshToken = localStorage.getItem('refreshToken');
-    return refreshTokenAxios.post('/auth/refreshToken', { refreshToken });
+    // 获取当前登录者的账号account
+    const cuser =  localStorage.getItem('currentUser');
+    console.error("getNewTaken currentUser",cuser);
+    const account = cuser.account;
+    const role = cuser.role;
+    /*const currentUser = {
+      userId: user.userId,
+      account: user.account,
+      name: user.name,
+      role: user.role,
+      token: user.token
+    };
+    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+*/
+    return refreshTokenAxios.post('/auth/refreshToken', { refreshToken:refreshToken,account:account,role:role });
   }
 
   const service = axios.create({
@@ -93,7 +129,7 @@
       const res = response.data;
      
       if (res.code === 200) {
-        console.log("resp:",res.data);
+        //console .log("resp:",res.data);
         return res.data;
       }
       if(res.code == 403){
@@ -142,17 +178,20 @@
         isRefreshing = true;
         try {
           const refreshRes = await getNewToken();
-          console.log("000 getNewToken:",refreshRes.code,refreshRes.data);
-          const result = refreshRes.data;
-          if (result.code === 200) {
-            const { token, refreshToken } = result.data;
+           console.error("000 getNewToken:",refreshRes );
+         // 
+          if (refreshRes.status === 200) 
+         {  const result = refreshRes.data;
+          //console.error("000 getNewToken result:",result );
+            const { token, refreshToken } =   result.data ;
             localStorage.setItem('token', token);
             localStorage.setItem('refreshToken', refreshToken);
             originalRequest.headers.Authorization = `Bearer ${token}`;
             requestQueue.forEach((cb) => cb(token));
             requestQueue = [];
             //isRefreshing = false;
-            console.log("200 originalRequest:",originalRequest);
+            //console.error("200 originalRequest:",originalRequest);
+
             return service(originalRequest);
           
           // INSERT_YOUR_CODE
@@ -168,11 +207,11 @@
            * service(originalRequest) 相当于 axios(originalRequest)，只是这里 service 是 axios 封装对象，可以带一些默认配置。
            */
  
-          } else { //直接去重新登陆
+          } /*else { //直接去重新登陆
             showError('登录已过期，请重新登录q');
             location.href = './index.html';
             return Promise.reject(refreshErr); 
-          }
+          }*/
          // throw new Error(result.message || result.msg || '刷新凭证失败');
         } catch (refreshErr) { 
           localStorage.removeItem('token');
@@ -186,26 +225,7 @@
           isRefreshing = false;
         }
       }
-      /**
-       * 代码解释：
-       * 
-       * 上述代码片段是前端 axios 拦截器的 response 错误处理部分，主要关注 401 和 403 错误码（未授权和无权限）。
-       * 
-       * 1. 当请求返回 401 或 403 时，判断当前是否已经在执行刷新 token 的操作（isRefreshing）。
-       *    - 如果正在刷新，后续相同错误请求进入队列，等 token 刷新完再重新发请求。
-       *    - 如果没有刷新，则调用 getNewToken()（发起 /auth/refreshToken 请求），拿到新 token 后本地存储，并重放所有等待中的请求。
-       *    - 若刷新失败，则清空 token 和刷新队列，跳转回登录页。
-       * 2. 其他错误（404、500 等）进行友好提示。
-       * 
-       * 循环可能性分析：
-       * - 如果 /auth/refreshToken 这个请求也被同样的拦截器处理，并它返回 401/403，再次触发刷新，则会陷入死循环（即刷新接口也自动带 token 且因无效 token 被拦截）。
-       * - 但此代码中 getNewToken() 用的是 refreshTokenAxios 实例，理论上 refreshTokenAxios 没有挂全局拦截器，所以不会对 refreshToken 的调用再次进入自动刷新逻辑——因此**前端此处避免了循环**。
-       * 
-       * 总结：只要 refreshTokenAxios 没有挂载同样拦截，且 /auth/refreshToken API 逻辑不异常递归抛 401/403，前端这里不会进入逻辑死循环。
-       * 遇到循环多因 refreshToken 请求也被拦截/或后端实现问题导致反复 401。
-       */
-
-
+    
       let errMsg = '';
       switch (status) {
         case 403:

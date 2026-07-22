@@ -3,7 +3,7 @@
    // student-course-appointment.js
 // 区别于booking页面，booking页面负责查询课程、检查排期，以便预约1个课程，
 //本页面，浏览预约结果和具体时间列表
- console.log("student appointment  page"); 
+ //console .log("student appointment  page");
 // ===================== 核心函数 ===================== 
 /**
  *  课程预约列表（核心：原生JS操作DOM）

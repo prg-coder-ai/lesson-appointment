@@ -94,6 +94,15 @@ public class UserController {
         Result<Object> rst = userService.Register(user); 
         return rst; 
     }
+// 添加用户
+    @PostMapping("/add") 
+    @ResponseBody
+    public Result<Object> addUser(@Validated @RequestBody User user) {
+        
+         user.setStatus("active");
+        Result<Object> rst = userService.Register(user); 
+        return rst; 
+    }
 
      @PostMapping("/updateStatus") 
        @ResponseBody
