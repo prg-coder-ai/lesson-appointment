@@ -3,6 +3,7 @@ package com.reservation.service;
 //import com.reservation.controller.CourseExecutionController;
  import com.reservation.entity.*; 
 import com.reservation.dto.*; 
+import com.reservation.query.*; 
 import com.reservation.exception.BusinessException;
 import com.reservation.exception.ResourceNotFoundException;
 import com.reservation.mapper.CourseTemplateMapper;
@@ -26,6 +27,38 @@ public class CourseService {
     private CourseMapper courseMapper;
      @Autowired
     private CourseTemplateMapper courseTemplateMapper;
+
+/**
+     * 分页查询课程列表
+     */
+    public PageResult<Course> getCoursePage(CourseQuery query) {
+        // 1. 构建分页对象：当前页 + 每页条数
+        Page<Course> page = new Page<>(query.getPageNum(), query.getPageSize());
+
+        // 2. 构建查询条件（动态拼接）
+        LambdaQueryWrapper<Course> wrapper = Wrappers.lambdaQuery();
+        // 课程名称模糊搜索
+        if (StrUtil.isNotBlank(query.getCourseName())) {
+            wrapper.like(Course::getCourseName, query.getCourseName());
+        }
+        // 语言类型精准筛选
+        if (StrUtil.isNotBlank(query.getLanguageType())) {
+            wrapper.eq(Course::getLanguageType, query.getLanguageType());
+        }
+        // 状态筛选
+        if (query.getStatus() != null) {
+            wrapper.eq(Course::getStatus, query.getStatus());
+        }
+        // 按创建时间倒序，最新的在前
+        wrapper.orderByDesc(Course::getCreateTime);
+
+        // 3. 执行分页查询（自动执行 count统计 + 分页数据两条SQL）
+        Page<Course> resultPage = this.page(page, wrapper);
+
+        // 4. 实体转VO，返回给前端（简单场景可直接返回Course实体） CourseVO 为视图对象，可按需扩展字段（如教师姓名，关联查询后填充），纯单表场景可直接返回 Course 实体。
+        List<Course> voList = BeanUtil.copyToList(resultPage.getRecords(), Course.class);
+        return PageResult.of(resultPage).setRows(voList);
+    }
 
     /**
      * 创建课程模板，对应设计2.2.2 课程模板创建接口，仅管理员可操作

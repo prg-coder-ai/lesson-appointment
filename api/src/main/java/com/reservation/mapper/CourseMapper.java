@@ -38,7 +38,7 @@ org.apache.ibatis.builder.BuilderException: Error creating document instance.  C
 */
 
 @Mapper
-public interface CourseMapper {
+public interface CourseMapper extends BaseMapper<Course> {
 
    /**
      * 插入教师课程

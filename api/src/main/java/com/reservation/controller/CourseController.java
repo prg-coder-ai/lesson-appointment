@@ -172,6 +172,25 @@ public class CourseController {
         return Result.success(courseList, "查询成功");
     }
 
+    @GetMapping("/page")
+    @ResponseBody
+    /* 返回收据
+    private List<T> rows;      // 当前页数据
+    private Long total;        // 总记录数
+    private Integer pageNum;   // 当前页码
+    private Integer pageSize;  // 每页条数
+    private Integer totalPages;// 总页数
+    */
+   public Result<PageResult<Course>> getCourseListByPage(CourseQuery query, 
+                                                          @RequestHeader("Authorization") String token) {
+        //permissionCheck.checkTeacherOrAdmin(token);
+        // 调用服务层查询课程列表
+       //  System.out.println("getCourseList controller: " + params);
+        PageResult<Course> courseList = courseService.getCourseListByPage( query);
+        //Map<String, List<Course>> resultMap = Map.of("courses", courseList);
+        return Result.success(courseList, "查询成功");
+    }
+    //
     @GetMapping("/{courseid}")
     @ResponseBody
         // 权限校验：教师或管理员、学生均可操作
