@@ -3,6 +3,7 @@ CREATE DATABASE IF NOT EXISTS lesson_appointment
 DEFAULT CHARACTER SET utf8mb4   COLLATE utf8mb4_unicode_ci;
 USE lesson_appointment;
 -- 用户表：存储学生、教师、管理员信息，对应User实体
+
 CREATE TABLE IF NOT EXISTS `user` (
   `user_id` varchar(36) NOT NULL COMMENT '用户唯一标识（UUID）',
   'account' varchar(50) NOT NULL   COMMENT '账号,识别为email或电话‘
@@ -111,9 +112,21 @@ CREATE TABLE `appointment` (
   `class_index` int DEFAULT '1' COMMENT '课时序号',
   `appointment_datetime` datetime DEFAULT NULL COMMENT '排期预约中的一个课时时间',
   `last_datetime` datetime DEFAULT NULL COMMENT '可能修改前的日期时间',
-  `status` varchar(16) NOT NULL DEFAULT 'active' COMMENT '本预约时间的状态:active生效/noted1、2已发通知/completed已完成/已改期cancelled/申请取消cancelling',
+  `status` varchar(16) NOT NULL DEFAULT 'active' COMMENT '本预约时间的状态:active生效/noted1、2已发通知/completed已完成/已改期 cancelled/申请取消cancelling',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='预约时间列表';
+
+
+CREATE TABLE `appointment` (
+  `id` int NOT NULL AUTO_INCREMENT COMMENT '唯一编号',
+  `booking_id` varchar(36) DEFAULT NULL COMMENT '预约id',
+  `class_index` int DEFAULT '1' COMMENT '课时序号',
+  `appointment_datetime` datetime DEFAULT NULL COMMENT '排期预约中的一个课时时间',
+  `last_datetime` datetime DEFAULT NULL COMMENT '可能修改前的日期时间',
+  `status` varchar(16) NOT NULL DEFAULT 'active' COMMENT '本预约时间的状态:active生效/noted已发通知1/2/completed已完成/已改期changed、cancelled/申请取消cancelling',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=710 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='预约时间列表';
+
 
 -- 课程评价：存储学生对课程的评价信息，对应CourseEvaluation实体
 CREATE TABLE IF NOT EXISTS `course_evaluation` (
@@ -161,12 +174,27 @@ CREATE TABLE IF NOT EXISTS `course_check_in` (
   CONSTRAINT `fk_check_in_booking` FOREIGN KEY (`booking_id`) REFERENCES `booking` (`booking_id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='课程签到表';
 ;
+
+ 
+CREATE TABLE `user_refresh_token` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `user_id` varchar(36) NOT NULL COMMENT '登录用户ID',
+  `refresh_token` varchar(512) NOT NULL COMMENT '刷新凭证',
+  `expire_time` datetime NOT NULL COMMENT '过期时间',
+  `create_time` datetime DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_refresh_token` (`refresh_token`)
+) ENGINE=InnoDB AUTO_INCREMENT=16332 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户刷新Token持久化表';
+
 --数据库设计说明： 
 --1. 用户表（user）：存储学生、教师、管理员的基本信息，包括手机号、邮箱、密码（加密存储）、角色、学生的学习目标和语言水平、教师的姓名、资质图片和教授语言类型，以及账号状态等。通过角色字段区分不同类型用户，满足权限控制需求。
 --2. 课程模板表（course_template）：存储统一的课程模板信息，包括   语言类型、难度等级、课时费、课程时长、课程形式和课程描述等。通过语言类型和难度等级的唯一索引，避免重复创建相同类型的课程模板。
 --3. 教师课程表（course）：存储教师基于模板创建的具体课程信息，包括课程名称、教学内容、课程特色和关联的教师ID等。通过外键关联课程模板和教师，确保数据一致性。
 --4. 课程排期表（schedule）：存储教师课程的具体排期信息，包括排期开始时间、结束时间、是否重复、重复日期和排期状态等。通过外键关联教师课程，并设置时间索引和状态索引，方便进行排期冲突校验和可预约排期查询。
 --5. 预约表（booking）：存储学生预约课程的信息，包括关联的课程排期ID、学生ID和预约状态等。通过外键关联课程排期和学生，并设置状态索引，方便进行预约状态查询。
+
 --6. 课程评价表（course_evaluation）：存储学生对课程的评价信息，包括关联的课程ID、学生ID、评分和评价内容等。通过外键关联课程和学生，并设置订单ID的唯一索引，确保一个订单只能有一条评价记录。
 --7. 课程反馈表（course_feedback）：存储学生对课程的反馈信息，包括关联的课程ID、学生ID和反馈内容等。通过外键关联课程和学生，确保数据一致性。
 --8. 课程签到表（course_check_in）：存储学生的课程签到信息，包括关联的预约ID和签到时间等。通过外键关联预约，确保数据一致性。

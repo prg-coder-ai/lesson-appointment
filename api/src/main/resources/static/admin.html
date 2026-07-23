@@ -636,8 +636,7 @@
       alert(`已刷新 ${month} 月份的教师授课统计数据！`);
     }
 //利用changepasswordapi设置用户密码为缺省值
-    function resetUserPasswd(userId) {
-      <!-- INSERT_YOUR_CODE -->
+    function resetUserPasswd(userId) { 
       if (!confirm("确定要重置此用户的密码为默认值吗？")) {
         return;
       }
@@ -713,5 +712,126 @@
    - 屏幕右上角“退出登录”用于安全退出后台系统。
    - 如有操作权限不足或页面异常，请联系系统管理员。
    - 页面大部分操作均通过弹窗进行交互，请注意弹窗中提示信息。
+
+-->
+
+
+<!-- INSERT_YOUR_CODE -->
+<!-- 
+======================= 生产部署步骤和方法 =======================
+
+本项目基于Spring Boot构建，部署流程较为标准。以下是详细的生产部署指南：
+
+1. **环境准备**
+   - 确认服务器已安装合适版本的JDK（如JDK 1.8及以上，版本需与pom.xml的<java.version>一致）。
+   - 配置数据库（如MySQL）。确认数据库已创建并正确配置application.properties中的连接信息。
+   - （推荐）安装Nginx或Apache，用于反向代理和静态资源分发。
+
+2. **配置修改**
+   - 检查`src/main/resources/application.properties`中的生产环境配置（如数据库用户名、密码、端口、JWT密钥等），确保安全且与生产环境匹配。
+   - 配置`server.port`为生产环境需要暴露的端口，如80、8080等。
+   - 关闭Thymeleaf缓存关闭设置（spring.thymeleaf.cache=true）以提升生产性能。
+
+3. **打包项目**
+   - 使用Maven在项目根目录下执行打包命令：
+     ```
+     mvn clean package -Pprod
+     ```
+     或（如无prod profile，直接）：
+     ```
+     mvn clean package
+     ```
+   - 打包后会生成形如`api-1.0.0-SNAPSHOT.jar`的可执行JAR包，位于`target/`目录下。
+
+4. **部署至服务器**
+   - 上传生成的JAR包至生产服务器指定目录。
+   - 同步`application.properties`等必要配置文件到服务器，保持配置一致或根据需要单独维护环境变量和配置。
+
+5. **运行项目**
+   - 通过以下命令在后台启动应用（示例端口如8081，实际以配置为准）：
+     ```
+     nohup java -jar api-1.0.0-SNAPSHOT.jar --spring.profiles.active=prod > app.log 2>&1 &
+     ```
+   - 建议使用`systemctl`、`supervisor`或`pm2`等进程管理工具实现自动重启、日志管理和故障恢复。
+
+6. **配置Nginx反向代理（可选，推荐）**
+   - 典型配置片段（假设后端8081，前端静态页面由Spring Boot管理或另有CDN）：
+     ```
+     server {
+         listen 80;
+         server_name example.com;
+
+         location / {
+             proxy_pass http://localhost:8081/;
+             proxy_set_header Host $host;
+             proxy_set_header X-Real-IP $remote_addr;
+             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+             proxy_set_header X-Forwarded-Proto $scheme;
+         }
+         # 可加静态资源缓存、404等配置
+     }
+     ```
+   - 重新加载Nginx配置：`nginx -s reload`。
+
+7. **安全与优化建议**
+   - 配置防火墙，仅允许必要端口（如80/443/8081）。
+   - 数据库等敏感配置文件限制权限。
+   - 若有SSL证书，升级Nginx到HTTPS服务。
+   - 定期备份代码、数据和配置文件。
+
+8. **应用监控与日志**
+   - 查看日志（如`tail -f app.log`）跟踪启动及运行情况。
+   - 建议集成Prometheus、Grafana，或者Spring Boot Admin、ELK等监控解决方案。
+
+9. **升级与回滚**
+   - 升级时先备份旧JAR和配置。
+   - 停止旧进程（`kill`或`systemctl stop`），替换JAR后重启。
+   - 如有紧急问题，回退到原JAR并重启应用。
+
+-->
+<!--
+## 加拿大常用云服务器介绍
+
+在加拿大，可以选择多家主流云服务商部署你的Spring Boot项目和数据库。以下是一些常见且在加拿大本地设有数据中心的云服务器平台，适合生产环境和合规需求：
+
+### 1. Amazon Web Services (AWS)
+- **产品**：Amazon EC2（弹性云服务器）、RDS（托管数据库）、S3（对象存储）。
+- **区域**：`ca-central-1`（加拿大中部，蒙特利尔）。
+- **优势**：稳定、弹性伸缩、安全合规有保证，支持多种计费模式。
+- **适合**：中大型企业、需要高可用和全球服务的团队。
+
+### 2. Microsoft Azure
+- **产品**：Azure Virtual Machines、Azure Database for MySQL/PostgreSQL、Blob Storage。
+- **区域**：Canada Central（多伦多）、Canada East（魁北克）。
+- **特点**：与微软产品集成良好，企业级支持，AI、大数据服务丰富。
+- **适合**：企业、教育和与微软生态兼容的项目。
+
+### 3. Google Cloud Platform (GCP)
+- **产品**：Compute Engine（虚拟机）、Cloud SQL、Cloud Storage。
+- **区域**：`northamerica-northeast1`（蒙特利尔）。
+- **特色**：Kubernetes、AI/ML服务先进，价格透明。
+- **适合**：技术创新型企业和需要大规模计算能力的项目。
+
+### 4. OVHCloud
+- **产品**：公有云实例、专用服务器、对象存储。
+- **数据中心**：加拿大（Beauharnois, QC）。
+- **亮点**：定价较低，流量大户友好，数据隐私合规。
+- **适合**：预算有限、中小型业务、对性价比有要求的用户。
+
+### 5. DigitalOcean
+- **产品**：Droplets（云主机）、托管数据库、空间对象存储。
+- **数据中心**：虽无加拿大本地节点，但美国东北部与加拿大网络延迟很低。
+- **适合**：开发测试、小型生产环境，操作简单。
+
+### 选择建议
+- **本地合规需求强烈**（对数据留在加拿大有硬性要求）：优选AWS、Azure、GCP、OVHCloud的加拿大区。
+- **预算有限且对节点要求不高**：可考虑OVHCloud、DigitalOcean。
+- **追求运维自动化、弹性和生态兼容**：优先考虑AWS、Azure和GCP。
+
+### 简单购买流程（如以AWS为例）
+1. 注册AWS账号，选择加拿大区域`ca-central-1`。
+2. 创建EC2实例（选用Ubuntu、CentOS或亚马逊Linux），开放8080/80等应用端口。
+3. 配置安全组、绑定弹性IP，安装JDK和数据库（或选用RDS托管）。
+4. 使用上文打包好的JAR包进行部署，域名DNS可解析到EIP上。
 
 -->
