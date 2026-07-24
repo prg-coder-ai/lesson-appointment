@@ -185,13 +185,13 @@ public class CourseController {
    public Result<PageResult<Course>> getCourseListByPage(CourseQueryPage query, 
                                                           @RequestHeader("Authorization") String token) {
 
-           System.out.println("getCourseListByPage input:" + query);                                                   
+        //   System.out.println("getCourseListByPage input:" + query);                                                   
         //permissionCheck.checkTeacherOrAdmin(token);
         // 调用服务层查询课程列表
        //  System.out.println("getCourseList controller: " + params);
         PageResult<Course> courseList = courseService.getCoursePage( query);
         //Map<String, List<Course>> resultMap = Map.of("courses", courseList);
-        System.out.println("getCourseListByPage output:" + courseList);
+       // System.out.println("getCourseListByPage output:" + courseList);
         return Result.success(courseList, "查询成功");
     }
     //
