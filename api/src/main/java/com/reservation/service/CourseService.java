@@ -1,7 +1,13 @@
 package com.reservation.service;
 
 //import com.reservation.controller.CourseExecutionController;
- import com.reservation.entity.*; 
+ import ch.qos.logback.core.joran.util.beans.BeanUtil;
+ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+ import com.baomidou.mybatisplus.extension.service.IService;
+ import com.reservation.common.PageResult;
+ import com.reservation.entity.*;
 import com.reservation.dto.*; 
 import com.reservation.query.*; 
 import com.reservation.exception.BusinessException;
@@ -16,50 +22,61 @@ import org.springframework.transaction.annotation.Propagation;
 
 //import java.text.SimpleDateFormat;
 import java.util.*;
-
+ //import cn.hutool.core.util.StrUtil;
+// Spring 自带工具类等价写法（无需额外引依赖）
+ import org.springframework.util.StringUtils;
 /**
  * 课程与排期管理服务，对应设计2.2.2 课程与排期管理模块所有接口的业务逻辑
  * 涵盖课程模板、教师课程、课程排期的增删改查，严格遵循权限校验和数据校验规则
  */
 @Service
-public class CourseService {
+public class CourseService   {
     @Autowired
     private CourseMapper courseMapper;
-     @Autowired
+    @Autowired
     private CourseTemplateMapper courseTemplateMapper;
 
 /**
      * 分页查询课程列表
-     */
-    public PageResult<Course> getCoursePage(CourseQuery query) {
-        // 1. 构建分页对象：当前页 + 每页条数
-        Page<Course> page = new Page<>(query.getPageNum(), query.getPageSize());
+     * 
+     * selectCourseList：com.reservation.dto.CourseQueryParam
+     /**
+      * 分页查询课程列表
+      */
+     public PageResult<Course> getCoursePage(CourseQueryPage query) {
+         // 查询课程列表
+         List<Course> courseList = courseMapper.selectCourseListByPage(query);
 
-        // 2. 构建查询条件（动态拼接）
-        LambdaQueryWrapper<Course> wrapper = Wrappers.lambdaQuery();
-        // 课程名称模糊搜索
-        if (StrUtil.isNotBlank(query.getCourseName())) {
-            wrapper.like(Course::getCourseName, query.getCourseName());
-        }
-        // 语言类型精准筛选
-        if (StrUtil.isNotBlank(query.getLanguageType())) {
-            wrapper.eq(Course::getLanguageType, query.getLanguageType());
-        }
-        // 状态筛选
-        if (query.getStatus() != null) {
-            wrapper.eq(Course::getStatus, query.getStatus());
-        }
-        // 按创建时间倒序，最新的在前
-        wrapper.orderByDesc(Course::getCreateTime);
+         // 封装分页对象
+         Page<Course> page = new Page<>(query.getPageNum(), query.getPageSize());
+         page.setRecords(courseList);
 
-        // 3. 执行分页查询（自动执行 count统计 + 分页数据两条SQL）
-        Page<Course> resultPage = this.page(page, wrapper);
+         // 查询总数
+         Integer total = courseMapper.selectCourseListCount(query);
+         page.setTotal(total);
 
-        // 4. 实体转VO，返回给前端（简单场景可直接返回Course实体） CourseVO 为视图对象，可按需扩展字段（如教师姓名，关联查询后填充），纯单表场景可直接返回 Course 实体。
-        List<Course> voList = BeanUtil.copyToList(resultPage.getRecords(), Course.class);
-        return PageResult.of(resultPage).setRows(voList);
+System.out.println("page 1: " + page);
+ 
+         // VO 映射（如需转换成VO可在此处实现；当前直接返回Course列表）
+         List<Course> voList = new ArrayList<>(courseList);
+
+         // 返回分页结果
+         // 是的，这里"setRecords"和"setRows"确实可能存在重复。
+         // page.setRecords(courseList) 是设置MyBatis-Plus的Page对象的数据记录，主要给Page内部用，便于后续进一步处理；
+         // PageResult.of(page) 会将page中的内容转换为PageResult，但随后又调用 .setRows(voList)，此时rows再次被设置为voList；
+         // 如果PageResult内部rows字段与page.getRecords()内容一致，这确实有重复，但如果voList有单独的数据处理，比如从Course转换为某个VO对象，则需要setRows。
+         // 当前逻辑下，尽管page.setRecords与setRows传递的是同一个数据集合（均为courseList或voList），
+         // 但出于返回值类型统一和潜在的VO转换扩展性考虑，一般会保留setRows这一调用，避免未来扩展时遗漏。
+        // return (PageResult<Course>) PageResult.of(page).setRows(voList);
+    // INSERT_YOUR_CODE
+         PageResult<Course> result = PageResult.of(page);
+ System.out.println("result 1: " + result);
+         result.setRows(voList);
+       System.out.println("result 2: " + result); 
+         return result;
     }
 
+ 
     /**
      * 创建课程模板，对应设计2.2.2 课程模板创建接口，仅管理员可操作
      */

@@ -1,7 +1,8 @@
 package com.reservation.controller;
 
-import com.reservation.common.Result;
+import com.reservation.common.*;
 import  com.reservation.entity.Course;
+import  com.reservation.query.*;
 import  com.reservation.dto.CourseQueryParam;
 import  com.reservation.entity.CourseTemplate;
 import  com.reservation.service.CourseService;
@@ -181,13 +182,16 @@ public class CourseController {
     private Integer pageSize;  // 每页条数
     private Integer totalPages;// 总页数
     */
-   public Result<PageResult<Course>> getCourseListByPage(CourseQuery query, 
+   public Result<PageResult<Course>> getCourseListByPage(CourseQueryPage query, 
                                                           @RequestHeader("Authorization") String token) {
+
+           System.out.println("getCourseListByPage input:" + query);                                                   
         //permissionCheck.checkTeacherOrAdmin(token);
         // 调用服务层查询课程列表
        //  System.out.println("getCourseList controller: " + params);
-        PageResult<Course> courseList = courseService.getCourseListByPage( query);
+        PageResult<Course> courseList = courseService.getCoursePage( query);
         //Map<String, List<Course>> resultMap = Map.of("courses", courseList);
+        System.out.println("getCourseListByPage output:" + courseList);
         return Result.success(courseList, "查询成功");
     }
     //

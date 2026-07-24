@@ -268,7 +268,7 @@ async function renderTemplateCards() {
                     <label>语言类型：</label>
                     <select id="languageType" onchange="handleSearchChange()">
                         <option value="">全部</option>
-                        <option value="france">法语</option>
+                        <option value="french">法语</option>
                         <option value="english">英语</option> 
                     </select>
                 </div>

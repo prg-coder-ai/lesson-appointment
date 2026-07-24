@@ -35,5 +35,7 @@ public class Course implements Serializable {
     private String teacherId;
 
      @NotBlank(message = "课程状态默认为pending")   
-    private String status = "pending"; 
+     private String status = "pending"; 
+
+     private String createTime; 
 }

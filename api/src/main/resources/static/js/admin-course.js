@@ -250,7 +250,7 @@ function validateCourseForm(formData){
           <label>语言类型：</label>
           <select id="language-select">
             <option value="">全部</option>
-            <option value="france">法语</option>
+            <option value="french">法语</option>
             <option value="english">英语</option> 
           </select>
         </div>
@@ -272,7 +272,7 @@ function validateCourseForm(formData){
                         <option value="B4">B4高级</option> 
                     </select>
                 </div>
-        <button class="btn btn-default" onclick="searchCourse()">
+        <button class="btn btn-default" onclick="localsearchCourse()">
           <i class="fa fa-search"></i> 搜索
         </button>
         <button class="btn btn-default" onclick="resetCourseFilter()">
@@ -286,7 +286,7 @@ function validateCourseForm(formData){
           <thead>
             <tr>
              <th>序号</th>
-              <th>课程ID</th>
+              <th style="width:0px;display:none" >课程ID</th>
               <th>课程名称</th>
               <th>语言类型</th>
               <th>难度等级</th>
@@ -329,7 +329,7 @@ async function loadCourseList() {
     courseName: document.getElementById('course-name-input').value.trim(),
     languageType: document.getElementById('language-select').value,
     difficultyLevel: document.getElementById('difficulty-level-select').value,
-    status: document.getElementById('status-select').value
+    status: document.getElementById('course-status-select').value
   });
 
   try {
@@ -360,38 +360,48 @@ function renderCourseTable(list) {
     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;padding:40px 0;">暂无数据</td></tr>';
     return;
   }
+   let  html  = ` `;
+  var index=0;
 
-  tbody.innerHTML = list.map(item => `
-    <tr>
-      <td>${index}</td>
-      <td>${item.courseId}</td>
-      <td>${item.courseName}</td>
-      <td>${item.languageType}</td>
-      <td>${item.level}</td>
-      <td>¥${item.price}</td>
-      <td>${item.duration}分钟</td>
-     
-         ${ item.status === "pending" ? '<td  style="color:#faad14;">待审核</td>' :
-          item.status === "active" ? '<td style="color:#52c41a;">正常</td>' :
-          item.status === "inactive" ? '<td style="color:#faad14;">待启用</td>' :
-          item.status === "frozen" ? '<td style="color:#f5222d;">已删除</td>' :
-                            `<span>${item.status||"未知"}</span>`
+        list.forEach(Course => {
+         // INSERT_YOUR_CODE
+         // 根据Course.templateId在templateList中查找对应的模板对象
+         const templateObj = templateList?templateList.find(t => t.templateId === Course.templateId) : null;
+         const teacherObj = teacherList?teacherList.find(t => t.userId === Course.teacherId) : null;
+
+         let tempInfo=templateObj? templateObj.languageType+ " "+ templateObj.difficultyLevel + " "+templateObj.classFee : "" ;
+         let teacherInfo=teacherObj? teacherObj.name+ " "+ teacherObj.phone + " "+ teacherObj.email : "n/a" ;
+         
+           index ++;
+            html += `
+                <tr>                    
+              
+                   <td style="width:40px;">${index  }</td> 
+                     <td style="width:0px;display:none"> ${Course.courseId || ''} </td>   
+                     <td style="width:130px;">${tempInfo || ''}</td> 
+                      <td style="width:130px;">${Course.courseName || ''}</td> 
+                      <td style="width:130px;">${Course.content || ''}</td> 
+                      <td style="width:130px;">${Course.feature || ''}</td> 
+                      <td style="width:130px;">${teacherInfo || ''}</td> 
+
+                     <td style="width:120px;">                       
+                          ${ Course.status === "pending" ? '<span style="color:#faad14;">待审核</span>' :
+                            Course.status === "active" ? '<span style="color:#52c41a;">正常</span>' :
+                            Course.status === "inactive" ? '<span style="color:#faad14;">待启用</span>' :
+                            Course.status === "frozen" ? '<span style="color:#f5222d;">已删除</span>' :
+                            `<span>${Course.status||"未知"}</span>`
                           }
-       
-      <td>
-        <button class="btn btn-default" onclick='openEditCourseDialog(${JSON.stringify(Course).replace(/'/g, "\\'")})'>
-          <i class="fa fa-edit"></i> 编辑
-        </button>
-         <button class="btn btn-success" onclick="changeCourseStatus('${item.courseId}', 'active')">发布</button>
-         <button class="btn btn-warning" onclick="changeCourseStatus('${item.courseId}', 'inactive')">撤回</button>
-
-        <button class="btn btn-danger" onclick="deleteCourse(${item.courseId})">
-          <i class="fa fa-trash"></i> 删除
-        </button>
-
-      </td>
-    </tr>
-  `).join('');
+                        </td>
+                    <td style="width:240px;display:flex;gap:8px;">
+                        <button class="btn btn-success" onclick='openEditCourseDialog(${JSON.stringify(Course).replace(/'/g, "\\'")})'>修改</button>                   
+                        <button class="btn btn-success" onclick="changeCourseStatus('${Course.courseId}', 'active')">发布</button>
+                        <button class="btn btn-warning" onclick="changeCourseStatus('${Course.courseId}', 'inactive')">撤回</button>
+                        <button class="btn btn-danger"  onclick="deleteCourse ('${Course.courseId}')">删除</button>
+                    </td>
+                </tr> 
+            `;
+        });
+        tbody.innerHTML = html;
 }
 
 // 渲染分页按钮
@@ -460,7 +470,7 @@ function changeCoursePageSize() {
 
 // 筛选与操作联动
 // 搜索按钮：重置为第1页再查询
-function searchCourse() {
+function localsearchCourse() {
   coursePagination.pageNum = 1;
   loadCourseList();
 }
@@ -496,7 +506,7 @@ async function deleteCourse(id) {
     console.error('删除失败：', error);
   }
 }
-async function loadCourseList-olD() { 
+async function loadCourseList_olD() { 
 
       templateList = await  fetchTemplateList(language?language.value:'all');  
       teacherList  = await  fetchUserList(conditionJsonForTeacher);
@@ -508,15 +518,9 @@ async function loadCourseList-olD() {
         languageType: document.getElementById('language-select').value,
         status: document.getElementById('course-status-select').value
       });
-    // 获取模板列表数据
-    //CourseList =await fetchCourseList(conditionJson);
-    const pageData = await fetchCourseListByPage(params);
-    CourseList = pageData .rows;
-    // 更新分页状态
-    coursePagination.total = pageData.total;
-    coursePagination.totalPages = pageData.totalPages;
- 
-            
+  
+     CourseList =await fetchCourseList(conditionJson);
+      
         if (!CourseList.length) {
           //html += '<div style="padding:40px 0;text-align:center;color:#999;">暂无数据</div>';
       } else
