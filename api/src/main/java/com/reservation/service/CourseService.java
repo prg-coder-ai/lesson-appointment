@@ -58,7 +58,7 @@ public class CourseService   {
 System.out.println("page 1: " + page);
  
          // VO 映射（如需转换成VO可在此处实现；当前直接返回Course列表）
-         List<Course> voList = new ArrayList<>(courseList);
+       //  List<Course> voList = new ArrayList<>(courseList);
 
          // 返回分页结果
          // 是的，这里"setRecords"和"setRows"确实可能存在重复。
@@ -70,9 +70,9 @@ System.out.println("page 1: " + page);
         // return (PageResult<Course>) PageResult.of(page).setRows(voList);
     // INSERT_YOUR_CODE
          PageResult<Course> result = PageResult.of(page);
- System.out.println("result 1: " + result);
-         result.setRows(voList);
-       System.out.println("result 2: " + result); 
+ //System.out.println("result 1: " + result);
+      //   result.setRows(voList);
+      // System.out.println("result 2: " + result); 
          return result;
     }
 
