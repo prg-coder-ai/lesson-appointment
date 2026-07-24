@@ -76,4 +76,78 @@
         </if>
       </where>
    </select>
+
+   
+   <select id="selectCourseListByPage" parameterType="com.reservation.query.CourseQueryPage" resultType="com.reservation.entity.Course">
+      SELECT c.*
+      FROM course c
+      LEFT JOIN course_template t ON c.template_id = t.template_id
+      <where>
+        TRUE 
+        <choose>
+          <when test="courseName != null and courseName != ''">
+            AND c.course_name LIKE CONCAT('%', #{courseName}, '%')
+          </when>
+        </choose>
+        <choose>
+          <when test="languageType != null and languageType != ''">
+            AND t.language_type = #{languageType}
+          </when>
+        </choose>
+        <choose>
+          <when test="difficultyLevel != null and difficultyLevel != ''">
+            AND t.difficulty_level = #{difficultyLevel}
+          </when>
+        </choose>
+        <choose>
+          <when test="teacherId != null and teacherId != ''">
+            AND c.teacher_id = #{teacherId}
+          </when>
+        </choose>
+        <choose>
+          <when test="status != null and status != ''">
+            AND c.status = #{status}
+          </when>
+        </choose>
+      </where>
+      <if test="pageSize != null and pageNum != null">
+        LIMIT #{pageSize} OFFSET ${(pageNum - 1) * pageSize}
+      </if>
+   </select>
+
+   
+   <select id="selectCourseListCount" parameterType="com.reservation.query.CourseQueryPage" resultType="java.lang.Integer">
+      SELECT COUNT(*) 
+      FROM course c
+      LEFT JOIN course_template t ON c.template_id = t.template_id
+      <where>
+       
+        TRUE 
+        <choose>
+          <when test="courseName != null and courseName != ''">
+            AND c.course_name LIKE CONCAT('%', #{courseName}, '%')
+          </when>
+        </choose>
+        <choose>
+          <when test="languageType != null and languageType != ''">
+            AND t.language_type = #{languageType}
+          </when>
+        </choose>
+        <choose>
+          <when test="difficultyLevel != null and difficultyLevel != ''">
+            AND t.difficulty_level = #{difficultyLevel}
+          </when>
+        </choose>
+        <choose>
+          <when test="teacherId != null and teacherId != ''">
+            AND c.teacher_id = #{teacherId}
+          </when>
+        </choose>
+        <choose>
+          <when test="status != null and status != ''">
+            AND c.status = #{status}
+          </when>
+        </choose>
+      </where> 
+   </select>
 </mapper>

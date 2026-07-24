@@ -1,8 +1,10 @@
 /*CourseMapper.java*/
 package com.reservation.mapper;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.reservation.entity.Course;
 import com.reservation.dto.CourseQueryParam;
+import com.reservation.query.*;
 //import com.reservation.entity.CourseTemplate;
  
 import org.apache.ibatis.annotations.Mapper;
@@ -137,8 +139,11 @@ public interface CourseMapper extends BaseMapper<Course> {
      *    - <if test="params != null and params.xxx != null and params.xxx != ''"> ... </if> 
      */
     List<Course> selectCourseList(  CourseQueryParam params); 
-    
-    
+    /*按照分页机制获取满足条件的指定页的数据*/
+    List<Course> selectCourseListByPage(  CourseQueryPage params); 
+       /*按照 获取满足条件的指定页的数据的总数*/
+    int selectCourseListCount(  CourseQueryPage params);
+
      @org.apache.ibatis.annotations.Update("UPDATE course SET status = #{status} , update_time = NOW() WHERE course_id = #{courseId}")
      int updateCourseStatus(@Param("courseId") String courseId, @Param("status") String status); 
 

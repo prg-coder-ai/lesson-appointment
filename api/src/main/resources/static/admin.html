@@ -467,11 +467,12 @@
     // 页面加载时验证登录状态（注释掉跳转，方便测试）
     window.onload = function() {
       window.makeTestPage = makeTestPage;//test
-       testFormContainer = document.getElementById('templateFormContainer');
+      window.renderCourseCards = renderCourseCards;
+      testFormContainer = document.getElementById('templateFormContainer');
        console.log("onload",testFormContainer); 
 
         formContainer = document.getElementById('formContainer');
-        console.log("onload",formContainer); 
+        //console.log("onload",formContainer); 
 
       // 读取名为 currentUser 的 cookie值，并设置回 localStorage，避免用户刷新管理端丢失状态   
         function getCookie(name) {
@@ -595,12 +596,12 @@
 
 
 
-            function    renderCards(role){
-                    if(role=="teacher")
-                       renderTeacherCards();
-                      else  if(role=="student")
-                      renderStudentCards();
-            }
+    function    renderCards(role){
+            if(role=="teacher")
+                renderTeacherCards();
+              else  if(role=="student")
+              renderStudentCards();
+    }
     // 学生管理相关函数
     function editStudent(el) {
       const row = el.closest('tr');
@@ -636,8 +637,7 @@
       alert(`已刷新 ${month} 月份的教师授课统计数据！`);
     }
 //利用changepasswordapi设置用户密码为缺省值
-    function resetUserPasswd(userId) {
-      <!-- INSERT_YOUR_CODE -->
+    function resetUserPasswd(userId) { 
       if (!confirm("确定要重置此用户的密码为默认值吗？")) {
         return;
       }

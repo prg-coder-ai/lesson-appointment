@@ -1,4 +1,12 @@
 // common/PageResult.java  分页返回结果
+package com.reservation.common;
+
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
+import java.util.List;
+
 @Data
 @AllArgsConstructor
 public class PageResult<T> {
