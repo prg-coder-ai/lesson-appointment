@@ -297,16 +297,14 @@ function validateCourseForm(formData){
               <th>课时费</th>
               <th>时长</th>
               <th>状态</th>
-              <th>操作</th  -->
-           
-
+              <th>操作</th  --> 
               
                   <th>序号</th>  
                     <th style="width:0px;display:none">Id</th>
                      <th>课程名称</th>  
                   <th>摘要</th> 
                 <th>课程内容</th>
-                <th>课程特色</th>
+                <th>课程特色</th> 
                 <th>教师</th>
                 <th>状态</th>
                 <th>操作</th>
@@ -527,6 +525,7 @@ async function deleteCourse(id) {
     console.error('删除失败：', error);
   }
 }
+/*
 async function loadCourseList_olD() { 
 
       templateList = await  fetchTemplateList(language?language.value:'all');  
@@ -589,6 +588,7 @@ async function loadCourseList_olD() {
         });
       }
     } 
+      */
 
 
 // ===================== 交互函数 =====================

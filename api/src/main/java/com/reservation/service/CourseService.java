@@ -1,11 +1,7 @@
 package com.reservation.service;
 
 //import com.reservation.controller.CourseExecutionController;
- import ch.qos.logback.core.joran.util.beans.BeanUtil;
- import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
- import com.baomidou.mybatisplus.core.toolkit.Wrappers;
- import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
- import com.baomidou.mybatisplus.extension.service.IService;
+
  import com.reservation.common.PageResult;
  import com.reservation.entity.*;
 import com.reservation.dto.*; 
@@ -19,7 +15,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Propagation;
-
+ import ch.qos.logback.core.joran.util.beans.BeanUtil;
+ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+ import com.baomidou.mybatisplus.extension.service.IService;
 //import java.text.SimpleDateFormat;
 import java.util.*;
  //import cn.hutool.core.util.StrUtil;
@@ -55,7 +55,7 @@ public class CourseService   {
          Integer total = courseMapper.selectCourseListCount(query);
          page.setTotal(total);
 
-System.out.println("page 1: " + page);
+//System.out.println("page 1: " + page);
  
          // VO 映射（如需转换成VO可在此处实现；当前直接返回Course列表）
        //  List<Course> voList = new ArrayList<>(courseList);
@@ -149,7 +149,7 @@ System.out.println("page 1: " + page);
             throw new ResourceNotFoundException("updateCourseStatus：课程不存在");
         } */
          // INSERT_YOUR_CODE
-         System.out.println("updateCourseStatus called with courseId: " + courseId + ", status: " + status);
+        // System.out.println("updateCourseStatus called with courseId: " + courseId + ", status: " + status);
  
          courseMapper.updateCourseStatus(courseId,status);
         return Collections.singletonMap("courseId", courseId);

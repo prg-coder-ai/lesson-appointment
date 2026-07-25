@@ -1,16 +1,18 @@
 package com.reservation.controller;
 
 
-import com.reservation.common.Result;
-import com.reservation.entity.User;
+import com.reservation.common.*;
+import com.reservation.query.*;
+
+import com.reservation.entity.User; 
 import com.reservation.service.UserService; 
- import org.springframework.validation.annotation.Validated;
+import org.springframework.validation.annotation.Validated;
 // 核心导入：RequestMethod 所在包
- import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Autowired;
 //import java.util.HashMap;
 import java.util.List;
- import java.util.Map;
+import java.util.Map;
  
 /**
  * 用户注册与认证控制器，对应设计2.2.1 所有接口
@@ -20,8 +22,7 @@ import java.util.List;
 @Validated
 public class UserController { 
      @Autowired
-    private UserService userService;
-
+    private UserService userService; 
 
     //TBD条件：role,所属机构 
     /**
@@ -40,7 +41,7 @@ public class UserController {
             @RequestParam(required = false) String userId,
             @RequestParam(required = false) String account
     ) {
-        Map<String, Object> condition = new java.util.HashMap<>();
+        Map<String, Object> condition = new java.util.HashMap<>(); 
         if (role != null && !role.isEmpty()) condition.put("role", role);
         if (status != null && !status.isEmpty()) condition.put("status", status);
         if (name != null && !name.isEmpty()) condition.put("name", name);
@@ -54,7 +55,17 @@ public class UserController {
         return Result.success(users, "查询成功");
     }
      
-     @GetMapping("/name/{userId}")
+
+    @GetMapping("/page")
+    @ResponseBody    
+    public  Result<PageResult<User>> listByPage( UserQueryPage queryCondition, 
+              @RequestHeader("Authorization") String token  ) { 
+         PageResult<User> users = userService.listByConditionPage(queryCondition); 
+        // System.out.println("out:" + users);
+        return Result.success(users, "查询成功");
+    }
+
+    @GetMapping("/name/{userId}")
     @ResponseBody
     public Result<String> getUserById( @PathVariable  String userId ) {
        // HashMap<String, Object> condition = new java.util.HashMap<>();  
@@ -73,7 +84,7 @@ public class UserController {
       @ResponseBody
     public Result<Object> studentRegister(@Validated @RequestBody User user) {
         // 调用服务层实现注册逻辑，返回userId和Token（对应设计2.2.1 学生注册返回数据）
-         user.setRole("student");
+        user.setRole("student");
         user.setStatus("pending");
        
         Result<Object> rst = userService.Register(user);
@@ -104,8 +115,8 @@ public class UserController {
         return rst; 
     }
 
-     @PostMapping("/updateStatus") 
-       @ResponseBody
+    @PostMapping("/updateStatus") 
+    @ResponseBody
     public Result<Object> updateStatus(@Validated @RequestBody User user) {  
         int ret = userService.updateStatus(user); 
          
@@ -113,7 +124,7 @@ public class UserController {
     }
   
 
-//按角色查询用户列表
+//按角色查询用户列表---may be deleted ,replaced by listByGet、listByPage
     @GetMapping("/student/list")
     @ResponseBody
     public Result<List<User>>  studentList() { 
@@ -130,9 +141,7 @@ public class UserController {
          //System.out.println("out:" + users);
         return Result.success(users, "查询成功");
     } 
-
  
-// INSERT_YOUR_CODE
     /**
      * 查询账号（邮箱/电话）是否已存在
      * 前端调用：GET /user/account/exist?account=xxx
@@ -159,19 +168,7 @@ public class UserController {
         }
         boolean bok = userService.changePassword(userId.trim(),password);
         return Result.success(bok, bok ? "修改成功" : "修改失败");
-    }
-//TBD: 更新非空参数
-/*
-    @PostMapping("/user/update")
-    public Result<Void> updateUser(  User user) {
-            int ret= userService.update(user);//
-        if (ret>0) {
-            return Result.success(null, "数据更新成功");
-        }
-        return Result.success(null, "数据更新失败");
-    }
-*/
-// INSERT_YOUR_CODE
+    } 
 
     /**
      * 查询截至指定月份的教师和学生总数（含月初、月末）

@@ -1,11 +1,18 @@
 package com.reservation.service;
 //
-import com.reservation.common.Result;
-import com.reservation.entity.User;
+import com.reservation.common.*;
+import com.reservation.query.UserQueryPage;
+import com.reservation.common.PageResult;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+
+import com.reservation.entity.User;  
 import com.reservation.exception.BusinessException;
 import com.reservation.exception.ResourceNotFoundException;
 import com.reservation.exception.UserNotFoundException;
 import com.reservation.mapper.UserMapper;
+import com.reservation.utils.JwtUtil;
+
+
 // 原因可能有以下几种：
 // 1. 你的项目中没有 UserMapper 这个类，或者它的包名不是 com.reservation.mapper。
 // 请确保 src/main/java/com/reservation/mapper/UserMapper.java 文件存在且包声明正确。
@@ -14,8 +21,7 @@ import com.reservation.mapper.UserMapper;
 // 4. IDEA/Maven 的编译配置问题，比如未将相关目录标记为 Source Root。
 // 5. 代码中包名拼写错误，与实际包名不符。请检查 import 路径、包声明大小写和文件夹结构一致。
 // 解决办法：确认 com.reservation.mapper.UserMapper 类文件在项目对应目录下，并且包名、文件名拼写无误，之后点击IDE“Invalidate Caches”或重启。
-
-import com.reservation.utils.JwtUtil;
+ 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -284,6 +290,28 @@ public User selectById(String userId) {
         return ret;
     };
  
+     public PageResult<User>   listByConditionPage(UserQueryPage query)
+    {
+        List <User> retList = userMapper.listByConditionPage(query); 
+// 删除密码字段 
+        if (retList != null) {
+            for (User user : retList) {
+                if (user != null) {
+                    user.setPassword(null); // 删除password
+                }
+            }
+        }
+ 
+        Page<User> page = new Page<>(query.getPageNum(), query.getPageSize());
+        page.setRecords(retList);
+
+        Integer total = userMapper.selectCountByContion(query);
+        page.setTotal(total);
+        PageResult<User> result = PageResult.of(page);
+        return result;
+    };
+ 
+
     public List<User> listByRole(String role) {
         List<User> users = userMapper.listByRole(role); 
         if (users == null || users.isEmpty()) {
