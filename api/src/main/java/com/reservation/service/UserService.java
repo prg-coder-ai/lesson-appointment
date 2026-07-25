@@ -53,7 +53,7 @@ public class UserService {
     @Transactional
     public Result< Object> Register(User user) {
         // 校验手机号/邮箱是否已注册（对应业务异常校验）
-         System.out.println("input：" + user);
+        // System.out.println("input：" + user);
          if(existAccount(user.getAccount())) {
             //throw new BusinessException("该账号已注册");
             Result< Object> rslt = Result.fail(400   ,"该账号已注册，请登录或重置密码");

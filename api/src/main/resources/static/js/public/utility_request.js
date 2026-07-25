@@ -64,7 +64,7 @@
     const refreshToken = localStorage.getItem('refreshToken');
     // 获取当前登录者的账号account
     const cuser =  localStorage.getItem('currentUser');
-    console.error("getNewTaken currentUser",cuser);
+   // console.error("getNewTaken currentUser",cuser);
     const account = cuser.account;
     const role = cuser.role;
     /*const currentUser = {
@@ -178,7 +178,7 @@
         isRefreshing = true;
         try {
           const refreshRes = await getNewToken();
-           console.error("000 getNewToken:",refreshRes );
+          // console.error("000 getNewToken:",refreshRes );
          // 
           if (refreshRes.status === 200) 
          {  const result = refreshRes.data;
