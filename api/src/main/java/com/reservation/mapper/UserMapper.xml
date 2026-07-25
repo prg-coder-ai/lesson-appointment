@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.reservation.mapper.UserMapper">
+ 
+
+   <select id="listByCondition" parameterType="com.reservation.query.UserQueryPage" resultType="com.reservation.entity.User">
+      SELECT c.*
+      FROM user c 
+      <where>
+        TRUE 
+         <choose>
+          <when test="role != null and role != ''">
+          AND c.role = #{role}
+         </when>
+        </choose>
+
+        <choose>
+          <when test="status != null and status != ''">
+         AND  c.status = #{status}
+         </when>
+        </choose>
+         <choose>
+          <when test="email != null and email != ''">
+          AND c.email = LIKE CONCAT('%', #{email}, '%')
+          </when>
+        </choose>
+         <choose>
+          <when test="phone != null and phone != ''">
+           AND c.phone LIKE CONCAT('%', #{phone}, '%')
+         </when>
+        </choose>
+         <choose>
+          <when test="userId != null and userId != ''">
+         AND  c.userId = #{userId}
+         </when>
+        </choose>
+      </where>
+   </select>
+
+   
+   <select id="listByConditionPage" parameterType="com.reservation.query.UserQueryPage" resultType="com.reservation.entity.Course">
+      SELECT c.*
+      FROM user c 
+      <where>
+        TRUE 
+        <choose>
+          <when test="role != null and role != ''">
+          AND c.role = #{role}
+         </when>
+        </choose>
+
+        <choose>
+          <when test="status != null and status != ''">
+         AND  c.status = #{status}
+         </when>
+        </choose>
+         <choose>
+          <when test="email != null and email != ''">
+          AND c.email = LIKE CONCAT('%', #{email}, '%')
+          </when>
+        </choose>
+         <choose>
+          <when test="phone != null and phone != ''">
+           AND c.phone LIKE CONCAT('%', #{phone}, '%')
+         </when>
+        </choose>
+         <choose>
+          <when test="userId != null and userId != ''">
+         AND  c.userId = #{userId}
+         </when>
+        </choose>
+      </where>
+      <if test="pageSize != null and pageNum != null">
+        LIMIT #{pageSize} OFFSET ${(pageNum - 1) * pageSize}
+      </if>
+   </select>
+
+   
+   <select id="selectCountByContion" parameterType="com.reservation.query.UserQueryPage" resultType="java.lang.Integer">
+      SELECT COUNT(*) 
+      FROM user c 
+      <where> 
+        TRUE  
+        <choose>
+          <when test="role != null and role != ''">
+          AND c.role = #{role}
+         </when>
+        </choose>
+        <choose>
+          <when test="status != null and status != ''">
+         AND  c.status = #{status}
+         </when>
+        </choose>
+         <choose>
+          <when test="email != null and email != ''">
+          AND c.email = LIKE CONCAT('%', #{email}, '%')
+          </when>
+        </choose>
+         <choose>
+          <when test="phone != null and phone != ''">
+           AND c.phone LIKE CONCAT('%', #{phone}, '%')
+         </when>
+        </choose>
+         <choose>
+          <when test="userId != null and userId != ''">
+         AND  c.userId = #{userId}
+         </when>
+        </choose>
+      </where> 
+   </select>
+</mapper>
