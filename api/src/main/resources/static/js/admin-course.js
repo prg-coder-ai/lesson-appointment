@@ -392,9 +392,8 @@ function renderCourseTable(list) {
          
            index ++;
             html += `
-                <tr>                    
-              
-                   <td>${index  }</td> 
+                <tr>               
+                     <td>${index  }</td> 
                      <td style="width:0px;display:none"> ${Course.courseId || ''} </td>  
                      <td>${Course.courseName || ''}</td>  
                      <td >${tempInfo || ''}</td> 
@@ -403,7 +402,7 @@ function renderCourseTable(list) {
                       <td >${Course.feature || ''}</td> 
                       <td >${teacherInfo || ''}</td> 
 
-                     <td>                       
+                       <td>                       
                           ${ Course.status === "pending" ? '<span style="color:#faad14;">待审核</span>' :
                             Course.status === "active" ? '<span style="color:#52c41a;">正常</span>' :
                             Course.status === "inactive" ? '<span style="color:#faad14;">待启用</span>' :
@@ -595,16 +594,15 @@ async function loadCourseList_olD() {
 /**
  * 筛选条件变化
  */
-async function handleSearchChange() {
+/*async function handleSearchChange() {
     localParamter.currentPage = 1; // 重置页码
     await renderCourseCards();
-}
+}*/
  
 
 function changeCourseStatus(courseId, status) { 
   operateCourse(courseId, status);
-  loadCourseList();
-  
+  loadCourseList();  
 } 
    
 
