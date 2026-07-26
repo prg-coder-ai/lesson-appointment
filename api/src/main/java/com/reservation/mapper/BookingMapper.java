@@ -2,8 +2,11 @@
 // 生成 BookingMapper 接口
 package com.reservation.mapper;
 
+import com.reservation.common.*; //PageResult ,PageQuery
 import com.reservation.entity.Booking;
 import com.reservation.dto.BookingQueryParaDTO;
+import com.reservation.query.BookingQueryPage;
+
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -25,6 +28,9 @@ public interface BookingMapper {
 
     // 条件批量查询
     List<Booking> selectList(BookingQueryParaDTO dto);
+
+    List <Booking> selectListPage(BookingQueryPage dto);
+    int            selectCountByCondition(BookingQueryPage dto);
 
     // 删除预约
     int delete(@Param("id") String id);

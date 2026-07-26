@@ -355,6 +355,8 @@ async function batchAddCourseSchedulesPerCourse() {
     // 3. 添加到数据库（依次POST，或后端支持批量接口可批量发送）
     let okCount = 0, failCount = 0;
     for (const sched of schedules) {
+      
+    await sleep(20);
       try {
         const result = saveScheduleToServer(false,sched);//await request.post("/courseSchedule/add", sched);
         if (result ) {
@@ -393,7 +395,9 @@ async function getAllStudentIds() {
     return [];
   }
 }
- 
+async function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 // 2. 帮全部排期随机指定给1个学生 ----TBD：直接assign-student
 async function assignSchedulesRandomStudent() {
   const studentIds = await getAllStudentIds();
@@ -405,7 +409,9 @@ async function assignSchedulesRandomStudent() {
   let ok = 0, fail = 0;
   //console.error("schedules",schedulesIdList);
   let teacherId=null;
-  for (const scdObj of schedulesList) { 
+  for (const scdObj of schedulesList) {
+    
+    await sleep(20); 
     teacherId=null
       if(scdObj){
          let cObj = await getCourseById(scdObj.courseId);
