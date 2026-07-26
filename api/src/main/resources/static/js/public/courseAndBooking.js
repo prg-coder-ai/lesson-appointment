@@ -521,6 +521,20 @@ async function getBookingList( userRole, userid, status) {
   return  await getBookingInfoByCondition(params) ; 
 }
 
+async function getBookingListPage(params){
+  const url = `course/booking/page` ; 
+  try {
+      const res =await request( { url:`${API_BASE_URL}/${url}`,method: 'POST',data:params}) ; //data:{params}-->data:params
+  
+     return res ; //
+  
+  } catch (err) {
+    console.error('getBookingListPage 失败'+err);  
+   }
+return [];
+}      
+    
+
 window.getBookingInfo = getBookingInfo;
 
 async function  getBookingInfoByCondition(params) {
@@ -797,7 +811,7 @@ function getScheduleInfo(scheduleObject,withName=true) {
   }
 
   // 刷新重复类型 
-  info += getRepeatDescription(scheduleObject.repeatType, scheduleObject.interval);
+  info += getRepeatDescription(scheduleObject.repeatType, scheduleObject.interval,scheduleObject.repeatDays);
  //TBD:每x周 xx/xx/xx 或者每x月 xx/xx/xx/ 
       return info;
 }
@@ -823,8 +837,8 @@ function getScheduleInfoByDTO(scheduleObject) {
   }
 
   // 刷新重复类型 
-  info += getRepeatDescription(scheduleObject.repeatType, scheduleObject.interval);
- //TBD:每x周 xx/xx/xx 或者每x月 xx/xx/xx/ 
+  info += getRepeatDescription(scheduleObject.repeatType, scheduleObject.interval,scheduleObject.repeatDays);
+ //每x周 xx/xx/xx 或者每x月 xx/xx/xx/ 
       return info;
 }
 /* 
@@ -833,16 +847,23 @@ function getScheduleInfoByDTO(scheduleObject) {
    * @param {number} interval - 重复周期，如每几天/周/月一次
    * @returns {string} - 周期说明语句
    */
-function getRepeatDescription(repeatType, interval) {
+function getRepeatDescription(repeatType, interval,repeatDays) {
+   let repeatDaysStr = "";
+   if (typeof repeatDays === "string") {
+       repeatDaysStr = repeatDays;
+   } else if (Array.isArray(repeatDays) && repeatDays.length > 0) {
+       repeatDaysStr = repeatDays.join("、");
+   }
   switch (repeatType) {
       case "none":
           return "单次课";
       case "day":
           return `每${interval > 1 ? interval : ''}天一次`;
       case "week":
-          return `每${interval > 1 ? interval : ''}周一次`;
+           
+          return `每${interval > 1 ? interval : ''}周`+"["+repeatDaysStr+"]";
       case "month":
-          return `每${interval > 1 ? interval : ''}月一次`;
+          return `每${interval > 1 ? interval : ''}月`+"["+repeatDaysStr+"]";
       default:
           return "";
   }
@@ -871,7 +892,7 @@ function getRepeatDescription(repeatType, interval) {
                         teacherId: teacherId
                     }
                 });
-                console.log("assignStudentToTheSchedule result:", result); 
+               // console.log("assignStudentToTheSchedule result:", result); 
                 return  result;
             } catch (error) {
                 alert("分配学生到排期时发生错误: " + error.message);

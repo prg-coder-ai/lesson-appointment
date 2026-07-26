@@ -4,30 +4,125 @@
  
 let pendingBookingList=[];// ID,ciurseName,studentName,teacherName,dateTime(创建时间),状态、操作（预览、确认、拒绝） 
  
- 
+
+
+ // 引入分页组件js
+ document.write('<script src="/js/public/pagefoot.js"></script>');
+
 window.provingBooking  = provingBooking ;  
 window.cancelBooking   = cancelBooking ; 
 window.validBooking   = validBooking ; 
 
  async function provingBooking(){
+     assignLoadobjectListFunction( getPendingBookingList);//
+  let html     = `
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fa fa-calendar-alt"></i>预订列表</div>
+<!-- 筛选条件 -->
+              <div class="filter-bar">  
+                <div class="filter-item">
+                  <label>课程名称：</label>
+                  <input type="text" id="course-name-input" placeholder="课程名称">
+                </div>
+                        
+                <div class="filter-item">
+                  <label>状态：</label>
+                  <select id="booking-status-select">
+                    <option value="">全部</option>
+                    <option value="booking">预定待确认</option>
+                    <option value="cancelling">取消待确认</option>
+                    <option value="booked">预定已确认</option>
+                    <option value="cancelled">已取消</option>
+                    <option value="delete">已删除</option> 
+                  </select>
+                </div> 
+                <button class="btn btn-default" onclick="localsearchBooking()">
+                  <i class="fa fa-search"></i> 搜索
+                </button>
+                <button class="btn btn-default" onclick="resetFilterBooking()">
+                  <i class="fa fa-redo"></i> 重置
+                </button>
+              </div> 
+             
+    </div>
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>序号</th>
+            <th  style="display:none;">预订ID</th>
+            <th>课程名称</th>
+            <th>学生姓名</th>
+            <th>教师姓名</th>
+            <th>上课时间</th>
+            <th>状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="pending-reservations">
+          
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+`;
+html += getPagebar();
+if(dynamicContentCenter) {
+  dynamicContentCenter.innerHTML =  html;           
+}
      getPendingBookingList();
     // showBookingList();
  }  
  async function getPendingBookingList(){
   //search current pendding booking items ,and dispaly here /pendingBooking 
-      let userRole = null,userId=null,status =null;//TB TEST "pending";
-      bookingList1 = await getBookingList(userRole, userId, status);
-    //bookingList2 = await getBookingList(userRole, userId, 'booking');
-    
-    pendingBookingList = bookingList1;//.concat(bookingList2);
-  //  console.log("pendingBookingList:", pendingBookingList);  
-    showBookingList();
+//let userRole = null,userId=null,status =null;//TB TEST "pending";
+   //   bookingList1 = await getBookingList(userRole, userId, status);
+
+/*const params = new URLSearchParams({
+    pageNum:  Pagination.pageNum,
+    pageSize: Pagination.pageSize,  
+    //userRole:    document.getElementById('user-role-input').value.trim(),//TBD
+   // teacherName:    document.getElementById('teacher-name-input').value.trim(),//TBD
+   // studentName:    document.getElementById('student-name-input').value.trim(),
+   // status:         document.getElementById('user-status-select').value
+  });*/
+   // 由错误日志可见，接口期望JSON而不是URLSearchParams（query string）。
+   // 应以对象形式传递参数，将其直接传给getBookingListPage，确保它以JSON格式发送（POST body）
+   const params = {
+     pageNum: Pagination.pageNum,
+     pageSize: Pagination.pageSize,
+     // 可预留 future 参数，比如 userRole, status 等，如有需要可加上
+     // userRole:    document.getElementById('user-role-input').value.trim(),//TBD
+     courseName:    document.getElementById('course-name-input').value.trim(),//TBD
+   // studentName:    document.getElementById('student-name-input').value.trim(),
+     status:         document.getElementById('booking-status-select').value  
+   };
+
+   let result = await getBookingListPage( params);
+  // console.log("page:",params);
+     console.log("ret:",result);
+   if(result){
+       const pageData = result;
+
+       Pagination.total = pageData.total ;
+       Pagination.totalPages = pageData.totalPages;
+         
+      showBookingList( pageData.rows); 
+      // 渲染分页栏,带入分页参数
+      renderPagination( Pagination);    
+   }
+     
   } 
  //显示待确认预约
-  async function showBookingList(){
+  async function showBookingList(pageDataList){
      const id = "pending-reservations";
      let pendingBookingsHtml = "";
-     let index = 0;
+     
+     pendingBookingList =  pageDataList;
+      
+     var index=(Pagination.pageNum-1)*Pagination.pageSize;//记录序号
      if (Array.isArray(pendingBookingList)) {
          // 用for...of+await，等待所有异步操作完成
          for (let booking of pendingBookingList) { 
@@ -47,7 +142,7 @@ window.validBooking   = validBooking ;
                          scheduleId:    scheduleObject.scheduleId, 
                          origTz:        scheduleObject.timeZone,
                          bookingId: booking.id,
-                         className: classObject.courseName+ " " + scheduleObject.name,
+                         className: classObject.courseName,//+ " " + scheduleObject.name,
                          studentName: studentName,//-->name/phone/email
                          teacherName: teacherName,
                          scheduleInfo: scheduleInfoStr, 
@@ -158,6 +253,8 @@ async function validOrCancelReservation(bookingid,status) {
   // 根据bookingid在bookingList中查找对应的booking对象
   const bookingList = pendingBookingList;
   const bookingObj = Array.isArray(bookingList) ? bookingList.find(b => b.id === bookingid) : null; 
+  if(bookingObj ==null)
+    return ;
   const scheduleInfo = await fetchSchedule(bookingObj.scheduleId);
  
   //按照排期所用的时区时刻 
@@ -231,7 +328,8 @@ async function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 await sleep(200); 
-showBookingList(); 
+ 
+getPendingBookingList();
 }
 
 
@@ -247,7 +345,8 @@ async function validCancelBooking(bookingid){
    //console.log("validCancelBooking updateAppointmentsStatusByBookingId bookingid:",bookingid);
    await updateAppointmentsStatusByBookingId(bookingid, "cancelled");
    //更新booking预定状态
-   await operateBookingStatus( bookingid, "cancelled"); 
+   await operateBookingStatus( bookingid, "cancelled");
+    
     } 
 
     async function cancelBooking(bookingid){ 
@@ -256,4 +355,23 @@ async function validCancelBooking(bookingid){
         await updateAppointmentsStatusByBookingId(bookingid, "cancelling");
         //更新booking预定状态
         await operateBookingStatus( bookingid, "cancelling"); //--学生、教师取消
+ 
          }
+
+
+      function localsearchBooking() {
+          Pagination.pageNum = 1;
+          getPendingBookingList();
+      }
+      // 重置筛选条件
+      function resetFilterBooking() {
+
+          document.getElementById('course-name-input').value = '';
+          // TBD document.getElementById('teacher-info-input').value = '';
+          //TBD document.getElementById('student-info-input').value = '';
+
+          document.getElementById('booking-status-select').value = '';
+          Pagination.pageNum = 1;
+          getPendingBookingList();
+
+      }

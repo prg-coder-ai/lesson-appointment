@@ -310,35 +310,7 @@
             renderScheduleCards();
           break;//课程排期
         case '预订审核'://TBD
-        if(dynamicContentCenter)
-          dynamicContentCenter.innerHTML = `
-            <div class="card">
-              <div class="card-header">
-                <div class="card-title"><i class="fa fa-calendar-alt"></i>预订列表</div>
-                <!--  <button class="btn btn-primary" onclick="provingBooking()"><i class="fa fa-refresh"></i> 刷新</button>  -->
-              </div>
-              <div class="table-container">
-                <table class="data-table">
-                  <thead>
-                    <tr>
-                      <th>序号</th>
-                      <th  style="display:none;">预订ID</th>
-                      <th>课程名称</th>
-                      <th>学生姓名</th>
-                      <th>教师姓名</th>
-                      <th>上课时间</th>
-                      <th>状态</th>
-                      <th>操作</th>
-                    </tr>
-                  </thead>
-                  <tbody id="pending-reservations">
-                    
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          `;
-          provingBooking();
+          provingBooking();//admin-provingBooking.js
           break;
           case '上课通知': //列出3日课程内， 显示课程名称、教师、学生、时间、课程状态，操作：发送通知1、2、3           
           // 渲染数据总览面板
@@ -362,6 +334,7 @@
                   </tbody>
                 </table>
               </div>
+
              `;
            
             refreshAppointmentNotes("days-appointment-admin");
@@ -468,7 +441,7 @@
     window.onload = function() {
       window.makeTestPage = makeTestPage;//test
       window.renderCourseCards = renderCourseCards;
-      
+      window.provingBooking  = provingBooking;
 
       testFormContainer = document.getElementById('templateFormContainer');
        console.log("onload",testFormContainer); 

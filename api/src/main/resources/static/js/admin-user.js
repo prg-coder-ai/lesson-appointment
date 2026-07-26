@@ -1,10 +1,10 @@
 
-    const  Pagination = {
+    /*let  Pagination = {
       pageNum: 1, // 当前页码
       pageSize: 10,  // 页大小
       total: 0,   // 总条数
       totalPages: 0 // // 总页数
-    };
+    };*/
    // 引入分页组件js
    document.write('<script src="/js/public/pagefoot.js"></script>');
    
@@ -13,6 +13,7 @@
    async function renderTeacherCards(role) {
            currentUserRole     = role;
            assignLoadobjectListFunction( loadAndRenderUserList);
+
                let html = `
                 <div class="card">
                   <div class="card-header">

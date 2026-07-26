@@ -1,8 +1,13 @@
 package com.reservation.service;
 
+import com.reservation.common.*;
 import com.reservation.entity.Booking;
 import com.reservation.dto.BookingDTO;
 import com.reservation.dto.BookingQueryParaDTO;
+import com.reservation.query.BookingQueryPage;
+
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+
 import com.reservation.mapper.BookingMapper;
 
 import org.springframework.stereotype.Service;
@@ -30,7 +35,7 @@ public class BookingService {
   
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public String update(String id, Booking booking) {
-        System.out.println("update : " + booking);
+       // System.out.println("update : " + booking);
         booking.setId(id);
         bookingMapper.update(booking);
         return id;
@@ -38,7 +43,7 @@ public class BookingService {
 
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public String updateStatus( BookingDTO dto) {
-        System.out.println("updateStatus dto: " + dto);
+//System.out.println("updateStatus dto: " + dto);
           String id= dto.getId();
           String status =dto.getStatus();
           if ("delete".equals(status)) {
@@ -58,6 +63,25 @@ public class BookingService {
     public List<Booking> selectList(BookingQueryParaDTO dto) {
         return bookingMapper.selectList(dto);
     }
+
+    @Transactional(propagation = Propagation.REQUIRED)
+    public PageResult <Booking> selectListPage(BookingQueryPage query) {
+           
+            List<Booking> retList =  bookingMapper.selectListPage(query);
+
+            Page<Booking> page = new Page<>(query.getPageNum(), query.getPageSize());
+            page.setRecords(retList);
+
+            Integer total = bookingMapper.selectCountByCondition(query);
+            page.setTotal(total);
+
+            System.out.println("total : " + total);
+            PageResult<Booking> result = PageResult.of(page);
+            return result;
+
+    }
+
+//PageResult
 
     @Transactional(propagation = Propagation.REQUIRED)
     public void delete(String id) {

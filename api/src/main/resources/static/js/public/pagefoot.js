@@ -6,6 +6,15 @@ var fLoadAndRender= null;
 
  }
 
+if (typeof Pagination === 'undefined') {
+  var Pagination = {
+    pageNum: 1, // 当前页码
+    pageSize: 10,  // 页大小
+    total: 0,   // 总条数
+    totalPages: 0 // 总页数
+  };
+}
+
      function getPagebar() {       
      return `
             <div class="pagination-bar">
@@ -17,6 +26,7 @@ var fLoadAndRender= null;
                   <option value="20">20</option>
                   <option value="50">50</option>
                 </select> 条
+                第<span id="page-number">1</span>页 
               </div>
               <div class="pagination-btns" id="xxx-pagination-btns"></div>
           </div>
@@ -31,7 +41,12 @@ function renderPagination( Pagination ) {
       btnContainer.innerHTML = '<span style="color:#999;">暂无数据</span>';
       return;
     }
-  
+
+    const pageNumberElem = document.getElementById("page-number");
+    if (pageNumberElem) {
+      pageNumberElem.innerHTML = Pagination.pageNum;
+    }
+   
     let html = '';
     // 上一页
     html += `<button class="pagination-btn" 
@@ -73,6 +88,7 @@ function renderPagination( Pagination ) {
 function changeXxxPage(targetPage) {
     if (targetPage < 1 || targetPage > Pagination.totalPages) return;
     Pagination.pageNum = targetPage;
+     
     if(fLoadAndRender)
         fLoadAndRender();//loadCourseList();
     // 滚动到卡片顶部

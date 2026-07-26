@@ -1,10 +1,12 @@
 package com.reservation.controller;
 
-import com.reservation.common.Result;
+import com.reservation.common.*;
 import com.reservation.entity.Booking;
 import com.reservation.dto.BookingQueryParaDTO;
 import com.reservation.dto.BookingDTO;
+import com.reservation.query.BookingQueryPage;
 import com.reservation.service.BookingService;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -58,6 +60,21 @@ public class BookingController {
              return Result.fail(0,e.getMessage());
         } 
     }
+
+    @PostMapping("/page")
+    @ResponseBody
+    public Result<PageResult<Booking>> filterListPage(@RequestBody BookingQueryPage dto) {
+        //  System.out.println("booking list input dto: " + dto); 
+         try {
+           PageResult <Booking> rs = bookingService.selectListPage(dto);
+           
+             return Result.success(rs,"ok");
+            } catch (RuntimeException e) {
+                 // System.out.println("filterList fail: " + e.getMessage());
+             return Result.fail(0,e.getMessage());
+        } 
+    }
+
 
     @GetMapping("/{id}")
     public Result<Booking> getById(@PathVariable String id) {
