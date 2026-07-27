@@ -39,12 +39,12 @@
 
       // 获取用户时区（关键）
       const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      console.log("tz",userTimeZone); 
+      //console.log("tz",userTimeZone); 
       InitUserInfo();
       
    function InitUserInfo() {
        userInfo= getCurrentUserInfo();
-      console.log("userInfo",userInfo);
+     // console.log("userInfo",userInfo);
       if(userInfo == null || typeof userInfo === 'undefined') { 
           document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
           // 判断是否是当前页面
@@ -86,7 +86,7 @@
 //TBD条件：公司、分部、管理员
 async function fetchUserList(conditionJson) {
   const URL = `${API_BASE_URL}/user/${conditionJson.role}/list`; 
-  console.log("URL"+ URL); 
+  //console.log("URL"+ URL); 
     try { 
       // 语法分析：使用ES6的await等待fetch请求，URL通过模板字符串拼接。配置对象包含：
       // method: 请求方法为'GET'
@@ -99,7 +99,7 @@ async function fetchUserList(conditionJson) {
         data: {}, // 没有请求体
         // 可选：如果request已经统一处理token/cookie，则无需额外添加headers
       });
-      console.log("fetchUserList response:", res); 
+      //console.log("fetchUserList response:", res); 
      // console.log("fetchUserList result:", res.data);
       // 假设后端返回数据结构 { code: 200, data: [...] }
       return res  || [];
@@ -111,7 +111,7 @@ async function fetchUserList(conditionJson) {
 
   async function  getUserNameById(teacherId) {
     const URL = `${API_BASE_URL}/user/name/${teacherId}`; 
-    console.log("URL"+ URL); 
+    //console.log("URL"+ URL); 
       try {    
         // 用request改写
         const res = await request({
@@ -119,11 +119,11 @@ async function fetchUserList(conditionJson) {
           method: "get",
           data: {}, // 无请求体
         });
-        console.log("getUserNameById response:", res);
+      //  console.log("getUserNameById response:", res);
  
       //  if (!res || res.code !== 200) throw new Error("获取失败");
 
-        console.log("getUserNameById", res);
+//console.log("getUserNameById", res);
 
         // 假设后端返回数据结构 { code: 200, data: [{userId, name, ...}], ... }
         return res  || "n/a";
@@ -353,14 +353,14 @@ const userStr = localStorage.getItem('currentUser');
       if (!(dateObj instanceof Date)) return "";
       // 使用浏览器语言
       const locale = getBrowserLocale();
-      console.log(locale,dateObj);
+     // console.log(locale,dateObj);
       try {
         // 'weekday' 选项设置为 'long' 表示全名
         // 修正：将日期对象加1天，防止获取的星期提前一天
         const correctedDate = new Date(dateObj.getTime() + 24 * 60 * 60 * 1000);
         const wkd = new Intl.DateTimeFormat(locale, { weekday: 'long' }).format(correctedDate);
 
-        console.log(wkd);
+      //  console.log(wkd);
         return  wkd;
       } catch (e) {
         // 兼容错误时返回中文，或英文

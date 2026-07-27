@@ -295,8 +295,7 @@
           // 跳出switch
           break;
    
-         case '课程模板':
-             
+         case '课程模板':             
             renderTemplateCards();
             break;
         case '课程列表':
@@ -313,31 +312,7 @@
           provingBooking();//admin-provingBooking.js
           break;
           case '上课通知': //列出3日课程内， 显示课程名称、教师、学生、时间、课程状态，操作：发送通知1、2、3           
-          // 渲染数据总览面板
-          dynamicContentCenter.innerHTML = `
-             <div class="table-container">
-                <table class="data-table">
-                  <thead>
-                    <tr>
-                      <th>序号</th>
-                      <th  style="display:none;">预约ID</th>
-                      <th>课程名称</th>
-                      <th>学生姓名</th>
-                      <th>教师姓名</th>
-                      <th>上课时间</th>
-                      <th>状态</th>
-                      <th>操作</th>
-                    </tr>
-                  </thead>
-                  <tbody id="days-appointment-admin">
-                    
-                  </tbody>
-                </table>
-              </div>
-
-             `;
-           
-            refreshAppointmentNotes("days-appointment-admin");
+                       refreshAppointmentNotes( );//TBD "admin"
             break;  
         case '基础配置':
         if(dynamicContentCenter)

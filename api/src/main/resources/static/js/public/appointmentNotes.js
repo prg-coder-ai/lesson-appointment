@@ -1,4 +1,4 @@
-
+// functoions for appointmentNotes display and data load
 
 function refreshRightPage() {
    // console.log("refresh",pageTitle.textContent)
@@ -11,8 +11,7 @@ function refreshRightPage() {
  /*private String UserId;  //
     private String Role;     
     private int Days; */
- async function getAppointmentListData(conditions ){ 
-    
+ async function getAppointmentListData(conditions ){     
     return await getAppointmentList(conditions);  
    // console.log("DaysAppointmentList:", DaysAppointmentList); 
 } 
@@ -28,9 +27,7 @@ async function getCountOfTodayAppointment() {
         Method:"get",  
         params: { ondays:days }//controller: @RequestParam("ondays") int days
      });
-    
-      // 返回统计结果对象，如:{ teacherMonthStart, teacherMonthEnd, studentMonthStart, studentMonthEnd }
-     
+ 
         return res  ;  
       
     } catch (e) {
@@ -41,8 +38,9 @@ async function getCountOfTodayAppointment() {
 } //获取今日预约次数
 
 //获取最近days天的课程
+ //NoUsed
 async function getAppointmentList(conditions ) {
- // const token = getToken && typeof getToken === 'function' ? getToken() : '';
+  
  try {
      // 允许传递排序字段和排序方式（如 appointmentTime 字段降序）
      const res  = await request({
@@ -57,7 +55,7 @@ async function getAppointmentList(conditions ) {
          sortOrder: "asc"               // 例如后端：@RequestParam(required = false, defaultValue = "desc") String sortOrder
        }
      });
-  //  console.log("getAppointmentList:", res);   
+     
      // 返回统计结果对象， array
      return res  ;  
    } catch (e) {
@@ -66,11 +64,71 @@ async function getAppointmentList(conditions ) {
     return null;
    }
  }
+ 
+/**
+ *  const params = {
+      pageNum: Pagination.pageNum,
+      pageSize: Pagination.pageSize,
+    
+     name:   document.getElementById('course-name-select').value,
+     days:   document.getElementById('appoint-days-select').value,
+     status: document.getElementById('appoint-status-select').value ,
+   }
+   */
+ //分页显示--获取 显示 --
+ //error function
+async function getAppointmentListPage(query ) {
+   
+  try {
+      // 允许传递排序字段和排序方式（如 appointmentTime 字段降序）
+      const res  = await request({
+        url: `${API_BASE_URL}/course/appointment/statistical/listByDaysByPage`, 
+        Method: "GET", 
+        data: query, 
+        params:{ query}         //作为对象发送，无括号则作为若干的单个参数
+      });
+       // 返回统计结果对象， PageResult
+      return res  ; //QueryResult  
+    } catch (e) {
+      // 网络或服务器异常处理
+     console.error("getAppointmentListPage",e);
+     return null;
+    }
+  }
+ // INSERT_YOUR_CODE
+
+/**
+ * 获取指定天数内的预约分页列表（兼容后端 @RequestBody）
+ * @param {Object} query AppointmentQueryPage请求对象，比如 {pageNum, pageSize, days, userId, role, status}
+ * @returns {Promise<Object>} 分页查询 PageResult 对象
+ *
+ * 注意：参数通过 data 传递（POST body），不能用 GET 方式，否则后端无法绑定 @RequestBody
+ * 用法示例：
+ *   const query = { pageNum: 1, pageSize: 10, days: 7, userId: ..., role: ..., status: ... };
+ *   const res = await fetchAppointmentListPage(query);
+ */
+//OK
+async function fetchAppointmentListPage(query) {
+  try {
+    const res = await request({
+      url: `${API_BASE_URL}/course/appointment/statistical/listByDaysByPage`, 
+      method: "post", // 必须为POST，以便@RequestBody生效
+      data: query // 直接作为body传递 ，controller作为对象接收，不能有括号T
+      // 不需要 params 字段
+    });
+    return res;
+  } catch (e) {
+    console.error("fetchAppointmentListPage", e);
+    return null;
+  }
+}
  //显示待确认预约
  async function showAppointmentList(appointmentList,id){
     //   const id = "pending-reservations";
        let pendingBookingsHtml = "";
-       let index = 0;
+
+       var index=(Pagination.pageNum-1)*Pagination.pageSize;//记录序号let index = 0;
+
     //   console.log("showAppointmentList:", DaysAppointmentList);  
       let count=0;
        if (Array.isArray(appointmentList)) {
@@ -78,22 +136,17 @@ async function getAppointmentList(conditions ) {
            count = appointmentList.length;
            for (let appointment of appointmentList) { 
             index++;//读取对应的预定ID
-            //console .log("appointment :", appointment );
-            let  bookedObject = await getBookingObject(appointment.bookingId); 
-      
+             
+            let  bookedObject = await getBookingObject(appointment.bookingId);       
             if(bookedObject == null )
               continue;
-         //   console.log("bookedObject:", bookedObject);  
+            
             const scheduleObject = await fetchSchedule(bookedObject.scheduleId); 
-               if (scheduleObject != null) {
-                //console.log("scheduleObject:", scheduleObject.courseId,bookedObject.studentId,bookedObject.teacherId,scheduleObject.name);
-                   //let scheduleInfoStr = getScheduleInfo(scheduleObject); 
+               if (scheduleObject != null) {  
                    const classObject = await getCourseById(scheduleObject.courseId); 
                    const studentName = await getUserNameById(bookedObject.studentId);
                    const teacherName = await getUserNameById(bookedObject.teacherId);
-  
-                 //  console.log("studentName:", booking.studentId,studentName);
-                 //  console.log("teacherName:", booking.teacherId,teacherName);
+   
                    if (classObject != null) {
                        let cardItems = {
                            index: index,
@@ -102,7 +155,7 @@ async function getAppointmentList(conditions ) {
                            appointmentId: appointment.id,
                            bookingId:     bookedObject.id,
   
-                           className: classObject.courseName+ " " + scheduleObject.name,
+                           className: classObject.courseName,//+ " " + scheduleObject.name,
                            
                            classIndex: appointment.classIndex,
                            studentName: studentName,//-->name/phone/email
@@ -123,9 +176,9 @@ async function getAppointmentList(conditions ) {
        }
       } 
       
-      if(count==0)  {
-        pendingBookingsHtml +="<div> 近7日内没有课程</div>";//<tr> <td> n/a </td> <td> n/a </td><td> n/a </td><td> n/a </td> <td> n/a </td> <td>   </td> <td>  </td></tr>";
-      }
+      //if(count==0)  {
+      //  pendingBookingsHtml +="<div> 近7日内没有课程</div>";//<tr> <td> n/a </td> <td> n/a </td><td> n/a </td><td> n/a </td> <td> n/a </td> <td>   </td> <td>  </td></tr>";
+      //}
   
        //在全部异步处理后再输出和渲染 
        let bookingContainer = document.getElementById(id);
@@ -146,39 +199,60 @@ async function getAppointmentList(conditions ) {
       return '完成'+' 通知已发送';
     } else   if   (status === 'cancelling' || status === 'canceling') {
       return '取消待确认';
+    } else if   (status === 't-cancelling') {
+      return '取消待确认(T)';
     } else if (status === 'booked') {
       return '预约已确认';
     } else if (status === 'cancelled' || status === 'canceled') {
       return '已取消';
     } else if (status === 'deleted') {
       return '已删除';
+    } else if (status === 't-reject' ) {
+      return '已拒绝(T)';
+    }else if (status === 'reject' ) {
+      return '已拒绝';
     }
     return status;
    }
    function formAppointmentTr(cardInfo) {
       //console .log("cardInfo:", cardInfo);
      const info = `
-          <tr  >
-              <td  >   ${cardInfo.index}</td>
-              <td   style="display:none;">${cardInfo.bookingId}</td>
-         
-              <td >  ${cardInfo.className}  ${cardInfo.classIndex}  </td>
-             <td  >   ${cardInfo.studentName}</td>
-             <td  >   ${cardInfo.teacherName}</td>
-             <td  >   ${cardInfo.appointmentTime} ${cardInfo.origTz}</td>
-             <td  >    ${checkAppointmentStatus(cardInfo.status)}</td>
-              ${
-               (userRole == "admin" &&  checkStatusAndDate(cardInfo.appointmentTime,cardInfo.status,cardInfo.origTz))  // ---添加请假--按钮，
-                  ? `<td class="course-info">
-                      <button class="btn btn-success" onclick='sendNotesToUsers(${JSON.stringify(cardInfo)})'><i class="fa fa-check"></i> 发送通知</button>  
-                     </td>`
-                  : `<td ></td>`
-              } 
+          <tr>
+              <td>   ${cardInfo.index}</td>
+              <td   style="display:none;">${cardInfo.bookingId}</td>         
+              <td>  ${cardInfo.className}  ${cardInfo.classIndex}  </td>
+              <td>   ${cardInfo.studentName}</td>
+              <td>   ${cardInfo.teacherName}</td>
+              <td>   ${cardInfo.appointmentTime} ${cardInfo.origTz}</td>
+              <td>    ${checkAppointmentStatus(cardInfo.status)}</td>
+              <td class="course-info">
+                ${ (userRole == "admin" &&  checkStatusAndDate(cardInfo.appointmentTime,cardInfo.status,cardInfo.origTz))  // ---添加请假--按钮，
+                  ? `   <button class="btn btn-success" onclick='sendNotesToUsers(${JSON.stringify(cardInfo)})'><i class="fa fa-check"></i> 发送通知</button> `
+                  : ` `
+              }
+              ${ (cardInfo.status=="cancelling")?
+                 `   <button class="btn btn-success" onclick='confirmCancellingAppointment(${cardInfo.appointmentId},true)'><i class="fa fa-check"></i>确认</button>  
+                     <button class="btn btn-success" onclick='confirmCancellingAppointment(${cardInfo.appointmentId},false)'><i class="fa fa-uncheck"></i>取消</button>  
+                     `
+                  : ` `
+              }
+              
+
+              ${ (cardInfo.status=="t-cancelling")?
+                `   <button class="btn btn-success" onclick='teacherConfirmCancellingAppointment(${cardInfo.appointmentId},true)'><i class="fa fa-check"></i>确认</button>  
+                    <button class="btn btn-success" onclick='teacherConfirmCancellingAppointment(${cardInfo.appointmentId},false)'><i class="fa fa-uncheck"></i>取消</button>  
+                    `
+                 : ` `
+             }
+             
+              </td>
               </tr>
      `; 
      //console.log("cardInfo:", info); 
      return info;
   } 
+
+  //检查状态和时间，判断是否需要发送通知 ---待验证 TBD
   async  function checkStatusAndDate(appointmentTime,status,timeZone){
   
     let retPara = { needSendInfo:false,timeTag:3,userTime:appointmentTime};
@@ -232,6 +306,7 @@ async function getAppointmentList(conditions ) {
       return retPara; 
    }
   
+   // 根据内容构造通知信息，并更新状态
   async function sendNotesToUsers( cardInfo){
       //判断时间与状态： active ：七天内~3天内，noted1：1天前，  noted2:completed：不超过1小时
       // 根据预约时间与当前时间比较，判断应发送何种通知
@@ -292,7 +367,7 @@ async function getAppointmentList(conditions ) {
      switch (cardInfo.status) {
        case 'active'://-->noted1 
        case 'noted1'://-->noted2 
-         case 'noted2': //-->completed 
+       case 'noted2': //-->completed 
        
         switch(timeTag){
           case 2: 
@@ -379,8 +454,7 @@ async function getAppointmentList(conditions ) {
  //根据bookingId查询预约时间列表--List <Appointment>->List {date:date,time:time }
  async function getAppointmentsByBookingId( bookingId) {
  
-  try {
-      // Axios GET请求（修复response.json()错误，Axios已自动解析）
+  try {       
       const res  = await request(
           {url:`${API_BASE_URL}/course/appointment/getByBookingId`,  
           method:"get",
