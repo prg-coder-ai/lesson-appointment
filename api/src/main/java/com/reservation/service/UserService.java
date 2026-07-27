@@ -2,7 +2,7 @@ package com.reservation.service;
 //
 import com.reservation.common.*;
 import com.reservation.query.UserQueryPage;
-import com.reservation.common.PageResult;
+ 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
 import com.reservation.entity.User;  

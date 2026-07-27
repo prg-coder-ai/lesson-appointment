@@ -506,7 +506,22 @@ async function createOrUpdateBookingObj(bookingid,bookingCreateDTO ){
     }
    
     } ;
-     
+    
+    
+async function getBookingListPage(params){
+  const url = `course/booking/page` ; 
+  try {
+      const res =await request( { url:`${API_BASE_URL}/${url}`,method: 'POST',data:params}) ; //data:{params}-->data:params
+  
+     return res ; //
+  
+  } catch (err) {
+    console.error('getBookingListPage 失败'+err);  
+   }
+return [];
+}      
+
+
 //获取指定用户的所有排期--可指定状态
 async function getBookingList( userRole, userid, status) { 
  
@@ -520,22 +535,46 @@ async function getBookingList( userRole, userid, status) {
   //console.log("getBookingList: params", params); 
   return  await getBookingInfoByCondition(params) ; 
 }
-
-async function getBookingListPage(params){
-  const url = `course/booking/page` ; 
-  try {
-      const res =await request( { url:`${API_BASE_URL}/${url}`,method: 'POST',data:params}) ; //data:{params}-->data:params
-  
-     return res ; //
-  
-  } catch (err) {
-    console.error('getBookingListPage 失败'+err);  
-   }
-return [];
-}      
     
 
 window.getBookingInfo = getBookingInfo;
+// INSERT_YOUR_CODE
+/**
+ * 获取预约(booking)列表，支持多参数（role, userId, status）或 condition 对象
+ * 参数兼容：
+ *   - getBookingList(userRole, userId, status)
+ *   - getBookingList(conditionObj)
+ * 返回预约数组（Result.data），失败返回空数组
+ */
+async function getBookingList(userRoleOrParams, userId, status) {
+    let params = {};
+    if (typeof userRoleOrParams === 'object' && userRoleOrParams !== null && !Array.isArray(userRoleOrParams)) {
+        // 兼容直接传查询对象的写法
+        params = { ...userRoleOrParams };
+    } else {
+        // 兼容参数分别传递
+        params = {
+            userRole: userRoleOrParams ?? null,
+            userId: userId ?? null,
+            status: typeof status !== 'undefined' ? status : null,
+            id: null,
+            scheduleId: null
+        };
+    }
+    // 清除空参数
+    Object.keys(params).forEach(k => {
+        if (params[k] === undefined) params[k] = null;
+    });
+    try {
+        const res = await getBookingInfoByCondition(params);
+        // 支持后端若有 data 属性则返回 data，否则直接返回整体
+        if (res && res.data) return res.data;
+        return Array.isArray(res) ? res : [];
+    } catch (e) {
+        console.error('getBookingList error', e);
+        return [];
+    }
+}
 
 async function  getBookingInfoByCondition(params) {
   const url = `course/booking/list` ; 

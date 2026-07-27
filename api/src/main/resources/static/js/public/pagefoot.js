@@ -9,7 +9,7 @@ var fLoadAndRender= null;
 if (typeof Pagination === 'undefined') {
   var Pagination = {
     pageNum: 1, // 当前页码
-    pageSize: 10,  // 页大小
+    pageSize: 5,  // 页大小
     total: 0,   // 总条数
     totalPages: 0 // 总页数
   };
@@ -47,6 +47,15 @@ function renderPagination( Pagination ) {
       pageNumberElem.innerHTML = Pagination.pageNum;
     }
    
+    const pageSizeElem = document.getElementById('xxx-page-size');
+    // INSERT_YOUR_CODE
+    // 设置pageSizeElem的当前选择项与Pagination.pageSize一致
+    if (pageSizeElem) {
+      Array.from(pageSizeElem.options).forEach(opt => {
+        opt.selected = (Number(opt.value) === Number(Pagination.pageSize));
+      });
+    }
+    
     let html = '';
     // 上一页
     html += `<button class="pagination-btn" 

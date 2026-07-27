@@ -485,7 +485,7 @@ async function generateAppointmentListByBooking() {
     } catch (e) {
       console.error(`检查appointment是否存在异常:`, booking.id, e);
       errors++;
-      continue;
+      break;//continue;
     }
 
     if (exists) {
@@ -522,7 +522,7 @@ async  function checkAppointmentExistsByBookingId(booking_id){
   // 返回true表示已存在，false表示不存在
   try {
     const res = await request({
-      url: `${API_BASE_URL}/appointment/getByBookingId`,
+      url: `${API_BASE_URL}/course/appointment/getByBookingId`,
       method: "GET",
       params: { bookingId: booking_id }
     });
@@ -567,6 +567,9 @@ async  function checkAppointmentExistsByBookingId(booking_id){
         testHtml += ' <div> <button class="btn" onclick="batchAddCourseSchedulesPerCourse()"> 添加课程排期</button></div>';
 
         testHtml += ' <div > <button class="btn" onclick="assignSchedulesRandomStudent()"> 添加课程预定</button></div>';
+        testHtml += ' <div > <button class="btn" onclick="generateAppointmentListByBooking()"> 添加预约时间</button></div>';
+
+
         testHtml += '</div>';
 
         return testHtml; 

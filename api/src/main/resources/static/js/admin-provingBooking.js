@@ -76,18 +76,8 @@ if(dynamicContentCenter) {
     // showBookingList();
  }  
  async function getPendingBookingList(){
-  //search current pendding booking items ,and dispaly here /pendingBooking 
-//let userRole = null,userId=null,status =null;//TB TEST "pending";
-   //   bookingList1 = await getBookingList(userRole, userId, status);
-
-/*const params = new URLSearchParams({
-    pageNum:  Pagination.pageNum,
-    pageSize: Pagination.pageSize,  
-    //userRole:    document.getElementById('user-role-input').value.trim(),//TBD
-   // teacherName:    document.getElementById('teacher-name-input').value.trim(),//TBD
-   // studentName:    document.getElementById('student-name-input').value.trim(),
-   // status:         document.getElementById('user-status-select').value
-  });*/
+  //search current pendding booking items ,and dispaly here /pendingBooking  
+ 
    // 由错误日志可见，接口期望JSON而不是URLSearchParams（query string）。
    // 应以对象形式传递参数，将其直接传给getBookingListPage，确保它以JSON格式发送（POST body）
    const params = {
@@ -102,7 +92,7 @@ if(dynamicContentCenter) {
 
    let result = await getBookingListPage( params);
   // console.log("page:",params);
-     console.log("ret:",result);
+   //  console.log("ret:",result);
    if(result){
        const pageData = result;
 
@@ -285,13 +275,7 @@ async function validOrCancelReservation(bookingid,status) {
              appointmentDatetime: dt,  // 拼写修正
              lastDatetime: dt,
              classIndex: idx+1           // 用forEach的下标，避免indexOf找不到
-             // 你可以解开以下注释，把缺的字段都补上
-             /* teacherId: bookingObj?.teacherId,
-             courseId: scheduleInfo?.courseId,
-             scheduleId: bookingObj?.scheduleId,
-             studentId: bookingObj?.studentId,
-             timeZone: scheduleInfo?.timeZone || undefined // 为空时也正常输出
-             */
+            
          };
 
          // 清理掉undefined属性（只保留有效字段）
