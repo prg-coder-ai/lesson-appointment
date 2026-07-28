@@ -97,6 +97,7 @@
           <i class="fa fa-book-open"></i>
           <span>课程列表</span>
         </div>
+        <div class="menu-group-title">排期与预订</div>
         <div class="menu-item">
           <i class="fa fa-book-open"></i>
           <span>课程排期</span>
@@ -105,17 +106,17 @@
           <i class="fa fa-calendar-alt"></i>
           <span>预订审核</span>
         </div>
-
+        <div class="menu-group-title">预约检视</div>
         <div class="menu-item">
           <i class="fa fa-calendar-alt"></i>
           <span>上课通知</span>
         </div>
 
-        <div class="menu-item">
+        <!-- div class="menu-item">
           <i class="fa fa-calendar-alt"></i>
           <span>测试-批量创建数据</span>
-        </div>
-      </div>
+        </div -->
+
       <!--
       <div class="menu-group">
         <div class="menu-group-title">系统设置</div>
@@ -129,6 +130,7 @@
         </div>
       </div>
       -->
+      </div>
     </aside>
 
     <!-- 主内容容器（包含标题和中央动态区域） -->
@@ -167,95 +169,6 @@
              dynamicContentCenter.innerHTML = makeTestPage();
         break;
         case '数据总览':
-
-          // 渲染数据总览面板
-          dynamicContentCenter.innerHTML = `
-            <!-- 数据统计面板 -->
-            <div class="stats-panel">
-              <div class="stats-item">
-                <div class="stats-label">总教师数</div>
-                <div class="stats-value">${monthTotalTeacher}</div>
-                <div class="stats-desc"><i class="fa ${monthTotalTeacherIcon.icon}" style="color:  ${monthTotalTeacherIcon.color};"></i>${monthTotalTeacherIcon.v} 人 (${monthTotalTeacherIcon.str})</div>
-              </div>
-              <div class="stats-item success">
-                <div class="stats-label">总学生数</div>
-                <div class="stats-value">${monthTotalStudent}</div>
-                <div class="stats-desc"><i class="fa ${monthTotalStudentIcon.icon}" style="color: ${monthTotalStudentIcon.color};"></i> ${monthTotalStudentIcon.v}  人 (${monthTotalStudentIcon.str})</div>
-              </div>
-              <div class="stats-item warning">
-                <div class="stats-label">总课程数</div>
-                <div class="stats-value">${monthTotalCourse}</div>  
-                <div class="stats-desc"><i class="fa  ${monthTotalCourseIcon.icon}" style="color: ${monthTotalCourseIcon.color};"></i> ${monthTotalCourseIcon.v} 门  (${monthTotalCourseIcon.str})</div>
-              </div>
-              <div class="stats-item danger">
-                <div class="stats-label">本月预约数</div>
-                <div class="stats-value">${monthTotalBooking}</div> 
-              
-                <div class="stats-desc"><i class="fa  ${monthTotalBookingIcon.icon}" style="color:${monthTotalBookingIcon.color};"></i>${monthTotalBookingIcon.v} 单  (${monthTotalBookingIcon.str})</div>
-              </div>
-               <div class="stats-item danger">
-                <div class="stats-label">本月预约课时</div>
-                <div class="stats-value">${monthTotalAppoint}</div>
-                <div class="stats-desc"><i class="fa  ${monthTotalAppointIcon.icon}" style="color: ${monthTotalAppointIcon.color};"></i> ${monthTotalAppointIcon.v} 课次(${monthTotalAppointIcon.str})  </div>
-              </div>
-            </div>
-
-            <!-- 近期预约审核卡片  -->
-            <div class="card">
-              <div class="card-header">
-                <div class="card-title"><i class="fa fa-calendar-check"></i> 待审核预约</div>
-                
-              </div>  
-                  <div class="stats-panel">
-                    <div class="stats-item">
-                      <div class="stats-label">预约待确认</div>
-                      <div class="stats-value">${BookingCount||0}</div> 
-                    </div>
-                    <div class="stats-item success">
-                      <div class="stats-label">取消待确认</div>
-                      <div class="stats-value">${CancelBookingCount||0}</div>
-                    </div>
-                    <div class="stats-item success">
-                      <div class="stats-label">今日课程</div>
-                       <!--24小时内的预约课程 booked/completed、active -->
-                      <div class="stats-value">${TodayLessonsCount||0}</div>
-                    </div>
-                  </div>
-            </div>
-
-            <!-- 教师活跃度统计卡片 TBD
-            <div class="card">
-              <div class="card-header">
-                <div class="card-title"><i class="fa fa-chart-line"></i> 教师月度授课统计</div>
-                <div class="filter-bar">
-                  <div class="filter-item">
-                    <label>月份：</label>
-                    <select id="month-select">
-                      <option value="202603">2026年3月</option>
-                      <option value="202602">2026年2月</option>
-                      <option value="202601">2026年1月</option>
-                    </select>
-                  </div>
-                  <button class="btn btn-default" onclick="refreshTeacherStats()"><i class="fa fa-search"></i> 查询</button>
-                </div>
-              </div>
-              <div class="table-container">
-                <table class="data-table">
-                  <thead>
-                    <tr>
-                      <th>教师姓名</th>
-                      <th>授课总节数</th>
-                      <th>预约完成率</th>
-                      <th>学生平均评分</th>
-                      <th>操作</th>
-                    </tr>
-                  </thead>
-                  <tbody id="activity-teachers"> 
-                  </tbody>
-                </table>
-              </div>
-            </div> -->
-          `;
           refreshOverallpage();
         
           break;
@@ -417,6 +330,7 @@
       window.makeTestPage = makeTestPage;//test
       window.renderCourseCards = renderCourseCards;
       window.provingBooking  = provingBooking;
+      window.refreshOverallpage = refreshOverallpage ;
 
       testFormContainer = document.getElementById('templateFormContainer');
        console.log("onload",testFormContainer); 

@@ -272,7 +272,7 @@ async function fetchScheduleList( cid,status) {
             method: 'GET',
             params: conditionJson // params 自动附加到 URL 上（被 @RequestParam 接收） 
         }); 
-            console.info("fetchScheduleList:", res );
+           // console.info("fetchScheduleList:", res );
             return res  || []; // TBD: 对于多个排期的情况进行区分
  
     } catch (e) {
