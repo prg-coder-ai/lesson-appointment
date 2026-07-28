@@ -12,6 +12,10 @@ let dialogTitle = '新增课程模板'; // 弹窗标题
 let currentTemplateId = '';  // 当前操作的模板ID
 let formEl ='';
 
+
+ // 引入分页组件js
+ document.write('<script src="/js/public/pagefoot.js"></script>');
+
 // 表单验证规则（适配Element Plus原生用法）
 /*const templateRules = {
     languageType: [{ required: true, message: '请选择语言类型', trigger: 'change' }],
@@ -225,7 +229,7 @@ async function submitTemplateForm() {
         if (res ) {
             alert(formData.templateId !="" ? '模板编辑成功' : '模板新增成功');
             closeTemplateModal(); // 关闭弹窗
-           await renderTemplateCards(); // 刷新列表
+           await loadAndRenderTemplateCards(); // 刷新列表
         } else {
             alert( formData.templateId!=""  ? '模板编辑失败' : '模板新增失败');
         }
@@ -237,36 +241,23 @@ async function submitTemplateForm() {
 /**
  * 渲染模板列表（核心：原生JS操作DOM）
  */
+
 async function renderTemplateCards() {
-  
+    assignLoadobjectListFunction( loadAndRenderTemplateCards);// assign
+
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
     //console .log("renderTemplateCards:",dynamicContentCenter);
     if (!dynamicContentCenter) return; 
-    // 显示加载中
-    dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';
-
-    // 构建筛选条件
-    const conditionJson = {
-        //language: document.getElementById('languageType').value,
-      //  level: document.getElementById('difficultyLevel').value,
-        pageRow: pageSize,
-        pageNum: currentPage
-    };
-
-    // 获取模板列表数据
-    templateList = await  fetchTemplateList(conditionJson);
-
+  
     // 渲染HTML
     let html = '';
-    if (templateList && templateList.length ==0 ) {
-        html = '<div style="padding:40px 0;text-align:center;color:#999;">暂无模板数据</div>';
-    } else { 
+    
       html += `<div class="card">
             <div class="card-title"><i class="fa fa-filter"></i> 筛选条件</div>
             <div class="search-form" style="display: flex; gap: 20px; margin-bottom: 16px;">
                 <div>
                     <label>语言类型：</label>
-                    <select id="languageType" onchange="handleSearchChange()">
+                    <select id="languageType-select" >
                         <option value="">全部</option>
                         <option value="french">法语</option>
                         <option value="english">英语</option> 
@@ -274,7 +265,7 @@ async function renderTemplateCards() {
                 </div>
                 <div>
                     <label>难度等级：</label>
-                    <select id="difficultyLevel" onchange="handleSearchChange()">
+                    <select id="difficultyLevel-select">
                         <option value="">全部</option>
                         <option value="B1">B1入门</option>
                         <option value="B2">B2初级</option>
@@ -282,7 +273,16 @@ async function renderTemplateCards() {
                         <option value="B4">B4高级</option> 
                     </select>
                 </div>
-                <button class="btn btn-default" onclick="resetSearchForm()">重置</button>
+                <div>
+                    <label>名称：</label>
+                    <input type="text" id="name-input"  placeholder="模板名称" >
+                </div>
+                 <button class="btn" onclick="handleSearchChange()">
+                    <i class="fa fa-search"></i> 搜索
+                    </button>
+                <button class="btn btn-default" onclick="resetSearchForm()"> 
+                <i class="fa fa-redo"></i>重置
+                </button>
                 <button class="btn btn-primary" onclick="openEditTemplateDialog(null)">新增模板</button>
             </div>
         </div>
@@ -299,61 +299,117 @@ async function renderTemplateCards() {
                 <div style="width:120px;"><strong>状态</strong></div>
                 <div style="width:240px;"><strong>操作</strong></div>
             </div>
-        `;
-        var index=0;
-        if (templateList && templateList.length >0 )
-        templateList.forEach(template => {
-         // console.log(template);
-           index ++;
-            html += `
-                <div class="teacher-card" style="margin:8px 0;padding:8px 0;border-bottom:1px solid #f5f5f5;">
-                    
-                <div style="display:flex;gap:36px;align-items:center;"> 
-                   <div style="width:40px;">${index  }</div> 
-                    <div style="width:90px;">${template.languageType || ''}</div>
-                    <div style="width:180px;">${template.difficultyLevel || ''}</div>
-                    <div style="width:130px;">${template.classForm || ''}</div>
-                    <div style="width:130px;">${template.classDuration || ''}</div>
-                    <div style="width:130px;">${template.classFee || ''}</div> 
-                    
-                     <div style="width:120px;">                       
-                          ${ template.status === "pending" ? '<span style="color:#faad14;">待审核</span>' :
-                            template.status === "active" ? '<span style="color:#52c41a;">正常</span>' :
-                            template.status === "inactive" ? '<span style="color:#faad14;">待启用</span>' :
-                            template.status === "frozen" ? '<span style="color:#f5222d;">已删除</span>' :
-                            `<span>${template.status||"未知"}</span>`
-                          }
-                        </div>
-                    <div style="width:240px;display:flex;gap:8px;">
-                        <button class="btn btn-success" onclick='openEditTemplateDialog(${JSON.stringify(template).replace(/'/g, "\\'")})'>修改</button>
-                   
-                        <button class="btn btn-success" onclick="operateTemplate('${template.templateId}', 'active')">发布</button>
-                        <button class="btn btn-warning" onclick="operateTemplate('${template.templateId}', 'inactive')">撤回</button>
-                        <button class="btn btn-danger" onclick="deleteTemplate('${template.templateId}')">删除</button>
-                    </div>
-                </div>
-            </div>
-            `;
-        });
-    }
-    dynamicContentCenter.innerHTML = html;
 
-    // 更新分页组件
-    const pagination = document.getElementById('pagination');
-    if (pagination) {
-        pagination.currentPage = currentPage;
-        pagination.pageSize = pageSize;
-        pagination.total = total;
-    }
+        `; 
+            html += `
+              <div id="templatesDisplay-body">
+                  
+                </div>
+            `;
+            html += getPagebar();
+         if(dynamicContentCenter) {
+            dynamicContentCenter.innerHTML =  html;  
+            loadAndRenderTemplateCards();
+         }
 }
 
+
+async function loadAndRenderTemplateCards() {
+ 
+  // 构建筛选条件
+  const conditionJson = {
+      languageType:       document.getElementById('languageType-select').value,
+      difficultyLevel:    document.getElementById('difficultyLevel-select').value,
+      name:    document.getElementById('name-input').value,
+      pageSize:Pagination.pageSize,
+      pageNum: Pagination.pageNum
+  };
+
+  // 获取模板列表数据
+  const pageResult  = await  fetchTemplateListPage(conditionJson);
+  
+  if(pageResult){
+    templateList = pageResult.rows;    
+    const pageData = pageResult;
+    Pagination.total = pageData.total ;
+    Pagination.totalPages = pageData.totalPages;
+   
+    showTemplatesList( templateList,"templatesDisplay-body"); //defined in appointmentNotes.js
+    renderPagination( Pagination);   
+   } 
+
+  }
+
+  
+  function localsearchTemplate() {
+    Pagination.pageNum = 1;
+    loadAndRenderTemplateCards();
+    
+ }
+ // 重置筛选条件
+ function resetFilterTemplate() {
+    document.getElementById('languageType-select').value="";
+    document.getElementById('difficultyLevel-select').value="";
+    document.getElementById('name-input').value="";
+    Pagination.pageNum = 1;
+     loadAndRenderTemplateCards();
+      
+ }
+
+ 
+   function showTemplatesList( templates,renderTo) {
+    var  html = ` `;
+          
+     var index=(Pagination.pageNum-1)*Pagination.pageSize;//记录序号let index = 0;
+
+      if (templates && templates.length >0 )
+        templates.forEach(template => {
+        
+          index ++;
+          html += `
+              <div class="teacher-card" style="margin:8px 0;padding:8px 0;border-bottom:1px solid #f5f5f5;">
+                  
+              <div style="display:flex;gap:36px;align-items:center;"> 
+                 <div style="width:40px;">${index  }</div> 
+                  <div style="width:90px;">${template.languageType || ''}</div>
+                  <div style="width:180px;">${template.difficultyLevel || ''}</div>
+                  <div style="width:130px;">${template.classForm || ''}</div>
+                  <div style="width:130px;">${template.classDuration || ''}</div>
+                  <div style="width:130px;">${template.classFee || ''}</div> 
+                  
+                   <div style="width:120px;">                       
+                        ${ template.status === "pending" ? '<span style="color:#faad14;">待审核</span>' :
+                          template.status === "active" ? '<span style="color:#52c41a;">正常</span>' :
+                          template.status === "inactive" ? '<span style="color:#faad14;">待启用</span>' :
+                          template.status === "frozen" ? '<span style="color:#f5222d;">已删除</span>' :
+                          `<span>${template.status||"未知"}</span>`
+                        }
+                      </div>
+                  <div style="width:240px;display:flex;gap:8px;">
+                      <button class="btn btn-success" onclick='openEditTemplateDialog(${JSON.stringify(template).replace(/'/g, "\\'")})'>修改</button>
+                 
+                      <button class="btn btn-success" onclick="operateTemplate('${template.templateId}', 'active')">发布</button>
+                      <button class="btn btn-warning" onclick="operateTemplate('${template.templateId}', 'inactive')">撤回</button>
+                      <button class="btn btn-danger" onclick="deleteTemplate('${template.templateId}')">删除</button>
+                  </div>
+              </div>
+          </div>
+          `;
+      });
+    
+     var renderItem = document.getElementById(renderTo);
+            // 列表表头
+     if(renderItem){
+            renderItem.innerHTML = html;
+     }
+ }
 // ===================== 交互函数 =====================
 /**
  * 筛选条件变化
  */
 async function handleSearchChange() {
     currentPage = 1; // 重置页码
-    await renderTemplateCards();
+    await loadAndloadAndRenderTemplateCards();
 }
 
 /**
@@ -363,25 +419,10 @@ async function resetSearchForm() {
     document.getElementById('languageType').value = '';
     document.getElementById('difficultyLevel').value = '';
     currentPage = 1;
-    await renderTemplateCards();
+    await loadAndRenderTemplateCards();
 }
 
-/**
- * 分页大小变化
- */
-async function handlePageSizeChange(val) {
-    pageSize = val;
-    await renderTemplateCards();
-}
-
-/**
- * 页码变化
- */
-async function handleCurrentPageChange(val) {
-    currentPage = val;
-    await renderTemplateCards();
-}
-
+ 
   
 
 /**
@@ -394,7 +435,7 @@ async function deleteTemplate(templateId) {
         }
    
         operateTemplate(templateId,"frozen"); 
-        renderTemplateCards(); 
+        loadAndRenderTemplateCards(); 
 }
 
 // 点击弹窗遮罩层关闭
