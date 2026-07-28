@@ -892,7 +892,7 @@ function renderResult() {
   // 保存 update or insert 
   //判断是否需要:assignStudentToTheSchedule
   async function saveScheduleToDB() {
-    if(! checkCourseAndSchedule(true,true))
+    if(! checkCourseAndSchedule(false,true))//排期在新建时不判断
         return ;
     //TBD :判断排期是否已经存在---
    // const token = getToken();
@@ -935,7 +935,10 @@ function renderResult() {
 async function assignStudentToSchedule( ) {
      
     if(! checkCourseAndSchedule(true,true))
-        return ;
+        {  
+            alert("请选择有效的课程和排期！");
+            return ;
+        }
    // console.log("assignStudentToSchedule  teacherId :",teacherId);
    // if (teacherId=="") { 
     //    alert("请先选择课程！");
