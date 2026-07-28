@@ -1,11 +1,7 @@
  
  //admin---待确认预约
 // ===================== 核心函数 =====================
- 
 let pendingBookingList=[];// ID,ciurseName,studentName,teacherName,dateTime(创建时间),状态、操作（预览、确认、拒绝） 
- 
-
-
  // 引入分页组件js
  document.write('<script src="/js/public/pagefoot.js"></script>');
 

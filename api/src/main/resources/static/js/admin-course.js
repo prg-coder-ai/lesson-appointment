@@ -335,6 +335,7 @@ function validateCourseForm(formData){
   // 页面渲染完成后，加载第一页数据
   loadCourseList();
    }
+
    // 加载课程列表数据
 async function loadCourseList() {  
 
@@ -508,87 +509,21 @@ async function deleteCourse(id) {
   if (!confirm('确定要删除该课程吗？')) return;
   
   try {
-    const res = await fetch(`/api/course/${id}`, { method: 'DELETE' });
+    const res = await request({url:`/api/course/${id}`,  method: 'DELETE' });
     const result = await res.json();
     
-    if (result.code === 200) {
-      alert('删除成功');
+   // if (result.code === 200) {
+     // alert('删除成功');
       // 删除后判断当前页是否还有数据，无数据则跳上一页
       const currentPageData = document.querySelectorAll('#course-table-body tr').length;
       if (currentPageData === 1 && coursePagination.pageNum > 1) {
         coursePagination.pageNum--;
-      }
+        }
       loadCourseList();
-    }
   } catch (error) {
     console.error('删除失败：', error);
   }
 }
-/*
-async function loadCourseList_olD() { 
-
-      templateList = await  fetchTemplateList(language?language.value:'all');  
-      teacherList  = await  fetchUserList(conditionJsonForTeacher);
-
-      const params = new URLSearchParams({
-        pageNum: coursePagination.pageNum,
-        pageSize: coursePagination.pageSize,
-        courseName: document.getElementById('course-name-input').value.trim(),
-        languageType: document.getElementById('language-select').value,
-        status: document.getElementById('course-status-select').value
-      });
-  
-     CourseList =await fetchCourseList(conditionJson);
-      
-        if (!CourseList.length) {
-          //html += '<div style="padding:40px 0;text-align:center;color:#999;">暂无数据</div>';
-      } else
-        { var index= coursePagination.pageNum;
-
-        CourseList.forEach(Course => {
-         // INSERT_YOUR_CODE
-         // 根据Course.templateId在templateList中查找对应的模板对象
-         const templateObj = templateList?templateList.find(t => t.templateId === Course.templateId) : null;
-         const teacherObj = teacherList?teacherList.find(t => t.userId === Course.teacherId) : null;
-
-         let tempInfo=templateObj? templateObj.languageType+ " "+ templateObj.difficultyLevel + " "+templateObj.classFee : "" ;
-         let teacherInfo=teacherObj? teacherObj.name+ " "+ teacherObj.phone + " "+ teacherObj.email : "n/a" ;
-         
-           index ++;
-            html += `
-                <div class="teacher-card" style="margin:8px 0;padding:8px 0;border-bottom:1px solid #f5f5f5;">
-                    
-                <div style="display:flex;gap:36px;align-items:center;"> 
-                   <div style="width:40px;">${index  }</div> 
-                     <div style="width:0px;display:none"> ${Course.courseId || ''} </div>   
-                     <div style="width:130px;">${tempInfo || ''}</div> 
-                      <div style="width:130px;">${Course.courseName || ''}</div> 
-                      <div style="width:130px;">${Course.content || ''}</div> 
-                      <div style="width:130px;">${Course.feature || ''}</div> 
-                      <div style="width:130px;">${teacherInfo || ''}</div> 
-
-                     <div style="width:120px;">                       
-                          ${ Course.status === "pending" ? '<span style="color:#faad14;">待审核</span>' :
-                            Course.status === "active" ? '<span style="color:#52c41a;">正常</span>' :
-                            Course.status === "inactive" ? '<span style="color:#faad14;">待启用</span>' :
-                            Course.status === "frozen" ? '<span style="color:#f5222d;">已删除</span>' :
-                            `<span>${Course.status||"未知"}</span>`
-                          }
-                        </div>
-                    <div style="width:240px;display:flex;gap:8px;">
-                        <button class="btn btn-success" onclick='openEditCourseDialog(${JSON.stringify(Course).replace(/'/g, "\\'")})'>修改</button>                   
-                        <button class="btn btn-success" onclick="changeCourseStatus('${Course.courseId}', 'active')">发布</button>
-                        <button class="btn btn-warning" onclick="changeCourseStatus('${Course.courseId}', 'inactive')">撤回</button>
-                        <button class="btn btn-danger"  onclick="deleteCourse ('${Course.courseId}')">删除</button>
-                    </div>
-                </div>
-            </div>
-            `;
-        });
-      }
-    } 
-      */
-
 
 // ===================== 交互函数 =====================
 /**

@@ -55,25 +55,8 @@ public class CourseService   {
          Integer total = courseMapper.selectCourseListCount(query);
          page.setTotal(total);
 
-//System.out.println("page 1: " + page);
- 
-         // VO 映射（如需转换成VO可在此处实现；当前直接返回Course列表）
-       //  List<Course> voList = new ArrayList<>(courseList);
-
-         // 返回分页结果
-         // 是的，这里"setRecords"和"setRows"确实可能存在重复。
-         // page.setRecords(courseList) 是设置MyBatis-Plus的Page对象的数据记录，主要给Page内部用，便于后续进一步处理；
-         // PageResult.of(page) 会将page中的内容转换为PageResult，但随后又调用 .setRows(voList)，此时rows再次被设置为voList；
-         // 如果PageResult内部rows字段与page.getRecords()内容一致，这确实有重复，但如果voList有单独的数据处理，比如从Course转换为某个VO对象，则需要setRows。
-         // 当前逻辑下，尽管page.setRecords与setRows传递的是同一个数据集合（均为courseList或voList），
-         // 但出于返回值类型统一和潜在的VO转换扩展性考虑，一般会保留setRows这一调用，避免未来扩展时遗漏。
-        // return (PageResult<Course>) PageResult.of(page).setRows(voList);
-    // INSERT_YOUR_CODE
          PageResult<Course> result = PageResult.of(page);
- //System.out.println("result 1: " + result);
-      //   result.setRows(voList);
-      // System.out.println("result 2: " + result); 
-         return result;
+          return result;
     }
 
  
@@ -144,13 +127,7 @@ public class CourseService   {
  
 @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public Map<String, String> updateCourseStatus (String courseId,String status) {
-      /*  Course course = courseMapper.selectCourseById(courseId);
-        if (course == null) {
-            throw new ResourceNotFoundException("updateCourseStatus：课程不存在");
-        } */
-         // INSERT_YOUR_CODE
-        // System.out.println("updateCourseStatus called with courseId: " + courseId + ", status: " + status);
- 
+
          courseMapper.updateCourseStatus(courseId,status);
         return Collections.singletonMap("courseId", courseId);
     }

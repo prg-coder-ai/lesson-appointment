@@ -141,15 +141,15 @@
    async function checkAccountExists(registerAccount) {
      if (!registerAccount) return false; // 没有账号直接认为不存在（交给前面表单校验）
      try {
-       const resp = await fetch(`${API_BASE_URL}/user/account/exist?account=${encodeURIComponent(registerAccount)}`);
-       if (!resp.ok) {
+       const resp = await request({url:`${API_BASE_URL}/user/account/exist?account=${encodeURIComponent(registerAccount)}`});
+     //  if (!resp.ok) {
          // 网络异常一律视为未占用，但需给出alert以便排查问题
         //  alert("网络异常，无法校验账号是否存在,稍等再试"); //可根据需要屏蔽
-         return false;
-       }
-       const data = await resp.json();
+     //    return false;
+    //   }
+    //   const data = await resp.json();
        // 期望后端返回 { code: ..., data: true/false }
-       return !!(data && data.data === true);
+       return  resp ;//    !!(data && data.data === true);
      } catch (e) {
        // 网络或js异常视为未占用
      //   alert("连接后端失败，无法判断账号是否已存在,稍等再试");
@@ -164,3 +164,5 @@
   window.checkAccountExists = checkAccountExists;
  
 })();
+//修改：course delete
+//checkAccountExists

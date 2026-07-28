@@ -666,7 +666,7 @@ return ;
  
       try {
         scheduleList = await fetchScheduleList(cid);
-            console.log(scheduleList );
+           // console.log(scheduleList );
             // 补全默认状态
             scheduleList.forEach(item => {
                 if (!item.status) item.status = 'active';
