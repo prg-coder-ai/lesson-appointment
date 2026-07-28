@@ -150,8 +150,24 @@ background: #fff;
 border-radius: 8px;
 box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 margin-bottom: 20px;
-overflow: hidden;
+overflow: visible;
 }
+/**
+ * 元素的overflow属性有以下几种常见选择：
+ *   overflow: visible;   // 默认值，内容不会被裁剪，超出部分会显示出来
+ *   overflow: hidden;    // 超出部分会被裁剪，不显示滚动条
+ *   overflow: scroll;    // 不论内容是否溢出，都显示滚动条
+ *   overflow: auto;      // 只在内容溢出时显示滚动条，否则不显示
+ *   overflow: clip;      // 与hidden类似，裁剪内容但不创建块容器，不支持滚动（较少用）
+ */
+ 
+/* 你可以像这样设置元素的overflow属性，例如： */
+/*
+.my-element {
+  overflow: auto;
+}
+*/
+
 .card-header {
 padding: 16px 20px;
 border-bottom: 1px solid #e9ecef;
@@ -170,6 +186,7 @@ align-items: center;
 gap: 15px;
 padding: 16px 20px;
 border-bottom: 1px solid #e9ecef;
+overflow: scroll;
 }
 .filter-item {
 display: flex;

@@ -30,27 +30,27 @@
                 </div  -->
 
                 <div class="filter-item">
-                  <label>姓名：</label>
+                  <label></label>
                   <input type="text" id="user-name-input" placeholder="姓名">
                 </div>
                                  <div class="filter-item">
-                   <label>账号</label>
+                   <label></label>
                   <input type="text" id="user-account-input" placeholder="账号">
                 </div>
 
                 <div class="filter-item">
-                   <label>电子邮件：</label>
-                  <input type="text" id="user-email-input" placeholder="email">
+                   <label></label>
+                  <input type="text" id="user-email-input" placeholder="电子邮件">
                 </div>
                 <div class="filter-item">
-                   <label>电话号码：</label>
-                  <input type="text" id="user-phone-input" placeholder="phonenumber">
+                   <label></label>
+                  <input type="text" id="user-phone-input" placeholder="电话号码">
                 </div>
 
                 <div class="filter-item">
-                  <label>状态：</label>
+                  <label></label>
                   <select id="user-status-select">
-                    <option value="">全部</option>
+                    <option value="">用户状态</option>
                     <option value="active">有效</option>
                     <option value="pending">待审核</option>
                     <option value="frozen">冻结</option>
@@ -60,7 +60,7 @@
                 <button class="btn btn-default" onclick="localsearchUsers()">
                   <i class="fa fa-search"></i> 搜索
                 </button>
-                <button class="btn btn-default" onclick="resetUserFilter()">
+                <button class="btn" onclick="resetUserFilter()">
                   <i class="fa fa-redo"></i> 重置
                 </button>
               </div> 
