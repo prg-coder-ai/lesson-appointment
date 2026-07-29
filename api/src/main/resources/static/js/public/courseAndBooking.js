@@ -127,27 +127,23 @@ async function operateTemplate(templateId, action) {
  }
     
   
- 
-  //TBD To Be test ,if the conditionJson tooked infact.
-  //返回course对象数组
-  async function fetchCourseList(conditionJson) {
-   
-   try {
-       // 用 request 方法替换 axios
-       const res = await request({
-           url: `${API_BASE_URL}/course/list`,
-           method: 'GET', 
-           params: conditionJson // 筛选条件通过params传递
-       }); 
-          //console.info("data.courses:", res );   
-          return res  || []; 
-      
-   } catch (e) {
-       //alert("网络错误，获取课程列表失败");
-       console.error(e);
-       return [];
-   }
- }
+ //分页获取数据 ，返回PqgeResult 数
+ async function fetchTemplateListPage(conditionJson) { 
+  try {
+      // 用 request 方法替换 axios
+      const res = await request({
+          url: `${API_BASE_URL}/course/template/page/`,
+          method: 'POST', 
+          data: conditionJson// 筛选条件通过params传递
+      }); 
+      console.info("fetchTemplateListPage:", res); 
+           return res; 
+  } catch (e) {
+      alert("网络错误，获取模板列表失败");
+      console.error(e);
+      return null;
+  }
+}
  
  /**
   * 
@@ -224,6 +220,13 @@ async function getCourseById( courseId) {
         teacher: document.getElementById('teacher').value
     };
 */
+
+  //TBD To Be test ,if the conditionJson tooked infact.
+  //返回course对象数组
+  async function fetchCourseList(conditionJson) {
+    return getCourseList( conditionJson); 
+ }
+ 
 async function getCourseList(conditionJson) {  
     //console .log("getCourseList",conditionJson);
     try {

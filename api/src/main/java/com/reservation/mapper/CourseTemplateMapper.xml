@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.reservation.mapper.CourseTemplateMapper">
+  
+   
+   <select id="selectListByPage" parameterType="com.reservation.query.TemplateQueryPage" resultType="com.reservation.entity.CourseTemplate">
+      SELECT c.*
+      FROM course_template c 
+      <where>
+        TRUE 
+        <choose>
+          <when test="name != null and name != ''">
+            AND c.description  LIKE CONCAT('%', #{name}, '%')
+          </when>
+        </choose>
+        <choose>
+          <when test="languageType != null and languageType != ''">
+            AND c.language_type = #{languageType}
+          </when>
+        </choose>
+        <choose>
+          <when test="difficultyLevel != null and difficultyLevel != ''">
+            AND c.difficulty_level = #{difficultyLevel}
+          </when>
+        </choose> 
+        <choose>
+          <when test="status != null and status != ''">
+            AND c.status = #{status}
+          </when>
+        </choose>
+      </where>
+      <if test="pageSize != null and pageNum != null">
+        LIMIT #{pageSize} OFFSET ${(pageNum - 1) * pageSize}
+      </if>
+   </select>
+
+   
+   <select id="selectListCountByPage" parameterType="com.reservation.query.TemplateQueryPage" resultType="java.lang.Integer">
+      SELECT COUNT(*) 
+      FROM course_template c 
+      <where>
+        TRUE 
+        <choose>
+          <when test="name != null and name != ''">
+            AND c.descrition  LIKE CONCAT('%', #{name}, '%')
+          </when>
+        </choose>
+        <choose>
+          <when test="languageType != null and languageType != ''">
+            AND c.language_type = #{languageType}
+          </when>
+        </choose>
+        <choose>
+          <when test="difficultyLevel != null and difficultyLevel != ''">
+            AND c.difficulty_level = #{difficultyLevel}
+          </when>
+        </choose> 
+        <choose>
+          <when test="status != null and status != ''">
+            AND c.status = #{status}
+          </when>
+        </choose>
+      </where>
+     </select>
+</mapper>
