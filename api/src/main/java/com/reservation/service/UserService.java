@@ -290,6 +290,7 @@ public User selectById(String userId) {
         return ret;
     };
  
+ 
      public PageResult<User>   listByConditionPage(UserQueryPage query)
     {
         List <User> retList = userMapper.listByConditionPage(query); 

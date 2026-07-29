@@ -89,6 +89,15 @@ public class CourseController {
         //Map<String, List<CourseTemplate>> resultMap = Map.of("templates", templates);
         return Result.success(templates, "查询成功");
     }
+ 
+    @PostMapping("/template/page")
+    public Result<PageResult<CourseTemplate>> getTemplateListBypage(
+            @RequestBody TemplateQueryPage query, 
+            @RequestHeader("Authorization") String token) {
+     PageResult<CourseTemplate> templates = courseService.getTemplateListBypage(query);
+         return Result.success(templates, "查询成功");
+    }
+
 
     /**
      * 教师创建课程，对应设计2.2.2 接口：/api/v1/course/teacher/add（教师权限）

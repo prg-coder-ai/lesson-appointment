@@ -277,10 +277,10 @@ async function renderTemplateCards() {
                     <label>名称：</label>
                     <input type="text" id="name-input"  placeholder="模板名称" >
                 </div>
-                 <button class="btn" onclick="handleSearchChange()">
+                 <button class="btn" onclick="localsearchTemplate()">
                     <i class="fa fa-search"></i> 搜索
                     </button>
-                <button class="btn btn-default" onclick="resetSearchForm()"> 
+                <button class="btn btn-default" onclick="resetFilterTemplate()"> 
                 <i class="fa fa-redo"></i>重置
                 </button>
                 <button class="btn btn-primary" onclick="openEditTemplateDialog(null)">新增模板</button>
@@ -404,27 +404,7 @@ async function loadAndRenderTemplateCards() {
      }
  }
 // ===================== 交互函数 =====================
-/**
- * 筛选条件变化
- */
-async function handleSearchChange() {
-    currentPage = 1; // 重置页码
-    await loadAndloadAndRenderTemplateCards();
-}
-
-/**
- * 重置筛选表单
- */
-async function resetSearchForm() {
-    document.getElementById('languageType').value = '';
-    document.getElementById('difficultyLevel').value = '';
-    currentPage = 1;
-    await loadAndRenderTemplateCards();
-}
-
- 
   
-
 /**
  * 删除模板
  */

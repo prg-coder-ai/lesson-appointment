@@ -6,6 +6,7 @@ package com.reservation.service;
  import com.reservation.entity.*;
 import com.reservation.dto.*; 
 import com.reservation.query.*; 
+
 import com.reservation.exception.BusinessException;
 import com.reservation.exception.ResourceNotFoundException;
 import com.reservation.mapper.CourseTemplateMapper;
@@ -110,6 +111,24 @@ public class CourseService   {
             return Optional.ofNullable(filteredTemplates).orElse(Collections.emptyList());
         }
     }
+    
+
+    public PageResult<CourseTemplate> getTemplateListBypage(TemplateQueryPage query) {
+         // 查询课程列表
+         List<CourseTemplate> courseList = courseTemplateMapper.selectListByPage(query);
+
+         // 封装分页对象
+         Page<CourseTemplate> page = new Page<>(query.getPageNum(), query.getPageSize());
+         page.setRecords(courseList);
+
+         // 查询总数
+         Integer total = courseTemplateMapper.selectListCountByPage(query);
+         page.setTotal(total);
+
+         PageResult<CourseTemplate> result = PageResult.of(page);
+          return result;
+    }
+
     /**
      * 教师创建课程，对应设计2.2.2 教师课程创建接口，仅教师可操作
      */
