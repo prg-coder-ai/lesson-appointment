@@ -59,19 +59,22 @@ public class CourseController {
         // 权限校验：仅管理员可操作（对应设计2.3 安全设计-权限控制）
         //permissionCheck.checkAdmin(token);
         // 调用服务层创建模板，返回templateId（对应设计2.2.2 模板创建返回数据）
-           courseService.updateTemplate(template);
-        return Result.success(null, "课程模板修改成功");
+        Map<String, String> id= courseService.updateTemplate(template);
+        if(id!=null)
+        return Result.success(id, "课程模板修改成功");
+        else
+        return Result.success(null, "课程模板修改不成功");
     }
 
 
   @PostMapping("/template/updateStatus")
   @ResponseBody
-  public Result<Void> updateTemplateStatus(@Validated @RequestBody UpdateTemplateStatusRequest req,
+  public Result<Map<String, String>> updateTemplateStatus(@Validated @RequestBody UpdateTemplateStatusRequest req,
                                           @RequestHeader("Authorization") String token) {
       // 权限校验：仅管理员可操作
-      permissionCheck.checkAdmin(token);
-      courseService.updateTemplateStatus(req.getTemplateid(), req.getStatus());
-      return Result.success(null, "课程模板状态修改成功");
+    //TBD  permissionCheck.checkAdmin(token);
+      Map<String, String> status =  courseService.updateTemplateStatus(req.getTemplateid(), req.getStatus());
+      return Result.success(status, "课程模板状态修改成功");
   }
 
     /**
@@ -94,6 +97,7 @@ public class CourseController {
     public Result<PageResult<CourseTemplate>> getTemplateListBypage(
             @RequestBody TemplateQueryPage query, 
             @RequestHeader("Authorization") String token) {
+
      PageResult<CourseTemplate> templates = courseService.getTemplateListBypage(query);
          return Result.success(templates, "查询成功");
     }
@@ -107,7 +111,7 @@ public class CourseController {
     public Result<Map<String, String>> addCourse(@Validated @RequestBody Course course,
                                                    @RequestHeader("Authorization") String token) {
         // 权限校验：教师、管理员均可操作
-        permissionCheck.checkTeacherOrAdmin(token);
+     //   permissionCheck.checkTeacherOrAdmin(token);
         // 校验教师ID与Token中的用户ID一致（对应设计2.3 安全设计-权限控制）
         String teacherId = permissionCheck.getUserIdFromToken(token);
         //如果当前操作者是admin，则直接使用代入的老师，否则使用当前登录者

@@ -117,7 +117,8 @@ public class UserController {
 
     @PostMapping("/updateStatus") 
     @ResponseBody
-    public Result<Object> updateStatus(@Validated @RequestBody User user) {  
+    public Result<Object> updateStatus(@Validated @RequestBody User user) { 
+         
         int ret = userService.updateStatus(user); 
          
         return   Result.success(ret, "修改成功");

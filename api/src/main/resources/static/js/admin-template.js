@@ -52,7 +52,7 @@ function validateForm() {
 /**
  * 获取Token（修复localStorage解析逻辑）
  */
-
+/*
 function getToken() {
     const currentUserStr = localStorage.getItem('currentUser');
     if (!currentUserStr) {
@@ -62,7 +62,7 @@ function getToken() {
     }
     const currentUser = JSON.parse(currentUserStr);
     return currentUser.token || '';
-}
+}*/
 
 function openEditTemplateDialog(templateJsonStr )
 { 
@@ -127,8 +127,8 @@ function openEditTemplateDialog(templateJsonStr )
       <label>课程形式 <span style="color:red">*</span></label>
       <select name="classForm" class="form-select" required>
         <option value="">请选择</option>
-        <option value="1p1" ${defaultTemplate.classForm === '1p1' ? 'selected' : ''}>1p1</option>
-        <option value="1pn" ${defaultTemplate.classForm === '1pn' ? 'selected' : ''}>小班</option>
+        <option value="1p1" ${defaultTemplate.classForm === '1p1' ? 'selected' : ''}>一对一</option>
+        <option value="1pn" ${defaultTemplate.classForm === '1pn' ? 'selected' : ''}>小班课</option>
           
       </select>
       <div class="form-error" id="classFormError"></div>
@@ -157,26 +157,8 @@ function openEditTemplateDialog(templateJsonStr )
       <button type="button" class="btn btn-primary" onclick="submitTemplateForm()">提交</button>
     </div>
   </form>
-`;
-  // 5. 渲染表单到弹窗容器
- 
-  // templateFormContainer 是模板编辑/新增弹窗里的表单内容区域，其在 admin.html 中作为 <div id="templateFormContainer"></div> 预留。
-  // 这里我们直接通过 document.getElementById('templateFormContainer') 获取并动态赋值其 innerHTML。
-  // 本JS无须"创建"该元素，只需确保 admin.html 文件里已存在对应的 <div id="templateFormContainer"></div>，否则需在弹窗容器结构内手动加上：
-  // <div id="templateFormContainer"></div>
-  // 本函数给 templateFormContainer 动态赋表单内容即可。
-  // 说明：如果你遇到 document.getElementById('templateFormContainer') 获取到 undefined/null，
-  // 最常见原因是本 JS 文件的 <script src="admin-template.js"></script> 引入时机在 admin.html 里太早，DOM 还未生成。
-  // 你应确保 <div id="templateFormContainer"></div> 已经渲染在页面上（一般在弹窗结构内），
-  // 并且 <script src="admin-template.js"></script> 应当放在 </body> 前，确保页面所有 DOM 元素都已解析后再加载 JS。
-  // 检查方法：
-  // 1. 检查 HTML 结构中模态弹窗已有 <div id="templateFormContainer"></div>
-  // 2. 检查 JS 是否在 DOMContentLoaded 之前运行——如果是，应将JS引入放到底部
-  // 3. 若本 JS 需要处理的 DOM 不是实时可见，可以先确保 modal 弹窗 stype.display = 'block' 后再渲染内容
-  // 4. 若仍有疑问，建议在本处加如下防御代码进行排查：
-
-  // Debug: 如果找不到 templateFormContainer，弹详细报错
- // const testFormContainer = document.getElementById('templateFormContainer');
+`; 
+// const testFormContainer = document.getElementById('templateFormContainer');
   if (!testFormContainer) {
     alert("无法找到 templateFormContainer 元素！\n" +
       "请确认 admin.html 页面内存在 <div id=\"templateFormContainer\"></div> 并且 <script src=\"admin-template.js\"></script> 是在 DOM 加载完后引入的。");
@@ -210,21 +192,45 @@ async function submitTemplateForm() {
     }
     // 2. 获取表单数据 
     const formData = {
-        templateId:formEl.templateId.value,
-        languageType: formEl.languageType.value,
-        difficultyLevel: formEl.difficultyLevel.value,
-        classForm: formEl.classForm.value,
-        classDuration: formEl.classDuration.value,
-        classFee: formEl.classFee.value,
-        description: formEl.description.value
+        templateId:     formEl.templateId.value,
+        languageType:   formEl.languageType.value,
+        difficultyLevel:formEl.difficultyLevel.value,
+        classForm:      formEl.classForm.value,
+        classDuration:  formEl.classDuration.value,
+        classFee:       formEl.classFee.value,
+        description:    formEl.description.value
     };
   // 3. 调用接口提交（区分新增/编辑）
     //根据templateId判断新增还是修改
-    //console .info("submit:",formData.templateId);
-    const token = getToken();
-    const url = formData.templateId !=""? `${baseUrl}/course/template/update` : `${baseUrl}/course/template/insert`;
-      try{
-          let res = await  updateORCreateTemplate(formData);
+    //const url = formData.templateId !=""? `${baseUrl}/course/template/update` : `${baseUrl}/course/template/insert`;
+      // INSERT_YOUR_CODE
+      // 兼容 updateORCreateTemplate 作为全局函数被调用的问题
+      // 若该函数为模块作用域或 window 对象未注册，则补注册（以支持 admin-template.js 单独引用不报错）
+      if (typeof updateORCreateTemplate === 'undefined') {
+        // 此处必须用window对象以保证可调用
+        window.updateORCreateTemplate = async function(formData){
+          // 假设 API_BASE_URL 和 request 全局可用
+          const url = formData.templateId && formData.templateId !== ""
+            ? `${API_BASE_URL}/course/template/update`
+            : `${API_BASE_URL}/course/template/insert`;
+          try {
+            const res = await request({
+              url: url,
+              method: 'POST',
+              data: formData
+            });
+            return res;
+          } catch (err) {
+            alert('网络异常，操作失败002');
+            console.error(err);
+            return null;
+          }
+        }
+      }
+    //  try{
+        console.log("submitTemplateForm",formData);
+          let res = await  updateORCreateTemplate(formData);//返回id
+          console.log("submitTemplateForm",res);
         // 4.  响应处理 响应成功/失败
         if (res ) {
             alert(formData.templateId !="" ? '模板编辑成功' : '模板新增成功');
@@ -233,10 +239,10 @@ async function submitTemplateForm() {
         } else {
             alert( formData.templateId!=""  ? '模板编辑失败' : '模板新增失败');
         }
-    } catch (err) {
-        alert('网络异常，操作失败');
-        //console .error(err);
-    }
+  //  } catch (err) {
+  //      alert('网络异常，操作失败000');
+  //      console .error(err);
+  //  }
 }
 /**
  * 渲染模板列表（核心：原生JS操作DOM）
@@ -388,8 +394,8 @@ async function loadAndRenderTemplateCards() {
                   <div style="width:240px;display:flex;gap:8px;">
                       <button class="btn btn-success" onclick='openEditTemplateDialog(${JSON.stringify(template).replace(/'/g, "\\'")})'>修改</button>
                  
-                      <button class="btn btn-success" onclick="operateTemplate('${template.templateId}', 'active')">发布</button>
-                      <button class="btn btn-warning" onclick="operateTemplate('${template.templateId}', 'inactive')">撤回</button>
+                      <button class="btn btn-success" onclick="operateTemplateStatus('${template.templateId}', 'active')">发布</button>
+                      <button class="btn btn-warning" onclick="operateTemplateStatus('${template.templateId}', 'inactive')">撤回</button>
                       <button class="btn btn-danger" onclick="deleteTemplate('${template.templateId}')">删除</button>
                   </div>
               </div>
@@ -408,14 +414,18 @@ async function loadAndRenderTemplateCards() {
 /**
  * 删除模板
  */
-async function deleteTemplate(templateId) {
-    
+   function deleteTemplate(templateId) {    
         if (!window.confirm('确定要删除该课程模板吗？删除后基于该模板的课程基础参数将不受统一管控！')) {
             return;
         }
    
-        operateTemplate(templateId,"frozen"); 
-        loadAndRenderTemplateCards(); 
+         operateTemplateStatus(templateId,"frozen");          
+}
+    
+
+async function  operateTemplateStatus(templateId,newStatus){
+      await  operateTemplate(templateId,newStatus);
+  loadAndRenderTemplateCards(); 
 }
 
 // 点击弹窗遮罩层关闭

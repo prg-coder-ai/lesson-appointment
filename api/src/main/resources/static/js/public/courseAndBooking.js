@@ -12,9 +12,30 @@ async function operateTemplate(templateId, action) {
          status: action
      };
 
-  async function updateORCreateTemplate(formData){
-    const url = formData.templateId !=""? `${baseUrl}/course/template/update` : `${baseUrl}/course/template/insert`;
+     await request({
+      url: `${API_BASE_URL}/course/template/updateStatus`,
+      method: 'POST' ,
+      data: payload 
+    })
+    .then(res => {
+      // res对象：{ data, code, message ... }  
+          
+         console.log('模板操作成功',res); 
+        //renderTemplateCards(); 
+        return res;
+    })
+    .catch(e => {
+      alert("网络错误或数据解析异常，操作失败");
+      console.error(e);
+    });
+    return null;
+    } 
 
+     window.updateORCreateTemplate =updateORCreateTemplate;
+
+  async function updateORCreateTemplate(formData){
+    const url = formData.templateId !=""? `${baseUrl}/course/template/update` 
+               : `${baseUrl}/course/template/insert`;
     try {
         const res = await request ( {
                    url:url,
@@ -28,64 +49,7 @@ async function operateTemplate(templateId, action) {
              return null;
         }
     }
-       // 这里分析参数带入方式：接口说明需要 templateId 和 action（操作类型/状态）作为参数。
-       // axios.put 发送到 /course/template/manage，后端期望参数格式为 { templateId, action } （或 status）。
-       // 但你的写法是 { templateId: ..., status: ... }，后端如期望 action 字段，需要修正字段名。
-       // 根据后端接口 CourseController.updateTemplate 需要 {templateid, action} 作为 JSON 请求体字段（不是直接字符串参数）。
-       // 且参数名注意为 templateid（小写），后端 Spring 不能自动映射 templateId，需和后端代码严格匹配
-       // 如果后端 Controller 层要求 RequestBody Json对象，请传:
-       // { templateid: templateId, action: action }
-       // 不是 params、不是 query、不是 array；是object。
-       // axios 等库请求时，发送 request body 只需将数据对象作为第二个参数（POST、PUT），第三个参数为 headers 配置。
-       // 例如：axios.put(url, { key1: value1, key2: value2 }, { headers: { ... } })
-       // 在 fetch，用 fetch(url, { method: 'POST', body: JSON.stringify(data), headers: { ... } });
-       // 后端 expects @RequestBody JSON，所以务必用对象并确保字段名与后端参数完全一致
-       
-      /* const res = await axios.put(
-           `${baseUrl}/course/template/updateStatus`,
-           {
-             data:{  templateId: templateId, 
-               status: action // 使用 action 字段传递类型（如 edit, publish, recall, ...）
-             }
-           },
-           { headers: { "Authorization": "Bearer " + token } }         
-       );
- 
-       if (res.data.code === 200) {
-         console.success( '模板操作成功');
-           await renderTemplateCards();
-       } else {
-           alert( '模板操作失败');
-       }
-   } catch (err) {
-       alert('网络异常，操作失败');
-       console.error(err);
-   }*/
- 
-   // 这段代码中 `res && res.code === 200` 会出现异常的根本原因可能如下：
-   // 1. fetch的response未必能被正常解析为json（如接口返回204/空/非json字符串），那么response.json()会抛出异常，进入catch。
-   // 2. 如果后端接口出错返回了HTML、null、undefined或其他非对象内容，.then(res => ...)这里的res不是期望的对象，访问res.code会抛出。
-   // 3. 某些情况下res实际为null/undefined或格式不符（如res为字符串），则res.code === 200会抛异常。
-   //
-   // 更安全的写法，需先确认res为对象且有code属性，再判断。推荐加类型检查与默认值防御。
-   await request({
-     url: `${API_BASE_URL}/course/template/updateStatus`,
-     method: 'POST' ,
-     data: payload 
-   })
-   .then(res => {
-     // res对象：{ data, code, message ... }  
-       if (console.success) { 
-         console.success('模板操作成功',res);
-       }
-       //renderTemplateCards(); 
-   })
-   .catch(e => {
-     alert("网络错误或数据解析异常，操作失败");
-     console.error(e);
-   });
-  
-   }   
+        
  
    
  /**
