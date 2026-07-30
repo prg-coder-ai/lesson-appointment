@@ -9,7 +9,7 @@ import lombok.Data;
 @Data
 public class AppointmentQueryPage  extends PageQuery {
     private String userId;  //与role+Days查询指定用户的预约 用于用户页面
-    private String role;     
+    private String userRole;     
     private String studentName;// 与days一起查询 用于管理端 TBD
     private String teacherName;// 与Days一起查询 用于管理端 TBD
     private String courseName;//课程名称

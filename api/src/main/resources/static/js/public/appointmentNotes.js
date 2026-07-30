@@ -77,7 +77,7 @@ async function getAppointmentList(conditions ) {
    */
  //分页显示--获取 显示 --
  //error function
-async function getAppointmentListPage(query ) {
+async function getAppointmentListPageX(query ) {
    
   try {
       // 允许传递排序字段和排序方式（如 appointmentTime 字段降序）
@@ -116,6 +116,7 @@ async function fetchAppointmentListPage(query) {
       data: query // 直接作为body传递 ，controller作为对象接收，不能有括号T
       // 不需要 params 字段
     });
+    console.log("apppage",res);
     return res;
   } catch (e) {
     console.error("fetchAppointmentListPage", e);
@@ -230,7 +231,7 @@ async function fetchAppointmentListPage(query) {
                   ? `   <button class="btn btn-success" onclick='sendNotesToUsers(${JSON.stringify(cardInfo)})'><i class="fa fa-check"></i> 发送通知</button> `
                   : ` `
               }
-              ${ (cardInfo.status=="cancelling")?
+              ${ (userRole == "admin" && cardInfo.status=="cancelling")?
                  `   <button class="btn btn-success" onclick='confirmCancellingAppointment(${cardInfo.appointmentId},true)'><i class="fa fa-check"></i>确认</button>  
                      <button class="btn btn-success" onclick='confirmCancellingAppointment(${cardInfo.appointmentId},false)'><i class="fa fa-uncheck"></i>取消</button>  
                      `
@@ -238,13 +239,32 @@ async function fetchAppointmentListPage(query) {
               }
               
 
-              ${ (cardInfo.status=="t-cancelling")?
+              ${ (userRole == "admin" && cardInfo.status=="t-cancelling")?
                 `   <button class="btn btn-success" onclick='teacherConfirmCancellingAppointment(${cardInfo.appointmentId},true)'><i class="fa fa-check"></i>确认</button>  
                     <button class="btn btn-success" onclick='teacherConfirmCancellingAppointment(${cardInfo.appointmentId},false)'><i class="fa fa-uncheck"></i>取消</button>  
                     `
                  : ` `
              }
-             
+             ${ (userRole == "student" && cardInfo.status=="cancelling")?
+              `   <button class="btn btn-success" onclick='setApointmentStatusAndReload(${cardInfo.appointmentId},"active")'><i class="fa fa-check"></i>恢复预约</button>                    
+                  `
+               : ` `
+           }
+             ${ (userRole == "student" && cardInfo.status !="cancelling")?
+              `   <button class="btn btn-success" onclick='setApointmentStatusAndReload(${cardInfo.appointmentId},"cancelling")'><i class="fa fa-check"></i>请假</button>                    
+                  `
+               : ` `
+           } 
+            ${ (userRole == "teacher" && cardInfo.status=="t-cancelling")?
+              `   <button class="btn btn-success" onclick='setApointmentStatusAndReload(${cardInfo.appointmentId},"active")'><i class="fa fa-check"></i>恢复预约</button>                    
+                  `
+               : ` `
+           }
+             ${ (userRole == "teacher" && cardInfo.status !="t-cancelling")?
+              `   <button class="btn btn-success" onclick='setApointmentStatusAndReload(${cardInfo.appointmentId},"t-cancelling")'><i class="fa fa-check"></i>请假</button>                    
+                  `
+               : ` `
+           } 
               </td>
               </tr>
      `; 
@@ -342,7 +362,7 @@ async function fetchAppointmentListPage(query) {
       }
       // 调用后端API更新状态
       if(newStatus != cardInfo.status) {
-          await operateAppointmentStatus(cardInfo.appointmentId,newStatus);//courseAndBooking.js 
+          await setApointmentStatusAndReload(cardInfo.appointmentId,newStatus);//courseAndBooking.js 
       }
       
   }
@@ -508,7 +528,10 @@ async function saveAppointment( appointdata) {
       return   false;
   }
 }
-
+async function setApointmentStatusAndReload(appointmentId,status){
+   await operateAppointmentStatus(appointmentId,status);
+  loadAndShowAppointmentPage();
+}
 //设置一个预约时间的状态--学生提出
 async function cancellingAppointment(appointmentId,bCancelling){
   let status="";
@@ -517,7 +540,7 @@ async function cancellingAppointment(appointmentId,bCancelling){
   } else {
      status= "active";
   }
- await operateAppointmentStatus(appointmentId,status);//courseAndBooking.js
+ await setApointmentStatusAndReload(appointmentId,status);//courseAndBooking.js
  return ;
 }
 
@@ -529,7 +552,7 @@ async function confirmCancellingAppointment(appointmentId,bCancelled){
   } else {
      status= "reject";
   }
- await operateAppointmentStatus(appointmentId,status);//courseAndBooking.js
+ await setApointmentStatusAndReload(appointmentId,status);//courseAndBooking.js
  return ;
 }
 
@@ -541,7 +564,7 @@ async function teacherCancellingAppointment(appointmentId,bCancelling){
   } else {
      status= "active";
   }
- await operateAppointmentStatus(appointmentId,status);//courseAndBooking.js
+ await setApointmentStatusAndReload(appointmentId,status);//courseAndBooking.js
  return ;
 }
 
@@ -553,7 +576,7 @@ async function teacherConfirmCancellingAppointment(appointmentId,bCancelled){
   } else {
      status= "t-reject";
   }
- await operateAppointmentStatus(appointmentId,status);//courseAndBooking.js
+ await setApointmentStatusAndReload(appointmentId,status);//courseAndBooking.js
  return ;
 }
 //根据bookingId更新所有相关的预约时间状态

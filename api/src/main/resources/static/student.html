@@ -170,6 +170,8 @@
       // 根据菜单名称加载对应内容
       switch(menuName) {
         case '今日课程':
+           refreshAppointmentNotes( );//TBD "admin"
+      /*
         dynamicContentCenter.innerHTML = `
              <div class="table-container">
                 <table class="data-table">
@@ -193,7 +195,7 @@
              `;
             //借用student页面内容，显示一致
              refreshAppointmentNotesForStudent("days-appointment-student" );
-
+*/
            break;
         case '课程预订': 
               renderStudentBookingCards(); 
@@ -377,9 +379,10 @@
   <script src="js/public/dataFunctions.js"></script>
   <script src="js/public/courseAndBooking.js"></script>
   <script src="js/public/appointmentNotes.js"></script> 
+  
   <script src="js/student-course-booking.js"></script>
   <script src="js/student-course-appointment.js"></script>
-  <script src="js/student-AppointmentNotes.js"></script>
+  <script src="js/admin-AppointmentNotes.js"></script>
 <script> 
 console.log("end of body...")
 </script>

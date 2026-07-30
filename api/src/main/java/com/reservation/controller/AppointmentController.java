@@ -224,7 +224,7 @@ public class AppointmentController {
         PageResult<Appointment> appList
             = appointmentService.getBetweenTimeByPage(
                 query.getUserId(),
-                query.getRole(),
+                query.getUserRole(),
                 java.sql.Timestamp.valueOf(startOfPeriod),
                 java.sql.Timestamp.valueOf(endOfPeriod),
                 pageNum,
