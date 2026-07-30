@@ -9,7 +9,7 @@ let appointmentList=[];// ID,ciurseName,studentName,teacherName,dateTime(创建�
  window.refreshAppointmentNotes  = refreshAppointmentNotes ;  
 
  async function refreshAppointmentNotes(){
-   assignLoadobjectListFunction( loadAndShowAppointmentPage);// assign
+        assignLoadobjectListFunction( loadAndShowAppointmentPage);// assign
            // 渲染数据总览面板
            let html=
             `  <div class="card">           
@@ -35,7 +35,7 @@ let appointmentList=[];// ID,ciurseName,studentName,teacherName,dateTime(创建�
                     <option value="">全部</option>
                     <option value="active">正常</option>
                     <option value="noted1">7日内通知</option>
-                    <option value="note2">正常 当日通知已发</option>
+                    <option value="noted2">正常 当日通知已发</option>
                     <option value="completed">已完成 通知已发出 </option> 
 
                     <option value="cancelling">取消待确认</option>
@@ -90,14 +90,23 @@ let appointmentList=[];// ID,ciurseName,studentName,teacherName,dateTime(创建�
   async function loadAndShowAppointmentPage(){
    const renderTo = "days-appointment-admin";
    let days = 7; //TBD 选择 7天、3天、当天1
+   //获取用户角色和ID
+   let  userInfo= getCurrentUserInfo();
+   let userId = userInfo.userId;
+   let userRole = userInfo.role; 
    const params = {
       pageNum: Pagination.pageNum,
       pageSize: Pagination.pageSize,
-    
+      userId: userId,
+      userRole: userRole,    
       name:   document.getElementById('course-name-input').value,
       days:   document.getElementById('appoint-days-select').value,
       status: document.getElementById('appoint-status-select').value 
    }
+    if(userRole== "admin") {
+      params.userId =null;
+      params.userRole = null ;
+    }
      const pageResult = await fetchAppointmentListPage(params);
      if(pageResult){
       appointmentList = pageResult.rows;
