@@ -145,64 +145,6 @@ margin-bottom: 8px;
 font-size: 12px;
 color: #666;
 }
-.card {
-background: #fff;
-border-radius: 8px;
-box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-margin-bottom: 20px;
-overflow: visible;
-}
-/**
- * 元素的overflow属性有以下几种常见选择：
- *   overflow: visible;   // 默认值，内容不会被裁剪，超出部分会显示出来
- *   overflow: hidden;    // 超出部分会被裁剪，不显示滚动条
- *   overflow: scroll;    // 不论内容是否溢出，都显示滚动条
- *   overflow: auto;      // 只在内容溢出时显示滚动条，否则不显示
- *   overflow: clip;      // 与hidden类似，裁剪内容但不创建块容器，不支持滚动（较少用）
- */
- 
-/* 你可以像这样设置元素的overflow属性，例如： */
-/*
-.my-element {
-  overflow: auto;
-}
-*/
-
-.card-header {
-padding: 16px 20px;
-border-bottom: 1px solid #e9ecef;
-display: flex;
-justify-content: space-between;
-align-items: center;
-}
-.card-title {
-font-size: 16px;
-font-weight: 600;
-color: #333;
-}
-.filter-bar {
-display: flex;
-align-items: center;
-gap: 15px;
-padding: 16px 20px;
-border-bottom: 1px solid #e9ecef;
-overflow: scroll;
-}
-.filter-item {
-display: flex;
-align-items: center;
-gap: 8px;
-}
-.filter-item label {
-font-size: 14px;
-color: #666;
-}
-.filter-item input, .filter-item select {
-padding: 6px 12px;
-border: 1px solid #e9ecef;
-border-radius: 4px;
-font-size: 14px;
-}
 .table-container {
 padding: 20px;
 overflow-x: auto;
@@ -349,18 +291,6 @@ margin-right: 8px;
   margin-bottom: 20px;
   font-weight: bold;
 }
-.search-bar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-}
-.search-bar select,
-.search-bar input {
-  padding: 6px 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-}
 .section {
   margin: 20px 0;
 }
@@ -442,7 +372,66 @@ table th {
   gap: 8px;
 }
 
-
+ 
+.card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+  overflow: visible;
+  }
+  /**
+   * 元素的overflow属性有以下几种常见选择：
+   *   overflow: visible;   // 默认值，内容不会被裁剪，超出部分会显示出来
+   *   overflow: hidden;    // 超出部分会被裁剪，不显示滚动条
+   *   overflow: scroll;    // 不论内容是否溢出，都显示滚动条
+   *   overflow: auto;      // 只在内容溢出时显示滚动条，否则不显示
+   *   overflow: clip;      // 与hidden类似，裁剪内容但不创建块容器，不支持滚动（较少用）
+   */
+   
+  /* 你可以像这样设置元素的overflow属性，例如： */
+  /*
+  .my-element {
+    overflow: auto;
+  }
+  */
+  
+  .card-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e9ecef;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  }
+  .card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  }
+  .filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e9ecef;
+  overflow: auto;
+  }
+  .filter-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  }
+  .filter-item label {
+  font-size: 14px;
+  color: #666;
+  }
+  .filter-item input, .filter-item select {
+  padding: 6px 12px;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  font-size: 14px;
+  }
+  
 .pagination-bar {
   display: flex;
   justify-content: space-between;

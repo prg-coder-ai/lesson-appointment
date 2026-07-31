@@ -4,38 +4,74 @@
    // 从token中获取用户的id和role api.js 
 // ===================== 核心函数 =====================
 userTimeZoneDisplay="none";
+const coursePagination = {
+    pageNum: 1, // 当前页码
+    pageSize: 10,  // 页大小
+    total: 0,   // 总条数
+    totalPages: 0 // // 总页数
+  };
+  
+  window.renderStudentBookingCards      = renderStudentBookingCards;  
+  window.loadAndRenderCourse_student      = loadAndRenderCourse_student;  
+
 /**
  * 渲染课程列表（核心：原生JS操作DOM）
  * 对于学生，仅显示已发布的课程（status=active）
  */
 async function renderStudentBookingCards() {
+    assignLoadobjectListFunction(window.loadAndRenderCourse_student); // assign (修正：加上window.前缀，确保全局函数查找)
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
     //console.log("container:",dynamicContentCenter);
     if (!dynamicContentCenter) return; 
     // 显示加载中
-    dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';  
+  //  dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';  
     // 渲染HTML
     let html = '';
     { 
       html += `     
-     <div class="search-bar">
-        <input type="text" id="courseName" placeholder="课程名称">
-        <select id="language">
-            <option value="">语言</option>
-            <option value="zh">法文</option>
-            <option value="en">中文</option>
-            <option value="en">英文</option>
-        </select>
-        <select id="difficulty">
-            <option value="">难度</option>
-            <option value="easy">初级</option>
-            <option value="middle">中级</option>
-            <option value="hard">高级</option>
-        </select>
-        <input type="text" id="teacher" placeholder="教师">
-        <button class="btn-primary" onclick="searchCourse()">检索课程</button>
-    </div>
+        <div class="card-title"><i class="fa fa-filter"></i> 筛选条件</div>
+            <div class="filter-form" style="display: flex; gap: 20px; margin-bottom: 16px;">
+                <div>
+                    <label>课程名称：</label>
+                    <input type="text" id="course-name-input"  placeholder="课程名称" >
+                </div>
+                <div>
+                    <label>语言类型：</label>
+                    <select id="languageType-select" >
+                        <option value="">全部</option>
+                        <option value="french">法语</option>
+                        <option value="english">英语</option> 
+                    </select>
+                </div>
+                <div>
+                    <label>难度等级：</label>
+                    <select id="difficultyLevel-select">
+                        <option value="">全部</option>
+                        <option value="B1">B1入门</option>
+                        <option value="B2">B2初级</option>
+                        <option value="B3">B3中级</option>
+                        <option value="B4">B4高级</option> 
+                    </select>
+                </div>
+                 <div class="filter-item" style="display:none">
+                <label>状态：</label>
+                <select id="course-status-select">
+                    <option value="">全部</option>
+                    <option value="active">有效</option>
+                    <option value="pending">挂起</option>
+                </select>
+                </div>
+            
+                 <button class="btn" onclick="localsearchCourse()">
+                    <i class="fa fa-search"></i> 搜索
+                    </button>
+                <button class="btn btn-default" onclick="resetCourseFilter()"> 
+                <i class="fa fa-redo"></i>重置
+                </button>                 
+            </div>`;
 
+            html += getPagebar();
+            html += `
     <!-- 课程选择下拉 隐含教师ID-->
     <div class="form-line">
         <label>选择课程：</label>
@@ -237,33 +273,42 @@ async function renderStudentBookingCards() {
           } ;
       
     
-    searchCourse();  
+    loadAndRenderCourse_student();  
 
 
  // 1. 检索课程（原生 fetch）,只检索status:"active" 已发布课程
  // 从course中的teacherid-》姓名
  // TBD 
- async function searchCourse() { 
-        const params = {
-            courseName: document.getElementById('courseName').value||"",
-            languageType: document.getElementById('language').value||"",
-            difficultyLevel: document.getElementById('difficulty').value||"",
-            teacherName: document.getElementById('teacher').value|| "",
-            status:"active"
-        }; 
-  //console.log("search",params);//TBD---
-  //lastCourseIndex =currentCourseIndex;
- // currentCourseIndex =-1;
-  try { 
-    courseList=  await  getCourseList( params); 
+ async function loadAndRenderCourse_student() {
+    
+    
+  // 拼接请求参数
+  const params = new URLSearchParams({
+    pageNum: coursePagination.pageNum,
+    pageSize: coursePagination.pageSize,
+    courseName: document.getElementById('course-name-input').value.trim(),
+    languageType: document.getElementById('language-select').value,
+    difficultyLevel: document.getElementById('difficulty-level-select').value,
+    //teacherId：
+    status: document.getElementById('course-status-select').value
+  });
+    try { 
+   // courseList=  await  getCourseList( params); 
+   const result = await request({url:`/course/page?${params.toString()}` });
+    
+   if (result ) {
+    const pageData = result;//.data;
+    // 更新分页状态
+    coursePagination.total = pageData.total;
+    coursePagination.totalPages = pageData.totalPages;
+    courseList =  pageData.rows;
+   }
   } catch (e) {
       // 模拟数据
-      courseList = [ ];
-     
-      //alert("模拟课程加载成功");
+     courseList = [ ];     
   }
- // console.log("search",courseList);
-     renderCourseSelect();
+  
+   renderCourseSelect();
 }
 
 //把courseList列在下拉框中
@@ -442,7 +487,7 @@ function renderSchedule(scheduleObject) {
  }
 
      // 解决“找不到函数loadSchedule”问题：确保loadSchedule在window作用域下暴露
-   window.searchCourse      = searchCourse;  
+   
    window.previewSchedule   = previewSchedule;  
    window.freshByRepeatType = freshByRepeatType;
    window.renderCalendar    = renderCalendar ;
@@ -866,9 +911,27 @@ function renderResult() {
         } 
     
   
-    console.log("schedule page END");
+    console.log("student booking page END");
 }
 
+
+// 筛选与操作联动
+// 搜索按钮：重置为第1页再查询
+function localloadAndRenderCourse_student() {
+    coursePagination.pageNum = 1;
+    loadCourseList();
+  }
+  
+  // 重置筛选条件
+  function resetCourseFilter() {
+    document.getElementById('course-name-input').value = '';
+    document.getElementById('language-select').value = '';
+    document.getElementById('course-status-select').value = '';
+    document.getElementById('difficulty-level-select').value = '';
+    coursePagination.pageNum = 1;
+    loadCourseList();
+  }
+  
 // 设置下拉框为禁止选择（只读/不可操作），可以为元素加 disabled 属性，例如：
 // document.getElementById("bookingStatus").disabled = true;
 

@@ -19,6 +19,8 @@ const coursePagination = {
   totalPages: 0 // // 总页数
 };
 
+ // 引入分页组件js
+ document.write('<script src="/js/public/pagefoot.js"></script>');
 // ===================== 核心函数 ===================== 
   var templateCondition=[];//模板检索
  // var templateList = [];//await  fetchTemplateList(templateCondition); 
@@ -230,11 +232,12 @@ function validateCourseForm(formData){
  * 渲染课程列表（核心：原生JS操作DOM）
  */
    function renderCourseCards() {  
-
+    assignLoadobjectListFunction( loadAndRenderCourseListByPage);// assign
     const dynamicContentCenter = document.getElementById('dynamic-content-center'); 
     if (!dynamicContentCenter) return; 
 
     dynamicContentCenter.innerHTML = `
+
     <div class="card">
       <!-- 筛选+操作栏 -->
       <div class="card-header">
@@ -315,29 +318,18 @@ function validateCourseForm(formData){
           </tbody>
         </table>
       </div>
-
-      <!-- 分页栏 -->
-      <div class="pagination-bar">
-        <div class="pagination-info">
-          共 <span id="course-total">0</span> 条记录，每页 
-          <select id="course-page-size" onchange="changeCoursePageSize()">
-           <option value="5" selected>5</option>
-            <option value="10" selected>10</option>
-            <option value="20">20</option>
-            <option value="50">50</option>
-          </select> 条
-        </div>
-        <div class="pagination-btns" id="course-pagination-btns"></div>
-      </div>
-    </div>
-  `;
-  
+      `;
+      html += getPagebar();
+      if(dynamicContentCenter) {
+        dynamicContentCenter.innerHTML =  html;  
+        loadAndRenderCourseListByPage();
+     }
   // 页面渲染完成后，加载第一页数据
-  loadCourseList();
+     
    }
 
    // 加载课程列表数据
-async function loadCourseList() {  
+async function loadAndRenderCourseListByPage() {  
 
   // 拼接请求参数
   const params = new URLSearchParams({
@@ -468,30 +460,12 @@ function renderCoursePagination() {
           </button>`;
 
   btnContainer.innerHTML = html;
-}
-
-// 切换页码
-function changeCoursePage(targetPage) {
-  if (targetPage < 1 || targetPage > coursePagination.totalPages) return;
-  coursePagination.pageNum = targetPage;
-  loadCourseList();
-  // 滚动到卡片顶部
-  document.querySelector('.card').scrollIntoView({ behavior: 'smooth' });
-}
-
-// 切换每页条数
-function changeCoursePageSize() {
-  const select = document.getElementById('course-page-size');
-  coursePagination.pageSize = Number(select.value);
-  coursePagination.pageNum = 1; // 切换条数后重置为第1页
-  loadCourseList();
-}
-
+} 
 // 筛选与操作联动
 // 搜索按钮：重置为第1页再查询
 function localsearchCourse() {
   coursePagination.pageNum = 1;
-  loadCourseList();
+  loadAndRenderCourseListByPage();
 }
 
 // 重置筛选条件
@@ -501,63 +475,37 @@ function resetCourseFilter() {
   document.getElementById('course-status-select').value = '';
   document.getElementById('difficulty-level-select').value = '';
   coursePagination.pageNum = 1;
-  loadCourseList();
+  loadAndRenderCourseListByPage();
 }
 
 // 删除课程（操作后刷新当前页）
 async function deleteCourse(id) {
   if (!confirm('确定要删除该课程吗？')) return;
   
-  try {
-    const res = await request({url:`/api/course/${id}`,  method: 'DELETE' });
-    const result = await res.json();
+  try { 
+   // await  changeCourseStatus(courseId,"frozen"); 
+
+   const res = await request({url:`/api/course/${id}`,  method: 'DELETE' });
+   const result = await res.json();
     
-   // if (result.code === 200) {
-     // alert('删除成功');
-      // 删除后判断当前页是否还有数据，无数据则跳上一页
+       // 删除后判断当前页是否还有数据，无数据则跳上一页
       const currentPageData = document.querySelectorAll('#course-table-body tr').length;
       if (currentPageData === 1 && coursePagination.pageNum > 1) {
         coursePagination.pageNum--;
         }
-      loadCourseList();
+      loadAndRenderCourseListByPage();
   } catch (error) {
     console.error('删除失败：', error);
   }
 }
 
-// ===================== 交互函数 =====================
-/**
- * 筛选条件变化
- */
-/*async function handleSearchChange() {
-    localParamter.currentPage = 1; // 重置页码
-    await renderCourseCards();
-}*/
- 
 
 function changeCourseStatus(courseId, status) { 
   operateCourse(courseId, status);
-  loadCourseList();  
+  loadAndRenderCourseListByPage();  
 } 
-   
 
-/**
- * 分页大小变化
- */
-async function handlePageSizeChange(val) {
-    localParamter.pageSize = val;
-    await renderCourseCards();
-}
-
-/**
- * 页码变化
- */
-async function handleCurrentPageChange(val) {
-    localParamter.currentPage = val;
-    await renderCourseCards();
-}
-
-  
+  /*
 async function deleteCourse(courseId) {
     
   if (!window.confirm('确定要删除该课程吗？删除后基于该课程的预约数据将不受统一管控！')) {
@@ -568,7 +516,7 @@ async function deleteCourse(courseId) {
   //如果不能删除，则提示用户 
   changeCourseStatus(courseId,"frozen"); 
 }
-
+*/
 
 // 点击弹窗遮罩层关闭
   document.getElementById('courseModal').addEventListener('click', (e) => {

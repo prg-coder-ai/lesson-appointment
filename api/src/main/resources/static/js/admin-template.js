@@ -260,7 +260,7 @@ async function renderTemplateCards() {
     
       html += `<div class="card">
             <div class="card-title"><i class="fa fa-filter"></i> 筛选条件</div>
-            <div class="search-form" style="display: flex; gap: 20px; margin-bottom: 16px;">
+            <div class="filter-form" style="display: flex; gap: 20px; margin-bottom: 16px;">
                 <div>
                     <label>语言类型：</label>
                     <select id="languageType-select" >

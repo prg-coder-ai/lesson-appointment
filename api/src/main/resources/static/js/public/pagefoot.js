@@ -2,7 +2,7 @@
 var fLoadAndRender= null;
  function assignLoadobjectListFunction ( fun ){
     fLoadAndRender = fun;
-    console.log("assigned function",fun);
+ //   console.log("assigned function",fun);
 
  }
 

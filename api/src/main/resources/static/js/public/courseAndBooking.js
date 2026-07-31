@@ -969,3 +969,4 @@ function checkCourseAndSchedule(scheduleCheck,courseCheck){
       }    
   return true;
 }
+

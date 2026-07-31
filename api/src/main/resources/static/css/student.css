@@ -298,3 +298,85 @@
   gap: 8px;
   margin-bottom: 16px; /* 控制行间距 */
 }
+
+
+.card-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e9ecef;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width:90%;
+  }
+  .card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  }
+  .filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 16px 20px;
+  border-bottom: 0px solid #e9ecef;
+  overflow: auto;
+  }
+  .filter-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  }
+  .filter-item label {
+  font-size: 14px;
+  color: #666;
+  }
+  .filter-item input, .filter-item select {
+  padding: 6px 12px;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  font-size: 14px;
+  }
+  
+   
+  .pagination-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-top: 1px solid #e9ecef;
+    font-size: 14px;
+    color: #666;
+  }
+  .pagination-btns {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .pagination-btn {
+    padding: 6px 12px;
+    border: 1px solid #e9ecef;
+    background: #fff;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .pagination-btn:hover:not(:disabled) {
+    border-color: #722ed1;
+    color: #722ed1;
+  }
+  .pagination-btn.active {
+    background: #722ed1;
+    color: #fff;
+    border-color: #722ed1;
+  }
+  .pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  #page-size-select {
+    padding: 4px 8px;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    margin: 0 4px;
+  }
+  
