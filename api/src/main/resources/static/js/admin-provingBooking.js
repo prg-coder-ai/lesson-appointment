@@ -74,12 +74,7 @@ if(dynamicContentCenter) {
  //按照条件，按页加载预定数据，called by admin、student/techer
 async function getBookingListByPage(){
   //search current pendding booking items ,and dispaly here /pendingBooking  
- 
-   // 由错误日志可见，接口期望JSON而不是URLSearchParams（query string）。
-   // 应以对象形式传递参数，将其直接传给getBookingListPage，确保它以JSON格式发送（POST 
-   //let  userInfo= getCurrentUserInfo();
-   // userId = userInfo.userId;
-   //let userRole = userInfo.role; 
+  
    const params = {
      pageNum: Pagination.pageNum,
      pageSize: Pagination.pageSize,
