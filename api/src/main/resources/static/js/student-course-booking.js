@@ -4,13 +4,13 @@
    // 从token中获取用户的id和role api.js 
 // ===================== 核心函数 =====================
 userTimeZoneDisplay="none";
-const coursePagination = {
+/*const Pagination = {
     pageNum: 1, // 当前页码
     pageSize: 10,  // 页大小
     total: 0,   // 总条数
     totalPages: 0 // // 总页数
-  };
-  
+  };*/
+  document.write('<script src="/js/public/pagefoot.js"></script>');
   window.renderStudentBookingCards      = renderStudentBookingCards;  
   window.loadAndRenderCourse_student      = loadAndRenderCourse_student;  
 
@@ -29,9 +29,10 @@ async function renderStudentBookingCards() {
     let html = '';
     { 
       html += `     
-        <div class="card-title"><i class="fa fa-filter"></i> 筛选条件</div>
+       <div class="card">
+        <div class="card-title"><i class="fa fa-filter"></i> 课程筛选</div>
             <div class="filter-form" style="display: flex; gap: 20px; margin-bottom: 16px;">
-                <div>
+                 <div>
                     <label>课程名称：</label>
                     <input type="text" id="course-name-input"  placeholder="课程名称" >
                 </div>
@@ -68,10 +69,10 @@ async function renderStudentBookingCards() {
                 <button class="btn btn-default" onclick="resetCourseFilter()"> 
                 <i class="fa fa-redo"></i>重置
                 </button>                 
-            </div>`;
+                </div>`;
 
             html += getPagebar();
-            html += `
+            html += `  
     <!-- 课程选择下拉 隐含教师ID-->
     <div class="form-line">
         <label>选择课程：</label>
@@ -228,7 +229,7 @@ async function renderStudentBookingCards() {
         <button class="btn-danger"  onclick="deleteBooking()">删除预定</button>
         <button class="btn-success" onclick="refreshData()">刷新</button>
     </div> 
-
+ </div> <!-- .card -->
     <!-- 排期结果 -->
     <div class="section">
         <div class="section-title">排期结果（列表）</div>
@@ -247,7 +248,9 @@ async function renderStudentBookingCards() {
     <div class="section">
         <div class="section-title">日历视图</div>
         <div id="calendar" class="calendar"></div>
-    </div>`;
+    </div>
+    
+    `;
     
     dynamicContentCenter.innerHTML = html;
 
@@ -284,11 +287,11 @@ async function renderStudentBookingCards() {
     
   // 拼接请求参数
   const params = new URLSearchParams({
-    pageNum: coursePagination.pageNum,
-    pageSize: coursePagination.pageSize,
+    pageNum: Pagination.pageNum,
+    pageSize: Pagination.pageSize,
     courseName: document.getElementById('course-name-input').value.trim(),
-    languageType: document.getElementById('language-select').value,
-    difficultyLevel: document.getElementById('difficulty-level-select').value,
+    languageType: document.getElementById('languageType-select').value,
+    difficultyLevel: document.getElementById('difficultyLevel-select').value,
     //teacherId：
     status: document.getElementById('course-status-select').value
   });
@@ -299,8 +302,8 @@ async function renderStudentBookingCards() {
    if (result ) {
     const pageData = result;//.data;
     // 更新分页状态
-    coursePagination.total = pageData.total;
-    coursePagination.totalPages = pageData.totalPages;
+    Pagination.total = pageData.total;
+    Pagination.totalPages = pageData.totalPages;
     courseList =  pageData.rows;
    }
   } catch (e) {
@@ -323,7 +326,7 @@ function renderCourseSelect() {
       sel.appendChild(opt);
     }
   });
- 
+  renderPagination( Pagination);   
 }
 
 //更新scheduleObject相关内容 --待细化
@@ -917,19 +920,19 @@ function renderResult() {
 
 // 筛选与操作联动
 // 搜索按钮：重置为第1页再查询
-function localloadAndRenderCourse_student() {
-    coursePagination.pageNum = 1;
-    loadCourseList();
+function localsearchCourse() {
+    Pagination.pageNum = 1;
+    loadAndRenderCourse_student();
   }
   
   // 重置筛选条件
   function resetCourseFilter() {
-    document.getElementById('course-name-input').value = '';
-    document.getElementById('language-select').value = '';
+    document.getElementById('course-name-input').value = '';//TBD
+    document.getElementById('languageType-select').value = '';
     document.getElementById('course-status-select').value = '';
-    document.getElementById('difficulty-level-select').value = '';
-    coursePagination.pageNum = 1;
-    loadCourseList();
+    document.getElementById('difficultyLevel-select').value = '';
+    Pagination.pageNum = 1;
+    loadAndRenderCourse_student();
   }
   
 // 设置下拉框为禁止选择（只读/不可操作），可以为元素加 disabled 属性，例如：
