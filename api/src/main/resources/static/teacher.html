@@ -196,11 +196,13 @@
         case '我的课程':
           // 操作按钮事件 --checkout----set online =false TBD 
            // 兼容性 fallback: 尝试直接渲染（首次页面加载时）
-           renderTeacherCourseAndScheduleBrowserCards(); 
+          renderTeacherCourseAndScheduleBrowserCards(); 
+  
           break;
           case '课程通知': //列出7日课程内， 显示课程名称、教师、学生、时间、课程状态，操作：发送通知1、2、3           
           // 渲染数据总览面板
-          dynamicContent.innerHTML = `
+          refreshAppointmentNotes( );//TBD "admin"
+         /* dynamicContent.innerHTML = `
              <div class="table-container">
                 <table class="data-table">
                   <thead>
@@ -223,6 +225,7 @@
              `;
            
              refreshAppointmentNotesForTeacher("days-appointment-teacher" );
+             */
             break;
         case '预订管理': //booking
             renderTeacherBookingandAppointmentBrowserCards();  
@@ -353,7 +356,7 @@
    <script src="js/public/appointmentNotes.js"></script>  
    <script src="js/teacher-course-schedule.js"></script>     
    <script src="js/teacher-course-booking-appointment.js"></script>// 预订及日期
-   <script src="js/teacher-AppointmentNotes.js"></script>
+   <script src="js/admin-AppointmentNotes.js"></script>
    <script> 
       console.log("end of body...")
    </script>

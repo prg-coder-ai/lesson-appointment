@@ -5,17 +5,17 @@ let pendingBookingList=[];// ID,ciurseName,studentName,teacherName,dateTime(创�
  // 引入分页组件js
  document.write('<script src="/js/public/pagefoot.js"></script>');
 
-window.provingBooking  = provingBooking ;  
+window.renderBookingCards  = renderBookingCards ;  
 window.cancelBooking   = cancelBooking ; 
 window.validBooking   = validBooking ; 
 
- async function provingBooking(){
-     assignLoadobjectListFunction( getPendingBookingList);//
+ async function renderBookingCards(){
+     assignLoadobjectListFunction( getBookingListByPage);//
   let html     = `
   <div class="card">
     <div class="card-header">
       <div class="card-title"><i class="fa fa-calendar-alt"></i>预订列表</div>
-<!-- 筛选条件 -->
+        <!-- 筛选条件 -->
               <div class="filter-bar">  
                 <div class="filter-item">
                   <label>课程名称：</label>
@@ -62,30 +62,38 @@ window.validBooking   = validBooking ;
       </table>
     </div>
   </div>
-
 `;
 html += getPagebar();
 if(dynamicContentCenter) {
   dynamicContentCenter.innerHTML =  html;           
 }
-     getPendingBookingList();
+     getBookingListByPage();// define in 
     // showBookingList();
  }  
- async function getPendingBookingList(){
+
+ //按照条件，按页加载预定数据，called by admin、student/techer
+async function getBookingListByPage(){
   //search current pendding booking items ,and dispaly here /pendingBooking  
  
    // 由错误日志可见，接口期望JSON而不是URLSearchParams（query string）。
-   // 应以对象形式传递参数，将其直接传给getBookingListPage，确保它以JSON格式发送（POST body）
+   // 应以对象形式传递参数，将其直接传给getBookingListPage，确保它以JSON格式发送（POST 
+   //let  userInfo= getCurrentUserInfo();
+   // userId = userInfo.userId;
+   //let userRole = userInfo.role; 
    const params = {
      pageNum: Pagination.pageNum,
      pageSize: Pagination.pageSize,
      // 可预留 future 参数，比如 userRole, status 等，如有需要可加上
-     // userRole:    document.getElementById('user-role-input').value.trim(),//TBD
+     userId: userId,
+     userRole: userRole,    
      courseName:    document.getElementById('course-name-input').value.trim(),//TBD
    // studentName:    document.getElementById('student-name-input').value.trim(),
      status:         document.getElementById('booking-status-select').value  
    };
-
+   if(userRole== "admin") {
+    params.userId =null;
+    params.userRole = null ;
+  }
    let result = await getBookingListPage( params);
   // console.log("page:",params);
    //  console.log("ret:",result);
@@ -98,9 +106,9 @@ if(dynamicContentCenter) {
       showBookingList( pageData.rows); 
       // 渲染分页栏,带入分页参数
       renderPagination( Pagination);    
-   }
-     
+   }     
   } 
+
  //显示待确认预约
   async function showBookingList(pageDataList){
      const id = "pending-reservations";
@@ -117,6 +125,7 @@ if(dynamicContentCenter) {
              if (scheduleObject != null) {
                  let scheduleInfoStr = getScheduleInfo(scheduleObject,false); 
                  const classObject = await getCourseById(scheduleObject.courseId); 
+
                  const studentName = await getUserNameById(booking.studentId);
                  const teacherName = await getUserNameById(classObject.teacherId);
 
@@ -215,6 +224,8 @@ if(dynamicContentCenter) {
                              <button class="btn btn-warning" onclick="validOrCancelReservation('${cardInfo.bookingId}','booking')">取消</button>
                            </td>`
                         : ''
+
+
                      }
             </tr>
    `;
@@ -309,7 +320,7 @@ async function sleep(ms) {
 }
 await sleep(200); 
  
-getPendingBookingList();
+getBookingListByPage();
 }
 
 
@@ -334,14 +345,13 @@ async function validCancelBooking(bookingid){
       //  console.log("validCancelBooking updateAppointmentsStatusByBookingId bookingid:",bookingid);
         await updateAppointmentsStatusByBookingId(bookingid, "cancelling");
         //更新booking预定状态
-        await operateBookingStatus( bookingid, "cancelling"); //--学生、教师取消
- 
+        await operateBookingStatus( bookingid, "cancelling"); //--学生、教师取消 
          }
 
 
       function localsearchBooking() {
           Pagination.pageNum = 1;
-          getPendingBookingList();
+          getBookingListByPage();
       }
       // 重置筛选条件
       function resetFilterBooking() {
@@ -352,6 +362,6 @@ async function validCancelBooking(bookingid){
 
           document.getElementById('booking-status-select').value = '';
           Pagination.pageNum = 1;
-          getPendingBookingList();
+          getBookingListByPage();
 
       }

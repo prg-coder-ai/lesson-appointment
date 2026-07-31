@@ -91,9 +91,9 @@ let appointmentList=[];// ID,ciurseName,studentName,teacherName,dateTime(创建�
    const renderTo = "days-appointment-admin";
    let days = 7; //TBD 选择 7天、3天、当天1
    //获取用户角色和ID
-   let  userInfo= getCurrentUserInfo();
-   let userId = userInfo.userId;
-   let userRole = userInfo.role; 
+  // let  userInfo= getCurrentUserInfo();
+//let userId =  userInfo.userId;
+  // let userRole = userInfo.role; 
    const params = {
       pageNum: Pagination.pageNum,
       pageSize: Pagination.pageSize,
