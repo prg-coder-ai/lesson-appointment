@@ -10,15 +10,7 @@ var localParamter ={
   currentCourseId: '', // 当前操作的课程ID
   formEl :'', 
 };
-
-// 课程分页状态
-/*const coursePagination = { pagefoot.js
-  pageNum: 1, // 当前页码
-  pageSize: 10,  // 页大小
-  total: 0,   // 总条数
-  totalPages: 0 // // 总页数
-};*/
-
+ 
  // 引入分页组件js
  document.write('<script src="/js/public/pagefoot.js"></script>');
 // ===================== 核心函数 ===================== 
@@ -235,9 +227,8 @@ function validateCourseForm(formData){
     assignLoadobjectListFunction( loadAndRenderCourseListByPage);// assign
     const dynamicContentCenter = document.getElementById('dynamic-content-center'); 
     if (!dynamicContentCenter) return; 
-
-    dynamicContentCenter.innerHTML = `
-
+    let html=``;
+html = `
     <div class="card">
       <!-- 筛选+操作栏 -->
       <div class="card-header">
@@ -357,7 +348,7 @@ async function loadAndRenderCourseListByPage() {
       // 渲染表格
       renderCourseTable(pageData.rows);
       // 渲染分页栏
-      renderCoursePagination();
+      renderPagination( Pagination);
     }
   } catch (error) {
     console.error('加载课程列表失败：', error);
