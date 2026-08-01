@@ -141,11 +141,11 @@
                 </when>
             </choose>
          <choose> <when test="userRole != null and userId != null and userRole == 'student' ">
-                    AND student_id = #{userId}                   
+                    AND booking.student_id = #{userId}                   
                 </when >
                        </choose>
          <choose> <when  test="userRole!= null  and userId != null and userRole == 'teacher' ">
-                    AND teacher_id = #{userId}
+                    AND booking.teacher_id = #{userId}
                 </when>
                 </choose>
          <choose>

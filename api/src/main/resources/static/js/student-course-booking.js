@@ -1,4 +1,4 @@
- //排期管理--页面
+ //预订管理--页面
  // student-course-booking.js
  console.log("student book a appointment  page");
    // 从token中获取用户的id和role api.js 

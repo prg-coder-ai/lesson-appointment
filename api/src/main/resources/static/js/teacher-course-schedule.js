@@ -1,8 +1,8 @@
  
- // teacher-course.js
- // teacher---课程管理----编辑、添加排期
+ // teacher-course-schedule.js
+ // teacher---课程管理---查看排期---编辑、添加排期
  //查找属于自己的课程，可添加、编辑排期 
-
+/*
 var localParamter ={ 
   currentPage:1,         // 当前页码（初始值由Thymeleaf渲染）
   pageSize : 10,           // 页大小
@@ -11,30 +11,27 @@ var localParamter ={
   dialogTitle : '新增课程', // 弹窗标题
   currentCourseId: '', // 当前操作的课程ID
   formEl :'', 
-};
+};*/
 // ===================== 核心函数 =====================
 let userTimeZoneDisplay="none";
+
+
+ // 引入分页组件js
+ document.write('<script src="/js/public/pagefoot.js"></script>');
+
 /**
  * 渲染课程列表（核心：原生JS操作DOM）
  */
+
 async function renderTeacherCourseAndScheduleBrowserCards() {
+    assignLoadobjectListFunction( loadAndRenderCoursePage_teacher);// assign
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
     if (!dynamicContentCenter) return; 
     // 显示加载中
-    dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';
-
-    // 构建筛选条件 TBD
-    const conditionJson = { 
-          teacherId:userId,
-          templateId:"",
-          status:"",
-          pageRow: localParamter.pageSize,
-          pageNum: localParamter.currentPage
-    };
- 
+  //  dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';
     // 渲染HTML
     let html = '';
-    { 
+    
       html += `     
             <div class="modal-mask" id="courseModal">
             <div class="modal-content">
@@ -57,7 +54,10 @@ async function renderTeacherCourseAndScheduleBrowserCards() {
                 <tbody id="courseResultBody"></tbody>
               </table>
             </div>
-
+        `;
+        html += getPagebar();
+//TBD --排期分页 --2个分页元素的处理
+        html += `
          <div id="scheduleListForm" style="display:none;">
            <div class="modal-header" >  
             <h3 id="modalTitle">课程排期列表</h3> 
@@ -192,42 +192,46 @@ async function renderTeacherCourseAndScheduleBrowserCards() {
    </div> 
         `;
        
-    }  // TBD:
+   
     dynamicContentCenter.innerHTML = html;
-
-    // 更新分页组件
-    const pagination = document.getElementById('pagination');
-    if (pagination) {
-        pagination.currentPage = localParamter.currentPage;
-        pagination.pageSize    = localParamter.pageSize;
-        pagination.total       = localParamter.total;
-    }
-    
-    courseList =  await getCourseList (conditionJson); 
-    renderCourseList();
+    loadAndRenderCoursePage_teacher();
 }
-// 可以通过设置table或tr或td的CSS样式来控制各行字体属性，常见方法如下：
-//
-// 方法1：直接给table、tr或td元素加上style属性
-// <tr style="font-size:14px;font-weight:bold;color:red">...</tr>
-//
-// 方法2：为table、tr、td等设置class，然后在CSS中统一设置字体：
-// <tr class="my-row-style">...</tr>
-// CSS:
-// .my-row-style { font-size:14px; font-family: '微软雅黑', Arial; font-weight:bold; color:#333; }
-//
-// 方法3：在JS动态渲染时，设置相关元素的style属性。例如：
-//   tr.style.fontSize = "15px";
-//   tr.style.fontWeight = "400";
-//   tr.style.color = "#333";
-//
-// 示例：在 renderCourseList() 的forEach里每一行设置字体属性
-// tr.style.fontSize = "15px";
-// tr.style.fontFamily = "Arial, '微软雅黑', sans-serif";
-// tr.style.color = "#222";
-//   tr.style.fontWeight = "400";
-//
-// 你可以根据需求选择上述任意方式。
+async function loadAndRenderCoursePage_teacher(){
+
+    // 构建筛选条件 TBD
+    const params =  { 
+        teacherId:userId,
+      //  templateId:null,
+      //  status:null,
+      //  courseName:null,
+      //  languageType:null,
+      //  difficultyLevel:null,
+        pageSize: Pagination.pageSize,
+        pageNum: Pagination.pageNum
+  };
+
+   try {
+    const result = await request({url:`/course/page`,
+                                   Method:"GET",
+                                   params:params});
+    //const result = await res.json();
+    
+    if (result ) {
+      const pageData = result;//.data;
+      // 更新分页状态
+      Pagination.total = pageData.total;
+      Pagination.totalPages = pageData.totalPages;
+    courseList =  result.rows;// await getCourseList (conditionJson); 
+    renderCourseList();
+    // 渲染分页栏
+    renderPagination( Pagination);        
+    }
+   }
+    catch (error) {
+        console.error('加载课程列表失败：', error);
+      }
+}
+
 //刷新课程列表
 async function renderCourseList(){ 
     const scheduleListBody = document.getElementById( "scheduleListForm");
@@ -237,19 +241,17 @@ async function renderCourseList(){
   const body = document.getElementById('courseResultBody');
   body.innerHTML = ''; 
 
-  if (!courseList.length) {
+ /* if (!courseList.length) {
     body.innerHTML += '<div style="padding:40px 0;text-align:center;color:#999;">暂无数据</div>';
     return;
-} 
+} */
   if(courseList!= null ) {
     var index=0;
     let teacherInfo=userInfo? userInfo.name : "n/a" ;
     courseList.forEach(item => { 
-      index ++; 
+        index ++; 
         const tr = document.createElement('tr'); 
-      /*  tr.style.fontSize = "15px";
-        tr.style.fontFamily = "Arial, '微软雅黑', sans-serif";
-        tr.style.color = "#222";*/
+       
     tr.style.fontWeight = "400";
         tr.innerHTML = `<td>${index}</td><td>${item.courseName}</td><td>${item.content}</td> <td>${item.feature}</td>`;
         tr.innerHTML +=  
@@ -282,12 +284,12 @@ async function renderCourseList(){
     });
     
     }
-  } 
+  }
+  /* 
 function  AddScheduleforTheCourse(courseId){
   //添加1个排期
   alert("tbd:AddScheduleforTheCourse " + courseId);
-
-}
+}*/
 
  // 罗列该课程的排期，列表 参考学生预约页面
  async function  browseScheduleforTheCourse(courseId){

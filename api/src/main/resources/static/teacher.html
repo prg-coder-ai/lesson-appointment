@@ -45,18 +45,20 @@
         <span>今日课程</span>
       </div>  
 
+      <div class="menu-group-title">课程管理</div>
       <div class="menu-item">
         <i class="fa fa-book"></i>
         <span>我的课程</span>
       </div>
+      <div class="menu-group-title">预订课程</div>
       <div class="menu-item">
         <i class="fa fa-calendar"></i>
         <span>预订管理</span>
       </div>
-      <div class="menu-item">
+      <!-- div class="menu-item">
         <i class="fa fa-calendar-alt"></i>
         <span>课程通知</span>
-      </div>
+      </div -->
       
       <!--
       <div class="menu-item">
@@ -97,6 +99,9 @@
 
     // 页面初始化：加载默认的"我的工作台"内容
     window.onload = function() {
+
+      window.renderTeacherCourseAndScheduleBrowserCards =renderTeacherCourseAndScheduleBrowserCards;
+
       userInfo = autoLoginCheck(); 
       const nameid=document.getElementById("user-name");
        if(nameid)
@@ -140,95 +145,25 @@
       currentMenuitem = menuName;
       switch(menuName) {
         case '今日课程': 
-           dynamicContent.innerHTML = `
-             <div class="table-container">
-                <table class="data-table">
-                  <thead>
-                    <tr>
-                      <th>序号</th>
-                      <th  style="display:none;">预约ID</th>
-                      <th>课程名称</th>
-                      <th>学生姓名</th>
-                      <th>教师姓名</th>
-                      <th>上课时间</th>
-                      <th>状态</th>
-                      <th>操作</th>
-                    </tr>
-                  </thead>
-                  <tbody id="oneday-appointment-teacher">
-                    
-                  </tbody>
-                </table>
-              </div>
-             
-            <!-- 课程统计卡片
-            <div class="card">
-              <h3><i class="fa fa-bar-chart"></i> 本月课程统计</h3>
-              <div style="display: flex; gap: 20px; margin-top: 15px; padding: 0 20px;">
-                <div style="flex: 1; text-align: center;">
-                  <p id="teacher_completed_appointment" style="font-size: 24px; font-weight: 600; color: var(--primary-color);">12</p>
-                  <p style="color: var(--text-light-color);">已完成课程</p>
-                </div>
-                <div style="flex: 1; text-align: center;">
-                  <p id="teacher_todo_appointment" style="font-size: 24px; font-weight: 600; color: #fa8c16;">8</p>
-                  <p style="color: var(--text-light-color);">待上课程</p>
-                </div>
-                <div style="flex: 1; text-align: center;">
-                  <p id="teacher_cancelled_appointment"style="font-size: 24px; font-weight: 600; color: #f5222d;">2</p>
-                  <p style="color: var(--text-light-color);">取消课程</p>
-                </div>
-              </div>
-            </div>
-             -->
-            <!-- 待办事项卡片 
-            <div class="card">
-              <h3><i class="fa fa-tasks"></i> 待办事项</h3>
-              <ul style="margin-top: 15px; padding-left: 40px; padding-bottom: 20px;">
-                <li style="margin-bottom: 8px; font-size: 14px;">批改张三的口语作业</li>
-                <li style="margin-bottom: 8px; font-size: 14px;">更新英语进阶写作课程大纲</li>
-                <li style="margin-bottom: 8px; font-size: 14px;">回复学生课程咨询（3条未读）</li>
-              </ul>
-            </div>
-            -->
-          `;
-          refreshOnedayAppointmentNotesForTeacher("oneday-appointment-teacher"); 
+           refreshAppointmentNotes( );//reused with "admin-appointmentNotes.js"
+           
+          //refreshOnedayAppointmentNotesForTeacher("oneday-appointment-teacher"); 
           break;
         case '我的课程':
           // 操作按钮事件 --checkout----set online =false TBD 
            // 兼容性 fallback: 尝试直接渲染（首次页面加载时）
-          renderTeacherCourseAndScheduleBrowserCards(); 
+          renderTeacherCourseAndScheduleBrowserCards(); //teacher-course-schedule.js
   
           break;
           case '课程通知': //列出7日课程内， 显示课程名称、教师、学生、时间、课程状态，操作：发送通知1、2、3           
           // 渲染数据总览面板
-          refreshAppointmentNotes( );//TBD "admin"
-         /* dynamicContent.innerHTML = `
-             <div class="table-container">
-                <table class="data-table">
-                  <thead>
-                    <tr>
-                      <th>序号</th>
-                      <th  style="display:none;">预约ID</th>
-                      <th>课程名称</th>
-                      <th>学生姓名</th>
-                      <th>教师姓名</th>
-                      <th>预约时间</th>
-                      <th>状态</th>
-                      <th>操作</th>
-                    </tr>
-                  </thead>
-                  <tbody id="days-appointment-teacher">
-                    
-                  </tbody>
-                </table>
-              </div>
-             `;
-           
-             refreshAppointmentNotesForTeacher("days-appointment-teacher" );
-             */
+          refreshAppointmentNotes( );//as upper 
+          
             break;
         case '预订管理': //booking
-            renderTeacherBookingandAppointmentBrowserCards();  
+          //  renderTeacherBookingandAppointmentBrowserCards();  
+         // 
+          renderStudentBookingBrowserCards(); //js/student-course-appointment.js">
           break;
         case '学生评价':
           dynamicContent.innerHTML = `
@@ -301,49 +236,7 @@
           break;
       }
     }
-
-    // 预约操作函数
-   /* function confirmReservation(el) {
-      const courseCard = el.closest('.course-card');
-      const statusText = courseCard.querySelector('.course-info p');
-      statusText.innerHTML = statusText.innerHTML.replace('待确认', '已确认');
-      el.textContent = '已确认';
-      el.disabled = true;
-      el.nextElementSibling.disabled = true;
-      alert('预约确认成功！');
-    }
-
-    function rejectReservation(el) {
-      if (confirm('确定要拒绝该预约吗？')) {
-        const courseCard = el.closest('.course-card');
-        const statusText = courseCard.querySelector('.course-info p');
-        statusText.innerHTML = statusText.innerHTML.replace('待确认', '已拒绝');
-        el.previousElementSibling.disabled = true;
-        el.textContent = '已拒绝';
-        el.disabled = true;
-        alert('预约已拒绝！');
-      }
-    }
-
-    function viewDetail(el) {
-      alert('TBD：查看课程详情：\n课程名称：英语进阶写作\n预约人：李四\n时间：16:00-17:00\n备注：无特殊要求');
-    }
-*/
-    // 退出函数（补充缺失的logout）
-     // 退出登录函数
-     /*function logout() {
-      if (confirm('确定要退出系统吗？')) {
-        // 清除本地存储的用户信息
-        localStorage.removeItem('currentUser');
-        // 跳回登录页（这里注释掉，方便测试）
-         window.location.href = 'index.html';
-       // alert('已退出登录！');
-      }
-    }*/
-
-
-    
-
+  
   </script>
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>   
    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
@@ -354,8 +247,10 @@
    <script src="js/public/dataFunctions.js"></script> 
    <script src="js/public/courseAndBooking.js"></script>  
    <script src="js/public/appointmentNotes.js"></script>  
-   <script src="js/teacher-course-schedule.js"></script>     
-   <script src="js/teacher-course-booking-appointment.js"></script>// 预订及日期
+   <script src="js/teacher-course-schedule.js"></script>
+   <script src ="js/student-course-booking.js"></script>
+   <script src="js/student-course-appointment.js"></script> //预定信息
+   <!-- script src="js/teacher-course-booking-appointment.js"></script -->// 预订及日期
    <script src="js/admin-AppointmentNotes.js"></script>
    <script> 
       console.log("end of body...")

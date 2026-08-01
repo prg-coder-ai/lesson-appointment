@@ -24,7 +24,7 @@ let    lastCourseIndex =-1,   lastScheduleIndex =-1;
  *  检索本人的所有预约课程，点击列举具体时间表，确认后，创建预约时间表----列举所有预约
  * 
  */
-    
+    //TBD--Page
 async function renderTeacherBookingandAppointmentBrowserCards() {
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
     //console.log("container:",dynamicContentCenter);
