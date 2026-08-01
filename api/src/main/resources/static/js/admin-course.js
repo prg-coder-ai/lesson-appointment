@@ -1,4 +1,4 @@
-  /* js for overall page
+  /* js for overall  admin-course.js 课程管理 CRUD
   */
 //let CourseList = [];       // 课程列表
 var localParamter ={ 
@@ -12,12 +12,12 @@ var localParamter ={
 };
 
 // 课程分页状态
-const coursePagination = {
+/*const coursePagination = { pagefoot.js
   pageNum: 1, // 当前页码
   pageSize: 10,  // 页大小
   total: 0,   // 总条数
   totalPages: 0 // // 总页数
-};
+};*/
 
  // 引入分页组件js
  document.write('<script src="/js/public/pagefoot.js"></script>');
@@ -333,8 +333,8 @@ async function loadAndRenderCourseListByPage() {
 
   // 拼接请求参数
   const params = new URLSearchParams({
-    pageNum: coursePagination.pageNum,
-    pageSize: coursePagination.pageSize,
+    pageNum: Pagination.pageNum,
+    pageSize: Pagination.pageSize,
     courseName: document.getElementById('course-name-input').value.trim(),
     languageType: document.getElementById('language-select').value,
     difficultyLevel: document.getElementById('difficulty-level-select').value,
@@ -351,8 +351,8 @@ async function loadAndRenderCourseListByPage() {
     if (result ) {
       const pageData = result;//.data;
       // 更新分页状态
-      coursePagination.total = pageData.total;
-      coursePagination.totalPages = pageData.totalPages;
+      Pagination.total = pageData.total;
+      Pagination.totalPages = pageData.totalPages;
       
       // 渲染表格
       renderCourseTable(pageData.rows);
@@ -373,7 +373,7 @@ function renderCourseTable(list) {
     return;
   }
    let  html  = ` `;
-  var index=(coursePagination.pageNum-1)*coursePagination.pageSize;//记录序号
+  var index=(Pagination.pageNum-1)*Pagination.pageSize;//记录序号
 
         list.forEach(Course => { 
          // 根据Course.templateId在templateList中查找对应的模板对象
@@ -413,58 +413,10 @@ function renderCourseTable(list) {
             `;
         });
         tbody.innerHTML = html;
-}
-
-// 渲染分页按钮
-function renderCoursePagination() {
-  const btnContainer = document.getElementById('course-pagination-btns');
-  document.getElementById('course-total').textContent = coursePagination.total;
-  
-  if (coursePagination.total === 0) {
-    btnContainer.innerHTML = '<span style="color:#999;">暂无数据</span>';
-    return;
-  }
-
-  let html = '';
-  // 上一页
-  html += `<button class="pagination-btn" 
-            onclick="changeCoursePage(${coursePagination.pageNum - 1})"
-            ${coursePagination.pageNum === 1 ? 'disabled' : ''}>
-            上一页
-          </button>`;
-
-  // 页码（显示前后3页，超出省略）
-  const start = Math.max(1, coursePagination.pageNum - 3);
-  const end = Math.min(coursePagination.totalPages, coursePagination.pageNum + 3);
-  
-  if (start > 1) {
-    html += `<button class="pagination-btn" onclick="changeCoursePage(1)">1</button>`;
-    if (start > 2) html += '<span style="padding:0 4px;">...</span>';
-  }
-
-  for (let i = start; i <= end; i++) {
-    html += `<button class="pagination-btn ${i === coursePagination.pageNum ? 'active' : ''}" 
-              onclick="changeCoursePage(${i})">${i}</button>`;
-  }
-
-  if (end < coursePagination.totalPages) {
-    if (end < coursePagination.totalPages - 1) html += '<span style="padding:0 4px;">...</span>';
-    html += `<button class="pagination-btn" onclick="changeCoursePage(${coursePagination.totalPages})">${coursePagination.totalPages}</button>`;
-  }
-
-  // 下一页
-  html += `<button class="pagination-btn" 
-            onclick="changeCoursePage(${coursePagination.pageNum + 1})"
-            ${coursePagination.pageNum === coursePagination.totalPages ? 'disabled' : ''}>
-            下一页
-          </button>`;
-
-  btnContainer.innerHTML = html;
-} 
-// 筛选与操作联动
+} // 筛选与操作联动
 // 搜索按钮：重置为第1页再查询
 function localsearchCourse() {
-  coursePagination.pageNum = 1;
+  Pagination.pageNum = 1;
   loadAndRenderCourseListByPage();
 }
 
@@ -474,7 +426,7 @@ function resetCourseFilter() {
   document.getElementById('language-select').value = '';
   document.getElementById('course-status-select').value = '';
   document.getElementById('difficulty-level-select').value = '';
-  coursePagination.pageNum = 1;
+  Pagination.pageNum = 1;
   loadAndRenderCourseListByPage();
 }
 
@@ -490,8 +442,8 @@ async function deleteCourse(id) {
     
        // 删除后判断当前页是否还有数据，无数据则跳上一页
       const currentPageData = document.querySelectorAll('#course-table-body tr').length;
-      if (currentPageData === 1 && coursePagination.pageNum > 1) {
-        coursePagination.pageNum--;
+      if (currentPageData === 1 && Pagination.pageNum > 1) {
+        Pagination.pageNum--;
         }
       loadAndRenderCourseListByPage();
   } catch (error) {
