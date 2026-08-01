@@ -96,7 +96,7 @@ async function operateTemplate(templateId, action) {
   try {
       // 用 request 方法替换 axios
       const res = await request({
-          url: `${API_BASE_URL}/course/template/page/`,
+          url: `${API_BASE_URL}/course/template/page`,
           method: 'POST', 
           data: conditionJson// 筛选条件通过params传递
       }); 
@@ -432,7 +432,7 @@ async function fetchBooking( bookingId) {
 
 
 async function createOrUpdateBookingObj(bookingid,bookingCreateDTO ){
-  const url = bookingid !=""? `course/booking/update/${bookingid}` : `course/booking`;
+  const url = bookingid !=""? `course/booking/update/${bookingid}` : `course/booking/create`;
     try {
       const result = await request({
         url: `${API_BASE_URL}/${url}`,
@@ -490,7 +490,7 @@ return [];
 
 
 //获取指定用户的所有排期--可指定状态
-async function getBookingList( userRole, userid, status) { 
+/*async function getBookingList( userRole, userid, status) { 
  
   const params = {  
       id:null,
@@ -502,7 +502,7 @@ async function getBookingList( userRole, userid, status) {
   //console.log("getBookingList: params", params); 
   return  await getBookingInfoByCondition(params) ; 
 }
-    
+*/
 
 window.getBookingInfo = getBookingInfo;
 // INSERT_YOUR_CODE
@@ -542,7 +542,7 @@ async function getBookingList(userRoleOrParams, userId, status) {
         return [];
     }
 }
-
+// BookingQueryParaDTO
 async function  getBookingInfoByCondition(params) {
   const url = `course/booking/list` ; 
   //console.log("getBookingInfoByCondition- params：", params); 

@@ -4,15 +4,13 @@
    // 从token中获取用户的id和role api.js 
 // ===================== 核心函数 =====================
 userTimeZoneDisplay="none";
-/*const Pagination = {
+/*const Pagination = { defined in pagefoot.js
     pageNum: 1, // 当前页码
     pageSize: 10,  // 页大小
     total: 0,   // 总条数
     totalPages: 0 // // 总页数
   };*/
-  document.write('<script src="/js/public/pagefoot.js"></script>');
-  window.renderStudentBookingCards      = renderStudentBookingCards;  
-  window.loadAndRenderCourse_student      = loadAndRenderCourse_student;  
+  document.write('<script src="/js/public/pagefoot.js"></script>'); 
 
 /**
  * 渲染课程列表（核心：原生JS操作DOM）
@@ -72,7 +70,7 @@ async function renderStudentBookingCards() {
                 </div>`;
 
             html += getPagebar();
-            html += `  
+            html += `  <hr>
     <!-- 课程选择下拉 隐含教师ID-->
     <div class="form-line">
         <label>选择课程：</label>
@@ -318,11 +316,15 @@ async function renderStudentBookingCards() {
 function renderCourseSelect() {
   const sel = document.getElementById('courseSelect'); 
   sel.innerHTML = '<option value="">请选择课程</option>';
+  let index= (Pagination.pageNum-1)*Pagination.pageSize;
+
   courseList.forEach(item => {
+     index ++;
     if(item.status=='active'){
       const opt = document.createElement('option');
       opt.value = item.courseId;
-      opt.innerText = item.courseName;
+      opt.innerText = `${index}. ${item.courseName}`;
+ 
       sel.appendChild(opt);
     }
   });
@@ -490,7 +492,9 @@ function renderSchedule(scheduleObject) {
  }
 
      // 解决“找不到函数loadSchedule”问题：确保loadSchedule在window作用域下暴露
-   
+
+     window.renderStudentBookingCards      = renderStudentBookingCards;  
+     window.loadAndRenderCourse_student      = loadAndRenderCourse_student; 
    window.previewSchedule   = previewSchedule;  
    window.freshByRepeatType = freshByRepeatType;
    window.renderCalendar    = renderCalendar ;
