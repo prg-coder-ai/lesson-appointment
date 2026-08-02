@@ -148,6 +148,13 @@
                 renderUserTable(pageData.rows);
                 // 渲染分页栏,带入分页参数
                 renderPagination( Pagination);
+              }else {
+                Pagination.total =0 ;
+                Pagination.totalPages =0;                
+                // 渲染表格
+                renderUserTable([]);
+                // 渲染分页栏,带入分页参数
+                renderPagination( Pagination);
               }
             } catch (error) {
               console.error('加载列表失败：', error);
