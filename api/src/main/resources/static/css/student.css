@@ -300,6 +300,38 @@
 }
 
 
+/* 日历和时间选择样式 */
+.calendar-container {
+  margin: 15px 0;
+  }
+  
+  .calendar-header {
+  margin-bottom: 10px;
+  font-weight: 600;
+  }
+  
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  margin-top: 15px;
+}
+.calendar-day {
+  padding: 10px;
+  border: 1px solid #eee;
+  text-align: center;
+  border-radius: 4px;
+}
+.calendar-day.marked {
+  background: #d1e7ff;
+  font-weight: bold;
+}
+#weekDays {
+  display: flex;
+  gap: 8px;
+}
+
+
 .card-header {
   padding: 16px 20px;
   border-bottom: 1px solid #e9ecef;

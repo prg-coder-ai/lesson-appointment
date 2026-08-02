@@ -1,6 +1,6 @@
  //预约管理--预约结果详情--页面
   //展示本人的所有预约列表，提供预约详情---展示排期列表（使用“取消预约”操作）
-   // student-course-appointment.js
+   // student-course-appointment.js   StudentBookingBrowserCards.js
 // 区别于booking页面，booking页面负责查询课程、检查排期，以便预约1个课程，
 //本页面，浏览预约结果和具体时间列表
  //console .log("student appointment  page");
@@ -12,7 +12,7 @@
  */
 // 引入分页组件js
 document.write('<script src="/js/public/pagefoot.js"></script>');
-window.renderStudentBookingBrowserCards  = renderStudentBookingBrowserCards ;  
+
 //part
 // 方法一：让3个div上下排列（纵向堆叠），最简单直接的方式是让它们在一个普通父div下，不设置特殊布局即可（div默认display:block会自动上下排列）。
 // 例如：
@@ -152,9 +152,12 @@ async function loadAndRenderBooking_student(){
          renderBooking_student( pageData.rows); 
         // 渲染分页栏,带入分页参数
         renderPagination( Pagination);    
-     }     
+     }  else {
+        Pagination.total = 0;
+        Pagination.totalPages = 0;      
+        renderBooking_student( null);          
     } 
-  
+}
  async function renderBooking_student( bookingList){
    
      let bookingsHtml = "";
@@ -172,6 +175,7 @@ async function loadAndRenderBooking_student(){
                  const classObject = await getCourseById(scheduleObject.courseId);
 
                  const teacherName= await getUserNameById(classObject.teacherId);
+                 const studentName = await getUserNameById(booking.studentId);
                  if (classObject != null) {
                      let cardItems = { 
                          index: index,
@@ -180,6 +184,7 @@ async function loadAndRenderBooking_student(){
                          bookingId:     booking.id,
                          className:     classObject.courseName,
                          teacherName:   teacherName,
+                         studentName:   studentName,
                          scheduleInfo:  scheduleInfoStr,
                          status:        booking.status
                      }
@@ -198,7 +203,7 @@ async function loadAndRenderBooking_student(){
          bookingContainer.innerHTML = `<div class="bookings-list">${bookingsHtml}</div>`;
      }
  }
- 
+ /*
  async function  testGetList(courseId){
     const conditionJson = { 
         courseId:courseId,
@@ -210,7 +215,7 @@ async function loadAndRenderBooking_student(){
    const one = await getCourseById(courseId);
   console.log(one,rlist);
    }
- 
+ */
    /*cardInfo的数据形式：
      cardContent ={
     bookingId:"",
@@ -235,8 +240,8 @@ async function loadAndRenderBooking_student(){
          const info = `
              <div class="course-card">
                  <div class="course-info">
-                     <h4>${cardInfo.index} ${cardInfo.className}</h4>
-                     <p>授课教师：${cardInfo.teacherName} | 预约时间：${cardInfo.scheduleInfo} | 状态：${
+                     <h4>${cardInfo.index} ${cardInfo.className} </h4>
+                     <p>教师：${cardInfo.teacherName} | 学生：${cardInfo.studentName} | 预约时间：${cardInfo.scheduleInfo} | 状态：${
                         {
                             none: "无预约",
                             booking: "已预约,待确认",
