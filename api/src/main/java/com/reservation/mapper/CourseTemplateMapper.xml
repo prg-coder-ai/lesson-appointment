@@ -42,7 +42,7 @@
         TRUE 
         <choose>
           <when test="name != null and name != ''">
-            AND c.descrition  LIKE CONCAT('%', #{name}, '%')
+            AND c.description  LIKE CONCAT('%', #{name}, '%')
           </when>
         </choose>
         <choose>

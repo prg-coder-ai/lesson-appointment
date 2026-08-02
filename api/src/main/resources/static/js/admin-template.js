@@ -213,7 +213,7 @@ async function submitTemplateForm() {
         }
       }
      try{
-        console.log("submitTemplateForm",formData);
+       // console.log("submitTemplateForm",formData);
           let res = await  updateORCreateTemplate(formData);//返回id
           console.log("submitTemplateForm",res);
         // 4.  响应处理 响应成功/失败
@@ -223,9 +223,11 @@ async function submitTemplateForm() {
            await loadAndRenderTemplateCards(); // 刷新列表
         } else {
             alert( formData.templateId!=""  ? '模板编辑失败' : '模板新增失败');
+
         }
     } catch (err) {
-        alert('网络异常，操作失败000');
+        alert('操作失败: ' + (err && err.message ? err.message : err));
+   
         console .error(err);
     }
 }
