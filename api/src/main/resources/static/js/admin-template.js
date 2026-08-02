@@ -48,23 +48,8 @@ function validateForm() {
     });
     return isValid;
   }
-
-/**
- * 获取Token（修复localStorage解析逻辑）
- */
-/*
-function getToken() {
-    const currentUserStr = localStorage.getItem('currentUser');
-    if (!currentUserStr) {
-        alert('未登录，请重新登录');
-        window.location.href = '/login'; // 跳转到登录页
-        return '';
-    }
-    const currentUser = JSON.parse(currentUserStr);
-    return currentUser.token || '';
-}*/
-
-function openEditTemplateDialog(templateJsonStr )
+ 
+  function openEditTemplateDialog(templateJsonStr )
 { 
  // 1. 显示弹窗
  const modal = document.getElementById('templateModal');
@@ -227,7 +212,7 @@ async function submitTemplateForm() {
           }
         }
       }
-    //  try{
+     try{
         console.log("submitTemplateForm",formData);
           let res = await  updateORCreateTemplate(formData);//返回id
           console.log("submitTemplateForm",res);
@@ -239,10 +224,10 @@ async function submitTemplateForm() {
         } else {
             alert( formData.templateId!=""  ? '模板编辑失败' : '模板新增失败');
         }
-  //  } catch (err) {
-  //      alert('网络异常，操作失败000');
-  //      console .error(err);
-  //  }
+    } catch (err) {
+        alert('网络异常，操作失败000');
+        console .error(err);
+    }
 }
 /**
  * 渲染模板列表（核心：原生JS操作DOM）
@@ -342,7 +327,14 @@ async function loadAndRenderTemplateCards() {
    
     showTemplatesList( templateList,"templatesDisplay-body"); //defined in appointmentNotes.js
     renderPagination( Pagination);   
-   } 
+   } else {
+    
+    Pagination.total = 0 ;
+    Pagination.totalPages = 0;
+   
+    showTemplatesList( [],"templatesDisplay-body"); //defined in appointmentNotes.js
+    renderPagination( Pagination);  
+   }
 
   }
 

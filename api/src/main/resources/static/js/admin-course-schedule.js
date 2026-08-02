@@ -18,10 +18,7 @@ var localParamter ={
   currentId: '', // 当前操作的课程ID
   formEl :'', 
 };
-// ===================== 核心函数 =====================
- // 获取用户时区（关键）
-//const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-//console.log("tz",userTimeZone);
+// ===================== 核心函数 ===================== 
 /**
  * 渲染课程列表（核心：原生JS操作DOM）
  */
@@ -30,7 +27,7 @@ async function renderScheduleCards() {
    // console.log("renderScheduleCards:",dynamicContentCenter);
     if (!dynamicContentCenter) return; 
     // 显示加载中
-    dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';  
+   // dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';  
     // 渲染HTML
     let html = ''; 
       html += `     
@@ -263,7 +260,7 @@ async function renderScheduleCards() {
       
     // INSERT_YOUR_CODE
     // 关联 testTimeZone 下拉菜单与 handleTestTimeZoneChange 处理
-    handleTestTimeZoneChange(); 
+     handleTestTimeZoneChange(); 
      searchCourse();  //display 
     //添加学生列表 ---
     addStudentList(); 
@@ -318,8 +315,7 @@ async function renderScheduleCards() {
         * assignStudentToTheSchedule: 指定学生studentId预约排期scdid，并生成对应的appointment数据，保障原子性。
         * 由于JS前端不具备数据库事务能力，此处通过调用后端API完成实际的事务创建。
         * 若失败则友好提示。
-        */
-    
+        */    
  
 // 处理下拉菜单"testTimeZone"的变更，读取表单的timeZone、startDate、startTime及新选择的时区，调用后端获取转换后的时间和日期
 
@@ -355,7 +351,7 @@ function handleTestTimeZoneChange() {
         });
     }
 }
- // INSERT_YOUR_CODE
+  
  // 监听 startDate 和 startTime 的变更，调用 getTestDatetime --not actived 
     const bindGetTestDatetimeToInputs = () => {
         /*const startDateInput = document.getElementById('startDate'); 

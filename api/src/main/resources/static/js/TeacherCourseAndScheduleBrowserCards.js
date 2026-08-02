@@ -221,23 +221,27 @@ async function loadAndRenderCoursePage_teacher(){
       // 更新分页状态
       Pagination.total = pageData.total;
       Pagination.totalPages = pageData.totalPages;
-    courseList =  result.rows;// await getCourseList (conditionJson); 
-    renderCourseList();
+      courseList =  result.rows;// await getCourseList (conditionJson); 
+         renderCourseList();
     // 渲染分页栏
-    renderPagination( Pagination);        
+        renderPagination( Pagination);        
+    } else {
+        Pagination.total = 0;
+        Pagination.totalPages = 0;
+        renderCourseList();
+        renderPagination( Pagination);        
     }
-   }
-    catch (error) {
-        console.error('加载课程列表失败：', error);
-      }
+  }
+  catch (error) {
+    console.error('加载课程列表失败：', error);
+  }
 }
 
-//刷新课程列表
 async function renderCourseList(){ 
-    const scheduleListBody = document.getElementById( "scheduleListForm");
-    if(scheduleListBody){
-      scheduleListBody.style.display = "none"; 
-    }
+  const scheduleListBody = document.getElementById( "scheduleListForm");
+  if(scheduleListBody){
+    scheduleListBody.style.display = "none"; 
+  }
   const body = document.getElementById('courseResultBody');
   body.innerHTML = ''; 
 

@@ -349,6 +349,11 @@ async function loadAndRenderCourseListByPage() {
       renderCourseTable(pageData.rows);
       // 渲染分页栏
       renderPagination( Pagination);
+    }else{
+      Pagination.total = 0;
+      Pagination.totalPages = 0;
+      renderCourseTable([]);
+      renderPagination( Pagination);
     }
   } catch (error) {
     console.error('加载课程列表失败：', error);
