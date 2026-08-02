@@ -101,7 +101,7 @@
     window.onload = function() {
 
       window.renderTeacherCourseAndScheduleBrowserCards =renderTeacherCourseAndScheduleBrowserCards;
-
+      window.renderStudentBookingBrowserCards  = renderStudentBookingBrowserCards ;  
       userInfo = autoLoginCheck(); 
       const nameid=document.getElementById("user-name");
        if(nameid)
@@ -152,7 +152,7 @@
         case '我的课程':
           // 操作按钮事件 --checkout----set online =false TBD 
            // 兼容性 fallback: 尝试直接渲染（首次页面加载时）
-          renderTeacherCourseAndScheduleBrowserCards(); //teacher-course-schedule.js
+          renderTeacherCourseAndScheduleBrowserCards(); //TeacherCourseAndScheduleBrowserCards.js
   
           break;
           case '课程通知': //列出7日课程内， 显示课程名称、教师、学生、时间、课程状态，操作：发送通知1、2、3           
@@ -163,7 +163,7 @@
         case '预订管理': //booking
           //  renderTeacherBookingandAppointmentBrowserCards();  
          // 
-          renderStudentBookingBrowserCards(); //js/student-course-appointment.js">
+          renderStudentBookingBrowserCards(); //StudentBookingBrowserCards.js
           break;
         case '学生评价':
           dynamicContent.innerHTML = `
@@ -247,9 +247,10 @@
    <script src="js/public/dataFunctions.js"></script> 
    <script src="js/public/courseAndBooking.js"></script>  
    <script src="js/public/appointmentNotes.js"></script>  
-   <script src="js/teacher-course-schedule.js"></script>
-   <script src ="js/student-course-booking.js"></script>
-   <script src="js/student-course-appointment.js"></script> //预定信息
+
+   <script src="js/TeacherCourseAndScheduleBrowserCards.js"></script> //课程列表及排期查看
+   <script src="js/StudentBookingCards.js"></script> //预订课程
+   <script src="js/StudentBookingBrowserCards.js"></script> //预订列表及具体日程查看
    <!-- script src="js/teacher-course-booking-appointment.js"></script -->// 预订及日期
    <script src="js/admin-AppointmentNotes.js"></script>
    <script> 

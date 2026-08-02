@@ -146,7 +146,7 @@
     <form class="modal-content"  id="login-form">
 
       <div class="form-item">
-        <label for="username">账号(电子邮箱或电话号码)</label>
+        <label for="username">账号</label>
         <input type="text" id="username" placeholder="请输入账号" required>
         <div class="error-tip" id="username-error">请输入账号</div>
       </div>
@@ -225,11 +225,7 @@
 
   <!-- JavaScript核心逻辑 -->
   <script>
-    //const API_SERVER_HOST = 'http://localhost';
-    //const API_SERVER_PORT = '8081';
-    //const API_BASE_PATH = 'v1';
-    //'/api/v1';
-
+    
     // API完整前缀
    // const API_BASE_URL = `${API_SERVER_HOST}:${API_SERVER_PORT}/${API_BASE_PATH}`;
     // DOM元素获取（登录相关）
@@ -267,9 +263,7 @@
     const registerRoleError = document.getElementById('register-role-error');
     const registerUsernameError = document.getElementById('register-username-error');
     const registerNameError = document.getElementById('register-name-error');
-    // const registerEmailError = document.getElementById('register-email-error');
-    // const registerPhoneError = document.getElementById('register-phone-error');
-    const registerPasswordError = document.getElementById('register-password-error');
+     const registerPasswordError = document.getElementById('register-password-error');
     const registerConfirmError = document.getElementById('register-confirm-error');
     const registerSuccess = document.getElementById('register-success');
     const registerError = document.getElementById('register-error');
@@ -398,16 +392,14 @@
        if (!resp) {
          // 网络异常一律视为未占用，但需给出alert以便排查问题
           alert("网络异常，无法校验账号是否存在,稍等再试"); //可根据需要屏蔽
-         //return false;
+         return false;
        }
-     //  const data = await resp.json();
-       // 期望后端返回 { code: ..., data: true/false }
-     //  return !!(data && data.data === true);
-     } catch (e) {
+      } catch (e) {
        // 网络或js异常视为未占用
         alert("连接后端失败，无法判断账号是否已存在,稍等再试");
-      // return false;
+      return false;
      }
+     return true
    }
     // 新增：提交注册申请
     function submitRegister() {
