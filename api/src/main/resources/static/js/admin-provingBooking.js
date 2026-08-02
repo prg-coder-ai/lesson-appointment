@@ -101,7 +101,15 @@ async function getBookingListByPage(){
       showBookingList( pageData.rows); 
       // 渲染分页栏,带入分页参数
       renderPagination( Pagination);    
-   }     
+   } else{
+
+    Pagination.total = 0 ;
+    Pagination.totalPages = 0;
+      
+   showBookingList( []); 
+   // 渲染分页栏,带入分页参数
+   renderPagination( Pagination);    
+   }    
   } 
 
  //显示待确认预约
@@ -219,8 +227,6 @@ async function getBookingListByPage(){
                              <button class="btn btn-warning" onclick="validOrCancelReservation('${cardInfo.bookingId}','booking')">取消</button>
                            </td>`
                         : ''
-
-
                      }
             </tr>
    `;
@@ -236,8 +242,7 @@ async function approveReservation(bookingId,status) {
 async function rejectReservation(bookingId) {
   
    await operateBookingStatus(bookingId, 'rejected');
-   //console .log("rejectReservation:", bookingId);
- 
+   //console .log("rejectReservation:", bookingId); 
 }  
 
 
@@ -256,7 +261,7 @@ async function validOrCancelReservation(bookingid,status) {
       //   //console .log("list:",appointmentResults);
          let appointmentDateTimeList = [];
          if (Array.isArray(appointmentResults)) {
-         appointmentResults.forEach(item => {
+            appointmentResults.forEach(item => {
              // 假设item中有appointment_datetime字段，如果不是可根据实际字段名调整
              // 这里假设item就是约定的预约时间对象或类似格式
              // 如果item有date和time字段，合成为一个appointment_datetime字段（如 "2024-06-10 09:00"）
@@ -271,13 +276,11 @@ async function validOrCancelReservation(bookingid,status) {
          // 可能形成空值的原因：（1）appointmentDateTimeList为空，（2）dt本身无值，（3）bookingid/bookingObj/scheduleInfo没准备好。
          // 建议加打印/检查赋值。
          appointmentDateTimeList.forEach(async (dt, idx) => { 
-         // 字段名应为 appointmentDatetime 而不是 appointmemntDatetime（避免拼写错误）
-         let AppointmentData = {
-             bookingId: bookingid,
-             appointmentDatetime: dt,  // 拼写修正
-             lastDatetime: dt,
-             classIndex: idx+1           // 用forEach的下标，避免indexOf找不到
-            
+             let AppointmentData = {
+              bookingId: bookingid,
+              appointmentDatetime: dt,  // 拼写修正
+              lastDatetime: dt,
+              classIndex: idx+1           // 用forEach的下标，避免indexOf找不到            
          };
 
          // 清理掉undefined属性（只保留有效字段）
@@ -298,16 +301,16 @@ await validBooking(bookingid);
 
 } else if(status == "cancelled"  ){ 
  //确认取消预约--把book状态设置为booking 
-  //await updateAppointmentsStatusByBookingId(bookingid, "cancelled");
+   
   await validCancelBooking(bookingid);
 }  else if(status == "booking"  ){ // 
-//删除所有相关预约列表，并把book状态设置为booking
- await deleteAppointmentsByBookingId(bookingid);
- await operateBookingStatus( bookingid, "booking") ;   
+      //删除所有相关预约列表，并把book状态设置为booking
+      await deleteAppointmentsByBookingId(bookingid);
+      await operateBookingStatus( bookingid, "booking") ;   
 } else if(status == "cancelling"  ){ 
 //把相关预约列表的状态设置为cancelling--未确定状态 
 //更新预约表的bookingid对应的所有项的状态为cancelling 
-await cancelBooking(bookingid); 
+      await cancelBooking(bookingid); 
 }
 
 async function sleep(ms) {
@@ -351,10 +354,7 @@ async function validCancelBooking(bookingid){
       // 重置筛选条件
       function resetFilterBooking() {
 
-          document.getElementById('course-name-input').value = '';
-          // TBD document.getElementById('teacher-info-input').value = '';
-          //TBD document.getElementById('student-info-input').value = '';
-
+          document.getElementById('course-name-input').value = ''; 
           document.getElementById('booking-status-select').value = '';
           Pagination.pageNum = 1;
           getBookingListByPage();

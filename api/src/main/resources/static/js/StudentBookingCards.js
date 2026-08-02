@@ -280,8 +280,7 @@ async function renderStudentBookingCards() {
  // 1. 检索课程（原生 fetch）,只检索status:"active" 已发布课程
  // 从course中的teacherid-》姓名
  // TBD 
- async function loadAndRenderCourse_student() {
-    
+ async function loadAndRenderCourse_student() {   
     
   // 拼接请求参数
   const params = new URLSearchParams({
@@ -303,6 +302,10 @@ async function renderStudentBookingCards() {
     Pagination.total = pageData.total;
     Pagination.totalPages = pageData.totalPages;
     courseList =  pageData.rows;
+   } else {
+    Pagination.total = 0;
+    Pagination.totalPages = 0;
+    courseList = [ ];     
    }
   } catch (e) {
       // 模拟数据

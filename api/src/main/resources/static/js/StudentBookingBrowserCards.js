@@ -141,7 +141,7 @@ async function loadAndRenderBooking_student(){
       params.userId   = null;
       params.userRole = null ;
     }
-    console.error("page:",params);
+    //console.error("page:",params);
      let result = await getBookingListPage( params);
     
      //  console.log("ret:",result);
@@ -155,7 +155,8 @@ async function loadAndRenderBooking_student(){
      }  else {
         Pagination.total = 0;
         Pagination.totalPages = 0;      
-        renderBooking_student( null);          
+        renderBooking_student( null); 
+        renderPagination( Pagination);          
     } 
 }
  async function renderBooking_student( bookingList){
@@ -257,13 +258,13 @@ async function loadAndRenderBooking_student(){
                  </div>
                  <div class="course-actions">
                      ${
-                        cardInfo.status === 'booking'
+                        userRole === 'student' && cardInfo.status === 'booking'
                           ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','none')">撤销</button>`
-                          : cardInfo.status === 'booked'
+                          : userRole === 'student' && cardInfo.status === 'booked'
                           ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','cancelling')">申请取消</button>`
-                          : (cardInfo.status === 'canceling' || cardInfo.status === 'cancelling')
+                          : userRole === 'student' && (cardInfo.status === 'canceling' || cardInfo.status === 'cancelling')
                           ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','booked')">撤销</button>`
-                          : (cardInfo.status === 'canceled' ||  cardInfo.status === 'cancelled' )
+                          : userRole === 'student' && (cardInfo.status === 'canceled' ||  cardInfo.status === 'cancelled' )
                           ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','booking')">重新申请</button>`
                           : ''
                      }

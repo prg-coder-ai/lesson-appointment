@@ -108,6 +108,11 @@ let appointmentList=[];// ID,ciurseName,studentName,teacherName,dateTime(创建�
       params.userId =null;
       params.userRole = null ;
     }
+
+    Pagination.total = 0;
+    Pagination.totalPages = 0;
+    appointmentList = [ ];
+ 
      const pageResult = await fetchAppointmentListPage(params);
      if(pageResult){
       appointmentList = pageResult.rows;
@@ -115,10 +120,10 @@ let appointmentList=[];// ID,ciurseName,studentName,teacherName,dateTime(创建�
       const pageData = pageResult;
       Pagination.total = pageData.total ;
       Pagination.totalPages = pageData.totalPages;
-     
-      showAppointmentList( appointmentList,renderTo); //defined in appointmentNotes.js
-      renderPagination( Pagination);   
-     }
+     } 
+       showAppointmentList( appointmentList,renderTo); //defined in appointmentNotes.js
+       renderPagination( Pagination);        
+      
   }
 
   function localsearchAppoint() {

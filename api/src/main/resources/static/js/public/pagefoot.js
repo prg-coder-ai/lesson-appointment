@@ -1,5 +1,5 @@
-
-var fLoadAndRender= null;
+//分页显示的页码显示---
+var fLoadAndRender= null; //指定重新更新数据的函数，用于切换分页显示时调用
  function assignLoadobjectListFunction ( fun ){
     fLoadAndRender = fun;
  //   console.log("assigned function",fun);
@@ -26,7 +26,7 @@ if (typeof Pagination === 'undefined') {
                   <option value="20">20</option>
                   <option value="50">50</option>
                 </select> 条
-                第<span id="page-number">1</span>页 
+               <!-- 第<span id="page-number">1</span>页 --> 
               </div>
               <div class="pagination-btns" id="xxx-pagination-btns"></div>
           </div>
@@ -42,10 +42,10 @@ function renderPagination( Pagination ) {
       return;
     }
 
-    const pageNumberElem = document.getElementById("page-number");
+  /*  const pageNumberElem = document.getElementById("page-number");
     if (pageNumberElem) {
       pageNumberElem.innerHTML = Pagination.pageNum;
-    }
+    }*/
    
     const pageSizeElem = document.getElementById('xxx-page-size');
     // INSERT_YOUR_CODE
