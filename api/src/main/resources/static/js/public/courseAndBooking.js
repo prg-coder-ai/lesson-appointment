@@ -36,18 +36,18 @@ async function operateTemplate(templateId, action) {
   async function updateORCreateTemplate(formData){
     const url = formData.templateId !=""? `${baseUrl}/course/template/update` 
                : `${baseUrl}/course/template/insert`;
-    try {
+   // try {
         const res = await request ( {
                    url:url,
                    method: 'POST' ,
                    data:formData                  
                     });
           return res;
-        } catch (err) {
-            alert('网络异常，操作失败');
-             console .error(err);
-             return null;
-        }
+       // } //catch (err) {
+          //  alert('网络异常，操作失败');
+           //  console .error(err);
+           //  return null;
+//}
     }
         
  
