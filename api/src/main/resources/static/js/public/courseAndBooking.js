@@ -193,12 +193,27 @@ async function getCourseById( courseId) {
  
 async function getCourseList(conditionJson) {  
     //console .log("getCourseList",conditionJson);
+    const params = new URLSearchParams({
+       
+     /* courseName: null,
+      languageType: null,
+      difficultyLevel: null,
+      teacherId:null,
+      status:null,
+      difficultyLevel:null,
+      startTime:null,
+      endTime:null*/
+    });
+     if (conditionJson && typeof conditionJson === 'object') {
+        Object.keys(conditionJson).forEach(key => {
+            params.set(key, conditionJson[key]);
+        });
+    }
     try {
-        // axios GET请求不能使用 body/params 的用法如下, 正确是用 params 字段传递 URL 查询参数
+        // axios GET请求不能使用 body/params 的用法如下, 正确是用 params 字段传递 URL 查询参数,contoller 用dto结构 ok
         const res = await request({
-            url: `${API_BASE_URL}/course/list`,
-            method: 'GET',
-            params: conditionJson, // 正确传递查询参数，自动加到URL上 
+            url: `${API_BASE_URL}/course/list?${params.toString()}`,
+            method: 'GET'  
         }); 
         // 若是标准result结构  
             let courseList = res || [];

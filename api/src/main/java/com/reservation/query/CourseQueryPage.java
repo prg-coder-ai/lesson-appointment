@@ -12,6 +12,7 @@ public class CourseQueryPage extends PageQuery {
     private String difficultyLevel;//语言难度 （精准筛选）
     private String status;       // 状态（启用/禁用）
     private String teacherId;       // 授课教师ID
+   
 }
 /**
  * 

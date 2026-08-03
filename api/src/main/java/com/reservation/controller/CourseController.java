@@ -77,6 +77,21 @@ public class CourseController {
       return Result.success(status, "课程模板状态修改成功");
   }
 
+        @DeleteMapping("/template/{id}")
+   public Result<Boolean> deleteTemplate(@PathVariable String id, @RequestHeader("Authorization") String token) {    
+   // 删除指定id的模板
+   // 权限校验：仅管理员可操作
+   permissionCheck.checkAdmin(token);
+
+    int rowsDeleted = courseService.deleteTemplate(id);
+   if (rowsDeleted>0) {
+       return Result.success(true, "模板删除成功");
+   } else {
+       return Result.success(false, "模板删除失败");
+   }
+   }
+   
+
     /**
      * 查询课程模板列表，对应设计2.2.2 接口：/api/v1/course/template/list（教师、管理员权限）
      */
@@ -111,7 +126,7 @@ public class CourseController {
     public Result<Map<String, String>> addCourse(@Validated @RequestBody Course course,
                                                    @RequestHeader("Authorization") String token) {
         // 权限校验：教师、管理员均可操作
-     //   permissionCheck.checkTeacherOrAdmin(token);
+        permissionCheck.checkTeacherOrAdmin(token);
         // 校验教师ID与Token中的用户ID一致（对应设计2.3 安全设计-权限控制）
         String teacherId = permissionCheck.getUserIdFromToken(token);
         //如果当前操作者是admin，则直接使用代入的老师，否则使用当前登录者
@@ -131,7 +146,7 @@ public class CourseController {
      * 权限: 仅教师可操作，且只能操作自己的课程
      */
     @PostMapping("/updateStatus")
-    public Result<Void> updateCourseStatus(
+    public Result<Boolean> updateCourseStatus(
            @Validated @RequestBody UpdateCourseStatusRequest req,
             @RequestHeader("Authorization") String token) {
         permissionCheck.checkTeacherOrAdmin(token);
@@ -145,11 +160,11 @@ public class CourseController {
 
         // 执行对应操作
         courseService.updateCourseStatus(courseId, req.getStatus()); 
-        return Result.success(null, "课程状态修改成功");
+        return Result.success(true, "课程状态修改成功");
     }
 
     @PostMapping("/update")
-    public Result<Void> updateCourse(
+    public Result<Boolean > updateCourse(
            @Validated @RequestBody Course req,
             @RequestHeader("Authorization") String token) {
         // 权限校验： 
@@ -161,8 +176,24 @@ public class CourseController {
 
         // 执行对应操作
         courseService.update(req); 
-        return Result.success(null, "课程修改成功");
+        return Result.success(true, "课程修改成功");
     }
+
+
+   // 对应的Controller接口定义应为：
+   @DeleteMapping("/{id}")
+   public Result<Boolean> deleteCourse(@PathVariable String id, @RequestHeader("Authorization") String token) {
+       // 校验权限：只能教师或管理员有权限删除.教师只删除自己的课程
+        permissionCheck.checkTeacherOrAdmin(token);
+ 
+        // 实际删除操作
+       int result = courseService.deleteCourseById(id);
+       if (result>0) {
+           return Result.success(true, "课程删除成功");
+       } else {
+           return Result.success(false,"课程删除失败");
+       }
+   }
 
     /**
      * 查询课程列表，对应设计2.2.2 接口：/api/v1/course/list（教师、管理员权限）
@@ -175,12 +206,12 @@ public class CourseController {
      */
     @GetMapping("/list")
     @ResponseBody
-        // 权限校验：教师或管理员、学生均可操作
-   public Result<List<Course>> getCourseList(@Validated @RequestBody(required = false) CourseQueryParam params,
+        // 权限校验：教师或管理员、学生均可操作  //@Validated @RequestBody(required = false) 
+   public Result<List<Course>> getCourseList(CourseQueryParam params,
                                                           @RequestHeader("Authorization") String token) {
-        //permissionCheck.checkTeacherOrAdmin(token);
+        permissionCheck.checkTeacherOrAdmin(token);
         // 调用服务层查询课程列表
-       //  System.out.println("getCourseList controller: " + params);
+         System.out.println("getCourseList controller: " + params);
         List<Course> courseList = courseService.getCourseList(params);
         //Map<String, List<Course>> resultMap = Map.of("courses", courseList);
         return Result.success(courseList, "查询成功");
@@ -201,7 +232,7 @@ public class CourseController {
         //   System.out.println("getCourseListByPage input:" + query);                                                   
         //permissionCheck.checkTeacherOrAdmin(token);
         // 调用服务层查询课程列表
-       //  System.out.println("getCourseList controller: " + params);
+       //  System.out.println("getCourseList controller: " + query);
         PageResult<Course> courseList = courseService.getCoursePage( query);
         //Map<String, List<Course>> resultMap = Map.of("courses", courseList);
        // System.out.println("getCourseListByPage output:" + courseList);

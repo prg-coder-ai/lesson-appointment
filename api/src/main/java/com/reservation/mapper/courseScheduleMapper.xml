@@ -137,4 +137,9 @@
         SELECT * FROM schedule_exception WHERE schedule_id = #{scheduleId}
     </select> 
 
+<!-- INSERT_YOUR_CODE -->
+<delete id="deleteById" parameterType="string">
+    DELETE FROM course_schedule WHERE schedule_id = #{id}
+</delete>
+
 </mapper>

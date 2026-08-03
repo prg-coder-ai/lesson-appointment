@@ -409,11 +409,56 @@ async function loadAndRenderTemplateCards() {
  * 删除模板
  */
    function deleteTemplate(templateId) {    
-        if (!window.confirm('确定要删除该课程模板吗？删除后基于该模板的课程基础参数将不受统一管控！')) {
-            return;
+    // INSERT_YOUR_CODE
+    // 1. 判断是否存在基于该模板的课程（即该模板是否被课程表引用）
+    async function checkTemplateHasCourses(templateId) {
+      try {
+        // 假设有接口: /course/list 查询课程列表，参数支持 templateId
+        // 检查参数传递，getCourseList 可以接收 { templateId: ... }
+        // 但要确保参数名和后端（如 CourseQueryParam DTO）一致
+        const res = await getCourseList({ templateId });
+        console.error("check:",res);
+        if (res && Array.isArray(res) && res.length > 0) {
+          console.error("check:",true);
+          return true;
         }
-   
-         operateTemplateStatus(templateId,"frozen");          
+        console.error("check:",false);
+        return true;
+      } catch (error) {
+        console.error('检查模板是否有关联课程时出错', error);
+        // 出错视为有，阻止误删
+        return true;
+      }
+    }
+ //   if (!window.confirm('确定要删除该课程模板吗？删除后基于该模板的课程基础参数将不受统一管控！')) {
+   //         return;
+    //    }
+        // INSERT_YOUR_CODE
+        (async () => {
+            // 执行前检查模板是否关联课程，如有关联则不允许删除
+            const hasCourses = await checkTemplateHasCourses(templateId);
+            if (hasCourses) {
+                alert('该模板有关联课程，无法删除！请先删除或修改基于该模板的课程。');
+                return;
+            }
+            try {
+                const res = await request({
+                    url: `${API_BASE_URL}/course/template/${templateId}`,
+                    method: 'DELETE'
+                });
+                if (res >0) {
+                    alert('模板删除成功');
+                    await loadAndRenderTemplateCards();
+                } else {
+                    alert('模板删除失败: ' + (res && res.msg ? res.msg : '未知错误'));
+                }
+            } catch (err) {
+                alert('网络异常，模板删除失败');
+                console.error(err);
+            }
+        })();
+     //   deleteTemplate
+        // operateTemplateStatus(templateId,"frozen");          
 }
     
 

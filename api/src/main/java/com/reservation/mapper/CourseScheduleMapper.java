@@ -15,6 +15,7 @@ public interface CourseScheduleMapper {
     
     // 根据ID查询
     CourseSchedule selectById(String id);
+    
 
     List<CourseSchedule> selectList(ScheduleCreateDTO  filterJson);
 
@@ -31,5 +32,7 @@ public interface CourseScheduleMapper {
     List<CourseSchedule> selectScheduleByTime(String courseId, Date startTime, Date endTime);
 
  
-    
+// INSERT_YOUR_CODE
+    // 删除指定id的排期 deleteById
+    void deleteById(@Param("id") String id);
 }

@@ -58,7 +58,8 @@
       SELECT c.*
       FROM course c
       LEFT JOIN course_template t ON c.template_id = t.template_id
-      <where>
+      <where> 
+
         <if test="courseName != null and courseName != ''">
           c.course_name LIKE CONCAT('%', #{courseName}, '%')
         </if>
@@ -71,6 +72,11 @@
         <if test="teacherId != null and teacherId != ''">
           c.teacher_id = #{teacherId}
         </if>
+
+        <if test="templateId != null and templateId != ''">
+          c.template_id = #{templateId}
+        </if>
+
         <if test="status != null and status != ''">
           c.status = #{status}
         </if>
