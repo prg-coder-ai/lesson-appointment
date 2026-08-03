@@ -77,4 +77,12 @@ public interface CourseTemplateMapper {
     // 方法声明：根据分页参数查询课程模板列表
     List<CourseTemplate> selectListByPage(TemplateQueryPage query);
     int selectListCountByPage(TemplateQueryPage query);
+ 
+    /**
+     * 删除指定id的课程模板
+     * @param templateId 模板ID
+     * @return 影响行数
+     */
+    @org.apache.ibatis.annotations.Delete("DELETE FROM course_template WHERE template_id = #{templateId}")
+    int deleteTemplate(@Param("templateId") String templateId);
 }

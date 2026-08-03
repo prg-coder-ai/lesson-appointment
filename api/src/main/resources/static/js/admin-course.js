@@ -336,7 +336,7 @@ async function loadAndRenderCourseListByPage() {
   teacherList  = await  fetchUserList(conditionJsonForTeacher);
 
   try {
-    const result = await request({url:`/course/page?${params.toString()}` });
+    const result = await request({url:`/course/page?${params.toString()}` });//GET
     //const result = await res.json();
     
     if (result ) {
@@ -428,10 +428,26 @@ function resetCourseFilter() {
 
 // 删除课程（操作后刷新当前页）
 async function deleteCourse(id) {
-  if (!confirm('确定要删除该课程吗？')) return;
   
+  try {
+    const scdList = fetchScheduleList(id,null);
+  // INSERT_YOUR_CODE
+  // 判断scdList是否为空数组
+  if (scdList && Array.isArray(await scdList) && (await scdList).length > 0) {
+    alert('该课程存在排期，不能删除！');
+    return;
+  }
+  }
+   catch(error){
+    console.error('查询排期失败：',id, error);
+   }
+   if (!confirm('确定要删除该课程吗？')) return;
   try { 
    // await  changeCourseStatus(courseId,"frozen"); 
+
+   // 对应的Controller接口定义应为：
+   // @DeleteMapping("/api/course/{id}")
+   // public ResponseEntity<?> deleteCourse(@PathVariable String id) { ... }
 
    const res = await request({url:`/api/course/${id}`,  method: 'DELETE' });
    const result = await res.json();
@@ -449,7 +465,11 @@ async function deleteCourse(id) {
 
 
 function changeCourseStatus(courseId, status) { 
+  try {
   operateCourse(courseId, status);
+  }catch (error) {
+    console.error('修改失败：', error);
+  }
   loadAndRenderCourseListByPage();  
 } 
 

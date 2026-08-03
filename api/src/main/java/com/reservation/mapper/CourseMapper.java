@@ -158,6 +158,15 @@ public interface CourseMapper extends BaseMapper<Course> {
     @Select("SELECT * from course WHERE course_id = #{courseId}")
     Course getCourseById(@Param("courseId") String courseId);
 
+    // INSERT_YOUR_CODE
+    /**
+     * 删除指定course_id的课程
+     * @param courseId 课程ID
+     * @return 影响行数
+     */
+    @org.apache.ibatis.annotations.Delete("DELETE FROM course WHERE course_id = #{courseId}")
+    int deleteCourseById(@Param("courseId") String courseId);
+
     /**
      * 根据课程ID查询关联的教师ID（用于排期归属校验）
      * @param courseId 课程ID

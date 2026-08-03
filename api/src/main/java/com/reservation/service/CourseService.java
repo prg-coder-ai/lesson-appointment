@@ -128,6 +128,10 @@ public class CourseService   {
          PageResult<CourseTemplate> result = PageResult.of(page);
           return result;
     }
+//          deleteTemplateById
+public int deleteTemplate(String Id) { 
+       return courseTemplateMapper.deleteTemplate(Id);
+    }
 
     /**
      * 教师创建课程，对应设计2.2.2 教师课程创建接口，仅教师可操作
@@ -187,20 +191,7 @@ public class CourseService   {
        // course.setStatus("active"); // 假设"active"为已发布状态
         courseMapper.updateCourseStatus(courseId, "active");
     }
-
-    /**
-     * 删除课程
-     */
-    public void deleteCourse(String courseId) {
-       /* Course course = courseMapper.selectCourseById(courseId);
-        if (course == null) {
-            throw new ResourceNotFoundException("课程不存在，无法删除");
-        }
-      */
-        courseMapper.updateCourseStatus(courseId, "forzen");
-    }
-
-    /**
+      /**
      * 回收课程，将课程状态设为回收/停用
      */
     public void recycleCourse(String courseId) {
@@ -212,6 +203,19 @@ public class CourseService   {
         courseMapper.updateCourseStatus(courseId, "inactive");
     }
 
+
+    /**
+     * 删除课程
+     */
+  /*  public void deleteCourse(String courseId) {
+         courseMapper.updateCourseStatus(courseId, "forzen");
+    }
+*/
+
+public int deleteCourseById(String courseId) { 
+        return courseMapper.deleteCourseById(courseId);
+    }
+  
     /**
      * 检查课程归属权，若courseId不存在或非teacherId归属，抛出业务异常
      */
