@@ -30,9 +30,7 @@ public interface CourseScheduleMapper {
 
     void insertSchedule(CourseSchedule schedule);
     List<CourseSchedule> selectScheduleByTime(String courseId, Date startTime, Date endTime);
-
  
-// INSERT_YOUR_CODE
-    // 删除指定id的排期 deleteById
+     // 删除指定id的排期 deleteById
     void deleteById(@Param("id") String id);
 }
