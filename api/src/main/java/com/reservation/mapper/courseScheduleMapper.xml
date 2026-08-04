@@ -142,4 +142,9 @@
     DELETE FROM course_schedule WHERE schedule_id = #{id}
 </delete>
 
+<delete id="deleteByCourseId" parameterType="string">
+    DELETE FROM course_schedule WHERE course_id = #{courseId}
+</delete>
+
+ 
 </mapper>

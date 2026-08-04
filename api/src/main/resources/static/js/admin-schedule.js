@@ -1,4 +1,4 @@
- //排期管理--页面
+ //排期管理--页面 admin-schedule.js
  console.log("admin schedule page");
 //let courseList = [];       // 课程列表
 //let scheduleObject=null;       // 排期
@@ -976,12 +976,86 @@ async function assignStudentToSchedule( ) {
 
     if(! checkCourseAndSchedule(true,true))
         return ;
+    
     const formData = getFormData();
     const scheduleId = formData.scheduleId;
-    await operateSchedule(scheduleId,"frozen"); 
+
+    //检查是否存在相关的booking
+   if(hasBookingForScheduleId(scheduleId)){
+    // INSERT_YOUR_CODE
+        const userChoice = confirm('该排期存在预订，是否继续删除？继续将删除该项目下的全部预订。点击“确定”继续，点击“取消”放弃删除。');
+        if (!userChoice) {
+            return;
+        }
+        //删除该排期的全部预定
+            await deleteBookingsByScheduleId(scheduleId);            
+        }
+
+   // await operateSchedule(scheduleId,"frozen"); 
       //alert("删除成功");
+      await deleteScheduleById( scheduleId);
   }
 
+ async function deleteScheduleById(id){
+// INSERT_YOUR_CODE
+    if (!id) {
+        console.warn('排期ID不能为空');
+        return false;
+    }
+    try {
+        // 调用后端接口删除指定id的排期
+        // 假设后端API为: /schedule/delete/{id}，使用DELETE请求
+        const result = await request({url: `/schedule/delete/${id}`, method: 'DELETE'});
+        console.log("deleteScheduleById",result);
+        return result;
+    } catch (error) {
+        console.error('删除排期时出错:', error);
+        return false;
+    }
+
+ }
+  async function deleteBookingsByScheduleId(scheduleId){
+    if (!scheduleId) {
+        console.warn('排期ID不能为空');
+        return false;
+    }
+    try {
+        // 假设后端有对应的API接口: /api/schedule/{scheduleId}/bookings/count
+        const result = await request({ url:`/course/booking/deleteByScheduleId/${scheduleId}`, 
+            method: 'DELETE'
+        });  
+        return result;//; 
+    } catch (error) {
+        console.error('请求预订booking时出错:', error);
+        return 0;
+    }
+
+  }
+
+/**
+ * 判断是否存在指定排期的booking
+ * @param {string|number} scheduleId 排期ID
+ * @returns {Promise<boolean>} 是否存在booking
+ */
+async function hasBookingForScheduleId(scheduleId) {
+    if (!scheduleId) {
+        console.warn('排期ID不能为空');
+        return false;
+    }
+    try {
+        // 假设后端有对应的API接口: /api/schedule/{scheduleId}/bookings/count
+        const result = await request({ url:`/course/booking/ListByScheduleId/${scheduleId}`, 
+            method: 'GET'
+        }); 
+        // INSERT_YOUR_CODE
+        // result是List类型，判断数组长度是否为0
+        // result 预期为返回预约列表
+        return Array.isArray(result) && result.length > 0; 
+    } catch (error) {
+        console.error('请求排期booking时出错:', error);
+        return true;
+    }
+}
  function refreshData(){
     //再次读取排期数据并显示
     loadSchedule(); 

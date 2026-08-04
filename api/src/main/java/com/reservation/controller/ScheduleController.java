@@ -227,6 +227,43 @@ public Result<Boolean> assignStudentToSchedule(@RequestBody Map<String, Object> 
          return Result.fail(500,   "error:" + e.getMessage()); 
     } 
 }
+/**
+ * 删除指定ID的排期
+ * @param id 排期ID
+ * @param token 权限token
+ * @return 删除结果
+ */
+@DeleteMapping("/delete/{id}")
+@ResponseBody
+public Result<Integer> deleteById(@PathVariable("id") String id, @RequestHeader("Authorization") String token) {
+    try {
+        // 权限校验，只允许老师和管理员删除排期
+        permissionCheck.checkTeacherOrAdmin(token);
+        int rows = scheduleService.deleteById(id);
+        return Result.success(rows, "删除成功");
+    } catch (Exception e) {
+        return Result.fail(0, "删除失败: " + e.getMessage());
+    }
+}
+/**
+ * 根据课程ID删除该课程下的所有排期
+ * @param courseId 课程ID
+ * @param token 权限token
+ * @return 删除的排期数量
+ */
+@DeleteMapping("/deleteByCourseId/{courseId}")
+@ResponseBody
+public Result<Integer> deleteByCourseId(@PathVariable("courseId") String courseId, @RequestHeader("Authorization") String token) {
+    try {
+        // 权限校验，只允许老师和管理员进行操作
+        permissionCheck.checkTeacherOrAdmin(token);
+        int deletedCount = scheduleService.deleteByCourseId(courseId);
+        return Result.success(deletedCount, "删除成功");
+    } catch (Exception e) {
+        return Result.fail(0, "删除排期失败: " + e.getMessage());
+    }
+
+    }
 
 }
 

@@ -33,4 +33,5 @@ public interface CourseScheduleMapper {
  
      // 删除指定id的排期 deleteById
     void deleteById(@Param("id") String id);
+    int deleteByCourseId(@Param("courseId") String courseId);
 }
