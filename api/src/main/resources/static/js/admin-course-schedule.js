@@ -970,7 +970,10 @@ async function assignStudentToSchedule( ) {
         return ;
 }
   // 删除
+  //检查是否存在对应的预订----提示是否一起删除。
+  //删除--预定及其全部预约
   async function deleteSchedule() {
+
     if(! checkCourseAndSchedule(true,true))
         return ;
     const formData = getFormData();

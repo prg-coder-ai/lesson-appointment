@@ -75,28 +75,7 @@ async function getAppointmentList(conditions ) {
      status: document.getElementById('appoint-status-select').value ,
    }
    */
- //分页显示--获取 显示 --
- //error function
-async function getAppointmentListPageX(query ) {
-   
-  try {
-      // 允许传递排序字段和排序方式（如 appointmentTime 字段降序）
-      const res  = await request({
-        url: `${API_BASE_URL}/course/appointment/statistical/listByDaysByPage`, 
-        Method: "GET", 
-        data: query, 
-        params:{ query}         //作为对象发送，无括号则作为若干的单个参数
-      });
-       // 返回统计结果对象， PageResult
-      return res  ; //QueryResult  
-    } catch (e) {
-      // 网络或服务器异常处理
-     console.error("getAppointmentListPage",e);
-     return null;
-    }
-  }
- // INSERT_YOUR_CODE
-
+ //分页显示--获取 显示 -- 
 /**
  * 获取指定天数内的预约分页列表（兼容后端 @RequestBody）
  * @param {Object} query AppointmentQueryPage请求对象，比如 {pageNum, pageSize, days, userId, role, status}
@@ -135,15 +114,14 @@ async function fetchAppointmentListPage(query) {
        if (Array.isArray(appointmentList)) {
            // 用for...of+await，等待所有异步操作完成
            count = appointmentList.length;
-           for (let appointment of appointmentList) { 
-            index++;//读取对应的预定ID
+           for (let appointment of appointmentList) {            
              
             let  bookedObject = await getBookingObject(appointment.bookingId);       
             if(bookedObject == null )
               continue;
-            
+            index++;//读取对应的预定ID TBD:数据不完整的情况处理
             const scheduleObject = await fetchSchedule(bookedObject.scheduleId); 
-               if (scheduleObject != null) {  
+            if (scheduleObject != null) {  
                    const classObject = await getCourseById(scheduleObject.courseId); 
                    const studentName = await getUserNameById(bookedObject.studentId);
                    const teacherName = await getUserNameById(bookedObject.teacherId);
@@ -234,6 +212,13 @@ async function fetchAppointmentListPage(query) {
               ${ (userRole == "admin" && cardInfo.status=="cancelling")?
                  `   <button class="btn btn-success" onclick='confirmCancellingAppointment(${cardInfo.appointmentId},true)'><i class="fa fa-check"></i>确认</button>  
                      <button class="btn btn-success" onclick='confirmCancellingAppointment(${cardInfo.appointmentId},false)'><i class="fa fa-uncheck"></i>取消</button>  
+                     `
+                  : ` `
+              }
+
+                            ${ (userRole == "admin")?
+                 `   <button class="btn btn-warning" onclick='deleteAppointmentsById(${cardInfo.appointmentId})'><i class="fa fa-check"></i>删除</button>                    
+                     <button class="btn btn-warning" onclick='deleteAppointmentsByBookingId(${cardInfo.bookingId})'><i class="fa fa-check"></i>全部删除</button>                    
                      `
                   : ` `
               }
@@ -597,12 +582,31 @@ async function updateAppointmentsStatusByBookingId( bookingId,status) {
       return false;
   }
 }
-async function deleteAppointmentsByBookingId( bookingId) { 
+async function deleteAppointmentsByBookingId(bookingId) { 
+  if (!bookingId) {
+    console.error("deleteAppointmentsByBookingId: bookingId is required");
+    return false;
+  }
+  try {
+    // 检查参数传递，bookingId 通过 params 传递，method 必须为 delete
+    const res = await request({
+      url: `${API_BASE_URL}/course/appointment/deleteByBookingId`,
+      method: "delete",
+      params: { bookingId: bookingId } // 参数名称需与后端一致
+    });
+    console.log("deleteAppointmentsByBookingId",res);
+    return res;
+  } catch (e) {
+    console.error(e);
+    return false;
+  }
+}
+
+async function deleteAppointmentsById( appId) { 
   try {
       // Axios GET请求（修复response.json()错误，Axios已自动解析）
-      const res  = await request({url:`${API_BASE_URL}/course/appointment/deleteByBookingId`,
-           method:"delete",  
-           params: {bookingId:bookingId} // 筛选条件通过params传递
+      const res  = await request({url:`${API_BASE_URL}/course/appointment/delete/${appId}`,
+           method:"delete"
       });
         return res ; 
   } catch (e) {
@@ -610,9 +614,7 @@ async function deleteAppointmentsByBookingId( bookingId) {
       console.error(e);
       return   false;
   }
-
 }
-
 
   //把信息发送到站内信箱-----创建添加、修改状态（已发送、已阅读、删除到垃圾箱、删除），最初：只发送+显示（创建数据库表：发件人、收件人、内容、状态）
   async function sendNotesTo(userId,infor) {

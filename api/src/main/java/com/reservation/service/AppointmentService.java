@@ -262,6 +262,12 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
     return updated > 0;
     }
 
+public boolean removeById(Integer appId){
+       // System.out.println("removeByBookingId: " + bookingId);
+        int deleted = baseMapper.deleteById(appId);
+        return deleted > 0;
+    }
+
     public boolean removeByBookingId(String bookingId){
         System.out.println("removeByBookingId: " + bookingId);
         int deleted = baseMapper.deleteByBookingId(bookingId);

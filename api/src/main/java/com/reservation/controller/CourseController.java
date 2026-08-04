@@ -132,7 +132,7 @@ public class CourseController {
         //如果当前操作者是admin，则直接使用代入的老师，否则使用当前登录者
          String role = permissionCheck.getRoleFromToken(token);
           if ("teacher".equals(role))  {
-           course.setTeacherId(teacherId);
+              course.setTeacherId(teacherId);
           }
         // 调用服务层创建课程，返回courseId（对应设计2.2.2 课程创建返回数据）
         Map<String, String> resultMap = courseService.addCourse(course);
@@ -173,25 +173,43 @@ public class CourseController {
        // String courseId = req.getCourseId();
         //String teacherId = permissionCheck.getUserIdFromToken(token);
         //courseService.checkCourseOwner(courseId, teacherId); 
-
+         try{
         // 执行对应操作
         courseService.update(req); 
         return Result.success(true, "课程修改成功");
+         }  catch (Exception e) {
+           return Result.success(false, "课程修失败: " + e.getMessage());      
+       }
     }
 
 
    // 对应的Controller接口定义应为：
    @DeleteMapping("/{id}")
-   public Result<Boolean> deleteCourse(@PathVariable String id, @RequestHeader("Authorization") String token) {
+   public Result<Integer> deleteCourse(@PathVariable String id, @RequestHeader("Authorization") String token) {
        // 校验权限：只能教师或管理员有权限删除.教师只删除自己的课程
         permissionCheck.checkTeacherOrAdmin(token);
- 
+     try {
         // 实际删除操作
-       int result = courseService.deleteCourseById(id);
-       if (result>0) {
-           return Result.success(true, "课程删除成功");
-       } else {
-           return Result.success(false,"课程删除失败");
+          int result = courseService.deleteById(id);
+        
+           return Result.success(result, "课程删除成功");
+       } catch (Exception e) {
+           return Result.success(0, "课程删除失败: " + e.getMessage());      
+       }
+   }
+
+    @DeleteMapping("/deleteByTemplateId/{id}")
+   public Result<Integer> deleteCourseByTemplateId(@PathVariable String id,
+              @RequestHeader("Authorization") String token) {
+       // 校验权限：只能教师或管理员有权限删除.教师只删除自己的课程
+        permissionCheck.checkTeacherOrAdmin(token);
+       try{
+        // 实际删除操作
+         int result = courseService.deleteByTemplateId(id);
+         return Result.success(result, "课程删除成功");
+       
+       } catch (Exception e) {
+           return Result.success(0, "课程删除失败: " + e.getMessage());      
        }
    }
 
