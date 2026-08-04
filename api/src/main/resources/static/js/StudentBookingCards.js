@@ -3,13 +3,7 @@
  console.log("student book a appointment  page");
    // 从token中获取用户的id和role api.js 
 // ===================== 核心函数 =====================
-userTimeZoneDisplay="none";
-/*const Pagination = { defined in pagefoot.js
-    pageNum: 1, // 当前页码
-    pageSize: 10,  // 页大小
-    total: 0,   // 总条数
-    totalPages: 0 // // 总页数
-  };*/
+  userTimeZoneDisplay="none"; 
   document.write('<script src="/js/public/pagefoot.js"></script>'); 
 
 /**
@@ -70,7 +64,7 @@ async function renderStudentBookingCards() {
                 </div>`;
 
             html += getPagebar();
-            html += `  <hr>
+            html += `  <hr> <div>
     <!-- 课程选择下拉 隐含教师ID-->
     <div class="form-line">
         <label>选择课程：</label>
@@ -227,6 +221,7 @@ async function renderStudentBookingCards() {
         <button class="btn-danger"  onclick="deleteBooking()">删除预定</button>
         <button class="btn-success" onclick="refreshData()">刷新</button>
     </div> 
+    </div>
  </div> <!-- .card -->
     <!-- 排期结果 -->
     <div class="section">
