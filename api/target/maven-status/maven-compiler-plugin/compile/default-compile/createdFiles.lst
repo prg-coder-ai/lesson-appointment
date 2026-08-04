@@ -6,10 +6,13 @@ com\reservation\service\TzSwitchService.class
 com\reservation\controller\TimezoneCalcController.class
 com\reservation\common\Result.class
 com\reservation\dto\ScheduleCreateDTO.class
+com\reservation\query\UserQueryPage.class
 com\reservation\service\UserService.class
 com\reservation\dto\ScheduleException.class
 com\reservation\dto\RefreshTokenPO.class
 com\reservation\service\BookingService.class
+com\reservation\common\PageResult.class
+com\reservation\query\TemplateQueryPage.class
 com\reservation\controller\CourseController$UpdateCourseStatusRequest.class
 com\reservation\service\RefreshTokenService.class
 com\reservation\dto\StatusBody.class
@@ -32,7 +35,9 @@ com\reservation\dto\CourseQueryParam.class
 com\reservation\controller\ScheduleController.class
 com\reservation\controller\AppointmentController.class
 com\reservation\entity\Appointment.class
+com\reservation\query\CourseQueryPage.class
 com\reservation\dto\TokenDTO.class
+com\reservation\query\BookingQueryPage.class
 com\reservation\service\CourseService.class
 com\reservation\entity\Booking.class
 com\reservation\controller\CourseController$UpdateTemplateStatusRequest.class
@@ -46,10 +51,12 @@ com\reservation\dto\AppointmentConditionDTO.class
 com\reservation\service\CourseScheduleService.class
 com\reservation\dto\SchedulePO.class
 com\reservation\dto\ScheduleVO.class
+com\reservation\config\MyBatisPlusConfig.class
 com\reservation\mapper\ScheduleExceptionMapper.class
 com\reservation\entity\Course.class
 com\reservation\exception\BusinessException.class
 com\reservation\exception\UnLoginException.class
+com\reservation\common\PageQuery.class
 com\reservation\common\AtLeastOneNotBlank.class
 com\reservation\config\WebConfig.class
 com\reservation\dto\IncSiteBody.class
@@ -63,6 +70,8 @@ com\reservation\mapper\AppointmentMapper.class
 com\reservation\dto\LoginDTO.class
 com\reservation\config\SecurityConfig.class
 com\reservation\mapper\RefreshTokenMapper.class
+com\reservation\query\AppointmentQueryPage.class
+com\reservation\common\ApiModelProperty.class
 com\reservation\dto\TzSwitchPO.class
 com\reservation\entity\CourseEvaluation.class
 com\reservation\dto\BookingQueryParaDTO.class

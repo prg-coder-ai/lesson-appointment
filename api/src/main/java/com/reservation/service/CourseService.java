@@ -212,10 +212,14 @@ public int deleteTemplate(String Id) {
     }
 */
 
-public int deleteCourseById(String courseId) { 
-        return courseMapper.deleteCourseById(courseId);
+public int deleteById(String courseId) { 
+        return courseMapper.deleteById(courseId);
     }
   
+  
+//public int                  deleteByTempleteId(String templateId) {
+        //return courseMapper.deleteByTemplateId(templateId);
+    //}
     /**
      * 检查课程归属权，若courseId不存在或非teacherId归属，抛出业务异常
      */
@@ -240,5 +244,9 @@ public int deleteCourseById(String courseId) {
         // 假定"active"为已发布课程状态，需要CourseMapper提供对应查询
         return courseMapper.countPublishedCourseAtDate(timestamp, "active");
     }
-    
+
+    public int deleteByTemplateId(String id) {
+        return courseMapper.deleteByTemplateId(id);
+
+    }
 }
