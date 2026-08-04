@@ -8,28 +8,7 @@ import com.reservation.query.*;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-import java.util.List;
-// 解决依赖注入找不到 AppointmentService 的问题
-// 如果你用的是实现类（如 AppointmentServiceImpl），并已加 @Service 注解，确保包扫描没问题。
-// 若自定义实现未加 @Service，可手动声明 bean 或补上注解。
-// 这里给接口加 @Service 是错误做法 —— 应检查实现类代码。
-// 示例：确保实现类在 com.reservation.service.impl 包下，并写有：
-// @Service
-// public class AppointmentServiceImpl implements AppointmentService { ... }
-// 如果依然报错，可以添加如下配置作为兜底（通常只针对特殊配置环境，常规 Spring Boot 不需）：
-/*
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import com.reservation.service.impl.AppointmentServiceImpl;
-
-@Configuration
-public class ServiceConfig {
-    @Bean
-    public AppointmentService appointmentService() {
-        return new AppointmentServiceImpl();
-    }
-}
-*/
+import java.util.List; 
 
 @RestController
 @RequestMapping("/course/appointment")

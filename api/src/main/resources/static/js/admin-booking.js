@@ -197,56 +197,39 @@ async function getBookingListByPage(){
            <td class="course-info">   ${cardInfo.teacherName}</td>
            <td class="course-info">   ${cardInfo.scheduleInfo}</td>
            <td class="course-info">    ${checkStatus(cardInfo.status)}</td>
-          <!--   ${
-              (cardInfo.status === 'booking' || cardInfo.status === 'cancelling')
-                ? `<td class="course-info">
-                    <button class="btn btn-success" onclick="approveReservation('${cardInfo.bookingId}', '${cardInfo.status === 'booking' ? 'booked' : 'cancelled'}')"><i class="fa fa-check"></i> 通过</button>
-                    <button class="btn btn-danger" onclick="rejectReservation('${cardInfo.bookingId}')"><i class="fa fa-times"></i> 拒绝</button>
-                   </td>`
-                : `<td class="course-info"></td>`
-            }  -->
-       
+          
+            <td class="course-info">
+              <button class="btn btn-danger" onclick="deleteBooking('${cardInfo.bookingId}')"><i class="fa fa-times"></i> 删除</button>
               ${
                         cardInfo.status === 'booking'
-                        ? `<td class="course-info">
-                            <button class="btn btn-success" onclick="validOrCancelReservation('${cardInfo.bookingId}','booked')">确认</button>
-                            <button class="btn btn-danger" onclick="validOrCancelReservation('${cardInfo.bookingId}','cancelled')">拒绝</button>
-                           </td>`
+                        ? `
+                            <button class="btn btn-success" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','booked')">确认</button>
+                            <button class="btn btn-danger" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','rejected')">拒绝</button>
+                           ` 
                         : cardInfo.status === 'cancelling' || cardInfo.status === 'canceling'
-                        ? `<td class="course-info">
-                            <button class="btn btn-danger" onclick="validOrCancelReservation('${cardInfo.bookingId}','cancelled')">确认</button>
-                            <button class="btn btn-warning" onclick="validOrCancelReservation('${cardInfo.bookingId}','booked')">撤回</button>
-                           </td>`
+                        ? `
+                            <button class="btn btn-danger" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','cancelled')">确认</button>
+                            <button class="btn btn-warning" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','booked')">撤回</button>
+                            `
                         : cardInfo.status === 'booked'
-                        ? `<td class="course-info">
-                            <button class="btn btn-danger" onclick="validOrCancelReservation('${cardInfo.bookingId}','booking')">撤回</button>
-                            <button class="btn btn-warning" onclick="validOrCancelReservation('${cardInfo.bookingId}','cancelling')">取消</button>
-                           </td>`
+                        ? `
+                            <button class="btn btn-danger" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','booking')">撤回</button>
+                            <button class="btn btn-warning" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','cancelling')">取消</button>
+                            `
                         : cardInfo.status === 'cancelled' || cardInfo.status === 'canceled'
-                        ? `<td class="course-info"> <button class="btn btn-danger" onclick="validOrCancelReservation('${cardInfo.bookingId}','cancelling')">撤回</button>
-                             <button class="btn btn-warning" onclick="validOrCancelReservation('${cardInfo.bookingId}','booking')">取消</button>
-                           </td>`
+                        ? ` <button class="btn btn-danger" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','cancelling')">撤回</button>
+                             <button class="btn btn-warning" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','booking')">取消</button>
+                           `
                         : ''
                      }
+                    </td>
             </tr>
    `;
  // console.log("cardContent:", info);
    return info;
 } 
-//TBD：需要根据status，判断是批准还是拒绝，仅显示待批准的项目个数----预约确认、取消预约的个数---具体确认在相应的页面进行
-async function approveReservation(bookingId,status) {
-  //console .log("approveReservation:", bookingId);
-   await  operateBookingStatus(bookingId, status);
-   //console .log("approveReservation:", bookingId);
-}
-async function rejectReservation(bookingId) {
-  
-   await operateBookingStatus(bookingId, 'rejected');
-   //console .log("rejectReservation:", bookingId); 
-}  
 
-
-async function validOrCancelReservation(bookingid,status) { 
+async function confirmOrCancelBooking(bookingid,status) { 
   // 根据bookingid在bookingList中查找对应的booking对象
   const bookingList = pendingBookingList;
   const bookingObj = Array.isArray(bookingList) ? bookingList.find(b => b.id === bookingid) : null; 
@@ -321,6 +304,63 @@ await sleep(200);
 getBookingListByPage();
 }
 
+async function checkAppointmentExistsBookingId(bookingid) {
+  if (!bookingid) {
+      console.error("checkAppointmentExistsByBookingId: bookingid is required");
+      return false;
+  }
+  try {
+      // 假定后端有该接口 /course/appointment/existsByScheduleId/{scheduleId}，返回 { exists: true/false }
+      const res = await request({
+          url: `${API_BASE_URL}/course/appointment/getByBookingId`,
+          method: "get",
+          params:{bookingId:bookingid}
+      });
+      // 兼容后端返回为 {exists: true/false} 或直接返回布尔
+      if (Array.isArray(res) && res.length > 0) {
+          return true;
+      }
+ 
+      return false;
+  } catch (e) {
+      console.error("checkAppointmentExistsByBookingId error:", e);
+      return true;
+  }
+}
+async function deleteBooking(id){
+// 调用后端删除预约接口（假定全局已定义 request 方法和 API_BASE_URL）
+// 查询是否存在以此id为排期id的appointment（预约/子项），返回结果布尔型
+ if (checkAppointmentExistsBookingId(id))
+ {
+  // INSERT_YOUR_CODE
+  const userChoice = confirm('该预订存在预约，是否继续删除？继续将删除该预订下的全部预约。点击“确定”继续，点击“取消”放弃删除。');
+  if (!userChoice) {
+    return;
+  }
+  //删除该预定的全部预约
+  await deleteAppointmentsByBookingId(id);
+ }
+
+try {
+    const res = await request({
+        url: `${API_BASE_URL}/course/booking/delete/${id}`,
+        method: 'delete',
+      //  params: { id: id }
+    });
+
+    if (res ) {
+        // 删除成功，刷新列表
+        alert('删除成功');
+        getBookingListByPage();
+    } else {
+        alert('删除失败 ');
+    }
+} catch (e) {
+    alert('网络错误，删除失败');
+    console.error(e);
+}
+
+}
 
 async function validBooking(bookingid){
        

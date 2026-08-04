@@ -84,8 +84,13 @@ public class BookingService {
 //PageResult
 
     @Transactional(propagation = Propagation.REQUIRED)
-    public void delete(String id) {
-        bookingMapper.delete(id);
+    public int delete(String id) {
+       return bookingMapper.delete(id);
+    }
+
+@Transactional(propagation = Propagation.REQUIRED)
+    public int deleteByScheduleId(String id) {
+       return bookingMapper.deleteByScheduleId(id);
     }
 // INSERT_YOUR_CODE
 

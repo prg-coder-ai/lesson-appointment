@@ -126,13 +126,17 @@ public class BookingController {
     
     // 经检查，当前 BookingController.java 文件不存在明显的语法错误。所有注解、方法和 Java 语法均正常。如果还需优化具体业务逻辑或风格，请明确说明需求。
 
-    /*@DeleteMapping("/delete/{id}")
-    public Result<Void> delete(@PathVariable String id) {
+    @DeleteMapping("/delete/{id}")
+    public Result<Integer> delete(@PathVariable String id) {
         try {
-            bookingService.delete(id);
-            return Result.success();
+           int rows= bookingService.delete(id);
+            return Result.success(rows,"delete");
         } catch (RuntimeException e) {
-            return Result.fail(null,e.getMessage());
+            return Result.fail(0,e.getMessage());
         }
-    }*/
+    }
+    @DeleteMapping("/deleteByScheduleId/{id}")
+    public Result<Integer> deleteByScheduleId(@PathVariable String id) {
+        return Result.success(bookingService.deleteByScheduleId(id),"ok");
+    }
 }

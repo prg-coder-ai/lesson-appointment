@@ -19,6 +19,7 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
     int updateStatusById(@org.apache.ibatis.annotations.Param("id") String id, 
                                 @org.apache.ibatis.annotations.Param("status") String status); 
     int deleteByBookingId(@org.apache.ibatis.annotations.Param("bookingId") String bookingId); 
+    int deleteById(@org.apache.ibatis.annotations.Param("appointmentId") Integer appointmentId); 
 
    /* int getCountBetweenTimeByPage(
             String userId, String role,
