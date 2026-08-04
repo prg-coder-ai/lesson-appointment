@@ -434,20 +434,31 @@ async function loadAndRenderTemplateCards() {
    //         return;
     //    }
         // INSERT_YOUR_CODE
+        var bconfirmed = false ;
         (async () => {
             // 执行前检查模板是否关联课程，如有关联则不允许删除
             const hasCourses = await checkTemplateHasCourses(templateId);
             if (hasCourses) {
-                alert('该模板有关联课程，无法删除！请先删除或修改基于该模板的课程。');
-                return;
+                //alert('该模板有关联课程，无法删除！请先删除或修改基于该模板的课程。');
+              //  return;
+              const userChoice = confirm('该模板存在课程，是否继续删除？继续将删除该项目下的全部课程。点击“确定”继续，点击“取消”放弃删除。');
+              if (!userChoice) {
+                  return;
+                        }
+             bcomfirmed = true;
+        
             }
+
+            if(!bcomfirmed) //提示1次
+              if (!confirm('确定要删除该模板吗？')) return;
+
             try {
                 const res = await request({
                     url: `${API_BASE_URL}/course/template/${templateId}`,
                     method: 'DELETE'
                 });
                 if (res >0) {
-                    alert('模板删除成功');
+                  //  alert('模板删除成功');
                     await loadAndRenderTemplateCards();
                 } else {
                     alert('模板删除失败: ' + (res && res.msg ? res.msg : '未知错误'));

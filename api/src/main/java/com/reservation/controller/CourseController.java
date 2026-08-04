@@ -184,7 +184,7 @@ public class CourseController {
 
 
    // 对应的Controller接口定义应为：
-   @DeleteMapping("/{id}")
+   @DeleteMapping("/deleteById/{id}")
    public Result<Integer> deleteCourse(@PathVariable String id, @RequestHeader("Authorization") String token) {
        // 校验权限：只能教师或管理员有权限删除.教师只删除自己的课程
         permissionCheck.checkTeacherOrAdmin(token);

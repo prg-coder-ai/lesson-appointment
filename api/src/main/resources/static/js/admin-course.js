@@ -433,15 +433,32 @@ async function deleteCourse(id) {
     const scdList = fetchScheduleList(id,null);
   // INSERT_YOUR_CODE
   // 判断scdList是否为空数组
+    var bcomfirmed =false;
   if (scdList && Array.isArray(await scdList) && (await scdList).length > 0) {
-    alert('该课程存在排期，不能删除！');
-    return;
+    //alert('该课程存在排期，不能删除！');
+    const userChoice = confirm('该课程存在排期，是否继续删除？继续将删除该项目下的全部排期。点击“确定”继续，点击“取消”放弃删除。');
+        if (!userChoice) {
+            return;
+                  }
+                  bcomfirmed = true;
+    //删除该课程的所有排期
+    // 假设后端有接口 /schedule/deleteByCourseId/{courseId}，method: DELETE
+    try {
+      var rows= await request({ url: `/schedule/deleteByCourseId/${id}`, method: 'DELETE' });
+      console.log("deleted schedule",rows);
+    } catch (err) {
+      console.error('删除课程排期失败:', err);
+      alert('删除课程排期时出错，请检查后端接口与数据。');
+      return;
+    }
+
   }
   }
    catch(error){
     console.error('查询排期失败：',id, error);
    }
-   if (!confirm('确定要删除该课程吗？')) return;
+       if(!bcomfirmed) //提示1次
+         if (!confirm('确定要删除该课程吗？')) return;
   try { 
    // await  changeCourseStatus(courseId,"frozen"); 
 
@@ -449,8 +466,8 @@ async function deleteCourse(id) {
    // @DeleteMapping("/api/course/{id}")
    // public ResponseEntity<?> deleteCourse(@PathVariable String id) { ... }
 
-   const res = await request({url:`/api/course/${id}`,  method: 'DELETE' });
-   const result = await res.json();
+   const res = await request({url:`/course/deleteById/${id}`,  method: 'DELETE' });
+   //const result = await res.json();
     
        // 删除后判断当前页是否还有数据，无数据则跳上一页
       const currentPageData = document.querySelectorAll('#course-table-body tr').length;

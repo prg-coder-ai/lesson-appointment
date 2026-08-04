@@ -46,6 +46,25 @@ public class BookingController {
         }
     }
 
+    /**
+     * 查询指定排期(scheduleId)下的所有booking
+     * @param scheduleId 排期ID
+     * @return booking列表
+     */
+    @GetMapping("/ListByScheduleId/{scheduleId}")
+    @ResponseBody
+    public Result<List<Booking>> getBookingsBySchedule(@PathVariable("scheduleId") String scheduleId) {
+      BookingQueryParaDTO dto= new BookingQueryParaDTO();
+      dto.setScheduleId(scheduleId);
+
+        try {
+            List<Booking> bookings = bookingService.selectList(dto);
+            return Result.success(bookings, "ok");
+        } catch (RuntimeException e) {
+            return Result.fail(null, e.getMessage());
+        }
+    }
+
     @PostMapping("/list")
     @ResponseBody
     public Result<List<Booking>> filterList(@RequestBody BookingQueryParaDTO dto) {
