@@ -117,19 +117,19 @@
           <span>测试-批量创建数据</span>
         </div -->
 
-      <!--
+      
       <div class="menu-group">
-        <div class="menu-group-title">系统设置</div>
+        <div class="menu-group-title">系统维护</div>
         <div class="menu-item">
           <i class="fa fa-cog"></i>
-          <span>基础配置</span>
+          <span>数据维护</span>
         </div>
         <div class="menu-item">
           <i class="fa fa-file-alt"></i>
           <span>操作日志</span>
         </div>
       </div>
-      -->
+       
       </div>
     </aside>
 
@@ -165,6 +165,10 @@
         title = '数据总览';
       }
       switch(title) {
+        case "数据维护":
+            dynamicContentCenter.innerHTML = renderDatamaintainCards();
+
+              break;
         case "测试-批量创建数据":
              dynamicContentCenter.innerHTML = makeTestPage();
         break;
@@ -378,6 +382,7 @@
     <script src="js/admin-booking.js"></script>
     <script src="js/admin-AppointmentNotes.js"></script>
 
+    <script src="js/admin-dataMaintainPage.js"></script>
     <script src="js/test/testData.js"></script>
    <script>
    console.log("end of body...")
