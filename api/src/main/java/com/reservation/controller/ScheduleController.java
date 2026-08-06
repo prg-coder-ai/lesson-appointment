@@ -262,9 +262,7 @@ public Result<Integer> deleteByCourseId(@PathVariable("courseId") String courseI
     } catch (Exception e) {
         return Result.fail(0, "删除排期失败: " + e.getMessage());
     }
-
     }
-
 }
 
 

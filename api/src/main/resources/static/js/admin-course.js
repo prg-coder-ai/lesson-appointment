@@ -403,7 +403,7 @@ function renderCourseTable(list) {
                         <button class="btn btn-success" onclick='openEditCourseDialog(${JSON.stringify(Course).replace(/'/g, "\\'")})'>修改</button>                   
                         <button class="btn btn-success" onclick="changeCourseStatus('${Course.courseId}', 'active')">发布</button>
                         <button class="btn btn-warning" onclick="changeCourseStatus('${Course.courseId}', 'inactive')">撤回</button>
-                        <button class="btn btn-danger"  onclick="deleteCourse ('${Course.courseId}')">删除</button>
+                        <button class="btn btn-danger"  onclick="deleteCourseByFrozen ('${Course.courseId}')">删除</button>
                     </td>
                 </tr> 
             `;
@@ -427,7 +427,7 @@ function resetCourseFilter() {
 }
 
 // 删除课程（操作后刷新当前页）
-async function deleteCourse(id) {
+async function deleteCourseByFrozen(id) {
   
   try {
     const scdList = fetchScheduleList(id,null);
@@ -441,17 +441,8 @@ async function deleteCourse(id) {
             return;
                   }
                   bcomfirmed = true;
-    //删除该课程的所有排期
-    // 假设后端有接口 /schedule/deleteByCourseId/{courseId}，method: DELETE
-    try {
-      var rows= await request({ url: `/schedule/deleteByCourseId/${id}`, method: 'DELETE' });
-      console.log("deleted schedule",rows);
-    } catch (err) {
-      console.error('删除课程排期失败:', err);
-      alert('删除课程排期时出错，请检查后端接口与数据。');
-      return;
-    }
-
+    //删除该课程的所有排期 设置标记
+       await setScheduleStatusByLastId(id,"frozen");              
   }
   }
    catch(error){
@@ -460,20 +451,7 @@ async function deleteCourse(id) {
        if(!bcomfirmed) //提示1次
          if (!confirm('确定要删除该课程吗？')) return;
   try { 
-   // await  changeCourseStatus(courseId,"frozen"); 
-
-   // 对应的Controller接口定义应为：
-   // @DeleteMapping("/api/course/{id}")
-   // public ResponseEntity<?> deleteCourse(@PathVariable String id) { ... }
-
-   const res = await request({url:`/course/deleteById/${id}`,  method: 'DELETE' });
-   //const result = await res.json();
-    
-       // 删除后判断当前页是否还有数据，无数据则跳上一页
-      const currentPageData = document.querySelectorAll('#course-table-body tr').length;
-      if (currentPageData === 1 && Pagination.pageNum > 1) {
-        Pagination.pageNum--;
-        }
+      await  changeCourseStatus(id,"frozen"); 
       loadAndRenderCourseListByPage();
   } catch (error) {
     console.error('删除失败：', error);
@@ -490,19 +468,25 @@ function changeCourseStatus(courseId, status) {
   loadAndRenderCourseListByPage();  
 } 
 
-  /*
-async function deleteCourse(courseId) {
-    
-  if (!window.confirm('确定要删除该课程吗？删除后基于该课程的预约数据将不受统一管控！')) {
-      return;
-  }   
-  //TBD 判断是否可以删除：条件是该课程的排期的预约数为0，且课程状态为正常（active）
-  //如果可以删除，则删除该课程
-  //如果不能删除，则提示用户 
-  changeCourseStatus(courseId,"frozen"); 
-}
-*/
+async function  setScheduleStatusByLastId(courseId,status){
+// INSERT_YOUR_CODE
+  try {
+    // 获取所有该课程的排期
+    const scheduleList = await fetchScheduleList(courseId, null);
+    if (Array.isArray(scheduleList) && scheduleList.length > 0) {
+      // 批量异步修改每个排期状态
+      await Promise.all(
+        scheduleList.map(schedule =>
+          operateSchedule(schedule.scheduleId, status)
+        )
+      );
+    }
+  } catch (err) {
+    console.error('批量修改排期状态失败:', err, courseId, status);
+  }
 
+}
+  
 // 点击弹窗遮罩层关闭
   document.getElementById('courseModal').addEventListener('click', (e) => {
     if (e.target === document.getElementById('courseModal')) {

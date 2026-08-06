@@ -155,6 +155,14 @@ public int deleteTemplate(String Id) {
         return Collections.singletonMap("courseId", courseId);
     }
 
+@Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
+    public Integer updateCourseStatusByLastId (String templateId,String status) {
+
+        int rows= courseMapper.updateCourseStatusByLastId(templateId,status);
+        return  rows;
+    }
+
+
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public Map<String, String> update (Course obj) {
 

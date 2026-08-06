@@ -21,6 +21,7 @@ var localParamter ={
  * 渲染课程列表（核心：原生JS操作DOM）
  */
 async function renderScheduleCards() {
+    assignLoadobjectListFunction( loadAndRenderCourses);//
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
    // console.log("renderScheduleCards:",dynamicContentCenter);
     if (!dynamicContentCenter) return; 
@@ -234,7 +235,7 @@ async function renderScheduleCards() {
         <button class="btn-primary" onclick="previewSchedule()">预览排期</button>
         <button class="btn-warning" onclick="checkSchedule()">检查冲突</button>
         <button class="btn-primary" onclick="saveScheduleToDB()">保存</button> 
-        <button class="btn-danger"  onclick="deleteSchedule()">删除</button>
+        <button class="btn-danger"  onclick="deleteScheduleByFrozen()">删除</button>
        
 
         <label style="font-weight: normal; margin-left:8px;">
@@ -302,7 +303,7 @@ async function renderScheduleCards() {
   window.renderCalendar = renderCalendar ;
   window.saveScheduleToDB = saveScheduleToDB ;
   window.displySchedule = displySchedule ;
-  window.deleteSchedule = deleteSchedule ;
+  window.deleteScheduleByFrozen = deleteScheduleByFrozen ;
 
   window.resetSchedule = resetSchedule ;   
   window.refreshData = refreshData ;
@@ -1030,7 +1031,7 @@ async function assignStudentToSchedule( ) {
   // 删除
   //检查是否存在对应的预订----提示是否一起删除。
   //删除--预定及其全部预约
-  async function deleteSchedule() {
+  async function deleteScheduleByFrozen() {
 
     if(! checkCourseAndSchedule(true,true))
         return ;
@@ -1046,47 +1047,44 @@ async function assignStudentToSchedule( ) {
             return;
         }
         //删除该排期的全部预定
-            await deleteBookingsByScheduleId(scheduleId);            
+            await deleteBookingsByScheduleIdByFrozen(scheduleId);            
         }
 
-   // await operateSchedule(scheduleId,"frozen"); 
-      //alert("删除成功");
-      await deleteScheduleById( scheduleId);
+     await operateSchedule(scheduleId,"frozen");  
   }
 
- async function deleteScheduleById(id){
-// INSERT_YOUR_CODE
-    if (!id) {
-        console.warn('排期ID不能为空');
-        return false;
-    }
-    try {
-        // 调用后端接口删除指定id的排期
-        // 假设后端API为: /schedule/delete/{id}，使用DELETE请求
-        const result = await request({url: `/schedule/delete/${id}`, method: 'DELETE'});
-        console.log("deleteScheduleById",result);
-        return result;
-    } catch (error) {
-        console.error('删除排期时出错:', error);
-        return false;
-    }
-
- }
-  async function deleteBookingsByScheduleId(scheduleId){
+  //把指定排期id的预定设置为frozen状态
+   async function deleteBookingsByScheduleIdByFrozen(scheduleId){
     if (!scheduleId) {
         console.warn('排期ID不能为空');
         return false;
     }
-    try {
-        // 假设后端有对应的API接口: /api/schedule/{scheduleId}/bookings/count
-        const result = await request({ url:`/course/booking/deleteByScheduleId/${scheduleId}`, 
-            method: 'DELETE'
-        });  
-        return result;//; 
-    } catch (error) {
-        console.error('请求预订booking时出错:', error);
-        return 0;
-    }
+  
+  try {
+      // 查询并批量将该排期下所有预约（appointment）状态设为"frozen"
+        // POST 或 PUT
+      //读取指定scheduleId的所有元素
+      const res = await request({
+          url: `/course/booking/ListByScheduleId/${scheduleId}`,
+          method: 'GET'           
+      });
+      console.log("lsitBySchid",res);
+         if (Array.isArray(res)) {
+          for (const booking of res) {
+              if (booking && booking.id) {
+                await  operateBookingStatus(  booking.id,'frozen');
+                   // 更新本地对象的状态
+              //  booking.status = 'frozen';
+              }
+          }
+      }
+
+      console.log(`预约已全部设为frozen:`, res);
+      return res;
+  } catch (error) {
+      console.error('批量设置预约为frozen失败:', error);
+      return false;
+  }
 
   }
 

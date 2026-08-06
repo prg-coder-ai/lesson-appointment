@@ -601,54 +601,7 @@ async function generateScheduleListFromServer(formData) {
       return [];
   } 
 } 
-
-    /**
-     * 设置输入元素为只读，但不改变其显示颜色或样式
-     * @param {HTMLElement} el 输入元素（如input/textarea）
-     * 通过nofocus： pointer-events: none;     禁止鼠标交互，包括点击、选中、聚焦  
-        user-select: none;       禁止选中内容  
-        outline: none !important; 
-   
-      pointer-events: none;   禁用交互（点击、输入、焦点）  
-      user-select: none; 
-    function setReadOnlyById(itemName){  
-     const  el = document.getElementById(itemName);
-     setReadOnlyKeepStyle(el);
-    }
-
-    function setReadOnlyKeepStyle(el) {
-      if (!el) return;
-      el.readOnly = true;
-      // 一些表单元素（如select、checkbox、radio）没有readonly属性，可用disabled，但会变灰
-      // 此处推荐通过阻止交互而不设置disabled，保证视觉样式不变
-      el.addEventListener('keydown', function(e) { e.preventDefault(); }, { once: true });
-      el.addEventListener('beforeinput', function(e) { e.preventDefault(); }, { once: true });
-      // 可选：为input添加pointer-events:none，但如果要选中文字可省略
-      // el.style.pointerEvents = 'none';
-      
-      forbidSelectExpand(el);
-
-      if(hasChildElements(el)){// for input
-         traverseChildElements(el,forbidInput);
-       }
-  }
-
-  // 判断一个元素是否有子元素，遍历其子元素
-function hasChildElements(element) {
-  if (!element) return false;
-  // 返回元素是否至少有一个子元素节点（HTMLElement）
-  return element.children && element.children.length > 0;
-}
-function traverseChildElements(element, callback) {
-  if (!element || !element.children) return;
-  // 遍历所有子元素，并对每个子元素执行callback
-  for (let i = 0; i < element.children.length; i++) {
-      const child = element.children[i];
-      callback(child);
-      // 可递归遍历后代
-      //traverseChildElements(child, callback);
-  }
-}
+ 
 
 /**
  * 禁止下拉框(select)展开，可用以下方式：
@@ -673,24 +626,7 @@ function forbidSelectExpand(selectElement) {
   selectElement.addEventListener('focus', function (e) {
     e.target.blur();
   });
-} 
-// 用法示例：禁止"id为scheduleSelect"的下拉框展开
-// forbidSelectExpand(document.getElementById('scheduleSelect'));
-/**
- * 禁止 input 元素的输入，有几种常见方法：
- * 
- * 1. 设置 readonly 属性（不可编辑，但能选中复制，外观不变）：
- *    document.getElementById('yourInputId').readOnly = true;
- *    // 取消禁用输入：
- *    document.getElementById('yourInputId').readOnly = false;
- * 
- * 2. 设置 disabled 属性（完全禁用且变灰，不能选中）：
- *    document.getElementById('yourInputId').disabled = true;
- *    // 取消禁用输入：
- *    document.getElementById('yourInputId').disabled = false;
- * 
- * 3. 用 JS 阻止所有输入行为（维持完全外观，但禁止输入）：
- */
+}  
 function forbidInput(inputElement) {
   if (!inputElement) return;
   // 禁止键入
