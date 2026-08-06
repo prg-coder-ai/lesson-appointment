@@ -52,6 +52,8 @@ public interface CourseMapper extends BaseMapper<Course> {
     @org.apache.ibatis.annotations.Update("UPDATE course SET template_id = #{course.templateId}, course_name = #{course.courseName}, content = #{course.content}, feature = #{course.feature}, teacher_id = #{course.teacherId}, update_time = NOW() WHERE course_id = #{course.courseId}")
    int updateCourse(@Param("course") Course course);
    
+        @org.apache.ibatis.annotations.Update("UPDATE course SET status = #{status}, update_time = NOW() WHERE template_id = #{templateId}")
+     int  updateCourseStatusByLastId(@Param("templateId") String templateId,@Param("status") String status);
     /**
      * 根据课程ID查询课程
      * @param courseId 课程ID

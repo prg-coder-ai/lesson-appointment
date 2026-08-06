@@ -8,6 +8,7 @@ let pendingBookingList=[];// ID,ciurseName,studentName,teacherName,dateTime(创�
 window.renderBookingCards  = renderBookingCards ;  
 window.cancelBooking   = cancelBooking ; 
 window.validBooking   = validBooking ; 
+window.deleteBookingByFrozen = deleteBookingByFrozen;
 
  async function renderBookingCards(){
      assignLoadobjectListFunction( getBookingListByPage);//
@@ -30,7 +31,7 @@ window.validBooking   = validBooking ;
                     <option value="cancelling">取消待确认</option>
                     <option value="booked">预定已确认</option>
                     <option value="cancelled">已取消</option>
-                    <option value="delete">已删除</option> 
+                    <option value="frozen">已删除</option> 
                   </select>
                 </div> 
                 <button class="btn btn-default" onclick="localsearchBooking()">
@@ -170,7 +171,7 @@ async function getBookingListByPage(){
     return '预定已确认';
   } else if (status === 'cancelled' || status === 'canceled') {
     return '已取消';
-  } else if (status === 'deleted') {
+  } else if (status === 'deleted' || status=== 'frozen') {
     return '已删除';
   }
   return status;
@@ -199,7 +200,7 @@ async function getBookingListByPage(){
            <td class="course-info">    ${checkStatus(cardInfo.status)}</td>
           
             <td class="course-info">
-              <button class="btn btn-danger" onclick="deleteBooking('${cardInfo.bookingId}')"><i class="fa fa-times"></i> 删除</button>
+              <button class="btn btn-danger" onclick="deleteBookingByFrozen('${cardInfo.bookingId}')"><i class="fa fa-times"></i> 删除</button>
               ${
                         cardInfo.status === 'booking'
                         ? `
@@ -283,8 +284,7 @@ async function confirmOrCancelBooking(bookingid,status) {
 await validBooking(bookingid);
 
 } else if(status == "cancelled"  ){ 
- //确认取消预约--把book状态设置为booking 
-   
+ //确认取消预约--把book状态设置为booking   
   await validCancelBooking(bookingid);
 }  else if(status == "booking"  ){ // 
       //删除所有相关预约列表，并把book状态设置为booking
@@ -327,40 +327,30 @@ async function checkAppointmentExistsBookingId(bookingid) {
       return true;
   }
 }
-async function deleteBooking(id){
-// 调用后端删除预约接口（假定全局已定义 request 方法和 API_BASE_URL）
-// 查询是否存在以此id为排期id的appointment（预约/子项），返回结果布尔型
- if (checkAppointmentExistsBookingId(id))
- {
-  // INSERT_YOUR_CODE
-  const userChoice = confirm('该预订存在预约，是否继续删除？继续将删除该预订下的全部预约。点击“确定”继续，点击“取消”放弃删除。');
-  if (!userChoice) {
-    return;
-  }
-  //删除该预定的全部预约
-  await deleteAppointmentsByBookingId(id);
- }
-
-try {
-    const res = await request({
-        url: `${API_BASE_URL}/course/booking/delete/${id}`,
-        method: 'delete',
-      //  params: { id: id }
-    });
-
-    if (res ) {
-        // 删除成功，刷新列表
-        alert('删除成功');
-        getBookingListByPage();
-    } else {
-        alert('删除失败 ');
+async function deleteBookingByFrozen(id) {
+    // 调用后端删除预约接口（假定全局已定义 request 方法和 API_BASE_URL）
+    // 查询是否存在以此id为排期id的appointment（预约/子项），返回结果布尔型
+     if (checkAppointmentExistsBookingId(id))
+     {
+      // INSERT_YOUR_CODE
+      const userChoice = confirm('该预订存在预约，是否继续删除？继续将删除该预订下的全部预约。点击“确定”继续，点击“取消”放弃删除。');
+      if (!userChoice) {
+        return;
+      }
+      //删除该预定的全部预约
+     // await deleteAppointmentsByBookingIdByFrozen(id);
+     updateAppointmentsStatusByBookingId(id,"frozen");
+     }
+    
+    try {
+      await operateBookingStatus( id, "frozen");
+      getBookingListByPage();
+     } catch (e) {
+      //  alert('网络错误，删除失败');
+        console.error(e);
     }
-} catch (e) {
-    alert('网络错误，删除失败');
-    console.error(e);
-}
-
-}
+    
+    }
 
 async function validBooking(bookingid){
        

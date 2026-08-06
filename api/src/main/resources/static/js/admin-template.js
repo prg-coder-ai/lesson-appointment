@@ -390,7 +390,7 @@ async function loadAndRenderTemplateCards() {
                  
                       <button class="btn btn-success" onclick="operateTemplateStatus('${template.templateId}', 'active')">发布</button>
                       <button class="btn btn-warning" onclick="operateTemplateStatus('${template.templateId}', 'inactive')">撤回</button>
-                      <button class="btn btn-danger" onclick="deleteTemplate('${template.templateId}')">删除</button>
+                      <button class="btn btn-danger" onclick="deleteTemplateByFrozen('${template.templateId}')">冻结</button>
                   </div>
               </div>
           </div>
@@ -404,74 +404,55 @@ async function loadAndRenderTemplateCards() {
      }
  }
 // ===================== 交互函数 =====================
-  
-/**
- * 删除模板
- */
-   function deleteTemplate(templateId) {    
-    // INSERT_YOUR_CODE
-    // 1. 判断是否存在基于该模板的课程（即该模板是否被课程表引用）
-    async function checkTemplateHasCourses(templateId) {
-      try {
-        // 假设有接口: /course/list 查询课程列表，参数支持 templateId
-        // 检查参数传递，getCourseList 可以接收 { templateId: ... }
-        // 但要确保参数名和后端（如 CourseQueryParam DTO）一致
-        const res = await getCourseList({ templateId });
-        console.error("check:",res);
-        if (res && Array.isArray(res) && res.length > 0) {
-          console.error("check:",true);
-          return true;
-        }
-        console.error("check:",false);
-        return true;
-      } catch (error) {
-        console.error('检查模板是否有关联课程时出错', error);
-        // 出错视为有，阻止误删
-        return true;
-      }
-    }
- //   if (!window.confirm('确定要删除该课程模板吗？删除后基于该模板的课程基础参数将不受统一管控！')) {
-   //         return;
-    //    }
-        // INSERT_YOUR_CODE
-        var bconfirmed = false ;
-        (async () => {
-            // 执行前检查模板是否关联课程，如有关联则不允许删除
-            const hasCourses = await checkTemplateHasCourses(templateId);
-            if (hasCourses) {
-                //alert('该模板有关联课程，无法删除！请先删除或修改基于该模板的课程。');
-              //  return;
-              const userChoice = confirm('该模板存在课程，是否继续删除？继续将删除该项目下的全部课程。点击“确定”继续，点击“取消”放弃删除。');
-              if (!userChoice) {
-                  return;
-                        }
-             bcomfirmed = true;
-        
-            }
 
-            if(!bcomfirmed) //提示1次
-              if (!confirm('确定要删除该模板吗？')) return;
+function deleteTemplateByFrozen(templateId) {     
+      var bconfirmed = false ;
+      (async () => {
+          // 执行前检查模板是否关联课程，如有关联则不允许删除
+          const hasCourses = await checkTemplateHasCourses(templateId);
+          if (hasCourses) {
+              //alert('该模板有关联课程，无法删除！请先删除或修改基于该模板的课程。');
+            //  return;
+            const userChoice = confirm('该模板存在课程，是否删除？继续将删除该项目下的全部课程。点击“确定”继续，点击“取消”放弃删除。');
+            if (!userChoice) {
+                return;
+                      }
+           //TBD : 设置该模板的所有课程状态为delete
+           bcomfirmed = true;   
+           deleteTemplateNextLevelByFrozen(templateId);
+          }
 
-            try {
-                const res = await request({
-                    url: `${API_BASE_URL}/course/template/${templateId}`,
-                    method: 'DELETE'
-                });
-                if (res >0) {
-                  //  alert('模板删除成功');
-                    await loadAndRenderTemplateCards();
-                } else {
-                    alert('模板删除失败: ' + (res && res.msg ? res.msg : '未知错误'));
-                }
-            } catch (err) {
-                alert('网络异常，模板删除失败');
-                console.error(err);
-            }
-        })();
-     //   deleteTemplate
-        // operateTemplateStatus(templateId,"frozen");          
+          if(!bcomfirmed) //提示1次
+            if (!confirm('确定要删除该模板吗？')) return;
+
+            await operateTemplate(templateId,"frozen");
+
+            await loadAndRenderTemplateCards();
+             
+      })();
+   //   deleteTemplate
+      // operateTemplateStatus(templateId,"frozen");          
 }
-    
+  
+ async function deleteTemplateNextLevelByFrozen(templateId){
+ // INSERT_YOUR_CODE
+    try {
+        // 调用接口设置模板所有课程的状态为delete
+        // 获取所有课程，筛选属于该模板的课程，然后调用接口设置其状态为"delete"
+        // 后端接口: /api/v1/course/updateStatusByLastId/{id}?status=delete, method: POST
+        // 这里假设存在API_BASE_URL全局变量，否则请按实际填充
+        // 1. 获取该模板下所有课程
+        const res = await request({
+            url: `${API_BASE_URL}/course/updateStatusByLastId/${encodeURIComponent(templateId)}?status=${encodeURIComponent("frozen")}`,
+            method: 'POST' 
+        });
+          console.log("deleted",res);
+    } catch (err) {
+        alert('删除模板下课程时出错，请检查网络或后端接口。');
+        console.error('deleteTemplateNextLevelByFrozen error:', err);
+    }
+
+ }
 
 async function  operateTemplateStatus(templateId,newStatus){
       await  operateTemplate(templateId,newStatus);

@@ -150,18 +150,45 @@ public class CourseController {
            @Validated @RequestBody UpdateCourseStatusRequest req,
             @RequestHeader("Authorization") String token) {
         permissionCheck.checkTeacherOrAdmin(token);
-         String courseId = req.getCourseid();
-        // 校验课程归属， 检查课程归属权，若courseId不存在或非teacherId归属，抛出业务异常
-       // String teacherId = permissionCheck.getUserIdFromToken(token);
-       // courseService.checkCourseOwner(courseid, teacherId); 
-       
-      //  System.out.println("UpdateCourseStatus req: " + req);
-      //  System.out.println("courseId: " + courseId);
-
+         String courseId = req.getCourseid(); 
         // 执行对应操作
         courseService.updateCourseStatus(courseId, req.getStatus()); 
         return Result.success(true, "课程状态修改成功");
     }
+
+    @PostMapping("/updateStatusByLastId/{id}")
+    public Result<Integer> updateCourseStatusByLastId(
+           @PathVariable String id,
+           @RequestParam("status") String status,
+            @RequestHeader("Authorization") String token) {
+        permissionCheck.checkTeacherOrAdmin(token);
+        // 执行对应操作
+        Integer rows = courseService.updateCourseStatusByLastId(id, status);
+        return Result.success(rows, "课程状态修改成功");
+    }
+    /*
+     * 前端调用示例（JavaScript，假设使用fetch，与 API_BASE_URL 变量）
+     * 
+     * async function updateCourseBatchStatus(templateId, newStatus) {
+     *   const res = await fetch(`${API_BASE_URL}/course/updateStatusByLastId/${encodeURIComponent(templateId)}?status=${encodeURIComponent(newStatus)}`, {
+     *     method: 'POST',
+     *     headers: {
+     *       'Authorization': localStorage.getItem('token'), // 假设token保存在本地
+     *       'Content-Type': 'application/json'
+     *     }
+     *   });
+     *   const result = await res.json();
+     *   if(result.code === 0){
+     *     alert('课程状态批量修改成功, 受影响课程数: ' + result.data);
+     *   }else{
+     *     alert('课程状态批量修改失败: ' + result.message);
+     *   }
+     * }
+     * 
+     * // 调用示例:
+     * updateCourseBatchStatus('template-id-123', 'delete');
+     */
+
 
     @PostMapping("/update")
     public Result<Boolean > updateCourse(
