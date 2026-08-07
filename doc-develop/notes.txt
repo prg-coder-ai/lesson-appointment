@@ -1,0 +1,13 @@
+1 使用 mysql数据库，需要启动docker中的lesson-appointment
+2 利用intellij IDEA 或者 cursor 打开api目录，在terminal下运行 mvn命令，clear;mvn  compile  spring-boot:run -e -X
+
+可启动集成环境下的服务运行。在浏览器下输入localhost：8081. 即可进入登陆界面
+
+目前区分3个角色：admin、teacher、student
+                其中 admin 密码 1 
+                其它的用户密码： 可能是1 、2 、3 ，重置后密码为123456
+
+可以在登陆界面创建新的用户。
+
+ 分支：main分支-----没有按页显示
+     front-option-Page分支下为分页显示
