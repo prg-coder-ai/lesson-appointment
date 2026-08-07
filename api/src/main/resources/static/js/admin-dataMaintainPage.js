@@ -149,15 +149,15 @@ window.loadMaintainTableData = async function(type){
       delFunc: "deleteCourse"
     },
     schedule: { //TBD---
-      api: "/course/schedule/list",
+      api: fetchScheduleListPage,
       delFunc: "deleteSchedule"
     },
     booking: {
-      api: "/booking/list",
+      api: getBookingListPage,
       delFunc: "deleteBooking"
     },
     appointment: {
-      api: "/appointment/list",
+      api: getAppointmentListPage,
       delFunc: "deleteAppointment"
     }
   }[type];

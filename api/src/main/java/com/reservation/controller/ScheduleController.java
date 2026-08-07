@@ -104,6 +104,20 @@ public class ScheduleController {
         List<ScheduleCreateDTO> schedules = scheduleService.selectList(dto); //TBD: UTC-->local switch
         return Result.success(schedules,"ok");
     }
+ 
+    @PostMapping("/page")
+    @ResponseBody
+    public Result<PageResult<ScheduleCreateDTO>> filterListPage(@RequestBody ScheduleQueryPage query) {
+          
+         try {
+           PageResult <ScheduleCreateDTO> rs = scheduleService.selectListPage(query);
+           
+             return Result.success(rs,"ok");
+            } catch (RuntimeException e) {
+                 // System.out.println("filterList fail: " + e.getMessage());
+             return Result.fail(0,e.getMessage());
+        } 
+    }
 
     @GetMapping("/selectByCourseId/{courseId}")
      @ResponseBody
