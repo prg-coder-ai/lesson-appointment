@@ -50,7 +50,7 @@
         - MyBatis会根据参数动态生成实际SQL，避免无谓的AND叠加。
     -->
     <select id="selectList" parameterType="com.reservation.dto.ScheduleCreateDTO" resultType="com.reservation.entity.CourseSchedule">
-        SELECT * FROM course_schedule
+        SELECT *     FROM course_schedule         
         <where>
             <if test="scheduleId != null and scheduleId != ''">
                 AND schedule_id = #{scheduleId}
@@ -79,6 +79,17 @@
                 AND repeat_days = #{repeatDays}
             </if>
         </where>
+    </select>
+       
+       
+    <select id="selectListByPage" parameterType="com.reservation.query.ScheduleQueryPage" resultType="com.reservation.entity.CourseSchedule">
+        SELECT * FROM course_schedule
+        <where>
+        TRUE 
+        </where>
+      <if test="pageSize != null and pageNum != null">
+        LIMIT #{pageSize} OFFSET ${(pageNum - 1) * pageSize}
+      </if>
     </select>
        
     <update id="updateSites" parameterType="com.reservation.dto.IncSiteBody">

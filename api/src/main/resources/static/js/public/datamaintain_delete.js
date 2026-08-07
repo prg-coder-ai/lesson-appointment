@@ -218,3 +218,25 @@ async function deleteCourse(id) {
         }
         
         }  
+
+        // INSERT_YOUR_CODE
+        /**
+         * 分页加载排期(schedule)列表数据。
+         * @param {Object} params - 查询参数对象，例如 { pageNum: 1, pageSize: 10, courseName: '', status: '' }
+         * @returns {Promise<Object>} - 包含分页数据和总数的对象 { list: [], total: number }
+         */
+        async function fetchScheduleListPage(query = {}) {
+           
+            try {
+                const res = await request({
+                    url: `${API_BASE_URL}/schedule/Page`,
+                    method: 'post',
+                    data: query
+                });
+                // 通常返回格式 { list: [...], total: 123 }
+                return res;
+            } catch (error) {
+                console.error('分页加载排期列表失败:', error);
+                return { list: [], total: 0 };
+            }
+        }

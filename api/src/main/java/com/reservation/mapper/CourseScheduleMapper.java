@@ -18,7 +18,8 @@ public interface CourseScheduleMapper {
     
 
     List<CourseSchedule> selectList(ScheduleCreateDTO  filterJson);
-
+    List<CourseSchedule> selectListBypage(ScheduleQueryPage query);
+    
     String updateScheduleSites(IncSiteBody opPara);
     //根据输入的非空参数更新
     void update(CourseSchedule newData);
