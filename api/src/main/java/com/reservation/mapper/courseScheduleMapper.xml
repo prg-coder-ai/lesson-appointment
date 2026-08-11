@@ -91,6 +91,10 @@
         LIMIT #{pageSize} OFFSET ${(pageNum - 1) * pageSize}
       </if>
     </select>
+
+    <select id="selectCountByCondition" resultType="int">
+        SELECT COUNT(*) FROM course_schedule
+    </select>
        
     <update id="updateSites" parameterType="com.reservation.dto.IncSiteBody">
         UPDATE course_schedule

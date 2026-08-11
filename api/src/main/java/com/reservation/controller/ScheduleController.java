@@ -13,10 +13,13 @@ import com.reservation.service.CourseScheduleService;
 import  com.reservation.common.ScheduleGenerator; 
 import com.reservation.utils.PermissionCheck;
 
+import com.reservation.query.*;
+import com.reservation.common.*;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.validation.annotation.Validated;
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;

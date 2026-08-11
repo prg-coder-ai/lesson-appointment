@@ -23,8 +23,8 @@ import org.springframework.beans.factory.annotation.Autowired;
  import java.util.Collections;
 import java.util.HashMap;
 /*
- import javax.servlet.http.Cookie;
- import javax.servlet.http.HttpServletResponse;
+ import jakarta.servlet.http.Cookie;
+ import jakarta.servlet.http.HttpServletResponse;
 
 import java.util.List;
  import java.util.Map;*/

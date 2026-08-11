@@ -2,6 +2,7 @@ package com.reservation.mapper;
 
 import com.reservation.entity.*;
 import com.reservation.dto.*;
+import com.reservation.query.*;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import java.time.LocalDateTime;
@@ -18,7 +19,9 @@ public interface CourseScheduleMapper {
     
 
     List<CourseSchedule> selectList(ScheduleCreateDTO  filterJson);
-    List<CourseSchedule> selectListBypage(ScheduleQueryPage query);
+    List<CourseSchedule> selectListByPage(ScheduleQueryPage query);
+
+    Integer selectCountByCondition(@Param("query") ScheduleQueryPage query);
     
     String updateScheduleSites(IncSiteBody opPara);
     //根据输入的非空参数更新
