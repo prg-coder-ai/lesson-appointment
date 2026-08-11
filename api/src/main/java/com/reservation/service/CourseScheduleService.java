@@ -8,6 +8,10 @@ import com.reservation.mapper.ScheduleExceptionMapper;
 import com.reservation.common.ScheduleGenerator;
 
 import com.reservation.mapper.BookingMapper;
+import com.reservation.query.ScheduleQueryPage;
+import com.reservation.common.PageResult;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.reservation.dto.ScheduleCreateDTO;
 /*import com.reservation.service.AppointmentService;
       import java.time.LocalDate;
 import jakarta.validation.constraints.NotBlank;
@@ -16,7 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.LocalDateTime;
@@ -451,10 +455,19 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
      * @return 删除的排期数量
      */
     public int deleteByCourseId(String courseId) { 
-             // 删除排期
-            int rows=            scheduleMapper.deleteByCourseId(courseId);
-            //   MyBatis自定义返回受影响行数需对应XML配置
+             int rows=            scheduleMapper.deleteByCourseId(courseId);
             return rows;
       }
+
+    @Transactional(propagation = Propagation.REQUIRED)
+    public PageResult<ScheduleCreateDTO> selectListPage(ScheduleQueryPage query) {
+        List<CourseSchedule> list = scheduleMapper.selectListByPage(query);
+        List<ScheduleCreateDTO> dtoList = ListObjectToCreateDto(list);
+        Integer total = scheduleMapper.selectCountByCondition(query);
+        Page<ScheduleCreateDTO> page = new Page<>(query.getPageNum(), query.getPageSize());
+        page.setRecords(dtoList);
+        page.setTotal(total);
+        return PageResult.of(page);
+    }
   
 }//all 
