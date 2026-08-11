@@ -81,7 +81,7 @@ public class AppointmentController {
     public Result<Boolean> updateStatusById(@RequestBody BookingDTO  params) {
         String id = params.getId();
         String status = params.getStatus();
-        return Result.success(appointmentService.updateStatusById(id, status), "ok");
+        return Result.success(appointmentService.updateStatusById(Integer.parseInt(id)  , status), "ok");
     }
     /**
      * 4. 根据ID查询单条

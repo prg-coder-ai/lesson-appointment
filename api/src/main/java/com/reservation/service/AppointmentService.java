@@ -257,7 +257,7 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
     }
 
       @Transactional
-    public boolean updateStatusById(String id,String status){ 
+    public boolean updateStatusById(Integer id,String status){ 
     int updated = baseMapper.updateStatusById(id, status);
     return updated > 0;
     }

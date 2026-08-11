@@ -16,7 +16,7 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
     
     int updateStatusByBookingId(@org.apache.ibatis.annotations.Param("bookingId") String bookingId, 
                                 @org.apache.ibatis.annotations.Param("status") String status); 
-    int updateStatusById(@org.apache.ibatis.annotations.Param("id") String id, 
+    int updateStatusById(@org.apache.ibatis.annotations.Param("id") Integer id, 
                                 @org.apache.ibatis.annotations.Param("status") String status); 
     int deleteByBookingId(@org.apache.ibatis.annotations.Param("bookingId") String bookingId); 
     int deleteById(@org.apache.ibatis.annotations.Param("appointmentId") Integer appointmentId); 
