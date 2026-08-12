@@ -16,6 +16,7 @@ import com.reservation.dto.ScheduleCreateDTO;
       import java.time.LocalDate;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.beans.BeanUtils;*/
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -444,19 +445,21 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
      * @return 删除的排期数量（通常为1，若未找到则为0）
      */
     public int deleteById(String id) {
-        // 可根据需要先做关联数据校验（如有预约则不能删），此处简化直接调用mapper
-             // 删除排期
+        log.info("删除排期开始, scheduleId={}", id);
+            // 删除排期
             scheduleMapper.deleteById(id);
-            // 一般来说可返回 1 表示删除成功，MyBatis自定义返回受影响行数需对应XML配置
-            return 1;      
-    }
+            log.info("删除排期结束, scheduleId={}", id);
+            return 1;
+      }
     /**
      * 根据课程ID删除该课程下的所有排期
      * @param courseId 课程ID
      * @return 删除的排期数量
      */
-    public int deleteByCourseId(String courseId) { 
+    public int deleteByCourseId(String courseId) {
+            log.info("按课程ID删除排期开始, courseId={}", courseId);
              int rows=            scheduleMapper.deleteByCourseId(courseId);
+            log.info("按课程ID删除排期结束, courseId={}, 影响行数={}", courseId, rows);
             return rows;
       }
 
