@@ -2,6 +2,8 @@
 package com.reservation.entity;
 
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 import jakarta.validation.constraints.Size;
@@ -14,6 +16,7 @@ import java.io.Serializable;
 @Data
 public class Course implements Serializable {
       private static final long serialVersionUID = 1L;
+    @TableId(type = IdType.ASSIGN_ID)
     private String courseId;
 
     @NotBlank(message = "模板ID不能为空")

@@ -22,3 +22,14 @@ public class Booking   implements Serializable{
     private Date createTime;  // 订单创建时间
     private Date update_time;  // 更新时间' 
 }
+//根据实体定义，创建sql语句
+//create table if not exists booking (
+//    id varchar(36) not null primary key,
+//    schedule_id varchar(36),
+//    student_id varchar(36) not null,
+//    teacher_id varchar(36) not null,
+//    status varchar(10) not null,
+//    create_time datetime not null,
+//    update_time datetime not null
+//);
+//
