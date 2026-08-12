@@ -53,7 +53,7 @@ public class UserService {
     @Transactional
     public Result< Object> Register(User user) {
         // 校验手机号/邮箱是否已注册（对应业务异常校验）
-        // System.out.println("input：" + user);
+         System.out.println("input：" + user);
          if(existAccount(user.getAccount())) {
             //throw new BusinessException("该账号已注册");
             Result< Object> rslt = Result.fail(400   ,"该账号已注册，请登录或重置密码");
@@ -65,8 +65,9 @@ public class UserService {
         // 生成唯一userId（对应通用校验规则-ID类参数）
         user.setUserId(UUID.randomUUID().toString());  
         // 插入数据库
-        userMapper.insert(user);
- 
+        int result = userMapper.insert(user);
+        System.out.println("output：" + result);
+
          Map<String, String> resultMap = new HashMap<>();
          resultMap.put("userId", user.getUserId());
          resultMap.put("account", user.getAccount());
@@ -76,7 +77,7 @@ public class UserService {
          resultMap.put("role", user.getRole());
                                //data,message
          Result< Object> rslt = Result.success(resultMap   ,"注册成功，请登录等待验证");
-        
+         System.out.println("output rslt：" + rslt);
         return rslt;
     }
 
@@ -115,7 +116,7 @@ public class UserService {
     // 用户登录（对应设计2.2.1 登录接口）
     public Result<HashMap<String, Object>> login(String account, String password) {
         // 查找用户（账号可为手机号/邮箱，对应设计2.2.1 登录接口请求参数）
-       //  System.out.println("login：" + account+"   "+password);
+         System.out.println("userService login：" + account+"   "+password);
         User user = userMapper.selectByAccount(account);
         if (user == null) {
             throw new ResourceNotFoundException("账号不存在");
