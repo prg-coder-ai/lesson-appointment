@@ -12,6 +12,7 @@ import com.reservation.exception.ResourceNotFoundException;
 import com.reservation.mapper.CourseTemplateMapper;
 import com.reservation.mapper.CourseMapper;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,7 @@ import java.util.*;
  * 课程与排期管理服务，对应设计2.2.2 课程与排期管理模块所有接口的业务逻辑
  * 涵盖课程模板、教师课程、课程排期的增删改查，严格遵循权限校验和数据校验规则
  */
+@Slf4j
 @Service
 public class CourseService   {
     @Autowired
@@ -129,8 +131,11 @@ public class CourseService   {
           return result;
     }
 //          deleteTemplateById
-public int deleteTemplate(String Id) { 
-       return courseTemplateMapper.deleteTemplate(Id);
+public int deleteTemplate(String Id) {
+       log.info("删除课程模板开始, templateId={}", Id);
+       int rows = courseTemplateMapper.deleteTemplate(Id);
+       log.info("删除课程模板结束, templateId={}, 影响行数={}", Id, rows);
+       return rows;
     }
 
     /**
@@ -220,8 +225,11 @@ public int deleteTemplate(String Id) {
     }
 */
 
-public int deleteById(String courseId) { 
-        return courseMapper.deleteById(courseId);
+public int deleteById(String courseId) {
+        log.info("删除课程开始, courseId={}", courseId);
+        int rows = courseMapper.deleteById(courseId);
+        log.info("删除课程结束, courseId={}, 影响行数={}", courseId, rows);
+        return rows;
     }
   
   
@@ -254,7 +262,10 @@ public int deleteById(String courseId) {
     }
 
     public int deleteByTemplateId(String id) {
-        return courseMapper.deleteByTemplateId(id);
+        log.info("按模板ID删除课程开始, templateId={}", id);
+        int rows = courseMapper.deleteByTemplateId(id);
+        log.info("按模板ID删除课程结束, templateId={}, 影响行数={}", id, rows);
+        return rows;
 
     }
 }

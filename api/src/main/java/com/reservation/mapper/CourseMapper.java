@@ -63,13 +63,7 @@ public interface CourseMapper extends BaseMapper<Course> {
     Course getCourseById(@Param("courseId") String courseId);
 
     // INSERT_YOUR_CODE
-    /**
-     * 删除指定course_id的课程
-     * @param courseId 课程ID
-     * @return 影响行数
-     */
-    @org.apache.ibatis.annotations.Delete("DELETE FROM course WHERE course_id = #{courseId}")
-    int deleteById(@Param("courseId") String courseId);
+    // deleteById 已移除：使用 MyBatis-Plus BaseMapper 内置的 deleteById 方法
 
 
     /**

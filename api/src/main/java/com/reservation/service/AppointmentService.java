@@ -18,11 +18,13 @@ import java.util.List;
 
 import jakarta.annotation.Resource;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.reservation.mapper.AppointmentMapper;
 //import java.time.LocalDateTime;
 
+@Slf4j
 @Service
 public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointment> {
 
@@ -228,26 +230,7 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
  
          return result == null ? 0 : result.intValue();
     }
-    //
-
-  /* 
-   Long result = lambdaQuery()
-            .ge(Appointment::getAppointmentDatetime, startTs.toLocalDateTime())
-            .le(Appointment::getAppointmentDatetime, endTs.toLocalDateTime())
-            .in(Appointment::getStatus, statuses)
-            .count();
-    return result == null ? 0 : result.intValue();
-  
-   public boolean saveBatch(List<Appointment> lists){ 
-    boolean allSuccess = true;
-    for (Appointment appointment : lists) {
-        boolean success = this.add(appointment);
-        if (!success) {
-            allSuccess = false;
-        }
-    }
-    return allSuccess;
-    }*/
+    // 
      @Transactional
     public boolean updateStatusByBookingId(String bookingId,String status){
 

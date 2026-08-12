@@ -37,6 +37,7 @@ com\reservation\controller\AppointmentController.class
 com\reservation\entity\Appointment.class
 com\reservation\query\CourseQueryPage.class
 com\reservation\dto\TokenDTO.class
+com\reservation\query\ScheduleQueryPage.class
 com\reservation\query\BookingQueryPage.class
 com\reservation\service\CourseService.class
 com\reservation\entity\Booking.class
@@ -46,6 +47,7 @@ com\reservation\service\AppointmentService.class
 com\reservation\dto\BookingCreateDTO.class
 com\reservation\dto\BookingDTO.class
 com\reservation\exception\NoPermissionException.class
+com\reservation\query\CourseScheduleQueryPage.class
 com\reservation\common\ScheduleGenerator.class
 com\reservation\dto\AppointmentConditionDTO.class
 com\reservation\service\CourseScheduleService.class
