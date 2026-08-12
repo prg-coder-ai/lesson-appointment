@@ -246,14 +246,16 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
     }
 
 public boolean removeById(Integer appId){
-       // System.out.println("removeByBookingId: " + bookingId);
+        log.info("删除预约时间开始, appointmentId={}", appId);
         int deleted = baseMapper.deleteById(appId);
+        log.info("删除预约时间结束, appointmentId={}, 影响行数={}", appId, deleted);
         return deleted > 0;
     }
 
     public boolean removeByBookingId(String bookingId){
-        System.out.println("removeByBookingId: " + bookingId);
+        log.info("按预约ID批量删除预约时间开始, bookingId={}", bookingId);
         int deleted = baseMapper.deleteByBookingId(bookingId);
+        log.info("按预约ID批量删除预约时间结束, bookingId={}, 影响行数={}", bookingId, deleted);
         return deleted > 0;
     }
 

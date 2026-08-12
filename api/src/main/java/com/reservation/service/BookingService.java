@@ -87,12 +87,18 @@ public class BookingService {
 
     @Transactional(propagation = Propagation.REQUIRED)
     public int delete(String id) {
-       return bookingMapper.delete(id);
+       log.info("删除预约开始, bookingId={}", id);
+       int rows = bookingMapper.delete(id);
+       log.info("删除预约结束, bookingId={}, 影响行数={}", id, rows);
+       return rows;
     }
 
 @Transactional(propagation = Propagation.REQUIRED)
     public int deleteByScheduleId(String id) {
-       return bookingMapper.deleteByScheduleId(id);
+       log.info("按排期ID删除预约开始, scheduleId={}", id);
+       int rows = bookingMapper.deleteByScheduleId(id);
+       log.info("按排期ID删除预约结束, scheduleId={}, 影响行数={}", id, rows);
+       return rows;
     }
 // INSERT_YOUR_CODE
 
