@@ -68,9 +68,10 @@ public class UserController {
     @GetMapping("/name/{userId}")
     @ResponseBody
     public Result<String> getUserById( @PathVariable  String userId ) {
-       // HashMap<String, Object> condition = new java.util.HashMap<>();  
+        // HashMap<String, Object> condition = new java.util.HashMap<>();  
           User  user  = userService.selectById(userId);  
          if(user != null ) { 
+            System.out.println("ret：" + user);
             return Result.success(user.getName(), "查询成功"); 
     } else  {
        return Result.success("N/A", "查询成功");
@@ -89,7 +90,7 @@ public class UserController {
        
         Result<Object> rst = userService.Register(user);
     
-       // System.out.println("rst：" + rst);
+      System.out.println("rst：" + rst);
         return rst;//Result.success(rst, "注册成功,请等待管理员审核");
     }
 
@@ -103,6 +104,7 @@ public class UserController {
          user.setRole("teacher");
          user.setStatus("pending");
         Result<Object> rst = userService.Register(user); 
+        System.out.println("rst：" + rst);
         return rst; 
     }
 // 添加用户
@@ -112,6 +114,7 @@ public class UserController {
         
          user.setStatus("active");
         Result<Object> rst = userService.Register(user); 
+        System.out.println("rst：" + rst);
         return rst; 
     }
 
@@ -120,7 +123,7 @@ public class UserController {
     public Result<Object> updateStatus(@Validated @RequestBody User user) { 
          
         int ret = userService.updateStatus(user); 
-         
+        System.out.println("ret：" + ret);
         return   Result.success(ret, "修改成功");
     }
   
@@ -129,6 +132,8 @@ public class UserController {
     @GetMapping("/student/list")
     @ResponseBody
     public Result<List<User>>  studentList() { 
+        // HashMap<String, Object> condition = new java.util.HashMap<>();  
+        // condition.put("role", "student");
           String role="student";
           List<User> users = userService.listByRole(role);
         // System.out.println("out:" + users);

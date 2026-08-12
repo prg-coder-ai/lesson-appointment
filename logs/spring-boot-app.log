@@ -1,0 +1,32 @@
+2026-08-13T04:29:51.296+08:00 INFO  o.h.validator.internal.util.Version : HV000001: Hibernate Validator 8.0.1.Final
+2026-08-13T04:29:51.576+08:00 INFO  c.r.SpringBootMergeApplication : Starting SpringBootMergeApplication v1.0.0-SNAPSHOT using Java 21.0.8 with PID 15740 (H:\2026\lesson-appointment\api\target\api-1.0.0-SNAPSHOT.jar started by Administrator in H:\2026\lesson-appointment)
+2026-08-13T04:29:51.579+08:00 INFO  c.r.SpringBootMergeApplication : No active profile set, falling back to 1 default profile: "default"
+2026-08-13T04:29:56.766+08:00 DEBUG o.apache.ibatis.logging.LogFactory : Logging initialized using 'class org.apache.ibatis.logging.slf4j.Slf4jImpl' adapter.
+2026-08-13T04:29:59.630+08:00 INFO  o.s.b.w.e.tomcat.TomcatWebServer : Tomcat initialized with port 8081 (http)
+2026-08-13T04:29:59.736+08:00 INFO  o.a.coyote.http11.Http11NioProtocol : Initializing ProtocolHandler ["http-nio-8081"]
+2026-08-13T04:29:59.842+08:00 INFO  o.a.catalina.core.StandardService : Starting service [Tomcat]
+2026-08-13T04:29:59.851+08:00 INFO  o.a.catalina.core.StandardEngine : Starting Servlet engine: [Apache Tomcat/10.1.31]
+2026-08-13T04:30:00.083+08:00 INFO  o.a.c.c.C.[Tomcat].[localhost].[/] : Initializing Spring embedded WebApplicationContext
+2026-08-13T04:30:00.084+08:00 INFO  o.s.b.w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 8272 ms
+2026-08-13T04:30:07.066+08:00 WARN  o.s.b.a.s.s.UserDetailsServiceAutoConfiguration : 
+
+Using generated security password: b98fd05a-a5df-44c2-973d-e5ba664c4873
+
+This generated password is for development use only. Your security configuration must be updated before running your application in production.
+
+2026-08-13T04:30:07.088+08:00 INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name inMemoryUserDetailsManager
+2026-08-13T04:30:07.567+08:00 INFO  o.s.b.a.w.s.WelcomePageHandlerMapping : Adding welcome page: class path resource [static/index.html]
+2026-08-13T04:30:09.614+08:00 INFO  o.a.coyote.http11.Http11NioProtocol : Starting ProtocolHandler ["http-nio-8081"]
+2026-08-13T04:30:09.702+08:00 INFO  o.s.b.w.e.tomcat.TomcatWebServer : Tomcat started on port 8081 (http) with context path '/'
+2026-08-13T04:30:09.752+08:00 INFO  c.r.SpringBootMergeApplication : Started SpringBootMergeApplication in 21.31 seconds (process running for 25.148)
+2026-08-13T04:30:23.033+08:00 INFO  o.a.c.c.C.[Tomcat].[localhost].[/] : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-08-13T04:30:23.034+08:00 INFO  o.s.web.servlet.DispatcherServlet : Initializing Servlet 'dispatcherServlet'
+2026-08-13T04:30:23.036+08:00 INFO  o.s.web.servlet.DispatcherServlet : Completed initialization in 2 ms
+2026-08-13T04:30:55.266+08:00 INFO  com.zaxxer.hikari.HikariDataSource : HikariPool-1 - Starting...
+2026-08-13T04:30:56.477+08:00 INFO  com.zaxxer.hikari.pool.HikariPool : HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@66b8d3f4
+2026-08-13T04:30:56.485+08:00 INFO  com.zaxxer.hikari.HikariDataSource : HikariPool-1 - Start completed.
+2026-08-13T04:30:56.614+08:00 DEBUG c.r.mapper.UserMapper.selectByPhone : ==>  Preparing: select * from user where phone = ?
+2026-08-13T04:30:56.698+08:00 DEBUG c.r.mapper.UserMapper.selectByPhone : ==> Parameters: testpwd01(String)
+2026-08-13T04:30:56.839+08:00 DEBUG c.r.mapper.UserMapper.selectByPhone : <==      Total: 0
+2026-08-13T04:30:57.039+08:00 DEBUG c.r.mapper.UserMapper.insert : ==>  Preparing: INSERT INTO user(user_id, account ,name, password, phone, email, role, status) VALUES(?,?,?, ?, ?, ?, ?, ?)
+2026-08-13T04:30:57.051+08:00 DEBUG c.r.mapper.UserMapper.insert : ==> Parameters: c999a642-d4a9-4a32-8310-3ea7c021fa98(String), testpwd01(String), 测试账号01(String), $2a$10$QlrTeIaPwYrx34rPLNaByOJe.mo60IQCJm2GZSgqoOw5e4AKFL1v6(String), null, testpwd01@example.com(String), student(String), pending(String)

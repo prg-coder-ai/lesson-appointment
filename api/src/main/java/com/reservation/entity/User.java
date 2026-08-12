@@ -34,9 +34,9 @@ public class User implements Serializable{
     private String email;
 
     // 密码校验（对应通用校验规则-密码）
-    @NotBlank(message = "密码不能为空")
-    @Size(min = 1, max = 20, message = "密码长度需8-20位")
-    @Pattern(regexp = "^(?=.*[a-zA-Z])(?=.*\\d).{8,20}$", message = "密码需包含字母和数字")
+    //@NotBlank(message = "密码不能为空")
+   // @Size(min = 1, max = 20, message = "密码长度需8-20位")
+   // @Pattern(regexp = "^(?=.*[a-zA-Z])(?=.*\\d).{8,20}$", message = "密码需包含字母和数字")
     private String password;
 
     // 角色（student/teacher/admin），对应设计2.2.1 登录接口返回角色信息,1 student：学生，2teacher：教师，3admin：管理员）'

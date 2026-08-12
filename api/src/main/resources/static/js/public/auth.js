@@ -121,6 +121,7 @@
     const loginInfo = { account: account, password: pwd };
     try {
       const res = await login(loginInfo);
+      console.log('登录响应:', res);
       if (!res || !res.token) {
         throw new Error('登录失败，未返回有效凭证');
       }
@@ -142,12 +143,7 @@
      if (!registerAccount) return false; // 没有账号直接认为不存在（交给前面表单校验）
      try {
        const resp = await request({url:`${API_BASE_URL}/user/account/exist?account=${encodeURIComponent(registerAccount)}`});
-     //  if (!resp.ok) {
-         // 网络异常一律视为未占用，但需给出alert以便排查问题
-        //  alert("网络异常，无法校验账号是否存在,稍等再试"); //可根据需要屏蔽
-     //    return false;
-    //   }
-    //   const data = await resp.json();
+     
        // 期望后端返回 { code: ..., data: true/false }
        return  resp ;//    !!(data && data.data === true);
      } catch (e) {

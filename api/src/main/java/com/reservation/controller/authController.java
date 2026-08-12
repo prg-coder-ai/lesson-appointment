@@ -1,5 +1,6 @@
 package  com.reservation.controller;
 
+ import com.reservation.dto.LoginDTO;
  import  com.reservation.dto.RefreshDTO;
  import com.reservation.dto.RefreshTokenPO;
  import com.reservation.dto.TokenDTO;
@@ -56,13 +57,13 @@ public class authController {
           */
     @PostMapping("/login")
     @ResponseBody
-    public Result  <HashMap<String, Object>>  toLogin( @Validated @RequestBody User user){
+    public Result  <HashMap<String, Object>>  toLogin( @Validated @RequestBody LoginDTO user){
              String account = user.getAccount();
              String password = user.getPassword();
-
+        System.out.println("controller login:"+account+" "+password);
         // 调用服务层实现登录逻辑，返回userId、name，role、account、Token,freshToken（对应设计2.2.1 登录返回数据）
         Result<HashMap<String, Object>> rst= userService.login(account, password); //setOnline(false)
-          
+             System.out.println("controller login:"+rst);
         // 3. 登录成功：设置安全状态（核心步骤） ?token?
         // 封装用户认证信息（角色需和数据库一致，如teacher/student）
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
