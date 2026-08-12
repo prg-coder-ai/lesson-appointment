@@ -1,17 +1,38 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <!-- 统一日志按 UTF-8 输出，避免 Windows 终端把中文按 GBK 解码成乱码 -->
-    <property name="LOG_CHARSET" value="UTF-8"/>
+    <!-- ======================== 日志乱码最终防线 ========================
+         即使 Windows 老控制台（conhost/PS5）因代码页 936 显示为乱码，
+         落盘到 logs/ 下的文件仍为标准 UTF-8 中文，便于 notepad++ / VSCode / IDEA 打开查阅。
+         终端显示乱码（鎵嬫満/瀵嗙爜...）不影响 HTTP JSON 响应与落盘日志的正确性。 -->
+    <property name="LOG_CHARSET"  value="UTF-8"/>
+    <property name="LOG_DIR"      value="${LOG_PATH:-./logs}"/>
     <property name="LOG_PATTERN"
               value="%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level %logger{36} : %msg%n"/>
 
+    <!-- 1) 控制台 -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder charset="${LOG_CHARSET}">
             <pattern>${LOG_PATTERN}</pattern>
         </encoder>
     </appender>
 
+    <!-- 2) 滚动文件（按日期轮转 + 单文件超过 50MB 再按 %i 索引切分；UTF-8 BOM-less 纯文本，保留 30 天） -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/spring-boot-app.log</file>
+        <encoder charset="${LOG_CHARSET}">
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/archived/spring-boot-app.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>5GB</totalSizeCap>
+            <cleanHistoryOnStart>true</cleanHistoryOnStart>
+        </rollingPolicy>
+    </appender>
+
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
     </root>
 </configuration>

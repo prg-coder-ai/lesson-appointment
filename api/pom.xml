@@ -25,6 +25,9 @@
         <mysql-connector.version>8.0.33</mysql-connector.version>
         <jjwt.version>0.11.5</jjwt.version>
         <mainClass>com.reservation.SpringBootMergeApplication</mainClass>
+        <!-- Spring Boot Maven Plugin 的命令行参数：仅作用于 mvn spring-boot:run，不影响 repackage（避免 fork WARNING） -->
+        <spring-boot.run.fork>true</spring-boot.run.fork>
+        <spring-boot.run.jvmArguments>-Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005</spring-boot.run.jvmArguments>
     </properties>
 
     <dependencies>
@@ -135,8 +138,7 @@
                             <artifactId>lombok</artifactId>
                         </exclude>
                     </excludes>
-                    <fork>true</fork> 
-                </configuration>
+</configuration>
                 <executions>
                     <execution>
                         <goals>
