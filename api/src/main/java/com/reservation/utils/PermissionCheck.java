@@ -24,8 +24,8 @@ public class PermissionCheck {
      * @param token 请求头中的Authorization Token
      */
     public void checkAdmin(String token) {
-        // 解析Token中的角色
-        String role = jwtUtil.getRoleFromToken(token);
+        // 解析Token中的角色（使用本类的安全包装方法，Token异常转为UnLoginException）
+        String role = getRoleFromToken(token);
         // 校验角色是否为admin，否则抛出权限不足异常
         if (!"admin".equals(role)) {
             throw new NoPermissionException("您无管理员权限，无法执行该操作");
@@ -37,9 +37,9 @@ public class PermissionCheck {
      * @param token 请求头中的Authorization Token
      */
     public void checkTeacher(String token) {
-        // 解析Token中的角色和用户ID
-        String role = jwtUtil.getRoleFromToken(token);
-        String userId = jwtUtil.getUserIdFromToken(token);
+        // 解析Token中的角色和用户ID（使用本类的安全包装方法）
+        String role = getRoleFromToken(token);
+        String userId = getUserIdFromToken(token);
         // 1. 校验角色为teacher
         if (!"teacher".equals(role)) {
             throw new NoPermissionException("您无教师权限，无法执行该操作");
@@ -56,9 +56,9 @@ public class PermissionCheck {
      * @param token 请求头中的Authorization Token
      */
     public void checkStudent(String token) {
-        // 解析Token中的角色和用户ID
-        String role = jwtUtil.getRoleFromToken(token);
-        String userId = jwtUtil.getUserIdFromToken(token);
+        // 解析Token中的角色和用户ID（使用本类的安全包装方法）
+        String role = getRoleFromToken(token);
+        String userId = getUserIdFromToken(token);
         // 1. 校验角色为student
         if (!"student".equals(role)) {
             throw new NoPermissionException("您无学生权限，无法执行该操作");
@@ -75,8 +75,8 @@ public class PermissionCheck {
      * @param token 请求头中的Authorization Token
      */
     public void checkTeacherOrAdmin(String token) {
-        String role = jwtUtil.getRoleFromToken(token);
-        String userId = jwtUtil.getUserIdFromToken(token);
+        String role = getRoleFromToken(token);
+        String userId = getUserIdFromToken(token);
         // 校验角色为admin，或角色为teacher且账号状态active
         if ("admin".equals(role)) {
             return; // 管理员直接通过

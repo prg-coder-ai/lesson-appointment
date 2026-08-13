@@ -35,6 +35,15 @@
   }
 
   async function handleLogout() {
+    // 注意：必须在 localStorage.clear() 之前先保存 redirect 信息！
+    // 因为 saveLoginRedirect 也是写 localStorage，清了之后会丢失。
+    console.log('%c[AuthRedirect] 调用点 C：handleLogout 主动登出，准备 saveLoginRedirect',
+      'color:#dc2626;font-weight:bold;');
+    if (typeof window.saveLoginRedirect === 'function') {
+      window.saveLoginRedirect('logout');
+    } else {
+      console.warn('[AuthRedirect] window.saveLoginRedirect 不存在（utility_request.js 未加载？）');
+    }
     const refreshToken = localStorage.getItem('refreshToken');
     if (refreshToken) {
       try {
@@ -43,8 +52,13 @@
         console.warn('登出接口调用失败，仍清除本地登录态', e);
       }
     }
-    localStorage.clear();
+    // 注意：不要直接 localStorage.clear()，否则会把刚存的 auth_redirect_info 也清掉
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('auth_menu_state');  // 常见菜单状态，按需扩展
     document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
+    console.log('[AuthRedirect] 调用点 C：清理完成，跳转 ./index.html');
     location.href = './index.html';
   }
   

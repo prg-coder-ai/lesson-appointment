@@ -156,11 +156,40 @@ const userStr = localStorage.getItem('currentUser');
 }
 
  // 页面跳转函数（根据用户角色）
+ // 关键修复：登录成功后，优先读取 auth_redirect_info（来自 401 或 logout）跳转回原页面；
+ //         没有 redirect 时，才按角色跳默认页（admin/teacher/student）。
  function redirectToUserPage(user) {
-       
-  //alert('redirectToUserPage:'+ user.role );
-  // 存储用户信息到本地（实际项目中使用token）
- // localStorage.setItem('currentUser', JSON.stringify(user));
+   console.groupCollapsed(
+     '%c[AuthRedirect] redirectToUserPage 触发（登录成功后的跳转决策）',
+     'color:#fff;background:#7c3aed;padding:2px 6px;border-radius:3px;'
+   );
+   console.log('[AuthRedirect] 0. 入参 user：', user);
+
+   // 1. 优先消费登录 redirect（一次性读取，读完即删）
+   let redirectUrl = null;
+   if (typeof window.consumeLoginRedirect === 'function') {
+     console.log('[AuthRedirect] 1. window.consumeLoginRedirect 存在，开始消费...');
+     redirectUrl = window.consumeLoginRedirect();
+   } else {
+     console.warn('[AuthRedirect] 1. window.consumeLoginRedirect 不存在（utility_request.js 未加载？）');
+   }
+   console.log('[AuthRedirect] 2. consumeLoginRedirect 返回：', redirectUrl || '(null → 走默认角色跳转)');
+
+   if (redirectUrl) {
+     console.log('%c[AuthRedirect] 3. ✅ 命中 redirect，1.5s 后回跳原页面：' + redirectUrl,
+       'color:#16a34a;font-weight:bold;');
+     console.groupEnd();
+     // 不 window.location.href：用 assign 更可读
+     setTimeout(() => {
+       console.log('[AuthRedirect] 4. 实际执行 window.location.assign：', redirectUrl);
+       window.location.assign(redirectUrl);
+     }, 100);
+     return;
+   }
+
+   console.log('[AuthRedirect] 3. 无 redirect，按角色跳默认页：', user && user.role);
+   console.groupEnd();
+
   if(user && user.role){
   // 根据角色跳转对应页面
   switch(user.role) {

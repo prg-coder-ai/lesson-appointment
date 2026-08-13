@@ -83,6 +83,154 @@
     });
   }
 
+  /**
+   * 保存登录重定向信息（页面级公共工具）
+   * 场景：接口 401 跳登录前，保存当前来源页 URL，登录成功后按此返回
+   *
+   * 安全：只保留 pathname+search+hash，去掉 origin；对结果做白名单正则校验
+   * @param {'401'|'logout'|'noauth'} [reason] 触发原因（调试用）
+   */
+  function saveLoginRedirect(reason) {
+    // ===== 调试日志 1：函数入口 =====
+    // 用 groupCollapsed 把整次 save 折叠起来，避免控制台太乱
+    console.groupCollapsed(
+      '%c[AuthRedirect] saveLoginRedirect 触发',
+      'color:#fff;background:#d97706;padding:2px 6px;border-radius:3px;',
+      'reason=', reason || '(default 401)'
+    );
+    console.log('[AuthRedirect] 1. 原始 location：', {
+      pathname: window.location.pathname,
+      search:   window.location.search,
+      hash:     window.location.hash,
+      href:     window.location.href
+    });
+
+    try {
+      // 只保留相对 URL，避免跨域/开放重定向漏洞
+      let relUrl = window.location.pathname + window.location.search + window.location.hash;
+      console.log('[AuthRedirect] 2. 拼接原始 relUrl：', relUrl);
+
+      if (!relUrl || relUrl === '/' || relUrl === '') {
+        relUrl = './index.html';
+        console.log('[AuthRedirect] 2.a 空路径 → 降级 ./index.html');
+      } else if (!relUrl.startsWith('.')) {
+        // pathname 如 /admin.html → 转成 ./admin.html 匹配实际项目的相对路径
+        relUrl = '.' + relUrl;
+        console.log('[AuthRedirect] 2.b 补点号 →', relUrl);
+      }
+
+      // 白名单校验：只允许本项目的静态 html 页面（相对路径 + search + hash）
+      const safe = /^(\.\/|\.\.\/)?[A-Za-z0-9_\-]+\.html(\?[^#]*)?(#.*)?$/.test(relUrl);
+      console.log('[AuthRedirect] 3. 白名单正则校验：', safe ? '✅ PASS' : '❌ FAIL', '→', relUrl);
+      if (!safe) {
+        console.warn('[AuthRedirect] 3.a 未通过白名单，降级跳首页：', relUrl);
+        relUrl = './index.html';
+      }
+
+      const info = {
+        url: relUrl,
+        title: document.title || '',
+        ts: Date.now(),
+        reason: reason || '401'
+      };
+      console.log('[AuthRedirect] 4. 准备写入 localStorage：', info);
+
+      localStorage.setItem('auth_redirect_info', JSON.stringify(info));
+
+      // 回读校验，确认真的写进去了
+      const verify = localStorage.getItem('auth_redirect_info');
+      console.log('[AuthRedirect] 5. 回读校验：', verify ? '✅ 已写入' : '❌ 写入失败');
+      if (verify) {
+        console.log('[AuthRedirect] 6. localStorage.auth_redirect_info =', verify);
+      }
+    } catch (e) {
+      console.error('[AuthRedirect] saveLoginRedirect 异常：', e);
+    } finally {
+      console.groupEnd();
+    }
+  }
+
+  /**
+   * 读取登录重定向信息（不存在返回 null；读取后会立即清理，避免过期残留）
+   * @returns {String|null} 合法的相对 URL（如 './admin.html#student-management?tab=1'）
+   */
+  function consumeLoginRedirect() {
+    console.groupCollapsed(
+      '%c[AuthRedirect] consumeLoginRedirect 触发',
+      'color:#fff;background:#0891b2;padding:2px 6px;border-radius:3px;'
+    );
+
+    try {
+      const raw = localStorage.getItem('auth_redirect_info');
+      console.log('[AuthRedirect] 1. 读取 localStorage.auth_redirect_info：', raw || '(空)');
+
+      if (!raw) {
+        console.log('[AuthRedirect] 2. 没有 redirect 信息，返回 null（首次登录或已消费）');
+        return null;
+      }
+
+      const info = JSON.parse(raw);
+      console.log('[AuthRedirect] 3. 解析对象：', info);
+
+      // 用完即删（无论后续校验是否通过，都已经"消费"过了）
+      localStorage.removeItem('auth_redirect_info');
+      console.log('[AuthRedirect] 4. 已删除 localStorage.auth_redirect_info（用完即删）');
+
+      if (!info || !info.url) {
+        console.warn('[AuthRedirect] 5. info.url 为空，返回 null');
+        return null;
+      }
+
+      // 二次白名单校验（避免读取时已被污染）
+      const safe = /^(\.\/|\.\.\/)?[A-Za-z0-9_\-]+\.html(\?[^#]*)?(#.*)?$/.test(info.url);
+      console.log('[AuthRedirect] 6. 白名单二次校验：', safe ? '✅ PASS' : '❌ FAIL', '→', info.url);
+      if (!safe) {
+        console.warn('[AuthRedirect] 6.a 未通过白名单，返回 null（可能被篡改）');
+        return null;
+      }
+
+      // ts 超过 24h 过期
+      const ageMs = info.ts ? (Date.now() - info.ts) : 0;
+      const expired = info.ts && ageMs > 24 * 60 * 60 * 1000;
+      console.log('[AuthRedirect] 7. 过期检查：',
+        'age=' + (ageMs / 1000 / 60).toFixed(1) + 'min',
+        expired ? '❌ 已超过24h' : '✅ 未过期');
+      if (expired) {
+        console.warn('[AuthRedirect] 7.a 已过期，丢弃');
+        return null;
+      }
+
+      console.log('%c[AuthRedirect] 8. ✅ 返回 redirect URL：' + info.url,
+        'color:#16a34a;font-weight:bold;');
+      return info.url;
+    } catch (e) {
+      console.error('[AuthRedirect] consumeLoginRedirect 异常：', e);
+      localStorage.removeItem('auth_redirect_info');
+      return null;
+    } finally {
+      console.groupEnd();
+    }
+  }
+
+  /**
+   * 清理登录重定向信息（显式清理场景：注册/登录手动取消等）
+   */
+  function clearLoginRedirect() {
+    console.log('%c[AuthRedirect] clearLoginRedirect 触发，清理 auth_redirect_info',
+      'color:#dc2626;');
+    try {
+      localStorage.removeItem('auth_redirect_info');
+      console.log('[AuthRedirect] 已清理');
+    } catch (_) {
+      console.warn('[AuthRedirect] 清理异常', _);
+    }
+  }
+
+  // 暴露到全局，供 auth.js / api.js / 各业务页面统一调用
+  window.saveLoginRedirect = saveLoginRedirect;
+  window.consumeLoginRedirect = consumeLoginRedirect;
+  window.clearLoginRedirect = clearLoginRedirect;
+
   const service = axios.create({
     baseURL: API_BASE_URL,
     timeout: 15000,
@@ -106,10 +254,11 @@
         config.headers.Authorization = `Bearer ${token}`;
       }
       // 这里可以同时输出 params 和 data，方便前端调试和区分：
-      console.log(
-        "请求 URL：", config.url,
-        "url参数 params：", config.params,
-        "请求体 data：", config.data
+     console.log(
+        "请求 URL：", config.url
+        //,
+        //"url参数 params：", config.params,
+       // "请求体 data：", config.data
       );
  
       if (config.customLoading !== false) {
@@ -141,6 +290,7 @@
       // 不在这里跳转/刷新，统一交给 error 拦截器或调用方处理；这里仅 reject
       if (res.code === 401) {
         const errMsg = res.message || res.msg || '登录已过期';
+        console.log('[AuthRedirect] 登录已过期：', errMsg);
         if (config.customErrorMsg !== false) {
           showError(errMsg);
         }
@@ -198,6 +348,8 @@
       // ====== 关键修复：originalRequest._retry 标记 ======
       // 已重试过的请求若再次 401，不再刷新，避免嵌套循环
       if (status === 401 && !originalRequest._retry) {
+
+         console.log('[AuthRedirect] 401 刷新 token：', errMsg);
         originalRequest._retry = true; // 标记：本请求已尝试过刷新重试
 
         // ②-a 已有刷新在进行：排队等待，刷新完成后用新 token 重发
@@ -221,6 +373,7 @@
         try {
           const refreshRes = await getNewToken();
           // 后端响应：HTTP 200 + body.code === 200 才算刷新成功
+          console.log("refresh token",refreshRes);
           if (
             refreshRes &&
             refreshRes.status === 200 &&
@@ -254,6 +407,26 @@
           );
         } catch (refreshErr) {
           // ③ 刷新失败：清登录态、唤醒排队请求 reject、跳登录页
+          // 兼容两种失败形态：
+          //   a) 后端返回 HTTP 200 + body.code=401（Result.unauthorized）→ 我们手动 throw Error(message)
+          //      此时 refreshErr.message 含后端 message，如 "刷新凭证已失效，请重新登录"
+          //   b) 后端返回 HTTP 4xx/5xx（异常/Spring Security 拦截）→ axios 自动 reject
+          //      此时 refreshErr 是 axios error，真实错误在 refreshErr.response.data.message
+          let backendMsg = '登录已过期，请重新登录';
+          if (refreshErr) {
+            if (typeof refreshErr === 'string') {
+              backendMsg = refreshErr;
+            } else if (refreshErr.response && refreshErr.response.data) {
+              // axios error：从响应体取后端 message
+              const r = refreshErr.response.data;
+              backendMsg = (r && (r.message || r.msg)) || backendMsg;
+            } else if (refreshErr.message) {
+              // 手动 throw new Error(后端message) 的情况
+              backendMsg = refreshErr.message;
+            }
+          }
+          console.warn('[RefreshToken] 刷新失败，最终提示用户：', backendMsg, '原始 error=', refreshErr);
+
           localStorage.removeItem('token');
           localStorage.removeItem('refreshToken');
           localStorage.removeItem('currentUser');
@@ -261,9 +434,14 @@
           requestQueue.forEach((item) => item.reject(refreshErr));
           requestQueue = [];
           isRefreshing = false;
-          showError('登录已过期，请重新登录');
+          showError(backendMsg);
+          // 关键：跳登录页之前保存当前页面 URL，登录成功后回跳
+          console.log('%c[AuthRedirect] 调用点 A：HTTP 401 刷新 token 失败，准备 saveLoginRedirect 后跳登录',
+            'color:#dc2626;font-weight:bold;');
+          saveLoginRedirect('401');
           // 延迟跳转，让当前 reject 链先走完
           setTimeout(() => {
+            console.log('[AuthRedirect] 调用点 A：500ms 后开始跳转 ./index.html');
             location.href = './index.html';
           }, 500);
           return Promise.reject(refreshErr);
@@ -281,7 +459,13 @@
           localStorage.removeItem('token');
           localStorage.removeItem('refreshToken');
           localStorage.removeItem('currentUser');
+          // 关键：跳登录页之前保存当前页面 URL，登录成功后回跳
+          console.log('%c[AuthRedirect] 调用点 B：已重试过仍 401，准备 saveLoginRedirect 后跳登录',
+            'color:#dc2626;font-weight:bold;');
+          saveLoginRedirect('401');
+          console.log('[AuthRedirect] 调用点 B：登录已过期：', errMsg);
           setTimeout(() => {
+            console.log('[AuthRedirect] 调用点 B：500ms 后开始跳转 ./index.html');
             location.href = './index.html';
           }, 500);
           break;

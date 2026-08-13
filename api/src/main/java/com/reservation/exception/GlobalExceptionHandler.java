@@ -1,6 +1,8 @@
 package com.reservation.exception;
 
 import com.reservation.common.Result;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.ExpiredJwtException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
@@ -38,6 +40,18 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UnLoginException.class)
     public Result<Void> handleUnLoginException(UnLoginException e) {
         return Result.fail(401, e.getMessage());  // 401-未登录/Token失效（对应设计2.1）
+    }
+
+    // JWT Token 解析异常（401）：过期、签名错误、格式非法等
+    @ExceptionHandler({JwtException.class, ExpiredJwtException.class})
+    public Result<Void> handleJwtException(Exception e) {
+        String msg = "Token已失效，请重新登录";
+        if (e instanceof ExpiredJwtException) {
+            msg = "Token已过期，请重新登录";
+        } else if (e.getMessage() != null && !e.getMessage().isEmpty()) {
+            msg = "Token解析失败，请重新登录";
+        }
+        return Result.fail(401, msg);
     }
 
     // 权限不足（403），对应设计2.4 权限异常

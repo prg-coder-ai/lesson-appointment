@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS `course` (
   `content` varchar(1000) NOT NULL COMMENT '教学内容（10-1000字）',
   `feature` varchar(1000) NOT NULL COMMENT '课程特色（10-1000字）',
   `teacher_id` varchar(36) NOT NULL COMMENT '关联的教师ID（对应user表的user_id）',
+  `status` varchar(10) NOT NULL default 'inactive' COMMENT '课程状态（active：激活，inactive：待审核，frozen：冻结）',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`course_id`),
