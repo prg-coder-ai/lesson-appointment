@@ -184,10 +184,11 @@ public Result<void> logout(HttpServletResponse response) {
     @DeleteMapping("/kick/{userId}")
     public Result <Object> kickUser(@PathVariable String userId) {
         int count = refreshTokenService.kickUser(userId);
-         System.out.println("controller kick: "+count);
+        // 3. 刷新页面提示
+        System.out.println("controller kick: "+count) ;
         if(count  !=0 )
         return Result.success( true,"ok"     );
-        else  return  Result.fail( 500,"kick failed"     );
+        else  return  Result.success( false,"kick failed"     );
     }
     /**
      * 密码找回（验证码验证），对应设计2.2.1 接口：/api/v1/user/password/forgot

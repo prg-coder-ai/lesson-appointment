@@ -178,40 +178,22 @@
         isRefreshing = true;
         try {
           const refreshRes = await getNewToken();
-          // console.error("000 getNewToken:",refreshRes );
+        console.error("000 getNewToken:",refreshRes );
          // 
           if (refreshRes.status === 200) 
          {  const result = refreshRes.data;
-          //console.error("000 getNewToken result:",result );
+           // console.error("000 getNewToken result:",result );
             const { token, refreshToken } =   result.data ;
             localStorage.setItem('token', token);
             localStorage.setItem('refreshToken', refreshToken);
             originalRequest.headers.Authorization = `Bearer ${token}`;
             requestQueue.forEach((cb) => cb(token));
             requestQueue = [];
-            //isRefreshing = false;
+            isRefreshing = false;
             //console.error("200 originalRequest:",originalRequest);
 
-            return service(originalRequest);
-          
-          // INSERT_YOUR_CODE
-          /**
-           * service(originalRequest) 的含义是：
-           * 用 axios 封装的 service 实例，重新发起原始请求 originalRequest。
-           * 即：当 token 刷新成功后，把最初因 token 失效返回 401/403 的请求（originalRequest），
-           * 再次用新 token 放入 headers 里，自动重发。返回的是新的 Promise（请求结果）。
-           *
-           * 这样用户无感知地完成了 token 自动更新，操作不中断。
-           *
-           * 例如：
-           * service(originalRequest) 相当于 axios(originalRequest)，只是这里 service 是 axios 封装对象，可以带一些默认配置。
-           */
- 
-          } /*else { //直接去重新登陆
-            showError('登录已过期，请重新登录q');
-            location.href = './index.html';
-            return Promise.reject(refreshErr); 
-          }*/
+            return service(originalRequest);  
+          }  
          // throw new Error(result.message || result.msg || '刷新凭证失败');
         } catch (refreshErr) { 
           localStorage.removeItem('token');
