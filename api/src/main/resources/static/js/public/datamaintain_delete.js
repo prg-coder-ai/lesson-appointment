@@ -239,3 +239,124 @@ async function deleteCourse(id) {
                 return { list: [], total: 0 };
             }
         }
+
+        //Appointment
+        //调用fetchAppointmentListPage查询预约列表，然后根据预约id显示课程名称、状态      
+ async function fetchAppointmentListPage_datamaintain(params){
+    console.log("params:",params); 
+    let listObj = await fetchAppointmentListPage(params);
+    console.log("listObj:",listObj); 
+    if (!listObj || !Array.isArray(listObj.rows)) {
+      listObj = listObj || {};
+      listObj.rows = [];
+    }
+
+    // ===== 并行 + 缓存：为每个 appointment 补充 scheduleName 和状态可视化 =====
+    // appointment 对象结构说明（与 booking 不同！）：
+    //   appointment 本身只有 bookingId / appointmentDatetime / classIndex / status
+    //   不直接带 scheduleId / studentId / teacherId / courseId
+    //   需要先通过 bookingId 查 booking 对象，再通过 booking.scheduleId 查排期
+    //   schedule.courseId 查课程，booking.studentId/teacherId 查姓名
+    //
+    // 状态可视化：appointment 用 checkAppointmentStatus（不是 checkStatus_booking）
+    //   appointment.status 枚举：active / noted1 / noted2 / completed / cancelling / t-cancelling / booked / cancelled / deleted / t-reject / reject
+
+    const bookingCache = new Map();    // bookingId  → Promise<bookingObject>
+    const scheduleCache = new Map();   // scheduleId → Promise<scheduleObject>
+    const courseCache = new Map();     // courseId   → Promise<courseObject>
+    const userCache = new Map();       // userId     → Promise<string>
+
+    const cachedGetBookingObject = (id) => {
+      if (!id) return Promise.resolve(null);
+      if (!bookingCache.has(id)) {
+        bookingCache.set(id, getBookingObject(id).catch(() => null));
+      }
+      return bookingCache.get(id);
+    };
+    const cachedFetchSchedule = (id) => {
+      if (!id) return Promise.resolve(null);
+      if (!scheduleCache.has(id)) {
+        scheduleCache.set(id, fetchSchedule(id).catch(() => null));
+      }
+      return scheduleCache.get(id);
+    };
+    const cachedGetCourseById = (id) => {
+      if (!id) return Promise.resolve(null);
+      if (!courseCache.has(id)) {
+        courseCache.set(id, getCourseById(id).catch(() => null));
+      }
+      return courseCache.get(id);
+    };
+    const cachedGetUserNameById = (id) => {
+      if (!id) return Promise.resolve('');
+      if (!userCache.has(id)) {
+        userCache.set(id, getUserNameById(id).catch(() => ''));
+      }
+      return userCache.get(id);
+    };
+
+    await Promise.all(listObj.rows.map(async (item) => {
+      try {
+        // 【层 A】第一步：appointment → booking（唯一入口，必须先拿到 booking 才能继续）
+        const bookedObject = item.bookingId ? await cachedGetBookingObject(item.bookingId) : null;
+
+        // 预约状态可视化（appointment 专用映射，不依赖任何关联查询，先填上）
+        item.appointmentStatus = checkAppointmentStatus(item.status);
+
+        if (!bookedObject) {
+          // 没找到 booking：只能填状态，其余名称留空
+          item.scheduleName = '';
+          item.scheduleInfo = '';
+          item.studentName = '';
+          item.teacherName = '';
+          item.courseName = '';
+          item.appointmentTime = item.appointmentDatetime ? String(item.appointmentDatetime).replace('T', ' ') : '';
+         // console.log("info(no booking):", item);
+         // return;
+        }
+
+        // 【层 B】booking 拿到后，三个互不依赖的请求并行：
+        //   - fetchSchedule(bookedObject.scheduleId)
+        //   - getUserNameById(bookedObject.studentId)
+        //   - getUserNameById(bookedObject.teacherId)
+        const [scheduleObject, studentNameRaw, teacherNameRaw] = await Promise.all([
+          cachedFetchSchedule(bookedObject.scheduleId),
+          cachedGetUserNameById(bookedObject.studentId),
+          cachedGetUserNameById(bookedObject.teacherId)
+        ]);
+
+        item.scheduleName = scheduleObject ? (scheduleObject.name || '') : '';
+        item.scheduleInfo = scheduleObject ? getScheduleInfo(scheduleObject, true) : '';
+        item.studentName = studentNameRaw || '';
+        item.teacherName = teacherNameRaw || '';
+        item.studentId = bookedObject.studentId;   // 顺带回填，便于后续操作
+        item.teacherId = bookedObject.teacherId;
+
+        // 【层 C】schedule.courseId → 查课程，拿到课程名（教师名已在层 B 取过，无需重复查）
+        const courseObject = scheduleObject && scheduleObject.courseId
+          ? await cachedGetCourseById(scheduleObject.courseId)
+          : null;
+        item.courseName = courseObject ? (courseObject.courseName || courseObject.name || '') : '';
+        item.courseId = scheduleObject ? scheduleObject.courseId : '';
+
+        // 预约时间格式化（去掉 ISO 的 T 分隔符）
+        item.appointmentTime = item.appointmentDatetime
+          ? String(item.appointmentDatetime).replace('T', ' ')
+          : '';
+        item.appointmentStatus =  checkAppointmentStatus(item.status) || item.status || '';
+        console.log("info:", item);
+      } catch (e) {
+        // 单条失败不影响整体，保证列表仍能渲染
+        console.error('fetchAppointmentListPage_datamaintain 补充信息失败，item=', item, 'error=', e);
+        item.scheduleName = item.scheduleName || item.scheduleInfo || '';
+        item.studentName = item.studentName || item.studentId || '';
+        item.teacherName = item.teacherName || item.teacherId || '';
+        item.courseName = item.courseName || item.courseId ||  '';
+        item.appointmentTime = item.appointmentDatetime ? String(item.appointmentDatetime).replace('T', ' ') : '';
+        item.appointmentStatus = item.appointmentStatus ||  item.status || '';
+      }
+    }));
+
+ return listObj;
+ }    
+ 

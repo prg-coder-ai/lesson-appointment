@@ -99,6 +99,10 @@ public class AppointmentController {
         return Result.success(appointmentService.list(),"ok");
     }
   
+      @PostMapping("/listByPage")
+    public Result<PageResult<Appointment>> listByPage(@RequestBody AppointmentQueryPage query) {
+        return Result.success(appointmentService.listByPage(query.getPageNum(),query.getPageSize(),query.getStatus()),"ok");
+    }
     /**
      * 查询指定 bookingId 的预约列表
      * GET /course/appointment/listByBookingId?bookingId=xxx
