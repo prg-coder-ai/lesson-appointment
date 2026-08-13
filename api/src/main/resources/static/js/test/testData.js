@@ -493,43 +493,60 @@ async function generateAppointmentListByBooking() {
   // 2. 遍历booking对象，判断appointment表中是否已经存在，如果不存在则生成ScheduleGenerateDTO并生成预约
   let countInserted = 0, countSkipped = 0, errors = 0;
   for (let i = 0; i < bookingList.length; i++) {
-    const booking = bookingList[i];
+        const booking = bookingList[i];
 
-    // 检查appointment数据表中是否已经存在该预约
-    let exists = false;
-    try {
-      exists = await checkAppointmentExistsByBookingId(booking.id);
-    } catch (e) {
-      console.error(`检查appointment是否存在异常:`, booking.id, e);
-      errors++;
-      break;//continue;
-    }
+        // 检查appointment数据表中是否已经存在该预约
+        let exists = false;
+        try {
+          exists = await checkAppointmentExistsByBookingId(booking.id);
+        } catch (e) {
+          console.error(`检查appointment是否存在异常:`, booking.id, e);
+          errors++;
+          break;//continue;
+        }
 
-    if (exists) {
-     // console.log(`[generateAppointmentListByBooking] 已存在的预约，跳过 bookingId=`, booking.id);
-      countSkipped++;
-      continue;
-    }
-
-    // booking对象转为ScheduleGenerateDTO
-    //let generateDTO =  toScheduleCreateDto( booking);
-    
-    try {
-      let rst = await generateAppointmentList(booking.scheduleId,null);
-      if (rst  ) {
-        countInserted++;
-      //  console.log(`[generateAppointmentListByBooking] 已为bookingId=${booking.id}创建预约`, rst);
-        //TBD --保存到数据库
-      } else {
-        errors++;
-       //  console.warn(`[generateAppointmentListByBooking] 生成预约失败 bookingId=`, booking.id, rst && rst.msg);
+      if (exists) {
+      // console.log(`[generateAppointmentListByBooking] 已存在的预约，跳过 bookingId=`, booking.id);
+        countSkipped++;
+        continue;
       }
-    } catch (e) {
-      errors++;
-      console.error(`[generateAppointmentListByBooking] generateScheduleListFromServer 调用异常`, booking.id, e);
-      break;//continue;
-    }
-  }
+  
+       let appointmentDateTimeList = await generateAppointmentList(booking.scheduleId,null);
+      
+         if (Array.isArray(appointmentResults)) {
+            appointmentResults.forEach(item => { 
+             // 如果item有date和time字段，合成为一个appointment_datetime字段（如 "2024-06-10 09:00"）
+             if (item.date && item.time) {
+                 appointmentDateTimeList.push(`${item.date}T${item.time}`); 
+             }
+         });
+          
+         appointmentDateTimeList.forEach(async (dt, idx) => { 
+                let AppointmentData = {
+                  bookingId: booking.id,
+                  appointmentDatetime: dt,  // 拼写修正
+                  lastDatetime: dt,
+                  classIndex: idx+1           // 用forEach的下标，避免indexOf找不到            
+                };
+
+              // 清理掉undefined属性（只保留有效字段）
+                Object.keys(AppointmentData).forEach(
+                  key => AppointmentData[key] === undefined && delete AppointmentData[key]
+                );  
+              // 如果核心值有空，进行警告
+              if (!booking.id || !dt) {
+                  console .warn("警告：bookingid或appointmentDatetime为空！", AppointmentData);
+                  return;
+                 }
+                countInserted++;
+              //把booking-》booked,添加时间列表  
+              await saveAppointment(AppointmentData); 
+                } 
+        );//forEach
+      } // if  
+  
+  
+  }//for
 
   alert(`预约导入完成。成功创建: ${countInserted}，已存在跳过: ${countSkipped}，错误: ${errors}`);
 }
