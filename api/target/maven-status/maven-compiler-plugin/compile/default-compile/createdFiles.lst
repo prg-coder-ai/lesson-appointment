@@ -51,6 +51,7 @@ com\reservation\query\CourseScheduleQueryPage.class
 com\reservation\common\ScheduleGenerator.class
 com\reservation\dto\AppointmentConditionDTO.class
 com\reservation\service\CourseScheduleService.class
+com\reservation\config\JwtAuthenticationFilter.class
 com\reservation\dto\SchedulePO.class
 com\reservation\dto\ScheduleVO.class
 com\reservation\config\MyBatisPlusConfig.class

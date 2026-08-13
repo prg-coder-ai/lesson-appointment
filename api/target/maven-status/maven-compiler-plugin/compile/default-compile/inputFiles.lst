@@ -6,6 +6,7 @@ H:\2026\lesson-appointment\api\src\main\java\com\reservation\common\PageResult.j
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\common\Result.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\common\ScheduleGenerator.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\config\CorsConfig.java
+H:\2026\lesson-appointment\api\src\main\java\com\reservation\config\JwtAuthenticationFilter.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\config\MyBatisPlusConfig.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\config\SecurityConfig.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\config\ServiceConfig.java
