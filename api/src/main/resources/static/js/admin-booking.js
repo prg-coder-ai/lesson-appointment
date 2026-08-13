@@ -161,21 +161,7 @@ async function getBookingListByPage(){
      }
 
  }
- //检查status，只有待确认的booking、cancelling才显示待确认，并显示相应的按钮
- function checkStatus(status) {
-  if (status === 'booking' ) {
-    return '预定待确认';
-  } else   if   (status === 'cancelling' || status === 'canceling') {
-    return '取消待确认';
-  } else if (status === 'booked') {
-    return '预定已确认';
-  } else if (status === 'cancelled' || status === 'canceled') {
-    return '已取消';
-  } else if (status === 'deleted' || status=== 'frozen') {
-    return '已删除';
-  }
-  return status;
- }
+
 
  /**
   * cardInfo.status === 'booking' ? '预定待确认' :
@@ -197,7 +183,7 @@ async function getBookingListByPage(){
            <td class="course-info">   ${cardInfo.studentName}</td>
            <td class="course-info">   ${cardInfo.teacherName}</td>
            <td class="course-info">   ${cardInfo.scheduleInfo}</td>
-           <td class="course-info">    ${checkStatus(cardInfo.status)}</td>
+           <td class="course-info">    ${checkStatus_booking(cardInfo.status)}</td>
           
             <td class="course-info">
               <button class="btn btn-danger" onclick="deleteBookingByFrozen('${cardInfo.bookingId}')"><i class="fa fa-times"></i> 删除</button>

@@ -275,6 +275,9 @@
 
   service.interceptors.response.use(
     (response) => {
+     // console.log("响应数据：", response.data);
+       let errMsg ="";
+
       const config = response.config;
       if (config.customLoading !== false) {
         closeLoading();
@@ -289,7 +292,7 @@
       // 业务层 401：后端以 HTTP 200 + body.code=401 返回（token 失效）
       // 不在这里跳转/刷新，统一交给 error 拦截器或调用方处理；这里仅 reject
       if (res.code === 401) {
-        const errMsg = res.message || res.msg || '登录已过期';
+          errMsg = res.message || res.msg || '登录已过期';
         console.log('[AuthRedirect] 登录已过期：', errMsg);
         if (config.customErrorMsg !== false) {
           showError(errMsg);
@@ -301,7 +304,7 @@
       // 之前用 window.href（错误拼写，应为 window.location.href）跳转 index.html 是错的：
       // 权限不足 ≠ 未登录，跳登录页会让用户困惑
       if (res.code === 403) {
-        const errMsg = res.message || res.msg || '无权限访问该资源';
+         errMsg = res.message || res.msg || '无权限访问该资源';
         if (config.customErrorMsg !== false) {
           showError(errMsg);
         }
@@ -309,7 +312,7 @@
       }
 
       // 其他业务错误码
-      const errMsg = res.message || res.msg || '操作失败';
+        errMsg = res.message || res.msg || '操作失败';
       if (config.customErrorMsg !== false) {
         showError(errMsg);
       }
@@ -349,7 +352,7 @@
       // 已重试过的请求若再次 401，不再刷新，避免嵌套循环
       if (status === 401 && !originalRequest._retry) {
 
-         console.log('[AuthRedirect] 401 刷新 token：', errMsg);
+       //  console.log('[AuthRedirect] 401 刷新 token：', errMsg);
         originalRequest._retry = true; // 标记：本请求已尝试过刷新重试
 
         // ②-a 已有刷新在进行：排队等待，刷新完成后用新 token 重发

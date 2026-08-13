@@ -218,8 +218,7 @@ async function deleteCourse(id) {
         }
         
         }  
-
-        // INSERT_YOUR_CODE
+ 
         /**
          * 分页加载排期(schedule)列表数据。
          * @param {Object} params - 查询参数对象，例如 { pageNum: 1, pageSize: 10, courseName: '', status: '' }
@@ -229,7 +228,7 @@ async function deleteCourse(id) {
            
             try {
                 const res = await request({
-                    url: `${API_BASE_URL}/schedule/Page`,
+                    url: `${API_BASE_URL}/schedule/page`,
                     method: 'post',
                     data: query
                 });

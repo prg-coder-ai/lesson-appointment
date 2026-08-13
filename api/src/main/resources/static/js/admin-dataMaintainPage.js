@@ -153,11 +153,11 @@ window.loadMaintainTableData = async function(type){
       delFunc: "deleteSchedule"
     },
     booking: {
-      api: getBookingListPage,
+      api: fetchBookingListPage,
       delFunc: "deleteBooking"
     },
     appointment: {
-      api: getAppointmentListPage,
+      api: fetchAppointmentListPage,
       delFunc: "deleteAppointment"
     }
   }[type];
@@ -189,16 +189,18 @@ window.loadMaintainTableData = async function(type){
       {key: "status", label: "状态"}
     ],
     booking: [
-      {key: "bookingId", label: "ID"},
+      {key: "id", label: "ID"},
       {key: "studentName", label: "学生"},
       {key: "courseName", label: "课程"},
+      {key: "scheduleName", label: "排期"},
       {key: "teacherName", label: "教师"},
       {key: "bookingStatus", label: "状态"}
     ],
     appointment: [
       {key: "appointmentId", label: "ID"},
-      {key: "studentName", label: "学生"},
+      {key: "scheduleName", label: "排期"},
       {key: "courseName", label: "课程"},
+      {key: "studentName", label: "学生"},      
       {key: "appointmentDate", label: "预约日期"},
       {key: "status", label: "状态"}
     ]
