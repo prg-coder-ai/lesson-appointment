@@ -102,6 +102,22 @@ async function fetchAppointmentListPage(query) {
     return null;
   }
 }
+
+async function fetchAppointmentListPage_datamaintain(query) {
+  try {
+    const res = await request({
+      url: `${API_BASE_URL}/course/appointment/listByPage`, 
+      method: "post", // 必须为POST，以便@RequestBody生效
+      data: query // 直接作为body传递 ，controller作为对象接收，不能有括号T
+      // 不需要 params 字段
+    });
+    console.log("apppage",res);
+    return res;
+  } catch (e) {
+    console.error("fetchAppointmentListPage_datamaintain", e);
+    return null;
+  }
+}
  //显示待确认预约
  async function showAppointmentList(appointmentList,id){
     //   const id = "pending-reservations";

@@ -512,8 +512,7 @@ return [];
   }
   return status;
  }
-//Booking
-
+//Booking，读取预约列表，拼接排期、学生、教师、课程信息
  async function fetchBookingListPage(params){
     let listObj = await getBookingListPage(params);
     console.log("listObj:",listObj);

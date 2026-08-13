@@ -230,6 +230,40 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
  
          return result == null ? 0 : result.intValue();
     }
+
+
+    
+    public PageResult<Appointment> listByPage( int pageNum,int pageSize, 
+                String status) {  
+ //查询预约列表,分页查询    ,根据userId,role,状态查询
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment> queryWrapper; 
+       
+            queryWrapper = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment>()
+                    .eq(status != null && !status.isEmpty(), Appointment::getStatus, status)
+                    .orderByDesc(Appointment::getAppointmentDatetime)
+                    .last("LIMIT " + ((pageNum - 1) * pageSize) + "," + pageSize);
+        
+        Page<Appointment> page = new Page<>(pageNum, pageSize);
+        page.setRecords(list(queryWrapper));
+
+        Integer total = getCountByPage( 
+             status);
+        page.setTotal(total);
+        PageResult<Appointment> result = PageResult.of(page);
+        return result ;
+    }
+
+     public int  getCountByPage(      
+                String status)  {
+                    
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment> queryWrapper; 
+            // userId/role任一为空，则只按时间过滤
+            queryWrapper = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment>() 
+                    .eq(status != null && !status.isEmpty(), Appointment::getStatus, status) ;    
+          Long result = baseMapper.selectCount(queryWrapper);
+ 
+         return result == null ? 0 : result.intValue();
+    }
     // 
      @Transactional
     public boolean updateStatusByBookingId(String bookingId,String status){
@@ -257,41 +291,7 @@ public boolean removeById(Integer appId){
         int deleted = baseMapper.deleteByBookingId(bookingId);
         log.info("按预约ID批量删除预约时间结束, bookingId={}, 影响行数={}", bookingId, deleted);
         return deleted > 0;
-    }
-
-// INSERT_YOUR_CODE
-
-/** 可计算下月、预约量 、下周？
- * 查询指定时间段内指定状态下的预约数量 而不是按创建时间统计。
- * @param startTime 开始时间（java.sql.Timestamp 或 java.time.LocalDateTime 皆可）
- * @param endTime 结束时间
- * @param statuses 状态列表，如 Arrays.asList("approved", "completed")
- * @return 满足条件的预约数量
- */
-// 这个方法属于业务逻辑范畴，应该定义在Service层（即这里），而不是Mapper。
-// Mapper 通常只定义 SQL 级别的操作（如自定义SQL、复杂join等），而用lambdaQuery/链式查询器的操作是 MyBatis-Plus 通用的，无需重复写Mapper方法。
-// 
-// 若需更复杂的SQL或跨表统计，再考虑写在 Mapper。当前写在 Service 合理。 
-/** 
- * 统计指定时间段及状态下的预约数量，返回long类型，避免类型转换报错
- * @param startTime 开始时间
- * @param endTime 结束时间
- * @param statuses 状态列表
- * @return 满足条件的预约数量（long类型）
- */
-/*public int countLongByTimeAndStatuses(Object startTime, Object endTime,  java.util.List<String> statuses) {
-    // 使用 lambdaQuery 构建查询，返回long
-    Long result= lambdaQuery()
-            .ge(Appointment::getAppointmentDatetime, startTime.toLocalDateTime())
-            .le(Appointment::getAppointmentDatetime, endTime.toLocalDateTime())
-            .in(Appointment::getStatus, statuses)
-            .count();
-
-          return    result == null ? 0 : result.intValue();
-}
-*/
-
-
+    } 
 /**
  * 统计指定时间段以及状态下的预约数量（int）
  * 用于Controller直接调用，参数可以为 LocalDateTime 或 Timestamp，内部统一为 Timestamp 以便数据库查询。
