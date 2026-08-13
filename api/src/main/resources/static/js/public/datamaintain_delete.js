@@ -242,10 +242,10 @@ async function deleteCourse(id) {
 
         //Appointment
         //调用fetchAppointmentListPage查询预约列表，然后根据预约id显示课程名称、状态      
- async function fetchAppointmentListPage_datamaintain(params){
-    console.log("params:",params); 
-    let listObj = await fetchAppointmentListPage(params);
-    console.log("listObj:",listObj); 
+ async function datamaintain_fetchAppointmentListPage(params){
+   // console.log("params:",params); 
+    let listObj = await datamaintain_fetchAppointmenPage(params);//appointmentNotes.js
+  //  console.log("listObj:",listObj); 
     if (!listObj || !Array.isArray(listObj.rows)) {
       listObj = listObj || {};
       listObj.rows = [];
@@ -305,16 +305,12 @@ async function deleteCourse(id) {
 
         if (!bookedObject) {
           // 没找到 booking：只能填状态，其余名称留空
-          item.scheduleName = '';
-          item.scheduleInfo = '';
+          item.scheduleName = ''; 
           item.studentName = '';
           item.teacherName = '';
-          item.courseName = '';
-          item.appointmentTime = item.appointmentDatetime ? String(item.appointmentDatetime).replace('T', ' ') : '';
-         // console.log("info(no booking):", item);
-         // return;
+          item.courseName = ''; 
         }
-
+ item.appointmentTime = item.appointmentDatetime ? String(item.appointmentDatetime).replace('T', ' ') : '';
         // 【层 B】booking 拿到后，三个互不依赖的请求并行：
         //   - fetchSchedule(bookedObject.scheduleId)
         //   - getUserNameById(bookedObject.studentId)
@@ -326,7 +322,7 @@ async function deleteCourse(id) {
         ]);
 
         item.scheduleName = scheduleObject ? (scheduleObject.name || '') : '';
-        item.scheduleInfo = scheduleObject ? getScheduleInfo(scheduleObject, true) : '';
+       // item.scheduleInfo = scheduleObject ? getScheduleInfo(scheduleObject, true) : '';
         item.studentName = studentNameRaw || '';
         item.teacherName = teacherNameRaw || '';
         item.studentId = bookedObject.studentId;   // 顺带回填，便于后续操作
@@ -348,7 +344,7 @@ async function deleteCourse(id) {
       } catch (e) {
         // 单条失败不影响整体，保证列表仍能渲染
         console.error('fetchAppointmentListPage_datamaintain 补充信息失败，item=', item, 'error=', e);
-        item.scheduleName = item.scheduleName || item.scheduleInfo || '';
+        item.scheduleName = item.scheduleName ||  item.scheduleId  || '';
         item.studentName = item.studentName || item.studentId || '';
         item.teacherName = item.teacherName || item.teacherId || '';
         item.courseName = item.courseName || item.courseId ||  '';
@@ -359,4 +355,4 @@ async function deleteCourse(id) {
 
  return listObj;
  }    
- 
+  
