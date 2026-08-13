@@ -118,11 +118,19 @@ public class UserController {
         return rst; 
     }
 
-    @PostMapping("/updateStatus") 
+    @PostMapping("/updateStatus")
     @ResponseBody
-    public Result<Object> updateStatus(@Validated @RequestBody User user) { 
-         
-        int ret = userService.updateStatus(user); 
+    public Result<Object> updateStatus(@RequestBody User user) {
+        // 不加 @Validated：修改状态只需 userId + status，不应触发实体上的
+        // @NotBlank(account) / @AtLeastOneNotBlank(phone,email) 等注册专用校验
+        if (user.getUserId() == null || user.getUserId().trim().isEmpty()) {
+            return Result.fail(400, "用户Id不能为空");
+        }
+        if (user.getStatus() == null || user.getStatus().trim().isEmpty()) {
+            return Result.fail(400, "状态不能为空");
+        }
+
+        int ret = userService.updateStatus(user);
         System.out.println("ret：" + ret);
         return   Result.success(ret, "修改成功");
     }
