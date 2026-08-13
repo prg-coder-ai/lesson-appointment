@@ -112,12 +112,7 @@
         <div class="menu-item">
           <i class="fa fa-calendar-alt"></i>
           <span>上课通知</span>
-        </div>
-
-        <!-- div class="menu-item">
-          <i class="fa fa-calendar-alt"></i>
-          <span>测试-批量创建数据</span>
-        </div -->
+        </div> 
 
       
       <div class="menu-group">
@@ -125,6 +120,10 @@
         <div class="menu-item">
           <i class="fa fa-cog"></i>
           <span>数据维护</span>
+        </div>
+         <div class="menu-item">
+          <i class="fa fa-calendar-alt"></i>
+          <span>测试-批量创建数据</span>
         </div>
         <div class="menu-item">
           <i class="fa fa-file-alt"></i>
@@ -332,11 +331,24 @@
        
       // 解析用户信息并渲染
       const currentUser = localStorage.getItem('currentUser');
-      const user = JSON.parse(currentUser);
+      let user = null;
+      try { user = currentUser ? JSON.parse(currentUser) : null; } catch(_) { user = null; }
+      
+      // ====== 新增：未登录或登录信息不完整 → 保存当前来源页 URL 后跳登录页 ======
+      if (!user || !user.userId || !user.role) {
+        console.log('%c[AuthRedirect] 调用点 D：admin.html onload 检测到未登录，准备 saveLoginRedirect',
+          'color:#dc2626;font-weight:bold;');
+        if (typeof window.saveLoginRedirect === 'function') {
+          window.saveLoginRedirect('noauth');
+        }
+        // 保留 onload 已做过的 cookie 回写，避免丢失
+        location.href = './index.html';
+        return; // 不再执行后续的 DOM 渲染
+      }
       
      // console.log('管理端页面加载完成，所有交互功能已启用');
       // 设置用户首字母和用户名
-      if (user && user.name) { 
+      if (user.name) { 
         console.log(`${user.name}（${user.role}）已登录管理端`); 
         document.getElementById('avatar').innerHTML = user.name.length > 0 ? user.name[0] : '';
         document.getElementById('user-name').innerHTML  = user.name  ;

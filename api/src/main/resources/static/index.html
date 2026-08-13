@@ -467,12 +467,27 @@
           console.warn('写入cookie失败（不影响核心流程）：', e);
         }
 
-        // 7. 2秒后关闭弹窗并刷新页面
+        // 7. 2秒后关闭弹窗并按登录回跳逻辑跳转（优先消费 redirect）
         setTimeout(() => {
           registerModal.style.display = 'none';
           resetRegisterForm();
-          // 教师状态=pending，一般不用强制跳转；保留原跳转以刷新登录区
-          window.location.href = './index.html';
+          // 先查是否有保存的来源页 redirect（例如被 401 打回后注册新账号）
+          let redirectUrl = null;
+          if (typeof window.consumeLoginRedirect === 'function') {
+            redirectUrl = window.consumeLoginRedirect();
+          }
+          if (redirectUrl) {
+            // 有来源页：回跳到访问前的 URL（保留 hash/search）
+            window.location.assign(redirectUrl);
+          } else {
+            // 无来源页：按角色跳默认页，或者留在 index
+            // 因为注册的 role 是 registerInfo.role（student/teacher），这里用 redirectToUserPage 即可
+            if (typeof redirectToUserPage === 'function') {
+              redirectToUserPage({ role: registerInfo.role });
+            } else {
+              window.location.href = './index.html';
+            }
+          }
         }, 2000);
 
         return true;

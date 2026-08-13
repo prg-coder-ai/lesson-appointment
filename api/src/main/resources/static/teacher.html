@@ -104,7 +104,17 @@
 
       window.renderTeacherCourseAndScheduleBrowserCards =renderTeacherCourseAndScheduleBrowserCards;
       window.renderStudentBookingBrowserCards  = renderStudentBookingBrowserCards ;  
-      userInfo = autoLoginCheck(); 
+      userInfo = autoLoginCheck();
+      // ====== 新增：未登录 → 保存当前来源页 URL 后跳登录页 ======
+      if (!userInfo) {
+        console.log('%c[AuthRedirect] 调用点 D：teacher.html onload 检测到未登录，准备 saveLoginRedirect',
+          'color:#dc2626;font-weight:bold;');
+        if (typeof window.saveLoginRedirect === 'function') {
+          window.saveLoginRedirect('noauth');
+        }
+        location.href = './index.html';
+        return;
+      }
       const nameid=document.getElementById("user-name");
        if(nameid)
          { nameid.innerHTML= userInfo.name;

@@ -125,11 +125,21 @@
     // 初始化页面（加载默认内容）
     window.onload = function() { 
       userInfo = autoLoginCheck();
+      // ====== 新增：未登录 → 保存当前来源页 URL 后跳登录页 ======
+      if (!userInfo) {
+        console.log('%c[AuthRedirect] 调用点 D：student.html onload 检测到未登录，准备 saveLoginRedirect',
+          'color:#dc2626;font-weight:bold;');
+        if (typeof window.saveLoginRedirect === 'function') {
+          window.saveLoginRedirect('noauth');
+        }
+        location.href = './index.html';
+        return;
+      }
        // 自动登录：检测本地登录信息并校验token有效性  
       const nameid=document.getElementById("user-name");
        if(nameid) nameid.innerHTML= userInfo && userInfo.name;
        
-       // 设置头像元素为用户名首字母
+       // 设置头像为用户名首字母
        const avatarElem = document.getElementById("avatar");
        if (avatarElem && userInfo && userInfo.name && userInfo.name.length > 0) {
          avatarElem.textContent = userInfo.name.charAt(0);

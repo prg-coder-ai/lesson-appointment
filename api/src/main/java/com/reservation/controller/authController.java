@@ -22,13 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
  import org.springframework.web.bind.annotation.*; 
  import jakarta.validation.constraints.Pattern;
  import java.util.Collections;
-import java.util.HashMap;
-/*
- import jakarta.servlet.http.Cookie;
- import jakarta.servlet.http.HttpServletResponse;
-
-import java.util.List;
- import java.util.Map;*/
+import java.util.HashMap; 
 
  @RestController
 @RequestMapping("/auth")
@@ -63,7 +57,7 @@ public class authController {
         System.out.println("controller login:"+account+" "+password);
         // 调用服务层实现登录逻辑，返回userId、name，role、account、Token,freshToken（对应设计2.2.1 登录返回数据）
         Result<HashMap<String, Object>> rst= userService.login(account, password); //setOnline(false)
-             System.out.println("controller login:"+rst);
+             System.out.println("controller login:"+rst.getCode());
         // 3. 登录成功：设置安全状态（核心步骤） ?token?
         // 封装用户认证信息（角色需和数据库一致，如teacher/student）
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
@@ -74,8 +68,7 @@ public class authController {
 
         // 将认证信息存入安全上下文（自动维护会话，无需手动管理）
         SecurityContextHolder.getContext().setAuthentication(authentication); 
-         System.out.println("controller login:"+rst);
-  
+        // 4. 返回登录成功结果（包含token）
         return rst;//Result.success(resultMap, "登录成功");
     }
  /**
@@ -86,16 +79,23 @@ public class authController {
     public Result<TokenDTO> refreshToken(@RequestBody RefreshDTO refreshDTO) {
         System.out.println("refreshToken refreshDTO:"+refreshDTO);
         String oldRefreshToken = refreshDTO.getRefreshToken();
-        String account = refreshDTO.getAccount(); 
+        String account = refreshDTO.getAccount();
         String role = refreshDTO.getRole();
 
         // 1. 校验数据库中凭证是否存在、未过期
+        // 凭证失效场景说明：
+        //   后端返回 HTTP 200 + body.code=401（Result 是普通 POJO，Spring 默认 HTTP 200）
+        //   前端 axios 拿到 HTTP 200 不会自动 reject，进入 if(refreshRes.data.code===200) 判断：
+        //     - 不通过 → 手动 throw new Error(refreshRes.data.message) → 进 catch
+        //     - catch 中从 refreshErr.message 取后端 message 提示用户
+        //   所以这里用 Result.fail(401, ...) 和 Result.unauthorized(...) 行为完全等价，
+        //   选 fail 是因为语义更直观（一看就知道业务码是 401）
         RefreshTokenPO tokenPo = refreshTokenService.checkValidToken(oldRefreshToken);
         if (tokenPo == null) {
-            return Result.unauthorized("刷新凭证已失效，请重新登录");
+            return Result.fail(401, "刷新凭证已失效，请重新登录");
         }
         String userId = tokenPo.getUserId();
-       
+
         // 2. 生成新双Token
         String newAccess = jwtUtil.generateToken(userId,role);
         String newRefresh = jwtUtil.generateRefreshToken(userId);
