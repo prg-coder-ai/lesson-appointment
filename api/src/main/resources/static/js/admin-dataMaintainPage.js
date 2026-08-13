@@ -120,7 +120,11 @@ function  loadAndRenderObjectListByPage()
           <div style='margin-bottom:12px;'>
             <input id='maintain-filter-keyword' type='text' placeholder='输入名称关键词' style='padding: 4px 8px;'/>
             <button class='btn btn-sm' onclick='loadMaintainTableData("${type}")'><i class='fa fa-search'></i> 查询</button>
-          </div>
+         
+            <button class="btn btn-default" onclick="resetFilter()"> 
+                <i class="fa fa-redo"></i>重置
+                </button>
+      </div>
         `;
         // 占位表格
         let html = 
@@ -135,8 +139,13 @@ function  loadAndRenderObjectListByPage()
         // 请求并渲染表格
         loadMaintainTableData(type);
       }
- 
+  
 
+      // 重置查询条件
+      function resetFilter() {
+        document.getElementById('maintain-filter-keyword').value = '';
+        loadMaintainTableData(objectType);
+      }
 // 动态加载数据并渲染表格
 window.loadMaintainTableData = async function(type){
   var cfg = {
@@ -148,7 +157,7 @@ window.loadMaintainTableData = async function(type){
       api: fetchCourseListPage,
       delFunc: "deleteCourse"
     },
-    schedule: { //TBD---
+    schedule: { 
       api: fetchScheduleListPage,
       delFunc: "deleteSchedule"
     },
@@ -157,7 +166,7 @@ window.loadMaintainTableData = async function(type){
       delFunc: "deleteBooking"
     },
     appointment: {
-      api: fetchAppointmentListPage_datamaintain,
+      api: datamaintain_fetchAppointmentListPage,//datamaintain_delete.js
       delFunc: "deleteAppointmentsById"
     }
   }[type];
@@ -197,13 +206,13 @@ window.loadMaintainTableData = async function(type){
       {key: "bookingStatus", label: "状态"}
     ],
     appointment: [
-      {key: "id", label: "ID"},
-      {key: "studentId", label: "学生"},  
-      {key: "teacherId", label: "教师"},
-     // {key: "courseName", label: "课程"},
-     // {key: "scheduleName", label: "排期"}, 
+      {key: "id", label: "ID"}, 
+      {key: "studentName", label: "学生"},  
+      {key: "teacherName", label: "教师"},
+      {key: "courseName", label: "课程"},
+      {key: "scheduleName", label: "排期"}, 
          {key: "classIndex", label: "序号"},  
-      {key: "appointmentTime", label: "预约时间"},
+      {key: "appointmentTime", label: "时间"},
       {key: "appointmentStatus", label: "状态"}
     ]
   }[type];
@@ -253,7 +262,7 @@ window.loadMaintainTableData = async function(type){
       html += '<tr><td colspan="${columns.length+1}" style="padding:24px;text-align:center;">暂无数据</td></tr>';
     } else {
       list.forEach(item=>{
-        console.log(item);
+       // console.log(item);
         index ++ ;
         html += '<tr>';
         html += `<td>${index}</td>`;

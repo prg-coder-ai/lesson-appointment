@@ -8,7 +8,10 @@
  */
 function test_genUser(number, role) {
 
-  alert(`添加 `+role+" "+number+"人");
+  if(!confirm(`添加 `+role+" "+number+"人")){
+    return;
+  }
+  let phoneStart=(role=="student")?13611350000:13900000000;
   const users = [];
   for (let i = 1; i <= number; i++) {
     const account = role + i;
@@ -20,10 +23,9 @@ function test_genUser(number, role) {
       name: account,
       email: account + '@qq.com',
       role: role,
-      phone: '',
-      avatar: '',
+      phone: (phoneStart+i).toString(),
       status: 'active',  // 正常
-      remark: ' for test,auto add'
+      remark: ' for test,auto add'+i,
     };
     users.push(user);
   }
@@ -96,6 +98,9 @@ function generateUserImportTemplate(role = "student") {
  */
 async function batchAddCourseTemplates() {
   // 可根据实际CourseTemplate字段扩展或调整
+  if(!confirm(`添加 10 个课程模板`)){
+    return;
+  }
   const templates = [
     {
       templateId: "CT001",
@@ -232,6 +237,9 @@ async function batchAddCourseTemplates() {
  * 3. 调用后端 /course/add 接口提交新Course对象
  */
 async function batchAddCoursesForTemplates() {
+  if(!confirm(`每个模板添加 10 个课程`)){
+    return;
+  }
   // 首先获取所有role=teacher的用户ID
   let teacherIDs = [];
   try {
@@ -293,6 +301,9 @@ async function batchAddCoursesForTemplates() {
  * -------
  */
 async function batchAddCourseSchedulesPerCourse() {
+  if(!confirm(`每个课程添加 10 个排期`)){
+    return;
+  }
   try {
     // 1. 获取所有课程列表
     const coursesJson = await fetchCourseList({status:'active'});
@@ -400,6 +411,9 @@ async function sleep(ms) {
 }
 // 2. 帮全部排期随机指定给1个学生 ----TBD：直接assign-student
 async function assignSchedulesRandomStudent() {
+  if(!confirm(`随机分配 10 个排期给学生`)){
+    return;
+  }
   const studentIds = await getAllStudentIds();
   if (!studentIds.length) {
     alert("没有可用学生，无法分配排期");
@@ -465,6 +479,9 @@ async function assignSchedulesRandomStudent() {
 // 然后判断在appointment数据表中如果不存在booking.id则把booking对象转为ScheduleGenerateDTO ，
 // 调用generateScheduleListFromServer创建预定对象的预约时间
 async function generateAppointmentListByBooking() {
+  if(!confirm(`为每个预定创建预约时间`)){
+    return;
+  }
   // 1. 获取已预约的booking对象列表
   let bookingList = await getBookingList({ status: "booked" });
   if (!Array.isArray(bookingList)) {
@@ -510,6 +527,7 @@ async function generateAppointmentListByBooking() {
     } catch (e) {
       errors++;
       console.error(`[generateAppointmentListByBooking] generateScheduleListFromServer 调用异常`, booking.id, e);
+      break;//continue;
     }
   }
 

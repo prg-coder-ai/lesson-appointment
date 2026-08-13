@@ -26,3 +26,5 @@ zktapi-master/.idea/.name
 /api/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst
 /api/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst
 api/target
+api/logs/archived/spring-boot-app.2026-08-13.0.log.gz
+logs/spring-boot-app.log
