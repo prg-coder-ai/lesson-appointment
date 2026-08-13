@@ -34,6 +34,16 @@ function validateForm() {
     // 清空所有错误提示
     document.querySelectorAll(".form-error").forEach(el => el.innerText = "");
   
+    // 校验status字段必填项
+    const statusInput = formEl.status;
+    if (!statusInput.value.trim()) {
+        const statusErrorEl = document.getElementById('statusError');
+        if (statusErrorEl) {
+            statusErrorEl.innerText = "此项为必填项";
+        }
+        isValid = false;
+    }
+    
     // 逐个校验必填项
     const requiredFields = ['languageType', 'difficultyLevel', 'classForm', 'classDuration', 'classFee', 'description'];
     requiredFields.forEach(field => {
@@ -66,7 +76,8 @@ function validateForm() {
       classForm: "",
       classDuration: "",
       classFee: "",
-      description: "请输入模板描述"
+      description: "请输入模板描述",
+      status: "inactive"
     };
   } else  
     try {
@@ -136,7 +147,17 @@ function validateForm() {
       <textarea name="description" rows="3" required>${defaultTemplate.description}</textarea>
       <div class="form-error" id="descriptionError"></div>
     </div>
-
+    <div class="form-item">
+      <label>模板状态 <span style="color:red">*</span></label>
+      <select name="status" class="form-select" required>
+        <option value="">请选择</option>
+        <option value="active" ${defaultTemplate.status === 'active' ? 'selected' : ''}>激活</option>
+        <option value="inactive" ${defaultTemplate.status === 'inactive' ? 'selected' : ''}>待审核</option>
+        <option value="frozen" ${defaultTemplate.status === 'frozen' ? 'selected' : ''}>冻结</option>
+      </select>
+      <div class="form-error" id="statusError"></div>
+    </div>
+    
     <div class="mt-4 text-end">
       <button type="button" class="btn btn-cancel" onclick="closeTemplateModal()">取消</button>
       <button type="button" class="btn btn-primary" onclick="submitTemplateForm()">提交</button>
@@ -183,7 +204,8 @@ async function submitTemplateForm() {
         classForm:      formEl.classForm.value,
         classDuration:  formEl.classDuration.value,
         classFee:       formEl.classFee.value,
-        description:    formEl.description.value
+        description:    formEl.description.value,
+        status:         formEl.status.value,
     };
   // 3. 调用接口提交（区分新增/编辑）
     //根据templateId判断新增还是修改

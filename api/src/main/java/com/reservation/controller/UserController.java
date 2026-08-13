@@ -131,7 +131,7 @@ public class UserController {
         }
 
         int ret = userService.updateStatus(user);
-        System.out.println("ret：" + ret);
+        System.out.println("ret " + ret);
         return   Result.success(ret, "修改成功");
     }
   

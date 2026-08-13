@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS `course_template` (
   `class_duration` int NOT NULL COMMENT '课程时长（≥15，15的倍数，单位：分钟）',
   `class_form` varchar(20) NOT NULL COMMENT '课程形式（枚举：一对一/小班课/大班课）',
   `description` varchar(500) NOT NULL COMMENT '课程描述（10-500字）',
+  `status` varchar(10) NOT NULL default 'inactive' COMMENT '模板状态（active：激活，inactive：待审核，frozen：冻结）',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`template_id`),
@@ -61,8 +62,10 @@ CREATE TABLE IF NOT EXISTS `course` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='教师课程表';
 
 -- 课程排期表：存储教师课程的具体排期信息，对应Schedule实体
-CREATE TABLE IF NOT EXISTS `schedule` (
+CREATE TABLE IF NOT EXISTS `schedule` ( 
   `schedule_id` varchar(36) NOT NULL COMMENT '排期唯一标识（UUID）',
+  `name` varchar(56) NOT NULL default 'noname' COMMENT '排期名称'
+  `teacher_id` varchar(36) NOT NULL COMMENT '关联的教师ID（对应user表的user_id）',
   `course_id` varchar(36) NOT NULL COMMENT '关联的教师课程ID',
   `time_zone` varchar(36) NOT NULL COMMENT '排期所用的时区',
   `start_time` datetime NOT NULL COMMENT '排期开始时间（格式：YYYY-MM-DD HH:mm:ss） 包含起始日期',
@@ -94,6 +97,7 @@ CREATE TABLE IF NOT EXISTS `schedule` (
 CREATE TABLE IF NOT EXISTS `booking` (  
   `booking_id` varchar(36) NOT NULL COMMENT '预约唯一标识（UUID）',
   `schedule_id` varchar(36) NOT NULL COMMENT '关联的课程排期ID',
+  `teacher_id` varchar(36) NOT NULL COMMENT '关联的教师ID（对应user表的user_id）',
   `student_id` varchar(36) NOT NULL COMMENT '关联的学生ID（对应user表的user_id）',
   `status` varchar(20) NOT NULL DEFAULT 'booked' COMMENT '预约状态（booked：已预约，cancelled：已取消，completed：已完成）',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
