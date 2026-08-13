@@ -489,7 +489,7 @@ async function generateAppointmentListByBooking() {
     }
 
     if (exists) {
-      console.log(`[generateAppointmentListByBooking] 已存在的预约，跳过 bookingId=`, booking.id);
+     // console.log(`[generateAppointmentListByBooking] 已存在的预约，跳过 bookingId=`, booking.id);
       countSkipped++;
       continue;
     }
@@ -501,11 +501,11 @@ async function generateAppointmentListByBooking() {
       let rst = await generateAppointmentList(booking.scheduleId,null);
       if (rst  ) {
         countInserted++;
-        console.log(`[generateAppointmentListByBooking] 已为bookingId=${booking.id}创建预约`, rst);
+      //  console.log(`[generateAppointmentListByBooking] 已为bookingId=${booking.id}创建预约`, rst);
         //TBD --保存到数据库
       } else {
         errors++;
-        console.warn(`[generateAppointmentListByBooking] 生成预约失败 bookingId=`, booking.id, rst && rst.msg);
+       //  console.warn(`[generateAppointmentListByBooking] 生成预约失败 bookingId=`, booking.id, rst && rst.msg);
       }
     } catch (e) {
       errors++;
