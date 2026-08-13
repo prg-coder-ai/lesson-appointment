@@ -62,21 +62,25 @@
 
   function getNewToken() {
     const refreshToken = localStorage.getItem('refreshToken');
-    // 获取当前登录者的账号account
-    const cuser =  localStorage.getItem('currentUser');
-   // console.error("getNewTaken currentUser",cuser);
-    const account = cuser.account;
-    const role = cuser.role;
-    /*const currentUser = {
-      userId: user.userId,
-      account: user.account,
-      name: user.name,
-      role: user.role,
-      token: user.token
-    };
-    localStorage.setItem('currentUser', JSON.stringify(currentUser));
-*/
-    return refreshTokenAxios.post('/auth/refreshToken', { refreshToken:refreshToken,account:account,role:role });
+    // 修复：localStorage 存的是 JSON 字符串，必须先 JSON.parse 才能取字段
+    // 否则 cuser.account / cuser.role 都是 undefined，刷新接口拿不到账号 → 401 → 又触发刷新 → 死循环
+    let account = undefined;
+    let role = undefined;
+    try {
+      const cuserStr = localStorage.getItem('currentUser');
+      if (cuserStr) {
+        const cuser = JSON.parse(cuserStr);
+        account = cuser && cuser.account;
+        role = cuser && cuser.role;
+      }
+    } catch (e) {
+      console.warn('解析 currentUser 失败：', e);
+    }
+    return refreshTokenAxios.post('/auth/refreshToken', {
+      refreshToken: refreshToken,
+      account: account,
+      role: role
+    });
   }
 
   const service = axios.create({
@@ -129,13 +133,32 @@
       const res = response.data;
      
       if (res.code === 200) {
-        //console .log("resp:",res.data);
+        // 业务成功：直接返回 data 字段（与原逻辑保持一致）
         return res.data;
       }
-      if(res.code == 403){
-        window.href ="./index.html";
 
+      // 业务层 401：后端以 HTTP 200 + body.code=401 返回（token 失效）
+      // 不在这里跳转/刷新，统一交给 error 拦截器或调用方处理；这里仅 reject
+      if (res.code === 401) {
+        const errMsg = res.message || res.msg || '登录已过期';
+        if (config.customErrorMsg !== false) {
+          showError(errMsg);
+        }
+        return Promise.reject(res);
       }
+
+      // 业务层 403：权限不足（与 HTTP 403 同义）—— 不刷新 token，不跳转登录页
+      // 之前用 window.href（错误拼写，应为 window.location.href）跳转 index.html 是错的：
+      // 权限不足 ≠ 未登录，跳登录页会让用户困惑
+      if (res.code === 403) {
+        const errMsg = res.message || res.msg || '无权限访问该资源';
+        if (config.customErrorMsg !== false) {
+          showError(errMsg);
+        }
+        return Promise.reject(res);
+      }
+
+      // 其他业务错误码
       const errMsg = res.message || res.msg || '操作失败';
       if (config.customErrorMsg !== false) {
         showError(errMsg);
@@ -146,6 +169,7 @@
       closeLoading();
       const config = error.config || {};
 
+      // ① 超时
       if (error.code === 'ECONNABORTED' && error.message.includes('timeout')) {
         const msg = '请求超时，请稍后重试';
         if (config.customErrorMsg !== false) {
@@ -154,6 +178,7 @@
         return Promise.reject(msg);
       }
 
+      // ② 网络不可达
       if (!error.response) {
         const msg = '网络连接失败，请检查网络';
         if (config.customErrorMsg !== false) {
@@ -165,52 +190,103 @@
       const status = error.response.status;
       const originalRequest = config;
 
-      if (status === 401 || status== 403) {
+      // ====== 关键修复：只对 401 刷新 token，403 不刷新 ======
+      // 原因：403 表示"已登录但权限不足"，刷新 token 后用户角色/权限不变，
+      //       重试请求还是 403，又会触发刷新 → 无限循环
+      //       401 才表示"未登录或 token 失效"，需要刷新
+      //
+      // ====== 关键修复：originalRequest._retry 标记 ======
+      // 已重试过的请求若再次 401，不再刷新，避免嵌套循环
+      if (status === 401 && !originalRequest._retry) {
+        originalRequest._retry = true; // 标记：本请求已尝试过刷新重试
+
+        // ②-a 已有刷新在进行：排队等待，刷新完成后用新 token 重发
         if (isRefreshing) {
-          return new Promise((resolve) => {
-            requestQueue.push((newToken) => {
-              originalRequest.headers.Authorization = `Bearer ${newToken}`;
-              resolve(service(originalRequest));
+          return new Promise((resolve, reject) => {
+            // 修复：队列项需同时保存 resolve 和 reject，
+            // 否则刷新失败时排队的 Promise 永远 pending
+            requestQueue.push({
+              resolve,
+              reject,
+              fn: (newToken) => {
+                originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                service(originalRequest).then(resolve).catch(reject);
+              }
             });
           });
-         
         }
+
+        // ②-b 没有刷新在进行：自己发起刷新
         isRefreshing = true;
         try {
           const refreshRes = await getNewToken();
-        console.error("000 getNewToken:",refreshRes );
-         // 
-          if (refreshRes.status === 200) 
-         {  const result = refreshRes.data;
-           // console.error("000 getNewToken result:",result );
-            const { token, refreshToken } =   result.data ;
-            localStorage.setItem('token', token);
-            localStorage.setItem('refreshToken', refreshToken);
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-            requestQueue.forEach((cb) => cb(token));
+          // 后端响应：HTTP 200 + body.code === 200 才算刷新成功
+          if (
+            refreshRes &&
+            refreshRes.status === 200 &&
+            refreshRes.data &&
+            refreshRes.data.code === 200
+          ) {
+            const result = refreshRes.data;
+            const newToken = result.data && result.data.token;
+            const newRefreshToken = result.data && result.data.refreshToken;
+            if (!newToken) {
+              throw new Error('刷新接口未返回 token');
+            }
+            localStorage.setItem('token', newToken);
+            if (newRefreshToken) {
+              localStorage.setItem('refreshToken', newRefreshToken);
+            }
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+
+            // 唤醒所有排队请求
+            requestQueue.forEach((item) => item.fn(newToken));
             requestQueue = [];
             isRefreshing = false;
-            //console.error("200 originalRequest:",originalRequest);
 
-            return service(originalRequest);  
-          }  
-         // throw new Error(result.message || result.msg || '刷新凭证失败');
-        } catch (refreshErr) { 
+            // 重试原请求
+            return service(originalRequest);
+          }
+          // 刷新接口返回非 200 业务码：当作刷新失败
+          throw new Error(
+            (refreshRes && refreshRes.data && (refreshRes.data.message || refreshRes.data.msg)) ||
+            '刷新凭证失败'
+          );
+        } catch (refreshErr) {
+          // ③ 刷新失败：清登录态、唤醒排队请求 reject、跳登录页
           localStorage.removeItem('token');
           localStorage.removeItem('refreshToken');
           localStorage.removeItem('currentUser');
+          // 修复：清空队列时也 reject 排队的请求，避免它们永久 pending
+          requestQueue.forEach((item) => item.reject(refreshErr));
           requestQueue = [];
-          showError('登录已过期，请重新登录');
-          location.href = './index.html';
-          return Promise.reject(refreshErr);
-        } finally {
           isRefreshing = false;
+          showError('登录已过期，请重新登录');
+          // 延迟跳转，让当前 reject 链先走完
+          setTimeout(() => {
+            location.href = './index.html';
+          }, 500);
+          return Promise.reject(refreshErr);
         }
+        // 注意：此处 finally 中不再设置 isRefreshing=false，
+        // 因为 try/catch 内已经显式管理；且原 finally 会在 return 之后执行导致状态错乱
       }
-    
+
+      // ④ 非 401 / 已重试过的 401 / 403 等：按状态码提示，不再刷新
       let errMsg = '';
       switch (status) {
+        case 401:
+          // 已重试过仍 401，或刷新失败：清登录态并跳转
+          errMsg = '登录已过期，请重新登录';
+          localStorage.removeItem('token');
+          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('currentUser');
+          setTimeout(() => {
+            location.href = './index.html';
+          }, 500);
+          break;
         case 403:
+          // 权限不足：只提示，不刷新，不跳转（保留当前页面上下文）
           errMsg = '无权限访问该资源';
           break;
         case 404:
