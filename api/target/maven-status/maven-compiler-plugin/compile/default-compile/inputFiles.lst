@@ -18,6 +18,7 @@ H:\2026\lesson-appointment\api\src\main\java\com\reservation\controller\CourseCo
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\controller\IndexController.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\controller\ReservationController.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\controller\ScheduleController.java
+H:\2026\lesson-appointment\api\src\main\java\com\reservation\controller\TeacherProfessionalController.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\controller\TimezoneCalcController.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\controller\UserController.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\dto\AppointmentConditionDTO.java
@@ -36,6 +37,9 @@ H:\2026\lesson-appointment\api\src\main\java\com\reservation\dto\ScheduleGenerat
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\dto\SchedulePO.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\dto\ScheduleVO.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\dto\StatusBody.java
+H:\2026\lesson-appointment\api\src\main\java\com\reservation\dto\TeacherAvailableTimeDTO.java
+H:\2026\lesson-appointment\api\src\main\java\com\reservation\dto\TeacherCertificateDTO.java
+H:\2026\lesson-appointment\api\src\main\java\com\reservation\dto\TeacherProfessionalDTO.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\dto\TokenDTO.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\dto\TzSwitchPO.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\dto\TzSwitchVO.java
@@ -47,6 +51,9 @@ H:\2026\lesson-appointment\api\src\main\java\com\reservation\entity\CourseEvalua
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\entity\CourseFeedback.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\entity\CourseSchedule.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\entity\CourseTemplate.java
+H:\2026\lesson-appointment\api\src\main\java\com\reservation\entity\TeacherAvailableTime.java
+H:\2026\lesson-appointment\api\src\main\java\com\reservation\entity\TeacherCertificate.java
+H:\2026\lesson-appointment\api\src\main\java\com\reservation\entity\TeacherProfessional.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\entity\User.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\exception\BusinessException.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\exception\GlobalExceptionHandler.java
@@ -61,12 +68,16 @@ H:\2026\lesson-appointment\api\src\main\java\com\reservation\mapper\CourseSchedu
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\mapper\CourseTemplateMapper.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\mapper\RefreshTokenMapper.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\mapper\ScheduleExceptionMapper.java
+H:\2026\lesson-appointment\api\src\main\java\com\reservation\mapper\TeacherAvailableTimeMapper.java
+H:\2026\lesson-appointment\api\src\main\java\com\reservation\mapper\TeacherCertificateMapper.java
+H:\2026\lesson-appointment\api\src\main\java\com\reservation\mapper\TeacherProfessionalMapper.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\mapper\UserMapper.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\query\AppointmentQueryPage.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\query\BookingQueryPage.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\query\CourseQueryPage.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\query\CourseScheduleQueryPage.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\query\ScheduleQueryPage.java
+H:\2026\lesson-appointment\api\src\main\java\com\reservation\query\TeacherProfessionalQueryPage.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\query\TemplateQueryPage.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\query\UserQueryPage.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\service\AppointmentService.java
@@ -74,8 +85,11 @@ H:\2026\lesson-appointment\api\src\main\java\com\reservation\service\BookingServ
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\service\CourseScheduleService.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\service\CourseService.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\service\RefreshTokenService.java
+H:\2026\lesson-appointment\api\src\main\java\com\reservation\service\TeacherProfessionalService.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\service\TzSwitchService.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\service\UserService.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\SpringBootMergeApplication.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\utils\JwtUtil.java
 H:\2026\lesson-appointment\api\src\main\java\com\reservation\utils\PermissionCheck.java
+H:\2026\lesson-appointment\api\src\main\java\com\reservation\vo\TeacherProfessionalDetailVO.java
+H:\2026\lesson-appointment\api\src\main\java\com\reservation\vo\TeacherProfessionalListVO.java

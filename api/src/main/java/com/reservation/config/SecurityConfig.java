@@ -53,7 +53,8 @@ public class SecurityConfig {
                                 "/index.html",
                                 "/admin.html",
                                 "/student.html",
-                                "/teacher.html"
+                                "/teacher.html",
+                                "/teacherInfo.html"
                         ).permitAll()
 
                         // 登录/鉴权相关

@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.reservation.mapper.TeacherProfessionalMapper">
+
+    <!-- 列表 VO 结果映射（联表 user + 子查询证书数/首图） -->
+    <resultMap id="listVOResultMap" type="com.reservation.vo.TeacherProfessionalListVO">
+        <result column="teacher_professional_id" property="teacherProfessionalId"/>
+        <result column="teacher_id"              property="teacherId"/>
+        <result column="name"                    property="name"/>
+        <result column="account"                 property="account"/>
+        <result column="phone"                   property="phone"/>
+        <result column="email"                   property="email"/>
+        <result column="subject"                 property="subject"/>
+        <result column="personal_photo_url"      property="personalPhotoUrl"/>
+        <result column="bio_text"                property="bioText"/>
+        <result column="weekly_available_hours"  property="weeklyAvailableHours"/>
+        <result column="min_booking_hours"       property="minBookingHours"/>
+        <result column="certificate_count"       property="certificateCount"/>
+        <result column="first_certificate_url"   property="firstCertificateUrl"/>
+        <result column="availability_summary"    property="availabilitySummary"/>
+        <result column="status"                  property="status"/>
+        <result column="create_time"             property="createTime"/>
+        <result column="update_time"             property="updateTime"/>
+    </resultMap>
+
+    <!--
+      分页条件查询：联表 user 取 name/account/phone/email
+      子查询1：该教师的证书数量
+      子查询2：该教师排序最前的一张证书URL
+      可预约时间汇总：把 weekly 模板的 day_of_week + start_time/end_time 拼成一行文本
+      bio_text 截断 100 字，避免列表页传输大文本
+    -->
+    <select id="listByConditionPage" resultMap="listVOResultMap">
+        SELECT
+            tp.teacher_professional_id,
+            tp.teacher_id,
+            u.name,
+            u.account,
+            u.phone,
+            u.email,
+            tp.subject,
+            tp.personal_photo_url,
+            LEFT(tp.bio_text, 100) AS bio_text,
+            tp.weekly_available_hours,
+            tp.min_booking_hours,
+            (SELECT COUNT(1) FROM teacher_certificate tc WHERE tc.teacher_id = tp.teacher_id) AS certificate_count,
+            (SELECT tc2.cert_url FROM teacher_certificate tc2
+              WHERE tc2.teacher_id = tp.teacher_id
+              ORDER BY tc2.sort_no ASC, tc2.create_time ASC LIMIT 1) AS first_certificate_url,
+            tp.status,
+            tp.create_time,
+            tp.update_time,
+            tp.availability_rule AS availability_summary
+        FROM teacher_professional tp
+        LEFT JOIN user u ON u.user_id = tp.teacher_id
+        <where>
+            <if test="query.teacherId != null and query.teacherId != ''">
+                AND tp.teacher_id = #{query.teacherId}
+            </if>
+            <if test="query.subject != null and query.subject != ''">
+                AND tp.subject LIKE CONCAT('%', #{query.subject}, '%')
+            </if>
+            <if test="query.status != null and query.status != ''">
+                AND tp.status = #{query.status}
+            </if>
+            <if test="query.name != null and query.name != ''">
+                AND u.name LIKE CONCAT('%', #{query.name}, '%')
+            </if>
+            <if test="query.phone != null and query.phone != ''">
+                AND u.phone LIKE CONCAT('%', #{query.phone}, '%')
+            </if>
+            <if test="query.email != null and query.email != ''">
+                AND u.email LIKE CONCAT('%', #{query.email}, '%')
+            </if>
+            <if test="query.account != null and query.account != ''">
+                AND u.account LIKE CONCAT('%', #{query.account}, '%')
+            </if>
+        </where>
+        ORDER BY tp.update_time DESC, tp.create_time DESC
+        LIMIT #{query.pageSize} OFFSET #{query.offset}
+    </select>
+
+    <!-- 条件查询总数 -->
+    <select id="selectCountByCondition" resultType="int">
+        SELECT COUNT(1)
+        FROM teacher_professional tp
+        LEFT JOIN user u ON u.user_id = tp.teacher_id
+        <where>
+            <if test="query.teacherId != null and query.teacherId != ''">
+                AND tp.teacher_id = #{query.teacherId}
+            </if>
+            <if test="query.subject != null and query.subject != ''">
+                AND tp.subject LIKE CONCAT('%', #{query.subject}, '%')
+            </if>
+            <if test="query.status != null and query.status != ''">
+                AND tp.status = #{query.status}
+            </if>
+            <if test="query.name != null and query.name != ''">
+                AND u.name LIKE CONCAT('%', #{query.name}, '%')
+            </if>
+            <if test="query.phone != null and query.phone != ''">
+                AND u.phone LIKE CONCAT('%', #{query.phone}, '%')
+            </if>
+            <if test="query.email != null and query.email != ''">
+                AND u.email LIKE CONCAT('%', #{query.email}, '%')
+            </if>
+            <if test="query.account != null and query.account != ''">
+                AND u.account LIKE CONCAT('%', #{query.account}, '%')
+            </if>
+        </where>
+    </select>
+
+    <!--
+      子表删除方法（deleteByTeacherId）已用 @Delete 注解分别定义在
+      TeacherCertificateMapper / TeacherAvailableTimeMapper 接口中，不在此 XML 声明。
+    -->
+</mapper>
