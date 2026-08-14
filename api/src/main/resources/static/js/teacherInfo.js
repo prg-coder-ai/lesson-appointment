@@ -1,210 +1,280 @@
 /**
- * 教师职业信息维护 - 前端业务逻辑
- * 依赖：utility_request.js (window.request)、api.js (getCurrentUserInfo)、
- *       auth.js (handleLogout)、pagefoot.js (Pagination / assignLoadobjectListFunction / renderPagination)
- * 对应 notes §5 前端页面设计
+ * 教师职业信息维护 - 单条记录版（form 页面）
+ * 通过 URL 参数 ?userid=xxxx 指定教师，加载并展示该教师的职业信息。
+ * 依赖：utility_request.js (window.request)、api.js (getCurrentUserInfo)、auth.js (handleLogout)
  */
-window.renderTeacherInfoList = loadAndRenderList;
+window.teacherInfoModule = window.teacherInfoModule || {};
 
-// 当前编辑的表单状态（新增时为 null）
-let currentEditingId = null;
-// 教师下拉选项缓存
-let teacherOptionsCache = [];
+// ====================== 模块级状态 ======================
+// 当前教师的 userId（来自 URL）
+let currentTeacherId = null;
+// 当前职业信息记录 ID（已有记录时非空，新增时为 null）
+let currentProfessionalId = null;
+// 当前模式：'view' | 'edit' | 'add'
+let currentMode = 'view';
+// 最近一次加载的原始数据（用于取消编辑时回滚）
+let originalData = null;
 
 const SUBJECT_OPTIONS = ['英语', '日语', '韩语', '法语', '德语', '西班牙语'];
 const DAY_OF_WEEK_MAP = { 1: '周一', 2: '周二', 3: '周三', 4: '周四', 5: '周五', 6: '周六', 7: '周日' };
 
-// ================================================================
-// 列表加载与渲染
-// ================================================================
-async function loadAndRenderList() {
-  const params = new URLSearchParams({
-    pageNum: Pagination.pageNum,
-    pageSize: Pagination.pageSize,
-    name: document.getElementById('search-name').value.trim(),
-    account: document.getElementById('search-account').value.trim(),
-    phone: document.getElementById('search-phone').value.trim(),
-    email: document.getElementById('search-email').value.trim(),
-    subject: document.getElementById('search-subject').value.trim(),
-    status: document.getElementById('search-status').value
-  });
+// ====================== URL 参数解析 + 加载入口 ======================
+/**
+ * 从 URL 读取 userid 并加载教师职业信息。
+ * 兼容大小写：userid / userId / id
+ */
+function loadTeacherInfoFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  // 优先 userid（用户指定写法），其次 userId / id
+  currentTeacherId = params.get('userid') || params.get('userId') || params.get('id');
 
-  try {
-    const result = await request({ url: `/teacher/professional/listByPage?${params.toString()}` });
-    if (result && result.data) {
-      const pageData = result.data;
-      Pagination.total = pageData.total || 0;
-      Pagination.totalPages = pageData.totalPages || 0;
-      renderTable(pageData.rows || []);
-      renderPagination(Pagination);
-    } else {
-      Pagination.total = 0;
-      Pagination.totalPages = 0;
-      renderTable([]);
-      renderPagination(Pagination);
-    }
-  } catch (error) {
-    console.error('加载教师职业信息列表失败：', error);
-    renderTable([]);
-  }
-}
-
-function renderTable(rows) {
-  const tbody = document.getElementById('list-tbody');
-  if (!rows || rows.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="12" class="empty-tip">暂无数据</td></tr>';
+  if (!currentTeacherId) {
+    renderError('缺少 userid 参数，请在 URL 中携带：<code>?userid=教师ID</code>');
     return;
   }
-  let index = (Pagination.pageNum - 1) * Pagination.pageSize;
-  let html = '';
-  rows.forEach(item => {
-    index++;
-    const photoHtml = item.personalPhotoUrl
-      ? `<img class="photo-thumb" src="${item.personalPhotoUrl}" alt="">`
-      : (item.firstCertificateUrl ? `<img class="photo-thumb" src="${item.firstCertificateUrl}" alt="">` : '<div class="photo-thumb"></div>');
-    const statusText = item.status === 'active' ? '<span class="status-active">有效</span>'
-      : item.status === 'frozen' ? '<span class="status-frozen">冻结</span>'
-      : item.status === 'inactive' ? '<span class="status-inactive">失效</span>'
-      : item.status || '';
-    const bioText = item.bioText ? (item.bioText.length > 30 ? item.bioText.substring(0, 30) + '...' : item.bioText) : '';
-    html += `
-      <tr>
-        <td>${index}</td>
-        <td>${photoHtml}</td>
-        <td>${item.name || ''}</td>
-        <td>${item.account || ''}</td>
-        <td>${item.phone || ''}</td>
-        <td>${item.email || ''}</td>
-        <td>${item.subject || ''}</td>
-        <td title="${item.bioText || ''}">${bioText}</td>
-        <td>${item.certificateCount || 0}</td>
-        <td>${item.weeklyAvailableHours || 0}</td>
-        <td>${statusText}</td>
-        <td>
-          <button class="btn btn-default" onclick="viewDetail('${item.teacherProfessionalId}')"><i class="fa fa-eye"></i></button>
-          <button class="btn btn-warning" onclick="openEditModal('${item.teacherProfessionalId}')"><i class="fa fa-edit"></i></button>
-          <button class="btn btn-danger" onclick="deleteItem('${item.teacherProfessionalId}', '${item.name || ''}')"><i class="fa fa-trash"></i></button>
-        </td>
-      </tr>`;
-  });
-  tbody.innerHTML = html;
+  loadTeacherInfo(currentTeacherId);
 }
 
-function searchList() {
-  Pagination.pageNum = 1;
-  loadAndRenderList();
+/**
+ * 调用后端单条查询接口，按 teacherId 拉取职业信息。
+ * 接口：GET /teacher/professional/queryTeacherProfessionalInfo?teacherId=xxx
+ */
+async function loadTeacherInfo(teacherId) {
+  setContainerHtml('<div class="loading-tip">加载中...</div>');
+  showActionButtons('');
+
+  try {
+    const result = await request({
+      url: '/teacher/professional/queryTeacherProfessionalInfo',
+      params: { teacherId: teacherId }
+    });
+
+    if (!result || result.code !== 200) {
+      // 接口返回业务错误（如教师不存在）
+      const msg = (result && result.message) ? result.message : '查询失败';
+      renderError(msg);
+      return;
+    }
+
+    const data = result.data;
+    if (!data || !data.professional) {
+      // 教师存在但还没有职业信息 → 进入新增模式
+      originalData = buildEmptyForm(teacherId);
+      currentProfessionalId = null;
+      currentMode = 'add';
+      setPageTitle('新增教师职业信息');
+      renderEditForm(originalData, true);
+      showActionButtons('add');
+      return;
+    }
+
+    // 已有职业信息 → 进入查看模式
+    originalData = normalizeDetail(data);
+    currentProfessionalId = data.professional.teacherProfessionalId;
+    currentMode = 'view';
+    setPageTitle(`教师职业信息 - ${data.name || data.account || teacherId}`);
+    renderView(originalData);
+    showActionButtons('view');
+  } catch (e) {
+    console.error('加载教师职业信息失败：', e);
+    renderError('加载失败：' + (e && e.message ? e.message : e));
+  }
 }
 
-function resetFilter() {
-  document.getElementById('search-name').value = '';
-  document.getElementById('search-account').value = '';
-  document.getElementById('search-phone').value = '';
-  document.getElementById('search-email').value = '';
-  document.getElementById('search-subject').value = '';
-  document.getElementById('search-status').value = '';
-  Pagination.pageNum = 1;
-  loadAndRenderList();
+// ====================== 数据规范化 ======================
+/** 把后端返回的 detail 对象整理成 renderView/renderEditForm 期望的结构 */
+function normalizeDetail(data) {
+  const p = data.professional || {};
+  return {
+    teacherProfessionalId: p.teacherProfessionalId,
+    teacherId: p.teacherId,
+    name: data.name || '',
+    account: data.account || '',
+    phone: data.phone || '',
+    email: data.email || '',
+    userStatus: data.userStatus || '',
+    subject: p.subject || '',
+    personalPhotoUrl: p.personalPhotoUrl || '',
+    // 保留 base64 字段：编辑时若用户未换图，原样回传，避免丢失已上传图片
+    personalPhotoBase64: p.personalPhotoBase64 || '',
+    bioText: p.bioText || '',
+    bioUrl: p.bioUrl || '',
+    availabilityRule: p.availabilityRule || '',
+    minBookingHours: p.minBookingHours != null ? p.minBookingHours : 4,
+    weeklyAvailableHours: p.weeklyAvailableHours != null ? p.weeklyAvailableHours : 20,
+    certificateText: p.certificateText || '',
+    status: p.status || 'active',
+    createTime: p.createTime || '',
+    updateTime: p.updateTime || '',
+    certificates: (data.certificates || []).map(c => ({
+      certificateId: c.certificateId,
+      certName: c.certName || '',
+      certUrl: c.certUrl || '',
+      // 保留 base64：编辑时未换图则原样回传
+      certBase64: c.certBase64 || c.certificateImageBase64 || '',
+      sortNo: c.sortNo != null ? c.sortNo : 0
+    })),
+    availableTimes: (data.availableTimes || []).map(t => ({
+      availableId: t.availableId,
+      timeType: t.timeType || 'weekly',
+      dayOfWeek: t.dayOfWeek,
+      specificDate: t.specificDate || '',
+      startTime: t.startTime || '09:00:00',
+      endTime: t.endTime || '17:00:00',
+      status: t.status || 'active'
+    }))
+  };
 }
 
-// ================================================================
-// 新增/编辑弹窗
-// ================================================================
-async function openAddModal() {
-  currentEditingId = null;
-  document.getElementById('modal-title').innerHTML = '新增教师职业信息';
-  await ensureTeacherOptions();
-  renderForm({
-    teacherId: '',
+/** 构造空白表单数据（新增模式） */
+function buildEmptyForm(teacherId) {
+  return {
+    teacherProfessionalId: null,
+    teacherId: teacherId,
+    name: '',
+    account: '',
+    phone: '',
+    email: '',
+    userStatus: '',
     subject: '',
     personalPhotoUrl: '',
+    personalPhotoBase64: '',
     bioText: '',
     bioUrl: '',
+    availabilityRule: '',
     minBookingHours: 4,
     weeklyAvailableHours: 20,
     certificateText: '',
     status: 'active',
+    createTime: '',
+    updateTime: '',
     certificates: [],
-    availableTimes: [{ timeType: 'weekly', dayOfWeek: 1, startTime: '09:00:00', endTime: '17:00:00', status: 'active' }]
-  });
-  document.getElementById('editModal').classList.add('show');
+    availableTimes: [
+      { timeType: 'weekly', dayOfWeek: 1, startTime: '09:00:00', endTime: '17:00:00', status: 'active' }
+    ]
+  };
 }
 
-async function openEditModal(teacherProfessionalId) {
-  currentEditingId = teacherProfessionalId;
-  document.getElementById('modal-title').innerHTML = '修改教师职业信息';
-  try {
-    const result = await request({ url: `/teacher/professional/queryTeacherProfessionalInfo?teacherProfessionalId=${teacherProfessionalId}` });
-    if (result && result.data && result.data.professional) {
-      await ensureTeacherOptions();
-      const p = result.data.professional;
-      renderForm({
-        teacherProfessionalId: p.teacherProfessionalId,
-        teacherId: p.teacherId,
-        subject: p.subject || '',
-        personalPhotoUrl: p.personalPhotoUrl || '',
-        bioText: p.bioText || '',
-        bioUrl: p.bioUrl || '',
-        minBookingHours: p.minBookingHours || 4,
-        weeklyAvailableHours: p.weeklyAvailableHours || 20,
-        certificateText: p.certificateText || '',
-        status: p.status || 'active',
-        certificates: (result.data.certificates || []).map(c => ({
-          certificateId: c.certificateId, certName: c.certName, certUrl: c.certUrl, sortNo: c.sortNo
-        })),
-        availableTimes: (result.data.availableTimes || []).map(t => ({
-          availableId: t.availableId, timeType: t.timeType, dayOfWeek: t.dayOfWeek,
-          specificDate: t.specificDate, startTime: t.startTime, endTime: t.endTime, status: t.status
-        }))
-      }, true);
-      document.getElementById('editModal').classList.add('show');
-    } else {
-      alert(result && result.message ? result.message : '查询详情失败');
-    }
-  } catch (e) {
-    console.error('查询详情失败：', e);
-  }
+// ====================== 查看模式渲染 ======================
+function renderView(data) {
+  const statusText = data.status === 'active' ? '<span class="status-active">有效</span>'
+    : data.status === 'frozen' ? '<span class="status-frozen">冻结</span>'
+    : data.status === 'inactive' ? '<span class="status-inactive">失效</span>'
+    : (data.status || '-');
+  const photoHtml = data.personalPhotoUrl
+    ? `<img class="view-photo" src="${escapeAttr(data.personalPhotoUrl)}" alt="">`
+    : (data.personalPhotoBase64
+        ? `<img class="view-photo" src="${escapeAttr(data.personalPhotoBase64.startsWith('data:') ? data.personalPhotoBase64 : 'data:image/png;base64,' + data.personalPhotoBase64)}" alt="">`
+        : '<div class="view-photo" style="display:flex;align-items:center;justify-content:center;color:#ccc;font-size:12px;">无照片</div>');
+  const certHtml = (data.certificates && data.certificates.length)
+    ? data.certificates.map(c => {
+        // 证书图片：优先 URL，其次 base64
+        let certImgHtml = '';
+        if (c.certUrl) {
+          certImgHtml = `<a href="${escapeAttr(c.certUrl)}" target="_blank"><img class="cert-view-img" src="${escapeAttr(c.certUrl)}" alt=""></a>`;
+        } else if (c.certBase64) {
+          const dataUri = c.certBase64.startsWith('data:') ? c.certBase64 : 'data:image/png;base64,' + c.certBase64;
+          certImgHtml = `<img class="cert-view-img" src="${escapeAttr(dataUri)}" alt="">`;
+        }
+        return `<div style="margin-bottom:10px;display:flex;gap:10px;align-items:flex-start;">
+           ${certImgHtml ? `<div>${certImgHtml}</div>` : ''}
+           <div>
+             <strong>${escapeHtml(c.certName || '未命名')}</strong>
+             ${c.certUrl ? ` · <a href="${escapeAttr(c.certUrl)}" target="_blank">查看原图</a>` : ''}
+             <div style="color:#999;font-size:12px;">排序 ${c.sortNo != null ? c.sortNo : 0}</div>
+           </div>
+         </div>`;
+      }).join('')
+    : '<span style="color:#999;">无</span>';
+  const timeHtml = (data.availableTimes && data.availableTimes.length)
+    ? data.availableTimes.map(t => {
+        const day = t.timeType === 'weekly'
+          ? (DAY_OF_WEEK_MAP[t.dayOfWeek] || '-')
+          : (t.specificDate || '-');
+        const typeText = t.timeType === 'weekly' ? '每周'
+          : t.timeType === 'holiday' ? '假日'
+          : '日期覆盖';
+        return `<div>${typeText} ${day} ${t.startTime || ''} - ${t.endTime || ''}</div>`;
+      }).join('')
+    : '<span style="color:#999;">无</span>';
+
+  setContainerHtml(`
+    <!-- 照片 + 基本信息区 -->
+    <div style="display:flex;gap:24px;margin-bottom:20px;flex-wrap:wrap;">
+      <div>${photoHtml}</div>
+      <div style="flex:1;min-width:280px;">
+        <div class="view-section" style="margin-bottom:0;">
+          <div class="view-field"><div class="label">教师姓名</div><div class="value">${escapeHtml(data.name || '-')}</div></div>
+          <div class="view-field"><div class="label">账号</div><div class="value">${escapeHtml(data.account || '-')}</div></div>
+          <div class="view-field"><div class="label">手机</div><div class="value">${escapeHtml(data.phone || '-')}</div></div>
+          <div class="view-field"><div class="label">邮箱</div><div class="value">${escapeHtml(data.email || '-')}</div></div>
+          <div class="view-field"><div class="label">学科</div><div class="value">${escapeHtml(data.subject || '-')}</div></div>
+          <div class="view-field"><div class="label">状态</div><div class="value">${statusText}</div></div>
+          <div class="view-field"><div class="label">用户状态</div><div class="value">${escapeHtml(data.userStatus || '-')}</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 课时配置 -->
+    <div class="view-section">
+      <div class="view-field"><div class="label">单次最小课时数</div><div class="value">${data.minBookingHours != null ? data.minBookingHours : '-'}</div></div>
+      <div class="view-field"><div class="label">每周可用课时上限</div><div class="value">${data.weeklyAvailableHours != null ? data.weeklyAvailableHours : '-'}</div></div>
+      <div class="view-field"><div class="label">证书文字描述</div><div class="value">${escapeHtml(data.certificateText || '-')}</div></div>
+    </div>
+
+    <!-- 简介 -->
+    <div class="form-group" style="margin-top:16px;">
+      <label>文字说明（教师简介）</label>
+      <div style="white-space:pre-wrap;color:#333;font-size:14px;line-height:1.6;padding:8px;background:#fafafa;border-radius:4px;">${escapeHtml(data.bioText || '无')}</div>
+    </div>
+    <div class="form-group">
+      <label>文字说明链接</label>
+      <div class="value">${data.bioUrl ? `<a href="${escapeAttr(data.bioUrl)}" target="_blank">${escapeHtml(data.bioUrl)}</a>` : '<span style="color:#999;">无</span>'}</div>
+    </div>
+
+    <!-- 子表：证书 -->
+    <div class="sub-section">
+      <div class="sub-section-title"><i class="fa fa-certificate"></i> 资格证书</div>
+      <div>${certHtml}</div>
+    </div>
+
+    <!-- 子表：可预约时间段 -->
+    <div class="sub-section">
+      <div class="sub-section-title"><i class="fa fa-clock"></i> 可预约时间段</div>
+      <div>${timeHtml}</div>
+    </div>
+
+    <!-- 元信息 -->
+    <div class="view-section" style="margin-top:16px;color:#999;font-size:12px;">
+      <div class="view-field"><div class="label">创建时间</div><div class="value">${escapeHtml(data.createTime || '-')}</div></div>
+      <div class="view-field"><div class="label">更新时间</div><div class="value">${escapeHtml(data.updateTime || '-')}</div></div>
+      <div class="view-field"><div class="label">职业信息ID</div><div class="value" style="font-size:12px;">${escapeHtml(data.teacherProfessionalId || '-')}</div></div>
+    </div>
+  `);
 }
 
-function closeEditModal() {
-  document.getElementById('editModal').classList.remove('show');
-}
-
-/** 拉取教师下拉选项（仅 role=teacher 的用户） */
-async function ensureTeacherOptions() {
-  if (teacherOptionsCache.length > 0) return;
-  try {
-    const result = await request({ url: '/user/teacher/list' });
-    if (result && result.data) {
-      teacherOptionsCache = result.data;
-    }
-  } catch (e) {
-    console.error('拉取教师列表失败：', e);
-  }
-}
-
-function renderForm(data, isEdit) {
-  const teacherDisabled = isEdit ? 'disabled' : '';
-  const teacherOptionsHtml = teacherOptionsCache.map(t =>
-    `<option value="${t.userId}" ${t.userId === data.teacherId ? 'selected' : ''}>${t.name || t.account || t.userId}</option>`
-  ).join('');
+// ====================== 编辑/新增模式渲染 ======================
+function renderEditForm(data, isAdd) {
+  const teacherReadonly = isAdd
+    ? `<input type="text" value="${escapeAttr(data.teacherId || '')}" readonly>
+       <input type="hidden" id="f-teacherId" value="${escapeAttr(data.teacherId || '')}">`
+    : `<input type="text" value="${escapeAttr(data.teacherId || '')}" readonly>
+       <input type="hidden" id="f-teacherId" value="${escapeAttr(data.teacherId || '')}">`;
 
   let certRowsHtml = '';
-  if (data.certificates && data.certificates.length > 0) {
+  if (data.certificates && data.certificates.length) {
     data.certificates.forEach(c => { certRowsHtml += renderCertRow(c); });
   }
-
   let timeRowsHtml = '';
-  if (data.availableTimes && data.availableTimes.length > 0) {
+  if (data.availableTimes && data.availableTimes.length) {
     data.availableTimes.forEach(t => { timeRowsHtml += renderTimeRow(t); });
   }
 
-  document.getElementById('modal-body').innerHTML = `
+  setContainerHtml(`
     <div class="form-group">
-      <label>教师 <span class="required">*</span></label>
-      <select id="f-teacherId" ${teacherDisabled}>
-        <option value="">请选择教师</option>
-        ${teacherOptionsHtml}
-      </select>
+      <label>教师ID <span class="required">*</span></label>
+      ${teacherReadonly}
+      ${data.name ? `<div style="font-size:12px;color:#999;margin-top:4px;">教师姓名：${escapeHtml(data.name)}</div>` : ''}
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -224,30 +294,51 @@ function renderForm(data, isEdit) {
       </div>
     </div>
     <div class="form-group">
-      <label>个人照片URL</label>
-      <input type="text" id="f-personalPhotoUrl" value="${data.personalPhotoUrl || ''}" placeholder="照片访问URL">
+      <label>个人照片</label>
+      <div class="photo-upload-row">
+        <!-- 图片预览：始终保留一个 <img>，无图时隐藏并显示占位 -->
+        <div class="photo-preview" id="photo-preview">
+          ${(() => {
+            const src = data.personalPhotoUrl
+              || (data.personalPhotoBase64
+                  ? (data.personalPhotoBase64.startsWith('data:') ? data.personalPhotoBase64 : 'data:image/png;base64,' + data.personalPhotoBase64)
+                  : '');
+            return src
+              ? `<img class="photo-preview-img" id="photo-preview-img" src="${escapeAttr(src)}" alt="">`
+              : `<img class="photo-preview-img" id="photo-preview-img" src="" alt="" style="display:none;"><div class="photo-placeholder">无图片</div>`;
+          })()}
+        </div>
+        <!-- 文件选择 + URL 输入 -->
+        <div class="photo-inputs">
+          <input type="file" id="f-personalPhotoFile" accept="image/*" style="display:none;" onchange="handlePhotoSelect(this, 'photo-preview-img', 'f-personalPhotoBase64')">
+          <button class="btn btn-default" type="button" onclick="document.getElementById('f-personalPhotoFile').click()"><i class="fa fa-upload"></i> 选择图片上传</button>
+          <input type="text" id="f-personalPhotoUrl" value="${escapeAttr(data.personalPhotoUrl || '')}" placeholder="或填写照片URL">
+          <!-- 隐藏字段：存放 base64，未换图时保留原值 -->
+          <input type="hidden" id="f-personalPhotoBase64" value="${escapeAttr(data.personalPhotoBase64 || '')}">
+        </div>
+      </div>
     </div>
     <div class="form-row">
       <div class="form-group">
         <label>单次最小课时数</label>
-        <input type="number" id="f-minBookingHours" value="${data.minBookingHours || 4}" min="1">
+        <input type="number" id="f-minBookingHours" value="${data.minBookingHours != null ? data.minBookingHours : 4}" min="1">
       </div>
       <div class="form-group">
         <label>每周可用课时上限</label>
-        <input type="number" id="f-weeklyAvailableHours" value="${data.weeklyAvailableHours || 20}" min="1">
+        <input type="number" id="f-weeklyAvailableHours" value="${data.weeklyAvailableHours != null ? data.weeklyAvailableHours : 20}" min="1">
       </div>
     </div>
     <div class="form-group">
       <label>文字说明（教师简介）</label>
-      <textarea id="f-bioText" maxlength="2000" placeholder="教师简介">${data.bioText || ''}</textarea>
+      <textarea id="f-bioText" maxlength="2000" placeholder="教师简介">${escapeHtml(data.bioText || '')}</textarea>
     </div>
     <div class="form-group">
       <label>文字说明链接</label>
-      <input type="text" id="f-bioUrl" value="${data.bioUrl || ''}" placeholder="外部简历/博客URL">
+      <input type="text" id="f-bioUrl" value="${escapeAttr(data.bioUrl || '')}" placeholder="外部简历/博客URL">
     </div>
     <div class="form-group">
       <label>证书文字描述</label>
-      <input type="text" id="f-certificateText" value="${data.certificateText || ''}" placeholder="如 CET-8、JLPT N1">
+      <input type="text" id="f-certificateText" value="${escapeAttr(data.certificateText || '')}" placeholder="如 CET-8、JLPT N1">
     </div>
 
     <div class="sub-section">
@@ -261,17 +352,23 @@ function renderForm(data, isEdit) {
       <div id="time-rows">${timeRowsHtml}</div>
       <button class="add-row-btn" onclick="addTimeRow()"><i class="fa fa-plus"></i> 添加时间段</button>
     </div>
-  `;
+  `);
 }
 
+// ====================== 子表行渲染（证书 / 时间段） ======================
 function renderCertRow(c) {
   c = c || {};
+  const thumbHtml = getPhotoImgHtml(c.certUrl, c.certBase64, 'cert-thumb-img');
   return `
-    <div class="sub-item-row">
-      <input type="text" class="cert-name" value="${c.certName || ''}" placeholder="证书名称">
-      <input type="text" class="cert-url" value="${c.certUrl || ''}" placeholder="证书图片URL">
+    <div class="sub-item-row cert-row">
+      <div class="cert-thumb">${thumbHtml}</div>
+      <input type="text" class="cert-name" value="${escapeAttr(c.certName || '')}" placeholder="证书名称">
+      <input type="text" class="cert-url" value="${escapeAttr(c.certUrl || '')}" placeholder="图片URL（可选）">
       <input type="number" class="cert-sort" value="${c.sortNo != null ? c.sortNo : 0}" placeholder="排序" style="max-width:70px;">
-      <button class="remove-row-btn" onclick="this.parentElement.remove()"><i class="fa fa-times"></i></button>
+      <input type="hidden" class="cert-base64" value="${escapeAttr(c.certBase64 || '')}">
+      <input type="file" class="cert-file" accept="image/*" style="display:none;" onchange="handleCertPhotoSelect(this)">
+      <button class="btn btn-default" type="button" onclick="this.previousElementSibling.click()"><i class="fa fa-upload"></i></button>
+      <button class="btn btn-danger" onclick="this.parentElement.remove()"><i class="fa fa-times"></i></button>
     </div>`;
 }
 
@@ -287,10 +384,10 @@ function renderTimeRow(t) {
     <div class="sub-item-row">
       <select class="time-type">${typeOptions}</select>
       <select class="time-dow"><option value="">星期</option>${dowOptions}</select>
-      <input type="date" class="time-date" value="${t.specificDate || ''}" placeholder="具体日期">
-      <input type="text" class="time-start" value="${t.startTime || '09:00:00'}" placeholder="开始">
-      <input type="text" class="time-end" value="${t.endTime || '17:00:00'}" placeholder="结束">
-      <button class="remove-row-btn" onclick="this.parentElement.remove()"><i class="fa fa-times"></i></button>
+      <input type="date" class="time-date" value="${escapeAttr(t.specificDate || '')}" placeholder="具体日期">
+      <input type="text" class="time-start" value="${escapeAttr(t.startTime || '09:00:00')}" placeholder="开始">
+      <input type="text" class="time-end" value="${escapeAttr(t.endTime || '17:00:00')}" placeholder="结束">
+      <button class="btn btn-danger" onclick="this.parentElement.remove()"><i class="fa fa-times"></i></button>
     </div>`;
 }
 
@@ -308,23 +405,58 @@ function addTimeRow() {
   container.appendChild(div.firstChild);
 }
 
-// ================================================================
-// 提交表单（新增/修改）
-// ================================================================
-async function submitForm() {
+// ====================== 模式切换按钮（静态 HTML 已预置在 teacherInfo.html 的 #action-btns 中）======================
+/**
+ * 根据模式显示对应的按钮组，隐藏其余三组。
+ * mode: 'view' | 'edit' | 'add' | 'error' | ''
+ */
+function showActionButtons(mode) {
+  const btns = {
+    view: document.getElementById('btns-view'),
+    edit: document.getElementById('btns-edit'),
+    add:  document.getElementById('btns-add'),
+    error: document.getElementById('btns-error')
+  };
+  Object.keys(btns).forEach(k => {
+    if (btns[k]) btns[k].style.display = (k === mode) ? '' : 'none';
+  });
+}
+
+/** 进入编辑模式（从查看模式切换） */
+function enterEditMode() {
+  if (!originalData) return;
+  currentMode = 'edit';
+  renderEditForm(originalData, false);
+  showActionButtons('edit');
+}
+
+/** 取消编辑，回到查看模式 */
+function cancelEdit() {
+  if (!originalData) return;
+  currentMode = 'view';
+  renderView(originalData);
+  showActionButtons('view');
+}
+
+// ====================== 保存（新增 / 修改） ======================
+async function saveForm() {
   const teacherId = document.getElementById('f-teacherId').value;
   if (!teacherId) {
-    alert('请选择教师');
+    alert('教师ID不能为空');
     return;
   }
 
-  // 收集证书
+  // 收集证书（含 base64 图片）
   const certificates = [];
-  document.querySelectorAll('#cert-rows .sub-item-row').forEach(row => {
+  document.querySelectorAll('#cert-rows .cert-row').forEach(row => {
     const name = row.querySelector('.cert-name').value.trim();
     const url = row.querySelector('.cert-url').value.trim();
+    const base64 = row.querySelector('.cert-base64').value;
     const sort = parseInt(row.querySelector('.cert-sort').value) || 0;
-    if (name || url) certificates.push({ certName: name, certUrl: url, sortNo: sort });
+    // 有名称、URL 或 base64 之一即认为该行有效
+    if (name || url || base64) {
+      certificates.push({ certName: name, certUrl: url, certBase64: base64 || null, sortNo: sort });
+    }
   });
 
   // 收集时间段
@@ -350,6 +482,8 @@ async function submitForm() {
     teacherId,
     subject: document.getElementById('f-subject').value,
     personalPhotoUrl: document.getElementById('f-personalPhotoUrl').value.trim(),
+    // base64 图片：未选图时为隐藏字段原值（保留已上传图片），选了新图则覆盖
+    personalPhotoBase64: document.getElementById('f-personalPhotoBase64').value || null,
     bioText: document.getElementById('f-bioText').value.trim(),
     bioUrl: document.getElementById('f-bioUrl').value.trim(),
     minBookingHours: parseInt(document.getElementById('f-minBookingHours').value) || 4,
@@ -361,98 +495,182 @@ async function submitForm() {
   };
 
   let url = '/teacher/professional/addTeacherProfessionalInfo';
-  if (currentEditingId) {
+  if (currentMode === 'edit' && currentProfessionalId) {
     url = '/teacher/professional/updateTeacherProfessionalInfo';
-    payload.teacherProfessionalId = currentEditingId;
+    payload.teacherProfessionalId = currentProfessionalId;
   }
 
   try {
     const result = await request({ url, method: 'post', data: payload });
     if (result && result.code === 200) {
-      alert(currentEditingId ? '修改成功' : '添加成功');
-      closeEditModal();
-      loadAndRenderList();
+      alert(currentMode === 'add' ? '添加成功' : '修改成功');
+      // 保存成功后重新加载最新数据，回到查看模式
+      await loadTeacherInfo(currentTeacherId);
     } else {
       alert(result && result.message ? result.message : '操作失败');
     }
   } catch (e) {
-    console.error('提交失败：', e);
+    console.error('保存失败：', e);
+    alert('保存失败：' + (e && e.message ? e.message : e));
   }
 }
 
-// ================================================================
-// 删除
-// ================================================================
-async function deleteItem(teacherProfessionalId, name) {
+// ====================== 删除 ======================
+async function deleteCurrent() {
+  if (!currentProfessionalId) return;
+  const name = originalData && originalData.name ? originalData.name : currentTeacherId;
   if (!confirm(`确认删除教师【${name}】的职业信息？此操作将级联删除其证书和可预约时间段。`)) return;
   try {
     const result = await request({
       url: '/teacher/professional/deleteTeacherProfessionalInfo',
       method: 'post',
-      params: { teacherProfessionalId }
+      params: { teacherProfessionalId: currentProfessionalId }
     });
     if (result && result.code === 200) {
       alert('删除成功');
-      loadAndRenderList();
+      // 删除后该教师回到"无职业信息"状态，重新加载会进入新增模式
+      await loadTeacherInfo(currentTeacherId);
     } else {
       alert(result && result.message ? result.message : '删除失败');
     }
   } catch (e) {
     console.error('删除失败：', e);
+    alert('删除失败：' + (e && e.message ? e.message : e));
   }
 }
 
-// ================================================================
-// 详情查看
-// ================================================================
-async function viewDetail(teacherProfessionalId) {
-  try {
-    const result = await request({ url: `/teacher/professional/queryTeacherProfessionalInfo?teacherProfessionalId=${teacherProfessionalId}` });
-    if (!result || !result.data || !result.data.professional) {
-      alert(result && result.message ? result.message : '查询失败');
-      return;
+// ====================== 图片上传处理（FileReader → base64） ======================
+
+/**
+ * 通用：选择图片文件 → 读为 base64 → 写入隐藏字段 + 更新预览 <img>
+ * @param {HTMLInputElement} fileInput  <input type="file">
+ * @param {string} previewImgId        预览 <img> 的 id
+ * @param {string} base64InputId       存放 base64 的隐藏 <input> id
+ */
+function handlePhotoSelect(fileInput, previewImgId, base64InputId) {
+  const file = fileInput.files && fileInput.files[0];
+  if (!file) return;
+  // 简单校验类型与大小（限制 5MB，避免 base64 撑爆请求体）
+  if (!file.type.startsWith('image/')) {
+    alert('请选择图片文件');
+    fileInput.value = '';
+    return;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    alert('图片不能超过 5MB');
+    fileInput.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    const base64 = e.target.result;  // data:image/xxx;base64,....
+    const base64Input = document.getElementById(base64InputId);
+    if (base64Input) base64Input.value = base64;
+    const previewImg = document.getElementById(previewImgId);
+    if (previewImg) {
+      previewImg.src = base64;
+      previewImg.style.display = '';
     }
-    const d = result.data;
-    const p = d.professional;
-    const certHtml = (d.certificates || []).map(c =>
-      `<div style="margin-bottom:6px;"><strong>${c.certName || ''}</strong> ${c.certUrl ? `<a href="${c.certUrl}" target="_blank">查看图片</a>` : ''}</div>`
-    ).join('') || '无';
-    const timeHtml = (d.availableTimes || []).map(t => {
-      const day = t.timeType === 'weekly' ? (DAY_OF_WEEK_MAP[t.dayOfWeek] || '') : (t.specificDate || '');
-      return `<div>${t.timeType === 'weekly' ? '每周' : (t.timeType === 'holiday' ? '假日' : '日期')} ${day} ${t.startTime}-${t.endTime}</div>`;
-    }).join('') || '无';
-
-    document.getElementById('detail-body').innerHTML = `
-      <div class="form-row">
-        <div class="form-group"><label>教师姓名</label><input value="${d.name || ''}" readonly></div>
-        <div class="form-group"><label>账号</label><input value="${d.account || ''}" readonly></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>手机</label><input value="${d.phone || ''}" readonly></div>
-        <div class="form-group"><label>邮箱</label><input value="${d.email || ''}" readonly></div>
-      </div>
-      <div class="form-group"><label>学科</label><input value="${p.subject || ''}" readonly></div>
-      <div class="form-group"><label>个人照片</label>${p.personalPhotoUrl ? `<img src="${p.personalPhotoUrl}" style="max-width:120px;">` : '无'}</div>
-      <div class="form-group"><label>文字说明</label><textarea readonly>${p.bioText || ''}</textarea></div>
-      <div class="form-group"><label>文字说明链接</label><input value="${p.bioUrl || ''}" readonly></div>
-      <div class="form-row">
-        <div class="form-group"><label>单次最小课时</label><input value="${p.minBookingHours || ''}" readonly></div>
-        <div class="form-group"><label>每周课时上限</label><input value="${p.weeklyAvailableHours || ''}" readonly></div>
-      </div>
-      <div class="form-group"><label>证书文字描述</label><input value="${p.certificateText || ''}" readonly></div>
-      <div class="form-group"><label>资格证书</label><div>${certHtml}</div></div>
-      <div class="form-group"><label>可预约时间段</label><div>${timeHtml}</div></div>
-      <div class="form-row">
-        <div class="form-group"><label>职业信息状态</label><input value="${p.status || ''}" readonly></div>
-        <div class="form-group"><label>用户状态</label><input value="${d.userStatus || ''}" readonly></div>
-      </div>
-    `;
-    document.getElementById('detailModal').classList.add('show');
-  } catch (e) {
-    console.error('查询详情失败：', e);
-  }
+    // 隐藏同容器的占位 div
+    const placeholder = previewImg && previewImg.parentElement && previewImg.parentElement.querySelector('.photo-placeholder');
+    if (placeholder) placeholder.style.display = 'none';
+  };
+  reader.onerror = function () {
+    alert('图片读取失败，请重试');
+  };
+  reader.readAsDataURL(file);
 }
 
-function closeDetailModal() {
-  document.getElementById('detailModal').classList.remove('show');
+/**
+ * 证书行内选择图片：定位到同行 .cert-base64 隐藏字段 + .cert-thumb-img 预览图
+ * @param {HTMLInputElement} fileInput  证书行内的 <input type="file" class="cert-file">
+ */
+function handleCertPhotoSelect(fileInput) {
+  const row = fileInput.closest('.cert-row');
+  if (!row) return;
+  const base64Input = row.querySelector('.cert-base64');
+  const previewImg = row.querySelector('.cert-thumb-img');
+  const file = fileInput.files && fileInput.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    alert('请选择图片文件');
+    fileInput.value = '';
+    return;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    alert('图片不能超过 5MB');
+    fileInput.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    const base64 = e.target.result;
+    if (base64Input) base64Input.value = base64;
+    if (previewImg) {
+      previewImg.src = base64;
+      previewImg.style.display = '';
+    }
+    // 隐藏缩略图容器内的占位 div
+    const thumb = fileInput.closest('.cert-thumb');
+    const placeholder = thumb && thumb.querySelector('.photo-placeholder');
+    if (placeholder) placeholder.style.display = 'none';
+  };
+  reader.onerror = function () {
+    alert('图片读取失败，请重试');
+  };
+  reader.readAsDataURL(file);
+}
+
+/**
+ * 生成图片预览 HTML：始终包含一个 <img> 元素（无图时隐藏 + 占位）
+ * 优先用 URL，其次用 base64，都没有则显示占位文字。
+ * 始终保留 <img> 是为了让 handlePhotoSelect 能通过 id/class 找到目标 img 设置 src。
+ * @param {string} url      图片URL
+ * @param {string} base64   图片base64（可为 data URI 或纯 base64）
+ * @param {string} imgCls   <img> 的 class
+ */
+function getPhotoImgHtml(url, base64, imgCls) {
+  let src = '';
+  if (url) {
+    src = url;
+  } else if (base64) {
+    // 兼容纯 base64（无 data: 前缀）和完整 data URI
+    src = base64.startsWith('data:') ? base64 : `data:image/png;base64,${base64}`;
+  }
+  if (!src) {
+    return `<img class="${imgCls}" src="" alt="" style="display:none;"><div class="photo-placeholder">无图片</div>`;
+  }
+  return `<img class="${imgCls}" src="${escapeAttr(src)}" alt="">`;
+}
+
+// ====================== 工具函数 ======================
+function setContainerHtml(html) {
+  const el = document.getElementById('form-container');
+  if (el) el.innerHTML = html;
+}
+
+function setPageTitle(title) {
+  const el = document.getElementById('page-title');
+  if (el) el.textContent = title;
+}
+
+function renderError(msg) {
+  setContainerHtml(`<div class="error-tip">${msg}</div>`);
+  showActionButtons('error');
+}
+
+/** HTML 转义，防止数据中的尖括号破坏页面结构 */
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/** 属性值转义（用于 input value="..." / href="..." 等） */
+function escapeAttr(str) {
+  return escapeHtml(str);
 }
