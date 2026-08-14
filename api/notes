@@ -389,7 +389,7 @@ Word/图片显示模板设计（单个教师详情页，横向 A4）：
   · 删除教师职业信息：是否同步 user.status？需求未明确。
     策略：默认只删 professional/证书/时间段，不改 user；加参数 forceDisableUser 可选冻结账号。
   · 可预约时间和排期（CourseSchedule）的关系：
-    新增排期时，应校验该时段落在 teacher_available_time 内。MVP 阶段可先只做展示，
+    新增排期时，应校验该时段落在 teacher_available_time 内。MVP 阶段可先只做展示，---------1、自动从排期中筛选出可用时间 2、手动填写（如特殊日期覆盖）
     后续再在 CourseService 中加校验。
   · 导出 Excel/Word 时的大数据量：一次性全表导出若>1万行会内存爆。
     MVP：限制单次导出最大 5000 条；超过则分 sheet 或分文件。
