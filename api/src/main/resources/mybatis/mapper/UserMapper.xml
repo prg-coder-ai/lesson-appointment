@@ -44,17 +44,6 @@
         SELECT * FROM `user` WHERE  true;
     </select>
 
-    <!-- 插入用户 user_id  自动创建-->
-    <insert id="insert" parameterType="com.reservation.entity.User">
-        INSERT INTO `user` (
-             phone, email, password, role,
-            learn_goal, language_level, name, qualification, language_type, status
-        ) VALUES (
-           #{phone}, #{email}, #{password}, #{role},
-            #{learnGoal}, #{languageLevel}, #{name}, #{qualification}, #{languageType}, #{status}
-        )
-    </insert>
-
     <!-- 更新用户密码 -->
     <update id="updatePassword" parameterType="com.reservation.entity.User">
         UPDATE `user` SET password = #{password} WHERE user_id = #{userId}
