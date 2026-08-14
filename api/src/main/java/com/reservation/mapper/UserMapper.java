@@ -1,5 +1,6 @@
 package com.reservation.mapper;
 //     "com.reservation.mapper.UserMapper"
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.reservation.entity.User;
 import com.reservation.query.UserQueryPage;
 
@@ -10,12 +11,13 @@ import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 import java.util.Map;
- 
+
 /**
  * UserMapper接口，对应user表CRUD操作，匹配UserService中的方法
+ * 按项目约定继承 BaseMapper，复用 MyBatis-Plus 内置 insert/selectById/deleteById/updateById 等方法
  */
 @Mapper
-public interface UserMapper {
+public interface UserMapper extends BaseMapper<User> {
 
      @Select("select * from user where account = #{account}")
     User selectByAccount(@Param("account") String account);
