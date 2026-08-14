@@ -45,4 +45,360 @@
         按照显示模板删除教师职业信息页面为word文档或者图片，
         包括学科、资格证书、文字说明、照片等。
         导出教师职业信息为excel文件。
+ 页面名称teacherInfo.html
+ api接口:为每个操作定义一个接口，接口名称与操作名称一致
+    1、添加教师职业信息
+    2、删除教师职业信息
+    3、修改教师职业信息
+    4、删除教师职业信息
+    5、查询教师职业信息
+    6、导出教师职业信息为excel文件
+
+================================================================================
+## 教师职业信息维护功能 - 详细设计方案（v1.0）
+================================================================================
+
+### 0. 背景与复用性分析
+   user 表已有的教师专属字段：
+     - `name`            教师姓名 (varchar 50)
+     - `qualification`   资格证书 (text, 存 Base64 图片)
+     - `language_type`   语言类型 / 学科 (varchar 20，枚举：英语/日语/韩语/法语/德语/西班牙语)
+   不足：user 表没有「文字说明/链接、个人照片、可预约时间段」等字段。
+   策略：不直接在 user 表堆新列（以免学生/管理员字段为空），而是新增
+   一张独立的「教师职业信息表」teacher_professional，用 user_id(teacher) 1:1 关联。
+
+================================================================================
+### 1. 数据库设计（3 张表 + 可选上传表）
+================================================================================
+
+---------------- 1.1 教师职业信息主表 teacher_professional ----------------
+-- 与 user 表 1:1，主表存文本类信息，图片/证书单独存 URL（或沿用 Base64）
+CREATE TABLE IF NOT EXISTS `teacher_professional` (
+  `teacher_professional_id` varchar(36) NOT NULL COMMENT '主键UUID',
+  `teacher_id`              varchar(36) NOT NULL COMMENT '关联user表user_id（仅限role=teacher）',
+  `subject`                 varchar(50)  DEFAULT NULL COMMENT '学科（=language_type冗余便于排序搜索；也可扩为多学科逗号分隔）',
+  `personal_photo_url`      varchar(500) DEFAULT NULL COMMENT '个人照片URL（静态文件路径，优先）',
+  `personal_photo_base64`   mediumtext   DEFAULT NULL COMMENT '个人照片Base64（与URL二选一，兼容老qualification方式）',
+  `bio_text`                varchar(2000)DEFAULT NULL COMMENT '文字说明（教师简介）',
+  `bio_url`                 varchar(500) DEFAULT NULL COMMENT '文字说明链接（外部简历/博客URL）',
+  `availability_rule`       varchar(1000)DEFAULT NULL COMMENT '可预约时间规则（结构化JSON，见1.2）',
+  `min_booking_hours`       int          DEFAULT 4 COMMENT '单次可预约最小课时数（如4小时）',
+  `weekly_available_hours`  int          DEFAULT 20 COMMENT '每周可预约总课时上限',
+  `certificate_text`        varchar(500) DEFAULT NULL COMMENT '证书文字描述（如CET-8、JLPT N1）',
+  `status`                  varchar(10)  NOT NULL DEFAULT 'active' COMMENT '职业信息状态active/inactive/frozen',
+  `create_time`             datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time`             datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`teacher_professional_id`),
+  UNIQUE KEY `uk_teacher_id` (`teacher_id`),
+  KEY `idx_subject` (`subject`),
+  KEY `idx_status` (`status`),
+  CONSTRAINT `fk_tp_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `user`(`user_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='教师职业信息主表(1:1 user teacher)';
+
+---------------- 1.2 证书图片表 teacher_certificate（支持多张） ----------------
+-- 注：如果证书仅需一张，可合并到 1.1；需求"资格证书（图片）"用复数
+CREATE TABLE IF NOT EXISTS `teacher_certificate` (
+  `certificate_id` varchar(36) NOT NULL COMMENT '主键UUID',
+  `teacher_id`     varchar(36) NOT NULL COMMENT '关联教师user_id',
+  `cert_name`      varchar(100) DEFAULT NULL COMMENT '证书名称',
+  `cert_url`       varchar(500)DEFAULT NULL COMMENT '证书图片URL',
+  `cert_base64`    mediumtext  DEFAULT NULL COMMENT '证书图片Base64（兼容）',
+  `sort_no`        int         DEFAULT 0 COMMENT '排序号，小在前',
+  `create_time`    datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`certificate_id`),
+  KEY `idx_teacher_id` (`teacher_id`),
+  CONSTRAINT `fk_tc_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `user`(`user_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='教师资格证书表(1:N)';
+
+---------------- 1.3 可预约时间表 teacher_available_time（结构化） ----------------
+-- 推荐：weekly 模板（7 × N 段），前端渲染为「周一至周五 9:00-17:00」卡片。
+-- 另可按具体日期覆盖（某周假日关闭）
+-- 拟从排期表 teacher_schedule 中提取可预约时间，避免重复定义。需要改进排期表处理，使用预留的可用人数字段，标识是否可预约。
+CREATE TABLE IF NOT EXISTS `teacher_available_time` (
+  `available_id`   varchar(36) NOT NULL COMMENT '主键UUID',
+  `teacher_id`     varchar(36) NOT NULL COMMENT '关联教师user_id',
+  `time_type`      varchar(20) NOT NULL COMMENT 'weekly(每周模板) / override(具体日期覆盖) / holiday(假日)',
+  `day_of_week`    tinyint     DEFAULT NULL COMMENT '每周模板时生效：1=周一..7=周日',
+  `specific_date`  date        DEFAULT NULL COMMENT 'override/holiday时生效：具体日期',
+  `start_time`     time        NOT NULL COMMENT '时段开始 如 09:00:00',
+  `end_time`       time        NOT NULL COMMENT '时段结束 如 17:00:00',
+  `status`         varchar(10) NOT NULL DEFAULT 'active' COMMENT 'active/frozen',
+  `create_time`    datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`available_id`),
+  KEY `idx_teacher_day` (`teacher_id`, `day_of_week`),
+  KEY `idx_teacher_date` (`teacher_id`, `specific_date`),
+  CONSTRAINT `fk_tat_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `user`(`user_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='教师可预约时间段（周模板+按日覆盖）';
+
+---------------- 可选：通用上传记录表 teacher_file_upload ----------------
+-- 如果未来照片/证书改为存文件并走上传接口，统一记录在此
+CREATE TABLE IF NOT EXISTS `teacher_file_upload` (
+  `upload_id`    varchar(36)  NOT NULL COMMENT '主键UUID',
+  `teacher_id`   varchar(36)  NOT NULL,
+  `file_type`    varchar(20)  NOT NULL COMMENT 'photo/certificate/doc',
+  `file_name`    varchar(200) NOT NULL,
+  `file_url`     varchar(500) NOT NULL,
+  `file_size_kb` int          DEFAULT NULL,
+  `mime_type`    varchar(100) DEFAULT NULL,
+  `create_time`  datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`upload_id`),
+  KEY `idx_teacher_type` (`teacher_id`, `file_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='教师上传文件记录表';
+
+================================================================================
+### 2. 后端代码结构（贴合现有约定）
+================================================================================
+
+包路径（保持和现有一致）：
+  Entity       src/main/java/com/reservation/entity/
+                   TeacherProfessional.java, TeacherCertificate.java,
+                   TeacherAvailableTime.java
+  QueryPage    src/main/java/com/reservation/query/
+                   TeacherProfessionalQueryPage.java  （extends PageQuery）
+  Mapper       src/main/java/com/reservation/mapper/
+                   TeacherProfessionalMapper.java, TeacherCertificateMapper.java,
+                   TeacherAvailableTimeMapper.java   （extends BaseMapper<?>）
+  Mapper XML   src/main/resources/mybatis/mapper/
+                   TeacherProfessionalMapper.xml      （条件查询用）
+  Service      src/main/java/com/reservation/service/
+                   TeacherProfessionalService.java    （CRUD + listByPage + 导出）
+  Controller   src/main/java/com/reservation/controller/
+                   TeacherProfessionalController.java  （6 个操作 + 可选文件上传下载）
+
+Entity 约定（和 CourseSchedule / User 一致）：
+  - 主键 @TableId(type=ASSIGN_UUID 或 UUID 手动生成)
+  - 字段名驼峰，mybatis-plus 配置 map-underscore-to-camel-case=true 自动转换
+
+---------------- 2.1 TeacherProfessionalQueryPage 设计 ----------------
+  继承 PageQuery（pageNum / pageSize）
+  新增字段：
+    private String teacherId;         // 精准查询（按教师）
+    private String name;              // （模糊）教师姓名 —— 需联表 user.name
+    private String subject;           // （精准或模糊）学科
+    private String status;            // 精准：active/inactive/frozen
+    private String phone;             // （模糊）手机 —— 联表 user.phone
+    private String email;             // （模糊）邮箱 —— 联表 user.email
+
+---------------- 2.2 Service 方法签名 ----------------
+@Service public class TeacherProfessionalService {
+
+  @Autowired TeacherProfessionalMapper  tpMapper;
+  @Autowired TeacherCertificateMapper   certMapper;
+  @Autowired TeacherAvailableTimeMapper timeMapper;
+  @Autowired UserMapper                 userMapper;
+
+  // 1. 添加（级联：主表 + 证书列表 + 时间列表）
+  @Transactional public Result<Object> addTeacherProfessionalInfo(TeacherProfessionalDTO dto);
+
+  // 2. 删除（按 teacher_professional_id，级联删证书+时段；可选同步改 user.status=frozen）
+  @Transactional public Result<Object> deleteTeacherProfessionalInfo(String teacherProfessionalId);
+
+  // 3. 修改（按 teacherProfessionalId，覆盖字段；子表=先删后插，避免增量比对繁琐）
+  @Transactional public Result<Object> updateTeacherProfessionalInfo(TeacherProfessionalDTO dto);
+
+  // 4. 查询（单条，按 teacherProfessionalId 或 teacherId 查出主+子明细）
+  public Result<TeacherProfessionalDetailVO> queryTeacherProfessionalInfo(String id, String byField);
+
+  // 5. 分页查询（查询列表，联表 user.name/phone/email 支持筛选）
+  public Result<PageResult<TeacherProfessionalListVO>> listByPage(TeacherProfessionalQueryPage query);
+
+  // 6. 导出 Excel（按当前筛选条件导出全部，分页参数忽略）
+  public void exportTeacherProfessionalInfo(TeacherProfessionalQueryPage query,
+                                              HttpServletResponse response) throws IOException;
+
+  // 可选：上传单个文件并返回 URL（照片/证书/简历）
+  public Result<Map<String,String>> upload(MultipartFile file, String fileType, String teacherId);
+
+  // 可选：导出 Word/图片（按显示模板导单个教师详情页）
+  public void exportTeacherProfessionalWord(String teacherProfessionalId,
+                                             HttpServletResponse response, String format) throws IOException;
+}
+
+---------------- 2.3 DTO / VO 类设计 ----------------
+-- 入参DTO: TeacherProfessionalDTO
+  - teacherProfessionalId         // 修改时传，新增时null
+  - teacherId                     // 必填（必须存在 role=teacher）
+  - subject, personalPhotoUrl, bioText, bioUrl, availabilityRule,
+    minBookingHours, weeklyAvailableHours, certificateText, status
+  - List<TeacherCertificateDTO>  certificates       // 证书列表（增/改入参）
+  - List<TeacherAvailableTimeDTO> availableTimes    // 可预约时间段列表（增/改入参）
+
+-- 列表返回VO: TeacherProfessionalListVO（表格用，避免把长base64传到列表页）
+  - teacherProfessionalId, teacherId, name, phone, email, subject,
+    personalPhotoUrl, bioText(截断100字), weeklyAvailableHours, minBookingHours,
+    firstCertificatePreviewUrl,                     // 第一张证书缩略图 URL
+    status, createTime, updateTime
+
+-- 详情返回VO: TeacherProfessionalDetailVO（编辑页用，含完整子表+长base64）
+  - 所有主表字段 + full bioText + certificates + availableTimes
+  - 冗余：name / phone / email（来自 user）
+
+================================================================================
+### 3. Controller 接口定义（URL 和接口名与需求操作名一致）
+================================================================================
+
+Controller 基础路径：`${API_BASE_URL}/teacher/professional`
+
+| 序号 | 操作需求                | Method | URL                                                    | 入参（Body/Query）                                | 返回                                                  |
+| ---- | ----------------------- | ------ | ------------------------------------------------------ | ------------------------------------------------- | ----------------------------------------------------- |
+| 1    | 添加教师职业信息        | POST   | /teacher/professional/addTeacherProfessionalInfo       | JSON: TeacherProfessionalDTO                       | Result<{teacherProfessionalId}>                       |
+| 2    | 删除教师职业信息        | POST   | /teacher/professional/deleteTeacherProfessionalInfo    | JSON: {teacherProfessionalId} / Query ?id=xxx      | Result<Integer>（受影响行数）                         |
+| 3    | 修改教师职业信息        | POST   | /teacher/professional/updateTeacherProfessionalInfo    | JSON: TeacherProfessionalDTO                       | Result<Integer>                                       |
+| 4    | 删除教师职业信息(重复)  | (同2)  | (同2)                                                  | (同2)                                              | (同2)                                                 |
+| 5    | 查询教师职业信息        | GET    | /teacher/professional/queryTeacherProfessionalInfo     | Query: teacherProfessionalId 或 teacherId          | Result<TeacherProfessionalDetailVO>                   |
+| 5.1  | 分页查询教师职业信息列表| POST   | /teacher/professional/listByPage                       | JSON: TeacherProfessionalQueryPage                 | Result<PageResult<TeacherProfessionalListVO>>         |
+| 6    | 导出教师职业信息(Excel) | GET    | /teacher/professional/exportTeacherProfessionalInfo    | Query: 同 TeacherProfessionalQueryPage             | application/vnd.openxmlformats-officedocument...+附件 |
+| 7    | 导出Word/图片(显示模板) | GET    | /teacher/professional/exportTeacherProfessionalWord    | Query: teacherProfessionalId & format=word/jpg/png | application/octet-stream(Word) 或 image/png           |
+| 8    | 上传图片/证书           | POST   | /teacher/professional/upload                           | multipart/form-data: file + fileType + teacherId   | Result<{fileUrl, uploadId, fileName}>                 |
+
+SecurityConfig 白名单无需新增（这些都需要已登录 admin 操作），
+在 Controller 或 Service 层用 PermissionCheck.checkAdmin 校验即可。
+注意：第 6/7 项导出是文件下载，前端不能用 axios 默认 JSON 响应（需 responseType: blob）。
+
+================================================================================
+### 4. Excel / Word / 图片 导出与依赖
+================================================================================
+
+现状：pom.xml 没有 easyexcel / poi 依赖。
+建议新增 Spring Boot 3.x 兼容的依赖：
+
+  <!-- Excel：EasyExcel（底层依赖 poi，避免自己处理版本） -->
+  <dependency>
+    <groupId>com.alibaba</groupId>
+    <artifactId>easyexcel</artifactId>
+    <version>3.3.4</version>
+  </dependency>
+
+  <!-- Word：POI OOXML（docx）。EasyExcel 已部分引入 poi-ooxml，可写版本锁定 -->
+  <dependency>
+    <groupId>org.apache.poi</groupId>
+    <artifactId>poi-ooxml</artifactId>
+    <version>5.2.5</version>
+  </dependency>
+
+  <!-- 若要导出图片（把教师详情页渲染为一张PNG）
+       可选：1) 后端用 java2d 画图（免依赖）；2) 前端 html2canvas 提交 PNG 给后端下载。
+       推荐 MVP：先实现前端 html2canvas 生成图片下载 + EasyExcel 导出 Excel；Word 用 docx4j 或 POI 模板填充。-->
+
+Excel 导出列设计（教师职业信息表）：
+  序号 | 教师姓名 | 账号 | 手机 | 邮箱 | 学科 | 文字说明(截取) | 证书数量 |
+  最小课时 | 每周可用课时 | 职业信息状态 | 可预约时间(拼接成「周一至周五 9:00-17:00」) |
+  创建时间 | 更新时间
+
+Word/图片显示模板设计（单个教师详情页，横向 A4）：
+  ┌──────────────────────────────────────────────────────┐
+  │  [个人照片 150×150]     教师姓名：XXX                 │
+  │                         学　科：英语                  │
+  │                         手　机：138-XXXX-XXXX         │
+  │                         邮　箱：xxx@xx.com            │
+  │  文字说明：（bio_text 多行）                          │
+  │                                                       │
+  │  ┌─────────────────────────────────────────────┐    │
+  │  │  证书图片列表 [证书1缩略图][证书2缩略图]…  │    │
+  │  └─────────────────────────────────────────────┘    │
+  │                                                       │
+  │  可预约课程及时间：                                   │
+  │    周一至周五：09:00-17:00（每次 ≥4 小时）            │
+  │    每周可预约总计：20 小时                            │
+  └──────────────────────────────────────────────────────┘
+
+================================================================================
+### 5. 前端页面 teacherInfo.html 设计
+================================================================================
+
+目录：src/main/resources/static/teacherInfo.html   （需求已指定页面名称）
+脚本依赖：引入
+  <script src="/js/public/pagefoot.js"></script>
+  <script src="/js/public/utility_request.js"></script>
+  <script src="/js/public/api.js"></script>
+
+页面分 3 个视图：
+  5.1 列表视图（默认）
+    · 检索区：name / phone / email / subject（下拉枚举）/ status（下拉）
+    · 操作按钮：新增、批量删除、批量导出Excel、导出当前筛选Excel
+    · 表格列：操作(查看/编辑/删除) + 照片缩略图 + 教师姓名 + 账号 + 手机 + 邮箱
+             + 学科 + 文字说明(截取) + 证书数 + 可预约时间汇总 + 状态
+    · 分页区：pagefoot.js 渲染页码
+
+  5.2 新增/编辑视图（右侧抽屉式 / 弹窗 / 或单独 TAB）
+    · 基本信息块：
+        teacherId（下拉：只显示 role=teacher 的 user）
+        学科 subject（下拉，和 user.language_type 保持一致或扩展）
+        个人照片：上传按钮（调用 upload 接口，回显 URL）
+        文字说明 bio_text：Textarea（maxlength=2000）
+        文字说明链接 bio_url：URL 输入
+        最小课时数、每周可用总课时数
+    · 证书块：
+        证书表格，支持增删行：cert_name + cert_image（上传） + sort_no
+    · 可预约时间段块：
+        周模板模式：每行（周一~周日 + start_time + end_time），支持多行
+        特殊日期覆盖：（具体日期 + start_time + end_time + type=active/holiday）
+    · 底部：保存 / 取消 / 导出Word / 导出图片
+
+  5.3 显示模板预览（用于导出 Word/图片 前预览）
+    · 完全按照 §4 的 Word 模板样式渲染
+    · 按钮：下载Word / 下载图片 / 打印
+
+前端新增 JS 文件：src/main/resources/static/js/teacherInfo.js
+  暴露：renderSearchArea / renderToList / handleAdd / handleEdit / handleDelete /
+        handleExportExcel / handleExportWord / handleExportImage
+  调用的后端接口和 §3 Controller URL 一一对应。
+
+================================================================================
+### 6. 文件上传约定（照片/证书）
+================================================================================
+两种存储方式，推荐方式A + 兼容方式B（MVP可先用B）：
+
+  方式A：磁盘文件 + URL 返回
+    · 上传目录：本地固定路径（application.properties 配置 teacher.upload.path）
+       并通过 WebConfig addResourceHandlers 映射到 /teacher-upload/**
+    · SecurityConfig 白名单：/teacher-upload/** permitAll
+    · 返回 URL 格式：${API_BASE_URL}/teacher-upload/{ymd}/{uuid}.{ext}
+    · 最大体积：10MB（Spring.servlet.multipart.max-file-size=10MB）
+    · 校验 MIME：图片仅允许 image/jpeg, image/png, image/gif, image/webp
+
+  方式B：Base64 直接入库（MVP 快，无配置）
+    · 沿用现有 qualification 字段的方式，直接把字符串写入
+       teacher_professional.personal_photo_base64 / teacher_certificate.cert_base64
+    · 缺点：数据库膨胀，列表页拖慢响应；建议中期切到方式A。
+
+================================================================================
+### 7. 与现有系统的衔接点（避免重复造轮子）
+================================================================================
+  · 分页：复用 [PageQuery](file:///h:/2026/lesson-appointment/api/src/main/java/com/reservation/common/PageQuery.java)
+          + [PageResult](file:///h:/2026/lesson-appointment/api/src/main/java/com/reservation/common/PageResult.java)
+          + MyBatis-Plus `com.baomidou.mybatisplus.extension.plugins.pagination.Page`
+  · 权限：复用 [PermissionCheck.checkAdmin](file:///h:/2026/lesson-appointment/api/src/main/java/com/reservation/utils/PermissionCheck.java)
+  · 统一返回：复用 [Result](file:///h:/2026/lesson-appointment/api/src/main/java/com/reservation/common/Result.java)
+  · 通用异常：BusinessException + GlobalExceptionHandler 自动转 Result
+  · 登录鉴权：JwtAuthenticationFilter + SecurityConfig（新增 teacher/professional 路径
+             不在白名单，默认 authenticated + PermissionCheck.checkAdmin 双重校验）
+
+================================================================================
+### 8. 优先级 / MVP 落地顺序建议
+================================================================================
+  P0（必做）：表 1.1 + 1.2 + 1.3 + Entity/Mapper/Service/Controller 6 个基础接口
+             + teacherInfo.html 列表 + 新增 + 编辑 + 删除 + 查询
+  P1（体验）：上传文件改为方式A + 前端图片预览
+  P2（交付）：Excel 导出（EasyExcel）
+  P3（交付）：Word / 图片按显示模板导出（POI docx4j 或前端 html2canvas）
+
+================================================================================
+### 9. 风险与注意事项
+================================================================================
+  · 删除教师职业信息：是否同步 user.status？需求未明确。
+    策略：默认只删 professional/证书/时间段，不改 user；加参数 forceDisableUser 可选冻结账号。
+  · 可预约时间和排期（CourseSchedule）的关系：
+    新增排期时，应校验该时段落在 teacher_available_time 内。MVP 阶段可先只做展示，
+    后续再在 CourseService 中加校验。
+  · 导出 Excel/Word 时的大数据量：一次性全表导出若>1万行会内存爆。
+    MVP：限制单次导出最大 5000 条；超过则分 sheet 或分文件。
+  · JWT：以上所有接口都需要登录 + admin 角色。
+    学生/教师自己只能查看自己的职业信息（只读）。
+    → 建议在 Service 层做角色分支：
+        admin：可查全部 + 可改
+        teacher：只能改/查 teacherId == currentUserId 的记录
+  · 事务：add / update 主表 + 2 张子表必须包 @Transactional，任何一步失败整体回滚。
+
+================================================================================
 
