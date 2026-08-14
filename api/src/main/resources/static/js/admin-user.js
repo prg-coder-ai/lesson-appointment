@@ -145,7 +145,7 @@
                 Pagination.totalPages = pageData.totalPages;
                 
                 // 渲染表格
-                renderUserTable(pageData.rows);
+                renderUserTable(pageData.rows,role);
                 // 渲染分页栏,带入分页参数
                 renderPagination( Pagination);
               }else {
@@ -161,7 +161,7 @@
             }
           }
   
-          function renderUserTable(userList){
+          function renderUserTable(userList,role){
                 
             const tbody = document.getElementById('user-table-body');
          //   console.error("1 tbody",tbody);
@@ -179,7 +179,7 @@
                     <tr>
                      <td> ${index} </td>
                      <td style="display:none;">${tea.userId || ""}</td>
-                    <td>${tea.name || ""}</td>
+                    <td ${role=="teacher"? ` class="js-teacher-name"style="cursor:pointer;" onclick="teacherInfoBoard('${tea.userId}')"` : ""}>${tea.name || ""}</td>
                     <td>${tea.account || ""}</td>
                     <td>${tea.email || ""}</td>
                     <td>${tea.phone || ""}</td>
@@ -198,6 +198,8 @@
                     <button class="btn btn-warning" onclick="disableTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-ban"></i> 冻结</button>
                     <button class="btn btn-danger" onclick="deleteTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-trash"></i> 删除</button>
                     <button class="btn btn-warning" onclick="resetUserPasswd('${tea.userId}')"><i class="fa fa-trash"></i> 重置密码</button>
+
+                     
                   </td>
                 </tr>
               `;
@@ -211,7 +213,11 @@
       }
       changePasswordAPI(userId,"123456");
     }
-
+    
+    //Detail--教师信息,用于提交图片、专业信息、时间段等，输出该教师的可用时段及推广信息
+     function teacherInfoBoard(userId) {
+      window.location.href = `./teacherInfo.html?userId=${userId}`;
+    }
                //禁用
                 async  function disableTeacher(userId,role) {
                           // 调用 update(User) 把 status 设置为 inactive

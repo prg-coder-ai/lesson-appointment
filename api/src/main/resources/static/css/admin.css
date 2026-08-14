@@ -473,3 +473,13 @@ table th {
   border-radius: 4px;
   margin: 0 4px;
 }
+
+.js-teacher-name {
+  cursor: pointer;
+  color: #409eff;
+  font-weight: bold;
+  transition: all 0.2s;
+}
+.js-teacher-name:hover {
+  color: #722ed1;
+}

@@ -116,7 +116,7 @@
           <button class="btn btn-primary" onclick="searchList()"><i class="fa fa-search"></i> 查询</button>
           <button class="btn btn-default" onclick="resetFilter()"><i class="fa fa-undo"></i> 重置</button>
         </div>
-
+       
         <!-- 表格 -->
         <table id="list-table">
           <thead>
@@ -209,6 +209,10 @@
       Pagination.pageSize = 10;
       assignLoadobjectListFunction(loadAndRenderList);
       loadAndRenderList();
+
+      let paginationContainer = document.getElementById('pagination-container');
+      let paginationHtml = getPagebar();
+      paginationContainer.innerHTML = paginationHtml;
     })();
 
     function goBack() {

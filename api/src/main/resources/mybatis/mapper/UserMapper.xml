@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.reservation.mapper.UserMapper">;
+<mapper namespace="com.reservation.mapper.UserMapper">
             
     <!-- 通用结果集映射 -->
     <resultMap id="userResultMap" type="com.reservation.entity.User">
@@ -15,7 +15,7 @@
         <result column="qualification" property="qualification"/>
         <result column="language_type" property="languageType"/>
         <result column="status" property="status"/>
-    </resultMap>; 
+    </resultMap>
 
         <select id="selectByAccount" parameterType="String" resultType="com.reservation.entity.User">
         select * from user where account = #{account}
@@ -33,16 +33,16 @@
     <!-- 根据手机号或邮箱查询用户 -->
     <select id="selectByPhoneOrEmail" parameterType="String" resultMap="com.reservation.entity.User">
         SELECT * FROM `user` WHERE phone = #{account} OR email = #{account}
-    </select>;
+    </select>
 
     <!-- 根据用户ID查询用户 -->
     <select id="selectById" parameterType="String" resultMap="userResultMap">
         SELECT * FROM `user` WHERE user_id = #{userId}
-   </select>;
+   </select>
 
       <select id="list"  resultMap="userResultMap">
         SELECT * FROM `user` WHERE  true;
-    </select>; 
+    </select>
 
     <!-- 插入用户 user_id  自动创建-->
     <insert id="insert" parameterType="com.reservation.entity.User">
@@ -53,7 +53,7 @@
            #{phone}, #{email}, #{password}, #{role},
             #{learnGoal}, #{languageLevel}, #{name}, #{qualification}, #{languageType}, #{status}
         )
-    </insert>;
+    </insert>
 
     <!-- 更新用户密码 -->
     <update id="updatePassword" parameterType="com.reservation.entity.User">
@@ -77,31 +77,147 @@
     </update>
  
     <!-- 根据条件动态查询用户列表 -->
-    <select id="listByCondition" parameterType="map" resultMap="userResultMap">
-        SELECT * FROM `user`
-        <where> 1=1
-            <if test="condition.userId != null and condition.userId != ''">
-               AND user_id = #{condition.userId}
-            </if>
-            <if test="condition.role != null and condition.role != ''">
-                AND role = #{condition.role}
-            </if>
-            <if test="condition.status != null and condition.status != ''">
-                AND status = #{condition.status}
-            </if>
-            
-            <if test="condition.name != null and condition.name != ''">
-                AND name LIKE CONCAT('%', #{condition.name}, '%')
-            </if>
-            <if test="condition.email != null and condition.email != ''">
-                AND email = #{condition.email}
-            </if>
-            <if test="condition.phone != null and condition.phone != ''">
-                AND phone = #{condition.phone}
-            </if>
-            <if test="condition.account != null and condition.account != ''">
-                AND account = #{condition.account}
-            </if>
-        </where>
-    </select>
+     
+
+   <select id="listByCondition" parameterType="com.reservation.query.UserQueryPage" resultType="com.reservation.entity.User">
+      SELECT c.*
+      FROM user c 
+      <where>
+        TRUE 
+         <choose>
+          <when test="role != null and role != ''">
+          AND c.role = #{role}
+         </when>
+        </choose>
+
+        <choose>
+          <when test="status != null and status != ''">
+         AND  c.status = #{status}
+         </when>
+        </choose>
+         <choose>
+          <when test="email != null and email != ''">
+          AND c.email = LIKE CONCAT('%', #{email}, '%')
+          </when>
+        </choose>
+         <choose>
+          <when test="phone != null and phone != ''">
+           AND c.phone LIKE CONCAT('%', #{phone}, '%')
+         </when>
+        </choose>
+         <choose>
+          <when test="userId != null and userId != ''">
+         AND  c.userId = #{userId}
+         </when>
+        </choose>
+      </where>
+   </select>
+<!-- 语法分析：
+           1. <choose> ... <when> ... </when> </choose> 标签用于 MyBatis 动态 SQL；
+              用于根据参数条件决定是否拼接某个 where 条件。
+           2. 正确的 SQL 语法写法应为：
+              AND c.xxx LIKE CONCAT('%', #{xxx}, '%')
+              不需要 "=", "LIKE" 前不加等号。
+           3. 当前写法错误：AND c.name = LIKE CONCAT('%', #{name}, '%')
+              应改为：AND c.name LIKE CONCAT('%', #{name}, '%')
+         -->   
+   <select id="listByConditionPage" parameterType="com.reservation.query.UserQueryPage" resultType="com.reservation.entity.User">
+      SELECT c.*
+      FROM user c 
+      <where>
+        TRUE 
+        <choose>
+          <when test="role != null and role != ''">
+          AND c.role = #{role}
+         </when>
+        </choose>
+
+        <choose>
+          <when test="status != null and status != ''">
+         AND  c.status = #{status}
+         </when>
+        </choose>
+         
+         <choose>
+          <when test="name != null and name != ''">
+            AND c.name LIKE CONCAT('%', #{name}, '%')
+          </when>
+         </choose>
+
+         <choose>
+          <when test="account != null and account != ''">
+            AND c.account LIKE CONCAT('%', #{account}, '%')
+          </when>
+         </choose>
+         <choose>
+          <when test="email != null and email != ''">
+            AND c.email LIKE CONCAT('%', #{email}, '%')
+          </when>
+         </choose>
+
+         <choose>
+          <when test="phone != null and phone != ''">
+            AND c.phone LIKE CONCAT('%', #{phone}, '%')
+          </when>
+         </choose>
+         <choose>
+          <when test="userId != null and userId != ''">
+         AND  c.userId = #{userId}
+         </when>
+        </choose>
+      </where>
+      <if test="pageSize != null and pageNum != null">
+        LIMIT #{pageSize} OFFSET ${(pageNum - 1) * pageSize}
+      </if>
+   </select>
+
+   
+   <select id="selectCountByContion" parameterType="com.reservation.query.UserQueryPage" resultType="java.lang.Integer">
+      SELECT COUNT(*) 
+      FROM user c 
+      <where> 
+        TRUE  
+        <choose>
+          <when test="role != null and role != ''">
+          AND c.role = #{role}
+         </when>
+        </choose>
+
+        <choose>
+          <when test="status != null and status != ''">
+         AND  c.status = #{status}
+         </when>
+        </choose>
+
+         <choose>
+          <when test="name != null and name != ''">
+          AND c.name  LIKE CONCAT('%', #{name}, '%')
+          </when>
+        </choose>
+
+        <choose>
+          <when test="account != null and account != ''">
+          AND c.account LIKE CONCAT('%', #{account}, '%')
+          </when>
+        </choose>
+
+         <choose>
+          <when test="email != null and email != ''">
+          AND c.email LIKE CONCAT('%', #{email}, '%')
+          </when>
+        </choose>
+
+         <choose>
+          <when test="phone != null and phone != ''">
+           AND c.phone LIKE CONCAT('%', #{phone}, '%')
+         </when>
+        </choose>
+
+         <choose>
+          <when test="userId != null and userId != ''">
+               AND  c.userId = #{userId}
+         </when>
+        </choose>
+      </where> 
+   </select>
 </mapper>
