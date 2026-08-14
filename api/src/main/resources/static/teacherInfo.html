@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>教师职业信息维护 - 语言教学预约系统</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="css/admin.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    body { margin: 0; font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; background: #f0f2f5; }
+    .header { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 0 24px; height: 60px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    .logo { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 600; color: #722ed1; }
+    .header-actions { display: flex; align-items: center; gap: 16px; }
+    .user-info { display: flex; align-items: center; gap: 8px; }
+    .avatar { width: 32px; height: 32px; border-radius: 50%; background: #722ed1; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+    .container { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+    .card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 16px; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #f0f0f0; }
+    .card-title { font-size: 16px; font-weight: 600; color: #333; display: flex; align-items: center; gap: 8px; }
+    .card-body { padding: 16px 20px; }
+    .filter-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px; }
+    .filter-item { display: flex; align-items: center; gap: 6px; }
+    .filter-item input, .filter-item select { padding: 6px 10px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 14px; min-width: 140px; }
+    .filter-item input:focus, .filter-item select:focus { outline: none; border-color: #722ed1; }
+    .btn { padding: 6px 14px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; gap: 4px; transition: opacity .2s; }
+    .btn:hover { opacity: .85; }
+    .btn-primary { background: #722ed1; color: #fff; }
+    .btn-success { background: #52c41a; color: #fff; }
+    .btn-warning { background: #faad14; color: #fff; }
+    .btn-danger { background: #f5222d; color: #fff; }
+    .btn-default { background: #fff; color: #333; border: 1px solid #d9d9d9; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 8px; text-align: center; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+    th { background: #fafafa; color: #333; font-weight: 600; }
+    tr:hover { background: #f5f5f5; }
+    .photo-thumb { width: 40px; height: 40px; border-radius: 4px; object-fit: cover; background: #f0f0f0; }
+    .status-active { color: #52c41a; }
+    .status-frozen { color: #f5222d; }
+    .status-inactive { color: #faad14; }
+    .pagination-bar { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; }
+    .pagination-info { color: #666; font-size: 14px; }
+    .pagination-info select { padding: 4px 8px; border: 1px solid #d9d9d9; border-radius: 4px; }
+    .pagination-btns { display: flex; gap: 4px; }
+    .pagination-btns button { min-width: 32px; height: 32px; border: 1px solid #d9d9d9; background: #fff; border-radius: 4px; cursor: pointer; }
+    .pagination-btns button.active { background: #722ed1; color: #fff; border-color: #722ed1; }
+    .pagination-btns button:disabled { color: #ccc; cursor: not-allowed; }
+    /* 弹窗 */
+    .modal-mask { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.45); z-index: 1000; justify-content: center; align-items: flex-start; padding: 40px 0; overflow-y: auto; }
+    .modal-mask.show { display: flex; }
+    .modal-content { background: #fff; border-radius: 8px; width: 90%; max-width: 800px; max-height: 85vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #f0f0f0; position: sticky; top: 0; background: #fff; z-index: 1; }
+    .modal-header h3 { margin: 0; font-size: 18px; color: #333; }
+    .modal-close { cursor: pointer; font-size: 18px; color: #999; }
+    .modal-close:hover { color: #333; }
+    .modal-body { padding: 20px; }
+    .modal-footer { padding: 12px 20px; border-top: 1px solid #f0f0f0; display: flex; justify-content: flex-end; gap: 8px; position: sticky; bottom: 0; background: #fff; }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; margin-bottom: 4px; color: #333; font-size: 14px; font-weight: 500; }
+    .form-group label .required { color: #f5222d; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px 10px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 14px; box-sizing: border-box; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #722ed1; }
+    .form-group textarea { min-height: 80px; resize: vertical; }
+    .form-row { display: flex; gap: 16px; }
+    .form-row .form-group { flex: 1; }
+    .sub-section { border: 1px solid #f0f0f0; border-radius: 6px; padding: 12px; margin-bottom: 14px; }
+    .sub-section-title { font-weight: 600; color: #722ed1; margin-bottom: 8px; font-size: 14px; }
+    .sub-item-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+    .sub-item-row input, .sub-item-row select { flex: 1; padding: 6px 8px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 13px; }
+    .add-row-btn { background: #f0f0f0; border: 1px dashed #d9d9d9; padding: 6px; width: 100%; border-radius: 4px; cursor: pointer; color: #722ed1; }
+    .remove-row-btn { background: #fff; border: 1px solid #f5222d; color: #f5222d; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
+    .empty-tip { text-align: center; color: #999; padding: 40px 0; }
+  </style>
+</head>
+<body>
+  <!-- 头部 -->
+  <header class="header">
+    <div class="logo">
+      <i class="fa fa-chalkboard-teacher"></i>
+      <span>教师职业信息维护</span>
+    </div>
+    <div class="header-actions">
+      <div class="user-info">
+        <div class="avatar" id="avatar">A</div>
+        <span id="user-name">Admin</span>
+      </div>
+      <button class="btn btn-default" onclick="goBack()"><i class="fa fa-arrow-left"></i> 返回</button>
+      <button class="btn btn-default" onclick="handleLogout()"><i class="fa fa-sign-out-alt"></i> 退出</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- 列表卡片 -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa fa-id-card"></i> 教师职业信息列表</div>
+        <button class="btn btn-primary" onclick="openAddModal()"><i class="fa fa-plus"></i> 添加教师职业信息</button>
+      </div>
+      <div class="card-body">
+        <!-- 检索区 -->
+        <div class="filter-bar">
+          <div class="filter-item"><input type="text" id="search-name" placeholder="教师姓名"></div>
+          <div class="filter-item"><input type="text" id="search-account" placeholder="账号"></div>
+          <div class="filter-item"><input type="text" id="search-phone" placeholder="手机号"></div>
+          <div class="filter-item"><input type="text" id="search-email" placeholder="邮箱"></div>
+          <div class="filter-item"><input type="text" id="search-subject" placeholder="学科"></div>
+          <div class="filter-item">
+            <select id="search-status">
+              <option value="">全部状态</option>
+              <option value="active">有效</option>
+              <option value="inactive">失效</option>
+              <option value="frozen">冻结</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="searchList()"><i class="fa fa-search"></i> 查询</button>
+          <button class="btn btn-default" onclick="resetFilter()"><i class="fa fa-undo"></i> 重置</button>
+        </div>
+
+        <!-- 表格 -->
+        <table id="list-table">
+          <thead>
+            <tr>
+              <th>序号</th>
+              <th>照片</th>
+              <th>教师姓名</th>
+              <th>账号</th>
+              <th>手机</th>
+              <th>邮箱</th>
+              <th>学科</th>
+              <th>简介</th>
+              <th>证书数</th>
+              <th>每周课时</th>
+              <th>状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="list-tbody">
+            <tr><td colspan="12" class="empty-tip">加载中...</td></tr>
+          </tbody>
+        </table>
+
+        <!-- 分页区（由 pagefoot.js 渲染） -->
+        <div id="pagination-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新增/编辑弹窗 -->
+  <div class="modal-mask" id="editModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-title">新增教师职业信息</h3>
+        <span class="modal-close" onclick="closeEditModal()"><i class="fa fa-times"></i></span>
+      </div>
+      <div class="modal-body" id="modal-body">
+        <!-- 表单由 JS 动态生成 -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeEditModal()">取消</button>
+        <button class="btn btn-primary" onclick="submitForm()"><i class="fa fa-save"></i> 保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 详情查看弹窗 -->
+  <div class="modal-mask" id="detailModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>教师职业信息详情</h3>
+        <span class="modal-close" onclick="closeDetailModal()"><i class="fa fa-times"></i></span>
+      </div>
+      <div class="modal-body" id="detail-body"></div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeDetailModal()">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 依赖脚本（顺序：axios → utility_request → auth → api → pagefoot → 业务JS） -->
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="js/public/utility_request.js"></script>
+  <script src="js/public/auth.js"></script>
+  <script src="js/public/api.js"></script>
+  <script src="js/public/pagefoot.js"></script>
+  <script src="js/teacherInfo.js"></script>
+  <script>
+    // 页面初始化
+    (function init() {
+      const user = getCurrentUserInfo();
+      if (!user) {
+        // 未登录跳转登录页
+        saveLoginRedirect && saveLoginRedirect('no-login');
+        window.location.href = './index.html';
+        return;
+      }
+      // 仅管理员可访问
+      if (user.role !== 'admin') {
+        document.querySelector('.container').innerHTML = '<div class="card"><div class="card-body empty-tip">仅管理员可访问本页面</div></div>';
+        return;
+      }
+      // 设置头部用户信息
+      if (user.name) {
+        document.getElementById('avatar').innerHTML = user.name[0] || 'A';
+        document.getElementById('user-name').innerHTML = user.name;
+      }
+      // 初始化列表
+      Pagination.pageNum = 1;
+      Pagination.pageSize = 10;
+      assignLoadobjectListFunction(loadAndRenderList);
+      loadAndRenderList();
+    })();
+
+    function goBack() {
+      window.location.href = './admin.html';
+    }
+  </script>
+</body>
+</html>
