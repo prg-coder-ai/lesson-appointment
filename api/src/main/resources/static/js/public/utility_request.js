@@ -11,6 +11,7 @@
   let loadingCount = 0;
   let isRefreshing = false;
   let requestQueue = [];
+  let isRedirecting = false; // 跳转登录页保护：避免并发 401 重复触发 setTimeout 跳转
 
   const API_BASE_URL = window.API_BASE_URL || '';
 
@@ -364,6 +365,7 @@
               resolve,
               reject,
               fn: (newToken) => {
+                originalRequest.headers = originalRequest.headers || {};
                 originalRequest.headers.Authorization = `Bearer ${newToken}`;
                 service(originalRequest).then(resolve).catch(reject);
               }
@@ -393,6 +395,7 @@
             if (newRefreshToken) {
               localStorage.setItem('refreshToken', newRefreshToken);
             }
+            originalRequest.headers = originalRequest.headers || {};
             originalRequest.headers.Authorization = `Bearer ${newToken}`;
 
             // 唤醒所有排队请求
@@ -409,68 +412,87 @@
             '刷新凭证失败'
           );
         } catch (refreshErr) {
-          // ③ 刷新失败：清登录态、唤醒排队请求 reject、跳登录页
-          // 兼容两种失败形态：
-          //   a) 后端返回 HTTP 200 + body.code=401（Result.unauthorized）→ 我们手动 throw Error(message)
-          //      此时 refreshErr.message 含后端 message，如 "刷新凭证已失效，请重新登录"
-          //   b) 后端返回 HTTP 4xx/5xx（异常/Spring Security 拦截）→ axios 自动 reject
-          //      此时 refreshErr 是 axios error，真实错误在 refreshErr.response.data.message
+          // ③ 刷新失败：区分"凭证失效"和"网络故障"两种场景
+          //
+          // 凭证失效（refreshToken 过期/无效/被踢）：
+          //   - 后端返回 HTTP 200 + body.code=401 → 手动 throw Error(message)
+          //   - 后端返回 HTTP 4xx/5xx → axios 自动 reject，refreshErr.response 存在
+          //   → 清登录态、跳登录页
+          //
+          // 网络故障（超时/断网/服务不可达）：
+          //   - refreshErr.response 不存在，refreshErr.code === 'ECONNABORTED' 或无 response
+          //   → 不清登录态（refreshToken 可能还有效），不跳登录，只提示网络异常
+          //   → 用户网络恢复后可继续操作，下次 401 再触发刷新
+
+          requestQueue.forEach((item) => item.reject(refreshErr));
+          requestQueue = [];
+          isRefreshing = false;
+
+          const isNetworkError = !refreshErr ||
+            (typeof refreshErr === 'object' && !refreshErr.response && !refreshErr.message?.includes('刷新'));
+
+          if (isNetworkError) {
+            // 网络故障：不清登录态，不跳登录，让用户稍后重试
+            const netMsg = '网络异常，Token 刷新失败，请检查网络后重试';
+            console.warn('[RefreshToken] 网络故障导致刷新失败（未清登录态）：', refreshErr);
+            if (config.customErrorMsg !== false) {
+              showError(netMsg);
+            }
+            return Promise.reject(refreshErr);
+          }
+
+          // 凭证失效：提取后端 message
           let backendMsg = '登录已过期，请重新登录';
           if (refreshErr) {
             if (typeof refreshErr === 'string') {
               backendMsg = refreshErr;
             } else if (refreshErr.response && refreshErr.response.data) {
-              // axios error：从响应体取后端 message
               const r = refreshErr.response.data;
               backendMsg = (r && (r.message || r.msg)) || backendMsg;
             } else if (refreshErr.message) {
-              // 手动 throw new Error(后端message) 的情况
               backendMsg = refreshErr.message;
             }
           }
-          console.warn('[RefreshToken] 刷新失败，最终提示用户：', backendMsg, '原始 error=', refreshErr);
+          console.warn('[RefreshToken] 凭证失效，最终提示用户：', backendMsg, '原始 error=', refreshErr);
 
           localStorage.removeItem('token');
           localStorage.removeItem('refreshToken');
           localStorage.removeItem('currentUser');
-          // 修复：清空队列时也 reject 排队的请求，避免它们永久 pending
-          requestQueue.forEach((item) => item.reject(refreshErr));
-          requestQueue = [];
-          isRefreshing = false;
           showError(backendMsg);
-          // 关键：跳登录页之前保存当前页面 URL，登录成功后回跳
-          console.log('%c[AuthRedirect] 调用点 A：HTTP 401 刷新 token 失败，准备 saveLoginRedirect 后跳登录',
-            'color:#dc2626;font-weight:bold;');
-          saveLoginRedirect('401');
-          // 延迟跳转，让当前 reject 链先走完
-          setTimeout(() => {
-            console.log('[AuthRedirect] 调用点 A：500ms 后开始跳转 ./index.html');
-            location.href = './index.html';
-          }, 500);
+
+          // 跳转保护：避免多个并发请求同时触发跳转
+          if (!isRedirecting) {
+            isRedirecting = true;
+            console.log('%c[AuthRedirect] 调用点 A：刷新凭证失效，准备跳登录',
+              'color:#dc2626;font-weight:bold;');
+            saveLoginRedirect('401');
+            setTimeout(() => {
+              location.href = './index.html';
+            }, 500);
+          }
           return Promise.reject(refreshErr);
         }
-        // 注意：此处 finally 中不再设置 isRefreshing=false，
-        // 因为 try/catch 内已经显式管理；且原 finally 会在 return 之后执行导致状态错乱
       }
 
       // ④ 非 401 / 已重试过的 401 / 403 等：按状态码提示，不再刷新
       let errMsg = '';
       switch (status) {
         case 401:
-          // 已重试过仍 401，或刷新失败：清登录态并跳转
+          // 已重试过仍 401（新 token 也不行）：清登录态并跳转
           errMsg = '登录已过期，请重新登录';
           localStorage.removeItem('token');
           localStorage.removeItem('refreshToken');
           localStorage.removeItem('currentUser');
-          // 关键：跳登录页之前保存当前页面 URL，登录成功后回跳
-          console.log('%c[AuthRedirect] 调用点 B：已重试过仍 401，准备 saveLoginRedirect 后跳登录',
-            'color:#dc2626;font-weight:bold;');
-          saveLoginRedirect('401');
-          console.log('[AuthRedirect] 调用点 B：登录已过期：', errMsg);
-          setTimeout(() => {
-            console.log('[AuthRedirect] 调用点 B：500ms 后开始跳转 ./index.html');
-            location.href = './index.html';
-          }, 500);
+          // 跳转保护：避免多个并发请求同时触发跳转
+          if (!isRedirecting) {
+            isRedirecting = true;
+            console.log('%c[AuthRedirect] 调用点 B：已重试过仍 401，准备跳登录',
+              'color:#dc2626;font-weight:bold;');
+            saveLoginRedirect('401');
+            setTimeout(() => {
+              location.href = './index.html';
+            }, 500);
+          }
           break;
         case 403:
           // 权限不足：只提示，不刷新，不跳转（保留当前页面上下文）
