@@ -28,3 +28,9 @@ zktapi-master/.idea/.name
 api/target
 api/logs/archived/spring-boot-app.2026-08-13.0.log.gz
 logs/spring-boot-app.log
+.vscode/settings.json
+api/logs/archived/spring-boot-app.2026-08-14.0.log.gz
+api/logs/spring-boot-app.log
+api/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst
+api/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst
+logs/spring-boot-app.log
