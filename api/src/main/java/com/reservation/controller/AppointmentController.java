@@ -193,9 +193,10 @@ public class AppointmentController {
         Integer days = query.getDays();
         java.time.LocalDateTime startOfPeriod,endOfPeriod;
         if(days<=0)
-        { //全部数据，不限制时间
-             startOfPeriod =  java.time.LocalDateTime.now().plusDays(-30);//
-             endOfPeriod = startOfPeriod.plusDays(30);
+        { // 全部数据，不限制时间：使用 MySQL DATETIME 合法边界作为最早/最晚时间
+          // LocalDateTime.MIN / MAX 超出 Timestamp & MySQL DATETIME 支持范围，会触发 valueOf 转换异常或写入异常
+          startOfPeriod = java.time.LocalDateTime.of(1000, 1, 1, 0, 0, 0);
+          endOfPeriod   = java.time.LocalDateTime.of(9999, 12, 31, 23, 59, 59);
         } else {
           startOfPeriod = java.time.LocalDateTime.now();
           endOfPeriod = startOfPeriod.plusDays(days);
