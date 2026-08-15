@@ -8,6 +8,7 @@
   <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
   <link rel="stylesheet" href="css/admin.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <style>
     body { margin: 0; font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; background: #f0f2f5; }
     .header { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 0 24px; height: 60px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
@@ -77,6 +78,34 @@
 
     /* 查看模式 - 证书图片 */
     .cert-view-img { width: 80px; height: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #f0f0f0; }
+
+    .version-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      border: 0px solid #e5e7eb;
+      border-radius: 6px;
+      gap: 12px;
+    }
+    .btn-group {
+      display: flex;
+      gap: 10px;
+    } 
+    button {
+      padding: 5px 12px;
+      cursor: pointer;
+      border: 1px solid #d1d5db;
+      background: #fff;
+      border-radius: 4px;
+    }
+    button:hover {
+      background-color: #f3f4f6;
+    }
+    label {
+      font-size: 14px;
+      font-weight: 500;
+    }
   </style>
 </head>
 <body>
@@ -284,7 +313,11 @@
               <input type="text" id="pub-title" placeholder="如：英语教师 - 张三 个人介绍">
             </div>
             <div class="form-group">
-              <label>历史版本</label>
+              <div class="version-bar">
+                <label>历史版本</label>
+               <div> <button id="copyLinkBtn">复制链接</button>
+                <button id="saveImageBtn">保存为图片</button> </div>
+              </div>
               <select id="pub-history" onchange="loadPublishHistory(this.value)">
                 <option value="">-- 新建/无历史 --</option>
               </select>
@@ -386,6 +419,7 @@
       }
       // 从 URL 读取 userid 并加载单条数据
       loadTeacherInfoFromUrl();
+      installLinkCopyAndImageSaveHandlers();
     })();
 
     function goBack() {
@@ -402,3 +436,7 @@
   </script>
 </body>
 </html>
+<!--
+teacherInfo.html 287-290 在"历史版本"标签右侧靠右对齐，添加2个按钮：“复制链接”、“保存为图片”。
+前者把当前版本的链接复制到剪贴板，后者把实时预览的页面按照jpg格式保存为图片文件。完成相关编码。
+-->
