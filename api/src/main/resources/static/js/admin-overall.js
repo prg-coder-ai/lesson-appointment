@@ -141,7 +141,14 @@ async function renderStatisCards() {
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1; // getMonth() 返回 0-11，因此要 +1
 
-  const stats = await getUserStatisticByMonth(currentYear, currentMonth);
+  // 4 个统计接口互相独立，整体并行；每个 promise 自带 catch 返回 null，保持原 if(stats) 兼容
+  const [stats, stats2, bookingMonthCount, appData] = await Promise.all([
+    getUserStatisticByMonth(currentYear, currentMonth).catch(() => null),
+    getCourseStaticsByMonth(currentYear, currentMonth).catch(() => null),
+    getBookingStaticsByMonth(currentYear, currentMonth).catch(() => null),
+    getAppointmentStatisticByMonth(currentYear, currentMonth).catch(() => null)
+  ]);
+
   if (stats) { //console .log(stats.teacherMonthStart, stats.studentMonthEnd);
     monthTotalTeacher = stats.teacherMonthEnd;
 
@@ -152,37 +159,30 @@ async function renderStatisCards() {
     delt = monthTotalStudent - stats.studentMonthStart;
     monthTotalStudentIcon = getFaiconAndStr(delt);
   }
-  const stats2 = await getCourseStaticsByMonth(currentYear, currentMonth);
-  if (stats2) { //console .log(stats2.courseMonthEnd, stats2.courseMonthStart);
+  if (stats2) {
     monthTotalCourse = stats2.courseMonthEnd;
 
     let delt = monthTotalCourse - stats2.courseMonthStart;
     monthTotalCourseIcon = getFaiconAndStr(delt);
   }
   //”booked“ --> 当前的预约数，如何计算: booked--本月预约数，上月预约数
-  const BookingMonthCount = await getBookingStaticsByMonth(currentYear, currentMonth);
-  //console .log( BookingMonthCount  );
-  if (BookingMonthCount) {
-    monthTotalBooking = BookingMonthCount.bookingMonth;
-    // lastMonthTotalBooking =   BookingMonthCount .bookingMonthLast  ;
+  if (bookingMonthCount) {
+    monthTotalBooking = bookingMonthCount.bookingMonth;
 
-    let delt = monthTotalBooking - BookingMonthCount.bookingMonthLast;
+    let delt = monthTotalBooking - bookingMonthCount.bookingMonthLast;
     monthTotalBookingIcon = getFaiconAndStr(delt);
   } else {
     monthTotalBooking = -1;
     monthTotalBookingIcon = getFaiconAndStr(0);
   }
 
-  const appData = await getAppointmentStatisticByMonth(currentYear, currentMonth);
-  console.log(appData);
   if (appData) {
     monthTotalAppoint = appData.appMonth;
     let delt = appData.appMonth - appData.appMonthLast;
     monthTotalAppointIcon = getFaiconAndStr(delt);
   } else {
     monthTotalAppoint = 0;
-    let delt = 0;
-    monthTotalAppointIcon = getFaiconAndStr(delt);
+    monthTotalAppointIcon = getFaiconAndStr(0);
   }
 }
 
@@ -198,15 +198,22 @@ function getFaiconAndStr(v) {
 // 刷新按钮也做同样的动作：读取数据库，更新显示
 async function showAppointments() {
   // search current pendding booking items ,and dispaly here /pendingBooking
-  let userRole = null, userId = null, status = 'cancelling';//TB TEST "pending";
-  bookingList1 = await getBookingList(userRole, userId, status);
-  bookingList2 = await getBookingList(userRole, userId, 'booking');
+  const userRole = null, userId = null;//TB TEST "pending";
 
-  CancelBookingCount = bookingList1.length;
-  BookingCount = bookingList2.length;
+  // 3 个接口互相独立，整体并行：2 个 booking 列表 + 今日课程数
+  const [list1, list2, todayCount] = await Promise.all([
+    getBookingList(userRole, userId, 'cancelling'),
+    getBookingList(userRole, userId, 'booking'),
+    getCountOfTodayAppointment()
+  ]);
+
+  bookingList1 = list1;
+  bookingList2 = list2;
+  CancelBookingCount = (list1 && list1.length) || 0;
+  BookingCount = (list2 && list2.length) || 0;
   //console .log("BookingCount:", BookingCount,CancelBookingCount);
 
-  TodayLessonsCount = await getCountOfTodayAppointment();//获取今日课程数量
+  TodayLessonsCount = todayCount;//获取今日课程数量
 }
 
 // ===================== 交互函数 =====================

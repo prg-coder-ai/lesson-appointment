@@ -71,7 +71,7 @@ public class UserController {
         // HashMap<String, Object> condition = new java.util.HashMap<>();  
           User  user  = userService.selectById(userId);  
          if(user != null ) { 
-            System.out.println("ret：" + user);
+          //  System.out.println("ret：" + user);
             return Result.success(user.getName(), "查询成功"); 
     } else  {
        return Result.success("N/A", "查询成功");
