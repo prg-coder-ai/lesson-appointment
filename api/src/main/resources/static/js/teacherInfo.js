@@ -1256,3 +1256,60 @@ async function submitPublish() {
     alert('发布失败：' + (e && e.message ? e.message : e));
   }
 }
+
+ function installLinkCopyAndImageSaveHandlers() {
+// 1. 复制链接 ---查看
+const copyLinkBtn = document.getElementById('copyLinkBtn');
+copyLinkBtn.addEventListener('click', async () => {
+  const url = window.location.href;
+  //获取当前版本，如果是草稿，则提示用户先发布
+  if (publishCurrentDraftId) {
+    const sel = document.getElementById('pub-history');
+    const selectedOption = sel.options[sel.selectedIndex];
+    if (selectedOption && selectedOption.textContent.includes('【草稿】')) {
+      alert('当前版本是草稿，无法生成公开访问链接，请先发布。');
+      return;
+    }
+  }
+
+  //TBD：通过历史id获取当前版本的链接，
+  try {
+    await navigator.clipboard.writeText(url);
+    alert('链接已复制：' + url);
+  } catch (err) {
+    // 兼容不支持clipboard的浏览器
+    const input = document.createElement('input');
+    input.value = url;
+    document.body.appendChild(input);
+    input.select();
+    document.execCommand('copy');
+    document.body.removeChild(input);
+    alert('链接已复制');
+  }
+});
+
+// 2. 保存预览区域为JPG图片
+const saveImageBtn = document.getElementById('saveImageBtn');
+const previewWrap = document.getElementById('previewWrap');
+
+saveImageBtn.addEventListener('click', async () => {
+  try {
+    const canvas = await html2canvas(previewWrap, {
+      useCORS: true,    // 解决跨域图片空白
+      scale: window.devicePixelRatio
+    });
+    // 转JPG，质量0.9
+    const imgUrl = canvas.toDataURL('image/jpeg', 0.9);
+
+    const a = document.createElement('a');
+    a.href = imgUrl;
+    a.download = '历史版本预览.jpg';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } catch (e) {
+    console.error('截图失败', e);
+    alert('生成图片失败，请重试');
+  }
+});
+ }
