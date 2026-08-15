@@ -40,6 +40,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/user/teacher/register", "/user/student/register",
             "/user/account/exist",
             "/teacher/published/latest-public",
+            "/teacher/published/public-get",
             "/interfaces"
     );
 
