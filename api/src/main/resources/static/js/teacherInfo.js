@@ -48,15 +48,15 @@ async function loadTeacherInfo(teacherId) {
       url: '/teacher/professional/queryTeacherProfessionalInfo',
       params: { teacherId: teacherId }
     });
-
-    if (!result || result.code !== 200) {
-      // 接口返回业务错误（如教师不存在）
+    console.log("queryTeacherProfessionalInfo", result);
+    if (!result ){      // 接口返回业务错误（如教师不存在）
       const msg = (result && result.message) ? result.message : '查询失败';
       renderError(msg);
       return;
     }
-
-    const data = result.data;
+  console.log("queryTeacherProfessionalInfo", result);
+  //TeacherProfessionalDetailVO 结构
+    const data = result;
     if (!data || !data.professional) {
       // 教师存在但还没有职业信息 → 进入新增模式
       originalData = buildEmptyForm(teacherId);
@@ -80,6 +80,14 @@ async function loadTeacherInfo(teacherId) {
   } catch (e) {
     console.error('加载教师职业信息失败：', e);
     renderError('加载失败：' + (e && e.message ? e.message : e));
+//Add
+     originalData = buildEmptyForm(teacherId);
+      currentProfessionalId = null;
+      currentMode = 'add';
+      setPageTitle('新增教师职业信息');
+      fillEditForm(originalData, true);
+      switchSection('edit');
+      showActionButtons('edit');
   }
 }
 
@@ -349,7 +357,7 @@ function fillEditForm(data, isAdd) {
       data.certificates.forEach(c => {
         const div = document.createElement('div');
         div.innerHTML = renderCertRow(c);
-        certRows.appendChild(div.firstChild);
+        certRows.appendChild(div.firstElementChild);
       });
     }
   }
@@ -362,7 +370,7 @@ function fillEditForm(data, isAdd) {
       data.availableTimes.forEach(t => {
         const div = document.createElement('div');
         div.innerHTML = renderTimeRow(t);
-        timeRows.appendChild(div.firstChild);
+        timeRows.appendChild(div.firstElementChild);
       });
     }
   }
@@ -405,17 +413,18 @@ function renderTimeRow(t) {
 }
 
 function addCertRow() {
+  console.log("addCertRow");
   const container = document.getElementById('cert-rows');
   const div = document.createElement('div');
   div.innerHTML = renderCertRow({});
-  container.appendChild(div.firstChild);
+  container.appendChild(div.firstElementChild);
 }
 
 function addTimeRow() {
   const container = document.getElementById('time-rows');
   const div = document.createElement('div');
   div.innerHTML = renderTimeRow({ timeType: 'weekly', dayOfWeek: 1, startTime: '09:00:00', endTime: '17:00:00', status: 'active' });
-  container.appendChild(div.firstChild);
+  container.appendChild(div.firstElementChild);
 }
 
 // ====================== 模式切换按钮（静态 HTML 已预置在 teacherInfo.html 的 #action-btns 中）======================
