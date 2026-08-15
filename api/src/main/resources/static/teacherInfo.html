@@ -103,18 +103,26 @@
       <div class="card-header">
         <div class="card-title"><i class="fa fa-id-card"></i> <span id="page-title">教师职业信息</span></div>
         <div class="header-btns" id="action-btns">
-          <!-- 查看模式：编辑 / 删除 -->
+          <!-- 查看模式：转发 / 编辑 / 删除 -->
           <div id="btns-view" style="display:flex;">
+            <button class="btn btn-warning" onclick="enterPublishMode()"><i class="fa fa-share-alt"></i> 发布/转发</button>
             <button class="btn btn-primary" onclick="enterEditMode()"><i class="fa fa-edit"></i> 编辑</button>
             <button class="btn btn-danger" onclick="deleteCurrent()"><i class="fa fa-trash"></i> 删除</button>
           </div>
           <!-- 编辑/新增模式：保存 / 取消 -->
-          <div id="btns-edit" style="display:flex;">
+          <div id="btns-edit" style="display:none;">
             <button class="btn btn-success" onclick="saveForm()"><i class="fa fa-save"></i> 保存</button>
             <button class="btn btn-default" onclick="cancelEdit()"><i class="fa fa-undo"></i> 取消</button>
           </div>
+          <!-- 发布模式：临时保存 / 预览 / 发布 / 返回查看 -->
+          <div id="btns-publish" style="display:none;">
+            <button class="btn btn-default" onclick="exitPublishMode()"><i class="fa fa-undo"></i> 返回</button>
+            <button class="btn btn-default" onclick="savePublishDraft()"><i class="fa fa-save"></i> 临时保存</button>
+            <button class="btn btn-primary" onclick="previewPublish()"><i class="fa fa-eye"></i> 预览</button>
+            <button class="btn btn-success" onclick="submitPublish()"><i class="fa fa-rocket"></i> 发布</button>
+          </div>
           <!-- 错误/加载模式：返回 -->
-          <div id="btns-error" style="display:flex ;">
+          <div id="btns-error" style="display:none;">
             <button class="btn btn-default" onclick="goBack()"><i class="fa fa-arrow-left"></i> 返回</button>
           </div>
         </div>
@@ -264,6 +272,87 @@
             <div class="sub-section-title"><i class="fa fa-clock"></i> 可预约时间段</div>
             <div id="time-rows"></div>
             <button class="add-row-btn" onclick="addTimeRow()"><i class="fa fa-plus"></i> 添加时间段</button>
+          </div>
+        </div>
+
+        <!-- ==================== 发布模式（字段勾选 + 样式自定义 + 预览） ==================== -->
+        <div id="section-publish" style="display:none;">
+          <!-- 顶部：标题 + 历史草稿/发布记录 -->
+          <div class="form-row">
+            <div class="form-group">
+              <label>发布标题</label>
+              <input type="text" id="pub-title" placeholder="如：英语教师 - 张三 个人介绍">
+            </div>
+            <div class="form-group">
+              <label>历史版本</label>
+              <select id="pub-history" onchange="loadPublishHistory(this.value)">
+                <option value="">-- 新建/无历史 --</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:340px 1fr;gap:16px;">
+            <!-- 左栏：字段勾选 + 样式 -->
+            <div>
+              <!-- 字段勾选 -->
+              <div class="sub-section">
+                <div class="sub-section-title"><i class="fa fa-list-check"></i> 字段勾选（勾选是否转发，可拖拽排序）</div>
+                <div id="pub-fields"></div>
+                <div style="display:flex;gap:8px;margin-top:8px;">
+                  <button class="btn btn-default" style="flex:1;" onclick="pubToggleAll(true)">全选</button>
+                  <button class="btn btn-default" style="flex:1;" onclick="pubToggleAll(false)">全不选</button>
+                </div>
+              </div>
+
+              <!-- 样式自定义 -->
+              <div class="sub-section">
+                <div class="sub-section-title"><i class="fa fa-palette"></i> 样式自定义</div>
+                <div class="form-row"><div class="form-group">
+                  <label>字体</label>
+                  <select id="pub-fontFamily">
+                    <option value='-apple-system, "Segoe UI", "Microsoft YaHei", sans-serif'>默认（微软雅黑）</option>
+                    <option value='"Microsoft YaHei", sans-serif'>微软雅黑</option>
+                    <option value='"SimSun", serif'>宋体</option>
+                    <option value='"KaiTi", serif'>楷体</option>
+                    <option value='Arial, sans-serif'>Arial</option>
+                    <option value='Georgia, serif'>Georgia</option>
+                  </select>
+                </div><div class="form-group">
+                  <label>主题色</label>
+                  <input type="color" id="pub-accentColor" value="#722ed1" style="height:36px;padding:2px;">
+                </div></div>
+                <div class="form-row"><div class="form-group">
+                  <label>正文字号（px）</label>
+                  <input type="number" id="pub-fontSizePx" value="15" min="10" max="40">
+                </div><div class="form-group">
+                  <label>标题字号（px）</label>
+                  <input type="number" id="pub-titleSizePx" value="22" min="14" max="60">
+                </div></div>
+                <div class="form-row"><div class="form-group">
+                  <label>照片大小（px）</label>
+                  <input type="number" id="pub-photoSizePx" value="160" min="60" max="400">
+                </div><div class="form-group">
+                  <label>证书图大小（px）</label>
+                  <input type="number" id="pub-certSizePx" value="120" min="40" max="300">
+                </div></div>
+                <div class="form-row"><div class="form-group">
+                  <label>背景色</label>
+                  <input type="color" id="pub-bgColor" value="#ffffff" style="height:36px;padding:2px;">
+                </div><div class="form-group">
+                  <label>卡片背景</label>
+                  <input type="color" id="pub-cardBgColor" value="#fafafa" style="height:36px;padding:2px;">
+                </div></div>
+              </div>
+            </div>
+
+            <!-- 右栏：实时预览 -->
+            <div class="sub-section" style="margin-bottom:0;">
+              <div class="sub-section-title">
+                <i class="fa fa-eye"></i> 实时预览
+                <span id="pub-auto-preview-tip" style="font-weight:normal;font-size:12px;color:#999;margin-left:8px;">（修改左侧自动刷新）</span>
+              </div>
+              <div id="pub-preview" style="min-height:360px;max-height:720px;overflow:auto;padding:16px;border:1px dashed #d9d9d9;border-radius:6px;background:#fff;"></div>
+            </div>
           </div>
         </div>
       </div>
