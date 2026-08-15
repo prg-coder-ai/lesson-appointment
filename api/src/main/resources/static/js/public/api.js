@@ -110,27 +110,27 @@ async function fetchUserList(conditionJson) {
   }
 
   async function  getUserNameById(teacherId) {
-    const URL = `${API_BASE_URL}/user/name/${teacherId}`; 
-    //console.log("URL"+ URL); 
-      try {    
-        // 用request改写
-        const res = await request({
-          url: URL,
-          method: "get",
-          data: {}, // 无请求体
-        });
-      //  console.log("getUserNameById response:", res);
- 
-      //  if (!res || res.code !== 200) throw new Error("获取失败");
+    // 入参保护：空值/undefined/非字符串直接返回 n/a，避免拼出 /user/name/ 或 /user/name/undefined
+    // 触发后端 NoResourceFoundException: No static resource user/name.
+    if (!teacherId || typeof teacherId !== 'string' || !teacherId.trim()) {
+      return "n/a";
+    }
+    // 去除可能的尾随空白/点号，防止 /user/name/abc. 被当作静态资源
+    const safeId = teacherId.trim().replace(/[.\s]+$/, '');
+    if (!safeId) return "n/a";
 
-//console.log("getUserNameById", res);
-
-        // 假设后端返回数据结构 { code: 200, data: [{userId, name, ...}], ... }
-        return res  || "n/a";
-      } catch (e) {
-        alert(e.message + "网络错误，无法获取数据");
-        return "n/a";
-      } 
+    try {
+      // 用request改写（相对路径，由 baseURL 自动拼接前缀）
+      const res = await request({
+        url: `/user/name/${encodeURIComponent(safeId)}`,
+        method: "get"
+      });
+      // request 拦截器在 code===200 时已剥皮，返回 res.data（即 String 名称）
+      return res || "n/a";
+    } catch (e) {
+      console.error("getUserNameById:", e);
+      return "n/a";
+    }
   }
   
 /**

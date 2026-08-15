@@ -95,7 +95,7 @@ async function fetchAppointmentListPage(query) {
       data: query // 直接作为body传递 ，controller作为对象接收，不能有括号T
       // 不需要 params 字段
     });
-    console.log("apppage",res);
+    //console.log("apppage",res);
     return res;
   } catch (e) {
     console.error("fetchAppointmentListPage", e);
@@ -123,66 +123,77 @@ async function datamaintain_fetchAppointmenPage(query) {
    //显示待确认预约
  async function showAppointmentList(appointmentList,id){
     //   const id = "pending-reservations";
-       let pendingBookingsHtml = "";
+    //   console.log("showAppointmentList:", DaysAppointmentList);
 
-       var index=(Pagination.pageNum-1)*Pagination.pageSize;//记录序号let index = 0;
+    if (!Array.isArray(appointmentList) || appointmentList.length === 0) {
+        const bookingContainer0 = document.getElementById(id);
+        if (bookingContainer0) bookingContainer0.innerHTML = '';
+        return;
+    }
 
-    //   console.log("showAppointmentList:", DaysAppointmentList);  
-      let count=0;
-       if (Array.isArray(appointmentList)) {
-           // 用for...of+await，等待所有异步操作完成
-           count = appointmentList.length;
-           for (let appointment of appointmentList) {            
-             
-            let  bookedObject = await getBookingObject(appointment.bookingId);       
-            if(bookedObject == null )
-              continue;
-            index++;//读取对应的预定ID TBD:数据不完整的情况处理
-            const scheduleObject = await fetchSchedule(bookedObject.scheduleId); 
-            if (scheduleObject != null) {  
-                   const classObject = await getCourseById(scheduleObject.courseId); 
-                   const studentName = await getUserNameById(bookedObject.studentId);
-                   const teacherName = await getUserNameById(bookedObject.teacherId);
-   
-                   if (classObject != null) {
-                       let cardItems = {
-                           index: index,
-                           scheduleId:    scheduleObject.scheduleId, 
-                           origTz:        scheduleObject.timeZone,
-                           appointmentId: appointment.id,
-                           bookingId:     bookedObject.id,
-  
-                           className: classObject.courseName,//+ " " + scheduleObject.name,
-                           
-                           classIndex: appointment.classIndex,
-                           studentName: studentName,//-->name/phone/email
-                           teacherName: teacherName,
-  
-                           studentId :bookedObject.studentId,
-                           teacherId :bookedObject.teacherId,
-  
-                          // scheduleInfo: scheduleInfoStr, 
-                           appointmentTime: appointment.appointmentDatetime ? appointment.appointmentDatetime.replace('T', ' ') : '',
-                      
-                           status: appointment.status
-                       }
-                       let cardContent = formAppointmentTr(cardItems);//TBD: table TR 
-                       pendingBookingsHtml += cardContent;
-                   } 
-           }
-       }
-      } 
-      
-      //if(count==0)  {
-      //  pendingBookingsHtml +="<div> 近7日内没有课程</div>";//<tr> <td> n/a </td> <td> n/a </td><td> n/a </td><td> n/a </td> <td> n/a </td> <td>   </td> <td>  </td></tr>";
-      //}
-  
-       //在全部异步处理后再输出和渲染 
-       let bookingContainer = document.getElementById(id);
-       if (bookingContainer) {
-           bookingContainer.innerHTML = ` ${pendingBookingsHtml}`;
-       }
-  
+    // —— 缓存：避免同一 bookingId / scheduleId / courseId / userId 重复请求 ——
+    const bookingCache  = new Map();
+    const scheduleCache = new Map();
+    const courseCache   = new Map();
+    const userCache     = new Map();
+    const getBookingCached  = (bid) => bookingCache.has(bid)  ? bookingCache.get(bid)  : (bookingCache.set(bid,  getBookingObject(bid).catch(() => null)),       bookingCache.get(bid));
+    const getScheduleCached = (sid) => scheduleCache.has(sid) ? scheduleCache.get(sid) : (scheduleCache.set(sid, fetchSchedule(sid).catch(() => null)),            scheduleCache.get(sid));
+    const getCourseCached   = (cid) => courseCache.has(cid)   ? courseCache.get(cid)   : (courseCache.set(cid,   getCourseById(cid).catch(() => null)),              courseCache.get(cid));
+    const getUserCached     = (uid) => userCache.has(uid)     ? userCache.get(uid)     : (userCache.set(uid,     getUserNameById(uid).catch(() => 'n/a')),         userCache.get(uid));
+
+    // —— 单条 appointment 处理：内部依赖链 booking→schedule→{course,student,teacher} ——
+    //   schedule 之后的 3 个调用互相独立，用 Promise.all 并行
+    async function processOne(appointment, idx) {
+        const bookedObject = await getBookingCached(appointment.bookingId);
+        if (!bookedObject) return null;
+
+        const scheduleObject = await getScheduleCached(bookedObject.scheduleId);
+        if (!scheduleObject) return null;
+
+        // 三个独立调用并行
+        const [classObject, studentName, teacherName] = await Promise.all([
+            getCourseCached(scheduleObject.courseId),
+            getUserCached(bookedObject.studentId),
+            getUserCached(bookedObject.teacherId)
+        ]);
+        if (!classObject) return null;
+
+        return {
+            index: idx,
+            scheduleId:    scheduleObject.scheduleId,
+            origTz:        scheduleObject.timeZone,
+            appointmentId: appointment.id,
+            bookingId:     bookedObject.id,
+            className:     classObject.courseName,
+            classIndex:    appointment.classIndex,
+            studentName:   studentName,
+            teacherName:   teacherName,
+            studentId:     bookedObject.studentId,
+            teacherId:     bookedObject.teacherId,
+            appointmentTime: appointment.appointmentDatetime ? appointment.appointmentDatetime.replace('T', ' ') : '',
+            status:        appointment.status
+        };
+    }
+
+    // —— 多条 appointment 之间互相独立，整体并行；index 用序号保证顺序 ——
+    const baseIndex = (Pagination.pageNum - 1) * Pagination.pageSize;
+    const tasks = appointmentList.map((apt, i) => processOne(apt, baseIndex + i + 1));
+    const results = await Promise.all(tasks);
+
+    // 按原顺序拼装 HTML
+    let pendingBookingsHtml = '';
+    for (const cardItems of results) {
+        if (cardItems) pendingBookingsHtml += formAppointmentTr(cardItems);
+    }
+
+    //if(appointmentList.length === 0)  {
+    //  pendingBookingsHtml +="<div> 近7日内没有课程</div>";
+    //}
+
+    const bookingContainer = document.getElementById(id);
+    if (bookingContainer) {
+        bookingContainer.innerHTML = ` ${pendingBookingsHtml}`;
+    }
    }
    //检查status，只有待确认的booking、cancelling才显示待确认，并显示相应的按钮 3天、1天前、当天
    function checkAppointmentStatus(status) {
