@@ -60,6 +60,14 @@ public class TeacherPublishedProfileController {
         return service.getLatestPublished(teacherId);
     }
 
+    // 3.1 公开：按 ID 查询指定已发布版本（教师可把某一历史版本固定分享给家长，白名单）
+    //      仅 status=published 的记录可返回，保证草稿/归档不对外泄露
+    @GetMapping("/public-get")
+    @ResponseBody
+    public Result<TeacherPublishedProfile> publicGet(@RequestParam("id") String publishedProfileId) {
+        return service.getPublishedById(publishedProfileId);
+    }
+
     // 4. 保存草稿 / 发布（后端唯一入口：status=published 时触发归档旧版本）
     @PostMapping("/save")
     @ResponseBody

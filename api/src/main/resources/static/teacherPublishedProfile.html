@@ -48,6 +48,7 @@
       <div class="actions">
         <button class="btn-mini" onclick="window.print()" title="打印本页"><i class="fa fa-print"></i> 打印</button>
         <button class="btn-mini" onclick="copyShareLink()" title="复制链接分享"><i class="fa fa-share-alt"></i> 复制链接</button>
+        <button class="btn-mini" onclick="closePage()" title="关闭页面"><i class="fa fa-times"></i> 关闭</button>
       </div>
     </div>
 
@@ -68,10 +69,12 @@
   <script>
     /**
      * 教师介绍公开页
-     * 入口参数：?teacherId=xxxx（必填）
+     * 入口参数（两种方式，优先级 id > teacherId）：
+     *   ?id=xxxx              → 按 publishedProfileId 精确取指定历史版本（调 /public-get）
+     *   ?teacherId=xxxx       → 取该教师最新已发布版本（调 /latest-public，兼容 userid/userId）
      * 流程：
-     *   1. 从 URL 取 teacherId
-     *   2. GET /teacher/published/latest-public?teacherId=xxxx（无需登录）
+     *   1. 从 URL 取 id / teacherId
+     *   2. GET /teacher/published/public-get?id=xxx 或 latest-public?teacherId=xxx（无需登录）
      *   3. 接口返回 { code:200, data: { staticHtml: '<!DOCTYPE html>...' } }
      *   4. 把 staticHtml 直接 innerHTML 写入 #pub-mount（内嵌图片 base64 + 完整样式）
      *   5. 404 提示"该教师暂无已发布的个人介绍"
@@ -140,14 +143,22 @@
       }
 
       async function loadPublished() {
+        const id = getQueryParam('id') || getQueryParam('profileId');
         const teacherId = getQueryParam('teacherId') || getQueryParam('userid') || getQueryParam('userId');
-        if (!teacherId) {
-          showError('缺少教师ID参数', '请在 URL 上附加 ?teacherId=xxxx');
+        if (!id && !teacherId) {
+          showError('缺少参数', '请在 URL 上附加 ?id=xxxx 指定版本，或 ?teacherId=xxxx 查看最新发布');
           return;
         }
 
+        let url;
+        if (id) {
+          url = API_BASE_URL + '/teacher/published/public-get?id=' + encodeURIComponent(id);
+        } else {
+          url = API_BASE_URL + '/teacher/published/latest-public?teacherId=' + encodeURIComponent(teacherId);
+        }
+
         try {
-          const resp = await fetch(API_BASE_URL + '/teacher/published/latest-public?teacherId=' + encodeURIComponent(teacherId), {
+          const resp = await fetch(url, {
             method: 'GET',
             headers: { 'Accept': 'application/json' }
           });
@@ -211,7 +222,28 @@
         }
       }
 
+      function closePage() {
+        // 优先尝试 window.close()（仅对由 window.open 打开的页面有效）
+        try {
+          window.opener = null;
+          window.open('', '_self');
+          window.close();
+        } catch (_) {}
+        // 100ms 后仍未关闭，说明是用户直接打开的 tab，做兜底
+        setTimeout(function () {
+          if (!window.closed) {
+            // 有历史记录就后退
+            if (window.history.length > 1) {
+              window.history.back();
+            } else {
+              alert('当前页面是直接打开的，浏览器禁止脚本自动关闭。\n请按 Ctrl+W 手动关闭标签页，或点击浏览器右上角 × 按钮。');
+            }
+          }
+        }, 120);
+      }
+
       window.copyShareLink = copyShareLink;
+      window.closePage = closePage;
 
       // 启动
       loadPublished();

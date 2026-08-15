@@ -63,6 +63,21 @@ public class TeacherPublishedProfileService {
         return Result.success(entity, "查询成功");
     }
 
+    /** 公开按 ID 查询（仅 published 状态可对外） */
+    public Result<TeacherPublishedProfile> getPublishedById(String publishedProfileId) {
+        if (!StringUtils.hasText(publishedProfileId)) {
+            return Result.fail(400, "id 不能为空");
+        }
+        TeacherPublishedProfile entity = mapper.selectById(publishedProfileId);
+        if (entity == null) {
+            return Result.fail(404, "该版本不存在");
+        }
+        if (!"published".equalsIgnoreCase(entity.getStatus())) {
+            return Result.fail(404, "该版本暂未对外发布");
+        }
+        return Result.success(entity, "查询成功");
+    }
+
     /**
      * 保存（草稿）/ 发布
      * - 有 publishedProfileId 则更新
