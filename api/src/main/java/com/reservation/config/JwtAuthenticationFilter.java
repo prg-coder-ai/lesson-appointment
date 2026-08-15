@@ -35,9 +35,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final Set<String> WHITELIST_PATHS = Set.of(
             "/", "/index", "/index.html",
             "/admin.html", "/student.html", "/teacher.html",
+            "/teacherInfo.html", "/teacherPublishedProfile.html",
             "/login", "/auth/login", "/auth/refreshToken",
             "/user/teacher/register", "/user/student/register",
             "/user/account/exist",
+            "/teacher/published/latest-public",
             "/interfaces"
     );
 

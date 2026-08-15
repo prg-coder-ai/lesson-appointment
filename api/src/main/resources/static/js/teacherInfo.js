@@ -1245,7 +1245,7 @@ async function submitPublish() {
       document.getElementById('pub-history').value = res.publishedProfileId;
       // 给出公开访问链接提示
       const link = location.origin + location.pathname.replace(/teacherInfo\.html.*$/, '')
-        + 'teacherPublished.html?teacherId=' + encodeURIComponent(currentTeacherId);
+        + 'teacherPublishedProfile.html?teacherId=' + encodeURIComponent(currentTeacherId);
       alert(`发布成功！\n\n公开访问链接：\n${link}\n\n（已复制到剪贴板）`);
       try { navigator.clipboard.writeText(link); } catch (_) {}
     } else {
