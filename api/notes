@@ -401,4 +401,8 @@ Word/图片显示模板设计（单个教师详情页，横向 A4）：
   · 事务：add / update 主表 + 2 张子表必须包 @Transactional，任何一步失败整体回滚。
 
 ================================================================================
+添加发布功能：
+ mysql> source H:\\2026\\lesson-appointment\\api\\teacher_published_profile.sql 添加数据库与表结构
+
+ source H:/2026/lesson-appointment/api/migration-20260815-teacher-published-profile.sql 
 

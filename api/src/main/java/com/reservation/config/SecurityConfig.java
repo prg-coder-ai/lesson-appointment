@@ -54,7 +54,13 @@ public class SecurityConfig {
                                 "/admin.html",
                                 "/student.html",
                                 "/teacher.html",
-                                "/teacherInfo.html"
+                                "/teacherInfo.html",
+                                "/teacherPublishedProfile.html"
+                        ).permitAll()
+
+                        // 教师发布信息公开接口（teacherPublishedProfile.html 调用，无需登录）
+                        .requestMatchers(
+                                "/teacher/published/latest-public"
                         ).permitAll()
 
                         // 登录/鉴权相关
