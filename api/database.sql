@@ -62,10 +62,10 @@ CREATE TABLE IF NOT EXISTS `course` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='教师课程表';
 
 -- 课程排期表：存储教师课程的具体排期信息，对应Schedule实体
-CREATE TABLE IF NOT EXISTS `schedule` ( 
+CREATE TABLE IF NOT EXISTS `course_schedule` ( 
   `schedule_id` varchar(36) NOT NULL COMMENT '排期唯一标识（UUID）',
-  `name` varchar(56) NOT NULL default 'noname' COMMENT '排期名称'
-  `teacher_id` varchar(36) NOT NULL COMMENT '关联的教师ID（对应user表的user_id）',
+  `name` varchar(56) NOT NULL default 'noname' COMMENT '排期名称',
+  --`teacher_id` varchar(36) NOT NULL COMMENT '关联的教师ID（对应user表的user_id）',
   `course_id` varchar(36) NOT NULL COMMENT '关联的教师课程ID',
   `time_zone` varchar(36) NOT NULL COMMENT '排期所用的时区',
   `start_time` datetime NOT NULL COMMENT '排期开始时间（格式：YYYY-MM-DD HH:mm:ss） 包含起始日期',
@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS `booking` (
   KEY `fk_schedule_id` (`schedule_id`) COMMENT '关联排期索引',
   KEY `fk_student_id` (`student_id`) COMMENT '关联学生索引',
   KEY `idx_status` (`status`) COMMENT '状态索引，用于预约状态查询',
-  CONSTRAINT `fk_booking_schedule` FOREIGN KEY (`schedule_id`) REFERENCES `schedule` (`schedule_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_booking_schedule` FOREIGN KEY (`schedule_id`) REFERENCES `course_schedule` (`schedule_id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_booking_student` FOREIGN KEY (`student_id`) REFERENCES `user` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='预约表';
 

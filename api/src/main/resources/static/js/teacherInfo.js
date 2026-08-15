@@ -40,7 +40,7 @@ function loadTeacherInfoFromUrl() {
  * 接口：GET /teacher/professional/queryTeacherProfessionalInfo?teacherId=xxx
  */
 async function loadTeacherInfo(teacherId) {
-  setContainerHtml('<div class="loading-tip">加载中...</div>');
+  switchSection('loading');
   showActionButtons('');
 
   try {
@@ -63,8 +63,9 @@ async function loadTeacherInfo(teacherId) {
       currentProfessionalId = null;
       currentMode = 'add';
       setPageTitle('新增教师职业信息');
-      renderEditForm(originalData, true);
-      showActionButtons('add');
+      fillEditForm(originalData, true);
+      switchSection('edit');
+      showActionButtons('edit');
       return;
     }
 
@@ -73,7 +74,8 @@ async function loadTeacherInfo(teacherId) {
     currentProfessionalId = data.professional.teacherProfessionalId;
     currentMode = 'view';
     setPageTitle(`教师职业信息 - ${data.name || data.account || teacherId}`);
-    renderView(originalData);
+    fillView(originalData);
+    switchSection('view');
     showActionButtons('view');
   } catch (e) {
     console.error('加载教师职业信息失败：', e);
@@ -81,8 +83,24 @@ async function loadTeacherInfo(teacherId) {
   }
 }
 
+/**
+ * 切换 #form-container 内的区域显示
+ * mode: 'loading' | 'error' | 'view' | 'edit'
+ */
+function switchSection(mode) {
+  const sections = {
+    loading: document.getElementById('section-loading'),
+    error:   document.getElementById('section-error'),
+    view:    document.getElementById('section-view'),
+    edit:    document.getElementById('section-edit')
+  };
+  Object.keys(sections).forEach(k => {
+    if (sections[k]) sections[k].style.display = (k === mode) ? '' : 'none';
+  });
+}
+
 // ====================== 数据规范化 ======================
-/** 把后端返回的 detail 对象整理成 renderView/renderEditForm 期望的结构 */
+/** 把后端返回的 detail 对象整理成 fillView/fillEditForm 期望的结构 */
 function normalizeDetail(data) {
   const p = data.professional || {};
   return {
@@ -155,204 +173,199 @@ function buildEmptyForm(teacherId) {
   };
 }
 
-// ====================== 查看模式渲染 ======================
-function renderView(data) {
-  const statusText = data.status === 'active' ? '<span class="status-active">有效</span>'
-    : data.status === 'frozen' ? '<span class="status-frozen">冻结</span>'
-    : data.status === 'inactive' ? '<span class="status-inactive">失效</span>'
-    : (data.status || '-');
-  const photoHtml = data.personalPhotoUrl
-    ? `<img class="view-photo" src="${escapeAttr(data.personalPhotoUrl)}" alt="">`
-    : (data.personalPhotoBase64
-        ? `<img class="view-photo" src="${escapeAttr(data.personalPhotoBase64.startsWith('data:') ? data.personalPhotoBase64 : 'data:image/png;base64,' + data.personalPhotoBase64)}" alt="">`
-        : '<div class="view-photo" style="display:flex;align-items:center;justify-content:center;color:#ccc;font-size:12px;">无照片</div>');
-  const certHtml = (data.certificates && data.certificates.length)
-    ? data.certificates.map(c => {
-        // 证书图片：优先 URL，其次 base64
-        let certImgHtml = '';
-        if (c.certUrl) {
-          certImgHtml = `<a href="${escapeAttr(c.certUrl)}" target="_blank"><img class="cert-view-img" src="${escapeAttr(c.certUrl)}" alt=""></a>`;
-        } else if (c.certBase64) {
-          const dataUri = c.certBase64.startsWith('data:') ? c.certBase64 : 'data:image/png;base64,' + c.certBase64;
-          certImgHtml = `<img class="cert-view-img" src="${escapeAttr(dataUri)}" alt="">`;
-        }
-        return `<div style="margin-bottom:10px;display:flex;gap:10px;align-items:flex-start;">
-           ${certImgHtml ? `<div>${certImgHtml}</div>` : ''}
-           <div>
-             <strong>${escapeHtml(c.certName || '未命名')}</strong>
-             ${c.certUrl ? ` · <a href="${escapeAttr(c.certUrl)}" target="_blank">查看原图</a>` : ''}
-             <div style="color:#999;font-size:12px;">排序 ${c.sortNo != null ? c.sortNo : 0}</div>
-           </div>
-         </div>`;
-      }).join('')
-    : '<span style="color:#999;">无</span>';
-  const timeHtml = (data.availableTimes && data.availableTimes.length)
-    ? data.availableTimes.map(t => {
-        const day = t.timeType === 'weekly'
-          ? (DAY_OF_WEEK_MAP[t.dayOfWeek] || '-')
-          : (t.specificDate || '-');
-        const typeText = t.timeType === 'weekly' ? '每周'
-          : t.timeType === 'holiday' ? '假日'
-          : '日期覆盖';
-        return `<div>${typeText} ${day} ${t.startTime || ''} - ${t.endTime || ''}</div>`;
-      }).join('')
-    : '<span style="color:#999;">无</span>';
+// ====================== 查看模式：填充数据（HTML 结构已预置在 teacherInfo.html）======================
+function fillView(data) {
+  // 状态文本
+  const statusEl = document.getElementById('view-status');
+  if (statusEl) {
+    statusEl.innerHTML = data.status === 'active' ? '<span class="status-active">有效</span>'
+      : data.status === 'frozen' ? '<span class="status-frozen">冻结</span>'
+      : data.status === 'inactive' ? '<span class="status-inactive">失效</span>'
+      : escapeHtml(data.status || '-');
+  }
 
-  setContainerHtml(`
-    <!-- 照片 + 基本信息区 -->
-    <div style="display:flex;gap:24px;margin-bottom:20px;flex-wrap:wrap;">
-      <div>${photoHtml}</div>
-      <div style="flex:1;min-width:280px;">
-        <div class="view-section" style="margin-bottom:0;">
-          <div class="view-field"><div class="label">教师姓名</div><div class="value">${escapeHtml(data.name || '-')}</div></div>
-          <div class="view-field"><div class="label">账号</div><div class="value">${escapeHtml(data.account || '-')}</div></div>
-          <div class="view-field"><div class="label">手机</div><div class="value">${escapeHtml(data.phone || '-')}</div></div>
-          <div class="view-field"><div class="label">邮箱</div><div class="value">${escapeHtml(data.email || '-')}</div></div>
-          <div class="view-field"><div class="label">学科</div><div class="value">${escapeHtml(data.subject || '-')}</div></div>
-          <div class="view-field"><div class="label">状态</div><div class="value">${statusText}</div></div>
-          <div class="view-field"><div class="label">用户状态</div><div class="value">${escapeHtml(data.userStatus || '-')}</div></div>
-        </div>
-      </div>
-    </div>
+  // 照片：优先 URL，其次 base64
+  const photoEl = document.getElementById('view-photo');
+  if (photoEl) {
+    const src = data.personalPhotoUrl
+      || (data.personalPhotoBase64
+          ? (data.personalPhotoBase64.startsWith('data:') ? data.personalPhotoBase64 : 'data:image/png;base64,' + data.personalPhotoBase64)
+          : '');
+    photoEl.innerHTML = src
+      ? `<img class="view-photo" src="${escapeAttr(src)}" alt="">`
+      : '<div class="view-photo" style="display:flex;align-items:center;justify-content:center;color:#ccc;font-size:12px;">无照片</div>';
+  }
 
-    <!-- 课时配置 -->
-    <div class="view-section">
-      <div class="view-field"><div class="label">单次最小课时数</div><div class="value">${data.minBookingHours != null ? data.minBookingHours : '-'}</div></div>
-      <div class="view-field"><div class="label">每周可用课时上限</div><div class="value">${data.weeklyAvailableHours != null ? data.weeklyAvailableHours : '-'}</div></div>
-      <div class="view-field"><div class="label">证书文字描述</div><div class="value">${escapeHtml(data.certificateText || '-')}</div></div>
-    </div>
+  // 基本信息字段
+  setText('view-name', data.name || '-');
+  setText('view-account', data.account || '-');
+  setText('view-phone', data.phone || '-');
+  setText('view-email', data.email || '-');
+  setText('view-subject', data.subject || '-');
+  setText('view-userStatus', data.userStatus || '-');
 
-    <!-- 简介 -->
-    <div class="form-group" style="margin-top:16px;">
-      <label>文字说明（教师简介）</label>
-      <div style="white-space:pre-wrap;color:#333;font-size:14px;line-height:1.6;padding:8px;background:#fafafa;border-radius:4px;">${escapeHtml(data.bioText || '无')}</div>
-    </div>
-    <div class="form-group">
-      <label>文字说明链接</label>
-      <div class="value">${data.bioUrl ? `<a href="${escapeAttr(data.bioUrl)}" target="_blank">${escapeHtml(data.bioUrl)}</a>` : '<span style="color:#999;">无</span>'}</div>
-    </div>
+  // 课时配置
+  setText('view-minBookingHours', data.minBookingHours != null ? data.minBookingHours : '-');
+  setText('view-weeklyAvailableHours', data.weeklyAvailableHours != null ? data.weeklyAvailableHours : '-');
+  setText('view-certificateText', data.certificateText || '-');
 
-    <!-- 子表：证书 -->
-    <div class="sub-section">
-      <div class="sub-section-title"><i class="fa fa-certificate"></i> 资格证书</div>
-      <div>${certHtml}</div>
-    </div>
+  // 简介
+  setText('view-bioText', data.bioText || '无');
 
-    <!-- 子表：可预约时间段 -->
-    <div class="sub-section">
-      <div class="sub-section-title"><i class="fa fa-clock"></i> 可预约时间段</div>
-      <div>${timeHtml}</div>
-    </div>
+  // 链接
+  const bioUrlEl = document.getElementById('view-bioUrl');
+  if (bioUrlEl) {
+    bioUrlEl.innerHTML = data.bioUrl
+      ? `<a href="${escapeAttr(data.bioUrl)}" target="_blank">${escapeHtml(data.bioUrl)}</a>`
+      : '<span style="color:#999;">无</span>';
+  }
 
-    <!-- 元信息 -->
-    <div class="view-section" style="margin-top:16px;color:#999;font-size:12px;">
-      <div class="view-field"><div class="label">创建时间</div><div class="value">${escapeHtml(data.createTime || '-')}</div></div>
-      <div class="view-field"><div class="label">更新时间</div><div class="value">${escapeHtml(data.updateTime || '-')}</div></div>
-      <div class="view-field"><div class="label">职业信息ID</div><div class="value" style="font-size:12px;">${escapeHtml(data.teacherProfessionalId || '-')}</div></div>
-    </div>
-  `);
+  // 证书列表（动态行，仍用 innerHTML 拼接）
+  const certEl = document.getElementById('view-certificates');
+  if (certEl) {
+    certEl.innerHTML = (data.certificates && data.certificates.length)
+      ? data.certificates.map(c => {
+          let certImgHtml = '';
+          if (c.certUrl) {
+            certImgHtml = `<a href="${escapeAttr(c.certUrl)}" target="_blank"><img class="cert-view-img" src="${escapeAttr(c.certUrl)}" alt=""></a>`;
+          } else if (c.certBase64) {
+            const dataUri = c.certBase64.startsWith('data:') ? c.certBase64 : 'data:image/png;base64,' + c.certBase64;
+            certImgHtml = `<img class="cert-view-img" src="${escapeAttr(dataUri)}" alt="">`;
+          }
+          return `<div style="margin-bottom:10px;display:flex;gap:10px;align-items:flex-start;">
+             ${certImgHtml ? `<div>${certImgHtml}</div>` : ''}
+             <div>
+               <strong>${escapeHtml(c.certName || '未命名')}</strong>
+               ${c.certUrl ? ` · <a href="${escapeAttr(c.certUrl)}" target="_blank">查看原图</a>` : ''}
+               <div style="color:#999;font-size:12px;">排序 ${c.sortNo != null ? c.sortNo : 0}</div>
+             </div>
+           </div>`;
+        }).join('')
+      : '<span style="color:#999;">无</span>';
+  }
+
+  // 时间段列表（动态行）
+  const timeEl = document.getElementById('view-availableTimes');
+  if (timeEl) {
+    timeEl.innerHTML = (data.availableTimes && data.availableTimes.length)
+      ? data.availableTimes.map(t => {
+          const day = t.timeType === 'weekly'
+            ? (DAY_OF_WEEK_MAP[t.dayOfWeek] || '-')
+            : (t.specificDate || '-');
+          const typeText = t.timeType === 'weekly' ? '每周'
+            : t.timeType === 'holiday' ? '假日'
+            : '日期覆盖';
+          return `<div>${typeText} ${day} ${t.startTime || ''} - ${t.endTime || ''}</div>`;
+        }).join('')
+      : '<span style="color:#999;">无</span>';
+  }
+
+  // 元信息
+  setText('view-createTime', data.createTime || '-');
+  setText('view-updateTime', data.updateTime || '-');
+  setText('view-teacherProfessionalId', data.teacherProfessionalId || '-');
 }
 
-// ====================== 编辑/新增模式渲染 ======================
-function renderEditForm(data, isAdd) {
-  const teacherReadonly = isAdd
-    ? `<input type="text" value="${escapeAttr(data.teacherId || '')}" readonly>
-       <input type="hidden" id="f-teacherId" value="${escapeAttr(data.teacherId || '')}">`
-    : `<input type="text" value="${escapeAttr(data.teacherId || '')}" readonly>
-       <input type="hidden" id="f-teacherId" value="${escapeAttr(data.teacherId || '')}">`;
+/** 安全设置元素 textContent（自动转义） */
+function setText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
 
-  let certRowsHtml = '';
-  if (data.certificates && data.certificates.length) {
-    data.certificates.forEach(c => { certRowsHtml += renderCertRow(c); });
+// ====================== 编辑/新增模式：填充数据（HTML 结构已预置在 teacherInfo.html）======================
+function fillEditForm(data, isAdd) {
+  // 教师ID（只读）
+  const teacherIdInput = document.getElementById('f-teacherId');
+  const teacherIdDisplay = document.getElementById('f-teacherIdDisplay');
+  if (teacherIdInput) teacherIdInput.value = data.teacherId || '';
+  if (teacherIdDisplay) teacherIdDisplay.value = data.teacherId || '';
+
+  // 教师姓名提示
+  const nameHint = document.getElementById('f-teacherNameHint');
+  if (nameHint) {
+    if (data.name) {
+      nameHint.textContent = '教师姓名：' + data.name;
+      nameHint.style.display = '';
+    } else {
+      nameHint.style.display = 'none';
+    }
   }
-  let timeRowsHtml = '';
-  if (data.availableTimes && data.availableTimes.length) {
-    data.availableTimes.forEach(t => { timeRowsHtml += renderTimeRow(t); });
+
+  // 学科
+  const subjectSelect = document.getElementById('f-subject');
+  if (subjectSelect) subjectSelect.value = data.subject || '';
+
+  // 状态
+  const statusSelect = document.getElementById('f-status');
+  if (statusSelect) statusSelect.value = data.status || 'active';
+
+  // 个人照片：URL + base64 + 预览
+  const photoUrlInput = document.getElementById('f-personalPhotoUrl');
+  if (photoUrlInput) photoUrlInput.value = data.personalPhotoUrl || '';
+
+  const photoBase64Input = document.getElementById('f-personalPhotoBase64');
+  if (photoBase64Input) photoBase64Input.value = data.personalPhotoBase64 || '';
+
+  const previewImg = document.getElementById('photo-preview-img');
+  const placeholder = document.querySelector('#photo-preview .photo-placeholder');
+  const photoSrc = data.personalPhotoUrl
+    || (data.personalPhotoBase64
+        ? (data.personalPhotoBase64.startsWith('data:') ? data.personalPhotoBase64 : 'data:image/png;base64,' + data.personalPhotoBase64)
+        : '');
+  if (previewImg) {
+    if (photoSrc) {
+      previewImg.src = photoSrc;
+      previewImg.style.display = '';
+    } else {
+      previewImg.src = '';
+      previewImg.style.display = 'none';
+    }
+  }
+  if (placeholder) placeholder.style.display = photoSrc ? 'none' : '';
+
+  // 课时数
+  const minHoursInput = document.getElementById('f-minBookingHours');
+  if (minHoursInput) minHoursInput.value = data.minBookingHours != null ? data.minBookingHours : 4;
+  const weeklyHoursInput = document.getElementById('f-weeklyAvailableHours');
+  if (weeklyHoursInput) weeklyHoursInput.value = data.weeklyAvailableHours != null ? data.weeklyAvailableHours : 20;
+
+  // 简介
+  const bioTextInput = document.getElementById('f-bioText');
+  if (bioTextInput) bioTextInput.value = data.bioText || '';
+
+  // 链接
+  const bioUrlInput = document.getElementById('f-bioUrl');
+  if (bioUrlInput) bioUrlInput.value = data.bioUrl || '';
+
+  // 证书描述
+  const certTextInput = document.getElementById('f-certificateText');
+  if (certTextInput) certTextInput.value = data.certificateText || '';
+
+  // 证书行（动态生成）
+  const certRows = document.getElementById('cert-rows');
+  if (certRows) {
+    certRows.innerHTML = '';
+    if (data.certificates && data.certificates.length) {
+      data.certificates.forEach(c => {
+        const div = document.createElement('div');
+        div.innerHTML = renderCertRow(c);
+        certRows.appendChild(div.firstChild);
+      });
+    }
   }
 
-  setContainerHtml(`
-    <div class="form-group">
-      <label>教师ID <span class="required">*</span></label>
-      ${teacherReadonly}
-      ${data.name ? `<div style="font-size:12px;color:#999;margin-top:4px;">教师姓名：${escapeHtml(data.name)}</div>` : ''}
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>学科</label>
-        <select id="f-subject">
-          <option value="">请选择</option>
-          ${SUBJECT_OPTIONS.map(s => `<option value="${s}" ${s === data.subject ? 'selected' : ''}>${s}</option>`).join('')}
-        </select>
-      </div>
-      <div class="form-group">
-        <label>状态</label>
-        <select id="f-status">
-          <option value="active" ${data.status === 'active' ? 'selected' : ''}>有效</option>
-          <option value="inactive" ${data.status === 'inactive' ? 'selected' : ''}>失效</option>
-          <option value="frozen" ${data.status === 'frozen' ? 'selected' : ''}>冻结</option>
-        </select>
-      </div>
-    </div>
-    <div class="form-group">
-      <label>个人照片</label>
-      <div class="photo-upload-row">
-        <!-- 图片预览：始终保留一个 <img>，无图时隐藏并显示占位 -->
-        <div class="photo-preview" id="photo-preview">
-          ${(() => {
-            const src = data.personalPhotoUrl
-              || (data.personalPhotoBase64
-                  ? (data.personalPhotoBase64.startsWith('data:') ? data.personalPhotoBase64 : 'data:image/png;base64,' + data.personalPhotoBase64)
-                  : '');
-            return src
-              ? `<img class="photo-preview-img" id="photo-preview-img" src="${escapeAttr(src)}" alt="">`
-              : `<img class="photo-preview-img" id="photo-preview-img" src="" alt="" style="display:none;"><div class="photo-placeholder">无图片</div>`;
-          })()}
-        </div>
-        <!-- 文件选择 + URL 输入 -->
-        <div class="photo-inputs">
-          <input type="file" id="f-personalPhotoFile" accept="image/*" style="display:none;" onchange="handlePhotoSelect(this, 'photo-preview-img', 'f-personalPhotoBase64')">
-          <button class="btn btn-default" type="button" onclick="document.getElementById('f-personalPhotoFile').click()"><i class="fa fa-upload"></i> 选择图片上传</button>
-          <input type="text" id="f-personalPhotoUrl" value="${escapeAttr(data.personalPhotoUrl || '')}" placeholder="或填写照片URL">
-          <!-- 隐藏字段：存放 base64，未换图时保留原值 -->
-          <input type="hidden" id="f-personalPhotoBase64" value="${escapeAttr(data.personalPhotoBase64 || '')}">
-        </div>
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>单次最小课时数</label>
-        <input type="number" id="f-minBookingHours" value="${data.minBookingHours != null ? data.minBookingHours : 4}" min="1">
-      </div>
-      <div class="form-group">
-        <label>每周可用课时上限</label>
-        <input type="number" id="f-weeklyAvailableHours" value="${data.weeklyAvailableHours != null ? data.weeklyAvailableHours : 20}" min="1">
-      </div>
-    </div>
-    <div class="form-group">
-      <label>文字说明（教师简介）</label>
-      <textarea id="f-bioText" maxlength="2000" placeholder="教师简介">${escapeHtml(data.bioText || '')}</textarea>
-    </div>
-    <div class="form-group">
-      <label>文字说明链接</label>
-      <input type="text" id="f-bioUrl" value="${escapeAttr(data.bioUrl || '')}" placeholder="外部简历/博客URL">
-    </div>
-    <div class="form-group">
-      <label>证书文字描述</label>
-      <input type="text" id="f-certificateText" value="${escapeAttr(data.certificateText || '')}" placeholder="如 CET-8、JLPT N1">
-    </div>
-
-    <div class="sub-section">
-      <div class="sub-section-title"><i class="fa fa-certificate"></i> 资格证书（支持多张）</div>
-      <div id="cert-rows">${certRowsHtml}</div>
-      <button class="add-row-btn" onclick="addCertRow()"><i class="fa fa-plus"></i> 添加证书</button>
-    </div>
-
-    <div class="sub-section">
-      <div class="sub-section-title"><i class="fa fa-clock"></i> 可预约时间段</div>
-      <div id="time-rows">${timeRowsHtml}</div>
-      <button class="add-row-btn" onclick="addTimeRow()"><i class="fa fa-plus"></i> 添加时间段</button>
-    </div>
-  `);
+  // 时间段行（动态生成）
+  const timeRows = document.getElementById('time-rows');
+  if (timeRows) {
+    timeRows.innerHTML = '';
+    if (data.availableTimes && data.availableTimes.length) {
+      data.availableTimes.forEach(t => {
+        const div = document.createElement('div');
+        div.innerHTML = renderTimeRow(t);
+        timeRows.appendChild(div.firstChild);
+      });
+    }
+  }
 }
 
 // ====================== 子表行渲染（证书 / 时间段） ======================
@@ -426,7 +439,8 @@ function showActionButtons(mode) {
 function enterEditMode() {
   if (!originalData) return;
   currentMode = 'edit';
-  renderEditForm(originalData, false);
+  fillEditForm(originalData, false);
+  switchSection('edit');
   showActionButtons('edit');
 }
 
@@ -434,7 +448,8 @@ function enterEditMode() {
 function cancelEdit() {
   if (!originalData) return;
   currentMode = 'view';
-  renderView(originalData);
+  fillView(originalData);
+  switchSection('view');
   showActionButtons('view');
 }
 
@@ -644,18 +659,15 @@ function getPhotoImgHtml(url, base64, imgCls) {
 }
 
 // ====================== 工具函数 ======================
-function setContainerHtml(html) {
-  const el = document.getElementById('form-container');
-  if (el) el.innerHTML = html;
-}
-
 function setPageTitle(title) {
   const el = document.getElementById('page-title');
   if (el) el.textContent = title;
 }
 
 function renderError(msg) {
-  setContainerHtml(`<div class="error-tip">${msg}</div>`);
+  const errorEl = document.getElementById('section-error');
+  if (errorEl) errorEl.innerHTML = msg;
+  switchSection('error');
   showActionButtons('error');
 }
 

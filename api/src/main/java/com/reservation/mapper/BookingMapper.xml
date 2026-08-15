@@ -8,10 +8,10 @@
     <!-- 插入一条新预约 -->
     <insert id="insert" parameterType="com.reservation.entity.Booking">
         INSERT INTO booking
-        (id, schedule_id, student_id, teacher_id,status
+        (booking_id, schedule_id, student_id, teacher_id,status
         )
         VALUES
-        (#{id}, #{scheduleId}, #{studentId}, #{teacherId}, #{status}
+        (#{bookingId}, #{scheduleId}, #{studentId}, #{teacherId}, #{status}
         )
     </insert>
 
@@ -25,25 +25,25 @@
             <if test="status != null">status = #{status},</if>
            
         </set>
-        WHERE id = #{id}
+        WHERE booking_id = #{bookingId}
     </update>
 
     <!-- 根据ID变更状态  -->
     <update id="updateStatus">
         UPDATE booking SET status = #{status} 
-        WHERE id = #{id}
+        WHERE booking_id = #{bookingId}
     </update>
 
     <!-- 根据ID查询 -->
     <select id="selectById" parameterType="string" resultType="com.reservation.entity.Booking">
-        SELECT * FROM booking WHERE id = #{id}
+        SELECT * FROM booking WHERE booking_id = #{bookingId}
     </select>
 
     <!-- 条件批量查询 -->
     <select id="selectList" parameterType="com.reservation.dto.BookingQueryParaDTO" resultType="com.reservation.entity.Booking">
         SELECT * FROM booking
         <where>
-            <if test="id != null">AND id = #{id}</if>
+            <if test="id != null">AND booking_id = #{id}</if>
             <if test="scheduleId != null">AND schedule_id = #{scheduleId}</if>
             <if test="userRole != null">
                 <if test="userRole == 'student'">
@@ -157,7 +157,7 @@
 
     <!-- 删除预约 -->
     <delete id="delete" parameterType="string">
-        DELETE FROM booking WHERE id = #{id}
+        DELETE FROM booking WHERE booking_id = #{bookingId}
     </delete>
  
  <delete id="deleteByScheduleId" parameterType="string">

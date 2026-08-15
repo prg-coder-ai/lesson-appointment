@@ -28,7 +28,7 @@ public class BookingService {
     @Transactional(rollbackFor = Exception.class)
     public String create(Booking booking) {
         String id = UUID.randomUUID().toString().replace("-", ""); // 移除UUID分隔符
-        booking.setId(id);
+        booking.setBookingId(id);
 
         bookingMapper.insert(booking); 
         return   id;
@@ -38,7 +38,7 @@ public class BookingService {
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public String update(String id, Booking booking) {
        // System.out.println("update : " + booking);
-        booking.setId(id);
+        booking.setBookingId(id);
         bookingMapper.update(booking);
         return id;
     }

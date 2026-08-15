@@ -498,9 +498,9 @@ async function generateAppointmentListByBooking() {
         // 检查appointment数据表中是否已经存在该预约
         let exists = false;
         try {
-          exists = await checkAppointmentExistsByBookingId(booking.id);
+          exists = await checkAppointmentExistsByBookingId(booking.bookingId);
         } catch (e) {
-          console.error(`检查appointment是否存在异常:`, booking.id, e);
+          console.error(`检查appointment是否存在异常:`, booking.bookingId, e);
           errors++;
           break;//continue;
         }
@@ -513,8 +513,8 @@ async function generateAppointmentListByBooking() {
   
        let appointmentDateTimeList = await generateAppointmentList(booking.scheduleId,null);
       
-         if (Array.isArray(appointmentResults)) {
-            appointmentResults.forEach(item => { 
+         if (Array.isArray(appointmentDateTimeList)) {
+            appointmentDateTimeList.forEach(item => { 
              // 如果item有date和time字段，合成为一个appointment_datetime字段（如 "2024-06-10 09:00"）
              if (item.date && item.time) {
                  appointmentDateTimeList.push(`${item.date}T${item.time}`); 
@@ -523,7 +523,7 @@ async function generateAppointmentListByBooking() {
           
          appointmentDateTimeList.forEach(async (dt, idx) => { 
                 let AppointmentData = {
-                  bookingId: booking.id,
+                  bookingId: booking.bookingId,
                   appointmentDatetime: dt,  // 拼写修正
                   lastDatetime: dt,
                   classIndex: idx+1           // 用forEach的下标，避免indexOf找不到            
@@ -534,7 +534,7 @@ async function generateAppointmentListByBooking() {
                   key => AppointmentData[key] === undefined && delete AppointmentData[key]
                 );  
               // 如果核心值有空，进行警告
-              if (!booking.id || !dt) {
+              if (!booking.bookingId || !dt) {
                   console .warn("警告：bookingid或appointmentDatetime为空！", AppointmentData);
                   return;
                  }
@@ -543,9 +543,7 @@ async function generateAppointmentListByBooking() {
               await saveAppointment(AppointmentData); 
                 } 
         );//forEach
-      } // if  
-  
-  
+      } // if   
   }//for
 
   alert(`预约导入完成。成功创建: ${countInserted}，已存在跳过: ${countSkipped}，错误: ${errors}`);
@@ -557,17 +555,20 @@ async  function checkAppointmentExistsByBookingId(booking_id){
   // 返回true表示已存在，false表示不存在
   try {
     const res = await request({
-      url: `${API_BASE_URL}/course/appointment/getByBookingId`,
+      // 注意：request 实例已设置 baseURL=API_BASE_URL，此处用相对路径即可
+      // 写成 `${API_BASE_URL}/...` 时 axios 会忽略 baseURL，也能工作，但不规范
+      url: '/course/appointment/getByBookingId',
       method: "GET",
       params: { bookingId: booking_id }
     });
-    // 这里假定res.data为预约数组，且接口包一层Result
-    if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
-      return true;  // 存在
+    // request 拦截器在 code===200 时已剥皮，直接返回 res.data（即 List<Appointment>）
+    // 所以这里的 res 本身就是数组
+    if (Array.isArray(res) && res.length > 0) {
+      return true;  // 已存在
     }
     return false;   // 不存在
   } catch (e) {
-    // 网络/服务器异常，抛出上层处理
+    // 业务失败/网络异常：拦截器已 reject，这里直接向上抛
     throw e;
   }
  

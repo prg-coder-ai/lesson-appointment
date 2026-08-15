@@ -392,7 +392,7 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
       // 1. 创建 booking 数据
       Booking booking = new Booking();
       String bookingId = UUID.randomUUID().toString();
-      booking.setId(bookingId);
+      booking.setBookingId(bookingId);
       booking.setScheduleId(scheduleId);
       booking.setStudentId(studentId);
       booking.setTeacherId(teacherId);

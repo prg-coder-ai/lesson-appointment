@@ -103,30 +103,169 @@
       <div class="card-header">
         <div class="card-title"><i class="fa fa-id-card"></i> <span id="page-title">教师职业信息</span></div>
         <div class="header-btns" id="action-btns">
-           
           <!-- 查看模式：编辑 / 删除 -->
-          <div id="btns-view" style="display:none;">
-            <button class="btn btn-primary" onclick="enterEditMode()"><i class="fa fa-edit"></i> 编辑/新增</button>
+          <div id="btns-view" style="display:flex;">
+            <button class="btn btn-primary" onclick="enterEditMode()"><i class="fa fa-edit"></i> 编辑</button>
             <button class="btn btn-danger" onclick="deleteCurrent()"><i class="fa fa-trash"></i> 删除</button>
           </div>
-          <!-- 编辑模式：保存 / 取消 -->
-          <div id="btns-edit" style="display:none;">
+          <!-- 编辑/新增模式：保存 / 取消 -->
+          <div id="btns-edit" style="display:flex;">
             <button class="btn btn-success" onclick="saveForm()"><i class="fa fa-save"></i> 保存</button>
             <button class="btn btn-default" onclick="cancelEdit()"><i class="fa fa-undo"></i> 取消</button>
           </div>
-          <!-- 新增模式：保存 / 取消 -->
-          <div id="btns-add" style="display:none;">
-            <button class="btn btn-success" onclick="saveForm()"><i class="fa fa-save"></i> 保存</button>
-            <button class="btn btn-default" onclick="goBack()"><i class="fa fa-times"></i> 取消</button>
-          </div>
           <!-- 错误/加载模式：返回 -->
-          <div id="btns-error" style="display:none;">
+          <div id="btns-error" style="display:flex ;">
             <button class="btn btn-default" onclick="goBack()"><i class="fa fa-arrow-left"></i> 返回</button>
           </div>
         </div>
       </div>
       <div class="card-body" id="form-container">
-        <div class="loading-tip">加载中...</div>
+        <!-- 加载中提示 -->
+        <div id="section-loading" class="loading-tip">加载中...</div>
+
+        <!-- 错误提示 -->
+        <div id="section-error" class="error-tip" style="display:none;"></div>
+
+        <!-- ==================== 查看模式 ==================== -->
+        <div id="section-view" style="display:none;">
+          <!-- 照片 + 基本信息区 -->
+          <div style="display:flex;gap:24px;margin-bottom:20px;flex-wrap:wrap;">
+            <div id="view-photo"></div>
+            <div style="flex:1;min-width:280px;">
+              <div class="view-section" style="margin-bottom:0;">
+                <div class="view-field"><div class="label">教师姓名</div><div class="value" id="view-name">-</div></div>
+                <div class="view-field"><div class="label">账号</div><div class="value" id="view-account">-</div></div>
+                <div class="view-field"><div class="label">手机</div><div class="value" id="view-phone">-</div></div>
+                <div class="view-field"><div class="label">邮箱</div><div class="value" id="view-email">-</div></div>
+                <div class="view-field"><div class="label">学科</div><div class="value" id="view-subject">-</div></div>
+                <div class="view-field"><div class="label">状态</div><div class="value" id="view-status">-</div></div>
+                <div class="view-field"><div class="label">用户状态</div><div class="value" id="view-userStatus">-</div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 课时配置 -->
+          <div class="view-section">
+            <div class="view-field"><div class="label">单次最小课时数</div><div class="value" id="view-minBookingHours">-</div></div>
+            <div class="view-field"><div class="label">每周可用课时上限</div><div class="value" id="view-weeklyAvailableHours">-</div></div>
+            <div class="view-field"><div class="label">证书文字描述</div><div class="value" id="view-certificateText">-</div></div>
+          </div>
+
+          <!-- 简介 -->
+          <div class="form-group" style="margin-top:16px;">
+            <label>文字说明（教师简介）</label>
+            <div id="view-bioText" style="white-space:pre-wrap;color:#333;font-size:14px;line-height:1.6;padding:8px;background:#fafafa;border-radius:4px;">无</div>
+          </div>
+          <div class="form-group">
+            <label>文字说明链接</label>
+            <div class="value" id="view-bioUrl"><span style="color:#999;">无</span></div>
+          </div>
+
+          <!-- 子表：证书 -->
+          <div class="sub-section">
+            <div class="sub-section-title"><i class="fa fa-certificate"></i> 资格证书</div>
+            <div id="view-certificates"></div>
+          </div>
+
+          <!-- 子表：可预约时间段 -->
+          <div class="sub-section">
+            <div class="sub-section-title"><i class="fa fa-clock"></i> 可预约时间段</div>
+            <div id="view-availableTimes"></div>
+          </div>
+
+          <!-- 元信息 -->
+          <div class="view-section" style="margin-top:16px;color:#999;font-size:12px;">
+            <div class="view-field"><div class="label">创建时间</div><div class="value" id="view-createTime">-</div></div>
+            <div class="view-field"><div class="label">更新时间</div><div class="value" id="view-updateTime">-</div></div>
+            <div class="view-field"><div class="label">职业信息ID</div><div class="value" style="font-size:12px;" id="view-teacherProfessionalId">-</div></div>
+          </div>
+        </div>
+
+        <!-- ==================== 编辑/新增模式 ==================== -->
+        <div id="section-edit" style="display:none;">
+          <div class="form-group">
+            <label>教师ID <span class="required">*</span></label>
+            <input type="text" id="f-teacherIdDisplay" readonly>
+            <input type="hidden" id="f-teacherId">
+            <div id="f-teacherNameHint" style="font-size:12px;color:#999;margin-top:4px;display:none;"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>学科</label>
+              <select id="f-subject">
+                <option value="">请选择</option>
+                <option value="英语">英语</option>
+                <option value="日语">日语</option>
+                <option value="韩语">韩语</option>
+                <option value="法语">法语</option>
+                <option value="德语">德语</option>
+                <option value="西班牙语">西班牙语</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>状态</label>
+              <select id="f-status">
+                <option value="active">有效</option>
+                <option value="inactive">失效</option>
+                <option value="frozen">冻结</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>个人照片</label>
+            <div class="photo-upload-row">
+              <!-- 图片预览：始终保留一个 <img>，无图时隐藏并显示占位 -->
+              <div class="photo-preview" id="photo-preview">
+                <img class="photo-preview-img" id="photo-preview-img" src="" alt="" style="display:none;">
+                <div class="photo-placeholder">无图片</div>
+              </div>
+              <!-- 文件选择 + URL 输入 -->
+              <div class="photo-inputs">
+                <input type="file" id="f-personalPhotoFile" accept="image/*" style="display:none;" onchange="handlePhotoSelect(this, 'photo-preview-img', 'f-personalPhotoBase64')">
+                <button class="btn btn-default" type="button" onclick="document.getElementById('f-personalPhotoFile').click()"><i class="fa fa-upload"></i> 选择图片上传</button>
+                <input type="text" id="f-personalPhotoUrl" placeholder="或填写照片URL">
+                <!-- 隐藏字段：存放 base64，未换图时保留原值 -->
+                <input type="hidden" id="f-personalPhotoBase64">
+              </div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>单次最小课时数</label>
+              <input type="number" id="f-minBookingHours" value="4" min="1">
+            </div>
+            <div class="form-group">
+              <label>每周可用课时上限</label>
+              <input type="number" id="f-weeklyAvailableHours" value="20" min="1">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>文字说明（教师简介）</label>
+            <textarea id="f-bioText" maxlength="2000" placeholder="教师简介"></textarea>
+          </div>
+          <div class="form-group">
+            <label>文字说明链接</label>
+            <input type="text" id="f-bioUrl" placeholder="外部简历/博客URL">
+          </div>
+          <div class="form-group">
+            <label>证书文字描述</label>
+            <input type="text" id="f-certificateText" placeholder="如 CET-8、JLPT N1">
+          </div>
+
+          <!-- 子表：证书（动态行） -->
+          <div class="sub-section">
+            <div class="sub-section-title"><i class="fa fa-certificate"></i> 资格证书（支持多张）</div>
+            <div id="cert-rows"></div>
+            <button class="add-row-btn" onclick="addCertRow()"><i class="fa fa-plus"></i> 添加证书</button>
+          </div>
+
+          <!-- 子表：可预约时间段（动态行） -->
+          <div class="sub-section">
+            <div class="sub-section-title"><i class="fa fa-clock"></i> 可预约时间段</div>
+            <div id="time-rows"></div>
+            <button class="add-row-btn" onclick="addTimeRow()"><i class="fa fa-plus"></i> 添加时间段</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

@@ -10,7 +10,7 @@ import java.io.Serializable;
 @Data
 public class Booking   implements Serializable{
     private static final long serialVersionUID = 1L;
-    private String id;  // 系统生成唯一标识（UUID），对应通用校验规则-ID类参数
+    private String bookingId;  // 系统生成唯一标识（UUID），对应通用校验规则-ID类参数
     @NotBlank(message = "排期ID不能为空")
     private String scheduleId;  // 关联排期，对应设计2.2.3 预约接口请求参数
     @NotBlank(message = "学生ID不能为空")

@@ -21,10 +21,10 @@ public interface BookingMapper {
     int update(Booking booking);
 
     // 根据ID变更状态
-    int updateStatus(@Param("id") String id, @Param("status") String status);
+    int updateStatus(@Param("bookingId") String bookingId, @Param("status") String status);
 
     // 根据ID查询
-    Booking selectById(@Param("id") String id);
+    Booking selectById(@Param("bookingId") String bookingId);
 
     // 条件批量查询
     List<Booking> selectList(BookingQueryParaDTO dto);
@@ -33,7 +33,7 @@ public interface BookingMapper {
     int            selectCountByCondition(BookingQueryPage dto);
 
     // 删除预约
-    int delete(@Param("id") String id);
+    int delete(@Param("bookingId") String bookingId);
     
     //int deleteByScheduleIde(@Param("scheduleId") String scheduleId);
     // INSERT_YOUR_CODE
@@ -45,7 +45,7 @@ public interface BookingMapper {
      */
     int countBookingAtDate(@Param("dateTimeFrom") java.sql.Timestamp dateTimeFrom, @Param("dateTimeTo") java.sql.Timestamp dateTimeTo,@Param("status") String status);
 
-    int deleteByScheduleId(String id);
+    int deleteByScheduleId(@Param("scheduleId") String scheduleId); 
 
     // 以下可根据实际需要扩展
 } 
