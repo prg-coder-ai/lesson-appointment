@@ -77,7 +77,7 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
                 queryPara.setUserRole(role.toLowerCase());
                 queryPara.setUserId(userId);
                 bookingIdList = bookingMapper.selectList(queryPara).stream()
-                        .map(Booking::getId)
+                        .map(Booking::getBookingId)
                         .toList();
             }
             // bookingIdList 不为空则查这些bookingId，否则查空
@@ -144,7 +144,7 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
                 queryPara.setUserRole(role.toLowerCase());
                 queryPara.setUserId(userId);
                 bookingIdList = bookingMapper.selectList(queryPara).stream()
-                        .map(Booking::getId)
+                        .map(Booking::getBookingId)
                         .toList();
             }
             // bookingIdList 不为空则查这些bookingId，否则查空
@@ -201,7 +201,7 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
                 queryPara.setUserRole(role.toLowerCase());
                 queryPara.setUserId(userId);
                 bookingIdList = bookingMapper.selectList(queryPara).stream()
-                        .map(Booking::getId)
+                        .map(Booking::getBookingId)
                         .toList();
             }
             // bookingIdList 不为空则查这些bookingId，否则查空

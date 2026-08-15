@@ -193,7 +193,7 @@ public class AppointmentController {
         Integer days = query.getDays();
         java.time.LocalDateTime startOfPeriod,endOfPeriod;
         if(days<=0)
-        {
+        { //全部数据，不限制时间
              startOfPeriod =  java.time.LocalDateTime.now().plusDays(-30);//
              endOfPeriod = startOfPeriod.plusDays(30);
         } else {
