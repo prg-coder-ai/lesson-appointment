@@ -170,6 +170,7 @@ public class TeacherProfessionalService {
             vo.setEmail(teacher.getEmail());
             vo.setUserStatus(teacher.getStatus());
         }
+      //  System.out.println("queryTeacherProfessionalInfo: " + vo);
         return Result.success(vo, "查询成功");
     }
 
