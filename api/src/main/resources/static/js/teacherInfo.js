@@ -190,6 +190,7 @@ function fillView(data) {
     statusEl.innerHTML = data.status === 'active' ? '<span class="status-active">有效</span>'
       : data.status === 'frozen' ? '<span class="status-frozen">冻结</span>'
       : data.status === 'inactive' ? '<span class="status-inactive">失效</span>'
+       : data.status === 'delete' ? '<span class="status-inactive">删除</span>'
       : escapeHtml(data.status || '-');
   }
 
@@ -552,13 +553,13 @@ async function deleteCurrent() {
       method: 'post',
       params: { teacherProfessionalId: currentProfessionalId }
     });
-    if (result && result.code === 200) {
+   // if (result && result.code === 200) {
       alert('删除成功');
       // 删除后该教师回到"无职业信息"状态，重新加载会进入新增模式
       await loadTeacherInfo(currentTeacherId);
-    } else {
+   /* } else {
       alert(result && result.message ? result.message : '删除失败');
-    }
+    }*/
   } catch (e) {
     console.error('删除失败：', e);
     alert('删除失败：' + (e && e.message ? e.message : e));
@@ -703,7 +704,7 @@ function escapeAttr(str) {
 const PUBLISH_FIELDS_META = [
   { key: 'name',          label: '教师姓名', group: '基本信息', default: true },
   { key: 'account',       label: '账号',     group: '基本信息', default: false },
-  { key: 'phone',         label: '手机',     group: '基本信息', default: true },
+  { key: 'phone',         label: '手机',     group: '基本信息', default: false },
   { key: 'email',         label: '邮箱',     group: '基本信息', default: true },
   { key: 'subject',       label: '学科',     group: '基本信息', default: true },
   { key: 'status',        label: '职业信息状态', group: '基本信息', default: false },
@@ -715,7 +716,7 @@ const PUBLISH_FIELDS_META = [
   { key: 'bioText',       label: '简介文字',  group: '简介与链接', default: true },
   { key: 'bioUrl',        label: '简介链接',  group: '简介与链接', default: true },
   { key: 'certificates',  label: '证书图片列表', group: '证书', default: true },
-  { key: 'availableTimes',label: '可预约时间段', group: '排期', default: false }
+  { key: 'availableTimes',label: '可预约时间段', group: '排期', default: true }
 ];
 
 let publishPreviewTimer = null;     // 预览防抖
@@ -1243,9 +1244,11 @@ async function submitPublish() {
       publishCurrentDraftId = res.publishedProfileId;
       await loadPublishHistorySelect();
       document.getElementById('pub-history').value = res.publishedProfileId;
-      // 给出公开访问链接提示
-      const link = location.origin + location.pathname.replace(/teacherInfo\.html.*$/, '')
-        + 'teacherPublishedProfile.html?teacherId=' + encodeURIComponent(currentTeacherId);
+      // 给出公开访问链接提示--按照教师ID，为最后发布的 
+     const link = location.origin + location.pathname.replace(/teacherInfo\.html.*$/, '')
+         + 'teacherPublishedProfile.html?teacherId=' + encodeURIComponent(currentTeacherId);
+     // 指定发布号的  const link = location.origin + location.pathname.replace(/teacherInfo\.html.*$/, '')
+       //  + 'teacherPublishedProfile.html?profileId=' + encodeURIComponent(res.publishedProfileId);
       alert(`发布成功！\n\n公开访问链接：\n${link}\n\n（已复制到剪贴板）`);
       try { navigator.clipboard.writeText(link); } catch (_) {}
     } else {
@@ -1259,20 +1262,32 @@ async function submitPublish() {
 
  function installLinkCopyAndImageSaveHandlers() {
 // 1. 复制链接 ---查看
+
 const copyLinkBtn = document.getElementById('copyLinkBtn');
 copyLinkBtn.addEventListener('click', async () => {
-  const url = window.location.href;
-  //获取当前版本，如果是草稿，则提示用户先发布
-  if (publishCurrentDraftId) {
+  //读取pub-history的当前选中项  
+  //获取当前版本，如果是草稿，则提示用户先发布  
+  
+  let profileId ="";
+   
     const sel = document.getElementById('pub-history');
     const selectedOption = sel.options[sel.selectedIndex];
+
+    console.log("index---",sel.selectedIndex,"v",sel.value);
+
+    if (sel.value.length ==0) {//第一行，新建。
+      alert('请先选择正确的版本或者发布版本后再复制链接。');
+      return;
+    }
     if (selectedOption && selectedOption.textContent.includes('【草稿】')) {
       alert('当前版本是草稿，无法生成公开访问链接，请先发布。');
       return;
     }
-  }
-
-  //TBD：通过历史id获取当前版本的链接，
+    profileId = sel.value; 
+  // 给出公开访问链接提示，通过历史id获取当前版本的链接，
+      const url = location.origin + location.pathname.replace(/teacherInfo\.html.*$/, '')
+        + 'teacherPublishedProfile.html?profileId=' + encodeURIComponent(profileId);
+  
   try {
     await navigator.clipboard.writeText(url);
     alert('链接已复制：' + url);
@@ -1288,13 +1303,209 @@ copyLinkBtn.addEventListener('click', async () => {
   }
 });
 
+
+/**
+ * html2canvas 区域截图 + 保存位置选择工具
+ * 依赖：全局 html2canvas（CDN 引入）
+ *
+ * - captureElement(target)：截取指定 div/元素（含 overflow 隐藏的完整内容）
+ * - captureFullPage()：整页，等价于 captureElement(document.body)
+ * - saveWithPicker()：弹出系统保存对话框，用户选择保存位置和文件名
+ *                     （File System Access API；不支持的浏览器兜底为默认下载）
+ */
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+function canvasToBlob(canvas, mime, quality) {
+  return new Promise((res, rej) =>
+    canvas.toBlob((b) => (b ? res(b) : rej(new Error('canvas.toBlob 失败'))), mime, quality)
+  );
+}
+
+/**
+ * 递归展开 target 内所有可滚动子容器（overflow:auto/scroll 且有隐藏内容），
+ * 返回恢复函数。截图前调用，让内嵌滚动区的隐藏内容全部可见。
+ */
+function expandInnerScrollContainers(root) {
+  const changed = [];
+  const walk = (node) => {
+    for (const child of node.children) {
+      const cs = getComputedStyle(child);
+      const scrollable =
+        cs.overflowY === 'auto' || cs.overflowY === 'scroll' ||
+        cs.overflow === 'auto' || cs.overflow === 'scroll';
+      if (scrollable && child.scrollHeight > child.clientHeight) {
+        changed.push({
+          node: child,
+          overflow: child.style.overflow,
+          overflowY: child.style.overflowY,
+          height: child.style.height,
+          maxHeight: child.style.maxHeight,
+        });
+        child.style.overflow = 'visible';
+        child.style.overflowY = 'visible';
+        child.style.maxHeight = 'none';
+        child.style.height = 'auto';
+      }
+      walk(child);
+    }
+  };
+  walk(root);
+  return () => changed.forEach((c) => {
+    c.node.style.overflow = c.overflow;
+    c.node.style.overflowY = c.overflowY;
+    c.node.style.height = c.height;
+    c.node.style.maxHeight = c.maxHeight;
+  });
+}
+/**
+ * 截取指定元素（div 等）为 canvas
+ * @param {HTMLElement|string} target 元素或 CSS 选择器
+ * @param {Object} [options]
+ * @param {number}  [options.scale]          高清倍数，默认 devicePixelRatio
+ * @param {boolean} [options.fullContent=true] 是否展开自身及内嵌滚动容器的 overflow 隐藏内容（截全）
+ * @param {string}  [options.backgroundColor='#ffffff']
+ * @returns {Promise<HTMLCanvasElement>}
+ */
+async function captureElement(target, options = {}) {
+  const el = typeof target === 'string' ? document.querySelector(target) : target;
+  if (!el) throw new Error('找不到目标元素: ' + target);
+
+  const {
+    scale = window.devicePixelRatio || 1,
+    fullContent = true,
+    backgroundColor = '#ffffff',
+  } = options;
+
+  // 临时展开目标元素自身 + 内嵌滚动容器的 overflow 限制，让隐藏内容全部可见，截完恢复
+  let restoreSelf = () => {};
+  let restoreInner = () => {};
+  if (fullContent) {
+    const snap = { overflow: el.style.overflow, height: el.style.height, maxHeight: el.style.maxHeight };
+    el.style.overflow = 'visible';
+    el.style.maxHeight = 'none';
+    el.style.height = 'auto';
+    restoreSelf = () => {
+      el.style.overflow = snap.overflow;
+      el.style.height = snap.height;
+      el.style.maxHeight = snap.maxHeight;
+    };
+    await sleep(50); // 等待重排
+    restoreInner = expandInnerScrollContainers(el); // 递归展开内嵌滚动区
+    await sleep(50);
+  }
+
+  try {
+    return await html2canvas(el, {
+      width: el.scrollWidth,
+      height: el.scrollHeight,
+      windowWidth: document.documentElement.scrollWidth,
+      windowHeight: document.documentElement.scrollHeight,
+      scrollX: 0,
+      scrollY: 0,
+      x: 0,
+      y: 0,
+      scale,
+      useCORS: true,
+      backgroundColor,
+      logging: false,
+    });
+  } finally {
+    restoreInner();
+    restoreSelf();
+  }
+}
+
+/** 整页截图便捷封装 */
+function captureFullPage(options = {}) {
+  return captureElement(document.body, options);
+}
+
+/**
+ * 保存 canvas：优先弹出系统保存对话框让用户选位置；不支持则兜底下载
+ * @param {HTMLCanvasElement} canvas
+ * @param {string} [suggestedName='screenshot'] 建议文件名（不含扩展名）
+ * @param {string} [type='png'] 'png' | 'jpg'
+ * @param {number} [quality=0.92] JPEG 质量
+ * @returns {Promise<{saved:boolean, via:string, name?:string, reason?:string}>}
+ */
+async function saveWithPicker(canvas, suggestedName = 'screenshot', type = 'png', quality = 0.92) {
+  const isJpg = type === 'jpg';
+  const mime = isJpg ? 'image/jpeg' : 'image/png';
+  const ext = isJpg ? 'jpg' : 'png';
+  const blob = await canvasToBlob(canvas, mime, quality);
+
+  // File System Access API：真正的系统保存对话框，可选目录和文件名
+  if (typeof window.showSaveFilePicker === 'function') {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: `${suggestedName}.${ext}`,
+        types: [{ description: `${ext.toUpperCase()} 图片`, accept: { [mime]: [`.${ext}`] } }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return { saved: true, via: 'picker', name: handle.name };
+    } catch (e) {
+      if (e.name === 'AbortError') return { saved: false, via: 'picker', reason: '用户取消' };
+      throw e;
+    }
+  }
+
+  // 兜底：a[download]，存到浏览器默认下载目录（无法选位置）
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${suggestedName}.${ext}`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  return { saved: true, via: 'download', name: `${suggestedName}.${ext}` };
+}
+
+/* ===== 用法 =====
+// 必须在用户点击等手势中调用（showSaveFilePicker 要求用户激活）
+document.getElementById('btn').addEventListener('click', async () => {
+  // 1. 截取指定 div
+  const canvas = await captureElement('#my-div', { scale: 2 });
+  //   或整页：const canvas = await captureFullPage({ scale: 2 });
+
+  // 2. 弹出保存对话框，用户选位置和文件名
+  const r = await saveWithPicker(canvas, 'my-div', 'png');
+  if (r.saved) console.log('已保存:', r.name, r.via === 'picker' ? '（你选择的位置）' : '（默认下载目录）');
+  else console.log('未保存:', r.reason);
+
+  // 也可存为 jpg：saveWithPicker(canvas, 'my-div', 'jpg', 0.9);
+});
+*/
+
 // 2. 保存预览区域为JPG图片
 const saveImageBtn = document.getElementById('saveImageBtn');
-const previewWrap = document.getElementById('previewWrap');
+const previewWrap = document.getElementById('pub-preview'); 
+/*
+html2canvas(document.body, {
+  width, height,
+  windowWidth: width, windowHeight: height,
+  scrollX: 0, scrollY: 0, x: 0, y: 0,
+  scale: 2, useCORS: true,
+}); */
+  
+ 
 
 saveImageBtn.addEventListener('click', async () => {
+  let suggestedName="";
+  const sel = document.getElementById('pub-history');
+ 
+   if (sel.value.length ==0) 
+    { let titleEl= document.getElementById("pub-title");
+      //获取titleEl的字符串  
+      suggestedName= titleEl.value;
+    } else {
+      const selectedOption = sel.options[sel.selectedIndex];
+      suggestedName= selectedOption.textContent;//历史版本的列表显示名称
+    }
+
   try {
-    const canvas = await html2canvas(previewWrap, {
+    const canvas = await captureElement(previewWrap, { 
       useCORS: true,    // 解决跨域图片空白
       scale: window.devicePixelRatio
     });
@@ -1303,7 +1514,7 @@ saveImageBtn.addEventListener('click', async () => {
 
     const a = document.createElement('a');
     a.href = imgUrl;
-    a.download = '历史版本预览.jpg';
+    a.download = suggestedName+'.jpg';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
