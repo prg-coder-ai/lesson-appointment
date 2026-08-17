@@ -64,7 +64,7 @@ function validateForm() {
  // 1. 显示弹窗
  const modal = document.getElementById('templateModal');
  modal.style.display = 'flex';
- //console.info("edit:",templateJsonStr); 
+  console.info("edit:",templateJsonStr); 
 
  // 2. 初始化默认模板数据 
   let defaultTemplate = {};
@@ -103,6 +103,8 @@ function validateForm() {
         <option value="">请选择</option>
         <option value="english" ${defaultTemplate.languageType === 'english' ? 'selected' : ''}>英语</option>
         <option value="french" ${defaultTemplate.languageType === 'french' ? 'selected' : ''}>法语</option>
+        <option value="spanish" ${defaultTemplate.languageType === 'spanish' ? 'selected' : ''}>西班牙语</option>
+        <option value="chinese" ${defaultTemplate.languageType === 'chinese' ? 'selected' : ''}>中文</option>
       </select>
       <div class="form-error" id="languageTypeError"></div>
     </div>
@@ -124,7 +126,8 @@ function validateForm() {
       <select name="classForm" class="form-select" required>
         <option value="">请选择</option>
         <option value="1p1" ${defaultTemplate.classForm === '1p1' ? 'selected' : ''}>一对一</option>
-        <option value="1pn" ${defaultTemplate.classForm === '1pn' ? 'selected' : ''}>小班课</option>
+        <option value="1pN" ${defaultTemplate.classForm === '1pN' ? 'selected' : ''}>小班课</option>
+         <option value="1p2N  " ${defaultTemplate.classForm === '1p2N' ? 'selected' : ''}>中班课</option>
           
       </select>
       <div class="form-error" id="classFormError"></div>
@@ -207,10 +210,7 @@ async function submitTemplateForm() {
         description:    formEl.description.value,
         status:         formEl.status.value,
     };
-  // 3. 调用接口提交（区分新增/编辑）
-    //根据templateId判断新增还是修改
-    //const url = formData.templateId !=""? `${baseUrl}/course/template/update` : `${baseUrl}/course/template/insert`;
-      // INSERT_YOUR_CODE
+  // 3. 调用接口提交（区分新增/编辑） 
       // 兼容 updateORCreateTemplate 作为全局函数被调用的问题
       // 若该函数为模块作用域或 window 对象未注册，则补注册（以支持 admin-template.js 单独引用不报错）
       if (typeof updateORCreateTemplate === 'undefined') {
@@ -267,18 +267,24 @@ async function renderTemplateCards() {
     // 渲染HTML
     let html = '';
     
-      html += `<div class="card">
-            <div class="card-title"><i class="fa fa-filter"></i> 筛选条件</div>
-            <div class="filter-form" style="display: flex; gap: 20px; margin-bottom: 16px;">
-                <div>
+      html += `<div class="card" style="padding: 15px;">
+           <div class="card-header">
+              <div class="card-title"><i class="fa fa-filter"></i> 筛选条件</div>
+              <button class="btn btn-primary" onclick="openEditTemplateDialog(null)"> <i class="fa fa-plus"></i> 新增模板</button>
+            </div>   
+     <div class="teacher-list-cards" style="margin:6px 0;display:flex;flex-direction:column;gap:16px;">
+      <div class="filter-bar">        
+                 <div class="filter-item">
                     <label>语言类型：</label>
                     <select id="languageType-select" >
                         <option value="">全部</option>
                         <option value="french">法语</option>
                         <option value="english">英语</option> 
+                        <option value="spanish">西班牙语</option>
+                        <option value="korean">韩语</option>
                     </select>
                 </div>
-                <div>
+                <div class="filter-item">
                     <label>难度等级：</label>
                     <select id="difficultyLevel-select">
                         <option value="">全部</option>
@@ -288,40 +294,43 @@ async function renderTemplateCards() {
                         <option value="B4">B4高级</option> 
                     </select>
                 </div>
-                <div>
+                <!-- 暂时保留 div class="filter-item">
                     <label>名称：</label>
                     <input type="text" id="name-input"  placeholder="模板名称" >
-                </div>
+                </div -->
                  <button class="btn" onclick="localsearchTemplate()">
                     <i class="fa fa-search"></i> 搜索
                     </button>
                 <button class="btn btn-default" onclick="resetFilterTemplate()"> 
                 <i class="fa fa-redo"></i>重置
                 </button>
-                <button class="btn btn-primary" onclick="openEditTemplateDialog(null)">新增模板</button>
-            </div>
-        </div>
+              </div>        
            `;
              // 列表表头
-        html += `
-            <div style="display:flex;gap:36px;font-weight:bold;border-bottom:1px solid #e9ecef;padding-bottom:8px;margin-bottom:4px;">
-                  <div style="width:40px;"><strong>序号</strong></div>
-                <div style="width:90px;"><strong>语言类型</strong></div>
-                <div style="width:180px;"><strong>难度等级</strong></div>
-                <div style="width:130px;"><strong>课程形式</strong></div>
-                <div style="width:130px;"><strong>课时时长(分钟)</strong></div>
-                <div style="width:130px;"><strong>课时费(元)</strong></div>
-                <div style="width:120px;"><strong>状态</strong></div>
-                <div style="width:240px;"><strong>操作</strong></div>
-            </div>
-
+        html += ` 
+         <div class="table-container">
+                <table class="data-table">
+                <thead>
+                <tr> 
+                    <th>序号</th>  
+                    <th>语言类型</th>  
+                    <th>难度等级</th> 
+                    <th>课程形式</th> 
+                    <th>课时时长(分钟)</th> 
+                    <th>课时费(元)</th>   
+                    <th>状态</th>
+                    <th style="width: 120px;align-items: center;">操作</th>
+                </tr>
+                </thead>
+                <tbody id="templatesDisplay-body">
+                <!-- 数据由JS动态渲染 -->
+                 </tbody>
+              </table>
+              </div>  
         `; 
-            html += `
-              <div id="templatesDisplay-body">
-                  
-                </div>
-            `;
+ 
             html += getPagebar();
+            html+=`</div>`;
          if(dynamicContentCenter) {
             dynamicContentCenter.innerHTML =  html;  
             loadAndRenderTemplateCards();
@@ -339,10 +348,10 @@ async function loadAndRenderTemplateCards() {
       pageSize:Pagination.pageSize,
       pageNum: Pagination.pageNum
   };
-
+ //console.log(conditionJson);
   // 获取模板列表数据
   const pageResult  = await  fetchTemplateListPage(conditionJson);
-  
+  console.log(pageResult);
   if(pageResult){
     templateList = pageResult.rows;    
     const pageData = pageResult;
@@ -378,7 +387,7 @@ async function loadAndRenderTemplateCards() {
       
  }
 
- 
+ //div-》table渲染
    function showTemplatesList( templates,renderTo) {
     var  html = ` `;
           
@@ -389,33 +398,36 @@ async function loadAndRenderTemplateCards() {
         
           index ++;
           html += `
-              <div class="teacher-card" style="margin:8px 0;padding:8px 0;border-bottom:1px solid #f5f5f5;">
-                  
-              <div style="display:flex;gap:36px;align-items:center;"> 
-                 <div style="width:40px;">${index  }</div> 
-                  <div style="width:90px;">${template.languageType || ''}</div>
-                  <div style="width:180px;">${template.difficultyLevel || ''}</div>
-                  <div style="width:130px;">${template.classForm || ''}</div>
-                  <div style="width:130px;">${template.classDuration || ''}</div>
-                  <div style="width:130px;">${template.classFee || ''}</div> 
-                  
-                   <div style="width:120px;">                       
+              <tr> 
+                 <td  >${index  }</td> 
+                  <td  >${template.languageType || ''}</td>
+                  <td  >${template.difficultyLevel === 'B1' ? 'B1入门' : 
+                    template.difficultyLevel === 'B2' ? 'B2初级' : 
+                    template.difficultyLevel === 'B3' ? 'B3中级' :
+                     template.difficultyLevel === 'B4' ? 'B4高级' : (template.difficultyLevel || '')}</td>
+                  <td  >${template.classForm === '1p1' ? '一对一' : 
+                    template.classForm === '1pN' ? '小班课' : 
+                    template.classForm === '1p2N' ? '中班课' : 
+                    (template.classForm || '')}</td>
+                  <td  >${template.classDuration || ''}</td>
+                  <td  >${template.classFee || ''}</td>  
+                   <td>                       
                         ${ template.status === "pending" ? '<span style="color:#faad14;">待审核</span>' :
                           template.status === "active" ? '<span style="color:#52c41a;">正常</span>' :
                           template.status === "inactive" ? '<span style="color:#faad14;">待启用</span>' :
                           template.status === "frozen" ? '<span style="color:#f5222d;">已删除</span>' :
                           `<span>${template.status||"未知"}</span>`
                         }
-                      </div>
-                  <div style="width:240px;display:flex;gap:8px;">
+                      </td>
+                  <td><div class="btn-group">
                       <button class="btn btn-success" onclick='openEditTemplateDialog(${JSON.stringify(template).replace(/'/g, "\\'")})'>修改</button>
                  
                       <button class="btn btn-success" onclick="operateTemplateStatus('${template.templateId}', 'active')">发布</button>
                       <button class="btn btn-warning" onclick="operateTemplateStatus('${template.templateId}', 'inactive')">撤回</button>
-                      <button class="btn btn-danger" onclick="deleteTemplateByFrozen('${template.templateId}')">冻结</button>
-                  </div>
-              </div>
-          </div>
+                      <button class="btn btn-danger" onclick="deleteTemplateByFrozen('${template.templateId}')">删除</button>
+                      </div>
+                  </td>
+              </tr>
           `;
       });
     
@@ -428,32 +440,28 @@ async function loadAndRenderTemplateCards() {
 // ===================== 交互函数 =====================
 
 function deleteTemplateByFrozen(templateId) {     
-      var bconfirmed = false ;
+      var bConfirmed = false ;
       (async () => {
           // 执行前检查模板是否关联课程，如有关联则不允许删除
           const hasCourses = await checkTemplateHasCourses(templateId);
-          if (hasCourses) {
-              //alert('该模板有关联课程，无法删除！请先删除或修改基于该模板的课程。');
-            //  return;
+          if (hasCourses) { 
             const userChoice = confirm('该模板存在课程，是否删除？继续将删除该项目下的全部课程。点击“确定”继续，点击“取消”放弃删除。');
             if (!userChoice) {
                 return;
                       }
-           //TBD : 设置该模板的所有课程状态为delete
-           bcomfirmed = true;   
+           //设置该模板的所有课程状态为delete
+           bConfirmed = true;   
            deleteTemplateNextLevelByFrozen(templateId);
           }
 
-          if(!bcomfirmed) //提示1次
+          if(!bConfirmed) //提示1次 
             if (!confirm('确定要删除该模板吗？')) return;
 
             await operateTemplate(templateId,"frozen");
 
             await loadAndRenderTemplateCards();
              
-      })();
-   //   deleteTemplate
-      // operateTemplateStatus(templateId,"frozen");          
+      })();           
 }
   
  async function deleteTemplateNextLevelByFrozen(templateId){
