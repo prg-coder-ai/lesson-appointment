@@ -105,100 +105,100 @@ async function batchAddCourseTemplates() {
     {
       templateId: "CT001",
       languageType: "english",
-      difficultyLevel: "1入门",
+      difficultyLevel: "B1",
       classFee: 100,
       classDuration: 30,
-      classForm: "一对一",
+      classForm: "1p1",
       description: "适合零基础入门的英文会话课程",
       status: "active"
     },
     {
       templateId: "CT002",
       languageType: "japanese",
-      difficultyLevel: "2进阶",
+      difficultyLevel: "B2",
       classFee: 120,
       classDuration: 45,
-      classForm: "一对一",
+      classForm: "1p1",
       description: "日语N4-N3进阶班，巩固基础提升会话",
       status: "active"
     },
     {
       templateId: "CT003",
       languageType: "kr",
-      difficultyLevel: "1入门",
+      difficultyLevel: "B1",
       classFee: 90,
       classDuration: 30,
-      classForm: "小班课",
+      classForm: "1pN",
       description: "韩语入门小班课程，适合初学者",
       status: "active"
     },
     {
       templateId: "CT004",
       languageType: "english",
-      difficultyLevel: "3中级",
+      difficultyLevel: "B3",
       classFee: 150,
       classDuration: 60,
-      classForm: "大班课",
+      classForm: "1p2N",
       description: "企业级商务英语中级提升课",
       status: "active"
     },
     {
       templateId: "CT005",
       languageType: "france",
-      difficultyLevel: "2进阶",
+      difficultyLevel: "B2",
       classFee: 110,
       classDuration: 45,
-      classForm: "一对一",
+      classForm: "1vs",
       description: "法语进阶会话训练",
       status: "active"
     },
     {
       templateId: "CT006",
       languageType: "日语",
-      difficultyLevel: "3中级",
+      difficultyLevel: "B3",
       classFee: 180,
       classDuration: 60,
-      classForm: "大班课",
+      classForm: "1p2N",
       description: "日语商务写作与口语综合提升",
       status: "active"
     },
     {
       templateId: "CT007",
       languageType: "chinese",
-      difficultyLevel: "1入门",
+      difficultyLevel: "B1",
       classFee: 80,
       classDuration: 30,
-      classForm: "小班课",
+      classForm: "1pN",
       description: "对外汉语入门课程，适合外籍学生",
       status: "active"
     },
     {
       templateId: "CT008",
       languageType: "德语",
-      difficultyLevel: "2进阶",
+      difficultyLevel: "B2",
       classFee: 130,
       classDuration: 45,
-      classForm: "一对一",
+      classForm: "1p1",
       description: "德语B1听说读写全面进阶",
       status: "active"
     },
     {
       templateId: "CT009",
       languageType: "韩语",
-      difficultyLevel: "4高级",
+      difficultyLevel: "B4",
       classFee: 200,
       classDuration: 60,
-      classForm: "一对一",
+      classForm: "1p1",
       description: "韩语TOPIK冲刺高级班",
       status: "active"
     },
     {
       templateId: "CT010",
       languageType: "english",
-      difficultyLevel: "4高级",
+      difficultyLevel: "B4",
       classFee: 260,
       classDuration: 90,
-      classForm: "大班课",
+      classForm: "1p2N",
       description: "英文演讲与学术论文写作高级班",
       status: "active"
     }
@@ -222,9 +222,11 @@ async function batchAddCourseTemplates() {
         console.log(`模板${tpl.templateId}添加成功`);
       } else {
         console.warn(`模板${tpl.templateId}添加失败`, result && result.msg);
+        break;
       }
     } catch (e) {
       console.error(`模板${tpl.templateId}接口异常`, e);
+      break;  
     }
   }
   alert("共10个CourseTemplate初始化添加请求已完成，请刷新数据查看。");
@@ -287,9 +289,11 @@ async function batchAddCoursesForTemplates() {
           console.log(`模板${tpl.templateId}第${i+1}个课程添加成功，教师:${teacherId}`);
         } else {
           console.warn(`模板${tpl.templateId}第${i+1}个课程添加失败`, result && result.msg);
+          break;
         }
       } catch (e) {
         console.error(`模板${tpl.templateId}第${i+1}个课程接口异常`, e);
+        break;
       }
     }
   }
@@ -313,7 +317,6 @@ async function batchAddCourseSchedulesPerCourse() {
       return;
     }
    
-
     if (!coursesJson.length) {
       alert("没有课程数据，无法批量生成课程排期。");
       return;
@@ -374,18 +377,19 @@ async function batchAddCourseSchedulesPerCourse() {
           okCount++;
         } else {
           failCount++; 
+          break;
         }
       } catch (e) {
         failCount++;
         console.error("排期添加接口异常", sched, e);
-      }
-        
+        break;
+      } 
     }
 
     alert(`批量为课程生成排期完成！成功：${okCount}，失败：${failCount}`);
   } catch(e) {
     console.error("自动批量添加课程排期异常", e);
-    alert("批量生成课程排期失败：" + e);
+    alert("批量生成课程排期失败：" + e); 
   }
 }
 // 使用方法：在管理员页面按钮绑定 batchAddCourseSchedulesPerCourse()
@@ -423,8 +427,7 @@ async function assignSchedulesRandomStudent() {
   let ok = 0, fail = 0;
   //console.error("schedules",schedulesIdList);
   let teacherId=null;
-  for (const scdObj of schedulesList) {
-    
+  for (const scdObj of schedulesList) {    
     await sleep(20); 
     teacherId=null
       if(scdObj){
@@ -450,8 +453,7 @@ async function assignSchedulesRandomStudent() {
       scheduleId: scdObj.scheduleId, // 兼容可能的字段名
       teacherId:  teacherId,
       status: "booked", // 可根据实际业务调整pending
-     // remark: "自动分配"
- 
+     // remark: "自动分配" 
     };
 
     try {
@@ -485,7 +487,7 @@ async function generateAppointmentListByBooking() {
   // 1. 获取已预约的booking对象列表
   let bookingList = await getBookingList({ status: "booked" });
   if (!Array.isArray(bookingList)) {
-    console.warn("getBookingList 未获取到数组数据，实际为:", bookingList);
+    console.warn("getBookingList 未获取到数组数据，输出为:", bookingList);
     return;
   }
   console.log(`[generateAppointmentListByBooking] 已获取booking数量:`, bookingList.length);
@@ -513,19 +515,20 @@ async function generateAppointmentListByBooking() {
   
        let appointmentDateTimeList = await generateAppointmentList(booking.scheduleId,null);
       
-         if (Array.isArray(appointmentDateTimeList)) {
+      if (Array.isArray(appointmentDateTimeList)) {
             appointmentDateTimeList.forEach(item => { 
              // 如果item有date和time字段，合成为一个appointment_datetime字段（如 "2024-06-10 09:00"）
              if (item.date && item.time) {
-                 appointmentDateTimeList.push(`${item.date}T${item.time}`); 
+               //  appointmentDateTimeList.push({appointment_datetime: `${item.date}T${item.time}`}); 
+               item.appointment_datetime = `${item.date}T${item.time}`;
              }
          });
           
          appointmentDateTimeList.forEach(async (dt, idx) => { 
                 let AppointmentData = {
                   bookingId: booking.bookingId,
-                  appointmentDatetime: dt,  // 拼写修正
-                  lastDatetime: dt,
+                  appointmentDatetime: dt.appointment_datetime,  // 拼写修正
+                  lastDatetime: dt.appointment_datetime,
                   classIndex: idx+1           // 用forEach的下标，避免indexOf找不到            
                 };
 
@@ -536,21 +539,29 @@ async function generateAppointmentListByBooking() {
               // 如果核心值有空，进行警告
               if (!booking.bookingId || !dt) {
                   console .warn("警告：bookingid或appointmentDatetime为空！", AppointmentData);
-                  return;
+                    return;
                  }
                 countInserted++;
               //把booking-》booked,添加时间列表  
-              await saveAppointment(AppointmentData); 
-                } 
+              console.log(AppointmentData);
+              try {
+                await saveAppointment(AppointmentData); 
+              } catch (e) {
+                console.error("保存预约接口异常", AppointmentData, e);
+                errors++;
+                return;//only once for test
+              } 
+                }  
         );//forEach
-      } // if   
+      } // if  
+     // break;//only once for test TBD
   }//for
 
   alert(`预约导入完成。成功创建: ${countInserted}，已存在跳过: ${countSkipped}，错误: ${errors}`);
 }
 
 async  function checkAppointmentExistsByBookingId(booking_id){
-// INSERT_YOUR_CODE
+ 
   // 调用API，appointment/getByBookingId 判断是否为空
   // 返回true表示已存在，false表示不存在
   try {
@@ -570,17 +581,16 @@ async  function checkAppointmentExistsByBookingId(booking_id){
   } catch (e) {
     // 业务失败/网络异常：拦截器已 reject，这里直接向上抛
     throw e;
-  }
- 
+  } 
 }
 
  function test_genUser_student() {
   
   let number = 300;
   let role = "student";
-
   test_genUser(number,role);
  }
+
  function test_genUser_teacher() {
   let number = 100;
   let role = "teacher";
@@ -590,7 +600,6 @@ async  function checkAppointmentExistsByBookingId(booking_id){
 // assignSchedulesRandomStudent(schedules); // 其中schedules是排期对象数组
  //创建测试页面,返回 测试入口按钮
   function makeTestPage() {
-
         let testHtml ="<div>";
         let number = 300,role = "student";
         testHtml += ' <div > <button class="btn btn-default" onclick="test_genUser_student()"> 添加学生</button></div>';

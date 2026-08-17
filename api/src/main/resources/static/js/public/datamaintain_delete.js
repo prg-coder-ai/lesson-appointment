@@ -4,23 +4,21 @@
  */
 async function deleteTemplate(templateId) {     
      
-        let bconfirmed = false ;
+        let bConfirmed = false ;
         // 执行前检查模板是否关联课程，如有关联则不允许删除
         const hasCourses = await checkTemplateHasCourses(templateId);
-        if (hasCourses) {
-            //alert('该模板有关联课程，无法删除！请先删除或修改基于该模板的课程。');
-          //  return;
+        if (hasCourses) { 
           const userChoice = confirm('该模板存在课程，是否继续删除？继续将删除该项目下的全部课程。点击“确定”继续，点击“取消”放弃删除。');
           if (!userChoice) {
               return;
                     }
-         bcomfirmed = true;
+         bConfirmed = true;
         //DEL all courses By templateId
          let rows=  deleteTemplateNextLavel( templateId);
          console.log("delete courses rows:",rows);
         }
 
-        if(! bcomfirmed) //提示1次
+        if(! bConfirmed) //提示1次
           if (!confirm('确定要删除该模板吗？')) return;
 
         try {
@@ -75,6 +73,7 @@ try {
   return true;
 }
 }
+window.fetchCourseListPage = fetchCourseListPage;
 // 加载课程列表数据
  async function fetchCourseListPage(params){
     var templateCondition=[];//模板检索
@@ -82,8 +81,11 @@ try {
       const conditionJsonForTeacher = { role: 'teacher' }; 
       var teacherList =[];// await fetchUserList(conditionJsonForTeacher);
    
-     templateList = await  fetchTemplateList('all');  
-     teacherList  = await  fetchUserList(conditionJsonForTeacher);
+    // 并行异步获取模板列表和教师列表，提升加载速度
+    [templateList, teacherList] = await Promise.all([
+      fetchTemplateList('all'),
+      fetchUserList(conditionJsonForTeacher)
+    ]);
   
     try {
       const result = await request({url:`/course/page`,
@@ -114,14 +116,14 @@ async function deleteCourse(id) {
     try {
       const scdList = fetchScheduleList(id,null);     
     // 判断scdList是否为空数组
-      var bcomfirmed =false;
+      var bConfirmed =false;
         if (scdList && Array.isArray(await scdList) && (await scdList).length > 0) {
       //alert('该课程存在排期，不能删除！');
           const userChoice = confirm('该课程存在排期，是否继续删除？继续将删除该项目下的全部排期。点击“确定”继续，点击“取消”放弃删除。');
           if (!userChoice) {
               return;
                     }
-       bcomfirmed = true;
+       bConfirmed = true;
       //删除该课程的所有排期
          try {
         var rows= await request({ url: `/schedule/deleteByCourseId/${id}`, method: 'DELETE' });
@@ -136,7 +138,7 @@ async function deleteCourse(id) {
      catch(error){
       console.error('查询排期失败：',id, error);
      }
-         if(!bcomfirmed) //提示1次
+         if(!bConfirmed) //提示1次
            if (!confirm('确定要删除该课程吗？')) return;
     try { 
       const res = await request({url:`/course/deleteById/${id}`,  method: 'DELETE' });
@@ -147,8 +149,8 @@ async function deleteCourse(id) {
   }
   
 
-  async function deleteScheduleById(id){
-    // INSERT_YOUR_CODE
+  async function deleteScheduleById(id){ 
+
         if (!id) {
             console.warn('排期ID不能为空');
             return false;
@@ -162,9 +164,9 @@ async function deleteCourse(id) {
         } catch (error) {
             console.error('删除排期时出错:', error);
             return false;
-        }
-    
+        }    
      }
+
       async function deleteBookingsByScheduleId(scheduleId){
         if (!scheduleId) {
             console.warn('排期ID不能为空');
@@ -179,25 +181,26 @@ async function deleteCourse(id) {
         } catch (error) {
             console.error('请求预订booking时出错:', error);
             return 0;
-        }
-    
+        }    
       }
     
 
       async function deleteBooking(id){
         // 调用后端删除预约接口（假定全局已定义 request 方法和 API_BASE_URL）
         // 查询是否存在以此id为排期id的appointment（预约/子项），返回结果布尔型
+        let bConfirmed =false;
          if (checkAppointmentExistsBookingId(id))
-         {
-          // INSERT_YOUR_CODE
+         { 
           const userChoice = confirm('该预订存在预约，是否继续删除？继续将删除该预订下的全部预约。点击“确定”继续，点击“取消”放弃删除。');
           if (!userChoice) {
             return;
           }
+          bConfirmed = true;
           //删除该预定的全部预约
           await deleteAppointmentsByBookingId(id);//appointmentNotes.js
          }
-        
+         if(!bConfirmed) //提示1次
+           if (!confirm('确定要删除该预订吗？')) return;
         try {
             const res = await request({
                 url: `${API_BASE_URL}/course/booking/delete/${id}`,
@@ -233,6 +236,16 @@ async function deleteCourse(id) {
                     data: query
                 });
                 // 通常返回格式 { list: [...], total: 123 }
+                if (!res || !Array.isArray(res.rows)) {
+                  res = res || {};
+                  res.rows = [];
+                }
+                // 为每个 schedule 补充 scheduleName
+                res.rows.forEach(item => {
+                  item.scheduleName = item.scheduleName || '';
+                  item.status = checkStatus_booking(item.status);
+                  item.courseName = (await getCourseById(item.course_id))?.courseName || '';
+                });
                 return res;
             } catch (error) {
                 console.error('分页加载排期列表失败:', error);

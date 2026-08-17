@@ -22,8 +22,8 @@ public class CourseTemplate implements Serializable{
     private Integer classDuration;  // ≥15，15的倍数（对应通用校验规则）
     @NotBlank(message = "课程形式不能为空")
     private String classForm;  // 枚举值：一对一/小班课/大班课
-    @NotBlank(message = "课程描述不能为空")
-    @Size(min = 10, max = 500, message = "课程描述长度需10-500字")
+ 
+    @Size(max = 500, message = "课程描述最长500字")
     private String description;
 
     @NotBlank(message = "课程模板状态不能空")

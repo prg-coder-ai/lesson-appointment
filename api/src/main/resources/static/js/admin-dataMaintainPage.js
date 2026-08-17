@@ -33,7 +33,7 @@ function renderDatamaintainCards() {
 // 页面渲染完成后，加载第一页数据
    
  }
-
+// 渲染数据维护页面,TBD：用高亮色表示当前选项
 function dataMaintainPage() {
   // 顶部tab切换
   return `
@@ -41,8 +41,8 @@ function dataMaintainPage() {
       <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
         <div class="card-title"><i class="fa fa-cogs"></i> 数据维护</div>
       </div>
-      <div class="tab-bar" style="display:flex; gap:16px; margin-bottom:16px;">
-        <button class="tab-btn" id="tab-template-maintain" onclick="selectMaintainTab('template')">模板</button>
+      <div class="tab-bar" style="display:flex; gap:16px; margin:16px;">
+        <button class="tab-btn active" id="tab-template-maintain" onclick="selectMaintainTab('template')">模板</button>
         <button class="tab-btn" id="tab-course-maintain" onclick="selectMaintainTab('course')">课程</button>
         <button class="tab-btn" id="tab-schedule-maintain" onclick="selectMaintainTab('schedule')">排期</button>
         <button class="tab-btn" id="tab-booking-maintain" onclick="selectMaintainTab('booking')">预定</button>
@@ -59,12 +59,9 @@ function  loadAndRenderObjectListByPage()
 {
   renderMaintainTable(objectType);
 }// assign
- 
-
-
+   
       // Tab 切换高亮 & 内容渲染
       function selectMaintainTab(tab) {
-
         objectType = tab;
         // 移除所有tab高亮
         ['template','course','schedule','booking','appointment'].forEach(function(type) {
@@ -87,15 +84,7 @@ function  loadAndRenderObjectListByPage()
         var tableConfigs = {
           template: {
             title: "模板列表",
-        //    url: "/course/template/list",
-            columns: [
-              {key: "templateId", label: "ID"},
-              {key: "name", label: "名称"},
-              {key: "languageType", label: "语言类型"},
-              {key: "difficultyLevel", label: "难度等级"},
-              {key: "status", label: "状态"}
-            ],
-            delFunc: "deleteTemplate" // 需全局已定义
+        //    url: "/course/template/list", 
           },
           course: {
             title: "课程列表",
@@ -117,7 +106,7 @@ function  loadAndRenderObjectListByPage()
 
         // 渲染查询条(只简单支持名称搜索)
         var filterHtml = `
-          <div style='margin-bottom:12px;'>
+          <div style='align-items:right;padding-left:20px;margin-bottom:12px;'>
             <input id='maintain-filter-keyword' type='text' placeholder='输入名称关键词' style='padding: 4px 8px;'/>
             <button class='btn btn-sm' onclick='loadMaintainTableData("${type}")'><i class='fa fa-search'></i> 查询</button>
          
@@ -173,15 +162,15 @@ window.loadMaintainTableData = async function(type){
   // 配置columns
   var columns = {
     template: [
-       {key: "templateId", label: "ID"},      
+       {key: "templateId", label: "编号"},      
       {key: "languageType", label: "语言类型"},
       {key: "difficultyLevel", label: "难度等级"},
-       {key:"classForm",lable:"课程形式"},
+       {key:"classForm",label:"课程形式"},
        {key:"classFee" ,label:"课时费(元)"},
       {key: "status", label: "状态"}
     ],
     course: [ 
-        {key: "courseId", label: "ID"},
+        {key: "courseId", label: "编号"},
         {key: "courseName", label: "课程名"},
         {key: "content", label: "内容"},
         {key: "feature", label: "特色"},
@@ -190,15 +179,16 @@ window.loadMaintainTableData = async function(type){
         {key: "status", label: "状态"}
       ], 
     schedule: [
-      {key: "scheduleId", label: "ID"},
+      {key: "scheduleId", label: "编号"},
       {key: "courseName", label: "课程"},
+      {key: "scheduleName", label: "排期"},
       {key: "startDate", label: "开始日期"},
       {key: "startTime", label: "上课时间"},
       {key: "timeZone", label: "时区"},
       {key: "status", label: "状态"}
     ],
     booking: [
-      {key: "id", label: "ID"},
+      {key: "bookingId", label: "编号"},
       {key: "studentName", label: "学生"},
       {key: "courseName", label: "课程"},
       {key: "scheduleName", label: "排期"},
@@ -206,7 +196,7 @@ window.loadMaintainTableData = async function(type){
       {key: "bookingStatus", label: "状态"}
     ],
     appointment: [
-      {key: "id", label: "ID"}, 
+      {key: "id", label: "编号"}, 
       {key: "studentName", label: "学生"},  
       {key: "teacherName", label: "教师"},
       {key: "courseName", label: "课程"},

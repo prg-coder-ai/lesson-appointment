@@ -344,7 +344,8 @@ async function loadAndRenderTemplateCards() {
   const conditionJson = {
       languageType:       document.getElementById('languageType-select').value,
       difficultyLevel:    document.getElementById('difficultyLevel-select').value,
-      name:    document.getElementById('name-input').value,
+     //TBD  name:    document.getElementById('name-input').value,
+     name:null,
       pageSize:Pagination.pageSize,
       pageNum: Pagination.pageNum
   };
