@@ -1,17 +1,24 @@
 package com.reservation.service;
 
+import com.reservation.common.*;
 import com.reservation.entity.Booking;
 import com.reservation.dto.BookingDTO;
 import com.reservation.dto.BookingQueryParaDTO;
+import com.reservation.query.BookingQueryPage;
+
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+
 import com.reservation.mapper.BookingMapper;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.*;
 
+@Slf4j
 @Service
 public class BookingService {
 
@@ -21,7 +28,7 @@ public class BookingService {
     @Transactional(rollbackFor = Exception.class)
     public String create(Booking booking) {
         String id = UUID.randomUUID().toString().replace("-", ""); // 移除UUID分隔符
-        booking.setId(id);
+        booking.setBookingId(id);
 
         bookingMapper.insert(booking); 
         return   id;
@@ -30,15 +37,15 @@ public class BookingService {
   
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public String update(String id, Booking booking) {
-        System.out.println("update : " + booking);
-        booking.setId(id);
+       // System.out.println("update : " + booking);
+        booking.setBookingId(id);
         bookingMapper.update(booking);
         return id;
     }
 
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public String updateStatus( BookingDTO dto) {
-        System.out.println("updateStatus dto: " + dto);
+//System.out.println("updateStatus dto: " + dto);
           String id= dto.getId();
           String status =dto.getStatus();
           if ("delete".equals(status)) {
@@ -60,8 +67,38 @@ public class BookingService {
     }
 
     @Transactional(propagation = Propagation.REQUIRED)
-    public void delete(String id) {
-        bookingMapper.delete(id);
+    public PageResult <Booking> selectListPage(BookingQueryPage query) {
+           
+            List<Booking> retList =  bookingMapper.selectListPage(query);
+
+            Page<Booking> page = new Page<>(query.getPageNum(), query.getPageSize());
+            page.setRecords(retList);
+
+            Integer total = bookingMapper.selectCountByCondition(query);
+            page.setTotal(total);
+
+            System.out.println("total : " + total);
+            PageResult<Booking> result = PageResult.of(page);
+            return result;
+
+    }
+
+//PageResult
+
+    @Transactional(propagation = Propagation.REQUIRED)
+    public int delete(String id) {
+       log.info("删除预约开始, bookingId={}", id);
+       int rows = bookingMapper.delete(id);
+       log.info("删除预约结束, bookingId={}, 影响行数={}", id, rows);
+       return rows;
+    }
+
+@Transactional(propagation = Propagation.REQUIRED)
+    public int deleteByScheduleId(String id) {
+       log.info("按排期ID删除预约开始, scheduleId={}", id);
+       int rows = bookingMapper.deleteByScheduleId(id);
+       log.info("按排期ID删除预约结束, scheduleId={}, 影响行数={}", id, rows);
+       return rows;
     }
 // INSERT_YOUR_CODE
 

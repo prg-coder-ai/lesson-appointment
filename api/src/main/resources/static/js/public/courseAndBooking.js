@@ -12,80 +12,44 @@ async function operateTemplate(templateId, action) {
          status: action
      };
 
-  async function updateORCreateTemplate(formData){
-    const url = formData.templateId !=""? `${baseUrl}/course/template/update` : `${baseUrl}/course/template/insert`;
+     await request({
+      url: `${API_BASE_URL}/course/template/updateStatus`,
+      method: 'POST' ,
+      data: payload 
+    })
+    .then(res => {
+      // res对象：{ data, code, message ... }  
+          
+         console.log('模板操作成功',res); 
+        //renderTemplateCards(); 
+        return res;
+    })
+    .catch(e => {
+      alert("网络错误或数据解析异常，操作失败");
+      console.error(e);
+    });
+    return null;
+    } 
 
-    try {
+     window.updateORCreateTemplate =updateORCreateTemplate;
+
+  async function updateORCreateTemplate(formData){
+    const url = formData.templateId !=""? `${baseUrl}/course/template/update` 
+               : `${baseUrl}/course/template/insert`;
+   // try {
         const res = await request ( {
                    url:url,
                    method: 'POST' ,
                    data:formData                  
                     });
           return res;
-        } catch (err) {
-            alert('网络异常，操作失败');
-             console .error(err);
-             return null;
-        }
+       // } //catch (err) {
+          //  alert('网络异常，操作失败');
+           //  console .error(err);
+           //  return null;
+//}
     }
-       // 这里分析参数带入方式：接口说明需要 templateId 和 action（操作类型/状态）作为参数。
-       // axios.put 发送到 /course/template/manage，后端期望参数格式为 { templateId, action } （或 status）。
-       // 但你的写法是 { templateId: ..., status: ... }，后端如期望 action 字段，需要修正字段名。
-       // 根据后端接口 CourseController.updateTemplate 需要 {templateid, action} 作为 JSON 请求体字段（不是直接字符串参数）。
-       // 且参数名注意为 templateid（小写），后端 Spring 不能自动映射 templateId，需和后端代码严格匹配
-       // 如果后端 Controller 层要求 RequestBody Json对象，请传:
-       // { templateid: templateId, action: action }
-       // 不是 params、不是 query、不是 array；是object。
-       // axios 等库请求时，发送 request body 只需将数据对象作为第二个参数（POST、PUT），第三个参数为 headers 配置。
-       // 例如：axios.put(url, { key1: value1, key2: value2 }, { headers: { ... } })
-       // 在 fetch，用 fetch(url, { method: 'POST', body: JSON.stringify(data), headers: { ... } });
-       // 后端 expects @RequestBody JSON，所以务必用对象并确保字段名与后端参数完全一致
-       
-      /* const res = await axios.put(
-           `${baseUrl}/course/template/updateStatus`,
-           {
-             data:{  templateId: templateId, 
-               status: action // 使用 action 字段传递类型（如 edit, publish, recall, ...）
-             }
-           },
-           { headers: { "Authorization": "Bearer " + token } }         
-       );
- 
-       if (res.data.code === 200) {
-         console.success( '模板操作成功');
-           await renderTemplateCards();
-       } else {
-           alert( '模板操作失败');
-       }
-   } catch (err) {
-       alert('网络异常，操作失败');
-       console.error(err);
-   }*/
- 
-   // 这段代码中 `res && res.code === 200` 会出现异常的根本原因可能如下：
-   // 1. fetch的response未必能被正常解析为json（如接口返回204/空/非json字符串），那么response.json()会抛出异常，进入catch。
-   // 2. 如果后端接口出错返回了HTML、null、undefined或其他非对象内容，.then(res => ...)这里的res不是期望的对象，访问res.code会抛出。
-   // 3. 某些情况下res实际为null/undefined或格式不符（如res为字符串），则res.code === 200会抛异常。
-   //
-   // 更安全的写法，需先确认res为对象且有code属性，再判断。推荐加类型检查与默认值防御。
-   await request({
-     url: `${API_BASE_URL}/course/template/updateStatus`,
-     method: 'POST' ,
-     data: payload 
-   })
-   .then(res => {
-     // res对象：{ data, code, message ... }  
-       if (console.success) { 
-         console.success('模板操作成功',res);
-       }
-       //renderTemplateCards(); 
-   })
-   .catch(e => {
-     alert("网络错误或数据解析异常，操作失败");
-     console.error(e);
-   });
-  
-   }   
+        
  
    
  /**
@@ -127,27 +91,23 @@ async function operateTemplate(templateId, action) {
  }
     
   
- 
-  //TBD To Be test ,if the conditionJson tooked infact.
-  //返回course对象数组
-  async function fetchCourseList(conditionJson) {
-   
-   try {
-       // 用 request 方法替换 axios
-       const res = await request({
-           url: `${API_BASE_URL}/course/list`,
-           method: 'GET', 
-           params: conditionJson // 筛选条件通过params传递
-       }); 
-          //console.info("data.courses:", res );   
-          return res  || []; 
-      
-   } catch (e) {
-       //alert("网络错误，获取课程列表失败");
-       console.error(e);
-       return [];
-   }
- }
+ //分页获取数据 ，返回PqgeResult 数
+ async function fetchTemplateListPage(conditionJson) { 
+  try {
+      // 用 request 方法替换 axios
+      const res = await request({
+          url: `${API_BASE_URL}/course/template/page`,
+          method: 'POST', 
+          data: conditionJson// 筛选条件通过params传递
+      }); 
+      console.info("fetchTemplateListPage:", res); 
+           return res; 
+  } catch (e) {
+      alert("网络错误，获取模板列表失败");
+      console.error(e);
+      return null;
+  }
+}
  
  /**
   * 
@@ -224,14 +184,30 @@ async function getCourseById( courseId) {
         teacher: document.getElementById('teacher').value
     };
 */
+
+  //TBD To Be test ,if the conditionJson tooked infact.
+  //返回course对象数组
+  async function fetchCourseList(conditionJson) {
+    return getCourseList( conditionJson); 
+ }
+ 
 async function getCourseList(conditionJson) {  
     //console .log("getCourseList",conditionJson);
+    /*const params = new URLSearchParams({
+      });
+     if (conditionJson && typeof conditionJson === 'object') {
+        Object.keys(conditionJson).forEach(key => {
+            params.set(key, conditionJson[key]);
+        });
+    }*/
     try {
-        // axios GET请求不能使用 body/params 的用法如下, 正确是用 params 字段传递 URL 查询参数
+        // axios GET请求不能使用 data 的用法, 正确是用 params 字段传递 URL 查询参数,contoller 用dto结构 ok.两种方法对GET都行，关键字要在queryDto中存在。
         const res = await request({
-            url: `${API_BASE_URL}/course/list`,
-            method: 'GET',
-            params: conditionJson, // 正确传递查询参数，自动加到URL上 
+         //   url: `${API_BASE_URL}/course/list?${params.toString()}`,
+           // method: 'GET'  
+              url: `${API_BASE_URL}/course/list`,
+              method: 'GET' , 
+               params:conditionJson
         }); 
         // 若是标准result结构  
             let courseList = res || [];
@@ -272,7 +248,7 @@ async function fetchScheduleList( cid,status) {
             method: 'GET',
             params: conditionJson // params 自动附加到 URL 上（被 @RequestParam 接收） 
         }); 
-            console.info("fetchScheduleList:", res );
+           // console.info("fetchScheduleList:", res );
             return res  || []; // TBD: 对于多个排期的情况进行区分
  
     } catch (e) {
@@ -465,7 +441,7 @@ async function fetchBooking( bookingId) {
 
 
 async function createOrUpdateBookingObj(bookingid,bookingCreateDTO ){
-  const url = bookingid !=""? `course/booking/update/${bookingid}` : `course/booking`;
+  const url = bookingid !=""? `course/booking/update/${bookingid}` : `course/booking/create`;
     try {
       const result = await request({
         url: `${API_BASE_URL}/${url}`,
@@ -506,23 +482,179 @@ async function createOrUpdateBookingObj(bookingid,bookingCreateDTO ){
     }
    
     } ;
-     
-//获取指定用户的所有排期--可指定状态
-async function getBookingList( userRole, userid, status) { 
+    
+    
+async function getBookingListPage(params){
+  const url = `course/booking/page` ; 
+  try {
+      const res =await request( { url:`${API_BASE_URL}/${url}`,method: 'POST',data:params}) ; //data:{params}-->data:params
+  
+     return res ; //
+  
+  } catch (err) {
+    console.error('getBookingListPage 失败'+err);  
+   }
+return [];
+}     
+
+ //检查status，只有待确认的booking、cancelling才显示待确认，并显示相应的按钮
+ function checkStatus_booking(status) {
+  if (status === 'booking' ) {
+    return '预定待确认';
+  } else   if   (status === 'cancelling' || status === 'canceling') {
+    return '取消待确认';
+  } else if (status === 'booked') {
+    return '预定已确认';
+  } else if (status === 'cancelled' || status === 'canceled') {
+    return '已取消';
+  } else if (status === 'deleted' || status=== 'frozen') {
+    return '已删除';
+  }
+  return status;
+ }
+//Booking，读取预约列表，拼接排期、学生、教师、课程信息
+ async function fetchBookingListPage(params){
+    let listObj = await getBookingListPage(params);
+    console.log("listObj:",listObj);
+    //对于每个预约，获取排期、学生、教师、课程信息
+    //循环每个预约，获取排期、学生、教师、课程信息
+    //将排期、学生、教师、课程信息添加到预约中
+    //返回预约列表
+    //检查status，只有待确认的booking、cancelling才显示待确认，并显示相应的按钮
+    //其他状态直接显示
+    //console.log("listObj:",listObj);
+
+    // ===== 并行版本：补充排期/学生/教师/课程名称到原始列表项 =====
+    // 说明1：JS 对象按引用传递，item.xxx = ... 会直接修改 listObj.rows 中的原始对象
+    // 说明2：三层并行优化
+    //        (1) 跨 item 并行：所有 booking 同时处理（Promise.all + map）
+    //        (2) 单条内独立请求并行：fetchSchedule / studentName / item上的teacherName 互不依赖
+    //            （courseObject 依赖 scheduleObject，teacherId from course 的请求依赖 courseObject）
+    //        (3) 去重缓存：同一 scheduleId / userId / courseId 只查一次（多条 booking 共享时减少 N+1）
+    if (!listObj || !Array.isArray(listObj.rows)) {
+      listObj = listObj || {};
+      listObj.rows = [];
+    }
+
+    const scheduleCache = new Map();   // scheduleId → Promise<scheduleObject>
+    const courseCache = new Map();     // courseId   → Promise<courseObject>
+    const userCache = new Map();       // userId     → Promise<string>  （姓名）
+
+    // 按 ID 查排期（带缓存：同 ID 只发一次请求）
+    const cachedFetchSchedule = (id) => {
+      if (!id) return Promise.resolve(null);
+      if (!scheduleCache.has(id)) {
+        scheduleCache.set(id, fetchSchedule(id));
+      }
+      return scheduleCache.get(id);
+    };
+    // 按 ID 查课程（带缓存）
+    const cachedGetCourseById = (id) => {
+      if (!id) return Promise.resolve(null);
+      if (!courseCache.has(id)) {
+        courseCache.set(id, getCourseById(id));
+      }
+      return courseCache.get(id);
+    };
+    // 按 ID 查用户名（带缓存）
+    const cachedGetUserNameById = (id) => {
+      if (!id) return Promise.resolve('');
+      if (!userCache.has(id)) {
+        userCache.set(id, getUserNameById(id).catch(() => ''));
+      }
+      return userCache.get(id);
+    };
+
+    await Promise.all(listObj.rows.map(async (item) => {
+      try {
+        // 【并行层 A】互不依赖的 3 个请求同时发起：
+        //   - fetchSchedule(item.scheduleId)
+        //   - getUserNameById(item.studentId)
+        //   - getUserNameById(item.teacherId)  （如果 item 自身有 teacherId）
+        const directTeacherIdPromise = item.teacherId ? cachedGetUserNameById(item.teacherId) : Promise.resolve(null);
+        const [scheduleObject, studentNameRaw, directTeacherName] = await Promise.all([
+          cachedFetchSchedule(item.scheduleId),
+          cachedGetUserNameById(item.studentId),
+          directTeacherIdPromise
+        ]);
+
+        item.scheduleName = scheduleObject ? (scheduleObject.name || '') : '';
+        item.scheduleInfo = scheduleObject ? getScheduleInfo(scheduleObject, true) : '';
+        item.studentName = studentNameRaw || '';
+
+        // 【层 B】依赖 scheduleObject.courseId → 查课程
+        const courseObject = scheduleObject && scheduleObject.courseId
+          ? await cachedGetCourseById(scheduleObject.courseId)
+          : null;
+        item.courseName = courseObject ? (courseObject.courseName || courseObject.name || '') : '';
+
+        // 【层 C】如果 item 没 teacherId，再从课程对象取 teacherId 查一次
+        if (directTeacherName !== null) {
+          item.teacherName = directTeacherName || '';
+        } else {
+          item.teacherName = courseObject && courseObject.teacherId
+            ? (await cachedGetUserNameById(courseObject.teacherId)) || ''
+            : '';
+        }
+
+        // 预约状态中文描述
+        item.bookingStatus = checkStatus_booking(item.status);
+
+        console.log("info:", item);
+      } catch (e) {
+        // 单条失败不影响整体，保证列表仍能渲染
+        console.error('fetchBookingListPage 补充名称失败，item=', item, 'error=', e);
+        item.scheduleName = item.scheduleName || item.scheduleId || '';
+        item.studentName = item.studentName || item.studentId || '';
+        item.teacherName = item.teacherName || item.teacherId || '';
+        item.courseName = item.courseName || item.courseId || '';
+        item.bookingStatus = item.bookingStatus ||  item.status || '';
+      }
+    }));
+
+ return listObj;
+ }    
  
-  const params = {  
-      id:null,
-      scheduleId: null,
-      userRole: userRole,
-      userId: userid,
-      status: status
-  }; 
-  //console.log("getBookingList: params", params); 
-  return  await getBookingInfoByCondition(params) ; 
-}
 
 window.getBookingInfo = getBookingInfo;
-
+// INSERT_YOUR_CODE
+/**
+ * 获取预约(booking)列表，支持多参数（role, userId, status）或 condition 对象
+ * 参数兼容：
+ *   - getBookingList(userRole, userId, status)
+ *   - getBookingList(conditionObj)
+ * 返回预约数组（Result.data），失败返回空数组
+ */
+async function getBookingList(userRoleOrParams, userId, status) {
+    let params = {};
+    if (typeof userRoleOrParams === 'object' && userRoleOrParams !== null && !Array.isArray(userRoleOrParams)) {
+        // 兼容直接传查询对象的写法
+        params = { ...userRoleOrParams };
+    } else {
+        // 兼容参数分别传递
+        params = {
+            userRole: userRoleOrParams ?? null,
+            userId: userId ?? null,
+            status: typeof status !== 'undefined' ? status : null,
+            id: null,
+            scheduleId: null
+        };
+    }
+    // 清除空参数
+    Object.keys(params).forEach(k => {
+        if (params[k] === undefined) params[k] = null;
+    });
+    try {
+        const res = await getBookingInfoByCondition(params);
+        // 支持后端若有 data 属性则返回 data，否则直接返回整体
+        if (res && res.data) return res.data;
+        return Array.isArray(res) ? res : [];
+    } catch (e) {
+        console.error('getBookingList error', e);
+        return [];
+    }
+}
+// BookingQueryParaDTO
 async function  getBookingInfoByCondition(params) {
   const url = `course/booking/list` ; 
   //console.log("getBookingInfoByCondition- params：", params); 
@@ -572,54 +704,7 @@ async function generateScheduleListFromServer(formData) {
       return [];
   } 
 } 
-
-    /**
-     * 设置输入元素为只读，但不改变其显示颜色或样式
-     * @param {HTMLElement} el 输入元素（如input/textarea）
-     * 通过nofocus： pointer-events: none;     禁止鼠标交互，包括点击、选中、聚焦  
-        user-select: none;       禁止选中内容  
-        outline: none !important; 
-   
-      pointer-events: none;   禁用交互（点击、输入、焦点）  
-      user-select: none; 
-    function setReadOnlyById(itemName){  
-     const  el = document.getElementById(itemName);
-     setReadOnlyKeepStyle(el);
-    }
-
-    function setReadOnlyKeepStyle(el) {
-      if (!el) return;
-      el.readOnly = true;
-      // 一些表单元素（如select、checkbox、radio）没有readonly属性，可用disabled，但会变灰
-      // 此处推荐通过阻止交互而不设置disabled，保证视觉样式不变
-      el.addEventListener('keydown', function(e) { e.preventDefault(); }, { once: true });
-      el.addEventListener('beforeinput', function(e) { e.preventDefault(); }, { once: true });
-      // 可选：为input添加pointer-events:none，但如果要选中文字可省略
-      // el.style.pointerEvents = 'none';
-      
-      forbidSelectExpand(el);
-
-      if(hasChildElements(el)){// for input
-         traverseChildElements(el,forbidInput);
-       }
-  }
-
-  // 判断一个元素是否有子元素，遍历其子元素
-function hasChildElements(element) {
-  if (!element) return false;
-  // 返回元素是否至少有一个子元素节点（HTMLElement）
-  return element.children && element.children.length > 0;
-}
-function traverseChildElements(element, callback) {
-  if (!element || !element.children) return;
-  // 遍历所有子元素，并对每个子元素执行callback
-  for (let i = 0; i < element.children.length; i++) {
-      const child = element.children[i];
-      callback(child);
-      // 可递归遍历后代
-      //traverseChildElements(child, callback);
-  }
-}
+ 
 
 /**
  * 禁止下拉框(select)展开，可用以下方式：
@@ -644,24 +729,7 @@ function forbidSelectExpand(selectElement) {
   selectElement.addEventListener('focus', function (e) {
     e.target.blur();
   });
-} 
-// 用法示例：禁止"id为scheduleSelect"的下拉框展开
-// forbidSelectExpand(document.getElementById('scheduleSelect'));
-/**
- * 禁止 input 元素的输入，有几种常见方法：
- * 
- * 1. 设置 readonly 属性（不可编辑，但能选中复制，外观不变）：
- *    document.getElementById('yourInputId').readOnly = true;
- *    // 取消禁用输入：
- *    document.getElementById('yourInputId').readOnly = false;
- * 
- * 2. 设置 disabled 属性（完全禁用且变灰，不能选中）：
- *    document.getElementById('yourInputId').disabled = true;
- *    // 取消禁用输入：
- *    document.getElementById('yourInputId').disabled = false;
- * 
- * 3. 用 JS 阻止所有输入行为（维持完全外观，但禁止输入）：
- */
+}  
 function forbidInput(inputElement) {
   if (!inputElement) return;
   // 禁止键入
@@ -797,7 +865,7 @@ function getScheduleInfo(scheduleObject,withName=true) {
   }
 
   // 刷新重复类型 
-  info += getRepeatDescription(scheduleObject.repeatType, scheduleObject.interval);
+  info += getRepeatDescription(scheduleObject.repeatType, scheduleObject.interval,scheduleObject.repeatDays);
  //TBD:每x周 xx/xx/xx 或者每x月 xx/xx/xx/ 
       return info;
 }
@@ -823,8 +891,8 @@ function getScheduleInfoByDTO(scheduleObject) {
   }
 
   // 刷新重复类型 
-  info += getRepeatDescription(scheduleObject.repeatType, scheduleObject.interval);
- //TBD:每x周 xx/xx/xx 或者每x月 xx/xx/xx/ 
+  info += getRepeatDescription(scheduleObject.repeatType, scheduleObject.interval,scheduleObject.repeatDays);
+ //每x周 xx/xx/xx 或者每x月 xx/xx/xx/ 
       return info;
 }
 /* 
@@ -833,16 +901,23 @@ function getScheduleInfoByDTO(scheduleObject) {
    * @param {number} interval - 重复周期，如每几天/周/月一次
    * @returns {string} - 周期说明语句
    */
-function getRepeatDescription(repeatType, interval) {
+function getRepeatDescription(repeatType, interval,repeatDays) {
+   let repeatDaysStr = "";
+   if (typeof repeatDays === "string") {
+       repeatDaysStr = repeatDays;
+   } else if (Array.isArray(repeatDays) && repeatDays.length > 0) {
+       repeatDaysStr = repeatDays.join("、");
+   }
   switch (repeatType) {
       case "none":
           return "单次课";
       case "day":
           return `每${interval > 1 ? interval : ''}天一次`;
       case "week":
-          return `每${interval > 1 ? interval : ''}周一次`;
+           
+          return `每${interval > 1 ? interval : ''}周`+"["+repeatDaysStr+"]";
       case "month":
-          return `每${interval > 1 ? interval : ''}月一次`;
+          return `每${interval > 1 ? interval : ''}月`+"["+repeatDaysStr+"]";
       default:
           return "";
   }
@@ -871,7 +946,7 @@ function getRepeatDescription(repeatType, interval) {
                         teacherId: teacherId
                     }
                 });
-                console.log("assignStudentToTheSchedule result:", result); 
+               // console.log("assignStudentToTheSchedule result:", result); 
                 return  result;
             } catch (error) {
                 alert("分配学生到排期时发生错误: " + error.message);
@@ -942,3 +1017,4 @@ function checkCourseAndSchedule(scheduleCheck,courseCheck){
       }    
   return true;
 }
+

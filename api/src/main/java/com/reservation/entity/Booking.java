@@ -10,7 +10,7 @@ import java.io.Serializable;
 @Data
 public class Booking   implements Serializable{
     private static final long serialVersionUID = 1L;
-    private String id;  // 系统生成唯一标识（UUID），对应通用校验规则-ID类参数
+    private String bookingId;  // 系统生成唯一标识（UUID），对应通用校验规则-ID类参数
     @NotBlank(message = "排期ID不能为空")
     private String scheduleId;  // 关联排期，对应设计2.2.3 预约接口请求参数
     @NotBlank(message = "学生ID不能为空")
@@ -22,3 +22,14 @@ public class Booking   implements Serializable{
     private Date createTime;  // 订单创建时间
     private Date update_time;  // 更新时间' 
 }
+//根据实体定义，创建sql语句
+//create table if not exists booking (
+//    id varchar(36) not null primary key,
+//    schedule_id varchar(36),
+//    student_id varchar(36) not null,
+//    teacher_id varchar(36) not null,
+//    status varchar(10) not null,
+//    create_time datetime not null,
+//    update_time datetime not null
+//);
+//

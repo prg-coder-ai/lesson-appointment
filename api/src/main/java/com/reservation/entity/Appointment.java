@@ -52,10 +52,12 @@ import java.time.LocalDateTime;
     private LocalDateTime appointmentDatetime;  //当前有效 预约时间，默认时间长度
     private LocalDateTime lastDatetime;  //原始的 预约时间，默认时间长度 ，用于修改的情况
      
+    @NotBlank(message = "预约状态不能为空")
     private String status;  //'预约状态（active生效/noted已发通知1/2/cancelled/s-cancelling/t-cancelling/completed已完成（自动移到历史库中，实时库中删除，降低数据量）/已改期changed'、',
    // private LocalDateTime createTime;  // 订单创建时间
   //  private LocalDateTime updateTime;  // 更新时间'
 }
+//创建预约时间的数据库表sql语句
 
 //从book——id获取schedule_id、course_id、tearcher_id、student_id
 //用于查询
@@ -63,7 +65,7 @@ import java.time.LocalDateTime;
 public class AppointmentDTO   implements Serializable{
     private static final long serialVersionUID = 1L;
     private String id;//顺序自增  系统生成唯一标识（UUID），对应通用校验规则-ID类参数
-    private String BookingId;  // 对应的预约Id
+    private String bookingId;  // 对应的预约Id  
     @NotBlank(message = "排期ID不能为空")
     private String scheduleId;  // 关联排期，对应设计2.2.3 预约接口请求参数
 
@@ -87,3 +89,15 @@ public class AppointmentDTO   implements Serializable{
     private LocalDateTime update_time;  // 更新时间'
 }
  */
+//创建实体的sql语句
+//create table if not exists appointment (
+//    id int auto_increment comment '唯一编号'
+//        primary key,
+//    booking_id varchar(36)                  null comment '预约id',
+//    class_index int         default 1        null comment '课时序号',
+//    appointmemnt_datetime datetime                     null comment '排期预约中的一个课时时间',
+//    last_datetime datetime                     null comment '可能修改前的日期时间',
+//    status varchar(16) default 'active' not null comment '本预约时间的状态:active生效/noted已发通知1/2/cancelled/s-cancelling/t-cancelling/completed已完成（自动移到历史库中，实时库中删除，降低数据量）/已改期changed'
+//)
+//    comment '预约时间列表';
+//

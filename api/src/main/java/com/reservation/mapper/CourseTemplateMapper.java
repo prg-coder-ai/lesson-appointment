@@ -1,6 +1,8 @@
 package com.reservation.mapper;
 
 import com.reservation.entity.CourseTemplate;
+import com.reservation.common.*;
+import com.reservation.query.*;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param; 
 /* 
@@ -71,4 +73,16 @@ public interface CourseTemplateMapper {
    @org.apache.ibatis.annotations.Update("UPDATE course_template SET status = #{action} WHERE template_id = #{templateId}") 
    int updateTemplateStatus(@Param("templateId") String templateId,@Param("action") String action);
     
+    // 定义用于分页查询课程模板的SQL XML映射方法，实际SQL逻辑在 CourseTemplateMapper.xml 文件中实现
+    // 方法声明：根据分页参数查询课程模板列表
+    List<CourseTemplate> selectListByPage(TemplateQueryPage query);
+    int selectListCountByPage(TemplateQueryPage query);
+ 
+    /**
+     * 删除指定id的课程模板
+     * @param templateId 模板ID
+     * @return 影响行数
+     */
+    @org.apache.ibatis.annotations.Delete("DELETE FROM course_template WHERE template_id = #{templateId}")
+    int deleteTemplate(@Param("templateId") String templateId);
 }

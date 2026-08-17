@@ -7,15 +7,24 @@ import com.reservation.entity.Booking;
 import com.reservation.dto.BookingQueryParaDTO;
 import com.reservation.mapper.BookingMapper;
 
+import com.reservation.common.*;
+import com.reservation.query.*;
+ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+
+ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+  
 import java.util.List;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.reservation.mapper.AppointmentMapper;
 //import java.time.LocalDateTime;
 
+@Slf4j
 @Service
 public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointment> {
 
@@ -68,7 +77,7 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
                 queryPara.setUserRole(role.toLowerCase());
                 queryPara.setUserId(userId);
                 bookingIdList = bookingMapper.selectList(queryPara).stream()
-                        .map(Booking::getId)
+                        .map(Booking::getBookingId)
                         .toList();
             }
             // bookingIdList 不为空则查这些bookingId，否则查空
@@ -118,25 +127,144 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
                 .count();
          return result == null ? 0 : result.intValue();
     }
- 
-  /* 
-   Long result = lambdaQuery()
-            .ge(Appointment::getAppointmentDatetime, startTs.toLocalDateTime())
-            .le(Appointment::getAppointmentDatetime, endTs.toLocalDateTime())
-            .in(Appointment::getStatus, statuses)
-            .count();
-    return result == null ? 0 : result.intValue();
-  
-   public boolean saveBatch(List<Appointment> lists){ 
-    boolean allSuccess = true;
-    for (Appointment appointment : lists) {
-        boolean success = this.add(appointment);
-        if (!success) {
-            allSuccess = false;
-        }
+    //
+
+    public PageResult<Appointment> getBetweenTimeByPage(String userId, String role,
+                java.sql.Timestamp startTime, java.sql.Timestamp endTime,    
+                                int pageNum,int pageSize,
+                String status) { 
+        // 先判断 userId 和 role 是否均不为空
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment> queryWrapper;
+
+        List<String> bookingIdList = null;
+        if (userId != null && !userId.isEmpty() && role != null && !role.isEmpty()) {
+            // 按角色，从 booking 表查出对应 bookingId
+            if ("teacher".equalsIgnoreCase(role) || "student".equalsIgnoreCase(role)) {
+                BookingQueryParaDTO queryPara = new BookingQueryParaDTO();
+                queryPara.setUserRole(role.toLowerCase());
+                queryPara.setUserId(userId);
+                bookingIdList = bookingMapper.selectList(queryPara).stream()
+                        .map(Booking::getBookingId)
+                        .toList();
+            }
+            // bookingIdList 不为空则查这些bookingId，否则查空
+            if (bookingIdList != null && !bookingIdList.isEmpty()) {
+                queryWrapper = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment>()
+                        .in(Appointment::getBookingId, bookingIdList)
+                        .between(Appointment::getAppointmentDatetime, startTime, endTime)
+                        .eq(status != null && !status.isEmpty(), Appointment::getStatus, status) 
+                        .orderByDesc(Appointment::getAppointmentDatetime)                                     
+                        .last("LIMIT " + ((pageNum - 1) * pageSize) + "," + pageSize);
+    
+                   
+            } else {
+                // 没有相关预约，直接查空
+                queryWrapper = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment>() 
+                        .between(Appointment::getAppointmentDatetime, startTime, endTime)
+                        .eq(status != null && !status.isEmpty(), Appointment::getStatus, status)             
+                        .orderByDesc(Appointment::getAppointmentDatetime)                                     
+                        .last("LIMIT " + ((pageNum - 1) * pageSize) + "," + pageSize);
+    
+            }
+        } else {
+            // userId/role任一为空，则只按时间过滤
+            queryWrapper = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment>()
+                    .between(Appointment::getAppointmentDatetime, startTime, endTime)                                                      
+                     .eq(status != null && !status.isEmpty(), Appointment::getStatus, status)             
+                     .orderByDesc(Appointment::getAppointmentDatetime)
+                    .last("LIMIT " + ((pageNum - 1) * pageSize) + "," + pageSize);
+        } 
+
+        Page<Appointment> page = new Page<>(pageNum, pageSize);
+        page.setRecords(list(queryWrapper));
+
+        Integer total = getCountBetweenTimeByPage(
+             userId, role,
+             startTime, endTime,   
+             status);
+        page.setTotal(total);
+        PageResult<Appointment> result = PageResult.of(page);
+        return result ;
     }
-    return allSuccess;
-    }*/
+
+     public int  getCountBetweenTimeByPage(
+                String userId, String role,
+                java.sql.Timestamp startTime, java.sql.Timestamp endTime,                   
+                String status)  {
+                    
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment> queryWrapper;
+        List<String> bookingIdList = null;
+        if (userId != null && !userId.isEmpty() && role != null && !role.isEmpty()) {
+            // 按角色，从 booking 表查出对应 bookingId
+            if ("teacher".equalsIgnoreCase(role) || "student".equalsIgnoreCase(role)) {
+                BookingQueryParaDTO queryPara = new BookingQueryParaDTO();
+                queryPara.setUserRole(role.toLowerCase());
+                queryPara.setUserId(userId);
+                bookingIdList = bookingMapper.selectList(queryPara).stream()
+                        .map(Booking::getBookingId)
+                        .toList();
+            }
+            // bookingIdList 不为空则查这些bookingId，否则查空
+             
+            if (bookingIdList != null && !bookingIdList.isEmpty()) {
+                queryWrapper = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment>()
+                        .in(Appointment::getBookingId, bookingIdList)
+                        .between(Appointment::getAppointmentDatetime, startTime, endTime)
+                        .eq(status != null && !status.isEmpty(), Appointment::getStatus, status) ;
+                         
+            } else {
+                // 没有相关预约，直接查空
+                queryWrapper = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment>() 
+                        .between(Appointment::getAppointmentDatetime, startTime, endTime)
+                        .eq(status != null && !status.isEmpty(), Appointment::getStatus, status)  ;         
+             
+            }
+        } else {
+            // userId/role任一为空，则只按时间过滤
+            queryWrapper = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment>()
+                    .between(Appointment::getAppointmentDatetime, startTime, endTime)
+                    .eq(status != null && !status.isEmpty(), Appointment::getStatus, status) ;            
+                                                          
+               } 
+          Long result = baseMapper.selectCount(queryWrapper);
+ 
+         return result == null ? 0 : result.intValue();
+    }
+
+
+    
+    public PageResult<Appointment> listByPage( int pageNum,int pageSize, 
+                String status) {  
+ //查询预约列表,分页查询    ,根据userId,role,状态查询
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment> queryWrapper; 
+       
+            queryWrapper = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment>()
+                    .eq(status != null && !status.isEmpty(), Appointment::getStatus, status)
+                    .orderByDesc(Appointment::getAppointmentDatetime)
+                    .last("LIMIT " + ((pageNum - 1) * pageSize) + "," + pageSize);
+        
+        Page<Appointment> page = new Page<>(pageNum, pageSize);
+        page.setRecords(list(queryWrapper));
+
+        Integer total = getCountByPage( 
+             status);
+        page.setTotal(total);
+        PageResult<Appointment> result = PageResult.of(page);
+        return result ;
+    }
+
+     public int  getCountByPage(      
+                String status)  {
+                    
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment> queryWrapper; 
+            // userId/role任一为空，则只按时间过滤
+            queryWrapper = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment>() 
+                    .eq(status != null && !status.isEmpty(), Appointment::getStatus, status) ;    
+          Long result = baseMapper.selectCount(queryWrapper);
+ 
+         return result == null ? 0 : result.intValue();
+    }
+    // 
      @Transactional
     public boolean updateStatusByBookingId(String bookingId,String status){
 
@@ -146,50 +274,24 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
     }
 
       @Transactional
-    public boolean updateStatusById(String id,String status){ 
+    public boolean updateStatusById(Integer id,String status){ 
     int updated = baseMapper.updateStatusById(id, status);
     return updated > 0;
     }
 
-    public boolean removeByBookingId(String bookingId){
-        System.out.println("removeByBookingId: " + bookingId);
-        int deleted = baseMapper.deleteByBookingId(bookingId);
+public boolean removeById(Integer appId){
+        log.info("删除预约时间开始, appointmentId={}", appId);
+        int deleted = baseMapper.deleteById(appId);
+        log.info("删除预约时间结束, appointmentId={}, 影响行数={}", appId, deleted);
         return deleted > 0;
     }
 
-// INSERT_YOUR_CODE
-
-/** 可计算下月、预约量 、下周？
- * 查询指定时间段内指定状态下的预约数量 而不是按创建时间统计。
- * @param startTime 开始时间（java.sql.Timestamp 或 java.time.LocalDateTime 皆可）
- * @param endTime 结束时间
- * @param statuses 状态列表，如 Arrays.asList("approved", "completed")
- * @return 满足条件的预约数量
- */
-// 这个方法属于业务逻辑范畴，应该定义在Service层（即这里），而不是Mapper。
-// Mapper 通常只定义 SQL 级别的操作（如自定义SQL、复杂join等），而用lambdaQuery/链式查询器的操作是 MyBatis-Plus 通用的，无需重复写Mapper方法。
-// 
-// 若需更复杂的SQL或跨表统计，再考虑写在 Mapper。当前写在 Service 合理。 
-/** 
- * 统计指定时间段及状态下的预约数量，返回long类型，避免类型转换报错
- * @param startTime 开始时间
- * @param endTime 结束时间
- * @param statuses 状态列表
- * @return 满足条件的预约数量（long类型）
- */
-/*public int countLongByTimeAndStatuses(Object startTime, Object endTime,  java.util.List<String> statuses) {
-    // 使用 lambdaQuery 构建查询，返回long
-    Long result= lambdaQuery()
-            .ge(Appointment::getAppointmentDatetime, startTime.toLocalDateTime())
-            .le(Appointment::getAppointmentDatetime, endTime.toLocalDateTime())
-            .in(Appointment::getStatus, statuses)
-            .count();
-
-          return    result == null ? 0 : result.intValue();
-}
-*/
-
-
+    public boolean removeByBookingId(String bookingId){
+        log.info("按预约ID批量删除预约时间开始, bookingId={}", bookingId);
+        int deleted = baseMapper.deleteByBookingId(bookingId);
+        log.info("按预约ID批量删除预约时间结束, bookingId={}, 影响行数={}", bookingId, deleted);
+        return deleted > 0;
+    } 
 /**
  * 统计指定时间段以及状态下的预约数量（int）
  * 用于Controller直接调用，参数可以为 LocalDateTime 或 Timestamp，内部统一为 Timestamp 以便数据库查询。

@@ -1,6 +1,6 @@
  //预约管理--预约结果详情--页面
   //展示本人的所有预约列表，提供预约详情---展示排期列表（使用“取消预约”操作）
-   // student-course-appointment.js
+   // student-course-appointment.js   StudentBookingBrowserCards.js
 // 区别于booking页面，booking页面负责查询课程、检查排期，以便预约1个课程，
 //本页面，浏览预约结果和具体时间列表
  //console .log("student appointment  page");
@@ -8,25 +8,93 @@
 /**
  *  课程预约列表（核心：原生JS操作DOM）
  * 对于学生， 显示本人预定的课程，详情显示预约排期，可设置请假、临时改期
+ * TBD：分析与admin-booking差别，服是否可以复用，分页显示
  */
+// 引入分页组件js
+document.write('<script src="/js/public/pagefoot.js"></script>');
+
+//part
+// 方法一：让3个div上下排列（纵向堆叠），最简单直接的方式是让它们在一个普通父div下，不设置特殊布局即可（div默认display:block会自动上下排列）。
+// 例如：
+// <div>
+//   <div>区域1</div>
+//   <div>区域2</div>
+//   <div>区域3</div>
+// </div>
+
+// 方法二：如果你需要显式指定，可以为父div加样式：display: flex; flex-direction: column;
+// 例如：
+// <div style="display: flex; flex-direction: column;">
+//   <div>区域1</div>
+//   <div>区域2</div>
+//   <div>区域3</div>
+// </div>
+
+// 方法三：用CSS类统一管理
+// .vertical-container { display: flex; flex-direction: column; }
+// 然后html：
+// <div class="vertical-container">
+//   <div>区域1</div>
+//   <div>区域2</div>
+//   <div>区域3</div>
+// </div>
+//
+// 总结：div默认就是上下排列，如果用flex布局也可通过设置flex-direction: column实现。
+
 async function renderStudentBookingBrowserCards() {
+
+    assignLoadobjectListFunction( loadAndRenderBooking_student);// assign
+
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
     //console.log("container:",dynamicContentCenter);
     if (!dynamicContentCenter) return; 
-    // 显示加载中
-    dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';  
-    // 渲染HTML
+        // 渲染HTML
     let html = '';
-    { 
-      html += `  
-    <!-- 预约状态显示和选择 TBD -->
-   <div class="card">
-              <h3><i class="fa fa-calendar-check-o"></i> 我的全部预约</h3>
+     
+    html += `       
+    <div class="card">
+             ` 
+    html += `    
+         <div class="card-header">
+         <div>
+            <div class="card-title"><i class="fa fa-calendar-alt"></i>预订列表</div>
+      <!-- 筛选条件 -->
+              <div class="filter-bar">  
+                <div class="filter-item" >
+                  <label>课程名称：</label>
+                  <input type="text" id="course-name-input" placeholder="课程名称">
+                </div>
+                        
+                <div class="filter-item">
+                  <label>状态：</label>
+                  <select id="booking-status-select">
+                    <option value="">全部</option>
+                    <option value="booking">预定待确认</option>
+                    <option value="cancelling">取消待确认</option>
+                    <option value="booked">预定已确认</option>
+                    <option value="cancelled">已取消</option>
+                    <option value="delete">已删除</option> 
+                  </select>
+                </div> 
+                <button class="btn btn-default" onclick="localsearchAppoint_student()">
+                  <i class="fa fa-search"></i> 搜索
+                </button>
+                <button class="btn btn-default" onclick="resetFilterAppoint_student()">
+                  <i class="fa fa-redo"></i> 重置
+                </button>
+              </div> 
+           </div>
+         </div>
+    <!-- 预约状态显示和选择 -->            
               <div id="my-bookings">
+       
+              </div>   
+        `  ;
 
-              </div>      
-    </div>
-    <!-- 排期结果 -->
+   html += getPagebar();
+   html += ` </div> ` 
+
+   html+=`   <!-- 排期结果 -->
     <div class="section">
         <div class="section-title">排期结果（列表）</div>
         <table>
@@ -49,52 +117,75 @@ async function renderStudentBookingBrowserCards() {
     </div>`;
     
     dynamicContentCenter.innerHTML = html; 
-    refreshData();   
+    loadAndRenderBooking_student();   
+    } 
+
+
+//按照条件，按页加载预定数据，called by admin、student/techer
+async function loadAndRenderBooking_student(){
+    //search current pendding booking items ,and dispaly here /pendingBooking   
+    // let  userInfo= getCurrentUserInfo();
+    // let userId = userInfo.userId;
+    // let userRole = userInfo.userRole; 
+     const params = {
+       pageNum: Pagination.pageNum,
+       pageSize: Pagination.pageSize,
+       // 可预留 future 参数，比如 userRole, status 等，如有需要可加上
+       userId:   userId,
+       userRole: userRole,    
+       courseName:     document.getElementById('course-name-input').value.trim(),//TBD      
+       status: document.getElementById('booking-status-select').value  
+  
+     };
+     if(userRole== "admin") {
+      params.userId   = null;
+      params.userRole = null ;
+    }
+    //console.error("page:",params);
+     let result = await getBookingListPage( params);
     
- /** SELECT `status` FROM `lesson_appointment`.`appointment`;
-'本预约时间的状态:active生效/noted1、2已发通知/completed已完成/已改期changed/申请取消changing'
-  * 问题分析：
-  * 程序第94行为：console.info("bookingsHtml:",bookingsHtml);
-  * 但实际在页面运行时，bookingsHtml 可能一直为空字符串，导致未显示课程卡片。
-  * 进一步排查发现代码的主要问题如下：
-  * 
-  * 1. forEach(async (booking) => {...}) 并不会等待异步操作完成，也就是 bookingList.forEach 不能与 async/await 配合“同步执行”。
-  * 2. bookingsHtml 的累加基于一系列异步操作，但实际的 bookingsHtml += cardContent; 在 then 之后才赋值，而外层 forEach 并不会等待它们结束。
-  * 3. 由于 forEach 不等待异步返回，forEach 后面马上执行 console.info("bookingsHtml:",bookingsHtml)，这时 bookingsHtml 还没填充任何 cardContent。
-  * 4. bookingContainer.innerHTML 也在 forEach 之后立即执行，导致页面展现为空。
-  * 
-  * 所以第94行始终打不出最终内容。
-  * 
-  * 解决方案：使用 for...of 循环+await，或者 Promise.all 并在 then 内赋值，保证异步结果全部收集后再渲染。
-  */
-
- async function refreshData(){
-     let status = null; //不限制状态
-     bookingList = await getBookingData(userRole, userId, status);
-
+     //  console.log("ret:",result);
+     if(result){
+         const pageData = result;  
+         Pagination.total = pageData.total ;
+         Pagination.totalPages = pageData.totalPages;           
+         renderBooking_student( pageData.rows); 
+        // 渲染分页栏,带入分页参数
+        renderPagination( Pagination);    
+     }  else {
+        Pagination.total = 0;
+        Pagination.totalPages = 0;      
+        renderBooking_student( null); 
+        renderPagination( Pagination);          
+    } 
+}
+ async function renderBooking_student( bookingList){
+   
      let bookingsHtml = "";
+     var index=(Pagination.pageNum-1)*Pagination.pageSize;//记录序号
 
      if (Array.isArray(bookingList)) {
          // 用for...of+await，等待所有异步操作完成
          for (let booking of bookingList) {
-           //  console.log("booking:", bookingList.indexOf(booking), booking);
+            index ++ ;
+            
              const scheduleObject = await fetchSchedule(booking.scheduleId);
-             //console.log("scheduleObject:", scheduleObject);
+             
              if (scheduleObject != null) {
                  let scheduleInfoStr = getScheduleInfo(scheduleObject);
                  const classObject = await getCourseById(scheduleObject.courseId);
 
-                // testGetList(scheduleObject.courseId);
-                 //TBD teacherId + user库--》teacherName
                  const teacherName= await getUserNameById(classObject.teacherId);
-                 //console.log("classObject:", classObject);
+                 const studentName = await getUserNameById(booking.studentId);
                  if (classObject != null) {
                      let cardItems = { 
+                         index: index,
                          scheduleId:    scheduleObject.scheduleId,
                          origTz:        scheduleObject.timeZone,
                          bookingId:     booking.id,
                          className:     classObject.courseName,
                          teacherName:   teacherName,
+                         studentName:   studentName,
                          scheduleInfo:  scheduleInfoStr,
                          status:        booking.status
                      }
@@ -113,7 +204,7 @@ async function renderStudentBookingBrowserCards() {
          bookingContainer.innerHTML = `<div class="bookings-list">${bookingsHtml}</div>`;
      }
  }
- 
+ /*
  async function  testGetList(courseId){
     const conditionJson = { 
         courseId:courseId,
@@ -125,7 +216,7 @@ async function renderStudentBookingBrowserCards() {
    const one = await getCourseById(courseId);
   console.log(one,rlist);
    }
- 
+ */
    /*cardInfo的数据形式：
      cardContent ={
     bookingId:"",
@@ -150,8 +241,8 @@ async function renderStudentBookingBrowserCards() {
          const info = `
              <div class="course-card">
                  <div class="course-info">
-                     <h4>${cardInfo.className}</h4>
-                     <p>授课教师：${cardInfo.teacherName} | 预约时间：${cardInfo.scheduleInfo} | 状态：${
+                     <h4>${cardInfo.index} ${cardInfo.className} </h4>
+                     <p>教师：${cardInfo.teacherName} | 学生：${cardInfo.studentName} | 预约时间：${cardInfo.scheduleInfo} | 状态：${
                         {
                             none: "无预约",
                             booking: "已预约,待确认",
@@ -167,13 +258,13 @@ async function renderStudentBookingBrowserCards() {
                  </div>
                  <div class="course-actions">
                      ${
-                        cardInfo.status === 'booking'
+                        userRole === 'student' && cardInfo.status === 'booking'
                           ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','none')">撤销</button>`
-                          : cardInfo.status === 'booked'
+                          : userRole === 'student' && cardInfo.status === 'booked'
                           ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','cancelling')">申请取消</button>`
-                          : (cardInfo.status === 'canceling' || cardInfo.status === 'cancelling')
+                          : userRole === 'student' && (cardInfo.status === 'canceling' || cardInfo.status === 'cancelling')
                           ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','booked')">撤销</button>`
-                          : (cardInfo.status === 'canceled' ||  cardInfo.status === 'cancelled' )
+                          : userRole === 'student' && (cardInfo.status === 'canceled' ||  cardInfo.status === 'cancelled' )
                           ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','booking')">重新申请</button>`
                           : ''
                      }
@@ -200,12 +291,11 @@ async function renderStudentBookingBrowserCards() {
    window.renderCalendar    = renderCalendar ; 
    //window.displaySchedule   = displaySchedule ;  
    window.actionForButton   = actionForButton ; 
-   window.refreshData       = refreshData  ; 
+   window.loadAndRenderBooking_student       = loadAndRenderBooking_student  ; 
    window.formACourseCard   = formACourseCard  ; 
    window.getAppointmentsByBookingId   = getAppointmentsByBookingId;// defined in dataFunction.js 
    
-   
-   
+    
  
    // 预览排期--对于未确认的排期查看--已优化掉--可到预约页面查看
    async function previewSchedule(scheduleid,origTzTimeZone) { 
@@ -215,13 +305,7 @@ async function renderStudentBookingBrowserCards() {
     renderResult(scheduleResult);
     renderCalendar(scheduleResult); 
 }
- 
- 
-async function getBookingData( userRole, useid,status) { 
-    console.log("getBookingData:","userRole:",userRole, "useid:",useid,"status:",status)
-    return await getBookingList(userRole, useid,status);
-}
- 
+  
 //预览排期--对于已确认的排期查看 读取排期时间表，显示在排期时间列表和日历上.  
 async function viewMyReservationDetail(bookingId,origTzTimeZone){
    // 北京: "Asia/Shanghai"
@@ -258,7 +342,7 @@ function renderResult(dateTimeList) {
     body.innerHTML = ''; 
     // 不同状态对应的提示
             // status: active=生效, noted1/2=已通知, completed=已完成, cancelled=已改期, cancelling=申请取消
-    function getStatusLabel(status) {
+    function getAppointmentStatusLabel(status) {
         switch (status) {
             case 'active': return '生效';
             case 'noted1': return '第一次通知';
@@ -271,7 +355,7 @@ function renderResult(dateTimeList) {
             
             case 't-cancelling': return '老师申请改期';
             case 't-cancelled':  return '老师已改期';
-            case 't-reject': return '生效';
+            case 't-reject': return '已拒绝(T)';
             default: return status;
         }
     }
@@ -281,16 +365,16 @@ function renderResult(dateTimeList) {
             const tr = document.createElement('tr');
             // 获取item.date的周几
             let weekday = item.weekday; 
-            let statusName = getStatusLabel(item.status);
+            let statusName = getAppointmentStatusLabel(item.status);
             tr.innerHTML = `<td>${dateTimeList.indexOf(item) + 1}</td><td>${item.date} ${weekday}</td><td>${item.time}</td> <td>${statusName}</td>`;
 
-            const canCancel=item.status!= "completed"  && item.status!= "cancelled" && item.status!= "cancelling"  && item.status!= "cancelled" && item.status!= "t-cancelling";// 可延期、 如果为cancelling--则可撤回
+            const canCancel= (item.status!= "completed")  && (item.status!= "cancelled") && (item.status!= "cancelling")  && item.status!= "cancelled" && item.status!= "t-cancelling";// 可延期、 如果为cancelling--则可撤回
             const applyDelayBtn = document.createElement('button');
             applyDelayBtn.className = 'btn btn-warning'; // 给按钮加一些样式，非必须可移除
             if(canCancel) {  
                 applyDelayBtn.textContent = '申请延期'; 
                 applyDelayBtn.onclick = function() {
-                    cancellingAppointment(item.id,true);
+                    cancellingAppointment(item.id,true);//appointmentNotes.js
                 } 
             }  else if(item.status == "cancelling") {
                     applyDelayBtn.textContent = '收回申请'; 
@@ -305,87 +389,79 @@ function renderResult(dateTimeList) {
         });
         } else {
             body.innerHTML = '<div> 暂无数据 </div>'; 
-
         }
   }
 
  // 渲染日历
  function renderCalendar(dateTimeList) {
-  const cal = document.getElementById('calendar');
-  cal.innerHTML = '';
-  if(scheduleResult == null )
-    return;
+        const cal = document.getElementById('calendar');
+        cal.innerHTML = '';
+        if(scheduleResult == null )
+            return;
 
-  const dateSet = new Set(dateTimeList.map(i => i.date));
-    // 将dateSet的第一项（若存在）转为日期变量
-  let firstDateVar = null;
-  if (dateSet.size > 0) {
-      const firstDateStr = Array.from(dateSet)[0];
-      // 假设格式为'yyyy-MM-dd'
-      const [year, month, day] = firstDateStr.split('-');
-      firstDateVar = new Date(Number(year), Number(month) - 1, Number(day));
-      console.log('firstDateVar:', firstDateVar);
-  }
+        const dateSet = new Set(dateTimeList.map(i => i.date));
+            // 将dateSet的第一项（若存在）转为日期变量
+        let firstDateVar = null;
+        if (dateSet.size > 0) {
+            const firstDateStr = Array.from(dateSet)[0];
+            // 假设格式为'yyyy-MM-dd'
+            const [year, month, day] = firstDateStr.split('-');
+            firstDateVar = new Date(Number(year), Number(month) - 1, Number(day));
+            console.log('firstDateVar:', firstDateVar);
+        }
 
-  // startDate设置为dateSet第一项表示的日期（如果有），否则用今天
-  let startDate;
-  if (firstDateVar) {
-      startDate = new Date(firstDateVar); // 已在本地，0点时间
-  } else {
-      startDate = new Date();
-  }
- 
-  const dayOfWeek = startDate.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
-  const diffToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
-  startDate.setDate(startDate.getDate() + diffToMonday);
+        // startDate设置为dateSet第一项表示的日期（如果有），否则用今天
+        let startDate;
+        if (firstDateVar) {
+            startDate = new Date(firstDateVar); // 已在本地，0点时间
+        } else {
+            startDate = new Date();
+        }
+        
+        const dayOfWeek = startDate.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+        const diffToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
+        startDate.setDate(startDate.getDate() + diffToMonday);
 
-  // 显示35天，横向排列，每行7天
-  const daysToShow = 35;
+        // 显示35天，横向排列，每行7天
+        const daysToShow = 35;
 
-  const today = new Date(startDate);
-  today.setHours(0, 0, 0, 0); // 本地0点
-  for (let i = 0; i <= daysToShow; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
-      // 保证是本地时区的年月日
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      const dateStr = `${year}-${month}-${day}`;
-      const div = document.createElement('div');
-      div.className = 'calendar-day';
-      if (dateSet.has(dateStr)) div.classList.add('marked');//TBD: 取消cancelled、cancelling
-      div.innerText = d.getDate();
-      cal.appendChild(div);
-  }
-}   
+        const today = new Date(startDate);
+        today.setHours(0, 0, 0, 0); // 本地0点
+        for (let i = 0; i <= daysToShow; i++) {
+            const d = new Date(today);
+            d.setDate(today.getDate() + i);
+            // 保证是本地时区的年月日
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${day}`;
+            const div = document.createElement('div');
+            div.className = 'calendar-day';
+            if (dateSet.has(dateStr)) div.classList.add('marked');//TBD: 取消cancelled、cancelling
+            div.innerText = d.getDate();
+            cal.appendChild(div);
+        }
+    }   
  
   //判断预约状态，如果是booking则可直接取消，如果是booked,则设置为canceling，等待确认
   async function actionForButton(bookingid,newStatus) { 
      //const formData = getBookFormData();  
-     await operateBookingStatus( bookingid, newStatus);  
+     await operateBookingStatus( bookingid, newStatus);
+     loadAndRenderBooking_student();
   }
-
-  //TBD:在预约时间的请假、等状态变化时，刷新状态显示----详情列表await
-    //在状态变化时，更新预约状态， --指定元素名称--约定-ID = bk-${bookingid}
-    async function  reloadBooking(bookingid){ 
-         //const bidItem = document.getElementById("bookingId");
-         //bidItem.value = bookingid;
-         if(selectedScheuleId != null) {
-            const bookingObjectList =    await getBookingInfo(selectedScheuleId,userRole,userId); 
-             
-            if(bookingObjectList!= null && bookingObjectList.length >0)
-            { renderStudentBookingStatus(bookingObjectList[0]);  //获取 用户的预定信息
-            } else {  
-                renderStudentBookingStatus(null);
-            }
-         }
-            }//
-        }
-    
-     
-   // console.log("schedule page END");
-}
+ 
+ 
+function localsearchAppoint_student() {
+    Pagination.pageNum = 1;
+    loadAndRenderBooking_student();
+ }
+ // 重置筛选条件
+ function resetFilterAppoint_student() {
+    document.getElementById('course-name-input').value = '';   
+    document.getElementById('booking-status-select').value = '';
+    Pagination.pageNum = 1;
+    loadAndRenderBooking_student(); 
+ }
  
 
 

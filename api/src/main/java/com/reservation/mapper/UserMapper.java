@@ -1,6 +1,9 @@
 package com.reservation.mapper;
 //     "com.reservation.mapper.UserMapper"
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.reservation.entity.User;
+import com.reservation.query.UserQueryPage;
+
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -8,12 +11,13 @@ import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 import java.util.Map;
- 
+
 /**
  * UserMapper接口，对应user表CRUD操作，匹配UserService中的方法
+ * 按项目约定继承 BaseMapper，复用 MyBatis-Plus 内置 insert/selectById/deleteById/updateById 等方法
  */
 @Mapper
-public interface UserMapper {
+public interface UserMapper extends BaseMapper<User> {
 
      @Select("select * from user where account = #{account}")
     User selectByAccount(@Param("account") String account);
@@ -92,8 +96,7 @@ public interface UserMapper {
     int update(User user);
  */
     
-   // @Update("UPDATE user SET online = #{bOnline} WHERE user_id = #{userId}")     
-   // public int setOnline(@Param("userId") String userId ,@Param("userId") boolean bOnline); 
+    
         /** listByCondition暂时报错
          * 根据条件查询用户列表
          * 支持条件字段：userId, role, status, orgId, name, email, phone, account
@@ -106,9 +109,11 @@ public interface UserMapper {
 
         // 推荐写法（此接口必须在 UserMapper.xml 里用 <select> + <where> + <if> 实现），否则此注解会报错。
  */   
-      @Select("SELECT * FROM user")
-      public  List<User> listByCondition(@Param("condition") Map<String, Object> condition);
-    
+      
+       public  List<User> listByCondition(Map<String, Object>  condition); 
+       public  List<User> listByConditionPage(UserQueryPage  condition);
+       public  int selectCountByContion(UserQueryPage  condition);
+
       @Select("SELECT * FROM user WHERE role = #{role}")
        List<User> listByRole(@Param("role") String role);
 

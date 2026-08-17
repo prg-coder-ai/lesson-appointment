@@ -1,32 +1,68 @@
 package com.reservation.service;
 
 //import com.reservation.controller.CourseExecutionController;
- import com.reservation.entity.*; 
+
+ import com.reservation.common.PageResult;
+ import com.reservation.entity.*;
 import com.reservation.dto.*; 
+import com.reservation.query.*; 
+
 import com.reservation.exception.BusinessException;
 import com.reservation.exception.ResourceNotFoundException;
 import com.reservation.mapper.CourseTemplateMapper;
 import com.reservation.mapper.CourseMapper;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Propagation;
-
+ import ch.qos.logback.core.joran.util.beans.BeanUtil;
+ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+ import com.baomidou.mybatisplus.extension.service.IService;
 //import java.text.SimpleDateFormat;
 import java.util.*;
-
+ //import cn.hutool.core.util.StrUtil;
+// Spring 自带工具类等价写法（无需额外引依赖）
+ import org.springframework.util.StringUtils;
 /**
  * 课程与排期管理服务，对应设计2.2.2 课程与排期管理模块所有接口的业务逻辑
  * 涵盖课程模板、教师课程、课程排期的增删改查，严格遵循权限校验和数据校验规则
  */
+@Slf4j
 @Service
-public class CourseService {
+public class CourseService   {
     @Autowired
     private CourseMapper courseMapper;
-     @Autowired
+    @Autowired
     private CourseTemplateMapper courseTemplateMapper;
 
+/**
+     * 分页查询课程列表
+     * 
+     * selectCourseList：com.reservation.dto.CourseQueryParam
+     /**
+      * 分页查询课程列表
+      */
+     public PageResult<Course> getCoursePage(CourseQueryPage query) {
+         // 查询课程列表
+         List<Course> courseList = courseMapper.selectCourseListByPage(query);
+
+         // 封装分页对象
+         Page<Course> page = new Page<>(query.getPageNum(), query.getPageSize());
+         page.setRecords(courseList);
+
+         // 查询总数
+         Integer total = courseMapper.selectCourseListCount(query);
+         page.setTotal(total);
+
+         PageResult<Course> result = PageResult.of(page);
+          return result;
+    }
+
+ 
     /**
      * 创建课程模板，对应设计2.2.2 课程模板创建接口，仅管理员可操作
      */
@@ -77,6 +113,31 @@ public class CourseService {
             return Optional.ofNullable(filteredTemplates).orElse(Collections.emptyList());
         }
     }
+    
+
+    public PageResult<CourseTemplate> getTemplateListBypage(TemplateQueryPage query) {
+         // 查询课程列表
+         List<CourseTemplate> courseList = courseTemplateMapper.selectListByPage(query);
+
+         // 封装分页对象
+         Page<CourseTemplate> page = new Page<>(query.getPageNum(), query.getPageSize());
+         page.setRecords(courseList);
+
+         // 查询总数
+         Integer total = courseTemplateMapper.selectListCountByPage(query);
+         page.setTotal(total);
+
+         PageResult<CourseTemplate> result = PageResult.of(page);
+          return result;
+    }
+//          deleteTemplateById
+public int deleteTemplate(String Id) {
+       log.info("删除课程模板开始, templateId={}", Id);
+       int rows = courseTemplateMapper.deleteTemplate(Id);
+       log.info("删除课程模板结束, templateId={}, 影响行数={}", Id, rows);
+       return rows;
+    }
+
     /**
      * 教师创建课程，对应设计2.2.2 教师课程创建接口，仅教师可操作
      */
@@ -94,16 +155,18 @@ public class CourseService {
  
 @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public Map<String, String> updateCourseStatus (String courseId,String status) {
-      /*  Course course = courseMapper.selectCourseById(courseId);
-        if (course == null) {
-            throw new ResourceNotFoundException("updateCourseStatus：课程不存在");
-        } */
-         // INSERT_YOUR_CODE
-         System.out.println("updateCourseStatus called with courseId: " + courseId + ", status: " + status);
- 
+
          courseMapper.updateCourseStatus(courseId,status);
         return Collections.singletonMap("courseId", courseId);
     }
+
+@Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
+    public Integer updateCourseStatusByLastId (String templateId,String status) {
+
+        int rows= courseMapper.updateCourseStatusByLastId(templateId,status);
+        return  rows;
+    }
+
 
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public Map<String, String> update (Course obj) {
@@ -141,20 +204,7 @@ public class CourseService {
        // course.setStatus("active"); // 假设"active"为已发布状态
         courseMapper.updateCourseStatus(courseId, "active");
     }
-
-    /**
-     * 删除课程
-     */
-    public void deleteCourse(String courseId) {
-       /* Course course = courseMapper.selectCourseById(courseId);
-        if (course == null) {
-            throw new ResourceNotFoundException("课程不存在，无法删除");
-        }
-      */
-        courseMapper.updateCourseStatus(courseId, "forzen");
-    }
-
-    /**
+      /**
      * 回收课程，将课程状态设为回收/停用
      */
     public void recycleCourse(String courseId) {
@@ -166,6 +216,26 @@ public class CourseService {
         courseMapper.updateCourseStatus(courseId, "inactive");
     }
 
+
+    /**
+     * 删除课程
+     */
+  /*  public void deleteCourse(String courseId) {
+         courseMapper.updateCourseStatus(courseId, "forzen");
+    }
+*/
+
+public int deleteById(String courseId) {
+        log.info("删除课程开始, courseId={}", courseId);
+        int rows = courseMapper.deleteById(courseId);
+        log.info("删除课程结束, courseId={}, 影响行数={}", courseId, rows);
+        return rows;
+    }
+  
+  
+//public int                  deleteByTempleteId(String templateId) {
+        //return courseMapper.deleteByTemplateId(templateId);
+    //}
     /**
      * 检查课程归属权，若courseId不存在或非teacherId归属，抛出业务异常
      */
@@ -190,5 +260,12 @@ public class CourseService {
         // 假定"active"为已发布课程状态，需要CourseMapper提供对应查询
         return courseMapper.countPublishedCourseAtDate(timestamp, "active");
     }
-    
+
+    public int deleteByTemplateId(String id) {
+        log.info("按模板ID删除课程开始, templateId={}", id);
+        int rows = courseMapper.deleteByTemplateId(id);
+        log.info("按模板ID删除课程结束, templateId={}, 影响行数={}", id, rows);
+        return rows;
+
+    }
 }

@@ -1,5 +1,5 @@
 
-/**
+/**  NOT use
  * 通用API数据获取函数
  * @param {string} url - 请求的API地址
  * @param {Object} options - fetch 选项，如 method, headers, body 等

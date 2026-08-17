@@ -512,6 +512,7 @@
 
       try {
         // 用户认证
+        console.log(userRole.value, username.value.trim(), password.value.trim());
         const user = await authenticateUser(
           userRole.value,
           username.value.trim(),

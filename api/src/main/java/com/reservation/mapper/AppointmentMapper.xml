@@ -17,11 +17,12 @@
         WHERE id = #{id}
     </update>
 
-    <!-- 删除预约时间 -->
+    <!-- 删除指定预定的所有预约时间 -->
     <delete id="deleteByBookingId">
         DELETE FROM appointment WHERE booking_id = #{bookingId}  AND id > 0;
     </delete>
  
+ <!-- deleteById 已移除：使用 MyBatis-Plus BaseMapper 内置的 deleteById 方法 -->
 <!-- 
 错误码 1175 出现在 MySQL Workbench 的 safe update mode 时，
 当你执行 update/delete 操作且 where 子句未用上主键或唯一键时会被拦截。比如：

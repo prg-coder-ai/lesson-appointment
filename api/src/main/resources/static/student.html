@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>语言教学预约系统 - 学生端</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
   <!-- 引入图标库
   <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css">
    -->
@@ -123,11 +125,21 @@
     // 初始化页面（加载默认内容）
     window.onload = function() { 
       userInfo = autoLoginCheck();
+      // ====== 新增：未登录 → 保存当前来源页 URL 后跳登录页 ======
+      if (!userInfo) {
+        console.log('%c[AuthRedirect] 调用点 D：student.html onload 检测到未登录，准备 saveLoginRedirect',
+          'color:#dc2626;font-weight:bold;');
+        if (typeof window.saveLoginRedirect === 'function') {
+          window.saveLoginRedirect('noauth');
+        }
+        location.href = './index.html';
+        return;
+      }
        // 自动登录：检测本地登录信息并校验token有效性  
       const nameid=document.getElementById("user-name");
        if(nameid) nameid.innerHTML= userInfo && userInfo.name;
        
-       // 设置头像元素为用户名首字母
+       // 设置头像为用户名首字母
        const avatarElem = document.getElementById("avatar");
        if (avatarElem && userInfo && userInfo.name && userInfo.name.length > 0) {
          avatarElem.textContent = userInfo.name.charAt(0);
@@ -170,6 +182,8 @@
       // 根据菜单名称加载对应内容
       switch(menuName) {
         case '今日课程':
+           refreshAppointmentNotes( );//TBD "admin"
+      /*
         dynamicContentCenter.innerHTML = `
              <div class="table-container">
                 <table class="data-table">
@@ -193,14 +207,15 @@
              `;
             //借用student页面内容，显示一致
              refreshAppointmentNotesForStudent("days-appointment-student" );
-
+*/
            break;
         case '课程预订': 
               renderStudentBookingCards(); 
           break;
           
         case '我的预订': 
-              renderStudentBookingBrowserCards(); 
+            renderStudentBookingBrowserCards(); //StudentBookingBrowserCards
+            
           break;
           
         case '课程评价':
@@ -281,23 +296,7 @@
           break;
       }
     }
-
-    // 3. 新增退出登录函数
-    // 退出登录函数
-   /* function logout() {
-      if (confirm('确定要退出系统吗？')) {
-        // 清除本地存储的用户信息
-        localStorage.removeItem('currentUser');
-        // 跳回登录页（这里注释掉，方便测试）
-         window.location.href = 'index.html';
-       // alert('已退出登录！');
-      }
-    }*/
-
- 
-  
-
-    // 评价弹窗相关函数（保留原有功能）
+     // 评价弹窗相关函数（保留原有功能）
     let selectedStarCount = 5; // 默认5星
     function evaluateCourse(el) {
       document.getElementById('evaluation-modal').style.display = 'flex';
@@ -377,9 +376,10 @@
   <script src="js/public/dataFunctions.js"></script>
   <script src="js/public/courseAndBooking.js"></script>
   <script src="js/public/appointmentNotes.js"></script> 
-  <script src="js/student-course-booking.js"></script>
-  <script src="js/student-course-appointment.js"></script>
-  <script src="js/student-AppointmentNotes.js"></script>
+  
+  <script src="js/StudentBookingCards.js"></script>
+  <script src="js/StudentBookingBrowserCards.js"></script>
+  <script src="js/admin-AppointmentNotes.js"></script>
 <script> 
 console.log("end of body...")
 </script>

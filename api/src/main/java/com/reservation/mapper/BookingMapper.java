@@ -2,8 +2,11 @@
 // 生成 BookingMapper 接口
 package com.reservation.mapper;
 
+import com.reservation.common.*; //PageResult ,PageQuery
 import com.reservation.entity.Booking;
 import com.reservation.dto.BookingQueryParaDTO;
+import com.reservation.query.BookingQueryPage;
+
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -18,17 +21,21 @@ public interface BookingMapper {
     int update(Booking booking);
 
     // 根据ID变更状态
-    int updateStatus(@Param("id") String id, @Param("status") String status);
+    int updateStatus(@Param("bookingId") String bookingId, @Param("status") String status);
 
     // 根据ID查询
-    Booking selectById(@Param("id") String id);
+    Booking selectById(@Param("bookingId") String bookingId);
 
     // 条件批量查询
     List<Booking> selectList(BookingQueryParaDTO dto);
 
-    // 删除预约
-    int delete(@Param("id") String id);
+    List <Booking> selectListPage(BookingQueryPage dto);
+    int            selectCountByCondition(BookingQueryPage dto);
 
+    // 删除预约
+    int delete(@Param("bookingId") String bookingId);
+    
+    //int deleteByScheduleIde(@Param("scheduleId") String scheduleId);
     // INSERT_YOUR_CODE
     /**
      * 统计截至指定时间（含当时）所有预约（Booking）的数量，可指定状态。
@@ -37,6 +44,8 @@ public interface BookingMapper {
      * @return 截至该时间的指定状态预约数量
      */
     int countBookingAtDate(@Param("dateTimeFrom") java.sql.Timestamp dateTimeFrom, @Param("dateTimeTo") java.sql.Timestamp dateTimeTo,@Param("status") String status);
+
+    int deleteByScheduleId(@Param("scheduleId") String scheduleId); 
 
     // 以下可根据实际需要扩展
 } 

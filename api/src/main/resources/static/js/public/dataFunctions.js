@@ -40,7 +40,7 @@
         Method:"get", 
         params: { year:year, month:month }//controller: @RequestParam("year") int year, @RequestParam("month") int month
       });
-  
+
        // 返回统计结果对象，如:{ teacherMonthStart, teacherMonthEnd, studentMonthStart, studentMonthEnd }
          
           return res  ;  
@@ -76,22 +76,7 @@
     - 问题本质：前端未传必填的days参数，或参数名写错
     - 解决方法：确保前端传days，后端可视情况给参数加默认值
    */
-   async function getAppointmentStatisticByMonth(year, month ) { 
-   try {
-       const res  = await request({url:`${API_BASE_URL}/course/appointment/statistical/byMonth`,  
-        Method:"get", 
-        params: { year:year, month:month } //TBD data:
-      });
-    
-       // 返回统计结果对象，如:{ teacherMonthStart, teacherMonthEnd, studentMonthStart, studentMonthEnd }
-       return res  ; 
-       
-     } catch (e) {
-       // 网络或服务器异常处理
-      console.error(e);
-      return null;
-     }
-   }
+
     /* 
  * // 用法示例:
  * // const stats = await getUserStaticsByMonth(2024, 6);
@@ -133,7 +118,7 @@
         params: { year, month }
        }); 
          // 返回: { bookingMonthLast, bookingMonth }
-    
+    console.log("getBookingStaticsByMonth",res  );
           return res ;
        
      } catch (e) {
@@ -142,7 +127,22 @@
      }
    }
 
- 
+ async function getAppointmentStatisticByMonth(year, month ) {
+    try {
+        const res  = await request({url:`${API_BASE_URL}/course/appointment/statistical/byMonth`,
+         Method:"get",
+         params: { year:year, month:month } //TBD data:
+       });
+      console.log("getAppointmentStatisticByMonth",res  );
+        // 返回统计结果对象，如:{ teacherMonthStart, teacherMonthEnd, studentMonthStart, studentMonthEnd }
+        return res  ;
+
+      } catch (e) {
+        // 网络或服务器异常处理
+       console.error(e);
+       return null;
+      }
+    }
 
 
    /**

@@ -1,9 +1,7 @@
- //排期管理--页面
+ //排期管理--页面 admin-schedule.js
  console.log("admin schedule page");
-//let courseList = [];       // 课程列表
-//let scheduleObject=null;       // 排期
-//let scheduleList =[];
-//let currentCourseId=null;
+ document.write('<script src="/js/public/pagefoot.js"></script>');  
+
 let currentScheduleId= "";
 let teacherId = "";
  let currentCourseIndex =-1,currentScheduleIndex=-1;
@@ -18,39 +16,68 @@ var localParamter ={
   currentId: '', // 当前操作的课程ID
   formEl :'', 
 };
-// ===================== 核心函数 =====================
- // 获取用户时区（关键）
-//const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-//console.log("tz",userTimeZone);
+// ===================== 核心函数 ===================== 
 /**
  * 渲染课程列表（核心：原生JS操作DOM）
  */
 async function renderScheduleCards() {
+    assignLoadobjectListFunction( loadAndRenderCourses);//
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
    // console.log("renderScheduleCards:",dynamicContentCenter);
     if (!dynamicContentCenter) return; 
     // 显示加载中
-    dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';  
+   // dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';  
     // 渲染HTML
     let html = ''; 
-      html += `     
-     <div class="search-bar" style="display:none">
-        <input type="text" id="courseName" placeholder="课程名称">
-        <select id="language">
-            <option value="">语言</option>
-            <option value="zh">中文</option>
-            <option value="en">英文</option>
-        </select>
-        <select id="difficulty">
-            <option value="">难度</option>
-            <option value="easy">初级</option>
-            <option value="middle">中级</option>
-            <option value="hard">高级</option>
-        </select>
-        <input type="text" id="teacher" placeholder="教师">
-        <button class="btn-primary" onclick="searchCourse()">检索课程</button>
-    </div>
+      html += `
+       <div class="card">
+        <div class="card-title"><i class="fa fa-filter"></i> 课程筛选</div>
+            <div class="filter-form" style="display: flex;align:center; gap: 20px; margin-bottom: 16px;">
+                 <div>
+                    <label>课程名称：</label>
+                    <input type="text" id="course-name-input"  placeholder="课程名称" >
+                </div>
+                <div>
+                    <label>语言类型：</label>
+                    <select id="languageType-select" >
+                        <option value="">全部</option>
+                        <option value="french">法语</option>
+                        <option value="english">英语</option> 
+                    </select>
+                </div>
+                <div>
+                    <label>难度等级：</label>
+                    <select id="difficultyLevel-select">
+                        <option value="">全部</option>
+                        <option value="B1">B1入门</option>
+                        <option value="B2">B2初级</option>
+                        <option value="B3">B3中级</option>
+                        <option value="B4">B4高级</option> 
+                    </select>
+                </div>
+                 <div class="filter-item" style="display:none">
+                <label>状态：</label>
+                <select id="course-status-select">
+                    <option value="">全部</option>
+                    <option value="active">有效</option>
+                    <option value="pending">挂起</option>
+                </select>
+                </div>
+            
+                 <button class="btn" onclick="localsearchCourse()">
+                    <i class="fa fa-search"></i> 搜索
+                    </button>
+                <button class="btn btn-default" onclick="resetCourseFilter()"> 
+                <i class="fa fa-redo"></i>重置
+                </button>  
+                </div>
 
+                `
+                html += getPagebar();              
+            html += `<hr>`;
+
+            
+            html += `            
     <!-- 课程选择下拉 -->
     <div class="form-line">
         <label>选择课程：</label>
@@ -208,7 +235,7 @@ async function renderScheduleCards() {
         <button class="btn-primary" onclick="previewSchedule()">预览排期</button>
         <button class="btn-warning" onclick="checkSchedule()">检查冲突</button>
         <button class="btn-primary" onclick="saveScheduleToDB()">保存</button> 
-        <button class="btn-danger"  onclick="deleteSchedule()">删除</button>
+        <button class="btn-danger"  onclick="deleteScheduleByFrozen()">删除</button>
        
 
         <label style="font-weight: normal; margin-left:8px;">
@@ -218,6 +245,7 @@ async function renderScheduleCards() {
                 <!-- 这里可以用JS渲染学生选项 -->
             </select>
     </div> 
+     </div> <!-- card --> 
 
     <!-- 排期结果 -->
     <div class="section">
@@ -261,10 +289,10 @@ async function renderScheduleCards() {
             endDateInput.value = `${year}-${month}-${day}`;
           } ;
       
-    // INSERT_YOUR_CODE
+     
     // 关联 testTimeZone 下拉菜单与 handleTestTimeZoneChange 处理
-    handleTestTimeZoneChange(); 
-     searchCourse();  //display 
+     handleTestTimeZoneChange(); 
+     loadAndRenderCourses();  //display 
     //添加学生列表 ---
     addStudentList(); 
 
@@ -275,7 +303,7 @@ async function renderScheduleCards() {
   window.renderCalendar = renderCalendar ;
   window.saveScheduleToDB = saveScheduleToDB ;
   window.displySchedule = displySchedule ;
-  window.deleteSchedule = deleteSchedule ;
+  window.deleteScheduleByFrozen = deleteScheduleByFrozen ;
 
   window.resetSchedule = resetSchedule ;   
   window.refreshData = refreshData ;
@@ -291,6 +319,25 @@ async function renderScheduleCards() {
     console.log("schedule page END");
   } //renderScheduleCards
 
+  
+// 筛选与操作联动
+// 搜索按钮：重置为第1页再查询
+function localsearchCourse() {
+    Pagination.pageNum = 1;
+    loadAndRenderCourses();
+  }
+
+  
+  // 重置筛选条件
+  function resetCourseFilter() {
+    document.getElementById('course-name-input').value = '';//TBD
+    document.getElementById('languageType-select').value = '';
+    document.getElementById('course-status-select').value = '';
+    document.getElementById('difficultyLevel-select').value = '';
+    Pagination.pageNum = 1;
+    loadAndRenderCourses();
+  }
+  
     //选择学生，添加到学生列表
        async function addStudentList() {
         const conditionJson = { role: 'student' };//TBD:当前admin所属的群组等过滤条件
@@ -309,7 +356,6 @@ async function renderScheduleCards() {
                 });
             }
         }
-
         }
         return ;
        }
@@ -318,18 +364,13 @@ async function renderScheduleCards() {
         * assignStudentToTheSchedule: 指定学生studentId预约排期scdid，并生成对应的appointment数据，保障原子性。
         * 由于JS前端不具备数据库事务能力，此处通过调用后端API完成实际的事务创建。
         * 若失败则友好提示。
-        */
-    
+        */    
  
 // 处理下拉菜单"testTimeZone"的变更，读取表单的timeZone、startDate、startTime及新选择的时区，调用后端获取转换后的时间和日期
-
 function handleTestTimeZoneChange() {
-    const select = document.getElementById('testTimeZone');
-    //console.log(" handleTestTimeZoneChange",select);
+    const select = document.getElementById('testTimeZone'); 
     if (select) {
-        select.addEventListener('change', async (e) => {
-            //const switchToTimeZone = e.target.value;
-            //console.log( e.target.value);
+        select.addEventListener('change', async (e) => { 
             getTestDatetime(); 
             getTestEndDatetime();
         });
@@ -355,7 +396,7 @@ function handleTestTimeZoneChange() {
         });
     }
 }
- // INSERT_YOUR_CODE
+  
  // 监听 startDate 和 startTime 的变更，调用 getTestDatetime --not actived 
     const bindGetTestDatetimeToInputs = () => {
         /*const startDateInput = document.getElementById('startDate'); 
@@ -460,30 +501,48 @@ function handleTestTimeZoneChange() {
 } 
 
  // 1. 检索课程（原生 fetch）
-   async function searchCourse() { 
-    const params = {
-        courseName: document.getElementById('courseName').value,
-        languageType: document.getElementById('language').value,
-        difficultyLevel: document.getElementById('difficulty').value,
-        teacher: document.getElementById('teacher').value
-    };
-// console.log("searchCourse ",params);//TBD---
-  
+   async function loadAndRenderCourses() { 
+     
+  // 拼接请求参数
+  const params = new URLSearchParams({
+    pageNum: Pagination.pageNum,
+    pageSize: Pagination.pageSize,
+    courseName: document.getElementById('course-name-input').value.trim(),
+    languageType: document.getElementById('languageType-select').value,
+    difficultyLevel: document.getElementById('difficultyLevel-select').value,
+    //teacherId：
+    status: document.getElementById('course-status-select').value
+  });
+  let courseList = [];
   try { 
-    courseList = await  getCourseList( params); 
-  } catch (e) {
-      // 模拟数据
-      courseList = [ ]; 
-  }
-     renderCourseSelect();
+    // courseList=  await  getCourseList( params); 
+    const result = await request({url:`/course/page?${params.toString()}` });
+     
+    if (result ) {
+     const pageData = result;//.data;
+     // 更新分页状态
+     Pagination.total = pageData.total;
+     Pagination.totalPages = pageData.totalPages;
+     courseList =  pageData.rows;
+    } else {
+     Pagination.total = 0;
+     Pagination.totalPages = 0;
+     courseList = [ ];     
+    }
+   } catch (e) {
+       // 模拟数据
+      courseList = [ ];     
+   }
+      renderCourseSelect(courseList);
+
 }
       
 
 //把courseList列在下拉框中
-function renderCourseSelect() {
+function renderCourseSelect(clist) {
   const sel = document.getElementById('courseSelect');
   sel.innerHTML = '<option value="">请选择课程</option>';
-  courseList.forEach(item => {
+  clist.forEach(item => {
       const opt = document.createElement('option');
       opt.value = item.courseId;
       opt.innerText = item.courseName;
@@ -491,22 +550,18 @@ function renderCourseSelect() {
       opt.setAttribute('data-teacher-id', item.teacherId || '');
       sel.appendChild(opt);
   });
-  if(currentCourseIndex ==-1){
-    currentCourseId =0;
-    sel.index =currentCourseId;
-  }
+  
+  renderPagination( Pagination); 
 }
 
-//更新scheduleObject相关内容 --待细化
+//更新scheduleObject相关内容 --待细化 --TBD page display
 function renderSchedule() {
      if (!scheduleObject) return;
      // console.log("renderSchedule",scheduleObject);
 
        // 刷新开始日期
        if (scheduleObject.scheduleId) {
-        document.getElementById('scheduleId').value = scheduleObject.scheduleId;
-        //console.log("scheduleId",scheduleObject.scheduleId);
-      //  console.log("scheduleId", document.getElementById('scheduleId').value);
+        document.getElementById('scheduleId').value = scheduleObject.scheduleId; 
     } else {
         document.getElementById('scheduleId').value = '';
     }
@@ -666,7 +721,7 @@ return ;
  
       try {
         scheduleList = await fetchScheduleList(cid);
-            console.log(scheduleList );
+           // console.log(scheduleList );
             // 补全默认状态
             scheduleList.forEach(item => {
                 if (!item.status) item.status = 'active';
@@ -892,7 +947,7 @@ function renderResult() {
   // 保存 update or insert 
   //判断是否需要:assignStudentToTheSchedule
   async function saveScheduleToDB() {
-    if(! checkCourseAndSchedule(true,true))
+    if(! checkCourseAndSchedule(false,true))//排期在新建时不判断
         return ;
     //TBD :判断排期是否已经存在---
    // const token = getToken();
@@ -935,7 +990,10 @@ function renderResult() {
 async function assignStudentToSchedule( ) {
      
     if(! checkCourseAndSchedule(true,true))
-        return ;
+        {  
+            alert("请选择有效的课程和排期！");
+            return ;
+        }
    // console.log("assignStudentToSchedule  teacherId :",teacherId);
    // if (teacherId=="") { 
     //    alert("请先选择课程！");
@@ -971,15 +1029,89 @@ async function assignStudentToSchedule( ) {
         return ;
 }
   // 删除
-  async function deleteSchedule() {
+  //检查是否存在对应的预订----提示是否一起删除。
+  //删除--预定及其全部预约
+  async function deleteScheduleByFrozen() {
+
     if(! checkCourseAndSchedule(true,true))
         return ;
+    
     const formData = getFormData();
     const scheduleId = formData.scheduleId;
-    await operateSchedule(scheduleId,"frozen"); 
-      //alert("删除成功");
+
+    //检查是否存在相关的booking
+   if(hasBookingForScheduleId(scheduleId)){
+    // INSERT_YOUR_CODE
+        const userChoice = confirm('该排期存在预订，是否继续删除？继续将删除该项目下的全部预订。点击“确定”继续，点击“取消”放弃删除。');
+        if (!userChoice) {
+            return;
+        }
+        //删除该排期的全部预定
+            await deleteBookingsByScheduleIdByFrozen(scheduleId);            
+        }
+
+     await operateSchedule(scheduleId,"frozen");  
   }
 
+  //把指定排期id的预定设置为frozen状态
+   async function deleteBookingsByScheduleIdByFrozen(scheduleId){
+    if (!scheduleId) {
+        console.warn('排期ID不能为空');
+        return false;
+    }
+  
+  try {
+      // 查询并批量将该排期下所有预约（appointment）状态设为"frozen"
+        // POST 或 PUT
+      //读取指定scheduleId的所有元素
+      const res = await request({
+          url: `/course/booking/ListByScheduleId/${scheduleId}`,
+          method: 'GET'           
+      });
+      console.log("lsitBySchid",res);
+         if (Array.isArray(res)) {
+          for (const booking of res) {
+              if (booking && booking.id) {
+                await  operateBookingStatus(  booking.id,'frozen');
+                   // 更新本地对象的状态
+              //  booking.status = 'frozen';
+              }
+          }
+      }
+
+      console.log(`预约已全部设为frozen:`, res);
+      return res;
+  } catch (error) {
+      console.error('批量设置预约为frozen失败:', error);
+      return false;
+  }
+
+  }
+
+/**
+ * 判断是否存在指定排期的booking
+ * @param {string|number} scheduleId 排期ID
+ * @returns {Promise<boolean>} 是否存在booking
+ */
+async function hasBookingForScheduleId(scheduleId) {
+    if (!scheduleId) {
+        console.warn('排期ID不能为空');
+        return false;
+    }
+    try {
+        // 假设后端有对应的API接口: /api/schedule/{scheduleId}/bookings/count
+        const result = await request({ url:`/course/booking/ListByScheduleId/${scheduleId}`, 
+            method: 'GET'
+        }); 
+        // INSERT_YOUR_CODE
+        // result是List类型，判断数组长度是否为0
+        // result 预期为返回预约列表
+        return Array.isArray(result) && result.length > 0; 
+    } catch (error) {
+        console.error('请求排期booking时出错:', error);
+        return true;
+    }
+}
  function refreshData(){
     //再次读取排期数据并显示
     loadSchedule(); 

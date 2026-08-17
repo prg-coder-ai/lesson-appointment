@@ -1,52 +1,34 @@
- 
-// 全局常量（后端可通过Thymeleaf注入，如 th:inline="javascript"）  
-var localParamter ={ 
-  currentPage:1,         // 当前页码（初始值由Thymeleaf渲染）
-  pageSize : 10,           // 页大小
-  total : 0 ,              // 总条数
-  CourseDialogVisible: false, // 弹窗状态
-  dialogTitle : '新增课程', // 弹窗标题
-  currentCourseId: '', // 当前操作的课程ID
-  formEl :'', 
+
+// 全局常量（后端可通过Thymeleaf注入，如 th:inline="javascript"）
+var localParamter = {
+  currentPage: 1,              // 当前页码（初始值由Thymeleaf渲染）
+  pageSize: 10,                // 页大小
+  total: 0,                    // 总条数
+  CourseDialogVisible: false,  // 弹窗状态
+  dialogTitle: '新增课程',      // 弹窗标题
+  currentCourseId: '',         // 当前操作的课程ID
+  formEl: '',
 };
 
 // ===================== 核心函数 =====================
 
-/*
-  <tr>
-                      <td>预约20260320001</td>
-                      <td>英语初级口语 - 小班课</td>
-                      <td>张三</td>
-                      <td>李老师</td>
-                      <td>2026-03-20 14:00</td>
-                      <td style="color: #faad14;">待审核</td>
-                      <td>
-                        <button class="btn btn-success" onclick="approveReservation(this)"><i class="fa fa-check"></i> 通过</button>
-                        <button class="btn btn-danger" onclick="rejectReservation(this)"><i class="fa fa-times"></i> 拒绝</button>
-                      </td>
-                    </tr> 
-*/ 
-let monthTotalTeacher=0,monthTotalStudent=0,monthTotalCourse=0,monthTotalBooking=0,monthTotalAppoint=0;
+let monthTotalTeacher = 0,
+    monthTotalStudent = 0,
+    monthTotalCourse = 0,
+    monthTotalBooking = 0,
+    monthTotalAppoint = 0;
 //let lastMonthTotalTeacher=0,lastMonthTotalStudent=0,lastMonthTotalCourse=0,lastMonthTotalBooking=0;
-let pendingBooking=[];// ID,ciurseName,studentName,teacherName,dateTime(创建时间),状态、操作（预览、确认、拒绝）
-let activeDataForTearcher=[];// id="activity-teachers" 教师姓名 授课总节数  预约完成率  学生平均评分  操作
-let BookingCount=0,CancelBookingCount=0,TodayLessonsCount;//本周待处理预定单数、今日课程数，宏观显示
-let  monthTotalTeacherIcon={},
-    monthTotalStudentIcon= {},
-    monthTotalCourseIcon= { },
-    monthTotalBookingIcon={},
-    monthTotalAppointIcon ={ };
+let pendingBooking = [];         // ID,ciurseName,studentName,teacherName,dateTime(创建时间),状态、操作（预览、确认、拒绝）
+let activeDataForTearcher = [];  // id="activity-teachers" 教师姓名 授课总节数  预约完成率  学生平均评分  操作
+let BookingCount = 0,
+    CancelBookingCount = 0,
+    TodayLessonsCount;           //本周待处理预定单数、今日课程数，宏观显示
+let monthTotalTeacherIcon = {},
+    monthTotalStudentIcon = {},
+    monthTotalCourseIcon = {},
+    monthTotalBookingIcon = {},
+    monthTotalAppointIcon = {};
 
-/**  <tr>
-                      <td>李老师</td>
-                      <td>42</td>
-                      <td>98%</td>
-                      <td>4.9 <i class="fa fa-star" style="color: #faad14;"></i></td>
-                      <td>
-                        <button class="btn btn-default" onclick="viewTeacherDetail(this)"><i class="fa fa-eye"></i> 详情</button>
-                      </td>
-                    </tr>
- */   
 /**
  * 渲染课程列表（核心：原生JS操作DOM）
  */
@@ -56,93 +38,187 @@ let  monthTotalTeacherIcon={},
  * 2、 待审核的预约
  * 3、 教师统计信息
  */
-refreshOverallpage();
- 
+async function refreshOverallpage() {
+  await loadAndRefreshOverallpage();
+  // 渲染数据总览面板
+  dynamicContentCenter.innerHTML = `
+    <!-- 数据统计面板 -->
+    <div class="stats-panel">
+      <div class="stats-item">
+        <div class="stats-label">总教师数</div>
+        <div class="stats-value">${monthTotalTeacher}</div>
+        <div class="stats-desc"><i class="fa ${monthTotalTeacherIcon.icon}" style="color:  ${monthTotalTeacherIcon.color};"></i>${monthTotalTeacherIcon.v} 人 (${monthTotalTeacherIcon.str})</div>
+      </div>
+      <div class="stats-item success">
+        <div class="stats-label">总学生数</div>
+        <div class="stats-value">${monthTotalStudent}</div>
+        <div class="stats-desc"><i class="fa ${monthTotalStudentIcon.icon}" style="color: ${monthTotalStudentIcon.color};"></i> ${monthTotalStudentIcon.v}  人 (${monthTotalStudentIcon.str})</div>
+      </div>
+      <div class="stats-item warning">
+        <div class="stats-label">总课程数</div>
+        <div class="stats-value">${monthTotalCourse}</div>
+        <div class="stats-desc"><i class="fa  ${monthTotalCourseIcon.icon}" style="color: ${monthTotalCourseIcon.color};"></i> ${monthTotalCourseIcon.v} 门  (${monthTotalCourseIcon.str})</div>
+      </div>
+      <div class="stats-item danger">
+        <div class="stats-label">本月预定数</div>
+        <div class="stats-value">${monthTotalBooking}</div>
+        <div class="stats-desc"><i class="fa  ${monthTotalBookingIcon.icon}" style="color:${monthTotalBookingIcon.color};"></i>${monthTotalBookingIcon.v} 单  (${monthTotalBookingIcon.str})</div>
+      </div>
+      <div class="stats-item danger">
+        <div class="stats-label">本月预约课时</div>
+        <div class="stats-value">${monthTotalAppoint}</div>
+        <div class="stats-desc"><i class="fa  ${monthTotalAppointIcon.icon}" style="color: ${monthTotalAppointIcon.color};"></i> ${monthTotalAppointIcon.v} 课次(${monthTotalAppointIcon.str})  </div>
+      </div>
+    </div>
 
- async function refreshOverallpage(){
-  renderStatisCards();
-  showAppointments();
- }
+    <!-- 近期预约审核卡片  -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa fa-calendar-check"></i> 待审核预约</div>
+      </div>
+      <div class="stats-panel">
+        <div class="stats-item">
+          <div class="stats-label">预约待确认</div>
+          <div class="stats-value">${BookingCount || 0}</div>
+        </div>
+        <div class="stats-item success">
+          <div class="stats-label">取消待确认</div>
+          <div class="stats-value">${CancelBookingCount || 0}</div>
+        </div>
+        <div class="stats-item success">
+          <div class="stats-label">今日课程</div>
+          <!--24小时内的预约课程 booked/completed、active -->
+          <div class="stats-value">${TodayLessonsCount || 0}</div>
+        </div>
+      </div>
+    </div>
 
- //刷新月度统计
-async function renderStatisCards() { 
-    // 获取当前日期的年、月
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1; // getMonth() 返回 0-11，因此要 +1
-
-   /* monthTotalTeacher=10;monthTotalStudent=20;monthTotalCourse=30;monthTotalBooking=40;monthTotalAppoint=0;
-    lastMonthTotalTeacher=1;lastMonthTotalStudent=2;lastMonthTotalCourse=3;
-    lastMonthTotalBooking=4;lastMonthTotalAppoint=5;*/
-    const stats = await getUserStatisticByMonth(currentYear, currentMonth);
-    if (stats) { //console .log(stats.teacherMonthStart, stats.studentMonthEnd);
-          monthTotalTeacher= stats.teacherMonthEnd;
-         // lastMonthTotalTeacher = stats.teacherMonthStart;
-
-          let delt= monthTotalTeacher-stats.teacherMonthStart;;
-          monthTotalTeacherIcon=getFaiconAndStr(delt);
-
-          monthTotalStudent =   stats.studentMonthEnd;
-          //lastMonthTotalStudent = stats.studentMonthStart;
-          delt= monthTotalStudent- stats.studentMonthStart;
-          monthTotalStudentIcon=getFaiconAndStr(delt);
-        }
-    const stats2 = await getCourseStaticsByMonth(currentYear, currentMonth);
-    if (stats2) { //console .log(stats2.courseMonthEnd, stats2.courseMonthStart);
-      monthTotalCourse = stats2.courseMonthEnd;
-      //lastMonthTotalCourse =   stats2.courseMonthStart;
-
-      let delt= monthTotalCourse- stats2.courseMonthStart;
-      monthTotalCourseIcon=getFaiconAndStr(delt);
-    }
-    //”booked“ --> 当前的预约数，如何计算: booked--本月预约数，上月预约数 
-   const  BookingMonthCount = await   getBookingStaticsByMonth(currentYear, currentMonth); 
-   //console .log( BookingMonthCount  );
-    if(BookingMonthCount) { 
-    
-      monthTotalBooking = BookingMonthCount .bookingMonth  ;
-     // lastMonthTotalBooking =   BookingMonthCount .bookingMonthLast  ; 
-
-      let delt= monthTotalBooking-BookingMonthCount .bookingMonthLast;
-      monthTotalBookingIcon=getFaiconAndStr(delt);
-    } else { monthTotalBooking =-1;  monthTotalBookingIcon=getFaiconAndStr(0);}
-
-    const appData = await getAppointmentStatisticByMonth(currentYear, currentMonth);
-    //console .log(appData);
-    if(appData){ 
-       monthTotalAppoint = appData .appMonth  ; 
-      let delt= appData .appMonth-appData .appMonthLast  ;
-      monthTotalAppointIcon=getFaiconAndStr(delt);
-    } else {      monthTotalAppoint = 0  ; 
-                  let delt= 0  ;
-                  monthTotalAppointIcon=getFaiconAndStr(delt);
-               }
+    <!-- 教师活跃度统计卡片 TBD
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa fa-chart-line"></i> 教师月度授课统计</div>
+        <div class="filter-bar">
+          <div class="filter-item">
+            <label>月份：</label>
+            <select id="month-select">
+              <option value="202603">2026年3月</option>
+              <option value="202602">2026年2月</option>
+              <option value="202601">2026年1月</option>
+            </select>
+          </div>
+          <button class="btn btn-default" onclick="refreshTeacherStats()"><i class="fa fa-search"></i> 查询</button>
+        </div>
+      </div>
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>教师姓名</th>
+              <th>授课总节数</th>
+              <th>预约完成率</th>
+              <th>学生平均评分</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="activity-teachers">
+          </tbody>
+        </table>
+      </div>
+    </div> -->
+  `;
+  // loadAndRefreshOverallpage();
 }
 
- function getFaiconAndStr( v) {
-   if(v==0) return {icon: "",str:"持平",v:v ,color:"#52c41a"};
-   else  if(v>0) return {icon:" fa-arrow-up",str:"增加",v:v  ,color:"#52c41a"};
-   else   return {icon:" fa-arrow-down",str:"减少",v:-v  ,color:"#f5222d"}; 
- }
-//刷新按钮也做同样的动作：读取数据库，更新显示
- async function showAppointments(){
- //search current pendding booking items ,and dispaly here /pendingBooking 
-     let userRole = null,userId=null,status ='cancelling';//TB TEST "pending";
-     bookingList1 = await getBookingList(userRole, userId, status);
-     bookingList2 = await getBookingList(userRole, userId, 'booking');
-   
-     CancelBookingCount= bookingList1.length;
-     BookingCount = bookingList2.length; 
-     //console .log("BookingCount:", BookingCount,CancelBookingCount);
+async function loadAndRefreshOverallpage() {
+  await renderStatisCards();
+  await showAppointments();
+}
 
-     TodayLessonsCount = await getCountOfTodayAppointment();//获取今日课程数量
- }   
+//刷新月度统计
+async function renderStatisCards() {
+  // 获取当前日期的年、月
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1; // getMonth() 返回 0-11，因此要 +1
 
-// ===================== 交互函数 =====================  
- 
- 
+  // 4 个统计接口互相独立，整体并行；每个 promise 自带 catch 返回 null，保持原 if(stats) 兼容
+  const [stats, stats2, bookingMonthCount, appData] = await Promise.all([
+    getUserStatisticByMonth(currentYear, currentMonth).catch(() => null),
+    getCourseStaticsByMonth(currentYear, currentMonth).catch(() => null),
+    getBookingStaticsByMonth(currentYear, currentMonth).catch(() => null),
+    getAppointmentStatisticByMonth(currentYear, currentMonth).catch(() => null)
+  ]);
+
+  if (stats) { //console .log(stats.teacherMonthStart, stats.studentMonthEnd);
+    monthTotalTeacher = stats.teacherMonthEnd;
+
+    let delt = monthTotalTeacher - stats.teacherMonthStart;
+    monthTotalTeacherIcon = getFaiconAndStr(delt);
+
+    monthTotalStudent = stats.studentMonthEnd;
+    delt = monthTotalStudent - stats.studentMonthStart;
+    monthTotalStudentIcon = getFaiconAndStr(delt);
+  }
+  if (stats2) {
+    monthTotalCourse = stats2.courseMonthEnd;
+
+    let delt = monthTotalCourse - stats2.courseMonthStart;
+    monthTotalCourseIcon = getFaiconAndStr(delt);
+  }
+  //”booked“ --> 当前的预约数，如何计算: booked--本月预约数，上月预约数
+  if (bookingMonthCount) {
+    monthTotalBooking = bookingMonthCount.bookingMonth;
+
+    let delt = monthTotalBooking - bookingMonthCount.bookingMonthLast;
+    monthTotalBookingIcon = getFaiconAndStr(delt);
+  } else {
+    monthTotalBooking = -1;
+    monthTotalBookingIcon = getFaiconAndStr(0);
+  }
+
+  if (appData) {
+    monthTotalAppoint = appData.appMonth;
+    let delt = appData.appMonth - appData.appMonthLast;
+    monthTotalAppointIcon = getFaiconAndStr(delt);
+  } else {
+    monthTotalAppoint = 0;
+    monthTotalAppointIcon = getFaiconAndStr(0);
+  }
+}
+
+function getFaiconAndStr(v) {
+  if (v == 0)
+    return { icon: "", str: "持平", v: v, color: "#52c41a" };
+  else if (v > 0)
+    return { icon: " fa-arrow-up", str: "增加", v: v, color: "#52c41a" };
+  else
+    return { icon: " fa-arrow-down", str: "减少", v: -v, color: "#f5222d" };
+}
+
+// 刷新按钮也做同样的动作：读取数据库，更新显示
+async function showAppointments() {
+  // search current pendding booking items ,and dispaly here /pendingBooking
+  const userRole = null, userId = null;//TB TEST "pending";
+
+  // 3 个接口互相独立，整体并行：2 个 booking 列表 + 今日课程数
+  const [list1, list2, todayCount] = await Promise.all([
+    getBookingList(userRole, userId, 'cancelling'),
+    getBookingList(userRole, userId, 'booking'),
+    getCountOfTodayAppointment()
+  ]);
+
+  bookingList1 = list1;
+  bookingList2 = list2;
+  CancelBookingCount = (list1 && list1.length) || 0;
+  BookingCount = (list2 && list2.length) || 0;
+  //console .log("BookingCount:", BookingCount,CancelBookingCount);
+
+  TodayLessonsCount = todayCount;//获取今日课程数量
+}
+
+// ===================== 交互函数 =====================
+
+
 /**
  * 调用后端接口获取模板列表
- */ 
-
-  
+ */

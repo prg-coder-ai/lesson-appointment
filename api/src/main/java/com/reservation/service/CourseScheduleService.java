@@ -8,22 +8,28 @@ import com.reservation.mapper.ScheduleExceptionMapper;
 import com.reservation.common.ScheduleGenerator;
 
 import com.reservation.mapper.BookingMapper;
+import com.reservation.query.ScheduleQueryPage;
+import com.reservation.common.PageResult;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.reservation.dto.ScheduleCreateDTO;
 /*import com.reservation.service.AppointmentService;
       import java.time.LocalDate;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.beans.BeanUtils;*/
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.annotation.Resource;
-import java.time.LocalDate;
-import java.time.LocalTime;
+import jakarta.annotation.Resource;
+//import java.time.LocalDate;
+//import java.time.LocalTime;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
  
 
+@Slf4j
 @Service
 public class CourseScheduleService {
 
@@ -386,7 +392,7 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
       // 1. 创建 booking 数据
       Booking booking = new Booking();
       String bookingId = UUID.randomUUID().toString();
-      booking.setId(bookingId);
+      booking.setBookingId(bookingId);
       booking.setScheduleId(scheduleId);
       booking.setStudentId(studentId);
       booking.setTeacherId(teacherId);
@@ -433,67 +439,39 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
       // 成功
       return true;
   }
-}
+    /**
+     * 删除指定ID的排期
+     * @param id 排期ID
+     * @return 删除的排期数量（通常为1，若未找到则为0）
+     */
+    public int deleteById(String id) {
+        log.info("删除排期开始, scheduleId={}", id);
+            // 删除排期
+            scheduleMapper.deleteById(id);
+            log.info("删除排期结束, scheduleId={}", id);
+            return 1;
+      }
+    /**
+     * 根据课程ID删除该课程下的所有排期
+     * @param courseId 课程ID
+     * @return 删除的排期数量
+     */
+    public int deleteByCourseId(String courseId) {
+            log.info("按课程ID删除排期开始, courseId={}", courseId);
+             int rows=            scheduleMapper.deleteByCourseId(courseId);
+            log.info("按课程ID删除排期结束, courseId={}, 影响行数={}", courseId, rows);
+            return rows;
+      }
 
-
-// checkScheduleOwner：
-// 用于检查排期(scheduleId)是否归属于指定教师(teacherId)。先查找排期，若不存在则抛出“排期不存在”；
-// 再取排期对应课程ID，校验课程有效且归属该教师，否则抛出无权限或资源不存在等业务异常。
-/*
-    public void checkScheduleOwner(String scheduleId, String teacherId) {
-        CourseSchedule schedule = scheduleMapper.selectById(scheduleId);
-        if (schedule == null) {
-            throw new ResourceNotFoundException("排期不存在");
-        }
-        String courseId = schedule.getCourseId();
-        if (courseId == null) {
-            throw new BusinessException("排期关联的课程无效");
-        }
-        Course course = courseMapper.selectCourseById(courseId);
-        if (course == null) {
-            throw new ResourceNotFoundException("排期关联的课程不存在");
-        }
-        if (!teacherId.equals(course.getTeacherId())) {
-            throw new BusinessException("没有操作该排期的权限");
-        }
+    @Transactional(propagation = Propagation.REQUIRED)
+    public PageResult<ScheduleCreateDTO> selectListPage(ScheduleQueryPage query) {
+        List<CourseSchedule> list = scheduleMapper.selectListByPage(query);
+        List<ScheduleCreateDTO> dtoList = ListObjectToCreateDto(list);
+        Integer total = scheduleMapper.selectCountByCondition(query);
+        Page<ScheduleCreateDTO> page = new Page<>(query.getPageNum(), query.getPageSize());
+        page.setRecords(dtoList);
+        page.setTotal(total);
+        return PageResult.of(page);
     }
-*/
-/**
- * 分析: BeanCreationException 和 SAXParseException 很可能是 CourseScheduleMapper.xml 配置错误（如 XML 第32行有非法字符、标签不闭合等）。
- * 1. 通常是 XML 配置里 <resultMap>、<select>、<update>、<sql> 等标签书写有误，引发 SAX 解析异常。
- * 2. 修复方法:
- *    - 仔细检查 CourseScheduleMapper.xml 第32行左右是否有:
- *      a. 非法字符（如 &、<、> 未转义等）
- *      b. 标签未闭合或写法错误（如 <if test="..."> 未正确结束、缺</if>）
- *      c. 属性拼写/引号丢失
- *    - 通常MyBatis相关Bean注入失败均为XML配置或Mapper接口/注解问题，与Service层无关。
- * 3. 建议:
- *   - 打开 CourseScheduleMapper.xml，用带行号的编辑器定位第32行，逐一排查。
- *   - 确认所有 XML 标签已闭合，字符实体(&)等已转义，SQL片段无冗余尖括号。
- * 4. 该 Service 层无需额外代码（问题在Mapper XML层），建议修复XML后重启服务即可。
- */
-
-// if (!conflictScheduleIds.isEmpty()) {
-         //   throw new IllegalArgumentException("时间冲突，已存在排期scheduleId: " + String.join(",", conflictScheduleIds));
-        //}
-        // INSERT_YOUR_CODE
-        // 定义一个由Json对象（如com.alibaba.fastjson.JSONObject）组成的List
-        // 方式1：如果使用fastjson
-        // List<JSONObject> jsonList = new ArrayList<>();
-
-        // 方式2：如果使用Jackson
-        // List<com.fasterxml.jackson.databind.JsonNode> jsonList = new ArrayList<>();
-
-        // 方式3：如果用通用的Map表示Json对象:
-        // List<Map<String, Object>> jsonList = new ArrayList<>();
-        // INSERT_YOUR_CODE
-        // 假设我们有一些数据，比如要把conflictScheduleIds（Map<String,String>）转为List<Map<String, Object>>
-      /*  List<Map<String, Object>> jsonList = new ArrayList<>();
-        for (Map.Entry<String, String> entry : conflictScheduleIds.entrySet()) {
-            Map<String, Object> map = new HashMap<>();
-            map.put("id", entry.getKey());
-            map.put("name", entry.getValue());
-            jsonList.add(map);
-        }
-*/
-        // 具体使用哪种取决于你的依赖库和业务场景
+  
+}//all 
