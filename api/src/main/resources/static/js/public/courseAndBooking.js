@@ -152,6 +152,7 @@ async function operateTemplate(templateId, action) {
    }
    
    }
+   window.getCourseById =getCourseById;
 async function getCourseById( courseId) { 
   try {
       // Axios GET请求（修复response.json()错误，Axios已自动解析）
