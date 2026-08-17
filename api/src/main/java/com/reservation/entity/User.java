@@ -7,17 +7,24 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import com.reservation.common.AtLeastOneNotBlank;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 
 import java.io.Serializable;
 /**
  * 用户实体类，对应设计2.2.1 所有接口的请求参数
  */
 @Data
-// 加这一行：校验 phone 和 email 至少一个不为空
+@TableName("user")
+// 校验 phone 和 email 至少一个不为空
 @AtLeastOneNotBlank(firstField = "phone", secondField = "email")
 public class User implements Serializable{
    private static final long serialVersionUID = 1L;
-    private String userId;  // 系统生成唯一标识（UUID），对应通用校验规则-ID类参数
+
+    /** 系统生成唯一标识（UUID），主键 */
+    @TableId(type = IdType.ASSIGN_UUID)
+    private String userId;
 
     @NotBlank(message = "账号不能为空")
     private String account;
@@ -34,9 +41,9 @@ public class User implements Serializable{
     private String email;
 
     // 密码校验（对应通用校验规则-密码）
-    @NotBlank(message = "密码不能为空")
-    @Size(min = 1, max = 20, message = "密码长度需8-20位")
-    @Pattern(regexp = "^(?=.*[a-zA-Z])(?=.*\\d).{8,20}$", message = "密码需包含字母和数字")
+    //@NotBlank(message = "密码不能为空")
+   // @Size(min = 1, max = 20, message = "密码长度需8-20位")
+   // @Pattern(regexp = "^(?=.*[a-zA-Z])(?=.*\\d).{8,20}$", message = "密码需包含字母和数字")
     private String password;
 
     // 角色（student/teacher/admin），对应设计2.2.1 登录接口返回角色信息,1 student：学生，2teacher：教师，3admin：管理员）'

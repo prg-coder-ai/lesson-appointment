@@ -3,31 +3,12 @@ package  com.reservation.controller;
 import com.reservation.entity.Appointment;
 import com.reservation.dto.BookingDTO;//借用数据定义
 import com.reservation.service.AppointmentService;
-import com.reservation.common.Result;
+import com.reservation.common.*;
+import com.reservation.query.*;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-import java.util.List;
-// 解决依赖注入找不到 AppointmentService 的问题
-// 如果你用的是实现类（如 AppointmentServiceImpl），并已加 @Service 注解，确保包扫描没问题。
-// 若自定义实现未加 @Service，可手动声明 bean 或补上注解。
-// 这里给接口加 @Service 是错误做法 —— 应检查实现类代码。
-// 示例：确保实现类在 com.reservation.service.impl 包下，并写有：
-// @Service
-// public class AppointmentServiceImpl implements AppointmentService { ... }
-// 如果依然报错，可以添加如下配置作为兜底（通常只针对特殊配置环境，常规 Spring Boot 不需）：
-/*
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import com.reservation.service.impl.AppointmentServiceImpl;
-
-@Configuration
-public class ServiceConfig {
-    @Bean
-    public AppointmentService appointmentService() {
-        return new AppointmentServiceImpl();
-    }
-}
-*/
+import java.util.List; 
 
 @RestController
 @RequestMapping("/course/appointment")
@@ -100,7 +81,7 @@ public class AppointmentController {
     public Result<Boolean> updateStatusById(@RequestBody BookingDTO  params) {
         String id = params.getId();
         String status = params.getStatus();
-        return Result.success(appointmentService.updateStatusById(id, status), "ok");
+        return Result.success(appointmentService.updateStatusById(Integer.parseInt(id)  , status), "ok");
     }
     /**
      * 4. 根据ID查询单条
@@ -117,20 +98,18 @@ public class AppointmentController {
     public Result<List<Appointment>> list() {
         return Result.success(appointmentService.list(),"ok");
     }
- 
-    // INSERT_YOUR_CODE
+  
+      @PostMapping("/listByPage")
+    public Result<PageResult<Appointment>> listByPage(@RequestBody AppointmentQueryPage query) {
+        return Result.success(appointmentService.listByPage(query.getPageNum(),query.getPageSize(),query.getStatus()),"ok");
+    }
     /**
      * 查询指定 bookingId 的预约列表
      * GET /course/appointment/listByBookingId?bookingId=xxx
-     */
-   // @GetMapping("/listByBookingId")
-    //public Result<List<Appointment>> listByBookingId(@RequestParam String bookingId) {
-    //    return Result.success(appointmentService.getByBookingId(bookingId), "ok");
-    //}
-
-    // 根据 bookingId 查询
+     */   
+    
     @GetMapping("/getByBookingId")
-    public Result<List<Appointment>> getByBookingId(@RequestParam String bookingId) {
+    public Result<List<Appointment>> getByBookingId(@RequestParam("bookingId") String bookingId) {
         return Result.success(appointmentService.getByBookingId(bookingId),"ok");
     }
 
@@ -206,8 +185,55 @@ public class AppointmentController {
         return Result.success(appList, "查询成功");
     }
 // 
+    @PostMapping("/statistical/listByDaysByPage")
+    @ResponseBody        
+    public Result<PageResult<Appointment>> listByDaysByPage(@RequestBody AppointmentQueryPage query  ) { 
+        System.out.println("listByDaysByPage   参数：days = " + query);
+        // 获取当前时间（now）和days天之后的相同时间
+        Integer days = query.getDays();
+        java.time.LocalDateTime startOfPeriod,endOfPeriod;
+        if(days<=0)
+        { // 全部数据，不限制时间：使用 MySQL DATETIME 合法边界作为最早/最晚时间
+          // LocalDateTime.MIN / MAX 超出 Timestamp & MySQL DATETIME 支持范围，会触发 valueOf 转换异常或写入异常
+          startOfPeriod = java.time.LocalDateTime.of(1000, 1, 1, 0, 0, 0);
+          endOfPeriod   = java.time.LocalDateTime.of(9999, 12, 31, 23, 59, 59);
+        } else {
+          startOfPeriod = java.time.LocalDateTime.now();
+          endOfPeriod = startOfPeriod.plusDays(days);
+        }
+        Integer pageNum = (query.getPageNum() != null) ? query.getPageNum() : null;
+        Integer pageSize = (query.getPageSize() != null) ? query.getPageSize() : null;
 
- 
+        //getBetweenTime
+        PageResult<Appointment> appList
+            = appointmentService.getBetweenTimeByPage(
+                query.getUserId(),
+                query.getUserRole(),
+                java.sql.Timestamp.valueOf(startOfPeriod),
+                java.sql.Timestamp.valueOf(endOfPeriod),
+                pageNum,
+                pageSize,
+                query.getStatus()
+        ); 
+        return Result.success(appList, "查询成功");
+    }
+ // 对应前端调用示例（appointmentNotes.js）:
+    // 
+    // async function getAppointmentListPage(query ) {
+    //   try {
+    //       const res  = await request({
+    //         url: `${API_BASE_URL}/course/appointment/statistical/listByDaysByPage`, 
+    //         Method: "get", 
+    //         data: query
+    //       });
+    //       return res;
+    //     } catch (e) {
+    //      console.error("getAppointmentListPage",e);
+    //      return null;
+    //     }
+    // }
+    //
+
 /**
      * 统计指定天数days内的预约（appointment）数量 
      * @param days 近几天（如3表示近3天）

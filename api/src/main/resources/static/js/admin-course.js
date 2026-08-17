@@ -1,4 +1,4 @@
-  /* js for overall page
+  /* js for overall  admin-course.js 课程管理 CRUD
   */
 //let CourseList = [];       // 课程列表
 var localParamter ={ 
@@ -10,12 +10,19 @@ var localParamter ={
   currentCourseId: '', // 当前操作的课程ID
   formEl :'', 
 };
+ 
+ // 引入分页组件js
+ document.write('<script src="/js/public/pagefoot.js"></script>');
 // ===================== 核心函数 ===================== 
   var templateCondition=[];//模板检索
  // var templateList = [];//await  fetchTemplateList(templateCondition); 
    const conditionJsonForTeacher = { role: 'teacher' }; 
    var teacherList =[];// await fetchUserList(conditionJsonForTeacher);
 
+   function openAddCourseModal(){
+    openEditCourseDialog(null);
+
+   }
 async function openEditCourseDialog(CourseJsonStr )
 { 
  // 1. 显示弹窗
@@ -216,61 +223,46 @@ function validateCourseForm(formData){
 /**
  * 渲染课程列表（核心：原生JS操作DOM）
  */
-async function renderCourseCards() {
- 
-    const dynamicContentCenter = document.getElementById('dynamic-content-center');
-    //console .log("renderCourseCards:",dynamicContentCenter);
+   function renderCourseCards() {  
+    assignLoadobjectListFunction( loadAndRenderCourseListByPage);// assign
+    const dynamicContentCenter = document.getElementById('dynamic-content-center'); 
     if (!dynamicContentCenter) return; 
-    // 显示加载中
-    dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';
-
-    // 构建筛选条件 TBD ----
-    const conditionJson = {
-        // language: document.getElementById('languageType').value,
-      //  level: document.getElementById('difficultyLevel').value,
-      teacherId:"",
-      templateId:"",
-      status:"",
-        pageRow: localParamter.pageSize,
-        pageNum: localParamter.currentPage
-    };
-        let language = document.getElementById('languageType');
-      templateList = await  fetchTemplateList(language?language.value:'all');  
-      teacherList  = await  fetchUserList(conditionJsonForTeacher);
-
-    // 获取模板列表数据
-    CourseList =await fetchCourseList(conditionJson);
-
-    // 渲染HTML
-    let html = '';
-    { 
-      html += `     
-    <div class="modal-mask" id="courseModal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3 id="modalTitle">新增课程</h3>
-          <span class="modal-close" id="closeModal"><i class="fa fa-times"></i></span>
-        </div>
-        <div id="formContainer">
-          <!-- 表单内容由JS动态生成 -->
-        </div>
+    let html=``;
+html = `
+    <div class="card">
+      <!-- 筛选+操作栏 -->
+      <div class="card-header">
+        <div class="card-title"><i class="fa fa-book-open"></i> 课程列表</div>
+        <button class="btn btn-primary" onclick="openAddCourseModal()">
+          <i class="fa fa-plus"></i> 添加课程
+        </button>
       </div>
-    </div> `;
-    
-      html += `<div class="card">
-            <div class="card-title"><i class="fa fa-filter"></i> 筛选条件</div>
-            <div class="search-form" style="display: flex; gap: 20px; margin-bottom: 16px;">
-                <div>
-                    <label>语言类型：</label>
-                    <select id="languageType" onchange="handleSearchChange()">
-                        <option value="">全部</option>
-                        <option value="france">法语</option>
-                        <option value="english">英语</option> 
-                    </select>
-                </div>
-                <div>
+      
+      <!-- 筛选条件 -->
+      <div class="filter-bar">
+        <div class="filter-item">
+          <label>课程名称：</label>
+          <input type="text" id="course-name-input" placeholder="请输入课程名称">
+        </div>
+        <div class="filter-item">
+          <label>语言类型：</label>
+          <select id="language-select">
+            <option value="">全部</option>
+            <option value="french">法语</option>
+            <option value="english">英语</option> 
+          </select>
+        </div>
+        <div class="filter-item">
+          <label>状态：</label>
+          <select id="course-status-select">
+            <option value="">全部</option>
+            <option value="active">有效</option>
+            <option value="pending">挂起</option>
+          </select>
+        </div>
+         <div>
                     <label>难度等级：</label>
-                    <select id="difficultyLevel" onchange="handleSearchChange()">
+                    <select id="difficulty-level-select" >
                         <option value="">全部</option>
                         <option value="B1">B1入门</option>
                         <option value="B2">B2初级</option>
@@ -278,136 +270,223 @@ async function renderCourseCards() {
                         <option value="B4">B4高级</option> 
                     </select>
                 </div>
-                <button class="btn btn-default" onclick="resetSearchForm()">重置</button>
-                <button class="btn btn-primary" onclick="openEditCourseDialog(null)">新增课程</button>
-            </div>
-        </div>
-           `;
-             // 列表表头 ---模板-建立连接-悬浮显示模板内容（学生页面、管理、教师页面），教师--悬浮-显示教师的特色字段（学生页面）
-         html += `
-            <div style="display:flex;gap:36px;font-weight:bold;border-bottom:1px solid #e9ecef;padding-bottom:8px;margin-bottom:4px;">
-                  <div style="width:40px;"><strong>序号</strong></div>  
-                    <div style="width:0px;display:none"><strong>Id</strong></div>  
-                  <div style="width:130px;"><strong>模板</strong></div>
-                <div style="width:130px;"><strong>名称</strong></div>
-                <div style="width:130px;"><strong>内容</strong></div>
-                <div style="width:130px;"><strong>特色</strong></div>
-                <div style="width:130px;"><strong>教师</strong></div>
-                <div style="width:120px;"><strong>状态</strong></div>
-                <div style="width:240px;"><strong>操作</strong></div>
-            </div>
-        `;
-        if (!CourseList.length) {
-          html += '<div style="padding:40px 0;text-align:center;color:#999;">暂无数据</div>';
-      } else
-        { var index=0;
+        <button class="btn btn-default" onclick="localsearchCourse()">
+          <i class="fa fa-search"></i> 搜索
+        </button>
+        <button class="btn btn-default" onclick="resetCourseFilter()">
+          <i class="fa fa-redo"></i> 重置
+        </button>
+      </div>
 
-        CourseList.forEach(Course => {
-         // INSERT_YOUR_CODE
+      <!-- 数据表格 -->
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+             <!--th>序号</th>
+              <th style="width:0px;display:none" >课程ID</th>
+              <th>课程名称</th>
+              <th>语言类型</th>
+              <th>难度等级</th>
+              <th>课时费</th>
+              <th>时长</th>
+              <th>状态</th>
+              <th>操作</th  --> 
+              
+                  <th>序号</th>  
+                    <th style="width:0px;display:none">Id</th>
+                     <th>课程名称</th>  
+                  <th>摘要</th> 
+                <th>课程内容</th>
+                <th>课程特色</th> 
+                <th>教师</th>
+                <th>状态</th>
+                <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="course-table-body">
+            <!-- 数据由JS动态渲染 -->
+          </tbody>
+        </table>
+      </div>
+      `;
+      html += getPagebar();
+      if(dynamicContentCenter) {
+        dynamicContentCenter.innerHTML =  html;  
+        loadAndRenderCourseListByPage();
+     }
+  // 页面渲染完成后，加载第一页数据
+     
+   }
+
+   // 加载课程列表数据
+async function loadAndRenderCourseListByPage() {  
+
+  // 拼接请求参数
+  const params = new URLSearchParams({
+    pageNum: Pagination.pageNum,
+    pageSize: Pagination.pageSize,
+    courseName: document.getElementById('course-name-input').value.trim(),
+    languageType: document.getElementById('language-select').value,
+    difficultyLevel: document.getElementById('difficulty-level-select').value,
+    status: document.getElementById('course-status-select').value
+  });
+   const language = document.getElementById('language-select').value;
+  templateList = await  fetchTemplateList(language?language.value:'all');  
+  teacherList  = await  fetchUserList(conditionJsonForTeacher);
+
+  try {
+    const result = await request({url:`/course/page?${params.toString()}` });//GET
+    //const result = await res.json();
+    
+    if (result ) {
+      const pageData = result;//.data;
+      // 更新分页状态
+      Pagination.total = pageData.total;
+      Pagination.totalPages = pageData.totalPages;
+      
+      // 渲染表格
+      renderCourseTable(pageData.rows);
+      // 渲染分页栏
+      renderPagination( Pagination);
+    }else{
+      Pagination.total = 0;
+      Pagination.totalPages = 0;
+      renderCourseTable([]);
+      renderPagination( Pagination);
+    }
+  } catch (error) {
+    console.error('加载课程列表失败：', error);
+  }
+}
+
+// 渲染课程表格
+function renderCourseTable(list) {
+  const tbody = document.getElementById('course-table-body');
+  
+  if (list.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;padding:40px 0;">暂无数据</td></tr>';
+    return;
+  }
+   let  html  = ` `;
+  var index=(Pagination.pageNum-1)*Pagination.pageSize;//记录序号
+
+        list.forEach(Course => { 
          // 根据Course.templateId在templateList中查找对应的模板对象
          const templateObj = templateList?templateList.find(t => t.templateId === Course.templateId) : null;
          const teacherObj = teacherList?teacherList.find(t => t.userId === Course.teacherId) : null;
 
          let tempInfo=templateObj? templateObj.languageType+ " "+ templateObj.difficultyLevel + " "+templateObj.classFee : "" ;
-         let teacherInfo=teacherObj? teacherObj.name+ " "+ teacherObj.phone + " "+ teacherObj.email : "n/a" ;
+         let teacherInfo=teacherObj? teacherObj.name : "n/a" ;//+ " "+ teacherObj.phone + " "+ teacherObj.email
          
            index ++;
             html += `
-                <div class="teacher-card" style="margin:8px 0;padding:8px 0;border-bottom:1px solid #f5f5f5;">
-                    
-                <div style="display:flex;gap:36px;align-items:center;"> 
-                   <div style="width:40px;">${index  }</div> 
-                     <div style="width:0px;display:none"> ${Course.courseId || ''} </div>   
-                     <div style="width:130px;">${tempInfo || ''}</div> 
-                      <div style="width:130px;">${Course.courseName || ''}</div> 
-                      <div style="width:130px;">${Course.content || ''}</div> 
-                      <div style="width:130px;">${Course.feature || ''}</div> 
-                      <div style="width:130px;">${teacherInfo || ''}</div> 
+                <tr>               
+                     <td>${index  }</td> 
+                     <td style="width:0px;display:none"> ${Course.courseId || ''} </td>  
+                     <td>${Course.courseName || ''}</td>  
+                     <td >${tempInfo || ''}</td> 
+                      
+                      <td >${Course.content || ''}</td> 
+                      <td >${Course.feature || ''}</td> 
+                      <td >${teacherInfo || ''}</td> 
 
-                     <div style="width:120px;">                       
+                       <td>                       
                           ${ Course.status === "pending" ? '<span style="color:#faad14;">待审核</span>' :
                             Course.status === "active" ? '<span style="color:#52c41a;">正常</span>' :
                             Course.status === "inactive" ? '<span style="color:#faad14;">待启用</span>' :
                             Course.status === "frozen" ? '<span style="color:#f5222d;">已删除</span>' :
                             `<span>${Course.status||"未知"}</span>`
                           }
-                        </div>
-                    <div style="width:240px;display:flex;gap:8px;">
+                        </td>
+                    <td>
                         <button class="btn btn-success" onclick='openEditCourseDialog(${JSON.stringify(Course).replace(/'/g, "\\'")})'>修改</button>                   
                         <button class="btn btn-success" onclick="changeCourseStatus('${Course.courseId}', 'active')">发布</button>
                         <button class="btn btn-warning" onclick="changeCourseStatus('${Course.courseId}', 'inactive')">撤回</button>
-                        <button class="btn btn-danger"  onclick="deleteCourse ('${Course.courseId}')">删除</button>
-                    </div>
-                </div>
-            </div>
+                        <button class="btn btn-danger"  onclick="deleteCourseByFrozen ('${Course.courseId}')">删除</button>
+                    </td>
+                </tr> 
             `;
         });
-      }
-    }
-    dynamicContentCenter.innerHTML = html;
-
-    // 更新分页组件
-    const pagination = document.getElementById('pagination');
-    if (pagination) {
-        pagination.currentPage = localParamter.currentPage;
-        pagination.pageSize    = localParamter.pageSize;
-        pagination.total       = localParamter.total;
-    }
+        tbody.innerHTML = html;
+} // 筛选与操作联动
+// 搜索按钮：重置为第1页再查询
+function localsearchCourse() {
+  Pagination.pageNum = 1;
+  loadAndRenderCourseListByPage();
 }
 
-
-// ===================== 交互函数 =====================
-/**
- * 筛选条件变化
- */
-async function handleSearchChange() {
-    localParamter.currentPage = 1; // 重置页码
-    await renderCourseCards();
+// 重置筛选条件
+function resetCourseFilter() {
+  document.getElementById('course-name-input').value = '';
+  document.getElementById('language-select').value = '';
+  document.getElementById('course-status-select').value = '';
+  document.getElementById('difficulty-level-select').value = '';
+  Pagination.pageNum = 1;
+  loadAndRenderCourseListByPage();
 }
 
-/**
- * 重置筛选表单
- */
-async function resetSearchForm() {
-    document.getElementById('languageType').value = '';
-    document.getElementById('difficultyLevel').value = '';
-    localParamter.currentPage = 1;
-    await renderCourseCards();
+// 删除课程（操作后刷新当前页）
+async function deleteCourseByFrozen(id) {
+  
+  try {
+    const scdList = fetchScheduleList(id,null);
+  // INSERT_YOUR_CODE
+  // 判断scdList是否为空数组
+    var bcomfirmed =false;
+  if (scdList && Array.isArray(await scdList) && (await scdList).length > 0) {
+    //alert('该课程存在排期，不能删除！');
+    const userChoice = confirm('该课程存在排期，是否继续删除？继续将删除该项目下的全部排期。点击“确定”继续，点击“取消”放弃删除。');
+        if (!userChoice) {
+            return;
+                  }
+                  bcomfirmed = true;
+    //删除该课程的所有排期 设置标记
+       await setScheduleStatusByLastId(id,"frozen");              
+  }
+  }
+   catch(error){
+    console.error('查询排期失败：',id, error);
+   }
+       if(!bcomfirmed) //提示1次
+         if (!confirm('确定要删除该课程吗？')) return;
+  try { 
+      await  changeCourseStatus(id,"frozen"); 
+      loadAndRenderCourseListByPage();
+  } catch (error) {
+    console.error('删除失败：', error);
+  }
 }
+
 
 function changeCourseStatus(courseId, status) { 
+  try {
   operateCourse(courseId, status);
-  renderCourseCards();
+  }catch (error) {
+    console.error('修改失败：', error);
+  }
+  loadAndRenderCourseListByPage();  
 } 
-/**
- * 分页大小变化
- */
-async function handlePageSizeChange(val) {
-    localParamter.pageSize = val;
-    await renderCourseCards();
-}
 
-/**
- * 页码变化
- */
-async function handleCurrentPageChange(val) {
-    localParamter.currentPage = val;
-    await renderCourseCards();
-}
+async function  setScheduleStatusByLastId(courseId,status){
+// INSERT_YOUR_CODE
+  try {
+    // 获取所有该课程的排期
+    const scheduleList = await fetchScheduleList(courseId, null);
+    if (Array.isArray(scheduleList) && scheduleList.length > 0) {
+      // 批量异步修改每个排期状态
+      await Promise.all(
+        scheduleList.map(schedule =>
+          operateSchedule(schedule.scheduleId, status)
+        )
+      );
+    }
+  } catch (err) {
+    console.error('批量修改排期状态失败:', err, courseId, status);
+  }
 
+}
   
-async function deleteCourse(courseId) {
-    
-  if (!window.confirm('确定要删除该课程吗？删除后基于该课程的预约数据将不受统一管控！')) {
-      return;
-  }   
-  //TBD 判断是否可以删除：条件是该课程的排期的预约数为0，且课程状态为正常（active）
-  //如果可以删除，则删除该课程
-  //如果不能删除，则提示用户 
-  changeCourseStatus(courseId,"frozen"); 
-}
-
-
 // 点击弹窗遮罩层关闭
   document.getElementById('courseModal').addEventListener('click', (e) => {
     if (e.target === document.getElementById('courseModal')) {

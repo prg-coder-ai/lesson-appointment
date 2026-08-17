@@ -8,7 +8,10 @@
  */
 function test_genUser(number, role) {
 
-  alert(`添加 `+role+" "+number+"人");
+  if(!confirm(`添加 `+role+" "+number+"人")){
+    return;
+  }
+  let phoneStart=(role=="student")?13611350000:13900000000;
   const users = [];
   for (let i = 1; i <= number; i++) {
     const account = role + i;
@@ -20,10 +23,9 @@ function test_genUser(number, role) {
       name: account,
       email: account + '@qq.com',
       role: role,
-      phone: '',
-      avatar: '',
+      phone: (phoneStart+i).toString(),
       status: 'active',  // 正常
-      remark: ' for test,auto add'
+      remark: ' for test,auto add'+i,
     };
     users.push(user);
   }
@@ -96,6 +98,9 @@ function generateUserImportTemplate(role = "student") {
  */
 async function batchAddCourseTemplates() {
   // 可根据实际CourseTemplate字段扩展或调整
+  if(!confirm(`添加 10 个课程模板`)){
+    return;
+  }
   const templates = [
     {
       templateId: "CT001",
@@ -232,6 +237,9 @@ async function batchAddCourseTemplates() {
  * 3. 调用后端 /course/add 接口提交新Course对象
  */
 async function batchAddCoursesForTemplates() {
+  if(!confirm(`每个模板添加 10 个课程`)){
+    return;
+  }
   // 首先获取所有role=teacher的用户ID
   let teacherIDs = [];
   try {
@@ -293,6 +301,9 @@ async function batchAddCoursesForTemplates() {
  * -------
  */
 async function batchAddCourseSchedulesPerCourse() {
+  if(!confirm(`每个课程添加 10 个排期`)){
+    return;
+  }
   try {
     // 1. 获取所有课程列表
     const coursesJson = await fetchCourseList({status:'active'});
@@ -355,6 +366,8 @@ async function batchAddCourseSchedulesPerCourse() {
     // 3. 添加到数据库（依次POST，或后端支持批量接口可批量发送）
     let okCount = 0, failCount = 0;
     for (const sched of schedules) {
+      
+    await sleep(20);
       try {
         const result = saveScheduleToServer(false,sched);//await request.post("/courseSchedule/add", sched);
         if (result ) {
@@ -393,9 +406,14 @@ async function getAllStudentIds() {
     return [];
   }
 }
- 
+async function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 // 2. 帮全部排期随机指定给1个学生 ----TBD：直接assign-student
 async function assignSchedulesRandomStudent() {
+  if(!confirm(`随机分配 10 个排期给学生`)){
+    return;
+  }
   const studentIds = await getAllStudentIds();
   if (!studentIds.length) {
     alert("没有可用学生，无法分配排期");
@@ -405,7 +423,9 @@ async function assignSchedulesRandomStudent() {
   let ok = 0, fail = 0;
   //console.error("schedules",schedulesIdList);
   let teacherId=null;
-  for (const scdObj of schedulesList) { 
+  for (const scdObj of schedulesList) {
+    
+    await sleep(20); 
     teacherId=null
       if(scdObj){
          let cObj = await getCourseById(scdObj.courseId);
@@ -459,6 +479,9 @@ async function assignSchedulesRandomStudent() {
 // 然后判断在appointment数据表中如果不存在booking.id则把booking对象转为ScheduleGenerateDTO ，
 // 调用generateScheduleListFromServer创建预定对象的预约时间
 async function generateAppointmentListByBooking() {
+  if(!confirm(`为每个预定创建预约时间`)){
+    return;
+  }
   // 1. 获取已预约的booking对象列表
   let bookingList = await getBookingList({ status: "booked" });
   if (!Array.isArray(bookingList)) {
@@ -470,42 +493,58 @@ async function generateAppointmentListByBooking() {
   // 2. 遍历booking对象，判断appointment表中是否已经存在，如果不存在则生成ScheduleGenerateDTO并生成预约
   let countInserted = 0, countSkipped = 0, errors = 0;
   for (let i = 0; i < bookingList.length; i++) {
-    const booking = bookingList[i];
+        const booking = bookingList[i];
 
-    // 检查appointment数据表中是否已经存在该预约
-    let exists = false;
-    try {
-      exists = await checkAppointmentExistsByBookingId(booking.id);
-    } catch (e) {
-      console.error(`检查appointment是否存在异常:`, booking.id, e);
-      errors++;
-      continue;
-    }
+        // 检查appointment数据表中是否已经存在该预约
+        let exists = false;
+        try {
+          exists = await checkAppointmentExistsByBookingId(booking.bookingId);
+        } catch (e) {
+          console.error(`检查appointment是否存在异常:`, booking.bookingId, e);
+          errors++;
+          break;//continue;
+        }
 
-    if (exists) {
-      console.log(`[generateAppointmentListByBooking] 已存在的预约，跳过 bookingId=`, booking.id);
-      countSkipped++;
-      continue;
-    }
-
-    // booking对象转为ScheduleGenerateDTO
-    //let generateDTO =  toScheduleCreateDto( booking);
-    
-    try {
-      let rst = await generateAppointmentList(booking.scheduleId,null);
-      if (rst  ) {
-        countInserted++;
-        console.log(`[generateAppointmentListByBooking] 已为bookingId=${booking.id}创建预约`, rst);
-        //TBD --保存到数据库
-      } else {
-        errors++;
-        console.warn(`[generateAppointmentListByBooking] 生成预约失败 bookingId=`, booking.id, rst && rst.msg);
+      if (exists) {
+      // console.log(`[generateAppointmentListByBooking] 已存在的预约，跳过 bookingId=`, booking.id);
+        countSkipped++;
+        continue;
       }
-    } catch (e) {
-      errors++;
-      console.error(`[generateAppointmentListByBooking] generateScheduleListFromServer 调用异常`, booking.id, e);
-    }
-  }
+  
+       let appointmentDateTimeList = await generateAppointmentList(booking.scheduleId,null);
+      
+         if (Array.isArray(appointmentDateTimeList)) {
+            appointmentDateTimeList.forEach(item => { 
+             // 如果item有date和time字段，合成为一个appointment_datetime字段（如 "2024-06-10 09:00"）
+             if (item.date && item.time) {
+                 appointmentDateTimeList.push(`${item.date}T${item.time}`); 
+             }
+         });
+          
+         appointmentDateTimeList.forEach(async (dt, idx) => { 
+                let AppointmentData = {
+                  bookingId: booking.bookingId,
+                  appointmentDatetime: dt,  // 拼写修正
+                  lastDatetime: dt,
+                  classIndex: idx+1           // 用forEach的下标，避免indexOf找不到            
+                };
+
+              // 清理掉undefined属性（只保留有效字段）
+                Object.keys(AppointmentData).forEach(
+                  key => AppointmentData[key] === undefined && delete AppointmentData[key]
+                );  
+              // 如果核心值有空，进行警告
+              if (!booking.bookingId || !dt) {
+                  console .warn("警告：bookingid或appointmentDatetime为空！", AppointmentData);
+                  return;
+                 }
+                countInserted++;
+              //把booking-》booked,添加时间列表  
+              await saveAppointment(AppointmentData); 
+                } 
+        );//forEach
+      } // if   
+  }//for
 
   alert(`预约导入完成。成功创建: ${countInserted}，已存在跳过: ${countSkipped}，错误: ${errors}`);
 }
@@ -516,17 +555,20 @@ async  function checkAppointmentExistsByBookingId(booking_id){
   // 返回true表示已存在，false表示不存在
   try {
     const res = await request({
-      url: `${API_BASE_URL}/appointment/getByBookingId`,
+      // 注意：request 实例已设置 baseURL=API_BASE_URL，此处用相对路径即可
+      // 写成 `${API_BASE_URL}/...` 时 axios 会忽略 baseURL，也能工作，但不规范
+      url: '/course/appointment/getByBookingId',
       method: "GET",
       params: { bookingId: booking_id }
     });
-    // 这里假定res.data为预约数组，且接口包一层Result
-    if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
-      return true;  // 存在
+    // request 拦截器在 code===200 时已剥皮，直接返回 res.data（即 List<Appointment>）
+    // 所以这里的 res 本身就是数组
+    if (Array.isArray(res) && res.length > 0) {
+      return true;  // 已存在
     }
     return false;   // 不存在
   } catch (e) {
-    // 网络/服务器异常，抛出上层处理
+    // 业务失败/网络异常：拦截器已 reject，这里直接向上抛
     throw e;
   }
  
@@ -561,6 +603,9 @@ async  function checkAppointmentExistsByBookingId(booking_id){
         testHtml += ' <div> <button class="btn" onclick="batchAddCourseSchedulesPerCourse()"> 添加课程排期</button></div>';
 
         testHtml += ' <div > <button class="btn" onclick="assignSchedulesRandomStudent()"> 添加课程预定</button></div>';
+        testHtml += ' <div > <button class="btn" onclick="generateAppointmentListByBooking()"> 添加预约时间</button></div>';
+
+
         testHtml += '</div>';
 
         return testHtml; 

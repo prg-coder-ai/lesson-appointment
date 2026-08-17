@@ -39,7 +39,8 @@ public class CorsConfig {
         CorsConfiguration config = new CorsConfiguration();
         
         // 允许所有来源（本地开发用这个）Spring Boot 2.4+ 注解中 `origins` 支持通配符 `*`, Pattern生产环境不要用*，配合credentials需指定具体域名）
-        config.addAllowedOriginPattern("http://localhost:8080");    
+        config.addAllowedOriginPattern("http://localhost:*");
+        config.addAllowedOriginPattern("http://127.0.0.1:*");    
          // 允许携带Cookie
         config.setAllowCredentials(true);  
 

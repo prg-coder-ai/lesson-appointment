@@ -13,10 +13,13 @@ import com.reservation.service.CourseScheduleService;
 import  com.reservation.common.ScheduleGenerator; 
 import com.reservation.utils.PermissionCheck;
 
+import com.reservation.query.*;
+import com.reservation.common.*;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.validation.annotation.Validated;
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -103,6 +106,20 @@ public class ScheduleController {
 
         List<ScheduleCreateDTO> schedules = scheduleService.selectList(dto); //TBD: UTC-->local switch
         return Result.success(schedules,"ok");
+    }
+ 
+    @PostMapping("/page")
+    @ResponseBody
+    public Result<PageResult<ScheduleCreateDTO>> filterListPage(@RequestBody ScheduleQueryPage query) {
+          
+         try {
+           PageResult <ScheduleCreateDTO> rs = scheduleService.selectListPage(query);
+           
+             return Result.success(rs,"ok");
+            } catch (RuntimeException e) {
+                 // System.out.println("filterList fail: " + e.getMessage());
+             return Result.fail(0,e.getMessage());
+        } 
     }
 
     @GetMapping("/selectByCourseId/{courseId}")
@@ -227,7 +244,42 @@ public Result<Boolean> assignStudentToSchedule(@RequestBody Map<String, Object> 
          return Result.fail(500,   "error:" + e.getMessage()); 
     } 
 }
-
+/**
+ * 删除指定ID的排期
+ * @param id 排期ID
+ * @param token 权限token
+ * @return 删除结果
+ */
+@DeleteMapping("/delete/{id}")
+@ResponseBody
+public Result<Integer> deleteById(@PathVariable("id") String id, @RequestHeader("Authorization") String token) {
+    try {
+        // 权限校验，只允许老师和管理员删除排期
+        permissionCheck.checkTeacherOrAdmin(token);
+        int rows = scheduleService.deleteById(id);
+        return Result.success(rows, "删除成功");
+    } catch (Exception e) {
+        return Result.fail(0, "删除失败: " + e.getMessage());
+    }
+}
+/**
+ * 根据课程ID删除该课程下的所有排期
+ * @param courseId 课程ID
+ * @param token 权限token
+ * @return 删除的排期数量
+ */
+@DeleteMapping("/deleteByCourseId/{courseId}")
+@ResponseBody
+public Result<Integer> deleteByCourseId(@PathVariable("courseId") String courseId, @RequestHeader("Authorization") String token) {
+    try {
+        // 权限校验，只允许老师和管理员进行操作
+        permissionCheck.checkTeacherOrAdmin(token);
+        int deletedCount = scheduleService.deleteByCourseId(courseId);
+        return Result.success(deletedCount, "删除成功");
+    } catch (Exception e) {
+        return Result.fail(0, "删除排期失败: " + e.getMessage());
+    }
+    }
 }
 
 

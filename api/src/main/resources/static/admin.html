@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>语言教学预约系统 - 管理端</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
   <!-- 引入管理端全局样式 -->
   <link rel="stylesheet" href="css/admin.css"> 
   <!-- 引入图标库 
@@ -22,7 +24,7 @@
   <!-- 头部区域 -->
   <header class="header">
     <div class="logo">
-      <img src="https://via.placeholder.com/40x40/722ed1/ffffff?text=管" alt="管理端logo">
+      <img src="https://via.placeholder.com/40x40/722ed1/ffffff?text=管" alt="管理端">
       <span class="logo-text">语言教学预约系统（管理端）</span>
     </div>
     <!-- 头部操作区 - 退出按钮  id_firstLetter  id_username" -->
@@ -39,30 +41,30 @@
   </header>
 
   <!-- 课程模板编辑弹窗 -->
-<div class="modal-mask" id="templateModal">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3 id="modalTitle">新增课程模板</h3>
-      <span class="modal-close" id="closeModal"><i class="fa fa-times"></i></span>
+  <div class="modal-mask" id="templateModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">新增课程模板</h3>
+        <span class="modal-close" id="closeModal"><i class="fa fa-times"></i></span>
+      </div>
+      <div id="templateFormContainer">
+        <!-- 表单内容由JS动态生成 -->
+      </div>
     </div>
-    <div id="templateFormContainer">
-      <!-- 表单内容由JS动态生成 -->
+  </div> 
+  
+  <div class="modal-mask" id="courseModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">新增课程</h3>
+        <span class="modal-close" id="closeModal"><i class="fa fa-times"></i></span>
+      </div>
+      <div id="formContainer">
+        <!-- 表单内容由JS动态生成 -->
+      </div>
     </div>
-  </div>
-</div> 
-
-<div class="modal-mask" id="courseModal">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3 id="modalTitle">新增课程</h3>
-      <span class="modal-close" id="closeModal"><i class="fa fa-times"></i></span>
-    </div>
-    <div id="formContainer">
-      <!-- 表单内容由JS动态生成 -->
-    </div>
-  </div>
-</div> 
-
+  </div> 
+  
   <!-- 布局容器 -->
   <div class="layout-container">
     <!-- 侧边栏 -->
@@ -97,6 +99,7 @@
           <i class="fa fa-book-open"></i>
           <span>课程列表</span>
         </div>
+        <div class="menu-group-title">排期与预订</div>
         <div class="menu-item">
           <i class="fa fa-book-open"></i>
           <span>课程排期</span>
@@ -105,30 +108,30 @@
           <i class="fa fa-calendar-alt"></i>
           <span>预订审核</span>
         </div>
-
+        <div class="menu-group-title">预约检视</div>
         <div class="menu-item">
           <i class="fa fa-calendar-alt"></i>
           <span>上课通知</span>
-        </div>
+        </div> 
 
-        <div class="menu-item">
-          <i class="fa fa-calendar-alt"></i>
-          <span>测试-批量创建数据</span>
-        </div>
-      </div>
-      <!--
+      
       <div class="menu-group">
-        <div class="menu-group-title">系统设置</div>
+        <div class="menu-group-title">系统维护</div>
         <div class="menu-item">
           <i class="fa fa-cog"></i>
-          <span>基础配置</span>
+          <span>数据维护</span>
+        </div>
+         <div class="menu-item">
+          <i class="fa fa-calendar-alt"></i>
+          <span>测试-批量创建数据</span>
         </div>
         <div class="menu-item">
           <i class="fa fa-file-alt"></i>
           <span>操作日志</span>
         </div>
       </div>
-      -->
+       
+      </div>
     </aside>
 
     <!-- 主内容容器（包含标题和中央动态区域） -->
@@ -163,209 +166,53 @@
         title = '数据总览';
       }
       switch(title) {
+        case "数据维护":
+          // dynamicContentCenter.innerHTML = 
+            renderDatamaintainCards();
+
+              break;
         case "测试-批量创建数据":
              dynamicContentCenter.innerHTML = makeTestPage();
         break;
         case '数据总览':
-
-          // 渲染数据总览面板
-          dynamicContentCenter.innerHTML = `
-            <!-- 数据统计面板 -->
-            <div class="stats-panel">
-              <div class="stats-item">
-                <div class="stats-label">总教师数</div>
-                <div class="stats-value">${monthTotalTeacher}</div>
-                <div class="stats-desc"><i class="fa ${monthTotalTeacherIcon.icon}" style="color:  ${monthTotalTeacherIcon.color};"></i>${monthTotalTeacherIcon.v} 人 (${monthTotalTeacherIcon.str})</div>
-              </div>
-              <div class="stats-item success">
-                <div class="stats-label">总学生数</div>
-                <div class="stats-value">${monthTotalStudent}</div>
-                <div class="stats-desc"><i class="fa ${monthTotalStudentIcon.icon}" style="color: ${monthTotalStudentIcon.color};"></i> ${monthTotalStudentIcon.v}  人 (${monthTotalStudentIcon.str})</div>
-              </div>
-              <div class="stats-item warning">
-                <div class="stats-label">总课程数</div>
-                <div class="stats-value">${monthTotalCourse}</div>  
-                <div class="stats-desc"><i class="fa  ${monthTotalCourseIcon.icon}" style="color: ${monthTotalCourseIcon.color};"></i> ${monthTotalCourseIcon.v} 门  (${monthTotalCourseIcon.str})</div>
-              </div>
-              <div class="stats-item danger">
-                <div class="stats-label">本月预约数</div>
-                <div class="stats-value">${monthTotalBooking}</div> 
-              
-                <div class="stats-desc"><i class="fa  ${monthTotalBookingIcon.icon}" style="color:${monthTotalBookingIcon.color};"></i>${monthTotalBookingIcon.v} 单  (${monthTotalBookingIcon.str})</div>
-              </div>
-               <div class="stats-item danger">
-                <div class="stats-label">本月预约课时</div>
-                <div class="stats-value">${monthTotalAppoint}</div>
-                <div class="stats-desc"><i class="fa  ${monthTotalAppointIcon.icon}" style="color: ${monthTotalAppointIcon.color};"></i> ${monthTotalAppointIcon.v} 课次(${monthTotalAppointIcon.str})  </div>
-              </div>
-            </div>
-
-            <!-- 近期预约审核卡片  -->
-            <div class="card">
-              <div class="card-header">
-                <div class="card-title"><i class="fa fa-calendar-check"></i> 待审核预约</div>
-                
-              </div>  
-                  <div class="stats-panel">
-                    <div class="stats-item">
-                      <div class="stats-label">预约待确认</div>
-                      <div class="stats-value">${BookingCount||0}</div> 
-                    </div>
-                    <div class="stats-item success">
-                      <div class="stats-label">取消待确认</div>
-                      <div class="stats-value">${CancelBookingCount||0}</div>
-                    </div>
-                    <div class="stats-item success">
-                      <div class="stats-label">今日课程</div>
-                       <!--24小时内的预约课程 booked/completed、active -->
-                      <div class="stats-value">${TodayLessonsCount||0}</div>
-                    </div>
-                  </div>
-            </div>
-
-            <!-- 教师活跃度统计卡片 TBD
-            <div class="card">
-              <div class="card-header">
-                <div class="card-title"><i class="fa fa-chart-line"></i> 教师月度授课统计</div>
-                <div class="filter-bar">
-                  <div class="filter-item">
-                    <label>月份：</label>
-                    <select id="month-select">
-                      <option value="202603">2026年3月</option>
-                      <option value="202602">2026年2月</option>
-                      <option value="202601">2026年1月</option>
-                    </select>
-                  </div>
-                  <button class="btn btn-default" onclick="refreshTeacherStats()"><i class="fa fa-search"></i> 查询</button>
-                </div>
-              </div>
-              <div class="table-container">
-                <table class="data-table">
-                  <thead>
-                    <tr>
-                      <th>教师姓名</th>
-                      <th>授课总节数</th>
-                      <th>预约完成率</th>
-                      <th>学生平均评分</th>
-                      <th>操作</th>
-                    </tr>
-                  </thead>
-                  <tbody id="activity-teachers"> 
-                  </tbody>
-                </table>
-              </div>
-            </div> -->
-          `;
-          refreshOverallpage();
+          refreshOverallpage();//admin-overall.js
         
           break;
         
         case '教师管理':
             // 操作按钮事件 --checkout----set online =false TBD 
-            //console .log("window.loadAdminPageContent", window.loadAdminPageContent);
-           
-            renderTeacherCards();
+            //console .log("window.loadAdminPageContent", window.loadAdminPageContent);           
+            renderTeacherCards("teacher");//admin-user.js
           break;
           
         // 分析：本块逻辑用于根据导航栏点击选择，切换到“学生管理”页面时加载不同内容
         case '学生管理':
-          // 判断loadAdminPageContent函数是否已定义（用于页面内容加载和切换）
-         // if (window.loadAdminPageContent) {
-            // 如果已存在，利用高阶函数包装原有处理逻辑
-            // 这样“学生管理”对应点击时会执行自定义的renderStudentCards()，
-            // 其他tab仍然调用原本的loadAdminPageContent
-            /*
-              语法结构详细分析：
-
-              1. 这是一个自执行函数表达式（IIFE, Immediately Invoked Function Expression）。
-                 结构： (function(orig){ ... })(loadAdminPageContent)
-                 意思是声明一个接受orig参数的匿名函数，并立即用参数loadAdminPageContent调用它，将其返回值赋给loadAdminPageContent变量。
-
-              2. 内部 return function(title) {...} 实际上返回一个新函数（同名覆盖全局的 loadAdminPageContent）。
-                 参数 title 代表导航栏点击的标题。
-
-              3. 该函数体：
-                - 先打印传入的 title 方便调试
-                - 利用 if 判断，如果 title 等于 '学生管理'，则调用 renderStudentCards() —— 渲染学生管理页
-                - 否则（其他 tab），调用 orig(title)，也就是原先的 loadAdminPageContent(title)，保留原有逻辑
-
-              4. (function(orig){...})(loadAdminPageContent) 的意义是“闭包包装+增强”原有的 loadAdminPageContent，无缝扩展一个特殊分支。
-            */ 
-          renderStudentCards();
+          
+            renderTeacherCards("student"); // renderStudentCards();//admin-user.js
           // 跳出switch
           break;
    
-         case '课程模板':
-             
-            renderTemplateCards();
+         case '课程模板':             
+            renderTemplateCards();//admin-template.js
             break;
         case '课程列表':
           //console .log("course...");
-          renderCourseCards();
+          renderCourseCards();//admin-course.js
           break;//课程排期
         
           
         case '课程排期':
           //console .log("ScheduleCards...课程排期");
-            renderScheduleCards();
+            renderScheduleCards();//admin-course-schedule.js
           break;//课程排期
         case '预订审核'://TBD
-        if(dynamicContentCenter)
-          dynamicContentCenter.innerHTML = `
-            <div class="card">
-              <div class="card-header">
-                <div class="card-title"><i class="fa fa-calendar-alt"></i>预订列表</div>
-                <!--  <button class="btn btn-primary" onclick="provingBooking()"><i class="fa fa-refresh"></i> 刷新</button>  -->
-              </div>
-              <div class="table-container">
-                <table class="data-table">
-                  <thead>
-                    <tr>
-                      <th>序号</th>
-                      <th  style="display:none;">预订ID</th>
-                      <th>课程名称</th>
-                      <th>学生姓名</th>
-                      <th>教师姓名</th>
-                      <th>上课时间</th>
-                      <th>状态</th>
-                      <th>操作</th>
-                    </tr>
-                  </thead>
-                  <tbody id="pending-reservations">
-                    
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          `;
-          provingBooking();
+          //provingBooking();//admin-provingBooking.js
+          renderBookingCards();//admin-provingBooking.js 预订审核
           break;
           case '上课通知': //列出3日课程内， 显示课程名称、教师、学生、时间、课程状态，操作：发送通知1、2、3           
-          // 渲染数据总览面板
-          dynamicContentCenter.innerHTML = `
-             <div class="table-container">
-                <table class="data-table">
-                  <thead>
-                    <tr>
-                      <th>序号</th>
-                      <th  style="display:none;">预约ID</th>
-                      <th>课程名称</th>
-                      <th>学生姓名</th>
-                      <th>教师姓名</th>
-                      <th>上课时间</th>
-                      <th>状态</th>
-                      <th>操作</th>
-                    </tr>
-                  </thead>
-                  <tbody id="days-appointment-admin">
-                    
-                  </tbody>
-                </table>
-              </div>
-             `;
-           
-            refreshAppointmentNotes("days-appointment-admin");
+                       refreshAppointmentNotes( );//TBD "admin"//admin-AppointmentNotes.js  上课通知  
             break;  
+        
         case '基础配置':
         if(dynamicContentCenter)
           dynamicContentCenter.innerHTML = `
@@ -450,28 +297,22 @@
           break;
       }
     }
-   
-    // 退出登录函数 TBD:设置离线状态 online=false--TBD:handleLogout
-   /* function logout() {
-      if (confirm('确定要退出系统吗？')) {
-        // 清除本地存储的用户信息
-        localStorage.removeItem('currentUser');
-        // 跳回登录页（这里注释掉，方便测试）
-         window.location.href = 'index.html';
-       // alert('已退出登录！');
-      }
-    }*/
+    
     let menuItems=[]  ;
     let pageTitle="" ;
     let dynamicContentCenter = null;//document.getElementById('dynamic-content-center');
     // 页面加载时验证登录状态（注释掉跳转，方便测试）
     window.onload = function() {
       window.makeTestPage = makeTestPage;//test
-       testFormContainer = document.getElementById('templateFormContainer');
-       console.log("onload",testFormContainer); 
+      window.renderCourseCards = renderCourseCards;
+      window.renderBookingCards  = renderBookingCards;
+      window.refreshOverallpage = refreshOverallpage ;
+
+      testFormContainer = document.getElementById('templateFormContainer');
+     //  console.log("onload",testFormContainer); 
 
         formContainer = document.getElementById('formContainer');
-        console.log("onload",formContainer); 
+        //console.log("onload",formContainer); 
 
       // 读取名为 currentUser 的 cookie值，并设置回 localStorage，避免用户刷新管理端丢失状态   
         function getCookie(name) {
@@ -491,11 +332,24 @@
        
       // 解析用户信息并渲染
       const currentUser = localStorage.getItem('currentUser');
-      const user = JSON.parse(currentUser);
+      let user = null;
+      try { user = currentUser ? JSON.parse(currentUser) : null; } catch(_) { user = null; }
+      
+      // ====== 新增：未登录或登录信息不完整 → 保存当前来源页 URL 后跳登录页 ======
+      if (!user || !user.userId || !user.role) {
+        console.log('%c[AuthRedirect] 调用点 D：admin.html onload 检测到未登录，准备 saveLoginRedirect',
+          'color:#dc2626;font-weight:bold;');
+        if (typeof window.saveLoginRedirect === 'function') {
+          window.saveLoginRedirect('noauth');
+        }
+        // 保留 onload 已做过的 cookie 回写，避免丢失
+        location.href = './index.html';
+        return; // 不再执行后续的 DOM 渲染
+      }
       
      // console.log('管理端页面加载完成，所有交互功能已启用');
       // 设置用户首字母和用户名
-      if (user && user.name) { 
+      if (user.name) { 
         console.log(`${user.name}（${user.role}）已登录管理端`); 
         document.getElementById('avatar').innerHTML = user.name.length > 0 ? user.name[0] : '';
         document.getElementById('user-name').innerHTML  = user.name  ;
@@ -523,125 +377,7 @@
     addChangePasswordButton();
        
     };
-    
-    // 预约审核相关函数
-    function approveReservation(el) {
-      const row = el.closest('tr');
-      const statusCell = row.querySelectorAll('td')[5];
-      statusCell.style.color = '#52c41a';
-      statusCell.textContent = '已通过';
-      
-      // 替换操作按钮
-      const actionCell = row.querySelectorAll('td')[6];
-      actionCell.innerHTML = `
-        <button class="btn btn-default" onclick="viewReservationDetail(this)"><i class="fa fa-eye"></i> 详情</button>
-      `;
-      
-      alert('预约审核通过！');
-      // 可在此处调用API提交审核结果
-    }
-
-    function rejectReservation(el) {
-      if (confirm('确定要拒绝该预约吗？')) {
-        const row = el.closest('tr');
-        const statusCell = row.querySelectorAll('td')[5];
-        statusCell.style.color = '#f5222d';
-        statusCell.textContent = '已拒绝';
-        
-        // 替换操作按钮
-        const actionCell = row.querySelectorAll('td')[6];
-        actionCell.innerHTML = `
-          <button class="btn btn-default" onclick="viewReservationDetail(this)"><i class="fa fa-eye"></i> 详情</button>
-        `;
-        
-        alert('预约已拒绝！');
-        // 可在此处调用API提交审核结果
-      }
-    }
-
-    function viewReservationDetail(el) {
-      const row = el.closest('tr');
-      const cells = row.querySelectorAll('td');
-      alert(`
-        预约详情：
-        预约ID：${cells[0].textContent}
-        课程名称：${cells[1].textContent}
-        学生姓名：${cells[2].textContent}
-        教师姓名：${cells[3].textContent}
-        预约时间：${cells[4].textContent}
-        状态：${cells[5].textContent}
-      `);
-    }
-
-    // 教师管理相关函数
-    function viewTeacherDetail(el) {
-      const row = el.closest('tr');
-      // 修复：获取教师姓名的索引应该是0（第一列）
-      const teacherName = row.querySelectorAll('td')[0].textContent;
-      alert(`
-        教师详情：
-        姓名：${teacherName}
-        授课统计：本月授课${row.querySelectorAll('td')[1].textContent}节
-        预约完成率：${row.querySelectorAll('td')[2].textContent}
-        学生平均评分：${row.querySelectorAll('td')[3].textContent}
-      `);
-    }
-
-    function editTeacher(el) {
-      const row = el.closest('tr');
-      const teacherName = row.querySelectorAll('td')[1].textContent;
-      alert(`编辑教师：${teacherName}（可在此处打开编辑弹窗）`);
-    }
-
-
-
-            function    renderCards(role){
-                    if(role=="teacher")
-                       renderTeacherCards();
-                      else  if(role=="student")
-                      renderStudentCards();
-            }
-    // 学生管理相关函数
-    function editStudent(el) {
-      const row = el.closest('tr');
-      const studentName = row.querySelectorAll('td')[1].textContent;
-      alert(`编辑学生：${studentName}（可在此处打开编辑弹窗）`);
-    }
-
-    function viewStudentReservation(el) {
-      const row = el.closest('tr');
-      const studentName = row.querySelectorAll('td')[1].textContent;
-      alert(`查看 ${studentName} 的预约记录（可在此处展示该学生的所有预约）`);
-    }
-
-    // 课程管理相关函数
-    function editCourse(el) {
-      const row = el.closest('tr');
-      const courseName = row.querySelectorAll('td')[1].textContent;
-      alert(`编辑课程：${courseName}（可在此处打开编辑弹窗）`);
-    }
-
-    function deleteCourse(el) {
-      const row = el.closest('tr');
-      const courseName = row.querySelectorAll('td')[1].textContent;
-      if (confirm(`确定要删除课程 ${courseName} 吗？`)) {
-        row.remove();
-        alert(`课程 ${courseName} 已删除！`);
-      }
-    }
-
-    // renderTemplateCards
-    function refreshTeacherStats() {
-      const month = document.getElementById('month-select').value;
-      alert(`已刷新 ${month} 月份的教师授课统计数据！`);
-    }
-//利用changepasswordapi设置用户密码为缺省值
-    function resetUserPasswd(userId) { 
-      if (!confirm("确定要重置此用户的密码为默认值吗？")) {
-        return;
-      }
-      changePasswordAPI(userId,"123456");
-    }
+       
     var testFormContainer =null;
     var formContainer = null;
   
@@ -657,18 +393,19 @@
    <script src="js/admin-template.js"></script> 
    <script src="js/admin-course.js"></script>
     <script src="js/admin-user.js"></script>
-   <script src="js/admin-course-schedule.js"></script>
+   <script src="js/admin-schedule.js"></script>
     <script src="js/admin-overall.js"></script>
-    <script src="js/admin-provingBooking.js"></script>
+    <script src="js/admin-booking.js"></script>
     <script src="js/admin-AppointmentNotes.js"></script>
 
+    <script src="js/admin-dataMaintainPage.js"></script>
     <script src="js/test/testData.js"></script>
    <script>
    console.log("end of body...")
    </script>
 </body>
 </html>
-<!-- INSERT_YOUR_CODE -->
+ 
 <!--
 【语言教学预约系统-管理端使用说明】
 
@@ -834,4 +571,28 @@
 3. 配置安全组、绑定弹性IP，安装JDK和数据库（或选用RDS托管）。
 4. 使用上文打包好的JAR包进行部署，域名DNS可解析到EIP上。
 
--->
+
+
+// 判断loadAdminPageContent函数是否已定义（用于页面内容加载和切换）
+// if (window.loadAdminPageContent) {
+   // 如果已存在，利用高阶函数包装原有处理逻辑
+   // 这样“学生管理”对应点击时会执行自定义的renderStudentCards()，
+   // 其他tab仍然调用原本的loadAdminPageContent
+   /*
+     语法结构详细分析：
+
+     1. 这是一个自执行函数表达式（IIFE, Immediately Invoked Function Expression）。
+        结构： (function(orig){ ... })(loadAdminPageContent)
+        意思是声明一个接受orig参数的匿名函数，并立即用参数loadAdminPageContent调用它，将其返回值赋给loadAdminPageContent变量。
+
+     2. 内部 return function(title) {...} 实际上返回一个新函数（同名覆盖全局的 loadAdminPageContent）。
+        参数 title 代表导航栏点击的标题。
+
+     3. 该函数体：
+       - 先打印传入的 title 方便调试
+       - 利用 if 判断，如果 title 等于 '学生管理'，则调用 renderStudentCards() —— 渲染学生管理页
+       - 否则（其他 tab），调用 orig(title)，也就是原先的 loadAdminPageContent(title)，保留原有逻辑
+
+     4. (function(orig){...})(loadAdminPageContent) 的意义是“闭包包装+增强”原有的 loadAdminPageContent，无缝扩展一个特殊分支。
+ */ 
+   -->

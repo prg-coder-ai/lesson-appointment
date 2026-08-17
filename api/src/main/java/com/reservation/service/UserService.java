@@ -1,11 +1,18 @@
 package com.reservation.service;
 //
-import com.reservation.common.Result;
-import com.reservation.entity.User;
+import com.reservation.common.*;
+import com.reservation.query.UserQueryPage;
+ 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+
+import com.reservation.entity.User;  
 import com.reservation.exception.BusinessException;
 import com.reservation.exception.ResourceNotFoundException;
 import com.reservation.exception.UserNotFoundException;
 import com.reservation.mapper.UserMapper;
+import com.reservation.utils.JwtUtil;
+
+
 // 原因可能有以下几种：
 // 1. 你的项目中没有 UserMapper 这个类，或者它的包名不是 com.reservation.mapper。
 // 请确保 src/main/java/com/reservation/mapper/UserMapper.java 文件存在且包声明正确。
@@ -14,8 +21,7 @@ import com.reservation.mapper.UserMapper;
 // 4. IDEA/Maven 的编译配置问题，比如未将相关目录标记为 Source Root。
 // 5. 代码中包名拼写错误，与实际包名不符。请检查 import 路径、包声明大小写和文件夹结构一致。
 // 解决办法：确认 com.reservation.mapper.UserMapper 类文件在项目对应目录下，并且包名、文件名拼写无误，之后点击IDE“Invalidate Caches”或重启。
-
-import com.reservation.utils.JwtUtil;
+ 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -59,8 +65,9 @@ public class UserService {
         // 生成唯一userId（对应通用校验规则-ID类参数）
         user.setUserId(UUID.randomUUID().toString());  
         // 插入数据库
-        userMapper.insert(user);
- 
+        int result = userMapper.insert(user);
+        System.out.println("output：" + result);
+
          Map<String, String> resultMap = new HashMap<>();
          resultMap.put("userId", user.getUserId());
          resultMap.put("account", user.getAccount());
@@ -70,7 +77,7 @@ public class UserService {
          resultMap.put("role", user.getRole());
                                //data,message
          Result< Object> rslt = Result.success(resultMap   ,"注册成功，请登录等待验证");
-        
+         System.out.println("output rslt：" + rslt);
         return rslt;
     }
 
@@ -109,28 +116,36 @@ public class UserService {
     // 用户登录（对应设计2.2.1 登录接口）
     public Result<HashMap<String, Object>> login(String account, String password) {
         // 查找用户（账号可为手机号/邮箱，对应设计2.2.1 登录接口请求参数）
-       //  System.out.println("login：" + account+"   "+password);
+         System.out.println("userService login：" + account+"   "+password);
         User user = userMapper.selectByAccount(account);
-        if (user == null) {
-            throw new ResourceNotFoundException("账号不存在");
+        HashMap<String, Object> resultMap = new HashMap<>();
+        if (user == null) { 
+          resultMap.put("message", "账号不存在");
+          resultMap.put("code", 404);
+           return Result.success(resultMap,"账号不存在");
         }
         // 校验密码,把password加密后与user.getPassword()比较
        // String encodedPassword = passwordEncoder.encode(password); 
        if(! passwordEncoder.matches(password,user.getPassword()))
-        {
-            throw new BusinessException("密码错误");
+        { 
+           resultMap.put("message", "密码错误");
+           resultMap.put("code", 400);
+           return Result.success(resultMap,"密码错误");    
         }
         // 校验账号状态（冻结/未审核） && "teacher".equals(user.getRole())
-        if ("frozen".equals(user.getStatus())) {
-            throw new BusinessException("账号已冻结，请联系管理员");
+        if ("frozen".equals(user.getStatus())) { 
+             resultMap.put("message", "账号已冻结，请联系管理员");
+             resultMap.put("code", 400);
+             return Result.success(resultMap,"账号已冻结，请联系管理员");
         }
         if ("inactive".equals(user.getStatus()) ) {
-            throw new BusinessException("账号未审核，请等待管理员审核");
+             resultMap.put("message", "账号未审核，请等待管理员审核");    
+             resultMap.put("code", 400);
+             return Result.success(resultMap,"账号未审核，请等待管理员审核");   
         }//其它情况--进入相应的页面，若为pendding则等待审核。其他情况，显示正常项目内容。
         // 生成Token
         String token = jwtUtil.generateToken(user.getUserId(), user.getRole());
         // 组装返回数据（对应设计2.2.1 登录返回数据）
-        HashMap<String, Object> resultMap = new HashMap<>();
         resultMap.put("userId", user.getUserId());
         resultMap.put("account", user.getAccount());
         resultMap.put("name", user.getName());
@@ -141,6 +156,8 @@ public class UserService {
        // String accessToken = jwtUtil.generateAccessToken(account);
         String refreshToken = jwtUtil.generateRefreshToken(user.getUserId());
           resultMap.put("refreshToken", refreshToken);
+
+          resultMap.put("code", 200);
        
        // 3. 持久化刷新Token到数据库
         refreshTokenService.saveNewToken(user.getUserId(), refreshToken, jwtUtil.getRefreshExpireTime());
@@ -154,47 +171,27 @@ public class UserService {
             // Token失效（在缓存中删除对应用户的Token）
             jwtUtil.invalidateToken(userId); 
         }
-
-    public void sendForgotCode(String account) {
-        // 查找用户
-        User user = userMapper.selectByPhoneOrEmail(account);
-        if (user == null) {
-            throw new ResourceNotFoundException("账号不存在");
-        }
-        
-        //生成随机验证码（对应设计2.2.1 密码找回逻辑）
-       // String verifyCode = "123456"; //  生成随机验证码
-        //1 发送验证码到邮箱或者手机短信（对应设计2.2.1 密码找回逻辑）
-        //2 将验证码存储到缓存中，key为account，value为verifyCode，设置过期时间为5分钟
-    }
-    // 验证码验证（密码找回），对应设计2.2.1 密码找回接口
-    public void verifyForgotCode(String account, String verifyCode) {
-        // 查找用户
-        User user = userMapper.selectByPhoneOrEmail(account);
-        if (user == null) {
-            throw new ResourceNotFoundException("账号不存在");
-        }
-        // 校验验证码（模拟：实际需对接短信/邮箱接口，校验时效性5分钟，对应通用校验规则-验证码）
-        // 从缓存中获取对应账号的验证码进行校验
-        if (!"123456".equals(verifyCode)) {  // 模拟验证码，实际需从缓存获取
-            throw new BusinessException("验证码错误或已过期");
-        }
-    }
+  
 
     // 密码重置，对应设计2.2.1 密码重置接口 "12345678"
     @Transactional
-    public void resetPassword(String account) { 
+    public Result<HashMap<String, Object>> resetPassword(String account) { 
         // 查找用户
         User user = userMapper.selectByAccount(account); 
+        HashMap<String, Object> resultMap = new HashMap<>();
         if(user!= null ) { 
         // 加密新密码并更新--重置为固定码，用户自行更改
         user.setPassword(passwordEncoder.encode("12345678"));
         updatePassword(user);
+        return Result.success(resultMap   ,"密码重置成功");
        // userMapper.updatePassword(user.getUserId(),user.getPassword());
         } else {
-           
-           throw new UserNotFoundException("账号 【" + account + "】对应的用户不存在"); 
-        }
+           // throw new BusinessException("账号 【" + account + "】对应的用户不存在");
+           resultMap.put("message", "账号 【" + account + "】对应的用户不存在");
+           resultMap.put("code", 404);
+           return Result.success(resultMap,"账号不存在");
+        }   
+
     } 
 
  @Transactional
@@ -215,7 +212,9 @@ public class UserService {
     public User selectByPhone(String phone) {
         User user= userMapper.selectByPhone(phone);
        if(user==null){
-            System.out.println("手机号【" + phone + "】对应的用户不存在");
+            // throw new UserNotFoundException("手机号【" + phone + "】对应的用户不存在");
+          //  Result< Object> rslt = Result.fail(400   ,"手机号【" + phone + "】对应的用户不存在");
+            return null;
        }
         return user;
     }
@@ -284,6 +283,29 @@ public User selectById(String userId) {
         return ret;
     };
  
+ 
+     public PageResult<User>   listByConditionPage(UserQueryPage query)
+    {
+        List <User> retList = userMapper.listByConditionPage(query); 
+// 删除密码字段 
+        if (retList != null) {
+            for (User user : retList) {
+                if (user != null) {
+                    user.setPassword(null); // 删除password
+                }
+            }
+        }
+ 
+        Page<User> page = new Page<>(query.getPageNum(), query.getPageSize());
+        page.setRecords(retList);
+
+        Integer total = userMapper.selectCountByContion(query);
+        page.setTotal(total);
+        PageResult<User> result = PageResult.of(page);
+        return result;
+    };
+ 
+
     public List<User> listByRole(String role) {
         List<User> users = userMapper.listByRole(role); 
         if (users == null || users.isEmpty()) {

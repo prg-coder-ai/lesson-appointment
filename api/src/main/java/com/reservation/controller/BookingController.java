@@ -1,10 +1,12 @@
 package com.reservation.controller;
 
-import com.reservation.common.Result;
+import com.reservation.common.*;
 import com.reservation.entity.Booking;
 import com.reservation.dto.BookingQueryParaDTO;
 import com.reservation.dto.BookingDTO;
+import com.reservation.query.BookingQueryPage;
 import com.reservation.service.BookingService;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -44,6 +46,25 @@ public class BookingController {
         }
     }
 
+    /**
+     * 查询指定排期(scheduleId)下的所有booking
+     * @param scheduleId 排期ID
+     * @return booking列表
+     */
+    @GetMapping("/ListByScheduleId/{scheduleId}")
+    @ResponseBody
+    public Result<List<Booking>> getBookingsBySchedule(@PathVariable("scheduleId") String scheduleId) {
+      BookingQueryParaDTO dto= new BookingQueryParaDTO();
+      dto.setScheduleId(scheduleId);
+
+        try {
+            List<Booking> bookings = bookingService.selectList(dto);
+            return Result.success(bookings, "ok");
+        } catch (RuntimeException e) {
+            return Result.fail(null, e.getMessage());
+        }
+    }
+
     @PostMapping("/list")
     @ResponseBody
     public Result<List<Booking>> filterList(@RequestBody BookingQueryParaDTO dto) {
@@ -58,6 +79,21 @@ public class BookingController {
              return Result.fail(0,e.getMessage());
         } 
     }
+
+    @PostMapping("/page")
+    @ResponseBody
+    public Result<PageResult<Booking>> filterListPage(@RequestBody BookingQueryPage dto) {
+        //  System.out.println("booking list input dto: " + dto); 
+         try {
+           PageResult <Booking> rs = bookingService.selectListPage(dto);
+           
+             return Result.success(rs,"ok");
+            } catch (RuntimeException e) {
+                 // System.out.println("filterList fail: " + e.getMessage());
+             return Result.fail(0,e.getMessage());
+        } 
+    }
+
 
     @GetMapping("/{id}")
     public Result<Booking> getById(@PathVariable String id) {
@@ -109,13 +145,17 @@ public class BookingController {
     
     // 经检查，当前 BookingController.java 文件不存在明显的语法错误。所有注解、方法和 Java 语法均正常。如果还需优化具体业务逻辑或风格，请明确说明需求。
 
-    /*@DeleteMapping("/delete/{id}")
-    public Result<Void> delete(@PathVariable String id) {
+    @DeleteMapping("/delete/{id}")
+    public Result<Integer> delete(@PathVariable String id) {
         try {
-            bookingService.delete(id);
-            return Result.success();
+           int rows= bookingService.delete(id);
+            return Result.success(rows,"delete");
         } catch (RuntimeException e) {
-            return Result.fail(null,e.getMessage());
+            return Result.fail(0,e.getMessage());
         }
-    }*/
+    }
+    @DeleteMapping("/deleteByScheduleId/{id}")
+    public Result<Integer> deleteByScheduleId(@PathVariable String id) {
+        return Result.success(bookingService.deleteByScheduleId(id),"ok");
+    }
 }

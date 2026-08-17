@@ -8,10 +8,10 @@
     <!-- 插入一条新预约 -->
     <insert id="insert" parameterType="com.reservation.entity.Booking">
         INSERT INTO booking
-        (id, schedule_id, student_id, teacher_id,status
+        (booking_id, schedule_id, student_id, teacher_id,status
         )
         VALUES
-        (#{id}, #{scheduleId}, #{studentId}, #{teacherId}, #{status}
+        (#{bookingId}, #{scheduleId}, #{studentId}, #{teacherId}, #{status}
         )
     </insert>
 
@@ -25,25 +25,25 @@
             <if test="status != null">status = #{status},</if>
            
         </set>
-        WHERE id = #{id}
+        WHERE booking_id = #{bookingId}
     </update>
 
     <!-- 根据ID变更状态  -->
     <update id="updateStatus">
         UPDATE booking SET status = #{status} 
-        WHERE id = #{id}
+        WHERE booking_id = #{bookingId}
     </update>
 
     <!-- 根据ID查询 -->
     <select id="selectById" parameterType="string" resultType="com.reservation.entity.Booking">
-        SELECT * FROM booking WHERE id = #{id}
+        SELECT * FROM booking WHERE booking_id = #{bookingId}
     </select>
 
     <!-- 条件批量查询 -->
     <select id="selectList" parameterType="com.reservation.dto.BookingQueryParaDTO" resultType="com.reservation.entity.Booking">
         SELECT * FROM booking
         <where>
-            <if test="id != null">AND id = #{id}</if>
+            <if test="id != null">AND booking_id = #{id}</if>
             <if test="scheduleId != null">AND schedule_id = #{scheduleId}</if>
             <if test="userRole != null">
                 <if test="userRole == 'student'">
@@ -57,12 +57,114 @@
         </where>
         ORDER BY create_time DESC
     </select>
+    <!-- 
+    List <Booking> selectListPage(BookingQueryPage dto);
+    int            selectCountByCondition(BookingQueryPage dto);
+    教师信息检索 TBD
+   -->
+    <!--
+    语法分析：
+
+    1. <select id="selectListPage"...> MyBatis的select标签，为分页查询预约（Booking）信息定义SQL。
+    2. SELECT * FROM booking
+       - 查询所有列，数据表名为booking
+    3. <where> TRUE ... </where>
+       - where标签自动处理前置AND问题
+       - TRUE是防止where内容为空造成SQL错误（类似1=1），后面的条件直接AND拼接即可
+    4. <choose>/<when>
+       - 条件分支，分别判断userRole为student还是teacher，并且userId不为null。根据角色拼接AND student_id = #{userId} 或 AND teacher_id = #{userId}
+    5. <choose>/<when>
+       - 判断status不为null，拼接AND status = #{status}
+    6. ORDER BY create_time DESC
+       - 按创建时间倒序排序
+    7. <if test="pageSize != null and pageNum != null">
+         LIMIT #{pageSize} OFFSET ${(pageNum - 1) * pageSize}
+       </if>
+       - 如果指定了分页参数，则拼接LIMIT...OFFSET实现物理分页
+    8. MyBatis参数语法
+       - #{param}：会自动转义参数
+       - ${...}：不自动转义，直接拼接（这里用于offset的计算表达式）
     
+    小细节：
+    - <choose>/<when>块单独写是为了互斥分支，本需求里没else，所以各自独立（其实多个<if>块能实现类似效果）。
+    - 条件都依赖于参数DTO的字段是否有值。
+
+    总结：
+    这个SQL可复用性较强，可以根据userRole和userId过滤不同角色的预约记录，也能按状态过滤，支持分页，order by也便于后续扩展。
+    -->
+
+    <select id="selectListPage" parameterType="com.reservation.query.BookingQueryPage" resultType="com.reservation.entity.Booking">
+        SELECT booking.* 
+        FROM booking 
+        LEFT JOIN course_schedule cs ON booking.schedule_id = cs.schedule_id
+        LEFT JOIN course c ON cs.course_id = c.course_id
+   
+        <where> TRUE
+        <choose>
+                <when test="courseName != null and courseName != ''">
+                    AND c.course_name LIKE CONCAT('%', #{courseName}, '%')
+                </when>
+            </choose>
+            
+             <choose>
+                <when test="userRole != null and userId != null and userRole == 'student' ">
+                    AND booking.student_id = #{userId}
+                </when>
+            </choose>
+            <choose>
+                <when test="userRole != null and userId != null and userRole == 'teacher' ">
+                    AND booking.teacher_id = #{userId}
+                </when>
+            </choose>
+            <choose>
+                <when test="status != null and status !=''">
+                    AND booking.status = #{status}
+                </when>
+            </choose>
+        </where>
+        ORDER BY create_time DESC
+        <if test="pageSize != null and pageNum != null">
+            LIMIT #{pageSize} OFFSET ${(pageNum - 1) * pageSize}
+        </if>
+    </select>
+    
+    
+    <select id="selectCountByCondition" parameterType="com.reservation.query.BookingQueryPage" resultType="java.lang.Integer">
+        SELECT count(*)        
+        FROM booking 
+        LEFT JOIN course_schedule cs ON booking.schedule_id = cs.schedule_id
+        LEFT JOIN course c ON cs.course_id = c.course_id   
+        <where> TRUE
+        <choose>
+                <when test="courseName != null and courseName != ''">
+                    AND c.course_name LIKE CONCAT('%', #{courseName}, '%')
+                </when>
+            </choose>
+         <choose> <when test="userRole != null and userId != null and userRole == 'student' ">
+                    AND booking.student_id = #{userId}                   
+                </when >
+                       </choose>
+         <choose> <when  test="userRole!= null  and userId != null and userRole == 'teacher' ">
+                    AND booking.teacher_id = #{userId}
+                </when>
+                </choose>
+         <choose>
+            <when test="status != null and status != ''"> 
+                AND booking.status = #{status}
+                </when></choose>
+        </where> 
+    </select>
+
     <!-- 删除预约 -->
     <delete id="delete" parameterType="string">
-        DELETE FROM booking WHERE id = #{id}
+        DELETE FROM booking WHERE booking_id = #{bookingId}
     </delete>
  
+ <delete id="deleteByScheduleId" parameterType="string">
+        DELETE FROM booking WHERE schedule_id = #{id}
+    </delete>
+  
+
     <!-- 统计截至指定时间（含当时）所有预约（Booking）的数量，可指定状态 -->
     <select id="countBookingAtDate" parameterType="map" resultType="int">
         SELECT COUNT(*) FROM booking 

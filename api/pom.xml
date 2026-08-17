@@ -10,77 +10,54 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>2.7.15</version> <!-- 稳定版本，与JJWT 0.11.5、MyBatis 2.3.0兼容 -->
-        <relativePath/> <!-- 不从本地仓库找，直接从中央仓库拉取 -->
+        <version>3.3.5</version>
+        <relativePath/>
     </parent>
 
-    <!-- 2. 当前模块的基本信息（必写） -->
-    <groupId>com.reservation</groupId> <!-- 自定义：公司/组织+项目名 -->
-    <artifactId>api</artifactId>  <!-- 模块名，对应文件夹名api -->
+    <groupId>com.reservation</groupId>
+    <artifactId>api</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
     <version>1.0.0</version> <!-- 版本号：快照版（开发中）/RELEASE（正式版） -->
     <name>reservation</name>
     <description>lesson booking system</description>
 
     <!-- 3. 基础属性配置（统一编码、JDK版本） -->
     <properties>
-        <java.version>1.8</java.version> <!-- 适配主流JDK版本 -->
+        <java.version>17</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <!-- 统一依赖版本（便于后续维护） -->
         <mybatis-spring-boot.version>2.3.0</mybatis-spring-boot.version>
         <mysql-connector.version>8.0.33</mysql-connector.version>
         <jjwt.version>0.11.5</jjwt.version>
-        <spring-boot.version>2.7.15</spring-boot.version>
         <mainClass>com.reservation.SpringBootMergeApplication</mainClass>
+        <!-- Spring Boot Maven Plugin 的命令行参数：仅作用于 mvn spring-boot:run，不影响 repackage（避免 fork WARNING） -->
+        <spring-boot.run.fork>true</spring-boot.run.fork>
+        <spring-boot.run.jvmArguments>-Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005</spring-boot.run.jvmArguments>
     </properties>
 
- 
-
-    <!-- 4. 依赖配置 -->
     <dependencies>
-        <!-- pom.xml 基础依赖 -->
-        <!-- 热部署核心依赖：spring-boot-devtools -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-devtools</artifactId>
-            <optional>true</optional> <!-- 避免依赖传递，仅当前项目生效，生产环境不引入 -->
-            <scope>runtime</scope> <!-- 仅运行时有效，不影响编译过程 -->
+            <optional>true</optional>
+            <scope>runtime</scope>
         </dependency>
-			<dependency>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-starter-web</artifactId>
-			</dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
 
-            <dependency>
-                <groupId>jakarta.validation</groupId>
-                <artifactId>jakarta.validation-api</artifactId>
-                <version>3.0.2</version>
-            </dependency>
-            <dependency>
-                <groupId>org.hibernate.validator</groupId>
-                <artifactId>hibernate-validator</artifactId>
-                <version>8.0.1.Final</version>
-            </dependency>
-          
-			<dependency>
-				<groupId>org.openjfx</groupId>
-				<artifactId>javafx-fxml</artifactId>
-				<version>21</version>
-			</dependency>
-
-        <!-- 数据校验（对应设计2.4 异常处理、参数校验） -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
-        <!-- 权限控制（对应设计2.3 安全设计-RBAC模型） -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
-        <!-- JWT Token（对应设计2.3 安全设计-Token加密）【升级为新版】 -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
@@ -99,21 +76,13 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- 数据库相关 -->
-        <dependency>
-            <groupId>org.mybatis.spring.boot</groupId>
-            <artifactId>mybatis-spring-boot-starter</artifactId>
-            <version>${mybatis-spring-boot.version}</version>
-        </dependency>
-     <!-- pom.xml 中修改 MySQL 驱动依赖 -->
         <dependency>
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
-            <version>${mysql-connector.version}</version> <!-- 适配 MySQL 5.7+/8.0+，支持 utf8mb4 -->
+            <version>${mysql-connector.version}</version>
             <scope>runtime</scope>
         </dependency>
 
-        <!-- 可选：单元测试依赖（建议补充，便于开发测试） -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -123,45 +92,41 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.30</version> <!-- 推荐使用稳定版，可根据需求调整 -->
-            <scope>provided</scope> <!-- 仅编译期生效，不打入最终包 -->
-             <optional>true</optional>
+            <version>1.18.30</version>
+            <scope>provided</scope>
+            <optional>true</optional>
         </dependency>
 
-		<!-- MyBatis-Plus -->
-		<dependency>
-			<groupId>com.baomidou</groupId>
-			<artifactId>mybatis-plus-boot-starter</artifactId>
-			<version>3.5.3.1</version>
-		</dependency>
         <dependency>
-            <groupId>org.hibernate.orm</groupId>
-            <artifactId>hibernate-core</artifactId>
-            <version>6.4.4.Final</version>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+            <version>3.5.7</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>2.6.0</version>
         </dependency>
 
     </dependencies>
-    <!-- 5. 构建配置（核心：Spring Boot打包插件，生成可执行JAR） -->
     <build>
      
         <plugins>
                 <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.12.1</version> <!-- 用最新稳定版 -->
+        <version>3.12.1</version>
         <configuration>
-            <source>16</source>   <!-- 你的Java版本 -->
-            <target>16</target>
+            <release>17</release>
             <encoding>UTF-8</encoding>
 
-                <!-- 启用所有警告，再排除个别不需要的 -->
                 <compilerArgs>
-                <arg>-Xlint:all</arg>           <!-- 开启全部警告 -->
-                <arg>-Xlint:-processing</arg>    <!-- 关闭注解处理警告（可选） -->
-                <arg>-Xlint:-unchecked</arg>     <!-- 关闭泛型未检查警告（可选） -->
+                <arg>-Xlint:all</arg>
+                <arg>-Xlint:-processing</arg>
+                <arg>-Xlint:-unchecked</arg>
                 </compilerArgs>
 
-                <!-- 显示警告、不因为警告失败构建 -->
                 <showWarnings>true</showWarnings>
                 <showDeprecation>true</showDeprecation>
                 <failOnWarning>false</failOnWarning>
@@ -170,23 +135,20 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <version>${spring-boot.version}</version>
+                <version>${project.parent.version}</version>
                 <configuration>
-                    <!-- 手动指定启动类全路径（和properties中保持一致） -->
                     <mainClass>${mainClass}</mainClass>
-					<excludes>
+                    <excludes>
                         <exclude>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
                         </exclude>
                     </excludes>
-                    <!-- 关键配置：开启独立进程，确保热部署生效 -->
-                <fork>true</fork> 
-                </configuration>
+</configuration>
                 <executions>
                     <execution>
                         <goals>
-                            <goal>repackage</goal> <!-- 打包为可执行JAR -->
+                            <goal>repackage</goal>
                         </goals>
                     </execution>
                 </executions>
@@ -196,13 +158,11 @@
         <resources>
             <resource>
                 <directory>src/main/java</directory>
-                <!-- 加载java目录下的所有xml/yml/properties文件 -->
                 <includes>
                     <include>**/*.xml</include>
                 </includes>
                 <filtering>false</filtering>
             </resource>
-            <!-- 保留resources目录的默认加载 -->
             <resource>
                 <directory>src/main/resources</directory>
                 <includes>

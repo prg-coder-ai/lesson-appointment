@@ -3,10 +3,12 @@ package com.reservation.service;
 import com.reservation.mapper.RefreshTokenMapper;
 import com.reservation.dto.RefreshTokenPO;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RefreshTokenService {
@@ -47,7 +49,9 @@ public class RefreshTokenService {
      * 刷新成功后删除旧token
      */
     public void removeOldToken(String oldRefreshToken) {
+        log.info("删除旧刷新Token开始, token={}", oldRefreshToken);
         refreshTokenMapper.deleteSingleToken(oldRefreshToken);
+        log.info("删除旧刷新Token结束, token={}", oldRefreshToken);
     }
 
     /**
@@ -55,14 +59,19 @@ public class RefreshTokenService {
      */
     @Transactional(rollbackFor = Exception.class)
     public int kickUser(String userId) {
-        return refreshTokenMapper.deleteByUserId(userId);
+        log.info("踢出用户开始, userId={}", userId);
+        int rows = refreshTokenMapper.deleteByUserId(userId);
+        log.info("踢出用户结束, userId={}, 删除Token数={}", userId, rows);
+        return rows;
     }
 
     /**
      * 用户主动登出，删除当前刷新凭证
      */
     public void logout(String refreshToken) {
+        log.info("用户登出，删除刷新Token开始, token={}", refreshToken);
         refreshTokenMapper.deleteSingleToken(refreshToken);
+        log.info("用户登出，删除刷新Token结束, token={}", refreshToken);
     }
 
     /**

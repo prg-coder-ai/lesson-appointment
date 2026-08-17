@@ -39,12 +39,12 @@
 
       // 获取用户时区（关键）
       const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      console.log("tz",userTimeZone); 
+      //console.log("tz",userTimeZone); 
       InitUserInfo();
       
    function InitUserInfo() {
        userInfo= getCurrentUserInfo();
-      console.log("userInfo",userInfo);
+     // console.log("userInfo",userInfo);
       if(userInfo == null || typeof userInfo === 'undefined') { 
           document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
           // 判断是否是当前页面
@@ -86,7 +86,7 @@
 //TBD条件：公司、分部、管理员
 async function fetchUserList(conditionJson) {
   const URL = `${API_BASE_URL}/user/${conditionJson.role}/list`; 
-  console.log("URL"+ URL); 
+  //console.log("URL"+ URL); 
     try { 
       // 语法分析：使用ES6的await等待fetch请求，URL通过模板字符串拼接。配置对象包含：
       // method: 请求方法为'GET'
@@ -99,7 +99,7 @@ async function fetchUserList(conditionJson) {
         data: {}, // 没有请求体
         // 可选：如果request已经统一处理token/cookie，则无需额外添加headers
       });
-      console.log("fetchUserList response:", res); 
+      //console.log("fetchUserList response:", res); 
      // console.log("fetchUserList result:", res.data);
       // 假设后端返回数据结构 { code: 200, data: [...] }
       return res  || [];
@@ -110,27 +110,27 @@ async function fetchUserList(conditionJson) {
   }
 
   async function  getUserNameById(teacherId) {
-    const URL = `${API_BASE_URL}/user/name/${teacherId}`; 
-    console.log("URL"+ URL); 
-      try {    
-        // 用request改写
-        const res = await request({
-          url: URL,
-          method: "get",
-          data: {}, // 无请求体
-        });
-        console.log("getUserNameById response:", res);
- 
-      //  if (!res || res.code !== 200) throw new Error("获取失败");
+    // 入参保护：空值/undefined/非字符串直接返回 n/a，避免拼出 /user/name/ 或 /user/name/undefined
+    // 触发后端 NoResourceFoundException: No static resource user/name.
+    if (!teacherId || typeof teacherId !== 'string' || !teacherId.trim()) {
+      return "n/a";
+    }
+    // 去除可能的尾随空白/点号，防止 /user/name/abc. 被当作静态资源
+    const safeId = teacherId.trim().replace(/[.\s]+$/, '');
+    if (!safeId) return "n/a";
 
-        console.log("getUserNameById", res);
-
-        // 假设后端返回数据结构 { code: 200, data: [{userId, name, ...}], ... }
-        return res  || "n/a";
-      } catch (e) {
-        alert(e.message + "网络错误，无法获取数据");
-        return "n/a";
-      } 
+    try {
+      // 用request改写（相对路径，由 baseURL 自动拼接前缀）
+      const res = await request({
+        url: `/user/name/${encodeURIComponent(safeId)}`,
+        method: "get"
+      });
+      // request 拦截器在 code===200 时已剥皮，返回 res.data（即 String 名称）
+      return res || "n/a";
+    } catch (e) {
+      console.error("getUserNameById:", e);
+      return "n/a";
+    }
   }
   
 /**
@@ -156,11 +156,40 @@ const userStr = localStorage.getItem('currentUser');
 }
 
  // 页面跳转函数（根据用户角色）
+ // 关键修复：登录成功后，优先读取 auth_redirect_info（来自 401 或 logout）跳转回原页面；
+ //         没有 redirect 时，才按角色跳默认页（admin/teacher/student）。
  function redirectToUserPage(user) {
-       
-  //alert('redirectToUserPage:'+ user.role );
-  // 存储用户信息到本地（实际项目中使用token）
- // localStorage.setItem('currentUser', JSON.stringify(user));
+   console.groupCollapsed(
+     '%c[AuthRedirect] redirectToUserPage 触发（登录成功后的跳转决策）',
+     'color:#fff;background:#7c3aed;padding:2px 6px;border-radius:3px;'
+   );
+   console.log('[AuthRedirect] 0. 入参 user：', user);
+
+   // 1. 优先消费登录 redirect（一次性读取，读完即删）
+   let redirectUrl = null;
+   if (typeof window.consumeLoginRedirect === 'function') {
+     console.log('[AuthRedirect] 1. window.consumeLoginRedirect 存在，开始消费...');
+     redirectUrl = window.consumeLoginRedirect();
+   } else {
+     console.warn('[AuthRedirect] 1. window.consumeLoginRedirect 不存在（utility_request.js 未加载？）');
+   }
+   console.log('[AuthRedirect] 2. consumeLoginRedirect 返回：', redirectUrl || '(null → 走默认角色跳转)');
+
+   if (redirectUrl) {
+     console.log('%c[AuthRedirect] 3. ✅ 命中 redirect，1.5s 后回跳原页面：' + redirectUrl,
+       'color:#16a34a;font-weight:bold;');
+     console.groupEnd();
+     // 不 window.location.href：用 assign 更可读
+     setTimeout(() => {
+       console.log('[AuthRedirect] 4. 实际执行 window.location.assign：', redirectUrl);
+       window.location.assign(redirectUrl);
+     }, 100);
+     return;
+   }
+
+   console.log('[AuthRedirect] 3. 无 redirect，按角色跳默认页：', user && user.role);
+   console.groupEnd();
+
   if(user && user.role){
   // 根据角色跳转对应页面
   switch(user.role) {
@@ -353,14 +382,14 @@ const userStr = localStorage.getItem('currentUser');
       if (!(dateObj instanceof Date)) return "";
       // 使用浏览器语言
       const locale = getBrowserLocale();
-      console.log(locale,dateObj);
+     // console.log(locale,dateObj);
       try {
         // 'weekday' 选项设置为 'long' 表示全名
         // 修正：将日期对象加1天，防止获取的星期提前一天
         const correctedDate = new Date(dateObj.getTime() + 24 * 60 * 60 * 1000);
         const wkd = new Intl.DateTimeFormat(locale, { weekday: 'long' }).format(correctedDate);
 
-        console.log(wkd);
+      //  console.log(wkd);
         return  wkd;
       } catch (e) {
         // 兼容错误时返回中文，或英文

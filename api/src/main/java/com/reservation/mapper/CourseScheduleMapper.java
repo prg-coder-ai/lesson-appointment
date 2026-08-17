@@ -2,6 +2,7 @@ package com.reservation.mapper;
 
 import com.reservation.entity.*;
 import com.reservation.dto.*;
+import com.reservation.query.*;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import java.time.LocalDateTime;
@@ -15,9 +16,13 @@ public interface CourseScheduleMapper {
     
     // 根据ID查询
     CourseSchedule selectById(String id);
+    
 
     List<CourseSchedule> selectList(ScheduleCreateDTO  filterJson);
+    List<CourseSchedule> selectListByPage(ScheduleQueryPage query);
 
+    Integer selectCountByCondition(@Param("query") ScheduleQueryPage query);
+    
     String updateScheduleSites(IncSiteBody opPara);
     //根据输入的非空参数更新
     void update(CourseSchedule newData);
@@ -29,7 +34,8 @@ public interface CourseScheduleMapper {
 
     void insertSchedule(CourseSchedule schedule);
     List<CourseSchedule> selectScheduleByTime(String courseId, Date startTime, Date endTime);
-
  
-    
+     // 删除指定id的排期 deleteById
+    void deleteById(@Param("id") String id);
+    int deleteByCourseId(@Param("courseId") String courseId);
 }

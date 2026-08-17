@@ -12,6 +12,10 @@ let dialogTitle = '新增课程模板'; // 弹窗标题
 let currentTemplateId = '';  // 当前操作的模板ID
 let formEl ='';
 
+
+ // 引入分页组件js
+ document.write('<script src="/js/public/pagefoot.js"></script>');
+
 // 表单验证规则（适配Element Plus原生用法）
 /*const templateRules = {
     languageType: [{ required: true, message: '请选择语言类型', trigger: 'change' }],
@@ -30,6 +34,16 @@ function validateForm() {
     // 清空所有错误提示
     document.querySelectorAll(".form-error").forEach(el => el.innerText = "");
   
+    // 校验status字段必填项
+    const statusInput = formEl.status;
+    if (!statusInput.value.trim()) {
+        const statusErrorEl = document.getElementById('statusError');
+        if (statusErrorEl) {
+            statusErrorEl.innerText = "此项为必填项";
+        }
+        isValid = false;
+    }
+    
     // 逐个校验必填项
     const requiredFields = ['languageType', 'difficultyLevel', 'classForm', 'classDuration', 'classFee', 'description'];
     requiredFields.forEach(field => {
@@ -44,23 +58,8 @@ function validateForm() {
     });
     return isValid;
   }
-
-/**
- * 获取Token（修复localStorage解析逻辑）
- */
-
-function getToken() {
-    const currentUserStr = localStorage.getItem('currentUser');
-    if (!currentUserStr) {
-        alert('未登录，请重新登录');
-        window.location.href = '/login'; // 跳转到登录页
-        return '';
-    }
-    const currentUser = JSON.parse(currentUserStr);
-    return currentUser.token || '';
-}
-
-function openEditTemplateDialog(templateJsonStr )
+ 
+  function openEditTemplateDialog(templateJsonStr )
 { 
  // 1. 显示弹窗
  const modal = document.getElementById('templateModal');
@@ -77,7 +76,8 @@ function openEditTemplateDialog(templateJsonStr )
       classForm: "",
       classDuration: "",
       classFee: "",
-      description: "请输入模板描述"
+      description: "请输入模板描述",
+      status: "inactive"
     };
   } else  
     try {
@@ -123,8 +123,8 @@ function openEditTemplateDialog(templateJsonStr )
       <label>课程形式 <span style="color:red">*</span></label>
       <select name="classForm" class="form-select" required>
         <option value="">请选择</option>
-        <option value="1p1" ${defaultTemplate.classForm === '1p1' ? 'selected' : ''}>1p1</option>
-        <option value="1pn" ${defaultTemplate.classForm === '1pn' ? 'selected' : ''}>小班</option>
+        <option value="1p1" ${defaultTemplate.classForm === '1p1' ? 'selected' : ''}>一对一</option>
+        <option value="1pn" ${defaultTemplate.classForm === '1pn' ? 'selected' : ''}>小班课</option>
           
       </select>
       <div class="form-error" id="classFormError"></div>
@@ -147,32 +147,24 @@ function openEditTemplateDialog(templateJsonStr )
       <textarea name="description" rows="3" required>${defaultTemplate.description}</textarea>
       <div class="form-error" id="descriptionError"></div>
     </div>
-
+    <div class="form-item">
+      <label>模板状态 <span style="color:red">*</span></label>
+      <select name="status" class="form-select" required>
+        <option value="">请选择</option>
+        <option value="active" ${defaultTemplate.status === 'active' ? 'selected' : ''}>激活</option>
+        <option value="inactive" ${defaultTemplate.status === 'inactive' ? 'selected' : ''}>待审核</option>
+        <option value="frozen" ${defaultTemplate.status === 'frozen' ? 'selected' : ''}>冻结</option>
+      </select>
+      <div class="form-error" id="statusError"></div>
+    </div>
+    
     <div class="mt-4 text-end">
       <button type="button" class="btn btn-cancel" onclick="closeTemplateModal()">取消</button>
       <button type="button" class="btn btn-primary" onclick="submitTemplateForm()">提交</button>
     </div>
   </form>
-`;
-  // 5. 渲染表单到弹窗容器
- 
-  // templateFormContainer 是模板编辑/新增弹窗里的表单内容区域，其在 admin.html 中作为 <div id="templateFormContainer"></div> 预留。
-  // 这里我们直接通过 document.getElementById('templateFormContainer') 获取并动态赋值其 innerHTML。
-  // 本JS无须"创建"该元素，只需确保 admin.html 文件里已存在对应的 <div id="templateFormContainer"></div>，否则需在弹窗容器结构内手动加上：
-  // <div id="templateFormContainer"></div>
-  // 本函数给 templateFormContainer 动态赋表单内容即可。
-  // 说明：如果你遇到 document.getElementById('templateFormContainer') 获取到 undefined/null，
-  // 最常见原因是本 JS 文件的 <script src="admin-template.js"></script> 引入时机在 admin.html 里太早，DOM 还未生成。
-  // 你应确保 <div id="templateFormContainer"></div> 已经渲染在页面上（一般在弹窗结构内），
-  // 并且 <script src="admin-template.js"></script> 应当放在 </body> 前，确保页面所有 DOM 元素都已解析后再加载 JS。
-  // 检查方法：
-  // 1. 检查 HTML 结构中模态弹窗已有 <div id="templateFormContainer"></div>
-  // 2. 检查 JS 是否在 DOMContentLoaded 之前运行——如果是，应将JS引入放到底部
-  // 3. 若本 JS 需要处理的 DOM 不是实时可见，可以先确保 modal 弹窗 stype.display = 'block' 后再渲染内容
-  // 4. 若仍有疑问，建议在本处加如下防御代码进行排查：
-
-  // Debug: 如果找不到 templateFormContainer，弹详细报错
- // const testFormContainer = document.getElementById('templateFormContainer');
+`; 
+// const testFormContainer = document.getElementById('templateFormContainer');
   if (!testFormContainer) {
     alert("无法找到 templateFormContainer 元素！\n" +
       "请确认 admin.html 页面内存在 <div id=\"templateFormContainer\"></div> 并且 <script src=\"admin-template.js\"></script> 是在 DOM 加载完后引入的。");
@@ -206,75 +198,89 @@ async function submitTemplateForm() {
     }
     // 2. 获取表单数据 
     const formData = {
-        templateId:formEl.templateId.value,
-        languageType: formEl.languageType.value,
-        difficultyLevel: formEl.difficultyLevel.value,
-        classForm: formEl.classForm.value,
-        classDuration: formEl.classDuration.value,
-        classFee: formEl.classFee.value,
-        description: formEl.description.value
+        templateId:     formEl.templateId.value,
+        languageType:   formEl.languageType.value,
+        difficultyLevel:formEl.difficultyLevel.value,
+        classForm:      formEl.classForm.value,
+        classDuration:  formEl.classDuration.value,
+        classFee:       formEl.classFee.value,
+        description:    formEl.description.value,
+        status:         formEl.status.value,
     };
   // 3. 调用接口提交（区分新增/编辑）
     //根据templateId判断新增还是修改
-    //console .info("submit:",formData.templateId);
-    const token = getToken();
-    const url = formData.templateId !=""? `${baseUrl}/course/template/update` : `${baseUrl}/course/template/insert`;
-      try{
-          let res = await  updateORCreateTemplate(formData);
+    //const url = formData.templateId !=""? `${baseUrl}/course/template/update` : `${baseUrl}/course/template/insert`;
+      // INSERT_YOUR_CODE
+      // 兼容 updateORCreateTemplate 作为全局函数被调用的问题
+      // 若该函数为模块作用域或 window 对象未注册，则补注册（以支持 admin-template.js 单独引用不报错）
+      if (typeof updateORCreateTemplate === 'undefined') {
+        // 此处必须用window对象以保证可调用
+        window.updateORCreateTemplate = async function(formData){
+          // 假设 API_BASE_URL 和 request 全局可用
+          const url = formData.templateId && formData.templateId !== ""
+            ? `${API_BASE_URL}/course/template/update`
+            : `${API_BASE_URL}/course/template/insert`;
+          try {
+            const res = await request({
+              url: url,
+              method: 'POST',
+              data: formData
+            });
+            return res;
+          } catch (err) {
+            alert('网络异常，操作失败002');
+            console.error(err);
+            return null;
+          }
+        }
+      }
+     try{
+       // console.log("submitTemplateForm",formData);
+          let res = await  updateORCreateTemplate(formData);//返回id
+          console.log("submitTemplateForm",res);
         // 4.  响应处理 响应成功/失败
         if (res ) {
             alert(formData.templateId !="" ? '模板编辑成功' : '模板新增成功');
             closeTemplateModal(); // 关闭弹窗
-           await renderTemplateCards(); // 刷新列表
+           await loadAndRenderTemplateCards(); // 刷新列表
         } else {
             alert( formData.templateId!=""  ? '模板编辑失败' : '模板新增失败');
+
         }
     } catch (err) {
-        alert('网络异常，操作失败');
-        //console .error(err);
+        alert('操作失败: ' + (err && err.message ? err.message : err));
+   
+        console .error(err);
     }
 }
 /**
  * 渲染模板列表（核心：原生JS操作DOM）
  */
+
 async function renderTemplateCards() {
-  
+    assignLoadobjectListFunction( loadAndRenderTemplateCards);// assign
+
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
     //console .log("renderTemplateCards:",dynamicContentCenter);
     if (!dynamicContentCenter) return; 
-    // 显示加载中
-    dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';
-
-    // 构建筛选条件
-    const conditionJson = {
-        //language: document.getElementById('languageType').value,
-      //  level: document.getElementById('difficultyLevel').value,
-        pageRow: pageSize,
-        pageNum: currentPage
-    };
-
-    // 获取模板列表数据
-    templateList = await  fetchTemplateList(conditionJson);
-
+  
     // 渲染HTML
     let html = '';
-    if (templateList && templateList.length ==0 ) {
-        html = '<div style="padding:40px 0;text-align:center;color:#999;">暂无模板数据</div>';
-    } else { 
+    
       html += `<div class="card">
             <div class="card-title"><i class="fa fa-filter"></i> 筛选条件</div>
-            <div class="search-form" style="display: flex; gap: 20px; margin-bottom: 16px;">
+            <div class="filter-form" style="display: flex; gap: 20px; margin-bottom: 16px;">
                 <div>
                     <label>语言类型：</label>
-                    <select id="languageType" onchange="handleSearchChange()">
+                    <select id="languageType-select" >
                         <option value="">全部</option>
-                        <option value="france">法语</option>
+                        <option value="french">法语</option>
                         <option value="english">英语</option> 
                     </select>
                 </div>
                 <div>
                     <label>难度等级：</label>
-                    <select id="difficultyLevel" onchange="handleSearchChange()">
+                    <select id="difficultyLevel-select">
                         <option value="">全部</option>
                         <option value="B1">B1入门</option>
                         <option value="B2">B2初级</option>
@@ -282,7 +288,16 @@ async function renderTemplateCards() {
                         <option value="B4">B4高级</option> 
                     </select>
                 </div>
-                <button class="btn btn-default" onclick="resetSearchForm()">重置</button>
+                <div>
+                    <label>名称：</label>
+                    <input type="text" id="name-input"  placeholder="模板名称" >
+                </div>
+                 <button class="btn" onclick="localsearchTemplate()">
+                    <i class="fa fa-search"></i> 搜索
+                    </button>
+                <button class="btn btn-default" onclick="resetFilterTemplate()"> 
+                <i class="fa fa-redo"></i>重置
+                </button>
                 <button class="btn btn-primary" onclick="openEditTemplateDialog(null)">新增模板</button>
             </div>
         </div>
@@ -299,102 +314,171 @@ async function renderTemplateCards() {
                 <div style="width:120px;"><strong>状态</strong></div>
                 <div style="width:240px;"><strong>操作</strong></div>
             </div>
-        `;
-        var index=0;
-        if (templateList && templateList.length >0 )
-        templateList.forEach(template => {
-         // console.log(template);
-           index ++;
+
+        `; 
             html += `
-                <div class="teacher-card" style="margin:8px 0;padding:8px 0;border-bottom:1px solid #f5f5f5;">
-                    
-                <div style="display:flex;gap:36px;align-items:center;"> 
-                   <div style="width:40px;">${index  }</div> 
-                    <div style="width:90px;">${template.languageType || ''}</div>
-                    <div style="width:180px;">${template.difficultyLevel || ''}</div>
-                    <div style="width:130px;">${template.classForm || ''}</div>
-                    <div style="width:130px;">${template.classDuration || ''}</div>
-                    <div style="width:130px;">${template.classFee || ''}</div> 
-                    
-                     <div style="width:120px;">                       
-                          ${ template.status === "pending" ? '<span style="color:#faad14;">待审核</span>' :
-                            template.status === "active" ? '<span style="color:#52c41a;">正常</span>' :
-                            template.status === "inactive" ? '<span style="color:#faad14;">待启用</span>' :
-                            template.status === "frozen" ? '<span style="color:#f5222d;">已删除</span>' :
-                            `<span>${template.status||"未知"}</span>`
-                          }
-                        </div>
-                    <div style="width:240px;display:flex;gap:8px;">
-                        <button class="btn btn-success" onclick='openEditTemplateDialog(${JSON.stringify(template).replace(/'/g, "\\'")})'>修改</button>
-                   
-                        <button class="btn btn-success" onclick="operateTemplate('${template.templateId}', 'active')">发布</button>
-                        <button class="btn btn-warning" onclick="operateTemplate('${template.templateId}', 'inactive')">撤回</button>
-                        <button class="btn btn-danger" onclick="deleteTemplate('${template.templateId}')">删除</button>
-                    </div>
+              <div id="templatesDisplay-body">
+                  
                 </div>
-            </div>
             `;
-        });
-    }
-    dynamicContentCenter.innerHTML = html;
-
-    // 更新分页组件
-    const pagination = document.getElementById('pagination');
-    if (pagination) {
-        pagination.currentPage = currentPage;
-        pagination.pageSize = pageSize;
-        pagination.total = total;
-    }
+            html += getPagebar();
+         if(dynamicContentCenter) {
+            dynamicContentCenter.innerHTML =  html;  
+            loadAndRenderTemplateCards();
+         }
 }
 
-// ===================== 交互函数 =====================
-/**
- * 筛选条件变化
- */
-async function handleSearchChange() {
-    currentPage = 1; // 重置页码
-    await renderTemplateCards();
-}
 
-/**
- * 重置筛选表单
- */
-async function resetSearchForm() {
-    document.getElementById('languageType').value = '';
-    document.getElementById('difficultyLevel').value = '';
-    currentPage = 1;
-    await renderTemplateCards();
-}
+async function loadAndRenderTemplateCards() {
+ 
+  // 构建筛选条件
+  const conditionJson = {
+      languageType:       document.getElementById('languageType-select').value,
+      difficultyLevel:    document.getElementById('difficultyLevel-select').value,
+      name:    document.getElementById('name-input').value,
+      pageSize:Pagination.pageSize,
+      pageNum: Pagination.pageNum
+  };
 
-/**
- * 分页大小变化
- */
-async function handlePageSizeChange(val) {
-    pageSize = val;
-    await renderTemplateCards();
-}
+  // 获取模板列表数据
+  const pageResult  = await  fetchTemplateListPage(conditionJson);
+  
+  if(pageResult){
+    templateList = pageResult.rows;    
+    const pageData = pageResult;
+    Pagination.total = pageData.total ;
+    Pagination.totalPages = pageData.totalPages;
+   
+    showTemplatesList( templateList,"templatesDisplay-body"); //defined in appointmentNotes.js
+    renderPagination( Pagination);   
+   } else {
+    
+    Pagination.total = 0 ;
+    Pagination.totalPages = 0;
+   
+    showTemplatesList( [],"templatesDisplay-body"); //defined in appointmentNotes.js
+    renderPagination( Pagination);  
+   }
 
-/**
- * 页码变化
- */
-async function handleCurrentPageChange(val) {
-    currentPage = val;
-    await renderTemplateCards();
-}
+  }
 
   
-
-/**
- * 删除模板
- */
-async function deleteTemplate(templateId) {
+  function localsearchTemplate() {
+    Pagination.pageNum = 1;
+    loadAndRenderTemplateCards();
     
-        if (!window.confirm('确定要删除该课程模板吗？删除后基于该模板的课程基础参数将不受统一管控！')) {
-            return;
-        }
-   
-        operateTemplate(templateId,"frozen"); 
-        renderTemplateCards(); 
+ }
+ // 重置筛选条件
+ function resetFilterTemplate() {
+    document.getElementById('languageType-select').value="";
+    document.getElementById('difficultyLevel-select').value="";
+    document.getElementById('name-input').value="";
+    Pagination.pageNum = 1;
+     loadAndRenderTemplateCards();
+      
+ }
+
+ 
+   function showTemplatesList( templates,renderTo) {
+    var  html = ` `;
+          
+     var index=(Pagination.pageNum-1)*Pagination.pageSize;//记录序号let index = 0;
+
+      if (templates && templates.length >0 )
+        templates.forEach(template => {
+        
+          index ++;
+          html += `
+              <div class="teacher-card" style="margin:8px 0;padding:8px 0;border-bottom:1px solid #f5f5f5;">
+                  
+              <div style="display:flex;gap:36px;align-items:center;"> 
+                 <div style="width:40px;">${index  }</div> 
+                  <div style="width:90px;">${template.languageType || ''}</div>
+                  <div style="width:180px;">${template.difficultyLevel || ''}</div>
+                  <div style="width:130px;">${template.classForm || ''}</div>
+                  <div style="width:130px;">${template.classDuration || ''}</div>
+                  <div style="width:130px;">${template.classFee || ''}</div> 
+                  
+                   <div style="width:120px;">                       
+                        ${ template.status === "pending" ? '<span style="color:#faad14;">待审核</span>' :
+                          template.status === "active" ? '<span style="color:#52c41a;">正常</span>' :
+                          template.status === "inactive" ? '<span style="color:#faad14;">待启用</span>' :
+                          template.status === "frozen" ? '<span style="color:#f5222d;">已删除</span>' :
+                          `<span>${template.status||"未知"}</span>`
+                        }
+                      </div>
+                  <div style="width:240px;display:flex;gap:8px;">
+                      <button class="btn btn-success" onclick='openEditTemplateDialog(${JSON.stringify(template).replace(/'/g, "\\'")})'>修改</button>
+                 
+                      <button class="btn btn-success" onclick="operateTemplateStatus('${template.templateId}', 'active')">发布</button>
+                      <button class="btn btn-warning" onclick="operateTemplateStatus('${template.templateId}', 'inactive')">撤回</button>
+                      <button class="btn btn-danger" onclick="deleteTemplateByFrozen('${template.templateId}')">冻结</button>
+                  </div>
+              </div>
+          </div>
+          `;
+      });
+    
+     var renderItem = document.getElementById(renderTo);
+            // 列表表头
+     if(renderItem){
+            renderItem.innerHTML = html;
+     }
+ }
+// ===================== 交互函数 =====================
+
+function deleteTemplateByFrozen(templateId) {     
+      var bconfirmed = false ;
+      (async () => {
+          // 执行前检查模板是否关联课程，如有关联则不允许删除
+          const hasCourses = await checkTemplateHasCourses(templateId);
+          if (hasCourses) {
+              //alert('该模板有关联课程，无法删除！请先删除或修改基于该模板的课程。');
+            //  return;
+            const userChoice = confirm('该模板存在课程，是否删除？继续将删除该项目下的全部课程。点击“确定”继续，点击“取消”放弃删除。');
+            if (!userChoice) {
+                return;
+                      }
+           //TBD : 设置该模板的所有课程状态为delete
+           bcomfirmed = true;   
+           deleteTemplateNextLevelByFrozen(templateId);
+          }
+
+          if(!bcomfirmed) //提示1次
+            if (!confirm('确定要删除该模板吗？')) return;
+
+            await operateTemplate(templateId,"frozen");
+
+            await loadAndRenderTemplateCards();
+             
+      })();
+   //   deleteTemplate
+      // operateTemplateStatus(templateId,"frozen");          
+}
+  
+ async function deleteTemplateNextLevelByFrozen(templateId){
+ // INSERT_YOUR_CODE
+    try {
+        // 调用接口设置模板所有课程的状态为delete
+        // 获取所有课程，筛选属于该模板的课程，然后调用接口设置其状态为"delete"
+        // 后端接口: /api/v1/course/updateStatusByLastId/{id}?status=delete, method: POST
+        // 这里假设存在API_BASE_URL全局变量，否则请按实际填充
+        // 1. 获取该模板下所有课程
+        const res = await request({
+            url: `${API_BASE_URL}/course/updateStatusByLastId/${encodeURIComponent(templateId)}?status=${encodeURIComponent("frozen")}`,
+            method: 'POST' 
+        });
+          console.log("deleted",res);
+    } catch (err) {
+        alert('删除模板下课程时出错，请检查网络或后端接口。');
+        console.error('deleteTemplateNextLevelByFrozen error:', err);
+    }
+
+ }
+
+async function  operateTemplateStatus(templateId,newStatus){
+      await  operateTemplate(templateId,newStatus);
+  loadAndRenderTemplateCards(); 
 }
 
 // 点击弹窗遮罩层关闭

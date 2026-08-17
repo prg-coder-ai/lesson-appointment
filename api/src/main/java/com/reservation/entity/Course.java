@@ -2,6 +2,8 @@
 package com.reservation.entity;
 
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 import jakarta.validation.constraints.Size;
@@ -14,6 +16,7 @@ import java.io.Serializable;
 @Data
 public class Course implements Serializable {
       private static final long serialVersionUID = 1L;
+    @TableId(type = IdType.ASSIGN_ID)
     private String courseId;
 
     @NotBlank(message = "模板ID不能为空")
@@ -24,16 +27,18 @@ public class Course implements Serializable {
     private String courseName;
 
     @NotBlank(message = "教学内容不能为空")
-    @Size(min = 10, max = 1000, message = "教学内容长度需10-1000字")
+    @Size(min = 0, max = 1000, message = "教学内容长度需0-1000字")
     private String content;
 
     @NotBlank(message = "课程特色不能为空")    
-    @Size(min = 10, max = 1000, message = "课程特色长度需10-1000字")
+    @Size(min = 0, max = 1000, message = "课程特色长度需0-1000字")
     private String feature;
     
     @NotBlank(message = "教师ID不能为空")
     private String teacherId;
 
      @NotBlank(message = "课程状态默认为pending")   
-    private String status = "pending"; 
+     private String status = "pending"; 
+
+     private String createTime; 
 }

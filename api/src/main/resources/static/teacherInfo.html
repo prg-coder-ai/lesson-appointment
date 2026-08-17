@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>教师职业信息维护 - 语言教学预约系统</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="css/admin.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <style>
+    body { margin: 0; font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; background: #f0f2f5; }
+    .header { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 0 24px; height: 60px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    .logo { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 600; color: #722ed1; }
+    .header-actions { display: flex; align-items: center; gap: 16px; }
+    .user-info { display: flex; align-items: center; gap: 8px; }
+    .avatar { width: 32px; height: 32px; border-radius: 50%; background: #722ed1; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+    .container { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+    .card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 16px; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #f0f0f0; }
+    .card-title { font-size: 16px; font-weight: 600; color: #333; display: flex; align-items: center; gap: 8px; }
+    .card-body { padding: 16px 20px; }
+    .btn { padding: 6px 14px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; gap: 4px; transition: opacity .2s; }
+    .btn:hover { opacity: .85; }
+    .btn-primary { background: #722ed1; color: #fff; }
+    .btn-success { background: #52c41a; color: #fff; }
+    .btn-warning { background: #faad14; color: #fff; }
+    .btn-danger { background: #f5222d; color: #fff; }
+    .btn-default { background: #fff; color: #333; border: 1px solid #d9d9d9; }
+    .header-btns { display: flex; gap: 8px; }
+
+    /* 表单样式 */
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; margin-bottom: 4px; color: #333; font-size: 14px; font-weight: 500; }
+    .form-group label .required { color: #f5222d; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px 10px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 14px; box-sizing: border-box; background: #fff; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #722ed1; }
+    .form-group input[readonly], .form-group select[disabled], .form-group textarea[readonly] { background: #fafafa; color: #666; cursor: default; }
+    .form-group textarea { min-height: 80px; resize: vertical; }
+    .form-row { display: flex; gap: 16px; }
+    .form-row .form-group { flex: 1; }
+    .sub-section { border: 1px solid #f0f0f0; border-radius: 6px; padding: 12px; margin-bottom: 14px; }
+    .sub-section-title { font-weight: 600; color: #722ed1; margin-bottom: 8px; font-size: 14px; }
+    .sub-item-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+    .sub-item-row input, .sub-item-row select { flex: 1; padding: 6px 8px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 13px; }
+    .add-row-btn { background: #f0f0f0; border: 1px dashed #d9d9d9; padding: 6px; width: 100%; border-radius: 4px; cursor: pointer; color: #722ed1; }
+
+    /* 只读视图样式 */
+    .view-section { display: flex; flex-wrap: wrap; gap: 16px 24px; margin-bottom: 16px; }
+    .view-field { flex: 1 1 240px; }
+    .view-field .label { color: #999; font-size: 12px; margin-bottom: 4px; }
+    .view-field .value { color: #333; font-size: 14px; word-break: break-all; }
+    .view-photo { width: 120px; height: 120px; border-radius: 6px; object-fit: cover; background: #f0f0f0; }
+    .status-active { color: #52c41a; }
+    .status-frozen { color: #f5222d; }
+    .status-inactive { color: #faad14; }
+
+    .empty-tip { text-align: center; color: #999; padding: 40px 0; }
+    .error-tip { text-align: center; color: #f5222d; padding: 40px 0; }
+    .loading-tip { text-align: center; color: #999; padding: 40px 0; }
+
+    /* === 图片上传与预览 === */
+    /* 个人照片上传行：预览图 + 输入区横向排列 */
+    .photo-upload-row { display: flex; gap: 12px; align-items: flex-start; }
+    .photo-preview { width: 120px; height: 120px; border: 1px dashed #d9d9d9; border-radius: 6px; overflow: hidden; background: #fafafa; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .photo-preview-img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-inputs { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+    .photo-inputs input[type="text"] { width: 100%; padding: 8px 10px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 14px; box-sizing: border-box; }
+
+    /* 证书行缩略图 */
+    .cert-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; flex-wrap: wrap; }
+    .cert-thumb { width: 50px; height: 50px; border: 1px dashed #d9d9d9; border-radius: 4px; overflow: hidden; background: #fafafa; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .cert-thumb-img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* 占位图（无图片时） */
+    .photo-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 12px; }
+
+    /* 查看模式 - 证书图片 */
+    .cert-view-img { width: 80px; height: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #f0f0f0; }
+
+    .horline-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+        }
+    .btn-group {
+      display: flex; 
+        }
+   button { 
+      cursor: pointer;
+      border: 0px solid #d1d5db;
+      background: #fff;
+      border-radius: 4px;
+    }
+    button:hover {
+      background-color: #f3f4f6;
+      
+    }
+    label {
+      font-size: 14px;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <!-- 头部 -->
+  <header class="header">
+    <div class="logo">
+      <i class="fa fa-chalkboard-teacher"></i>
+      <span>教师职业信息维护</span>
+    </div>
+    <div class="header-actions">
+      <div class="user-info">
+        <div class="avatar" id="avatar">A</div>
+        <span id="user-name">Admin</span>
+      </div>
+
+      <button class="btn btn-default" onclick="goBack()"><i class="fa fa-arrow-left"></i> 返回</button>
+      <button class="btn btn-default" onclick="handleLogout()"><i class="fa fa-sign-out-alt"></i> 退出</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- 单条教师职业信息卡片 -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa fa-id-card"></i> <span id="page-title">教师职业信息</span></div>
+        <div class="header-btns" id="action-btns">
+          <!-- 查看模式：转发 / 编辑 / 删除 -->
+          <div id="btns-view" style="display:flex;">
+            <button class="btn btn-warning" onclick="enterPublishMode()"><i class="fa fa-share-alt"></i> 发布/转发</button>
+            <button class="btn btn-primary" onclick="enterEditMode()"><i class="fa fa-edit"></i> 编辑</button>
+            <button class="btn btn-danger" onclick="deleteCurrent()"><i class="fa fa-trash"></i> 删除</button>
+          </div>
+          <!-- 编辑/新增模式：保存 / 取消 -->
+          <div id="btns-edit" style="display:none;">
+            <button class="btn btn-success" onclick="saveForm()"><i class="fa fa-save"></i> 保存</button>
+            <button class="btn btn-default" onclick="cancelEdit()"><i class="fa fa-undo"></i> 取消</button>
+          </div>
+          <!-- 发布模式：临时保存 / 预览 / 发布 / 返回查看 -->
+          <div id="btns-publish" style="display:none;">
+            <button class="btn btn-default" onclick="exitPublishMode()"><i class="fa fa-undo"></i> 返回</button>
+            <button class="btn btn-default" onclick="savePublishDraft()"><i class="fa fa-save"></i> 临时保存</button>
+            <button class="btn btn-primary" onclick="previewPublish()"><i class="fa fa-eye"></i> 预览</button>
+            <button class="btn btn-success" onclick="submitPublish()"><i class="fa fa-rocket"></i> 发布</button>
+          </div>
+          <!-- 错误/加载模式：返回 -->
+          <div id="btns-error" style="display:none;">
+            <button class="btn btn-default" onclick="goBack()"><i class="fa fa-arrow-left"></i> 返回</button>
+          </div>
+        </div>
+      </div>
+      <div class="card-body" id="form-container">
+        <!-- 加载中提示 -->
+        <div id="section-loading" class="loading-tip">加载中...</div>
+
+        <!-- 错误提示 -->
+        <div id="section-error" class="error-tip" style="display:none;"></div>
+
+        <!-- ==================== 查看模式 ==================== -->
+        <div id="section-view" style="display:none;">
+          <!-- 照片 + 基本信息区 -->
+          <div style="display:flex;gap:24px;margin-bottom:20px;flex-wrap:wrap;">
+            <div id="view-photo"></div>
+            <div style="flex:1;min-width:280px;">
+              <div class="view-section" style="margin-bottom:0;">
+                <div class="view-field"><div class="label">教师姓名</div><div class="value" id="view-name">-</div></div>
+                <div class="view-field"><div class="label">账号</div><div class="value" id="view-account">-</div></div>
+                <div class="view-field"><div class="label">手机</div><div class="value" id="view-phone">-</div></div>
+                <div class="view-field"><div class="label">邮箱</div><div class="value" id="view-email">-</div></div>
+                <div class="view-field"><div class="label">学科</div><div class="value" id="view-subject">-</div></div>
+                <div class="view-field"><div class="label">状态</div><div class="value" id="view-status">-</div></div>
+                <div class="view-field"><div class="label">用户状态</div><div class="value" id="view-userStatus">-</div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 课时配置 -->
+          <div class="view-section">
+            <div class="view-field"><div class="label">单次最小课时数</div><div class="value" id="view-minBookingHours">-</div></div>
+            <div class="view-field"><div class="label">每周可用课时上限</div><div class="value" id="view-weeklyAvailableHours">-</div></div>
+            <div class="view-field"><div class="label">证书文字描述</div><div class="value" id="view-certificateText">-</div></div>
+          </div>
+
+          <!-- 简介 -->
+          <div class="form-group" style="margin-top:16px;">
+            <label>文字说明（教师简介）</label>
+            <div id="view-bioText" style="white-space:pre-wrap;color:#333;font-size:14px;line-height:1.6;padding:8px;background:#fafafa;border-radius:4px;">无</div>
+          </div>
+          <div class="form-group">
+            <label>文字说明链接</label>
+            <div class="value" id="view-bioUrl"><span style="color:#999;">无</span></div>
+          </div>
+
+          <!-- 子表：证书 -->
+          <div class="sub-section">
+            <div class="sub-section-title"><i class="fa fa-certificate"></i> 资格证书</div>
+            <div id="view-certificates"></div>
+          </div>
+
+          <!-- 子表：可预约时间段 -->
+          <div class="sub-section">
+            <div class="sub-section-title"><i class="fa fa-clock"></i> 可预约时间段</div>
+            <div id="view-availableTimes"></div>
+          </div>
+
+          <!-- 元信息 -->
+          <div class="view-section" style="margin-top:16px;color:#999;font-size:12px;">
+            <div class="view-field"><div class="label">创建时间</div><div class="value" id="view-createTime">-</div></div>
+            <div class="view-field"><div class="label">更新时间</div><div class="value" id="view-updateTime">-</div></div>
+            <div class="view-field"><div class="label">职业信息ID</div><div class="value" style="font-size:12px;" id="view-teacherProfessionalId">-</div></div>
+          </div>
+        </div>
+
+        <!-- ==================== 编辑/新增模式 ==================== -->
+        <div id="section-edit" style="display:none;">
+          <div class="form-group">
+            <label>教师ID <span class="required">*</span></label> <label>教师姓名 <span class="required">${teacherName}*</span></label>
+            <input type="text" id="f-teacherIdDisplay" readonly>
+            <input type="hidden" id="f-teacherId">
+            <div id="f-teacherNameHint" style="font-size:12px;color:#999;margin-top:4px;display:none;"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>学科</label>
+              <select id="f-subject">
+                <option value="">请选择</option>
+                <option value="英语">英语</option>
+                <option value="日语">日语</option>
+                <option value="韩语">韩语</option>
+                <option value="法语">法语</option>
+                <option value="德语">德语</option>
+                <option value="西班牙语">西班牙语</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>状态</label>
+              <select id="f-status">
+                <option value="active">有效</option>
+                <option value="inactive">失效</option>
+                <option value="frozen">冻结</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>个人照片</label>
+            <div class="photo-upload-row">
+              <!-- 图片预览：始终保留一个 <img>，无图时隐藏并显示占位 -->
+              <div class="photo-preview" id="photo-preview">
+                <img class="photo-preview-img" id="photo-preview-img" src="" alt="" style="display:none;">
+                <div class="photo-placeholder">无图片</div>
+              </div>
+              <!-- 文件选择 + URL 输入 -->
+              <div class="photo-inputs">
+                <input type="file" id="f-personalPhotoFile" accept="image/*" style="display:none;" onchange="handlePhotoSelect(this, 'photo-preview-img', 'f-personalPhotoBase64')">
+                <button class="btn btn-default" type="button" onclick="document.getElementById('f-personalPhotoFile').click()"><i class="fa fa-upload"></i> 选择图片上传</button>
+                <input type="text" id="f-personalPhotoUrl" placeholder="或填写照片URL">
+                <!-- 隐藏字段：存放 base64，未换图时保留原值 -->
+                <input type="hidden" id="f-personalPhotoBase64">
+              </div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>单次最小课时数</label>
+              <input type="number" id="f-minBookingHours" value="1" min="1">
+            </div>
+            <div class="form-group">
+              <label>每周可用课时上限</label>
+              <input type="number" id="f-weeklyAvailableHours" value="20" min="1">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>文字说明（教师简介）</label>
+            <textarea id="f-bioText" maxlength="2000" placeholder="教师简介"></textarea>
+          </div>
+          <div class="form-group">
+            <label>文字说明链接</label>
+            <input type="text" id="f-bioUrl" placeholder="外部简历/博客URL">
+          </div>
+          <div class="form-group">
+            <label>证书文字描述</label>
+            <input type="text" id="f-certificateText" placeholder="如 CET-8、JLPT N1">
+          </div>
+
+          <!-- 子表：证书（动态行） -->
+          <div class="sub-section">
+            <div class="sub-section-title"><i class="fa fa-certificate"></i> 资格证书（支持多张）</div>
+            <div id="cert-rows"></div>
+            <button class="add-row-btn" onclick="addCertRow()"><i class="fa fa-plus"></i> 添加证书</button>
+          </div>
+
+          <!-- 子表：可预约时间段（动态行） -->
+          <div class="sub-section">
+            <div class="sub-section-title"><i class="fa fa-clock"></i> 可预约时间段</div>
+            <div id="time-rows"></div>
+            <button class="add-row-btn" onclick="addTimeRow()"><i class="fa fa-plus"></i> 添加时间段</button>
+          </div>
+        </div>
+
+        <!-- ==================== 发布模式（字段勾选 + 样式自定义 + 预览） ==================== -->
+        <div id="section-publish" style="display:none;">
+          <!-- 顶部：标题 + 历史草稿/发布记录 -->
+          <div class="form-row">
+            <div class="form-group">
+              <label>发布标题</label>
+              <input type="text" id="pub-title" placeholder="如：英语教师 - 张三 个人介绍">
+            </div>
+            <div class="form-group"> 
+                <label>历史版本</label> 
+              <select id="pub-history" onchange="loadPublishHistory(this.value)">
+                <option value="">-- 新建/无历史 --</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:340px 1fr;gap:16px;">
+            <!-- 左栏：字段勾选 + 样式 -->
+            <div>
+              <!-- 字段勾选 -->
+              <div class="sub-section">
+                <div class="sub-section-title"><i class="fa fa-list-check"></i> 字段勾选（勾选是否转发，可拖拽排序）</div>
+                <div id="pub-fields"></div>
+                <div style="display:flex;gap:8px;margin-top:8px;">
+                  <button class="btn btn-default" style="flex:1;" onclick="pubToggleAll(true)">全选</button>
+                  <button class="btn btn-default" style="flex:1;" onclick="pubToggleAll(false)">全不选</button>
+                </div>
+              </div>
+
+              <!-- 样式自定义 -->
+              <div class="sub-section">
+                <div class="sub-section-title"><i class="fa fa-palette"></i> 样式自定义</div>
+                <div class="form-row"><div class="form-group">
+                  <label>字体</label>
+                  <select id="pub-fontFamily">
+                    <option value='-apple-system, "Segoe UI", "Microsoft YaHei", sans-serif'>默认（微软雅黑）</option>
+                    <option value='"Microsoft YaHei", sans-serif'>微软雅黑</option>
+                    <option value='"SimSun", serif'>宋体</option>
+                    <option value='"KaiTi", serif'>楷体</option>
+                    <option value='Arial, sans-serif'>Arial</option>
+                    <option value='Georgia, serif'>Georgia</option>
+                  </select>
+                </div><div class="form-group">
+                  <label>主题色</label>
+                  <input type="color" id="pub-accentColor" value="#722ed1" style="height:36px;padding:2px;">
+                </div></div>
+                <div class="form-row"><div class="form-group">
+                  <label>正文字号（px）</label>
+                  <input type="number" id="pub-fontSizePx" value="15" min="10" max="40">
+                </div><div class="form-group">
+                  <label>标题字号（px）</label>
+                  <input type="number" id="pub-titleSizePx" value="22" min="14" max="60">
+                </div></div>
+                <div class="form-row"><div class="form-group">
+                  <label>照片大小（px）</label>
+                  <input type="number" id="pub-photoSizePx" value="160" min="60" max="400">
+                </div><div class="form-group">
+                  <label>证书图大小（px）</label>
+                  <input type="number" id="pub-certSizePx" value="120" min="40" max="300">
+                </div></div>
+                <div class="form-row"><div class="form-group">
+                  <label>背景色</label>
+                  <input type="color" id="pub-bgColor" value="#ffffff" style="height:36px;padding:2px;">
+                </div><div class="form-group">
+                  <label>卡片背景</label>
+                  <input type="color" id="pub-cardBgColor" value="#fafafa" style="height:36px;padding:2px;">
+                </div></div>
+              </div>
+            </div>
+
+            <!-- 右栏：实时预览 -->
+            <div class="sub-section" style="margin-bottom:0;">
+              <div class="horline-bar" >
+              <div class="sub-section-title">
+                <i class="fa fa-eye"></i> 实时预览
+                <span id="pub-auto-preview-tip" style="font-weight:normal;font-size:12px;color:#999;margin-left:8px;">（修改左侧自动刷新）</span>
+              </div>
+              <div class="btn-group">
+                  <button id="copyLinkBtn">复制链接</button>
+                  <button id="saveImageBtn">保存为图片</button>
+                </div>
+                </div>
+              <div id="pub-preview" style="min-height:360px;max-height:720px;overflow:auto;padding:16px;border:1px dashed #d9d9d9;border-radius:6px;background:#fff;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 依赖脚本（顺序：axios → utility_request → auth → api → 业务JS） -->
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="js/public/utility_request.js"></script>
+  <script src="js/public/auth.js"></script>
+  <script src="js/public/api.js"></script>
+  <script src="js/teacherInfo.js"></script>
+  <script>
+    // 页面初始化
+    (function init() {
+      const user = getCurrentUserInfo();
+      if (!user) {
+        saveLoginRedirect && saveLoginRedirect('no-login');
+        window.location.href = './index.html';
+        return;
+      }
+      // 仅管理员可访问
+      if (user.role !== 'admin') {
+        document.querySelector('.container').innerHTML = '<div class="card"><div class="card-body empty-tip">仅管理员可访问本页面</div></div>';
+        return;
+      }
+      // 设置头部用户信息
+      if (user.name) {
+        document.getElementById('avatar').innerHTML = user.name[0] || 'A';
+        document.getElementById('user-name').innerHTML = user.name;
+      }
+      // 从 URL 读取 userid 并加载单条数据
+      loadTeacherInfoFromUrl();
+      installLinkCopyAndImageSaveHandlers();
+    })();
+
+    function goBack() {
+      // 优先返回来源页，没有则回到管理首页
+      const from = new URLSearchParams(window.location.search).get('from');
+      if (from) {
+        window.location.href = from;
+      } else if (document.referrer) {
+        window.history.back();
+      } else {
+        window.location.href = './admin.html';
+      }
+    }
+  </script>
+</body>
+</html>
+<!--
+teacherInfo.html 287-290 在"历史版本"标签右侧靠右对齐，添加2个按钮：“复制链接”、“保存为图片”。
+前者把当前版本的链接复制到剪贴板，后者把实时预览的页面按照jpg格式保存为图片文件。完成相关编码。
+-->
