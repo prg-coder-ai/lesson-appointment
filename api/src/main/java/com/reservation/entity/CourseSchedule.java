@@ -20,6 +20,7 @@ public class CourseSchedule implements Serializable {
     private String scheduleId;
     @NotBlank(message = "课程ID不能为空")
     private String courseId; 
+      
     @NotBlank(message = "开始时间不能为空")
     private String startTime;  // 格式YYYY-MM-DD HH:mm:ss-（对应通用校验规则-时间）-暗含起始日期 
     @NotBlank(message = "结束时间不能为空")

@@ -179,9 +179,10 @@ window.loadMaintainTableData = async function(type){
         {key: "status", label: "状态"}
       ], 
     schedule: [
-      {key: "scheduleId", label: "编号"},
-      {key: "courseName", label: "课程"},
+     // {key: "scheduleId", label: "排期号"},
+      {key: "courseName", label: "课程名"},//用id显示课程名
       {key: "name", label: "排期"},
+     //  {key: "teacherInfo", label: "教师"},
       {key: "startDate", label: "开始日期"},
       {key: "startTime", label: "上课时间"},
       {key: "timeZone", label: "时区"},
@@ -230,9 +231,17 @@ window.loadMaintainTableData = async function(type){
 };
   try{
     // 请求数据
-    var pageResult = await cfg.api(conditionJson);
-     console.log("pageResult:",pageResult);
-
+    // 添加超时机制确保等待函数完全返回，避免请求无限挂起
+    const REQUEST_TIMEOUT = 30000; // 30秒超时
+    var pageResult = await Promise.race([
+      cfg.api(conditionJson),
+      
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('请求超时，请稍后重试')), REQUEST_TIMEOUT)
+      )
+    ]);
+    
+    console.log("pageResult----:",pageResult);
     const pageData = pageResult;
     Pagination.total = pageData.total ;
     Pagination.totalPages = pageData.totalPages;
@@ -243,8 +252,10 @@ window.loadMaintainTableData = async function(type){
     // 渲染表
     let html = '<table class="data-table" style="width:100%;border-collapse:collapse;text-align:left;">';
     html += '<thead><tr>';
-    
+    console.log("list:",list);
+
     var index=(Pagination.pageNum-1)*Pagination.pageSize;//记录序号let index = 0;
+
     html += '<th style="border-bottom:1px solid #eee;padding:6px 8px;">序号</th>';
     columns.forEach(col=> html += `<th style="border-bottom:1px solid #eee;padding:6px 8px;">${col.label}</th>`);
     html += '<th style="border-bottom:1px solid #eee;padding:6px 8px;">操作</th></tr></thead><tbody>';
@@ -252,11 +263,49 @@ window.loadMaintainTableData = async function(type){
       html += '<tr><td colspan="${columns.length+1}" style="padding:24px;text-align:center;">暂无数据</td></tr>';
     } else {
       list.forEach(item=>{
-       // console.log(item);
+        if(item.hasOwnProperty('scheduleId')) {
+// 深度调试：排查 courseName 存在但 Object.keys 不显示的原因
+console.log('--- 调试 index:', index, '---');
+console.log('item 完整对象:', item);
+console.log('Object.keys(item):', Object.keys(item));
+console.log('item.hasOwnProperty("courseName"):', item.hasOwnProperty('courseName'));
+console.log('item.courseName 直接访问:', item.courseName);
+console.log('Object.getOwnPropertyNames(item):', Object.getOwnPropertyNames(item));
+// 检查属性描述符，排查是否为 getter/setter 或不可枚举属性
+try {
+  const desc = Object.getOwnPropertyDescriptor(item, 'courseName');
+  console.log('courseName 属性描述符:', desc);
+} catch(e) {
+  console.log('获取 courseName 描述符失败:', e);
+}
+// 遍历原型链查找 courseName
+let proto = Object.getPrototypeOf(item);
+while (proto) {
+  if (proto.hasOwnProperty('courseName')) {
+    console.log('courseName 存在于原型上:', proto.constructor.name);
+    console.log('原型上的 courseName 值:', proto.courseName);
+  }
+  proto = Object.getPrototypeOf(proto);
+}
+// 使用 for...in 检查可枚举属性
+const enumerableKeys = [];
+for (let k in item) {
+  enumerableKeys.push(k);
+}
+console.log('for...in 可枚举属性列表:', enumerableKeys);
+// 比较 JSON 序列化与对象自身属性的差异
+console.log('JSON.stringify(item):', JSON.stringify(item));
+console.log('Object.entries(item):', Object.entries(item));
+        }
         index ++ ;
         html += '<tr>';
         html += `<td>${index}</td>`;
-        columns.forEach(col=>{
+     //   console.log('item所有键:', Object.keys(item), '| item完整数据:', JSON.stringify(item));
+        
+        columns.forEach(col=>{ 
+            if(item.hasOwnProperty('scheduleId')) {
+           console.log(index, col.key, item[col.key]);
+            }
           html += `<td style="border-bottom:1px solid #f5f5f5;padding:6px 8px;">${item[col.key] ?? ''}</td>`;
         });
         html += `<td>
