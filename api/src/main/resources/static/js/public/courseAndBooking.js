@@ -157,8 +157,7 @@ async function getCourseById( courseId) {
   try {
       // Axios GET请求（修复response.json()错误，Axios已自动解析）
       const res  = await request({url:`${API_BASE_URL}/course/${courseId}`,  
-      });
-     
+      });     
          return  await res ; 
   } catch (e) {
       //alert("网络错误，获取课程列表失败");

@@ -228,7 +228,58 @@ async function deleteCourse(id) {
          * @returns {Promise<Object>} - 包含分页数据和总数的对象 { list: [], total: number }
          */
         async function fetchScheduleListPage(query = {}) {
-           
+  const pageResult = await fetchScheduleListPage_direct(query);
+  if (!pageResult || !Array.isArray(pageResult.rows)) {
+    return pageResult;
+  }
+
+  // 1.增加缓存：同一个courseId只请求一次
+  const courseCache = new Map();
+  const cachedGetCourseById = async (courseId) => {
+    if (!courseId) return null;
+    if (courseCache.has(courseId)) {
+      return courseCache.get(courseId);
+    }
+    try {
+      const courseObj = await getCourseById(courseId);
+      courseCache.set(courseId, courseObj);
+      return courseObj;
+    } catch (err) {
+      courseCache.set(courseId, null);
+      return null;
+    }
+  };
+
+  // 2. 使用map生成Promise数组 + await Promise.all等待全部完成，替代forEach(async)
+  // 注意：不要直接修改后端原始item对象，优先浅拷贝消除引用副作用（可选但推荐）
+  const processPromises = pageResult.rows.map(async (rawItem) => {
+    try {
+      // 浅拷贝，不改动原始接口返回对象，消除外部对象被异步改写的副作用
+      const item = { ...rawItem };
+      item.status = checkStatus_schedule(item.status);
+      const courseObj = await cachedGetCourseById(item.courseId);
+      item.courseName = courseObj?.courseName || item.courseId || '';
+      return item;
+    } catch (e) {
+      console.error("处理单条排期补充课程名称失败", e);
+      // 出错返回原始数据，保证列表不会整体崩溃
+      return {
+        ...rawItem,
+        status: checkStatus_schedule(rawItem.status),
+        courseName: rawItem.courseId || ""
+      };
+    }
+  });
+
+  // 等待所有行异步查询全部结束
+  const processedRows = await Promise.all(processPromises);
+
+  // 替换为处理完成后的数据集
+  pageResult.rows = processedRows;
+
+  return pageResult;
+}
+        async function fetchScheduleListPage_direct(query = {}) { 
             try {
                 const res = await request({
                     url: `${API_BASE_URL}/schedule/page`,
@@ -239,22 +290,42 @@ async function deleteCourse(id) {
                 if (!res || !Array.isArray(res.rows)) {
                   res = res || {};
                   res.rows = [];
-                }
-                // 为每个 schedule 补充 scheduleName
-                res.rows.forEach(item => {
-                  console.log("item:",item);
-                 // item.scheduleName = item.scheduleName || '';
-                //  item.status = checkStatus_booking(item.status);
-                  item.courseName = ( getCourseById(item.course_id))?.courseName || '';
-                  console.log("-->:",item);
-                });
+                } 
                 return res;
             } catch (error) {
                 console.error('分页加载排期列表失败:', error);
-                return { list: [], total: 0 };
+                return { rows: [], total: 0 };
             }
         }
 
+      function checkStatus_schedule(status){
+        switch (status) {
+          case 'active':
+            return '已排期';
+          case 'noted1':
+            return '已预约';
+          case 'noted2':
+            return '已预约';
+          case 'completed':
+            return '已完成';
+          case 'cancelling':
+            return '已取消';
+          case 't-cancelling':
+            return '已取消';
+          case 'booked':
+            return '已预约';
+          case 'cancelled':
+            return '已取消';
+          case 'deleted':
+            return '已删除';
+          case 't-reject':
+            return '已拒绝';
+          case 'reject':
+            return '已拒绝';
+          default:
+            return '未知状态';
+        }
+      }
         //Appointment
         //调用fetchAppointmentListPage查询预约列表，然后根据预约id显示课程名称、状态      
  async function datamaintain_fetchAppointmentListPage(params){
