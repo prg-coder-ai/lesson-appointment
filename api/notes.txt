@@ -406,3 +406,13 @@ Word/图片显示模板设计（单个教师详情页，横向 A4）：
 
  source H:/2026/lesson-appointment/api/migration-20260815-teacher-published-profile.sql 
 
+
+解决 fetchScheduleListPage 数据同步问题
+根源：forEach + async/await 不会等待内部异步任务，返回 pageResult 时 getCourseById 还没完成，后续原地回填对象造成数据晚到；同时存在无并发限流、无缓存、对象副作用等问题。
+核心改造思路：
+将 forEach(async) → Array.map + await Promise.all()，等待全部行的异步处理完成再返回数据；
+增加 courseId 查询缓存，避免相同课程重复请求；
+增加并发控制，防止一页大量数据瞬间爆发出大量 getCourseById；
+尽量避免直接修改接口返回原始对象（可选，消除引用副作用）；
+单条记录异常隔离，一条查询失败不打断整个列表。
+对比参考：同文件 datamaintain_fetchAppointmentListPage 已经使用了 map + Promise.all + 缓存Map 的正确模式，可以对齐这套模式。
