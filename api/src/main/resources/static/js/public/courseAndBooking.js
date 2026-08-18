@@ -159,7 +159,7 @@ async function getCourseById( courseId) {
       const res  = await request({url:`${API_BASE_URL}/course/${courseId}`,  
       });
      
-         return  res ; 
+         return  await res ; 
   } catch (e) {
       //alert("网络错误，获取课程列表失败");
       console.error("getCourseById",e);

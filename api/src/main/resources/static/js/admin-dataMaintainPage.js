@@ -143,7 +143,7 @@ window.loadMaintainTableData = async function(type){
       delFunc: "deleteTemplate"
     },
     course: {
-      api: fetchCourseListPage,
+      api: fetchCourseListPage || (async () => ({rows: [], total: 0, totalPages: 0})),
       delFunc: "deleteCourse"
     },
     schedule: { 
@@ -181,7 +181,7 @@ window.loadMaintainTableData = async function(type){
     schedule: [
       {key: "scheduleId", label: "编号"},
       {key: "courseName", label: "课程"},
-      {key: "scheduleName", label: "排期"},
+      {key: "name", label: "排期"},
       {key: "startDate", label: "开始日期"},
       {key: "startTime", label: "上课时间"},
       {key: "timeZone", label: "时区"},

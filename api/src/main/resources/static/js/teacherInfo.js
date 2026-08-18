@@ -281,7 +281,29 @@ function setText(id, text) {
   const el = document.getElementById(id);
   if (el) el.textContent = text;
 }
+ async function getAvailableTimes(){ 
 
+  const teacherId = document.getElementById('f-teacherId').value;
+  if(!teacherId) return;
+  //TBD api to get available times
+  const availableTimes = await getAvailableTimesByAPI(teacherId);
+  if(availableTimes) { //TBD
+    setText('view-availableTimes', availableTimes);
+  }
+ }
+ async function getAvailableTimesByAPI(teacherId){
+  try{
+    const response = await request(`/api/teacher/${teacherId}/availableTimes`); //TBD
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+   // const data = await response.json();
+    return response;
+  } catch (error) {
+    console.error('Error fetching available times:', error);
+    return null;
+  }
+ }
 // ====================== 编辑/新增模式：填充数据（HTML 结构已预置在 teacherInfo.html）======================
 function fillEditForm(data, isAdd) {
   // 教师ID（只读）
