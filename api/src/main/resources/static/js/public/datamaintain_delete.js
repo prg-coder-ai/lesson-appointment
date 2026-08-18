@@ -242,9 +242,11 @@ async function deleteCourse(id) {
                 }
                 // 为每个 schedule 补充 scheduleName
                 res.rows.forEach(item => {
-                  item.scheduleName = item.scheduleName || '';
-                  item.status = checkStatus_booking(item.status);
-                  item.courseName = (await getCourseById(item.course_id))?.courseName || '';
+                  console.log("item:",item);
+                 // item.scheduleName = item.scheduleName || '';
+                //  item.status = checkStatus_booking(item.status);
+                  item.courseName = ( getCourseById(item.course_id))?.courseName || '';
+                  console.log("-->:",item);
                 });
                 return res;
             } catch (error) {
