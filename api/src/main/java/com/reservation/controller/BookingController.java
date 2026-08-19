@@ -53,13 +53,28 @@ public class BookingController {
      */
     @GetMapping("/ListByScheduleId/{scheduleId}")
     @ResponseBody
-    public Result<List<Booking>> getBookingsBySchedule(@PathVariable("scheduleId") String scheduleId) {
-      BookingQueryParaDTO dto= new BookingQueryParaDTO();
+    public Result<List<Booking>> getBookingListBySchedule(@PathVariable("scheduleId") String scheduleId) {
+      
+        BookingQueryParaDTO dto= new BookingQueryParaDTO();
       dto.setScheduleId(scheduleId);
 
         try {
             List<Booking> bookings = bookingService.selectList(dto);
             return Result.success(bookings, "ok");
+        } catch (RuntimeException e) {
+            return Result.fail(null, e.getMessage());
+        }
+    }
+
+     @GetMapping("/countByScheduleId/{scheduleId}")
+    @ResponseBody
+    public Result<Integer> getBookingCountBySchedule(@PathVariable("scheduleId") String scheduleId) {
+      BookingQueryParaDTO dto= new BookingQueryParaDTO();
+      dto.setScheduleId(scheduleId);
+
+        try {
+            Integer count = bookingService.getBookingCountByScheduleId(scheduleId);
+            return Result.success(count, "ok");
         } catch (RuntimeException e) {
             return Result.fail(null, e.getMessage());
         }

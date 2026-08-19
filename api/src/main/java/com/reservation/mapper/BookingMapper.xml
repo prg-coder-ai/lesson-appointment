@@ -175,4 +175,8 @@
         </if>
     </select>
 
+    <!-- 统计指定排期（Schedule）的所有预约（Booking）的数量 -->
+    <select id="countBookingByScheduleId" parameterType="string" resultType="int">
+        SELECT COUNT(*) FROM booking WHERE schedule_id = #{scheduleId}
+    </select>
 </mapper> 
