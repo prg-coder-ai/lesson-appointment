@@ -213,29 +213,17 @@ public int deleteTemplate(String Id) {
             throw new ResourceNotFoundException("课程不存在，无法回收");
         }*/
         //course.setStatus("inactive"); // 假设"inactive"为回收状态
-        courseMapper.updateCourseStatus(courseId, "inactive");
+        courseMapper.updateCourseStatus(courseId, "delete");    
     }
 
-
-    /**
-     * 删除课程
-     */
-  /*  public void deleteCourse(String courseId) {
-         courseMapper.updateCourseStatus(courseId, "forzen");
-    }
-*/
-
-public int deleteById(String courseId) {
+ 
+    public int deleteById(String courseId) {
         log.info("删除课程开始, courseId={}", courseId);
         int rows = courseMapper.deleteById(courseId);
         log.info("删除课程结束, courseId={}, 影响行数={}", courseId, rows);
         return rows;
     }
-  
-  
-//public int                  deleteByTempleteId(String templateId) {
-        //return courseMapper.deleteByTemplateId(templateId);
-    //}
+   
     /**
      * 检查课程归属权，若courseId不存在或非teacherId归属，抛出业务异常
      */
@@ -247,8 +235,8 @@ public int deleteById(String courseId) {
         if (!teacherId.equals(course.getTeacherId())) {
             throw new BusinessException("没有操作该课程的权限");
         }
-    }
-// INSERT_YOUR_CODE
+    } 
+
     /**
      * 统计截至指定时间点已发布的课程数（含指定时间）
      * @param dateTime 截止时间点
@@ -266,6 +254,14 @@ public int deleteById(String courseId) {
         int rows = courseMapper.deleteByTemplateId(id);
         log.info("按模板ID删除课程结束, templateId={}, 影响行数={}", id, rows);
         return rows;
+    }
 
+    /**
+     * 根据课程ID查询课程形式
+     * 前端调用: GET /course/classform?courseId=T001
+     * 返回: "1v1"
+     */
+    public String getClassFormByCourseId(String courseId) {
+        return courseMapper.getClassFormByCourseId(courseId);
     }
 }

@@ -46,6 +46,8 @@ public interface BookingMapper {
     int countBookingAtDate(@Param("dateTimeFrom") java.sql.Timestamp dateTimeFrom, @Param("dateTimeTo") java.sql.Timestamp dateTimeTo,@Param("status") String status);
 
     int deleteByScheduleId(@Param("scheduleId") String scheduleId); 
-
+    
+    int countBookingByScheduleId(@Param("scheduleId") String scheduleId);
+    
     // 以下可根据实际需要扩展
 } 

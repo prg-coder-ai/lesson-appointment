@@ -27,6 +27,7 @@ public class BookingService {
 
     @Transactional(rollbackFor = Exception.class)
     public String create(Booking booking) {
+
         String id = UUID.randomUUID().toString().replace("-", ""); // 移除UUID分隔符
         booking.setBookingId(id);
 
@@ -111,5 +112,10 @@ public class BookingService {
     public int countBookingAtDate(java.sql.Timestamp dateTimeFrom,java.sql.Timestamp dateTimeTo) {
         // 可根据业务需求增加状态条件（如只统计"active"预约等）——此处统计所有状态
         return bookingMapper.countBookingAtDate(dateTimeFrom,dateTimeTo,"booked");
+    }
+
+    @Transactional(readOnly = true)
+    public Integer getBookingCountByScheduleId(String scheduleId) {
+        return bookingMapper.countBookingByScheduleId(scheduleId);
     }
 } 

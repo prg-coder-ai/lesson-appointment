@@ -49,11 +49,11 @@ public interface CourseMapper extends BaseMapper<Course> {
      @org.apache.ibatis.annotations.Update("UPDATE course SET status = #{status} , update_time = NOW() WHERE course_id = #{courseId}")
      int updateCourseStatus(@Param("courseId") String courseId, @Param("status") String status); 
 
-    @org.apache.ibatis.annotations.Update("UPDATE course SET template_id = #{course.templateId}, course_name = #{course.courseName}, content = #{course.content}, feature = #{course.feature}, teacher_id = #{course.teacherId}, update_time = NOW() WHERE course_id = #{course.courseId}")
-   int updateCourse(@Param("course") Course course);
+      @org.apache.ibatis.annotations.Update("UPDATE course SET template_id = #{course.templateId}, course_name = #{course.courseName}, content = #{course.content}, feature = #{course.feature}, teacher_id = #{course.teacherId}, update_time = NOW() WHERE course_id = #{course.courseId}")
+      int updateCourse(@Param("course") Course course);
    
         @org.apache.ibatis.annotations.Update("UPDATE course SET status = #{status}, update_time = NOW() WHERE template_id = #{templateId}")
-     int  updateCourseStatusByLastId(@Param("templateId") String templateId,@Param("status") String status);
+      int  updateCourseStatusByLastId(@Param("templateId") String templateId,@Param("status") String status);
     /**
      * 根据课程ID查询课程
      * @param courseId 课程ID
@@ -61,11 +61,7 @@ public interface CourseMapper extends BaseMapper<Course> {
      */
     @Select("SELECT * from course WHERE course_id = #{courseId}")
     Course getCourseById(@Param("courseId") String courseId);
-
-    // INSERT_YOUR_CODE
-    // deleteById 已移除：使用 MyBatis-Plus BaseMapper 内置的 deleteById 方法
-
-
+ 
     /**
      * 根据模板ID删除课程
      * @param templateId 课程模板ID
@@ -82,13 +78,7 @@ public interface CourseMapper extends BaseMapper<Course> {
      */    
     @org.apache.ibatis.annotations.Select("SELECT teacher_id FROM course WHERE course_id = #{courseId}")
     String selectTeacherIdByCourseId(@Param("courseId") String courseId);
-
-  /**
-   * 根据条件查询课程---预约、收藏等。用在booking
-
-    List<Map<String, Object>> selectCourseListByStudent(CourseQueryParam queryParam);
-    */
-// INSERT_YOUR_CODE
+ 
     /**
      * 统计截至指定时间点、指定状态（如已发布"active"）的课程数量（含指定时间）
      * @param dateTime 创建时间上限（包含，通常为Timestamp）
@@ -97,4 +87,11 @@ public interface CourseMapper extends BaseMapper<Course> {
      */
     @Select("SELECT COUNT(*) FROM course WHERE status = #{status} AND create_time <= #{dateTime}")
     int countPublishedCourseAtDate(@Param("dateTime") java.sql.Timestamp dateTime, @Param("status") String status);
+
+    /**
+     * 根据课程ID查询课程形式
+     * @param courseId 课程ID
+     * @return 课程形式
+   */
+    String getClassFormByCourseId(@Param("courseId") String courseId);
 }

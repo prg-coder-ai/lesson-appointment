@@ -326,8 +326,18 @@ public class CourseController {
       public String getStatus() { return status; }
       public void setStatus(String status) { this.status = status; }
   }
-
-// INSERT_YOUR_CODE
+  /**
+   * 根据课程ID查询课程形式
+   * 前端调用: GET /course/classform?courseId=T001
+   * 返回: "一对一"
+   */
+  @GetMapping("/classform/{courseId}")
+  @ResponseBody
+  public Result<String> getClassFormByCourseId(
+          @PathVariable("courseId") String courseId) {
+    String classForm = courseService.getClassFormByCourseId(courseId);
+    return Result.success(classForm, "查询成功");
+  }
 
     /**
      * 按月统计已发布课程数
