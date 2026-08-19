@@ -113,7 +113,7 @@ async function renderScheduleCards() {
                     <option value="">请选择</option> 
                     <option value="1p1">一对一</option>
                     <option value="1pN">小班课</option>
-                    <option value="1pNN">大班课</option>
+                    <option value="1p2N">大班课</option>
                 </select>
             </div>
               <div class="form-line">
@@ -550,9 +550,12 @@ function renderCourseToList(clist) {
         }
        let classForm = document.getElementById('classForm');
        let formFromtemplate= await getCourseFormByCourseId(cid);
+       console.log("formFromtemplate课程形式:", formFromtemplate);
        if (formFromtemplate) {
            classForm.value = formFromtemplate;
          //设置classForm的默认值,只和课程（模板）相关
+        }else{
+          classForm.selectedIndex = 1;//vs1
         }
 
       try {
@@ -595,10 +598,16 @@ function renderCourseToList(clist) {
           alert("加载排期失败",e);
       }       
   }
+  //保存时，获取课程总数，用于计算可预约人数--保存时，根据课程形式，设置可预约人数为课程总数
 async function getCourseFormByCourseId(cid) {
-    const result = await request({url:`/course/classform?courseId=${cid}` });
-console.log("getCourseFormByCourseId",cid,result);
-    return result;
+    try {
+        const result = await request({url:`/course/classform?courseId=${cid}` });
+        console.log("getCourseFormByCourseId",cid,result);
+        return result;
+    } catch (e) {
+        alert("获取课程形式失败",e);
+        return null;
+    }
 }
 
 //更新scheduleObject相关内容 --待细化 --TBD page display

@@ -166,28 +166,6 @@ public class CourseController {
         Integer rows = courseService.updateCourseStatusByLastId(id, status);
         return Result.success(rows, "课程状态修改成功");
     }
-    /*
-     * 前端调用示例（JavaScript，假设使用fetch，与 API_BASE_URL 变量）
-     * 
-     * async function updateCourseBatchStatus(templateId, newStatus) {
-     *   const res = await fetch(`${API_BASE_URL}/course/updateStatusByLastId/${encodeURIComponent(templateId)}?status=${encodeURIComponent(newStatus)}`, {
-     *     method: 'POST',
-     *     headers: {
-     *       'Authorization': localStorage.getItem('token'), // 假设token保存在本地
-     *       'Content-Type': 'application/json'
-     *     }
-     *   });
-     *   const result = await res.json();
-     *   if(result.code === 0){
-     *     alert('课程状态批量修改成功, 受影响课程数: ' + result.data);
-     *   }else{
-     *     alert('课程状态批量修改失败: ' + result.message);
-     *   }
-     * }
-     * 
-     * // 调用示例:
-     * updateCourseBatchStatus('template-id-123', 'delete');
-     */
 
 
     @PostMapping("/update")
@@ -331,11 +309,13 @@ public class CourseController {
    * 前端调用: GET /course/classform?courseId=T001
    * 返回: "一对一"
    */
-  @GetMapping("/classform/{courseId}")
+  @GetMapping("/classform")
   @ResponseBody
   public Result<String> getClassFormByCourseId(
-          @PathVariable("courseId") String courseId) {
+          @RequestParam("courseId") String courseId) {
+           // System.err.println("getClassFormByCourseId:"+courseId+","+classForm  );
     String classForm = courseService.getClassFormByCourseId(courseId);
+    //System.err.println("getClassFormByCourseId:"+courseId+","+classForm  );
     return Result.success(classForm, "查询成功");
   }
 
