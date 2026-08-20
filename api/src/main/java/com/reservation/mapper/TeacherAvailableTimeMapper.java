@@ -18,8 +18,9 @@ public interface TeacherAvailableTimeMapper extends BaseMapper<TeacherAvailableT
 
     /**
      * 按教师ID查询全部时间段（周模板优先，再按 day_of_week 排序）
+     * ORDER BY time_type ASC, day_of_week ASC, specific_date ASC, start_time ASC")
      */
-    @Select("SELECT * FROM teacher_available_time WHERE teacher_id = #{teacherId} ORDER BY time_type ASC, day_of_week ASC, specific_date ASC, start_time ASC")
+    @Select("SELECT * FROM teacher_available_time WHERE teacher_id = #{teacherId} ")
     List<TeacherAvailableTime> listByTeacherId(@Param("teacherId") String teacherId);
 
     /**

@@ -57,6 +57,8 @@ CREATE TABLE IF NOT EXISTS `teacher_available_time` (
   `specific_date`  date        DEFAULT NULL COMMENT 'override/holiday时生效：具体日期',
   `start_time`     time        NOT NULL COMMENT '时段开始 如 09:00:00',
   `end_time`       time        NOT NULL COMMENT '时段结束 如 17:00:00',
+
+
   `status`         varchar(10) NOT NULL DEFAULT 'active' COMMENT 'active/frozen',
   `create_time`    datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`available_id`),
@@ -64,3 +66,13 @@ CREATE TABLE IF NOT EXISTS `teacher_available_time` (
   KEY `idx_teacher_date` (`teacher_id`, `specific_date`),
   CONSTRAINT `fk_tat_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `user`(`user_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='教师可预约时间段（周模板+按日覆盖）';
+
+ALTER TABLE teacher_available_time
+  DROP COLUMN time_type,
+  DROP COLUMN day_of_week,
+  DROP COLUMN specific_date,
+  ADD COLUMN repeat_type    VARCHAR(10)  DEFAULT 'none' COMMENT 'none/day/week/month',
+  ADD COLUMN repeat_interval INT         DEFAULT 1      COMMENT '重复间隔',
+  ADD COLUMN repeat_days    VARCHAR(100) DEFAULT NULL   COMMENT 'week→1..7/ month→1..31 逗号分隔',
+  ADD COLUMN start_date     VARCHAR(10)  DEFAULT NULL   COMMENT 'YYYY-MM-DD',
+  ADD COLUMN end_date       VARCHAR(10)  DEFAULT NULL   COMMENT 'YYYY-MM-DD';

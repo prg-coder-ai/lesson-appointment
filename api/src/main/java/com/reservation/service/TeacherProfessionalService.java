@@ -235,9 +235,11 @@ public class TeacherProfessionalService {
             TeacherAvailableTime tat = new TeacherAvailableTime();
             tat.setAvailableId(UUID.randomUUID().toString());
             tat.setTeacherId(teacherId);
-            tat.setTimeType(t.getTimeType() == null ? "weekly" : t.getTimeType());
-            tat.setDayOfWeek(t.getDayOfWeek());
-            tat.setSpecificDate(t.getSpecificDate());
+            tat.setRepeatType(t.getRepeatType() == null ? "none" : t.getRepeatType());
+            tat.setRepeatInterval(t.getRepeatInterval() == null ? 1 : t.getRepeatInterval());
+            tat.setRepeatDays(t.getRepeatDays());
+            tat.setStartDate(t.getStartDate());
+            tat.setEndDate(t.getEndDate());
             tat.setStartTime(t.getStartTime());
             tat.setEndTime(t.getEndTime());
             tat.setStatus(t.getStatus() == null ? "active" : t.getStatus());

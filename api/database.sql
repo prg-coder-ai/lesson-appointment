@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS `course_schedule` (
   KEY `idx_status` (`status`) COMMENT '状态索引，用于可预约排期查询',
   CONSTRAINT `fk_schedule_course` FOREIGN KEY (`course_id`) REFERENCES `course` (`course_id`) ON DELETE CASCADE ON UPDATE CASCADE,
   -- 校验结束时间大于开始时间
-  CHECK (`end_time` > `start_time`)
+  CHECK (`end_time` >= `start_time`)
   -- 校验重复排期时repeat_week必填且在1-7之间
   -- CHECK ((`repeat_type` = 2 AND `repeat_week` IS NULL) OR (`is_repeat` = 1 AND `repeat_week` BETWEEN 1 AND 7))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='课程排期表';
