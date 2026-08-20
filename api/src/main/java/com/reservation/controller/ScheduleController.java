@@ -280,6 +280,14 @@ public Result<Integer> deleteByCourseId(@PathVariable("courseId") String courseI
         return Result.fail(0, "删除排期失败: " + e.getMessage());
     }
     }
+
+    // 查询指定教师的可预约排期（可用席位 > 已预约数量）
+    @GetMapping("/getAvailableSchedule")
+    @ResponseBody
+    public Result<List<CourseSchedule>> getAvailableSchedule(@RequestParam String teacherId) {
+        List<CourseSchedule> schedules = scheduleService.getAvailableSchedule(teacherId);
+        return Result.success(schedules, "ok");
+    }
 }
 
 

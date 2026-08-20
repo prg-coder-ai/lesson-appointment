@@ -161,5 +161,14 @@
     DELETE FROM course_schedule WHERE course_id = #{courseId}
 </delete>
 
- 
+<!-- 查询指定教师的所有活跃排期（JOIN course表过滤teacherId） -->
+<select id="selectActiveSchedulesByTeacherId" resultType="com.reservation.entity.CourseSchedule">
+    SELECT cs.*
+    FROM course_schedule cs
+    INNER JOIN course c ON cs.course_id = c.course_id
+    WHERE c.teacher_id = #{teacherId}
+      AND cs.status = 'active'
+    ORDER BY cs.start_time ASC
+</select>
+
 </mapper>

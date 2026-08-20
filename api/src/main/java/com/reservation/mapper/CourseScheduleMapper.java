@@ -38,4 +38,7 @@ public interface CourseScheduleMapper {
      // 删除指定id的排期 deleteById
     void deleteById(@Param("id") String id);
     int deleteByCourseId(@Param("courseId") String courseId);
+
+    // 查询指定教师的所有活跃排期（通过JOIN course表过滤teacherId）
+    List<CourseSchedule> selectActiveSchedulesByTeacherId(@Param("teacherId") String teacherId);
 }
