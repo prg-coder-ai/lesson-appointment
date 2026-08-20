@@ -468,5 +468,18 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
         page.setTotal(total);
         return PageResult.of(page);
     }
+
+    // 查询指定教师的可预约排期（可用席位 > 已预约数量）
+    public List<CourseSchedule> getAvailableSchedule(String teacherId) {
+        List<CourseSchedule> schedules = scheduleMapper.selectActiveSchedulesByTeacherId(teacherId);
+        List<CourseSchedule> availableSchedules = new ArrayList<>();
+        for (CourseSchedule schedule : schedules) {
+            int bookingCount = bookingMapper.countBookingByScheduleId(schedule.getScheduleId());
+            if (schedule.getAvailableSites() > bookingCount) {
+                availableSchedules.add(schedule);
+            }
+        }
+        return availableSchedules;
+    }
   
 }//all 

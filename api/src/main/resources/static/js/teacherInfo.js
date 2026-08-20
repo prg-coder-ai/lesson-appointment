@@ -286,14 +286,19 @@ function setText(id, text) {
   const teacherId = document.getElementById('f-teacherId').value;
   if(!teacherId) return;
   //TBD api to get available times
-  const availableTimes = await getAvailableTimesByAPI(teacherId);
-  if(availableTimes) { //TBD
-    setText('view-availableTimes', availableTimes);
+  const availableSchedules = await getAvailableTimesByAPI(teacherId);
+  if(availableSchedules) { //TBD
+    availableSchedulesList.innerHTML = '';
+    availableSchedulesList.innerHTML += availableSchedules.map(s => {
+      return `<div>${escapeHtml(s.courseName || '未命名课程')} ${escapeHtml(s.startTime || '')} - ${escapeHtml(s.endTime || '')}</div>`;
+    }).join('');
+    document.getElementById('view-availableTimes').innerHTML = availableSchedulesList.innerHTML;  //测试---，他BD：按照格式填写
   }
+
  }
  async function getAvailableTimesByAPI(teacherId){
   try{
-    const response = await request(`/api/teacher/${teacherId}/availableTimes`); //TBD
+    const response = await request(`/schedule/getAvailableSchedule?teacherId=${teacherId}`); //TBD
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
