@@ -83,9 +83,7 @@ public class CourseScheduleService {
          //对于每一个的排期，调用generateUserZoneSchedule创建排期时间表，然后与scheduleInstances内的日期和时间进行比较，比较的标准是，两个时间在1小时内没有重叠。如果有重叠，则把该排期的scheduleID加入一个冲突列表
         // 对每个已存在的排期，生成其实例时间表，然后与待新增的 scheduleInstances 中每个实例比较，判重
         //Map<String,String> conflictScheduleIds = null;
-        List<Map<String, Object>> conflictScheduleIds = new ArrayList<>(); 
-       // System.out .println("compared in tz : " +timeZone );
-     //   System.out .println("scheduleInstances : " +scheduleInstances );
+        List<Map<String, Object>> conflictScheduleIds = new ArrayList<>();  
         // scheduleInstances 是当前待创建的实例时间列表
         // scheduleList 是数据库已有、同课程的其它排期
         int cnt=0;
@@ -273,7 +271,7 @@ public class CourseScheduleService {
                    } catch (Exception ex) { dto.setStartDate(null); }
 
                    try {
-                      String timePart = cs.getEndTime().length() >= 19 ? cs.getEndTime().substring(11, 19) : null;
+                      String timePart = cs.getStartTime().length() >= 19 ? cs.getStartTime().substring(11, 19) : null;
                        dto.setStartTime(java.time.LocalTime.parse(timePart));
                    } catch (Exception ex) { dto.setStartTime(null); }
                } 
@@ -326,14 +324,11 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
         cs.setStartTime(strTime);
     }
 
-    // endDate and startTime are merged to form endTime
-    // 若dto.getEndDate()和dto.getEndTime()都不为空，取其LocalDate, LocalTime组装endTime
-    if (dto.getEndDate() != null && dto.getStartTime() != null) {
-        cs.setEndTime(LocalDateTime.of(
-            dto.getEndDate() , // 采用startDate作为endTime的date组件
-            dto.getEndTime() 
-        ).toString().replace('T', ' ')); // "yyyy-MM-dd HH:mm:ss"
-    } 
+    // endDate和endTime组合为end_time（格式 yyyy-MM-dd HH:mm:ss）
+    if (dto.getEndDate() != null && dto.getEndTime() != null) {
+        LocalDateTime endLdt = LocalDateTime.of(dto.getEndDate(), dto.getEndTime());
+        cs.setEndTime(endLdt.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+    }
  
     cs.setRepeatType(dto.getRepeatType());
     cs.setRepeatInterval(dto.getRepeatInterval());
