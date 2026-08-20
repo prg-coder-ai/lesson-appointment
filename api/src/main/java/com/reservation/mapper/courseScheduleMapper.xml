@@ -168,6 +168,7 @@
     INNER JOIN course c ON cs.course_id = c.course_id
     WHERE c.teacher_id = #{teacherId}
       AND cs.status = 'active'
+      AND c.status = 'active'
     ORDER BY cs.start_time ASC
 </select>
 

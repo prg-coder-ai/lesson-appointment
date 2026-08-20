@@ -8,12 +8,9 @@ import lombok.Data;
 import java.io.Serializable;
 
 /**
- * 教师可预约时间段实体（周模板 + 按日覆盖）
- * 对应 notes §1.3 teacher_available_time 表
- * time_type:
- *   weekly    每周模板，按 day_of_week(1=周一..7=周日) 生效
- *   override  具体日期覆盖，按 specific_date 生效
- *   holiday   假日关闭，按 specific_date 生效
+ * 教师可预约时间段实体（与 admin-schedule.js 的 ScheduleCreateDTO 保持同构）
+ * repeat_type: none(不重复) / day(每天) / week(每周) / month(每月)
+ * repeat_days: 逗号分隔的数字。week 时为 1..7(周一..周日)，month 时为 1..31
  */
 @Data
 @TableName("teacher_available_time")
@@ -27,19 +24,25 @@ public class TeacherAvailableTime implements Serializable {
     /** 关联教师user_id */
     private String teacherId;
 
-    /** weekly(每周模板) / override(具体日期覆盖) / holiday(假日) */
-    private String timeType;
+    /** 重复类型：none/day/week/month */
+    private String repeatType;
 
-    /** 每周模板时生效：1=周一..7=周日 */
-    private Integer dayOfWeek;
+    /** 重复间隔 N，默认 1 */
+    private Integer repeatInterval;
 
-    /** override/holiday时生效：具体日期 */
-    private String specificDate;
+    /** 逗号分隔的日期数字：week→1..7(周一..周日)，month→1..31 */
+    private String repeatDays;
 
-    /** 时段开始 如 09:00:00 */
+    /** 开始日期 YYYY-MM-DD */
+    private String startDate;
+
+    /** 结束日期 YYYY-MM-DD（可为空） */
+    private String endDate;
+
+    /** 时段开始 如 09:00:00 或 09:00 */
     private String startTime;
 
-    /** 时段结束 如 17:00:00 */
+    /** 时段结束 如 17:00:00 或 17:00 */
     private String endTime;
 
     /** active/frozen */

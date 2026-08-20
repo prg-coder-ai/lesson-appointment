@@ -472,13 +472,17 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
     // 查询指定教师的可预约排期（可用席位 > 已预约数量）
     public List<CourseSchedule> getAvailableSchedule(String teacherId) {
         List<CourseSchedule> schedules = scheduleMapper.selectActiveSchedulesByTeacherId(teacherId);
+        log.info("getAvailableSchedule 1, teacherId={}, rows={}", teacherId, schedules.size());
+
         List<CourseSchedule> availableSchedules = new ArrayList<>();
         for (CourseSchedule schedule : schedules) {
             int bookingCount = bookingMapper.countBookingByScheduleId(schedule.getScheduleId());
+            log.info("schedule {} bookingCount={}", schedule.getScheduleId(), bookingCount);
             if (schedule.getAvailableSites() > bookingCount) {
                 availableSchedules.add(schedule);
             }
         }
+        log.info("getAvailableSchedule 2, teacherId={}, rows={}", teacherId, availableSchedules.size());
         return availableSchedules;
     }
   

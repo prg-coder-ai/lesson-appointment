@@ -143,11 +143,13 @@ function normalizeDetail(data) {
     })),
     availableTimes: (data.availableTimes || []).map(t => ({
       availableId: t.availableId,
-      timeType: t.timeType || 'weekly',
-      dayOfWeek: t.dayOfWeek,
-      specificDate: t.specificDate || '',
-      startTime: t.startTime || '09:00:00',
-      endTime: t.endTime || '17:00:00',
+      repeatType: t.repeatType || 'none',
+      repeatInterval: t.repeatInterval != null ? t.repeatInterval : 1,
+      repeatDays: t.repeatDays || '',
+      startDate: t.startDate || '',
+      endDate: t.endDate || '',
+      startTime: (t.startTime || '09:00').substring(0, 5),
+      endTime: (t.endTime || '17:00').substring(0, 5),
       status: t.status || 'active'
     }))
   };
@@ -176,9 +178,17 @@ function buildEmptyForm(teacherId) {
     createTime: '',
     updateTime: '',
     certificates: [],
-    availableTimes: [
-      { timeType: 'weekly', dayOfWeek: 1, startTime: '09:00:00', endTime: '17:00:00', status: 'active' }
-    ]
+    availableTimes: (() => {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      return [{
+        repeatType: 'none', repeatInterval: 1, repeatDays: '',
+        startDate: `${yyyy}-${mm}-${dd}`, endDate: '',
+        startTime: '09:00', endTime: '17:00', status: 'active'
+      }];
+    })()
   };
 }
 
@@ -259,13 +269,13 @@ function fillView(data) {
   if (timeEl) {
     timeEl.innerHTML = (data.availableTimes && data.availableTimes.length)
       ? data.availableTimes.map(t => {
-          const day = t.timeType === 'weekly'
-            ? (DAY_OF_WEEK_MAP[t.dayOfWeek] || '-')
-            : (t.specificDate || '-');
-          const typeText = t.timeType === 'weekly' ? '每周'
-            : t.timeType === 'holiday' ? '假日'
-            : '日期覆盖';
-          return `<div>${typeText} ${day} ${t.startTime || ''} - ${t.endTime || ''}</div>`;
+          const rptText = { none: '不重复', day: '每天', week: '每周', month: '每月' }[t.repeatType] || t.repeatType;
+          const dayText = (t.repeatDays && t.repeatDays.trim())
+            ? `(${t.repeatDays.split(',').map(d => DAY_OF_WEEK_MAP[d] || d).join('/')})`
+            : (t.repeatInterval && t.repeatInterval > 1 ? ` 每${t.repeatInterval}${rptText === '每天' ? '天' : rptText === '每周' ? '周' : rptText === '每月' ? '月' : ''}` : '');
+          const dateRange = [t.startDate, t.startTime].filter(Boolean).join(' ')
+            + (t.endDate || t.endTime ? ' - ' + [t.endDate, t.endTime].filter(Boolean).join(' ') : '');
+          return `<div>${escapeHtml(dateRange)} ${escapeHtml(rptText)}${escapeHtml(dayText)}</div>`;
         }).join('')
       : '<span style="color:#999;">无</span>';
   }
@@ -286,24 +296,30 @@ function setText(id, text) {
   const teacherId = document.getElementById('f-teacherId').value;
   if(!teacherId) return;
   //TBD api to get available times
+  let  availableSchedulesList="";
   const availableSchedules = await getAvailableTimesByAPI(teacherId);
-  if(availableSchedules) { //TBD
-    availableSchedulesList.innerHTML = '';
-    availableSchedulesList.innerHTML += availableSchedules.map(s => {
-      return `<div>${escapeHtml(s.courseName || '未命名课程')} ${escapeHtml(s.startTime || '')} - ${escapeHtml(s.endTime || '')}</div>`;
+  console.log("availableSchedules:", availableSchedules);
+  if(availableSchedules) { //TBD 时间段
+
+    availableSchedulesList = '';
+    availableSchedulesList += availableSchedules.map(s => {
+      const sp = (s.startTime || '').split(' ');
+      const ep = (s.endTime || '').split(' ');
+      const sd = sp[0] || '', st = (sp[1] || '').substring(0, 5);
+      const ed = ep[0] || '', et = (ep[1] || '').substring(0, 5);
+      return `<div>${escapeHtml(s.courseName || '未命名课程')} | ${escapeHtml(sd)} ${escapeHtml(st)} - ${escapeHtml(ed)} ${escapeHtml(et)} | 席位:${s.availableSites != null ? s.availableSites : '-'}</div>`;
     }).join('');
-    document.getElementById('view-availableTimes').innerHTML = availableSchedulesList.innerHTML;  //测试---，他BD：按照格式填写
+    console.log("availableSchedulesList:", availableSchedulesList);
+    document.getElementById('view-availableTimes').innerHTML = availableSchedulesList;  //测试---，他BD：按照格式填写
   }
 
  }
  async function getAvailableTimesByAPI(teacherId){
   try{
-    const response = await request(`/schedule/getAvailableSchedule?teacherId=${teacherId}`); //TBD
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-   // const data = await response.json();
-    return response;
+    const data = await request(`/schedule/getAvailableSchedule?teacherId=${teacherId}`); //TBD
+     
+    console.log("getAvailableTimesByAPI", data);
+    return data;
   } catch (error) {
     console.error('Error fetching available times:', error);
     return null;
@@ -424,21 +440,55 @@ function renderCertRow(c) {
 
 function renderTimeRow(t) {
   t = t || {};
-  const dowOptions = Object.keys(DAY_OF_WEEK_MAP).map(k =>
-    `<option value="${k}" ${String(t.dayOfWeek) === k ? 'selected' : ''}>${DAY_OF_WEEK_MAP[k]}</option>`
+  const repeatTypeOptions = ['none', 'day', 'week', 'month'].map(tp =>
+    `<option value="${tp}" ${tp === (t.repeatType || 'none') ? 'selected' : ''}>${
+      tp === 'none' ? '不重复' : tp === 'day' ? '每天' : tp === 'week' ? '每周' : '每月'
+    }</option>`
   ).join('');
-  const typeOptions = ['weekly', 'override', 'holiday'].map(tp =>
-    `<option value="${tp}" ${tp === t.timeType ? 'selected' : ''}>${tp === 'weekly' ? '每周模板' : tp === 'override' ? '日期覆盖' : '假日'}</option>`
-  ).join('');
+  const weekChecks = [1, 2, 3, 4, 5, 6, 7].map(d => {
+    const checked = (t.repeatDays || '').split(',').includes(String(d)) ? 'checked' : '';
+    return `<label style="display:inline-block;margin-right:6px;"><input type="checkbox" class="rpt-day" value="${d}" ${checked}>${DAY_OF_WEEK_MAP[d]}</label>`;
+  }).join('');
+  const monthChecks = Array.from({ length: 31 }, (_, i) => i + 1).map(d => {
+    const checked = (t.repeatDays || '').split(',').includes(String(d)) ? 'checked' : '';
+    return `<label style="display:inline-block;margin-right:4px;"><input type="checkbox" class="rpt-day" value="${d}" ${checked}>${d}</label>`;
+  }).join('');
+  const weekStyle = (t.repeatType || 'none') === 'week' ? '' : 'display:none;';
+  const monthStyle = (t.repeatType || 'none') === 'month' ? '' : 'display:none;';
+  const unit = { none: '', day: '天', week: '周', month: '月' }[t.repeatType || 'none'] || '';
   return `
-    <div class="sub-item-row">
-      <select class="time-type">${typeOptions}</select>
-      <select class="time-dow"><option value="">星期</option>${dowOptions}</select>
-      <input type="date" class="time-date" value="${escapeAttr(t.specificDate || '')}" placeholder="具体日期">
-      <input type="text" class="time-start" value="${escapeAttr(t.startTime || '09:00:00')}" placeholder="开始">
-      <input type="text" class="time-end" value="${escapeAttr(t.endTime || '17:00:00')}" placeholder="结束">
-      <button class="btn btn-danger" onclick="this.parentElement.remove()"><i class="fa fa-times"></i></button>
+    <div class="sub-item-row" style="flex-wrap:wrap;gap:8px;">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span style="color:#666;font-size:12px;">开始</span>
+        <input type="date" class="time-startDate" value="${escapeAttr(t.startDate || '')}">
+        <input type="time" class="time-startTime" value="${escapeAttr((t.startTime || '09:00').substring(0, 5))}">
+        <span style="color:#666;font-size:12px;">结束</span>
+        <input type="date" class="time-endDate" value="${escapeAttr(t.endDate || '')}">
+        <input type="time" class="time-endTime" value="${escapeAttr((t.endTime || '17:00').substring(0, 5))}">
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <select class="time-repeatType" onchange="onTimeRepeatTypeChange(this)">${repeatTypeOptions}</select>
+        <input type="number" class="time-interval" value="${t.repeatInterval != null ? t.repeatInterval : 1}" min="1" style="width:60px;">
+        <span class="repeat-unit" style="color:#666;font-size:12px;">${unit}</span>
+      </div>
+      <div class="time-weekDays" style="${weekStyle}width:100%;margin-top:2px;border-top:1px dashed #eee;padding-top:4px;">${weekChecks}</div>
+      <div class="time-monthDays" style="${monthStyle}width:100%;margin-top:2px;border-top:1px dashed #eee;padding-top:4px;">${monthChecks}</div>
+      <button class="btn btn-danger" onclick="this.closest('.sub-item-row').remove()" style="margin-left:auto;"><i class="fa fa-times"></i></button>
     </div>`;
+}
+
+// 时间段行：切换重复类型时控制 week/month 复选框显示 + 更新重复单位文本
+function onTimeRepeatTypeChange(selectEl) {
+  const row = selectEl.closest('.sub-item-row');
+  if (!row) return;
+  const type = selectEl.value;
+  const unit = { none: '', day: '天', week: '周', month: '月' }[type] || '';
+  const unitEl = row.querySelector('.repeat-unit');
+  if (unitEl) unitEl.textContent = unit;
+  const weekBox = row.querySelector('.time-weekDays');
+  const monthBox = row.querySelector('.time-monthDays');
+  if (weekBox) weekBox.style.display = (type === 'week') ? '' : 'none';
+  if (monthBox) monthBox.style.display = (type === 'month') ? '' : 'none';
 }
 
 function addCertRow() {
@@ -452,7 +502,15 @@ function addCertRow() {
 function addTimeRow() {
   const container = document.getElementById('time-rows');
   const div = document.createElement('div');
-  div.innerHTML = renderTimeRow({ timeType: 'weekly', dayOfWeek: 1, startTime: '09:00:00', endTime: '17:00:00', status: 'active' });
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  div.innerHTML = renderTimeRow({
+    repeatType: 'none', repeatInterval: 1, repeatDays: '',
+    startDate: `${yyyy}-${mm}-${dd}`, endDate: '',
+    startTime: '09:00', endTime: '10:00', status: 'active'
+  });
   container.appendChild(div.firstElementChild);
 }
 
@@ -513,19 +571,29 @@ async function saveForm() {
     }
   });
 
-  // 收集时间段
+  // 收集时间段（与 admin-schedule.js 的 getFormData 结构对齐：repeatType/interval/repeatDays/startDate/endDate/startTime/endTime）
   const availableTimes = [];
   document.querySelectorAll('#time-rows .sub-item-row').forEach(row => {
-    const timeType = row.querySelector('.time-type').value;
-    const dowVal = row.querySelector('.time-dow').value;
-    const dateVal = row.querySelector('.time-date').value;
-    const startTime = row.querySelector('.time-start').value.trim();
-    const endTime = row.querySelector('.time-end').value.trim();
-    if (startTime && endTime) {
+    const repeatType = row.querySelector('.time-repeatType').value;
+    const repeatInterval = parseInt(row.querySelector('.time-interval').value) || 1;
+    // 根据 repeatType 读取对应容器中的复选框，逗号拼接
+    const dayContainer = repeatType === 'week'
+      ? row.querySelector('.time-weekDays')
+      : repeatType === 'month' ? row.querySelector('.time-monthDays') : null;
+    const repeatDays = dayContainer
+      ? Array.from(dayContainer.querySelectorAll('.rpt-day:checked')).map(cb => cb.value).join(',')
+      : '';
+    const startDate = row.querySelector('.time-startDate').value;
+    const startTime = row.querySelector('.time-startTime').value.trim();
+    const endDate = row.querySelector('.time-endDate').value;
+    const endTime = row.querySelector('.time-endTime').value.trim();
+    if (startDate && startTime) {
       availableTimes.push({
-        timeType,
-        dayOfWeek: dowVal ? parseInt(dowVal) : null,
-        specificDate: dateVal || null,
+        repeatType,
+        repeatInterval,
+        repeatDays: repeatDays || null,
+        startDate: startDate || null,
+        endDate: endDate || null,
         startTime, endTime,
         status: 'active'
       });
@@ -955,11 +1023,13 @@ function generatePublishHtml(mode) {
     if (f.key === 'availableTimes') {
       if (!data.availableTimes || !data.availableTimes.length) return '';
       const lines = data.availableTimes.map(t => {
-        const day = t.timeType === 'weekly'
-          ? (DAY_OF_WEEK_MAP[t.dayOfWeek] || '')
-          : (t.specificDate || '');
-        const tTxt = t.timeType === 'weekly' ? '每周' : t.timeType === 'holiday' ? '假日' : '覆盖';
-        return `<div>${escapeHtml(tTxt + (day ? ' ' + day : ''))} ${escapeHtml(t.startTime || '')} - ${escapeHtml(t.endTime || '')}</div>`;
+        const rptText = { none: '不重复', day: '每天', week: '每周', month: '每月' }[t.repeatType] || '';
+        const dayText = (t.repeatDays && t.repeatDays.trim())
+          ? `(${t.repeatDays.split(',').map(d => DAY_OF_WEEK_MAP[d] || d).join('/')})`
+          : (t.repeatInterval && t.repeatInterval > 1 ? ` 每${t.repeatInterval}${rptText === '每天' ? '天' : rptText === '每周' ? '周' : rptText === '每月' ? '月' : ''}` : '');
+        const dateRange = [t.startDate, (t.startTime || '').substring(0, 5)].filter(Boolean).join(' ')
+          + ((t.endDate || t.endTime) ? ' - ' + [t.endDate, (t.endTime || '').substring(0, 5)].filter(Boolean).join(' ') : '');
+        return `<div>${escapeHtml(dateRange)} ${escapeHtml(rptText)}${escapeHtml(dayText)}</div>`;
       }).join('');
       return `<section style="margin-bottom:16px;">
         <h3 style="margin:0 0 8px 0;color:${style.accentColor};font-size:${style.fontSizePx + 2}px;">可预约时间</h3>

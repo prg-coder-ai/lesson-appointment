@@ -84,6 +84,7 @@ async function renderScheduleCards() {
         <select id="courseSelect" onchange="loadSchedule()">
             <option value="">请先选择课程</option>
         </select>
+        <div id="teacherName">教师姓名</div>
          <button class="btn-success" onclick="refreshData()">刷新</button>
     </div>
      <!-- 排期选择下拉 -->
@@ -553,6 +554,26 @@ function renderCourseToList(clist) {
         if (courseIdElem) {
             courseIdElem.value = cid;
         }
+        // 把页面的teacherName节点内容设置为教师姓名
+        const teacherNameElem = document.getElementById('teacherName');
+        if (teacherNameElem) {
+            teacherNameElem.innerHTML = '';
+             
+            const sel = document.getElementById('courseSelect'); 
+            if (sel && sel.value) {
+                 const selectedOption = sel.options[sel.selectedIndex];
+                if (selectedOption) {
+                    teacherId = selectedOption.getAttribute('data-teacher-id') || "";
+                  }
+             } 
+            console.log("teacherId:", teacherId);
+            if (!teacherId) return;
+            const teacherName= await request({url:`/user/name/${teacherId}` });
+            console.log("teacherName:", teacherName);
+            if (!teacherName) return;
+            teacherNameElem.innerHTML = teacherName || '';
+        }
+
        let classForm = document.getElementById('classForm');
        let formFromtemplate= await getCourseFormByCourseId(cid);
        console.log("formFromtemplate课程形式:", formFromtemplate);

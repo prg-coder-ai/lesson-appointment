@@ -5,7 +5,7 @@ import lombok.Data;
 import java.io.Serializable;
 
 /**
- * 教师可预约时间段子项 DTO（TeacherProfessionalDTO 的子结构）
+ * 教师可预约时间段子项 DTO（与 TeacherAvailableTime 实体同构，对齐 admin-schedule 排期标识）
  */
 @Data
 public class TeacherAvailableTimeDTO implements Serializable {
@@ -13,19 +13,25 @@ public class TeacherAvailableTimeDTO implements Serializable {
 
     private String availableId;
 
-    /** weekly(每周模板) / override(具体日期覆盖) / holiday(假日) */
-    private String timeType;
+    /** 重复类型：none(不重复) / day(每天) / week(每周) / month(每月) */
+    private String repeatType;
 
-    /** 每周模板时生效：1=周一..7=周日 */
-    private Integer dayOfWeek;
+    /** 重复间隔 N，默认 1 */
+    private Integer repeatInterval;
 
-    /** override/holiday时生效：具体日期 */
-    private String specificDate;
+    /** 逗号分隔数字：week→1..7(周一..周日)，month→1..31 */
+    private String repeatDays;
 
-    /** 时段开始 如 09:00:00 */
+    /** 开始日期 YYYY-MM-DD */
+    private String startDate;
+
+    /** 结束日期 YYYY-MM-DD（可为空） */
+    private String endDate;
+
+    /** 时段开始 HH:mm 或 HH:mm:ss */
     private String startTime;
 
-    /** 时段结束 如 17:00:00 */
+    /** 时段结束 HH:mm 或 HH:mm:ss */
     private String endTime;
 
     /** active/frozen */
