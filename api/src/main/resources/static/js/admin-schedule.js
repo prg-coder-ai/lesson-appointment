@@ -109,7 +109,7 @@ async function renderScheduleCards() {
         <div style="display: flex; gap: 20px;">
             <div class="form-line">
                 <label>班级形式：</label>
-                <select id="classForm" style="width:80px">
+                <select id="classForm" style="width:80px" readonly>
                     <option value="">请选择</option> 
                     <option value="1p1">一对一</option>
                     <option value="1pN">小班课</option>
@@ -122,7 +122,7 @@ async function renderScheduleCards() {
            </div>
            <div class="form-line">
             <label>可用席位数：</label>
-            <input type="number" id="now_availableSites" value="1" min="1" style="width:80px">
+            <input type="number" id="now_availableSites" value="1" min="1" style="width:80px" readonly>
            </div>
         </div>
          <div style="display: flex; gap: 32px;">
@@ -293,8 +293,7 @@ async function renderScheduleCards() {
         } 
         document.getElementById('monthDays').innerHTML = monthDaysHtml; 
          
-        // 设置默认结束日期为今天+30天
-       
+        // 设置默认结束日期为今天+30天       
           const endDateInput = document.getElementById("endDate");
           if (endDateInput) {
             const today = new Date();
@@ -355,6 +354,12 @@ function localsearchCourse() {
   
     //选择学生，添加到学生列表
        async function addStudentList() {
+        //判断是否有空位，没有则提示用户
+        const availableSites = document.getElementById('now_availableSites').value;
+        if(availableSites <= 0){
+            alert("当前班级已无空位，无法指定学生");
+            return ;
+        }
         const conditionJson = { role: 'student' };//TBD:当前admin所属的群组等过滤条件
         const students = await fetchUserList(conditionJson);
         if(students){ 
@@ -555,7 +560,7 @@ function renderCourseToList(clist) {
            classForm.value = formFromtemplate;
          //设置classForm的默认值,只和课程（模板）相关
         }else{
-          classForm.selectedIndex = 1;//vs1
+          classForm.selectedIndex = 1;//1p1
         }
 
       try {
@@ -616,7 +621,8 @@ async function renderSchedule() {
      // console.log("renderSchedule",scheduleObject);
      //更新已预约人数
 const totalBooked = await getBookingCountByScheduleId(scheduleObject.scheduleId);
-      
+      console.log("totalBooked",totalBooked,"for"   ,   scheduleObject.scheduleId);
+
        // 刷新开始日期
        if (scheduleObject.scheduleId) {
         document.getElementById('scheduleId').value = scheduleObject.scheduleId; 
@@ -760,14 +766,31 @@ const totalBooked = await getBookingCountByScheduleId(scheduleObject.scheduleId)
     repeatDays: [],
     status: "pending", 
     timeZone:userTimeZone,
-    userTimeZone:userTimeZone       
+    userTimeZone:userTimeZone ,    
+     availableSites : getDefaultAvailableSites(), 
+     now_availableSites :  getDefaultAvailableSites()
+
 };  
 return ;
+   }
+   //根据班级类型，默认可用座位数
+   function getDefaultAvailableSites(){
+     const classform = document.getElementById('classForm');
+     const selectindex = classform.value;
+     if(selectindex == null){
+        return 0;
+     }
+    const sites = { "1p1":1,
+        "1pN":5,
+        "1p2N":10,
+    }
+     const availableSites = sites[selectindex];
+     return availableSites;     
    }
 
    
    
-  //当排期列表选择变化时，重新显示排期计划
+  //当排期列表选择变化时，检查参数，重新显示排期计划
    function displySchedule() { 
     if(! checkCourseAndSchedule(true,true))
         return ;
@@ -814,6 +837,8 @@ return ;
     const form = {
         name: document.getElementById('scheduleName').value,
         courseId: document.getElementById('courseId').value,
+        availableSites: document.getElementById('availableSites').value,
+
         scheduleId: document.getElementById('scheduleId').value,
         startDate: document.getElementById('startDate').value,
         startTime: document.getElementById('startTime').value,
@@ -881,10 +906,9 @@ function renderResult() {
     body.innerHTML = '';
     if(scheduleResult!= null ) {
     scheduleResult.forEach(item => {
-        const tr = document.createElement('tr');
-        
+
+        const tr = document.createElement('tr');        
         tr.innerHTML = `<td>${scheduleResult.indexOf(item) + 1}</td><td>${item.date}</td><td>${item.time}</td>`;
-   
         body.appendChild(tr);
     });
         }
@@ -897,8 +921,6 @@ function renderResult() {
     return;
 
   const dateSet = new Set(scheduleResult.map(i => i.date));
-   //console.log("r",dateSet);
-  // INSERT_YOUR_CODE
   // 将dateSet的第一项（若存在）转为日期变量
   let firstDateVar = null;
   if (dateSet.size > 0) {
@@ -952,11 +974,10 @@ function renderResult() {
     //TBD :判断排期是否已经存在---
    // const token = getToken();
     const formData = getFormData();
-   // console.log("save form:",formData); 
+    console.log("save form:",formData); 
 
     // 引用ScheduleCreateDTO, 把formData赋值到dto对象
-    // 注意：前端js中无class，直接构造一个对象与后端ScheduleCreateDTO字段一致即可
- 
+    // 注意：前端js中无class，直接构造一个对象与后端ScheduleCreateDTO字段一致即可 
   const sel = document.getElementById('courseSelect'); 
     // 读取sel的当前选择，并读取其中的teacherId 
     if (sel && sel.value) {
@@ -1113,7 +1134,7 @@ async function hasBookingForScheduleId(scheduleId) {
             method: 'GET'
         }); 
          // result 预期为返回预约数量
-        return Array.isArray(result) ? result : 0; 
+        return  result? result : 0; 
     } catch (error) {
         console.error('请求排期booking数量时出错:', error);
         return 0;
