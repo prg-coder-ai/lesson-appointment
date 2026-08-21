@@ -49,13 +49,12 @@ async function loadTeacherInfo(teacherId) {
       params: { teacherId: teacherId }
     });
     // console.log("queryTeacherProfessionalInfo", result);
-    if (!result ){      // 接口返回业务错误（如教师不存在）
+    if (!result) {  // 接口返回业务错误（如教师不存在）
       const msg = (result && result.message) ? result.message : '查询失败';
       renderError(msg);
       return;
     }
-  // console.log("queryTeacherProfessionalInfo", result);
-  //TeacherProfessionalDetailVO 结构
+    // TeacherProfessionalDetailVO 结构
     const data = result;
     if (!data || !data.professional) {
       // 教师存在但还没有职业信息 → 进入新增模式
@@ -80,14 +79,14 @@ async function loadTeacherInfo(teacherId) {
   } catch (e) {
     console.error('加载教师职业信息失败：', e);
     renderError('加载失败：' + (e && e.message ? e.message : e));
-//Add
-     originalData = buildEmptyForm(teacherId);
-      currentProfessionalId = null;
-      currentMode = 'add';
-      setPageTitle('新增教师职业信息');
-      fillEditForm(originalData, true);
-      switchSection('edit');
-      showActionButtons('edit');
+    // Add: 接口异常时也进入新增模式
+    originalData = buildEmptyForm(teacherId);
+    currentProfessionalId = null;
+    currentMode = 'add';
+    setPageTitle('新增教师职业信息');
+    fillEditForm(originalData, true);
+    switchSection('edit');
+    showActionButtons('edit');
   }
 }
 
@@ -201,7 +200,7 @@ function fillView(data) {
     statusEl.innerHTML = data.status === 'active' ? '<span class="status-active">有效</span>'
       : data.status === 'frozen' ? '<span class="status-frozen">冻结</span>'
       : data.status === 'inactive' ? '<span class="status-inactive">失效</span>'
-       : data.status === 'delete' ? '<span class="status-inactive">删除</span>'
+      : data.status === 'delete' ? '<span class="status-inactive">删除</span>'
       : escapeHtml(data.status || '-');
   }
 
@@ -268,7 +267,6 @@ function fillView(data) {
   // 时间段列表（动态行） ${escapeHtml(rptText)}
   const timeEl = document.getElementById('view-availableTimes');
   if (timeEl) {
- // console.log("data.availableTimes:", data.availableTimes);
     timeEl.innerHTML = (data.availableTimes && data.availableTimes.length)
       ? formAvaliableTimesDiv(data.availableTimes)
       : '<span style="color:#999;">无</span>';
@@ -286,47 +284,42 @@ function setText(id, text) {
   if (el) el.textContent = text;
 }
 
- async function getAvailableTimesFromSchedule(){ 
-
+async function getAvailableTimesFromSchedule() {
   const teacherId = document.getElementById('f-teacherId').value;
-  if(!teacherId) return;
-  // api to get available times
-  let  availableSchedulesList="";
+  if (!teacherId) return;
+  // 调用 API 获取可预约时间段
+  let availableSchedulesList = "";
   const availableSchedules = await getAvailableTimesByAPI(teacherId);
- // console.log("availableSchedules:", availableSchedules);
-  if(availableSchedules) { //时间段
-      availableSchedulesList = availableSchedules.map(s => { 
-            const obj = { ...s };  // 浅拷贝，避免修改原对象
-            obj.status = obj.status || 'active';
-            obj.repeatType = obj.repeatType || 'none';
-            obj.repeatInterval = obj.repeatInterval || 1;
-            obj.repeatDays = obj.repeatDays || '';
-            // 先从完整 datetime 提取时间部分（索引11~16 = "HH:mm"）
-            const startFull = obj.startTime || '';
-            const endFull =( obj.repeatType === 'none') ?startFull: obj.endTime || '';//不重复时采用开始时间，重复时采用结束时间
-            obj.startTime = startFull.length >= 16 ? startFull.substring(11, 16) : '-';
-            obj.endTime = endFull.length >= 16 ? endFull.substring(11, 16) : '-';
-            // 再截取日期部分（索引0~10 = "YYYY-MM-DD"）
-            obj.startDate = startFull.length >= 10 ? startFull.substring(0, 10) : '-';
-            obj.endDate = endFull.length >= 10 ? endFull.substring(0, 10) : '-';
-            return obj;  // 必须 return
-          });
-     // console.log("availableSchedulesList:", availableSchedulesList);
-     appendAvailableTimes(availableSchedulesList); //添加可预约时间段到时间行中，不删除原来的可预约时间段
+  if (availableSchedules) {  // 时间段
+    availableSchedulesList = availableSchedules.map(s => {
+      const obj = { ...s };  // 浅拷贝，避免修改原对象
+      obj.status = obj.status || 'active';
+      obj.repeatType = obj.repeatType || 'none';
+      obj.repeatInterval = obj.repeatInterval || 1;
+      obj.repeatDays = obj.repeatDays || '';
+      // 先从完整 datetime 提取时间部分（索引11~16 = "HH:mm"）
+      const startFull = obj.startTime || '';
+      const endFull = (obj.repeatType === 'none') ? startFull : obj.endTime || '';
+      obj.startTime = startFull.length >= 16 ? startFull.substring(11, 16) : '-';
+      obj.endTime = endFull.length >= 16 ? endFull.substring(11, 16) : '-';
+      // 再截取日期部分（索引0~10 = "YYYY-MM-DD"）
+      obj.startDate = startFull.length >= 10 ? startFull.substring(0, 10) : '-';
+      obj.endDate = endFull.length >= 10 ? endFull.substring(0, 10) : '-';
+      return obj;
+    });
+    appendAvailableTimes(availableSchedulesList);  // 添加可预约时间段到时间行中，不删除原来的可预约时间段
   }
 }
 
- async function getAvailableTimesByAPI(teacherId){
-  try{
-    const data = await request(`/schedule/getAvailableSchedule?teacherId=${teacherId}`); 
-     
-    //console.log("getAvailableTimesByAPI", data);
+async function getAvailableTimesByAPI(teacherId) {
+  try {
+    const data = await request(`/schedule/getAvailableSchedule?teacherId=${teacherId}`);
     return data;
   } catch (error) {
     console.error('Error fetching available times:', error);
     return null;
   }
- }
+}
 // ====================== 编辑/新增模式：填充数据（HTML 结构已预置在 teacherInfo.html）======================
 function fillEditForm(data, isAdd) {
   // 教师ID（只读）
@@ -408,20 +401,18 @@ function fillEditForm(data, isAdd) {
       });
     }
   }
-// 时间段行（动态生成）
-const timeRows = document.getElementById('time-rows');
-if (timeRows) {
-  timeRows.innerHTML = '';
-} //初始化
-  appendAvailableTimes(data.availableTimes); 
-}
-
-//把可预约时间段添加到时间行中
-function appendAvailableTimes(availableTimes){
-// 时间段行（动态生成）
+  // 时间段行（动态生成）
   const timeRows = document.getElementById('time-rows');
   if (timeRows) {
-   // timeRows.innerHTML = ''; 是否清空时间行--决定于是否需要清空旧数据
+    timeRows.innerHTML = '';
+  }
+  appendAvailableTimes(data.availableTimes);
+}
+
+/** 把可预约时间段添加到时间行中 */
+function appendAvailableTimes(availableTimes) {
+  const timeRows = document.getElementById('time-rows');
+  if (timeRows) {
     if (availableTimes && availableTimes.length) {
       availableTimes.forEach(t => {
         const div = document.createElement('div');
@@ -475,16 +466,16 @@ function renderTimeRow(t) {
         <input type="date" class="time-startDate" value="${escapeAttr(t.startDate || '')}">
         <span style="color:#666;font-size:12px;">至</span>
         <input type="date" class="time-endDate" value="${escapeAttr(t.endDate || '')}">
-            <span style="color:#666;font-size:12px;">时间</span> 
+            <span style="color:#666;font-size:12px;">时间</span>
         <input type="time" class="time-startTime" value="${escapeAttr((t.startTime || '09:00').substring(0, 5))}">
         <span style="color:#666;font-size:12px;">至</span>
-        <input type="time" class="time-endTime" value="${escapeAttr((t.endTime || '09:45').substring(0, 5))}">         
+        <input type="time" class="time-endTime" value="${escapeAttr((t.endTime || '09:45').substring(0, 5))}">
       </div>
       <div style="display:flex;align-items:center;gap:6px;">
         <select class="time-repeatType" onchange="onTimeRepeatTypeChange(this)">${repeatTypeOptions}</select>
         <span class="repeat-label" style="color:#666;font-size:12px;${unitStyle}"> 重复周期</span>
-               <input type="number" class="time-interval" style="${unitStyle}"value="${t.repeatInterval != null ? t.repeatInterval : 1}" min="1" style="width:60px;">
-        <span class="repeat-unit" style="color:#666;font-size:12px;${unitStyle}">${unit}</span> 
+        <input type="number" class="time-interval" style="${unitStyle};width:60px;" value="${t.repeatInterval != null ? t.repeatInterval : 1}" min="1">
+        <span class="repeat-unit" style="color:#666;font-size:12px;${unitStyle}">${unit}</span>
       </div>
       <div class="time-weekDays" style="${weekStyle}width:100%;margin-top:2px;border-top:1px dashed #eee;padding-top:4px;">${weekChecks}</div>
       <div class="time-monthDays" style="${monthStyle}width:100%;margin-top:2px;border-top:1px dashed #eee;padding-top:4px;">${monthChecks}</div>
@@ -492,7 +483,10 @@ function renderTimeRow(t) {
     </div>`;
 }
 
-// 时间段行：切换重复类型时控制 week/month 复选框显示 + 更新重复单位文本 --如果不重复，隐藏重复单位和重复周期。结束日期也隐藏？或者划为删除线
+/**
+ * 时间段行：切换重复类型时控制 week/month 复选框显示 + 更新重复单位文本
+ * 如果不重复，隐藏重复单位、重复周期和间隔输入框
+ */
 function onTimeRepeatTypeChange(selectEl) {
   const row = selectEl.closest('.sub-item-row');
   if (!row) return;
@@ -503,15 +497,10 @@ function onTimeRepeatTypeChange(selectEl) {
   const weekBox = row.querySelector('.time-weekDays');
   const monthBox = row.querySelector('.time-monthDays');
   if (weekBox) weekBox.style.display = (type === 'week') ? '' : 'none';
-  if (monthBox) monthBox.style.display = (type === 'month') ? '' : 'none'; 
- 
-   if (row.querySelector('.time-interval')) row.querySelector('.time-interval').style.display = (type === 'none') ? 'none' : '';
-   if (row.querySelector('.repeat-unit')) row.querySelector('.repeat-unit').style.display = (type === 'none') ? 'none' : '';
-   if (row.querySelector('.repeat-label')) row.querySelector('.repeat-label').style.display = (type === 'none') ? 'none' : ''; 
-
-   //if (type === 'none') {
-    // document.getElementById('time-endDate')  .value = document.getElementById('time-startDate').value; 
-  // } //TBD 否则--自动加重复周期 7日/1周/1月
+  if (monthBox) monthBox.style.display = (type === 'month') ? '' : 'none';
+  if (row.querySelector('.time-interval')) row.querySelector('.time-interval').style.display = (type === 'none') ? 'none' : '';
+  if (row.querySelector('.repeat-unit')) row.querySelector('.repeat-unit').style.display = (type === 'none') ? 'none' : '';
+  if (row.querySelector('.repeat-label')) row.querySelector('.repeat-label').style.display = (type === 'none') ? 'none' : '';
 }
 
 function addCertRow() {
@@ -614,7 +603,7 @@ async function saveForm() {
         repeatType,
         repeatInterval,
         repeatDays: repeatDays || null,
-        startDate:  startDate || null,
+        startDate: startDate || null,
         startTime,
         endTime,
         endDate: endDate || null,
@@ -634,7 +623,6 @@ async function saveForm() {
     return !seenKeys.has(key) && seenKeys.set(key, true);
   });
   // ---- 去重结束 ----
-//console.log("after: ",filtedAvailableTimes);
 
   const payload = {
     teacherId,
@@ -649,7 +637,7 @@ async function saveForm() {
     certificateText: document.getElementById('f-certificateText').value.trim(),
     status: document.getElementById('f-status').value,
     certificates,
-    availableTimes:filtedAvailableTimes
+    availableTimes: filtedAvailableTimes
   };
 
   let url = '/teacher/professional/addTeacherProfessionalInfo';
@@ -660,10 +648,9 @@ async function saveForm() {
 
   try {
     const result = await request({ url, method: 'post', data: payload });
-    //if (result  ) {
-      alert(currentMode === 'add' ? '添加成功' : '修改成功');
-      // 保存成功后重新加载最新数据，回到查看模式
-      await loadTeacherInfo(currentTeacherId); 
+    alert(currentMode === 'add' ? '添加成功' : '修改成功');
+    // 保存成功后重新加载最新数据，回到查看模式
+    await loadTeacherInfo(currentTeacherId);
   } catch (e) {
     console.error('保存失败：', e);
     alert('保存失败：' + (e && e.message ? e.message : e));
@@ -680,10 +667,10 @@ async function deleteCurrent() {
       url: '/teacher/professional/deleteTeacherProfessionalInfo',
       method: 'post',
       params: { teacherProfessionalId: currentProfessionalId }
-    }); 
-      alert('删除成功');
-      // 删除后该教师回到"无职业信息"状态，重新加载会进入新增模式
-      await loadTeacherInfo(currentTeacherId); 
+    });
+    alert('删除成功');
+    // 删除后该教师回到"无职业信息"状态，重新加载会进入新增模式
+    await loadTeacherInfo(currentTeacherId);
   } catch (e) {
     console.error('删除失败：', e);
     alert('删除失败：' + (e && e.message ? e.message : e));
@@ -1005,19 +992,19 @@ function schedulePublishPreview() {
   publishPreviewTimer = setTimeout(() => renderPublishPreview('inline'), 120);
 }
 
-
-  function formAvaliableTimesDiv(availableTimesList){
-    const lines = availableTimesList.map(t => {
-        const rptText = { none: '', day: '', week: '每周', month: '每月' }[t.repeatType] || '';
-        const dayText = (t.repeatDays && t.repeatDays.trim())
-          ? `(${t.repeatDays.split(',').map(d => t.repeatType === 'week' ? (DAY_OF_WEEK_MAP[d] || d) : d).join('/')})`
-          : (t.repeatInterval && t.repeatInterval > 1 ? ` 每${t.repeatInterval}${t.repeatType === 'day' ? '天' : t.repeatType === 'week' ? '周' : t.repeatType === 'month' ? '月' : ''}` : '');
-        const dateRange = [t.startDate, (t.endDate || '')].filter(Boolean).join('~')
-          + ((t.startTime || t.endTime) ? ' - ' + [(t.startTime || '').substring(0, 5), (t.endTime || '').substring(0, 5)].filter(Boolean).join('~') : '');
-        return `<div>${escapeHtml(dateRange)} ${escapeHtml(rptText)} ${escapeHtml(dayText)}</div>`;
-    }).join('');  
-    return lines;
-  }
+/** 生成可预约时间段的展示 HTML */
+function formAvaliableTimesDiv(availableTimesList) {
+  const lines = availableTimesList.map(t => {
+    const rptText = { none: '', day: '', week: '每周', month: '每月' }[t.repeatType] || '';
+    const dayText = (t.repeatDays && t.repeatDays.trim())
+      ? `(${t.repeatDays.split(',').map(d => t.repeatType === 'week' ? (DAY_OF_WEEK_MAP[d] || d) : d).join('/')})`
+      : (t.repeatInterval && t.repeatInterval > 1 ? ` 每${t.repeatInterval}${t.repeatType === 'day' ? '天' : t.repeatType === 'week' ? '周' : t.repeatType === 'month' ? '月' : ''}` : '');
+    const dateRange = [t.startDate, (t.endDate || '')].filter(Boolean).join('~')
+      + ((t.startTime || t.endTime) ? ' - ' + [(t.startTime || '').substring(0, 5), (t.endTime || '').substring(0, 5)].filter(Boolean).join('~') : '');
+    return `<div>${escapeHtml(dateRange)} ${escapeHtml(rptText)} ${escapeHtml(dayText)}</div>`;
+  }).join('');
+  return lines;
+}
 /**
  * 根据当前勾选 + 样式 + originalData 生成发布页 HTML（纯字符串，不含任何外链）
  * mode: 'inline' 仅预览在页面内嵌容器中（可外链）
@@ -1071,8 +1058,7 @@ function generatePublishHtml(mode) {
     }
     if (f.key === 'availableTimes') {
       if (!data.availableTimes || !data.availableTimes.length) return '';
-
-        const lines = formAvaliableTimesDiv(data.availableTimes);
+      const lines = formAvaliableTimesDiv(data.availableTimes);
       return `<section style="margin-bottom:16px;">
         <h3 style="margin:0 0 8px 0;color:${style.accentColor};font-size:${style.fontSizePx + 2}px;">可预约时间</h3>
         <div>${lines}</div></section>`;
@@ -1381,11 +1367,9 @@ async function submitPublish() {
       publishCurrentDraftId = res.publishedProfileId;
       await loadPublishHistorySelect();
       document.getElementById('pub-history').value = res.publishedProfileId;
-      // 给出公开访问链接提示--按照教师ID，为最后发布的 
-     const link = location.origin + location.pathname.replace(/teacherInfo\.html.*$/, '')
-         + 'teacherPublishedProfile.html?teacherId=' + encodeURIComponent(currentTeacherId);
-     // 指定发布号的  const link = location.origin + location.pathname.replace(/teacherInfo\.html.*$/, '')
-       //  + 'teacherPublishedProfile.html?profileId=' + encodeURIComponent(res.publishedProfileId);
+      // 给出公开访问链接提示——按照教师ID，为最后发布的
+      const link = location.origin + location.pathname.replace(/teacherInfo\.html.*$/, '')
+        + 'teacherPublishedProfile.html?teacherId=' + encodeURIComponent(currentTeacherId);
       alert(`发布成功！\n\n公开访问链接：\n${link}\n\n（已复制到剪贴板）`);
       try { navigator.clipboard.writeText(link); } catch (_) {}
     } else {
