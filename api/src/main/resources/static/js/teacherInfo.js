@@ -400,13 +400,18 @@ function fillEditForm(data, isAdd) {
       });
     }
   }
+// 时间段行（动态生成）
+  appendAvailableTimes(data.availableTimes); 
+}
 
-  // 时间段行（动态生成）
+//把可预约时间段添加到时间行中
+function appendAvailableTimes(availableTimes){
+// 时间段行（动态生成）
   const timeRows = document.getElementById('time-rows');
   if (timeRows) {
     timeRows.innerHTML = '';
-    if (data.availableTimes && data.availableTimes.length) {
-      data.availableTimes.forEach(t => {
+    if (availableTimes && availableTimes.length) {
+      availableTimes.forEach(t => {
         const div = document.createElement('div');
         div.innerHTML = renderTimeRow(t);
         timeRows.appendChild(div.firstElementChild);
@@ -414,7 +419,6 @@ function fillEditForm(data, isAdd) {
     }
   }
 }
-
 // ====================== 子表行渲染（证书 / 时间段） ======================
 function renderCertRow(c) {
   c = c || {};
@@ -436,7 +440,7 @@ function renderTimeRow(t) {
   t = t || {};
   const repeatTypeOptions = ['none', 'day', 'week', 'month'].map(tp =>
     `<option value="${tp}" ${tp === (t.repeatType || 'none') ? 'selected' : ''}>${
-      tp === 'none' ? '不重复' : tp === 'day' ? '每天' : tp === 'week' ? '每周' : '每月'
+      tp === 'none' ? '不重复' : tp === 'day' ? '天' : tp === 'week' ? '周' : '月'
     }</option>`
   ).join('');
   const weekChecks = [1, 2, 3, 4, 5, 6, 7].map(d => {
@@ -453,16 +457,19 @@ function renderTimeRow(t) {
   return `
     <div class="sub-item-row" style="flex-wrap:wrap;gap:8px;">
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-        <span style="color:#666;font-size:12px;">开始</span>
+        <span style="color:#666;font-size:12px;">日期</span>
         <input type="date" class="time-startDate" value="${escapeAttr(t.startDate || '')}">
-        <input type="time" class="time-startTime" value="${escapeAttr((t.startTime || '09:00').substring(0, 5))}">
-        <span style="color:#666;font-size:12px;">结束</span>
+        <span style="color:#666;font-size:12px;">至</span>
         <input type="date" class="time-endDate" value="${escapeAttr(t.endDate || '')}">
-        <input type="time" class="time-endTime" value="${escapeAttr((t.endTime || '17:00').substring(0, 5))}">
+            <span style="color:#666;font-size:12px;">时间</span> 
+        <input type="time" class="time-startTime" value="${escapeAttr((t.startTime || '09:00').substring(0, 5))}">
+        <span style="color:#666;font-size:12px;">至</span>
+        <input type="time" class="time-endTime" value="${escapeAttr((t.endTime || '17:00').substring(0, 5))}">         
       </div>
       <div style="display:flex;align-items:center;gap:6px;">
         <select class="time-repeatType" onchange="onTimeRepeatTypeChange(this)">${repeatTypeOptions}</select>
-        <input type="number" class="time-interval" value="${t.repeatInterval != null ? t.repeatInterval : 1}" min="1" style="width:60px;">
+        <span style="color:#666;font-size:12px;">每</span>
+               <input type="number" class="time-interval" value="${t.repeatInterval != null ? t.repeatInterval : 1}" min="1" style="width:60px;">
         <span class="repeat-unit" style="color:#666;font-size:12px;">${unit}</span>
       </div>
       <div class="time-weekDays" style="${weekStyle}width:100%;margin-top:2px;border-top:1px dashed #eee;padding-top:4px;">${weekChecks}</div>
@@ -973,13 +980,13 @@ function schedulePublishPreview() {
 
   function formAvaliableTimesDiv(availableTimesList){
     const lines = availableTimesList.map(t => {
-        const rptText = { none: '不重复', day: '每天', week: '每周', month: '每月' }[t.repeatType] || '';
+        const rptText = { none: '', day: '', week: '每周', month: '每月' }[t.repeatType] || '';
         const dayText = (t.repeatDays && t.repeatDays.trim())
           ? `(${t.repeatDays.split(',').map(d => t.repeatType === 'week' ? (DAY_OF_WEEK_MAP[d] || d) : d).join('/')})`
           : (t.repeatInterval && t.repeatInterval > 1 ? ` 每${t.repeatInterval}${t.repeatType === 'day' ? '天' : t.repeatType === 'week' ? '周' : t.repeatType === 'month' ? '月' : ''}` : '');
         const dateRange = [t.startDate, (t.endDate || '')].filter(Boolean).join('~')
           + ((t.startTime || t.endTime) ? ' - ' + [(t.startTime || '').substring(0, 5), (t.endTime || '').substring(0, 5)].filter(Boolean).join('~') : '');
-        return `<div>${escapeHtml(dateRange)} ${escapeHtml(dayText)}</div>`;
+        return `<div>${escapeHtml(dateRange)} ${escapeHtml(rptText)} ${escapeHtml(dayText)}</div>`;
     }).join('');  
     return lines;
   }
