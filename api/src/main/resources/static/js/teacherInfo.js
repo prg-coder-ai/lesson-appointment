@@ -1035,8 +1035,15 @@ function generatePublishHtml(mode) {
     return p;
   };
 
+  // 基本信息和课时配置的字段会单独渲染到卡片中，rowsHtml 跳过这些字段以避免重复 , 'photo'
+  const basicKeys = ['name', 'account', 'phone', 'email', 'subject', 'status', 'userStatus', 'photo'];
+  const lessonKeys = ['minBookingHours', 'weeklyAvailableHours', 'certificateText'];
+
   // 字段按顺序渲染
   const rowsHtml = fields.map(f => {
+    // 跳过已由 basicHtml / lessonHtml 单独渲染的字段
+    if (basicKeys.includes(f.key) || lessonKeys.includes(f.key)) return '';
+
     const v = {
       name: data.name, account: data.account, phone: data.phone,
       email: data.email, subject: data.subject,
@@ -1092,12 +1099,10 @@ function generatePublishHtml(mode) {
   const title = document.getElementById('pub-title').value.trim()
     || ((data.name || '教师') + ' 个人介绍');
 
-  // 基本信息 key-value 单独放到一个卡片
-  const basicKeys = ['name', 'account', 'phone', 'email', 'subject', 'status', 'userStatus'];
-  const lessonKeys = ['minBookingHours', 'weeklyAvailableHours', 'certificateText'];
+  // 基本信息 key-value 单独放到一个卡片（basicKeys/lessonKeys 已在上方定义）
   let basicHtml = '';
   if (basicKeys.some(k => fset.has(k))) {
-    const rows = fields.filter(f => basicKeys.includes(f.key)).map(f => {
+    const rows = fields.filter(f => basicKeys.includes(f.key) && f.key !== 'photo').map(f => {
       const v = { name: data.name, account: data.account, phone: data.phone,
         email: data.email, subject: data.subject, status: data.status,
         userStatus: data.userStatus }[f.key];
@@ -1132,7 +1137,7 @@ function generatePublishHtml(mode) {
   // 把 basicHtml / lessonHtml 从 rowsHtml 里移除（已经单独渲染了）
   const othersHtml = fields
     .filter(f => !basicKeys.includes(f.key) && !lessonKeys.includes(f.key))
-    .filter(f => !['bioText', 'bioUrl', 'certificates', 'availableTimes', 'photo'].includes(f.key))
+    .filter(f => !['bioText', 'bioUrl', 'certificates', 'availableTimes'].includes(f.key))
     .map(f => '').join(''); // 其他字段已在 rowsHtml 中的 key-value 区块处理过
 
   const photoHtml = fset.has('photo') && getPhotoSrc()
