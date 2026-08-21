@@ -48,13 +48,13 @@ async function loadTeacherInfo(teacherId) {
       url: '/teacher/professional/queryTeacherProfessionalInfo',
       params: { teacherId: teacherId }
     });
-    console.log("queryTeacherProfessionalInfo", result);
+    // console.log("queryTeacherProfessionalInfo", result);
     if (!result ){      // 接口返回业务错误（如教师不存在）
       const msg = (result && result.message) ? result.message : '查询失败';
       renderError(msg);
       return;
     }
-  console.log("queryTeacherProfessionalInfo", result);
+  // console.log("queryTeacherProfessionalInfo", result);
   //TeacherProfessionalDetailVO 结构
     const data = result;
     if (!data || !data.professional) {
@@ -268,7 +268,7 @@ function fillView(data) {
   // 时间段列表（动态行） ${escapeHtml(rptText)}
   const timeEl = document.getElementById('view-availableTimes');
   if (timeEl) {
-    console.log("data.availableTimes:", data.availableTimes);
+ // console.log("data.availableTimes:", data.availableTimes);
     timeEl.innerHTML = (data.availableTimes && data.availableTimes.length)
       ? formAvaliableTimesDiv(data.availableTimes)
       : '<span style="color:#999;">无</span>';
@@ -293,7 +293,7 @@ function setText(id, text) {
   // api to get available times
   let  availableSchedulesList="";
   const availableSchedules = await getAvailableTimesByAPI(teacherId);
-  console.log("availableSchedules:", availableSchedules);
+ // console.log("availableSchedules:", availableSchedules);
   if(availableSchedules) { //时间段
       availableSchedulesList = availableSchedules.map(s => { 
             const obj = { ...s };  // 浅拷贝，避免修改原对象
@@ -311,8 +311,8 @@ function setText(id, text) {
             obj.endDate = endFull.length >= 10 ? endFull.substring(0, 10) : '-';
             return obj;  // 必须 return
           });
-      console.log("availableSchedulesList:", availableSchedulesList);
-     appendAvailableTimes(availableSchedulesList); 
+     // console.log("availableSchedulesList:", availableSchedulesList);
+     appendAvailableTimes(availableSchedulesList); //添加可预约时间段到时间行中，不删除原来的可预约时间段
   }
 }
 
@@ -409,6 +409,10 @@ function fillEditForm(data, isAdd) {
     }
   }
 // 时间段行（动态生成）
+const timeRows = document.getElementById('time-rows');
+if (timeRows) {
+  timeRows.innerHTML = '';
+} //初始化
   appendAvailableTimes(data.availableTimes); 
 }
 
@@ -505,9 +509,9 @@ function onTimeRepeatTypeChange(selectEl) {
    if (row.querySelector('.repeat-unit')) row.querySelector('.repeat-unit').style.display = (type === 'none') ? 'none' : '';
    if (row.querySelector('.repeat-label')) row.querySelector('.repeat-label').style.display = (type === 'none') ? 'none' : ''; 
 
-   if (type === 'none') {
-     document.getElementById('time-endDate')  .value = document.getElementById('time-startDate').value; 
-   } //TBD 否则--自动加重复周期 7日/1周/1月
+   //if (type === 'none') {
+    // document.getElementById('time-endDate')  .value = document.getElementById('time-startDate').value; 
+  // } //TBD 否则--自动加重复周期 7日/1周/1月
 }
 
 function addCertRow() {
@@ -589,7 +593,6 @@ async function saveForm() {
       certificates.push({ certName: name, certUrl: url, certBase64: base64 || null, sortNo: sort });
     }
   });
-
   // 收集时间段（与 admin-schedule.js 的 getFormData 结构对齐：repeatType/interval/repeatDays/startDate/endDate/startTime/endTime）
   const availableTimes = [];
   document.querySelectorAll('#time-rows .sub-item-row').forEach(row => {
@@ -620,6 +623,19 @@ async function saveForm() {
     }
   });
 
+  // ---- 新增：时间段去重 ---- 去除availableTimes中的重复项  
+  const seenKeys = new Map();
+  let filtedAvailableTimes = availableTimes.filter(t => {
+    const key = [
+      t.startDate, t.startTime, t.endDate, t.endTime,
+      t.repeatType, t.repeatInterval,
+      (t.repeatDays || '').split(',').sort().join(',')
+    ].join('|');
+    return !seenKeys.has(key) && seenKeys.set(key, true);
+  });
+  // ---- 去重结束 ----
+//console.log("after: ",filtedAvailableTimes);
+
   const payload = {
     teacherId,
     subject: document.getElementById('f-subject').value,
@@ -633,7 +649,7 @@ async function saveForm() {
     certificateText: document.getElementById('f-certificateText').value.trim(),
     status: document.getElementById('f-status').value,
     certificates,
-    availableTimes
+    availableTimes:filtedAvailableTimes
   };
 
   let url = '/teacher/professional/addTeacherProfessionalInfo';
@@ -664,14 +680,10 @@ async function deleteCurrent() {
       url: '/teacher/professional/deleteTeacherProfessionalInfo',
       method: 'post',
       params: { teacherProfessionalId: currentProfessionalId }
-    });
-   // if (result && result.code === 200) {
+    }); 
       alert('删除成功');
       // 删除后该教师回到"无职业信息"状态，重新加载会进入新增模式
-      await loadTeacherInfo(currentTeacherId);
-   /* } else {
-      alert(result && result.message ? result.message : '删除失败');
-    }*/
+      await loadTeacherInfo(currentTeacherId); 
   } catch (e) {
     console.error('删除失败：', e);
     alert('删除失败：' + (e && e.message ? e.message : e));
