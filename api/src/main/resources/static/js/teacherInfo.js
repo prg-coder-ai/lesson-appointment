@@ -185,8 +185,8 @@ function buildEmptyForm(teacherId) {
       const dd = String(today.getDate()).padStart(2, '0');
       return [{
         repeatType: 'none', repeatInterval: 1, repeatDays: '',
-        startDate: `${yyyy}-${mm}-${dd}`, endDate: '',
-        startTime: '09:00', endTime: '17:00', status: 'active'
+        startDate: `${yyyy}-${mm}-${dd}`, endDate: `${yyyy}-${mm}-${dd}`,
+        startTime: '09:00', endTime: '09:45', status: 'active'
       }];
     })()
   };
@@ -294,25 +294,32 @@ function setText(id, text) {
   const availableSchedules = await getAvailableTimesByAPI(teacherId);
   console.log("availableSchedules:", availableSchedules);
   if(availableSchedules) { //TBD 时间段
-
-    availableSchedulesList = '';
-    availableSchedulesList += availableSchedules.map(s => {
-      const sp = (s.startTime || '').split(' ');
-      const ep = (s.endTime || '').split(' ');
-      const sd = sp[0] || '', st = (sp[1] || '').substring(0, 5);
-      const ed = ep[0] || '', et = (ep[1] || '').substring(0, 5);
-      return `<div>${escapeHtml(s.courseName || '未命名课程')} | ${escapeHtml(sd)} ${escapeHtml(st)} - ${escapeHtml(ed)} ${escapeHtml(et)} | 席位:${s.availableSites != null ? s.availableSites : '-'}</div>`;
-    }).join('');
-    console.log("availableSchedulesList:", availableSchedulesList);
-    document.getElementById('view-availableTimes').innerHTML = availableSchedulesList;  //测试---，他BD：按照格式填写
+      availableSchedulesList = availableSchedules.map(s => { 
+            const obj = { ...s };  // 浅拷贝，避免修改原对象
+            obj.status = obj.status || 'active';
+            obj.repeatType = obj.repeatType || 'none';
+            obj.repeatInterval = obj.repeatInterval || 1;
+            obj.repeatDays = obj.repeatDays || '';
+            // 先从完整 datetime 提取时间部分（索引11~16 = "HH:mm"）
+            const startFull = obj.startTime || '';
+            const endFull = obj.endTime || '';
+            obj.startTime = startFull.length >= 16 ? startFull.substring(11, 16) : '-';
+            obj.endTime = endFull.length >= 16 ? endFull.substring(11, 16) : '-';
+            // 再截取日期部分（索引0~10 = "YYYY-MM-DD"）
+            obj.startDate = startFull.length >= 10 ? startFull.substring(0, 10) : '-';
+            obj.endDate = endFull.length >= 10 ? endFull.substring(0, 10) : '-';
+            return obj;  // 必须 return
+          });
+      console.log("availableSchedulesList:", availableSchedulesList);
+     appendAvailableTimes(availableSchedulesList); 
   }
+}
 
- }
  async function getAvailableTimesByAPI(teacherId){
   try{
-    const data = await request(`/schedule/getAvailableSchedule?teacherId=${teacherId}`); //TBD
+    const data = await request(`/schedule/getAvailableSchedule?teacherId=${teacherId}`); 
      
-    console.log("getAvailableTimesByAPI", data);
+    //console.log("getAvailableTimesByAPI", data);
     return data;
   } catch (error) {
     console.error('Error fetching available times:', error);
