@@ -185,7 +185,8 @@ function buildEmptyForm(teacherId) {
       const dd = String(today.getDate()).padStart(2, '0');
       return [{
         repeatType: 'none', repeatInterval: 1, repeatDays: '',
-        startDate: `${yyyy}-${mm}-${dd}`, endDate: `${yyyy}-${mm}-${dd}`,
+        startDate: `${yyyy}-${mm}-${dd}`, 
+        endDate: `${yyyy}-${mm}-${dd}`,
         startTime: '09:00', endTime: '09:45', status: 'active'
       }];
     })()
@@ -293,7 +294,7 @@ function setText(id, text) {
   let  availableSchedulesList="";
   const availableSchedules = await getAvailableTimesByAPI(teacherId);
   console.log("availableSchedules:", availableSchedules);
-  if(availableSchedules) { //TBD 时间段
+  if(availableSchedules) { //时间段
       availableSchedulesList = availableSchedules.map(s => { 
             const obj = { ...s };  // 浅拷贝，避免修改原对象
             obj.status = obj.status || 'active';
@@ -302,7 +303,7 @@ function setText(id, text) {
             obj.repeatDays = obj.repeatDays || '';
             // 先从完整 datetime 提取时间部分（索引11~16 = "HH:mm"）
             const startFull = obj.startTime || '';
-            const endFull = obj.endTime || '';
+            const endFull =( obj.repeatType === 'none') ?startFull: obj.endTime || '';//不重复时采用开始时间，重复时采用结束时间
             obj.startTime = startFull.length >= 16 ? startFull.substring(11, 16) : '-';
             obj.endTime = endFull.length >= 16 ? endFull.substring(11, 16) : '-';
             // 再截取日期部分（索引0~10 = "YYYY-MM-DD"）
@@ -416,7 +417,7 @@ function appendAvailableTimes(availableTimes){
 // 时间段行（动态生成）
   const timeRows = document.getElementById('time-rows');
   if (timeRows) {
-    timeRows.innerHTML = '';
+   // timeRows.innerHTML = ''; 是否清空时间行--决定于是否需要清空旧数据
     if (availableTimes && availableTimes.length) {
       availableTimes.forEach(t => {
         const div = document.createElement('div');
@@ -460,6 +461,8 @@ function renderTimeRow(t) {
   }).join('');
   const weekStyle = (t.repeatType || 'none') === 'week' ? '' : 'display:none;';
   const monthStyle = (t.repeatType || 'none') === 'month' ? '' : 'display:none;';
+  const unitStyle = (t.repeatType || 'none') === 'none' ? 'display:none;' : '';
+
   const unit = { none: '', day: '天', week: '周', month: '月' }[t.repeatType || 'none'] || '';
   return `
     <div class="sub-item-row" style="flex-wrap:wrap;gap:8px;">
@@ -471,13 +474,13 @@ function renderTimeRow(t) {
             <span style="color:#666;font-size:12px;">时间</span> 
         <input type="time" class="time-startTime" value="${escapeAttr((t.startTime || '09:00').substring(0, 5))}">
         <span style="color:#666;font-size:12px;">至</span>
-        <input type="time" class="time-endTime" value="${escapeAttr((t.endTime || '17:00').substring(0, 5))}">         
+        <input type="time" class="time-endTime" value="${escapeAttr((t.endTime || '09:45').substring(0, 5))}">         
       </div>
       <div style="display:flex;align-items:center;gap:6px;">
         <select class="time-repeatType" onchange="onTimeRepeatTypeChange(this)">${repeatTypeOptions}</select>
-        <span style="color:#666;font-size:12px;">每</span>
-               <input type="number" class="time-interval" value="${t.repeatInterval != null ? t.repeatInterval : 1}" min="1" style="width:60px;">
-        <span class="repeat-unit" style="color:#666;font-size:12px;">${unit}</span>
+        <span class="repeat-label" style="color:#666;font-size:12px;${unitStyle}"> 重复周期</span>
+               <input type="number" class="time-interval" style="${unitStyle}"value="${t.repeatInterval != null ? t.repeatInterval : 1}" min="1" style="width:60px;">
+        <span class="repeat-unit" style="color:#666;font-size:12px;${unitStyle}">${unit}</span> 
       </div>
       <div class="time-weekDays" style="${weekStyle}width:100%;margin-top:2px;border-top:1px dashed #eee;padding-top:4px;">${weekChecks}</div>
       <div class="time-monthDays" style="${monthStyle}width:100%;margin-top:2px;border-top:1px dashed #eee;padding-top:4px;">${monthChecks}</div>
@@ -485,7 +488,7 @@ function renderTimeRow(t) {
     </div>`;
 }
 
-// 时间段行：切换重复类型时控制 week/month 复选框显示 + 更新重复单位文本
+// 时间段行：切换重复类型时控制 week/month 复选框显示 + 更新重复单位文本 --如果不重复，隐藏重复单位和重复周期。结束日期也隐藏？或者划为删除线
 function onTimeRepeatTypeChange(selectEl) {
   const row = selectEl.closest('.sub-item-row');
   if (!row) return;
@@ -496,7 +499,15 @@ function onTimeRepeatTypeChange(selectEl) {
   const weekBox = row.querySelector('.time-weekDays');
   const monthBox = row.querySelector('.time-monthDays');
   if (weekBox) weekBox.style.display = (type === 'week') ? '' : 'none';
-  if (monthBox) monthBox.style.display = (type === 'month') ? '' : 'none';
+  if (monthBox) monthBox.style.display = (type === 'month') ? '' : 'none'; 
+ 
+   if (row.querySelector('.time-interval')) row.querySelector('.time-interval').style.display = (type === 'none') ? 'none' : '';
+   if (row.querySelector('.repeat-unit')) row.querySelector('.repeat-unit').style.display = (type === 'none') ? 'none' : '';
+   if (row.querySelector('.repeat-label')) row.querySelector('.repeat-label').style.display = (type === 'none') ? 'none' : ''; 
+
+   if (type === 'none') {
+     document.getElementById('time-endDate')  .value = document.getElementById('time-startDate').value; 
+   } //TBD 否则--自动加重复周期 7日/1周/1月
 }
 
 function addCertRow() {
@@ -593,16 +604,17 @@ async function saveForm() {
       : '';
     const startDate = row.querySelector('.time-startDate').value;
     const startTime = row.querySelector('.time-startTime').value.trim();
-    const endDate = row.querySelector('.time-endDate').value;
+    const endDate = (repeatType === 'none') ? startDate : row.querySelector('.time-endDate').value; 
     const endTime = row.querySelector('.time-endTime').value.trim();
     if (startDate && startTime) {
       availableTimes.push({
         repeatType,
         repeatInterval,
         repeatDays: repeatDays || null,
-        startDate: startDate || null,
+        startDate:  startDate || null,
+        startTime,
+        endTime,
         endDate: endDate || null,
-        startTime, endTime,
         status: 'active'
       });
     }
@@ -632,13 +644,10 @@ async function saveForm() {
 
   try {
     const result = await request({ url, method: 'post', data: payload });
-    if (result && result.code === 200) {
+    //if (result  ) {
       alert(currentMode === 'add' ? '添加成功' : '修改成功');
       // 保存成功后重新加载最新数据，回到查看模式
-      await loadTeacherInfo(currentTeacherId);
-    } else {
-      alert(result && result.message ? result.message : '操作失败');
-    }
+      await loadTeacherInfo(currentTeacherId); 
   } catch (e) {
     console.error('保存失败：', e);
     alert('保存失败：' + (e && e.message ? e.message : e));
