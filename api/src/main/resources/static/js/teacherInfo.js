@@ -264,19 +264,12 @@ function fillView(data) {
       : '<span style="color:#999;">无</span>';
   }
 
-  // 时间段列表（动态行）
+  // 时间段列表（动态行） ${escapeHtml(rptText)}
   const timeEl = document.getElementById('view-availableTimes');
   if (timeEl) {
+    console.log("data.availableTimes:", data.availableTimes);
     timeEl.innerHTML = (data.availableTimes && data.availableTimes.length)
-      ? data.availableTimes.map(t => {
-          const rptText = { none: '不重复', day: '每天', week: '每周', month: '每月' }[t.repeatType] || t.repeatType;
-          const dayText = (t.repeatDays && t.repeatDays.trim())
-            ? `(${t.repeatDays.split(',').map(d => DAY_OF_WEEK_MAP[d] || d).join('/')})`
-            : (t.repeatInterval && t.repeatInterval > 1 ? ` 每${t.repeatInterval}${rptText === '每天' ? '天' : rptText === '每周' ? '周' : rptText === '每月' ? '月' : ''}` : '');
-          const dateRange = [t.startDate, t.startTime].filter(Boolean).join(' ')
-            + (t.endDate || t.endTime ? ' - ' + [t.endDate, t.endTime].filter(Boolean).join(' ') : '');
-          return `<div>${escapeHtml(dateRange)} ${escapeHtml(rptText)}${escapeHtml(dayText)}</div>`;
-        }).join('')
+      ? formAvaliableTimesDiv(data.availableTimes)
       : '<span style="color:#999;">无</span>';
   }
 
@@ -291,11 +284,12 @@ function setText(id, text) {
   const el = document.getElementById(id);
   if (el) el.textContent = text;
 }
- async function getAvailableTimes(){ 
+
+ async function getAvailableTimesFromSchedule(){ 
 
   const teacherId = document.getElementById('f-teacherId').value;
   if(!teacherId) return;
-  //TBD api to get available times
+  // api to get available times
   let  availableSchedulesList="";
   const availableSchedules = await getAvailableTimesByAPI(teacherId);
   console.log("availableSchedules:", availableSchedules);
@@ -976,6 +970,19 @@ function schedulePublishPreview() {
   publishPreviewTimer = setTimeout(() => renderPublishPreview('inline'), 120);
 }
 
+
+  function formAvaliableTimesDiv(availableTimesList){
+    const lines = availableTimesList.map(t => {
+        const rptText = { none: '不重复', day: '每天', week: '每周', month: '每月' }[t.repeatType] || '';
+        const dayText = (t.repeatDays && t.repeatDays.trim())
+          ? `(${t.repeatDays.split(',').map(d => t.repeatType === 'week' ? (DAY_OF_WEEK_MAP[d] || d) : d).join('/')})`
+          : (t.repeatInterval && t.repeatInterval > 1 ? ` 每${t.repeatInterval}${t.repeatType === 'day' ? '天' : t.repeatType === 'week' ? '周' : t.repeatType === 'month' ? '月' : ''}` : '');
+        const dateRange = [t.startDate, (t.endDate || '')].filter(Boolean).join('~')
+          + ((t.startTime || t.endTime) ? ' - ' + [(t.startTime || '').substring(0, 5), (t.endTime || '').substring(0, 5)].filter(Boolean).join('~') : '');
+        return `<div>${escapeHtml(dateRange)} ${escapeHtml(dayText)}</div>`;
+    }).join('');  
+    return lines;
+  }
 /**
  * 根据当前勾选 + 样式 + originalData 生成发布页 HTML（纯字符串，不含任何外链）
  * mode: 'inline' 仅预览在页面内嵌容器中（可外链）
@@ -1022,15 +1029,8 @@ function generatePublishHtml(mode) {
     }
     if (f.key === 'availableTimes') {
       if (!data.availableTimes || !data.availableTimes.length) return '';
-      const lines = data.availableTimes.map(t => {
-        const rptText = { none: '不重复', day: '每天', week: '每周', month: '每月' }[t.repeatType] || '';
-        const dayText = (t.repeatDays && t.repeatDays.trim())
-          ? `(${t.repeatDays.split(',').map(d => DAY_OF_WEEK_MAP[d] || d).join('/')})`
-          : (t.repeatInterval && t.repeatInterval > 1 ? ` 每${t.repeatInterval}${rptText === '每天' ? '天' : rptText === '每周' ? '周' : rptText === '每月' ? '月' : ''}` : '');
-        const dateRange = [t.startDate, (t.startTime || '').substring(0, 5)].filter(Boolean).join(' ')
-          + ((t.endDate || t.endTime) ? ' - ' + [t.endDate, (t.endTime || '').substring(0, 5)].filter(Boolean).join(' ') : '');
-        return `<div>${escapeHtml(dateRange)} ${escapeHtml(rptText)}${escapeHtml(dayText)}</div>`;
-      }).join('');
+
+        const lines = formAvaliableTimesDiv(data.availableTimes);
       return `<section style="margin-bottom:16px;">
         <h3 style="margin:0 0 8px 0;color:${style.accentColor};font-size:${style.fontSizePx + 2}px;">可预约时间</h3>
         <div>${lines}</div></section>`;
