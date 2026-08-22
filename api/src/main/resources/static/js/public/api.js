@@ -559,6 +559,19 @@ function escapeAttr(str) {
   return escapeHtml(str);
 }
 
+
+    function goBack() {
+      // 优先返回来源页，没有则回到管理首页
+      const from = new URLSearchParams(window.location.search).get('from');
+      if (from) {
+        window.location.href = from;
+      } else if (document.referrer) {
+        window.history.back();
+      } else {
+        window.location.href = './admin.html';
+      }
+    }
+
   // 在页面全局导出
   window.changePasswordAPI = changePasswordAPI;
   window.showChangePasswordDialog = showChangePasswordDialog;
