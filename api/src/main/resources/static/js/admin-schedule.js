@@ -158,8 +158,8 @@ async function renderScheduleCards() {
     justify-content: space-between;
     align-items: center;
     padding: 14px 20px;
-    margin-bottom: 8px;
-    border: 1px solid #f0f0f0;
+    margin-bottom: 0px;
+    border: 0px solid #f0f0f0;
     border-radius: 6px;
     background: #fff;
     font-size: 14px;
@@ -208,26 +208,26 @@ async function renderScheduleCards() {
                 <i class="fa fa-redo"></i> 重置
                 </button>
                 </div>
-
-                `
-                html += `<div class="sched-pagination-bar">` + getPagebar() + `</div>`;
-           
-            html += `
-    <!-- 课程选择下拉 -->
+  <!-- 课程选择下拉 -->
+  <div class="card sched-card">
     <div class="sched-form-line">
         <label>选择课程：</label>
         <select id="courseSelect" onchange="loadSchedule()">
             <option value="">请先选择课程</option>
-        </select>
-        <div id="teacherName" style="padding: 0 8px;">教师姓名</div>
-        <button class="btn btn-success" onclick="refreshData()"><i class="fa fa-sync-alt"></i> 刷新</button>
+        </select>        
+        <div><label>教师姓名：</label></div> <div id="teacherName" style="padding: 0 8px;"></div>       
     </div>
+                `
+                html += `<div class="sched-pagination-bar">` + getPagebar() + `</div>`;
+           html += `</div>`; ;//课程筛选结束，显示边框
+            html += `  
     <!-- 排期选择下拉 -->
     <div class="sched-form-line">
         <label>选择排期：</label>
         <select id="scheduleSelect" onchange="displySchedule()">
             <option value="">请选择排期</option>
         </select>
+         <button class="btn btn-success" onclick="refreshData()"><i class="fa fa-sync-alt"></i> 刷新</button>
     </div>
     <div class="sched-section">
         <div class="sched-section-title">排期设置</div>
