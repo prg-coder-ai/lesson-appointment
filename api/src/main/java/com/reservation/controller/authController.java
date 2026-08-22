@@ -11,6 +11,8 @@ import com.reservation.service.UserService;
  import com.reservation.service.RefreshTokenService;
 
  import com.reservation.utils.JwtUtil;
+import com.reservation.audit.Audit;
+import com.reservation.audit.AuditAction;
 
  import jakarta.validation.constraints.NotBlank;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,6 +52,7 @@ public class authController {
           * - 支持多端、token机制下的灵活身份自动识别和权限管控，是现代前后端分离项目的安全核心做法。
           */
     @PostMapping("/login")
+    @Audit(action = AuditAction.USER_LOGIN, resourceType = "user")
     @ResponseBody
     public Result  <HashMap<String, Object>>  toLogin( @Validated @RequestBody LoginDTO user){
              String account = user.getAccount();
@@ -163,6 +166,7 @@ public Result<void> logout(HttpServletResponse response) {
      * 用户主动登出，销毁当前刷新凭证
      */
     @PostMapping("/logout")
+    @Audit(action = AuditAction.USER_LOGOUT, resourceType = "user")
     public Result<Boolean> logout(@RequestBody RefreshDTO refreshDTO) {
       // 1. 清空认证
     SecurityContextHolder.clearContext();
@@ -182,6 +186,7 @@ public Result<void> logout(HttpServletResponse response) {
      * 调用后该用户所有页面401自动跳转登录
      */
     @DeleteMapping("/kick/{userId}")
+    @Audit(action = AuditAction.ADMIN_FORCE_LOGOUT, resourceType = "user", resourceId = "userId")
     public Result <Object> kickUser(@PathVariable String userId) {
         int count = refreshTokenService.kickUser(userId);
         // 3. 刷新页面提示

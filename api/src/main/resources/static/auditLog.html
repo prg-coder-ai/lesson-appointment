@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>审计日志</title>
+    <link rel="stylesheet" href="/css/admin.css">
+    <style>
+        .audit-toolbar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; align-items:center; }
+        .audit-toolbar select, .audit-toolbar input {
+            padding:6px 10px; border:1px solid #ddd; border-radius:4px; font-size:14px;
+        }
+        .audit-table { width:100%; border-collapse:collapse; font-size:13px; }
+        .audit-table th { background:#f5f5f5; padding:8px; text-align:left;
+            border-bottom:2px solid #ddd; position:sticky; top:0; }
+        .audit-table td { padding:6px 8px; border-bottom:1px solid #eee; }
+        .audit-table tr:hover { background:#fafafa; }
+        .badge-success { color:#52c41a; }
+        .badge-fail { color:#ff4d4f; font-weight:bold; }
+        .pagination { margin-top:12px; display:flex; gap:4px; justify-content:center; }
+        .pagination button { padding:4px 10px; border:1px solid #ddd; border-radius:4px;
+            background:#fff; cursor:pointer; }
+        .pagination button.active { background:#1890ff; color:#fff; border-color:#1890ff; }
+        .pagination button:disabled { opacity:0.5; cursor:not-allowed; }
+        .audit-detail { max-height:300px; overflow:auto; background:#1e1e1e;
+            color:#d4d4d4; padding:12px; border-radius:6px; font-family:monospace;
+            font-size:12px; white-space:pre-wrap; word-break:break-all; }
+        .modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%;
+            background:rgba(0,0,0,0.5); z-index:9999; }
+        .modal-content { background:#fff; margin:5% auto; padding:24px;
+            border-radius:8px; width:80%; max-width:800px; max-height:80vh; overflow:auto; }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <h2>审计日志</h2>
+        <div class="audit-toolbar">
+            <select id="f-action">
+                <option value="">全部操作</option>
+            </select>
+            <select id="f-resourceType">
+                <option value="">全部资源</option>
+                <option value="user">用户</option>
+                <option value="course">课程</option>
+                <option value="template">模板</option>
+                <option value="schedule">排期</option>
+                <option value="booking">预约</option>
+                <option value="appointment">课时</option>
+            </select>
+            <select id="f-result">
+                <option value="">全部结果</option>
+                <option value="success">成功</option>
+                <option value="fail">失败</option>
+            </select>
+            <input type="date" id="f-start">
+            <span>~</span>
+            <input type="date" id="f-end">
+            <input type="text" id="f-userId" placeholder="用户ID" style="width:160px">
+            <button class="btn" onclick="loadAuditLogs(1)">查询</button>
+            <button class="btn" onclick="resetFilter()">重置</button>
+        </div>
+        <table class="audit-table">
+            <thead>
+                <tr>
+                    <th>时间</th>
+                    <th>操作人</th>
+                    <th>角色</th>
+                    <th>操作</th>
+                    <th>资源</th>
+                    <th>结果</th>
+                    <th>耗时</th>
+                    <th>IP</th>
+                    <th>详情</th>
+                </tr>
+            </thead>
+            <tbody id="audit-tbody"></tbody>
+        </table>
+        <div id="audit-pagination" class="pagination"></div>
+    </div>
+    <div id="audit-detail-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-content">
+            <h3>审计日志详情</h3>
+            <div id="audit-detail-content"></div>
+            <button class="btn" onclick="closeDetail()" style="margin-top:12px;">关闭</button>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="js/public/utility_request.js"></script>
+    <script src="/js/public/auth.js"></script>
+    <script src="js/public/api.js"></script>
+    <script src="/js/auditLog.js"></script>
+</body>
+</html>

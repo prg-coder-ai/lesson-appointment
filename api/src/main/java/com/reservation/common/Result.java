@@ -49,4 +49,9 @@ public class Result<T> {
         r.setMessage(msg);
         return r;
     }
+
+    // 成功返回（有数据，默认消息）
+    public static <T> Result<T> ok(T data) {
+        return success(data, "操作成功");
+    }
 }

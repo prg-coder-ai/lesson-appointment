@@ -3,6 +3,8 @@ package  com.reservation.controller;
 import com.reservation.entity.Appointment;
 import com.reservation.dto.BookingDTO;//借用数据定义
 import com.reservation.service.AppointmentService;
+import com.reservation.audit.Audit;
+import com.reservation.audit.AuditAction;
 import com.reservation.common.*;
 import com.reservation.query.*;
 
@@ -78,6 +80,7 @@ public class AppointmentController {
     }
 
       @PutMapping("/updateStatusById")
+    @Audit(action = AuditAction.APPOINTMENT_NOTE, resourceType = "appointment")
     public Result<Boolean> updateStatusById(@RequestBody BookingDTO  params) {
         String id = params.getId();
         String status = params.getStatus();

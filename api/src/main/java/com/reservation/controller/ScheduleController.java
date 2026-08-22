@@ -12,6 +12,8 @@ import com.reservation.entity.ScheduleGenerateDTO;*/
 import com.reservation.service.CourseScheduleService; 
 import  com.reservation.common.ScheduleGenerator; 
 import com.reservation.utils.PermissionCheck;
+import com.reservation.audit.Audit;
+import com.reservation.audit.AuditAction;
 
 import com.reservation.query.*;
 import com.reservation.common.*;
@@ -35,6 +37,7 @@ public class ScheduleController {
     private PermissionCheck permissionCheck;
     // 创建排期
     @PostMapping("/create")
+    @Audit(action = AuditAction.SCHEDULE_CREATE, resourceType = "schedule")
     @ResponseBody
     public Result<Map<String, String>>  createSchedule(@Validated @RequestBody ScheduleCreateDTO dto,
                                                    @RequestHeader("Authorization") String token) {
@@ -213,6 +216,7 @@ public class ScheduleController {
  * 成功返回ok，异常返回fail
  */
 @PostMapping("/assign-student")
+@Audit(action = AuditAction.SCHEDULE_ASSIGN, resourceType = "schedule")
 @ResponseBody
 public Result<Boolean> assignStudentToSchedule(@RequestBody Map<String, Object> params, @RequestHeader("Authorization") String token) {
      
@@ -251,6 +255,7 @@ public Result<Boolean> assignStudentToSchedule(@RequestBody Map<String, Object> 
  * @return 删除结果
  */
 @DeleteMapping("/delete/{id}")
+@Audit(action = AuditAction.SCHEDULE_DELETE, resourceType = "schedule", resourceId = "id")
 @ResponseBody
 public Result<Integer> deleteById(@PathVariable("id") String id, @RequestHeader("Authorization") String token) {
     try {
