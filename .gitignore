@@ -34,3 +34,15 @@ api/logs/spring-boot-app.log
 api/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst
 api/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst
 logs/spring-boot-app.log
+api/logs/archived/spring-boot-app.2026-08-16.0.log.gz
+api/logs/archived/spring-boot-app.2026-08-17.0.log.gz
+api/logs/archived/spring-boot-app.2026-08-18.0.log.gz
+api/logs/archived/spring-boot-app.2026-08-19.0.log.gz
+api/logs/archived/spring-boot-app.2026-08-20.0.log.gz
+api/logs/archived/spring-boot-app.2026-08-21.0.log.gz
+api/logs/spring-boot-app.log
+api/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst
+api/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst
+api/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst
+api/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst
+api/logs/spring-boot-app.log
