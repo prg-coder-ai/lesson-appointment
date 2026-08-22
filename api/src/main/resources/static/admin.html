@@ -125,11 +125,11 @@
         </div>
         <div class="menu-item">
           <i class="fa fa-file-alt"></i>
-          <span><a href="logBrowser.html">系统日志</a></span>
+          <span>系统日志</span>
         </div> 
          <div class="menu-item">
           <i class="fa fa-file-alt"></i>
-          <span><a href="auditLog.html">操作审计</a></span>
+          <span>操作审计</span>
         </div>
       </div>
        
@@ -168,10 +168,58 @@
       }
       switch(title) {
         case "系统日志":
-         window.location.href = "logBrowser.html";
+        // window.location.href = "logBrowser.html"; 
+          // 使用 fetch 加载 logBrowser.html 的内容并注入到中央区域
+          fetch('logBrowser.html')
+            .then(response => {
+              if (!response.ok) {
+                throw new Error('加载 logBrowser.html 失败');
+              }
+              return response.text();
+            })
+            .then(html => {
+              if (dynamicContentCenter) {
+                dynamicContentCenter.innerHTML = html;
+              }
+            })
+            .catch(err => {
+              console.error('[系统日志] 页面加载异常:', err);
+              if (dynamicContentCenter) {
+                dynamicContentCenter.innerHTML = `
+                  <div class="card" style="padding: 40px; text-align: center; color: #dc2626;">
+                    <i class="fa fa-exclamation-triangle" style="font-size: 32px;"></i>
+                    <p style="margin-top: 12px;">日志页面加载失败，请稍后重试。</p>
+                  </div>
+                `;
+              }
+            });
         break;
         case "操作审计"://TBD
-         window.location.href = "logBrowser.html";
+       //  window.location.href = "logBrowser.html";
+        // 使用 fetch 加载 auditLog.html 的内容并注入到中央区域
+        fetch('auditLog.html')
+          .then(response => {
+            if (!response.ok) {
+              throw new Error('加载 auditLog.html 失败');
+            }
+            return response.text();
+          })
+          .then(html => {
+            if (dynamicContentCenter) {
+              dynamicContentCenter.innerHTML = html;
+            }
+          })
+          .catch(err => {
+            console.error('[操作审计] 页面加载异常:', err);
+            if (dynamicContentCenter) {
+              dynamicContentCenter.innerHTML = `
+                <div class="card" style="padding: 40px; text-align: center; color: #dc2626;">
+                  <i class="fa fa-exclamation-triangle" style="font-size: 32px;"></i>
+                  <p style="margin-top: 12px;">审计日志页面加载失败，请稍后重试。</p>
+                </div>
+              `;
+            }
+          });
         break;
         case "数据维护":
           // dynamicContentCenter.innerHTML = 
