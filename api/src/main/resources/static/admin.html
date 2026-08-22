@@ -76,7 +76,20 @@
           <span>数据总览</span>
         </div>
       </div>
-
+    <div class="menu-group-title">排期与预订</div>
+        <div class="menu-item">
+          <i class="fa fa-book-open"></i>
+          <span>课程排期</span>
+        </div>
+        <div class="menu-item">
+          <i class="fa fa-calendar-alt"></i>
+          <span>预订审核</span>
+        </div>
+        <div class="menu-group-title">预约检视</div>
+        <div class="menu-item">
+          <i class="fa fa-calendar-alt"></i>
+          <span>上课通知</span>
+        </div> 
       <div class="menu-group">
         <div class="menu-group-title">用户管理</div>
         <div class="menu-item">
@@ -98,22 +111,7 @@
         <div class="menu-item">
           <i class="fa fa-book-open"></i>
           <span>课程列表</span>
-        </div>
-        <div class="menu-group-title">排期与预订</div>
-        <div class="menu-item">
-          <i class="fa fa-book-open"></i>
-          <span>课程排期</span>
-        </div>
-        <div class="menu-item">
-          <i class="fa fa-calendar-alt"></i>
-          <span>预订审核</span>
-        </div>
-        <div class="menu-group-title">预约检视</div>
-        <div class="menu-item">
-          <i class="fa fa-calendar-alt"></i>
-          <span>上课通知</span>
         </div> 
-
       
       <div class="menu-group">
         <div class="menu-group-title">系统维护</div>
@@ -127,7 +125,11 @@
         </div>
         <div class="menu-item">
           <i class="fa fa-file-alt"></i>
-          <span>操作日志</span>
+          <span><a href="logBrowser.html">系统日志</a></span>
+        </div> 
+         <div class="menu-item">
+          <i class="fa fa-file-alt"></i>
+          <span><a href="logBrowser.html">操作审计</a></span>
         </div>
       </div>
        
@@ -159,17 +161,21 @@
       // 清空中央内容区
       dynamicContentCenter = document.getElementById('dynamic-content-center');
       if(dynamicContentCenter)
-      dynamicContentCenter.innerHTML = '';
-      <!-- INSERT_YOUR_CODE -->
+      dynamicContentCenter.innerHTML = ''; 
       // 如果 title 没有定义或者为空，则强制为“数据总览”
       if (typeof title === 'undefined' || title === null || (typeof title === 'string' && title.trim() === '')) {
         title = '数据总览';
       }
       switch(title) {
+        case "系统日志":
+         window.location.href = "logBrowser.html";
+        break;
+        case "操作审计"://TBD
+         window.location.href = "logBrowser.html";
+        break;
         case "数据维护":
           // dynamicContentCenter.innerHTML = 
             renderDatamaintainCards();
-
               break;
         case "测试-批量创建数据":
              dynamicContentCenter.innerHTML = makeTestPage();

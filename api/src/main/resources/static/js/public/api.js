@@ -540,6 +540,25 @@ const userStr = localStorage.getItem('currentUser');
 */
       
   }
+
+
+  
+/** HTML 转义，防止数据中的尖括号破坏页面结构 */
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/** 属性值转义（用于 input value="..." / href="..." 等） */
+function escapeAttr(str) {
+  return escapeHtml(str);
+}
+
   // 在页面全局导出
   window.changePasswordAPI = changePasswordAPI;
   window.showChangePasswordDialog = showChangePasswordDialog;

@@ -794,22 +794,6 @@ function renderError(msg) {
   showActionButtons('error');
 }
 
-/** HTML 转义，防止数据中的尖括号破坏页面结构 */
-function escapeHtml(str) {
-  if (str == null) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-/** 属性值转义（用于 input value="..." / href="..." 等） */
-function escapeAttr(str) {
-  return escapeHtml(str);
-}
-
 // ====================== 发布/转发模式（enterPublishMode） ======================
 // 发布模式字段清单（key 对应 fillView 中的字段，用于生成静态 HTML）
 const PUBLISH_FIELDS_META = [
