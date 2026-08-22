@@ -4,8 +4,10 @@ package com.reservation.controller;
 import com.reservation.common.*;
 import com.reservation.query.*;
 
-import com.reservation.entity.User; 
-import com.reservation.service.UserService; 
+import com.reservation.entity.User;
+import com.reservation.audit.Audit;
+import com.reservation.audit.AuditAction;
+import com.reservation.service.UserService;
 import org.springframework.validation.annotation.Validated;
 // 核心导入：RequestMethod 所在包
 import org.springframework.web.bind.annotation.*;
@@ -82,6 +84,7 @@ public class UserController {
      * 学生注册接口，对应设计2.2.1 接口：/api/v1/user/student/register
      */
     @PostMapping("/student/register")
+    @Audit(action = AuditAction.USER_REGISTER, resourceType = "user")
       @ResponseBody
     public Result<Object> studentRegister(@Validated @RequestBody User user) {
         // 调用服务层实现注册逻辑，返回userId和Token（对应设计2.2.1 学生注册返回数据）
@@ -97,7 +100,8 @@ public class UserController {
     /**
      * 教师注册接口，对应设计2.2.1 接口：/api/v1/user/teacher/register
      */
-    @PostMapping("/teacher/register") 
+    @PostMapping("/teacher/register")
+    @Audit(action = AuditAction.USER_REGISTER, resourceType = "user")
     @ResponseBody
     public Result<Object> teacherRegister(@Validated @RequestBody User user) {
         // 调用服务层提交注册申请，等待管理员审核（对应设计2.2.1 教师注册功能说明）
@@ -119,6 +123,7 @@ public class UserController {
     }
 
     @PostMapping("/updateStatus")
+    @Audit(action = AuditAction.USER_APPROVE, resourceType = "user", resourceId = "user.userId")
     @ResponseBody
     public Result<Object> updateStatus(@RequestBody User user) {
         // 不加 @Validated：修改状态只需 userId + status，不应触发实体上的
@@ -173,6 +178,7 @@ public class UserController {
 
 
     @PostMapping("/account/changePassword")
+    @Audit(action = AuditAction.USER_CHANGE_PASSWORD, resourceType = "user", resourceId = "userId")
     @ResponseBody
     public Result<Boolean> changePassword(@RequestParam("userId") String userId,
                                           @RequestParam("password") String password) {

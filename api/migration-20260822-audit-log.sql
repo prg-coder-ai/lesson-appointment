@@ -1,0 +1,28 @@
+-- 审计日志表
+CREATE TABLE IF NOT EXISTS `audit_log` (
+  `id`            BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '自增主键',
+  `log_id`        VARCHAR(36)  NOT NULL                 COMMENT '日志唯一标识（UUID）',
+  `user_id`       VARCHAR(36)  DEFAULT NULL             COMMENT '操作人ID',
+  `user_name`     VARCHAR(100) DEFAULT NULL             COMMENT '操作人账号/姓名',
+  `user_role`     VARCHAR(20)  DEFAULT NULL             COMMENT '操作人角色（student/teacher/admin）',
+  `action`        VARCHAR(50)  NOT NULL                 COMMENT '操作类型',
+  `resource_type` VARCHAR(30)  DEFAULT NULL             COMMENT '操作资源类型',
+  `resource_id`   VARCHAR(36)  DEFAULT NULL             COMMENT '操作资源ID',
+  `resource_name` VARCHAR(200) DEFAULT NULL             COMMENT '操作资源名称',
+  `method`        VARCHAR(200) DEFAULT NULL             COMMENT '执行的Java方法',
+  `request_url`   VARCHAR(500) DEFAULT NULL             COMMENT '请求URL',
+  `http_method`   VARCHAR(10)  DEFAULT NULL             COMMENT 'HTTP方法',
+  `ip`            VARCHAR(50)  DEFAULT NULL             COMMENT '客户端IP',
+  `user_agent`    VARCHAR(500) DEFAULT NULL             COMMENT '客户端User-Agent',
+  `request_params` TEXT         DEFAULT NULL            COMMENT '请求参数JSON（敏感字段脱敏）',
+  `result_status` VARCHAR(20)  DEFAULT NULL             COMMENT '操作结果（success/fail）',
+  `error_msg`     VARCHAR(500) DEFAULT NULL             COMMENT '失败原因',
+  `cost_ms`       INT          DEFAULT NULL             COMMENT '执行耗时（毫秒）',
+  `created_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '操作时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_log_id` (`log_id`),
+  KEY `idx_user_id`     (`user_id`),
+  KEY `idx_action`      (`action`),
+  KEY `idx_resource`    (`resource_type`, `resource_id`),
+  KEY `idx_created_at`  (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='审计日志表';

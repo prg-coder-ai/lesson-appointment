@@ -6,6 +6,8 @@ import com.reservation.dto.BookingQueryParaDTO;
 import com.reservation.dto.BookingDTO;
 import com.reservation.query.BookingQueryPage;
 import com.reservation.service.BookingService;
+import com.reservation.audit.Audit;
+import com.reservation.audit.AuditAction;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +21,7 @@ public class BookingController {
     private final BookingService bookingService;
 //create/update/updateStatus：返回id
     @PostMapping("/create")
+    @Audit(action = AuditAction.BOOKING_CREATE, resourceType = "booking")
     public Result<String> create(@RequestBody Booking booking) {
         try {
             return Result.success(bookingService.create(booking),"ok");
@@ -161,6 +164,7 @@ public class BookingController {
     // 经检查，当前 BookingController.java 文件不存在明显的语法错误。所有注解、方法和 Java 语法均正常。如果还需优化具体业务逻辑或风格，请明确说明需求。
 
     @DeleteMapping("/delete/{id}")
+    @Audit(action = AuditAction.BOOKING_CANCEL, resourceType = "booking", resourceId = "id")
     public Result<Integer> delete(@PathVariable String id) {
         try {
            int rows= bookingService.delete(id);

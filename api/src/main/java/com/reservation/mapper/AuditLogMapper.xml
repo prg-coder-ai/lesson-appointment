@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.reservation.mapper.AuditLogMapper">
+
+    <insert id="insert" parameterType="com.reservation.entity.AuditLog" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO audit_log
+          (log_id, user_id, user_name, user_role, action,
+           resource_type, resource_id, resource_name,
+           method, request_url, http_method, ip, user_agent,
+           request_params, result_status, error_msg, cost_ms, created_at)
+        VALUES
+          (#{logId}, #{userId}, #{userName}, #{userRole}, #{action},
+           #{resourceType}, #{resourceId}, #{resourceName},
+           #{method}, #{requestUrl}, #{httpMethod}, #{ip}, #{userAgent},
+           #{requestParams}, #{resultStatus}, #{errorMsg}, #{costMs}, NOW())
+    </insert>
+
+</mapper>

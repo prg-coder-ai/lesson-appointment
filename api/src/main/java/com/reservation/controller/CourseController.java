@@ -7,6 +7,8 @@ import  com.reservation.dto.CourseQueryParam;
 import  com.reservation.entity.CourseTemplate;
 import  com.reservation.service.CourseService;
 import  com.reservation.utils.PermissionCheck;
+import com.reservation.audit.Audit;
+import com.reservation.audit.AuditAction;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -41,6 +43,7 @@ public class CourseController {
      * 创建课程模板，对应设计2.2.2 接口：/api/v1/course/template/add（管理员权限）
      */
     @PostMapping("/template/insert")
+    @Audit(action = AuditAction.TEMPLATE_CREATE, resourceType = "template")
      @ResponseBody
     public Result<Map<String, String>> insertTemplate(@Validated @RequestBody CourseTemplate template,
                                                    @RequestHeader("Authorization") String token) {
@@ -78,7 +81,8 @@ public class CourseController {
   }
 
         @DeleteMapping("/template/{id}")
-   public Result<Boolean> deleteTemplate(@PathVariable String id, @RequestHeader("Authorization") String token) {    
+    @Audit(action = AuditAction.TEMPLATE_DELETE, resourceType = "template", resourceId = "id")
+   public Result<Boolean> deleteTemplate(@PathVariable String id, @RequestHeader("Authorization") String token) {
    // 删除指定id的模板
    // 权限校验：仅管理员可操作
    permissionCheck.checkAdmin(token);
@@ -123,6 +127,7 @@ public class CourseController {
      * TBD：管理员添加课程的情况，增加teacherId参数
      */
     @PostMapping("/insert")
+    @Audit(action = AuditAction.COURSE_CREATE, resourceType = "course")
     public Result<Map<String, String>> addCourse(@Validated @RequestBody Course course,
                                                    @RequestHeader("Authorization") String token) {
         // 权限校验：教师、管理员均可操作
@@ -190,6 +195,7 @@ public class CourseController {
 
    // 对应的Controller接口定义应为：
    @DeleteMapping("/deleteById/{id}")
+   @Audit(action = AuditAction.COURSE_DELETE, resourceType = "course", resourceId = "id")
    public Result<Integer> deleteCourse(@PathVariable String id, @RequestHeader("Authorization") String token) {
        // 校验权限：只能教师或管理员有权限删除.教师只删除自己的课程
         permissionCheck.checkTeacherOrAdmin(token);
