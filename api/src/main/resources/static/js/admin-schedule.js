@@ -29,11 +29,147 @@ async function renderScheduleCards() {
     // 显示加载中
    // dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';  
     // 渲染HTML
-    let html = ''; 
+    let html = '';
       html += `
-       <div class="card">
-        <div class="card-title"><i class="fa fa-filter"></i> 课程筛选</div>
-            <div class="filter-form" style="display: flex;align:center; gap: 20px; margin-bottom: 16px;">
+<style>
+  .dynamic-content-center { max-width: none; }
+  .sched-page .sched-card {
+    margin-left: 0;
+    margin-bottom: 24px;
+    border-radius: 8px;
+    padding: 24px 28px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    background: #fff;
+  }
+  .sched-page .sched-card-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+    padding: 0 0 16px 0;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sched-page .sched-filter-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 20px;
+    padding: 16px 20px;
+    background: #fafafa;
+    border-radius: 6px;
+  }
+  .sched-page .sched-filter-form > div { display: flex; align-items: center; gap: 8px; }
+  .sched-page .sched-filter-form label { font-size: 14px; color: #555; font-weight: 500; }
+  .sched-page .sched-filter-form input,
+  .sched-page .sched-filter-form select {
+    padding: 8px 12px;
+    height: 36px;
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+    font-size: 14px;
+    min-width: 140px;
+    box-sizing: border-box;
+  }
+  .sched-page .sched-filter-form input:focus,
+  .sched-page .sched-filter-form select:focus { outline: none; border-color: #722ed1; }
+  .sched-page .sched-section {
+    margin: 28px 0 8px 0;
+  }
+  .sched-page .sched-section-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #722ed1;
+    margin: 0 0 18px 0;
+    padding-left: 10px;
+    border-left: 3px solid #722ed1;
+  }
+  .sched-page .sched-form-line {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .sched-page .sched-form-line label {
+    width: 110px;
+    flex-shrink: 0;
+    text-align: right;
+    font-size: 14px;
+    color: #333;
+    font-weight: 500;
+  }
+  .sched-page .sched-form-line input,
+  .sched-page .sched-form-line select {
+    padding: 8px 12px;
+    height: 36px;
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+    font-size: 14px;
+    box-sizing: border-box;
+    min-width: 160px;
+  }
+  .sched-page .sched-form-line input[type="date"] { min-width: 160px; }
+  .sched-page .sched-form-line input[type="time"] { min-width: 140px; }
+  .sched-page .sched-form-line input[type="number"] { min-width: 100px; }
+  .sched-page .sched-form-line input:focus,
+  .sched-page .sched-form-line select:focus { outline: none; border-color: #722ed1; }
+  .sched-page .sched-form-line input[readonly] { background: #fafafa; color: #666; }
+  .sched-page .sched-btn-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 28px 0 12px 0;
+    padding: 16px 20px;
+    background: #fafafa;
+    border-radius: 6px;
+  }
+  .sched-page .sched-btn-row .btn {
+    padding: 9px 22px;
+    height: 38px;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+  .sched-page .sched-weekdays { display: flex; flex-wrap: wrap; gap: 14px; }
+  .sched-page .sched-weekdays label {
+    width: auto;
+    text-align: left;
+    font-weight: normal;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .sched-page .sched-monthdays { display: flex; flex-wrap: wrap; gap: 10px; max-width: 640px; }
+  .sched-page .sched-monthdays label {
+    width: auto;
+    text-align: left;
+    font-weight: normal;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .sched-page .sched-table th,
+  .sched-page .sched-table td { padding: 12px 14px; font-size: 14px; }
+  .sched-page .sched-pagination-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 20px;
+    margin-bottom: 8px;
+    border: 1px solid #f0f0f0;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 14px;
+    color: #666;
+  }
+</style>
+<div class="sched-page">
+       <div class="card sched-card">
+        <div class="card-title sched-card-title"><i class="fa fa-filter"></i> 课程筛选</div>
+            <div class="sched-filter-form">
                  <div>
                     <label>课程名称：</label>
                     <input type="text" id="course-name-input"  placeholder="课程名称" >
@@ -43,7 +179,7 @@ async function renderScheduleCards() {
                     <select id="languageType-select" >
                         <option value="">全部</option>
                         <option value="french">法语</option>
-                        <option value="english">英语</option> 
+                        <option value="english">英语</option>
                     </select>
                 </div>
                 <div>
@@ -53,7 +189,7 @@ async function renderScheduleCards() {
                         <option value="B1">B1入门</option>
                         <option value="B2">B2初级</option>
                         <option value="B3">B3中级</option>
-                        <option value="B4">B4高级</option> 
+                        <option value="B4">B4高级</option>
                     </select>
                 </div>
                  <div class="filter-item" style="display:none">
@@ -64,107 +200,101 @@ async function renderScheduleCards() {
                     <option value="pending">挂起</option>
                 </select>
                 </div>
-            
-                 <button class="btn" onclick="localsearchCourse()">
+
+                 <button class="btn btn-primary" onclick="localsearchCourse()">
                     <i class="fa fa-search"></i> 搜索
                     </button>
-                <button class="btn btn-default" onclick="resetCourseFilter()"> 
-                <i class="fa fa-redo"></i>重置
-                </button>  
+                <button class="btn btn-default" onclick="resetCourseFilter()">
+                <i class="fa fa-redo"></i> 重置
+                </button>
                 </div>
 
                 `
-                html += getPagebar();              
-            html += `<hr>`;
+                html += `<div class="sched-pagination-bar">` + getPagebar() + `</div>`;
            
-            html += `            
+            html += `
     <!-- 课程选择下拉 -->
-    <div class="form-line">
+    <div class="sched-form-line">
         <label>选择课程：</label>
         <select id="courseSelect" onchange="loadSchedule()">
             <option value="">请先选择课程</option>
         </select>
-        <div id="teacherName">教师姓名</div>
-         <button class="btn-success" onclick="refreshData()">刷新</button>
+        <div id="teacherName" style="padding: 0 8px;">教师姓名</div>
+        <button class="btn btn-success" onclick="refreshData()"><i class="fa fa-sync-alt"></i> 刷新</button>
     </div>
-     <!-- 排期选择下拉 -->
-       <div class="form-line">
+    <!-- 排期选择下拉 -->
+    <div class="sched-form-line">
         <label>选择排期：</label>
         <select id="scheduleSelect" onchange="displySchedule()">
             <option value="">请选择排期</option>
         </select>
     </div>
-    <div class="section">
-        <div style="display: flex; align-items: center; gap: 20px;">
-            <div class="section-title" style="margin: 0;">排期设置</div> 
-        </div> 
-        <div class="form-line" style="display:none;">
-            <label>Id</label> 
-            <input type="label" id="scheduleId">
+    <div class="sched-section">
+        <div class="sched-section-title">排期设置</div>
+        <div class="sched-form-line" style="display:none;">
+            <label>Id</label>
+            <input type="text" id="scheduleId">
         </div>
-
-        <div class="form-line" style="display:none;">
+        <div class="sched-form-line" style="display:none;">
             <label>cId</label>
-            <input type="label" id="courseId">
+            <input type="text" id="courseId">
         </div>
-        <div style="display: flex; gap: 20px;">
-            <div class="form-line">
+        <div style="display: flex; flex-wrap: wrap; gap: 24px;">
+            <div class="sched-form-line">
                 <label>班级形式：</label>
-                <select id="classForm" style="width:80px" readonly>
-                    <option value="">请选择</option> 
+                <select id="classForm" readonly>
+                    <option value="">请选择</option>
                     <option value="1p1">一对一</option>
                     <option value="1pN">小班课</option>
                     <option value="1p2N">大班课</option>
                 </select>
             </div>
-              <div class="form-line">
-            <label>总席位数：</label>
-            <input type="number" id="availableSites" value="1" min="1" style="width:80px">
-           </div>
-           <div class="form-line">
-            <label>可用席位数：</label>
-            <input type="number" id="now_availableSites" value="1" min="1" style="width:80px" readonly>
-           </div>
+            <div class="sched-form-line">
+                <label>总席位数：</label>
+                <input type="number" id="availableSites" value="1" min="1">
+            </div>
+            <div class="sched-form-line">
+                <label>可用席位数：</label>
+                <input type="number" id="now_availableSites" value="1" min="1" readonly>
+            </div>
         </div>
-         <div style="display: flex; gap: 32px;">
+        <div style="display: flex; flex-wrap: wrap; gap: 40px;">
            <!-- 左侧：当前逻辑 -->
-           <div style="flex: 1;">
-             <div class="form-line">
+           <div style="flex: 1; min-width: 400px;">
+             <div class="sched-form-line">
                 <label>排期名称</label>
-                <input type="label" id="scheduleName" >  
+                <input type="text" id="scheduleName">
              </div>
-             <div class="form-line">
+             <div class="sched-form-line">
                 <label>排期时区</label>
-                <input type="label" id="timeZone" value=${userTimeZone} readonly>
+                <input type="text" id="timeZone" value="${userTimeZone}" readonly>
              </div>
-       
-             <div class="form-line" style="display: flex;"> 
+             <div class="sched-form-line">
                   <label>开始日期：</label>
-                  <input type="date" align-items: right; id="startDate" value="${(new Date()).toISOString().split('T')[0]}">
-                  <input type="text" id="startDate_weekday"  readonly>
+                  <input type="date" id="startDate" value="${(new Date()).toISOString().split('T')[0]}">
+                  <input type="text" id="startDate_weekday" readonly style="min-width:80px">
              </div>
-  
-              <div class="form-line">
+              <div class="sched-form-line">
                   <label>上课时间：</label>
                   <input type="time" id="startTime" value="${(function(){ let d = new Date(); return d.toTimeString().slice(0,5); })()}">
               </div>
-               <div class="form-line" > 
+               <div class="sched-form-line">
                 <label>结束日期：</label>
                 <input type="date" id="endDate" value="">
-                 <input type="text" id="endDate_weekday"  readonly>
-            </div> 
+                <input type="text" id="endDate_weekday" readonly style="min-width:80px">
+            </div>
            </div>
            <!-- 右侧：并排显示新一列 -->
-           <div style="flex: 1;">
-                <div class="form-line" > 
+           <div style="flex: 1; min-width: 400px;">
+                <div class="sched-form-line">
                     <label>
-                    <input type="checkbox" id="toggleUserTimeZone" unchecked onchange="document.getElementById('testTimeZoneForm').style.display=this.checked?'':'none';getTestDatetime();getTestEndDatetime();">
-                    用户时间
+                    <input type="checkbox" id="toggleUserTimeZone" onchange="document.getElementById('testTimeZoneForm').style.display=this.checked?'':'none';getTestDatetime();getTestEndDatetime();">
+                    用户时间预览
                     </label>
                 </div>
-            <div  id="testTimeZoneForm" style="display:none">
-             <div class="form-line" > 
-                <label>用户时区</label>
+            <div id="testTimeZoneForm" style="display:none; padding-left: 124px;">
+             <div class="sched-form-line">
+                <label style="width:90px;">用户时区</label>
                 <select id="testTimeZone">
                     <option value="Europe/London">伦敦 (Europe/London)</option>
                     <option value="Europe/Paris">巴黎 (Europe/Paris)</option>
@@ -177,28 +307,29 @@ async function renderScheduleCards() {
                     <option value="America/New_York">纽约 (America/New_York)</option>
                     <option value="America/Chicago">芝加哥 (America/Chicago)</option>
                     <option value="America/Los_Angeles">洛杉矶 (America/Los_Angeles)</option>
-                    <option value="America/Vancouver">温哥华 (America/Vancouver)</option> 
-                     <option value="America/Edmonton">卡尔加里 (America/Edmonton)</option>
-                </select>           
+                    <option value="America/Vancouver">温哥华 (America/Vancouver)</option>
+                    <option value="America/Edmonton">卡尔加里 (America/Edmonton)</option>
+                </select>
              </div>
-             <div class="form-line" style="display: flex;">
-                <label>日期：</label>  
-                <input type="date" id="displayStartDate" readonly>  
-                 <input type="text" id="displayStartDate_weekday"  readonly>
+             <div class="sched-form-line">
+                <label style="width:90px;">日期：</label>
+                <input type="date" id="displayStartDate" readonly>
+                <input type="text" id="displayStartDate_weekday" readonly style="min-width:80px">
              </div>
-             <div class="form-line">
-                <label>时间：</label>  
-                <input type="time" id="displayStartTime" readonly> 
+             <div class="sched-form-line">
+                <label style="width:90px;">时间：</label>
+                <input type="time" id="displayStartTime" readonly>
              </div>
-              <div class="form-line" > 
-                <label>结束日期：</label>
-                <input type="date" id="displayEndDate" readonly> <input type="text" id="displayEndDate_weekday"  readonly>
-            </div> 
+              <div class="sched-form-line">
+                <label style="width:90px;">结束日期：</label>
+                <input type="date" id="displayEndDate" readonly>
+                <input type="text" id="displayEndDate_weekday" readonly style="min-width:80px">
+            </div>
            </div>
-           </div> 
-         </div> 
-         
-        <div class="form-line">
+           </div>
+         </div>
+
+        <div class="sched-form-line">
             <label>重复类型：</label>
             <select id="repeatType" onchange="onRepeatTypeChange()">
                 <option value="none">不重复</option>
@@ -208,16 +339,16 @@ async function renderScheduleCards() {
             </select>
         </div>
 
-        <div class="form-line">
+        <div class="sched-form-line">
             <label>重复周期：</label>
-            <input type="number" id="interval" value="1" min="1" style="width:80px">
-            <span id="repeatUnit">天</span>
-        </div> 
+            <input type="number" id="interval" value="1" min="1">
+            <span id="repeatUnit" style="color:#555;">天</span>
+        </div>
 
         <!-- 每周重复：星期选择 -->
-        <div class="form-line" id="weekDaysBox" style="display:none;">
+        <div class="sched-form-line" id="weekDaysBox" style="display:none;">
             <label>重复星期：</label>
-            <div id="weekDays">
+            <div id="weekDays" class="sched-weekdays">
                 <label><input type="checkbox" value="1">周一</label>
                 <label><input type="checkbox" value="2">周二</label>
                 <label><input type="checkbox" value="3">周三</label>
@@ -228,46 +359,44 @@ async function renderScheduleCards() {
             </div>
         </div>
 
-         <!-- 每月重复： -->
-        <div class="form-line" id="monthDaysBox" style="display:none;">
+        <!-- 每月重复： -->
+        <div class="sched-form-line" id="monthDaysBox" style="display:none;">
             <label>重复日期：</label>
-            <div id="monthDays">                  
+            <div id="monthDays" class="sched-monthdays">
             </div>
         </div>
-       <div class="form-line">
+       <div class="sched-form-line">
             <label>状态：</label>
            <select id="status">
                 <option value="pending">待发布</option>
                 <option value="inactive">已收回</option>
                 <option value="active">已发布</option>
                 <option value="frozen">已删除</option>
-            </select>  
-            <div id="conflictMessage"></div>
+            </select>
+            <div id="conflictMessage" style="color:#f5222d;"></div>
         </div>
-        
     </div>
 
     <!-- 操作按钮 -->
-    <div class="btn-group">
-       <button class="btn-success" onclick="resetSchedule()">新建</button>
-        <button class="btn-primary" onclick="previewSchedule()">预览排期</button>
-        <button class="btn-warning" onclick="checkSchedule()">检查冲突</button>
-        <button class="btn-primary" onclick="saveScheduleToDB()">保存</button> 
-        <button class="btn-danger"  onclick="deleteScheduleByFrozen()">删除</button>       
-
-        <label style="font-weight: normal; margin-left:8px;">
-                <button class="btn-primary"  onclick="assignStudentToSchedule()">指定学生</button>
-            <select id="assignStudentSelect" style="font-size: 1em;">
-                <option value="">请选择学生</option>
-                <!-- 这里可以用JS渲染学生选项 -->
-            </select>
-    </div> 
-     </div> <!-- card --> 
+    <div class="sched-btn-row">
+       <button class="btn btn-success" onclick="resetSchedule()"><i class="fa fa-plus"></i> 新建</button>
+       <button class="btn btn-primary" onclick="previewSchedule()"><i class="fa fa-eye"></i> 预览排期</button>
+       <button class="btn btn-warning" onclick="checkSchedule()"><i class="fa fa-exclamation-triangle"></i> 检查冲突</button>
+       <button class="btn btn-primary" onclick="saveScheduleToDB()"><i class="fa fa-save"></i> 保存</button>
+       <button class="btn btn-danger" onclick="deleteScheduleByFrozen()"><i class="fa fa-trash"></i> 删除</button>
+       <button class="btn btn-primary" onclick="assignStudentToSchedule()"><i class="fa fa-user-plus"></i> 指定学生</button>
+       <select id="assignStudentSelect">
+           <option value="">请选择学生</option>
+       </select>
+    </div>
+     </div> <!-- card -->
+</div><!-- sched-page -->
 
     <!-- 排期结果 -->
-    <div class="section">
-        <div class="section-title">排期结果（列表）</div>
-        <table>
+    <div class="card sched-card">
+        <div class="card-title sched-card-title"><i class="fa fa-list-alt"></i> 排期结果（列表）</div>
+        <div class="card-body" style="padding:8px 28px 20px;">
+        <table class="sched-table">
             <thead>
                 <tr>
                     <th>课次</th>
@@ -277,11 +406,14 @@ async function renderScheduleCards() {
             </thead>
             <tbody id="resultBody"></tbody>
         </table>
+        </div>
     </div>
 
-    <div class="section">
-        <div class="section-title">日历视图</div>
+    <div class="card sched-card">
+        <div class="card-title sched-card-title"><i class="fa fa-calendar-alt"></i> 日历视图</div>
+        <div class="card-body" style="padding:8px 28px 20px;">
         <div id="calendar" class="calendar"></div>
+        </div>
     </div>`;
         
     dynamicContentCenter.innerHTML = html;
