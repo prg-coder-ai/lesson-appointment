@@ -1,5 +1,4 @@
-package com.reservation.mapper;
-
+package com.reservation.mapper; 
 
 import com.reservation.dto.RefreshTokenPO;
 import org.apache.ibatis.annotations.Delete;
