@@ -35,11 +35,11 @@
         SELECT * FROM `user` WHERE phone = #{account} OR email = #{account}
     </select>
 
-    <!-- 根据用户ID查询用户 -->
+    <!-- 根据用户ID查询用户 
     <select id="selectById" parameterType="String" resultMap="userResultMap">
         SELECT * FROM `user` WHERE user_id = #{userId}
    </select>
-
+-->
       <select id="list"  resultMap="userResultMap">
         SELECT * FROM `user` WHERE  true;
     </select>
@@ -48,8 +48,8 @@
     <update id="updatePassword" parameterType="com.reservation.entity.User">
         UPDATE `user` SET password = #{password} WHERE user_id = #{userId}
     </update>
-    <!-- 更新用户信息， -->
-    <update id="update" parameterType="com.reservation.entity.User">
+    <!-- 更新用户信息， 
+    <update id="updateById" parameterType="com.reservation.entity.User">
         UPDATE `user`
         <set>
             <if test="phone != null and phone != ''">phone = #{phone},</if>
@@ -64,7 +64,7 @@
         </set>
         WHERE user_id = #{userId}
     </update>
- 
+ -->
     <!-- 根据条件动态查询用户列表 -->
      
 

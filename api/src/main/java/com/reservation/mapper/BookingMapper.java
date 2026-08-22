@@ -9,22 +9,23 @@ import com.reservation.query.BookingQueryPage;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+ 
 import java.util.List;
 
 @Mapper
-public interface BookingMapper {
+public interface BookingMapper extends BaseMapper<Booking>{
     // 插入一条新预约
-    int insert(Booking booking);
+    //int insert(Booking booking);
 
     // 更新预约信息
-    int update(Booking booking);
+   // int update(Booking booking);
 
     // 根据ID变更状态
     int updateStatus(@Param("bookingId") String bookingId, @Param("status") String status);
 
     // 根据ID查询
-    Booking selectById(@Param("bookingId") String bookingId);
+  //  Booking selectById(@Param("bookingId") String bookingId);
 
     // 条件批量查询
     List<Booking> selectList(BookingQueryParaDTO dto);
@@ -33,7 +34,7 @@ public interface BookingMapper {
     int            selectCountByCondition(BookingQueryPage dto);
 
     // 删除预约
-    int delete(@Param("bookingId") String bookingId);
+  //  int delete(@Param("bookingId") String bookingId);
     
     //int deleteByScheduleIde(@Param("scheduleId") String scheduleId);
     // INSERT_YOUR_CODE

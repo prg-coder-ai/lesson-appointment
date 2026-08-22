@@ -80,39 +80,7 @@ public class UserService {
          System.out.println("output rslt：" + rslt);
         return rslt;
     }
-
-    // 修复泛型警告: 为 Result 指定类型参数<User>，提升类型安全和可读性
-   /* @Transactional
-    public Result<User> RegisterV2(User user) {
-        // 校验手机号/邮箱是否已注册
-        System.out.println("input：" + user);
-        if (user.getPhone() != null && !"".equals(user.getPhone()))
-            if (userMapper.selectByPhone(user.getPhone()) != null) {
-                throw new BusinessException("该手机号已注册");
-            }
-        if (user.getEmail() != null && !"".equals(user.getEmail()))
-            if (userMapper.selectByEmail(user.getEmail()) != null) {
-                throw new BusinessException("该邮箱已注册");
-            }
-        // 密码加密
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        // 生成唯一userId
-        user.setUserId(UUID.randomUUID().toString());
-        // 插入数据库
-        userMapper.insert(user);
-
-        // 重新从数据库查出，保证和配置一致（也可直接return user无硬性要求）
-        User registered = userMapper.selectByAccount(user.getAccount());
-
-        // 生成token等信息
-        String token = jwtUtil.generateToken(user.getUserId(), user.getRole());
-        // 在data部分返回user对象（可选：也可以仿原Map组装返回）
-        registered.setToken(token);
-
-        Result<User> rslt = Result.success(registered, "注册成功，请登录等待验证");
-        return rslt;
-    }
-*/
+ 
     // 用户登录（对应设计2.2.1 登录接口）
     public Result<HashMap<String, Object>> login(String account, String password) {
         // 查找用户（账号可为手机号/邮箱，对应设计2.2.1 登录接口请求参数）
@@ -244,21 +212,7 @@ public User selectById(String userId) {
            System.out.println("账号【" + account + "】不存在");
         }
         return user;
-    }
-/* TBD：full fileds
-    public int update(User user)
-    {
-        // 校验 userId 是否存在
-        if (user == null || user.getUserId() == null || user.getUserId().isEmpty()) {
-            throw new IllegalArgumentException("用户ID不能为空");
-        }
-        // 可加入其他合法性校验，如手机、邮箱等
-        int ret = userMapper.update(user);
-        if (ret <= 0) {
-            throw new UserNotFoundException("用户信息更新失败，用户不存在");
-        }
-        return ret;
-    }*/
+    } 
 
     private int updatePassword(User user)
     {

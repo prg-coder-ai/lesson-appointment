@@ -40,7 +40,7 @@ public class BookingService {
     public String update(String id, Booking booking) {
        // System.out.println("update : " + booking);
         booking.setBookingId(id);
-        bookingMapper.update(booking);
+        bookingMapper.updateById(booking);
         return id;
     }
 
@@ -50,7 +50,7 @@ public class BookingService {
           String id= dto.getId();
           String status =dto.getStatus();
           if ("delete".equals(status)) {
-              bookingMapper.delete(id);
+              bookingMapper.deleteById(id);
           }    else  {
             bookingMapper.updateStatus(id, status);
               }
@@ -78,7 +78,7 @@ public class BookingService {
             Integer total = bookingMapper.selectCountByCondition(query);
             page.setTotal(total);
 
-            System.out.println("total : " + total);
+          //  System.out.println("total : " + total);
             PageResult<Booking> result = PageResult.of(page);
             return result;
 
@@ -89,7 +89,7 @@ public class BookingService {
     @Transactional(propagation = Propagation.REQUIRED)
     public int delete(String id) {
        log.info("删除预约开始, bookingId={}", id);
-       int rows = bookingMapper.delete(id);
+       int rows = bookingMapper.deleteById(id);
        log.info("删除预约结束, bookingId={}, 影响行数={}", id, rows);
        return rows;
     }
