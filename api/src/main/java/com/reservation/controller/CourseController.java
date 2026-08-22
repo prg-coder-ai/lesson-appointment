@@ -4,9 +4,8 @@ import com.reservation.common.*;
 import  com.reservation.entity.Course;
 import  com.reservation.query.*;
 import  com.reservation.dto.CourseQueryParam;
-import  com.reservation.entity.CourseTemplate;
-import  com.reservation.service.CourseService;
-import  com.reservation.utils.PermissionCheck;
+import com.reservation.service.CourseService;
+import com.reservation.utils.PermissionCheck;
 import com.reservation.audit.Audit;
 import com.reservation.audit.AuditAction;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,89 +37,6 @@ public class CourseController {
     private CourseService courseService;
     @Autowired
     private PermissionCheck permissionCheck;
-
-    /**
-     * 创建课程模板，对应设计2.2.2 接口：/api/v1/course/template/add（管理员权限）
-     */
-    @PostMapping("/template/insert")
-    @Audit(action = AuditAction.TEMPLATE_CREATE, resourceType = "template")
-     @ResponseBody
-    public Result<Map<String, String>> insertTemplate(@Validated @RequestBody CourseTemplate template,
-                                                   @RequestHeader("Authorization") String token) {
-        // 权限校验：仅管理员可操作（对应设计2.3 安全设计-权限控制）
-        
-       // permissionCheck.checkAdmin(token);
-        // 调用服务层创建模板，返回templateId（对应设计2.2.2 模板创建返回数据）
-        Map<String, String> resultMap = courseService.insertTemplate(template);
-        return Result.success(resultMap, "课程模板创建成功");
-    }
-
-    @PostMapping("/template/update")
-     @ResponseBody
-    public Result<Map<String, String>> updateTemplate(@Validated @RequestBody CourseTemplate template,
-                                                   @RequestHeader("Authorization") String token) {
-        // 权限校验：仅管理员可操作（对应设计2.3 安全设计-权限控制）
-        //permissionCheck.checkAdmin(token);
-        // 调用服务层创建模板，返回templateId（对应设计2.2.2 模板创建返回数据）
-        Map<String, String> id= courseService.updateTemplate(template);
-        if(id!=null)
-        return Result.success(id, "课程模板修改成功");
-        else
-        return Result.success(null, "课程模板修改不成功");
-    }
-
-
-  @PostMapping("/template/updateStatus")
-  @ResponseBody
-  public Result<Map<String, String>> updateTemplateStatus(@Validated @RequestBody UpdateTemplateStatusRequest req,
-                                          @RequestHeader("Authorization") String token) {
-      // 权限校验：仅管理员可操作
-    //TBD  permissionCheck.checkAdmin(token);
-      Map<String, String> status =  courseService.updateTemplateStatus(req.getTemplateid(), req.getStatus());
-      return Result.success(status, "课程模板状态修改成功");
-  }
-
-        @DeleteMapping("/template/{id}")
-    @Audit(action = AuditAction.TEMPLATE_DELETE, resourceType = "template", resourceId = "id")
-   public Result<Boolean> deleteTemplate(@PathVariable String id, @RequestHeader("Authorization") String token) {
-   // 删除指定id的模板
-   // 权限校验：仅管理员可操作
-   permissionCheck.checkAdmin(token);
-
-    int rowsDeleted = courseService.deleteTemplate(id);
-   if (rowsDeleted>0) {
-       return Result.success(true, "模板删除成功");
-   } else {
-       return Result.success(false, "模板删除失败");
-   }
-   }
-   
-
-    /**
-     * 查询课程模板列表，对应设计2.2.2 接口：/api/v1/course/template/list（教师、管理员权限）
-     */
-    @GetMapping("/template/list")
-    public Result<List<CourseTemplate>> getTemplateList(
-            @RequestParam(defaultValue = "all") String languageType, 
-            @RequestHeader("Authorization") String token) {
-       
-        // 权限校验：教师或管理员可操作
-      //  permissionCheck.checkTeacherOrAdmin(token);
-        // 调用服务层查询模板（支持按languageType筛选，对应设计2.2.2 模板查询功能说明）
-        List<CourseTemplate> templates = courseService.getTemplateListByLanguage(languageType);
-        //Map<String, List<CourseTemplate>> resultMap = Map.of("templates", templates);
-        return Result.success(templates, "查询成功");
-    }
- 
-    @PostMapping("/template/page")
-    public Result<PageResult<CourseTemplate>> getTemplateListBypage(
-            @RequestBody TemplateQueryPage query, 
-            @RequestHeader("Authorization") String token) {
-
-     PageResult<CourseTemplate> templates = courseService.getTemplateListBypage(query);
-         return Result.success(templates, "查询成功");
-    }
-
 
     /**
      * 教师创建课程，对应设计2.2.2 接口：/api/v1/course/teacher/add（教师权限）
@@ -293,23 +209,6 @@ public class CourseController {
   }
     
     
-  /**
-   * 模板状态更新接口（正确的写法：需要定义DTO接收JSON BODY，不要用多个@RequestBody参数）
-   * 修正说明：
-   *  - SpringMVC只允许一个@RequestBody参数。
-   *  - 推荐前端POST JSON对象（如 { "templateid":"T001", "status":"active" }），后端定义DTO类接收。
-   *  - 原因：此类报错多因方法参数写了两个@RequestBody，Spring无法匹配。
-   */
-  public static class UpdateTemplateStatusRequest {
-      private String templateid;
-      private String status;
-
-      // getter/setter
-      public String getTemplateid() { return templateid; }
-      public void setTemplateid(String templateid) { this.templateid = templateid; }
-      public String getStatus() { return status; }
-      public void setStatus(String status) { this.status = status; }
-  }
   /**
    * 根据课程ID查询课程形式
    * 前端调用: GET /course/classform?courseId=T001
