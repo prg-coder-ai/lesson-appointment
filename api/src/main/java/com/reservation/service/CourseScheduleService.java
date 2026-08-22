@@ -203,7 +203,7 @@ public class CourseScheduleService {
         //  System.out .println("update : " +dto); 
           CourseSchedule schedule = CreateDtoToObject(dto);     
          // System.out .println("update : " + schedule); 
-          scheduleMapper.update(schedule);
+          scheduleMapper.updateById (schedule);
         return Collections.singletonMap("Id", dto.getScheduleId());
     }
 

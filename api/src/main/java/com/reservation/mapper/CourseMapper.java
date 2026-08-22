@@ -1,13 +1,14 @@
 /*CourseMapper.java*/
 package com.reservation.mapper;
-
-import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+ 
 import com.reservation.entity.Course;
 import com.reservation.dto.CourseQueryParam;
 import com.reservation.query.*;
 //import com.reservation.entity.CourseTemplate;
- 
+
+ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
+
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 //import org.apache.ibatis.annotations.Update;
@@ -29,9 +30,10 @@ public interface CourseMapper extends BaseMapper<Course> {
      * @param course 课程实体
      * @return 影响行数
      */   
-    @org.apache.ibatis.annotations.Insert("INSERT INTO course(course_id, template_id, teacher_id, course_name, content, feature,status ) " +
+    /*@org.apache.ibatis.annotations.Insert("INSERT INTO course(course_id, template_id, teacher_id, course_name, content, feature,status ) " +
         "VALUES(#{courseId}, #{templateId}, #{teacherId}, #{courseName}, #{content}, #{feature},#{status} )")
     int insertCourse(Course course); 
+    */
     /**
      * 条件查询课程列表
      * @param params 查询条件，可包含teacherId、templateId、status等
@@ -49,9 +51,9 @@ public interface CourseMapper extends BaseMapper<Course> {
      @org.apache.ibatis.annotations.Update("UPDATE course SET status = #{status} , update_time = NOW() WHERE course_id = #{courseId}")
      int updateCourseStatus(@Param("courseId") String courseId, @Param("status") String status); 
 
-      @org.apache.ibatis.annotations.Update("UPDATE course SET template_id = #{course.templateId}, course_name = #{course.courseName}, content = #{course.content}, feature = #{course.feature}, teacher_id = #{course.teacherId}, update_time = NOW() WHERE course_id = #{course.courseId}")
-      int updateCourse(@Param("course") Course course);
-   
+    /*  @org.apache.ibatis.annotations.Update("UPDATE course SET template_id = #{course.templateId}, course_name = #{course.courseName}, content = #{course.content}, feature = #{course.feature}, teacher_id = #{course.teacherId}, update_time = NOW() WHERE course_id = #{course.courseId}")
+      int updateById(@Param("course") Course course);
+   */
         @org.apache.ibatis.annotations.Update("UPDATE course SET status = #{status}, update_time = NOW() WHERE template_id = #{templateId}")
       int  updateCourseStatusByLastId(@Param("templateId") String templateId,@Param("status") String status);
     /**
@@ -59,9 +61,9 @@ public interface CourseMapper extends BaseMapper<Course> {
      * @param courseId 课程ID
      * @return 课程信息
      */
-    @Select("SELECT * from course WHERE course_id = #{courseId}")
+    /*@Select("SELECT * from course WHERE course_id = #{courseId}")
     Course getCourseById(@Param("courseId") String courseId);
- 
+ */
     /**
      * 根据模板ID删除课程
      * @param templateId 课程模板ID

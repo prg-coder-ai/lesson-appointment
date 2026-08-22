@@ -27,7 +27,7 @@ public interface UserMapper extends BaseMapper<User> {
      * @return 用户信息
      */
     // 注解版正确写法（无XML时）
-      @Select("select * from user where phone = #{phone}")
+       @Select("select * from user where phone = #{phone}")
      User selectByPhone(@Param("phone") String phone);
     //public User selectByPhone(@Param("phone") String phone);
 
@@ -36,8 +36,8 @@ public interface UserMapper extends BaseMapper<User> {
      * @param email 邮箱
      * @return 用户信息
      */
-     @Select("select * from user where email = #{email}")
-     User selectByEmail(@Param("email") String email);
+      @Select("select * from user where email = #{email}")
+      User selectByEmail(@Param("email") String email);
 
     /**
      * 根据手机号或邮箱查询用户（用于登录）
@@ -52,18 +52,10 @@ public interface UserMapper extends BaseMapper<User> {
      * @param userId 用户ID
      * @return 用户信息
      */
-     @Select("SELECT * FROM user WHERE user_id = #{userId}")
+   /*   @Select("SELECT * FROM user WHERE user_id = #{userId}")
      User selectById(@Param("userId") String userId);
-
-     
-    /**
-     * 插入用户（用于学生、教师注册）
-     * @param user 用户实体
-     * @return 影响行数
-     */
-     @org.apache.ibatis.annotations.Insert("INSERT INTO user(user_id, account ,name, password, phone, email, role, status) "
-            + "VALUES(#{userId},#{account},#{name}, #{password}, #{phone}, #{email}, #{role}, #{status})")
-    int insert(User user);
+*/
+      
 
     /**
      * 更新用户密码（用于密码重置）
@@ -75,26 +67,7 @@ public interface UserMapper extends BaseMapper<User> {
     public int updatePassword(@Param("userId") String userId ,@Param("password") String password);
 
    @Update("UPDATE user SET status = #{status} WHERE user_id = #{userId}")
-    public int updateStatus(@Param("userId") String userId ,@Param("status") String status);
-/*
-    // INSERT_YOUR_CODE
-    @Update({
-        "<script>",
-        "UPDATE user",
-        "<set>",
-        "  <if test='name != null and name != \"\"'>name = #{name},</if>",
-        "  <if test='phone != null and phone != \"\"'>phone = #{phone},</if>",
-        "  <if test='email != null and email != \"\"'>email = #{email},</if>",
-        "  <if test='role != null and role != \"\"'>role = #{role},</if>",
-        "  <if test='status != null and status != \"\"'>status = #{status},</if>",
-        "  <if test='account != null and account != \"\"'>account = #{account},</if>",
-        // 其他参数按需补充
-        "</set>",
-        "WHERE user_id = #{userId}",
-        "</script>"
-    })
-    int update(User user);
- */
+    public int updateStatus(@Param("userId") String userId ,@Param("status") String status); 
     
     
         /** listByCondition暂时报错

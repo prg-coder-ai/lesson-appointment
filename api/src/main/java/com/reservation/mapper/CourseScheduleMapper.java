@@ -9,14 +9,16 @@ import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
 
+ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import org.apache.ibatis.annotations.Mapper;
+
 @Mapper
-public interface CourseScheduleMapper {
+public interface CourseScheduleMapper extends BaseMapper<CourseSchedule> {
     // 插入排期
-    String insert(CourseSchedule schedule);
+   // String insert(CourseSchedule schedule);
     
     // 根据ID查询
-    CourseSchedule selectById(String id);
-    
+   // CourseSchedule selectById(String id); 
 
     List<CourseSchedule> selectList(ScheduleCreateDTO  filterJson);
     List<CourseSchedule> selectListByPage(ScheduleQueryPage query);
@@ -25,7 +27,7 @@ public interface CourseScheduleMapper {
     
     String updateScheduleSites(IncSiteBody opPara);
     //根据输入的非空参数更新
-    void update(CourseSchedule newData);
+   // void updateById(CourseSchedule newData);
     void updateStatus(StatusBody scheduleStatus);
     void updateSites(IncSiteBody scheduleSitsInc);  
     
@@ -36,7 +38,7 @@ public interface CourseScheduleMapper {
     List<CourseSchedule> selectScheduleByTime(String courseId, Date startTime, Date endTime);
  
      // 删除指定id的排期 deleteById
-    void deleteById(@Param("id") String id);
+    //void deleteById(@Param("id") String id);
     int deleteByCourseId(@Param("courseId") String courseId);
 
     // 查询指定教师的所有活跃排期（通过JOIN course表过滤teacherId）

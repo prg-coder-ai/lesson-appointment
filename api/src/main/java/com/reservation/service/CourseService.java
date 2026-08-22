@@ -149,7 +149,7 @@ public int deleteTemplate(String Id) {
         }
         String courseId = UUID.randomUUID().toString().replace("-", "");
         course.setCourseId(courseId);
-        courseMapper.insertCourse(course);
+        courseMapper.insert(course);
         return Collections.singletonMap("courseId", courseId);
     }
  
@@ -171,7 +171,7 @@ public int deleteTemplate(String Id) {
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public Map<String, String> update (Course obj) {
 
-        courseMapper.updateCourse(obj);
+        courseMapper.updateById(obj);
         return Collections.singletonMap("courseId", obj.getCourseId());
     }
 
@@ -190,7 +190,7 @@ public int deleteTemplate(String Id) {
   public  Course getCourseById(String id) {
         // 实现逻辑：调用Mapper查询，无结果返回空集合，避免空指针
          //System.out.println("service:params: " + params);
-         Course  course = courseMapper.getCourseById(id); // 假设Mapper有该方法
+         Course  course = courseMapper.selectById(id); // 假设Mapper有该方法
         return Optional.ofNullable(course).orElse(null);
     } 
     /** manageCourse相关的函数
@@ -228,7 +228,7 @@ public int deleteTemplate(String Id) {
      * 检查课程归属权，若courseId不存在或非teacherId归属，抛出业务异常
      */
     public void checkCourseOwner(String courseId, String teacherId) {
-        Course course = courseMapper.getCourseById(courseId);
+        Course course = courseMapper.selectById(courseId);
         if (course == null) {
             throw new ResourceNotFoundException("课程不存在");
         }
