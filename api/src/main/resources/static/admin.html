@@ -152,9 +152,29 @@
   </div>
 
   <!-- JavaScript交互逻辑 --> 
-  <script>  
+  <script>
 
-  //  const API_BASE_URL = `${API_SERVER_HOST}:${API_SERVER_PORT}${API_BASE_PATH}`; 
+  //  const API_BASE_URL = `${API_SERVER_HOST}:${API_SERVER_PORT}${API_BASE_PATH}`;
+
+  /**
+   * 通用：在新标签页打开指定页面，如已打开则切换到该标签
+   * @param {string} pageUrl - 页面URL，如 'logBrowser.html'
+   * @param {string} channelName - BroadcastChannel 频道名，如 'logBrowser-channel'
+   */
+  function openPageInTab(pageUrl, channelName) {
+    var bc = new BroadcastChannel(channelName);
+    var responded = false;
+    bc.onmessage = function(ev) {
+      if (ev.data === 'pong') responded = true;
+    };
+    bc.postMessage('ping');
+    setTimeout(function() {
+      if (!responded) {
+        window.open(pageUrl, '_blank');
+      }
+      bc.close();
+    }, 300);
+  }
     // 侧边栏菜单切换逻辑
     // 管理端页面内容加载逻辑（核心修改：渲染到中央区域）
     function loadAdminPageContent(title) {
@@ -168,58 +188,14 @@
       }
       switch(title) {
         case "系统日志":
-        // window.location.href = "logBrowser.html"; 
-          // 使用 fetch 加载 logBrowser.html 的内容并注入到中央区域
-          fetch('logBrowser.html')
-            .then(response => {
-              if (!response.ok) {
-                throw new Error('加载 logBrowser.html 失败');
-              }
-              return response.text();
-            })
-            .then(html => {
-              if (dynamicContentCenter) {
-                dynamicContentCenter.innerHTML = html;
-              }
-            })
-            .catch(err => {
-              console.error('[系统日志] 页面加载异常:', err);
-              if (dynamicContentCenter) {
-                dynamicContentCenter.innerHTML = `
-                  <div class="card" style="padding: 40px; text-align: center; color: #dc2626;">
-                    <i class="fa fa-exclamation-triangle" style="font-size: 32px;"></i>
-                    <p style="margin-top: 12px;">日志页面加载失败，请稍后重试。</p>
-                  </div>
-                `;
-              }
-            });
+            //openPageInTab('logBrowser.html', 'logBrowser-channel');
+            // loadAdminPageContent('数据总览');
+             window.location.href = `./logBrowser.html`;
         break;
-        case "操作审计"://TBD
-       //  window.location.href = "logBrowser.html";
-        // 使用 fetch 加载 auditLog.html 的内容并注入到中央区域
-        fetch('auditLog.html')
-          .then(response => {
-            if (!response.ok) {
-              throw new Error('加载 auditLog.html 失败');
-            }
-            return response.text();
-          })
-          .then(html => {
-            if (dynamicContentCenter) {
-              dynamicContentCenter.innerHTML = html;
-            }
-          })
-          .catch(err => {
-            console.error('[操作审计] 页面加载异常:', err);
-            if (dynamicContentCenter) {
-              dynamicContentCenter.innerHTML = `
-                <div class="card" style="padding: 40px; text-align: center; color: #dc2626;">
-                  <i class="fa fa-exclamation-triangle" style="font-size: 32px;"></i>
-                  <p style="margin-top: 12px;">审计日志页面加载失败，请稍后重试。</p>
-                </div>
-              `;
-            }
-          });
+        case "操作审计":
+           // openPageInTab('auditLog.html', 'auditLog-channel'); 
+           //loadAdminPageContent('数据总览');
+           window.location.href = `./auditLog.html`;
         break;
         case "数据维护":
           // dynamicContentCenter.innerHTML = 
@@ -454,6 +430,8 @@
 
     <script src="js/admin-dataMaintainPage.js"></script>
     <script src="js/test/testData.js"></script>
+
+
    <script>
    console.log("end of body...")
    </script>
