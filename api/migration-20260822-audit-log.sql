@@ -1,4 +1,6 @@
 -- 审计日志表
+-- 审计日志表字段说明
+-- SOURCE H:/2026/lesson-appointment/api/migration-20260822-audit-log.sql;
 CREATE TABLE IF NOT EXISTS `audit_log` (
   `id`            BIGINT       NOT NULL AUTO_INCREMENT  COMMENT '自增主键',
   `log_id`        VARCHAR(36)  NOT NULL                 COMMENT '日志唯一标识（UUID）',
