@@ -55,7 +55,8 @@ public class SecurityConfig {
                                 "/student.html",
                                 "/teacher.html",
                                 "/teacherInfo.html",
-                                "/teacherPublishedProfile.html"
+                                "/teacherPublishedProfile.html",
+                                "/logBrowser.html"
                         ).permitAll()
 
                         // 教师发布信息公开接口（teacherPublishedProfile.html 调用，无需登录）

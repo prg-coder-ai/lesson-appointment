@@ -36,6 +36,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/", "/index", "/index.html",
             "/admin.html", "/student.html", "/teacher.html",
             "/teacherInfo.html", "/teacherPublishedProfile.html",
+            "/logBrowser.html",
             "/login", "/auth/login", "/auth/refreshToken",
             "/user/teacher/register", "/user/student/register",
             "/user/account/exist",

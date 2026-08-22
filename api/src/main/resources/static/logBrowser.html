@@ -1,0 +1,47 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>系统日志浏览</title>
+    <link rel="stylesheet" href="/css/admin.css">
+    <style>
+        .log-toolbar { display:flex; gap:12px; align-items:center; margin-bottom:12px; }
+        .log-content {
+            background:#1e1e1e; color:#d4d4d4; font-family:'Cascadia Mono','Consolas',monospace;
+            font-size:13px; padding:16px; border-radius:8px; max-height:70vh; overflow:auto;
+            white-space:pre-wrap; word-break:break-all;
+        }
+        .log-line-ERROR { color:#f48771; }
+        .log-line-WARN  { color:#d7ba7d; }
+        .log-line-INFO  { color:#d4d4d4; }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <h2>系统日志浏览</h2>
+        <div class="log-toolbar">
+            <select id="log-date">
+                <option value="">当前日志</option>
+            </select>
+            <select id="log-level">
+                <option value="">全部级别</option>
+                <option value="INFO">INFO</option>
+                <option value="WARN">WARN</option>
+                <option value="ERROR">ERROR</option>
+            </select>
+            <input type="text" id="log-keyword" placeholder="关键词搜索" style="width:200px">
+            <button class="btn" onclick="loadLogs()">查询</button>
+            <label><input type="checkbox" id="log-autorefresh"> 自动刷新(3秒)</label>
+        </div>
+        <div class="log-content" id="log-content"></div>
+    </div>
+        <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script> 
+        <script src="js/public/utility_request.js"></script> 
+        <script src="/js/public/auth.js"></script>
+
+        <script src="js/public/api.js"></script>
+        <script src="/js/logBrowser.js"></script> 
+   
+</body>
+</html>
