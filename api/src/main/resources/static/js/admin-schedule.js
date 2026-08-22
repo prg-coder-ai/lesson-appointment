@@ -157,18 +157,23 @@ async function renderScheduleCards() {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 14px 20px;
-    margin-bottom: 0px;
-    border: 0px solid #f0f0f0;
-    border-radius: 6px;
-    background: #fff;
-    font-size: 14px;
-    color: #666;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+  }
+  .sched-page .pagination-bar {
+    border-top: none !important;
+    padding: 0 !important;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   }
 </style>
 <div class="sched-page">
        <div class="card sched-card">
-        <div class="card-title sched-card-title"><i class="fa fa-filter"></i> 课程筛选</div>
+        <div class="card-title sched-card-title"><i class="fa fa-search"></i> 课程检索</div>
+            <!-- 1. 筛选条件（横向排列） -->
             <div class="sched-filter-form">
                  <div>
                     <label>课程名称：</label>
@@ -200,27 +205,32 @@ async function renderScheduleCards() {
                     <option value="pending">挂起</option>
                 </select>
                 </div>
-
                  <button class="btn btn-primary" onclick="localsearchCourse()">
                     <i class="fa fa-search"></i> 搜索
                     </button>
                 <button class="btn btn-default" onclick="resetCourseFilter()">
                 <i class="fa fa-redo"></i> 重置
                 </button>
-                </div>
-  <!-- 课程选择下拉 -->
-  <div class="card sched-card">
-    <div class="sched-form-line">
-        <label>选择课程：</label>
-        <select id="courseSelect" onchange="loadSchedule()">
-            <option value="">请先选择课程</option>
-        </select>        
-        <div><label>教师姓名：</label></div> <div id="teacherName" style="padding: 0 8px;"></div>       
-    </div>
-                `
+            </div>
+            <!-- 分隔线 -->
+            <div style="border-top:1px solid #f0f0f0;margin:0 0 16px 0;"></div>
+            <!-- 2. 课程列表（横向排列） -->
+            <div class="sched-form-line" style="margin-bottom:16px;">
+                <label>选择课程：</label>
+                <select id="courseSelect" onchange="loadSchedule()">
+                    <option value="">请先选择课程</option>
+                </select>
+                <label>教师姓名：</label>
+                <div id="teacherName" style="padding:0 8px;font-weight:500;color:#722ed1;"></div>
+            </div>
+            <!-- 分隔线 -->
+            <div style="border-top:1px solid #f0f0f0;margin:0 0 12px 0;"></div>
+            <!-- 3. 分页栏（横向排列） -->
+            `
                 html += `<div class="sched-pagination-bar">` + getPagebar() + `</div>`;
-           html += `</div>`; ;//课程筛选结束，显示边框
-            html += `  
+            html += `
+       <!-- 课程检索卡片结束 -->`;
+            html += `
     <!-- 排期选择下拉 -->
     <div class="sched-form-line">
         <label>选择排期：</label>
@@ -229,6 +239,7 @@ async function renderScheduleCards() {
         </select>
          <button class="btn btn-success" onclick="refreshData()"><i class="fa fa-sync-alt"></i> 刷新</button>
     </div>
+     </div>
     <div class="sched-section">
         <div class="sched-section-title">排期设置</div>
         <div class="sched-form-line" style="display:none;">
