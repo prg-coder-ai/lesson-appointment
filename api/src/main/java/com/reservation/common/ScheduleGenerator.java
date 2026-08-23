@@ -30,6 +30,7 @@ public class ScheduleGenerator {
         }
         String type = dto.getRepeatType();
         int interval = dto.getInterval() == null ? 1 : dto.getInterval();
+        System.out.println("interval:"+interval);
         List<Integer> repeatDays = dto.getRepeatDays() == null ? List.of() : dto.getRepeatDays();
         LocalTime time = dto.getStartTime(); 
 
@@ -45,13 +46,15 @@ public class ScheduleGenerator {
            
                 default -> false;
             };
-
+                    // System.out.println("needAdd:"+current+" "+needAdd);
             if (needAdd) { 
                  LocalDateTime ldt = LocalDateTime.of(current, time);
+                
                 userSchedule.add(ldt); 
             }
 
             current = nextDate(current, type, interval,repeatDays);
+             // System.out.println("current:"+current);
         }
             List<ScheduleVO> convertedSchedule = new ArrayList<ScheduleVO>();
         // INSERT_YOUR_CODE
@@ -92,9 +95,11 @@ public class ScheduleGenerator {
          return convertedSchedule;
     }
 
-    // 判断星期（按用户时区，绝对正确）
+    // 判断星期（按用户时区-wuguan ，绝对正确）
     private static boolean isMatchWeek(LocalDate date, List<Integer> target, ZoneId zoneId) {
-        int week = date.atStartOfDay(zoneId).getDayOfWeek().getValue();
+      //  System.out.println("date:"+date);
+        int week = date.getDayOfWeek().getValue();// date.atStartOfDay(zoneId).getDayOfWeek().getValue();
+       //   System.out.println("week:"+week+" date:"+date+" target:"+target);
         return target.contains(week);
     } 
     private static LocalDate nextDate(LocalDate current, String type, int interval,List<Integer>repeatDays) {
@@ -107,7 +112,7 @@ public class ScheduleGenerator {
                 // 找到下一个被选中的星期几
                 LocalDate tempDate = current;
                 boolean found = false;
-                for (int i = 1; i <= 7 * interval; i++) {
+                for (int i = 1; i <7  ; i++) {
                     tempDate = current.plusDays(i);
                     int dayOfWeek = tempDate.getDayOfWeek().getValue(); // 1=Monday,...7=Sunday
                     if (repeatDays.contains(dayOfWeek)) {

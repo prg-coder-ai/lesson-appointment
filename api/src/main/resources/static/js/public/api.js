@@ -386,7 +386,7 @@ const userStr = localStorage.getItem('currentUser');
       try {
         // 'weekday' 选项设置为 'long' 表示全名
         // 修正：将日期对象加1天，防止获取的星期提前一天
-        const correctedDate = new Date(dateObj.getTime() + 24 * 60 * 60 * 1000);
+        const correctedDate = new Date(dateObj.getTime() + 0 * 60 * 60 * 1000);
         const wkd = new Intl.DateTimeFormat(locale, { weekday: 'long' }).format(correctedDate);
 
       //  console.log(wkd);
