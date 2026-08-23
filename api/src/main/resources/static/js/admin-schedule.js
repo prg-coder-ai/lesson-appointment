@@ -227,9 +227,9 @@ async function renderScheduleCards() {
             <div style="border-top:1px solid #f0f0f0;margin:0 0 12px 0;"></div>
             <!-- 3. 分页栏（横向排列） -->
             `
-                html += `<div class="sched-pagination-bar">` + getPagebar() + `</div>`;
-            html += `
-       <!-- 课程检索卡片结束 -->`;
+             html += `<div class="sched-pagination-bar">` + getPagebar() + `</div>`;
+             html += `<hr> <!-- 课程检索卡片结束 -->`;
+                        
             html += `
     <!-- 排期选择下拉 -->
     <div class="sched-form-line">
@@ -239,7 +239,7 @@ async function renderScheduleCards() {
         </select>
          <button class="btn btn-success" onclick="refreshData()"><i class="fa fa-sync-alt"></i> 刷新</button>
     </div>
-     </div>
+    
     <div class="sched-section">
         <div class="sched-section-title">排期设置</div>
         <div class="sched-form-line" style="display:none;">
@@ -402,6 +402,7 @@ async function renderScheduleCards() {
     </div>
      </div> <!-- card -->
 </div><!-- sched-page -->
+ </div>
 
     <!-- 排期结果 -->
     <div class="card sched-card">
@@ -989,8 +990,9 @@ return ;
     if (typeof renderSchedule === 'function') {
         renderSchedule();
     }
-    // 判断 toggleUserTimeZone 的选中状态，如果选中则更新用户时区
+    // 判断 toggleUserTimeZone 的选中状态，如果选中则更新用户时区-----有时没有更新
     const toggleUserTimeZone = document.getElementById('toggleUserTimeZone');
+    console.log("toggleUserTimeZone",toggleUserTimeZone.checked);
     if (toggleUserTimeZone && toggleUserTimeZone.checked) {
         getTestDatetime();
         getTestEndDatetime();
@@ -1138,7 +1140,7 @@ function renderResult() {
     //TBD :判断排期是否已经存在---
    // const token = getToken();
     const formData = getFormData();
-    console.log("save form:",formData); 
+   // console.log("save form:",formData); 
 
     // 引用ScheduleCreateDTO, 把formData赋值到dto对象
     // 注意：前端js中无class，直接构造一个对象与后端ScheduleCreateDTO字段一致即可 

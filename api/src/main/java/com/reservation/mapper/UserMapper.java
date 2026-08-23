@@ -19,13 +19,14 @@ import java.util.Map;
 @Mapper
 public interface UserMapper extends BaseMapper<User> {
 
-   //  @Select("select * from user where account = #{account}")
+     @Select("select * from user where account = #{account}")
     User selectByAccount(@Param("account") String account);
     /**
      * 根据手机号查询用户（SQL 实现在 UserMapper.xml 中，避免与 XML 重复定义）
      * @param phone 手机号
      * @return 用户信息
      */
+     @Select("select * from user where phone = #{phone}")
     User selectByPhone(@Param("phone") String phone);
 
     /**
@@ -33,7 +34,7 @@ public interface UserMapper extends BaseMapper<User> {
      * @param email 邮箱
      * @return 用户信息
      */
-     // @Select("select * from user where email = #{email}")
+       @Select("select * from user where email = #{email}")
       User selectByEmail(@Param("email") String email);
 
     /**
@@ -41,13 +42,13 @@ public interface UserMapper extends BaseMapper<User> {
      * @param account 手机号或邮箱
      * @return 用户信息
      */
-     //@Select("SELECT * FROM user WHERE phone = #{account} OR email = #{account}")
+     @Select("SELECT * FROM user WHERE phone = #{account} OR email = #{account}")
     User selectByPhoneOrEmail(@Param("account") String account);
 
     /**
      * 根据用户ID查询用户
      * @param userId 用户ID
-     * @return 用户信息
+     * @return 用户信息 baseMapper已实现
      */
    /*   @Select("SELECT * FROM user WHERE user_id = #{userId}")
      User selectById(@Param("userId") String userId);
@@ -65,7 +66,14 @@ public interface UserMapper extends BaseMapper<User> {
 
    @Update("UPDATE user SET status = #{status} WHERE user_id = #{userId}")
     public int updateStatus(@Param("userId") String userId ,@Param("status") String status); 
-    
+    /**
+     * 统计截至某一天指定角色的用户数量
+     * @param role 用户角色（如 "teacher", "student"）
+     * @param until 截止时间（含，java.util.Date）
+     * @return 截止该时间点的累计指定角色用户数
+     */
+    @Select("SELECT COUNT(*) FROM user WHERE role = #{role} AND create_time <= #{until}")
+    int countByRoleAtDate(@Param("role") String role, @Param("until") java.util.Date until); 
     
         /** listByCondition暂时报错
          * 根据条件查询用户列表
@@ -87,12 +95,5 @@ public interface UserMapper extends BaseMapper<User> {
       @Select("SELECT * FROM user WHERE role = #{role}")
        List<User> listByRole(@Param("role") String role);
  
-    /**
-     * 统计截至某一天指定角色的用户数量
-     * @param role 用户角色（如 "teacher", "student"）
-     * @param until 截止时间（含，java.util.Date）
-     * @return 截止该时间点的累计指定角色用户数
-     */
-    @Select("SELECT COUNT(*) FROM user WHERE role = #{role} AND create_time <= #{until}")
-    int countByRoleAtDate(@Param("role") String role, @Param("until") java.util.Date until); 
+    
 }
