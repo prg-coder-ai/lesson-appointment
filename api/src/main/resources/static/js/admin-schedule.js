@@ -1111,6 +1111,7 @@ function refreshUserTzPreview() {
         })(),
         endDate: document.getElementById('endDate').value  
     }; 
+    
     console.log("form:",form);
     return form;
    }
@@ -1211,7 +1212,7 @@ function renderResult() {
     //TBD :判断排期是否已经存在---
    // const token = getToken();
     const formData = getFormData();
-   // console.log("save form:",formData); 
+    console.log("save form:",formData); 
 
     // 引用ScheduleCreateDTO, 把formData赋值到dto对象
     // 注意：前端js中无class，直接构造一个对象与后端ScheduleCreateDTO字段一致即可 
@@ -1227,14 +1228,19 @@ function renderResult() {
     alert("请选择课程！");
     return;
     }
-   
+    //判断结束日期不能早于开始日期
+    if (formData.endDate < formData.startDate) {
+      alert("结束日期不能早于开始日期！");
+      return;
+    }
+  
     let createdto = toScheduleCreateDto(formData);      
-   // console.log("save createdto:",createdto);
+    
     let bExists = formData.scheduleId && formData.scheduleId !== "";
-
+      console.log("save createdto:",createdto,bExists);
 // 返回当前或新增的schedule的id
     let result = await saveScheduleToServer(bExists , createdto);
-       // console.log("saveScheduleToServer return id:", result.Id); 
+    //  console.log("saveScheduleToServer return  :", result ); 
        // 4.  响应处理 响应成功/失败 result.data.id = new id 
          
         if ((typeof result === "undefined") || result == null) { 

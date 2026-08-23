@@ -1,22 +1,21 @@
 // 课程模板实体（对应设计2.2.2 课程模板相关接口）
 package com.reservation.entity;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.Serializable;
-/*
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.Date;
-
-import java.util.List;*/
 
 // 课程排期实体（对应设计2.2.2 排期相关接口）
 @Data
+@TableName("course_schedule")
 public class CourseSchedule implements Serializable {
     private static final long serialVersionUID = 1L;
 
+    @TableId(type = IdType.ASSIGN_ID)
     private String scheduleId;
     @NotBlank(message = "课程ID不能为空")
     private String courseId; 
