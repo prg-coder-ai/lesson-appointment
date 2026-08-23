@@ -246,7 +246,7 @@ async function renderStudentBookingCards() {
     `;
     
     dynamicContentCenter.innerHTML = html;
-
+        
        // 动态生成每月1-31号复选框，每10个换一行 
         let monthDaysHtml = '';
         for (let i = 1; i <= 31; i++) {

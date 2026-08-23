@@ -83,7 +83,9 @@ let appointmentList=[];// ID,ciurseName,studentName,teacherName,dateTime(创建�
          html += getPagebar();
          const dynamicContentCenter = document.getElementById('dynamic-content-center');
          if(dynamicContentCenter) {
-            dynamicContentCenter.innerHTML =  html;           
+            dynamicContentCenter.innerHTML =  html;  
+            applyTerms(dynamicContentCenter);
+         
          loadAndShowAppointmentPage();
          }
   }   

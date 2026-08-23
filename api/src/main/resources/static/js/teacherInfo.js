@@ -1164,6 +1164,7 @@ function renderPublishPreview(mode) {
   if (!preview) return;
   try {
     preview.innerHTML = generatePublishHtml('inline');
+    applyTerms(preview);
   } catch (e) {
     preview.innerHTML = '<div style="color:#f5222d;">预览渲染失败：' + escapeHtml(e.message) + '</div>';
   }

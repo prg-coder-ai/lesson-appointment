@@ -139,6 +139,7 @@ function renderMaintainTable(type) {
   html += getPagebar();
 
   maintainContent.innerHTML = html;
+  applyTerms(maintainContent);
   loadMaintainTableData(type);
 }
 
