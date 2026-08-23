@@ -156,7 +156,7 @@ async function renderScheduleCards() {
     padding: 0 2px;
   }
   /* 重复日期（每月1-31）：紧凑显示，靠 flex-wrap 自然排列 */
-  .sched-page .sched-monthdays { display: flex; flex-wrap: wrap; gap: 4px 10px; max-width: 560px; }
+  .sched-page .sched-monthdays { display: flex; flex-wrap: wrap; gap: 4px 10px; max-width: 1260px; }
   .sched-page .sched-monthdays label {
     width: auto;
     text-align: left;
@@ -288,6 +288,11 @@ async function renderScheduleCards() {
         <button class="btn btn-default" onclick="checkSchedule()"><i class="fa fa-exclamation-triangle"></i> 检查冲突</button>
         <button class="btn btn-danger" onclick="deleteScheduleByFrozen()"><i class="fa fa-trash"></i> 删除</button>
         <button class="btn btn-success" onclick="refreshData()"><i class="fa fa-sync-alt"></i> 刷新</button>
+        <!-- 用户时间预览开关：置于"刷新"右侧，右对齐 -->
+        <label for="toggleUserTimeZone" style="margin-left:auto;width:auto;text-align:left;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;cursor:pointer;font-weight:500;">
+            <input type="checkbox" id="toggleUserTimeZone" style="width:auto;min-width:0;height:auto;padding:0;margin:0;cursor:pointer;" onchange="document.getElementById('userTimeZoneRow').style.display=this.checked?'':'none';document.getElementById('testTimeZoneForm').style.display=this.checked?'':'none';getTestDatetime();getTestEndDatetime();">
+            用户时间预览
+        </label>
     </div>
     
     <div class="sched-section">
@@ -336,48 +341,44 @@ async function renderScheduleCards() {
                 <input type="text" id="endDate_weekday" readonly style="width:52px;min-width:52px;text-align:center;padding:8px 2px;">
             </div>
            </div>
-           <!-- 右侧：并排显示新一列 -->
+           <!-- 右侧：用户时间预览列，与左列逐行对齐 -->
            <div style="flex: 1; min-width: 400px;">
-                <div class="sched-form-line">
-                    <label>
-                    <input type="checkbox" id="toggleUserTimeZone" onchange="document.getElementById('testTimeZoneForm').style.display=this.checked?'':'none';getTestDatetime();getTestEndDatetime();">
-                    用户时间预览
-                    </label>
+                <!-- 第1行：用户时区（与左侧"排期时区"行对齐，开关在上方"刷新"右侧） -->
+                <div class="sched-form-line" id="userTimeZoneRow" style="display:none;">
+                    <label>用户时区</label>
+                    <select id="testTimeZone">
+                        <option value="Europe/London">伦敦 (Europe/London)</option>
+                        <option value="Europe/Paris">巴黎 (Europe/Paris)</option>
+                        <option value="Europe/Berlin">柏林 (Europe/Berlin)</option>
+                        <option value="Europe/Moscow">莫斯科 (Europe/Moscow)</option>
+                        <option value="Asia/Shanghai">上海 (Asia/Shanghai)</option>
+                        <option value="Asia/Tokyo">东京 (Asia/Tokyo)</option>
+                        <option value="Asia/Singapore">新加坡 (Asia/Singapore)</option>
+                        <option value="Asia/Hong_Kong">香港 (Asia/Hong_Kong)</option>
+                        <option value="America/New_York">纽约 (America/New_York)</option>
+                        <option value="America/Chicago">芝加哥 (America/Chicago)</option>
+                        <option value="America/Los_Angeles">洛杉矶 (America/Los_Angeles)</option>
+                        <option value="America/Vancouver">温哥华 (America/Vancouver)</option>
+                        <option value="America/Edmonton">卡尔加里 (America/Edmonton)</option>
+                    </select>
                 </div>
-            <div id="testTimeZoneForm" style="display:none; padding-left: 124px;">
-             <div class="sched-form-line">
-                <label style="width:90px;">用户时区</label>
-                <select id="testTimeZone">
-                    <option value="Europe/London">伦敦 (Europe/London)</option>
-                    <option value="Europe/Paris">巴黎 (Europe/Paris)</option>
-                    <option value="Europe/Berlin">柏林 (Europe/Berlin)</option>
-                    <option value="Europe/Moscow">莫斯科 (Europe/Moscow)</option>
-                    <option value="Asia/Shanghai">上海 (Asia/Shanghai)</option>
-                    <option value="Asia/Tokyo">东京 (Asia/Tokyo)</option>
-                    <option value="Asia/Singapore">新加坡 (Asia/Singapore)</option>
-                    <option value="Asia/Hong_Kong">香港 (Asia/Hong_Kong)</option>
-                    <option value="America/New_York">纽约 (America/New_York)</option>
-                    <option value="America/Chicago">芝加哥 (America/Chicago)</option>
-                    <option value="America/Los_Angeles">洛杉矶 (America/Los_Angeles)</option>
-                    <option value="America/Vancouver">温哥华 (America/Vancouver)</option>
-                    <option value="America/Edmonton">卡尔加里 (America/Edmonton)</option>
-                </select>
-             </div>
-             <div class="sched-form-line">
-                <label style="width:90px;">日期：</label>
-                <input type="date" id="displayStartDate" readonly>
-                <input type="text" id="displayStartDate_weekday" readonly style="width:52px;min-width:52px;text-align:center;padding:8px 2px;">
-             </div>
-             <div class="sched-form-line">
-                <label style="width:90px;">时间：</label>
-                <input type="time" id="displayStartTime" readonly>
-             </div>
-              <div class="sched-form-line">
-                <label style="width:90px;">结束日期：</label>
-                <input type="date" id="displayEndDate" readonly>
-                <input type="text" id="displayEndDate_weekday" readonly style="width:52px;min-width:52px;text-align:center;padding:8px 2px;">
-            </div>
-           </div>
+                <!-- 第2~4行：日期/时间/结束日期（与左侧"开始日期/上课时间/结束日期"逐行对齐） -->
+                <div id="testTimeZoneForm" style="display:none;">
+                    <div class="sched-form-line">
+                        <label>日期：</label>
+                        <input type="date" id="displayStartDate" readonly>
+                        <input type="text" id="displayStartDate_weekday" readonly style="width:52px;min-width:52px;text-align:center;padding:8px 2px;">
+                    </div>
+                    <div class="sched-form-line">
+                        <label>时间：</label>
+                        <input type="time" id="displayStartTime" readonly>
+                    </div>
+                    <div class="sched-form-line">
+                        <label>结束日期：</label>
+                        <input type="date" id="displayEndDate" readonly>
+                        <input type="text" id="displayEndDate_weekday" readonly style="width:52px;min-width:52px;text-align:center;padding:8px 2px;">
+                    </div>
+                </div>
            </div>
          </div>
 
