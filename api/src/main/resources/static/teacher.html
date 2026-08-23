@@ -149,6 +149,9 @@
 
     // 教师端页面内容加载逻辑（核心修复：指向正确的动态容器）
     function loadAdminPageContent(menuName) {
+      // 菜单文字可能已被行业术语替换（如"今日课程"→"今日咨询话题"），
+      // 归一化回锚点词后再匹配 switch，保证任何行业下导航都命中
+      menuName = normalizeTermText(menuName);
       // 清空原有内容
       dynamicContent.innerHTML = '';
       if(menuName=="") {
