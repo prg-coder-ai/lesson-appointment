@@ -151,21 +151,37 @@ async function renderScheduleCards() {
     font-weight: normal;
     display: inline-flex;
     align-items: center;
-    gap: 3px;
+    gap: 2px;
     font-size: 13px;
     padding: 0 2px;
   }
+  .sched-page .sched-weekdays input[type="checkbox"] {
+    width: 13px;
+    height: 13px;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    cursor: pointer;
+  }
   /* 重复日期（每月1-31）：紧凑显示，靠 flex-wrap 自然排列 */
-  .sched-page .sched-monthdays { display: flex; flex-wrap: wrap; gap: 4px 10px; max-width: 1260px; }
+  .sched-page .sched-monthdays { display: flex; flex-wrap: wrap; gap: 4px 10px; max-width: 860px; }
   .sched-page .sched-monthdays label {
     width: auto;
     text-align: left;
     font-weight: normal;
     display: inline-flex;
     align-items: center;
-    gap: 3px;
+    gap: 2px;
     font-size: 13px;
     padding: 0 2px;
+  }
+  .sched-page .sched-monthdays input[type="checkbox"] {
+    width: 13px;
+    height: 13px;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    cursor: pointer;
   }
   /* 选择排期行内的操作按钮（新建/预览/检查冲突/删除/刷新）：紧凑尺寸 */
   .sched-page .sched-form-line .btn {
@@ -284,7 +300,7 @@ async function renderScheduleCards() {
             <option value="">请选择排期</option>
         </select>
         <button class="btn btn-default" onclick="resetSchedule()"><i class="fa fa-plus"></i> 新建</button>
-        <button class="btn btn-default" onclick="previewSchedule()"><i class="fa fa-eye"></i> 预览排期</button>
+       
         <button class="btn btn-default" onclick="checkSchedule()"><i class="fa fa-exclamation-triangle"></i> 检查冲突</button>
         <button class="btn btn-danger" onclick="deleteScheduleByFrozen()"><i class="fa fa-trash"></i> 删除</button>
         <button class="btn btn-success" onclick="refreshData()"><i class="fa fa-sync-alt"></i> 刷新</button>
@@ -323,7 +339,7 @@ async function renderScheduleCards() {
            <!-- 左侧：当前逻辑 -->
            <div style="flex: 1; min-width: 400px;">
              <div class="sched-form-line">
-                <label>排期时区</label>
+                <label>排期时区：</label>
                 <input type="text" id="timeZone" value="${userTimeZone}" readonly>
              </div>
              <div class="sched-form-line">
@@ -345,7 +361,7 @@ async function renderScheduleCards() {
            <div style="flex: 1; min-width: 400px;">
                 <!-- 第1行：用户时区（与左侧"排期时区"行对齐，开关在上方"刷新"右侧） -->
                 <div class="sched-form-line" id="userTimeZoneRow" style="display:none;">
-                    <label>用户时区</label>
+                    <label>用户时区：</label>
                     <select id="testTimeZone">
                         <option value="Europe/London">伦敦 (Europe/London)</option>
                         <option value="Europe/Paris">巴黎 (Europe/Paris)</option>
@@ -365,12 +381,12 @@ async function renderScheduleCards() {
                 <!-- 第2~4行：日期/时间/结束日期（与左侧"开始日期/上课时间/结束日期"逐行对齐） -->
                 <div id="testTimeZoneForm" style="display:none;">
                     <div class="sched-form-line">
-                        <label>日期：</label>
+                        <label>开始日期：</label>
                         <input type="date" id="displayStartDate" readonly>
                         <input type="text" id="displayStartDate_weekday" readonly style="width:52px;min-width:52px;text-align:center;padding:8px 2px;">
                     </div>
                     <div class="sched-form-line">
-                        <label>时间：</label>
+                        <label>上课时间：</label>
                         <input type="time" id="displayStartTime" readonly>
                     </div>
                     <div class="sched-form-line">
@@ -432,6 +448,7 @@ async function renderScheduleCards() {
 
     <!-- 操作按钮 -->
     <div class="sched-btn-row">
+      <button class="btn btn-default" onclick="previewSchedule()"><i class="fa fa-eye"></i> 预览排期</button>
        <button class="btn btn-primary" onclick="saveScheduleToDB()"><i class="fa fa-save"></i> 保存</button>
        <button class="btn btn-primary" onclick="assignStudentToSchedule()"><i class="fa fa-user-plus"></i> 指定学生</button>
        <select id="assignStudentSelect">
@@ -472,6 +489,7 @@ async function renderScheduleCards() {
         let monthDaysHtml = '';
         for (let i = 1; i <= 31; i++) {
             monthDaysHtml += `<label><input type="checkbox" value="${i}">${i}</label>`;
+              if (i % 10 === 0 && i !== 31) monthDaysHtml += '<br>';
         }
         document.getElementById('monthDays').innerHTML = monthDaysHtml;
 
@@ -1146,7 +1164,7 @@ function refreshUserTzPreview() {
      if(! checkCourseAndSchedule(false,true))
        return ; //对于新建排期，不需要检查scheduleID
      const form = getFormData();
-    // console.log("form:",form) ;
+      console.log("form:",form) ;
     // 生成排期列表 localDateTime List<Date,TIME>
      scheduleResult = await generateScheduleListFromServer(form);
     // console.log("result:",scheduleResult) ;
