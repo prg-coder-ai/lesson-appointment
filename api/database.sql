@@ -3,6 +3,7 @@ CREATE DATABASE IF NOT EXISTS lesson_appointment
 DEFAULT CHARACTER SET utf8mb4   COLLATE utf8mb4_unicode_ci;
 USE lesson_appointment;
 -- 用户表：存储学生、教师、管理员信息，对应User实体
+--source H:\\2026\\lesson-appointment\\api\\database.sql 
 
 CREATE TABLE IF NOT EXISTS `user` (
   `user_id` varchar(36) NOT NULL COMMENT '用户唯一标识（UUID）',
@@ -43,7 +44,7 @@ CREATE TABLE IF NOT EXISTS `course_template` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='课程模板表';
 
 
-
+DROP TABLE IF EXISTS `course`; 
 -- 教师课程表：存储教师基于模板创建的具体课程，对应Course实体
 CREATE TABLE IF NOT EXISTS `course` (
   `course_id` varchar(36) NOT NULL COMMENT '课程唯一标识（UUID）',
@@ -58,10 +59,11 @@ CREATE TABLE IF NOT EXISTS `course` (
   PRIMARY KEY (`course_id`),
   KEY `fk_template_id` (`template_id`) COMMENT '关联课程模板索引',
   KEY `fk_teacher_id` (`teacher_id`) COMMENT '关联教师索引',
-  CONSTRAINT `fk_course_template` FOREIGN KEY (`template_id`) REFERENCES `course_template` (`template_id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `fk_course_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `user` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT `fk_course_template` FOREIGN KEY (`template_id`) REFERENCES `course_template` (`template_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_course_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `user` (`user_id`) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='教师课程表';
 
+DROP TABLE IF EXISTS `course_schedule`; 
 -- 课程排期表：存储教师课程的具体排期信息，对应Schedule实体
 CREATE TABLE IF NOT EXISTS `course_schedule` ( 
   `schedule_id` varchar(36) NOT NULL COMMENT '排期唯一标识（UUID）',
@@ -86,14 +88,14 @@ CREATE TABLE IF NOT EXISTS `course_schedule` (
   KEY `fk_course_id` (`course_id`) COMMENT '关联课程索引',
   KEY `idx_start_end_time` (`start_time`,`end_time`) COMMENT '时间索引，用于排期冲突校验',
   KEY `idx_status` (`status`) COMMENT '状态索引，用于可预约排期查询',
-  CONSTRAINT `fk_schedule_course` FOREIGN KEY (`course_id`) REFERENCES `course` (`course_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_schedule_course` FOREIGN KEY (`course_id`) REFERENCES `course` (`course_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   -- 校验结束时间大于开始时间
   CHECK (`end_time` >= `start_time`)
   -- 校验重复排期时repeat_week必填且在1-7之间
   -- CHECK ((`repeat_type` = 2 AND `repeat_week` IS NULL) OR (`is_repeat` = 1 AND `repeat_week` BETWEEN 1 AND 7))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='课程排期表';
  
-
+DROP TABLE IF EXISTS `booking`; 
 -- 预约表：存储学生预约课程的信息，对应Booking实体
 CREATE TABLE IF NOT EXISTS `booking` (  
   `booking_id` varchar(36) NOT NULL COMMENT '预约唯一标识（UUID）',
@@ -107,8 +109,8 @@ CREATE TABLE IF NOT EXISTS `booking` (
   KEY `fk_schedule_id` (`schedule_id`) COMMENT '关联排期索引',
   KEY `fk_student_id` (`student_id`) COMMENT '关联学生索引',
   KEY `idx_status` (`status`) COMMENT '状态索引，用于预约状态查询',
-  CONSTRAINT `fk_booking_schedule` FOREIGN KEY (`schedule_id`) REFERENCES `course_schedule` (`schedule_id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `fk_booking_student` FOREIGN KEY (`student_id`) REFERENCES `user` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT `fk_booking_schedule` FOREIGN KEY (`schedule_id`) REFERENCES `course_schedule` (`schedule_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_booking_student` FOREIGN KEY (`student_id`) REFERENCES `user` (`user_id`) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='预约表';
 
 DROP TABLE IF EXISTS `appointment`; 
@@ -147,8 +149,8 @@ CREATE TABLE IF NOT EXISTS `course_evaluation` (
   PRIMARY KEY (`evaluation_id`),
   KEY `fk_course_id` (`course_id`) COMMENT '关联课程索引',
   KEY `fk_student_id` (`student_id`) COMMENT '关联学生索引',
-  CONSTRAINT `fk_evaluation_course` FOREIGN KEY (`course_id`) REFERENCES `course` (`course_id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `fk_evaluation_student` FOREIGN KEY (`student_id`) REFERENCES `user` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_evaluation_course` FOREIGN KEY (`course_id`) REFERENCES `course` (`course_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_evaluation_student` FOREIGN KEY (`student_id`) REFERENCES `user` (`user_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CHECK (`rating` BETWEEN 1 AND 5)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='课程评价表'; 
 
@@ -167,8 +169,8 @@ CREATE TABLE IF NOT EXISTS `course_feedback` (
   PRIMARY KEY (`feedback_id`),
   KEY `fk_course_id` (`course_id`) COMMENT '关联课程索引',
   KEY `fk_user_id` (`user_id`) COMMENT '关联用户索引',
-  CONSTRAINT `fk_feedback_course` FOREIGN KEY (`course_id`) REFERENCES `course` (`course_id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `fk_feedback_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT `fk_feedback_course` FOREIGN KEY (`course_id`) REFERENCES `course` (`course_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_feedback_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='课程反馈表';
 
 -- CourseCheckIn表：存储学生的课程签到信息，对应CourseCheckIn实体，用于确认课程是否按时参加，后续可用于统计学生出勤率等功能
@@ -178,7 +180,7 @@ CREATE TABLE IF NOT EXISTS `course_check_in` (
   `check_in_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '签到时间',
   PRIMARY KEY (`check_in_id`),
   KEY `fk_booking_id` (`booking_id`) COMMENT '关联预约索引',
-  CONSTRAINT `fk_check_in_booking` FOREIGN KEY (`booking_id`) REFERENCES `booking` (`booking_id`) ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT `fk_check_in_booking` FOREIGN KEY (`booking_id`) REFERENCES `booking` (`booking_id`) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='课程签到表';
 -- 数据库设计说明： 
 -- 1. 用户表（user）：存储学生、教师、管理员的基本信息，包括手机号、邮箱、密码（加密存储）、角色、学生的学习目标和语言水平、教师的姓名、资质图片和教授语言类型，以及账号状态等。通过角色字段区分不同类型用户，满足权限控制需求。
