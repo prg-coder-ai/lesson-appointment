@@ -3,33 +3,23 @@ package com.reservation.mapper;
 import com.reservation.entity.*;
 import com.reservation.dto.*;
 import com.reservation.query.*;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
 
- import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import org.apache.ibatis.annotations.Mapper;
-
 @Mapper
 public interface CourseScheduleMapper extends BaseMapper<CourseSchedule> {
-    // 插入排期
-   // String insert(CourseSchedule schedule);
-    
-    // 根据ID查询
-   // CourseSchedule selectById(String id); 
-
-    List<CourseSchedule> selectList(ScheduleCreateDTO  filterJson);
+    // 同课程下按 ScheduleCreateDTO 条件查询排期（避免与 BaseMapper.selectList(Wrapper) 同名冲突）
+    List<CourseSchedule> selectByCreateDto(ScheduleCreateDTO filterJson);
     List<CourseSchedule> selectListByPage(ScheduleQueryPage query);
 
     Integer selectCountByCondition(@Param("query") ScheduleQueryPage query);
     
-    String updateScheduleSites(IncSiteBody opPara);
-    //根据输入的非空参数更新
-   // void updateById(CourseSchedule newData);
-    void updateStatus(StatusBody scheduleStatus);
-    void updateSites(IncSiteBody scheduleSitsInc);  
+    int updateStatus(StatusBody scheduleStatus);
+    int updateSites(IncSiteBody scheduleSitsInc);
     
     // 查询某排期的所有例外日期
     List<ScheduleException> selectExceptionsByScheduleId(Long scheduleId);
@@ -37,8 +27,6 @@ public interface CourseScheduleMapper extends BaseMapper<CourseSchedule> {
     void insertSchedule(CourseSchedule schedule);
     List<CourseSchedule> selectScheduleByTime(String courseId, Date startTime, Date endTime);
  
-     // 删除指定id的排期 deleteById
-    //void deleteById(@Param("id") String id);
     int deleteByCourseId(@Param("courseId") String courseId);
 
     // 查询指定教师的所有活跃排期（通过JOIN course表过滤teacherId）

@@ -67,7 +67,7 @@ public class CourseScheduleService {
     
        
          // 获取courseID= dto.getCourseId()的所有排期，以List方式输出
-         List<CourseSchedule> scheduleList = scheduleMapper.selectList(
+         List<CourseSchedule> scheduleList = scheduleMapper.selectByCreateDto(
              new ScheduleCreateDTO() {{
                  setCourseId(dto.getCourseId());
              }}
@@ -233,7 +233,7 @@ public class CourseScheduleService {
 @Transactional(propagation = Propagation.REQUIRED)
     public List<ScheduleCreateDTO> selectList(ScheduleCreateDTO obj) {
          
-          List<CourseSchedule> s = scheduleMapper.selectList(obj);//获取原始排期
+          List<CourseSchedule> s = scheduleMapper.selectByCreateDto(obj);//获取原始排期
             //System.out .println("selectList : " +s); 
           return ListObjectToCreateDto(s);
     }

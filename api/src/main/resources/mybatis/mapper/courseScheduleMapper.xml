@@ -8,11 +8,11 @@
         VALUES
         (#{scheduleId}, #{name}, #{courseId} ,  #{timeZone}, #{startTime}, #{endTime}, #{repeatType}, #{repeatInterval}, #{repeatDays}, #{status}, #{availableSites})
     </insert>
-
+  <!--
     <select id="selectById" resultType="com.reservation.entity.CourseSchedule">
         SELECT * FROM course_schedule WHERE schedule_id = #{id}
     </select>
- 
+ -->
  
     <!--
         <select> 元素定义了一个SQL查询语句，可被MyBatis映射为接口方法。
@@ -49,7 +49,7 @@
         - 大于/小于用 &gt;= 和 &lt; 转义。
         - MyBatis会根据参数动态生成实际SQL，避免无谓的AND叠加。
     -->
-    <select id="selectList" parameterType="com.reservation.dto.ScheduleCreateDTO" resultType="com.reservation.entity.CourseSchedule">
+    <select id="selectByCreateDto" parameterType="com.reservation.dto.ScheduleCreateDTO" resultType="com.reservation.entity.CourseSchedule">
         SELECT *     FROM course_schedule         
         <where>
             <if test="scheduleId != null and scheduleId != ''">
@@ -153,10 +153,6 @@
     </select> 
 
 <!-- INSERT_YOUR_CODE -->
-<delete id="deleteById" parameterType="string">
-    DELETE FROM course_schedule WHERE schedule_id = #{id}
-</delete>
-
 <delete id="deleteByCourseId" parameterType="string">
     DELETE FROM course_schedule WHERE course_id = #{courseId}
 </delete>
