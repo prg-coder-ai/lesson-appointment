@@ -144,23 +144,34 @@ async function renderScheduleCards() {
     border-radius: 4px;
     font-size: 14px;
   }
-  .sched-page .sched-weekdays { display: flex; flex-wrap: wrap; gap: 14px; }
+  .sched-page .sched-weekdays { display: flex; flex-wrap: wrap; gap: 10px; }
   .sched-page .sched-weekdays label {
     width: auto;
     text-align: left;
     font-weight: normal;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
+    font-size: 13px;
+    padding: 0 2px;
   }
-  .sched-page .sched-monthdays { display: flex; flex-wrap: wrap; gap: 10px; max-width: 640px; }
+  /* 重复日期（每月1-31）：紧凑显示，靠 flex-wrap 自然排列 */
+  .sched-page .sched-monthdays { display: flex; flex-wrap: wrap; gap: 4px 10px; max-width: 560px; }
   .sched-page .sched-monthdays label {
     width: auto;
     text-align: left;
     font-weight: normal;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
+    font-size: 13px;
+    padding: 0 2px;
+  }
+  /* 选择排期行内的操作按钮（新建/预览/检查冲突/删除/刷新）：紧凑尺寸 */
+  .sched-page .sched-form-line .btn {
+    height: 34px;
+    padding: 5px 12px;
+    font-size: 13px;
   }
   /* 排期结果/日历视图：强制 card-body 不做额外左右 padding 缩进（避免比课程检索更窄） */
   .sched-card .card-body {
@@ -250,6 +261,13 @@ async function renderScheduleCards() {
                 </select>
                 <label>教师姓名：</label>
                 <div id="teacherName" style="padding:0 8px;font-weight:500;color:#722ed1;"></div>
+                <label>班级形式：</label>
+                <select id="classForm" readonly>
+                    <option value="">请选择</option>
+                    <option value="1p1">一对一</option>
+                    <option value="1pN">小班课</option>
+                    <option value="1p2N">大班课</option>
+                </select>
             </div>
             <!-- 分隔线 -->
             <div style="border-top:1px solid #f0f0f0;margin:0 0 12px 0;"></div>
@@ -265,7 +283,11 @@ async function renderScheduleCards() {
         <select id="scheduleSelect" onchange="displySchedule()">
             <option value="">请选择排期</option>
         </select>
-         <button class="btn btn-success" onclick="refreshData()"><i class="fa fa-sync-alt"></i> 刷新</button>
+        <button class="btn btn-default" onclick="resetSchedule()"><i class="fa fa-plus"></i> 新建</button>
+        <button class="btn btn-default" onclick="previewSchedule()"><i class="fa fa-eye"></i> 预览排期</button>
+        <button class="btn btn-default" onclick="checkSchedule()"><i class="fa fa-exclamation-triangle"></i> 检查冲突</button>
+        <button class="btn btn-danger" onclick="deleteScheduleByFrozen()"><i class="fa fa-trash"></i> 删除</button>
+        <button class="btn btn-success" onclick="refreshData()"><i class="fa fa-sync-alt"></i> 刷新</button>
     </div>
     
     <div class="sched-section">
@@ -280,13 +302,8 @@ async function renderScheduleCards() {
         </div>
         <div style="display: flex; flex-wrap: wrap; gap: 24px;">
             <div class="sched-form-line">
-                <label>班级形式：</label>
-                <select id="classForm" readonly>
-                    <option value="">请选择</option>
-                    <option value="1p1">一对一</option>
-                    <option value="1pN">小班课</option>
-                    <option value="1p2N">大班课</option>
-                </select>
+                <label>排期名称：</label>
+                <input type="text" id="scheduleName">
             </div>
             <div class="sched-form-line">
                 <label>总席位数：</label>
@@ -301,17 +318,13 @@ async function renderScheduleCards() {
            <!-- 左侧：当前逻辑 -->
            <div style="flex: 1; min-width: 400px;">
              <div class="sched-form-line">
-                <label>排期名称</label>
-                <input type="text" id="scheduleName">
-             </div>
-             <div class="sched-form-line">
                 <label>排期时区</label>
                 <input type="text" id="timeZone" value="${userTimeZone}" readonly>
              </div>
              <div class="sched-form-line">
                   <label>开始日期：</label>
                   <input type="date" id="startDate" value="${(new Date()).toISOString().split('T')[0]}">
-                  <input type="text" id="startDate_weekday" readonly style="min-width:80px">
+                  <input type="text" id="startDate_weekday" readonly style="width:52px;min-width:52px;text-align:center;padding:8px 2px;">
              </div>
               <div class="sched-form-line">
                   <label>上课时间：</label>
@@ -320,7 +333,7 @@ async function renderScheduleCards() {
                <div class="sched-form-line">
                 <label>结束日期：</label>
                 <input type="date" id="endDate" value="">
-                <input type="text" id="endDate_weekday" readonly style="min-width:80px">
+                <input type="text" id="endDate_weekday" readonly style="width:52px;min-width:52px;text-align:center;padding:8px 2px;">
             </div>
            </div>
            <!-- 右侧：并排显示新一列 -->
@@ -353,7 +366,7 @@ async function renderScheduleCards() {
              <div class="sched-form-line">
                 <label style="width:90px;">日期：</label>
                 <input type="date" id="displayStartDate" readonly>
-                <input type="text" id="displayStartDate_weekday" readonly style="min-width:80px">
+                <input type="text" id="displayStartDate_weekday" readonly style="width:52px;min-width:52px;text-align:center;padding:8px 2px;">
              </div>
              <div class="sched-form-line">
                 <label style="width:90px;">时间：</label>
@@ -362,7 +375,7 @@ async function renderScheduleCards() {
               <div class="sched-form-line">
                 <label style="width:90px;">结束日期：</label>
                 <input type="date" id="displayEndDate" readonly>
-                <input type="text" id="displayEndDate_weekday" readonly style="min-width:80px">
+                <input type="text" id="displayEndDate_weekday" readonly style="width:52px;min-width:52px;text-align:center;padding:8px 2px;">
             </div>
            </div>
            </div>
@@ -378,7 +391,7 @@ async function renderScheduleCards() {
             </select>
         </div>
 
-        <div class="sched-form-line">
+        <div class="sched-form-line" id="intervalBox">
             <label>重复周期：</label>
             <input type="number" id="interval" value="1" min="1">
             <span id="repeatUnit" style="color:#555;">天</span>
@@ -418,11 +431,7 @@ async function renderScheduleCards() {
 
     <!-- 操作按钮 -->
     <div class="sched-btn-row">
-       <button class="btn btn-success" onclick="resetSchedule()"><i class="fa fa-plus"></i> 新建</button>
-       <button class="btn btn-primary" onclick="previewSchedule()"><i class="fa fa-eye"></i> 预览排期</button>
-       <button class="btn btn-warning" onclick="checkSchedule()"><i class="fa fa-exclamation-triangle"></i> 检查冲突</button>
        <button class="btn btn-primary" onclick="saveScheduleToDB()"><i class="fa fa-save"></i> 保存</button>
-       <button class="btn btn-danger" onclick="deleteScheduleByFrozen()"><i class="fa fa-trash"></i> 删除</button>
        <button class="btn btn-primary" onclick="assignStudentToSchedule()"><i class="fa fa-user-plus"></i> 指定学生</button>
        <select id="assignStudentSelect">
            <option value="">请选择学生</option>
@@ -458,13 +467,15 @@ async function renderScheduleCards() {
         
     dynamicContentCenter.innerHTML = html;
 
-       // 动态生成每月1-31号复选框，每10个换一行 
+        // 动态生成每月1-31号复选框，紧凑排列（flex-wrap 自然换行，不再强制每10个换行）
         let monthDaysHtml = '';
         for (let i = 1; i <= 31; i++) {
             monthDaysHtml += `<label><input type="checkbox" value="${i}">${i}</label>`;
-            if (i % 10 === 0 && i !== 31) monthDaysHtml += '<br>';
-        } 
-        document.getElementById('monthDays').innerHTML = monthDaysHtml; 
+        }
+        document.getElementById('monthDays').innerHTML = monthDaysHtml;
+
+        // 初始同步重复区域显示状态（默认"不重复"时隐藏重复周期）
+        onRepeatTypeChange();
          
         // 设置默认结束日期为今天+30天       
           const endDateInput = document.getElementById("endDate");
@@ -943,13 +954,26 @@ const totalBooked = await getBookingCountByScheduleId(scheduleObject.scheduleId)
       document.getElementById('repeatUnit').innerText = unit[type];
       document.getElementById('weekDaysBox').style.display = ( type === 'week') ? 'flex' : 'none';
       document.getElementById('monthDaysBox').style.display = ( type === 'month') ? 'flex' : 'none';
+      // 重复类型为"不重复"时，隐藏"重复周期"行
+      const intervalBox = document.getElementById('intervalBox');
+      if (intervalBox) intervalBox.style.display = ( type === 'none') ? 'none' : 'flex';
   }
      // INSERT_YOUR_CODE
    
    //将当前排期数值为初始值，方便修改
    function resetSchedule(){
     resetScheduleObject();
-    renderSchedule(); 
+    renderSchedule();
+    // 新建时：结束日期默认设置为当前日期 + 30 天
+    const endDateInput = document.getElementById("endDate");
+    if (endDateInput) {
+        const d = new Date();
+        d.setDate(d.getDate() + 30);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        endDateInput.value = `${y}-${m}-${dd}`;
+    }
    }
    
    function resetScheduleObject(){
