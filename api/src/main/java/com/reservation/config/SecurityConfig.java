@@ -63,7 +63,8 @@ public class SecurityConfig {
                         // 教师发布信息公开接口（teacherPublishedProfile.html 调用，无需登录）
                         .requestMatchers(
                                 "/teacher/published/latest-public",
-                                "/teacher/published/public-get"
+                                "/teacher/published/public-get",
+                                "/schedule/getAvailableSchedule"
                         ).permitAll()
 
                         // 登录/鉴权相关

@@ -19,24 +19,21 @@ import java.util.Map;
 @Mapper
 public interface UserMapper extends BaseMapper<User> {
 
-     @Select("select * from user where account = #{account}")
+   //  @Select("select * from user where account = #{account}")
     User selectByAccount(@Param("account") String account);
     /**
-     * 根据手机号查询用户
+     * 根据手机号查询用户（SQL 实现在 UserMapper.xml 中，避免与 XML 重复定义）
      * @param phone 手机号
      * @return 用户信息
      */
-    // 注解版正确写法（无XML时）
-       @Select("select * from user where phone = #{phone}")
-     User selectByPhone(@Param("phone") String phone);
-    //public User selectByPhone(@Param("phone") String phone);
+    User selectByPhone(@Param("phone") String phone);
 
     /**
      * 根据邮箱查询用户
      * @param email 邮箱
      * @return 用户信息
      */
-      @Select("select * from user where email = #{email}")
+     // @Select("select * from user where email = #{email}")
       User selectByEmail(@Param("email") String email);
 
     /**
@@ -44,7 +41,7 @@ public interface UserMapper extends BaseMapper<User> {
      * @param account 手机号或邮箱
      * @return 用户信息
      */
-     @Select("SELECT * FROM user WHERE phone = #{account} OR email = #{account}")
+     //@Select("SELECT * FROM user WHERE phone = #{account} OR email = #{account}")
     User selectByPhoneOrEmail(@Param("account") String account);
 
     /**
@@ -89,8 +86,7 @@ public interface UserMapper extends BaseMapper<User> {
 
       @Select("SELECT * FROM user WHERE role = #{role}")
        List<User> listByRole(@Param("role") String role);
-
-// INSERT_YOUR_CODE
+ 
     /**
      * 统计截至某一天指定角色的用户数量
      * @param role 用户角色（如 "teacher", "student"）
