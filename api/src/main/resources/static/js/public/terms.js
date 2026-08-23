@@ -72,4 +72,4 @@ const TERM_KEYS = [
 ];
 
 // 保护词：包含这些词的文本节点不做 teacherAlt 替换（人名误伤防护）
-const PROTECTED_WORDS = ["王老师", "李老师", "刘老师"];
+const PROTECTED_WORDS = ["王老师", "李老师", "刘老师"]; 
