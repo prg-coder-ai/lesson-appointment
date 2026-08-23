@@ -43,6 +43,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/user/account/exist",
             "/teacher/published/latest-public",
             "/teacher/published/public-get",
+            "/schedule/getAvailableSchedule",
             "/interfaces"
     );
 

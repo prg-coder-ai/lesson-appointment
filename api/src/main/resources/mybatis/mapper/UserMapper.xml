@@ -26,20 +26,15 @@
     </select>
 
     <!-- 根据邮箱查询用户 -->
-    <select id="selectByEmail" parameterType="String" resultMap="com.reservation.entity.User">
+    <select id="selectByEmail" parameterType="String" resultType="com.reservation.entity.User">
         SELECT * FROM user  WHERE email = #{email}
     </select>
 
     <!-- 根据手机号或邮箱查询用户 -->
-    <select id="selectByPhoneOrEmail" parameterType="String" resultMap="com.reservation.entity.User">
+    <select id="selectByPhoneOrEmail" parameterType="String" resultType="com.reservation.entity.User">
         SELECT * FROM `user` WHERE phone = #{account} OR email = #{account}
     </select>
-
-    <!-- 根据用户ID查询用户 
-    <select id="selectById" parameterType="String" resultMap="userResultMap">
-        SELECT * FROM `user` WHERE user_id = #{userId}
-   </select>
--->
+ 
       <select id="list"  resultMap="userResultMap">
         SELECT * FROM `user` WHERE  true;
     </select>
@@ -48,23 +43,7 @@
     <update id="updatePassword" parameterType="com.reservation.entity.User">
         UPDATE `user` SET password = #{password} WHERE user_id = #{userId}
     </update>
-    <!-- 更新用户信息， 
-    <update id="updateById" parameterType="com.reservation.entity.User">
-        UPDATE `user`
-        <set>
-            <if test="phone != null and phone != ''">phone = #{phone},</if>
-            <if test="email != null and email != ''">email = #{email},</if>
-            <if test="role != null and role != ''">role = #{role},</if>
-            <if test="learnGoal != null and learnGoal != ''">learn_goal = #{learnGoal},</if>
-            <if test="languageLevel != null and languageLevel != ''">language_level = #{languageLevel},</if>
-            <if test="name != null and name != ''">name = #{name},</if>
-            <if test="qualification != null and qualification != ''">qualification = #{qualification},</if>
-            <if test="languageType != null and languageType != ''">language_type = #{languageType},</if>
-            <if test="status != null and status != ''">status = #{status},</if>
-        </set>
-        WHERE user_id = #{userId}
-    </update>
- -->
+  
     <!-- 根据条件动态查询用户列表 -->
      
 
