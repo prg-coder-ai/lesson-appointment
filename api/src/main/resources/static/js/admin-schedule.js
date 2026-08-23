@@ -459,7 +459,7 @@ async function renderScheduleCards() {
 
     <!-- 排期结果（与课程检索同属 .sched-page，确保完全相同的宽度 & 对齐规则） -->
     <div class="card sched-card">
-        <div class="card-title sched-card-title"><i class="fa fa-list-alt"></i> 排期结果（列表）</div>
+        <div class="card-title sched-card-title"><i class="fa fa-list-alt"></i> 排期结果（本地时间）</div>
         <!-- 移除内联 style="padding:8px 28px 20px"：改由 CSS .sched-card > .card-body 统一管控，避免与外层 padding 叠加导致内容更窄 -->
         <div class="card-body">
         <table class="sched-table">
@@ -1167,7 +1167,7 @@ function refreshUserTzPreview() {
       console.log("form:",form) ;
     // 生成排期列表 localDateTime List<Date,TIME>
      scheduleResult = await generateScheduleListFromServer(form);
-    // console.log("result:",scheduleResult) ;
+     console.log("result:",scheduleResult) ;
      if(resultCalendarElem)  {
         resultCalendarElem.hidden = false;
        }

@@ -392,7 +392,7 @@ async function generateAppointmentList( scheduleId ,timeZone){
 
    endDate:  scheduleInfo.endTime.split(" ")[0]
   }
-  //console.log("ScheduleGenerateDTO:",ScheduleGenerateDTO);
+   console.log("ScheduleGenerateDTO:",ScheduleGenerateDTO);
   const appointmentResults = await generateScheduleListFromServer(ScheduleGenerateDTO); 
   //console.log("appointmentResults:",appointmentResults);
 
