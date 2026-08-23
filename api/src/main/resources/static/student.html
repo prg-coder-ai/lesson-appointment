@@ -23,7 +23,7 @@
   <header class="header">
     <div class="logo">
       <img src="https://via.placeholder.com/40x40/1890ff/ffffff?text=学" alt="学生端logo">
-      <span class="logo-text">语言教学预约系统（学生端）</span>
+      <span class="logo-text">语言教学预约系统（<span data-term="student">学生</span>端）</span>
     </div>
     <!-- 重构用户信息区域，添加退出按钮 -->
     <div class="header-actions">
@@ -42,11 +42,11 @@
       <div class="menu-group-title">我的工作台</div>
       <div class="menu-item" data-menu="今日课程">
         <i class="fa fa-home"></i>
-        <span>今日课程</span>
+        <span>今日<span data-term="course">课程</span></span>
       </div>
       <div class="menu-item" data-menu="课程预订">
         <i class="fa fa-calendar-plus"></i>
-        <span>课程预订</span>
+        <span><span data-term="course">课程</span>预订</span>
       </div>
       <div class="menu-item" data-menu="我的预订">
         <i class="fa fa-list-alt"></i>
@@ -54,7 +54,7 @@
       </div>
       <!-- <div class="menu-item" data-menu="课程评价">
         <i class="fa fa-star-half-o"></i>
-        <span>课程评价</span>
+        <span><span data-term="course">课程</span>评价</span>
       </div>
       <div class="menu-item" data-menu="个人中心">
         <i class="fa fa-user"></i>
@@ -67,7 +67,7 @@
       <!-- 内容头部 -->
       <div class="content-header">
         <div style="display: flex; align-items: center; justify-content: space-between;">
-          <h1 class="page-title" style="margin: 0;">今日课程</h1>
+          <h1 class="page-title" style="margin: 0;">今日<span data-term="course">课程</span></h1>
           <button class="btn btn-primary" onclick='refreshRightPage()'><i class="fa fa-refresh"></i> 刷新</button>
         </div>
       </div>
@@ -84,12 +84,12 @@
   <div id="evaluation-modal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>评价课程</h3>
+        <h3>评价<span data-term="course">课程</span></h3>
         <span class="modal-close" onclick="closeEvaluationModal()">×</span>
       </div>
       
       <div class="evaluation-form">
-        <p style="margin-bottom: 10px; font-size: 14px;">请为课程评分：</p>
+        <p style="margin-bottom: 10px; font-size: 14px;">请为<span data-term="course">课程</span>评分：</p>
         <div class="star-rating" id="star-rating">
           <span class="star active" onclick="selectStar(1)">★</span>
           <span class="star active" onclick="selectStar(2)">★</span>
@@ -191,10 +191,10 @@
                     <tr>
                       <th>序号</th>
                       <th  style="display:none;">预约ID</th>
-                      <th>课程名称</th>
-                      <th>学生姓名</th>
-                      <th>教师姓名</th>
-                      <th>上课时间</th>
+                      <th><span data-term="course">课程</span>名称</th>
+                      <th><span data-term="student">学生</span>姓名</th>
+                      <th><span data-term="teacher">教师</span>姓名</th>
+                      <th><span data-term="lessonTime">上课时间</span></th>
                       <th>状态</th>
                       <th>操作</th>
                     </tr>
@@ -221,11 +221,11 @@
         case '课程评价':
           dynamicContentCenter.innerHTML = `
             <div class="card" id="evaluation-card">
-              <h3><i class="fa fa-star-half-o"></i> 我的课程评价0待完成</h3>
+              <h3><i class="fa fa-star-half-o"></i> 我的<span data-term="course">课程</span>评价0待完成</h3>
               <div id="my-evaluations">
                 <div class="course-card">
                   <div class="course-info">
-                    <h4>英语初级口语 - 一对一</h4>
+                    <h4>英语初级口语 - <span data-term="classForm1p1">一对一</span></h4>
                     <p>授课教师：李老师 | 上课时间：2026-03-15 10:00</p>
                     <p>评分：★★★★★ | 评价时间：2026-03-15 11:00</p>
                     <p style="margin-top: 5px;">评价内容：李老师讲课非常细致，口语发音纠正很到位，收获很大！</p>
@@ -270,7 +270,7 @@
                     <span>13800138000</span>
                   </div>
                   <div style="margin-bottom: 10px;">
-                    <span style="color: var(--text-light-color); width: 80px; display: inline-block;">已预约课程：</span>
+                    <span style="color: var(--text-light-color); width: 80px; display: inline-block;">已预约<span data-term="course">课程</span>：</span>
                     <span>8节</span>
                   </div>
                   <button class="btn btn-primary" style="margin-top: 10px;">编辑信息</button>

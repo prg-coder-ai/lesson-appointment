@@ -108,7 +108,7 @@
   <header class="header">
     <div class="logo">
       <i class="fa fa-chalkboard-teacher"></i>
-      <span>教师职业信息维护</span>
+      <span><span data-term="teacher">教师</span>职业信息维护</span>
     </div>
     <div class="header-actions">
       <div class="user-info">
@@ -125,7 +125,7 @@
     <!-- 单条教师职业信息卡片 -->
     <div class="card">
       <div class="card-header">
-        <div class="card-title"><i class="fa fa-id-card"></i> <span id="page-title">教师职业信息</span></div>
+        <div class="card-title"><i class="fa fa-id-card"></i> <span id="page-title"><span data-term="teacher">教师</span>职业信息</span></div>
         <div class="header-btns" id="action-btns">
           <!-- 查看模式：转发 / 编辑 / 删除 -->
           <div id="btns-view" style="display:flex;">
@@ -165,7 +165,7 @@
             <div id="view-photo"></div>
             <div style="flex:1;min-width:280px;">
               <div class="view-section" style="margin-bottom:0;">
-                <div class="view-field"><div class="label">教师姓名</div><div class="value" id="view-name">-</div></div>
+                <div class="view-field"><div class="label"><span data-term="teacher">教师</span>姓名</div><div class="value" id="view-name">-</div></div>
                 <div class="view-field"><div class="label">账号</div><div class="value" id="view-account">-</div></div>
                 <div class="view-field"><div class="label">手机</div><div class="value" id="view-phone">-</div></div>
                 <div class="view-field"><div class="label">邮箱</div><div class="value" id="view-email">-</div></div>
@@ -178,14 +178,14 @@
 
           <!-- 课时配置 -->
           <div class="view-section">
-            <div class="view-field"><div class="label">单次最小课时数</div><div class="value" id="view-minBookingHours">-</div></div>
-            <div class="view-field"><div class="label">每周可用课时上限</div><div class="value" id="view-weeklyAvailableHours">-</div></div>
+            <div class="view-field"><div class="label">单次最小<span data-term="lessonUnit">课时</span>数</div><div class="value" id="view-minBookingHours">-</div></div>
+            <div class="view-field"><div class="label">每周可用<span data-term="lessonUnit">课时</span>上限</div><div class="value" id="view-weeklyAvailableHours">-</div></div>
             <div class="view-field"><div class="label">证书文字描述</div><div class="value" id="view-certificateText">-</div></div>
           </div>
 
           <!-- 简介 -->
           <div class="form-group" style="margin-top:16px;">
-            <label>文字说明（教师简介）</label>
+            <label>文字说明（<span data-term="teacher">教师</span>简介）</label>
             <div id="view-bioText" style="white-space:pre-wrap;color:#333;font-size:14px;line-height:1.6;padding:8px;background:#fafafa;border-radius:4px;">无</div>
           </div>
           <div class="form-group">
@@ -217,7 +217,7 @@
         <div id="section-edit" style="display:none;">
           <div class="form-group">   
             <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-            <label>教师ID <span class="required">*</span></label>  <div id="f-teacherNameHint" style="color:#999;margin-top:4px;display:none;"></div>
+            <label><span data-term="teacher">教师</span>ID <span class="required">*</span></label>  <div id="f-teacherNameHint" style="color:#999;margin-top:4px;display:none;"></div>
             </div>
             <input type="text" id="f-teacherIdDisplay" readonly>
             <input type="hidden" id="f-teacherId">            
@@ -262,16 +262,16 @@
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label>单次最小课时数</label>
+              <label>单次最小<span data-term="lessonUnit">课时</span>数</label>
               <input type="number" id="f-minBookingHours" value="1" min="1">
             </div>
             <div class="form-group">
-              <label>每周可用课时上限</label>
+              <label>每周可用<span data-term="lessonUnit">课时</span>上限</label>
               <input type="number" id="f-weeklyAvailableHours" value="20" min="1">
             </div>
           </div>
           <div class="form-group">
-            <label>文字说明（教师简介）</label>
+            <label>文字说明（<span data-term="teacher">教师</span>简介）</label>
             <textarea id="f-bioText" maxlength="2000" placeholder="教师简介"></textarea>
           </div>
           <div class="form-group">

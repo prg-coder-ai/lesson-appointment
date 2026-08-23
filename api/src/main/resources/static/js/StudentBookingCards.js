@@ -22,10 +22,10 @@ async function renderStudentBookingCards() {
     { 
       html += `     
        <div class="card">
-        <div class="card-title"><i class="fa fa-filter"></i> 课程筛选</div>
+        <div class="card-title"><i class="fa fa-filter"></i> <span data-term="course">课程</span>筛选</div>
             <div class="filter-form" style="display: flex; gap: 20px; margin-bottom: 16px;">
                  <div>
-                    <label>课程名称：</label>
+                    <label><span data-term="course">课程</span>名称：</label>
                     <input type="text" id="course-name-input"  placeholder="课程名称" >
                 </div>
                 <div>
@@ -67,11 +67,11 @@ async function renderStudentBookingCards() {
             html += `  <hr> <div>
     <!-- 课程选择下拉 隐含教师ID-->
     <div class="form-line">
-        <label>选择课程：</label>
+        <label>选择<span data-term="course">课程</span>：</label>
         <input type="text" id="teacherIdForCourse" style="display:none;">
    
         <select id="courseSelect" onchange="loadSchedule()">
-            <option value="">请先选择课程</option>
+            <option value="">请先选择<span data-term="course">课程</span></option>
         </select>
     </div>
      <!-- 排期选择下拉 -->
@@ -94,7 +94,7 @@ async function renderStudentBookingCards() {
             <input type="label" id="courseId">
         </div>  
          <div class="form-line nofocus"  style="display:flex;">
-            <label>教师</label>
+            <label><span data-term="teacher">教师</span></label>
             <input type="label" id="teacherNameForCourse" value="" class="readonly" style="display:flex;">
         </div>  
 
@@ -112,7 +112,7 @@ async function renderStudentBookingCards() {
         </div>
 
         <div class="form-line">
-            <label>上课时间：</label>
+            <label><span data-term="lessonTime">上课时间</span>：</label>
             <input type="time" id="startTime" class="readonly">
         </div>
 
@@ -136,7 +136,7 @@ async function renderStudentBookingCards() {
         </div>
 
         <div class="form-line">
-            <label>上课时间：</label>
+            <label><span data-term="lessonTime">上课时间</span>：</label>
             <input type="time" id="displayStartTime" class="readonly">
         </div>
 
@@ -216,7 +216,7 @@ async function renderStudentBookingCards() {
     <!-- 操作按钮 -->
     <div class="btn-group"> 
         <button class="btn-primary" onclick="previewSchedule()">预览排期</button>
-        <button class="btn-primary" onclick="makeOneBooking()">预定课程</button>
+        <button class="btn-primary" onclick="makeOneBooking()">预定<span data-term="course">课程</span></button>
         <button class="btn-danger"  onclick="cancelBooking()">取消预定</button> 
         <button class="btn-danger"  onclick="deleteBooking()">删除预定</button>
         <button class="btn-success" onclick="refreshData()">刷新</button>
@@ -313,7 +313,7 @@ async function renderStudentBookingCards() {
 //把courseList列在下拉框中
 function renderCourseSelect() {
   const sel = document.getElementById('courseSelect'); 
-  sel.innerHTML = '<option value="">请选择课程</option>';
+  sel.innerHTML = '<option value="">请选择<span data-term="course">课程</span></option>';
   let index= (Pagination.pageNum-1)*Pagination.pageSize;
 
   courseList.forEach(item => {
@@ -598,7 +598,7 @@ return  scheduleObject;
             const scheduleSelect = document.getElementById('scheduleSelect');
             if (scheduleSelect) {
                 // 先清空原有选项
-                scheduleSelect.innerHTML = '<option value="">请选择课程排期</option>';
+                scheduleSelect.innerHTML = '<option value="">请选择<span data-term="course">课程</span>排期</option>';
                 scheduleList.forEach(schedule => {
                     if(schedule.status=='active'){ //TBD:--过滤在后端完成
                         cnt++;
@@ -625,7 +625,7 @@ return  scheduleObject;
         cnt = 0;
       } 
       if(cnt==0)  {
-        scheduleSelect.innerHTML = '<option value="">暂时该课程没有排期</option>';
+        scheduleSelect.innerHTML = '<option value="">暂时该<span data-term="course">课程</span>没有排期</option>';
         scheduleObject = resetScheduleObject();//清理显示区
         renderSchedule(scheduleObject);
     } 

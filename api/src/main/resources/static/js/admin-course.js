@@ -81,7 +81,7 @@ async function openEditCourseDialog(CourseJsonStr )
        </div>
 
     <div class="form-item">
-      <label>课程名称 <span style="color:red">*</span></label>
+      <label><span data-term="course">课程</span>名称 <span style="color:red">*</span></label>
       <input name="courseName"   value="${defaultCourse.courseName}" required> 
       <div class="form-error" id="courseNameError"></div>
     </div>
@@ -93,13 +93,13 @@ async function openEditCourseDialog(CourseJsonStr )
     </div>
  
     <div class="form-item">
-      <label>课程特色 <span style="color:red">*</span></label> 
+      <label><span data-term="course">课程</span>特色 <span style="color:red">*</span></label> 
        <textarea name="feature" rows="3" required>${defaultCourse.feature}</textarea>
       <div class="form-error" id="featureError"></div>
     </div> 
 
     <div class="form-item">
-      <label>授课教师 <span style="color:red">*</span></label>
+      <label><span data-term="teaching">授课</span><span data-term="teacher">教师</span> <span style="color:red">*</span></label>
       <select name="teacherId" class="form-select" required>
         `;
        //显示，每个模板的内容
@@ -233,16 +233,16 @@ html = `
     <div class="card">
       <!-- 筛选+操作栏 -->
       <div class="card-header">
-        <div class="card-title"><i class="fa fa-book-open"></i> 课程列表</div>
+        <div class="card-title"><i class="fa fa-book-open"></i> <span data-term="course">课程</span>列表</div>
         <button class="btn btn-primary" onclick="openAddCourseModal()">
-          <i class="fa fa-plus"></i> 添加课程
+          <i class="fa fa-plus"></i> 添加<span data-term="course">课程</span>
         </button>
       </div>
       
       <!-- 筛选条件 -->
       <div class="filter-bar">
         <div class="filter-item">
-          <label>课程名称：</label>
+          <label><span data-term="course">课程</span>名称：</label>
           <input type="text" id="course-name-input" placeholder="请输入课程名称">
         </div>
         <div class="filter-item">
@@ -285,22 +285,22 @@ html = `
           <thead>
             <tr>
              <!--th>序号</th>
-              <th style="width:0px;display:none" >课程ID</th>
-              <th>课程名称</th>
+              <th style="width:0px;display:none" ><span data-term="course">课程</span>ID</th>
+              <th><span data-term="course">课程</span>名称</th>
               <th>语言类型</th>
               <th>难度等级</th>
-              <th>课时费</th>
+              <th><span data-term="lessonUnit">课时</span>费</th>
               <th>时长</th>
               <th>状态</th>
               <th>操作</th  --> 
               
                   <th>序号</th>  
                     <th style="width:0px;display:none">Id</th>
-                     <th>课程名称</th>  
+                     <th><span data-term="course">课程</span>名称</th>  
                   <th>摘要</th> 
-                <th>课程内容</th>
-                <th>课程特色</th> 
-                <th>教师</th>
+                <th><span data-term="course">课程</span>内容</th>
+                <th><span data-term="course">课程</span>特色</th> 
+                <th><span data-term="teacher">教师</span></th>
                 <th>状态</th>
                 <th>操作</th>
             </tr>

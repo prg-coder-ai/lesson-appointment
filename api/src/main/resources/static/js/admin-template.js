@@ -122,11 +122,11 @@ function validateForm() {
     </div>
 
     <div class="form-item">
-      <label>课程形式 <span style="color:red">*</span></label>
+      <label><span data-term="course">课程</span>形式 <span style="color:red">*</span></label>
       <select name="classForm" class="form-select" required>
         <option value="">请选择</option>
-        <option value="1p1" ${defaultTemplate.classForm === '1p1' ? 'selected' : ''}>一对一</option>
-        <option value="1pN" ${defaultTemplate.classForm === '1pN' ? 'selected' : ''}>小班课</option>
+        <option value="1p1" ${defaultTemplate.classForm === '1p1' ? 'selected' : ''}><span data-term="classForm1p1">一对一</span></option>
+        <option value="1pN" ${defaultTemplate.classForm === '1pN' ? 'selected' : ''}><span data-term="classForm1pN">小班课</span></option>
          <option value="1p2N  " ${defaultTemplate.classForm === '1p2N' ? 'selected' : ''}>中班课</option>
           
       </select>
@@ -134,13 +134,13 @@ function validateForm() {
     </div>
 
     <div class="form-item">
-      <label>课时时长（分钟） <span style="color:red">*</span></label>
+      <label><span data-term="lessonUnit">课时</span>时长（分钟） <span style="color:red">*</span></label>
       <input type="number" name="classDuration" value="${defaultTemplate.classDuration}" required>
       <div class="form-error" id="classDurationError"></div>
     </div>
 
     <div class="form-item">
-      <label>课时费（元） <span style="color:red">*</span></label>
+      <label><span data-term="lessonUnit">课时</span>费（元） <span style="color:red">*</span></label>
       <input type="number" step="0.01" name="classFee" value="${defaultTemplate.classFee}" required>
       <div class="form-error" id="classFeeError"></div>
     </div>
@@ -315,7 +315,7 @@ async function renderTemplateCards() {
                     <th>序号</th>  
                     <th>语言类型</th>  
                     <th>难度等级</th> 
-                    <th>课程形式</th> 
+                    <th><span data-term="course">课程</span>形式</th> 
                     <th>课时时长(分钟)</th> 
                     <th>课时费(元)</th>   
                     <th>状态</th>

@@ -45,17 +45,17 @@ async function refreshOverallpage() {
     <!-- 数据统计面板 -->
     <div class="stats-panel">
       <div class="stats-item">
-        <div class="stats-label">总教师数</div>
+        <div class="stats-label">总<span data-term="teacher">教师</span>数</div>
         <div class="stats-value">${monthTotalTeacher}</div>
         <div class="stats-desc"><i class="fa ${monthTotalTeacherIcon.icon}" style="color:  ${monthTotalTeacherIcon.color};"></i>${monthTotalTeacherIcon.v} 人 (${monthTotalTeacherIcon.str})</div>
       </div>
       <div class="stats-item success">
-        <div class="stats-label">总学生数</div>
+        <div class="stats-label">总<span data-term="student">学生</span>数</div>
         <div class="stats-value">${monthTotalStudent}</div>
         <div class="stats-desc"><i class="fa ${monthTotalStudentIcon.icon}" style="color: ${monthTotalStudentIcon.color};"></i> ${monthTotalStudentIcon.v}  人 (${monthTotalStudentIcon.str})</div>
       </div>
       <div class="stats-item warning">
-        <div class="stats-label">总课程数</div>
+        <div class="stats-label">总<span data-term="course">课程</span>数</div>
         <div class="stats-value">${monthTotalCourse}</div>
         <div class="stats-desc"><i class="fa  ${monthTotalCourseIcon.icon}" style="color: ${monthTotalCourseIcon.color};"></i> ${monthTotalCourseIcon.v} 门  (${monthTotalCourseIcon.str})</div>
       </div>
@@ -65,7 +65,7 @@ async function refreshOverallpage() {
         <div class="stats-desc"><i class="fa  ${monthTotalBookingIcon.icon}" style="color:${monthTotalBookingIcon.color};"></i>${monthTotalBookingIcon.v} 单  (${monthTotalBookingIcon.str})</div>
       </div>
       <div class="stats-item danger">
-        <div class="stats-label">本月预约课时</div>
+        <div class="stats-label">本月预约<span data-term="lessonUnit">课时</span></div>
         <div class="stats-value">${monthTotalAppoint}</div>
         <div class="stats-desc"><i class="fa  ${monthTotalAppointIcon.icon}" style="color: ${monthTotalAppointIcon.color};"></i> ${monthTotalAppointIcon.v} 课次(${monthTotalAppointIcon.str})  </div>
       </div>
@@ -86,7 +86,7 @@ async function refreshOverallpage() {
           <div class="stats-value">${CancelBookingCount || 0}</div>
         </div>
         <div class="stats-item success">
-          <div class="stats-label">今日课程</div>
+          <div class="stats-label">今日<span data-term="course">课程</span></div>
           <!--24小时内的预约课程 booked/completed、active -->
           <div class="stats-value">${TodayLessonsCount || 0}</div>
         </div>
@@ -96,7 +96,7 @@ async function refreshOverallpage() {
     <!-- 教师活跃度统计卡片 TBD
     <div class="card">
       <div class="card-header">
-        <div class="card-title"><i class="fa fa-chart-line"></i> 教师月度授课统计</div>
+        <div class="card-title"><i class="fa fa-chart-line"></i> <span data-term="teacher">教师</span>月度<span data-term="teaching">授课</span>统计</div>
         <div class="filter-bar">
           <div class="filter-item">
             <label>月份：</label>
@@ -113,10 +113,10 @@ async function refreshOverallpage() {
         <table class="data-table">
           <thead>
             <tr>
-              <th>教师姓名</th>
-              <th>授课总节数</th>
+              <th><span data-term="teacher">教师</span>姓名</th>
+              <th><span data-term="teaching">授课</span>总节数</th>
               <th>预约完成率</th>
-              <th>学生平均评分</th>
+              <th><span data-term="student">学生</span>平均评分</th>
               <th>操作</th>
             </tr>
           </thead>

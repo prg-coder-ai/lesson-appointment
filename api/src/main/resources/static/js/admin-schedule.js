@@ -227,11 +227,11 @@ async function renderScheduleCards() {
 </style>
 <div class="sched-page">
        <div class="card sched-card">
-        <div class="card-title sched-card-title"><i class="fa fa-search"></i> 课程检索</div>
+        <div class="card-title sched-card-title"><i class="fa fa-search"></i> <span data-term="course">课程</span>检索</div>
             <!-- 1. 筛选条件（横向排列） -->
             <div class="sched-filter-form">
                  <div>
-                    <label>课程名称：</label>
+                    <label><span data-term="course">课程</span>名称：</label>
                     <input type="text" id="course-name-input"  placeholder="课程名称" >
                 </div>
                 <div>
@@ -271,18 +271,18 @@ async function renderScheduleCards() {
             <div style="border-top:1px solid #f0f0f0;margin:0 0 16px 0;"></div>
             <!-- 2. 课程列表（横向排列） -->
             <div class="sched-form-line" style="margin-bottom:16px;">
-                <label>选择课程：</label>
+                <label>选择<span data-term="course">课程</span>：</label>
                 <select id="courseSelect" onchange="loadSchedule()">
-                    <option value="">请先选择课程</option>
+                    <option value="">请先选择<span data-term="course">课程</span></option>
                 </select>
-                <label>教师姓名：</label>
+                <label><span data-term="teacher">教师</span>姓名：</label>
                 <div id="teacherName" style="padding:0 8px;font-weight:500;color:#722ed1;"></div>
-                <label>班级形式：</label>
+                <label><span data-term="classForm">班级</span>形式：</label>
                 <select id="classForm" readonly>
                     <option value="">请选择</option>
-                    <option value="1p1">一对一</option>
-                    <option value="1pN">小班课</option>
-                    <option value="1p2N">大班课</option>
+                    <option value="1p1"><span data-term="classForm1p1">一对一</span></option>
+                    <option value="1pN"><span data-term="classForm1pN">小班课</span></option>
+                    <option value="1p2N"><span data-term="classForm1p2N">大班课</span></option>
                 </select>
             </div>
             <!-- 分隔线 -->
@@ -348,7 +348,7 @@ async function renderScheduleCards() {
                   <input type="text" id="startDate_weekday" readonly style="width:52px;min-width:52px;text-align:center;padding:8px 2px;">
              </div>
               <div class="sched-form-line">
-                  <label>上课时间：</label>
+                  <label><span data-term="lessonTime">上课时间</span>：</label>
                   <input type="time" id="startTime" value="${(function(){ let d = new Date(); return d.toTimeString().slice(0,5); })()}">
               </div>
                <div class="sched-form-line">
@@ -386,7 +386,7 @@ async function renderScheduleCards() {
                         <input type="text" id="displayStartDate_weekday" readonly style="width:52px;min-width:52px;text-align:center;padding:8px 2px;">
                     </div>
                     <div class="sched-form-line">
-                        <label>上课时间：</label>
+                        <label><span data-term="lessonTime">上课时间</span>：</label>
                         <input type="time" id="displayStartTime" readonly>
                     </div>
                     <div class="sched-form-line">
@@ -450,9 +450,9 @@ async function renderScheduleCards() {
     <div class="sched-btn-row">
       <button class="btn btn-default" onclick="previewSchedule()"><i class="fa fa-eye"></i> 预览排期</button>
        <button class="btn btn-primary" onclick="saveScheduleToDB()"><i class="fa fa-save"></i> 保存</button>
-       <button class="btn btn-primary" onclick="assignStudentToSchedule()"><i class="fa fa-user-plus"></i> 指定学生</button>
+       <button class="btn btn-primary" onclick="assignStudentToSchedule()"><i class="fa fa-user-plus"></i> 指定<span data-term="student">学生</span></button>
        <select id="assignStudentSelect">
-           <option value="">请选择学生</option>
+           <option value="">请选择<span data-term="student">学生</span></option>
        </select>
     </div>
      </div> <!-- 课程检索 / 排期设置 card -->
@@ -770,7 +770,7 @@ async function getTestEndDatetime() {
 //把courseList列在下拉框中
 function renderCourseToList(clist) {
   const sel = document.getElementById('courseSelect');
-  sel.innerHTML = '<option value="">请选择课程</option>';
+  sel.innerHTML = '<option value="">请选择<span data-term="course">课程</span></option>';
   clist.forEach(item => {
       const opt = document.createElement('option');
       opt.value = item.courseId;
@@ -835,7 +835,7 @@ function renderCourseToList(clist) {
             const scheduleSelect = document.getElementById('scheduleSelect');
             if (scheduleSelect) {
                 // 先清空原有选项
-                scheduleSelect.innerHTML = '<option value="">请选择课程排期</option>';
+                scheduleSelect.innerHTML = '<option value="">请选择<span data-term="course">课程</span>排期</option>';
                 scheduleList.forEach(schedule => {
                     // scheduleId和排期信息（可展示更多）
                     const opt = document.createElement('option');

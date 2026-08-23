@@ -36,7 +36,7 @@ async function renderTeacherCourseAndScheduleBrowserCards() {
             <div class="modal-mask" id="courseModal">
             <div class="modal-content">
                 <div class="modal-header">
-                <h3 id="modalTitle">课程列表</h3> 
+                <h3 id="modalTitle"><span data-term="course">课程</span>列表</h3> 
                 <hr style="margin: 16px 0; border-top: 1px solid #e9ecef;">
                 </div> 
             </div>
@@ -48,7 +48,7 @@ async function renderTeacherCourseAndScheduleBrowserCards() {
               <table width:90%>
                 <thead>
                     <tr>
-                        <th width:10%>序号</th> <th width:20%>课程名称</th>  <th width:20%>内容</th>  <th width:20%>特色</th>  <th width:10%>状态</th>  <th width:20% align:center>操作</th>  
+                        <th width:10%>序号</th> <th width:20%><span data-term="course">课程</span>名称</th>  <th width:20%>内容</th>  <th width:20%>特色</th>  <th width:10%>状态</th>  <th width:20% align:center>操作</th>  
                     </tr>
                 </thead>
                 <tbody id="courseResultBody"></tbody>
@@ -60,7 +60,7 @@ async function renderTeacherCourseAndScheduleBrowserCards() {
         html += `
          <div id="scheduleListForm" style="display:none;">
            <div class="modal-header" >  
-            <h3 id="modalTitle">课程排期列表</h3> 
+            <h3 id="modalTitle"><span data-term="course">课程</span>排期列表</h3> 
             <hr style="margin: 16px 0; border-top: 1px solid #e9ecef;"> 
           </div>
           <div style="display:flex;gap:36px;padding-bottom:8px;margin-bottom:4px;">
@@ -89,7 +89,7 @@ async function renderTeacherCourseAndScheduleBrowserCards() {
             </div>  
 
             <div class="form-line nofocus"  style="display:none;">
-                <label>教师</label>
+                <label><span data-term="teacher">教师</span></label>
                 <input type="label" id="teacherNameForCourse" value="" class="readonly">
             </div>  
 
@@ -107,7 +107,7 @@ async function renderTeacherCourseAndScheduleBrowserCards() {
                 </div>
 
                 <div class="form-line">
-                    <label>上课时间：</label>
+                    <label><span data-term="lessonTime">上课时间</span>：</label>
                     <input type="time" id="startTime" class="readonly">
                 </div>
 
@@ -131,7 +131,7 @@ async function renderTeacherCourseAndScheduleBrowserCards() {
                 </div>
 
                 <div class="form-line">
-                    <label>上课时间：</label>
+                    <label><span data-term="lessonTime">上课时间</span>：</label>
                     <input type="time" id="displayStartTime" class="readonly">
                 </div>
 
