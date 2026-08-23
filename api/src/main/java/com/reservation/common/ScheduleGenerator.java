@@ -30,7 +30,7 @@ public class ScheduleGenerator {
         }
         String type = dto.getRepeatType();
         int interval = dto.getInterval() == null ? 1 : dto.getInterval();
-        System.out.println("interval:"+interval);
+       // System.out.println("interval:"+interval);
         List<Integer> repeatDays = dto.getRepeatDays() == null ? List.of() : dto.getRepeatDays();
         LocalTime time = dto.getStartTime(); 
 
