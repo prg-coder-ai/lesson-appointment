@@ -117,6 +117,7 @@ async function renderStudentBookingBrowserCards() {
     </div>`;
     
     dynamicContentCenter.innerHTML = html; 
+    applyTerms(dynamicContentCenter);
     loadAndRenderBooking_student();   
     } 
 

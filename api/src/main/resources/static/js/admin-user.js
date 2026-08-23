@@ -93,6 +93,7 @@
           </div>
           `;
               dynamicContentCenter.innerHTML = html;
+              applyTerms(dynamicContentCenter);
               loadUserList(role);//"teacher");
             }
 

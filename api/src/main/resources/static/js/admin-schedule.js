@@ -484,7 +484,8 @@ async function renderScheduleCards() {
 </div><!-- sched-page 结束：所有 3 张卡片都在同一父容器内 -->`;
         
     dynamicContentCenter.innerHTML = html;
-
+    applyTerms(dynamicContentCenter);
+        
         // 动态生成每月1-31号复选框，紧凑排列（flex-wrap 自然换行，不再强制每10个换行）
         let monthDaysHtml = '';
         for (let i = 1; i <= 31; i++) {

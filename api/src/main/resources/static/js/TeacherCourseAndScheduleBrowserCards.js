@@ -194,6 +194,7 @@ async function renderTeacherCourseAndScheduleBrowserCards() {
        
    
     dynamicContentCenter.innerHTML = html;
+    applyTerms(dynamicContentCenter);
     loadAndRenderCoursePage_teacher();
 }
 async function loadAndRenderCoursePage_teacher(){

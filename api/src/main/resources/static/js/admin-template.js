@@ -333,6 +333,7 @@ async function renderTemplateCards() {
             html+=`</div>`;
          if(dynamicContentCenter) {
             dynamicContentCenter.innerHTML =  html;  
+            applyTerms(dynamicContentCenter);
             loadAndRenderTemplateCards();
          }
 }

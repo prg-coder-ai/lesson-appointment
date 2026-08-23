@@ -127,6 +127,7 @@ async function openEditCourseDialog(CourseJsonStr )
     return;
   }
   formContainer.innerHTML = formHtml;
+  applyTerms(formContainer);
   // 6. 保存表单元素引用
   localParamter.formEl = document.getElementById('CourseForm');
 }
@@ -313,6 +314,7 @@ html = `
       html += getPagebar();
       if(dynamicContentCenter) {
         dynamicContentCenter.innerHTML =  html;  
+        applyTerms(dynamicContentCenter);
         loadAndRenderCourseListByPage();
      }
   // 页面渲染完成后，加载第一页数据

@@ -40,7 +40,23 @@
       // 获取用户时区（关键）
       const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       //console.log("tz",userTimeZone); 
-      InitUserInfo();
+      InitUserInfo(); 
+
+  // 在公共入口（如 main.js / public/init）初始化一次
+  const mo = new MutationObserver(mutations => {
+    let needApply = false;
+    for (const m of mutations) {
+      if (m.addedNodes.length) { needApply = true; break; }
+    }
+    if (needApply) {
+      mo.disconnect();               // 防递归：替换文本本身也触发 mutation
+      applyTerms();
+      observe();                     // 处理完重新挂上
+    }
+  });
+    function observe() { mo.observe(document.body, { childList: true, subtree: true }); }
+observe(); 
+
       
    function InitUserInfo() {
        userInfo= getCurrentUserInfo();

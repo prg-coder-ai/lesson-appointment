@@ -125,7 +125,8 @@ async function refreshOverallpage() {
         </table>
       </div>
     </div> -->
-  `;
+  `;   
+    applyTerms(dynamicContentCenter); 
   // loadAndRefreshOverallpage();
 }
 

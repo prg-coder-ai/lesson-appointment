@@ -275,56 +275,6 @@
           `;
           break;
           
-        case '操作日志':
-          if(dynamicContentCenter)
-          dynamicContentCenter.innerHTML = `
-            <div class="card">
-              <div class="card-header">
-                <div class="card-title"><i class="fa fa-file-alt"></i> 系统操作日志</div>
-              </div>
-              <div class="filter-bar" style="padding: 0 20px; margin-bottom: 20px;">
-                <div class="filter-item">
-                  <label>操作人：</label>
-                  <input type="text" placeholder="请输入操作人">
-                </div>
-                <div class="filter-item">
-                  <label>日期：</label>
-                  <input type="date">
-                </div>
-                <button class="btn btn-default"><i class="fa fa-search"></i> 搜索</button>
-              </div>
-              <div class="table-container">
-                <table class="data-table">
-                  <thead>
-                    <tr>
-                      <th>日志ID</th>
-                      <th>操作人</th>
-                      <th>操作类型</th>
-                      <th>操作内容</th>
-                      <th>操作时间</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>LOG20260320001</td>
-                      <td>系统管理员</td>
-                      <td>预约审核</td>
-                      <td>通过张三的英语初级口语预约</td>
-                      <td>2026-03-20 09:15:22</td>
-                    </tr>
-                    <tr>
-                      <td>LOG20260320002</td>
-                      <td>系统管理员</td>
-                      <td>课程管理</td>
-                      <td>新增日语入门课程</td>
-                      <td>2026-03-20 08:30:15</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          `;
-          break;
       }
     }
     

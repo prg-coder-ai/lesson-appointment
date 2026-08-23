@@ -68,6 +68,8 @@ window.deleteBookingByFrozen = deleteBookingByFrozen;
 html += getPagebar();
 if(dynamicContentCenter) {
   dynamicContentCenter.innerHTML =  html;           
+ 
+ applyTerms(dynamicContentCenter);
 }
      getBookingListByPage();// define in 
     // showBookingList();
