@@ -531,108 +531,144 @@ function localsearchCourse() {
         * 若失败则友好提示。
         */    
  
+/* ========== 防重复 addEventListener：仅首次注册；后续调用直接跳过 ========== */
+window.__adminSchedule_tzListenersAttached = window.__adminSchedule_tzListenersAttached || false;
+
 // 处理下拉菜单"testTimeZone"的变更，读取表单的timeZone、startDate、startTime及新选择的时区，调用后端获取转换后的时间和日期
 function handleTestTimeZoneChange() {
-    const select = document.getElementById('testTimeZone'); 
-    if (select) {
-        select.addEventListener('change', async (e) => { 
-            getTestDatetime(); 
-            getTestEndDatetime();
-        });
-    }
-    const StartDateElm = document.getElementById('startDate');
-    if (StartDateElm) {
-        StartDateElm.addEventListener('change', async (e) => { 
-            getTestDatetime();  
-        });
-    }
+    if (window.__adminSchedule_tzListenersAttached) return; // 幂等：已注册直接返回
+    window.__adminSchedule_tzListenersAttached = true;
 
-    const StartTimeElm = document.getElementById('startTime');
-    if (StartTimeElm) {
-        StartTimeElm.addEventListener('change', async (e) => { 
-            getTestDatetime();  
-        });
-    }
+    const attachOnce = function (id, handler) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('change', handler);
+    };
 
-    const EndDateElm = document.getElementById('endDate');
-    if (EndDateElm) {
-        EndDateElm.addEventListener('change', async (e) => {  
-            getTestEndDatetime();
-        });
-    }
-} 
+    attachOnce('toggleUserTimeZone', function () { getTestDatetime(); getTestEndDatetime(); }); // 勾选/取消开关本身也要立即刷新
+    attachOnce('testTimeZone',       function () { getTestDatetime(); getTestEndDatetime(); });
+    attachOnce('timeZone',           function () { getTestDatetime(); getTestEndDatetime(); }); // 原时区变化也要重算
+    attachOnce('startDate',          function () { getTestDatetime(); });
+    attachOnce('startTime',          function () { getTestDatetime(); });
+    attachOnce('endDate',            function () { getTestEndDatetime(); });
+}
+
+/* ========== 异步竞态防护：getTestDatetime / getTestEndDatetime 各自维护 reqId 计数器 ========== */
+window.__adminSchedule_tzReqSeq = window.__adminSchedule_tzReqSeq || { start: 0, end: 0 };
+
+// 安全写值：DOM 元素不存在 / 只读报错时都不会打断流程
+function safeSetInputValue(id, value) {
+    try { const el = document.getElementById(id); if (el) el.value = value == null ? '' : value; } catch (_) {}
+}
 
 // 按照左侧 的时间和日期，同步修改右侧指定时区的显示
- async function getTestDatetime() {
+async function getTestDatetime() {
+    const toggle = document.getElementById('toggleUserTimeZone');
+    const startDateInput = document.getElementById('startDate');
+    const startTimeInput = document.getElementById('startTime');
     const displayTzInput = document.getElementById('testTimeZone');
-     // 读取原时区、日期与时间。这些输入框id需与页面实际结构对应
-     const timeZoneInput = document.getElementById('timeZone');
-     const startDateInput = document.getElementById('startDate');
-     const startTimeInput = document.getElementById('startTime');
+    const timeZoneInput = document.getElementById('timeZone');
+    if (!displayTzInput || !startDateInput || !startTimeInput) return;
 
-     const fromZone = timeZoneInput ? timeZoneInput.value : (window.formData && window.formData.timeZone) || "";
-     const startDate = startDateInput ? startDateInput.value : "";
-     const startTime = startTimeInput ? startTimeInput.value : "";
+    const startDate = startDateInput.value || "";
+    const startTime = startTimeInput.value || "";
+    const fromZone  = (timeZoneInput && timeZoneInput.value) ? timeZoneInput.value : ((window.formData && window.formData.timeZone) || "");
+    const toTz      = displayTzInput.value || "";
 
-     const toTz= displayTzInput.value;
-     // 组装为 DateTime 字符串（假定格式为: yyyy-MM-dd HH:mm:ss）
-     const dateTimeStr = `${startDate} ${startTime.length === 5 ? startTime + ":00" : startTime}`;
-  
-     document.getElementById('startDate_weekday').value =getWeekdayFromDateTime(dateTimeStr);// newTzDateTime.weekday; 
+    const dateTimeStr = (startDate && startTime)
+        ? `${startDate} ${startTime.length === 5 ? startTime + ":00" : startTime}`
+        : "";
 
-     try {  
-         let newTzDateTime = await tzSwitchTo(fromZone, dateTimeStr, toTz);
-         //console.log("切换时区为", toTz, newTzDateTime, "原区:", fromZone, "原日期时间:", dateTimeStr);
-        const newDateTime = newTzDateTime? newTzDateTime.dateTime: "";
-         // newDateTime.split(' ') 报错的原因通常是 newDateTime 不是字符串或者为 null/undefined
-         // 比如 tzSwitchTo 返回 null、undefined 或对象/数组时无法使用 split 方法
-         // 建议：先判断 newDateTime 是否为字符串类型且非空
-         if (typeof newDateTime === "string" && newDateTime.trim().length > 0 && newDateTime.includes(' ')) { 
-             const [newDate, newTime] = newDateTime.split(' '); 
-             document.getElementById('displayStartDate').value = newDate;
-             document.getElementById('displayStartTime').value = newTime; 
-             document.getElementById('displayStartDate_weekday').value = getWeekdayFromDateTime(newDate);//newTzDateTime.weekday; 
-         } else {
-             // 错误提示辅助调试
-           //  console.error("tzSwitchTo 返回的 newDateTime 不是有效的字符串，值为：", newDateTime);
-         }
-            
-     } catch (err) {
-         alert("调用时区转换接口失败");
-         console.error(err);
-     } 
- }
+    // 先同步写本地时区对应的 weekday（无论是否开启切换预览）
+    safeSetInputValue('startDate_weekday', dateTimeStr ? getWeekdayFromDateTime(dateTimeStr) : "");
 
- async function getTestEndDatetime() {
+    // 未勾选开关时：清空用户时区显示区（避免残留旧值）
+    if (!toggle || !toggle.checked) {
+        safeSetInputValue('displayStartDate', "");
+        safeSetInputValue('displayStartTime', "");
+        safeSetInputValue('displayStartDate_weekday', "");
+        return;
+    }
+    if (!dateTimeStr || !fromZone || !toTz) {
+        safeSetInputValue('displayStartDate', "");
+        safeSetInputValue('displayStartTime', "");
+        safeSetInputValue('displayStartDate_weekday', "");
+        return;
+    }
+
+    const myReqId = ++window.__adminSchedule_tzReqSeq.start;
+    try {
+        const newTzDateTime = await tzSwitchTo(fromZone, dateTimeStr, toTz);
+        // 防竞态：后续已经有新请求发起，则丢弃本次写入
+        if (myReqId !== window.__adminSchedule_tzReqSeq.start) return;
+
+        const newDateTime = (newTzDateTime && newTzDateTime.dateTime) ? newTzDateTime.dateTime : "";
+        if (typeof newDateTime === "string" && newDateTime.trim() !== "" && newDateTime.includes(" ")) {
+            const [newDate, newTime] = newDateTime.split(" ");
+            safeSetInputValue('displayStartDate', newDate);
+            safeSetInputValue('displayStartTime', newTime);
+            safeSetInputValue('displayStartDate_weekday', newDate ? getWeekdayFromDateTime(newDate) : "");
+        } else {
+            safeSetInputValue('displayStartDate', "");
+            safeSetInputValue('displayStartTime', "");
+            safeSetInputValue('displayStartDate_weekday', "");
+        }
+    } catch (err) {
+        if (myReqId === window.__adminSchedule_tzReqSeq.start) {
+            console.error("[getTestDatetime] tzSwitchTo 失败:", err);
+        }
+    }
+}
+
+async function getTestEndDatetime() {
+    const toggle = document.getElementById('toggleUserTimeZone');
+    const endDateInput = document.getElementById('endDate');
+    const startTimeInput = document.getElementById('startTime');
     const displayTzInput = document.getElementById('testTimeZone');
-     // 读取原时区、日期与时间。这些输入框id需与页面实际结构对应
-     const timeZoneInput = document.getElementById('timeZone');
-     const startDateInput = document.getElementById('endDate');
-     const startTimeInput = document.getElementById('startTime');
+    const timeZoneInput = document.getElementById('timeZone');
+    if (!displayTzInput || !endDateInput || !startTimeInput) return;
 
-     const fromZone = timeZoneInput ? timeZoneInput.value :   "";
-     const startDate = startDateInput ? startDateInput.value : "";
-     const startTime = startTimeInput ? startTimeInput.value : "";
+    const endDate   = endDateInput.value || "";
+    const startTime = startTimeInput.value || "";
+    const fromZone  = (timeZoneInput && timeZoneInput.value) ? timeZoneInput.value : "";
+    const toTz      = displayTzInput.value || "";
 
-     const toTz= displayTzInput.value;
-     // 组装为 DateTime 字符串（假定格式为: yyyy-MM-dd HH:mm:ss）
-     const dateTimeStr = `${startDate} ${startTime.length === 5 ? startTime + ":00" : startTime}`;
-     const availableSites = document.getElementById('availableSites');
-     document.getElementById('endDate_weekday').value =getWeekdayFromDateTime(dateTimeStr);// newTzDateTime.weekday; 
+    const dateTimeStr = (endDate && startTime)
+        ? `${endDate} ${startTime.length === 5 ? startTime + ":00" : startTime}`
+        : "";
 
-     try { 
-         const newDateTime= await tzSwitchTo(fromZone,dateTimeStr,toTz);
-          if(newDateTime) {
-             const newDate = newDateTime.dateTime.split(' ')[0]; 
-             document.getElementById('displayEndDate').value =newDate ;
-             document.getElementById('displayEndDate_weekday').value =getWeekdayFromDateTime(newDate);// newDateTime.weekday ;
-             //document.getElementById('startTime').innerHTML =newTime ; 
-          }
-            // console.log("切换时区为", switchToTimeZone, "原区:", fromZone, "原日期时间:", dateTimeStr);
-     } catch (err) {
-         alert("调用时区转换接口失败");
-         console.error(err);
-     } 
+    safeSetInputValue('endDate_weekday', dateTimeStr ? getWeekdayFromDateTime(dateTimeStr) : "");
+
+    if (!toggle || !toggle.checked) {
+        safeSetInputValue('displayEndDate', "");
+        safeSetInputValue('displayEndDate_weekday', "");
+        return;
+    }
+    if (!dateTimeStr || !fromZone || !toTz) {
+        safeSetInputValue('displayEndDate', "");
+        safeSetInputValue('displayEndDate_weekday', "");
+        return;
+    }
+
+    const myReqId = ++window.__adminSchedule_tzReqSeq.end;
+    try {
+        const res = await tzSwitchTo(fromZone, dateTimeStr, toTz);
+        if (myReqId !== window.__adminSchedule_tzReqSeq.end) return;
+
+        const newDateTime = (res && res.dateTime) ? res.dateTime : "";
+        if (typeof newDateTime === "string" && newDateTime.trim() !== "" && newDateTime.includes(" ")) {
+            const [newDate] = newDateTime.split(" ");
+            safeSetInputValue('displayEndDate', newDate);
+            safeSetInputValue('displayEndDate_weekday', newDate ? getWeekdayFromDateTime(newDate) : "");
+        } else {
+            safeSetInputValue('displayEndDate', "");
+            safeSetInputValue('displayEndDate_weekday', "");
+        }
+    } catch (err) {
+        if (myReqId === window.__adminSchedule_tzReqSeq.end) {
+            console.error("[getTestEndDatetime] tzSwitchTo 失败:", err);
+        }
+    }
 } 
 
  // 1. 加载、显示课程列表
@@ -798,12 +834,15 @@ const totalBooked = await getBookingCountByScheduleId(scheduleObject.scheduleId)
      document.getElementById('availableSites').value = scheduleObject.availableSites;
      document.getElementById('now_availableSites').value =  scheduleObject.availableSites-totalBooked;
 
-     document.getElementById('scheduleName').value = scheduleObject.name;
+     document.getElementById('scheduleName').value = scheduleObject.name || '';
+
+     // 时区回填（跨时区排期时 fromZone 必须正确）
+     const tzEl = document.getElementById('timeZone');
+     if (tzEl) { tzEl.value = (scheduleObject.timeZone && String(scheduleObject.timeZone).trim()) ? scheduleObject.timeZone : (userTimeZone || ''); }
+
      // 刷新开始日期
      if (scheduleObject.startDate) {
          document.getElementById('startDate').value = scheduleObject.startDate;
-         document.getElementById('startDate_weekday').value =getWeekdayFromDateTime(scheduleObject.startDate);// newTzDateTime.weekday; 
-
      } else {
          document.getElementById('startDate').value = '';
      }
@@ -816,7 +855,7 @@ const totalBooked = await getBookingCountByScheduleId(scheduleObject.scheduleId)
      }
 
      // 刷新重复类型
-     if (scheduleObject.repeatType) {
+     if (scheduleObject.repeatType !== undefined && scheduleObject.repeatType !== null && scheduleObject.repeatType !== '') {
          document.getElementById('repeatType').value = scheduleObject.repeatType;
      } else {
          document.getElementById('repeatType').value = 'none';
@@ -837,35 +876,35 @@ const totalBooked = await getBookingCountByScheduleId(scheduleObject.scheduleId)
 
      // 刷新结束日期
      if (scheduleObject.endDate) {
-         document.getElementById('endDate').value = scheduleObject.endDate; 
-         document.getElementById('endDate_weekday').value =getWeekdayFromDateTime(scheduleObject.endDate);// newTzDateTime.weekday; 
-
+         document.getElementById('endDate').value = scheduleObject.endDate;
      } else {
          document.getElementById('endDate').value = '';
-     } 
-      
-     console.log("repeatDs:",scheduleObject.repeatDays,scheduleObject.repeatType);
-     
-     // 获取下拉框
-    const sel = document.getElementById('repeatType');
-    if(sel!= null) {
-        sel.selectedIndex = scheduleObject.repeatType;   
-    }
+     }
+
+     // 获取下拉框（修正：repeatType 改为值匹配而不是 selectedIndex=数字；因为 HTML value 是 none/day/week/month）
+     const sel = document.getElementById('repeatType');
+     if (sel != null) {
+         const v = scheduleObject.repeatType;
+         const valMap = { 0: 'none', 1: 'day', 2: 'week', 3: 'month' };
+         sel.value = (typeof v === 'number') ? (valMap[v] || 'none') : (v || 'none');
+     }
 
      // 刷新每周/每月重复星期（如有）
-     if ( scheduleObject.repeatType === 2 && Array.isArray( scheduleObject.repeatDays)) {
+     if ((scheduleObject.repeatType === 2 || String(scheduleObject.repeatType) === 'week') && Array.isArray(scheduleObject.repeatDays)) {
          const checkboxes = document.querySelectorAll('#weekDays input[type="checkbox"]');
-         checkboxes.forEach(cb => {
-             cb.checked =  scheduleObject.repeatDays.includes(Number(cb.value));
-         });
+         checkboxes.forEach(cb => { cb.checked = scheduleObject.repeatDays.includes(Number(cb.value)); });
+     } else if ((scheduleObject.repeatType === 3 || String(scheduleObject.repeatType) === 'month') && Array.isArray(scheduleObject.repeatDays)) {
+         const checkboxes = document.querySelectorAll('#monthDays input[type="checkbox"]');
+         checkboxes.forEach(cb => { cb.checked = scheduleObject.repeatDays.includes(Number(cb.value)); });
+     }
 
-     } else   if ( scheduleObject.repeatType === 3  && Array.isArray( scheduleObject.repeatDays)) {
-            const checkboxes = document.querySelectorAll('#monthDays input[type="checkbox"]');
-            checkboxes.forEach(cb => {
-                cb.checked =  scheduleObject.repeatDays.includes(Number(cb.value));
-            });
-    } 
-    onRepeatTypeChange(); 
+     onRepeatTypeChange();
+
+     // ===== P0 关键修复：renderSchedule 回填完成后，立即兜底重算时区（不依赖 change 事件）=====
+     try {
+         if (typeof getTestDatetime === 'function') getTestDatetime();
+         if (typeof getTestEndDatetime === 'function') getTestEndDatetime();
+     } catch (e) { console.error("[renderSchedule] refresh tz error:", e); }
 }
  
 
@@ -955,11 +994,21 @@ return ;
 
    
    
+// 统一刷新用户时区预览（避免在多处复制判断逻辑；即使内部未勾选开关也会自动清空残留旧值）
+function refreshUserTzPreview() {
+    try {
+        if (typeof getTestDatetime === 'function')    getTestDatetime();
+        if (typeof getTestEndDatetime === 'function') getTestEndDatetime();
+    } catch (e) { console.error("[refreshUserTzPreview] error:", e); }
+}
+
   //当排期列表选择变化时，检查参数，重新显示排期计划
-   function displySchedule() { 
-    if(! checkCourseAndSchedule(true,true))
-        return ;
-   // const conflictMessageElem = document.getElementById('conflictMessage');
+   function displySchedule() {
+    // 先做一次兜底刷新：无论后续是否 early return，都避免左侧选择变化后右侧还显示上次切走残留的值
+    refreshUserTzPreview();
+
+    if(! checkCourseAndSchedule(true,true)) return;
+
     if (conflictMessageElem) {
         conflictMessageElem.textContent = '';
     }
@@ -977,25 +1026,19 @@ return ;
 
    if (!selectedId) return;
    currentScheduleId = selectedId;
-   
+
    // 在 scheduleList 中查找对应的排期对象
    const selectedSchedule = scheduleList.find(s => String(s.scheduleId) === String(selectedId));
    if (selectedSchedule) {
        scheduleObject = selectedSchedule;
-       // 调用 renderSchedule （假设有此函数用于渲染/刷新当前排期到表单）
-      
    } else {
-       resetScheduleObject();//
+       resetScheduleObject();
    }
     if (typeof renderSchedule === 'function') {
-        renderSchedule();
-    }
-    // 判断 toggleUserTimeZone 的选中状态，如果选中则更新用户时区-----有时没有更新
-    const toggleUserTimeZone = document.getElementById('toggleUserTimeZone');
-    console.log("toggleUserTimeZone",toggleUserTimeZone.checked);
-    if (toggleUserTimeZone && toggleUserTimeZone.checked) {
-        getTestDatetime();
-        getTestEndDatetime();
+        renderSchedule(); // renderSchedule 内部已在末尾兜底调用 refreshUserTzPreview
+    } else {
+        // renderSchedule 不可用时，仍然按兜底逻辑刷新一次
+        refreshUserTzPreview();
     }
    }
   //读取排期个字段的输入/选择值
