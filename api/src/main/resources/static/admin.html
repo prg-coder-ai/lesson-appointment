@@ -178,10 +178,13 @@
     // 侧边栏菜单切换逻辑
     // 管理端页面内容加载逻辑（核心修改：渲染到中央区域）
     function loadAdminPageContent(title) {
+      // 菜单文字可能已被行业术语替换（如"课程排期"→"咨询话题排期"），
+      // 归一化回锚点词后再匹配 switch，保证任何行业下导航都命中
+      title = normalizeTermText(title);
       // 清空中央内容区
       dynamicContentCenter = document.getElementById('dynamic-content-center');
       if(dynamicContentCenter)
-      dynamicContentCenter.innerHTML = ''; 
+      dynamicContentCenter.innerHTML = '';
       // 如果 title 没有定义或者为空，则强制为“数据总览”
       if (typeof title === 'undefined' || title === null || (typeof title === 'string' && title.trim() === '')) {
         title = '数据总览';

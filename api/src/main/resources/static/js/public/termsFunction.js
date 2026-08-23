@@ -39,6 +39,23 @@ let domain_industry = "education";
   // <option> 文本已被 TreeWalker 排除的话取消 skipTags 中的 OPTION（见 3.5 注意事项）
 }
  
+// 把含行业词的字符串还原为锚点词字符串（纯字符串处理，不动 DOM）。
+// 用途：菜单导航 switch 按文字匹配（如 case '课程排期'），
+// 而 applyTerms 已把菜单文字换成行业词（如"咨询话题排期"），
+// 匹配前先经此函数归一化，保证任何行业下导航逻辑都能命中。
+function normalizeTermText(text) {
+  if (!text || typeof text !== "string") return text;
+  const industry = getCurrentIndustry();
+  const terms = TERM_DICT[industry];
+  if (!terms || industry === "education") return text;
+  const pairs = TERM_KEYS
+    .filter(t => terms[t.key] && terms[t.key] !== t.anchor)
+    .map(t => ({ from: terms[t.key], to: t.anchor }))
+    .sort((a, b) => b.from.length - a.from.length);
+  pairs.forEach(p => { text = text.split(p.from).join(p.to); });
+  return text;
+}
+
 function getCurrentIndustry() {
   return localStorage.getItem("industry") || domain_industry;
 }
