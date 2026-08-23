@@ -50,6 +50,7 @@ window.deleteBookingByFrozen = deleteBookingByFrozen;
             <th>序号</th>
             <th  style="display:none;">预订ID</th>
             <th>课程名称</th>
+            <th>排期名称</th>
             <th>学生姓名</th>
             <th>教师姓名</th>
             <th>上课时间</th>
@@ -141,7 +142,8 @@ async function getBookingListByPage(){
                          scheduleId:    scheduleObject.scheduleId, 
                          origTz:        scheduleObject.timeZone,
                          bookingId: booking.id,
-                         className: classObject.courseName,//+ " " + scheduleObject.name,
+                         className: classObject.courseName,//+ " " + 
+                         scheduleName: scheduleObject.name,
                          studentName: studentName,//-->name/phone/email
                          teacherName: teacherName,
                          scheduleInfo: scheduleInfoStr, 
@@ -180,6 +182,7 @@ async function getBookingListByPage(){
             <td class="course-info" style="display:none;">${cardInfo.bookingId}</td>
        
             <td class="course-info">   ${cardInfo.className}</td>
+            <td class="course-info">   ${cardInfo.scheduleName}</td>
            <td class="course-info">   ${cardInfo.studentName}</td>
            <td class="course-info">   ${cardInfo.teacherName}</td>
            <td class="course-info">   ${cardInfo.scheduleInfo}</td>

@@ -328,13 +328,16 @@ function toScheduleCreateDto(formData) {
     } else if (raw != null && !isNaN(Number(raw))) {
         repeatType = Number(raw);
     }
+    
+
     return {
         scheduleId: formData.scheduleId || '',
         courseId: formData.courseId || '',
         startDate: formData.startDate || '',
         startTime: formData.startTime || '',
         endDate: formData.endDate || '',
-        endTime: formData.endTime || formData.startTime || '',
+        endTime: formData.endTime   || formData.startTime || '',
+        
         repeatType,
         repeatInterval: formData.repeatInterval ?? formData.interval ?? 1,
         repeatDays: formData.repeatDays || [],

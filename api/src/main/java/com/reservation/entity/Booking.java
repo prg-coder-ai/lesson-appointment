@@ -1,15 +1,20 @@
 // 预约订单实体（对应设计2.2.3 预约、支付相关接口）
 package com.reservation.entity;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import jakarta.validation.constraints.NotBlank;
-//import jakarta.validation.constraints.NotNull;
-//import java.math.BigDecimal;
 import java.util.Date;
 import java.io.Serializable;
+
 @Data
+@TableName("booking")
 public class Booking   implements Serializable{
     private static final long serialVersionUID = 1L;
+
+    @TableId(type = IdType.ASSIGN_ID)
     private String bookingId;  // 系统生成唯一标识（UUID），对应通用校验规则-ID类参数
     @NotBlank(message = "排期ID不能为空")
     private String scheduleId;  // 关联排期，对应设计2.2.3 预约接口请求参数

@@ -328,6 +328,12 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
     if (dto.getEndDate() != null && dto.getEndTime() != null) {
         LocalDateTime endLdt = LocalDateTime.of(dto.getEndDate(), dto.getEndTime());
         cs.setEndTime(endLdt.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+
+        //rguo: 如果结束日期与开始日期相同，结束日期增加 50 分钟
+        if (  dto.getEndTime().equals(dto.getStartTime())) {
+            endLdt = endLdt.plusMinutes(50);
+            cs.setEndTime(endLdt.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+        }
     }
  
     cs.setRepeatType(dto.getRepeatType());
