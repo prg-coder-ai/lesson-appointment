@@ -33,15 +33,22 @@ async function renderScheduleCards() {
       html += `
 <style>
   .dynamic-content-center { max-width: none; }
-  .sched-page .sched-card {
-    margin-left: 0;
+  /* 注意：三张卡片都用 .sched-card 类；CSS 选择器不再依赖父级 .sched-page，
+     确保"课程检索 / 排期结果 / 日历视图"三张卡片完全使用同一套布局规则。 */
+  .sched-page .sched-card,
+  .sched-card {
+    margin-left: 0 !important;        /* 覆盖 admin.css .card 默认的 margin-left:20px（会让部分卡片显得更窄） */
     margin-bottom: 24px;
     border-radius: 8px;
     padding: 24px 28px;
     box-shadow: 0 2px 8px rgba(0,0,0,.08);
     background: #fff;
+    /* width:100% + box-sizing，确保 3 张卡片都严格撑满 dynamic-content-center 可见宽度 */
+    width: 100%;
+    box-sizing: border-box;
   }
-  .sched-page .sched-card-title {
+  .sched-page .sched-card-title,
+  .sched-card .sched-card-title {
     font-size: 16px;
     font-weight: 600;
     color: #333;
@@ -61,6 +68,8 @@ async function renderScheduleCards() {
     padding: 16px 20px;
     background: #fafafa;
     border-radius: 6px;
+    width: 100%;
+    box-sizing: border-box;
   }
   .sched-page .sched-filter-form > div { display: flex; align-items: center; gap: 8px; }
   .sched-page .sched-filter-form label { font-size: 14px; color: #555; font-weight: 500; }
@@ -126,6 +135,8 @@ async function renderScheduleCards() {
     padding: 16px 20px;
     background: #fafafa;
     border-radius: 6px;
+    width: 100%;
+    box-sizing: border-box;
   }
   .sched-page .sched-btn-row .btn {
     padding: 9px 22px;
@@ -151,8 +162,23 @@ async function renderScheduleCards() {
     align-items: center;
     gap: 4px;
   }
+  /* 排期结果/日历视图：强制 card-body 不做额外左右 padding 缩进（避免比课程检索更窄） */
+  .sched-card .card-body {
+    padding: 0 !important;
+    margin: 0;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .sched-page .sched-table,
+  .sched-card  .sched-table {
+    width: 100%;
+    border-collapse: collapse;
+    box-sizing: border-box;
+  }
   .sched-page .sched-table th,
-  .sched-page .sched-table td { padding: 12px 14px; font-size: 14px; }
+  .sched-page .sched-table td,
+  .sched-card  .sched-table th,
+  .sched-card  .sched-table td { padding: 12px 14px; font-size: 14px; }
   .sched-page .sched-pagination-bar {
     display: flex;
     justify-content: space-between;
@@ -160,6 +186,7 @@ async function renderScheduleCards() {
     padding: 0;
     margin: 0;
     width: 100%;
+    box-sizing: border-box;
   }
   .sched-page .pagination-bar {
     border-top: none !important;
@@ -168,6 +195,7 @@ async function renderScheduleCards() {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    box-sizing: border-box;
   }
 </style>
 <div class="sched-page">
@@ -400,14 +428,13 @@ async function renderScheduleCards() {
            <option value="">请选择学生</option>
        </select>
     </div>
-     </div> <!-- card -->
-</div><!-- sched-page -->
- </div>
+     </div> <!-- 课程检索 / 排期设置 card -->
 
-    <!-- 排期结果 -->
+    <!-- 排期结果（与课程检索同属 .sched-page，确保完全相同的宽度 & 对齐规则） -->
     <div class="card sched-card">
         <div class="card-title sched-card-title"><i class="fa fa-list-alt"></i> 排期结果（列表）</div>
-        <div class="card-body" style="padding:8px 28px 20px;">
+        <!-- 移除内联 style="padding:8px 28px 20px"：改由 CSS .sched-card > .card-body 统一管控，避免与外层 padding 叠加导致内容更窄 -->
+        <div class="card-body">
         <table class="sched-table">
             <thead>
                 <tr>
@@ -423,10 +450,11 @@ async function renderScheduleCards() {
 
     <div class="card sched-card">
         <div class="card-title sched-card-title"><i class="fa fa-calendar-alt"></i> 日历视图</div>
-        <div class="card-body" style="padding:8px 28px 20px;">
+        <div class="card-body">
         <div id="calendar" class="calendar"></div>
         </div>
-    </div>`;
+    </div>
+</div><!-- sched-page 结束：所有 3 张卡片都在同一父容器内 -->`;
         
     dynamicContentCenter.innerHTML = html;
 
