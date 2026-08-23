@@ -65,7 +65,7 @@
         </choose>
          <choose>
           <when test="email != null and email != ''">
-          AND c.email = LIKE CONCAT('%', #{email}, '%')
+          AND c.email LIKE CONCAT('%', #{email}, '%')
           </when>
         </choose>
          <choose>
@@ -75,7 +75,7 @@
         </choose>
          <choose>
           <when test="userId != null and userId != ''">
-         AND  c.userId = #{userId}
+         AND  c.user_id = #{userId}
          </when>
         </choose>
       </where>
@@ -130,7 +130,7 @@
          </choose>
          <choose>
           <when test="userId != null and userId != ''">
-         AND  c.userId = #{userId}
+         AND  c.user_id = #{userId}
          </when>
         </choose>
       </where>
@@ -183,7 +183,7 @@
 
          <choose>
           <when test="userId != null and userId != ''">
-               AND  c.userId = #{userId}
+               AND  c.user_id = #{userId}
          </when>
         </choose>
       </where> 
