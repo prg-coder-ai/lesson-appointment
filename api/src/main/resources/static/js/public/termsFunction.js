@@ -56,6 +56,7 @@ function switchIndustry(industry) {
   applyTerms();
   // 4. 通知后端（可选：行业偏好存到用户档案，下次登录直接生效）
   // fetch('/api/user/preferences', {method:'PUT', body: JSON.stringify({industry})});
+  console.log("switchIndustry to",industry);
 }
  
 switchIndustry("legal");//ceshi 法律行业
