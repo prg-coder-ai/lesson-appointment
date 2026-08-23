@@ -4922,3 +4922,99 @@ This generated password is for development use only. Your security configuration
 2026-08-23T18:31:19.190+08:00 INFO  o.a.coyote.http11.Http11NioProtocol : Starting ProtocolHandler ["http-nio-8081"]
 2026-08-23T18:31:19.242+08:00 INFO  o.s.b.w.e.tomcat.TomcatWebServer : Tomcat started on port 8081 (http) with context path '/'
 2026-08-23T18:31:19.255+08:00 INFO  c.r.SpringBootMergeApplication : Started SpringBootMergeApplication in 6.921 seconds (process running for 7.687)
+2026-08-23T18:33:27.721+08:00 INFO  o.a.coyote.http11.Http11NioProtocol : Stopping ProtocolHandler ["http-nio-8081"]
+2026-08-23T18:34:25.812+08:00 INFO  o.h.validator.internal.util.Version : HV000001: Hibernate Validator 8.0.1.Final
+2026-08-23T18:34:25.899+08:00 INFO  c.r.SpringBootMergeApplication : Starting SpringBootMergeApplication using Java 21.0.8 with PID 64704 (H:\2026\lesson-appointment\api\target\classes started by Administrator in H:\2026\lesson-appointment\api)
+2026-08-23T18:34:25.930+08:00 INFO  c.r.SpringBootMergeApplication : No active profile set, falling back to 1 default profile: "default"
+2026-08-23T18:34:26.015+08:00 INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor : Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2026-08-23T18:34:26.016+08:00 INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor : For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2026-08-23T18:34:28.680+08:00 INFO  o.s.b.w.e.tomcat.TomcatWebServer : Tomcat initialized with port 8081 (http)
+2026-08-23T18:34:28.700+08:00 INFO  o.a.coyote.http11.Http11NioProtocol : Initializing ProtocolHandler ["http-nio-8081"]
+2026-08-23T18:34:28.707+08:00 INFO  o.a.catalina.core.StandardService : Starting service [Tomcat]
+2026-08-23T18:34:28.712+08:00 INFO  o.a.catalina.core.StandardEngine : Starting Servlet engine: [Apache Tomcat/10.1.31]
+2026-08-23T18:34:28.814+08:00 INFO  o.a.c.c.C.[Tomcat].[localhost].[/] : Initializing Spring embedded WebApplicationContext
+2026-08-23T18:34:28.816+08:00 INFO  o.s.b.w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 2795 ms
+2026-08-23T18:34:29.501+08:00 WARN  c.b.m.core.injector.methods.Insert : [com.reservation.mapper.AuditLogMapper.insert] Has been loaded by XML or SqlProvider or Mybatis's Annotation, so ignoring this injection for [class com.baomidou.mybatisplus.core.injector.methods.Insert]
+2026-08-23T18:34:29.603+08:00 WARN  c.b.m.c.injector.methods.SelectList : [com.reservation.mapper.BookingMapper.selectList] Has been loaded by XML or SqlProvider or Mybatis's Annotation, so ignoring this injection for [class com.baomidou.mybatisplus.core.injector.methods.SelectList]
+2026-08-23T18:34:29.609+08:00 WARN  c.b.m.c.injector.methods.SelectById : [com.reservation.mapper.BookingMapper.selectById] Has been loaded by XML or SqlProvider or Mybatis's Annotation, so ignoring this injection for [class com.baomidou.mybatisplus.core.injector.methods.SelectById]
+2026-08-23T18:34:29.718+08:00 WARN  c.b.m.core.injector.methods.Update : [com.reservation.mapper.CourseScheduleMapper.update] Has been loaded by XML or SqlProvider or Mybatis's Annotation, so ignoring this injection for [class com.baomidou.mybatisplus.core.injector.methods.Update]
+2026-08-23T18:34:30.927+08:00 WARN  o.s.b.a.s.s.UserDetailsServiceAutoConfiguration : 
+
+Using generated security password: 228666e2-6f4a-438b-96ac-436f2a688e74
+
+This generated password is for development use only. Your security configuration must be updated before running your application in production.
+
+2026-08-23T18:34:30.943+08:00 INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name inMemoryUserDetailsManager
+2026-08-23T18:34:31.092+08:00 INFO  o.s.b.a.w.s.WelcomePageHandlerMapping : Adding welcome page: class path resource [static/index.html]
+2026-08-23T18:34:31.943+08:00 INFO  o.s.b.d.a.OptionalLiveReloadServer : LiveReload server is running on port 35729
+2026-08-23T18:34:31.963+08:00 INFO  o.a.coyote.http11.Http11NioProtocol : Starting ProtocolHandler ["http-nio-8081"]
+2026-08-23T18:34:32.042+08:00 INFO  o.s.b.w.e.tomcat.TomcatWebServer : Tomcat started on port 8081 (http) with context path '/'
+2026-08-23T18:34:32.086+08:00 INFO  c.r.SpringBootMergeApplication : Started SpringBootMergeApplication in 7.086 seconds (process running for 7.775)
+2026-08-23T18:37:13.372+08:00 INFO  o.a.c.c.C.[Tomcat].[localhost].[/] : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-08-23T18:37:13.387+08:00 INFO  o.s.web.servlet.DispatcherServlet : Initializing Servlet 'dispatcherServlet'
+2026-08-23T18:37:13.405+08:00 INFO  o.s.web.servlet.DispatcherServlet : Completed initialization in 0 ms
+2026-08-23T18:37:21.714+08:00 INFO  com.zaxxer.hikari.HikariDataSource : HikariPool-1 - Starting...
+2026-08-23T18:37:22.102+08:00 INFO  com.zaxxer.hikari.pool.HikariPool : HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@56a5f75
+2026-08-23T18:37:22.106+08:00 INFO  com.zaxxer.hikari.HikariDataSource : HikariPool-1 - Start completed.
+2026-08-23T18:38:29.202+08:00 INFO  c.r.service.RefreshTokenService : 用户登出，删除刷新Token开始, token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwNjYzMmU0MC03ZWExLTQ4NGEtYmZhYS03OTFkOWFjYjdiYmQiLCJleHAiOjE3ODgwNzU5NjF9.ceTLqL5v24hsG8M0bsX-udvRib9-nxniPwaQpdj0EGE
+2026-08-23T18:38:29.222+08:00 INFO  c.r.service.RefreshTokenService : 用户登出，删除刷新Token结束, token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwNjYzMmU0MC03ZWExLTQ4NGEtYmZhYS03OTFkOWFjYjdiYmQiLCJleHAiOjE3ODgwNzU5NjF9.ceTLqL5v24hsG8M0bsX-udvRib9-nxniPwaQpdj0EGE
+2026-08-23T18:43:11.822+08:00 INFO  com.zaxxer.hikari.HikariDataSource : HikariPool-1 - Shutdown initiated...
+2026-08-23T18:43:11.845+08:00 INFO  com.zaxxer.hikari.HikariDataSource : HikariPool-1 - Shutdown completed.
+2026-08-23T18:43:57.949+08:00 INFO  o.h.validator.internal.util.Version : HV000001: Hibernate Validator 8.0.1.Final
+2026-08-23T18:43:58.005+08:00 INFO  c.r.SpringBootMergeApplication : Starting SpringBootMergeApplication using Java 21.0.8 with PID 65312 (H:\2026\lesson-appointment\api\target\classes started by Administrator in H:\2026\lesson-appointment\api)
+2026-08-23T18:43:58.007+08:00 INFO  c.r.SpringBootMergeApplication : No active profile set, falling back to 1 default profile: "default"
+2026-08-23T18:43:58.073+08:00 INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor : Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2026-08-23T18:43:58.079+08:00 INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor : For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2026-08-23T18:44:00.689+08:00 INFO  o.s.b.w.e.tomcat.TomcatWebServer : Tomcat initialized with port 8081 (http)
+2026-08-23T18:44:00.705+08:00 INFO  o.a.coyote.http11.Http11NioProtocol : Initializing ProtocolHandler ["http-nio-8081"]
+2026-08-23T18:44:00.711+08:00 INFO  o.a.catalina.core.StandardService : Starting service [Tomcat]
+2026-08-23T18:44:00.711+08:00 INFO  o.a.catalina.core.StandardEngine : Starting Servlet engine: [Apache Tomcat/10.1.31]
+2026-08-23T18:44:00.783+08:00 INFO  o.a.c.c.C.[Tomcat].[localhost].[/] : Initializing Spring embedded WebApplicationContext
+2026-08-23T18:44:00.783+08:00 INFO  o.s.b.w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 2702 ms
+2026-08-23T18:44:01.267+08:00 WARN  c.b.m.core.injector.methods.Insert : [com.reservation.mapper.AuditLogMapper.insert] Has been loaded by XML or SqlProvider or Mybatis's Annotation, so ignoring this injection for [class com.baomidou.mybatisplus.core.injector.methods.Insert]
+2026-08-23T18:44:01.324+08:00 WARN  c.b.m.c.injector.methods.SelectList : [com.reservation.mapper.BookingMapper.selectList] Has been loaded by XML or SqlProvider or Mybatis's Annotation, so ignoring this injection for [class com.baomidou.mybatisplus.core.injector.methods.SelectList]
+2026-08-23T18:44:01.328+08:00 WARN  c.b.m.c.injector.methods.SelectById : [com.reservation.mapper.BookingMapper.selectById] Has been loaded by XML or SqlProvider or Mybatis's Annotation, so ignoring this injection for [class com.baomidou.mybatisplus.core.injector.methods.SelectById]
+2026-08-23T18:44:01.404+08:00 WARN  c.b.m.core.injector.methods.Update : [com.reservation.mapper.CourseScheduleMapper.update] Has been loaded by XML or SqlProvider or Mybatis's Annotation, so ignoring this injection for [class com.baomidou.mybatisplus.core.injector.methods.Update]
+2026-08-23T18:44:02.374+08:00 WARN  o.s.b.a.s.s.UserDetailsServiceAutoConfiguration : 
+
+Using generated security password: 2f90b3b2-e5cc-4d48-9275-778cdf87dc27
+
+This generated password is for development use only. Your security configuration must be updated before running your application in production.
+
+2026-08-23T18:44:02.390+08:00 INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name inMemoryUserDetailsManager
+2026-08-23T18:44:02.486+08:00 INFO  o.s.b.a.w.s.WelcomePageHandlerMapping : Adding welcome page: class path resource [static/index.html]
+2026-08-23T18:44:03.233+08:00 INFO  o.s.b.d.a.OptionalLiveReloadServer : LiveReload server is running on port 35729
+2026-08-23T18:44:03.253+08:00 INFO  o.a.coyote.http11.Http11NioProtocol : Starting ProtocolHandler ["http-nio-8081"]
+2026-08-23T18:44:03.289+08:00 INFO  o.s.b.w.e.tomcat.TomcatWebServer : Tomcat started on port 8081 (http) with context path '/'
+2026-08-23T18:44:03.302+08:00 INFO  c.r.SpringBootMergeApplication : Started SpringBootMergeApplication in 6.087 seconds (process running for 6.977)
+2026-08-23T18:44:41.871+08:00 INFO  o.a.c.c.C.[Tomcat].[localhost].[/] : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-08-23T18:44:41.881+08:00 INFO  o.s.web.servlet.DispatcherServlet : Initializing Servlet 'dispatcherServlet'
+2026-08-23T18:44:41.886+08:00 INFO  o.s.web.servlet.DispatcherServlet : Completed initialization in 1 ms
+2026-08-23T18:44:43.642+08:00 INFO  com.zaxxer.hikari.HikariDataSource : HikariPool-1 - Starting...
+2026-08-23T18:44:44.005+08:00 INFO  com.zaxxer.hikari.pool.HikariPool : HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@708d849f
+2026-08-23T18:44:44.018+08:00 INFO  com.zaxxer.hikari.HikariDataSource : HikariPool-1 - Start completed.
+2026-08-23T18:47:05.731+08:00 INFO  com.zaxxer.hikari.HikariDataSource : HikariPool-1 - Shutdown initiated...
+2026-08-23T18:47:05.739+08:00 INFO  com.zaxxer.hikari.HikariDataSource : HikariPool-1 - Shutdown completed.
+2026-08-23T18:47:56.043+08:00 INFO  o.h.validator.internal.util.Version : HV000001: Hibernate Validator 8.0.1.Final
+2026-08-23T18:47:56.126+08:00 INFO  c.r.SpringBootMergeApplication : Starting SpringBootMergeApplication using Java 21.0.8 with PID 48608 (H:\2026\lesson-appointment\api\target\classes started by Administrator in H:\2026\lesson-appointment\api)
+2026-08-23T18:47:56.127+08:00 INFO  c.r.SpringBootMergeApplication : No active profile set, falling back to 1 default profile: "default"
+2026-08-23T18:47:56.202+08:00 INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor : Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2026-08-23T18:47:56.203+08:00 INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor : For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2026-08-23T18:47:58.511+08:00 INFO  o.s.b.w.e.tomcat.TomcatWebServer : Tomcat initialized with port 8081 (http)
+2026-08-23T18:47:58.525+08:00 INFO  o.a.coyote.http11.Http11NioProtocol : Initializing ProtocolHandler ["http-nio-8081"]
+2026-08-23T18:47:58.532+08:00 INFO  o.a.catalina.core.StandardService : Starting service [Tomcat]
+2026-08-23T18:47:58.533+08:00 INFO  o.a.catalina.core.StandardEngine : Starting Servlet engine: [Apache Tomcat/10.1.31]
+2026-08-23T18:47:58.608+08:00 INFO  o.a.c.c.C.[Tomcat].[localhost].[/] : Initializing Spring embedded WebApplicationContext
+2026-08-23T18:47:58.609+08:00 INFO  o.s.b.w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 2404 ms
+2026-08-23T18:47:59.129+08:00 WARN  c.b.m.core.injector.methods.Insert : [com.reservation.mapper.AuditLogMapper.insert] Has been loaded by XML or SqlProvider or Mybatis's Annotation, so ignoring this injection for [class com.baomidou.mybatisplus.core.injector.methods.Insert]
+2026-08-23T18:47:59.197+08:00 WARN  c.b.m.c.injector.methods.SelectList : [com.reservation.mapper.BookingMapper.selectList] Has been loaded by XML or SqlProvider or Mybatis's Annotation, so ignoring this injection for [class com.baomidou.mybatisplus.core.injector.methods.SelectList]
+2026-08-23T18:47:59.201+08:00 WARN  c.b.m.c.injector.methods.SelectById : [com.reservation.mapper.BookingMapper.selectById] Has been loaded by XML or SqlProvider or Mybatis's Annotation, so ignoring this injection for [class com.baomidou.mybatisplus.core.injector.methods.SelectById]
+2026-08-23T18:47:59.319+08:00 WARN  c.b.m.core.injector.methods.Update : [com.reservation.mapper.CourseScheduleMapper.update] Has been loaded by XML or SqlProvider or Mybatis's Annotation, so ignoring this injection for [class com.baomidou.mybatisplus.core.injector.methods.Update]
+2026-08-23T18:48:00.461+08:00 WARN  o.s.b.a.s.s.UserDetailsServiceAutoConfiguration : 
+
+Using generated security password: 549df08c-49a4-4eb8-83bf-096e5109e227
+
+This generated password is for development use only. Your security configuration must be updated before running your application in production.
+
+2026-08-23T18:48:00.472+08:00 INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name inMemoryUserDetailsManager
+2026-08-23T18:48:00.706+08:00 INFO  o.s.b.a.w.s.WelcomePageHandlerMapping : Adding welcome page: class path resource [static/index.html]

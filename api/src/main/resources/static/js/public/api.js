@@ -41,6 +41,7 @@
       const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       //console.log("tz",userTimeZone); 
       InitUserInfo(); 
+      
 
   // 在公共入口（如 main.js / public/init）初始化一次
   const mo = new MutationObserver(mutations => {
