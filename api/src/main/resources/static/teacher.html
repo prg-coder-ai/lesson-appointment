@@ -24,7 +24,7 @@
   <header class="header">
     <div class="logo">
       <img src="https://via.placeholder.com/40x40/52c41a/ffffff?text=教" alt="教师端logo">
-      <span class="logo-text">语言教学预约系统（教师端）</span>
+      <span class="logo-text">语言教学预约系统（<span data-term="teacher">教师</span>端）</span>
     </div>
     <div class="header-actions">
       <div class="user-info" id="user_info">  
@@ -44,28 +44,28 @@
       <div class="menu-group-title">我的工作台</div>
       <div class="menu-item">
         <i class="fa fa-home"></i>
-        <span>今日课程</span>
+        <span>今日<span data-term="course">课程</span></span>
       </div>  
 
-      <div class="menu-group-title">课程管理</div>
+      <div class="menu-group-title"><span data-term="course">课程</span>管理</div>
       <div class="menu-item">
         <i class="fa fa-book"></i>
-        <span>我的课程</span>
+        <span>我的<span data-term="course">课程</span></span>
       </div>
-      <div class="menu-group-title">预订课程</div>
+      <div class="menu-group-title">预订<span data-term="course">课程</span></div>
       <div class="menu-item">
         <i class="fa fa-calendar"></i>
         <span>预订管理</span>
       </div>
       <!-- div class="menu-item">
         <i class="fa fa-calendar-alt"></i>
-        <span>课程通知</span>
+        <span><span data-term="course">课程</span>通知</span>
       </div -->
       
       <!--
       <div class="menu-item">
         <i class="fa fa-star"></i>
-        <span>学生评价</span>
+        <span><span data-term="student">学生</span>评价</span>
       </div>
       
       <div class="menu-item">
@@ -80,7 +80,7 @@
       
       <div class="content-header">
         <div style="display: flex; align-items: center; justify-content: space-between;">
-          <h1 class="page-title" style="margin: 0;">今日课程</h1>
+          <h1 class="page-title" style="margin: 0;">今日<span data-term="course">课程</span></h1>
           <button class="btn btn-primary" onclick='refreshRightPage()'><i class="fa fa-refresh"></i> 刷新</button>
         </div>
       </div>
@@ -279,7 +279,7 @@
               <div style="margin-top: 15px; padding: 0 20px 20px;">
                 <div class="course-card">
                   <div class="course-info">
-                    <h4>英语初级口语 - 小班课</h4>
+                    <h4>英语初级口语 - <span data-term="classForm1pN">小班课</span></h4>
                     <p>预约人：张三 | 预约时间：2026-03-20 14:00 | 状态：待确认</p>
                   </div>
                   <div class="course-actions">
@@ -299,7 +299,7 @@
                 </div>
                 <div class="course-card">
                   <div class="course-info">
-                    <h4>英语初级口语 - 一对一</h4>
+                    <h4>英语初级口语 - <span data-term="classForm1p1">一对一</span></h4>
                     <p>预约人：王五 | 预约时间：2026-03-21 10:00 | 状态：已取消</p>
                   </div>
                   <div class="course-actions">

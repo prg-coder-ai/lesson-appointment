@@ -15,7 +15,7 @@ let appointmentList=[];// ID,ciurseName,studentName,teacherName,dateTime(创建�
             `  <div class="card">           
             <div class="filter-bar">  
                 <div class="filter-item">
-                  <label>课程名称：</label>
+                  <label><span data-term="course">课程</span>名称：</label>
                   <input type="text" id="course-name-input" placeholder="课程名称">
                 </div>
                       
@@ -64,10 +64,10 @@ let appointmentList=[];// ID,ciurseName,studentName,teacherName,dateTime(创建�
                   <tr>
                     <th>序号</th>
                     <th  style="display:none;">预约ID</th>
-                    <th>课程名称</th>
-                    <th>学生姓名</th>
-                    <th>教师姓名</th>
-                    <th>上课时间</th>
+                    <th><span data-term="course">课程</span>名称</th>
+                    <th><span data-term="student">学生</span>姓名</th>
+                    <th><span data-term="teacher">教师</span>姓名</th>
+                    <th><span data-term="lessonTime">上课时间</span></th>
                     <th>状态</th>
                     <th>操作</th>
                   </tr>

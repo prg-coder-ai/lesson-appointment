@@ -1099,7 +1099,7 @@ function generatePublishHtml(mode) {
       </div>`;
     }).join('');
     lessonHtml = `<section style="margin-bottom:16px;">
-      <h3 style="margin:0 0 8px 0;color:${style.accentColor};font-size:${style.fontSizePx + 2}px;">课时配置</h3>
+      <h3 style="margin:0 0 8px 0;color:${style.accentColor};font-size:${style.fontSizePx + 2}px;"><span data-term="lessonUnit">课时</span>配置</h3>
       <div style="background:${style.cardBgColor};padding:12px 16px;border-radius:8px;">${rows}</div>
     </section>`;
   }

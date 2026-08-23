@@ -71,7 +71,7 @@ function dataMaintainPage() {
       </div>
       <div class="dm-tab-bar">
         <button class="dm-tab-btn active" id="tab-template-maintain" onclick="selectMaintainTab('template')"><i class="fa fa-layer-group"></i> 模板</button>
-        <button class="dm-tab-btn" id="tab-course-maintain" onclick="selectMaintainTab('course')"><i class="fa fa-book"></i> 课程</button>
+        <button class="dm-tab-btn" id="tab-course-maintain" onclick="selectMaintainTab('course')"><i class="fa fa-book"></i> <span data-term="course">课程</span></button>
         <button class="dm-tab-btn" id="tab-schedule-maintain" onclick="selectMaintainTab('schedule')"><i class="fa fa-calendar-alt"></i> 排期</button>
         <button class="dm-tab-btn" id="tab-booking-maintain" onclick="selectMaintainTab('booking')"><i class="fa fa-calendar-check"></i> 预定</button>
         <button class="dm-tab-btn" id="tab-appointment-maintain" onclick="selectMaintainTab('appointment')"><i class="fa fa-clock"></i> 预约</button>

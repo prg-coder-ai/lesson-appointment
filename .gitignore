@@ -46,3 +46,5 @@ api/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles
 api/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst
 api/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst
 api/logs/spring-boot-app.log
+api/logs
+api/logs/spring-boot-app.log
