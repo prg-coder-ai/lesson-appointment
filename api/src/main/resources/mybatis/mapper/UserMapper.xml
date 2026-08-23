@@ -15,37 +15,9 @@
         <result column="qualification" property="qualification"/>
         <result column="language_type" property="languageType"/>
         <result column="status" property="status"/>
-    </resultMap>
-
-        <select id="selectByAccount" parameterType="String" resultType="com.reservation.entity.User">
-        select * from user where account = #{account}
-    </select>
-       <!-- 根据手机号查询用户 selectByPhone -->
-    <select id="selectByPhone" parameterType="String" resultType="com.reservation.entity.User">
-        select * from user where phone = #{phone}
-    </select>
-
-    <!-- 根据邮箱查询用户 -->
-    <select id="selectByEmail" parameterType="String" resultType="com.reservation.entity.User">
-        SELECT * FROM user  WHERE email = #{email}
-    </select>
-
-    <!-- 根据手机号或邮箱查询用户 -->
-    <select id="selectByPhoneOrEmail" parameterType="String" resultType="com.reservation.entity.User">
-        SELECT * FROM `user` WHERE phone = #{account} OR email = #{account}
-    </select>
- 
-      <select id="list"  resultMap="userResultMap">
-        SELECT * FROM `user` WHERE  true;
-    </select>
-
-    <!-- 更新用户密码 -->
-    <update id="updatePassword" parameterType="com.reservation.entity.User">
-        UPDATE `user` SET password = #{password} WHERE user_id = #{userId}
-    </update>
+    </resultMap>        
   
-    <!-- 根据条件动态查询用户列表 -->
-     
+    <!-- 根据条件动态查询用户列表 --> 
 
    <select id="listByCondition" parameterType="com.reservation.query.UserQueryPage" resultType="com.reservation.entity.User">
       SELECT c.*
