@@ -231,8 +231,8 @@ async function renderScheduleCards() {
             <!-- 1. 筛选条件（横向排列） -->
             <div class="sched-filter-form">
                  <div>
-                    <label><span data-term="course">课程</span>名称：</label>
-                    <input type="text" id="course-name-input"  placeholder="<span data-term="course">课程</span>名称" >
+                    <label><span data-term="course">课程</span>：</label>
+                    <input type="text" id="course-name-input"  placeholder="课程名称" >
                 </div>
                 <div>
                     <label><span data-term="classType">语言类型</span>：</label>
@@ -245,7 +245,7 @@ async function renderScheduleCards() {
                     </select>
                 </div>
                 <div>
-                    <label>难度等级：</label>
+                    <label><span data-term="classLevel">难度等级</span>：</label>
                     <select id="difficultyLevel-select">
                         <option value="">全部</option>
                         <option value="B1"><span data-term="classLevelB1">B1入门</span></option>
@@ -262,10 +262,10 @@ async function renderScheduleCards() {
                     <option value="pending">挂起</option>
                 </select>
                 </div>
-                 <button class="btn btn-primary" onclick="localsearchCourse()">
+                 <button class="btn btn-primary" onclick="localsearchCourse_sch()">
                     <i class="fa fa-search"></i> 搜索
                     </button>
-                <button class="btn btn-default" onclick="resetCourseFilter()">
+                <button class="btn btn-default" onclick="resetCourseFilter_sch()">
                 <i class="fa fa-redo"></i> 重置
                 </button>
             </div>
@@ -279,7 +279,7 @@ async function renderScheduleCards() {
                 </select>
                 <label><span data-term="teacher">教师</span>姓名：</label>
                 <div id="teacherName" style="padding:0 8px;font-weight:500;color:#722ed1;"></div>
-                <label><span data-term="classForm">班级</span>形式：</label>
+                <label><span data-term="classForm">班级形式</span>：</label>
                 <select id="classForm" readonly>
                     <option value="">请选择</option>
                     <option value="1p1"><span data-term="classForm1p1">一对一</span></option>
@@ -542,17 +542,19 @@ async function renderScheduleCards() {
   
 // 筛选与操作联动
 // 搜索按钮：重置为第1页再查询
-function localsearchCourse() {
+function localsearchCourse_sch() {
+    console.log("localsearchCourse_sch");
     Pagination.pageNum = 1;
     loadAndRenderCourses();
   }
 
   
   // 重置筛选条件
-  function resetCourseFilter() {
+  function resetCourseFilter_sch() {
+
     document.getElementById('course-name-input').value = '';//TBD
     document.getElementById('languageType-select').value = '';
-    document.getElementById('course-status-select').value = '';
+  //  document.getElementById('course-status-select').value = '';
     document.getElementById('difficultyLevel-select').value = '';
     Pagination.pageNum = 1;
     loadAndRenderCourses();
@@ -745,7 +747,7 @@ async function getTestEndDatetime() {
             //teacherId：
             status: document.getElementById('course-status-select').value
         });
-   
+   console.log("loadAndRenderCourses params:", params.toString());
     try {         
         const result = await request({url:`/course/page?${params.toString()}` });
         

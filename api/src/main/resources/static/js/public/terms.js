@@ -20,7 +20,8 @@ const TERM_DICT = {
     lessonNumber: "课次",
     courseName:   "课程名称",
     leave:        "请假",
-    
+    lessonFee:    "课时费",
+
     content:      "教学内容",
     classForm:    "班级形式",
     classForm1p1: "一对一",
@@ -52,6 +53,7 @@ const TERM_DICT = {
     lessonTime:   "咨询时间",
     lessonUnit:   "咨询时长",
     teaching:     "执业",
+    lessonFee:    "咨询费",
     content:      "咨询内容",
     lessonNumber: "咨询次序",
     courseName:   "咨询话题",
@@ -86,6 +88,7 @@ const TERM_DICT = {
     lessonTime:   "咨询时间",
     lessonUnit:   "咨询时长",
     teaching:     "提供咨询",
+    lessonFee:    "咨询费",
 
     lessonNumber: "咨询次序",
     courseName:   "咨询项目",
@@ -126,6 +129,7 @@ const TERM_KEYS = [
   { key: "course",       anchor: "课程" },
   { key: "teacher",      anchor: "教师" },
   { key: "teacherAlt",   anchor: "老师" },
+  { key: "lessonFee",    anchor: "课时费" },
   { key: "student",      anchor: "学生" },
   { key: "lessonUnit",   anchor: "课时" },
   { key: "teaching",     anchor: "授课" },

@@ -23,6 +23,7 @@ var localParamter ={
     openEditCourseDialog(null);
 
    }
+
 async function openEditCourseDialog(CourseJsonStr )
 { 
  // 1. 显示弹窗
@@ -51,11 +52,8 @@ async function openEditCourseDialog(CourseJsonStr )
       defaultCourse = {};
       console.error(e);
     } 
-    //console .log("edit json:",defaultCourse);
-  // 2. 设置弹窗标题
-  const modalTitle = document.getElementById('modalTitle');
-  //console .log("edit json2:",modalTitle);
-  modalTitle.innerText = (defaultCourse.courseId !="")? '编辑课程' : '新增课程';
+   console .log("edit json:",defaultCourse,CourseJsonStr);
+  
    // 4. 生成表单HTML（复用index.html表单结构，适配样式） 
   //显示出来 from
   //获取模板列表----TBD
@@ -119,6 +117,7 @@ async function openEditCourseDialog(CourseJsonStr )
     </div>
   </form>
 `;
+
   // 5. 渲染表单到弹窗容器 
   if (!formContainer) {
     alert("无法找到 formContainer 元素！\n" +
@@ -127,6 +126,11 @@ async function openEditCourseDialog(CourseJsonStr )
     return;
   }
   formContainer.innerHTML = formHtml;
+  // 2. 设置弹窗标题
+  const modalTitle = document.getElementById('modalTitle');
+  //console .log("edit json2:",modalTitle);
+  modalTitle.innerText = (defaultCourse.courseId !="")? '编辑课程' : '新增课程';
+
   applyTerms(formContainer);
   // 6. 保存表单元素引用
   localParamter.formEl = document.getElementById('CourseForm');
@@ -302,6 +306,7 @@ html = `
                   <th>摘要</th> 
                 <th><span data-term="course">课程</span>内容</th>
                 <th><span data-term="course">课程</span>特色</th> 
+                <th><span data-term="classForm">班级形式</span></th> 
                 <th><span data-term="teacher">教师</span></th>
                 <th>状态</th>
                 <th>操作</th>
@@ -374,15 +379,20 @@ function renderCourseTable(list) {
   }
    let  html  = ` `;
   var index=(Pagination.pageNum-1)*Pagination.pageSize;//记录序号
+ let cnt =0;
 
         list.forEach(Course => { 
+          
+
          // 根据Course.templateId在templateList中查找对应的模板对象
          const templateObj = templateList?templateList.find(t => t.templateId === Course.templateId) : null;
          const teacherObj = teacherList?teacherList.find(t => t.userId === Course.teacherId) : null;
 
          let tempInfo=templateObj? templateObj.languageType+ " "+ templateObj.difficultyLevel + " "+templateObj.classFee : "" ;
          let teacherInfo=teacherObj? teacherObj.name : "n/a" ;//+ " "+ teacherObj.phone + " "+ teacherObj.email
-         
+          if(cnt++ ==1){
+console.log(Course,templateObj,teacherObj);
+           } 
            index ++;
             html += `
                 <tr>               
@@ -393,6 +403,10 @@ function renderCourseTable(list) {
                       
                       <td >${Course.content || ''}</td> 
                       <td >${Course.feature || ''}</td> 
+                      <td>
+                        <span data-term="classForm${templateObj.classForm}">${templateObj.classForm || ''}
+                         </span>
+                       </td> 
                       <td >${teacherInfo || ''}</td> 
 
                        <td>                       
@@ -405,9 +419,9 @@ function renderCourseTable(list) {
                         </td>
                     <td>
                         <button class="btn btn-success" onclick='openEditCourseDialog(${JSON.stringify(Course).replace(/'/g, "\\'")})'>修改</button>                   
-                        <button class="btn btn-success" onclick="changeCourseStatus('${Course.courseId}', 'active')">发布</button>
-                        <button class="btn btn-warning" onclick="changeCourseStatus('${Course.courseId}', 'inactive')">撤回</button>
-                        <button class="btn btn-danger"  onclick="deleteCourseByFrozen ('${Course.courseId}')">删除</button>
+                         ${Course.status === "inactive" ? `<button class="btn btn-success" onclick="changeCourseStatus('${Course.courseId}', 'active')">发布</button>` :'' }
+                        ${Course.status === "active" ? `<button class="btn btn-warning" onclick="changeCourseStatus('${Course.courseId}', 'inactive')">撤回</button>` :'' }
+                        ${Course.status === "inactive" ? `<button class="btn btn-danger"  onclick="deleteCourseByFrozen ('${Course.courseId}')">删除</button>` :'' }
                     </td>
                 </tr> 
             `;

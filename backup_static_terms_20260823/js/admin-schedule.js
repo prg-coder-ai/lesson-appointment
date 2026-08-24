@@ -232,7 +232,8 @@ async function renderScheduleCards() {
             <div class="sched-filter-form">
                  <div>
                     <label><span data-term='course'> 课程</span>：</label>
-                    <input type="text" id="course-name-input"  placeholder="<span data-term="course">课程</span>名称" >
+
+                    <input type="text" id="course-name-input"  placeholder="课程名称" >
                 </div>
                 <div>
                     <label><span data-term='classType'> 语言类型</span>：</label>
@@ -279,7 +280,7 @@ async function renderScheduleCards() {
                 </select>
                 <label>教师姓名：</label>
                 <div id="teacherName" style="padding:0 8px;font-weight:500;color:#722ed1;"></div>
-                <label>班级形式：</label>
+                <label><span data-term="classForm">班级形式</span>：</label>
                 <select id="classForm" readonly>
                     <option value="">请选择</option>
                     <option value="classForm1"><span data-term="classForm1">1p1一对一</span></option>
