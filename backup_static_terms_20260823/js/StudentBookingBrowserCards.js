@@ -62,7 +62,7 @@ async function renderStudentBookingBrowserCards() {
               <div class="filter-bar">  
                 <div class="filter-item" >
                   <label><span data-term='courseName'>课程名称</span>：</label>
-                  <input type="text" id="course-name-input" placeholder="请输入课程名称">
+                  <input type="text" id="course-name-input" placeholder="<span data-term="course">课程</span>名称">
                 </div>
                         
                 <div class="filter-item">

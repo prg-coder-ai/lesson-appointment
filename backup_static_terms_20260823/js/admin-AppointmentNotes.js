@@ -16,7 +16,7 @@ let appointmentList=[];// ID,ciurseName,studentName,teacherName,dateTime(创建�
             <div class="filter-bar">  
                 <div class="filter-item">
                   <label><span data-term="course">课程名称</span>：</label>
-                  <input type="text" id="course-name-input" placeholder="课程名称">
+                  <input type="text" id="course-name-input" placeholder="<span data-term="course">课程</span>名称">
                 </div>
                       
                 <div class="filter-item">
