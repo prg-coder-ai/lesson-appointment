@@ -231,25 +231,27 @@ async function renderScheduleCards() {
             <!-- 1. 筛选条件（横向排列） -->
             <div class="sched-filter-form">
                  <div>
-                    <label>课程名称：</label>
+                    <label><span data-term='course'> 课程</span>：</label>
                     <input type="text" id="course-name-input"  placeholder="课程名称" >
                 </div>
                 <div>
-                    <label>语言类型：</label>
+                    <label><span data-term='classType'> 语言类型</span>：</label>
                     <select id="languageType-select" >
                         <option value="">全部</option>
-                        <option value="french">法语</option>
-                        <option value="english">英语</option>
+                        <option value="french"><span data-term="classType1">法语</span></option>
+                        <option value="english"><span data-term="classType2">英语</span></option>
+                        <option value="chinese"><span data-term="classType3">汉语</span></option>
+                        <option value="spanish"><span data-term="classType4">西语</span></option>
                     </select>
                 </div>
                 <div>
-                    <label>难度等级：</label>
+                    <label><span data-term='difficultyLevel'>难度等级</span>：</label>
                     <select id="difficultyLevel-select">
                         <option value="">全部</option>
-                        <option value="B1">B1入门</option>
-                        <option value="B2">B2初级</option>
-                        <option value="B3">B3中级</option>
-                        <option value="B4">B4高级</option>
+                        <option value="B1"><span data-term="difficultyLevel1">B1入门</span></option>
+                        <option value="B2"><span data-term="difficultyLevel2">B2初级</span></option>
+                        <option value="B3"><span data-term="difficultyLevel3">B3中级</span></option>
+                        <option value="B4"><span data-term="difficultyLevel4">B4高级</span></option>
                     </select>
                 </div>
                  <div class="filter-item" style="display:none">
@@ -271,7 +273,7 @@ async function renderScheduleCards() {
             <div style="border-top:1px solid #f0f0f0;margin:0 0 16px 0;"></div>
             <!-- 2. 课程列表（横向排列） -->
             <div class="sched-form-line" style="margin-bottom:16px;">
-                <label>选择课程：</label>
+                <label>选择<span data-term='course'>课程</span>：</label>
                 <select id="courseSelect" onchange="loadSchedule()">
                     <option value="">请先选择课程</option>
                 </select>
@@ -280,9 +282,9 @@ async function renderScheduleCards() {
                 <label>班级形式：</label>
                 <select id="classForm" readonly>
                     <option value="">请选择</option>
-                    <option value="1p1">一对一</option>
-                    <option value="1pN">小班课</option>
-                    <option value="1p2N">大班课</option>
+                    <option value="classForm1"><span data-term="classForm1">1p1一对一</span></option>
+                    <option value="classForm2"><span data-term="classForm2">小班课</span></option>
+                    <option value="classForm3"><span data-term="classForm3">大班课</span></option>
                 </select>
             </div>
             <!-- 分隔线 -->
@@ -327,11 +329,11 @@ async function renderScheduleCards() {
                 <input type="text" id="scheduleName">
             </div>
             <div class="sched-form-line">
-                <label>总席位数：</label>
+                <label><span data-term='availableSites'>总席位数</span>：</label>
                 <input type="number" id="availableSites" value="1" min="1">
             </div>
             <div class="sched-form-line">
-                <label>可用席位数：</label>
+                <label><span data-term='now_availableSites'>可用席位数</span>：</label>
                 <input type="number" id="now_availableSites" value="1" min="1" readonly>
             </div>
         </div>
@@ -348,7 +350,7 @@ async function renderScheduleCards() {
                   <input type="text" id="startDate_weekday" readonly style="width:52px;min-width:52px;text-align:center;padding:8px 2px;">
              </div>
               <div class="sched-form-line">
-                  <label>上课时间：</label>
+                  <label><span data-term='lessonTime'>上课时间</span>：</label>
                   <input type="time" id="startTime" value="${(function(){ let d = new Date(); return d.toTimeString().slice(0,5); })()}">
               </div>
                <div class="sched-form-line">
@@ -386,7 +388,7 @@ async function renderScheduleCards() {
                         <input type="text" id="displayStartDate_weekday" readonly style="width:52px;min-width:52px;text-align:center;padding:8px 2px;">
                     </div>
                     <div class="sched-form-line">
-                        <label>上课时间：</label>
+                        <label><span data-term='lessonTime'>上课时间</span>：</label>
                         <input type="time" id="displayStartTime" readonly>
                     </div>
                     <div class="sched-form-line">
@@ -561,7 +563,7 @@ function localsearchCourse() {
         //判断是否有空位，没有则提示用户
         const availableSites = document.getElementById('now_availableSites').value;
         if(availableSites <= 0){
-            alert("当前班级已无空位，无法指定学生");
+            alert("当前排期已无空位");
             return ;
         }
         const conditionJson = { role: 'student' };//TBD:当前admin所属的群组等过滤条件

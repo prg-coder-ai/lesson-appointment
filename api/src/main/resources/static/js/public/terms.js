@@ -7,6 +7,8 @@ const TERM_DICT = {
   // 教育行业（默认）
   education: {
     course:       "课程",
+    schedule:     "排期",
+    
     teacher:      "教师",
     teacherAlt:   "老师",
     student:      "学生",
@@ -14,10 +16,29 @@ const TERM_DICT = {
     lessonTime:   "上课时间",
     lessonUnit:   "课时",
     teaching:     "授课",
-    classForm:    "班级",
+    lessonNumber: "课次",
+    courseName:   "课程名称",
+    leave:        "请假",
+    
+    content:      "教学内容",
+    classForm:    "班级形式",
     classForm1p1: "一对一",
     classForm1pN: "小班课",
     classForm1p2N:"大班课",
+    
+      classLevel: "难度等级",
+    classLevelB1: "B1入门",
+    classLevelB2: "B2初级",
+    classLevelB3: "B3中级",
+    classLevelB4: "B4高级",
+
+     classType1: "法语",
+    classType2: "英语",
+    classType3: "汉语",
+    classType4: "西语",
+    classType : "语言类型", 
+
+    lessonDuration: "课时长度(分钟)"
   },
   // 法律咨询
   legal: {
@@ -29,10 +50,28 @@ const TERM_DICT = {
     lessonTime:   "咨询时间",
     lessonUnit:   "咨询时长",
     teaching:     "执业",
+    content:      "咨询内容",
+    lessonNumber: "咨询次序",
+    courseName:   "咨询话题",
+    leave:        "改期",
+    
     classForm:    "服务形式",
     classForm1p1: "个案咨询",
     classForm1pN: "小组咨询",
     classForm1p2N:"专题讲座",
+    
+      classLevel: "咨询等级",
+    classLevelB1: "B1入门",
+    classLevelB2: "B2初级",
+    classLevelB3: "B3中级",
+    classLevelB4: "B4高级",
+   
+    classType1: "婚姻",
+    classType2: "劳动",
+    classType3: "刑事",
+    classType4: "行政",
+    classType : "咨询范畴",
+    lessonDuration: "预约时长(分钟)"
   },
   // 心理咨询 / 健身私教 / 家教 ... 后续按行业追加
   counseling: {
@@ -44,11 +83,32 @@ const TERM_DICT = {
     lessonTime:   "咨询时间",
     lessonUnit:   "咨询次数",
     teaching:     "提供咨询",
+
+    lessonNumber: "咨询次序",
+    courseName:   "咨询项目",
+    leave:        "改期",
+    
     classForm:    "服务形式",
     classForm1p1: "一对一咨询",
     classForm1pN: "小组咨询",
     classForm1p2N:"团体咨询",
-  },
+
+    classLevel: "咨询等级", 
+    classLevelB1: "B1入门",
+    classLevelB2: "B2初级",
+    classLevelB3: "B3中级",
+    classLevelB4: "B4高级",
+
+    classType : "咨询类型",
+    classType1: "婚姻",
+    classType2: "情感",
+    classType3: "成长",
+    content:      "教学内容",
+    classType4: "育儿",
+    serialNumber: "序号",
+    lessonDuration: "预约时长(分钟)"
+
+    }
 };
 
 // 正反向索引：中文关键词 → 术语 key（遍历替换用）
@@ -65,10 +125,24 @@ const TERM_KEYS = [
   { key: "student",      anchor: "学生" },
   { key: "lessonUnit",   anchor: "课时" },
   { key: "teaching",     anchor: "授课" },
-  { key: "classForm",    anchor: "班级" },
+
+  { key: "classForm",    anchor: "班级形式" },
   { key: "classForm1p1", anchor: "一对一" },
   { key: "classForm1pN", anchor: "小班课" },
   { key: "classForm1p2N",anchor: "大班课" },
+  
+  { key: "classLevel", anchor: "难度等级" },
+  { key: "classLevelB1", anchor: "B1入门" },
+  { key: "classLevelB2", anchor: "B2初级" },
+  { key: "classLevelB3", anchor: "B3中级" },
+  { key: "classLevelB4", anchor: "B4高级" },
+
+  { key: "classType", anchor: "语言类型" },
+  { key: "classType1", anchor: "英语" },
+  { key: "classType2", anchor: "法语" },
+  { key: "classType3", anchor: "韩语" },
+  { key: "classType4", anchor: "西语" },
+  { key: "leave", anchor: "请假" },
 ];
 
 // 保护词：包含这些词的文本节点不做 teacherAlt 替换（人名误伤防护）

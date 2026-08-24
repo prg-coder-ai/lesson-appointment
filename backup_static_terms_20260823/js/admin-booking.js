@@ -19,17 +19,17 @@ window.deleteBookingByFrozen = deleteBookingByFrozen;
         <!-- 筛选条件 -->
               <div class="filter-bar">  
                 <div class="filter-item">
-                  <label>课程名称：</label>
+                  <label><span data-term="course">课程名称</span>：</label>
                   <input type="text" id="course-name-input" placeholder="课程名称">
                 </div>
                         
                 <div class="filter-item">
-                  <label>状态：</label>
+                  <label><span data-term="status">状态</span>：</label>
                   <select id="booking-status-select">
                     <option value="">全部</option>
-                    <option value="booking">预定待确认</option>
+                    <option value="booking">预订待确认</option>
                     <option value="cancelling">取消待确认</option>
-                    <option value="booked">预定已确认</option>
+                    <option value="booked">预订已确认</option>
                     <option value="cancelled">已取消</option>
                     <option value="frozen">已删除</option> 
                   </select>
@@ -49,12 +49,12 @@ window.deleteBookingByFrozen = deleteBookingByFrozen;
           <tr>
             <th>序号</th>
             <th  style="display:none;">预订ID</th>
-            <th>课程名称</th>
-            <th>排期名称</th>
-            <th>学生姓名</th>
-            <th>教师姓名</th>
-            <th>上课时间</th>
-            <th>状态</th>
+            <th><span data-term="course">课程</span></th>
+            <th><span data-term="schedule">排期</span></th>
+            <th><span data-term="student">学生</span></th>
+            <th><span data-term="teacher">教师</span></th>
+            <th><span data-term="lessonTime">上课时间</span></th>
+            <th><span data-term="status">状态</span></th>
             <th>操作</th>
           </tr>
         </thead>
@@ -165,17 +165,7 @@ async function getBookingListByPage(){
      }
 
  }
-
-
- /**
-  * cardInfo.status === 'booking' ? '预定待确认' :
-                          cardInfo.status === 'booked' ? '预定已确认' :
-                          cardInfo.status === 'cancelling' ? '取消待确认' :
-                          cardInfo.status === 'cancelled' ? '已取消' :
-                          cardInfo.status === 'delete' ? '已删除' :
-                          cardInfo.status || ''
  
-  */
  function formBookingTr(cardInfo) {
   // console.log("cardInfo:", cardInfo); 
    const info = `

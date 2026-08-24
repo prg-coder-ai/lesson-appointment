@@ -14,10 +14,7 @@ async function renderStudentBookingCards() {
     assignLoadobjectListFunction(window.loadAndRenderCourse_student); // assign (修正：加上window.前缀，确保全局函数查找)
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
     //console.log("container:",dynamicContentCenter);
-    if (!dynamicContentCenter) return; 
-    // 显示加载中
-  //  dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';  
-    // 渲染HTML
+    if (!dynamicContentCenter) return;  
     let html = '';
     { 
       html += `     
@@ -25,25 +22,27 @@ async function renderStudentBookingCards() {
         <div class="card-title"><i class="fa fa-filter"></i> 课程筛选</div>
             <div class="filter-form" style="display: flex; gap: 20px; margin-bottom: 16px;">
                  <div>
-                    <label>课程名称：</label>
+                    <label> 课程名称：</label>
                     <input type="text" id="course-name-input"  placeholder="课程名称" >
                 </div>
                 <div>
-                    <label>语言类型：</label>
+                    <label> <span data-key="classType"> 语言类型：</span></label>
                     <select id="languageType-select" >
                         <option value="">全部</option>
-                        <option value="french">法语</option>
-                        <option value="english">英语</option> 
+                          <option value="french"><span data-term="classType1">法语</span></option>
+                        <option value="english"><span data-term="classType2">英语</span></option>
+                        <option value="chinese"><span data-term="classType3">汉语</span></option>
+                        <option value="spanish"><span data-term="classType4">西语</span></option>
                     </select>
                 </div>
                 <div>
-                    <label>难度等级：</label>
+                    <label> <span data-key="classLevel"> 难度等级：</span></label>
                     <select id="difficultyLevel-select">
                         <option value="">全部</option>
-                        <option value="B1">B1入门</option>
-                        <option value="B2">B2初级</option>
-                        <option value="B3">B3中级</option>
-                        <option value="B4">B4高级</option> 
+                        <option value="B1"><span data-term="classLevelB1">B1入门</span></option>
+                        <option value="B2"><span data-term="classLevelB2">B2初级</span></option>
+                        <option value="B3"><span data-term="classLevelB3">B3中级</span></option>
+                        <option value="B4"><span data-term="classLevelB4">B4高级</span></option> 
                     </select>
                 </div>
                  <div class="filter-item" style="display:none">

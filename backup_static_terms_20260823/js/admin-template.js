@@ -275,17 +275,17 @@ async function renderTemplateCards() {
      <div class="teacher-list-cards" style="margin:6px 0;display:flex;flex-direction:column;gap:16px;">
       <div class="filter-bar">        
                  <div class="filter-item">
-                    <label>语言类型：</label>
+                    <label><span data-term="classType">语言类型</span>：</label>
                     <select id="languageType-select" >
                         <option value="">全部</option>
-                        <option value="french">法语</option>
-                        <option value="english">英语</option> 
-                        <option value="spanish">西班牙语</option>
-                        <option value="korean">韩语</option>
+                        <option value="french"><span data-term="classType1">法语</span></option>
+                        <option value="english"><span data-term="classType2">英语</span></option> 
+                        <option value="spanish"><span data-term="classType3">汉语</span></option>
+                        <option value="korean"><span data-term="classType4">西语</span></option>
                     </select>
                 </div>
                 <div class="filter-item">
-                    <label>难度等级：</label>
+                    <label><span data-term="classLevel">难度等级</span>：</label>
                     <select id="difficultyLevel-select">
                         <option value="">全部</option>
                         <option value="B1">B1入门</option>
@@ -312,11 +312,11 @@ async function renderTemplateCards() {
                 <table class="data-table">
                 <thead>
                 <tr> 
-                    <th>序号</th>  
-                    <th>语言类型</th>  
-                    <th>难度等级</th> 
-                    <th>课程形式</th> 
-                    <th>课时时长(分钟)</th> 
+                    <th><span data-term="serialNumber">序号</span></th>  
+                    <th><span data-term="classType">语言类型</span></th>  
+                    <th><span data-term="classLevel">难度等级</span></th> 
+                    <th><span data-term="classForm">课程形式</span></th> 
+                    <th><span data-term="lessonDuration">课时长度(分钟)</span></th> 
                     <th>课时费(元)</th>   
                     <th>状态</th>
                     <th style="width: 120px;align-items: center;">操作</th>
@@ -447,7 +447,7 @@ function deleteTemplateByFrozen(templateId) {
           // 执行前检查模板是否关联课程，如有关联则不允许删除
           const hasCourses = await checkTemplateHasCourses(templateId);
           if (hasCourses) { 
-            const userChoice = confirm('该模板存在课程，是否删除？继续将删除该项目下的全部课程。点击“确定”继续，点击“取消”放弃删除。');
+            const userChoice = confirm('该模板存在关联课程，是否删除？继续将删除该项目下的全部课程。点击“确定”继续，点击“取消”放弃删除。');
             if (!userChoice) {
                 return;
                       }
@@ -480,7 +480,7 @@ function deleteTemplateByFrozen(templateId) {
         });
           console.log("deleted",res);
     } catch (err) {
-        alert('删除模板下课程时出错，请检查网络或后端接口。');
+        alert('删除模板下关联课程时出错，请检查网络或后端接口。');
         console.error('deleteTemplateNextLevelByFrozen error:', err);
     }
 
