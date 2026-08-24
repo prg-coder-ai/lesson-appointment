@@ -101,9 +101,9 @@ function validateForm() {
       <label>语言类型 <span style="color:red">*</span></label>
       <select name="languageType" class="form-select" required>
         <option value="">请选择</option>
-        <option value="english" ${defaultTemplate.languageType === 'english' ? 'selected' : ''}>英语</option>
-        <option value="french" ${defaultTemplate.languageType === 'french' ? 'selected' : ''}>法语</option>
-        <option value="spanish" ${defaultTemplate.languageType === 'spanish' ? 'selected' : ''}>西班牙语</option>
+        <option value="english" ${defaultTemplate.languageType === 'english' ? 'selected' : ''}><span>英语</span></option>
+        <option value="french" ${defaultTemplate.languageType === 'french' ? 'selected' : ''}><span>法语</span></option>
+        <option value="spanish" ${defaultTemplate.languageType === 'spanish' ? 'selected' : ''}><span>西班牙语</span></option>
         <option value="chinese" ${defaultTemplate.languageType === 'chinese' ? 'selected' : ''}>中文</option>
       </select>
       <div class="form-error" id="languageTypeError"></div>
@@ -113,10 +113,10 @@ function validateForm() {
       <label>难度等级 <span style="color:red">*</span></label>
       <select name="difficultyLevel" class="form-select" required>
         <option value="">请选择</option>
-        <option value="B1" ${defaultTemplate.difficultyLevel === 'B1' ? 'selected' : ''}>B1</option>
-        <option value="B2" ${defaultTemplate.difficultyLevel === 'B2' ? 'selected' : ''}>B2</option>
-        <option value="B3" ${defaultTemplate.difficultyLevel === 'B3' ? 'selected' : ''}>B3</option>
-        <option value="B4" ${defaultTemplate.difficultyLevel === 'B4' ? 'selected' : ''}>B4</option>
+        <option value="B1" ${defaultTemplate.difficultyLevel === 'B1' ? 'selected' : ''}><span>B1</span></option>
+        <option value="B2" ${defaultTemplate.difficultyLevel === 'B2' ? 'selected' : ''}><span>B2</span></option>
+        <option value="B3" ${defaultTemplate.difficultyLevel === 'B3' ? 'selected' : ''}><span>B3</span></option>
+        <option value="B4" ${defaultTemplate.difficultyLevel === 'B4' ? 'selected' : ''}><span>B4</span></option>
       </select>
       <div class="form-error" id="difficultyLevelError"></div>
     </div>
@@ -280,18 +280,18 @@ async function renderTemplateCards() {
                         <option value="">全部</option>
                         <option value="french"><span data-term="classType1">法语</span></option>
                         <option value="english"><span data-term="classType2">英语</span></option> 
-                        <option value="spanish"><span data-term="classType3">汉语</span></option>
-                        <option value="korean"><span data-term="classType4">西语</span></option>
+                        <option value="chinese"><span data-term="classType3">汉语</span></option>
+                        <option value="spanish"><span data-term="classType4">西语</span></option>
                     </select>
                 </div>
                 <div class="filter-item">
                     <label><span data-term="classLevel">难度等级</span>：</label>
                     <select id="difficultyLevel-select">
                         <option value="">全部</option>
-                        <option value="B1">B1入门</option>
-                        <option value="B2">B2初级</option>
-                        <option value="B3">B3中级</option>
-                        <option value="B4">B4高级</option> 
+                        <option value="B1"><span data-term="classLevelB1">B1入门</span></option>
+                        <option value="B2"><span data-term="classLevelB2">B2初级</span></option>
+                        <option value="B3"><span data-term="classLevelB3">B3中级</span></option>
+                        <option value="B4"><span data-term="classLevelB4">B4高级</span></option> 
                     </select>
                 </div>
                 <!-- 暂时保留 div class="filter-item">
@@ -313,13 +313,13 @@ async function renderTemplateCards() {
                 <thead>
                 <tr> 
                     <th><span data-term="serialNumber">序号</span></th>  
-                    <th><span data-term="classType">语言类型</span></th>  
-                    <th><span data-term="classLevel">难度等级</span></th> 
-                    <th><span data-term="classForm">课程形式</span></th> 
-                    <th><span data-term="lessonDuration">课时长度(分钟)</span></th> 
+                    <th>语言类型</th>  
+                    <th>难度等级</th> 
+                    <th>课程形式</th> 
+                    <th>课时长度</th> 
                     <th>课时费(元)</th>   
                     <th>状态</th>
-                    <th style="width: 120px;align-items: center;">操作</th>
+                    <th >操作</th>
                 </tr>
                 </thead>
                 <tbody id="templatesDisplay-body">
