@@ -71,10 +71,10 @@ function dataMaintainPage() {
       </div>
       <div class="dm-tab-bar">
         <button class="dm-tab-btn active" id="tab-template-maintain" onclick="selectMaintainTab('template')"><i class="fa fa-layer-group"></i> 模板</button>
-        <button class="dm-tab-btn" id="tab-course-maintain" onclick="selectMaintainTab('course')"><i class="fa fa-book"></i> 课程</button>
-        <button class="dm-tab-btn" id="tab-schedule-maintain" onclick="selectMaintainTab('schedule')"><i class="fa fa-calendar-alt"></i> 排期</button>
-        <button class="dm-tab-btn" id="tab-booking-maintain" onclick="selectMaintainTab('booking')"><i class="fa fa-calendar-check"></i> 预定</button>
-        <button class="dm-tab-btn" id="tab-appointment-maintain" onclick="selectMaintainTab('appointment')"><i class="fa fa-clock"></i> 预约</button>
+        <button class="dm-tab-btn" id="tab-course-maintain" onclick="selectMaintainTab('course')"><i class="fa fa-book"></i> <span data-term="course"> 课程</span></button>
+        <button class="dm-tab-btn" id="tab-schedule-maintain" onclick="selectMaintainTab('schedule')"><i class="fa fa-calendar-alt"></i> <span data-term="schedule"> 排期</span></button>
+        <button class="dm-tab-btn" id="tab-booking-maintain" onclick="selectMaintainTab('booking')"><i class="fa fa-calendar-check"></i> <span data-term="booking"> 预订</span></button>
+        <button class="dm-tab-btn" id="tab-appointment-maintain" onclick="selectMaintainTab('appointment')"><i class="fa fa-clock"></i> <span data-term="appointment"> 预约</span></button>
       </div>
       <div id="maintain-content"></div>
     </div>`;
@@ -113,10 +113,10 @@ function renderMaintainTable(type) {
 
   var tableConfigs = {
     template:    { title: "模板列表" },
-    course:      { title: "课程列表" },
-    schedule:    { title: "排期列表" },
-    booking:     { title: "预定列表" },
-    appointment: { title: "预约列表" }
+    course:      { title: "<span data-term='course'> 课程列表</span>" },
+    schedule:    { title: "<span data-term='schedule'> 排期列表</span>" },
+    booking:     { title: "<span data-term='booking'> 预订列表</span>" },
+    appointment: { title: "<span data-term='appointment'> 预约列表</span>" }
   };
   var cfg = tableConfigs[type];
   if(!cfg) { maintainContent.innerHTML='<div class="dm-empty">未配置表格</div>'; return; }
@@ -163,45 +163,45 @@ window.loadMaintainTableData = async function(type){
   var columns = {
     template: [
       {key: "templateId", label: "编号"},
-      {key: "languageType", label: "语言类型"},
-      {key: "difficultyLevel", label: "难度等级"},
-      {key: "classForm", label: "课程形式"},
-      {key: "classFee", label: "课时费(元)"},
+      {key: "languageType", label: "<span data-term='languageType'> 语言类型</span>"},
+      {key: "difficultyLevel", label: "<span data-term='difficultyLevel'> 难度等级</span>"},
+      {key: "classForm", label: "<span data-term='classForm'> 课程形式</span>"},
+      {key: "classFee", label: "<span data-term='classFee'> 课时费(元)</span>"},
       {key: "status", label: "状态"}
     ],
     course: [
       {key: "courseId", label: "编号"},
-      {key: "courseName", label: "课程名"},
-      {key: "content", label: "内容"},
-      {key: "feature", label: "特色"},
-      {key: "tempInfo", label: "模板"},
-      {key: "teacherInfo", label: "教师"},
+      {key: "courseName", label: "<span data-term='course'> 课程名</span>"},
+      {key: "content", label: "<span data-term='content'> 课程内容</span>"},
+      {key: "feature", label: "<span data-term='feature'> 课程特色</span>"},
+      {key: "tempInfo", label: "<span data-term='tempInfo'> 模板</span>"},
+      {key: "teacherInfo", label: "<span data-term='teacher'> 教师</span>"},
       {key: "status", label: "状态"}
     ],
     schedule: [
-      {key: "courseName", label: "课程名"},
-      {key: "name", label: "排期"},
-      {key: "startDate", label: "开始日期"},
-      {key: "startTime", label: "上课时间"},
-      {key: "timeZone", label: "时区"},
+      {key: "courseName", label: "<span data-term='course'> 课程名</span>"},
+      {key: "name", label: "<span data-term='schedule'> 排期</span>"},
+      {key: "startDate", label: "<span data-term='startDate'> 开始日期</span>"},
+      {key: "startTime", label: "<span data-term='startTime'> 上课时间</span>"},
+      {key: "timeZone", label: "<span data-term='timeZone'> 时区</span>"},
       {key: "status", label: "状态"}
     ],
     booking: [
       {key: "bookingId", label: "编号"},
-      {key: "studentName", label: "学生"},
-      {key: "courseName", label: "课程"},
-      {key: "scheduleName", label: "排期"},
-      {key: "teacherName", label: "教师"},
+      {key: "studentName", label: "<span data-term='student'> 学生</span>"},
+      {key: "courseName", label: "<span data-term='course'> 课程</span>"},
+      {key: "scheduleName", label: "<span data-term='schedule'> 排期</span>"},
+      {key: "teacherName", label: "<span data-term='teacher'> 教师</span>"},
       {key: "bookingStatus", label: "状态"}
     ],
     appointment: [
       {key: "id", label: "编号"},
-      {key: "studentName", label: "学生"},
-      {key: "teacherName", label: "教师"},
-      {key: "courseName", label: "课程"},
-      {key: "scheduleName", label: "排期"},
+      {key: "studentName", label: "<span data-term='student'> 学生</span>"},
+      {key: "teacherName", label: "<span data-term='teacher'> 教师</span>"},
+      {key: "courseName", label: "<span data-term='course'> 课程</span>"},
+      {key: "scheduleName", label: "<span data-term='schedule'> 排期</span>"},
       {key: "classIndex", label: "序号"},
-      {key: "appointmentTime", label: "时间"},
+      {key: "appointmentTime", label: "<span data-term='appointmentTime'> 时间</span>"},
       {key: "appointmentStatus", label: "状态"}
     ]
   }[type];
@@ -278,18 +278,13 @@ setTimeout(function(){
 
  // 搜索按钮：重置为第1页再查询
 function localsearchCourse() {
-  Pagination.pageNum = 1;
 
+  Pagination.pageNum = 1;
   loadAndRenderObjectListByPage();
 }
 
 // 重置筛选条件
-function resetCourseFilter() {
-  //document.getElementById('course-name-input').value = '';
-  //document.getElementById('language-select').value = '';
-  //.getElementById('course-status-select').value = '';
- // document.getElementById('difficulty-level-select').value = '';
-  
+function resetCourseFilter() {   
   Pagination.pageNum = 1;
   loadAndRenderObjectListByPage();
 }

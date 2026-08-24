@@ -61,8 +61,8 @@ async function renderStudentBookingBrowserCards() {
       <!-- 筛选条件 -->
               <div class="filter-bar">  
                 <div class="filter-item" >
-                  <label>课程名称：</label>
-                  <input type="text" id="course-name-input" placeholder="课程名称">
+                  <label><span data-term='courseName'>课程名称</span>：</label>
+                  <input type="text" id="course-name-input" placeholder="请输入课程名称">
                 </div>
                         
                 <div class="filter-item">
@@ -100,11 +100,11 @@ async function renderStudentBookingBrowserCards() {
         <table>
             <thead>
                 <tr>
-                    <th>课次</th>
+                    <th><span data-term='lessonNumber'>课次</span></th>
                     <th>日期</th>
                     <th>时间</th>
                       <th>状态</th> 
-                      <th>请假</th>
+                      <th><span data-term='leave'>请假</span></th>
                 </tr>
             </thead>
             <tbody id="resultBody"></tbody>
@@ -125,9 +125,6 @@ async function renderStudentBookingBrowserCards() {
 //按照条件，按页加载预定数据，called by admin、student/techer
 async function loadAndRenderBooking_student(){
     //search current pendding booking items ,and dispaly here /pendingBooking   
-    // let  userInfo= getCurrentUserInfo();
-    // let userId = userInfo.userId;
-    // let userRole = userInfo.userRole; 
      const params = {
        pageNum: Pagination.pageNum,
        pageSize: Pagination.pageSize,
@@ -204,20 +201,7 @@ async function loadAndRenderBooking_student(){
      if (bookingContainer) {
          bookingContainer.innerHTML = `<div class="bookings-list">${bookingsHtml}</div>`;
      }
- }
- /*
- async function  testGetList(courseId){
-    const conditionJson = { 
-        courseId:courseId,
-      teacherId:"",
-      templateId:"",
-      status:"" 
-    };
-   const rlist = await fetchCourseList(conditionJson);
-   const one = await getCourseById(courseId);
-  console.log(one,rlist);
-   }
- */
+ } 
    /*cardInfo的数据形式：
      cardContent ={
     bookingId:"",

@@ -243,14 +243,16 @@ html = `
       <div class="filter-bar">
         <div class="filter-item">
           <label><span data-term="course">课程</span>名称：</label>
-          <input type="text" id="course-name-input" placeholder="请输入课程名称">
+          <input type="text" id="course-name-input" placeholder="请输入名称">
         </div>
         <div class="filter-item">
-          <label>语言类型：</label>
+          <label><span data-term="classType">语言类型</span>：</label>
           <select id="language-select">
             <option value="">全部</option>
-            <option value="french">法语</option>
-            <option value="english">英语</option> 
+            <option value="french"><span data-term="classType1">法语</span></option>
+            <option value="english"><span data-term="classType2">英语</span></option> 
+            <option value="chinese"><span data-term="classType3">汉语</span></option>
+            <option value="spanish"><span data-term="classType4">西语</span></option>
           </select>
         </div>
         <div class="filter-item">
@@ -262,13 +264,13 @@ html = `
           </select>
         </div>
          <div>
-                    <label>难度等级：</label>
+                    <label><span data-term="classLevel">难度等级</span>：</label>
                     <select id="difficulty-level-select" >
                         <option value="">全部</option>
-                        <option value="B1">B1入门</option>
-                        <option value="B2">B2初级</option>
-                        <option value="B3">B3中级</option>
-                        <option value="B4">B4高级</option> 
+                        <option value="B1"><span data-term="classLevelB1">B1入门</span></option>
+                        <option value="B2"><span data-term="classLevelB2">B2初级</span></option>
+                        <option value="B3"><span data-term="classLevelB3">B3中级</span></option>
+                        <option value="B4"><span data-term="classLevelB4">B4高级</span></option> 
                     </select>
                 </div>
         <button class="btn btn-default" onclick="localsearchCourse()">
@@ -287,8 +289,8 @@ html = `
              <!--th>序号</th>
               <th style="width:0px;display:none" ><span data-term="course">课程</span>ID</th>
               <th><span data-term="course">课程</span>名称</th>
-              <th>语言类型</th>
-              <th>难度等级</th>
+              <th><span data-term="class-type">语言类型</span></th>
+              <th><span data-term="classLevel">难度等级</span></th>
               <th><span data-term="lessonUnit">课时</span>费</th>
               <th>时长</th>
               <th>状态</th>

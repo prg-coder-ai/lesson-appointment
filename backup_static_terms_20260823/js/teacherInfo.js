@@ -15,7 +15,8 @@ let currentMode = 'view';
 // 最近一次加载的原始数据（用于取消编辑时回滚）
 let originalData = null;
 
-const SUBJECT_OPTIONS = ['英语', '日语', '韩语', '法语', '德语', '西班牙语'];
+const SUBJECT_OPTIONS = ['法语', '英语', '汉语',  '西班牙语'];
+
 const DAY_OF_WEEK_MAP = { 1: '周一', 2: '周二', 3: '周三', 4: '周四', 5: '周五', 6: '周六', 7: '周日' };
 
 // ====================== URL 参数解析 + 加载入口 ======================

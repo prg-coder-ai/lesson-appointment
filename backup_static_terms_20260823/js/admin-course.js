@@ -81,25 +81,25 @@ async function openEditCourseDialog(CourseJsonStr )
        </div>
 
     <div class="form-item">
-      <label>课程名称 <span style="color:red">*</span></label>
+      <label><span data-term="course">咨询课程</span> <span style="color:red">*</span></label>
       <input name="courseName"   value="${defaultCourse.courseName}" required> 
       <div class="form-error" id="courseNameError"></div>
     </div>
 
     <div class="form-item">
-      <label>教学内容 <span style="color:red">*</span></label> 
+      <label><span data-term="content">教学内容</span> <span style="color:red">*</span></label> 
        <textarea name="content" rows="3" required>${defaultCourse.content}</textarea>
       <div class="form-error" id="contentError"></div>
     </div>
  
     <div class="form-item">
-      <label>课程特色 <span style="color:red">*</span></label> 
+      <label><span data-term="course">课程</span> 特色<span style="color:red">*</span></label> 
        <textarea name="feature" rows="3" required>${defaultCourse.feature}</textarea>
       <div class="form-error" id="featureError"></div>
     </div> 
 
     <div class="form-item">
-      <label>授课教师 <span style="color:red">*</span></label>
+      <label><span data-term="teacher">教师</span> <span style="color:red">*</span></label>
       <select name="teacherId" class="form-select" required>
         `;
        //显示，每个模板的内容
@@ -246,11 +246,13 @@ html = `
           <input type="text" id="course-name-input" placeholder="请输入课程名称">
         </div>
         <div class="filter-item">
-          <label>语言类型：</label>
+          <label><span data-term="classType">咨询类型</span>：</label>
           <select id="language-select">
             <option value="">全部</option>
-            <option value="french">法语</option>
-            <option value="english">英语</option> 
+            <option data-term="classType1" value="french">法语</option>
+            <option data-term="classType2" value="english">英语</option> 
+            <option data-term="classType3" value="hinese">汉语</option>
+            <option data-term="classType4" value="spanish">西语</option>
           </select>
         </div>
         <div class="filter-item">
@@ -260,15 +262,14 @@ html = `
             <option value="active">有效</option>
             <option value="pending">挂起</option>
           </select>
-        </div>
-         <div>
-                    <label>难度等级：</label>
+                <div class="filter-item">
+                    <label><span data-term="classLevel">难度等级</span>：</label>
                     <select id="difficulty-level-select" >
-                        <option value="">全部</option>
-                        <option value="B1">B1入门</option>
-                        <option value="B2">B2初级</option>
-                        <option value="B3">B3中级</option>
-                        <option value="B4">B4高级</option> 
+                        <option data-term="classLevel" value="">全部</option>
+                        <option data-term="classLevelB1" value="B1">B1入门</option>
+                        <option data-term="classLevelB2" value="B2">B2初级</option>
+                        <option data-term="classLevelB3" value="B3">B3中级</option>
+                        <option data-term="classLevelB4" value="B4">B4高级</option> 
                     </select>
                 </div>
         <button class="btn btn-default" onclick="localsearchCourse()">
@@ -283,25 +284,15 @@ html = `
       <div class="table-container">
         <table class="data-table">
           <thead>
-            <tr>
-             <!--th>序号</th>
-              <th style="width:0px;display:none" >课程ID</th>
-              <th>课程名称</th>
-              <th>语言类型</th>
-              <th>难度等级</th>
-              <th>课时费</th>
-              <th>时长</th>
-              <th>状态</th>
-              <th>操作</th  --> 
-              
+            <tr> 
                   <th>序号</th>  
                     <th style="width:0px;display:none">Id</th>
-                     <th>课程名称</th>  
-                  <th>摘要</th> 
-                <th>课程内容</th>
-                <th>课程特色</th> 
-                <th>教师</th>
-                <th>状态</th>
+                     <th><span data-term="course"> 课程名称</span> </th>  
+                  <th><span data-term="summary">  摘要</span> </th> 
+                <th><span data-term="content">  课程内容</span> </th>
+                <th><span data-term="feature">  课程特色</span> </th> 
+                <th><span data-term="teacher">  教师</span> </th>
+                <th> 状态</th>
                 <th>操作</th>
             </tr>
           </thead>

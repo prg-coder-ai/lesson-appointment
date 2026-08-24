@@ -235,21 +235,23 @@ async function renderScheduleCards() {
                     <input type="text" id="course-name-input"  placeholder="课程名称" >
                 </div>
                 <div>
-                    <label>语言类型：</label>
+                    <label><span data-term="classType">语言类型</span>：</label>
                     <select id="languageType-select" >
                         <option value="">全部</option>
-                        <option value="french">法语</option>
-                        <option value="english">英语</option>
+                        <option value="french"><span data-term="classType1">法语</span></option>
+                        <option value="english"><span data-term="classType2">英语</span></option>
+                        <option value="chinese"><span data-term="classType3">汉语</span></option>
+                        <option value="spanish"><span data-term="classType4">西语</span></option>
                     </select>
                 </div>
                 <div>
                     <label>难度等级：</label>
                     <select id="difficultyLevel-select">
                         <option value="">全部</option>
-                        <option value="B1">B1入门</option>
-                        <option value="B2">B2初级</option>
-                        <option value="B3">B3中级</option>
-                        <option value="B4">B4高级</option>
+                        <option value="B1"><span data-term="classLevelB1">B1入门</span></option>
+                        <option value="B2"><span data-term="classLevelB2">B2初级</span></option>
+                        <option value="B3"><span data-term="classLevelB3">B3中级</span></option>
+                        <option value="B4"><span data-term="classLevelB4">B4高级</span></option>
                     </select>
                 </div>
                  <div class="filter-item" style="display:none">
