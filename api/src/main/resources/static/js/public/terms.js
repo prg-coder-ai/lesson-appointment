@@ -6,6 +6,7 @@
 const TERM_DICT = {
   // 教育行业（默认）
   education: {
+    lessonSystem: "语言教学预约系统",
     course:       "课程",
     schedule:     "排期",
     
@@ -42,6 +43,7 @@ const TERM_DICT = {
   },
   // 法律咨询
   legal: {
+    lessonSystem: "法律咨询预约系统",
     course:       "咨询话题",
     teacher:      "律师",
     teacherAlt:   "律师",
@@ -75,13 +77,14 @@ const TERM_DICT = {
   },
   // 心理咨询 / 健身私教 / 家教 ... 后续按行业追加
   counseling: {
+    lessonSystem: "心理咨询预约系统",
     course:       "咨询项目",
     teacher:      "咨询师",
     teacherAlt:   "咨询师",
     student:      "来访者",
     lesson:       "咨询",
     lessonTime:   "咨询时间",
-    lessonUnit:   "咨询次数",
+    lessonUnit:   "咨询时长",
     teaching:     "提供咨询",
 
     lessonNumber: "咨询次序",
@@ -117,6 +120,7 @@ const TERM_DICT = {
 // 注意处理顺序必须长词在前（上课时间 → 上课 → 课时），
 // 且 teacherAlt(老师) 需先过 PROTECTED_WORDS 人名白名单
 const TERM_KEYS = [
+  { key: "lessonSystem", anchor: "语言教学预约系统" },
   { key: "lessonTime",   anchor: "上课时间" },
   { key: "lesson",       anchor: "上课" },
   { key: "course",       anchor: "课程" },
