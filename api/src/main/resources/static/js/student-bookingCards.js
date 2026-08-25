@@ -61,7 +61,7 @@ async function renderStudentBookingCards() {
             </div>
             <!-- 课程选择下拉（隐含教师ID），位于搜索栏与分页区域之间 -->
             <div class="form-line">
-                <label>选择<span data-term="course">课程</span>：</label>
+                <label><span data-term="course">课程</span>：</label>
                 <input type="text" id="teacherIdForCourse" style="display:none;">
                 <select id="courseSelect" onchange="loadSchedule()">
                     <option value="">请先选择<span data-term="course">课程</span></option>
@@ -74,7 +74,7 @@ async function renderStudentBookingCards() {
         <hr>
         <div>
             <!-- 排期选择下拉 -->
-            <div class="form-line">
+            <div class="form-line" style="display:flex;padding-top:10px;">
                 <label>选择排期：</label>
                 <select id="scheduleSelect" onchange="displaySchedule()">
                     <option value="">请选择排期</option>
@@ -106,7 +106,7 @@ async function renderStudentBookingCards() {
                             <input type="date" id="startDate" class="readonly">
                             <input type="text" id="startDate_weekday" class="readonly" style="width:52px" placeholder="星期">
                         </div>
-                        <div class="form-line">
+                        <div class="form-line" style="display:flex;" >
                             <label><span data-term="lessonTime">上课时间</span>：</label>
                             <input type="time" id="startTime" class="readonly">
                         </div>
@@ -208,11 +208,11 @@ async function renderStudentBookingCards() {
             <div class="btn-group">
                 <button class="btn-primary" onclick="previewSchedule()">预览排期</button>
                 <!-- 已预订当前排期时显示取消按钮，否则显示预订按钮 -->
-                <button class="btn-primary" id="bookBtn" onclick="makeOneBooking()">预定<span data-term="course">课程</span></button>
-                <button class="btn-danger" onclick="cancelBooking()">取消预定</button>
+                <button class="btn-primary" id="bookBtn" onclick="makeOneBooking_student()">预定<span data-term="course">排期</span></button>
+                <button class="btn-danger" id="cancelBtn" onclick="cancelBooking_student()">取消预定</button>
                 <!-- 用户已取消预订时显示删除按钮 -->
-                <button class="btn-danger" onclick="deleteBooking()">删除预定</button>
-                <button class="btn-success" onclick="refreshData()">刷新</button>
+                <button class="btn-danger" id="deleteBtn" onclick="deleteBooking_student()">删除预定</button>
+                <button class="btn-success" id="refreshBtn" onclick="refreshData_student()">刷新</button>
             </div>
         </div>
         </div> <!-- .card -->
@@ -306,20 +306,26 @@ async function renderStudentBookingCards() {
         }
 
         // 将排期对象渲染到页面各字段（待细化：可简化为日期范围、时间、排期计划）
-        function renderSchedule(scheduleObject) {
+        async function renderSchedule(scheduleObject) {
             if (!scheduleObject) return;
 
-            const totalBooked = getBookingCountByScheduleId(scheduleObject.scheduleId);
+            const totalBooked = await getBookingCountByScheduleId(scheduleObject.scheduleId);
+
             const availableSites = document.getElementById('availableSites').value;
             const now_availableSites = document.getElementById('now_availableSites');
-            now_availableSites.value = availableSites - totalBooked;
-            if (now_availableSites.value <= 0) {
+            console.log("availableSites:", availableSites, "totalBooked:", totalBooked);
+            let remainingSites = availableSites - totalBooked;
+            if (!Number.isFinite(remainingSites) || remainingSites <= 0) {
+                remainingSites = 0;
+            }
+            now_availableSites.value = remainingSites;
+          /*  if (remainingSites <= 0) {
                 // 已满：禁用预订按钮
                 document.getElementById('bookBtn').disabled = true;
             } else {
                 // 有余位：启用预订按钮
                 document.getElementById('bookBtn').disabled = false;
-            }
+            }*/
 
             // 刷新排期ID
             if (scheduleObject.scheduleId) {
@@ -480,13 +486,13 @@ async function renderStudentBookingCards() {
         window.freshByRepeatType = freshByRepeatType;
         window.renderCalendar = renderCalendar;
         window.displaySchedule = displaySchedule;
-        window.makeOneBooking = makeOneBooking;
-        window.deleteBooking = deleteBooking;
-        window.cancelBooking = cancelBooking;
+        window.makeOneBooking_student = makeOneBooking_student;
+        window.deleteBooking_student = deleteBooking_student;
+        window.cancelBooking_student = cancelBooking_student;
         window.resetSchedule = resetSchedule;
-        window.refreshData = refreshData;
+        window.refreshData_student = refreshData_student;
         window.loadSchedule = loadSchedule;
-        window.reloadBooking = reloadBooking;
+        window.reloadBooking = reloadBooking_student;
         window.operateBookingStatus = operateBookingStatus;
 
         // 将当前排期重置为初始值
@@ -617,7 +623,7 @@ async function renderStudentBookingCards() {
                     renderSchedule(scheduleObject);
                 }
                 selectedScheuleId = selectedId;
-                reloadBooking();
+                reloadBooking_student();
                 // 排期时区与用户当前时区不一致时，显示用户时区的时间
                 if (selectedSchedule.timeZone !== userTimeZone) {
                     userTimeZoneDisplay = "block";
@@ -689,6 +695,32 @@ async function renderStudentBookingCards() {
             } else {
                 listStatus.value = bObj.status;
             }
+
+            // 根据状态显示按钮
+            if (bObj == null) {
+                document.getElementById('bookBtn').style.display = 'block';
+                document.getElementById('cancelBtn').style.display = 'none';
+                document.getElementById('deleteBtn').style.display = 'none';
+               // document.getElementById('refreshBtn').style.display = 'none';
+            } else {
+                // 已预订状态,进一步判断是否已取消
+                if (bObj.status === 'canceled') {
+                    document.getElementById('bookBtn').style.display = 'none';
+                    document.getElementById('cancelBtn').style.display = 'block';
+                    document.getElementById('deleteBtn').style.display = 'block';
+                    document.getElementById('refreshBtn').style.display = 'block';
+                } else if (bObj.status === 'cancelling') {
+                    document.getElementById('bookBtn').style.display = 'block';
+                    document.getElementById('cancelBtn').style.display = 'none';
+                    document.getElementById('deleteBtn').style.display = 'none';
+                    document.getElementById('refreshBtn').style.display = 'none';
+                }else if (bObj.status === 'booked'){
+                    document.getElementById('bookBtn').style.display = 'none';
+                    document.getElementById('cancelBtn').style.display = 'block';
+                    document.getElementById('deleteBtn').style.display = 'none';
+                    document.getElementById('refreshBtn').style.display = 'none';
+                }
+            }
         }
 
         // 渲染排期结果列表
@@ -753,8 +785,16 @@ async function renderStudentBookingCards() {
 
         // 预订当前排期（新增或更新预订）
         // TBD: 修改一个预订后，按预订 id 查询获取预订对象，更新预订状态
-        async function makeOneBooking() {
-            if (!checkCourseAndSchedule(true, true)) return; // 判断选择有效性
+        async function makeOneBooking_student() {
+            if (!checkCourseAndSchedule(true, true)){
+                alert("请选择课程和排期");
+                return; // 判断选择有效性   
+            }
+            let remainingSites = document.getElementById('now_availableSites').value;
+            if (remainingSites <= 0) {
+                alert("排期已满");
+                return;
+            }
 
             const status = "booking";
             const formData = getScheduleFormData();
@@ -770,13 +810,13 @@ async function renderStudentBookingCards() {
                 status: status
             };
 
-            const retId = createOrUpdateBookingObj(bookingid, dto);
+            const retId = await createOrUpdateBookingObj(bookingid, dto);
             if (retId != null) {
-                alert(bookingid !== "" ? '修改成功' : '创建成功');
+                alert(bookingid !== "" ? '修改成功' : '预定成功，请等待管理员确认');
             } else {
-                alert('重试：' + (bookingid !== "" ? '修改失败' : '创建失败'));
+                alert('重试：' + (bookingid !== "" ? '修改失败' : '预定失败'));
             }
-            reloadBooking();
+            reloadBooking_student();
         }
 
         // 收集页面上的预订表单数据
@@ -788,33 +828,43 @@ async function renderStudentBookingCards() {
 
         // 删除预订：仅未被确认的预订（booking）或已取消（canceled）的预订可由学生自行删除，不涉及时间列表
         // 管理员确认取消后，可删除该预订及对应的预订时间列表
-        async function deleteBooking() {
-            if (!checkCourseAndSchedule(true, true)) return;
+        async function deleteBooking_student() {
+            if (!checkCourseAndSchedule(true, true)){
+                alert("请选择课程和排期");
+                return; // 判断选择有效性   
+            }
+            if (!confirm("确认删除预订吗？")) return;
             const formData = getBookFormData();
             if ((formData.status == "booking") || (formData.status == "canceled")) {
                 await operateBookingStatus(formData.bookingid, "delete");
-                reloadBooking();
+                reloadBooking_student();
             } else {
                 alert("请联系老师，确认后才能删除");
             }
         }
 
         // 取消预订：booking 可直接取消；booked 需置为 canceling 等待确认
-        async function cancelBooking() {
-            if (!checkCourseAndSchedule(true, true)) return;
+        async function cancelBooking_student() {
+            if (!checkCourseAndSchedule(true, true)){
+                alert("请选择课程和排期");
+                return; // 判断选择有效性   
+            }
             const formData = getBookFormData();
+            if (formData.status == "booked"){
+                if (!confirm("确认取消预订吗？")) return;
+            }
             await operateBookingStatus(formData.bookingid, formData.status != "booked" ? "canceled" : "canceling");
-            reloadBooking();
+            reloadBooking_student();
         }
 
         // 刷新：重新读取排期数据并显示
-        function refreshData() {
+        function refreshData_student() {
             loadSchedule();
             // TBD: 如果原来的排期 ID 存在，则显示原排期（selected 指定相应的 id）
         }
 
         // 状态变化时更新当前用户对当前排期的预订状态
-        async function reloadBooking() {
+        async function reloadBooking_student() {
             if (selectedScheuleId != null) {
                 const bookingObjectList = await getBookingInfo(selectedScheuleId, userRole, userId);
                 if (bookingObjectList != null && bookingObjectList.length > 0) {

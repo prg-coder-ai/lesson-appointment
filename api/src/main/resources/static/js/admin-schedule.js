@@ -1341,8 +1341,7 @@ async function assignStudentToSchedule( ) {
     const scheduleId = formData.scheduleId;
 
     //检查是否存在相关的booking
-   if(hasBookingForScheduleId(scheduleId)){
-    // INSERT_YOUR_CODE
+   if(hasBookingForScheduleId(scheduleId)){ 
         const userChoice = confirm('该排期存在预订，是否继续删除？继续将删除该项目下的全部预订。点击“确定”继续，点击“取消”放弃删除。');
         if (!userChoice) {
             return;
