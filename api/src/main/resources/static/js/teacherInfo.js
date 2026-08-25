@@ -293,6 +293,9 @@ async function getAvailableTimesFromSchedule() {
   if (availableSchedules) {  // 时间段
     availableSchedulesList = availableSchedules.map(s => {
       const obj = { ...s };  // 浅拷贝，避免修改原对象
+      obj.scheduleId = obj.scheduleId || '';
+      obj.optedItem = obj.optedItem || false;
+       
       obj.status = obj.status || 'active';
       obj.repeatType = obj.repeatType || 'none';
       obj.repeatInterval = obj.repeatInterval || 1;
@@ -434,6 +437,8 @@ function renderCertRow(c) {
       <input type="number" class="cert-sort" value="${c.sortNo != null ? c.sortNo : 0}" placeholder="排序" style="max-width:70px;">
       <input type="hidden" class="cert-base64" value="${escapeAttr(c.certBase64 || '')}">
       <input type="file" class="cert-file" accept="image/*" style="display:none;" onchange="handleCertPhotoSelect(this)">
+     
+      <!-- 显示按钮 -->
       <button class="btn btn-default" type="button" onclick="this.previousElementSibling.click()"><i class="fa fa-upload"></i></button>
       <button class="btn btn-danger" onclick="this.parentElement.remove()"><i class="fa fa-times"></i></button>
     </div>`;
@@ -480,6 +485,10 @@ function renderTimeRow(t) {
       <div class="time-weekDays" style="${weekStyle}width:100%;margin-top:2px;border-top:1px dashed #eee;padding-top:4px;">${weekChecks}</div>
       <div class="time-monthDays" style="${monthStyle}width:100%;margin-top:2px;border-top:1px dashed #eee;padding-top:4px;">${monthChecks}</div>
       <button class="btn btn-danger" onclick="this.closest('.sub-item-row').remove()" style="margin-left:auto;"><i class="fa fa-times"></i></button>
+       <input type="text" class="cert-scheduleId" value="${escapeAttr(t.scheduleId || '')}">
+      <!-- 显示复选框，用来选择本行是否是推荐的时间排期,用来给用户提供优先推荐的时间排期的功能，以便链接直达-->
+        <label><input type="checkbox" class="cert-repeat" value= ${t.optedItem ? 'checked' : ''}>
+        优先推荐</label>
     </div>`;
 }
 
@@ -607,7 +616,9 @@ async function saveForm() {
         startTime,
         endTime,
         endDate: endDate || null,
-        status: 'active'
+        status: 'active',
+        scheduleId: row.querySelector('.cert-scheduleId').value || null,
+        optedItem: row.querySelector('.cert-repeat').checked || false
       });
     }
   });
@@ -985,6 +996,7 @@ function formAvaliableTimesDiv(availableTimesList) {
       : (t.repeatInterval && t.repeatInterval > 1 ? ` 每${t.repeatInterval}${t.repeatType === 'day' ? '天' : t.repeatType === 'week' ? '周' : t.repeatType === 'month' ? '月' : ''}` : '');
     const dateRange = [t.startDate, (t.endDate || '')].filter(Boolean).join('~')
       + ((t.startTime || t.endTime) ? ' - ' + [(t.startTime || '').substring(0, 5), (t.endTime || '').substring(0, 5)].filter(Boolean).join('~') : '');
+      //TBD 对于与scheduleLink相关的字段-添加时保存scheduleId而不是scheduleLink-渲染时使用scheduleId 创建链接
     return `<div>${escapeHtml(dateRange)} ${escapeHtml(rptText)} ${escapeHtml(dayText)}</div>`;
   }).join('');
   return lines;
@@ -1005,7 +1017,17 @@ function generatePublishHtml(mode) {
     const p = data.personalPhotoBase64 || data.personalPhotoUrl || '';
     return p;
   };
-
+  //TBD 对于与scheduleLink相关的字段-添加时保存scheduleId而不是scheduleLink-渲染时使用scheduleId 创建链接
+//遍历availableTimesList，将优先选择打勾的一行的scheduleId赋值给scheduleLink
+ let optedScheduleId = '';
+   const timeEl = document.getElementById('view-availableTimes');
+   //查询所有勾选的行，取第一个的scheduleId作为scheduleLink 
+   const optedRows = timeEl.querySelectorAll('.cert-repeat:checked');
+   if (optedRows.length > 0) {
+    optedScheduleId = optedRows[0].querySelector('.cert-scheduleId').value || '';
+   }   
+  data.scheduleId = optedScheduleId;
+  console.log("optedScheduleId:", optedScheduleId);
   // 基本信息和课时配置的字段会单独渲染到卡片中，rowsHtml 跳过这些字段以避免重复 , 'photo'
   const basicKeys = ['name', 'account', 'phone', 'email', 'subject', 'status', 'userStatus', 'photo'];
   const lessonKeys = ['minBookingHours', 'weeklyAvailableHours', 'certificateText'];
@@ -1017,14 +1039,17 @@ function generatePublishHtml(mode) {
 
     const v = {
       name: data.name, account: data.account, phone: data.phone,
+      teacherlink: data.teacherId || '',
       email: data.email, subject: data.subject,
       status: data.status, userStatus: data.userStatus,
       minBookingHours: data.minBookingHours,
       weeklyAvailableHours: data.weeklyAvailableHours,
       certificateText: data.certificateText,
       bioText: data.bioText,
-      bioUrl: data.bioUrl
+      bioUrl: data.bioUrl || '',
+      scheduleLink: data.scheduleId || ''
     }[f.key];
+
     if (f.key === 'certificates') {
       if (!data.certificates || !data.certificates.length) return '';
       const imgs = data.certificates.map(c => {
@@ -1042,23 +1067,32 @@ function generatePublishHtml(mode) {
     }
     if (f.key === 'availableTimes') {
       if (!data.availableTimes || !data.availableTimes.length) return '';
+        let linkForSchedule='/booking?scdid='+data.scheduleId;
+        let linkForteacher="/booking?tid="+ data.scheduleId;
       const lines = formAvaliableTimesDiv(data.availableTimes);
       return `<section style="margin-bottom:16px;">
         <h3 style="margin:0 0 8px 0;color:${style.accentColor};font-size:${style.fontSizePx + 2}px;">可预约时间</h3>
-        <div>${lines}</div></section>`;
+        <div>${lines}</div></section>
+         <div style="color:#222;flex:1;word-break:break-all;"><a href="${escapeAttr(linkForSchedule)}" target="_blank" rel="noopener" style="color:${style.accentColor};word-break:break-all;">直达预定</a></div>    
+         <div style="color:#222;flex:1;word-break:break-all;"><a href="${escapeAttr(linkForteacher)}" target="_blank" rel="noopener" style="color:${style.accentColor};word-break:break-all;">全部排期</a></div>`;    
     }
     if (f.key === 'bioText') {
       if (!v) return '';
+
       return `<section style="margin-bottom:16px;">
         <h3 style="margin:0 0 8px 0;color:${style.accentColor};font-size:${style.fontSizePx + 2}px;">简介</h3>
-        <div style="white-space:pre-wrap;line-height:1.7;">${escapeHtml(v)}</div></section>`;
-    }
+        <div style="white-space:pre-wrap;line-height:1.7;">${escapeHtml(v)}</div></section>`;  
+        
+         }
+       
     if (f.key === 'bioUrl') {
       if (!v) return '';
       return `<section style="margin-bottom:16px;">
         <h3 style="margin:0 0 8px 0;color:${style.accentColor};font-size:${style.fontSizePx + 2}px;">外部链接</h3>
         <a href="${escapeAttr(v)}" target="_blank" rel="noopener" style="color:${style.accentColor};word-break:break-all;">${escapeHtml(v)}</a></section>`;
     }
+     
+    
     // 基本字段 key-value
     return `<div style="display:flex;gap:12px;margin-bottom:6px;">
       <div style="width:140px;color:#666;flex-shrink:0;">${escapeHtml(f.label)}</div>
@@ -1098,6 +1132,7 @@ function generatePublishHtml(mode) {
         <div style="color:#222;flex:1;word-break:break-all;">${escapeHtml(String(v ?? '')) || '<span style="color:#bbb;">-</span>'}</div>
       </div>`;
     }).join('');
+
     lessonHtml = `<section style="margin-bottom:16px;">
       <h3 style="margin:0 0 8px 0;color:${style.accentColor};font-size:${style.fontSizePx + 2}px;"><span data-term="lessonUnit">课时</span>配置</h3>
       <div style="background:${style.cardBgColor};padding:12px 16px;border-radius:8px;">${rows}</div>
