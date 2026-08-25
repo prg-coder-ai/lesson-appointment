@@ -1021,3 +1021,22 @@ function checkCourseAndSchedule(scheduleCheck,courseCheck){
   return true;
 }
 
+//读取已经预约的次数，用于判断是否可以删除，是否可以分配学生
+ async  function getBookingCountByScheduleId(scheduleId) {
+
+    if (!scheduleId) {
+        console.warn('排期ID不能为空');
+        return 0;
+    }
+    try { 
+        const result = await request({ url:`/course/booking/countByScheduleId/${scheduleId}`, 
+            method: 'GET'
+        }); 
+         // result 预期为返回预约数量
+        return  result? result : 0; 
+    } catch (error) {
+        console.error('请求排期booking数量时出错:', error);
+        return 0;
+    }
+  }
+
