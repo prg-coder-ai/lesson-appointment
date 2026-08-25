@@ -25,7 +25,7 @@ async function renderStudentBookingCards() {
         <div class="card-title"><i class="fa fa-filter"></i> <span data-term="course">课程</span>筛选</div>
             <div class="filter-form" style="display: flex; gap: 20px; margin-top: 10px; margin-bottom: 12px;">
                  <div>
-                    <label><span data-term="course">课程</span>名称：</label>
+                    <label><span data-term="course">课程</span></label>
                     <input type="text" id="course-name-input"  placeholder="课程名称" >
                 </div>
                 <div>
@@ -303,7 +303,7 @@ async function renderStudentBookingCards() {
     languageType: document.getElementById('languageType-select').value,
     difficultyLevel: document.getElementById('difficultyLevel-select').value,
     //teacherId：
-    status: document.getElementById('course-status-select').value
+    status: "active"  //document.getElementById('course-status-select').value
   });
     try { 
    // courseList=  await  getCourseList( params); 
@@ -625,7 +625,7 @@ return  scheduleObject;
           selectedCourse = courseList.find(course => course.courseId === cid);
           if (selectedCourse!= null){//更新当前教师ID
             document.getElementById('teacherIdForCourse').value= selectedCourse.teacherId; 
-            //TBD:显示教师名称
+            //显示教师名称
             const teacherName= await getUserNameById(selectedCourse.teacherId);
             document.getElementById('teacherNameForCourse').value= teacherName;
           }
@@ -857,12 +857,7 @@ function renderResult() {
     const status = "booking"; 
     const formData = getScheduleFormData(); 
     const teacharId = document.getElementById('teacherIdForCourse').value;
-   // console.log("save form:",formData,userId,userRole);   
-/*  private String bookingId;  
-    private String scheduleId;  
-    private String studentId;   
-    private String status;
-*/
+ 
      const bidItem = document.getElementById("bookingId"); 
      let bookingid=  bidItem.value;  
     let dto = {
@@ -959,14 +954,7 @@ function localsearchCourse() {
     Pagination.pageNum = 1;
     loadAndRenderCourse_student();
   }
-  
-// 设置下拉框为禁止选择（只读/不可操作），可以为元素加 disabled 属性，例如：
-// document.getElementById("bookingStatus").disabled = true;
-
-// 恢复可选择：
-// document.getElementById("bookingStatus").disabled = false;
-
-
+   
 
 /**
  * 学生课程预定管理页面：
