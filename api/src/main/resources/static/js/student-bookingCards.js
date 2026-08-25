@@ -23,25 +23,28 @@ async function renderStudentBookingCards() {
       html += `     
        <div class="card">
         <div class="card-title"><i class="fa fa-filter"></i> <span data-term="course">课程</span>筛选</div>
-            <div class="filter-form" style="display: flex; gap: 20px; margin-bottom: 16px;">
+            <div class="filter-form" style="display: flex; gap: 20px; margin-top: 10px; margin-bottom: 12px;">
                  <div>
                     <label><span data-term="course">课程</span>名称：</label>
                     <input type="text" id="course-name-input"  placeholder="课程名称" >
                 </div>
                 <div>
-                    <label>语言类型：</label>
+                    <label><span data-term="classType">语言类型</span>：</label>
                     <select id="languageType-select" >
                         <option value="">全部</option>
-                        <option value="french">法语</option>
-                        <option value="english">英语</option> 
+                         <option value="french"><span data-term="classType1">法语</span></option>
+                        <option value="english"><span data-term="classType2">英语</span></option>
+                        <option value="chinese"><span data-term="classType3">汉语</span></option>
+                        <option value="spanish"><span data-term="classType4">西语</span></option>
+             
                     </select>
                 </div>
                 <div>
-                    <label>难度等级：</label>
+                    <label><span data-term="classLevel">难度等级</span>：</label>
                     <select id="difficultyLevel-select">
                         <option value="">全部</option>
-                        <option value="B1">B1入门</option>
-                        <option value="B2">B2初级</option>
+                        <option value="B1"><span data-term="classLevelB1">B1入门</span></option>
+                        <option value="B2"><span data-term="classLevelB2">B2初级</span></option>
                         <option value="B3">B3中级</option>
                         <option value="B4">B4高级</option> 
                     </select>
@@ -61,19 +64,18 @@ async function renderStudentBookingCards() {
                 <button class="btn btn-default" onclick="resetCourseFilter()"> 
                 <i class="fa fa-redo"></i>重置
                 </button>                 
-                </div>`;
-
-            html += getPagebar();
-            html += `  <hr> <div>
-    <!-- 课程选择下拉 隐含教师ID-->
+                </div>
+    <!-- 课程选择下拉 隐含教师ID（移至搜索栏与分页区域之间） -->
     <div class="form-line">
         <label>选择<span data-term="course">课程</span>：</label>
         <input type="text" id="teacherIdForCourse" style="display:none;">
-   
         <select id="courseSelect" onchange="loadSchedule()">
             <option value="">请先选择<span data-term="course">课程</span></option>
         </select>
-    </div>
+    </div>`;
+
+            html += getPagebar();
+            html += `  <hr> <div>
      <!-- 排期选择下拉 -->
        <div class="form-line">       
         <label>选择排期：</label>
@@ -88,6 +90,7 @@ async function renderStudentBookingCards() {
             <label>Id</label> 
             <input type="label" id="scheduleId">
         </div>
+
 
         <div class="form-line" style="display:none;">
             <label>cId</label>
@@ -109,6 +112,7 @@ async function renderStudentBookingCards() {
         <div class="form-line">
             <label>开始日期：</label>
             <input type="date" id="startDate" class="readonly">
+            <input type="text" id="startDate_weekday" class="readonly" style="width:52px" placeholder="星期">
         </div>
 
         <div class="form-line">
@@ -132,7 +136,7 @@ async function renderStudentBookingCards() {
         <div class="form-line">
             <label>开始日期：</label>
             <input type="date" id="displayStartDate" readonly>
-            <input type="text" id="displayStartDate_weekday" class="readonly">
+            <input type="text" id="displayStartDate_weekday" class="readonly" style="width:52px">
         </div>
 
         <div class="form-line">
@@ -143,12 +147,10 @@ async function renderStudentBookingCards() {
         <div class="form-line">
             <label>结束日期：</label>
             <input type="date" id="displayEndDate" readonly>
-            <input type="text" id="displayEndDate_weekday" class="readonly">
+            <input type="text" id="displayEndDate_weekday" class="readonly" style="width:52px">
         </div>
-    </div>
-
-</div>
-
+    </div> 
+</div> 
 
         <div class="form-line  nofocus">
             <label>重复类型：</label>
@@ -165,17 +167,7 @@ async function renderStudentBookingCards() {
             <input type="number" id="interval" value="1" min="1" style="width:80px">
             <span id="repeatUnit">天</span>
         </div>
-
-        <div class="form-line  nofocus" style="display:none;">
-            <label>状态：</label>
-           <select id="status" style="display:none;">
-                <option value="pending">待发布</option>
-                <option value="inactive">已收回</option>
-                <option value="active">已发布</option>
-                <option value="frozen">已删除</option>
-            </select>
-        </div>
-
+   
         <!-- 每周重复：星期选择 -->
         <div class="form-line  nofocus" id="weekDaysBox" style="display:none;">
             <label>重复星期：</label>
@@ -202,6 +194,8 @@ async function renderStudentBookingCards() {
     <div class="form-line">        
           <label><input type="label" id="bookingId" value=""   style="display:none;"></label>  
     </div>
+    
+     <div style="display: flex; flex-wrap: wrap; gap: 24px;">
     <div class="form-line  nofocus">
       <label>预订状态：</label>
           <select id="bookingStatus">
@@ -213,11 +207,35 @@ async function renderStudentBookingCards() {
                  <option value="completed">已完成</option> 
             </select>
     </div>
+
+        <div class="form-line  nofocus" style="display:none;">
+            <label>状态：</label>
+           <select id="status" style="display:none;">
+                <option value="pending">待发布</option>
+                <option value="inactive">已收回</option>
+                <option value="active">已发布</option>
+                <option value="frozen">已删除</option>
+            </select>
+        </div>        
+            <div class="sched-form-line">
+                <label>总席位数：</label>
+                <input type="number" id="availableSites" value="1" min="1" style="width:80px">
+            </div>
+            <div class="sched-form-line">
+                <label>剩余席位数：</label>
+                <input type="number" id="now_availableSites" value="1" min="1" readonly style="width:80px">
+            </div>
+    </div>
+
     <!-- 操作按钮 -->
     <div class="btn-group"> 
         <button class="btn-primary" onclick="previewSchedule()">预览排期</button>
-        <button class="btn-primary" onclick="makeOneBooking()">预定<span data-term="course">课程</span></button>
+
+        <!-- 判断当前用户是否已经预订当前排期，已预订则显示取消按钮，否则显示预定按钮 -->
+        <button class="btn-primary" id="bookBtn" onclick="makeOneBooking()">预定<span data-term="course">课程</span></button>
+        
         <button class="btn-danger"  onclick="cancelBooking()">取消预定</button> 
+        <!-- 用户已经取消预订，显示删除按钮，否则不显示 -->
         <button class="btn-danger"  onclick="deleteBooking()">删除预定</button>
         <button class="btn-success" onclick="refreshData()">刷新</button>
     </div> 
@@ -335,6 +353,22 @@ function renderSchedule(scheduleObject) {
     if (!scheduleObject) return;
     // console.log("renderSchedule",scheduleObject);
 
+    const totalBooked =  getBookingCountByScheduleId(scheduleObject.scheduleId);
+    const availableSites = document.getElementById('availableSites').value;
+    const now_availableSites = document.getElementById('now_availableSites');
+    now_availableSites.value = availableSites - totalBooked;
+    if(now_availableSites.value<=0){
+     // document.getElementById('status').value = "full";
+      //把预订按钮设为禁用
+      document.getElementById('bookBtn').disabled = true;
+     // document.getElementById('bookBtn').title = '已满';
+    } else {
+      //document.getElementById('status').value = "pending";
+      //把预订按钮设为启用
+      document.getElementById('bookBtn').disabled = false;
+      // document.getElementById('bookBtn').title = '可预约';
+    }
+
       // 刷新开始日期
       if (scheduleObject.scheduleId) {
        document.getElementById('scheduleId').value = scheduleObject.scheduleId;
@@ -355,8 +389,16 @@ function renderSchedule(scheduleObject) {
     // 刷新开始日期
     if (scheduleObject.startDate) {
         document.getElementById('startDate').value = scheduleObject.startDate;
+        // 计算并显示开始日期对应的星期（左侧原始时区）
+        const _wk = document.getElementById('startDate_weekday');
+        if (_wk) {
+            const _d = new Date(scheduleObject.startDate);
+            _wk.value = isNaN(_d) ? '' : ['周日','周一','周二','周三','周四','周五','周六'][_d.getDay()];
+        }
     } else {
         document.getElementById('startDate').value = '';
+        const _wk = document.getElementById('startDate_weekday');
+        if (_wk) _wk.value = '';
     }
 
     // 刷新开始时间
@@ -723,27 +765,10 @@ return  scheduleObject;
     renderResult();
     renderCalendar(); 
 }
-
-// 
  
   //根据排期id、用户角色和用户id，查询预订信息。可复用于检索教师的预订
   //返回 Booking 列表
-  //在排期列表选择变化时调用，更新对应的预定状态
-/**
- * 错误分析：
- * 
- * 出现该错误的原因是：后端接口 `@RequestBody BookingQueryParaDTO dto` 预期接收的是一个 JSON 对象（单个BookingQueryParaDTO实例），
- * 而前端请求发送了一个JSON数组或body格式不符合预期。
- * 
- * 对照当前getBookingInfo的实现，发现：
- *   body:params 直接赋值一个对象并没有转换为JSON字符串，fetch请求的body如果是对象会被序列化为[object Object]，不是有效的JSON。
- * 正确做法应为：
- *   - 使用JSON.stringify(params)
- *   - Content-Type: application/json
- * 
- * 另外，接口期望"POST /course/booking/list"发送JSON对象，不是数组。
- *  
- */
+  //在排期列表选择变化时调用，更新对应的预定状态 
  
   //根据bookingObject的状态，显示是否已预定
   function renderStudentBookingStatus(bObj) {
@@ -899,11 +924,10 @@ function renderResult() {
     //TBD :如果原来的排期ID存在，则显示原排期--selected指定相应的id
  }
 
-    //在状态变化时，更新预订状态，参数暂无用
+    //在状态变化时，更新预订状态，参数暂无用,xianshi 显示当前排期的对于当前用户本人的预订状态
     async function  reloadBooking(){ 
-         //const bidItem = document.getElementById("bookingId");
-         //bidItem.value = bookingid;
-         if(selectedScheuleId != null) {
+
+          if(selectedScheuleId != null) {
             const bookingObjectList =    await getBookingInfo(selectedScheuleId,userRole,userId); 
            // console.log("bookingObjectList:",bookingObjectList)
             if(bookingObjectList!= null && bookingObjectList.length >0)
@@ -915,7 +939,6 @@ function renderResult() {
             }//
         } 
     
-  
     console.log("student booking page END");
 }
 

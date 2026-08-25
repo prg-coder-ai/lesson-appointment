@@ -885,7 +885,7 @@ async function renderSchedule() {
      // console.log("renderSchedule",scheduleObject);
      //更新已预约人数
 const totalBooked = await getBookingCountByScheduleId(scheduleObject.scheduleId);
-      console.log("totalBooked",totalBooked,"for"   ,   scheduleObject.scheduleId);
+     // console.log("totalBooked",totalBooked,"for"   ,   scheduleObject.scheduleId);
 
        // 刷新开始日期
        if (scheduleObject.scheduleId) {
@@ -981,9 +981,7 @@ const totalBooked = await getBookingCountByScheduleId(scheduleObject.scheduleId)
       // 重复类型为"不重复"时，隐藏"重复周期"行
       const intervalBox = document.getElementById('intervalBox');
       if (intervalBox) intervalBox.style.display = ( type === 'none') ? 'none' : 'flex';
-  }
-     // INSERT_YOUR_CODE
-   
+  } 
    //将当前排期数值为初始值，方便修改
    function resetSchedule(){
     resetScheduleObject();
@@ -1285,7 +1283,7 @@ function renderResult() {
     let createdto = toScheduleCreateDto(formData);      
     
     let bExists = formData.scheduleId && formData.scheduleId !== "";
-      console.log("save createdto:",createdto,bExists);
+     // console.log("save createdto:",createdto,bExists);
 // 返回当前或新增的schedule的id
     let result = await saveScheduleToServer(bExists , createdto);
     //  console.log("saveScheduleToServer return  :", result ); 
@@ -1413,25 +1411,6 @@ async function hasBookingForScheduleId(scheduleId) {
         return true;
     }
 }
-//读取已经预约的次数，用于判断是否可以删除，是否可以分配学生
- async  function getBookingCountByScheduleId(scheduleId) {
-
-    if (!scheduleId) {
-        console.warn('排期ID不能为空');
-        return 0;
-    }
-    try { 
-        const result = await request({ url:`/course/booking/countByScheduleId/${scheduleId}`, 
-            method: 'GET'
-        }); 
-         // result 预期为返回预约数量
-        return  result? result : 0; 
-    } catch (error) {
-        console.error('请求排期booking数量时出错:', error);
-        return 0;
-    }
-  }
-
  function refreshData(){
     //再次读取排期数据并显示
     loadSchedule(); 
@@ -1472,8 +1451,7 @@ async function hasBookingForScheduleId(scheduleId) {
                }
            });
           // alert(msg);
-           if (conflictMessageElem) { 
-            // INSERT_YOUR_CODE
+           if (conflictMessageElem) {  
             // 把msg中的首尾的字符@@去掉，把中间的@@更换为逗号
             msg = msg.replace(/^@@|@@$/g, ''); // 去除首尾@@
             msg = msg.replace(/@@/g, '，');    // 替换中间的@@为逗号
@@ -1510,8 +1488,7 @@ async function hasBookingForScheduleId(scheduleId) {
  *    2.3.2 日历显示：在日历上标记所有的排期日期
  * 
  * 
- **/
-// INSERT_YOUR_CODE
+ **/ 
 /**
 /**
  * 隐藏 DIV 元素但仍可通过 JS 访问其内容/属性的常用方法：
