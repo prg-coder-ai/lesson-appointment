@@ -356,26 +356,9 @@
         loadAdminPageContent(titleText);
       });
     });
-
-    // ====== 深链参数解析（/booking?scdid=xxx&sid=xxx） ======
-    // admin 需要同时存在 scdid（排期ID）和 sid（学生ID）
-    var dlParams = new URLSearchParams(window.location.search);
-    var dlScdid = dlParams.get('scdid') || '';
-    var dlSid   = dlParams.get('sid')   || '';
-    if (dlScdid && dlSid) {
-      window.pendingDeepLink = { scdid: dlScdid, sid: dlSid };
-      // 直接跳到"课程排期"菜单
-      pageTitle.textContent = '课程排期';
-      // 同步菜单高亮
-      menuItems.forEach(function(menu) {
-        var menuText = menu.querySelector('span') ? menu.querySelector('span').textContent : '';
-        menu.classList.toggle('active', normalizeTermText(menuText) === '课程排期');
-      });
-    }
-
     loadAdminPageContent(pageTitle.textContent);
     addChangePasswordButton();
-
+       
     };
        
     var testFormContainer =null;
