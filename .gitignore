@@ -48,3 +48,5 @@ api/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFil
 api/logs/spring-boot-app.log
 api/logs
 api/logs/spring-boot-app.log
+api/logs/spring-boot-app.log
+backup_static_format_20260825/student-bookingCards.js

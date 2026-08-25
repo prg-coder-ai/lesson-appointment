@@ -256,18 +256,7 @@ async function renderStudentBookingCards() {
             endDateInput.value = `${year}-${month}-${day}`;
         }
 
-        await loadAndRenderCourse_student();
-
-        // ====== 深链处理：/booking?scdid=&tid=&sid= 落地 ======
-        if (window.pendingDeepLink) {
-            try {
-                await handleStudentDeepLink(window.pendingDeepLink);
-            } catch (e) {
-                console.error('深链处理异常:', e);
-            }
-            window.pendingDeepLink = null;
-            history.replaceState(null, '', location.pathname);
-        }
+        loadAndRenderCourse_student();
 
         // 检索课程（仅 status=active 的已发布课程），按课程名称/语言/难度筛选
         async function loadAndRenderCourse_student() {
@@ -314,116 +303,6 @@ async function renderStudentBookingCards() {
                 }
             });
             renderPagination(Pagination);
-        }
-
-        // ====== 学生端深链处理 ======
-        // dl: { scdid, tid, sid }，来自 /booking 入口的 URL 参数
-        // 优先级：scdid > tid（两者同时存在时只处理 scdid）
-        async function handleStudentDeepLink(dl) {
-            if (dl.scdid) {
-                const schedule = await fetchSchedule(dl.scdid);
-                if (!schedule) {
-                    alert('排期不存在或已结束');
-                    return;
-                }
-                const courseId = schedule.courseId;
-                if (!courseId) {
-                    alert('排期数据异常：缺少课程ID');
-                    return;
-                }
-
-                // 反查课程详情，获取教师ID和课程名称
-                let course = null;
-                try {
-                    course = await request({ url: `/course/${courseId}` });
-                } catch (e) { /* ignore */ }
-                if (!course) {
-                    alert('课程不存在或已下架');
-                    return;
-                }
-
-                // 确保目标课程在下拉框中（分页可能导致不在当前页）
-                const courseSelect = document.getElementById('courseSelect');
-                let courseFound = false;
-                for (let i = 0; i < courseSelect.options.length; i++) {
-                    if (String(courseSelect.options[i].value) === String(courseId)) {
-                        courseSelect.selectedIndex = i;
-                        courseFound = true;
-                        break;
-                    }
-                }
-                if (!courseFound) {
-                    const opt = document.createElement('option');
-                    opt.value = course.courseId;
-                    opt.innerText = course.courseName;
-                    courseSelect.appendChild(opt);
-                    courseSelect.value = courseId;
-                }
-                document.getElementById('courseId').value = courseId;
-
-                // 设置教师信息
-                const teacherId = course.teacherId || schedule.teacherId || '';
-                document.getElementById('teacherIdForCourse').value = teacherId;
-                if (teacherId) {
-                    const teacherName = await getUserNameById(teacherId);
-                    document.getElementById('teacherNameForCourse').value = teacherName;
-                }
-
-                // 加载该课程的有效排期并填充排期下拉框
-                scheduleList = await fetchScheduleList(courseId, "active");
-                const scheduleSelect = document.getElementById('scheduleSelect');
-                scheduleSelect.innerHTML = '<option value="">请选择<span data-term="course">课程</span>排期</option>';
-                let schedFound = false;
-                if (scheduleList && scheduleList.length > 0) {
-                    scheduleList.forEach(s => {
-                        if (s.status == 'active') {
-                            const opt = document.createElement('option');
-                            opt.value = s.scheduleId;
-                            let text = `排期: ${s.name}`;
-                            if (s.startDate && s.startTime) {
-                                text += ` / ${s.startDate} ${s.startTime}`;
-                            } else if (s.startDate) {
-                                text += ` / ${s.startDate}`;
-                            }
-                            opt.innerText = text;
-                            scheduleSelect.appendChild(opt);
-                            if (String(s.scheduleId) === String(dl.scdid)) {
-                                schedFound = true;
-                            }
-                        }
-                    });
-                }
-
-                if (schedFound) {
-                    scheduleSelect.value = dl.scdid;
-                    displaySchedule();
-                    document.querySelector('.section')?.scrollIntoView({ behavior: 'smooth' });
-                } else {
-                    alert('该排期当前不可预约（可能已下架或已满）');
-                }
-            } else if (dl.tid) {
-                // 列出该教师的所有有效排期对应的课程
-                const params = new URLSearchParams({
-                    pageNum: 1,
-                    pageSize: 100,
-                    status: 'active',
-                    teacherId: dl.tid
-                });
-                try {
-                    const result = await request({ url: `/course/page?${params.toString()}` });
-                    if (result && result.rows && result.rows.length > 0) {
-                        Pagination.pageNum = 1;
-                        courseList = result.rows;
-                        Pagination.total = result.total;
-                        Pagination.totalPages = result.totalPages;
-                        renderCourseSelect();
-                    } else {
-                        alert('该教师暂无可预约的课程');
-                    }
-                } catch (e) {
-                    alert('加载教师课程失败');
-                }
-            }
         }
 
         // 将排期对象渲染到页面各字段（待细化：可简化为日期范围、时间、排期计划）

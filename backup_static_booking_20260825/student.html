@@ -123,7 +123,7 @@
     }
       */
     // 初始化页面（加载默认内容）
-    window.onload = function() {
+    window.onload = function() { 
       userInfo = autoLoginCheck();
       // ====== 新增：未登录 → 保存当前来源页 URL 后跳登录页 ======
       if (!userInfo) {
@@ -135,36 +135,23 @@
         location.href = './index.html';
         return;
       }
-       // 自动登录：检测本地登录信息并校验token有效性
+       // 自动登录：检测本地登录信息并校验token有效性  
       const nameid=document.getElementById("user-name");
        if(nameid) nameid.innerHTML= userInfo && userInfo.name;
-
+       
        // 设置头像为用户名首字母
        const avatarElem = document.getElementById("avatar");
        if (avatarElem && userInfo && userInfo.name && userInfo.name.length > 0) {
          avatarElem.textContent = userInfo.name.charAt(0);
        }
-
-      // ====== 深链参数解析 ======
-      // URL 形如 student.html?scdid=12355&tid=xxx&sid=xxx
-      // scdid=排期ID, tid=教师ID, sid=学生ID
-      var dlParams = new URLSearchParams(window.location.search);
-      var dlScdid = dlParams.get('scdid') || '';
-      var dlTid   = dlParams.get('tid')   || '';
-      var dlSid   = dlParams.get('sid')   || '';
-      if (dlScdid || dlTid) {
-        window.pendingDeepLink = { scdid: dlScdid, tid: dlTid, sid: dlSid };
-        // 直接跳到"课程预订"菜单，不走默认的"今日课程"
-        currentMenuitem = '课程预订';
-        pageTitle.textContent = '课程预订';
-        // 同步侧边栏菜单高亮（student 菜单走 data-menu 属性，不受术语切换影响）
-        menuItems.forEach(function(menu) {
-          menu.classList.toggle('active', menu.getAttribute('data-menu') === '课程预订');
-        });
-      }
-
+  
+     //  console.log(nameid);
+      
+     //   const initialMenu = pageTitle.textContent.trim() || '我的工作台';
+      // syncActiveMenu(initialMenu);
        addChangePasswordButton();
        loadAdminPageContent(currentMenuitem);
+      //updateStarRating(); // 初始化评分显示
       console.log('学生端页面加载完成');
     };
 

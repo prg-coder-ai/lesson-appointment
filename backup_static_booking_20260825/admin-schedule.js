@@ -512,21 +512,11 @@ async function renderScheduleCards() {
       
      
     // 关联 testTimeZone 下拉菜单与 handleTestTimeZoneChange 处理
-     handleTestTimeZoneChange();
-     // 课程列表与学生列表并行加载；深链需等两者都完成后再处理
-     await Promise.all([loadAndRenderCourses(), addStudentList()]);
-
-    // ====== 深链处理：/booking?scdid=&sid= 落地 ======
-    if (window.pendingDeepLink) {
-        try {
-            await handleAdminDeepLink(window.pendingDeepLink);
-        } catch (e) {
-            console.error('深链处理异常:', e);
-        }
-        window.pendingDeepLink = null;
-        history.replaceState(null, '', location.pathname);
-    }
-
+     handleTestTimeZoneChange(); 
+     loadAndRenderCourses();  //display 
+    //添加学生列表 ---
+    addStudentList();  
+   
   window.loadSchedule = loadSchedule;
   window.previewSchedule = previewSchedule;
   window.onRepeatTypeChange = onRepeatTypeChange;
@@ -597,81 +587,6 @@ function localsearchCourse_sch() {
         }
         return ;
        }
-
-  // ====== 管理员端深链处理 ======
-  // dl: { scdid, sid }，来自 /booking 入口的 URL 参数
-  // 显示 scdid 对应的排期，并在学生列表中预选 sid 对应的学生
-  async function handleAdminDeepLink(dl) {
-      // 1. 获取排期详情（含 courseId）
-      const schedule = await fetchSchedule(dl.scdid);
-      if (!schedule) {
-          alert('排期不存在');
-          return;
-      }
-      const courseId = schedule.courseId;
-      if (!courseId) {
-          alert('排期数据异常：缺少课程ID');
-          return;
-      }
-
-      // 2. 在课程下拉框中选中该课程
-      const courseSelect = document.getElementById('courseSelect');
-      let courseFound = false;
-      for (let i = 0; i < courseSelect.options.length; i++) {
-          if (String(courseSelect.options[i].value) === String(courseId)) {
-              courseSelect.selectedIndex = i;
-              courseFound = true;
-              break;
-          }
-      }
-      if (!courseFound) {
-          alert('排期所属课程不在当前课程列表中（可能不在第一页），请调整筛选后重试');
-          return;
-      }
-
-      // 3. 加载该课程的排期列表
-      await loadSchedule();
-
-      // 4. 在排期下拉框中选中目标排期
-      const scheduleSelect = document.getElementById('scheduleSelect');
-      let schedFound = false;
-      for (let i = 0; i < scheduleSelect.options.length; i++) {
-          if (String(scheduleSelect.options[i].value) === String(dl.scdid)) {
-              scheduleSelect.selectedIndex = i;
-              schedFound = true;
-              break;
-          }
-      }
-      if (!schedFound) {
-          alert('未在课程排期列表中找到指定排期');
-          return;
-      }
-
-      // 5. 显示排期详情
-      displySchedule();
-
-      // 6. 预选学生
-      if (dl.sid) {
-          const studentSelect = document.getElementById('assignStudentSelect');
-          if (studentSelect && studentSelect.options.length > 0) {
-              let sidFound = false;
-              for (let i = 0; i < studentSelect.options.length; i++) {
-                  if (String(studentSelect.options[i].value) === String(dl.sid)) {
-                      studentSelect.selectedIndex = i;
-                      sidFound = true;
-                      break;
-                  }
-              }
-              if (!sidFound) {
-                  alert('指定学生不在学生列表中');
-              }
-          }
-      }
-
-      // 滚动定位到排期设置区域
-      const schedSection = document.querySelector('.sched-section');
-      if (schedSection) schedSection.scrollIntoView({ behavior: 'smooth' });
-  }
 
           /*
         * assignStudentToTheSchedule: 指定学生studentId预约排期scdid，并生成对应的appointment数据，保障原子性。
