@@ -492,8 +492,7 @@ function renderTimeRow(t) {
       </div>
       <div class="time-weekDays" style="${weekStyle}width:100%;margin-top:2px;border-top:1px dashed #eee;padding-top:4px;">${weekChecks}</div>
       <div class="time-monthDays" style="${monthStyle}width:100%;margin-top:2px;border-top:1px dashed #eee;padding-top:4px;">${monthChecks}</div>
-      <button class="btn btn-danger" onclick="this.closest('.sub-item-row').remove()" style="margin-left:auto;"><i class="fa fa-times"></i></button>
-      
+      <button class="btn btn-danger" onclick="this.closest('.sub-item-row').remove()" style="margin-left:auto;"><i class="fa fa-times"></i></button>      
       <!-- 显示复选框，用来选择本行是否是推荐的时间排期,用来给用户提供优先推荐的时间排期的功能，以便链接直达-->
         <label><input type="checkbox" class="cert-optioned" data-extra-scheduleid="${escapeAttr(t.scheduleId || '')}" ${t.optioned ? 'checked' : ''}>
         优先推荐</label>
@@ -1098,8 +1097,10 @@ function generatePublishHtml(mode) {
       return `<section style="margin-bottom:16px;">
         <h3 style="margin:0 0 8px 0;color:${style.accentColor};font-size:${style.fontSizePx + 2}px;">可预约时间</h3>
         <div>${lines}</div></section>
-         <div style="color:#222;flex:1;word-break:break-all;"><a href="${escapeAttr(linkForSchedule)}" target="_blank" rel="noopener" style="color:${style.accentColor};word-break:break-all;">直达预定</a></div>    
-         <div style="color:#222;flex:1;word-break:break-all;"><a href="${escapeAttr(linkForteacher)}" target="_blank" rel="noopener" style="color:${style.accentColor};word-break:break-all;">全部排期</a></div>`;    
+         
+         <!-- div style="color:#222;flex:1;word-break:break-all;"><a href="${escapeAttr(linkForSchedule)}" target="_blank" rel="noopener" style="color:${style.accentColor};word-break:break-all;">直达预定</a></div>    
+         <div style="color:#222;flex:1;word-break:break-all;"><a href="${escapeAttr(linkForteacher)}" target="_blank" rel="noopener" style="color:${style.accentColor};word-break:break-all;">全部排期</a></div -->`;    
+          
     }
     if (f.key === 'bioText') {
       if (!v) return '';
