@@ -1,4 +1,4 @@
- //预约管理--预约结果详情--页面
+ //预约管理--预约结果详情--页面-用于学生和教师
   //展示本人的所有预约列表，提供预约详情---展示排期列表（使用“取消预约”操作）
    // student-course-appointment.js   StudentBookingBrowserCards.js
 // 区别于booking页面，booking页面负责查询课程、检查排期，以便预约1个课程，
@@ -12,34 +12,8 @@
  */
 // 引入分页组件js
 document.write('<script src="/js/public/pagefoot.js"></script>');
-
-//part
-// 方法一：让3个div上下排列（纵向堆叠），最简单直接的方式是让它们在一个普通父div下，不设置特殊布局即可（div默认display:block会自动上下排列）。
-// 例如：
-// <div>
-//   <div>区域1</div>
-//   <div>区域2</div>
-//   <div>区域3</div>
-// </div>
-
-// 方法二：如果你需要显式指定，可以为父div加样式：display: flex; flex-direction: column;
-// 例如：
-// <div style="display: flex; flex-direction: column;">
-//   <div>区域1</div>
-//   <div>区域2</div>
-//   <div>区域3</div>
-// </div>
-
-// 方法三：用CSS类统一管理
-// .vertical-container { display: flex; flex-direction: column; }
-// 然后html：
-// <div class="vertical-container">
-//   <div>区域1</div>
-//   <div>区域2</div>
-//   <div>区域3</div>
-// </div>
-//
-// 总结：div默认就是上下排列，如果用flex布局也可通过设置flex-direction: column实现。
+ 
+//  div默认就是上下排列，如果用flex布局也可通过设置flex-direction: column实现。
 
 async function renderStudentBookingBrowserCards() {
 
@@ -62,7 +36,7 @@ async function renderStudentBookingBrowserCards() {
               <div class="filter-bar">  
                 <div class="filter-item" >
                   <label><span data-term="course">课程</span>名称：</label>
-                  <input type="text" id="course-name-input" placeholder="<span data-term="course">课程</span> 名称">
+                  <input type="text" id="course-name-input" placeholder="课程名称">
                 </div>
                         
                 <div class="filter-item">
