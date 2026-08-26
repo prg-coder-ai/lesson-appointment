@@ -100,7 +100,7 @@ let appointmentList=[];// ID,ciurseName,studentName,teacherName,dateTime(创建�
    const params = {
       pageNum: Pagination.pageNum,
       pageSize: Pagination.pageSize,
-      userId: userId,
+      userId:   userId,
       userRole: userRole,    
       name:   document.getElementById('course-name-input').value,
       days:   document.getElementById('appoint-days-select').value,
@@ -115,7 +115,7 @@ let appointmentList=[];// ID,ciurseName,studentName,teacherName,dateTime(创建�
     Pagination.totalPages = 0;
     appointmentList = [ ];
  
-     const pageResult = await fetchAppointmentListPage(params);
+     const pageResult = await fetchAppointmentListPage(params);//调用后台接口获取预约列表
      if(pageResult){
       appointmentList = pageResult.rows;
       
