@@ -36,4 +36,10 @@ public class TeacherAvailableTimeDTO implements Serializable {
 
     /** active/frozen */
     private String status;
+
+    /** 排期ID */
+    private String scheduleId;
+
+    /** 是否已预约 */
+    private Integer optioned;
 }
