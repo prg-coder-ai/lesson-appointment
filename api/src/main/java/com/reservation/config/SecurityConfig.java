@@ -58,10 +58,12 @@ public class SecurityConfig {
                                 "/teacherPublishedProfile.html",
                                 "/logBrowser.html",
                                 "/auditLog.html"
+                                
                         ).permitAll()
 
                         // 教师发布信息公开接口（teacherPublishedProfile.html 调用，无需登录）
                         .requestMatchers(
+                                "/booking",
                                 "/teacher/published/latest-public",
                                 "/teacher/published/public-get",
                                 "/schedule/getAvailableSchedule"

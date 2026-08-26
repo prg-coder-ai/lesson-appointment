@@ -29,6 +29,12 @@ CREATE TABLE IF NOT EXISTS `teacher_professional` (
   CONSTRAINT `fk_tp_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `user`(`user_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='教师职业信息主表(1:1 user teacher)';
 
+ALTER TABLE `teacher_professional`
+  ADD COLUMN `optioned_teacher_link` varchar(36) DEFAULT NULL COMMENT '教师的id 用来链接到排期表' AFTER `teacher_id`,
+  ADD COLUMN `optioned_teacher_scheduleId` varchar(36) DEFAULT NULL COMMENT '教师的排期scheduleId' AFTER `availability_rule`;
+
+
+
 -- ------------------------------------------------------------------
 -- 1.2 教师资证书表 teacher_certificate（1:N 支持多张）
 -- ------------------------------------------------------------------
@@ -76,3 +82,7 @@ ALTER TABLE teacher_available_time
   ADD COLUMN repeat_days    VARCHAR(100) DEFAULT NULL   COMMENT 'week→1..7/ month→1..31 逗号分隔',
   ADD COLUMN start_date     VARCHAR(10)  DEFAULT NULL   COMMENT 'YYYY-MM-DD',
   ADD COLUMN end_date       VARCHAR(10)  DEFAULT NULL   COMMENT 'YYYY-MM-DD';
+
+  ALTER TABLE teacher_available_time 
+  ADD COLUMN optioned    INT  DEFAULT 0 COMMENT '是否选项-优选提供给用户 0 -- 否 1 -- 是 ', 
+  ADD COLUMN schedule_id   VARCHAR(36) DEFAULT NULL   COMMENT '预约时间表ID';

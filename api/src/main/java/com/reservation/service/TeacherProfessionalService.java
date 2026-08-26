@@ -243,6 +243,8 @@ public class TeacherProfessionalService {
             tat.setStartTime(t.getStartTime());
             tat.setEndTime(t.getEndTime());
             tat.setStatus(t.getStatus() == null ? "active" : t.getStatus());
+            tat.setScheduleId(t.getScheduleId() == null ? "" : t.getScheduleId());
+            tat.setOptioned(t.getOptioned() == null ? 0 : t.getOptioned());
             timeMapper.insert(tat);
         }
     }

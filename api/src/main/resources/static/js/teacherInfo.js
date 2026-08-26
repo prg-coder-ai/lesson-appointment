@@ -14,8 +14,8 @@ let currentProfessionalId = null;
 let currentMode = 'view';
 // 最近一次加载的原始数据（用于取消编辑时回滚）
 let originalData = null;
-
-const SUBJECT_OPTIONS = ['英语', '日语', '韩语', '法语', '德语', '西班牙语'];
+//TBD：从后端获取课程选项,根据教师的领域动态生成
+const SUBJECT_OPTIONS = ['英语',  '法语', '汉语', '西班牙语'];
 const DAY_OF_WEEK_MAP = { 1: '周一', 2: '周二', 3: '周三', 4: '周四', 5: '周五', 6: '周六', 7: '周日' };
 
 // ====================== URL 参数解析 + 加载入口 ======================
@@ -40,55 +40,55 @@ function loadTeacherInfoFromUrl() {
  * 接口：GET /teacher/professional/queryTeacherProfessionalInfo?teacherId=xxx
  */
 async function loadTeacherInfo(teacherId) {
-  switchSection('loading');
-  showActionButtons('');
+    switchSection('loading');
+    showActionButtons('');
 
-  try {
-    const result = await request({
-      url: '/teacher/professional/queryTeacherProfessionalInfo',
-      params: { teacherId: teacherId }
-    });
-    // console.log("queryTeacherProfessionalInfo", result);
-    if (!result) {  // 接口返回业务错误（如教师不存在）
-      const msg = (result && result.message) ? result.message : '查询失败';
-      renderError(msg);
-      return;
-    }
-    // TeacherProfessionalDetailVO 结构
-    const data = result;
-    if (!data || !data.professional) {
-      // 教师存在但还没有职业信息 → 进入新增模式
-      originalData = buildEmptyForm(teacherId);
-      currentProfessionalId = null;
-      currentMode = 'add';
-      setPageTitle('新增教师职业信息');
-      fillEditForm(originalData, true);
-      switchSection('edit');
-      showActionButtons('edit');
-      return;
-    }
+    try {
+      const result = await request({
+        url: '/teacher/professional/queryTeacherProfessionalInfo',
+        params: { teacherId: teacherId }
+      });
+      // console.log("queryTeacherProfessionalInfo", result);
+      if (!result) {  // 接口返回业务错误（如教师不存在）
+        const msg = (result && result.message) ? result.message : '查询失败';
+        renderError(msg);
+        return;
+      }
+      // TeacherProfessionalDetailVO 结构
+      const data = result;
+      if (!data || !data.professional) {
+        // 教师存在但还没有职业信息 → 进入新增模式
+        originalData = buildEmptyForm(teacherId);
+        currentProfessionalId = null;
+        currentMode = 'add';
+        setPageTitle('新增教师职业信息');
+        fillEditForm(originalData, true);
+        switchSection('edit');
+        showActionButtons('edit');
+        return;
+      }
 
-    // 已有职业信息 → 进入查看模式
-    originalData = normalizeDetail(data);
-    currentProfessionalId = data.professional.teacherProfessionalId;
-    currentMode = 'view';
-    setPageTitle(`教师职业信息 - ${data.name || data.account || teacherId}`);
-    fillView(originalData);
-    switchSection('view');
-    showActionButtons('view');
-  } catch (e) {
-    console.error('加载教师职业信息失败：', e);
-    renderError('加载失败：' + (e && e.message ? e.message : e));
-    // Add: 接口异常时也进入新增模式
-    originalData = buildEmptyForm(teacherId);
-    currentProfessionalId = null;
-    currentMode = 'add';
-    setPageTitle('新增教师职业信息');
-    fillEditForm(originalData, true);
-    switchSection('edit');
-    showActionButtons('edit');
-  }
-}
+        // 已有职业信息 → 进入查看模式
+        originalData = normalizeDetail(data);
+        currentProfessionalId = data.professional.teacherProfessionalId;
+        currentMode = 'view';
+        setPageTitle(`教师职业信息 - ${data.name || data.account || teacherId}`);
+        fillView(originalData);
+        switchSection('view');
+        showActionButtons('view');
+      } catch (e) {
+        console.error('加载教师职业信息失败：', e);
+        renderError('加载失败：' + (e && e.message ? e.message : e));
+        // Add: 接口异常时也进入新增模式
+        originalData = buildEmptyForm(teacherId);
+        currentProfessionalId = null;
+        currentMode = 'add';
+        setPageTitle('新增教师职业信息');
+        fillEditForm(originalData, true);
+        switchSection('edit');
+        showActionButtons('edit');
+      }
+} 
 
 /**
  * 切换 #form-container 内的区域显示
@@ -149,7 +149,9 @@ function normalizeDetail(data) {
       endDate: t.endDate || '',
       startTime: (t.startTime || '09:00').substring(0, 5),
       endTime: (t.endTime || '17:00').substring(0, 5),
-      status: t.status || 'active'
+      status: t.status || 'active',
+      optioned: t.optioned != null ? t.optioned : 0,
+      scheduleId: t.scheduleId || ''
     }))
   };
 }
@@ -182,11 +184,16 @@ function buildEmptyForm(teacherId) {
       const yyyy = today.getFullYear();
       const mm = String(today.getMonth() + 1).padStart(2, '0');
       const dd = String(today.getDate()).padStart(2, '0');
+      const scheduleId = '';
+      const optioned = 0;
       return [{
+        availableId: null,
         repeatType: 'none', repeatInterval: 1, repeatDays: '',
         startDate: `${yyyy}-${mm}-${dd}`, 
         endDate: `${yyyy}-${mm}-${dd}`,
-        startTime: '09:00', endTime: '09:45', status: 'active'
+        startTime: '09:00', endTime: '09:45', status: 'active',
+        optioned: optioned,
+        scheduleId: scheduleId
       }];
     })()
   };
@@ -267,6 +274,7 @@ function fillView(data) {
   // 时间段列表（动态行） ${escapeHtml(rptText)}
   const timeEl = document.getElementById('view-availableTimes');
   if (timeEl) {
+    console.log("fillView data.availableTimes:", data.availableTimes);
     timeEl.innerHTML = (data.availableTimes && data.availableTimes.length)
       ? formAvaliableTimesDiv(data.availableTimes)
       : '<span style="color:#999;">无</span>';
@@ -294,7 +302,7 @@ async function getAvailableTimesFromSchedule() {
     availableSchedulesList = availableSchedules.map(s => {
       const obj = { ...s };  // 浅拷贝，避免修改原对象
       obj.scheduleId = obj.scheduleId || '';
-      obj.optedItem = obj.optedItem || false;
+      obj.optioned = obj.optioned != null ? obj.optioned : 0;
        
       obj.status = obj.status || 'active';
       obj.repeatType = obj.repeatType || 'none';
@@ -485,9 +493,9 @@ function renderTimeRow(t) {
       <div class="time-weekDays" style="${weekStyle}width:100%;margin-top:2px;border-top:1px dashed #eee;padding-top:4px;">${weekChecks}</div>
       <div class="time-monthDays" style="${monthStyle}width:100%;margin-top:2px;border-top:1px dashed #eee;padding-top:4px;">${monthChecks}</div>
       <button class="btn btn-danger" onclick="this.closest('.sub-item-row').remove()" style="margin-left:auto;"><i class="fa fa-times"></i></button>
-       <input type="text" class="cert-scheduleId" value="${escapeAttr(t.scheduleId || '')}">
+      
       <!-- 显示复选框，用来选择本行是否是推荐的时间排期,用来给用户提供优先推荐的时间排期的功能，以便链接直达-->
-        <label><input type="checkbox" class="cert-repeat" value= ${t.optedItem ? 'checked' : ''}>
+        <label><input type="checkbox" class="cert-optioned" data-extra-scheduleid="${escapeAttr(t.scheduleId || '')}" ${t.optioned ? 'checked' : ''}>
         优先推荐</label>
     </div>`;
 }
@@ -530,7 +538,9 @@ function addTimeRow() {
   div.innerHTML = renderTimeRow({
     repeatType: 'none', repeatInterval: 1, repeatDays: '',
     startDate: `${yyyy}-${mm}-${dd}`, endDate: '',
-    startTime: '09:00', endTime: '10:00', status: 'active'
+    startTime: '09:00', endTime: '10:00', status: 'active',
+    scheduleId: '',
+    optioned: 0
   });
   container.appendChild(div.firstElementChild);
 }
@@ -607,6 +617,9 @@ async function saveForm() {
     const startTime = row.querySelector('.time-startTime').value.trim();
     const endDate = (repeatType === 'none') ? startDate : row.querySelector('.time-endDate').value; 
     const endTime = row.querySelector('.time-endTime').value.trim();
+    const optioned = row.querySelector('.cert-optioned').checked || 0;
+   const scheduleId = row.querySelector('.cert-optioned').dataset.extraScheduleId || '';
+    console.log("row:", row, scheduleId, optioned);
     if (startDate && startTime) {
       availableTimes.push({
         repeatType,
@@ -617,8 +630,8 @@ async function saveForm() {
         endTime,
         endDate: endDate || null,
         status: 'active',
-        scheduleId: row.querySelector('.cert-scheduleId').value || null,
-        optedItem: row.querySelector('.cert-repeat').checked || false
+        scheduleId: scheduleId,
+        optioned: optioned?1:0
       });
     }
   });
@@ -634,7 +647,7 @@ async function saveForm() {
     return !seenKeys.has(key) && seenKeys.set(key, true);
   });
   // ---- 去重结束 ----
-
+  console.log("filtedAvailableTimes:", filtedAvailableTimes);
   const payload = {
     teacherId,
     subject: document.getElementById('f-subject').value,
@@ -997,7 +1010,13 @@ function formAvaliableTimesDiv(availableTimesList) {
     const dateRange = [t.startDate, (t.endDate || '')].filter(Boolean).join('~')
       + ((t.startTime || t.endTime) ? ' - ' + [(t.startTime || '').substring(0, 5), (t.endTime || '').substring(0, 5)].filter(Boolean).join('~') : '');
       //TBD 对于与scheduleLink相关的字段-添加时保存scheduleId而不是scheduleLink-渲染时使用scheduleId 创建链接
-    return `<div>${escapeHtml(dateRange)} ${escapeHtml(rptText)} ${escapeHtml(dayText)}</div>`;
+      //添加隐藏的scheduleId字段，用于后续提交，添加checkBox表示optioned，用于选择是否预约
+      const optioned = t.optioned || false;
+         //hidden field for scheduleId, used for form submission
+      const optionedHtml = `<input type="checkbox" class="cert-optioned" data-extra-scheduleid="${t.scheduleId || ''}" ${optioned ? 'checked' : ''} value="${t.optioned}"> 
+            `; 
+     // console.log("optionedHtml:", optionedHtml);
+    return `<div>${escapeHtml(dateRange)} ${escapeHtml(rptText)} ${escapeHtml(dayText)} ${optionedHtml}</div>`;
   }).join('');
   return lines;
 }
@@ -1017,20 +1036,25 @@ function generatePublishHtml(mode) {
     const p = data.personalPhotoBase64 || data.personalPhotoUrl || '';
     return p;
   };
-  //TBD 对于与scheduleLink相关的字段-添加时保存scheduleId而不是scheduleLink-渲染时使用scheduleId 创建链接
+  // 对于与scheduleLink相关的字段-添加时保存scheduleId而不是scheduleLink-渲染时使用scheduleId 创建链接
 //遍历availableTimesList，将优先选择打勾的一行的scheduleId赋值给scheduleLink
  let optedScheduleId = '';
    const timeEl = document.getElementById('view-availableTimes');
    //查询所有勾选的行，取第一个的scheduleId作为scheduleLink 
-   const optedRows = timeEl.querySelectorAll('.cert-repeat:checked');
+   const optedRows = timeEl.querySelectorAll('.cert-optioned:checked');
+  
    if (optedRows.length > 0) {
-    optedScheduleId = optedRows[0].querySelector('.cert-scheduleId').value || '';
+    optedScheduleId = optedRows[0].dataset.extraScheduleid || '';
+      console.log(optedRows.length, "optedScheduleId:", optedScheduleId);
+      console.log("optedRows[0]:", optedRows[0]);
    }   
   data.scheduleId = optedScheduleId;
-  console.log("optedScheduleId:", optedScheduleId);
+ 
   // 基本信息和课时配置的字段会单独渲染到卡片中，rowsHtml 跳过这些字段以避免重复 , 'photo'
   const basicKeys = ['name', 'account', 'phone', 'email', 'subject', 'status', 'userStatus', 'photo'];
   const lessonKeys = ['minBookingHours', 'weeklyAvailableHours', 'certificateText'];
+
+  const teacherId = data.teacherId || '';
 
   // 字段按顺序渲染
   const rowsHtml = fields.map(f => {
@@ -1039,7 +1063,6 @@ function generatePublishHtml(mode) {
 
     const v = {
       name: data.name, account: data.account, phone: data.phone,
-      teacherlink: data.teacherId || '',
       email: data.email, subject: data.subject,
       status: data.status, userStatus: data.userStatus,
       minBookingHours: data.minBookingHours,
@@ -1047,7 +1070,9 @@ function generatePublishHtml(mode) {
       certificateText: data.certificateText,
       bioText: data.bioText,
       bioUrl: data.bioUrl || '',
-      scheduleLink: data.scheduleId || ''
+      
+      teacherlink: teacherId || '',
+      scheduleLink: optedScheduleId || ''
     }[f.key];
 
     if (f.key === 'certificates') {
@@ -1067,8 +1092,8 @@ function generatePublishHtml(mode) {
     }
     if (f.key === 'availableTimes') {
       if (!data.availableTimes || !data.availableTimes.length) return '';
-        let linkForSchedule='/booking?scdid='+data.scheduleId;
-        let linkForteacher="/booking?tid="+ data.scheduleId;
+        let linkForSchedule='/booking?scdid='+ optedScheduleId;
+        let linkForteacher="/booking?tid="+ teacherId;
       const lines = formAvaliableTimesDiv(data.availableTimes);
       return `<section style="margin-bottom:16px;">
         <h3 style="margin:0 0 8px 0;color:${style.accentColor};font-size:${style.fontSizePx + 2}px;">可预约时间</h3>
@@ -1173,25 +1198,25 @@ function generatePublishHtml(mode) {
     * { box-sizing:border-box; }
   `;
 
-  if (mode === 'standalone') {
-    return `<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${escapeHtml(title)}</title>
-<style>${cssBlock}</style>
-</head>
-<body>
-  <div class="publish-wrapper">${bodyInner}</div>
-</body>
-</html>`;
-  }
-  // inline 模式：只放 wrapper
-  return `<div class="publish-wrapper" style="font-family:${style.fontFamily};font-size:${style.fontSizePx}px;color:#222;background:${style.bgColor};padding:24px;border-radius:12px;">
-    <style>${cssBlock}</style>
-    ${bodyInner}
-  </div>`;
+     if (mode === 'standalone') {
+            return `<!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>${escapeHtml(title)}</title>
+        <style>${cssBlock}</style>
+        </head>
+        <body>
+          <div class="publish-wrapper">${bodyInner}</div>
+        </body>
+        </html>`;
+          }
+    // inline 模式：只放 wrapper
+    return `<div class="publish-wrapper" style="font-family:${style.fontFamily};font-size:${style.fontSizePx}px;color:#222;background:${style.bgColor};padding:24px;border-radius:12px;">
+      <style>${cssBlock}</style>
+      ${bodyInner}
+    </div>`;
 }
 
 function renderPublishPreview(mode) {

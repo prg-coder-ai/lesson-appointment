@@ -50,4 +50,9 @@ public class TeacherAvailableTime implements Serializable {
 
     /** 创建时间 */
     private String createTime;
+
+    private Integer optioned;
+
+    private String scheduleId;
+    
 }
