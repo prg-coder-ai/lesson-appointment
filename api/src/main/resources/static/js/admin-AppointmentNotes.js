@@ -10,13 +10,13 @@ let appointmentList=[];// ID,ciurseName,studentName,teacherName,dateTime(创建�
 
  async function refreshAppointmentNotes(){
         assignLoadobjectListFunction( loadAndShowAppointmentPage);// assign
-           // 渲染数据总览面板
+           // 渲染数据总览面板 不显示课程搜素
            let html=
             `  <div class="card">           
             <div class="filter-bar">  
-                <div class="filter-item">
-                  <label><span data-term="course">课程</span>：</label>
-                  <input type="text" id="course-name-input" placeholder="课程名称">
+                <div class="filter-item" style="display:none;">
+                  <label style="display:none;“><span data-term="course">课程</span>：</label>
+                  <input type="text" id="course-name-input" style="display:none;” placeholder="课程名称">
                 </div>
                       
                 <div class="filter-item">

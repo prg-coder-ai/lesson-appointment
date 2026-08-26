@@ -439,3 +439,84 @@ TBD：1学生订阅页面---判断是否有空位，没有则提示用户
       如果当前用户是admin角色，则只处理同时具有sid和scdid的URL，在admin-schedule.js中显示指定的排期id和学生id，方便直接一键指定学生和排期。
 
 TBD：学生界面---今日课程--》今日预约 --》处理没有数据显示的问题。我的预定按钮功能/预定中，预定后，booking状态下可撤回。
+
+在前端开发中，“给 checkbox 附加字符串”通常分两种需求：**给用户可见的文本标签**（点击文字可选中复选框，标准做法），和**给元素挂载隐藏的业务数据**（仅 JS 读写）。以下是原生 JS 的标准实现方案。
+
+## 一、附加可见文本标签（推荐：使用 label 关联）
+
+这是 HTML 语义化的标准方案，优势是**点击文字即可选中复选框**，可访问性最好。
+
+### 方式1：通过 id 关联 label（结构最清晰）
+
+适合给页面上已存在的 checkbox 追加文本。
+
+```
+<!-- 页面已有 checkbox -->
+<input type="checkbox" id="checkAgree">
+```
+
+```
+const checkbox = document.getElementById('checkAgree');
+
+// 1. 创建 label 元素
+const label = document.createElement('label');
+// 2. 关联 checkbox 的 id（对应 HTML 的 for 属性）
+label.htmlFor = checkbox.id;
+// 3. 设置要附加的字符串文本
+label.textContent = '我已阅读并同意用户协议';
+
+// 4. 把 label 插入到 checkbox 后面
+checkbox.parentNode.insertBefore(label, checkbox.nextSibling);
+```
+
+### 方式2：label 直接包裹 checkbox（写法更简洁）
+
+适合动态生成 checkbox + 文本的场景，不需要写 id。
+
+```
+// 1. 创建外层 label
+const label = document.createElement('label');
+
+// 2. 创建 checkbox
+const checkbox = document.createElement('input');
+checkbox.type = 'checkbox';
+checkbox.value = 'option1';
+
+// 3. 依次把 checkbox 和文本放入 label 中
+label.appendChild(checkbox);
+label.appendChild(document.createTextNode('选项一：前端开发'));
+
+// 4. 插入到页面指定容器中
+document.getElementById('checkboxContainer').appendChild(label);
+```
+
+## 二、挂载隐藏的字符串数据（仅 JS 读写）
+
+如果字符串不需要显示给用户，只是作为业务数据绑定在元素上，推荐使用 `dataset` 自定义属性。
+
+```
+const checkbox = document.getElementById('checkAgree');
+
+// 附加字符串（存储到元素上）
+checkbox.dataset.extraText = '这是附加的业务描述文本';
+checkbox.dataset.userId = '10086';
+
+// 读取字符串
+console.log(checkbox.dataset.extraText); // 输出：这是附加的业务描述文本
+```
+
+最终生成的 DOM 结构为：
+
+```
+<input type="checkbox" id="checkAgree" data-extra-text="这是附加的业务描述文本" data-user-id="10086">
+```
+
+## 三、不推荐的做法
+
+直接在 checkbox 后面追加纯文本节点：
+
+```
+checkbox.parentNode.insertBefore(document.createTextNode('附加文本'), checkbox.nextSibling);
+```
+
+这种方式虽然能显示文字，但**点击文字无法选中复选框**，可访问性差，仅适合极特殊的纯视觉场景。

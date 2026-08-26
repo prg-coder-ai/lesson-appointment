@@ -67,8 +67,9 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
                 java.sql.Timestamp startTime, java.sql.Timestamp endTime,    
                 String sortField, String sortOrder) { 
         // 先判断 userId 和 role 是否均不为空
-        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment> queryWrapper;
-
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment> queryWrapper=null  ;
+       boolean nodata = false;   
+             
         List<String> bookingIdList = null;
         if (userId != null && !userId.isEmpty() && role != null && !role.isEmpty()) {
             // 按角色，从 booking 表查出对应 bookingId
@@ -85,11 +86,8 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
                 queryWrapper = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment>()
                         .in(Appointment::getBookingId, bookingIdList)
                         .between(Appointment::getAppointmentDatetime, startTime, endTime);
-            } else {
-                // 没有相关预约，直接查空
-                queryWrapper = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment>() 
-                        .between(Appointment::getAppointmentDatetime, startTime, endTime);
-            }
+            } else { nodata =true;   
+                 }
         } else {
             // userId/role任一为空，则只按时间过滤
             queryWrapper = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment>()
@@ -97,7 +95,8 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
         }
 
         // 按需排序
-        if (sortField != null && !sortField.isEmpty()) {
+        if((nodata==false) &&  (queryWrapper!=null) &&  
+           (sortField != null && !sortField.isEmpty())) {
             String[] fields = sortField.split(",");
             for (String field : fields) {
                 field = field.trim();
@@ -117,6 +116,9 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
                 // 可扩展其它字段
             }
         }
+        if(nodata ||( queryWrapper==null)) {
+            return  null;
+        }
         return this.list(queryWrapper);
     }
 
@@ -134,9 +136,11 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
                                 int pageNum,int pageSize,
                 String status) { 
         // 先判断 userId 和 role 是否均不为空
-        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment> queryWrapper;
-
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment> queryWrapper=null;
+System.out.println(userId + role + startTime + endTime + pageNum + pageSize + status);
         List<String> bookingIdList = null;
+        boolean nodata = false;   
+                
         if (userId != null && !userId.isEmpty() && role != null && !role.isEmpty()) {
             // 按角色，从 booking 表查出对应 bookingId
             if ("teacher".equalsIgnoreCase(role) || "student".equalsIgnoreCase(role)) {
@@ -146,6 +150,7 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
                 bookingIdList = bookingMapper.selectList(queryPara).stream()
                         .map(Booking::getBookingId)
                         .toList();
+               System.out.println(bookingIdList);         
             }
             // bookingIdList 不为空则查这些bookingId，否则查空
             if (bookingIdList != null && !bookingIdList.isEmpty()) {
@@ -157,14 +162,8 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
                         .last("LIMIT " + ((pageNum - 1) * pageSize) + "," + pageSize);
     
                    
-            } else {
-                // 没有相关预约，直接查空
-                queryWrapper = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment>() 
-                        .between(Appointment::getAppointmentDatetime, startTime, endTime)
-                        .eq(status != null && !status.isEmpty(), Appointment::getStatus, status)             
-                        .orderByDesc(Appointment::getAppointmentDatetime)                                     
-                        .last("LIMIT " + ((pageNum - 1) * pageSize) + "," + pageSize);
-    
+            }   else { //设置queryWrapper为空集合 
+                nodata =true;    
             }
         } else {
             // userId/role任一为空，则只按时间过滤
@@ -176,13 +175,17 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
         } 
 
         Page<Appointment> page = new Page<>(pageNum, pageSize);
-        page.setRecords(list(queryWrapper));
-
-        Integer total = getCountBetweenTimeByPage(
-             userId, role,
-             startTime, endTime,   
-             status);
-        page.setTotal(total);
+        if(nodata|| (queryWrapper==null)) { 
+             page.setRecords(null);
+             page.setTotal(0    );
+        } else {
+             page.setRecords(list(queryWrapper)); 
+            Integer total = getCountBetweenTimeByPage(
+                userId, role,
+                startTime, endTime,   
+                status);
+            page.setTotal(total);
+            }
         PageResult<Appointment> result = PageResult.of(page);
         return result ;
     }
@@ -192,7 +195,7 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
                 java.sql.Timestamp startTime, java.sql.Timestamp endTime,                   
                 String status)  {
                     
-        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment> queryWrapper;
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment> queryWrapper=null;
         List<String> bookingIdList = null;
         if (userId != null && !userId.isEmpty() && role != null && !role.isEmpty()) {
             // 按角色，从 booking 表查出对应 bookingId
@@ -214,10 +217,7 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
                          
             } else {
                 // 没有相关预约，直接查空
-                queryWrapper = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment>() 
-                        .between(Appointment::getAppointmentDatetime, startTime, endTime)
-                        .eq(status != null && !status.isEmpty(), Appointment::getStatus, status)  ;         
-             
+               return 0;
             }
         } else {
             // userId/role任一为空，则只按时间过滤
@@ -226,6 +226,8 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
                     .eq(status != null && !status.isEmpty(), Appointment::getStatus, status) ;            
                                                           
                } 
+               if(queryWrapper==null)
+                return 0;
           Long result = baseMapper.selectCount(queryWrapper);
  
          return result == null ? 0 : result.intValue();
