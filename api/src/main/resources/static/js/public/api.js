@@ -18,7 +18,7 @@
 
 
     
-    const API_SERVER_HOST = 'http://localhost';
+    const API_SERVER_HOST = 'http://152.136.254.127'; 
     const API_SERVER_PORT = '8081';
     const API_BASE_PATH = '';
     //'/api/v1';

@@ -93,7 +93,7 @@ public class UserController {
        
         Result<Object> rst = userService.Register(user);
     
-      System.out.println("rst：" + rst);
+     // System.out.println("rst：" + rst);
         return rst;//Result.success(rst, "注册成功,请等待管理员审核");
     }
 
@@ -108,7 +108,7 @@ public class UserController {
          user.setRole("teacher");
          user.setStatus("pending");
         Result<Object> rst = userService.Register(user); 
-        System.out.println("rst：" + rst);
+        //System.out.println("rst：" + rst);
         return rst; 
     }
 // 添加用户
@@ -136,7 +136,7 @@ public class UserController {
         }
 
         int ret = userService.updateStatus(user);
-        System.out.println("ret " + ret);
+     //   System.out.println("ret " + ret);
         return   Result.success(ret, "修改成功");
     }
   
