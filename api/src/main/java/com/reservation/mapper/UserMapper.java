@@ -19,30 +19,31 @@ import java.util.Map;
 @Mapper
 public interface UserMapper extends BaseMapper<User> {
 
-     @Select("select * from user where account = #{account}")
+     // account 参数为 HMAC-SHA256 搜索索引（由 Service 层转换），用前缀匹配复合格式 hmac:ciphertext
+     @Select("select * from user where account LIKE CONCAT(#{account}, ':%')")
     User selectByAccount(@Param("account") String account);
     /**
-     * 根据手机号查询用户（SQL 实现在 UserMapper.xml 中，避免与 XML 重复定义）
-     * @param phone 手机号
-     * @return 用户信息
-     */
-     @Select("select * from user where phone = #{phone}")
+      * 根据手机号查询用户（SQL 实现在 UserMapper.xml 中，避免与 XML 重复定义）
+      * @param phone 手机号的 HMAC 搜索索引（由 Service 层转换）
+      * @return 用户信息
+      */
+      @Select("select * from user where phone LIKE CONCAT(#{phone}, ':%')")
     User selectByPhone(@Param("phone") String phone);
 
     /**
-     * 根据邮箱查询用户
-     * @param email 邮箱
-     * @return 用户信息
-     */
-       @Select("select * from user where email = #{email}")
+      * 根据邮箱查询用户
+      * @param email 邮箱的 HMAC 搜索索引（由 Service 层转换）
+      * @return 用户信息
+      */
+        @Select("select * from user where email LIKE CONCAT(#{email}, ':%')")
       User selectByEmail(@Param("email") String email);
 
     /**
-     * 根据手机号或邮箱查询用户（用于登录）
-     * @param account 手机号或邮箱
-     * @return 用户信息
-     */
-     @Select("SELECT * FROM user WHERE phone = #{account} OR email = #{account}")
+      * 根据手机号或邮箱查询用户（用于登录）
+      * @param account 手机号或邮箱的 HMAC 搜索索引（由 Service 层转换）
+      * @return 用户信息
+      */
+      @Select("SELECT * FROM user WHERE phone LIKE CONCAT(#{account}, ':%') OR email LIKE CONCAT(#{account}, ':%')")
     User selectByPhoneOrEmail(@Param("account") String account);
 
     /**
@@ -90,6 +91,7 @@ public interface UserMapper extends BaseMapper<User> {
       
        public  List<User> listByCondition(Map<String, Object>  condition); 
        public  List<User> listByConditionPage(UserQueryPage  condition);
+       public  List<User> listByConditionAll(UserQueryPage  condition);
        public  int selectCountByContion(UserQueryPage  condition);
 
       @Select("SELECT * FROM user WHERE role = #{role}")

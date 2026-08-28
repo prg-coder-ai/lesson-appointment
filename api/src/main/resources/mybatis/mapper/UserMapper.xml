@@ -16,10 +16,9 @@
         <result column="language_type" property="languageType"/>
         <result column="status" property="status"/>
     </resultMap>        
-  
-    <!-- 根据条件动态查询用户列表 --> 
-
-   <select id="listByCondition" parameterType="com.reservation.query.UserQueryPage" resultType="com.reservation.entity.User">
+   
+    <!-- 根据条件动态查询用户列表（仅按非加密字段 role/status/userId 过滤；加密字段模糊匹配在 Java 内存中做） -->
+    <select id="listByCondition" parameterType="com.reservation.query.UserQueryPage" resultType="com.reservation.entity.User">
       SELECT c.*
       FROM user c 
       <where>
@@ -36,31 +35,14 @@
          </when>
         </choose>
          <choose>
-          <when test="email != null and email != ''">
-          AND c.email LIKE CONCAT('%', #{email}, '%')
-          </when>
-        </choose>
-         <choose>
-          <when test="phone != null and phone != ''">
-           AND c.phone LIKE CONCAT('%', #{phone}, '%')
-         </when>
-        </choose>
-         <choose>
           <when test="userId != null and userId != ''">
          AND  c.user_id = #{userId}
          </when>
         </choose>
       </where>
    </select>
-<!-- 语法分析：
-           1. <choose> ... <when> ... </when> </choose> 标签用于 MyBatis 动态 SQL；
-              用于根据参数条件决定是否拼接某个 where 条件。
-           2. 正确的 SQL 语法写法应为：
-              AND c.xxx LIKE CONCAT('%', #{xxx}, '%')
-              不需要 "=", "LIKE" 前不加等号。
-           3. 当前写法错误：AND c.name = LIKE CONCAT('%', #{name}, '%')
-              应改为：AND c.name LIKE CONCAT('%', #{name}, '%')
-         -->   
+
+   <!-- 分页查询：仅按非加密字段过滤（无加密字段模糊条件时使用，SQL 层分页） -->
    <select id="listByConditionPage" parameterType="com.reservation.query.UserQueryPage" resultType="com.reservation.entity.User">
       SELECT c.*
       FROM user c 
@@ -77,29 +59,6 @@
          AND  c.status = #{status}
          </when>
         </choose>
-         
-         <choose>
-          <when test="name != null and name != ''">
-            AND c.name LIKE CONCAT('%', #{name}, '%')
-          </when>
-         </choose>
-
-         <choose>
-          <when test="account != null and account != ''">
-            AND c.account LIKE CONCAT('%', #{account}, '%')
-          </when>
-         </choose>
-         <choose>
-          <when test="email != null and email != ''">
-            AND c.email LIKE CONCAT('%', #{email}, '%')
-          </when>
-         </choose>
-
-         <choose>
-          <when test="phone != null and phone != ''">
-            AND c.phone LIKE CONCAT('%', #{phone}, '%')
-          </when>
-         </choose>
          <choose>
           <when test="userId != null and userId != ''">
          AND  c.user_id = #{userId}
@@ -111,7 +70,32 @@
       </if>
    </select>
 
-   
+   <!-- 全量查询（不分页，仅按非加密字段过滤；供内存解密+模糊匹配+手动分页使用） -->
+   <select id="listByConditionAll" parameterType="com.reservation.query.UserQueryPage" resultType="com.reservation.entity.User">
+      SELECT c.*
+      FROM user c 
+      <where>
+        TRUE 
+        <choose>
+          <when test="role != null and role != ''">
+          AND c.role = #{role}
+         </when>
+        </choose>
+
+        <choose>
+          <when test="status != null and status != ''">
+         AND  c.status = #{status}
+         </when>
+        </choose>
+         <choose>
+          <when test="userId != null and userId != ''">
+         AND  c.user_id = #{userId}
+         </when>
+        </choose>
+      </where>
+   </select>
+
+    
    <select id="selectCountByContion" parameterType="com.reservation.query.UserQueryPage" resultType="java.lang.Integer">
       SELECT COUNT(*) 
       FROM user c 
@@ -126,30 +110,6 @@
         <choose>
           <when test="status != null and status != ''">
          AND  c.status = #{status}
-         </when>
-        </choose>
-
-         <choose>
-          <when test="name != null and name != ''">
-          AND c.name  LIKE CONCAT('%', #{name}, '%')
-          </when>
-        </choose>
-
-        <choose>
-          <when test="account != null and account != ''">
-          AND c.account LIKE CONCAT('%', #{account}, '%')
-          </when>
-        </choose>
-
-         <choose>
-          <when test="email != null and email != ''">
-          AND c.email LIKE CONCAT('%', #{email}, '%')
-          </when>
-        </choose>
-
-         <choose>
-          <when test="phone != null and phone != ''">
-           AND c.phone LIKE CONCAT('%', #{phone}, '%')
          </when>
         </choose>
 

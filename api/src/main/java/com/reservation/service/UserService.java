@@ -11,6 +11,7 @@ import com.reservation.exception.ResourceNotFoundException;
 import com.reservation.exception.UserNotFoundException;
 import com.reservation.mapper.UserMapper;
 import com.reservation.utils.JwtUtil;
+import com.reservation.utils.CryptoUtil;
 
 
 // 原因可能有以下几种：
@@ -44,9 +45,62 @@ public class UserService {
     private BCryptPasswordEncoder passwordEncoder;
     @Autowired
     private JwtUtil jwtUtil;
+    @Autowired
+    private CryptoUtil cryptoUtil;
 
     @Autowired
     private RefreshTokenService refreshTokenService;
+
+    // ===================== 字段加密/解密辅助方法 =====================
+    // 对 account/phone/email/name 字段做 AES-GCM 加密并附加 HMAC 搜索索引（复合格式 hmac:ciphertext）
+    private void encryptUserFields(User user) {
+        if (user == null) return;
+        user.setAccount(cryptoUtil.encryptWithIndex(user.getAccount()));
+        user.setPhone(cryptoUtil.encryptWithIndex(user.getPhone()));
+        user.setEmail(cryptoUtil.encryptWithIndex(user.getEmail()));
+        user.setName(cryptoUtil.encryptWithIndex(user.getName()));
+    }
+
+    // 解密 account/phone/email/name 字段（兼容未加密的旧数据）
+    private void decryptUserFields(User user) {
+        if (user == null) return;
+        user.setAccount(cryptoUtil.decrypt(user.getAccount()));
+        user.setPhone(cryptoUtil.decrypt(user.getPhone()));
+        user.setEmail(cryptoUtil.decrypt(user.getEmail()));
+        user.setName(cryptoUtil.decrypt(user.getName()));
+    }
+
+    private void decryptUserList(List<User> list) {
+        if (list == null) return;
+        for (User u : list) {
+            decryptUserFields(u);
+        }
+    }
+
+    // 判断是否存在加密字段的模糊查询条件
+    private boolean hasFuzzyCondition(UserQueryPage q) {
+        return (q.getName() != null && !q.getName().isEmpty())
+                || (q.getAccount() != null && !q.getAccount().isEmpty())
+                || (q.getEmail() != null && !q.getEmail().isEmpty())
+                || (q.getPhone() != null && !q.getPhone().isEmpty());
+    }
+
+    // 内存模糊匹配（解密后 contains）
+    private boolean matchFuzzy(User u, UserQueryPage q) {
+        if (q.getName() != null && !q.getName().isEmpty()) {
+            if (u.getName() == null || !u.getName().contains(q.getName())) return false;
+        }
+        if (q.getAccount() != null && !q.getAccount().isEmpty()) {
+            if (u.getAccount() == null || !u.getAccount().contains(q.getAccount())) return false;
+        }
+        if (q.getEmail() != null && !q.getEmail().isEmpty()) {
+            if (u.getEmail() == null || !u.getEmail().contains(q.getEmail())) return false;
+        }
+        if (q.getPhone() != null && !q.getPhone().isEmpty()) {
+            if (u.getPhone() == null || !u.getPhone().contains(q.getPhone())) return false;
+        }
+        return true;
+    }
 
     // 学生注册（对应设计2.2.1 学生注册接口）
     // 注册（对应设计2.2.1 注册接口）
@@ -64,13 +118,16 @@ public class UserService {
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         // 生成唯一userId（对应通用校验规则-ID类参数）
         user.setUserId(UUID.randomUUID().toString());  
+        // 对敏感字段做 AES-GCM 加密 + HMAC 搜索索引后入库
+        encryptUserFields(user);
         // 插入数据库
         int result = userMapper.insert(user);
         System.out.println("output：" + result);
 
          Map<String, String> resultMap = new HashMap<>();
          resultMap.put("userId", user.getUserId());
-         resultMap.put("account", user.getAccount());
+         // 返回给前端的是明文 account（解密后的值）
+         resultMap.put("account", cryptoUtil.decrypt(user.getAccount()));
          //计算token
          String token = jwtUtil.generateToken(user.getUserId(), user.getRole());
          resultMap.put("token", token);
@@ -85,13 +142,15 @@ public class UserService {
     public Result<HashMap<String, Object>> login(String account, String password) {
         // 查找用户（账号可为手机号/邮箱，对应设计2.2.1 登录接口请求参数）
          System.out.println("userService login：" + account+"   "+password);
-        User user = userMapper.selectByAccount(account);
+        User user = userMapper.selectByAccount(cryptoUtil.searchIndex(account));
         HashMap<String, Object> resultMap = new HashMap<>();
         if (user == null) { 
           resultMap.put("message", "账号不存在");
           resultMap.put("code", 404);
            return Result.success(resultMap,"账号不存在");
         }
+        // 解密敏感字段
+        decryptUserFields(user);
         // 校验密码,把password加密后与user.getPassword()比较
        // String encodedPassword = passwordEncoder.encode(password); 
        if(! passwordEncoder.matches(password,user.getPassword()))
@@ -145,9 +204,11 @@ public class UserService {
     @Transactional
     public Result<HashMap<String, Object>> resetPassword(String account) { 
         // 查找用户
-        User user = userMapper.selectByAccount(account); 
+        User user = userMapper.selectByAccount(cryptoUtil.searchIndex(account)); 
         HashMap<String, Object> resultMap = new HashMap<>();
         if(user!= null ) { 
+        // 解密敏感字段（如需回显）
+        decryptUserFields(user);
         // 加密新密码并更新--重置为固定码，用户自行更改
         user.setPassword(passwordEncoder.encode("12345678"));
         updatePassword(user);
@@ -178,41 +239,58 @@ public class UserService {
           return false ;  
     } 
     public User selectByPhone(String phone) {
-        User user= userMapper.selectByPhone(phone);
+        User user= userMapper.selectByPhone(cryptoUtil.searchIndex(phone));
        if(user==null){
             // throw new UserNotFoundException("手机号【" + phone + "】对应的用户不存在");
           //  Result< Object> rslt = Result.fail(400   ,"手机号【" + phone + "】对应的用户不存在");
             return null;
        }
+       decryptUserFields(user);
         return user;
     }
  public User selectByEmail(String email) {
-     // return userMapper.selectByEmail(email)
-      //      .orElseThrow(() -> new UserNotFoundException("email" + email + "】对应的用户不存在"));
-     User user= userMapper.selectByEmail(email);
-     if(user==null)
-         System.out.println("email 【" + email + "】对应的用户不存在");
-        return user;
-    }
- 
+      // return userMapper.selectByEmail(email)
+      //       .orElseThrow(() -> new UserNotFoundException("email" + email + "】对应的用户不存在"));
+      User user= userMapper.selectByEmail(cryptoUtil.searchIndex(email));
+      if(user==null)
+          System.out.println("email 【" + email + "】对应的用户不存在");
+      else
+          decryptUserFields(user);
+         return user;
+     }
+  
 public User selectById(String userId) {
-     //  return userMapper.selectById(userId)
-     //       .orElseThrow(() -> new UserNotFoundException("userId" + userId + "】对应的用户不存在"));
-    User user= userMapper.selectById(userId);
-    if(user==null)
-        System.out.println("userId 【" + userId + "】对应的用户不存在");
-    return user;
-    }
+      //  return userMapper.selectById(userId)
+      //       .orElseThrow(() -> new UserNotFoundException("userId" + userId + "】对应的用户不存在"));
+     User user= userMapper.selectById(userId);
+     if(user==null)
+         System.out.println("userId 【" + userId + "】对应的用户不存在");
+     else
+         decryptUserFields(user);
+     return user;
+     }
  /**
      * 根据手机号/邮箱查询用户（登录专用）
      */
     public User selectByPhoneOrEmail(String account) {
-        User user = userMapper.selectByPhoneOrEmail(account);
+        User user = userMapper.selectByPhoneOrEmail(cryptoUtil.searchIndex(account));
         if (user == null) {
            System.out.println("账号【" + account + "】不存在");
+        } else {
+           decryptUserFields(user);
         }
         return user;
     } 
+    /**
+     * 根据账号查询用户（登录/重置密码专用，入参为明文，内部转 HMAC）
+     */
+    public User selectByAccount(String account) {
+        User user = userMapper.selectByAccount(cryptoUtil.searchIndex(account));
+        if (user != null) {
+            decryptUserFields(user);
+        }
+        return user;
+    }
 
     private int updatePassword(User user)
     {
@@ -233,15 +311,65 @@ public User selectById(String userId) {
    //TBD: test
     public List<User>   listByCondition(Map<String, Object> condition)
     {
-        List <User> ret = userMapper.listByCondition(condition); 
-        return ret;
+        // 将 Map 条件转换为 UserQueryPage，复用 listByConditionAll + 内存模糊过滤
+        UserQueryPage query = new UserQueryPage();
+        if (condition.get("role") != null) query.setRole(String.valueOf(condition.get("role")));
+        if (condition.get("status") != null) query.setStatus(String.valueOf(condition.get("status")));
+        if (condition.get("userId") != null) query.setUserId(String.valueOf(condition.get("userId")));
+        if (condition.get("name") != null) query.setName(String.valueOf(condition.get("name")));
+        if (condition.get("account") != null) query.setAccount(String.valueOf(condition.get("account")));
+        if (condition.get("email") != null) query.setEmail(String.valueOf(condition.get("email")));
+        if (condition.get("phone") != null) query.setPhone(String.valueOf(condition.get("phone")));
+
+        List<User> all = userMapper.listByConditionAll(query);
+        decryptUserList(all);
+
+        if (hasFuzzyCondition(query)) {
+            List<User> filtered = new java.util.ArrayList<>();
+            if (all != null) {
+                for (User u : all) {
+                    if (u != null && matchFuzzy(u, query)) {
+                        filtered.add(u);
+                    }
+                }
+            }
+            return filtered;
+        }
+        return all;
     };
  
  
      public PageResult<User>   listByConditionPage(UserQueryPage query)
     {
-        List <User> retList = userMapper.listByConditionPage(query); 
-// 删除密码字段 
+        List <User> retList;
+        int total;
+
+        if (hasFuzzyCondition(query)) {
+            // 含加密字段模糊条件：全量查询（仅按 role/status/userId），内存解密 + contains 过滤 + 手动分页
+            List<User> all = userMapper.listByConditionAll(query);
+            decryptUserList(all);
+            List<User> filtered = new java.util.ArrayList<>();
+            if (all != null) {
+                for (User u : all) {
+                    if (u != null && matchFuzzy(u, query)) {
+                        filtered.add(u);
+                    }
+                }
+            }
+            total = filtered.size();
+            int pageNum = query.getPageNum() == null ? 1 : query.getPageNum();
+            int pageSize = query.getPageSize() == null ? 10 : query.getPageSize();
+            int from = (pageNum - 1) * pageSize;
+            int to = Math.min(from + pageSize, total);
+            retList = (from < total) ? filtered.subList(from, to) : new java.util.ArrayList<>();
+        } else {
+            // 无加密字段模糊条件：SQL 层分页查询
+            retList = userMapper.listByConditionPage(query); 
+            decryptUserList(retList);
+            total = userMapper.selectCountByContion(query);
+        }
+
+        // 删除密码字段 
         if (retList != null) {
             for (User user : retList) {
                 if (user != null) {
@@ -252,8 +380,6 @@ public User selectById(String userId) {
  
         Page<User> page = new Page<>(query.getPageNum(), query.getPageSize());
         page.setRecords(retList);
-
-        Integer total = userMapper.selectCountByContion(query);
         page.setTotal(total);
         PageResult<User> result = PageResult.of(page);
         return result;
@@ -264,7 +390,9 @@ public User selectById(String userId) {
         List<User> users = userMapper.listByRole(role); 
         if (users == null || users.isEmpty()) {
             System.out.println("不存在【" + role + "】的用户");
-        } 
+        } else {
+            decryptUserList(users);
+        }
         return users;
     }
 
