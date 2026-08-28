@@ -162,6 +162,44 @@
             }
           }
   
+          // 数据脱敏：手机号屏蔽中间4位
+          function maskPhone(phone) {
+            if (!phone) return "";
+            const s = String(phone).trim();
+            if (s.length === 0) return "";
+            if (s.length === 11) {
+              return s.substring(0, 3) + "****" + s.substring(7);
+            }
+            if (s.length <= 4) {
+              return "*".repeat(s.length);
+            }
+            return s.substring(0, 1) + "*".repeat(s.length - 2) + s.substring(s.length - 1);
+          }
+
+          // 数据脱敏：邮箱@之前部分保留首尾字符，中间屏蔽4个字符
+          function maskEmail(email) {
+            if (!email) return "";
+            const s = String(email).trim();
+            if (s.length === 0) return "";
+            const atIdx = s.indexOf("@");
+            if (atIdx < 0) return s;
+            const local = s.substring(0, atIdx);
+            const domain = s.substring(atIdx);
+            const len = local.length;
+            if (len === 0) return domain;
+            let masked;
+            if (len === 1) {
+              masked = "*";
+            } else if (len === 2) {
+              masked = local.substring(0, 1) + "*";
+            } else if (len <= 5) {
+              masked = local.substring(0, 1) + "*".repeat(len - 2) + local.substring(len - 1);
+            } else {
+              masked = local.substring(0, 1) + "****" + local.substring(len - 1);
+            }
+            return masked + domain;
+          }
+
           function renderUserTable(userList,role){
                 
             const tbody = document.getElementById('user-table-body');
@@ -182,8 +220,8 @@
                      <td style="display:none;">${tea.userId || ""}</td>
                     <td ${role=="teacher"? ` class="js-teacher-name"style="cursor:pointer;" onclick="teacherInfoBoard('${tea.userId}')"` : ""}>${tea.name || ""}</td>
                     <td>${tea.account || ""}</td>
-                    <td>${tea.email || ""}</td>
-                    <td>${tea.phone || ""}</td>
+                     <td>${maskEmail(tea.email || "")}</td>
+                     <td>${maskPhone(tea.phone || "")}</td>
                     <td>
                       ${ tea.status === "pending" ? '<span style="color:#faad14;">待审核</span>' :
                         tea.status === "active" ? '<span style="color:#52c41a;">正常</span>' :                        
