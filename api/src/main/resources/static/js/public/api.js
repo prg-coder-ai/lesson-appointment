@@ -8,8 +8,7 @@
     // 它一般基于 axios 或 fetch 做了统一的请求/响应拦截、错误处理等，
     // 用于项目中统一发起 HTTP 网络请求，便于接口复用和维护。
     // 注意：本环境如果没有支持 ES module 的 import 语法，
-    // 可使用 require 或直接引用全局 request 对象。
-    // INSERT_YOUR_CODE
+    // 可使用 require 或直接引用全局 request 对象。 
     // '@/utils/request' 的含义：
     // 这是一个路径别名（@ 通常被配置为 src 目录），/utils/request 指的是 src/utils/request.js 文件。
     // 此文件通常封装了 axios（或 fetch）的实例，进行了全局的请求与响应拦截、token处理、错误统一提示等。
