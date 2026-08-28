@@ -80,6 +80,18 @@ public class UserController {
     } 
     }
      
+     @PostMapping("/admin/register")
+    @Audit(action = AuditAction.USER_REGISTER, resourceType = "user")
+      @ResponseBody
+    public Result<Object> adminRegister(@Validated @RequestBody User user) {
+        // 调用服务层实现注册逻辑，返回userId和Token（对应设计2.2.1 学生注册返回数据）
+        user.setRole("admin");
+        user.setStatus("active");//TBD:check if exists a admin before
+       
+        Result<Object> rst = userService.Register(user); 
+        return rst;//Result.success(rst, "注册成功");
+    }
+
     /**
      * 学生注册接口，对应设计2.2.1 接口：/api/v1/user/student/register
      */

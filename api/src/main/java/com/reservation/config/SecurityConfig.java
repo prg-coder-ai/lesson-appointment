@@ -81,6 +81,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/user/teacher/register",
                                 "/user/student/register",
+                               "/user/admin/register" , 
                                 "/user/account/exist"
                         ).permitAll()
 
