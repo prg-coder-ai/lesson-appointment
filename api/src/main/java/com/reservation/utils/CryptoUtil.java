@@ -68,15 +68,16 @@ public class CryptoUtil {
         }
     }
 
-    /** AES-GCM 解密 */
+    /** AES-GCM 解密；非加密格式（旧明文数据）原样返回，不抛异常 */
     public String decrypt(String stored) {
         if (stored == null || stored.isEmpty()) {
             return stored;
         }
-        String cipherPart = stripIndex(stored);
-        if (cipherPart == null || cipherPart.isEmpty()) {
+        // 非加密格式（旧明文数据）原样返回
+        if (!isEncryptedFormat(stored)) {
             return stored;
         }
+        String cipherPart = stripIndex(stored);
         try {
             byte[] combined = Base64.getDecoder().decode(cipherPart);
             if (combined.length <= IV_LENGTH) {
@@ -90,7 +91,37 @@ public class CryptoUtil {
             cipher.init(Cipher.DECRYPT_MODE, aesKey, new GCMParameterSpec(TAG_LENGTH * 8, iv));
             return new String(cipher.doFinal(cipherText), StandardCharsets.UTF_8);
         } catch (Exception e) {
-            throw new RuntimeException("AES-GCM 解密失败", e);
+            // 格式校验通过但解密失败（密钥变更/数据损坏），降级返回原值避免中断业务
+            System.err.println("AES-GCM 解密降级返回原值: " + e.getMessage());
+            return stored;
+        }
+    }
+
+    /**
+     * 严格判断是否为加密格式：<hmac_hex(64)>:<base64密文>
+     * - 含分隔符且分隔符前为 64 位十六进制
+     * - 分隔符后为合法 Base64，解码后长度 > IV_LENGTH
+     */
+    private static boolean isEncryptedFormat(String stored) {
+        if (stored == null) return false;
+        int idx = stored.indexOf(SEPARATOR);
+        if (idx <= 0) return false;
+        String hmacPart = stored.substring(0, idx);
+        String cipherPart = stored.substring(idx + 1);
+        // HMAC-SHA256 输出 32 字节 = 64 位十六进制
+        if (hmacPart.length() != 64) return false;
+        for (int i = 0; i < 64; i++) {
+            char c = hmacPart.charAt(i);
+            if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))) {
+                return false;
+            }
+        }
+        // 密文部分必须是合法 Base64，且解码后长度 > IV_LENGTH
+        try {
+            byte[] decoded = Base64.getDecoder().decode(cipherPart);
+            return decoded.length > IV_LENGTH;
+        } catch (Exception e) {
+            return false;
         }
     }
 
