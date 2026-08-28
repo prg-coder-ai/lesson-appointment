@@ -19,32 +19,35 @@ import java.util.Map;
 @Mapper
 public interface UserMapper extends BaseMapper<User> {
 
-     // account 参数为 HMAC-SHA256 搜索索引（由 Service 层转换），用前缀匹配复合格式 hmac:ciphertext
-     @Select("select * from user where account LIKE CONCAT(#{account}, ':%')")
-    User selectByAccount(@Param("account") String account);
+     // 兼容加密用户(hmac:ciphertext)和明文旧用户：HMAC 前缀匹配 OR 明文精确匹配
+     @Select("select * from user where account LIKE CONCAT(#{hmac}, ':%') OR account = #{plain}")
+    User selectByAccount(@Param("hmac") String hmac, @Param("plain") String plain);
     /**
-      * 根据手机号查询用户（SQL 实现在 UserMapper.xml 中，避免与 XML 重复定义）
-      * @param phone 手机号的 HMAC 搜索索引（由 Service 层转换）
+      * 根据手机号查询用户
+      * @param hmac 手机号的 HMAC 搜索索引
+      * @param plain 明文手机号（兼容旧数据）
       * @return 用户信息
       */
-      @Select("select * from user where phone LIKE CONCAT(#{phone}, ':%')")
-    User selectByPhone(@Param("phone") String phone);
+      @Select("select * from user where phone LIKE CONCAT(#{hmac}, ':%') OR phone = #{plain}")
+    User selectByPhone(@Param("hmac") String hmac, @Param("plain") String plain);
 
     /**
       * 根据邮箱查询用户
-      * @param email 邮箱的 HMAC 搜索索引（由 Service 层转换）
+      * @param hmac 邮箱的 HMAC 搜索索引
+      * @param plain 明文邮箱（兼容旧数据）
       * @return 用户信息
       */
-        @Select("select * from user where email LIKE CONCAT(#{email}, ':%')")
-      User selectByEmail(@Param("email") String email);
+        @Select("select * from user where email LIKE CONCAT(#{hmac}, ':%') OR email = #{plain}")
+      User selectByEmail(@Param("hmac") String hmac, @Param("plain") String plain);
 
     /**
       * 根据手机号或邮箱查询用户（用于登录）
-      * @param account 手机号或邮箱的 HMAC 搜索索引（由 Service 层转换）
+      * @param hmac 手机号或邮箱的 HMAC 搜索索引
+      * @param plain 明文账号（兼容旧数据）
       * @return 用户信息
       */
-      @Select("SELECT * FROM user WHERE phone LIKE CONCAT(#{account}, ':%') OR email LIKE CONCAT(#{account}, ':%')")
-    User selectByPhoneOrEmail(@Param("account") String account);
+      @Select("SELECT * FROM user WHERE phone LIKE CONCAT(#{hmac}, ':%') OR email LIKE CONCAT(#{hmac}, ':%') OR phone = #{plain} OR email = #{plain}")
+    User selectByPhoneOrEmail(@Param("hmac") String hmac, @Param("plain") String plain);
 
     /**
      * 根据用户ID查询用户

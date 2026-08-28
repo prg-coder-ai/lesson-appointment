@@ -142,7 +142,7 @@ public class UserService {
     public Result<HashMap<String, Object>> login(String account, String password) {
         // 查找用户（账号可为手机号/邮箱，对应设计2.2.1 登录接口请求参数）
        //  System.out.println("userService login：" + account+"   "+password);
-        User user = userMapper.selectByAccount(cryptoUtil.searchIndex(account));
+        User user = userMapper.selectByAccount(cryptoUtil.searchIndex(account), account);
         HashMap<String, Object> resultMap = new HashMap<>();
         if (user == null) { 
           resultMap.put("message", "账号不存在");
@@ -204,7 +204,7 @@ public class UserService {
     @Transactional
     public Result<HashMap<String, Object>> resetPassword(String account) { 
         // 查找用户
-        User user = userMapper.selectByAccount(cryptoUtil.searchIndex(account)); 
+        User user = userMapper.selectByAccount(cryptoUtil.searchIndex(account), account); 
         HashMap<String, Object> resultMap = new HashMap<>();
         if(user!= null ) { 
         // 解密敏感字段（如需回显）
@@ -239,7 +239,7 @@ public class UserService {
           return false ;  
     } 
     public User selectByPhone(String phone) {
-        User user= userMapper.selectByPhone(cryptoUtil.searchIndex(phone));
+        User user= userMapper.selectByPhone(cryptoUtil.searchIndex(phone), phone);
        if(user==null){
             // throw new UserNotFoundException("手机号【" + phone + "】对应的用户不存在");
           //  Result< Object> rslt = Result.fail(400   ,"手机号【" + phone + "】对应的用户不存在");
@@ -251,7 +251,7 @@ public class UserService {
  public User selectByEmail(String email) {
       // return userMapper.selectByEmail(email)
       //       .orElseThrow(() -> new UserNotFoundException("email" + email + "】对应的用户不存在"));
-      User user= userMapper.selectByEmail(cryptoUtil.searchIndex(email));
+      User user= userMapper.selectByEmail(cryptoUtil.searchIndex(email), email);
       if(user==null)
           System.out.println("email 【" + email + "】对应的用户不存在");
       else
@@ -273,7 +273,7 @@ public User selectById(String userId) {
      * 根据手机号/邮箱查询用户（登录专用）
      */
     public User selectByPhoneOrEmail(String account) {
-        User user = userMapper.selectByPhoneOrEmail(cryptoUtil.searchIndex(account));
+        User user = userMapper.selectByPhoneOrEmail(cryptoUtil.searchIndex(account), account);
         if (user == null) {
            System.out.println("账号【" + account + "】不存在");
         } else {
@@ -285,7 +285,7 @@ public User selectById(String userId) {
      * 根据账号查询用户（登录/重置密码专用，入参为明文，内部转 HMAC）
      */
     public User selectByAccount(String account) {
-        User user = userMapper.selectByAccount(cryptoUtil.searchIndex(account));
+        User user = userMapper.selectByAccount(cryptoUtil.searchIndex(account), account);
         if (user != null) {
             decryptUserFields(user);
         }
