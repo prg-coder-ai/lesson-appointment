@@ -141,7 +141,7 @@ public class UserService {
     // 用户登录（对应设计2.2.1 登录接口）
     public Result<HashMap<String, Object>> login(String account, String password) {
         // 查找用户（账号可为手机号/邮箱，对应设计2.2.1 登录接口请求参数）
-         System.out.println("userService login：" + account+"   "+password);
+       //  System.out.println("userService login：" + account+"   "+password);
         User user = userMapper.selectByAccount(cryptoUtil.searchIndex(account));
         HashMap<String, Object> resultMap = new HashMap<>();
         if (user == null) { 
@@ -434,6 +434,8 @@ public User selectById(String userId) {
 
 } 
 /*
+只检查login的问题，数据库中没有账号，却没有捕捉到异常
+2 、注册没有成功
 错误分析：
 异常 `org.apache.ibatis.binding.BindingException: Invalid bound statement (not found): com.reservation.mapper.UserMapper.selectByPhone` 表示 MyBatis 在运行时没有找到 `UserMapper` 接口的 `selectByPhone` 方法在 XML 中的 SQL 映射。原因可能如下：
 

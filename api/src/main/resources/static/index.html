@@ -158,7 +158,9 @@
       
     </form>
   </div>
-
+ <!--   TBD：后台判断如果已经存在，则不允许增加admin --当user为空时才可添加supperadmin/admin 
+   <option value="admin">管理员</option>
+   -->
   <!-- 新增注册弹窗 -->
   <div class="modal-mask" id="register-modal">
     <div class="modal-content">
@@ -171,6 +173,7 @@
           <label for="register-role">注册身份</label>
           <select id="register-role" required>
             <option value="">请选择身份</option>
+             <option value="admin">管理员</option>
             <option value="teacher"><span data-term="teacher">教师</span></option>
             <option value="student"><span data-term="student">学生</span></option>
           </select>

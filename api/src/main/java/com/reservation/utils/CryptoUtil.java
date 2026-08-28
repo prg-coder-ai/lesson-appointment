@@ -77,14 +77,14 @@ public class CryptoUtil {
         if (!isEncryptedFormat(stored)) {
             return stored;
         }
-        String cipherPart = stripIndex(stored);
+        String cipherPart = stripIndex(stored);// 去除 HMAC 前缀
         try {
             byte[] combined = Base64.getDecoder().decode(cipherPart);
             if (combined.length <= IV_LENGTH) {
                 return stored;
             }
             byte[] iv = new byte[IV_LENGTH];
-            byte[] cipherText = new byte[combined.length - IV_LENGTH];
+            byte[] cipherText = new byte[combined.length - IV_LENGTH];//    
             System.arraycopy(combined, 0, iv, 0, IV_LENGTH);
             System.arraycopy(combined, IV_LENGTH, cipherText, 0, cipherText.length);
             Cipher cipher = Cipher.getInstance(AES_GCM);

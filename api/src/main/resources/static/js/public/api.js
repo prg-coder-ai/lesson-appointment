@@ -17,8 +17,12 @@
     // 前端其他模块可以通过 import request from '@/utils/request' 便捷地引用它。
 
 
-    
-    const API_SERVER_HOST = 'http://152.136.254.127'; 
+    //读取application.properties的server.host内容
+
+    const API_SERVER_HOST = 'http://localhost' ;
+    //TBD读取环境变量
+
+    //'http://152.136.254.127'; 
     const API_SERVER_PORT = '8081';
     const API_BASE_PATH = '';
     //'/api/v1';

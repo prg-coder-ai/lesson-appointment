@@ -26,11 +26,16 @@ CREATE TABLE IF NOT EXISTS `user` (
   KEY `idx_role` (`role`) COMMENT '角色索引，用于权限查询',
   KEY `idx_status` (`status`) COMMENT '状态索引，用于账号审核、冻结查询'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表（学生、教师、管理员）';
+
+ALTER TABLE user MODIFY COLUMN account VARCHAR(255) NOT NULL; 
+ALTER TABLE user MODIFY COLUMN phone VARCHAR(255); 
+ALTER TABLE user MODIFY COLUMN email VARCHAR(255); 
+ALTER TABLE user MODIFY COLUMN name VARCHAR(255);
 -- 初始化管理员账号 
---判断是否存在管理员账号
-SELECT COUNT(*) FROM `user` WHERE `role` = 'admin';
---如果不存在管理员账号，则插入默认管理员账号
-INSERT INTO `user` (`user_id`, `account`, `phone`, `email`, `password`, `role`,  `name`,  `status`) VALUES ('123456', 'admin000', '13800000000', 'admin@example.com', '$2a$10$e2LdnkHGxX1RXHEOA1l2/.pZr1bYs.ZD0ROu0UDkxOLu9vbDj94gi', 'admin', 'admin000', 'active');
+-- 判断是否存在管理员账号
+-- SELECT COUNT(*) FROM `user` WHERE `role` = 'admin';
+-- 如果不存在管理员账号，则插入默认管理员账号
+--- INSERT INTO `user` (`user_id`, `account`, `phone`, `email`, `password`, `role`,  `name`,  `status`) VALUES ('123456', 'admin000', '13800000000', 'admin@example.com', '$2a$10$e2LdnkHGxX1RXHEOA1l2/.pZr1bYs.ZD0ROu0UDkxOLu9vbDj94gi', 'admin', 'admin000', 'active');
 
 -- 课程模板表：存储统一的课程模板信息，对应CourseTemplate实体
 CREATE TABLE IF NOT EXISTS `course_template` (
