@@ -264,7 +264,8 @@ html = `
           <select id="course-status-select">
             <option value="">全部</option>
             <option value="active">有效</option>
-            <option value="pending">挂起</option>
+            <option value="pending">冻结</option>
+            <option value="delete">删除</option>
           </select>
         </div>
          <div>
@@ -382,9 +383,7 @@ function renderCourseTable(list) {
  let cnt =0;
 
         list.forEach(Course => { 
-          
-
-         // 根据Course.templateId在templateList中查找对应的模板对象
+                   // 根据Course.templateId在templateList中查找对应的模板对象
          const templateObj = templateList?templateList.find(t => t.templateId === Course.templateId) : null;
          const teacherObj = teacherList?teacherList.find(t => t.userId === Course.teacherId) : null;
 

@@ -1,10 +1,4 @@
-
-    /*let  Pagination = {
-      pageNum: 1, // 当前页码
-      pageSize: 10,  // 页大小
-      total: 0,   // 总条数
-      totalPages: 0 // // 总页数
-    };*/
+ // 用户列表 管理。通过role筛选用户 教师和学生
    // 引入分页组件js
    document.write('<script src="/js/public/pagefoot.js"></script>');
    
@@ -51,10 +45,9 @@
                   <label></label>
                   <select id="user-status-select">
                     <option value="">用户状态</option>
-                    <option value="active">有效</option>
-                    <option value="pending">待审核</option>
-                    <option value="frozen">冻结</option>
-                    <option value="delete">已删除</option>
+                    <option value="active">正常</option>
+                    <option value="pending">待审核/未生效</option>
+                    <option value="frozen">已删除</option>                    
                   </select>
                 </div> 
                 <button class="btn btn-default" onclick="localsearchUsers()">
@@ -95,8 +88,7 @@
               dynamicContentCenter.innerHTML = html;
               applyTerms(dynamicContentCenter);
               loadUserList(role);//"teacher");
-            }
-
+      } 
 
             function localsearchUsers() {
               Pagination.pageNum = 1;
@@ -121,7 +113,8 @@
             //console.error("role",role);
              loadUserList(currentUserRole);
            } 
-
+// 加载用户列表,并分页显示在表格中
+// role: 教师或学生
       async function loadUserList(role){                      
             const params = new URLSearchParams({
               pageNum:  Pagination.pageNum,
@@ -202,9 +195,7 @@
 
           function renderUserTable(userList,role){
                 
-            const tbody = document.getElementById('user-table-body');
-         //   console.error("1 tbody",tbody);
-         //   console.error("2 tbody",userList);
+            const tbody = document.getElementById('user-table-body'); 
             if (userList.length === 0) {
               tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;padding:40px 0;">暂无数据</td></tr>';
               return;
@@ -225,19 +216,16 @@
                     <td>
                       ${ tea.status === "pending" ? '<span style="color:#faad14;">待审核</span>' :
                         tea.status === "active" ? '<span style="color:#52c41a;">正常</span>' :                        
-                        tea.status === "frozen" ? '<span style="color:#f5222d;">冻结</span>' :
-                        tea.status === "inactive" ? '<span style="color:#faad14;">失效</span>' :
-                        tea.status === "delete" ? '<span style="color:#faad14;">已删除</span>' :
+                        tea.status === "frozen" ? '<span style="color:#f5222d;">已删除</span>' :                       
                         `<span>${tea.status||"未知"}</span>`
                       }
                       </td>
                   
                   <td>
-                    <button class="btn btn-success"  onclick="confirmTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-check"></i> 启用</button>
-                    <button class="btn btn-warning" onclick="disableTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-ban"></i> 冻结</button>
-                    <button class="btn btn-danger" onclick="deleteTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-trash"></i> 删除</button>
+                    ${tea.status === "pending" ? `<button class="btn btn-success"  onclick="confirmTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-check"></i> 启用</button>` :'' }
+                    ${tea.status === "active" ? `<button class="btn btn-warning" onclick="disableTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-ban"></i> 禁用</button>` :'' }
+                    ${tea.status === "pending" ? `<button class="btn btn-danger" onclick="deleteTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-trash"></i> 删除</button>` :'' }
                     <button class="btn btn-warning" onclick="resetUserPasswd('${tea.userId}')"><i class="fa fa-trash"></i> 重置密码</button>
-
                      
                   </td>
                 </tr>
@@ -253,20 +241,19 @@
       changePasswordAPI(userId,"123456");
     }
     
-    //Detail--教师信息,用于提交图片、专业信息、时间段等，输出该教师的可用时段及推广信息
-     function teacherInfoBoard(userId) {
-      window.location.href = `./teacherInfo.html?userId=${userId}`;
-    }
+                //Detail--教师信息,用于提交图片、专业信息、时间段等，输出该教师的可用时段及推广信息
+                function teacherInfoBoard(userId) {
+                  window.location.href = `./teacherInfo.html?userId=${userId}`;
+                }
                //禁用
                 async  function disableTeacher(userId,role) {
                           // 调用 update(User) 把 status 设置为 inactive
-                          const user = {userId: userId, status: "frozen" };
+                          const user = {userId: userId, status: "pending" };
                           request({
                             url: `${API_BASE_URL}/user/updateStatus`,
                             method: 'POST',
                             data: user
                           }).then(res => {
-
                               loadUserList(role);
                           }).catch(e => {
                             alert("网络错误，禁用失败");
@@ -293,7 +280,7 @@
                             request({
                               url: `${API_BASE_URL}/user/updateStatus`,
                               method: 'POST',
-                              data: { userId: userId, status: "delete" }
+                              data: { userId: userId, status: "frozen" }
                             }).then(res => {
                                 //  刷新列表
                                 loadUserList(role);
@@ -303,3 +290,4 @@
 
                           }
                         }
+                        //--------------2026-08-29 调整显示状态

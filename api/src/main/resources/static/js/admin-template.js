@@ -154,9 +154,10 @@ function validateForm() {
       <label>模板状态 <span style="color:red">*</span></label>
       <select name="status" class="form-select" required>
         <option value="">请选择</option>
-        <option value="active" ${defaultTemplate.status === 'active' ? 'selected' : ''}>激活</option>
+        <option value="active" ${defaultTemplate.status === 'active' ? 'selected' : ''}>正常</option>
         <option value="inactive" ${defaultTemplate.status === 'inactive' ? 'selected' : ''}>待审核</option>
         <option value="frozen" ${defaultTemplate.status === 'frozen' ? 'selected' : ''}>冻结</option>
+        <option value="delete" ${defaultTemplate.status === 'delete' ? 'selected' : ''}>删除</option>
       </select>
       <div class="form-error" id="statusError"></div>
     </div>
@@ -424,9 +425,11 @@ async function loadAndRenderTemplateCards() {
                   <td><div class="btn-group">
                       <button class="btn btn-success" onclick='openEditTemplateDialog(${JSON.stringify(template).replace(/'/g, "\\'")})'>修改</button>
                  
-                      <button class="btn btn-success" onclick="operateTemplateStatus('${template.templateId}', 'active')">发布</button>
-                      <button class="btn btn-warning" onclick="operateTemplateStatus('${template.templateId}', 'inactive')">撤回</button>
-                      <button class="btn btn-danger" onclick="deleteTemplateByFrozen('${template.templateId}')">删除</button>
+                      ${template.status === "inactive" ? `<button class="btn btn-success" onclick="operateTemplateStatus('${template.templateId}', 'active')">发布</button>` :'' }
+                      ${template.status === "active" ? `<button class="btn btn-warning" onclick="operateTemplateStatus('${template.templateId}', 'inactive')">撤回</button>` :'' }
+                      ${template.status === "inactive" ? `<button class="btn btn-danger" onclick="deleteTemplateByFrozen('${template.templateId}')">删除</button>` :'' }
+
+                         
                       </div>
                   </td>
               </tr>
