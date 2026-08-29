@@ -157,6 +157,56 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-maven-plugin</artifactId>
+        </plugin>
+
+        <!-- 前端依赖自动下载插件 -->
+        <plugin>
+            <groupId>com.github.eirslett</groupId>
+            <artifactId>frontend-maven-plugin</artifactId>
+            <version>1.13.4</version>
+            <configuration>
+                <!-- package.json所在目录（项目根目录） -->
+                <workingDirectory>${project.basedir}</workingDirectory>
+                <!-- node本地缓存目录，不污染全局环境 -->
+                <installDirectory>${project.basedir}/.node</installDirectory>
+            </configuration>
+            <executions>
+                <!-- ①自动下载Node20，不需要本机手动安装Node -->
+                <execution>
+                    <id>install-node-npm</id>
+                    <goals>
+                        <goal>install-node-and-npm</goal>
+                    </goals>
+                    <configuration>
+                        <nodeVersion>v20.17.0</nodeVersion>
+                        <nodeDownloadRoot>https://npmmirror.com/mirrors/node/</nodeDownloadRoot>
+                    </configuration>
+                </execution>
+                <!-- ②npm install，下载所有前端包到node_modules -->
+                <execution>
+                    <id>npm-install</id>
+                    <goals>
+                        <goal>npm</goal>
+                    </goals>
+                    <configuration>
+                        <arguments>install</arguments>
+                    </configuration>
+                </execution>
+                <!-- ③Windows环境执行复制脚本，本机开发使用  Linux 服务器打包：**临时修改第三步 execution 的 arguments 为`run copy:linux`-->
+                <execution>
+                    <id>copy-lib-windows</id>
+                    <goals>
+                        <goal>npm</goal>
+                    </goals>
+                    <configuration>
+                        <arguments>run copy:win</arguments>
+                    </configuration>
+                </execution>
+            </executions>
+        </plugin>
         </plugins>
 
         <resources>

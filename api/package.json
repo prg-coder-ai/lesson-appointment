@@ -1,0 +1,15 @@
+{
+  "name": "springboot-static-lib",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "axios": "^1.7.9",
+    "@fullcalendar/core": "6.1.10",
+    "@fullcalendar/daygrid": "6.1.10",
+    "@fullcalendar/interaction": "6.1.10"
+  },
+  "scripts": {
+    "copy:win": "if not exist src\\main\\resources\\static\\lib md src\\main\\resources\\static\\lib && xcopy /E /Y node_modules\\axios\\dist src\\main\\resources\\static\\lib\\axios && xcopy /E /Y node_modules\\@fullcalendar src\\main\\resources\\static\\lib\\fullcalendar",
+    "copy:linux": "mkdir -p src/main/resources/static/lib && cp -r node_modules/axios/dist src/main/resources/static/lib/axios && cp -r node_modules/@fullcalendar src/main/resources/static/lib/fullcalendar"
+  }
+}
