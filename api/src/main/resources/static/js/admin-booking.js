@@ -215,7 +215,11 @@ async function getBookingListByPage(){
                             <button class="btn btn-danger" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','booking')">撤回</button>
                             <button class="btn btn-warning" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','cancelling')">取消</button>
                             `
-                        : cardInfo.status === 'cancelled' || cardInfo.status === 'canceled'
+                        : cardInfo.status === 'rej-cancelling'
+                        ? ` <button class="btn btn-danger" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','cancelling')">撤回</button> 
+                          `: cardInfo.status === 'rej-booking'
+                        ? ` <button class="btn btn-danger" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','booking')">撤回</button> 
+                           `: cardInfo.status === 'cancelled' || cardInfo.status === 'canceled'
                         ? ` <button class="btn btn-danger" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','cancelling')">撤回</button>
                              <button class="btn btn-warning" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','booking')">取消</button>
                            `
@@ -289,6 +293,9 @@ async function confirmOrCancelBooking(bookingid,status) {
     //把相关预约列表的状态设置为cancelling--未确定状�?
     //更新预约表的bookingid对应的所有项的状态为cancelling 
           await cancelBooking(bookingid); 
+    } else {//兜底处理--直接设置
+      //拒绝预约--把book状态设置为rej-booking
+      await operateBookingStatus( bookingid, status) ;   
     }
 
     async function sleep(ms) {
