@@ -1,5 +1,5 @@
  
- //admin---待确认预约
+ //admin---待确认预约 预订审核菜单的处理程序
 // ===================== 核心函数 =====================
 let pendingBookingList=[];// ID,ciurseName,studentName,teacherName,dateTime(创建时间),状态、操作（预览、确认、拒绝） 
  // 引入分页组件js
@@ -85,17 +85,14 @@ async function getBookingListByPage(){
      // 可预留 future 参数，比如 userRole, status 等，如有需要可加上
      userId: userId,
      userRole: userRole,    
-     courseName:    document.getElementById('course-name-input').value.trim(),//TBD
-   // studentName:    document.getElementById('student-name-input').value.trim(),
+     courseName:    document.getElementById('course-name-input').value.trim(), 
      status:         document.getElementById('booking-status-select').value  
    };
    if(userRole== "admin") {
     params.userId =null;
     params.userRole = null ;
   }
-   let result = await getBookingListPage( params);
-  // console.log("page:",params);
-   //  console.log("ret:",result);
+   let result = await getBookingListPage( params); 
    if(result){
        const pageData = result;
 
@@ -143,7 +140,7 @@ async function getBookingListByPage(){
                          index: index,
                          scheduleId:    scheduleObject.scheduleId, 
                          origTz:        scheduleObject.timeZone,
-                         bookingId: booking.id,
+                         bookingId: booking.bookingId,
                          className: classObject.courseName,//+ " " + 
                          scheduleName: scheduleObject.name,
                          studentName: studentName,//-->name/phone/email
@@ -162,8 +159,7 @@ async function getBookingListByPage(){
      let bookingContainer = document.getElementById(id);
      if (bookingContainer) {
          bookingContainer.innerHTML = ` ${pendingBookingsHtml}`;
-     }
-
+     } 
  }
 
 
@@ -224,7 +220,9 @@ async function getBookingListByPage(){
 async function confirmOrCancelBooking(bookingid,status) { 
   // 根据bookingid在bookingList中查找对应的booking对象
   const bookingList = pendingBookingList;
-  const bookingObj = Array.isArray(bookingList) ? bookingList.find(b => b.id === bookingid) : null; 
+  const bookingObj = Array.isArray(bookingList) ? bookingList.find(b => b.bookingId === bookingid) : null; 
+  console.log("confirmOrCancelBooking:", bookingid,status,bookingObj);
+  
   if(bookingObj ==null)
     return ;
   const scheduleInfo = await fetchSchedule(bookingObj.scheduleId);
@@ -232,30 +230,25 @@ async function confirmOrCancelBooking(bookingid,status) {
   //按照排期所用的时区时刻 
   if(status == "booked"  ){   // 获取时间列表  booking--》booked
          const appointmentResults = await generateAppointmentList (bookingObj.scheduleId,scheduleInfo.timeZone );
-         // 遍历scheduleResult数组的每个元素，添加到appointment_datetime中
-      //   //console .log("list:",appointmentResults);
+         // 遍历scheduleResult数组的每个元素，添加到appointmentDateTimeList中 
          let appointmentDateTimeList = [];
          if (Array.isArray(appointmentResults)) {
             appointmentResults.forEach(item => {
-             // 假设item中有appointment_datetime字段，如果不是可根据实际字段名调整
+             // 假设item中有appointment_datetime字段，如果不是可根据实际字段名调�?
              // 这里假设item就是约定的预约时间对象或类似格式
-             // 如果item有date和time字段，合成为一个appointment_datetime字段（如 "2024-06-10 09:00"）
+             // 如果item有date和time字段，合成为一个appointment_datetime字段（ 如 2024-06-10T09:00:00）
              if (item.date && item.time) {
                  appointmentDateTimeList.push(`${item.date}T${item.time}`); 
              }
          });
          } 
-
-         // 遍历appointmentDateTimeList，将日期、时刻赋值到AppointmentData.appointmemnt_datetime 
-         // 你的问题“为什么传入saveAppointment(AppointmentData)的参数为空值？”
-         // 可能形成空值的原因：（1）appointmentDateTimeList为空，（2）dt本身无值，（3）bookingid/bookingObj/scheduleInfo没准备好。
-         // 建议加打印/检查赋值。
+ 
          appointmentDateTimeList.forEach(async (dt, idx) => { 
              let AppointmentData = {
               bookingId: bookingid,
               appointmentDatetime: dt,  // 拼写修正
               lastDatetime: dt,
-              classIndex: idx+1           // 用forEach的下标，避免indexOf找不到            
+              classIndex: idx+1           // 用forEach的下标，避免indexOf找不�?           
          };
 
          // 清理掉undefined属性（只保留有效字段）
@@ -264,7 +257,7 @@ async function confirmOrCancelBooking(bookingid,status) {
          );  
          // 如果核心值有空，进行警告
          if (!bookingid || !dt) {
-             //console .warn("警告：bookingid或appointmentDatetime为空！", AppointmentData);
+             //console .warn("警告：bookingid或appointmentDatetime为空�?, AppointmentData);
              return;
          }
 
@@ -272,27 +265,27 @@ async function confirmOrCancelBooking(bookingid,status) {
          await saveAppointment(AppointmentData);
      });
 
-await validBooking(bookingid);
+    await validBooking(bookingid);
 
-} else if(status == "cancelled"  ){ 
- //确认取消预约--把book状态设置为booking   
-  await validCancelBooking(bookingid);
-}  else if(status == "booking"  ){ // 
-      //删除所有相关预约列表，并把book状态设置为booking
-      await deleteAppointmentsByBookingId(bookingid);
-      await operateBookingStatus( bookingid, "booking") ;   
-} else if(status == "cancelling"  ){ 
-//把相关预约列表的状态设置为cancelling--未确定状态 
-//更新预约表的bookingid对应的所有项的状态为cancelling 
-      await cancelBooking(bookingid); 
-}
+    } else if(status == "cancelled"  ){ 
+    //确认取消预约--把book状态设置为booking   
+      await validCancelBooking(bookingid);
+    }  else if(status == "booking"  ){ // 
+          //删除所有相关预约列表，并把book状态设置为booking
+          await deleteAppointmentsByBookingId(bookingid);
+          await operateBookingStatus( bookingid, "booking") ;   
+    } else if(status == "cancelling"  ){ 
+    //把相关预约列表的状态设置为cancelling--未确定状�?
+    //更新预约表的bookingid对应的所有项的状态为cancelling 
+          await cancelBooking(bookingid); 
+    }
 
-async function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-await sleep(200); 
- 
-getBookingListByPage();
+    async function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    await sleep(200); 
+    
+    getBookingListByPage();
 }
 
 async function checkAppointmentExistsBookingId(bookingid) {
@@ -310,8 +303,7 @@ async function checkAppointmentExistsBookingId(bookingid) {
       // 兼容后端返回为 {exists: true/false} 或直接返回布尔
       if (Array.isArray(res) && res.length > 0) {
           return true;
-      }
- 
+      } 
       return false;
   } catch (e) {
       console.error("checkAppointmentExistsByBookingId error:", e);
@@ -322,14 +314,12 @@ async function deleteBookingByFrozen(id) {
     // 调用后端删除预约接口（假定全局已定义 request 方法和 API_BASE_URL）
     // 查询是否存在以此id为排期id的appointment（预约/子项），返回结果布尔型
      if (checkAppointmentExistsBookingId(id))
-     {
-      // INSERT_YOUR_CODE
+     { 
       const userChoice = confirm('该预订存在预约，是否继续删除？继续将删除该预订下的全部预约。点击“确定”继续，点击“取消”放弃删除。');
       if (!userChoice) {
         return;
       }
-      //删除该预定的全部预约
-     // await deleteAppointmentsByBookingIdByFrozen(id);
+      //删除该预定的全部预约 
      updateAppointmentsStatusByBookingId(id,"frozen");
      }
     
@@ -339,29 +329,23 @@ async function deleteBookingByFrozen(id) {
      } catch (e) {
       //  alert('网络错误，删除失败');
         console.error(e);
-    }
-    
+    } 
     }
 
-async function validBooking(bookingid){
-       
+async function validBooking(bookingid){ 
   await operateBookingStatus( bookingid, "booked"); 
     } 
 
 //确认取消----
-async function validCancelBooking(bookingid){
-      
-   //将appointment的bookingid=bookingid的所有项的状态设置为“cancelled->cancelling ->booked-->booking
-   //console.log("validCancelBooking updateAppointmentsStatusByBookingId bookingid:",bookingid);
+async function validCancelBooking(bookingid){ 
+   //将appointment的bookingid=bookingid的所有项的状态设置为“cancelled->cancelling ->booked-->booking 
    await updateAppointmentsStatusByBookingId(bookingid, "cancelled");
    //更新booking预定状态
-   await operateBookingStatus( bookingid, "cancelled");
-    
+   await operateBookingStatus( bookingid, "cancelled"); 
     } 
 
     async function cancelBooking(bookingid){ 
-        //将appointment的bookingid=bookingid的所有项的状态设置为“cancelled->cancelling ->booked-->booking
-      //  console.log("validCancelBooking updateAppointmentsStatusByBookingId bookingid:",bookingid);
+        //将appointment的bookingid=bookingid的所有项的状态设置为“cancelled->cancelling ->booked-->booking 
         await updateAppointmentsStatusByBookingId(bookingid, "cancelling");
         //更新booking预定状态
         await operateBookingStatus( bookingid, "cancelling"); //--学生、教师取消 
@@ -379,5 +363,4 @@ async function validCancelBooking(bookingid){
           document.getElementById('booking-status-select').value = '';
           Pagination.pageNum = 1;
           getBookingListByPage();
-
       }
