@@ -31,6 +31,8 @@ window.deleteBookingByFrozen = deleteBookingByFrozen;
                     <option value="cancelling">取消待确认</option>
                     <option value="booked">预定已确认</option>
                     <option value="cancelled">已取消</option>
+                    <option value="rej-booking">已拒绝预订</option>
+                    <option value="rej-cancelling">已拒绝取消</option>
                     <option value="frozen">已删除</option> 
                   </select>
                 </div> 
@@ -187,17 +189,26 @@ async function getBookingListByPage(){
            <td class="course-info">    ${checkStatus_booking(cardInfo.status)}</td>
           
             <td class="course-info">
-              <button class="btn btn-danger" onclick="deleteBookingByFrozen('${cardInfo.bookingId}')"><i class="fa fa-times"></i> 删除</button>
+             ${
+                        cardInfo.status === 'cancelled' || cardInfo.status === 'canceled'
+                        ? ` <button class="btn btn-danger" onclick="deleteBookingByFrozen('${cardInfo.bookingId}')"><i class="fa fa-times"></i> 删除</button>
+                        `:` `
+             }
               ${
-                        cardInfo.status === 'booking'
+                       cardInfo.status === 'frozen'
+                        ? `
+                            <button class="btn btn-success" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','booking')">撤回</button> 
+                           ` 
+                        :   cardInfo.status === 'booking'
                         ? `
                             <button class="btn btn-success" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','booked')">确认</button>
-                            <button class="btn btn-danger" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','rejected')">拒绝</button>
+                            <button class="btn btn-danger" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','rej-booking')">拒绝</button>
                            ` 
                         : cardInfo.status === 'cancelling' || cardInfo.status === 'canceling'
                         ? `
                             <button class="btn btn-danger" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','cancelled')">确认</button>
-                            <button class="btn btn-warning" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','booked')">撤回</button>
+                            <button class="btn btn-warning" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','booking')">撤回</button>
+                            <button class="btn btn-danger" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','rej-cancelling')">拒绝</button>
                             `
                         : cardInfo.status === 'booked'
                         ? `

@@ -512,6 +512,10 @@ return [];
     return '已取消';
   } else if (status === 'deleted' || status=== 'frozen') {
     return '已删除';
+  }else if (status === 'rej-booking'  ) {
+    return '已拒绝预订';
+  }else if (status === 'rej-cancelling'  ) {
+    return '已拒绝取消';
   }
   return status;
  }
