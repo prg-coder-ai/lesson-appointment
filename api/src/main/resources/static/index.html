@@ -200,7 +200,12 @@
           <input type="password" id="register-confirm-pwd" placeholder="请再次输入密码" required>
           <div class="error-tip" id="register-confirm-error">两次密码不一致</div>
         </div>
-        
+        <div class="form-item">
+          <label><i class="fa fa-building"></i> 租户编码</label>
+          <input type="text" id="tenant-code" placeholder="请输入租户编码">
+          <div class="error-tip" id="tenant-error"></div>
+      </div>
+
         <button type="submit" class="btn" id="register-btn">提交注册</button>
         <button type="button" class="btn btn-cancel" id="cancel-register">取消</button>
         <div class="success-tip" id="register-success">注册申请提交成功！请等待管理员审核</div>
@@ -217,10 +222,7 @@
   <script src="js/public/auth.js"></script>
 
   <!-- JavaScript核心逻辑 -->
-  <script>
-    
-    // API完整前缀
-   // const API_BASE_URL = `${API_SERVER_HOST}:${API_SERVER_PORT}/${API_BASE_PATH}`;
+  <script> 
     // DOM元素获取（登录相关）
     const loginForm = document.getElementById('login-form');
     //const userRole = document.getElementById('user-role');
@@ -405,6 +407,7 @@
       // 2. 构造注册信息 —— 后端 @RequestBody User 实体字段严格对齐
       const role = registerRole.value.trim();
       const account = (registerAccount || '').trim();
+      const tenantCode = document.getElementById('tenant-code').value.trim();
       const registerInfo = {
         role: role,
         account: account,
@@ -412,9 +415,11 @@
         phone: (registerPhone || '').trim() || null,
         name: registerName.value.trim() || null,        // 学生注册时 name 可空
         password: registerPassword.value.trim(),
-        status: 'pending'                               // 修正拼写：原 pendding(3d) -> pending(2d)，与后端一致
+        status: 'pending'   ,                           // 修正拼写：原 pendding(3d) -> pending(2d)，与后端一致
+        tenantCode: tenantCode // 新增：租户编码
       };
-
+        
+      
       try {
         // 3. 使用 request 发起 POST：URL 已通过拦截器 baseURL 自动拼接
         //    后端路径：POST /user/{student|teacher}/register
@@ -439,7 +444,8 @@
           account: resultData.account,
           role:    resultData.role,
           token:   resultData.token,
-          name:    registerInfo.name || ''
+          name:    registerInfo.name || '',
+          tenantCode: tenantCode // 新增：租户编码
         };
         localStorage.setItem('currentUser', JSON.stringify(currentUser));
         // token 单独保存：utility_request.js 请求拦截器从 localStorage.getItem('token') 取
@@ -495,7 +501,9 @@
         if (code === 400) {
           // 后端 existAccount -> "该账号已注册，请登录或重置密码"
           registerError.textContent = msg || '该账号已存在，请更换账号或登录';
-        } else if (code === 401 || code === 403) {
+           } else if (code === 401  ) {
+          registerError.textContent = ' 请先登录'; 
+        } else if ( code === 403) {
           registerError.textContent = '无权访问，请联系管理员';
         } else if (code === 500) {
           registerError.textContent = '服务器内部错误，请稍后重试';
@@ -631,10 +639,10 @@
         btnText.innerHTML = '登录系统';
     }, 2500);
   };
+  //TBD：添加“自动登录”勾选功能，可以提供自动跳转登录状态
   window.onload = function() {
-       userInfo = autoLoginCheck() ;
-       redirectToUserPage(userInfo); 
-      
+     //  userInfo = autoLoginCheck() ;
+      //  redirectToUserPage(userInfo);  
   };
   </script>
 </body>

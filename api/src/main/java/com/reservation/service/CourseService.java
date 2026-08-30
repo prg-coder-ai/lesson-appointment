@@ -18,7 +18,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Propagation;
  import ch.qos.logback.core.joran.util.beans.BeanUtil;
- import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+ import com.reservation.utils.JwtUtil;
+import com.reservation.utils.TenantContext;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
  import com.baomidou.mybatisplus.core.toolkit.Wrappers;
  import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
  import com.baomidou.mybatisplus.extension.service.IService;
@@ -38,7 +40,8 @@ public class CourseService   {
     private CourseMapper courseMapper;
     @Autowired
     private CourseTemplateMapper courseTemplateMapper;
-
+  @Autowired
+    private TenantPackageService tenantPackageService;
 /**
      * 分页查询课程列表
      * 
@@ -131,12 +134,12 @@ public class CourseService   {
           return result;
     }
 //          deleteTemplateById
-public int deleteTemplate(String Id) {
-       log.info("删除课程模板开始, templateId={}", Id);
-       int rows = courseTemplateMapper.deleteTemplate(Id);
-       log.info("删除课程模板结束, templateId={}, 影响行数={}", Id, rows);
-       return rows;
-    }
+        public int deleteTemplate(String Id) {
+            log.info("删除课程模板开始, templateId={}", Id);
+            int rows = courseTemplateMapper.deleteTemplate(Id);
+            log.info("删除课程模板结束, templateId={}, 影响行数={}", Id, rows);
+            return rows;
+            }
 
     /**
      * 教师创建课程，对应设计2.2.2 教师课程创建接口，仅教师可操作
@@ -147,6 +150,14 @@ public int deleteTemplate(String Id) {
         if (template == null) {
             throw new ResourceNotFoundException("课程模板不存在，请先选择正确的模板");
         }
+         // 校验当前租户课程数量是否超出套餐上限
+      /*TBD 额度判断： int currentCount = courseMapper.selectCount(null);
+        int maxCount = tenantPackageService.getMaxCourseCount(TenantContext.getTenantId());
+        
+        if (currentCount >= maxCount) {
+            throw new BusinessException("课程数量已达套餐上限，请升级套餐后再创建");
+        }
+        */
         String courseId = UUID.randomUUID().toString().replace("-", "");
         course.setCourseId(courseId);
         courseMapper.insert(course);

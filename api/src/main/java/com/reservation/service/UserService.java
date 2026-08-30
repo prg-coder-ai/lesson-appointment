@@ -139,7 +139,7 @@ public class UserService {
     }
  
     // 用户登录（对应设计2.2.1 登录接口）
-    public Result<HashMap<String, Object>> login(String account, String password) {
+    public Result<HashMap<String, Object>> login( String account, String password) {
         // 查找用户（账号可为手机号/邮箱，对应设计2.2.1 登录接口请求参数）
        //  System.out.println("userService login：" + account+"   "+password);
         User user = userMapper.selectByAccount(cryptoUtil.searchIndex(account), account);
