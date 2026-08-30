@@ -113,6 +113,20 @@
             <version>2.6.0</version>
         </dependency>
 
+ <dependency>
+    <groupId>cn.hutool</groupId>
+    <artifactId>hutool-core</artifactId>
+    <version>5.8.32</version>
+</dependency> 
+<!--  Tomcat 9 → javax，Tomcat 10+ → jakarta。 -->
+<dependency>
+    <groupId>jakarta.servlet</groupId>
+    <artifactId>jakarta.servlet-api</artifactId>
+    <version>6.0.0</version>
+    <scope>provided</scope>
+</dependency>
+
+
     </dependencies>
     <build>
      

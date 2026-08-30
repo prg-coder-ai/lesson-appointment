@@ -10,14 +10,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 @Component
 public class TenantInterceptor implements HandlerInterceptor {
 
     @Autowired
     private TenantService tenantService;
+    @Autowired
+    private JwtUtil jwtUtil;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -29,8 +31,8 @@ public class TenantInterceptor implements HandlerInterceptor {
             return false;
         }
 
-        Long tenantId = JwtUtil.getTenantId(token);
-        Long userId = JwtUtil.getUserId(token);
+        Long tenantId = jwtUtil.getTenantId(token);
+        String userId = jwtUtil.getUserIdFromToken(token);
         if (tenantId == null || userId == null) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json;charset=UTF-8");

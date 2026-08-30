@@ -40,8 +40,7 @@ public class CourseService   {
     private CourseMapper courseMapper;
     @Autowired
     private CourseTemplateMapper courseTemplateMapper;
-  @Autowired
-    private TenantPackageService tenantPackageService;
+
 /**
      * 分页查询课程列表
      * 

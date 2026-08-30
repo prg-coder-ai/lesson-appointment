@@ -74,7 +74,7 @@ public class authController {
             // 租户端登录：先校验租户状态
             Tenant tenant = tenantService.getByCode(tenantCode);
             if (tenant == null || tenant.getStatus() != 1) {
-                return Result.error("租户编码无效或已停用");
+                return Result.fail(403, "租户编码无效或已停用");
             }
             userType = "租户端";
             // 校验租户端用户状态
@@ -83,7 +83,7 @@ public class authController {
           }
 
         // 调用服务层实现登录逻辑，返回userId、name，role、account、Token,freshToken（对应设计2.2.1 登录返回数据）
-        Result<HashMap<String, Object>> rst= userService.login( account, password); //setOnline(false) 
+        Result<HashMap<String, Object>> rst= userService.login( account, password, tenantId); //setOnline(false)
         // 3. 登录成功：设置安全状态（核心步骤） ?token?
         // 封装用户认证信息（角色需和数据库一致，如teacher/student）
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken( 

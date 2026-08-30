@@ -7,12 +7,13 @@
     <property name="LOG_CHARSET"  value="UTF-8"/>
     <property name="LOG_DIR"      value="${LOG_PATH:-./logs}"/>
     <property name="LOG_PATTERN"
-              value="%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level %logger{36} : %msg%n"/>
+              value="%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}  [%X{tenantId}] %-5level %logger{36} : %msg%n"/>
 
     <!-- 1) 控制台 -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder charset="${LOG_CHARSET}">
             <pattern>${LOG_PATTERN}</pattern>
+            
         </encoder>
     </appender>
 

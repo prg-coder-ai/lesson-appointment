@@ -11,6 +11,7 @@ import com.reservation.exception.ResourceNotFoundException;
 import com.reservation.exception.UserNotFoundException;
 import com.reservation.mapper.UserMapper;
 import com.reservation.utils.JwtUtil;
+import com.reservation.utils.TenantContext;
 import com.reservation.utils.CryptoUtil;
 
 
@@ -129,7 +130,9 @@ public class UserService {
          // 返回给前端的是明文 account（解密后的值）
          resultMap.put("account", cryptoUtil.decrypt(user.getAccount()));
          //计算token
-         String token = jwtUtil.generateToken(user.getUserId(), user.getRole());
+         // TBD：注册流程的租户归属（user表增加tenant_id后，此处应取真实租户ID）
+         Long regTenantId = TenantContext.getTenantId() == null ? 0L : TenantContext.getTenantId();
+         String token = jwtUtil.generateToken(regTenantId, user.getUserId(), user.getRole());
          resultMap.put("token", token);
          resultMap.put("role", user.getRole());
                                //data,message
@@ -139,7 +142,7 @@ public class UserService {
     }
  
     // 用户登录（对应设计2.2.1 登录接口）
-    public Result<HashMap<String, Object>> login( String account, String password) {
+    public Result<HashMap<String, Object>> login( String account, String password, Long tenantId) {
         // 查找用户（账号可为手机号/邮箱，对应设计2.2.1 登录接口请求参数）
        //  System.out.println("userService login：" + account+"   "+password);
         User user = userMapper.selectByAccount(cryptoUtil.searchIndex(account), account);
@@ -170,8 +173,8 @@ public class UserService {
              resultMap.put("code", 400);
              return Result.success(resultMap,"账号未审核，请等待管理员审核");   
         }//其它情况--进入相应的页面，若为pendding则等待审核。其他情况，显示正常项目内容。
-        // 生成Token
-        String token = jwtUtil.generateToken(user.getUserId(), user.getRole());
+        // 生成Token（tenantId 由 controller 根据租户编码解析后传入）
+        String token = jwtUtil.generateToken(tenantId, user.getUserId(), user.getRole());
         // 组装返回数据（对应设计2.2.1 登录返回数据）
         resultMap.put("userId", user.getUserId());
         resultMap.put("account", user.getAccount());
@@ -181,7 +184,7 @@ public class UserService {
             
     // 2. 生成双Token
        // String accessToken = jwtUtil.generateAccessToken(account);
-        String refreshToken = jwtUtil.generateRefreshToken(user.getUserId());
+        String refreshToken = jwtUtil.generateRefreshToken(tenantId, user.getUserId());
           resultMap.put("refreshToken", refreshToken);
 
           resultMap.put("code", 200);
