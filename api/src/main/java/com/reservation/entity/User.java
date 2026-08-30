@@ -22,6 +22,8 @@ import java.io.Serializable;
 public class User implements Serializable{
    private static final long serialVersionUID = 1L;
 
+    /** 租户ID（0=平台管理员/历史单租户数据）— SaaS多租户，对应sys_tenant.id */
+    private Long tenantId;
     /** 系统生成唯一标识（UUID），主键 */
     @TableId(type = IdType.ASSIGN_UUID)
     private String userId;

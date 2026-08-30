@@ -10,6 +10,8 @@ import java.util.Date;
 @Data
 public class AuditLog implements Serializable {
     private static final long serialVersionUID = 1L;
+    /** 租户ID（0=平台操作）— SaaS多租户 */
+    private Long tenantId;
     private Long id;
     private String logId;
     private String userId;

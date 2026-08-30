@@ -16,6 +16,8 @@ import java.time.LocalDateTime;
 @Data
 public class AppointmentDTO   implements Serializable{
     private static final long serialVersionUID = 1L;
+    /** 租户ID — SaaS多租户；服务端应以 TenantContext 覆盖，勿信任客户端传值 */
+    private Long tenantId;
     private String id;//顺序自增  系统生成唯一标识（UUID），对应通用校验规则-ID类参数
     private String bookingId;  // 对应的预约Id
     @NotBlank(message = "排期ID不能为空")

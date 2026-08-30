@@ -11,6 +11,8 @@ import java.io.Serializable;
 @Data
 public class CourseTemplate implements Serializable{
     private static final long serialVersionUID = 1L;
+    /** 租户ID（0=平台/历史单租户数据）— SaaS多租户。唯一键改为(tenant_id, language_type, difficulty_level) */
+    private Long tenantId;
     private String templateId;  // 唯一标识
     @NotBlank(message = "语言类型不能为空")
     private String languageType;  // 枚举值（对应教师注册languageType）

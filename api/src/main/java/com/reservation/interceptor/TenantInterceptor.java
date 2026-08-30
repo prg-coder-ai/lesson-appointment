@@ -4,7 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import com.reservation.entity.Tenant;
 import com.reservation.service.TenantService;
 import com.reservation.utils.JwtUtil;
-import com.reservation.utils.TenantContext; 
+import com.reservation.utils.TenantContext;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;

@@ -13,6 +13,8 @@ import java.util.List;
 public class TeacherProfessionalDTO implements Serializable {
     private static final long serialVersionUID = 1L;
 
+    /** 租户ID — SaaS多租户；服务端应以 TenantContext 覆盖，勿信任客户端传值 */
+    private Long tenantId;
     /** 修改时传，新增时为null */
     private String teacherProfessionalId;
 

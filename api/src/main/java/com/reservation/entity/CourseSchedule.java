@@ -15,6 +15,8 @@ import java.io.Serializable;
 public class CourseSchedule implements Serializable {
     private static final long serialVersionUID = 1L;
 
+    /** 租户ID（0=平台/历史单租户数据）— SaaS多租户 */
+    private Long tenantId;
     @TableId(type = IdType.ASSIGN_ID)
     private String scheduleId;
     @NotBlank(message = "课程ID不能为空")

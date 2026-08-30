@@ -7,6 +7,7 @@ import lombok.Data;
 继承通用分页基类，扩展课程专属筛选条件 */
 @Data
 public class TemplateQueryPage extends PageQuery {
+    private Long tenantId;  // 租户ID（精准筛选，SaaS多租户；null=不限）
     private String name;    // 描述（模糊搜索）
     private String languageType;  // 语言类型（精准筛选）
     private String difficultyLevel;//语言难度 （精准筛选）

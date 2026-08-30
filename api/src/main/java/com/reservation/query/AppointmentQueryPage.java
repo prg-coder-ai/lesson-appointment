@@ -8,6 +8,7 @@ import lombok.Data;
  
 @Data
 public class AppointmentQueryPage  extends PageQuery {
+    private Long tenantId;  // 租户ID（精准筛选，SaaS多租户；null=不限）
     private String userId;  //与role+Days查询指定用户的预约 用于用户页面
     private String userRole;     
     private String studentName;// 与days一起查询 用于管理端 TBD

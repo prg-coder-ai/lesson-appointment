@@ -42,6 +42,8 @@ import java.time.LocalDateTime;
 @Data 
  public  class  Appointment    implements Serializable{
     private static final long serialVersionUID = 1L;
+    /** 租户ID（0=平台/历史单租户数据）— SaaS多租户 */
+    private Long tenantId;
       // 主键自增
     @TableId(type = IdType.AUTO)
     private Integer id;//顺序自增  系统生成唯一标识（UUID），对应通用校验规则-ID类参数

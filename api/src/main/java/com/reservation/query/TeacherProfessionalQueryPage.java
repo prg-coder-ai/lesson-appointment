@@ -10,6 +10,9 @@ import lombok.Data;
  */
 @Data
 public class TeacherProfessionalQueryPage extends PageQuery {
+    /** 租户ID（精准筛选，SaaS多租户；null=不限） */
+    private Long tenantId;
+
     /** 精准查询（按教师ID） */
     private String teacherId;
 
