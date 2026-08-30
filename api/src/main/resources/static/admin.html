@@ -175,6 +175,42 @@
       bc.close();
     }, 300);
   }
+
+function loadSideMenu() {
+    const role = localStorage.getItem('userRole');
+    const menuList = document.getElementById('sidebar');
+    
+    let menus = [];
+    
+    if (role === 'platform_admin') {
+        menus = [
+            { icon: 'fa-tachometer-alt', title: '数据概览', key: 'dashboard' },
+            { icon: 'fa-building', title: '租户管理', key: 'tenant' },
+            { icon: 'fa-th-large', title: '套餐管理', key: 'package' },
+            { icon: 'fa-chart-line', title: '运营统计', key: 'statistics' },
+            { icon: 'fa-cog', title: '系统设置', key: 'settings' }
+        ];
+    } else if (role === 'admin') {
+        menus = [
+            { icon: 'fa-tachometer-alt', title: '首页概览', key: 'dashboard' },
+            { icon: 'fa-book-open', title: '课程管理', key: 'course' },
+            { icon: 'fa-chalkboard-teacher', title: '教师管理', key: 'teacher' },
+            { icon: 'fa-user-graduate', title: '学生管理', key: 'student' },
+            { icon: 'fa-calendar-check', title: '预约管理', key: 'reservation' },
+            { icon: 'fa-chart-bar', title: '数据统计', key: 'report' }
+        ];
+    }
+    
+    menuList.innerHTML = menus.map(item => `
+        <li class="menu-item" data-key="${item.key}" onclick="switchMenu('${item.key}')">
+            <i class="fa ${item.icon}"></i>
+            <span>${item.title}</span>
+        </li>
+    `).join('');
+}
+   function switchMenu(key) {
+    loadAdminPageContent(key);
+   }
     // 侧边栏菜单切换逻辑
     // 管理端页面内容加载逻辑（核心修改：渲染到中央区域）
     function loadAdminPageContent(title) {
@@ -312,7 +348,7 @@
           localStorage.setItem('currentUser', cookieUser);
           // 也可考虑刷新时覆盖，直接写入都可
         }
-       
+     
       // 解析用户信息并渲染
       const currentUser = localStorage.getItem('currentUser');
       let user = null;
@@ -341,7 +377,8 @@
      menuItems = document.querySelectorAll('.menu-item');
      pageTitle = document.querySelector('.page-title');
       dynamicContentCenter = document.getElementById('dynamic-content-center');
-    
+      loadSideMenu();//调用菜单，初始化侧边栏--TBD 其他html页面需要调用
+      //TBD check
     menuItems.forEach(item => {
       item.addEventListener('click', function() {
         // 移除所有激活状态
