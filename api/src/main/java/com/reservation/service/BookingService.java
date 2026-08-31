@@ -64,7 +64,7 @@ public class BookingService {
 
     @Transactional(propagation = Propagation.REQUIRED)
     public List<Booking> selectList(BookingQueryParaDTO dto) {
-        return bookingMapper.selectList(dto);
+        return bookingMapper.selectByCondition(dto);
     }
 
     @Transactional(propagation = Propagation.REQUIRED)

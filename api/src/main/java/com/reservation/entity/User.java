@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import com.reservation.common.AtLeastOneNotBlank;
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 
@@ -24,6 +25,16 @@ public class User implements Serializable{
 
     /** 租户ID（0=平台管理员/历史单租户数据）— SaaS多租户，对应sys_tenant.id */
     private Long tenantId;
+
+    /**
+     * 租户编码（仅注册入参使用，非数据库字段）
+     * 自助注册接口在白名单内拿不到租户上下文，需前端携带租户编码来归属租户；
+     * 平台管理员添加用户时同样用它指定目标租户。
+     * 已登录的租户内添加用户场景走 TenantContext，不依赖本字段。
+     */
+    @TableField(exist = false)
+    private String tenantCode;
+
     /** 系统生成唯一标识（UUID），主键 */
     @TableId(type = IdType.ASSIGN_UUID)
     private String userId;
@@ -63,4 +74,12 @@ public class User implements Serializable{
 
     // 账号状态（padding/active/inactive/frozen），对应设计2.2.1 教师注册审核、设计2.2.5 用户管理
     private String status;
+
+    /** 最近活跃时间（在线统计辅助字段） */
+    private java.time.LocalDateTime lastActiveTime;
+
+    /** 创建时间（运营统计：当月新增用户） */
+    private java.time.LocalDateTime createTime;
+
+    private java.time.LocalDateTime updateTime;
 }

@@ -173,7 +173,8 @@
           <label for="register-role">注册身份</label>
           <select id="register-role" required>
             <option value="">请选择身份</option>
-             <option value="admin">管理员</option>
+             <option value="platform-admin">平台管理员</option>
+             <option value="admin">系统管理员</option>
             <option value="teacher"><span data-term="teacher">教师</span></option>
             <option value="student"><span data-term="student">学生</span></option>
           </select>
@@ -304,12 +305,20 @@
       registerNameError.style.display = 'none';
       registerPasswordError.style.display = 'none';
       registerConfirmError.style.display = 'none';
+      tenantError.style.display = 'none';
       registerSuccess.style.display = 'none';
       registerError.style.display = 'none';
 
       // 验证身份
       if (!registerRole.value) {
         registerRoleError.style.display = 'block';
+        isValid = false;
+      }
+
+      // 验证租户编码：后端要求注册时携带，缺失会返回 403
+      if (!tenantCodeInput.value.trim()) {
+        tenantError.textContent = '请输入租户编码';
+        tenantError.style.display = 'block';
         isValid = false;
       }
 
@@ -424,7 +433,7 @@
         // 3. 使用 request 发起 POST：URL 已通过拦截器 baseURL 自动拼接
         //    后端路径：POST /user/{student|teacher}/register
         const resultData = await request({
-          url: `/user/${encodeURIComponent(role)}/register`,
+          url: `/user/register`,
           method: 'POST',
           data: registerInfo,
           customErrorMsg: false // 我们自己统一处理错误信息（400/网络/异常），避免重复弹窗
@@ -534,6 +543,8 @@
       registerBtn.disabled = false;
       registerSuccess.style.display = 'none';
       registerError.style.display = 'none';
+      // 重置后重新套用租户编码规则（恢复 URL 参数或平台默认值）
+      applyTenantCodeRule();
     }
 
     
@@ -575,6 +586,8 @@
 
     // 新增：注册弹窗显示/隐藏
     showRegister.addEventListener('click', () => {
+      // 每次打开都重新套用规则，避免上次选择残留
+      applyTenantCodeRule();
       registerModal.style.display = 'flex';
     });
 
@@ -588,13 +601,45 @@
       resetRegisterForm();
     });
 
-    // 【修改】新增：点击弹窗遮罩层关闭注册弹窗
-    registerModal.addEventListener('click', (e) => {
-      if (e.target === registerModal) {
-        registerModal.style.display = 'none';
-        resetRegisterForm();
+    // 【修改】租户编码规则（注册时归属哪个租户）
+    //   1) 选择「平台管理员」→ 自动填 default 并锁定输入框
+    //   2) 页面 URL 带 ?tcode=xx → 采用该值并锁定（租户专属注册链接）
+    //   3) 其余情况 → 由用户手动填写
+    const tenantCodeInput = document.getElementById('tenant-code');
+    const tenantError = document.getElementById('tenant-error');
+    const PLATFORM_ROLE = 'platform-admin';
+    const DEFAULT_TENANT_CODE = 'default';
+
+    /** 读取 URL 参数 ?tcode=xx */
+    function getTenantCodeFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const tcode = params.get('tcode');
+      return tcode && tcode.trim() ? tcode.trim() : '';
+    }
+    /** 按角色与 URL 参数决定租户编码及其可编辑状态 */
+    function applyTenantCodeRule() {
+      if (registerRole.value === PLATFORM_ROLE) {
+        tenantCodeInput.value = DEFAULT_TENANT_CODE;
+        tenantCodeInput.readOnly = true;
+        return;
       }
-    });
+      const urlCode = getTenantCodeFromUrl();
+      if (urlCode) {
+        tenantCodeInput.value = urlCode;
+        tenantCodeInput.readOnly = true;
+        return;
+      }
+      tenantCodeInput.readOnly = false;
+    }
+
+    // 切换注册身份时重新套用规则
+    registerRole.addEventListener('change', applyTenantCodeRule);
+
+    // 【修改】已移除「点击遮罩层关闭弹窗」逻辑。
+    // 原因：填写过程中有两类操作会让 click 事件落到遮罩层上，导致弹窗被误关闭：
+    //   1) 展开「注册身份」原生下拉框后点选选项；
+    //   2) 在输入框中按住拖选文本、鼠标在弹窗外释放（mousedown 在内、mouseup 在外）。
+    // 现在关闭入口只剩三个明确的用户操作：提交注册成功、点击「取消」、点击右上角关闭。
 
     // 新增：注册表单提交事件
     registerForm.addEventListener('submit', async (e) => {
@@ -642,7 +687,9 @@
   //TBD：添加“自动登录”勾选功能，可以提供自动跳转登录状态
   window.onload = function() {
      //  userInfo = autoLoginCheck() ;
-      //  redirectToUserPage(userInfo);  
+      //  redirectToUserPage(userInfo);
+      // 页面加载时套用租户编码规则：URL 带 ?tcode=xx 时自动填充并锁定
+      applyTenantCodeRule();
   };
   </script>
 </body>

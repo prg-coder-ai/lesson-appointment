@@ -40,6 +40,8 @@ public class CourseService   {
     private CourseMapper courseMapper;
     @Autowired
     private CourseTemplateMapper courseTemplateMapper;
+    @Autowired
+    private TenantQuotaService tenantQuotaService;
 
 /**
      * 分页查询课程列表
@@ -149,14 +151,9 @@ public class CourseService   {
         if (template == null) {
             throw new ResourceNotFoundException("课程模板不存在，请先选择正确的模板");
         }
-         // 校验当前租户课程数量是否超出套餐上限
-      /*TBD 额度判断： int currentCount = courseMapper.selectCount(null);
-        int maxCount = tenantPackageService.getMaxCourseCount(TenantContext.getTenantId());
-        
-        if (currentCount >= maxCount) {
-            throw new BusinessException("课程数量已达套餐上限，请升级套餐后再创建");
-        }
-        */
+        // 校验当前租户课程数量是否超出套餐上限（原子占用，与插入同一事务，失败回滚）
+        Long tenantId = TenantContext.getTenantId();
+        tenantQuotaService.acquire(tenantId, TenantQuotaService.COURSE);
         String courseId = UUID.randomUUID().toString().replace("-", "");
         course.setCourseId(courseId);
         courseMapper.insert(course);
@@ -231,6 +228,10 @@ public class CourseService   {
         log.info("删除课程开始, courseId={}", courseId);
         int rows = courseMapper.deleteById(courseId);
         log.info("删除课程结束, courseId={}, 影响行数={}", courseId, rows);
+        // 释放租户课程额度
+        if (rows > 0) {
+            tenantQuotaService.release(TenantContext.getTenantId(), TenantQuotaService.COURSE, rows);
+        }
         return rows;
     }
    
@@ -263,6 +264,10 @@ public class CourseService   {
         log.info("按模板ID删除课程开始, templateId={}", id);
         int rows = courseMapper.deleteByTemplateId(id);
         log.info("按模板ID删除课程结束, templateId={}, 影响行数={}", id, rows);
+        // 释放租户课程额度
+        if (rows > 0) {
+            tenantQuotaService.release(TenantContext.getTenantId(), TenantQuotaService.COURSE, rows);
+        }
         return rows;
     }
 

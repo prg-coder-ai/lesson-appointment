@@ -5,7 +5,9 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.reservation.common.Result;
 import com.reservation.dto.TeacherPublishedProfileDTO;
 import com.reservation.entity.TeacherPublishedProfile;
+import com.reservation.exception.BusinessException;
 import com.reservation.mapper.TeacherPublishedProfileMapper;
+import com.reservation.utils.TenantContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +21,8 @@ public class TeacherPublishedProfileService {
 
     @Autowired
     private TeacherPublishedProfileMapper mapper;
+    @Autowired
+    private TenantQuotaService tenantQuotaService;
 
     /** 列表：按 teacherId 查所有发布记录（最近更新在前） */
     public Result<List<TeacherPublishedProfile>> listByTeacherId(String teacherId) {
@@ -133,6 +137,13 @@ public class TeacherPublishedProfileService {
         }
 
         if (entity.getPublishedProfileId() == null) {
+            // 新建记录时校验租户的教师信息发布额度（原子占用，与插入同一事务）
+            Long tenantId = TenantContext.getTenantId();
+            try {
+                tenantQuotaService.acquire(tenantId, TenantQuotaService.TEACHER_PUBLISH);
+            } catch (BusinessException e) {
+                return Result.fail(403, e.getMessage());
+            }
             mapper.insert(entity);
         } else {
             mapper.updateById(entity);
@@ -153,6 +164,8 @@ public class TeacherPublishedProfileService {
         entity.setStatus("archived");
         entity.setUpdateTime(LocalDateTime.now());
         mapper.updateById(entity);
+        // 归档后释放租户的教师信息发布额度
+        tenantQuotaService.release(TenantContext.getTenantId(), TenantQuotaService.TEACHER_PUBLISH);
         return Result.success(null, "删除成功");
     }
 

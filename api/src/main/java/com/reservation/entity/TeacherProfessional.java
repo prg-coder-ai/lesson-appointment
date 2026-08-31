@@ -18,6 +18,7 @@ public class TeacherProfessional implements Serializable {
 
     /** 租户ID（0=平台/历史单租户数据）— SaaS多租户 */
     private Long tenantId;
+
     /** 主键UUID */
     @TableId(type = IdType.ASSIGN_UUID)
     private String teacherProfessionalId;

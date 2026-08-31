@@ -213,6 +213,10 @@ const userStr = localStorage.getItem('currentUser');
   if(user && user.role){
   // 根据角色跳转对应页面
   switch(user.role) {
+     case 'platform-Admin': // 平台管理员
+ 
+      window.location.href = './admin.html'; 
+      break;
     case 'admin':
       window.location.href = './admin.html';
       break;

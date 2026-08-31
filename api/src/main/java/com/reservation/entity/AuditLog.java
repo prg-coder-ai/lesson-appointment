@@ -1,13 +1,16 @@
 package com.reservation.entity;
 
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import java.io.Serializable;
 import java.util.Date;
 
 /**
  * 审计日志实体，记录用户业务操作
+ * 对应表 audit_log，新增走 BaseMapper.insert（XML 中不再重复定义 insert）
  */
 @Data
+@TableName("audit_log")
 public class AuditLog implements Serializable {
     private static final long serialVersionUID = 1L;
     /** 租户ID（0=平台操作）— SaaS多租户 */

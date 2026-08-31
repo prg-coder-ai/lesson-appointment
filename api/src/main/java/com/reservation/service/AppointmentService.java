@@ -77,7 +77,7 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
                 BookingQueryParaDTO queryPara = new BookingQueryParaDTO();
                 queryPara.setUserRole(role.toLowerCase());
                 queryPara.setUserId(userId);
-                bookingIdList = bookingMapper.selectList(queryPara).stream()
+                bookingIdList = bookingMapper.selectByCondition(queryPara).stream()
                         .map(Booking::getBookingId)
                         .toList();
             }
@@ -147,7 +147,7 @@ System.out.println(userId + role + startTime + endTime + pageNum + pageSize + st
                 BookingQueryParaDTO queryPara = new BookingQueryParaDTO();
                 queryPara.setUserRole(role.toLowerCase());
                 queryPara.setUserId(userId);
-                bookingIdList = bookingMapper.selectList(queryPara).stream()
+                bookingIdList = bookingMapper.selectByCondition(queryPara).stream()
                         .map(Booking::getBookingId)
                         .toList();
                System.out.println(bookingIdList);         
@@ -203,7 +203,7 @@ System.out.println(userId + role + startTime + endTime + pageNum + pageSize + st
                 BookingQueryParaDTO queryPara = new BookingQueryParaDTO();
                 queryPara.setUserRole(role.toLowerCase());
                 queryPara.setUserId(userId);
-                bookingIdList = bookingMapper.selectList(queryPara).stream()
+                bookingIdList = bookingMapper.selectByCondition(queryPara).stream()
                         .map(Booking::getBookingId)
                         .toList();
             }

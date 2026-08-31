@@ -5,6 +5,7 @@ import com.reservation.query.UserQueryPage;
  
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
+import com.reservation.entity.Tenant;
 import com.reservation.entity.User;  
 import com.reservation.exception.BusinessException;
 import com.reservation.exception.ResourceNotFoundException;
@@ -12,6 +13,7 @@ import com.reservation.exception.UserNotFoundException;
 import com.reservation.mapper.UserMapper;
 import com.reservation.utils.JwtUtil;
 import com.reservation.utils.TenantContext;
+import lombok.extern.slf4j.Slf4j;
 import com.reservation.utils.CryptoUtil;
 
 
@@ -37,6 +39,7 @@ import java.util.UUID;
 /**
  * 用户注册与认证服务，对应设计2.2.1 所有接口的业务逻辑
  */
+@Slf4j
 @Service
 public class UserService {
 
@@ -51,6 +54,12 @@ public class UserService {
 
     @Autowired
     private RefreshTokenService refreshTokenService;
+    @Autowired
+    private TenantService tenantService;
+    @Autowired
+    private TenantQuotaService tenantQuotaService;
+    @Autowired
+    private UserSessionService userSessionService;
 
     // ===================== 字段加密/解密辅助方法 =====================
     // 对 account/phone/email/name 字段做 AES-GCM 加密并附加 HMAC 搜索索引（复合格式 hmac:ciphertext）
@@ -103,22 +112,70 @@ public class UserService {
         return true;
     }
 
+    /**
+     * 按租户编码解析有效租户；编码为空、租户不存在、已删除或已停用均返回 null
+     */
+    private Tenant resolveTenantByCode(String tenantCode) {
+        if (tenantCode == null || tenantCode.isBlank()) {
+            return null;
+        }
+        Tenant tenant = tenantService.getByCode(tenantCode.trim());
+        if (tenant == null
+                || (tenant.getDeleted() != null && tenant.getDeleted() == 1)
+                || !Integer.valueOf(1).equals(tenant.getStatus())) {
+            return null;
+        }
+        return tenant;
+    }
     // 学生注册（对应设计2.2.1 学生注册接口）
     // 注册（对应设计2.2.1 注册接口）
     @Transactional
     public Result< Object> Register(User user) {
         // 校验手机号/邮箱是否已注册（对应业务异常校验）
          System.out.println("input：" + user);
-         if(existAccount(user.getAccount())) {
-            //throw new BusinessException("该账号已注册");
-            Result< Object> rslt = Result.fail(400   ,"该账号已注册，请登录或重置密码");
-            return rslt;
+        Long regTenantId = TenantContext.getTenantId();
+        if (regTenantId == null || regTenantId <= 0) {
+            Tenant tenant = resolveTenantByCode(user.getTenantCode());
+            if (tenant == null) {
+                return Result.fail(403, "租户编码无效或已停用，请检查注册链接");
+            }
+            regTenantId = tenant.getId();
         }
-       
-        // 密码加密（对应设计2.3 安全设计-密码加密）
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        // 生成唯一userId（对应通用校验规则-ID类参数）
-        user.setUserId(UUID.randomUUID().toString());  
+        user.setTenantId(regTenantId);
+
+        // ② 注册接口在白名单内没有租户上下文，这里显式设置，
+        //    否则租户插件按兜底值拼接条件，账号查重与额度统计都会失效
+        TenantContext.setTenantId(regTenantId);
+        try {
+            // ③ 账号查重（租户内唯一，不同租户的账号互不冲突）
+            if (existAccount(user.getAccount())) {
+                return Result.fail(400, "该账号已注册，请登录或重置密码");
+            }
+            // 密码加密（对应设计2.3 安全设计-密码加密）
+            user.setPassword(passwordEncoder.encode(user.getPassword()));
+            // 生成唯一userId（对应通用校验规则-ID类参数）
+            user.setUserId(UUID.randomUUID().toString().replace("-", ""));
+            return doRegister(user, regTenantId);
+        } finally {
+            TenantContext.clear();
+        }
+        }
+
+    /**
+     * 注册主体：额度校验、加密、入库、签发 Token。
+     * 调用前必须已确定租户归属、设置 TenantContext，并完成账号查重。
+     */
+    private Result<Object> doRegister(User user, Long regTenantId) {
+        // 校验租户注册名额：用户总数 + 按角色的教师/学生名额（原子占用，超限直接返回）
+        try {
+            tenantQuotaService.acquire(regTenantId, TenantQuotaService.USER);
+            String role = user.getRole() == null ? "student" : user.getRole();
+            TenantPackageService.QuotaType roleQuota =
+                    "teacher".equals(role) ? TenantQuotaService.TEACHER : TenantQuotaService.STUDENT;
+            tenantQuotaService.acquire(regTenantId, roleQuota);
+        } catch (BusinessException e) {
+            return Result.fail(403, e.getMessage());
+        }
         // 对敏感字段做 AES-GCM 加密 + HMAC 搜索索引后入库
         encryptUserFields(user);
         // 插入数据库
@@ -129,9 +186,7 @@ public class UserService {
          resultMap.put("userId", user.getUserId());
          // 返回给前端的是明文 account（解密后的值）
          resultMap.put("account", cryptoUtil.decrypt(user.getAccount()));
-         //计算token
-         // TBD：注册流程的租户归属（user表增加tenant_id后，此处应取真实租户ID）
-         Long regTenantId = TenantContext.getTenantId() == null ? 0L : TenantContext.getTenantId();
+         //计算token（租户归属已在插入前确定）
          String token = jwtUtil.generateToken(regTenantId, user.getUserId(), user.getRole());
          resultMap.put("token", token);
          resultMap.put("role", user.getRole());
@@ -141,6 +196,19 @@ public class UserService {
         return rslt;
     }
  
+    /**
+     * 存量用户（多租户迁移前创建，tenant_id 为 0/null）首次登录时自动归属到当前租户，
+     * 使存量账号不必停机刷数据即可完成迁移
+     */
+    private void bindUserToTenant(User user, Long tenantId) {
+        if (tenantId == null || tenantId <= 0) {
+            return; // 平台管理员登录不做自动归属
+        }
+        user.setTenantId(tenantId);
+        userMapper.bindTenant(user.getUserId(), tenantId);
+        log.warn("存量用户自动归属租户, userId={}, tenantId={}", user.getUserId(), tenantId);
+    }
+
     // 用户登录（对应设计2.2.1 登录接口）
     public Result<HashMap<String, Object>> login( String account, String password, Long tenantId) {
         // 查找用户（账号可为手机号/邮箱，对应设计2.2.1 登录接口请求参数）
@@ -151,6 +219,19 @@ public class UserService {
           resultMap.put("message", "账号不存在");
           resultMap.put("code", 404);
            return Result.success(resultMap,"账号不存在");
+        }
+        // 校验账号归属：账号必须属于当前请求租户。
+        // 归属不符时返回与"账号不存在"一致的响应，避免据此枚举其他租户的账号
+        Long userTenantId = user.getTenantId();
+        if (userTenantId == null || userTenantId <= 0) {
+            // 存量数据（多租户迁移前创建）尚未归属租户，首次登录时自动绑定到当前租户
+            bindUserToTenant(user, tenantId);
+        } else if (!userTenantId.equals(tenantId)) {
+            log.warn("跨租户登录被拒绝, account={}, 用户所属租户={}, 请求租户={}",
+                    account, userTenantId, tenantId);
+            resultMap.put("message", "账号不存在");
+            resultMap.put("code", 404);
+            return Result.success(resultMap,"账号不存在");
         }
         // 解密敏感字段
         decryptUserFields(user);
@@ -191,9 +272,44 @@ public class UserService {
        
        // 3. 持久化刷新Token到数据库
         refreshTokenService.saveNewToken(user.getUserId(), refreshToken, jwtUtil.getRefreshExpireTime());
-        
+
+        // 4. 记录登录会话（在线统计数据来源）
+        userSessionService.onLogin(token, tenantId, user.getUserId(), user.getRole(),
+                currentRequestIp(), currentRequestUserAgent());
+
       // System.out.println("login ok with account：" +user.getAccount()); 
         return Result.success(resultMap   ,"登陆成功");
+    }
+
+    /**
+     * 取当前请求IP（会话记录用，取不到返回null不影响主流程）
+     */
+    private String currentRequestIp() {
+        try {
+            org.springframework.web.context.request.ServletRequestAttributes attrs =
+                    (org.springframework.web.context.request.ServletRequestAttributes)
+                            org.springframework.web.context.request.RequestContextHolder.getRequestAttributes();
+            if (attrs == null) {
+                return null;
+            }
+            return attrs.getRequest().getRemoteAddr();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String currentRequestUserAgent() {
+        try {
+            org.springframework.web.context.request.ServletRequestAttributes attrs =
+                    (org.springframework.web.context.request.ServletRequestAttributes)
+                            org.springframework.web.context.request.RequestContextHolder.getRequestAttributes();
+            if (attrs == null) {
+                return null;
+            }
+            return attrs.getRequest().getHeader("User-Agent");
+        } catch (Exception e) {
+            return null;
+        }
     }
     public void logout() {
             // 解析Token获取用户信息（对应设计2.3 安全设计-Token）

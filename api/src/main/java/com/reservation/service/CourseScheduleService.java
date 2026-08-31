@@ -10,6 +10,8 @@ import com.reservation.common.ScheduleGenerator;
 import com.reservation.mapper.BookingMapper;
 import com.reservation.query.ScheduleQueryPage;
 import com.reservation.common.PageResult;
+import com.reservation.exception.BusinessException;
+import com.reservation.utils.TenantContext;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.reservation.dto.ScheduleCreateDTO;
 /*import com.reservation.service.AppointmentService;
@@ -42,6 +44,8 @@ public class CourseScheduleService {
     private BookingMapper bookingMapper;
      @Resource
     private AppointmentService appointmentService;
+     @Resource
+    private TenantQuotaService tenantQuotaService;
 
 // 3. 冲突检测：先展开重复规则，检查每个实例是否冲突--TBD：课程+room是否冲突
 // 参数excludeSchid 在修改已存在的排期时，带
@@ -177,6 +181,9 @@ public class CourseScheduleService {
         schedule.setScheduleId( Id);
          //System.out .println("setScheduleId: " + schedule);
          //3-- 检查冲突---由其它程序完成，
+        // 校验当前租户排期数量是否超出套餐上限（原子占用，与插入同一事务）
+        Long tenantId = TenantContext.getTenantId();
+        tenantQuotaService.acquire(tenantId, TenantQuotaService.SCHEDULE);
         // 4. 插入排期
         scheduleMapper.insertSchedule(schedule);
        
@@ -450,6 +457,8 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
             // 删除排期
             scheduleMapper.deleteById(id);
             log.info("删除排期结束, scheduleId={}", id);
+            // 释放租户排期额度
+            tenantQuotaService.release(TenantContext.getTenantId(), TenantQuotaService.SCHEDULE);
             return 1;
       }
     /**
@@ -461,6 +470,10 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
             log.info("按课程ID删除排期开始, courseId={}", courseId);
              int rows=            scheduleMapper.deleteByCourseId(courseId);
             log.info("按课程ID删除排期结束, courseId={}, 影响行数={}", courseId, rows);
+            // 释放租户排期额度（按删除的排期条数）
+            if (rows > 0) {
+                tenantQuotaService.release(TenantContext.getTenantId(), TenantQuotaService.SCHEDULE, rows);
+            }
             return rows;
       }
 

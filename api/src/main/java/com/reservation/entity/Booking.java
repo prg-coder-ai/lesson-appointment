@@ -16,6 +16,7 @@ public class Booking   implements Serializable{
 
     /** 租户ID（0=平台/历史单租户数据）— SaaS多租户 */
     private Long tenantId;
+
     @TableId(type = IdType.ASSIGN_ID)
     private String bookingId;  // 系统生成唯一标识（UUID），对应通用校验规则-ID类参数
     @NotBlank(message = "排期ID不能为空")
