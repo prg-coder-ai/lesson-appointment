@@ -177,32 +177,40 @@
   }
 
 function loadSideMenu() {
-    const role = localStorage.getItem('userRole');
+    // 角色来自登录时写入的 currentUser.role（注意：系统从未写入 userRole 这个 key，旧代码读取恒为 null 导致菜单空白）
+    let role = null;
+    try {
+        const cu = localStorage.getItem('currentUser');
+        role = cu ? (JSON.parse(cu).role) : null;
+    } catch (_) {}
+
     const menuList = document.getElementById('sidebar');
-    
     let menus = [];
-    
+
     if (role === 'platform_admin') {
+        // 平台管理员：跨租户运营视角
         menus = [
-            { icon: 'fa-tachometer-alt', title: '数据概览', key: 'dashboard' },
-            { icon: 'fa-building', title: '租户管理', key: 'tenant' },
-            { icon: 'fa-th-large', title: '套餐管理', key: 'package' },
-            { icon: 'fa-chart-line', title: '运营统计', key: 'statistics' },
-            { icon: 'fa-cog', title: '系统设置', key: 'settings' }
+            { icon: 'fa-tachometer-alt', title: '平台总览' },
+            { icon: 'fa-building', title: '租户管理' },
+            { icon: 'fa-th-large', title: '套餐管理' },
+            { icon: 'fa-chart-line', title: '运营统计' },
+            { icon: 'fa-cog', title: '系统设置' }
         ];
-    } else if (role === 'admin') {
+    } else {
+        // 租户管理员(admin) 及未明确角色时，默认租户侧菜单（课程/教师/学生/预约/统计）
         menus = [
-            { icon: 'fa-tachometer-alt', title: '首页概览', key: 'dashboard' },
-            { icon: 'fa-book-open', title: '课程管理', key: 'course' },
-            { icon: 'fa-chalkboard-teacher', title: '教师管理', key: 'teacher' },
-            { icon: 'fa-user-graduate', title: '学生管理', key: 'student' },
-            { icon: 'fa-calendar-check', title: '预约管理', key: 'reservation' },
-            { icon: 'fa-chart-bar', title: '数据统计', key: 'report' }
+            { icon: 'fa-tachometer-alt', title: '首页概览' },
+            { icon: 'fa-book-open', title: '课程管理' },
+            { icon: 'fa-chalkboard-teacher', title: '教师管理' },
+            { icon: 'fa-user-graduate', title: '学生管理' },
+            { icon: 'fa-calendar-check', title: '预约管理' },
+            { icon: 'fa-chart-bar', title: '数据统计' }
         ];
     }
-    
+
+    // 点击由 window.onload 中统一绑定的监听器处理（loadAdminPageContent(中文标题)），此处不挂 onclick
     menuList.innerHTML = menus.map(item => `
-        <li class="menu-item" data-key="${item.key}" onclick="switchMenu('${item.key}')">
+        <li class="menu-item">
             <i class="fa ${item.icon}"></i>
             <span>${item.title}</span>
         </li>
@@ -226,6 +234,35 @@ function loadSideMenu() {
         title = '数据总览';
       }
       switch(title) {
+        // ===== 平台管理员菜单 =====
+        case "平台总览":
+          if (typeof renderPlatformOverview === 'function') renderPlatformOverview();
+          break;
+        case "租户管理":
+          if (typeof renderTenantCards === 'function') renderTenantCards();
+          break;
+        case "套餐管理":
+          if (typeof renderPackageCards === 'function') renderPackageCards();
+          break;
+        case "运营统计":
+          if (typeof renderStatisticsPage === 'function') renderStatisticsPage();
+          break;
+        case "系统设置":
+          if (typeof renderConfigPage === 'function') renderConfigPage();
+          break;
+        // ===== 租户管理员菜单 =====
+        case "首页概览":
+          refreshOverallpage();
+          break;
+        case "课程管理":
+          if (typeof renderTemplateCards === 'function') renderTemplateCards();
+          break;
+        case "预约管理":
+          if (typeof renderBookingCards === 'function') renderBookingCards();
+          break;
+        case "数据统计":
+          refreshOverallpage();
+          break;
         case "系统日志":
             //openPageInTab('logBrowser.html', 'logBrowser-channel');
             // loadAdminPageContent('数据总览');
@@ -436,6 +473,12 @@ function loadSideMenu() {
     <script src="js/admin-overall.js"></script>
     <script src="js/admin-booking.js"></script>
     <script src="js/admin-AppointmentNotes.js"></script>
+
+    <!-- 平台管理员功能页（租户/套餐/运营统计/系统设置） -->
+    <script src="js/admin-tenant.js"></script>
+    <script src="js/admin-package.js"></script>
+    <script src="js/admin-dashboard.js"></script>
+    <script src="js/admin-config.js"></script>
 
     <script src="js/admin-dataMaintainPage.js"></script>
     <script src="js/test/testData.js"></script>

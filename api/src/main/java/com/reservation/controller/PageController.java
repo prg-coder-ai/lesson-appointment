@@ -16,6 +16,7 @@ public class PageController {
      */
     @GetMapping("/booking")
     public String bookingPage() {
+        // booking.html 在 templates/，已加入 static-locations，作为静态资源由 /booking.html 提供
         return "forward:/booking.html";
     }
 }

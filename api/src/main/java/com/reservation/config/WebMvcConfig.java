@@ -21,7 +21,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
             "/admin.html", "/student.html", "/teacher.html",
             "/teacherInfo.html", "/teacherPublishedProfile.html",
             "/logBrowser.html", "/auditLog.html",
-            "/booking",
+            "/booking", "/booking.html",
             "/teacher/published/latest-public",
             "/teacher/published/public-get",
             "/schedule/getAvailableSchedule",

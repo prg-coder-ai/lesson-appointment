@@ -192,7 +192,9 @@ public class IndexController {
     @GetMapping({"","/","/login"})
     // @ResponseBody
     public String Index() {
-        // 跳转到templates/index.html页面（无需传参，JS将通过API请求数据） 
+        // 跳转到 templates/index.html 页面
+        // 注：templates/ 已加入 spring.web.resources.static-locations，
+        // 故 /index.html 与 / 均可作为静态资源直接访问（无需模板引擎）
         return "index.html";
     }
     
