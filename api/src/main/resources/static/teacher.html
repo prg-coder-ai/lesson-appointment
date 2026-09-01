@@ -42,18 +42,18 @@
     <!-- 侧边栏 -->
     <aside class="sidebar"> 
       <div class="menu-group-title">我的工作台</div>
-      <div class="menu-item">
+      <div class="menu-item" key="today_course">
         <i class="fa fa-home"></i>
         <span>今日<span data-term="course">课程</span></span>
       </div>  
 
       <div class="menu-group-title"><span data-term="course">课程</span>管理</div>
-      <div class="menu-item">
+      <div class="menu-item" key="my_course">
         <i class="fa fa-book"></i>
         <span>我的<span data-term="course">课程</span></span>
       </div>
       <div class="menu-group-title">预订<span data-term="course">课程</span></div>
-      <div class="menu-item">
+      <div class="menu-item" key="booking_manage">
         <i class="fa fa-calendar"></i>
         <span>预订管理</span>
       </div>
@@ -97,7 +97,7 @@
     const menuItems = document.querySelectorAll('.menu-item');
     const pageTitle = document.querySelector('.page-title');
     const dynamicContent = document.getElementById('dynamic-content-center'); // 指向正确的容器
-    let currentMenuitem = '今日课程';
+    let currentMenuitem = 'today_course';
 
     // 页面初始化：加载默认的"我的工作台"内容
     window.onload = function() {
@@ -141,46 +141,43 @@
         const titleText = this.querySelector('span').textContent;
         pageTitle.textContent = titleText;
         
-        // 加载对应页面内容
-        loadAdminPageContent(titleText); 
-      
+        // 按 menu-item 的 key 属性加载对应内容
+        loadAdminPageContent(this.getAttribute('key'));
+
       });
     });
 
     // 教师端页面内容加载逻辑（核心修复：指向正确的动态容器）
-    function loadAdminPageContent(menuName) {
-      // 菜单文字可能已被行业术语替换（如"今日课程"→"今日咨询话题"），
-      // 归一化回锚点词后再匹配 switch，保证任何行业下导航都命中
-      menuName = normalizeTermText(menuName);
+    function loadAdminPageContent(key) {
       // 清空原有内容
       dynamicContent.innerHTML = '';
-      if(menuName=="") {
-         menuName =currentMenuitem;// '我的工作台';
+      if (typeof key === 'undefined' || key === null || (typeof key === 'string' && key.trim() === '')) {
+         key = currentMenuitem;// '今日课程'
       }
-      currentMenuitem = menuName;
-      switch(menuName) {
-        case '今日课程': 
+      currentMenuitem = key;
+      switch(key) {
+        case 'today_course':
            refreshAppointmentNotes( );//reused with "admin-appointmentNotes.js"
            
           //refreshOnedayAppointmentNotesForTeacher("oneday-appointment-teacher"); 
           break;
-        case '我的课程':
+        case 'my_course':
           // 操作按钮事件 --checkout----set online =false TBD 
            // 兼容性 fallback: 尝试直接渲染（首次页面加载时）
           renderTeacherCourseAndScheduleBrowserCards(); //TeacherCourseAndScheduleBrowserCards.js
   
           break;
-          case '课程通知': //列出7日课程内， 显示课程名称、教师、学生、时间、课程状态，操作：发送通知1、2、3           
+          case 'course_notice': //列出7日课程内， 显示课程名称、教师、学生、时间、课程状态，操作：发送通知1、2、3           
           // 渲染数据总览面板
           refreshAppointmentNotes( );//as upper 
           
             break;
-        case '预订管理': //booking
+        case 'booking_manage': //booking
           //  renderTeacherBookingandAppointmentBrowserCards();  
          // 
           renderStudentBookingBrowserCards(); //StudentBookingBrowserCards.js
           break;
-        case '学生评价':
+        case 'student_review':
           dynamicContent.innerHTML = `
             <div class="card">
               <h3 style="padding: 16px 20px; margin: 0; border-bottom: 1px solid var(--border-color);">最新评价</h3>
@@ -205,7 +202,7 @@
             </div>
           `;
           break;
-        case '个人中心':
+        case 'profile':
           dynamicContent.innerHTML = `
             <div class="card">
               <h3 style="padding: 16px 20px; margin: 0; border-bottom: 1px solid var(--border-color);">个人信息</h3>

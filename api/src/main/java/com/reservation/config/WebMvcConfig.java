@@ -18,7 +18,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
      */
     private static final String[] EXCLUDE_PATTERNS = {
             "/", "/index", "/index.html",
-            "/admin.html", "/student.html", "/teacher.html",
+            "/admin.html", "/platform_admin.html", "/student.html", "/teacher.html",
             "/teacherInfo.html", "/teacherPublishedProfile.html",
             "/logBrowser.html", "/auditLog.html",
             "/booking", "/booking.html",

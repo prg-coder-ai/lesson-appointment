@@ -34,7 +34,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     /** 无需认证即可匿名访问的路径（与 SecurityConfig 白名单保持一致） */
     private static final Set<String> WHITELIST_PATHS = Set.of(
             "/", "/index", "/index.html",
-            "/admin.html", "/student.html", "/teacher.html",
+            "/admin.html", "/platform_admin.html", "/student.html", "/teacher.html",
             "/teacherInfo.html", "/teacherPublishedProfile.html",
             "/logBrowser.html",
             "/auditLog.html",

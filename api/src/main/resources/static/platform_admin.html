@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>语言教学预约系统 - 平台管理端</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+  <!-- 引入管理端全局样式 -->
+  <link rel="stylesheet" href="css/admin.css">
+  <!-- 引入图标库 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <style>
+    /* 平台管理端布局与 admin.html 保持一致 */
+  </style>
+</head>
+<body>
+  <!-- 头部区域 -->
+  <header class="header">
+    <div class="logo">
+      <img src="/images/admin_icon.jpg" alt="平台管理端logo">
+      <span class="logo-text">语言教学预约系统（平台管理端）</span>
+    </div>
+    <!-- 头部操作区 - 退出按钮 -->
+    <div class="header-actions">
+      <div class="user-info" id="user_info">
+        <div class="avatar" id="avatar">P</div>
+        <span class="user-name" id="user-name">Platform</span>
+      </div>
+      <button class="btn btn-default" style="padding: 6px 12px;" onclick="handleLogout()">
+        <i class="fa fa-sign-out-alt"></i> 退出
+      </button>
+    </div>
+  </header>
+
+  <!-- 布局容器 -->
+  <div class="layout-container">
+    <!-- 侧边栏（菜单由 loadSideMenu 按平台管理员角色渲染） -->
+    <aside class="sidebar">
+      <div class="menu-group">
+        <div class="menu-group-title">平台运营</div>
+        <div class="menu-item" key="overview">
+          <i class="fa fa-tachometer-alt"></i>
+          <span>平台总览</span>
+        </div>
+        <div class="menu-item" key="tenant">
+          <i class="fa fa-building"></i>
+          <span>租户管理</span>
+        </div>
+        <div class="menu-item" key="package">
+          <i class="fa fa-th-large"></i>
+          <span>套餐管理</span>
+        </div>
+        <div class="menu-item" key="statistics">
+          <i class="fa fa-chart-line"></i>
+          <span>运营统计</span>
+        </div>
+        <div class="menu-item" key="config">
+          <i class="fa fa-cog"></i>
+          <span>系统设置</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 主内容容器（包含标题和中央动态区域） -->
+    <div class="content-wrapper">
+      <!-- 页面标题 -->
+      <div class="content-header">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <h1 class="page-title" style="margin: 0;">平台总览</h1>
+          <button class="btn btn-primary" onclick='refreshRightPage()'><i class="fa fa-refresh"></i> 刷新</button>
+        </div>
+      </div>
+
+      <!-- 动态内容中央区域 -->
+      <div id="dynamic-content-center" class="dynamic-content-center">
+      </div>
+  </div>
+
+  <!-- JavaScript交互逻辑 -->
+  <script>
+  /**
+   * 平台管理端菜单：固定为平台管理员视角（本页仅平台管理员可进入）
+   * 菜单项已在 HTML 中以 menu-item(key=...) 静态声明，无需 loadSideMenu 动态渲染
+   */
+  function switchMenu(key) {
+    loadAdminPageContent(key);
+  }
+
+  // 平台管理端页面内容加载逻辑（仅平台功能，按 menu-item 的 key 分支）
+  function loadAdminPageContent(key) {
+    const dynamicContentCenter = document.getElementById('dynamic-content-center');
+    if (dynamicContentCenter) dynamicContentCenter.innerHTML = '';
+    if (typeof key === 'undefined' || key === null || (typeof key === 'string' && key.trim() === '')) {
+      key = 'overview';
+    }
+    switch(key) {
+      case "overview":
+        if (typeof renderPlatformOverview === 'function') renderPlatformOverview();
+        break;
+      case "tenant":
+        if (typeof renderTenantCards === 'function') renderTenantCards();
+        break;
+      case "package":
+        if (typeof renderPackageCards === 'function') renderPackageCards();
+        break;
+      case "statistics":
+        if (typeof renderStatisticsPage === 'function') renderStatisticsPage();
+        break;
+      case "config":
+        if (typeof renderConfigPage === 'function') renderConfigPage();
+        break;
+      default:
+        if (typeof renderPlatformOverview === 'function') renderPlatformOverview();
+    }
+  }
+
+  let menuItems = [];
+  let pageTitle = "";
+  let dynamicContentCenter = null;
+
+  // 页面加载时验证登录状态
+  window.onload = function() {
+    // 从 cookie 读回 currentUser，避免刷新丢失状态
+    function getCookie(name) {
+      const matches = document.cookie.match(
+        new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()[\]\\/+^])/g, '\\$1') + '=([^;]*)')
+      );
+      return matches ? decodeURIComponent(matches[1]) : undefined;
+    }
+    const cookieUser = getCookie('currentUser');
+    if (cookieUser && !localStorage.getItem('currentUser')) {
+      localStorage.setItem('currentUser', cookieUser);
+    }
+
+    const currentUser = localStorage.getItem('currentUser');
+    let user = null;
+    try { user = currentUser ? JSON.parse(currentUser) : null; } catch(_) { user = null; }
+
+    // 未登录或登录信息不完整 → 保存来源页后跳登录页
+    if (!user || !user.userId || !user.role) {
+      if (typeof window.saveLoginRedirect === 'function') {
+        window.saveLoginRedirect('noauth');
+      }
+      location.href = './index.html';
+      return;
+    }
+
+    // 平台管理端仅允许平台管理员进入，其它角色回退到各自首页
+    if (user.role !== 'platform_admin') {
+      if (typeof window.redirectToUserPage === 'function') {
+        window.redirectToUserPage(user);
+      } else {
+        location.href = './index.html';
+      }
+      return;
+    }
+
+    if (user.name) {
+      document.getElementById('avatar').innerHTML = user.name.length > 0 ? user.name[0] : 'P';
+      document.getElementById('user-name').innerHTML = user.name;
+    }
+
+    menuItems = document.querySelectorAll('.menu-item');
+    pageTitle = document.querySelector('.page-title');
+    dynamicContentCenter = document.getElementById('dynamic-content-center');
+    menuItems.forEach(item => {
+      item.addEventListener('click', function() {
+        menuItems.forEach(menu => menu.classList.remove('active'));
+        this.classList.add('active');
+        const titleText = this.querySelector('span').textContent;
+        pageTitle.textContent = titleText;
+        loadAdminPageContent(this.getAttribute('key'));
+      });
+    });
+
+    // 默认加载第一个菜单（平台总览）
+    if (menuItems.length) {
+      menuItems[0].classList.add('active');
+      loadAdminPageContent(menuItems[0].getAttribute('key'));
+    } else {
+      loadAdminPageContent('overview');
+    }
+    addChangePasswordButton();
+  };
+  </script>
+
+  <!-- 公共脚本（提供 request / token / 术语归一化 / 退出等全局能力） -->
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="js/public/terms.js"></script>
+  <script src="js/public/termsFunction.js"></script>
+  <script src="js/public/utility_request.js"></script>
+  <script src="js/public/auth.js"></script>
+  <script src="js/public/api.js"></script>
+  <script src="js/public/dataFunctions.js"></script>
+  <script src="js/public/courseAndBooking.js"></script>
+  <script src="js/public/appointmentNotes.js"></script>
+
+  <!-- 平台管理员功能页（租户 / 套餐 / 运营统计 / 系统设置） -->
+  <script src="js/admin-tenant.js"></script>
+  <script src="js/admin-package.js"></script>
+  <script src="js/admin-dashboard.js"></script>
+  <script src="js/admin-config.js"></script>
+
+  <script>
+    console.log("platform_admin.html loaded");
+  </script>
+</body>
+</html>

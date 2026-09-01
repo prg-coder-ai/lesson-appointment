@@ -40,23 +40,23 @@
     <!-- 侧边栏 -->
     <aside class="sidebar">
       <div class="menu-group-title">我的工作台</div>
-      <div class="menu-item" data-menu="今日课程">
+      <div class="menu-item" key="today_course">
         <i class="fa fa-home"></i>
         <span>今日<span data-term="course">课程</span></span>
       </div>
-      <div class="menu-item" data-menu="课程预订">
+      <div class="menu-item" key="booking">
         <i class="fa fa-calendar-plus"></i>
         <span><span data-term="course">课程</span>预订</span>
       </div>
-      <div class="menu-item" data-menu="我的预订">
+      <div class="menu-item" key="my_booking">
         <i class="fa fa-list-alt"></i>
         <span>我的预订</span>
       </div>
-      <!-- <div class="menu-item" data-menu="课程评价">
+      <!-- <div class="menu-item" key="course_review">
         <i class="fa fa-star-half-o"></i>
         <span><span data-term="course">课程</span>评价</span>
       </div>
-      <div class="menu-item" data-menu="个人中心">
+      <div class="menu-item" key="profile">
         <i class="fa fa-user"></i>
         <span>个人中心</span>
       </div> -->
@@ -114,11 +114,11 @@
     const menuItems = document.querySelectorAll('.menu-item');
     const pageTitle = document.querySelector('.page-title');
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
-    let currentMenuitem = '今日课程';
+    let currentMenuitem = 'today_course';
 
     /*function syncActiveMenu(menuName) {
       menuItems.forEach(menu => {
-        menu.classList.toggle('active', menu.getAttribute('data-menu') === menuName);
+        menu.classList.toggle('active', menu.getAttribute('key') === menuName);
       });
     }
       */
@@ -155,11 +155,11 @@
       if (dlScdid || dlTid) {
         window.pendingDeepLink = { scdid: dlScdid, tid: dlTid, sid: dlSid };
         // 直接跳到"课程预订"菜单，不走默认的"今日课程"
-        currentMenuitem = '课程预订';
+        currentMenuitem = 'booking';
         pageTitle.textContent = '课程预订';
-        // 同步侧边栏菜单高亮（student 菜单走 data-menu 属性，不受术语切换影响）
+        // 同步侧边栏菜单高亮（按 key 属性）
         menuItems.forEach(function(menu) {
-          menu.classList.toggle('active', menu.getAttribute('data-menu') === '课程预订');
+          menu.classList.toggle('active', menu.getAttribute('key') === 'booking');
         });
       }
 
@@ -175,26 +175,25 @@
         menuItems.forEach(menu => menu.classList.remove('active'));
         // 为当前点击项添加激活状态
         this.classList.add('active');
-        // 获取菜单名称（通过data属性，更稳定）
-        const menuName = this.getAttribute('data-menu');
         // 更新页面标题
-        pageTitle.textContent = menuName;
-        // 加载对应页面内容
-        loadAdminPageContent(menuName);
+        const titleText = this.querySelector('span').textContent;
+        pageTitle.textContent = titleText;
+        // 按 menu-item 的 key 属性加载对应内容
+        loadAdminPageContent(this.getAttribute('key'));
       });
     });
 
     // 2. 页面内容加载函数（统一管理所有菜单内容）
-    function loadAdminPageContent(menuName) {
+    function loadAdminPageContent(key) {
       // 清空原有内容
       dynamicContentCenter.innerHTML = '';
-      if(menuName=="") {
-         menuName =currentMenuitem;// '我的工作台';
+      if (typeof key === 'undefined' || key === null || (typeof key === 'string' && key.trim() === '')) {
+         key = currentMenuitem;// '今日课程'
       }
-      currentMenuitem = menuName;
-      // 根据菜单名称加载对应内容
-      switch(menuName) {
-        case '今日课程':
+      currentMenuitem = key;
+      // 根据菜单 key 加载对应内容
+      switch(key) {
+        case 'today_course':
            refreshAppointmentNotes( );//TBD "admin"
       /*
         dynamicContentCenter.innerHTML = `
@@ -222,16 +221,16 @@
              refreshAppointmentNotesForStudent("days-appointment-student" );
 */
            break;
-        case '课程预订': 
+        case 'booking': 
               renderStudentBookingCards(); 
           break;
           
-        case '我的预订': 
+        case 'my_booking': 
             renderStudentBookingBrowserCards(); //StudentBookingBrowserCards
             
           break;
           
-        case '课程评价':
+        case 'course_review':
           dynamicContentCenter.innerHTML = `
             <div class="card" id="evaluation-card">
               <h3><i class="fa fa-star-half-o"></i> 我的<span data-term="course">课程</span>评价0待完成</h3>
@@ -263,7 +262,7 @@
           `;
           break;
           
-        case '个人中心':
+        case 'profile':
           dynamicContentCenter.innerHTML = `
             <div class="card">
               <h3>个人信息 待完成</h3>

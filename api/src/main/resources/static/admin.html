@@ -71,32 +71,32 @@
     <aside class="sidebar">
       <div class="menu-group">
         <div class="menu-group-title">系统概览</div>
-        <div class="menu-item">
+        <div class="menu-item" key="overview">
           <i class="fa fa-tachometer-alt"></i>
           <span>数据总览</span>
         </div>
       </div>
     <div class="menu-group-title">排期与预订</div>
-        <div class="menu-item">
+        <div class="menu-item" key="schedule">
           <i class="fa fa-book-open"></i>
           <span><span data-term="course">课程</span>排期</span>
         </div>
-        <div class="menu-item">
+        <div class="menu-item" key="booking_audit">
           <i class="fa fa-calendar-alt"></i>
           <span>预订审核</span>
         </div>
         <div class="menu-group-title">预约检视</div>
-        <div class="menu-item">
+        <div class="menu-item" key="lesson_notice">
           <i class="fa fa-calendar-alt"></i>
           <span><span data-term="lesson">上课</span>通知</span>
         </div> 
       <div class="menu-group">
         <div class="menu-group-title">用户管理</div>
-        <div class="menu-item">
+        <div class="menu-item" key="teacher">
           <i class="fa fa-chalkboard-teacher"></i>
           <span><span data-term="teacher">教师</span>管理</span>
         </div>
-        <div class="menu-item">
+        <div class="menu-item" key="student">
           <i class="fa fa-user-graduate"></i>
           <span><span data-term="student">学生</span>管理</span>
         </div>
@@ -104,30 +104,30 @@
 
       <div class="menu-group">
         <div class="menu-group-title"><span data-term="course">课程</span>管理</div>
-        <div class="menu-item">
+        <div class="menu-item" key="course_template">
           <i class="fa fa-book-open"></i>
           <span><span data-term="course">课程</span>模板</span>
         </div>
-        <div class="menu-item">
+        <div class="menu-item" key="course_list">
           <i class="fa fa-book-open"></i>
           <span><span data-term="course">课程</span>列表</span>
         </div> 
       
       <div class="menu-group">
         <div class="menu-group-title">系统维护</div>
-        <div class="menu-item">
+        <div class="menu-item" key="data_maintain">
           <i class="fa fa-cog"></i>
           <span>数据维护</span>
         </div>
-         <div class="menu-item">
+         <div class="menu-item" key="test_data">
           <i class="fa fa-calendar-alt"></i>
           <span>测试-批量创建数据</span>
         </div>
-        <div class="menu-item">
+        <div class="menu-item" key="sys_log">
           <i class="fa fa-file-alt"></i>
           <span>系统日志</span>
         </div> 
-         <div class="menu-item">
+         <div class="menu-item" key="audit_log">
           <i class="fa fa-file-alt"></i>
           <span>操作审计</span>
         </div>
@@ -176,151 +176,60 @@
     }, 300);
   }
 
-function loadSideMenu() {
-    // 角色来自登录时写入的 currentUser.role（注意：系统从未写入 userRole 这个 key，旧代码读取恒为 null 导致菜单空白）
-    let role = null;
-    try {
-        const cu = localStorage.getItem('currentUser');
-        role = cu ? (JSON.parse(cu).role) : null;
-    } catch (_) {}
-
-    const menuList = document.getElementById('sidebar');
-    let menus = [];
-
-    if (role === 'platform_admin') {
-        // 平台管理员：跨租户运营视角
-        menus = [
-            { icon: 'fa-tachometer-alt', title: '平台总览' },
-            { icon: 'fa-building', title: '租户管理' },
-            { icon: 'fa-th-large', title: '套餐管理' },
-            { icon: 'fa-chart-line', title: '运营统计' },
-            { icon: 'fa-cog', title: '系统设置' }
-        ];
-    } else {
-        // 租户管理员(admin) 及未明确角色时，默认租户侧菜单（课程/教师/学生/预约/统计）
-        menus = [
-            { icon: 'fa-tachometer-alt', title: '首页概览' },
-            { icon: 'fa-book-open', title: '课程管理' },
-            { icon: 'fa-chalkboard-teacher', title: '教师管理' },
-            { icon: 'fa-user-graduate', title: '学生管理' },
-            { icon: 'fa-calendar-check', title: '预约管理' },
-            { icon: 'fa-chart-bar', title: '数据统计' }
-        ];
-    }
-
-    // 点击由 window.onload 中统一绑定的监听器处理（loadAdminPageContent(中文标题)），此处不挂 onclick
-    menuList.innerHTML = menus.map(item => `
-        <li class="menu-item">
-            <i class="fa ${item.icon}"></i>
-            <span>${item.title}</span>
-        </li>
-    `).join('');
-}
    function switchMenu(key) {
     loadAdminPageContent(key);
    }
     // 侧边栏菜单切换逻辑
     // 管理端页面内容加载逻辑（核心修改：渲染到中央区域）
-    function loadAdminPageContent(title) {
-      // 菜单文字可能已被行业术语替换（如"课程排期"→"咨询话题排期"），
-      // 归一化回锚点词后再匹配 switch，保证任何行业下导航都命中
-      title = normalizeTermText(title);
+    function loadAdminPageContent(key) {
       // 清空中央内容区
       dynamicContentCenter = document.getElementById('dynamic-content-center');
       if(dynamicContentCenter)
       dynamicContentCenter.innerHTML = '';
-      // 如果 title 没有定义或者为空，则强制为“数据总览”
-      if (typeof title === 'undefined' || title === null || (typeof title === 'string' && title.trim() === '')) {
-        title = '数据总览';
+      // 如果 key 没有定义或者为空，则默认加载“数据总览”
+      if (typeof key === 'undefined' || key === null || (typeof key === 'string' && key.trim() === '')) {
+        key = 'overview';
       }
-      switch(title) {
-        // ===== 平台管理员菜单 =====
-        case "平台总览":
-          if (typeof renderPlatformOverview === 'function') renderPlatformOverview();
-          break;
-        case "租户管理":
-          if (typeof renderTenantCards === 'function') renderTenantCards();
-          break;
-        case "套餐管理":
-          if (typeof renderPackageCards === 'function') renderPackageCards();
-          break;
-        case "运营统计":
-          if (typeof renderStatisticsPage === 'function') renderStatisticsPage();
-          break;
-        case "系统设置":
-          if (typeof renderConfigPage === 'function') renderConfigPage();
-          break;
-        // ===== 租户管理员菜单 =====
-        case "首页概览":
-          refreshOverallpage();
-          break;
-        case "课程管理":
-          if (typeof renderTemplateCards === 'function') renderTemplateCards();
-          break;
-        case "预约管理":
-          if (typeof renderBookingCards === 'function') renderBookingCards();
-          break;
-        case "数据统计":
-          refreshOverallpage();
-          break;
-        case "系统日志":
-            //openPageInTab('logBrowser.html', 'logBrowser-channel');
-            // loadAdminPageContent('数据总览');
-             window.location.href = `./logBrowser.html`;
-        break;
-        case "操作审计":
-           // openPageInTab('auditLog.html', 'auditLog-channel'); 
-           //loadAdminPageContent('数据总览');
-           window.location.href = `./auditLog.html`;
-        break;
-        case "数据维护":
-          // dynamicContentCenter.innerHTML = 
-            renderDatamaintainCards();
-              break;
-        case "测试-批量创建数据":
-             dynamicContentCenter.innerHTML = makeTestPage();
-        break;
-        case '数据总览':
+      switch(key) {
+        // ===== 租户管理员菜单（按 menu-item 的 key 字段分支） =====
+        case "overview":
           refreshOverallpage();//admin-overall.js
-        
           break;
-        
-        case '教师管理':
-            // 操作按钮事件 --checkout----set online =false TBD 
-            //console .log("window.loadAdminPageContent", window.loadAdminPageContent);           
-            renderTeacherCards("teacher");//admin-user.js
+        case "course_template":
+          if (typeof renderTemplateCards === 'function') renderTemplateCards();//admin-template.js
           break;
-          
-        // 分析：本块逻辑用于根据导航栏点击选择，切换到“学生管理”页面时加载不同内容
-        case '学生管理':
-          
-            renderTeacherCards("student"); // renderStudentCards();//admin-user.js
-          // 跳出switch
+        case "booking_audit":
+          if (typeof renderBookingCards === 'function') renderBookingCards();//admin-booking.js 预订审核
           break;
-   
-         case '课程模板':             
-            renderTemplateCards();//admin-template.js
-            break;
-        case '课程列表':
-          //console .log("course...");
+        case "teacher":
+          renderTeacherCards("teacher");//admin-user.js
+          break;
+        case "student":
+          renderTeacherCards("student");//admin-user.js
+          break;
+        case "course_list":
           renderCourseCards();//admin-course.js
-          break;//课程排期
-        
-          
-        case '课程排期':
-          //console .log("ScheduleCards...课程排期");
-            renderScheduleCards();//admin-course-schedule.js
-          break;//课程排期
-        case '预订审核'://TBD
-          //provingBooking();//admin-provingBooking.js
-          renderBookingCards();//admin-provingBooking.js 预订审核
           break;
-          case '上课通知': //列出3日课程内， 显示课程名称、教师、学生、时间、课程状态，操作：发送通知1、2、3           
-                       refreshAppointmentNotes( );//TBD "admin"//admin-AppointmentNotes.js  上课通知  
-            break;  
-        
-        case '基础配置':
-        if(dynamicContentCenter)
+        case "schedule":
+          renderScheduleCards();//admin-course-schedule.js 课程排期
+          break;
+        case "lesson_notice":
+          refreshAppointmentNotes();//admin-AppointmentNotes.js 上课通知
+          break;
+        case "data_maintain":
+          renderDatamaintainCards();
+          break;
+        case "test_data":
+          if(dynamicContentCenter) dynamicContentCenter.innerHTML = makeTestPage();
+          break;
+        case "sys_log":
+          window.location.href = `./logBrowser.html`;
+          break;
+        case "audit_log":
+          window.location.href = `./auditLog.html`;
+          break;
+        case "base_config":
+          if(dynamicContentCenter)
           dynamicContentCenter.innerHTML = `
             <div class="card">
               <div class="card-header">
@@ -350,7 +259,6 @@ function loadSideMenu() {
             </div>
           `;
           break;
-          
       }
     }
     
@@ -414,20 +322,18 @@ function loadSideMenu() {
      menuItems = document.querySelectorAll('.menu-item');
      pageTitle = document.querySelector('.page-title');
       dynamicContentCenter = document.getElementById('dynamic-content-center');
-      loadSideMenu();//调用菜单，初始化侧边栏--TBD 其他html页面需要调用
-      //TBD check
+    // 菜单已在 HTML 中以 menu-item(key=...) 静态声明，无需 loadSideMenu 动态渲染
     menuItems.forEach(item => {
       item.addEventListener('click', function() {
         // 移除所有激活状态
         menuItems.forEach(menu => menu.classList.remove('active'));
         // 为当前点击项添加激活状态
         this.classList.add('active');
-        // 更新页面标题
+        // 更新页面标题（仍用菜单显示文字）
         const titleText = this.querySelector('span').textContent;
         pageTitle.textContent = titleText;
-      //  console.log(" click  titleText ",titleText);
-        // 加载对应页面内容到中央区域
-        loadAdminPageContent(titleText);
+        // 按 menu-item 的 key 属性加载对应内容
+        loadAdminPageContent(this.getAttribute('key'));
       });
     });
 
@@ -440,14 +346,20 @@ function loadSideMenu() {
       window.pendingDeepLink = { scdid: dlScdid, sid: dlSid };
       // 直接跳到"课程排期"菜单
       pageTitle.textContent = '课程排期';
-      // 同步菜单高亮
+      // 同步菜单高亮（按 key 匹配）
       menuItems.forEach(function(menu) {
-        var menuText = menu.querySelector('span') ? menu.querySelector('span').textContent : '';
-        menu.classList.toggle('active', normalizeTermText(menuText) === '课程排期');
+        menu.classList.toggle('active', menu.getAttribute('key') === 'schedule');
       });
+      loadAdminPageContent('schedule');
+    } else {
+      // 默认加载第一个菜单（数据总览）
+      if (menuItems.length) {
+        menuItems[0].classList.add('active');
+        loadAdminPageContent(menuItems[0].getAttribute('key'));
+      } else {
+        loadAdminPageContent('overview');
+      }
     }
-
-    loadAdminPageContent(pageTitle.textContent);
     addChangePasswordButton();
 
     };
@@ -473,12 +385,6 @@ function loadSideMenu() {
     <script src="js/admin-overall.js"></script>
     <script src="js/admin-booking.js"></script>
     <script src="js/admin-AppointmentNotes.js"></script>
-
-    <!-- 平台管理员功能页（租户/套餐/运营统计/系统设置） -->
-    <script src="js/admin-tenant.js"></script>
-    <script src="js/admin-package.js"></script>
-    <script src="js/admin-dashboard.js"></script>
-    <script src="js/admin-config.js"></script>
 
     <script src="js/admin-dataMaintainPage.js"></script>
     <script src="js/test/testData.js"></script>

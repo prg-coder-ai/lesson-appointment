@@ -52,6 +52,7 @@ public class SecurityConfig {
                                 "/index",
                                 "/index.html",
                                 "/admin.html",
+                                "/platform_admin.html",
                                 "/student.html",
                                 "/teacher.html",
                                 "/teacherInfo.html",

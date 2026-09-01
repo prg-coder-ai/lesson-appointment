@@ -760,7 +760,9 @@
         registerSuccess.style.display = 'block';
         registerSuccess.style.color = 'green';
         registerSuccess.textContent = '注册成功，正在跳转...';
-        setTimeout(() => redirectToUserPage(userInfo), 800);
+        // 跳转交由 submitRegister 内部统一处理（按角色落到对应首页，
+        // 平台管理员 → platform_admin.html，租户端/教师/学生 → 各自首页），
+        // 此处不再重复 redirect，避免与 submitRegister 的跳转互相覆盖
       } catch (error) {
         console.error('注册提交失败:', error);
         alert('注册申请提交失败，请稍后重试');
