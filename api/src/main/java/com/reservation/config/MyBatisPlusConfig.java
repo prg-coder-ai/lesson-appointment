@@ -8,7 +8,6 @@ import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerIntercept
 import com.baomidou.mybatisplus.extension.plugins.inner.TenantLineInnerInterceptor;
 import com.reservation.utils.TenantContext;
 import net.sf.jsqlparser.expression.LongValue;
-import net.sf.jsqlparser.expression.NullValue;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -18,6 +17,24 @@ import java.util.List;
 @Configuration
 public class MyBatisPlusConfig {
 
+    /**
+     * 不参与租户隔离的平台表
+     */
+    private static final List<String> IGNORE_TABLES = Arrays.asList(
+            "sys_tenant",
+            "sys_tenant_package",
+            "sys_package_template",
+            "sys_tenant_stats_monthly",
+            "sys_metric_sample",
+            "sys_metric_hourly",
+            "sys_system_config",
+            "sys_platform_admin",
+            "sys_dict",
+            "user_refresh_token",
+            // 会话表是平台级数据（平台管理员需查看全平台在线分布），不参与租户隔离
+            "sys_user_session"
+    );
+
     @Bean
     public MybatisPlusInterceptor mybatisPlusInterceptor() {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
@@ -25,11 +42,19 @@ public class MyBatisPlusConfig {
         // 多租户拦截器（必须放在分页拦截器之前）
         TenantLineInnerInterceptor tenantInterceptor = new TenantLineInnerInterceptor();
         tenantInterceptor.setTenantLineHandler(new com.baomidou.mybatisplus.extension.plugins.handler.TenantLineHandler() {
+            /**
+             * 租户值。
+             * 注意：本方法返回非 null 时，插件会无条件拼出 `tenant_id = <本值>`，
+             *      不会做 null / NullValue 判断（已通过反编译 mybatis-plus-extension 3.5.7 确认）。
+             *      因此不能返回 NullValue，否则 SQL 变成 tenant_id = NULL，恒不成立，查出 0 条。
+             */
             @Override
             public net.sf.jsqlparser.expression.Expression getTenantId() {
                 Long tenantId = TenantContext.getTenantId();
-                // 平台管理员返回null，不拼接租户条件，查询全局数据
-                return tenantId == null || tenantId == 0 ? new NullValue() : new LongValue(tenantId);
+                // 平台管理员（0）已由 ignoreTable 短路，不会走到这里；
+                // 无租户上下文（未登录 / 异步线程 / 定时任务）用 -1 兜底：
+                // 既不拼出 tenant_id = NULL，也不会退化成查全量，避免越权
+                return new LongValue(tenantId == null ? -1L : tenantId);
             }
 
             @Override
@@ -37,16 +62,19 @@ public class MyBatisPlusConfig {
                 return "tenant_id";
             }
 
+            /**
+             * 是否跳过该表的租户条件。
+             * 返回 true 时插件不会追加任何条件，这是让平台管理员"查全量"的唯一正确方式。
+             */
             @Override
             public boolean ignoreTable(String tableName) {
-                // 全局平台表不参与租户隔离
-                List<String> ignoreTables = Arrays.asList(
-                        "sys_tenant",
-                        "sys_package",
-                        "sys_platform_admin",
-                        "sys_dict"
-                );
-                return ignoreTables.contains(tableName);
+                Long tenantId = TenantContext.getTenantId();
+                // 平台管理员（tenantId=0）：不拼接租户条件，可查看全部租户数据
+                if (tenantId != null && tenantId == 0) {
+                    return true;
+                }
+                // 其余身份：平台表不参与隔离
+                return IGNORE_TABLES.contains(tableName);
             }
         });
         interceptor.addInnerInterceptor(tenantInterceptor);

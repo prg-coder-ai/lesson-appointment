@@ -62,19 +62,20 @@ public class UserService {
     private UserSessionService userSessionService;
 
     // ===================== 字段加密/解密辅助方法 =====================
-    // 对 account/phone/email/name 字段做 AES-GCM 加密并附加 HMAC 搜索索引（复合格式 hmac:ciphertext）
+    // 对 phone/email/name 字段做 AES-GCM 加密并附加 HMAC 搜索索引（复合格式 hmac:ciphertext）
+    // 注意：account 已决定不再加密，按明文存储与匹配
     private void encryptUserFields(User user) {
         if (user == null) return;
-        user.setAccount(cryptoUtil.encryptWithIndex(user.getAccount()));
+       // user.setAccount(cryptoUtil.encryptWithIndex(user.getAccount()));
         user.setPhone(cryptoUtil.encryptWithIndex(user.getPhone()));
         user.setEmail(cryptoUtil.encryptWithIndex(user.getEmail()));
         user.setName(cryptoUtil.encryptWithIndex(user.getName()));
     }
 
-    // 解密 account/phone/email/name 字段（兼容未加密的旧数据）
+    // 解密 phone/email/name 字段（兼容未加密的旧数据；account 不再加密，原样返回）
     private void decryptUserFields(User user) {
         if (user == null) return;
-        user.setAccount(cryptoUtil.decrypt(user.getAccount()));
+     //   user.setAccount(cryptoUtil.decrypt(user.getAccount()));
         user.setPhone(cryptoUtil.decrypt(user.getPhone()));
         user.setEmail(cryptoUtil.decrypt(user.getEmail()));
         user.setName(cryptoUtil.decrypt(user.getName()));
@@ -90,7 +91,7 @@ public class UserService {
     // 判断是否存在加密字段的模糊查询条件
     private boolean hasFuzzyCondition(UserQueryPage q) {
         return (q.getName() != null && !q.getName().isEmpty())
-                || (q.getAccount() != null && !q.getAccount().isEmpty())
+                //|| (q.getAccount() != null && !q.getAccount().isEmpty())
                 || (q.getEmail() != null && !q.getEmail().isEmpty())
                 || (q.getPhone() != null && !q.getPhone().isEmpty());
     }
@@ -100,9 +101,9 @@ public class UserService {
         if (q.getName() != null && !q.getName().isEmpty()) {
             if (u.getName() == null || !u.getName().contains(q.getName())) return false;
         }
-        if (q.getAccount() != null && !q.getAccount().isEmpty()) {
-            if (u.getAccount() == null || !u.getAccount().contains(q.getAccount())) return false;
-        }
+      //  if (q.getAccount() != null && !q.getAccount().isEmpty()) {
+     //       if (u.getAccount() == null || !u.getAccount().contains(q.getAccount())) return false;
+     //   }
         if (q.getEmail() != null && !q.getEmail().isEmpty()) {
             if (u.getEmail() == null || !u.getEmail().contains(q.getEmail())) return false;
         }
@@ -127,22 +128,35 @@ public class UserService {
         }
         return tenant;
     }
+
     // 学生注册（对应设计2.2.1 学生注册接口）
     // 注册（对应设计2.2.1 注册接口）
     @Transactional
     public Result< Object> Register(User user) {
         // 校验手机号/邮箱是否已注册（对应业务异常校验）
-         System.out.println("input：" + user);
+         System.out.println("UserService Register：" + user);
+        // ① 先解析租户归属：优先取租户上下文（已登录的租户内添加用户）；
+        //    自助注册、平台代建场景拿不到上下文，按请求中的租户编码解析
+        //    注册接口在白名单内没有租户上下文，这里显式设置，
+        //    否则租户插件按兜底值拼接条件，账号查重与额度统计都会失效 
         Long regTenantId = TenantContext.getTenantId();
-        if (regTenantId == null || regTenantId <= 0) {
+        String regRole = user.getRole() == null ? "student" : user.getRole();
+        if (RoleConst.PLATFORM_ADMIN.equals(regRole)) {
+            // 方案A：平台管理员租户编码固定为 "platform"，与登录分支 authController 一致解析为 tenantId=0。
+            // 注册时显式对齐，避免注册落库的 tenant_id 与登录解析的 tenant_id 不一致导致登录 404。
+            // 注意：sys_tenant 中没有 "platform" 这条记录，resolveTenantByCode 会返回 null 而误报 403，
+            // 因此平台管理员必须走此分支，不能走下面的真实租户解析。
+            regTenantId = 0L;
+        } else if (regTenantId == null || regTenantId <= 0) {
             Tenant tenant = resolveTenantByCode(user.getTenantCode());
+            System.out.println("UserService Register：" + tenant);
             if (tenant == null) {
                 return Result.fail(403, "租户编码无效或已停用，请检查注册链接");
             }
             regTenantId = tenant.getId();
         }
         user.setTenantId(regTenantId);
-
+        System.out.println("UserService Register：" + user);
         // ② 注册接口在白名单内没有租户上下文，这里显式设置，
         //    否则租户插件按兜底值拼接条件，账号查重与额度统计都会失效
         TenantContext.setTenantId(regTenantId);
@@ -159,7 +173,7 @@ public class UserService {
         } finally {
             TenantContext.clear();
         }
-        }
+    }
 
     /**
      * 注册主体：额度校验、加密、入库、签发 Token。
@@ -168,11 +182,15 @@ public class UserService {
     private Result<Object> doRegister(User user, Long regTenantId) {
         // 校验租户注册名额：用户总数 + 按角色的教师/学生名额（原子占用，超限直接返回）
         try {
-            tenantQuotaService.acquire(regTenantId, TenantQuotaService.USER);
-            String role = user.getRole() == null ? "student" : user.getRole();
-            TenantPackageService.QuotaType roleQuota =
-                    "teacher".equals(role) ? TenantQuotaService.TEACHER : TenantQuotaService.STUDENT;
-            tenantQuotaService.acquire(regTenantId, roleQuota);
+            // 平台管理员（tenantId=0）不归属任何真实租户、没有套餐记录，跳过配额占用，
+            // 否则 tenantPackageService.tryAcquire(0,...) 找不到记录会返回 false 而误报“已达上限”。
+            if (regTenantId != null && regTenantId > 0) {
+                tenantQuotaService.acquire(regTenantId, TenantQuotaService.USER);
+                String role = user.getRole() == null ? "student" : user.getRole();
+                TenantPackageService.QuotaType roleQuota =
+                        "teacher".equals(role) ? TenantQuotaService.TEACHER : TenantQuotaService.STUDENT;
+                tenantQuotaService.acquire(regTenantId, roleQuota);
+            }
         } catch (BusinessException e) {
             return Result.fail(403, e.getMessage());
         }
@@ -184,8 +202,8 @@ public class UserService {
 
          Map<String, String> resultMap = new HashMap<>();
          resultMap.put("userId", user.getUserId());
-         // 返回给前端的是明文 account（解密后的值）
-         resultMap.put("account", cryptoUtil.decrypt(user.getAccount()));
+         // account 不再加密，直接返回入库的明文值
+         resultMap.put("account", user.getAccount());
          //计算token（租户归属已在插入前确定）
          String token = jwtUtil.generateToken(regTenantId, user.getUserId(), user.getRole());
          resultMap.put("token", token);
@@ -197,12 +215,16 @@ public class UserService {
     }
  
     /**
-     * 存量用户（多租户迁移前创建，tenant_id 为 0/null）首次登录时自动归属到当前租户，
-     * 使存量账号不必停机刷数据即可完成迁移
+     * 仅对"尚未归属租户的存量用户"（tenant_id 为 NULL）在首次登录时自动归属到当前请求租户，
+     * 使存量账号不必停机刷数据即可完成迁移。
+     * 逻辑边界（与平台管理员区分清楚）：
+     *   - tenant_id = NULL → 真正未归属，自动绑定到本次请求的 tenantId；
+     *   - tenant_id = 0    → 平台管理员（合法的特殊租户，见 authController.PLATFORM_TENANT_CODE），不做自动归属；
+     *   - tenant_id > 0    → 普通租户用户，必须与实际所属租户一致。
      */
     private void bindUserToTenant(User user, Long tenantId) {
         if (tenantId == null || tenantId <= 0) {
-            return; // 平台管理员登录不做自动归属
+            return; // tenantId=0 为平台管理员、或请求未带租户，均不做自动归属
         }
         user.setTenantId(tenantId);
         userMapper.bindTenant(user.getUserId(), tenantId);
@@ -213,7 +235,7 @@ public class UserService {
     public Result<HashMap<String, Object>> login( String account, String password, Long tenantId) {
         // 查找用户（账号可为手机号/邮箱，对应设计2.2.1 登录接口请求参数）
        //  System.out.println("userService login：" + account+"   "+password);
-        User user = userMapper.selectByAccount(cryptoUtil.searchIndex(account), account);
+        User user = userMapper.selectByAccount( account);
         HashMap<String, Object> resultMap = new HashMap<>();
         if (user == null) { 
           resultMap.put("message", "账号不存在");
@@ -223,8 +245,11 @@ public class UserService {
         // 校验账号归属：账号必须属于当前请求租户。
         // 归属不符时返回与"账号不存在"一致的响应，避免据此枚举其他租户的账号
         Long userTenantId = user.getTenantId();
-        if (userTenantId == null || userTenantId <= 0) {
-            // 存量数据（多租户迁移前创建）尚未归属租户，首次登录时自动绑定到当前租户
+        if (userTenantId == null) {
+            // 仅 tenant_id 为 NULL 才视为"尚未归属租户的存量用户"，首次登录自动绑定到当前请求租户。
+            // 注意：tenant_id = 0 是平台管理员（合法的特殊租户），不是未归属哨兵，绝不能在此自动重绑；
+            //       平台管理员必须用 tenantCode=platform 登录，否则在下面 else-if 中因 0 != 请求租户
+            //       被判为"账号不存在"(404)，从而无法被任何真实租户冒领。
             bindUserToTenant(user, tenantId);
         } else if (!userTenantId.equals(tenantId)) {
             log.warn("跨租户登录被拒绝, account={}, 用户所属租户={}, 请求租户={}",
@@ -323,7 +348,7 @@ public class UserService {
     @Transactional
     public Result<HashMap<String, Object>> resetPassword(String account) { 
         // 查找用户
-        User user = userMapper.selectByAccount(cryptoUtil.searchIndex(account), account); 
+        User user = userMapper.selectByAccount(account); 
         HashMap<String, Object> resultMap = new HashMap<>();
         if(user!= null ) { 
         // 解密敏感字段（如需回显）
@@ -404,7 +429,7 @@ public User selectById(String userId) {
      * 根据账号查询用户（登录/重置密码专用，入参为明文，内部转 HMAC）
      */
     public User selectByAccount(String account) {
-        User user = userMapper.selectByAccount(cryptoUtil.searchIndex(account), account);
+        User user = userMapper.selectByAccount(account);
         if (user != null) {
             decryptUserFields(user);
         }
@@ -524,14 +549,15 @@ public User selectById(String userId) {
         if (account == null || account.trim().isEmpty()) {
             return false;
         }
+        User user =  userMapper.selectByAccount(account);
         // 判断账号是手机号还是邮箱
-        boolean isEmail = account.contains("@");
+      /*   boolean isEmail = account.contains("@");
         User user = null;
         if (isEmail) {
             user =  selectByEmail(account);
         } else {
             user =  selectByPhone(account);
-        }
+        }*/
         return user != null;
     }
     /**

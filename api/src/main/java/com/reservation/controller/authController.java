@@ -6,9 +6,11 @@ package  com.reservation.controller;
  import com.reservation.dto.TokenDTO;
 
 import com.reservation.common.Result;
+import com.reservation.common.RoleConst;
 import com.reservation.entity.User;
 import com.reservation.service.UserService;
  import com.reservation.service.RefreshTokenService;
+import com.reservation.service.UserSessionService;
 
  import com.reservation.utils.JwtUtil;
 import com.reservation.audit.Audit;
@@ -47,12 +49,22 @@ import java.util.HashMap;
 @RequestMapping("/auth")
 @Validated
 public class authController {
+
+    /**
+     * 平台管理员登录时使用的固定租户编码。
+     * 注意：它是登录分支的标识，不是真实租户的 tenant_code
+     *（sys_tenant 中没有该编码的记录，解析结果为 tenantId = 0）
+     */
+    private static final String PLATFORM_TENANT_CODE = "platform";
+
      @Autowired
     private TenantService tenantService;
     @Autowired
     private UserService userService;
      @Autowired
      private RefreshTokenService refreshTokenService;
+     @Autowired
+     private UserSessionService userSessionService;
      @Autowired
      private JwtUtil jwtUtil;
       @PostMapping("/login")
@@ -65,25 +77,43 @@ public class authController {
              String role = userdto.getRole();
              Long tenantId;
              String userType;
-            
-            // 平台管理员登录
-        if ("platform".equals(tenantCode) && "platform_admin".equals(role)) { 
+
+            // [DEBUG-PLATFORM] 平台管理员登录链路调试输出：打印进入 controller 的关键字段
+            System.out.println("[DEBUG-PLATFORM] toLogin 入参 account=" + account
+                    + ", tenantCode=" + tenantCode + ", role=" + role);
+
+            // 平台管理员登录：tenantCode 传固定值 "platform"，角色用 RoleConst.PLATFORM_ADMIN
+        if (PLATFORM_TENANT_CODE.equals(tenantCode) && RoleConst.PLATFORM_ADMIN.equals(role)) {
             tenantId = 0L;
             userType = "平台管理员";
+            // [DEBUG-PLATFORM] 命中平台管理员分支：确认解析后的租户与用户类型
+            System.out.println("[DEBUG-PLATFORM] toLogin 命中平台管理员分支 -> tenantId=" + tenantId
+                    + ", userType=" + userType);
         } else {
-            // 租户端登录：先校验租户状态
+            // 租户端登录：先校验租户状态。
+            // 必须同时校验软删除与停用，否则已删除的租户仍能登录；
+            // status 为 Integer 与字面量比较有 NPE 风险，改用 Integer.valueOf 判空
             Tenant tenant = tenantService.getByCode(tenantCode);
-            if (tenant == null || tenant.getStatus() != 1) {
+            boolean invalid = tenant == null
+                    || (tenant.getDeleted() != null && tenant.getDeleted() == 1)
+                    || !Integer.valueOf(1).equals(tenant.getStatus());
+            if (invalid) {
                 return Result.fail(403, "租户编码无效或已停用");
             }
             userType = "租户端";
             // 校验租户端用户状态
-           
-            tenantId = tenant.getId();  
+
+            tenantId = tenant.getId();
+            // [DEBUG-PLATFORM] 租户端登录分支：打印解析到的租户与用户类型
+            System.out.println("[DEBUG-PLATFORM] toLogin 租户端分支 -> tenantCode=" + tenantCode
+                    + ", tenantId=" + tenantId + ", userType=" + userType);
           }
 
         // 调用服务层实现登录逻辑，返回userId、name，role、account、Token,freshToken（对应设计2.2.1 登录返回数据）
         Result<HashMap<String, Object>> rst= userService.login( account, password, tenantId); //setOnline(false)
+        // [DEBUG-PLATFORM] 登录服务返回：打印 code 与解析到的 tenantId/userType
+        System.out.println("[DEBUG-PLATFORM] toLogin 调用 userService.login 完成 -> tenantId=" + tenantId
+                + ", userType=" + userType + ", rst.code=" + rst.getCode());
         // 3. 登录成功：设置安全状态（核心步骤） ?token?
         // 封装用户认证信息（角色需和数据库一致，如teacher/student）
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken( 
@@ -173,7 +203,8 @@ UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthent
      */
     @PostMapping("/logout")
     @Audit(action = AuditAction.USER_LOGOUT, resourceType = "user")
-    public Result<Boolean> logout(@RequestBody RefreshDTO refreshDTO) {
+    public Result<Boolean> logout(@RequestBody RefreshDTO refreshDTO,
+                                  @RequestHeader(value = "Authorization", required = false) String token) {
       // 1. 清空认证
     SecurityContextHolder.clearContext();
 /*
@@ -184,6 +215,8 @@ UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthent
     cookie.setMaxAge(0);
     response.addCookie(cookie);*/
         refreshTokenService.logout(refreshDTO.getRefreshToken());
+        // 结束登录会话（在线统计，会话ID由访问Token派生，非刷新Token）
+        userSessionService.onLogout(token);
         return Result.success(true,"ok" );
     }
 

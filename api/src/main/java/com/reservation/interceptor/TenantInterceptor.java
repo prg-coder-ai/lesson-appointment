@@ -3,6 +3,7 @@ package com.reservation.interceptor; //saas租户拦截器
 import cn.hutool.core.util.StrUtil;
 import com.reservation.entity.Tenant;
 import com.reservation.service.TenantService;
+import com.reservation.service.UserSessionService;
 import com.reservation.utils.JwtUtil;
 import com.reservation.utils.TenantContext;
 import org.slf4j.MDC;
@@ -20,6 +21,8 @@ public class TenantInterceptor implements HandlerInterceptor {
     private TenantService tenantService;
     @Autowired
     private JwtUtil jwtUtil;
+    @Autowired
+    private UserSessionService userSessionService;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -43,7 +46,10 @@ public class TenantInterceptor implements HandlerInterceptor {
         // 平台管理员（tenantId=0）跳过租户状态校验
         if (0L != tenantId) {
             Tenant tenant = tenantService.getById(tenantId);
-            if (tenant == null || tenant.getStatus() != 1) {
+            boolean invalid = tenant == null
+                    || (tenant.getDeleted() != null && tenant.getDeleted() == 1)
+                    || !Integer.valueOf(1).equals(tenant.getStatus());
+            if (invalid) {
                 response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                 response.setContentType("application/json;charset=UTF-8");
                 response.getWriter().write("{\"code\":403,\"msg\":\"租户已停用或不存在，请联系平台管理员\"}");
@@ -53,6 +59,8 @@ public class TenantInterceptor implements HandlerInterceptor {
 
         TenantContext.setTenantId(tenantId);
         MDC.put("tenantId", String.valueOf(tenantId)); // 日志埋点
+        // 会话续期（在线统计用，内部有节流，不会每次请求都写库）
+        userSessionService.touch(token);
         return true;
     }
 

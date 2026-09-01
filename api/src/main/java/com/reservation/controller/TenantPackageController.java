@@ -4,6 +4,7 @@ import com.reservation.common.*;
 import com.reservation.entity.TenantPackage;
 import com.reservation.query.TenantPackageQueryPage;
 import com.reservation.service.TenantPackageService;
+import com.reservation.service.TenantQuotaService;
 import com.reservation.utils.PermissionCheck;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -12,9 +13,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 租户套餐额度管理控制器
+ * 租户套餐管理控制器（平台管理）
  * 接口前缀: /tenant/package/*
- * 权限: 平台管理员（增删改）、管理员（查询）
+ *
+ * 说明：这里管理的是「某租户实际持有的套餐」（sys_tenant_package，一租户一条）；
+ *      套餐模板（规格定义）的管理入口在 PackageTemplateController（/package/template/*）。
+ *
+ * 权限: 仅平台管理员
  */
 @RestController
 @RequestMapping("/tenant/package")
@@ -22,6 +27,8 @@ public class TenantPackageController {
 
     @Autowired
     private TenantPackageService tenantPackageService;
+    @Autowired
+    private TenantQuotaService tenantQuotaService;
     @Autowired
     private PermissionCheck permissionCheck;
 
@@ -31,7 +38,7 @@ public class TenantPackageController {
     @PostMapping("/insert")
     public Result<Map<String, Long>> insertPackage(@RequestBody TenantPackage pkg,
                                                    @RequestHeader("Authorization") String token) {
-        permissionCheck.checkAdmin(token);
+        permissionCheck.checkPlatformAdmin(token);
         Long id = tenantPackageService.insertPackage(pkg);
         return Result.success(Map.of("packageId", id), "租户套餐创建成功");
     }
@@ -42,7 +49,7 @@ public class TenantPackageController {
     @PostMapping("/update")
     public Result<Map<String, Long>> updatePackage(@RequestBody TenantPackage pkg,
                                                    @RequestHeader("Authorization") String token) {
-        permissionCheck.checkAdmin(token);
+        permissionCheck.checkPlatformAdmin(token);
         Long id = tenantPackageService.updatePackage(pkg);
         return Result.success(Map.of("packageId", id), "租户套餐修改成功");
     }
@@ -53,7 +60,7 @@ public class TenantPackageController {
     @DeleteMapping("/{id}")
     public Result<Boolean> deletePackage(@PathVariable Long id,
                                          @RequestHeader("Authorization") String token) {
-        permissionCheck.checkAdmin(token);
+        permissionCheck.checkPlatformAdmin(token);
         int rows = tenantPackageService.deletePackage(id);
         if (rows > 0) {
             return Result.success(true, "套餐删除成功");
@@ -88,7 +95,7 @@ public class TenantPackageController {
     }
 
     /**
-     * 分页查询套餐列表，支持按租户ID筛选
+     * 分页查询租户套餐列表
      */
     @PostMapping("/page")
     public Result<PageResult<TenantPackage>> getPackageByPage(@RequestBody TenantPackageQueryPage query,
@@ -98,10 +105,56 @@ public class TenantPackageController {
     }
 
     /**
-     * 查询全部套餐列表
+     * 按套餐模板为租户创建套餐（租户首次开通）
+     */
+    @PostMapping("/create-from-template")
+    public Result<Map<String, Long>> createFromTemplate(@RequestParam Long tenantId,
+                                                        @RequestParam(required = false) Long templateId,
+                                                        @RequestHeader("Authorization") String token) {
+        permissionCheck.checkPlatformAdmin(token);
+        Long id = tenantPackageService.createFromTemplate(tenantId, templateId);
+        return Result.success(Map.of("packageId", id), "租户套餐创建成功");
+    }
+
+    /**
+     * 变更租户选用的套餐模板（降级时已用量超限会被拒绝）
+     */
+    @PostMapping("/{tenantId}/switch-template")
+    public Result<Boolean> switchTemplate(@PathVariable Long tenantId,
+                                          @RequestParam Long templateId,
+                                          @RequestHeader("Authorization") String token) {
+        permissionCheck.checkPlatformAdmin(token);
+        tenantQuotaService.switchTemplate(tenantId, templateId);
+        return Result.success(true, "套餐模板变更成功");
+    }
+
+    /**
+     * 单租户额度对账：把当前数量校正为实际统计值
+     */
+    @PostMapping("/reconcile/{tenantId}")
+    public Result<Boolean> reconcile(@PathVariable Long tenantId,
+                                     @RequestHeader("Authorization") String token) {
+        permissionCheck.checkPlatformAdmin(token);
+        boolean changed = tenantQuotaService.reconcile(tenantId);
+        return Result.success(changed, changed ? "发现偏差并已校正" : "数据一致，无需校正");
+    }
+
+    /**
+     * 全量额度对账
+     */
+    @PostMapping("/reconcile-all")
+    public Result<Map<String, Integer>> reconcileAll(@RequestHeader("Authorization") String token) {
+        permissionCheck.checkPlatformAdmin(token);
+        int fixed = tenantQuotaService.reconcileAll();
+        return Result.success(Map.of("fixedTenants", fixed), "对账完成");
+    }
+
+    /**
+     * 查询全部租户套餐列表
      */
     @GetMapping("/list")
     public Result<List<TenantPackage>> listAll(@RequestHeader("Authorization") String token) {
+        permissionCheck.checkPlatformAdmin(token);
         List<TenantPackage> list = tenantPackageService.listAll();
         return Result.success(list, "查询成功");
     }

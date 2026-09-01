@@ -46,7 +46,7 @@
       InitUserInfo(); 
       
 
-  // 在公共入口（如 main.js / public/init）初始化一次
+  // 在公共入口（如 main.js / public/init）初始化一次 --为了处理动态加载的内容，使用 MutationObserver 监听 DOM 变化
   const mo = new MutationObserver(mutations => {
     let needApply = false;
     for (const m of mutations) {
@@ -58,8 +58,9 @@
       observe();                     // 处理完重新挂上
     }
   });
+
     function observe() { mo.observe(document.body, { childList: true, subtree: true }); }
-observe(); 
+    observe(); 
 
       
    function InitUserInfo() {
@@ -72,36 +73,14 @@ observe();
           // 用于防止未登录用户强行访问需要权限的页面
           if (!window.location.pathname.endsWith('index.html')) 
             { 
-              window.location.href  =  './index.html';
+              window.location.href  =  './index.html?tCode=default'; // 
             }
           } else  { 
         userId = userInfo.userId;
         userRole = userInfo.role; 
         }
     }
-
-//const api = {
-    // 后端API接口地址（相对路径，端口由Spring Boot配置决定，无需写localhost:8088）
-   // getDataList: "/api/v1/data/list" // 对应后端IndexController的API接口
-//};
-
-// 封装GET请求（获取数据库数据）
-/*function getRequest(url, callback) {
-    fetch(url, {
-        method: "GET",
-        headers: {
-            "Content-Type": "application/json;charset=UTF-8"
-        }
-    })
-    .then(response => response.json()) // 解析后端返回的JSON数据
-    .then(data => {
-        callback(data); // 回调函数，将数据传递给页面渲染
-    })
-    .catch(error => {
-        console.error("API请求失败：", error);
-    });
-}
-*/
+ 
 //按照传入的条件，检索用户列表，eg：const conditionJson = { role: 'teacher' };
 //TBD条件：公司、分部、管理员
 async function fetchUserList(conditionJson) {
@@ -174,7 +153,7 @@ const userStr = localStorage.getItem('currentUser');
      return  JSON.parse(userStr);
     else return null;
 }
-
+ 
  // 页面跳转函数（根据用户角色）
  // 关键修复：登录成功后，优先读取 auth_redirect_info（来自 401 或 logout）跳转回原页面；
  //         没有 redirect 时，才按角色跳默认页（admin/teacher/student）。
@@ -184,7 +163,7 @@ const userStr = localStorage.getItem('currentUser');
      'color:#fff;background:#7c3aed;padding:2px 6px;border-radius:3px;'
    );
    console.log('[AuthRedirect] 0. 入参 user：', user);
-
+/*
    // 1. 优先消费登录 redirect（一次性读取，读完即删）
    let redirectUrl = null;
    if (typeof window.consumeLoginRedirect === 'function') {
@@ -209,35 +188,34 @@ const userStr = localStorage.getItem('currentUser');
 
    console.log('[AuthRedirect] 3. 无 redirect，按角色跳默认页：', user && user.role);
    console.groupEnd();
-
+*/
   if(user && user.role){
   // 根据角色跳转对应页面
   switch(user.role) {
-     case 'platform-Admin': // 平台管理员
- 
-      window.location.href = './admin.html'; 
+     case 'platform_admin': // 平台管理员 
+      window.location.href = './admin.html?tCode=platform'; // 
       break;
     case 'admin':
-      window.location.href = './admin.html';
+      window.location.href = './admin.html?tCode=' + user.tenantCode; // 
       break;
     case 'teacher':
-      window.location.href = './teacher.html';
+      window.location.href = './teacher.html?tCode=' + user.tenantCode; // 
       break;
     case 'student':
-      window.location.href = './student.html';
+      window.location.href = './student.html?tCode=' + user.tenantCode; // 
       break;
     default:
       alert('未知用户身份，请联系管理员1');
       resetLoginForm();
-      window.location.href = './index.html';
+      window.location.href = './index.html?tCode=default'; // 
   } 
 } else {
- // alert('未知用户身份，请联系管理员2');
+    alert('未知用户身份，请联系管理员2');
       // 判断当前页面是否为index.html
       const isIndexPage = window.location.pathname.endsWith('index.html') || window.location.pathname === '/' || window.location.pathname === '';
      if(isIndexPage ) resetLoginForm(); 
       else 
-      window.location.href = './index.html'; 
+      window.location.href = './index.html?tCode=default'; // 
 }
 }
 
@@ -295,23 +273,23 @@ const userStr = localStorage.getItem('currentUser');
   // 读取本地 localStorage 保存的用户信息
   const userStr = localStorage.getItem('currentUser');
   if (!userStr) {
-    window.location.href = './index.html';
+    window.location.href = './index.html?tCode=default'; // 
     return;
   }
   //let userInfo;
-  try {
-    userInfo = JSON.parse(userStr);
-  } catch (e) {
-    localStorage.removeItem('currentUser');
-    window.location.href = './index.html';
-    return;
-  }
-  if (!userInfo || !userInfo.token) {
-    // 信息不全，清理，停留
-    localStorage.removeItem('currentUser');
-    window.location.href = './index.html';
-    return;
-  }
+    try {
+      userInfo = JSON.parse(userStr);
+    } catch (e) {
+      localStorage.removeItem('currentUser');
+      window.location.href = './index.html?tCode=default'; // 
+      return; 
+    if (!userInfo || !userInfo.token) {
+      // 信息不全，清理，停留
+      localStorage.removeItem('currentUser');
+      window.location.href = './index.html?tCode=default'; // 
+      return;
+    }
+  } 
   
   // 这里假设token是JWT，尝试判断是否过期
   function isJwtExpired(token) {
@@ -326,9 +304,9 @@ const userStr = localStorage.getItem('currentUser');
       }
     } catch (e) {
       // 解码失败，忽略
-    }
-    return false; // 没有exp就当未过期
+        return false; // 没有exp就当未过期
   }
+  
 
   // 检查token是否过期
   if (isJwtExpired(userInfo.token)) {
@@ -341,7 +319,10 @@ const userStr = localStorage.getItem('currentUser');
   } 
   const loginInfo = {
          account:userInfo.account,
-         password: userInfo.password
+         password: userInfo.password,
+         tenantCode: userInfo.tenantCode,
+         role: userInfo.role,
+         token: userInfo.token
       };
 
   // 调用后端接口验证token有效性（推荐，防止本地token无效）
@@ -356,12 +337,15 @@ const userStr = localStorage.getItem('currentUser');
      {
       const role = data.role || userInfo.role;
       // 按角色跳转
+       if (role === 'platform_Admin') {
+        window.location.href = './admin.html?tCode=' + user.tenantCode; // 
+      } else
       if (role === 'admin') {
-        window.location.href = './admin.html';
+        window.location.href = './admin.html?tCode=' + user.tenantCode; // 
       } else if (role === 'teacher') {
-        window.location.href = './teacher.html';
+        window.location.href = './teacher.html?tCode=' + user.tenantCode; // 
       } else if (role === 'student') {
-        window.location.href = './student.html';
+        window.location.href = './student.html?tCode=' + user.tenantCode; // 
       }
     } /*else if (data && data.code === 401) {
       // 失效处理
@@ -381,7 +365,7 @@ const userStr = localStorage.getItem('currentUser');
     // 自动登录错误（如网络），这里一般保守处理不跳转
     console.error('自动登录校验异常:', err);
   });
-} ;
+} };
 
    // 计算日期 dateTimeStr 对应的 weekday（1=周一, 2=周二,...,7=周日），可用于调试辅助
    function getWeekdayFromDateTime(dateTimeStr) {
@@ -600,3 +584,4 @@ function escapeAttr(str) {
   window.changePasswordAPI = changePasswordAPI;
   window.showChangePasswordDialog = showChangePasswordDialog;
   window.addChangePasswordButton = addChangePasswordButton;
+  window.redirectToUserPage = redirectToUserPage;

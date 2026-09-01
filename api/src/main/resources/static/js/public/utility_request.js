@@ -256,10 +256,10 @@
       }
       // 这里可以同时输出 params 和 data，方便前端调试和区分：
      console.log(
-        "请求 URL：", config.url
-        //,
-        //"url参数 params：", config.params,
-       // "请求体 data：", config.data
+        "request URL：", config.url
+        ,
+         "url参数 params：", config.params,
+        "请求体 data：", config.data
       );
  
       if (config.customLoading !== false) {
@@ -276,7 +276,7 @@
 
   service.interceptors.response.use(
     (response) => {
-     // console.log("响应数据：", response.data);
+     console.log("response:", response);
        let errMsg ="";
 
       const config = response.config;
@@ -289,7 +289,7 @@
         // 业务成功：直接返回 data 字段（与原逻辑保持一致）
         return res.data;
       }
-
+      
       // 业务层 401：后端以 HTTP 200 + body.code=401 返回（token 失效）
       // 不在这里跳转/刷新，统一交给 error 拦截器或调用方处理；这里仅 reject
       if (res.code === 401) {

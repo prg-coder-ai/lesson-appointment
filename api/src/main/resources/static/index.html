@@ -144,6 +144,21 @@
         <input type="password" id="password" placeholder="请输入密码" required>
         <div class="error-tip" id="password-error">请输入密码</div>
       </div>
+      <div class="form-item">
+        <label for="login-role">登录身份</label>
+        <select id="login-role" required onchange="applyLoginTenantRule()">
+          <option value="">请选择身份</option>
+          <option value="platform_admin">平台管理员</option>
+          <option value="tenant">租户端</option>
+        </select>
+        <div class="error-tip" id="login-role-error">请选择登录身份</div>
+      </div>
+
+      <div class="form-item">
+        <label for="login-tenant-code">租户编码</label>
+        <input type="text" id="login-tenant-code" required placeholder="平台管理员自动锁定为 platform；租户端可手动填写或由专属链接带入">
+        <div class="error-tip" id="login-tenant-code-error">请填写租户编码</div>
+      </div>
 
       <button type="submit" class="btn" id="login-btn">
         <span id="btn-text">登录系统</span>
@@ -171,9 +186,11 @@
       <form id="register-form">
         <div class="form-item">
           <label for="register-role">注册身份</label>
-          <select id="register-role" required>
+          <select id="register-role" required onchange="applyTenantCodeRule()">
             <option value="">请选择身份</option>
-             <option value="platform-admin">平台管理员</option>
+            <!-- 角色值必须与后端 RoleConst 一致：platform_admin 用下划线，
+                 写成 platform-admin 会导致注册出的平台管理员登录与鉴权都失败 -->
+            <option value="platform_admin">平台管理员</option>
              <option value="admin">系统管理员</option>
             <option value="teacher"><span data-term="teacher">教师</span></option>
             <option value="student"><span data-term="student">学生</span></option>
@@ -263,6 +280,7 @@
     const registerConfirmError = document.getElementById('register-confirm-error');
     const registerSuccess = document.getElementById('register-success');
     const registerError = document.getElementById('register-error');
+   
 
     // 表单验证函数（登录）
     function validateForm() {
@@ -417,6 +435,13 @@
       const role = registerRole.value.trim();
       const account = (registerAccount || '').trim();
       const tenantCode = document.getElementById('tenant-code').value.trim();
+      // [DEBUG-PLATFORM] 平台管理员注册链路调试输出：打印提交前的关键字段
+      console.log('[DEBUG-PLATFORM] submitRegister role=' + role
+        + ', account=' + account + ', tenantCode=' + tenantCode);
+      if (role === PLATFORM_ROLE) {
+        console.log('[DEBUG-PLATFORM] 平台管理员注册：tenantCode 已锁定 =', tenantCode,
+          '（应为 platform，与后端 PLATFORM_TENANT_CODE 一致）');
+      }
       const registerInfo = {
         role: role,
         account: account,
@@ -454,7 +479,7 @@
           role:    resultData.role,
           token:   resultData.token,
           name:    registerInfo.name || '',
-          tenantCode: tenantCode // 新增：租户编码
+          tenantCode: registerInfo.tenantCode || '' // 新增：租户编码
         };
         localStorage.setItem('currentUser', JSON.stringify(currentUser));
         // token 单独保存：utility_request.js 请求拦截器从 localStorage.getItem('token') 取
@@ -562,15 +587,40 @@
       btnText.innerHTML = '<span class="loading"></span> 登录中...';
      console.log('username:', username.value.trim());
      console.log('password:', password.value.trim());
+       const loginRole = document.getElementById('login-role').value.trim();
+      const loginTenantCode = document.getElementById('login-tenant-code').value.trim();
+     // [DEBUG-PLATFORM] 登录提交入口：现已透传 tenantCode/role 给后端
+     console.log('[DEBUG-PLATFORM] login 提交：account=' + username.value.trim()
+       + ', role=' + loginRole + ', tenantCode=' + (loginRole === 'platform_admin' ? 'platform' : loginTenantCode));
+
       try {
         const user = await authenticateUser(
           username.value.trim(),
-          password.value.trim()
-        );
+          password.value.trim(),
+          { tenantCode: loginRole === 'platform_admin' ? 'platform' : loginTenantCode,
+            role: loginRole }
+          )  ;
+        //save
+      const currentUser = {
+          userId:  user.userId,
+          account: user.account,
+          role:    user.role,
+          token:   user.token,
+          name:    user.name || '',
+          tenantCode: user.tenantCode || '' // 新增：租户编码
+        };
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+        // token 单独保存：utility_request.js 请求拦截器从 localStorage.getItem('token') 取
+        if (user.token) {
+          localStorage.setItem('token', user.token);
+        }
+        // 注册接口暂未返回 refreshToken，留空避免刷新逻辑误判
+        localStorage.setItem('refreshToken', user.refreshToken || '');
+
         loginError.style.display = 'block';
         loginError.style.color = 'green';
         loginError.textContent = '登录成功，正在跳转...';
-        setTimeout(() => redirectToUserPage(user), 800);
+        setTimeout(() => redirectToUserPage(currentUser), 800);
       } catch (error) {
         console.error('登录请求出错:', error);
         loginError.style.display = 'block';
@@ -602,34 +652,85 @@
     });
 
     // 【修改】租户编码规则（注册时归属哪个租户）
-    //   1) 选择「平台管理员」→ 自动填 default 并锁定输入框
+    //   1) 选择「平台管理员」→ 自动填 platform 并锁定输入框
     //   2) 页面 URL 带 ?tcode=xx → 采用该值并锁定（租户专属注册链接）
     //   3) 其余情况 → 由用户手动填写
     const tenantCodeInput = document.getElementById('tenant-code');
     const tenantError = document.getElementById('tenant-error');
-    const PLATFORM_ROLE = 'platform-admin';
+    // 必须与后端 RoleConst.PLATFORM_ADMIN 一致（下划线）
+    const PLATFORM_ROLE = 'platform_admin';
     const DEFAULT_TENANT_CODE = 'default';
+    const PLATFORM_TENANT_CODE = 'platform';
 
     /** 读取 URL 参数 ?tcode=xx */
     function getTenantCodeFromUrl() {
       const params = new URLSearchParams(window.location.search);
-      const tcode = params.get('tcode');
+      const tcode = params.get('tCode');
       return tcode && tcode.trim() ? tcode.trim() : '';
     }
+
     /** 按角色与 URL 参数决定租户编码及其可编辑状态 */
     function applyTenantCodeRule() {
-      if (registerRole.value === PLATFORM_ROLE) {
-        tenantCodeInput.value = DEFAULT_TENANT_CODE;
-        tenantCodeInput.readOnly = true;
-        return;
-      }
+      
       const urlCode = getTenantCodeFromUrl();
       if (urlCode) {
         tenantCodeInput.value = urlCode;
         tenantCodeInput.readOnly = true;
+        console.log('[DEBUG-PLATFORM] URL 参数 ?tcode=xx 采用：', urlCode);
+        if (urlCode === PLATFORM_TENANT_CODE) {
+          registerRole.value = PLATFORM_ROLE;
+          console.log('[DEBUG-PLATFORM] 平台管理员注册：tenantCode 已锁定 =', tenantCode,
+            '（应为 platform，与后端 PLATFORM_TENANT_CODE 一致）');
+        }
+        else { //租户-对平台角色选项不可见   
+        //在role中把registerRole.value =PLATFORM_ROLE的选项删除
+        const roleOptions = document.getElementById('register-role').options;
+        const platformRoleIndex = roleOptions.findIndex(
+          option => option.value === PLATFORM_ROLE);
+        if (platformRoleIndex !== -1) {
+          roleOptions.remove(platformRoleIndex);
+        }
+      }
         return;
+      } 
+
+      if (registerRole.value === PLATFORM_ROLE) {
+        tenantCodeInput.value = PLATFORM_TENANT_CODE;
+        tenantCodeInput.readOnly = true;
+        console.log('[DEBUG-PLATFORM] 平台管理员注册：tenantCode 已锁定 =', tenantCode,
+          '（应为 platform，与后端 PLATFORM_TENANT_CODE 一致）');
+        return;
+      } else
+      // 其他情况：由用户手动填写
+      {
+        tenantCodeInput.value = DEFAULT_TENANT_CODE;
+        tenantCodeInput.readOnly = false;//kexiugai
+        return ;  
       }
       tenantCodeInput.readOnly = false;
+    }
+
+    /**
+     * 登录身份联动（镜像注册页 applyTenantCodeRule 的逻辑）
+     * - 平台管理员：tenantCode 锁定为 platform（与后端 PLATFORM_TENANT_CODE 一致）
+     * - 租户端：优先取 URL ?tcode=，否则由用户手动填写
+     */
+    function applyLoginTenantRule() {
+      const roleSel = document.getElementById('login-role');
+      const tcInput = document.getElementById('login-tenant-code');
+      const urlCode = getTenantCodeFromUrl();
+      if (roleSel.value === PLATFORM_ROLE) {
+        tcInput.value = PLATFORM_TENANT_CODE;
+        tcInput.readOnly = true;
+        console.log('[DEBUG-PLATFORM] 平台管理员登录：tenantCode 锁定 =', PLATFORM_TENANT_CODE);
+      } else if (urlCode) {
+        tcInput.value = urlCode;
+        tcInput.readOnly = true;
+        console.log('[DEBUG-PLATFORM] 登录租户编码来自 URL ?tcode=：', urlCode);
+      } else {
+        tcInput.value = '';
+        tcInput.readOnly = false;
+      }
     }
 
     // 切换注册身份时重新套用规则

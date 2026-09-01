@@ -1,5 +1,6 @@
 package com.reservation.mapper;
 //     "com.reservation.mapper.UserMapper"
+import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.reservation.entity.User;
 import com.reservation.query.UserQueryPage;
@@ -12,16 +13,26 @@ import org.apache.ibatis.annotations.Update;
 import java.util.List;
 import java.util.Map;
 
-/**
+/**  account--不再加密
  * UserMapper接口，对应user表CRUD操作，匹配UserService中的方法
  * 按项目约定继承 BaseMapper，复用 MyBatis-Plus 内置 insert/selectById/deleteById/updateById 等方法
  */
 @Mapper
 public interface UserMapper extends BaseMapper<User> {
 
-     // 兼容加密用户(hmac:ciphertext)和明文旧用户：HMAC 前缀匹配 OR 明文精确匹配
-     @Select("select * from user where account LIKE CONCAT(#{hmac}, ':%') OR account = #{plain}")
-    User selectByAccount(@Param("hmac") String hmac, @Param("plain") String plain);
+    // account 不再加密（纯明文存储），登录/查重按账号精确匹配即可。
+    // 登录场景还不知道用户属于哪个租户，必须跳过租户插件过滤，归属由 UserService.login 显式校验
+    @InterceptorIgnore(tenantLine = "true")
+   @Select("select * from user where account LIKE CONCAT('%', #{account}, '%')")
+   User selectByAccount( @Param("account") String account);
+
+    /**
+     * 绑定用户到指定租户（存量数据迁移：迁移前创建的用户 tenant_id 为 0）
+     * 同样需跳过租户过滤，否则会被拼上兜底条件而更新不到目标用户
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Update("UPDATE user SET tenant_id = #{tenantId} WHERE user_id = #{userId}")
+    int bindTenant(@Param("userId") String userId, @Param("tenantId") Long tenantId);
     /**
       * 根据手机号查询用户
       * @param hmac 手机号的 HMAC 搜索索引
@@ -53,12 +64,7 @@ public interface UserMapper extends BaseMapper<User> {
      * 根据用户ID查询用户
      * @param userId 用户ID
      * @return 用户信息 baseMapper已实现
-     */
-   /*   @Select("SELECT * FROM user WHERE user_id = #{userId}")
-     User selectById(@Param("userId") String userId);
-*/
-      
-
+     */ 
     /**
      * 更新用户密码（用于密码重置）
      * @param user 用户实体（含userId和新密码以及其它参数）

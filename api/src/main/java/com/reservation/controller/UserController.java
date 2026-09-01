@@ -80,49 +80,45 @@ public class UserController {
     } 
     }
      
-     @PostMapping("/admin/register")
-    @Audit(action = AuditAction.USER_REGISTER, resourceType = "user")
+     @PostMapping("/register")
+     @Audit(action = AuditAction.USER_REGISTER, resourceType = "user")
       @ResponseBody
-    public Result<Object> adminRegister(@Validated @RequestBody User user) {
+    public Result<Object> register_a_User(@Validated @RequestBody User user ) {
         // 调用服务层实现注册逻辑，返回userId和Token（对应设计2.2.1 学生注册返回数据）
-        user.setRole("admin");
-        user.setStatus("active");//TBD:check if exists a admin before
-       
-        Result<Object> rst = userService.Register(user); 
+        //// 调用服务层实现注册逻辑，返回userId和Token（对应设计2.2.1 学生注册返回数据）
+        ///  教师
+        String role = user.getRole();
+        // [DEBUG-PLATFORM] 平台管理员注册链路调试输出：打印进入 controller 的关键字段
+        System.out.println("[DEBUG-PLATFORM] adminRegister 入参 role=" + role
+                + ", account=" + user.getAccount()
+                + ", tenantCode=" + user.getTenantCode()
+                + ", name=" + user.getName());
+        if(role== null || role.isEmpty())
+        {
+            role="student";
+        }
+       // user.setRole(role);
+        // 注意两点：
+        // 1) 必须用 equals 比较。role 来自请求体反序列化，用 == 比较引用恒成立为 false
+        // 2) 角色值必须与 RoleConst 一致（platform_admin 用下划线）。
+        //    此前写成 "platform-admin"（连字符），导致注册出来的平台管理员在登录
+        //    与权限校验时都匹配不上 RoleConst.PLATFORM_ADMIN，账号完全不可用
+        if (RoleConst.ADMIN.equals(role) || RoleConst.PLATFORM_ADMIN.equals(role)) {
+           user.setStatus("active");//TBD:check if exists a admin before
+           // [DEBUG-PLATFORM] 命中管理员/平台管理员分支：确认角色值与状态
+           System.out.println("[DEBUG-PLATFORM] register 命中管理员分支 role=" + role
+                   + " -> status=active, 是否平台管理员=" + RoleConst.PLATFORM_ADMIN.equals(role));
+        }  else   {
+            user.setStatus("pending");//需要管理员审核
+         }
+        Result<Object> rst = userService.Register(user);
+        // [DEBUG-PLATFORM] 注册返回：打印 userId/account/role 供前端核对
+        System.out.println("[DEBUG-PLATFORM] adminRegister 返回 code=" + rst.getCode()
+                + ", account=" + user.getAccount() + ", role=" + role);
         return rst;//Result.success(rst, "注册成功");
     }
-
-    /**
-     * 学生注册接口，对应设计2.2.1 接口：/api/v1/user/student/register
-     */
-    @PostMapping("/student/register")
-    @Audit(action = AuditAction.USER_REGISTER, resourceType = "user")
-      @ResponseBody
-    public Result<Object> studentRegister(@Validated @RequestBody User user) {
-        // 调用服务层实现注册逻辑，返回userId和Token（对应设计2.2.1 学生注册返回数据）
-        user.setRole("student");
-        user.setStatus("pending");
-       
-        Result<Object> rst = userService.Register(user);
-    
-     // System.out.println("rst：" + rst);
-        return rst;//Result.success(rst, "注册成功,请等待管理员审核");
-    }
-
-    /**
-     * 教师注册接口，对应设计2.2.1 接口：/api/v1/user/teacher/register
-     */
-    @PostMapping("/teacher/register")
-    @Audit(action = AuditAction.USER_REGISTER, resourceType = "user")
-    @ResponseBody
-    public Result<Object> teacherRegister(@Validated @RequestBody User user) {
-        // 调用服务层提交注册申请，等待管理员审核（对应设计2.2.1 教师注册功能说明）
-         user.setRole("teacher");
-         user.setStatus("pending");
-        Result<Object> rst = userService.Register(user); 
-        //System.out.println("rst：" + rst);
-        return rst; 
-    }
+ 
+ 
 // 添加用户
     @PostMapping("/add") 
     @ResponseBody
@@ -130,7 +126,7 @@ public class UserController {
         
          user.setStatus("active");
         Result<Object> rst = userService.Register(user); 
-        System.out.println("rst：" + rst);
+       // System.out.println("rst：" + rst);
         return rst; 
     }
 

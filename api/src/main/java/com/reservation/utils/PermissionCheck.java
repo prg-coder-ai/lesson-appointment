@@ -33,6 +33,7 @@ public class PermissionCheck {
         }
         throw new NoPermissionException("您无管理员权限，无法执行该操作");
     }
+
     // ==================== 平台管理员（platform_admin）相关校验 ====================
 
     /**
@@ -142,6 +143,7 @@ public class PermissionCheck {
             throw new UnLoginException("Token解析失败，请重新登录");
         }
     }
+
     /**
      * 辅助方法：从Token中获取租户ID，用于租户归属校验
      */

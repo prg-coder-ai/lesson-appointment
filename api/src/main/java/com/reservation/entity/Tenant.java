@@ -20,6 +20,7 @@ public class Tenant {
     private Integer status;
     /** 关联套餐ID（sys_tenant_package.id，0=未指定套餐即不限额） */
     private Long packageId;//套餐模板--对应的标准套餐
+     
     private LocalDateTime expireTime;
     /** 退租/停用时间 */
     private LocalDateTime offlineTime;

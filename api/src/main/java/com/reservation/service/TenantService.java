@@ -1,4 +1,4 @@
-package com.reservation.service; 
+package com.reservation.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -22,20 +22,20 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * ×â»§·şÎñ
- * ×â»§ÉúÃüÖÜÆÚ£ºĞÂÔö / ĞŞ¸Ä / ×´Ì¬Á÷×ª / ĞøÆÚ / Ì×²Í±ä¸ü / ÈíÉ¾³ı / »Ö¸´
- * ÈíÉ¾³ıÊı¾İ±£Áô¿É»Ö¸´£»¹éµµµ¼³öºóÇå³ı¹¦ÄÜ´ıÊµÏÖ
+ * ç§Ÿæˆ·æœåŠ¡
+ * ç§Ÿæˆ·ç”Ÿå‘½å‘¨æœŸï¼šæ–°å¢ / ä¿®æ”¹ / çŠ¶æ€æµè½¬ / ç»­æœŸ / å¥—é¤å˜æ›´ / è½¯åˆ é™¤ / æ¢å¤
+ * è½¯åˆ é™¤æ•°æ®ä¿ç•™å¯æ¢å¤ï¼›å½’æ¡£å¯¼å‡ºåæ¸…é™¤åŠŸèƒ½å¾…å®ç°
  */
 @Service
 public class TenantService {
 
     private static final Logger log = LoggerFactory.getLogger(TenantService.class);
 
-    /** ×´Ì¬£ºÕı³£ */
+    /** çŠ¶æ€ï¼šæ­£å¸¸ */
     public static final int STATUS_NORMAL = 1;
-    /** ×´Ì¬£ºÍ£ÓÃ */
+    /** çŠ¶æ€ï¼šåœç”¨ */
     public static final int STATUS_DISABLED = 2;
-    /** ×´Ì¬£ºÒÑÍË×â */
+    /** çŠ¶æ€ï¼šå·²é€€ç§Ÿ */
     public static final int STATUS_OFFLINE = 3;
 
     @Autowired
@@ -52,11 +52,11 @@ public class TenantService {
     }
 
     /**
-     * ·ÖÒ³²éÑ¯×â»§ÁĞ±í
+     * åˆ†é¡µæŸ¥è¯¢ç§Ÿæˆ·åˆ—è¡¨
      */
     public PageResult<Tenant> getTenantListByPage(TenantQueryPage query) {
         LambdaQueryWrapper<Tenant> wrapper = new LambdaQueryWrapper<>();
-        // Ô½È¨·À»¤£º·ÇÆ½Ì¨½ÇÉ«Ö»ÄÜ¿´×Ô¼ºËùÊô×â»§
+        // è¶Šæƒé˜²æŠ¤ï¼šéå¹³å°è§’è‰²åªèƒ½çœ‹è‡ªå·±æ‰€å±ç§Ÿæˆ·
         if (query.getTenantIdFilter() != null) {
             wrapper.eq(Tenant::getId, query.getTenantIdFilter());
         }
@@ -96,7 +96,7 @@ public class TenantService {
     }
 
     /**
-     * °´Ìõ¼şÍ³¼Æ×â»§Êı
+     * æŒ‰æ¡ä»¶ç»Ÿè®¡ç§Ÿæˆ·æ•°
      */
     public long countByWrapper(LambdaQueryWrapper<Tenant> wrapper) {
         Long count = tenantMapper.selectCount(wrapper);
@@ -104,15 +104,15 @@ public class TenantService {
     }
 
     /**
-     * ĞÂÔö×â»§£¨Æ½Ì¨¹ÜÀíÔ±£©£¬Ä¬ÈÏ×´Ì¬Õı³£¡¢Ò»Äêºóµ½ÆÚ
+     * æ–°å¢ç§Ÿæˆ·ï¼ˆå¹³å°ç®¡ç†å‘˜ï¼‰ï¼Œé»˜è®¤çŠ¶æ€æ­£å¸¸ã€ä¸€å¹´ååˆ°æœŸ
      */
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public Long insertTenant(Tenant tenant) {
         if (!StringUtils.hasText(tenant.getTenantCode())) {
-            throw new BusinessException("×â»§±àÂë²»ÄÜÎª¿Õ");
+            throw new BusinessException("ç§Ÿæˆ·ç¼–ç ä¸èƒ½ä¸ºç©º");
         }
         if (getByCode(tenant.getTenantCode()) != null) {
-            throw new BusinessException("×â»§±àÂëÒÑ´æÔÚ£º" + tenant.getTenantCode());
+            throw new BusinessException("ç§Ÿæˆ·ç¼–ç å·²å­˜åœ¨ï¼š" + tenant.getTenantCode());
         }
         tenant.setStatus(tenant.getStatus() == null ? STATUS_NORMAL : tenant.getStatus());
         tenant.setDeleted(0);
@@ -123,38 +123,38 @@ public class TenantService {
             tenant.setExpireTime(LocalDateTime.now().plusYears(1));
         }
         tenantMapper.insert(tenant);
-        log.info("ĞÂÔö×â»§, tenantId={}, code={}", tenant.getId(), tenant.getTenantCode());
+        log.info("æ–°å¢ç§Ÿæˆ·, tenantId={}, code={}", tenant.getId(), tenant.getTenantCode());
         return tenant.getId();
     }
 
     /**
-     * ĞŞ¸Ä×â»§ĞÅÏ¢£¨Æ½Ì¨¹ÜÀíÔ±£©£¬²»ÔÊĞíĞŞ¸Ä×â»§±àÂë
+     * ä¿®æ”¹ç§Ÿæˆ·ä¿¡æ¯ï¼ˆå¹³å°ç®¡ç†å‘˜ï¼‰ï¼Œä¸å…è®¸ä¿®æ”¹ç§Ÿæˆ·ç¼–ç 
      */
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public Long updateTenant(Tenant tenant) {
         if (tenant.getId() == null) {
-            throw new BusinessException("×â»§ID²»ÄÜÎª¿Õ");
+            throw new BusinessException("ç§Ÿæˆ·IDä¸èƒ½ä¸ºç©º");
         }
         Tenant exist = tenantMapper.selectById(tenant.getId());
         if (exist == null) {
-            throw new ResourceNotFoundException("´ıĞŞ¸ÄµÄ×â»§²»´æÔÚ");
+            throw new ResourceNotFoundException("å¾…ä¿®æ”¹çš„ç§Ÿæˆ·ä¸å­˜åœ¨");
         }
         tenant.setTenantCode(exist.getTenantCode());
         tenant.setDeleted(exist.getDeleted());
         tenant.setCreateTime(exist.getCreateTime());
         tenantMapper.updateById(tenant);
-        log.info("ĞŞ¸Ä×â»§, tenantId={}", tenant.getId());
+        log.info("ä¿®æ”¹ç§Ÿæˆ·, tenantId={}", tenant.getId());
         return tenant.getId();
     }
 
     /**
-     * ÈíÉ¾³ı×â»§£¨±£ÁôÊı¾İ£¬¿É»Ö¸´£©¡£Í¬²½ÖÃÎªÒÑÍË×â²¢¼ÇÂ¼ÍË×âÊ±¼ä
+     * è½¯åˆ é™¤ç§Ÿæˆ·ï¼ˆä¿ç•™æ•°æ®ï¼Œå¯æ¢å¤ï¼‰ã€‚åŒæ­¥ç½®ä¸ºå·²é€€ç§Ÿå¹¶è®°å½•é€€ç§Ÿæ—¶é—´
      */
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public int softDelete(Long id) {
         Tenant exist = tenantMapper.selectById(id);
         if (exist == null) {
-            throw new ResourceNotFoundException("´ıÉ¾³ıµÄ×â»§²»´æÔÚ");
+            throw new ResourceNotFoundException("å¾…åˆ é™¤çš„ç§Ÿæˆ·ä¸å­˜åœ¨");
         }
         LambdaUpdateWrapper<Tenant> uw = new LambdaUpdateWrapper<>();
         uw.eq(Tenant::getId, id)
@@ -162,21 +162,21 @@ public class TenantService {
           .set(Tenant::getStatus, STATUS_OFFLINE)
           .set(Tenant::getOfflineTime, LocalDateTime.now());
         int rows = tenantMapper.update(null, uw);
-        log.info("ÈíÉ¾³ı×â»§, tenantId={}, Ó°ÏìĞĞÊı={}", id, rows);
+        log.info("è½¯åˆ é™¤ç§Ÿæˆ·, tenantId={}, å½±å“è¡Œæ•°={}", id, rows);
         return rows;
     }
 
     /**
-     * »Ö¸´ÈíÉ¾³ıµÄ×â»§
+     * æ¢å¤è½¯åˆ é™¤çš„ç§Ÿæˆ·
      */
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public int restore(Long id) {
         Tenant exist = tenantMapper.selectById(id);
         if (exist == null) {
-            throw new ResourceNotFoundException("´ı»Ö¸´µÄ×â»§²»´æÔÚ");
+            throw new ResourceNotFoundException("å¾…æ¢å¤çš„ç§Ÿæˆ·ä¸å­˜åœ¨");
         }
         if (exist.getDeleted() == null || exist.getDeleted() == 0) {
-            throw new BusinessException("¸Ã×â»§Î´±»É¾³ı£¬ÎŞĞè»Ö¸´");
+            throw new BusinessException("è¯¥ç§Ÿæˆ·æœªè¢«åˆ é™¤ï¼Œæ— éœ€æ¢å¤");
         }
         LambdaUpdateWrapper<Tenant> uw = new LambdaUpdateWrapper<>();
         uw.eq(Tenant::getId, id)
@@ -184,21 +184,21 @@ public class TenantService {
           .set(Tenant::getStatus, STATUS_NORMAL)
           .set(Tenant::getOfflineTime, null);
         int rows = tenantMapper.update(null, uw);
-        log.info("»Ö¸´×â»§, tenantId={}, Ó°ÏìĞĞÊı={}", id, rows);
+        log.info("æ¢å¤ç§Ÿæˆ·, tenantId={}, å½±å“è¡Œæ•°={}", id, rows);
         return rows;
     }
 
     /**
-     * ×´Ì¬Á÷×ª£º1ÆôÓÃ 2Í£ÓÃ 3ÍË×â
+     * çŠ¶æ€æµè½¬ï¼š1å¯ç”¨ 2åœç”¨ 3é€€ç§Ÿ
      */
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public int changeStatus(Long id, Integer status) {
         if (status == null || (status != STATUS_NORMAL && status != STATUS_DISABLED && status != STATUS_OFFLINE)) {
-            throw new BusinessException("×´Ì¬Öµ²»ºÏ·¨£¨1Õı³£ 2Í£ÓÃ 3ÒÑÍË×â£©");
+            throw new BusinessException("çŠ¶æ€å€¼ä¸åˆæ³•ï¼ˆ1æ­£å¸¸ 2åœç”¨ 3å·²é€€ç§Ÿï¼‰");
         }
         Tenant exist = tenantMapper.selectById(id);
         if (exist == null) {
-            throw new ResourceNotFoundException("×â»§²»´æÔÚ");
+            throw new ResourceNotFoundException("ç§Ÿæˆ·ä¸å­˜åœ¨");
         }
         LambdaUpdateWrapper<Tenant> uw = new LambdaUpdateWrapper<>();
         uw.eq(Tenant::getId, id).set(Tenant::getStatus, status);
@@ -206,21 +206,21 @@ public class TenantService {
             uw.set(Tenant::getOfflineTime, LocalDateTime.now());
         }
         int rows = tenantMapper.update(null, uw);
-        log.info("×â»§×´Ì¬Á÷×ª, tenantId={}, status={}, Ó°ÏìĞĞÊı={}", id, status, rows);
+        log.info("ç§Ÿæˆ·çŠ¶æ€æµè½¬, tenantId={}, status={}, å½±å“è¡Œæ•°={}", id, status, rows);
         return rows;
     }
 
     /**
-     * ĞøÆÚ£ºÔÚµ±Ç°µ½ÆÚÊ±¼ä»ù´¡ÉÏÔö¼ÓÔÂÊı£¨ÒÑ¹ıÆÚµÄ´Óµ±Ç°Ê±¼äÆğËã£©
+     * ç»­æœŸï¼šåœ¨å½“å‰åˆ°æœŸæ—¶é—´åŸºç¡€ä¸Šå¢åŠ æœˆæ•°ï¼ˆå·²è¿‡æœŸçš„ä»å½“å‰æ—¶é—´èµ·ç®—ï¼‰
      */
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public int renew(Long id, Integer months) {
         if (months == null || months <= 0) {
-            throw new BusinessException("ĞøÆÚÔÂÊı±ØĞë´óÓÚ0");
+            throw new BusinessException("ç»­æœŸæœˆæ•°å¿…é¡»å¤§äº0");
         }
         Tenant exist = tenantMapper.selectById(id);
         if (exist == null) {
-            throw new ResourceNotFoundException("×â»§²»´æÔÚ");
+            throw new ResourceNotFoundException("ç§Ÿæˆ·ä¸å­˜åœ¨");
         }
         LocalDateTime base = exist.getExpireTime();
         if (base == null || base.isBefore(LocalDateTime.now())) {
@@ -230,23 +230,23 @@ public class TenantService {
         LambdaUpdateWrapper<Tenant> uw = new LambdaUpdateWrapper<>();
         uw.eq(Tenant::getId, id).set(Tenant::getExpireTime, newExpire);
         int rows = tenantMapper.update(null, uw);
-        log.info("×â»§ĞøÆÚ, tenantId={}, months={}, ĞÂµ½ÆÚÊ±¼ä={}", id, months, newExpire);
+        log.info("ç§Ÿæˆ·ç»­æœŸ, tenantId={}, months={}, æ–°åˆ°æœŸæ—¶é—´={}", id, months, newExpire);
         return rows;
     }
 
     /**
-     * ±ä¸üÌ×²Í£¨½ö¸üĞÂ package_id£¬ÏŞ¶îĞ£ÑéÓÉ TenantQuotaService ¸ºÔğ£©
+     * å˜æ›´å¥—é¤ï¼ˆä»…æ›´æ–° package_idï¼Œé™é¢æ ¡éªŒç”± TenantQuotaService è´Ÿè´£ï¼‰
      */
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public int changePackage(Long id, Long packageId) {
         Tenant exist = tenantMapper.selectById(id);
         if (exist == null) {
-            throw new ResourceNotFoundException("×â»§²»´æÔÚ");
+            throw new ResourceNotFoundException("ç§Ÿæˆ·ä¸å­˜åœ¨");
         }
         LambdaUpdateWrapper<Tenant> uw = new LambdaUpdateWrapper<>();
         uw.eq(Tenant::getId, id).set(Tenant::getPackageId, packageId == null ? 0L : packageId);
         int rows = tenantMapper.update(null, uw);
-        log.info("×â»§±ä¸üÌ×²Í, tenantId={}, packageId={}, Ó°ÏìĞĞÊı={}", id, packageId, rows);
+        log.info("ç§Ÿæˆ·å˜æ›´å¥—é¤, tenantId={}, packageId={}, å½±å“è¡Œæ•°={}", id, packageId, rows);
         return rows;
     }
 }

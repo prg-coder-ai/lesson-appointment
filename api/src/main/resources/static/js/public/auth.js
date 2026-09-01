@@ -12,6 +12,13 @@
   // 登录 API：参数应当放在 data 中
   function login(data) {
     // data: { account: 'xxx', password: 'yyy' }
+    // [DEBUG-PLATFORM] 平台管理员登录链路调试输出：打印真正发往后端 /auth/login 的请求体
+    console.log('[DEBUG-PLATFORM] login 请求体 ->', JSON.stringify(data));
+    if (data && data.tenantCode === 'platform' && data.role === 'platform_admin') {
+      console.log('[DEBUG-PLATFORM] login 命中平台管理员标识：tenantCode=platform, role=platform_admin');
+    } else {
+      console.log('[DEBUG-PLATFORM] login 普通登录：未携带 platform 标识（tenantCode/role 缺失，将走租户分支）');
+    }
     return request({
       url: '/auth/login',
       method: 'post',
@@ -131,8 +138,12 @@
    *  - 二者都容易被 XSS 窃取，敏感数据应谨慎存储，配合 CSP、输入过滤等手段提安全。
    */
 
-  async function authenticateUser(account, pwd) {
-    const loginInfo = { account: account, password: pwd };
+  async function authenticateUser(account, pwd, extraInfo) {
+
+    const loginInfo = { account: account, password: pwd ,
+      tenantCode: extraInfo && extraInfo.tenantCode,
+      role:       extraInfo && extraInfo.role
+    };
     try {
       const res = await login(loginInfo);
       console.log('登录响应:', res);

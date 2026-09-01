@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data
 public class CourseScheduleQueryPage extends PageQuery {
-    private Long tenantId;  // ×â»§ID£¨¾«×¼É¸Ñ¡£¬SaaS¶à×â»§£»null=²»ÏŞ£©
+    private Long tenantId;  // ç§Ÿæˆ·IDï¼ˆç²¾å‡†ç­›é€‰ï¼ŒSaaSå¤šç§Ÿæˆ·ï¼›null=ä¸é™ï¼‰
     private String scheduleName;
     private String courseName;
     private String status;

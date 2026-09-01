@@ -34,6 +34,9 @@ ALTER TABLE `sys_tenant`
   ADD KEY `idx_deleted` (`deleted`),
   ADD KEY `idx_expire_time` (`expire_time`);
 
+ALTER TABLE `sys_tenant`
+   ADD COLUMN `deleted`      TINYINT      NOT NULL DEFAULT 0  COMMENT '软删除标记：0正常 1已删除（保留可恢复）' AFTER `remark`,
+   ADD KEY `idx_deleted` (`deleted`); 
 -- ============================================================
 -- 2. 用户会话表（在线用户统计）
 --    单机部署，采用会话表方案：登录写入、登出标记、请求续期、定时任务清理

@@ -24,11 +24,10 @@ public interface BookingMapper extends BaseMapper<Booking>{
     // 根据ID变更状态
     int updateStatus(@Param("bookingId") String bookingId, @Param("status") String status);
 
-    // 根据ID查询
-  //  Booking selectById(@Param("bookingId") String bookingId);
+    // 根据ID查询：与mybatis重复，此处无需定义
 
-    // 条件批量查询
-    List<Booking> selectList(BookingQueryParaDTO dto);
+    // 条件批量查询（入参为DTO而非Wrapper，必须独立命名，否则会覆盖 BaseMapper.selectList）
+    List<Booking> selectByCondition(BookingQueryParaDTO dto);
 
     List <Booking> selectListPage(BookingQueryPage dto);
     int            selectCountByCondition(BookingQueryPage dto);

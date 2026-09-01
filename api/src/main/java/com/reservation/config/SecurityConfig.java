@@ -78,10 +78,11 @@ public class SecurityConfig {
                         ).permitAll()
 
                         // 注册相关（匿名用户必须能访问）
+                        // 注意：/user/register 才是 UserController 实际映射（@PostMapping("/register")），
+                        // 此前只放了不存在的 /user/admin/register，导致自助注册被 401 拦截；
+                        // 此处与 WebMvcConfig/JwtFilter 的白名单保持一致
                         .requestMatchers(
-                                "/user/teacher/register",
-                                "/user/student/register",
-                               "/user/admin/register" , 
+                                "/user/register", 
                                 "/user/account/exist"
                         ).permitAll()
 
