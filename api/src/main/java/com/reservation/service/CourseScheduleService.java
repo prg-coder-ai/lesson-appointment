@@ -343,8 +343,8 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
         }
     }
  
-    cs.setRepeatType(dto.getRepeatType());
-    cs.setRepeatInterval(dto.getRepeatInterval());
+    cs.setRepeatType(dto.getRepeatType() == null ? 0 : dto.getRepeatType());
+    cs.setRepeatInterval(dto.getRepeatInterval() == null ? 0 : dto.getRepeatInterval());
     cs.setAvailableSites(dto.getAvailableSites());
     // 将 List<Integer> repeatDays 转为字符串存储（如 "1,3,5"）
     if (dto.getRepeatDays() != null && !dto.getRepeatDays().isEmpty()) {
@@ -354,7 +354,8 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
     }
  
     cs.setTimeZone(dto.getTimeZone());
-    cs.setStatus(dto.getStatus());
+    // 多租户/前端未传 status 时兜底为 active（枚举 pending/active/inactive/frozen），避免 NOT NULL 约束触发 500
+    cs.setStatus(dto.getStatus() == null ? "active" : dto.getStatus());
     cs.setName(dto.getName());
     return cs;
 }
@@ -388,7 +389,7 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
         }
         genDto.setRepeatType(repeatType);
 
-        genDto.setInterval(crtDto.getRepeatInterval());
+        genDto.setInterval(crtDto.getRepeatInterval() == null ? 0 : crtDto.getRepeatInterval());
         genDto.setRepeatDays(crtDto.getRepeatDays());
         genDto.setTimeZone(crtDto.getTimeZone());
         genDto.setUserTimeZone(crtDto.getTimeZone());

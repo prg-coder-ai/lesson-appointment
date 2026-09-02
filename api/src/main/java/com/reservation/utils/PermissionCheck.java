@@ -124,6 +124,29 @@ public class PermissionCheck {
     }
 
     /**
+     * 校验：教师仅可操作本人资料，管理员/平台管理员可操作任意教师资料
+     * 用于教师个人介绍发布/查询场景（TC-J-05：教师发布占用额度）
+     */
+    public void checkTeacherSelfOrAdmin(String token, String teacherId) {
+        String role = getRoleFromToken(token);
+        String userId = getUserIdFromToken(token);
+        if ("admin".equals(role) || RoleConst.PLATFORM_ADMIN.equals(role)) {
+            return; // 管理员/平台管理员放行（可代发任意教师资料）
+        }
+        if ("teacher".equals(role)) {
+            if (!userId.equals(teacherId)) {
+                throw new NoPermissionException("教师只能操作本人的个人介绍");
+            }
+            User teacher = userMapper.selectById(userId);
+            if (teacher == null || !"active".equals(teacher.getStatus())) {
+                throw new NoPermissionException("教师账号未审核或已冻结，请联系管理员");
+            }
+            return;
+        }
+        throw new NoPermissionException("您无权限执行该操作");
+    }
+
+    /**
      * 辅助方法：从Token中获取用户ID，用于订单归属、课程归属校验
      * @param token 请求头中的Authorization Token
      * @return 用户ID（userId）

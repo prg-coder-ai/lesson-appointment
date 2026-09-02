@@ -293,7 +293,12 @@
           localStorage.setItem('currentUser', cookieUser);
           // 也可考虑刷新时覆盖，直接写入都可
         }
-     
+
+      // ====== 入口登录态守卫：校验 tenantCode / 角色一致性，不通过则跳登录页强制重新登录 ======
+      if (typeof window.guardEntryPage === 'function' && !window.guardEntryPage('admin')) {
+        return; // 守卫已触发强制跳转
+      }
+
       // 解析用户信息并渲染
       const currentUser = localStorage.getItem('currentUser');
       let user = null;

@@ -32,7 +32,10 @@ public class MyBatisPlusConfig {
             "sys_dict",
             "user_refresh_token",
             // 会话表是平台级数据（平台管理员需查看全平台在线分布），不参与租户隔离
-            "sys_user_session"
+            "sys_user_session",
+            // 行业专业词汇表是共享词表（平台词/行业词 tenant_id=0），
+            // 租户端也要消费（/term/map 三级合并），作用域过滤由业务层显式控制，不能走租户插件
+            "sys_term"
     );
 
     @Bean

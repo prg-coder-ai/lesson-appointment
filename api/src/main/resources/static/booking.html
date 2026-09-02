@@ -27,6 +27,11 @@
 
     <script>
     window.onload = function() {
+        // ====== 入口登录态守卫：booking 为多角色路由页，不传 requiredRole，仅做会话/租户一致性校验 ======
+        if (typeof window.guardEntryPage === 'function' && !window.guardEntryPage()) {
+          return; // 守卫已触发强制跳转
+        }
+
         var params = new URLSearchParams(window.location.search);
         var scdid = params.get('scdid') || '';
         var tid   = params.get('tid')   || '';

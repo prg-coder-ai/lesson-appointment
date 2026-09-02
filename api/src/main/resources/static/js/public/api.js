@@ -22,7 +22,7 @@
     //TBD读取环境变量
 
     //'http://152.136.254.127'; 
-    const API_SERVER_PORT = '8081';
+    const API_SERVER_PORT = '8080';
     const API_BASE_PATH = '';
     //'/api/v1';
 
@@ -71,9 +71,11 @@
           // 判断是否是当前页面
           // 检查当前页面是否为登录页，如果不是则重定向到首页
           // 用于防止未登录用户强行访问需要权限的页面
+          // 若 URL 带 ?tCode= 则一并带入登录页，使登录页按该租户预填/锁定
           if (!window.location.pathname.endsWith('index.html')) 
             { 
-              window.location.href  =  './index.html?tCode=default'; // 
+              const t = getUrlParam('tCode');
+              window.location.href  = t ? './index.html?tCode=' + encodeURIComponent(t) : './index.html';
             }
           } else  { 
         userId = userInfo.userId;
@@ -580,7 +582,92 @@ function escapeAttr(str) {
       }
     }
 
+  // ============================================================
+  // 入口登录态守卫（tenantCode / 角色一致性校验）
+  // 适用：受保护页面（admin/teacher/student/platform_admin/booking）onload 最前面调用
+  // 触发强制登录的三种不匹配：
+  //   1) URL 携带的 tCode 与本地保存的上次登录 tenantCode 不一致
+  //   2) 登录角色与 tenantCode 不匹配
+  //        - platform_admin 必须对应 'platform'
+  //        - 租户角色(admin/teacher/student) 的 tenantCode 必须非空且不等于 'platform'
+  //   3) 当前页面要求的角色与上次登录角色不一致
+  // 注意：index.html 内联脚本已声明 const PLATFORM_TENANT_CODE，classic 脚本共享同一全局词法环境，
+  //       此处禁止再用同名 const，故直接以字面量 'platform' 表示平台租户编码。
+  // ============================================================
+
+  /** 读取 URL 查询参数（去空格，异常兜底返回空串） */
+  function getUrlParam(name) {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const v = params.get(name);
+      return v && v.trim() ? v.trim() : '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  /** 校验「角色 ↔ 租户编码」是否匹配 */
+  function isRoleTenantCodeMatch(role, tenantCode) {
+    if (role === 'platform_admin') {
+      return tenantCode === 'platform';
+    }
+    // 租户端角色：tenantCode 必须非空且不能是 platform
+    return !!tenantCode && tenantCode !== 'platform';
+  }
+
+  /** 强制跳登录页：清理本地登录态，并按需携带 ?tCode= 参数（作为登录页预填/锁定的租户编码） */
+  function forceEntryLogin(urlTCode) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('currentUser');
+    document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
+    window.location.href = urlTCode
+      ? './index.html?tCode=' + encodeURIComponent(urlTCode)
+      : './index.html';
+  }
+
+  /**
+   * 入口守卫
+   * @param {string} [requiredRole] 当前页面要求的角色
+   *        platform_admin.html -> 'platform_admin'；admin.html -> 'admin'；
+   *        teacher.html -> 'teacher'；student.html -> 'student'；
+   *        booking.html 为多角色路由页，可不传（仅做会话/租户一致性校验）
+   * @returns {boolean} true=放行；false=已触发强制登录跳转
+   */
+  function guardEntryPage(requiredRole) {
+    const urlTCode = getUrlParam('tCode');
+    const localUser = getCurrentUserInfo(); // 可能返回 null
+
+    // 1) 完全无登录态 → 强制登录
+    if (!localUser || !localUser.token || !localUser.role) {
+      forceEntryLogin(urlTCode);
+      return false;
+    }
+
+    // 2) 角色与 tenantCode 必须匹配
+    if (!isRoleTenantCodeMatch(localUser.role, localUser.tenantCode)) {
+      forceEntryLogin(urlTCode);
+      return false;
+    }
+
+    // 3) URL 携带 tCode 时，必须与本地保存的上次登录 tenantCode 一致（换了租户需重新登录）
+    if (urlTCode && urlTCode !== localUser.tenantCode) {
+      forceEntryLogin(urlTCode);
+      return false;
+    }
+
+    // 4) 当前页面要求的角色必须与上一次登录角色一致
+    if (requiredRole && requiredRole !== localUser.role) {
+      forceEntryLogin(urlTCode);
+      return false;
+    }
+
+    return true;
+  }
+
   // 在页面全局导出
+  window.guardEntryPage = guardEntryPage;
+  window.getUrlParam = getUrlParam;
   window.changePasswordAPI = changePasswordAPI;
   window.showChangePasswordDialog = showChangePasswordDialog;
   window.addChangePasswordButton = addChangePasswordButton;

@@ -104,6 +104,12 @@
 
       window.renderTeacherCourseAndScheduleBrowserCards =renderTeacherCourseAndScheduleBrowserCards;
       window.renderStudentBookingBrowserCards  = renderStudentBookingBrowserCards ;  
+
+      // ====== 入口登录态守卫：校验 tenantCode / 角色一致性，不通过则跳登录页强制重新登录 ======
+      if (typeof window.guardEntryPage === 'function' && !window.guardEntryPage('teacher')) {
+        return; // 守卫已触发强制跳转
+      }
+
       userInfo = autoLoginCheck();
       // ====== 新增：未登录 → 保存当前来源页 URL 后跳登录页 ======
       if (!userInfo) {

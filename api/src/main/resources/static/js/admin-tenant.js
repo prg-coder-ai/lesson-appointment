@@ -5,6 +5,20 @@
  * ========================================================================== */
 let tenantPage = { pageNum: 1, pageSize: 8, total: 0, totalPages: 0 };
 
+/* ---------- 行业字典（id -> name 映射，用于租户列表/编辑显示行业名称） ---------- */
+let industryNameMap = {};
+function loadIndustryMap() {
+  return request({ url: '/industry/list', method: 'get' }).then(list => {
+    industryNameMap = {};
+    (list || []).forEach(it => { if (it && it.id) industryNameMap[it.id] = it.name; });
+    return industryNameMap;
+  }).catch(() => { industryNameMap = {}; });
+}
+function industryName(id) {
+  if (!id) return '-';
+  return industryNameMap[id] || ('行业#' + id);
+}
+
 function renderTenantCards() {
   const c = document.getElementById('dynamic-content-center');
   c.innerHTML = `
@@ -27,7 +41,7 @@ function renderTenantCards() {
       <div class="table-container">
         <table class="data-table">
           <thead><tr>
-            <th>序号</th><th>机构名称</th><th>编码</th><th>联系人</th><th>电话</th><th>状态</th><th>到期时间</th><th>操作</th>
+            <th>序号</th><th>机构名称</th><th>编码</th><th>联系人</th><th>电话</th><th>行业</th><th>状态</th><th>到期时间</th><th>操作</th>
           </tr></thead>
           <tbody id="tenant-body"></tbody>
         </table>
@@ -35,7 +49,8 @@ function renderTenantCards() {
       <div id="tenant-pagebar"></div>
     </div>`;
   if (window.applyTerms) applyTerms(c);
-  loadTenantList();
+  // 先加载行业字典，再渲染列表（保证行业名称可解析）
+  loadIndustryMap().then(() => loadTenantList());
 }
 
 function loadTenantList() {
@@ -63,7 +78,7 @@ function tenantStatusText(s) {
 function renderTenantRows(rows) {
   const tb = document.getElementById('tenant-body');
   if (!rows.length) {
-    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;">暂无数据</td></tr>';
+    tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;">暂无数据</td></tr>';
     return;
   }
   tb.innerHTML = rows.map((t, i) => {
@@ -74,6 +89,7 @@ function renderTenantRows(rows) {
       <td>${escapeHtml(t.tenantCode || '')}</td>
       <td>${escapeHtml(t.contact || '')}</td>
       <td>${escapeHtml(t.phone || '')}</td>
+      <td>${industryName(t.industryId)}</td>
       <td>${tenantStatusText(t.status)}</td>
       <td>${t.expireTime ? ('' + t.expireTime).replace('T', ' ') : '-'}</td>
       <td>
@@ -118,12 +134,26 @@ function openTenantModal(obj) {
   const isEdit = obj && obj.id;
   document.getElementById('tenantModalTitle').innerText = isEdit ? '编辑租户' : '新增租户';
   const fc = document.getElementById('tenantFormContainer');
+  fc.innerHTML = '<div style="padding:24px;text-align:center;color:#888;">加载中…</div>';
+  // 行业字典就绪后再渲染表单（下拉需行业列表）
+  loadIndustryMap().then(() => buildTenantForm(obj));
+}
+
+function buildTenantForm(obj) {
+  const isEdit = obj && obj.id;
+  const fc = document.getElementById('tenantFormContainer');
   const exp = (isEdit && obj.expireTime) ? ('' + obj.expireTime).replace(' ', 'T').substring(0, 16) : '';
+  const industryOptions = Object.keys(industryNameMap).map(k =>
+    `<option value="${k}" ${isEdit && Number(obj.industryId) === Number(k) ? 'selected' : ''}>${escapeHtml(industryNameMap[k])}</option>`
+  ).join('');
   fc.innerHTML = `
     <form id="tenantForm" class="form-item">
       <input type="hidden" name="id" value="${isEdit ? obj.id : ''}">
       <div class="form-line"><label>机构名称</label><input name="orgName" value="${isEdit ? escapeHtml(obj.orgName || '') : ''}" required></div>
       <div class="form-line"><label>租户编码</label><input name="tenantCode" value="${isEdit ? escapeHtml(obj.tenantCode || '') : ''}" ${isEdit ? 'readonly' : ''} placeholder="如 org001"></div>
+      <div class="form-line"><label>所属行业</label><select name="industryId">
+        <option value="">--未指定--</option>${industryOptions}
+      </select></div>
       <div class="form-line"><label>联系人</label><input name="contact" value="${isEdit ? escapeHtml(obj.contact || '') : ''}"></div>
       <div class="form-line"><label>联系电话</label><input name="phone" value="${isEdit ? escapeHtml(obj.phone || '') : ''}"></div>
       <div class="form-line"><label>状态</label><select name="status">
@@ -162,6 +192,7 @@ function submitTenant() {
     tenantCode: f.tenantCode.value.trim(),
     contact: f.contact.value.trim(),
     phone: f.phone.value.trim(),
+    industryId: f.industryId.value ? Number(f.industryId.value) : null,
     status: Number(f.status.value),
     expireTime: expire,
     remark: f.remark.value

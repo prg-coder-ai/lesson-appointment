@@ -91,9 +91,9 @@
     -->
 
     <select id="selectListPage" parameterType="com.reservation.query.BookingQueryPage" resultType="com.reservation.entity.Booking">
-        SELECT booking.* 
-        FROM booking 
-        LEFT JOIN course_schedule cs ON booking.schedule_id = cs.schedule_id
+        SELECT b.* 
+        FROM booking as b
+            LEFT JOIN course_schedule cs ON b.schedule_id = cs.schedule_id
         LEFT JOIN course c ON cs.course_id = c.course_id
    
         <where> TRUE
@@ -105,17 +105,17 @@
             
              <choose>
                 <when test="userRole != null and userId != null and userRole == 'student' ">
-                    AND booking.student_id = #{userId}
+                    AND b.student_id = #{userId}
                 </when>
             </choose>
             <choose>
                 <when test="userRole != null and userId != null and userRole == 'teacher' ">
-                    AND booking.teacher_id = #{userId}
+                    AND b.teacher_id = #{userId}
                 </when>
             </choose>
             <choose>
                 <when test="status != null and status !=''">
-                    AND booking.status = #{status}
+                    AND b.status = #{status}
                 </when>
             </choose>
         </where>
@@ -128,8 +128,8 @@
     
     <select id="selectCountByCondition" parameterType="com.reservation.query.BookingQueryPage" resultType="java.lang.Integer">
         SELECT count(*)        
-        FROM booking 
-        LEFT JOIN course_schedule cs ON booking.schedule_id = cs.schedule_id
+        FROM booking  as b
+        LEFT JOIN course_schedule cs ON b.schedule_id = cs.schedule_id
         LEFT JOIN course c ON cs.course_id = c.course_id   
         <where> TRUE
         <choose>
@@ -138,16 +138,16 @@
                 </when>
             </choose>
          <choose> <when test="userRole != null and userId != null and userRole == 'student' ">
-                    AND booking.student_id = #{userId}                   
+                    AND b.student_id = #{userId}                   
                 </when >
                        </choose>
          <choose> <when  test="userRole!= null  and userId != null and userRole == 'teacher' ">
-                    AND booking.teacher_id = #{userId}
+                    AND b.teacher_id = #{userId}
                 </when>
                 </choose>
          <choose>
             <when test="status != null and status != ''"> 
-                AND booking.status = #{status}
+                AND b.status = #{status}
                 </when></choose>
         </where> 
     </select>

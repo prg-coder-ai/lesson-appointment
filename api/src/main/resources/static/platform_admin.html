@@ -134,6 +134,11 @@
       localStorage.setItem('currentUser', cookieUser);
     }
 
+    // ====== 入口登录态守卫：platform_admin 页要求角色为 platform_admin 且 tenantCode=platform ======
+    if (typeof window.guardEntryPage === 'function' && !window.guardEntryPage('platform_admin')) {
+      return; // 守卫已触发强制跳转
+    }
+
     const currentUser = localStorage.getItem('currentUser');
     let user = null;
     try { user = currentUser ? JSON.parse(currentUser) : null; } catch(_) { user = null; }
@@ -202,6 +207,8 @@
   <script src="js/admin-package.js"></script>
   <script src="js/admin-dashboard.js"></script>
   <script src="js/admin-config.js"></script>
+  <script src="js/admin-industry.js"></script>
+  <script src="js/admin-term.js"></script>
 
   <script>
     console.log("platform_admin.html loaded");

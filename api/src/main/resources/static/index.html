@@ -607,7 +607,9 @@
           role:    user.role,
           token:   user.token,
           name:    user.name || '',
-          tenantCode: user.tenantCode || '' // 新增：租户编码
+          // 修正：后端登录响应不含 tenantCode，必须用【登录时确定的租户编码】保存，
+          // 否则恒为 ''，导致入口守卫的角色/租户一致性校验对所有租户角色失效。
+          tenantCode: (loginRole === 'platform_admin' ? 'platform' : loginTenantCode)
         };
         localStorage.setItem('currentUser', JSON.stringify(currentUser));
         // token 单独保存：utility_request.js 请求拦截器从 localStorage.getItem('token') 取

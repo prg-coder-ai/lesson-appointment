@@ -12,7 +12,7 @@
                 <div class="card">
                   <div class="card-header">
                     <div class="card-title"><i class="fa fa-chalkboard-teacher"></i> ${role=="teacher"?"教师列表":"学生列表" } </div>
-                    <button class="btn btn-primary" onclick="alert('TODO: 打开添加用户弹窗')"><i class="fa fa-plus"></i> 添加用户</button>
+                    <button class="btn btn-primary" onclick="openAddUserModal()"><i class="fa fa-plus"></i> 添加用户</button>
                   </div>
                   <div class="teacher-list-cards" style="margin:6px 0;display:flex;flex-direction:column;gap:16px;">
                
@@ -241,6 +241,72 @@
       changePasswordAPI(userId,"123456");
     }
     
+    // ===================== 添加用户（区分角色：教师/学生） =====================
+    function openAddUserModal() {
+      let modal = document.getElementById('addUserModal');
+      if (!modal) modal = createAddUserModal();
+      modal.style.display = 'flex';
+      const isTeacher = currentUserRole === 'teacher';
+      document.getElementById('addUserModalTitle').innerText = '添加' + (isTeacher ? '教师' : '学生');
+      const fc = document.getElementById('addUserFormContainer');
+      fc.innerHTML = `
+        <form id="addUserForm" class="form-item">
+          <input type="hidden" name="role" value="${currentUserRole}">
+          <div class="form-line"><label>角色</label><input value="${isTeacher ? '教师' : '学生'}" readonly></div>
+          <div class="form-line"><label>账号</label><input name="account" placeholder="登录账号（租户内唯一）" required></div>
+          <div class="form-line"><label>姓名</label><input name="name" placeholder="用户姓名"></div>
+          <div class="form-line"><label>手机号</label><input name="phone" placeholder="手机号（与邮箱至少填一项）"></div>
+          <div class="form-line"><label>电子邮箱</label><input name="email" placeholder="电子邮箱（与手机号至少填一项）"></div>
+          <div class="form-line"><label>初始密码</label><input name="password" value="123456" placeholder="默认 123456"></div>
+          <div class="form-tip">初始密码默认为 123456，用户首次登录后可自行重置。</div>
+          <div class="form-error" id="addUserFormErr"></div>
+          <div class="btn-group">
+            <button type="button" class="btn btn-primary" onclick="submitAddUser()">保存</button>
+            <button type="button" class="btn btn-cancel" onclick="closeAddUserModal()">取消</button>
+          </div>
+        </form>`;
+    }
+    function createAddUserModal() {
+      const m = document.createElement('div');
+      m.className = 'modal-mask'; m.id = 'addUserModal'; m.style.display = 'none';
+      m.innerHTML = `<div class="modal-content">
+          <div class="modal-header"><div id="addUserModalTitle" style="font-weight:600;font-size:16px;"></div>
+            <span class="modal-close" id="addUserCloseBtn">&times;</span></div>
+          <div id="addUserFormContainer"></div></div>`;
+      document.body.appendChild(m);
+      m.addEventListener('click', e => { if (e.target.id === 'addUserModal') closeAddUserModal(); });
+      document.getElementById('addUserCloseBtn').addEventListener('click', closeAddUserModal);
+      return m;
+    }
+    function closeAddUserModal() { const m = document.getElementById('addUserModal'); if (m) m.style.display = 'none'; }
+    function submitAddUser() {
+      const f = document.getElementById('addUserForm');
+      const account = (f.account.value || '').trim();
+      const phone = (f.phone.value || '').trim();
+      const email = (f.email.value || '').trim();
+      const err = document.getElementById('addUserFormErr');
+      if (!account) { err.innerText = '账号不能为空'; return; }
+      if (!phone && !email) { err.innerText = '手机号和电子邮箱至少填写一项'; return; }
+      const data = {
+        account: account,
+        name: (f.name.value || '').trim(),
+        phone: phone,
+        email: email,
+        password: (f.password.value || '').trim() || '123456',
+        role: currentUserRole // 按当前页面角色区分：teacher / student
+      };
+      request({
+        url: `${API_BASE_URL}/user/add`,
+        method: 'POST',
+        data: data
+      }).then(() => {
+        closeAddUserModal();
+        loadUserList(currentUserRole); // 刷新当前角色列表
+        alert('添加成功，初始密码为 ' + data.password);
+      }).catch(() => { /* 错误提示由 request 拦截器统一处理 */ });
+    }
+    
+
                 //Detail--教师信息,用于提交图片、专业信息、时间段等，输出该教师的可用时段及推广信息
                 function teacherInfoBoard(userId) {
                   window.location.href = `./teacherInfo.html?userId=${userId}`;
