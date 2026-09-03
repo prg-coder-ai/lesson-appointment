@@ -6,6 +6,23 @@ let pkgTplPage = { pageNum: 1, pageSize: 8, total: 0, totalPages: 0 };
 let tenantPkgPage = { pageNum: 1, pageSize: 8, total: 0, totalPages: 0 };
 let pkgTab = 'template';
 
+
+//添加租户名称查询
+let tenantNameMap = {};
+function loadTenantNameMap() {
+  return request({ url: '/tenant/list', method: 'get' }).then(list => {
+    tenantNameMap = {};
+    (list || []).forEach(it => { if (it && it.id) tenantNameMap[it.id] = it.tenantCode + ' ' + it.orgName; });
+    console.log('tenantNameMap loaded:', tenantNameMap);
+    return tenantNameMap;
+  }).catch(() => { tenantNameMap = {}; });
+}
+function tenantName(id) {
+  if (!id) return '-';
+  return tenantNameMap[id] || ('租户#' + id);
+}
+
+
 function renderPackageCards() {
   const c = document.getElementById('dynamic-content-center');
   c.innerHTML = `
@@ -21,7 +38,8 @@ function renderPackageCards() {
       <div id="pkg-body-area"></div>
     </div>`;
   if (window.applyTerms) applyTerms(c);
-  renderPkgTab();
+
+     loadTenantNameMap().then(() => renderPkgTab()); 
 }
 function switchPkgTab(t) { pkgTab = t; renderPackageCards(); }
 function renderPkgTab() {
@@ -151,12 +169,12 @@ function deletePkgTpl(id) {
     .then(() => loadPkgTplList()).catch(() => {});
 }
 
-/* ---------------- 租户套餐 ---------------- */
+/* ---------------- 租户套餐 --及余量-------------- */
 function renderTenantPkgTable(area) {
   area.innerHTML = `
     <div class="table-container">
       <table class="data-table"><thead><tr>
-        <th>序号</th><th>租户ID</th><th>课程(用/限)</th><th>排期(用/限)</th><th>用户(用/限)</th><th>教师(用/限)</th><th>学生(用/限)</th><th>操作</th>
+        <th>序号</th><th>租户</th><th>课程(用/限)</th><th>排期(用/限)</th><th>用户(用/限)</th><th>教师(用/限)</th><th>学生(用/限)</th><th>操作</th>
       </tr></thead><tbody id="tpkg-body"></tbody></table>
     </div><div id="tpkg-pagebar"></div>
     <div style="margin-top:12px;">
@@ -172,19 +190,23 @@ function loadTenantPkgList() {
       renderTenantPkgPagebar();
     }).catch(() => { renderTenantPkgRows([]); renderTenantPkgPagebar(); });
 }
+
 function renderTenantPkgRows(rows) {
   const tb = document.getElementById('tpkg-body');
   if (!rows.length) { tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;">暂无数据</td></tr>'; return; }
+  const noLimited = (v) => v === 0 ? '无上限' : v;
   tb.innerHTML = rows.map((t, i) => {
     const e = JSON.stringify(t).replace(/'/g, "\\'");
+    //把tenantId 查询出tenantName
+     const tName = tenantName(t.tenantId); 
     return `<tr>
       <td>${i + 1}</td>
-      <td>${t.tenantId || ''}</td>
-      <td>${(t.courseCurrent || 0)}/${(t.courseLimit || 0)}</td>
-      <td>${(t.scheduleCurrent || 0)}/${(t.scheduleLimit || 0)}</td>
-      <td>${(t.userCurrent || 0)}/${(t.userTotalLimit || 0)}</td>
-      <td>${(t.teacherCurrent || 0)}/${(t.teacherLimit || 0)}</td>
-      <td>${(t.studentCurrent || 0)}/${(t.studentLimit || 0)}</td>
+      <td>${tName}</td>
+      <td>${(t.courseCurrent || 0)}/${noLimited(t.courseLimit || 0)}</td>
+      <td>${(t.scheduleCurrent || 0)}/${noLimited(t.scheduleLimit || 0)}</td>
+      <td>${(t.userCurrent || 0)}/${noLimited(t.userTotalLimit || 0)}</td>
+      <td>${(t.teacherCurrent || 0)}/${noLimited(t.teacherLimit || 0)}</td>
+      <td>${(t.studentCurrent || 0)}/${noLimited(t.studentLimit || 0)}</td>
       <td>
         <button class="btn btn-default" onclick="openTenantPkgModal(${e})">编辑</button>
         <button class="btn btn-danger" onclick="deleteTenantPkg(${t.id})">删除</button>

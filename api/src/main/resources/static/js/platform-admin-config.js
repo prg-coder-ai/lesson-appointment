@@ -47,7 +47,7 @@ function renderSystemConfigInner(body) {
   body.innerHTML = `
     <div class="table-container">
       <table class="data-table"><thead><tr>
-        <th>名称</th><th>键</th><th>值</th><th>分组</th><th>类型</th><th>可编辑</th><th>操作</th>
+        <th>名称</th><th>键</th><th>值</th><th>分组</th><th>类型</th><th>语言</th><th>可编辑</th><th>操作</th>
       </tr></thead><tbody id="cfg-body"></tbody></table>
     </div>`;
   loadConfigList();
@@ -66,6 +66,7 @@ function loadConfigList() {
           <td>${escapeHtml(cf.configValue || '')}</td>
           <td>${escapeHtml(cf.configGroup || '')}</td>
           <td>${escapeHtml(cf.valueType || '')}</td>
+          <td>${escapeHtml(cf.language || '')}</td>
           <td>${cf.editable === 1 ? '是' : '否'}</td>
           <td>${cf.editable === 1 ? `<button class="btn btn-default" onclick="editConfig(${e})">修改</button>` : '-'}</td>
         </tr>`;
