@@ -97,7 +97,7 @@ public class DashboardService {
         data.put("onlineTotal", userSessionService.countOnline(null));
         data.put("onlineByTenant", userSessionService.countOnlineByTenant());
         data.put("expireWarningDays", sysConfigService.getInt(SysConfigService.KEY_EXPIRE_WARN, 30));
-        data.put("expireWarning", getExpireWarning());
+        data.put("expireWarning", getExpireWarning() != null ? getExpireWarning().size() : "n/a");
         return data;
     }
 

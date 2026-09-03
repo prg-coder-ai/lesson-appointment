@@ -58,3 +58,4 @@ api/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles
 api/.node/
 api/lesson_appointment_backup.sql
 api/logs/spring-boot-app.log
+api/backup001.git/

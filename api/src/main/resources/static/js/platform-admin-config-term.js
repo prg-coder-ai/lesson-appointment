@@ -150,6 +150,7 @@ function applyTermFilter(resetPage) {
   const pg = paginateRows(filtered, termPage.pageNum, termPage.pageSize);
   termPage.pageNum = pg.pageNum;
   termPage.totalPages = pg.totalPages;
+  termPage.total = pg.total;
   // 行数据缓存：仅存 id->对象映射，点击时按 id 取用，避免把对象 JSON 拼进 onclick HTML 属性（防注入/语法截断）
   window.__termRowData = {};
   if (!filtered.length) {

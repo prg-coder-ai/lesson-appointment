@@ -92,6 +92,7 @@ function renderConfigRows() {
   const pg = paginateRows(__configAll, configPage.pageNum, configPage.pageSize);
   configPage.pageNum = pg.pageNum;
   configPage.totalPages = pg.totalPages;
+  configPage.total = pg.total;
   if (!__configAll.length) { tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;">暂无配置</td></tr>'; if (bar) bar.innerHTML = ''; return; }
   tb.innerHTML = pg.pageRows.map(cf => {
     const e = JSON.stringify(cf).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
