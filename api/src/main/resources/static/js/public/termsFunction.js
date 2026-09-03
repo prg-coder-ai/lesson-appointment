@@ -50,7 +50,7 @@ function getOptions(tagKey, fallbackOptions) {
   }
   nodes.forEach(n => {
     let s = n.nodeValue;
-    TERM_KEYS.forEach(t => { s = s.split(t.anchor).join(terms[t.key]); });
+    TERM_KEYS.forEach(t => { s = s.split(t.anchor).join(terms[t.key] != null ? terms[t.key] : t.anchor); });
     n.nodeValue = s;
   });
 

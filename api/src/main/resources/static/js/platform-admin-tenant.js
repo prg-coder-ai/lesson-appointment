@@ -83,7 +83,7 @@ function renderTenantRows(rows) {
     return;
   }
   tb.innerHTML = rows.map((t, i) => {
-    const e = JSON.stringify(t).replace(/'/g, "\\'");
+    const e = JSON.stringify(t).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
     return `<tr>
       <td>${i + 1}</td>
       <td>${escapeHtml(t.orgName || '')}</td>

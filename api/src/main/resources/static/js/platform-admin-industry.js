@@ -8,6 +8,9 @@
 /**
  * 渲染行业管理面板（写入 #config-tab-body）
  */
+let __industryAll = [];
+let industryPage = { pageNum: 1, pageSize: 10 };
+
 function renderIndustryPage() {
   const body = document.getElementById('config-tab-body');
   if (!body) return;
@@ -22,6 +25,7 @@ function renderIndustryPage() {
           <th>ID</th><th>编码</th><th>名称</th><th>状态</th><th>备注</th><th>操作</th>
         </tr></thead><tbody id="industry-body"></tbody></table>
       </div>
+      <div id="industry-pagebar"></div>
     </div>`;
   if (window.applyTerms) applyTerms(body);
   loadIndustryList();
@@ -29,34 +33,38 @@ function renderIndustryPage() {
 
 function loadIndustryList() {
   request({ url: '/industry/list', method: 'get' })
-    .then(list => {
-      const tb = document.getElementById('industry-body');
-      const rows = list || [];
-      if (!rows.length) {
-        tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">暂无行业</td></tr>';
-        return;
-      }
-      tb.innerHTML = rows.map(t => {
-        const e = JSON.stringify(t).replace(/'/g, "\\'");
-        return `<tr>
-          <td>${t.id}</td>
-          <td>${escapeHtml(t.code || '')}</td>
-          <td>${escapeHtml(t.name || '')}</td>
-          <td>${t.status === 1 ? '启用' : '停用'}</td>
-          <td>${escapeHtml(t.remark || '')}</td>
-          <td>
-            <button class="btn btn-default" onclick="openIndustryModal(${e})">编辑</button>
-            <button class="btn btn-warning" onclick="toggleIndustryStatus(${t.id},${t.status})">${t.status === 1 ? '停用' : '启用'}</button>
-            <button class="btn btn-danger" onclick="deleteIndustry(${t.id})">删除</button>
-          </td>
-        </tr>`;
-      }).join('');
-    })
+    .then(list => { __industryAll = list || []; renderIndustryRows(); })
     .catch(() => {
       const tb = document.getElementById('industry-body');
       if (tb) tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">加载失败</td></tr>';
     });
 }
+function renderIndustryRows() {
+  const tb = document.getElementById('industry-body');
+  const bar = document.getElementById('industry-pagebar');
+  if (!tb) return;
+  const pg = paginateRows(__industryAll, industryPage.pageNum, industryPage.pageSize);
+  industryPage.pageNum = pg.pageNum;
+  industryPage.totalPages = pg.totalPages;
+  if (!__industryAll.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">暂无行业</td></tr>'; if (bar) bar.innerHTML = ''; return; }
+  tb.innerHTML = pg.pageRows.map(t => {
+    const e = JSON.stringify(t).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+    return `<tr>
+      <td>${t.id}</td>
+      <td>${escapeHtml(t.code || '')}</td>
+      <td>${escapeHtml(t.name || '')}</td>
+      <td>${t.status === 1 ? '启用' : '停用'}</td>
+      <td>${escapeHtml(t.remark || '')}</td>
+      <td>
+        <button class="btn btn-default" onclick="openIndustryModal(${e})">编辑</button>
+        <button class="btn btn-warning" onclick="toggleIndustryStatus(${t.id},${t.status})">${t.status === 1 ? '停用' : '启用'}</button>
+        <button class="btn btn-danger" onclick="deleteIndustry(${t.id})">删除</button>
+      </td>
+    </tr>`;
+  }).join('');
+  renderPaginationBar(bar, industryPage, 'industryGoto');
+}
+function industryGoto(n) { industryPage.pageNum = n; renderIndustryRows(); }
 
 /* ---------- 模态框 ---------- */
 function openIndustryModal(obj) {

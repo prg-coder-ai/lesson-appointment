@@ -69,7 +69,7 @@ function renderPkgTplRows(rows) {
   const tb = document.getElementById('pkgtpl-body');
   if (!rows.length) { tb.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;">暂无数据</td></tr>'; return; }
   tb.innerHTML = rows.map((t, i) => {
-    const e = JSON.stringify(t).replace(/'/g, "\\'");
+    const e = JSON.stringify(t).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
     return `<tr>
       <td>${i + 1}</td>
       <td>${escapeHtml(t.templateName || '')}</td>
@@ -196,7 +196,7 @@ function renderTenantPkgRows(rows) {
   if (!rows.length) { tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;">暂无数据</td></tr>'; return; }
   const noLimited = (v) => v === 0 ? '无上限' : v;
   tb.innerHTML = rows.map((t, i) => {
-    const e = JSON.stringify(t).replace(/'/g, "\\'");
+    const e = JSON.stringify(t).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
     //把tenantId 查询出tenantName
      const tName = tenantName(t.tenantId); 
     return `<tr>
