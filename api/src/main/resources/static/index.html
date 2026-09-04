@@ -435,11 +435,6 @@
       const role = registerRole.value.trim();
       const account = (registerAccount || '').trim();
       const tenantCode = document.getElementById('tenant-code').value.trim();
-      // [DEBUG-PLATFORM] 平台管理员注册链路调试输出：打印提交前的关键字段
-      undefined;
-      if (role === PLATFORM_ROLE) {
-        undefined;
-      }
       const registerInfo = {
         role: role,
         account: account,
@@ -585,8 +580,6 @@
       btnText.innerHTML = '<span class="loading"></span> 登录中...';
        const loginRole = document.getElementById('login-role').value.trim();
       const loginTenantCode = document.getElementById('login-tenant-code').value.trim();
-     // [DEBUG-PLATFORM] 登录提交入口：现已透传 tenantCode/role 给后端
-       + ', role=' + loginRole + ', tenantCode=' + (loginRole === 'platform_admin' ? 'platform' : loginTenantCode));
 
       try {
         const user = await authenticateUser(

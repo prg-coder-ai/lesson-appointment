@@ -177,7 +177,9 @@
         window.location.href = './index.html';
         return;
       }
-      if (user.role !== 'admin') {
+      // 租户管理员(admin) 与平台管理员(platform_admin) 均可查看审计日志。
+      // 注：后端 /api/audit-logs/* 只要求认证、不做角色鉴权，此处仅为前端入口守卫。
+      if (user.role !== 'admin' && user.role !== 'platform_admin') {
         document.querySelector('.container').innerHTML =
           '<div class="card"><div class="card-body empty-tip">仅管理员可访问本页面</div></div>';
         return;

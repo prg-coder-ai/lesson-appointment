@@ -12,10 +12,6 @@
   // 登录 API：参数应当放在 data 中
   function login(data) {
     // data: { account: 'xxx', password: 'yyy' }
-    // [DEBUG-PLATFORM] 平台管理员登录链路调试输出：打印真正发往后端 /auth/login 的请求体
-    if (data && data.tenantCode === 'platform' && data.role === 'platform_admin') {
-    } else {
-    }
     return request({
       url: '/auth/login',
       method: 'post',

@@ -27,9 +27,6 @@ public class logController {
         try {
             List<String> all = Files.readAllLines(Path.of(CURRENT_LOG));
             int start = Math.max(0, all.size() - lines);
-             log.debug(String.valueOf(Path.of(CURRENT_LOG).toAbsolutePath()));
-            log.debug(String.valueOf(start));
-             log.debug(String.valueOf(all.size()));
             return Result.success(all.subList(start, all.size()),"tail  " + lines + " lines");
         } catch (IOException e) {
             return Result.fail(500, "读取日志失败: " + e.getMessage());
