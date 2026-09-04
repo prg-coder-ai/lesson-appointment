@@ -31,17 +31,7 @@ async function renderTeacherCourseAndScheduleBrowserCards() {
   //  dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';
     // 渲染HTML
     let html = '';
-    
-      html += `     
-            <div class="modal-mask" id="courseModal">
-            <div class="modal-content">
-                <div class="modal-header">
-                <h3 id="modalTitle"><span data-term="course">课程</span>列表</h3> 
-                <hr style="margin: 16px 0; border-top: 1px solid #e9ecef;">
-                </div> 
-            </div>
-            </div> `; 
-      
+
              // 列表表头 ---模板-建立连接-悬浮显示模板内容（学生页面、管理、教师页面），教师--悬浮-显示教师的特色字段（学生页面）
          html += `
             <div style="display:flex;gap:36px;padding-bottom:8px;margin-bottom:4px;">

@@ -670,13 +670,20 @@
           registerRole.value = PLATFORM_ROLE;
           undefined;
         }
-        else { //租户-对平台角色选项不可见   
-        //在role中把registerRole.value =PLATFORM_ROLE的选项删除
-        const roleOptions = document.getElementById('register-role').options;
-        const platformRoleIndex = roleOptions.findIndex(
-          option => option.value === PLATFORM_ROLE);
+        else { //租户-对平台角色选项不可见
+        // 注意：HTMLSelectElement.options 是 HTMLOptionsCollection，既没有 Array 的 findIndex，
+        // 其自身也没有 remove 方法（remove 定义在 <select> 元素上）。故用 select.remove(index)。
+        const roleSelect = document.getElementById('register-role');
+        const roleOptions = roleSelect.options;
+        let platformRoleIndex = -1;
+        for (let i = 0; i < roleOptions.length; i++) {
+          if (roleOptions[i].value === PLATFORM_ROLE) {
+            platformRoleIndex = i;
+            break;
+          }
+        }
         if (platformRoleIndex !== -1) {
-          roleOptions.remove(platformRoleIndex);
+          roleSelect.remove(platformRoleIndex);
         }
       }
         return;

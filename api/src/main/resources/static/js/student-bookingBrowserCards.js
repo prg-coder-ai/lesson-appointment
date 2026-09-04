@@ -77,7 +77,7 @@ async function renderStudentBookingBrowserCards() {
                     <th>日期</th>
                     <th>时间</th>
                       <th>状态</th> 
-                      <th>请假</th>
+                      <th><span data-term="leave">请假</span></th>
                 </tr>
             </thead>
             <tbody id="resultBody"></tbody>

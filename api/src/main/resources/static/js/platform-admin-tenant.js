@@ -179,7 +179,7 @@ function createTenantModal() {
         <span class="modal-close" id="tenantCloseBtn">&times;</span></div>
       <div id="tenantFormContainer"></div></div>`;
   document.body.appendChild(m);
- // m.addEventListener('click', e => { if (e.target.id === 'tenantModal') closeTenantModal(); });
+  // 只允许通过「取消」「保存」按钮或右上角 × 关闭；点遮罩不关闭，避免误触丢失已填内容。
   document.getElementById('tenantCloseBtn').addEventListener('click', closeTenantModal);
   return m;
 }

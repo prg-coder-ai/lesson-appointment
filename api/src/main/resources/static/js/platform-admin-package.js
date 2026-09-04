@@ -51,7 +51,7 @@ function renderPkgTplTable(area) {
   area.innerHTML = `
     <div class="table-container">
       <table class="data-table"><thead><tr>
-        <th>序号</th><th>模板名称</th><th>编码</th><th>课程上限</th><th>排期上限</th><th>用户上限</th><th>教师上限</th><th>学生上限</th><th>状态</th><th>操作</th>
+        <th>序号</th><th>模板名称</th><th>编码</th><th><span data-term="course">课程</span>上限</th><th><span data-term="schedule">排期</span>上限</th><th>用户上限</th><th><span data-term="teacher">教师</span>上限</th><th><span data-term="student">学生</span>上限</th><th>状态</th><th>操作</th>
       </tr></thead><tbody id="pkgtpl-body"></tbody></table>
     </div><div id="pkgtpl-pagebar"></div>`;
   loadPkgTplList();
@@ -132,7 +132,7 @@ function createPkgTplModal() {
         <span class="modal-close" id="pkgTplCloseBtn">&times;</span></div>
       <div id="pkgTplFormContainer"></div></div>`;
   document.body.appendChild(m);
-  m.addEventListener('click', e => { if (e.target.id === 'pkgTplModal') closePkgTplModal(); });
+  // 只允许通过「取消」「保存」按钮或右上角 × 关闭；点遮罩不关闭，避免误触丢失已填内容。
   document.getElementById('pkgTplCloseBtn').addEventListener('click', closePkgTplModal);
   return m;
 }
@@ -173,7 +173,7 @@ function renderTenantPkgTable(area) {
   area.innerHTML = `
     <div class="table-container">
       <table class="data-table"><thead><tr>
-        <th>序号</th><th>租户</th><th>课程(用/限)</th><th>排期(用/限)</th><th>用户(用/限)</th><th>教师(用/限)</th><th>学生(用/限)</th><th>操作</th>
+        <th>序号</th><th>租户</th><th><span data-term="course">课程</span>(用/限)</th><th><span data-term="schedule">排期</span>(用/限)</th><th>用户(用/限)</th><th><span data-term="teacher">教师</span>(用/限)</th><th><span data-term="student">学生</span>(用/限)</th><th>操作</th>
       </tr></thead><tbody id="tpkg-body"></tbody></table>
     </div><div id="tpkg-pagebar"></div>
     <div style="margin-top:12px;">
@@ -247,7 +247,7 @@ function openTenantPkgModal(obj) {
     modal.className = 'modal-mask'; modal.id = 'tpkgModal'; modal.style.display = 'none';
     modal.innerHTML = `<div class="modal-content"><div class="modal-header"><div id="tpkgModalTitle" style="font-weight:600;font-size:16px;"></div><span class="modal-close" id="tpkgCloseBtn">&times;</span></div><div id="tpkgFormContainer"></div></div>`;
     document.body.appendChild(modal);
-    modal.addEventListener('click', e => { if (e.target.id === 'tpkgModal') closeTenantPkgModal(); });
+    // 只允许通过「取消」「保存」按钮或右上角 × 关闭；点遮罩不关闭，避免误触丢失已填内容。
     document.getElementById('tpkgCloseBtn').addEventListener('click', closeTenantPkgModal);
   }
   modal.style.display = 'flex';

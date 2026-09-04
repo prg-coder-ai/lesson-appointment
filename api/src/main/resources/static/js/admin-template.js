@@ -87,8 +87,9 @@ function validateForm() {
       console.error(e);
     } 
   // 2. 设置弹窗标题
-  const modalTitle = document.getElementById('modalTitle');
-  modalTitle.innerText = (defaultTemplate.templateId !="")? '编辑课程模板' : '新增课程模板';
+  const modalTitle = document.getElementById('templateModalTitle');
+  modalTitle.innerHTML = (defaultTemplate.templateId !="")? '编辑<span data-term="course">课程</span>模板' : '新增<span data-term="course">课程</span>模板';
+  applyTerms(modalTitle);
    // 4. 生成表单HTML（复用index.html表单结构，适配样式） 
   //显示出来 from
   const formHtml = `
@@ -97,7 +98,7 @@ function validateForm() {
     <input type="hidden" name="templateId" value="${defaultTemplate.templateId}">
     
     <div class="form-item">
-      <label>语言类型 <span style="color:red">*</span></label>
+      <label><span data-term="classType">语言类型</span> <span style="color:red">*</span></label>
       <select name="languageType" class="form-select" required>
         <option value="">请选择</option>
         <option value="english" ${defaultTemplate.languageType === 'english' ? 'selected' : ''}><span data-term="classType1">英语</span></option>
@@ -109,7 +110,7 @@ function validateForm() {
     </div>
 
     <div class="form-item">
-      <label>难度等级 <span style="color:red">*</span></label>
+      <label><span data-term="classLevel">难度等级</span> <span style="color:red">*</span></label>
       <select name="difficultyLevel" class="form-select" required>
         <option value="">请选择</option>
         <option value="B1" ${defaultTemplate.difficultyLevel === 'B1' ? 'selected' : ''}><span data-term="classLevel classB1">B1入门</span></option>
@@ -273,7 +274,7 @@ async function renderTemplateCards() {
      <div class="teacher-list-cards" style="margin:6px 0;display:flex;flex-direction:column;gap:16px;">
       <div class="filter-bar">        
                  <div class="filter-item">
-                    <label>语言类型：</label>
+                    <label><span data-term="classType">语言类型</span>：</label>
                     <select id="languageType-select" >
                         <option value="">全部</option>
                          <option value="english"><span data-term="classType1">英语</span></option> 
@@ -283,7 +284,7 @@ async function renderTemplateCards() {
                     </select>
                 </div>
                 <div class="filter-item">
-                    <label>难度等级：</label>
+                    <label><span data-term="classLevel">难度等级</span>：</label>
                     <select id="difficultyLevel-select">
                         <option value="">全部</option>
                         <option value="B1"><span data-term="classLevelB1">B1入门</span></option>
@@ -311,11 +312,11 @@ async function renderTemplateCards() {
                 <thead>
                 <tr> 
                     <th>序号</th>  
-                    <th>语言类型</th>  
-                    <th>难度等级</th> 
+                    <th><span data-term="classType">语言类型</span></th>  
+                    <th><span data-term="classLevel">难度等级</span></th> 
                     <th><span data-term="classForm">课程形式</span></th> 
-                    <th>课时(分钟)</th> 
-                    <th>课时费(元)</th>   
+                    <th><span data-term="lessonUnit">课时</span>(分钟)</th> 
+                    <th><span data-term="lessonFee">课时费</span>(元)</th>   
                     <th>状态</th>
                     <th >操作</th>
                 </tr>
@@ -488,11 +489,6 @@ async function  operateTemplateStatus(templateId,newStatus){
   loadAndRenderTemplateCards(); 
 }
 
-// 点击弹窗遮罩层关闭
-document.getElementById('templateModal').addEventListener('click', (e) => {
-    if (e.target === document.getElementById('templateModal')) {
-      closeTemplateModal();
-    }
-  });
-  // 点击关闭按钮关闭
-  document.getElementById('closeModal').addEventListener('click', closeTemplateModal);
+  // 关闭弹窗只能通过「取消」「提交」按钮或右上角 × —— 点击遮罩不关闭，
+  // 避免表单填了一半时误触遮罩导致输入丢失。
+  document.getElementById('templateCloseBtn').addEventListener('click', closeTemplateModal);

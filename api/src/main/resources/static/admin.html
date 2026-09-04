@@ -41,11 +41,14 @@
   </header>
 
   <!-- 课程模板编辑弹窗 -->
+  <!-- 注意：标题与关闭按钮的 id 必须各自唯一。此前两个弹窗都叫 modalTitle / closeModal，
+       getElementById 只会返回文档里第一个（即模板弹窗的），导致课程弹窗的 × 从未被绑定、
+       点模板弹窗的 × 会同时触发两个关闭函数。 -->
   <div class="modal-mask" id="templateModal">
     <div class="modal-content">
       <div class="modal-header">
-        <h3 id="modalTitle">新增<span data-term="course">课程</span>模板</h3>
-        <span class="modal-close" id="closeModal"><i class="fa fa-times"></i></span>
+        <h3 id="templateModalTitle">新增<span data-term="course">课程</span>模板</h3>
+        <span class="modal-close" id="templateCloseBtn"><i class="fa fa-times"></i></span>
       </div>
       <div id="templateFormContainer">
         <!-- 表单内容由JS动态生成 -->
@@ -56,8 +59,8 @@
   <div class="modal-mask" id="courseModal">
     <div class="modal-content">
       <div class="modal-header">
-        <h3 id="modalTitle">新增<span data-term="course">课程</span></h3>
-        <span class="modal-close" id="closeModal"><i class="fa fa-times"></i></span>
+        <h3 id="courseModalTitle">新增<span data-term="course">课程</span></h3>
+        <span class="modal-close" id="courseCloseBtn"><i class="fa fa-times"></i></span>
       </div>
       <div id="formContainer">
         <!-- 表单内容由JS动态生成 -->
@@ -244,7 +247,7 @@
                   </select>
                 </div>
                 <div style="margin-bottom: 20px;">
-                  <label style="display: block; margin-bottom: 8px; font-weight: 500;">最大预约课程数/学生</label>
+                  <label style="display: block; margin-bottom: 8px; font-weight: 500;">最大预约<span data-term="course">课程</span>数/<span data-term="student">学生</span></label>
                   <input type="number" value="10" style="width: 100%; padding: 8px 12px; border: 1px solid #e9ecef; border-radius: 4px;">
                 </div>
                 <button class="btn btn-primary"><i class="fa fa-save"></i> 保存配置</button>
@@ -345,7 +348,8 @@
     if (dlScdid && dlSid) {
       window.pendingDeepLink = { scdid: dlScdid, sid: dlSid };
       // 直接跳到"课程排期"菜单
-      pageTitle.textContent = '课程排期';
+      pageTitle.innerHTML = '<span data-term="course">课程</span>排期';
+      applyTerms(pageTitle);
       // 同步菜单高亮（按 key 匹配）
       menuItems.forEach(function(menu) {
         menu.classList.toggle('active', menu.getAttribute('key') === 'schedule');

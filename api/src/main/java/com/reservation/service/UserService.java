@@ -241,9 +241,7 @@ public class UserService {
         log.debug("userService login：" + user);
         HashMap<String, Object> resultMap = new HashMap<>();
         if (user == null) { 
-          resultMap.put("message", "账号不存在");
-          resultMap.put("code", 404);
-           return Result.success(resultMap,"账号不存在");
+           return Result.fail(404, "账号不存在");
         }
         // 校验账号归属：账号必须属于当前请求租户。
         // 归属不符时返回与"账号不存在"一致的响应，避免据此枚举其他租户的账号
@@ -257,30 +255,22 @@ public class UserService {
         } else if (!userTenantId.equals(tenantId)) {
             log.warn("跨租户登录被拒绝, account={}, 用户所属租户={}, 请求租户={}",
                     account, userTenantId, tenantId);
-            resultMap.put("message", "账号不存在");
-            resultMap.put("code", 404);
-            return Result.success(resultMap,"账号不存在");
+            return Result.fail(404, "账号不存在");
         }
         // 解密敏感字段
         decryptUserFields(user);
         // 校验密码,把password加密后与user.getPassword()比较
        // String encodedPassword = passwordEncoder.encode(password); 
        if(! passwordEncoder.matches(password,user.getPassword()))
-        { 
-           resultMap.put("message", "密码错误");
-           resultMap.put("code", 400);
-           return Result.success(resultMap,"密码错误");    
+        {
+           return Result.fail(400, "密码错误");
         }
         // 校验账号状态（冻结/未审核） && "teacher".equals(user.getRole())
-        if ("frozen".equals(user.getStatus())) { 
-             resultMap.put("message", "账号已冻结，请联系管理员");
-             resultMap.put("code", 400);
-             return Result.success(resultMap,"账号已冻结，请联系管理员");
+        if ("frozen".equals(user.getStatus())) {
+             return Result.fail(400, "账号已冻结，请联系管理员");
         }
         if ("inactive".equals(user.getStatus()) ) {
-             resultMap.put("message", "账号未审核，请等待管理员审核");    
-             resultMap.put("code", 400);
-             return Result.success(resultMap,"账号未审核，请等待管理员审核");   
+             return Result.fail(400, "账号未审核，请等待管理员审核");
         }//其它情况--进入相应的页面，若为pendding则等待审核。其他情况，显示正常项目内容。
         // 生成Token（tenantId 由 controller 根据租户编码解析后传入）
         String token = jwtUtil.generateToken(tenantId, user.getUserId(), user.getRole());

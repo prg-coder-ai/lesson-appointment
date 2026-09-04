@@ -137,8 +137,12 @@
     };
     try {
       const res = await login(loginInfo);
+      // 后端业务失败（账号不存在 / 密码错误 / 账号冻结 / 未审核等）时，userService.login 仍用
+      // Result.success(resultMap) 返回（外层 code=200），request 会把 data 原样返回，但 data 里没有 token。
+      // 此时必须透传后端真实 message，绝不能用泛化的“未返回有效凭证”把它覆盖掉，否则前端只会看到这个报错。
       if (!res || !res.token) {
-        throw new Error('登录失败，未返回有效凭证');
+        const bizMsg = (res && (res.message || res.msg)) || '登录失败，未返回有效凭证';
+        throw new Error(bizMsg);
       }
       //console .log("authenticateUser",res);
       return saveCurrentUserSession(res);

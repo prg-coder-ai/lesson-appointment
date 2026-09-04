@@ -168,7 +168,8 @@
         window.pendingDeepLink = { scdid: dlScdid, tid: dlTid, sid: dlSid };
         // 直接跳到"课程预订"菜单，不走默认的"今日课程"
         currentMenuitem = 'booking';
-        pageTitle.textContent = '课程预订';
+        pageTitle.innerHTML = '<span data-term="course">课程</span>预订';
+        applyTerms(pageTitle);
         // 同步侧边栏菜单高亮（按 key 属性）
         menuItems.forEach(function(menu) {
           menu.classList.toggle('active', menu.getAttribute('key') === 'booking');

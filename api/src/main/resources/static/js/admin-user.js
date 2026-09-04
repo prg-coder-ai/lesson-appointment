@@ -293,8 +293,8 @@
             <span class="modal-close" id="${modalId}CloseBtn">&times;</span></div>
           <div id="${modalId}FormContainer"></div></div>`;
       document.body.appendChild(m);
-      // 点遮罩空白处关闭；点在弹窗内部不关（故只比对遮罩本身的 id）
-      m.addEventListener('click', e => { if (e.target.id === modalId) window[closeFnName](); });
+      // 只允许通过「取消」「保存」按钮或右上角 × 关闭；点遮罩不关闭，
+      // 避免表单填了一半时误触遮罩导致输入丢失。
       document.getElementById(modalId + 'CloseBtn').addEventListener('click', () => window[closeFnName]());
       return m;
     }

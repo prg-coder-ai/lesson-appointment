@@ -56,7 +56,7 @@ function renderStatisticsPage() {
       </div>
       <div class="table-container">
         <table class="data-table"><thead><tr>
-          <th>机构</th><th>编码</th><th>套餐等级</th><th>课程</th><th>排期</th><th>用户</th><th>教师</th><th>学生</th>
+          <th>机构</th><th>编码</th><th>套餐等级</th><th><span data-term="course">课程</span></th><th><span data-term="schedule">排期</span></th><th>用户</th><th><span data-term="teacher">教师</span></th><th><span data-term="student">学生</span></th>
         </tr></thead><tbody id="usage-body"></tbody></table>
       </div>
       <div id="usage-pagebar"></div>
