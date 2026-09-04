@@ -1,0 +1,27 @@
+# 构建产物
+target/
+build/
+*.class
+*.jar
+*.war
+
+# 内置 Node 运行时（含 node_modules，体积大且非源码）
+api/.node/
+node_modules/
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+
+# 日志
+*.log
+
+# 操作系统
+.DS_Store
+Thumbs.db
+
+# WorkBuddy 工作区状态（工具内部数据，非源码）
+.workbuddy/

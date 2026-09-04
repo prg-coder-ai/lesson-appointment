@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>排期管理</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f5f7fa;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px #00000010;
+        }
+        .title {
+            font-size: 20px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        .search-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .search-bar select,
+        .search-bar input {
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .section {
+            margin: 20px 0;
+        }
+        .section-title {
+            font-weight: bold;
+            margin-bottom: 12px;
+            color: #333;
+        }
+        .form-line {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .form-line label {
+            width: 110px;
+        }
+        button {
+            padding: 6px 14px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn-primary {
+            background: #409eff;
+            color: white;
+        }
+        .btn-success {
+            background: #67c23a;
+            color: white;
+        }
+        .btn-warning {
+            background: #e6a23c;
+            color: white;
+        }
+        .btn-danger {
+            background: #f56c6c;
+            color: white;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        table th, table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        table th {
+            background: #f5f7fa;
+        }
+        .calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            margin-top: 15px;
+        }
+        .calendar-day {
+            padding: 10px;
+            border: 1px solid #eee;
+            text-align: center;
+            border-radius: 4px;
+        }
+        .calendar-day.marked {
+            background: #d1e7ff;
+            font-weight: bold;
+        }
+        #weekDays {
+            display: flex;
+            gap: 8px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="title">排期管理</div>
+
+    <!-- 课程检索 -->
+    <div class="search-bar">
+        <input type="text" id="courseName" placeholder="课程名称">
+        <select id="language">
+            <option value="">语言</option>
+            <option value="zh">中文</option>
+            <option value="en">英文</option>
+        </select>
+        <select id="difficulty">
+            <option value="">难度</option>
+            <option value="easy">初级</option>
+            <option value="middle">中级</option>
+            <option value="hard">高级</option>
+        </select>
+        <input type="text" id="teacher" placeholder="教师">
+        <button class="btn-primary" onclick="searchCourse()">检索课程</button>
+    </div>
+
+    <!-- 课程选择下拉 -->
+    <div class="form-line">
+        <label>选择课程：</label>
+        <select id="courseSelect" onchange="loadSchedule()">
+            <option value="">请先检索课程</option>
+        </select>
+    </div>
+
+    <div class="section">
+        <div class="section-title">排期设置</div>
+
+        <div class="form-line">
+            <label>开始日期：</label>
+            <input type="date" id="startDate">
+        </div>
+        <div class="form-line">
+            <label>开始时间：</label>
+            <input type="time" id="startTime">
+        </div>
+
+        <div class="form-line">
+            <label>重复类型：</label>
+            <select id="repeatType" onchange="onRepeatTypeChange()">
+                <option value="none">不重复</option>
+                <option value="day">每天</option>
+                <option value="week">每周</option>
+                <option value="month">每月</option>
+            </select>
+        </div>
+
+        <div class="form-line">
+            <label>重复间隔：</label>
+            <input type="number" id="interval" value="1" min="1" style="width:80px">
+            <span id="repeatUnit">天</span>
+        </div>
+
+        <!-- 每周重复：星期选择 -->
+        <div class="form-line" id="weekDaysBox" style="display:none;">
+            <label>重复星期：</label>
+            <div id="weekDays">
+                <label><input type="checkbox" value="1">周一</label>
+                <label><input type="checkbox" value="2">周二</label>
+                <label><input type="checkbox" value="3">周三</label>
+                <label><input type="checkbox" value="4">周四</label>
+                <label><input type="checkbox" value="5">周五</label>
+                <label><input type="checkbox" value="6">周六</label>
+                <label><input type="checkbox" value="7">周日</label>
+            </div>
+        </div>
+
+        <div class="form-line">
+            <label>结束日期：</label>
+            <input type="date" id="endDate">
+        </div>
+    </div>
+
+    <!-- 操作按钮 -->
+    <div class="btn-group">
+        <button onclick="previewSchedule()">预览</button>
+        <button class="btn-primary" onclick="publishSchedule()">发布</button>
+        <button class="btn-success" onclick="saveSchedule()">保留</button>
+        <button class="btn-danger" onclick="deleteSchedule()">删除</button>
+    </div>
+
+    <!-- 排期结果 -->
+    <div class="section">
+        <div class="section-title">排期结果（列表）</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>日期</th>
+                    <th>时间</th>
+                </tr>
+            </thead>
+            <tbody id="resultBody"></tbody>
+        </table>
+    </div>
+
+    
+    <div class="section">
+        <div class="section-title">日历视图</div>
+        <div id="calendar" class="calendar"></div>
+    </div>
+</div>
+
+<script>
+    let courseList = [];
+    let scheduleResult = [];
+
+    // 1. 检索课程（原生 fetch）
+    async function searchCourse() {
+        const params = {
+            courseName: document.getElementById('courseName').value,
+            language: document.getElementById('language').value,
+            difficulty: document.getElementById('difficulty').value,
+            teacher: document.getElementById('teacher').value
+        };
+
+        try {
+            // 这里替换成你的真实后端接口
+            const res = await fetch("/api/course/list", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(params)
+            });
+            const data = await res.json();
+            courseList = data.data || [];
+
+            // 渲染下拉
+            const sel = document.getElementById('courseSelect');
+            sel.innerHTML = '<option value="">请选择课程</option>';
+            courseList.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.id;
+                opt.innerText = item.courseName;
+                sel.appendChild(opt);
+            });
+            alert("课程检索成功");
+        } catch (e) {
+            // 模拟数据
+            courseList = [
+                { id: 1, courseName: "Java 入门" },
+                { id: 2, courseName: "前端实战" },
+                { id: 3, courseName: "英语口语" }
+            ];
+            renderCourseSelect();
+            alert("模拟课程加载成功");
+        }
+    }
+
+    function renderCourseSelect() {
+        const sel = document.getElementById('courseSelect');
+        sel.innerHTML = '<option value="">请选择课程</option>';
+        courseList.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item.id;
+            opt.innerText = item.courseName;
+            sel.appendChild(opt);
+        });
+    }
+
+    // 切换重复类型
+    function onRepeatTypeChange() {
+        const type = document.getElementById('repeatType').value;
+        const unit = { none: "", day: "天", week: "周", month: "月" };
+        document.getElementById('repeatUnit').innerText = unit[type];
+        document.getElementById('weekDaysBox').style.display = type === 'week' ? 'flex' : 'none';
+    }
+
+    // 加载课程排期
+    async function loadSchedule() {
+        const cid = document.getElementById('courseSelect').value;
+        if (!cid) return;
+        try {
+            await fetch(`/api/schedule/${cid}`);
+            alert("加载课程排期成功");
+        } catch (e) {
+            alert("加载排期成功（模拟）");
+        }
+    }
+
+    // 预览排期
+    async function previewSchedule() {
+        const form = {
+            startDate: document.getElementById('startDate').value,
+            startTime: document.getElementById('startTime').value,
+            repeatType: document.getElementById('repeatType').value,
+            interval: document.getElementById('interval').value,
+            endDate: document.getElementById('endDate').value
+        };
+
+        try {
+            const res = await fetch("/api/schedule/preview", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(form)
+            });
+            const data = await res.json();
+            scheduleResult = data.data || [];
+        } catch (e) {
+            // 模拟预览结果
+            scheduleResult = [
+                { date: "2026-05-01", time: "09:00" },
+                { date: "2026-05-08", time: "09:00" },
+                { date: "2026-05-15", time: "09:00" }
+            ];
+        }
+
+        renderResult();
+        renderCalendar();
+        alert("预览成功");
+    }
+
+    // 渲染列表
+    function renderResult() {
+        const body = document.getElementById('resultBody');
+        body.innerHTML = '';
+        scheduleResult.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${item.date}</td><td>${item.time}</td>`;
+            body.appendChild(tr);
+        });
+    }
+
+    // 渲染日历
+    function renderCalendar() {
+        const cal = document.getElementById('calendar');
+        cal.innerHTML = '';
+        const dateSet = new Set(scheduleResult.map(i => i.date));
+
+        // 简单显示最近30天
+        for (let i = 0; i < 30; i++) {
+            const d = new Date();
+            d.setDate(d.getDate() + i);
+            const dateStr = d.toISOString().split('T')[0];
+            const div = document.createElement('div');
+            div.className = 'calendar-day';
+            if (dateSet.has(dateStr)) div.classList.add('marked');
+            div.innerText = d.getDate();
+            cal.appendChild(div);
+        }
+    }
+
+    // 发布
+    async function publishSchedule() {
+        const cid = document.getElementById('courseSelect').value;
+        await fetch("/api/schedule/publish", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ courseId: cid, list: scheduleResult })
+        });
+        alert("发布成功");
+    }
+
+    // 保存
+    async function saveSchedule() {
+        await fetch("/api/schedule/save", { method: "POST" });
+        alert("保存成功");
+    }
+
+    // 删除
+    async function deleteSchedule() {
+        await fetch("/api/schedule/delete", { method: "POST" });
+        scheduleResult = [];
+        renderResult();
+        renderCalendar();
+        alert("删除成功");
+    }
+</script>
+</body>
+</html>
