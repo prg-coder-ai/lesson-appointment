@@ -165,8 +165,9 @@ async function loadTermMapFromServer() {
 // 链路：tenantCode -> /tenant/industry -> sys_industry.code -> switchIndustry(code)
 //
 // 两点容错（缺一即会导致词表错乱）：
-//   1) 后端可能返回前端尚无词表的行业（如 exercise 未配置 TERM_DICT），此时 switchIndustry
-//      会 warn「未知行业」并直接 return，等价于什么都不做 —— 故这里先校验 TERM_DICT[code]，
+//   1) 后端可能返回前端尚无词表的行业（历史上 exercise 就缺 TERM_DICT，现已补齐：
+//      education / legal / counseling / exercise）。switchIndustry 遇到未知行业会 warn
+//      并直接 return，等价于什么都不做 —— 故这里先校验 TERM_DICT[code]，
 //      未知行业保持现状（默认 education），不让页面停在半截状态。
 //   2) 行业未配置 / 平台租户 / 接口异常时一律保持现状，由本地兜底词表继续工作。
 //
