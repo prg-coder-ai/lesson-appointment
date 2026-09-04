@@ -132,7 +132,7 @@ function createPkgTplModal() {
         <span class="modal-close" id="pkgTplCloseBtn">&times;</span></div>
       <div id="pkgTplFormContainer"></div></div>`;
   document.body.appendChild(m);
-  m.addEventListener('click', e => { if (e.target.id === 'pkgTplModal') closePkgTplModal(); });
+  // 只允许通过「取消」「保存」按钮或右上角 × 关闭；点遮罩不关闭，避免误触丢失已填内容。
   document.getElementById('pkgTplCloseBtn').addEventListener('click', closePkgTplModal);
   return m;
 }
@@ -247,7 +247,7 @@ function openTenantPkgModal(obj) {
     modal.className = 'modal-mask'; modal.id = 'tpkgModal'; modal.style.display = 'none';
     modal.innerHTML = `<div class="modal-content"><div class="modal-header"><div id="tpkgModalTitle" style="font-weight:600;font-size:16px;"></div><span class="modal-close" id="tpkgCloseBtn">&times;</span></div><div id="tpkgFormContainer"></div></div>`;
     document.body.appendChild(modal);
-    modal.addEventListener('click', e => { if (e.target.id === 'tpkgModal') closeTenantPkgModal(); });
+    // 只允许通过「取消」「保存」按钮或右上角 × 关闭；点遮罩不关闭，避免误触丢失已填内容。
     document.getElementById('tpkgCloseBtn').addEventListener('click', closeTenantPkgModal);
   }
   modal.style.display = 'flex';

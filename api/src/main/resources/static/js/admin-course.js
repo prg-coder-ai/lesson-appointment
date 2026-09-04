@@ -127,7 +127,7 @@ async function openEditCourseDialog(CourseJsonStr )
   }
   formContainer.innerHTML = formHtml;
   // 2. 设置弹窗标题
-  const modalTitle = document.getElementById('modalTitle');
+  const modalTitle = document.getElementById('courseModalTitle');
   //console .log("edit json2:",modalTitle);
   modalTitle.innerText = (defaultCourse.courseId !="")? '编辑课程' : '新增课程';
 
@@ -502,13 +502,7 @@ async function  setScheduleStatusByLastId(courseId,status){
 
 }
   
-// 点击弹窗遮罩层关闭
-  document.getElementById('courseModal').addEventListener('click', (e) => {
-    if (e.target === document.getElementById('courseModal')) {
-      closeCourseModal();
-    }
-  });
- 
-  // 点击关闭按钮关闭
-  document.getElementById('closeModal').addEventListener('click', closeCourseModal); 
+  // 关闭弹窗只能通过「取消」「提交」按钮或右上角 × —— 点击遮罩不关闭，
+  // 避免表单填了一半时误触遮罩导致输入丢失。
+  document.getElementById('courseCloseBtn').addEventListener('click', closeCourseModal); 
   

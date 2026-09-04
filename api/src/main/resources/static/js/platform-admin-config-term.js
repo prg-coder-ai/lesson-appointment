@@ -288,7 +288,7 @@ function createTermModal() {
         <span class="modal-close" id="termCloseBtn">&times;</span></div>
       <div id="termFormContainer"></div></div>`;
   document.body.appendChild(m);
-  m.addEventListener('click', e => { if (e.target.id === 'termModal') closeTermModal(); });
+  // 只允许通过「取消」「保存」按钮或右上角 × 关闭；点遮罩不关闭，避免误触丢失已填内容。
   document.getElementById('termCloseBtn').addEventListener('click', closeTermModal);
   return m;
 }

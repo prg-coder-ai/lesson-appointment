@@ -87,7 +87,7 @@ function validateForm() {
       console.error(e);
     } 
   // 2. 设置弹窗标题
-  const modalTitle = document.getElementById('modalTitle');
+  const modalTitle = document.getElementById('templateModalTitle');
   modalTitle.innerText = (defaultTemplate.templateId !="")? '编辑课程模板' : '新增课程模板';
    // 4. 生成表单HTML（复用index.html表单结构，适配样式） 
   //显示出来 from
@@ -488,11 +488,6 @@ async function  operateTemplateStatus(templateId,newStatus){
   loadAndRenderTemplateCards(); 
 }
 
-// 点击弹窗遮罩层关闭
-document.getElementById('templateModal').addEventListener('click', (e) => {
-    if (e.target === document.getElementById('templateModal')) {
-      closeTemplateModal();
-    }
-  });
-  // 点击关闭按钮关闭
-  document.getElementById('closeModal').addEventListener('click', closeTemplateModal);
+  // 关闭弹窗只能通过「取消」「提交」按钮或右上角 × —— 点击遮罩不关闭，
+  // 避免表单填了一半时误触遮罩导致输入丢失。
+  document.getElementById('templateCloseBtn').addEventListener('click', closeTemplateModal);

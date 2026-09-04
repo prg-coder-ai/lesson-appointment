@@ -100,7 +100,7 @@ function createIndustryModal() {
         <span class="modal-close" id="industryCloseBtn">&times;</span></div>
       <div id="industryFormContainer"></div></div>`;
   document.body.appendChild(m);
-  m.addEventListener('click', e => { if (e.target.id === 'industryModal') closeIndustryModal(); });
+  // 只允许通过「取消」「保存」按钮或右上角 × 关闭；点遮罩不关闭，避免误触丢失已填内容。
   document.getElementById('industryCloseBtn').addEventListener('click', closeIndustryModal);
   return m;
 }
