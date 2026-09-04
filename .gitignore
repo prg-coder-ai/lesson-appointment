@@ -16,12 +16,14 @@ node_modules/
 *.ipr
 .vscode/
 
-# 日志
+# 日志（*.log 不匹配 .log.gz 归档，故整个 logs 目录一并排除）
 *.log
+api/logs/
 
 # 操作系统
 .DS_Store
 Thumbs.db
 
-# WorkBuddy 工作区状态（工具内部数据，非源码）
+# WorkBuddy 工作区状态（工具内部数据，非源码，会自行重新生成）
 .workbuddy/
+.merkle-snapshot.json
