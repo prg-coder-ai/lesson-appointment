@@ -139,6 +139,30 @@ public class UserController {
      //   log.debug("ret " + ret);
         return   Result.success(ret, "修改成功");
     }
+
+    /**
+     * 修改用户基本资料：姓名 / 手机号 / 电子邮箱 / 状态。
+     * 前端调用：POST /user/updateInfo，请求体 { userId, name, phone, email, status }
+     *
+     * 账号（account）明确不可修改：它是登录标识，改动会导致用户无法登录，
+     * 也会破坏租户内唯一性约束；即使请求体里带了 account，Service 也一律忽略。
+     *
+     * 不加 @Validated：与 updateStatus 同理，实体上的 @NotBlank(account) 等属于
+     * 注册专用校验，局部更新（只改姓名）不应触发。
+     */
+    @PostMapping("/updateInfo")
+    @Audit(action = AuditAction.USER_UPDATE, resourceType = "user", resourceId = "user.userId")
+    @ResponseBody
+    public Result<Object> updateInfo(@RequestBody User user) {
+        if (user == null || user.getUserId() == null || user.getUserId().trim().isEmpty()) {
+            return Result.fail(400, "用户Id不能为空");
+        }
+        int ret = userService.updateUserInfo(user);
+        if (ret <= 0) {
+            return Result.fail(404, "用户不存在或不属于当前租户");
+        }
+        return Result.success(ret, "修改成功");
+    }
   
 
 //按角色查询用户列表---may be deleted ,replaced by listByGet、listByPage

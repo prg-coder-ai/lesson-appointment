@@ -78,6 +78,37 @@ public interface UserMapper extends BaseMapper<User> {
 
    @Update("UPDATE user SET status = #{status} WHERE user_id = #{userId}")
     public int updateStatus(@Param("userId") String userId ,@Param("status") String status); 
+
+    /**
+     * 更新用户基本资料（姓名/手机号/邮箱/状态）。
+     *
+     * 注意两点：
+     * 1) 只更新传入的非空字段，未传的保持原值 —— 便于前端做局部修改；
+     * 2) 不含 account：账号是登录标识，一旦生成不允许通过本接口修改；
+     * 3) 不在此处加密 phone/email/name —— 加密属于业务层职责（UserService 统一调用
+     *    cryptUtil.encryptWithIndex），Mapper 只负责原样落库，避免加解密逻辑分散。
+     *
+     * 租户隔离：user 表不在 MyBatisPlusConfig.IGNORE_TABLES 中，
+     * TenantLineInnerInterceptor 会自动在 WHERE 后追加 tenant_id 条件。
+     *
+     * @return 影响行数
+     */
+    @Update("<script>"
+          + "UPDATE user "
+          + "<set>"
+          + "  <if test='name != null'>name = #{name},</if>"
+          + "  <if test='phone != null'>phone = #{phone},</if>"
+          + "  <if test='email != null'>email = #{email},</if>"
+          + "  <if test='status != null'>status = #{status},</if>"
+          + "  update_time = NOW()"
+          + "</set>"
+          + "WHERE user_id = #{userId}"
+          + "</script>")
+    int updateUserInfo(@Param("userId") String userId,
+                       @Param("name") String name,
+                       @Param("phone") String phone,
+                       @Param("email") String email,
+                       @Param("status") String status);
     /**
      * 统计截至某一天指定角色的用户数量
      * @param role 用户角色（如 "teacher", "student"）
