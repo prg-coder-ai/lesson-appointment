@@ -6,7 +6,9 @@
    let currentUserRole ="";
    async function renderTeacherCards(role) {
            currentUserRole     = role;
-           assignLoadobjectListFunction( loadAndRenderUserList);
+           // 同一函数同时服务「教师列表」与「学生列表」两个菜单，
+           // 仅靠函数名无法区分，需显式给出列表标识，避免两者的页码互相串味。
+           assignLoadobjectListFunction( loadAndRenderUserList, 'userList:' + role);
 
                let html = `
                 <div class="card">
