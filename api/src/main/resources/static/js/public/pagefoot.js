@@ -21,7 +21,7 @@ if (typeof Pagination === 'undefined') {
                 共 <span id="xxx-total">0</span> 条记录，每页 
                 <select id="xxx-page-size" onchange="changeXxxPageSize()">
                   <option value="5" selected>5</option>
-                  <option value="10" selected>10</option>
+                  <option value="10">10</option>
                   <option value="20">20</option>
                   <option value="50">50</option>
                 </select> 条
