@@ -193,7 +193,6 @@ function onTimeRepeatTypeChange(selectEl) {
 }
 
 function addCertRow() {
-  console.log("addCertRow");
   const container = document.getElementById('cert-rows');
   const div = document.createElement('div');
   div.innerHTML = renderCertRow({});
@@ -256,7 +255,6 @@ async function saveForm() {
     const endTime = row.querySelector('.time-endTime').value.trim();
     const optioned = row.querySelector('.cert-optioned').checked || 0;
    const scheduleId = row.querySelector('.cert-optioned').dataset.extraScheduleId || '';
-    console.log("row:", row, scheduleId, optioned);
     if (startDate && startTime) {
       availableTimes.push({
         repeatType,
@@ -284,7 +282,6 @@ async function saveForm() {
     return !seenKeys.has(key) && seenKeys.set(key, true);
   });
   // ---- 去重结束 ----
-  console.log("filtedAvailableTimes:", filtedAvailableTimes);
   const payload = {
     teacherId,
     subject: document.getElementById('f-subject').value,

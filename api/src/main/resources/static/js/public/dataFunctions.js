@@ -118,7 +118,6 @@
         params: { year, month }
        }); 
          // 返回: { bookingMonthLast, bookingMonth }
-    console.log("getBookingStaticsByMonth",res  );
           return res ;
        
      } catch (e) {
@@ -133,7 +132,6 @@
          Method:"get",
          params: { year:year, month:month } //TBD data:
        });
-      console.log("getAppointmentStatisticByMonth",res  );
         // 返回统计结果对象，如:{ teacherMonthStart, teacherMonthEnd, studentMonthStart, studentMonthEnd }
         return res  ;
 

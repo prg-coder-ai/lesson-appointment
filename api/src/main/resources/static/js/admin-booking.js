@@ -175,7 +175,6 @@ async function getBookingListByPage(){
  
   */
  function formBookingTr(cardInfo) {
-  // console.log("cardInfo:", cardInfo); 
    const info = `
         <tr class="course-card">
             <td class="course-info">   ${cardInfo.index}</td>
@@ -228,7 +227,6 @@ async function getBookingListByPage(){
                     </td>
             </tr>
    `;
- // console.log("cardContent:", info);
    return info;
 } 
 
@@ -236,7 +234,6 @@ async function confirmOrCancelBooking(bookingid,status) {
   // 根据bookingid在bookingList中查找对应的booking对象
   const bookingList = pendingBookingList;
   const bookingObj = Array.isArray(bookingList) ? bookingList.find(b => b.bookingId === bookingid) : null; 
-  console.log("confirmOrCancelBooking:", bookingid,status,bookingObj);
   
   if(bookingObj ==null)
     return ;

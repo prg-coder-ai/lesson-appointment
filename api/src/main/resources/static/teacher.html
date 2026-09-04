@@ -113,8 +113,7 @@
       userInfo = autoLoginCheck();
       // ====== 新增：未登录 → 保存当前来源页 URL 后跳登录页 ======
       if (!userInfo) {
-        console.log('%c[AuthRedirect] 调用点 D：teacher.html onload 检测到未登录，准备 saveLoginRedirect',
-          'color:#dc2626;font-weight:bold;');
+        undefined;
         if (typeof window.saveLoginRedirect === 'function') {
           window.saveLoginRedirect('noauth');
         }
@@ -125,16 +124,13 @@
        if(nameid)
          { nameid.innerHTML= userInfo.name;
          }
-        //console.log(userInfo.name);
        // 设置头像元素为用户名首字母
        const avatarElem = document.getElementById("avatar");
        if (avatarElem && userInfo && userInfo.name && userInfo.name.length > 0) {
-       // console.log( userInfo.name.charAt(0));
          avatarElem.innerHTML = userInfo.name.charAt(0);
        }
        addChangePasswordButton();
        loadAdminPageContent(currentMenuitem);
-      console.log('教师端页面加载完成');  
     };
 
     menuItems.forEach(item => {
@@ -274,7 +270,6 @@
    <!-- script src="js/teacher-course-booking-appointment.js"></script -->// 预订及日期
    <script src="js/admin-AppointmentNotes.js"></script>
    <script> 
-      console.log("end of body...")
    </script>
 </body>
 </html>

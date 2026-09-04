@@ -66,7 +66,7 @@ public class CourseScheduleService {
             }
         } catch (Exception ex) {
                    excludeSchid = null;
-                   System.out.println(" checkScheduleOwnerConflict Error getting scheduleId: " + ex.getMessage());
+                   log.debug(" checkScheduleOwnerConflict Error getting scheduleId: " + ex.getMessage());
                }
     
        
@@ -117,7 +117,7 @@ public class CourseScheduleService {
                     // 判断existDate和newDate是否是系统的字符串
                     // 这里可以检查是否为null、并且是否为字符串类型（在Java中如果变量类型是String一般不用再判断类型，但可防御性书写如下）
                     if (!(existDate instanceof String) || !(newDate instanceof String)) {
-                        System.out.println("existDate或newDate不是字符串类型，existDate=" + existDate + ", newDate=" + newDate);
+                        log.debug("existDate或newDate不是字符串类型，existDate=" + existDate + ", newDate=" + newDate);
                         continue; // 跳过本次比较
                     }
                 
@@ -217,7 +217,7 @@ public class CourseScheduleService {
 //更新可用数 incSiteBody { "inc":1、-1 ，"id":scheduleId)
   @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public String updateScheduleSites(IncSiteBody Obj) {
-         //System.out.println("updateScheduleSites : " +Obj);         
+         //log.debug("updateScheduleSites : " +Obj);         
          scheduleMapper.updateSites(Obj);
         return Obj.getScheduleId();
     }
@@ -261,7 +261,7 @@ public class CourseScheduleService {
                    sid = cs.getScheduleId();
                } catch (Exception ex) {
                    sid = null;
-                   System.out.println("ObjectToCreateDto Error getting scheduleId: " + ex.getMessage());
+                   log.debug("ObjectToCreateDto Error getting scheduleId: " + ex.getMessage());
                }
           
                 dto.setScheduleId(cs.getScheduleId());
@@ -291,8 +291,8 @@ public class CourseScheduleService {
                        String timePart = cs.getEndTime().length() >= 19 ? cs.getEndTime().substring(11, 19) : null; 
                        dto.setEndTime(java.time.LocalTime.parse(timePart));
                    } catch (Exception ex) { dto.setEndTime(null); 
-                      System.out.println("setEndTime : " +ex);   
-                      System.out.println(java.time.LocalTime.parse(cs.getEndTime().substring(0, 19)));
+                      log.debug("setEndTime : " +ex);   
+                      log.debug(String.valueOf(java.time.LocalTime.parse(cs.getEndTime().substring(0, 19))));
                    }
                }  
                // repeatType = 课程中是int, DTO是Integer

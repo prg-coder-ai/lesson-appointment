@@ -25,10 +25,12 @@ import org.springframework.validation.annotation.Validated;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
 //import java.time.*;
 // /course/schedule-->/schedule
 @RestController
 @RequestMapping("/schedule")
+@Slf4j
 public class ScheduleController {
 
     @Autowired
@@ -72,7 +74,7 @@ public class ScheduleController {
     public Result<String> updateStatus(@Validated @RequestBody StatusBody dto) { 
 
         String scheduleId = scheduleService.updateStatus(dto);////TBD: local->UTC switch
-     //  System.out.println("updateStatus:" + dto);
+     //  log.debug("updateStatus:" + dto);
         return Result.success(scheduleId,"");
     }
     
@@ -120,7 +122,7 @@ public class ScheduleController {
            
              return Result.success(rs,"ok");
             } catch (RuntimeException e) {
-                 // System.out.println("filterList fail: " + e.getMessage());
+                 // log.debug("filterList fail: " + e.getMessage());
              return Result.fail(0,e.getMessage());
         } 
     }
@@ -131,7 +133,7 @@ public class ScheduleController {
      @RequestParam(required = false) String status,
     @RequestHeader("Authorization") String token) {
 
-    //    System.out.println("selectByCourseId status:" +status);
+    //    log.debug("selectByCourseId status:" +status);
 
               ScheduleCreateDTO dto = new ScheduleCreateDTO();
               
@@ -193,7 +195,7 @@ public class ScheduleController {
       List<ScheduleVO> userZoneList = ScheduleGenerator.generateUserZoneSchedule(dto);
 
       // 3. 打印日志（便于开发调试，实际生产可去除）
-     // System.out.println("ret:" + Result.success(userZoneList, "localtime list"));
+     // log.debug("ret:" + Result.success(userZoneList, "localtime list"));
 
       // 4. 返回统一数据结构（包含 code/message/data 字段）
       return Result.success(userZoneList, "user localtime list");

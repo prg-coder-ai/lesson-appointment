@@ -29,7 +29,6 @@ function test_genUser(number, role) {
     };
     users.push(user);
   }
-  console.log("批量生成用户:", users);
   // 如需发送到后端，可循环请求or批量接口
     users.forEach(u => { request.post('/user/add', u) })
 
@@ -216,10 +215,8 @@ async function batchAddCourseTemplates() {
 
       // 可根据result结构展示反馈
       if(i==0)
-         console.log("course/template/insert:",result);
         i++;
       if (result  ) {
-        console.log(`模板${tpl.templateId}添加成功`);
       } else {
         console.warn(`模板${tpl.templateId}添加失败`, result && result.msg);
         break;
@@ -286,7 +283,6 @@ async function batchAddCoursesForTemplates() {
       try {
         const result = await request.post("/course/insert", newCourse);
         if (result  ) {
-          console.log(`模板${tpl.templateId}第${i+1}个课程添加成功，教师:${teacherId}`);
         } else {
           console.warn(`模板${tpl.templateId}第${i+1}个课程添加失败`, result && result.msg);
           break;
@@ -490,7 +486,6 @@ async function generateAppointmentListByBooking() {
     console.warn("getBookingList 未获取到数组数据，输出为:", bookingList);
     return;
   }
-  console.log(`[generateAppointmentListByBooking] 已获取booking数量:`, bookingList.length);
 
   // 2. 遍历booking对象，判断appointment表中是否已经存在，如果不存在则生成ScheduleGenerateDTO并生成预约
   let countInserted = 0, countSkipped = 0, errors = 0;
@@ -508,7 +503,6 @@ async function generateAppointmentListByBooking() {
         }
 
       if (exists) {
-      // console.log(`[generateAppointmentListByBooking] 已存在的预约，跳过 bookingId=`, booking.id);
         countSkipped++;
         continue;
       }
@@ -543,7 +537,6 @@ async function generateAppointmentListByBooking() {
                  }
                 countInserted++;
               //把booking-》booked,添加时间列表  
-              console.log(AppointmentData);
               try {
                 await saveAppointment(AppointmentData); 
               } catch (e) {

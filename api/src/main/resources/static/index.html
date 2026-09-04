@@ -435,13 +435,6 @@
       const role = registerRole.value.trim();
       const account = (registerAccount || '').trim();
       const tenantCode = document.getElementById('tenant-code').value.trim();
-      // [DEBUG-PLATFORM] 平台管理员注册链路调试输出：打印提交前的关键字段
-      console.log('[DEBUG-PLATFORM] submitRegister role=' + role
-        + ', account=' + account + ', tenantCode=' + tenantCode);
-      if (role === PLATFORM_ROLE) {
-        console.log('[DEBUG-PLATFORM] 平台管理员注册：tenantCode 已锁定 =', tenantCode,
-          '（应为 platform，与后端 PLATFORM_TENANT_CODE 一致）');
-      }
       const registerInfo = {
         role: role,
         account: account,

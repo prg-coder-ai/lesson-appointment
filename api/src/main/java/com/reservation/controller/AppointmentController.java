@@ -11,9 +11,11 @@ import com.reservation.query.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import java.util.List; 
+import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequestMapping("/course/appointment")
+@Slf4j
 public class AppointmentController {
 
     @Autowired
@@ -38,7 +40,7 @@ public class AppointmentController {
      * 5. 返回统一 Result<Boolean> 响应，data 为 true/false，message 统一为 "ok"。
      */
     public Result<Boolean> add(@RequestBody Appointment appointment) {
-       // System.out.println("add controller: " + appointment); // 日志：打印待插入实体内容
+       // log.debug("add controller: " + appointment); // 日志：打印待插入实体内容
         boolean success = appointmentService.save(appointment); // 实际写入数据库表
         return Result.success(success, "ok");
     } 
@@ -172,7 +174,7 @@ public class AppointmentController {
              @RequestParam(required = false, defaultValue = "appointmentDatetime") String sortField,
              @RequestParam(required = false, defaultValue = "asc") String sortOrder
     ) { 
-       //  System.out.println("listByDays  listByDays 参数：days = " + days);
+       //  log.debug("listByDays  listByDays 参数：days = " + days);
         // 获取当前时间（now）和days天之后的相同时间
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
         java.time.LocalDateTime endOfPeriod = now.plusDays(days);
@@ -191,7 +193,7 @@ public class AppointmentController {
     @PostMapping("/statistical/listByDaysByPage")
     @ResponseBody        
     public Result<PageResult<Appointment>> listByDaysByPage(@RequestBody AppointmentQueryPage query  ) { 
-        System.out.println("listByDaysByPage   参数：days = " + query);
+        log.debug("listByDaysByPage   参数：days = " + query);
         // 获取当前时间（now）和days天之后的相同时间
         Integer days = query.getDays();
         java.time.LocalDateTime startOfPeriod,endOfPeriod;
@@ -248,7 +250,7 @@ public class AppointmentController {
             @RequestParam("ondays") int days
     ) { 
         // INSERT_YOUR_CODE
-       // System.out.println("onDays countByTimeOnDays ondays = " + days);
+       // log.debug("onDays countByTimeOnDays ondays = " + days);
 
         // now为当日零点
         java.time.LocalDateTime now = java.time.LocalDate.now().atStartOfDay();

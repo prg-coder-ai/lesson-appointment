@@ -10,10 +10,7 @@ import  com.reservation.utils.PermissionCheck;*/
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-/*import com.reservation.common.Result;
-import com.reservation.dto.TzSwitchPO;  
-import java.util.List;
-import java.util.Map;*/
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 操作       对接接口地址      请求方式        接口说明
@@ -22,6 +19,7 @@ import java.util.Map;*/
 @RestController
 @RequestMapping("/tz")
 @Validated
+@Slf4j
 public class TimezoneCalcController {  
        @Autowired
     private TzSwitchService tzSwitchService;
@@ -38,11 +36,11 @@ public class TimezoneCalcController {
         try {
             TzSwitchVO  resultMap =  tzSwitchService. tzSwitchTo( dataIn) ; 
               // INSERT_YOUR_CODE
-        System.out.println("Tz/switch_to resultMap: " + dataIn+"->" +resultMap);
+        log.debug("Tz/switch_to resultMap: " + dataIn+"->" +resultMap);
 
             return Result.success(resultMap, "ok");
         } catch (Exception e) {
-           //  System.out.println("Tz/switch_to resultMap: " + dataIn+"->" +"时间格式或时区错误: " + e.getMessage());
+           //  log.debug("Tz/switch_to resultMap: " + dataIn+"->" +"时间格式或时区错误: " + e.getMessage());
             return Result.success(null,  "时间格式或时区错误: " + e.getMessage());
         } 
     }

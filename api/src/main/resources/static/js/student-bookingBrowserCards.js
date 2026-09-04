@@ -20,7 +20,6 @@ async function renderStudentBookingBrowserCards() {
     assignLoadobjectListFunction( loadAndRenderBooking_student);// assign
 
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
-    //console.log("container:",dynamicContentCenter);
     if (!dynamicContentCenter) return; 
         // 渲染HTML
     let html = '';
@@ -119,7 +118,6 @@ async function loadAndRenderBooking_student(){
     //console.error("page:",params);
      let result = await getBookingListPage( params);
     
-     //  console.log("ret:",result);
      if(result){
          const pageData = result;  
          Pagination.total = pageData.total ;
@@ -189,7 +187,6 @@ async function loadAndRenderBooking_student(){
     };
    const rlist = await fetchCourseList(conditionJson);
    const one = await getCourseById(courseId);
-  console.log(one,rlist);
    }
  */
    /*cardInfo的数据形式：
@@ -211,7 +208,6 @@ async function loadAndRenderBooking_student(){
       * - 最终返回拼接好的HTML字符串，并通过console输出调试信息。
       */
      function formACourseCard(cardInfo) {
-         //console.log("cardInfo:", cardInfo);
 
          const info = `
              <div class="course-card">
@@ -253,7 +249,6 @@ async function loadAndRenderBooking_student(){
                  </div>
              </div>
          `;
-        // console.log("cardContent:", info);
          return info;
      }
  
@@ -274,7 +269,6 @@ async function loadAndRenderBooking_student(){
  
    // 预览排期--对于未确认的排期查看--已优化掉--可到预约页面查看
    async function previewSchedule(scheduleid,origTzTimeZone) { 
-      console.log("previewSchedule",scheduleid);
     // 生成排期列表 localDateTime List<Date,TIME>
     scheduleResult = await generateAppointmentList(scheduleid,userTimeZone); //courseAndBooking.js
     renderResult(scheduleResult);
@@ -299,15 +293,12 @@ async function viewMyReservationDetail(bookingId,origTzTimeZone){
            const item = scheduleResult[i];
            const dateTime = item.date + " " + item.time;
            const userDateTime = await tzSwitchTo(origTzTimeZone, dateTime, userTimeZone);
-          // console.log("userDateTime", userDateTime);
            const newDate = userDateTime.dateTime.split(' ')[0];
            const newTime = userDateTime.dateTime.split(' ')[1];
            const newDt = {id:item.id, date: newDate, time: newTime, weekday: userDateTime.weekday, status: item.status }
-           // console.log(item, newDt);
            restlts.push(newDt);
        }
    }
- //  console.log(restlts);
    renderResult(restlts);
    renderCalendar(restlts);
 } 
@@ -382,7 +373,6 @@ function renderResult(dateTimeList) {
             // 假设格式为'yyyy-MM-dd'
             const [year, month, day] = firstDateStr.split('-');
             firstDateVar = new Date(Number(year), Number(month) - 1, Number(day));
-            console.log('firstDateVar:', firstDateVar);
         }
 
         // startDate设置为dateSet第一项表示的日期（如果有），否则用今天

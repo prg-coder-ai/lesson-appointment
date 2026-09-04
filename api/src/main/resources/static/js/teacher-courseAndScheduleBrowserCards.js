@@ -315,7 +315,6 @@ function  AddScheduleforTheCourse(courseId){
     body.innerHTML = ''; 
 
    scheduleList.forEach(function(item, index) {
-        console.log(index,item);
         info= getScheduleInfoByDTO(item);
         const tr = document.createElement('tr'); 
         
@@ -389,14 +388,11 @@ function showScheduleCard(schObj){
 
 //可简化为：日期范围，时间，排期计划
 function renderSchedule(scheduleObject) {
-    console.log("renderSchedule",scheduleObject);
   if (!scheduleObject) return;
  
     // 刷新开始日期
     if (scheduleObject.scheduleId) {
      document.getElementById('scheduleId').value = scheduleObject.scheduleId;
-   //  console.log("scheduleId",scheduleObject.scheduleId);
-  //   console.log("scheduleId", document.getElementById('scheduleId').value);
  } else {
      document.getElementById('scheduleId').value = '';
  }
@@ -450,7 +446,6 @@ function renderSchedule(scheduleObject) {
       document.getElementById('endDate').value = '';
   } 
    
-  console.log("repeatDs:",scheduleObject.repeatDays,scheduleObject.repeatType);
   
   // 获取下拉框
  const sel = document.getElementById('repeatType');

@@ -4,6 +4,7 @@ import com.reservation.dto.ScheduleVO;
 import java.time.*;
 import java.util.ArrayList;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 
 /* 排期测试
 1、UTC时区编辑-》保存  每周1 早上8点
@@ -11,6 +12,7 @@ import java.util.List;
   com.reservation.common.ScheduleGenerator
 */
   
+@Slf4j
 public class ScheduleGenerator {
 
     // 生成用户时区的排期---dto内包含tz及用户时区,输出
@@ -30,7 +32,7 @@ public class ScheduleGenerator {
         }
         String type = dto.getRepeatType();
         int interval = dto.getInterval() == null ? 1 : dto.getInterval();
-       // System.out.println("interval:"+interval);
+       // log.debug("interval:"+interval);
         List<Integer> repeatDays = dto.getRepeatDays() == null ? List.of() : dto.getRepeatDays();
         LocalTime time = dto.getStartTime(); 
 
@@ -46,7 +48,7 @@ public class ScheduleGenerator {
            
                 default -> false;
             };
-                    // System.out.println("needAdd:"+current+" "+needAdd);
+                    // log.debug("needAdd:"+current+" "+needAdd);
             if (needAdd) { 
                  LocalDateTime ldt = LocalDateTime.of(current, time);
                 
@@ -54,7 +56,7 @@ public class ScheduleGenerator {
             }
 
             current = nextDate(current, type, interval,repeatDays);
-             // System.out.println("current:"+current);
+             // log.debug("current:"+current);
         }
             List<ScheduleVO> convertedSchedule = new ArrayList<ScheduleVO>();
         // INSERT_YOUR_CODE
@@ -201,8 +203,8 @@ public class ScheduleGenerator {
         ZonedDateTime zonedTo = zonedFrom.withZoneSameInstant(toZone);
 
         // 调试输出，可根据需求保留或删除
-     //   System.out.println("zonedFrom: " + zonedFrom);
-       // System.out.println("zonedTo: " + zonedTo);
+     //   log.debug("zonedFrom: " + zonedFrom);
+       // log.debug("zonedTo: " + zonedTo);
 
         // 返回目标时区下的本地日期时间
         return zonedTo.toLocalDateTime();

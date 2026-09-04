@@ -2,7 +2,6 @@
 var fLoadAndRender= null; //指定重新更新数据的函数，用于切换分页显示时调用
  function assignLoadobjectListFunction ( fun ){
     fLoadAndRender = fun;
- //   console.log("assigned function",fun);
 
  }
 
@@ -117,12 +116,10 @@ function changeXxxPage(targetPage) {
   // 方法1：函数表达式
   const myFunc = function(param) {
     // 函数体
-    console.log("参数为:", param);
   };
 
   // 方法2：箭头函数
   const myArrowFunc = (param) => {
-    console.log("箭头函数参数为:", param);
   };
 
   // 使用
@@ -130,7 +127,6 @@ function changeXxxPage(targetPage) {
   // myArrowFunc("World");
   // 举例：有一个函数
   function hello(name) {
-    console.log("Hello, " + name + "!");
   }
 
   // 把函数名赋值给一个变量

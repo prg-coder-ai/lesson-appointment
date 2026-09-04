@@ -13,7 +13,6 @@ function loadTenantNameMap() {
   return request({ url: '/tenant/list', method: 'get' }).then(list => {
     tenantNameMap = {};
     (list || []).forEach(it => { if (it && it.id) tenantNameMap[it.id] = it.tenantCode + ' ' + it.orgName; });
-    console.log('tenantNameMap loaded:', tenantNameMap);
     return tenantNameMap;
   }).catch(() => { tenantNameMap = {}; });
 }

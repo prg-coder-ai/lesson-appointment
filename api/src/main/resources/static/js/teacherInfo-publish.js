@@ -201,7 +201,6 @@ function formAvaliableTimesDiv(availableTimesList) {
          //hidden field for scheduleId, used for form submission
       const optionedHtml = `<input type="checkbox" class="cert-optioned" data-extra-scheduleid="${t.scheduleId || ''}" ${optioned ? 'checked' : ''} value="${t.optioned}"> 
             `; 
-     // console.log("optionedHtml:", optionedHtml);
     return `<div>${escapeHtml(dateRange)} ${escapeHtml(rptText)} ${escapeHtml(dayText)} ${optionedHtml}</div>`;
   }).join('');
   return lines;
@@ -231,8 +230,6 @@ function generatePublishHtml(mode) {
   
    if (optedRows.length > 0) {
     optedScheduleId = optedRows[0].dataset.extraScheduleid || '';
-      console.log(optedRows.length, "optedScheduleId:", optedScheduleId);
-      console.log("optedRows[0]:", optedRows[0]);
    }   
   data.scheduleId = optedScheduleId;
  

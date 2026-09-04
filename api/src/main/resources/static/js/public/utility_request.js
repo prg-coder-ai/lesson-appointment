@@ -99,30 +99,21 @@
       'color:#fff;background:#d97706;padding:2px 6px;border-radius:3px;',
       'reason=', reason || '(default 401)'
     );
-    console.log('[AuthRedirect] 1. 原始 location：', {
-      pathname: window.location.pathname,
-      search:   window.location.search,
-      hash:     window.location.hash,
-      href:     window.location.href
-    });
+    undefined;
 
     try {
       // 只保留相对 URL，避免跨域/开放重定向漏洞
       let relUrl = window.location.pathname + window.location.search + window.location.hash;
-      console.log('[AuthRedirect] 2. 拼接原始 relUrl：', relUrl);
 
       if (!relUrl || relUrl === '/' || relUrl === '') {
         relUrl = './index.html';
-        console.log('[AuthRedirect] 2.a 空路径 → 降级 ./index.html');
       } else if (!relUrl.startsWith('.')) {
         // pathname 如 /admin.html → 转成 ./admin.html 匹配实际项目的相对路径
         relUrl = '.' + relUrl;
-        console.log('[AuthRedirect] 2.b 补点号 →', relUrl);
       }
 
       // 白名单校验：只允许本项目的静态 html 页面（相对路径 + search + hash）
       const safe = /^(\.\/|\.\.\/)?[A-Za-z0-9_\-]+\.html(\?[^#]*)?(#.*)?$/.test(relUrl);
-      console.log('[AuthRedirect] 3. 白名单正则校验：', safe ? '✅ PASS' : '❌ FAIL', '→', relUrl);
       if (!safe) {
         console.warn('[AuthRedirect] 3.a 未通过白名单，降级跳首页：', relUrl);
         relUrl = './index.html';
@@ -134,15 +125,12 @@
         ts: Date.now(),
         reason: reason || '401'
       };
-      console.log('[AuthRedirect] 4. 准备写入 localStorage：', info);
 
       localStorage.setItem('auth_redirect_info', JSON.stringify(info));
 
       // 回读校验，确认真的写进去了
       const verify = localStorage.getItem('auth_redirect_info');
-      console.log('[AuthRedirect] 5. 回读校验：', verify ? '✅ 已写入' : '❌ 写入失败');
       if (verify) {
-        console.log('[AuthRedirect] 6. localStorage.auth_redirect_info =', verify);
       }
     } catch (e) {
       console.error('[AuthRedirect] saveLoginRedirect 异常：', e);
@@ -163,19 +151,15 @@
 
     try {
       const raw = localStorage.getItem('auth_redirect_info');
-      console.log('[AuthRedirect] 1. 读取 localStorage.auth_redirect_info：', raw || '(空)');
 
       if (!raw) {
-        console.log('[AuthRedirect] 2. 没有 redirect 信息，返回 null（首次登录或已消费）');
         return null;
       }
 
       const info = JSON.parse(raw);
-      console.log('[AuthRedirect] 3. 解析对象：', info);
 
       // 用完即删（无论后续校验是否通过，都已经"消费"过了）
       localStorage.removeItem('auth_redirect_info');
-      console.log('[AuthRedirect] 4. 已删除 localStorage.auth_redirect_info（用完即删）');
 
       if (!info || !info.url) {
         console.warn('[AuthRedirect] 5. info.url 为空，返回 null');
@@ -184,7 +168,6 @@
 
       // 二次白名单校验（避免读取时已被污染）
       const safe = /^(\.\/|\.\.\/)?[A-Za-z0-9_\-]+\.html(\?[^#]*)?(#.*)?$/.test(info.url);
-      console.log('[AuthRedirect] 6. 白名单二次校验：', safe ? '✅ PASS' : '❌ FAIL', '→', info.url);
       if (!safe) {
         console.warn('[AuthRedirect] 6.a 未通过白名单，返回 null（可能被篡改）');
         return null;
@@ -193,16 +176,13 @@
       // ts 超过 24h 过期
       const ageMs = info.ts ? (Date.now() - info.ts) : 0;
       const expired = info.ts && ageMs > 24 * 60 * 60 * 1000;
-      console.log('[AuthRedirect] 7. 过期检查：',
-        'age=' + (ageMs / 1000 / 60).toFixed(1) + 'min',
-        expired ? '❌ 已超过24h' : '✅ 未过期');
+      undefined;
       if (expired) {
         console.warn('[AuthRedirect] 7.a 已过期，丢弃');
         return null;
       }
 
-      console.log('%c[AuthRedirect] 8. ✅ 返回 redirect URL：' + info.url,
-        'color:#16a34a;font-weight:bold;');
+      undefined;
       return info.url;
     } catch (e) {
       console.error('[AuthRedirect] consumeLoginRedirect 异常：', e);
@@ -217,11 +197,9 @@
    * 清理登录重定向信息（显式清理场景：注册/登录手动取消等）
    */
   function clearLoginRedirect() {
-    console.log('%c[AuthRedirect] clearLoginRedirect 触发，清理 auth_redirect_info',
-      'color:#dc2626;');
+    undefined;
     try {
       localStorage.removeItem('auth_redirect_info');
-      console.log('[AuthRedirect] 已清理');
     } catch (_) {
       console.warn('[AuthRedirect] 清理异常', _);
     }
@@ -255,12 +233,7 @@
         config.headers.Authorization = `Bearer ${token}`;
       }
       // 这里可以同时输出 params 和 data，方便前端调试和区分：
-     console.log(
-        "request URL：", config.url
-        ,
-         "url参数 params：", config.params,
-        "请求体 data：", config.data
-      );
+     undefined;
  
       if (config.customLoading !== false) {
         startLoading();
@@ -276,7 +249,6 @@
 
   service.interceptors.response.use(
     (response) => {
-     console.log("response:", response);
        let errMsg ="";
 
       const config = response.config;
@@ -294,7 +266,6 @@
       // 不在这里跳转/刷新，统一交给 error 拦截器或调用方处理；这里仅 reject
       if (res.code === 401) {
           errMsg = res.message || res.msg || '登录已过期';
-        console.log('[AuthRedirect] 登录已过期：', errMsg);
         if (config.customErrorMsg !== false) {
           showError(errMsg);
         }
@@ -353,7 +324,6 @@
       // 已重试过的请求若再次 401，不再刷新，避免嵌套循环
       if (status === 401 && !originalRequest._retry) {
 
-       //  console.log('[AuthRedirect] 401 刷新 token：', errMsg);
         originalRequest._retry = true; // 标记：本请求已尝试过刷新重试
 
         // ②-a 已有刷新在进行：排队等待，刷新完成后用新 token 重发
@@ -378,7 +348,6 @@
         try {
           const refreshRes = await getNewToken();
           // 后端响应：HTTP 200 + body.code === 200 才算刷新成功
-          console.log("refresh token",refreshRes);
           if (
             refreshRes &&
             refreshRes.status === 200 &&
@@ -463,8 +432,7 @@
           // 跳转保护：避免多个并发请求同时触发跳转
           if (!isRedirecting) {
             isRedirecting = true;
-            console.log('%c[AuthRedirect] 调用点 A：刷新凭证失效，准备跳登录',
-              'color:#dc2626;font-weight:bold;');
+            undefined;
             saveLoginRedirect('401');
             setTimeout(() => {
               location.href = './index.html';
@@ -486,8 +454,7 @@
           // 跳转保护：避免多个并发请求同时触发跳转
           if (!isRedirecting) {
             isRedirecting = true;
-            console.log('%c[AuthRedirect] 调用点 B：已重试过仍 401，准备跳登录',
-              'color:#dc2626;font-weight:bold;');
+            undefined;
             saveLoginRedirect('401');
             setTimeout(() => {
               location.href = './index.html';

@@ -1,5 +1,4 @@
  //排期管理--页面 admin-schedule.js
- console.log("admin schedule page");
  document.write('<script src="/js/public/pagefoot.js"></script>');  
 
  //   let courseList = [];
@@ -24,7 +23,6 @@ var localParamter ={
 async function renderScheduleCards() {
     assignLoadobjectListFunction( loadAndRenderCourses);//
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
-   // console.log("renderScheduleCards:",dynamicContentCenter);
     if (!dynamicContentCenter) return; 
     // 显示加载中
    // dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';  
@@ -546,14 +544,12 @@ async function renderScheduleCards() {
   conflictMessageElem = document.getElementById('conflictMessage'); 
   resultBodyElem =document.getElementById('resultBody'); 
   resultCalendarElem=document.getElementById('calendar');;// id= resultBody,Id="calendar";
-    console.log("schedule page END");
   } //renderScheduleCards
 
   
 // 筛选与操作联动
 // 搜索按钮：重置为第1页再查询
 function localsearchCourse_sch() {
-    console.log("localsearchCourse_sch");
     Pagination.pageNum = 1;
     loadAndRenderCourses();
   }
@@ -832,7 +828,6 @@ async function getTestEndDatetime() {
             //teacherId：
             status: document.getElementById('course-status-select').value
         });
-   console.log("loadAndRenderCourses params:", params.toString());
     try {         
         const result = await request({url:`/course/page?${params.toString()}` });
         
@@ -894,17 +889,14 @@ function renderCourseToList(clist) {
                     teacherId = selectedOption.getAttribute('data-teacher-id') || "";
                   }
              } 
-            console.log("teacherId:", teacherId);
             if (!teacherId) return;
             const teacherName= await request({url:`/user/name/${teacherId}` });
-            console.log("teacherName:", teacherName);
             if (!teacherName) return;
             teacherNameElem.innerHTML = teacherName || '';
         }
 
        let classForm = document.getElementById('classForm');
        let formFromtemplate= await getCourseFormByCourseId(cid);
-       console.log("formFromtemplate课程形式:", formFromtemplate);
        if (formFromtemplate) {
            classForm.value = formFromtemplate;
          //设置classForm的默认值,只和课程（模板）相关
@@ -914,7 +906,6 @@ function renderCourseToList(clist) {
 
       try {
         scheduleList = await fetchScheduleList(cid);
-           // console.log(scheduleList );
             // 补全默认状态
             scheduleList.forEach(item => {
                 if (!item.status) item.status = 'active';
@@ -956,7 +947,6 @@ function renderCourseToList(clist) {
 async function getCourseFormByCourseId(cid) {
     try {
         const result = await request({url:`/course/classform?courseId=${cid}` });
-        console.log("getCourseFormByCourseId",cid,result);
         return result;
     } catch (e) {
         alert("获取课程形式失败",e);
@@ -967,10 +957,8 @@ async function getCourseFormByCourseId(cid) {
 //更新scheduleObject相关内容 --待细化 --TBD page display
 async function renderSchedule() {
      if (!scheduleObject) return;
-     // console.log("renderSchedule",scheduleObject);
      //更新已预约人数
 const totalBooked = await getBookingCountByScheduleId(scheduleObject.scheduleId);
-     // console.log("totalBooked",totalBooked,"for"   ,   scheduleObject.scheduleId);
 
        // 刷新开始日期
        if (scheduleObject.scheduleId) {
@@ -1229,12 +1217,10 @@ function refreshUserTzPreview() {
             } else  if ( repeatTypeVal === 'month' ) {
 
                 const weekDayInputs = document.querySelectorAll('#monthDays input[type=checkbox]');
-                console.log("days",weekDayInputs);
                 let arr = [];
                 weekDayInputs.forEach(cb => { 
                     if (cb.checked) arr.push(Number(cb.value));
                 });
-                console.log("days arr",arr);
                 return arr;
             } else {
                 return [];
@@ -1243,7 +1229,6 @@ function refreshUserTzPreview() {
         endDate: document.getElementById('endDate').value  
     }; 
     
-    console.log("form:",form);
     return form;
    }
    
@@ -1252,10 +1237,8 @@ function refreshUserTzPreview() {
      if(! checkCourseAndSchedule(false,true))
        return ; //对于新建排期，不需要检查scheduleID
      const form = getFormData();
-      console.log("form:",form) ;
     // 生成排期列表 localDateTime List<Date,TIME>
      scheduleResult = await generateScheduleListFromServer(form);
-     console.log("result:",scheduleResult) ;
      if(resultCalendarElem)  {
         resultCalendarElem.hidden = false;
        }
@@ -1297,7 +1280,6 @@ function renderResult() {
       // 假设格式为'yyyy-MM-dd'
       const [year, month, day] = firstDateStr.split('-');
       firstDateVar = new Date(Number(year), Number(month) - 1, Number(day));
-     // console.log('firstDateVar:', firstDateVar);
   }
 
   // startDate设置为dateSet第一项表示的日期（如果有），否则用今天
@@ -1343,7 +1325,6 @@ function renderResult() {
     //TBD :判断排期是否已经存在---
    // const token = getToken();
     const formData = getFormData();
-    console.log("save form:",formData); 
 
     // 引用ScheduleCreateDTO, 把formData赋值到dto对象
     // 注意：前端js中无class，直接构造一个对象与后端ScheduleCreateDTO字段一致即可 
@@ -1368,10 +1349,8 @@ function renderResult() {
     let createdto = toScheduleCreateDto(formData);      
     
     let bExists = formData.scheduleId && formData.scheduleId !== "";
-     // console.log("save createdto:",createdto,bExists);
 // 返回当前或新增的schedule的id
     let result = await saveScheduleToServer(bExists , createdto);
-    //  console.log("saveScheduleToServer return  :", result ); 
        // 4.  响应处理 响应成功/失败 result.data.id = new id 
          
         if ((typeof result === "undefined") || result == null) { 
@@ -1403,7 +1382,6 @@ async function assignStudentToSchedule( ) {
         return;
       }
    
-      //  console.log("当前选择的学生ID", assignStudentId);
        
         const ret = await assignStudentToTheSchedule(scdid,assignStudentId,teacherId);
         if ( ret  ) {
@@ -1452,7 +1430,6 @@ async function assignStudentToSchedule( ) {
           url: `/course/booking/ListByScheduleId/${scheduleId}`,
           method: 'GET'           
       });
-      console.log("lsitBySchid",res);
          if (Array.isArray(res)) {
           for (const booking of res) {
               if (booking && booking.id) {
@@ -1463,7 +1440,6 @@ async function assignStudentToSchedule( ) {
           }
       }
 
-    //  console.log(`预约已全部设为frozen:`, res);
       return res;
   } catch (error) {
       console.error('批量设置预约为frozen失败:', error);
@@ -1509,11 +1485,9 @@ async function hasBookingForScheduleId(scheduleId) {
       conflictMessageElem.textContent = '正在检查';
    }
    const createdto = toScheduleCreateDto(getFormData());
-   console.log("checkSchedule:",createdto) ;
    (async function(){
        // 注意：checkScheduleConflict 应当是 async，返回 {code, message, data}
        let clist = await checkScheduleConflict(createdto);
-       console.log("checkSchedule:",clist);
        if (!clist) {
           alert("检测排期冲突时发生错误！");
           return;
@@ -1587,12 +1561,7 @@ async function hasBookingForScheduleId(scheduleId) {
  * <div id="c" style="position:absolute;left:-9999px;">baz</div>
  * <div id="d" aria-hidden="true">hidden by aria</div>
  * // JS:
- * console.log(
- *   document.getElementById('a').innerText,
- *   document.getElementById('b').innerText,
- *   document.getElementById('c').innerText,
- *   document.getElementById('d').innerText
- * );
+ * undefined;
  *
  * // 只要 DIV 未从 DOM 移除，其内容都能通过 JavaScript 获取和修改。
  */
@@ -1609,10 +1578,8 @@ async function hasBookingForScheduleId(scheduleId) {
 /*function readHiddenInputValue() {
     var input = document.getElementById('hiddenInput');
     if (input) {
-        console.log("隐藏的input值:", input.value);
         // 也可以赋新值
         input.value = "新值";
-        console.log("赋新值后:", input.value);
     }
 }*/
 // 调用示例

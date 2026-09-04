@@ -12,13 +12,6 @@
   // 登录 API：参数应当放在 data 中
   function login(data) {
     // data: { account: 'xxx', password: 'yyy' }
-    // [DEBUG-PLATFORM] 平台管理员登录链路调试输出：打印真正发往后端 /auth/login 的请求体
-    console.log('[DEBUG-PLATFORM] login 请求体 ->', JSON.stringify(data));
-    if (data && data.tenantCode === 'platform' && data.role === 'platform_admin') {
-      console.log('[DEBUG-PLATFORM] login 命中平台管理员标识：tenantCode=platform, role=platform_admin');
-    } else {
-      console.log('[DEBUG-PLATFORM] login 普通登录：未携带 platform 标识（tenantCode/role 缺失，将走租户分支）');
-    }
     return request({
       url: '/auth/login',
       method: 'post',
@@ -44,8 +37,7 @@
   async function handleLogout() {
     // 注意：必须在 localStorage.clear() 之前先保存 redirect 信息！
     // 因为 saveLoginRedirect 也是写 localStorage，清了之后会丢失。
-    console.log('%c[AuthRedirect] 调用点 C：handleLogout 主动登出，准备 saveLoginRedirect',
-      'color:#dc2626;font-weight:bold;');
+    undefined;
     if (typeof window.saveLoginRedirect === 'function') {
       window.saveLoginRedirect('logout');
     } else {
@@ -65,7 +57,6 @@
     localStorage.removeItem('currentUser');
     localStorage.removeItem('auth_menu_state');  // 常见菜单状态，按需扩展
     document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
-    console.log('[AuthRedirect] 调用点 C：清理完成，跳转 ./index.html');
     location.href = './index.html';
   }
   
@@ -146,7 +137,6 @@
     };
     try {
       const res = await login(loginInfo);
-      console.log('登录响应:', res);
       if (!res || !res.token) {
         throw new Error('登录失败，未返回有效凭证');
       }

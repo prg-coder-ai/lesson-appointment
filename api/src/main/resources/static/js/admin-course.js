@@ -173,7 +173,6 @@ async function submitCourseForm() {
     //console.info("submit:",formData.courseId);
     //const token = getToken();
     const url = formData.courseId !=""? `course/update` : `course/insert`;
-  //  console.log("update",formData);
    let res = await updateORCreateCourse(url, formData);
    if(res!=""){
     alert(formData.courseId !="" ? '编辑成功' : '新增成功');
@@ -390,7 +389,6 @@ function renderCourseTable(list) {
          let tempInfo=templateObj? templateObj.languageType+ " "+ templateObj.difficultyLevel + " "+templateObj.classFee : "" ;
          let teacherInfo=teacherObj? teacherObj.name : "n/a" ;//+ " "+ teacherObj.phone + " "+ teacherObj.email
           if(cnt++ ==1){
-console.log(Course,templateObj,teacherObj);
            } 
            index ++;
             html += `

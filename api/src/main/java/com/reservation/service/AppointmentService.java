@@ -137,7 +137,7 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
                 String status) { 
         // 先判断 userId 和 role 是否均不为空
         com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Appointment> queryWrapper=null;
-System.out.println(userId + role + startTime + endTime + pageNum + pageSize + status);
+log.debug(userId + role + startTime + endTime + pageNum + pageSize + status);
         List<String> bookingIdList = null;
         boolean nodata = false;   
                 
@@ -150,7 +150,7 @@ System.out.println(userId + role + startTime + endTime + pageNum + pageSize + st
                 bookingIdList = bookingMapper.selectByCondition(queryPara).stream()
                         .map(Booking::getBookingId)
                         .toList();
-               System.out.println(bookingIdList);         
+               log.debug(String.valueOf(bookingIdList));         
             }
             // bookingIdList 不为空则查这些bookingId，否则查空
             if (bookingIdList != null && !bookingIdList.isEmpty()) {

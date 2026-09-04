@@ -134,7 +134,7 @@ public class UserService {
     @Transactional
     public Result< Object> Register(User user) {
         // 校验手机号/邮箱是否已注册（对应业务异常校验）
-         System.out.println("UserService Register：" + user);
+         log.debug("UserService Register：" + user);
         // ① 先解析租户归属：优先取租户上下文（已登录的租户内添加用户）；
         //    自助注册、平台代建场景拿不到上下文，按请求中的租户编码解析
         //    注册接口在白名单内没有租户上下文，这里显式设置，
@@ -149,20 +149,20 @@ public class UserService {
             regTenantId = 0L;
         } else if (regTenantId == null || regTenantId <= 0) {
             Tenant tenant = resolveTenantByCode(user.getTenantCode());
-            System.out.println("UserService Register：" + tenant);
+            log.debug("UserService Register：" + tenant);
             if (tenant == null) {
                 return Result.fail(403, "租户编码无效或已停用，请检查注册链接");
             }
             regTenantId = tenant.getId();
         }
         user.setTenantId(regTenantId);
-        System.out.println("UserService Register：" + user);
+        log.debug("UserService Register：" + user);
         // ② 注册接口在白名单内没有租户上下文，这里显式设置，
         //    否则租户插件按兜底值拼接条件，账号查重与额度统计都会失效
         TenantContext.setTenantId(regTenantId);
         try {
             // ③ 账号查重（租户内唯一，不同租户的账号互不冲突）
-            if (existAccount(user.getAccount())) {
+            if (existAccount(user.getAccount(), regTenantId)) {
                 return Result.fail(400, "该账号已注册，请登录或重置密码");
             }
             // 密码加密（对应设计2.3 安全设计-密码加密）
@@ -198,7 +198,7 @@ public class UserService {
         encryptUserFields(user);
         // 插入数据库
         int result = userMapper.insert(user);
-        System.out.println("output：" + result);
+        log.debug("output：" + result);
 
          Map<String, String> resultMap = new HashMap<>();
          resultMap.put("userId", user.getUserId());
@@ -208,9 +208,11 @@ public class UserService {
          String token = jwtUtil.generateToken(regTenantId, user.getUserId(), user.getRole());
          resultMap.put("token", token);
          resultMap.put("role", user.getRole());
-                               //data,message
+         //?? tenantCode 也返回给前端，便于后续登录时传入
+         resultMap.put("tenantCode", user.getTenantCode());
+         //data,message
          Result< Object> rslt = Result.success(resultMap   ,"注册成功，请登录等待验证");
-         System.out.println("output rslt：" + rslt);
+         log.debug("output rslt：" + rslt);
         return rslt;
     }
  
@@ -234,8 +236,9 @@ public class UserService {
     // 用户登录（对应设计2.2.1 登录接口）
     public Result<HashMap<String, Object>> login( String account, String password, Long tenantId) {
         // 查找用户（账号可为手机号/邮箱，对应设计2.2.1 登录接口请求参数）
-       //  System.out.println("userService login：" + account+"   "+password);
-        User user = userMapper.selectByAccount( account);
+       //  log.debug("userService login：" + account+"   "+password);
+        User user = userMapper.getUserByAccount( account,tenantId);
+        log.debug("userService login：" + user);
         HashMap<String, Object> resultMap = new HashMap<>();
         if (user == null) { 
           resultMap.put("message", "账号不存在");
@@ -287,7 +290,8 @@ public class UserService {
         resultMap.put("name", user.getName());
         resultMap.put("role", user.getRole());
         resultMap.put("token", token);
-            
+       //?? tenantCode 也返回给前端，便于后续登录时传入
+       resultMap.put("tenantCode", user.getTenantCode());
     // 2. 生成双Token
        // String accessToken = jwtUtil.generateAccessToken(account);
         String refreshToken = jwtUtil.generateRefreshToken(tenantId, user.getUserId());
@@ -302,7 +306,7 @@ public class UserService {
         userSessionService.onLogin(token, tenantId, user.getUserId(), user.getRole(),
                 currentRequestIp(), currentRequestUserAgent());
 
-      // System.out.println("login ok with account：" +user.getAccount()); 
+      // log.debug("login ok with account：" +user.getAccount()); 
         return Result.success(resultMap   ,"登陆成功");
     }
 
@@ -346,18 +350,18 @@ public class UserService {
 
     // 密码重置，对应设计2.2.1 密码重置接口 "12345678"
     @Transactional
-    public Result<HashMap<String, Object>> resetPassword(String account) { 
+    public Result<HashMap<String, Object>> resetPassword(String account, Long tenantId) {
         // 查找用户
-        User user = userMapper.selectByAccount(account); 
+        User user = userMapper.getUserByAccount(account, tenantId);
         HashMap<String, Object> resultMap = new HashMap<>();
-        if(user!= null ) { 
-        // 解密敏感字段（如需回显）
-        decryptUserFields(user);
-        // 加密新密码并更新--重置为固定码，用户自行更改
-        user.setPassword(passwordEncoder.encode("12345678"));
-        updatePassword(user);
-        return Result.success(resultMap   ,"密码重置成功");
-       // userMapper.updatePassword(user.getUserId(),user.getPassword());
+        if (user != null) {
+            // 解密敏感字段（如需回显）
+            decryptUserFields(user);
+            // 加密新密码并更新--重置为固定码，用户自行更改
+            user.setPassword(passwordEncoder.encode("12345678"));
+            updatePassword(user);
+            return Result.success(resultMap, "密码重置成功");
+            // userMapper.updatePassword(user.getUserId(),user.getPassword());
         } else {
            // throw new BusinessException("账号 【" + account + "】对应的用户不存在");
            resultMap.put("message", "账号 【" + account + "】对应的用户不存在");
@@ -378,29 +382,29 @@ public class UserService {
          updatePassword(user);
          return true;
          } catch (Exception ex) {
-            System.out.println("changePassword Error:userId= "+userId);
+            log.debug("changePassword Error:userId= "+userId);
          };
           return false ;  
     } 
-    public User selectByPhone(String phone) {
-        User user= userMapper.selectByPhone(cryptoUtil.searchIndex(phone), phone);
-       if(user==null){
+    public List<User> selectByPhone(String phone) {
+        List<User> users = userMapper.selectByPhone(cryptoUtil.searchIndex(phone), phone);
+        if (users == null || users.isEmpty()) {
             // throw new UserNotFoundException("手机号【" + phone + "】对应的用户不存在");
-          //  Result< Object> rslt = Result.fail(400   ,"手机号【" + phone + "】对应的用户不存在");
-            return null;
-       }
-       decryptUserFields(user);
-        return user;
+            return new java.util.ArrayList<>();
+        }
+        decryptUserList(users);
+        return users;
     }
- public User selectByEmail(String email) {
+ public List<User> selectByEmail(String email) {
       // return userMapper.selectByEmail(email)
       //       .orElseThrow(() -> new UserNotFoundException("email" + email + "】对应的用户不存在"));
-      User user= userMapper.selectByEmail(cryptoUtil.searchIndex(email), email);
-      if(user==null)
-          System.out.println("email 【" + email + "】对应的用户不存在");
-      else
-          decryptUserFields(user);
-         return user;
+      List<User> users = userMapper.selectByEmail(cryptoUtil.searchIndex(email), email);
+      if(users == null || users.isEmpty()) {
+          log.debug("email 【" + email + "】对应的用户不存在");
+          return new java.util.ArrayList<>();
+      }
+      decryptUserList(users);
+      return users;
      }
   
 public User selectById(String userId) {
@@ -408,7 +412,7 @@ public User selectById(String userId) {
       //       .orElseThrow(() -> new UserNotFoundException("userId" + userId + "】对应的用户不存在"));
      User user= userMapper.selectById(userId);
      if(user==null)
-         System.out.println("userId 【" + userId + "】对应的用户不存在");
+         log.debug("userId 【" + userId + "】对应的用户不存在");
      else
          decryptUserFields(user);
      return user;
@@ -416,20 +420,20 @@ public User selectById(String userId) {
  /**
      * 根据手机号/邮箱查询用户（登录专用）
      */
-    public User selectByPhoneOrEmail(String account) {
-        User user = userMapper.selectByPhoneOrEmail(cryptoUtil.searchIndex(account), account);
-        if (user == null) {
-           System.out.println("账号【" + account + "】不存在");
-        } else {
-           decryptUserFields(user);
+    public List<User> selectByPhoneOrEmail(String account) {
+        List<User> users = userMapper.selectByPhoneOrEmail(cryptoUtil.searchIndex(account), account);
+        if (users == null || users.isEmpty()) {
+           log.debug("账号【" + account + "】不存在");
+           return new java.util.ArrayList<>();
         }
-        return user;
+        decryptUserList(users);
+        return users;
     } 
     /**
      * 根据账号查询用户（登录/重置密码专用，入参为明文，内部转 HMAC）
      */
-    public User selectByAccount(String account) {
-        User user = userMapper.selectByAccount(account);
+    public User getUserByAccount(String account, Long tenantId) {
+        User user = userMapper.getUserByAccount(account, tenantId);
         if (user != null) {
             decryptUserFields(user);
         }
@@ -464,6 +468,7 @@ public User selectById(String userId) {
         if (condition.get("account") != null) query.setAccount(String.valueOf(condition.get("account")));
         if (condition.get("email") != null) query.setEmail(String.valueOf(condition.get("email")));
         if (condition.get("phone") != null) query.setPhone(String.valueOf(condition.get("phone")));
+        if (condition.get("tenantId") != null) query.setTenantId(Long.valueOf(String.valueOf(condition.get("tenantId"))));
 
         List<User> all = userMapper.listByConditionAll(query);
         decryptUserList(all);
@@ -531,9 +536,9 @@ public User selectById(String userId) {
  
 
     public List<User> listByRole(String role) {
-        List<User> users = userMapper.listByRole(role); 
+        List<User> users = userMapper.listByRole(role);
         if (users == null || users.isEmpty()) {
-            System.out.println("不存在【" + role + "】的用户");
+            log.debug("不存在【" + role + "】的用户");
         } else {
             decryptUserList(users);
         }
@@ -545,19 +550,22 @@ public User selectById(String userId) {
      * @param account 用户账号（手机号或邮箱）
      * @return 是否已存在
      */
-    public boolean existAccount(String account) {
+    public boolean existAccount(String account, Long tenantId) {
         if (account == null || account.trim().isEmpty()) {
             return false;
         }
-        User user =  userMapper.selectByAccount(account);
+        User user = userMapper.getUserByAccount(account, tenantId);
         // 判断账号是手机号还是邮箱
-      /*   boolean isEmail = account.contains("@");
-        User user = null;
-        if (isEmail) {
-            user =  selectByEmail(account);
+        // 预留：按联系方式查重时，同一手机号/邮箱可对应多个账号（一对多，见 List<User> 返回约定），
+        // 故以下取首个匹配即可；当前 existAccount 仍按 account 精确查重，本分支暂未启用。
+      /*   List<User> matched;
+        if (account.contains("@")) {
+            matched = selectByEmail(account);
         } else {
-            user =  selectByPhone(account);
-        }*/
+            matched = selectByPhone(account);
+        }
+        user = (matched == null || matched.isEmpty()) ? null : matched.get(0); 
+        */
         return user != null;
     }
     /**

@@ -38,7 +38,7 @@ public class BookingService {
   
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public String update(String id, Booking booking) {
-       // System.out.println("update : " + booking);
+       // log.debug("update : " + booking);
         booking.setBookingId(id);
         bookingMapper.updateById(booking);
         return id;
@@ -46,7 +46,7 @@ public class BookingService {
 
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public String updateStatus( BookingDTO dto) {
-//System.out.println("updateStatus dto: " + dto);
+//log.debug("updateStatus dto: " + dto);
           String id= dto.getId();
           String status =dto.getStatus();
           if ("delete".equals(status)) {
@@ -78,7 +78,7 @@ public class BookingService {
             Integer total = bookingMapper.selectCountByCondition(query);
             page.setTotal(total);
 
-          //  System.out.println("total : " + total);
+          //  log.debug("total : " + total);
             PageResult<Booking> result = PageResult.of(page);
             return result;
 

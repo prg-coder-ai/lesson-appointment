@@ -86,7 +86,6 @@ function validateForm() {
       defaultTemplate = {};
       console.error(e);
     } 
-    //console.log("edit json:",defaultTemplate); 
   // 2. 设置弹窗标题
   const modalTitle = document.getElementById('modalTitle');
   modalTitle.innerText = (defaultTemplate.templateId !="")? '编辑课程模板' : '新增课程模板';
@@ -236,9 +235,7 @@ async function submitTemplateForm() {
         }
       }
      try{
-       // console.log("submitTemplateForm",formData);
           let res = await  updateORCreateTemplate(formData);//返回id
-          console.log("submitTemplateForm",res);
         // 4.  响应处理 响应成功/失败
         if (res ) {
             alert(formData.templateId !="" ? '模板编辑成功' : '模板新增成功');
@@ -351,10 +348,8 @@ async function loadAndRenderTemplateCards() {
       pageSize:Pagination.pageSize,
       pageNum: Pagination.pageNum
   };
- //console.log(conditionJson);
   // 获取模板列表数据
   const pageResult  = await  fetchTemplateListPage(conditionJson);
-  console.log(pageResult);
   if(pageResult){
     templateList = pageResult.rows;    
     const pageData = pageResult;
@@ -481,7 +476,6 @@ function deleteTemplateByFrozen(templateId) {
             url: `${API_BASE_URL}/course/updateStatusByLastId/${encodeURIComponent(templateId)}?status=${encodeURIComponent("frozen")}`,
             method: 'POST' 
         });
-          console.log("deleted",res);
     } catch (err) {
         alert('删除模板下课程时出错，请检查网络或后端接口。');
         console.error('deleteTemplateNextLevelByFrozen error:', err);

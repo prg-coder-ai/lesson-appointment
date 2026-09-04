@@ -18,6 +18,7 @@ import com.reservation.audit.AuditAction;
 
 import com.reservation.entity.Tenant;
 import com.reservation.service.TenantService;
+import com.reservation.utils.TenantContext;
 
  import jakarta.validation.constraints.NotBlank;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +31,7 @@ import org.springframework.beans.factory.annotation.Autowired;
  import jakarta.validation.constraints.Pattern;
  import java.util.Collections;
 import java.util.HashMap; 
+import lombok.extern.slf4j.Slf4j;
  /**
      * 用户登录接口，对应设计2.2.1 接口：/api/v1/user/login
      * TBD：在线状态online：yes/no 
@@ -48,6 +50,7 @@ import java.util.HashMap;
  @RestController
 @RequestMapping("/auth")
 @Validated
+@Slf4j
 public class authController {
 
     /**
@@ -76,19 +79,10 @@ public class authController {
              String tenantCode = userdto.getTenantCode();
              String role = userdto.getRole();
              Long tenantId;
-             String userType;
-
-            // [DEBUG-PLATFORM] 平台管理员登录链路调试输出：打印进入 controller 的关键字段
-            System.out.println("[DEBUG-PLATFORM] toLogin 入参 account=" + account
-                    + ", tenantCode=" + tenantCode + ", role=" + role);
 
             // 平台管理员登录：tenantCode 传固定值 "platform"，角色用 RoleConst.PLATFORM_ADMIN
         if (PLATFORM_TENANT_CODE.equals(tenantCode) && RoleConst.PLATFORM_ADMIN.equals(role)) {
             tenantId = 0L;
-            userType = "平台管理员";
-            // [DEBUG-PLATFORM] 命中平台管理员分支：确认解析后的租户与用户类型
-            System.out.println("[DEBUG-PLATFORM] toLogin 命中平台管理员分支 -> tenantId=" + tenantId
-                    + ", userType=" + userType);
         } else {
             // 租户端登录：先校验租户状态。
             // 必须同时校验软删除与停用，否则已删除的租户仍能登录；
@@ -100,20 +94,13 @@ public class authController {
             if (invalid) {
                 return Result.fail(403, "租户编码无效或已停用");
             }
-            userType = "租户端";
             // 校验租户端用户状态
 
             tenantId = tenant.getId();
-            // [DEBUG-PLATFORM] 租户端登录分支：打印解析到的租户与用户类型
-            System.out.println("[DEBUG-PLATFORM] toLogin 租户端分支 -> tenantCode=" + tenantCode
-                    + ", tenantId=" + tenantId + ", userType=" + userType);
           }
 
         // 调用服务层实现登录逻辑，返回userId、name，role、account、Token,freshToken（对应设计2.2.1 登录返回数据）
         Result<HashMap<String, Object>> rst= userService.login( account, password, tenantId); //setOnline(false)
-        // [DEBUG-PLATFORM] 登录服务返回：打印 code 与解析到的 tenantId/userType
-        System.out.println("[DEBUG-PLATFORM] toLogin 调用 userService.login 完成 -> tenantId=" + tenantId
-                + ", userType=" + userType + ", rst.code=" + rst.getCode());
         // 3. 登录成功：设置安全状态（核心步骤） ?token?
         // 封装用户认证信息（角色需和数据库一致，如teacher/student）
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken( 
@@ -133,7 +120,7 @@ public class authController {
      */
     @PostMapping("/refreshToken")
     public Result<TokenDTO> refreshToken(@RequestBody RefreshDTO refreshDTO) {
-        System.out.println("refreshToken refreshDTO:"+refreshDTO);
+        log.debug("refreshToken refreshDTO:"+refreshDTO);
         String oldRefreshToken = refreshDTO.getRefreshToken();
         String account = refreshDTO.getAccount();
         String role = refreshDTO.getRole();
@@ -194,7 +181,7 @@ UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthent
         TokenDTO dto = new TokenDTO();
         dto.setToken(newAccess);//userid role
         dto.setRefreshToken(newRefresh);//userid
-      //  System.out.println("controller refreshToken:"+dto);
+      //  log.debug("controller refreshToken:"+dto);
         return Result.success(dto,"refreshToken ok");
     } 
 
@@ -229,7 +216,7 @@ UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthent
     public Result <Object> kickUser(@PathVariable String userId) {
         int count = refreshTokenService.kickUser(userId);
         // 3. 刷新页面提示
-        System.out.println("controller kick: "+count) ;
+        log.debug("controller kick: "+count) ;
         if(count  !=0 )
         return Result.success( true,"ok"     );
         else  return  Result.success( false,"kick failed"     );
@@ -258,7 +245,7 @@ UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthent
             @NotBlank(message = "账号不能为空") String account)
             {
         // 调用服务层重置密码（对应设计2.2.1 密码重置功能说明）
-        userService.resetPassword(account);
+        userService.resetPassword(account, TenantContext.getTenantId());
         return Result.success(null, "密码重置成功");
     }
 }

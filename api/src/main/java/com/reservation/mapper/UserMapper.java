@@ -21,10 +21,12 @@ import java.util.Map;
 public interface UserMapper extends BaseMapper<User> {
 
     // account 不再加密（纯明文存储），登录/查重按账号精确匹配即可。
-    // 登录场景还不知道用户属于哪个租户，必须跳过租户插件过滤，归属由 UserService.login 显式校验
+    // 登录场景还不知道用户属于哪个租户，必须跳过租户插件过滤，归属由 UserService.login 显式校验。
+    // 注意：必须【精确匹配】账号(account = ?)，不能 LIKE 模糊——否则同租户下存在两个含相同子串的账号
+    // （如 T002 与 T002@def.com）时，selectOne 会因命中 2 条而抛 TooManyResultsException。
     @InterceptorIgnore(tenantLine = "true")
-   @Select("select * from user where account LIKE CONCAT('%', #{account}, '%')")
-   User selectByAccount( @Param("account") String account);
+   @Select("select * from user where account = #{account} AND tenant_id = #{tenantId}")
+   User getUserByAccount( @Param("account") String account, @Param("tenantId") Long tenantId);
 
     /**
      * 绑定用户到指定租户（存量数据迁移：迁移前创建的用户 tenant_id 为 0）
@@ -40,7 +42,7 @@ public interface UserMapper extends BaseMapper<User> {
       * @return 用户信息
       */
       @Select("select * from user where phone LIKE CONCAT(#{hmac}, ':%') OR phone = #{plain}")
-    User selectByPhone(@Param("hmac") String hmac, @Param("plain") String plain);
+    List<User> selectByPhone(@Param("hmac") String hmac, @Param("plain") String plain);
 
     /**
       * 根据邮箱查询用户
@@ -49,7 +51,7 @@ public interface UserMapper extends BaseMapper<User> {
       * @return 用户信息
       */
         @Select("select * from user where email LIKE CONCAT(#{hmac}, ':%') OR email = #{plain}")
-      User selectByEmail(@Param("hmac") String hmac, @Param("plain") String plain);
+      List<User> selectByEmail(@Param("hmac") String hmac, @Param("plain") String plain);
 
     /**
       * 根据手机号或邮箱查询用户（用于登录）
@@ -58,7 +60,7 @@ public interface UserMapper extends BaseMapper<User> {
       * @return 用户信息
       */
       @Select("SELECT * FROM user WHERE phone LIKE CONCAT(#{hmac}, ':%') OR email LIKE CONCAT(#{hmac}, ':%') OR phone = #{plain} OR email = #{plain}")
-    User selectByPhoneOrEmail(@Param("hmac") String hmac, @Param("plain") String plain);
+    List<User> selectByPhoneOrEmail(@Param("hmac") String hmac, @Param("plain") String plain);
 
     /**
      * 根据用户ID查询用户

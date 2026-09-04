@@ -123,13 +123,9 @@
           <i class="fa fa-calendar-alt"></i>
           <span>测试-批量创建数据</span>
         </div>
-        <div class="menu-item" key="sys_log">
-          <i class="fa fa-file-alt"></i>
-          <span>系统日志</span>
-        </div> 
          <div class="menu-item" key="audit_log">
           <i class="fa fa-file-alt"></i>
-          <span>操作审计</span>
+          <span>审计日志</span>
         </div>
       </div>
        
@@ -222,9 +218,6 @@
         case "test_data":
           if(dynamicContentCenter) dynamicContentCenter.innerHTML = makeTestPage();
           break;
-        case "sys_log":
-          window.location.href = `./logBrowser.html`;
-          break;
         case "audit_log":
           window.location.href = `./auditLog.html`;
           break;
@@ -273,10 +266,8 @@
       window.refreshOverallpage = refreshOverallpage ;
 
       testFormContainer = document.getElementById('templateFormContainer');
-     //  console.log("onload",testFormContainer); 
 
         formContainer = document.getElementById('formContainer');
-        //console.log("onload",formContainer); 
 
       // 读取名为 currentUser 的 cookie值，并设置回 localStorage，避免用户刷新管理端丢失状态   
         function getCookie(name) {
@@ -306,8 +297,7 @@
       
       // ====== 新增：未登录或登录信息不完整 → 保存当前来源页 URL 后跳登录页 ======
       if (!user || !user.userId || !user.role) {
-        console.log('%c[AuthRedirect] 调用点 D：admin.html onload 检测到未登录，准备 saveLoginRedirect',
-          'color:#dc2626;font-weight:bold;');
+        undefined;
         if (typeof window.saveLoginRedirect === 'function') {
           window.saveLoginRedirect('noauth');
         }
@@ -316,10 +306,8 @@
         return; // 不再执行后续的 DOM 渲染
       }
       
-     // console.log('管理端页面加载完成，所有交互功能已启用');
       // 设置用户首字母和用户名
       if (user.name) { 
-        console.log(`${user.name}（${user.role}）已登录管理端`); 
         document.getElementById('avatar').innerHTML = user.name.length > 0 ? user.name[0] : '';
         document.getElementById('user-name').innerHTML  = user.name  ;
       }
@@ -395,7 +383,6 @@
     <script src="js/test/testData.js"></script>
 
    <script>
-   console.log("end of body...")
    </script>
 </body>
 </html>

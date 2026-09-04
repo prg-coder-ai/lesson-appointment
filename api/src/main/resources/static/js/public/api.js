@@ -42,7 +42,6 @@
 
       // 获取用户时区（关键）
       const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      //console.log("tz",userTimeZone); 
       InitUserInfo(); 
       
 
@@ -65,7 +64,6 @@
       
    function InitUserInfo() {
        userInfo= getCurrentUserInfo();
-     // console.log("userInfo",userInfo);
       if(userInfo == null || typeof userInfo === 'undefined') { 
           document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
           // 判断是否是当前页面
@@ -87,7 +85,6 @@
 //TBD条件：公司、分部、管理员
 async function fetchUserList(conditionJson) {
   const URL = `${API_BASE_URL}/user/${conditionJson.role}/list`; 
-  //console.log("URL"+ URL); 
     try { 
       // 语法分析：使用ES6的await等待fetch请求，URL通过模板字符串拼接。配置对象包含：
       // method: 请求方法为'GET'
@@ -100,8 +97,6 @@ async function fetchUserList(conditionJson) {
         data: {}, // 没有请求体
         // 可选：如果request已经统一处理token/cookie，则无需额外添加headers
       });
-      //console.log("fetchUserList response:", res); 
-     // console.log("fetchUserList result:", res.data);
       // 假设后端返回数据结构 { code: 200, data: [...] }
       return res  || [];
     } catch (e) {
@@ -164,31 +159,25 @@ const userStr = localStorage.getItem('currentUser');
      '%c[AuthRedirect] redirectToUserPage 触发（登录成功后的跳转决策）',
      'color:#fff;background:#7c3aed;padding:2px 6px;border-radius:3px;'
    );
-   console.log('[AuthRedirect] 0. 入参 user：', user);
 /*
    // 1. 优先消费登录 redirect（一次性读取，读完即删）
    let redirectUrl = null;
    if (typeof window.consumeLoginRedirect === 'function') {
-     console.log('[AuthRedirect] 1. window.consumeLoginRedirect 存在，开始消费...');
      redirectUrl = window.consumeLoginRedirect();
    } else {
      console.warn('[AuthRedirect] 1. window.consumeLoginRedirect 不存在（utility_request.js 未加载？）');
    }
-   console.log('[AuthRedirect] 2. consumeLoginRedirect 返回：', redirectUrl || '(null → 走默认角色跳转)');
 
    if (redirectUrl) {
-     console.log('%c[AuthRedirect] 3. ✅ 命中 redirect，1.5s 后回跳原页面：' + redirectUrl,
-       'color:#16a34a;font-weight:bold;');
+     undefined;
      console.groupEnd();
      // 不 window.location.href：用 assign 更可读
      setTimeout(() => {
-       console.log('[AuthRedirect] 4. 实际执行 window.location.assign：', redirectUrl);
        window.location.assign(redirectUrl);
      }, 100);
      return;
    }
 
-   console.log('[AuthRedirect] 3. 无 redirect，按角色跳默认页：', user && user.role);
    console.groupEnd();
 */
   if(user && user.role){
@@ -392,14 +381,12 @@ const userStr = localStorage.getItem('currentUser');
       if (!(dateObj instanceof Date)) return "";
       // 使用浏览器语言
       const locale = getBrowserLocale();
-     // console.log(locale,dateObj);
       try {
         // 'weekday' 选项设置为 'long' 表示全名
         // 修正：将日期对象加1天，防止获取的星期提前一天
         const correctedDate = new Date(dateObj.getTime() + 0 * 60 * 60 * 1000);
         const wkd = new Intl.DateTimeFormat(locale, { weekday: 'long' }).format(correctedDate);
 
-      //  console.log(wkd);
         return  wkd;
       } catch (e) {
         // 兼容错误时返回中文，或英文

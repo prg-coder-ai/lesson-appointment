@@ -61,6 +61,17 @@
           <span>系统设置</span>
         </div>
       </div>
+      <div class="menu-group">
+        <div class="menu-group-title">系统维护</div>
+        <div class="menu-item" key="sys_log">
+          <i class="fa fa-file-alt"></i>
+          <span>系统日志</span>
+        </div>
+        <div class="menu-item" key="audit_log">
+          <i class="fa fa-file-alt"></i>
+          <span>审计日志</span>
+        </div>
+      </div>
     </aside>
 
     <!-- 主内容容器（包含标题和中央动态区域） -->
@@ -110,6 +121,14 @@
         break;
       case "config":
         if (typeof renderConfigPage === 'function') renderConfigPage();
+        break;
+      // 系统日志 / 审计日志：与 admin.html 一致，跳转到独立页面浏览。
+      // 带 from 参数，使日志页的「返回」按钮能回到平台管理端而不是 admin.html。
+      case "sys_log":
+        window.location.href = './logBrowser.html?from=platform_admin.html';
+        break;
+      case "audit_log":
+        window.location.href = './auditLog.html?from=platform_admin.html';
         break;
       default:
         if (typeof renderPlatformOverview === 'function') renderPlatformOverview();
@@ -211,7 +230,6 @@
   <script src="js/platform-admin-config-term.js"></script>
 
   <script>
-    console.log("platform_admin.html loaded");
   </script>
 </body>
 </html>

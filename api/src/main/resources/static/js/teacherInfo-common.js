@@ -170,7 +170,6 @@ function buildEmptyForm(teacherId) {
   // 时间段列表（动态行） ${escapeHtml(rptText)}
   const timeEl = document.getElementById('view-availableTimes');
   if (timeEl) {
-    console.log("fillView data.availableTimes:", data.availableTimes);
     timeEl.innerHTML = (data.availableTimes && data.availableTimes.length)
       ? formAvaliableTimesDiv(data.availableTimes)
       : '<span style="color:#999;">无</span>';

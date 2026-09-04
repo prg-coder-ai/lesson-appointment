@@ -15,9 +15,11 @@
         <result column="qualification" property="qualification"/>
         <result column="language_type" property="languageType"/>
         <result column="status" property="status"/>
+        <result column="tenant_id" property="tenantId"/>
     </resultMap>        
    
-    <!-- 根据条件动态查询用户列表（仅按非加密字段 role/status/userId 过滤；加密字段模糊匹配在 Java 内存中做） -->
+    <!-- 根据条件动态查询用户列表（仅按非加密字段 role/status/userId 过滤；加密字段模糊匹配在 Java 内存中做）
+         租户隔离由 TenantLineInnerInterceptor 自动拼接 tenant_id 条件，这里不再手写，避免重复条件 -->
     <select id="listByCondition" parameterType="com.reservation.query.UserQueryPage" resultType="com.reservation.entity.User">
       SELECT c.*
       FROM user c 
@@ -63,11 +65,11 @@
           <when test="userId != null and userId != ''">
          AND  c.user_id = #{userId}
          </when>
-        </choose>
+       </choose>
       </where>
-      <if test="pageSize != null and pageNum != null">
-        LIMIT #{pageSize} OFFSET ${(pageNum - 1) * pageSize}
-      </if>
+       <if test="pageSize != null and pageNum != null">
+         LIMIT #{pageSize} OFFSET ${(pageNum - 1) * pageSize}
+       </if>
    </select>
 
    <!-- 全量查询（不分页，仅按非加密字段过滤；供内存解密+模糊匹配+手动分页使用） -->
@@ -89,9 +91,9 @@
         </choose>
          <choose>
           <when test="userId != null and userId != ''">
-         AND  c.user_id = #{userId}
-         </when>
-        </choose>
+          AND  c.user_id = #{userId}
+           </when>
+         </choose>
       </where>
    </select>
 
@@ -116,8 +118,8 @@
          <choose>
           <when test="userId != null and userId != ''">
                AND  c.user_id = #{userId}
-         </when>
-        </choose>
+          </when>
+       </choose>
       </where> 
    </select>
 </mapper>

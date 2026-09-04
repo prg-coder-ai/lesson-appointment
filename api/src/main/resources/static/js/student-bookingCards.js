@@ -1,6 +1,5 @@
 // 学生端——课程预订管理页面（student-bookingCards.js）
 // 全局变量 userId/userRole/userTimeZone 等来自 api.js
-console.log("student book a appointment page");
 
 userTimeZoneDisplay = "none";
 document.write('<script src="/js/public/pagefoot.js"></script>');
@@ -434,7 +433,6 @@ async function renderStudentBookingCards() {
 
             const availableSites = document.getElementById('availableSites').value;
             const now_availableSites = document.getElementById('now_availableSites');
-            console.log("availableSites:", availableSites, "totalBooked:", totalBooked);
             let remainingSites = availableSites - totalBooked;
             if (!Number.isFinite(remainingSites) || remainingSites <= 0) {
                 remainingSites = 0;
@@ -997,7 +995,6 @@ async function renderStudentBookingCards() {
         }
     }
 
-    console.log("student booking page END");
 }
 
 // 搜索按钮：重置为第 1 页再查询

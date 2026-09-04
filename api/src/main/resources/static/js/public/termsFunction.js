@@ -136,7 +136,6 @@ function switchIndustry(industry) {
   applyTerms();
   // 4. 通知后端（可选：行业偏好存到用户档案，下次登录直接生效）
   // fetch('/api/user/preferences', {method:'PUT', body: JSON.stringify({industry})});
-  console.log("switchIndustry to",industry);
 }
 
 // 登录后从服务端拉取合并词表（租户词 > 行业词 > 平台词），成功后刷新一次页面词。

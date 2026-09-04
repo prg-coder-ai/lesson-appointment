@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 操作       对接接口地址      请求方式        接口说明
@@ -31,6 +32,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/course")
 @Validated
+@Slf4j
 public class CourseController {
 
     @Autowired
@@ -156,7 +158,7 @@ public class CourseController {
                                                           @RequestHeader("Authorization") String token) {
         permissionCheck.checkTeacherOrAdmin(token);
         // 调用服务层查询课程列表
-         System.out.println("getCourseList controller: " + params);
+         log.debug("getCourseList controller: " + params);
         List<Course> courseList = courseService.getCourseList(params);
         //Map<String, List<Course>> resultMap = Map.of("courses", courseList);
         return Result.success(courseList, "查询成功");
@@ -174,13 +176,13 @@ public class CourseController {
    public Result<PageResult<Course>> getCourseListByPage(CourseQueryPage query, 
                                                           @RequestHeader("Authorization") String token) {
 
-        //   System.out.println("getCourseListByPage input:" + query);                                                   
+        //   log.debug("getCourseListByPage input:" + query);                                                   
         //permissionCheck.checkTeacherOrAdmin(token);
         // 调用服务层查询课程列表
-       //  System.out.println("getCourseList controller: " + query);
+       //  log.debug("getCourseList controller: " + query);
         PageResult<Course> courseList = courseService.getCoursePage( query);
         //Map<String, List<Course>> resultMap = Map.of("courses", courseList);
-       // System.out.println("getCourseListByPage output:" + courseList);
+       // log.debug("getCourseListByPage output:" + courseList);
         return Result.success(courseList, "查询成功");
     }
     //
@@ -191,7 +193,7 @@ public class CourseController {
                                                           @RequestHeader("Authorization") String token) {
         //permissionCheck.checkTeacherOrAdmin(token);
         // 调用服务层查询课程列表
-        // System.out.println("getCourseByID controller: " + courseid);
+        // log.debug("getCourseByID controller: " + courseid);
          Course  course  = courseService.getCourseById(courseid);
         //Map<String, List<Course>> resultMap = Map.of("courses", courseList);
         return Result.success(course, "查询成功");
@@ -218,9 +220,7 @@ public class CourseController {
   @ResponseBody
   public Result<String> getClassFormByCourseId(
           @RequestParam("courseId") String courseId) {
-           // System.err.println("getClassFormByCourseId:"+courseId+","+classForm  );
     String classForm = courseService.getClassFormByCourseId(courseId);
-    //System.err.println("getClassFormByCourseId:"+courseId+","+classForm  );
     return Result.success(classForm, "查询成功");
   }
 

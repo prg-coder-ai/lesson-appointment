@@ -15,7 +15,6 @@ async function deleteTemplate(templateId) {
          bConfirmed = true;
         //DEL all courses By templateId
          let rows=  deleteTemplateNextLavel( templateId);
-         console.log("delete courses rows:",rows);
         }
 
         if(! bConfirmed) //提示1次
@@ -127,7 +126,6 @@ async function deleteCourse(id) {
       //删除该课程的所有排期
          try {
         var rows= await request({ url: `/schedule/deleteByCourseId/${id}`, method: 'DELETE' });
-        console.log("deleted schedule",rows);
          } catch (err) {
         console.error('删除课程排期失败:',id,err);
         alert('删除课程排期时出错，请检查后端接口与数据。');
@@ -159,7 +157,6 @@ async function deleteCourse(id) {
             // 调用后端接口删除指定id的排期
             // 假设后端API为: /schedule/delete/{id}，使用DELETE请求
             const result = await request({url: `/schedule/delete/${id}`, method: 'DELETE'});
-            console.log("deleteScheduleById",result);
             return result;
         } catch (error) {
             console.error('删除排期时出错:', error);
@@ -329,9 +326,7 @@ async function deleteCourse(id) {
         //Appointment
         //调用fetchAppointmentListPage查询预约列表，然后根据预约id显示课程名称、状态      
  async function datamaintain_fetchAppointmentListPage(params){
-   // console.log("params:",params); 
     let listObj = await datamaintain_fetchAppointmenPage(params);//appointmentNotes.js
-  //  console.log("listObj:",listObj); 
     if (!listObj || !Array.isArray(listObj.rows)) {
       listObj = listObj || {};
       listObj.rows = [];
@@ -426,7 +421,6 @@ async function deleteCourse(id) {
           ? String(item.appointmentDatetime).replace('T', ' ')
           : '';
         item.appointmentStatus =  checkAppointmentStatus(item.status) || item.status || '';
-        console.log("info:", item);
       } catch (e) {
         // 单条失败不影响整体，保证列表仍能渲染
         console.error('fetchAppointmentListPage_datamaintain 补充信息失败，item=', item, 'error=', e);

@@ -188,7 +188,6 @@ function closeTenantModal() { const m = document.getElementById('tenantModal'); 
 async function submitTenant() {
   const f = document.getElementById('tenantForm');
   const id = f.id.value ? Number(f.id.value) : null;
-  console.log('submitTenant expireTime:', f.expireTime.value);
   const expire = f.expireTime.value ? f.expireTime.value + ':00' : null;//.replace('T', ' ') api error when: 2024-08-30T12:00 -> 2024-08-30 12:00
   const data = {
     orgName: f.orgName.value.trim(),
@@ -200,13 +199,11 @@ async function submitTenant() {
     expireTime: expire,
     remark: f.remark.value
   };
- // console.log('submitTenant data:', data);
   if (!data.orgName) { document.getElementById('tenantFormErr').innerText = '机构名称必填'; return; }
   if (id) data.id = id;
    let ret= await request({ url: id ? '/tenant/update' : '/tenant/insert', method: 'POST', data })
     .then(() => { closeTenantModal(); loadTenantList(); })
     .catch(() => {});
-  //console.log('submitTenant ret:', ret);
 }
 function toggleTenantStatus(id, cur) {
   const next = cur === 1 ? 2 : 1;

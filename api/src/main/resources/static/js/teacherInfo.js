@@ -49,7 +49,6 @@ async function loadTeacherInfo(teacherId) {
         url: '/teacher/professional/queryTeacherProfessionalInfo',
         params: { teacherId: teacherId }
       });
-      // console.log("queryTeacherProfessionalInfo", result);
       if (!result) {  // 接口返回业务错误（如教师不存在）
         const msg = (result && result.message) ? result.message : '查询失败';
         renderError(msg);
@@ -159,7 +158,6 @@ copyLinkBtn.addEventListener('click', async () => {
     const sel = document.getElementById('pub-history');
     const selectedOption = sel.options[sel.selectedIndex];
 
-    console.log("index---",sel.selectedIndex,"v",sel.value);
 
     if (sel.value.length ==0) {//第一行，新建。
       alert('请先选择正确的版本或者发布版本后再复制链接。');

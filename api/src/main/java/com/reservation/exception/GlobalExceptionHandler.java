@@ -3,6 +3,7 @@ package com.reservation.exception;
 import com.reservation.common.Result;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.ExpiredJwtException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
@@ -15,6 +16,7 @@ import java.sql.SQLIntegrityConstraintViolationException;
 /**
  * 全局异常处理，对应设计2.4 异常处理机制
  */
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -98,7 +100,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public Result<Void> handleException(Exception e) {
         // 记录异常日志（对应设计2.3 安全设计-日志记录）
-        e.printStackTrace();
+        log.error("未处理异常", e);
         return Result.fail(500, "服务器繁忙，请稍后再试");  // 500-服务器异常（对应设计2.1）
     }
 }

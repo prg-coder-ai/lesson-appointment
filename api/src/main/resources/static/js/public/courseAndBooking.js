@@ -20,7 +20,6 @@ async function operateTemplate(templateId, action) {
     .then(res => {
       // res对象：{ data, code, message ... }  
           
-         console.log('模板操作成功',res); 
         //renderTemplateCards(); 
         return res;
     })
@@ -118,7 +117,6 @@ async function operateTemplate(templateId, action) {
      courseid: courseId,  // 注意小写，和后端命名对应
      status: action
  };
-     console.log("payload：",payload); 
    try {
      const res = await request({
        url: `${API_BASE_URL}/course/updateStatus`,
@@ -283,7 +281,6 @@ try {
     
 //返回1个排期对象
 async function fetchSchedule( scheduleid) {
-  console.log("fetchSchedule :" ,scheduleid); 
   try { 
       const res = await request({
         url: `${API_BASE_URL}/schedule/detail/${scheduleid}`,
@@ -392,9 +389,7 @@ async function generateAppointmentList( scheduleId ,timeZone){
 
    endDate:  scheduleInfo.endTime.split(" ")[0]
   }
-   console.log("ScheduleGenerateDTO:",ScheduleGenerateDTO);
   const appointmentResults = await generateScheduleListFromServer(ScheduleGenerateDTO); 
-  //console.log("appointmentResults:",appointmentResults);
 
 return appointmentResults;
 }
@@ -464,13 +459,11 @@ async function createOrUpdateBookingObj(bookingid,bookingCreateDTO ){
  *取消、删除
  */
  async function operateBookingStatus(bookid, action) {
-  console.log("operateBookingStatus",bookid,action);
   
     const payload = {
         id: bookid,  // 注意小写，和后端命名对应
         status: action
   };
-    //  console.log("payload：",payload,token); 
     // credentials 与 Authorization 并不冲突，credentials: 'include' 用于携带 cookie，而 Authorization 是用于 token 鉴权，通常二者可以并存
     try {
       const res = await request({
@@ -522,14 +515,12 @@ return [];
 //Booking，读取预约列表，拼接排期、学生、教师、课程信息
  async function fetchBookingListPage(params){
     let listObj = await getBookingListPage(params);
-    console.log("listObj:",listObj);
     //对于每个预约，获取排期、学生、教师、课程信息
     //循环每个预约，获取排期、学生、教师、课程信息
     //将排期、学生、教师、课程信息添加到预约中
     //返回预约列表
     //检查status，只有待确认的booking、cancelling才显示待确认，并显示相应的按钮
     //其他状态直接显示
-    //console.log("listObj:",listObj);
 
     // ===== 并行版本：补充排期/学生/教师/课程名称到原始列表项 =====
     // 说明1：JS 对象按引用传递，item.xxx = ... 会直接修改 listObj.rows 中的原始对象
@@ -607,7 +598,6 @@ return [];
         // 预约状态中文描述
         item.bookingStatus = checkStatus_booking(item.status);
 
-        console.log("info:", item);
       } catch (e) {
         // 单条失败不影响整体，保证列表仍能渲染
         console.error('fetchBookingListPage 补充名称失败，item=', item, 'error=', e);
@@ -664,10 +654,8 @@ async function getBookingList(userRoleOrParams, userId, status) {
 // BookingQueryParaDTO
 async function  getBookingInfoByCondition(params) {
   const url = `course/booking/list` ; 
-  //console.log("getBookingInfoByCondition- params：", params); 
 try {
       const res =await request( { url:`${API_BASE_URL}/${url}`,method: 'POST',data:params}) ; //data:{params}-->data:params
-  //console.log('getBookingInfoByCondition: res', res); 
   return res ; 
     //  alert(result?.message || '排期时间表为空，请联系老师');
   
@@ -766,7 +754,7 @@ fetch('your-api-url', {
   body: JSON.stringify(payload)
 })
 .then(response => response.json())
-.then(data => console.log(data));
+.then(data => undefined);
 
 如果后端要求参数在URL中（极少见），可以直接拼接到url后面，不过绝大多数Restful风格后端均推荐用body传递JSON。
 */
@@ -777,7 +765,6 @@ async function operateAppointmentStatus(aid, action) {
           id: aid,  // 注意小写，和后端命名对应
           status: action
     };
-    console.log(" operateAppointmentStatus- payload：",payload ); 
    try {
      const res = await request({
        url: `${API_BASE_URL}/course/appointment/updateStatusById`,
@@ -788,7 +775,6 @@ async function operateAppointmentStatus(aid, action) {
      const code = typeof res === "object" && res !== null && "code" in res ? res.code : undefined;
      const msg = (typeof res === "object" && res !== null && res.message) ? res.message : '';
      if (res != "") {  
-       console.log('更新预约时间 操作成功'); 
        // const bid = res.data;
        // reloadBooking(bid);  调用者提供刷新
      } else {
@@ -953,7 +939,6 @@ function getRepeatDescription(repeatType, interval,repeatDays) {
                         teacherId: teacherId
                     }
                 });
-               // console.log("assignStudentToTheSchedule result:", result); 
                 return  result;
             } catch (error) {
                 alert("分配学生到排期时发生错误: " + error.message);

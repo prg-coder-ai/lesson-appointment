@@ -8,6 +8,7 @@ import com.reservation.entity.User;
 import com.reservation.audit.Audit;
 import com.reservation.audit.AuditAction;
 import com.reservation.service.UserService;
+import com.reservation.utils.TenantContext;
 import org.springframework.validation.annotation.Validated;
 // 核心导入：RequestMethod 所在包
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 //import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
  
 /**
  * 用户注册与认证控制器，对应设计2.2.1 所有接口
@@ -22,6 +24,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/user")
 @Validated
+@Slf4j
 public class UserController { 
      @Autowired
     private UserService userService; 
@@ -53,7 +56,7 @@ public class UserController {
         if (account != null && !account.isEmpty()) condition.put("account", account);
  
          List<User> users = userService.listByCondition(condition); 
-        // System.out.println("out:" + users);
+        // log.debug("out:" + users);
         return Result.success(users, "查询成功");
     }
      
@@ -63,7 +66,7 @@ public class UserController {
     public  Result<PageResult<User>> listByPage( UserQueryPage queryCondition, 
               @RequestHeader("Authorization") String token  ) { 
          PageResult<User> users = userService.listByConditionPage(queryCondition); 
-        // System.out.println("out:" + users);
+        // log.debug("out:" + users);
         return Result.success(users, "查询成功");
     }
 
@@ -73,7 +76,7 @@ public class UserController {
         // HashMap<String, Object> condition = new java.util.HashMap<>();  
           User  user  = userService.selectById(userId);  
          if(user != null ) { 
-          //  System.out.println("ret：" + user);
+          //  log.debug("ret：" + user);
             return Result.success(user.getName(), "查询成功"); 
     } else  {
        return Result.success("N/A", "查询成功");
@@ -88,11 +91,6 @@ public class UserController {
         //// 调用服务层实现注册逻辑，返回userId和Token（对应设计2.2.1 学生注册返回数据）
         ///  教师
         String role = user.getRole();
-        // [DEBUG-PLATFORM] 平台管理员注册链路调试输出：打印进入 controller 的关键字段
-        System.out.println("[DEBUG-PLATFORM] adminRegister 入参 role=" + role
-                + ", account=" + user.getAccount()
-                + ", tenantCode=" + user.getTenantCode()
-                + ", name=" + user.getName());
         if(role== null || role.isEmpty())
         {
             role="student";
@@ -105,16 +103,10 @@ public class UserController {
         //    与权限校验时都匹配不上 RoleConst.PLATFORM_ADMIN，账号完全不可用
         if (RoleConst.ADMIN.equals(role) || RoleConst.PLATFORM_ADMIN.equals(role)) {
            user.setStatus("active");//TBD:check if exists a admin before
-           // [DEBUG-PLATFORM] 命中管理员/平台管理员分支：确认角色值与状态
-           System.out.println("[DEBUG-PLATFORM] register 命中管理员分支 role=" + role
-                   + " -> status=active, 是否平台管理员=" + RoleConst.PLATFORM_ADMIN.equals(role));
         }  else   {
             user.setStatus("pending");//需要管理员审核
          }
         Result<Object> rst = userService.Register(user);
-        // [DEBUG-PLATFORM] 注册返回：打印 userId/account/role 供前端核对
-        System.out.println("[DEBUG-PLATFORM] adminRegister 返回 code=" + rst.getCode()
-                + ", account=" + user.getAccount() + ", role=" + role);
         return rst;//Result.success(rst, "注册成功");
     }
  
@@ -126,7 +118,7 @@ public class UserController {
         
          user.setStatus("active");
         Result<Object> rst = userService.Register(user); 
-       // System.out.println("rst：" + rst);
+       // log.debug("rst：" + rst);
         return rst; 
     }
 
@@ -144,7 +136,7 @@ public class UserController {
         }
 
         int ret = userService.updateStatus(user);
-     //   System.out.println("ret " + ret);
+     //   log.debug("ret " + ret);
         return   Result.success(ret, "修改成功");
     }
   
@@ -157,7 +149,7 @@ public class UserController {
         // condition.put("role", "student");
           String role="student";
           List<User> users = userService.listByRole(role);
-        // System.out.println("out:" + users);
+        // log.debug("out:" + users);
         return Result.success(users, "查询成功");
     } 
     @GetMapping("/teacher/list")
@@ -165,7 +157,7 @@ public class UserController {
     public Result<List<User>>  teacherList() { 
           String role="teacher";
           List<User> users = userService.listByRole(role);
-         //System.out.println("out:" + users);
+         //log.debug("out:" + users);
         return Result.success(users, "查询成功");
     } 
  
@@ -180,7 +172,7 @@ public class UserController {
         if (account == null || account.trim().isEmpty()) {
             return Result.success(false, "账号不能为空");
         }
-        boolean existed = userService.existAccount(account.trim());
+        boolean existed = userService.existAccount(account.trim(), TenantContext.getTenantId());
         return Result.success(existed, existed ? "账号已存在" : "账号可用");
     }
 

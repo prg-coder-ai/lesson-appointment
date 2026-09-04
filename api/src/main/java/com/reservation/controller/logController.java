@@ -9,10 +9,12 @@ import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.*;
 import java.util.zip.GZIPInputStream;
+import lombok.extern.slf4j.Slf4j;
 
 
 @RestController
 @RequestMapping("/api/logs")
+@Slf4j
 public class logController {
  
     private static final String LOG_DIR = "./logs";
@@ -25,9 +27,6 @@ public class logController {
         try {
             List<String> all = Files.readAllLines(Path.of(CURRENT_LOG));
             int start = Math.max(0, all.size() - lines);
-             System.out.println(Path.of(CURRENT_LOG).toAbsolutePath());
-            System.out.println(start);
-             System.out.println(all.size());
             return Result.success(all.subList(start, all.size()),"tail  " + lines + " lines");
         } catch (IOException e) {
             return Result.fail(500, "读取日志失败: " + e.getMessage());

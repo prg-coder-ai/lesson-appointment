@@ -189,14 +189,14 @@ public class CourseService   {
      */
     public List<Course> getCourseList(CourseQueryParam  params) {
         // 实现逻辑：调用Mapper查询，无结果返回空集合，避免空指针
-         //System.out.println("service:params: " + params);
+         //log.debug("service:params: " + params);
         List<Course> courseList = courseMapper.selectCourseList(params); // 假设Mapper有该方法
         return Optional.ofNullable(courseList).orElse(Collections.emptyList());
     } 
 
   public  Course getCourseById(String id) {
         // 实现逻辑：调用Mapper查询，无结果返回空集合，避免空指针
-         //System.out.println("service:params: " + params);
+         //log.debug("service:params: " + params);
          Course  course = courseMapper.selectById(id); // 假设Mapper有该方法
         return Optional.ofNullable(course).orElse(null);
     } 

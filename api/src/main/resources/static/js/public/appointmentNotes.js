@@ -1,7 +1,6 @@
 // functoions for appointmentNotes display and data load
 
 function refreshRightPage() {
-   // console.log("refresh",pageTitle.textContent)
     if(pageTitle.textContent!= ""){
        loadAdminPageContent(pageTitle.textContent); 
     }
@@ -13,7 +12,6 @@ function refreshRightPage() {
     private int Days; */
  async function getAppointmentListData(conditions ){     
     return await getAppointmentList(conditions);  
-   // console.log("DaysAppointmentList:", DaysAppointmentList); 
 } 
 
 
@@ -95,7 +93,6 @@ async function fetchAppointmentListPage(query) {
       data: query // 直接作为body传递 ，controller作为对象接收，不能有括号T
       // 不需要 params 字段
     });
-    //console.log("apppage",res);
     return res;
   } catch (e) {
     console.error("fetchAppointmentListPage", e);
@@ -104,7 +101,6 @@ async function fetchAppointmentListPage(query) {
 }
 //分页读取数据，不参考时间排序 Result《PageResult》
 async function datamaintain_fetchAppointmenPage(query) {
-   // console.log("datamaintain_fetchAppointmenPage",query);
   try {
     const res = await request({
       url: `${API_BASE_URL}/course/appointment/listByPage`, 
@@ -112,7 +108,6 @@ async function datamaintain_fetchAppointmenPage(query) {
       data: query // 直接作为body传递 ，controller作为对象接收，不能有括号T
       // 不需要 params 字段
     });
-   // console.log("datamaintain_fetchAppointmenPage",res);
     return res;
   } catch (e) {
     console.error("datamaintain_fetchAppointmenPage", e);
@@ -123,7 +118,6 @@ async function datamaintain_fetchAppointmenPage(query) {
    //显示待确认预约
  async function showAppointmentList(appointmentList,id){
     //   const id = "pending-reservations";
-    //   console.log("showAppointmentList:", DaysAppointmentList);
 
     if (!Array.isArray(appointmentList) || appointmentList.length === 0) {
         const bookingContainer0 = document.getElementById(id);
@@ -282,7 +276,6 @@ async function datamaintain_fetchAppointmenPage(query) {
               </td>
               </tr>
      `; 
-     //console.log("cardInfo:", info); 
      return info;
   } 
 
@@ -290,7 +283,6 @@ async function datamaintain_fetchAppointmenPage(query) {
   async  function checkStatusAndDate(appointmentTime,status,timeZone){
   
     let retPara = { needSendInfo:false,timeTag:3,userTime:appointmentTime};
-    //console.log("1:",appointmentTime,"timeZone",timeZone ,status,userTimeZone);
   
     // 将传入的 appointmentTime 字符串中的所有“-”替换为“/”，
     // 然后用 new Date() 构造日期对象，目的是为了在 iOS 设备也能正确解析日期格式。
@@ -302,17 +294,14 @@ async function datamaintain_fetchAppointmenPage(query) {
       let userTime = new Date(appointmentTime);
       if(timeZone!= userTimeZone){
        const userTzTime = await tzSwitchTo(timeZone, appointmentTime, userTimeZone);   //把预约时间转为当前用户时区  
-    //   console.log("now:",now,"app：",appointmentTime,"to usertz：",userTzTime,userTimeZone);
        userTime =  new Date(userTzTime.dateTime);//浏览器当前时区
       } 
     if (!(now instanceof Date)) {
       //console.error("now 不是有效的日期对象:", now);
       return retPara;
     }
-    //console.log(" userTime:", userTime);
     const diffMs = userTime - now;
     const diffDays = diffMs / (1000 * 60 * 60 * 24);
-    //console.log("now:",now,"app",appointmentTime,userTime,diffMs,diffDays);
     // 只允许状态推进，不能倒退
     if ( status === 'completed' ||  status === 'cancelled' || status === 'canceled') {
         // 已完成/已取消，不发送任何通知.有关消息在相应的确认处理中发送 TBD
@@ -336,7 +325,6 @@ async function datamaintain_fetchAppointmenPage(query) {
            retPara.timeTag =0;
        }
     }
-    //console.log("retPara",retPara);
       return retPara; 
    }
   
@@ -357,7 +345,6 @@ async function datamaintain_fetchAppointmenPage(query) {
               return;
           }
       }
-      //console.log(cardInfo,cardInfo.origTz);
       let resultCheck= await checkStatusAndDate(cardInfo.appointmentTime,cardInfo.status,cardInfo.origTz);
   
       if(resultCheck.needSendInfo==false)
@@ -394,7 +381,6 @@ async function datamaintain_fetchAppointmenPage(query) {
      // 输出信息需简明扼要：正常/提醒时强调上课时间、课程与学生，取消/发起取消时强调情况说明，完成/改期则提醒查看详情或历史。
    function sendNotesToTeacher(userId,cardInfo,timeTag) {
    //timeTag0---完成 1---1天前 2--三天
-     //console.log(" sendNotesToTeacher:",userId, cardInfo);
      
      // 根据 cardInfo.status 重新编写 teacherNote，内容更清晰并细分所有状态
      let teacherNote = '';
@@ -623,7 +609,6 @@ async function deleteAppointmentsByBookingId(bookingId) {
       method: "delete",
       params: { bookingId: bookingId } // 参数名称需与后端一致
     });
-    console.log("deleteAppointmentsByBookingId",res);
     return res;
   } catch (e) {
     console.error(e);
@@ -649,7 +634,6 @@ async function deleteAppointmentsById( appId) {
   async function sendNotesTo(userId,infor) {
 
     //await operateBookingStatus(bookingId, 'rejected');
-     console.log("TBD sendNotesTo:", userId,infor);
   }
 /////////////////////////////////////////////////////2026-7-1 /////////////////////////////////////////////////////
 /*
