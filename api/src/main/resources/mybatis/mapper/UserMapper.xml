@@ -40,6 +40,7 @@
           <when test="userId != null and userId != ''">
          AND  c.user_id = #{userId}
          </when>
+
         </choose>
       </where>
    </select>

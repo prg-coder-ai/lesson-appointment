@@ -415,9 +415,15 @@
         window.location.href = './index.html';
         return;
       }
-      // 仅管理员可访问
+      // 仅租户管理员可访问。
+      // 平台管理员虽然同为管理员，但它是跨租户管理账号、不属于任何租户，
+      // 无法落入 TenantLineInnerInterceptor 的租户数据隔离范围，
+      // 即便放行也取不到本租户的教师数据，故同样拒绝 —— 但给出区别于「无权限」的明确指引。
       if (user.role !== 'admin') {
-        document.querySelector('.container').innerHTML = '<div class="card"><div class="card-body empty-tip">仅管理员可访问本页面</div></div>';
+        const tip = (user.role === 'platform_admin')
+          ? '平台管理员为跨租户管理账号，不能直接管理单个租户的教师资料，请返回平台后台操作'
+          : '仅管理员可访问本页面';
+        document.querySelector('.container').innerHTML = '<div class="card"><div class="card-body empty-tip">' + tip + '</div></div>';
         return;
       }
       // 设置头部用户信息

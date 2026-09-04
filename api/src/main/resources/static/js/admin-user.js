@@ -4,9 +4,17 @@
    
    window.renderTeacherCards = renderTeacherCards;
    let currentUserRole ="";
+
+   // 当前页用户的「原始」数据缓存（userId -> user）。
+   // 必须缓存原始值：表格里展示的手机号/邮箱是 maskPhone/maskEmail 脱敏后的结果
+   //（如 138****1234、t***@qq.com），编辑弹窗若直接读 DOM 回填，
+   // 用户一保存就会把脱敏串当成真实数据写回数据库。
+   let userRowCache = new Map();
    async function renderTeacherCards(role) {
            currentUserRole     = role;
-           assignLoadobjectListFunction( loadAndRenderUserList);
+           // 同一函数同时服务「教师列表」与「学生列表」两个菜单，
+           // 仅靠函数名无法区分，需显式给出列表标识，避免两者的页码互相串味。
+           assignLoadobjectListFunction( loadAndRenderUserList, 'userList:' + role);
 
                let html = `
                 <div class="card">
@@ -196,7 +204,15 @@
           function renderUserTable(userList,role){
                 
             const tbody = document.getElementById('user-table-body'); 
-            if (userList.length === 0) {
+
+            // 每次重渲染都整体重建缓存：翻页或搜索后旧行已不在当前视图，
+            // 留着会让编辑弹窗回填到上一条记录上。
+            userRowCache.clear();
+            (userList || []).forEach(u => {
+              if (u && u.userId) userRowCache.set(String(u.userId), u);
+            });
+
+            if (!userList || userList.length === 0) {
               tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;padding:40px 0;">暂无数据</td></tr>';
               return;
             }
@@ -222,6 +238,7 @@
                       </td>
                   
                   <td>
+                    <button class="btn btn-primary" onclick="openEditUserModal('${tea.userId}')"><i class="fa fa-edit"></i> 编辑</button>
                     ${tea.status === "pending" ? `<button class="btn btn-success"  onclick="confirmTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-check"></i> 启用</button>` :'' }
                     ${tea.status === "active" ? `<button class="btn btn-warning" onclick="disableTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-ban"></i> 禁用</button>` :'' }
                     ${tea.status === "pending" ? `<button class="btn btn-danger" onclick="deleteTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-trash"></i> 删除</button>` :'' }
@@ -248,7 +265,7 @@
       modal.style.display = 'flex';
       const isTeacher = currentUserRole === 'teacher';
       document.getElementById('addUserModalTitle').innerText = '添加' + (isTeacher ? '教师' : '学生');
-      const fc = document.getElementById('addUserFormContainer');
+      const fc = document.getElementById('addUserModalFormContainer');
       fc.innerHTML = `
         <form id="addUserForm" class="form-item">
           <input type="hidden" name="role" value="${currentUserRole}">
@@ -266,19 +283,25 @@
           </div>
         </form>`;
     }
-    function createAddUserModal() {
+    // 模态框骨架工厂：添加用户与编辑用户共用，只有 id 和关闭函数名不同。
+    // 约定派生 id：${modalId}Title（标题）/ ${modalId}FormContainer（表单容器）/ ${modalId}CloseBtn（右上角×）。
+    function createUserModal(modalId, closeFnName) {
       const m = document.createElement('div');
-      m.className = 'modal-mask'; m.id = 'addUserModal'; m.style.display = 'none';
+      m.className = 'modal-mask'; m.id = modalId; m.style.display = 'none';
       m.innerHTML = `<div class="modal-content">
-          <div class="modal-header"><div id="addUserModalTitle" style="font-weight:600;font-size:16px;"></div>
-            <span class="modal-close" id="addUserCloseBtn">&times;</span></div>
-          <div id="addUserFormContainer"></div></div>`;
+          <div class="modal-header"><div id="${modalId}Title" style="font-weight:600;font-size:16px;"></div>
+            <span class="modal-close" id="${modalId}CloseBtn">&times;</span></div>
+          <div id="${modalId}FormContainer"></div></div>`;
       document.body.appendChild(m);
-      m.addEventListener('click', e => { if (e.target.id === 'addUserModal') closeAddUserModal(); });
-      document.getElementById('addUserCloseBtn').addEventListener('click', closeAddUserModal);
+      // 点遮罩空白处关闭；点在弹窗内部不关（故只比对遮罩本身的 id）
+      m.addEventListener('click', e => { if (e.target.id === modalId) window[closeFnName](); });
+      document.getElementById(modalId + 'CloseBtn').addEventListener('click', () => window[closeFnName]());
       return m;
     }
+    function createAddUserModal()  { return createUserModal('addUserModal',  'closeAddUserModal'); }
+    function createEditUserModal() { return createUserModal('editUserModal', 'closeEditUserModal'); }
     function closeAddUserModal() { const m = document.getElementById('addUserModal'); if (m) m.style.display = 'none'; }
+    function closeEditUserModal() { const m = document.getElementById('editUserModal'); if (m) m.style.display = 'none'; }
     function submitAddUser() {
       const f = document.getElementById('addUserForm');
       const account = (f.account.value || '').trim();
@@ -305,7 +328,82 @@
         alert('添加成功，初始密码为 ' + data.password);
       }).catch(() => { /* 错误提示由 request 拦截器统一处理 */ });
     }
-    
+
+    // ===================== 编辑用户（账号不可改） =====================
+    // 可改字段：姓名 / 手机号 / 电子邮箱 / 状态。
+    // 账号（account）与密码一律不可在此修改：账号是登录标识，
+    // 改动会让用户登不上，也会破坏租户内唯一性约束。
+    const EDITABLE_STATUS = [
+      { value: 'active',  text: '正常' },
+      { value: 'pending', text: '待审核/未生效' },
+      { value: 'frozen',  text: '已删除' }
+    ];
+
+    function openEditUserModal(userId) {
+      // 必须走缓存取原始值：表格里展示的是 maskPhone/maskEmail 脱敏结果
+      //（如 138****1234），若从 DOM 回填，用户一保存就会把脱敏串写成真实数据。
+      const user = userRowCache.get(String(userId));
+      if (!user) { alert('未找到该用户的数据，请刷新列表后重试'); return; }
+
+      let modal = document.getElementById('editUserModal');
+      if (!modal) modal = createEditUserModal();
+      modal.style.display = 'flex';
+
+      document.getElementById('editUserModalTitle').innerText =
+        '编辑' + (currentUserRole === 'teacher' ? '教师' : '学生') + '信息';
+
+      const status = user.status || 'pending';
+      document.getElementById('editUserModalFormContainer').innerHTML = `
+        <form id="editUserForm" class="form-item">
+          <input type="hidden" name="userId" value="${escapeAttr(user.userId)}">
+          <div class="form-line"><label>账号</label><input value="${escapeAttr(user.account)}" readonly
+               title="账号为登录标识，不可修改"></div>
+          <div class="form-line"><label>姓名</label><input name="name" value="${escapeAttr(user.name)}" placeholder="用户姓名"></div>
+          <div class="form-line"><label>手机号</label><input name="phone" value="${escapeAttr(user.phone)}" placeholder="手机号（与邮箱至少填一项）"></div>
+          <div class="form-line"><label>电子邮箱</label><input name="email" value="${escapeAttr(user.email)}" placeholder="电子邮箱（与手机号至少填一项）"></div>
+          <div class="form-line"><label>状态</label><select name="status">
+            ${EDITABLE_STATUS.map(s => `<option value="${s.value}"${s.value === status ? ' selected' : ''}>${s.text}</option>`).join('')}
+          </select></div>
+          <div class="form-tip">账号为登录标识，不可修改；手机号与电子邮箱至少保留一项。</div>
+          <div class="form-error" id="editUserFormErr"></div>
+          <div class="btn-group">
+            <button type="button" class="btn btn-primary" onclick="submitEditUser()">保存</button>
+            <button type="button" class="btn btn-cancel" onclick="closeEditUserModal()">取消</button>
+          </div>
+        </form>`;
+    }
+
+    function submitEditUser() {
+      const f = document.getElementById('editUserForm');
+      const err = document.getElementById('editUserFormErr');
+      // 用 f.elements 取值：HTMLFormElement 带 LegacyOverrideBuiltIns，
+      // 直接用 f.xxx 在遇到与表单自带属性同名的字段时语义会漂移，f.elements 无歧义。
+      const userId = (f.elements.userId.value || '').trim();
+      const phone  = (f.elements.phone.value  || '').trim();
+      const email  = (f.elements.email.value  || '').trim();
+      if (!userId) { err.innerText = '用户Id缺失，请刷新列表后重试'; return; }
+      if (!phone && !email) { err.innerText = '手机号和电子邮箱至少填写一项'; return; }
+
+      // 只提交可改字段；请求体里不带 account / password
+      const data = {
+        userId: userId,
+        name:   (f.elements.name.value || '').trim(),
+        phone:  phone,
+        email:  email,
+        status: f.elements.status.value
+      };
+
+      request({
+        url: `${API_BASE_URL}/user/updateInfo`,
+        method: 'POST',
+        data: data
+      }).then(() => {
+        closeEditUserModal();
+        loadUserList(currentUserRole); // 刷新当前角色列表
+        alert('保存成功');
+      }).catch(() => { /* 错误提示由 request 拦截器统一处理 */ });
+    }
+
 
                 //Detail--教师信息,用于提交图片、专业信息、时间段等，输出该教师的可用时段及推广信息
                 function teacherInfoBoard(userId) {

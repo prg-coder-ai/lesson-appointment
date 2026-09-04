@@ -139,6 +139,14 @@
         location.href = './index.html';
         return;
       }
+
+      // ====== 按登录租户所属行业切换行业词表 ======
+      // tenantCode -> /tenant/industry -> sys_industry.code -> switchIndustry()
+      // 尽早发起，使后续动态渲染出来的内容直接用上正确的行业词。
+      if (typeof syncIndustryFromTenant === 'function') {
+        syncIndustryFromTenant(userInfo.tenantCode);
+      }
+
        // 自动登录：检测本地登录信息并校验token有效性
       const nameid=document.getElementById("user-name");
        if(nameid) nameid.innerHTML= userInfo && userInfo.name;
@@ -169,7 +177,6 @@
 
        addChangePasswordButton();
        loadAdminPageContent(currentMenuitem);
-      console.log('学生端页面加载完成');
     };
 
     // 1. 重构菜单点击响应逻辑（核心修复）
@@ -389,6 +396,9 @@
   <script src="js/public/terms.js"></script>
   <script src="js/public/termsFunction.js"></script>
   <script src="js/public/utility_request.js"></script>
+  <!-- 分页组件：提供 Pagination / getPagebar() / renderPagination() / assignLoadobjectListFunction()。
+       被 student-bookingCards、student-bookingBrowserCards、admin-AppointmentNotes 依赖，必须先加载。 -->
+  <script src="js/public/pagefoot.js"></script>
   <script src="js/public/auth.js"></script>
   <script src="js/public/api.js"></script>
   <script src="js/public/dataFunctions.js"></script>

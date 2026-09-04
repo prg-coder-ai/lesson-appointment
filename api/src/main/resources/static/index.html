@@ -578,13 +578,8 @@
       // 显示加载状态
       loginBtn.disabled = true;
       btnText.innerHTML = '<span class="loading"></span> 登录中...';
-     console.log('username:', username.value.trim());
-     console.log('password:', password.value.trim());
        const loginRole = document.getElementById('login-role').value.trim();
       const loginTenantCode = document.getElementById('login-tenant-code').value.trim();
-     // [DEBUG-PLATFORM] 登录提交入口：现已透传 tenantCode/role 给后端
-     console.log('[DEBUG-PLATFORM] login 提交：account=' + username.value.trim()
-       + ', role=' + loginRole + ', tenantCode=' + (loginRole === 'platform_admin' ? 'platform' : loginTenantCode));
 
       try {
         const user = await authenticateUser(
@@ -671,11 +666,9 @@
       if (urlCode) {
         tenantCodeInput.value = urlCode;
         tenantCodeInput.readOnly = true;
-        console.log('[DEBUG-PLATFORM] URL 参数 ?tcode=xx 采用：', urlCode);
         if (urlCode === PLATFORM_TENANT_CODE) {
           registerRole.value = PLATFORM_ROLE;
-          console.log('[DEBUG-PLATFORM] 平台管理员注册：tenantCode 已锁定 =', tenantCode,
-            '（应为 platform，与后端 PLATFORM_TENANT_CODE 一致）');
+          undefined;
         }
         else { //租户-对平台角色选项不可见   
         //在role中把registerRole.value =PLATFORM_ROLE的选项删除
@@ -692,8 +685,7 @@
       if (registerRole.value === PLATFORM_ROLE) {
         tenantCodeInput.value = PLATFORM_TENANT_CODE;
         tenantCodeInput.readOnly = true;
-        console.log('[DEBUG-PLATFORM] 平台管理员注册：tenantCode 已锁定 =', tenantCode,
-          '（应为 platform，与后端 PLATFORM_TENANT_CODE 一致）');
+        undefined;
         return;
       } else
       // 其他情况：由用户手动填写
@@ -717,11 +709,9 @@
       if (roleSel.value === PLATFORM_ROLE) {
         tcInput.value = PLATFORM_TENANT_CODE;
         tcInput.readOnly = true;
-        console.log('[DEBUG-PLATFORM] 平台管理员登录：tenantCode 锁定 =', PLATFORM_TENANT_CODE);
       } else if (urlCode) {
         tcInput.value = urlCode;
         tcInput.readOnly = true;
-        console.log('[DEBUG-PLATFORM] 登录租户编码来自 URL ?tcode=：', urlCode);
       } else {
         tcInput.value = '';
         tcInput.readOnly = false;
@@ -911,7 +901,6 @@ fetch("接口地址")
   .then(response => response.json())
   .then(data => {
     // 这里处理 JSON 数据
-    console.log(data);
   });
 
 - 第一个 then（response => response.json()）的作用是将 fetch 返回的 Response 对象解析为 JSON 数据。即第一个 then 的返回值是一个 Promise，表示解析 JSON 的过程。

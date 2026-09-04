@@ -145,8 +145,11 @@ async function loadTermMapFromServer() {
   if (!token) return;
   try {
     const lang = localStorage.getItem('lang') || 'zh';
+    // 后端 JwtAuthenticationFilter 只认 `Bearer <token>`；此前直接传裸 token 恒返回 401，
+    // 导致服务端三级合并词表（租户词 > 行业词 > 平台词）从未生效，只剩本地兜底词表。
+    const auth = token.startsWith('Bearer ') ? token : ('Bearer ' + token);
     const res = await fetch((window.API_BASE_URL || '') + '/term/map?lang=' + encodeURIComponent(lang), {
-      headers: { 'Authorization': token }
+      headers: { 'Authorization': auth }
     });
     const json = await res.json();
     if (json && json.code === 200 && json.data) {
@@ -158,6 +161,40 @@ async function loadTermMapFromServer() {
   }
 }
 
+// 按登录用户的 tenantCode 查询所属行业，并切换到对应行业词表。
+// 链路：tenantCode -> /tenant/industry -> sys_industry.code -> switchIndustry(code)
+//
+// 两点容错（缺一即会导致词表错乱）：
+//   1) 后端可能返回前端尚无词表的行业（历史上 exercise 就缺 TERM_DICT，现已补齐：
+//      education / legal / counseling / exercise）。switchIndustry 遇到未知行业会 warn
+//      并直接 return，等价于什么都不做 —— 故这里先校验 TERM_DICT[code]，
+//      未知行业保持现状（默认 education），不让页面停在半截状态。
+//   2) 行业未配置 / 平台租户 / 接口异常时一律保持现状，由本地兜底词表继续工作。
+//
+// @param tenantCode 登录时确定的租户编码（localStorage.currentUser.tenantCode）
+// @returns Promise<string|null> 实际生效的行业 key，未切换返回 null
+async function syncIndustryFromTenant(tenantCode) {
+  const token = localStorage.getItem('token');
+  if (!token) return null;
+  try {
+    const qs = tenantCode ? ('?tenantCode=' + encodeURIComponent(tenantCode)) : '';
+    // 后端 JwtAuthenticationFilter 只认 `Bearer <token>`，缺前缀会直接 401
+    const auth = token.startsWith('Bearer ') ? token : ('Bearer ' + token);
+    const res = await fetch((window.API_BASE_URL || '') + '/tenant/industry' + qs, {
+      headers: { 'Authorization': auth }
+    });
+    const json = await res.json();
+    const code = (json && json.code === 200 && json.data) ? json.data.industryCode : null;
+    if (!code || !TERM_DICT[code]) return null;          // 无行业 / 未知行业 → 保持现状
+    const current = localStorage.getItem('industry') || domain_industry;
+    if (current === code) return code;                    // 已是目标行业，不重复刷 DOM
+    switchIndustry(code);                                 // 内部：还原锚点词 -> 记录新行业 -> 重新替换
+    return code;
+  } catch (e) {
+    // 服务未起 / 未登录 / 网络异常：保持本地兜底
+    return null;
+  }
+}
 // 页面加载完成后，按已存行业对静态 HTML 应用一次术语替换
 // （默认 education 时 DOM 本身就是锚点词，等于空操作；动态注入的内容由各渲染函数里的 applyTerms(container) 负责）
 document.addEventListener("DOMContentLoaded", () => { applyTerms(); loadTermMapFromServer(); });

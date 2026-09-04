@@ -114,7 +114,53 @@ const TERM_DICT = {
     serialNumber: "序号",
     lessonDuration: "预约时长(分钟)"
 
-    }
+    },
+  // 健身行业（sys_industry.id=7, code=exercise；租户 ORG05 五人行健身俱乐部）
+  // 词条取值与 sys_term(industry_id=7, language='zh') 保持一致 —— 服务端 /term/map
+  // 三级合并（租户词 > 行业词 > 平台词）会逐 key 覆盖本地值，本地字典只承担两件事：
+  //   1) 兜底：未登录 / 服务未起 / 接口异常时仍有完整词表可用；
+  //   2) 开关：switchIndustry() 与 syncIndustryFromTenant() 都以 TERM_DICT[code] 存在为前提，
+  //      缺这个词表时二者会直接 return，行业根本切不过来。
+  // 服务端 industry_id=7 未配置的 schedule / classLevelB1~B4 / serialNumber 三项，
+  // 沿用 education 的行业中性文案，避免落空后 UI 露出锚点词。
+  exercise: {
+    lessonSystem: "健身教练预约系统",
+    course:       "健身科目",
+    schedule:     "排期",
+
+    teacher:      "教练",
+    teacherAlt:   "教练",
+    student:      "训练者",
+    lesson:       "训练课程",
+    lessonTime:   "预约时间",
+    lessonUnit:   "训练时长",
+    teaching:     "练习",
+    lessonNumber: "课次",
+    courseName:   "科目名称",
+    leave:        "改期",
+    lessonFee:    "课时费用",
+
+    content:      "锻炼内容",
+    classForm:    "服务形式",
+    classForm1p1: "1对1",
+    classForm1pN: "小组陪练",
+    classForm1p2N:"专题训练",
+
+    classLevel:   "难度等级",
+    classLevelB1: "B1入门",
+    classLevelB2: "B2初级",
+    classLevelB3: "B3中级",
+    classLevelB4: "B4高级",
+
+    classType:    "健身类型",
+    classType1:   "力量训练",
+    classType2:   "灵巧训练",
+    classType3:   "肌肉训练",
+    classType4:   "爆发力",
+
+    serialNumber: "序号",
+    lessonDuration: "预约时长(分钟)"
+  }
 };
 
 // 正反向索引：中文关键词 → 术语 key（遍历替换用）

@@ -36,28 +36,28 @@ public interface UserMapper extends BaseMapper<User> {
     @Update("UPDATE user SET tenant_id = #{tenantId} WHERE user_id = #{userId}")
     int bindTenant(@Param("userId") String userId, @Param("tenantId") Long tenantId);
     /**
-      * 根据手机号查询用户
+      * 根据手机号查询用户（一对多：同一手机号可对应多个账号/用户）
       * @param hmac 手机号的 HMAC 搜索索引
       * @param plain 明文手机号（兼容旧数据）
-      * @return 用户信息
+      * @return 命中该手机号的用户列表（按业务约定可返回多条）
       */
       @Select("select * from user where phone LIKE CONCAT(#{hmac}, ':%') OR phone = #{plain}")
     List<User> selectByPhone(@Param("hmac") String hmac, @Param("plain") String plain);
 
     /**
-      * 根据邮箱查询用户
+      * 根据邮箱查询用户（一对多：同一邮箱可对应多个账号/用户）
       * @param hmac 邮箱的 HMAC 搜索索引
       * @param plain 明文邮箱（兼容旧数据）
-      * @return 用户信息
+      * @return 命中该邮箱的用户列表（按业务约定可返回多条）
       */
         @Select("select * from user where email LIKE CONCAT(#{hmac}, ':%') OR email = #{plain}")
       List<User> selectByEmail(@Param("hmac") String hmac, @Param("plain") String plain);
 
     /**
-      * 根据手机号或邮箱查询用户（用于登录）
+      * 根据手机号或邮箱查询用户（用于登录，一对多：同一联系方式可对应多个账号/用户）
       * @param hmac 手机号或邮箱的 HMAC 搜索索引
       * @param plain 明文账号（兼容旧数据）
-      * @return 用户信息
+      * @return 命中该手机号/邮箱的用户列表（按业务约定可返回多条）
       */
       @Select("SELECT * FROM user WHERE phone LIKE CONCAT(#{hmac}, ':%') OR email LIKE CONCAT(#{hmac}, ':%') OR phone = #{plain} OR email = #{plain}")
     List<User> selectByPhoneOrEmail(@Param("hmac") String hmac, @Param("plain") String plain);
@@ -78,6 +78,37 @@ public interface UserMapper extends BaseMapper<User> {
 
    @Update("UPDATE user SET status = #{status} WHERE user_id = #{userId}")
     public int updateStatus(@Param("userId") String userId ,@Param("status") String status); 
+
+    /**
+     * 更新用户基本资料（姓名/手机号/邮箱/状态）。
+     *
+     * 注意两点：
+     * 1) 只更新传入的非空字段，未传的保持原值 —— 便于前端做局部修改；
+     * 2) 不含 account：账号是登录标识，一旦生成不允许通过本接口修改；
+     * 3) 不在此处加密 phone/email/name —— 加密属于业务层职责（UserService 统一调用
+     *    cryptUtil.encryptWithIndex），Mapper 只负责原样落库，避免加解密逻辑分散。
+     *
+     * 租户隔离：user 表不在 MyBatisPlusConfig.IGNORE_TABLES 中，
+     * TenantLineInnerInterceptor 会自动在 WHERE 后追加 tenant_id 条件。
+     *
+     * @return 影响行数
+     */
+    @Update("<script>"
+          + "UPDATE user "
+          + "<set>"
+          + "  <if test='name != null'>name = #{name},</if>"
+          + "  <if test='phone != null'>phone = #{phone},</if>"
+          + "  <if test='email != null'>email = #{email},</if>"
+          + "  <if test='status != null'>status = #{status},</if>"
+          + "  update_time = NOW()"
+          + "</set>"
+          + "WHERE user_id = #{userId}"
+          + "</script>")
+    int updateUserInfo(@Param("userId") String userId,
+                       @Param("name") String name,
+                       @Param("phone") String phone,
+                       @Param("email") String email,
+                       @Param("status") String status);
     /**
      * 统计截至某一天指定角色的用户数量
      * @param role 用户角色（如 "teacher", "student"）
@@ -85,25 +116,15 @@ public interface UserMapper extends BaseMapper<User> {
      * @return 截止该时间点的累计指定角色用户数
      */
     @Select("SELECT COUNT(*) FROM user WHERE role = #{role} AND create_time <= #{until}")
-    int countByRoleAtDate(@Param("role") String role, @Param("until") java.util.Date until); 
-    
-        /** listByCondition暂时报错
-         * 根据条件查询用户列表
-         * 支持条件字段：userId, role, status, orgId, name, email, phone, account
-         * @param condition 查询条件
-         * @return 用户列表 
-        // 语法问题：
-        // 1. MyBatis 的 @Select 注解不支持 XML 元素（如 <where>、<if>）。
-        // 2. 若需动态 SQL（如 if、where），必须把 SQL 写在 Mapper.xml (推荐做法) 或用 @SelectProvider。
-        // 3. 如果坚持用注解，则只能写静态 SQL，无法 in-line 动态条件。
+    int countByRoleAtDate(@Param("role") String role, @Param("until") java.util.Date until);
 
-        // 推荐写法（此接口必须在 UserMapper.xml 里用 <select> + <where> + <if> 实现），否则此注解会报错。
- */   
-      
-       public  List<User> listByCondition(Map<String, Object>  condition); 
-       public  List<User> listByConditionPage(UserQueryPage  condition);
-       public  List<User> listByConditionAll(UserQueryPage  condition);
-       public  int selectCountByContion(UserQueryPage  condition);
+    public List<User> listByCondition(Map<String, Object> condition);
+
+    public List<User> listByConditionPage(UserQueryPage condition);
+
+    public List<User> listByConditionAll(UserQueryPage condition);
+
+    int selectCountByContion(UserQueryPage condition);
 
       @Select("SELECT * FROM user WHERE role = #{role}")
        List<User> listByRole(@Param("role") String role);

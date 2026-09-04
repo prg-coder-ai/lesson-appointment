@@ -374,7 +374,7 @@ public class UserService {
  @Transactional
     public boolean changePassword(String userId,String password) { 
         // 查找用户
-        User user = new User();// userMapper.selectByAccount(account); 
+        User user = new User();// userMapper.getUserByAccount(account); 
         user.setUserId(userId); 
         // 加密新密码并更新- 
          user.setPassword(passwordEncoder.encode(password));
@@ -455,6 +455,58 @@ public User selectById(String userId) {
           String status= user.getStatus();
            return  userMapper.updateStatus(useid,status);
        
+    }
+
+    /**
+     * 更新用户基本资料：姓名 / 手机号 / 电子邮箱 / 状态。
+     * 账号（account）是登录标识，不在可改范围内。
+     *
+     * 两个容易踩的坑，这里都显式处理了：
+     *
+     * 1) phone/email/name 在库里是 AES-GCM 密文（见 encryptUserFields）。若把前端传来的
+     *    明文直接落库，会造成：列表查询 decrypt 得到乱码、HMAC 搜索索引丢失导致
+     *    按手机号/邮箱再也检索不到该用户。因此必须与注册路径一样先 encryptWithIndex 再入库。
+     *
+     * 2) 支持局部更新（未传的字段保持原值），所以不能拿"本次请求里的 phone/email"
+     *    直接判断"至少留一项联系方式"——要先取出原记录合并后再校验，
+     *    否则"只改姓名"这种合法请求会被误拒。
+     *
+     * @param user 含 userId，以及待更新的 name/phone/email/status（null 表示不更新）
+     * @return 影响行数；0 表示用户不存在或不属于当前租户（租户插件会自动追加 tenant_id 条件）
+     */
+    @Transactional
+    public int updateUserInfo(User user) {
+        if (user == null || user.getUserId() == null || user.getUserId().trim().isEmpty()) {
+            throw new BusinessException("用户Id不能为空");
+        }
+        String userId = user.getUserId().trim();
+
+        // 取出原记录：既用于校验归属，也用于合并未传字段
+        User exist = userMapper.selectById(userId);
+        if (exist == null) {
+            return 0;
+        }
+        decryptUserFields(exist);
+
+        String name  = user.getName()  != null ? user.getName().trim()  : exist.getName();
+        String phone = user.getPhone() != null ? user.getPhone().trim() : exist.getPhone();
+        String email = user.getEmail() != null ? user.getEmail().trim() : exist.getEmail();
+
+        // 合并后再校验，避免"只改姓名"被误拒
+        if ((phone == null || phone.isEmpty()) && (email == null || email.isEmpty())) {
+            throw new BusinessException("手机号和电子邮箱至少填写一项");
+        }
+
+        String status = (user.getStatus() == null || user.getStatus().trim().isEmpty())
+                ? null : user.getStatus().trim();
+
+        // encryptWithIndex(null) 返回 null，Mapper 的 <if> 会跳过对应字段
+        return userMapper.updateUserInfo(
+                userId,
+                cryptoUtil.encryptWithIndex(name),
+                cryptoUtil.encryptWithIndex(phone),
+                cryptoUtil.encryptWithIndex(email),
+                status);
     }
    //TBD: test
     public List<User>   listByCondition(Map<String, Object> condition)

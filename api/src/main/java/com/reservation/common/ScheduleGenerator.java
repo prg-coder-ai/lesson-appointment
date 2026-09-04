@@ -63,7 +63,7 @@ public class ScheduleGenerator {
         boolean isSameZone = fromZone.equals(toZone);
 
         if(isSameZone) { 
-           // System.out.println("zonedFrom: " + fromZone);
+           // log.debug("zonedFrom: " + fromZone);
                 for (LocalDateTime ldt : userSchedule) {
                     ZonedDateTime zonedFrom = ldt.atZone(fromZone); 
 
@@ -75,13 +75,13 @@ public class ScheduleGenerator {
                 convertedSchedule.add(item); 
                 }
         }else  {    // 把userSchedule的元素转为UserTimeZone对应的数据   
-       //  System.out.println("zonedFrom: " + fromZone +"-->"+toZone );
+       //  log.debug("zonedFrom: " + fromZone +"-->"+toZone );
                 for (LocalDateTime ldt : userSchedule) {
                     ZonedDateTime zonedFrom = ldt.atZone(fromZone);
-                   // System.out.println("zonedFrom: " + zonedFrom);
+                   // log.debug("zonedFrom: " + zonedFrom);
 
                     ZonedDateTime zonedTo = zonedFrom.withZoneSameInstant(toZone);
-                  //  System.out.println("zonedTo: " + zonedTo);
+                  //  log.debug("zonedTo: " + zonedTo);
 
                     String dateStr = zonedTo.toLocalDate().toString(); // yyyy-MM-dd
                     String timeStr = String.format("%02d:%02d:00", zonedTo.getHour(), zonedTo.getMinute());
@@ -90,7 +90,7 @@ public class ScheduleGenerator {
                 ScheduleVO item = new ScheduleVO(); 
                 item.setDate(dateStr);
                 item.setTime(timeStr);
-                // System.out.println("item: " + item);
+                // log.debug("item: " + item);
                 convertedSchedule.add(item); 
                 } 
              } 
@@ -99,9 +99,9 @@ public class ScheduleGenerator {
 
     // 判断星期（按用户时区-wuguan ，绝对正确）
     private static boolean isMatchWeek(LocalDate date, List<Integer> target, ZoneId zoneId) {
-      //  System.out.println("date:"+date);
+      //  log.debug("date:"+date);
         int week = date.getDayOfWeek().getValue();// date.atStartOfDay(zoneId).getDayOfWeek().getValue();
-       //   System.out.println("week:"+week+" date:"+date+" target:"+target);
+       //   log.debug("week:"+week+" date:"+date+" target:"+target);
         return target.contains(week);
     } 
     private static LocalDate nextDate(LocalDate current, String type, int interval,List<Integer>repeatDays) {

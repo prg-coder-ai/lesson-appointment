@@ -305,7 +305,14 @@
         location.href = './index.html';
         return; // 不再执行后续的 DOM 渲染
       }
-      
+
+      // ====== 按登录租户所属行业切换行业词表 ======
+      // tenantCode -> /tenant/industry -> sys_industry.code -> switchIndustry()
+      // 尽早发起，使后续动态渲染出来的内容直接用上正确的行业词。
+      if (typeof syncIndustryFromTenant === 'function') {
+        syncIndustryFromTenant(user.tenantCode);
+      }
+
       // 设置用户首字母和用户名
       if (user.name) { 
         document.getElementById('avatar').innerHTML = user.name.length > 0 ? user.name[0] : '';
@@ -366,11 +373,20 @@
    <script src="js/public/terms.js"></script>
    <script src="js/public/termsFunction.js"></script>
    <script src="js/public/utility_request.js"></script>
+   <!-- 分页组件：提供 Pagination / getPagebar() / renderPagination() / assignLoadobjectListFunction()。
+        被 admin-user、admin-course、admin-template、admin-schedule、admin-booking、
+        admin-AppointmentNotes、admin-dataMaintainPage 共同依赖，必须先于它们加载。 -->
+   <script src="js/public/pagefoot.js"></script>
    <script src="js/public/auth.js"></script>
    <script src="js/public/api.js"></script>
    <script src="js/public/dataFunctions.js"></script> 
    <script src="js/public/courseAndBooking.js"></script>  
    <script src="js/public/appointmentNotes.js"></script>  
+   <!-- 数据维护页的删除/分页取数依赖：提供 fetchCourseListPage、fetchScheduleListPage 等。
+        必须早于 admin-template.js / admin-course.js / admin-booking.js 加载——
+        这几个文件里也有同名 deleteTemplate/deleteCourse/deleteBooking，
+        后加载者会覆盖本文件的版本，从而保持原有删除交互不变。 -->
+   <script src="js/public/datamaintain_delete.js"></script>
    <script src="js/admin-template.js"></script> 
    <script src="js/admin-course.js"></script>
     <script src="js/admin-user.js"></script>

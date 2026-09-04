@@ -14,6 +14,8 @@ public enum AuditAction {
     USER_DELETE("用户删除"),
     USER_RESET_PASSWORD("重置密码"),
     USER_CHANGE_PASSWORD("修改密码"),
+    // 修改用户基本资料（姓名/手机号/邮箱/状态），不含账号
+    USER_UPDATE("修改用户信息"),
 
     // 课程相关
     COURSE_CREATE("创建课程"),

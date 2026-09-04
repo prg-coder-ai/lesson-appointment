@@ -18,16 +18,25 @@
 
     //读取application.properties的server.host内容
 
-    const API_SERVER_HOST = 'http://localhost' ;
-    //TBD读取环境变量
-
-    //'http://152.136.254.127'; 
-    const API_SERVER_PORT = '8080';
+    // 后端地址。**默认留空 = 与前端同源**（前端页面由 Spring Boot 一并托管，这是本项目部署方式）。
+    //
+    // 为什么不再写死 host:port：
+    //   utility_request.js 在本文件之前加载，那时 window.API_BASE_URL 还是空串，
+    //   于是 axios 实例的 baseURL=''（走同源）；而本文件算出的却是绝对地址 http://localhost:8081。
+    //   两者不一致 → 后端一旦换端口，用 API_BASE_URL 拼接的请求（如 /course/template/page）
+    //   会打向旧端口，相对路径的请求（如 /user/page）却正常，表现为"一半接口好、一半接口坏"，
+    //   且现象会随页面切换而变，极难排查。改为同源后两处恒等。
+    //
+    // 前后端分离部署时，只需填入 host/port（任一非空即按 host:port 拼接，行为同原逻辑）。
+    const API_SERVER_HOST = '';
+    const API_SERVER_PORT = '';
     const API_BASE_PATH = '';
     //'/api/v1';
 
-    // API完整前缀
-    const API_BASE_URL = `${API_SERVER_HOST}:${API_SERVER_PORT}${API_BASE_PATH}`;
+    // API 完整前缀
+    const API_BASE_URL = (API_SERVER_HOST || API_SERVER_PORT)
+      ? `${API_SERVER_HOST}:${API_SERVER_PORT}${API_BASE_PATH}`
+      : API_BASE_PATH;
     window.API_BASE_URL = API_BASE_URL;
     let courseList = [];       // 课程列表
     let scheduleObject=null;       // 排期
