@@ -35,7 +35,11 @@ public class MyBatisPlusConfig {
             "sys_user_session",
             // 行业专业词汇表是共享词表（平台词/行业词 tenant_id=0），
             // 租户端也要消费（/term/map 三级合并），作用域过滤由业务层显式控制，不能走租户插件
-            "sys_term"
+            "sys_term",
+            // 行业字典是平台级共享数据，表结构也无 tenant_id 列；
+            // 租户端需据其解析所属行业编码（/tenant/industry -> switchIndustry），
+            // 若不排除，插件会拼出 `tenant_id = ?` 导致 Unknown column 报错
+            "sys_industry"
     );
 
     @Bean

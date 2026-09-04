@@ -2,7 +2,9 @@ package com.reservation.controller;
 
 import com.reservation.common.PageResult;
 import com.reservation.common.Result;
+import com.reservation.entity.Industry;
 import com.reservation.entity.Tenant;
+import com.reservation.mapper.IndustryMapper;
 import com.reservation.query.TenantQueryPage;
 import com.reservation.service.TenantQuotaService;
 import com.reservation.service.TenantService;
@@ -10,6 +12,7 @@ import com.reservation.utils.PermissionCheck;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -30,6 +33,8 @@ public class TenantController {
     private TenantQuotaService tenantQuotaService;
     @Autowired
     private PermissionCheck permissionCheck;
+    @Autowired
+    private IndustryMapper industryMapper;
 
     /**
      * 分页查询租户列表
@@ -75,6 +80,55 @@ public class TenantController {
             return Result.fail(404, "未查询到所属租户信息");
         }
         return Result.success(tenant, "查询成功");
+    }
+
+    /**
+     * 查询租户所属行业编码（前端据此调用 switchIndustry() 切换行业词表）
+     * GET /tenant/industry?tenantCode=TENANT_A
+     *
+     * 返回：{ tenantCode, tenantId, industryId, industryCode, industryName }
+     * industryCode 取自 sys_industry.code（如 education / legal / counseling），需与前端 TERM_DICT 的 key 对齐。
+     *
+     * 权限：
+     * - platform_admin：可按 code 查任意租户（平台租户 code=platform 无 sys_tenant 记录，返回 null）
+     * - 其余角色：强制用 token 所属租户，忽略传入的 tenantCode，防止借本接口探测其他租户的行业
+     */
+    @GetMapping("/industry")
+    public Result<Map<String, Object>> getIndustry(@RequestParam(required = false) String tenantCode,
+                                                   @RequestHeader("Authorization") String token) {
+        Long tenantId = permissionCheck.getTenantIdFromToken(token);
+        Tenant tenant;
+        if (permissionCheck.isPlatformAdmin(token)) {
+            tenant = (tenantCode == null || tenantCode.trim().isEmpty())
+                    ? null : tenantService.getByCode(tenantCode.trim());
+        } else {
+            tenant = tenantService.getById(tenantId);
+        }
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("tenantCode", tenant != null ? tenant.getTenantCode() : tenantCode);
+        data.put("tenantId", tenant != null ? tenant.getId() : tenantId);
+        if (tenant == null) {
+            data.put("industryId", null);
+            data.put("industryCode", null);
+            data.put("industryName", null);
+            return Result.success(data, "查询成功");
+        }
+
+        Long industryId = tenant.getIndustryId();
+        data.put("industryId", industryId);
+        String code = null;
+        String name = null;
+        if (industryId != null && industryId > 0) {
+            Industry ind = industryMapper.selectById(industryId);
+            if (ind != null) {
+                code = ind.getCode();
+                name = ind.getName();
+            }
+        }
+        data.put("industryCode", code);
+        data.put("industryName", name);
+        return Result.success(data, "查询成功");
     }
 
     /**
