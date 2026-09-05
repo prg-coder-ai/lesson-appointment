@@ -1,63 +1,3 @@
-/*teacher.html:1 Refused to apply style from 'http://localhost:8081/src/css/teacher.css' because its MIME type ('application/json') is not a supported stylesheet MIME type, and strict MIME checking is enabled.
-*/
-  
-/**
- * 错误分析与解决：
- * 
- * 错误内容：“teacher.html:1 Refused to apply style from 'http://localhost:8081/src/css/teacher.css' because its MIME type ('application/json') is not a supported stylesheet MIME type, and strict MIME checking is enabled.”
- * 
- * 1. 含义
- *    - 浏览器尝试以 <link rel="stylesheet" href="..."> 加载 teacher.css，但服务器返回的 Content-Type 是 'application/json'，不是 'text/css'。
- *    - 现代浏览器会因此拒绝应用该文件为 CSS 样式表。
- * 
- * 2. 可能成因
- *    - /src/css/teacher.css 路径映射有误，或者未将 teacher.css 以静态文件正确暴露，导致实际返回了其它格式内容（如 JSON）。
- *    - 可能由于 Spring Boot 静态资源配置（resources/static/ 路径、 mapping）或 404 handler/后端接口拦截，未正确返回 CSS 文件本身。
- * 
- * 3. 解决办法
- *    - 确保 teacher.css 文件实际存在于 static/css/ 目录下（即 src/main/resources/static/css/teacher.css），文件名/路径都正确。
- *    - 保证未被后端接口映射（如 @RequestMapping）拦截掉静态资源请求。
- *    - 后端服务器应为 css 文件返回 'Content-Type: text/css' 响应头。Spring Boot 的 static 默认会自动配置。
- *    - 页面 <link> 标签引用 teacher.css 的路径要和实际静态文件路径相符。
- *      例如: <link rel="stylesheet" href="/css/teacher.css"> （而不是 /src/css/teacher.css）。
- *    - 检查浏览器请求 teacher.css 时，实际请求 URL、响应返回内容以及响应头 Content-Type。
- *  */
-/**
- * 如何设置“返回的 Content-Type 必须是 text/css”
- *
- * 1. Spring Boot 默认会自动处理 src/main/resources/static/ 下的静态资源，
- *    自动根据文件扩展名设置 Content-Type，不需要手动配置。
- * 
- * 2. 常见排查方法：
- *    - 确认 css 文件实际位于 src/main/resources/static/css/ 目录下。
- *    - 前端页面引用路径应为 <link rel="stylesheet" href="/css/teacher.css">
- *    - 启动服务后，浏览器访问 http://localhost:8081/css/teacher.css，查看响应头，
- *      应该包含 Content-Type: text/css
- *    - 如果看到 Content-Type: application/json 或 text/html，可能原因如下：
- *        a) 请求被 Controller 的 @RequestMapping 或全局异常拦截器捕获，未走静态资源映射。
- *        b) 路径引用错误，实际触发了 404 页面或 API 返回 json。
- *        c) 修改过 spring.mvc.static-path-pattern, spring.web.resources.static-locations 等配置，导致静态资源映射丢失。
- * 
- * 3. 如需自定义静态资源 Content-Type，可在 Spring Boot 配置类中拓展 WebMvcConfigurer：
- * 
- *    @Configuration
- *    public class WebConfig implements WebMvcConfigurer {
- *      @Override
- *      public void addResourceHandlers(ResourceHandlerRegistry registry) {
- *        registry.addResourceHandler("/css/**")
- *            .addResourceLocations("classpath:/static/css/")
- *            .setCacheControl(CacheControl.maxAge(1, TimeUnit.HOURS))
- *            .resourceChain(true);
- *      }
- *    }
- *    // 通常不需要显示配置 Content-Type，Spring 内置已自动处理。
- *
- * 4. 总结
- *   - 静态资源只要放在正确目录且未被拦截，Spring Boot 会自动返回 text/css。
- *   - 检查路径/引用方式/资源实际返回内容，如有自定义配置需确保未影响静态资源处理。
- */
-
-
 .header {
     height: 60px;
     background: #fff;
@@ -426,4 +366,77 @@ user-select: none;
     border-radius: 4px;
     margin: 0 4px;
   }
+
+/* ============ 移动端适配（A 方案响应式改造，2026-09-05）============ */
+/* 兼容式：电脑端默认样式不变，仅手机/平板断点内覆盖；不改动 HTML/JS 结构 */
+@media (max-width: 768px) {
+  .layout-container {
+    flex-direction: column;
+    height: auto;
+    overflow: visible;
+  }
+  .sidebar {
+    width: 100%;
+    height: auto;
+    flex-shrink: 0;
+    border-right: none;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .menu-group { margin-bottom: 0; }
+  .menu-group-title { display: none; }
+  .menu-item { white-space: nowrap; padding: 12px 16px; border-radius: 0; }
+  .content-wrapper { padding: 12px; }
+  .dynamic-content-center { max-width: 100%; }
+
+  .container { max-width: 100%; padding: 16px; margin: 0; }
+  .card { margin-left: 0; padding: 16px; }
+  .card-header, .filter-bar { flex-wrap: wrap; }
+  .card-header { width: 100%; }
+  .stats-panel { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+
+  .form-line { flex-direction: column; align-items: stretch; margin-left: 0; gap: 6px; }
+  .form-line label { width: auto; }
+
+  .calendar { gap: 3px; }
+  .calendar-day { padding: 8px 0; font-size: 12px; }
+
+  .schedule-container { flex-direction: column; max-width: 100%; }
+
+  .table-container, .table-wrap { -webkit-overflow-scrolling: touch; }
+  .data-table, table { font-size: 13px; }
+  .data-table th, .data-table td,
+  table th, table td { padding: 8px 10px; white-space: nowrap; }
+
+  .modal-mask { padding: 10px; }
+  .modal-content { width: 94%; max-width: 94%; padding: 16px; max-height: 88vh; overflow: auto; }
+
+  .header { padding: 0 12px; }
+  .header-actions { gap: 10px; }
+  .logo-text { font-size: 16px; }
+  .user-name { display: none; }
+  body { font-size: 14px; }
+  .page-title { font-size: 20px; }
+  .btn, .menu-item, .pagination-btn, .time-btn, .logout-btn,
+  .filter-item select, .filter-item input { min-height: 40px; }
+
+  .filter-item { flex: 1 1 140px; }
+  .filter-item input, .filter-item select { flex: 1; min-width: 0; width: 100%; }
+
+  .pagination-bar { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .pagination-btns { flex-wrap: wrap; }
+
+  .tab-bar { flex-wrap: wrap; margin: 8px 0 0 0; }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .sidebar { width: 180px; }
+  .dynamic-content-center { max-width: 960px; }
+  .stats-panel { grid-template-columns: repeat(3, 1fr); }
+  .schedule-container { max-width: 100%; }
+  .container { max-width: 960px; }
+}
   

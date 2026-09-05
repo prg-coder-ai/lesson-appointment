@@ -509,3 +509,76 @@ table th {
       margin-right: auto;
       margin-left: 12px;
     }
+
+/* ============ 移动端适配（A 方案响应式改造，2026-09-05）============ */
+/* 兼容式：电脑端默认样式不变，仅手机/平板断点内覆盖；不改动 HTML/JS 结构 */
+@media (max-width: 768px) {
+  .layout-container {
+    flex-direction: column;
+    height: auto;
+    overflow: visible;
+  }
+  .sidebar {
+    width: 100%;
+    height: auto;
+    flex-shrink: 0;
+    border-right: none;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .menu-group { margin-bottom: 0; }
+  .menu-group-title { display: none; }
+  .menu-item { white-space: nowrap; padding: 12px 16px; border-radius: 0; }
+  .content-wrapper { padding: 12px; }
+  .dynamic-content-center { max-width: 100%; }
+
+  .container { max-width: 100%; padding: 16px; margin: 0; }
+  .card { margin-left: 0; padding: 16px; }
+  .card-header, .filter-bar { flex-wrap: wrap; }
+  .card-header { width: 100%; }
+  .stats-panel { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+
+  .form-line { flex-direction: column; align-items: stretch; margin-left: 0; gap: 6px; }
+  .form-line label { width: auto; }
+
+  .calendar { gap: 3px; }
+  .calendar-day { padding: 8px 0; font-size: 12px; }
+
+  .schedule-container { flex-direction: column; max-width: 100%; }
+
+  .table-container, .table-wrap { -webkit-overflow-scrolling: touch; }
+  .data-table, table { font-size: 13px; }
+  .data-table th, .data-table td,
+  table th, table td { padding: 8px 10px; white-space: nowrap; }
+
+  .modal-mask { padding: 10px; }
+  .modal-content { width: 94%; max-width: 94%; padding: 16px; max-height: 88vh; overflow: auto; }
+
+  .header { padding: 0 12px; }
+  .header-actions { gap: 10px; }
+  .logo-text { font-size: 16px; }
+  .user-name { display: none; }
+  body { font-size: 14px; }
+  .page-title { font-size: 20px; }
+  .btn, .menu-item, .pagination-btn, .time-btn, .logout-btn,
+  .filter-item select, .filter-item input { min-height: 40px; }
+
+  .filter-item { flex: 1 1 140px; }
+  .filter-item input, .filter-item select { flex: 1; min-width: 0; width: 100%; }
+
+  .pagination-bar { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .pagination-btns { flex-wrap: wrap; }
+
+  .tab-bar { flex-wrap: wrap; margin: 8px 0 0 0; }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .sidebar { width: 180px; }
+  .dynamic-content-center { max-width: 960px; }
+  .stats-panel { grid-template-columns: repeat(3, 1fr); }
+  .schedule-container { max-width: 100%; }
+  .container { max-width: 960px; }
+}
