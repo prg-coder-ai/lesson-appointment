@@ -57,6 +57,11 @@
         <i class="fa fa-calendar"></i>
         <span>预订管理</span>
       </div>
+      <div class="menu-item" key="messages">
+        <i class="fa fa-bell"></i>
+        <span>消息中心</span>
+        <span class="msg-badge" id="msg-unread-badge" style="display:none;"></span>
+      </div>
       <!-- div class="menu-item">
         <i class="fa fa-calendar-alt"></i>
         <span><span data-term="course">课程</span>通知</span>
@@ -138,6 +143,7 @@
          avatarElem.innerHTML = userInfo.name.charAt(0);
        }
        addChangePasswordButton();
+       if (typeof window.initMessageBadge === 'function') window.initMessageBadge();
        loadAdminPageContent(currentMenuitem);
     };
 
@@ -186,6 +192,11 @@
           //  renderTeacherBookingandAppointmentBrowserCards();  
          // 
           renderStudentBookingBrowserCards(); //StudentBookingBrowserCards.js
+          break;
+        case 'messages':
+          if (typeof window.renderMessagesPage === 'function') {
+            window.renderMessagesPage(dynamicContent);
+          }
           break;
         case 'student_review':
           dynamicContent.innerHTML = `
@@ -281,6 +292,7 @@
    <script src="js/student-bookingBrowserCards.js"></script> //预订列表及具体日程查看
    <!-- script src="js/teacher-course-booking-appointment.js"></script -->// 预订及日期
    <script src="js/admin-AppointmentNotes.js"></script>
+   <script src="js/messages-inbox.js"></script>
    <script> 
    </script>
 </body>

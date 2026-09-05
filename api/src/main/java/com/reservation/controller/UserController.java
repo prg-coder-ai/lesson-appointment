@@ -216,14 +216,29 @@ public class UserController {
         // log.debug("out:" + users);
         return Result.success(users, "查询成功");
     } 
-    @GetMapping("/teacher/list")
-    @ResponseBody
-    public Result<List<User>>  teacherList() { 
-          String role="teacher";
-          List<User> users = userService.listByRole(role);
-         //log.debug("out:" + users);
+  @GetMapping("/teacher/list")
+  @ResponseBody
+  public Result<List<User>>  teacherList() { 
+        String role="teacher";
+        List<User> users = userService.listByRole(role);
+       //log.debug("out:" + users);
         return Result.success(users, "查询成功");
-    } 
+  } 
+
+    /**
+     * 消息中心：接收人解析。前端/自动发送据 scope 解析目标接收人列表（不含密码）。
+     * scope: tenant_admin(本租户管理员) | platform_admin(全部平台管理员) |
+     *        teachers(本租户教师) | students(本租户学生) |
+     *        my_teachers(当前学生已约课教师) | my_students(当前教师已约课学生)
+     * 仅平台管理员可传 tenantId 跨租户查询；其余身份按自身租户过滤。
+     */
+    @GetMapping("/message-recipients")
+    @ResponseBody
+    public Result<List<User>> messageRecipients(@RequestParam String scope,
+            @RequestParam(required = false) Long tenantId,
+            @RequestHeader("Authorization") String token) {
+        return userService.messageRecipients(scope, tenantId, token);
+    }
  
     /**
      * 查询账号（邮箱/电话）是否已存在

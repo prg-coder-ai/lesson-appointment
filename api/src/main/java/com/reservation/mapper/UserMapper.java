@@ -128,6 +128,14 @@ public interface UserMapper extends BaseMapper<User> {
 
       @Select("SELECT * FROM user WHERE role = #{role}")
        List<User> listByRole(@Param("role") String role);
+
+    /**
+     * 忽略租户插件过滤，按角色查询全量用户（用于消息中心接收人解析：跨租户查平台管理员 / 指定租户管理员）。
+     * 注意：返回结果仍含 tenant_id，调用方需按业务租户自行过滤。
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT * FROM user WHERE role = #{role}")
+    List<User> listByRoleIgnoreTenant(@Param("role") String role);
  
     
 }

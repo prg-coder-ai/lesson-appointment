@@ -4,6 +4,7 @@ import com.reservation.common.*;
 import com.reservation.entity.TenantPackage;
 import com.reservation.query.TenantPackageQueryPage;
 import com.reservation.service.TenantPackageService;
+import com.reservation.service.MessageNotifyService;
 import com.reservation.service.TenantQuotaService;
 import com.reservation.utils.PermissionCheck;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +32,8 @@ public class TenantPackageController {
     private TenantQuotaService tenantQuotaService;
     @Autowired
     private PermissionCheck permissionCheck;
+    @Autowired
+    private MessageNotifyService messageNotifyService;
 
     /**
      * 创建租户套餐（管理员权限）
@@ -40,6 +43,8 @@ public class TenantPackageController {
                                                    @RequestHeader("Authorization") String token) {
         permissionCheck.checkPlatformAdmin(token);
         Long id = tenantPackageService.insertPackage(pkg);
+        // 系统自动通知：平台管理员创建租户套餐 → 该租户管理员
+        messageNotifyService.notifyTenantPackageChanged(pkg.getTenantId(), "创建");
         return Result.success(Map.of("packageId", id), "租户套餐创建成功");
     }
 
@@ -51,6 +56,8 @@ public class TenantPackageController {
                                                    @RequestHeader("Authorization") String token) {
         permissionCheck.checkPlatformAdmin(token);
         Long id = tenantPackageService.updatePackage(pkg);
+        // 系统自动通知：平台管理员修改租户套餐配额 → 该租户管理员
+        messageNotifyService.notifyTenantPackageChanged(pkg.getTenantId(), "修改");
         return Result.success(Map.of("packageId", id), "租户套餐修改成功");
     }
 
@@ -113,6 +120,8 @@ public class TenantPackageController {
                                                         @RequestHeader("Authorization") String token) {
         permissionCheck.checkPlatformAdmin(token);
         Long id = tenantPackageService.createFromTemplate(tenantId, templateId);
+        // 系统自动通知：平台管理员按模板创建租户套餐 → 该租户管理员
+        messageNotifyService.notifyTenantPackageChanged(tenantId, "创建");
         return Result.success(Map.of("packageId", id), "租户套餐创建成功");
     }
 
@@ -125,6 +134,8 @@ public class TenantPackageController {
                                           @RequestHeader("Authorization") String token) {
         permissionCheck.checkPlatformAdmin(token);
         tenantQuotaService.switchTemplate(tenantId, templateId);
+        // 系统自动通知：平台管理员切换租户套餐模板 → 该租户管理员
+        messageNotifyService.notifyTenantPackageChanged(tenantId, "切换模板");
         return Result.success(true, "套餐模板变更成功");
     }
 

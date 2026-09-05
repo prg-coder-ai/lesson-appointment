@@ -52,6 +52,11 @@
         <i class="fa fa-list-alt"></i>
         <span>我的预订</span>
       </div>
+      <div class="menu-item" key="messages">
+        <i class="fa fa-bell"></i>
+        <span>消息中心</span>
+        <span class="msg-badge" id="msg-unread-badge" style="display:none;"></span>
+      </div>
       <!-- <div class="menu-item" key="course_review">
         <i class="fa fa-star-half-o"></i>
         <span><span data-term="course">课程</span>评价</span>
@@ -177,6 +182,7 @@
       }
 
        addChangePasswordButton();
+       if (typeof window.initMessageBadge === 'function') window.initMessageBadge();
        loadAdminPageContent(currentMenuitem);
     };
 
@@ -240,6 +246,12 @@
         case 'my_booking': 
             renderStudentBookingBrowserCards(); //StudentBookingBrowserCards
             
+          break;
+          
+        case 'messages':
+          if (typeof window.renderMessagesPage === 'function') {
+            window.renderMessagesPage(dynamicContentCenter);
+          }
           break;
           
         case 'course_review':
@@ -409,6 +421,7 @@
   <script src="js/student-bookingCards.js"></script>
   <script src="js/student-bookingBrowserCards.js"></script>
   <script src="js/admin-AppointmentNotes.js"></script>
+  <script src="js/messages-inbox.js"></script>
 <script> 
 </script>
 </body>

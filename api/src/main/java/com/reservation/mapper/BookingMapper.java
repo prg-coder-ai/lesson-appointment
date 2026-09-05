@@ -9,6 +9,8 @@ import com.reservation.query.BookingQueryPage;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
+import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
  
 import java.util.List;
@@ -48,6 +50,21 @@ public interface BookingMapper extends BaseMapper<Booking>{
     int deleteByScheduleId(@Param("scheduleId") String scheduleId); 
     
     int countBookingByScheduleId(@Param("scheduleId") String scheduleId);
-    
+
+    /** 某学生已约课(去重)的教师 userId 列表（用于消息中心「我的教师」） */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT DISTINCT teacher_id FROM booking WHERE student_id = #{studentId} AND tenant_id = #{tenantId}")
+    List<String> selectTeacherIdsByStudent(@Param("studentId") String studentId, @Param("tenantId") Long tenantId);
+
+    /** 某教师已约课(去重)的学生 userId 列表（用于消息中心「我的学生」） */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT DISTINCT student_id FROM booking WHERE teacher_id = #{teacherId} AND tenant_id = #{tenantId}")
+    List<String> selectStudentIdsByTeacher(@Param("teacherId") String teacherId, @Param("tenantId") Long tenantId);
+
+    /** 按 booking_id 查询（忽略租户隔离，供消息自动发送跨租户解析发送对象） */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT * FROM booking WHERE booking_id = #{id}")
+    Booking selectByIdIgnoreTenant(@Param("id") String id);
+
     // 以下可根据实际需要扩展
 } 

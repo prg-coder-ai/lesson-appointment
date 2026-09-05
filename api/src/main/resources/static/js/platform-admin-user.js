@@ -129,6 +129,7 @@ function renderPlatformUserRows(rows) {
       <td>
         <button class="btn btn-default" onclick="openPlatformEditUser('${u.userId}')">编辑</button>
         <button class="btn btn-warning" onclick="openPlatformResetPwd('${u.userId}')">重置密码</button>
+        <button class="btn btn-info" onclick="window.openComposeToUser('${u.userId}','${u.role}','${(u.name||'').replace(/'/g,'')}')">发消息</button>
         ${isSelf
           ? '<span style="color:#aaa;font-size:12px;" title="不能冻结/删除当前登录账号">(当前登录)</span>'
           : (isFrozen

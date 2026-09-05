@@ -64,6 +64,11 @@
           <i class="fa fa-cog"></i>
           <span>系统设置</span>
         </div>
+        <div class="menu-item" key="messages">
+          <i class="fa fa-bell"></i>
+          <span>消息中心</span>
+          <span class="msg-badge" id="msg-unread-badge" style="display:none;"></span>
+        </div>
       </div>
 
       <div class="menu-group">
@@ -129,6 +134,11 @@
         break;
       case "config":
         if (typeof renderConfigPage === 'function') renderConfigPage();
+        break;
+      case "messages":
+        if (typeof window.renderMessagesPage === 'function') {
+          window.renderMessagesPage(dynamicContentCenter);
+        }
         break;
       // 系统日志 / 审计日志：与 admin.html 一致，跳转到独立页面浏览。
       // 带 from 参数，使日志页的「返回」按钮能回到平台管理端而不是 admin.html。
@@ -215,6 +225,7 @@
       loadAdminPageContent('overview');
     }
     addChangePasswordButton();
+    if (typeof window.initMessageBadge === 'function') window.initMessageBadge();
   };
   </script>
 
@@ -229,7 +240,7 @@
   <script src="js/public/courseAndBooking.js"></script>
   <script src="js/public/appointmentNotes.js"></script>
 
-  <!-- 平台管理员功能页（租户 / 套餐 / 运营统计 / 系统设置） -->
+  <!-- 平台管理员功能页（租户 / 用户 / 套餐 / 运营统计 / 系统设置） -->
    <script src="js/platform-admin-tenant.js"></script>
   <script src="js/platform-admin-user.js"></script>
   <script src="js/platform-admin-package.js"></script>
@@ -237,6 +248,7 @@
   <script src="js/platform-admin-config.js"></script>
   <script src="js/platform-admin-config-industry.js"></script>
   <script src="js/platform-admin-config-term.js"></script>
+  <script src="js/messages-inbox.js"></script>
  
   <script>
   </script>

@@ -243,6 +243,7 @@
                     ${tea.status === "active" ? `<button class="btn btn-warning" onclick="disableTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-ban"></i> 禁用</button>` :'' }
                     ${tea.status === "pending" ? `<button class="btn btn-danger" onclick="deleteTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-trash"></i> 删除</button>` :'' }
                     <button class="btn btn-warning" onclick="resetUserPasswd('${tea.userId}')"><i class="fa fa-trash"></i> 重置密码</button>
+                    <button class="btn btn-info" onclick="window.openComposeToUser('${tea.userId}','${tea.role}','${(tea.name||'').replace(/'/g,"")}')"><i class="fa fa-comment"></i> 发消息</button>
                      
                   </td>
                 </tr>

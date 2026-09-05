@@ -8,6 +8,7 @@ import com.reservation.query.BookingQueryPage;
 import com.reservation.service.BookingService;
 import com.reservation.audit.Audit;
 import com.reservation.audit.AuditAction;
+import com.reservation.service.MessageNotifyService;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -21,12 +22,16 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class BookingController { 
     private final BookingService bookingService;
+    private final MessageNotifyService messageNotifyService;
 //create/update/updateStatus：返回id
     @PostMapping("/create")
     @Audit(action = AuditAction.BOOKING_CREATE, resourceType = "booking")
     public Result<String> create(@RequestBody Booking booking) {
         try {
-            return Result.success(bookingService.create(booking),"ok");
+            String id = bookingService.create(booking);
+            // 系统自动通知：学生预订课程 → 对应教师 + 本租户管理员
+            messageNotifyService.notifyBookingCreated(id);
+            return Result.success(id,"ok");
         } catch (IllegalArgumentException e) {
             return Result.fail(null,e.getMessage());
         }
@@ -45,6 +50,10 @@ public class BookingController {
     public Result<String> updateStatus(@RequestBody(required = true) BookingDTO dto) {
         try {
             String rs = bookingService.updateStatus(dto);
+            // 系统自动通知：管理员确认预订 → 该学生（仅"确认"状态触发）
+            if ("bookProved".equals(dto.getStatus())) {
+                messageNotifyService.notifyStudentConfirmed(dto.getId(), "课程预约");
+            }
             return Result.success(rs,"ok");
         } catch (RuntimeException e) {
             return Result.fail(null,e.getMessage());
