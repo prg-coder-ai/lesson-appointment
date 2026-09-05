@@ -48,6 +48,10 @@
           <i class="fa fa-building"></i>
           <span>租户管理</span>
         </div>
+        <div class="menu-item" key="user">
+          <i class="fa fa-users-cog"></i>
+          <span>用户管理</span>
+        </div>
         <div class="menu-item" key="package">
           <i class="fa fa-th-large"></i>
           <span>套餐管理</span>
@@ -113,6 +117,9 @@
         break;
       case "tenant":
         if (typeof renderTenantCards === 'function') renderTenantCards();
+        break;
+      case "user":
+        if (typeof renderPlatformUserPage === 'function') renderPlatformUserPage();
         break;
       case "package":
         if (typeof renderPackageCards === 'function') renderPackageCards();
@@ -224,6 +231,7 @@
 
   <!-- 平台管理员功能页（租户 / 套餐 / 运营统计 / 系统设置） -->
    <script src="js/platform-admin-tenant.js"></script>
+  <script src="js/platform-admin-user.js"></script>
   <script src="js/platform-admin-package.js"></script>
   <script src="js/platform-admin-dashboard.js"></script>
   <script src="js/platform-admin-config.js"></script>

@@ -8,6 +8,7 @@ import com.reservation.entity.User;
 import com.reservation.audit.Audit;
 import com.reservation.audit.AuditAction;
 import com.reservation.service.UserService;
+import com.reservation.utils.PermissionCheck;
 import com.reservation.utils.TenantContext;
 import org.springframework.validation.annotation.Validated;
 // 核心导入：RequestMethod 所在包
@@ -28,6 +29,8 @@ import lombok.extern.slf4j.Slf4j;
 public class UserController { 
      @Autowired
     private UserService userService; 
+     @Autowired
+    private PermissionCheck permissionCheck;
 
     //TBD条件：role,所属机构 
     /**
@@ -68,6 +71,43 @@ public class UserController {
          PageResult<User> users = userService.listByConditionPage(queryCondition); 
         // log.debug("out:" + users);
         return Result.success(users, "查询成功");
+    }
+
+    /**
+     * 平台管理员「用户管理」分页接口：跨租户查看/管理 role=platform_admin 与 admin 两类账号。
+     * 仅平台管理员可调（permissionCheck.isPlatformAdmin）。返回含 orgName（admin 所属租户机构名，
+     * platform_admin 为空，前端显示「平台」）。
+     * 前端调用：GET /user/platformPage?pageNum=&pageSize=&status=&account=
+     */
+    @GetMapping("/platformPage")
+    @ResponseBody
+    public Result<PageResult<User>> listPlatformAdminPage(UserQueryPage queryCondition,
+                                                          @RequestHeader("Authorization") String token) {
+        if (!permissionCheck.isPlatformAdmin(token)) {
+            throw new com.reservation.exception.NoPermissionException("您无平台管理员权限，无法执行该操作");
+        }
+        PageResult<User> users = userService.platformAdminPage(queryCondition);
+        return Result.success(users, "查询成功");
+    }
+
+    /**
+     * 平台管理员「用户管理」修改某用户所属公司名称（仅平台管理员）。
+     *  - admin(tenant_id>0)：写入其所属租户 sys_tenant.org_name
+     *  - platform_admin(tenant_id=0)：写入 tenant_code='platform' 平台自身行的 org_name
+     * 请求体：{ userId, orgName }
+     */
+    @PostMapping("/updateCompany")
+    @ResponseBody
+    public Result<Object> updateCompany(@RequestBody java.util.Map<String, Object> body,
+                                        @RequestHeader("Authorization") String token) {
+        if (!permissionCheck.isPlatformAdmin(token)) {
+            throw new com.reservation.exception.NoPermissionException("您无平台管理员权限，无法执行该操作");
+        }
+        String userId = body.get("userId") == null ? null : String.valueOf(body.get("userId"));
+        String orgName = body.get("orgName") == null ? null : String.valueOf(body.get("orgName"));
+        String err = userService.updateCompanyName(userId, orgName);
+        if (err != null) return Result.fail(400, err);
+        return Result.success(true, "修改成功");
     }
 
     @GetMapping("/name/{userId}")

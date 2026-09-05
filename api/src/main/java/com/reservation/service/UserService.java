@@ -575,6 +575,147 @@ public User selectById(String userId) {
         PageResult<User> result = PageResult.of(page);
         return result;
     };
+
+    /**
+     * 平台管理员「用户管理」分页：跨租户查看 role=platform_admin/admin 两类账号。
+     * 前提：调用方必须已是平台管理员（tenantId=0），此时 TenantLineInnerInterceptor.ignoreTable
+     * 全表返回 true，本方法取到的是【全平台】user 数据，不含租户条件。
+     *
+     * 与通用 listByConditionPage 的区别：
+     *  1) 只返回 platform_admin / admin 两种角色（列表需同时展示"平台管理员"与"租户管理员"）；
+     *  2) 返回每行的 orgName（admin 所属租户机构名；platform_admin 无 sys_tenant，置空由前端显示「平台」）；
+     *  3) account 由 SQL LIKE、name/email/phone 由内存解密后模糊匹配（沿用现有加密字段策略）。
+     *
+     * 分页在内存中完成（管理员账号数量级小，跨租户总量可控）。
+     */
+    public PageResult<User> platformAdminPage(UserQueryPage query) {
+        // 请求体可能为空，给默认分页
+        UserQueryPage sqlQ = new UserQueryPage();
+        if (query != null) {
+            sqlQ.setStatus(query.getStatus());
+            sqlQ.setAccount(query.getAccount());
+            sqlQ.setUserId(query.getUserId());
+        }
+        // SQL 层取全量候选（role 留给内存 IN 过滤，因为要同时命中 admin + platform_admin）
+        List<User> all = userMapper.listByConditionAll(sqlQ);
+        decryptUserList(all);
+
+        List<User> filtered = new java.util.ArrayList<>();
+        if (all != null) {
+            for (User u : all) {
+                if (u == null) continue;
+                String r = u.getRole();
+                if (!RoleConst.ADMIN.equals(r) && !RoleConst.PLATFORM_ADMIN.equals(r)) {
+                    continue; // 只管理这两类管理员
+                }
+                if (query != null && matchAdminQuery(u, query)) {
+                    filtered.add(u);
+                }
+            }
+        }
+        int total = filtered.size();
+        int pageNum = (query == null || query.getPageNum() == null) ? 1 : query.getPageNum();
+        int pageSize = (query == null || query.getPageSize() == null) ? 10 : query.getPageSize();
+        int from = (pageNum - 1) * pageSize;
+        int to = Math.min(from + pageSize, total);
+        List<User> pageList = (from < total)
+                ? new java.util.ArrayList<>(filtered.subList(from, to))
+                : new java.util.ArrayList<>();
+
+        // 删除密码 + 补公司名称
+        for (User u : pageList) {
+            if (u != null) u.setPassword(null);
+        }
+        fillOrgName(pageList);
+
+        Page<User> page = new Page<>(pageNum, pageSize);
+        page.setRecords(pageList);
+        page.setTotal(total);
+        return PageResult.of(page);
+    }
+
+    // admin 查询条件匹配：account 已在 SQL LIKE，这里补齐 name/email/phone 的内存模糊；status/userId 已在 SQL。
+    // role：仅当请求方显式指定（全部/平台管理员/租户管理员）时收窄到该单角色。
+    private boolean matchAdminQuery(User u, UserQueryPage q) {
+        if (q.getRole() != null && !q.getRole().isEmpty()
+                && !q.getRole().equals(u.getRole())) {
+            return false;
+        }
+        if (q.getName() != null && !q.getName().isEmpty()) {
+            if (u.getName() == null || !u.getName().contains(q.getName())) return false;
+        }
+        if (q.getEmail() != null && !q.getEmail().isEmpty()) {
+            if (u.getEmail() == null || !u.getEmail().contains(q.getEmail())) return false;
+        }
+        if (q.getPhone() != null && !q.getPhone().isEmpty()) {
+            if (u.getPhone() == null || !u.getPhone().contains(q.getPhone())) return false;
+        }
+        return true;
+    }
+    // 按 tenant_id 批量补 orgName：
+    //   - tenantId>0            → sys_tenant.org_name（租户管理员所属机构）
+    //   - tenantId==0(平台管理员) → 平台自身行的 org_name（tenant_code='platform'，公司名可在用户管理里编辑）
+    private void fillOrgName(List<User> users) {
+        if (users == null || users.isEmpty()) return;
+        Tenant platformTenant = null;
+        java.util.Map<Long, Tenant> tenantMap = new java.util.HashMap<>();
+        try {
+            for (Tenant t : tenantService.listAll()) {
+                if (t == null || t.getId() == null) continue;
+                tenantMap.put(t.getId(), t);
+                if ("platform".equals(t.getTenantCode())) platformTenant = t;
+            }
+        } catch (Exception e) {
+            log.warn("平台用户列表补机构名失败(忽略,仅影响公司列): {}", e.getMessage());
+            return;
+        }
+        for (User u : users) {
+            if (u == null) continue;
+            Long tid = u.getTenantId();
+            if (tid != null && tid > 0) {
+                Tenant t = tenantMap.get(tid);
+                if (t != null) u.setOrgName(t.getOrgName());
+            } else {
+                // tenant_id=0 平台管理员：映射到 tenant_code='platform' 的平台自身行
+                if (platformTenant != null) u.setOrgName(platformTenant.getOrgName());
+            }
+        }
+    }
+
+    /**
+     * 平台管理员「用户管理」修改某用户所属公司名称。
+     *  - admin(tenant_id>0)：写入其所属 sys_tenant.org_name（会同步影响该租户全体用户与租户管理页展示的公司名）
+     *  - platform_admin(tenant_id=0)：写入 tenant_code='platform' 平台自身行的 org_name
+     * @return null 表示成功；否则为错误提示字符串
+     */
+    public String updateCompanyName(String userId, String companyName) {
+        if (userId == null || userId.isBlank()) return "用户Id不能为空";
+        if (companyName == null || companyName.isBlank()) return "公司名称不能为空";
+        User user = userMapper.selectById(userId);
+        if (user == null) return "用户不存在";
+        Long tid = user.getTenantId();
+        try {
+            // 仅携带 id + orgName，updateTenant 内部走 tenantMapper.updateById（null 字段被 MyBatis-Plus 跳过），
+            // 因此只更新 org_name，不触碰该租户的编码/状态/联系人等其它字段。
+            Tenant patch = new Tenant();
+            patch.setOrgName(companyName.trim());
+            if (tid != null && tid > 0) {
+                Tenant exist = tenantService.getById(tid);
+                if (exist == null) return "该用户所属租户不存在";
+                patch.setId(tid);
+            } else {
+                // tenant_id=0 平台管理员：公司名写入 tenant_code='platform' 的平台自身行
+                Tenant platform = tenantService.getByCode("platform");
+                if (platform == null) return "平台自身行不存在，请先初始化";
+                patch.setId(platform.getId());
+            }
+            tenantService.updateTenant(patch);
+            return null;
+        } catch (Exception e) {
+            log.warn("修改用户公司名失败: {}", e.getMessage(), e);
+            return "保存失败：" + e.getMessage();
+        }
+    }
  
 
     public List<User> listByRole(String role) {

@@ -75,6 +75,14 @@ public class User implements Serializable{
     // 账号状态（padding/active/inactive/frozen），对应设计2.2.1 教师注册审核、设计2.2.5 用户管理
     private String status;
 
+    /**
+     * 所属机构/公司名称（列表展示用，非数据库字段）。
+     * 平台管理员(tenant_id=0) 无对应 sys_tenant 记录，此值留空，前端显示「平台」；
+     * 租户管理员(admin) 由列表 SQL LEFT JOIN sys_tenant 填充其 org_name。
+     */
+    @TableField(exist = false)
+    private String orgName;
+
     /** 最近活跃时间（在线统计辅助字段） */
     private java.time.LocalDateTime lastActiveTime;
 
