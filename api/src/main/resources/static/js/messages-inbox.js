@@ -142,7 +142,7 @@
       '.msg-pager{display:flex;justify-content:center;align-items:center;gap:12px;margin-top:16px;font-size:14px;}',
       '.btn-sm{padding:4px 10px;font-size:12px;}',
       '.msg-modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:2000;}',
-      '.msg-modal{background:#fff;width:600px;max-width:92vw;max-height:86vh;overflow:auto;border-radius:12px;padding:22px 24px;}',
+      '.msg-modal{background:#fff;width:600px;max-width:92vw;max-height:86vh;overflow:auto;border-radius:12px;padding:22px 24px;margin:0 auto;}',
       '.msg-modal h3{margin:0 0 10px;}',
       '.msg-modal .row{font-size:13px;color:#666;margin:6px 0;}',
       '.msg-modal .body{margin-top:12px;padding:12px;background:#fafafa;border-radius:8px;white-space:pre-wrap;word-break:break-word;font-size:14px;color:#333;}',

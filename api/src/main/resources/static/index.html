@@ -125,8 +125,9 @@
   <!-- 登录容器 -->
   <div class="login-container">
     <div class="login-header">
-      <div class="logo"><i class="fa fa-graduation-cap"></i></div>
-      <div class="title">语言教学预约系统</div>
+      <div class="title"><span id="brand-title">语言教学预约系统</span></div>
+      <div class="logo"><i class="fa fa-file-signature"></i></div>
+      
       <div class="subtitle">请登录</div>
     </div>
 
@@ -491,27 +492,24 @@
           console.warn('写入cookie失败（不影响核心流程）：', e);
         }
 
-        // 7. 2秒后关闭弹窗并按登录回跳逻辑跳转（优先消费 redirect）
+        // 7. 2秒后关闭弹窗，并【重定向到登录界面】
+        //    —— 注册账号需管理员审核（status=pending），故跳转登录页而非直接进入角色首页；
+        //    —— 跳转 URL 必须带上 tCode=注册时的租户编码，使登录页自动隐藏/锁定到该租户入口
+        //       （applyTcodeToLogin / applyTenantCodeRule 均按此参数生效）；
+        //    —— 同时把注册租户编码持久化到 localStorage，便于后续访问 index 时回显与复用。
         setTimeout(() => {
           registerModal.style.display = 'none';
           resetRegisterForm();
-          // 先查是否有保存的来源页 redirect（例如被 401 打回后注册新账号）
-          let redirectUrl = null;
-          if (typeof window.consumeLoginRedirect === 'function') {
-            redirectUrl = window.consumeLoginRedirect();
+          // 【修订】保存注册时的租户编码
+          const regTenantCode = (registerInfo.tenantCode || '').trim() || 'default';
+          try {
+            localStorage.setItem('lastRegisterTenantCode', regTenantCode);
+          } catch (e) {
+            console.warn('保存注册租户编码失败（不影响跳转）：', e);
           }
-          if (redirectUrl) {
-            // 有来源页：回跳到访问前的 URL（保留 hash/search）
-            window.location.assign(redirectUrl);
-          } else {
-            // 无来源页：按角色跳默认页，或者留在 index
-            // 因为注册的 role 是 registerInfo.role（student/teacher），这里用 redirectToUserPage 即可
-            if (typeof redirectToUserPage === 'function') {
-              redirectToUserPage({ role: registerInfo.role });
-            } else {
-              window.location.href = './index.html';
-            }
-          }
+          // 重定向到登录界面，URL 地址栏包含 tCode=注册时的租户编码（参数名与 getTenantCodeFromUrl 约定一致）
+          const loginUrl = './index.html?tCode=' + encodeURIComponent(regTenantCode);
+          window.location.assign(loginUrl);
         }, 2000);
 
         return true;
@@ -661,46 +659,46 @@
 
     /** 按角色与 URL 参数决定租户编码及其可编辑状态 */
     function applyTenantCodeRule() {
-      
       const urlCode = getTenantCodeFromUrl();
+      const tcFormItem = tenantCodeInput.closest('.form-item');
       if (urlCode) {
         tenantCodeInput.value = urlCode;
         tenantCodeInput.readOnly = true;
         if (urlCode === PLATFORM_TENANT_CODE) {
           registerRole.value = PLATFORM_ROLE;
-          undefined;
-        }
-        else { //租户-对平台角色选项不可见
-        // 注意：HTMLSelectElement.options 是 HTMLOptionsCollection，既没有 Array 的 findIndex，
-        // 其自身也没有 remove 方法（remove 定义在 <select> 元素上）。故用 select.remove(index)。
-        const roleSelect = document.getElementById('register-role');
-        const roleOptions = roleSelect.options;
-        let platformRoleIndex = -1;
-        for (let i = 0; i < roleOptions.length; i++) {
-          if (roleOptions[i].value === PLATFORM_ROLE) {
-            platformRoleIndex = i;
-            break;
+          // platform 专属链接：租户编码仍展示并锁定为 platform
+          tcFormItem.style.display = '';
+        } else {
+          // tcode 非 platform：隐藏「租户编码」标签与编辑框（已由专属链接代入，无需用户填写）
+          tcFormItem.style.display = 'none';
+          // 租户专属链接下平台管理员选项不可见
+          // 注意：HTMLSelectElement.options 是 HTMLOptionsCollection，既没有 Array 的 findIndex，
+          // 其自身也没有 remove 方法（remove 定义在 <select> 元素上）。故用 select.remove(index)。
+          const roleSelect = document.getElementById('register-role');
+          const roleOptions = roleSelect.options;
+          let platformRoleIndex = -1;
+          for (let i = 0; i < roleOptions.length; i++) {
+            if (roleOptions[i].value === PLATFORM_ROLE) {
+              platformRoleIndex = i;
+              break;
+            }
+          }
+          if (platformRoleIndex !== -1) {
+            roleSelect.remove(platformRoleIndex);
           }
         }
-        if (platformRoleIndex !== -1) {
-          roleSelect.remove(platformRoleIndex);
-        }
-      }
         return;
-      } 
+      }
 
+      // 无 tcode：恢复可见可编辑
+      tcFormItem.style.display = '';
       if (registerRole.value === PLATFORM_ROLE) {
         tenantCodeInput.value = PLATFORM_TENANT_CODE;
         tenantCodeInput.readOnly = true;
-        undefined;
         return;
-      } else
-      // 其他情况：由用户手动填写
-      {
-        tenantCodeInput.value = DEFAULT_TENANT_CODE;
-        tenantCodeInput.readOnly = false;//kexiugai
-        return ;  
       }
+      // 其他情况：由用户手动填写
+      tenantCodeInput.value = DEFAULT_TENANT_CODE;
       tenantCodeInput.readOnly = false;
     }
 
@@ -720,6 +718,34 @@
         tcInput.value = urlCode;
         tcInput.readOnly = true;
       } else {
+        tcInput.value = '';
+        tcInput.readOnly = false;
+      }
+    }
+
+    /**
+     * 登录界面 tcode 专属链接处理：
+     * URL 带 ?tcode=xx 时，隐藏「登录身份」与「租户编码」两项（标签+控件），
+     * 并将隐藏字段锁定为 tcode 对应的值——platform 锁定为平台管理员，其余锁定为租户端；
+     * 租户编码字段锁定为 tcode 本身（即"固定该下拉菜单的选择为 tcode 所代入的参数"）。
+     * 无 tcode 时恢复两项默认可见、可填。
+     */
+    function applyTcodeToLogin() {
+      const urlCode = getTenantCodeFromUrl();
+      const roleSel = document.getElementById('login-role');
+      const tcInput = document.getElementById('login-tenant-code');
+      const roleItem = roleSel.closest('.form-item');
+      const tcItem = tcInput.closest('.form-item');
+      if (urlCode) {
+        roleItem.style.display = 'none';
+        tcItem.style.display = 'none';
+        roleSel.value = (urlCode === PLATFORM_TENANT_CODE) ? PLATFORM_ROLE : 'tenant';
+        tcInput.value = urlCode;
+        tcInput.readOnly = true;
+      } else {
+        roleItem.style.display = '';
+        tcItem.style.display = '';
+        roleSel.value = '';
         tcInput.value = '';
         tcInput.readOnly = false;
       }
@@ -785,6 +811,8 @@
       //  redirectToUserPage(userInfo);
       // 页面加载时套用租户编码规则：URL 带 ?tcode=xx 时自动填充并锁定
       applyTenantCodeRule();
+      // 登录界面 tcode 专属链接：隐藏身份与租户编码并锁定为 tcode 对应值
+      applyTcodeToLogin();
   };
   </script>
 </body>

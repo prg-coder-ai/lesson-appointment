@@ -1,3 +1,4 @@
+body { margin: 0; }
 .header {
     height: 60px;
     background: #fff;
@@ -385,10 +386,13 @@ user-select: none;
     flex-wrap: nowrap;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    align-items: stretch;
+    gap: 10px;
+    padding: 2px 4px;
   }
-  .menu-group { margin-bottom: 0; }
+  .menu-group { display: flex; flex-direction: row; flex: 0 0 auto; align-items: stretch; margin-bottom: 0; }
   .menu-group-title { display: none; }
-  .menu-item { white-space: nowrap; padding: 12px 16px; border-radius: 0; }
+  .menu-item { white-space: nowrap; padding: 12px 14px; border-radius: 0; flex: 0 0 auto; }
   .content-wrapper { padding: 12px; }
   .dynamic-content-center { max-width: 100%; }
 

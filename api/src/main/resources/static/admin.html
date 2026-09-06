@@ -25,7 +25,9 @@
   <header class="header">
     <div class="logo">
       <img src="/images/admin_icon.jpg" alt="管理端logo">
-      <span class="logo-text">语言教学预约系统（管理端）</span>
+     
+       <span class="logo-text"><span id="brand-title">语言教学预约系统</span> （<span id="role-title">管理端</span>）</span>
+    </div>
     </div>
     <!-- 头部操作区 - 退出按钮  id_firstLetter  id_username" -->
     <div class="header-actions">
@@ -102,6 +104,15 @@
         <div class="menu-item" key="student">
           <i class="fa fa-user-graduate"></i>
           <span><span data-term="student">学生</span>管理</span>
+        </div>
+      </div>
+
+      <div class="menu-group">
+        <div class="menu-group-title">消息中心</div>
+        <div class="menu-item" key="messages">
+          <i class="fa fa-bell"></i>
+          <span>消息中心</span>
+          <span class="msg-badge" id="msg-unread-badge" style="display:none;"></span>
         </div>
       </div>
 
@@ -214,6 +225,14 @@
           break;
         case "lesson_notice":
           refreshAppointmentNotes();//admin-AppointmentNotes.js 上课通知
+          break;
+        case "messages":
+          if (typeof window.renderMessagesPage === 'function') {
+            window.renderMessagesPage(dynamicContentCenter);
+            if (typeof window.initMessageBadge === 'function') window.initMessageBadge();
+          } else {
+            if(dynamicContentCenter) dynamicContentCenter.innerHTML = '<div class="card"><div class="card-body">消息中心模块未加载（messages-inbox.js）。</div></div>';
+          }
           break;
         case "data_maintain":
           renderDatamaintainCards();

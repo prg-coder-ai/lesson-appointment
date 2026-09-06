@@ -132,6 +132,31 @@ public class TenantController {
     }
 
     /**
+     * 公开接口：按租户编码查询机构名称（用于登录页/品牌化标题，无需登录）
+     * GET /tenant/name?tenantCode=TENANT_A
+     *
+     * 返回：{ tenantCode, orgName }
+     * - 平台租户 code=platform 无 sys_tenant 记录 → orgName 为 null
+     * - 编码不存在 → orgName 为 null
+     * 该接口匿名可访问（已在 SecurityConfig / JwtAuthenticationFilter 白名单放开），
+     * 仅泄露机构名称，无敏感数据。
+     */
+    @GetMapping("/name")
+    public Result<Map<String, Object>> getTenantName(@RequestParam(required = false) String tenantCode) {
+        Map<String, Object> data = new HashMap<>();
+        if (tenantCode == null || tenantCode.trim().isEmpty()) {
+            data.put("tenantCode", null);
+            data.put("orgName", null);
+            return Result.success(data, "查询成功");
+        }
+        Tenant tenant = tenantService.getByCode(tenantCode.trim());
+        data.put("tenantCode", tenantCode.trim());
+        // sys_tenant 在 MyBatisPlusConfig 租户隔离忽略表中，getByCode 不受租户行级隔离影响
+        data.put("orgName", tenant != null ? tenant.getOrgName() : null);
+        return Result.success(data, "查询成功");
+    }
+
+    /**
      * 全部租户列表（平台管理员）
      */
     @GetMapping("/list")
