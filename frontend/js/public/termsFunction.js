@@ -1,7 +1,7 @@
 
 let domain_industry = "education";
 
-// 服务端合并词表（登录后从 /term/map 拉取，key -> term_name）
+// 服务端合并词表（登录后从 /api/v1/term/map 拉取，key -> term_name）
 // 优先级：租户词 > 行业词 > 平台词（后端已合并），覆盖本地 TERM_DICT
 let SERVER_TERM_MAP = null;
 
@@ -108,7 +108,7 @@ async function loadTermMapFromServer() {
     // 后端 JwtAuthenticationFilter 只认 `Bearer <token>`；此前直接传裸 token 恒返回 401，
     // 导致服务端三级合并词表（租户词 > 行业词 > 平台词）从未生效，只剩本地兜底词表。
     const auth = token.startsWith('Bearer ') ? token : ('Bearer ' + token);
-    const res = await fetch((window.API_BASE_URL || '') + '/term/map?lang=' + encodeURIComponent(lang), {
+    const res = await fetch((window.API_BASE_URL || '') + '/api/v1/term/map?lang=' + encodeURIComponent(lang), {
       headers: { 'Authorization': auth }
     });
     const json = await res.json();
@@ -140,7 +140,7 @@ async function syncIndustryFromTenant(tenantCode) {
     const qs = tenantCode ? ('?tenantCode=' + encodeURIComponent(tenantCode)) : '';
     // 后端 JwtAuthenticationFilter 只认 `Bearer <token>`，缺前缀会直接 401
     const auth = token.startsWith('Bearer ') ? token : ('Bearer ' + token);
-    const res = await fetch((window.API_BASE_URL || '') + '/tenant/industry' + qs, {
+    const res = await fetch((window.API_BASE_URL || '') + '/api/v1/tenant/industry' + qs, {
       headers: { 'Authorization': auth }
     });
     const json = await res.json();
@@ -176,7 +176,7 @@ function applyTenantTitle() {
   if (!tCode) return;                       // 无 tcode → 不改签
   const el = document.getElementById('brand-title');
   const base = (window.API_BASE_URL || '');
-  fetch(base + '/tenant/name?tenantCode=' + encodeURIComponent(tCode), { method: 'GET' })
+  fetch(base + '/api/v1/tenant/name?tenantCode=' + encodeURIComponent(tCode), { method: 'GET' })
     .then(r => r.json())
     .then(json => {
       const orgName = (json && json.code === 200 && json.data && json.data.orgName) ? json.data.orgName : null;
