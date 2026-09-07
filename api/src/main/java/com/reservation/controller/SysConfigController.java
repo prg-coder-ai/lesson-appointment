@@ -16,7 +16,7 @@ import java.util.Map;
  * 权限: 仅平台管理员可修改；只读查询对管理员开放
  */
 @RestController
-@RequestMapping("/sys/config")
+@RequestMapping("/api/v1/sys/config")
 public class SysConfigController {
 
     @Autowired

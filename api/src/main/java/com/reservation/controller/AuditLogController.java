@@ -16,7 +16,7 @@ import java.util.List;
  * 审计日志浏览接口（仅管理员可访问）
  */
 @RestController
-@RequestMapping("/api/audit-logs")
+@RequestMapping("/api/v1/audit-logs")
 public class AuditLogController {
 
     private final AuditLogMapper auditLogMapper;

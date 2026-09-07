@@ -10,10 +10,6 @@ import  com.reservation.utils.PermissionCheck;*/
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-/*import com.reservation.common.Result;
-import com.reservation.dto.TzSwitchPO;  
-import java.util.List;
-import java.util.Map;*/
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -21,7 +17,7 @@ import lombok.extern.slf4j.Slf4j;
    
  */
 @RestController
-@RequestMapping("/tz")
+@RequestMapping("/api/v1/tz")
 @Validated
 @Slf4j
 public class TimezoneCalcController {  

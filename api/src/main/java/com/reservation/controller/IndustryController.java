@@ -17,7 +17,7 @@ import java.util.List;
  * 权限: 仅平台管理员可操作（挂在「系统设置 - 行业管理」菜单下）
  */
 @RestController
-@RequestMapping("/industry")
+@RequestMapping("/api/v1/industry")
 public class IndustryController {
 
     @Autowired

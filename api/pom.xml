@@ -15,8 +15,8 @@
     </parent>
 
     <groupId>com.reservation</groupId>
-    <artifactId>booking</artifactId>   
-    <version>0.1.0</version> <!-- 版本号：快照版（开发中）/RELEASE（正式版） -->
+    <artifactId>booking_api</artifactId>   
+    <version>1.0.0</version> <!-- 版本号：快照版（开发中）/RELEASE（正式版） -->
     <name>booking</name>
     <description>lesson booking system</description>
 
@@ -168,6 +168,45 @@
                         <goals>
                             <goal>repackage</goal>
                         </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>com.github.eirslett</groupId>
+                <artifactId>frontend-maven-plugin</artifactId>
+                <version>1.15.1</version>
+                <configuration>
+                    <workingDirectory>${project.basedir}</workingDirectory>
+                    <installDirectory>target</installDirectory>
+                    <nodeVersion>v20.11.1</nodeVersion>
+                    <npmVersion>10.2.4</npmVersion>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>install-node-npm</id>
+                        <goals>
+                            <goal>install-node-and-npm</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>npm-install</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>npm</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>install</arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>npm-build-platform</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>npm</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>run build</arguments>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

@@ -15,6 +15,23 @@
 
   const API_BASE_URL = window.API_BASE_URL || '';
 
+  /**
+   * 统一 API 路径前缀：前后端分离后所有接口收敛到 /api/v1
+   * - 绝对地址（含 http，如 message-service 的 MESSAGE_API_BASE_URL）原样返回
+   * - 已是 /api/v1 原样返回
+   * - 旧 /api/* 自动升 /api/v1
+   * - 裸路径 /xxx 补 /api/v1
+   * 注意：axios 对以 / 开头的 url 会忽略 baseURL，故不能靠设 baseURL 解决，必须改 url 字符串
+   */
+  function normalizeUrl(url) {
+    if (!url) return url;
+    if (/^https?:\/\//i.test(url)) return url;
+    if (url.indexOf('/api/v1') === 0) return url;
+    if (url.indexOf('/api/') === 0) return '/api/v1' + url.slice(4);
+    if (url.charAt(0) === '/') return '/api/v1' + url;
+    return url;
+  }
+
   function showError(msg) {
     if (typeof window.showApiError === 'function') {
       window.showApiError(msg);
@@ -37,6 +54,10 @@
   const refreshTokenAxios = axios.create({
     baseURL: API_BASE_URL,
     timeout: 10000
+  });
+  refreshTokenAxios.interceptors.request.use((cfg) => {
+    cfg.url = normalizeUrl(cfg.url);
+    return cfg;
   });
   /**
    * getNewToken 的功能及原理：
@@ -228,6 +249,7 @@
   // 参考 dataFunctions.js 的注释/示例和官方文档！
   service.interceptors.request.use(
     (config) => {
+      config.url = normalizeUrl(config.url);
       const token = localStorage.getItem('token');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;

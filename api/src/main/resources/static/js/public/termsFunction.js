@@ -31,42 +31,24 @@ function getOptions(tagKey, fallbackOptions) {
   });
 }
 
-// 对某个根节点（默认整个 body）执行一次术语替换
- function applyTerms(root = document.body) {
+// 仅对显式标记 data-term / data-term-placeholder 的元素做整词替换（opt-in）。
+// 不再做任何"全局文本子串替换"——否则会从数据库读出的数值（如课程名含"课程/上课"）
+// 误替换成行业词，污染数据展示。所有需要本地化的标签/表头/标题，都应在 HTML/JS 里用
+// <span data-term="key">锚点词</span> 显式标记（项目已标记 120+ 处）。
+function applyTerms(root = document.body) {
   const terms = getTerms();
 
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  const skipTags = new Set(["SCRIPT", "STYLE", "TEXTAREA", "CODE", "PRE", "OPTION"]);
-  // 注意：input 的 value 不属于文本节点，单独处理
-
-  const nodes = [];
-  while (walker.nextNode()) {
-    const n = walker.currentNode;
-    const tag = n.parentElement && n.parentElement.tagName;
-    if (tag && skipTags.has(tag)) continue;
-    if (n.nodeValue && TERM_KEYS.some(t => n.nodeValue.includes(t.anchor))) {
-      nodes.push(n);
-    }
-  }
-  nodes.forEach(n => {
-    let s = n.nodeValue;
-    TERM_KEYS.forEach(t => { s = s.split(t.anchor).join(terms[t.key] != null ? terms[t.key] : t.anchor); });
-    n.nodeValue = s;
-  });
-
-  // 同步处理 data-term 标记的元素（方案 A 的渐进入口）
+  // 显式标记的元素：文本即整词，直接置为行业词，无子串污染风险
   root.querySelectorAll("[data-term]").forEach(el => {
     const key = el.dataset.term;
     if (terms[key]) el.textContent = terms[key];
   });
 
-  // placeholder / title 等 HTML 属性
+  // placeholder 等 HTML 属性
   root.querySelectorAll("[data-term-placeholder]").forEach(el => {
     const key = el.dataset.termPlaceholder;
     if (terms[key]) el.placeholder = terms[key];
   });
-
-  // <option> 文本已被 TreeWalker 排除的话取消 skipTags 中的 OPTION（见 3.5 注意事项）
 }
  
 // 把含行业词的字符串还原为锚点词字符串（纯字符串处理，不动 DOM）。
@@ -91,38 +73,16 @@ function getCurrentIndustry() {
 }
 
 // 把当前行业词还原为锚点词（education 默认词）。
-// 关键：只遍历文本节点改 nodeValue，绝不用 textContent 赋值（那会清空元素的全部子节点）
+// 仅还原显式标记 data-term 的元素文本为锚点词（opt-in，与 applyTerms 一致）。
+// 不再做全局文本反向替换，避免把数据库数值里的行业词错误还原成锚点词。
 function restoreAnchorTerms(root = document.body) {
   const industry = getCurrentIndustry();
-  const oldTerms = getTerms();
-  if (!oldTerms || industry === "education") return; // education 的词本身就是锚点词，无需还原
-
-  // 反向替换对：行业词 → 锚点词；必须长词在前
-  // （如 legal 的 "咨询时间"/"咨询时长" 要先于 "咨询" 处理，否则 "咨询时长" 会被拆成 "上课时长"）
-  const pairs = TERM_KEYS
-    .filter(t => oldTerms[t.key] && oldTerms[t.key] !== t.anchor)
-    .map(t => ({ from: oldTerms[t.key], to: t.anchor }))
-    .sort((a, b) => b.from.length - a.from.length);
+  if (industry === "education") return; // education 的词本身就是锚点词，无需还原
 
   // data-term 元素：文本即整词，直接置回锚点词
   root.querySelectorAll("[data-term]").forEach(el => {
     const t = TERM_KEYS.find(k => k.key === el.dataset.term);
     if (t) el.textContent = t.anchor;
-  });
-
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  const skipTags = new Set(["SCRIPT", "STYLE", "TEXTAREA", "CODE", "PRE", "OPTION"]);
-  const nodes = [];
-  while (walker.nextNode()) {
-    const n = walker.currentNode;
-    const tag = n.parentElement && n.parentElement.tagName;
-    if (tag && skipTags.has(tag)) continue;
-    if (n.nodeValue && pairs.some(p => n.nodeValue.includes(p.from))) nodes.push(n);
-  }
-  nodes.forEach(n => {
-    let s = n.nodeValue;
-    pairs.forEach(p => { s = s.split(p.from).join(p.to); });
-    n.nodeValue = s;
   });
 }
 
@@ -198,7 +158,74 @@ async function syncIndustryFromTenant(tenantCode) {
 
 // 页面加载完成后，按已存行业对静态 HTML 应用一次术语替换
 // （默认 education 时 DOM 本身就是锚点词，等于空操作；动态注入的内容由各渲染函数里的 applyTerms(container) 负责）
-document.addEventListener("DOMContentLoaded", () => { applyTerms(); loadTermMapFromServer(); });
+document.addEventListener("DOMContentLoaded", () => { applyTerms(); applyTenantTitle(); loadTermMapFromServer(); injectLangSwitch(); });
+
+// 读取 URL 中的租户编码参数（与 index.html 的 getTenantCodeFromUrl 约定一致，参数名 tCode 大小写敏感）
+function getTenantCodeParam() {
+  const params = new URLSearchParams(window.location.search);
+  const t = params.get('tCode');
+  return (t && t.trim()) ? t.trim() : '';
+}
+
+// 按 URL 中的 tcode 品牌化页面标题：把「语言教学预约系统」改签为「<租户机构名>预约系统」。
+// 仅在 URL 含 tcode 时生效——覆盖登录专属链接（index.html?tCode=xxx）以及登录后跳转的角色页
+// （redirectToUserPage 会带 ?tCode=<租户编码>）。机构名取自 sys_tenant.org_name，经公开接口 /tenant/name 获取（无需登录）。
+// 无机构名 / 接口异常时保持默认标题，不影响其它功能。
+function applyTenantTitle() {
+  const tCode = getTenantCodeParam();
+  if (!tCode) return;                       // 无 tcode → 不改签
+  const el = document.getElementById('brand-title');
+  const base = (window.API_BASE_URL || '');
+  fetch(base + '/tenant/name?tenantCode=' + encodeURIComponent(tCode), { method: 'GET' })
+    .then(r => r.json())
+    .then(json => {
+      const orgName = (json && json.code === 200 && json.data && json.data.orgName) ? json.data.orgName : null;
+      if (!orgName || !orgName.trim()) return;   // 无机构名则保留默认文案
+      const brand = orgName.trim() + '预约系统';
+      if (el) el.textContent = brand;            // 页面内可见标题
+      if (document.title && document.title.indexOf('语言教学预约系统') >= 0) {
+        document.title = document.title.replace('语言教学预约系统', brand); // 浏览器标签标题
+      }
+    })
+    .catch(() => { /* 接口异常：保持默认标题 */ });
+}
+
+// 界面语言切换：设置 localStorage.lang 并重新拉取服务端词表（后端按 lang 返回对应语言）
+// 用法：页面右下角悬浮 zh/en/fr 按钮，或控制台 setLang('en')
+function setLang(lang) {
+  const l = (lang || 'zh').trim().toLowerCase();
+  localStorage.setItem('lang', l);
+  // 更新悬浮按钮高亮
+  document.querySelectorAll('[data-lang-btn]').forEach(b => {
+    const on = b.dataset.langBtn === l;
+    b.style.background = on ? '#007bff' : 'transparent';
+    b.style.color = on ? '#fff' : '';
+  });
+  // 重新拉取服务端合并词表（内部按新 lang 请求并 applyTerms 刷新）
+  loadTermMapFromServer();
+}
+
+// 注入右下角语言切换悬浮条（自注入，所有页面共享，无需逐个改 HTML）
+function injectLangSwitch() {
+  if (document.getElementById('lang-switch-bar')) return;
+  const bar = document.createElement('div');
+  bar.id = 'lang-switch-bar';
+  bar.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:9999;display:flex;gap:4px;background:#fff;border:1px solid #e9ecef;border-radius:8px;padding:4px;box-shadow:0 2px 8px rgba(0,0,0,.12)';
+  ['zh', 'en', 'fr'].forEach(l => {
+    const b = document.createElement('button');
+    b.textContent = l.toUpperCase();
+    b.dataset.langBtn = l;
+    b.style.cssText = 'border:none;background:transparent;cursor:pointer;padding:4px 8px;border-radius:4px;font-size:12px';
+    b.onclick = () => setLang(l);
+    bar.appendChild(b);
+  });
+  document.body.appendChild(bar);
+  // 高亮当前语言
+  const cur = (localStorage.getItem('lang') || 'zh').trim().toLowerCase();
+  bar.querySelectorAll('[data-lang-btn]').forEach(b => {
+    if (b.dataset.langBtn === cur) { b.style.background = '#007bff'; b.style.color = '#fff'; }
+  });
+}
 
 // 测试入口：在浏览器控制台执行 switchIndustry("legal") / switchIndustry("education")
 // switchIndustry("legal");//ceshi 法律行业

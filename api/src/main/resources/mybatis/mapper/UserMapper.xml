@@ -67,6 +67,9 @@
          AND  c.user_id = #{userId}
          </when>
        </choose>
+        <if test="account != null and account != ''">
+          AND c.account LIKE CONCAT('%', #{account}, '%')
+        </if>
       </where>
        <if test="pageSize != null and pageNum != null">
          LIMIT #{pageSize} OFFSET ${(pageNum - 1) * pageSize}
@@ -95,6 +98,9 @@
           AND  c.user_id = #{userId}
            </when>
          </choose>
+        <if test="account != null and account != ''">
+          AND c.account LIKE CONCAT('%', #{account}, '%')
+        </if>
       </where>
    </select>
 
@@ -121,6 +127,9 @@
                AND  c.user_id = #{userId}
           </when>
        </choose>
+        <if test="account != null and account != ''">
+          AND c.account LIKE CONCAT('%', #{account}, '%')
+        </if>
       </where> 
    </select>
 </mapper>

@@ -20,7 +20,7 @@ import java.util.Map;
  * 权限: 管理员（创建/修改/删除）、教师或管理员（查询）
  */
 @RestController
-@RequestMapping("/course/template")
+@RequestMapping("/api/v1/course/template")
 @Validated
 public class TemplateController {
 

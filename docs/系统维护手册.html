@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>预约系统系统维护手册</title>
+<style>
+  :root{ --brand:#c2410c; --ink:#1f2733; --muted:#5b6776; --line:#d9e0ea; --bg:#f6f8fb; --accent:#fff3ec; }
+  *{ box-sizing:border-box; }
+  body{ font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif; color:var(--ink); line-height:1.7; margin:0; background:var(--bg); }
+  .wrap{ max-width:1040px; margin:0 auto; padding:32px 40px 80px; background:#fff; }
+  header.cover{ text-align:center; border-bottom:3px solid var(--brand); padding-bottom:28px; margin-bottom:8px; }
+  header.cover h1{ font-size:30px; margin:18px 0 6px; color:var(--brand); letter-spacing:2px; }
+  header.cover .sub{ color:var(--muted); font-size:15px; }
+  header.cover .meta{ margin-top:18px; font-size:13px; color:var(--muted); }
+  h2{ font-size:21px; color:var(--brand); border-left:6px solid var(--brand); padding-left:12px; margin-top:42px; }
+  h3{ font-size:17px; color:#234; margin-top:26px; border-bottom:1px dashed var(--line); padding-bottom:4px; }
+  h4{ font-size:15px; color:#a3340a; margin:18px 0 6px; }
+  p{ margin:8px 0; }
+  ul,ol{ margin:8px 0 8px 22px; padding:0; }
+  li{ margin:4px 0; }
+  table{ border-collapse:collapse; width:100%; margin:14px 0; font-size:13.5px; }
+  th,td{ border:1px solid var(--line); padding:8px 10px; vertical-align:top; text-align:left; }
+  th{ background:var(--accent); color:#234; font-weight:600; }
+  tr:nth-child(even) td{ background:#fafcff; }
+  code{ background:#eef1f6; padding:1px 6px; border-radius:4px; font-family:Consolas,Menlo,monospace; font-size:12.5px; color:#b5314d; white-space:pre-wrap; }
+  pre{ background:#1e2530; color:#e6edf3; padding:14px 16px; border-radius:8px; overflow:auto; font-size:12.5px; line-height:1.5; }
+  .box{ background:var(--accent); border:1px solid #ffcbab; border-radius:8px; padding:12px 16px; margin:14px 0; }
+  .warn{ background:#fff6e6; border:1px solid #ffd98a; }
+  .ok{ background:#eafaf3; border:1px solid #bfe9d4; }
+  .toc{ background:#fbfcfe; border:1px solid var(--line); border-radius:8px; padding:16px 24px; margin:24px 0; }
+  .toc a{ color:var(--brand); text-decoration:none; }
+  .toc a:hover{ text-decoration:underline; }
+  .page-footer{ margin-top:60px; border-top:1px solid var(--line); padding-top:14px; font-size:12px; color:var(--muted); text-align:center; }
+  @media print{ body{ background:#fff; } .wrap{ max-width:100%; } h2{ page-break-before:always; } pre{ white-space:pre-wrap; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="cover">
+  <h1>预约系统 · 系统维护手册</h1>
+  <div class="sub">部署、配置、构建、运维与故障排查指南</div>
+  <div class="meta">
+    文档版本：V1.0 ｜ 编制日期：2026-09-05 ｜ 适用对象：运维 / 实施 / 开发者
+  </div>
+</header>
+
+<div class="toc">
+  <strong>目录</strong>
+  <ol>
+    <li><a href="#s1">系统架构与部署拓扑</a></li>
+    <li><a href="#s2">环境要求</a></li>
+    <li><a href="#s3">配置说明</a></li>
+    <li><a href="#s4">构建与部署</a></li>
+    <li><a href="#s5">启动与重启流程</a></li>
+    <li><a href="#s6">日常运维</a></li>
+    <li><a href="#s7">数据库维护</a></li>
+    <li><a href="#s8">故障排查</a></li>
+    <li><a href="#s9">安全维护</a></li>
+  </ol>
+</div>
+
+<!-- 1 -->
+<h2 id="s1">1. 系统架构与部署拓扑</h2>
+<p>系统由两个<strong>相互独立</strong>的 Spring Boot 应用构成，各自拥有独立进程、端口与数据库 schema：</p>
+<table>
+  <tr><th>应用</th><th>主类</th><th>端口</th><th>数据库 schema</th><th>职责</th></tr>
+  <tr><td>api（主应用）</td><td><code>com.reservation.SpringBootMergeApplication</code></td><td>8081</td><td><code>lesson_appointment</code></td><td>认证、RBAC、租户隔离、业务 CRUD、运营监控；调用消息中心</td></tr>
+  <tr><td>message-service（消息中心）</td><td><code>com.messagecenter.MessageCenterApplication</code></td><td>8090</td><td><code>message_center</code></td><td>消息发送/收件箱/撤回/删除/SSE/分类/模板</td></tr>
+</table>
+<div class="box">两应用<strong>并非</strong> Maven <code>&lt;modules&gt;</code> 聚合子模块，而是各自独立工程（父 pom 未声明 module），须分别构建、分别启动。二者仅通过<strong>共享 JWT/AES 密钥域</strong>与 HTTP 互通，数据库<strong>物理隔离</strong>为两个 schema。</div>
+<p>前端静态资源（HTML/JS/CSS）随 api 应用托管于 8081，消息中心由前端通过同源路径直连。</p>
+
+<!-- 2 -->
+<h2 id="s2">2. 环境要求</h2>
+<table>
+  <tr><th>组件</th><th>版本 / 要求</th></tr>
+  <tr><td>操作系统</td><td>Windows / Linux（当前运行于 Windows，路径示例为 Windows）</td></tr>
+  <tr><td>JDK</td><td>Java 21（实测 JDK 21.0.8；父 pom 标注 17，应以 21 运行）</td></tr>
+  <tr><td>构建工具</td><td>Maven 3.9.x（实测 3.9.11）</td></tr>
+  <tr><td>数据库</td><td>MySQL 8.4（Connector/J 8.0.33），需先建库</td></tr>
+  <tr><td>内存</td><td>建议 ≥ 2GB 可用（两应用合计）</td></tr>
+</table>
+
+<!-- 3 -->
+<h2 id="s3">3. 配置说明</h2>
+<p>两个应用各有一份 <code>application.properties</code>，位于：</p>
+<ul>
+  <li>api：<code>api/src/main/resources/application.properties</code></li>
+  <li>message-service：<code>api/message-service/src/main/resources/application.properties</code></li>
+</ul>
+<h3>3.1 关键配置项</h3>
+<table>
+  <tr><th>配置键</th><th>说明</th><th>示例 / 默认值</th></tr>
+  <tr><td><code>server.port</code></td><td>监听端口</td><td>api=8081 / ms=8090</td></tr>
+  <tr><td><code>spring.datasource.url</code></td><td>数据库连接</td><td>api→<code>lesson_appointment</code>；ms→<code>message_center</code>（含 <code>createDatabaseIfNotExist=true</code>）</td></tr>
+  <tr><td><code>spring.datasource.username/password</code></td><td>数据库账号（支持 <code>${DB_USERNAME:root}</code> 环境变量覆盖）</td><td>root / 123456</td></tr>
+  <tr><td><code>jwt.secret</code></td><td><b>HS512 密钥（≥64 字节）</b>，两应用必须完全相同</td><td>共享值（不对外明文）</td></tr>
+  <tr><td><code>jwt.expiration</code></td><td>访问令牌有效期（毫秒）</td><td>360000000（≈100h）</td></tr>
+  <tr><td><code>crypto.aes-key</code> / <code>crypto.hmac-key</code></td><td>字段加密 / 索引密钥，两应用必须相同</td><td>共享 Base64 32 字节</td></tr>
+  <tr><td><code>message.service.base-url</code></td><td>api 调用消息中心的地址（仅 api 侧 <code>@Value</code> 默认值，ms 不直接使用）</td><td><code>http://localhost:8090</code></td></tr>
+  <tr><td><code>mybatis-plus.*</code></td><td>Mapper 路径、驼峰映射、主键策略（ms 用 <code>assign_id</code> 雪花）</td><td>见各自 properties</td></tr>
+  <tr><td><code>spring.devtools.restart.enabled</code></td><td>开发热重启（生产可关）</td><td>api=true</td></tr>
+</table>
+<div class="box warn"><b>密钥一致性是跨服务调用的硬前提</b>：若 api 与 message-service 的 <code>jwt.secret</code> 不一致，消息中心拦截器将拒绝 api 自签的 Token，导致自动通知与用户收发消息全部静默失败（仅记录告警日志）。修改任一密钥须两应用同步修改。</div>
+
+<!-- 4 -->
+<h2 id="s4">4. 构建与部署</h2>
+<h3>4.1 源码结构</h3>
+<pre># 项目根
+api/
+├─ pom.xml                      # 主应用（artifactId=booking）
+├─ src/main/java/com/reservation/...
+├─ src/main/resources/          # application.properties + static(前端)
+├─ message-service/             # 独立子工程（artifactId=message-service）
+│  ├─ pom.xml
+│  └─ src/main/java/com/messagecenter/...
+├─ sql/schema.sql               # 消息中心建库脚本
+├─ migration-20260901-tenant-industry.sql
+├─ migration-20260902-term.sql / -term-lang.sql
+├─ migration-20260904-user-account-unique.sql
+├─ run.sh / start-debug.bat     # 启动脚本
+└─ package.json                 # 仅用于拷贝前端 lib（axios/fullcalendar）</pre>
+
+<h3>4.2 编译</h3>
+<p>两个应用分别编译（以 Windows + 指定 Maven 家目录与本地仓库为例）：</p>
+<pre># 主应用
+cd api
+mvn -f pom.xml compile
+
+# 消息中心
+cd api/message-service
+mvn -f pom.xml compile</pre>
+<p class="ok">本项目实测可用的 Maven 启动方式（绕过受限仓库/IDE 锁）：以 <code>java -cp "&lt;maven_home&gt;/lib/*;plexus-classworlds.jar" org.apache.maven.cli.MavenCli compile</code> 显式指定 <code>maven.home</code> / <code>maven.repo.local</code> / <code>maven.multiModuleProjectDirectory</code>，可稳定完成注解处理与 Java 编译。</p>
+
+<!-- 5 -->
+<h2 id="s5">5. 启动与重启流程</h2>
+<h3>5.1 标准启动</h3>
+<pre># 消息中心（先启动，api 依赖它）
+java -cp "&lt;ms-classpath&gt;" -Dserver.port=8090 com.messagecenter.MessageCenterApplication
+
+# 主应用
+java -cp "&lt;api-classpath&gt;" -Dserver.port=8081 -Dfile.encoding=UTF-8 com.reservation.SpringBootMergeApplication</pre>
+<p>也可用 <code>mvn spring-boot:run</code> 或 <code>java -jar target/*.jar</code>（需先 <code>mvn package</code>）。本项目运行时采用<strong>扁平 classpath + <code>java -cp</code></strong> 启动（无 devtools 自动重载，改 Java 后须重启，改静态文件后须拷贝至 <code>target/classes/static</code>）。</p>
+
+<h3>5.2 重启主应用（含端口冲突处理）</h3>
+<div class="box warn"><b>已知坑：端口占用导致新实例启动失败。</b>重启前必须确认 8081 未被旧进程占用，否则新进程会在 Tomcat 绑定端口时报错退出，而旧进程仍在以<strong>旧 class</strong>运行（新代码未生效）。</div>
+<p>推荐重启步骤（Windows PowerShell + Bash 混合）：</p>
+<pre># 1) 查出占用 8081 的进程并确认身份
+Get-NetTCPConnection -LocalPort 8081 -State Listen | Select-Object OwningProcess
+Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*SpringBootMergeApplication*' } |
+  Select-Object ProcessId, CreationDate, CommandLine
+
+# 2) 停止旧 api 进程（保留 message-service）
+Stop-Process -Id &lt;旧api_PID&gt; -Force
+Start-Sleep -Seconds 2
+
+# 3) 用原 classpath 重新拉起单一 api
+java -cp "&lt;原api-classpath&gt;" -Dserver.port=8081 -Dfile.encoding=UTF-8 com.reservation.SpringBootMergeApplication &gt; api.log 2&gt;&amp;1 &amp;
+
+# 4) 校验：仅一个 api 进程且持有 8081，日志出现 "Started SpringBootMergeApplication"
+Get-NetTCPConnection -LocalPort 8081 -State Listen
+Select-String -Path api.log -Pattern "Started SpringBootMergeApplication"</pre>
+<div class="ok">正常状态：恰好<strong>一个</strong> api 进程持有 8081；若启用了 devtools，会多一个父进程（LiveReload 35729），属正常父子双进程，并非重复实例。</div>
+
+<h3>5.3 前端静态资源热更新</h3>
+<p>修改 <code>src/main/resources/static/**</code> 后，须将文件拷贝到 <code>target/classes/static/</code> 对应路径，浏览器刷新即可生效（无需重启）：</p>
+<pre>cp src/main/resources/static/js/messages-inbox.js target/classes/static/js/
+cp src/main/resources/static/admin.html        target/classes/static/</pre>
+
+<!-- 6 -->
+<h2 id="s6">6. 日常运维</h2>
+<h3>6.1 健康检查</h3>
+<table>
+  <tr><th>检查项</th><th>方式</th></tr>
+  <tr><td>端口监听</td><td><code>Get-NetTCPConnection -LocalPort 8081/-8090 -State Listen</code></td></tr>
+  <tr><td>进程存活</td><td>任务管理器 / <code>Get-CimInstance Win32_Process</code> 查 <code>SpringBootMergeApplication</code> / <code>MessageCenterApplication</code></td></tr>
+  <tr><td>API 健康</td><td><code>GET /monitor/api-health</code>（api）；消息中心 <code>GET /api/v1/users/{id}/inbox/unread-count</code> 返回 401 即服务在线（鉴权生效）</td></tr>
+  <tr><td>日志</td><td>api 启动日志 <code>api.log</code>；应用日志经 <code>GET /api/logs</code> 浏览</td></tr>
+</table>
+<h3>6.2 监控与审计</h3>
+<ul>
+  <li>运营仪表盘 <code>/dashboard</code>：租户用量、趋势、在线、到期预警。</li>
+  <li>系统监控 <code>/monitor</code>：CPU/内存/JVM/磁盘/线程/GC/在线用户（数据落 <code>sys_metric_sample</code> / <code>sys_metric_hourly</code>）。</li>
+  <li>审计日志 <code>/api/audit-logs</code>：记录用户操作行为。</li>
+</ul>
+
+<!-- 7 -->
+<h2 id="s7">7. 数据库维护</h2>
+<table>
+  <tr><th>schema</th><th>归属</th><th>关键表</th></tr>
+  <tr><td><code>lesson_appointment</code></td><td>api</td><td>user, booking, appointment, course, course_schedule, course_template, sys_tenant, sys_tenant_package, sys_package_template, sys_term, sys_industry, sys_system_config, sys_user_session, audit_log, user_refresh_token</td></tr>
+  <tr><td><code>message_center</code></td><td>message-service</td><td>msg_message, msg_inbox, msg_delivery, msg_category, msg_template, msg_batch_task</td></tr>
+</table>
+<h3>7.1 备份建议</h3>
+<pre># 业务库
+mysqldump -uroot -p lesson_appointment &gt; lesson_appointment_$(date +%F).sql
+# 消息库
+mysqldump -uroot -p message_center &gt; message_center_$(date +%F).sql</pre>
+<h3>7.2 迁移脚本（按日期顺序执行）</h3>
+<ul>
+  <li><code>migration-20260901-tenant-industry.sql</code>：sys_tenant 增加 industry_id。</li>
+  <li><code>migration-20260902-term.sql</code> + <code>-term-lang.sql</code>：建 sys_term 三级词汇 + 行业初始化。</li>
+  <li><code>migration-20260904-user-account-unique.sql</code>：账号唯一约束。</li>
+</ul>
+<div class="box">tenant_id=0 为平台级哨兵值（非真实租户行）；<code>sys_tenant.tenant_code='platform'</code> 行承载平台自身 org_name。迁移/手工改库时注意该语义，避免误删平台行。</div>
+
+<!-- 8 -->
+<h2 id="s8">8. 故障排查</h2>
+<table>
+  <tr><th>现象</th><th>可能原因</th><th>处理</th></tr>
+  <tr><td>api 启动报 "Port 8081 already in use"</td><td>旧 api 进程未释放端口</td><td>按 5.2 杀旧进程后重启；确认仅一个 api 持端口</td></tr>
+  <tr><td>新代码未生效（但进程在跑）</td><td>端口被旧实例占用，新实例启动失败</td><td>核对 <code>CreationDate</code>，杀旧拉新</td></tr>
+  <tr><td>自动通知 / 收发消息全部失败且无报错</td><td>api 与 ms 的 <code>jwt.secret</code> 不一致</td><td>比对两 properties 的 jwt.secret，保持一致后重启</td></tr>
+  <tr><td>前端提示"离线暂存"、消息发不出</td><td>message-service(:8090) 不可达</td><td>检查 ms 进程/端口；恢复后刷新页面触发自动重发（最多 10 条）</td></tr>
+  <tr><td>跨租户数据串扰 / 隔离失效</td><td>误将平台级表加入租户隔离，或 @InterceptorIgnore 误用</td><td>检查 <code>IGNORE_TABLES</code> 与 Mapper 上的 <code>@InterceptorIgnore(tenantLine="true")</code></td></tr>
+  <tr><td>登录/注册 401</td><td>白名单路径与真实映射不一致</td><td>核对 <code>SecurityConfig</code> 白名单（<code>/user/register</code>、<code>/user/account/exist</code> 等）</td></tr>
+  <tr><td>加密字段模糊搜索失效</td><td>phone/email/name 为 AES+ HMAC，须走内存解密后匹配</td><td>确认列表/分页逻辑在内存层解密再匹配</td></tr>
+</table>
+
+<!-- 9 -->
+<h2 id="s9">9. 安全维护</h2>
+<ul>
+  <li><b>密钥管理</b>：<code>jwt.secret</code>、<code>crypto.aes-key</code>、<code>crypto.hmac-key</code> 为系统安全根基，禁止明文提交到仓库；生产环境建议用环境变量（<code>${DB_USERNAME}</code> 同机制）或配置中心注入，且两应用保持完全一致。</li>
+  <li><b>账号唯一</b>：user.account 在租户内唯一（见 migration-20260904）；注册/代建时系统查重。</li>
+  <li><b>密码与敏感字段</b>：密码 BCrypt 不可逆；phone/email/name 加密存储，运维人员不应明文读取。</li>
+  <li><b>租户停用/删除</b>：sys_tenant 用 status + deleted 软删；TenantInterceptor 会拦截已停用/删除租户的访问（403）。</li>
+  <li><b>遗留引用</b>：<code>IGNORE_TABLES</code> 中的 <code>sys_platform_admin</code>、<code>sys_dict</code> 暂无实体/Mapper，属历史遗留，排查隔离问题时勿误判。</li>
+</ul>
+
+<div class="page-footer">预约系统系统维护手册 V1.0 · 2026-09-05 · 配套《规格说明书》《软件操作数据手册》</div>
+</div>
+</body>
+</html>

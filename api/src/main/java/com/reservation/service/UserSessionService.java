@@ -169,26 +169,14 @@ public class UserSessionService {
     }
 
     /**
-     * 各租户在线人数
+     * 各租户在线人数（含机构名）。
+     * 委托 Mapper 联表 sys_tenant 一次性取 tenantId / tenantName / onlineCount，
+     * 平台视角统计全平台，tenantLine 已在 Mapper 方法上显式忽略。
      */
     public List<Map<String, Object>> countOnlineByTenant() {
         int idleMinutes = sysConfigService.getInt(SysConfigService.KEY_ONLINE_IDLE, 5);
         LocalDateTime since = LocalDateTime.now().minusMinutes(idleMinutes);
-        LambdaQueryWrapper<UserSession> wrapper = new LambdaQueryWrapper<>();
-        wrapper.select(UserSession::getTenantId)
-               .eq(UserSession::getStatus, STATUS_ONLINE)
-               .ge(UserSession::getLastActive, since);
-        List<UserSession> sessions = userSessionMapper.selectList(wrapper);
-        Map<Long, Integer> counter = new java.util.LinkedHashMap<>();
-        if (sessions != null) {
-            for (UserSession s : sessions) {
-                Long tid = s.getTenantId() == null ? 0L : s.getTenantId();
-                counter.merge(tid, 1, Integer::sum);
-            }
-        }
-        List<Map<String, Object>> result = new ArrayList<>();
-        counter.forEach((k, v) -> result.add(Map.of("tenantId", k, "onlineCount", v)));
-        return result;
+        return userSessionMapper.countOnlineByTenantSql(since);
     }
 
     /**

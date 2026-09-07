@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/teacher/published")
+@RequestMapping("/api/v1/teacher/published")
 public class TeacherPublishedProfileController {
 
     @Autowired

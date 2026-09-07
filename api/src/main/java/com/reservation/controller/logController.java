@@ -13,7 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 
 
 @RestController
-@RequestMapping("/api/logs")
+@RequestMapping("/api/v1/logs")
 @Slf4j
 public class logController {
  

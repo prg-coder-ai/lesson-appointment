@@ -11,6 +11,7 @@ import com.reservation.exception.BusinessException;
 import com.reservation.exception.ResourceNotFoundException;
 import com.reservation.exception.UserNotFoundException;
 import com.reservation.mapper.UserMapper;
+import com.reservation.mapper.BookingMapper;
 import com.reservation.utils.JwtUtil;
 import com.reservation.utils.TenantContext;
 import lombok.extern.slf4j.Slf4j;
@@ -58,6 +59,8 @@ public class UserService {
     private TenantService tenantService;
     @Autowired
     private TenantQuotaService tenantQuotaService;
+    @Autowired
+    private BookingMapper bookingMapper;
     @Autowired
     private UserSessionService userSessionService;
 
@@ -240,10 +243,8 @@ public class UserService {
         User user = userMapper.getUserByAccount( account,tenantId);
         log.debug("userService login：" + user);
         HashMap<String, Object> resultMap = new HashMap<>();
-        if (user == null) { 
-          resultMap.put("message", "账号不存在");
-          resultMap.put("code", 404);
-           return Result.success(resultMap,"账号不存在");
+        if (user == null) {
+           return Result.fail(404, "账号不存在");
         }
         // 校验账号归属：账号必须属于当前请求租户。
         // 归属不符时返回与"账号不存在"一致的响应，避免据此枚举其他租户的账号
@@ -257,30 +258,22 @@ public class UserService {
         } else if (!userTenantId.equals(tenantId)) {
             log.warn("跨租户登录被拒绝, account={}, 用户所属租户={}, 请求租户={}",
                     account, userTenantId, tenantId);
-            resultMap.put("message", "账号不存在");
-            resultMap.put("code", 404);
-            return Result.success(resultMap,"账号不存在");
+            return Result.fail(404, "账号不存在");
         }
         // 解密敏感字段
         decryptUserFields(user);
         // 校验密码,把password加密后与user.getPassword()比较
        // String encodedPassword = passwordEncoder.encode(password); 
        if(! passwordEncoder.matches(password,user.getPassword()))
-        { 
-           resultMap.put("message", "密码错误");
-           resultMap.put("code", 400);
-           return Result.success(resultMap,"密码错误");    
+        {
+           return Result.fail(400, "密码错误");
         }
         // 校验账号状态（冻结/未审核） && "teacher".equals(user.getRole())
-        if ("frozen".equals(user.getStatus())) { 
-             resultMap.put("message", "账号已冻结，请联系管理员");
-             resultMap.put("code", 400);
-             return Result.success(resultMap,"账号已冻结，请联系管理员");
+        if ("frozen".equals(user.getStatus())) {
+             return Result.fail(400, "账号已冻结，请联系管理员");
         }
         if ("inactive".equals(user.getStatus()) ) {
-             resultMap.put("message", "账号未审核，请等待管理员审核");    
-             resultMap.put("code", 400);
-             return Result.success(resultMap,"账号未审核，请等待管理员审核");   
+             return Result.fail(400, "账号未审核，请等待管理员审核");
         }//其它情况--进入相应的页面，若为pendding则等待审核。其他情况，显示正常项目内容。
         // 生成Token（tenantId 由 controller 根据租户编码解析后传入）
         String token = jwtUtil.generateToken(tenantId, user.getUserId(), user.getRole());
@@ -585,6 +578,148 @@ public User selectById(String userId) {
         PageResult<User> result = PageResult.of(page);
         return result;
     };
+
+    /**
+     * 平台管理员「用户管理」分页：跨租户查看 role=platform_admin/admin 两类账号。
+     * 前提：调用方必须已是平台管理员（tenantId=0），此时 TenantLineInnerInterceptor.ignoreTable
+     * 全表返回 true，本方法取到的是【全平台】user 数据，不含租户条件。
+     *
+     * 与通用 listByConditionPage 的区别：
+     *  1) 只返回 platform_admin / admin 两种角色（列表需同时展示"平台管理员"与"租户管理员"）；
+     *  2) 返回每行的 orgName（admin 所属租户机构名；platform_admin 无 sys_tenant，置空由前端显示「平台」）；
+     *  3) account 由 SQL LIKE、name/email/phone 由内存解密后模糊匹配（沿用现有加密字段策略）。
+     *
+     * 分页在内存中完成（管理员账号数量级小，跨租户总量可控）。
+     */
+    public PageResult<User> platformAdminPage(UserQueryPage query) {
+        // 请求体可能为空，给默认分页
+        UserQueryPage sqlQ = new UserQueryPage();
+        if (query != null) {
+            sqlQ.setStatus(query.getStatus());
+            sqlQ.setAccount(query.getAccount());
+            sqlQ.setUserId(query.getUserId());
+        }
+        // SQL 层取全量候选（role 留给内存 IN 过滤，因为要同时命中 admin + platform_admin）
+        List<User> all = userMapper.listByConditionAll(sqlQ);
+        decryptUserList(all);
+
+        List<User> filtered = new java.util.ArrayList<>();
+        if (all != null) {
+            for (User u : all) {
+                if (u == null) continue;
+                String r = u.getRole();
+                if (!RoleConst.ADMIN.equals(r) && !RoleConst.PLATFORM_ADMIN.equals(r)) {
+                    continue; // 只管理这两类管理员
+                }
+                if (query != null && matchAdminQuery(u, query)) {
+                    filtered.add(u);
+                }
+            }
+        }
+        int total = filtered.size();
+        int pageNum = (query == null || query.getPageNum() == null) ? 1 : query.getPageNum();
+        int pageSize = (query == null || query.getPageSize() == null) ? 10 : query.getPageSize();
+        int from = (pageNum - 1) * pageSize;
+        int to = Math.min(from + pageSize, total);
+        List<User> pageList = (from < total)
+                ? new java.util.ArrayList<>(filtered.subList(from, to))
+                : new java.util.ArrayList<>();
+
+        // 删除密码 + 补公司名称
+        for (User u : pageList) {
+            if (u != null) u.setPassword(null);
+        }
+        fillOrgName(pageList);
+
+        Page<User> page = new Page<>(pageNum, pageSize);
+        page.setRecords(pageList);
+        page.setTotal(total);
+        return PageResult.of(page);
+    }
+
+    // admin 查询条件匹配：account 已在 SQL LIKE，这里补齐 name/email/phone 的内存模糊；status/userId 已在 SQL。
+    // role：仅当请求方显式指定（全部/平台管理员/租户管理员）时收窄到该单角色。
+    private boolean matchAdminQuery(User u, UserQueryPage q) {
+        if (q.getRole() != null && !q.getRole().isEmpty()
+                && !q.getRole().equals(u.getRole())) {
+            return false;
+        }
+        if (q.getName() != null && !q.getName().isEmpty()) {
+            if (u.getName() == null || !u.getName().contains(q.getName())) return false;
+        }
+        if (q.getEmail() != null && !q.getEmail().isEmpty()) {
+            if (u.getEmail() == null || !u.getEmail().contains(q.getEmail())) return false;
+        }
+        if (q.getPhone() != null && !q.getPhone().isEmpty()) {
+            if (u.getPhone() == null || !u.getPhone().contains(q.getPhone())) return false;
+        }
+        return true;
+    }
+
+    // 按 tenant_id 批量补 orgName：
+    //   - tenantId>0            → sys_tenant.org_name（租户管理员所属机构）
+    //   - tenantId==0(平台管理员) → 平台自身行的 org_name（tenant_code='platform'，公司名可在用户管理里编辑）
+    private void fillOrgName(List<User> users) {
+        if (users == null || users.isEmpty()) return;
+        Tenant platformTenant = null;
+        java.util.Map<Long, Tenant> tenantMap = new java.util.HashMap<>();
+        try {
+            for (Tenant t : tenantService.listAll()) {
+                if (t == null || t.getId() == null) continue;
+                tenantMap.put(t.getId(), t);
+                if ("platform".equals(t.getTenantCode())) platformTenant = t;
+            }
+        } catch (Exception e) {
+            log.warn("平台用户列表补机构名失败(忽略,仅影响公司列): {}", e.getMessage());
+            return;
+        }
+        for (User u : users) {
+            if (u == null) continue;
+            Long tid = u.getTenantId();
+            if (tid != null && tid > 0) {
+                Tenant t = tenantMap.get(tid);
+                if (t != null) u.setOrgName(t.getOrgName());
+            } else {
+                // tenant_id=0 平台管理员：映射到 tenant_code='platform' 的平台自身行
+                if (platformTenant != null) u.setOrgName(platformTenant.getOrgName());
+            }
+        }
+    }
+
+    /**
+     * 平台管理员「用户管理」修改某用户所属公司名称。
+     *  - admin(tenant_id>0)：写入其所属 sys_tenant.org_name（会同步影响该租户全体用户与租户管理页展示的公司名）
+     *  - platform_admin(tenant_id=0)：写入 tenant_code='platform' 平台自身行的 org_name
+     * @return null 表示成功；否则为错误提示字符串
+     */
+    public String updateCompanyName(String userId, String companyName) {
+        if (userId == null || userId.isBlank()) return "用户Id不能为空";
+        if (companyName == null || companyName.isBlank()) return "公司名称不能为空";
+        User user = userMapper.selectById(userId);
+        if (user == null) return "用户不存在";
+        Long tid = user.getTenantId();
+        try {
+            // 仅携带 id + orgName，updateTenant 内部走 tenantMapper.updateById（null 字段被 MyBatis-Plus 跳过），
+            // 因此只更新 org_name，不触碰该租户的编码/状态/联系人等其它字段。
+            Tenant patch = new Tenant();
+            patch.setOrgName(companyName.trim());
+            if (tid != null && tid > 0) {
+                Tenant exist = tenantService.getById(tid);
+                if (exist == null) return "该用户所属租户不存在";
+                patch.setId(tid);
+            } else {
+                // tenant_id=0 平台管理员：公司名写入 tenant_code='platform' 的平台自身行
+                Tenant platform = tenantService.getByCode("platform");
+                if (platform == null) return "平台自身行不存在，请先初始化";
+                patch.setId(platform.getId());
+            }
+            tenantService.updateTenant(patch);
+            return null;
+        } catch (Exception e) {
+            log.warn("修改用户公司名失败: {}", e.getMessage(), e);
+            return "保存失败：" + e.getMessage();
+        }
+    }
  
 
     public List<User> listByRole(String role) {
@@ -596,6 +731,90 @@ public User selectById(String userId) {
         }
         return users;
     }
+
+    /**
+     * 消息中心「接收人解析」：根据 scope 返回可发送的目标用户列表（不含密码）。
+     *  - tenant_admin   : 本租户(或平台管理员指定 tenantId)的租户管理员
+     *  - platform_admin : 全部平台管理员
+     *  - teachers       : 本租户(或指定租户)教师
+     *  - students       : 本租户(或指定租户)学生
+     *  - my_teachers    : 当前学生已约课的教师
+     *  - my_students    : 当前教师已约课的学生
+     * 调用方身份与租户均从 JWT 解析（不信任前端参数）；仅平台管理员可指定 tenantId 跨租户查询。
+     */
+    public Result<List<User>> messageRecipients(String scope, Long tenantId, String token) {
+        if (scope == null || scope.trim().isEmpty()) return Result.fail(400, "scope 不能为空");
+        String raw = (token != null && token.startsWith("Bearer ")) ? token.substring(7) : token;
+        if (raw == null || raw.isEmpty() || !jwtUtil.verifyAccessToken(raw)) {
+            return Result.fail(401, "未登录或令牌无效");
+        }
+        String curRole = jwtUtil.getRoleFromToken(raw);
+        Long curTenant = jwtUtil.getTenantId(raw);
+        String curUserId = jwtUtil.getUserIdFromToken(raw);
+        List<User> result = resolveMessageRecipients(scope, tenantId, curRole, curTenant, curUserId);
+        if (result == null) return Result.fail(400, "不支持的 scope: " + scope);
+        return Result.success(result, "查询成功");
+    }
+
+    /**
+     * 内部「接收人解析」（不走 HTTP、不校验令牌），供消息自动发送复用。
+     * 身份参数由调用方显式传入：curRole/curTenant/curUserId 为「当前操作者」，
+     * tenantId 仅在平台管理员跨租户查询时生效（effectiveTenant=tenantId）。
+     * 返回不含密码的用户列表；不支持的 scope 返回 null。
+     */
+    public List<User> resolveMessageRecipients(String scope, Long tenantId, String curRole, Long curTenant, String curUserId) {
+        if (scope == null || scope.trim().isEmpty()) return null;
+        boolean isPlatform = RoleConst.PLATFORM_ADMIN.equals(curRole);
+        Long effectiveTenant = (isPlatform && tenantId != null) ? tenantId : curTenant;
+        List<User> result = new java.util.ArrayList<>();
+        switch (scope) {
+            case "platform_admin":
+                result = userMapper.listByRoleIgnoreTenant(RoleConst.PLATFORM_ADMIN);
+                break;
+            case "tenant_admin":
+                for (User u : userMapper.listByRoleIgnoreTenant(RoleConst.ADMIN)) {
+                    if (effectiveTenant == null || (u.getTenantId() != null && u.getTenantId().equals(effectiveTenant))) result.add(u);
+                }
+                break;
+            case "teachers":
+                for (User u : userMapper.listByRoleIgnoreTenant(RoleConst.TEACHER)) {
+                    if (effectiveTenant == null || (u.getTenantId() != null && u.getTenantId().equals(effectiveTenant))) result.add(u);
+                }
+                break;
+            case "students":
+                for (User u : userMapper.listByRoleIgnoreTenant(RoleConst.STUDENT)) {
+                    if (effectiveTenant == null || (u.getTenantId() != null && u.getTenantId().equals(effectiveTenant))) result.add(u);
+                }
+                break;
+            case "my_teachers":
+                if (RoleConst.STUDENT.equals(curRole) && curUserId != null) {
+                    result = resolveByIds(bookingMapper.selectTeacherIdsByStudent(curUserId, curTenant));
+                }
+                break;
+            case "my_students":
+                if (RoleConst.TEACHER.equals(curRole) && curUserId != null) {
+                    result = resolveByIds(bookingMapper.selectStudentIdsByTeacher(curUserId, curTenant));
+                }
+                break;
+            default:
+                return null;
+        }
+        if (result == null) result = new java.util.ArrayList<>();
+        for (User u : result) u.setPassword(null);
+        return result;
+    }
+
+    private List<User> resolveByIds(List<String> ids) {
+        List<User> us = new java.util.ArrayList<>();
+        if (ids == null || ids.isEmpty()) return us;
+        for (String id : ids) {
+            if (id == null || id.isBlank()) continue;
+            User u = userMapper.selectById(id);
+            if (u != null) us.add(u);
+        }
+        return us;
+    }
+
 
     /**
      * 检查账号（手机号或邮箱）是否已注册

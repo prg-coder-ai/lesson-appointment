@@ -24,7 +24,7 @@ import java.util.Map;
  *   - 租户词管理            租户管理员（admin）仅能操作自己的租户，后端强制锁定 tenant_id
  */
 @RestController
-@RequestMapping("/term")
+@RequestMapping("/api/v1/term")
 public class TermController {
 
     @Autowired

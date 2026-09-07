@@ -51,7 +51,7 @@ function renderPkgTplTable(area) {
   area.innerHTML = `
     <div class="table-container">
       <table class="data-table"><thead><tr>
-        <th>序号</th><th>模板名称</th><th>编码</th><th>课程上限</th><th>排期上限</th><th>用户上限</th><th>教师上限</th><th>学生上限</th><th>状态</th><th>操作</th>
+        <th>序号</th><th>模板名称</th><th>编码</th><th><span data-term="course">课程</span>上限</th><th><span data-term="schedule">排期</span>上限</th><th>用户上限</th><th><span data-term="teacher">教师</span>上限</th><th><span data-term="student">学生</span>上限</th><th>状态</th><th>操作</th>
       </tr></thead><tbody id="pkgtpl-body"></tbody></table>
     </div><div id="pkgtpl-pagebar"></div>`;
   loadPkgTplList();
@@ -173,7 +173,7 @@ function renderTenantPkgTable(area) {
   area.innerHTML = `
     <div class="table-container">
       <table class="data-table"><thead><tr>
-        <th>序号</th><th>租户</th><th>课程(用/限)</th><th>排期(用/限)</th><th>用户(用/限)</th><th>教师(用/限)</th><th>学生(用/限)</th><th>操作</th>
+        <th>序号</th><th>租户</th><th><span data-term="course">课程</span>(用/限)</th><th><span data-term="schedule">排期</span>(用/限)</th><th>用户(用/限)</th><th><span data-term="teacher">教师</span>(用/限)</th><th><span data-term="student">学生</span>(用/限)</th><th>操作</th>
       </tr></thead><tbody id="tpkg-body"></tbody></table>
     </div><div id="tpkg-pagebar"></div>
     <div style="margin-top:12px;">
