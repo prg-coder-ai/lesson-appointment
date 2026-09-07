@@ -59,3 +59,13 @@ api/.node/
 api/lesson_appointment_backup.sql
 api/logs/spring-boot-app.log
 api/backup001.git/
+.workbuddy/tmp
+api/.npmrc
+api/api.log
+api/.workbuddy/cp.txt
+api/cp-api.txt
+api/message-service/ms.log
+api/message-service/target
+api/node_modules
+logs/spring-boot-app.log
+logs/spring-boot-app.log
