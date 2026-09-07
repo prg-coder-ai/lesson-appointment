@@ -1,0 +1,6 @@
+# 前端构建产物与依赖（由 npm / frontend-maven-plugin 生成，不入库）
+node_modules/
+dist/
+node/
+npm/
+package-lock.json

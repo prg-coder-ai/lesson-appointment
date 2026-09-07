@@ -1,0 +1,14 @@
+{
+  "name": "lesson-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "业务前端（student/teacher/booking/admin/auditLog）压缩混淆构建",
+  "scripts": {
+    "build": "node build.js"
+  },
+  "devDependencies": {
+    "terser": "^5.31.0",
+    "clean-css": "^5.3.3",
+    "html-minifier-terser": "^7.2.0"
+  }
+}
