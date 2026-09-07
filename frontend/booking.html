@@ -65,10 +65,10 @@
         } else if (role === 'admin') {
             if (!scdid || !sid) {
                 msgText.textContent = '管理员预约链接需要同时指定排期ID和学生ID，正在跳转到管理后台...';
-                setTimeout(function() { location.href = adminOrigin + '/admin.html'; }, 2000);
+                setTimeout(function() { location.href = './admin.html'; }, 2000);
                 return;
             }
-            location.href = adminOrigin + '/admin.html?scdid=' + encodeURIComponent(scdid) + '&sid=' + encodeURIComponent(sid);
+            location.href = './admin.html?scdid=' + encodeURIComponent(scdid) + '&sid=' + encodeURIComponent(sid);
         } else if (role === 'teacher') {
             location.href = './teacher.html';
         } else if (role === 'platform_admin') {

@@ -1,3 +1,6 @@
+/* 跨源导航：platform_admin 仅后端(:8081)，admin 仅前端(:8080) */
+window.ADMIN_ORIGIN = window.ADMIN_ORIGIN || ('http://' + location.hostname + ':8081');
+window.FRONTEND_ORIGIN = window.FRONTEND_ORIGIN || ('http://' + location.hostname + ':8080');
 // API请求封装（简化JS请求，避免重复代码） 
     // 全局定义API服务器地址及端口号、根路径（可根据实际情况修改）
    
@@ -193,10 +196,10 @@ const userStr = localStorage.getItem('currentUser');
   // 根据角色跳转对应页面
   switch(user.role) {
      case 'platform_admin': // 平台管理员
-      window.location.href = './platform_admin.html?tCode=platform'; //
+      window.location.href = ADMIN_ORIGIN + '/platform_admin.html?tCode=platform'; //
       break;
     case 'admin':
-      window.location.href = './admin.html?tCode=' + user.tenantCode; // 
+      window.location.href = FRONTEND_ORIGIN + '/admin.html?tCode=' + user.tenantCode; // 
       break;
     case 'teacher':
       window.location.href = './teacher.html?tCode=' + user.tenantCode; // 
@@ -338,10 +341,10 @@ const userStr = localStorage.getItem('currentUser');
       const role = data.role || userInfo.role;
       // 按角色跳转
        if (role === 'platform_admin') {
-        window.location.href = './platform_admin.html?tCode=platform'; //
+        window.location.href = ADMIN_ORIGIN + '/platform_admin.html?tCode=platform'; //
       } else
       if (role === 'admin') {
-        window.location.href = './admin.html?tCode=' + user.tenantCode; // 
+        window.location.href = FRONTEND_ORIGIN + '/admin.html?tCode=' + user.tenantCode; // 
       } else if (role === 'teacher') {
         window.location.href = './teacher.html?tCode=' + user.tenantCode; // 
       } else if (role === 'student') {
@@ -574,7 +577,7 @@ function escapeAttr(str) {
       } else if (document.referrer) {
         window.history.back();
       } else {
-        window.location.href = './admin.html';
+        window.location.href = FRONTEND_ORIGIN + '/admin.html';
       }
     }
 

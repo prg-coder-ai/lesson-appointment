@@ -15,8 +15,8 @@
     </parent>
 
     <groupId>com.reservation</groupId>
-    <artifactId>booking</artifactId>   
-    <version>0.2.0</version> <!-- 版本号：快照版（开发中）/RELEASE（正式版） -->
+    <artifactId>booking_api</artifactId>   
+    <version>1.0.0</version> <!-- 版本号：快照版（开发中）/RELEASE（正式版） -->
     <name>booking</name>
     <description>lesson booking system</description>
 
@@ -168,6 +168,38 @@
                         <goals>
                             <goal>repackage</goal>
                         </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- 前端自动构建：mvn package 期间下载 Node/npm 并执行 frontend/build.js 压缩混淆业务前端 -->
+            <!-- 工作目录为 api/../frontend；产出 frontend/dist/（Nginx root 指向它即上线混淆版） -->
+            <plugin>
+                <groupId>com.github.eirslett</groupId>
+                <artifactId>frontend-maven-plugin</artifactId>
+                <version>1.15.1</version>
+                <configuration>
+                    <workingDirectory>${project.basedir}/../frontend</workingDirectory>
+                    <nodeVersion>v22.12.0</nodeVersion>
+                    <npmVersion>10.9.0</npmVersion>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>install-node-npm</id>
+                        <goals><goal>install-node-and-npm</goal></goals>
+                        <phase>prepare-package</phase>
+                    </execution>
+                    <execution>
+                        <id>npm-install</id>
+                        <goals><goal>npm</goal></goals>
+                        <phase>prepare-package</phase>
+                        <configuration><arguments>install</arguments></configuration>
+                    </execution>
+                    <execution>
+                        <id>npm-build</id>
+                        <goals><goal>npm</goal></goals>
+                        <phase>prepare-package</phase>
+                        <configuration><arguments>run build</arguments></configuration>
                     </execution>
                 </executions>
             </plugin>

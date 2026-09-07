@@ -40,16 +40,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/auditLog.html",
             "/booking",
             "/booking.html",
-             "/login", "/auth/login", "/auth/refreshToken",
-            "/user/teacher/register", 
-            "/user/student/register",
-             "/user/admin/register",
-            "/user/account/exist",
-            "/teacher/published/latest-public",
-            "/teacher/published/public-get",
-            "/schedule/getAvailableSchedule",
-            "/interfaces",
-            "/tenant/name"
+             "/login", "/auth/login", "/api/v1/auth/login", "/auth/refreshToken", "/api/v1/auth/refreshToken",
+            "/user/teacher/register", "/api/v1/user/teacher/register",
+            "/user/student/register", "/api/v1/user/student/register",
+             "/user/admin/register", "/api/v1/user/admin/register",
+            "/user/account/exist", "/api/v1/user/account/exist",
+            "/teacher/published/latest-public", "/api/v1/teacher/published/latest-public",
+            "/teacher/published/public-get", "/api/v1/teacher/published/public-get",
+            "/schedule/getAvailableSchedule", "/api/v1/schedule/getAvailableSchedule",
+            "/interfaces", "/api/v1/interfaces",
+            "/tenant/name", "/api/v1/tenant/name"
     );
 
     /** 静态资源前缀 */

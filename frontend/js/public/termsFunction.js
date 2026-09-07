@@ -158,7 +158,7 @@ async function syncIndustryFromTenant(tenantCode) {
 
 // 页面加载完成后，按已存行业对静态 HTML 应用一次术语替换
 // （默认 education 时 DOM 本身就是锚点词，等于空操作；动态注入的内容由各渲染函数里的 applyTerms(container) 负责）
-document.addEventListener("DOMContentLoaded", () => { applyTerms(); applyTenantTitle(); loadTermMapFromServer(); });
+document.addEventListener("DOMContentLoaded", () => { applyTerms(); applyTenantTitle(); loadTermMapFromServer(); injectLangSwitch(); });
 
 // 读取 URL 中的租户编码参数（与 index.html 的 getTenantCodeFromUrl 约定一致，参数名 tCode 大小写敏感）
 function getTenantCodeParam() {
@@ -188,6 +188,43 @@ function applyTenantTitle() {
       }
     })
     .catch(() => { /* 接口异常：保持默认标题 */ });
+}
+
+// 界面语言切换：设置 localStorage.lang 并重新拉取服务端词表（后端按 lang 返回对应语言）
+// 用法：页面右下角悬浮 zh/en/fr 按钮，或控制台 setLang('en')
+function setLang(lang) {
+  const l = (lang || 'zh').trim().toLowerCase();
+  localStorage.setItem('lang', l);
+  // 更新悬浮按钮高亮
+  document.querySelectorAll('[data-lang-btn]').forEach(b => {
+    const on = b.dataset.langBtn === l;
+    b.style.background = on ? '#007bff' : 'transparent';
+    b.style.color = on ? '#fff' : '';
+  });
+  // 重新拉取服务端合并词表（内部按新 lang 请求并 applyTerms 刷新）
+  loadTermMapFromServer();
+}
+
+// 注入右下角语言切换悬浮条（自注入，所有页面共享，无需逐个改 HTML）
+function injectLangSwitch() {
+  if (document.getElementById('lang-switch-bar')) return;
+  const bar = document.createElement('div');
+  bar.id = 'lang-switch-bar';
+  bar.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:9999;display:flex;gap:4px;background:#fff;border:1px solid #e9ecef;border-radius:8px;padding:4px;box-shadow:0 2px 8px rgba(0,0,0,.12)';
+  ['zh', 'en', 'fr'].forEach(l => {
+    const b = document.createElement('button');
+    b.textContent = l.toUpperCase();
+    b.dataset.langBtn = l;
+    b.style.cssText = 'border:none;background:transparent;cursor:pointer;padding:4px 8px;border-radius:4px;font-size:12px';
+    b.onclick = () => setLang(l);
+    bar.appendChild(b);
+  });
+  document.body.appendChild(bar);
+  // 高亮当前语言
+  const cur = (localStorage.getItem('lang') || 'zh').trim().toLowerCase();
+  bar.querySelectorAll('[data-lang-btn]').forEach(b => {
+    if (b.dataset.langBtn === cur) { b.style.background = '#007bff'; b.style.color = '#fff'; }
+  });
 }
 
 // 测试入口：在浏览器控制台执行 switchIndustry("legal") / switchIndustry("education")

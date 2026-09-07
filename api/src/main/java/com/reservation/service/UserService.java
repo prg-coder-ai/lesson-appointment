@@ -243,7 +243,7 @@ public class UserService {
         User user = userMapper.getUserByAccount( account,tenantId);
         log.debug("userService login：" + user);
         HashMap<String, Object> resultMap = new HashMap<>();
-        if (user == null) { 
+        if (user == null) {
            return Result.fail(404, "账号不存在");
         }
         // 校验账号归属：账号必须属于当前请求租户。

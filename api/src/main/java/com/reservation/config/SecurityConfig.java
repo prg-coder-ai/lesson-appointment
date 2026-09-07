@@ -63,20 +63,28 @@ public class SecurityConfig {
                         ).permitAll()
 
                         // 教师发布信息公开接口（teacherPublishedProfile.html 调用，无需登录）
+                        // L1 迁移后接口统一在 /api/v1 下，白名单须同时放裸路径与 /api/v1 前缀
                         .requestMatchers(
                                 "/booking",
                                 "/booking.html",
+                                "/api/v1/booking",
                                 "/teacher/published/latest-public",
+                                "/api/v1/teacher/published/latest-public",
                                 "/teacher/published/public-get",
-                                "/schedule/getAvailableSchedule"
+                                "/api/v1/teacher/published/public-get",
+                                "/schedule/getAvailableSchedule",
+                                "/api/v1/schedule/getAvailableSchedule"
                         ).permitAll()
 
                         // 登录/鉴权相关
                         .requestMatchers(
                                 "/login",
                                 "/auth/login",
+                                "/api/v1/auth/login",
                                 "/auth/refreshToken",
-                                "/auth/logout"
+                                "/api/v1/auth/refreshToken",
+                                "/auth/logout",
+                                "/api/v1/auth/logout"
                         ).permitAll()
 
                         // 注册相关（匿名用户必须能访问）
@@ -85,11 +93,13 @@ public class SecurityConfig {
                         // 此处与 WebMvcConfig/JwtFilter 的白名单保持一致
                         .requestMatchers(
                                 "/user/register", 
-                                "/user/account/exist"
+                                "/api/v1/user/register",
+                                "/user/account/exist",
+                                "/api/v1/user/account/exist"
                         ).permitAll()
 
                         // 其他公共接口
-                        .requestMatchers("/interfaces", "/tenant/name").permitAll()
+                        .requestMatchers("/interfaces", "/api/v1/interfaces", "/tenant/name", "/api/v1/tenant/name").permitAll()
 
                         // 静态资源
                         .requestMatchers(
