@@ -18,7 +18,7 @@ import java.util.Map;
  * 部署形态: 单机
  */
 @RestController
-@RequestMapping("/monitor")
+@RequestMapping("/api/v1/monitor")
 public class MonitorController {
 
     @Autowired

@@ -19,7 +19,7 @@ import java.util.Map;
  * 权限: 平台管理员看全平台；租户管理员仅可查看本租户用量
  */
 @RestController
-@RequestMapping("/dashboard")
+@RequestMapping("/api/v1/dashboard")
 public class DashboardController {
 
     @Autowired

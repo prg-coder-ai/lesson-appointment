@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>预约入口</title>
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <style>
+        body { margin: 0; font-family: -apple-system, "Microsoft YaHei", sans-serif; }
+        #msg { display: flex; align-items: center; justify-content: center; height: 100vh; font-size: 18px; color: #666; flex-direction: column; gap: 12px; }
+        .spinner { width: 32px; height: 32px; border: 3px solid #ddd; border-top-color: #1890ff; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div id="msg">
+        <div class="spinner"></div>
+        <div id="msg-text">正在跳转，请稍候...</div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="js/public/terms.js"></script>
+    <script src="js/public/termsFunction.js"></script>
+    <script src="js/public/utility_request.js"></script>
+    <script src="js/public/auth.js"></script>
+    <script src="js/public/api.js"></script>
+
+    <script>
+    window.onload = function() {
+        // ====== 入口登录态守卫：booking 为多角色路由页，不传 requiredRole，仅做会话/租户一致性校验 ======
+        if (typeof window.guardEntryPage === 'function' && !window.guardEntryPage()) {
+          return; // 守卫已触发强制跳转
+        }
+
+        var params = new URLSearchParams(window.location.search);
+        var scdid = params.get('scdid') || '';
+        var tid   = params.get('tid')   || '';
+        var sid   = params.get('sid')   || '';
+
+        var userInfo = autoLoginCheck();
+        if (!userInfo) {
+            if (typeof window.saveLoginRedirect === 'function') {
+                window.saveLoginRedirect('noauth');
+            }
+            location.href = './index.html';
+            return;
+        }
+
+        var adminOrigin = window.ADMIN_ORIGIN || ('http://' + location.hostname + ':8081');
+        var role = userInfo.role;
+        var userId = String(userInfo.userId || '');
+        var msgText = document.getElementById('msg-text');
+
+        if (role === 'student') {
+            if (sid && sid !== userId) {
+                msgText.textContent = '链接指定的学生与当前登录用户不一致，正在跳转到课程预订...';
+                setTimeout(function() { location.href = './student.html'; }, 2000);
+                return;
+            }
+            var qs = '';
+            if (scdid) qs += (qs ? '&' : '?') + 'scdid=' + encodeURIComponent(scdid);
+            if (tid)   qs += (qs ? '&' : '?') + 'tid='   + encodeURIComponent(tid);
+            if (sid)   qs += (qs ? '&' : '?') + 'sid='   + encodeURIComponent(sid);
+            location.href = './student.html' + qs;
+        } else if (role === 'admin') {
+            if (!scdid || !sid) {
+                msgText.textContent = '管理员预约链接需要同时指定排期ID和学生ID，正在跳转到管理后台...';
+                setTimeout(function() { location.href = adminOrigin + '/admin.html'; }, 2000);
+                return;
+            }
+            location.href = adminOrigin + '/admin.html?scdid=' + encodeURIComponent(scdid) + '&sid=' + encodeURIComponent(sid);
+        } else if (role === 'teacher') {
+            location.href = './teacher.html';
+        } else if (role === 'platform_admin') {
+            // 平台管理员是跨租户管理账号，不属于任何租户；而预约链接的 scdid/tid/sid 全部绑定
+            // 到具体租户的数据，对该角色没有意义。原先会落进 else 静默跳 index.html，
+            // 再由 index 的自动登录跳回 platform_admin.html —— 多一次无提示的白屏往返。
+            // 这里按其他分支的惯例：先给出明确提示，再直达平台后台。
+            msgText.textContent = '平台管理员为跨租户管理账号，不参与具体预约，正在跳转到平台后台...';
+            setTimeout(function() { location.href = adminOrigin + '/platform_admin.html?tCode=platform'; }, 2000);
+        } else {
+            msgText.textContent = '当前用户身份不支持访问预约链接，正在返回登录页...';
+            setTimeout(function() { location.href = './index.html'; }, 2000);
+        }
+    };
+    </script>
+</body>
+</html>

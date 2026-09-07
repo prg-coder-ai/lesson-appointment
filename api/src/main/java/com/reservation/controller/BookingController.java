@@ -17,7 +17,7 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 
 @RestController
-@RequestMapping("/course/booking")
+@RequestMapping("/api/v1/course/booking")
 @RequiredArgsConstructor
 @Slf4j
 public class BookingController { 

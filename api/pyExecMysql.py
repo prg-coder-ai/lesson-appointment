@@ -1,12 +1,46 @@
+import os
+import re
+import sys
+
 import pymysql
 from pymysql.err import OperationalError, ProgrammingError
 
-# MySQL 连接配置（根据实际情况修改）
+# MySQL 连接配置
+#
+# 密码不再写死在脚本里（此前此处直接写着明文密码，且已随 git 进入版本历史）：
+#   1) 优先读环境变量 DB_PASSWORD（部署/CI 推荐）
+#   2) 未设置时回退到 application.properties 的 spring.datasource.password
+#      —— 保证密码只有一处来源，不必在两个文件里各维护一份
+PROP_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         'src', 'main', 'resources', 'application.properties')
+
+# 同时兼容 `spring.datasource.password=xxx` 与 `=${DB_PASSWORD:xxx}` 两种写法
+_PWD_RE = re.compile(
+    r'^\s*spring\.datasource\.password\s*=\s*'
+    r'(?:\$\{DB_PASSWORD:([^}]*)\}|(.*?))\s*$'
+)
+
+
+def _resolve_password():
+    env = os.environ.get('DB_PASSWORD')
+    if env:
+        return env
+    try:
+        with open(PROP_FILE, 'r', encoding='utf-8') as f:
+            for line in f:
+                m = _PWD_RE.match(line)
+                if m:
+                    return (m.group(1) or m.group(2) or '').strip() or None
+    except OSError:
+        pass
+    return None
+
+
 MYSQL_CONFIG = {
-    'host': 'localhost',
-    'port': 3306,
-    'user': 'root',  # 替换为你的MySQL用户名
-    'password': '123456',  # 替换为你的MySQL密码
+    'host': os.environ.get('DB_HOST', 'localhost'),
+    'port': int(os.environ.get('DB_PORT', 3306)),
+    'user': os.environ.get('DB_USERNAME', 'root'),
+    'password': _resolve_password(),
     'charset': 'utf8mb4'
 }
 
@@ -73,4 +107,10 @@ def execute_sql_script():
             print("MySQL连接已关闭")
 
 if __name__ == '__main__':
+    if not MYSQL_CONFIG['password']:
+        print("未提供数据库密码。请任选其一：\n"
+              "  1) 设置环境变量 DB_PASSWORD=你的密码\n"
+              "  2) 确保 application.properties 中存在 "
+              "spring.datasource.password=你的密码")
+        sys.exit(1)
     execute_sql_script()

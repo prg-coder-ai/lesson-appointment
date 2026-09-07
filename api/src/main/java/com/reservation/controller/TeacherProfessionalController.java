@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
  * 所有接口均需登录（不在 SecurityConfig 白名单），业务层可用 PermissionCheck.checkAdmin 加角色校验
  */
 @RestController
-@RequestMapping("/teacher/professional")
+@RequestMapping("/api/v1/teacher/professional")
 public class TeacherProfessionalController {
 
     @Autowired

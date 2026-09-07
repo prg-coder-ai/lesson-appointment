@@ -189,5 +189,6 @@ function applyTenantTitle() {
     })
     .catch(() => { /* 接口异常：保持默认标题 */ });
 }
+
 // 测试入口：在浏览器控制台执行 switchIndustry("legal") / switchIndustry("education")
 // switchIndustry("legal");//ceshi 法律行业

@@ -23,7 +23,7 @@ import lombok.extern.slf4j.Slf4j;
  * 用户注册与认证控制器，对应设计2.2.1 所有接口
  */
 @RestController
-@RequestMapping("/user")
+@RequestMapping("/api/v1/user")
 @Validated
 @Slf4j
 public class UserController { 

@@ -23,7 +23,7 @@ import java.util.Map;
  * 权限: 仅平台管理员
  */
 @RestController
-@RequestMapping("/tenant/package")
+@RequestMapping("/api/v1/tenant/package")
 public class TenantPackageController {
 
     @Autowired

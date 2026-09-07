@@ -30,7 +30,7 @@ import lombok.extern.slf4j.Slf4j;
  * 课程与排期管理控制器，对应设计2.2.2 所有接口
  */
 @RestController
-@RequestMapping("/course")
+@RequestMapping("/api/v1/course")
 @Validated
 @Slf4j
 public class CourseController {

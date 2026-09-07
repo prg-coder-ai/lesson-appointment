@@ -89,7 +89,7 @@ public class SecurityConfig {
                         ).permitAll()
 
                         // 其他公共接口
-                        .requestMatchers("/interfaces").permitAll()
+                        .requestMatchers("/interfaces", "/tenant/name").permitAll()
 
                         // 静态资源
                         .requestMatchers(

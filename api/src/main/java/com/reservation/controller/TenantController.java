@@ -24,7 +24,7 @@ import java.util.Map;
  * - 租户管理员及普通用户：仅可只读查看自己所属租户的信息
  */
 @RestController
-@RequestMapping("/tenant")
+@RequestMapping("/api/v1/tenant")
 public class TenantController {
 
     @Autowired

@@ -18,7 +18,7 @@ import java.util.Map;
  * 权限: 仅平台管理员可增删改；管理员可查询（用于下拉选择）
  */
 @RestController
-@RequestMapping("/package/template")
+@RequestMapping("/api/v1/package/template")
 public class PackageTemplateController {
 
     @Autowired

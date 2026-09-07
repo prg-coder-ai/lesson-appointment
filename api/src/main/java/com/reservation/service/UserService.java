@@ -11,6 +11,7 @@ import com.reservation.exception.BusinessException;
 import com.reservation.exception.ResourceNotFoundException;
 import com.reservation.exception.UserNotFoundException;
 import com.reservation.mapper.UserMapper;
+import com.reservation.mapper.BookingMapper;
 import com.reservation.utils.JwtUtil;
 import com.reservation.utils.TenantContext;
 import lombok.extern.slf4j.Slf4j;
@@ -58,6 +59,8 @@ public class UserService {
     private TenantService tenantService;
     @Autowired
     private TenantQuotaService tenantQuotaService;
+    @Autowired
+    private BookingMapper bookingMapper;
     @Autowired
     private UserSessionService userSessionService;
 
@@ -727,6 +730,90 @@ public User selectById(String userId) {
         }
         return users;
     }
+
+    /**
+     * 消息中心「接收人解析」：根据 scope 返回可发送的目标用户列表（不含密码）。
+     *  - tenant_admin   : 本租户(或平台管理员指定 tenantId)的租户管理员
+     *  - platform_admin : 全部平台管理员
+     *  - teachers       : 本租户(或指定租户)教师
+     *  - students       : 本租户(或指定租户)学生
+     *  - my_teachers    : 当前学生已约课的教师
+     *  - my_students    : 当前教师已约课的学生
+     * 调用方身份与租户均从 JWT 解析（不信任前端参数）；仅平台管理员可指定 tenantId 跨租户查询。
+     */
+    public Result<List<User>> messageRecipients(String scope, Long tenantId, String token) {
+        if (scope == null || scope.trim().isEmpty()) return Result.fail(400, "scope 不能为空");
+        String raw = (token != null && token.startsWith("Bearer ")) ? token.substring(7) : token;
+        if (raw == null || raw.isEmpty() || !jwtUtil.verifyAccessToken(raw)) {
+            return Result.fail(401, "未登录或令牌无效");
+        }
+        String curRole = jwtUtil.getRoleFromToken(raw);
+        Long curTenant = jwtUtil.getTenantId(raw);
+        String curUserId = jwtUtil.getUserIdFromToken(raw);
+        List<User> result = resolveMessageRecipients(scope, tenantId, curRole, curTenant, curUserId);
+        if (result == null) return Result.fail(400, "不支持的 scope: " + scope);
+        return Result.success(result, "查询成功");
+    }
+
+    /**
+     * 内部「接收人解析」（不走 HTTP、不校验令牌），供消息自动发送复用。
+     * 身份参数由调用方显式传入：curRole/curTenant/curUserId 为「当前操作者」，
+     * tenantId 仅在平台管理员跨租户查询时生效（effectiveTenant=tenantId）。
+     * 返回不含密码的用户列表；不支持的 scope 返回 null。
+     */
+    public List<User> resolveMessageRecipients(String scope, Long tenantId, String curRole, Long curTenant, String curUserId) {
+        if (scope == null || scope.trim().isEmpty()) return null;
+        boolean isPlatform = RoleConst.PLATFORM_ADMIN.equals(curRole);
+        Long effectiveTenant = (isPlatform && tenantId != null) ? tenantId : curTenant;
+        List<User> result = new java.util.ArrayList<>();
+        switch (scope) {
+            case "platform_admin":
+                result = userMapper.listByRoleIgnoreTenant(RoleConst.PLATFORM_ADMIN);
+                break;
+            case "tenant_admin":
+                for (User u : userMapper.listByRoleIgnoreTenant(RoleConst.ADMIN)) {
+                    if (effectiveTenant == null || (u.getTenantId() != null && u.getTenantId().equals(effectiveTenant))) result.add(u);
+                }
+                break;
+            case "teachers":
+                for (User u : userMapper.listByRoleIgnoreTenant(RoleConst.TEACHER)) {
+                    if (effectiveTenant == null || (u.getTenantId() != null && u.getTenantId().equals(effectiveTenant))) result.add(u);
+                }
+                break;
+            case "students":
+                for (User u : userMapper.listByRoleIgnoreTenant(RoleConst.STUDENT)) {
+                    if (effectiveTenant == null || (u.getTenantId() != null && u.getTenantId().equals(effectiveTenant))) result.add(u);
+                }
+                break;
+            case "my_teachers":
+                if (RoleConst.STUDENT.equals(curRole) && curUserId != null) {
+                    result = resolveByIds(bookingMapper.selectTeacherIdsByStudent(curUserId, curTenant));
+                }
+                break;
+            case "my_students":
+                if (RoleConst.TEACHER.equals(curRole) && curUserId != null) {
+                    result = resolveByIds(bookingMapper.selectStudentIdsByTeacher(curUserId, curTenant));
+                }
+                break;
+            default:
+                return null;
+        }
+        if (result == null) result = new java.util.ArrayList<>();
+        for (User u : result) u.setPassword(null);
+        return result;
+    }
+
+    private List<User> resolveByIds(List<String> ids) {
+        List<User> us = new java.util.ArrayList<>();
+        if (ids == null || ids.isEmpty()) return us;
+        for (String id : ids) {
+            if (id == null || id.isBlank()) continue;
+            User u = userMapper.selectById(id);
+            if (u != null) us.add(u);
+        }
+        return us;
+    }
+
 
     /**
      * 检查账号（手机号或邮箱）是否已注册

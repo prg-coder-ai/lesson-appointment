@@ -15,7 +15,7 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 
 @RestController
-@RequestMapping("/course/appointment")
+@RequestMapping("/api/v1/course/appointment")
 @Slf4j
 public class AppointmentController {
 

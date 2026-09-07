@@ -29,6 +29,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
             "/user/register",
             "/user/account/exist",
             "/interfaces",
+            "/tenant/name",
             "/js/**", "/css/**", "/images/**", "/favicon.ico",
             "/error"
     };
