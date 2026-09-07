@@ -69,3 +69,4 @@ api/message-service/target
 api/node_modules
 logs/spring-boot-app.log
 logs/spring-boot-app.log
+logs/spring-boot-app.log
