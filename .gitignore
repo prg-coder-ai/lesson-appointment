@@ -71,3 +71,5 @@ logs/spring-boot-app.log
 logs/spring-boot-app.log
 logs/spring-boot-app.log
 api/beforeRun
+api/beforeRun/booking.evn.template
+api/beforeRun/message.evn.template
