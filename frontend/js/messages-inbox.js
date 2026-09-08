@@ -2,7 +2,7 @@
  * 消息中心前端模块（学生/教师/管理员/平台管理员 共用）
  * 依赖：axios（页面已引入）、window.escapeHtml（api.js，缺则自带兜底）、localStorage.token / currentUser
  * 跨端口调用 message-service(8090)：mreq 实例（Bearer + 响应解包 + SSE）
- * 同端口调用主系统 api(8081)：areq 实例（解析接收人 scope 用 /user/message-recipients）
+ * 同端口调用主系统 api(8081)：areq 实例（解析接收人 scope 用 /api/v1/user/message-recipients）
  *
  * 功能覆盖（按业务需求）：
  *  - 接收：收件箱/收藏/回收站、未读角标、SSE 实时推送、删除(移回收站)、标已读/未读/收藏
@@ -749,7 +749,7 @@
         if (!tid) { listEl.innerHTML = '<div style="color:#c00;padding:6px;">请先填写租户ID</div>'; return; }
         params.tenantId = tid;
       }
-      const users = await areq.get('/user/message-recipients', { params: params });
+      const users = await areq.get('/api/v1/user/message-recipients', { params: params });
       if (!users || !users.length) { listEl.innerHTML = '<div style="color:#999;padding:6px;">该范围暂无接收人</div>'; return; }
       listEl.innerHTML = users.map(function (u) {
         const name = u.name || u.userId || '未命名';

@@ -27,3 +27,13 @@
 - 部署根 = `frontend/dist`（非源码 `frontend/`）；Nginx `root` 须指向 `dist`。`dist/`、`node_modules/`、`target/` 均被 frontend/.gitignore 忽略不入库。
 - 本机系统 `mvn` 损坏，前端构建同后端须用 Maven launcher JAR 直启（unset CLASSPATH + java -classpath plexus-classworlds-2.9.0.jar）。
 - 平台管理端 platform-admin-*.js 随 api jar 构建混淆：`api/build-platform.js`（仅局部变量，覆盖 target/classes/static，源码保持未混淆）+ `api/pom.xml` 的 frontend-maven-plugin 绑 prepare-package；spring-boot repackage 把混淆版打进 jar。跨文件全局名（request 等）保留。**构建命令与端到端联调实测见部署手册 2.8 节**。
+
+## JWT 密钥域与部署拓扑铁律（2026-09-08 用户权威确认）
+- **密钥域约定**：远程的 message-service 与远程 booking api **使用系统的 jwt 密钥**（线上实际部署密钥）；本地 maven 构建出的 message-service/booking jar 用的是 `api/src/main/resources/application.properties` 里的源 `jwt.secret`（882 串）——**与远程系统密钥不同**。
+- **铁律**：token 只能被「与其同源密钥」的服务校验。前端**不能一边连本地、一边连远程**：
+  - ✅ 全远程：远程 booking + 远程 message-service（同系统密钥），兼容；前提是远程 message-service 真在跑 + 防火墙放行 8090 入站。
+  - ✅ 全本地：本地 booking(8081) + 本地 message-service(8090)（同 882 串源密钥），兼容；前提是本地库数据就绪。
+  - ❌ 混合（本地 message + 远程 booking，或反向）：跨服务 token 验不过，必 401。
+- **实证锚点**：曾用源 882 串密钥伪造 token，本地 message-service 验过→send 200；远程 booking 拒→load recipients 401。该 401 是**密钥不一致**，非 sys_user_session 登录态校验（JwtAuthenticationFilter 只验签名、不查 session）。
+- **工具约束**：`doc-develop/dev-frontend.js` 的 `MSG_HOST` 分流**仅在两端密钥一致时（全本地或全远程同密钥）才安全**；不可用于"前端一边本地一边远程"的联调。
+- **本地起 message-service 必带 `--server.port=8090`**：沙箱环境变量 `SERVER__PORT=55058` 会被 Spring Boot 宽松绑定映射成 `server.port`，覆盖 jar 的 8090 → 绑 55058 撞 WorkBuddy IDE 退出。

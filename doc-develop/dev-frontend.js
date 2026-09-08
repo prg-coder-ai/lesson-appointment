@@ -32,6 +32,9 @@ const ROOT = path.resolve(__dirname, process.env.FRONTEND_ROOT || '../frontend')
 const LISTEN_PORT = parseInt(process.env.DEV_PORT || '8080', 10);
 const API_HOST = process.env.API_HOST || '152.136.254.127';
 const BOOKING_PORT = parseInt(process.env.BOOKING_PORT || '8081', 10);
+// message-service 目标 host：默认与 API_HOST 相同（远程）；本地联调时可设 MSG_HOST=127.0.0.1
+// 让消息/推送走本地 message-service、booking 仍走远程 API_HOST（避开远程 8090 防火墙）。
+const MSG_HOST = process.env.MSG_HOST || API_HOST;
 const MSG_PORT = parseInt(process.env.MSG_PORT || '8090', 10);
 
 const MIME = {
@@ -61,11 +64,11 @@ function toMessageService(url) {
   );
 }
 
-function proxy(req, res, targetPort) {
+function proxy(req, res, targetHost, targetPort) {
   const headers = { ...req.headers };
-  headers.host = `${API_HOST}:${targetPort}`;
+  headers.host = `${targetHost}:${targetPort}`;
   const options = {
-    host: API_HOST,
+    host: targetHost,
     port: targetPort,
     method: req.method,
     path: req.url,
@@ -113,7 +116,8 @@ function serveStatic(req, res, urlPath) {
 const server = http.createServer((req, res) => {
   const urlPath = (req.url || '/').split('?')[0];
   if (urlPath.startsWith('/api/v1')) {
-    return proxy(req, res, toMessageService(urlPath) ? MSG_PORT : BOOKING_PORT);
+    const isMsg = toMessageService(urlPath);
+    return proxy(req, res, isMsg ? MSG_HOST : API_HOST, isMsg ? MSG_PORT : BOOKING_PORT);
   }
   return serveStatic(req, res, urlPath);
 });
@@ -125,7 +129,7 @@ server.listen(LISTEN_PORT, () => {
   console.log(`   静态根目录:  ${ROOT}`);
   console.log('--------------------------------------------------');
   console.log(`   普通 API  :  /api/v1/*  ->  http://${API_HOST}:${BOOKING_PORT}`);
-  console.log(`   消息/SSE   :  /api/v1/{message,sse,users/*}  ->  http://${API_HOST}:${MSG_PORT}`);
+  console.log(`   消息/SSE   :  /api/v1/{message,sse,users/*}  ->  http://${MSG_HOST}:${MSG_PORT}`);
   console.log('==================================================');
   console.log(' 按 Ctrl+C 停止');
 });

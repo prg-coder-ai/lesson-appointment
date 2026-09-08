@@ -701,7 +701,7 @@
         if (!tid) { listEl.innerHTML = '<div style="color:#c00;padding:6px;">请先填写租户ID</div>'; return; }
         params.tenantId = tid;
       }
-      const users = await areq.get('/user/message-recipients', { params: params });
+      const users = await areq.get('/api/v1/user/message-recipients', { params: params });
       if (!users || !users.length) { listEl.innerHTML = '<div style="color:#999;padding:6px;">该范围暂无接收人</div>'; return; }
       listEl.innerHTML = users.map(function (u) {
         const name = u.name || u.userId || '未命名';
