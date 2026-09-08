@@ -195,36 +195,102 @@ function applyTenantTitle() {
 function setLang(lang) {
   const l = (lang || 'zh').trim().toLowerCase();
   localStorage.setItem('lang', l);
-  // 更新悬浮按钮高亮
-  document.querySelectorAll('[data-lang-btn]').forEach(b => {
-    const on = b.dataset.langBtn === l;
-    b.style.background = on ? '#007bff' : 'transparent';
-    b.style.color = on ? '#fff' : '';
-  });
   // 重新拉取服务端合并词表（内部按新 lang 请求并 applyTerms 刷新）
   loadTermMapFromServer();
+  // 通知界面（下拉菜单等）刷新当前语言展示，便于控制台调用 setLang 也同步 UI
+  window.dispatchEvent(new CustomEvent('langchange'));
 }
 
-// 注入右下角语言切换悬浮条（自注入，所有页面共享，无需逐个改 HTML）
+// 注入头部语言切换下拉菜单（自注入，所有页面共享，无需逐个改 HTML）。
+// 位置优先级：
+//   1) 角色页：header-actions 内、退出按钮(<i class="fa fa-sign-out-alt">)左侧；
+//   2) 有 .header 的页：追加到 .header 末尾；
+//   3) 登录页（无 header）：固定在右上角。
 function injectLangSwitch() {
-  if (document.getElementById('lang-switch-bar')) return;
-  const bar = document.createElement('div');
-  bar.id = 'lang-switch-bar';
-  bar.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:9999;display:flex;gap:4px;background:#fff;border:1px solid #e9ecef;border-radius:8px;padding:4px;box-shadow:0 2px 8px rgba(0,0,0,.12)';
-  ['zh', 'en', 'fr'].forEach(l => {
-    const b = document.createElement('button');
-    b.textContent = l.toUpperCase();
-    b.dataset.langBtn = l;
-    b.style.cssText = 'border:none;background:transparent;cursor:pointer;padding:4px 8px;border-radius:4px;font-size:12px';
-    b.onclick = () => setLang(l);
-    bar.appendChild(b);
+  if (document.getElementById('lang-switch-dropdown')) return;
+
+  const LANGS = [
+    { code: 'zh', label: '中文' },
+    { code: 'en', label: 'English' },
+    { code: 'fr', label: 'Français' }
+  ];
+
+  // 注入一次样式（与页面解耦，无需改各 HTML 的 css）
+  if (!document.getElementById('lang-switch-style')) {
+    const st = document.createElement('style');
+    st.id = 'lang-switch-style';
+    st.textContent = `
+.lang-switch-dropdown{position:relative;display:inline-block;margin-right:10px;font-size:13px;}
+.lang-switch-dropdown.floating{position:fixed;top:12px;right:12px;z-index:10000;margin:0;}
+.lang-switch-toggle{display:inline-flex;align-items:center;gap:4px;background:#fff;border:1px solid #e9ecef;border-radius:6px;padding:6px 10px;cursor:pointer;color:#333;font-size:13px;line-height:1;}
+.lang-switch-toggle:hover{background:#f5f7fa;}
+.lang-switch-toggle .fa-caret-down{font-size:11px;opacity:.7;}
+.lang-switch-menu{position:absolute;right:0;top:calc(100% + 4px);min-width:120px;margin:0;padding:4px 0;list-style:none;background:#fff;border:1px solid #e9ecef;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.12);z-index:10001;display:none;}
+.lang-switch-dropdown.open .lang-switch-menu{display:block;}
+.lang-switch-menu li a{display:block;padding:8px 14px;font-size:13px;color:#333;text-decoration:none;}
+.lang-switch-menu li a:hover{background:#f5f7fa;}
+.lang-switch-menu li.active a{color:#007bff;font-weight:600;}`;
+    document.head.appendChild(st);
+  }
+
+  const wrap = document.createElement('div');
+  wrap.id = 'lang-switch-dropdown';
+  wrap.className = 'lang-switch-dropdown';
+  wrap.innerHTML = `
+    <button type="button" class="lang-switch-toggle" aria-haspopup="true" aria-expanded="false">
+      <i class="fa fa-globe"></i> <span class="lang-switch-current"></span> <i class="fa fa-caret-down"></i>
+    </button>
+    <ul class="lang-switch-menu" role="menu">
+      ${LANGS.map(l => `<li role="menuitem" data-lang="${l.code}"><a href="javascript:void(0)">${l.label}</a></li>`).join('')}
+    </ul>`;
+
+  const currentEl = wrap.querySelector('.lang-switch-current');
+  const toggleBtn = wrap.querySelector('.lang-switch-toggle');
+  const menuEl = wrap.querySelector('.lang-switch-menu');
+
+  function refresh() {
+    const cur = (localStorage.getItem('lang') || 'zh').trim().toLowerCase();
+    const item = LANGS.find(l => l.code === cur) || LANGS[0];
+    currentEl.textContent = item.label;
+    menuEl.querySelectorAll('li').forEach(li => li.classList.toggle('active', li.dataset.lang === cur));
+    toggleBtn.setAttribute('aria-expanded', String(wrap.classList.contains('open')));
+  }
+
+  menuEl.addEventListener('click', e => {
+    const li = e.target.closest('li[data-lang]');
+    if (!li) return;
+    e.preventDefault();
+    setLang(li.dataset.lang);
+    wrap.classList.remove('open');
+    refresh();
   });
-  document.body.appendChild(bar);
-  // 高亮当前语言
-  const cur = (localStorage.getItem('lang') || 'zh').trim().toLowerCase();
-  bar.querySelectorAll('[data-lang-btn]').forEach(b => {
-    if (b.dataset.langBtn === cur) { b.style.background = '#007bff'; b.style.color = '#fff'; }
+
+  toggleBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    wrap.classList.toggle('open');
+    refresh();
   });
+
+  // 点击外部收起
+  document.addEventListener('click', e => {
+    if (!wrap.contains(e.target)) wrap.classList.remove('open');
+  });
+
+  // 监听 setLang（含控制台调用）刷新展示
+  window.addEventListener('langchange', refresh);
+
+  // 放置位置
+  const signOut = document.querySelector('.fa-sign-out-alt');
+  if (signOut) {
+    const btn = signOut.closest('button, a') || signOut.parentElement;
+    (btn.parentElement || document.querySelector('.header') || document.body).insertBefore(wrap, btn);
+  } else {
+    const header = document.querySelector('.header');
+    if (header) header.appendChild(wrap);
+    else { wrap.classList.add('floating'); document.body.appendChild(wrap); }
+  }
+
+  refresh();
 }
 
 // 测试入口：在浏览器控制台执行 switchIndustry("legal") / switchIndustry("education")
