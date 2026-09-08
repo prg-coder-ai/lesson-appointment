@@ -133,7 +133,7 @@
           <i class="fa fa-cog"></i>
           <span>数据维护</span>
         </div>
-         <div class="menu-item" key="test_data">
+         <div class="menu-item" key="test_data" id="menu-test-data">
           <i class="fa fa-calendar-alt"></i>
           <span>测试-批量创建数据</span>
         </div>
@@ -238,7 +238,11 @@
           renderDatamaintainCards();
           break;
         case "test_data":
-          if(dynamicContentCenter) dynamicContentCenter.innerHTML = makeTestPage();
+          if(dynamicContentCenter && typeof makeTestPage === 'function'){
+            dynamicContentCenter.innerHTML = makeTestPage();
+          } else if(dynamicContentCenter){
+            dynamicContentCenter.innerHTML = '<div class="card"><div class="card-body">测试工具未加载。</div></div>';
+          }
           break;
         case "audit_log":
           window.location.href = `./auditLog.html`;
@@ -282,7 +286,15 @@
     let dynamicContentCenter = null;//document.getElementById('dynamic-content-center');
     // 页面加载时验证登录状态（注释掉跳转，方便测试）
     window.onload = function() {
-      window.makeTestPage = makeTestPage;//test
+      // 测试批量工具：仅当 testData.js 已加载（开发态）时挂到 window 并显示菜单；发行版不加载该脚本，菜单自动隐藏
+      if (typeof makeTestPage === 'function') {
+        window.makeTestPage = makeTestPage;
+        var __testMenu = document.getElementById('menu-test-data');
+        if (__testMenu) __testMenu.style.display = '';
+      } else {
+        var __testMenuHide = document.getElementById('menu-test-data');
+        if (__testMenuHide) __testMenuHide.style.display = 'none';
+      }
       window.renderCourseCards = renderCourseCards;
       window.renderBookingCards  = renderBookingCards;
       window.refreshOverallpage = refreshOverallpage ;
