@@ -1,0 +1,70 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ------------------< com.reservation:lesson-frontend >-------------------
+[INFO] Building lesson-frontend 1.0.0
+[INFO]   from pom.xml
+[INFO] --------------------------------[ pom ]---------------------------------
+[INFO] 
+[INFO] --- frontend:1.15.1:install-node-and-npm (install-node-npm) @ lesson-frontend ---
+[INFO] Node v20.11.1 is already installed.
+[INFO] NPM 10.2.4 is already installed.
+[INFO] 
+[INFO] --- frontend:1.15.1:npm (npm-install) @ lesson-frontend ---
+[INFO] Running 'npm install' in C:\Users\Administrator\WorkBuddy\2026-08-30-17-19-24\frontend
+[INFO] 
+[INFO] up to date in 2s
+[INFO] 
+[INFO] 1 package is looking for funding
+[INFO]   run `npm fund` for details
+[INFO] 
+[INFO] --- frontend:1.15.1:npm (npm-build) @ lesson-frontend ---
+[INFO] Running 'npm run build' in C:\Users\Administrator\WorkBuddy\2026-08-30-17-19-24\frontend
+[INFO] 
+[INFO] > lesson-frontend@1.0.0 build
+[INFO] > node build.js
+[INFO] 
+[INFO] [build] JS
+[INFO]   JS   js\admin-AppointmentNotes.js             6443 -> 4350
+[INFO]   JS   js\admin-booking.js                      15505 -> 8892
+[INFO]   JS   js\admin-course.js                       18392 -> 12910
+[INFO]   JS   js\admin-dataMaintainPage.js             12003 -> 8734
+[INFO]   JS   js\admin-overall.js                      8594 -> 6242
+[INFO]   JS   js\admin-schedule.js                     59943 -> 38549
+[INFO]   JS   js\admin-template.js                     20415 -> 13714
+[INFO]   JS   js\admin-user.js                         22546 -> 14504
+[INFO]   JS   js\auditLog.js                           6987 -> 4517
+[INFO]   JS   js\messages-inbox.js                     40057 -> 26023
+[INFO]   JS   js\public\api.js                         21818 -> 7823
+[INFO]   JS   js\public\appointmentNotes.js            27020 -> 10899
+[INFO]   JS   js\public\auth.js                        6126 -> 1915
+[INFO]   JS   js\public\courseAndBooking.js            31825 -> 10230
+[INFO]   JS   js\public\dataFunctions.js               11151 -> 1045
+[INFO]   JS   js\public\datamaintain_delete.js         15471 -> 5632
+[INFO]   JS   js\public\pagefoot.js                    8724 -> 3150
+[INFO]   JS   js\public\terms.js                       5433 -> 2994
+[INFO]   JS   js\public\termsFunction.js               12458 -> 6214
+[INFO]   JS   js\public\utility_request.js             16895 -> 5202
+[INFO]   JS   js\student-bookingBrowserCards.js        17693 -> 8321
+[INFO]   JS   js\student-bookingCards.js               47623 -> 26211
+[INFO]   JS   js\teacher-courseAndScheduleBrowserCards.js 19864 -> 12617
+[INFO] [build] CSS
+[INFO]   CSS  css\admin.css                            10864 -> 8396
+[INFO]   CSS  css\scheduleTable.css                    8551 -> 5039
+[INFO]   CSS  css\student.css                          10068 -> 6799
+[INFO]   CSS  css\teacher.css                          9302 -> 6741
+[INFO] [build] HTML
+[INFO]   HTML admin.html                               22525 -> 17104
+[INFO]   HTML auditLog.html                            9423 -> 7595
+[INFO]   HTML booking.html                             3985 -> 3750
+[INFO]   HTML index.html                               34817 -> 26576
+[INFO]   HTML student.html                             17541 -> 15157
+[INFO]   HTML teacher.html                             15164 -> 11019
+[INFO] [build] assets
+[INFO]   assets copied (images/fonts/others)
+[INFO] === frontend build done -> C:\Users\Administrator\WorkBuddy\2026-08-30-17-19-24\frontend\dist ===
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  9.103 s
+[INFO] Finished at: 2026-09-08T21:19:11+08:00
+[INFO] ------------------------------------------------------------------------

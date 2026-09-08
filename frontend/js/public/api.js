@@ -196,7 +196,7 @@ const userStr = localStorage.getItem('currentUser');
   // 根据角色跳转对应页面
   switch(user.role) {
      case 'platform_admin': // 平台管理员
-      window.location.href = ADMIN_ORIGIN + '/platform_admin.html?tCode=platform'; //
+      window.location.href = FRONTEND_ORIGIN + '/platform_admin.html?tCode=platform'; //
       break;
     case 'admin':
       window.location.href = FRONTEND_ORIGIN + '/admin.html?tCode=' + user.tenantCode; // 
@@ -341,7 +341,7 @@ const userStr = localStorage.getItem('currentUser');
       const role = data.role || userInfo.role;
       // 按角色跳转
        if (role === 'platform_admin') {
-        window.location.href = ADMIN_ORIGIN + '/platform_admin.html?tCode=platform'; //
+        window.location.href = FRONTEND_ORIGIN + '/platform_admin.html?tCode=platform'; //
       } else
       if (role === 'admin') {
         window.location.href = FRONTEND_ORIGIN + '/admin.html?tCode=' + user.tenantCode; // 
