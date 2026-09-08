@@ -37,3 +37,11 @@
 - **实证锚点**：曾用源 882 串密钥伪造 token，本地 message-service 验过→send 200；远程 booking 拒→load recipients 401。该 401 是**密钥不一致**，非 sys_user_session 登录态校验（JwtAuthenticationFilter 只验签名、不查 session）。
 - **工具约束**：`doc-develop/dev-frontend.js` 的 `MSG_HOST` 分流**仅在两端密钥一致时（全本地或全远程同密钥）才安全**；不可用于"前端一边本地一边远程"的联调。
 - **本地起 message-service 必带 `--server.port=8090`**：沙箱环境变量 `SERVER__PORT=55058` 会被 Spring Boot 宽松绑定映射成 `server.port`，覆盖 jar 的 8090 → 绑 55058 撞 WorkBuddy IDE 退出。
+
+## 前后端职责边界（2026-09-09 改造落地）
+- **booking api = 纯后台**：仅提供 REST（`/api/v1/**`），**不再伺服任何 UI 页面**；`api/src/main/resources/static/` 已整体删除，jar 内 static 条目为 0。
+- **平台管理端归 frontend**：`platform_admin.html`、`logBrowser.html`、`js/platform-admin-*.js`、`js/main.js`、`js/logBrowser.js` 已迁至 `frontend/`，由 `frontend/build.js` 构建进 `dist/`，Nginx 伺服。平台管理员从前端登录（frontend/index.html 已支持 platform_admin 角色）→ 跳 `FRONTEND_ORIGIN + '/platform_admin.html'`。
+- **api 唯一缺省页**：`api/.../controller/DefaultPageController.java`，映射 `"/"` 与 `"/index.html"`，动态显示程序名/版本（build-info）/服务器时间/时区/已运行时长，用于自我标识。`"/"` 已在 SecurityConfig permitAll。
+- **api 不再跑 node**：`api/pom.xml` 的 `frontend-maven-plugin` 已移除，`api/build-platform.js`、`package.json`、`package-lock.json`、`node_modules` 已删；版本信息改由 `spring-boot-maven-plugin` 的 `build-info` goal 生成。
+- **共用资源零冲突**：`css/admin.css` 等共享文件两处原本内容完全一致（仅差末尾换行），合并到 frontend 一份后样式不变；但今后改 `admin.css` 会同时影响 platform_admin 与 admin 两页。
+- **构建注意**：frontend `build.js` 全量扫描 `frontend/`（html + js/** + css/** + 资源），新增页面/脚本放进去即自动进 dist，无需改构建配置。

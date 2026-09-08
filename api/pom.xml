@@ -164,6 +164,13 @@
                     </excludes>
 </configuration>
                 <executions>
+                    <!-- 生成 META-INF/build-info.properties，供缺省页读取程序名/版本/构建时间 -->
+                    <execution>
+                        <id>build-info</id>
+                        <goals>
+                            <goal>build-info</goal>
+                        </goals>
+                    </execution>
                     <execution>
                         <goals>
                             <goal>repackage</goal>
@@ -171,45 +178,8 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>com.github.eirslett</groupId>
-                <artifactId>frontend-maven-plugin</artifactId>
-                <version>1.15.1</version>
-                <configuration>
-                    <workingDirectory>${project.basedir}</workingDirectory>
-                    <installDirectory>target</installDirectory>
-                    <nodeVersion>v20.11.1</nodeVersion>
-                    <npmVersion>10.2.4</npmVersion>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>install-node-npm</id>
-                        <goals>
-                            <goal>install-node-and-npm</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>npm-install</id>
-                        <phase>prepare-package</phase>
-                        <goals>
-                            <goal>npm</goal>
-                        </goals>
-                        <configuration>
-                            <arguments>install</arguments>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>npm-build-platform</id>
-                        <phase>prepare-package</phase>
-                        <goals>
-                            <goal>npm</goal>
-                        </goals>
-                        <configuration>
-                            <arguments>run build</arguments>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
+            <!-- 注：api 已是纯后台程序，不再包含任何前端构建（原 frontend-maven-plugin 已移除）。
+                 平台管理端已迁移至 frontend 项目，由前端构建与 Nginx 伺服。 -->
         </plugins>
 
         <resources>

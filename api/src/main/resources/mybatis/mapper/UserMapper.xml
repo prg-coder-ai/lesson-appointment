@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.reservation.mapper.UserMapper">
+            
+    <!-- 通用结果集映射 -->
+    <resultMap id="userResultMap" type="com.reservation.entity.User">
+        <result column="user_id" property="userId"/>
+        <result column="phone" property="phone"/>
+        <result column="email" property="email"/>
+        <result column="password" property="password"/>
+        <result column="role" property="role"/>
+        <result column="learn_goal" property="learnGoal"/>
+        <result column="language_level" property="languageLevel"/>
+        <result column="name" property="name"/>
+        <result column="qualification" property="qualification"/>
+        <result column="language_type" property="languageType"/>
+        <result column="status" property="status"/>
+        <result column="tenant_id" property="tenantId"/>
+    </resultMap>        
+   
+    <!-- 根据条件动态查询用户列表（仅按非加密字段 role/status/userId 过滤；加密字段模糊匹配在 Java 内存中做）
+         租户隔离由 TenantLineInnerInterceptor 自动拼接 tenant_id 条件，这里不再手写，避免重复条件 -->
+    <select id="listByCondition" parameterType="com.reservation.query.UserQueryPage" resultType="com.reservation.entity.User">
+      SELECT c.*
+      FROM user c 
+      <where>
+        TRUE 
+         <choose>
+          <when test="role != null and role != ''">
+          AND c.role = #{role}
+         </when>
+        </choose>
+
+        <choose>
+          <when test="status != null and status != ''">
+         AND  c.status = #{status}
+         </when>
+        </choose>
+         <choose>
+          <when test="userId != null and userId != ''">
+         AND  c.user_id = #{userId}
+         </when>
+
+        </choose>
+      </where>
+   </select>
+
+   <!-- 分页查询：仅按非加密字段过滤（无加密字段模糊条件时使用，SQL 层分页） -->
+   <select id="listByConditionPage" parameterType="com.reservation.query.UserQueryPage" resultType="com.reservation.entity.User">
+      SELECT c.*
+      FROM user c 
+      <where>
+        TRUE 
+        <choose>
+          <when test="role != null and role != ''">
+          AND c.role = #{role}
+         </when>
+        </choose>
+
+        <choose>
+          <when test="status != null and status != ''">
+         AND  c.status = #{status}
+         </when>
+        </choose>
+         <choose>
+          <when test="userId != null and userId != ''">
+         AND  c.user_id = #{userId}
+         </when>
+       </choose>
+        <if test="account != null and account != ''">
+          AND c.account LIKE CONCAT('%', #{account}, '%')
+        </if>
+      </where>
+       <if test="pageSize != null and pageNum != null">
+         LIMIT #{pageSize} OFFSET ${(pageNum - 1) * pageSize}
+       </if>
+   </select>
+
+   <!-- 全量查询（不分页，仅按非加密字段过滤；供内存解密+模糊匹配+手动分页使用） -->
+   <select id="listByConditionAll" parameterType="com.reservation.query.UserQueryPage" resultType="com.reservation.entity.User">
+      SELECT c.*
+      FROM user c 
+      <where>
+        TRUE 
+        <choose>
+          <when test="role != null and role != ''">
+          AND c.role = #{role}
+         </when>
+        </choose>
+
+        <choose>
+          <when test="status != null and status != ''">
+         AND  c.status = #{status}
+         </when>
+        </choose>
+         <choose>
+          <when test="userId != null and userId != ''">
+          AND  c.user_id = #{userId}
+           </when>
+         </choose>
+        <if test="account != null and account != ''">
+          AND c.account LIKE CONCAT('%', #{account}, '%')
+        </if>
+      </where>
+   </select>
+
+    
+   <select id="selectCountByContion" parameterType="com.reservation.query.UserQueryPage" resultType="java.lang.Integer">
+      SELECT COUNT(*) 
+      FROM user c 
+      <where> 
+        TRUE  
+        <choose>
+          <when test="role != null and role != ''">
+          AND c.role = #{role}
+         </when>
+        </choose>
+
+        <choose>
+          <when test="status != null and status != ''">
+         AND  c.status = #{status}
+         </when>
+        </choose>
+
+         <choose>
+          <when test="userId != null and userId != ''">
+               AND  c.user_id = #{userId}
+          </when>
+       </choose>
+        <if test="account != null and account != ''">
+          AND c.account LIKE CONCAT('%', #{account}, '%')
+        </if>
+      </where> 
+   </select>
+</mapper>
