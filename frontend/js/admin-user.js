@@ -10,6 +10,29 @@
    //（如 138****1234、t***@qq.com），编辑弹窗若直接读 DOM 回填，
    // 用户一保存就会把脱敏串当成真实数据写回数据库。
    let userRowCache = new Map();
+
+  // HTML 属性上下文转义（防止姓名/ID 含引号或 < > 破坏 onclick 等内联属性 → 链接中断）
+  function escAttr(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  // 列表页「发消息」链接：用 data 属性 + 事件委托，避免把用户数据拼进内联 onclick 字符串
+  if (!window.__msgComposeDelegate) {
+    window.__msgComposeDelegate = true;
+    document.addEventListener('click', function (e) {
+      const btn = e.target && e.target.closest && e.target.closest('[data-compose-uid]');
+      if (!btn) return;
+      const id = btn.getAttribute('data-compose-uid');
+      const role = btn.getAttribute('data-compose-role');
+      const name = btn.getAttribute('data-compose-name') || '';
+      if (typeof window.openComposeToUser === 'function') window.openComposeToUser(id, role, name);
+    });
+  }
+
    async function renderTeacherCards(role) {
            currentUserRole     = role;
            // 同一函数同时服务「教师列表」与「学生列表」两个菜单，
@@ -243,7 +266,7 @@
                     ${tea.status === "active" ? `<button class="btn btn-warning" onclick="disableTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-ban"></i> 禁用</button>` :'' }
                     ${tea.status === "pending" ? `<button class="btn btn-danger" onclick="deleteTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-trash"></i> 删除</button>` :'' }
                     <button class="btn btn-warning" onclick="resetUserPasswd('${tea.userId}')"><i class="fa fa-trash"></i> 重置密码</button>
-                    <button class="btn btn-info" onclick="window.openComposeToUser('${tea.userId}','${tea.role}','${(tea.name||'').replace(/'/g,"")}')"><i class="fa fa-comment"></i> 发消息</button>
+                    <button class="btn btn-info" data-compose-uid="${escAttr(tea.userId)}" data-compose-role="${escAttr(tea.role)}" data-compose-name="${escAttr(tea.name || '')}"><i class="fa fa-comment"></i> 发消息</button>
                      
                   </td>
                 </tr>
