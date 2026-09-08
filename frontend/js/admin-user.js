@@ -19,7 +19,7 @@
                let html = `
                 <div class="card">
                   <div class="card-header">
-                    <div class="card-title"><i class="fa fa-chalkboard-teacher"></i> ${role=="teacher"?<span data-term="teacher">教师</span>:<span data-term="student">学生</span>} 列表</div>
+                    <div class="card-title"><i class="fa fa-chalkboard-teacher"></i> ${role=="teacher"?'<span data-term="teacher">教师</span>':'<span data-term="student">学生</span>'} 列表</div>
                     <button class="btn btn-primary" onclick="openAddUserModal()"><i class="fa fa-plus"></i> 添加用户</button>
                   </div>
                   <div class="teacher-list-cards" style="margin:6px 0;display:flex;flex-direction:column;gap:16px;">
