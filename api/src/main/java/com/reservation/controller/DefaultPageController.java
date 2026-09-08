@@ -3,6 +3,7 @@ package com.reservation.controller;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.info.BuildProperties;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -124,6 +125,21 @@ public class DefaultPageController {
                 </body>
                 </html>
                 """.formatted(name, name, name, version, buildTime, now.format(FMT), tzInfo, uptime());
+    }
+
+    /**
+     * 浏览器打开任意页面时都会自动请求 /favicon.ico。
+     *
+     * <p>api 的 static 资源已整体删除，若不处理会抛 {@code NoResourceFoundException}，
+     * 被全局异常处理器兜底记为 ERROR 并返回 500 —— 纯属噪声（既非故障，也掩盖真实异常）。</p>
+     *
+     * <p>此处直接返回 204 No Content：消除报错日志，浏览器拿到空响应后也不再反复请求。
+     * 注："/favicon.ico" 已在 SecurityConfig 中 permitAll。</p>
+     */
+    @GetMapping("/favicon.ico")
+    @ResponseBody
+    public ResponseEntity<Void> favicon() {
+        return ResponseEntity.noContent().build();
     }
 
     /** 时区 UTC 偏移量，如 UTC+08:00 */
