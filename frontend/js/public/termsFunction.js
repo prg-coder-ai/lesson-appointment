@@ -108,7 +108,9 @@ async function loadTermMapFromServer() {
     // 后端 JwtAuthenticationFilter 只认 `Bearer <token>`；此前直接传裸 token 恒返回 401，
     // 导致服务端三级合并词表（租户词 > 行业词 > 平台词）从未生效，只剩本地兜底词表。
     const auth = token.startsWith('Bearer ') ? token : ('Bearer ' + token);
-    const res = await fetch((window.API_BASE_URL || '') + '/term/map?lang=' + encodeURIComponent(lang), {
+    // 注意：此处用原生 fetch（非 request 封装），不会经过 utility_request.js 的 normalizeUrl，
+    // 必须自行带全 /api/v1 前缀，否则落到 Nginx location / 的 SPA 兜底返回 HTML，json 解析失败。
+    const res = await fetch((window.API_BASE_URL || '') + '/api/v1/term/map?lang=' + encodeURIComponent(lang), {
       headers: { 'Authorization': auth }
     });
     const json = await res.json();
@@ -140,7 +142,8 @@ async function syncIndustryFromTenant(tenantCode) {
     const qs = tenantCode ? ('?tenantCode=' + encodeURIComponent(tenantCode)) : '';
     // 后端 JwtAuthenticationFilter 只认 `Bearer <token>`，缺前缀会直接 401
     const auth = token.startsWith('Bearer ') ? token : ('Bearer ' + token);
-    const res = await fetch((window.API_BASE_URL || '') + '/tenant/industry' + qs, {
+    // 原生 fetch 不经过 normalizeUrl，必须带全 /api/v1 前缀（同 /term/map、/tenant/name）
+    const res = await fetch((window.API_BASE_URL || '') + '/api/v1/tenant/industry' + qs, {
       headers: { 'Authorization': auth }
     });
     const json = await res.json();
@@ -176,7 +179,8 @@ function applyTenantTitle() {
   if (!tCode) return;                       // 无 tcode → 不改签
   const el = document.getElementById('brand-title');
   const base = (window.API_BASE_URL || '');
-  fetch(base + '/tenant/name?tenantCode=' + encodeURIComponent(tCode), { method: 'GET' })
+  // 原生 fetch 不经过 normalizeUrl，必须带全 /api/v1 前缀（否则请求落到 SPA 兜底返回 HTML，json 解析失败 → 标题不变）
+  fetch(base + '/api/v1/tenant/name?tenantCode=' + encodeURIComponent(tCode), { method: 'GET' })
     .then(r => r.json())
     .then(json => {
       const orgName = (json && json.code === 200 && json.data && json.data.orgName) ? json.data.orgName : null;

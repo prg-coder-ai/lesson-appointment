@@ -108,7 +108,7 @@ window.API_BASE_URL = API_BASE_URL;
 | `/api/v1/users/` | `:8090` | 消息接收人 scope 相关 |
 | `/api/v1/*`（其余） | `:8081` | 主业务 API |
 
-> 前端 `messages-inbox.js` 还单独定义 `MSG_BASE = window.MESSAGE_API_BASE_URL || ('http://'+host+':8090')` 直连消息服务；默认走同源 Nginx 分流即可，无需显式设。
+> 前端 `messages-inbox.js` 单独定义 `MSG_BASE`：默认同源（`window.API_BASE_URL || ''`），由 Nginx / dev 代理把 `/api/v1/{message,sse,users}` 分流到 `:8090`；跨域直连场景才用 `window.MESSAGE_API_BASE_URL` 覆盖。注意**不要**用 `'http://'+host+':8090'` 作默认——会绕过代理直连本机/外部 8090，被防火墙拒绝（ERR_CONNECTION_REFUSED）。
 
 ### 4.4 请求封装
 

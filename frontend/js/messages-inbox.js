@@ -18,8 +18,9 @@
     return;
   }
 
-  // message-service 基址：默认同源主机 + 8090，可用 window.MESSAGE_API_BASE_URL 覆盖
-  const MSG_BASE = window.MESSAGE_API_BASE_URL || ('http://' + location.hostname + ':8090');
+  // message-service 基址：默认同源（经 Nginx / dev 代理把 /api/v1/{message,sse,users} 分流到 8090）；
+  // 跨域直连场景可用 window.MESSAGE_API_BASE_URL 覆盖（如 'http://msg.example.com'）
+  const MSG_BASE = window.MESSAGE_API_BASE_URL || (window.API_BASE_URL || '');
   // api 基址：同源 8081（默认相对路径）
   const API_BASE = window.API_BASE_URL || '';
   const OFFLINE_KEY = 'msg_offline_queue';
