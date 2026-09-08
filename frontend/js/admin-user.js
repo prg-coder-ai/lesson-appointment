@@ -19,7 +19,7 @@
                let html = `
                 <div class="card">
                   <div class="card-header">
-                    <div class="card-title"><i class="fa fa-chalkboard-teacher"></i> ${role=="teacher"?"教师列表":"学生列表" } </div>
+                    <div class="card-title"><i class="fa fa-chalkboard-teacher"></i> ${role=="teacher"?<span data-term="teacher">教师</span>:<span data-term="student">学生</span>} 列表</div>
                     <button class="btn btn-primary" onclick="openAddUserModal()"><i class="fa fa-plus"></i> 添加用户</button>
                   </div>
                   <div class="teacher-list-cards" style="margin:6px 0;display:flex;flex-direction:column;gap:16px;">
@@ -265,12 +265,15 @@
       if (!modal) modal = createAddUserModal();
       modal.style.display = 'flex';
       const isTeacher = currentUserRole === 'teacher';
-      document.getElementById('addUserModalTitle').innerText = '添加' + (isTeacher ? '教师' : '学生');
+      //用term替换教师/学生
+        let roleName = isTeacher ? '<span data-term="teacher">教师</span>' : '<span data-term="student">学生</span>';
+      document.getElementById('addUserModalTitle').innerText = '添加' + roleName;
       const fc = document.getElementById('addUserModalFormContainer');
+    
       fc.innerHTML = `
         <form id="addUserForm" class="form-item">
           <input type="hidden" name="role" value="${currentUserRole}">
-          <div class="form-line"><label>角色</label><input value="${isTeacher ? '教师' : '学生'}" readonly></div>
+          <div class="form-line"><label>角色</label><input value="${roleName}" readonly></div>
           <div class="form-line"><label>账号</label><input name="account" placeholder="登录账号（租户内唯一）" required></div>
           <div class="form-line"><label>姓名</label><input name="name" placeholder="用户姓名"></div>
           <div class="form-line"><label>手机号</label><input name="phone" placeholder="手机号（与邮箱至少填一项）"></div>
@@ -349,9 +352,9 @@
       let modal = document.getElementById('editUserModal');
       if (!modal) modal = createEditUserModal();
       modal.style.display = 'flex';
-
+  let roleName = isTeacher ? '<span data-term="teacher">教师</span>' : '<span data-term="student">学生</span>';
       document.getElementById('editUserModalTitle').innerText =
-        '编辑' + (currentUserRole === 'teacher' ? '教师' : '学生') + '信息';
+        '编辑' + roleName + '信息';
 
       const status = user.status || 'pending';
       document.getElementById('editUserModalFormContainer').innerHTML = `
