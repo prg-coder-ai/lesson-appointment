@@ -267,7 +267,7 @@
       const isTeacher = currentUserRole === 'teacher';
       //用term替换教师/学生
         let roleName = isTeacher ? '<span data-term="teacher">教师</span>' : '<span data-term="student">学生</span>';
-      document.getElementById('addUserModalTitle').innerText = '添加' + roleName;
+      document.getElementById('addUserModalTitle').innerHTML = '添加' + roleName;
       const fc = document.getElementById('addUserModalFormContainer');
     
       fc.innerHTML = `
@@ -349,11 +349,15 @@
       const user = userRowCache.get(String(userId));
       if (!user) { alert('未找到该用户的数据，请刷新列表后重试'); return; }
 
+      // 角色从缓存用户对象带入（user.role 优先，回退当前列表角色），
+      // 否则 isTeacher 未声明会抛 ReferenceError，导致整个编辑弹窗打不开。
+      const isTeacher = (user.role || currentUserRole) === 'teacher';
+
       let modal = document.getElementById('editUserModal');
       if (!modal) modal = createEditUserModal();
       modal.style.display = 'flex';
   let roleName = isTeacher ? '<span data-term="teacher">教师</span>' : '<span data-term="student">学生</span>';
-      document.getElementById('editUserModalTitle').innerText =
+      document.getElementById('editUserModalTitle').innerHTML =
         '编辑' + roleName + '信息';
 
       const status = user.status || 'pending';
