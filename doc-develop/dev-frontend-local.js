@@ -8,7 +8,7 @@
  *              └─ /api/v1/{message,sse,users/} -> 127.0.0.1:8090  本地 message-service
  *
  * 前提：本机已启动两个后端（密钥同为源码 application.properties 里的 jwt.secret）：
- *   java -jar api/target/booking_api-1.0.0.jar
+ *   java -jar api/target/booking_api-2.0.0.jar --server.port=8081
  *   java -jar api/message-service/target/message-service-1.0.0.jar --server.port=8090
  *         ^ 必须显式带 --server.port=8090：沙箱环境变量 SERVER__PORT 会被 Spring Boot
  *           宽松绑定映射成 server.port，覆盖 jar 内配置，导致绑到别的端口。
@@ -51,7 +51,7 @@ startProxy({
   onProbe({ okBooking, okMsg }) {
     if (!okBooking) {
       console.log('   ⚠ booking 未就绪，启动：');
-      console.log('     java -jar api/target/booking_api-1.0.0.jar');
+      console.log('     java -jar api/target/booking_api-2.0.0.jar --server.port=8081');
     }
     if (!okMsg) {
       console.log('   ⚠ message-service 未就绪，启动：');

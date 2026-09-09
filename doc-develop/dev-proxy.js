@@ -178,7 +178,10 @@ function startProxy(o) {
       console.log(` 前端开发代理已启动 —— 模式：${o.label}`);
       console.log(line);
       console.log(`   浏览器访问 :  http://localhost:${o.listenPort}`);
+      const isDist = /(^|[\\/])dist$/.test(root);
       console.log(`   静态根目录 :  ${root}`);
+      console.log(`   资源模式   :  ${isDist ? 'dist 构建产物（需先 npm run build / maven prepare-package）'
+        : '源码目录，未打包 —— 改完 js/html 直接刷新浏览器即生效'}`);
       console.log('   ' + '-'.repeat(58));
       console.log(`   普通 API   :  /api/v1/*                    ->  http://${o.apiHost}:${o.bookingPort}`);
       console.log(`   消息/SSE   :  /api/v1/{message,sse,users/*} ->  http://${o.msgHost}:${o.msgPort}`);
