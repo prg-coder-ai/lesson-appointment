@@ -1,19 +1,12 @@
 package com.messagecenter.controller;
 
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.info.BuildProperties;
+import com.messagecenter.common.ServiceInfo;
+import com.messagecenter.service.ServiceInfoService;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
-
-import java.lang.management.ManagementFactory;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.util.Locale;
-import java.util.TimeZone;
 
 /**
  * message-service 缺省页（后端自我标识）。
@@ -22,7 +15,8 @@ import java.util.TimeZone;
  * 不伺服任何页面。为避免访问其根路径时出现空白页或 404，此处保留唯一的缺省页，
  * 用于表明「消息中心服务正在运行」并做自我标识。</p>
  *
- * <p>展示内容：程序名称、版本、构建时间、服务器当前时间、时区、已运行时长。
+ * <p>展示内容：程序名称、版本、构建时间、服务器当前时间、时区、已运行时长，
+ * 全部取自 {@link ServiceInfoService}（与 {@code GET /api/v1/system/info} 接口同源，不会漂移）。
  * 其中程序名/版本/构建时间取自构建期生成的 {@code META-INF/build-info.properties}
  * （由 spring-boot-maven-plugin 的 build-info 目标生成）；若缺失则降级显示"未知"，不影响启动。</p>
  *
@@ -33,46 +27,22 @@ import java.util.TimeZone;
 @Controller
 public class DefaultPageController {
 
-    private static final String FALLBACK_NAME = "message-service";
-    private static final String UNKNOWN = "未知";
-    private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private final ServiceInfoService serviceInfoService;
 
-    private final BuildProperties buildProperties;
-
-    /**
-     * 用 ObjectProvider 注入：未生成 build-info（如 IDE 直接启动）时为 null，
-     * 避免硬注入导致启动失败。
-     */
-    public DefaultPageController(ObjectProvider<BuildProperties> buildPropertiesProvider) {
-        this.buildProperties = buildPropertiesProvider.getIfAvailable();
+    public DefaultPageController(ServiceInfoService serviceInfoService) {
+        this.serviceInfoService = serviceInfoService;
     }
 
     @GetMapping(value = {"/", "/index.html"}, produces = MediaType.TEXT_HTML_VALUE + ";charset=UTF-8")
     @ResponseBody
     public String index() {
-        String name = FALLBACK_NAME;
-        String version = UNKNOWN;
-        String buildTime = UNKNOWN;
-
-        if (buildProperties != null) {
-            // artifact 比 name 更贴近"程序名称"（即 artifactId）
-            String artifact = buildProperties.getArtifact();
-            if (artifact != null && !artifact.isBlank()) {
-                name = artifact;
-            } else if (buildProperties.getName() != null && !buildProperties.getName().isBlank()) {
-                name = buildProperties.getName();
-            }
-            if (buildProperties.getVersion() != null) {
-                version = buildProperties.getVersion();
-            }
-            if (buildProperties.getTime() != null) {
-                buildTime = LocalDateTime.ofInstant(buildProperties.getTime(), ZoneId.systemDefault()).format(FMT);
-            }
-        }
-
-        LocalDateTime now = LocalDateTime.now();
-        TimeZone tz = TimeZone.getDefault();
-        String tzInfo = tz.getID() + "（" + tz.getDisplayName(Locale.SIMPLIFIED_CHINESE) + "，" + utcOffset(tz) + "）";
+        ServiceInfo info = serviceInfoService.current();
+        String name = info.getAppName();
+        String version = info.getVersion();
+        String buildTime = info.getBuildTime();
+        String now = info.getServerTime();
+        String tzInfo = info.getTimezone().getDescription();
+        String uptime = info.getUptime();
 
         return """
                 <!DOCTYPE html>
@@ -126,7 +96,7 @@ public class DefaultPageController {
                   </div>
                 </body>
                 </html>
-                """.formatted(name, name, name, version, buildTime, now.format(FMT), tzInfo, uptime());
+                """.formatted(name, name, name, version, buildTime, now, tzInfo, uptime);
     }
 
     /**
@@ -144,21 +114,5 @@ public class DefaultPageController {
         return ResponseEntity.noContent().build();
     }
 
-    /** 时区 UTC 偏移量，如 UTC+08:00 */
-    private static String utcOffset(TimeZone tz) {
-        int totalMin = tz.getOffset(System.currentTimeMillis()) / 60000;
-        String sign = totalMin >= 0 ? "+" : "-";
-        int abs = Math.abs(totalMin);
-        return String.format("UTC%s%02d:%02d", sign, abs / 60, abs % 60);
-    }
-
-    /** JVM 已运行时长，如 1 天 2 小时 3 分 4 秒 */
-    private static String uptime() {
-        long totalSec = ManagementFactory.getRuntimeMXBean().getUptime() / 1000;
-        long d = totalSec / 86400;
-        long h = (totalSec % 86400) / 3600;
-        long m = (totalSec % 3600) / 60;
-        long s = totalSec % 60;
-        return d + " 天 " + h + " 小时 " + m + " 分 " + s + " 秒";
-    }
+    // 时区/运行时长的计算已下沉到 ServiceInfoService，缺省页与 /api/v1/system/info 共用同一份实现
 }

@@ -34,6 +34,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
             "/user/account/exist", "/api/v1/user/account/exist",
             "/interfaces", "/api/v1/interfaces",
             "/tenant/name", "/api/v1/tenant/name",
+            // 服务运行信息（无登录态/无租户上下文，须跳过租户校验）
+            "/system/info", "/api/v1/system/info", "/apiInfo", "/api/v1/apiInfo",
             "/js/**", "/css/**", "/images/**", "/favicon.ico",
             "/error"
     };
