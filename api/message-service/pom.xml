@@ -131,6 +131,11 @@
                     <execution>
                         <goals><goal>repackage</goal></goals>
                     </execution>
+                    <!-- 生成 META-INF/build-info.properties，供缺省页读取程序名/版本/构建时间 -->
+                    <execution>
+                        <id>build-info</id>
+                        <goals><goal>build-info</goal></goals>
+                    </execution>
                 </executions>
             </plugin>
         </plugins>

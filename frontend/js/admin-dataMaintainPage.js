@@ -75,6 +75,7 @@ function dataMaintainPage() {
         <button class="dm-tab-btn" id="tab-schedule-maintain" onclick="selectMaintainTab('schedule')"><i class="fa fa-calendar-alt"></i> 排期</button>
         <button class="dm-tab-btn" id="tab-booking-maintain" onclick="selectMaintainTab('booking')"><i class="fa fa-calendar-check"></i> 预定</button>
         <button class="dm-tab-btn" id="tab-appointment-maintain" onclick="selectMaintainTab('appointment')"><i class="fa fa-clock"></i> 预约</button>
+        <button class="dm-tab-btn" id="tab-backend-maintain" onclick="selectMaintainTab('backend')"><i class="fa fa-server"></i> 后台信息</button>
       </div>
       <div id="maintain-content"></div>
     </div>`;
@@ -91,13 +92,14 @@ var MAINTAIN_ICONS = {
   course: 'fa-book',
   schedule: 'fa-calendar-alt',
   booking: 'fa-calendar-check',
-  appointment: 'fa-clock'
+  appointment: 'fa-clock',
+  backend: 'fa-server'
 };
 
 // Tab 切换高亮 & 内容渲染
 function selectMaintainTab(tab) {
   objectType = tab;
-  ['template','course','schedule','booking','appointment'].forEach(function(type) {
+  ['template','course','schedule','booking','appointment','backend'].forEach(function(type) {
     var btn = document.getElementById('tab-'+type+'-maintain');
     if(btn) btn.classList.remove('active');
   });
@@ -110,6 +112,13 @@ function selectMaintainTab(tab) {
 function renderMaintainTable(type) {
   var maintainContent = document.getElementById('maintain-content');
   if(!maintainContent) return;
+
+  // 「后台信息」Tab：展示 booking_api / message-service 的名称、版本、构建时间
+  // 该 Tab 不是数据表维护项，因此不走筛选条 + 分页的通用渲染
+  if (type === 'backend') {
+    renderBackendBriefInfo(maintainContent);
+    return;
+  }
 
   var tableConfigs = {
     template:    { title: "模板列表" },
@@ -274,6 +283,162 @@ window.loadMaintainTableData = async function(type){
 setTimeout(function(){
   selectMaintainTab('template');
 }, 0);
+
+/* ==================== 后台信息 Tab（名称 / 版本 / 构建时间） ==================== */
+
+/**
+ * 两个后端程序的 getApiInfo 数据源。
+ * 说明：message-service 走 /message/system/info（带 /api/v1/message 前缀），
+ * 才能被前端站点（Nginx / 本地开发代理）的分流规则转发到 8090；
+ * 若直接用 /api/v1/system/info，会被当成 booking 的接口转发走。
+ */
+var BACKEND_BRIEF_SOURCES = [
+  { label: 'booking_api',     desc: '业务后台（:8081）',     url: '/system/info',          prefix: '/api/v1' },
+  { label: 'message-service', desc: '消息中心（:8090）',     url: '/message/system/info',  prefix: '/api/v1/message' }
+];
+
+/** 当前前端所在站点地址（origin），如 http://152.136.254.127 或 http://localhost:8080 */
+function backendSiteOrigin() {
+  try {
+    if (window.location && window.location.origin && window.location.origin !== 'null') {
+      return window.location.origin;
+    }
+    if (window.location) {
+      return window.location.protocol + '//' + window.location.host;
+    }
+  } catch (e) { /* 非浏览器环境，走兜底 */ }
+  return '';
+}
+
+/** 前端实际请求该服务的地址（站点 origin + 转发前缀） */
+function backendEndpointOf(src) {
+  return backendSiteOrigin() + (src && src.prefix ? src.prefix : '');
+}
+
+/**
+ * 服务实际监听地址：优先 connection.listenAddress:listenPort（本进程真实绑定，
+ * 0.0.0.0 表示监听全部网卡）；无 connection 时回退 hostAddress:port（主机网卡 IP）。
+ */
+function backendListenAddressOf(info) {
+  var conn = (info && info.connection) ? info.connection : null;
+  if (conn && conn.listenAddress) {
+    return conn.listenPort ? (conn.listenAddress + ':' + conn.listenPort) : conn.listenAddress;
+  }
+  var host = (info && info.hostAddress) ? info.hostAddress : '';
+  var port = (info && info.port) ? info.port : '';
+  if (!host) return '-';
+  return port ? (host + ':' + port) : host;
+}
+
+/** 实际连过去的 IP：后端解析 Host 头得到；没有时回退 Host 头本身 */
+function backendConnectedIpOf(info) {
+  var conn = (info && info.connection) ? info.connection : null;
+  if (!conn) return '-';
+  return conn.requestHostIp || conn.requestHost || '-';
+}
+
+/**
+ * 统一解包 —— 与 platform-admin-backend-info.js 的 unwrapPayload 同逻辑：
+ * window.request 的响应拦截器在 code=200 时已把 data 解包（payload 即 ServiceInfo 本体），
+ * 旧实现固定 `res.data` 再 `.data` 会在这种形态下得到空对象 {}，表现为"接口有数据但页面空白"。
+ */
+function unwrapBackendPayload(payload) {
+  var p = payload;
+  if (p && p.data && typeof p.data === 'object' && (p.status !== undefined || p.config)) {
+    p = p.data;
+  }
+  if (p && typeof p === 'object' && p.code !== undefined && ('data' in p)) {
+    if (p.code !== 200) {
+      throw new Error(p.message || p.msg || ('接口返回 code=' + p.code));
+    }
+    return p.data || {};
+  }
+  return p || {};
+}
+
+/** 调用 getApiInfo（匿名接口），返回 data 对象 */
+async function fetchBackendBriefInfo(url) {
+  var http = (typeof window.request !== 'undefined') ? window.request
+           : (typeof window.axios !== 'undefined') ? window.axios : null;
+  if (!http) throw new Error('请求工具未加载（缺少 request / axios）');
+  var res = await http.get(url, { timeout: 15000 });
+  var info = unwrapBackendPayload(res);
+  if (!info || typeof info !== 'object' || Object.keys(info).length === 0) {
+    throw new Error('接口未返回数据（解包后为空）');
+  }
+  return info;
+}
+
+/** 渲染「后台信息」Tab 内容 */
+async function renderBackendBriefInfo(container) {
+  if (!container) return;
+  container.innerHTML = `
+    <style>
+      .dm-endpoint { font-family: Consolas, Monaco, monospace; font-size: 12px; color: #2c3e50; word-break: break-all; }
+    </style>
+    <div class="dm-section-title"><i class="fa fa-server"></i> 后台程序信息</div>
+    <div class="dm-table-box" id="backend-brief-box">
+      <div class="dm-loading"><i class="fa fa-spinner fa-spin"></i> 加载中...</div>
+    </div>
+    <div style="padding: 8px 20px 16px;">
+      <button class="btn btn-default btn-sm" id="backend-brief-refresh"><i class="fa fa-refresh"></i> 刷新</button>
+    </div>`;
+
+  var refreshBtn = document.getElementById('backend-brief-refresh');
+  if (refreshBtn) refreshBtn.onclick = function () { renderBackendBriefInfo(container); };
+
+  var box = document.getElementById('backend-brief-box');
+  if (!box) return;
+
+  // 并发取两个服务，单个失败不影响另一个
+  var results = await Promise.all(BACKEND_BRIEF_SOURCES.map(async function (src) {
+    try {
+      return { src: src, info: await fetchBackendBriefInfo(src.url), error: null };
+    } catch (e) {
+      return { src: src, info: null, error: (e && e.message) ? e.message : String(e) };
+    }
+  }));
+
+  var html = '<table class="dm-data-table"><thead><tr>' +
+             '<th>程序</th><th>名称</th><th>版本</th><th>构建时间</th>' +
+             '<th>前端调用地址</th><th>实际连接 IP</th><th>服务监听地址</th><th>说明</th>' +
+             '</tr></thead><tbody>';
+
+  results.forEach(function (r) {
+    html += '<tr>';
+    html += '<td>' + r.src.label + '</td>';
+    if (r.error) {
+      html += '<td colspan="3" class="dm-error" style="border-bottom:none;">获取失败：' + r.error + '</td>';
+      // 调用地址不依赖接口返回，即使失败也能显示，便于排查"连的是哪个地址"
+      html += '<td class="dm-endpoint">' + backendEndpointOf(r.src) + '</td>';
+      html += '<td>-</td><td>-</td>';
+      html += '<td>' + r.src.desc + '</td>';
+    } else {
+      html += '<td>' + (r.info.appName || '-') + '</td>';
+      html += '<td>' + (r.info.version || '-') + '</td>';
+      html += '<td>' + (r.info.buildTime || '-') + '</td>';
+      html += '<td class="dm-endpoint">' + backendEndpointOf(r.src) + '</td>';
+      html += '<td class="dm-endpoint">' + backendConnectedIpOf(r.info) + '</td>';
+      html += '<td class="dm-endpoint">' + backendListenAddressOf(r.info) + '</td>';
+      html += '<td>' + (r.info.description || r.src.desc) + '</td>';
+    }
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+
+  // 链路摘要：把「客户端 → 访问域名(解析IP) → 对端 → 本服务监听」整串展示出来
+  var summaries = results.filter(function (r) {
+    return !r.error && r.info && r.info.connection && r.info.connection.summary;
+  }).map(function (r) {
+    return '<div><b>' + r.src.label + '</b>：' + r.info.connection.summary + '</div>';
+  });
+  if (summaries.length) {
+    html += '<div class="dm-endpoint" style="padding:10px 12px;color:#666;">' + summaries.join('') + '</div>';
+  }
+
+  box.innerHTML = html;
+}
 
 
  // 搜索按钮：重置为第1页再查询

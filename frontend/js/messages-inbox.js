@@ -2,7 +2,7 @@
  * 消息中心前端模块（学生/教师/管理员/平台管理员 共用）
  * 依赖：axios（页面已引入）、window.escapeHtml（api.js，缺则自带兜底）、localStorage.token / currentUser
  * 跨端口调用 message-service(8090)：mreq 实例（Bearer + 响应解包 + SSE）
- * 同端口调用主系统 api(8081)：areq 实例（解析接收人 scope 用 /user/message-recipients）
+ * 同端口调用主系统 api(8081)：areq 实例（解析接收人 scope 用 /api/v1/user/message-recipients）
  *
  * 功能覆盖（按业务需求）：
  *  - 接收：收件箱/收藏/回收站、未读角标、SSE 实时推送、删除(移回收站)、标已读/未读/收藏
@@ -18,8 +18,9 @@
     return;
   }
 
-  // message-service 基址：默认同源主机 + 8090，可用 window.MESSAGE_API_BASE_URL 覆盖
-  const MSG_BASE = window.MESSAGE_API_BASE_URL || ('http://' + location.hostname + ':8090');
+  // message-service 基址：默认同源（经 Nginx / dev 代理把 /api/v1/{message,sse,users} 分流到 8090）；
+  // 跨域直连场景可用 window.MESSAGE_API_BASE_URL 覆盖（如 'http://msg.example.com'）
+  const MSG_BASE = window.MESSAGE_API_BASE_URL || (window.API_BASE_URL || '');
   // api 基址：同源 8081（默认相对路径）
   const API_BASE = window.API_BASE_URL || '';
   const OFFLINE_KEY = 'msg_offline_queue';
@@ -146,7 +147,14 @@
       '.msg-modal h3{margin:0 0 10px;}',
       '.msg-modal .row{font-size:13px;color:#666;margin:6px 0;}',
       '.msg-modal .body{margin-top:12px;padding:12px;background:#fafafa;border-radius:8px;white-space:pre-wrap;word-break:break-word;font-size:14px;color:#333;}',
-      '.msg-rcpt-list{max-height:200px;overflow:auto;border:1px solid #eee;border-radius:8px;padding:8px;margin-top:6px;}'
+      '.msg-rcpt-list{max-height:200px;overflow:auto;border:1px solid #eee;border-radius:8px;padding:8px;margin-top:6px;}',
+      // 发送弹窗：浮动卡片（可左键拖动），不再用全屏遮罩
+      '.msg-compose-card{position:fixed;top:120px;left:50%;transform:translateX(-50%);width:620px;max-width:92vw;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);z-index:2000;overflow:hidden;}',
+      '.msg-compose-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--primary-color,#3a7afe);color:#fff;cursor:move;user-select:none;}',
+      '.msg-compose-title{font-size:15px;font-weight:600;}',
+      '.msg-compose-close{border:none;background:transparent;color:#fff;font-size:20px;line-height:1;cursor:pointer;padding:0 6px;}',
+      '.msg-compose-close:hover{opacity:.8;}',
+      '.msg-compose-body{padding:16px 20px 20px;max-height:72vh;overflow:auto;}'
     ].join('');
     const st = document.createElement('style');
     st.id = 'msg-inbox-style';
@@ -604,9 +612,12 @@
     const presetIds = (preset.userIds || []).join(',');
     const presetName = preset.name ? ('（致：' + esc(preset.name) + '）') : '';
     return '' +
-      '<div class="msg-modal-mask" id="msg-compose-mask">' +
-        '<div class="msg-modal" style="width:620px;">' +
-          '<h3>发送通知' + presetName + '</h3>' +
+      '<div class="msg-compose-card" id="msg-compose-card" style="width:620px;">' +
+        '<div class="msg-compose-header" id="msg-compose-header">' +
+          '<span class="msg-compose-title">发送通知' + presetName + '</span>' +
+          '<button type="button" class="msg-compose-close" id="msg-compose-cancel" title="关闭">&times;</button>' +
+        '</div>' +
+        '<div class="msg-compose-body">' +
           '<div class="row">接收方式：' +
             '<label style="margin-right:14px;"><input type="radio" name="msg-mode" value="scope"' + (defaultMode === 'scope' ? ' checked' : '') + '> 按范围（系统自动解析接收人）</label>' +
             '<label><input type="radio" name="msg-mode" value="specific"' + (defaultMode === 'specific' ? ' checked' : '') + '> 指定用户ID</label>' +
@@ -626,11 +637,46 @@
           '</div>' +
           '<div class="row" style="color:#999;">提示：勾选接收人即「向所选的一个/多个发送」；全选即「向该范围所有人发送」。系统不要求你指定具体管理员。</div>' +
           '<div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">' +
-            '<button class="btn btn-gray" id="msg-compose-cancel">取消</button>' +
             '<button class="btn btn-primary" id="msg-compose-send">发送</button>' +
           '</div>' +
         '</div>' +
       '</div>';
+  }
+
+  // 左键拖动发送卡片（仅响应鼠标左键；表单项在卡片 body 内仍可正常交互）
+  function enableComposeDrag(card, handle) {
+    if (!card || !handle) return;
+    let dragging = false, offX = 0, offY = 0;
+    function onMove(e) {
+      if (!dragging) return;
+      let x = e.clientX - offX, y = e.clientY - offY;
+      x = Math.max(0, Math.min(x, window.innerWidth - card.offsetWidth));
+      y = Math.max(0, Math.min(y, window.innerHeight - card.offsetHeight));
+      card.style.left = x + 'px';
+      card.style.top = y + 'px';
+    }
+    function onUp() {
+      dragging = false;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.userSelect = '';
+    }
+    handle.addEventListener('mousedown', function (e) {
+      if (e.button !== 0) return; // 仅鼠标左键
+      dragging = true;
+      const r = card.getBoundingClientRect();
+      offX = e.clientX - r.left;
+      offY = e.clientY - r.top;
+      // 切换为 left/top 像素定位（清除初始居中的 transform）
+      card.style.transform = 'none';
+      card.style.right = 'auto';
+      card.style.left = r.left + 'px';
+      card.style.top = r.top + 'px';
+      document.body.style.userSelect = 'none';
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+      e.preventDefault();
+    });
   }
 
   // 打开发送弹窗（preset: {userIds:[], role, name} 用于列表页「发消息」链接）
@@ -639,8 +685,10 @@
     let root = document.getElementById('msg-compose-root');
     if (!root) { root = document.createElement('div'); root.id = 'msg-compose-root'; document.body.appendChild(root); }
     root.innerHTML = buildComposeHtml(preset);
-    const mask = root.querySelector('#msg-compose-mask');
-    mask.addEventListener('click', function (e) { if (e.target.id === 'msg-compose-mask') root.innerHTML = ''; });
+    // 浮动卡片：左键拖动（不再用全屏遮罩）
+    const card = root.querySelector('#msg-compose-card');
+    const handle = root.querySelector('#msg-compose-header');
+    enableComposeDrag(card, handle);
     root.querySelector('#msg-compose-cancel').addEventListener('click', function () { root.innerHTML = ''; });
 
     const modeRadios = root.querySelectorAll('input[name="msg-mode"]');
@@ -701,7 +749,7 @@
         if (!tid) { listEl.innerHTML = '<div style="color:#c00;padding:6px;">请先填写租户ID</div>'; return; }
         params.tenantId = tid;
       }
-      const users = await areq.get('/user/message-recipients', { params: params });
+      const users = await areq.get('/api/v1/user/message-recipients', { params: params });
       if (!users || !users.length) { listEl.innerHTML = '<div style="color:#999;padding:6px;">该范围暂无接收人</div>'; return; }
       listEl.innerHTML = users.map(function (u) {
         const name = u.name || u.userId || '未命名';

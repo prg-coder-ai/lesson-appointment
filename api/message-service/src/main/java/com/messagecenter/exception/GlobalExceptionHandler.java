@@ -11,6 +11,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @Slf4j
 @RestControllerAdvice
@@ -46,6 +47,17 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NoHandlerFoundException.class)
     public Result<Void> notFound(NoHandlerFoundException e) {
         return Result.fail(404, "接口不存在");
+    }
+
+    // 静态资源不存在（404）：典型是浏览器自动请求 /favicon.ico、/robots.txt。
+    // 本服务是纯后台、无任何静态资源，这类请求属浏览器默认行为而非故障，
+    // 不应打 ERROR 堆栈污染日志，也不应伪装成 500。此处静默降级为 404。
+    @ExceptionHandler(NoResourceFoundException.class)
+    public Result<Void> noResource(NoResourceFoundException e) {
+        if (log.isDebugEnabled()) {
+            log.debug("静态资源不存在（已忽略）：{}", e.getMessage());
+        }
+        return Result.fail(404, "资源不存在");
     }
 
     @ExceptionHandler(Exception.class)

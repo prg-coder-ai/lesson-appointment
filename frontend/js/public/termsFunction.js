@@ -1,11 +1,11 @@
 
 let domain_industry = "education";
 
-// 服务端合并词表（登录后从 /api/v1/term/map 拉取，key -> term_name）
-// 优先级：租户词 > 行业词 > 平台词（后端已合并），覆盖本地 TERM_DICT
+// 服务端合并词表（登录后从 /api/v1/term/map 拉取，key -> term_name�
+// 优先级：租户�> 行业�> 平台词（后端已合并），覆盖本�TERM_DICT
 let SERVER_TERM_MAP = null;
 
-// 取当前生效词表：本地行业字典为基底，服务端词表（若有）逐 key 覆盖
+// 取当前生效词表：本地行业字典为基底，服务端词表（若有）�key 覆盖
 function getTerms() {
   const industry = getCurrentIndustry();
   const base = TERM_DICT[industry] || TERM_DICT.education;
@@ -13,11 +13,11 @@ function getTerms() {
   return Object.assign({}, base, SERVER_TERM_MAP);
 }
 
-// 枚举型下拉选项取词（标签词 ↔ 选项词 关联方案 A）
-// 关联规则：选项 key = 标签 key + "." + 选项编码（如 courseType.oneOnOne）
-// 用法：给 <select> 传默认选项清单（value/code/defaultText），词表优先、缺词回退默认文案。
-//      页面无需感知词表结构；未配置词条时行为与现状完全一致。
-// @param tagKey          标签词 key，如 'courseType'（下拉框标题用 TERM_MAP[tagKey]）
+// 枚举型下拉选项取词（标签词 �选项�关联方案 A�
+// 关联规则：选项 key = 标签 key + "." + 选项编码（如 courseType.oneOnOne�
+// 用法：给 <select> 传默认选项清单（value/code/defaultText），词表优先、缺词回退默认文案�
+//      页面无需感知词表结构；未配置词条时行为与现状完全一致�
+// @param tagKey          标签�key，如 'courseType'（下拉框标题�TERM_MAP[tagKey]�
 // @param fallbackOptions 默认选项 [{ value, code, defaultText }]，code 用于拼词 key（缺省取 value），defaultText 为缺词回退文案
 // @returns [{ value, text }] 可直接渲染为 <option>
 function getOptions(tagKey, fallbackOptions) {
@@ -31,30 +31,30 @@ function getOptions(tagKey, fallbackOptions) {
   });
 }
 
-// 仅对显式标记 data-term / data-term-placeholder 的元素做整词替换（opt-in）。
-// 不再做任何"全局文本子串替换"——否则会从数据库读出的数值（如课程名含"课程/上课"）
-// 误替换成行业词，污染数据展示。所有需要本地化的标签/表头/标题，都应在 HTML/JS 里用
-// <span data-term="key">锚点词</span> 显式标记（项目已标记 120+ 处）。
+// 仅对显式标记 data-term / data-term-placeholder 的元素做整词替换（opt-in）�
+// 不再做任�全局文本子串替换"——否则会从数据库读出的数值（如课程名�课程/上课"�
+// 误替换成行业词，污染数据展示。所有需要本地化的标�表头/标题，都应在 HTML/JS 里用
+// <span data-term="key">锚点�/span> 显式标记（项目已标记 120+ 处）�
 function applyTerms(root = document.body) {
   const terms = getTerms();
 
-  // 显式标记的元素：文本即整词，直接置为行业词，无子串污染风险
+  // 显式标记的元素：文本即整词，直接置为行业词，无子串污染风�
   root.querySelectorAll("[data-term]").forEach(el => {
     const key = el.dataset.term;
     if (terms[key]) el.textContent = terms[key];
   });
 
-  // placeholder 等 HTML 属性
+  // placeholder �HTML 属�
   root.querySelectorAll("[data-term-placeholder]").forEach(el => {
     const key = el.dataset.termPlaceholder;
     if (terms[key]) el.placeholder = terms[key];
   });
 }
  
-// 把含行业词的字符串还原为锚点词字符串（纯字符串处理，不动 DOM）。
-// 用途：菜单导航 switch 按文字匹配（如 case '课程排期'），
-// 而 applyTerms 已把菜单文字换成行业词（如"咨询话题排期"），
-// 匹配前先经此函数归一化，保证任何行业下导航逻辑都能命中。
+// 把含行业词的字符串还原为锚点词字符串（纯字符串处理，不动 DOM）�
+// 用途：菜单导航 switch 按文字匹配（�case '课程排期'），
+// �applyTerms 已把菜单文字换成行业词（�咨询话题排期"），
+// 匹配前先经此函数归一化，保证任何行业下导航逻辑都能命中�
 function normalizeTermText(text) {
   if (!text || typeof text !== "string") return text;
   const industry = getCurrentIndustry();
@@ -72,9 +72,9 @@ function getCurrentIndustry() {
   return localStorage.getItem("industry") || domain_industry;
 }
 
-// 把当前行业词还原为锚点词（education 默认词）。
-// 仅还原显式标记 data-term 的元素文本为锚点词（opt-in，与 applyTerms 一致）。
-// 不再做全局文本反向替换，避免把数据库数值里的行业词错误还原成锚点词。
+// 把当前行业词还原为锚点词（education 默认词）�
+// 仅还原显式标�data-term 的元素文本为锚点词（opt-in，与 applyTerms 一致）�
+// 不再做全局文本反向替换，避免把数据库数值里的行业词错误还原成锚点词�
 function restoreAnchorTerms(root = document.body) {
   const industry = getCurrentIndustry();
   if (industry === "education") return; // education 的词本身就是锚点词，无需还原
@@ -88,26 +88,28 @@ function restoreAnchorTerms(root = document.body) {
 
 function switchIndustry(industry) {
   if (!TERM_DICT[industry]) { console.warn("switchIndustry: 未知行业", industry); return; }
-  // 1. 当前行业词 → 锚点词（归一化，保证 A→B→A 来回切换不出错）
+  // 1. 当前行业��锚点词（归一化，保证 A→B→A 来回切换不出错）
   restoreAnchorTerms();
-  // 2. 记录新行业
+  // 2. 记录新行�
   localStorage.setItem("industry", industry);
-  // 3. 按新表替换（锚点词 → 新行业词）
+  // 3. 按新表替换（锚点��新行业词�
   applyTerms();
   // 4. 通知后端（可选：行业偏好存到用户档案，下次登录直接生效）
   // fetch('/api/user/preferences', {method:'PUT', body: JSON.stringify({industry})});
 }
 
-// 登录后从服务端拉取合并词表（租户词 > 行业词 > 平台词），成功后刷新一次页面词。
-// 语言：从 localStorage.lang 读取（缺省 zh），未来做界面语言切换时只需 setItem('lang','en')
+// 登录后从服务端拉取合并词表（租户�> 行业�> 平台词），成功后刷新一次页面词�
+// 语言：从 localStorage.lang 读取（缺�zh），未来做界面语言切换时只需 setItem('lang','en')
 async function loadTermMapFromServer() {
   const token = localStorage.getItem('token');
   if (!token) return;
   try {
     const lang = localStorage.getItem('lang') || 'zh';
-    // 后端 JwtAuthenticationFilter 只认 `Bearer <token>`；此前直接传裸 token 恒返回 401，
-    // 导致服务端三级合并词表（租户词 > 行业词 > 平台词）从未生效，只剩本地兜底词表。
+    // 后端 JwtAuthenticationFilter 只认 `Bearer <token>`；此前直接传�token 恒返�401�
+    // 导致服务端三级合并词表（租户�> 行业�> 平台词）从未生效，只剩本地兜底词表�
     const auth = token.startsWith('Bearer ') ? token : ('Bearer ' + token);
+    // 注意：此处用原生 fetch（非 request 封装），不会经过 utility_request.js �normalizeUrl�
+    // 必须自行带全 /api/v1 前缀，否则落�Nginx location / �SPA 兜底返回 HTML，json 解析失败�
     const res = await fetch((window.API_BASE_URL || '') + '/api/v1/term/map?lang=' + encodeURIComponent(lang), {
       headers: { 'Authorization': auth }
     });
@@ -117,114 +119,182 @@ async function loadTermMapFromServer() {
       applyTerms();
     }
   } catch (e) {
-    // 拉取失败保持本地兜底（未登录 / 服务未起 / 网络异常）
+    // 拉取失败保持本地兜底（未登录 / 服务未起 / 网络异常�
   }
 }
 
-// 按登录用户的 tenantCode 查询所属行业，并切换到对应行业词表。
+// 按登录用户的 tenantCode 查询所属行业，并切换到对应行业词表�
 // 链路：tenantCode -> /tenant/industry -> sys_industry.code -> switchIndustry(code)
 //
 // 两点容错（缺一即会导致词表错乱）：
-//   1) 后端可能返回前端尚无词表的行业（历史上 exercise 就缺 TERM_DICT，现已补齐：
-//      education / legal / counseling / exercise）。switchIndustry 遇到未知行业会 warn
-//      并直接 return，等价于什么都不做 —— 故这里先校验 TERM_DICT[code]，
-//      未知行业保持现状（默认 education），不让页面停在半截状态。
-//   2) 行业未配置 / 平台租户 / 接口异常时一律保持现状，由本地兜底词表继续工作。
+//   1) 后端可能返回前端尚无词表的行业（历史�exercise 就缺 TERM_DICT，现已补齐：
+//      education / legal / counseling / exercise）。switchIndustry 遇到未知行业�warn
+//      并直�return，等价于什么都不做 —�故这里先校验 TERM_DICT[code]�
+//      未知行业保持现状（默�education），不让页面停在半截状态�
+//   2) 行业未配�/ 平台租户 / 接口异常时一律保持现状，由本地兜底词表继续工作�
 //
-// @param tenantCode 登录时确定的租户编码（localStorage.currentUser.tenantCode）
-// @returns Promise<string|null> 实际生效的行业 key，未切换返回 null
+// @param tenantCode 登录时确定的租户编码（localStorage.currentUser.tenantCode�
+// @returns Promise<string|null> 实际生效的行�key，未切换返回 null
 async function syncIndustryFromTenant(tenantCode) {
   const token = localStorage.getItem('token');
   if (!token) return null;
   try {
     const qs = tenantCode ? ('?tenantCode=' + encodeURIComponent(tenantCode)) : '';
-    // 后端 JwtAuthenticationFilter 只认 `Bearer <token>`，缺前缀会直接 401
+    // 后端 JwtAuthenticationFilter 只认 `Bearer <token>`，缺前缀会直�401
     const auth = token.startsWith('Bearer ') ? token : ('Bearer ' + token);
+    // 原生 fetch 不经�normalizeUrl，必须带�/api/v1 前缀（同 /term/map�tenant/name�
     const res = await fetch((window.API_BASE_URL || '') + '/api/v1/tenant/industry' + qs, {
       headers: { 'Authorization': auth }
     });
     const json = await res.json();
     const code = (json && json.code === 200 && json.data) ? json.data.industryCode : null;
-    if (!code || !TERM_DICT[code]) return null;          // 无行业 / 未知行业 → 保持现状
+    if (!code || !TERM_DICT[code]) return null;          // 无行�/ 未知行业 �保持现状
     const current = localStorage.getItem('industry') || domain_industry;
-    if (current === code) return code;                    // 已是目标行业，不重复刷 DOM
-    switchIndustry(code);                                 // 内部：还原锚点词 -> 记录新行业 -> 重新替换
+    if (current === code) return code;                    // 已是目标行业，不重复�DOM
+    switchIndustry(code);                                 // 内部：还原锚点词 -> 记录新行�-> 重新替换
     return code;
   } catch (e) {
-    // 服务未起 / 未登录 / 网络异常：保持本地兜底
+    // 服务未起 / 未登�/ 网络异常：保持本地兜�
     return null;
   }
 }
 
-// 页面加载完成后，按已存行业对静态 HTML 应用一次术语替换
-// （默认 education 时 DOM 本身就是锚点词，等于空操作；动态注入的内容由各渲染函数里的 applyTerms(container) 负责）
+// 页面加载完成后，按已存行业对静�HTML 应用一次术语替�
+// （默�education �DOM 本身就是锚点词，等于空操作；动态注入的内容由各渲染函数里的 applyTerms(container) 负责�
 document.addEventListener("DOMContentLoaded", () => { applyTerms(); applyTenantTitle(); loadTermMapFromServer(); injectLangSwitch(); });
 
-// 读取 URL 中的租户编码参数（与 index.html 的 getTenantCodeFromUrl 约定一致，参数名 tCode 大小写敏感）
+// 读取 URL 中的租户编码参数（与 index.html �getTenantCodeFromUrl 约定一致，参数�tCode 大小写敏感）
 function getTenantCodeParam() {
   const params = new URLSearchParams(window.location.search);
   const t = params.get('tCode');
   return (t && t.trim()) ? t.trim() : '';
 }
 
-// 按 URL 中的 tcode 品牌化页面标题：把「语言教学预约系统」改签为「<租户机构名>预约系统」。
-// 仅在 URL 含 tcode 时生效——覆盖登录专属链接（index.html?tCode=xxx）以及登录后跳转的角色页
-// （redirectToUserPage 会带 ?tCode=<租户编码>）。机构名取自 sys_tenant.org_name，经公开接口 /tenant/name 获取（无需登录）。
-// 无机构名 / 接口异常时保持默认标题，不影响其它功能。
+// �URL 中的 tcode 品牌化页面标题：把「语言教学预约系统」改签为�租户机构�预约系统」�
+// 仅在 URL �tcode 时生效——覆盖登录专属链接（index.html?tCode=xxx）以及登录后跳转的角色页
+// （redirectToUserPage 会带 ?tCode=<租户编码>）。机构名取自 sys_tenant.org_name，经公开接口 /tenant/name 获取（无需登录）�
+// 无机构名 / 接口异常时保持默认标题，不影响其它功能�
 function applyTenantTitle() {
   const tCode = getTenantCodeParam();
-  if (!tCode) return;                       // 无 tcode → 不改签
+  if (!tCode) return;                       // �tcode �不改�
   const el = document.getElementById('brand-title');
   const base = (window.API_BASE_URL || '');
+  // 原生 fetch 不经�normalizeUrl，必须带�/api/v1 前缀（否则请求落�SPA 兜底返回 HTML，json 解析失败 �标题不变�
   fetch(base + '/api/v1/tenant/name?tenantCode=' + encodeURIComponent(tCode), { method: 'GET' })
     .then(r => r.json())
     .then(json => {
       const orgName = (json && json.code === 200 && json.data && json.data.orgName) ? json.data.orgName : null;
-      if (!orgName || !orgName.trim()) return;   // 无机构名则保留默认文案
+      if (!orgName || !orgName.trim()) return;   // 无机构名则保留默认文�
       const brand = orgName.trim() + '预约系统';
-      if (el) el.textContent = brand;            // 页面内可见标题
+      if (el) el.textContent = brand;            // 页面内可见标�
       if (document.title && document.title.indexOf('语言教学预约系统') >= 0) {
-        document.title = document.title.replace('语言教学预约系统', brand); // 浏览器标签标题
+        document.title = document.title.replace('语言教学预约系统', brand); // 浏览器标签标�
       }
     })
-    .catch(() => { /* 接口异常：保持默认标题 */ });
+    .catch(() => { /* 接口异常：保持默认标�*/ });
 }
 
-// 界面语言切换：设置 localStorage.lang 并重新拉取服务端词表（后端按 lang 返回对应语言）
-// 用法：页面右下角悬浮 zh/en/fr 按钮，或控制台 setLang('en')
+// 界面语言切换：设�localStorage.lang 并重新拉取服务端词表（后端按 lang 返回对应语言�
+// 用法：页面右下角悬浮 zh/en/fr 按钮，或控制�setLang('en')
 function setLang(lang) {
   const l = (lang || 'zh').trim().toLowerCase();
   localStorage.setItem('lang', l);
-  // 更新悬浮按钮高亮
-  document.querySelectorAll('[data-lang-btn]').forEach(b => {
-    const on = b.dataset.langBtn === l;
-    b.style.background = on ? '#007bff' : 'transparent';
-    b.style.color = on ? '#fff' : '';
-  });
-  // 重新拉取服务端合并词表（内部按新 lang 请求并 applyTerms 刷新）
+  // 重新拉取服务端合并词表（内部按新 lang 请求�applyTerms 刷新�
   loadTermMapFromServer();
+  // 通知界面（下拉菜单等）刷新当前语言展示，便于控制台调用 setLang 也同�UI
+  window.dispatchEvent(new CustomEvent('langchange'));
 }
 
-// 注入右下角语言切换悬浮条（自注入，所有页面共享，无需逐个改 HTML）
+// 注入头部语言切换下拉菜单（自注入，所有页面共享，无需逐个�HTML）�
+// 位置优先级：
+//   1) 角色页：header-actions 内、退出按�<i class="fa fa-sign-out-alt">)左侧�
+//   2) �.header 的页：追加到 .header 末尾�
+//   3) 登录页（�header）：固定在右上角�
 function injectLangSwitch() {
-  if (document.getElementById('lang-switch-bar')) return;
-  const bar = document.createElement('div');
-  bar.id = 'lang-switch-bar';
-  bar.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:9999;display:flex;gap:4px;background:#fff;border:1px solid #e9ecef;border-radius:8px;padding:4px;box-shadow:0 2px 8px rgba(0,0,0,.12)';
-  ['zh', 'en', 'fr'].forEach(l => {
-    const b = document.createElement('button');
-    b.textContent = l.toUpperCase();
-    b.dataset.langBtn = l;
-    b.style.cssText = 'border:none;background:transparent;cursor:pointer;padding:4px 8px;border-radius:4px;font-size:12px';
-    b.onclick = () => setLang(l);
-    bar.appendChild(b);
+  if (document.getElementById('lang-switch-dropdown')) return;
+
+  const LANGS = [
+    { code: 'zh', label: '中文' },
+    { code: 'en', label: 'English' },
+    { code: 'fr', label: 'Français' }
+  ];
+
+  // 注入一次样式（与页面解耦，无需改各 HTML �css�
+  if (!document.getElementById('lang-switch-style')) {
+    const st = document.createElement('style');
+    st.id = 'lang-switch-style';
+    st.textContent = `
+.lang-switch-dropdown{position:relative;display:inline-block;margin-right:10px;font-size:13px;}
+.lang-switch-dropdown.floating{position:fixed;top:12px;right:12px;z-index:10000;margin:0;}
+.lang-switch-toggle{display:inline-flex;align-items:center;gap:4px;background:#fff;border:1px solid #e9ecef;border-radius:6px;padding:6px 10px;cursor:pointer;color:#333;font-size:13px;line-height:1;}
+.lang-switch-toggle:hover{background:#f5f7fa;}
+.lang-switch-toggle .fa-caret-down{font-size:11px;opacity:.7;}
+.lang-switch-menu{position:absolute;right:0;top:calc(100% + 4px);min-width:120px;margin:0;padding:4px 0;list-style:none;background:#fff;border:1px solid #e9ecef;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.12);z-index:10001;display:none;}
+.lang-switch-dropdown.open .lang-switch-menu{display:block;}
+.lang-switch-menu li a{display:block;padding:8px 14px;font-size:13px;color:#333;text-decoration:none;}
+.lang-switch-menu li a:hover{background:#f5f7fa;}
+.lang-switch-menu li.active a{color:#007bff;font-weight:600;}`;
+    document.head.appendChild(st);
+  }
+
+  const wrap = document.createElement('div');
+  wrap.id = 'lang-switch-dropdown';
+  wrap.className = 'lang-switch-dropdown';
+  wrap.innerHTML = `
+    <button type="button" class="lang-switch-toggle" aria-haspopup="true" aria-expanded="false">
+      <i class="fa fa-globe"></i> <span class="lang-switch-current"></span> <i class="fa fa-caret-down"></i>
+    </button>
+    <ul class="lang-switch-menu" role="menu">
+      ${LANGS.map(l => `<li role="menuitem" data-lang="${l.code}"><a href="javascript:void(0)">${l.label}</a></li>`).join('')}
+    </ul>`;
+
+  const currentEl = wrap.querySelector('.lang-switch-current');
+  const toggleBtn = wrap.querySelector('.lang-switch-toggle');
+  const menuEl = wrap.querySelector('.lang-switch-menu');
+
+  function refresh() {
+    const cur = (localStorage.getItem('lang') || 'zh').trim().toLowerCase();
+    const item = LANGS.find(l => l.code === cur) || LANGS[0];
+    currentEl.textContent = item.label;
+    menuEl.querySelectorAll('li').forEach(li => li.classList.toggle('active', li.dataset.lang === cur));
+    toggleBtn.setAttribute('aria-expanded', String(wrap.classList.contains('open')));
+  }
+
+  menuEl.addEventListener('click', e => {
+    const li = e.target.closest('li[data-lang]');
+    if (!li) return;
+    e.preventDefault();
+    setLang(li.dataset.lang);
+    wrap.classList.remove('open');
+    refresh();
   });
-  document.body.appendChild(bar);
-  // 高亮当前语言
-  const cur = (localStorage.getItem('lang') || 'zh').trim().toLowerCase();
-  bar.querySelectorAll('[data-lang-btn]').forEach(b => {
-    if (b.dataset.langBtn === cur) { b.style.background = '#007bff'; b.style.color = '#fff'; }
+
+  toggleBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    wrap.classList.toggle('open');
+    refresh();
   });
+
+  // 点击外部收起
+  document.addEventListener('click', e => {
+    if (!wrap.contains(e.target)) wrap.classList.remove('open');
+  });
+
+  // 监听 setLang（含控制台调用）刷新展示
+  window.addEventListener('langchange', refresh);
+
+  // 放置位置
+  const signOut = document.querySelector('.fa-sign-out-alt');
+  if (signOut) {
+    const btn = signOut.closest('button, a') || signOut.parentElement;
+    (btn.parentElement || document.querySelector('.header') || document.body).insertBefore(wrap, btn);
+  } else {
+    const header = document.querySelector('.header');
+    if (header) header.appendChild(wrap);
+    else { wrap.classList.add('floating'); document.body.appendChild(wrap); }
+  }
+
+  refresh();
 }
 
 // 测试入口：在浏览器控制台执行 switchIndustry("legal") / switchIndustry("education")

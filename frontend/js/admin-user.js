@@ -10,6 +10,29 @@
    //（如 138****1234、t***@qq.com），编辑弹窗若直接读 DOM 回填，
    // 用户一保存就会把脱敏串当成真实数据写回数据库。
    let userRowCache = new Map();
+
+  // HTML 属性上下文转义（防止姓名/ID 含引号或 < > 破坏 onclick 等内联属性 → 链接中断）
+  function escAttr(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  // 列表页「发消息」链接：用 data 属性 + 事件委托，避免把用户数据拼进内联 onclick 字符串
+  if (!window.__msgComposeDelegate) {
+    window.__msgComposeDelegate = true;
+    document.addEventListener('click', function (e) {
+      const btn = e.target && e.target.closest && e.target.closest('[data-compose-uid]');
+      if (!btn) return;
+      const id = btn.getAttribute('data-compose-uid');
+      const role = btn.getAttribute('data-compose-role');
+      const name = btn.getAttribute('data-compose-name') || '';
+      if (typeof window.openComposeToUser === 'function') window.openComposeToUser(id, role, name);
+    });
+  }
+
    async function renderTeacherCards(role) {
            currentUserRole     = role;
            // 同一函数同时服务「教师列表」与「学生列表」两个菜单，
@@ -19,7 +42,7 @@
                let html = `
                 <div class="card">
                   <div class="card-header">
-                    <div class="card-title"><i class="fa fa-chalkboard-teacher"></i> ${role=="teacher"?"教师列表":"学生列表" } </div>
+                    <div class="card-title"><i class="fa fa-chalkboard-teacher"></i> ${role=="teacher"?'<span data-term="teacher">教师</span>':'<span data-term="student">学生</span>'} 列表</div>
                     <button class="btn btn-primary" onclick="openAddUserModal()"><i class="fa fa-plus"></i> 添加用户</button>
                   </div>
                   <div class="teacher-list-cards" style="margin:6px 0;display:flex;flex-direction:column;gap:16px;">
@@ -243,7 +266,7 @@
                     ${tea.status === "active" ? `<button class="btn btn-warning" onclick="disableTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-ban"></i> 禁用</button>` :'' }
                     ${tea.status === "pending" ? `<button class="btn btn-danger" onclick="deleteTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-trash"></i> 删除</button>` :'' }
                     <button class="btn btn-warning" onclick="resetUserPasswd('${tea.userId}')"><i class="fa fa-trash"></i> 重置密码</button>
-                    <button class="btn btn-info" onclick="window.openComposeToUser('${tea.userId}','${tea.role}','${(tea.name||'').replace(/'/g,"")}')"><i class="fa fa-comment"></i> 发消息</button>
+                    <button class="btn btn-info" data-compose-uid="${escAttr(tea.userId)}" data-compose-role="${escAttr(tea.role)}" data-compose-name="${escAttr(tea.name || '')}"><i class="fa fa-comment"></i> 发消息</button>
                      
                   </td>
                 </tr>
@@ -265,12 +288,15 @@
       if (!modal) modal = createAddUserModal();
       modal.style.display = 'flex';
       const isTeacher = currentUserRole === 'teacher';
-      document.getElementById('addUserModalTitle').innerText = '添加' + (isTeacher ? '教师' : '学生');
+      //用term替换教师/学生
+        let roleName = isTeacher ? '<span data-term="teacher">教师</span>' : '<span data-term="student">学生</span>';
+      document.getElementById('addUserModalTitle').innerHTML = '添加' + roleName;
       const fc = document.getElementById('addUserModalFormContainer');
+    
       fc.innerHTML = `
         <form id="addUserForm" class="form-item">
           <input type="hidden" name="role" value="${currentUserRole}">
-          <div class="form-line"><label>角色</label><input value="${isTeacher ? '教师' : '学生'}" readonly></div>
+          <div class="form-line"><label>角色</label><input value="${roleName}" readonly></div>
           <div class="form-line"><label>账号</label><input name="account" placeholder="登录账号（租户内唯一）" required></div>
           <div class="form-line"><label>姓名</label><input name="name" placeholder="用户姓名"></div>
           <div class="form-line"><label>手机号</label><input name="phone" placeholder="手机号（与邮箱至少填一项）"></div>
@@ -346,12 +372,16 @@
       const user = userRowCache.get(String(userId));
       if (!user) { alert('未找到该用户的数据，请刷新列表后重试'); return; }
 
+      // 角色从缓存用户对象带入（user.role 优先，回退当前列表角色），
+      // 否则 isTeacher 未声明会抛 ReferenceError，导致整个编辑弹窗打不开。
+      const isTeacher = (user.role || currentUserRole) === 'teacher';
+
       let modal = document.getElementById('editUserModal');
       if (!modal) modal = createEditUserModal();
       modal.style.display = 'flex';
-
-      document.getElementById('editUserModalTitle').innerText =
-        '编辑' + (currentUserRole === 'teacher' ? '教师' : '学生') + '信息';
+  let roleName = isTeacher ? '<span data-term="teacher">教师</span>' : '<span data-term="student">学生</span>';
+      document.getElementById('editUserModalTitle').innerHTML =
+        '编辑' + roleName + '信息';
 
       const status = user.status || 'pending';
       document.getElementById('editUserModalFormContainer').innerHTML = `

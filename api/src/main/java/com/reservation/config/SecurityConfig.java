@@ -101,6 +101,9 @@ public class SecurityConfig {
                         // 其他公共接口
                         .requestMatchers("/interfaces", "/api/v1/interfaces", "/tenant/name", "/api/v1/tenant/name").permitAll()
 
+                        // 服务运行信息（缺省页同款字段，健康检查/环境自检用，匿名可访问）
+                        .requestMatchers("/system/info", "/api/v1/system/info", "/apiInfo", "/api/v1/apiInfo").permitAll()
+
                         // 静态资源
                         .requestMatchers(
                                 "/js/**", "/css/**", "/images/**", "/favicon.ico"

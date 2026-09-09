@@ -10,6 +10,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.sql.SQLIntegrityConstraintViolationException;
 
@@ -93,6 +94,18 @@ public class GlobalExceptionHandler {
             return Result.fail(400, "数据已存在，请更换后重试");
         }
         return Result.fail(400, "数据库完整性约束冲突：" + msg);
+    }
+
+    // 静态资源不存在（404）。典型场景：浏览器打开任意页面都会自动请求 /favicon.ico、/robots.txt。
+    // api 已改造为纯后台、static 资源整体删除，这类请求属于浏览器默认行为而非系统故障：
+    // 不应打 ERROR 堆栈污染日志，也不应伪装成 500「服务器繁忙」。此处静默降级为 404。
+    // 注：/favicon.ico 已由 DefaultPageController 直接返回 204，这里只是兜底（如 /robots.txt、旧静态页残留路径）。
+    @ExceptionHandler(NoResourceFoundException.class)
+    public Result<Void> handleNoResourceFound(NoResourceFoundException e) {
+        if (log.isDebugEnabled()) {
+            log.debug("静态资源不存在（已忽略）：{}", e.getMessage());
+        }
+        return Result.fail(404, "资源不存在");
     }
 
     // 服务器异常（500），对应设计2.4 服务器异常

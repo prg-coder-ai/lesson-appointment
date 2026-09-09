@@ -17,7 +17,12 @@ public class WebMvcConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(authInterceptor)
                 .addPathPatterns("/api/**", "/msg/sse/**")
-                .excludePathPatterns("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html");
+                .excludePathPatterns(
+                        "/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html",
+                        // 服务运行信息（健康检查/环境自检，匿名可访问，无需 token）
+                        // /api/v1/message/system/info 供「经前端站点同源访问」使用（分流前缀 /api/v1/message → 8090）
+                        "/api/v1/system/info", "/api/v1/apiInfo", "/api/v1/message/system/info"
+                );
     }
 
     @Override
