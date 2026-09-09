@@ -46,7 +46,9 @@
             return;
         }
 
-        var adminOrigin = window.ADMIN_ORIGIN || ('http://' + location.hostname + ':8081');
+        // 前后端分离后 platform_admin.html 与业务端同属 frontend/dist、由同一站点伺服，
+        // 默认走同源（''）；只有把管理端单独部署到子域时，才需要显式设 window.ADMIN_ORIGIN。
+        var adminOrigin = window.ADMIN_ORIGIN || '';
         var role = userInfo.role;
         var userId = String(userInfo.userId || '');
         var msgText = document.getElementById('msg-text');
