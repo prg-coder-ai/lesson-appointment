@@ -3,6 +3,7 @@ package com.messagecenter.controller;
 import com.messagecenter.common.Result;
 import com.messagecenter.common.ServiceInfo;
 import com.messagecenter.service.ServiceInfoService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -39,7 +40,7 @@ public class ApiInfoController {
      * @return {"code":200,"message":"操作成功","data":{service,appName,version,buildTime,serverTime,startTime,uptime,uptimeMillis,timezone{...},status,description}}
      */
     @GetMapping({"/system/info", "/apiInfo", "/message/system/info"})
-    public Result<ServiceInfo> getApiInfo() {
-        return Result.ok(serviceInfoService.current());
+    public Result<ServiceInfo> getApiInfo(HttpServletRequest request) {
+        return Result.ok(serviceInfoService.current(request));
     }
 }

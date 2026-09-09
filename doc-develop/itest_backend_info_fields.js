@@ -183,6 +183,25 @@ function cellValue(html, labelPart) {
   check('message 接口 data.service = message-service（分流未串到 booking）',
     msData.service === 'message-service', JSON.stringify(msData.service));
 
+  // 连接信息（三层）：必须真正来自「本次请求」，而非服务自身网卡 IP
+  check('booking 返回 connection（三层连接信息）', !!bkData.connection, JSON.stringify(bkData.connection));
+  check('message 返回 connection（三层连接信息）', !!msData.connection, JSON.stringify(msData.connection));
+  check('booking 服务侧 listenPort = 8081（实际监听端口）',
+    bkData.connection && bkData.connection.listenPort === 8081,
+    '实际=' + (bkData.connection && bkData.connection.listenPort));
+  check('message 服务侧 listenPort = 8090（实际监听端口）',
+    msData.connection && msData.connection.listenPort === 8090,
+    '实际=' + (msData.connection && msData.connection.listenPort));
+  check('请求侧 requestHostIp 为合法 IPv4（后端代解析 Host 头）',
+    /^\d{1,3}(\.\d{1,3}){3}$/.test((bkData.connection || {}).requestHostIp || ''),
+    '实际=' + (bkData.connection || {}).requestHostIp);
+  check('转发侧 remoteAddress 存在（与后端握手的对端，经代理即代理地址）',
+    !!((bkData.connection || {}).remoteAddress),
+    '实际=' + (bkData.connection || {}).remoteAddress + ':' + (bkData.connection || {}).remotePort);
+  check('connection.summary 是完整链路串',
+    /客户端\(.*\).*→.*→.*本服务\(/.test((bkData.connection || {}).summary || ''),
+    '实际=' + (bkData.connection || {}).summary);
+
   /* ---------- 1. 平台管理端全字段页 ---------- */
   console.log('\n【B】平台管理端「系统维护 / 后台信息」TAB 全字段页');
   const sb = makeSandbox(BASE);
@@ -218,16 +237,51 @@ function cellValue(html, labelPart) {
         actual === String(expect), '实际=' + JSON.stringify(actual));
     }
 
-    // 连接地址（新增）：前端实际请求地址 + 服务监听地址
+    // 连接信息（三层）：调用地址 / 实际连接 IP / 请求侧 / 转发侧 / 服务侧
     const epActual = cellValue(html, 'endpoint');
-    check('  连接地址 endpoint 渲染正确（期望 "' + expectEndpoint + '"）',
+    check('  前端调用地址 endpoint 渲染正确（期望 "' + expectEndpoint + '"）',
       epActual === expectEndpoint, '实际=' + JSON.stringify(epActual));
-    const expectListen = expectData.hostAddress + ':' + expectData.port;
-    const listenActual = cellValue(html, 'hostAddress:port');
-    check('  服务监听地址 = hostAddress:port（期望 "' + expectListen + '"）',
-      listenActual === expectListen, '实际=' + JSON.stringify(listenActual));
     check('  endpoint 是「站点 origin + 分流前缀」，含协议与主机',
       /^https?:\/\/[^/]+\/api\/v1/.test(epActual || ''), '实际=' + epActual);
+
+    const conn = expectData.connection || {};
+    const ipActual = cellValue(html, 'Host 解析结果');
+    check('  实际连接 IP = connection.requestHostIp（期望 "' + conn.requestHostIp + '"）',
+      ipActual === String(conn.requestHostIp), '实际=' + JSON.stringify(ipActual));
+    check('  实际连接 IP 是合法 IPv4（后端代解析 Host 头得到）',
+      /^\d{1,3}(\.\d{1,3}){3}$/.test(ipActual || ''), '实际=' + ipActual);
+
+    // 请求侧
+    check('  connection.requestHost 渲染正确（期望 "' + conn.requestHost + '"）',
+      cellValue(html, 'connection.requestHost') === String(conn.requestHost),
+      '实际=' + JSON.stringify(cellValue(html, 'connection.requestHost')));
+    check('  connection.scheme 渲染正确（期望 "' + conn.scheme + '"）',
+      cellValue(html, 'connection.scheme') === String(conn.scheme),
+      '实际=' + JSON.stringify(cellValue(html, 'connection.scheme')));
+    // 转发侧
+    check('  connection.remoteAddress 渲染正确（期望 "' + conn.remoteAddress + '"）',
+      cellValue(html, 'connection.remoteAddress') === String(conn.remoteAddress),
+      '实际=' + JSON.stringify(cellValue(html, 'connection.remoteAddress')));
+    check('  connection.remotePort 渲染正确（期望 "' + conn.remotePort + '"）',
+      cellValue(html, 'connection.remotePort') === String(conn.remotePort),
+      '实际=' + JSON.stringify(cellValue(html, 'connection.remotePort')));
+    const vpActual = cellValue(html, 'connection.viaProxy');
+    check('  connection.viaProxy 渲染为「是/否」中文（后端值 ' + conn.viaProxy + '）',
+      /^(是|否)/.test(vpActual || ''), '实际=' + JSON.stringify(vpActual));
+    // 服务侧
+    const expectListen = conn.listenAddress + ':' + conn.listenPort;
+    const listenActual = cellValue(html, 'listenAddress:listenPort');
+    check('  服务监听地址 = connection.listenAddress:listenPort（期望 "' + expectListen + '"）',
+      listenActual === expectListen, '实际=' + JSON.stringify(listenActual));
+    check('  监听地址与主机网卡 IP 是两回事（监听可能为 0.0.0.0）',
+      typeof conn.listenAddress === 'string' && conn.listenAddress.length > 0,
+      'listenAddress=' + conn.listenAddress);
+    // 链路摘要
+    const sumActual = cellValue(html, 'summary');
+    check('  链路摘要 summary 含后端同一串文本',
+      !!conn.summary && sumActual === String(conn.summary), '实际=' + JSON.stringify(sumActual));
+    check('  链路摘要含「本服务(监听地址:端口)」',
+      /本服务\(/.test(sumActual || ''), '实际=' + sumActual);
 
     // 时区字段：精确值比对
     const tz = expectData.timezone || {};
@@ -286,6 +340,19 @@ function cellValue(html, labelPart) {
 
   check('两个服务的 endpoint 不同（分流前缀有别）',
     (BASE + '/api/v1') !== (BASE + '/api/v1/message'));
+  // 注：沙箱垫片的 getElementById 是惰性元素（不并入 host.innerHTML），
+  // 故直接取该元素断言；真实浏览器中它与总览条 DOM 是同一个节点。
+  const ipElBooking = sb.document.getElementById('bi-endpoint-ip-booking');
+  const ipElMsg = sb.document.getElementById('bi-endpoint-ip-message');
+  check('总览条回写了 booking 的「实际连接 IP」（后端解析结果，非写死前缀）',
+    /实际连接 IP：\d{1,3}(\.\d{1,3}){3}/.test(ipElBooking.textContent || ''),
+    '实际=' + JSON.stringify(ipElBooking.textContent));
+  check('总览条回写的 IP 与接口 requestHostIp 一致',
+    (ipElBooking.textContent || '').indexOf(bkData.connection.requestHostIp) >= 0,
+    '文案=' + ipElBooking.textContent + '，接口=' + bkData.connection.requestHostIp);
+  check('总览条回写了 message 的「实际连接 IP」（切 TAB 后两个都有值）',
+    /实际连接 IP：\d{1,3}(\.\d{1,3}){3}/.test(ipElMsg.textContent || ''),
+    '实际=' + JSON.stringify(ipElMsg.textContent));
 
   /* ---------- 2. admin 数据维护简表 ---------- */
   console.log('\n【C】admin「数据维护 / 后台信息」Tab 简表');
@@ -316,9 +383,11 @@ function cellValue(html, labelPart) {
       check('第1行 名称 = ' + bkData.appName, r1[1] === bkData.appName, '实际=' + r1[1]);
       check('第1行 版本 = ' + bkData.version, r1[2] === bkData.version, '实际=' + r1[2]);
       check('第1行 构建时间 = ' + bkData.buildTime, r1[3] === bkData.buildTime, '实际=' + r1[3]);
-      check('第1行 前端连接地址 = ' + BASE + '/api/v1', r1[4] === BASE + '/api/v1', '实际=' + r1[4]);
-      check('第1行 服务监听地址 = ' + bkData.hostAddress + ':' + bkData.port,
-        r1[5] === bkData.hostAddress + ':' + bkData.port, '实际=' + r1[5]);
+      check('第1行 前端调用地址 = ' + BASE + '/api/v1', r1[4] === BASE + '/api/v1', '实际=' + r1[4]);
+      check('第1行 实际连接 IP = ' + bkData.connection.requestHostIp,
+        r1[5] === String(bkData.connection.requestHostIp), '实际=' + r1[5]);
+      check('第1行 服务监听地址 = ' + bkData.connection.listenAddress + ':' + bkData.connection.listenPort,
+        r1[6] === bkData.connection.listenAddress + ':' + bkData.connection.listenPort, '实际=' + r1[6]);
 
       const expectedMsgName = msData.appName;
       const r2ok = (r2[0] === 'message-service' || r2[0] === expectedMsgName);
@@ -326,15 +395,19 @@ function cellValue(html, labelPart) {
       check('第2行 名称 = ' + expectedMsgName, r2[1] === expectedMsgName, '实际=' + r2[1]);
       check('第2行 版本 = ' + msData.version, r2[2] === msData.version, '实际=' + r2[2]);
       check('第2行 构建时间 = ' + msData.buildTime, r2[3] === msData.buildTime, '实际=' + r2[3]);
-      check('第2行 前端连接地址 = ' + BASE + '/api/v1/message', r2[4] === BASE + '/api/v1/message', '实际=' + r2[4]);
-      check('第2行 服务监听地址 = ' + msData.hostAddress + ':' + msData.port,
-        r2[5] === msData.hostAddress + ':' + msData.port, '实际=' + r2[5]);
+      check('第2行 前端调用地址 = ' + BASE + '/api/v1/message', r2[4] === BASE + '/api/v1/message', '实际=' + r2[4]);
+      check('第2行 实际连接 IP = ' + msData.connection.requestHostIp,
+        r2[5] === String(msData.connection.requestHostIp), '实际=' + r2[5]);
+      check('第2行 服务监听地址 = ' + msData.connection.listenAddress + ':' + msData.connection.listenPort,
+        r2[6] === msData.connection.listenAddress + ':' + msData.connection.listenPort, '实际=' + r2[6]);
       check('两行构建时间不同（确实来自两个不同服务）', r1[3] !== r2[3], r1[3] + ' vs ' + r2[3]);
-      check('两行前端连接地址不同', r1[4] !== r2[4], r1[4] + ' vs ' + r2[4]);
-      check('两行服务监听地址不同（端口 8081 vs 8090）', r1[5] !== r2[5], r1[5] + ' vs ' + r2[5]);
+      check('两行前端调用地址不同', r1[4] !== r2[4], r1[4] + ' vs ' + r2[4]);
+      check('两行服务监听地址不同（端口 8081 vs 8090）', r1[6] !== r2[6], r1[6] + ' vs ' + r2[6]);
     }
-    check('简表表头含「前端连接地址」与「服务监听地址」',
-      /<th>前端连接地址<\/th>/.test(html) && /<th>服务监听地址<\/th>/.test(html), html.slice(0, 300));
+    check('简表表头含「前端调用地址」「实际连接 IP」「服务监听地址」',
+      /<th>前端调用地址<\/th>/.test(html) && /<th>实际连接 IP<\/th>/.test(html) && /<th>服务监听地址<\/th>/.test(html),
+      html.slice(0, 300));
+    check('简表下方给出链路摘要', /本服务\(/.test(html), html.slice(-400));
     check('简表无“获取失败”', !/获取失败/.test(html), html.slice(0, 300));
   }
 
@@ -374,7 +447,9 @@ function cellValue(html, labelPart) {
       }
       return out;
     }
-    const backendFields = flatten(bkData);
+    // 取两个后端字段的并集：两服务 Jackson 配置不同（booking 忽略 null、message 保留 null），
+    // 单看一方会漏掉只在另一方出现的字段（如 connection.forwardedFor）
+    const backendFields = [...new Set([...flatten(bkData), ...flatten(msData)])];
     const missing = [];
     for (const f of backendFields) {
       // 展示行的 <th> 文案里带有英文字段名（如 "服务标识 service"、"时区 ID timezone.id"）
@@ -386,15 +461,26 @@ function cellValue(html, labelPart) {
 
     // 反向：页面展示行是否都对应后端真实字段（防前端写死不存在的字段）
     // 白名单：前端自己派生、后端不返回的字段（endpoint = 站点 origin + 分流前缀）
+    // 匹配规则：th 里的英文 token 完全等于后端字段，或等于后端某嵌套字段的最后一段
+    // （如合并行 "listenAddress:listenPort" 会被截出 listenPort，对应 connection.listenPort）
     const DERIVED_FIELDS = ['endpoint'];
     const thKeys = [...html5.matchAll(/<th>([^<]*?([a-zA-Z][a-zA-Z0-9.]*))\s*<\/th>/g)]
       .map(m => m[2]).filter(Boolean);
-    const orphan = [...new Set(thKeys)]
-      .filter(k => backendFields.indexOf(k) < 0 && DERIVED_FIELDS.indexOf(k) < 0);
+    const orphan = [...new Set(thKeys)].filter(k =>
+      backendFields.indexOf(k) < 0
+      && DERIVED_FIELDS.indexOf(k) < 0
+      && !backendFields.some(f => f.endsWith('.' + k)));
     check('页面展示行不存在后端没有的“孤儿字段”', orphan.length === 0, '孤儿字段: ' + orphan.join(', '));
     check('后端新增 hostAddress / port 均有展示行',
       backendFields.indexOf('hostAddress') >= 0 && backendFields.indexOf('port') >= 0,
       '后端字段: ' + backendFields.join(', '));
+    check('后端返回 connection 分组（三层连接信息）',
+      !!bkData.connection && !!msData.connection,
+      'booking.connection=' + JSON.stringify(bkData.connection));
+    check('connection 含请求侧/转发侧/服务侧全部字段',
+      ['scheme', 'requestHost', 'requestHostIp', 'remoteAddress', 'remotePort', 'listenAddress', 'listenPort', 'viaProxy']
+        .every(k => Object.prototype.hasOwnProperty.call(bkData.connection || {}, k)),
+      '实际键: ' + Object.keys(bkData.connection || {}).join(', '));
   }
 
   /* ---------- 5. 快速切换 TAB 的响应竞态 ---------- */

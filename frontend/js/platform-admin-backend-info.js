@@ -88,13 +88,45 @@
     return siteOrigin() + (svc && svc.prefix ? svc.prefix : '');
   }
 
-  /** 服务监听地址（后端进程所在机器 IP:端口），取自接口返回的 hostAddress / port */
+  /**
+   * 服务实际监听地址：优先取 connection.listenAddress:listenPort（本进程真实绑定的网卡与端口，
+   * 0.0.0.0 表示监听全部网卡）；接口未返回 connection 时回退 hostAddress:port（主机网卡 IP）。
+   */
   function listenAddressOf(info) {
+    var conn = (info && info.connection) ? info.connection : null;
+    if (conn) {
+      var la = conn.listenAddress, lp = conn.listenPort;
+      if (la) return (lp ? (la + ':' + lp) : la);
+    }
     var host = (info && info.hostAddress) ? info.hostAddress : '';
     var port = (info && info.port) ? info.port : '';
-    if (!host) return '—';
+    if (!host) return '';
     return port ? (host + ':' + port) : host;
   }
+
+  /**
+   * 实际连过去的服务器 IP（请求侧）：后端把浏览器访问的 Host 头做 DNS 解析后的结果。
+   * 没有解析结果时回退 Host 头本身。
+   */
+  function connectedIpOf(info) {
+    var conn = (info && info.connection) ? info.connection : null;
+    if (!conn) return '';
+    return conn.requestHostIp || conn.requestHost || '';
+  }
+
+  /* 连接信息字段标签（三层：请求侧 / 转发侧 / 服务侧） */
+  var CONNECTION_LABELS = [
+    { key: 'scheme',        label: '请求协议 scheme' },
+    { key: 'requestHost',   label: '浏览器访问地址 Host' },
+    { key: 'requestHostIp', label: '域名解析 IP（实际连过去）' },
+    { key: 'clientIp',      label: '真实客户端 IP' },
+    { key: 'forwardedFor',  label: 'X-Forwarded-For' },
+    { key: 'remoteAddress', label: '连接对端 IP（与本服务握手方）' },
+    { key: 'remotePort',    label: '连接对端端口' },
+    { key: 'viaProxy',      label: '经由反向代理' },
+    { key: 'listenAddress', label: '本服务监听地址' },
+    { key: 'listenPort',    label: '本服务监听端口' }
+  ];
 
   /**
    * 加载序号：用于丢弃「已被取代的旧响应」。
@@ -148,10 +180,27 @@
 
   /* ==================== 渲染 ==================== */
   function renderInfoTable(info, svc) {
+    var conn = (info && info.connection) ? info.connection : null;
+
+    // 连接信息置顶：调用地址（URL 前缀）、实际解析 IP、握手对端、本服务监听、链路摘要
+    var connRows = '<tr><th>前端调用地址 endpoint（URL 前缀）</th><td>' + esc(endpointOf(svc)) + '</td></tr>';
+    connRows += '<tr><th>实际连接 IP（Host 解析结果）</th><td>' + esc(connectedIpOf(info)) + '</td></tr>';
+    CONNECTION_LABELS.forEach(function (f) {
+      var val = conn ? conn[f.key] : null;
+      if (f.key === 'viaProxy') {
+        val = (val === true || String(val) === 'true') ? '是（经 Nginx 等反代转发）' : '否（客户端直连本服务）';
+      }
+      connRows += '<tr><th>' + f.label + ' connection.' + f.key + '</th><td>' + esc(val) + '</td></tr>';
+    });
+    connRows += '<tr><th>本服务监听 listenAddress:listenPort</th><td>' + esc(listenAddressOf(info)) + '</td></tr>';
+    // 主机网卡 IP：与「监听地址」区分开（多网卡/容器场景下两者不同，排查时很有用）
+    connRows += '<tr><th>主机网卡 IP hostAddress</th><td>' + esc(info && info.hostAddress) + '</td></tr>';
+    connRows += '<tr><th>服务端口 port</th><td>' + esc(info && info.port) + '</td></tr>';
+    if (conn && conn.summary) {
+      connRows += '<tr><th>链路摘要 connection.summary</th><td>' + esc(conn.summary) + '</td></tr>';
+    }
+
     var rows = '';
-    // 连接地址置顶：前端实际请求地址（前端拼）+ 服务监听地址（后端返回 hostAddress:port）
-    rows += '<tr><th>前端连接地址 endpoint</th><td>' + esc(endpointOf(svc)) + '</td></tr>';
-    rows += '<tr><th>服务监听地址 hostAddress:port</th><td>' + esc(listenAddressOf(info)) + '</td></tr>';
     FIELD_LABELS.forEach(function (f) {
       var val = info[f.key];
       if (f.key === 'status') {
@@ -172,11 +221,21 @@
     });
 
     return (
+      '<div class="bi-group-title"><i class="fa fa-plug"></i> 连接信息（三层地址）</div>' +
+      '<table class="bi-info-table"><tbody>' + connRows + '</tbody></table>' +
       '<div class="bi-group-title"><i class="fa fa-info-circle"></i> 基本信息</div>' +
       '<table class="bi-info-table"><tbody>' + rows + '</tbody></table>' +
       '<div class="bi-group-title"><i class="fa fa-globe"></i> 时区信息</div>' +
       '<table class="bi-info-table"><tbody>' + tzRows + '</tbody></table>'
     );
+  }
+
+  /** 顶部总览条回写「实际连接 IP」（由后端解析 Host 头得到） */
+  function updateEndpointIp(key, info) {
+    var el = document.getElementById('bi-endpoint-ip-' + key);
+    if (!el) return;
+    var ip = connectedIpOf(info);
+    el.textContent = ip ? ('实际连接 IP：' + ip) : '';
   }
 
   async function loadServiceInfo(service, bodyEl, seq) {
@@ -186,6 +245,7 @@
       if (seq !== loadSeq) return;   // 已被更新的请求取代，丢弃本次结果
       window.__backendInfoCache = window.__backendInfoCache || {};
       window.__backendInfoCache[service.key] = info;
+      updateEndpointIp(service.key, info);
       bodyEl.innerHTML = renderInfoTable(info, service);
     } catch (e) {
       if (seq !== loadSeq) return;   // 同上：失败提示也不应覆盖当前 TAB
@@ -216,6 +276,7 @@
                       <span class="bi-endpoint-name"><i class="fa ${s.icon}"></i> ${s.label}</span>
                       <code class="bi-endpoint-url" data-endpoint-key="${s.key}">${endpointOf(s)}</code>
                       <span class="bi-endpoint-desc">${s.desc}</span>
+                      <span class="bi-endpoint-ip" id="bi-endpoint-ip-${s.key}"></span>
                     </div>`;
           }).join('')}
         </div>

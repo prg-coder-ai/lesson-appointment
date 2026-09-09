@@ -2,6 +2,7 @@ package com.reservation.controller;
 
 import com.reservation.common.ServiceInfo;
 import com.reservation.service.ServiceInfoService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -31,14 +32,23 @@ public class DefaultPageController {
 
     @GetMapping(value = {"/", "/index.html"}, produces = MediaType.TEXT_HTML_VALUE + ";charset=UTF-8")
     @ResponseBody
-    public String index() {
-        ServiceInfo info = serviceInfoService.current();
+    public String index(HttpServletRequest request) {
+        ServiceInfo info = serviceInfoService.current(request);
         String name = info.getAppName();
         String version = info.getVersion();
         String buildTime = info.getBuildTime();
         String now = info.getServerTime();
         String tzInfo = info.getTimezone().getDescription();
         String uptime = info.getUptime();
+
+        // 实际连接信息（三层）：客户端/访问地址/连接对端/本服务监听
+        ServiceInfo.ConnectionInfo conn = info.getConnection();
+        String clientIp = nvl(conn == null ? null : conn.getClientIp());
+        String accessUrl = (conn == null || conn.getRequestHost() == null)
+                ? "未知" : conn.getScheme() + "://" + conn.getRequestHost();
+        String accessIp = (conn == null || conn.getRequestHostIp() == null) ? "" : "（解析 IP：" + conn.getRequestHostIp() + "）";
+        String peer = (conn == null) ? "未知" : nvl(conn.getRemoteAddress()) + ":" + conn.getRemotePort();
+        String listen = (conn == null) ? "未知" : nvl(conn.getListenAddress()) + ":" + conn.getListenPort();
 
         return """
                 <!DOCTYPE html>
@@ -84,6 +94,10 @@ public class DefaultPageController {
                       <tr><th>服务器时间</th><td>%s</td></tr>
                       <tr><th>时区</th><td>%s</td></tr>
                       <tr><th>已运行</th><td>%s</td></tr>
+                      <tr><th>客户端 IP</th><td>%s</td></tr>
+                      <tr><th>访问地址</th><td>%s%s</td></tr>
+                      <tr><th>连接对端</th><td>%s</td></tr>
+                      <tr><th>本服务监听</th><td>%s</td></tr>
                     </table>
                     <p class="note">
                       本服务仅提供 REST 接口（/api/v1/**），不再伺服任何管理页面。<br>
@@ -92,7 +106,13 @@ public class DefaultPageController {
                   </div>
                 </body>
                 </html>
-                """.formatted(name, name, name, version, buildTime, now, tzInfo, uptime);
+                """.formatted(name, name, name, version, buildTime, now, tzInfo, uptime,
+                clientIp, accessUrl, accessIp, peer, listen);
+    }
+
+    /** null 兜底为"未知"，避免缺省页出现字面量 null */
+    private static String nvl(String v) {
+        return (v == null || v.isEmpty()) ? "未知" : v;
     }
 
     /**

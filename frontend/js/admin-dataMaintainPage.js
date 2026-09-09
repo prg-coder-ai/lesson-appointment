@@ -315,12 +315,26 @@ function backendEndpointOf(src) {
   return backendSiteOrigin() + (src && src.prefix ? src.prefix : '');
 }
 
-/** 服务监听地址（后端进程所在机器 IP:端口），取自接口返回的 hostAddress / port */
+/**
+ * 服务实际监听地址：优先 connection.listenAddress:listenPort（本进程真实绑定，
+ * 0.0.0.0 表示监听全部网卡）；无 connection 时回退 hostAddress:port（主机网卡 IP）。
+ */
 function backendListenAddressOf(info) {
+  var conn = (info && info.connection) ? info.connection : null;
+  if (conn && conn.listenAddress) {
+    return conn.listenPort ? (conn.listenAddress + ':' + conn.listenPort) : conn.listenAddress;
+  }
   var host = (info && info.hostAddress) ? info.hostAddress : '';
   var port = (info && info.port) ? info.port : '';
   if (!host) return '-';
   return port ? (host + ':' + port) : host;
+}
+
+/** 实际连过去的 IP：后端解析 Host 头得到；没有时回退 Host 头本身 */
+function backendConnectedIpOf(info) {
+  var conn = (info && info.connection) ? info.connection : null;
+  if (!conn) return '-';
+  return conn.requestHostIp || conn.requestHost || '-';
 }
 
 /** 调用 getApiInfo（匿名接口），返回 data 对象 */
@@ -369,7 +383,7 @@ async function renderBackendBriefInfo(container) {
 
   var html = '<table class="dm-data-table"><thead><tr>' +
              '<th>程序</th><th>名称</th><th>版本</th><th>构建时间</th>' +
-             '<th>前端连接地址</th><th>服务监听地址</th><th>说明</th>' +
+             '<th>前端调用地址</th><th>实际连接 IP</th><th>服务监听地址</th><th>说明</th>' +
              '</tr></thead><tbody>';
 
   results.forEach(function (r) {
@@ -377,15 +391,16 @@ async function renderBackendBriefInfo(container) {
     html += '<td>' + r.src.label + '</td>';
     if (r.error) {
       html += '<td colspan="3" class="dm-error" style="border-bottom:none;">获取失败：' + r.error + '</td>';
-      // 连接地址不依赖接口返回，即使失败也能显示，便于排查"连的是哪个地址"
+      // 调用地址不依赖接口返回，即使失败也能显示，便于排查"连的是哪个地址"
       html += '<td class="dm-endpoint">' + backendEndpointOf(r.src) + '</td>';
-      html += '<td>-</td>';
+      html += '<td>-</td><td>-</td>';
       html += '<td>' + r.src.desc + '</td>';
     } else {
       html += '<td>' + (r.info.appName || '-') + '</td>';
       html += '<td>' + (r.info.version || '-') + '</td>';
       html += '<td>' + (r.info.buildTime || '-') + '</td>';
       html += '<td class="dm-endpoint">' + backendEndpointOf(r.src) + '</td>';
+      html += '<td class="dm-endpoint">' + backendConnectedIpOf(r.info) + '</td>';
       html += '<td class="dm-endpoint">' + backendListenAddressOf(r.info) + '</td>';
       html += '<td>' + (r.info.description || r.src.desc) + '</td>';
     }
@@ -393,6 +408,17 @@ async function renderBackendBriefInfo(container) {
   });
 
   html += '</tbody></table>';
+
+  // 链路摘要：把「客户端 → 访问域名(解析IP) → 对端 → 本服务监听」整串展示出来
+  var summaries = results.filter(function (r) {
+    return !r.error && r.info && r.info.connection && r.info.connection.summary;
+  }).map(function (r) {
+    return '<div><b>' + r.src.label + '</b>：' + r.info.connection.summary + '</div>';
+  });
+  if (summaries.length) {
+    html += '<div class="dm-endpoint" style="padding:10px 12px;color:#666;">' + summaries.join('') + '</div>';
+  }
+
   box.innerHTML = html;
 }
 

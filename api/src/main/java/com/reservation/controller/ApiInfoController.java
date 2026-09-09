@@ -3,6 +3,7 @@ package com.reservation.controller;
 import com.reservation.common.Result;
 import com.reservation.common.ServiceInfo;
 import com.reservation.service.ServiceInfoService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -27,10 +28,10 @@ public class ApiInfoController {
     /**
      * 获取服务运行信息（缺省页同款字段）
      *
-     * @return {"code":200,"message":"操作成功","data":{service,appName,version,buildTime,serverTime,startTime,uptime,uptimeMillis,timezone{...},status,description}}
+     * @return {"code":200,"message":"操作成功","data":{service,appName,version,buildTime,serverTime,startTime,uptime,uptimeMillis,hostAddress,port,connection{...},timezone{...},status,description}}
      */
     @GetMapping({"/system/info", "/apiInfo"})
-    public Result<ServiceInfo> getApiInfo() {
-        return Result.ok(serviceInfoService.current());
+    public Result<ServiceInfo> getApiInfo(HttpServletRequest request) {
+        return Result.ok(serviceInfoService.current(request));
     }
 }

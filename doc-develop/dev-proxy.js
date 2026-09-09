@@ -72,6 +72,15 @@ function probe(host, port, timeout = 1500) {
 function proxy(req, res, targetHost, targetPort, label) {
   const headers = { ...req.headers };
   headers.host = `${targetHost}:${targetPort}`;
+
+  // 与生产 Nginx 保持一致：补 X-Forwarded-* / X-Real-IP
+  // 否则后端永远走「直连」分支，本地无法复现反代链路（后台信息页的 viaProxy 会一直是 false）
+  const clientIp = (req.socket && req.socket.remoteAddress) || '';
+  const priorXff = headers['x-forwarded-for'];
+  headers['x-forwarded-for'] = priorXff ? `${priorXff}, ${clientIp}` : clientIp;
+  headers['x-real-ip'] = clientIp;
+  headers['x-forwarded-proto'] = req.socket && req.socket.encrypted ? 'https' : 'http';
+  headers['x-forwarded-host'] = req.headers.host || '';
   const options = {
     host: targetHost,
     port: targetPort,

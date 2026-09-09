@@ -1,10 +1,12 @@
 package com.messagecenter.service;
 
 import com.messagecenter.common.ServiceInfo;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.info.BuildProperties;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.lang.management.ManagementFactory;
 import java.net.Inet4Address;
@@ -16,7 +18,9 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Enumeration;
 import java.util.Locale;
+import java.util.Map;
 import java.util.TimeZone;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 服务运行信息提供者。
@@ -43,6 +47,9 @@ public class ServiceInfoService {
     private static final String STATUS_UP = "UP";
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
+    /** Host 头 → 解析 IP 的缓存（含失败，值为空串）。DNS 查询有网络开销，避免每次请求都查。 */
+    private static final Map<String, String> HOST_IP_CACHE = new ConcurrentHashMap<>();
+
     private final BuildProperties buildProperties;
     private final Environment environment;
 
@@ -54,8 +61,21 @@ public class ServiceInfoService {
         this.environment = environment;
     }
 
-    /** 组装当前服务运行信息（每次调用实时取值） */
+    /**
+     * 组装当前服务运行信息（无 HTTP 请求上下文时使用）。
+     *
+     * <p>此时 connection 只含服务侧监听地址，请求侧/转发侧为 null。</p>
+     */
     public ServiceInfo current() {
+        return current(null);
+    }
+
+    /**
+     * 组装当前服务运行信息（每次调用实时取值）。
+     *
+     * @param request 当前 HTTP 请求，用于取「实际连接地址」；可为 null
+     */
+    public ServiceInfo current(HttpServletRequest request) {
         ServiceInfo info = new ServiceInfo();
         info.setService(SERVICE_ID);
         info.setStatus(STATUS_UP);
@@ -91,6 +111,9 @@ public class ServiceInfoService {
         info.setHostAddress(resolveHostAddress());
         info.setPort(resolvePort());
 
+        // 实际连接信息：请求侧（浏览器访问域名+解析IP）/ 转发侧（对端地址+真实客户端）/ 服务侧（监听地址:端口）
+        info.setConnection(buildConnection(request, info.getPort()));
+
         TimeZone tz = TimeZone.getDefault();
         ServiceInfo.TimezoneInfo tzInfo = new ServiceInfo.TimezoneInfo();
         tzInfo.setId(tz.getID());
@@ -107,6 +130,125 @@ public class ServiceInfoService {
                 ZoneId.systemDefault()).format(FMT));
 
         return info;
+    }
+
+    /**
+     * 组装三层连接信息。
+     *
+     * <ol>
+     *   <li><b>请求侧</b>：{@code scheme} + {@code requestHost}（Host 头，浏览器实际访问的域名:端口）
+     *       + {@code requestHostIp}（服务端代做的 DNS 解析结果，即浏览器真正连过去的 IP）；</li>
+     *   <li><b>转发侧</b>：{@code remoteAddress:remotePort}（与本服务握手的对端，经同机 Nginx 时为 127.0.0.1）
+     *       + {@code clientIp} / {@code forwardedFor}（反代写入的真实客户端）；</li>
+     *   <li><b>服务侧</b>：{@code listenAddress:listenPort}（本进程实际监听，0.0.0.0 表示监听全部网卡）。</li>
+     * </ol>
+     */
+    private ServiceInfo.ConnectionInfo buildConnection(HttpServletRequest request, Integer port) {
+        ServiceInfo.ConnectionInfo c = new ServiceInfo.ConnectionInfo();
+        c.setListenAddress(resolveListenAddress());
+        c.setListenPort(port);
+
+        if (request == null) {
+            c.setViaProxy(false);
+            c.setSummary("本服务监听 " + c.getListenAddress() + ":" + c.getListenPort() + "（无请求上下文）");
+            return c;
+        }
+
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+        String realIp = request.getHeader("X-Real-IP");
+        String forwardedProto = request.getHeader("X-Forwarded-Proto");
+        String forwardedHost = request.getHeader("X-Forwarded-Host");
+
+        c.setScheme(StringUtils.hasText(forwardedProto) ? forwardedProto : request.getScheme());
+        // X-Forwarded-Host 优先（多层反代时 Host 头可能被改写），其次原始 Host 头
+        String host = StringUtils.hasText(forwardedHost) ? forwardedHost : request.getHeader("Host");
+        c.setRequestHost(host);
+        c.setRequestHostIp(resolveHostIp(host));
+        c.setRemoteAddress(request.getRemoteAddr());
+        c.setRemotePort(request.getRemotePort());
+        c.setForwardedFor(forwardedFor);
+        boolean hasForwardHeaders = StringUtils.hasText(forwardedFor) || StringUtils.hasText(realIp)
+                || StringUtils.hasText(forwardedProto) || StringUtils.hasText(forwardedHost);
+        // 直连场景（无 XFF/X-Real-IP）下，与本服务握手的对端就是客户端本身
+        String clientIp = firstIp(realIp, forwardedFor);
+        if (clientIp == null && !hasForwardHeaders) {
+            clientIp = request.getRemoteAddr();
+        }
+        c.setClientIp(clientIp);
+        c.setViaProxy(hasForwardHeaders);
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("客户端(").append(c.getClientIp() != null ? c.getClientIp() : UNKNOWN).append(')');
+        sb.append(" → ").append(c.getScheme()).append("://").append(c.getRequestHost() != null ? c.getRequestHost() : UNKNOWN);
+        if (StringUtils.hasText(c.getRequestHostIp()) && !c.getRequestHostIp().equals(c.getRequestHost())) {
+            sb.append('(').append(c.getRequestHostIp()).append(')');
+        }
+        sb.append(" → ").append(Boolean.TRUE.equals(c.getViaProxy()) ? "反代" : "直连").append('(')
+          .append(c.getRemoteAddress()).append(':').append(c.getRemotePort()).append(')');
+        sb.append(" → 本服务(").append(c.getListenAddress()).append(':').append(c.getListenPort()).append(')');
+        c.setSummary(sb.toString());
+        return c;
+    }
+
+    /** 取 X-Real-IP，其次 X-Forwarded-For 首段（多级时为最左侧原始客户端） */
+    private static String firstIp(String... candidates) {
+        for (String v : candidates) {
+            if (!StringUtils.hasText(v)) {
+                continue;
+            }
+            // 去掉 IPv4-mapped IPv6 前缀（如 ::ffff:127.0.0.1 -> 127.0.0.1），展示更直观
+            String first = v.split(",")[0].trim().replaceFirst("^::ffff:", "");
+            if (!first.isEmpty()) {
+                return first;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 把 Host 头的域名解析成 IP：浏览器 JS 无法做 DNS 查询，由服务端代解析后回传。
+     * 本身是 IP 时直接返回；解析失败返回 null。结果带缓存（含失败）。
+     */
+    private static String resolveHostIp(String host) {
+        if (!StringUtils.hasText(host)) {
+            return null;
+        }
+        String h = host.trim();
+        // 去掉端口：IPv6 用中括号包裹，先处理 [::1]:8080 形式
+        if (h.startsWith("[")) {
+            int end = h.indexOf(']');
+            if (end > 0) {
+                h = h.substring(1, end);
+            }
+        } else {
+            int colon = h.lastIndexOf(':');
+            if (colon > 0) {
+                h = h.substring(0, colon);
+            }
+        }
+        if (h.isEmpty()) {
+            return null;
+        }
+        return HOST_IP_CACHE.computeIfAbsent(h, key -> {
+            try {
+                InetAddress addr = InetAddress.getByName(key);
+                return addr.getHostAddress();
+            } catch (Exception e) {
+                return "";
+            }
+        });
+    }
+
+    /**
+     * 本服务实际监听地址：local.server.address（容器实际绑定）优先，其次 server.address；
+     * 都没有时按 Tomcat 默认行为记为 0.0.0.0（监听全部网卡）。
+     */
+    private String resolveListenAddress() {
+        String addr = environment.getProperty("local.server.address");
+        if (!StringUtils.hasText(addr)) {
+            addr = environment.getProperty("server.address");
+        }
+        return StringUtils.hasText(addr) ? addr : "0.0.0.0";
     }
 
     /**
