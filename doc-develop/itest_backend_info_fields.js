@@ -198,7 +198,7 @@ function cellValue(html, labelPart) {
   ];
   const TZ_FIELDS = [['id', '时区 ID'], ['displayName', '时区名称'], ['utcOffset', 'UTC 偏移'], ['description', '完整描述']];
 
-  async function verifyTab(serviceName, expectData, foreignService, foreignData) {
+  async function verifyTab(serviceName, expectData, foreignService, foreignData, expectEndpoint) {
     console.log('  -- TAB: ' + serviceName + ' --');
     const ok = await waitRendered(bodyEl, (el) =>
       (/<\/table>/.test(el.innerHTML) && el.innerHTML.indexOf(expectData.service) >= 0) || /获取失败/.test(el.innerHTML));
@@ -217,6 +217,17 @@ function cellValue(html, labelPart) {
       check('  字段 ' + key + ' 渲染正确（期望 "' + expect + '"）',
         actual === String(expect), '实际=' + JSON.stringify(actual));
     }
+
+    // 连接地址（新增）：前端实际请求地址 + 服务监听地址
+    const epActual = cellValue(html, 'endpoint');
+    check('  连接地址 endpoint 渲染正确（期望 "' + expectEndpoint + '"）',
+      epActual === expectEndpoint, '实际=' + JSON.stringify(epActual));
+    const expectListen = expectData.hostAddress + ':' + expectData.port;
+    const listenActual = cellValue(html, 'hostAddress:port');
+    check('  服务监听地址 = hostAddress:port（期望 "' + expectListen + '"）',
+      listenActual === expectListen, '实际=' + JSON.stringify(listenActual));
+    check('  endpoint 是「站点 origin + 分流前缀」，含协议与主机',
+      /^https?:\/\/[^/]+\/api\/v1/.test(epActual || ''), '实际=' + epActual);
 
     // 时区字段：精确值比对
     const tz = expectData.timezone || {};
@@ -258,14 +269,23 @@ function cellValue(html, labelPart) {
     check('  未混入 ' + foreignService + ' 的服务说明', html.indexOf(foreignData.description) < 0);
   }
 
-  await verifyTab('booking_api', bkData, 'message-service', msData);
+  // 顶部「连接地址总览条」：不切 TAB 也能同时看到两个服务的地址
+  check('页面含连接地址总览条 bi-endpoint-bar', /bi-endpoint-bar/.test(host.innerHTML));
+  check('总览条同时列出两个服务的连接地址',
+    host.innerHTML.indexOf(BASE + '/api/v1') >= 0 && host.innerHTML.indexOf(BASE + '/api/v1/message') >= 0,
+    host.innerHTML.slice(0, 300));
+
+  await verifyTab('booking_api', bkData, 'message-service', msData, BASE + '/api/v1');
 
   const tabs = host.querySelectorAll('.bi-tab-btn');
   check('解析到 2 个 TAB 按钮', tabs.length === 2, '实际 ' + tabs.length);
   if (tabs.length === 2) {
     tabs[1].click();
-    await verifyTab('message-service', msData, 'booking_api', bkData);
+    await verifyTab('message-service', msData, 'booking_api', bkData, BASE + '/api/v1/message');
   }
+
+  check('两个服务的 endpoint 不同（分流前缀有别）',
+    (BASE + '/api/v1') !== (BASE + '/api/v1/message'));
 
   /* ---------- 2. admin 数据维护简表 ---------- */
   console.log('\n【C】admin「数据维护 / 后台信息」Tab 简表');
@@ -296,6 +316,9 @@ function cellValue(html, labelPart) {
       check('第1行 名称 = ' + bkData.appName, r1[1] === bkData.appName, '实际=' + r1[1]);
       check('第1行 版本 = ' + bkData.version, r1[2] === bkData.version, '实际=' + r1[2]);
       check('第1行 构建时间 = ' + bkData.buildTime, r1[3] === bkData.buildTime, '实际=' + r1[3]);
+      check('第1行 前端连接地址 = ' + BASE + '/api/v1', r1[4] === BASE + '/api/v1', '实际=' + r1[4]);
+      check('第1行 服务监听地址 = ' + bkData.hostAddress + ':' + bkData.port,
+        r1[5] === bkData.hostAddress + ':' + bkData.port, '实际=' + r1[5]);
 
       const expectedMsgName = msData.appName;
       const r2ok = (r2[0] === 'message-service' || r2[0] === expectedMsgName);
@@ -303,8 +326,15 @@ function cellValue(html, labelPart) {
       check('第2行 名称 = ' + expectedMsgName, r2[1] === expectedMsgName, '实际=' + r2[1]);
       check('第2行 版本 = ' + msData.version, r2[2] === msData.version, '实际=' + r2[2]);
       check('第2行 构建时间 = ' + msData.buildTime, r2[3] === msData.buildTime, '实际=' + r2[3]);
+      check('第2行 前端连接地址 = ' + BASE + '/api/v1/message', r2[4] === BASE + '/api/v1/message', '实际=' + r2[4]);
+      check('第2行 服务监听地址 = ' + msData.hostAddress + ':' + msData.port,
+        r2[5] === msData.hostAddress + ':' + msData.port, '实际=' + r2[5]);
       check('两行构建时间不同（确实来自两个不同服务）', r1[3] !== r2[3], r1[3] + ' vs ' + r2[3]);
+      check('两行前端连接地址不同', r1[4] !== r2[4], r1[4] + ' vs ' + r2[4]);
+      check('两行服务监听地址不同（端口 8081 vs 8090）', r1[5] !== r2[5], r1[5] + ' vs ' + r2[5]);
     }
+    check('简表表头含「前端连接地址」与「服务监听地址」',
+      /<th>前端连接地址<\/th>/.test(html) && /<th>服务监听地址<\/th>/.test(html), html.slice(0, 300));
     check('简表无“获取失败”', !/获取失败/.test(html), html.slice(0, 300));
   }
 
@@ -355,10 +385,16 @@ function cellValue(html, labelPart) {
       missing.length === 0, '遗漏: ' + missing.join(', '));
 
     // 反向：页面展示行是否都对应后端真实字段（防前端写死不存在的字段）
+    // 白名单：前端自己派生、后端不返回的字段（endpoint = 站点 origin + 分流前缀）
+    const DERIVED_FIELDS = ['endpoint'];
     const thKeys = [...html5.matchAll(/<th>([^<]*?([a-zA-Z][a-zA-Z0-9.]*))\s*<\/th>/g)]
       .map(m => m[2]).filter(Boolean);
-    const orphan = [...new Set(thKeys)].filter(k => backendFields.indexOf(k) < 0);
+    const orphan = [...new Set(thKeys)]
+      .filter(k => backendFields.indexOf(k) < 0 && DERIVED_FIELDS.indexOf(k) < 0);
     check('页面展示行不存在后端没有的“孤儿字段”', orphan.length === 0, '孤儿字段: ' + orphan.join(', '));
+    check('后端新增 hostAddress / port 均有展示行',
+      backendFields.indexOf('hostAddress') >= 0 && backendFields.indexOf('port') >= 0,
+      '后端字段: ' + backendFields.join(', '));
   }
 
   /* ---------- 5. 快速切换 TAB 的响应竞态 ---------- */
