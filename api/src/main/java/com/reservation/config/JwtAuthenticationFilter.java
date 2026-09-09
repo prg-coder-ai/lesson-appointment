@@ -34,20 +34,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     /** 无需认证即可匿名访问的路径（与 SecurityConfig 白名单保持一致） */
     private static final Set<String> WHITELIST_PATHS = Set.of(
             "/", "/index", "/index.html",
-            "/admin.html", "/student.html", "/teacher.html",
+            "/admin.html", "/platform_admin.html", "/student.html", "/teacher.html",
             "/teacherInfo.html", "/teacherPublishedProfile.html",
             "/logBrowser.html",
             "/auditLog.html",
             "/booking",
-             "/login", "/auth/login", "/auth/refreshToken",
-            "/user/teacher/register", 
-            "/user/student/register",
-             "/user/admin/register",
-            "/user/account/exist",
-            "/teacher/published/latest-public",
-            "/teacher/published/public-get",
-            "/schedule/getAvailableSchedule",
-            "/interfaces"
+            "/booking.html",
+             "/login", "/auth/login", "/api/v1/auth/login", "/auth/refreshToken", "/api/v1/auth/refreshToken",
+            "/user/teacher/register", "/api/v1/user/teacher/register",
+            "/user/student/register", "/api/v1/user/student/register",
+             "/user/admin/register", "/api/v1/user/admin/register",
+            "/user/account/exist", "/api/v1/user/account/exist",
+            "/teacher/published/latest-public", "/api/v1/teacher/published/latest-public",
+            "/teacher/published/public-get", "/api/v1/teacher/published/public-get",
+            "/schedule/getAvailableSchedule", "/api/v1/schedule/getAvailableSchedule",
+            "/interfaces", "/api/v1/interfaces",
+            "/tenant/name", "/api/v1/tenant/name",
+            // 服务运行信息（与缺省页同源，匿名可访问）
+            "/system/info", "/api/v1/system/info", "/apiInfo", "/api/v1/apiInfo"
     );
 
     /** 静态资源前缀 */

@@ -8,6 +8,8 @@ import com.reservation.entity.User;
 import com.reservation.audit.Audit;
 import com.reservation.audit.AuditAction;
 import com.reservation.service.UserService;
+import com.reservation.utils.PermissionCheck;
+import com.reservation.utils.TenantContext;
 import org.springframework.validation.annotation.Validated;
 // 核心导入：RequestMethod 所在包
 import org.springframework.web.bind.annotation.*;
@@ -15,16 +17,20 @@ import org.springframework.beans.factory.annotation.Autowired;
 //import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
  
 /**
  * 用户注册与认证控制器，对应设计2.2.1 所有接口
  */
 @RestController
-@RequestMapping("/user")
+@RequestMapping("/api/v1/user")
 @Validated
+@Slf4j
 public class UserController { 
      @Autowired
     private UserService userService; 
+     @Autowired
+    private PermissionCheck permissionCheck;
 
     //TBD条件：role,所属机构 
     /**
@@ -53,7 +59,7 @@ public class UserController {
         if (account != null && !account.isEmpty()) condition.put("account", account);
  
          List<User> users = userService.listByCondition(condition); 
-        // System.out.println("out:" + users);
+        // log.debug("out:" + users);
         return Result.success(users, "查询成功");
     }
      
@@ -63,8 +69,45 @@ public class UserController {
     public  Result<PageResult<User>> listByPage( UserQueryPage queryCondition, 
               @RequestHeader("Authorization") String token  ) { 
          PageResult<User> users = userService.listByConditionPage(queryCondition); 
-        // System.out.println("out:" + users);
+        // log.debug("out:" + users);
         return Result.success(users, "查询成功");
+    }
+
+    /**
+     * 平台管理员「用户管理」分页接口：跨租户查看/管理 role=platform_admin 与 admin 两类账号。
+     * 仅平台管理员可调（permissionCheck.isPlatformAdmin）。返回含 orgName（admin 所属租户机构名，
+     * platform_admin 为空，前端显示「平台」）。
+     * 前端调用：GET /user/platformPage?pageNum=&pageSize=&status=&account=
+     */
+    @GetMapping("/platformPage")
+    @ResponseBody
+    public Result<PageResult<User>> listPlatformAdminPage(UserQueryPage queryCondition,
+                                                          @RequestHeader("Authorization") String token) {
+        if (!permissionCheck.isPlatformAdmin(token)) {
+            throw new com.reservation.exception.NoPermissionException("您无平台管理员权限，无法执行该操作");
+        }
+        PageResult<User> users = userService.platformAdminPage(queryCondition);
+        return Result.success(users, "查询成功");
+    }
+
+    /**
+     * 平台管理员「用户管理」修改某用户所属公司名称（仅平台管理员）。
+     *  - admin(tenant_id>0)：写入其所属租户 sys_tenant.org_name
+     *  - platform_admin(tenant_id=0)：写入 tenant_code='platform' 平台自身行的 org_name
+     * 请求体：{ userId, orgName }
+     */
+    @PostMapping("/updateCompany")
+    @ResponseBody
+    public Result<Object> updateCompany(@RequestBody java.util.Map<String, Object> body,
+                                        @RequestHeader("Authorization") String token) {
+        if (!permissionCheck.isPlatformAdmin(token)) {
+            throw new com.reservation.exception.NoPermissionException("您无平台管理员权限，无法执行该操作");
+        }
+        String userId = body.get("userId") == null ? null : String.valueOf(body.get("userId"));
+        String orgName = body.get("orgName") == null ? null : String.valueOf(body.get("orgName"));
+        String err = userService.updateCompanyName(userId, orgName);
+        if (err != null) return Result.fail(400, err);
+        return Result.success(true, "修改成功");
     }
 
     @GetMapping("/name/{userId}")
@@ -73,56 +116,41 @@ public class UserController {
         // HashMap<String, Object> condition = new java.util.HashMap<>();  
           User  user  = userService.selectById(userId);  
          if(user != null ) { 
-          //  System.out.println("ret：" + user);
+          //  log.debug("ret：" + user);
             return Result.success(user.getName(), "查询成功"); 
     } else  {
        return Result.success("N/A", "查询成功");
     } 
     }
      
-     @PostMapping("/admin/register")
-    @Audit(action = AuditAction.USER_REGISTER, resourceType = "user")
+     @PostMapping("/register")
+     @Audit(action = AuditAction.USER_REGISTER, resourceType = "user")
       @ResponseBody
-    public Result<Object> adminRegister(@Validated @RequestBody User user) {
+    public Result<Object> register_a_User(@Validated @RequestBody User user ) {
         // 调用服务层实现注册逻辑，返回userId和Token（对应设计2.2.1 学生注册返回数据）
-        user.setRole("admin");
-        user.setStatus("active");//TBD:check if exists a admin before
-       
-        Result<Object> rst = userService.Register(user); 
+        //// 调用服务层实现注册逻辑，返回userId和Token（对应设计2.2.1 学生注册返回数据）
+        ///  教师
+        String role = user.getRole();
+        if(role== null || role.isEmpty())
+        {
+            role="student";
+        }
+       // user.setRole(role);
+        // 注意两点：
+        // 1) 必须用 equals 比较。role 来自请求体反序列化，用 == 比较引用恒成立为 false
+        // 2) 角色值必须与 RoleConst 一致（platform_admin 用下划线）。
+        //    此前写成 "platform-admin"（连字符），导致注册出来的平台管理员在登录
+        //    与权限校验时都匹配不上 RoleConst.PLATFORM_ADMIN，账号完全不可用
+        if (RoleConst.ADMIN.equals(role) || RoleConst.PLATFORM_ADMIN.equals(role)) {
+           user.setStatus("active");//TBD:check if exists a admin before
+        }  else   {
+            user.setStatus("pending");//需要管理员审核
+         }
+        Result<Object> rst = userService.Register(user);
         return rst;//Result.success(rst, "注册成功");
     }
-
-    /**
-     * 学生注册接口，对应设计2.2.1 接口：/api/v1/user/student/register
-     */
-    @PostMapping("/student/register")
-    @Audit(action = AuditAction.USER_REGISTER, resourceType = "user")
-      @ResponseBody
-    public Result<Object> studentRegister(@Validated @RequestBody User user) {
-        // 调用服务层实现注册逻辑，返回userId和Token（对应设计2.2.1 学生注册返回数据）
-        user.setRole("student");
-        user.setStatus("pending");
-       
-        Result<Object> rst = userService.Register(user);
-    
-     // System.out.println("rst：" + rst);
-        return rst;//Result.success(rst, "注册成功,请等待管理员审核");
-    }
-
-    /**
-     * 教师注册接口，对应设计2.2.1 接口：/api/v1/user/teacher/register
-     */
-    @PostMapping("/teacher/register")
-    @Audit(action = AuditAction.USER_REGISTER, resourceType = "user")
-    @ResponseBody
-    public Result<Object> teacherRegister(@Validated @RequestBody User user) {
-        // 调用服务层提交注册申请，等待管理员审核（对应设计2.2.1 教师注册功能说明）
-         user.setRole("teacher");
-         user.setStatus("pending");
-        Result<Object> rst = userService.Register(user); 
-        //System.out.println("rst：" + rst);
-        return rst; 
-    }
+ 
+ 
 // 添加用户
     @PostMapping("/add") 
     @ResponseBody
@@ -130,7 +158,7 @@ public class UserController {
         
          user.setStatus("active");
         Result<Object> rst = userService.Register(user); 
-        System.out.println("rst：" + rst);
+       // log.debug("rst：" + rst);
         return rst; 
     }
 
@@ -148,8 +176,32 @@ public class UserController {
         }
 
         int ret = userService.updateStatus(user);
-     //   System.out.println("ret " + ret);
+     //   log.debug("ret " + ret);
         return   Result.success(ret, "修改成功");
+    }
+
+    /**
+     * 修改用户基本资料：姓名 / 手机号 / 电子邮箱 / 状态。
+     * 前端调用：POST /user/updateInfo，请求体 { userId, name, phone, email, status }
+     *
+     * 账号（account）明确不可修改：它是登录标识，改动会导致用户无法登录，
+     * 也会破坏租户内唯一性约束；即使请求体里带了 account，Service 也一律忽略。
+     *
+     * 不加 @Validated：与 updateStatus 同理，实体上的 @NotBlank(account) 等属于
+     * 注册专用校验，局部更新（只改姓名）不应触发。
+     */
+    @PostMapping("/updateInfo")
+    @Audit(action = AuditAction.USER_UPDATE, resourceType = "user", resourceId = "user.userId")
+    @ResponseBody
+    public Result<Object> updateInfo(@RequestBody User user) {
+        if (user == null || user.getUserId() == null || user.getUserId().trim().isEmpty()) {
+            return Result.fail(400, "用户Id不能为空");
+        }
+        int ret = userService.updateUserInfo(user);
+        if (ret <= 0) {
+            return Result.fail(404, "用户不存在或不属于当前租户");
+        }
+        return Result.success(ret, "修改成功");
     }
   
 
@@ -161,17 +213,32 @@ public class UserController {
         // condition.put("role", "student");
           String role="student";
           List<User> users = userService.listByRole(role);
-        // System.out.println("out:" + users);
+        // log.debug("out:" + users);
         return Result.success(users, "查询成功");
     } 
-    @GetMapping("/teacher/list")
+  @GetMapping("/teacher/list")
+  @ResponseBody
+  public Result<List<User>>  teacherList() { 
+        String role="teacher";
+        List<User> users = userService.listByRole(role);
+       //log.debug("out:" + users);
+        return Result.success(users, "查询成功");
+  } 
+
+    /**
+     * 消息中心：接收人解析。前端/自动发送据 scope 解析目标接收人列表（不含密码）。
+     * scope: tenant_admin(本租户管理员) | platform_admin(全部平台管理员) |
+     *        teachers(本租户教师) | students(本租户学生) |
+     *        my_teachers(当前学生已约课教师) | my_students(当前教师已约课学生)
+     * 仅平台管理员可传 tenantId 跨租户查询；其余身份按自身租户过滤。
+     */
+    @GetMapping("/message-recipients")
     @ResponseBody
-    public Result<List<User>>  teacherList() { 
-          String role="teacher";
-          List<User> users = userService.listByRole(role);
-         //System.out.println("out:" + users);
-        return Result.success(users, "查询成功");
-    } 
+    public Result<List<User>> messageRecipients(@RequestParam String scope,
+            @RequestParam(required = false) Long tenantId,
+            @RequestHeader("Authorization") String token) {
+        return userService.messageRecipients(scope, tenantId, token);
+    }
  
     /**
      * 查询账号（邮箱/电话）是否已存在
@@ -184,7 +251,7 @@ public class UserController {
         if (account == null || account.trim().isEmpty()) {
             return Result.success(false, "账号不能为空");
         }
-        boolean existed = userService.existAccount(account.trim());
+        boolean existed = userService.existAccount(account.trim(), TenantContext.getTenantId());
         return Result.success(existed, existed ? "账号已存在" : "账号可用");
     }
 

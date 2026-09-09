@@ -3,6 +3,7 @@ package  com.reservation.controller;
 import com.reservation.entity.Appointment;
 import com.reservation.dto.BookingDTO;//借用数据定义
 import com.reservation.service.AppointmentService;
+import com.reservation.service.MessageNotifyService;
 import com.reservation.audit.Audit;
 import com.reservation.audit.AuditAction;
 import com.reservation.common.*;
@@ -11,13 +12,17 @@ import com.reservation.query.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import java.util.List; 
+import lombok.extern.slf4j.Slf4j;
 
 @RestController
-@RequestMapping("/course/appointment")
+@RequestMapping("/api/v1/course/appointment")
+@Slf4j
 public class AppointmentController {
 
     @Autowired
     private AppointmentService appointmentService;
+    @Autowired
+    private MessageNotifyService messageNotifyService;
 
     /**
      * 1. 新增预约时间
@@ -38,8 +43,10 @@ public class AppointmentController {
      * 5. 返回统一 Result<Boolean> 响应，data 为 true/false，message 统一为 "ok"。
      */
     public Result<Boolean> add(@RequestBody Appointment appointment) {
-       // System.out.println("add controller: " + appointment); // 日志：打印待插入实体内容
+       // log.debug("add controller: " + appointment); // 日志：打印待插入实体内容
         boolean success = appointmentService.save(appointment); // 实际写入数据库表
+        // 系统自动通知：学生请假 → 对应教师 + 本租户管理员
+        messageNotifyService.notifyLeaveCreated(appointment.getBookingId());
         return Result.success(success, "ok");
     } 
 //批量添加时间表
@@ -84,7 +91,15 @@ public class AppointmentController {
     public Result<Boolean> updateStatusById(@RequestBody BookingDTO  params) {
         String id = params.getId();
         String status = params.getStatus();
-        return Result.success(appointmentService.updateStatusById(Integer.parseInt(id)  , status), "ok");
+        boolean ok = appointmentService.updateStatusById(Integer.parseInt(id), status);
+        // 系统自动通知：管理员确认请假 → 该学生
+        try {
+            Appointment appt = appointmentService.getById(Integer.parseInt(id));
+            if (appt != null && appt.getBookingId() != null) {
+                messageNotifyService.notifyStudentConfirmed(appt.getBookingId(), "请假");
+            }
+        } catch (Exception ignore) { /* 通知失败不影响主流程 */ }
+        return Result.success(ok, "ok");
     }
     /**
      * 4. 根据ID查询单条
@@ -172,7 +187,7 @@ public class AppointmentController {
              @RequestParam(required = false, defaultValue = "appointmentDatetime") String sortField,
              @RequestParam(required = false, defaultValue = "asc") String sortOrder
     ) { 
-       //  System.out.println("listByDays  listByDays 参数：days = " + days);
+       //  log.debug("listByDays  listByDays 参数：days = " + days);
         // 获取当前时间（now）和days天之后的相同时间
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
         java.time.LocalDateTime endOfPeriod = now.plusDays(days);
@@ -191,7 +206,7 @@ public class AppointmentController {
     @PostMapping("/statistical/listByDaysByPage")
     @ResponseBody        
     public Result<PageResult<Appointment>> listByDaysByPage(@RequestBody AppointmentQueryPage query  ) { 
-        System.out.println("listByDaysByPage   参数：days = " + query);
+        log.debug("listByDaysByPage   参数：days = " + query);
         // 获取当前时间（now）和days天之后的相同时间
         Integer days = query.getDays();
         java.time.LocalDateTime startOfPeriod,endOfPeriod;
@@ -248,7 +263,7 @@ public class AppointmentController {
             @RequestParam("ondays") int days
     ) { 
         // INSERT_YOUR_CODE
-       // System.out.println("onDays countByTimeOnDays ondays = " + days);
+       // log.debug("onDays countByTimeOnDays ondays = " + days);
 
         // now为当日零点
         java.time.LocalDateTime now = java.time.LocalDate.now().atStartOfDay();

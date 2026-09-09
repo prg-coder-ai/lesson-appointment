@@ -3,18 +3,21 @@ package com.reservation.exception;
 import com.reservation.common.Result;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.ExpiredJwtException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.sql.SQLIntegrityConstraintViolationException;
 
 /**
  * 全局异常处理，对应设计2.4 异常处理机制
  */
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -93,12 +96,24 @@ public class GlobalExceptionHandler {
         return Result.fail(400, "数据库完整性约束冲突：" + msg);
     }
 
+    // 静态资源不存在（404）。典型场景：浏览器打开任意页面都会自动请求 /favicon.ico、/robots.txt。
+    // api 已改造为纯后台、static 资源整体删除，这类请求属于浏览器默认行为而非系统故障：
+    // 不应打 ERROR 堆栈污染日志，也不应伪装成 500「服务器繁忙」。此处静默降级为 404。
+    // 注：/favicon.ico 已由 DefaultPageController 直接返回 204，这里只是兜底（如 /robots.txt、旧静态页残留路径）。
+    @ExceptionHandler(NoResourceFoundException.class)
+    public Result<Void> handleNoResourceFound(NoResourceFoundException e) {
+        if (log.isDebugEnabled()) {
+            log.debug("静态资源不存在（已忽略）：{}", e.getMessage());
+        }
+        return Result.fail(404, "资源不存在");
+    }
+
     // 服务器异常（500），对应设计2.4 服务器异常
     // 注意：该 handler 必须放在最后，否则会覆盖前面更具体的异常 handler
     @ExceptionHandler(Exception.class)
     public Result<Void> handleException(Exception e) {
         // 记录异常日志（对应设计2.3 安全设计-日志记录）
-        e.printStackTrace();
+        log.error("未处理异常", e);
         return Result.fail(500, "服务器繁忙，请稍后再试");  // 500-服务器异常（对应设计2.1）
     }
 }

@@ -8,6 +8,9 @@ import lombok.Data;
  */
 @Data
 public class TeacherPublishedProfileDTO {
+    /** 租户ID — SaaS多租户；服务端应以 TenantContext 覆盖，勿信任客户端传值 */
+    private Long tenantId;
+
     /** 编辑已有草稿时传，新建时为null */
     private String publishedProfileId;
 

@@ -4,6 +4,7 @@ import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 /**
@@ -14,6 +15,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
                        // 涵盖所有controller、service、utils、exception、common等包下的注解类（@RestController、@Service、@Component等）
 @MapperScan("com.reservation.mapper")  // 关联点2：扫描MyBatis映射接口（UserMapper、CourseMapper等）
                                                // 对应1.2 application.yml中mybatis.type-aliases-package配置，确保mapper接口被Spring管理
+@EnableScheduling  // 关联点3：启用定时任务（系统指标采样、小时聚合、历史清理、租户月度快照）
 public class SpringBootMergeApplication  {
 
     public static void main(String[] args) {

@@ -4,6 +4,7 @@ import com.reservation.dto.ScheduleVO;
 import java.time.*;
 import java.util.ArrayList;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 
 /* 排期测试
 1、UTC时区编辑-》保存  每周1 早上8点
@@ -11,6 +12,7 @@ import java.util.List;
   com.reservation.common.ScheduleGenerator
 */
   
+@Slf4j
 public class ScheduleGenerator {
 
     // 生成用户时区的排期---dto内包含tz及用户时区,输出
@@ -30,7 +32,7 @@ public class ScheduleGenerator {
         }
         String type = dto.getRepeatType();
         int interval = dto.getInterval() == null ? 1 : dto.getInterval();
-       // System.out.println("interval:"+interval);
+       // log.debug("interval:"+interval);
         List<Integer> repeatDays = dto.getRepeatDays() == null ? List.of() : dto.getRepeatDays();
         LocalTime time = dto.getStartTime(); 
 
@@ -46,7 +48,7 @@ public class ScheduleGenerator {
            
                 default -> false;
             };
-                    // System.out.println("needAdd:"+current+" "+needAdd);
+                    // log.debug("needAdd:"+current+" "+needAdd);
             if (needAdd) { 
                  LocalDateTime ldt = LocalDateTime.of(current, time);
                 
@@ -54,14 +56,14 @@ public class ScheduleGenerator {
             }
 
             current = nextDate(current, type, interval,repeatDays);
-             // System.out.println("current:"+current);
+             // log.debug("current:"+current);
         }
             List<ScheduleVO> convertedSchedule = new ArrayList<ScheduleVO>();
         // INSERT_YOUR_CODE
         boolean isSameZone = fromZone.equals(toZone);
 
         if(isSameZone) { 
-           // System.out.println("zonedFrom: " + fromZone);
+           // log.debug("zonedFrom: " + fromZone);
                 for (LocalDateTime ldt : userSchedule) {
                     ZonedDateTime zonedFrom = ldt.atZone(fromZone); 
 
@@ -73,13 +75,13 @@ public class ScheduleGenerator {
                 convertedSchedule.add(item); 
                 }
         }else  {    // 把userSchedule的元素转为UserTimeZone对应的数据   
-       //  System.out.println("zonedFrom: " + fromZone +"-->"+toZone );
+       //  log.debug("zonedFrom: " + fromZone +"-->"+toZone );
                 for (LocalDateTime ldt : userSchedule) {
                     ZonedDateTime zonedFrom = ldt.atZone(fromZone);
-                   // System.out.println("zonedFrom: " + zonedFrom);
+                   // log.debug("zonedFrom: " + zonedFrom);
 
                     ZonedDateTime zonedTo = zonedFrom.withZoneSameInstant(toZone);
-                  //  System.out.println("zonedTo: " + zonedTo);
+                  //  log.debug("zonedTo: " + zonedTo);
 
                     String dateStr = zonedTo.toLocalDate().toString(); // yyyy-MM-dd
                     String timeStr = String.format("%02d:%02d:00", zonedTo.getHour(), zonedTo.getMinute());
@@ -88,7 +90,7 @@ public class ScheduleGenerator {
                 ScheduleVO item = new ScheduleVO(); 
                 item.setDate(dateStr);
                 item.setTime(timeStr);
-                // System.out.println("item: " + item);
+                // log.debug("item: " + item);
                 convertedSchedule.add(item); 
                 } 
              } 
@@ -97,9 +99,9 @@ public class ScheduleGenerator {
 
     // 判断星期（按用户时区-wuguan ，绝对正确）
     private static boolean isMatchWeek(LocalDate date, List<Integer> target, ZoneId zoneId) {
-      //  System.out.println("date:"+date);
+      //  log.debug("date:"+date);
         int week = date.getDayOfWeek().getValue();// date.atStartOfDay(zoneId).getDayOfWeek().getValue();
-       //   System.out.println("week:"+week+" date:"+date+" target:"+target);
+       //   log.debug("week:"+week+" date:"+date+" target:"+target);
         return target.contains(week);
     } 
     private static LocalDate nextDate(LocalDate current, String type, int interval,List<Integer>repeatDays) {
@@ -201,8 +203,8 @@ public class ScheduleGenerator {
         ZonedDateTime zonedTo = zonedFrom.withZoneSameInstant(toZone);
 
         // 调试输出，可根据需求保留或删除
-     //   System.out.println("zonedFrom: " + zonedFrom);
-       // System.out.println("zonedTo: " + zonedTo);
+     //   log.debug("zonedFrom: " + zonedFrom);
+       // log.debug("zonedTo: " + zonedTo);
 
         // 返回目标时区下的本地日期时间
         return zonedTo.toLocalDateTime();

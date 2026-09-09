@@ -16,6 +16,8 @@ import java.util.List;
 
 @Data
 public class ScheduleCreateDTO {
+    /** 租户ID — SaaS多租户；服务端应以 TenantContext 覆盖，勿信任客户端传值 */
+    private Long tenantId;
     private String scheduleId;
     private String courseId;
     //private String teacherId;

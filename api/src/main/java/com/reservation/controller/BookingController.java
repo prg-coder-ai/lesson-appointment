@@ -8,23 +8,30 @@ import com.reservation.query.BookingQueryPage;
 import com.reservation.service.BookingService;
 import com.reservation.audit.Audit;
 import com.reservation.audit.AuditAction;
+import com.reservation.service.MessageNotifyService;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 
 @RestController
-@RequestMapping("/course/booking")
+@RequestMapping("/api/v1/course/booking")
 @RequiredArgsConstructor
+@Slf4j
 public class BookingController { 
     private final BookingService bookingService;
+    private final MessageNotifyService messageNotifyService;
 //create/update/updateStatus：返回id
     @PostMapping("/create")
     @Audit(action = AuditAction.BOOKING_CREATE, resourceType = "booking")
     public Result<String> create(@RequestBody Booking booking) {
         try {
-            return Result.success(bookingService.create(booking),"ok");
+            String id = bookingService.create(booking);
+            // 系统自动通知：学生预订课程 → 对应教师 + 本租户管理员
+            messageNotifyService.notifyBookingCreated(id);
+            return Result.success(id,"ok");
         } catch (IllegalArgumentException e) {
             return Result.fail(null,e.getMessage());
         }
@@ -43,6 +50,10 @@ public class BookingController {
     public Result<String> updateStatus(@RequestBody(required = true) BookingDTO dto) {
         try {
             String rs = bookingService.updateStatus(dto);
+            // 系统自动通知：管理员确认预订 → 该学生（仅"确认"状态触发）
+            if ("bookProved".equals(dto.getStatus())) {
+                messageNotifyService.notifyStudentConfirmed(dto.getId(), "课程预约");
+            }
             return Result.success(rs,"ok");
         } catch (RuntimeException e) {
             return Result.fail(null,e.getMessage());
@@ -86,14 +97,14 @@ public class BookingController {
     @PostMapping("/list")
     @ResponseBody
     public Result<List<Booking>> filterList(@RequestBody BookingQueryParaDTO dto) {
-        //  System.out.println("booking list input dto: " + dto); 
+        //  log.debug("booking list input dto: " + dto); 
          try {
            List<Booking> rs = bookingService.selectList(dto);
           
-          //  System.out.println("filterList 返回预约列表: " + rs); 
+          //  log.debug("filterList 返回预约列表: " + rs); 
              return Result.success(rs,"ok");
             } catch (RuntimeException e) {
-                 // System.out.println("filterList fail: " + e.getMessage());
+                 // log.debug("filterList fail: " + e.getMessage());
              return Result.fail(0,e.getMessage());
         } 
     }
@@ -101,13 +112,13 @@ public class BookingController {
     @PostMapping("/page")
     @ResponseBody
     public Result<PageResult<Booking>> filterListPage(@RequestBody BookingQueryPage dto) {
-        //  System.out.println("booking list input dto: " + dto); 
+        //  log.debug("booking list input dto: " + dto); 
          try {
            PageResult <Booking> rs = bookingService.selectListPage(dto);
            
              return Result.success(rs,"ok");
             } catch (RuntimeException e) {
-                 // System.out.println("filterList fail: " + e.getMessage());
+                 // log.debug("filterList fail: " + e.getMessage());
              return Result.fail(0,e.getMessage());
         } 
     }
@@ -153,7 +164,7 @@ public class BookingController {
    // 上月统计月初到月末预约数量 统计某年月的预约（Booking）数量 
         int bookingMonthLast  = bookingService.countBookingAtDate(java.sql.Timestamp.valueOf(prevMonthStartTime),java.sql.Timestamp.valueOf(prevMonthEndTime));
 
-       // System.out.println(" /statistical/byMonth:"+year+","+month+","+monthStartTime+","+monthEndTime+","+prevMonthStartTime+","+prevMonthEndTime);
+       // log.debug(" /statistical/byMonth:"+year+","+month+","+monthStartTime+","+monthEndTime+","+prevMonthStartTime+","+prevMonthEndTime);
         java.util.Map<String, Integer> data = new java.util.HashMap<>();
         data.put("bookingMonth", bookingMonth);
         data.put("bookingMonthLast", bookingMonthLast);

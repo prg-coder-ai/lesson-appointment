@@ -1,6 +1,7 @@
 package com.reservation.utils;
 
 import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -19,6 +20,7 @@ import javax.crypto.Mac;
  * - 精确检索：用 HMAC 前缀匹配 WHERE field LIKE 'hmac:%'
  * - 模糊匹配：在 Java 内存中解密后 contains 过滤
  */
+@Slf4j
 @Component
 public class CryptoUtil {
 
@@ -92,7 +94,7 @@ public class CryptoUtil {
             return new String(cipher.doFinal(cipherText), StandardCharsets.UTF_8);
         } catch (Exception e) {
             // 格式校验通过但解密失败（密钥变更/数据损坏），降级返回原值避免中断业务
-            System.err.println("AES-GCM 解密降级返回原值: " + e.getMessage());
+            log.warn("AES-GCM 解密失败，降级返回原值: {}", e.getMessage());
             return stored;
         }
     }

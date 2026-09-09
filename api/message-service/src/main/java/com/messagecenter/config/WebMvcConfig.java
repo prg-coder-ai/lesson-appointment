@@ -1,0 +1,37 @@
+package com.messagecenter.config;
+
+import com.messagecenter.security.MessageAuthInterceptor;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+@Configuration
+public class WebMvcConfig implements WebMvcConfigurer {
+
+    private final MessageAuthInterceptor authInterceptor;
+
+    public WebMvcConfig(MessageAuthInterceptor authInterceptor) { this.authInterceptor = authInterceptor; }
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(authInterceptor)
+                .addPathPatterns("/api/**", "/msg/sse/**")
+                .excludePathPatterns(
+                        "/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html",
+                        // 服务运行信息（健康检查/环境自检，匿名可访问，无需 token）
+                        // /api/v1/message/system/info 供「经前端站点同源访问」使用（分流前缀 /api/v1/message → 8090）
+                        "/api/v1/system/info", "/api/v1/apiInfo", "/api/v1/message/system/info"
+                );
+    }
+
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/**")
+                .allowedOriginPatterns("*")
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                .allowedHeaders("*")
+                .allowCredentials(true)
+                .maxAge(3600);
+    }
+}

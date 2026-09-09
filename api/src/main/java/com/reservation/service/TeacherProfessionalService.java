@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 教师职业信息服务
@@ -33,6 +34,7 @@ import java.util.UUID;
  * 写操作均包 @Transactional，主表 + 2 张子表任一步失败整体回滚
  */
 @Service
+@Slf4j
 public class TeacherProfessionalService {
 
     @Autowired
@@ -107,7 +109,7 @@ public class TeacherProfessionalService {
         timeMapper.deleteByTeacherId(teacherId);
         // 再删主表
         int ret = tpMapper.deleteById(teacherProfessionalId);
-        System.out.println("[TeacherProfessionalService] delete operation end, id=" + teacherProfessionalId + ", affected rows=" + ret);
+        log.debug("[TeacherProfessionalService] delete operation end, id=" + teacherProfessionalId + ", affected rows=" + ret);
         return Result.success(ret, "删除成功");
     }
 
@@ -170,7 +172,7 @@ public class TeacherProfessionalService {
             vo.setEmail(teacher.getEmail());
             vo.setUserStatus(teacher.getStatus());
         }
-      //  System.out.println("queryTeacherProfessionalInfo: " + vo);
+      //  log.debug("queryTeacherProfessionalInfo: " + vo);
         return Result.success(vo, "查询成功");
     }
 

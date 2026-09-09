@@ -17,6 +17,9 @@ import java.time.LocalDateTime;
 public class TeacherPublishedProfile implements Serializable {
     private static final long serialVersionUID = 1L;
 
+    /** 租户ID（0=平台/历史单租户数据）— SaaS多租户 */
+    private Long tenantId;
+
     @TableId(type = IdType.ASSIGN_UUID)
     private String publishedProfileId;
 

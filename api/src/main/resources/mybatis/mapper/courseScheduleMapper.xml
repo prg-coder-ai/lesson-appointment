@@ -108,45 +108,7 @@
         WHERE schedule_id= #{scheduleId}
     </update>
 
-    <update id="update" parameterType="com.reservation.entity.CourseSchedule">
-        UPDATE course_schedule
-        <set>
-            <if test="courseId != null and courseId != ''">
-                course_id = #{courseId},
-            </if>
-            <!--  <if test="teacherId != null and teacherId != ''">
-                teacher_id = #{teacherId},
-            </if>
-           <if test="classroomId != null and classroomId != ''">
-                classroom_id = #{classroomId},
-            </if>   --> 
-            <if test="startTime != null">
-                start_time = #{startTime},
-            </if>
-            <if test="endTime != null">
-                end_time = #{endTime},
-            </if>
-            <if test="repeatType != null">
-                repeat_type = #{repeatType},
-            </if>
-            <if test="repeatInterval != null">
-                repeat_interval = #{repeatInterval},
-            </if>
-            <if test="repeatDays != null and repeatDays != ''">
-                repeat_days = #{repeatDays},
-            </if> 
-             <if test="timeZone != null">
-                 time_zone = #{timeZone},
-            </if>
-            <if test="status != null">
-                 status = #{status},
-            </if> 
-              <if test="name != null">
-                 name = #{name}
-            </if> 
-        </set>
-        WHERE schedule_id = #{scheduleId}
-    </update> 
+    <!-- update：与mybatis重复，此处无需定义 -->
 
     <select id="selectExceptionsByScheduleId" resultType="com.reservation.dto.ScheduleException">
         SELECT * FROM schedule_exception WHERE schedule_id = #{scheduleId}

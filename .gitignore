@@ -56,3 +56,34 @@ api/logs/spring-boot-app.log
 api/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst
 api/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst
 api/.node/
+api/lesson_appointment_backup.sql
+api/logs/spring-boot-app.log
+api/backup001.git/
+.workbuddy/tmp
+api/.npmrc
+api/api.log
+api/.workbuddy/cp.txt
+api/cp-api.txt
+api/message-service/ms.log
+api/message-service/target
+api/node_modules
+logs/spring-boot-app.log
+logs/spring-boot-app.log
+logs/spring-boot-app.log
+api/beforeRun
+api/beforeRun/booking.evn.template
+api/beforeRun/message.evn.template
+
+# ========== 运行日志与临时输出（统一规则，2026-09-09 整理）==========
+# 说明：上面历史遗留的重复条目（如 logs/spring-boot-app.log、api/logs 等）保留不动，
+#       避免误伤；以下为统一兜底规则，覆盖所有模块产生的日志与构建输出。
+# 覆盖：Spring Boot 运行日志、Maven 构建日志、前端构建日志、JVM 崩溃转储。
+*.log
+*.log.gz
+*.log.*.gz
+logs/
+api/logs/
+api/message-service/logs/
+doc-develop/logs/
+hs_err_pid*.log
+replay_pid*.log

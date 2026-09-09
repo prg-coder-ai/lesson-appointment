@@ -1,0 +1,26 @@
+[Unit]
+Description=Lesson Message Service
+After=network.target
+Wants=network.target
+# 600 秒内最多自动重试 3 次，超过则放弃（服务进入 failed，不再自动拉起）
+StartLimitIntervalSec=600
+StartLimitBurst=3
+
+[Service]
+Type=simple
+# 建议用非 root 用户运行（按需创建：sudo useradd -r -s /bin/false lesson）
+User=lesson
+Group=lesson
+WorkingDirectory=/opt/lesson
+EnvironmentFile=/etc/lesson/message.env
+# Java 路径按实际环境调整；可在此追加 JVM 参数，例如 -Xms256m -Xmx512m
+ExecStart=/usr/bin/java $JAVA_OPTS -jar /opt/lesson/message-service.jar
+# 进程异常退出（非 0）时自动拉起；若要“任何退出都重启”改为 Restart=always
+Restart=on-failure
+# 每次重启前等待 10 秒，避免崩溃雪崩
+RestartSec=10s
+StandardOutput=append:/var/log/lesson/message.log
+StandardError=append:/var/log/lesson/message.log
+
+[Install]
+WantedBy=multi-user.target

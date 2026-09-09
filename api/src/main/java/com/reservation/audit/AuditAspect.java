@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.reservation.entity.AuditLog;
 import com.reservation.mapper.AuditLogMapper;
 import com.reservation.utils.JwtUtil;
+import com.reservation.utils.TenantContext;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -15,6 +16,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.lang.reflect.Field;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -82,6 +84,11 @@ public class AuditAspect {
     private AuditLog buildBaseLog(HttpServletRequest request) {
         AuditLog record = new AuditLog();
         record.setLogId(UUID.randomUUID().toString());
+        // 原 XML 的 insert 用 NOW() 写入创建时间，改用 BaseMapper.insert 后需在此赋值
+        record.setCreatedAt(new Date());
+        // 租户维度兜底：注册、公开接口等无登录态场景记为 0（平台/历史数据约定），
+        // 必须给默认值，否则 BaseMapper.insert 会显式插入 NULL 触发 NOT NULL 约束报错
+        record.setTenantId(resolveTenantId(request));
         if (request != null) {
             record.setRequestUrl(request.getRequestURI());
             record.setHttpMethod(request.getMethod());
@@ -96,6 +103,26 @@ public class AuditAspect {
             }
         }
         return record;
+    }
+
+    /**
+     * 解析租户ID：优先取 Token，其次取租户上下文，都没有则归为 0。
+     * 必须在主线程调用（saveAsync 在异步线程，ThreadLocal 取不到）
+     */
+    private Long resolveTenantId(HttpServletRequest request) {
+        if (request != null) {
+            String token = extractToken(request);
+            if (token != null) {
+                try {
+                    Long tenantId = jwtUtil.getTenantId(token);
+                    if (tenantId != null) {
+                        return tenantId;
+                    }
+                } catch (Exception ignored) { }
+            }
+        }
+        Long contextTenantId = TenantContext.getTenantId();
+        return contextTenantId == null ? 0L : contextTenantId;
     }
 
     private void saveAsync(AuditLog record) {

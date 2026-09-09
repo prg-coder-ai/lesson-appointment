@@ -6,13 +6,19 @@ package  com.reservation.controller;
  import com.reservation.dto.TokenDTO;
 
 import com.reservation.common.Result;
+import com.reservation.common.RoleConst;
 import com.reservation.entity.User;
 import com.reservation.service.UserService;
  import com.reservation.service.RefreshTokenService;
+import com.reservation.service.UserSessionService;
 
  import com.reservation.utils.JwtUtil;
 import com.reservation.audit.Audit;
 import com.reservation.audit.AuditAction;
+
+import com.reservation.entity.Tenant;
+import com.reservation.service.TenantService;
+import com.reservation.utils.TenantContext;
 
  import jakarta.validation.constraints.NotBlank;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,19 +31,8 @@ import org.springframework.beans.factory.annotation.Autowired;
  import jakarta.validation.constraints.Pattern;
  import java.util.Collections;
 import java.util.HashMap; 
-
- @RestController
-@RequestMapping("/auth")
-@Validated
-public class authController {
-    
-    @Autowired
-    private UserService userService;
-     @Autowired
-     private RefreshTokenService refreshTokenService;
-     @Autowired
-     private JwtUtil jwtUtil;
-   /**
+import lombok.extern.slf4j.Slf4j;
+ /**
      * 用户登录接口，对应设计2.2.1 接口：/api/v1/user/login
      * TBD：在线状态online：yes/no 
           * 功能说明：
@@ -51,23 +46,68 @@ public class authController {
           * - 控制层主动生成 Spring Security 认证对象（含角色/权限），写入全局安全上下文，解决 token 场景下无 session/用户态的问题，为后续接口自动注入当前用户凭据。
           * - 支持多端、token机制下的灵活身份自动识别和权限管控，是现代前后端分离项目的安全核心做法。
           */
-    @PostMapping("/login")
+
+ @RestController
+@RequestMapping("/api/v1/auth")
+@Validated
+@Slf4j
+public class authController {
+
+    /**
+     * 平台管理员登录时使用的固定租户编码。
+     * 注意：它是登录分支的标识，不是真实租户的 tenant_code
+     *（sys_tenant 中没有该编码的记录，解析结果为 tenantId = 0）
+     */
+    private static final String PLATFORM_TENANT_CODE = "platform";
+
+     @Autowired
+    private TenantService tenantService;
+    @Autowired
+    private UserService userService;
+     @Autowired
+     private RefreshTokenService refreshTokenService;
+     @Autowired
+     private UserSessionService userSessionService;
+     @Autowired
+     private JwtUtil jwtUtil;
+      @PostMapping("/login")
     @Audit(action = AuditAction.USER_LOGIN, resourceType = "user")
     @ResponseBody
-    public Result  <HashMap<String, Object>>  toLogin( @Validated @RequestBody LoginDTO user){
-             String account = user.getAccount();
-             String password = user.getPassword();
-       // System.out.println("controller login:"+account+" "+password);
+    public Result  <HashMap<String, Object>>  toLogin( @Validated @RequestBody LoginDTO userdto){
+             String account = userdto.getAccount();
+             String password = userdto.getPassword(); 
+             String tenantCode = userdto.getTenantCode();
+             String role = userdto.getRole();
+             Long tenantId;
+
+            // 平台管理员登录：tenantCode 传固定值 "platform"，角色用 RoleConst.PLATFORM_ADMIN
+        if (PLATFORM_TENANT_CODE.equals(tenantCode) && RoleConst.PLATFORM_ADMIN.equals(role)) {
+            tenantId = 0L;
+        } else {
+            // 租户端登录：先校验租户状态。
+            // 必须同时校验软删除与停用，否则已删除的租户仍能登录；
+            // status 为 Integer 与字面量比较有 NPE 风险，改用 Integer.valueOf 判空
+            Tenant tenant = tenantService.getByCode(tenantCode);
+            boolean invalid = tenant == null
+                    || (tenant.getDeleted() != null && tenant.getDeleted() == 1)
+                    || !Integer.valueOf(1).equals(tenant.getStatus());
+            if (invalid) {
+                return Result.fail(403, "租户编码无效或已停用");
+            }
+            // 校验租户端用户状态
+
+            tenantId = tenant.getId();
+          }
+
         // 调用服务层实现登录逻辑，返回userId、name，role、account、Token,freshToken（对应设计2.2.1 登录返回数据）
-        Result<HashMap<String, Object>> rst= userService.login(account, password); //setOnline(false)
-          //   System.out.println("controller login:"+rst.getCode());
+        Result<HashMap<String, Object>> rst= userService.login( account, password, tenantId); //setOnline(false)
         // 3. 登录成功：设置安全状态（核心步骤） ?token?
         // 封装用户认证信息（角色需和数据库一致，如teacher/student）
-        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                account, // 用户名（可用邮箱/手机号）
-                password, // 密码（可传null，不影响验证）
-                Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole())) // 角色（必须加ROLE_前缀）
-        );
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken( 
+            account, // 用户名（可用邮箱/手机号）
+            password, // 密码（可传null，不影响验证）
+            Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role)) // 角色（必须加ROLE_前缀）
+        );//TBD :tenantid 是否需要传入
 
         // 将认证信息存入安全上下文（自动维护会话，无需手动管理）
         SecurityContextHolder.getContext().setAuthentication(authentication); 
@@ -80,7 +120,7 @@ public class authController {
      */
     @PostMapping("/refreshToken")
     public Result<TokenDTO> refreshToken(@RequestBody RefreshDTO refreshDTO) {
-        System.out.println("refreshToken refreshDTO:"+refreshDTO);
+        log.debug("refreshToken refreshDTO:"+refreshDTO);
         String oldRefreshToken = refreshDTO.getRefreshToken();
         String account = refreshDTO.getAccount();
         String role = refreshDTO.getRole();
@@ -98,13 +138,14 @@ public class authController {
             return Result.fail(401, "刷新凭证已失效，请重新登录");
         }
         String userId = tokenPo.getUserId();
-
+        Long tenantId =  jwtUtil.getCurrentTenantId();//.TBD 
         // 2. 生成新双Token
-        String newAccess = jwtUtil.generateToken(userId,role);
-        String newRefresh = jwtUtil.generateRefreshToken(userId);
+        String newAccess = jwtUtil.generateToken(tenantId,userId,role);
+        String newRefresh = jwtUtil.generateRefreshToken(tenantId,userId);
 
         // 3. 删除旧刷新Token，存入新凭证（旧凭证立即失效）
         refreshTokenService.removeOldToken(oldRefreshToken);
+       // TenantContext.setTenantId(tenantId);
         refreshTokenService.saveNewToken(userId, newRefresh, jwtUtil.getRefreshExpireTime());
 
 //
@@ -140,34 +181,17 @@ UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthent
         TokenDTO dto = new TokenDTO();
         dto.setToken(newAccess);//userid role
         dto.setRefreshToken(newRefresh);//userid
-        System.out.println("controller refreshToken:"+dto);
+      //  log.debug("controller refreshToken:"+dto);
         return Result.success(dto,"refreshToken ok");
-    }
-
- /* @PostMapping("/logout")
-  @ResponseBody
-public Result<void> logout(HttpServletResponse response) {
-    // 1. 清空认证
-    SecurityContextHolder.clearContext();
-
-    // 2. 清除 Cookie（真正登出）
-    Cookie cookie = new Cookie("token", null);
-    cookie.setPath("/");
-    cookie.setHttpOnly(true);
-    cookie.setMaxAge(0);
-    response.addCookie(cookie);
-     refreshTokenService.logout(refreshDTO.getRefreshToken());
-
-    return Result.success();
-}
-*/
+    } 
 
   /**
      * 用户主动登出，销毁当前刷新凭证
      */
     @PostMapping("/logout")
     @Audit(action = AuditAction.USER_LOGOUT, resourceType = "user")
-    public Result<Boolean> logout(@RequestBody RefreshDTO refreshDTO) {
+    public Result<Boolean> logout(@RequestBody RefreshDTO refreshDTO,
+                                  @RequestHeader(value = "Authorization", required = false) String token) {
       // 1. 清空认证
     SecurityContextHolder.clearContext();
 /*
@@ -178,6 +202,8 @@ public Result<void> logout(HttpServletResponse response) {
     cookie.setMaxAge(0);
     response.addCookie(cookie);*/
         refreshTokenService.logout(refreshDTO.getRefreshToken());
+        // 结束登录会话（在线统计，会话ID由访问Token派生，非刷新Token）
+        userSessionService.onLogout(token);
         return Result.success(true,"ok" );
     }
 
@@ -190,7 +216,7 @@ public Result<void> logout(HttpServletResponse response) {
     public Result <Object> kickUser(@PathVariable String userId) {
         int count = refreshTokenService.kickUser(userId);
         // 3. 刷新页面提示
-        System.out.println("controller kick: "+count) ;
+        log.debug("controller kick: "+count) ;
         if(count  !=0 )
         return Result.success( true,"ok"     );
         else  return  Result.success( false,"kick failed"     );
@@ -219,7 +245,7 @@ public Result<void> logout(HttpServletResponse response) {
             @NotBlank(message = "账号不能为空") String account)
             {
         // 调用服务层重置密码（对应设计2.2.1 密码重置功能说明）
-        userService.resetPassword(account);
+        userService.resetPassword(account, TenantContext.getTenantId());
         return Result.success(null, "密码重置成功");
     }
 }

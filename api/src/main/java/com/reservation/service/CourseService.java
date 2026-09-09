@@ -18,7 +18,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Propagation;
  import ch.qos.logback.core.joran.util.beans.BeanUtil;
- import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+ import com.reservation.utils.JwtUtil;
+import com.reservation.utils.TenantContext;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
  import com.baomidou.mybatisplus.core.toolkit.Wrappers;
  import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
  import com.baomidou.mybatisplus.extension.service.IService;
@@ -38,6 +40,8 @@ public class CourseService   {
     private CourseMapper courseMapper;
     @Autowired
     private CourseTemplateMapper courseTemplateMapper;
+    @Autowired
+    private TenantQuotaService tenantQuotaService;
 
 /**
      * 分页查询课程列表
@@ -131,12 +135,12 @@ public class CourseService   {
           return result;
     }
 //          deleteTemplateById
-public int deleteTemplate(String Id) {
-       log.info("删除课程模板开始, templateId={}", Id);
-       int rows = courseTemplateMapper.deleteTemplate(Id);
-       log.info("删除课程模板结束, templateId={}, 影响行数={}", Id, rows);
-       return rows;
-    }
+        public int deleteTemplate(String Id) {
+            log.info("删除课程模板开始, templateId={}", Id);
+            int rows = courseTemplateMapper.deleteTemplate(Id);
+            log.info("删除课程模板结束, templateId={}, 影响行数={}", Id, rows);
+            return rows;
+            }
 
     /**
      * 教师创建课程，对应设计2.2.2 教师课程创建接口，仅教师可操作
@@ -147,6 +151,9 @@ public int deleteTemplate(String Id) {
         if (template == null) {
             throw new ResourceNotFoundException("课程模板不存在，请先选择正确的模板");
         }
+        // 校验当前租户课程数量是否超出套餐上限（原子占用，与插入同一事务，失败回滚）
+        Long tenantId = TenantContext.getTenantId();
+        tenantQuotaService.acquire(tenantId, TenantQuotaService.COURSE);
         String courseId = UUID.randomUUID().toString().replace("-", "");
         course.setCourseId(courseId);
         courseMapper.insert(course);
@@ -182,14 +189,14 @@ public int deleteTemplate(String Id) {
      */
     public List<Course> getCourseList(CourseQueryParam  params) {
         // 实现逻辑：调用Mapper查询，无结果返回空集合，避免空指针
-         //System.out.println("service:params: " + params);
+         //log.debug("service:params: " + params);
         List<Course> courseList = courseMapper.selectCourseList(params); // 假设Mapper有该方法
         return Optional.ofNullable(courseList).orElse(Collections.emptyList());
     } 
 
   public  Course getCourseById(String id) {
         // 实现逻辑：调用Mapper查询，无结果返回空集合，避免空指针
-         //System.out.println("service:params: " + params);
+         //log.debug("service:params: " + params);
          Course  course = courseMapper.selectById(id); // 假设Mapper有该方法
         return Optional.ofNullable(course).orElse(null);
     } 
@@ -221,6 +228,10 @@ public int deleteTemplate(String Id) {
         log.info("删除课程开始, courseId={}", courseId);
         int rows = courseMapper.deleteById(courseId);
         log.info("删除课程结束, courseId={}, 影响行数={}", courseId, rows);
+        // 释放租户课程额度
+        if (rows > 0) {
+            tenantQuotaService.release(TenantContext.getTenantId(), TenantQuotaService.COURSE, rows);
+        }
         return rows;
     }
    
@@ -253,6 +264,10 @@ public int deleteTemplate(String Id) {
         log.info("按模板ID删除课程开始, templateId={}", id);
         int rows = courseMapper.deleteByTemplateId(id);
         log.info("按模板ID删除课程结束, templateId={}, 影响行数={}", id, rows);
+        // 释放租户课程额度
+        if (rows > 0) {
+            tenantQuotaService.release(TenantContext.getTenantId(), TenantQuotaService.COURSE, rows);
+        }
         return rows;
     }
 

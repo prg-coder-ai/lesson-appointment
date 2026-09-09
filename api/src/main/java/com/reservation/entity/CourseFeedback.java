@@ -12,6 +12,8 @@ import java.io.Serializable;
 @Data
 public class CourseFeedback implements Serializable {
      private static final long serialVersionUID = 1L;
+    /** 租户ID（0=平台/历史单租户数据）— SaaS多租户 */
+    private Long tenantId;
     private String feedbackId;   // 唯一标识（UUID）
     @NotBlank(message = "订单ID不能为空")
     private String course_id;      // 关联预约订单

@@ -7,6 +7,7 @@ import lombok.Data;
 继承通用分页基类，扩展booking浏览专属筛选条件 */
 @Data
 public class BookingQueryPage extends PageQuery {
+    private Long tenantId;  // 租户ID（精准筛选，SaaS多租户；null=不限）
     private String userRole;    //用户角色 --精确
     private String userId;
     private String teacherInfo;  // TBD  教师信息--（模糊匹配 账号、邮件、电话、姓名）

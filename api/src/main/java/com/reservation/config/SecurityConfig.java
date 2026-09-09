@@ -52,6 +52,7 @@ public class SecurityConfig {
                                 "/index",
                                 "/index.html",
                                 "/admin.html",
+                                "/platform_admin.html",
                                 "/student.html",
                                 "/teacher.html",
                                 "/teacherInfo.html",
@@ -62,31 +63,46 @@ public class SecurityConfig {
                         ).permitAll()
 
                         // 教师发布信息公开接口（teacherPublishedProfile.html 调用，无需登录）
+                        // L1 迁移后接口统一在 /api/v1 下，白名单须同时放裸路径与 /api/v1 前缀
                         .requestMatchers(
                                 "/booking",
+                                "/booking.html",
+                                "/api/v1/booking",
                                 "/teacher/published/latest-public",
+                                "/api/v1/teacher/published/latest-public",
                                 "/teacher/published/public-get",
-                                "/schedule/getAvailableSchedule"
+                                "/api/v1/teacher/published/public-get",
+                                "/schedule/getAvailableSchedule",
+                                "/api/v1/schedule/getAvailableSchedule"
                         ).permitAll()
 
                         // 登录/鉴权相关
                         .requestMatchers(
                                 "/login",
                                 "/auth/login",
+                                "/api/v1/auth/login",
                                 "/auth/refreshToken",
-                                "/auth/logout"
+                                "/api/v1/auth/refreshToken",
+                                "/auth/logout",
+                                "/api/v1/auth/logout"
                         ).permitAll()
 
                         // 注册相关（匿名用户必须能访问）
+                        // 注意：/user/register 才是 UserController 实际映射（@PostMapping("/register")），
+                        // 此前只放了不存在的 /user/admin/register，导致自助注册被 401 拦截；
+                        // 此处与 WebMvcConfig/JwtFilter 的白名单保持一致
                         .requestMatchers(
-                                "/user/teacher/register",
-                                "/user/student/register",
-                               "/user/admin/register" , 
-                                "/user/account/exist"
+                                "/user/register", 
+                                "/api/v1/user/register",
+                                "/user/account/exist",
+                                "/api/v1/user/account/exist"
                         ).permitAll()
 
                         // 其他公共接口
-                        .requestMatchers("/interfaces").permitAll()
+                        .requestMatchers("/interfaces", "/api/v1/interfaces", "/tenant/name", "/api/v1/tenant/name").permitAll()
+
+                        // 服务运行信息（缺省页同款字段，健康检查/环境自检用，匿名可访问）
+                        .requestMatchers("/system/info", "/api/v1/system/info", "/apiInfo", "/api/v1/apiInfo").permitAll()
 
                         // 静态资源
                         .requestMatchers(

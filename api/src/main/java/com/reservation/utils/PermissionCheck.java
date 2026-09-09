@@ -1,5 +1,6 @@
 package com.reservation.utils;
 
+import com.reservation.common.RoleConst;
 import com.reservation.exception.NoPermissionException;
 import com.reservation.exception.UnLoginException;
 import com.reservation.mapper.UserMapper;
@@ -26,9 +27,41 @@ public class PermissionCheck {
     public void checkAdmin(String token) {
         // 解析Token中的角色（使用本类的安全包装方法，Token异常转为UnLoginException）
         String role = getRoleFromToken(token);
-        // 校验角色是否为admin，否则抛出权限不足异常
-        if (!"admin".equals(role)) {
-            throw new NoPermissionException("您无管理员权限，无法执行该操作");
+        // 管理员或平台管理员放行（平台管理员拥有各租户的管理员权限）
+        if (RoleConst.ADMIN.equals(role) || RoleConst.PLATFORM_ADMIN.equals(role)) {
+            return;
+        }
+        throw new NoPermissionException("您无管理员权限，无法执行该操作");
+    }
+
+    // ==================== 平台管理员（platform_admin）相关校验 ====================
+
+    /**
+     * 判断当前Token是否为平台管理员
+     */
+    public boolean isPlatformAdmin(String token) {
+        return RoleConst.PLATFORM_ADMIN.equals(getRoleFromToken(token));
+    }
+
+    /**
+     * 校验：仅平台管理员可操作（租户管理、系统监视、运营统计等平台级接口）
+     */
+    public void checkPlatformAdmin(String token) {
+        if (!isPlatformAdmin(token)) {
+            throw new NoPermissionException("您无平台管理员权限，无法执行该操作");
+        }
+    }
+
+    /**
+     * 校验：平台管理员可看全部租户，租户管理员/普通用户只能看自己所属租户（只读）
+     */
+    public void checkTenantRead(String token, Long tenantId) {
+        if (isPlatformAdmin(token)) {
+            return;
+        }
+        Long currentTenantId = getTenantIdFromToken(token);
+        if (currentTenantId == null || !currentTenantId.equals(tenantId)) {
+            throw new NoPermissionException("您只能查看本租户的信息");
         }
     }
 
@@ -91,6 +124,29 @@ public class PermissionCheck {
     }
 
     /**
+     * 校验：教师仅可操作本人资料，管理员/平台管理员可操作任意教师资料
+     * 用于教师个人介绍发布/查询场景（TC-J-05：教师发布占用额度）
+     */
+    public void checkTeacherSelfOrAdmin(String token, String teacherId) {
+        String role = getRoleFromToken(token);
+        String userId = getUserIdFromToken(token);
+        if ("admin".equals(role) || RoleConst.PLATFORM_ADMIN.equals(role)) {
+            return; // 管理员/平台管理员放行（可代发任意教师资料）
+        }
+        if ("teacher".equals(role)) {
+            if (!userId.equals(teacherId)) {
+                throw new NoPermissionException("教师只能操作本人的个人介绍");
+            }
+            User teacher = userMapper.selectById(userId);
+            if (teacher == null || !"active".equals(teacher.getStatus())) {
+                throw new NoPermissionException("教师账号未审核或已冻结，请联系管理员");
+            }
+            return;
+        }
+        throw new NoPermissionException("您无权限执行该操作");
+    }
+
+    /**
      * 辅助方法：从Token中获取用户ID，用于订单归属、课程归属校验
      * @param token 请求头中的Authorization Token
      * @return 用户ID（userId）
@@ -106,6 +162,17 @@ public class PermissionCheck {
    public String getRoleFromToken(String token) {
         try {
            return jwtUtil.getRoleFromToken(token);
+        } catch (Exception e) {
+            throw new UnLoginException("Token解析失败，请重新登录");
+        }
+    }
+
+    /**
+     * 辅助方法：从Token中获取租户ID，用于租户归属校验
+     */
+    public Long getTenantIdFromToken(String token) {
+        try {
+            return jwtUtil.getTenantId(token);
         } catch (Exception e) {
             throw new UnLoginException("Token解析失败，请重新登录");
         }

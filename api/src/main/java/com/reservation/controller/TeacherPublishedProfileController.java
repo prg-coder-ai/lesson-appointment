@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/teacher/published")
+@RequestMapping("/api/v1/teacher/published")
 public class TeacherPublishedProfileController {
 
     @Autowired
@@ -74,7 +74,7 @@ public class TeacherPublishedProfileController {
     public Result<TeacherPublishedProfile> save(@RequestBody TeacherPublishedProfileDTO dto,
                                                  HttpServletRequest req) {
         String token = extractToken(req);
-        permissionCheck.checkAdmin(token);
+        permissionCheck.checkTeacherSelfOrAdmin(token, dto.getTeacherId());
         String operatorUserId = permissionCheck.getUserIdFromToken(token);
         return service.save(dto, operatorUserId);
     }
