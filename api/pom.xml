@@ -16,7 +16,7 @@
 
     <groupId>com.reservation</groupId>
     <artifactId>booking_api</artifactId>   
-    <version>1.0.0</version> <!-- 版本号：快照版（开发中）/RELEASE（正式版） -->
+    <version>2.0.0</version> <!-- 版本号：快照版（开发中）/RELEASE（正式版） -->
     <name>booking</name>
     <description>lesson booking system</description>
 
