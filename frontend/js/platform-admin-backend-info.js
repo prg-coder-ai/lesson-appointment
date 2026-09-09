@@ -62,6 +62,16 @@
     }
   ];
 
+  /**
+   * 加载序号：用于丢弃「已被取代的旧响应」。
+   *
+   * 场景：快速连续切换 TAB（或连点刷新）时，先发出的请求可能后返回，
+   *       若不校验就会把上一个 TAB 的数据覆盖到当前 TAB 上，造成
+   *       「点了 message-service 却显示 booking_api」的错乱。
+   * 做法：每次 activate 递增序号，异步返回后比对，不一致则丢弃。
+   */
+  var loadSeq = 0;
+
   /* 字段中文标签（按后端 ServiceInfo 字段顺序） */
   var FIELD_LABELS = [
     { key: 'service',        label: '服务标识 service' },
@@ -132,14 +142,16 @@
     );
   }
 
-  async function loadServiceInfo(service, bodyEl) {
+  async function loadServiceInfo(service, bodyEl, seq) {
     bodyEl.innerHTML = '<div class="bi-loading"><i class="fa fa-spinner fa-spin"></i> 正在获取 ' + service.label + ' 的运行信息...</div>';
     try {
       var info = await fetchApiInfo(service.url);
+      if (seq !== loadSeq) return;   // 已被更新的请求取代，丢弃本次结果
       window.__backendInfoCache = window.__backendInfoCache || {};
       window.__backendInfoCache[service.key] = info;
       bodyEl.innerHTML = renderInfoTable(info);
     } catch (e) {
+      if (seq !== loadSeq) return;   // 同上：失败提示也不应覆盖当前 TAB
       bodyEl.innerHTML =
         '<div class="bi-error"><i class="fa fa-exclamation-circle"></i> 获取失败：' + esc(e && e.message ? e.message : String(e)) +
         '<div style="margin-top:10px;color:#999;font-size:12px;">接口：' + esc(service.url) + '（' + esc(service.desc) + '）</div></div>';
@@ -179,7 +191,7 @@
         btn.classList.toggle('active', btn.getAttribute('data-bi-key') === key);
       });
       var svc = BACKEND_SERVICES.filter(function (s) { return s.key === key; })[0] || BACKEND_SERVICES[0];
-      loadServiceInfo(svc, bodyEl);
+      loadServiceInfo(svc, bodyEl, ++loadSeq);
     }
 
     tabs.forEach(function (btn) {
