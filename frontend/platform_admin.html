@@ -81,6 +81,10 @@
           <i class="fa fa-file-alt"></i>
           <span>审计日志</span>
         </div>
+        <div class="menu-item" key="backend_info">
+          <i class="fa fa-server"></i>
+          <span>后台信息</span>
+        </div>
       </div>
     </aside>
 
@@ -147,6 +151,12 @@
         break;
       case "audit_log":
         window.location.href = './auditLog.html?from=platform_admin.html';
+        break;
+      // 后台信息：展示 booking_api / message-service 的运行信息（getApiInfo 全字段）
+      case "backend_info":
+        if (typeof renderBackendInfoPage === 'function') {
+          renderBackendInfoPage(dynamicContentCenter);
+        }
         break;
       default:
         if (typeof renderPlatformOverview === 'function') renderPlatformOverview();
@@ -240,7 +250,7 @@
   <script src="js/public/courseAndBooking.js"></script>
   <script src="js/public/appointmentNotes.js"></script>
 
-  <!-- 平台管理员功能页（租户 / 用户 / 套餐 / 运营统计 / 系统设置） -->
+  <!-- 平台管理员功能页（租户 / 用户 / 套餐 / 运营统计 / 系统设置 / 后台信息） -->
    <script src="js/platform-admin-tenant.js"></script>
   <script src="js/platform-admin-user.js"></script>
   <script src="js/platform-admin-package.js"></script>
@@ -248,6 +258,7 @@
   <script src="js/platform-admin-config.js"></script>
   <script src="js/platform-admin-config-industry.js"></script>
   <script src="js/platform-admin-config-term.js"></script>
+  <script src="js/platform-admin-backend-info.js"></script>
   <script src="js/messages-inbox.js"></script>
  
   <script>

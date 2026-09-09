@@ -75,6 +75,7 @@ function dataMaintainPage() {
         <button class="dm-tab-btn" id="tab-schedule-maintain" onclick="selectMaintainTab('schedule')"><i class="fa fa-calendar-alt"></i> 排期</button>
         <button class="dm-tab-btn" id="tab-booking-maintain" onclick="selectMaintainTab('booking')"><i class="fa fa-calendar-check"></i> 预定</button>
         <button class="dm-tab-btn" id="tab-appointment-maintain" onclick="selectMaintainTab('appointment')"><i class="fa fa-clock"></i> 预约</button>
+        <button class="dm-tab-btn" id="tab-backend-maintain" onclick="selectMaintainTab('backend')"><i class="fa fa-server"></i> 后台信息</button>
       </div>
       <div id="maintain-content"></div>
     </div>`;
@@ -91,13 +92,14 @@ var MAINTAIN_ICONS = {
   course: 'fa-book',
   schedule: 'fa-calendar-alt',
   booking: 'fa-calendar-check',
-  appointment: 'fa-clock'
+  appointment: 'fa-clock',
+  backend: 'fa-server'
 };
 
 // Tab 切换高亮 & 内容渲染
 function selectMaintainTab(tab) {
   objectType = tab;
-  ['template','course','schedule','booking','appointment'].forEach(function(type) {
+  ['template','course','schedule','booking','appointment','backend'].forEach(function(type) {
     var btn = document.getElementById('tab-'+type+'-maintain');
     if(btn) btn.classList.remove('active');
   });
@@ -110,6 +112,13 @@ function selectMaintainTab(tab) {
 function renderMaintainTable(type) {
   var maintainContent = document.getElementById('maintain-content');
   if(!maintainContent) return;
+
+  // 「后台信息」Tab：展示 booking_api / message-service 的名称、版本、构建时间
+  // 该 Tab 不是数据表维护项，因此不走筛选条 + 分页的通用渲染
+  if (type === 'backend') {
+    renderBackendBriefInfo(maintainContent);
+    return;
+  }
 
   var tableConfigs = {
     template:    { title: "模板列表" },
@@ -274,6 +283,83 @@ window.loadMaintainTableData = async function(type){
 setTimeout(function(){
   selectMaintainTab('template');
 }, 0);
+
+/* ==================== 后台信息 Tab（名称 / 版本 / 构建时间） ==================== */
+
+/**
+ * 两个后端程序的 getApiInfo 数据源。
+ * 说明：message-service 走 /message/system/info（带 /api/v1/message 前缀），
+ * 才能被前端站点（Nginx / 本地开发代理）的分流规则转发到 8090；
+ * 若直接用 /api/v1/system/info，会被当成 booking 的接口转发走。
+ */
+var BACKEND_BRIEF_SOURCES = [
+  { label: 'booking_api',     desc: '业务后台（:8081）',     url: '/system/info' },
+  { label: 'message-service', desc: '消息中心（:8090）',     url: '/message/system/info' }
+];
+
+/** 调用 getApiInfo（匿名接口），返回 data 对象 */
+async function fetchBackendBriefInfo(url) {
+  var http = (typeof window.request !== 'undefined') ? window.request
+           : (typeof window.axios !== 'undefined') ? window.axios : null;
+  if (!http) throw new Error('请求工具未加载（缺少 request / axios）');
+  var res = await http.get(url, { timeout: 15000 });
+  var body = (res && res.data) ? res.data : res;
+  if (!body) throw new Error('返回为空');
+  if (body.code !== undefined && body.code !== 200) {
+    throw new Error(body.message || ('接口返回 code=' + body.code));
+  }
+  return body.data || {};
+}
+
+/** 渲染「后台信息」Tab 内容 */
+async function renderBackendBriefInfo(container) {
+  if (!container) return;
+  container.innerHTML = `
+    <div class="dm-section-title"><i class="fa fa-server"></i> 后台程序信息</div>
+    <div class="dm-table-box" id="backend-brief-box">
+      <div class="dm-loading"><i class="fa fa-spinner fa-spin"></i> 加载中...</div>
+    </div>
+    <div style="padding: 8px 20px 16px;">
+      <button class="btn btn-default btn-sm" id="backend-brief-refresh"><i class="fa fa-refresh"></i> 刷新</button>
+    </div>`;
+
+  var refreshBtn = document.getElementById('backend-brief-refresh');
+  if (refreshBtn) refreshBtn.onclick = function () { renderBackendBriefInfo(container); };
+
+  var box = document.getElementById('backend-brief-box');
+  if (!box) return;
+
+  // 并发取两个服务，单个失败不影响另一个
+  var results = await Promise.all(BACKEND_BRIEF_SOURCES.map(async function (src) {
+    try {
+      return { src: src, info: await fetchBackendBriefInfo(src.url), error: null };
+    } catch (e) {
+      return { src: src, info: null, error: (e && e.message) ? e.message : String(e) };
+    }
+  }));
+
+  var html = '<table class="dm-data-table"><thead><tr>' +
+             '<th>程序</th><th>名称</th><th>版本</th><th>构建时间</th><th>说明</th>' +
+             '</tr></thead><tbody>';
+
+  results.forEach(function (r) {
+    html += '<tr>';
+    html += '<td>' + r.src.label + '</td>';
+    if (r.error) {
+      html += '<td colspan="3" class="dm-error" style="border-bottom:none;">获取失败：' + r.error + '</td>';
+      html += '<td>' + r.src.desc + '</td>';
+    } else {
+      html += '<td>' + (r.info.appName || '-') + '</td>';
+      html += '<td>' + (r.info.version || '-') + '</td>';
+      html += '<td>' + (r.info.buildTime || '-') + '</td>';
+      html += '<td>' + (r.info.description || r.src.desc) + '</td>';
+    }
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  box.innerHTML = html;
+}
 
 
  // 搜索按钮：重置为第1页再查询
