@@ -163,14 +163,18 @@
   async function fetchApiInfo(url) {
     var http = (typeof window.request !== 'undefined') ? window.request : window.axios;
     if (!http) throw new Error('请求工具未加载（缺少 request / axios）');
+    try{
     var res = await http.get(url, { timeout: 15000 });
     // 兼容两种返回：拦截器返回 data，或原始 response
+    console
     var body = (res && res.data) ? res.data : res;
     if (!body) throw new Error('返回为空');
     if (body.code !== undefined && body.code !== 200) {
       throw new Error((body.message || ('接口返回 code=' + body.code)));
     }
     return body.data || {};
+  }catch (e) {
+    throw new Error('请求失败：' + (e && e.message ? e.message : String(e)));
   }
 
   function esc(v) {
