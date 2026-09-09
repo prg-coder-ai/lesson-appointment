@@ -337,18 +337,36 @@ function backendConnectedIpOf(info) {
   return conn.requestHostIp || conn.requestHost || '-';
 }
 
+/**
+ * 统一解包 —— 与 platform-admin-backend-info.js 的 unwrapPayload 同逻辑：
+ * window.request 的响应拦截器在 code=200 时已把 data 解包（payload 即 ServiceInfo 本体），
+ * 旧实现固定 `res.data` 再 `.data` 会在这种形态下得到空对象 {}，表现为"接口有数据但页面空白"。
+ */
+function unwrapBackendPayload(payload) {
+  var p = payload;
+  if (p && p.data && typeof p.data === 'object' && (p.status !== undefined || p.config)) {
+    p = p.data;
+  }
+  if (p && typeof p === 'object' && p.code !== undefined && ('data' in p)) {
+    if (p.code !== 200) {
+      throw new Error(p.message || p.msg || ('接口返回 code=' + p.code));
+    }
+    return p.data || {};
+  }
+  return p || {};
+}
+
 /** 调用 getApiInfo（匿名接口），返回 data 对象 */
 async function fetchBackendBriefInfo(url) {
   var http = (typeof window.request !== 'undefined') ? window.request
            : (typeof window.axios !== 'undefined') ? window.axios : null;
   if (!http) throw new Error('请求工具未加载（缺少 request / axios）');
   var res = await http.get(url, { timeout: 15000 });
-  var body = (res && res.data) ? res.data : res;
-  if (!body) throw new Error('返回为空');
-  if (body.code !== undefined && body.code !== 200) {
-    throw new Error(body.message || ('接口返回 code=' + body.code));
+  var info = unwrapBackendPayload(res);
+  if (!info || typeof info !== 'object' || Object.keys(info).length === 0) {
+    throw new Error('接口未返回数据（解包后为空）');
   }
-  return body.data || {};
+  return info;
 }
 
 /** 渲染「后台信息」Tab 内容 */

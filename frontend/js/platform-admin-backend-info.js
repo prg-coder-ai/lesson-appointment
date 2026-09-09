@@ -160,21 +160,46 @@
   ];
 
   /* ==================== 请求 ==================== */
+
+  /**
+   * 统一解包 —— 必须兼容三种形态，否则会出现"接口有数据、页面却空白"：
+   *   ① window.request（utility_request.js）的响应拦截器在 code=200 时**已经把 data 解包返回**，
+   *      此时 payload 就是 ServiceInfo 本体（没有 code/data 外壳）——浏览器里真实走的正是这条；
+   *   ② 原始 axios 响应：{ status, config, data: { code, message, data } }；
+   *   ③ 裸 Result 体：{ code, message, data }。
+   * 旧实现固定先取 res.data 再取 .data，在形态①下会得到空对象 {} —— 页面于是空白且不报错。
+   */
+  function unwrapPayload(payload) {
+    var p = payload;
+    // ① 剥掉原始 axios 响应外壳（只有带 status/config 的才是响应对象，ServiceInfo 没有这些字段）
+    if (p && p.data && typeof p.data === 'object' && (p.status !== undefined || p.config)) {
+      p = p.data;
+    }
+    // ② 若仍是 Result 体，校验 code 后取 data
+    if (p && typeof p === 'object' && p.code !== undefined && ('data' in p)) {
+      if (p.code !== 200) {
+        throw new Error(p.message || p.msg || ('接口返回 code=' + p.code));
+      }
+      return p.data || {};
+    }
+    // ③ 拦截器已解包：payload 本身就是业务数据
+    return p || {};
+  }
+
   async function fetchApiInfo(url) {
     var http = (typeof window.request !== 'undefined') ? window.request : window.axios;
     if (!http) throw new Error('请求工具未加载（缺少 request / axios）');
-    try{
-    var res = await http.get(url, { timeout: 15000 });
-    // 兼容两种返回：拦截器返回 data，或原始 response
-    console
-    var body = (res && res.data) ? res.data : res;
-    if (!body) throw new Error('返回为空');
-    if (body.code !== undefined && body.code !== 200) {
-      throw new Error((body.message || ('接口返回 code=' + body.code)));
+    try {
+      var res = await http.get(url, { timeout: 15000 });
+      var info = unwrapPayload(res);
+      // 解包后必须有内容：宁可显式报错，也不要渲染一张空表让人以为"接口没数据"
+      if (!info || typeof info !== 'object' || Object.keys(info).length === 0) {
+        throw new Error('接口未返回数据（解包后为空）');
+      }
+      return info;
+    } catch (e) {
+      throw new Error('请求失败：' + (e && e.message ? e.message : String(e)));
     }
-    return body.data || {};
-  }catch (e) {
-    throw new Error('请求失败：' + (e && e.message ? e.message : String(e)));
   }
 
   function esc(v) {

@@ -130,18 +130,31 @@ function makeSandbox(base) {
   }
   // 注意：这里必须显式走 sandbox.fetch（而非裸 fetch）——
   // 本函数是宿主函数，裸 fetch 会解析成 Node 全局 fetch，导致外部替换沙箱 fetch 无效（竞态用例会假阳性）。
+  //
+  // 关键：返回形状必须**模拟真实 utility_request.js 的响应拦截器**——
+  //   code=200 时直接 resolve 内层 data（不再包 {code,message,data}）；非 200 时 reject。
+  // 早期版本 mock 成 axios 原始响应 {status, data: Result}，与线上不符，
+  // 导致"前端多剥一层 .data"的真实 Bug（接口有数据、页面空白）在测试里却是全绿。
   sandbox.request = {
     async get(url) {
       const res = await sandbox.fetch(normalizeUrl(url));
       const json = await res.json();
-      return { status: res.status, data: json };
+      if (!json || json.code !== 200) {
+        const err = new Error((json && (json.message || json.msg)) || ('接口返回 code=' + (json && json.code)));
+        err.__payload = json;
+        throw err;
+      }
+      return json.data;
     },
     async post(url, body) {
       const res = await sandbox.fetch(normalizeUrl(url), {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}),
       });
       const json = await res.json();
-      return { status: res.status, data: json };
+      if (!json || json.code !== 200) {
+        throw new Error((json && (json.message || json.msg)) || ('接口返回 code=' + (json && json.code)));
+      }
+      return json.data;
     },
   };
   sandbox.window.request = sandbox.request;
@@ -157,6 +170,15 @@ async function jget(path) {
   return { status: res.status, json: await res.json() };
 }
 const esc = (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** 与 makeSandbox 内 normalizeUrl 同逻辑的模块级版本，供自定义 mock 复用 */
+function normalizeUrlStandalone(url, base) {
+  if (/^https?:\/\//i.test(url)) return url;
+  if (url.indexOf('/api/v1') === 0) return base + url;
+  if (url.indexOf('/api/') === 0) return base + '/api/v1' + url.slice(4);
+  if (url.charAt(0) === '/') return base + '/api/v1' + url;
+  return url;
+}
 
 /** 从渲染后的 HTML 中取出 <th>label</th><td>值</td> 的值部分 */
 function cellValue(html, labelPart) {
@@ -518,6 +540,50 @@ function cellValue(html, labelPart) {
     const showsMessage = /message-service/.test(finalHtml) && !/booking_api/.test(finalHtml);
     check('慢响应返回后，页面仍显示最后点击的 TAB（message-service）',
       showsMessage, '实际内容片段: ' + finalHtml.slice(0, 160));
+  }
+
+  /* ---------- G. 解包形态兼容：防「接口有数据、页面空白」 ---------- */
+  console.log('\n【G】响应解包形态兼容（真实浏览器 vs 原始 axios）');
+  {
+    // 背景：window.request 的拦截器在 code=200 时已把 data 解包（形态①，真实浏览器走这条）。
+    // 早期实现固定 `res.data` 再 `.data`，在形态①下得到空对象 → 接口 200 但页面空白且不报错。
+    // 这里两种形态各渲染一次，都必须拿到真实字段值。
+    const shapes = [
+      {
+        name: '形态① 拦截器已解包（payload 即 ServiceInfo）—— 浏览器真实形态',
+        wrap: (json) => json.data,
+      },
+      {
+        name: '形态② 原始 axios 响应 { status, data: Result }',
+        wrap: (json) => ({ status: 200, config: {}, data: json }),
+      },
+      {
+        name: '形态③ 裸 Result 体 { code, message, data }',
+        wrap: (json) => json,
+      },
+    ];
+    for (const s of shapes) {
+      const sbg = makeSandbox(BASE);
+      loadFile(sbg, 'js/platform-admin-backend-info.js');
+      sbg.request.get = async (url) => {
+        const res = await sbg.fetch(normalizeUrlStandalone(url, BASE));
+        const json = await res.json();
+        return s.wrap(json);
+      };
+      sbg.window.request = sbg.request;
+      const hg = sbg.document.getElementById('dynamic-content-center');
+      sbg.renderBackendInfoPage(hg);
+      const bg = sbg.document.getElementById('bi-body');
+      const ok = await waitRendered(bg, (el) => /<\/table>/.test(el.innerHTML) || /获取失败/.test(el.innerHTML), 20000);
+      const html = bg.innerHTML;
+      check('G ' + s.name + '：渲染出表格', ok, html.slice(0, 160));
+      check('G ' + s.name + '：appName 有值（非空白行）',
+        (cellValue(html, '程序名称') || '') === bkData.appName,
+        '期望=' + bkData.appName + ' 实际=' + JSON.stringify(cellValue(html, '程序名称')));
+      check('G ' + s.name + '：version 有值（非空白行）',
+        (cellValue(html, '版本') || '') === bkData.version,
+        '期望=' + bkData.version + ' 实际=' + JSON.stringify(cellValue(html, '版本')));
+    }
   }
 
   /* ---------- 汇总 ---------- */
