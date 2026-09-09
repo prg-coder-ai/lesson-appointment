@@ -1,6 +1,10 @@
-/* 跨源导航：platform_admin 仅后端(:8081)，admin 仅前端(:8080) */
-window.ADMIN_ORIGIN = window.ADMIN_ORIGIN || ('http://' + location.hostname + ':8081');
-window.FRONTEND_ORIGIN = window.FRONTEND_ORIGIN || ('http://' + location.hostname + ':8080');
+/* 跨源导航（前后端分离后默认同源）
+ * platform_admin.html 与 admin.html 都是 dist 里的静态页，与业务端同一站点，
+ * 因此默认取 location.origin（同源）。只有在把管理端单独部署到独立子域/端口时，
+ * 才需要在页面里显式注入 window.ADMIN_ORIGIN / window.FRONTEND_ORIGIN。
+ * 旧的默认值 'http://<hostname>:8081' / ':8080' 会在生产跳到不存在的端口，已废弃。 */
+window.ADMIN_ORIGIN = window.ADMIN_ORIGIN || location.origin;
+window.FRONTEND_ORIGIN = window.FRONTEND_ORIGIN || location.origin;
 // API请求封装（简化JS请求，避免重复代码） 
     // 全局定义API服务器地址及端口号、根路径（可根据实际情况修改）
    
