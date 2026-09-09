@@ -14,7 +14,7 @@ Group=lesson
 WorkingDirectory=/opt/lesson
 EnvironmentFile=/etc/lesson/message.env
 # Java 路径按实际环境调整；可在此追加 JVM 参数，例如 -Xms256m -Xmx512m
-ExecStart=/usr/bin/java $JAVA_OPTS  -jar /opt/lesson/message-service.jar
+ExecStart=/usr/bin/java $JAVA_OPTS -jar /opt/lesson/message-service.jar
 # 进程异常退出（非 0）时自动拉起；若要“任何退出都重启”改为 Restart=always
 Restart=on-failure
 # 每次重启前等待 10 秒，避免崩溃雪崩
