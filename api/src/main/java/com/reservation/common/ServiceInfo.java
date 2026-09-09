@@ -36,6 +36,15 @@ public class ServiceInfo {
     /** 已运行时长（毫秒），便于监控计算 */
     private Long uptimeMillis;
 
+    /**
+     * 服务所在主机的 IP 地址（取首个非回环 IPv4，如 172.16.0.9）。
+     * 取自进程所在机器，与"前端从哪个域名访问"无关。
+     */
+    private String hostAddress;
+
+    /** 服务监听端口，如 8081 */
+    private Integer port;
+
     /** 时区信息 */
     private TimezoneInfo timezone;
 

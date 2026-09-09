@@ -35,6 +35,12 @@
       .bi-info-table th { width: 200px; color: #7f8c8d; font-weight: 500; background: #fafafa; white-space: nowrap; }
       .bi-info-table td { color: #2c3e50; font-family: Consolas, Monaco, monospace; word-break: break-all; }
       .bi-info-table tr:hover td { background: #fcfcfc; }
+      .bi-endpoint-bar { padding: 12px 20px; background: #faf8ff; border-bottom: 1px solid #f0f0f0; }
+      .bi-endpoint-item { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12.5px; padding: 3px 0; }
+      .bi-endpoint-name { min-width: 130px; color: #555; font-weight: 600; }
+      .bi-endpoint-name i { color: #722ed1; margin-right: 5px; }
+      .bi-endpoint-url { font-family: Consolas, Monaco, monospace; color: #2c3e50; background: #fff; border: 1px solid #ececec; border-radius: 3px; padding: 1px 7px; }
+      .bi-endpoint-desc { color: #999; }
       .bi-group-title { font-size: 13px; font-weight: 600; color: #722ed1; margin: 18px 0 6px; display: flex; align-items: center; gap: 6px; }
       .bi-loading { padding: 40px 0; text-align: center; color: #999; font-size: 14px; }
       .bi-error { padding: 40px 0; text-align: center; color: #f5222d; font-size: 14px; }
@@ -51,16 +57,44 @@
       label: 'booking_api',
       desc: '预约系统业务后台（:8081）',
       icon: 'fa-database',
-      url: '/system/info'
+      url: '/system/info',
+      prefix: '/api/v1'            // 前端站点转发前缀：拼到站点 origin 后即前端实际请求地址
     },
     {
       key: 'message',
       label: 'message-service',
       desc: '消息中心微服务（:8090）',
       icon: 'fa-comments',
-      url: '/message/system/info'
+      url: '/message/system/info',
+      prefix: '/api/v1/message'    // 带 /message 前缀才会被前端站点分流到 :8090
     }
   ];
+
+  /** 当前前端所在站点地址（origin），如 http://152.136.254.127 或 http://localhost:8080 */
+  function siteOrigin() {
+    try {
+      if (window.location && window.location.origin && window.location.origin !== 'null') {
+        return window.location.origin;
+      }
+      if (window.location) {
+        return window.location.protocol + '//' + window.location.host;
+      }
+    } catch (e) { /* 非浏览器环境，走兜底 */ }
+    return '';
+  }
+
+  /** 前端实际请求该服务的地址（站点 origin + 转发前缀） */
+  function endpointOf(svc) {
+    return siteOrigin() + (svc && svc.prefix ? svc.prefix : '');
+  }
+
+  /** 服务监听地址（后端进程所在机器 IP:端口），取自接口返回的 hostAddress / port */
+  function listenAddressOf(info) {
+    var host = (info && info.hostAddress) ? info.hostAddress : '';
+    var port = (info && info.port) ? info.port : '';
+    if (!host) return '—';
+    return port ? (host + ':' + port) : host;
+  }
 
   /**
    * 加载序号：用于丢弃「已被取代的旧响应」。
@@ -113,8 +147,11 @@
   }
 
   /* ==================== 渲染 ==================== */
-  function renderInfoTable(info) {
+  function renderInfoTable(info, svc) {
     var rows = '';
+    // 连接地址置顶：前端实际请求地址（前端拼）+ 服务监听地址（后端返回 hostAddress:port）
+    rows += '<tr><th>前端连接地址 endpoint</th><td>' + esc(endpointOf(svc)) + '</td></tr>';
+    rows += '<tr><th>服务监听地址 hostAddress:port</th><td>' + esc(listenAddressOf(info)) + '</td></tr>';
     FIELD_LABELS.forEach(function (f) {
       var val = info[f.key];
       if (f.key === 'status') {
@@ -149,7 +186,7 @@
       if (seq !== loadSeq) return;   // 已被更新的请求取代，丢弃本次结果
       window.__backendInfoCache = window.__backendInfoCache || {};
       window.__backendInfoCache[service.key] = info;
-      bodyEl.innerHTML = renderInfoTable(info);
+      bodyEl.innerHTML = renderInfoTable(info, service);
     } catch (e) {
       if (seq !== loadSeq) return;   // 同上：失败提示也不应覆盖当前 TAB
       bodyEl.innerHTML =
@@ -172,6 +209,15 @@
         <div class="bi-card-header">
           <div class="bi-card-title"><i class="fa fa-server"></i> 后台信息</div>
           <button class="btn btn-default btn-sm" id="bi-refresh-btn"><i class="fa fa-refresh"></i> 刷新</button>
+        </div>
+        <div class="bi-endpoint-bar" id="bi-endpoint-bar">
+          ${BACKEND_SERVICES.map(function (s) {
+            return `<div class="bi-endpoint-item">
+                      <span class="bi-endpoint-name"><i class="fa ${s.icon}"></i> ${s.label}</span>
+                      <code class="bi-endpoint-url" data-endpoint-key="${s.key}">${endpointOf(s)}</code>
+                      <span class="bi-endpoint-desc">${s.desc}</span>
+                    </div>`;
+          }).join('')}
         </div>
         <div class="bi-tab-bar">
           ${BACKEND_SERVICES.map(function (s, i) {

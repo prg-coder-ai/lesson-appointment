@@ -293,9 +293,35 @@ setTimeout(function(){
  * 若直接用 /api/v1/system/info，会被当成 booking 的接口转发走。
  */
 var BACKEND_BRIEF_SOURCES = [
-  { label: 'booking_api',     desc: '业务后台（:8081）',     url: '/system/info' },
-  { label: 'message-service', desc: '消息中心（:8090）',     url: '/message/system/info' }
+  { label: 'booking_api',     desc: '业务后台（:8081）',     url: '/system/info',          prefix: '/api/v1' },
+  { label: 'message-service', desc: '消息中心（:8090）',     url: '/message/system/info',  prefix: '/api/v1/message' }
 ];
+
+/** 当前前端所在站点地址（origin），如 http://152.136.254.127 或 http://localhost:8080 */
+function backendSiteOrigin() {
+  try {
+    if (window.location && window.location.origin && window.location.origin !== 'null') {
+      return window.location.origin;
+    }
+    if (window.location) {
+      return window.location.protocol + '//' + window.location.host;
+    }
+  } catch (e) { /* 非浏览器环境，走兜底 */ }
+  return '';
+}
+
+/** 前端实际请求该服务的地址（站点 origin + 转发前缀） */
+function backendEndpointOf(src) {
+  return backendSiteOrigin() + (src && src.prefix ? src.prefix : '');
+}
+
+/** 服务监听地址（后端进程所在机器 IP:端口），取自接口返回的 hostAddress / port */
+function backendListenAddressOf(info) {
+  var host = (info && info.hostAddress) ? info.hostAddress : '';
+  var port = (info && info.port) ? info.port : '';
+  if (!host) return '-';
+  return port ? (host + ':' + port) : host;
+}
 
 /** 调用 getApiInfo（匿名接口），返回 data 对象 */
 async function fetchBackendBriefInfo(url) {
@@ -315,6 +341,9 @@ async function fetchBackendBriefInfo(url) {
 async function renderBackendBriefInfo(container) {
   if (!container) return;
   container.innerHTML = `
+    <style>
+      .dm-endpoint { font-family: Consolas, Monaco, monospace; font-size: 12px; color: #2c3e50; word-break: break-all; }
+    </style>
     <div class="dm-section-title"><i class="fa fa-server"></i> 后台程序信息</div>
     <div class="dm-table-box" id="backend-brief-box">
       <div class="dm-loading"><i class="fa fa-spinner fa-spin"></i> 加载中...</div>
@@ -339,7 +368,8 @@ async function renderBackendBriefInfo(container) {
   }));
 
   var html = '<table class="dm-data-table"><thead><tr>' +
-             '<th>程序</th><th>名称</th><th>版本</th><th>构建时间</th><th>说明</th>' +
+             '<th>程序</th><th>名称</th><th>版本</th><th>构建时间</th>' +
+             '<th>前端连接地址</th><th>服务监听地址</th><th>说明</th>' +
              '</tr></thead><tbody>';
 
   results.forEach(function (r) {
@@ -347,11 +377,16 @@ async function renderBackendBriefInfo(container) {
     html += '<td>' + r.src.label + '</td>';
     if (r.error) {
       html += '<td colspan="3" class="dm-error" style="border-bottom:none;">获取失败：' + r.error + '</td>';
+      // 连接地址不依赖接口返回，即使失败也能显示，便于排查"连的是哪个地址"
+      html += '<td class="dm-endpoint">' + backendEndpointOf(r.src) + '</td>';
+      html += '<td>-</td>';
       html += '<td>' + r.src.desc + '</td>';
     } else {
       html += '<td>' + (r.info.appName || '-') + '</td>';
       html += '<td>' + (r.info.version || '-') + '</td>';
       html += '<td>' + (r.info.buildTime || '-') + '</td>';
+      html += '<td class="dm-endpoint">' + backendEndpointOf(r.src) + '</td>';
+      html += '<td class="dm-endpoint">' + backendListenAddressOf(r.info) + '</td>';
       html += '<td>' + (r.info.description || r.src.desc) + '</td>';
     }
     html += '</tr>';

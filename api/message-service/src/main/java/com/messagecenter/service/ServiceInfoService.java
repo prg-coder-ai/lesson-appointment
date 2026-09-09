@@ -3,13 +3,18 @@ package com.messagecenter.service;
 import com.messagecenter.common.ServiceInfo;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.info.BuildProperties;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 import java.lang.management.ManagementFactory;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Enumeration;
 import java.util.Locale;
 import java.util.TimeZone;
 
@@ -39,12 +44,14 @@ public class ServiceInfoService {
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final BuildProperties buildProperties;
+    private final Environment environment;
 
     /**
      * 用 ObjectProvider 注入：未生成 build-info（如 IDE 直接启动）时为 null，避免启动失败。
      */
-    public ServiceInfoService(ObjectProvider<BuildProperties> buildPropertiesProvider) {
+    public ServiceInfoService(ObjectProvider<BuildProperties> buildPropertiesProvider, Environment environment) {
         this.buildProperties = buildPropertiesProvider.getIfAvailable();
+        this.environment = environment;
     }
 
     /** 组装当前服务运行信息（每次调用实时取值） */
@@ -80,6 +87,10 @@ public class ServiceInfoService {
         LocalDateTime now = LocalDateTime.now();
         info.setServerTime(now.format(FMT));
 
+        // 服务所在主机地址与监听端口（用于前端展示"连的是哪台机器的哪个端口"）
+        info.setHostAddress(resolveHostAddress());
+        info.setPort(resolvePort());
+
         TimeZone tz = TimeZone.getDefault();
         ServiceInfo.TimezoneInfo tzInfo = new ServiceInfo.TimezoneInfo();
         tzInfo.setId(tz.getID());
@@ -96,6 +107,51 @@ public class ServiceInfoService {
                 ZoneId.systemDefault()).format(FMT));
 
         return info;
+    }
+
+    /**
+     * 取服务所在主机的 IP：优先首个「已启用、非回环、非虚拟」的 IPv4 地址；
+     * 取不到时兜底 InetAddress.getLocalHost()，仍失败返回"未知"。
+     */
+    private static String resolveHostAddress() {
+        try {
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces.hasMoreElements()) {
+                NetworkInterface ni = interfaces.nextElement();
+                if (!ni.isUp() || ni.isLoopback() || ni.isVirtual()) {
+                    continue;
+                }
+                Enumeration<InetAddress> addrs = ni.getInetAddresses();
+                while (addrs.hasMoreElements()) {
+                    InetAddress addr = addrs.nextElement();
+                    if (addr instanceof Inet4Address && !addr.isLoopbackAddress()) {
+                        return addr.getHostAddress();
+                    }
+                }
+            }
+            return InetAddress.getLocalHost().getHostAddress();
+        } catch (Exception e) {
+            return UNKNOWN;
+        }
+    }
+
+    /**
+     * 服务监听端口：优先 local.server.port（Servlet 容器实际绑定的端口，
+     * server.port=0 随机端口时也能拿到真实值），其次配置里的 server.port。
+     */
+    private Integer resolvePort() {
+        String port = environment.getProperty("local.server.port");
+        if (port == null || port.isBlank()) {
+            port = environment.getProperty("server.port");
+        }
+        if (port == null || port.isBlank()) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(port.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     /** 时区 UTC 偏移量，如 UTC+08:00 */
