@@ -48,7 +48,8 @@ frontend/
 └── pom.xml                 # packaging=pom，frontend-maven-plugin 自动下载 Node/npm 并触发构建
 ```
 
-> 注意：`platform_admin.html` 套件（含 `auditLog.html`/`logBrowser.html`）**在后端 `:8081` 的 jar 内**，不在本前端 `dist/`。前端 `admin.html` 是「租户管理端」，与「平台管理端 platform_admin」是两回事。
+> 注意（**2026-09-09 已变更**）：`platform_admin.html` 套件（含 `logBrowser.html`、`js/platform-admin-*.js`、`js/main.js`、`js/logBrowser.js`）**已迁入本前端**，随 `dist/` 一起构建、由 Nginx `:8080` 伺服；后端 `:8081` 的 jar **不含任何页面**。
+> 前端 `admin.html` 是「租户管理端」，`platform_admin.html` 是「平台管理端」，两者是不同页面、但**现在都在本前端**，且共用 `css/admin.css`。
 
 ---
 
@@ -56,19 +57,21 @@ frontend/
 
 | 角色 | 页面所在 | 访问地址 |
 |------|----------|----------|
-| 平台管理员 | 后端 `:8081` | `http://<host>:8081/platform_admin.html?tCode=platform` |
+| 平台管理员 | 前端 `:8080` | `http://<host>:8080/platform_admin.html?tCode=platform` |
 | 租户管理员 | 前端 `:8080` | `http://<host>:8080/admin.html?tCode=<tenantCode>` |
 | 学生 / 教师 / 预约 | 前端 `:8080` | `http://<host>:8080/{student,teacher,booking}.html` |
 | 所有 API | 统一前缀 | `/api/v1/*`（经 Nginx `:8080` 反代，或直连 `:8081`） |
 
-两个跨源导航常量在 `js/public/api.js` 中定义（**前端与后端各维护一份，改动须同步**）：
+跨源导航常量在 `js/public/api.js` 中定义（后端 `static/` 已删除，**现仅此一份，无需再同步**）：
 
 ```js
-window.ADMIN_ORIGIN    = window.ADMIN_ORIGIN    || ('http://' + location.hostname + ':8081'); // 平台管理端
-window.FRONTEND_ORIGIN = window.FRONTEND_ORIGIN || ('http://' + location.hostname + ':8080'); // 业务前端
+window.ADMIN_ORIGIN    = window.ADMIN_ORIGIN    || ('http://' + location.hostname + ':8081'); // 遗留变量，已不再使用
+window.FRONTEND_ORIGIN = window.FRONTEND_ORIGIN || ('http://' + location.hostname + ':8080'); // 业务前端 + 平台管理端
 ```
 
-登录分发逻辑（`api.js`）：`platform_admin` 角色 → `ADMIN_ORIGIN + '/platform_admin.html?tCode=platform'`；`admin` 角色 → `FRONTEND_ORIGIN + '/admin.html?tCode=' + tenantCode`。
+登录分发逻辑（`api.js`，2026-09-09 起 `platform_admin` 也走 `FRONTEND_ORIGIN`）：
+- `platform_admin` 角色 → `FRONTEND_ORIGIN + '/platform_admin.html?tCode=platform'`
+- `admin` 角色 → `FRONTEND_ORIGIN + '/admin.html?tCode=' + tenantCode`
 
 ---
 
@@ -78,8 +81,8 @@ window.FRONTEND_ORIGIN = window.FRONTEND_ORIGIN || ('http://' + location.hostnam
 
 | 服务 | 端口 | 作用 | 在 SaaS 仓库位置 |
 |------|------|------|------------------|
-| booking（api） | `:8081` | 主业务 API：预约/课程/用户/租户/术语/平台管理端静态页 | `api/` 模块，产出 `booking_api-1.0.0.jar` |
-| message-service | `:8090` | 消息中心：收件箱/模板/SSE 推送/投递追踪 | `message-service/` 模块，独立库 `message_center` |
+| booking（api） | `:8081` | 主业务 API：预约/课程/用户/租户/术语（**纯后台，无静态页**） | `api/` 模块，产出 `booking_api-1.0.0.jar` |
+| message-service | `:8090` | 消息中心：收件箱/模板/SSE 推送/投递追踪（**纯后台，无静态页**） | `message-service/` 模块，独立库 `message_center` |
 | 前端（Nginx） | `:8080` | 静态托管 `dist/`，同源反代 `/api/v1` | 本目录构建产物 |
 
 ### 4.2 API 基址推导
@@ -177,7 +180,19 @@ java -classpath "$M2\boot\plexus-classworlds-2.9.0.jar" \
 
 业务前端 `booking.example.com`：静态资源 `root /var/www/frontend`；`/api/v1/message`、`/api/v1/sse`、`/api/v1/users/` → `:8090`，其余 `/api/v1/` → `:8081`；SSE 必须 `proxy_buffering off`。
 
-平台管理端 `admin.example.com`：整站 `proxy_pass http://127.0.0.1:8081`（管理端静态页与 `/api/v1` 调用都走 booking jar）。
+平台管理端 `admin.example.com`：**与业务前端同一份 `dist`**，`root` 指向同一个目录，`/api/v1/` → `:8081`。不再需要把整站反代到 `:8081`（平台管理页已在 dist 内）。
+
+```nginx
+# admin.example.com 关键片段
+server {
+    listen 443 ssl http2;
+    server_name admin.example.com;
+    root /var/www/frontend;                 # 与业务前端同一份 dist
+    index index.html;
+    location / { try_files $uri $uri/ /index.html; }
+    location /api/v1/ { proxy_pass http://127.0.0.1:8081; include /etc/nginx/proxy_params; proxy_read_timeout 120s; }
+}
+```
 
 ```nginx
 # booking.example.com 关键片段
@@ -194,7 +209,7 @@ server {
 }
 ```
 
-无域名只有 IP 时：`root` 仍指向 dist，监听 `:8080`；后端 `:8081`/`:8090` 经反代。`platform_admin` 可暂暴露为 `http://<IP>:8081/platform_admin.html`（防火墙仅对管理员 IP 开放 8081）。
+无域名只有 IP 时：`root` 仍指向 dist，监听 `:8080`；后端 `:8081`/`:8090` 经反代。`platform_admin` 直接访问 `http://<IP>:8080/platform_admin.html`（与业务前端同域同端口，无需额外开放 8081 给管理员）。
 
 ---
 
@@ -204,8 +219,10 @@ server {
 2. **改了前端却没生效**：记得发布的是 `dist/`，改完源码必须重跑 `mvn package` 重建 dist 并上传到 Nginx `root`。
 3. **SSE 收不到推送**：Nginx 未关缓冲 → 在 `/api/v1/sse` 加 `proxy_buffering off;`。
 4. **术语/语言不切换**：确认元素带 `data-term`/`data-term-placeholder` 标记，且 key 在 `terms.js` 或 `/term/map` 中存在；动态内容渲染后须调 `applyTerms(container)`。
-5. **管理端 vs 租户端混淆**：`platform_admin.html`（平台，后端 `:8081`）≠ `admin.html`（租户，前端 `:8080`）。双 origin 常量（`ADMIN_ORIGIN`/`FRONTEND_ORIGIN`）前后端须同步。
-6. **本机 mvn 损坏**：用第 6.1 节的 Maven launcher 直启命令，不要依赖系统 `mvn`。
+5. **管理端 vs 租户端混淆**：`platform_admin.html`（平台端，系统级）≠ `admin.html`（租户端，租户级）。二者**现在都在本前端 `:8080`**（平台端于 2026-09-09 迁入），共用 `css/admin.css` —— 改该 CSS 会同时影响两页。
+6. **登录后跳错端口**：所有角色都应跳 `FRONTEND_ORIGIN`（`:8080`）。若 `platform_admin` 仍跳 `ADMIN_ORIGIN`（`:8081`）说明代码是迁移前的旧版，会 404/500。
+7. **后端根路径不再是页面**：`http://<host>:8081/` 与 `http://<host>:8090/` 只返回「缺省自我标识页」（程序名/版本/服务器时间/时区/已运行时长），用于确认进程存活；页面一律走前端。
+8. **本机 mvn 损坏**：用第 6.1 节的 Maven launcher 直启命令，不要依赖系统 `mvn`。
 
 ---
 
