@@ -46,3 +46,9 @@
 - **api 不再跑 node**：`api/pom.xml` 的 `frontend-maven-plugin` 已移除，`api/build-platform.js`、`package.json`、`package-lock.json`、`node_modules` 已删；版本信息改由 `spring-boot-maven-plugin` 的 `build-info` goal 生成。
 - **共用资源零冲突**：`css/admin.css` 等共享文件两处原本内容完全一致（仅差末尾换行），合并到 frontend 一份后样式不变；但今后改 `admin.css` 会同时影响 platform_admin 与 admin 两页。
 - **构建注意**：frontend `build.js` 全量扫描 `frontend/`（html + js/** + css/** + 资源），新增页面/脚本放进去即自动进 dist，无需改构建配置。
+
+## try_files 兜底会掩盖 404（2026-09-10 事故后定下的规矩）
+- Nginx 的 `try_files $uri $uri/ /index.html`（SPA 兜底）会把**任何不存在的页面**静默渲染成登录首页，表象是"点完功能闪一下回到登录界面"，极易被误判成 token/守卫问题。真实案例：`teacherInfo.html` + 4 个 js + `teacherPublishedProfile.html` 在提交 `00ace80` 前后端分离时被整批删除、漏迁 frontend（2026-09-10 已取回迁移，commit `44fc6b0`）。
+- **排查铁律**：遇到"莫名跳回登录页"，先 `find` 目标 html/js 是否真的存在于 `frontend/` 与 `frontend/dist/`，并用 `git log --all --diff-filter=D --name-only -- "*<file>*"` 确认是否曾被删除；历史文件用 `git show <commit>^:<old path>` 取回。
+- **防线**：`frontend/js/public/missingPageGuard.js`（index.html 在 `<body>` 开头引入）——检测"当前 URL 不是首页却被 try_files 兜底"，顶部弹红色告警条（返回首页/复制报错信息）。**任何新增入口页都必须真实存在**，否则会被这条告警当场抓住。
+- **跳转与前缀约定**：受保护子页跳转一律走 `pageUrl()`（自动带 tCode）；**公开免登录页刻意不带 tCode**（对外分享链接）。公开页不引 api.js，`window.API_BASE_URL` 默认为空串 → 必须自拼 `/api/v1` 前缀；而走 `window.request()` 的请求保持裸路径，`normalizeUrl` 会自动补前缀，勿手工拼 `API_BASE_URL`。
