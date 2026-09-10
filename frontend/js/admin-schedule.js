@@ -236,10 +236,7 @@ async function renderScheduleCards() {
                     <label><span data-term="classType">语言类型</span>：</label>
                     <select id="languageType-select" >
                         <option value="">全部</option>
-                        <option value="french"><span data-term="classType1">法语</span></option>
-                        <option value="english"><span data-term="classType2">英语</span></option>
-                        <option value="chinese"><span data-term="classType3">汉语</span></option>
-                        <option value="spanish"><span data-term="classType4">西语</span></option>
+                        ${courseTypeOptionsHtml('', { empty: '全部' })}
                     </select>
                 </div>
                 <div>

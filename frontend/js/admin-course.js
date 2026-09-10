@@ -70,7 +70,7 @@ async function openEditCourseDialog(CourseJsonStr )
        //显示，每个模板的内容
        if (templateList &&  (Array.isArray(templateList) && templateList.length > 0))  
      { templateList.forEach(template => { 
-       var str = template.languageType+ " "+ template.difficultyLevel + " "+template.classDuration+ " "+template.classFee ;
+       var str = courseTypeText(template.languageType) + " " + enumTermText('classLevel', template.difficultyLevel) + " "+template.classDuration+ " "+template.classFee ;
         formHtml += ` <option value= ${template.templateId } ${template.templateId === defaultCourse.templateId ? "selected" : ""}> ${str}</option>` 
       });
     }
@@ -102,7 +102,7 @@ async function openEditCourseDialog(CourseJsonStr )
         `;
        //显示，每个模板的内容
       teacherList.forEach(teacher => { 
-        var str = teacher.name+ " "+ teacher.languageType + " "+teacher.phone+ " "+teacher.email ;
+        var str = teacher.name+ " "+ courseTypeText(teacher.languageType) + " "+teacher.phone+ " "+teacher.email ;
         formHtml += ` <option value="${teacher.userId}" ${teacher.userId === defaultCourse.teacherId ? "selected" : ""}> ${str}</option>`;
      
       });
@@ -253,10 +253,7 @@ html = `
           <label><span data-term="classType">语言类型</span>：</label>
           <select id="language-select">
             <option value="">全部</option>
-            <option value="french"><span data-term="classType1">法语</span></option>
-            <option value="english"><span data-term="classType2">英语</span></option> 
-            <option value="chinese"><span data-term="classType3">汉语</span></option>
-            <option value="spanish"><span data-term="classType4">西语</span></option>
+            ${courseTypeOptionsHtml('', { empty: '全部' })}
           </select>
         </div>
         <div class="filter-item">
@@ -387,7 +384,7 @@ function renderCourseTable(list) {
          const templateObj = templateList?templateList.find(t => t.templateId === Course.templateId) : null;
          const teacherObj = teacherList?teacherList.find(t => t.userId === Course.teacherId) : null;
 
-         let tempInfo=templateObj? templateObj.languageType+ " "+ templateObj.difficultyLevel + " "+templateObj.classFee : "" ;
+         let tempInfo=templateObj? courseTypeText(templateObj.languageType) + " " + enumTermText('classLevel', templateObj.difficultyLevel) + " "+templateObj.classFee : "" ;
          let teacherInfo=teacherObj? teacherObj.name : "n/a" ;//+ " "+ teacherObj.phone + " "+ teacherObj.email
           if(cnt++ ==1){
            } 

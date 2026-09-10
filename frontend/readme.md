@@ -148,7 +148,26 @@ window.API_BASE_URL = API_BASE_URL;
   - 优先级：**租户品牌 > 服务端合并词 > 本地行业词 > 锚点词**；未知 key 保留 `{key}` 占位，绝不出现 `undefined`。
   - 调用时机：`DOMContentLoaded`、`window load`、`/term/map` 返回后、`switchIndustry()`、`applyTenantTitle({brand})`。
   - 页内 `#brand-title`：带 `data-term` 的交给 `applyTerms`；被租户品牌改写的打 `data-tenant-brand` 标记，避免被行业词回写。
-  - 回归：`node doc-develop/itest_document_title.js`（19 项：行业切换/服务端词/租户品牌/幂等/健壮性）。
+  - 回归：`node doc-develop/itest_document_title.js`（23 项：行业切换/服务端词/租户品牌/幂等/健壮性/真实链路）。
+- **枚举字段（下拉/列表）的 code → 行业词** —— `js/public/enumTerms.js`：
+  - 原因：`languageType` 在库里存 code（`french/english/chinese/spanish`），而**显示词只存在于 `<option>` 的 DOM 文本里**（靠 `data-term` 换词）。
+    列表是 JS 拼字符串渲染的，拿不到 DOM 文本 → 曾经直接把 `english` 拼进页面。
+  - **唯一权威映射**（与 `TERM_DICT.education` 一致，`french→classType1` `english→classType2` `chinese→classType3` `spanish→classType4`）。
+    历史上有 5 个文件各写一套、`admin-template.js` 还写反了，现统一收敛到本模块。
+  - 用法，禁止再手写 `<option value="xx"><span data-term="classTypeN">`：
+
+    | 场景 | 调用 |
+    |---|---|
+    | 列表单元格 | `courseTypeCellHtml(code)` → `<span data-term="classType2">劳动</span>`（切行业会被 `applyTerms` 刷新） |
+    | 下拉 `<option>` | `courseTypeOptionsHtml(selected, { empty: '全部' })` |
+    | 字符串拼接 | `courseTypeText(code)`（如"法语 B1入门 60 300"） |
+    | 其它 code 后缀型字段 | `enumTermText('classForm','1p1')` / `enumTermCellHtml('classLevel','B1')` |
+
+  - 兜底链：**服务端合并词 > 当前行业词 > 锚点词**；脏数据兼容（`'English'`/`'英语'` 归一化），未知 code **原样输出**（不丢数据、不出 `undefined`）。
+  - 引用注意：`terms.js` 里 `const TERM_DICT` 是**词法声明，不挂 window**，模块内须用裸标识符 + `typeof` 探测。
+  - 涉及页面必须在 `termsFunction.js` 之后引入 `js/public/enumTerms.js`（当前：admin/student/teacher）。
+  - 回归：`node doc-develop/itest_enum_terms.js`（55 项：四行业词/脏数据/选中项/服务端词覆盖/静态防回退/锚点一致性）。
+
 - **语言切换**：头部下拉菜单（`#lang-switch-dropdown`，自注入到退出按钮 `<i class="fa fa-sign-out-alt">` 左侧），`localStorage.lang` 记录 zh/en/fr，`setLang()` 派发 `langchange` 事件刷新 UI；登录页无 header 时回退右上角固定。
 
 ---

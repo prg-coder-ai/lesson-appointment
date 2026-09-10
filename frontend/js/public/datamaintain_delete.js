@@ -97,7 +97,7 @@ window.fetchCourseListPage = fetchCourseListPage;
           const templateObj = templateList ? templateList.find(t => t.templateId === Course.templateId) : null;
           const teacherObj = teacherList ? teacherList.find(t => t.userId === Course.teacherId) : null;
 
-          let tempInfo = templateObj ? templateObj.languageType + " " + templateObj.difficultyLevel + " " + templateObj.classFee : "n/a";
+          let tempInfo = templateObj ? courseTypeText(templateObj.languageType) + " " + enumTermText('classLevel', templateObj.difficultyLevel) + " " + templateObj.classFee : "n/a";
           let teacherInfo = teacherObj ? teacherObj.name : "n/a";
           // 这里只是补充处理，具体逻辑请根据实际业务调整，如可在Course对象上新增处理结果：
           Course.tempInfo = tempInfo;

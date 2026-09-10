@@ -192,9 +192,11 @@ const TERM_KEYS = [
   { key: "classLevelB4", anchor: "B4高级" },
 
   { key: "classType", anchor: "语言类型" },
-  { key: "classType1", anchor: "英语" },
-  { key: "classType2", anchor: "法语" },
-  { key: "classType3", anchor: "韩语" },
+  // 必须与 TERM_DICT.education 中 classType1..4 完全一致，否则 restoreAnchorTerms() 会把顺序还原错
+  // 权威映射：french→1(法语) english→2(英语) chinese→3(汉语) spanish→4(西语)，见 js/public/enumTerms.js
+  { key: "classType1", anchor: "法语" },
+  { key: "classType2", anchor: "英语" },
+  { key: "classType3", anchor: "汉语" },
   { key: "classType4", anchor: "西语" },
   { key: "leave", anchor: "请假" },
 ];

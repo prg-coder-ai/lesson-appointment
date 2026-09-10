@@ -172,9 +172,9 @@ window.loadMaintainTableData = async function(type){
   var columns = {
     template: [
       {key: "templateId", label: "编号"},
-      {key: "languageType", label: "语言类型"},
-      {key: "difficultyLevel", label: "难度等级"},
-      {key: "classForm", label: "课程形式"},
+      {key: "languageType", label: "语言类型", fmt: function (v) { return courseTypeCellHtml(v); }},
+      {key: "difficultyLevel", label: "难度等级", fmt: function (v) { return enumTermCellHtml('classLevel', v); }},
+      {key: "classForm", label: "课程形式", fmt: function (v) { return enumTermCellHtml('classForm', v); }},
       {key: "classFee", label: "课时费(元)"},
       {key: "status", label: "状态"}
     ],
@@ -262,7 +262,9 @@ window.loadMaintainTableData = async function(type){
         html += '<tr>';
         html += `<td>${index}</td>`;
         columns.forEach(col => {
-          var val = item[col.key];
+          // 支持列级格式化：枚举字段（语言类型/难度等级/课程形式）经 enumTerms.js 转成行业词
+          var raw = item[col.key];
+          var val = (typeof col.fmt === 'function') ? col.fmt(raw) : raw;
           html += `<td>${(val === null || val === undefined) ? '' : val}</td>`;
         });
         html += `<td>
