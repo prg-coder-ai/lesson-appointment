@@ -94,6 +94,7 @@ function switchIndustry(industry) {
   localStorage.setItem("industry", industry);
   // 3. 按新表替换（锚点��新行业词�
   applyTerms();
+  if (window.applyDocumentTitle) window.applyDocumentTitle();
   // 4. 通知后端（可选：行业偏好存到用户档案，下次登录直接生效）
   // fetch('/api/user/preferences', {method:'PUT', body: JSON.stringify({industry})});
 }
@@ -117,6 +118,7 @@ async function loadTermMapFromServer() {
     if (json && json.code === 200 && json.data) {
       SERVER_TERM_MAP = json.data;
       applyTerms();
+      if (window.applyDocumentTitle) window.applyDocumentTitle();
     }
   } catch (e) {
     // 拉取失败保持本地兜底（未登录 / 服务未起 / 网络异常�
@@ -161,7 +163,7 @@ async function syncIndustryFromTenant(tenantCode) {
 
 // 页面加载完成后，按已存行业对静�HTML 应用一次术语替�
 // （默�education �DOM 本身就是锚点词，等于空操作；动态注入的内容由各渲染函数里的 applyTerms(container) 负责�
-document.addEventListener("DOMContentLoaded", () => { applyTerms(); applyTenantTitle(); loadTermMapFromServer(); injectLangSwitch(); });
+document.addEventListener("DOMContentLoaded", () => { applyTerms(); if (window.applyDocumentTitle) window.applyDocumentTitle(); applyTenantTitle(); loadTermMapFromServer(); injectLangSwitch(); });
 
 // 读取 URL 中的租户编码参数（与 index.html �getTenantCodeFromUrl 约定一致，参数�tCode 大小写敏感）
 function getTenantCodeParam() {
@@ -187,9 +189,8 @@ function applyTenantTitle() {
       if (!orgName || !orgName.trim()) return;   // 无机构名则保留默认文�
       const brand = orgName.trim() + '预约系统';
       if (el) el.textContent = brand;            // 页面内可见标�
-      if (document.title && document.title.indexOf('语言教学预约系统') >= 0) {
-        document.title = document.title.replace('语言教学预约系统', brand); // 浏览器标签标�
-      }
+      if (el) el.setAttribute('data-tenant-brand', '1');   // 标记：已被租户品牌占用，勿再被行业词覆盖
+      if (window.applyDocumentTitle) window.applyDocumentTitle({ brand: brand });
     })
     .catch(() => { /* 接口异常：保持默认标�*/ });
 }

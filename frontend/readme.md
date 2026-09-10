@@ -34,6 +34,7 @@ frontend/
 │   │   ├── auth.js           # 登录/鉴权/token
 │   │   ├── terms.js          # 本地术语兜底字典 TERM_DICT（按行业）
 │   │   ├── termsFunction.js  # applyTerms() 行业词替换、语言切换下拉注入、/term/map 拉取
+│   │   ├── documentTitle.js  # <title>（浏览器标签页）术语化：data-term-title 模板 + 租户品牌
 │   │   ├── dataFunctions.js  # 通用数据函数
 │   │   ├── courseAndBooking.js / appointmentNotes.js / pagefoot.js / datamaintain_delete.js
 │   ├── admin-*.js           # 租户管理端业务脚本（约 8 个）
@@ -137,6 +138,17 @@ window.API_BASE_URL = API_BASE_URL;
   - 本地兜底：`terms.js` 的 `TERM_DICT[行业]`（education / legal / counseling / exercise）
   - 服务端覆盖：`/term/map` 三级合并词表（租户词 > 行业词 > 平台词）；`loadTermMapFromServer()` 拉取后再次 `applyTerms()`
 - **生命周期**：静态页 `DOMContentLoaded` 调 `applyTerms()`；登录后/切语言再调一次。动态注入内容在渲染末尾补 `applyTerms(container)`。
+
+- **浏览器标签页标题（`<title>`）单独处理** —— `js/public/documentTitle.js`：
+  - 原因：`applyTerms(root = document.body)` **只扫 body**，`<title>` 在 `<head>`，标记 `data-term` 永远不生效；
+    且 `<title>` 是 RCDATA 元素，里面写 `<span data-term="x">` 会被当作**纯文本**显示（曾导致标题出现尖括号乱码）。
+  - 写法：`<title data-term-title="{lessonSystem} - 管理端">语言教学预约系统 - 管理端</title>`
+    —— `data-term-title` 是模板，`{key}` 替换为当前词；标签内文本只是未执行 JS 时的兜底（写锚点词）。
+  - 不加 `data-term-title` 的旧页面走兜底：标题里的锚点词（"语言教学预约系统"）自动替换为行业词。
+  - 优先级：**租户品牌 > 服务端合并词 > 本地行业词 > 锚点词**；未知 key 保留 `{key}` 占位，绝不出现 `undefined`。
+  - 调用时机：`DOMContentLoaded`、`window load`、`/term/map` 返回后、`switchIndustry()`、`applyTenantTitle({brand})`。
+  - 页内 `#brand-title`：带 `data-term` 的交给 `applyTerms`；被租户品牌改写的打 `data-tenant-brand` 标记，避免被行业词回写。
+  - 回归：`node doc-develop/itest_document_title.js`（19 项：行业切换/服务端词/租户品牌/幂等/健壮性）。
 - **语言切换**：头部下拉菜单（`#lang-switch-dropdown`，自注入到退出按钮 `<i class="fa fa-sign-out-alt">` 左侧），`localStorage.lang` 记录 zh/en/fr，`setLang()` 派发 `langchange` 事件刷新 UI；登录页无 header 时回退右上角固定。
 
 ---
@@ -252,6 +264,10 @@ server {
 6. **登录后跳错端口（2026-09-09 真实事故）**：`api.js` 曾把 `FRONTEND_ORIGIN` 兜底成 `'http://'+location.hostname+':8080'`，生产未注入该变量 → 平台管理员注册后跳到未开放的 8080。**现已改为默认 `location.origin`**；新增的规则会被 `lint:origin` 拦住。需要跨站部署时，在页面里 `<script>window.FRONTEND_ORIGIN='https://admin.example.com'</script>` 注入即可。
 7. **后端根路径不再是页面**：`http://<host>:8081/` 与 `http://<host>:8090/` 只返回「缺省自我标识页」（程序名/版本/服务器时间/时区/已运行时长），用于确认进程存活；页面一律走前端。
 8. **本机 mvn 损坏**：用第 6.1 节的 Maven launcher 直启命令，不要依赖系统 `mvn`。
+9. **标签页标题不随行业变 / 标题里出现尖括号（2026-09-10 修复）**：`<title>` 在 `<head>`，`applyTerms()` 只扫 body，
+   所以 `<title>` 上写 `data-term` 无效；写 `<span data-term>` 更糟——title 是 RCDATA，标签会被当纯文本显示。
+   正确做法：`<title data-term-title="{lessonSystem} - 管理端">语言教学预约系统 - 管理端</title>`，
+   并确保页面引入了 `js/public/documentTitle.js`（在 `termsFunction.js` 之后）。
 
 ---
 
