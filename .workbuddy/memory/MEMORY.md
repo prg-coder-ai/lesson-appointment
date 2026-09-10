@@ -27,7 +27,7 @@
 - 部署根 = `frontend/dist`（非源码 `frontend/`）；Nginx `root` 须指向 `dist`。`dist/`、`node_modules/`、`target/` 均被 frontend/.gitignore 忽略不入库。
 - 本机系统 `mvn` 损坏，前端构建同后端须用 Maven launcher JAR 直启（unset CLASSPATH + java -classpath plexus-classworlds-2.9.0.jar）。
 - 平台管理端 platform-admin-*.js 随 api jar 构建混淆：`api/build-platform.js`（仅局部变量，覆盖 target/classes/static，源码保持未混淆）+ `api/pom.xml` 的 frontend-maven-plugin 绑 prepare-package；spring-boot repackage 把混淆版打进 jar。跨文件全局名（request 等）保留。**构建命令与端到端联调实测见部署手册 2.8 节**。
-- 本地开发代理（`doc-develop/`，2026-09-09 重构）：引擎 `dev-proxy.js` + 两个入口 `dev-frontend-local.js`（全本地）/ `dev-frontend-remote.js`（全远程，默认 152.136.254.127）；`dev-frontend.js` 仅作兼容薄封装。Windows 双击用 `start-frontend-local.cmd` / `start-frontend-remote.cmd`。环境变量：`DEV_PORT`、`FRONTEND_ROOT`、`DIST=1`、`API_HOST`、`BOOKING_PORT`、`MSG_HOST`、`MSG_PORT`、`NO_PROBE=1`。脚本内置**混合拓扑守卫**（一端本地一端远程即告警）。
+- 本地开发代理（`doc-develop/`，2026-09-09 重构）：引擎 `dev-proxy.js` + 两个入口 `dev-frontend-local.js`（全本地）/ `dev-frontend-remote.js`（全远程，默认 152.136.254.127）；`dev-frontend.js` 仅作兼容薄封装。Windows 双击用 `start-frontend-local.cmd` / `start-frontend-remote.cmd`。环境变量：`DEV_PORT`、`FRONTEND_ROOT`、`DIST=1`、`API_HOST`、`BOOKING_PORT`、`MSG_HOST`、`MSG_PORT`、`NO_PROBE=1`。2026-09-10：`dev-frontend-remote.js` **默认 BOOKING_PORT/MSG_PORT 改为 80**（服务器已收紧 8081/8090，`SERVER_ADDRESS=127.0.0.1` + 安全组只放 80/443），改由远程 Nginx 分流；旧部署用环境变量覆盖回 8081/8090。脚本内置**混合拓扑守卫**（一端本地一端远程即告警）。
 
 ## JWT 密钥域与部署拓扑铁律（2026-09-08 用户权威确认）
 - **密钥域约定**：远程的 message-service 与远程 booking api **使用系统的 jwt 密钥**（线上实际部署密钥）；本地 maven 构建出的 message-service/booking jar 用的是 `api/src/main/resources/application.properties` 里的源 `jwt.secret`（882 串）——**与远程系统密钥不同**。
