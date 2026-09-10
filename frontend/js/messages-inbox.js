@@ -154,7 +154,15 @@
       '.msg-compose-title{font-size:15px;font-weight:600;}',
       '.msg-compose-close{border:none;background:transparent;color:#fff;font-size:20px;line-height:1;cursor:pointer;padding:0 6px;}',
       '.msg-compose-close:hover{opacity:.8;}',
-      '.msg-compose-body{padding:16px 20px 20px;max-height:72vh;overflow:auto;}'
+      '.msg-compose-body{padding:16px 20px 20px;max-height:72vh;overflow:auto;}',
+      // 分类编码：自定义组合框（替代原生 datalist，规避 Chromium 选过一次后不再弹出的问题）
+      '.combo{position:relative;display:inline-block;}',
+      '.combo-arrow{margin-left:-20px;padding:0 6px;color:#888;cursor:pointer;user-select:none;}',
+      '.combo-list{position:absolute;z-index:99999;left:0;top:100%;margin:2px 0 0;padding:4px 0;list-style:none;background:#fff;border:1px solid #ddd;border-radius:4px;min-width:260px;max-height:220px;overflow:auto;box-shadow:0 4px 12px rgba(0,0,0,.12);}',
+      '.combo-list li{padding:6px 12px;cursor:pointer;font-size:13px;white-space:nowrap;}',
+      '.combo-list li:hover,.combo-list li.active{background:#f0f6ff;}',
+      '.combo-list li .cc-name{margin-left:8px;color:#888;font-size:12px;}',
+      '.combo-list li.cc-empty{padding:8px 12px;color:#999;cursor:default;}'
     ].join('');
     const st = document.createElement('style');
     st.id = 'msg-inbox-style';
@@ -640,8 +648,12 @@
           '<div class="row">正文：<textarea id="msg-content" rows="5" style="width:100%;margin-top:6px;"></textarea></div>' +
           '<div class="row">优先级：' +
             '<select id="msg-priority"><option value="HIGH">高</option><option value="MEDIUM" selected>中</option><option value="LOW">低</option></select>' +
-            '　分类编码：<input id="msg-category" list="msg-category-list" placeholder="如 BOOKING_CREATED（可下拉选预设或自行输入）" style="padding:6px;">' +
-            '<datalist id="msg-category-list"></datalist>' +
+            '　分类编码：' +
+            '<span class="combo" id="msg-category-combo">' +
+              '<input id="msg-category" autocomplete="off" placeholder="如 BOOKING_CREATED（可下拉选预设或自行输入）" style="padding:6px;">' +
+              '<span class="combo-arrow" id="msg-category-arrow" title="展开分类">▾</span>' +
+              '<ul class="combo-list" id="msg-category-list" style="display:none;"></ul>' +
+            '</span>' +
           '</div>' +
           '<div class="row" style="color:#999;">提示：勾选接收人即「向所选的一个/多个发送」；全选即「向该范围所有人发送」。系统不要求你指定具体管理员。</div>' +
           '<div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">' +
@@ -725,6 +737,7 @@
     scopeSel.addEventListener('change', syncTenant);
 
     loadCategoryOptions(root);
+    setupCategoryCombo(root); // 无条件装配交互，分类树拉取失败时仍可自由输入
     root.querySelector('#msg-load-rcpt').addEventListener('click', function () { loadRecipients(root); });
 
     root.querySelector('#msg-compose-send').addEventListener('click', function () { doSend(root); });
@@ -788,21 +801,69 @@
     }).filter(Boolean);
   }
 
-  // 拉取消息分类预设，填充「分类编码」下拉建议（失败则保持纯文本输入，仍可手动输入新分类）
+  // 拉取消息分类预设，填充「分类编码」自定义下拉（失败则保持纯文本输入，仍可手动输入新分类）
   async function loadCategoryOptions(root) {
-    const dl = root.querySelector('#msg-category-list');
-    if (!dl) return;
+    const ul = root.querySelector('#msg-category-list');
+    if (!ul) return;
     try {
       const list = await mreq.get('/api/v1/message-categories/tree');
       if (!list || !list.length) return;
-      dl.innerHTML = list.map(function (c) {
-        const code = c.categoryCode || '';
-        const name = c.categoryName || '';
-        return '<option value="' + esc(code) + '"' + (name ? (' label="' + esc(name) + '"') : '') + '></option>';
-      }).join('');
+      ul._items = list;            // 缓存原始数据，供过滤与重渲染
+      renderComboList(root, '');
     } catch (e) {
       // 拉取失败不阻塞发送，保留手动输入能力
     }
+  }
+
+  // 按当前输入过滤并渲染下拉项（始终可重开，规避原生 datalist 选过一次后不再弹出）
+  function renderComboList(root, filter) {
+    const ul = root.querySelector('#msg-category-list');
+    if (!ul || !ul._items) return;
+    const f = (filter || '').trim().toLowerCase();
+    const items = ul._items.filter(function (c) {
+      if (!f) return true;
+      const code = (c.categoryCode || '').toLowerCase();
+      const name = (c.categoryName || '').toLowerCase();
+      return code.indexOf(f) >= 0 || name.indexOf(f) >= 0;
+    });
+    ul.innerHTML = items.length
+      ? items.map(function (c) {
+          const code = c.categoryCode || '';
+          const name = c.categoryName || '';
+          return '<li data-code="' + esc(code) + '">' + esc(code) + (name ? ('<span class="cc-name">' + esc(name) + '</span>') : '') + '</li>';
+        }).join('')
+      : '<li class="cc-empty">无匹配分类，可直接输入新编码</li>';
+  }
+
+  // 组合框交互：聚焦/点击/输入均可重开下拉，点击项填入编码并关闭
+  function setupCategoryCombo(root) {
+    const combo = root.querySelector('#msg-category-combo');
+    const input = root.querySelector('#msg-category');
+    const ul = root.querySelector('#msg-category-list');
+    const arrow = root.querySelector('#msg-category-arrow');
+    if (!combo || !input || !ul || !arrow) return;
+    function show() { renderComboList(root, input.value); ul.style.display = ''; }
+    function showAll() { renderComboList(root, ''); ul.style.display = ''; } // 聚焦/点击展示全部预设，更友好
+    function hide() { ul.style.display = 'none'; }
+    input.addEventListener('focus', showAll);
+    input.addEventListener('click', showAll);
+    input.addEventListener('input', show);
+    // 点箭头：阻止默认（避免输入框失焦），直接切换显隐
+    arrow.addEventListener('mousedown', function (e) {
+      e.preventDefault();
+      input.focus();
+      ul.style.display = (ul.style.display === 'none' ? '' : 'none');
+    });
+    // 点选项：mousedown + preventDefault 阻止输入框失焦，先填值再关
+    ul.addEventListener('mousedown', function (e) {
+      const li = e.target.closest('li');
+      if (!li || li.classList.contains('cc-empty')) { e.preventDefault(); return; }
+      e.preventDefault();
+      input.value = li.getAttribute('data-code') || '';
+      hide();
+    });
+    // 点卡片外关闭（不在 combo 内即收起）
+    input.addEventListener('blur', function () { setTimeout(hide, 150); });
   }
 
   async function doSend(root) {
