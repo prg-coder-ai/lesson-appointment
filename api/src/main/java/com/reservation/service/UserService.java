@@ -799,7 +799,12 @@ public User selectById(String userId) {
                 return null;
         }
         if (result == null) result = new java.util.ArrayList<>();
-        for (User u : result) u.setPassword(null);
+        // 接收人列表须解密敏感字段（name 入库时加密；account 虽明文存储，decrypt 容错降级不影响）
+        for (User u : result) {
+            u.setPassword(null);
+            decryptUserFields(u);
+            u.setAccount(cryptoUtil.decrypt(u.getAccount()));
+        }
         return result;
     }
 

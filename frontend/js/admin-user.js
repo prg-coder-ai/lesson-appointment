@@ -29,7 +29,8 @@
       const id = btn.getAttribute('data-compose-uid');
       const role = btn.getAttribute('data-compose-role');
       const name = btn.getAttribute('data-compose-name') || '';
-      if (typeof window.openComposeToUser === 'function') window.openComposeToUser(id, role, name);
+      const account = btn.getAttribute('data-compose-account') || '';
+      if (typeof window.openComposeToUser === 'function') window.openComposeToUser(id, role, name, account);
     });
   }
 
@@ -266,7 +267,7 @@
                     ${tea.status === "active" ? `<button class="btn btn-warning" onclick="disableTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-ban"></i> 禁用</button>` :'' }
                     ${tea.status === "pending" ? `<button class="btn btn-danger" onclick="deleteTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-trash"></i> 删除</button>` :'' }
                     <button class="btn btn-warning" onclick="resetUserPasswd('${tea.userId}')"><i class="fa fa-trash"></i> 重置密码</button>
-                    <button class="btn btn-info" data-compose-uid="${escAttr(tea.userId)}" data-compose-role="${escAttr(tea.role)}" data-compose-name="${escAttr(tea.name || '')}"><i class="fa fa-comment"></i> 发消息</button>
+                    <button class="btn btn-info" data-compose-uid="${escAttr(tea.userId)}" data-compose-role="${escAttr(tea.role)}" data-compose-name="${escAttr(tea.name || '')}" data-compose-account="${escAttr(tea.account || '')}"><i class="fa fa-comment"></i> 发消息</button>
                      
                   </td>
                 </tr>

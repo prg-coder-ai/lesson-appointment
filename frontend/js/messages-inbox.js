@@ -609,8 +609,15 @@
     const scopeOptions = scopes.map(function (s, i) {
       return '<option value="' + s.scope + '"' + (s.needsTenant ? ' data-tenant="1"' : '') + (i === 0 ? ' selected' : '') + '>' + s.label + '</option>';
     }).join('');
-    const presetIds = (preset.userIds || []).join(',');
     const presetName = preset.name ? ('（致：' + esc(preset.name) + '）') : '';
+    // 指定用户ID 文本框：单用户且有名称时，预填「用户名称（用户账号）:用户ID」，便于识别收件人
+    let presetIds;
+    if (preset.userIds && preset.userIds.length === 1 && preset.name) {
+      const acc = preset.account ? ('（' + preset.account + '）') : '';
+      presetIds = preset.name + acc + ':' + preset.userIds[0];
+    } else {
+      presetIds = (preset.userIds || []).join(',');
+    }
     return '' +
       '<div class="msg-compose-card" id="msg-compose-card" style="width:620px;">' +
         '<div class="msg-compose-header" id="msg-compose-header">' +
@@ -633,7 +640,8 @@
           '<div class="row">正文：<textarea id="msg-content" rows="5" style="width:100%;margin-top:6px;"></textarea></div>' +
           '<div class="row">优先级：' +
             '<select id="msg-priority"><option value="HIGH">高</option><option value="MEDIUM" selected>中</option><option value="LOW">低</option></select>' +
-            '　分类编码：<input id="msg-category" placeholder="如 BOOKING_CREATED" style="padding:6px;">' +
+            '　分类编码：<input id="msg-category" list="msg-category-list" placeholder="如 BOOKING_CREATED（可下拉选预设或自行输入）" style="padding:6px;">' +
+            '<datalist id="msg-category-list"></datalist>' +
           '</div>' +
           '<div class="row" style="color:#999;">提示：勾选接收人即「向所选的一个/多个发送」；全选即「向该范围所有人发送」。系统不要求你指定具体管理员。</div>' +
           '<div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">' +
@@ -715,6 +723,7 @@
     }
     scopeSel.addEventListener('change', syncTenant);
 
+    loadCategoryOptions(root);
     root.querySelector('#msg-load-rcpt').addEventListener('click', function () { loadRecipients(root); });
 
     root.querySelector('#msg-compose-send').addEventListener('click', function () { doSend(root); });
@@ -729,9 +738,9 @@
   };
 
   // 列表页「发消息」链接入口
-  window.openComposeToUser = function (userId, role, name) {
+  window.openComposeToUser = function (userId, role, name, account) {
     if (!userId) { toast('缺少用户ID', false); return; }
-    window.openComposeMessage({ userIds: [String(userId)], role: role, name: name });
+    window.openComposeMessage({ userIds: [String(userId)], role: role, name: name, account: account });
   };
 
   async function loadRecipients(root) {
@@ -764,8 +773,35 @@
     }
   }
 
+  // 解析「指定用户ID」文本框：兼容纯 ID 与「名称（账号）:ID」格式（自动截取冒号后的真实用户ID）
   function parseIds(str) {
-    return (str || '').split(/[\s,，;；]+/).map(function (s) { return s.trim(); }).filter(Boolean);
+    return (str || '').split(/[\s,，;；]+/).map(function (s) {
+      s = s.trim();
+      if (!s) return '';
+      const i = s.lastIndexOf(':');
+      if (i > 0) {
+        const idPart = s.slice(i + 1).trim();
+        if (idPart && !/[\s,，;；]/.test(idPart)) return idPart;
+      }
+      return s;
+    }).filter(Boolean);
+  }
+
+  // 拉取消息分类预设，填充「分类编码」下拉建议（失败则保持纯文本输入，仍可手动输入新分类）
+  async function loadCategoryOptions(root) {
+    const dl = root.querySelector('#msg-category-list');
+    if (!dl) return;
+    try {
+      const list = await mreq.get('/api/v1/message-categories/tree');
+      if (!list || !list.length) return;
+      dl.innerHTML = list.map(function (c) {
+        const code = c.categoryCode || '';
+        const name = c.categoryName || '';
+        return '<option value="' + esc(code) + '"' + (name ? (' label="' + esc(name) + '"') : '') + '></option>';
+      }).join('');
+    } catch (e) {
+      // 拉取失败不阻塞发送，保留手动输入能力
+    }
   }
 
   async function doSend(root) {
