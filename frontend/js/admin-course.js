@@ -414,6 +414,7 @@ function renderCourseTable(list) {
                         </td>
                     <td>
                         <button class="btn btn-success" onclick='openEditCourseDialog(${JSON.stringify(Course).replace(/'/g, "\\'")})'>修改</button>                   
+                         ${Course.status === "pending" ? `<button class="btn btn-success" onclick="changeCourseStatus('${Course.courseId}', 'active')">确认</button>` :'' }
                          ${Course.status === "inactive" ? `<button class="btn btn-success" onclick="changeCourseStatus('${Course.courseId}', 'active')">发布</button>` :'' }
                         ${Course.status === "active" ? `<button class="btn btn-warning" onclick="changeCourseStatus('${Course.courseId}', 'inactive')">撤回</button>` :'' }
                         ${Course.status === "inactive" ? `<button class="btn btn-danger"  onclick="deleteCourseByFrozen ('${Course.courseId}')">删除</button>` :'' }
