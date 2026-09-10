@@ -30,7 +30,7 @@ function loadTeacherInfoFromUrl() {
   currentTeacherId = params.get('userid') || params.get('userId') || params.get('id');
 
   if (!currentTeacherId) {
-    renderError('缺少 userid 参数，请在 URL 中携带：<code>?userid=教师ID</code>');
+    renderError('缺少 userid 参数，请在 URL 中携带：<code>?userid=' + termText('teacher') + 'ID</code>');
     return;
   }
   loadTeacherInfo(currentTeacherId);
@@ -62,7 +62,7 @@ async function loadTeacherInfo(teacherId) {
     originalData = normalizeDetail(data);
     currentProfessionalId = data.professional.teacherProfessionalId;
     currentMode = 'view';
-    setPageTitle(`教师职业信息 - ${data.name || data.account || teacherId}`);
+    setPageTitle(`${termText('teacher')}职业信息 - ${data.name || data.account || teacherId}`);
     fillView(originalData);
     switchSection('view');
     showActionButtons('view');
@@ -85,7 +85,7 @@ function enterAddMode(teacherId) {
   originalData = buildEmptyForm(teacherId);
   currentProfessionalId = null;
   currentMode = 'add';
-  setPageTitle('新增教师职业信息');
+  setPageTitle('新增' + termText('teacher') + '职业信息');
   fillEditForm(originalData, true);
   switchSection('edit');
   showActionButtons('edit');
@@ -195,7 +195,7 @@ function installLinkCopyAndImageSaveHandlers() {
       const imgUrl = canvas.toDataURL('image/jpeg', 0.9);
       const a = document.createElement('a');
       a.href = imgUrl;
-      a.download = (suggestedName || '教师介绍') + '.jpg';
+      a.download = (suggestedName || (termText('teacher') + '介绍')) + '.jpg';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

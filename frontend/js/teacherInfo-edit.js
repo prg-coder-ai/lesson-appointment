@@ -21,7 +21,7 @@ function fillEditForm(data, isAdd) {
   const nameHint = document.getElementById('f-teacherNameHint');
   if (nameHint) {
     if (data.name) {
-      nameHint.textContent = '教师姓名：' + data.name;
+      nameHint.textContent = termText('teacher') + '姓名：' + data.name;
       nameHint.style.display = '';
     } else {
       nameHint.style.display = 'none';
@@ -229,7 +229,7 @@ async function saveForm() {
   const teacherIdEl = document.getElementById('f-teacherId');
   const teacherId = teacherIdEl ? teacherIdEl.value : '';
   if (!teacherId) {
-    alert('教师ID不能为空');
+    alert(termText('teacher') + 'ID不能为空');
     return;
   }
 
@@ -331,7 +331,7 @@ async function saveForm() {
 async function deleteCurrent() {
   if (!currentProfessionalId) return;
   const name = originalData && originalData.name ? originalData.name : currentTeacherId;
-  if (!confirm(`确认删除教师【${name}】的职业信息？此操作将级联删除其证书和可预约时间段。`)) return;
+  if (!confirm(`确认删除${termText('teacher')}【${name}】的职业信息？此操作将级联删除其证书和可预约时间段。`)) return;
   try {
     await request({
       url: '/teacher/professional/deleteTeacherProfessionalInfo',

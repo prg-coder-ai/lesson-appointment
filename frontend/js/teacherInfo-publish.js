@@ -11,7 +11,7 @@
 // ====================== 发布/转发模式（enterPublishMode） ======================
 // 发布模式字段清单（key 对应 fillView 中的字段，用于生成静态 HTML）
 const PUBLISH_FIELDS_META = [
-  { key: 'name',          label: '教师姓名', group: '基本信息', default: true },
+  { key: 'name',          label: termText('teacher') + '姓名', group: '基本信息', default: true },
   { key: 'account',       label: '账号',     group: '基本信息', default: false },
   { key: 'phone',         label: '手机',     group: '基本信息', default: false },
   { key: 'email',         label: '邮箱',     group: '基本信息', default: true },
@@ -19,9 +19,9 @@ const PUBLISH_FIELDS_META = [
   { key: 'status',        label: '职业信息状态', group: '基本信息', default: false },
   { key: 'userStatus',    label: '账号状态',    group: '基本信息', default: false },
   { key: 'photo',         label: '个人照片',    group: '基本信息', default: true },
-  { key: 'minBookingHours',    label: '单次最小课时数', group: '课时配置', default: true },
-  { key: 'weeklyAvailableHours', label: '每周可用课时上限', group: '课时配置', default: true },
-  { key: 'certificateText',     label: '证书文字描述',  group: '课时配置', default: true },
+  { key: 'minBookingHours',    label: '单次最小' + termText('lessonUnit') + '数', group: termText('lessonUnit') + '配置', default: true },
+  { key: 'weeklyAvailableHours', label: '每周可用' + termText('lessonUnit') + '上限', group: termText('lessonUnit') + '配置', default: true },
+  { key: 'certificateText',     label: '证书文字描述',  group: termText('lessonUnit') + '配置', default: true },
   { key: 'bioText',       label: '简介文字',  group: '简介与链接', default: true },
   { key: 'bioUrl',        label: '简介链接',  group: '简介与链接', default: true },
   { key: 'certificates',  label: '证书图片列表', group: '证书', default: true },
@@ -314,7 +314,7 @@ function generatePublishHtml(mode) {
   }).join('');
 
   const title = document.getElementById('pub-title').value.trim()
-    || ((data.name || '教师') + ' 个人介绍');
+    || ((data.name || termText('teacher')) + ' 个人介绍');
 
   let basicHtml = '';
   if (basicKeys.some(k => fset.has(k))) {
@@ -345,7 +345,7 @@ function generatePublishHtml(mode) {
       </div>`;
     }).join('');
     lessonHtml = `<section style="margin-bottom:16px;">
-      <h3 style="margin:0 0 8px 0;color:${escapeAttr(style.accentColor)};font-size:${style.fontSizePx + 2}px;">课时配置</h3>
+      <h3 style="margin:0 0 8px 0;color:${escapeAttr(style.accentColor)};font-size:${style.fontSizePx + 2}px;">${termText('lessonUnit')}配置</h3>
       <div style="background:${escapeAttr(style.cardBgColor)};padding:12px 16px;border-radius:8px;">${rows}</div>
     </section>`;
   }
@@ -433,7 +433,7 @@ async function enterPublishMode() {
   // 初始化标题
   const titleEl = document.getElementById('pub-title');
   if (titleEl && !titleEl.value) {
-    titleEl.value = (originalData.name || '教师') + ' · ' + (originalData.subject || '个人介绍');
+    titleEl.value = (originalData.name || termText('teacher')) + ' · ' + (originalData.subject || '个人介绍');
   }
   // 初始化字段勾选（如果有草稿，稍后会覆盖）
   if (document.getElementById('pub-fields').children.length === 0) {
@@ -540,7 +540,7 @@ function collectPublishPayload() {
     teacherId: currentTeacherId,
     teacherProfessionalId: (originalData && originalData.teacherProfessionalId) || null,
     title: document.getElementById('pub-title').value.trim()
-      || ((originalData && originalData.name || '教师') + ' 个人介绍'),
+      || ((originalData && originalData.name || termText('teacher')) + ' 个人介绍'),
     fieldConfig: JSON.stringify(fields),
     styleConfig: JSON.stringify(styleCfg),
     draftData: JSON.stringify(originalData),

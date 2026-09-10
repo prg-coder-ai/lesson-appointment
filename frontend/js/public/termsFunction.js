@@ -13,6 +13,21 @@ function getTerms() {
   return Object.assign({}, base, SERVER_TERM_MAP);
 }
 
+/**
+ * ¶¯Ì¬ JS ÎÄ±¾È¡ÐÐÒµ´Ê£¨opt-in Ö®ÍâµÄ¶¯Ì¬ÄÚÈÝ×¨ÓÃ£©¡£
+ * ½âÎöÓÅÏÈ¼¶Óë applyTerms Ò»ÖÂ£ºgetTerms()[key]£¨º¬·þÎñ¶ËºÏ²¢´Ê£©¡ú ±¾µØ education Ãªµã´Ê ¡ú key ±¾Éí¶µµ×¡£
+ * ÓÃÓÚÄ£°å×Ö·û´® / µ¯´° / ±êÌâµÈ data-term »úÖÆ¸²¸Ç²»µ½µÄ¶¯Ì¬ÎÄ°¸£¬±ÜÃâÓ²±àÂë"½ÌÊ¦/¿ÎÊ±"µÈÃªµã´Ê¡£
+ * @param {string} key ÊõÓï key£¬Èç 'teacher' / 'lessonUnit'
+ * @returns {string} µ±Ç°ÐÐÒµÏÔÊ¾´Ê£¨Î´ÃüÖÐÒ²²»·µ»Ø¿Õ´® / undefined£©
+ */
+function termText(key) {
+  if (!key) return '';
+  const terms = getTerms();
+  if (terms[key] != null && terms[key] !== '') return terms[key];
+  if (TERM_DICT && TERM_DICT.education && TERM_DICT.education[key] != null) return TERM_DICT.education[key];
+  return String(key);
+}
+
 // æžšä¸¾åž‹ä¸‹æ‹‰é€‰é¡¹å–è¯ï¼ˆæ ‡ç­¾è¯ â†é€‰é¡¹è¯å…³è”æ–¹æ¡ˆ Aï¼
 // å…³è”è§„åˆ™ï¼šé€‰é¡¹ key = æ ‡ç­¾ key + "." + é€‰é¡¹ç¼–ç ï¼ˆå¦‚ courseType.oneOnOneï¼
 // ç”¨æ³•ï¼šç»™ <select> ä¼ é»˜è®¤é€‰é¡¹æ¸…å•ï¼ˆvalue/code/defaultTextï¼‰ï¼Œè¯è¡¨ä¼˜å…ˆã€ç¼ºè¯å›žé€€é»˜è®¤æ–‡æ¡ˆã€

@@ -247,6 +247,8 @@ function setPageTitle(title) {
 function renderError(msg) {
   const errorEl = document.getElementById('section-error');
   if (errorEl) errorEl.innerHTML = msg;
+  // 防御：msg 中若含 data-term 标记的片段（如某些错误模板），随注入内容一并转换
+  if (typeof applyTerms === 'function' && errorEl) applyTerms(errorEl);
   switchSection('error');
   showActionButtons('error');
 }

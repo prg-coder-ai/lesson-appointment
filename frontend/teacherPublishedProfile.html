@@ -92,6 +92,11 @@
         }
       }
 
+      // 取当前行业下"教师"词；termsFunction.js 在本 IIFE 之后才解析，故用 typeof 守卫
+      function teacherWord() {
+        return (typeof termText === 'function') ? termText('teacher') : '教师';
+      }
+
       function showError(msg, hint) {
         const loading = document.getElementById('pub-loading');
         if (loading) loading.style.display = 'none';
@@ -103,7 +108,8 @@
           if (hintEl) hintEl.textContent = hint;
         }
         if (errBox) errBox.style.display = 'flex';
-        document.title = msg || '教师介绍';
+        // 错误态标题也随行业词走，与顶部条 data-term="teacher" 保持一致
+        document.title = msg || (teacherWord() + '介绍');
       }
 
       function mountStaticHtml(html) {
@@ -168,7 +174,7 @@
           // 后端统一返回：HTTP 200 + body{code,message,data}
           if (!resp.ok) {
             if (resp.status === 404) {
-              showError('该教师暂无已发布的个人介绍', '请联系教师先在系统中发布个人介绍');
+              showError(teacherWord() + '暂无已发布的个人介绍', '请联系' + teacherWord() + '先在系统中发布个人介绍');
             } else if (resp.status === 401 || resp.status === 403) {
               showError('暂无访问权限', '请确认链接是否正确');
             } else {
