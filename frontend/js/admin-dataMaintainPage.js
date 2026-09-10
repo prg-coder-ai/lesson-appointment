@@ -411,6 +411,8 @@ async function renderBackendBriefInfo(container) {
     }
   }));
 
+  const fb = await fetchFrontendBuildInfo();
+
   var html = '<table class="dm-data-table"><thead><tr>' +
              '<th>程序</th><th>名称</th><th>版本</th><th>构建时间</th>' +
              '<th>前端调用地址</th><th>实际连接 IP</th><th>服务监听地址</th><th>说明</th>' +
