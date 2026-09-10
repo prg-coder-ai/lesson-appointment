@@ -371,6 +371,16 @@ async function fetchBackendBriefInfo(url) {
   return info;
 }
 
+/** 读取前端静态包构建信息（build-info.json / window.__BUILD_INFO__） */
+async function fetchFrontendBuildInfo() {
+  if (window.__BUILD_INFO__) return window.__BUILD_INFO__;
+  try {
+    const r = await fetch('build-info.json', { cache: 'no-cache' });
+    if (r.ok) return await r.json();
+  } catch (e) { /* 忽略，回退 null */ }
+  return null;
+}
+
 /** 渲染「后台信息」Tab 内容 */
 async function renderBackendBriefInfo(container) {
   if (!container) return;
@@ -378,7 +388,7 @@ async function renderBackendBriefInfo(container) {
     <style>
       .dm-endpoint { font-family: Consolas, Monaco, monospace; font-size: 12px; color: #2c3e50; word-break: break-all; }
     </style>
-    <div class="dm-section-title"><i class="fa fa-server"></i> 后台程序信息</div>
+    <div class="dm-section-title"><i class="fa fa-server"></i> 程序信息</div>
     <div class="dm-table-box" id="backend-brief-box">
       <div class="dm-loading"><i class="fa fa-spinner fa-spin"></i> 加载中...</div>
     </div>
@@ -427,6 +437,10 @@ async function renderBackendBriefInfo(container) {
     html += '</tr>';
   });
 
+  if (fb) {
+    var fbDesc = (fb.gitCommit ? (fb.gitCommit + (fb.gitBranch ? (' @ ' + fb.gitBranch) : '') + (fb.gitDirty ? '（工作区脏）' : '')) : '（build-info.json 缺失）');
+    html += '<tr><td>前端(静态包)</td><td>dist</td><td>-</td><td>' + (fb.buildTime || '-') + '</td><td>-</td><td>-</td><td>-</td><td>' + fbDesc + '</td></tr>';
+  }
   html += '</tbody></table>';
 
   // 链路摘要：把「客户端 → 访问域名(解析IP) → 对端 → 本服务监听」整串展示出来

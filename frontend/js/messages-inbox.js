@@ -178,6 +178,12 @@
     if (n > 0) { el.style.display = 'inline-block'; el.textContent = n > 99 ? '99+' : n; }
     else { el.style.display = 'none'; }
   }
+  function bumpBadge(delta) {
+    const el = document.getElementById('msg-unread-badge');
+    if (!el) return;
+    let cur = parseInt(el.textContent, 10); if (isNaN(cur)) cur = 0;
+    setBadge(cur + delta);
+  }
   async function refreshBadge() {
     const uid = state.userId || curUserId();
     if (!uid) return;
@@ -392,7 +398,19 @@
   async function openDetail(container, mid) {
     let d;
     try { d = await mreq.get('/api/v1/users/' + encodeURIComponent(state.userId) + '/messages/' + mid); }
-    catch (e) { return; }
+    catch (e) {
+      const root = container.querySelector('#msg-modal-root');
+      const msg = (e && e.message) ? e.message : '无法加载消息详情';
+      if (root) root.innerHTML =
+        '<div class="msg-modal-mask"><div class="msg-modal">' +
+          '<h3>加载失败</h3>' +
+          '<div class="body">' + esc(msg) + '</div>' +
+          '<div style="text-align:right;margin-top:16px;"><button class="btn btn-gray" id="msg-detail-close">关闭</button></div>' +
+        '</div></div>';
+      const cb = root && root.querySelector('#msg-detail-close');
+      if (cb) cb.addEventListener('click', function () { root.innerHTML = ''; });
+      return;
+    }
     const root = container.querySelector('#msg-modal-root');
     const content = d.content ? esc(d.content) : '(无正文)';
     const payload = d.payload ? esc(JSON.stringify(d.payload)) : '';
@@ -451,7 +469,8 @@
   async function markRead(container, mid, read) {
     const path = read ? '/read' : '/unread';
     try { await mreq.post('/api/v1/users/' + encodeURIComponent(state.userId) + '/messages/' + mid + path); }
-    catch (e) { return Promise.reject(e); }
+    catch (e) { toast('标记' + (read ? '已读' : '未读') + '失败：' + ((e && e.message) ? e.message : '请重试'), false); return Promise.reject(e); }
+    if (read) bumpBadge(-1); else bumpBadge(1);
     loadMessages(container); refreshBadge();
     return Promise.resolve();
   }
