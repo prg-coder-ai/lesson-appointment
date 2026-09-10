@@ -229,9 +229,13 @@
         '</tbody></table>';
     }
     if (window.__BUILD_INFO__) { fill(window.__BUILD_INFO__); return; }
+    // 回退：读取同源静态文件 build-info.json（前端静态包自己的文件，非后台接口），
+    // AbortController 限时 5s，防止异常环境（如被路由到慢后端）挂起渲染
     try {
-      fetch('build-info.json', { cache: 'no-cache' })
-        .then(function (r) { return r.ok ? r.json() : null; })
+      var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 5000) : null;
+      fetch('build-info.json', { cache: 'no-cache', signal: ctrl ? ctrl.signal : undefined })
+        .then(function (r) { if (timer) clearTimeout(timer); return r.ok ? r.json() : null; })
         .then(function (info) { fill(info); })
         .catch(function () { fill(null); });
     } catch (e) { fill(null); }

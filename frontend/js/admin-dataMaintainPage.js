@@ -371,13 +371,22 @@ async function fetchBackendBriefInfo(url) {
   return info;
 }
 
-/** 读取前端静态包构建信息（build-info.json / window.__BUILD_INFO__） */
+/** 读取前端静态包构建信息（build-info.json / window.__BUILD_INFO__）
+ *  构建时 build.js 已把 dist/build-info.json 的同一份数据烤进每个 html 页面的
+ *  window.__BUILD_INFO__——存在即直接读取，零网络请求、不依赖任何后端接口。
+ *  仅当页面未烤入（旧构建产物）才回退读取同源静态文件 build-info.json
+ *  （注意：这是读前端静态包自己的文件，不是请求后台接口），
+ *  并用 AbortController 限时 5s 兜底，防止异常环境（如被路由到慢后端）挂起渲染。
+ */
 async function fetchFrontendBuildInfo() {
   if (window.__BUILD_INFO__) return window.__BUILD_INFO__;
   try {
-    const r = await fetch('build-info.json', { cache: 'no-cache' });
+    var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 5000) : null;
+    var r = await fetch('build-info.json', { cache: 'no-cache', signal: ctrl ? ctrl.signal : undefined });
+    if (timer) clearTimeout(timer);
     if (r.ok) return await r.json();
-  } catch (e) { /* 忽略，回退 null */ }
+  } catch (e) { /* 超时或文件不存在 → 回退 null */ }
   return null;
 }
 
@@ -402,7 +411,11 @@ async function renderBackendBriefInfo(container) {
   var box = document.getElementById('backend-brief-box');
   if (!box) return;
 
-  // 并发取两个服务，单个失败不影响另一个
+  // 前端构建信息先行并行发起：只读本地（window.__BUILD_INFO__ / 同源静态 build-info.json），
+  // 不依赖任何后端接口；后端行失败/超时各自显示错误，不影响前端行展示。
+  var fbPromise = fetchFrontendBuildInfo().catch(function () { return null; });
+
+  // 并发取两个服务，单个失败不影响另一个（各自 15s 超时，超时行显示获取失败）
   var results = await Promise.all(BACKEND_BRIEF_SOURCES.map(async function (src) {
     try {
       return { src: src, info: await fetchBackendBriefInfo(src.url), error: null };
@@ -411,7 +424,7 @@ async function renderBackendBriefInfo(container) {
     }
   }));
 
-  const fb = await fetchFrontendBuildInfo();
+  const fb = await fbPromise;
 
   var html = '<table class="dm-data-table"><thead><tr>' +
              '<th>程序</th><th>名称</th><th>版本</th><th>构建时间</th>' +
