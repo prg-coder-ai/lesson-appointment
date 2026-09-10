@@ -17,6 +17,7 @@ import com.reservation.mapper.UserMapper;
 import com.reservation.query.TeacherProfessionalQueryPage;
 import com.reservation.vo.TeacherProfessionalDetailVO;
 import com.reservation.vo.TeacherProfessionalListVO;
+import com.reservation.utils.CryptoUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +46,8 @@ public class TeacherProfessionalService {
     private TeacherAvailableTimeMapper timeMapper;
     @Autowired
     private UserMapper userMapper;
+    @Autowired
+    private CryptoUtil cryptoUtil;
 
     // ================================================================
     // 1. 添加教师职业信息（级联：主表 + 证书列表 + 时间列表）
@@ -163,9 +166,13 @@ public class TeacherProfessionalService {
         vo.setCertificates(certMapper.listByTeacherId(tp.getTeacherId()));
         vo.setAvailableTimes(timeMapper.listByTeacherId(tp.getTeacherId()));
 
-        // 冗余 user 字段
+        // 冗余 user 字段（name/phone/email 入库时经 cryptoUtil.encryptWithIndex 加密，
+        // 查询必须解密，否则前端看到 AES 密文而非可读字符串；与 UserService.decryptUserFields 一致）
         User teacher = userMapper.selectById(tp.getTeacherId());
         if (teacher != null) {
+            teacher.setName(cryptoUtil.decrypt(teacher.getName()));
+            teacher.setPhone(cryptoUtil.decrypt(teacher.getPhone()));
+            teacher.setEmail(cryptoUtil.decrypt(teacher.getEmail()));
             vo.setName(teacher.getName());
             vo.setAccount(teacher.getAccount());
             vo.setPhone(teacher.getPhone());
