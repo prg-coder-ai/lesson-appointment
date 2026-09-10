@@ -405,19 +405,17 @@ function renderCourseTable(list) {
                       <td >${teacherInfo || ''}</td> 
 
                        <td>                       
-                          ${ Course.status === "pending" ? '<span style="color:#faad14;">待审核</span>' :
-                            Course.status === "active" ? '<span style="color:#52c41a;">正常</span>' :
-                            Course.status === "inactive" ? '<span style="color:#faad14;">待启用</span>' :
-                            Course.status === "frozen" ? '<span style="color:#f5222d;">已删除</span>' :
-                            `<span>${Course.status||"未知"}</span>`
+                          ${ Course.status === "active" ? '<span style="color:#52c41a;">有效</span>' :
+                            Course.status === "pending" ? '<span style="color:#faad14;">冻结</span>' :
+                            Course.status === "delete" ? '<span style="color:#f5222d;">删除</span>' :
+                            `<span>${Course.status || "未知"}</span>`
                           }
                         </td>
                     <td>
-                        <button class="btn btn-success" onclick='openEditCourseDialog(${JSON.stringify(Course).replace(/'/g, "\\'")})'>修改</button>                   
-                         ${Course.status === "pending" ? `<button class="btn btn-success" onclick="changeCourseStatus('${Course.courseId}', 'active')">确认</button>` :'' }
-                         ${Course.status === "inactive" ? `<button class="btn btn-success" onclick="changeCourseStatus('${Course.courseId}', 'active')">发布</button>` :'' }
-                        ${Course.status === "active" ? `<button class="btn btn-warning" onclick="changeCourseStatus('${Course.courseId}', 'inactive')">撤回</button>` :'' }
-                        ${Course.status === "inactive" ? `<button class="btn btn-danger"  onclick="deleteCourseByFrozen ('${Course.courseId}')">删除</button>` :'' }
+                        <button class="btn btn-success" onclick='openEditCourseDialog(${JSON.stringify(Course).replace(/'/g, "\\'")})'>修改</button>
+                        ${Course.status === "active" ? `<button class="btn btn-warning" onclick="changeCourseStatus('${Course.courseId}', 'pending')">冻结</button>` : '' }
+                        ${Course.status === "pending" ? `<button class="btn btn-success" onclick="changeCourseStatus('${Course.courseId}', 'active')">启用</button>` : '' }
+                        ${Course.status === "pending" ? `<button class="btn btn-danger" onclick="deleteCourse('${Course.courseId}')">删除</button>` : '' }
                     </td>
                 </tr> 
             `;
@@ -441,7 +439,7 @@ function resetCourseFilter() {
 }
 
 // 删除课程（操作后刷新当前页）
-async function deleteCourseByFrozen(id) {
+async function deleteCourse(id) {
   
   try {
     const scdList = fetchScheduleList(id,null);
@@ -465,7 +463,7 @@ async function deleteCourseByFrozen(id) {
        if(!bcomfirmed) //提示1次
          if (!confirm('确定要删除该课程吗？')) return;
   try { 
-      await  changeCourseStatus(id,"frozen"); 
+      await  changeCourseStatus(id,"delete"); 
       loadAndRenderCourseListByPage();
   } catch (error) {
     console.error('删除失败：', error);
