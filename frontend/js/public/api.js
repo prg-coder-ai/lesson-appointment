@@ -584,19 +584,32 @@ function maskPhone(phone) {
   return s.substring(0, 1) + "*".repeat(L - 2) + s.substring(L - 1);
 }
 
-/** 数据脱敏：电子邮箱 —— 地址中间 4 个字符用 * 代替（居中）；
- *  长度 ≤ 6 时仅替换中间最多 4 个，前后各保留 1 个字符；≤ 2 位太短则全盘星。 */
+/** 数据脱敏：电子邮箱 —— 仅遮蔽 @ 之前的部分，保留域名与前后缀以提高辨识度。
+ *  本地部分规则：
+ *   - 长度 ≤ 1：全盘 *            （如 a@b.cn      → *@b.cn）
+ *   - 长度 = 2：保留首字符 + 1*   （如 ab@c        → a*@c）
+ *   - 长度 3~4：保留首字符，其余 *（如 abc@x → a**@x，abcd@x → a***@x）
+ *   - 长度 ≥ 5：保留前 2 + 后 2，中间最多 4 个 *（如 zhangsan@example.com → zh****an@example.com）
+ *  无 @ 的串原样返回（非邮箱，不脱敏）。 */
 function maskEmail(email) {
   if (email == null) return "";
   const s = String(email).trim();
-  const L = s.length;
-  if (L === 0) return "";
-  if (L <= 2) return "*".repeat(L);                 // 太短无法保留前后，全盘星
-  if (L <= 6) {                                     // 短地址：保留首尾各 1 个，中间用 * 代替（最多 4 个）
-    return s.charAt(0) + "*".repeat(L - 2) + s.charAt(L - 1);
+  if (s.length === 0) return "";
+  const atIdx = s.indexOf("@");
+  if (atIdx < 0) return s;                       // 无 @ 视为非邮箱，原样返回
+  const local = s.substring(0, atIdx);
+  const domain = s.substring(atIdx);             // 含 @，整段保留
+  const L = local.length;
+  let masked;
+  if (L <= 1) {
+    masked = "*";
+  } else if (L <= 4) {
+    masked = local.charAt(0) + "*".repeat(Math.max(1, L - 1));
+  } else {
+    const stars = "*".repeat(Math.min(4, L - 4));
+    masked = local.substring(0, 2) + stars + local.substring(L - 2);
   }
-  const front = Math.floor((L - 4) / 2);            // 正常地址：居中替换中间 4 个字符
-  return s.substring(0, front) + "****" + s.substring(front + 4);
+  return masked + domain;
 }
 
 
