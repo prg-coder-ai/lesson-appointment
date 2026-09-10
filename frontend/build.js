@@ -137,18 +137,25 @@ function writeBuildInfo() {
 }
 
 function injectBuildInfoGlobal(info) {
-  const f = path.join(DIST, 'index.html');
-  if (!fs.existsSync(f)) return;
-  let html = fs.readFileSync(f, 'utf8');
   const script = '<script>window.__BUILD_INFO__=' + JSON.stringify(info) + ';</script>';
-  if (html.indexOf('</head>') >= 0) {
-    html = html.replace('</head>', script + '</head>');
-  } else if (html.indexOf('</body>') >= 0) {
-    html = html.replace('</body>', script + '</body>');
-  } else {
-    html += script;
+  // 注入到 dist 下所有 html 入口页（index.html / admin.html / platform_admin.html 等），
+  // 而非仅 index.html；否则非 SPA 直入口页（如数据维护页 admin.html）读不到全局，
+  // 会回退到 fetch('build-info.json') 而在未部署该文件时 404。
+  const files = fs.readdirSync(DIST).filter(function (f) { return f.endsWith('.html'); });
+  for (const f of files) {
+    const p = path.join(DIST, f);
+    let html = fs.readFileSync(p, 'utf8');
+    if (html.indexOf('__BUILD_INFO__') >= 0) continue; // 已注入则跳过，避免重复
+    if (html.indexOf('</head>') >= 0) {
+      html = html.replace('</head>', script + '</head>');
+    } else if (html.indexOf('</body>') >= 0) {
+      html = html.replace('</body>', script + '</body>');
+    } else {
+      html += script;
+    }
+    fs.writeFileSync(p, html);
+    console.log('  inject', f);
   }
-  fs.writeFileSync(f, html);
 }
 
 /*
