@@ -111,6 +111,26 @@ function proxy(req, res, targetHost, targetPort, label) {
   req.pipe(p);
 }
 
+/**
+ * 源码直出模式的构建信息合成：build-info.json 是构建产物（仅 frontend/dist 里有），
+ * 伺服 frontend/ 源码目录时物理文件不存在——用当前源码的 git 状态动态合成一份，
+ * 保证「程序信息」页在开发态也能显示前端信息（mode:'source' 标记来源）。
+ */
+function synthesizeBuildInfo() {
+  function git(cmd) {
+    try {
+      return require('child_process').execSync(cmd, { cwd: __dirname, encoding: 'utf8' }).trim();
+    } catch (e) { return ''; }
+  }
+  return {
+    mode: 'source',
+    buildTime: new Date().toISOString(),
+    gitCommit: git('git rev-parse HEAD'),
+    gitBranch: git('git rev-parse --abbrev-ref HEAD'),
+    gitDirty: git('git status --porcelain') !== ''
+  };
+}
+
 function serveStatic(req, res, root, urlPath) {
   const rel = urlPath === '/' ? '/index.html' : urlPath;
   const resolved = path.normalize(path.join(root, rel));
@@ -126,6 +146,12 @@ function serveStatic(req, res, root, urlPath) {
       if (rel === '/favicon.ico') {
         res.writeHead(204);
         res.end();
+        return;
+      }
+      // build-info.json 缺失（源码直出模式）→ 合成而非 404，让前端「程序信息」页有数据可显示
+      if (rel === '/build-info.json') {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-cache' });
+        res.end(JSON.stringify(synthesizeBuildInfo()));
         return;
       }
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });

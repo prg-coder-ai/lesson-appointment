@@ -452,9 +452,19 @@ async function renderBackendBriefInfo(container) {
     html += '</tr>';
   });
 
-  if (fb) {
-    var fbDesc = (fb.gitCommit ? (fb.gitCommit + (fb.gitBranch ? (' @ ' + fb.gitBranch) : '') + (fb.gitDirty ? '（工作区脏）' : '')) : '（build-info.json 缺失）');
-    html += '<tr><td>前端(静态包)</td><td>dist</td><td>-</td><td>' + (fb.buildTime || '-') + '</td><td>-</td><td>-</td><td>-</td><td>' + fbDesc + '</td></tr>';
+  {
+    // 始终渲染前端行：拿不到数据时显示原因，而不是整行消失
+    var pkg = (fb && fb.mode === 'source') ? '源码直出' : 'dist';
+    var fbDesc;
+    if (!fb) {
+      fbDesc = '（不可用：页面未烤入 __BUILD_INFO__，且 build-info.json 请求失败/不存在）';
+    } else if (fb.gitCommit) {
+      fbDesc = fb.gitCommit + (fb.gitBranch ? (' @ ' + fb.gitBranch) : '') + (fb.gitDirty ? '（工作区脏）' : '');
+      if (fb.mode === 'source') fbDesc += '（dev 代理合成，源码当前 git 状态）';
+    } else {
+      fbDesc = '（build-info.json 无 git 信息）';
+    }
+    html += '<tr><td>前端(静态包)</td><td>' + pkg + '</td><td>-</td><td>' + ((fb && fb.buildTime) || '-') + '</td><td>-</td><td>-</td><td>-</td><td>' + fbDesc + '</td></tr>';
   }
   html += '</tbody></table>';
 
