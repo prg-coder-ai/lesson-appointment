@@ -16,6 +16,12 @@
  *
  * 前提：远程 message-service 已在服务器运行，且防火墙放行 8090 入站。
  *
+ * ⚠ 若服务器已按安全建议收紧（`SERVER_ADDRESS=127.0.0.1` + 安全组只放 80/443），
+ *   8081/8090 从外网不可达，此时**不要再开端口**，而是让本代理统一打远程 80，
+ *   由远程 Nginx 自己按 /api/v1/{message,sse,users/} 分流：
+ *       BOOKING_PORT=80 MSG_PORT=80 node dev-frontend-remote.js
+ *   实测：这是端口收紧后唯一可用的本地联调方式，密钥域仍然一致（同一台远程服务）。
+ *
  * 用法：
  *   node dev-frontend-remote.js
  * 环境变量（均可覆盖）：
