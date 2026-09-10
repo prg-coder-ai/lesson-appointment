@@ -39,12 +39,29 @@
         var sid   = params.get('sid')   || '';
 
         var userInfo = autoLoginCheck();
+
+        // adminOrigin 必须先于 toPage 定义：降级路径里会用到它，
+        // 若放在后面，var 提升会让 fallback 拼出 "undefined/platform_admin.html"。
+        // 前后端分离后 platform_admin.html 与业务端同属 frontend/dist、由同一站点伺服，
+        // 默认走同源（''）；只有把管理端单独部署到子域时，才需要显式设 window.ADMIN_ORIGIN。
+        var adminOrigin = window.ADMIN_ORIGIN || '';
+
         // tCode 保持：所有跳转统一经 window.pageUrl（api.js 提供），自动附加 ?tCode=租户编码
         // helper 未加载时降级为原相对地址，避免旧版页面/缓存脚本导致整页卡死
         function toPage(file, extra, absolute) {
           if (typeof window.pageUrl === 'function') return window.pageUrl(file, extra, absolute, userInfo);
-          var q = extra ? ('?' + String(extra).replace(/^\?/, '')) : '';
-          return (absolute ? (adminOrigin + '/') : './') + file + q;
+          // 降级路径：extra 允许是对象，这里统一转成查询串
+          var qs = '';
+          if (extra && typeof extra === 'object') {
+            Object.keys(extra).forEach(function (k) {
+              if (extra[k] !== '' && extra[k] !== null && extra[k] !== undefined) {
+                qs += (qs ? '&' : '') + encodeURIComponent(k) + '=' + encodeURIComponent(extra[k]);
+              }
+            });
+          } else if (extra) {
+            qs = String(extra).replace(/^\?/, '');
+          }
+          return (absolute ? (adminOrigin ? adminOrigin + '/' : '/') : './') + file + (qs ? '?' + qs : '');
         }
         if (!userInfo) {
             if (typeof window.saveLoginRedirect === 'function') {
@@ -54,9 +71,6 @@
             return;
         }
 
-        // 前后端分离后 platform_admin.html 与业务端同属 frontend/dist、由同一站点伺服，
-        // 默认走同源（''）；只有把管理端单独部署到子域时，才需要显式设 window.ADMIN_ORIGIN。
-        var adminOrigin = window.ADMIN_ORIGIN || '';
         var role = userInfo.role;
         var userId = String(userInfo.userId || '');
         var msgText = document.getElementById('msg-text');
