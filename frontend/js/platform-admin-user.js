@@ -123,8 +123,8 @@ function renderPlatformUserRows(rows) {
       <td>${platformRoleText(u.role)}</td>
       <td>${escapeHtml(u.account || '')}</td>
       <td>${escapeHtml(u.name || '')}</td>
-      <td>${escapeHtml(u.phone || '')}</td>
-      <td>${escapeHtml(u.email || '')}</td>
+      <td>${maskPhone(u.phone || '')}</td>
+      <td>${maskEmail(u.email || '')}</td>
       <td>${platformStatusText(u.status)}</td>
       <td>
         <button class="btn btn-default" onclick="openPlatformEditUser('${u.userId}')">编辑</button>

@@ -573,6 +573,32 @@ function escapeAttr(str) {
   return escapeHtml(str);
 }
 
+/** 数据脱敏：手机号 —— 11 位保留前3后4；其余保留首尾、中间用 * 代替（≤4 位全盘星） */
+function maskPhone(phone) {
+  if (phone == null) return "";
+  const s = String(phone).trim();
+  const L = s.length;
+  if (L === 0) return "";
+  if (L === 11) return s.substring(0, 3) + "****" + s.substring(7);
+  if (L <= 4) return "*".repeat(L);
+  return s.substring(0, 1) + "*".repeat(L - 2) + s.substring(L - 1);
+}
+
+/** 数据脱敏：电子邮箱 —— 地址中间 4 个字符用 * 代替（居中）；
+ *  长度 ≤ 6 时仅替换中间最多 4 个，前后各保留 1 个字符；≤ 2 位太短则全盘星。 */
+function maskEmail(email) {
+  if (email == null) return "";
+  const s = String(email).trim();
+  const L = s.length;
+  if (L === 0) return "";
+  if (L <= 2) return "*".repeat(L);                 // 太短无法保留前后，全盘星
+  if (L <= 6) {                                     // 短地址：保留首尾各 1 个，中间用 * 代替（最多 4 个）
+    return s.charAt(0) + "*".repeat(L - 2) + s.charAt(L - 1);
+  }
+  const front = Math.floor((L - 4) / 2);            // 正常地址：居中替换中间 4 个字符
+  return s.substring(0, front) + "****" + s.substring(front + 4);
+}
+
 
     function goBack() {
       // 优先返回来源页，没有则回到管理首页

@@ -89,7 +89,7 @@ function renderTenantRows(rows) {
       <td>${escapeHtml(t.orgName || '')}</td>
       <td>${escapeHtml(t.tenantCode || '')}</td>
       <td>${escapeHtml(t.contact || '')}</td>
-      <td>${escapeHtml(t.phone || '')}</td>
+      <td>${maskPhone(t.phone || '')}</td>
       <td>${industryName(t.industryId)}</td>
       <td>${tenantStatusText(t.status)}</td>
       <td>${t.expireTime ? ('' + t.expireTime).replace('T', ' ') : '-'}</td>
