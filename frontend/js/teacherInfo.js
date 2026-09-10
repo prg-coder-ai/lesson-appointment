@@ -44,20 +44,17 @@ async function loadTeacherInfo(teacherId) {
   try {
     const result = await request({
       url: '/teacher/professional/queryTeacherProfessionalInfo',
-      params: { teacherId: teacherId }
+      params: { teacherId: teacherId },
+      // 「职业信息不存在」是正常业务态（教师尚未建档），由页面自行进入新增模式，
+      // 不要让 request 拦截器弹出通用错误提示
+      customErrorMsg: false
     });
 
     // 后端 Result 统一结构：request 已解开成 data；这里 data 即 TeacherProfessionalDetailVO
     const data = result;
     if (!data || !data.professional) {
       // 教师存在但还没有职业信息 → 进入新增模式
-      originalData = buildEmptyForm(teacherId);
-      currentProfessionalId = null;
-      currentMode = 'add';
-      setPageTitle('新增教师职业信息');
-      fillEditForm(originalData, true);
-      switchSection('edit');
-      showActionButtons('edit');
+      enterAddMode(teacherId);
       return;
     }
 
@@ -70,9 +67,28 @@ async function loadTeacherInfo(teacherId) {
     switchSection('view');
     showActionButtons('view');
   } catch (e) {
+    // 后端对「该教师还没有职业信息」返回 Result.fail(404, "职业信息不存在")，
+    // 这是预期业务态而非异常：直接加载编辑/新增界面，让管理员补录职业信息
+    const msg = (e && e.message) || '';
+    const code = e && e.code;
+    if (code === 404 || msg.indexOf('职业信息不存在') !== -1) {
+      enterAddMode(teacherId);
+      return;
+    }
     console.error('加载教师职业信息失败：', e);
-    renderError('加载失败：' + (e && e.message ? e.message : e));
+    renderError('加载失败：' + msg);
   }
+}
+
+/** 进入新增模式（教师尚无职业信息记录时，由查看/加载流程统一调用） */
+function enterAddMode(teacherId) {
+  originalData = buildEmptyForm(teacherId);
+  currentProfessionalId = null;
+  currentMode = 'add';
+  setPageTitle('新增教师职业信息');
+  fillEditForm(originalData, true);
+  switchSection('edit');
+  showActionButtons('edit');
 }
 
 /** 切换 #form-container 内的区域显示 */
