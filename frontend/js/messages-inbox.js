@@ -690,6 +690,7 @@
   // 打开发送弹窗（preset: {userIds:[], role, name} 用于列表页「发消息」链接）
   window.openComposeMessage = function (preset) {
     if (!canSend()) { toast('当前角色无权发送通知', false); return; }
+    ensureStyle(); // 保证浮动卡片样式已注入（从用户/租户管理等列表直接发消息时收件箱未必渲染过）
     let root = document.getElementById('msg-compose-root');
     if (!root) { root = document.createElement('div'); root.id = 'msg-compose-root'; document.body.appendChild(root); }
     root.innerHTML = buildComposeHtml(preset);
