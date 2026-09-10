@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="VjQBSj1uwYvf5c4OsWDGmn">
+<head data-page-node-id="d5CuT54QBUGZMxofLyyAEh">
+  <meta charset="UTF-8" data-page-node-id="V4IT6KTmnYWABOtTmBNw7L">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="u77YJJRbLrUJcNWBuSL57C">
+  <title data-term-title="{teacher}职业信息维护 - {lessonSystem}">教师职业信息维护 - 语言教学预约系统</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" data-page-node-id="GWfr1GI5nXkhpatky2T9Sm">
+  <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" data-page-node-id="YAl8yO55EBz9TpGc92KLw0">
+  <link rel="stylesheet" href="css/admin.css" data-page-node-id="FjrLvihfHPnrP0MxXSCu73">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" data-page-node-id="bFvLmYCXWOwBNmuXkTh3z9">
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <style>
+    body { margin: 0; font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; background: #f0f2f5; }
+    .header { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 0 24px; height: 60px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    .logo { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 600; color: #722ed1; }
+    .header-actions { display: flex; align-items: center; gap: 16px; }
+    .user-info { display: flex; align-items: center; gap: 8px; }
+    .avatar { width: 32px; height: 32px; border-radius: 50%; background: #722ed1; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+    .container { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+    .card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 16px; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #f0f0f0; }
+    .card-title { font-size: 16px; font-weight: 600; color: #333; display: flex; align-items: center; gap: 8px; }
+    .card-body { padding: 16px 20px; }
+    .btn { padding: 6px 14px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; gap: 4px; transition: opacity .2s; }
+    .btn:hover { opacity: .85; }
+    .btn-primary { background: #722ed1; color: #fff; }
+    .btn-success { background: #52c41a; color: #fff; }
+    .btn-warning { background: #faad14; color: #fff; }
+    .btn-danger { background: #f5222d; color: #fff; }
+    .btn-default { background: #fff; color: #333; border: 1px solid #d9d9d9; }
+    .header-btns { display: flex; gap: 8px; }
+
+    /* 表单样式 */
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; margin-bottom: 4px; color: #333; font-size: 14px; font-weight: 500; }
+    .form-group label .required { color: #f5222d; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px 10px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 14px; box-sizing: border-box; background: #fff; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #722ed1; }
+    .form-group input[readonly], .form-group select[disabled], .form-group textarea[readonly] { background: #fafafa; color: #666; cursor: default; }
+    .form-group textarea { min-height: 80px; resize: vertical; }
+    .form-row { display: flex; gap: 16px; }
+    .form-row .form-group { flex: 1; }
+    .sub-section { border: 1px solid #f0f0f0; border-radius: 6px; padding: 12px; margin-bottom: 14px; }
+    .sub-section-title { font-weight: 600; color: #722ed1; margin-bottom: 8px; font-size: 14px; }
+    .sub-item-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+    .sub-item-row input, .sub-item-row select { flex: 1; padding: 6px 8px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 13px; }
+    .add-row-btn { background: #f0f0f0; border: 1px dashed #d9d9d9; padding: 6px; width: 100%; border-radius: 4px; cursor: pointer; color: #722ed1; }
+
+    /* 只读视图样式 */
+    .view-section { display: flex; flex-wrap: wrap; gap: 16px 24px; margin-bottom: 16px; }
+    .view-field { flex: 1 1 240px; }
+    .view-field .label { color: #999; font-size: 12px; margin-bottom: 4px; }
+    .view-field .value { color: #333; font-size: 14px; word-break: break-all; }
+    .view-photo { width: 120px; height: 120px; border-radius: 6px; object-fit: cover; background: #f0f0f0; }
+    .status-active { color: #52c41a; }
+    .status-frozen { color: #f5222d; }
+    .status-inactive { color: #faad14; }
+
+    .empty-tip { text-align: center; color: #999; padding: 40px 0; }
+    .error-tip { text-align: center; color: #f5222d; padding: 40px 0; }
+    .loading-tip { text-align: center; color: #999; padding: 40px 0; }
+
+    /* === 图片上传与预览 === */
+    .photo-upload-row { display: flex; gap: 12px; align-items: flex-start; }
+    .photo-preview { width: 120px; height: 120px; border: 1px dashed #d9d9d9; border-radius: 6px; overflow: hidden; background: #fafafa; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .photo-preview-img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-inputs { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+    .photo-inputs input[type="text"] { width: 100%; padding: 8px 10px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 14px; box-sizing: border-box; }
+
+    .cert-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; flex-wrap: wrap; }
+    .cert-thumb { width: 50px; height: 50px; border: 1px dashed #d9d9d9; border-radius: 4px; overflow: hidden; background: #fafafa; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+
+    .photo-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 12px; }
+
+    .cert-view-img { width: 80px; height: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #f0f0f0; }
+
+    .horline-bar { display: flex; align-items: center; justify-content: space-between; }
+    .btn-group { display: flex; }
+  </style>
+</head>
+<body data-page-node-id="UMRhC5SCYmpuYxqtvv17QU">
+  <!-- 头部 -->
+  <header class="header" data-page-node-id="auVElnsmqK6vDLysGGhUsx">
+    <div class="logo" data-page-node-id="TLNNuRtx6eqXoDyrBDFlOI">
+      <i class="fa fa-chalkboard-teacher" data-page-node-id="K5QuIWvxv5MoU6fA6AWAHh"></i>
+      <span data-page-node-id="NYcV9iIVb3DpmlkJ6DPI3h"><span data-term="teacher" data-page-node-id="eiAFWTfEEVSXdWSigjzabM">教师</span>职业信息维护</span>
+    </div>
+    <div class="header-actions" data-page-node-id="F9WkcEoQoZWV75knX2p3kN">
+      <div class="user-info" data-page-node-id="mci2LiRBoodErClXMmNYlu">
+        <div class="avatar" id="avatar" data-page-node-id="3kZD4PG5NZD9oq1AtQ1Tls">A</div>
+        <span id="user-name" data-page-node-id="29vjRWQ9rHMzPoNVzDUtgd">Admin</span>
+      </div>
+      <button class="btn btn-default" onclick="goBack()" data-page-node-id="WBxzM47IPuAkVJftHVLBfz"><i class="fa fa-arrow-left" data-page-node-id="egkb2BXuFW7laHfzje549Z"></i> 返回</button>
+    </div>
+  </header>
+
+  <div class="container" data-page-node-id="QO4IBVLWsP8xXCpzX2LEs5">
+    <!-- 单条教师职业信息卡片 -->
+    <div class="card" data-page-node-id="cCqGVyK54sBJrGrFlmFGEW">
+      <div class="card-header" data-page-node-id="FHdGdryJ0cpx7ufDoEHM9C">
+        <div class="card-title" data-page-node-id="8ifScESV8RPBTCIDq4lKwE"><i class="fa fa-id-card" data-page-node-id="1kD7jrESDgDBx0aS91FsFB"></i> <span id="page-title" data-page-node-id="EaDB7MpOFRrfnHriC5pnED"><span data-term="teacher" data-page-node-id="267LfDDIl0tTLDFBMDUESM">教师</span>职业信息</span></div>
+        <div class="header-btns" id="action-btns" data-page-node-id="EPWzyIXEYdi5KO3H2LYb5W">
+          <!-- 查看模式：转发 / 编辑 / 删除 -->
+          <div id="btns-view" style="display:flex;" data-page-node-id="mUX9Uy3EdLzd0S3yBG87Zd">
+            <button class="btn btn-warning" onclick="enterPublishMode()" data-page-node-id="adCiAGtLDvH4Gxm1zYKevX"><i class="fa fa-share-alt" data-page-node-id="hrVqlepEBAapz8zBcZJ2Re"></i> 发布/转发</button>
+            <button class="btn btn-primary" onclick="enterEditMode()" data-page-node-id="Ejl0JK1otXsFk3QDs8tD8Y"><i class="fa fa-edit" data-page-node-id="5x1e5yLfnZBZX0X6pLXFdC"></i> 编辑</button>
+            <button class="btn btn-danger" onclick="deleteCurrent()" data-page-node-id="5qOPKKH0FuMvEHjezPGaAo"><i class="fa fa-trash" data-page-node-id="z9laZIPVTXnnM9xiWGvYL4"></i> 删除</button>
+          </div>
+          <!-- 编辑/新增模式：保存 / 取消 -->
+          <div id="btns-edit" style="display:none;" data-page-node-id="JUQvRtN7h3eAXB4IFvAbh2">
+            <button class="btn btn-success" onclick="saveForm()" data-page-node-id="jVJsAtvVLD6pLQaUCGsYLO"><i class="fa fa-save" data-page-node-id="tNS82blr1XAQTkFXTUGt6s"></i> 保存</button>
+            <button class="btn btn-default" onclick="cancelEdit()" data-page-node-id="9YCgyxMluwqcxjGgl5B2Ft"><i class="fa fa-undo" data-page-node-id="lB4B20YgHEUIJ7BJEvtdh4"></i> 取消</button>
+          </div>
+          <!-- 发布模式：临时保存 / 预览 / 发布 / 返回查看 -->
+          <div id="btns-publish" style="display:none;" data-page-node-id="63bCj87AoAp5epYcHjdVHV">
+            <button class="btn btn-default" onclick="exitPublishMode()" data-page-node-id="HgrNT9xs9DLQDT2HRfCzj5"><i class="fa fa-undo" data-page-node-id="sOwZtHd9YSiD0sUmWKUDX1"></i> 返回</button>
+            <button class="btn btn-default" onclick="savePublishDraft()" data-page-node-id="OwGQiAC9Vkqwyewm5tFzvm"><i class="fa fa-save" data-page-node-id="gdn0d3bHo8dsxLjnxFwX5Z"></i> 临时保存</button>
+            <button class="btn btn-primary" onclick="previewPublish()" data-page-node-id="oAA545MrzTqWFXb20zeLWj"><i class="fa fa-eye" data-page-node-id="ZzjU3oXJDfnsFmUfFkC7CM"></i> 预览</button>
+            <button class="btn btn-success" onclick="submitPublish()" data-page-node-id="BhcpLdhhkLTXld0nJpErWl"><i class="fa fa-rocket" data-page-node-id="3ntKPtFf93D28uuVGH1jag"></i> 发布</button>
+          </div>
+          <!-- 错误/加载模式：返回 -->
+          <div id="btns-error" style="display:none;" data-page-node-id="IrMLH7tPs9vaA6xBLICB2A">
+            <button class="btn btn-default" onclick="goBack()" data-page-node-id="dGw1Mc2Fm7ddmX6KQuI9mO"><i class="fa fa-arrow-left" data-page-node-id="3V7hnSusAKYdHpX0YyCxpI"></i> 返回</button>
+          </div>
+        </div>
+      </div>
+      <div class="card-body" id="form-container" data-page-node-id="IipnFJvrY0jefs9bomHUGX">
+        <!-- 加载中提示 -->
+        <div id="section-loading" class="loading-tip" data-page-node-id="rpeSusql5PblzcyacvHGPl">加载中...</div>
+
+        <!-- 错误提示 -->
+        <div id="section-error" class="error-tip" style="display:none;" data-page-node-id="4DrBxQJlYbcBEOsjwSNGjf"></div>
+
+        <!-- ==================== 查看模式 ==================== -->
+        <div id="section-view" style="display:none;" data-page-node-id="l0vnEjHw6xeLFJR7WhULHR">
+          <!-- 照片 + 基本信息区 -->
+          <div style="display:flex;gap:24px;margin-bottom:20px;flex-wrap:wrap;" data-page-node-id="M9kRO5OP1jv4sijdLmsQzJ">
+            <div id="view-photo" data-page-node-id="tFOZwsC7YeDwGMrALzUufd"></div>
+            <div style="flex:1;min-width:280px;" data-page-node-id="3E0NfGuMjFE8vlmk1dxrEN">
+              <div class="view-section" style="margin-bottom:0;" data-page-node-id="CAyGk0yKUeNCWWCVyhmJVK">
+                <div class="view-field" data-page-node-id="tlsb1KCrJ79ZReZFFEBEtU"><div class="label" data-page-node-id="4HQC0JdRMo4gZmg3atldau"><span data-term="teacher" data-page-node-id="XD1Q8KzcZK2DOOIU9wxjsZ">教师</span>姓名</div><div class="value" id="view-name" data-page-node-id="FCROoHCR7kBotX38LQi6X6">-</div></div>
+                <div class="view-field" data-page-node-id="JRP0o8ng5vwNFKp8X9xMrr"><div class="label" data-page-node-id="wb140uvKcYEJ59vw5mAg7K">账号</div><div class="value" id="view-account" data-page-node-id="cCuq2pocdsu5RlrrjNC3wM">-</div></div>
+                <div class="view-field" data-page-node-id="QUDaqNuzH03DZGhW1p3595"><div class="label" data-page-node-id="46BDXljlheOdffH3dXGHlL">手机</div><div class="value" id="view-phone" data-page-node-id="rcfkaMbYanxyfcyC0iyLl3">-</div></div>
+                <div class="view-field" data-page-node-id="ABdJosXCcEdFNJBuo6SuGx"><div class="label" data-page-node-id="u7oUpZZakhgn31nBVrW97g">邮箱</div><div class="value" id="view-email" data-page-node-id="KO3SPl1lFJNHvN1jRoYFK8">-</div></div>
+                <div class="view-field" data-page-node-id="F9EWc9VE0xQEdJlXDOsP0d"><div class="label" data-page-node-id="pQIcqswb3UU0Ot0EeksJls">学科</div><div class="value" id="view-subject" data-page-node-id="PPuCKO7dCaFd1WPvAvDgWn">-</div></div>
+                <div class="view-field" data-page-node-id="IOLKt5x9tNtrYmL1lCQGEh"><div class="label" data-page-node-id="K1SDC6yAULaGA7ljRSUm9M">状态</div><div class="value" id="view-status" data-page-node-id="4v1VUbQO4XaAbKPgBDEHbW">-</div></div>
+                <div class="view-field" data-page-node-id="rA9WXktt61cffQq1LanaYl"><div class="label" data-page-node-id="RsHl5kdVpbOFbg1Qj3Hsls">用户状态</div><div class="value" id="view-userStatus" data-page-node-id="jjbbrcJrttEG8JDoOV1Vg6">-</div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 课时配置 -->
+          <div class="view-section" data-page-node-id="QmY3aFbQJTpXE3oy5gSFUc">
+            <div class="view-field" data-page-node-id="jSqqjIKwmzxfg7m5bXg0ZJ"><div class="label" data-page-node-id="bVcecVszU9LweouWYRgtIx">单次最小<span data-term="lessonUnit" data-page-node-id="L5hT3FvG4IPMInW5eS57kP">课时</span>数</div><div class="value" id="view-minBookingHours" data-page-node-id="M6V7Y8ADzRkrDymFK3a16N">-</div></div>
+            <div class="view-field" data-page-node-id="ISWymd0FUWuIBHPEpLxUED"><div class="label" data-page-node-id="bYhZBkeWyCIER9E7993ko9">每周可用<span data-term="lessonUnit" data-page-node-id="ruN2Z1DocV1rA44g7w6Stt">课时</span>上限</div><div class="value" id="view-weeklyAvailableHours" data-page-node-id="yD0Ww0dD0hIpj4uAiTrx3U">-</div></div>
+            <div class="view-field" data-page-node-id="phkpnEviSyW1VriVKPaRPR"><div class="label" data-page-node-id="PzrhaDxhNmq3FVDKbb1qvF">证书文字描述</div><div class="value" id="view-certificateText" data-page-node-id="Xf1hzpnYo0EqmkBZSRo3MX">-</div></div>
+          </div>
+
+          <!-- 简介 -->
+          <div class="form-group" style="margin-top:16px;" data-page-node-id="iYVgdAKkFwG1RZoxQErAM2">
+            <label data-page-node-id="iGFqd6zv2yUtW76Fxe1g9M">文字说明（<span data-term="teacher" data-page-node-id="j1vZD3IZBkXY73xSR8K8x7">教师</span>简介）</label>
+            <div id="view-bioText" style="white-space:pre-wrap;color:#333;font-size:14px;line-height:1.6;padding:8px;background:#fafafa;border-radius:4px;" data-page-node-id="syrcefvItdfdy0OyJW1X15">无</div>
+          </div>
+          <div class="form-group" data-page-node-id="XcNhfGehepG7bjNP9cO1mB">
+            <label data-page-node-id="AZXnYewRV5xYZ3wAHzGQtw">文字说明链接</label>
+            <div class="value" id="view-bioUrl" data-page-node-id="Fm2YrarMAytalk4K2yyPe2"><span style="color:#999;" data-page-node-id="m4LXOgH6FlQMc2Ww2cevva">无</span></div>
+          </div>
+
+          <!-- 子表：证书 -->
+          <div class="sub-section" data-page-node-id="OiiDb3pzae0px4a9eh1okh">
+            <div class="sub-section-title" data-page-node-id="qCKlejXR7TbDsx40tCA8d5"><i class="fa fa-certificate" data-page-node-id="oXwNBlgDn9F42dmKvGmP6h"></i> 资格证书</div>
+            <div id="view-certificates" data-page-node-id="rFGfOLEsUTahLY0W3qkiXS"></div>
+          </div>
+
+          <!-- 子表：可预约时间段 -->
+          <div class="sub-section" data-page-node-id="9PgTugULatdcYuH95K2KVM">
+            <div class="sub-section-title" data-page-node-id="yREquUQhqH6IgtT4iTvkyE"><i class="fa fa-clock" data-page-node-id="eDxJVrtuEFJlQabT0m7mmw"></i> 可预约时间段</div>
+            <div id="view-availableTimes" data-page-node-id="HjyA5nED4qEXQdiVzaV46Y"></div>
+          </div>
+
+          <!-- 元信息 -->
+          <div class="view-section" style="margin-top:16px;color:#999;font-size:12px;" data-page-node-id="jSTQ5JIAYOYzTamQDnBySs">
+            <div class="view-field" data-page-node-id="kxzfaafp1AL0RU2ml9Ol9c"><div class="label" data-page-node-id="H6gYKxxTD6o8npMcysHORW">创建时间</div><div class="value" id="view-createTime" data-page-node-id="Lq5v3hnBV8x7OK3CGOeKLW">-</div></div>
+            <div class="view-field" data-page-node-id="fSUUec6EpicEDdb6her8Uk"><div class="label" data-page-node-id="TCAH03H74fMFbVS91jFmD4">更新时间</div><div class="value" id="view-updateTime" data-page-node-id="uKp4ODpvRcRsQcdPENwlZx">-</div></div>
+            <div class="view-field" data-page-node-id="LuHpF5xjum3ihMRorqrL56"><div class="label" data-page-node-id="B7q2qCN4TvlILALqCfr05V">职业信息ID</div><div class="value" style="font-size:12px;" id="view-teacherProfessionalId" data-page-node-id="aVAf65HjissutWYA54iVcg">-</div></div>
+          </div>
+        </div>
+
+        <!-- ==================== 编辑/新增模式 ==================== -->
+        <div id="section-edit" style="display:none;" data-page-node-id="hJLy905UlRU6ik9o2r5yx6">
+          <div class="form-group" data-page-node-id="0y5ARp9AMh4fciJrlBgtZY">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;" data-page-node-id="dz5wVCpAHC6uZpdAAHmnv9">
+            <label data-page-node-id="stCItNdGDgkKcJkBwulOFR"><span data-term="teacher" data-page-node-id="8v0Hvzui3nzilK2PB5XyKX">教师</span>ID <span class="required" data-page-node-id="yDpGONqA95tbDpZn5fBa0x">*</span></label>  <div id="f-teacherNameHint" style="color:#999;margin-top:4px;display:none;" data-page-node-id="sggha79ZhbayngLpk1NYdO"></div>
+            </div>
+            <input type="text" id="f-teacherIdDisplay" readonly data-page-node-id="X6JALuIcmkiA4LkFhD3GD7">
+            <input type="hidden" id="f-teacherId" data-page-node-id="JdxQA60M5cs4AoKaqTdBBF">
+          </div>
+          <div class="form-row" data-page-node-id="LOlAyWG3EVN0Ctqw7T3Uqc">
+            <div class="form-group" data-page-node-id="YQovP6jHMeYRAkuIF33xL2">
+              <label data-page-node-id="IuQg0XHWYdU0Ecvyx5bfWB">学科</label>
+              <select id="f-subject" data-page-node-id="myHMTzlpqLzz1j602FGkp0">
+                <option value="" data-page-node-id="JaT0jg0LN2PCEzuMIuXeAQ">请选择</option>
+                <option value="english" data-page-node-id="PrNBJfne30qchor6iJd9jU">英语</option>
+                <option value="french" data-page-node-id="mT3ZrGyPvIO0D5qxkKMUbi">法语</option>
+                <option value="german" data-page-node-id="KMr60nUxjkY5ct4MGI2tnc">德语</option>
+                <option value="spanish" data-page-node-id="yPPic3Sk2I7eKJDQAWFPcu">西班牙语</option>
+              </select>
+            </div>
+            <div class="form-group" data-page-node-id="mRZmTp4dCCHNoySYwXpGyL">
+              <label data-page-node-id="xNZEkOUme00itbl1a9OjKm">状态</label>
+              <select id="f-status" data-page-node-id="sa2yd9B4skgSJ9IIC0aMDO">
+                <option value="active" data-page-node-id="PcAetbTSWubAVxJxkLHP7F">有效</option>
+                <option value="inactive" data-page-node-id="s07OBG2qW3RiLwUERzCx1U">失效</option>
+                <option value="frozen" data-page-node-id="yeElVNxYIheG4HBDJwXnNd">冻结</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group" data-page-node-id="RMvhyNvPKKIpMO2QAuTrwt">
+            <label data-page-node-id="bVTHEDqh03B7R2B5PWSr9V">个人照片</label>
+            <div class="photo-upload-row" data-page-node-id="3TDnghKDqNWDlDyshj7b3t">
+              <div class="photo-preview" id="photo-preview" data-page-node-id="1mYY2VUnMJPEviBblJFTfN">
+                <img class="photo-preview-img" id="photo-preview-img" src="" alt="" style="display:none;" data-page-node-id="dqQRwlQ0Owiz8mTeA94JeZ">
+                <div class="photo-placeholder" data-page-node-id="gTZQAX6UyOcTuhba7lViH5">无图片</div>
+              </div>
+              <div class="photo-inputs" data-page-node-id="cSn1ydMAQlfNMcDUObfaYf">
+                <input type="file" id="f-personalPhotoFile" accept="image/*" style="display:none;" onchange="handlePhotoSelect(this, 'photo-preview-img', 'f-personalPhotoBase64')" data-page-node-id="wa4gxCOrmwP5S9MvLF9lE6">
+                <button class="btn btn-default" type="button" onclick="document.getElementById('f-personalPhotoFile').click()" data-page-node-id="SUUcJC7wFjv0mLFkkiEg4A"><i class="fa fa-upload" data-page-node-id="NzbHjBpBexWkw7ebBPyBwM"></i> 选择图片上传</button>
+                <input type="text" id="f-personalPhotoUrl" placeholder="或填写照片URL" data-page-node-id="jcnoB6RBBOJWGIN2KwhISl">
+                <input type="hidden" id="f-personalPhotoBase64" data-page-node-id="UT2xfZcwTt0vrI0Bs6SqmR">
+              </div>
+            </div>
+          </div>
+          <div class="form-row" data-page-node-id="WGmw9pq16hRr045I7FFBN9">
+            <div class="form-group" data-page-node-id="OtKaWqiyaBi3AI77MpYhZv">
+              <label data-page-node-id="6pEkl7AXHNGkh068VSm1NC">单次最小<span data-term="lessonUnit" data-page-node-id="Jvv5S1KVPDREX46WNPGM55">课时</span>数</label>
+              <input type="number" id="f-minBookingHours" value="1" min="1" data-page-node-id="dlWWYuECrN7Pyj5H1HOZzc">
+            </div>
+            <div class="form-group" data-page-node-id="K7NidOBqIVPcCiDPh1Oaz8">
+              <label data-page-node-id="yuPspwI4jLeROiQzGEiYJT">每周可用<span data-term="lessonUnit" data-page-node-id="4MZ73Wb8e3DInpZAtslBEv">课时</span>上限</label>
+              <input type="number" id="f-weeklyAvailableHours" value="20" min="1" data-page-node-id="B71KXmMPH68PmqjPKgddzu">
+            </div>
+          </div>
+          <div class="form-group" data-page-node-id="6lO7LnbqIRI7qOaqHPPaNI">
+            <label data-page-node-id="GWSihdo9Ta6DsDnE19nr3p">文字说明（<span data-term="teacher" data-page-node-id="HfCxxGqZPh0OSYRfhs9nWG">教师</span>简介）</label>
+            <textarea id="f-bioText" maxlength="2000" placeholder="教师简介"></textarea>
+          </div>
+          <div class="form-group" data-page-node-id="EUEZW5j1y2ye8HLgEvDsCW">
+            <label data-page-node-id="UzZ5mWCclZLSw6ss8P1foY">文字说明链接</label>
+            <input type="text" id="f-bioUrl" placeholder="外部简历/博客URL" data-page-node-id="XOpc9UmxNKIOFxVUxdbmip">
+          </div>
+          <div class="form-group" data-page-node-id="my1tww9Ue10rOPAVOM3ghR">
+            <label data-page-node-id="pjBeYhnD7LCHG9XCEesmRh">证书文字描述</label>
+            <input type="text" id="f-certificateText" placeholder="如 CET-8、JLPT N1" data-page-node-id="LlG48IGF16TAsG8TiTzDOc">
+          </div>
+
+          <!-- 子表：证书（动态行） -->
+          <div class="sub-section" data-page-node-id="nNPVQDWBAwImDUQ49m35I8">
+            <div class="sub-section-title" data-page-node-id="puZBALOs9xi5QBvBOlT4F9"><i class="fa fa-certificate" data-page-node-id="1a5sZYHuz9p8l0hI3bOu0A"></i> 资格证书（支持多张）</div>
+            <div id="cert-rows" data-page-node-id="PODd8V9StaCmmOuJnkJCtU"></div>
+            <button class="add-row-btn" onclick="addCertRow()" data-page-node-id="FDvQsQwF5HjCdicY7UROBC"><i class="fa fa-plus" data-page-node-id="FmW8PK4klnyfwYwWgshD5W"></i> 添加证书</button>
+          </div>
+
+          <!-- 子表：可预约时间段（动态行） -->
+          <div class="sub-section" data-page-node-id="xobPR1CZgw9ZhXi3Yssn9W">
+            <div class="sub-section-title" data-page-node-id="rvs7ncY7eNJSaW9Y26mFhV"><i class="fa fa-clock" data-page-node-id="L9HSd2SyUfSnJEUJSYOsUM"></i> 可预约时间段</div>
+            <div id="time-rows" data-page-node-id="3PwpkAqiJus2t1fhkOurGl"></div>
+            <div class="btn-group" data-page-node-id="j5p58bzviOrW344tbEjGV5">
+              <button class="add-row-btn" onclick="getAvailableTimesFromSchedule()" data-page-node-id="ImVBdDbGjMRZ3cDdRKnLcj"><i class="fa fa-chalkboard-teacher" data-page-node-id="49paVUTVHmtQYiInZvZpMC"></i> 读取排期</button>
+              <button class="add-row-btn" onclick="addTimeRow()" data-page-node-id="R7FU2cY9sAJUEw1NqTlFaw"><i class="fa fa-plus" data-page-node-id="1XPx2Tos8rAc06VgMkLvZd"></i> 手动添加时间段</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== 发布模式（字段勾选 + 样式自定义 + 预览） ==================== -->
+        <div id="section-publish" style="display:none;" data-page-node-id="nxQWQeHrkdJVk1g74WQYK5">
+          <div class="form-row" data-page-node-id="q1AERX6lG4WG9nhVEPqpHF">
+            <div class="form-group" data-page-node-id="IYLGw7RABkwVl73eQOchPX">
+              <label data-page-node-id="CeNpIDTyrj7gExhHCaa7ul">发布标题</label>
+              <input type="text" id="pub-title" placeholder="如：英语教师 - 张三 个人介绍" data-page-node-id="evPAqqkf7Dz5nASi7mLYrx">
+            </div>
+            <div class="form-group" data-page-node-id="PQMLHiLHCoqCwxeBNteCF1">
+                <label data-page-node-id="85E38dnal6LBgOnxnPGk4T">历史版本</label>
+              <select id="pub-history" onchange="loadPublishHistory(this.value)" data-page-node-id="UO5f6m35YI3fXobCiS1cFM">
+                <option value="" data-page-node-id="VAB19vkHpU9VBtMNDLhDPS">-- 新建/无历史 --</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:340px 1fr;gap:16px;" data-page-node-id="3nRQdE87nMpJdbzrHqaTwg">
+            <div data-page-node-id="BaYFmn7Ia0ZzHfAFFXYN7D">
+              <div class="sub-section" data-page-node-id="pIXfhzZCeIqMxlhoO5W3Oy">
+                <div class="sub-section-title" data-page-node-id="BsPgiFooKbnhYVRbRgvCHb"><i class="fa fa-list-check" data-page-node-id="IGsmrZjNShL1iuD9NmzdW7"></i> 字段勾选（勾选是否转发，可拖拽排序）</div>
+                <div id="pub-fields" data-page-node-id="PAzz4jzjLsrAL0f7bX8sYs"></div>
+                <div style="display:flex;gap:8px;margin-top:8px;" data-page-node-id="w3LgFETRGDA0bv2qX5g0OY">
+                  <button class="btn btn-default" style="flex:1;" onclick="pubToggleAll(true)" data-page-node-id="ALkWfD9fwFEKRFP1glSVVv">全选</button>
+                  <button class="btn btn-default" style="flex:1;" onclick="pubToggleAll(false)" data-page-node-id="IPtCamPs5cy0dQsQJSRz75">全不选</button>
+                </div>
+              </div>
+
+              <div class="sub-section" data-page-node-id="nCJMQUSMsAbAnB81s7wOfX">
+                <div class="sub-section-title" data-page-node-id="tVa4uWGa1FzwYHz61amuNl"><i class="fa fa-palette" data-page-node-id="o8q6csu0Ayz2kIPCUK08a8"></i> 样式自定义</div>
+                <div class="form-row" data-page-node-id="48OQIKJ2f7UjcrA32N2uE5"><div class="form-group" data-page-node-id="dDAqBNIeDGSWH4UZrBn1NQ">
+                  <label data-page-node-id="1QpC2yDINhtxjBeycnhN7Z">字体</label>
+                  <select id="pub-fontFamily" data-page-node-id="5FuEJldxAcvi7VeDMyT46R">
+                    <option value='-apple-system, "Segoe UI", "Microsoft YaHei", sans-serif' data-page-node-id="skfC1F3Ui4IA9qsjtPQfWV">默认（微软雅黑）</option>
+                    <option value='"Microsoft YaHei", sans-serif' data-page-node-id="ufuigqI3wZyb81ddo6VOPG">微软雅黑</option>
+                    <option value='"SimSun", serif' data-page-node-id="w8HfLdedHskoQinYMK0hlZ">宋体</option>
+                    <option value='"KaiTi", serif' data-page-node-id="n6NSTJnu1nqRtOMdpxBGTN">楷体</option>
+                    <option value='Arial, sans-serif' data-page-node-id="ats95eQJgAYnsTjEOMDENW">Arial</option>
+                    <option value='Georgia, serif' data-page-node-id="4IpEAE1tQvXRmj8IMX6qJL">Georgia</option>
+                  </select>
+                </div><div class="form-group" data-page-node-id="LRBEMrzkUBYbqaXzW9HOsz">
+                  <label data-page-node-id="k1fDGn6G7SE7K0Hs7EtvnJ">主题色</label>
+                  <input type="color" id="pub-accentColor" value="#722ed1" style="height:36px;padding:2px;" data-page-node-id="TIpqaIyCEc16vCe34qKjzh">
+                </div></div>
+                <div class="form-row" data-page-node-id="3OvLCfLp6nKSpKU6vHHc1z"><div class="form-group" data-page-node-id="uz1xP0qXe5V9IAklZyVtMO">
+                  <label data-page-node-id="61sg7Q7ubhc27gjBFMvBa7">正文字号（px）</label>
+                  <input type="number" id="pub-fontSizePx" value="15" min="10" max="40" data-page-node-id="3oIm9mR3VPjAEuHe9COpt4">
+                </div><div class="form-group" data-page-node-id="DRBQajMOOCbRW45kAHaxn2">
+                  <label data-page-node-id="OpJkyNKzpFHy9KGijabAv6">标题字号（px）</label>
+                  <input type="number" id="pub-titleSizePx" value="22" min="14" max="60" data-page-node-id="FWUHVRS1CM2sPw1VBRkoOC">
+                </div></div>
+                <div class="form-row" data-page-node-id="JSVNoS135w3c3dXqabN4Zi"><div class="form-group" data-page-node-id="7bAQOJ9VhET3sxTgbXuGcZ">
+                  <label data-page-node-id="m1tHGuTp8EmCb1m75lNM9J">照片大小（px）</label>
+                  <input type="number" id="pub-photoSizePx" value="160" min="60" max="400" data-page-node-id="ku0L0iYhYnYI9JLZzAJOCO">
+                </div><div class="form-group" data-page-node-id="Me9aJAGxqsqMFl62Csol8f">
+                  <label data-page-node-id="CzRxuLZg50UDCqAJwEh1bv">证书图大小（px）</label>
+                  <input type="number" id="pub-certSizePx" value="120" min="40" max="300" data-page-node-id="pC42PZKBAjRTRZph3IJcyZ">
+                </div></div>
+                <div class="form-row" data-page-node-id="H8IRxm8NeZtwBzUqC0yhcm"><div class="form-group" data-page-node-id="mmPeXHe8c1gcoxeJUx67Bv">
+                  <label data-page-node-id="iAOUB5HR7oNLlwOEku2lR6">背景色</label>
+                  <input type="color" id="pub-bgColor" value="#ffffff" style="height:36px;padding:2px;" data-page-node-id="43UeMblcC333nCm8MAy8yk">
+                </div><div class="form-group" data-page-node-id="RCKoDqSzh4jJCrM18XsoIO">
+                  <label data-page-node-id="khgWANYKwuFsOFXeAEgTpy">卡片背景</label>
+                  <input type="color" id="pub-cardBgColor" value="#fafafa" style="height:36px;padding:2px;" data-page-node-id="lhMm752RKHmfh9KwcMAom0">
+                </div></div>
+              </div>
+            </div>
+
+            <div class="sub-section" style="margin-bottom:0;" data-page-node-id="PDGIbX2w69exB4hGLfALOI">
+              <div class="horline-bar" data-page-node-id="wAeIqQLvoWnlPaJzE5iTw0">
+              <div class="sub-section-title" data-page-node-id="EcKPTQYTJPCfQH7sN6wEUB">
+                <i class="fa fa-eye" data-page-node-id="xGwAp1KH7hc07WAQnFRLcw"></i> 实时预览
+                <span id="pub-auto-preview-tip" style="font-weight:normal;font-size:12px;color:#999;margin-left:8px;" data-page-node-id="XkQO8EMZIIfxLkugHpcMXR">（修改左侧自动刷新）</span>
+              </div>
+              <div class="btn-group" data-page-node-id="vPRnX3AVfzLokHwjm6lrg4">
+                  <button id="copyLinkBtn" data-page-node-id="Nj3ZC88Yt3FypHKOwD9Rds">复制链接</button>
+                  <button id="saveImageBtn" data-page-node-id="L06w0p4Q24mIWCFv0O3dn9">保存为图片</button>
+                </div>
+                </div>
+              <div id="pub-preview" style="min-height:360px;max-height:720px;overflow:auto;padding:16px;border:1px dashed #d9d9d9;border-radius:6px;background:#fff;" data-page-node-id="ommoHcX4odBzGmlUqtdRc8"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 依赖脚本（顺序：axios → terms → request → auth → api → 业务JS）
+       特别注意：api.js 必须早于 teacherInfo*.js —— 后者用到的 escapeHtml/escapeAttr/
+       pageUrl/goBack/getCurrentUserInfo 均由它提供。 -->
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="js/public/terms.js"></script>
+  <script src="js/public/termsFunction.js"></script>
+  <script src="js/public/documentTitle.js"></script>
+  <script src="js/public/enumTerms.js"></script>
+  <script src="js/public/utility_request.js"></script>
+  <script src="js/public/auth.js"></script>
+  <script src="js/public/api.js"></script>
+  <script src="js/teacherInfo-common.js"></script>
+  <script src="js/teacherInfo-edit.js"></script>
+  <script src="js/teacherInfo-publish.js"></script>
+  <script src="js/teacherInfo.js"></script>
+  <script>
+    // 页面初始化
+    (function init() {
+      // ====== 入口登录态守卫：校验 tenantCode / 角色一致性，不通过则跳登录页 ======
+      if (typeof window.guardEntryPage === 'function' && !window.guardEntryPage('admin')) {
+        return; // 守卫已触发强制跳转
+      }
+
+      const user = getCurrentUserInfo();
+      if (!user) {
+        if (typeof window.saveLoginRedirect === 'function') {
+          window.saveLoginRedirect('no-login');
+        }
+        // 必须保留 tCode：否则登录页拿不到租户编码，登录后回不到本页
+        window.location.href = (typeof window.pageUrl === 'function')
+          ? window.pageUrl('index.html')
+          : './index.html';
+        return;
+      }
+      // 仅租户管理员可访问。
+      // 平台管理员虽然同为管理员，但它是跨租户管理账号、不属于任何租户，
+      // 无法落入 TenantLineInnerInterceptor 的租户数据隔离范围，
+      // 即便放行也取不到本租户的教师数据，故同样拒绝 —— 但给出区别于「无权限」的明确指引。
+      if (user.role !== 'admin') {
+        const tip = (user.role === 'platform_admin')
+          ? '平台管理员为跨租户管理账号，不能直接管理单个租户的教师资料，请返回平台后台操作'
+          : '仅管理员可访问本页面';
+        document.querySelector('.container').innerHTML = '<div class="card"><div class="card-body empty-tip">' + tip + '</div></div>';
+        return;
+      }
+      // 按登录租户所属行业切换行业词表（尽早发起，使后续渲染直接用上正确的行业词）
+      if (typeof syncIndustryFromTenant === 'function') {
+        syncIndustryFromTenant(user.tenantCode);
+      }
+      // 设置头部用户信息
+      if (user.name) {
+        document.getElementById('avatar').innerHTML = user.name[0] || 'A';
+        document.getElementById('user-name').innerHTML = user.name;
+      }
+      // 静态骨架里的 data-term 交由 applyTerms 统一替换
+      if (typeof applyTerms === 'function') applyTerms(document.body);
+      // 从 URL 读取 userid 并加载单条数据
+      loadTeacherInfoFromUrl();
+      installLinkCopyAndImageSaveHandlers();
+    })();
+  </script>
+</body>
+</html>

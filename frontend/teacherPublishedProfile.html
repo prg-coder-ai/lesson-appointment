@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="I3detxAN86P2lEAfzG8vIf">
+<head data-page-node-id="pi2dsJKz8YUBNGL65fAF7d">
+  <meta charset="UTF-8" data-page-node-id="smaHS6bWuWXTVH8sQy7yeN">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="afcxDaajs3smeJApzIf2r3">
+  <title data-term-title="{teacher}介绍">教师介绍</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" data-page-node-id="ASAeF92VvIkXAeBKX351hu">
+  <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" data-page-node-id="E4l3C6DM2Jmy5ALAmVI2ng">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" data-page-node-id="13Fa7obehUv49HGmapeBQp">
+  <style>
+    /* 仅本公开页的容器样式，static_html 自带完整页面样式 */
+    html, body { margin: 0; padding: 0; height: 100%; background: #f0f2f5; font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; }
+    .pub-shell { min-height: 100vh; display: flex; flex-direction: column; }
+    .pub-topbar {
+      height: 48px; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 16px; position: sticky; top: 0; z-index: 10;
+    }
+    .pub-topbar .brand { display: flex; align-items: center; gap: 8px; color: #722ed1; font-weight: 600; font-size: 15px; }
+    .pub-topbar .brand i { font-size: 18px; }
+    .pub-topbar .actions { display: flex; gap: 8px; }
+    .pub-topbar .btn-mini {
+      padding: 4px 10px; border-radius: 4px; border: 1px solid #d9d9d9; background: #fff;
+      color: #333; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
+    }
+    .pub-topbar .btn-mini:hover { border-color: #722ed1; color: #722ed1; }
+
+    #pub-mount { flex: 1; }
+    #pub-mount .publish-wrapper { margin: 0; } /* 内嵌页自带 .publish-wrapper，去除它自己的居中 margin */
+
+    .pub-loading { display: flex; align-items: center; justify-content: center; height: 100%; color: #999; font-size: 14px; flex-direction: column; gap: 12px; padding: 60px 20px; }
+    .pub-loading .spinner { width: 28px; height: 28px; border: 3px solid #e5e5e5; border-top-color: #722ed1; border-radius: 50%; animation: pub-spin 0.8s linear infinite; }
+    @keyframes pub-spin { to { transform: rotate(360deg); } }
+
+    .pub-error { display: flex; align-items: center; justify-content: center; height: 100%; color: #f5222d; font-size: 14px; flex-direction: column; gap: 12px; padding: 60px 20px; text-align: center; }
+    .pub-error .icon { font-size: 36px; }
+    .pub-error .hint { color: #999; font-size: 12px; }
+  </style>
+</head>
+<body data-page-node-id="e5iKbhrUVbdUc2HYH6A7YA">
+  <div class="pub-shell" data-page-node-id="IVjfLmwXmlMHb7obIjZNsn">
+    <!-- 顶部条：品牌 + 打印/分享 -->
+    <div class="pub-topbar" data-page-node-id="FwwOlxmmEbkX1ifFmtEZga">
+      <div class="brand" data-page-node-id="CeAQplm1eJMQQQRxmBWKBE">
+        <i class="fa fa-chalkboard-teacher" data-page-node-id="vaUr6dyiUhtB7ycYA82Cro"></i>
+        <span data-page-node-id="z3qgYu7kF3D7Qj58CKDDzN"><span data-term="teacher" data-page-node-id="DrOD5SPBfB4Z3nFvCcC8b6">教师</span>介绍</span>
+      </div>
+      <div class="actions" data-page-node-id="1slRakXohwYk5gTJZHzC8E">
+        <button class="btn-mini" onclick="window.print()" title="打印本页" data-page-node-id="IKa7KqvOSxM3WxUioEFQ7n"><i class="fa fa-print" data-page-node-id="4pJlom60Fvw90qFybbvZOx"></i> 打印</button>
+        <button class="btn-mini" onclick="copyShareLink()" title="复制链接分享" data-page-node-id="q6YjfVugky1I3G0XMg4sz1"><i class="fa fa-share-alt" data-page-node-id="fgXAjOjYRYpfyWUXEXtaXp"></i> 复制链接</button>
+        <button class="btn-mini" onclick="closePage()" title="关闭页面" data-page-node-id="4jeSidJ77uSskKW7jR5GDI"><i class="fa fa-times" data-page-node-id="Ju8HHJOFxTiqf03niQMiMw"></i> 关闭</button>
+      </div>
+    </div>
+
+    <!-- static_html 渲染挂载点 -->
+    <div id="pub-mount" data-page-node-id="TQHmrbHKkODJy5hcAHQt25">
+      <div id="pub-loading" class="pub-loading" data-page-node-id="FYnAV9WnyKPRKxW1twEq5U">
+        <div class="spinner" data-page-node-id="zHzqgrGpvBSAc0EGyeYXEa"></div>
+        <div data-page-node-id="Nc0zSE7VSqnB1SCcxCtJea">正在加载<span data-term="teacher" data-page-node-id="HwcBI1C6wDGwFswdj33zCf">教师</span>介绍...</div>
+      </div>
+      <div id="pub-error" class="pub-error" style="display:none;" data-page-node-id="RiTycvNvfK1CFUxnHyOPHC">
+        <div class="icon" data-page-node-id="HsUCq64XTtdDpItMAjYIeb"><i class="fa fa-exclamation-circle" data-page-node-id="J73HIHLrogXFFwPx90yYBh"></i></div>
+        <div id="pub-error-msg" data-page-node-id="GENSWGG20B6o1vGEqVTZf1">加载失败</div>
+        <div class="hint" data-page-node-id="m2hrAvBz63tP3yqAI4ZRSL">请检查链接是否正确，或稍后重试</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * 教师介绍公开页（免登录）
+     *
+     * 迁移说明（2026-09-10）：本页随 teacherInfo.html 一同在「前后端分离」提交中被删除、
+     * 未迁入 frontend，导致管理端「复制链接/发布」给出的公开链接 404。本次一并迁回。
+     *
+     * 入口参数（优先级 id > teacherId）：
+     *   ?id=xxxx        → 按 publishedProfileId 精确取指定历史版本（/public-get）
+     *   ?teacherId=xxxx → 取该教师最新已发布版本（/latest-public，兼容 userid/userId）
+     * 注意：对外分享链接刻意不带 tCode（免登录页无法也不需要租户编码）。
+     */
+    (function () {
+      // 本页不加载 api.js（免登录），window.API_BASE_URL 默认为空，
+      // 必须自行补 /api/v1 前缀，否则请求会被 Nginx 当成静态资源返回 404。
+      var RAW_BASE = (typeof window.API_BASE_URL === 'string' && window.API_BASE_URL) ? window.API_BASE_URL : '';
+      var API_PREFIX = (RAW_BASE.indexOf('/api/v1') >= 0) ? RAW_BASE : '/api/v1';
+
+      function getQueryParam(name) {
+        try {
+          return new URLSearchParams(window.location.search).get(name);
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function showError(msg, hint) {
+        const loading = document.getElementById('pub-loading');
+        if (loading) loading.style.display = 'none';
+        const errBox = document.getElementById('pub-error');
+        const errMsg = document.getElementById('pub-error-msg');
+        if (errMsg) errMsg.textContent = msg || '加载失败';
+        if (hint && errBox) {
+          const hintEl = errBox.querySelector('.hint');
+          if (hintEl) hintEl.textContent = hint;
+        }
+        if (errBox) errBox.style.display = 'flex';
+        document.title = msg || '教师介绍';
+      }
+
+      function mountStaticHtml(html) {
+        const loading = document.getElementById('pub-loading');
+        if (loading) loading.style.display = 'none';
+        const mount = document.getElementById('pub-mount');
+        if (!mount) return;
+        // staticHtml 是一个完整的 <!DOCTYPE html>...</html> 文档
+        // 取出 <body> 内的内容（保留其中的 <style> 和 DOM）插入挂载点，既复用其内嵌样式又不破坏顶部条
+        const styleTags = [];
+        const headStyleMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+        if (headStyleMatch) {
+          const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+          let m;
+          while ((m = styleRegex.exec(headStyleMatch[1])) !== null) {
+            styleTags.push(m[0]);
+          }
+        }
+        let bodyContent = html;
+        const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+        if (bodyMatch) {
+          bodyContent = bodyMatch[1];
+        } else {
+          // 没有 body 标签，去掉 doctype/html/head 包裹
+          bodyContent = html
+            .replace(/<!DOCTYPE[^>]*>/i, '')
+            .replace(/<\/?html[^>]*>/gi, '')
+            .replace(/<head[^>]*>[\s\S]*?<\/head>/i, '')
+            .replace(/<\/?body[^>]*>/gi, '');
+        }
+
+        // 尝试提取 <title> 更新本页标题
+        const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+        if (titleMatch && titleMatch[1]) {
+          document.title = titleMatch[1].trim();
+        }
+
+        mount.innerHTML = (styleTags.join('') || '') + bodyContent;
+      }
+
+      async function loadPublished() {
+        const id = getQueryParam('id') || getQueryParam('profileId');
+        const teacherId = getQueryParam('teacherId') || getQueryParam('userid') || getQueryParam('userId');
+        if (!id && !teacherId) {
+          showError('缺少参数', '请在 URL 上附加 ?id=xxxx 指定版本，或 ?teacherId=xxxx 查看最新发布');
+          return;
+        }
+
+        let url;
+        if (id) {
+          url = API_PREFIX + '/teacher/published/public-get?id=' + encodeURIComponent(id);
+        } else {
+          url = API_PREFIX + '/teacher/published/latest-public?teacherId=' + encodeURIComponent(teacherId);
+        }
+
+        try {
+          const resp = await fetch(url, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+          });
+
+          // 后端统一返回：HTTP 200 + body{code,message,data}
+          if (!resp.ok) {
+            if (resp.status === 404) {
+              showError('该教师暂无已发布的个人介绍', '请联系教师先在系统中发布个人介绍');
+            } else if (resp.status === 401 || resp.status === 403) {
+              showError('暂无访问权限', '请确认链接是否正确');
+            } else {
+              showError('加载失败（HTTP ' + resp.status + '）', '请稍后重试');
+            }
+            return;
+          }
+
+          const body = await resp.json();
+          if (!body || body.code !== 200 || !body.data) {
+            const msg = (body && body.message) || '暂无已发布的个人介绍';
+            showError(msg, 'code=' + (body && body.code));
+            return;
+          }
+
+          const data = body.data;
+          const staticHtml = data.staticHtml;
+          if (!staticHtml) {
+            showError('该教师已发布信息，但静态内容为空', '请管理员重新发布一次');
+            return;
+          }
+          mountStaticHtml(staticHtml);
+        } catch (e) {
+          console.error('加载教师介绍失败：', e);
+          showError('网络异常，加载失败', e && e.message ? e.message : '请检查网络连接后刷新重试');
+        }
+      }
+
+      function fallbackCopy(text) {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          alert('链接已复制：\n' + text);
+        } catch (_) {
+          prompt('请手动复制链接：', text);
+        }
+      }
+
+      function copyShareLink() {
+        const link = window.location.href;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(link).then(
+            () => alert('链接已复制到剪贴板：\n' + link),
+            () => fallbackCopy(link)
+          );
+        } else {
+          fallbackCopy(link);
+        }
+      }
+
+      function closePage() {
+        // 优先尝试 window.close()（仅对由 window.open 打开的页面有效）
+        try {
+          window.opener = null;
+          window.open('', '_self');
+          window.close();
+        } catch (_) {}
+        // 100ms 后仍未关闭，说明是用户直接打开的 tab，做兜底
+        setTimeout(function () {
+          if (!window.closed) {
+            if (window.history.length > 1) {
+              window.history.back();
+            } else {
+              alert('当前页面是直接打开的，浏览器禁止脚本自动关闭。\n请按 Ctrl+W 手动关闭标签页，或点击浏览器右上角 × 按钮。');
+            }
+          }
+        }, 120);
+      }
+
+      window.copyShareLink = copyShareLink;
+      window.closePage = closePage;
+
+      // 启动
+      loadPublished();
+    })();
+  </script>
+  <script src="js/public/terms.js"></script>
+  <script src="js/public/termsFunction.js"></script>
+  <script src="js/public/documentTitle.js"></script>
+</body>
+</html>

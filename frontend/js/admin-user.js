@@ -248,7 +248,7 @@
                     <tr>
                      <td> ${index} </td>
                      <td style="display:none;">${tea.userId || ""}</td>
-                    <td ${role=="teacher"? ` class="js-teacher-name"style="cursor:pointer;" onclick="teacherInfoBoard('${tea.userId}')"` : ""}>${tea.name || ""}</td>
+                    <td ${role=="teacher"? ` class="js-teacher-name"style="cursor:pointer;" onclick="teacherInfoBoard('${escAttr(tea.userId)}')"` : ""}>${tea.name || ""}</td>
                     <td>${tea.account || ""}</td>
                      <td>${maskEmail(tea.email || "")}</td>
                      <td>${maskPhone(tea.phone || "")}</td>
@@ -438,7 +438,13 @@
 
                 //Detail--教师信息,用于提交图片、专业信息、时间段等，输出该教师的可用时段及推广信息
                 function teacherInfoBoard(userId) {
-                  window.location.href = `./teacherInfo.html?userId=${userId}`;
+                  // 必须走 pageUrl：teacherInfo.html 属于受保护的管理端子页，
+                  // 少了 tCode 会被引擎守卫判为「租户不一致」而踢回登录页
+                  //（历史上表现为：点了教师姓名先闪一下又回到登录界面）。
+                  const href = (typeof window.pageUrl === 'function')
+                    ? window.pageUrl('teacherInfo.html', { userId: userId })
+                    : './teacherInfo.html?userId=' + encodeURIComponent(userId || '');
+                  window.location.href = href;
                 }
                //禁用
                 async  function disableTeacher(userId,role) {

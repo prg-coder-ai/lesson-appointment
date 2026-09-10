@@ -122,6 +122,12 @@
   </style>
 </head>
 <body data-page-node-id="b81NbYRwJeCAHLXhsyCYJF">
+  <!-- 缺失页面守卫：Nginx 用 try_files $uri $uri/ /index.html 做 SPA 兜底，
+       导致任何不存在的页面都被静默渲染成登录首页，伪装成「登录态失效」。
+       本脚本在最早阶段识别"当前 URL 其实不是首页"，给出明确告警条。
+       详见 js/public/missingPageGuard.js 头部注释（teacherInfo.html 事故）。 -->
+  <script src="js/public/missingPageGuard.js"></script>
+
   <!-- 登录容器 -->
   <div class="login-container" data-page-node-id="QILFkj1AXtCYAbI4entGok">
     <div class="login-header" data-page-node-id="rVDStF4LEwuDUg16HU4DKz">
