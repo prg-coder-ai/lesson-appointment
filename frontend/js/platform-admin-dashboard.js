@@ -140,7 +140,7 @@ function loadExpireWarning() {
       tb.innerHTML = rows.map(t => `<tr>
         <td>${escapeHtml(t.orgName || '')}</td>
         <td>${escapeHtml(t.contact || '')}</td>
-        <td>${escapeHtml(t.phone || '')}</td>
+        <td>${maskPhone(t.phone || '')}</td>
         <td>${t.expireTime ? ('' + t.expireTime).replace('T', ' ') : '-'}</td>
       </tr>`).join('');
     }).catch(() => { const tb = document.getElementById('expire-body'); if (tb) tb.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;">加载失败</td></tr>'; });
