@@ -14,13 +14,14 @@
  *   表现为「加载接收人 401」「SSE 401」——这不是 session 失效，是密钥不一致。
  *   （本地 message-service 用的是源码 application.properties 里的 jwt.secret，与远程系统密钥不同。）
  *
- * 前提：远程 message-service 已在服务器运行，且防火墙放行 8090 入站。
- *
- * ⚠ 若服务器已按安全建议收紧（`SERVER_ADDRESS=127.0.0.1` + 安全组只放 80/443），
- *   8081/8090 从外网不可达，此时**不要再开端口**，而是让本代理统一打远程 80，
- *   由远程 Nginx 自己按 /api/v1/{message,sse,users/} 分流：
- *       BOOKING_PORT=80 MSG_PORT=80 node dev-frontend-remote.js
+ * ✅ 当前推荐（也是脚本默认）：服务器已收紧后端端口
+ *   （`SERVER_ADDRESS=127.0.0.1` + 安全组只放 80/443），8081/8090 从外网不可达。
+ *   此时本代理统一打远程 **80**，由远程 Nginx 按 /api/v1/{message,sse,users/} 自建分流：
+ *       node dev-frontend-remote.js            （默认即 BOOKING_PORT=80 MSG_PORT=80）
  *   实测：这是端口收紧后唯一可用的本地联调方式，密钥域仍然一致（同一台远程服务）。
+ *
+ * 早期部署（后端端口对外放行）才需要显式指定旧端口：
+ *       BOOKING_PORT=8081 MSG_PORT=8090 node dev-frontend-remote.js
  *
  * 用法：
  *   node dev-frontend-remote.js
@@ -28,9 +29,9 @@
  *   FRONTEND_ROOT  静态根目录，默认 ../frontend（源码）；设 DIST=1 则指向 ../frontend/dist
  *   DEV_PORT       本地监听端口，默认 8080（须与前端 FRONTEND_ORIGIN 默认端口一致）
  *   API_HOST       远程 API 服务器 IP/域名，默认 152.136.254.127
- *   BOOKING_PORT   默认 8081
+ *   BOOKING_PORT   默认 80（走远程 Nginx 统一入口；旧部署需设 8081）
  *   MSG_HOST       默认与 API_HOST 相同（强烈建议保持默认）
- *   MSG_PORT       默认 8090
+ *   MSG_PORT       默认 80（旧部署需设 8090）
  *   NO_PROBE=1     跳过启动前连通性检查
  */
 'use strict';
@@ -44,9 +45,9 @@ const ROOT = path.resolve(
 );
 const LISTEN_PORT = parseInt(process.env.DEV_PORT || '8080', 10);
 const API_HOST = process.env.API_HOST || '152.136.254.127';
-const BOOKING_PORT = parseInt(process.env.BOOKING_PORT || '8081', 10);
+const BOOKING_PORT = parseInt(process.env.BOOKING_PORT || '80', 10);
 const MSG_HOST = process.env.MSG_HOST || API_HOST;
-const MSG_PORT = parseInt(process.env.MSG_PORT || '8090', 10);
+const MSG_PORT = parseInt(process.env.MSG_PORT || '80', 10);
 
 // 混合拓扑守卫：远程 booking + 本地 message-service（或反向）必然 401
 const isLoopback = (h) => h === '127.0.0.1' || h === 'localhost' || h === '::1' || h === '0.0.0.0';
@@ -74,8 +75,8 @@ startProxy({
       console.log(`   ⚠ 远程 booking ${API_HOST}:${BOOKING_PORT} 不可达：检查服务器是否运行、安全组/防火墙是否放行。`);
     }
     if (!okMsg) {
-      console.log(`   ⚠ 远程 message-service ${MSG_HOST}:${MSG_PORT} 不可达（常见原因：服务未启动或 8090 未放行）。`);
-      console.log('     远程放行示例： firewall-cmd --add-port=8090/tcp --permanent && firewall-cmd --reload');
+      console.log(`   ⚠ 远程 message-service ${MSG_HOST}:${MSG_PORT} 不可达（常见原因：服务未启动）。`);
+      console.log('     默认 80 走 Nginx 统一入口；若后端端口才是实际开放的，用 MSG_PORT=8090 覆盖。');
       console.log('     此时不要改用本地 message-service 顶替 —— 密钥域不同会 401。');
     }
   },
