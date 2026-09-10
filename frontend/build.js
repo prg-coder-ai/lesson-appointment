@@ -113,6 +113,45 @@ function copyAssets() {
 }
 
 /*
+ * 生成前端构建元信息：打包时间 + 当前 git 信息（commit / branch / 工作区是否脏）。
+ * 产出 dist/build-info.json，并把同一对象烤进 index.html 的 window.__BUILD_INFO__，
+ * 便于前端运行时（如后端信息页）直接读取，无需额外请求。
+ */
+function getGitInfo() {
+  function exec(cmd) {
+    try {
+      return require('child_process').execSync(cmd, { cwd: ROOT, encoding: 'utf8' }).trim();
+    } catch (e) { return ''; }
+  }
+  const commit = exec('git rev-parse HEAD');
+  const branch = exec('git rev-parse --abbrev-ref HEAD');
+  const dirty = exec('git status --porcelain') !== '';
+  return { gitCommit: commit, gitBranch: branch, gitDirty: dirty };
+}
+
+function writeBuildInfo() {
+  const info = Object.assign({ buildTime: new Date().toISOString() }, getGitInfo());
+  fs.writeFileSync(path.join(DIST, 'build-info.json'), JSON.stringify(info, null, 2));
+  console.log('  build-info', JSON.stringify(info));
+  return info;
+}
+
+function injectBuildInfoGlobal(info) {
+  const f = path.join(DIST, 'index.html');
+  if (!fs.existsSync(f)) return;
+  let html = fs.readFileSync(f, 'utf8');
+  const script = '<script>window.__BUILD_INFO__=' + JSON.stringify(info) + ';</script>';
+  if (html.indexOf('</head>') >= 0) {
+    html = html.replace('</head>', script + '</head>');
+  } else if (html.indexOf('</body>') >= 0) {
+    html = html.replace('</body>', script + '</body>');
+  } else {
+    html += script;
+  }
+  fs.writeFileSync(f, html);
+}
+
+/*
  * 站点地址硬编码检查（origin lint）
  * 默认在构建前执行：扫源码中的 'http://'+hostname+':端口' / localhost:端口 / IP:端口 写法。
  * 这类写法在本地 dev 代理下正常，生产会跳到未开放端口（曾导致注册后跳 :8080）。
@@ -145,5 +184,8 @@ function runOriginLint() {
   await buildHtml();
   console.log('[build] assets');
   copyAssets();
+  console.log('[build] build-info');
+  const info = writeBuildInfo();
+  injectBuildInfoGlobal(info);
   console.log('=== frontend build done ->', DIST, '===');
 })();

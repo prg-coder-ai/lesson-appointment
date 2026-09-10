@@ -46,6 +46,7 @@
       .bi-error { padding: 40px 0; text-align: center; color: #f5222d; font-size: 14px; }
       .bi-ok-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #52c41a; margin-right: 6px; }
       .bi-bad-down { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #f5222d; margin-right: 6px; }
+      .bi-frontend-build { padding: 12px 20px; background: #f7faff; border-bottom: 1px solid #f0f0f0; }
     `;
     document.head.appendChild(style);
   }
@@ -207,6 +208,35 @@
     return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
+  /** 渲染「前端构建信息」块：优先读 window.__BUILD_INFO__（由 build.js 烤进 index.html），
+   *  缺失时回退 fetch 同目录 build-info.json；都拿不到则提示不可用。 */
+  function renderFrontendBuildInfo(el) {
+    function fill(info) {
+      if (!info || (!info.buildTime && !info.gitCommit)) {
+        el.innerHTML = '<span style="color:#999;">前端构建信息不可用（dist 未含 build-info.json）</span>';
+        return;
+      }
+      var rows = [
+        ['打包时间 buildTime', info.buildTime],
+        ['Git 提交 gitCommit', info.gitCommit],
+        ['Git 分支 gitBranch', info.gitBranch],
+        ['工作区是否脏 gitDirty', info.gitDirty ? '是（构建时存在未提交改动）' : '否']
+      ];
+      el.innerHTML =
+        '<div class="bi-group-title" style="margin:0 0 6px;"><i class="fa fa-cube"></i> 前端构建信息（本静态包）</div>' +
+        '<table class="bi-info-table"><tbody>' +
+        rows.map(function (r) { return '<tr><th>' + r[0] + '</th><td>' + esc(r[1]) + '</td></tr>'; }).join('') +
+        '</tbody></table>';
+    }
+    if (window.__BUILD_INFO__) { fill(window.__BUILD_INFO__); return; }
+    try {
+      fetch('build-info.json', { cache: 'no-cache' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (info) { fill(info); })
+        .catch(function () { fill(null); });
+    } catch (e) { fill(null); }
+  }
+
   /* ==================== 渲染 ==================== */
   function renderInfoTable(info, svc) {
     var conn = (info && info.connection) ? info.connection : null;
@@ -309,6 +339,7 @@
                     </div>`;
           }).join('')}
         </div>
+        <div class="bi-frontend-build" id="bi-frontend-build"></div>
         <div class="bi-tab-bar">
           ${BACKEND_SERVICES.map(function (s, i) {
             return `<button class="bi-tab-btn ${i === 0 ? 'active' : ''}" data-bi-key="${s.key}">
@@ -320,6 +351,7 @@
       </div>`;
 
     var bodyEl = document.getElementById('bi-body');
+    renderFrontendBuildInfo(document.getElementById('bi-frontend-build'));
     var tabs = host.querySelectorAll('.bi-tab-btn');
 
     function activate(key) {
