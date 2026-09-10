@@ -4,7 +4,9 @@
   "private": true,
   "description": "业务前端（student/teacher/booking/admin/auditLog）压缩混淆构建",
   "scripts": {
-    "build": "node build.js"
+    "build": "node build.js",
+    "lint:origin": "node tools/check-origin.js",
+    "lint:origin:strict": "node tools/check-origin.js --strict"
   },
   "devDependencies": {
     "terser": "^5.31.0",

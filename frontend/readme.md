@@ -12,7 +12,7 @@
   - 源码根：`frontend/`（含 `node_modules/`、`target/`、`pom.xml`、测试目录，**不入库、不上线**）
   - 部署产物：`frontend/dist/`（由构建脚本压缩混淆生成，结构镜像源码、文件名不变）
   - `frontend/.gitignore` 已忽略 `dist/`、`node_modules/`、`target/`。**线上发布的是 `dist/`，不是源码 `frontend/`**。
-- **运行方式**：由 Nginx 静态托管 `dist/`（默认 `:8080`），浏览器侧的 API 调用经 Nginx 同源反代 `/api/v1/` 转发到后端，**无跨域**。
+- **运行方式**：Nginx 静态托管 `dist/` 并同源反代 `/api/v1/`（**无跨域**）。监听端口由 Nginx 站点决定：本地开发代理默认 `:8080`，生产通常 `:80`/`:443`。**前端代码不感知端口**——跳转一律 `location.origin`，请求一律相对路径。
 
 ---
 
@@ -43,8 +43,10 @@ frontend/
 │   ├── messages-inbox.js     # 消息收件箱（对接 message-service）
 │   └── test/testData.js      # 批量造数工具（发行版隐藏菜单，不进 dist 构建）
 ├── images/                 # 图标等静态资源
+├── tools/
+│   └── check-origin.js      # 站点地址硬编码检查（构建前自动跑，见第 6.2 节）
 ├── build.js                # 压缩混淆构建脚本（terser + clean-css + html-minifier-terser）
-├── package.json            # 含 build 脚本；.npmrc 锁定官方 registry
+├── package.json            # 含 build / lint:origin 脚本；.npmrc 锁定官方 registry
 └── pom.xml                 # packaging=pom，frontend-maven-plugin 自动下载 Node/npm 并触发构建
 ```
 
@@ -65,9 +67,14 @@ frontend/
 跨源导航常量在 `js/public/api.js` 中定义（后端 `static/` 已删除，**现仅此一份，无需再同步**）：
 
 ```js
-window.ADMIN_ORIGIN    = window.ADMIN_ORIGIN    || ('http://' + location.hostname + ':8081'); // 遗留变量，已不再使用
-window.FRONTEND_ORIGIN = window.FRONTEND_ORIGIN || ('http://' + location.hostname + ':8080'); // 业务前端 + 平台管理端
+// 2026-09-10 起：默认同源。需要独立子域部署管理端时，由页面显式注入同名变量覆盖即可
+window.ADMIN_ORIGIN    = window.ADMIN_ORIGIN    || location.origin;
+window.FRONTEND_ORIGIN = window.FRONTEND_ORIGIN || location.origin;
 ```
+
+> **地址约定（务必遵守）**：前端**不拼接任何主机 + 端口**。同源用 `location.origin`，接口用相对路径或 `window.API_BASE_URL`（默认为空=同源）。
+> 旧的 `'http://' + location.hostname + ':8080'` 写法在本地 dev 代理下正常、生产会跳到未开放端口
+> （2026-09-09 平台管理员注册后跳 `:8080` 即由此引起）。构建前会自动检查，见第 6.2 节。
 
 登录分发逻辑（`api.js`，2026-09-09 起 `platform_admin` 也走 `FRONTEND_ORIGIN`）：
 - `platform_admin` 角色 → `FRONTEND_ORIGIN + '/platform_admin.html?tCode=platform'`
@@ -81,7 +88,7 @@ window.FRONTEND_ORIGIN = window.FRONTEND_ORIGIN || ('http://' + location.hostnam
 
 | 服务 | 端口 | 作用 | 在 SaaS 仓库位置 |
 |------|------|------|------------------|
-| booking（api） | `:8081` | 主业务 API：预约/课程/用户/租户/术语（**纯后台，无静态页**） | `api/` 模块，产出 `booking_api-1.0.0.jar` |
+| booking（api） | `:8081` | 主业务 API：预约/课程/用户/租户/术语（**纯后台，无静态页**） | `api/` 模块，产出 `booking_api-2.0.0.jar` |
 | message-service | `:8090` | 消息中心：收件箱/模板/SSE 推送/投递追踪（**纯后台，无静态页**） | `message-service/` 模块，独立库 `message_center` |
 | 前端（Nginx） | `:8080` | 静态托管 `dist/`，同源反代 `/api/v1` | 本目录构建产物 |
 
@@ -164,6 +171,28 @@ java -classpath "$M2\boot\plexus-classworlds-2.9.0.jar" \
 
 > 仅改业务前端（如 `admin-user.js`、`termsFunction.js`）只需重打 **frontend 模块**；API jar 不含业务前端，无需重打。
 
+### 6.2 构建前的地址硬编码检查（origin lint）
+
+`build.js` 在构建**之前**自动执行 `tools/check-origin.js`，扫描源码（跳过 `js/test/`、`node_modules/`、`dist/`、`tools/`）中的 4 类写法：
+
+| 规则 ID | 命中写法 | 为什么禁 |
+|---|---|---|
+| `HOSTNAME_PORT` | `'http://' + location.hostname + ':8080'` | 生产没有该 dev 端口，跳转/请求必失败 |
+| `PROTO_HOSTNAME` | `'http://' + location.host`（拼绝对地址） | 同上，且绕过 Nginx 同源反代 |
+| `LOCALHOST_URL` | `'http://localhost:8081'` | 该地址指向**访客自己的机器**，生产必错 |
+| `IP_URL` | `'http://152.136.254.127:8081'` | 服务器 IP/域名会变，写死必漂移 |
+
+- **默认发现即中止构建**（不会删已有 dist），请先修正；确属说明文案（如界面上的"业务后台（:8081）"）就在该行加注释 `/* ORIGIN-LINT-DISABLE */` 豁免。
+- 单独执行：
+
+```bash
+cd frontend
+npm run lint:origin          # 只看告警，不阻断
+npm run lint:origin:strict   # 发现即 exit 1（CI / 发版前推荐）
+```
+
+- 紧急发版临时跳过：`SKIP_ORIGIN_LINT=1 node build.js`（**不建议常态化**）。
+
 ---
 
 ## 7. Nginx 配置
@@ -215,12 +244,12 @@ server {
 
 ## 8. 常见维护坑
 
-1. **API 基址不一致**：若历史代码把 `API_BASE_URL` 写死成 `http://localhost:8081`，会与 `utility_request.js` 的同源实例冲突，表现为"部分接口坏、随页面切换变化"。保持 `api.js` 中 `API_SERVER_HOST/PORT` 为空（同源）即可。
+1. **API 基址不一致**：若历史代码把 `API_BASE_URL` 写死成 `http://localhost:8081`，会与 `utility_request.js` 的同源实例冲突，表现为"部分接口坏、随页面切换变化"。保持 `api.js` 中 `API_SERVER_HOST/PORT` 为空（同源）即可；构建前的 `lint:origin` 会拦截这类写法。
 2. **改了前端却没生效**：记得发布的是 `dist/`，改完源码必须重跑 `mvn package` 重建 dist 并上传到 Nginx `root`。
 3. **SSE 收不到推送**：Nginx 未关缓冲 → 在 `/api/v1/sse` 加 `proxy_buffering off;`。
 4. **术语/语言不切换**：确认元素带 `data-term`/`data-term-placeholder` 标记，且 key 在 `terms.js` 或 `/term/map` 中存在；动态内容渲染后须调 `applyTerms(container)`。
 5. **管理端 vs 租户端混淆**：`platform_admin.html`（平台端，系统级）≠ `admin.html`（租户端，租户级）。二者**现在都在本前端 `:8080`**（平台端于 2026-09-09 迁入），共用 `css/admin.css` —— 改该 CSS 会同时影响两页。
-6. **登录后跳错端口**：所有角色都应跳 `FRONTEND_ORIGIN`（`:8080`）。若 `platform_admin` 仍跳 `ADMIN_ORIGIN`（`:8081`）说明代码是迁移前的旧版，会 404/500。
+6. **登录后跳错端口（2026-09-09 真实事故）**：`api.js` 曾把 `FRONTEND_ORIGIN` 兜底成 `'http://'+location.hostname+':8080'`，生产未注入该变量 → 平台管理员注册后跳到未开放的 8080。**现已改为默认 `location.origin`**；新增的规则会被 `lint:origin` 拦住。需要跨站部署时，在页面里 `<script>window.FRONTEND_ORIGIN='https://admin.example.com'</script>` 注入即可。
 7. **后端根路径不再是页面**：`http://<host>:8081/` 与 `http://<host>:8090/` 只返回「缺省自我标识页」（程序名/版本/服务器时间/时区/已运行时长），用于确认进程存活；页面一律走前端。
 8. **本机 mvn 损坏**：用第 6.1 节的 Maven launcher 直启命令，不要依赖系统 `mvn`。
 

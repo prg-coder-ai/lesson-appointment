@@ -1,5 +1,4 @@
-// 全局常量（后端可通过Thymeleaf注入，如 th:inline="javascript"）
-//const API_BASE_URL = 'http://localhost:8081'; // 优先取后端注入的地址
+// 全局常量：统一取 js/public/api.js 导出的 API_BASE_URL（默认同源，由 Nginx 反代 /api/v1）
 const baseUrl = API_BASE_URL;
 
 // 全局变量（替代Vue响应式，直接操作DOM/变量）

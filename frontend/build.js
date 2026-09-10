@@ -112,7 +112,30 @@ function copyAssets() {
   console.log('  assets copied (images/fonts/others)');
 }
 
+/*
+ * 站点地址硬编码检查（origin lint）
+ * 默认在构建前执行：扫源码中的 'http://'+hostname+':端口' / localhost:端口 / IP:端口 写法。
+ * 这类写法在本地 dev 代理下正常，生产会跳到未开放端口（曾导致注册后跳 :8080）。
+ * - 发现即中止构建，修完再构建；确属说明文案就在该行加 ORIGIN-LINT-DISABLE 注释豁免
+ * - 紧急发版可临时跳过：SKIP_ORIGIN_LINT=1 node build.js
+ */
+function runOriginLint() {
+  if (process.env.SKIP_ORIGIN_LINT === '1') {
+    console.log('  skipped (SKIP_ORIGIN_LINT=1)');
+    return true;
+  }
+  const script = path.join(ROOT, 'tools', 'check-origin.js');
+  if (!fs.existsSync(script)) { console.log('  checker not found, skipped'); return true; }
+  const r = require('child_process').spawnSync(process.execPath, [script, '--strict'], { stdio: 'inherit' });
+  return r.status === 0;
+}
+
 (async () => {
+  console.log('[lint] hardcoded origin');
+  if (!runOriginLint()) {
+    console.error('=== frontend build ABORTED: 存在硬编码站点地址，请修正后重新构建 ===');
+    process.exit(1);
+  }
   fs.rmSync(DIST, { recursive: true, force: true });
   console.log('[build] JS');
   await buildJs();
