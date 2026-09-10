@@ -147,10 +147,10 @@
       // 系统日志 / 审计日志：与 admin.html 一致，跳转到独立页面浏览。
       // 带 from 参数，使日志页的「返回」按钮能回到平台管理端而不是 admin.html。
       case "sys_log":
-        window.location.href = './logBrowser.html?from=platform_admin.html';
+        window.location.href = ((typeof window.pageUrl === 'function') ? window.pageUrl('logBrowser.html', { from: 'platform_admin.html' }) : './logBrowser.html?from=platform_admin.html');
         break;
       case "audit_log":
-        window.location.href = './auditLog.html?from=platform_admin.html';
+        window.location.href = ((typeof window.pageUrl === 'function') ? window.pageUrl('auditLog.html', { from: 'platform_admin.html' }) : './auditLog.html?from=platform_admin.html');
         break;
       // 后台信息：展示 booking_api / message-service 的运行信息（getApiInfo 全字段）
       case "backend_info":
@@ -195,7 +195,7 @@
       if (typeof window.saveLoginRedirect === 'function') {
         window.saveLoginRedirect('noauth');
       }
-      location.href = './index.html';
+      location.href = ((typeof window.pageUrl === 'function') ? window.pageUrl('index.html') : './index.html');
       return;
     }
 
@@ -204,7 +204,7 @@
       if (typeof window.redirectToUserPage === 'function') {
         window.redirectToUserPage(user);
       } else {
-        location.href = './index.html';
+        location.href = ((typeof window.pageUrl === 'function') ? window.pageUrl('index.html') : './index.html');
       }
       return;
     }

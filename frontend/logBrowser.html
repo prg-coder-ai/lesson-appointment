@@ -123,7 +123,7 @@
       var user = getCurrentUserInfo();
       if (!user) {
         saveLoginRedirect && saveLoginRedirect('no-login');
-        window.location.href = './index.html';
+        window.location.href = ((typeof window.pageUrl === 'function') ? window.pageUrl('index.html') : './index.html');
         return;
       }
       // 租户管理员(admin) 与平台管理员(platform_admin) 均可查看系统日志。
@@ -146,7 +146,7 @@
       } else if (document.referrer) {
         window.history.back();
       } else {
-        window.location.href = './admin.html';
+        window.location.href = ((typeof window.pageUrl === 'function') ? window.pageUrl('admin.html') : './admin.html');
       }
     }
   </script>

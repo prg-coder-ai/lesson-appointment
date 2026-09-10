@@ -50,7 +50,7 @@
     let msg = '网络异常，请稍后重试';
     if (error.response) {
       const st = error.response.status;
-      if (st === 401) { msg = '登录已过期，请重新登录'; cleanupAuth(); setTimeout(function () { location.href = './index.html'; }, 600); }
+      if (st === 401) { msg = '登录已过期，请重新登录'; cleanupAuth(); setTimeout(function () { location.href = ((typeof window.pageUrl === 'function') ? window.pageUrl('index.html') : './index.html'); }, 600); }
       else if (st === 403) { msg = '无权限访问该资源'; }
       else if (st === 404) { msg = '接口地址不存在'; }
       else if (st === 500) { msg = '服务器内部错误'; }
@@ -77,7 +77,7 @@
     let msg = '网络异常，请稍后重试';
     if (error.response) {
       const st = error.response.status;
-      if (st === 401) { msg = '登录已过期，请重新登录'; cleanupAuth(); setTimeout(function () { location.href = './index.html'; }, 600); }
+      if (st === 401) { msg = '登录已过期，请重新登录'; cleanupAuth(); setTimeout(function () { location.href = ((typeof window.pageUrl === 'function') ? window.pageUrl('index.html') : './index.html'); }, 600); }
       else if (st === 403) { msg = '无权限访问该资源'; }
       else { msg = '请求错误：' + st; }
     }

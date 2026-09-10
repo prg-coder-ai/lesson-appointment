@@ -7,7 +7,14 @@
 
 ---
 
-## 1. 执行结果
+> **当前状态：已修复并回归通过（2026-09-10）**
+> 修复后 `node doc-develop/itest_tcode_propagation.js` → **PASS 32 / FAIL 0**（修复前 18/9）。
+> 所有跳转改经 `js/public/api.js` 的 `pageUrl()` / `resolveTenantCode()` 统一拼接，详见第 4 节。
+> dist 已重建，**服务器上需重新 rsync 前端产物才生效**。
+
+---
+
+## 1. 排查时的执行结果（修复前）
 
 ```
 PASS: 18   FAIL: 9
@@ -63,9 +70,9 @@ A（入口守卫 5 项）、B4、D5、D6、E（6 个受保护页）全部通过�
 
 ---
 
-## 3. 统一修复方案（建议，待确认后实施）
+## 3. 修复方案（**已实施**）
 
-在 `js/public/api.js` 加一个公共 helper，所有跳转改走它，避免逐处拼接：
+在 `js/public/api.js` 增加一个公共 helper，所有跳转改走它，避免逐处拼接：
 
 ```js
 /** 求当前应保持的租户编码：URL tCode > 本地登录 tenantCode > 角色默认值 */
@@ -87,13 +94,40 @@ function pageUrl(file, extraParams) {
 }
 ```
 
-配套动作：
+### 3.1 实际采用的实现
 
-1. `auth.js: saveCurrentUserSession` 补存 `tenantCode`（从登录入参或 `currentUser` 取）。
-2. `redirectToUserPage` 四个分支改用 `pageUrl()`，`platform_admin` 分支强制 `tCode=platform`。
-3. `goBack` / `handleLogout` / `getToken` 改用 `pageUrl()`；`getToken` 的 `/login` 改成 `index.html`。
-4. `booking.html` 四个分支（59/66/73/75）改用 `pageUrl()` 并保留原有 `scdid/tid/sid`。
-5. `platform_admin.html` / `admin.html` / `auditLog.html` / `logBrowser.html` / `student.html` / `teacher.html` 内联跳转同步替换。
-6. `api.js` 里 `autoLoginCheck1` 死码段建议删除（内部有未闭合 `try`，且实际不被调用）。
+```js
+/** 求「本次跳转应当携带的租户编码」 */
+function resolveTenantCode(user) {
+  const role = (user && user.role) || ((getCurrentUserInfo() || {}).role);
+  if (role === 'platform_admin') return 'platform';   // 平台账号跨租户，恒 platform
+  const urlCode = getUrlParam('tCode');
+  if (urlCode) return urlCode;                        // 优先级最高：当前租户专属链接
+  if (user && user.tenantCode) return user.tenantCode;
+  const local = getCurrentUserInfo();
+  if (local && local.tenantCode) return local.tenantCode;
+  return '';                                          // 拿不到线索 → 不附加参数
+}
 
-验收：`node doc-develop/itest_tcode_propagation.js` 需达到 **PASS 27 / FAIL 0**（当前 18/9）。
+function pageUrl(file, extra, absolute, user) { /* 拼盘；tCode 最后 set，防重名覆盖 */ }
+```
+
+**关键设计：兜底不回填 `'default'`** —— 登录页 `index.html` 一见到 `tCode` 就会隐藏并锁定租户输入框
+（`applyTenantCodeRule`），若凭空补 `'default'`，原本「让用户自己填租户编码」的普通入口会被写死成 default 入口。
+
+### 3.2 配套动作（均已落地）
+
+1. ✅ `auth.js: saveCurrentUserSession` 补存 `tenantCode`（这正是 `?tCode=undefined` 的根因）
+2. ✅ `redirectToUserPage` 四分支 + 未知身份兜底改用 `pageUrl()`
+3. ✅ `goBack` / `handleLogout` / `getToken` 改用 `pageUrl()`；`getToken` 的 `/login`（不存在的页面）改成 `index.html`
+4. ✅ `booking.html` 新增 `toPage()` 薄封装，student / teacher / admin / platform_admin / 未登录五个分支全部带上 `tCode`
+5. ✅ `platform_admin.html` / `admin.html` / `auditLog.html` / `logBrowser.html` / `student.html` / `teacher.html` / `index.html` 内联跳转同步替换
+6. ✅ `utility_request.js`、`messages-inbox.js` 的 401 兜底跳转带上 `tCode`
+7. ❗ `api.js` 的 `autoLoginCheck1` 死码段（含未闭合 try、内部重复定义 `isJwtExpired`、引用未定义变量 `user`）**未删除**，仅把跳转改走 `pageUrl`，避免超出本次改动范围
+
+### 3.3 遗漏（未处理）
+
+- `js/admin-user.js:441` → `'./teacherInfo.html?userId=..'`，但 `teacherInfo.html` 在项目里**不存在**（疑似死链），与本次主题无关，待确认业务意图后再处理。
+
+验收：`node doc-develop/itest_tcode_propagation.js` → **PASS 32 / FAIL 0**（覆盖 A 入口守卫 5 项、B 角色跳转 6 项、
+C 通用跳转 4 项、D booking 路由 6 项、E 六个受保护页、F helper 行为 5 项）。

@@ -57,7 +57,9 @@
     localStorage.removeItem('currentUser');
     localStorage.removeItem('auth_menu_state');  // 常见菜单状态，按需扩展
     document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
-    location.href = './index.html';
+    // 回到登录页时保留租户链接参数：pageUrl 由 api.js 提供（自动附 tCode），
+    // 缺失时降级为相对路径，保证不因 helper 未加载而跳转失败
+    location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('index.html') : './index.html';
   }
   
   /**
@@ -85,6 +87,18 @@
       role: user.role,
       token: user.token
     };
+    // tenantCode 必须落盘：后端登录响应不返回该字段，若不补，
+    // 后续 redirectToUserPage(user) 会拼出 'xxx.html?tCode=undefined'，
+    // 目标页入口守卫因此把用户踢回登录页。
+    let tCode = user.tenantCode || '';
+    if (!tCode && typeof window.getUrlParam === 'function') tCode = window.getUrlParam('tCode') || '';
+    if (!tCode) {
+      try {
+        const old = JSON.parse(localStorage.getItem('currentUser') || 'null');
+        tCode = (old && old.tenantCode) || '';
+      } catch (e) { /* 旧值不可解析则忽略 */ }
+    }
+    if (tCode) currentUser.tenantCode = tCode;
     localStorage.setItem('currentUser', JSON.stringify(currentUser));
     try {
       const d = new Date();

@@ -457,7 +457,7 @@
             undefined;
             saveLoginRedirect('401');
             setTimeout(() => {
-              location.href = './index.html';
+              location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('index.html') : './index.html';
             }, 500);
           }
           return Promise.reject(refreshErr);
@@ -479,7 +479,7 @@
             undefined;
             saveLoginRedirect('401');
             setTimeout(() => {
-              location.href = './index.html';
+              location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('index.html') : './index.html';
             }, 500);
           }
           break;

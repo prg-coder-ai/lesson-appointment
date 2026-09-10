@@ -245,7 +245,7 @@
           }
           break;
         case "audit_log":
-          window.location.href = `./auditLog.html`;
+          window.location.href = ((typeof window.pageUrl === 'function') ? window.pageUrl('auditLog.html') : './auditLog.html');
           break;
         case "base_config":
           if(dynamicContentCenter)
@@ -336,7 +336,7 @@
           window.saveLoginRedirect('noauth');
         }
         // 保留 onload 已做过的 cookie 回写，避免丢失
-        location.href = './index.html';
+        location.href = ((typeof window.pageUrl === 'function') ? window.pageUrl('index.html') : './index.html');
         return; // 不再执行后续的 DOM 渲染
       }
 

@@ -1,15 +1,15 @@
 <!DOCTYPE html>
-<html lang="zh-CN" , xmlns:th="http://www.thymeleaf.org">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<html lang="zh-CN" , xmlns:th="http://www.thymeleaf.org" data-page-node-id="xsNz8yrHYDmt5PopdWRKhg">
+<head data-page-node-id="f7XuuoCU9AkXoIAcI9Ep7R">
+  <meta charset="UTF-8" data-page-node-id="S55SCg97ITADBTMmcFOgq8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="EEoRfg9VJaBh4MnPRZlpMm">
   <title>语言教学预约系统 - 统一登录入口</title>
-  <link rel="icon" href="/favicon.ico" type="image/x-icon">
-  <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" data-page-node-id="s3PsOF8Yj4lA2xMqcM9ItE">
+  <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" data-page-node-id="cIeS1DZw6RHJdNn3hRu9XJ">
   <!-- 引入公共样式 -->
   <!--- link rel="stylesheet" href="/css/common.css" -->
   <!-- 引入图标库 -->
-  <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css" data-page-node-id="EgDem3ilIMy1oYyltOXxDI">
   <style>
     /* 新增注册弹窗样式（可整合到common.css） */
     .login-container {
@@ -121,55 +121,55 @@
     }
   </style>
 </head>
-<body>
+<body data-page-node-id="b81NbYRwJeCAHLXhsyCYJF">
   <!-- 登录容器 -->
-  <div class="login-container">
-    <div class="login-header">
-      <div class="title"><span id="brand-title">语言教学预约系统</span></div>
-      <div class="logo"><i class="fa fa-file-signature"></i></div>
+  <div class="login-container" data-page-node-id="QILFkj1AXtCYAbI4entGok">
+    <div class="login-header" data-page-node-id="rVDStF4LEwuDUg16HU4DKz">
+      <div class="title" data-page-node-id="hwSU6wtYwHr7N1WlUW43w3"><span id="brand-title" data-page-node-id="rkBhirHjPaqdem4Z3ftgF1">语言教学预约系统</span></div>
+      <div class="logo" data-page-node-id="a490sTqybnaarKCvmbEs9K"><i class="fa fa-file-signature" data-page-node-id="uttLklCGCxCHcek7k3EhyN"></i></div>
       
-      <div class="subtitle">请登录</div>
+      <div class="subtitle" data-page-node-id="TtbFjUZTNGmXDBu3Boqvhg">请登录</div>
     </div>
 
     <!--class="modal-content"  登录表单 -->
-    <form class="modal-content"  id="login-form">
+    <form class="modal-content"  id="login-form" data-page-node-id="osIuIBNrz5xs49cO684ssS">
 
-      <div class="form-item">
-        <label for="username">账号</label>
-        <input type="text" id="username" placeholder="请输入账号" required>
-        <div class="error-tip" id="username-error">请输入账号</div>
+      <div class="form-item" data-page-node-id="httb4h5RPTQxjfimXrnZlT">
+        <label for="username" data-page-node-id="V4icdxP0Wpm0cSl7GBcQxY">账号</label>
+        <input type="text" id="username" placeholder="请输入账号" required data-page-node-id="dhsju9DJ4WRIjL2rjzPZ5L">
+        <div class="error-tip" id="username-error" data-page-node-id="mSbCIFy15s0uwECv9kGfyo">请输入账号</div>
       </div>
 
-      <div class="form-item">
-        <label for="password">密码</label>
-        <input type="password" id="password" placeholder="请输入密码" required>
-        <div class="error-tip" id="password-error">请输入密码</div>
+      <div class="form-item" data-page-node-id="HQz3GEm88eaGbylCBzLxPb">
+        <label for="password" data-page-node-id="20gkvhIJhxlX54mHGtXfKE">密码</label>
+        <input type="password" id="password" placeholder="请输入密码" required data-page-node-id="hEDXv3QlH3AXEPS7SyoZF0">
+        <div class="error-tip" id="password-error" data-page-node-id="apvnagkVnsCLPdR9PAwMgn">请输入密码</div>
       </div>
-      <div class="form-item">
-        <label for="login-role">登录身份</label>
-        <select id="login-role" required onchange="applyLoginTenantRule()">
-          <option value="">请选择身份</option>
-          <option value="platform_admin">平台管理员</option>
-          <option value="tenant">租户端</option>
+      <div class="form-item" data-page-node-id="PsunMOF7tEmjNfVrKcel4Q">
+        <label for="login-role" data-page-node-id="JLJFA8BnAKQ26Uh9hvIFaC">登录身份</label>
+        <select id="login-role" required onchange="applyLoginTenantRule()" data-page-node-id="WLEYjs1TFnJXY5jybexxzC">
+          <option value="" data-page-node-id="PK73P3dzr10JyECc0NlM99">请选择身份</option>
+          <option value="platform_admin" data-page-node-id="YvdYPy5Nryp6ndDridrjwC">平台管理员</option>
+          <option value="tenant" data-page-node-id="UoyViQr54IrksdRHr96djd">租户端</option>
         </select>
-        <div class="error-tip" id="login-role-error">请选择登录身份</div>
+        <div class="error-tip" id="login-role-error" data-page-node-id="Ob3ZwZofwZmiUA10ZOAFEX">请选择登录身份</div>
       </div>
 
-      <div class="form-item">
-        <label for="login-tenant-code">租户编码</label>
-        <input type="text" id="login-tenant-code" required placeholder="平台管理员自动锁定为 platform；租户端可手动填写或由专属链接带入">
-        <div class="error-tip" id="login-tenant-code-error">请填写租户编码</div>
+      <div class="form-item" data-page-node-id="8510rGFftRs9QUN5cS09Df">
+        <label for="login-tenant-code" data-page-node-id="v64ketBKg4OxYFcM9Kbrm0">租户编码</label>
+        <input type="text" id="login-tenant-code" required placeholder="平台管理员自动锁定为 platform；租户端可手动填写或由专属链接带入" data-page-node-id="R7g6WrwIHgBsJi8HffmgBC">
+        <div class="error-tip" id="login-tenant-code-error" data-page-node-id="TFLn5gHCeS6QpB1HCjBDZf">请填写租户编码</div>
       </div>
 
-      <button type="submit" class="btn" id="login-btn">
-        <span id="btn-text">登录系统</span>
+      <button type="submit" class="btn" id="login-btn" data-page-node-id="sAEYdHnUfMmt608Jw3x4qb">
+        <span id="btn-text" data-page-node-id="fIR4fRQNXvXKL2LGBG0Okx">登录系统</span>
       </button>
       <!-- 【修改】新增 display: none 隐藏初始错误提示 -->
-      <div class="error-tip" id="login-error" style="text-align: center; margin-top: 16px; display: none;">账号或密码错误，请重试</div>
-      <div class="error-tip" id="api-error-tip"></div>
+      <div class="error-tip" id="login-error" style="text-align: center; margin-top: 16px; display: none;" data-page-node-id="DC2J2ceE67CQXPMJjlTmRd">账号或密码错误，请重试</div>
+      <div class="error-tip" id="api-error-tip" data-page-node-id="eJ0Q4AuOKKZOaUP8yjlCKW"></div>
       <!-- 新增注册按钮 -->
-      <div class="register-btn">
-        <a href="javascript:;" id="show-register">还没有账号？点击注册</a>
+      <div class="register-btn" data-page-node-id="ar1H2D9nbrR31xkw2xUSFB">
+        <a href="javascript:;" id="show-register" data-page-node-id="obqEQe1in7OrhLBr8eGbiU">还没有账号？点击注册</a>
       </div>
       
     </form>
@@ -178,57 +178,57 @@
    <option value="admin">管理员</option>
    -->
   <!-- 新增注册弹窗 -->
-  <div class="modal-mask" id="register-modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>用户注册</h3>
-        <span class="modal-close" id="close-modal"><i class="fa fa-times"></i></span>
+  <div class="modal-mask" id="register-modal" data-page-node-id="ECC1PRPyKj1DnYgl40MD0I">
+    <div class="modal-content" data-page-node-id="zXKPv7wVbRxodtPF9ayoW0">
+      <div class="modal-header" data-page-node-id="6QjmbfK6UpSt5d87T3bdZ0">
+        <h3 data-page-node-id="j5hyir8xBIb2pBc86zEsDQ">用户注册</h3>
+        <span class="modal-close" id="close-modal" data-page-node-id="AHG6wnYE8sANEOW46PfdGq"><i class="fa fa-times" data-page-node-id="rqE45RRTlmBWFvCbobz2KT"></i></span>
       </div>
-      <form id="register-form">
-        <div class="form-item">
-          <label for="register-role">注册身份</label>
-          <select id="register-role" required onchange="applyTenantCodeRule()">
-            <option value="">请选择身份</option>
+      <form id="register-form" data-page-node-id="AsFaamWmsyVyw56dIFVC9k">
+        <div class="form-item" data-page-node-id="UcEZONdeWWzBFaTLEkqnfN">
+          <label for="register-role" data-page-node-id="EXLOM7LuMF9VmtiOGfUFfa">注册身份</label>
+          <select id="register-role" required onchange="applyTenantCodeRule()" data-page-node-id="zAfcgKkdKOLzb1qkw606GN">
+            <option value="" data-page-node-id="gNFeTYp9EETj4ETtXnoSnE">请选择身份</option>
             <!-- 角色值必须与后端 RoleConst 一致：platform_admin 用下划线，
                  写成 platform-admin 会导致注册出的平台管理员登录与鉴权都失败 -->
-            <option value="platform_admin">平台管理员</option>
-             <option value="admin">系统管理员</option>
-            <option value="teacher"><span data-term="teacher">教师</span></option>
-            <option value="student"><span data-term="student">学生</span></option>
+            <option value="platform_admin" data-page-node-id="zt5F3hxFb1s1bd3ltIfTXH">平台管理员</option>
+             <option value="admin" data-page-node-id="bI4sWACctEZr0KuXZnwo3J">系统管理员</option>
+            <option value="teacher" data-page-node-id="kKHNL4d1pCFTq5zCYsE2T1"><span data-term="teacher" data-page-node-id="adY9wH9OaaYrD89qgxoQMX">教师</span></option>
+            <option value="student" data-page-node-id="eg4tcCZhzeiy7KQ9daQYOG"><span data-term="student" data-page-node-id="6J5BtsCZspJq9BYVOGYZC0">学生</span></option>
           </select>
-          <div class="error-tip" id="register-role-error">请选择注册身份</div>
+          <div class="error-tip" id="register-role-error" data-page-node-id="uaskIXAoNWEaxrmJkyvOoc">请选择注册身份</div>
         </div>
-        <div class="form-item">
-          <label for="register-username">账号(邮箱或电话号码)</label>
-          <input type="text" id="register-username" placeholder="请设置账号（字母/数字）" required>
-          <div class="error-tip" id="register-username-error">请输入账号</div>
+        <div class="form-item" data-page-node-id="MiDWR7BcTA7A6cwCPdvVuv">
+          <label for="register-username" data-page-node-id="Nad8I4oAn3iYGWE1bKJQUG">账号(邮箱或电话号码)</label>
+          <input type="text" id="register-username" placeholder="请设置账号（字母/数字）" required data-page-node-id="43cmwpxKDw8HH0WHzWIy2J">
+          <div class="error-tip" id="register-username-error" data-page-node-id="MIJ5QKvmTtwBaLSFT4a1jE">请输入账号</div>
         </div>
-        <div class="form-item">
-          <label for="register-name">真实姓名</label>
-          <input type="text" id="register-name" placeholder="请输入真实姓名" required>
-          <div class="error-tip" id="register-name-error">请输入真实姓名</div>
+        <div class="form-item" data-page-node-id="dwSDc3JxKsgEhmK34ElKU6">
+          <label for="register-name" data-page-node-id="dLgWoR1BswqonRtRemUPws">真实姓名</label>
+          <input type="text" id="register-name" placeholder="请输入真实姓名" required data-page-node-id="9rYYQFjjlTCzAvybpEml35">
+          <div class="error-tip" id="register-name-error" data-page-node-id="pRx8Aa1TGXCr6UlKmfDcPe">请输入真实姓名</div>
         </div>
         
-        <div class="form-item">
-          <label for="register-password">密码</label>
-          <input type="password" id="register-password" placeholder="请设置密码" required>
-          <div class="error-tip" id="register-password-error">请输入密码</div>
+        <div class="form-item" data-page-node-id="mPzatbgOG2w2A1ORwAaRzc">
+          <label for="register-password" data-page-node-id="koFXm4sgMlsoa11ETGzQDm">密码</label>
+          <input type="password" id="register-password" placeholder="请设置密码" required data-page-node-id="XGlqguFSFL21Mjqp8eYshK">
+          <div class="error-tip" id="register-password-error" data-page-node-id="XoiQq5B7Qa5yDdC269Gz2U">请输入密码</div>
         </div>
-        <div class="form-item">
-          <label for="register-confirm-pwd">确认密码</label>
-          <input type="password" id="register-confirm-pwd" placeholder="请再次输入密码" required>
-          <div class="error-tip" id="register-confirm-error">两次密码不一致</div>
+        <div class="form-item" data-page-node-id="Roiwo1HEX0SPuoQXWp3kNG">
+          <label for="register-confirm-pwd" data-page-node-id="W0YCUCukyanR2PMnnRlDcf">确认密码</label>
+          <input type="password" id="register-confirm-pwd" placeholder="请再次输入密码" required data-page-node-id="eOZqof0JjnfJoolkBN7Qmq">
+          <div class="error-tip" id="register-confirm-error" data-page-node-id="ybJEE6qT6yoAai6GYMvDC0">两次密码不一致</div>
         </div>
-        <div class="form-item">
-          <label><i class="fa fa-building"></i> 租户编码</label>
-          <input type="text" id="tenant-code" placeholder="请输入租户编码">
-          <div class="error-tip" id="tenant-error"></div>
+        <div class="form-item" data-page-node-id="aHJIgJCkubDbGGQzSqcSPu">
+          <label data-page-node-id="QW44ssqA7NfSx45pdrLuer"><i class="fa fa-building" data-page-node-id="Qn6oEbJV7XPAKFOy3yxmoy"></i> 租户编码</label>
+          <input type="text" id="tenant-code" placeholder="请输入租户编码" data-page-node-id="AL2b95WXUEFyzDDz03ZV0z">
+          <div class="error-tip" id="tenant-error" data-page-node-id="BZfGA2BfEKb0ucLQU5UrAx"></div>
       </div>
 
-        <button type="submit" class="btn" id="register-btn">提交注册</button>
-        <button type="button" class="btn btn-cancel" id="cancel-register">取消</button>
-        <div class="success-tip" id="register-success">注册申请提交成功！请等待管理员审核</div>
-        <div class="error-tip" id="register-error" style="text-align: center;">账号已存在，请更换账号</div>
+        <button type="submit" class="btn" id="register-btn" data-page-node-id="lx0YSdTEGfPT3Q0Vyt3JqZ">提交注册</button>
+        <button type="button" class="btn btn-cancel" id="cancel-register" data-page-node-id="nim8KMPwXBvgnLCbeFN0xJ">取消</button>
+        <div class="success-tip" id="register-success" data-page-node-id="h7lYRD8t3uDl0MTQrPHxGD">注册申请提交成功！请等待管理员审核</div>
+        <div class="error-tip" id="register-error" style="text-align: center;" data-page-node-id="JJGUKzT7NPAGcAd43wlmSn">账号已存在，请更换账号</div>
       </form>
     </div>
   </div>
@@ -851,7 +851,7 @@ fetch('/api/v1/user/info', {
       // 可根据需要加提示
       alert('登录状态已过期，请重新登录');
       // 跳回登录页
-      window.location.href = './index.html';
+      window.location.href = ((typeof window.pageUrl === 'function') ? window.pageUrl('index.html') : './index.html');
       throw new Error('未登录或登录已失效');
     }
     return response.json();

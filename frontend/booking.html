@@ -38,11 +38,18 @@
         var sid   = params.get('sid')   || '';
 
         var userInfo = autoLoginCheck();
+        // tCode 保持：所有跳转统一经 window.pageUrl（api.js 提供），自动附加 ?tCode=租户编码
+        // helper 未加载时降级为原相对地址，避免旧版页面/缓存脚本导致整页卡死
+        function toPage(file, extra, absolute) {
+          if (typeof window.pageUrl === 'function') return window.pageUrl(file, extra, absolute, userInfo);
+          var q = extra ? ('?' + String(extra).replace(/^\?/, '')) : '';
+          return (absolute ? (adminOrigin + '/') : './') + file + q;
+        }
         if (!userInfo) {
             if (typeof window.saveLoginRedirect === 'function') {
                 window.saveLoginRedirect('noauth');
             }
-            location.href = './index.html';
+            location.href = toPage('index.html');
             return;
         }
 
@@ -56,33 +63,29 @@
         if (role === 'student') {
             if (sid && sid !== userId) {
                 msgText.textContent = '链接指定的学生与当前登录用户不一致，正在跳转到课程预订...';
-                setTimeout(function() { location.href = './student.html'; }, 2000);
+                setTimeout(function() { location.href = toPage('student.html'); }, 2000);
                 return;
             }
-            var qs = '';
-            if (scdid) qs += (qs ? '&' : '?') + 'scdid=' + encodeURIComponent(scdid);
-            if (tid)   qs += (qs ? '&' : '?') + 'tid='   + encodeURIComponent(tid);
-            if (sid)   qs += (qs ? '&' : '?') + 'sid='   + encodeURIComponent(sid);
-            location.href = './student.html' + qs;
+            location.href = toPage('student.html', { scdid: scdid, tid: tid, sid: sid });
         } else if (role === 'admin') {
             if (!scdid || !sid) {
                 msgText.textContent = '管理员预约链接需要同时指定排期ID和学生ID，正在跳转到管理后台...';
-                setTimeout(function() { location.href = './admin.html'; }, 2000);
+                setTimeout(function() { location.href = toPage('admin.html'); }, 2000);
                 return;
             }
-            location.href = './admin.html?scdid=' + encodeURIComponent(scdid) + '&sid=' + encodeURIComponent(sid);
+            location.href = toPage('admin.html', { scdid: scdid, sid: sid });
         } else if (role === 'teacher') {
-            location.href = './teacher.html';
+            location.href = toPage('teacher.html');
         } else if (role === 'platform_admin') {
             // 平台管理员是跨租户管理账号，不属于任何租户；而预约链接的 scdid/tid/sid 全部绑定
             // 到具体租户的数据，对该角色没有意义。原先会落进 else 静默跳 index.html，
             // 再由 index 的自动登录跳回 platform_admin.html —— 多一次无提示的白屏往返。
             // 这里按其他分支的惯例：先给出明确提示，再直达平台后台。
             msgText.textContent = '平台管理员为跨租户管理账号，不参与具体预约，正在跳转到平台后台...';
-            setTimeout(function() { location.href = adminOrigin + '/platform_admin.html?tCode=platform'; }, 2000);
+            setTimeout(function() { location.href = toPage('platform_admin.html', null, true); }, 2000);
         } else {
             msgText.textContent = '当前用户身份不支持访问预约链接，正在返回登录页...';
-            setTimeout(function() { location.href = './index.html'; }, 2000);
+            setTimeout(function() { location.href = toPage('index.html'); }, 2000);
         }
     };
     </script>

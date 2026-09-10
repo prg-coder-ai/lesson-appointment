@@ -265,6 +265,36 @@ async function main() {
       !jumped || !fileOf(u).endsWith('index.html') || hasTCode(u), jumped ? u : '(未跳转)');
   }
 
+  console.log('\n=========== F. pageUrl / resolveTenantCode helper 行为 ===========\n');
+  {
+    const s = loadCore({ search: '' });                      // URL 无 tCode 且无登录态
+    const u = s.win.pageUrl('index.html');
+    check('F1 无租户线索时不附加 tCode（不能回填 default，否则登录页租户框被锁死）',
+      u === './index.html', u);
+  }
+  {
+    const s = loadCore();
+    const u = s.win.pageUrl('student.html', { scdid: 'S1', tid: 'T1' });
+    check('F2 booking 场景：extra 参数保留且 tCode 同时附加上去',
+      u.includes('scdid=S1') && u.includes('tid=T1') && hasTCode(u), u);
+  }
+  {
+    const s = loadCore({ search: '?tCode=TNT-8848' });
+    const u = s.win.pageUrl('student.html', { tCode: 'hacker' });  // extra 里的同名参数不得覆盖
+    check('F3 extra 中的重名 tCode 不得覆盖真实租户编码', u.includes('tCode=TNT-8848') && !u.includes('hacker'), u);
+  }
+  {
+    const s = loadCore({ search: '?tCode=TNT-8848' });
+    const tc = s.win.resolveTenantCode({ role: 'platform_admin' });
+    check('F4 platform_admin 角色恒返回 platform（不受 URL tCode 影响）', tc === 'platform', tc);
+  }
+  {
+    const store = { currentUser: JSON.stringify({ userId: '1', role: 'admin', tenantCode: 'TNT-8848', token: 't' }) };
+    const s = loadCore({ search: '', store });               // URL 无 tCode，但本地有登录态
+    const u = s.win.pageUrl('admin.html');
+    check('F5 URL 无 tCode 时回退本地登录态的 tenantCode', hasTCode(u), u);
+  }
+
   console.log('\n=========================== 汇总 ===========================');
   console.log('PASS: ' + pass + '   FAIL: ' + fail);
   if (failures.length) {
