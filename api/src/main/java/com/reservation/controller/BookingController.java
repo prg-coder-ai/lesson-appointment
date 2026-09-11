@@ -9,6 +9,7 @@ import com.reservation.service.BookingService;
 import com.reservation.audit.Audit;
 import com.reservation.audit.AuditAction;
 import com.reservation.service.MessageNotifyService;
+import com.reservation.utils.TermMsg;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -60,7 +61,8 @@ public class BookingController {
             // 注意：若本次是「候补 → booked」，Service 内部会转到递补逻辑（需校验名额并生成课次），
             //      此时同样给该学生发一条确认消息，保证两条入口的通知行为一致。
             if ("bookProved".equals(dto.getStatus()) || "booked".equals(dto.getStatus())) {
-                messageNotifyService.notifyStudentConfirmed(dto.getId(), "课程预约");
+                // 只传语义动作码；「{course}预约」这类含行业词的文案由 MessageNotifyService 持有并按租户渲染
+                messageNotifyService.notifyStudentConfirmed(dto.getId(), MessageNotifyService.ACTION_BOOKING);
             }
             return Result.success(rs,"ok");
         } catch (RuntimeException e) {
@@ -97,7 +99,7 @@ public class BookingController {
             Map<String, Object> data = bookingService.promoteWaitlist(dto.getId());
             // 系统自动通知：递补成功 → 该学生（发送者=当前登录管理员）
             messageNotifyService.notifyWaitlistPromoted(dto.getId());
-            return Result.success(data, "递补成功，已生成课次并通知学生");
+            return Result.success(data, TermMsg.t("递补成功，已生成{lessonNumber}并通知{student}"));
         } catch (RuntimeException e) {
             return Result.fail(500, e.getMessage());
         }

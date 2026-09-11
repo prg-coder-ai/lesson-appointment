@@ -12,6 +12,7 @@ import com.reservation.entity.ScheduleGenerateDTO;*/
 import com.reservation.service.CourseScheduleService; 
 import  com.reservation.common.ScheduleGenerator; 
 import com.reservation.utils.PermissionCheck;
+import com.reservation.utils.TermMsg;
 import com.reservation.audit.Audit;
 import com.reservation.audit.AuditAction;
 
@@ -284,7 +285,7 @@ public Result<Integer> deleteByCourseId(@PathVariable("courseId") String courseI
         int deletedCount = scheduleService.deleteByCourseId(courseId);
         return Result.success(deletedCount, "删除成功");
     } catch (Exception e) {
-        return Result.fail(0, "删除排期失败: " + e.getMessage());
+        return Result.fail(0, TermMsg.t("删除{schedule}失败: ") + e.getMessage());
     }
     }
 

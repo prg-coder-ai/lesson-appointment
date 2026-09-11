@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -106,6 +107,18 @@ public class GlobalExceptionHandler {
             log.debug("静态资源不存在（已忽略）：{}", e.getMessage());
         }
         return Result.fail(404, "资源不存在");
+    }
+
+    // 缺少必填请求参数（400）。
+    // 典型场景：公开分享链接被截断或手工改写（少了 ?teacherId=xxx）。前端页面会先自行校验，
+    // 但从微信/QQ 抓取链接、或第三方直接调接口时不该看到 500「服务器繁忙，请稍后再试」——
+    // 那会让用户以为是系统坏了，而实际上只是链接不完整。
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public Result<Void> handleMissingParameter(MissingServletRequestParameterException e) {
+        if (log.isDebugEnabled()) {
+            log.debug("缺少必填参数：{}", e.getParameterName());
+        }
+        return Result.fail(400, "缺少必填参数：" + e.getParameterName());
     }
 
     // 服务器异常（500），对应设计2.4 服务器异常

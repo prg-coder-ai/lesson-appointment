@@ -3,6 +3,7 @@ package com.reservation.service;
 import com.reservation.common.BookingStatus;
 import com.reservation.entity.CourseSchedule;
 import com.reservation.exception.BusinessException;
+import com.reservation.utils.TermMsg;
 import com.reservation.mapper.BookingMapper;
 import com.reservation.mapper.CourseScheduleMapper;
 import jakarta.annotation.Resource;
@@ -63,11 +64,13 @@ public class BookingSeatService {
 
         int totalSites = schedule.getAvailableSites();
         if (totalSites <= 0) {
-            throw new BusinessException("该排期未设置可预约席位，无法预定");
+            throw new BusinessException(TermMsg.t("该{schedule}未设置可预约席位，无法预定"));
         }
         int occupied = countOccupyingForUpdate(scheduleId, excludeBookingId);
         if (occupied >= totalSites) {
-            throw new BusinessException("该排期名额已满（总席位 " + totalSites + "，已占 " + occupied + "）"
+            // 只把术语模板交给 t() 取词；后面的 extraHint 是调用方给的固定短语（如"可申请候补"），
+            // 属动态数据，接在 t() 之外，不参与取词
+            throw new BusinessException(TermMsg.t("该{schedule}名额已满（总席位 " + totalSites + "，已占 " + occupied + "）")
                     + (extraHint == null || extraHint.isEmpty() ? "" : "，" + extraHint));
         }
     }
@@ -78,12 +81,12 @@ public class BookingSeatService {
      */
     public CourseSchedule lockScheduleAndAssertExists(String scheduleId) {
         if (scheduleId == null || scheduleId.trim().isEmpty()) {
-            throw new BusinessException("排期ID不能为空");
+            throw new BusinessException(TermMsg.t("{schedule}ID不能为空"));
         }
         // 加排期行锁读取：先于任何对 booking 的写入，保证同一排期的占位操作串行化
         CourseSchedule schedule = scheduleMapper.selectByIdForUpdate(scheduleId);
         if (schedule == null) {
-            throw new BusinessException("排期不存在");
+            throw new BusinessException(TermMsg.t("{schedule}不存在"));
         }
         return schedule;
     }

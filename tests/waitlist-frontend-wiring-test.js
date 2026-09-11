@@ -280,6 +280,50 @@ function evalIn(sb, expr) { return vm.runInContext(expr, sb); }
 const createdBookings = [];
 const usedSchedules = new Set();
 
+/** 测试启动时刻（main 里赋值）：清理通知时用它当下界，只删本次运行产生的 */
+let runStartedAt = null;
+
+/**
+ * 本测试会通过正常业务链路**顺带**触发的通知标题（**渲染前**的模板）。
+ * 按「渲染后的精确标题 + 本次运行时间下界」删除：既不漏自己的产物，也不误删用户的消息。
+ *
+ * 为什么存模板而不是成品标题：通知文案已改为服务端按租户行业词渲染，
+ * 本租户（tenant 2）是法律咨询行业，「新的课程预约」这条标题在库里根本不存在
+ * ——实际是「新的咨询话题预约」。写死成品标题会静默漏删，收件箱越跑越脏。
+ */
+const NOTIFY_TITLE_TPLS = [
+    '候补递补成功',          // 递补成功 → 学生（BOOKING_CONFIRMED）
+    '预约已确认',            // 确认预订 / 确认请假 → 学生（BOOKING_CONFIRMED）
+    '新的{course}预约',      // 学生预订 → 教师 + 管理员（BOOKING_CREATED）
+    '新的候补申请',          // 学生候补 → 教师 + 管理员（BOOKING_CREATED）
+    '{student}{leave}申请'   // 学生请假 → 教师 + 管理员（LEAVE_CREATED）
+];
+
+/** 法律咨询行业（tenant 2 所属），用于复现服务端取词链 */
+const TENANT_INDUSTRY = 5;
+/**
+ * 测试侧复现服务端 TermService 的取词（租户词 > 行业词 > 平台词，zh），
+ * 仅用于**算出渲染后的标题**以便按 HMAC 索引精确匹配；不缓存（第 14 组类测试会临时增删词条）。
+ */
+function termMap() {
+    const rows = sql(`SELECT term_key, term_name,
+        CASE WHEN tenant_id=${TENANT} THEN 3
+             WHEN tenant_id=0 AND industry_id=${TENANT_INDUSTRY} THEN 2 ELSE 1 END AS lv
+        FROM ${DB}.sys_term
+        WHERE language='zh' AND status=1
+          AND ((tenant_id=0 AND industry_id=0)
+            OR (tenant_id=0 AND industry_id=${TENANT_INDUSTRY})
+            OR tenant_id=${TENANT})
+        ORDER BY lv`);
+    const m = {};
+    for (const r of rows) m[r[0]] = r[1];   // 优先级升序 → 高优先级后写覆盖
+    return m;
+}
+function renderTpl(tpl) {
+    const m = termMap();
+    return tpl.replace(/\{([A-Za-z][A-Za-z0-9_]*)\}/g, (s, k) => (m[k] != null ? m[k] : s));
+}
+
 function pickFreshSchedule() {
     const rows = sql(`SELECT cs.schedule_id, cs.course_id, c.teacher_id
         FROM ${DB}.course_schedule cs
@@ -313,6 +357,7 @@ async function apiUpdateStatus(token, id, status) {
 /* ============ 六、主流程 ============ */
 async function main() {
     console.log('=== 候补递补：前端接线测试（无浏览器 / vm + DOM 垫片 / 真实后端 ' + PORT + '）===\n');
+    runStartedAt = scalar('SELECT NOW()');   // 清理下界：只删本次运行产生的通知
 
     const admin = scalar(`SELECT user_id FROM ${DB}.user WHERE role='admin' AND tenant_id=${TENANT} ORDER BY user_id LIMIT 1`);
     const students = sql(`SELECT user_id FROM ${DB}.user WHERE role='student' AND tenant_id=${TENANT} ORDER BY user_id LIMIT 4`).map((r) => r[0]);
@@ -753,15 +798,25 @@ function cleanup() {
             sql(`DELETE FROM ${DB}.booking WHERE booking_id IN (${list})`);
             console.log('\n清理：已删除测试产生的 ' + createdBookings.length + ' 条 booking 及课次');
         }
-        // 测试期间由递补产生的通知（标题为加密列，只能用 HMAC 索引；且必须单表 + 子查询，
-        // 多表别名 DELETE 在 CLI 下会报 ERROR 1046 No database selected）
+        // 测试期间由业务链路产生的通知。三点注意：
+        //   ① 标题是加密列，只能用 HMAC 索引前缀匹配，不能用明文；
+        //   ② 必须「单表 + 子查询」，多表别名 DELETE 在 CLI 下报 ERROR 1046 No database selected；
+        //   ③ 覆盖 5 个模板而不只是「候补递补成功」——本测试 create/updateStatus 也会触发
+        //      「新的{course}预约」「新的候补申请」「预约已确认」，只清一个会让收件箱越跑越脏。
+        //      且标题必须**先按租户词表渲染**再算 HMAC，否则法律租户下匹配不到（见 NOTIFY_TITLE_TPLS 注释）。
+        // 下界用 runStartedAt（启动时刻）而非"最近 N 分钟"：长跑测试的早期产物会掉出滚动窗口而残留。
         const msgProps = fs.readFileSync(
             'C:/Users/Administrator/WorkBuddy/2026-08-30-17-19-24/api/message-service/src/main/resources/application.properties', 'utf8');
         const hmacKey = Buffer.from(/^crypto\.hmac-key=(.+)$/m.exec(msgProps)[1].trim(), 'base64');
-        const idx = crypto.createHmac('sha256', hmacKey).update('候补递补成功', 'utf8').digest('hex');
+        const idx = (t) => crypto.createHmac('sha256', hmacKey).update(t, 'utf8').digest('hex');
+        const lowBound = runStartedAt || '1970-01-01 00:00:00';
+        const titleConds = NOTIFY_TITLE_TPLS.map((t) => `title LIKE '${idx(renderTpl(t))}:%'`).join(' OR ');
+        const purged = Number(scalar(`SELECT COUNT(*) FROM ${MSG_DB}.msg_message
+                                      WHERE (${titleConds}) AND create_time >= '${lowBound}'`));
         sql(`DELETE FROM ${MSG_DB}.msg_inbox WHERE message_id IN (SELECT message_id FROM ${MSG_DB}.msg_message
-             WHERE title LIKE '${idx}:%' AND create_time >= DATE_SUB(NOW(), INTERVAL 30 MINUTE))`);
-        sql(`DELETE FROM ${MSG_DB}.msg_message WHERE title LIKE '${idx}:%' AND create_time >= DATE_SUB(NOW(), INTERVAL 30 MINUTE)`);
+             WHERE (${titleConds}) AND create_time >= '${lowBound}')`);
+        sql(`DELETE FROM ${MSG_DB}.msg_message WHERE (${titleConds}) AND create_time >= '${lowBound}'`);
+        console.log('清理：已删除 ' + purged + ' 条测试期间产生的通知');
     } catch (e) {
         console.log('\n清理失败（不影响测试结论）：' + (e.stderr || e.message));
     }

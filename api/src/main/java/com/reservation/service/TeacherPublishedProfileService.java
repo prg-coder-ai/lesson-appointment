@@ -8,6 +8,7 @@ import com.reservation.entity.TeacherPublishedProfile;
 import com.reservation.exception.BusinessException;
 import com.reservation.mapper.TeacherPublishedProfileMapper;
 import com.reservation.utils.TenantContext;
+import com.reservation.utils.TermMsg;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,37 +50,58 @@ public class TeacherPublishedProfileService {
         return Result.success(entity, "查询成功");
     }
 
-    /** 查询当前教师已发布的最新版本 */
+    /**
+     * 查询当前教师已发布的最新版本（公开页 /latest-public，免登录）。
+     *
+     * <p><b>必须走 ignoreTenant 方法</b>：免登录请求没有租户上下文，
+     * 走普通 selectOne 会被租户插件追加 {@code tenant_id = -1} 而恒不命中。
+     * 详见 {@link TeacherPublishedProfileMapper#selectLatestPublishedIgnoreTenant(String)}。
+     */
     public Result<TeacherPublishedProfile> getLatestPublished(String teacherId) {
         if (!StringUtils.hasText(teacherId)) {
             return Result.fail(400, "teacherId 不能为空");
         }
-        TeacherPublishedProfile entity = mapper.selectOne(
-                new QueryWrapper<TeacherPublishedProfile>()
-                        .eq("teacher_id", teacherId)
-                        .eq("status", "published")
-                        .orderByDesc("published_at")
-                        .last("LIMIT 1")
-        );
+        TeacherPublishedProfile entity = mapper.selectLatestPublishedIgnoreTenant(teacherId);
         if (entity == null) {
-            return Result.fail(404, "该教师暂无已发布的个人介绍");
+            return Result.fail(404, TermMsg.t("该{teacher}暂无已发布的个人介绍"));
         }
-        return Result.success(entity, "查询成功");
+        return Result.success(toPublicView(entity), "查询成功");
     }
 
-    /** 公开按 ID 查询（仅 published 状态可对外） */
+    /**
+     * 公开按 ID 查询（公开页 /public-get，免登录；仅 published 状态可对外）。
+     *
+     * <p>同样必须 ignoreTenant，理由见上一个方法。
+     */
     public Result<TeacherPublishedProfile> getPublishedById(String publishedProfileId) {
         if (!StringUtils.hasText(publishedProfileId)) {
             return Result.fail(400, "id 不能为空");
         }
-        TeacherPublishedProfile entity = mapper.selectById(publishedProfileId);
+        TeacherPublishedProfile entity = mapper.selectByIdIgnoreTenant(publishedProfileId);
         if (entity == null) {
             return Result.fail(404, "该版本不存在");
         }
         if (!"published".equalsIgnoreCase(entity.getStatus())) {
             return Result.fail(404, "该版本暂未对外发布");
         }
-        return Result.success(entity, "查询成功");
+        return Result.success(toPublicView(entity), "查询成功");
+    }
+
+    /**
+     * 裁剪成「对外可见视图」：清空 draftData。
+     *
+     * <p>draft_data 是发布页的**全量数据快照**（JSON.stringify(originalData)），
+     * 里面包含**未被勾选发布**的字段——手机号、账号、邮箱、图片 base64 等。
+     * 公开链路的访问者只应看到已发布的 staticHtml，绝不能拿到这份原始快照：
+     * 否则获得链接的人可以绕过页面上的字段勾选，直接从接口把教师未公开的信息读走。
+     *
+     * <p>只置空不改结构，避免影响前端已依赖的 JSON 形状（公开页仅消费 staticHtml）。
+     */
+    private TeacherPublishedProfile toPublicView(TeacherPublishedProfile entity) {
+        if (entity != null) {
+            entity.setDraftData(null);
+        }
+        return entity;
     }
 
     /**

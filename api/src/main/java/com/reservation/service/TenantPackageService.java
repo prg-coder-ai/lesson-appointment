@@ -9,6 +9,7 @@ import com.reservation.exception.BusinessException;
 import com.reservation.exception.ResourceNotFoundException;
 import com.reservation.mapper.TenantPackageMapper;
 import com.reservation.query.TenantPackageQueryPage;
+import com.reservation.utils.TermMsg;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -180,12 +181,15 @@ public class TenantPackageService {
      * 列名由枚举内部常量提供（非用户输入），无注入风险
      */
     public enum QuotaType {
-        COURSE("course_current", "course_limit", "课程"),
-        SCHEDULE("schedule_current", "schedule_limit", "排期"),
+        // 第 3 个参数是**用户可见的额度名模板**（可含术语占位符，见 getLabel()）——
+        // 它会被拼进「该租户的 xxx 数量已达套餐上限」这类提示，所以必须走术语渲染；
+        // 日志请用 name()，不要用 getLabel()。
+        COURSE("course_current", "course_limit", "{course}"),
+        SCHEDULE("schedule_current", "schedule_limit", "{schedule}"),
         USER("user_current", "user_total_limit", "注册用户"),
-        TEACHER("teacher_current", "teacher_limit", "注册教师"),
-        STUDENT("student_current", "student_limit", "注册学生"),
-        TEACHER_PUBLISH("teacher_publish_current", "teacher_publish_limit", "教师信息发布");
+        TEACHER("teacher_current", "teacher_limit", "注册{teacher}"),
+        STUDENT("student_current", "student_limit", "注册{student}"),
+        TEACHER_PUBLISH("teacher_publish_current", "teacher_publish_limit", "{teacher}信息发布");
 
         final String currentColumn;
         final String limitColumn;
@@ -197,8 +201,9 @@ public class TenantPackageService {
             this.label = label;
         }
 
+        /** 面向用户的额度名（已按当前租户渲染术语）；日志请改用 {@link #name()} */
         public String getLabel() {
-            return label;
+            return TermMsg.t(label);
         }
     }
 
@@ -227,7 +232,7 @@ public class TenantPackageService {
           .apply("(" + lim + " = 0 OR " + cur + " + {0} <= " + lim + ")", delta);
         int rows = tenantPackageMapper.update(null, uw);
         if (rows == 0) {
-            log.info("额度占用被拒, tenantId={}, type={}, delta={}", tenantId, type.getLabel(), delta);
+            log.info("额度占用被拒, tenantId={}, type={}, delta={}", tenantId, type.name(), delta);
         }
         return rows > 0;
     }
@@ -254,7 +259,7 @@ public class TenantPackageService {
           .apply(cur + " >= {0}", delta);
         int rows = tenantPackageMapper.update(null, uw);
         if (rows > 0) {
-            log.info("释放额度, tenantId={}, type={}, delta={}", tenantId, type.getLabel(), delta);
+            log.info("释放额度, tenantId={}, type={}, delta={}", tenantId, type.name(), delta);
         }
     }
 

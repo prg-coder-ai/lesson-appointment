@@ -5,6 +5,7 @@ import com.reservation.entity.CourseTemplate;
 import com.reservation.query.*;
 import com.reservation.service.CourseService;
 import com.reservation.utils.PermissionCheck;
+import com.reservation.utils.TermMsg;
 import com.reservation.audit.Audit;
 import com.reservation.audit.AuditAction;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,7 +39,7 @@ public class TemplateController {
     public Result<Map<String, String>> insertTemplate(@Validated @RequestBody CourseTemplate template,
                                                    @RequestHeader("Authorization") String token) {
         Map<String, String> resultMap = courseService.insertTemplate(template);
-        return Result.success(resultMap, "课程模板创建成功");
+        return Result.success(resultMap, TermMsg.t("{course}模板创建成功"));
     }
 
     /**
@@ -50,9 +51,9 @@ public class TemplateController {
                                                    @RequestHeader("Authorization") String token) {
         Map<String, String> id = courseService.updateTemplate(template);
         if (id != null)
-            return Result.success(id, "课程模板修改成功");
+            return Result.success(id, TermMsg.t("{course}模板修改成功"));
         else
-            return Result.success(null, "课程模板修改不成功");
+            return Result.success(null, TermMsg.t("{course}模板修改不成功"));
     }
 
     /**
@@ -63,7 +64,7 @@ public class TemplateController {
     public Result<Map<String, String>> updateTemplateStatus(@Validated @RequestBody UpdateTemplateStatusRequest req,
                                           @RequestHeader("Authorization") String token) {
         Map<String, String> status = courseService.updateTemplateStatus(req.getTemplateid(), req.getStatus());
-        return Result.success(status, "课程模板状态修改成功");
+        return Result.success(status, TermMsg.t("{course}模板状态修改成功"));
     }
 
     /**

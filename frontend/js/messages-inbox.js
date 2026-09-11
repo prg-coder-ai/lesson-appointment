@@ -157,13 +157,22 @@
       '.msg-compose-close:hover{opacity:.8;}',
       '.msg-compose-body{padding:16px 20px 20px;max-height:72vh;overflow:auto;}',
       // 分类编码：自定义组合框（替代原生 datalist，规避 Chromium 选过一次后不再弹出的问题）
-      '.combo{position:relative;display:inline-block;}',
-      '.combo-arrow{margin-left:-20px;padding:0 6px;color:#888;cursor:pointer;user-select:none;}',
-      '.combo-list{position:absolute;z-index:99999;left:0;top:100%;margin:2px 0 0;padding:4px 0;list-style:none;background:#fff;border:1px solid #ddd;border-radius:4px;min-width:260px;max-height:220px;overflow:auto;box-shadow:0 4px 12px rgba(0,0,0,.12);}',
-      '.combo-list li{padding:6px 12px;cursor:pointer;font-size:13px;white-space:nowrap;}',
+      // 箭头做成「输入框右端内嵌的独立按钮」——热区 30px、有分隔线与 hover 反馈，避免点不中/误触
+      '.combo{position:relative;display:inline-flex;align-items:center;vertical-align:middle;}',
+      '.combo input{width:240px;padding:6px 34px 6px 8px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;box-sizing:border-box;outline:none;}',
+      '.combo input:focus{border-color:var(--primary-color,#3a7afe);box-shadow:0 0 0 2px rgba(58,122,254,.12);}',
+      '.combo-arrow{position:absolute;right:0;top:0;bottom:0;width:30px;display:flex;align-items:center;justify-content:center;border-left:1px solid #e5e5e5;background:#fafafa;border-radius:0 4px 4px 0;color:#8c8c8c;cursor:pointer;user-select:none;}',
+      '.combo-arrow:hover{background:#f0f6ff;color:var(--primary-color,#3a7afe);}',
+      '.combo-arrow::before{content:"";width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid currentColor;transition:transform .15s;}',
+      '.combo-arrow.is-open::before{transform:rotate(180deg);}',
+      '.combo-list{position:fixed;z-index:99999;left:0;top:0;margin:0;padding:4px 0;list-style:none;background:#fff;border:1px solid #ddd;border-radius:4px;max-height:240px;overflow:auto;box-shadow:0 6px 16px rgba(0,0,0,.14);}',
+      '.combo-list li{display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;font-size:13px;white-space:nowrap;}',
       '.combo-list li:hover,.combo-list li.active{background:#f0f6ff;}',
-      '.combo-list li .cc-name{margin-left:8px;color:#888;font-size:12px;}',
-      '.combo-list li.cc-empty{padding:8px 12px;color:#999;cursor:default;}'
+      '.combo-list li .cc-code{font-family:Consolas,Monaco,monospace;}',
+      '.combo-list li .cc-name{color:#8c8c8c;font-size:12px;}',
+      '.combo-list li.is-cur .cc-code{color:var(--primary-color,#3a7afe);font-weight:600;}',
+      '.combo-list li .cc-tick{margin-left:auto;color:var(--primary-color,#3a7afe);}',
+      '.combo-list li.cc-empty{display:block;padding:10px 12px;color:#999;cursor:default;}'
     ].join('');
     const st = document.createElement('style');
     st.id = 'msg-inbox-style';
@@ -693,9 +702,9 @@
             '<select id="msg-priority"><option value="HIGH">高</option><option value="MEDIUM" selected>中</option><option value="LOW">低</option></select>' +
             '　分类编码：' +
             '<span class="combo" id="msg-category-combo">' +
-              '<input id="msg-category" autocomplete="off" placeholder="如 BOOKING_CREATED（可下拉选预设或自行输入）" style="padding:6px;">' +
-              '<span class="combo-arrow" id="msg-category-arrow" title="展开分类">▾</span>' +
-              '<ul class="combo-list" id="msg-category-list" style="display:none;"></ul>' +
+              '<input id="msg-category" autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="msg-category-list" placeholder="下拉选预设，或直接输入编码">' +
+              '<span class="combo-arrow" id="msg-category-arrow" role="button" tabindex="-1" aria-label="展开分类列表" title="展开分类列表（↓↑ 选择，Enter 确认，Esc 关闭）"></span>' +
+              '<ul class="combo-list" id="msg-category-list" role="listbox" style="display:none;"></ul>' +
             '</span>' +
           '</div>' +
           '<div class="row" style="color:#999;">提示：勾选接收人即「向所选的一个/多个发送」；全选即「向该范围所有人发送」。系统不要求你指定具体管理员。</div>' +
@@ -850,19 +859,22 @@
     if (!ul) return;
     try {
       const list = await mreq.get('/api/v1/message-categories/tree');
-      if (!list || !list.length) return;
-      ul._items = list;            // 缓存原始数据，供过滤与重渲染
-      renderComboList(root, '');
+      ul._items = Array.isArray(list) ? list : [];   // 缓存原始数据，供过滤与重渲染
     } catch (e) {
-      // 拉取失败不阻塞发送，保留手动输入能力
+      ul._items = [];                                // 拉取失败同样落空数组：不阻塞发送，仍可手动输入
     }
+    const input = root.querySelector('#msg-category');
+    renderComboList(root, '', input ? input.value : '');
   }
 
   // 按当前输入过滤并渲染下拉项（始终可重开，规避原生 datalist 选过一次后不再弹出）
-  function renderComboList(root, filter) {
+  // currentValue 用于标注「当前选中的是哪个」，避免用户看错行
+  function renderComboList(root, filter, currentValue) {
     const ul = root.querySelector('#msg-category-list');
-    if (!ul || !ul._items) return;
+    if (!ul) return;
+    if (!ul._items) { ul.innerHTML = '<li class="cc-empty">分类列表加载中…可直接输入编码</li>'; return; }
     const f = (filter || '').trim().toLowerCase();
+    const cur = (currentValue || '').trim().toLowerCase();
     const items = ul._items.filter(function (c) {
       if (!f) return true;
       const code = (c.categoryCode || '').toLowerCase();
@@ -873,40 +885,126 @@
       ? items.map(function (c) {
           const code = c.categoryCode || '';
           const name = c.categoryName || '';
-          return '<li data-code="' + esc(code) + '">' + esc(code) + (name ? ('<span class="cc-name">' + esc(name) + '</span>') : '') + '</li>';
+          const isCur = cur && code.toLowerCase() === cur;
+          return '<li role="option" data-code="' + esc(code) + '"' + (isCur ? ' class="is-cur" aria-selected="true"' : '') + '>'
+            + '<span class="cc-code">' + esc(code) + '</span>'
+            + (name ? ('<span class="cc-name">' + esc(name) + '</span>') : '')
+            + (isCur ? '<span class="cc-tick">✓</span>' : '')
+            + '</li>';
         }).join('')
-      : '<li class="cc-empty">无匹配分类，可直接输入新编码</li>';
+      : '<li class="cc-empty">' + (ul._items.length ? '无匹配分类，可直接输入新编码' : '暂无预设分类，可直接输入新编码') + '</li>';
   }
 
-  // 组合框交互：聚焦/点击/输入均可重开下拉，点击项填入编码并关闭
+  /**
+   * 组合框交互。
+   * 与旧实现的差别（都是「箭头看不清 / 容易点错」的成因）：
+   *  1) 箭头是独立按钮（30px 热区 + 分隔线 + hover 变色 + 展开时翻转），不再是一个小字符；
+   *  2) 用 open 变量判断显隐，不再读 style —— 旧代码点箭头时先 focus()（会触发 focus→显示）
+   *     再翻转 style，结果「展开后立刻收起」，表现为点了没反应；
+   *  3) 下拉用 fixed 定位并按输入框实时定位，避免被 .msg-compose-body 的 overflow:auto 裁剪；
+   *  4) 支持键盘（↓↑ 移动 / Enter 确认 / Esc 关闭），鼠标不易瞄准时也能操作。
+   */
   function setupCategoryCombo(root) {
     const combo = root.querySelector('#msg-category-combo');
     const input = root.querySelector('#msg-category');
     const ul = root.querySelector('#msg-category-list');
     const arrow = root.querySelector('#msg-category-arrow');
     if (!combo || !input || !ul || !arrow) return;
-    function show() { renderComboList(root, input.value); ul.style.display = ''; }
-    function showAll() { renderComboList(root, ''); ul.style.display = ''; } // 聚焦/点击展示全部预设，更友好
-    function hide() { ul.style.display = 'none'; }
-    input.addEventListener('focus', showAll);
-    input.addEventListener('click', showAll);
-    input.addEventListener('input', show);
-    // 点箭头：阻止默认（避免输入框失焦），直接切换显隐
+
+    let open = false, activeIdx = -1;
+
+    // 跟随输入框定位；下方空间不足且上方更宽裕时向上翻转
+    function place() {
+      const r = input.getBoundingClientRect();
+      const gap = 2, w = Math.min(Math.max(r.width, 260), Math.max(200, window.innerWidth - r.left - 8));
+      ul.style.width = w + 'px';
+      ul.style.left = r.left + 'px';
+      const below = window.innerHeight - r.bottom - gap;
+      if (below < 160 && r.top > below) {
+        ul.style.top = 'auto';
+        ul.style.bottom = (window.innerHeight - r.top + gap) + 'px';
+      } else {
+        ul.style.bottom = 'auto';
+        ul.style.top = (r.bottom + gap) + 'px';
+      }
+    }
+    function markActive() {
+      const lis = ul.querySelectorAll('li[data-code]');
+      Array.prototype.forEach.call(lis, function (li, i) { li.classList.toggle('active', i === activeIdx); });
+      const cur = lis[activeIdx];
+      if (cur && typeof cur.scrollIntoView === 'function') cur.scrollIntoView({ block: 'nearest' });
+    }
+    function show(filter) {
+      renderComboList(root, filter, input.value);
+      place();
+      ul.style.display = '';
+      arrow.classList.add('is-open');
+      input.setAttribute('aria-expanded', 'true');
+      open = true;
+      // 展开时高亮「当前值」对应项，让选了什么一目了然
+      const items = ul._items || [];
+      const cur = (input.value || '').trim().toLowerCase();
+      activeIdx = items.findIndex(function (c) { return (c.categoryCode || '').toLowerCase() === cur; });
+      markActive();
+    }
+    function hide() {
+      ul.style.display = 'none';
+      arrow.classList.remove('is-open');
+      input.setAttribute('aria-expanded', 'false');
+      open = false; activeIdx = -1;
+    }
+    function toggle() {
+      if (open) { hide(); return; }
+      input.focus();     // 先聚焦再展开；open 已由 show() 接管，不会像旧代码那样自相抵消
+      show('');
+    }
+
+    input.addEventListener('focus', function () { if (!open) show(''); });
+    input.addEventListener('click', function () { if (!open) show(''); });
+    input.addEventListener('input', function () { show(input.value); });
+
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { hide(); input.blur(); return; }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        if (!open) { show(''); return; }
+        const lis = ul.querySelectorAll('li[data-code]');
+        if (!lis.length) return;
+        e.preventDefault();
+        activeIdx = e.key === 'ArrowDown' ? (activeIdx + 1) % lis.length : (activeIdx - 1 + lis.length) % lis.length;
+        markActive();
+        return;
+      }
+      if (e.key === 'Enter' && open && activeIdx >= 0) {
+        const li = ul.querySelectorAll('li[data-code]')[activeIdx];
+        if (li) { e.preventDefault(); input.value = li.getAttribute('data-code') || ''; hide(); }
+      }
+    });
+
+    // 箭头：mousedown + preventDefault 避免输入框失焦，然后切换显隐（一次点击=一次切换）
     arrow.addEventListener('mousedown', function (e) {
       e.preventDefault();
-      input.focus();
-      ul.style.display = (ul.style.display === 'none' ? '' : 'none');
+      toggle();
     });
+
     // 点选项：mousedown + preventDefault 阻止输入框失焦，先填值再关
     ul.addEventListener('mousedown', function (e) {
       const li = e.target.closest('li');
-      if (!li || li.classList.contains('cc-empty')) { e.preventDefault(); return; }
+      if (!li || typeof li.getAttribute !== 'function' || !li.getAttribute('data-code')) { e.preventDefault(); return; }
       e.preventDefault();
       input.value = li.getAttribute('data-code') || '';
       hide();
     });
-    // 点卡片外关闭（不在 combo 内即收起）
-    input.addEventListener('blur', function () { setTimeout(hide, 150); });
+
+    // 点卡片外关闭（捕获阶段：卡片内其它元素被点也立即收起）
+    document.addEventListener('mousedown', function (e) {
+      if (!open) return;
+      if (combo.contains(e.target)) return;
+      hide();
+    }, true);
+    // 定位跟随：窗口尺寸变化或容器滚动时重算（fixed 定位不会自动跟着走）
+    function reposition() { if (open) place(); }
+    window.addEventListener('resize', reposition);
+    window.addEventListener('scroll', reposition, true);
   }
 
   async function doSend(root) {

@@ -5,6 +5,7 @@ import com.reservation.entity.Booking;
 import com.reservation.dto.BookingDTO;
 import com.reservation.dto.BookingQueryParaDTO;
 import com.reservation.exception.BusinessException;
+import com.reservation.utils.TermMsg;
 import com.reservation.query.BookingQueryPage;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -156,7 +157,7 @@ public class BookingService {
                 bookingId, BookingStatus.WAITING, BookingStatus.BOOKED);
         if (rows == 0) {
             // 事务会回滚，不会留下“已占位却没生成课次”的中间态
-            throw new BusinessException("该候补已被处理（可能刚被他人递补或已被学生撤销），请刷新后重试");
+            throw new BusinessException(TermMsg.t("该候补已被处理（可能刚被他人递补或已被{student}撤销），请刷新后重试"));
         }
 
         boolean appointmentsReady =
@@ -178,7 +179,7 @@ public class BookingService {
     @Transactional(readOnly = true)
     public List<Booking> getWaitlistQueue(String scheduleId) {
         if (scheduleId == null || scheduleId.trim().isEmpty()) {
-            throw new BusinessException("排期ID不能为空");
+            throw new BusinessException(TermMsg.t("{schedule}ID不能为空"));
         }
         return bookingMapper.selectWaitlistByScheduleId(scheduleId);
     }

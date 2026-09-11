@@ -53,16 +53,63 @@ public class MessageNotifyService {
     @Resource
     private TermService termService;
 
+    /* ==================================================================
+     * 通知文案模板（集中在此，便于一眼看清"哪些词是行业相关的"）
+     *
+     * {key} 是**术语占位符**，发送时按「租户词 > 行业词 > 平台词」逐级取词渲染
+     * （见 {@link TermService#renderTemplate}）。三条写作规矩：
+     *
+     *   ① 凡行业相关名词一律写 {key}，**绝不写死「课程/上课/学生/排期/教师」**——
+     *      写死等于把教育行业的话术原样发给律所、心理咨询、健身房租户。
+     *   ② 只有模板里**显式写出**的 {key} 才取词；动态数据（课次时间、人名）不走占位符，
+     *      否则数据里恰好含锚点词（排期名就叫「课程A」）会被误改。
+     *   ③ 所有作用域都查不到的 key **原样保留 {key}**，拼错在测试期即暴露
+     *      （e2e 第 15 组静态护栏会直接红），不静默清空。
+     *
+     * 可用 key 清单见 frontend/js/public/terms.js 的 TERM_KEYS；新增 key 需同步
+     * 平台词(industry_id=0,tenant_id=0)，否则行业租户会回退到平台词或裸露 {key}。
+     *
+     * 之所以不在发送后由前端替换：消息正文落库即静态文本，且 message-service 的库
+     * （message_center）根本没有 sys_term 表，只有业务端取得到词。
+     * 代价是词表后续调整不会回溯改写历史消息——通知作为"当时发生了什么"的凭证，
+     * 保持不可变更合理。
+     * ================================================================== */
+
+    /** 学生预订 → 教师 + 管理员 */
+    private static final String BOOKING_CREATED_TITLE = "新的{course}预约";
+    private static final String BOOKING_CREATED_BODY = "您有一笔新的{course}预约待处理。";
+
+    /** 学生候补（名额已满）→ 教师 + 管理员。标题与预订不同，用于在同一分类下区分两类待处理项 */
+    private static final String WAITLIST_CREATED_TITLE = "新的候补申请";
+    private static final String WAITLIST_CREATED_BODY =
+            "有名额已满的{schedule}收到候补申请，请留意名额释放后的补位处理。";
+
+    /** 学生请假（法律/心理咨询行业词为「改期」）→ 教师 + 管理员 */
+    private static final String LEAVE_CREATED_TITLE = "{student}{leave}申请";
+    private static final String LEAVE_CREATED_BODY = "{student}提交了{leave}申请，请及时处理。";
+
+    /** 管理员确认通知的标题（预订与请假共用） */
+    private static final String STUDENT_CONFIRMED_TITLE = "预约已确认";
+    /** 管理员确认预订 → 学生 */
+    private static final String STUDENT_CONFIRMED_BOOKING_BODY = "您的{course}预约已被管理员确认。";
+    /** 管理员确认请假（法律/心理咨询行业词为「改期」）→ 学生 */
+    private static final String STUDENT_CONFIRMED_LEAVE_BODY = "您的{leave}已被管理员确认。";
+
     /**
-     * 递补成功通知正文模板，分三段拼装（首节课那句在查不到课次时整段省略）。
+     * 「确认了什么」的动作码，由 Controller 传入。
      *
-     * <p>{@code {key}} 是**术语占位符**，发送时按「租户词 &gt; 行业词 &gt; 平台词」取词；
-     * 这也是唯一会取词的途径——动态数据（{@code {firstLesson}} 等）在同一个 Map 里传入，
-     * 不会被术语表影响（详见 {@link TermService#renderTemplate(String, Map)}）。
+     * <p>刻意不传中文短语：文案常量全部留在本类，控制层只表达语义，
+     * 否则「课程预约」这类行业相关词就会散落到 Controller 里——
+     * 写死一处漏一处，静态护栏（e2e 第 15 组）也扫不到。
+     */
+    public static final String ACTION_BOOKING = "BOOKING";
+    public static final String ACTION_LEAVE = "LEAVE";
+
+    /**
+     * 递补成功通知正文，分三段拼装（首节课那句在查不到课次时整段省略）。
      *
-     * <p>之所以不在发送后由前端替换：消息正文是落库的静态文本，且 message-service 的库
-     * （message_center）根本没有 sys_term 表，只有业务端能取词。
-     * 代价是词表后续调整不会回溯改写历史消息——通知作为"当时发生了什么"的凭证，这样更合理。
+     * <p>与上面几条的区别：正文含动态数据（首节课时间），故术语词与数据合并成
+     * 一个 Map 一次渲染（详见 {@link TermService#renderTemplate(String, Map)}）。
      */
     private static final String WAITLIST_PROMOTED_HEAD =
             "恭喜！你申请的候补已递补成功，正式获得该{course}名额，系统已为你生成时间表。";
@@ -89,12 +136,14 @@ public class MessageNotifyService {
 
     // ============ 业务钩子入口 ============
 
-    /** 学生预订课程 → 通知教师 + 本租户管理员（发送者=学生） */
+    /** 学生预订课程 → 通知教师 + 本租户管理员（发送者=学生）。文案按该租户的行业词渲染 */
     public void notifyBookingCreated(String bookingId) {
         Booking b = bookingMapper.selectByIdIgnoreTenant(bookingId);
         if (b == null || b.getStudentId() == null || b.getTeacherId() == null) return;
-        notifyTeacherAndAdmin(b.getStudentId(), b.getTeacherId(), b.getTenantId(),
-                "新的课程预约", "您有一笔新的课程预约待处理。", "BOOKING_CREATED");
+        Long tenantId = b.getTenantId();
+        notifyTeacherAndAdmin(b.getStudentId(), b.getTeacherId(), tenantId,
+                render(tenantId, BOOKING_CREATED_TITLE), render(tenantId, BOOKING_CREATED_BODY),
+                "BOOKING_CREATED");
     }
 
     /** 学生候补预订（排期名额已满）→ 通知教师 + 本租户管理员（发送者=学生）
@@ -103,27 +152,40 @@ public class MessageNotifyService {
     public void notifyWaitlistCreated(String bookingId) {
         Booking b = bookingMapper.selectByIdIgnoreTenant(bookingId);
         if (b == null || b.getStudentId() == null || b.getTeacherId() == null) return;
-        notifyTeacherAndAdmin(b.getStudentId(), b.getTeacherId(), b.getTenantId(),
-                "新的候补申请", "有名额已满的排期收到候补申请，请留意名额释放后的补位处理。", "BOOKING_CREATED");
+        Long tenantId = b.getTenantId();
+        notifyTeacherAndAdmin(b.getStudentId(), b.getTeacherId(), tenantId,
+                render(tenantId, WAITLIST_CREATED_TITLE), render(tenantId, WAITLIST_CREATED_BODY),
+                "BOOKING_CREATED");
     }
 
-    /** 学生请假（appointment）→ 通知教师 + 本租户管理员（发送者=学生） */
+    /** 学生请假（appointment）→ 通知教师 + 本租户管理员（发送者=学生）。
+     *  教育行业话术是「学生请假申请」，法律/心理咨询行业词取「客户改期申请」，
+     *  故标题与正文的「学生」「请假」都必须走术语占位符。 */
     public void notifyLeaveCreated(String bookingId) {
         if (bookingId == null) return;
         Booking b = bookingMapper.selectByIdIgnoreTenant(bookingId);
         if (b == null || b.getStudentId() == null || b.getTeacherId() == null) return;
-        notifyTeacherAndAdmin(b.getStudentId(), b.getTeacherId(), b.getTenantId(),
-                "学生请假申请", "学生提交了请假申请，请及时处理。", "LEAVE_CREATED");
+        Long tenantId = b.getTenantId();
+        notifyTeacherAndAdmin(b.getStudentId(), b.getTeacherId(), tenantId,
+                render(tenantId, LEAVE_CREATED_TITLE), render(tenantId, LEAVE_CREATED_BODY),
+                "LEAVE_CREATED");
     }
 
-    /** 管理员确认预订/请假 → 通知学生（发送者=当前登录管理员） */
-    public void notifyStudentConfirmed(String bookingId, String actionLabel) {
+    /**
+     * 管理员确认预订/请假 → 通知学生（发送者=当前登录管理员）。
+     *
+     * @param actionCode 确认了什么：{@link #ACTION_BOOKING} 或 {@link #ACTION_LEAVE}；
+     *                   其余值一律按「确认预订」处理（与旧的默认行为一致）。
+     */
+    public void notifyStudentConfirmed(String bookingId, String actionCode) {
         Booking b = bookingMapper.selectByIdIgnoreTenant(bookingId);
         if (b == null || b.getStudentId() == null) return;
         AuthInfo ai = currentAuthFromRequest();
         if (ai == null) return;
+        String tpl = ACTION_LEAVE.equals(actionCode)
+                ? STUDENT_CONFIRMED_LEAVE_BODY : STUDENT_CONFIRMED_BOOKING_BODY;
         send(ai.userId, ai.role, ai.tenantId, Collections.singletonList(b.getStudentId()),
-                "预约已确认", "您的" + (actionLabel == null ? "预约" : actionLabel) + "已被管理员确认。",
+                STUDENT_CONFIRMED_TITLE, render(b.getTenantId(), tpl),
                 "MEDIUM", "BOOKING_CONFIRMED");
     }
 
@@ -199,6 +261,17 @@ public class MessageNotifyService {
     }
 
     // ============ 内部工具 ============
+
+    /**
+     * 按目标租户的词表渲染通知文案（{@code {course}} / {@code {lesson}} / {@code {student}}
+     * / {@code {leave}} / {@code {schedule}} 等占位符，租户词 &gt; 行业词 &gt; 平台词）。
+     *
+     * <p>tenantId 为 null/0 时只用平台词——这是刻意的兜底：宁可给出教育行业的通用说法，
+     * 也不让消息内容变成空的或裸露的占位符。
+     */
+    private String render(Long tenantId, String template) {
+        return termService.renderTemplate(template, tenantId, null);
+    }
 
     /** 学生 → 教师 + 本租户管理员（合并为一条群发） */
     private void notifyTeacherAndAdmin(String studentId, String teacherId, Long tenantId,

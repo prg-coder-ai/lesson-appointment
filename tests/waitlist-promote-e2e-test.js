@@ -132,6 +132,53 @@ function pickStudents(n) {
 }
 
 const usedSchedules = new Set();
+
+/** 测试启动时刻（main 里赋值）：清理通知时用它当下界，只删本次运行产生的 */
+let runStartedAt = null;
+
+/* ---------- 术语渲染（测试侧复现服务端的取词链） ----------
+ * 通知标题在库里是**加密列**，查找/清理都只能按 HMAC 索引精确匹配整串标题，
+ * 所以必须先算出「渲染后的确切标题」。租户 2 是法律咨询行业，
+ * 写死「新的课程预约」根本匹配不到真实标题（实际是「新的咨询话题预约」）。
+ *
+ * 这里按与服务端 TermService 相同的回退链复现取词（tenant 词 > 行业词 > 平台词，zh）。
+ * 模拟的正确性由第 16 组「模拟标题 vs 库里的真实标题」交叉验证——
+ * 一旦模拟与服务端偏离，16.12 立刻红，避免清理按错误标题静默漏删。
+ * 刻意不缓存：第 14 组会临时增删租户词。
+ */
+const TENANT_INDUSTRY = 5;   // 租户 2 = 倍嘉律师事务所 → industry_id=5 法律咨询
+function termMap() {
+    const rows = sql(`SELECT term_key, term_name,
+        CASE WHEN tenant_id=${TENANT} THEN 3
+             WHEN tenant_id=0 AND industry_id=${TENANT_INDUSTRY} THEN 2 ELSE 1 END AS lv
+        FROM ${DB}.sys_term
+        WHERE language='zh' AND status=1
+          AND ((tenant_id=0 AND industry_id=0)
+            OR (tenant_id=0 AND industry_id=${TENANT_INDUSTRY})
+            OR tenant_id=${TENANT})
+        ORDER BY lv`);
+    const m = {};
+    for (const r of rows) m[r[0]] = r[1];   // 优先级升序遍历 → 高优先级后写覆盖
+    return m;
+}
+/** 把 {key} 占位符按当前词表渲染；查不到的 key 原样保留（与服务端一致） */
+function renderTpl(tpl) {
+    const m = termMap();
+    return tpl.replace(/\{([A-Za-z][A-Za-z0-9_]*)\}/g, (s, k) => (m[k] != null ? m[k] : s));
+}
+
+/**
+ * 本测试会通过正常业务链路**顺带**触发的通知标题（**渲染前**的模板）。
+ * 清理时按「渲染后的精确标题 + 本次运行时间下界」删除，既不漏自己的产物，
+ * 也不会误删用户手动操作产生的消息（标题不同）。
+ */
+const NOTIFY_TITLE_TPLS = [
+    '候补递补成功',          // 递补成功 → 学生（BOOKING_CONFIRMED）
+    '预约已确认',            // 确认预订 / 确认请假 → 学生（BOOKING_CONFIRMED）
+    '新的{course}预约',      // 学生预订 → 教师 + 管理员（BOOKING_CREATED）
+    '新的候补申请',          // 学生候补 → 教师 + 管理员（BOOKING_CREATED）
+    '{student}{leave}申请'   // 学生请假 → 教师 + 管理员（LEAVE_CREATED）
+];
 /** 每次现取一个「无任何 booking」的空闲排期，供多轮并发测试各用各的、互不干扰 */
 function pickFreshSchedule() {
     const rows = sql(`SELECT cs.schedule_id, cs.course_id, c.teacher_id
@@ -174,6 +221,9 @@ async function createBooking(tk, scheduleId, studentId, teacherId, status) {
 
 async function main() {
     console.log('=== 候补递补 / 名额校验 端到端测试 ===\n');
+    // 记录起始时刻：清理时以它为下界，比「最近 N 分钟」的滚动窗口稳
+    // （长跑测试里早期产物会掉出窗口，从而残留在库里）。
+    runStartedAt = scalar('SELECT NOW()');
     const admin = scalar(`SELECT user_id FROM ${DB}.user WHERE role='admin' AND tenant_id=${TENANT} ORDER BY user_id LIMIT 1`);
     const adminTk = makeToken(admin, 'admin', TENANT);
 
@@ -516,6 +566,189 @@ async function main() {
     ck('14.6 回退后正文同样没有未解析的占位符',
         !!txtIndustry && !/\{[A-Za-z][A-Za-z0-9_]*\}/.test(txtIndustry), txtIndustry || '无正文');
 
+    /* ==================== 十五、静态护栏：所有通知模板必须走术语占位符 ==================== */
+    // 上面 8.x / 14.x 查的是"这一次渲染对了没有"，本组查的是"以后还会不会对"：
+    // 只要有人图省事把 {course} 改回"课程"，这里立刻红——不必等到某个律所租户收到消息才发现。
+    // 本轮从「只守递补通知」扩展为「守全部通知文案」。
+    console.log('\n--- 15. 静态护栏：通知模板必须走术语占位符（禁止写死教育行业锚点词）---');
+    const API_SRC = 'C:/Users/Administrator/WorkBuddy/2026-08-30-17-19-24/api/src/main/java/com/reservation';
+    /** 教育行业锚点词：出现在用户可见文案里就说明有人写死了行业词 */
+    const ANCHORS = /(课程|上课|课次|课时|授课|学生|请假|排期|教师|老师|班级|难度等级|语言教学)/;
+    /** 先把注释剥掉再扫：注释里的锚点词（例如"避免出现'首次上课时间：。'"）是给开发看的，不会发给用户 */
+    const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+
+    const notifySrc = fs.readFileSync(API_SRC + '/service/MessageNotifyService.java', 'utf8');
+    // 抽出所有通知文案常量（跨行的 `= \n "..."` 写法也能匹配，因为字面量本身在同一行）
+    const tpls = [...notifySrc.matchAll(/private static final String\s+(\w+)\s*=\s*"([^"]*)"/g)]
+        .map((m) => ({ name: m[1], text: m[2] }));
+    const tplNames = tpls.map((t) => t.name);
+    const REQUIRED_TPLS = [
+        'BOOKING_CREATED_TITLE', 'BOOKING_CREATED_BODY',
+        'WAITLIST_CREATED_TITLE', 'WAITLIST_CREATED_BODY',
+        'LEAVE_CREATED_TITLE', 'LEAVE_CREATED_BODY',
+        'STUDENT_CONFIRMED_TITLE', 'STUDENT_CONFIRMED_BOOKING_BODY', 'STUDENT_CONFIRMED_LEAVE_BODY',
+        'WAITLIST_PROMOTED_HEAD', 'WAITLIST_PROMOTED_FIRST', 'WAITLIST_PROMOTED_TAIL'
+    ];
+    const missingTpls = REQUIRED_TPLS.filter((n) => !tplNames.includes(n));
+    ck('15.1 全部 12 条通知文案都已抽成常量（预订/候补/请假/确认×3/递补×3）',
+        missingTpls.length === 0, '缺 ' + missingTpls.join(', '));
+
+    const tplAll = tpls.map((t) => t.text).join('');
+    const needKeys = ['{course}', '{lesson}', '{lessonTime}', '{student}', '{leave}', '{schedule}'];
+    const lackKeys = needKeys.filter((k) => !tplAll.includes(k));
+    ck('15.2 六类行业词都以占位符表达（course / lesson / lessonTime / student / leave / schedule）',
+        lackKeys.length === 0, '缺 ' + lackKeys.join(', '));
+
+    ck('15.3 模板里没有任何写死的锚点词（课程/上课/学生/请假/排期/教师/老师…）',
+        !ANCHORS.test(tplAll), tplAll);
+
+    // 连**字符串字面量**整体一起扫（常量之外的类别码、内联文案也兜住），
+    // 防止有人绕过常量直接在 send() 里写内联中文。
+    // 但日志文案（log.debug("取首节课时间失败…")）不算用户可见文案，须先剔除：
+    // 它含「首节课时间」——恰好包含锚点词「课时」，不排除就是误报。
+    const codeNoLog = stripComments(notifySrc)
+        .replace(/log\.(?:trace|debug|info|warn|error)\s*\([\s\S]*?\);/g, '');
+    const literals = [...codeNoLog.matchAll(/"([^"\n]*)"/g)].map((m) => m[1]);
+    const badLiterals = literals.filter((s) => ANCHORS.test(s));
+    ck('15.4 源码字符串字面量中无写死的锚点词【含内联文案，防绕过常量】',
+        badLiterals.length === 0, badLiterals.join(' | ') || ('扫描 ' + literals.length + ' 条字面量'));
+
+    // 占位符语法：只有 {字母开头} 形式才参与取词；其它花括号会原样漏给用户
+    const rawBraces = (tplAll.match(/\{[^}]*\}/g) || []).length;
+    const okBraces = (tplAll.match(/\{[A-Za-z][A-Za-z0-9_]*\}/g) || []).length;
+    ck('15.5 模板里的花括号全部是合法占位符（不存在漏给用户的裸花括号）',
+        rawBraces === okBraces, 'raw=' + rawBraces + ' ok=' + okBraces);
+
+    // 每个占位符都必须能在**平台层**取到词（遍历不到就裸露 {key} 给用户）；
+    // firstLesson 是调用方传入的动态数据，不在词表，属白名单例外。
+    const DYNAMIC_KEYS = ['firstLesson'];
+    const platformKeys = new Set(sql(`SELECT term_key FROM ${DB}.sys_term
+        WHERE industry_id=0 AND tenant_id=0 AND language='zh' AND status=1`).map((r) => r[0]));
+    const usedKeys = [...new Set((tplAll.match(/\{[A-Za-z][A-Za-z0-9_]*\}/g) || [])
+        .map((s) => s.slice(1, -1)))];
+    const unknownKeys = usedKeys.filter((k) => !platformKeys.has(k) && !DYNAMIC_KEYS.includes(k));
+    ck('15.6 模板占位符都能取到词（平台层已登记，或属动态数据白名单）——防拼错 key',
+        unknownKeys.length === 0, '未知 key: ' + unknownKeys.join(', '));
+
+    // 控制层不许再出现中文动作短语（文案常量必须留在服务层，否则护栏扫不到）
+    const ctrlSrcs = ['controller/BookingController.java', 'controller/AppointmentController.java']
+        .map((p) => stripComments(fs.readFileSync(API_SRC + '/' + p, 'utf8')));
+    const ctrlCalls = ctrlSrcs.flatMap((s) => [...s.matchAll(/notifyStudentConfirmed\s*\(([^;]*)\)/g)].map((m) => m[1]));
+    ck('15.7 Controller 只传语义动作码（MessageNotifyService.ACTION_*），不含中文动作短语',
+        ctrlCalls.length > 0 && ctrlCalls.every((a) => /ACTION_/.test(a) && !/["']/.test(a)),
+        ctrlCalls.join(' || '));
+
+    /* ==================== 十六、其余四条通知的行业词渲染（真实落库正文） ==================== */
+    // 第 8/13/14 组只覆盖了「递补成功」。本轮把另外四条通知也改成模板渲染，
+    // 本组逐条验证**解密后的真实正文**：用的是法律行业词，且没有裸露的占位符。
+    // 全部复用同一个排期（available_sites=1，先占满再由另一学生候补），不再消耗空闲排期。
+    console.log('\n--- 16. 其余通知的行业词渲染（预订 / 确认 / 候补 / 请假）---');
+
+    /** 取某收件人本次运行内最近一条指定通知的正文（标题按测试侧渲染后精确匹配），解密返回 */
+    function latestNotifyBody(recipient, tplTitle) {
+        const row = one(`SELECT m.content FROM ${MSG_DB}.msg_message m
+                         JOIN ${MSG_DB}.msg_inbox i ON i.message_id = m.message_id
+                         WHERE i.user_id = '${recipient}'
+                           AND m.title LIKE '${searchIndex(renderTpl(tplTitle))}:%'
+                           AND m.create_time >= '${runStartedAt}'
+                         ORDER BY m.message_id DESC LIMIT 1`);
+        return row ? decryptStored(row[0]) : null;
+    }
+    const noPlaceholder = (s) => !!s && !/\{[A-Za-z][A-Za-z0-9_]*\}/.test(s);
+
+    const S16 = pickFreshSchedule();
+    ck('16.0 前置：取到空闲排期', !!S16, '无空闲排期');
+    if (S16) {
+        // ① 学生预订 → 教师 + 管理员：标题与正文的「课程」都应变「咨询话题」
+        const c16 = await createBooking(tkA, S16.scheduleId, stuA, S16.teacherId, 'booking');
+        const bodyBooking = latestNotifyBody(S16.teacherId, '新的{course}预约');
+        ck('16.1 预订通知已送达教师，标题即行业词「新的咨询话题预约」',
+            !!bodyBooking, bodyBooking || '未找到');
+        ck('16.2 预订正文用行业词「咨询话题」，不含「课程」',
+            !!bodyBooking && bodyBooking.includes('咨询话题') && !bodyBooking.includes('课程'), bodyBooking || '');
+        ck('16.3 预订正文无残留占位符', noPlaceholder(bodyBooking), bodyBooking || '');
+
+        // ② 管理员确认预订 → 学生：文案常量在服务层，正文的「课程」同样应变「咨询话题」
+        await call('POST', '/api/v1/course/booking/updateStatus', { token: adminTk, body: { id: c16.data, status: 'booked' } });
+        const bodyConfirm = latestNotifyBody(stuA, '预约已确认');
+        ck('16.4 确认通知已送达学生', !!bodyConfirm, bodyConfirm || '未找到');
+        ck('16.5 确认正文用「咨询话题预约」，不含「课程」',
+            !!bodyConfirm && bodyConfirm.includes('咨询话题') && !bodyConfirm.includes('课程'), bodyConfirm || '');
+        ck('16.6 确认正文无残留占位符', noPlaceholder(bodyConfirm), bodyConfirm || '');
+
+        // ③ 学生候补（该排期已满）→ 教师 + 管理员：正文的 {schedule} 走术语位。
+        //    法律行业没登记 schedule 行业词 → 逐级回退到平台词「排期」，属预期行为
+        //    （要让律所看到「预约时段」，补一条 (industry_id=5, tenant_id=0) 的 schedule 行业词即可）。
+        const c17 = await createBooking(tkB, S16.scheduleId, stuB, S16.teacherId, 'waiting');
+        ck('16.7 前置：候补创建成功（排期已满）', c17.code === 200, 'code=' + c17.code + ' msg=' + c17.message);
+        const bodyWait = latestNotifyBody(S16.teacherId, '新的候补申请');
+        ck('16.8 候补通知已送达教师，正文含 {schedule} 的渲染结果「排期」（回退平台词）',
+            !!bodyWait && bodyWait.includes('排期'), bodyWait || '未找到');
+        ck('16.9 候补正文无残留占位符', noPlaceholder(bodyWait), bodyWait || '');
+
+        // ④ 学生请假 → 教师 + 管理员：教育话术「学生请假申请」应变成法律「客户改期申请」
+        const leave = await call('POST', '/api/v1/course/appointment/add', {
+            token: tkA,
+            // LocalDateTime 反序列化要 ISO-8601（T 分隔）：'2026-12-01 10:00:00' 会 500
+            body: { bookingId: c16.data, classIndex: 1, appointmentDatetime: '2026-12-01T10:00:00', status: 'active' }
+        });
+        ck('16.10 请假（appointment/add）调用成功', leave.code === 200, 'code=' + leave.code + ' msg=' + leave.message);
+        const bodyLeave = latestNotifyBody(S16.teacherId, '{student}{leave}申请');
+        ck('16.11 请假通知标题即行业词「客户改期申请」', !!bodyLeave, bodyLeave || '未找到');
+        ck('16.12 请假正文用「客户」「改期」，不含「学生」「请假」',
+            !!bodyLeave && bodyLeave.includes('客户') && bodyLeave.includes('改期')
+            && !bodyLeave.includes('学生') && !bodyLeave.includes('请假'), bodyLeave || '');
+        ck('16.13 请假正文无残留占位符', noPlaceholder(bodyLeave), bodyLeave || '');
+
+        // ⑤ 交叉验证：测试侧模拟渲染出的标题必须与库里真实标题一致。
+        //    清理是"按渲染后标题精确匹配 + 时间下界"删的，模拟一旦偏离服务端就会静默漏删、
+        //    把测试库越跑越脏——这条把那种偏差变成一条可见的红。
+        const tplProbe = '新的{course}预约';
+        const realTitleRow = one(`SELECT m.title FROM ${MSG_DB}.msg_message m
+                                  WHERE m.title LIKE '${searchIndex(renderTpl(tplProbe))}:%'
+                                    AND m.create_time >= '${runStartedAt}'
+                                  ORDER BY m.message_id DESC LIMIT 1`);
+        const realTitle = realTitleRow ? decryptStored(realTitleRow[0]) : null;
+        ck('16.14 测试侧模拟的渲染标题 == 库里真实标题【保证清理不漏删】',
+            realTitle === renderTpl(tplProbe), (realTitle || '未找到') + ' vs ' + renderTpl(tplProbe));
+    }
+
+    /* ==================== 十七、词表合并：目标语言优先于作用域 ==================== */
+    // 预览工具里发现的真实缺陷：健身行业(7) 只登记了 schedule 的 en/fr、没有 zh。
+    // 旧实现「按作用域逐级取词、层内再回退语言」→ 行业层的英文顶掉平台层的中文，
+    // 中文界面渲染出 "有名额已满的Schedule收到候补申请…"。
+    // 本组用真实接口 /term/map 验证：缺目标语言时应当继续往上一级作用域找**同语言**的词。
+    console.log('\n--- 17. 词表合并：目标语言优先于作用域（防中文界面混入英文词）---');
+    const fitTenant = scalar(`SELECT id FROM ${DB}.sys_tenant WHERE industry_id=7 ORDER BY id LIMIT 1`);
+    // /term/map 只从 token 里取 tenantId（不校验该用户是否属于该租户），
+    // 故用任意管理员身份 + 目标租户号现签一个令牌即可，避免依赖健身租户下必须有管理员账号。
+    ck('17.0 前置：取到健身行业租户', !!fitTenant, 'tenant=' + fitTenant);
+    if (fitTenant) {
+        const fitTn = Number(fitTenant);
+        const fitTk = makeToken(admin, 'admin', fitTn);
+        const platformZh = scalar(`SELECT term_name FROM ${DB}.sys_term
+            WHERE industry_id=0 AND tenant_id=0 AND term_key='schedule' AND language='zh'`);
+        const industryZh = scalar(`SELECT COUNT(*) FROM ${DB}.sys_term
+            WHERE industry_id=7 AND tenant_id=0 AND term_key='schedule' AND language='zh'`);
+        ck('17.1 前置：健身行业确实没登记 schedule 的中文词（否则本组测不到该缺陷）',
+            Number(industryZh) === 0 && !!platformZh, '行业zh词条=' + industryZh + ' 平台zh=' + platformZh);
+
+        const tm = await call('GET', '/api/v1/term/map', { token: fitTk });
+        const tmap = (tm.code === 200 && tm.data) ? tm.data : {};
+        ck('17.2 中文取词回退到平台层同语言词，而不是行业层的英文',
+            tmap.schedule === platformZh, 'schedule=' + tmap.schedule + ' 期望=' + platformZh);
+        ck('17.3 语言一致性护栏：该词不得是纯英文',
+            !!tmap.schedule && !/^[A-Za-z\s]+$/.test(tmap.schedule), 'schedule=' + tmap.schedule);
+
+        // 显式请求英文时，仍应拿到行业层登记的英文词（说明不是"一律忽略行业词"）
+        const tmEn = await call('GET', '/api/v1/term/map?lang=en', { token: fitTk });
+        const tmapEn = (tmEn.code === 200 && tmEn.data) ? tmEn.data : {};
+        const industryEn = scalar(`SELECT term_name FROM ${DB}.sys_term
+            WHERE industry_id=7 AND tenant_id=0 AND term_key='schedule' AND language='en'`);
+        ck('17.4 显式请求 en 时仍取行业层的英文词（作用域优先级未被削弱）',
+            !!industryEn && tmapEn.schedule === industryEn, 'schedule(en)=' + tmapEn.schedule + ' 期望=' + industryEn);
+    }
+
     report();
 }
 
@@ -549,14 +782,27 @@ function cleanup() {
         //   ② 必须用「单表 + 子查询」，不能用 MySQL 的多表别名 DELETE
         //      （DELETE i FROM a i JOIN b ...）——该写法要求连接有默认库，
         //      CLI 下会报 ERROR 1046 No database selected；子查询里的库名也要写全。
-        const titleIdx = searchIndex('候补递补成功');
+        //
+        // 覆盖面：不止「候补递补成功」——测试里 updateStatus→booked 会触发「预约已确认」、
+        // create 会触发「新的{course}预约」「新的候补申请」、appointment/add 会触发请假通知，
+        // 这些都是本测试的副产物，须一并清掉，否则测试租户学生的收件箱会越跑越脏。
+        // **标题必须按租户词表渲染后再匹配**（本租户是法律行业，「新的课程预约」不存在，
+        // 实际标题是「新的咨询话题预约」）；写死模板会静默漏删。
+        // 下界用 runStartedAt（测试启动时刻）而不是"最近 N 分钟"：长跑测试的早期产物
+        // 会掉出滚动窗口从而残留（曾留下 53 条）。用精确标题做上界，不会误删用户的消息。
+        const lowBound = runStartedAt || '1970-01-01 00:00:00';
+        let purged = 0;
+        const titleConds = NOTIFY_TITLE_TPLS
+            .map((t) => `title LIKE '${searchIndex(renderTpl(t))}:%'`).join(' OR ');
+        purged = Number(scalar(`SELECT COUNT(*) FROM ${MSG_DB}.msg_message
+                                WHERE (${titleConds}) AND create_time >= '${lowBound}'`));
         sql(`DELETE FROM ${MSG_DB}.msg_inbox
              WHERE message_id IN (SELECT message_id FROM ${MSG_DB}.msg_message
-                                  WHERE title LIKE '${titleIdx}:%' AND create_time >= DATE_SUB(NOW(), INTERVAL 20 MINUTE))`);
+                                  WHERE (${titleConds}) AND create_time >= '${lowBound}')`);
         sql(`DELETE FROM ${MSG_DB}.msg_message
-             WHERE title LIKE '${titleIdx}:%' AND create_time >= DATE_SUB(NOW(), INTERVAL 20 MINUTE)`);
+             WHERE (${titleConds}) AND create_time >= '${lowBound}'`);
         console.log('\n清理：已删除测试产生的 ' + createdBookings.length + ' 条 booking、'
-            + appt + ' 条 appointment 及对应通知');
+            + appt + ' 条 appointment 及 ' + purged + ' 条相关通知');
     } catch (e) {
         console.log('\n清理失败（不影响测试结论）：' + e.message);
     }

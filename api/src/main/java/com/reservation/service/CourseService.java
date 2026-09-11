@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Propagation;
  import ch.qos.logback.core.joran.util.beans.BeanUtil;
  import com.reservation.utils.JwtUtil;
 import com.reservation.utils.TenantContext;
+import com.reservation.utils.TermMsg;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
  import com.baomidou.mybatisplus.core.toolkit.Wrappers;
  import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -74,7 +75,7 @@ public class CourseService   {
     public Map<String, String> insertTemplate(CourseTemplate template) {
         if (courseTemplateMapper.selectTemplatesByLangAndLevel(template.getLanguageType(), template.getDifficultyLevel())
                 != null) {
-            throw new BusinessException("该语言类型+难度等级的课程模板已存在");
+            throw new BusinessException(TermMsg.t("该{classType}+{classLevel}的{course}模板已存在"));
         }
         String templateId = UUID.randomUUID().toString().replace("-", ""); // 移除UUID分隔符
         template.setTemplateId(templateId);
@@ -88,12 +89,12 @@ public class CourseService   {
         // 检查模板ID是否存在
         CourseTemplate exist = courseTemplateMapper.selectTemplateById(template.getTemplateId());
         if (exist == null) {
-            throw new ResourceNotFoundException("待编辑的课程模板不存在");
+            throw new ResourceNotFoundException(TermMsg.t("待编辑的{course}模板不存在"));
         }
         // 若更改了语言类型和难度等级，检查唯一性
         CourseTemplate duplicate = courseTemplateMapper.selectTemplatesByLangAndLevel(template.getLanguageType(), template.getDifficultyLevel());
         if (duplicate != null && !duplicate.getTemplateId().equals(template.getTemplateId())) {
-            throw new BusinessException("该语言类型+难度等级的课程模板已存在");
+            throw new BusinessException(TermMsg.t("该{classType}+{classLevel}的{course}模板已存在"));
         }
         // 更新模板信息
         courseTemplateMapper.updateTemplate(template);
@@ -149,7 +150,7 @@ public class CourseService   {
     public Map<String, String> addCourse(Course course) {
         CourseTemplate template = courseTemplateMapper.selectTemplateById(course.getTemplateId());
         if (template == null) {
-            throw new ResourceNotFoundException("课程模板不存在，请先选择正确的模板");
+            throw new ResourceNotFoundException(TermMsg.t("{course}模板不存在，请先选择正确的模板"));
         }
         // 校验当前租户课程数量是否超出套餐上限（原子占用，与插入同一事务，失败回滚）
         Long tenantId = TenantContext.getTenantId();
@@ -206,7 +207,7 @@ public class CourseService   {
     public void publishCourse(String courseId) {
         /*Course course = courseMapper.selectCourseById(courseId);
         if (course == null) {
-            throw new ResourceNotFoundException("课程不存在，无法发布");
+            throw new ResourceNotFoundException(TermMsg.t("{course}不存在，无法发布"));
         }*/
        // course.setStatus("active"); // 假设"active"为已发布状态
         courseMapper.updateCourseStatus(courseId, "active");
@@ -217,7 +218,7 @@ public class CourseService   {
     public void recycleCourse(String courseId) {
       /*  Course course = courseMapper.selectCourseById(courseId);
         if (course == null) {
-            throw new ResourceNotFoundException("课程不存在，无法回收");
+            throw new ResourceNotFoundException(TermMsg.t("{course}不存在，无法回收"));
         }*/
         //course.setStatus("inactive"); // 假设"inactive"为回收状态
         courseMapper.updateCourseStatus(courseId, "delete");    
@@ -241,10 +242,10 @@ public class CourseService   {
     public void checkCourseOwner(String courseId, String teacherId) {
         Course course = courseMapper.selectById(courseId);
         if (course == null) {
-            throw new ResourceNotFoundException("课程不存在");
+            throw new ResourceNotFoundException(TermMsg.t("{course}不存在"));
         }
         if (!teacherId.equals(course.getTeacherId())) {
-            throw new BusinessException("没有操作该课程的权限");
+            throw new BusinessException(TermMsg.t("没有操作该{course}的权限"));
         }
     } 
 

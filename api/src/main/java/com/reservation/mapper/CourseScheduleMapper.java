@@ -3,9 +3,11 @@ package com.reservation.mapper;
 import com.reservation.entity.*;
 import com.reservation.dto.*;
 import com.reservation.query.*;
+import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
@@ -38,6 +40,27 @@ public interface CourseScheduleMapper extends BaseMapper<CourseSchedule> {
  
     int deleteByCourseId(@Param("courseId") String courseId);
 
-    // 查询指定教师的所有活跃排期（通过JOIN course表过滤teacherId）
-    List<CourseSchedule> selectActiveSchedulesByTeacherId(@Param("teacherId") String teacherId);
+    /**
+     * 查询指定教师的所有活跃排期，**忽略租户隔离**——供公开接口 /schedule/getAvailableSchedule 使用。
+     *
+     * <p>注意：原先还有一个「带租户条件」的同名版本（selectActiveSchedulesByTeacherId），
+     * 因公开入口是唯一调用方、拆分后即成死代码，已删除——留着它只会让后人误以为
+     * 公开入口该调那个，从而把本 bug 带回来。
+     *
+     * <p>该接口在 SecurityConfig / JwtAuthenticationFilter / WebMvcConfig 三处白名单里，
+     * 是「免登录的公开预约入口」（家长或学生从公开链接进来选排期），请求没有租户上下文，
+     * TenantContext.getTenantId() 为 null，租户插件会把 null 兜底成 -1 并给
+     * course_schedule 与 course **两张表各追加一次** tenant_id = -1，恒不命中选择出空列表。
+     *
+     * <p>为什么在方法名里明写 IgnoreTenant 而不靠注释说明：将来若有人要为管理端
+     * （教师看自己的排期）加同功能查询，方法名会逼他先想清楚要不要隔离——
+     * 直接复用这个名字就等于默认公开，那是错的。
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT cs.* FROM course_schedule cs "
+            + "INNER JOIN course c ON cs.course_id = c.course_id "
+            + "WHERE c.teacher_id = #{teacherId} "
+            + "AND cs.status = 'active' AND c.status = 'active' "
+            + "ORDER BY cs.start_time ASC")
+    List<CourseSchedule> selectActiveSchedulesByTeacherIdIgnoreTenant(@Param("teacherId") String teacherId);
 }

@@ -13,6 +13,7 @@ import com.reservation.query.ScheduleQueryPage;
 import com.reservation.common.PageResult;
 import com.reservation.exception.BusinessException;
 import com.reservation.utils.TenantContext;
+import com.reservation.utils.TermMsg;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.reservation.dto.ScheduleCreateDTO;
 /*import com.reservation.service.AppointmentService;
@@ -404,7 +405,7 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
   @Transactional(rollbackFor = Exception.class)
   public boolean asgn_student(String scheduleId, String studentId,String teacherId) {
       if (scheduleId == null || studentId == null) {
-          throw new BusinessException("排期ID与学生ID不能为空");
+          throw new BusinessException(TermMsg.t("{schedule}ID与{student}ID不能为空"));
       }
 
       // 1. 同一学生同一排期只应存在一条 booking。
@@ -462,7 +463,7 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
       }
       CourseSchedule schedule = scheduleMapper.selectById(scheduleId);
       if (schedule == null) {
-          throw new BusinessException("排期不存在");
+          throw new BusinessException(TermMsg.t("{schedule}不存在"));
       }
       // 由排期的重复规则展开实例日期+时间
       ScheduleCreateDTO crtDto = ObjectToCreateDto(schedule);
@@ -532,19 +533,22 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
 
     // 查询指定教师的可预约排期（可用席位 > 已预约数量）
     public List<CourseSchedule> getAvailableSchedule(String teacherId) {
-        List<CourseSchedule> schedules = scheduleMapper.selectActiveSchedulesByTeacherId(teacherId);
-        log.info("getAvailableSchedule 1, teacherId={}, rows={}", teacherId, schedules.size());
+        // 本方法是**免登录公开接口**（/schedule/getAvailableSchedule 在三处白名单里）的专用实现：
+        // 公开链接的访问者没有租户身份，TenantContext 为空，普通查询会被租户插件追加
+        // tenant_id = -1 而恒不命中（返回空列表），故这里统一走 *IgnoreTenant 版本。
+        // 详见 CourseScheduleMapper#selectActiveSchedulesByTeacherIdIgnoreTenant 的注释。
+        List<CourseSchedule> schedules = scheduleMapper.selectActiveSchedulesByTeacherIdIgnoreTenant(teacherId);
 
         List<CourseSchedule> availableSchedules = new ArrayList<>();
         for (CourseSchedule schedule : schedules) {
-            int bookingCount = bookingMapper.countBookingByScheduleId(
-                    schedule.getScheduleId(), BookingStatus.NON_OCCUPYING, null);
-            log.info("schedule {} bookingCount={}", schedule.getScheduleId(), bookingCount);
+            // 剩余席位同样必须用忽略租户的计数，否则计数恒为 0，
+            // 会把「已约满」的排期也当成有空位返回给家长
+            int bookingCount = bookingMapper.countBookingByScheduleIdIgnoreTenant(
+                    schedule.getScheduleId(), BookingStatus.NON_OCCUPYING);
             if (schedule.getAvailableSites() > bookingCount) {
                 availableSchedules.add(schedule);
             }
         }
-        log.info("getAvailableSchedule 2, teacherId={}, rows={}", teacherId, availableSchedules.size());
         return availableSchedules;
     }
   

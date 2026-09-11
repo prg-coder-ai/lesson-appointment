@@ -9,9 +9,15 @@ set -e
 SERVER=${SERVER:-root@1.2.3.4}
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
+# 版本号不写死：pom 里 api 的 <version> 会变（曾写死 2.0.0 而产物已是 2.0.1，scp 直接 No such file）
+BOOKING_JAR="$(ls -1 "$ROOT"/api/target/booking_api-*.jar 2>/dev/null | head -1)"
+MSG_JAR="$ROOT/api/message-service/target/message-service-1.0.0.jar"
+[ -f "$BOOKING_JAR" ] || { echo "找不到 api 产物，请先在 api/ 执行 mvn package"; exit 1; }
+[ -f "$MSG_JAR" ]     || { echo "找不到 message-service 产物，请先在 api/message-service/ 执行 mvn package"; exit 1; }
+
 echo "==> 1/5 两个 jar"
-scp "$ROOT/api/target/booking_api-2.0.0.jar"              "$SERVER:/opt/lesson/booking_api.jar.new"
-scp "$ROOT/api/message-service/target/message-service-1.0.0.jar" "$SERVER:/opt/lesson/message-service.jar.new"
+scp "$BOOKING_JAR"                                        "$SERVER:/opt/lesson/booking_api.jar.new"
+scp "$MSG_JAR"                                            "$SERVER:/opt/lesson/message-service.jar.new"
 
 echo "==> 2/5 前端 dist（内容，不含 dist 这一层）"
 rsync -av --delete "$ROOT/frontend/dist/" "$SERVER:/var/www/frontend/"

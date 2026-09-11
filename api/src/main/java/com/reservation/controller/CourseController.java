@@ -6,6 +6,7 @@ import  com.reservation.query.*;
 import  com.reservation.dto.CourseQueryParam;
 import com.reservation.service.CourseService;
 import com.reservation.utils.PermissionCheck;
+import com.reservation.utils.TermMsg;
 import com.reservation.audit.Audit;
 import com.reservation.audit.AuditAction;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -59,7 +60,7 @@ public class CourseController {
           }
         // 调用服务层创建课程，返回courseId（对应设计2.2.2 课程创建返回数据）
         Map<String, String> resultMap = courseService.addCourse(course);
-        return Result.success(resultMap, "课程创建成功");
+        return Result.success(resultMap, TermMsg.t("{course}创建成功"));
     }
      
     /**
@@ -76,7 +77,7 @@ public class CourseController {
          String courseId = req.getCourseid(); 
         // 执行对应操作
         courseService.updateCourseStatus(courseId, req.getStatus()); 
-        return Result.success(true, "课程状态修改成功");
+        return Result.success(true, TermMsg.t("{course}状态修改成功"));
     }
 
     @PostMapping("/updateStatusByLastId/{id}")
@@ -87,7 +88,7 @@ public class CourseController {
         permissionCheck.checkTeacherOrAdmin(token);
         // 执行对应操作
         Integer rows = courseService.updateCourseStatusByLastId(id, status);
-        return Result.success(rows, "课程状态修改成功");
+        return Result.success(rows, TermMsg.t("{course}状态修改成功"));
     }
 
 
@@ -104,9 +105,10 @@ public class CourseController {
          try{
         // 执行对应操作
         courseService.update(req); 
-        return Result.success(true, "课程修改成功");
+        return Result.success(true, TermMsg.t("{course}修改成功"));
          }  catch (Exception e) {
-           return Result.success(false, "课程修失败: " + e.getMessage());      
+           // 异常详情属动态数据，接在术语模板**之外**——不参与取词，否则详情里恰好出现的行业词会被误改
+           return Result.success(false, TermMsg.t("{course}修改失败: ") + e.getMessage());      
        }
     }
 
@@ -121,9 +123,9 @@ public class CourseController {
         // 实际删除操作
           int result = courseService.deleteById(id);
         
-           return Result.success(result, "课程删除成功");
+           return Result.success(result, TermMsg.t("{course}删除成功"));
        } catch (Exception e) {
-           return Result.success(0, "课程删除失败: " + e.getMessage());      
+           return Result.success(0, TermMsg.t("{course}删除失败: ") + e.getMessage());      
        }
    }
 
@@ -135,10 +137,10 @@ public class CourseController {
        try{
         // 实际删除操作
          int result = courseService.deleteByTemplateId(id);
-         return Result.success(result, "课程删除成功");
+         return Result.success(result, TermMsg.t("{course}删除成功"));
        
        } catch (Exception e) {
-           return Result.success(0, "课程删除失败: " + e.getMessage());      
+           return Result.success(0, TermMsg.t("{course}删除失败: ") + e.getMessage());      
        }
    }
 

@@ -63,6 +63,28 @@ public interface BookingMapper extends BaseMapper<Booking>{
                                  @Param("excludeBookingId") String excludeBookingId);
 
     /**
+     * 同上，但**忽略租户隔离**——仅限免登录公开路径（/schedule/getAvailableSchedule 统计剩余席位）。
+     *
+     * <p>为什么不能直接给上面的方法加注解：上面那个方法在席位校验的关键路径上被
+     * BookingSeatService / BookingService 调用（预定 / 改订 / 递补的名额闸门），
+     * 那条路径**有**租户上下文，去掉 tenant_id 条件等于在防超额的核心校验上拆掉隔离防线。
+     * 公开路径没有租户上下文，若沿用上面的方法会被拼上 tenant_id = -1 而恒为 0，
+     * 结果是「已满的排期也被判定有空位」返回给家长。故按用途拆成两个方法。
+     *
+     * <p>公开路径不需要 excludeBookingId（无“排除自身”语义），故不提供该参数。
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("<script>"
+            + "SELECT COUNT(*) FROM booking WHERE schedule_id = #{scheduleId} "
+            + "<if test='excludedStatuses != null and excludedStatuses.size() > 0'>"
+            + "AND status NOT IN "
+            + "<foreach collection='excludedStatuses' item='st' open='(' separator=',' close=')'>#{st}</foreach>"
+            + "</if>"
+            + "</script>")
+    int countBookingByScheduleIdIgnoreTenant(@Param("scheduleId") String scheduleId,
+                                            @Param("excludedStatuses") List<String> excludedStatuses);
+
+    /**
      * 以「锁定读」取出某排期下占用席位的 booking_id 列表（排除 excludeBookingId 自身）。
      *
      * <p>为什么不用 COUNT(*) + FOR UPDATE：聚合与锁定子句的组合在部分 MySQL 版本上不被允许；

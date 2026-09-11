@@ -18,6 +18,7 @@ import com.reservation.query.TeacherProfessionalQueryPage;
 import com.reservation.vo.TeacherProfessionalDetailVO;
 import com.reservation.vo.TeacherProfessionalListVO;
 import com.reservation.utils.CryptoUtil;
+import com.reservation.utils.TermMsg;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,21 +56,21 @@ public class TeacherProfessionalService {
     @Transactional
     public Result<Object> addTeacherProfessionalInfo(TeacherProfessionalDTO dto) {
         if (dto == null || dto.getTeacherId() == null || dto.getTeacherId().trim().isEmpty()) {
-            return Result.fail(400, "教师ID不能为空");
+            return Result.fail(400, TermMsg.t("{teacher}ID不能为空"));
         }
         // 校验教师存在且 role=teacher
         User teacher = userMapper.selectById(dto.getTeacherId());
         if (teacher == null) {
-            return Result.fail(404, "教师用户不存在");
+            return Result.fail(404, TermMsg.t("{teacher}用户不存在"));
         }
         if (!"teacher".equals(teacher.getRole())) {
-            return Result.fail(400, "该用户不是教师，无法添加职业信息");
+            return Result.fail(400, TermMsg.t("该用户不是{teacher}，无法添加职业信息"));
         }
         // 校验是否已有职业信息（1:1 唯一约束）
         TeacherProfessional exist = tpMapper.selectOne(
                 new QueryWrapper<TeacherProfessional>().eq("teacher_id", dto.getTeacherId()));
         if (exist != null) {
-            return Result.fail(400, "该教师已存在职业信息，请使用修改功能");
+            return Result.fail(400, TermMsg.t("该{teacher}已存在职业信息，请使用修改功能"));
         }
 
         // 1.1 插入主表

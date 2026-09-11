@@ -29,7 +29,17 @@ public class SsePushService {
     public SseEmitter connect(Long tenantId, String userId) {
         String key = key(tenantId, userId);
         SseEmitter em = new SseEmitter(0L); // 不自动超时
-        emitters.put(key, em);
+        SseEmitter old = emitters.put(key, em);
+        if (old != null) {
+            // 同一用户重复连接（前端 EventSource 自动重连、开多个标签页）时必须显式结束旧 emitter：
+            // 它已不在 map 里（后续推送碰不到），又因 0L=永不超时而不会自己退出，
+            // 会一直挂在容器的异步请求上，直到 TCP 层报错为止。
+            try {
+                old.complete();
+            } catch (Exception ignored) {
+                // 已完成/已失效都会抛，忽略
+            }
+        }
         em.onCompletion(() -> emitters.remove(key, em));
         em.onTimeout(() -> emitters.remove(key, em));
         em.onError(e -> emitters.remove(key, em));
@@ -60,6 +70,11 @@ public class SsePushService {
             payload.put("sendTime", msg.getSendTime() == null ? null : msg.getSendTime().toString());
             em.send(SseEmitter.event().name("message").data(payload));
         } catch (IOException | IllegalStateException e) {
+            // 客户端已断开（浏览器刷新/切页/断网）。移除 emitter 即可 —— 业务不受影响。
+            // 但要注意：Spring 的 ResponseBodyEmitter 会把这次失败保存在 emitter 上，并在
+            // 该 SSE 请求的异步收尾阶段重放同一个异常，所以 GlobalExceptionHandler 依然会
+            // 看到它（堆栈里还带着 pushToUser 这一帧，极易被误判成"catch 没生效"）。
+            // 不刷 ERROR 日志靠的是 GlobalExceptionHandler 对「响应已提交」的静默分支。
             emitters.remove(key);
         }
     }

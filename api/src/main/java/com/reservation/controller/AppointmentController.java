@@ -96,7 +96,8 @@ public class AppointmentController {
         try {
             Appointment appt = appointmentService.getById(Integer.parseInt(id));
             if (appt != null && appt.getBookingId() != null) {
-                messageNotifyService.notifyStudentConfirmed(appt.getBookingId(), "请假");
+                // 只传语义动作码；「{leave}」由 MessageNotifyService 按租户渲染（教育「请假」/ 法律「改期」）
+                messageNotifyService.notifyStudentConfirmed(appt.getBookingId(), MessageNotifyService.ACTION_LEAVE);
             }
         } catch (Exception ignore) { /* 通知失败不影响主流程 */ }
         return Result.success(ok, "ok");

@@ -47,6 +47,28 @@ function publicProfileUrl(params) {
   return prefix + 'teacherPublishedProfile.html' + (query ? '?' + query : '');
 }
 
+/**
+ * 构造「预约深链」地址（对外分享用：绝对地址、刻意不带 tCode）。
+ *
+ * 走前端 booking.html（多角色路由页），由它按登录角色分流到 student.html / admin.html：
+ *   booking.html?scdid=排期ID  → 学生端直达该排期
+ *   booking.html?tid=教师ID    → 学生端展示该教师全部排期
+ *
+ * **不要写成后端 `/booking`**：前后端分离后 api 已不伺服任何页面
+ * （api/src/main/resources 下已无 html），Nginx 侧也没有 `/booking` 这条 location，
+ * 该路径会落进 `try_files ... /index.html` 兜底 → 家长点开看到的是登录首页。
+ */
+function bookingDeepLink(params) {
+  // 取当前页面所在目录（兼容部署在子路径的情况），再拼预约入口文件名
+  const base = location.pathname.replace(/[^/]*$/, '');
+  const query = Object.keys(params || {})
+    .filter(k => params[k] != null && String(params[k]) !== '')
+    .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k]))
+    .join('&');
+  const prefix = (window.FRONTEND_ORIGIN || location.origin) + base;
+  return prefix + 'booking.html' + (query ? '?' + query : '');
+}
+
 /** 从配置（或默认值）取出字段勾选列表：[{key,label,group,enabled,sort}] */
 function buildFieldListFromConfig(configJson) {
   const existing = {};
@@ -289,9 +311,21 @@ function generatePublishHtml(mode) {
       if (!data.availableTimes || !data.availableTimes.length) return '';
       // 发布快照：纯文本，不带后台复选框
       const lines = formAvaliableTimesDiv(data.availableTimes, { withOptionCheckbox: false });
+      // 对外预约链接（2026-09-11 取消 0d62f56「暂时隐藏链接」的注释，恢复直达预约）：
+      //   勾了「优先推荐」→ 直达该排期；未勾选则不渲染，避免出现空参数的无效链接。
+      const linkForSchedule = optedScheduleId ? bookingDeepLink({ scdid: optedScheduleId }) : '';
+      const linkForTeacher = currentTeacherId ? bookingDeepLink({ tid: currentTeacherId }) : '';
+      const bookingLinks = [
+        linkForSchedule
+          ? `<div style="margin-top:8px;"><a href="${escapeAttr(linkForSchedule)}" target="_blank" rel="noopener" style="color:${escapeAttr(style.accentColor)};word-break:break-all;">直达预定</a></div>`
+          : '',
+        linkForTeacher
+          ? `<div style="margin-top:4px;"><a href="${escapeAttr(linkForTeacher)}" target="_blank" rel="noopener" style="color:${escapeAttr(style.accentColor)};word-break:break-all;">全部排期</a></div>`
+          : ''
+      ].join('');
       return `<section style="margin-bottom:16px;">
         <h3 style="margin:0 0 8px 0;color:${escapeAttr(style.accentColor)};font-size:${style.fontSizePx + 2}px;">可预约时间</h3>
-        <div>${lines}</div></section>`;
+        <div>${lines}</div>${bookingLinks}</section>`;
     }
     if (f.key === 'bioText') {
       if (!v) return '';

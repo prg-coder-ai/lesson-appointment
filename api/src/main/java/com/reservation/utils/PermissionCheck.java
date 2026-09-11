@@ -75,12 +75,12 @@ public class PermissionCheck {
         String userId = getUserIdFromToken(token);
         // 1. 校验角色为teacher
         if (!"teacher".equals(role)) {
-            throw new NoPermissionException("您无教师权限，无法执行该操作");
+            throw new NoPermissionException(TermMsg.t("您无{teacher}权限，无法执行该操作"));
         }
         // 2. 校验教师账号状态为active（对应设计2.2.1 教师注册审核逻辑）
         User teacher = userMapper.selectById(userId);
         if (teacher == null || !"active".equals(teacher.getStatus())) {
-            throw new NoPermissionException("教师账号未审核或已冻结，请联系管理员");
+            throw new NoPermissionException(TermMsg.t("{teacher}账号未审核或已冻结，请联系管理员"));
         }
     }
 
@@ -94,12 +94,12 @@ public class PermissionCheck {
         String userId = getUserIdFromToken(token);
         // 1. 校验角色为student
         if (!"student".equals(role)) {
-            throw new NoPermissionException("您无学生权限，无法执行该操作");
+            throw new NoPermissionException(TermMsg.t("您无{student}权限，无法执行该操作"));
         }
         // 2. 校验学生账号状态为active
         User student = userMapper.selectById(userId);
         if (student == null || !"active".equals(student.getStatus())) {
-            throw new NoPermissionException("学生账号未激活或已冻结，无法执行操作");
+            throw new NoPermissionException(TermMsg.t("{student}账号未激活或已冻结，无法执行操作"));
         }
     }
 
@@ -135,11 +135,11 @@ public class PermissionCheck {
         }
         if ("teacher".equals(role)) {
             if (!userId.equals(teacherId)) {
-                throw new NoPermissionException("教师只能操作本人的个人介绍");
+                throw new NoPermissionException(TermMsg.t("{teacher}只能操作本人的个人介绍"));
             }
             User teacher = userMapper.selectById(userId);
             if (teacher == null || !"active".equals(teacher.getStatus())) {
-                throw new NoPermissionException("教师账号未审核或已冻结，请联系管理员");
+                throw new NoPermissionException(TermMsg.t("{teacher}账号未审核或已冻结，请联系管理员"));
             }
             return;
         }
@@ -189,7 +189,7 @@ public class PermissionCheck {
         String currentTeacherId = getUserIdFromToken(token);
         // 校验课程/排期归属当前教师
         if (!currentTeacherId.equals(teacherId)) {
-            throw new NoPermissionException("您无权操作其他教师的课程/排期");
+            throw new NoPermissionException(TermMsg.t("您无权操作其他{teacher}的{course}/{schedule}"));
         }
     }
 
