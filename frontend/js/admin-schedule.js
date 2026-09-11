@@ -452,6 +452,18 @@ async function renderScheduleCards() {
            <option value="">请选择<span data-term="student">学生</span></option>
        </select>
     </div>
+
+    <!-- 候补队列 / 递补
+         递补统一在此完成：排期维度能看到剩余席位、也能看到候补的排队次序。
+         入口有两处——管理员在「预订管理」里确认取消（该排期腾出空位）后点「查询递补」，
+         或候选补记录点「查询递补」，都会带着 scheduleId 落到本页并锁定该排期。 -->
+    <div class="sched-section" id="waitlistSection" style="display:none;">
+        <div class="sched-section-title">
+            候补队列
+            <span id="waitlistSummary" style="font-weight:400;color:#888780;font-size:13px;margin-left:8px;"></span>
+        </div>
+        <div id="waitlistBody" style="font-size:13px;color:#5F5E5A;"></div>
+    </div>
      </div> <!-- 课程检索 / 排期设置 card -->
 
     <!-- 排期结果（与课程检索同属 .sched-page，确保完全相同的宽度 & 对齐规则） -->
@@ -626,22 +638,16 @@ function localsearchCourse_sch() {
       await loadSchedule();
 
       // 4. 在排期下拉框中选中目标排期
-      const scheduleSelect = document.getElementById('scheduleSelect');
-      let schedFound = false;
-      for (let i = 0; i < scheduleSelect.options.length; i++) {
-          if (String(scheduleSelect.options[i].value) === String(dl.scdid)) {
-              scheduleSelect.selectedIndex = i;
-              schedFound = true;
-              break;
-          }
-      }
-      if (!schedFound) {
+      if (!reselectScheduleOption(dl.scdid)) {
           alert('未在课程排期列表中找到指定排期');
           return;
       }
 
       // 5. 显示排期详情
-      displySchedule();
+      // 必须 await：displySchedule 内部要查后端算剩余席位、再渲染候补队列，
+      // 不 await 的话 handleAdminDeepLink 会先返回，调用方紧接着就清掉 pendingDeepLink，
+      // 外观上像是"深链带过来了但候补面板迟迟不定"（且随网络快慢时有时无）。
+      await displySchedule();
 
       // 6. 预选学生
       if (dl.sid) {
@@ -1147,11 +1153,11 @@ function refreshUserTzPreview() {
 }
 
   //当排期列表选择变化时，检查参数，重新显示排期计划
-   function displySchedule() {
+   async function displySchedule() {
     // 先做一次兜底刷新：无论后续是否 early return，都避免左侧选择变化后右侧还显示上次切走残留的值
     refreshUserTzPreview();
 
-    if(! checkCourseAndSchedule(true,true)) return;
+    if(! checkCourseAndSchedule(true,true)) { hideWaitlistPanel(); return; }
 
     if (conflictMessageElem) {
         conflictMessageElem.textContent = '';
@@ -1168,7 +1174,7 @@ function refreshUserTzPreview() {
    if (!scheduleSelect) return;
    const selectedId = scheduleSelect.value;
 
-   if (!selectedId) return;
+   if (!selectedId) { hideWaitlistPanel(); return; }
    currentScheduleId = selectedId;
 
    // 在 scheduleList 中查找对应的排期对象
@@ -1179,11 +1185,17 @@ function refreshUserTzPreview() {
        resetScheduleObject();
    }
     if (typeof renderSchedule === 'function') {
-        renderSchedule(); // renderSchedule 内部已在末尾兜底调用 refreshUserTzPreview
+        // 必须 await：renderSchedule 内部要查后端算已预订数，
+        // 不 await 就去读 now_availableSites，读到的还是上一排期的残值
+        // （候补面板会据此判断“是否还有空位”，读残值就会给出错误的可递补状态）
+        await renderSchedule(); // renderSchedule 内部已在末尾兜底调用 refreshUserTzPreview
     } else {
         // renderSchedule 不可用时，仍然按兜底逻辑刷新一次
         refreshUserTzPreview();
     }
+
+    // 候补队列与「剩余席位」必须同源同一时刻：上面 await 之后再渲染
+    await renderWaitlistPanel(selectedId);
    }
   //读取排期个字段的输入/选择值
    function  getFormData(){
@@ -1468,6 +1480,128 @@ async function hasBookingForScheduleId(scheduleId) {
         return true;
     }
 }
+/* ============ 候补队列与递补（排期维度） ============
+   递补统一放在这里完成：只有排期维度能同时看到「剩余席位」和「候补排队次序」，这两样齐了才能做决定。
+   入口：预订管理页在 cancelled 行（已确认取消、该排期腾出一个空位）或 waiting 行上的
+        「查询递补」按钮 → 带 scheduleId 跳到本页并锁定该排期（复用 window.pendingDeepLink 机制）。 */
+
+// 渲染序号令牌：快速切换排期时，慢响应不能覆盖新排期的结果
+let waitlistRenderSeq = 0;
+
+/** 隐藏候补面板并清空内容——清空而不只是 display:none，避免下次显示时闪出上一次的残留 */
+function hideWaitlistPanel() {
+    waitlistRenderSeq++;   // 作废在途请求的结果
+    const section = document.getElementById('waitlistSection');
+    const body = document.getElementById('waitlistBody');
+    const summary = document.getElementById('waitlistSummary');
+    if (body) body.innerHTML = '';
+    if (summary) summary.textContent = '';
+    if (section) section.style.display = 'none';
+}
+
+/**
+ * 渲染当前排期的候补队列（按申请时间升序，次序即递补次序）。
+ * @param {string} scheduleId 排期ID；为空则隐藏面板
+ */
+async function renderWaitlistPanel(scheduleId) {
+    const section = document.getElementById('waitlistSection');
+    const body = document.getElementById('waitlistBody');
+    const summary = document.getElementById('waitlistSummary');
+    if (!section || !body) return;
+    if (!scheduleId) { hideWaitlistPanel(); return; }
+
+    const seq = ++waitlistRenderSeq;
+    const queue = await fetchWaitlistQueue(scheduleId);
+    if (seq !== waitlistRenderSeq) return;    // 已被更新的渲染取代，丢弃在途结果
+
+    if (!Array.isArray(queue) || queue.length === 0) { hideWaitlistPanel(); return; }
+
+    // 剩余席位与候补队列必须同源同一时刻读取，否则会给出“还有空位”的错误判断
+    const remainEl = document.getElementById('now_availableSites');
+    const remainRaw = remainEl ? String(remainEl.value).trim() : '';
+    const remainText = remainRaw === '' ? '未知' : remainRaw;
+    const noSeat = remainRaw !== '' && Number(remainRaw) <= 0;
+
+    if (summary) {
+        summary.textContent = '共 ' + queue.length + ' 人候补 · 剩余席位 ' + remainText
+            + (noSeat ? '（暂无空位，需先腾出空位才能递补）' : '');
+    }
+
+    let rows = '';
+    for (let i = 0; i < queue.length; i++) {
+        const item = queue[i];
+        const studentName = await getUserNameById(item.studentId);
+        const appliedAt = String(item.createTime || '').replace('T', ' ').slice(0, 16);
+        rows += '<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #F1EFE8;">'
+              +   '<span style="min-width:56px;color:#888780;">第 ' + (i + 1) + ' 位</span>'
+              +   '<span style="flex:1;color:#2C2C2A;">' + studentName + '</span>'
+              +   '<span style="color:#888780;">申请于 ' + (appliedAt || '—') + '</span>'
+              +   '<button class="btn btn-primary" ' + (noSeat ? 'disabled' : '')
+              +     ' onclick="clickPromoteWaitlist(\'' + item.bookingId + '\',' + (i + 1) + ')">'
+              +     '<i class="fa fa-level-up-alt"></i> 递补</button>'
+              + '</div>';
+    }
+    body.innerHTML = rows;
+    section.style.display = '';
+}
+
+/**
+ * 点击「递补」：确认后调用服务端原子递补接口。
+ *
+ * 名额校验、并发防重、课次生成、通知学生全部在服务端完成。
+ * 无论成败都刷新队列——成功要看到队列少一人、剩余席位减一；
+ * 失败（如已被他人抢先递补）也要刷新，否则界面与库不一致。
+ */
+async function clickPromoteWaitlist(bookingId, position) {
+    if (!bookingId) return;
+
+    // 先记住当前锁定的是哪个排期：loadSchedule() 会重建排期下拉、选中复位到「请选择排期」占位，
+    // 不记住的话刷新后就找不到排期了（详见下方 reselectScheduleOption 处的说明）
+    const keepScheduleId = currentScheduleId || (document.getElementById('scheduleSelect') || {}).value || '';
+
+    const ok = confirm('确认把「第 ' + position + ' 位」候补递补为正式预订？\n\n'
+        + '· 该学生状态由「候补」变为「预定已确认」\n'
+        + '· 生成该学生的课程时间表\n'
+        + '· 系统自动发消息通知该学生');
+    if (!ok) return;
+
+    const result = await promoteWaitlist(bookingId);
+    if (result) {
+        alert('递补成功：已生成课次，并已通知该学生。');
+    }
+
+    await loadSchedule();
+    // loadSchedule() 末尾是 `scheduleSelect.innerHTML = '<option value="">请选择排期</option>'` + 逐个 append，
+    // 选中状态随之复位到占位项；若直接 displySchedule()，checkCourseAndSchedule 会因"未选排期"早退 →
+    // 画面变成"排期未选中 + 候补面板消失"，管理员刚点完递补就丢失了上下文。
+    // 因此刷新后必须把同一个排期重新选回来。
+    reselectScheduleOption(keepScheduleId);
+    await displySchedule();   // 重新读取该排期剩余席位并重渲染候补队列
+}
+
+/**
+ * 在排期下拉中按 scheduleId 选中对应项。
+ * 深链落地与递补后刷新都需要"把某个排期选回来"，共用同一份实现，避免两处逻辑跑偏。
+ * @returns {boolean} 是否找到并选中
+ */
+function reselectScheduleOption(scheduleId) {
+    if (!scheduleId) return false;
+    const scheduleSelect = document.getElementById('scheduleSelect');
+    if (!scheduleSelect || !scheduleSelect.options) return false;
+    for (let i = 0; i < scheduleSelect.options.length; i++) {
+        if (String(scheduleSelect.options[i].value) === String(scheduleId)) {
+            scheduleSelect.selectedIndex = i;
+            return true;
+        }
+    }
+    return false;
+}
+
+window.hideWaitlistPanel = hideWaitlistPanel;
+window.renderWaitlistPanel = renderWaitlistPanel;
+window.clickPromoteWaitlist = clickPromoteWaitlist;
+window.reselectScheduleOption = reselectScheduleOption;
+
  function refreshData(){
     //再次读取排期数据并显示
     loadSchedule(); 

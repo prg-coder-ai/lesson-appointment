@@ -130,4 +130,13 @@
     ORDER BY cs.start_time ASC
 </select>
 
+<!-- 按ID加行锁读取排期（FOR UPDATE）。
+     用途：把所有「占席位」的写路径（学生预定 / 改订 / 指定学生 / 候补递补）串行化到同一把排期行锁上。
+     为什么必须加锁：名额校验读的是「其他行的聚合计数」，而随后的占位写入是本行——
+     两者不在同一把锁下时，两个并发递补者会各自读到「还有空位」，各自 CAS 自己的记录成功，
+     最终同一个排期出现两个 booked，超出总席位（各自的行锁互不冲突，拦不住）。 -->
+<select id="selectByIdForUpdate" resultType="com.reservation.entity.CourseSchedule">
+    SELECT * FROM course_schedule WHERE schedule_id = #{scheduleId} FOR UPDATE
+</select>
+
 </mapper>

@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
 @RestController
@@ -30,7 +31,12 @@ public class BookingController {
         try {
             String id = bookingService.create(booking);
             // 系统自动通知：学生预订课程 → 对应教师 + 本租户管理员
-            messageNotifyService.notifyBookingCreated(id);
+            // status='waiting' 为候补预订（排期名额已满时的候补申请），用候补文案单独通知
+            if ("waiting".equalsIgnoreCase(booking.getStatus())) {
+                messageNotifyService.notifyWaitlistCreated(id);
+            } else {
+                messageNotifyService.notifyBookingCreated(id);
+            }
             return Result.success(id,"ok");
         } catch (IllegalArgumentException e) {
             return Result.fail(null,e.getMessage());
@@ -51,12 +57,49 @@ public class BookingController {
         try {
             String rs = bookingService.updateStatus(dto);
             // 系统自动通知：管理员确认预订 → 该学生（仅"确认"状态触发）
-            if ("bookProved".equals(dto.getStatus())) {
+            // 注意：若本次是「候补 → booked」，Service 内部会转到递补逻辑（需校验名额并生成课次），
+            //      此时同样给该学生发一条确认消息，保证两条入口的通知行为一致。
+            if ("bookProved".equals(dto.getStatus()) || "booked".equals(dto.getStatus())) {
                 messageNotifyService.notifyStudentConfirmed(dto.getId(), "课程预约");
             }
             return Result.success(rs,"ok");
         } catch (RuntimeException e) {
-            return Result.fail(null,e.getMessage());
+            return Result.fail(500, e.getMessage());
+        }
+    }
+
+    /**
+     * 查询某排期的候补队列，按申请时间升序——次序即递补次序（先来先得）。
+     *
+     * <p>课程排期页用它渲染「候补队列」；学生端「今日课程」提示条也用它计算排队位置。
+     * 只返回 status='waiting' 的记录，不占席位。
+     */
+    @GetMapping("/waitlist/{scheduleId}")
+    @ResponseBody
+    public Result<List<Booking>> getWaitlistQueue(@PathVariable("scheduleId") String scheduleId) {
+        try {
+            return Result.success(bookingService.getWaitlistQueue(scheduleId), "ok");
+        } catch (RuntimeException e) {
+            return Result.fail(500, e.getMessage());
+        }
+    }
+
+    /**
+     * 递补：把一条候补（waiting）晋升为正式预订（booked），并生成该学生的课次时间列表。
+     *
+     * <p>服务端保证：名额校验（候补不占位，空位可能已被订走）、CAS 防并发重复递补、
+     * 课次生成幂等。成功后自动发消息通知该学生。
+     */
+    @PostMapping("/waitlist/promote")
+    @Audit(action = AuditAction.BOOKING_CONFIRM, resourceType = "booking")
+    public Result<Map<String, Object>> promoteWaitlist(@RequestBody BookingDTO dto) {
+        try {
+            Map<String, Object> data = bookingService.promoteWaitlist(dto.getId());
+            // 系统自动通知：递补成功 → 该学生（发送者=当前登录管理员）
+            messageNotifyService.notifyWaitlistPromoted(dto.getId());
+            return Result.success(data, "递补成功，已生成课次并通知学生");
+        } catch (RuntimeException e) {
+            return Result.fail(500, e.getMessage());
         }
     }
 

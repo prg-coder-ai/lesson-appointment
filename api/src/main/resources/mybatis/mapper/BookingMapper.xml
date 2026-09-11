@@ -172,8 +172,77 @@
         </if>
     </select>
 
-    <!-- 统计指定排期（Schedule）的所有预约（Booking）的数量 -->
-    <select id="countBookingByScheduleId" parameterType="string" resultType="int">
-        SELECT COUNT(*) FROM booking WHERE schedule_id = #{scheduleId}
+    <!-- 统计指定排期（Schedule）下「占用席位」的预订（Booking）数量
+
+         席位规则：剩余席位 = 排期总席位 − 占位预订数。
+         不占席位的状态由调用方以 excludedStatuses 传入（单一事实来源见 BookingStatus.NON_OCCUPYING）：
+           · waiting     候补申请——不占位，否则候补人数会把剩余席位越吃越少
+           · cancelled/canceled  已取消——席位已释放
+           · rej-booking 预订被拒——不占位
+         反例说明：canceling/cancelling（申请取消待确认）**仍占位**，因为管理员确认前原预订依然有效；
+         若提前释放，学生点「撤回」就会两人同时占位 → 超额。
+
+         excludeBookingId 用于改订/递补场景排除自身（自己原本就占着一个位）。 -->
+    <select id="countBookingByScheduleId" resultType="int">
+        SELECT COUNT(*) FROM booking
+        WHERE schedule_id = #{scheduleId}
+        <if test="excludeBookingId != null and excludeBookingId != ''">
+            AND booking_id &lt;&gt; #{excludeBookingId}
+        </if>
+        <if test="excludedStatuses != null and excludedStatuses.size() > 0">
+            AND status NOT IN
+            <foreach collection="excludedStatuses" item="st" open="(" separator="," close=")">
+                #{st}
+            </foreach>
+        </if>
+    </select>
+
+    <!-- 锁定读：某排期下占用席位的 booking_id 列表（排除 excludeBookingId）。
+         名额校验必须走这条：普通 SELECT 在 REPEATABLE READ 下读的是事务快照，
+         而快照在事务第一次普通读时就定格了 —— 若在拿到排期行锁之前已有普通读
+         （如先 selectById(bookingId) 查候补记录），锁内再普通 count 仍会读到旧快照，
+         后到的事务照样看到“还有空位”，两个并发递补就都会成功 → 超额。
+         锁定读永远读最新已提交数据，不受快照影响。 -->
+    <select id="selectOccupyingBookingIdsForUpdate" resultType="string">
+        SELECT booking_id FROM booking
+        WHERE schedule_id = #{scheduleId}
+        <if test="excludeBookingId != null and excludeBookingId != ''">
+            AND booking_id &lt;&gt; #{excludeBookingId}
+        </if>
+        <if test="excludedStatuses != null and excludedStatuses.size() > 0">
+            AND status NOT IN
+            <foreach collection="excludedStatuses" item="st" open="(" separator="," close=")">
+                #{st}
+            </foreach>
+        </if>
+        FOR UPDATE
+    </select>
+
+    <!-- 候补队列：按申请时间升序（先来先得）。
+         create_time 为 datetime（秒级），同一秒内的并列以 booking_id 作稳定次序键，
+         否则同一秒提交的候补次序会随执行计划变化。 -->
+    <select id="selectWaitlistByScheduleId" resultType="com.reservation.entity.Booking">
+        SELECT * FROM booking
+        WHERE schedule_id = #{scheduleId}
+          AND status = 'waiting'
+        ORDER BY create_time ASC, booking_id ASC
+    </select>
+
+    <!-- CAS 更新：仅当前状态等于 fromStatus 才更新。
+         并发递补靠这一条保证「同一候补只会被成功递补一次」——
+         影响行数 0 即代表已被他人抢先（或该候补已被撤销），调用方必须据此报错。 -->
+    <update id="updateStatusIfCurrent">
+        UPDATE booking SET status = #{toStatus}
+        WHERE booking_id = #{bookingId} AND status = #{fromStatus}
+    </update>
+
+    <!-- 某学生在某排期下的最近一条预订记录：用于复用已有记录（候补转正/取消后重约），
+         避免「指定学生」反复新建 booking 导致同一学生同一排期出现多条记录、
+         席位被重复占用。 -->
+    <select id="selectLatestByScheduleAndStudent" resultType="com.reservation.entity.Booking">
+        SELECT * FROM booking
+        WHERE schedule_id = #{scheduleId} AND student_id = #{studentId}
+        ORDER BY create_time DESC, booking_id DESC
+        LIMIT 1
     </select>
 </mapper> 

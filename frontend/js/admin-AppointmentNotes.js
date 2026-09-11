@@ -13,6 +13,10 @@ let appointmentList=[];// ID,ciurseName,studentName,teacherName,dateTime(创建�
            // 渲染数据总览面板 不显示课程搜素
            let html=
             `  <div class="card">           
+            <!-- 「今日课程」候补提示条：仅学生、且存在 status=waiting 的候补申请时显示。
+                 内容由 renderWaitlistBanner() 填充（appointmentNotes.js）——候补不是课次，
+                 不进下面的课次表格，也不进「状态」下拉（那个下拉筛的是 appointment.status）。 -->
+            <div id="waitlist-banner" style="display:none;align-items:center;gap:12px;flex-wrap:wrap;background:#fff8e6;border:1px solid #ffe0a3;color:#8a5a00;padding:10px 14px;border-radius:6px;margin-bottom:12px;font-size:13px;"></div>
             <div class="filter-bar">  
                 <div class="filter-item" style="display:none;">
                   <label style="display:none;“><span data-term="course">课程</span>：</label>
@@ -87,6 +91,8 @@ let appointmentList=[];// ID,ciurseName,studentName,teacherName,dateTime(创建�
             applyTerms(dynamicContentCenter);
          
          loadAndShowAppointmentPage();
+         // 候补提示条（仅学生有内容；非学生或查询失败时自行隐藏）
+         renderWaitlistBanner();
          }
   }   
     

@@ -279,6 +279,9 @@ async function datamaintain_fetchAppointmenPage(query) {
       return '取消待确认(T)';
     } else if (status === 'booked') {
       return '预约已确认';
+    } else if (status === 'waiting') {
+      // 候补预订（名额已满时的候补申请）
+      return '候补';
     } else if (status === 'cancelled' || status === 'canceled') {
       return '已取消';
     } else if (status === 'deleted') {
@@ -779,5 +782,103 @@ async function deleteAppointmentsById( appId) {
  * 
  * 结论：只有签名有效且未过期的 Token，后端才认为是“合法”的，进而确认当前访问用户身份和权限。
  */
+
+
+/* ============================================================
+ * 「今日课程」页顶部：候补申请提示条（学生）
+ * ------------------------------------------------------------
+ * 为什么不做成「状态」下拉里的一个选项（2026-09-11 核查结论）：
+ *   本页数据源是 appointment 表（已生成的课次），查询时按 Appointment::getStatus 过滤；
+ *   而 waiting 是 booking 的状态，候补**不生成** appointment 行
+ *   （appointment 只有 asgn_student / appointment/add 两个写入入口），
+ *   因此在下拉里加 waiting 会是个恒返回 0 行的死选项，还会把两套状态机混进同一个下拉。
+ *   所以候补在这里做提示条，完整清单交给「我的预订」页（那里有筛选与状态展示）。
+ * ============================================================ */
+async function renderWaitlistBanner() {
+    const banner = document.getElementById('waitlist-banner');
+    if (!banner) return false;            // 容器不在（非今日课程页 / 已被卸载）
+
+    // 仅学生：管理员/教师看的是本租户或自己名下的课次，与候补无关
+    if (typeof userRole === 'undefined' || userRole !== 'student'
+        || typeof userId === 'undefined' || !userId) {
+        banner.style.display = 'none';
+        banner.innerHTML = '';
+        return false;
+    }
+
+    let waitList = [];
+    try {
+        waitList = await request({
+            url: `${API_BASE_URL}/course/booking/list`,
+            method: 'post',
+            // 由服务端按 status 过滤（BookingMapper.selectByCondition），不必把全部预订拉回来再筛
+            data: { userRole: 'student', userId: userId, status: 'waiting' }
+        }) || [];
+    } catch (e) {
+        console.error('renderWaitlistBanner: 查询候补申请失败', e);
+        waitList = [];
+    }
+
+    if (!Array.isArray(waitList) || waitList.length === 0) {
+        // 无候补：隐藏并清空，避免残留上一次的文案（切换账号/切换菜单后尤其明显）
+        banner.style.display = 'none';
+        banner.innerHTML = '';
+        return false;
+    }
+
+    // 明细最多展示 3 条；排期取不到（已删除/已收回）就跳过该条，不让整条提示失败
+    const MAX_DETAIL = 3;
+    const details = await Promise.all(waitList.slice(0, MAX_DETAIL).map(async function (b) {
+        try {
+            const scd = await fetchSchedule(b.scheduleId);
+            if (!scd) return '';
+            const when = [scd.startDate, scd.startTime].filter(Boolean).join(' ');
+
+            // 排队次序：由该排期的候补队列（按申请时间升序）现算，不落库、不进状态。
+            // 有人撤销或递补后次序自动前移，不需要批量重排——次序是计算值而非状态。
+            let queueText = '';
+            try {
+                const queue = await fetchWaitlistQueue(b.scheduleId);
+                const idx = queue.findIndex(function (x) { return x.bookingId === b.bookingId; });
+                if (idx >= 0) {
+                    queueText = '第 ' + (idx + 1) + '/' + queue.length + ' 位';
+                }
+            } catch (e) {
+                queueText = '';
+            }
+
+            const head = [scd.name || '', when].filter(Boolean).join(' ');
+            return [head, queueText].filter(Boolean).join(' · ');
+        } catch (e) {
+            return '';
+        }
+    }));
+    const shown = details.filter(Boolean);
+    const rest = waitList.length - shown.length;
+
+    banner.innerHTML =
+        '<i class="fa fa-clock-o" style="font-size:16px;"></i>'
+        + '<span>候补排队中：你有 <b>' + waitList.length + '</b> 条候补申请'
+        + (shown.length ? '（' + shown.join('；') + (rest > 0 ? '，另有 ' + rest + ' 条' : '') + '）' : '')
+        + '</span>'
+        + '<span style="color:#a06a00;font-size:12px;">有名额释放后由管理员按排队次序递补，递补成功会发消息通知你</span>'
+        + '<button class="btn btn-default" onclick="goToStudentMyBooking()">查看我的预订</button>';
+    banner.style.display = 'flex';
+    return true;
+}
+
+// 跳到学生端「我的预订」菜单（候补在那里有完整的筛选与状态展示）
+function goToStudentMyBooking() {
+    const item = document.querySelector('.menu-item[key="my_booking"]');
+    if (item) { item.click(); return true; }   // 复用页面自身的菜单点击逻辑（高亮/标题/加载内容）
+    if (typeof window.loadAdminPageContent === 'function') {
+        window.loadAdminPageContent('my_booking');
+        return true;
+    }
+    return false;
+}
+
+window.renderWaitlistBanner = renderWaitlistBanner;
+window.goToStudentMyBooking = goToStudentMyBooking;
 
  

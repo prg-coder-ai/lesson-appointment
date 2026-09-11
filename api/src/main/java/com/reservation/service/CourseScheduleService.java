@@ -6,6 +6,7 @@ import com.reservation.dto.*;
 import com.reservation.mapper.CourseScheduleMapper;
 import com.reservation.mapper.ScheduleExceptionMapper;
 import com.reservation.common.ScheduleGenerator;
+import com.reservation.common.BookingStatus;
 
 import com.reservation.mapper.BookingMapper;
 import com.reservation.query.ScheduleQueryPage;
@@ -46,6 +47,10 @@ public class CourseScheduleService {
     private AppointmentService appointmentService;
      @Resource
     private TenantQuotaService tenantQuotaService;
+
+    /** 名额校验（含加锁与锁定读）统一由 BookingSeatService 提供，与学生预定/候补递补共用同一闸门 */
+    @Resource
+    private BookingSeatService bookingSeatService;
 
 // 3. 冲突检测：先展开重复规则，检查每个实例是否冲突--TBD：课程+room是否冲突
 // 参数excludeSchid 在修改已存在的排期时，带
@@ -398,54 +403,90 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
 
   @Transactional(rollbackFor = Exception.class)
   public boolean asgn_student(String scheduleId, String studentId,String teacherId) {
-      // 1. 创建 booking 数据
-      Booking booking = new Booking();
-      String bookingId = UUID.randomUUID().toString();
-      booking.setBookingId(bookingId);
-      booking.setScheduleId(scheduleId);
-      booking.setStudentId(studentId);
-      booking.setTeacherId(teacherId);
-      booking.setStatus("booked");
-    //  booking.setCreateTime(LocalDateTime.now());
-      bookingMapper.insert(booking);
- //System.out .println("insert Book:" + booking);
+      if (scheduleId == null || studentId == null) {
+          throw new BusinessException("排期ID与学生ID不能为空");
+      }
 
-      // 2. 根据 scheduleId 获取排期详情（比如起止日期、重复规则）
+      // 1. 同一学生同一排期只应存在一条 booking。
+      //    原实现无条件 insert：候补转正后再点「指定学生」会多出一条记录，
+      //    同一学生同一排期出现两条 booked，席位被重复占用。
+      Booking existing = bookingMapper.selectLatestByScheduleAndStudent(scheduleId, studentId);
+      String bookingId;
+      if (existing != null) {
+          bookingId = existing.getBookingId();
+          if (BookingStatus.isBooked(existing.getStatus())) {
+              // 已是正式预订：幂等返回，不新建记录、不重复占位、不重复生成课次
+              log.info("指定学生：已存在正式预订，幂等返回。scheduleId={}, studentId={}, bookingId={}",
+                      scheduleId, studentId, bookingId);
+              return true;
+          }
+          // 候补 / 已取消 / 待确认 → 复用该记录转正（校验名额时排除自身）
+          bookingSeatService.assertSeatsAvailable(
+                  scheduleId, bookingId, BookingStatus.BOOKED, "无法再指定学生");
+          bookingMapper.updateStatus(bookingId, BookingStatus.BOOKED);
+          log.info("指定学生：复用已有记录并转为正式预订。bookingId={}, 原状态={}",
+                  bookingId, existing.getStatus());
+      } else {
+          bookingSeatService.assertSeatsAvailable(
+                  scheduleId, null, BookingStatus.BOOKED, "无法再指定学生");
+          Booking booking = new Booking();
+          bookingId = UUID.randomUUID().toString();
+          booking.setBookingId(bookingId);
+          booking.setScheduleId(scheduleId);
+          booking.setStudentId(studentId);
+          booking.setTeacherId(teacherId);
+          booking.setStatus(BookingStatus.BOOKED);
+          bookingMapper.insert(booking);
+      }
+
+      // 2. 生成该 booking 的课次时间列表（幂等）
+      generateAppointmentsForBooking(bookingId, scheduleId);
+      return true;
+  }
+
+  /**
+   * 为指定 booking 生成课次（appointment）时间列表。
+   *
+   * <p>幂等：该 booking 已有课次则直接返回，重复调用不会产生双份时间表。
+   * 「指定学生」与「候补递补」共用这一份实现，避免两处各写一遍、日后走偏。
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public boolean generateAppointmentsForBooking(String bookingId, String scheduleId) {
+      if (bookingId == null || scheduleId == null) {
+          return false;
+      }
+      List<Appointment> existingAppointments = appointmentService.getByBookingId(bookingId);
+      if (existingAppointments != null && !existingAppointments.isEmpty()) {
+          log.info("课次已存在，跳过生成：bookingId={}, 已有{}条", bookingId, existingAppointments.size());
+          return true;
+      }
       CourseSchedule schedule = scheduleMapper.selectById(scheduleId);
       if (schedule == null) {
-          throw new RuntimeException("排期不存在");
+          throw new BusinessException("排期不存在");
       }
-      // 构造 generateDTO 用于生成 appointment 时间列表 ScheduleGenerateDTO
-      ScheduleCreateDTO crtDto= ObjectToCreateDto(schedule); 
-      ScheduleGenerateDTO genDto   =  CreateDtoToGenerateDto(crtDto);
-//.out .println("asgn_student genDto:" + genDto);
-      // 3. 由工具类展开实例日期+时间
+      // 由排期的重复规则展开实例日期+时间
+      ScheduleCreateDTO crtDto = ObjectToCreateDto(schedule);
+      ScheduleGenerateDTO genDto = CreateDtoToGenerateDto(crtDto);
       List<ScheduleVO> instanceList = ScheduleGenerator.generateUserZoneSchedule(genDto);
-//System.out .println("asgn_student instanceList:" + instanceList);
 
       List<Appointment> appointmentList = new ArrayList<>();
-      int index =1;
+      int index = 1;
       for (ScheduleVO vo : instanceList) {
           Appointment appt = new Appointment();
-         // appt.setAppointmentId(UUID.randomUUID().toString());
-         appt.setBookingId(bookingId); 
-          appt.setClassIndex(index++); 
-              String appointmentDateTime = vo.getDate() + " " + vo.getTime(); 
-          // 将 appointmentDateTime 字符串转为 LocalDateTime
-          LocalDateTime localDateTime = LocalDateTime.parse(appointmentDateTime, java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+          appt.setBookingId(bookingId);
+          appt.setClassIndex(index++);
+          String appointmentDateTime = vo.getDate() + " " + vo.getTime();
+          LocalDateTime localDateTime = LocalDateTime.parse(
+                  appointmentDateTime, java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
           appt.setAppointmentDatetime(localDateTime);
-           appt.setLastDatetime(localDateTime); 
-         
-          appt.setStatus("active");  
+          appt.setLastDatetime(localDateTime);
+          appt.setStatus("active");
           appointmentList.add(appt);
       }
-     // System.out .println("asgn_student appointmentList:" + appointmentList);
-      // 批量插入 appointments
       if (!appointmentList.isEmpty()) {
           appointmentService.insertAppointmentList(appointmentList);
-         // System.out .println("asgn_student:insertAppointmentList");
       }
-      // 成功
+      log.info("生成课次完成：bookingId={}, scheduleId={}, 共{}条", bookingId, scheduleId, appointmentList.size());
       return true;
   }
     /**
@@ -496,7 +537,8 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
 
         List<CourseSchedule> availableSchedules = new ArrayList<>();
         for (CourseSchedule schedule : schedules) {
-            int bookingCount = bookingMapper.countBookingByScheduleId(schedule.getScheduleId());
+            int bookingCount = bookingMapper.countBookingByScheduleId(
+                    schedule.getScheduleId(), BookingStatus.NON_OCCUPYING, null);
             log.info("schedule {} bookingCount={}", schedule.getScheduleId(), bookingCount);
             if (schedule.getAvailableSites() > bookingCount) {
                 availableSchedules.add(schedule);

@@ -131,10 +131,18 @@ INSERT INTO msg_category (category_id, tenant_id, category_code, category_name, 
  (1002,0,'SENDER_STUDENT','学生消息',1,0,2,1),
  (1003,0,'SENDER_SYSTEM','系统通知',1,0,3,1);
 
--- 业务场景(level2)，挂到对应 level1 下
+-- 业务场景(level2)，挂到对应 level1 下。
+-- parent 取「发起角色」维度：学生发起的挂 1002，管理员发起的挂 1001，系统自动的挂 1003。
 INSERT INTO msg_category (category_id, tenant_id, category_code, category_name, category_level, parent_id, sort, is_system_predefined) VALUES
  (2001,0,'HOMEWORK_NOTICE','作业通知',2,1001,1,1),
  (2002,0,'CLASS_NOTICE','上课/课堂调整通知',2,1001,2,1),
  (2003,0,'LEAVE_NOTICE','请假审批通知',2,1002,1,1),
  (2004,0,'RESOURCE_NOTICE','资源/报修/咨询',2,1002,2,1),
  (2005,0,'SYSTEM_SCHEDULE','排期/签到/截止提醒',2,1003,1,1);
+
+-- 预约业务场景：由 booking api 的 MessageNotifyService 自动发送时使用。
+-- 这三个编码必须存在，否则 message-service 会以业务码 404 拒收（send 是 best-effort，前端/日志不易察觉）。
+INSERT INTO msg_category (category_id, tenant_id, category_code, category_name, category_level, parent_id, sort, is_system_predefined) VALUES
+ (2006,0,'BOOKING_CREATED','预约/候补申请',2,1002,3,1),
+ (2007,0,'BOOKING_CONFIRMED','预约确认/候补递补',2,1001,3,1),
+ (2008,0,'LEAVE_CREATED','学生请假申请',2,1002,4,1);

@@ -43,6 +43,8 @@ async function renderStudentBookingBrowserCards() {
                   <select id="booking-status-select">
                     <option value="">全部</option>
                     <option value="booking">预定待确认</option>
+                    <!-- status=waiting（候补预订）：名额已满时的候补申请，与 appointment 的状态机无关 -->
+                    <option value="waiting">候补</option>
                     <option value="cancelling">取消待确认</option>
                     <option value="booked">预定已确认</option>
                     <option value="cancelled">已取消</option>
@@ -155,7 +157,11 @@ async function loadAndRenderBooking_student(){
                          index: index,
                          scheduleId:    scheduleObject.scheduleId,
                          origTz:        scheduleObject.timeZone,
-                         bookingId:     booking.id,
+                         // 后端实体 Booking 的主键字段是 bookingId（@TableId），**没有 id**；
+                         // 分页接口 /course/booking/page 返回的行也是 bookingId。原写 booking.id 恒为 undefined，
+                         // 会让卡片上的「撤销 / 申请取消 / 重新申请 / 撤销候补」都带着字符串 "undefined" 提交
+                         //（后端 updateStatus 按 id 更新，查不到就静默无事发生，页面看不到报错）。
+                         bookingId:     booking.bookingId || booking.id || '',
                          className:     classObject.courseName,
                          teacherName:   teacherName,
                          studentName:   studentName,
@@ -217,6 +223,7 @@ async function loadAndRenderBooking_student(){
                         {
                             none: "无预约",
                             booking: "已预约,待确认",
+                            waiting: "候补",
                             booked: "预约成功",
                             cancelling: "取消待确认",
                             cancelled: "已取消",
@@ -231,6 +238,10 @@ async function loadAndRenderBooking_student(){
                      ${
                         userRole === 'student' && cardInfo.status === 'booking'
                           ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','none')">撤销</button>`
+                          : userRole === 'student' && cardInfo.status === 'waiting'
+                          // 候补：学生只能撤销候补（置为已取消）。候补转正由管理员在预订列表点「确认候补」，
+                          // 学生侧不提供"直接确认"入口，避免绕过名额校验。
+                          ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','cancelled')">撤销候补</button>`
                           : userRole === 'student' && cardInfo.status === 'booked'
                           ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','cancelling')">申请取消</button>`
                           : userRole === 'student' && (cardInfo.status === 'canceling' || cardInfo.status === 'cancelling')
@@ -241,7 +252,9 @@ async function loadAndRenderBooking_student(){
                      }
 
                  ${ //正在预约或者已经取消：显示计算的排期列表，否则显示排期表中的数据
-                     ( cardInfo.status === 'booking' || cardInfo.status === 'canceled' ||  cardInfo.status === 'cancelled' )
+                     // 候补（waiting）也列入"不显示详情"：它还没有 appointment 行，
+                     // 点详情必然是空表 —— 空面板比没有按钮更让人困惑。
+                     ( cardInfo.status === 'booking' || cardInfo.status === 'waiting' || cardInfo.status === 'canceled' ||  cardInfo.status === 'cancelled' )
                           ? `<label> </label>`
                           : `<button class="btn btn-gray" onclick="viewMyReservationDetail('${cardInfo.bookingId}','${cardInfo.origTz}')">预约详情</button>`
                      }

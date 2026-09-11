@@ -12,6 +12,8 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 行业专业词汇服务（sys_term）
@@ -101,6 +103,55 @@ public class TermService {
     public Map<String, String> getTermMap(Long tenantId) {
         return getTermMap(tenantId, "zh");
     }
+
+    /**
+     * 渲染含术语占位符的文案：把 {@code {key}} 替换为当前租户生效的行业词。
+     * 典型场景是**服务端生成的文案**（消息中心自动通知、导出的报表标题等）——
+     * 这类文案不经过前端 DOM，{@code data-term} 机制覆盖不到，必须在这里取词。
+     *
+     * <p><b>为什么用占位符，而不是把渲染完的整串做子串替换：</b>
+     * 文案里既有模板固定文字，也有动态数据（课次时间、课程名、人名…）。
+     * 若对整串做「锚点词 → 行业词」的子串替换，动态数据里恰好出现锚点词就会被误改
+     * （例如排期名就叫「课程A」，会被改成「咨询话题A」）。
+     * 前端 {@code termsFunction.js} 的 applyTerms 早已立下同样的规矩
+     * （只处理显式 data-term 标记，绝不做全局文本替换），此处与之保持一致：
+     * **只有模板里显式写出的 {key} 才参与取词，传入的数据值一律原样保留**。
+     *
+     * <p>回退链由 {@link #getTermMap} 保证（租户词 &gt; 行业词 &gt; 平台词）；
+     * 某个 key 在所有作用域都查不到时**原样保留 {@code {key}}**（不静默清空），
+     * 这样拼错 key 在开发/测试期一眼可见，不会被吞掉。
+     *
+     * @param template 文案模板，如 {@code "正式获得该{course}名额"}
+     * @param tenantId 目标租户（决定用哪套行业词与租户词）；null/0 时只用平台词
+     * @param lang     语言（ISO 639-1），null/空按 zh
+     */
+    public String renderTemplate(String template, Long tenantId, String lang) {
+        return renderTemplate(template, getTermMap(tenantId, lang));
+    }
+
+    /**
+     * 用给定词表渲染 {@code {key}} 占位符。
+     *
+     * <p>词表可以是「术语词 + 动态数据」的合并结果：合并后一次性替换，
+     * 既避免"先渲染术语、再插入数据"的两趟顺序陷阱（数据值里含 {@code {} } 不会被二次展开），
+     * 也避免同名冲突（Map 的 key 天然唯一）。
+     * 词表中没有的 key 原样保留。
+     */
+    public String renderTemplate(String template, Map<String, String> vars) {
+        if (template == null || template.isEmpty() || template.indexOf('{') < 0) return template;
+        Matcher m = PLACEHOLDER.matcher(template);
+        StringBuilder sb = new StringBuilder(template.length() + 32);
+        while (m.find()) {
+            String name = (vars == null) ? null : vars.get(m.group(1));
+            // 命中则取词；未命中保留原文（{key}），便于暴露拼写错误
+            m.appendReplacement(sb, Matcher.quoteReplacement(name != null ? name : m.group(0)));
+        }
+        m.appendTail(sb);
+        return sb.toString();
+    }
+
+    /** 占位符语法：{key}，key 以字母开头、只含字母数字下划线（避免误伤 JSON/正则里的花括号） */
+    private static final Pattern PLACEHOLDER = Pattern.compile("\\{([A-Za-z][A-Za-z0-9_]*)\\}");
 
     /**
      * 行业词批量复制（fromIndustryId → toIndustryId）。

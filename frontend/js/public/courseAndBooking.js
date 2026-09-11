@@ -479,6 +479,53 @@ async function createOrUpdateBookingObj(bookingid,bookingCreateDTO ){
    
     } ;
     
+/**
+ * 查询某排期的候补队列，按申请时间升序——次序即递补次序（先来先得）。
+ * 后端只返回 status='waiting' 的记录（候补不占席位），并保证同一秒提交的记录次序稳定。
+ *
+ * @param {string} scheduleId 排期ID
+ * @returns {Promise<Array>} 候补记录数组；出错时返回空数组（调用方据此隐藏面板）
+ */
+async function fetchWaitlistQueue(scheduleId) {
+    if (!scheduleId) return [];
+    try {
+        const res = await request({
+            url: `${API_BASE_URL}/course/booking/waitlist/${encodeURIComponent(scheduleId)}`,
+            method: 'GET'
+        });
+        return Array.isArray(res) ? res : [];
+    } catch (err) {
+        console.error('fetchWaitlistQueue 失败', err);
+        return [];
+    }
+}
+
+/**
+ * 递补：把一条候补（waiting）晋升为正式预订（booked），并生成该学生的课次时间列表。
+ *
+ * 名额校验、CAS 防重复递补、课次幂等都在服务端完成；成功后服务端会自动发消息给该学生。
+ * 失败时（名额已满 / 已被他人递补 / 学生已撤销）request 拦截器会弹出后端给出的原因，
+ * 这里返回 null，调用方负责刷新队列。
+ *
+ * @param {string} bookingId 候补记录ID
+ * @returns {Promise<Object|null>} 成功返回递补结果快照，失败返回 null
+ */
+async function promoteWaitlist(bookingId) {
+    if (!bookingId) return null;
+    try {
+        const res = await request({
+            url: `${API_BASE_URL}/course/booking/waitlist/promote`,
+            method: 'POST',
+            data: { id: bookingId }
+        });
+        return res;
+    } catch (err) {
+        // 拦截器已展示后端 message（如“该排期名额已满…”“该候补已被处理…”）
+        console.error('promoteWaitlist 失败', err);
+        return null;
+    }
+}
+    
     
 async function getBookingListPage(params){
   const url = `course/booking/page` ; 
@@ -493,10 +540,34 @@ async function getBookingListPage(params){
 return [];
 }     
 
+ /**
+  * 该 booking 状态是否占用一个排期席位。
+  *
+  * 【与后端同步】单一事实来源是 api/.../common/BookingStatus.java 的 NON_OCCUPYING，
+  * 这里必须与它保持一致；后端改了名单，这里要一起改。
+  *
+  * 不占席位：waiting(候补) / cancelled|canceled(已取消) / rej-booking(预订被拒) / frozen(已删除)。
+  * 占席位：booking / booked / cancelling|canceling（取消申请在管理员确认前，原预订仍有效）。
+  * null / 空 视为占位（DB 列 NOT NULL DEFAULT 'booked'）。
+  *
+  * 用途：凡是「这条记录不再占席位 ⇒ 排期可能已空出位子」的地方，都据此判断。
+  * 典型是预订管理页的「查询递补」入口——不占席位才需要去排期页看候补队列。
+  */
+ function bookingOccupiesSeat(status) {
+   const NON_OCCUPYING = ['waiting', 'cancelled', 'canceled', 'rej-booking', 'frozen'];
+   if (status === null || status === undefined) return true;
+   const s = String(status).trim();
+   if (s === '') return true;
+   return NON_OCCUPYING.indexOf(s) === -1;
+ }
+
  //检查status，只有待确认的booking、cancelling才显示待确认，并显示相应的按钮
  function checkStatus_booking(status) {
   if (status === 'booking' ) {
     return '预定待确认';
+  } else if (status === 'waiting' ) {
+    // 候补预订（名额已满时的候补申请，不占用席位）
+    return '候补';
   } else   if   (status === 'cancelling' || status === 'canceling') {
     return '取消待确认';
   } else if (status === 'booked') {

@@ -28,6 +28,7 @@ window.deleteBookingByFrozen = deleteBookingByFrozen;
                   <select id="booking-status-select">
                     <option value="">全部</option>
                     <option value="booking">预定待确认</option>
+                    <option value="waiting">候补</option>
                     <option value="cancelling">取消待确认</option>
                     <option value="booked">预定已确认</option>
                     <option value="cancelled">已取消</option>
@@ -214,14 +215,34 @@ async function getBookingListByPage(){
                             <button class="btn btn-danger" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','booking')">撤回</button>
                             <button class="btn btn-warning" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','cancelling')">取消</button>
                             `
+                        : cardInfo.status === 'waiting'
+                        ? `
+                            <button class="btn btn-primary" onclick="gotoScheduleForWaitlist('${cardInfo.scheduleId}')"><i class="fa fa-search"></i> 查询递补</button>
+                            <button class="btn btn-danger" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','cancelled')">拒绝候补</button>
+                           `
                         : cardInfo.status === 'rej-cancelling'
                         ? ` <button class="btn btn-danger" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','cancelling')">撤回</button> 
                           `: cardInfo.status === 'rej-booking'
                         ? ` <button class="btn btn-danger" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','booking')">撤回</button> 
-                           `: cardInfo.status === 'cancelled' || cardInfo.status === 'canceled'
+                           `                        : cardInfo.status === 'cancelled' || cardInfo.status === 'canceled'
                         ? ` <button class="btn btn-danger" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','cancelling')">撤回</button>
                              <button class="btn btn-warning" onclick="confirmOrCancelBooking('${cardInfo.bookingId}','booking')">取消</button>
                            `
+                        : ''
+                     }
+                     ${
+                       /* 「查询递补」入口：只要这条记录当前**不再占用席位**，就说明它所属的排期
+                        * 可能已经空出了位子（管理员确认取消、删除预订、拒绝预订等操作之后），
+                        * 管理员需要能顺着这一行去排期页查看候补队列并递补。
+                        *
+                        * 为什么按「是否占席位」判断，而不是再列一遍状态名：
+                        *   1) 席位规则只有一个来源（前端 bookingOccupiesSeat / 后端 BookingStatus.NON_OCCUPYING），
+                        *      枚举状态名必然漏——rej-booking、frozen 就是这么漏掉的；
+                        *   2) 以后新增「会腾出席位」的状态，这里自动生效，不用回来改。
+                        * waiting 行自己已经带了该按钮（候补本人可自助查看队列），此处排除以免重复。
+                        */
+                       cardInfo.status !== 'waiting' && !bookingOccupiesSeat(cardInfo.status)
+                        ? ` <button class="btn btn-primary" onclick="gotoScheduleForWaitlist('${cardInfo.scheduleId}')"><i class="fa fa-search"></i> 查询递补</button>`
                         : ''
                      }
                     </td>
@@ -229,6 +250,36 @@ async function getBookingListByPage(){
    `;
    return info;
 } 
+
+/**
+ * 「查询递补」：把管理员带到「课程排期」页面，并锁定该 record 所属的课程与排期。
+ *
+ * 递补统一在排期维度完成——那里能看到该排期的剩余席位与候补队列（按申请时间升序），
+ * 所以这里只负责「跳转 + 带参」，不在此处做任何状态变更。
+ *
+ * 传参复用页面既有的深链机制 window.pendingDeepLink = { scdid }，
+ * admin-schedule.js 渲染时会消费它（handleAdminDeepLink），自动选中课程、排期并显示详情。
+ * 不传 sid —— 递补是先看队列再选人，不需要预选学生。
+ */
+function gotoScheduleForWaitlist(scheduleId) {
+    if (!scheduleId) {
+        alert('该记录缺少排期信息，无法查询递补。');
+        return;
+    }
+    window.pendingDeepLink = { scdid: scheduleId, sid: null };
+
+    // 优先复用页面菜单的点击逻辑：它会同步高亮、标题，再装载页面内容
+    const menuItem = document.querySelector('.menu-item[key="schedule"]');
+    if (menuItem) {
+        menuItem.click();
+        return;
+    }
+    if (typeof window.loadAdminPageContent === 'function') {
+        window.loadAdminPageContent('schedule');
+        return;
+    }
+    alert('无法定位「课程排期」页面，请手动切换到该菜单。');
+}
 
 async function confirmOrCancelBooking(bookingid,status) { 
   // 根据bookingid在bookingList中查找对应的booking对象
