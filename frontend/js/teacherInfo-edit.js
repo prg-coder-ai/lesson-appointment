@@ -104,6 +104,34 @@ function appendAvailableTimes(availableTimes) {
   }
 }
 
+/**
+ * 编辑已有职业信息（修订）时，预加载的排期来自保存快照 data.availableTimes，快照里没有实时的 full 标记。
+ * 这里按 scheduleId 把 listByTeacher 返回的满额标记合并到已渲染的行上，便于「修订」时向客户推荐。
+ * 仅追加徽章，不改动优先推荐勾选等用户已配置的内容。带竞态守卫：切走教师后丢弃迟到响应。
+ */
+function enrichTimeRowsWithFull(teacherId) {
+  if (!teacherId) return;
+  getAvailableTimesByAPI(teacherId).then(list => {
+    if (currentMode !== 'edit' || currentTeacherId !== teacherId) return;
+    if (!Array.isArray(list)) return;
+    const fullMap = {};
+    list.forEach(s => { if (s && s.scheduleId && s.full) fullMap[s.scheduleId] = true; });
+    const rows = document.querySelectorAll('#time-rows .sub-item-row');
+    rows.forEach(row => {
+      const cb = row.querySelector('.cert-optioned');
+      const sid = cb ? cb.getAttribute('data-extra-scheduleid') : '';
+      if (sid && fullMap[sid] && !row.querySelector('.full-badge')) {
+        const span = document.createElement('span');
+        span.className = 'full-badge';
+        span.style.cssText = 'display:inline-block;padding:1px 6px;border-radius:4px;background:#fff0f0;color:#d4380d;border:1px solid #ffccc7;font-size:12px;white-space:nowrap;margin-left:6px;';
+        span.title = '该排期已约满，仅可候补/推荐';
+        span.textContent = '满额';
+        row.appendChild(span);
+      }
+    });
+  }).catch(() => { /* 静默：补标失败不影响主流程 */ });
+}
+
 // ====================== 子表行渲染（证书 / 时间段） ======================
 function renderCertRow(c) {
   c = c || {};

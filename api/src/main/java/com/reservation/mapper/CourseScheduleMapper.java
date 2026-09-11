@@ -63,4 +63,22 @@ public interface CourseScheduleMapper extends BaseMapper<CourseSchedule> {
             + "AND cs.status = 'active' AND c.status = 'active' "
             + "ORDER BY cs.start_time ASC")
     List<CourseSchedule> selectActiveSchedulesByTeacherIdIgnoreTenant(@Param("teacherId") String teacherId);
+
+    /**
+     * 编辑/发布界面「读取排期」专用：返回该教师全部 active 排期，但**不要求 course 自身为 active**。
+     *
+     * <p>与 {@link #selectActiveSchedulesByTeacherIdIgnoreTenant}（公开预订页 /schedule/getAvailableSchedule 专用，
+     * 必须 course='active' 才对外暴露）的区别：管理端配置「优选推荐 / 对外直达链接」时，即便课程处于
+     * pending/draft/frozen，其下 active 排期也应可被教师/管理员看到并配置——否则课程未发布时排期列表恒空，
+     * 编辑界面「读取排期」形同失效。故此处仅约束 {@code cs.status='active'}，放开 {@code c.status}。
+     *
+     * <p>同样忽略租户隔离（教师职业信息受信任，且本接口置于登录鉴权之下）。
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT cs.* FROM course_schedule cs "
+            + "INNER JOIN course c ON cs.course_id = c.course_id "
+            + "WHERE c.teacher_id = #{teacherId} "
+            + "AND cs.status = 'active' "
+            + "ORDER BY cs.start_time ASC")
+    List<CourseSchedule> selectActiveSchedulesByTeacherIdManageIgnoreTenant(@Param("teacherId") String teacherId);
 }

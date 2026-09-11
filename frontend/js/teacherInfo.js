@@ -145,6 +145,10 @@ async function enterEditMode() {
       renderTeacherNameHint(name);
     }
   }
+
+  // 预加载的排期快照不含实时满额标记，按 scheduleId 合并 listByTeacher 的 full 标记，
+  // 让「修订」界面也能向客户标注满额（不改动优先推荐等已配置内容）。
+  enrichTimeRowsWithFull(currentTeacherId);
 }
 
 /** 取消编辑，回到查看模式 */

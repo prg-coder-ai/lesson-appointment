@@ -558,7 +558,9 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
     // teacherId 取自已登录教师的职业信息（受信任），且本接口置于登录鉴权之下（不进公开
     // 白名单），平台管理员跨租户查看时也正确返回该教师的排期。
     public List<CourseSchedule> getSchedulesByTeacher(String teacherId) {
-        List<CourseSchedule> schedules = scheduleMapper.selectActiveSchedulesByTeacherIdIgnoreTenant(teacherId);
+        // 编辑/发布界面专用：放开 course 状态限制（仅要求排期本身 active），
+        // 这样课程处于 pending/draft/frozen 时其 active 排期仍可在「读取排期」中显示并配置优选/链接。
+        List<CourseSchedule> schedules = scheduleMapper.selectActiveSchedulesByTeacherIdManageIgnoreTenant(teacherId);
         for (CourseSchedule schedule : schedules) {
             // 与 getAvailableSchedule 相同的余位口径：占用席位 = 状态不在 NON_OCCUPYING 的预订数。
             // full = 可用席位 <= 占用数（即没有空位）。前端据此向客户标注「满额」。
