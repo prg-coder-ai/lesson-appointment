@@ -1,10 +1,84 @@
 // functoions for appointmentNotes display and data load
 
-function refreshRightPage() {
-    if(pageTitle.textContent!= ""){
-       loadAdminPageContent(pageTitle.textContent); 
+/* ============================================================
+ * 通用刷新入口（页面顶部「刷新」按钮）
+ * ------------------------------------------------------------
+ * 历史问题：原实现把「标题文本」直接当 key 传给 loadAdminPageContent()，
+ *   而 loadAdminPageContent 只认菜单 key（messages / schedule / overview …）。
+ *   因标题文本（如「消息中心」）永远匹配不到 case，switch 落空 —— 而函数开头
+ *   已经 dynamicContentCenter.innerHTML = ''，于是表现为：
+ *   点顶部「刷新」→ 内容区被清空且不再渲染 → 页面空白。
+ *
+ * 现在的三级回退策略：
+ *   1) 优先调用「页面自己的刷新函数」（页面模块用 registerPageRefresh 注册），
+ *      可保留页面内部状态（分页 / 当前标签 / 搜索词等），体验与页内刷新一致；
+ *   2) 没注册 → 按当前菜单 key 调 loadAdminPageContent(key) 整页重渲染；
+ *   3) 仍不行 → 退回历史行为（拿标题文本再试一次）。
+ * ============================================================ */
+
+// 页面自有刷新函数注册表：{ menuKey: function() { ... } }
+window.pageRefreshHandlers = window.pageRefreshHandlers || {};
+
+/**
+ * 注册某个菜单页面的刷新函数（页面模块加载时调用一次即可）
+ * @param {string} menuKey 菜单 key，如 'messages' / 'schedule'
+ * @param {Function} fn 刷新函数；返回 false 表示「容器已不在/无法自刷新」，交由通用逻辑兜底重渲染
+ */
+function registerPageRefresh(menuKey, fn) {
+    if (!menuKey || typeof fn !== 'function') return;
+    window.pageRefreshHandlers[menuKey] = fn;
+}
+
+// 取当前菜单 key：优先用 loadAdminPageContent 录制下来的值，其次当前高亮的菜单项
+function resolveCurrentMenuKey() {
+    if (typeof window.currentMenuKey === 'string' && window.currentMenuKey.trim() !== '') {
+        return window.currentMenuKey.trim();
     }
-   }
+    const active = document.querySelector('.menu-item.active');
+    return (active && active.getAttribute('key')) || '';
+}
+
+// 包装各页面自己的 loadAdminPageContent：只额外记录当前 key，不改动其原有逻辑
+// （student/teacher/admin/platform_admin 四套页面都有同名函数，包一层即可通用）
+(function wrapLoadAdminPageContentToTrackKey() {
+    if (typeof window.loadAdminPageContent !== 'function') return;
+    const orig = window.loadAdminPageContent;
+    window.loadAdminPageContent = function (key) {
+        const k = (key === undefined || key === null) ? '' : String(key).trim();
+        if (k) {
+            window.currentMenuKey = k;
+        } else {
+            const act = document.querySelector('.menu-item.active');
+            window.currentMenuKey = (act && act.getAttribute('key')) || window.currentMenuKey || 'overview';
+        }
+        return orig.apply(this, arguments);
+    };
+})();
+
+function refreshRightPage() {
+    const key = resolveCurrentMenuKey();
+
+    // 1) 页面已注册自有刷新函数 → 优先调用（保留页面内部状态）
+    const own = key ? window.pageRefreshHandlers[key] : null;
+    if (typeof own === 'function') {
+        let handled = true;
+        try { handled = own(key) !== false; }
+        catch (e) { console.error('refreshRightPage: 页面刷新函数执行异常，回退为整页重渲染', e); handled = false; }
+        if (handled) return;
+    }
+
+    // 2) 按当前菜单 key 整页重渲染
+    if (key && typeof window.loadAdminPageContent === 'function') {
+        window.loadAdminPageContent(key);
+        return;
+    }
+
+    // 3) 最后兜底：历史行为（标题文本）
+    if (typeof window.loadAdminPageContent === 'function'
+        && typeof pageTitle !== 'undefined' && pageTitle && pageTitle.textContent !== '') {
+        window.loadAdminPageContent(pageTitle.textContent);
+    }
+}
 
  //获取days天数以内的预约列表
  /*private String UserId;  //

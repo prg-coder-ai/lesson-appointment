@@ -51,6 +51,15 @@
 - 教训：新接口若返回大整数 ID，必须在真实浏览器语义（JSON.parse）下验证，别只看后端返回码。
 - 对照：`lesson_appointment` 库主键是 UUID(varchar36) 或小整数 auto_increment，无此风险。
 
+## 通用刷新约定：页面顶部「刷新」走 refreshRightPage + registerPageRefresh（2026-09-11 定下）
+- **历史坑**：`refreshRightPage()` 曾把**标题文本**当 key 传给 `loadAdminPageContent()`，而后者只认菜单 key → switch 落空，而函数开头已清空容器 → **点顶部刷新变成空白页**（四个入口页 admin/platform_admin/student/teacher 全中招）。**标题文本 ≠ 菜单 key，别混用**。
+- **现行机制**（`frontend/js/public/appointmentNotes.js`，被 4 个入口页共用）：
+  - `registerPageRefresh(menuKey, fn)` 注册「页面自有刷新函数」；`refreshRightPage()` 三级回退：**注册函数优先 → `loadAdminPageContent(currentMenuKey)` 整页重渲染 → 标题文本兜底**。
+  - 注册函数返回 `false` = 我处理不了（如容器已卸载），交给通用逻辑兜底。
+  - 用 IIFE 包装各页面自己的 `loadAdminPageContent` 记录 `window.currentMenuKey`（页面侧零改动）。
+- **各页面新增刷新能力的做法**：页面模块里定义**唯一**一个 `refreshXxxView()`（软刷新，保留分页/标签/搜索词），页内刷新按钮与顶部刷新**共用同一个函数**，并 `window.registerPageRefresh('<menuKey>', refreshXxxView)`。参照 `js/messages-inbox.js` 的 `refreshMessagesView()`。
+- 改动后必须重建 `frontend/dist`（`node build.js`）；`window.*` 上的跨文件全局名不会被混淆，可放心跨文件调用。
+
 ## 前后端职责边界（2026-09-09 改造落地）
 - **booking api = 纯后台**：仅提供 REST（`/api/v1/**`），**不再伺服任何 UI 页面**；`api/src/main/resources/static/` 已整体删除，jar 内 static 条目为 0。
 - **平台管理端归 frontend**：`platform_admin.html`、`logBrowser.html`、`js/platform-admin-*.js`、`js/main.js`、`js/logBrowser.js` 已迁至 `frontend/`，由 `frontend/build.js` 构建进 `dist/`，Nginx 伺服。平台管理员从前端登录（frontend/index.html 已支持 platform_admin 角色）→ 跳 `FRONTEND_ORIGIN + '/platform_admin.html'`。

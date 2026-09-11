@@ -90,7 +90,8 @@
   }
 
   // ---- 模块级状态（单例）----
-  const state = { userId: null, folder: 'inbox', pageNum: 1, pageSize: 10, keyword: '', total: 0, selected: {} };
+  // container：当前挂载的中央内容容器，供「页面顶部通用刷新」复用（软刷新时不必重新渲染整页）
+  const state = { userId: null, folder: 'inbox', pageNum: 1, pageSize: 10, keyword: '', total: 0, selected: {}, container: null };
   let es = null;
 
   function curUserId() {
@@ -196,9 +197,30 @@
     refreshBadge();
   };
 
+  // ---- 本页面的刷新函数（唯一实现）----
+  // 页面顶部的通用刷新（refreshRightPage）会调用它；页内已不再单独放「刷新」按钮。
+  // 软刷新：只重载「当前文件夹 / 当前页码 / 当前关键词」下的列表 + 未读角标 + 离线队列，
+  // 不清空整页、不重置用户当前的操作态（页码、标签、搜索词都不丢）。
+  // @returns {boolean} true = 已处理；false = 容器已不在（用户已切到别的菜单），交给通用逻辑兜底重渲染
+  function refreshMessagesView() {
+    const c = state.container || document.getElementById('dynamic-content-center');
+    if (!c || !document.body.contains(c) || !c.querySelector('#msg-list')) return false;
+    loadMessages(c);
+    refreshBadge();
+    flushOfflineQueue();
+    return true;
+  }
+  window.refreshMessagesPage = refreshMessagesView;
+
+  // 注册进通用刷新函数：页面顶部「刷新」按钮会优先调用这里
+  if (typeof window.registerPageRefresh === 'function') {
+    window.registerPageRefresh('messages', refreshMessagesView);
+  }
+
   // ---- 主渲染 ----
   window.renderMessagesPage = function (container) {
     if (!container) return;
+    state.container = container; // 记录容器，供 refreshMessagesView 复用
     state.userId = curUserId();
     if (!state.userId) { container.innerHTML = '<div class="msg-empty">未登录，无法加载消息中心。</div>'; return; }
     ensureStyle();
@@ -209,6 +231,10 @@
     const sentTab = canSend()
       ? '<button class="msg-tab" data-folder="sent">已发</button>'
       : '';
+    // 工具条不再渲染页内「刷新」按钮：它与页面顶部的通用刷新（refreshRightPage → refreshMessagesView）
+    // 功能完全重复，且位置紧贴内容区顶部，按需求隐藏。
+    // 如需恢复：加回 '<button class="btn btn-primary" id="msg-refresh"><i class="fa fa-refresh"></i> 刷新</button>'
+    // （放在「批量删除」与 composeBtn 之间），并在下方补回 #msg-refresh 的 click 绑定。
     container.innerHTML =
       '<div class="msg-toolbar">' +
         '<div class="msg-tabs">' +
@@ -222,7 +248,6 @@
         '<button class="btn btn-gray" id="msg-allread"><i class="fa fa-check-double"></i> 全部已读</button>' +
         '<button class="btn btn-gray" id="msg-batch-read"><i class="fa fa-check"></i> 批量已读</button>' +
         '<button class="btn btn-gray" id="msg-batch-del"><i class="fa fa-trash"></i> 批量删除</button>' +
-        '<button class="btn btn-primary" id="msg-refresh"><i class="fa fa-refresh"></i> 刷新</button>' +
         composeBtn +
       '</div>' +
       '<div class="msg-list" id="msg-list"></div>' +
@@ -241,7 +266,6 @@
       state.keyword = container.querySelector('#msg-search').value.trim(); state.pageNum = 1; loadMessages(container);
     });
     container.querySelector('#msg-search').addEventListener('keydown', function (e) { if (e.key === 'Enter') container.querySelector('#msg-search-btn').click(); });
-    container.querySelector('#msg-refresh').addEventListener('click', function () { loadMessages(container); refreshBadge(); flushOfflineQueue(); });
     container.querySelector('#msg-allread').addEventListener('click', function () { markAllRead(container); });
     container.querySelector('#msg-batch-read').addEventListener('click', function () { batchRead(container); });
     container.querySelector('#msg-batch-del').addEventListener('click', function () { batchDelete(container); });
