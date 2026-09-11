@@ -296,6 +296,16 @@ public Result<Integer> deleteByCourseId(@PathVariable("courseId") String courseI
         List<CourseSchedule> schedules = scheduleService.getAvailableSchedule(teacherId);
         return Result.success(schedules, "ok");
     }
+
+    // 查询指定教师的全部活跃排期（含已约满）——职业信息编辑界面「读取排期」专用。
+    // 与 getAvailableSchedule 的区别：不过滤余位，返回该教师所有 active 排期，
+    // 便于编辑/发布时配置对外链接与优选标记。置于登录鉴权之下（不进公开白名单）。
+    @GetMapping("/listByTeacher")
+    @ResponseBody
+    public Result<List<CourseSchedule>> listByTeacher(@RequestParam String teacherId) {
+        List<CourseSchedule> schedules = scheduleService.getSchedulesByTeacher(teacherId);
+        return Result.success(schedules, "ok");
+    }
 }
 
 

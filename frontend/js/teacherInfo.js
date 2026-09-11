@@ -54,7 +54,7 @@ async function loadTeacherInfo(teacherId) {
     const data = result;
     if (!data || !data.professional) {
       // 教师存在但还没有职业信息 → 进入新增模式
-      enterAddMode(teacherId);
+      await enterAddMode(teacherId);
       return;
     }
 
@@ -72,7 +72,7 @@ async function loadTeacherInfo(teacherId) {
     const msg = (e && e.message) || '';
     const code = e && e.code;
     if (code === 404 || msg.indexOf('职业信息不存在') !== -1) {
-      enterAddMode(teacherId);
+      await enterAddMode(teacherId);
       return;
     }
     console.error('加载教师职业信息失败：', e);
@@ -81,7 +81,7 @@ async function loadTeacherInfo(teacherId) {
 }
 
 /** 进入新增模式（教师尚无职业信息记录时，由查看/加载流程统一调用） */
-function enterAddMode(teacherId) {
+async function enterAddMode(teacherId) {
   originalData = buildEmptyForm(teacherId);
   currentProfessionalId = null;
   currentMode = 'add';
@@ -89,6 +89,15 @@ function enterAddMode(teacherId) {
   fillEditForm(originalData, true);
   switchSection('edit');
   showActionButtons('edit');
+
+  // 新增模式下 detail 接口 404、拿不到姓名，单独补查一次，让「教师ID」右侧
+  // 的姓名提示与编辑模式表现一致（管理员建档前必须能确认对象是谁）。
+  // 竞态守卫：查询返回时若已切走（换教师 / 换了模式）就丢弃结果。
+  const name = await fetchTeacherName(teacherId);
+  if (!name) return;
+  if (currentMode !== 'add' || currentTeacherId !== teacherId) return;
+  originalData.name = name;
+  renderTeacherNameHint(name);
 }
 
 /** 切换 #form-container 内的区域显示 */
@@ -120,12 +129,22 @@ function showActionButtons(mode) {
 }
 
 /** 进入编辑模式（从查看模式切换） */
-function enterEditMode() {
+async function enterEditMode() {
   if (!originalData) return;
   currentMode = 'edit';
   fillEditForm(originalData, false);
   switchSection('edit');
   showActionButtons('edit');
+
+  // 兜底：detail 接口的 name 来自 user 表，若该记录缺失/解密失败会为空 → 提示被隐藏。
+  // 这里补查一次，保证「教师ID」右侧的姓名提示在编辑模式下始终尽力显示。
+  if (!originalData.name) {
+    const name = await fetchTeacherName(currentTeacherId);
+    if (name && currentMode === 'edit') {
+      originalData.name = name;
+      renderTeacherNameHint(name);
+    }
+  }
 }
 
 /** 取消编辑，回到查看模式 */

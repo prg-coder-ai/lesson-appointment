@@ -232,11 +232,18 @@ function schedulePublishPreview() {
  * @param {Array} availableTimesList 时间段列表
  * @param {Object} [opts]
  * @param {boolean} [opts.withOptionCheckbox=false] 是否输出「优先推荐」复选框
- *        仅查看/编辑模式需要（管理员据此挑选对外直达推荐的时段）；
- *        发布出去的静态快照必须是纯文本，不能把后台勾选框发给家长。
+ *        仅查看/编辑模式需要（管理员据此挑选对外直达推荐的时段）。
+ * @param {boolean} [opts.withOptionBadge=false] 是否输出只读的「优选推荐」徽章
+ *        发布快照需要（2026-09-11 用户反馈：预览/发布时丢了勾选框的显示，
+ *        家长看不出哪个时段是老师推荐的）。用只读徽章而不是真的 checkbox ——
+ *        快照里的空框点不动，反而让家长困惑。
+ * @param {string}  [opts.accentColor] 徽章配色（沿用发布样式的主色）
  */
 function formAvaliableTimesDiv(availableTimesList, opts) {
-  const withBox = !!(opts && opts.withOptionCheckbox);
+  const o = opts || {};
+  const withBox = !!o.withOptionCheckbox;
+  const withBadge = !!o.withOptionBadge;
+  const accent = o.accentColor || '#722ed1';
   return (availableTimesList || []).map(t => {
     const rptText = { none: '', day: '', week: '每周', month: '每月' }[t.repeatType] || '';
     const dayText = (t.repeatDays && t.repeatDays.trim())
@@ -247,8 +254,66 @@ function formAvaliableTimesDiv(availableTimesList, opts) {
     const optionedHtml = withBox
       ? `<input type="checkbox" class="cert-optioned" data-extra-scheduleid="${escapeAttr(t.scheduleId || '')}" ${t.optioned ? 'checked' : ''} value="${escapeAttr(t.optioned || 0)}">`
       : '';
-    return `<div>${escapeHtml(dateRange)} ${escapeHtml(rptText)} ${escapeHtml(dayText)} ${optionedHtml}</div>`;
+    // 发布快照：只读徽章（勾选样式方框 + 文案），把「优选推荐」这层信息带给家长
+    const badgeHtml = (withBadge && t.optioned)
+      ? `<span class="opt-reco" style="display:inline-flex;align-items:center;gap:4px;margin-left:6px;vertical-align:middle;font-size:12px;color:${escapeAttr(accent)};">`
+        + `<span aria-hidden="true" style="display:inline-block;width:14px;height:14px;line-height:12px;text-align:center;box-sizing:border-box;border:1px solid ${escapeAttr(accent)};border-radius:3px;background:${escapeAttr(accent)};color:#fff;font-size:10px;">✓</span>`
+        + `<span>优选推荐</span></span>`
+      : '';
+    // 后台视图提示：勾了优选却拿不到排期ID → 发布时生不出「直达预定」链接，在这里就说清楚，
+    // 免得发布后才发现链接少了却不知道原因。
+    const warnHtml = (withBox && t.optioned && !t.scheduleId)
+      ? '<span style="margin-left:6px;color:#faad14;font-size:12px;">（未关联排期ID，无法生成直达预约链接）</span>'
+      : '';
+    return `<div>${escapeHtml(dateRange)} ${escapeHtml(rptText)} ${escapeHtml(dayText)} ${optionedHtml}${warnHtml}${badgeHtml}</div>`;
   }).join('');
+}
+
+/**
+ * 把查看区 DOM 上「优先推荐」的勾选状态与排期ID 同步回 data.availableTimes。
+ *
+ * 为什么需要：勾选状态有两个来源 —— 后端返回的 optioned，以及管理员在查看区
+ * 当场改的勾（查看区的复选框不落库、也不改 originalData）。发布时若让
+ * 「徽章」读 data、「直达链接」读 DOM，两者会各说各话。这里统一以 DOM 为准
+ * （DOM 的初值本来就来自 data，所以没改过的场景完全等价）。
+ */
+function syncOptedFromViewDom(data) {
+  const timeEl = document.getElementById('view-availableTimes');
+  if (!timeEl || !data || !Array.isArray(data.availableTimes)) return;
+  const boxes = timeEl.querySelectorAll('input.cert-optioned');
+  if (!boxes.length) return;
+  data.availableTimes.forEach((t, i) => {
+    const box = boxes[i];
+    if (!box) return;
+    t.optioned = box.checked ? 1 : 0;
+    const ds = box.dataset;
+    // dataset 驼峰化后是 extraScheduleid（两种写法都兼容，防大小写踩坑）
+    const sid = (ds && (ds.extraScheduleid || ds.extraScheduleId)) || '';
+    if (sid) t.scheduleId = sid;   // 仅在拿到值时才覆盖，避免把已有排期ID清空
+  });
+}
+
+/**
+ * 解析「直达预定」深链要用的排期ID：取勾了优选推荐且有排期ID的第一条。
+ * ① 优先用同步后的数据；② 数据与 DOM 行数不一致时再到 DOM 里兜底捞一次。
+ * 返回 '' 表示没有可用排期 —— 调用方据此不渲染该链接，避免出现空参数的无效链接。
+ */
+function resolveOptedScheduleId(data) {
+  const list = (data && data.availableTimes) || [];
+  const hit = list.find(t => t.optioned && t.scheduleId);
+  if (hit) return hit.scheduleId;
+  const timeEl = document.getElementById('view-availableTimes');
+  if (timeEl) {
+    const boxes = timeEl.querySelectorAll('input.cert-optioned');
+    for (let i = 0; i < boxes.length; i++) {
+      const box = boxes[i];
+      if (!box.checked) continue;
+      const ds = box.dataset;
+      const sid = (ds && (ds.extraScheduleid || ds.extraScheduleId)) || '';
+      if (sid) return sid;
+    }
+  }
+  return '';
 }
 
 /**
@@ -263,15 +328,11 @@ function generatePublishHtml(mode) {
 
   const getPhotoSrc = () => (data.personalPhotoBase64 || data.personalPhotoUrl || '');
 
-  // 取查看区里勾了「优先推荐」的第一行 scheduleId，作为对外直达预约链接
-  let optedScheduleId = '';
-  const timeEl = document.getElementById('view-availableTimes');
-  if (timeEl) {
-    const optedRows = timeEl.querySelectorAll('.cert-optioned:checked');
-    if (optedRows.length > 0) {
-      optedScheduleId = (optedRows[0].dataset && optedRows[0].dataset.extraScheduleid) || '';
-    }
-  }
+  // 取查看区里勾了「优先推荐」的第一行 scheduleId，作为对外直达预约链接。
+  // 先把 DOM 上的勾选同步回 data（勾选是发布时的真值来源），再统一解析，
+  // 保证「优选推荐」徽章与「直达预定」链接指向同一个排期、不会各说各话。
+  syncOptedFromViewDom(data);
+  const optedScheduleId = resolveOptedScheduleId(data);
   data.scheduleId = optedScheduleId;
 
   // 基本信息和课时配置的字段单独渲染成卡片，rowsHtml 跳过这些字段以避免重复
@@ -309,18 +370,25 @@ function generatePublishHtml(mode) {
     }
     if (f.key === 'availableTimes') {
       if (!data.availableTimes || !data.availableTimes.length) return '';
-      // 发布快照：纯文本，不带后台复选框
-      const lines = formAvaliableTimesDiv(data.availableTimes, { withOptionCheckbox: false });
+      // 发布快照：后台的勾选框换成只读的「优选推荐」徽章 —— 家长看到的是结论（哪个时段被推荐），
+      // 而不是一个点不动的控件。勾选样式保持一致，管理员在预览里能一眼对上号。
+      const lines = formAvaliableTimesDiv(data.availableTimes, {
+        withOptionCheckbox: false,
+        withOptionBadge: true,
+        accentColor: style.accentColor
+      });
       // 对外预约链接（2026-09-11 取消 0d62f56「暂时隐藏链接」的注释，恢复直达预约）：
-      //   勾了「优先推荐」→ 直达该排期；未勾选则不渲染，避免出现空参数的无效链接。
+      //   「全部排期」= booking.html?tid=教师ID  → 学生端展示该教师全部可约时段
+      //   「直达预定」= booking.html?scdid=排期ID → 学生端直达被标记为优选的那个排期
+      //   两者都只在参数有值时才渲染，避免出现空参数的无效链接。
       const linkForSchedule = optedScheduleId ? bookingDeepLink({ scdid: optedScheduleId }) : '';
       const linkForTeacher = currentTeacherId ? bookingDeepLink({ tid: currentTeacherId }) : '';
       const bookingLinks = [
         linkForSchedule
-          ? `<div style="margin-top:8px;"><a href="${escapeAttr(linkForSchedule)}" target="_blank" rel="noopener" style="color:${escapeAttr(style.accentColor)};word-break:break-all;">直达预定</a></div>`
+          ? `<div style="margin-top:8px;"><a href="${escapeAttr(linkForSchedule)}" target="_blank" rel="noopener" title="直达老师推荐的时段，点开即可预约" style="color:${escapeAttr(style.accentColor)};word-break:break-all;">直达预定（优选时段）</a></div>`
           : '',
         linkForTeacher
-          ? `<div style="margin-top:4px;"><a href="${escapeAttr(linkForTeacher)}" target="_blank" rel="noopener" style="color:${escapeAttr(style.accentColor)};word-break:break-all;">全部排期</a></div>`
+          ? `<div style="margin-top:4px;"><a href="${escapeAttr(linkForTeacher)}" target="_blank" rel="noopener" title="查看该老师的全部可预约时段" style="color:${escapeAttr(style.accentColor)};word-break:break-all;">全部排期</a></div>`
           : ''
       ].join('');
       return `<section style="margin-bottom:16px;">
@@ -334,10 +402,13 @@ function generatePublishHtml(mode) {
         <div style="white-space:pre-wrap;line-height:1.7;">${escapeHtml(v)}</div></section>`;
     }
     if (f.key === 'bioUrl') {
-      if (!v) return '';
+      // 外部链接：href 走规范化后的绝对地址，防止裸域名被当成站内相对路径
+      // （否则家长点开会跳到 当前站点/xxx，等于"自动加上了当前浏览器地址"）。
+      const href = normalizeExternalUrl(v);
+      if (!href) return '';
       return `<section style="margin-bottom:16px;">
         <h3 style="margin:0 0 8px 0;color:${escapeAttr(style.accentColor)};font-size:${style.fontSizePx + 2}px;">外部链接</h3>
-        <a href="${escapeAttr(v)}" target="_blank" rel="noopener" style="color:${escapeAttr(style.accentColor)};word-break:break-all;">${escapeHtml(v)}</a></section>`;
+        <a href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer" title="${escapeAttr(href)}" style="color:${escapeAttr(style.accentColor)};word-break:break-all;">${escapeHtml(v)}</a></section>`;
     }
 
     // 基本字段 key-value

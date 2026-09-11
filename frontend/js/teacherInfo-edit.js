@@ -17,16 +17,8 @@ function fillEditForm(data, isAdd) {
   if (teacherIdInput) teacherIdInput.value = data.teacherId || '';
   if (teacherIdDisplay) teacherIdDisplay.value = data.teacherId || '';
 
-  // 教师姓名提示
-  const nameHint = document.getElementById('f-teacherNameHint');
-  if (nameHint) {
-    if (data.name) {
-      nameHint.textContent = termText('teacher') + '姓名：' + data.name;
-      nameHint.style.display = '';
-    } else {
-      nameHint.style.display = 'none';
-    }
-  }
+  // 教师姓名提示（「教师ID」标签右侧，右对齐）
+  renderTeacherNameHint(data.name);
 
   // 学科
   const subjectSelect = document.getElementById('f-subject');
@@ -154,6 +146,7 @@ function renderTimeRow(t) {
   // 优先推荐复选框：勾选后，该行的 scheduleId 会成为对外发布页的直达预约链接
   const optionedHtml = `<label><input type="checkbox" class="cert-optioned" data-extra-scheduleid="${escapeAttr(t.scheduleId || '')}" ${t.optioned ? 'checked' : ''}>
         优先推荐</label>`;
+  const fullHtml = t.full ? ` <span style="display:inline-block;padding:1px 6px;border-radius:4px;background:#fff0f0;color:#d4380d;border:1px solid #ffccc7;font-size:12px;white-space:nowrap;" title="该排期已约满，仅可候补/推荐">满额</span>` : '';
   return `
     <div class="sub-item-row" style="flex-wrap:wrap;gap:8px;">
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
@@ -175,7 +168,7 @@ function renderTimeRow(t) {
       <div class="time-weekDays" style="${weekStyle}width:100%;margin-top:2px;border-top:1px dashed #eee;padding-top:4px;">${weekChecks}</div>
       <div class="time-monthDays" style="${monthStyle}width:100%;margin-top:2px;border-top:1px dashed #eee;padding-top:4px;">${monthChecks}</div>
       <button class="btn btn-danger" onclick="this.closest('.sub-item-row').remove()" style="margin-left:auto;"><i class="fa fa-times"></i></button>
-      ${optionedHtml}
+      ${optionedHtml}${fullHtml}
     </div>`;
 }
 
@@ -266,7 +259,14 @@ async function saveForm() {
     const endTime = row.querySelector('.time-endTime').value.trim();
     const optionedEl = row.querySelector('.cert-optioned');
     const optioned = optionedEl ? (optionedEl.checked || 0) : 0;
-    const scheduleId = (optionedEl && optionedEl.dataset && optionedEl.dataset.extraScheduleId) || '';
+    // 排期ID 取自渲染时写在 checkbox 上的 data-extra-scheduleid。
+    // ！！！大小写陷阱（2026-09-11 修复）：`data-extra-scheduleid` 经 dataset 驼峰化后是
+    // `extraScheduleid`（只有连字符后的首字母大写，`scheduleid` 整段小写），
+    // 原先读 `dataset.extraScheduleId` 恒为 undefined → scheduleId 永远存成空串
+    // → 查看区/发布页拿不到排期ID → 对外「直达预定」深链根本生成不出来。
+    // 这里两种写法都兼容（并保留 `|| ''`，防止把 undefined 传给后端）。
+    const schemaDs = optionedEl && optionedEl.dataset;
+    const scheduleId = (schemaDs && (schemaDs.extraScheduleid || schemaDs.extraScheduleId)) || '';
     if (startDate && startTime) {
       availableTimes.push({
         repeatType,
@@ -301,7 +301,9 @@ async function saveForm() {
     // base64 图片：未选图时为隐藏字段原值（保留已上传图片），选了新图则覆盖
     personalPhotoBase64: document.getElementById('f-personalPhotoBase64').value || null,
     bioText: document.getElementById('f-bioText').value.trim(),
-    bioUrl: document.getElementById('f-bioUrl').value.trim(),
+    // 落库前补全协议：只填 www.xxx.com 时存成 https://www.xxx.com，
+    // 避免后续任何位置直接把它当 href 渲染时被当成站内相对路径。
+    bioUrl: normalizeExternalUrl(document.getElementById('f-bioUrl').value),
     minBookingHours: parseInt(document.getElementById('f-minBookingHours').value) || 4,
     weeklyAvailableHours: parseInt(document.getElementById('f-weeklyAvailableHours').value) || 20,
     certificateText: document.getElementById('f-certificateText').value.trim(),

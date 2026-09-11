@@ -551,5 +551,22 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
         }
         return availableSchedules;
     }
+
+    // 查询指定教师的全部活跃排期（含已约满），供职业信息编辑界面「读取排期」使用。
+    // 与 getAvailableSchedule（公开预订页专用，仅返回有空位的排期）区分：编辑/发布场景
+    // 需要看到全部活跃排期，以便配置对外链接与优选标记。复用忽略租户的查询——
+    // teacherId 取自已登录教师的职业信息（受信任），且本接口置于登录鉴权之下（不进公开
+    // 白名单），平台管理员跨租户查看时也正确返回该教师的排期。
+    public List<CourseSchedule> getSchedulesByTeacher(String teacherId) {
+        List<CourseSchedule> schedules = scheduleMapper.selectActiveSchedulesByTeacherIdIgnoreTenant(teacherId);
+        for (CourseSchedule schedule : schedules) {
+            // 与 getAvailableSchedule 相同的余位口径：占用席位 = 状态不在 NON_OCCUPYING 的预订数。
+            // full = 可用席位 <= 占用数（即没有空位）。前端据此向客户标注「满额」。
+            int bookingCount = bookingMapper.countBookingByScheduleIdIgnoreTenant(
+                    schedule.getScheduleId(), BookingStatus.NON_OCCUPYING);
+            schedule.setFull(!(schedule.getAvailableSites() > bookingCount));
+        }
+        return schedules;
+    }
   
 }//all 

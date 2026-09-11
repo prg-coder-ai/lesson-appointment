@@ -34,6 +34,10 @@
     .form-group { margin-bottom: 14px; }
     .form-group label { display: block; margin-bottom: 4px; color: #333; font-size: 14px; font-weight: 500; }
     .form-group label .required { color: #f5222d; }
+    /* 教师ID 右侧的姓名提示：靠右对齐；隐藏统一走 hidden 属性，
+       不再用内联 display:none（避免与 JS 的 style.display='' 互相抵消后永久隐藏） */
+    .name-hint { margin-left: auto; text-align: right; color: #999; font-size: 13px; white-space: nowrap; }
+    .name-hint .name-hint-value { color: #333; font-weight: 500; }
     .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px 10px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 14px; box-sizing: border-box; background: #fff; }
     .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #722ed1; }
     .form-group input[readonly], .form-group select[disabled], .form-group textarea[readonly] { background: #fafafa; color: #666; cursor: default; }
@@ -189,8 +193,8 @@
         <!-- ==================== 编辑/新增模式 ==================== -->
         <div id="section-edit" style="display:none;" data-page-node-id="hJLy905UlRU6ik9o2r5yx6">
           <div class="form-group" data-page-node-id="0y5ARp9AMh4fciJrlBgtZY">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;" data-page-node-id="dz5wVCpAHC6uZpdAAHmnv9">
-            <label data-page-node-id="stCItNdGDgkKcJkBwulOFR"><span data-term="teacher" data-page-node-id="8v0Hvzui3nzilK2PB5XyKX">教师</span>ID <span class="required" data-page-node-id="yDpGONqA95tbDpZn5fBa0x">*</span></label>  <div id="f-teacherNameHint" style="color:#999;margin-top:4px;display:none;" data-page-node-id="sggha79ZhbayngLpk1NYdO"></div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;" data-page-node-id="dz5wVCpAHC6uZpdAAHmnv9">
+            <label data-page-node-id="stCItNdGDgkKcJkBwulOFR"><span data-term="teacher" data-page-node-id="8v0Hvzui3nzilK2PB5XyKX">教师</span>ID <span class="required" data-page-node-id="yDpGONqA95tbDpZn5fBa0x">*</span></label>  <div id="f-teacherNameHint" class="name-hint" hidden data-page-node-id="sggha79ZhbayngLpk1NYdO"></div>
             </div>
             <input type="text" id="f-teacherIdDisplay" readonly data-page-node-id="X6JALuIcmkiA4LkFhD3GD7">
             <input type="hidden" id="f-teacherId" data-page-node-id="JdxQA60M5cs4AoKaqTdBBF">

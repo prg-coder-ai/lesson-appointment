@@ -12,6 +12,82 @@
  *
  * 依赖：utility_request.js (window.request)、api.js (escapeHtml/escapeAttr/getCurrentUserInfo)
  */
+// ====================== 外部链接规范化 ======================
+/**
+ * 规范化用户填写的外部链接（简介链接 / 证书图片地址）。
+ *
+ * 背景（2026-09-11 用户反馈「外部链接不要添加当前浏览器地址」）：
+ *   输入框允许只写 `www.example.com` 这类裸地址，但原样塞进 href 后浏览器会按
+ *   **相对地址**解析 —— 实际跳转成 `https://<当前站点>/www.example.com`，
+ *   看起来就像"凭空加上了当前浏览器地址"，必然打不开。
+ *   这里在「渲染」和「落库」两处补全协议，保证 href 始终是绝对地址。
+ *
+ * 规则：
+ *   - 空值 → ''（调用方据此决定渲染「无」）
+ *   - 危险协议（javascript:/vbscript:/data:/file:/blob:）→ ''，避免伪链接被当 href 渲染
+ *   - 已带协议（http: https: mailto: tel: ftp: …）→ 原样保留（内网 http 地址照旧可用）
+ *   - 以 `//` 开头（协议相对）→ 补 `https:`
+ *   - 以 `/` `.` `?` `#` 开头 → 站内相对路径/锚点，原样保留（交给浏览器按当前站点解析）
+ *   - 其余（裸域名 / 裸地址）→ 补 `https://`
+ */
+function normalizeExternalUrl(raw) {
+  const v = (raw == null ? '' : String(raw)).trim();
+  if (!v) return '';
+  const scheme = /^([a-zA-Z][a-zA-Z0-9+.-]*):/.exec(v);
+  if (scheme) {
+    if (/^(javascript|vbscript|data|file|blob)$/i.test(scheme[1])) return '';
+    return v;
+  }
+  if (v.startsWith('//')) return 'https:' + v;
+  if (/^[./?#]/.test(v)) return v;
+  return 'https://' + v;
+}
+
+// ====================== 教师姓名提示（「教师ID」右侧） ======================
+/**
+ * 渲染「教师ID」标签右侧的姓名提示（右对齐）。
+ *
+ * 背景（2026-09-11 用户反馈「教师ID 右边原来还有教师名称显示，现在没有了」）：
+ *   1) 原实现靠内联 `style="display:none"` + JS `style.display=''` 开关，
+ *      两者耦合脆弱，一旦内联样式被覆盖/清理就会永久隐藏 → 改为 `hidden` 属性控制；
+ *   2) 更本质的原因：**新增模式**（该教师还没有职业信息，detail 接口 404）
+ *      走 buildEmptyForm，name 为空 → 提示被隐藏，管理员只能看到一串 teacherId。
+ *      现在新增模式会补查一次姓名（见 teacherInfo.js 的 enterAddMode）。
+ *
+ * @param {string} name 教师姓名；空 / N/A 则整块隐藏（不显示"undefined"这类噪音）
+ */
+function renderTeacherNameHint(name) {
+  const hint = document.getElementById('f-teacherNameHint');
+  if (!hint) return;
+  const text = (name == null ? '' : String(name)).trim();
+  if (text && text !== 'N/A') {
+    hint.innerHTML = escapeHtml(termText('teacher') + '姓名：')
+      + '<span class="name-hint-value">' + escapeHtml(text) + '</span>';
+    hint.hidden = false;
+  } else {
+    hint.textContent = '';
+    hint.hidden = true;
+  }
+}
+
+/**
+ * 按 teacherId 查教师姓名（供「职业信息不存在」的新增模式补显示）。
+ * 复用 api.js 既有的 getUserNameById —— 它已处理「空值/非字符串不拼 URL」与
+ * 「去掉尾随点号避免被当成静态资源」两个坑，查询失败返回 "n/a"。
+ * 这里统一归一成空串；查询失败不抛异常 —— 姓名提示是辅助信息，不能干扰建档主流程。
+ */
+async function fetchTeacherName(teacherId) {
+  if (!teacherId) return '';
+  if (typeof getUserNameById !== 'function') return '';
+  try {
+    const name = await getUserNameById(String(teacherId));
+    const text = (name == null ? '' : String(name)).trim();
+    return (text && text.toLowerCase() !== 'n/a') ? text : '';
+  } catch (e) {
+    return '';
+  }
+}
+
 // ====================== 数据规范化 ======================
 /** 把后端返回的 detail 对象整理成 fillView/fillEditForm 期望的结构 */
 function normalizeDetail(data) {
@@ -142,12 +218,16 @@ function fillView(data) {
   // 简介
   setText('view-bioText', data.bioText || '无');
 
-  // 链接
+  // 链接：href 用规范化后的绝对地址（裸域名不再被当成站内相对路径），
+  // 显示文本仍保留用户原始输入，鼠标悬停可看到实际跳转地址。
   const bioUrlEl = document.getElementById('view-bioUrl');
   if (bioUrlEl) {
-    bioUrlEl.innerHTML = data.bioUrl
-      ? `<a href="${escapeAttr(data.bioUrl)}" target="_blank">${escapeHtml(data.bioUrl)}</a>`
-      : '<span style="color:#999;">无</span>';
+    const bioHref = normalizeExternalUrl(data.bioUrl);
+    bioUrlEl.innerHTML = bioHref
+      ? `<a href="${escapeAttr(bioHref)}" target="_blank" rel="noopener noreferrer" title="${escapeAttr(bioHref)}">${escapeHtml(data.bioUrl)}</a>`
+      : (data.bioUrl
+          ? '<span style="color:#999;">（链接格式无效，已忽略）</span>'
+          : '<span style="color:#999;">无</span>');
   }
 
   // 证书列表（动态行，仍用 innerHTML 拼接）
@@ -155,9 +235,10 @@ function fillView(data) {
   if (certEl) {
     certEl.innerHTML = (data.certificates && data.certificates.length)
       ? data.certificates.map(c => {
+          const certHref = normalizeExternalUrl(c.certUrl);
           let certImgHtml = '';
-          if (c.certUrl) {
-            certImgHtml = `<a href="${escapeAttr(c.certUrl)}" target="_blank"><img class="cert-view-img" src="${escapeAttr(c.certUrl)}" alt=""></a>`;
+          if (certHref) {
+            certImgHtml = `<a href="${escapeAttr(certHref)}" target="_blank" rel="noopener noreferrer"><img class="cert-view-img" src="${escapeAttr(certHref)}" alt=""></a>`;
           } else if (c.certBase64) {
             const dataUri = c.certBase64.startsWith('data:') ? c.certBase64 : 'data:image/png;base64,' + c.certBase64;
             certImgHtml = `<img class="cert-view-img" src="${escapeAttr(dataUri)}" alt="">`;
@@ -166,7 +247,7 @@ function fillView(data) {
              ${certImgHtml ? `<div>${certImgHtml}</div>` : ''}
              <div>
                <strong>${escapeHtml(c.certName || '未命名')}</strong>
-               ${c.certUrl ? ` · <a href="${escapeAttr(c.certUrl)}" target="_blank">查看原图</a>` : ''}
+               ${certHref ? ` · <a href="${escapeAttr(certHref)}" target="_blank" rel="noopener noreferrer">查看原图</a>` : ''}
                <div style="color:#999;font-size:12px;">排序 ${c.sortNo != null ? c.sortNo : 0}</div>
              </div>
            </div>`;
@@ -226,9 +307,10 @@ async function getAvailableTimesFromSchedule() {
 
 async function getAvailableTimesByAPI(teacherId) {
   try {
-    // 裸路径由 utility_request.js 的 normalizeUrl 补成 /api/v1/schedule/getAvailableSchedule
+    // 裸路径由 utility_request.js 的 normalizeUrl 补成 /api/v1/schedule/listByTeacher
+    // （编辑界面专用：返回该教师全部 active 排期，含已约满，不过滤余位）
     const data = await request({
-      url: '/schedule/getAvailableSchedule',
+      url: '/schedule/listByTeacher',
       params: { teacherId: teacherId }
     });
     return data;
