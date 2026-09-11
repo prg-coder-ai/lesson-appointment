@@ -39,6 +39,18 @@
 - **工具约束**：`doc-develop/dev-frontend.js` 的 `MSG_HOST` 分流**仅在两端密钥一致时（全本地或全远程同密钥）才安全**；不可用于"前端一边本地一边远程"的联调。
 - **本地起 message-service 必带 `--server.port=8090`**：沙箱环境变量 `SERVER__PORT=55058` 会被 Spring Boot 宽松绑定映射成 `server.port`，覆盖 jar 的 8090 → 绑 55058 撞 WorkBuddy IDE 退出。
 
+## 源文件编码铁律（2026-09-11 定下）
+- **所有源文件（java/js/html/css/xml/properties/md/sql）必须是 UTF-8 无 BOM**。历史上出现过：`api/.../mapper/UserSessionMapper.java` 整个文件被写成 GBK → javac 报 `编码 UTF-8 的不可映射字符`；`frontend/js/public/termsFunction.js` 行内混合 GBK + 丢字节 → 文件非法 UTF-8（现均已修好，全仓 0 个非 UTF-8 文本文件）。
+- 引入点是 commit `246b7a9` 那类「批量保存」操作，怀疑工具按系统 ANSI 落盘。**改文件后若涉及中文，提交前跑一次全仓编码扫描**（脚本见技能 `source-encoding-repair`）。
+- 已知良性例外：`frontend/dist/**` 由构建产出，minify 已去注释，扫描 dist 时为 0 个非 UTF-8（源文件修好后 dist 无需重建，因为改动只在注释）。
+- 这类修复**只准改注释**：修完必须用「去注释后逐字节比对」证明代码零改动 + `node --check` 过语法。
+
+## ID 契约：message-service 的 Long 一律以字符串下发（2026-09-11 定下）
+- message-service 主键走 `ASSIGN_ID` 雪花（19 位 ≥2.1e18），**超过 JS `Number.MAX_SAFE_INTEGER`**；以 JSON 数字下发会被浏览器 `JSON.parse` 静默改值，前端拿错 ID 回查必然 404。
+- 已加 `api/message-service/.../config/JacksonConfig.java`：`Long`/`long` 统一 `ToStringSerializer`。**今后 message-service 新增任何 Long 字段/接口都自动符合此契约，前端一律按字符串处理 ID，不要加 `Number()`/`parseInt`。**
+- 教训：新接口若返回大整数 ID，必须在真实浏览器语义（JSON.parse）下验证，别只看后端返回码。
+- 对照：`lesson_appointment` 库主键是 UUID(varchar36) 或小整数 auto_increment，无此风险。
+
 ## 前后端职责边界（2026-09-09 改造落地）
 - **booking api = 纯后台**：仅提供 REST（`/api/v1/**`），**不再伺服任何 UI 页面**；`api/src/main/resources/static/` 已整体删除，jar 内 static 条目为 0。
 - **平台管理端归 frontend**：`platform_admin.html`、`logBrowser.html`、`js/platform-admin-*.js`、`js/main.js`、`js/logBrowser.js` 已迁至 `frontend/`，由 `frontend/build.js` 构建进 `dist/`，Nginx 伺服。平台管理员从前端登录（frontend/index.html 已支持 platform_admin 角色）→ 跳 `FRONTEND_ORIGIN + '/platform_admin.html'`。
