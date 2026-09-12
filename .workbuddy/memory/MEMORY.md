@@ -7,7 +7,7 @@
 - api(Spring Boot 3.3.5+MyBatis-Plus 3.5.7)+message-service 独立模块；MySQL lesson_appointment/message_center；api 只供 /api/v1/**，不伺服 html。
 - 构建见技能 saas-api-build-smoke；改前端后必重 build dist（CODEBUDDY_SAFE_DELETE_ENABLED=0 node frontend/build.js，bulk-delete 守卫会拦开头 rm）。
 - frontend/pom.xml 的 npm.version 必须 10.9.7（10.2.4 在 Win 跑 npm run 必崩）。
-- 三产物：api/target/booking_api-2.0.1.jar、api/message-service/target/message-service-1.0.0.jar、frontend/dist/。
+- 三产物：api/target/booking-api-2.0.1.jar、api/message-service/target/message-service-1.0.0.jar、frontend/dist/。
 
 ## 铁律
 - JWT：远程=线上密钥、本地=源 jwt.secret；同源才互验，混合必 401；本地起 message-service 必带 --server.port=8090。

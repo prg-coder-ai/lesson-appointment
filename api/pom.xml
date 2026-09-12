@@ -15,7 +15,7 @@
     </parent>
 
     <groupId>com.reservation</groupId>
-    <artifactId>booking_api</artifactId>   
+    <artifactId>booking-api</artifactId>   
     <version>2.0.1</version> <!-- 版本号：快照版（开发中）/RELEASE（正式版） -->
     <name>booking</name>
     <description>lesson booking system</description>
@@ -34,6 +34,23 @@
         <spring-boot.run.fork>true</spring-boot.run.fork>
         <spring-boot.run.jvmArguments>-Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005</spring-boot.run.jvmArguments>
     </properties>
+
+    <!-- 显式钉死 logback 版本：防止任何传递依赖改出 logback-core 与 logback-classic 版本错配
+         （错配会导致运行期 NoClassDefFoundError: ch/qos/logback/classic/spi/ThrowableProxy，使日志线程崩溃） -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-classic</artifactId>
+                <version>1.5.11</version>
+            </dependency>
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-core</artifactId>
+                <version>1.5.11</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <dependency>
@@ -129,7 +146,8 @@
 
     </dependencies>
     <build>
-     
+        <finalName>booking-api-2.0.1</finalName>
+
         <plugins>
                 <plugin>
         <groupId>org.apache.maven.plugins</groupId>
