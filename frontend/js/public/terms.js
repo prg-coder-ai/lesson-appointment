@@ -40,7 +40,9 @@ const TERM_DICT = {
     classType4: "西语",
     classType : "语言类型", 
 
-    lessonDuration: "课时长度(分钟)"
+    lessonDuration: "课时长度(分钟)",
+    subject: "学科",
+    teacherBio: "教师简介"
   },
   // 法律咨询
   legal: {
@@ -75,7 +77,9 @@ const TERM_DICT = {
     classType3: "刑事",
     classType4: "行政",
     classType : "咨询范畴",
-    lessonDuration: "预约时长(分钟)"
+    lessonDuration: "预约时长(分钟)",
+    subject: "咨询范畴",
+    teacherBio: "律师简介"
   },
   // 心理咨询 / 健身私教 / 家教 ... 后续按行业追加
   counseling: {

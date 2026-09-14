@@ -15,7 +15,7 @@ const PUBLISH_FIELDS_META = [
   { key: 'account',       label: '账号',     group: '基本信息', default: false },
   { key: 'phone',         label: '手机',     group: '基本信息', default: false },
   { key: 'email',         label: '邮箱',     group: '基本信息', default: true },
-  { key: 'subject',       label: '学科',     group: '基本信息', default: true },
+  { key: 'subject',       label: termText('subject'),     group: '基本信息', default: true },
   { key: 'status',        label: '职业信息状态', group: '基本信息', default: false },
   { key: 'userStatus',    label: '账号状态',    group: '基本信息', default: false },
   { key: 'photo',         label: '个人照片',    group: '基本信息', default: true },
@@ -344,7 +344,7 @@ function generatePublishHtml(mode) {
 
     const v = {
       name: data.name, account: data.account, phone: data.phone,
-      email: data.email, subject: data.subject,
+      email: data.email, subject: subjectDisplay(data.subject),
       status: data.status, userStatus: data.userStatus,
       minBookingHours: data.minBookingHours,
       weeklyAvailableHours: data.weeklyAvailableHours,
@@ -425,7 +425,7 @@ function generatePublishHtml(mode) {
   if (basicKeys.some(k => fset.has(k))) {
     const rows = fields.filter(f => basicKeys.includes(f.key) && f.key !== 'photo').map(f => {
       const v = { name: data.name, account: data.account, phone: data.phone,
-        email: data.email, subject: data.subject, status: data.status,
+        email: data.email, subject: subjectDisplay(data.subject), status: data.status,
         userStatus: data.userStatus }[f.key];
       return `<div style="display:flex;gap:12px;margin-bottom:6px;">
         <div style="width:120px;color:#666;flex-shrink:0;">${escapeHtml(f.label)}</div>
@@ -473,7 +473,7 @@ function generatePublishHtml(mode) {
       ${photoHtml}
       <div style="flex:1;min-width:240px;">
         <h1 style="margin:0 0 8px 0;color:${escapeAttr(style.accentColor)};font-size:${style.titleSizePx}px;">${escapeHtml(title)}</h1>
-        <div style="color:#666;font-size:${Math.max(12, style.fontSizePx - 2)}px;">${escapeHtml(data.subject || '')} · ${escapeHtml((data.userStatus === 'active' || data.status === 'active') ? '状态：在职' : '')}</div>
+        <div style="color:#666;font-size:${Math.max(12, style.fontSizePx - 2)}px;">${escapeHtml(subjectDisplay(data.subject))} · ${escapeHtml((data.userStatus === 'active' || data.status === 'active') ? '状态：在职' : '')}</div>
       </div>
     </header>`;
 
@@ -538,7 +538,8 @@ async function enterPublishMode() {
   // 初始化标题
   const titleEl = document.getElementById('pub-title');
   if (titleEl && !titleEl.value) {
-    titleEl.value = (originalData.name || termText('teacher')) + ' · ' + (originalData.subject || '个人介绍');
+    const subjLabel = originalData.subject ? subjectDisplay(originalData.subject) : '个人介绍';
+    titleEl.value = (originalData.name || termText('teacher')) + ' · ' + subjLabel;
   }
   // 初始化字段勾选（如果有草稿，稍后会覆盖）
   if (document.getElementById('pub-fields').children.length === 0) {

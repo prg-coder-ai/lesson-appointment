@@ -183,7 +183,7 @@ function fillView(data) {
   // 状态文本
   const statusEl = document.getElementById('view-status');
   if (statusEl) {
-    statusEl.innerHTML = data.status === 'active' ? '<span class="status-active">有效</span>'
+    statusEl.innerHTML = data.status === 'active' ? '<span class="status-active">在职</span>'
       : data.status === 'frozen' ? '<span class="status-frozen">冻结</span>'
       : data.status === 'inactive' ? '<span class="status-inactive">失效</span>'
       : data.status === 'delete' ? '<span class="status-inactive">删除</span>'
@@ -207,8 +207,7 @@ function fillView(data) {
   setText('view-account', data.account || '-');
   setText('view-phone', data.phone || '-');
   setText('view-email', data.email || '-');
-  setText('view-subject', data.subject || '-');
-  setText('view-userStatus', data.userStatus || '-');
+  setText('view-subject', subjectDisplay(data.subject));
 
   // 课时配置
   setText('view-minBookingHours', data.minBookingHours != null ? data.minBookingHours : '-');

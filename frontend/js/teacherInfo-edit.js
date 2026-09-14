@@ -20,7 +20,8 @@ function fillEditForm(data, isAdd) {
   // 教师姓名提示（「教师ID」标签右侧，右对齐）
   renderTeacherNameHint(data.name);
 
-  // 学科
+  // 学科（选项按行业术语渲染：教育=语种，律师=咨询范畴；先渲染 options 再回填选中值）
+  renderSubjectOptions();
   const subjectSelect = document.getElementById('f-subject');
   if (subjectSelect) subjectSelect.value = data.subject || '';
 

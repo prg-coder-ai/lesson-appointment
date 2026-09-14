@@ -19,8 +19,7 @@ let currentTeacherId = null;                 // 当前教师的 userId（来自 
 let currentProfessionalId = null;            // 当前职业信息记录 ID（新增时为 null）
 let currentMode = 'view';                    // 'view' | 'edit' | 'add' | 'publish'
 let originalData = null;                     // 最近一次加载的原始数据（取消编辑时回滚）
-//TBD：从后端获取课程选项,根据教师的领域动态生成
-const SUBJECT_OPTIONS = ['英语',  '法语', '汉语', '西班牙语'];
+// 学科下拉选项按行业术语渲染：教育=语种，律师=咨询范畴（见文件末尾 getSubjectOptions/renderSubjectOptions/subjectDisplay）
 const DAY_OF_WEEK_MAP = { 1: '周一', 2: '周二', 3: '周三', 4: '周四', 5: '周五', 6: '周六', 7: '周日' };
 
 // ====================== URL 参数解析 + 加载入口 ======================
@@ -227,4 +226,54 @@ function installLinkCopyAndImageSaveHandlers() {
       alert('生成图片失败，请重试');
     }
   });
+}
+
+// ====================== 学科下拉（按行业术语渲染） ======================
+// 教育行业 = 语种（英语/法语/德语/西班牙语）；律师行业 = 咨询范畴（婚姻/劳动/刑事/行政）。
+// 选项文本经 getOptions 跟随服务端合并词表（租户词 > 行业词 > 平台词），满足
+// "学科对应的内容要与行业词汇选项一致"：律师行业的学科即 classType 范畴，复用 legal 词表的 classType1-4。
+function getSubjectOptions() {
+  const industry = getCurrentIndustry();
+  if (industry === 'legal') {
+    return getOptions('classType', [
+      { value: 'classType1', code: 'classType1', defaultText: '婚姻' },
+      { value: 'classType2', code: 'classType2', defaultText: '劳动' },
+      { value: 'classType3', code: 'classType3', defaultText: '刑事' },
+      { value: 'classType4', code: 'classType4', defaultText: '行政' }
+    ]);
+  }
+  return getOptions('subject', [
+    { value: 'english', code: 'english', defaultText: '英语' },
+    { value: 'french',  code: 'french',  defaultText: '法语' },
+    { value: 'german',  code: 'german',  defaultText: '德语' },
+    { value: 'spanish', code: 'spanish', defaultText: '西班牙语' }
+  ]);
+}
+
+// 渲染学科 <select> 选项（保留"请选择"空项），在 fillEditForm 回填选中值前调用
+function renderSubjectOptions() {
+  const sel = document.getElementById('f-subject');
+  if (!sel) return;
+  const opts = getSubjectOptions();
+  sel.innerHTML = '<option value="">请选择</option>'
+    + opts.map(o => '<option value="' + escapeAttr(o.value) + '">' + escapeHtml(o.text) + '</option>').join('');
+}
+
+// 查看页：把存储的 subject value 转成行业显示词
+function subjectDisplay(value) {
+  if (!value) return '-';
+  // 当前行业选项（教育=语种 / 律师=classType 范畴）
+  const opts = getSubjectOptions();
+  const m = opts.find(o => o.value === value);
+  if (m) return m.text;
+  // 跨行业兜底：教育期遗留数据（如 english）在律师等行业词表里查不到时，
+  // 退回 education 词表显示可读中文（英语），避免把原始代码 english 直接展示给客户。
+  const eduOpts = getOptions('subject', [
+    { value: 'english', code: 'english', defaultText: '英语' },
+    { value: 'french',  code: 'french',  defaultText: '法语' },
+    { value: 'german',  code: 'german',  defaultText: '德语' },
+    { value: 'spanish', code: 'spanish', defaultText: '西班牙语' }
+  ]);
+  const em = eduOpts.find(o => o.value === value);
+  return em ? em.text : value;
 }
