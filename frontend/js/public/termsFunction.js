@@ -299,15 +299,23 @@ function injectLangSwitch() {
   // 监听 setLang（含控制台调用）刷新展示
   window.addEventListener('langchange', refresh);
 
-  // 放置位置
+  // 放置位置（优先级）
+  //   1) 退出按钮(.fa-sign-out-alt)左侧（角色页，保持 [语言▼][退出] 顺序）
+  //   2) 右侧操作区 .header-actions 末尾（无退出按钮但有操作区的页，如审计日志，与角色页右侧分组一致）
+  //   3) .header 末尾（仅 .header 无 .header-actions 的页）
+  //   4) 悬浮右上角（登录页等无 header 的页）
   const signOut = document.querySelector('.fa-sign-out-alt');
   if (signOut) {
     const btn = signOut.closest('button, a') || signOut.parentElement;
-    (btn.parentElement || document.querySelector('.header') || document.body).insertBefore(wrap, btn);
+    (btn.parentElement || document.querySelector('.header-actions') || document.querySelector('.header') || document.body).insertBefore(wrap, btn);
   } else {
-    const header = document.querySelector('.header');
-    if (header) header.appendChild(wrap);
-    else { wrap.classList.add('floating'); document.body.appendChild(wrap); }
+    const headerActions = document.querySelector('.header-actions');
+    if (headerActions) headerActions.appendChild(wrap);
+    else {
+      const header = document.querySelector('.header');
+      if (header) header.appendChild(wrap);
+      else { wrap.classList.add('floating'); document.body.appendChild(wrap); }
+    }
   }
 
   refresh();
