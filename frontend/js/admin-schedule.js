@@ -329,7 +329,7 @@ async function renderScheduleCards() {
             </div>
             <div class="sched-form-line">
                 <label>可用席位数：</label>
-                <input type="number" id="now_availableSites" value="1" min="1" readonly>
+                <input type="text" id="now_availableSites" value="1" readonly>
             </div>
         </div>
         <div style="display: flex; flex-wrap: wrap; gap: 40px;">
@@ -578,7 +578,7 @@ function localsearchCourse_sch() {
     //选择学生，添加到学生列表
        async function addStudentList() {
         //判断是否有空位，没有则提示用户
-        const availableSites = document.getElementById('now_availableSites').value;
+        const availableSites = getNowAvailableSitesRaw();
         if(availableSites <= 0){
             alert("当前班级已无空位，无法指定学生");
             return ;
@@ -971,7 +971,7 @@ const totalBooked = await getBookingCountByScheduleId(scheduleObject.scheduleId)
     }
 
      document.getElementById('availableSites').value = scheduleObject.availableSites;
-     document.getElementById('now_availableSites').value =  scheduleObject.availableSites-totalBooked;
+     setNowAvailableSitesDisplay(scheduleObject.availableSites - totalBooked);
 
      document.getElementById('scheduleName').value = scheduleObject.name || '';
 
@@ -1140,6 +1140,30 @@ return ;
     }
      const availableSites = sites[selectindex];
      return availableSites;     
+   }
+
+   // 可用席位数显示：满额(<=0)时显示“约满”，并在 data-value 保留原始数值供逻辑读取
+   function setNowAvailableSitesDisplay(n) {
+       const el = document.getElementById('now_availableSites');
+       if (!el) return;
+       const num = Number(n) || 0;
+       el.setAttribute('data-value', String(num));
+       if (num <= 0) {
+           el.value = '满额';
+           el.style.color = '#C0392B';
+           el.style.fontWeight = '600';
+       } else {
+           el.value = String(num);
+           el.style.color = '';
+           el.style.fontWeight = '';
+       }
+   }
+   // 读取真实剩余座位数（满额时返回 0，而非“约满”文本）
+   function getNowAvailableSitesRaw() {
+       const el = document.getElementById('now_availableSites');
+       if (!el) return 0;
+       const raw = el.getAttribute('data-value');
+       return raw === null ? (Number(el.value) || 0) : (Number(raw) || 0);
    }
 
    
@@ -1517,10 +1541,9 @@ async function renderWaitlistPanel(scheduleId) {
     if (!Array.isArray(queue) || queue.length === 0) { hideWaitlistPanel(); return; }
 
     // 剩余席位与候补队列必须同源同一时刻读取，否则会给出“还有空位”的错误判断
-    const remainEl = document.getElementById('now_availableSites');
-    const remainRaw = remainEl ? String(remainEl.value).trim() : '';
-    const remainText = remainRaw === '' ? '未知' : remainRaw;
-    const noSeat = remainRaw !== '' && Number(remainRaw) <= 0;
+    const remainRawNum = getNowAvailableSitesRaw();
+    const remainText = remainRawNum <= 0 ? '约满' : String(remainRawNum);
+    const noSeat = remainRawNum <= 0;
 
     if (summary) {
         summary.textContent = '共 ' + queue.length + ' 人候补 · 剩余席位 ' + remainText
