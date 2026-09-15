@@ -127,7 +127,10 @@ function enrichTimeRowsWithFull(teacherId) {
         span.style.cssText = 'display:inline-block;padding:1px 6px;border-radius:4px;background:#fff0f0;color:#d4380d;border:1px solid #ffccc7;font-size:12px;white-space:nowrap;margin-left:6px;';
         span.title = '该排期已约满，仅可候补/推荐';
         span.textContent = '满额';
-        row.appendChild(span);
+        // 插入到「删除」按钮左侧，与 renderTimeRow 同步渲染的徽章位置一致，避免落到右端不整齐
+        const delBtn = row.querySelector('.btn-danger');
+        if (delBtn) row.insertBefore(span, delBtn);
+        else row.appendChild(span);
       }
     });
   }).catch(() => { /* 静默：补标失败不影响主流程 */ });
@@ -175,7 +178,7 @@ function renderTimeRow(t) {
   // 优先推荐复选框：勾选后，该行的 scheduleId 会成为对外发布页的直达预约链接
   const optionedHtml = `<label><input type="checkbox" class="cert-optioned" data-extra-scheduleid="${escapeAttr(t.scheduleId || '')}" ${t.optioned ? 'checked' : ''}>
         优先推荐</label>`;
-  const fullHtml = t.full ? ` <span style="display:inline-block;padding:1px 6px;border-radius:4px;background:#fff0f0;color:#d4380d;border:1px solid #ffccc7;font-size:12px;white-space:nowrap;" title="该排期已约满，仅可候补/推荐">满额</span>` : '';
+  const fullHtml = t.full ? ` <span class="full-badge" style="display:inline-block;padding:1px 6px;border-radius:4px;background:#fff0f0;color:#d4380d;border:1px solid #ffccc7;font-size:12px;white-space:nowrap;margin-left:6px;" title="该排期已约满，仅可候补/推荐">满额</span>` : '';
   return `
     <div class="sub-item-row" style="flex-wrap:wrap;gap:8px;">
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
@@ -196,8 +199,8 @@ function renderTimeRow(t) {
       </div>
       <div class="time-weekDays" style="${weekStyle}width:100%;margin-top:2px;border-top:1px dashed #eee;padding-top:4px;">${weekChecks}</div>
       <div class="time-monthDays" style="${monthStyle}width:100%;margin-top:2px;border-top:1px dashed #eee;padding-top:4px;">${monthChecks}</div>
-      <button class="btn btn-danger" onclick="this.closest('.sub-item-row').remove()" style="margin-left:auto;"><i class="fa fa-times"></i></button>
       ${optionedHtml}${fullHtml}
+      <button class="btn btn-danger" onclick="this.closest('.sub-item-row').remove()" style="margin-left:auto;"><i class="fa fa-times"></i></button>
     </div>`;
 }
 

@@ -265,7 +265,11 @@ function formAvaliableTimesDiv(availableTimesList, opts) {
     const warnHtml = (withBox && t.optioned && !t.scheduleId)
       ? '<span style="margin-left:6px;color:#faad14;font-size:12px;">（未关联排期ID，无法生成直达预约链接）</span>'
       : '';
-    return `<div>${escapeHtml(dateRange)} ${escapeHtml(rptText)} ${escapeHtml(dayText)} ${optionedHtml}${warnHtml}${badgeHtml}</div>`;
+    // 满额标记：该排期已约满（与编辑页「满额」徽章同款样式），供家长/管理员识别是否还可约
+    const fullHtml = (t.full)
+      ? '<span style="display:inline-block;padding:1px 6px;border-radius:4px;background:#fff0f0;color:#d4380d;border:1px solid #ffccc7;font-size:12px;white-space:nowrap;margin-left:6px;" title="该排期已约满，仅可候补/推荐">满额</span>'
+      : '';
+    return `<div>${escapeHtml(dateRange)} ${escapeHtml(rptText)} ${escapeHtml(dayText)} ${optionedHtml}${warnHtml}${badgeHtml}${fullHtml}</div>`;
   }).join('');
 }
 
@@ -320,7 +324,8 @@ function resolveOptedScheduleId(data) {
  * 根据当前勾选 + 样式 + originalData 生成发布页 HTML
  * mode: 'inline' 页面内嵌预览 | 'standalone' 独立完整 HTML（落库 / 新窗口预览）
  */
-function generatePublishHtml(mode) {
+function generatePublishHtml(mode, opts) {
+  opts = opts || {};
   const style = readStyleConfig();
   const fields = getCurrentFieldListFromUI().filter(f => f.enabled);
   const data = originalData || {};
@@ -490,6 +495,14 @@ function generatePublishHtml(mode) {
   `;
 
   if (mode === 'standalone') {
+    // 预览窗口（previewPublish 打开）需要「关闭」按钮；保存进库的快照不注入，
+    // 避免公开页（teacherPublishedProfile.html 自带顶部关闭按钮）出现重复关闭入口。
+    const closeBar = opts.showClose
+      ? `<div style="position:sticky;top:0;z-index:50;display:flex;justify-content:space-between;align-items:center;padding:8px 16px;background:#fff;border-bottom:1px solid #eee;">
+           <span style="font-size:13px;color:#666;">预览</span>
+           <button type="button" onclick="(function(){try{window.close();}catch(e){} if(!window.closed){alert('请按 Ctrl+W 或点击浏览器右上角 × 关闭此预览窗口');}})()" style="padding:4px 14px;border:1px solid #d9d9d9;border-radius:4px;background:#fff;cursor:pointer;font-size:13px;color:#333;">关闭</button>
+         </div>`
+      : '';
     return `<!DOCTYPE html>
       <html lang="zh-CN">
       <head>
@@ -499,6 +512,7 @@ function generatePublishHtml(mode) {
       <style>${cssBlock}</style>
       </head>
       <body>
+        ${closeBar}
         <div class="publish-wrapper">${bodyInner}</div>
       </body>
       </html>`;
@@ -680,7 +694,7 @@ function previewPublish() {
     alert('浏览器阻止了弹窗，请允许本站弹窗后重试');
     return;
   }
-  win.document.write(generatePublishHtml('standalone'));
+  win.document.write(generatePublishHtml('standalone', { showClose: true }));
   win.document.close();
 }
 

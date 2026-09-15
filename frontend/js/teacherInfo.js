@@ -65,6 +65,8 @@ async function loadTeacherInfo(teacherId) {
     fillView(originalData);
     switchSection('view');
     showActionButtons('view');
+    // 详情接口不返回 full，按 scheduleId 补「满额」标记（视图页与发布预览共用 originalData）
+    enrichOriginalDataFull(currentTeacherId);
   } catch (e) {
     // 后端对「该教师还没有职业信息」返回 Result.fail(404, "职业信息不存在")，
     // 这是预期业务态而非异常：直接加载编辑/新增界面，让管理员补录职业信息

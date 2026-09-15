@@ -319,6 +319,29 @@ async function getAvailableTimesByAPI(teacherId) {
   }
 }
 
+/**
+ * 补全「满额」标记：职业信息详情接口不计算 full（只有 /schedule/listByTeacher 才算），
+ * 这里按 scheduleId 交叉关联，把 full 写回 originalData.availableTimes。
+ * 查看页(fillView)与发布预览(generatePublishHtml)共用 originalData，一次补全两处都能显示「满额」徽章。
+ * 带竞态守卫：切走教师后丢弃迟到响应。
+ */
+async function enrichOriginalDataFull(teacherId) {
+  if (!originalData || !Array.isArray(originalData.availableTimes) || !teacherId) return;
+  try {
+    const list = await getAvailableTimesByAPI(teacherId);
+    if (currentTeacherId !== teacherId) return;          // 已切换到其他教师，丢弃
+    if (!Array.isArray(list)) return;
+    const fullMap = {};
+    list.forEach(s => { if (s && s.scheduleId && s.full) fullMap[s.scheduleId] = true; });
+    let changed = false;
+    originalData.availableTimes.forEach(t => {
+      if (t.scheduleId && fullMap[t.scheduleId] && !t.full) { t.full = true; changed = true; }
+    });
+    // fillView 幂等：重新渲染让满额徽章生效（仅时间段变化，其余字段不变）
+    if (changed) fillView(originalData);
+  } catch (_) { /* 静默：补全失败不影响主流程 */ }
+}
+
 // ====================== 工具函数 ======================
 function setPageTitle(title) {
   const el = document.getElementById('page-title');
