@@ -37,6 +37,7 @@ public class MessageService {
     private final MessageCategoryMapper categoryMapper;
     private final CryptoUtil crypto;
     private final SsePushService ssePushService;
+    private final SensitiveWordService sensitiveWordService;
 
     // 发送方角色 -> 一级来源维度编码
     private static final Map<String, String> ROLE_DIM = new HashMap<>();
@@ -51,7 +52,7 @@ public class MessageService {
     public MessageService(MessageMapper messageMapper, MessageInboxMapper inboxMapper,
                           MessageDeliveryMapper deliveryMapper, MessageBatchTaskMapper taskMapper,
                           MessageCategoryMapper categoryMapper, CryptoUtil crypto,
-                          SsePushService ssePushService) {
+                          SsePushService ssePushService, SensitiveWordService sensitiveWordService) {
         this.messageMapper = messageMapper;
         this.inboxMapper = inboxMapper;
         this.deliveryMapper = deliveryMapper;
@@ -59,6 +60,7 @@ public class MessageService {
         this.categoryMapper = categoryMapper;
         this.crypto = crypto;
         this.ssePushService = ssePushService;
+        this.sensitiveWordService = sensitiveWordService;
     }
 
     // ==================== 发送 ====================
@@ -172,6 +174,8 @@ public class MessageService {
                 req.setSenderDimCode(dimOfCategory(cat, tenantId));
             }
         }
+        // 敏感词拦截（本地 DFA，零外网）：REJECT 拒绝发送，MASK 就地掩码；在 AES 加密落库前对明文处理
+        sensitiveWordService.validateAndFilter(req, tenantId);
     }
 
     private String dimOfCategory(MessageCategory cat, Long tenantId) {

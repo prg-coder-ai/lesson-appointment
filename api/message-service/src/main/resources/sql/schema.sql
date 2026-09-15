@@ -146,3 +146,40 @@ INSERT INTO msg_category (category_id, tenant_id, category_code, category_name, 
  (2006,0,'BOOKING_CREATED','预约/候补申请',2,1002,3,1),
  (2007,0,'BOOKING_CONFIRMED','预约确认/候补递补',2,1001,3,1),
  (2008,0,'LEAVE_CREATED','学生请假申请',2,1002,4,1);
+
+-- 7) 敏感词分组表（全平台 tenant=0 与 租户 tenant>0 两类；default_action 为组内默认处理）
+DROP TABLE IF EXISTS msg_sensitive_group;
+CREATE TABLE msg_sensitive_group (
+  group_id       BIGINT       NOT NULL COMMENT '主键(雪花)',
+  tenant_id      BIGINT       NOT NULL DEFAULT 0 COMMENT '租户id; 0=平台(全平台共享)',
+  group_name     VARCHAR(128) NOT NULL COMMENT '分组名称',
+  default_action VARCHAR(16)  NOT NULL DEFAULT 'REJECT' COMMENT '组内默认处理: REJECT=拒绝发送 MASK=掩码放行',
+  is_system_predefined TINYINT NOT NULL DEFAULT 0 COMMENT '1=系统预置(不可删)',
+  is_deleted     TINYINT      NOT NULL DEFAULT 0 COMMENT '逻辑删除',
+  create_time    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  update_time    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (group_id),
+  KEY idx_tenant (tenant_id)
+) ENGINE=InnoDB COMMENT='敏感词分组';
+
+-- 8) 敏感词表（action=NULL 表示继承所属分组的 default_action）
+DROP TABLE IF EXISTS msg_sensitive_word;
+CREATE TABLE msg_sensitive_word (
+  word_id    BIGINT       NOT NULL COMMENT '主键(雪花)',
+  group_id   BIGINT       NOT NULL COMMENT '所属分组',
+  tenant_id  BIGINT       NOT NULL DEFAULT 0 COMMENT '租户id(同分组)',
+  word       VARCHAR(128) NOT NULL COMMENT '敏感词(原文)',
+  action     VARCHAR(16)  NULL COMMENT '处理: REJECT/MASK; NULL=继承分组默认',
+  is_deleted TINYINT      NOT NULL DEFAULT 0 COMMENT '逻辑删除',
+  create_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (word_id),
+  -- 软删除场景：同一 (group,word) 仅允许一条 is_deleted=0 的有效词；
+  -- 把 is_deleted 纳入唯一键，软删除后(=1)可再次创建同名词(is_deleted=0)而不冲突。
+  UNIQUE KEY uk_group_word (group_id, word, is_deleted),
+  KEY idx_tenant (tenant_id)
+) ENGINE=InnoDB COMMENT='敏感词';
+
+-- 默认平台分组（tenant=0，默认拒绝发送）。管理员在此组下添加敏感词即可全局生效。
+INSERT INTO msg_sensitive_group (group_id, tenant_id, group_name, default_action, is_system_predefined) VALUES
+ (3001, 0, '默认敏感词组', 'REJECT', 1);

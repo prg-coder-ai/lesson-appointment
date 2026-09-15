@@ -114,6 +114,10 @@
           <span>消息中心</span>
           <span class="msg-badge" id="msg-unread-badge" style="display:none;"></span>
         </div>
+        <div class="menu-item" key="sensitive_words">
+          <i class="fa fa-shield-alt"></i>
+          <span>敏感词管理</span>
+        </div>
       </div>
 
       <div class="menu-group">
@@ -232,6 +236,13 @@
             if (typeof window.initMessageBadge === 'function') window.initMessageBadge();
           } else {
             if(dynamicContentCenter) dynamicContentCenter.innerHTML = '<div class="card"><div class="card-body">消息中心模块未加载（messages-inbox.js）。</div></div>';
+          }
+          break;
+        case "sensitive_words":
+          if (typeof window.renderSensitiveWordsPage === 'function') {
+            window.renderSensitiveWordsPage(dynamicContentCenter);
+          } else {
+            if(dynamicContentCenter) dynamicContentCenter.innerHTML = '<div class="card"><div class="card-body">敏感词模块未加载（sensitiveWords.js）。</div></div>';
           }
           break;
         case "data_maintain":
@@ -428,6 +439,7 @@
    <script src="js/admin-course.js"></script>
     <script src="js/admin-user.js"></script>
     <script src="js/messages-inbox.js"></script>
+    <script src="js/sensitiveWords.js"></script>
    <script src="js/admin-schedule.js"></script>
     <script src="js/admin-overall.js"></script>
     <script src="js/admin-booking.js"></script>

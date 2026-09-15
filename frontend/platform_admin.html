@@ -69,6 +69,10 @@
           <span>消息中心</span>
           <span class="msg-badge" id="msg-unread-badge" style="display:none;"></span>
         </div>
+        <div class="menu-item" key="sensitive_words">
+          <i class="fa fa-shield-alt"></i>
+          <span>敏感词管理</span>
+        </div>
       </div>
 
       <div class="menu-group">
@@ -142,6 +146,13 @@
       case "messages":
         if (typeof window.renderMessagesPage === 'function') {
           window.renderMessagesPage(dynamicContentCenter);
+        }
+        break;
+      case "sensitive_words":
+        if (typeof window.renderSensitiveWordsPage === 'function') {
+          window.renderSensitiveWordsPage(dynamicContentCenter);
+        } else {
+          dynamicContentCenter.innerHTML = '<div class="card"><div class="card-body">敏感词模块未加载（sensitiveWords.js）。</div></div>';
         }
         break;
       // 系统日志 / 审计日志：与 admin.html 一致，跳转到独立页面浏览。
@@ -261,6 +272,7 @@
   <script src="js/platform-admin-config-term.js"></script>
   <script src="js/platform-admin-backend-info.js"></script>
   <script src="js/messages-inbox.js"></script>
+  <script src="js/sensitiveWords.js"></script>
  
   <script>
   </script>
