@@ -6,7 +6,7 @@
 
     <groupId>com.reservation</groupId>
     <artifactId>lesson-frontend</artifactId>
-    <version>1.0.0</version>
+    <version>2.0.1</version>
     <!-- pom 打包：不产出空 jar；prepare-package 阶段仍会执行插件 -->
     <packaging>pom</packaging>
 
