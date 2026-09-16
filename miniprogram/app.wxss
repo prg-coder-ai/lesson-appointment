@@ -1,0 +1,30 @@
+/* 全局样式（对齐 frontend/css 的视觉基调，WXML 用 rpx 单位） */
+page {
+  background: #f5f7fa;
+  font-size: 28rpx;
+  color: #333;
+}
+.btn {
+  background: #1890ff;
+  color: #fff;
+  border-radius: 8rpx;
+  padding: 18rpx 0;
+  text-align: center;
+}
+.btn-disabled { background: #bae0ff; }
+.card {
+  background: #fff;
+  border-radius: 12rpx;
+  padding: 24rpx;
+  margin: 20rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+}
+.field {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 24rpx;
+  background: #fff;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+.field-label { width: 160rpx; color: #888; }
+.field-input { flex: 1; }

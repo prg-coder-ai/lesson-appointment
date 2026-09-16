@@ -1,0 +1,18 @@
+<view class="container">
+  <view class="title">{{brandTitle}}</view>
+  <view class="card">
+    <view class="field">
+      <text class="field-label">账号</text>
+      <input class="field-input" placeholder="请输入账号" value="{{account}}" bindinput="onAccount" />
+    </view>
+    <view class="field">
+      <text class="field-label">密码</text>
+      <input class="field-input" password placeholder="请输入密码" value="{{password}}" bindinput="onPassword" />
+    </view>
+    <view class="field">
+      <text class="field-label">租户编码</text>
+      <input class="field-input" placeholder="选填（公开链接自动带）" value="{{tenantCode}}" bindinput="onTenant" />
+    </view>
+    <view class="btn {{submitting ? 'btn-disabled' : ''}}" bindtap="onLogin">{{submitting ? '登录中...' : '登录'}}</view>
+  </view>
+</view>

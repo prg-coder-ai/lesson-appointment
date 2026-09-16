@@ -1,0 +1,4 @@
+.container { padding: 20rpx 0; }
+.row { display: flex; padding: 16rpx 0; border-bottom: 1rpx solid #f0f0f0; }
+.label { width: 140rpx; color: #888; }
+.btn { margin: 30rpx 24rpx 0; }

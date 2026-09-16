@@ -1,0 +1,9 @@
+<view class="container">
+  <view class="card">
+    <view class="row"><text class="label">系统</text><text>{{brandTitle}}</text></view>
+    <view class="row"><text class="label">角色</text><text>{{role}}</text></view>
+    <view class="row"><text class="label">账号</text><text>{{name}}</text></view>
+  </view>
+  <view class="btn" bindtap="goDemo">查看共享术语渲染示例</view>
+  <view class="btn btn-disabled" bindtap="onLogout">退出登录</view>
+</view>

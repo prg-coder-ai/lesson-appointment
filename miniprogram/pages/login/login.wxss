@@ -1,0 +1,3 @@
+.container { padding: 40rpx 0; }
+.title { text-align: center; font-size: 38rpx; font-weight: 600; margin: 30rpx 0 40rpx; }
+.btn { margin: 30rpx 24rpx 0; }
