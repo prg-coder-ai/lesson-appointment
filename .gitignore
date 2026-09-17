@@ -87,3 +87,4 @@ api/message-service/logs/
 doc-develop/logs/
 hs_err_pid*.log
 replay_pid*.log
+tests/miniprogram-itest/_sut

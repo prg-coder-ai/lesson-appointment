@@ -304,6 +304,61 @@ public class UserService {
     }
 
     /**
+     * 微信静默登录：按 openid 找已绑定账号，直接发 token（返回结构与密码登录完全一致）。
+     * 未找到绑定账号 → code=1001，前端据此静默降级走账号密码登录，不弹错误。
+     */
+    public Result<HashMap<String, Object>> wechatLogin(String openid) {
+        User user = userMapper.getByWxOpenid(openid);
+        if (user == null) {
+            return Result.fail(1001, "微信尚未绑定，请使用账号密码登录");
+        }
+        if ("frozen".equals(user.getStatus())) {
+            return Result.fail(400, "账号已冻结，请联系管理员");
+        }
+        if (!"active".equals(user.getStatus())) {
+            return Result.fail(400, "账号未审核，请等待管理员审核");
+        }
+        Long tenantId = user.getTenantId() == null ? 0L : user.getTenantId();
+        String token = jwtUtil.generateToken(tenantId, user.getUserId(), user.getRole());
+        String refreshToken = jwtUtil.generateRefreshToken(tenantId, user.getUserId());
+        HashMap<String, Object> resultMap = new HashMap<>();
+        resultMap.put("userId", user.getUserId());
+        resultMap.put("account", user.getAccount());
+        resultMap.put("name", user.getName());
+        resultMap.put("role", user.getRole());
+        resultMap.put("token", token);
+        // tenantCode 解析（平台管理员 tenantId=0 无对应租户记录，留 null）
+        String tenantCode = null;
+        if (tenantId > 0) {
+            Tenant tenant = tenantService.getById(tenantId);
+            if (tenant != null) tenantCode = tenant.getTenantCode();
+        }
+        resultMap.put("tenantCode", tenantCode);
+        resultMap.put("refreshToken", refreshToken);
+        resultMap.put("code", 200);
+        refreshTokenService.saveNewToken(user.getUserId(), refreshToken, jwtUtil.getRefreshExpireTime());
+        userSessionService.onLogin(token, tenantId, user.getUserId(), user.getRole(),
+                currentRequestIp(), currentRequestUserAgent());
+        return Result.success(resultMap, "登录成功");
+    }
+
+    /**
+     * 绑定微信 openid 到当前账号（密码登录成功后调用）。
+     * 校验唯一性：若该 openid 已被其他账号占用则拒绝（409）；否则按 user_id 精确写入。
+     */
+    public Result<Boolean> bindWechat(String userId, String openid) {
+        User exist = userMapper.getByWxOpenid(openid);
+        if (exist != null && !exist.getUserId().equals(userId)) {
+            return Result.fail(409, "该微信已绑定其他账号，无法重复绑定");
+        }
+        int rows = userMapper.updateWxOpenid(userId, openid);
+        if (rows > 0) {
+            return Result.success(true, "微信绑定成功");
+        }
+        return Result.fail(404, "用户不存在");
+    }
+
+    /**
      * 取当前请求IP（会话记录用，取不到返回null不影响主流程）
      */
     private String currentRequestIp() {

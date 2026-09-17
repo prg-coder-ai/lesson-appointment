@@ -62,6 +62,13 @@ public class User implements Serializable{
     // 角色（student/teacher/admin），对应设计2.2.1 登录接口返回角色信息,1 student：学生，2teacher：教师，3admin：管理员）'
     private String role;
 
+    /**
+     * 微信 openid（微信静默登录 / 绑定用）。
+     * openid 是微信体系下的全局用户标识，与租户无关，因此不随租户隔离；
+     * 同一微信最多绑定一个账号（数据库唯一索引 uk_user_wx_openid），未绑定为 null。
+     */
+    private String wxOpenid;
+
     // 学生专属参数（对应设计2.2.1 学生注册接口）
     private String learnGoal;
     private String languageLevel;  // 枚举值：入门/进阶/中级/高级/精通

@@ -46,8 +46,18 @@ public class TermController {
      */
     @GetMapping("/map")
     public Result<Map<String, String>> map(@RequestParam(required = false) String lang,
-                                           @RequestHeader("Authorization") String token) {
-        Long tenantId = permissionCheck.getTenantIdFromToken(token);
+                                           @RequestHeader(value = "Authorization", required = false) String token) {
+        // 公开接口：登录页 / 小程序未带 token 也能取词表（渲染用）。
+        // 带有效 token 时按租户取词；token 缺失或非法则退回平台级词表（tenantId=null）。
+        // sys_term 已在 MyBatisPlusConfig.IGNORE_TABLES，不受租户插件 tenant_id=-1 影响。
+        Long tenantId = null;
+        if (token != null && token.startsWith("Bearer ")) {
+            try {
+                tenantId = permissionCheck.getTenantIdFromToken(token);
+            } catch (Exception e) {
+                tenantId = null;
+            }
+        }
         return Result.success(termService.getTermMap(tenantId, lang), "查询成功");
     }
 

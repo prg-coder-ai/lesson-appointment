@@ -87,6 +87,15 @@ public class SecurityConfig {
                                 "/api/v1/auth/logout"
                         ).permitAll()
 
+                        // 微信静默登录（免登录，不带 token）+ 术语词表（登录页渲染用，公开）
+                        // L1 迁移后接口统一在 /api/v1 下，白名单须同时放裸路径与 /api/v1 前缀
+                        .requestMatchers(
+                                "/api/v1/auth/wechat-login",
+                                "/auth/wechat-login",
+                                "/term/map",
+                                "/api/v1/term/map"
+                        ).permitAll()
+
                         // 注册相关（匿名用户必须能访问）
                         // 注意：/user/register 才是 UserController 实际映射（@PostMapping("/register")），
                         // 此前只放了不存在的 /user/admin/register，导致自助注册被 401 拦截；

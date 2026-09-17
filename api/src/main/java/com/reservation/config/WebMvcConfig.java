@@ -32,6 +32,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
             "/login", "/auth/login", "/api/v1/auth/login", "/auth/refreshToken", "/api/v1/auth/refreshToken", "/auth/logout", "/api/v1/auth/logout",
             "/user/register", "/api/v1/user/register",
             "/user/account/exist", "/api/v1/user/account/exist",
+            "/api/v1/auth/wechat-login", "/auth/wechat-login",
+            "/term/map", "/api/v1/term/map",
             "/interfaces", "/api/v1/interfaces",
             "/tenant/name", "/api/v1/tenant/name",
             // 服务运行信息（无登录态/无租户上下文，须跳过租户校验）

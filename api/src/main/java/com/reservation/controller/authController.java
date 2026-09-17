@@ -1,16 +1,19 @@
 package  com.reservation.controller;
 
- import com.reservation.dto.LoginDTO;
- import  com.reservation.dto.RefreshDTO;
- import com.reservation.dto.RefreshTokenPO;
- import com.reservation.dto.TokenDTO;
+import com.reservation.dto.LoginDTO;
+import  com.reservation.dto.RefreshDTO;
+import com.reservation.dto.RefreshTokenPO;
+import com.reservation.dto.TokenDTO;
+import com.reservation.dto.WeChatCodeDTO;
+import com.reservation.dto.WeChatSession;
 
 import com.reservation.common.Result;
 import com.reservation.common.RoleConst;
 import com.reservation.entity.User;
 import com.reservation.service.UserService;
- import com.reservation.service.RefreshTokenService;
+import com.reservation.service.RefreshTokenService;
 import com.reservation.service.UserSessionService;
+import com.reservation.service.WeChatService;
 
  import com.reservation.utils.JwtUtil;
 import com.reservation.audit.Audit;
@@ -68,8 +71,10 @@ public class authController {
      private RefreshTokenService refreshTokenService;
      @Autowired
      private UserSessionService userSessionService;
-     @Autowired
-     private JwtUtil jwtUtil;
+    @Autowired
+    private JwtUtil jwtUtil;
+    @Autowired
+    private WeChatService weChatService;
       @PostMapping("/login")
     @Audit(action = AuditAction.USER_LOGIN, resourceType = "user")
     @ResponseBody
@@ -220,6 +225,48 @@ UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthent
         if(count  !=0 )
         return Result.success( true,"ok"     );
         else  return  Result.success( false,"kick failed"     );
+    }
+
+    /**
+     * 微信静默登录（免登录公开接口，不带 Bearer）。
+     * 小程序 wx.login() 拿 code → 后端 code2Session 换 openid → 按 openid 找已绑定账号发 token。
+     * 返回结构与 /login 完全一致；未绑定返回 code=1001，前端静默降级走账号密码登录。
+     */
+    @PostMapping("/wechat-login")
+    @ResponseBody
+    public Result<HashMap<String, Object>> wechatLogin(@Validated @RequestBody WeChatCodeDTO dto) {
+        WeChatSession session = weChatService.code2Session(dto.getCode());
+        if (session.getOpenid() == null) {
+            // 用 1001（而非 401）返回：避免触发小程序 request.js 的 onAuthFail 重定向把用户踢回登录页；
+            // 此处只是"微信不可用/未配置"，应静默降级走账号密码登录。
+            return Result.fail(1001, "微信登录失败：" + (session.getErrmsg() == null ? "未知错误" : session.getErrmsg()));
+        }
+        return userService.wechatLogin(session.getOpenid());
+    }
+
+    /**
+     * 绑定微信（需登录：带当前会话 Bearer）。
+     * 密码登录成功后调用，把当前账号与微信 openid 绑定，下次即可静默登录。
+     */
+    @PostMapping("/bind-wechat")
+    @ResponseBody
+    public Result<Boolean> bindWechat(@Validated @RequestBody WeChatCodeDTO dto,
+                                      @RequestHeader(value = "Authorization", required = false) String token) {
+        if (token == null || !token.startsWith("Bearer ")) {
+            return Result.unauthorized("请先登录");
+        }
+        String userId;
+        try {
+            userId = jwtUtil.getUserIdFromToken(token);
+        } catch (Exception e) {
+            return Result.unauthorized("登录已过期，请重新登录");
+        }
+        WeChatSession session = weChatService.code2Session(dto.getCode());
+        if (session.getOpenid() == null) {
+            // 用 400（而非 401）返回：绑定是已登录态操作，401 会让小程序触发刷新/踢登录页，反而把已登录用户踢出。
+            return Result.fail(400, "微信授权失败：" + (session.getErrmsg() == null ? "未知错误" : session.getErrmsg()));
+        }
+        return userService.bindWechat(userId, session.getOpenid());
     }
     /**
      * 密码找回（验证码验证），对应设计2.2.1 接口：/api/v1/user/password/forgot

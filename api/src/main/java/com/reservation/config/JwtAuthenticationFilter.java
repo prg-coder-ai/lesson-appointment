@@ -45,6 +45,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/user/student/register", "/api/v1/user/student/register",
              "/user/admin/register", "/api/v1/user/admin/register",
             "/user/account/exist", "/api/v1/user/account/exist",
+            "/api/v1/auth/wechat-login", "/auth/wechat-login",
+            "/term/map", "/api/v1/term/map",
             "/teacher/published/latest-public", "/api/v1/teacher/published/latest-public",
             "/teacher/published/public-get", "/api/v1/teacher/published/public-get",
             "/schedule/getAvailableSchedule", "/api/v1/schedule/getAvailableSchedule",
