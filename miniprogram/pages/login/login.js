@@ -1,7 +1,7 @@
-import { login, getBoundTenantCode, goHome, requireAuth } from '../../core/auth.js';
+import { login, getBoundTenantCode, goHome } from '../../core/auth.js';
 import { term } from '../../core/term.js';
-import { clearSession, storage } from '../../core/storage.js';
-import { ROLES, roleLabel } from '../../shared/constants.js';
+import { clearSession, storage, getSession } from '../../core/storage.js';
+import { ROLES } from '../../shared/constants.js';
 
 const ROLE_OPTIONS = [
   { role: ROLES.STUDENT, text: '学生端' },
@@ -19,12 +19,16 @@ Page({
     submitting: false,
     brandTitle: '',
     boundTenantCode: '',
-    isPlatformRole: false
+    isPlatformRole: false,
+    agreed: false
   },
   onLoad() {
     const app = (typeof getApp === 'function') ? getApp() : null;
     if (app && app.globalData) app.globalData.onAuthFail = () => wx.reLaunch({ url: '/pages/login/login' });
-    if (requireAuth()) { goHome(); return; }
+    // 已登录直接进首页。注意：登录页本身不能用 requireAuth() 守卫——
+    // 无登录态时 requireAuth() 会 wx.reLaunch('/pages/login/login') 即自身，造成无限自重开。
+    const u = getSession();
+    if (u && u.token && u.role) { goHome(); return; }
     const bound = getBoundTenantCode();
     this.setData({
       brandTitle: term('lessonSystem'),
@@ -54,7 +58,18 @@ Page({
       }
     });
   },
+  toggleAgree() { this.setData({ agreed: !this.data.agreed }); },
+  openAgreement() {
+    // 占位：上线前需替换为真实《用户协议》《隐私政策》页面，并在微信公众平台配置隐私协议网址
+    wx.showModal({
+      title: '用户协议与隐私政策',
+      content: '登录即代表你同意我们依据《用户协议》《隐私政策》收集并处理你的账号与租户信息。正式版本请见小程序内隐私政策页。',
+      showCancel: false,
+      confirmText: '我知道了'
+    });
+  },
   async onLogin() {
+    if (!this.data.agreed) { wx.showToast({ title: '请先阅读并同意用户协议', icon: 'none' }); return; }
     const { account, password, tenantCode, role } = this.data;
     if (!tenantCode) { wx.showToast({ title: '请输入租户编码 tCode', icon: 'none' }); return; }
     if (!account || !password) { wx.showToast({ title: '请输入账号和密码', icon: 'none' }); return; }

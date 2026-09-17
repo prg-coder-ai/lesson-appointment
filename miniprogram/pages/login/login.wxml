@@ -34,7 +34,13 @@
       <input class="input" placeholder="请输入密码" password value="{{password}}" bindinput="onPassword" />
     </view>
 
-    <button class="btn-primary" loading="{{submitting}}" bindtap="onLogin">
+    <view class="agree" bindtap="toggleAgree">
+      <view class="checkbox {{agreed ? 'checked' : ''}}"></view>
+      <text class="agree-text">登录即代表已阅读并同意</text>
+      <text class="link" catchtap="openAgreement">《用户协议》《隐私政策》</text>
+    </view>
+
+    <button class="btn-primary" loading="{{submitting}}" disabled="{{!agreed || submitting}}" bindtap="onLogin">
       {{role==='platform_admin' ? '平台管理员登录' : (role==='admin' ? '管理员登录' : '登录')}}
     </button>
   </view>
