@@ -27,6 +27,13 @@ export const ENDPOINTS = {
   AUTH_LOGIN: '/auth/login',
   AUTH_LOGOUT: '/auth/logout',
   AUTH_REFRESH: '/auth/refreshToken',
+  // —— 微信登录（可选增强，后端未实现时客户端静默降级）——
+  // 静默登录：wx.login 的 code 换 token（后端按 openid 找已绑定账号，直接免密进系统）
+  AUTH_WECHAT_LOGIN: '/auth/wechat-login',
+  // 绑定：密码登录成功后，把当前微信 openid 绑定到账号（下次静默登录生效）
+  AUTH_BIND_WECHAT: '/auth/bind-wechat',
+  // —— 获客归因上报（可选，后端未实现时客户端静默降级）——
+  TRACK_ATTRIBUTION: '/track/attribution',
   AUTH_KICK: (uid) => `/auth/kick/${uid}`,
   ACCOUNT_EXIST: (acc) => `/user/account/exist?account=${encodeURIComponent(acc)}`,
   TERM_MAP: (lang) => `/api/v1/term/map?lang=${encodeURIComponent(lang || 'zh')}`,

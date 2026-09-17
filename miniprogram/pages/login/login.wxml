@@ -40,6 +40,11 @@
       <text class="link" catchtap="openAgreement">《用户协议》《隐私政策》</text>
     </view>
 
+    <view class="agree" bindtap="toggleBindWechat">
+      <view class="checkbox {{bindWechat ? 'checked' : ''}}"></view>
+      <text class="agree-text">允许微信登录（下次本微信免输入直接进入）</text>
+    </view>
+
     <button class="btn-primary" loading="{{submitting}}" disabled="{{!agreed || submitting}}" bindtap="onLogin">
       {{role==='platform_admin' ? '平台管理员登录' : (role==='admin' ? '管理员登录' : '登录')}}
     </button>

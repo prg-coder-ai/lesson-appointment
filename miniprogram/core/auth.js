@@ -69,3 +69,54 @@ export function goHome() {
   const u = getSession();
   wx.reLaunch({ url: homePageForRole(u && u.role) });
 }
+
+// —— 微信登录（可选增强，非阻塞）——
+// 说明：wx.login 为静默调用（无需用户弹窗授权），仅返回临时 code；
+// 真正的微信身份 openid 由后端用 code 调 auth.code2Session 换取，客户端永不接触真实微信号。
+
+function wxLoginCode() {
+  return new Promise((resolve, reject) => {
+    wx.login({ success: (r) => resolve(r), fail: (e) => reject(e) });
+  });
+}
+
+// 静默登录：启动/进登录页时，若无本地会话则尝试用微信 code 免密进系统。
+// 后端未实现 / 该微信未绑定 / 任意异常 → 一律静默返回 null，绝不影响现有密码登录流程。
+export async function wechatSilentLogin() {
+  try {
+    const { code } = await wxLoginCode();
+    const res = await request({
+      url: ENDPOINTS.AUTH_WECHAT_LOGIN,
+      method: 'POST',
+      data: { code },
+      tokenOnly: true,       // 尚未登录，不带 Bearer
+      customErrorMsg: false  // 后端未实现时静默失败，不打扰调试
+    });
+    if (!res || !res.token) return null;
+    setSession(res);
+    try {
+      await loadTermMap();
+      await syncIndustryFromTenant(res.tenantCode);
+    } catch (e) { /* 术语加载失败不阻断免登录，首页会重新拉取 */ }
+    return res;
+  } catch (e) {
+    return null;
+  }
+}
+
+// 绑定微信：密码登录成功后调用，把当前微信 openid 绑定到账号。
+// 失败（后端未实现/异常）静默返回 false，不影响已成功的密码登录态。
+export async function bindWechat() {
+  try {
+    const { code } = await wxLoginCode();
+    await request({
+      url: ENDPOINTS.AUTH_BIND_WECHAT,
+      method: 'POST',
+      data: { code },
+      customErrorMsg: false
+    });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
