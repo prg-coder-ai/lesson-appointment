@@ -2,9 +2,13 @@
   "name": "lesson-miniprogram",
   "version": "1.0.0",
   "private": true,
-  "description": "预约系统微信小程序（与 frontend/ 共享 shared/ 核心）",
+  "description": "预约系统微信小程序",
   "scripts": {
     "sync": "node sync-shared.js",
-    "sync:watch": "node sync-shared.js --watch"
+    "sync:watch": "node sync-shared.js --watch",
+    "upload": "node scripts/upload.js"
+  },
+  "devDependencies": {
+    "miniprogram-ci": "^1.9.5"
   }
 }

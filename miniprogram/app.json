@@ -1,9 +1,32 @@
 {
   "pages": [
     "pages/login/login",
-    "pages/home/home",
+    "pages/mine/mine",
     "pages/demo/demo"
   ],
+  "subPackages": [
+    {
+      "root": "package-student",
+      "pages": ["home/home", "booking/booking", "booking-detail/booking-detail", "my-booking/my-booking"]
+    },
+    {
+      "root": "package-teacher",
+      "pages": ["home/home", "courses/courses", "profile/profile", "schedule/schedule", "schedule-edit/schedule-edit"]
+    },
+    {
+      "root": "package-admin",
+      "pages": ["home/home", "dashboard/dashboard"]
+    },
+    {
+      "root": "package-message",
+      "pages": ["inbox/inbox", "detail/detail"]
+    }
+  ],
+  "preloadRule": {
+    "pages/login/login": { "network": "all", "packages": ["package-student", "package-teacher", "package-admin", "package-message"] },
+    "pages/mine/mine": { "network": "all", "packages": ["package-message"] },
+    "pages/demo/demo": { "network": "all", "packages": ["package-student"] }
+  },
   "window": {
     "navigationBarTitleText": "预约系统",
     "navigationBarBackgroundColor": "#ffffff",
@@ -11,5 +34,6 @@
     "backgroundColor": "#f5f7fa"
   },
   "style": "v2",
-  "sitemapLocation": "sitemap.json"
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
 }

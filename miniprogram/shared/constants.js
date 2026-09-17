@@ -33,10 +33,50 @@ export function setRuntimeConfig(cfg) {
 // 角色 → 首页路由（两端共用，避免各写一套 switch）
 export function homePageForRole(role) {
   switch (role) {
-    case ROLES.PLATFORM_ADMIN: return '/pages/home/home';
-    case ROLES.ADMIN: return '/pages/home/home';
-    case ROLES.TEACHER: return '/pages/home/home';
-    case ROLES.STUDENT: return '/pages/home/home';
+    case ROLES.PLATFORM_ADMIN: return '/package-admin/home/home';
+    case ROLES.ADMIN: return '/package-admin/home/home';
+    case ROLES.TEACHER: return '/package-teacher/home/home';
+    case ROLES.STUDENT: return '/package-student/home/home';
     default: return '/pages/login/login';
+  }
+}
+
+// 底部导航项定义（按角色分组）。icon 用小程序内置 iconfont 名称（见组件 role-tabbar）。
+// key 同时用于页面间的 active 高亮判断。
+export const TAB_ITEMS = {
+  student: [
+    { key: 'home', page: '/package-student/home/home', text: '首页', icon: 'home' },
+    { key: 'booking', page: '/package-student/booking/booking', text: '约课', icon: 'calendar' },
+    { key: 'my', page: '/package-student/my-booking/my-booking', text: '我的预约', icon: 'list' },
+    { key: 'mine', page: '/pages/mine/mine', text: '我的', icon: 'user' }
+  ],
+  teacher: [
+    { key: 'home', page: '/package-teacher/home/home', text: '工作台', icon: 'home' },
+    { key: 'courses', page: '/package-teacher/courses/courses', text: '我的课程', icon: 'book' },
+    { key: 'profile', page: '/package-teacher/profile/profile', text: '我的简介', icon: 'friend' },
+    { key: 'mine', page: '/pages/mine/mine', text: '我的', icon: 'user' }
+  ],
+  admin: [
+    { key: 'home', page: '/package-admin/home/home', text: '概览', icon: 'home' },
+    { key: 'dashboard', page: '/package-admin/dashboard/dashboard', text: '运营', icon: 'chart' },
+    { key: 'mine', page: '/pages/mine/mine', text: '我的', icon: 'user' }
+  ]
+};
+
+// 角色 → 导航分组 key（student/teacher/admin）
+export function tabGroupForRole(role) {
+  if (role === ROLES.TEACHER) return 'teacher';
+  if (role === ROLES.ADMIN || role === ROLES.PLATFORM_ADMIN) return 'admin';
+  return 'student';
+}
+
+// 角色中文名（用于登录页/个人中心展示）
+export function roleLabel(role) {
+  switch (role) {
+    case ROLES.PLATFORM_ADMIN: return '平台管理员';
+    case ROLES.ADMIN: return '租户管理员';
+    case ROLES.TEACHER: return '教师';
+    case ROLES.STUDENT: return '学生';
+    default: return role || '';
   }
 }

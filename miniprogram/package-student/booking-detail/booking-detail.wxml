@@ -1,0 +1,27 @@
+<view class="page" wx:if="{{course.courseId || course.id}}">
+  <view class="hero">
+    <view class="hero-title">{{course.title || course.courseName || '课程详情'}}</view>
+    <view class="hero-sub">{{course.teacherName || course.teacherId || ''}} · {{course.subject || ''}}</view>
+  </view>
+
+  <view class="card">
+    <view class="card-title">课程介绍</view>
+    <view class="card-text">{{course.description || course.intro || '暂无介绍'}}</view>
+  </view>
+
+  <view class="card">
+    <view class="card-title">可预约时段</view>
+    <view wx:if="{{!(course.schedules && course.schedules.length)}}" class="empty">暂无可预约时段</view>
+    <view wx:for="{{course.schedules}}" wx:key="scheduleId" class="sched">
+      <view class="sched-info">
+        <view class="sched-time">{{item.startTime || item.timeText || '时间待定'}}</view>
+        <view class="sched-left">剩余席位：{{item.remainSites != null ? item.remainSites : (item.totalSites != null ? item.totalSites : '—')}}</view>
+      </view>
+      <button class="btn-book" size="mini" data-sid="{{item.scheduleId}}" data-cid="{{course.courseId || course.id}}" bindtap="book">预约</button>
+    </view>
+  </view>
+</view>
+
+<view class="page" wx:else>
+  <view class="empty">课程不存在或已下架</view>
+</view>

@@ -1,0 +1,24 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="tip">加载中…</view>
+  <block wx:elif="{{msg}}">
+    <view class="card">
+      <view class="title">{{msg.title}}</view>
+      <view class="meta">
+        <text wx:if="{{msg.category}}" class="tag">{{msg.category}}</text>
+        <text wx:if="{{msg.priority}}" class="tag warn">{{msg.priority}}</text>
+        <text class="time">{{msg.time}}</text>
+      </view>
+      <view wx:if="{{msg.sender}}" class="sender">发件人：{{msg.sender}}</view>
+    </view>
+
+    <view class="card body">
+      <text class="content">{{msg.content || '（无正文内容）'}}</text>
+    </view>
+
+    <view class="actions">
+      <button class="btn {{starred ? 'btn-star' : ''}}" bindtap="onToggleStar">{{starred ? '★ 已收藏' : '☆ 收藏'}}</button>
+      <button class="btn btn-del" bindtap="onDelete">删除</button>
+    </view>
+  </block>
+  <view wx:else class="tip">消息不存在或已删除</view>
+</view>

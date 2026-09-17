@@ -1,0 +1,19 @@
+.page { min-height: 100vh; padding: 32rpx 32rpx 140rpx; box-sizing: border-box; background: #f5f7fa; }
+.header { padding: 24rpx 8rpx 8rpx; }
+.greet { font-size: 40rpx; font-weight: 700; color: #1f2a44; }
+.sub { font-size: 26rpx; color: #8a94a6; margin-top: 8rpx; }
+.grid {
+  display: flex; flex-wrap: wrap; margin-top: 28rpx;
+  background: #fff; border-radius: 20rpx; padding: 20rpx 0;
+  box-shadow: 0 8rpx 30rpx rgba(31,42,68,0.05);
+}
+.grid-item { width: 25%; display: flex; flex-direction: column; align-items: center; padding: 20rpx 0; position: relative; }
+.gi-glyph { font-size: 52rpx; line-height: 1; }
+.gi-text { font-size: 24rpx; color: #5a6478; margin-top: 12rpx; }
+.gi-badge {
+  position: absolute; top: 8rpx; right: 28rpx; min-width: 30rpx; height: 30rpx; line-height: 30rpx;
+  padding: 0 8rpx; background: #fa5151; color: #fff; font-size: 20rpx; border-radius: 15rpx; text-align: center;
+}
+.card { margin-top: 28rpx; background: #fff; border-radius: 20rpx; padding: 28rpx; box-shadow: 0 8rpx 30rpx rgba(31,42,68,0.05); }
+.card-title { font-size: 30rpx; font-weight: 600; color: #1f2a44; margin-bottom: 16rpx; }
+.card-line { font-size: 26rpx; color: #8a94a6; line-height: 1.7; }

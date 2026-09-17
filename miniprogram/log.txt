@@ -1,0 +1,164 @@
+Loading project all files...
+Loading project all files success
+编译 app.json
+app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+Loading project all files...
+Loading project all files success
+编译 app.json
+app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+code: 10009, error: Error: app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+File: app.json
+编译 app.json
+app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+code: 10009, error: Error: app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+File: app.json
+编译 app.json
+app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+code: 10009, error: Error: app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+File: app.json
+编译 app.json
+app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+code: 10009, error: Error: app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+File: app.json
+编译 app.json
+app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+code: 10009, error: Error: app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+File: app.json
+编译 app.json
+app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+code: 10009, error: Error: app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+File: app.json
+编译 app.json
+app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+code: 10009, error: Error: app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+File: app.json
+编译 app.json
+app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+code: 10009, error: Error: app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+File: app.json
+编译 app.json
+app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+code: 10009, error: Error: app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+File: app.json
+编译 app.json
+app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+code: 10009, error: Error: app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+File: app.json
+编译 app.json
+app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+code: 10009, error: Error: app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+File: app.json
+编译 app.json
+app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+code: 10009, error: Error: app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+File: app.json
+编译 app.json
+app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+code: 10009, error: Error: app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+File: app.json
+编译 app.json
+app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+code: 10009, error: Error: app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+File: app.json
+编译 app.json
+app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+code: 10009, error: Error: app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+File: app.json
+编译 app.json
+app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+code: 10009, error: Error: app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+File: app.json
+编译 app.json
+app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+code: 10009, error: Error: app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+File: app.json
+编译 app.json
+app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+code: 10009, error: Error: app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+File: app.json
+编译 app.json
+app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+code: 10009, error: Error: app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中
+File: app.json
+编译 app.json
+app.json: ["pages"][1]: "pages/student/home" 不应该在 ["subPackages"][0] 中
+["pages"][2]: "pages/teacher/home" 不应该在 ["subPackages"][1] 中
+["pages"][3]: "pages/admin/home" 不应该在 ["subPackages"][2] 中

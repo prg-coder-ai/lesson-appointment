@@ -1,18 +1,43 @@
-<view class="container">
-  <view class="title">{{brandTitle}}</view>
+<view class="login-page">
+  <view class="brand">{{brandTitle || '预约系统'}}</view>
+  <view class="subtitle">欢迎使用 · 多租户预约平台</view>
+
+  <view wx:if="{{boundTenantCode}}" class="bound-tip">
+    <text>当前已绑定租户：<text class="bound-code">{{boundTenantCode}}</text></text>
+    <text class="bound-switch" bindtap="clearBinding">切换</text>
+  </view>
+
   <view class="card">
     <view class="field">
-      <text class="field-label">账号</text>
-      <input class="field-input" placeholder="请输入账号" value="{{account}}" bindinput="onAccount" />
+      <text class="label">租户编码 tCode</text>
+      <input class="input" placeholder="如 TENANT_A 或 platform" value="{{tenantCode}}" bindinput="onTenant" disabled="{{role==='platform_admin'}}" />
     </view>
+
     <view class="field">
-      <text class="field-label">密码</text>
-      <input class="field-input" password placeholder="请输入密码" value="{{password}}" bindinput="onPassword" />
+      <text class="label">选择入口</text>
+      <view class="role-seg">
+        <view wx:for="{{roleOptions}}" wx:key="role"
+              class="role-item {{role===item.role ? 'active' : ''}}"
+              data-role="{{item.role}}" bindtap="onPickRole">
+          {{item.text}}
+        </view>
+      </view>
     </view>
+
     <view class="field">
-      <text class="field-label">租户编码</text>
-      <input class="field-input" placeholder="选填（公开链接自动带）" value="{{tenantCode}}" bindinput="onTenant" />
+      <text class="label">账号</text>
+      <input class="input" placeholder="手机号 / 邮箱" value="{{account}}" bindinput="onAccount" />
     </view>
-    <view class="btn {{submitting ? 'btn-disabled' : ''}}" bindtap="onLogin">{{submitting ? '登录中...' : '登录'}}</view>
+
+    <view class="field">
+      <text class="label">密码</text>
+      <input class="input" placeholder="请输入密码" password value="{{password}}" bindinput="onPassword" />
+    </view>
+
+    <button class="btn-primary" loading="{{submitting}}" bindtap="onLogin">
+      {{role==='platform_admin' ? '平台管理员登录' : (role==='admin' ? '管理员登录' : '登录')}}
+    </button>
   </view>
+
+  <view class="hint">登录即代表本小程序绑定该租户（tCode），可在「我的」中切换。</view>
 </view>

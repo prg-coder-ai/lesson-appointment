@@ -151,12 +151,12 @@
 
 ## 8. 落地路径（分阶段）
 
-- **P0 立项与骨架（本次已完成）**：建 `shared/` + `miniprogram/` 骨架（config、`core` 三件套、`login/home/demo` 三页、`sync-shared`）。验证：开发者工具可编译、可 `import` 共享核心、登录链路跑通。
-- **P1 基础能力补全**：`pages/mine`（改密/登出）、全局 `onAuthFail` 跳转、术语多语言切换（zh/en/fr）、租户品牌标题、错误统一 toast、`tabBar` 导航。
-- **P2 核心业务 MVP**：`booking/list` + `booking/detail` + 下单（对齐 `booking.html` 深链 `scdid/tid/sid`）、`booking/my`（我的预约）。打通端到端预约闭环。
-- **P3 消息中心**：`message/inbox` + `detail`，轮询实现已读/列表（订阅消息作为后续增强）；发送若需要则复用 `sensitive/test` 做输入预检。
-- **P4 教师端**：`teacher/profile`（简介查看/分享）、`teacher/schedule`（我的排期）。
-- **P5 打磨与上线**：`miniprogram-ci` 上传脚本 + CI、域名白名单配置、真机调试、包体积/分包优化、术语多语言联调。
+- **P0 立项与骨架（已完成）**：建 `shared/` + `miniprogram/` 骨架（config、`core` 三件套、`login/home/demo` 三页、`sync-shared`）。验证：开发者工具可编译、可 `import` 共享核心、登录链路跑通。
+- **P1 基础能力补全（已完成）**：三入口登录（教师/学生/管理 + `tCode` 绑定）、三角色首页工作台 + `role-tabbar` 按角色底部导航、`pages/mine`（改密/登出/多语言切换/租户信息）、全局 `onAuthFail` 跳转、术语多语言切换（zh/en/fr）、错误统一 toast。
+- **P2 核心业务 MVP（已完成）**：学生端 `booking/list`+`booking-detail`+下单+`my-booking`（我的预约/取消）；教师端 `courses`（我的课程）+`profile`（简介）；管理端 `dashboard`（概览+租户用量）。预约闭环端到端打通（依赖后端字段见 §12）。
+- **P3 消息中心（已完成）**：`pages/message/inbox` + `detail`。轮询（20s，未读数变化才重载列表）+ 手动刷新按钮（🔄 旋转动画）+ 下拉刷新；分类树筛选、仅看未读；打开即标记已读、收藏/取消、删除。三个首页与个人中心均接入「消息中心」入口并带未读角标（`onShow` 拉未读数）。小程序无 SSE，故以轮询实现即时更新；订阅消息作为后续增强。
+- **P4 教师排期编辑（已完成）**：`pages/teacher/schedule`（我的排期列表，支持新增/编辑/删除/启停 `active↔frozen`）+ `pages/teacher/schedule-edit`（表单：课程/名称/日期/时段/重复方式/名额/状态，字段对齐 `ScheduleCreateDTO`）。教师首页新增「排期管理」入口。后端端点：`/api/v1/schedule/{listByTeacher,detail,create,update,delete/{id},updateStatus}`。
+- **P5 打包/上线（已完成）**：`app.json` 分包（student/teacher/admin/message 四分包 + `preloadRule` 预下载）；`miniprogram-ci` 上传脚本 `scripts/upload.js` + `npm run upload`（密钥经 `MINI_PRIVATE_KEY` 注入）；`域名白名单与上线说明.md` 列出 request 合法域名（`apiBase`/`msgBase`）、无 socket 域名（因无 SSE）、占位符替换与上线检查清单。
 - **（可选演进）方案 2**：若未来确定"一套代码多端"，再评估 Taro/uni-app 收敛，届时 `shared/` 纯逻辑可直接复用。
 
 ---
@@ -190,3 +190,80 @@
 2. 确认 v1 范围是否按 §5 的 C 端页（登录/首页/预约/我的/消息/个人中心），管理后台是否纳入；
 3. 确认消息实时性要求（轮询即可 / 需订阅消息）；
 4. 评审通过后进入 P1/P2 逐页实现。
+
+---
+
+## 12. P1 / P2 落地说明（2026-09-16，已按"原生小程序 + 共享核心"实现）
+
+### 12.1 三入口 + tCode 绑定（用户确认项）
+- **登录页 `pages/login`**：租户编码 `tCode` 输入框 + 教师端/学生端/管理端 三个分段入口。
+  - 管理端：租户管理员填真实 `tCode`；平台管理员 `tCode` 固定为 `platform`（输入框禁用）。
+  - **tCode 与小程序绑定**：登录成功后把 `tCode` 写入 `boundTenantCode`（持久化）；再次进入自动回填；「我的 → 切换租户」可解绑并回登录页。
+  - 登录按角色路由：`student→pages/student/home`、`teacher→pages/teacher/home`、`admin/platform_admin→pages/admin/home`（`homePageForRole` 在 `shared/constants.js` 统一定义）。
+- **底部导航 `components/role-tabbar`**：按当前角色渲染对应导航项（`TAB_ITEMS` 在 `shared/constants.js`），`bind:change` 由各页 `wx.redirectTo` 处理，避免页面栈堆积。
+
+### 12.2 占位符约定（待实际确定）
+- `project.config.json` 的 `appid` = `touristappid`（微信开发者工具"测试号"占位符，上线前替换为真实 appid）。
+- `app.js` 的 `globalData.apiBase` / `msgBase` = `https://api.example.com` / `https://msg.example.com`（上线前替换为真实 HTTPS 域名，并到微信公众平台配置 request 合法域名）。
+- 联调期 `project.config.json` 的 `urlCheck:false` 已关闭域名校验，便于本地对接。
+
+### 12.3 目录新增（相对 P0）
+```
+miniprogram/
+├── core/auth.js                # 登录态/切换租户助手（login/logout/requireAuth/switchTenant）
+├── components/role-tabbar/     # 按角色的底部导航组件
+├── pages/student/{home,booking,booking-detail,my-booking}
+├── pages/teacher/{home,courses,profile}
+├── pages/admin/{home,dashboard}
+└── pages/mine/                 # 个人中心（改密/登出/语言/租户，三端共用）
+```
+`shared/` 新增端点：`COURSE_*`、`BOOKING_*`、`TEACHER_PUBLISHED_*`、`DASHBOARD_*`；新增 `TAB_ITEMS`/`tabGroupForRole`/`roleLabel`/`homePageForRole`（三角色）。
+
+### 12.4 后端字段依赖与待确认点
+小程序按现有 `frontend/` 的调用契约平移，但以下字段名需联调时按真实响应校准：
+- 课程列表：`COURSE_PAGE`（POST，body `{pageNum,pageSize,...}`）返回 `list/records`；课程字段用 `courseId/title/teacherName/subject`。
+- 课程详情含 `schedules[]`（`scheduleId/startTime/remainSites/totalSites`）用于下单时段选择。
+- 下单 `BOOKING_CREATE`（POST）请求 `scheduleId/courseId/studentId/studentName`；`BOOKING_UPDATE_STATUS` 用 `{id,status}`。
+- 改密 `CHANGE_PWD`（POST）请求 `oldPassword/newPassword`（若后端字段为 `oldPwd/newPwd` 需对齐）。
+- 管理端 `DASHBOARD_OVERVIEW` / `DASHBOARD_TENANT_USAGE(tenantId)` 返回字段按 `overview.*` / `usage.*` 渲染（看板字段名以真实响应为准）。
+- **敏感词过滤自动生效**：小程序发消息走 `validateCommon`，无需改动（P3 消息发送时复用 `sensitive/test` 预检）。
+
+### 12.5 验证状态
+- `npm run sync` 已把 `shared/` 拷入 `miniprogram/shared/`，`node` 实测 `ENDPOINTS`、`homePageForRole`、`TAB_ITEMS`、`roleLabel` 全部正确。
+- 各页为原生小程序代码，开发者工具导入 `miniprogram/` 即可编译预览；登录态/401 刷新/`term` 渲染适配层与 Web 端行为对齐。
+
+---
+
+## 13. P3 / P4 / P5 落地说明（2026-09-16，已完成）
+
+### 13.1 P3 消息中心（轮询 + 手动刷新 + 下拉刷新）
+- **入口**：`pages/message/inbox`（列表）+ `pages/message/detail`（详情）。三个首页「消息中心」入口 + `mine` 页「消息中心」行均带未读角标（`onShow` 调 `getUnreadCount`）。
+- **即时更新三件套**：
+  1. **定时轮询**：`inbox.js` 启动 `setInterval(20s)`，仅当未读数变化才静默重载列表（避免无谓刷新闪烁）；`onHide/onUnload` 清理定时器。
+  2. **手动刷新按钮**：右上角 🔄，点击 `refresh()` 并带旋转动画。
+  3. **下拉刷新**：`inbox.json` 开 `enablePullDownRefresh`，`onPullDownRefresh` 收尾 `stopPullDownRefresh`。
+- **筛选**：分类树（三级，`/api/v1/message-categories/tree` 展平）+ 仅看未读（`unreadOnly=1`）。
+- **详情**：打开即 `POST .../read` 标记已读；收藏/取消（`star/unstar`）、删除（`DELETE`）。
+- **后端端点**（走 `msgBase`，`resolveBase` 已把 `/api/v1/users|messages|message-categories` 路由到 msgBase）：`/users/{uid}/inbox`、`/users/{uid}/inbox/unread-count`、`/users/{uid}/messages/{id}`、`/read`、`/star`、`/unstar`、`DELETE`。
+- **服务封装**：`core/message.js`（`getUnreadCount/getInbox/getDetail/setRead/toggleStar/deleteMessage/getCategories/previewText/fmtTime`），与 Web `messages-inbox.js` 取数逻辑对齐。
+
+### 13.2 P4 教师排期编辑
+- **列表** `pages/teacher/schedule`：`GET /api/v1/schedule/listByTeacher?teacherId=` → 渲染名称/时段区间/重复方式/余位/约满/状态；操作：新增、编辑、删除、启停（`updateStatus` 的 `active↔frozen`）。
+- **编辑** `pages/teacher/schedule-edit`：表单字段对齐 `ScheduleCreateDTO`：
+  - `repeatType`：0 不重复 / 1 每天 / 2 每周 / 3 每月（`ScheduleCreateDTO` 的 `@JsonSetter` 同时接受 int 与 `none/day/week/month` 字符串，本端统一传 int）。
+  - 每周 `repeatDays`：多选 周一..周日（数组）；每月 `repeatDays`：单个日期。
+  - 日期+时段分别用 `startDate/startTime/endDate/endTime`（DTO 为 `LocalDate`+`LocalTime`）；列表展示的 `CourseSchedule.startTime` 为合并串 `YYYY-MM-DD HH:mm:ss`，编辑时按 `slice` 拆回。
+  - `availableSites`、`status`（active/frozen 由 switch 控制）。
+  - `teacherId` 不传：后端由 `Authorization` 令牌解析（`ScheduleController` 已 `checkTeacherOrAdmin`）。
+- 课程下拉：`GET /api/v1/course/list` 取 `courseId/courseName`；排期名称默认取课程名。
+
+### 13.3 P5 分包 / CI / 域名白名单
+- **分包**（`app.json`）：主包保留 `login / 三个首页 / mine / demo`（6 页）；深页分包 `pages/student`、`pages/teacher`、`pages/admin`、`pages/message`（4 分包）。`preloadRule` 在首页/个人中心进入时预下载对应分包。
+- **跨包引用**：`core/`、`shared/` 在主包，分包页用相对路径 `../../` 引用主包模块（已验证允许）。
+- **CI 上传**：`scripts/upload.js`（`miniprogram-ci`），`npm run upload <version> <desc>`；密钥经环境变量 `MINI_PRIVATE_KEY` 注入，不入库。
+- **域名白名单**：见 `域名白名单与上线说明.md` —— request 合法域名 `apiBase`/`msgBase`（HTTPS 备案）；无 socket 域名（小程序无 SSE，消息靠轮询）；占位符 `touristappid` / `*.example.com` 上线前替换；联调 `urlCheck:false`。
+
+### 13.4 验证
+- `npm run sync` 已同步 `shared/`；`node` 校验 `ENDPOINTS`（消息中心 + 排期共 18 项）+ `homePageForRole` + `core/message` 导出，全部通过。
+- `app.json` 解析通过（6 主包页 / 4 分包 / 4 preload）。
+- 开发者工具导入 `miniprogram/` 即可编译预览；消息轮询、排期增删改、分包跳转待真机/联调验证。

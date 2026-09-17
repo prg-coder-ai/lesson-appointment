@@ -1,0 +1,13 @@
+.page { min-height: 100vh; background: #f5f7fa; padding: 24rpx; }
+.form { background: #fff; border-radius: 16rpx; padding: 8rpx 24rpx; }
+.fld { padding: 22rpx 0; border-bottom: 1rpx solid #f2f4f8; }
+.fld-row { display: flex; gap: 24rpx; }
+.fld-row .half { flex: 1; }
+.lab { font-size: 26rpx; color: #888; display: block; margin-bottom: 12rpx; }
+.inp { font-size: 30rpx; color: #222; background: #f7f8fa; border-radius: 10rpx; padding: 16rpx 18rpx; }
+.picker { font-size: 30rpx; color: #222; background: #f7f8fa; border-radius: 10rpx; padding: 16rpx 18rpx; }
+.picker.ph { color: #aaa; }
+.chips { display: flex; flex-wrap: wrap; gap: 14rpx; }
+.chip { padding: 12rpx 22rpx; background: #f2f4f8; border-radius: 30rpx; font-size: 26rpx; color: #555; }
+.chip.on { background: #e6f4ff; color: #1890ff; border: 1rpx solid #91d5ff; }
+.btn-save { margin-top: 32rpx; background: #1890ff; color: #fff; border-radius: 12rpx; font-size: 30rpx; }

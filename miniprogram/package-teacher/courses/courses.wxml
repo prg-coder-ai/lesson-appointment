@@ -1,0 +1,16 @@
+<view class="page">
+  <view wx:if="{{list.length===0 && !loading}}" class="empty">还没有课程</view>
+
+  <view class="list">
+    <view wx:for="{{list}}" wx:key="courseId" class="item">
+      <view class="item-main">
+        <view class="item-title">{{item.title || item.courseName || '未命名课程'}}</view>
+        <view class="item-sub">{{item.subject || ''}} · 状态 {{item.status || '-'}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="foot">加载中...</view>
+
+  <role-tabbar active="courses" bind:change="onTabChange" />
+</view>

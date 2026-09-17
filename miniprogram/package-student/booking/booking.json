@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "浏览约课",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "role-tabbar": "/components/role-tabbar/index"
+  }
+}

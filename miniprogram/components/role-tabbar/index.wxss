@@ -1,0 +1,26 @@
+.tabbar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  height: 110rpx;
+  display: flex;
+  background: #ffffff;
+  border-top: 1rpx solid #eceff3;
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 100;
+}
+.tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #8a94a6;
+  font-size: 22rpx;
+}
+.tab-item.active { color: #1677ff; }
+.tab-glyph {
+  font-size: 40rpx;
+  line-height: 1;
+  margin-bottom: 6rpx;
+}
+.tab-text { line-height: 1; }

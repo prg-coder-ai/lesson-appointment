@@ -1,0 +1,19 @@
+<view class="page">
+  <view class="section-title">平台概览</view>
+  <view class="stat-grid">
+    <view class="stat"><view class="stat-num">{{overview.tenantCount != null ? overview.tenantCount : '-'}}</view><view class="stat-label">租户总数</view></view>
+    <view class="stat"><view class="stat-num">{{overview.userCount != null ? overview.userCount : '-'}}</view><view class="stat-label">用户总数</view></view>
+    <view class="stat"><view class="stat-num">{{overview.courseCount != null ? overview.courseCount : '-'}}</view><view class="stat-label">课程总数</view></view>
+    <view class="stat"><view class="stat-num">{{overview.bookingCount != null ? overview.bookingCount : '-'}}</view><view class="stat-label">预约总数</view></view>
+  </view>
+
+  <view class="section-title">本租户用量</view>
+  <view class="card">
+    <view class="row"><text class="rk">课程数</text><text class="rv">{{usage.courseCount != null ? usage.courseCount : '-'}}</text></view>
+    <view class="row"><text class="rk">排期数</text><text class="rv">{{usage.scheduleCount != null ? usage.scheduleCount : (usage.scheduleCurrent != null ? usage.scheduleCurrent : '-')}}/{{usage.scheduleLimit != null ? usage.scheduleLimit : '不限'}}</text></view>
+    <view class="row"><text class="rk">学生数</text><text class="rv">{{usage.studentCount != null ? usage.studentCount : '-'}}</text></view>
+    <view class="row"><text class="rk">教师数</text><text class="rv">{{usage.teacherCount != null ? usage.teacherCount : '-'}}</text></view>
+  </view>
+
+  <role-tabbar active="dashboard" bind:change="onTabChange" />
+</view>

@@ -1,0 +1,32 @@
+<view class="page">
+  <view class="topbar">
+    <view class="tb-title">我的排期</view>
+    <view class="tb-add" bindtap="goAdd">＋ 新增</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="tip">加载中…</view>
+  <view wx:elif="{{list.length === 0}}" class="empty">
+    <view class="empty-glyph">🗓️</view>
+    <view>还没有排期，点击右上角新增</view>
+  </view>
+
+  <view wx:else class="list">
+    <view wx:for="{{list}}" wx:key="id" class="item">
+      <view class="item-top">
+        <text class="it-title">{{item.title}}</text>
+        <text class="it-status s-{{item.status}}">{{item.statusText}}</text>
+      </view>
+      <view class="it-range">🕒 {{item.range}}</view>
+      <view class="it-meta">
+        <text class="tag">{{item.repeat}}</text>
+        <text class="tag">余位 {{item.sites}}</text>
+        <text wx:if="{{item.full}}" class="tag full">约满</text>
+      </view>
+      <view class="item-actions">
+        <text class="act" data-id="{{item.id}}" data-status="{{item.status}}" bindtap="onToggleStatus">{{item.status === 'active' ? '冻结' : '发布'}}</text>
+        <text class="act" data-id="{{item.id}}" bindtap="goEdit">编辑</text>
+        <text class="act danger" data-id="{{item.id}}" bindtap="onDelete">删除</text>
+      </view>
+    </view>
+  </view>
+</view>

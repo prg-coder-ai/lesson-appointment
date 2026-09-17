@@ -183,3 +183,9 @@ CREATE TABLE msg_sensitive_word (
 -- 默认平台分组（tenant=0，默认拒绝发送）。管理员在此组下添加敏感词即可全局生效。
 INSERT INTO msg_sensitive_group (group_id, tenant_id, group_name, default_action, is_system_predefined) VALUES
  (3001, 0, '默认敏感词组', 'REJECT', 1);
+
+-- 基本敏感词
+INSERT INTO msg_sensitive_word (word_id, group_id, tenant_id, word, action, is_deleted) VALUES
+ (4001, 3001, 0, '敏感词1', 'REJECT', 0),
+ (4002, 3001, 0, '敏感词2', 'REJECT', 0),
+ (4003, 3001, 0, '敏感词3', 'REJECT', 0);

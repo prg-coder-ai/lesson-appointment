@@ -1,0 +1,44 @@
+<view class="page">
+  <view class="topbar">
+    <view class="tb-title">消息中心</view>
+    <view class="tb-right">
+      <view wx:if="{{unreadCount > 0}}" class="tb-badge">{{unreadCount > 99 ? '99+' : unreadCount}}</view>
+      <view class="tb-refresh {{refreshing ? 'spin' : ''}}" bindtap="onRefreshTap">🔄</view>
+    </view>
+  </view>
+
+  <view class="filterbar">
+    <view class="seg">
+      <view class="seg-item {{!onlyUnread ? 'on' : ''}}" data-val="0" bindtap="onToggleUnread">全部</view>
+      <view class="seg-item {{onlyUnread ? 'on' : ''}}" data-val="1" bindtap="onToggleUnread">仅看未读</view>
+    </view>
+  </view>
+
+  <scroll-view wx:if="{{categories.length}}" class="cats" scroll-x="true">
+    <view class="cat-item {{activeCategory === '' ? 'on' : ''}}" data-code="" bindtap="onPickCategory">全部分类</view>
+    <view wx:for="{{categories}}" wx:key="code" class="cat-item {{activeCategory === item.code ? 'on' : ''}}" data-code="{{item.code}}" bindtap="onPickCategory">{{item.name}}</view>
+  </scroll-view>
+
+  <view wx:if="{{loading && list.length === 0}}" class="tip">加载中…</view>
+  <view wx:elif="{{list.length === 0}}" class="empty">
+    <view class="empty-glyph">📭</view>
+    <view>暂无消息</view>
+  </view>
+
+  <view wx:else class="list">
+    <view wx:for="{{list}}" wx:key="id" class="msg" data-id="{{item.id}}" bindtap="goDetail">
+      <view wx:if="{{item.unread}}" class="dot"></view>
+      <view class="msg-main">
+        <view class="msg-row">
+          <text class="msg-title">{{item.title}}</text>
+          <text wx:if="{{item.starred}}" class="star">★</text>
+        </view>
+        <view class="msg-preview">{{item.preview || '（无内容）'}}</view>
+        <view class="msg-meta">
+          <text wx:if="{{item.category}}" class="tag">{{item.category}}</text>
+          <text class="time">{{item.time}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

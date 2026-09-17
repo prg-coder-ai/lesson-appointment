@@ -1,0 +1,73 @@
+<view class="page">
+  <view class="form">
+    <view class="fld">
+      <text class="lab">课程</text>
+      <picker wx:if="{{courses.length}}" mode="selector" range="{{courses}}" range-key="courseName" value="{{courseIndex}}" bindchange="onCourse">
+        <view class="picker">{{courseIndex >= 0 ? courses[courseIndex].courseName : '请选择课程'}}</view>
+      </picker>
+      <view wx:else class="picker ph">暂无课程</view>
+    </view>
+
+    <view class="fld">
+      <text class="lab">排期名称</text>
+      <input class="inp" placeholder="留空则与课程同名" value="{{form.name}}" bindinput="onName" />
+    </view>
+
+    <view class="fld">
+      <text class="lab">开始日期</text>
+      <picker mode="date" value="{{form.startDate}}" bindchange="onStartDate">
+        <view class="picker">{{form.startDate || '请选择'}}</view>
+      </picker>
+    </view>
+    <view class="fld-row">
+      <view class="fld half">
+        <text class="lab">开始时间</text>
+        <picker mode="time" value="{{form.startTime}}" bindchange="onStartTime"><view class="picker">{{form.startTime}}</view></picker>
+      </view>
+      <view class="fld half">
+        <text class="lab">结束时间</text>
+        <picker mode="time" value="{{form.endTime}}" bindchange="onEndTime"><view class="picker">{{form.endTime}}</view></picker>
+      </view>
+    </view>
+    <view class="fld">
+      <text class="lab">结束日期</text>
+      <picker mode="date" value="{{form.endDate}}" bindchange="onEndDate">
+        <view class="picker">{{form.endDate || '不重复可留空'}}</view>
+      </picker>
+    </view>
+
+    <view class="fld">
+      <text class="lab">重复方式</text>
+      <picker mode="selector" range="{{repeatOpts}}" range-key="label" value="{{form.repeatType}}" bindchange="onRepeat">
+        <view class="picker">{{repeatOpts[form.repeatType].label}}</view>
+      </picker>
+    </view>
+
+    <view wx:if="{{form.repeatType === 2}}" class="fld">
+      <text class="lab">每周星期</text>
+      <view class="chips">
+        <text wx:for="{{weekDays}}" wx:key="v" class="chip {{form.repeatDays.indexOf(item.v) >= 0 ? 'on' : ''}}" data-v="{{item.v}}" bindtap="onWeekDay">周{{item.label}}</text>
+      </view>
+    </view>
+    <view wx:if="{{form.repeatType === 3}}" class="fld">
+      <text class="lab">每月日期</text>
+      <input class="inp" type="number" placeholder="如 1 / 15" value="{{form.monthDay}}" bindinput="onMonthDay" />
+    </view>
+    <view wx:if="{{form.repeatType > 0 && form.repeatType !== 3}}" class="fld">
+      <text class="lab">间隔(每N)</text>
+      <input class="inp" type="number" value="{{form.repeatInterval}}" bindinput="onInterval" />
+    </view>
+
+    <view class="fld">
+      <text class="lab">可预约名额</text>
+      <input class="inp" type="number" value="{{form.availableSites}}" bindinput="onSites" />
+    </view>
+
+    <view class="fld">
+      <text class="lab">状态</text>
+      <switch checked="{{form.status === 'active'}}" bindchange="onStatus" />
+    </view>
+  </view>
+
+  <button class="btn-save" loading="{{submitting}}" bindtap="save">{{mode === 'edit' ? '保存修改' : '创建排期'}}</button>
+</view>

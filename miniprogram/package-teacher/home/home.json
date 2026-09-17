@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "教师端",
+  "usingComponents": {
+    "role-tabbar": "/components/role-tabbar/index"
+  }
+}

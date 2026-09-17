@@ -1,0 +1,49 @@
+<view class="page">
+  <view class="profile">
+    <view class="avatar">{{user.name ? user.name[0] : (user.account ? user.account[0] : '·')}}</view>
+    <view class="p-name">{{user.name || user.account}}</view>
+    <view class="p-role">{{roleText}} · 租户 {{user.tenantCode}}</view>
+  </view>
+
+  <view class="card">
+    <view class="row"><text class="rk">行业</text><text class="rv">{{industryText}}</text></view>
+    <view class="row"><text class="rk">账号</text><text class="rv">{{user.account}}</text></view>
+    <view class="row"><text class="rk">用户ID</text><text class="rv">{{user.userId || '-'}}</text></view>
+  </view>
+
+  <view class="card">
+    <view class="row"><text class="rk">界面语言</text>
+      <view class="lang-seg">
+        <text class="lang-item {{lang==='zh'?'on':''}}" data-lang="zh" bindtap="pickLang">中文</text>
+        <text class="lang-item {{lang==='en'?'on':''}}" data-lang="en" bindtap="pickLang">English</text>
+        <text class="lang-item {{lang==='fr'?'on':''}}" data-lang="fr" bindtap="pickLang">Français</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="row link" bindtap="togglePwd">
+      <text class="rk">修改密码</text><text class="rv">{{showPwd ? '收起 ▲' : '点击修改 ▼'}}</text>
+    </view>
+    <block wx:if="{{showPwd}}">
+      <view class="pwd-field"><input class="pwd-input" placeholder="原密码" password value="{{oldPwd}}" bindinput="onOld" /></view>
+      <view class="pwd-field"><input class="pwd-input" placeholder="新密码" password value="{{newPwd}}" bindinput="onNew" /></view>
+      <view class="pwd-field"><input class="pwd-input" placeholder="确认新密码" password value="{{confirmPwd}}" bindinput="onConfirm" /></view>
+      <button class="btn-save" loading="{{saving}}" bindtap="savePwd">保存修改</button>
+    </block>
+  </view>
+
+  <view class="card">
+    <view class="row link" bindtap="goMessage">
+      <text class="rk">消息中心</text>
+      <view class="rv">{{unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) + ' 条未读 ›' : '查看 ›'}}</view>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="row link" bindtap="onSwitch"><text class="rk">切换租户</text><text class="rv">解绑并重新登录 ›</text></view>
+    <view class="row link danger" bindtap="onLogout"><text class="rk">退出登录</text><text class="rv">›</text></view>
+  </view>
+
+  <role-tabbar active="mine" bind:change="onTabChange" />
+</view>
