@@ -50,7 +50,9 @@ export function getBoundTenantCode() {
 export function requireAuth() {
   const u = getSession();
   if (!u || !u.token || !u.role) {
-    wx.reLaunch({ url: '/pages/login/login' });
+    // 延后一拍再 reLaunch：避免在 onLoad 完成前拆掉尚在注册的 webview，
+    // 否则会触发 "routeDone with a webviewId ... is not found" 系统错误（lib 3.x 常见）。
+    setTimeout(() => wx.reLaunch({ url: '/pages/login/login' }), 0);
     return null;
   }
   return u;
