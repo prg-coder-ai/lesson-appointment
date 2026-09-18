@@ -1,10 +1,10 @@
 import { requireAuth } from '../../core/auth.js';
 import { roleLabel, homePageForRole } from '../../shared/constants.js';
-import { term } from '../../core/term.js';
+import { withTerms } from '../../core/term.js';
 import { getUnreadCount } from '../../core/message.js';
 import { captureAttribution, reportAttributionOnce } from '../../core/acquisition.js';
 
-Page({
+Page(withTerms({
   data: {
     user: {}, roleText: '', industryText: '', active: 'home', greeting: '', unreadCount: 0
   },
@@ -17,7 +17,7 @@ Page({
     const greeting = h < 11 ? '早上好' : h < 14 ? '中午好' : h < 18 ? '下午好' : '晚上好';
     this.setData({
       user: u, roleText: roleLabel(u.role),
-      industryText: term('industryName'), active: 'home', greeting
+      active: 'home', greeting
     });
   },
   onShow() {
@@ -35,4 +35,4 @@ Page({
     const base = u.role ? homePageForRole(u.role) : '/pages/login/login';
     return { title: '邀请你使用预约系统', path: base + '?inviter=' + encodeURIComponent(u.userId || '') + '&source=share' };
   }
-});
+}));

@@ -1,5 +1,6 @@
 <view class="page">
   <view class="profile">
+    <view class="sys">{{terms.lessonSystem}}</view>
     <view class="avatar">{{user.name ? user.name[0] : (user.account ? user.account[0] : '·')}}</view>
     <view class="p-name">{{user.name || user.account}}</view>
     <view class="p-role">{{roleText}} · 租户 {{user.tenantCode}}</view>
@@ -11,7 +12,8 @@
     <view class="row"><text class="rk">用户ID</text><text class="rv">{{user.userId || '-'}}</text></view>
   </view>
 
-  <view class="card">
+  <!-- 只考虑中文：隐藏语言切换，恢复时删除 wx:if="{{false}}" -->
+  <view class="card" wx:if="{{false}}">
     <view class="row"><text class="rk">界面语言</text>
       <view class="lang-seg">
         <text class="lang-item {{lang==='zh'?'on':''}}" data-lang="zh" bindtap="pickLang">中文</text>

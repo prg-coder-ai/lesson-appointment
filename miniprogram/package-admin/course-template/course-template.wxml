@@ -9,9 +9,9 @@
         <text class="name">{{item.lang || '语言'}} · {{item.level || '等级'}}</text>
       </view>
       <view class="row2">
-        <text class="meta">形式 {{item.form || '-'}}</text>
-        <text class="meta">时长 {{item.duration || '-'}}</text>
-        <text class="meta">费用 {{item.fee != '' ? item.fee : '-'}}</text>
+        <text class="meta">{{terms.classForm}} {{item.form || '-'}}</text>
+        <text class="meta">{{terms.lessonDuration}} {{item.duration || '-'}}</text>
+        <text class="meta">{{terms.lessonFee}} {{item.fee != '' ? item.fee : '-'}}</text>
       </view>
     </view>
   </view>

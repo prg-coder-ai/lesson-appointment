@@ -171,6 +171,14 @@ export const TERM_KEYS = [
 
 export const PROTECTED_WORDS = ["王老师", "李老师", "刘老师"];
 
+// 行业中文展示名（仅中文；"只考虑中文"场景下 mine 页"行业"行用）
+export const INDUSTRY_NAMES = {
+  education: '教育',
+  legal: '法律咨询',
+  counseling: '心理咨询',
+  exercise: '健身'
+};
+
 export const COURSE_TYPE_OPTIONS = [
   { value: 'french', termKey: 'classType1', anchor: '法语' },
   { value: 'english', termKey: 'classType2', anchor: '英语' },

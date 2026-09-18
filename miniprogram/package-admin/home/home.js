@@ -7,6 +7,7 @@ import { requireAuth } from '../../core/auth.js';
 import { roleLabel } from '../../shared/constants.js';
 import { getUnreadCount } from '../../core/message.js';
 import { captureAttribution, reportAttributionOnce } from '../../core/acquisition.js';
+import { withTerms } from '../../core/term.js';
 
 const GROUPS = [
   { title: '系统概览', items: [
@@ -37,7 +38,7 @@ const GROUPS = [
   ] }
 ];
 
-Page({
+Page(withTerms({
   data: { user: {}, roleText: '', active: 'home', unreadCount: 0, groups: GROUPS },
   onLoad(options) {
     captureAttribution(options);
@@ -62,4 +63,4 @@ Page({
     const base = u.role ? '/package-admin/home/home' : '/pages/login/login';
     return { title: '邀请你使用预约系统', path: base + '?inviter=' + encodeURIComponent(u.userId || '') + '&source=share' };
   }
-});
+}));

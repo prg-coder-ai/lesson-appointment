@@ -4,10 +4,11 @@
 import { requireAuth } from '../../core/auth.js';
 import { request } from '../../core/request.js';
 import { ENDPOINTS } from '../../shared/apiPaths.js';
+import { withTerms } from '../../core/term.js';
 
 const FORM_TEXT = { '1p1': '一对一', '1pN': '小班课', '1p2N': '中班课' };
 
-Page({
+Page(withTerms({
   data: { list: [], loading: true },
   onLoad() {
     const u = requireAuth();
@@ -34,4 +35,4 @@ Page({
       wx.showToast({ title: (e && e.message) || '加载失败', icon: 'none' });
     }
   }
-});
+}));

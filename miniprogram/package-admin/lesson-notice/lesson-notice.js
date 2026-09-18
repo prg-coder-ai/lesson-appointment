@@ -4,8 +4,9 @@
 import { requireAuth } from '../../core/auth.js';
 import { request } from '../../core/request.js';
 import { ENDPOINTS } from '../../shared/apiPaths.js';
+import { withTerms } from '../../core/term.js';
 
-Page({
+Page(withTerms({
   data: { list: [], loading: true },
   onLoad() {
     const u = requireAuth();
@@ -35,4 +36,4 @@ Page({
     }
   },
   onNotify() { wx.showToast({ title: '批量提醒能力建设中', icon: 'none' }); }
-});
+}));

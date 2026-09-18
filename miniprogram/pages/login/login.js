@@ -1,5 +1,5 @@
 import { login, getBoundTenantCode, goHome } from '../../core/auth.js';
-import { term } from '../../core/term.js';
+import { withTerms } from '../../core/term.js';
 import { clearSession, storage, getSession } from '../../core/storage.js';
 import { ROLES } from '../../shared/constants.js';
 
@@ -9,7 +9,7 @@ const ROLE_OPTIONS = [
   { role: ROLES.ADMIN, text: '管理端' }
 ];
 
-Page({
+Page(withTerms({
   data: {
     account: '',
     password: '',
@@ -32,7 +32,7 @@ Page({
     if (u && u.token && u.role) { goHome(); return; }
     const bound = getBoundTenantCode();
     this.setData({
-      brandTitle: term('lessonSystem'),
+      brandTitle: '预约系统',
       boundTenantCode: bound,
       tenantCode: bound
     });
@@ -93,4 +93,4 @@ Page({
       this.setData({ submitting: false });
     }
   }
-});
+}));

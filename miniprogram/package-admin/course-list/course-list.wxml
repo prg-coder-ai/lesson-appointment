@@ -13,7 +13,7 @@
         <text class="status">{{item.statusText}}</text>
       </view>
       <view class="row2">
-        <text class="meta">教师 {{item.teacher || '-'}}</text>
+        <text class="meta">{{terms.teacher}} {{item.teacher || '-'}}</text>
         <text class="meta">等级 {{item.level || '-'}}</text>
       </view>
     </view>

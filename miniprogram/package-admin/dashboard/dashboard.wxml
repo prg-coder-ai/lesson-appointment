@@ -10,15 +10,15 @@
     <view class="stat-grid">
       <view class="stat">
         <view class="stat-num">{{stat.teacher != null ? stat.teacher : '-'}}</view>
-        <view class="stat-label">总教师数</view>
+        <view class="stat-label">总{{terms.teacher}}数</view>
       </view>
       <view class="stat">
         <view class="stat-num">{{stat.student != null ? stat.student : '-'}}</view>
-        <view class="stat-label">总学生数</view>
+        <view class="stat-label">总{{terms.student}}数</view>
       </view>
       <view class="stat">
         <view class="stat-num">{{stat.course != null ? stat.course : '-'}}</view>
-        <view class="stat-label">总课程数</view>
+        <view class="stat-label">总{{terms.course}}数</view>
       </view>
       <view class="stat">
         <view class="stat-num">{{stat.booking != null ? stat.booking : '-'}}</view>
@@ -26,7 +26,7 @@
       </view>
       <view class="stat">
         <view class="stat-num">{{stat.appoint != null ? stat.appoint : '-'}}</view>
-        <view class="stat-label">本月预约课时</view>
+        <view class="stat-label">本月预约{{terms.lessonUnit}}</view>
       </view>
     </view>
 
@@ -41,7 +41,7 @@
         <text class="rv">{{pending.cancelling}}</text>
       </view>
       <view class="row">
-        <text class="rk">今日课程</text>
+        <text class="rk">今日{{terms.course}}</text>
         <text class="rv">{{pending.today}}</text>
       </view>
     </view>

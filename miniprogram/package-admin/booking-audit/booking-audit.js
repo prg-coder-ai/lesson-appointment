@@ -6,6 +6,7 @@
 import { requireAuth } from '../../core/auth.js';
 import { request } from '../../core/request.js';
 import { ENDPOINTS } from '../../shared/apiPaths.js';
+import { withTerms } from '../../core/term.js';
 
 const STATUS_TEXT = {
   booking: '待确认', waiting: '候补', cancelling: '取消待确认',
@@ -19,7 +20,7 @@ const FILTERS = [
   { key: '', text: '全部' }
 ];
 
-Page({
+Page(withTerms({
   data: { filter: 'booking', filters: FILTERS, list: [], loading: true },
   onLoad(options) {
     const u = requireAuth();
@@ -71,4 +72,4 @@ Page({
       } catch (err) { wx.showToast({ title: (err && err.message) || '操作失败', icon: 'none' }); }
     } });
   }
-});
+}));

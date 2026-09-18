@@ -5,10 +5,11 @@
 import { requireAuth } from '../../core/auth.js';
 import { request } from '../../core/request.js';
 import { ENDPOINTS } from '../../shared/apiPaths.js';
+import { withTerms } from '../../core/term.js';
 
 function safeNum(v) { return (typeof v === 'number') ? v : null; }
 
-Page({
+Page(withTerms({
   data: {
     active: 'dashboard',
     loading: true,
@@ -82,4 +83,4 @@ Page({
     const status = e.currentTarget.dataset.status || '';
     wx.navigateTo({ url: '/package-admin/booking-audit/booking-audit?status=' + encodeURIComponent(status) });
   }
-});
+}));

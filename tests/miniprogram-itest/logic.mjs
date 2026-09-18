@@ -106,8 +106,8 @@ ck('login 写登录态', getSession() && getToken() === 'T1');
 ck('login 调用 /api/v1/auth/login', !!callOf('/api/v1/auth/login'));
 ck('login 触发 loadTermMap(/term/map)', !!callOf('/api/v1/term/map'));
 ck('login 触发 syncIndustryFromTenant(/tenant/industry)', !!callOf('/api/v1/tenant/industry'));
-// term/map 必须 tokenOnly（不带 Bearer）——这是 401 修复的客户端前提
-ck('term/map 请求不带 Authorization(tokenOnly)', callOf('/api/v1/term/map').auth === false);
+// term/map 现在带 Bearer（拉取「租户自定义词」需要 JWT 识别租户；后端三级合并依赖租户上下文）
+ck('term/map 请求带 Authorization(拉取租户自定义词)', callOf('/api/v1/term/map').auth === true);
 // 服务端词表覆盖 + 行业切换生效
 ck('服务端词表覆盖 term(teacher)', term.term('teacher') === '授课老师(tenant)');
 ck('行业切换生效 term(student)=咨询者(legal)', term.term('student') === '咨询者');

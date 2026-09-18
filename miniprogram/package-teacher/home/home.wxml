@@ -1,5 +1,6 @@
 <view class="page">
   <view class="header">
+    <view class="sys">{{terms.lessonSystem}}</view>
     <view class="greet">{{greeting}}，{{user.name || user.account}}</view>
     <view class="sub">{{roleText}} · 租户 {{user.tenantCode}}</view>
   </view>

@@ -1,10 +1,10 @@
 import { requireAuth } from '../../core/auth.js';
 import { roleLabel, homePageForRole } from '../../shared/constants.js';
-import { term } from '../../core/term.js';
+import { withTerms } from '../../core/term.js';
 import { getUnreadCount } from '../../core/message.js';
 import { captureAttribution, reportAttributionOnce } from '../../core/acquisition.js';
 
-Page({
+Page(withTerms({
   data: { user: {}, roleText: '', active: 'home', greeting: '', unreadCount: 0 },
   onLoad(options) {
     captureAttribution(options); // 先抓取渠道归因，即便被重定向到登录页也不丢
@@ -32,4 +32,4 @@ Page({
     const base = u.role ? homePageForRole(u.role) : '/pages/login/login';
     return { title: '邀请你使用预约系统', path: base + '?inviter=' + encodeURIComponent(u.userId || '') + '&source=share' };
   }
-});
+}));

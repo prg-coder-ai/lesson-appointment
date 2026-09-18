@@ -4,10 +4,11 @@
 import { requireAuth } from '../../core/auth.js';
 import { request } from '../../core/request.js';
 import { ENDPOINTS } from '../../shared/apiPaths.js';
+import { withTerms } from '../../core/term.js';
 
 const STATUS_TEXT = { 1: '已发布', 0: '草稿', 2: '已下架' };
 
-Page({
+Page(withTerms({
   data: { list: [], loading: true, total: 0 },
   onLoad() {
     const u = requireAuth();
@@ -36,4 +37,4 @@ Page({
       wx.showToast({ title: (e && e.message) || '加载失败', icon: 'none' });
     }
   }
-});
+}));

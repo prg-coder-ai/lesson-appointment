@@ -8,8 +8,8 @@
   <view wx:elif="{{list.length === 0}}" class="center">暂无已确认课程</view>
   <view wx:else class="list">
     <view wx:for="{{list}}" wx:key="id" class="item">
-      <view class="row1"><text class="name">{{item.course || '课程'}}</text></view>
-      <view class="row2"><text class="meta">学生 {{item.student || '-'}}</text><text class="meta">教师 {{item.teacher || '-'}}</text></view>
+      <view class="row1"><text class="name">{{item.course || terms.course}}</text></view>
+      <view class="row2"><text class="meta">{{terms.student}} {{item.student || '-'}}</text><text class="meta">{{terms.teacher}} {{item.teacher || '-'}}</text></view>
       <view class="row2"><text class="meta">时间 {{item.time || '-'}}</text></view>
     </view>
   </view>

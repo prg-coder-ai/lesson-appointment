@@ -12,7 +12,7 @@
         <text class="name">{{item.course || '课程'}}</text>
         <text class="status">{{item.statusText}}</text>
       </view>
-      <view class="row2"><text class="meta">学生 {{item.student || '-'}}</text><text class="meta">教师 {{item.teacher || '-'}}</text></view>
+      <view class="row2"><text class="meta">{{terms.student}} {{item.student || '-'}}</text><text class="meta">{{terms.teacher}} {{item.teacher || '-'}}</text></view>
       <view class="row2"><text class="meta">时间 {{item.time || '-'}}</text></view>
       <view class="actions" wx:if="{{item.status === 'booking'}}">
         <button class="btn ok" size="mini" data-id="{{item.id}}" data-action="booked" bindtap="audit">确认</button>

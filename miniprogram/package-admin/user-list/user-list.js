@@ -4,10 +4,11 @@
 import { requireAuth } from '../../core/auth.js';
 import { request } from '../../core/request.js';
 import { ENDPOINTS } from '../../shared/apiPaths.js';
+import { withTerms } from '../../core/term.js';
 
 const STATUS_TEXT = { 1: '正常', 0: '禁用', 2: '待审核' };
 
-Page({
+Page(withTerms({
   data: { role: 'teacher', roleText: '教师', list: [], loading: true, total: 0 },
   onLoad(options) {
     const u = requireAuth();
@@ -42,4 +43,4 @@ Page({
       wx.showToast({ title: (e && e.message) || '加载失败', icon: 'none' });
     }
   }
-});
+}));
