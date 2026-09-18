@@ -1,4 +1,4 @@
-import { login, getBoundTenantCode, goHome, wechatSilentLogin, bindWechat } from '../../core/auth.js';
+import { login, getBoundTenantCode, goHome } from '../../core/auth.js';
 import { term } from '../../core/term.js';
 import { clearSession, storage, getSession } from '../../core/storage.js';
 import { ROLES } from '../../shared/constants.js';
@@ -36,15 +36,9 @@ Page({
       boundTenantCode: bound,
       tenantCode: bound
     });
-    // 静默微信自动登录（非阻塞）：仅当无本地会话时尝试；后端未实现/未绑定则静默失败，
-    // 不影响下方表单正常显示与手动登录。已绑定的微信会直接进首页、跳过输入。
-    this.tryWechatAutoLogin();
-  },
-  // 非阻塞：后端无接口 / 未绑定 / 异常 → 返回 null，不干扰手动登录流程
-  async tryWechatAutoLogin() {
-    if (this._loginStarted) return;            // 用户已点登录则不再抢跳
-    const res = await wechatSilentLogin();     // 内部静默失败返回 null
-    if (res && !this._loginStarted) goHome();
+    // 暂不启用微信静默登录/绑定（用户确认先专注密码登录流程）：
+    // 不在此自动调用 wechatSilentLogin，避免无谓的 /auth/wechat-login 请求干扰调试。
+    // 待微信登录能力就绪后，可恢复 tryWechatAutoLogin() 调用。
   },
   toggleBindWechat() { this.setData({ bindWechat: !this.data.bindWechat }); },
   onAccount(e) { this.setData({ account: e.detail.value }); },
@@ -91,8 +85,7 @@ Page({
     try {
       const res = await login({ tenantCode: finalTenant, account, password, role });
       wx.showToast({ title: '登录成功', icon: 'success' });
-      // 仅当勾选"允许微信登录"才把当前微信绑定到账号（后端未实现静默失败，不影响已登录态）
-      if (this.data.bindWechat) bindWechat();
+      // 暂不启用微信绑定（用户确认先专注密码登录流程）；待微信能力就绪再接回 bindWechat()。
       setTimeout(() => goHome(), 400);
     } catch (e) {
       wx.showToast({ title: (e && e.message) || '登录失败', icon: 'none' });
