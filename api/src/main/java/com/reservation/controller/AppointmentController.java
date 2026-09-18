@@ -3,6 +3,7 @@ package  com.reservation.controller;
 import com.reservation.entity.Appointment;
 import com.reservation.dto.BookingDTO;//借用数据定义
 import com.reservation.service.AppointmentService;
+import com.reservation.service.LeaveRefundSettleService;
 import com.reservation.service.MessageNotifyService;
 import com.reservation.audit.Audit;
 import com.reservation.audit.AuditAction;
@@ -23,6 +24,10 @@ public class AppointmentController {
     private AppointmentService appointmentService;
     @Autowired
     private MessageNotifyService messageNotifyService;
+    @Autowired
+    private LeaveRefundSettleService leaveRefundSettleService;
+    @Autowired
+    private com.reservation.utils.PermissionCheck permissionCheck;
 
     /**
      * 1. 新增预约时间
@@ -88,19 +93,44 @@ public class AppointmentController {
 
       @PutMapping("/updateStatusById")
     @Audit(action = AuditAction.APPOINTMENT_NOTE, resourceType = "appointment")
-    public Result<Boolean> updateStatusById(@RequestBody BookingDTO  params) {
+    public Result<Boolean> updateStatusById(@RequestBody BookingDTO  params,
+                                           @RequestHeader(value = "Authorization", required = false) String token) {
         String id = params.getId();
         String status = params.getStatus();
         boolean ok = appointmentService.updateStatusById(Integer.parseInt(id), status);
         // 系统自动通知：管理员确认请假 → 该学生
+        Appointment appt = null;
         try {
-            Appointment appt = appointmentService.getById(Integer.parseInt(id));
+            appt = appointmentService.getById(Integer.parseInt(id));
             if (appt != null && appt.getBookingId() != null) {
                 // 只传语义动作码；「{leave}」由 MessageNotifyService 按租户渲染（教育「请假」/ 法律「改期」）
                 messageNotifyService.notifyStudentConfirmed(appt.getBookingId(), MessageNotifyService.ACTION_LEAVE);
             }
         } catch (Exception ignore) { /* 通知失败不影响主流程 */ }
+
+        // ===== 退改规则结算 =====
+        // 管理员确认请假（课次置为 cancelled）时，按「确认这一刻」的提前量重算退费档位，
+        // 并把结果交给预留的学生余额调整接口。内部已吞异常，这里再包一层双保险，
+        // 确保结算问题绝不让「确认请假」这个业务动作失败。
+        if (ok && isLeaveConfirmed(status)) {
+            try {
+                String operatorId = null;
+                if (token != null && !token.isBlank()) {
+                    try {
+                        operatorId = permissionCheck.getUserIdFromToken(token);
+                    } catch (Exception ignore) { /* 令牌解析失败不影响结算 */ }
+                }
+                leaveRefundSettleService.settleAfterLeaveConfirmed(Integer.parseInt(id), operatorId);
+            } catch (Exception e) {
+                log.warn("确认请假后的退费结算异常，已忽略：appointmentId={}, 原因={}", id, e.getMessage());
+            }
+        }
         return Result.success(ok, "ok");
+    }
+
+    /** 管理员确认学生请假后课次落到的状态（cancelled 为主，兼容 canceled 拼写） */
+    private boolean isLeaveConfirmed(String status) {
+        return "cancelled".equalsIgnoreCase(status) || "canceled".equalsIgnoreCase(status);
     }
     /**
      * 4. 根据ID查询单条

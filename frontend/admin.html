@@ -148,6 +148,18 @@
       </div>
        
       </div>
+
+      <div class="menu-group">
+        <div class="menu-group-title">系统配置</div>
+        <div class="menu-item" key="refund_rule">
+          <i class="fa fa-undo"></i>
+          <span>退改规则</span>
+        </div>
+        <div class="menu-item" key="notify_rule">
+          <i class="fa fa-bell"></i>
+          <span>通知规则</span>
+        </div>
+      </div>
     </aside>
 
     <!-- 主内容容器（包含标题和中央动态区域） -->
@@ -257,6 +269,14 @@
           break;
         case "audit_log":
           window.location.href = ((typeof window.pageUrl === 'function') ? window.pageUrl('auditLog.html') : './auditLog.html');
+          break;
+        // ===== 系统配置：退改规则（免责 / 部分退费 / 不退费的时间点） =====
+        case "refund_rule":
+          if (typeof renderRefundRulePage === 'function') renderRefundRulePage();//admin-refund-rule.js
+          break;
+        // ===== 系统配置：通知规则（上课提醒的时间点，替代原先写死在前端的 3天/1天/课前60分钟） =====
+        case "notify_rule":
+          if (typeof renderNotifyRulePage === 'function') renderNotifyRulePage();//admin-notify-rule.js
           break;
         case "base_config":
           if(dynamicContentCenter)
@@ -446,6 +466,10 @@
     <script src="js/admin-AppointmentNotes.js"></script>
 
     <script src="js/admin-dataMaintainPage.js"></script>
+    <!-- 系统配置 → 退改规则（免责/部分退费/不退费时间点）；依赖 appointmentNotes.js 的 registerPageRefresh -->
+    <script src="js/admin-refund-rule.js"></script>
+    <!-- 系统配置 → 通知规则（上课提醒时间点）；同样依赖 registerPageRefresh -->
+    <script src="js/admin-notify-rule.js"></script>
     <script src="js/test/testData.js"></script>
 
    <script>

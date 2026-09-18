@@ -118,6 +118,55 @@ public class MessageNotifyService {
     private static final String WAITLIST_PROMOTED_TAIL =
             "请在「今日{course}」中查看并按时{lesson}。";
 
+    /* ==================================================================
+     * 上课提醒（档位文案）
+     *
+     * 时间点由「系统配置 → 通知规则」配置（表 course_notify_rule / course_notify_rule_point），
+     * 由 NotifyTask 定时触发；管理员也可在课次上手动发送一次
+     * （手动发送的 dedup_key 取 MANUAL#时间戳，不受自动幂等约束，但仍入库可审计）。
+     *
+     * 口吻按档位递进：首次预告「温馨提醒」→ 再次预告「再次提醒」
+     * → 课前预告「请准时」→ 最后提示「请立即准备」，
+     * 让收到的人一眼看出紧迫程度，而不是四条一模一样的消息。
+     *
+     * 动态数据一律用 **非术语 key** 的占位符（{lessonAt} / {offsetText}）：
+     * {lessonTime} 本身是术语 key（取值「上课时间」），若拿它当动态数据的占位符，
+     * 插进词表 Map 时会把术语词覆盖掉——参考 WAITLIST_PROMOTED_FIRST 用 {firstLesson} 的同款规避。
+     * ================================================================== */
+
+    private static final String REMIND_FIRST_TITLE = "{courseName}{lesson}预告";
+    private static final String REMIND_FIRST_BODY =
+            "温馨提醒：本节{course}将在{offsetText}后开始（{lessonAt}），请提前安排时间。";
+
+    private static final String REMIND_AGAIN_TITLE = "{courseName}{lesson}预告";
+    private static final String REMIND_AGAIN_BODY =
+            "再次提醒：本节{course}将在{offsetText}后开始（{lessonAt}），请留意时间安排。";
+
+    private static final String REMIND_SOON_TITLE = "{courseName}{lesson}即将开始";
+    private static final String REMIND_SOON_BODY =
+            "本节{course}将在{offsetText}后开始（{lessonAt}），请准时{lesson}。";
+
+    private static final String REMIND_FINAL_TITLE = "{courseName}{lesson}即将开始（最后提示）";
+    private static final String REMIND_FINAL_BODY =
+            "最后提示：本节{course}将在{offsetText}后开始（{lessonAt}），请立即准备。";
+
+    /**
+     * 上课提醒的消息分类编码。
+     *
+     * <p>取平台预置的 {@code SYSTEM_SCHEDULE}（父级「系统通知」）而不是 {@code CLASS_NOTICE}：
+     * 后者父级是「教师/管理员消息」，而上课提醒同时发给学生与教师，学生收到一条挂在
+     * 「教师/管理员消息」下的通知会让人困惑。分类是预置数据，编码写错 message-service 会
+     * 返回 code!=200 且 HTTP 仍是 200——本类已按 body.code 判定，不会静默记成功。
+     */
+    private static final String CATEGORY_CLASS_NOTICE = "SYSTEM_SCHEDULE";
+
+    /** 以 system 身份发送时的 JWT 主体（message-service 的 RoleConst.SYSTEM 已放行系统通知端点） */
+    private static final String SYSTEM_PRINCIPAL = "system";
+
+    private static final String STAGE_PRE_FIRST = "PRE_FIRST";
+    private static final String STAGE_PRE_SOON = "PRE_SOON";
+    private static final String STAGE_FINAL_CALL = "FINAL_CALL";
+
     private RestTemplate restTemplate;
 
     public MessageNotifyService(JwtUtil jwtUtil, UserService userService, BookingMapper bookingMapper) {
@@ -260,8 +309,61 @@ public class MessageNotifyService {
                 "MEDIUM", "TENANT_PACKAGE_CHANGED");
     }
 
-    // ============ 内部工具 ============
+    /**
+     * 上课提醒 → 指定收件人（发送者身份 = system，故不依赖登录上下文，定时任务可直接调用）。
+     *
+     * <p><b>为什么走 /system 而不是 /send</b>：/send 的发送者取自请求头 JWT，而定时任务没有 HTTP 请求；
+     * 若退而求其次拿某个管理员或学生当发送者，消息的「发件人」就会随机化且不稳定。
+     * message-service 的 {@code RoleConst.SYSTEM} 正是为「业务系统触发」预留的。
+     *
+     * <p>本方法只负责「渲染 + 投递」，不管幂等也不管收件人筛选：
+     * 幂等由调用方先在 {@code notification_dispatch_log} 抢到那一行来保证（插入成功才轮到推送），
+     * 收件人由调用方按 {@code audience} 从订单上取学生/教师。
+     *
+     * @param tenantId       目标租户（消息归属与词表都按它取）
+     * @param recipientIds   收件人用户ID
+     * @param stage          档位码，决定用哪套文案
+     * @param courseName     课程名（放进标题，让管理端消息列表一眼看出是哪门课）
+     * @param offsetText     提前量文案，如「3 天」「30 分钟」
+     * @param lessonAtText   上课时间文案
+     * @return true = 已成功投递给 message-service；false = 失败（调用方据此把流水标 FAILED）
+     */
+    public boolean notifyLessonReminder(Long tenantId, List<String> recipientIds, String stage,
+                                        String courseName, String offsetText, String lessonAtText) {
+        if (recipientIds == null || recipientIds.isEmpty()) {
+            return false;
+        }
+        String titleTpl;
+        String bodyTpl;
+        String s = stage == null ? "" : stage.trim().toUpperCase();
+        if (STAGE_PRE_FIRST.equals(s)) {
+            titleTpl = REMIND_FIRST_TITLE;
+            bodyTpl = REMIND_FIRST_BODY;
+        } else if (STAGE_PRE_SOON.equals(s)) {
+            titleTpl = REMIND_SOON_TITLE;
+            bodyTpl = REMIND_SOON_BODY;
+        } else if (STAGE_FINAL_CALL.equals(s)) {
+            titleTpl = REMIND_FINAL_TITLE;
+            bodyTpl = REMIND_FINAL_BODY;
+        } else {
+            titleTpl = REMIND_AGAIN_TITLE;
+            bodyTpl = REMIND_AGAIN_BODY;
+        }
 
+        // 术语词与动态数据合并成一张 Map 一次性渲染：
+        // 数据值里即使含 {xxx} 也不会被二次展开（renderTemplate 单遍扫描），
+        // 故课程名恰好叫「{course}」也不会把消息内容改坏。
+        Map<String, String> vars = new LinkedHashMap<>(termService.getTermMap(tenantId, null));
+        vars.put("courseName", courseName == null || courseName.isEmpty() ? "" : courseName);
+        vars.put("offsetText", offsetText == null ? "" : offsetText);
+        vars.put("lessonAt", lessonAtText == null ? "" : lessonAtText);
+
+        String title = termService.renderTemplate(titleTpl, vars);
+        String content = termService.renderTemplate(bodyTpl, vars);
+        return sendAsSystem(tenantId, recipientIds, title, content, CATEGORY_CLASS_NOTICE);
+    }
+
+    // ============ 内部工具 ============
     /**
      * 按目标租户的词表渲染通知文案（{@code {course}} / {@code {lesson}} / {@code {student}}
      * / {@code {leave}} / {@code {schedule}} 等占位符，租户词 &gt; 行业词 &gt; 平台词）。
@@ -336,6 +438,56 @@ public class MessageNotifyService {
             log.info("消息自动发送成功 -> 接收人{}, 场景{}", recipientIds, categoryCode);
         } catch (Exception e) {
             log.warn("消息自动发送失败(已忽略): {} | 接收人={}, 场景={}", e.getMessage(), recipientIds, categoryCode);
+        }
+    }
+
+    /**
+     * 以 system 身份调用 message-service 的 {@code /api/v1/messages/system}。
+     *
+     * <p>与 {@link #send} 的差别只有两点：端点不同（系统通知端点，服务端会把 senderRole 落成 system）、
+     * 发送者不是某个真实用户而是 {@code system}。其余（现签令牌、body.code 判定、best-effort）完全一致。
+     *
+     * <p><b>返回值是本次新增的语义</b>：{@link #send} 历来是 void（业务钩子的失败不影响主流程），
+     * 但上课提醒的失败必须让调用方知道，好在流水表里把该行标成 FAILED——
+     * 否则「已发送」的记录会掩盖「其实没发出去」，事后无从追查。
+     */
+    private boolean sendAsSystem(Long tenantId, List<String> recipientIds,
+                                 String title, String content, String categoryCode) {
+        if (recipientIds == null || recipientIds.isEmpty()) {
+            return false;
+        }
+        try {
+            Long tenant = tenantId == null ? 0L : tenantId;
+            String token = jwtUtil.generateToken(tenant, SYSTEM_PRINCIPAL, SYSTEM_PRINCIPAL);
+            Map<String, Object> body = new HashMap<>();
+            body.put("title", title);
+            body.put("content", content == null ? "" : content);
+            body.put("priority", "MEDIUM");
+            if (categoryCode != null) {
+                body.put("categoryCode", categoryCode);
+            }
+            body.put("recipientUserIds", recipientIds);
+            body.put("broadcast", Boolean.FALSE);
+            // 显式带上目标租户：system 身份下 message-service 优先取本字段决定消息归属
+            body.put("targetTenantId", tenant);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(token);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+            ResponseEntity<Map> resp = restTemplate.postForEntity(
+                    baseUrl + "/api/v1/messages/system", entity, Map.class);
+            Map<?, ?> rb = resp.getBody();
+            Object code = rb == null ? null : rb.get("code");
+            if (code != null && !"200".equals(String.valueOf(code))) {
+                log.warn("上课提醒发送被拒 -> code={}, message={} | 接收人={}, 租户={}",
+                        code, rb.get("message"), recipientIds, tenant);
+                return false;
+            }
+            log.info("上课提醒已发送 -> 租户{}, 接收人{}, 标题={}", tenant, recipientIds, title);
+            return true;
+        } catch (Exception e) {
+            log.warn("上课提醒发送失败: {} | 接收人={}, 租户={}", e.getMessage(), recipientIds, tenantId);
+            return false;
         }
     }
 

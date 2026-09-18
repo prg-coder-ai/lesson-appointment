@@ -189,6 +189,174 @@ async function datamaintain_fetchAppointmenPage(query) {
   }
 }
  
+   // ========================================================================
+   // 退改规则提示（学生请假前 / 管理员审核确认前共用）
+   // ------------------------------------------------------------------------
+   // 判定一律由服务端算（/refund-rule/hint），前端不自己算时间差 ——
+   // 客户端时钟不准或时区处理不一致时，前端算出的档位会和服务端、和审核人看到的对不上。
+   // ========================================================================
+
+   /**
+    * 取某课次的退改规则提示。
+    * @returns {Promise<Object|null>} 失败返回 null（不打断请假流程，只是不给提示）
+    */
+   async function fetchRefundHintForAppointment(appointmentId) {
+     try {
+       return await request({
+         url: `${API_BASE_URL}/refund-rule/hint`,
+         method: 'get',
+         params: { appointmentId: appointmentId },
+         customErrorMsg: false   // 提示失败由弹窗自己说明，不再叠一层全局错误条
+       });
+     } catch (e) {
+       console.error('fetchRefundHintForAppointment', e);
+       return null;
+     }
+   }
+
+   function escapeRefundText(text) {
+     if (text === null || text === undefined) return '';
+     return String(text)
+       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+   }
+
+   /** 档位配色：免责绿 / 部分退费橙 / 不退费与已过时红 */
+   function refundLevelColor(level) {
+     if (level === 'free') return '#3a8a3a';
+     if (level === 'partial') return '#c0871b';
+     if (level === 'none' || level === 'past') return '#c0392b';
+     return '#5a6472';
+   }
+
+   /**
+    * 退改规则提示弹窗（Promise<boolean>：true=用户点了"继续"）。
+    *
+    * 用原生 DOM + 内联样式，不依赖各页面自己的弹窗 CSS ——
+    * 学生页/教师页/管理页三套样式表不同，引用页面类名会在某一页上失效。
+    * 也不放进 overflow:auto 的内容容器里，避免被裁切。
+    */
+   function showRefundRuleDialog(hint, options) {
+     var opts = options || {};
+     var title = opts.title || '退改规则提示';
+     var confirmText = opts.confirmText || '继续';
+     var intro = opts.intro || '';
+
+     return new Promise(function (resolve) {
+       var mask = document.createElement('div');
+       mask.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;' +
+         'background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:10000;';
+
+       var box = document.createElement('div');
+       box.style.cssText = 'width:92%;max-width:520px;background:#fff;border-radius:8px;padding:20px 22px;' +
+         'box-shadow:0 6px 24px rgba(0,0,0,0.18);font-size:14px;color:#2c3542;';
+
+       var head = '<div style="display:flex;justify-content:space-between;align-items:center;' +
+         'border-bottom:1px solid #eee;padding-bottom:8px;margin-bottom:12px;">' +
+         '<div style="font-weight:600;font-size:15px;">' + escapeRefundText(title) + '</div>' +
+         '<span id="refundRuleDialogClose" style="cursor:pointer;color:#999;font-size:16px;">✕</span></div>';
+
+       var body = '';
+       if (intro) {
+         body += '<div style="color:#5a6472;margin-bottom:10px;line-height:1.7;">' + escapeRefundText(intro) + '</div>';
+       }
+
+       if (!hint) {
+         body += '<div style="padding:10px 14px;background:#fff8e6;border:1px solid #ffe0a3;' +
+           'border-radius:6px;color:#8a5a00;line-height:1.8;">' +
+           '未能获取该课次的退改规则提示（可能是网络问题或该课次已被处理）。' +
+           '你仍可继续，但请自行确认退改条件。</div>';
+       } else {
+         var color = refundLevelColor(hint.level);
+         body += '<div style="padding:12px 14px;background:#f6f8fa;border:1px solid #e3e8ee;' +
+           'border-radius:6px;line-height:1.9;">';
+         if (hint.courseName) {
+           body += '<div>课程：<b>' + escapeRefundText(hint.courseName) + '</b></div>';
+         }
+         if (hint.lessonTime) {
+           body += '<div>课次时间：<b>' + escapeRefundText(hint.lessonTime) + '</b></div>';
+         }
+         body += '<div>距上课还有：<b>' + escapeRefundText(hint.aheadText || '-') + '</b></div>';
+         body += '<div>判定档位：<b style="color:' + color + ';">' +
+           escapeRefundText(hint.levelText || '-') + '</b>' +
+           (hint.refundPercent === null || hint.refundPercent === undefined
+             ? '' : '（退费比例 <b>' + hint.refundPercent + '%</b>）') + '</div>';
+         body += '<div>适用规则：' + escapeRefundText(hint.scopeText || '-') + '</div>';
+         body += '</div>';
+
+         if (hint.ruleText) {
+           body += '<div style="margin-top:10px;font-size:12px;color:#8a94a6;">三档规则：' +
+             escapeRefundText(hint.ruleText) + '</div>';
+         }
+         if (hint.fallbackNotice) {
+           body += '<div style="margin-top:8px;font-size:12px;color:#c0871b;">' +
+             escapeRefundText(hint.fallbackNotice) + '</div>';
+         }
+         // 余额体系尚未落地时明确告知用户"退费尚未入账"，避免用户以为钱已到账
+         if (hint.refundPercent !== null && hint.refundPercent !== undefined && hint.refundPercent > 0) {
+           body += '<div style="margin-top:10px;padding:8px 12px;background:#fffaf0;' +
+             'border:1px solid #ffe0a3;border-radius:6px;font-size:12px;color:#8a5a00;line-height:1.7;">' +
+             '退费金额由管理员审核确认后登记。当前系统尚未开通在线余额账户，' +
+             '实际退还方式请与机构确认。</div>';
+         }
+       }
+
+       var foot = '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">' +
+         '<button id="refundRuleDialogCancel" class="btn btn-default" ' +
+         'style="padding:8px 16px;border:1px solid #d9dee5;background:#fff;border-radius:4px;cursor:pointer;">取消</button>' +
+         '<button id="refundRuleDialogOk" class="btn btn-primary" ' +
+         'style="padding:8px 16px;border:1px solid #1a6fd4;background:#1a6fd4;color:#fff;border-radius:4px;cursor:pointer;">' +
+         escapeRefundText(confirmText) + '</button></div>';
+
+       box.innerHTML = head + body + foot;
+       mask.appendChild(box);
+       document.body.appendChild(mask);
+
+       function done(val) {
+         if (mask.parentNode) mask.parentNode.removeChild(mask);
+         document.removeEventListener('keydown', onKey);
+         resolve(val);
+       }
+       function onKey(e) { if (e.key === 'Escape') done(false); }
+
+       box.querySelector('#refundRuleDialogOk').addEventListener('click', function () { done(true); });
+       box.querySelector('#refundRuleDialogCancel').addEventListener('click', function () { done(false); });
+       box.querySelector('#refundRuleDialogClose').addEventListener('click', function () { done(false); });
+       mask.addEventListener('click', function (e) { if (e.target === mask) done(false); });
+       document.addEventListener('keydown', onKey);
+     });
+   }
+
+   /**
+    * 学生点「请假」：先展示退改规则提示，用户确认后再提交申请。
+    * 原来是一点就直接把状态改成 cancelling，学生完全看不到自己会承担什么退改代价。
+    */
+   async function studentApplyLeaveWithRule(appointmentId) {
+     const hint = await fetchRefundHintForAppointment(appointmentId);
+     const ok = await showRefundRuleDialog(hint, {
+       title: '提交前请确认退改规则',
+       intro: '提交后课次进入「取消待确认」，需等待管理员审核确认。',
+       confirmText: '确认提交'
+     });
+     if (!ok) return;
+     await setApointmentStatusAndReload(appointmentId, "cancelling");
+   }
+
+   /**
+    * 管理员点「确认」请假：先把该课次的退费档位摆出来，确认后再落库。
+    * 审核人据此判断是否该退、退多少，避免"点了确认才发现早过了免责线"。
+    */
+   async function adminConfirmLeaveWithRule(appointmentId) {
+     const hint = await fetchRefundHintForAppointment(appointmentId);
+     const ok = await showRefundRuleDialog(hint, {
+       title: '审核确认前请核对退费档位',
+       intro: '确认后该课次将被取消，并按下列档位登记退费。档位按「此刻」的提前量重新计算，可能与学生申请时不同。',
+       confirmText: '确认请假'
+     });
+     if (!ok) return;
+     await confirmCancellingAppointment(appointmentId, true);
+   }
+
    //显示待确认预约
  async function showAppointmentList(appointmentList,id){
     //   const id = "pending-reservations";
@@ -310,7 +478,7 @@ async function datamaintain_fetchAppointmenPage(query) {
                   : ` `
               }
               ${ (userRole == "admin" && cardInfo.status=="cancelling")?
-                 `   <button class="btn btn-success" onclick='confirmCancellingAppointment(${cardInfo.appointmentId},true)'><i class="fa fa-check"></i>确认</button>  
+                 `   <button class="btn btn-success" onclick='adminConfirmLeaveWithRule(${cardInfo.appointmentId})'><i class="fa fa-check"></i>确认</button>  
                      <button class="btn btn-success" onclick='confirmCancellingAppointment(${cardInfo.appointmentId},false)'><i class="fa fa-uncheck"></i>取消</button>  
                      `
                   : ` `
@@ -336,7 +504,7 @@ async function datamaintain_fetchAppointmenPage(query) {
                : ` `
            }
              ${ (userRole == "student" && cardInfo.status !="cancelling")?
-              `   <button class="btn btn-success" onclick='setApointmentStatusAndReload(${cardInfo.appointmentId},"cancelling")'><i class="fa fa-check"></i>请假</button>                    
+              `   <button class="btn btn-success" onclick='studentApplyLeaveWithRule(${cardInfo.appointmentId})'><i class="fa fa-check"></i>请假</button>                    
                   `
                : ` `
            } 
@@ -880,5 +1048,11 @@ function goToStudentMyBooking() {
 
 window.renderWaitlistBanner = renderWaitlistBanner;
 window.goToStudentMyBooking = goToStudentMyBooking;
+
+// 退改规则提示相关（按钮 onclick 里按名字调用，显式挂到 window 防止将来被包进 IIFE）
+window.fetchRefundHintForAppointment = fetchRefundHintForAppointment;
+window.showRefundRuleDialog = showRefundRuleDialog;
+window.studentApplyLeaveWithRule = studentApplyLeaveWithRule;
+window.adminConfirmLeaveWithRule = adminConfirmLeaveWithRule;
 
  
