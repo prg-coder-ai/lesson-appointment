@@ -102,6 +102,33 @@ public class BookingSeatService {
         return ids == null ? 0 : ids.size();
     }
 
+    /**
+     * 校验「把席位总数改成 newSites」是否安全——不得低于当前已占席位数。
+     *
+     * <p>与 {@link #assertSeatsAvailable} 共用同一把排期行锁，因此「调小容量」与「新增占位」
+     * 天然互斥，不会出现「刚判定可以调小、同一瞬间又有人占进来」的窗口。
+     *
+     * <h3>为什么必须有这道校验</h3>
+     * 闸门原先只管「新增占位」，不管「容量本身被改小」。管理员把总席位从 5 改到 3，
+     * 而排期里已经坐着 4 个人，就得到 4 &gt; 3 —— 席位超卖。而且这是<b>顺序操作就能触发</b>的，
+     * 不需要并发，所以单靠锁是防不住的，必须显式比较新容量与已占位数。
+     *
+     * @param scheduleId 目标排期ID
+     * @param newSites   期望的席位总数（由调用方算好：当前值 + 增量）
+     */
+    public void assertSitesNotBelowOccupied(String scheduleId, int newSites) {
+        if (newSites < 0) {
+            throw new BusinessException(TermMsg.t("席位总数不能为负数"));
+        }
+        // 先排期行锁、再锁定读计数——顺序与 assertSeatsAvailable 保持一致，避免死锁
+        lockScheduleAndAssertExists(scheduleId);
+        int occupied = countOccupyingForUpdate(scheduleId, null);
+        if (newSites < occupied) {
+            throw new BusinessException(TermMsg.t("该{schedule}已有 " + occupied
+                    + " 个占位，席位总数不能小于已占数量"));
+        }
+    }
+
     /** 仅用于展示的实时占位数（非锁定读，不需要事务） */
     public int countOccupying(String scheduleId) {
         return bookingMapper.countBookingByScheduleId(scheduleId, BookingStatus.NON_OCCUPYING, null);

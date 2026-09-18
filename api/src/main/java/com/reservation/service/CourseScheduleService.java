@@ -214,8 +214,19 @@ public class CourseScheduleService {
   @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public Map<String, String> update(ScheduleCreateDTO dto) { 
         //  System.out .println("update : " +dto); 
+          // 席位字段可空，语义是「本次不改席位」。必须先取排期行锁并沿用库中现值：
+          // CreateDtoToObject 会给 int 字段填兜底默认值，不处理的话，一次没带席位的普通编辑
+          // 就会把容量整体改写成那个默认值；显式改小时则要求不低于已占位数，否则改完立即超卖。
+          CourseSchedule current = bookingSeatService.lockScheduleAndAssertExists(dto.getScheduleId());
+          Integer newSites = dto.getAvailableSites();
+          if (newSites != null && newSites != current.getAvailableSites()) {
+              bookingSeatService.assertSitesNotBelowOccupied(dto.getScheduleId(), newSites);
+          }
           CourseSchedule schedule = CreateDtoToObject(dto);     
          // System.out .println("update : " + schedule); 
+          if (newSites == null) {
+              schedule.setAvailableSites(current.getAvailableSites());
+          }
           scheduleMapper.updateById (schedule);
         return Collections.singletonMap("Id", dto.getScheduleId());
     }
@@ -224,7 +235,17 @@ public class CourseScheduleService {
   @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public String updateScheduleSites(IncSiteBody Obj) {
          //log.debug("updateScheduleSites : " +Obj);         
-         scheduleMapper.updateSites(Obj);
+         // 席位调整必须过闸门：先锁排期行，再按已占位数校验新容量。
+         // 原先是无条件 available_sites = available_sites + inc，可以一路减到低于已占位数、
+         // 甚至负数（列是 tinyint，允许负值），把「满员」改成「超员」——这是顺序操作即可触发的超卖。
+         CourseSchedule current = bookingSeatService.lockScheduleAndAssertExists(Obj.getScheduleId());
+         bookingSeatService.assertSitesNotBelowOccupied(
+                 Obj.getScheduleId(), current.getAvailableSites() + Obj.getInc());
+         int rows = scheduleMapper.updateSites(Obj);
+         if (rows == 0) {
+             // SQL 侧的下界兜底拦下了这次调整（正常路径不会走到这里，走到了说明校验被绕过）
+             throw new BusinessException(TermMsg.t("该{schedule}席位调整失败，请刷新后重试"));
+         }
         return Obj.getScheduleId();
     }
 
@@ -351,7 +372,11 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
  
     cs.setRepeatType(dto.getRepeatType() == null ? 0 : dto.getRepeatType());
     cs.setRepeatInterval(dto.getRepeatInterval() == null ? 0 : dto.getRepeatInterval());
-    cs.setAvailableSites(dto.getAvailableSites());
+    // 席位总数：dto 里是 Integer（可空），实体是 int（不可空）。
+    // 直接 setAvailableSites(dto.getAvailableSites()) 在当前端未传该字段时拆箱 NPE（500）。
+    // 缺省为 1 与实体注释、DB 列 DEFAULT '1' 保持一致。
+    // 注意：编辑排期时若 dto 未传，update() 会用库中现值覆盖这里，不会把容量重置成 1。
+    cs.setAvailableSites(dto.getAvailableSites() == null ? 1 : dto.getAvailableSites());
     // 将 List<Integer> repeatDays 转为字符串存储（如 "1,3,5"）
     if (dto.getRepeatDays() != null && !dto.getRepeatDays().isEmpty()) {
         cs.setRepeatDays(dto.getRepeatDays().stream().map(String::valueOf).collect(Collectors.joining(",")));
@@ -411,6 +436,11 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
       // 1. 同一学生同一排期只应存在一条 booking。
       //    原实现无条件 insert：候补转正后再点「指定学生」会多出一条记录，
       //    同一学生同一排期出现两条 booked，席位被重复占用。
+      //
+      //    查重必须落在排期行锁**之内**：排期锁把并发的「指定学生」串行化，后到的请求
+      //    才能看到先到者刚插入的那一行；若像原先那样先普通读查重、再进闸门拿锁，
+      //    两个并发请求都会读到 null，各自走 insert 分支，锁完全覆盖不到这次判断。
+      bookingSeatService.lockScheduleAndAssertExists(scheduleId);
       Booking existing = bookingMapper.selectLatestByScheduleAndStudent(scheduleId, studentId);
       String bookingId;
       if (existing != null) {

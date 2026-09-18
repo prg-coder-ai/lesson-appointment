@@ -96,10 +96,16 @@
         SELECT COUNT(*) FROM course_schedule
     </select>
        
+    <!-- 席位调整（增量）。业务侧已由 BookingSeatService.assertSitesNotBelowOccupied 校验
+         「新容量不得低于已占位数」，这里再加一道纯 SQL 下界防线：
+         available_sites 是 tinyint，允许负值，一旦被减到负数，该排期会永久拒绝新预定
+         （闸门里 totalSites <= 0 直接抛异常），且已占位数恒大于容量 = 超卖。
+         影响行数为 0 时调用方须视为失败。 -->
     <update id="updateSites" parameterType="com.reservation.dto.IncSiteBody">
         UPDATE course_schedule
         SET available_sites = available_sites + #{inc}
         WHERE schedule_id = #{scheduleId}
+          AND available_sites + #{inc} >= 0
     </update>
     
      <update id="updateStatus" parameterType="com.reservation.dto.StatusBody">

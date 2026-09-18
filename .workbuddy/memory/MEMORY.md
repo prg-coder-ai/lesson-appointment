@@ -30,6 +30,11 @@
 ## 候补/递补
 - waiting─递补─►booked；取消 booked→canceling/cancelling→cancelled。占位单一来源 BookingStatus.NON_OCCUPYING（canceling/cancelling 仍占位；frozen=删除也归非占位）。闸门 BookingSeatService 覆盖5条写路径，并发靠排期行锁+锁定读计数+CAS。递补入口排期维度。
 
+## 名额并发（超卖）
+- 闸门 857a233(2026-09-11) 引入。防线：排期行锁 selectByIdForUpdate + booking 锁定读 selectOccupyingBookingIdsForUpdate（禁用 COUNT+FOR UPDATE）+ 加锁顺序统一"排期行→booking 行"+ CAS。booking 写操作全工程仅 10 处（BookingService 8 / CourseScheduleService 2）。
+- 闸门只覆盖"预定/改订/状态回置/递补/指定学生"5 条路径；**席位容量本身可被改小而不校验已占位数**：P0 updateScheduleSites(xml:99 无下界，tinyint(1) 可负)、P1 排期编辑 update+CreateDtoToObject:354(Integer→int 拆箱 NPE + 覆盖)、P1 create 无同学生去重。容量口径 available_sites = 总席位（非剩余），DDL 注释"剩余席位"是错的。
+- 误判排除：countBookingByScheduleIdIgnoreTenant 只服务公开只读展示；/api/v1/course/booking/* 不在白名单故必有租户上下文，计数不会恒 0。
+
 ## SSE
 - pushToUser 的 catch 生效；异常在 GlobalExceptionHandler 异步收尾重放（堆栈带 pushToUser 帧，易误判）。other handler 须先判 response.isCommitted()；connect 覆盖旧 emitter 必 old.complete()。
 

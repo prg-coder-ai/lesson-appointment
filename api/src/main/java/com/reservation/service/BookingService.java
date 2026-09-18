@@ -40,11 +40,36 @@ public class BookingService {
 
     @Transactional(rollbackFor = Exception.class)
     public String create(Booking booking) {
+        // 第一步先取排期行锁，把「查重 → 名额校验 → 落库」整段串行化到同一把锁上。
+        // 为什么查重必须在锁内：前端防重复点击挡不住超时重试、F5 重放、双开标签页。
+        // 两个并发提交都会读到「该学生在本排期没有记录」，于是各插一条 booked、吃掉两个席位
+        // （总席位没超额，但其他学生白白少一位）。排期锁让后到的请求能看到先到者写入的行。
+        String scheduleId = booking.getScheduleId();
+        bookingSeatService.lockScheduleAndAssertExists(scheduleId);
+
+        // 同一学生同一排期只应占一个席位。
+        Booking existing = bookingMapper.selectLatestByScheduleAndStudent(scheduleId, booking.getStudentId());
+        if (existing != null && BookingStatus.occupiesSeat(existing.getStatus())) {
+            throw new BusinessException(TermMsg.t("该{student}已预约此{schedule}，请勿重复提交"));
+        }
+
         // 服务端名额校验。学生端「剩余席位=0 就不让点预定」只是 UI 层约束，
         // 直接调接口或并发提交仍可超额，这里才是真正的闸门。
         // 候补(waiting)不占席位，故不校验（assertSeatsAvailable 内部按目标状态放行）。
         bookingSeatService.assertSeatsAvailable(
-                booking.getScheduleId(), null, booking.getStatus(), "可申请候补");
+                scheduleId, existing == null ? null : existing.getBookingId(),
+                booking.getStatus(), "可申请候补");
+
+        if (existing != null) {
+            // 复用已有的非占位记录（候补转正 / 取消后重新预约）而不是新插一条，
+            // 与「指定学生」的语义保持一致，避免同一学生同一排期堆出多行历史。
+            // status 为空时显式落 booked，与 DB 列 DEFAULT 'booked' 的语义一致
+            // （updateStatus 不做默认值兜底，传 null 会写进 NOT NULL 列报错）。
+            String targetStatus = (booking.getStatus() == null || booking.getStatus().trim().isEmpty())
+                    ? BookingStatus.BOOKED : booking.getStatus();
+            bookingMapper.updateStatus(existing.getBookingId(), targetStatus);
+            return existing.getBookingId();
+        }
 
         String id = UUID.randomUUID().toString().replace("-", ""); // 移除UUID分隔符
         booking.setBookingId(id);
@@ -71,6 +96,23 @@ public class BookingService {
         if (BookingStatus.occupiesSeat(targetStatus)
                 && (scheduleChanged || !BookingStatus.occupiesSeat(current.getStatus()))) {
             bookingSeatService.assertSeatsAvailable(targetScheduleId, id, targetStatus, "可申请候补");
+        }
+
+        // 状态变更走 CAS：只有库里状态仍等于上面读到的那一次值，才允许更新。
+        // 原先是无条件 updateById，两个并发编辑会互相覆盖；更要紧的是「是否转入占位」这个判断
+        // 基于 current 这次普通读的快照，若期间该预订已被他人取消、腾出的席位又被候补递补占走，
+        // 这次覆盖式写回 booked 就会凭空多出一个占位（4 个人坐 3 个位）。
+        // 影响行数为 0 说明状态已被他人改过，抛错让前端刷新重试，绝不硬写。
+        //
+        // 注意：CAS 成功后**不要**把 booking.status 置 null 再交给 updateById——当调用方只传了
+        // status 一个字段时（管理端改状态就是这种载荷），置 null 会让 updateById 的 SET 子句为空、
+        // 拼出 `UPDATE booking WHERE booking_id=?` 直接报语法错。这里让 updateById 照原样再写一次
+        // 同值即可：CAS 已持该行 X 锁，同一事务内不存在被他人插队的窗口。
+        if (!Objects.equals(targetStatus, current.getStatus())) {
+            int rows = bookingMapper.updateStatusIfCurrent(id, current.getStatus(), targetStatus);
+            if (rows == 0) {
+                throw new BusinessException(TermMsg.t("该预订已被他人修改，请刷新后重试"));
+            }
         }
 
         bookingMapper.updateById(booking);
@@ -106,7 +148,13 @@ public class BookingService {
                       current.getScheduleId(), id, status, "可申请候补");
           }
 
-          bookingMapper.updateStatus(id, status);
+          // CAS：库里状态仍等于刚才读到的值才更新。并发的两个状态变更（例如一个取消、一个确认）
+          // 原会各自成功、后写者覆盖先写者，最终「占不占席位」与操作意图对不上。
+          // 影响行数为 0 说明已被他人改过，抛错让前端刷新重试，不硬写。
+          int rows = bookingMapper.updateStatusIfCurrent(id, current.getStatus(), status);
+          if (rows == 0) {
+              throw new BusinessException(TermMsg.t("该预订已被他人修改，请刷新后重试"));
+          }
         return id;
     }
 
