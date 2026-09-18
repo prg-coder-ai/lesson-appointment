@@ -1,0 +1,18 @@
+<view class="page">
+  <view class="bar"><text class="bar-title">课程模板</text></view>
+
+  <view wx:if="{{loading}}" class="center">加载中…</view>
+  <view wx:elif="{{list.length === 0}}" class="center">暂无模板</view>
+  <view wx:else class="list">
+    <view wx:for="{{list}}" wx:key="id" class="item">
+      <view class="row1">
+        <text class="name">{{item.lang || '语言'}} · {{item.level || '等级'}}</text>
+      </view>
+      <view class="row2">
+        <text class="meta">形式 {{item.form || '-'}}</text>
+        <text class="meta">时长 {{item.duration || '-'}}</text>
+        <text class="meta">费用 {{item.fee != '' ? item.fee : '-'}}</text>
+      </view>
+    </view>
+  </view>
+</view>

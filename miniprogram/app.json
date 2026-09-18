@@ -15,7 +15,19 @@
     },
     {
       "root": "package-admin",
-      "pages": ["home/home", "dashboard/dashboard"]
+      "pages": [
+        "home/home",
+        "dashboard/dashboard",
+        "user-list/user-list",
+        "course-list/course-list",
+        "schedule/schedule",
+        "booking-audit/booking-audit",
+        "course-template/course-template",
+        "sensitive/sensitive",
+        "lesson-notice/lesson-notice",
+        "data-maintain/data-maintain",
+        "audit-log/audit-log"
+      ]
     },
     {
       "root": "package-message",

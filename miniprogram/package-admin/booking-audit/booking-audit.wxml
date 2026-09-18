@@ -1,0 +1,27 @@
+<view class="page">
+  <view class="tabs">
+    <view wx:for="{{filters}}" wx:key="key" wx:for-item="f"
+      class="tab {{filter === f.key ? 'on' : ''}}" data-f="{{f.key}}" bindtap="onFilter">{{f.text}}</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="center">加载中…</view>
+  <view wx:elif="{{list.length === 0}}" class="center">暂无预订</view>
+  <view wx:else class="list">
+    <view wx:for="{{list}}" wx:key="id" class="item">
+      <view class="row1">
+        <text class="name">{{item.course || '课程'}}</text>
+        <text class="status">{{item.statusText}}</text>
+      </view>
+      <view class="row2"><text class="meta">学生 {{item.student || '-'}}</text><text class="meta">教师 {{item.teacher || '-'}}</text></view>
+      <view class="row2"><text class="meta">时间 {{item.time || '-'}}</text></view>
+      <view class="actions" wx:if="{{item.status === 'booking'}}">
+        <button class="btn ok" size="mini" data-id="{{item.id}}" data-action="booked" bindtap="audit">确认</button>
+        <button class="btn no" size="mini" data-id="{{item.id}}" data-action="rej-booking" bindtap="audit">拒绝</button>
+      </view>
+      <view class="actions" wx:elif="{{item.status === 'cancelling'}}">
+        <button class="btn ok" size="mini" data-id="{{item.id}}" data-action="cancelled" bindtap="audit">确认取消</button>
+        <button class="btn no" size="mini" data-id="{{item.id}}" data-action="rej-cancelling" bindtap="audit">拒绝取消</button>
+      </view>
+    </view>
+  </view>
+</view>

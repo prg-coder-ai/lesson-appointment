@@ -59,6 +59,15 @@ export const ENDPOINTS = {
   // —— 管理端概览（业务端）——
   DASHBOARD_OVERVIEW: '/api/v1/dashboard/overview',
   DASHBOARD_TENANT_USAGE: (tid) => `/api/v1/dashboard/tenant/${tid}/usage`,
+  // —— 租户级月度统计（数据总览，对应网页版 admin.html，经租户插件自动按当前租户隔离）——
+  STAT_USER_BY_MONTH: (y, m) => `/api/v1/user/statistical/byMonth?year=${y}&month=${m}`,
+  STAT_COURSE_BY_MONTH: (y, m) => `/api/v1/course/statistical/byMonth?year=${y}&month=${m}`,
+  STAT_BOOKING_BY_MONTH: (y, m) => `/api/v1/course/booking/statistical/byMonth?year=${y}&month=${m}`,
+  STAT_APPOINT_BY_MONTH: (y, m) => `/api/v1/course/appointment/statistical/byMonth?year=${y}&month=${m}`,
+  STAT_APPOINT_ON_DAYS: (d) => `/api/v1/course/appointment/statistical/onDays?ondays=${d}`,
+  // —— 后台列表（用户/课程/模板，对应 admin.html 用户管理 / 课程管理）——
+  USER_PAGE: '/api/v1/user/page',
+  COURSE_TEMPLATE_LIST: '/api/v1/course/template/list',
   // —— 以下走 message-service（msgBase）——
   MSG_SEND: '/api/v1/messages/send',
   // 收件箱列表（分页/筛选）

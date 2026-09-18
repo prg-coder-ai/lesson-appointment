@@ -4,34 +4,18 @@
     <view class="sub">{{roleText}} · 租户 {{user.tenantCode}}</view>
   </view>
 
-  <view class="grid">
-    <view class="grid-item" bindtap="goDashboard">
-      <view class="gi-glyph">📊</view>
-      <view class="gi-text">运营概览</view>
+  <view wx:for="{{groups}}" wx:key="title" wx:for-item="g" class="group">
+    <view class="group-title">{{g.title}}</view>
+    <view class="grid">
+      <view
+        wx:for="{{g.items}}" wx:key="text" wx:for-item="it"
+        class="grid-item"
+        data-page="{{it.page}}"
+        bindtap="onTapItem">
+        <view class="gi-text">{{it.text}}</view>
+        <view wx:if="{{it.page === '/package-message/inbox/inbox' && unreadCount > 0}}" class="gi-badge">{{unreadCount > 99 ? '99+' : unreadCount}}</view>
+      </view>
     </view>
-    <view class="grid-item" bindtap="goTeachers">
-      <view class="gi-glyph">👥</view>
-      <view class="gi-text">教师管理</view>
-    </view>
-    <view class="grid-item" bindtap="goSensitive">
-      <view class="gi-glyph">🛡️</view>
-      <view class="gi-text">敏感词</view>
-    </view>
-    <view class="grid-item" bindtap="goMine">
-      <view class="gi-glyph">👤</view>
-      <view class="gi-text">个人中心</view>
-    </view>
-    <view class="grid-item" bindtap="goMessage">
-      <view class="gi-glyph">🔔</view>
-      <view class="gi-text">消息中心</view>
-      <view wx:if="{{unreadCount > 0}}" class="gi-badge">{{unreadCount > 99 ? '99+' : unreadCount}}</view>
-    </view>
-  </view>
-
-  <view class="card">
-    <view class="card-title">管理台</view>
-    <view class="card-line">在「运营概览」查看租户用量与平台关键指标。</view>
-    <view class="card-line">更多管理能力（教师/课程/敏感词）将随版本迭代开放。</view>
   </view>
 
   <role-tabbar active="home" bind:change="onTabChange" />

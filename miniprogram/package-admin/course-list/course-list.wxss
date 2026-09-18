@@ -1,0 +1,12 @@
+.page { min-height: 100vh; padding: 24rpx 24rpx 40rpx; box-sizing: border-box; background: #f5f7fa; }
+.bar { display: flex; align-items: baseline; justify-content: space-between; padding: 8rpx; }
+.bar-title { font-size: 32rpx; font-weight: 600; color: #1f2a44; }
+.bar-count { font-size: 24rpx; color: #8a94a6; }
+.center { text-align: center; color: #8a94a6; padding: 80rpx 0; }
+.list { margin-top: 12rpx; }
+.item { background: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 16rpx; box-shadow: 0 2rpx 12rpx rgba(31,42,68,0.05); }
+.row1 { display: flex; align-items: center; justify-content: space-between; }
+.name { font-size: 30rpx; font-weight: 600; color: #1f2a44; }
+.status { font-size: 22rpx; padding: 4rpx 14rpx; border-radius: 16rpx; background: #eef3ff; color: #2b7de9; }
+.row2 { margin-top: 10rpx; display: flex; gap: 24rpx; }
+.meta { font-size: 24rpx; color: #8a94a6; }

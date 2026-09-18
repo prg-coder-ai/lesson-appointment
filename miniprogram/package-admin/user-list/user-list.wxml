@@ -1,0 +1,22 @@
+<view class="page">
+  <view class="bar">
+    <text class="bar-title">{{roleText}}列表</text>
+    <text class="bar-count">共 {{total}} 人</text>
+  </view>
+
+  <view wx:if="{{loading}}" class="center">加载中…</view>
+  <view wx:elif="{{list.length === 0}}" class="center">暂无{{roleText}}</view>
+  <view wx:else class="list">
+    <view wx:for="{{list}}" wx:key="id" class="item">
+      <view class="row1">
+        <text class="name">{{item.name}}</text>
+        <text class="status {{item.status === 1 ? 'ok' : 'off'}}">{{item.statusText}}</text>
+      </view>
+      <view class="row2">
+        <text class="meta">账号 {{item.account || '-'}}</text>
+        <text class="meta">手机 {{item.phone || '-'}}</text>
+      </view>
+      <view wx:if="{{item.email}}" class="row2"><text class="meta">邮箱 {{item.email}}</text></view>
+    </view>
+  </view>
+</view>
