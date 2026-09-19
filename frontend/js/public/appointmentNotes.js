@@ -357,6 +357,285 @@ async function datamaintain_fetchAppointmenPage(query) {
      await confirmCancellingAppointment(appointmentId, true);
    }
 
+   // ========================================================================
+   // 上课提醒：档位标签 + 管理员手动发送
+   // ------------------------------------------------------------------------
+   // 「该不该发、发第几档、发过没有」全部由服务端判定（/notify-rule/preview 试算、
+   // /notify-rule/manual-send 发送）。前端不再按本地时间翻 appointment.status：
+   //   ① 浏览器时钟可改，且排期带 timeZone（见 cardInfo.origTz），客户端换算出的档位
+   //      与服务端、与另一位审核人看到的可能不一致；
+   //   ② appointment.status 只有 noted1/noted2 两个"通知位"，档位数一多就装不下，
+   //      而该字段同时还在被管理端下拉当业务状态筛选用。
+   // 通知是否发过，现在记在 notification_dispatch_log 流水表（键 = 课次 + 档位 + 收件人）。
+   // ========================================================================
+
+   /** 档位序号 → 偏移文案（如 {1:'3 天'}），取自租户默认通知规则，刷新列表时更新 */
+   window.notifyStageLabels = window.notifyStageLabels || {};
+
+   /**
+    * 拉取租户默认通知规则的档位，用于把历史状态 noted1/noted2 翻译成
+    * 「已发第 N 档·提前 X」。失败不打断列表渲染，标签退回「已发第 N 档」。
+    */
+   async function loadNotifyStageLabels() {
+     // 档位文案只有管理端用得上（学生页/教师页共用同一个刷新入口，也会走到这里），
+     // 这两类角色直接返回，省掉一次注定 403 的请求。判断故意写成"排除法"——
+     // 角色串以后若细分（如 tenant_admin），不会因此静默拿不到档位文案。
+     if (typeof userRole !== 'undefined' && (userRole === 'student' || userRole === 'teacher')) {
+       return window.notifyStageLabels || {};
+     }
+     try {
+       const rule = await request({
+         url: `${API_BASE_URL}/notify-rule/detail`,
+         method: 'get',
+         customErrorMsg: false
+       });
+       const points = (rule && Array.isArray(rule.points)) ? rule.points : [];
+       const labels = {};
+       points.forEach(function (p, i) {
+         const seq = (p.seq === null || p.seq === undefined) ? (i + 1) : Number(p.seq);
+         if (seq > 0 && p.offsetText) labels[seq] = p.offsetText;
+       });
+       window.notifyStageLabels = labels;
+       return labels;
+     } catch (e) {
+       console.error('loadNotifyStageLabels', e);
+       window.notifyStageLabels = {};
+       return {};
+     }
+   }
+
+   /** 第 seq 档的可读描述；拿不到配置时退化为「已发第 N 档」 */
+   function notifyStageLabel(seq) {
+     const offsetText = (window.notifyStageLabels || {})[seq];
+     return offsetText ? `已发第${seq}档·提前${offsetText}` : `已发第${seq}档`;
+   }
+
+   /**
+    * 遗留通知状态（noted1 / noted2）在列表里的展示文案。
+    *
+    * 分角色：管理端需要知道它对应第几档、提前多久（判断要不要补发），
+    * 学生/教师看到「第几档」只是在替系统解释实现细节 —— 给一句「已提醒」就够。
+    */
+   function notifyLegacyNotedText(seq) {
+     if (typeof userRole !== 'undefined' && userRole === 'admin') {
+       return '正常（' + notifyStageLabel(seq) + '·历史标记）';
+     }
+     return '已提醒';
+   }
+
+   /**
+    * 该课次状态是否还值得发送提醒。
+    * 名单与服务端 NotifyDispatchService.DEAD_APPOINTMENT_STATUS 保持一致 ——
+    * 这里只决定按钮显不显示，真正能不能发由服务端说了算（已过上课时间会被拒绝）。
+    */
+   function isNotifyActionable(status) {
+     const dead = ['completed', 'cancelled', 'canceled', 'changed', 'frozen',
+                   'cancelling', 'canceling', 's-cancelling', 't-cancelling',
+                   'rej-booking', 'rej-cancelling', 'delete', 'deleted'];
+     return !dead.includes(String(status === null || status === undefined ? '' : status).trim());
+   }
+
+   /** 取该课次的通知计划：各档应发时刻 + 已发/待发/已过期 */
+   async function fetchNotifyPlan(appointmentId) {
+     try {
+       return await request({
+         url: `${API_BASE_URL}/notify-rule/preview`,
+         method: 'get',
+         params: { appointmentId: appointmentId },
+         customErrorMsg: false
+       });
+     } catch (e) {
+       console.error('fetchNotifyPlan', e);
+       return null;
+     }
+   }
+
+   /**
+    * 管理员手动补发一次上课提醒。不受自动发送的幂等限制（流水 dedup_key 不同），
+    * 可以重复发；发哪一档由服务端按「当前距上课还有多久」自动判定。
+    */
+   async function sendNotifyManual(appointmentId) {
+     return await request({
+       url: `${API_BASE_URL}/notify-rule/manual-send`,
+       method: 'post',
+       data: { appointmentId: appointmentId },
+       customErrorMsg: false
+     });
+   }
+
+   /** 从 request 的 reject 值里取一条人话错误信息（形态有 Result / 字符串 / axios error 三种） */
+   function notifyErrText(e) {
+     if (!e) return '操作失败';
+     if (typeof e === 'string') return e;
+     const respData = e.response && e.response.data;
+     if (respData && (respData.message || respData.msg)) return respData.message || respData.msg;
+     if (e.message) return e.message;
+     return '操作失败';
+   }
+
+   /** 单档状态 → 颜色（已发绿 / 待发蓝 / 已过期灰） */
+   function notifyStateColor(state) {
+     if (state === 'DISPATCHED') return '#3a8a3a';
+     if (state === 'PAST') return '#8a94a6';
+     if (state === 'WAITING') return '#1a6fd4';
+     return '#5a6472';
+   }
+
+   /**
+    * 档位表 HTML。
+    *
+    * 把「已有档位」全摆出来的意义在于：管理员点发送前能看清待会儿会发的是第几档、
+    * 有没有档位其实早就过期了（过期不补，这是服务端的策略，不在界面上说明会让人以为漏发）。
+    */
+   function renderNotifyPlanRows(plan) {
+     const points = (plan && Array.isArray(plan.points)) ? plan.points : [];
+     if (points.length === 0) {
+       return '<div style="padding:10px 12px;background:#fff8e6;border:1px solid #ffe0a3;' +
+         'border-radius:6px;color:#8a5a00;">该课程当前没有可用的通知时间点，请先到' +
+         '「系统配置 → 通知规则」配置。</div>';
+     }
+     let rows = '';
+     points.forEach(function (p) {
+       const color = notifyStateColor(p.state);
+       rows += '<tr>' +
+         '<td style="padding:6px 8px;border-bottom:1px solid #eef1f5;">第' + p.seq + '档 · ' +
+           escapeRefundText(p.stageText || '') + '</td>' +
+         '<td style="padding:6px 8px;border-bottom:1px solid #eef1f5;">提前 ' +
+           escapeRefundText(p.offsetText || '') + '</td>' +
+         '<td style="padding:6px 8px;border-bottom:1px solid #eef1f5;">' +
+           escapeRefundText(p.expectTime || '-') + '</td>' +
+         '<td style="padding:6px 8px;border-bottom:1px solid #eef1f5;color:' + color + ';">' +
+           escapeRefundText(p.stateText || '-') + '</td>' +
+         '</tr>';
+     });
+     return '<table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+       '<thead><tr style="background:#f6f8fa;color:#5a6472;">' +
+       '<th style="padding:6px 8px;text-align:left;font-weight:600;">档位</th>' +
+       '<th style="padding:6px 8px;text-align:left;font-weight:600;">提前量</th>' +
+       '<th style="padding:6px 8px;text-align:left;font-weight:600;">应发时刻</th>' +
+       '<th style="padding:6px 8px;text-align:left;font-weight:600;">状态</th>' +
+       '</tr></thead><tbody>' + rows + '</tbody></table>';
+   }
+
+   /**
+    * 「发送上课提醒」弹窗。
+    *
+    * 先把该课次的通知计划摆出来（发哪几档、哪档已发、哪档已过期），
+    * 再让管理员点「立即发送」。发送结果就地回显并且**不关闭**弹窗 ——
+    * 手动发送可重复，管理员常常要确认「刚才那条到底发出去没有」。
+    */
+   function showLessonNotifyDialog(plan, appointmentId) {
+     return new Promise(function (resolve) {
+       const mask = document.createElement('div');
+       mask.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;' +
+         'background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:10000;';
+
+       const box = document.createElement('div');
+       box.style.cssText = 'width:92%;max-width:560px;background:#fff;border-radius:8px;padding:20px 22px;' +
+         'box-shadow:0 6px 24px rgba(0,0,0,0.18);font-size:14px;color:#2c3542;';
+
+       let head = '<div style="display:flex;justify-content:space-between;align-items:center;' +
+         'border-bottom:1px solid #eee;padding-bottom:8px;margin-bottom:12px;">' +
+         '<div style="font-weight:600;font-size:15px;">发送上课提醒</div>' +
+         '<span id="lessonNotifyClose" style="cursor:pointer;color:#999;font-size:16px;">✕</span></div>';
+
+       let body = '';
+       if (plan) {
+         body += '<div style="line-height:1.9;margin-bottom:10px;">';
+         if (plan.courseName) {
+           body += '<div>课程：<b>' + escapeRefundText(plan.courseName) + '</b></div>';
+         }
+         if (plan.lessonTime) {
+           body += '<div>上课时间：<b>' + escapeRefundText(plan.lessonTime) + '</b></div>';
+         }
+         body += '<div style="font-size:12px;color:#8a94a6;">生效规则：' +
+           escapeRefundText(plan.scopeText || '-') + '</div></div>';
+         if (plan.fallbackNotice) {
+           body += '<div style="margin-bottom:10px;font-size:12px;color:#c0871b;">' +
+             escapeRefundText(plan.fallbackNotice) + '</div>';
+         }
+       } else {
+         body += '<div style="padding:10px 12px;background:#fff8e6;border:1px solid #ffe0a3;' +
+           'border-radius:6px;color:#8a5a00;margin-bottom:10px;">未能获取该课次的通知计划' +
+           '（可能是网络问题或课次已被处理）。仍可尝试直接发送。</div>';
+       }
+
+       body += '<div id="lessonNotifyPlan">' + renderNotifyPlanRows(plan) + '</div>';
+
+       body += '<div style="margin-top:12px;padding:9px 12px;background:#f6f8fa;border:1px solid #e3e8ee;' +
+         'border-radius:6px;font-size:12px;color:#5a6472;line-height:1.8;">' +
+         '手动发送由服务端按「当前距上课还有多久」自动选定档位，不受自动发送的幂等限制，可重复发送。' +
+         '已过上课时间的课次不再发送（过期档位不补发）。</div>';
+
+       body += '<div id="lessonNotifyResult" style="display:none;margin-top:12px;padding:9px 12px;' +
+         'border-radius:6px;font-size:13px;line-height:1.7;"></div>';
+
+       const foot = '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">' +
+         '<button id="lessonNotifyCancel" class="btn btn-default" ' +
+         'style="padding:8px 16px;border:1px solid #d9dee5;background:#fff;border-radius:4px;cursor:pointer;">关闭</button>' +
+         '<button id="lessonNotifySend" class="btn btn-primary" ' +
+         'style="padding:8px 16px;border:1px solid #1a6fd4;background:#1a6fd4;color:#fff;border-radius:4px;cursor:pointer;">' +
+         '立即发送提醒</button></div>';
+
+       box.innerHTML = head + body + foot;
+       mask.appendChild(box);
+       document.body.appendChild(mask);
+
+       function done() {
+         if (mask.parentNode) mask.parentNode.removeChild(mask);
+         document.removeEventListener('keydown', onKey);
+         resolve(true);
+       }
+       function onKey(e) { if (e.key === 'Escape') done(); }
+
+       const resultBox = box.querySelector('#lessonNotifyResult');
+       function showResult(ok, text) {
+         resultBox.style.display = 'block';
+         resultBox.style.background = ok ? '#f2fbf3' : '#fdf3f2';
+         resultBox.style.border = '1px solid ' + (ok ? '#bfe3c2' : '#f2c8c4');
+         resultBox.style.color = ok ? '#2f6b34' : '#b0342a';
+         resultBox.textContent = text;
+       }
+
+       const sendBtn = box.querySelector('#lessonNotifySend');
+       sendBtn.addEventListener('click', async function () {
+         sendBtn.disabled = true;
+         sendBtn.style.opacity = '0.6';
+         sendBtn.textContent = '发送中…';
+         try {
+           const r = await sendNotifyManual(appointmentId);
+           showResult(true, '已发送「' + (r && r.stageText ? r.stageText : '提醒') + '」' +
+             (r && r.offsetText ? '（提前 ' + r.offsetText + '）' : '') +
+             '，接收人：' + (r && r.audienceText ? r.audienceText : '-'));
+           // 重取计划，把刚发出去的这一档标成「已发送」
+           const fresh = await fetchNotifyPlan(appointmentId);
+           if (fresh) box.querySelector('#lessonNotifyPlan').innerHTML = renderNotifyPlanRows(fresh);
+         } catch (e) {
+           console.error('sendNotifyManual', e);
+           showResult(false, '发送失败：' + notifyErrText(e));
+         } finally {
+           sendBtn.disabled = false;
+           sendBtn.style.opacity = '1';
+           sendBtn.textContent = '再次发送';
+         }
+       });
+
+       box.querySelector('#lessonNotifyCancel').addEventListener('click', done);
+       box.querySelector('#lessonNotifyClose').addEventListener('click', done);
+       mask.addEventListener('click', function (e) { if (e.target === mask) done(); });
+       document.addEventListener('keydown', onKey);
+     });
+   }
+
+   /**
+    * 「上课通知」页行内入口：打开提醒弹窗，关闭后刷新列表
+    * （手动发送不改 appointment.status，刷新只是为了刷新按钮可见性）。
+    */
+   async function openLessonNotifyDialog(appointmentId) {
+     const plan = await fetchNotifyPlan(appointmentId);
+     await showLessonNotifyDialog(plan, appointmentId);
+   }
+
    //显示待确认预约
  async function showAppointmentList(appointmentList,id){
     //   const id = "pending-reservations";
@@ -436,11 +715,13 @@ async function datamaintain_fetchAppointmenPage(query) {
     if (status === 'active' ) {
       return '正常';
     } else   if   (status === 'noted1') {
-      return '正常'+' 3~7日通知已发送';
+      // noted1 / noted2 是「通知标记寄存在业务状态字段里」那个时期的遗留值，现在不再产生
+      // （通知记录已迁到 notification_dispatch_log 流水表）。保留展示仅为历史数据可读。
+      return notifyLegacyNotedText(1);
     }  else   if   (status === 'noted2') {
-      return '正常'+' 当日通知已发送';
+      return notifyLegacyNotedText(2);
     } else   if   (status === 'completed') {
-      return '完成'+' 通知已发送';
+      return '完成';
     } else   if   (status === 'cancelling' || status === 'canceling') {
       return '取消待确认';
     } else if   (status === 't-cancelling') {
@@ -473,8 +754,8 @@ async function datamaintain_fetchAppointmenPage(query) {
               <td>   ${cardInfo.appointmentTime} ${cardInfo.origTz}</td>
               <td>    ${checkAppointmentStatus(cardInfo.status)}</td>
               <td class="course-info">
-                ${ (userRole == "admin" &&  checkStatusAndDate(cardInfo.appointmentTime,cardInfo.status,cardInfo.origTz))  // ---添加请假--按钮，
-                  ? `   <button class="btn btn-success" onclick='sendNotesToUsers(${JSON.stringify(cardInfo)})'><i class="fa fa-check"></i> 发送通知</button> `
+                ${ (userRole == "admin" && isNotifyActionable(cardInfo.status)) ?
+                  `   <button class="btn btn-success" onclick='openLessonNotifyDialog(${cardInfo.appointmentId})'><i class="fa fa-bell"></i> 发送提醒</button> `
                   : ` `
               }
               ${ (userRole == "admin" && cardInfo.status=="cancelling")?
@@ -524,199 +805,18 @@ async function datamaintain_fetchAppointmenPage(query) {
      return info;
   } 
 
-  //检查状态和时间，判断是否需要发送通知 ---待验证 TBD
-  async  function checkStatusAndDate(appointmentTime,status,timeZone){
-  
-    let retPara = { needSendInfo:false,timeTag:3,userTime:appointmentTime};
-  
-    // 将传入的 appointmentTime 字符串中的所有“-”替换为“/”，
-    // 然后用 new Date() 构造日期对象，目的是为了在 iOS 设备也能正确解析日期格式。
-    // 注意：new Date() 没有明确时区参数，若字符串不含时区信息，则默认按浏览器本地时区解析
-    // 若传入字符串中带有 'Z'（UTC）或 +08:00 这种信息，则能按指定时区解析
-    // 这里假设 appointmentTime 是"yyyy-MM-dd HH:mm:ss"格式（无时区），建议未来处理带时区的情况
-   
-      const now = new Date();//浏览器获取的时区的当前时间
-      let userTime = new Date(appointmentTime);
-      if(timeZone!= userTimeZone){
-       const userTzTime = await tzSwitchTo(timeZone, appointmentTime, userTimeZone);   //把预约时间转为当前用户时区  
-       userTime =  new Date(userTzTime.dateTime);//浏览器当前时区
-      } 
-    if (!(now instanceof Date)) {
-      //console.error("now 不是有效的日期对象:", now);
-      return retPara;
-    }
-    const diffMs = userTime - now;
-    const diffDays = diffMs / (1000 * 60 * 60 * 24);
-    // 只允许状态推进，不能倒退
-    if ( status === 'completed' ||  status === 'cancelled' || status === 'canceled') {
-        // 已完成/已取消，不发送任何通知.有关消息在相应的确认处理中发送 TBD
-        return retPara;
-    }
-    retPara.userTime = userTime;//
-    // 如果预约时间接近1小时并且未标记为 completed，则标记为 completed
-    if (diffDays >= 3 && diffDays <= 7){
-       if(status == 'active') {
-          retPara.needSendInfo =true;
-          retPara.timeTag =2;//-->noted1
-       }
-    }   else if (diffDays >= 1 ) {
-           if( status == 'noted1' ||  status == 'active') {
-            retPara.needSendInfo =true;
-            retPara.timeTag =1;//->noted2
-           }
-    } else if (diffMs <= 1*60*60*1000 ) {
-       if ( status == 'noted2' || status == 'noted1' || status == 'active') {
-           retPara.needSendInfo =true;
-           retPara.timeTag =0;
-       }
-    }
-      return retPara; 
-   }
-  
-   // 根据内容构造通知信息，并更新状态
-  async function sendNotesToUsers( cardInfo){
-      //判断时间与状态： active ：七天内~3天内，noted1：1天前，  noted2:completed：不超过1小时
-      // 根据预约时间与当前时间比较，判断应发送何种通知
-      // active ：七天内，noted1：3天内，noted2:1天内，completed：1h内或已过
-      // cardInfo.appointmentTime format 假设为 "YYYY-MM-DD HH:mm:ss" 或类似
-     
-      // 如果 cardInfo 是字符串（通过 innerHTML 的 onclick '${cardInfo}' 方式传递），需要从 JSON 字符串还原为对象
-      // 如果已经是对象可以跳过
-      if (typeof cardInfo === "string") {
-          try {
-              cardInfo = JSON.parse(cardInfo.replace(/'/g, '"'));
-          } catch (e) {
-              console.error("cardInfo解析失败，请确保传递格式为JSON字符串，或改用对象传递", cardInfo, e);
-              return;
-          }
-      }
-      let resultCheck= await checkStatusAndDate(cardInfo.appointmentTime,cardInfo.status,cardInfo.origTz);
-  
-      if(resultCheck.needSendInfo==false)
-        return ;
-   
-      sendNotesToTeacher(cardInfo.teacherId,cardInfo,resultCheck.timeTag);
-      sendNotesToStudent(cardInfo.studentId,cardInfo,resultCheck.timeTag);
-      // 根据当前状态，得出新的状态并返回
-      let newStatus = cardInfo.status;
-      if (resultCheck.timeTag==2) {
-          newStatus = 'noted1';
-      } else if ( resultCheck.timeTag==1) {
-          newStatus = 'noted2';
-      } else if ( resultCheck.timeTag==0) {
-          newStatus = 'completed';
-      }
-      // 调用后端API更新状态
-      if(newStatus != cardInfo.status) {
-          await setApointmentStatusAndReload(cardInfo.appointmentId,newStatus);//courseAndBooking.js 
-      }
-      
-  }
-  // 需要根据status， 发送通知--上课通知1、2（发送到双方） 或者停课通知（发送给没有提出停课的乙方）
-  // 根据 cardInfo 中的 status，动态生成适用于教师的通知内容
-     // cardInfo.status 取值说明：
-     //   active      —— 课程正常即将上课/待上课--
-     //   noted1      —— 已发送3天前的提醒（提前提醒）
-     //   noted2      —— 已发送当天提醒
-     //   cancelled   —— 课程已取消
-     //   cancelling  —— 学生发起取消申请
-     //   t-cancelling—— 教师发起取消申请
-     //   completed   —— 课程已完成
-     //   changed     —— 课程已改期
-     // 输出信息需简明扼要：正常/提醒时强调上课时间、课程与学生，取消/发起取消时强调情况说明，完成/改期则提醒查看详情或历史。
-   function sendNotesToTeacher(userId,cardInfo,timeTag) {
-   //timeTag0---完成 1---1天前 2--三天
-     
-     // 根据 cardInfo.status 重新编写 teacherNote，内容更清晰并细分所有状态
-     let teacherNote = '';
-     switch (cardInfo.status) {
-       case 'active'://-->noted1 
-       case 'noted1'://-->noted2 
-       case 'noted2': //-->completed 
-       
-        switch(timeTag){
-          case 2: 
-              teacherNote = `【课程提醒】3天后有课：${cardInfo.appointmentTime}，《${cardInfo.className}》，学生：${cardInfo.studentName}。请提前做好准备。`;
-            break;
-          case 1: 
-            teacherNote = `【今日上课提醒】今天有课程：${cardInfo.appointmentTime}，《${cardInfo.className}》，学生：${cardInfo.studentName}。请准时上课。`;
-            break;
-          case 0:
-              teacherNote = `【上课通知】您有一节即将开始的课程：${cardInfo.appointmentTime}，课程：《${cardInfo.className}》，学生：${cardInfo.studentName}。请准时上课。` ;   
-              break;
-        }
-         break;
-         case 'completed':
-          teacherNote = `【上课完成】您与学生 ${cardInfo.studentName} 的《${cardInfo.className}》（${cardInfo.appointmentTime}）课程已完成，请查阅课后反馈。`;
-          break;
-       case 'cancelling':
-       case 'canceling':
-         teacherNote = `【取消申请提醒】学生已申请取消 ${cardInfo.appointmentTime} 的《${cardInfo.className}》课程，学生：${cardInfo.studentName}。请关注处理进度。`;
-         break;
-       case 't-cancelling':
-         teacherNote = `【取消申请提交成功】您已申请取消 ${cardInfo.appointmentTime} 的《${cardInfo.className}》课程，学生：${cardInfo.studentName}。请等待审核。`;
-         break;
-       case 'cancelled':
-       case 'canceled':
-         teacherNote = `【课程已取消】${cardInfo.appointmentTime} 的《${cardInfo.className}》（学生：${cardInfo.studentName}）已被取消。`;
-         break;
-     
-       case 'changed':
-         teacherNote = `【课程改期通知】《${cardInfo.className}》课程（学生：${cardInfo.studentName}）的上课时间已变更为：${cardInfo.appointmentTime}，请留意时间调整。`;
-         break;
-       default:
-         teacherNote = `【课程通知】关于《${cardInfo.className}》（学生：${cardInfo.studentName}）有新动态，请及时查阅详情。`;
-     }
-     //cardInfo.noteContent = teacherNote;
-     sendNotesTo(userId,teacherNote);
-  }
-  //TBD:预约时间与用户时间的转换
-    function sendNotesToStudent(userId,cardInfo,timeTag) {
-    
-     let studentNote = '';
-     switch (cardInfo.status) {
-       case 'active': // -->noted1 
-       case 'noted1': // -->noted2 
-       case 'noted2': // -->completed
-        
-         switch(timeTag){
-          case 2: 
-            studentNote = `【课程提醒】3天后有课：${cardInfo.appointmentTime}，课程：《${cardInfo.className}》，老师：${cardInfo.teacherName}。请提前做好准备。`;
-            break;
-          case 1: 
-          studentNote = `【今日上课提醒】今天有课程：${cardInfo.appointmentTime}，课程：《${cardInfo.className}》，老师：${cardInfo.teacherName}。请准时上课。`;
-            break;
-          case 0:
-            studentNote = `【上课通知】您有一节即将开始的课程：${cardInfo.appointmentTime}，课程：《${cardInfo.className}》，老师：${cardInfo.teacherName}。请准时参加。`;
-              break;
-        }
-         break;
-  
-       case 'completed':
-         studentNote = `【课程已完成】您与老师 ${cardInfo.teacherName} 的《${cardInfo.className}》（${cardInfo.appointmentTime}）课程已结束，欢迎查看课后反馈。`;
-         break;
-       case 'cancelling':
-       case 'canceling':
-         studentNote = `【取消申请提交成功】您已申请取消 ${cardInfo.appointmentTime} 的《${cardInfo.className}》课程，老师：${cardInfo.teacherName}。请等待处理。`;
-         break;
-       case 't-cancelling':
-         studentNote = `【老师申请取消】老师已申请取消 ${cardInfo.appointmentTime} 的《${cardInfo.className}》课程。如有疑问请联系客服或关注进一步通知。`;
-         break;
-       case 'cancelled':
-       case 'canceled':
-         studentNote = `【课程已取消】${cardInfo.appointmentTime} 的《${cardInfo.className}》（老师：${cardInfo.teacherName}）已被取消。如有疑问请联系管理员。`;
-         break;
-       case 'changed':
-         studentNote = `【课程改期通知】《${cardInfo.className}》课程（老师：${cardInfo.teacherName}）的上课时间已变更为：${cardInfo.appointmentTime}，请留意调整后的时间。`;
-         break;
-       default:
-         studentNote = `【课程通知】关于《${cardInfo.className}》（老师：${cardInfo.teacherName}）有新动态，请及时查阅详情。`;
-     }
-     sendNotesTo(userId, `${cardInfo.studentName}`+studentNote);  
-  }
-   
-  
- //根据bookingId查询预约时间列表--List <Appointment>->List {date:date,time:time }
+  // ------------------------------------------------------------------------
+  // 【已移除】checkStatusAndDate / sendNotesToUsers / sendNotesToTeacher / sendNotesToStudent
+  // ------------------------------------------------------------------------
+  // 这一段原先是「前端自己算提前量 → 自己拼文案 → 自己翻 appointment.status」的实现：
+  //   · 时间判定用浏览器 new Date()，与排期 timeZone 不一致，且客户端时钟可改；
+  //   · 文案里的「3天后有课」是写死的，改了通知规则也不会生效；
+  //   · 最终只调用了空函数 sendNotesTo()，消息从未真正发出，
+  //     noted1/noted2 只是状态翻转留下的痕迹，却还占着只有两个位置的通知标记。
+  // 现在由服务端统一接管：NotifyDispatchService 定时扫描 + notification_dispatch_log 幂等
+  // + message-service 落库推送；管理端手动补发走 openLessonNotifyDialog()。
+
+//根据bookingId查询预约时间列表--List <Appointment>->List {date:date,time:time }
  async function getAppointmentsByBookingId( bookingId) {
  
   try {       
@@ -875,11 +975,6 @@ async function deleteAppointmentsById( appId) {
   }
 }
 
-  //把信息发送到站内信箱-----创建添加、修改状态（已发送、已阅读、删除到垃圾箱、删除），最初：只发送+显示（创建数据库表：发件人、收件人、内容、状态）
-  async function sendNotesTo(userId,infor) {
-
-    //await operateBookingStatus(bookingId, 'rejected');
-  }
 /////////////////////////////////////////////////////2026-7-1 /////////////////////////////////////////////////////
 /*
  * ================================ Token 前后端协同原理简述 ================================

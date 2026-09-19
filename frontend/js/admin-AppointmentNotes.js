@@ -9,6 +9,9 @@ let appointmentList=[];// ID,ciurseName,studentName,teacherName,dateTime(创建�
  window.refreshAppointmentNotes  = refreshAppointmentNotes ;  
 
  async function refreshAppointmentNotes(){
+        // 通知档位文案（下拉的 noted1/noted2 与状态列共用）取自租户默认通知规则，
+        // 先把档位配置拿到手再拼 HTML —— 否则下拉会先渲染成硬编码文案再"闪一下"变掉。
+        await loadNotifyStageLabels();
         assignLoadobjectListFunction( loadAndShowAppointmentPage);// assign
            // 渲染数据总览面板 不显示课程搜素
            let html=
@@ -38,9 +41,12 @@ let appointmentList=[];// ID,ciurseName,studentName,teacherName,dateTime(创建�
                   <select id="appoint-status-select">
                     <option value="">全部</option>
                     <option value="active">正常</option>
-                    <option value="noted1">7日内通知</option>
-                    <option value="noted2">正常 当日通知已发</option>
-                    <option value="completed">已完成 通知已发出 </option> 
+                    <!-- noted1 / noted2 是「通知标记寄存在 appointment.status 里」那个时期的遗留值，
+                         现在通知记录在 notification_dispatch_log 流水表，新数据不会再产生这两个状态。
+                         文案按当前通知档位配置动态生成（见 loadNotifyStageLabels），保留它们只是为了能筛历史数据。 -->
+                    <option value="noted1">${notifyStageLabel(1)}（历史）</option>
+                    <option value="noted2">${notifyStageLabel(2)}（历史）</option>
+                    <option value="completed">已完成</option> 
 
                     <option value="cancelling">取消待确认</option>
                     <option value="cancelled">已取消</option>
@@ -168,3 +174,19 @@ function resetFilterAppoint() {
 // select * from lesson_appointment.appointment 
 // where appointment_datetime between #{startTime} and #{endTime}
 // （#{}的传参建议为'yyyy-MM-dd HH:mm:ss'格式、无毫秒）
+
+/* ============================================================
+ * 顶部「刷新」按钮：注册页内刷新
+ * ------------------------------------------------------------
+ * 之前本页没有注册，点刷新会走「整页重渲染」兜底 —— 表现上就是筛选条件（天数/状态）
+ * 和当前页码被重置。本页表格本来就依赖筛选栏的取值渲染，故只重载表格即可。
+ * 容器不在了（页面已切走）返回 false，交回通用逻辑兜底。
+ * ============================================================ */
+function refreshLessonNoticeTable() {
+    if (!document.getElementById('days-appointment-admin')) return false;
+    loadAndShowAppointmentPage();
+    return true;
+}
+if (typeof registerPageRefresh === 'function') {
+    registerPageRefresh('lesson_notice', refreshLessonNoticeTable);
+}

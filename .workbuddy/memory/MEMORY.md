@@ -2,6 +2,7 @@
 
 ## 协作偏好
 - 多次失败（2~3 次）即问用户；先根因+证据再修复；代码写完直接交付跳过自测（仍要编译验证）。
+- **库内数据都是测试数据**（用户 2026-09-18 明确）：既有脏数据/历史状态（如 1 条超卖、4 条 noted1/noted2 遗留值）一律不清理、不必再问是否刷数据。发现脏数据只做诊断与报告，不做数据变更。
 
 ## 技术栈与构建
 - api(Spring Boot 3.3.5+MyBatis-Plus 3.5.7)+message-service 独立模块；MySQL lesson_appointment/message_center；api 只供 /api/v1/**，不伺服 html。
@@ -60,6 +61,8 @@
 - 消息走 message-service **/api/v1/messages/system**（role=system，无登录上下文可调用；MessageNotifyService.sendAsSystem 现签令牌，返回 boolean 供流水落 FAILED），分类 SYSTEM_SCHEDULE。文案模板集中在 MessageNotifyService；动态占位符用 {lessonAt}/{offsetText}，**刻意避开术语 key {lessonTime}**（否则 vars.put 会覆盖术语词）。
 - `/notify-rule/*`（list/detail/save/delete/course-options/options/preview/manual-send/dispatch-log）管理侧同样要先 requireTenantContext()（与退改规则同因：checkAdmin 放行平台管理员 + tenantId=0 时插件不拼条件）。
 - 界面 admin-notify-rule.js：菜单「系统配置 → 通知规则」；档位明细行可增删改；**应发时刻试算是纯前端本地实时算**（公式与服务端一致），不调 /preview——那样只能试算已保存规则，而弹窗里改的往往还没存，结果会对不上。
+- **前端本地通知逻辑已摘除（2026-09-18 收尾）**：`appointmentNotes.js` 的 `checkStatusAndDate/sendNotesToUsers/sendNotesToTeacher/sendNotesToStudent/sendNotesTo` 整段删除（`sendNotesTo` 本是空函数→消息从未发出过）。管理端行内入口＝`openLessonNotifyDialog(appointmentId)`：先 `/notify-rule/preview?appointmentId=` 摊开各档（待发/已发/已过期），再 `/notify-rule/manual-send`；**结果就地回显且不关弹窗**（手动补发可重复，要能确认发出去没有）。按钮显示条件用 `isNotifyActionable(status)`，名单与服务端 `DEAD_APPOINTMENT_STATUS` 对齐——原条件是 `&& checkStatusAndDate(...)` 拿**对象**当布尔、恒真，按钮一直显示（已修）。
+- **noted1/noted2 语义收敛**：后端零引用、前端不再产生，处理方式＝保留但标「历史」+ 文案动态化。`loadNotifyStageLabels()` 拉 `/notify-rule/detail`（租户默认规则）→ `notifyStageLabel(seq)`＝「已发第1档·提前3天」；`notifyLegacyNotedText(seq)` **分角色**（管理端给档位信息，学生/教师只给「已提醒」）。student/teacher 页直接跳过该请求，判断写成排除法避免角色串细分后静默失效。`admin-AppointmentNotes.js` 下拉「7日内通知/当日通知已发」已改为动态；该页补注册 `registerPageRefresh('lesson_notice', refreshLessonNoticeTable)`（原未注册，顶部刷新会重置筛选与分页）。
 
 ## 工具踩坑（本机 agent 行为）
 - **并行对同一文件发多个 Edit，只有最后一个生效**（静默丢失，返回仍是 success）。改同一文件必须串行逐个改，改完 grep 核验。**同理：用 Edit 做"纯插入"时若 new_string 比 old_string 少了尾部换行，会静默把下一行吞成同一行**（本次 MEMORY.md 标题就被并进正文），插入类编辑务必回读确认。

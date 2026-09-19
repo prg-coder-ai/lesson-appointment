@@ -324,8 +324,10 @@ function renderResult(dateTimeList) {
     function getAppointmentStatusLabel(status) {
         switch (status) {
             case 'active': return '生效';
-            case 'noted1': return '第一次通知';
-            case 'noted2': return '第二次通知';
+            // noted1 / noted2 是通知标记寄存在 appointment.status 时期的遗留值（不再产生）。
+            // 对用户只说「已提醒」——「第一次通知/第二次通知」是在替系统解释实现细节。
+            case 'noted1':
+            case 'noted2': return '已提醒';
             case 'completed': return '已完成';
             case 'cancelled': return '已改期'; 
 
