@@ -303,10 +303,9 @@ public class UserService {
         return Result.success(resultMap   ,"登陆成功");
     }
 
-    /**
+    /* [微信登录-暂未启用 2026-09-20 屏蔽：user 表无 wx_openid 列，恢复时取消注释 + User.wxOpenid 去 exist=false + ALTER TABLE user 加列建唯一索引]
      * 微信静默登录：按 openid 找已绑定账号，直接发 token（返回结构与密码登录完全一致）。
      * 未找到绑定账号 → code=1001，前端据此静默降级走账号密码登录，不弹错误。
-     */
     public Result<HashMap<String, Object>> wechatLogin(String openid) {
         User user = userMapper.getByWxOpenid(openid);
         if (user == null) {
@@ -341,11 +340,11 @@ public class UserService {
                 currentRequestIp(), currentRequestUserAgent());
         return Result.success(resultMap, "登录成功");
     }
+     [微信登录屏蔽结束] */
 
-    /**
+    /* [微信绑定-暂未启用 2026-09-20 屏蔽]
      * 绑定微信 openid 到当前账号（密码登录成功后调用）。
      * 校验唯一性：若该 openid 已被其他账号占用则拒绝（409）；否则按 user_id 精确写入。
-     */
     public Result<Boolean> bindWechat(String userId, String openid) {
         User exist = userMapper.getByWxOpenid(openid);
         if (exist != null && !exist.getUserId().equals(userId)) {
@@ -357,6 +356,7 @@ public class UserService {
         }
         return Result.fail(404, "用户不存在");
     }
+     [微信绑定屏蔽结束] */
 
     /**
      * 取当前请求IP（会话记录用，取不到返回null不影响主流程）

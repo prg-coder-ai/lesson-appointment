@@ -227,11 +227,10 @@ UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthent
         else  return  Result.success( false,"kick failed"     );
     }
 
-    /**
+    /* [微信登录/绑定端点-暂未启用 2026-09-20 屏蔽：user 表无 wx_openid 列，相关 Service 方法已屏蔽]
      * 微信静默登录（免登录公开接口，不带 Bearer）。
      * 小程序 wx.login() 拿 code → 后端 code2Session 换 openid → 按 openid 找已绑定账号发 token。
      * 返回结构与 /login 完全一致；未绑定返回 code=1001，前端静默降级走账号密码登录。
-     */
     @PostMapping("/wechat-login")
     @ResponseBody
     public Result<HashMap<String, Object>> wechatLogin(@Validated @RequestBody WeChatCodeDTO dto) {
@@ -244,10 +243,8 @@ UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthent
         return userService.wechatLogin(session.getOpenid());
     }
 
-    /**
      * 绑定微信（需登录：带当前会话 Bearer）。
      * 密码登录成功后调用，把当前账号与微信 openid 绑定，下次即可静默登录。
-     */
     @PostMapping("/bind-wechat")
     @ResponseBody
     public Result<Boolean> bindWechat(@Validated @RequestBody WeChatCodeDTO dto,
@@ -268,6 +265,7 @@ UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthent
         }
         return userService.bindWechat(userId, session.getOpenid());
     }
+     [微信端点屏蔽结束] */
     /**
      * 密码找回（验证码验证），对应设计2.2.1 接口：/api/v1/user/password/forgot
      * ---》用户密码忘记后，通过管理员重置该用户的密码，然后用户登录后自行修改密码

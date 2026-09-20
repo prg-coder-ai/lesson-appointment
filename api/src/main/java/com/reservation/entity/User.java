@@ -63,10 +63,13 @@ public class User implements Serializable{
     private String role;
 
     /**
-     * 微信 openid（微信静默登录 / 绑定用）。
-     * openid 是微信体系下的全局用户标识，与租户无关，因此不随租户隔离；
-     * 同一微信最多绑定一个账号（数据库唯一索引 uk_user_wx_openid），未绑定为 null。
+     * 微信 openid（微信静默登录 / 绑定用）—— 暂未启用。
+     * 当前阶段不考虑微信登录，user 表尚未建立 wx_openid 列（也没有 uk_user_wx_openid 索引），
+     * 故标 {@code exist = false} 让 MyBatis-Plus 的所有通用 CRUD 忽略该字段，
+     * 避免自动 SELECT/INSERT/UPDATE 拼出不存在的列而报 BadSqlGrammarException。
+     * 将来启用微信登录时：移除本注解 + 执行 ALTER TABLE user ADD COLUMN wx_openid ... + 建唯一索引即可。
      */
+    @TableField(exist = false)
     private String wxOpenid;
 
     // 学生专属参数（对应设计2.2.1 学生注册接口）

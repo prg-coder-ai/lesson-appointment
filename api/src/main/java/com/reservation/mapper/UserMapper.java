@@ -36,22 +36,22 @@ public interface UserMapper extends BaseMapper<User> {
     @Update("UPDATE user SET tenant_id = #{tenantId} WHERE user_id = #{userId}")
     int bindTenant(@Param("userId") String userId, @Param("tenantId") Long tenantId);
 
-    /**
+    /* ── 微信相关（暂未启用，2026-09-20 屏蔽）──
+     * 当前阶段不考虑微信登录，user 表无 wx_openid 列，下列自定义 SQL 会触发 Unknown column。
+     * 恢复：取消注释 + 为 User.wxOpenid 去掉 @TableField(exist=false) + ALTER TABLE user 加列建唯一索引。
      * 按微信 openid 查用户（微信静默登录：用 openid 找已绑定账号）。
      * 必须跳过租户过滤：openid 是平台级全局标识，与租户无关；
      * 且 wechat-login 是免登录公开接口，无租户上下文，插件会兜底 tenant_id=-1 导致查不到。
-     */
     @InterceptorIgnore(tenantLine = "true")
     @Select("SELECT * FROM user WHERE wx_openid = #{openid} LIMIT 1")
     User getByWxOpenid(@Param("openid") String openid);
 
-    /**
      * 绑定微信 openid 到指定用户（密码登录成功后调用）。
      * 同样跳过租户过滤：openid 全局唯一，按 user_id 精确更新，避免被租户条件误伤。
-     */
     @InterceptorIgnore(tenantLine = "true")
     @Update("UPDATE user SET wx_openid = #{openid}, update_time = NOW() WHERE user_id = #{userId}")
     int updateWxOpenid(@Param("userId") String userId, @Param("openid") String openid);
+     [微信 Mapper 屏蔽结束] */
     /**
       * 根据手机号查询用户（一对多：同一手机号可对应多个账号/用户）
       * @param hmac 手机号的 HMAC 搜索索引
