@@ -4,9 +4,32 @@
  //   let courseList = [];
     let currentScheduleId= "";
     let teacherId = "";
-    let currentCourseIndex =-1,currentScheduleIndex=-1;
+    let activeCourseId = null, currentScheduleIndex=-1;
     let  conflictMessageElem =null;//conflictMessage
     let  resultBodyElem =null,resultCalendarElem=null;// id= resultBody,Id="calendar";
+    // 轻量 toast 提示：不阻断操作、自动消失；ok=true 绿色(成功) / 其它红色(提示或错误)
+    function toast(msg, ok){
+      let t = document.getElementById('msg-toast');
+      if(!t){
+        t = document.createElement('div');
+        t.id = 'msg-toast';
+        t.style.cssText = 'position:fixed;right:20px;bottom:20px;padding:10px 16px;border-radius:6px;color:#fff;z-index:99999;box-shadow:0 2px 8px rgba(0,0,0,.25);font-size:14px;max-width:340px;line-height:1.5;';
+        document.body.appendChild(t);
+      }
+      t.style.background = ok ? '#28a745' : '#dc3545';
+      t.textContent = msg;
+      t.style.display = 'block';
+      clearTimeout(t._timer);
+      t._timer = setTimeout(function(){ t.style.display='none'; }, 2800);
+    }
+
+    // P1：Tab 切换（排期设置 / 排期结果 / 候补·指定学生）
+    function switchTab(name) {
+        const tabs = document.querySelectorAll('.sched-tab-btn');
+        const panels = document.querySelectorAll('.tab-panel');
+        tabs.forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-tab') === name); });
+        panels.forEach(function(p){ p.classList.toggle('active', p.id === name); });
+    }
 var localParamter ={ 
   currentPage:1,         // 当前页码（初始值由Thymeleaf渲染）
   pageSize : 10,           // 页大小
@@ -57,6 +80,34 @@ async function renderScheduleCards() {
     align-items: center;
     gap: 8px;
   }
+  /* P1：Tab 化导航 + 面板（排期设置 / 排期结果 / 候补·指定学生） */
+  .sched-tabs {
+    display: flex;
+    gap: 8px;
+    margin: 0 0 16px 0;
+    border-bottom: 1px solid #f0f0f0;
+    padding-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .sched-tab-btn {
+    padding: 8px 18px;
+    border: 1px solid #e3e0d8;
+    background: #fff;
+    border-radius: 6px 6px 0 0;
+    cursor: pointer;
+    font-size: 14px;
+    color: #555;
+    transition: all .15s;
+  }
+  .sched-tab-btn:hover { border-color: #722ed1; color: #722ed1; }
+  .sched-tab-btn.active {
+    background: #722ed1;
+    color: #fff;
+    border-color: #722ed1;
+    font-weight: 600;
+  }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
   .sched-page .sched-filter-form {
     display: flex;
     flex-wrap: wrap;
@@ -224,6 +275,12 @@ async function renderScheduleCards() {
   }
 </style>
 <div class="sched-page">
+       <div class="sched-tabs">
+         <button type="button" class="sched-tab-btn active" data-tab="tab-set" onclick="switchTab('tab-set')"><i class="fa fa-edit"></i> 排期设置</button>
+         <button type="button" class="sched-tab-btn" data-tab="tab-result" onclick="switchTab('tab-result')"><i class="fa fa-list-alt"></i> 排期结果</button>
+         <button type="button" class="sched-tab-btn" data-tab="tab-advanced" onclick="switchTab('tab-advanced')"><i class="fa fa-user-plus"></i> 候补 / 指定学生</button>
+       </div>
+       <div class="tab-panel active" id="tab-set">
        <div class="card sched-card">
         <div class="card-title sched-card-title"><i class="fa fa-search"></i> <span data-term="course">课程</span>检索</div>
             <!-- 1. 筛选条件（横向排列） -->
@@ -310,25 +367,17 @@ async function renderScheduleCards() {
     
     <div class="sched-section">
         <div class="sched-section-title">排期设置</div>
-        <div class="sched-form-line" style="display:none;">
-            <label>Id</label>
-            <input type="text" id="scheduleId">
-        </div>
-        <div class="sched-form-line" style="display:none;">
-            <label>cId</label>
-            <input type="text" id="courseId">
-        </div>
         <div style="display: flex; flex-wrap: wrap; gap: 24px;">
             <div class="sched-form-line">
                 <label>排期名称：</label>
                 <input type="text" id="scheduleName">
             </div>
             <div class="sched-form-line">
-                <label>总席位数：</label>
+                <label>员额：</label>
                 <input type="number" id="availableSites" value="1" min="1">
             </div>
             <div class="sched-form-line">
-                <label>可用席位数：</label>
+                <label>剩余员额：</label>
                 <input type="text" id="now_availableSites" value="1" readonly>
             </div>
         </div>
@@ -447,25 +496,12 @@ async function renderScheduleCards() {
     <div class="sched-btn-row">
       <button class="btn btn-default" onclick="previewSchedule()"><i class="fa fa-eye"></i> 预览排期</button>
        <button class="btn btn-primary" onclick="saveScheduleToDB()"><i class="fa fa-save"></i> 保存</button>
-       <button class="btn btn-primary" onclick="assignStudentToSchedule()"><i class="fa fa-user-plus"></i> 指定<span data-term="student">学生</span></button>
-       <select id="assignStudentSelect">
-           <option value="">请选择<span data-term="student">学生</span></option>
-       </select>
     </div>
 
-    <!-- 候补队列 / 递补
-         递补统一在此完成：排期维度能看到剩余席位、也能看到候补的排队次序。
-         入口有两处——管理员在「预订管理」里确认取消（该排期腾出空位）后点「查询递补」，
-         或候选补记录点「查询递补」，都会带着 scheduleId 落到本页并锁定该排期。 -->
-    <div class="sched-section" id="waitlistSection" style="display:none;">
-        <div class="sched-section-title">
-            候补队列
-            <span id="waitlistSummary" style="font-weight:400;color:#888780;font-size:13px;margin-left:8px;"></span>
-        </div>
-        <div id="waitlistBody" style="font-size:13px;color:#5F5E5A;"></div>
-    </div>
-     </div> <!-- 课程检索 / 排期设置 card -->
+     </div> <!-- 课程检索 / 排期设置 card (tab-set 内容结束) -->
+   </div><!-- tab-set panel 结束 -->
 
+   <div class="tab-panel" id="tab-result">
     <!-- 排期结果（与课程检索同属 .sched-page，确保完全相同的宽度 & 对齐规则） -->
     <div class="card sched-card">
         <div class="card-title sched-card-title"><i class="fa fa-list-alt"></i> 排期结果（本地时间）</div>
@@ -490,7 +526,24 @@ async function renderScheduleCards() {
         <div id="calendar" class="calendar"></div>
         </div>
     </div>
-</div><!-- sched-page 结束：所有 3 张卡片都在同一父容器内 -->`;
+   </div><!-- tab-result 结束 -->
+   <div class="tab-panel" id="tab-advanced">
+     <!-- 候补队列 / 递补（从排期设置卡片移出，独立为高级 Tab） -->
+     <div class="sched-section" id="waitlistSection" style="display:none;">
+        <div class="sched-section-title">
+            候补队列
+            <span id="waitlistSummary" style="font-weight:400;color:#888780;font-size:13px;margin-left:8px;"></span>
+        </div>
+        <div id="waitlistBody" style="font-size:13px;color:#5F5E5A;"></div>
+     </div>
+     <div class="sched-btn-row">
+       <button class="btn btn-primary" onclick="assignStudentToSchedule()"><i class="fa fa-user-plus"></i> 指定<span data-term="student">学生</span></button>
+       <select id="assignStudentSelect">
+           <option value="">请选择<span data-term="student">学生</span></option>
+       </select>
+     </div>
+   </div><!-- tab-advanced 结束 -->
+</div><!-- sched-page 结束：所有 tab 面板都在同一父容器内 -->`;
         
     dynamicContentCenter.innerHTML = html;
     applyTerms(dynamicContentCenter);
@@ -580,7 +633,7 @@ function localsearchCourse_sch() {
         //判断是否有空位，没有则提示用户
         const availableSites = getNowAvailableSitesRaw();
         if(availableSites <= 0){
-            alert("当前班级已无空位，无法指定学生");
+            toast("当前班级已无空位，无法指定学生");
             return ;
         }
         const conditionJson = { role: 'student' };//TBD:当前admin所属的群组等过滤条件
@@ -610,12 +663,12 @@ function localsearchCourse_sch() {
       // 1. 获取排期详情（含 courseId）
       const schedule = await fetchSchedule(dl.scdid);
       if (!schedule) {
-          alert('排期不存在');
+          toast('排期不存在');
           return;
       }
       const courseId = schedule.courseId;
       if (!courseId) {
-          alert('排期数据异常：缺少课程ID');
+          toast('排期数据异常：缺少课程ID');
           return;
       }
 
@@ -630,7 +683,7 @@ function localsearchCourse_sch() {
           }
       }
       if (!courseFound) {
-          alert('排期所属课程不在当前课程列表中（可能不在第一页），请调整筛选后重试');
+          toast('排期所属课程不在当前课程列表中（可能不在第一页），请调整筛选后重试');
           return;
       }
 
@@ -639,7 +692,7 @@ function localsearchCourse_sch() {
 
       // 4. 在排期下拉框中选中目标排期
       if (!reselectScheduleOption(dl.scdid)) {
-          alert('未在课程排期列表中找到指定排期');
+          toast('未在课程排期列表中找到指定排期');
           return;
       }
 
@@ -662,7 +715,7 @@ function localsearchCourse_sch() {
                   }
               }
               if (!sidFound) {
-                  alert('指定学生不在学生列表中');
+                  toast('指定学生不在学生列表中');
               }
           }
       }
@@ -873,13 +926,7 @@ function renderCourseToList(clist) {
         
       const cid = document.getElementById('courseSelect').value;      
       if (!cid) return;
-      currentCourseIndex = cid;
-       
-        // 把页面的courseId节点内容设置为cid
-        const courseIdElem = document.getElementById('courseId');
-        if (courseIdElem) {
-            courseIdElem.value = cid;
-        }
+      activeCourseId = cid;
         // 把页面的teacherName节点内容设置为教师姓名
         const teacherNameElem = document.getElementById('teacherName');
         if (teacherNameElem) {
@@ -943,7 +990,7 @@ function renderCourseToList(clist) {
           }
           return;
       } catch (e) {
-          alert("加载排期失败",e);
+          toast("加载排期失败：" + (e&&e.message?e.message:e), false);
       }       
   }
   //保存时，获取课程总数，用于计算可预约人数--保存时，根据课程形式，设置可预约人数为课程总数
@@ -952,7 +999,7 @@ async function getCourseFormByCourseId(cid) {
         const result = await request({url:`/course/classform?courseId=${cid}` });
         return result;
     } catch (e) {
-        alert("获取课程形式失败",e);
+        toast("获取课程形式失败：" + (e&&e.message?e.message:e), false);
         return null;
     }
 }
@@ -962,13 +1009,6 @@ async function renderSchedule() {
      if (!scheduleObject) return;
      //更新已预约人数
 const totalBooked = await getBookingCountByScheduleId(scheduleObject.scheduleId);
-
-       // 刷新开始日期
-       if (scheduleObject.scheduleId) {
-        document.getElementById('scheduleId').value = scheduleObject.scheduleId; 
-    } else {
-        document.getElementById('scheduleId').value = '';
-    }
 
      document.getElementById('availableSites').value = scheduleObject.availableSites;
      setNowAvailableSitesDisplay(scheduleObject.availableSites - totalBooked);
@@ -1079,7 +1119,7 @@ const totalBooked = await getBookingCountByScheduleId(scheduleObject.scheduleId)
   scheduleObject = {
     scheduleId: "",
     name:"",
-    courseId: currentCourseId,
+    courseId: activeCourseId,
     courseName: "",
     //teacherId: "",
     teacherName: "",
@@ -1225,10 +1265,10 @@ function refreshUserTzPreview() {
    function  getFormData(){
     const form = {
         name: document.getElementById('scheduleName').value,
-        courseId: document.getElementById('courseId').value,
+        courseId: activeCourseId,
         availableSites: document.getElementById('availableSites').value,
 
-        scheduleId: document.getElementById('scheduleId').value,
+        scheduleId: scheduleObject.scheduleId,
         startDate: document.getElementById('startDate').value,
         startTime: document.getElementById('startTime').value,
         repeatType: document.getElementById('repeatType').value,
@@ -1280,7 +1320,7 @@ function refreshUserTzPreview() {
        }
     renderResult();
     renderCalendar();
-    //alert("预览成功");
+    //toast("预览成功");
 }
 
  
@@ -1370,27 +1410,51 @@ function renderResult() {
       }
     } else {
     // INSERT_YOUR_CODE
-    alert("请选择课程！");
+    toast("请选择课程！");
     return;
     }
     //判断结束日期不能早于开始日期
     if (formData.endDate < formData.startDate) {
-      alert("结束日期不能早于开始日期！");
+      toast("结束日期不能早于开始日期！");
       return;
     }
   
     let createdto = toScheduleCreateDto(formData);      
-    
+
+    // 并入保存：保存前自动查冲突，有冲突则内联提示并阻止保存
+    const conflictMsgEl = document.getElementById('conflictMessage');
+    if (conflictMsgEl) conflictMsgEl.textContent = '正在检查冲突…';
+    const conflictList = await checkScheduleConflict(createdto);
+    if (!conflictList) {
+        toast('检测排期冲突时发生错误！', false);
+        return;
+    }
+    if (Array.isArray(conflictList) && conflictList.length > 0) {
+        let cmsg = '与以下排期存在冲突：';
+        conflictList.forEach(function(item){
+            if (typeof item === 'object' && item.name) cmsg += item.name + '，';
+            else if (typeof item === 'string') cmsg += item + '，';
+            else cmsg += JSON.stringify(item) + '，';
+        });
+        cmsg = cmsg.replace(/，\s*$/, '');
+        if (conflictMsgEl) { conflictMsgEl.style.color = 'red'; conflictMsgEl.textContent = cmsg; }
+        toast('存在排期冲突，已阻止保存，请先处理。', false);
+        return;
+    } else if (conflictMsgEl) {
+        conflictMsgEl.style.color = 'green';
+        conflictMsgEl.textContent = '该排期没有时间冲突。';
+    }
+
     let bExists = formData.scheduleId && formData.scheduleId !== "";
 // 返回当前或新增的schedule的id
     let result = await saveScheduleToServer(bExists , createdto);
        // 4.  响应处理 响应成功/失败 result.data.id = new id 
          
         if ((typeof result === "undefined") || result == null) { 
-            alert(bExists ? '编辑失败' : '新增失败'); 
+            toast(bExists ? '编辑失败' : '新增失败', false); 
         }else {
             currentScheduleId = result.Id;
-            alert(bExists ? '编辑成功' : '新增成功'); 
+            toast(bExists ? '编辑成功' : '新增成功', true); 
         } 
 }
 
@@ -1398,7 +1462,7 @@ async function assignStudentToSchedule( ) {
      
     if(! checkCourseAndSchedule(true,true))
         {  
-            alert("请选择有效的课程和排期！");
+            toast("请选择有效的课程和排期！");
             return ;
         } 
     let scdid = currentScheduleId;
@@ -1411,17 +1475,17 @@ async function assignStudentToSchedule( ) {
          assignStudentId = assignStudentSelect.value;
       } else 
       {
-        alert("请选择学生！");
+        toast("请选择学生！");
         return;
       }
    
        
         const ret = await assignStudentToTheSchedule(scdid,assignStudentId,teacherId);
         if ( ret  ) {
-            alert("学生成功分配排期的课程并完成预约！");
+            toast("学生成功分配排期的课程并完成预约！", true);
             // 可选：刷新界面或数据 
         } else {
-            alert("学生分配排期失败: " + "请检查后端接口与数据。");
+            toast("学生分配排期失败: " + "请检查后端接口与数据。");
         }  
         return ;
 }
@@ -1566,6 +1630,7 @@ async function renderWaitlistPanel(scheduleId) {
     }
     body.innerHTML = rows;
     section.style.display = '';
+    if (typeof switchTab === 'function') switchTab('tab-advanced');
 }
 
 /**
@@ -1590,7 +1655,7 @@ async function clickPromoteWaitlist(bookingId, position) {
 
     const result = await promoteWaitlist(bookingId);
     if (result) {
-        alert('递补成功：已生成课次，并已通知该学生。');
+        toast('递补成功：已生成课次，并已通知该学生。', true);
     }
 
     await loadSchedule();
@@ -1643,7 +1708,7 @@ window.reselectScheduleOption = reselectScheduleOption;
        // 注意：checkScheduleConflict 应当是 async，返回 {code, message, data}
        let clist = await checkScheduleConflict(createdto);
        if (!clist) {
-          alert("检测排期冲突时发生错误！");
+          toast("检测排期冲突时发生错误！", false);
           return;
        }
        // clist  预期为冲突列表，Map<String,String>，通常为 array of {id, name}  
@@ -1662,7 +1727,7 @@ window.reselectScheduleOption = reselectScheduleOption;
                  msg += JSON.stringify(item)  ;
                }
            });
-          // alert(msg);
+          // toast(msg);
            if (conflictMessageElem) {  
             // 把msg中的首尾的字符@@去掉，把中间的@@更换为逗号
             msg = msg.replace(/^@@|@@$/g, ''); // 去除首尾@@
@@ -1673,7 +1738,7 @@ window.reselectScheduleOption = reselectScheduleOption;
             conflictMessageElem.textContent = msg; 
          }
        } else {
-          // alert("该排期与该课程的其它排期没有冲突。");
+          // toast("该排期与该课程的其它排期没有冲突。");
            if (conflictMessageElem) {
             conflictMessageElem.style.color = 'green';
             conflictMessageElem.textContent = "该排期没有时间冲突。";
@@ -1701,42 +1766,13 @@ window.reselectScheduleOption = reselectScheduleOption;
  * 
  * 
  **/ 
-/**
+
 /**
  * 隐藏 DIV 元素但仍可通过 JS 访问其内容/属性的常用方法：
  * 1. 使用 style="display:none" —— DIV 不可见且不占位，但仍保留在 DOM，可通过 JS 读写 innerText/innerHTML 等。
  * 2. 使用 style="visibility:hidden" —— DIV 不可见但仍占位，也可被 JS 正常访问内容。
  * 3. 用页面外定位：如 style="position:absolute; left:-9999px;"，视觉上不可见但依然在 DOM，也可聚焦/访问内容。
  * 4. 用 aria-hidden="true" 属性 —— 仅影响无障碍，不影响 JS 获取内容。
- *
- * 示例：
- * <div id="a" style="display:none">foo</div>
- * <div id="b" style="visibility:hidden">bar</div>
- * <div id="c" style="position:absolute;left:-9999px;">baz</div>
- * <div id="d" aria-hidden="true">hidden by aria</div>
- * // JS:
- * undefined;
- *
- * // 只要 DIV 未从 DOM 移除，其内容都能通过 JavaScript 获取和修改。
- */
- // INSERT_YOUR_CODE
-
-// 示例：在display:none的DIV中包含一个input，依然可以通过JS读取其值
-
-// 假设有如下HTML
-// <div id="hiddenDiv" style="display:none;">
-//   <input type="text" id="hiddenInput" value="隐藏的值">
-// </div>
-
-// 通过JS读取和设置input的值
-/*function readHiddenInputValue() {
-    var input = document.getElementById('hiddenInput');
-    if (input) {
-        // 也可以赋新值
-        input.value = "新值";
-    }
-}*/
-// 调用示例
-// readHiddenInputValue();
-
-// 结论：只要元素还在DOM树中，display:none不会影响JS用value/innerText等API访问或修改其内容
+ * 5. 用 CSS 类控制显示：通过添加/删除特定类名来控制元素的显示状态。
+ * 结论：只要元素还在DOM树中，display:none不会影响JS用value/innerText等API访问或修改其内容。
+ * */
