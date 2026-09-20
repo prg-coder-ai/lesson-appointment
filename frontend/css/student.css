@@ -102,6 +102,10 @@
     border-right: 1px solid var(--border-color);
     height: 100%;
     flex-shrink: 0;
+    /* 父级 .layout-container 是固定高度 + overflow:hidden：侧栏必须自己能滚，
+       否则菜单超高时底部菜单组会被裁掉且滚不到（与 admin 端同一隐患） */
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   /* 侧边栏菜单样式 */
@@ -429,6 +433,7 @@
     display: flex;
     flex-wrap: nowrap;
     overflow-x: auto;
+    overflow-y: hidden; /* 移动端横向平铺，覆盖桌面端的 overflow-y:auto */
     -webkit-overflow-scrolling: touch;
     align-items: stretch;
     gap: 10px;

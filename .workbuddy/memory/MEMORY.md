@@ -73,6 +73,7 @@
 2. 异步渲染必 await（否则读上一对象残值→"首屏空之后慢一步"）；切换刷新带自增序号丢弃过期响应。
 3. Nginx try_files 兜底把不存在页渲染成登录首页→先确认文件在 frontend/与 dist/。
 4. 自定义下拉/弹出层：禁用 absolute 放 overflow:auto 容器（必被裁）；显隐用模块内布尔变量别读 style；热区≥28px；输入框别写内联 padding。
+5. 侧栏菜单是**静态 HTML**（admin.html 的 `menu-item[key=...]`，切换走 `switch(key)`），无 JS 渲染/权限过滤/位置依赖 → 菜单"不显示"**先查 CSS**。`.layout-container`=height:calc(100vh-60px)+overflow:hidden，故 `.sidebar` 必须自带 `overflow-y:auto`（admin.css 已加；移动端断点内需 `overflow-y:hidden` 还原横滑）。菜单总高≈1040px，视口 CSS 高度 <1100px 就会裁掉底部菜单组且滚不到——新菜单习惯加在最底部，最易中招。
 
 ## 文档(doc-develop)
 - 三手册：腾讯云手册(权威操作)＞预约系统手册(原理排障)＞前端手册(仅前端)；前两份重叠严重须同步。

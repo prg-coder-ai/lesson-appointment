@@ -357,9 +357,6 @@ function openNotifyRuleEditor(scopeKind, courseId) {
     var nameValue = (existing && existing.name) || (scopeKind === 'tenant' ? '租户默认规则' : '');
     var remarkValue = (existing && existing.remark) || '';
 
-    // 课程选择框：排除已单独配置过的课程（那些走"编辑"）
-    var configuredIds = {};
-    notifyRuleRows.forEach(function (r) { if (r.courseId) configuredIds[r.courseId] = true; });
     var courseSelectHtml = '';
     if (scopeKind === 'course') {
         if (existing) {
@@ -367,13 +364,14 @@ function openNotifyRuleEditor(scopeKind, courseId) {
                 '<input type="text" id="nr-course" value="' + escapeNotifyHtml(existing.courseName || existing.courseId) + '" disabled ' +
                 'style="width:100%;padding:8px 12px;border:1px solid #e9ecef;border-radius:4px;background:#f6f8fa;">';
         } else {
-            var options = notifyRuleCourseOptions
-                .filter(function (c) { return !configuredIds[c.courseId]; })
+            // 第一项：缺省规则（courseId 空串 = 租户默认规则），对所有未单独配置的课程生效；
+            // 之后列出本租户全部课程，供为任意课程单独设置覆盖（含已配置项，选它即覆盖更新）。
+            var options = '<option value="">缺省规则（对所有未单独配置的课程有效）</option>';
+            options += notifyRuleCourseOptions
                 .map(function (c) {
                     return '<option value="' + escapeNotifyHtml(c.courseId) + '">' +
                         escapeNotifyHtml(c.courseName) + '</option>';
                 }).join('');
-            if (!options) options = '<option value="">（所有课程都已单独配置）</option>';
             courseSelectHtml =
                 '<select id="nr-course" style="width:100%;padding:8px 12px;border:1px solid #e9ecef;border-radius:4px;">' +
                 options + '</select>';
@@ -685,10 +683,8 @@ function collectNotifyRuleForm() {
     if (notifyRuleEditing && notifyRuleEditing.scopeKind === 'course') {
         var courseEl = document.getElementById('nr-course');
         courseId = courseEl ? courseEl.value : '';
-        if (!courseId) {
-            notifyNotifyRule('请选择要配置的课程');
-            return null;
-        }
+        // 允许空串：下拉第一项「缺省规则（对所有未单独配置的课程有效）」即租户默认规则；
+        // 选具体课程则为其设置覆盖。两者都合法，无需强制必填。
     }
 
     var points = (notifyRuleEditing && notifyRuleEditing.points) || [];

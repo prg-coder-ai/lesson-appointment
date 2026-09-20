@@ -1,42 +1,42 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<html lang="zh-CN" data-page-node-id="anGw5eE8fG5ugyTD2RisGd">
+<head data-page-node-id="XltOl3syVCQxDVY8cHWo6S">
+  <meta charset="UTF-8" data-page-node-id="TeIZxs4IEajH0mnlHqznBH">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="41VCVbVg9FcgpGmSmYNedx">
   <title data-term-title="{lessonSystem} - 管理端">语言教学预约系统 - 管理端</title>
-  <link rel="icon" href="/favicon.ico" type="image/x-icon">
-  <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" data-page-node-id="NekdIRsIdAzKYhJH2HFHai">
+  <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" data-page-node-id="O0klii3Y6hGCdwHOUDlyC0">
   <!-- 引入管理端全局样式 -->
-  <link rel="stylesheet" href="css/admin.css"> 
+  <link rel="stylesheet" href="css/admin.css" data-page-node-id="eFiICUBWZ0j5nLyWAJ9lpq"> 
   <!-- 引入图标库 
   < link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" data-page-node-id="zTLtc8x1E67VbGFmqW9qHu">
 
    <!-- FullCalendar CSS -->
-   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
+   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet" data-page-node-id="8LBv0n0Jjmp7GD7rQabhpp">
 
   <style>
     /* 新增头部样式，确保布局正常 */ 
   </style>
 </head>
-<body>
+<body data-page-node-id="QNdHlEc12zpZYxH09Sd9Lh">
   <!-- 头部区域 -->
-  <header class="header">
-    <div class="logo">
-      <img src="/images/admin_icon.jpg" alt="管理端logo">
+  <header class="header" data-page-node-id="LbqNSGBmYnAa82K3shZHP8">
+    <div class="logo" data-page-node-id="7EaicxKYXHcXuvMpS1xVkw">
+      <img src="/images/admin_icon.jpg" alt="管理端logo" data-page-node-id="WahaA8SnDRIZqZbDbckblF">
 
-       <span class="logo-text"><span id="brand-title" data-term="lessonSystem">语言教学预约系统</span> （<span id="role-title" data-term="adminEnd">管理端</span>）</span>
+       <span class="logo-text" data-page-node-id="IimvFnv3l6MStuslu8Gye4"><span id="brand-title" data-term="lessonSystem" data-page-node-id="PHLHJxOFVIserajUaIVNTX">语言教学预约系统</span> （<span id="role-title" data-term="adminEnd" data-page-node-id="qHxSxB6HR3wGWPsC8NEiBV">管理端</span>）</span>
     </div>
     </div>
     <!-- 头部操作区 - 退出按钮  id_firstLetter  id_username" -->
-    <div class="header-actions">
-      <div class="user-info" id="user_info">  
-        <div class="avatar" id="avatar">A</div>
-        <span class="user-name" id="user-name">Admin</span>
+    <div class="header-actions" data-page-node-id="SFi9dsKMToyJokvlARXYDn">
+      <div class="user-info" id="user_info" data-page-node-id="PZafvRffSTnst8Xmtdo804">  
+        <div class="avatar" id="avatar" data-page-node-id="X1h9PUVS8Jy2jfTyXIJwnP">A</div>
+        <span class="user-name" id="user-name" data-page-node-id="rxzlQ1wjMPLmruh3Lro4UP">Admin</span>
       </div>
-      <button class="btn btn-default" style="padding: 6px 12px;" onclick="handleLogout()">
-        <i class="fa fa-sign-out-alt"></i> 退出
+      <button class="btn btn-default" style="padding: 6px 12px;" onclick="handleLogout()" data-page-node-id="ZG0nHaSzhQ7tno9R2ULCUJ">
+        <i class="fa fa-sign-out-alt" data-page-node-id="PwaFiG7UzusKfw7IZgGTw3"></i> 退出
       </button>
 
     </div>
@@ -46,134 +46,133 @@
   <!-- 注意：标题与关闭按钮的 id 必须各自唯一。此前两个弹窗都叫 modalTitle / closeModal，
        getElementById 只会返回文档里第一个（即模板弹窗的），导致课程弹窗的 × 从未被绑定、
        点模板弹窗的 × 会同时触发两个关闭函数。 -->
-  <div class="modal-mask" id="templateModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 id="templateModalTitle">新增<span data-term="course">课程</span>模板</h3>
-        <span class="modal-close" id="templateCloseBtn"><i class="fa fa-times"></i></span>
+  <div class="modal-mask" id="templateModal" data-page-node-id="7iIxpMnKpGjUutWuRWJQdi">
+    <div class="modal-content" data-page-node-id="IDPZqJdBgMZKiOUoBxIETX">
+      <div class="modal-header" data-page-node-id="fkF24G7FCRbthEJ2IA96bQ">
+        <h3 id="templateModalTitle" data-page-node-id="O8qjwrcAtxZt9rzxLpmN8Y">新增<span data-term="course" data-page-node-id="7osoF8nLTuiwXRro3Yg6Ly">课程</span>模板</h3>
+        <span class="modal-close" id="templateCloseBtn" data-page-node-id="r6LGmbTpkv9tQCh2U0orUe"><i class="fa fa-times" data-page-node-id="DM6GeQkJMDFc5R9Fs3DFIi"></i></span>
       </div>
-      <div id="templateFormContainer">
+      <div id="templateFormContainer" data-page-node-id="Exq70yu5M5BHWovkbyNpvw">
         <!-- 表单内容由JS动态生成 -->
       </div>
     </div>
   </div> 
   
-  <div class="modal-mask" id="courseModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 id="courseModalTitle">新增<span data-term="course">课程</span></h3>
-        <span class="modal-close" id="courseCloseBtn"><i class="fa fa-times"></i></span>
+  <div class="modal-mask" id="courseModal" data-page-node-id="ff2vuDNOgYbXyMTVtDLCO7">
+    <div class="modal-content" data-page-node-id="PVSdfy33kfbrTQYiYGhtFy">
+      <div class="modal-header" data-page-node-id="FVYcspuEwf4tSZK7IzjKzQ">
+        <h3 id="courseModalTitle" data-page-node-id="2DExqdk5dCD9z5F5CvGSnD">新增<span data-term="course" data-page-node-id="xkj2EKrr3mm4GUlvcUC6mZ">课程</span></h3>
+        <span class="modal-close" id="courseCloseBtn" data-page-node-id="yMufPO8sjZu6gY6UYACWTp"><i class="fa fa-times" data-page-node-id="zPzsBYynDtty7hEOepiBOK"></i></span>
       </div>
-      <div id="formContainer">
+      <div id="formContainer" data-page-node-id="QJbJ3qbT7R4GIG65V9YAvj">
         <!-- 表单内容由JS动态生成 -->
       </div>
     </div>
   </div> 
   
   <!-- 布局容器 -->
-  <div class="layout-container">
+  <div class="layout-container" data-page-node-id="nSm3IY4S3ag01miKEvozSV">
     <!-- 侧边栏 -->
-    <aside class="sidebar">
-      <div class="menu-group">
-        <div class="menu-group-title">系统概览</div>
-        <div class="menu-item" key="overview">
-          <i class="fa fa-tachometer-alt"></i>
-          <span>数据总览</span>
+    <aside class="sidebar" data-page-node-id="OHaQvrnXL2KtFIG6a9BMdT">
+      <div class="menu-group" data-page-node-id="S4LkaJr8R3lsxUHpghPnsd">
+        <div class="menu-group-title" data-page-node-id="h7oGZBdwozQjaaU0S5NQbZ">系统概览</div>
+        <div class="menu-item" key="overview" data-page-node-id="STtT4TzmLY5NAAUHVb1gGv">
+          <i class="fa fa-tachometer-alt" data-page-node-id="hu3rWaIjx2qeZoi1cqUMc1"></i>
+          <span data-page-node-id="0lGo0y8GlIbKa3IFnRD4gj">数据总览</span>
         </div>
       </div>
-    <div class="menu-group-title">排期与预订</div>
-        <div class="menu-item" key="schedule">
-          <i class="fa fa-book-open"></i>
-          <span><span data-term="course">课程</span>排期</span>
+    <div class="menu-group-title" data-page-node-id="kfn0gbJR1D2pULt3bGt2U9">排期与预订</div>
+        <div class="menu-item" key="schedule" data-page-node-id="HbOGK1VX1QHq5APpyiKjV7">
+          <i class="fa fa-book-open" data-page-node-id="Xs7GGLs0x4H6Mr2UpLhLxJ"></i>
+          <span data-page-node-id="ZGnFEhoowGJEEB1YFX0rt2"><span data-term="course" data-page-node-id="0kZqRHxJwWoOjbT6YxWy4t">课程</span>排期</span>
         </div>
-        <div class="menu-item" key="booking_audit">
-          <i class="fa fa-calendar-alt"></i>
-          <span>预订审核</span>
+        <div class="menu-item" key="booking_audit" data-page-node-id="QcBseLCbt4REQgzFD7IwUq">
+          <i class="fa fa-calendar-alt" data-page-node-id="koYbCJbAoVKqnrTHfFDnJD"></i>
+          <span data-page-node-id="v5bwUOH48epBnWUuSJn71J">预订审核</span>
         </div>
-        <div class="menu-group-title">预约检视</div>
-        <div class="menu-item" key="lesson_notice">
-          <i class="fa fa-calendar-alt"></i>
-          <span><span data-term="lesson">上课</span>通知</span>
+        <div class="menu-group-title" data-page-node-id="ZvKXmth7hqNQXWU4ROrLK1">预约检视</div>
+        <div class="menu-item" key="lesson_notice" data-page-node-id="DulTHi934i9s28ERRHc4h6">
+          <i class="fa fa-calendar-alt" data-page-node-id="y6ECFklu3lWWPQGQONFIQb"></i>
+          <span data-page-node-id="yB8ei8tWxOqwd8xL0t4NcQ"><span data-term="lesson" data-page-node-id="HZpa4aXuFdPpmabjHStBDH">上课</span>通知</span>
         </div> 
-      <div class="menu-group">
-        <div class="menu-group-title">用户管理</div>
-        <div class="menu-item" key="teacher">
-          <i class="fa fa-chalkboard-teacher"></i>
-          <span><span data-term="teacher">教师</span>管理</span>
+      <div class="menu-group" data-page-node-id="7a7nIJ6oCjMFIUAScQhuZt">
+        <div class="menu-group-title" data-page-node-id="aZLfkF63O5ZE2ieJ8jntSU">用户管理</div>
+        <div class="menu-item" key="teacher" data-page-node-id="aeMY5hN5u2MJDGtJliBbo5">
+          <i class="fa fa-chalkboard-teacher" data-page-node-id="O2XH300K8i3UgMB5UA4DfP"></i>
+          <span data-page-node-id="ZxWGO0PSg7GKK96tKA8D6w"><span data-term="teacher" data-page-node-id="XwEXOeLrErsefr1CWWO20i">教师</span>管理</span>
         </div>
-        <div class="menu-item" key="student">
-          <i class="fa fa-user-graduate"></i>
-          <span><span data-term="student">学生</span>管理</span>
-        </div>
-      </div>
-
-      <div class="menu-group">
-        <div class="menu-group-title">消息中心</div>
-        <div class="menu-item" key="messages">
-          <i class="fa fa-bell"></i>
-          <span>消息中心</span>
-          <span class="msg-badge" id="msg-unread-badge" style="display:none;"></span>
-        </div>
-        <div class="menu-item" key="sensitive_words">
-          <i class="fa fa-shield-alt"></i>
-          <span>敏感词管理</span>
+        <div class="menu-item" key="student" data-page-node-id="e3mE2Jnb0ZXpJhOSFE8uj5">
+          <i class="fa fa-user-graduate" data-page-node-id="N40w2uk339VwpjE0pphlRj"></i>
+          <span data-page-node-id="WKbr9AlALDAPEotLdPB3zm"><span data-term="student" data-page-node-id="ENdzBhLCPmTeB1KWKXcRKj">学生</span>管理</span>
         </div>
       </div>
 
-      <div class="menu-group">
-        <div class="menu-group-title"><span data-term="course">课程</span>管理</div>
-        <div class="menu-item" key="course_template">
-          <i class="fa fa-book-open"></i>
-          <span><span data-term="course">课程</span>模板</span>
+      <div class="menu-group" data-page-node-id="Xh8tiYp9QVG0wHLRDaVt9X">
+        <div class="menu-group-title" data-page-node-id="tpA851lMDATjXV2cZBlVhh">消息中心</div>
+        <div class="menu-item" key="messages" data-page-node-id="lWUqa7Xqs6RhEcGHFzfPtB">
+          <i class="fa fa-bell" data-page-node-id="xBjvHisNparBmBQccfGFyD"></i>
+          <span data-page-node-id="deGpGL7nkaG3dD10fH8eYY">消息中心</span>
+          <span class="msg-badge" id="msg-unread-badge" style="display:none;" data-page-node-id="1hoJFGlQGpPlXfhDWWDHBv"></span>
         </div>
-        <div class="menu-item" key="course_list">
-          <i class="fa fa-book-open"></i>
-          <span><span data-term="course">课程</span>列表</span>
-        </div> 
-      
-      <div class="menu-group">
-        <div class="menu-group-title">系统维护</div>
-        <div class="menu-item" key="data_maintain">
-          <i class="fa fa-cog"></i>
-          <span>数据维护</span>
-        </div>
-         <div class="menu-item" key="test_data" id="menu-test-data">
-          <i class="fa fa-calendar-alt"></i>
-          <span>测试-批量创建数据</span>
-        </div>
-         <div class="menu-item" key="audit_log">
-          <i class="fa fa-file-alt"></i>
-          <span>审计日志</span>
-        </div>
-      </div>
-       
       </div>
 
-      <div class="menu-group">
-        <div class="menu-group-title">系统配置</div>
-        <div class="menu-item" key="refund_rule">
-          <i class="fa fa-undo"></i>
-          <span>退改规则</span>
+      <div class="menu-group" data-page-node-id="AxVxQrB10CUJkYkbpEgPMd">
+        <div class="menu-group-title" data-page-node-id="JwCLZ6CpiH1o3hJH9WOnBH"><span data-term="course" data-page-node-id="qBaaPFj9EJmtyxxGOH4qCv">课程</span>管理</div>
+        <div class="menu-item" key="course_template" data-page-node-id="uE5duMvcSYwqCDFSH4bpgz">
+          <i class="fa fa-book-open" data-page-node-id="VVZNSfD4n4VOYlNqHVVeOz"></i>
+          <span data-page-node-id="VyV3zkamwgokhmDG7ClQmU"><span data-term="course" data-page-node-id="nPBNGaBpyTzP2rZXlZ2Mw1">课程</span>模板</span>
         </div>
-        <div class="menu-item" key="notify_rule">
-          <i class="fa fa-bell"></i>
-          <span>通知规则</span>
+        <div class="menu-item" key="course_list" data-page-node-id="vPH6yGdBJdLPjk12OETjDW">
+          <i class="fa fa-book-open" data-page-node-id="NuryMlR342SpnZj0IFJm1o"></i>
+          <span data-page-node-id="8LBFIDukQS8f5cX3wUlCeG"><span data-term="course" data-page-node-id="oAdQ6lNHPCbr7MfRs4Jm7C">课程</span>列表</span>
+        </div>
+      </div>
+
+      <div class="menu-group" data-page-node-id="jLiPjUPjThIusR9FrP0D4V">
+        <div class="menu-group-title" data-page-node-id="uiaf0Tdcg5X4rQOmZrXZR4">系统维护</div>
+        <div class="menu-item" key="data_maintain" data-page-node-id="Df1U68vOl0L0pNRwok4y7K">
+          <i class="fa fa-cog" data-page-node-id="N2SqpluwDoPPnNBAGV5qaY"></i>
+          <span data-page-node-id="JXNOtm92qzauqgvYEmloJz">数据维护</span>
+        </div>
+         <div class="menu-item" key="test_data" id="menu-test-data" data-page-node-id="9axONugK4kARAD1BtMpDm9">
+          <i class="fa fa-calendar-alt" data-page-node-id="ykWI5y8XRwTdyr6QdhTqyQ"></i>
+          <span data-page-node-id="NnIcFDUo5wGGV2DF4VSMqG">测试-批量创建数据</span>
+        </div>
+         <div class="menu-item" key="audit_log" data-page-node-id="I6zNshMPAQp0CLj3BG8oj8">
+          <i class="fa fa-file-alt" data-page-node-id="FkNrG2dvXUm6oMvB2G5ad5"></i>
+          <span data-page-node-id="aG1rh4Y3QYBQ5e4WwyGd18">审计日志</span>
+        </div>
+      </div>
+
+      <div class="menu-group" data-page-node-id="teDqj0c6c5wg0epzHI9hNC">
+        <div class="menu-group-title" data-page-node-id="gL8Kr95P4gGP7KZZYPR93E">系统配置</div>
+        <div class="menu-item" key="sensitive_words" data-page-node-id="0msG8Rc1yywhmpXr9cCLUg">
+          <i class="fa fa-shield-alt" data-page-node-id="YlvCgZFD5ggX753BVbQGxT"></i>
+          <span data-page-node-id="aCW34NchPPumu6rilgRT0W">敏感词管理</span>
+        </div>
+        <div class="menu-item" key="refund_rule" data-page-node-id="FrgoQ1jdcoFnjx1QSOJIb2">
+          <i class="fa fa-undo" data-page-node-id="e6ONiQjkzNk38xBeyYAOCn"></i>
+          <span data-page-node-id="hYIJyuEsFlo4QH6A4g6Dvm">退改规则</span>
+        </div>
+        <div class="menu-item" key="notify_rule" data-page-node-id="uVVKBXodNG7S4j4rIwK8MC">
+          <i class="fa fa-bell" data-page-node-id="l2H8GJ6BlG0MoCSh95UjpB"></i>
+          <span data-page-node-id="uH6g2k3Q6fWPTtBE0MV65a">通知规则</span>
         </div>
       </div>
     </aside>
 
     <!-- 主内容容器（包含标题和中央动态区域） -->
-    <div class="content-wrapper">
+    <div class="content-wrapper" data-page-node-id="DWRxnT3cenXACHkXv73aZT">
       <!-- 页面标题 -->
-      <div class="content-header">
-        <div style="display: flex; align-items: center; justify-content: space-between;">
-          <h1 class="page-title" style="margin: 0;">数据总览</h1>
-          <button class="btn btn-primary" onclick='refreshRightPage()'><i class="fa fa-refresh"></i> 刷新</button>
+      <div class="content-header" data-page-node-id="7gAwyzayDuIM6MkhgkOxT8">
+        <div style="display: flex; align-items: center; justify-content: space-between;" data-page-node-id="FbqGVQgU2YyzfmyJ5Iplxl">
+          <h1 class="page-title" style="margin: 0;" data-page-node-id="MDH05ZbkGjrKOAn6krs6pX">数据总览</h1>
+          <button class="btn btn-primary" onclick='refreshRightPage()' data-page-node-id="Mx4bTeagXGOgAEKJ5MUdl0"><i class="fa fa-refresh" data-page-node-id="mBQHWCaZccbSOCd0oDA9rr"></i> 刷新</button>
         </div>
       </div>
       
       <!-- 动态内容中央区域（核心修改：独立容器+居中样式） -->
-      <div id="dynamic-content-center" class="dynamic-content-center">
+      <div id="dynamic-content-center" class="dynamic-content-center" data-page-node-id="x5LsOUnwTQFzRpsjGTuopw">
       </div>
   </div>
 
