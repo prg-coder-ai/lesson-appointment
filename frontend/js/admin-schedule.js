@@ -952,11 +952,10 @@ function renderCourseToList(clist) {
       const cid = document.getElementById('courseSelect').value;      
       if (!cid) return;
       activeCourseId = cid;
-        // 把页面的teacherName节点内容设置为教师姓名
+        // 把页面的teacherName节点内容设置为教师姓名（仅展示用，失败不得阻断排期加载）
         const teacherNameElem = document.getElementById('teacherName');
         if (teacherNameElem) {
             teacherNameElem.innerHTML = '';
-             
             const sel = document.getElementById('courseSelect'); 
             if (sel && sel.value) {
                  const selectedOption = sel.options[sel.selectedIndex];
@@ -964,10 +963,14 @@ function renderCourseToList(clist) {
                     teacherId = selectedOption.getAttribute('data-teacher-id') || "";
                   }
              } 
-            if (!teacherId) return;
-            const teacherName= await request({url:`/user/name/${teacherId}` });
-            if (!teacherName) return;
-            teacherNameElem.innerHTML = teacherName || '';
+            if (teacherId) {
+                try {
+                    const teacherName = await request({url:`/user/name/${teacherId}` });
+                    teacherNameElem.innerHTML = teacherName || '';
+                } catch (e) {
+                    teacherNameElem.innerHTML = '';
+                }
+            }
         }
 
        let classForm = document.getElementById('classForm');
@@ -985,35 +988,38 @@ function renderCourseToList(clist) {
             scheduleList.forEach(item => {
                 if (!item.status) item.status = 'active';
             });
-          if (scheduleList && scheduleList.length > 0) {
-            // 把scheduleList列表按scheduleId值添加到scheduleSelect下拉列表中
+            // 始终渲染下拉框：先放占位项，避免“选中课程后下拉完全空白”的观感
             const scheduleSelect = document.getElementById('scheduleSelect');
             if (scheduleSelect) {
-                // 先清空原有选项
                 scheduleSelect.innerHTML = '<option value="">请选择<span data-term="course">课程</span>排期</option>';
-                scheduleList.forEach(schedule => {
-                    // scheduleId和排期信息（可展示更多）
-                    const opt = document.createElement('option');
-                    opt.value = schedule.scheduleId;
-                    // 展示排期信息，如果有startDate等可拼接
-                    let displayText = `排期: ${schedule.name}`;
-                    if (schedule.startDate && schedule.startTime) {
-                        displayText += ` / ${schedule.startDate} ${schedule.startTime}`;
-                    } else if (schedule.startDate) {
-                        displayText += ` / ${schedule.startDate}`;
-                    }
-                    opt.innerText = displayText;
-                    scheduleSelect.appendChild(opt);
-                });             
+                if (scheduleList && scheduleList.length > 0) {
+                    scheduleList.forEach(schedule => {
+                        // scheduleId和排期信息（可展示更多）
+                        const opt = document.createElement('option');
+                        opt.value = schedule.scheduleId;
+                        // 展示排期信息，如果有startDate等可拼接
+                        let displayText = `排期: ${schedule.name}`;
+                        if (schedule.startDate && schedule.startTime) {
+                            displayText += ` / ${schedule.startDate} ${schedule.startTime}`;
+                        } else if (schedule.startDate) {
+                            displayText += ` / ${schedule.startDate}`;
+                        }
+                        opt.innerText = displayText;
+                        scheduleSelect.appendChild(opt);
+                    });
+                    //更新排期的显示
+                    if (currentScheduleIndex == -1) currentScheduleIndex = 0;
+                    scheduleSelect.selectedIndex = currentScheduleIndex >= 0 ? currentScheduleIndex : 0;
+                } else {
+                    // 该课程确实没有排期：给出明确提示，而不是留空
+                    const emptyOpt = document.createElement('option');
+                    emptyOpt.value = '';
+                    emptyOpt.innerText = '该课程暂无排期';
+                    emptyOpt.disabled = true;
+                    scheduleSelect.appendChild(emptyOpt);
+                }
             }
-           
-            //更新排期的显示
-            if(currentScheduleIndex==-1)
-              if(scheduleList.length>0)
-                currentScheduleIndex =0;
-            scheduleSelect.index = currentScheduleIndex;
-          }
-          return;
+            return;
       } catch (e) {
           toast("加载排期失败：" + (e&&e.message?e.message:e), false);
       }       
