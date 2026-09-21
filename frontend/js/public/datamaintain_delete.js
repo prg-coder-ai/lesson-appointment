@@ -400,4 +400,33 @@ async function deleteCourseById(id) {
 
  return listObj;
  }    
+
+// 数据维护页「清理已删」：按类型物理删除 status IN ('frozen','delete') 的软删记录
+// 后端 DataMaintainController 提供固定端点 /data-maintain/purge/{type}，租户插件自动注入 tenant_id
+async function purgeDeletedMaintain(type) {
+  const LABEL = { template: '模板', course: '课程', schedule: '排期', booking: '预定', appointment: '预约' };
+  const urlMap = {
+    template: '/data-maintain/purge/template',
+    course: '/data-maintain/purge/course',
+    schedule: '/data-maintain/purge/schedule',
+    booking: '/data-maintain/purge/booking',
+    appointment: '/data-maintain/purge/appointment'
+  };
+  const url = urlMap[type];
+  if (!url) { alert('该类型暂不支持清理'); return; }
+  if (!confirm('将永久清除「' + (LABEL[type] || type) + '」中所有已标记删除（frozen）的记录，此操作不可恢复。\n确定继续吗？')) return;
+  try {
+    const rows = await request({ url: url, method: 'POST' });
+    // request 成功时返回 res.data（业务对象本身）；后端 Result.success(整数行数) → rows 为 number
+    const n = (typeof rows === 'number') ? rows : (rows && rows.data != null ? rows.data : 0);
+    alert('清理完成，成功删除 ' + n + ' 行');
+    loadMaintainTableData(type);
+  } catch (err) {
+    let msg = '未知错误';
+    if (typeof err === 'string') msg = err;
+    else if (err && err.message) msg = err.message;
+    else if (err && typeof err === 'object') msg = JSON.stringify(err);
+    alert('清理失败：' + msg);
+  }
+}
   

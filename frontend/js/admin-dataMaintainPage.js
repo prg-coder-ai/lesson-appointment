@@ -29,7 +29,7 @@ document.write('<script src="/js/public/datamaintain_delete.js"></script>');
     .dm-filter-bar input { padding: 8px 12px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 14px; min-width: 220px; box-sizing: border-box; }
     .dm-filter-bar input:focus { outline: none; border-color: #722ed1; box-shadow: 0 0 0 2px rgba(114,46,209,.12); }
     /* 刷新按钮：推到筛选条最右侧，与查询/重置区分 */
-    .dm-filter-bar .filter-delete { margin-left: auto; }
+    .dm-filter-bar .filter-purge { margin-left: auto; }
     /* 分区标题：紫色 + 图标 */
     .dm-section-title { font-size: 14px; font-weight: 600; color: #333; padding: 16px 20px 8px; display: flex; align-items: center; gap: 8px; }
     .dm-section-title i { color: #722ed1; }
@@ -139,6 +139,7 @@ function renderMaintainTable(type) {
       <input id='maintain-filter-keyword' type='text' placeholder='输入名称关键词' onkeydown="if(event.key==='Enter'){Pagination.pageNum=1;loadMaintainTableData('${type}');}"/>
       <button class='btn btn-primary btn-sm' onclick="Pagination.pageNum=1;loadMaintainTableData('${type}')"><i class='fa fa-search'></i> 查询</button>
       <button class="btn btn-default btn-sm" onclick="resetFilter()"><i class="fa fa-redo"></i> 重置</button>
+      <button class="btn btn-warning btn-sm filter-purge" onclick="purgeDeletedMaintain('${type}')"><i class="fa fa-eraser"></i> 清理已删</button>
       <button class="btn btn-danger btn-sm filter-delete" onclick="batchDeleteMaintain('${type}')"><i class="fa fa-trash"></i> 删除</button>
       <button class="btn btn-default btn-sm filter-refresh" onclick="Pagination.pageNum=1;loadMaintainTableData('${type}')"><i class="fa fa-sync"></i> 刷新</button>
     </div>
@@ -209,11 +210,11 @@ function batchDeleteMaintain(type) {
 // 动态加载数据并渲染表格
 window.loadMaintainTableData = async function(type){
   var cfg = {
-    template:    { api: fetchTemplateListPage,                                         delFunc: "deleteTemplate" },
-    course:      { api: fetchCourseListPage || (async () => ({rows: [], total: 0, totalPages: 0})), delFunc: "deleteCourseById" },
-    schedule:    { api: fetchScheduleListPage,                                         delFunc: "deleteScheduleById" },
-    booking:     { api: fetchBookingListPage,                                          delFunc: "deleteBooking" },
-    appointment: { api: datamaintain_fetchAppointmentListPage,                         delFunc: "deleteAppointmentsById" }
+    template:    { api: fetchTemplateListPage,                                         delFunc: "deleteTemplate",     idKey: "templateId" },
+    course:      { api: fetchCourseListPage || (async () => ({rows: [], total: 0, totalPages: 0})), delFunc: "deleteCourseById", idKey: "courseId" },
+    schedule:    { api: fetchScheduleListPage,                                         delFunc: "deleteScheduleById", idKey: "scheduleId" },
+    booking:     { api: fetchBookingListPage,                                          delFunc: "deleteBooking",      idKey: "bookingId" },
+    appointment: { api: datamaintain_fetchAppointmentListPage,                         delFunc: "deleteAppointmentsById", idKey: "id" }
   }[type];
 
   var columns = {
@@ -269,13 +270,28 @@ window.loadMaintainTableData = async function(type){
   tableBox.innerHTML = '<div class="dm-loading"><i class="fa fa-spinner fa-spin"></i> 加载中...</div>';
 
   var kw = document.getElementById('maintain-filter-keyword')?.value?.trim();
-  if(kw) { /* name 关键词会作为 conditionJson 之外的参数注入，此处保留 */ }
+
+  // 各类型查询关键词对应的后端 DTO 字段名（此前统一传 name，但只有模板 DTO 认 name，
+  // 导致课程/排期/预定/预约的查询事实上全部失效）。按类型映射到后端真实字段：
+  //  - template  -> name        （TemplateQueryPage.name 已支持模糊匹配）
+  //  - course    -> courseName  （CourseQueryPage.courseName，CourseMapper 已 LIKE）
+  //  - schedule  -> scheduleName（ScheduleQueryPage.scheduleName，本次补 SQL 过滤）
+  //  - booking   -> courseName  （BookingQueryPage.courseName，BookingMapper 已 LIKE）
+  //  - appointment -> 后端 listByPage 仅用 status 过滤，名称搜索需 join 改造，暂不支持
+  var nameFieldByType = {
+    template: 'name',
+    course: 'courseName',
+    schedule: 'scheduleName',
+    booking: 'courseName',
+    appointment: null
+  };
+  var nameField = nameFieldByType[type];
 
   const conditionJson = {
     pageSize: Pagination.pageSize,
     pageNum:  Pagination.pageNum
   };
-  if (kw) conditionJson.name = kw;
+  if (kw && nameField) conditionJson[nameField] = kw;
 
   try {
     const REQUEST_TIMEOUT = 30000;
@@ -311,7 +327,7 @@ window.loadMaintainTableData = async function(type){
     } else {
       list.forEach(item => {
         index++;
-        var firstKey = item[columns[0].key] ?? '';
+        var firstKey = item[cfg.idKey || columns[0].key] ?? '';
         html += '<tr>';
         html += `<td>${index}</td>`;
         columns.forEach(col => {

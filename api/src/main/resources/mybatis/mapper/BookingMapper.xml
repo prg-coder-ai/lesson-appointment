@@ -158,7 +158,7 @@
     </delete>
  -->
  <delete id="deleteByScheduleId" parameterType="string">
-        DELETE FROM booking WHERE schedule_id = #{id}
+        DELETE FROM booking WHERE schedule_id = #{scheduleId}
     </delete>
   
 

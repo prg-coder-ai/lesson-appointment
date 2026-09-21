@@ -85,4 +85,11 @@ public interface CourseTemplateMapper {
      */
     @org.apache.ibatis.annotations.Delete("DELETE FROM course_template WHERE template_id = #{templateId}")
     int deleteTemplate(@Param("templateId") String templateId);
+
+    /**
+     * 物理删除被软删除（status=frozen/delete）的模板记录
+     * 租户插件会自动在此 DELETE 上追加 tenant_id 条件
+     * @return 影响行数
+     */
+    int purgeDeleted();
 }

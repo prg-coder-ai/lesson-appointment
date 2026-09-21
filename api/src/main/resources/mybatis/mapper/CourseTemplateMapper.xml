@@ -62,4 +62,11 @@
         </choose>
       </where>
      </select>
+
+   <delete id="purgeDeleted">
+      DELETE FROM course_template
+      <where>
+         status IN ('frozen', 'delete')
+      </where>
+   </delete>
 </mapper>
