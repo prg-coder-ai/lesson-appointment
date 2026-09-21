@@ -1127,6 +1127,12 @@ const totalBooked = await getBookingCountByScheduleId(scheduleObject.scheduleId)
    function resetSchedule(){
     resetScheduleObject();
     renderSchedule();
+    // 新建：把「选择排期」下拉复位到默认第一项（请选择课程排期，value=""）
+    const scheduleSelect = document.getElementById('scheduleSelect');
+    if (scheduleSelect) {
+        scheduleSelect.value = "";
+    }
+    currentScheduleIndex = -1;
     // 新建时：结束日期默认设置为当前日期 + 30 天
     const endDateInput = document.getElementById("endDate");
     if (endDateInput) {
