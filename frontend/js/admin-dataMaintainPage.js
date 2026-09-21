@@ -28,6 +28,8 @@ document.write('<script src="/js/public/datamaintain_delete.js"></script>');
     .dm-filter-bar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; padding: 16px 20px; border-bottom: 1px solid #f0f0f0; }
     .dm-filter-bar input { padding: 8px 12px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 14px; min-width: 220px; box-sizing: border-box; }
     .dm-filter-bar input:focus { outline: none; border-color: #722ed1; box-shadow: 0 0 0 2px rgba(114,46,209,.12); }
+    /* 刷新按钮：推到筛选条最右侧，与查询/重置区分 */
+    .dm-filter-bar .filter-refresh { margin-left: auto; }
     /* 分区标题：紫色 + 图标 */
     .dm-section-title { font-size: 14px; font-weight: 600; color: #333; padding: 16px 20px 8px; display: flex; align-items: center; gap: 8px; }
     .dm-section-title i { color: #722ed1; }
@@ -137,6 +139,7 @@ function renderMaintainTable(type) {
       <input id='maintain-filter-keyword' type='text' placeholder='输入名称关键词' onkeydown="if(event.key==='Enter'){Pagination.pageNum=1;loadMaintainTableData('${type}');}"/>
       <button class='btn btn-primary btn-sm' onclick="Pagination.pageNum=1;loadMaintainTableData('${type}')"><i class='fa fa-search'></i> 查询</button>
       <button class="btn btn-default btn-sm" onclick="resetFilter()"><i class="fa fa-redo"></i> 重置</button>
+      <button class="btn btn-default btn-sm filter-refresh" onclick="Pagination.pageNum=1;loadMaintainTableData('${type}')"><i class="fa fa-sync"></i> 刷新</button>
     </div>
   `;
 
@@ -172,43 +175,43 @@ window.loadMaintainTableData = async function(type){
   var columns = {
     template: [
       {key: "templateId", label: "编号"},
-      {key: "languageType", label: "语言类型", fmt: function (v) { return courseTypeCellHtml(v); }},
-      {key: "difficultyLevel", label: "难度等级", fmt: function (v) { return enumTermCellHtml('classLevel', v); }},
-      {key: "classForm", label: "课程形式", fmt: function (v) { return enumTermCellHtml('classForm', v); }},
-      {key: "classFee", label: "课时费(元)"},
+      {key: "languageType", label: "语言类型", fmt: function (v) { return courseTypeCellHtml(v); }, term: {key: "classType", anchor: "语言类型"}},
+      {key: "difficultyLevel", label: "难度等级", fmt: function (v) { return enumTermCellHtml('classLevel', v); }, term: {key: "classLevel", anchor: "难度等级"}},
+      {key: "classForm", label: "课程形式", fmt: function (v) { return enumTermCellHtml('classForm', v); }, term: {key: "course", anchor: "课程", suffix: "形式"}},
+      {key: "classFee", label: "课时费(元)", term: {key: "lessonFee", anchor: "课时费", suffix: "(元)"}},
       {key: "status", label: "状态"}
     ],
     course: [
       {key: "courseId", label: "编号"},
-      {key: "courseName", label: "课程名"},
+      {key: "courseName", label: "课程名", term: {key: "course", anchor: "课程", suffix: "名"}},
       {key: "content", label: "内容"},
       {key: "feature", label: "特色"},
       {key: "tempInfo", label: "模板"},
-      {key: "teacherInfo", label: "教师"},
+      {key: "teacherInfo", label: "教师", term: {key: "teacher", anchor: "教师"}},
       {key: "status", label: "状态"}
     ],
     schedule: [
-      {key: "courseName", label: "课程名"},
-      {key: "name", label: "排期"},
+      {key: "courseName", label: "课程名", term: {key: "course", anchor: "课程", suffix: "名"}},
+      {key: "name", label: "排期", term: {key: "schedule", anchor: "排期"}},
       {key: "startDate", label: "开始日期"},
-      {key: "startTime", label: "上课时间"},
+      {key: "startTime", label: "上课时间", term: {key: "lessonTime", anchor: "上课时间"}},
       {key: "timeZone", label: "时区"},
       {key: "status", label: "状态"}
     ],
     booking: [
       {key: "bookingId", label: "编号"},
-      {key: "studentName", label: "学生"},
-      {key: "courseName", label: "课程"},
-      {key: "scheduleName", label: "排期"},
-      {key: "teacherName", label: "教师"},
+      {key: "studentName", label: "学生", term: {key: "student", anchor: "学生"}},
+      {key: "courseName", label: "课程", term: {key: "course", anchor: "课程"}},
+      {key: "scheduleName", label: "排期", term: {key: "schedule", anchor: "排期"}},
+      {key: "teacherName", label: "教师", term: {key: "teacher", anchor: "教师"}},
       {key: "bookingStatus", label: "状态"}
     ],
     appointment: [
       {key: "id", label: "编号"},
-      {key: "studentName", label: "学生"},
-      {key: "teacherName", label: "教师"},
-      {key: "courseName", label: "课程"},
-      {key: "scheduleName", label: "排期"},
+      {key: "studentName", label: "学生", term: {key: "student", anchor: "学生"}},
+      {key: "teacherName", label: "教师", term: {key: "teacher", anchor: "教师"}},
+      {key: "courseName", label: "课程", term: {key: "course", anchor: "课程"}},
+      {key: "scheduleName", label: "排期", term: {key: "schedule", anchor: "排期"}},
       {key: "classIndex", label: "序号"},
       {key: "appointmentTime", label: "时间"},
       {key: "appointmentStatus", label: "状态"}
@@ -249,8 +252,14 @@ window.loadMaintainTableData = async function(type){
     let html = '<table class="dm-data-table">';
     html += '<thead><tr>';
     html += '<th>序号</th>';
-    columns.forEach(col => html += `<th>${col.label}</th>`);
-    html += '<th style="width:80px;">操作</th></tr></thead><tbody>';
+    columns.forEach(col => {
+      if (col.term) {
+        html += `<th><span data-term="${col.term.key}">${col.term.anchor}</span>${col.term.suffix || ''}</th>`;
+      } else {
+        html += `<th>${col.label}</th>`;
+      }
+    });
+    html += '<th style="width:50px; text-align:center;">选择<br><input type="checkbox" id="dm-select-all" onclick="toggleAllMaintainRows(this)"></th></tr></thead><tbody>';
 
     if (list.length === 0) {
       var colSpan = columns.length + 2;
@@ -275,6 +284,7 @@ window.loadMaintainTableData = async function(type){
     }
     html += '</tbody></table>';
     tableBox.innerHTML = html;
+    applyTerms(tableBox); // 动态注入的表头/单元格 data-term 需在渲染后刷新，否则不随行业切换
   } catch(e) {
     console.error('loadMaintainTableData 失败:', e);
     tableBox.innerHTML = '<div class="dm-error"><i class="fa fa-exclamation-circle"></i> 加载失败：' + (e.message || String(e)) + '</div>';
