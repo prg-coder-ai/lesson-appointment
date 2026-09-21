@@ -29,7 +29,7 @@ document.write('<script src="/js/public/datamaintain_delete.js"></script>');
     .dm-filter-bar input { padding: 8px 12px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 14px; min-width: 220px; box-sizing: border-box; }
     .dm-filter-bar input:focus { outline: none; border-color: #722ed1; box-shadow: 0 0 0 2px rgba(114,46,209,.12); }
     /* 刷新按钮：推到筛选条最右侧，与查询/重置区分 */
-    .dm-filter-bar .filter-refresh { margin-left: auto; }
+    .dm-filter-bar .filter-delete { margin-left: auto; }
     /* 分区标题：紫色 + 图标 */
     .dm-section-title { font-size: 14px; font-weight: 600; color: #333; padding: 16px 20px 8px; display: flex; align-items: center; gap: 8px; }
     .dm-section-title i { color: #722ed1; }
@@ -139,6 +139,7 @@ function renderMaintainTable(type) {
       <input id='maintain-filter-keyword' type='text' placeholder='输入名称关键词' onkeydown="if(event.key==='Enter'){Pagination.pageNum=1;loadMaintainTableData('${type}');}"/>
       <button class='btn btn-primary btn-sm' onclick="Pagination.pageNum=1;loadMaintainTableData('${type}')"><i class='fa fa-search'></i> 查询</button>
       <button class="btn btn-default btn-sm" onclick="resetFilter()"><i class="fa fa-redo"></i> 重置</button>
+      <button class="btn btn-danger btn-sm filter-delete" onclick="batchDeleteMaintain('${type}')"><i class="fa fa-trash"></i> 删除</button>
       <button class="btn btn-default btn-sm filter-refresh" onclick="Pagination.pageNum=1;loadMaintainTableData('${type}')"><i class="fa fa-sync"></i> 刷新</button>
     </div>
   `;
@@ -162,12 +163,55 @@ function resetFilter() {
   loadMaintainTableData(objectType);
 }
 
+// 表头复选框：点击后对当前页所有行复选框执行“反转”操作（勾选的取消、未勾选的勾上）
+function invertAllMaintainRows(master) {
+  var boxes = document.querySelectorAll('#maintain-table-box .dm-row-check');
+  for (var i = 0; i < boxes.length; i++) {
+    boxes[i].checked = !boxes[i].checked;
+  }
+  // 反转是瞬时动作，表头复选框自身复位为未勾选，避免与“全选”语义混淆
+  master.checked = false;
+}
+
+// 批量删除：弹出警告确认后，删除所有勾选行
+function batchDeleteMaintain(type) {
+  var delFuncMap = {
+    template: 'deleteTemplate',
+    course: 'deleteCourseById',
+    schedule: 'deleteScheduleById',
+    booking: 'deleteBooking',
+    appointment: 'deleteAppointmentsById'
+  };
+  var fnName = delFuncMap[type];
+  if (!fnName) { alert('该类型暂不支持批量删除'); return; }
+  var checks = document.querySelectorAll('#maintain-table-box .dm-row-check:checked');
+  if (checks.length === 0) {
+    alert('请先勾选要删除的行');
+    return;
+  }
+  if (!confirm('确定要删除选中的 ' + checks.length + ' 条数据吗？此操作不可恢复！')) {
+    return;
+  }
+  var ids = [];
+  for (var i = 0; i < checks.length; i++) { ids.push(checks[i].value); }
+  var fn = (typeof window[fnName] === 'function') ? window[fnName] : null;
+  if (!fn) { alert('删除函数未找到：' + fnName); return; }
+  var tasks = ids.map(function (id) { return Promise.resolve(fn(id)); });
+  Promise.all(tasks).then(function () {
+    loadMaintainTableData(type);
+  }).catch(function (err) {
+    console.error('批量删除失败:', err);
+    alert('部分数据删除失败，请刷新后查看');
+    loadMaintainTableData(type);
+  });
+}
+
 // 动态加载数据并渲染表格
 window.loadMaintainTableData = async function(type){
   var cfg = {
     template:    { api: fetchTemplateListPage,                                         delFunc: "deleteTemplate" },
-    course:      { api: fetchCourseListPage || (async () => ({rows: [], total: 0, totalPages: 0})), delFunc: "deleteCourse" },
-    schedule:    { api: fetchScheduleListPage,                                         delFunc: "deleteSchedule" },
+    course:      { api: fetchCourseListPage || (async () => ({rows: [], total: 0, totalPages: 0})), delFunc: "deleteCourseById" },
+    schedule:    { api: fetchScheduleListPage,                                         delFunc: "deleteScheduleById" },
     booking:     { api: fetchBookingListPage,                                          delFunc: "deleteBooking" },
     appointment: { api: datamaintain_fetchAppointmentListPage,                         delFunc: "deleteAppointmentsById" }
   }[type];
@@ -259,7 +303,7 @@ window.loadMaintainTableData = async function(type){
         html += `<th>${col.label}</th>`;
       }
     });
-    html += '<th style="width:50px; text-align:center;">选择<br><input type="checkbox" id="dm-select-all" onclick="toggleAllMaintainRows(this)"></th></tr></thead><tbody>';
+    html += '<th style="width:50px; text-align:center;">选择<br><input type="checkbox" id="dm-select-all" title="点击反转本页所有行的勾选状态" onclick="invertAllMaintainRows(this)"></th></tr></thead><tbody>';
 
     if (list.length === 0) {
       var colSpan = columns.length + 2;
@@ -276,8 +320,8 @@ window.loadMaintainTableData = async function(type){
           var val = (typeof col.fmt === 'function') ? col.fmt(raw) : raw;
           html += `<td>${(val === null || val === undefined) ? '' : val}</td>`;
         });
-        html += `<td>
-          <button class="btn btn-danger btn-sm" onclick="(typeof ${cfg.delFunc}==='function')?${cfg.delFunc}('${firstKey}'):(typeof window.${cfg.delFunc}==='function'?window.${cfg.delFunc}('${firstKey}'):null)"><i class="fa fa-trash"></i> 删除</button>
+        html += `<td style="text-align:center;">
+          <input type="checkbox" class="dm-row-check" value="${firstKey}" />
         </td>`;
         html += '</tr>';
       });

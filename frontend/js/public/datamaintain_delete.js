@@ -2,37 +2,25 @@
 /**
  * 删除模板
  */
-async function deleteTemplate(templateId) {     
-     
-        let bConfirmed = false ;
-        // 执行前检查模板是否关联课程，如有关联则不允许删除
+async function deleteTemplate(templateId) {
+    // 数据维护页批量删除已在 batchDeleteMaintain 统一确认一次（含“此操作不可恢复”），此处不再二次确认。
+    // 若模板关联课程，静默级联删除其下全部课程，避免外键/约束冲突。
+    try {
         const hasCourses = await checkTemplateHasCourses(templateId);
-        if (hasCourses) { 
-          const userChoice = confirm('该模板存在课程，是否继续删除？继续将删除该项目下的全部课程。点击“确定”继续，点击“取消”放弃删除。');
-          if (!userChoice) {
-              return;
-                    }
-         bConfirmed = true;
-        //DEL all courses By templateId
-         let rows=  deleteTemplateNextLavel( templateId);
+        if (hasCourses) {
+            deleteTemplateNextLavel(templateId);
         }
-
-        if(! bConfirmed) //提示1次
-          if (!confirm('确定要删除该模板吗？')) return;
-
-        try {
-            const res = await request({
-                url: `${API_BASE_URL}/course/template/${templateId}`,
-                method: 'DELETE'
-            });
-            if (res >0) {
-                alert('模板删除成功,rows'+ res);             
-            } 
-        } catch (err) {
-            alert('网络异常，模板删除失败');
-            console.error(err);
+        const res = await request({
+            url: `${API_BASE_URL}/course/template/${templateId}`,
+            method: 'DELETE'
+        });
+        if (!res) {
+            alert('模板删除失败');
         }
-    ; 
+    } catch (err) {
+        alert('网络异常，模板删除失败');
+        console.error(err);
+    }
 }
 
 function deleteTemplateNextLavel(templateId){
@@ -111,58 +99,49 @@ window.fetchCourseListPage = fetchCourseListPage;
   }
    
 // 删除课程（操作后刷新当前页）
-async function deleteCourse(id) {  
+// 数据维护页批量删除专用：统一确认已在 batchDeleteMaintain 完成（含“此操作不可恢复”），不再二次确认、删除后也不弹“删除成功”。
+// 课程下若存在排期，静默级联删除其全部排期，避免外键/约束冲突。
+async function deleteCourseById(id) {
     try {
-      const scdList = fetchScheduleList(id,null);     
-    // 判断scdList是否为空数组
-      var bConfirmed =false;
-        if (scdList && Array.isArray(await scdList) && (await scdList).length > 0) {
-      //alert('该课程存在排期，不能删除！');
-          const userChoice = confirm('该课程存在排期，是否继续删除？继续将删除该项目下的全部排期。点击“确定”继续，点击“取消”放弃删除。');
-          if (!userChoice) {
-              return;
-                    }
-       bConfirmed = true;
-      //删除该课程的所有排期
-         try {
-        var rows= await request({ url: `/schedule/deleteByCourseId/${id}`, method: 'DELETE' });
-         } catch (err) {
-        console.error('删除课程排期失败:',id,err);
-        alert('删除课程排期时出错，请检查后端接口与数据。');
-        return;     
-      }
-    } // if
-    } 
-     catch(error){
-      console.error('查询排期失败：',id, error);
-     }
-         if(!bConfirmed) //提示1次
-           if (!confirm('确定要删除该课程吗？')) return;
-    try { 
-      const res = await request({url:`/course/deleteById/${id}`,  method: 'DELETE' });
-        
+        const scdList = await fetchScheduleList(id, null);
+        if (scdList && Array.isArray(scdList) && scdList.length > 0) {
+            try {
+                await request({ url: `/schedule/deleteByCourseId/${id}`, method: 'DELETE' });
+            } catch (err) {
+                console.error('删除课程排期失败:', id, err);
+                alert('删除课程排期时出错，请检查后端接口与数据。');
+                return;
+            }
+        }
+        const res = await request({ url: `/course/deleteById/${id}`, method: 'DELETE' });
+        if (!res) {
+            alert('课程删除失败');
+        }
     } catch (error) {
-      console.error('删除失败：', error);
+        console.error('删除失败：', error);
+        alert('网络异常，课程删除失败');
     }
-  }
+}
   
 
-  async function deleteScheduleById(id){ 
-
-        if (!id) {
-            console.warn('排期ID不能为空');
-            return false;
+  async function deleteScheduleById(id) {
+    if (!id) {
+        console.warn('排期ID不能为空');
+        return false;
+    }
+    try {
+        // 该排期存在预约/预定时，先级联删除其下的全部预约/预定，避免外键/约束冲突
+        if (typeof deleteBookingsByScheduleId === 'function') {
+            await deleteBookingsByScheduleId(id);
         }
-        try {
-            // 调用后端接口删除指定id的排期
-            // 假设后端API为: /schedule/delete/{id}，使用DELETE请求
-            const result = await request({url: `/schedule/delete/${id}`, method: 'DELETE'});
-            return result;
-        } catch (error) {
-            console.error('删除排期时出错:', error);
-            return false;
-        }    
-     }
+        const result = await request({ url: `/schedule/delete/${id}`, method: 'DELETE' });
+        return result;
+    } catch (error) {
+        console.error('删除排期时出错:', error);
+        alert('网络异常，排期删除失败');
+        return false;
+    }
+}
 
       async function deleteBookingsByScheduleId(scheduleId){
         if (!scheduleId) {
@@ -183,40 +162,26 @@ async function deleteCourse(id) {
     
 
       async function deleteBooking(id){
-        // 调用后端删除预约接口（假定全局已定义 request 方法和 API_BASE_URL）
-        // 查询是否存在以此id为排期id的appointment（预约/子项），返回结果布尔型
-        let bConfirmed =false;
-         if (checkAppointmentExistsBookingId(id))
-         { 
-          const userChoice = confirm('该预订存在预约，是否继续删除？继续将删除该预订下的全部预约。点击“确定”继续，点击“取消”放弃删除。');
-          if (!userChoice) {
-            return;
-          }
-          bConfirmed = true;
-          //删除该预定的全部预约
-          await deleteAppointmentsByBookingId(id);//appointmentNotes.js
-         }
-         if(!bConfirmed) //提示1次
-           if (!confirm('确定要删除该预订吗？')) return;
+        // 调用后端删除预订接口（假定全局已定义 request 方法和 API_BASE_URL）
+        // 批量删除已在 batchDeleteMaintain 统一确认一次（含“此操作不可恢复”），此处不再二次确认
         try {
+            // 该预订存在预约时，先级联删除其下的全部预约，避免外键/约束冲突
+            if (checkAppointmentExistsBookingId(id)) {
+              await deleteAppointmentsByBookingId(id); // appointmentNotes.js
+            }
             const res = await request({
                 url: `${API_BASE_URL}/course/booking/delete/${id}`,
-                method: 'delete',
-              //  params: { id: id }
+                method: 'delete'
             });
-        
-            if (res ) {
-                // 删除成功，刷新列表
-                alert('删除成功');
-
-            } else {
-                alert('删除失败 ');
+            // 删除成功不再单独弹提示，由批量删除流程统一刷新列表
+            if (!res) {
+                alert('删除失败');
             }
+            return res;
         } catch (e) {
             alert('网络错误，删除失败');
             console.error(e);
         }
-        
         }  
  
         /**
