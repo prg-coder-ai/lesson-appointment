@@ -46,7 +46,7 @@
         <where>
         TRUE
         <if test="scheduleName != null and scheduleName != ''">
-            AND schedule_name LIKE CONCAT('%', #{scheduleName}, '%')
+            AND name LIKE CONCAT('%', #{scheduleName}, '%')
         </if>
         </where>
       <if test="pageSize != null and pageNum != null">
@@ -59,7 +59,7 @@
         <where>
         TRUE
         <if test="scheduleName != null and scheduleName != ''">
-            AND schedule_name LIKE CONCAT('%', #{scheduleName}, '%')
+            AND name LIKE CONCAT('%', #{scheduleName}, '%')
         </if>
         </where>
     </select>

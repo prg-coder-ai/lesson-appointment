@@ -8,7 +8,7 @@
  */
 function test_genUser(number, role) {
 
-  if(!confirm(`添加 `+role+" "+number+"人")){
+  if(!confirm(`添加 `+roleTerm(role)+" "+number+"人")){
     return;
   }
   let phoneStart=(role=="student")?13611350000:13900000000;
@@ -32,8 +32,40 @@ function test_genUser(number, role) {
   // 如需发送到后端，可循环请求or批量接口
     users.forEach(u => { request.post('/user/add', u) })
 
-    alert(`已添加 `+role+" "+number+"人");
+    alert(`已添加 `+roleTerm(role)+" "+number+"人");
   return users;
+}
+
+// ===== 行业词适配辅助（按当前租户行业动态取词，详见 js/public/terms.js） =====
+// 各行业在 CourseTemplate.languageType 字段实际存储的值（即该行业 classType 显示词）
+const INDUSTRY_LANG_TYPES = {
+  education:  ['french', 'english', 'chinese', 'spanish'],
+  legal:      ['婚姻', '劳动', '刑事', '行政'],
+  counseling: ['婚姻', '情感', '成长', '育儿'],
+  exercise:   ['力量训练', '灵巧训练', '肌肉训练', '爆发力']
+};
+function curLangTypes() {
+  const ind = (typeof getCurrentIndustry === 'function') ? getCurrentIndustry() : 'education';
+  return INDUSTRY_LANG_TYPES[ind] || INDUSTRY_LANG_TYPES.education;
+}
+// 取当前行业词，缺失时回退默认行业锚点词（避免 legal 等行业未定义 schedule 等时露出 undefined）
+function curTerm(key, fallback) {
+  let T = {};
+  try { if (typeof getTerms === 'function') T = getTerms() || {}; } catch (e) {}
+  return (T[key] != null && T[key] !== '') ? T[key] : fallback;
+}
+// 角色 → 行业词（student/teacher 等）
+function roleTerm(role) {
+  if (role === 'student') return curTerm('student', '学生');
+  if (role === 'teacher') return curTerm('teacher', '教师');
+  return role;
+}
+// 构造模板描述（使用当前行业词）
+function buildTemplateDesc(langType, level, form) {
+  const ct = (typeof courseTypeText === 'function') ? courseTypeText(langType) : langType;
+  const lt = (typeof enumTermText === 'function') ? enumTermText('classLevel', level) : level;
+  const ft = (typeof enumTermText === 'function') ? enumTermText('classForm', form) : form;
+  return `适合${lt}的${ct}${ft}示例`;
 }
 
 // 调用范例：console.log(test_genUser(5, "teacher"));
@@ -97,111 +129,35 @@ function generateUserImportTemplate(role = "student") {
  */
 async function batchAddCourseTemplates() {
   // 可根据实际CourseTemplate字段扩展或调整
-  if(!confirm(`添加 10 个课程模板`)){
+  if(!confirm(`添加 10 个${curTerm('course', '课程')}模板`)){
     return;
   }
-  const templates = [
-    {
-      templateId: "CT001",
-      languageType: "english",
-      difficultyLevel: "B1",
-      classFee: 100,
-      classDuration: 30,
-      classForm: "1p1",
-      description: "适合零基础入门的英文会话课程",
-      status: "active"
-    },
-    {
-      templateId: "CT002",
-      languageType: "japanese",
-      difficultyLevel: "B2",
-      classFee: 120,
-      classDuration: 45,
-      classForm: "1p1",
-      description: "日语N4-N3进阶班，巩固基础提升会话",
-      status: "active"
-    },
-    {
-      templateId: "CT003",
-      languageType: "kr",
-      difficultyLevel: "B1",
-      classFee: 90,
-      classDuration: 30,
-      classForm: "1pN",
-      description: "韩语入门小班课程，适合初学者",
-      status: "active"
-    },
-    {
-      templateId: "CT004",
-      languageType: "english",
-      difficultyLevel: "B3",
-      classFee: 150,
-      classDuration: 60,
-      classForm: "1p2N",
-      description: "企业级商务英语中级提升课",
-      status: "active"
-    },
-    {
-      templateId: "CT005",
-      languageType: "france",
-      difficultyLevel: "B2",
-      classFee: 110,
-      classDuration: 45,
-      classForm: "1vs",
-      description: "法语进阶会话训练",
-      status: "active"
-    },
-    {
-      templateId: "CT006",
-      languageType: "日语",
-      difficultyLevel: "B3",
-      classFee: 180,
-      classDuration: 60,
-      classForm: "1p2N",
-      description: "日语商务写作与口语综合提升",
-      status: "active"
-    },
-    {
-      templateId: "CT007",
-      languageType: "chinese",
-      difficultyLevel: "B1",
-      classFee: 80,
-      classDuration: 30,
-      classForm: "1pN",
-      description: "对外汉语入门课程，适合外籍学生",
-      status: "active"
-    },
-    {
-      templateId: "CT008",
-      languageType: "德语",
-      difficultyLevel: "B2",
-      classFee: 130,
-      classDuration: 45,
-      classForm: "1p1",
-      description: "德语B1听说读写全面进阶",
-      status: "active"
-    },
-    {
-      templateId: "CT009",
-      languageType: "韩语",
-      difficultyLevel: "B4",
-      classFee: 200,
-      classDuration: 60,
-      classForm: "1p1",
-      description: "韩语TOPIK冲刺高级班",
-      status: "active"
-    },
-    {
-      templateId: "CT010",
-      languageType: "english",
-      difficultyLevel: "B4",
-      classFee: 260,
-      classDuration: 90,
-      classForm: "1p2N",
-      description: "英文演讲与学术论文写作高级班",
-      status: "active"
-    }
+  // 按当前租户行业动态生成模板：languageType 取该行业 classType 实际存储值
+  const langTypes = curLangTypes();
+  const forms = ['1p1', '1pN', '1p2N'];
+  const levels = ['B1', 'B2', 'B3', 'B4'];
+  const feeDur = [
+    { fee: 100, dur: 30 }, { fee: 120, dur: 45 }, { fee: 90, dur: 30 }, { fee: 150, dur: 60 },
+    { fee: 110, dur: 45 }, { fee: 180, dur: 60 }, { fee: 80, dur: 30 }, { fee: 130, dur: 45 },
+    { fee: 200, dur: 60 }, { fee: 260, dur: 90 }
   ];
+  const templates = [];
+  for (let k = 0; k < 10; k++) {
+    const lt = langTypes[k % langTypes.length];
+    const lv = levels[k % levels.length];
+    const fm = forms[k % forms.length];
+    const s = feeDur[k];
+    templates.push({
+      templateId: "CT" + String(k + 1).padStart(3, '0'),
+      languageType: lt,
+      difficultyLevel: lv,
+      classFee: s.fee,
+      classDuration: s.dur,
+      classForm: fm,
+      description: buildTemplateDesc(lt, lv, fm),
+      status: "active"
+    });
+  }
   let i=0;
   for (const tpl of templates) {
     try {
@@ -236,7 +192,7 @@ async function batchAddCourseTemplates() {
  * 3. 调用后端 /course/add 接口提交新Course对象
  */
 async function batchAddCoursesForTemplates() {
-  if(!confirm(`每个模板添加 10 个课程`)){
+  if(!confirm(`每个模板添加 10 个${curTerm('course', '课程')}`)){
     return;
   }
   // 首先获取所有role=teacher的用户ID
@@ -251,11 +207,11 @@ async function batchAddCoursesForTemplates() {
     }
   } catch (e) {
     console.error("获取教师ID列表失败", e);
-    alert("获取教师ID列表失败，不能批量生成课程。");
+    alert(`获取${curTerm('teacher', '教师')}ID列表失败，不能批量生成${curTerm('course', '课程')}。`);
     return;
   }
   if (!teacherIDs.length) {
-    alert("没有可用教师账号，无法生成课程。");
+    alert(`没有可用${curTerm('teacher', '教师')}账号，无法生成${curTerm('course', '课程')}。`);
     return;
   }
    let templates =  await fetchTemplateList('all');
@@ -268,15 +224,15 @@ async function batchAddCoursesForTemplates() {
       const newCourse = {
         templateId: tpl.templateId,
         teacherId: teacherId,
-        courseName:tpl.languageType+"-"+tpl.difficultyLevel+"-"+tpl.classForm+"-"+(i+1),
+        courseName: courseTypeText(tpl.languageType) + "-" + enumTermText('classLevel', tpl.difficultyLevel) + "-" + enumTermText('classForm', tpl.classForm) + "-" + (i+1),
         languageType: tpl.languageType,
         difficultyLevel: tpl.difficultyLevel,
         classFee: tpl.classFee,
         classDuration: tpl.classDuration,
         classForm: tpl.classForm,
         content:tpl.description,
-        feature:tpl.classForm,
-        description: tpl.description + `（自动生成课程${i+1}）`,
+        feature: enumTermText('classForm', tpl.classForm),
+        description: tpl.description + `（自动生成${curTerm('course', '课程')}${i+1}）`,
         status: "active"
         // 其他Course属性可按需补充
       };
@@ -301,7 +257,7 @@ async function batchAddCoursesForTemplates() {
  * -------
  */
 async function batchAddCourseSchedulesPerCourse() {
-  if(!confirm(`每个课程添加 10 个排期`)){
+  if(!confirm(`每个${curTerm('course', '课程')}添加 10 个${curTerm('schedule', '排期')}`)){
     return;
   }
   try {
@@ -309,12 +265,12 @@ async function batchAddCourseSchedulesPerCourse() {
     const coursesJson = await fetchCourseList({status:'active'});
     console.error(coursesJson);
     if (!coursesJson ) {
-      alert("获取课程列表失败 "  );
+      alert(`获取${curTerm('course', '课程')}列表失败 `  );
       return;
     }
    
     if (!coursesJson.length) {
-      alert("没有课程数据，无法批量生成课程排期。");
+      alert(`没有${curTerm('course', '课程')}数据，无法批量生成${curTerm('course', '课程')}${curTerm('schedule', '排期')}。`);
       return;
     }
 
@@ -382,10 +338,10 @@ async function batchAddCourseSchedulesPerCourse() {
       } 
     }
 
-    alert(`批量为课程生成排期完成！成功：${okCount}，失败：${failCount}`);
+    alert(`批量为${curTerm('course', '课程')}生成${curTerm('schedule', '排期')}完成！成功：${okCount}，失败：${failCount}`);
   } catch(e) {
     console.error("自动批量添加课程排期异常", e);
-    alert("批量生成课程排期失败：" + e); 
+    alert(`批量生成${curTerm('course', '课程')}${curTerm('schedule', '排期')}失败：` + e); 
   }
 }
 // 使用方法：在管理员页面按钮绑定 batchAddCourseSchedulesPerCourse()
@@ -411,12 +367,12 @@ async function sleep(ms) {
 }
 // 2. 帮全部排期随机指定给1个学生 ----TBD：直接assign-student
 async function assignSchedulesRandomStudent() {
-  if(!confirm(`随机分配 10 个排期给学生`)){
+  if(!confirm(`随机分配 10 个${curTerm('schedule', '排期')}给${curTerm('student', '学生')}`)){
     return;
   }
   const studentIds = await getAllStudentIds();
   if (!studentIds.length) {
-    alert("没有可用学生，无法分配排期");
+    alert(`没有可用${curTerm('student', '学生')}，无法分配${curTerm('schedule', '排期')}`);
     return;
   }
   let schedulesList = await getScheduleList();
@@ -469,7 +425,7 @@ async function assignSchedulesRandomStudent() {
       break;
     }
   }
-  alert(`随机分配排期给学生已完成，成功：${ok}，失败：${fail}`);
+  alert(`随机分配${curTerm('schedule', '排期')}给${curTerm('student', '学生')}已完成，成功：${ok}，失败：${fail}`);
 }
  
   //
@@ -593,19 +549,23 @@ async  function checkAppointmentExistsByBookingId(booking_id){
 // assignSchedulesRandomStudent(schedules); // 其中schedules是排期对象数组
  //创建测试页面,返回 测试入口按钮
   function makeTestPage() {
+        const course = curTerm('course', '课程');
+        const schedule = curTerm('schedule', '排期');
+        const student = curTerm('student', '学生');
+        const teacher = curTerm('teacher', '教师');
         let testHtml ="<div>";
         let number = 300,role = "student";
-        testHtml += ' <div > <button class="btn btn-default" onclick="test_genUser_student()"> 添加学生</button></div>';
+        testHtml += ` <div > <button class="btn btn-default" onclick="test_genUser_student()"> 添加${student}</button></div>`;
         number = 100,role = "teacher";
-        testHtml += ' <div > <button class="btn" onclick="test_genUser_teacher()"> 添加教师</button></div>';
+        testHtml += ` <div > <button class="btn" onclick="test_genUser_teacher()"> 添加${teacher}</button></div>`;
       
-        testHtml += ' <div > <button class="btn" onclick="batchAddCourseTemplates()"> 添加课程模板</button></div>';
-        testHtml += ' <div > <button class="btn" onclick="batchAddCoursesForTemplates()"> 添加课程</button></div>';
+        testHtml += ` <div > <button class="btn" onclick="batchAddCourseTemplates()"> 添加${course}模板</button></div>`;
+        testHtml += ` <div > <button class="btn" onclick="batchAddCoursesForTemplates()"> 添加${course}</button></div>`;
 
-        testHtml += ' <div> <button class="btn" onclick="batchAddCourseSchedulesPerCourse()"> 添加课程排期</button></div>';
+        testHtml += ` <div> <button class="btn" onclick="batchAddCourseSchedulesPerCourse()"> 添加${course}${schedule}</button></div>`;
 
-        testHtml += ' <div > <button class="btn" onclick="assignSchedulesRandomStudent()"> 添加课程预定</button></div>';
-        testHtml += ' <div > <button class="btn" onclick="generateAppointmentListByBooking()"> 添加预约时间</button></div>';
+        testHtml += ` <div > <button class="btn" onclick="assignSchedulesRandomStudent()"> 添加${course}预定</button></div>`;
+        testHtml += ` <div > <button class="btn" onclick="generateAppointmentListByBooking()"> 添加预约时间</button></div>`;
 
 
         testHtml += '</div>';

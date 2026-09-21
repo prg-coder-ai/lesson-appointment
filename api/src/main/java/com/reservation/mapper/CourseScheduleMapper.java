@@ -27,7 +27,7 @@ public interface CourseScheduleMapper extends BaseMapper<CourseSchedule> {
     CourseSchedule selectByIdForUpdate(@Param("scheduleId") String scheduleId);
     List<CourseSchedule> selectListByPage(ScheduleQueryPage query);
 
-    Integer selectCountByCondition(@Param("query") ScheduleQueryPage query);
+    Integer selectCountByCondition(ScheduleQueryPage query);
     
     int updateStatus(StatusBody scheduleStatus);
     int updateSites(IncSiteBody scheduleSitsInc);
