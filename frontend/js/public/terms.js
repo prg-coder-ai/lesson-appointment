@@ -59,7 +59,7 @@ const TERM_DICT = {
     content:      "咨询内容",
     lessonNumber: "咨询次序",
     courseName:   "咨询话题",
-    leave:        "取消课次",
+    leave:        "取消预约",
     
     classForm:    "服务形式",
     classForm1p1: "个案咨询",
@@ -96,7 +96,7 @@ const TERM_DICT = {
 
     lessonNumber: "咨询次序",
     courseName:   "咨询项目",
-    leave:        "取消课次",
+    leave:        "取消预约",
     
     classForm:    "服务形式",
     classForm1p1: "一对一咨询",
@@ -141,7 +141,7 @@ const TERM_DICT = {
     teaching:     "练习",
     lessonNumber: "课次",
     courseName:   "科目名称",
-    leave:        "取消课次",
+    leave:        "取消预约",
     lessonFee:    "课时费用",
 
     content:      "锻炼内容",

@@ -708,6 +708,7 @@ async function datamaintain_fetchAppointmenPage(query) {
     const bookingContainer = document.getElementById(id);
     if (bookingContainer) {
         bookingContainer.innerHTML = ` ${pendingBookingsHtml}`;
+        applyTerms(bookingContainer);
     }
    }
    //检查status，只有待确认的booking、cancelling才显示待确认，并显示相应的按钮 3天、1天前、当天
@@ -785,7 +786,7 @@ async function datamaintain_fetchAppointmenPage(query) {
                : ` `
            }
              ${ (userRole == "student" && cardInfo.status !="cancelling")?
-              `   <button class="btn btn-success" onclick='studentApplyCancelWithRule(${cardInfo.appointmentId})'>取消课次</button>                    
+              `   <button class="btn btn-success" onclick='studentApplyCancelWithRule(${cardInfo.appointmentId})'>${termText('leave')}</button>                    
                   `
                : ` `
            } 
@@ -795,7 +796,7 @@ async function datamaintain_fetchAppointmenPage(query) {
                : ` `
            }
              ${ (userRole == "teacher" && cardInfo.status !="t-cancelling")?
-              `   <button class="btn btn-success" onclick='setApointmentStatusAndReload(${cardInfo.appointmentId},"t-cancelling")'>取消课次</button>                    
+              `   <button class="btn btn-success" onclick='setApointmentStatusAndReload(${cardInfo.appointmentId},"t-cancelling")'>${termText('leave')}</button>                    
                   `
                : ` `
            } 

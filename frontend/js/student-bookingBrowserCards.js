@@ -360,7 +360,7 @@ function renderResult(dateTimeList) {
             const applyDelayBtn = document.createElement('button');
             applyDelayBtn.className = 'btn btn-warning'; // 给按钮加一些样式，非必须可移除
             if(canCancel) {  
-                applyDelayBtn.textContent = '取消课次';
+                applyDelayBtn.textContent = termText('leave');
                 applyDelayBtn.onclick = function() {
                     cancellingAppointment(item.id,true);//appointmentNotes.js
                 } 
