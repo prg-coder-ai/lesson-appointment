@@ -36,7 +36,7 @@ function elVal(id, dflt) {
                   <label>天数：</label>
                   <select id="appoint-days-select">
                     <option value=-1>全部</option>
-                    <option value=1>未来1天</option>
+                    <option value=1 selected>未来1天</option>
                     <option value=3>未来3天</option>
                     <option value=7>未来7天</option>
                    </select>
@@ -153,7 +153,7 @@ function elVal(id, dflt) {
 // 重置筛选条件
 function resetFilterAppoint() {
    var cn = document.getElementById('course-name-input');   if (cn) cn.value = '';
-   var ds = document.getElementById('appoint-days-select'); if (ds) ds.value = ''; 
+   var ds = document.getElementById('appoint-days-select'); if (ds) ds.value = '1'; 
    var ss = document.getElementById('appoint-status-select'); if (ss) ss.value = '';
    Pagination.pageNum = 1;
    loadAndShowAppointmentPage();

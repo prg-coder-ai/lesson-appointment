@@ -7,7 +7,7 @@
 // ===================== 核心函数 ===================== 
 /**
  *  课程预约列表（核心：原生JS操作DOM）
- * 对于学生， 显示本人预定的课程，详情显示预约排期，可设置请假、临时改期
+ * 对于学生， 显示本人预定的课程，详情显示预约排期，可设置取消课次、取消课次
  * TBD：分析与admin-booking差别，服是否可以复用，分页显示
  */
 // 引入分页组件js
@@ -69,9 +69,14 @@ async function renderStudentBookingBrowserCards() {
    html += getPagebar();
    html += ` </div> ` 
 
-   html+=`   <!-- 排期结果 -->
-    <div class="section">
-        <div class="section-title">排期结果（列表）</div>
+   html+=`   <!-- 排期结果（卡片标题）/ 日历视图：同一份 scheduleResult 的两种视图，用 card 内 tab 切换（方案Y） -->
+    <div class="card">
+        <div class="card-title" style="margin-bottom:8px;"><i class="fa fa-calendar-alt"></i> 排期结果</div>
+        <div class="result-tabs">
+            <button type="button" class="result-tab active" data-tab="list" onclick="switchResultTab('list')">日期列表</button>
+            <button type="button" class="result-tab" data-tab="calendar" onclick="switchResultTab('calendar')">日历视图</button>
+        </div>
+        <div class="result-panel" id="resultPanelList">
         <table>
             <thead>
                 <tr>
@@ -79,16 +84,16 @@ async function renderStudentBookingBrowserCards() {
                     <th>日期</th>
                     <th>时间</th>
                       <th>状态</th> 
-                      <th><span data-term="leave">请假</span></th>
+                      <th><span data-term="leave">取消课次</span></th>
                 </tr>
             </thead>
             <tbody id="resultBody"></tbody>
         </table>
-    </div>
+        </div>
 
-    <div class="section">
-        <div class="section-title">日历视图</div>
+        <div class="result-panel" id="resultPanelCalendar" style="display:none;">
         <div id="calendar" class="calendar"></div>
+        </div>
     </div>`;
     
     dynamicContentCenter.innerHTML = html; 
@@ -243,7 +248,7 @@ async function loadAndRenderBooking_student(){
                           // 学生侧不提供"直接确认"入口，避免绕过名额校验。
                           ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','cancelled')">撤销候补</button>`
                           : userRole === 'student' && cardInfo.status === 'booked'
-                          ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','cancelling')">申请取消</button>`
+                          ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','cancelling')">取消预约</button>`
                           : userRole === 'student' && (cardInfo.status === 'canceling' || cardInfo.status === 'cancelling')
                           ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','booked')">撤销</button>`
                           : userRole === 'student' && (cardInfo.status === 'canceled' ||  cardInfo.status === 'cancelled' )
@@ -267,16 +272,17 @@ async function loadAndRenderBooking_student(){
  
 //更新scheduleObject相关内容 --待细化
 
-     // 解决“找不到函数loadSchedule”问题：确保loadSchedule在window作用域下暴露
-   window.previewSchedule   = previewSchedule; 
-   window.viewMyReservationDetail   = viewMyReservationDetail  ;
+    // 解决“找不到函数”问题：确保相关函数在 window 作用域下暴露（onclick 字符串里调用的都是全局函数）
+  window.previewSchedule   = previewSchedule; 
+  window.viewMyReservationDetail   = viewMyReservationDetail  ;
 
-   window.renderCalendar    = renderCalendar ; 
-   //window.displaySchedule   = displaySchedule ;  
-   window.actionForButton   = actionForButton ; 
-   window.loadAndRenderBooking_student       = loadAndRenderBooking_student  ; 
-   window.formACourseCard   = formACourseCard  ; 
-   window.getAppointmentsByBookingId   = getAppointmentsByBookingId;// defined in dataFunction.js 
+  window.renderCalendar    = renderCalendar ; 
+  //window.displaySchedule   = displaySchedule ;  
+  window.actionForButton   = actionForButton ; 
+  window.loadAndRenderBooking_student       = loadAndRenderBooking_student  ; 
+  window.formACourseCard   = formACourseCard  ; 
+  window.getAppointmentsByBookingId   = getAppointmentsByBookingId;// defined in dataFunction.js 
+  window.switchResultTab   = switchResultTab;
    
     
  
@@ -286,6 +292,7 @@ async function loadAndRenderBooking_student(){
     scheduleResult = await generateAppointmentList(scheduleid,userTimeZone); //courseAndBooking.js
     renderResult(scheduleResult);
     renderCalendar(scheduleResult); 
+    switchResultTab('list');
 }
   
 //预览排期--对于已确认的排期查看 读取排期时间表，显示在排期时间列表和日历上.  
@@ -320,7 +327,7 @@ function renderResult(dateTimeList) {
     const body = document.getElementById('resultBody');
     body.innerHTML = ''; 
     // 不同状态对应的提示
-            // status: active=生效, noted1/2=已通知, completed=已完成, cancelled=已改期, cancelling=申请取消
+            // status: active=生效, noted1/2=已通知, completed=已完成, cancelled=已取消, cancelling=取消待确认
     function getAppointmentStatusLabel(status) {
         switch (status) {
             case 'active': return '生效';
@@ -329,13 +336,13 @@ function renderResult(dateTimeList) {
             case 'noted1':
             case 'noted2': return '已提醒';
             case 'completed': return '已完成';
-            case 'cancelled': return '已改期'; 
+            case 'cancelled': return '已取消';
 
-            case 'cancelling': return '申请改期';
-            case 'reject': return '拒绝改期'; 
+            case 'cancelling': return '取消待确认';
+            case 'reject': return '已拒绝';
             
-            case 't-cancelling': return '老师申请改期';
-            case 't-cancelled':  return '老师已改期';
+            case 't-cancelling': return '教师申请取消';
+            case 't-cancelled':  return '教师已取消';
             case 't-reject': return '已拒绝(T)';
             default: return status;
         }
@@ -353,12 +360,12 @@ function renderResult(dateTimeList) {
             const applyDelayBtn = document.createElement('button');
             applyDelayBtn.className = 'btn btn-warning'; // 给按钮加一些样式，非必须可移除
             if(canCancel) {  
-                applyDelayBtn.textContent = '申请延期'; 
+                applyDelayBtn.textContent = '取消课次';
                 applyDelayBtn.onclick = function() {
                     cancellingAppointment(item.id,true);//appointmentNotes.js
                 } 
             }  else if(item.status == "cancelling") {
-                    applyDelayBtn.textContent = '收回申请'; 
+                    applyDelayBtn.textContent = '撤回申请';
                     applyDelayBtn.onclick = function() {
                         cancellingAppointment(item.id,false);
                     } 
@@ -437,11 +444,29 @@ function localsearchAppoint_student() {
  }
  // 重置筛选条件
  function resetFilterAppoint_student() {
-    document.getElementById('course-name-input').value = '';   
-    document.getElementById('booking-status-select').value = '';
-    Pagination.pageNum = 1;
-    loadAndRenderBooking_student(); 
- }
+   document.getElementById('course-name-input').value = '';   
+   document.getElementById('booking-status-select').value = '';
+   Pagination.pageNum = 1;
+   loadAndRenderBooking_student(); 
+}
+
+// 排期结果 / 日历视图：card 内 tab 切换（同一份数据的两种展现，二选一不重复占竖向空间）
+function switchResultTab(tab) {
+    const tabs = document.querySelectorAll('.result-tab');
+    tabs.forEach(t => {
+        if (t.getAttribute('data-tab') === tab) t.classList.add('active');
+        else t.classList.remove('active');
+    });
+    const listPanel = document.getElementById('resultPanelList');
+    const calPanel = document.getElementById('resultPanelCalendar');
+    if (tab === 'list') {
+        listPanel.style.display = '';
+        calPanel.style.display = 'none';
+    } else {
+        listPanel.style.display = 'none';
+        calPanel.style.display = '';
+    }
+}
  
 
 
@@ -449,7 +474,7 @@ function localsearchAppoint_student() {
  * 学生课程预约页面：
  * 1、提供检索字段：课程名称、语言、难度、教师、时间 
  * 
- *  2、查询用户的所有预约信息，用卡片形式展示，提供取消预约、请假、详情等操作
+ *  2、查询用户的所有预约信息，用卡片形式展示，提供取消预约、取消课次、详情等操作
  * 点击详情则显示（详情已经确认的预约来自appointment列表，新建的预约，详情数据来自后台计算，待确认）： 
  *    2.3 排期结果显示区域：
  *    2.3.1 列表显示：年月日、时分

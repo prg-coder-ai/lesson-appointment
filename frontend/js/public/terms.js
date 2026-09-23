@@ -19,7 +19,7 @@ const TERM_DICT = {
     teaching:     "授课",
     lessonNumber: "课次",
     courseName:   "课程名称",
-    leave:        "请假",
+    leave:        "取消课次",
     lessonFee:    "课时费",
 
     content:      "教学内容",
@@ -59,7 +59,7 @@ const TERM_DICT = {
     content:      "咨询内容",
     lessonNumber: "咨询次序",
     courseName:   "咨询话题",
-    leave:        "改期",
+    leave:        "取消课次",
     
     classForm:    "服务形式",
     classForm1p1: "个案咨询",
@@ -96,7 +96,7 @@ const TERM_DICT = {
 
     lessonNumber: "咨询次序",
     courseName:   "咨询项目",
-    leave:        "改期",
+    leave:        "取消课次",
     
     classForm:    "服务形式",
     classForm1p1: "一对一咨询",
@@ -141,7 +141,7 @@ const TERM_DICT = {
     teaching:     "练习",
     lessonNumber: "课次",
     courseName:   "科目名称",
-    leave:        "改期",
+    leave:        "取消课次",
     lessonFee:    "课时费用",
 
     content:      "锻炼内容",
@@ -202,7 +202,7 @@ const TERM_KEYS = [
   { key: "classType2", anchor: "英语" },
   { key: "classType3", anchor: "汉语" },
   { key: "classType4", anchor: "西语" },
-  { key: "leave", anchor: "请假" },
+  { key: "leave", anchor: "取消课次" },
 ];
 
 // 保护词：包含这些词的文本节点不做 teacherAlt 替换（人名误伤防护）

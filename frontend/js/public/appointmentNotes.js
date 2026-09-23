@@ -190,7 +190,7 @@ async function datamaintain_fetchAppointmenPage(query) {
 }
  
    // ========================================================================
-   // 退改规则提示（学生请假前 / 管理员审核确认前共用）
+   // 退改规则提示（学生取消课次前 / 管理员审核确认前共用）
    // ------------------------------------------------------------------------
    // 判定一律由服务端算（/refund-rule/hint），前端不自己算时间差 ——
    // 客户端时钟不准或时区处理不一致时，前端算出的档位会和服务端、和审核人看到的对不上。
@@ -198,7 +198,7 @@ async function datamaintain_fetchAppointmenPage(query) {
 
    /**
     * 取某课次的退改规则提示。
-    * @returns {Promise<Object|null>} 失败返回 null（不打断请假流程，只是不给提示）
+    * @returns {Promise<Object|null>} 失败返回 null（不打断取消课次流程，只是不给提示）
     */
    async function fetchRefundHintForAppointment(appointmentId) {
      try {
@@ -328,10 +328,10 @@ async function datamaintain_fetchAppointmenPage(query) {
    }
 
    /**
-    * 学生点「请假」：先展示退改规则提示，用户确认后再提交申请。
+    * 学生点「取消课次」：先展示退改规则提示，用户确认后再提交申请。
     * 原来是一点就直接把状态改成 cancelling，学生完全看不到自己会承担什么退改代价。
     */
-   async function studentApplyLeaveWithRule(appointmentId) {
+   async function studentApplyCancelWithRule(appointmentId) {
      const hint = await fetchRefundHintForAppointment(appointmentId);
      const ok = await showRefundRuleDialog(hint, {
        title: '提交前请确认退改规则',
@@ -343,15 +343,15 @@ async function datamaintain_fetchAppointmenPage(query) {
    }
 
    /**
-    * 管理员点「确认」请假：先把该课次的退费档位摆出来，确认后再落库。
+    * 管理员点「确认」取消课次：先把该课次的退费档位摆出来，确认后再落库。
     * 审核人据此判断是否该退、退多少，避免"点了确认才发现早过了免责线"。
     */
-   async function adminConfirmLeaveWithRule(appointmentId) {
+   async function adminConfirmCancelWithRule(appointmentId) {
      const hint = await fetchRefundHintForAppointment(appointmentId);
      const ok = await showRefundRuleDialog(hint, {
        title: '审核确认前请核对退费档位',
        intro: '确认后该课次将被取消，并按下列档位登记退费。档位按「此刻」的提前量重新计算，可能与学生申请时不同。',
-       confirmText: '确认请假'
+       confirmText: '确认取消'
      });
      if (!ok) return;
      await confirmCancellingAppointment(appointmentId, true);
@@ -725,7 +725,7 @@ async function datamaintain_fetchAppointmenPage(query) {
     } else   if   (status === 'cancelling' || status === 'canceling') {
       return '取消待确认';
     } else if   (status === 't-cancelling') {
-      return '取消待确认(T)';
+      return '教师申请取消';
     } else if (status === 'booked') {
       return '预约已确认';
     } else if (status === 'waiting') {
@@ -759,43 +759,43 @@ async function datamaintain_fetchAppointmenPage(query) {
                   : ` `
               }
               ${ (userRole == "admin" && cardInfo.status=="cancelling")?
-                 `   <button class="btn btn-success" onclick='adminConfirmLeaveWithRule(${cardInfo.appointmentId})'><i class="fa fa-check"></i>确认</button>  
-                     <button class="btn btn-success" onclick='confirmCancellingAppointment(${cardInfo.appointmentId},false)'><i class="fa fa-uncheck"></i>取消</button>  
+                 `   <button class="btn btn-success" onclick='adminConfirmCancelWithRule(${cardInfo.appointmentId})'>确认</button>  
+                     <button class="btn btn-success" onclick='confirmCancellingAppointment(${cardInfo.appointmentId},false)'>取消</button>  
                      `
                   : ` `
               }
 
                             ${ (userRole == "admin")?
-                 `   <button class="btn btn-warning" onclick='deleteAppointmentsById(${cardInfo.appointmentId})'><i class="fa fa-check"></i>删除</button>                    
-                     <button class="btn btn-warning" onclick='deleteAppointmentsByBookingId(${cardInfo.bookingId})'><i class="fa fa-check"></i>全部删除</button>                    
+                 `   <button class="btn btn-warning" onclick='deleteAppointmentsById(${cardInfo.appointmentId})'>删除</button>                    
+                     <button class="btn btn-warning" onclick='deleteAppointmentsByBookingId(${cardInfo.bookingId})'>全部删除</button>                    
                      `
                   : ` `
               }
               
 
               ${ (userRole == "admin" && cardInfo.status=="t-cancelling")?
-                `   <button class="btn btn-success" onclick='teacherConfirmCancellingAppointment(${cardInfo.appointmentId},true)'><i class="fa fa-check"></i>确认</button>  
-                    <button class="btn btn-success" onclick='teacherConfirmCancellingAppointment(${cardInfo.appointmentId},false)'><i class="fa fa-uncheck"></i>取消</button>  
+                `   <button class="btn btn-success" onclick='teacherConfirmCancellingAppointment(${cardInfo.appointmentId},true)'>确认</button>  
+                    <button class="btn btn-success" onclick='teacherConfirmCancellingAppointment(${cardInfo.appointmentId},false)'>取消</button>  
                     `
                  : ` `
              }
              ${ (userRole == "student" && cardInfo.status=="cancelling")?
-              `   <button class="btn btn-success" onclick='setApointmentStatusAndReload(${cardInfo.appointmentId},"active")'><i class="fa fa-check"></i>恢复预约</button>                    
+              `   <button class="btn btn-success" onclick='setApointmentStatusAndReload(${cardInfo.appointmentId},"active")'>撤回申请</button>                    
                   `
                : ` `
            }
              ${ (userRole == "student" && cardInfo.status !="cancelling")?
-              `   <button class="btn btn-success" onclick='studentApplyLeaveWithRule(${cardInfo.appointmentId})'><i class="fa fa-check"></i>请假</button>                    
+              `   <button class="btn btn-success" onclick='studentApplyCancelWithRule(${cardInfo.appointmentId})'>取消课次</button>                    
                   `
                : ` `
            } 
             ${ (userRole == "teacher" && cardInfo.status=="t-cancelling")?
-              `   <button class="btn btn-success" onclick='setApointmentStatusAndReload(${cardInfo.appointmentId},"active")'><i class="fa fa-check"></i>恢复预约</button>                    
+              `   <button class="btn btn-success" onclick='setApointmentStatusAndReload(${cardInfo.appointmentId},"active")'>撤回申请</button>                    
                   `
                : ` `
            }
              ${ (userRole == "teacher" && cardInfo.status !="t-cancelling")?
-              `   <button class="btn btn-success" onclick='setApointmentStatusAndReload(${cardInfo.appointmentId},"t-cancelling")'><i class="fa fa-check"></i>请假</button>                    
+              `   <button class="btn btn-success" onclick='setApointmentStatusAndReload(${cardInfo.appointmentId},"t-cancelling")'>取消课次</button>                    
                   `
                : ` `
            } 
@@ -1147,7 +1147,7 @@ window.goToStudentMyBooking = goToStudentMyBooking;
 // 退改规则提示相关（按钮 onclick 里按名字调用，显式挂到 window 防止将来被包进 IIFE）
 window.fetchRefundHintForAppointment = fetchRefundHintForAppointment;
 window.showRefundRuleDialog = showRefundRuleDialog;
-window.studentApplyLeaveWithRule = studentApplyLeaveWithRule;
-window.adminConfirmLeaveWithRule = adminConfirmLeaveWithRule;
+window.studentApplyCancelWithRule = studentApplyCancelWithRule;
+window.adminConfirmCancelWithRule = adminConfirmCancelWithRule;
 
  

@@ -158,16 +158,17 @@ async function renderStudentBookingCards() {
                      流程与「预定排期」一致（同一接口、同一表单数据），只是 status 置为 waiting；
                      显示条件由 applyBookingButtons() 统一决定，默认不在有余位时显示。 -->
                 <button class="btn-warning" id="waitBtn" style="display:none;" onclick="submitBooking('waiting')">候补预订</button>
-                <button class="btn-danger" id="cancelBtn" onclick="cancelBooking_student()">取消预定</button>
+                <button class="btn-danger" id="cancelBtn" onclick="cancelBooking_student()">取消预约</button>
                 <!-- 用户已取消预订时显示删除按钮 -->
                 <button class="btn-danger" id="deleteBtn" onclick="deleteBooking_student()">删除预定</button>
                 <button class="btn-success" id="refreshBtn" onclick="refreshData_student()">刷新</button>
             </div>
         </div>
-        <!-- 排期结果 / 日历视图：同一份 scheduleResult 的两种视图，用 tab 切换（方案Y） -->
-        <div class="section">
+        <!-- 排期结果（卡片标题）/ 日历视图：同一份 scheduleResult 的两种视图，用 card 内 tab 切换（方案Y） -->
+        <div class="card">
+            <div class="card-title" style="margin-bottom:8px;"><i class="fa fa-calendar-alt"></i> 排期结果</div>
             <div class="result-tabs">
-                <button type="button" class="result-tab active" data-tab="list" onclick="switchResultTab('list')">排期结果（列表）</button>
+                <button type="button" class="result-tab active" data-tab="list" onclick="switchResultTab('list')">日期列表</button>
                 <button type="button" class="result-tab" data-tab="calendar" onclick="switchResultTab('calendar')">日历视图</button>
             </div>
             <div class="result-panel" id="resultPanelList">
@@ -857,7 +858,7 @@ async function renderStudentBookingCards() {
 
             renderResult();
             renderCalendar();
-            // 预览后自动切到「排期结果（列表）」tab，让用户立刻看到输出（日历 tab 由用户自行切换）
+            // 预览后自动切到「日期列表」tab，让用户立刻看到输出（日历 tab 由用户自行切换）
             switchResultTab('list');
         }
 
@@ -901,7 +902,7 @@ async function renderStudentBookingCards() {
                 bookVisible = true;
                 canWaitlist = true;
             } else if (status === 'waiting') {
-                bookVisible = false;                 // 已候补：不再显示预定/候补，用「取消预定」退出候补
+                bookVisible = false;                 // 已候补：不再显示预定/候补，用「取消预约」退出候补
             } else if (status === 'booked') {
                 bookVisible = false;                 // 已确认：只能取消
             } else if (status === 'canceling' || status === 'cancelling') {
