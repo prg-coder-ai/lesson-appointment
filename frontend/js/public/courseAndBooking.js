@@ -751,6 +751,36 @@ return [];
         endDate:  
     }; */
 // 分析：可能由于日期时区或构造Date的方式导致了前端和后端实际天数偏差。例如直接用new Date('yyyy-MM-dd')会因时区差别导致日期减少1天。可以尝试使用new Date(year, month, day)规避。
+// 归一化 generateScheduleListFromServer 的输入参数，统一成 ScheduleGenerator 认识的格式：
+// ① repeatType：兼容 DB 数字枚举(0=不重复/1=每天/2=每周/3=每月) 与 字符串(none/day/week/month)；
+//    空/未知 → 兜底 'none'（保证满足后端格式要求，避免未知类型落入 default 分支造成死循环超时）。
+// ② repeatDays：兼容字符串 "1,3,5" 与数组，统一转成数字数组；其他 → []。
+// 放在接口入口层，所有调用方（student-bookingCards.js / admin-schedule.js / bookingBrowserCards.js）自动受益。
+function normalizeScheduleGenerateForm(form) {
+    if (!form || typeof form !== 'object') return form;
+    const out = Object.assign({}, form);
+    const rt = form.repeatType;
+    if (rt === null || rt === undefined || rt === '') {
+        out.repeatType = 'none';
+    } else if (typeof rt === 'number') {
+        out.repeatType = ({ 0: 'none', 1: 'day', 2: 'week', 3: 'month' })[rt] || 'none';
+    } else {
+        const s = String(rt).trim().toLowerCase();
+        out.repeatType = (/^\d+$/.test(s))
+            ? (({ '0': 'none', '1': 'day', '2': 'week', '3': 'month' })[s] || 'none')
+            : (s === 'none' || s === 'day' || s === 'week' || s === 'month' ? s : 'none');
+    }
+    const rd = form.repeatDays;
+    if (Array.isArray(rd)) {
+        out.repeatDays = rd.map(Number).filter(n => !isNaN(n));
+    } else if (typeof rd === 'string' && rd.trim()) {
+        out.repeatDays = rd.split(',').map(x => Number(x.trim())).filter(n => !isNaN(n));
+    } else {
+        out.repeatDays = [];
+    }
+    return out;
+}
+
 async function generateScheduleListFromServer(formData) { 
   const url = `schedule/generate` ;
  // const token = getToken();
@@ -758,7 +788,7 @@ async function generateScheduleListFromServer(formData) {
   try { 
        const result = await  request({url:`${API_BASE_URL}/${url}`, 
                               method: 'POST', 
-                              data:    formData//controller: @RequestBody ScheduleGenerateDTO dto
+                              data:    normalizeScheduleGenerateForm(formData)//controller: @RequestBody ScheduleGenerateDTO dto
                                         });
       // 修正后端返回的日期数组，确保日期不因本地解析减少1天
       // 尝试将日期转为本地日期字符串再渲染 
@@ -1029,7 +1059,7 @@ async function generateScheduleListFromServer(formData) {
       const result = await request({
           url: `${API_BASE_URL}/${url}`,
           method: 'POST',
-          data: formData
+          data: normalizeScheduleGenerateForm(formData)
       });
 
       // 修正后端返回的日期数组，确保日期不因本地解析减少1天

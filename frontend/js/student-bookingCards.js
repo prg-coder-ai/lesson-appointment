@@ -9,7 +9,12 @@ document.write('<script src="/js/public/pagefoot.js"></script>');
  * 对于学生，仅显示已发布的课程（status=active）
  */
 async function renderStudentBookingCards() {
-    assignLoadobjectListFunction(window.loadAndRenderCourse_student); // 指定列表加载函数（window. 前缀确保全局查找）
+    // 指定列表加载函数（翻页/改每页条数时的取数回调）。
+    // 注意：不能用 window.loadAndRenderCourse_student —— 该 window 赋值在第 577 行、
+    // 位于本函数体末尾，首次渲染走到这里时它还是 undefined，会导致 assignLoadobjectListFunction
+    // 提前 return、回调永不注册，表现为「点页码卡片不刷新」。此处直接引用同作用域下被提升的
+    // 函数声明（hoisted），既保证首次渲染即注册，又始终指向当前最新闭包。
+    assignLoadobjectListFunction(loadAndRenderCourse_student);
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
     if (!dynamicContentCenter) return;
 
@@ -155,7 +160,6 @@ async function renderStudentBookingCards() {
                 <button class="btn-success" id="refreshBtn" onclick="refreshData_student()">刷新</button>
             </div>
         </div>
-        </div> <!-- .card -->
         <!-- 排期结果 / 日历视图：同一份 scheduleResult 的两种视图，用 tab 切换（方案Y） -->
         <div class="section">
             <div class="result-tabs">
@@ -835,12 +839,12 @@ async function renderStudentBookingCards() {
                 scheduleId: scheduleObject.scheduleId,
                 startDate: scheduleObject.startDate,
                 startTime: scheduleObject.startTime,
-                repeatType: normalizeRepeatType(scheduleObject.repeatType),
+                repeatType: scheduleObject.repeatType,
                 interval: scheduleObject.interval,
                 status: scheduleObject.status,
                 timeZone: scheduleObject.timeZone,   // 排期的原始时区
                 userTimeZone: userTimeZone,          // 输出时间的时区
-                repeatDays: parseRepeatDays(scheduleObject.repeatDays),
+                repeatDays: scheduleObject.repeatDays,
                 endDate: scheduleObject.endDate
             };
             console.log('预览排期请求参数:', form);
