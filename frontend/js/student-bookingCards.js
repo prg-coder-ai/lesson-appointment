@@ -10,11 +10,15 @@ document.write('<script src="/js/public/pagefoot.js"></script>');
  */
 async function renderStudentBookingCards() {
     // 指定列表加载函数（翻页/改每页条数时的取数回调）。
-    // 注意：不能用 window.loadAndRenderCourse_student —— 该 window 赋值在第 577 行、
-    // 位于本函数体末尾，首次渲染走到这里时它还是 undefined，会导致 assignLoadobjectListFunction
-    // 提前 return、回调永不注册，表现为「点页码卡片不刷新」。此处直接引用同作用域下被提升的
-    // 函数声明（hoisted），既保证首次渲染即注册，又始终指向当前最新闭包。
-    assignLoadobjectListFunction(loadAndRenderCourse_student);
+    // loadAndRenderCourse_student 是下方代码块内的「块级函数声明」，在 strict / 打包后环境下
+    // 仅在该块内可见，本行（块外）直接引用会抛 ReferenceError。故注册一个闭包包装器：翻页时才
+    // 去读已经挂到 window 上的真实函数（window.loadAndRenderCourse_student 由本函数末尾统一
+    // 赋值，渲染完成前必然已就绪），既保证首次渲染即注册回调，又始终指向当前最新闭包。
+    assignLoadobjectListFunction(function reloadCourseList_student() {
+        if (typeof window.loadAndRenderCourse_student === 'function') {
+            return window.loadAndRenderCourse_student();
+        }
+    }, 'loadAndRenderCourse_student');
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
     if (!dynamicContentCenter) return;
 
@@ -1180,7 +1184,10 @@ async function renderStudentBookingCards() {
 // 搜索按钮：重置为第 1 页再查询
 function localsearchCourse() {
     Pagination.pageNum = 1;
-    loadAndRenderCourse_student();
+    // loadAndRenderCourse_student 是块级函数声明，模块作用域不可见，统一走 window 引用
+    if (typeof window.loadAndRenderCourse_student === 'function') {
+        window.loadAndRenderCourse_student();
+    }
 }
 
 // 重置筛选条件
@@ -1188,7 +1195,10 @@ function resetCourseFilter() {
     const nameInput = document.getElementById('course-name-input');
     if (nameInput) nameInput.value = '';
     Pagination.pageNum = 1;
-    loadAndRenderCourse_student();
+    // loadAndRenderCourse_student 是块级函数声明，模块作用域不可见，统一走 window 引用
+    if (typeof window.loadAndRenderCourse_student === 'function') {
+        window.loadAndRenderCourse_student();
+    }
 }
 
 /**
