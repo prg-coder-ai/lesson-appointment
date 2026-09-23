@@ -30,7 +30,7 @@ public class ScheduleGenerator {
         if (end == null) {
             end = start.plusDays(30);
         }
-        String type = dto.getRepeatType();
+        String type = normalizeRepeatType(dto.getRepeatType());
         int interval = dto.getInterval() == null ? 1 : dto.getInterval();
        // log.debug("interval:"+interval);
         List<Integer> repeatDays = dto.getRepeatDays() == null ? List.of() : dto.getRepeatDays();
@@ -95,6 +95,27 @@ public class ScheduleGenerator {
                 } 
              } 
          return convertedSchedule;
+    }
+
+    // 把 repeatType 标准化为后端认识的字符串 none/day/week/month。
+    // 兼容两种来源：① DB 数字枚举 0=不重复/1=每天/2=每周/3=每月；② 已为字符串。
+    // 未知类型兜底为 "none"，避免落入 generateUserZoneSchedule 的 default 分支死循环。
+    private static String normalizeRepeatType(String raw) {
+        if (raw == null) return "none";
+        String t = raw.trim().toLowerCase();
+        switch (t) {
+            case "0": return "none";
+            case "1": return "day";
+            case "2": return "week";
+            case "3": return "month";
+            case "none":
+            case "day":
+            case "week":
+            case "month":
+                return t;
+            default:
+                return "none";
+        }
     }
 
     // 判断星期（按用户时区-wuguan ，绝对正确）
@@ -171,7 +192,7 @@ public class ScheduleGenerator {
                 return temp;
             }
             default:
-                return current;
+                return current.plusDays(1); // 兜底推进，避免未知 type 触发死循环导致服务器超时
         }
     }
 

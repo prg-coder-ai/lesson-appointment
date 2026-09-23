@@ -1065,12 +1065,15 @@ async function checkScheduleConflict(cto){
     } 
 }
 //检查是否选择了课程或排期---
-function checkCourseAndSchedule(scheduleCheck,courseCheck){    
+function checkCourseAndSchedule(scheduleCheck,courseCheck){
   if(courseCheck) {
-      const cid = document.getElementById('courseSelect') ; 
-      if (!cid.value) { 
+      // 优先用全局 currentCourseId（学生端卡片点选走这里）；回退到 courseSelect 下拉（管理端/教师端）。
+      let cid = (typeof currentCourseId !== 'undefined' && currentCourseId) ? currentCourseId : '';
+      const sel = document.getElementById('courseSelect');
+      if (!cid && sel) cid = sel.value;
+      if (!cid) {
           alert("请选择课程");
-          return false; } //alart
+          return false; }
       }
       if(scheduleCheck == true) {
           const scheduleSelect = document.getElementById('scheduleSelect');

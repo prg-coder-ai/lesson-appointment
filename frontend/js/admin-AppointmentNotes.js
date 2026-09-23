@@ -3,7 +3,13 @@
 // ===================== 核心函数 =====================
  
 let appointmentList=[];// ID,ciurseName,studentName,teacherName,dateTime(创建时间),状态、操作（预览、确认、拒绝） 
- 
+
+// 读筛选控件值；控件缺失（如某些页面复用本渲染但未挂对应筛选条）时返回默认值，避免整页崩溃
+function elVal(id, dflt) {
+  var e = document.getElementById(id);
+  return e ? e.value : (dflt === undefined ? '' : dflt);
+}
+
  // 引入分页组件js
  document.write('<script src="/js/public/pagefoot.js"></script>');
  window.refreshAppointmentNotes  = refreshAppointmentNotes ;  
@@ -22,8 +28,8 @@ let appointmentList=[];// ID,ciurseName,studentName,teacherName,dateTime(创建�
             <div id="waitlist-banner" style="display:none;align-items:center;gap:12px;flex-wrap:wrap;background:#fff8e6;border:1px solid #ffe0a3;color:#8a5a00;padding:10px 14px;border-radius:6px;margin-bottom:12px;font-size:13px;"></div>
             <div class="filter-bar">  
                 <div class="filter-item" style="display:none;">
-                  <label style="display:none;“><span data-term="course">课程</span>：</label>
-                  <input type="text" id="course-name-input" style="display:none;” placeholder="课程名称">
+                  <label style="display:none;"><span data-term="course">课程</span>：</label>
+                  <input type="text" id="course-name-input" style="display:none;" placeholder="课程名称">
                 </div>
                       
                 <div class="filter-item">
@@ -114,9 +120,9 @@ let appointmentList=[];// ID,ciurseName,studentName,teacherName,dateTime(创建�
       pageSize: Pagination.pageSize,
       userId:   userId,
       userRole: userRole,    
-      name:   document.getElementById('course-name-input').value,
-      days:   document.getElementById('appoint-days-select').value,
-      status: document.getElementById('appoint-status-select').value 
+      name:   elVal('course-name-input', ''),
+      days:   elVal('appoint-days-select', -1),
+      status: elVal('appoint-status-select', '')
    }
     if(userRole== "admin") {
       params.userId =null;
@@ -146,9 +152,9 @@ let appointmentList=[];// ID,ciurseName,studentName,teacherName,dateTime(创建�
 }
 // 重置筛选条件
 function resetFilterAppoint() {
-   document.getElementById('course-name-input').value = '';
-   document.getElementById('appoint-days-select').value = ''; 
-   document.getElementById('appoint-status-select').value = '';
+   var cn = document.getElementById('course-name-input');   if (cn) cn.value = '';
+   var ds = document.getElementById('appoint-days-select'); if (ds) ds.value = ''; 
+   var ss = document.getElementById('appoint-status-select'); if (ss) ss.value = '';
    Pagination.pageNum = 1;
    loadAndShowAppointmentPage();
 
