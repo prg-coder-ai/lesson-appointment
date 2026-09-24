@@ -153,12 +153,14 @@ async function loadAndRenderBooking_student(){
          if (!groups.has(b.scheduleId)) groups.set(b.scheduleId, []);
          groups.get(b.scheduleId).push(b);
        }
-       renderRows = [];
-       for (const items of groups.values()) {
-         const rep = Object.assign({}, items[0]);
-         rep.__groupStudentIds = items.map(it => it.studentId).filter(Boolean);
-         renderRows.push(rep);
-       }
+      renderRows = [];
+      for (const items of groups.values()) {
+        const rep = Object.assign({}, items[0]);
+        rep.__groupStudentIds = items.map(it => it.studentId).filter(Boolean);
+        // 教师改期需要落到具体课次：聚合时一并收集组内所有 bookingId（Booking 主键是 bookingId，无 id 字段）
+        rep.__groupBookingIds = items.map(it => it.bookingId || it.id).filter(Boolean);
+        renderRows.push(rep);
+      }
      }
 
      if (Array.isArray(renderRows)) {
@@ -187,16 +189,17 @@ async function loadAndRenderBooking_student(){
                              scheduleObject.status === 'inactive' ? '已收回' :
                              scheduleObject.status === 'frozen' ? '已删除' :
                              (scheduleObject.status || '未知');
-                         let cardItems = {
-                             index: index,
-                             scheduleId:    scheduleObject.scheduleId,
-                             origTz:        scheduleObject.timeZone,
-                             className:     classObject.courseName,
-                             teacherName:   teacherName,
-                             studentNames:  names,
-                             scheduleInfo:  scheduleInfoStr,
-                             scheduleStatus:scheduleStatusStr
-                         };
+                        let cardItems = {
+                            index: index,
+                            scheduleId:    scheduleObject.scheduleId,
+                            origTz:        scheduleObject.timeZone,
+                            className:     classObject.courseName,
+                            teacherName:   teacherName,
+                            studentNames:  names,
+                            bookingIds:    booking.__groupBookingIds || [],
+                            scheduleInfo:  scheduleInfoStr,
+                            scheduleStatus:scheduleStatusStr
+                        };
                          bookingsHtml += formScheduleGroupCard(cardItems);
                      } else {
                          const studentName = await getUserNameById(booking.studentId);
@@ -323,9 +326,9 @@ async function loadAndRenderBooking_student(){
                      <h4>${cardInfo.index} ${cardInfo.className}</h4>
                      <p>教师：${cardInfo.teacherName} | 学员：${names}（共 ${count} 人） | 排期状态：${cardInfo.scheduleStatus} | 预约时间：${cardInfo.scheduleInfo}</p>
                  </div>
-                 <div class="course-actions">
-                     <button class="btn btn-gray" onclick="previewSchedule('${cardInfo.scheduleId}','${cardInfo.origTz}')">查看排期</button>
-                 </div>
+                <div class="course-actions">
+                    <button class="btn btn-gray" onclick="previewSchedule('${cardInfo.scheduleId}','${cardInfo.origTz}',${JSON.stringify(cardInfo.bookingIds || [])})">查看排期</button>
+                </div>
              </div>`;
      }
  
