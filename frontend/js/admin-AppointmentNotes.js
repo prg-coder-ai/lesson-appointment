@@ -132,16 +132,34 @@ function elVal(id, dflt) {
     Pagination.total = 0;
     Pagination.totalPages = 0;
     appointmentList = [ ];
- 
-     const pageResult = await fetchAppointmentListPage(params);//调用后台接口获取预约列表
-     if(pageResult){
-      appointmentList = pageResult.rows;
-      
-      const pageData = pageResult;
-      Pagination.total = pageData.total ;
-      Pagination.totalPages = pageData.totalPages;
-     } 
-       showAppointmentList( appointmentList,renderTo); //defined in appointmentNotes.js
+
+    if (userRole === 'teacher') {
+        // teacher 端「今日课程」按排期聚合：需对「全部课次」做客户端分组 + 分页，
+        // 否则服务端逐条分页会把同一排期拆到不同页，聚合行数与分页总数对不上。
+        // 近7天数据量有限，循环翻页取回全部即可。
+        let p = 1; const BATCH = 200;
+        while (true) {
+            const pr = await fetchAppointmentListPage(Object.assign({}, params, { pageNum: p, pageSize: BATCH }));
+            if (!pr || !Array.isArray(pr.rows) || pr.rows.length === 0) break;
+            appointmentList = appointmentList.concat(pr.rows);
+            if (pr.rows.length < BATCH) break; // 已是最后一页
+            p++;
+        }
+        // Pagination.total / totalPages 由 showAppointmentList 按聚合后的行数回填
+    } else {
+        const pageResult = await fetchAppointmentListPage(params);//调用后台接口获取预约列表
+        if(pageResult){
+         appointmentList = pageResult.rows;
+         
+         const pageData = pageResult;
+         Pagination.total = pageData.total ;
+         Pagination.totalPages = pageData.totalPages;
+        }
+    }
+       // showAppointmentList 是 async：teacher 分支在 await 之后才把聚合后的组数写回 Pagination.total。
+       // 不加 await 的话，下方 renderPagination 会同步抢跑，拿到 total=0（第132行清的初值），
+       // 表现为「列表行数对、分页条显示 0 条」。故必须 await。
+       await showAppointmentList( appointmentList,renderTo); //defined in appointmentNotes.js
        renderPagination( Pagination);        
       
   }

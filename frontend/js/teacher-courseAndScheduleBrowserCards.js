@@ -15,6 +15,11 @@ var localParamter ={
 // ===================== 核心函数 =====================
 let userTimeZoneDisplay="none";
 
+// 排期列表本地分页状态（自包含，避免与课程列表共用 pagefoot 单例分页栏冲突）
+// pagefoot 的分页栏 ID 固定为 xxx-*，同页已有课程列表占用，故排期列表独立一套 sch-* 分页栏
+let scheduleAllList = [];
+const SCH_PAGE = { pageNum: 1, pageSize: 5, total: 0, totalPages: 0 };
+
 
  // 引入分页组件js
  document.write('<script src="/js/public/pagefoot.js"></script>');
@@ -34,11 +39,12 @@ async function renderTeacherCourseAndScheduleBrowserCards() {
 
              // 列表表头 ---模板-建立连接-悬浮显示模板内容（学生页面、管理、教师页面），教师--悬浮-显示教师的特色字段（学生页面）
          html += `
-            <div style="display:flex;gap:36px;padding-bottom:8px;margin-bottom:4px;">
-              <table width:90%>
+            <div class="card">
+              <div class="card-title" style="margin-bottom:8px;"><span data-term="course">课程</span>列表</div>
+              <table width="90%">
                 <thead>
                     <tr>
-                        <th width:10%>序号</th> <th width:20%><span data-term="course">课程</span>名称</th>  <th width:20%>内容</th>  <th width:20%>特色</th>  <th width:10%>状态</th>  <th width:20% align:center>操作</th>  
+                        <th width="10%">序号</th> <th width="20%"><span data-term="course">课程</span>名称</th>  <th width="20%" style="max-width:240px;word-break:break-word;">内容</th>  <th width="20%">特色</th>  <th width="10%">状态</th>  <th width="20%" align="center">操作</th>
                     </tr>
                 </thead>
                 <tbody id="courseResultBody"></tbody>
@@ -46,28 +52,32 @@ async function renderTeacherCourseAndScheduleBrowserCards() {
             </div>
         `;
         html += getPagebar();
-//TBD --排期分页 --2个分页元素的处理
+// 排期列表：独立分页栏（sch-*）+ 固定高度滚动容器，避免无限拉长页面
         html += `
-         <div id="scheduleListForm" style="display:none;">
-           <div class="modal-header" >  
-            <h3 id="modalTitle"><span data-term="course">课程</span>排期列表</h3> 
-            <hr style="margin: 16px 0; border-top: 1px solid #e9ecef;"> 
-          </div>
-          <div style="display:flex;gap:36px;padding-bottom:8px;margin-bottom:4px;">
-              <table width:90%>
+         <div id="scheduleListForm" class="card" style="display:none;">
+           <div class="card-title" style="margin-bottom:8px;"><span data-term="course">课程</span>排期列表</div>
+              <div style="max-height:420px;overflow-y:auto;">
+              <table width="90%">
                 <thead>
                     <tr>
-                        <th width:10%>序号</th> <th width:60%>排期信息</th>   <th width:10%>状态</th>  <th width:20% align:center>操作</th>  
+                        <th width="10%">序号</th> <th width="60%">排期信息</th>   <th width="10%">状态</th>  <th width="20%" align="center">操作</th>
                     </tr>
                 </thead>
                 <tbody id="schduleResultBody"></tbody>
               </table>
-           </div>
-        </div> 
+              </div>
+              <div class="pagination-bar" id="sch-pagination-bar" style="margin-top:12px;">
+                <div class="pagination-info">共 <span id="sch-total">0</span> 条记录，每页
+                  <select id="sch-page-size" onchange="changeSchPageSize()">
+                    <option value="5">5</option><option value="10">10</option><option value="20">20</option><option value="50">50</option>
+                  </select> 条
+                </div>
+                <div class="pagination-btns" id="sch-pagination-btns"></div>
+              </div>
+        </div>
       
-        <div   class="section" id= "scdheduleDetailCard" style="display:none;"> 
-          <h3 >排期详情</h3> 
-            <hr style="margin: 16px 0; border-top: 1px solid #e9ecef;"> 
+        <div   class="card" id= "scdheduleDetailCard" style="display:none;">
+          <div class="card-title" style="margin-bottom:8px;">排期详情</div>
             <div class="form-line" style="display:none;" >
                 <label>Id</label> 
                 <input type="label" id="scheduleId">
@@ -248,11 +258,11 @@ async function renderCourseList(){
         const tr = document.createElement('tr'); 
        
     tr.style.fontWeight = "400";
-        tr.innerHTML = `<td>${index}</td><td>${item.courseName}</td><td>${item.content}</td> <td>${item.feature}</td>`;
+        tr.innerHTML = `<td>${index}</td><td>${item.courseName}</td><td style="max-width:240px;word-break:break-word;">${item.content}</td> <td>${item.feature}</td>`;
         tr.innerHTML +=  
-            item.status === "pending" ? '<td>待审核</td>' :
-            item.status === "active" ? '<td>正常</td>' :
-            item.status === "inactive" ? '<td>待启用</td>' :
+            item.status === "pending" ? '<td>待发布</td>' :
+            item.status === "active" ? '<td>已发布</td>' :
+            item.status === "inactive" ? '<td>已收回</td>' :
             item.status === "frozen" ? '<td>已删除</td>' :
               `<td>${item.status||"未知"}</td>` 
          
@@ -286,50 +296,107 @@ function  AddScheduleforTheCourse(courseId){
   alert("tbd:AddScheduleforTheCourse " + courseId);
 }*/
 
- // 罗列该课程的排期，列表 参考学生预约页面
+ // 罗列该课程的排期：拉取全部后本地分页（固定每页条数，稳住页面高度）
  async function  browseScheduleforTheCourse(courseId){
-
- // alert("tbd:browseScheduleforTheCourse " + courseId); 
     const scheduleListBody = document.getElementById( "scheduleListForm");
     if(scheduleListBody){
     scheduleListBody.style.display = "block"; 
     }
-
- //关闭排期详情卡片 
-   showScheduleCard(null);// 
-
+   showScheduleCard(null);// 关闭排期详情卡片 
    const scheduleList = await fetchScheduleList( courseId,"active");
-// scheduleList:CourseScheduleCreateDTO
-   if(Array.isArray(scheduleList) && scheduleList.length > 0){ 
-    const body = document.getElementById('schduleResultBody');
-    body.innerHTML = ''; 
+   scheduleAllList = Array.isArray(scheduleList) ? scheduleList : [];
+   SCH_PAGE.pageNum = 1;
+   SCH_PAGE.total = scheduleAllList.length;
+   SCH_PAGE.totalPages = Math.ceil(scheduleAllList.length / SCH_PAGE.pageSize) || 0;
+   renderSchedulePage();
+ } 
 
-   scheduleList.forEach(function(item, index) {
-        info= getScheduleInfoByDTO(item);
-        const tr = document.createElement('tr'); 
-        
-        tr.innerHTML = `<td>${index+1}</td><td>${info}</td> `;
-        tr.innerHTML +=  
-            item.status === "pending" ? '<td>待审核</td>' :
-            item.status === "active" ? '<td>正常</td>' :
-            item.status === "inactive" ? '<td>待启用</td>' :
-            item.status === "frozen" ? '<td>已删除</td>' :
-              `<td>${item.status||"未知"}</td>` 
-         
-        const applyAddSchBtn = document.createElement('button');
-        applyAddSchBtn.className = 'btn btn-success'; //  
-        applyAddSchBtn.textContent = '查看详情'; 
-        applyAddSchBtn.onclick = function() { 
-              showScheduleCard(item); //显示排期卡片----双时区----admin相关页面
-        }   
-        const tdBtn = document.createElement('td');
-        tdBtn.appendChild(applyAddSchBtn);
-        tr.appendChild(tdBtn);   
-        body.appendChild(tr);
-   });
-
+ // 按当前页切片渲染排期行
+ function renderSchedulePage(){
+   const body = document.getElementById('schduleResultBody');
+   if(!body) return;
+   body.innerHTML = '';
+   if(!scheduleAllList.length){
+     body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#999;padding:24px 0;">暂无排期</td></tr>';
+     renderSchPagination();
+     return;
    }
-} 
+   const start = (SCH_PAGE.pageNum - 1) * SCH_PAGE.pageSize;
+   const end = Math.min(start + SCH_PAGE.pageSize, scheduleAllList.length);
+   for(let i = start; i < end; i++){
+     const item = scheduleAllList[i];
+     const info = getScheduleInfoByDTO(item);
+     const tr = document.createElement('tr'); 
+     tr.innerHTML = `<td>${i+1}</td><td>${info}</td> `;
+     tr.innerHTML +=  
+         item.status === "pending" ? '<td>待发布</td>' :
+         item.status === "active" ? '<td>已发布</td>' :
+         item.status === "inactive" ? '<td>已收回</td>' :
+         item.status === "frozen" ? '<td>已删除</td>' :
+           `<td>${item.status||"未知"}</td>` ;
+     const tdBtn = document.createElement('td');
+     const applyAddSchBtn = document.createElement('button');
+     applyAddSchBtn.className = 'btn btn-success'; 
+     applyAddSchBtn.textContent = '查看详情'; 
+     applyAddSchBtn.onclick = (function(it){ return function(){ showScheduleCard(it); }; })(item);
+     tdBtn.appendChild(applyAddSchBtn);
+     tr.appendChild(tdBtn);   
+     body.appendChild(tr);
+   }
+   renderSchPagination();
+ }
+
+ // 渲染排期列表独立分页栏（sch-*）
+ function renderSchPagination(){
+   const btnContainer = document.getElementById('sch-pagination-btns');
+   const totalElem = document.getElementById('sch-total');
+   if(totalElem) totalElem.textContent = SCH_PAGE.total;
+   if(!btnContainer) return;
+   if(!SCH_PAGE.total){
+     btnContainer.innerHTML = '<span style="color:#999;">暂无数据</span>';
+     return;
+   }
+   const pageSizeElem = document.getElementById('sch-page-size');
+   if(pageSizeElem){
+     Array.prototype.forEach.call(pageSizeElem.options, function(opt){
+       opt.selected = (Number(opt.value) === SCH_PAGE.pageSize);
+     });
+   }
+   let html = '';
+   html += '<button class="pagination-btn" onclick="changeSchPage(' + (SCH_PAGE.pageNum - 1) + ')" ' + (SCH_PAGE.pageNum === 1 ? 'disabled' : '') + '>上一页</button>';
+   const startI = Math.max(1, SCH_PAGE.pageNum - 3);
+   const endI = Math.min(SCH_PAGE.totalPages, SCH_PAGE.pageNum + 3);
+   if(startI > 1){
+     html += '<button class="pagination-btn" onclick="changeSchPage(1)">1</button>';
+     if(startI > 2) html += '<span style="padding:0 4px;">...</span>';
+   }
+   for(let i = startI; i <= endI; i++){
+     html += '<button class="pagination-btn ' + (i === SCH_PAGE.pageNum ? 'active' : '') + '" onclick="changeSchPage(' + i + ')">' + i + '</button>';
+   }
+   if(endI < SCH_PAGE.totalPages){
+     if(endI < SCH_PAGE.totalPages - 1) html += '<span style="padding:0 4px;">...</span>';
+     html += '<button class="pagination-btn" onclick="changeSchPage(' + SCH_PAGE.totalPages + ')">' + SCH_PAGE.totalPages + '</button>';
+   }
+   html += '<button class="pagination-btn" onclick="changeSchPage(' + (SCH_PAGE.pageNum + 1) + ')" ' + (SCH_PAGE.pageNum === SCH_PAGE.totalPages ? 'disabled' : '') + '>下一页</button>';
+   btnContainer.innerHTML = html;
+ }
+
+ // 排期列表翻页（本地切片，不重新请求后端）
+ function changeSchPage(target){
+   if(target < 1 || target > SCH_PAGE.totalPages) return;
+   SCH_PAGE.pageNum = target;
+   renderSchedulePage();
+ }
+
+ // 排期列表调整每页条数
+ function changeSchPageSize(){
+   const sel = document.getElementById('sch-page-size');
+   if(!sel) return;
+   SCH_PAGE.pageSize = Number(sel.value) || 5;
+   SCH_PAGE.totalPages = Math.ceil(SCH_PAGE.total / SCH_PAGE.pageSize) || 0;
+   SCH_PAGE.pageNum = 1;
+   renderSchedulePage();
+ }
 // 显示排期卡片,双时区----参考学生预约页面
 function showScheduleCard(schObj){
  // alert("tbd:showScheduleCard " + schObj); 
@@ -349,17 +416,7 @@ function showScheduleCard(schObj){
         document.getElementById('monthDays').innerHTML = monthDaysHtml;
 
          
-        // 设置默认结束日期为今天+30天
-       
-          const endDateInput = document.getElementById("endDate");
-          if (endDateInput) {
-            const today = new Date();
-            today.setDate(today.getDate() + 30);
-            const year = today.getFullYear();
-            const month = String(today.getMonth() + 1).padStart(2, '0');
-            const day = String(today.getDate()).padStart(2, '0');
-            endDateInput.value = `${year}-${month}-${day}`;
-          } ;
+        // 结束日期由排期真实值填充（见 renderSchedule），不再强制改写为今天+30天
 
           renderSchedule(schObj);
 

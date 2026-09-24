@@ -678,7 +678,7 @@ async function datamaintain_fetchAppointmenPage(query) {
             scheduleId:    scheduleObject.scheduleId,
             origTz:        scheduleObject.timeZone,
             appointmentId: appointment.id,
-            bookingId:     bookedObject.id,
+            bookingId:     bookedObject.bookingId || bookedObject.id,
             className:     classObject.courseName,
             classIndex:    appointment.classIndex,
             studentName:   studentName,
@@ -697,8 +697,45 @@ async function datamaintain_fetchAppointmenPage(query) {
 
     // 按原顺序拼装 HTML
     let pendingBookingsHtml = '';
-    for (const cardItems of results) {
-        if (cardItems) pendingBookingsHtml += formAppointmentTr(cardItems);
+    const isTeacher = (typeof userRole !== 'undefined' && userRole === 'teacher');
+
+    if (isTeacher) {
+        // teacher 端：同一排期（scheduleId）+ 同一上课日期 的课次聚合为一行；不同日期的排期不合并。
+        // getScheduleCached / getUserCached 已按 id 缓存，同一排期只 fetchSchedule 一次。
+        const groupMap = new Map();
+        for (const cardItems of results) {
+            if (!cardItems) continue;
+            const datePart = cardItems.appointmentTime ? cardItems.appointmentTime.slice(0, 10) : '';
+            const gKey = cardItems.scheduleId + '|' + datePart;
+            if (!groupMap.has(gKey)) groupMap.set(gKey, []);
+            groupMap.get(gKey).push(cardItems);
+        }
+        // 组内最早上课时间，用于合并后按预约时间升序
+        const minTimeOf = (items) => {
+            let m = '';
+            for (const it of items) { if (it.appointmentTime && (!m || it.appointmentTime < m)) m = it.appointmentTime; }
+            return m;
+        };
+        const groups = Array.from(groupMap.values()).sort((a, b) => {
+            const ta = minTimeOf(a), tb = minTimeOf(b);
+            return ta < tb ? -1 : (ta > tb ? 1 : 0);
+        });
+        // 客户端分页：teacher 已取回全部课次，按聚合后的行数回填空分页总数/页数
+        const totalGroups = groups.length;
+        Pagination.total = totalGroups;
+        Pagination.totalPages = Math.ceil(totalGroups / Pagination.pageSize) || 0;
+        // 注意：totalPages setter 会把下面的 pageNum 钳制回合法范围，故 start 须在设置后取
+        const start = (Pagination.pageNum - 1) * Pagination.pageSize;
+        const pageGroups = groups.slice(start, start + Pagination.pageSize);
+        let gi = start;
+        for (const items of pageGroups) {
+            gi++;
+            pendingBookingsHtml += formAppointmentGroupTr(items, gi);
+        }
+    } else {
+        for (const cardItems of results) {
+            if (cardItems) pendingBookingsHtml += formAppointmentTr(cardItems);
+        }
     }
 
     //if(appointmentList.length === 0)  {
@@ -806,6 +843,55 @@ async function datamaintain_fetchAppointmenPage(query) {
      return info;
   } 
 
+  // teacher 端「今日课程」按排期聚合成一行：同一排期只取一次课程/时间，组内所有 studentId
+  // 解析出的学生名拼成「、」串并附「共 N 人」；操作改为查看排期（drill-down 到排期详情再逐课次管理）。
+  function formAppointmentGroupTr(items, groupIndex) {
+      if (!Array.isArray(items) || items.length === 0) return '';
+      const first = items[0];
+
+      // 学生名去重后按「、」拼接
+      const names = [];
+      for (const it of items) {
+          if (it.studentName && !names.includes(it.studentName)) names.push(it.studentName);
+      }
+      const studentStr = names.join('、') + `（共 ${items.length} 人）`;
+
+      // 状态聚合：同一排期课次状态通常一致，若有差异并列展示
+      const statusSet = [];
+      for (const it of items) {
+          const s = checkAppointmentStatus(it.status);
+          if (!statusSet.includes(s)) statusSet.push(s);
+      }
+      const statusStr = statusSet.join('、');
+
+      // 整组课次的 appointmentId / bookingId（用于「改期」批量操作与下钻预览）
+      const aptIds = items.map(it => it.appointmentId).filter(x => x != null && x !== '');
+      const bIds   = items.map(it => it.bookingId).filter(x => x != null && x !== '');
+      const pending = items.some(it => it.status === 't-cancelling' || it.status === 'cancelling');
+      const rescheduleBtn = pending
+          ? `<button class="btn btn-warning" onclick='teacherRescheduleTodayGroup(${JSON.stringify(aptIds)}, false)'>取消改期</button>`
+          : `<button class="btn btn-warning" onclick='teacherRescheduleTodayGroup(${JSON.stringify(aptIds)}, true)'>申请改期</button>`;
+
+      return `
+          <tr>
+              <td>   ${groupIndex}</td>
+              <td   style="display:none;"></td>
+              <td>  ${first.className}  ${first.classIndex}  </td>
+              <td>   ${studentStr}</td>
+              <td>   ${first.teacherName}</td>
+              <td>   ${first.appointmentTime} ${first.origTz}</td>
+              <td>    ${statusStr}</td>
+              <td class="course-info">
+                ${rescheduleBtn}
+                             </td>
+              </tr>
+       `;
+  }
+//
+// ${ (typeof previewSchedule === 'function') ?
+ //                 `   <button class="btn btn-success" onclick='previewSchedule("${first.scheduleId}","${first.origTz}",${JSON.stringify(bIds)})'><i class="fa fa-calendar"></i> 查看排期</button> `
+ //                 : ` `
+  //            }
   // ------------------------------------------------------------------------
   // 【已移除】checkStatusAndDate / sendNotesToUsers / sendNotesToTeacher / sendNotesToStudent
   // ------------------------------------------------------------------------
@@ -925,6 +1011,21 @@ async function teacherConfirmCancellingAppointment(appointmentId,bCancelled){
  await setApointmentStatusAndReload(appointmentId,status);//courseAndBooking.js
  return ;
 }
+// teacher 端：对一组/一次课次批量「申请改期」(t-cancelling) 或「取消改期」(active)
+async function bulkSetAppointmentStatus(aptIds, status) {
+    if (!Array.isArray(aptIds) || aptIds.length === 0) return;
+    for (const id of aptIds) {
+        if (id != null && id !== '') await operateAppointmentStatus(id, status);
+    }
+}
+// 「今日课程」聚合行：整组课次批量改期，成功后刷新今日课程列表
+async function teacherRescheduleTodayGroup(aptIds, bApply) {
+    await bulkSetAppointmentStatus(aptIds, bApply ? 't-cancelling' : 'active');
+    if (typeof loadAndShowAppointmentPage === 'function') loadAndShowAppointmentPage();
+}
+window.bulkSetAppointmentStatus = bulkSetAppointmentStatus;
+window.teacherRescheduleTodayGroup = teacherRescheduleTodayGroup;
+
 //根据bookingId更新所有相关的预约时间状态
 async function updateAppointmentsStatusByBookingId( bookingId,status) { 
   try {
