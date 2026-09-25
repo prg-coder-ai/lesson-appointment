@@ -327,7 +327,7 @@ async function loadAndRenderBooking_student(){
                      <p>教师：${cardInfo.teacherName} | 学员：${names}（共 ${count} 人） | 排期状态：${cardInfo.scheduleStatus} | 预约时间：${cardInfo.scheduleInfo}</p>
                  </div>
                 <div class="course-actions">
-                    <button class="btn btn-gray" onclick="previewSchedule('${cardInfo.scheduleId}','${cardInfo.origTz}',${JSON.stringify(cardInfo.bookingIds || [])})">查看排期</button>
+                    <button class="btn btn-gray" onclick="previewScheduleGroup('${cardInfo.scheduleId}','${cardInfo.origTz}',${JSON.stringify(cardInfo.bookingIds || [])})">查看排期</button>
                 </div>
              </div>`;
      }
@@ -335,7 +335,7 @@ async function loadAndRenderBooking_student(){
 //更新scheduleObject相关内容 --待细化
 
     // 解决“找不到函数”问题：确保相关函数在 window 作用域下暴露（onclick 字符串里调用的都是全局函数）
-  window.previewSchedule   = previewSchedule; 
+  window.previewScheduleGroup   = previewScheduleGroup; 
   window.viewMyReservationDetail   = viewMyReservationDetail  ;
 
   window.renderCalendar    = renderCalendar ; 
@@ -349,7 +349,7 @@ async function loadAndRenderBooking_student(){
   // teacher「查看排期」排期结果卡片：对单个日期整次课次批量「申请改期 / 取消改期」，成功后就地刷新预览卡片
   async function teacherRescheduleOccurrence(aptIds, bApply) {
       await bulkSetAppointmentStatus(aptIds, bApply ? 't-cancelling' : 'active');
-      if (_lastPreview) previewSchedule(_lastPreview.scheduleId, _lastPreview.origTz, _lastPreview.bookingIds);
+      if (_lastPreview) previewScheduleGroup(_lastPreview.scheduleId, _lastPreview.origTz, _lastPreview.bookingIds);
   }
   window.teacherRescheduleOccurrence = teacherRescheduleOccurrence;
    
@@ -358,53 +358,45 @@ async function loadAndRenderBooking_student(){
    // teacher「查看排期」下钻时携带的 preview 上下文，供「改期」成功后就地刷新卡片
   let _lastPreview = null;
 
-  // 预览排期--对于未确认的排期查看--已优化掉--可到预约页面查看
-  async function previewSchedule(scheduleid,origTzTimeZone,bookingIds) {
-    // 生成排期列表 localDateTime List<Date,TIME>
-    // generateAppointmentList 返回的是「纯计算出的日期/时间槽」(形如 {date,time})，不含
-    // appointment 实体的 id / status / weekday。直接喂给 renderResult 会让「日期」列出现
-    // `… undefined`、「状态」列出现 `undefined`。这里补齐成 renderResult 期望的形状：
-    //   - weekday：本地按 date 推导（generateAppointmentList 不返回）
-    //   - status ：尚未生成 appointment 行，用排期自身状态作占位（pending/active/inactive/frozen）
-    //   - id     ：纯预览槽没有 appointment id，保留 null，renderResult 据此不渲染「取消课次」按钮
-    //   - aptIds ：若下钻时带入 bookingIds，则按 booking 取真实课次，按日期匹配到预览行，
-    //             使「改期」列按钮能落到具体课次（同一日期所有学员的课次一起改期）。
-    const scheduleInfo = await fetchSchedule(scheduleid);
-    const genList = await generateAppointmentList(scheduleid, userTimeZone); //courseAndBooking.js
-    const schStatus = scheduleInfo && scheduleInfo.status ? scheduleInfo.status : 'pending';
-
-    // 按日期聚合真实课次（id / status），用于匹配预览行
-    const dateAptMap = new Map(); // date(yyyy-MM-dd) -> [{id, status}]
-    if (Array.isArray(bookingIds) && bookingIds.length) {
-        for (const bid of bookingIds) {
-            if (!bid) continue;
-            let appts = [];
-            try { appts = await getAppointmentsByBookingId(bid) || []; } catch (e) { appts = []; }
-            if (!Array.isArray(appts)) continue;
-            for (const a of appts) {
-                const d = (a.date || '').slice(0, 10);
-                if (!d) continue;
-                if (!dateAptMap.has(d)) dateAptMap.set(d, []);
-                dateAptMap.get(d).push({ id: a.id, status: a.status });
-            }
+  // teacher「预订管理」聚合卡片下钻：查看排期（按 scheduleId）。
+  // 注意：本函数已从全局 previewSchedule 改名为 previewScheduleGroup，避免与
+  // student-bookingCards.js / admin-schedule.js 里的 0 参 previewSchedule() 互相覆盖
+  // （否则 student.html / admin-schedule.html 最后加载本文件会顶掉学生/管理员的 0 参版，导致崩溃）。
+  //
+  // 数据源：直接读取组内学生 appointment（真实课次），而非 generateAppointmentList。
+  // 原因：generateAppointmentList 内部 scheduleInfo.startTime.split(' ') 在 pending 排期
+  //（startTime 为空）时会 TypeError，正是教师点「查看排期」报错的根因。
+  // 同一排期下所有学生共享相同日期，读任一个学生的 appointment 即可拿到完整日期列表；
+  // 这里汇总所有学生 bookingId 的 appointment，按日期聚合 aptIds，支持「同一日期整组一起改期」。
+  async function previewScheduleGroup(scheduleid, origTzTimeZone, bookingIds) {
+    const dateAptMap = new Map(); // date(yyyy-MM-dd) -> [{id, status, time}]
+    const bookingList = Array.isArray(bookingIds) ? bookingIds.filter(Boolean) : [];
+    for (const bid of bookingList) {
+        let appts = [];
+        try { appts = await getAppointmentsByBookingId(bid) || []; } catch (e) { appts = []; }
+        if (!Array.isArray(appts)) continue;
+        for (const a of appts) {
+            const d = (a.date || '').slice(0, 10);
+            if (!d) continue;
+            if (!dateAptMap.has(d)) dateAptMap.set(d, []);
+            dateAptMap.get(d).push({ id: a.id, status: a.status, time: a.time });
         }
     }
 
-    scheduleResult = (Array.isArray(genList) ? genList : []).map(function (it) {
-        const date = it ? (it.date || '') : '';
-        const dKey = date.slice(0, 10);
-        const matched = dateAptMap.get(dKey) || [];
+    const dates = Array.from(dateAptMap.keys()).sort();
+    scheduleResult = dates.map(d => {
+        const matched = dateAptMap.get(d);
         const aptIds = matched.map(x => x.id).filter(x => x != null && x !== '');
         // 同日期课次中只要有「教师申请取消 / 取消待确认」即视为 pending → 按钮显示「取消改期」
         const pending = matched.some(x => x.status === 't-cancelling' || x.status === 'cancelling');
         const status = aptIds.length
-            ? (pending ? 't-cancelling' : (matched[0].status || schStatus))
-            : schStatus;
+            ? (pending ? 't-cancelling' : (matched[0].status || 'active'))
+            : 'active';
         return {
-            id:      (it && it.id != null) ? it.id : null,
-            date:    date,
-            time:    it ? (it.time || '') : '',
-            weekday: (it && it.weekday) ? it.weekday : deriveWeekday(date),
+            id:      aptIds.length ? aptIds[0] : null,
+            date:    d,
+            time:    matched[0] ? (matched[0].time || '') : '',
+            weekday: deriveWeekday(d),
             status:  status,
             aptIds:  aptIds
         };
@@ -413,7 +405,7 @@ async function loadAndRenderBooking_student(){
     renderResult(scheduleResult);
     renderCalendar(scheduleResult);
     switchResultTab('list');
-}
+  }
   
 //预览排期--对于已确认的排期查看 读取排期时间表，显示在排期时间列表和日历上.  
 async function viewMyReservationDetail(bookingId,origTzTimeZone){
