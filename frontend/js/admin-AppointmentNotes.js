@@ -61,8 +61,8 @@ function elVal(id, dflt) {
                     <option value="delete">已删除</option>                      
                     <option value="booked">预约已确认</option>
                     
-                    <option value="t-cancelling">取消待确认(T)</option>
-                    <option value="t-cancelled"> 已取消(T)</option>
+                    <option value="t-cancelling">申请取消（${termText('teacher')}）</option>
+                    <option value="t-cancelled">已取消（${termText('teacher')}）</option>
                     <option value="t-reject">已拒绝(T)</option>
                       
                   </select>

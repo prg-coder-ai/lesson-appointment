@@ -373,8 +373,8 @@ function getAppointmentStatusLabel(status) {
         case 'cancelling': return '取消待确认';
         case 'reject': return '已拒绝';
 
-        case 't-cancelling': return '教师申请取消';
-        case 't-cancelled':  return '教师已取消';
+        case 't-cancelling': return '申请取消（' + termText('teacher') + '）';
+        case 't-cancelled':  return '已取消（' + termText('teacher') + '）';
         case 't-reject': return '已拒绝(T)';
         // 排期自身状态（previewSchedule 预览槽占位用）：pending/active/inactive/frozen
         case 'pending':   return '待发布';

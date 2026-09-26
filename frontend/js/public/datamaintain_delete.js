@@ -273,7 +273,7 @@ async function deleteCourseById(id) {
           case 'cancelling':
             return '已取消';
           case 't-cancelling':
-            return '已取消';
+            return '申请取消（' + termText('teacher') + '）';
           case 'booked':
             return '已预约';
           case 'cancelled':

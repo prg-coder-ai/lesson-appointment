@@ -4,6 +4,10 @@
 userTimeZoneDisplay = "none";
 document.write('<script src="/js/public/pagefoot.js"></script>');
 
+// 课程是否已有「已发布排期」的会话内缓存：课程卡片每次重渲染都需判断，
+// 避免对同一课程反复请求排期列表（fetchScheduleList 是网络请求，N 门课程时尤其明显）。
+const _courseSchedulePublishCache = new Map();
+
 /**
  * 渲染课程预订管理页面
  * 对于学生，仅显示已发布的课程（status=active）
@@ -237,6 +241,32 @@ async function renderStudentBookingCards() {
             } catch (e) {
                 courseList = [];
             }
+
+            // 并行判断每门课程是否已发布排期（active），供卡片显隐「待排期，可联系管理员」按钮。
+            // 未发布任何排期 → __hasPublishedSchedule=false；否则 true；undefined 表示未判定（按有排期处理）。
+            try {
+                await Promise.all((courseList || []).map(async (c) => {
+                    if (!c || !c.courseId) return;
+                    if (_courseSchedulePublishCache.has(c.courseId)) {
+                        c.__hasPublishedSchedule = _courseSchedulePublishCache.get(c.courseId);
+                        return;
+                    }
+                    try {
+                        const sch = await fetchScheduleList(c.courseId, 'active');
+                        const has = Array.isArray(sch) && sch.length > 0;
+                        c.__hasPublishedSchedule = has;
+                        _courseSchedulePublishCache.set(c.courseId, has);
+                    } catch (e) {
+                        // 排期列表请求失败：保守视为「无已发布排期」，露出联系管理员入口
+                        c.__hasPublishedSchedule = false;
+                        _courseSchedulePublishCache.set(c.courseId, false);
+                    }
+                }));
+            } catch (e) {
+                // 判定异常不影响课程卡片本身渲染
+                console.error('批量判定课程排期发布状态失败:', e);
+            }
+
             renderCourseCards();
         }
 
@@ -268,11 +298,31 @@ async function renderStudentBookingCards() {
                 card.appendChild(name);
 
                 const meta = document.createElement('div');
-                meta.style.cssText = 'font-size:12px;color:#888;';
+                meta.style.cssText = 'font-size:12px;color:#888;margin-top:4px;';
                 const tags = [];
                 if (item.languageType) tags.push(`语言:${item.languageType}`);
                 if (item.difficultyLevel) tags.push(`难度:${item.difficultyLevel}`);
-                meta.innerText = tags.join('  ·  ') || '点击查看排期';
+                if (item.__hasPublishedSchedule === false) {
+                    // 该课程暂未发布任何排期：隐藏「点击查看排期」，改为「待排期，可联系管理员」按钮。
+                    // 学生点此打开站内信发送页（默认接收范围=本租户管理员），可编辑诉求后发送。
+                    if (tags.length) {
+                        const tagLine = document.createElement('div');
+                        tagLine.innerText = tags.join('  ·  ');
+                        meta.appendChild(tagLine);
+                    }
+                    const contactBtn = document.createElement('button');
+                    contactBtn.type = 'button';
+                    contactBtn.className = 'btn btn-default btn-sm';
+                    contactBtn.style.cssText = 'margin-top:6px;';
+                    contactBtn.innerText = '待排期，可联系管理员';
+                    contactBtn.onclick = function (e) {
+                        e.stopPropagation();   // 避免触发卡片选中课程
+                        contactAdminForSchedule(item.courseId, item.courseName);
+                    };
+                    meta.appendChild(contactBtn);
+                } else {
+                    meta.innerText = tags.join('  ·  ') || '点击查看排期';
+                }
                 card.appendChild(meta);
 
                 if (String(item.courseId) === String(currentCourseId)) {
@@ -284,6 +334,14 @@ async function renderStudentBookingCards() {
                 container.appendChild(card);
             });
             renderPagination(Pagination);
+        }
+
+        // 选中课程后把视口滚到「选择排期」这一行（而非整个「排期信息」区块顶部），
+        // 让学生一落点就正对着排期下拉框，便于立即选排期。
+        function scrollToScheduleSelect() {
+            const sel = document.getElementById('scheduleSelect');
+            const target = sel ? (sel.closest('.form-line') || sel) : null;
+            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         // 选中某门课程：高亮卡片并加载其排期
@@ -306,8 +364,7 @@ async function renderStudentBookingCards() {
             });
             await loadSchedule(courseId);
             if (scroll !== false) {
-                const schedSection = document.querySelector('.section');
-                if (schedSection) schedSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                scrollToScheduleSelect();
             }
         }
 
@@ -596,6 +653,7 @@ async function renderStudentBookingCards() {
         window.switchResultTab = switchResultTab;
         window.reloadBooking = reloadBooking_student;
         window.operateBookingStatus = operateBookingStatus;
+        window.contactAdminForSchedule = contactAdminForSchedule;
 
         // 把「排期信息」区域重置为“尚未选择排期”的初始状态。
         // 使用场景：切换课程（loadSchedule）、所选课程没有有效排期。
@@ -1199,6 +1257,53 @@ function resetCourseFilter() {
     // loadAndRenderCourse_student 是块级函数声明，模块作用域不可见，统一走 window 引用
     if (typeof window.loadAndRenderCourse_student === 'function') {
         window.loadAndRenderCourse_student();
+    }
+}
+
+/**
+ * 课程未发布排期时，学生点「待排期，可联系管理员」打开站内信发送页。
+ * - 复用消息中心全局入口 openComposeMessage()：学生默认接收范围=本租户管理员（tenant_admin），正好对应「联系管理员」；
+ *   进入即自动加载该范围接收人，学生只需编辑诉求正文并发送。
+ * - 预填标题与正文模板，学生可自由修改后再发送。
+ * @param {string} courseId   课程ID（仅用于上下文，文案已含课程名）
+ * @param {string} courseName 课程名称
+ */
+function contactAdminForSchedule(courseId, courseName) {
+    if (typeof window.openComposeMessage !== 'function') {
+        alert('消息中心尚未加载，无法发送站内信，请稍后重试或联系管理员');
+        return;
+    }
+    // 打开发送弹窗（同步插入 DOM，#msg-compose-root 即挂载点）
+    window.openComposeMessage();
+
+    const root = document.getElementById('msg-compose-root');
+    if (!root) return;
+    const titleEl = root.querySelector('#msg-title');
+    const contentEl = root.querySelector('#msg-content');
+
+    // 学生默认 scope 已是 tenant_admin；保险起见显式选中「本租户管理员」并刷新租户框显隐
+    const scopeSel = root.querySelector('#msg-scope');
+    if (scopeSel) {
+        for (let i = 0; i < scopeSel.options.length; i++) {
+            if (scopeSel.options[i].value === 'tenant_admin') { scopeSel.selectedIndex = i; break; }
+        }
+        // 仅同步租户框显隐（tenant_admin 无 data-tenant，不会要求填租户ID）；接收人已由 openComposeMessage 自动加载
+        if (typeof scopeSel.dispatchEvent === 'function') {
+            scopeSel.dispatchEvent(new Event('change'));
+        }
+    }
+
+    const cname = (courseName || '(课程)').toString();
+    if (titleEl && !titleEl.value) {
+        titleEl.value = '课程排期申请：' + cname;
+    }
+    if (contentEl && !contentEl.value) {
+        contentEl.value =
+            '您好，我想报名课程《' + cname + '》，但目前该课程还没有发布可预约的排期。\n' +
+            '麻烦管理员帮忙安排排期，我的诉求如下：\n' +
+            '1. 期望上课时间（如每周六上午 10:00）：\n' +
+            '2. 期望上课频率 / 总课次：\n' +
+            '3. 其它诉求（如教师偏好、上课方式等）：';
     }
 }
 

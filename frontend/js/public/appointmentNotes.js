@@ -763,7 +763,10 @@ async function datamaintain_fetchAppointmenPage(query) {
     } else   if   (status === 'cancelling' || status === 'canceling') {
       return '取消待确认';
     } else if   (status === 't-cancelling') {
-      return '教师申请取消';
+      return '申请取消（' + termText('teacher') + '）';
+    } else if (status === 't-cancelled') {
+      // 该课次由教师取消，标注取消方为「教师」；「教师」按行业词汇转换，全角色统一显示。
+      return '已取消（' + termText('teacher') + '）';
     } else if (status === 'booked') {
       return '预约已确认';
     } else if (status === 'waiting') {
