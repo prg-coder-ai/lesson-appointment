@@ -57,6 +57,10 @@
         <span>消息中心</span>
         <span class="msg-badge" id="msg-unread-badge" style="display:none;"></span>
       </div>
+      <div class="menu-item" key="teacher_showcase">
+        <i class="fa fa-chalkboard-teacher"></i>
+        <span>浏览师资</span>
+      </div>
       <!-- <div class="menu-item" key="course_review">
         <i class="fa fa-star-half-o"></i>
         <span><span data-term="course">课程</span>评价</span>
@@ -211,6 +215,10 @@
       currentMenuitem = key;
       // 根据菜单 key 加载对应内容
       switch(key) {
+        case 'teacher_showcase':
+          // 进入师资展示页（student-landing.html 同时支持登录/未登录态）
+          window.location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('student-landing.html') : 'student-landing.html';
+          return;
         case 'today_course':
            refreshAppointmentNotes( );//TBD "admin"
       /*

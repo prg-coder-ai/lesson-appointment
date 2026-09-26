@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-term-title="{lessonSystem} - 师资展示">语言教学预约系统 - 师资展示</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f5f7fb; color: #222; }
+    .lp-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 32px; background: #fff; box-shadow: 0 1px 6px rgba(0,0,0,.05); }
+    .lp-logo { font-size: 18px; font-weight: 600; color: #2b3a67; display: flex; align-items: center; gap: 8px; }
+    .lp-logo i { color: #4e6ef2; }
+    .lp-actions { display: flex; gap: 12px; }
+    .lp-btn { text-decoration: none; padding: 8px 18px; border-radius: 8px; font-size: 14px; cursor: pointer; transition: .2s; }
+    .lp-btn-ghost { border: 1px solid #d0d5dd; color: #444; }
+    .lp-btn-ghost:hover { border-color: #4e6ef2; color: #4e6ef2; }
+    .lp-btn-primary { background: #4e6ef2; color: #fff; border: 1px solid #4e6ef2; }
+    .lp-btn-primary:hover { background: #3b56d6; }
+
+    .lp-hero { text-align: center; padding: 48px 20px 24px; }
+    .lp-hero h1 { font-size: 30px; margin: 0 0 12px; color: #1f2a4d; }
+    .lp-hero .lp-sub { font-size: 15px; color: #667; max-width: 640px; margin: 0 auto; line-height: 1.7; }
+
+    .lp-carousel-section { max-width: 1080px; margin: 24px auto 56px; padding: 0 24px; }
+    .lp-section-title { font-size: 20px; color: #1f2a4d; margin: 0 0 18px; padding-left: 12px; border-left: 4px solid #4e6ef2; }
+
+    .tc-carousel { position: relative; }
+    .tc-track { display: flex; gap: 18px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 6px 4px 16px; scrollbar-width: thin; }
+    .tc-track::-webkit-scrollbar { height: 8px; }
+    .tc-track::-webkit-scrollbar-thumb { background: #cdd5e6; border-radius: 4px; }
+    .tc-card { scroll-snap-align: start; flex: 0 0 264px; background: #fff; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 16px rgba(30,50,90,.08); cursor: pointer; transition: transform .2s, box-shadow .2s; display: flex; flex-direction: column; }
+    .tc-card:hover { transform: translateY(-4px); box-shadow: 0 10px 26px rgba(30,50,90,.16); }
+    .tc-card:focus { outline: 2px solid #4e6ef2; outline-offset: 2px; }
+    .tc-cover { height: 120px; display: flex; align-items: flex-end; padding: 14px; }
+    .tc-avatar { width: 52px; height: 52px; border-radius: 50%; background: rgba(255,255,255,.9); color: #333; font-size: 22px; font-weight: 700; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+    .tc-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+    .tc-name { font-size: 17px; font-weight: 600; color: #1f2a4d; }
+    .tc-title { font-size: 13px; color: #4e6ef2; font-weight: 500; }
+    .tc-summary { font-size: 13px; color: #667; line-height: 1.6; flex: 1; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .tc-foot { margin-top: 6px; }
+    .tc-link { font-size: 13px; color: #4e6ef2; font-weight: 600; }
+    .tc-empty { padding: 40px; text-align: center; color: #999; }
+
+    .tc-arrow { position: absolute; top: 50%; transform: translateY(-50%); width: 38px; height: 38px; border-radius: 50%; border: none; background: #fff; color: #4e6ef2; font-size: 22px; line-height: 1; box-shadow: 0 2px 10px rgba(0,0,0,.15); cursor: pointer; z-index: 2; }
+    .tc-arrow:hover { background: #4e6ef2; color: #fff; }
+    .tc-prev { left: -10px; }
+    .tc-next { right: -10px; }
+
+    .lp-footer { text-align: center; padding: 22px; color: #99a; font-size: 13px; }
+
+    @media (max-width: 600px) {
+      .lp-header { padding: 12px 16px; }
+      .tc-card { flex-basis: 220px; }
+      .tc-prev { left: 2px; } .tc-next { right: 2px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="lp-header">
+    <div class="lp-logo"><i class="fa fa-graduation-cap"></i> <span id="brand-title">语言教学预约系统</span></div>
+    <div class="lp-actions">
+      <a class="lp-btn lp-btn-ghost" href="index.html">登录</a>
+      <a class="lp-btn lp-btn-primary" href="index.html">注册</a>
+    </div>
+  </header>
+
+  <section class="lp-hero">
+    <h1>认识我们的<span data-term="teacher">教师</span>团队</h1>
+    <p class="lp-sub">浏览各专业<span data-term="teacher">教师</span>的执业信息与擅长领域，找到最适合你的那一位。注册登录后即可在线预约课程。</p>
+  </section>
+
+  <section class="lp-carousel-section">
+    <h2 class="lp-section-title">师资风采</h2>
+    <div class="tc-carousel" id="teacherCardCarousel"></div>
+  </section>
+
+  <footer class="lp-footer">© <span data-term="lessonSystem">语言教学预约系统</span></footer>
+
+  <script src="js/public/terms.js"></script>
+  <script src="js/public/termsFunction.js"></script>
+  <script src="js/public/documentTitle.js"></script>
+  <script src="js/public/utility_request.js"></script>
+  <script src="js/public/auth.js"></script>
+  <script src="js/public/api.js"></script>
+  <script src="js/teacherCardCarousel.js"></script>
+  <script>
+    (function () {
+      // 未登录落地页：syncIndustryFromTenant 需 token，无法自动切行业词；
+      // 支持 URL ?industry=lawyer 直接切前端词表（不依赖登录，便于演示律师等行业）。
+      var params = new URLSearchParams(window.location.search);
+      var ind = params.get('industry');
+      if (ind && typeof window.switchIndustry === 'function') window.switchIndustry(ind);
+
+      // 登录态切换 header：已登录 → 显示「前往工作台」+「退出登录」；未登录 → 维持「登录/注册」
+      var loggedIn = !!localStorage.getItem('token');
+      var actions = document.getElementById('lpActions');
+      if (loggedIn && actions) {
+        var wsHref = (typeof window.pageUrl === 'function') ? window.pageUrl('student.html') : 'student.html';
+        actions.innerHTML =
+          '<a class="lp-btn lp-btn-ghost" href="' + wsHref + '">前往工作台</a>' +
+          '<a class="lp-btn lp-btn-primary" href="javascript:;" onclick="window.__landingLogout()">退出登录</a>';
+      }
+      // 退出登录：复用 auth.js 的 handleLogout（清 token + 跳登录页）；降级时手动清并跳走
+      window.__landingLogout = function () {
+        if (typeof window.handleLogout === 'function') {
+          window.handleLogout();
+        } else {
+          try { localStorage.removeItem('token'); localStorage.removeItem('refreshToken'); localStorage.removeItem('currentUser'); } catch (e) {}
+          window.location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('index.html') : 'index.html';
+        }
+      };
+
+      if (typeof window.renderTeacherCardCarousel === 'function') {
+        window.renderTeacherCardCarousel('teacherCardCarousel');
+      }
+    })();
+  </script>
+</body>
+</html>
