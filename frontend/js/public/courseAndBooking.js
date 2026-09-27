@@ -959,7 +959,7 @@ function getScheduleInfo(scheduleObject,withName=true) {
   }
 
   // 刷新重复类型 
-  info += getRepeatDescription(scheduleObject.repeatType, scheduleObject.interval,scheduleObject.repeatDays);
+  info += getRepeatDescription(scheduleObject.repeatType, (scheduleObject.repeatInterval != null ? scheduleObject.repeatInterval : scheduleObject.interval), scheduleObject.repeatDays);
  //TBD:每x周 xx/xx/xx 或者每x月 xx/xx/xx/ 
       return info;
 }
@@ -985,7 +985,7 @@ function getScheduleInfoByDTO(scheduleObject) {
   }
 
   // 刷新重复类型 
-  info += getRepeatDescription(scheduleObject.repeatType, scheduleObject.interval,scheduleObject.repeatDays);
+  info += getRepeatDescription(scheduleObject.repeatType, (scheduleObject.repeatInterval != null ? scheduleObject.repeatInterval : scheduleObject.interval), scheduleObject.repeatDays);
  //每x周 xx/xx/xx 或者每x月 xx/xx/xx/ 
       return info;
 }

@@ -1071,12 +1071,14 @@ const totalBooked = await getBookingCountByScheduleId(scheduleObject.scheduleId)
          document.getElementById('repeatType').value = 'none';
      }
 
-     // 刷新重复间隔
-     if (scheduleObject.interval) {
-         document.getElementById('interval').value = scheduleObject.interval;
-     } else {
-         document.getElementById('interval').value = 1;
-     }
+    // 刷新重复间隔（后端 ScheduleCreateDTO 返回字段为 repeatInterval；兼容旧字段名 interval）
+    const repeatIntervalVal = (scheduleObject.repeatInterval != null) ? scheduleObject.repeatInterval
+                            : (scheduleObject.interval != null ? scheduleObject.interval : null);
+    if (repeatIntervalVal) {
+        document.getElementById('interval').value = repeatIntervalVal;
+    } else {
+        document.getElementById('interval').value = 1;
+    }
 
      if (scheduleObject.status) {
         document.getElementById('status').value = scheduleObject.status;

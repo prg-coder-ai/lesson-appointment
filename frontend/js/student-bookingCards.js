@@ -903,7 +903,7 @@ async function renderStudentBookingCards() {
                 startDate: scheduleObject.startDate,
                 startTime: scheduleObject.startTime,
                 repeatType: scheduleObject.repeatType,
-                interval: scheduleObject.interval,
+                interval: (scheduleObject.repeatInterval != null ? scheduleObject.repeatInterval : scheduleObject.interval),
                 status: scheduleObject.status,
                 timeZone: scheduleObject.timeZone,   // 排期的原始时区
                 userTimeZone: userTimeZone,          // 输出时间的时区
