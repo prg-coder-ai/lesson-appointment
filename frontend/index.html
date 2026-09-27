@@ -61,6 +61,20 @@
     .modal-close:hover {
       color: #333;
     }
+    /* 登录页「关闭」按钮（未注册/未登录态使用） */
+    .login-close {
+      position: absolute;
+      top: 10px;
+      right: 14px;
+      font-size: 22px;
+      line-height: 1;
+      color: #999;
+      cursor: pointer;
+      z-index: 5;
+    }
+    .login-close:hover {
+      color: #333;
+    }
     .register-btn {
       margin-top: 12px;
       text-align: center;
@@ -130,6 +144,7 @@
 
   <!-- 登录容器 -->
   <div class="login-container" data-page-node-id="QILFkj1AXtCYAbI4entGok">
+    <span class="login-close" id="login-close" title="关闭" onclick="closeIndexPage()">×</span>
     <div class="login-header" data-page-node-id="rVDStF4LEwuDUg16HU4DKz">
       <div class="title" data-page-node-id="hwSU6wtYwHr7N1WlUW43w3"><span id="brand-title" data-page-node-id="rkBhirHjPaqdem4Z3ftgF1">语言教学预约系统</span></div>
       <div class="logo" data-page-node-id="a490sTqybnaarKCvmbEs9K"><i class="fa fa-file-signature" data-page-node-id="uttLklCGCxCHcek7k3EhyN"></i></div>
@@ -818,6 +833,30 @@
     }, 2500);
   };
   //TBD：添加“自动登录”勾选功能，可以提供自动跳转登录状态
+
+  /**
+   * 关闭登录页（未注册/未登录态的「关闭」按钮）
+   * - 若本页是由 window.open 打开的弹窗：window.close() 直接关闭；
+   * - 顶层页浏览器禁止脚本关闭，先尝试 window.close()，若未关闭则回退到上一页；
+   * - 无任何可返回历史时，提示用户手动关闭标签页。
+   */
+  function closeIndexPage() {
+    if (window.opener) {
+      window.close();
+      return;
+    }
+    window.close();
+    setTimeout(function () {
+      if (!window.closed) {
+        if (window.history.length > 1) {
+          window.history.back();
+        } else {
+          alert('当前页面无法由脚本关闭，请手动关闭标签页。');
+        }
+      }
+    }, 100);
+  }
+
   window.onload = function() {
      //  userInfo = autoLoginCheck() ;
       //  redirectToUserPage(userInfo);

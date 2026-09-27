@@ -217,7 +217,10 @@
       switch(key) {
         case 'teacher_showcase':
           // 进入师资展示页（student-landing.html 同时支持登录/未登录态）
-          window.location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('student-landing.html') : 'student-landing.html';
+          // 追加 from=workbench 来源标记，便于落地页显示「返回」按钮跳回工作台
+          var _landingHref = (typeof window.pageUrl === 'function') ? window.pageUrl('student-landing.html') : 'student-landing.html';
+          _landingHref += (_landingHref.indexOf('?') >= 0 ? '&' : '?') + 'from=workbench';
+          window.location.href = _landingHref;
           return;
         case 'today_course':
            refreshAppointmentNotes( );//TBD "admin"
