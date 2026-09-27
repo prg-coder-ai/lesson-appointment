@@ -43,15 +43,39 @@
     }
   }
 
-  // 加载卡片数据：原型返回 mock；真实接入替换为公开列表接口
+  // 加载卡片数据：优先走真实免登录公开列表接口（按当前租户 tCode 过滤）；
+  // 有真实数据源（已带 tCode）时一律以真实返回为准，不再回退 mock（避免展示虚假师资）；
+  // 仅当完全无租户上下文（缺 tCode、无法取真实数据）时，才用原型 mock 作为预览占位，避免空白页。
   async function loadTeacherCards() {
-    // ===== 真实接入位（确认项：先做前端原型，暂不接后端）=====
-    // var tCode = (typeof getTenantCodeParam === 'function') ? getTenantCodeParam() : '';
-    // var list = await request({ url: '/api/v1/teacher/published/public-list', method: 'GET', params: { tenantCode: tCode } });
-    // return (list || []).map(function (it) {
-    //   return { teacherId: it.teacherId, name: it.name, title: it.title, summary: it.summary, cover: it.coverUrl || '' };
-    // });
-    return MOCK_TEACHERS;
+    var tCode = (typeof getTenantCodeParam === 'function') ? getTenantCodeParam() : '';
+    if (!tCode) {
+      return MOCK_TEACHERS;
+    }
+    try {
+      var list = await request({
+        url: '/api/v1/teacher/published/public-list',
+        method: 'GET',
+        params: { tenantCode: tCode }
+      });
+      if (!list || !list.length) {
+        return [];
+      }
+      return list.map(function (it) {
+        return {
+          teacherId: it.teacherId,
+          profileId: it.publishedProfileId,
+          name: it.name,
+          title: it.title,
+          summary: it.summary,
+          cover: it.coverUrl || ''
+        };
+      });
+    } catch (e) {
+      // 有真实数据源却请求失败：不再回退 mock（不再展示虚假师资），
+      // 返回空数组，由渲染层显示「暂无可展示的X信息」空状态，便于排查接口问题。
+      console.warn('[teacherCardCarousel] 拉取真实师资列表失败，不展示 mock 占位：', e);
+      return [];
+    }
   }
 
   async function renderTeacherCardCarousel(containerId) {

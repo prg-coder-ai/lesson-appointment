@@ -72,6 +72,8 @@ public class SecurityConfig {
                                 "/api/v1/teacher/published/latest-public",
                                 "/teacher/published/public-get",
                                 "/api/v1/teacher/published/public-get",
+                                "/teacher/published/public-list",
+                                "/api/v1/teacher/published/public-list",
                                 "/schedule/getAvailableSchedule",
                                 "/api/v1/schedule/getAvailableSchedule"
                         ).permitAll()

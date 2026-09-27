@@ -178,8 +178,9 @@
         <a href="javascript:;" id="show-register" data-page-node-id="obqEQe1in7OrhLBr8eGbiU">还没有账号？点击注册</a>
       </div>
       <!-- 新增：未登录师资展示落地页入口（学生页未登录时也可先浏览教师职业信息） -->
+      <!-- 经 pageUrl 携带当前 tCode（租户编码），保证落地页能按机构拉取真实师资列表 -->
       <div class="register-btn" style="margin-top:10px;">
-        <a href="student-landing.html" style="color:#4e6ef2;">先浏览师资 ›</a>
+        <a href="javascript:void(0)" onclick="window.location.href=(typeof window.pageUrl==='function'?window.pageUrl('student-landing.html'):'student-landing.html')" style="color:#4e6ef2;">先浏览师资 ›</a>
       </div>
       
     </form>

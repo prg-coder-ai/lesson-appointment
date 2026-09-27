@@ -2,6 +2,8 @@ package com.reservation.mapper;
 
 import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+
+import java.util.List;
 import com.reservation.entity.TeacherPublishedProfile;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -36,4 +38,18 @@ public interface TeacherPublishedProfileMapper extends BaseMapper<TeacherPublish
     @InterceptorIgnore(tenantLine = "true")
     @Select("SELECT * FROM teacher_published_profile WHERE published_profile_id = #{id}")
     TeacherPublishedProfile selectByIdIgnoreTenant(@Param("id") String id);
+
+    /**
+     * 列出某租户下全部「已发布」职业信息——忽略租户隔离（供免登录公开列表 public-list 使用）。
+     *
+     * <p>公开列表的访问者没有租户身份，必须跳过租户插件自动追加的 {@code tenant_id = -1}，
+     * 转而由显式 {@code tenant_id = #{tenantId}}（由 tenantCode 解析得到）精确归属到目标机构。
+     *
+     * <p><b>最后一道防线：</b>显式 {@code AND status = 'published'}，保证草稿 / 归档版本不被公开列出。
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT * FROM teacher_published_profile "
+            + "WHERE tenant_id = #{tenantId} AND status = 'published' "
+            + "ORDER BY published_at DESC")
+    List<TeacherPublishedProfile> selectPublishedListByTenantIgnoreTenant(@Param("tenantId") Long tenantId);
 }

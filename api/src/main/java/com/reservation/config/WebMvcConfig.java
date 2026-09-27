@@ -27,6 +27,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
             "/api/v1/teacher/published/latest-public",
             "/teacher/published/public-get",
             "/api/v1/teacher/published/public-get",
+            "/teacher/published/public-list",
+            "/api/v1/teacher/published/public-list",
             "/schedule/getAvailableSchedule",
             "/api/v1/schedule/getAvailableSchedule",
             "/login", "/auth/login", "/api/v1/auth/login", "/auth/refreshToken", "/api/v1/auth/refreshToken", "/auth/logout", "/api/v1/auth/logout",

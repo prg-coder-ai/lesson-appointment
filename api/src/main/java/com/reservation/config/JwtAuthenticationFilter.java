@@ -49,6 +49,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/term/map", "/api/v1/term/map",
             "/teacher/published/latest-public", "/api/v1/teacher/published/latest-public",
             "/teacher/published/public-get", "/api/v1/teacher/published/public-get",
+            "/teacher/published/public-list", "/api/v1/teacher/published/public-list",
             "/schedule/getAvailableSchedule", "/api/v1/schedule/getAvailableSchedule",
             "/interfaces", "/api/v1/interfaces",
             "/tenant/name", "/api/v1/tenant/name",

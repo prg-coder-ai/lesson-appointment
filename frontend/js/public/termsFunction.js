@@ -178,7 +178,7 @@ async function syncIndustryFromTenant(tenantCode) {
 
 // 页面加载完成后，按已存行业对静态 HTML 应用一次术语替换
 // （默认 education 的 DOM 本身就是锚点词，等于空操作；动态注入的内容由各渲染函数里的 applyTerms(container) 负责。
-document.addEventListener("DOMContentLoaded", () => { applyTerms(); if (window.applyDocumentTitle) window.applyDocumentTitle(); applyTenantTitle(); loadTermMapFromServer(); injectLangSwitch(); });
+document.addEventListener("DOMContentLoaded", () => { applyTerms(); if (window.applyDocumentTitle) window.applyDocumentTitle(); applyTenantTitle(); loadTermMapFromServer(); /* injectLangSwitch(); 已停用：不再为各页面插入语言切换下拉框 */ });
 
 // 读取 URL 中的租户编码参数（与 index.html 的 getTenantCodeFromUrl 约定一致，参数名 tCode 大小写敏感）
 function getTenantCodeParam() {
@@ -221,6 +221,7 @@ function setLang(lang) {
   window.dispatchEvent(new CustomEvent('langchange'));
 }
 
+/* 已停用：不再为各页面插入语言切换下拉框。
 // 注入头部语言切换下拉菜单（自注入，所有页面共享，无需逐个改 HTML）。
 // 位置优先级：
 //   1) 角色页：header-actions 内、退出按钮（<i class="fa fa-sign-out-alt">）左侧。
@@ -320,6 +321,7 @@ function injectLangSwitch() {
 
   refresh();
 }
+*/ /* injectLangSwitch 定义结束（已停用） */
 
 // 测试入口：在浏览器控制台执行 switchIndustry("legal") / switchIndustry("education")
 // switchIndustry("legal");//ceshi 法律行业
