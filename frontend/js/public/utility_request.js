@@ -344,9 +344,17 @@
       //
       // ====== 关键修复：originalRequest._retry 标记 ======
       // 已重试过的请求若再次 401，不再刷新，避免嵌套循环
-      if (status === 401 && !originalRequest._retry) {
+      if (status === 401) {
+        // 公开页接口（如师资落地页的 public-list）401 属预期内（未登录），不刷新 token、不跳登录页，
+        // 直接 reject 交由调用方静默降级（展示空数据），避免与 index 的 tCode 未登录重定向
+        // 形成 index↔landing 死循环。noAuthRedirect 由调用方在 request 时显式声明。
+        // 注意：必须在此处（首次 401 进入刷新分支前）短路，否则会进入下方 refresh 失败分支触发跳转。
+        if (window.__PUBLIC_LANDING__ || config.noAuthRedirect) {
+          return Promise.reject(error);
+        }
 
-        originalRequest._retry = true; // 标记：本请求已尝试过刷新重试
+        if (!originalRequest._retry) {
+          originalRequest._retry = true; // 标记：本请求已尝试过刷新重试
 
         // ②-a 已有刷新在进行：排队等待，刷新完成后用新 token 重发
         if (isRefreshing) {
@@ -453,6 +461,13 @@
 
           // 跳转保护：避免多个并发请求同时触发跳转
           if (!isRedirecting) {
+            // 公开落地页（student-landing.html 设了 window.__PUBLIC_LANDING__）：任何 401 都不跳登录页，
+            // 否则会与 index 的 tCode 未登录重定向形成 index↔landing 死循环；交由调用方静默降级。
+            // 即便调用方已显式声明 noAuthRedirect 也走同一兜底。
+            if (window.__PUBLIC_LANDING__ || config.noAuthRedirect) {
+              isRedirecting = false;
+              return Promise.reject(refreshErr);
+            }
             isRedirecting = true;
             undefined;
             saveLoginRedirect('401');
@@ -462,6 +477,7 @@
           }
           return Promise.reject(refreshErr);
         }
+      }
       }
 
       // ④ 非 401 / 已重试过的 401 / 403 等：按状态码提示，不再刷新
@@ -476,7 +492,7 @@
           // 跳转保护：避免多个并发请求同时触发跳转
           if (!isRedirecting) {
             isRedirecting = true;
-            if (config.noAuthRedirect) {
+            if (window.__PUBLIC_LANDING__ || config.noAuthRedirect) {
               // 公开页（如师资落地页）的公开接口偶发 401：不跳登录页，否则会与 index 的
               // tCode 未登录重定向形成 index↔landing 死循环；由调用方自行降级（展示空数据）。
               // 仅释放跳转锁，不执行 saveLoginRedirect / 不跳转。
