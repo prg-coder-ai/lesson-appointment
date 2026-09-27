@@ -99,6 +99,10 @@
       var actions = document.getElementById('lpActions'); // 对应 header 容器 id="lpActions"
       // 若从学生工作台「浏览师资」进入，提供「返回」按钮跳回工作台（student.html）
       var fromWorkbench = (params.get('from') === 'workbench');
+      // 若从 index 登录页（租户链接未登录）自动跳转而来，登录/注册需带 tCode + noredirect=1，
+      // 既保留租户上下文，又避免 index 再次把其重定向回本页造成死循环。
+      var tCode = (typeof window.getTenantCodeParam === 'function') ? window.getTenantCodeParam() : (params.get('tCode') || '');
+      var loginHref = 'index.html' + (tCode ? ('?tCode=' + encodeURIComponent(tCode) + '&noredirect=1') : '?noredirect=1');
       var backBtnHtml = fromWorkbench
         ? '<a class="lp-btn lp-btn-ghost" href="' + ((typeof window.pageUrl === 'function') ? window.pageUrl('student.html') : 'student.html') + '">← 返回</a>'
         : '';
@@ -114,8 +118,8 @@
         if (loggedIn) {
           html += '<a class="lp-btn lp-btn-primary" href="javascript:;" onclick="window.__landingLogout()">退出登录</a>';
         } else {
-          html += '<a class="lp-btn lp-btn-ghost" href="index.html">登录</a>';
-          html += '<a class="lp-btn lp-btn-primary" href="index.html">注册</a>';
+          html += '<a class="lp-btn lp-btn-ghost" href="' + loginHref + '">登录</a>';
+          html += '<a class="lp-btn lp-btn-primary" href="' + loginHref + '">注册</a>';
         }
         // 「关闭」按钮：关闭本页面（弹窗直接关；顶层页 window.close 被禁时 history.back 兜底）
         html += '<a class="lp-btn lp-btn-ghost" href="javascript:;" onclick="window.__closeLanding()">关闭</a>';

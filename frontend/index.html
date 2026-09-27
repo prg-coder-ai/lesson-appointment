@@ -134,6 +134,22 @@
       margin-top: 8px;
     }
   </style>
+  <script>
+    // 租户专属链接（?tCode=xxx）且未登录：直接落到师资展示页（自带「登录/注册」入口），
+    // 跳过登录墙，体验更友好。用 location.replace 把 index 从历史栈移除，避免落地页「关闭」→
+    // history.back() → index → 再重定向形成的死循环；落地页「登录/注册」会带 noredirect=1 回到本页登录表单。
+    (function () {
+      try {
+        var sp = new URLSearchParams(window.location.search);
+        var tCode = sp.get('tCode');
+        var noRedirect = sp.get('noredirect');
+        var hasToken = !!localStorage.getItem('token');
+        if (tCode && !hasToken && noRedirect !== '1') {
+          window.location.replace('student-landing.html?tCode=' + encodeURIComponent(tCode) + '&from=index');
+        }
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body data-page-node-id="b81NbYRwJeCAHLXhsyCYJF">
   <!-- 缺失页面守卫：Nginx 用 try_files $uri $uri/ /index.html 做 SPA 兜底，
