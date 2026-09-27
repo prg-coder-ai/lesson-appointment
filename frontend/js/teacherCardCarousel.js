@@ -40,47 +40,56 @@
       window.location.href = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'id=' + encodeURIComponent(pid);
     } else {
       var loginBase = (typeof window.pageUrl === 'function') ? window.pageUrl('index.html') : 'index.html';
-      window.location.href = loginBase + (loginBase.indexOf('?') >= 0 ? '&' : '?') + 'from=landing&tid=' + encodeURIComponent(teacher.teacherId);
+      // noredirect=1：避免 index 早期脚本把「未登录 + 带 tCode」再次重定向回 landing，形成死循环
+      window.location.href = loginBase + (loginBase.indexOf('?') >= 0 ? '&' : '?') + 'from=landing&tid=' + encodeURIComponent(teacher.teacherId) + '&noredirect=1';
     }
   }
 
   // 加载卡片数据：优先走真实免登录公开列表接口（按当前租户 tCode 过滤）；
   // 有真实数据源（已带 tCode）时一律以真实返回为准，不再回退 mock（避免展示虚假师资）；
   // 仅当完全无租户上下文（缺 tCode、无法取真实数据）时，才用原型 mock 作为预览占位，避免空白页。
+  // 拉取单个租户码下的真实师资列表（公开接口，静默降级，不触发全局跳登录）
+  async function fetchTeacherList(tc) {
+    try {
+      var list = await request({
+        url: '/api/v1/teacher/published/public-list',
+        method: 'GET',
+        params: { tenantCode: tc },
+        noAuthRedirect: true,
+        customErrorMsg: false
+      });
+      return (list && list.length) ? list : [];
+    } catch (e) {
+      // 有真实数据源却请求失败：不回退 mock（不展示虚假师资），返回空由上层决定空状态
+      console.warn('[teacherCardCarousel] 拉取真实师资列表失败：', e);
+      return [];
+    }
+  }
+
   async function loadTeacherCards() {
     var tCode = (typeof getTenantCodeParam === 'function') ? getTenantCodeParam() : '';
     if (!tCode) {
       return MOCK_TEACHERS;
     }
-    try {
-      // noAuthRedirect: 落地页是公开页，该公开接口若偶发 401，不应触发全局「跳登录页」，
-      // 否则会与 index 的 tCode 未登录重定向形成 index↔landing 死循环；这里静默降级为空数据。
-      var list = await request({
-        url: '/api/v1/teacher/published/public-list',
-        method: 'GET',
-        params: { tenantCode: tCode },
-        noAuthRedirect: true,
-        customErrorMsg: false
-      });
-      if (!list || !list.length) {
-        return [];
-      }
-      return list.map(function (it) {
-        return {
-          teacherId: it.teacherId,
-          profileId: it.publishedProfileId,
-          name: it.name,
-          title: it.title,
-          summary: it.summary,
-          cover: it.coverUrl || ''
-        };
-      });
-    } catch (e) {
-      // 有真实数据源却请求失败：不再回退 mock（不再展示虚假师资），
-      // 返回空数组，由渲染层显示「暂无可展示的X信息」空状态，便于排查接口问题。
-      console.warn('[teacherCardCarousel] 拉取真实师资列表失败，不展示 mock 占位：', e);
+    // 先用原租户码查询；若为空，再做一次大小写兜底（租户码通常为大写，
+    // 用户手输小写 tenant_A 时仍能命中后端 TENANT_A，避免「教师风采」空白）。
+    var list = await fetchTeacherList(tCode);
+    if (!list.length && tCode !== tCode.toUpperCase()) {
+      list = await fetchTeacherList(tCode.toUpperCase());
+    }
+    if (!list.length) {
       return [];
     }
+    return list.map(function (it) {
+      return {
+        teacherId: it.teacherId,
+        profileId: it.publishedProfileId,
+        name: it.name,
+        title: it.title,
+        summary: it.summary,
+        cover: it.coverUrl || ''
+      };
+    });
   }
 
   async function renderTeacherCardCarousel(containerId) {

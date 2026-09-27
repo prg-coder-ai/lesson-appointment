@@ -56,6 +56,9 @@
       .tc-prev { left: 2px; } .tc-next { right: 2px; }
     }
   </style>
+  <!-- 标记本页为免登录公开落地页：utility_request.js 据此对「任意 401」都不跳登录页，
+       彻底切断 index↔landing 的 tCode 未登录重定向死循环。必须在 utility_request.js 之前执行。 -->
+  <script>window.__PUBLIC_LANDING__ = true;</script>
 </head>
 <body>
   <header class="lp-header">
@@ -125,14 +128,23 @@
         html += '<a class="lp-btn lp-btn-ghost" href="javascript:;" onclick="window.__closeLanding()">关闭</a>';
         actions.innerHTML = html;
       }
-      // 退出登录：复用 auth.js 的 handleLogout（清 token + 跳登录页）；降级时手动清并跳走
+      // 退出登录：在落地页内直接清本地登录态 + 尽力调服务端登出，然后原地重载落地页（已登出态）。
+      // 不要走通用 handleLogout（其会跳 index.html?tCode=A，再被 index 早期脚本重定向回 landing，造成地址栏闪烁）。
       window.__landingLogout = function () {
-        if (typeof window.handleLogout === 'function') {
-          window.handleLogout();
-        } else {
-          try { localStorage.removeItem('token'); localStorage.removeItem('refreshToken'); localStorage.removeItem('currentUser'); } catch (e) {}
-          window.location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('index.html') : 'index.html';
-        }
+        var tCode = (typeof window.getTenantCodeParam === 'function') ? window.getTenantCodeParam() : '';
+        try {
+          if (typeof window.logout === 'function') {
+            var rt = localStorage.getItem('refreshToken');
+            if (rt) window.logout(rt).catch(function () {});
+          }
+        } catch (e) {}
+        try {
+          localStorage.removeItem('token');
+          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('currentUser');
+          localStorage.removeItem('auth_menu_state');
+        } catch (e) {}
+        window.location.href = 'student-landing.html' + (tCode ? ('?tCode=' + encodeURIComponent(tCode) + '&from=index') : '?from=index');
       };
 
       // 关闭本页面：弹窗直接关；顶层页（非 window.open 打开）window.close 通常被浏览器禁止，

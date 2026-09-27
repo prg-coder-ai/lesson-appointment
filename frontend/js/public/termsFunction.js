@@ -182,9 +182,29 @@ document.addEventListener("DOMContentLoaded", () => { applyTerms(); if (window.a
 
 // 读取 URL 中的租户编码参数（与 index.html 的 getTenantCodeFromUrl 约定一致，参数名 tCode 大小写敏感）
 function getTenantCodeParam() {
-  const params = new URLSearchParams(window.location.search);
-  const t = params.get('tCode');
-  return (t && t.trim()) ? t.trim() : '';
+  try {
+    // 手动解析 search：原生 URLSearchParams 对「?tCode =tenant_A」（参数名带空格）会把键解析成「tCode 」，
+    // 导致 get('tCode') 永远返回 null；这里按 '&' 拆分并 trim/小写键名，兼容空格键名与大小写。
+    var search = window.location.search || '';
+    var pairs = search.replace(/^\?/, '').split('&');
+    for (var i = 0; i < pairs.length; i++) {
+      if (!pairs[i]) continue;
+      var eq = pairs[i].indexOf('=');
+      var k = eq === -1 ? pairs[i] : pairs[i].slice(0, eq);
+      var v = eq === -1 ? '' : pairs[i].slice(eq + 1);
+      k = decodeURIComponent(k).trim().toLowerCase();
+      if (k === 'tcode') {
+        var t = decodeURIComponent(v).trim();
+        // 防御嵌套：URL 被拼成 ?tCode=tCode=TENANT_A 时，取最后一个 '=' 后的真实租户码
+        if (t.indexOf('=') >= 0) t = t.substring(t.lastIndexOf('=') + 1);
+        t = t.replace(/[?&]/g, '').trim();
+        return t;
+      }
+    }
+    return '';
+  } catch (e) {
+    return '';
+  }
 }
 
 // 按 URL 中的 tcode 品牌化页面标题：把「语言教学预约系统」改签为「租户机构名预约系统」。

@@ -135,13 +135,39 @@
     }
   </style>
   <script>
+    // 租户码统一清洗：去除嵌套（如 URL 被拼成 ?tCode=tCode=TENANT_A）、首尾空格、
+    // 以及可能残留的 ? & 字符，避免 index↔landing 重定向死循环与接口查空。挂到 window 供本页复用。
+    window.sanitizeTenantCode = function (raw) {
+      if (!raw) return '';
+      raw = String(raw).trim();
+      if (raw.indexOf('=') >= 0) raw = raw.substring(raw.lastIndexOf('=') + 1);
+      raw = raw.replace(/[?&]/g, '').trim();
+      return raw;
+    };
     // 租户专属链接（?tCode=xxx）且未登录：直接落到师资展示页（自带「登录/注册」入口），
     // 跳过登录墙，体验更友好。用 location.replace 把 index 从历史栈移除，避免落地页「关闭」→
     // history.back() → index → 再重定向形成的死循环；落地页「登录/注册」会带 noredirect=1 回到本页登录表单。
     (function () {
       try {
         var sp = new URLSearchParams(window.location.search);
-        var tCode = sp.get('tCode');
+        // 兼容「?tCode =tenant_A」（参数名带空格）：原生 get 对空格键名返回 null，故手动按 '&' 解析
+        var tCode = (function () {
+          var pairs = (window.location.search || '').replace(/^\?/, '').split('&');
+          for (var i = 0; i < pairs.length; i++) {
+            if (!pairs[i]) continue;
+            var eq = pairs[i].indexOf('=');
+            var k = eq === -1 ? pairs[i] : pairs[i].slice(0, eq);
+            var v = eq === -1 ? '' : pairs[i].slice(eq + 1);
+            if (decodeURIComponent(k).trim().toLowerCase() === 'tcode') return decodeURIComponent(v);
+          }
+          return '';
+        })();
+        if (!tCode) tCode = sp.get('tcode') || '';
+        if (!tCode) {
+          // 如果没有 tCode 参数，尝试从 localStorage 读取上次注册/登录的租户编码
+          tCode = localStorage.getItem('lastRegisterTenantCode') || localStorage.getItem('lastLoginTenantCode') || '';
+        }
+        tCode = window.sanitizeTenantCode(tCode);
         var noRedirect = sp.get('noredirect');
         var hasToken = !!localStorage.getItem('token');
         if (tCode && !hasToken && noRedirect !== '1') {
@@ -695,9 +721,18 @@
 
     /** 读取 URL 参数 ?tcode=xx */
     function getTenantCodeFromUrl() {
-      const params = new URLSearchParams(window.location.search);
-      const tcode = params.get('tCode');
-      return tcode && tcode.trim() ? tcode.trim() : '';
+      // 兼容「?tCode =tenant_A」（参数名带空格）：手动按 '&' 解析，再复用清洗逻辑
+      var raw = '';
+      var pairs = (window.location.search || '').replace(/^\?/, '').split('&');
+      for (var i = 0; i < pairs.length; i++) {
+        if (!pairs[i]) continue;
+        var eq = pairs[i].indexOf('=');
+        var k = eq === -1 ? pairs[i] : pairs[i].slice(0, eq);
+        var v = eq === -1 ? '' : pairs[i].slice(eq + 1);
+        if (decodeURIComponent(k).trim().toLowerCase() === 'tcode') { raw = decodeURIComponent(v); break; }
+      }
+      // 复用与早期脚本一致的清洗逻辑，防止嵌套 tCode（?tCode=tCode=XXX）污染注册/登录表单
+      return (typeof window.sanitizeTenantCode === 'function') ? window.sanitizeTenantCode(raw) : (raw && raw.trim() ? raw.trim() : '');
     }
 
     /** 按角色与 URL 参数决定租户编码及其可编辑状态 */
