@@ -36,7 +36,8 @@
     var loggedIn = !!localStorage.getItem('token');
     if (loggedIn) {
       var base = (typeof window.pageUrl === 'function') ? window.pageUrl('teacherPublishedProfile.html') : 'teacherPublishedProfile.html';
-      window.location.href = base + '?id=' + encodeURIComponent(pid);
+      // pageUrl 可能已带 ?tCode=xxx，须用 & 续接，避免拼出第二个 ? 导致 id 解析失败
+      window.location.href = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'id=' + encodeURIComponent(pid);
     } else {
       var loginBase = (typeof window.pageUrl === 'function') ? window.pageUrl('index.html') : 'index.html';
       window.location.href = loginBase + (loginBase.indexOf('?') >= 0 ? '&' : '?') + 'from=landing&tid=' + encodeURIComponent(teacher.teacherId);
