@@ -126,6 +126,15 @@ async function renderStudentBookingCards() {
                     </div>
                 </div>
             </div>
+            <!-- 重复规则（学生端只读展示） -->
+            <div class="form-line" style="display:flex;">
+                <label>重复类型：</label>
+                <input type="text" id="repeatTypeDisplay" class="readonly" readonly>
+            </div>
+            <div class="form-line" style="display:flex;">
+                <label>重复周期：</label>
+                <input type="text" id="repeatCycleDisplay" class="readonly" readonly>
+            </div>
             <!-- 预订号（隐藏） -->
             <div class="form-line">
                 <label><input type="label" id="bookingId" value="" style="display:none;"></label>
@@ -524,8 +533,24 @@ async function renderStudentBookingCards() {
                 document.getElementById('startTime').value = '';
             }
 
-            // 学生端不展示/不编辑重复规则（只读），课次列表由「预览排期」按排期对象展开
-            // 排期发布状态无需在学生端展示
+            // 学生端展示重复规则（只读）：重复类型 + 重复周期
+            // repeatType 兼容字符串(none/day/week/month) 与 DB 数字枚举(0/1/2/3)
+            const _rtRaw = scheduleObject.repeatType;
+            const _rtNumMap = { 0: 'none', 1: 'day', 2: 'week', 3: 'month' };
+            const _rt = (_rtRaw != null && _rtNumMap[_rtRaw] != null) ? _rtNumMap[_rtRaw]
+                : (_rtRaw || 'none');
+            const _ri = (scheduleObject.repeatInterval != null ? scheduleObject.repeatInterval : scheduleObject.interval);
+            const _rd = scheduleObject.repeatDays;
+            const _rtEl = document.getElementById('repeatTypeDisplay');
+            const _rcEl = document.getElementById('repeatCycleDisplay');
+            if (_rtEl) {
+                const _typeLabel = { none: '不重复', day: '每天', week: '每周', month: '每月' }[_rt] || _rt || '';
+                _rtEl.value = _typeLabel;
+            }
+            if (_rcEl) {
+                // 例如 repeatType=day、interval=3 → “每3天一次”
+                _rcEl.value = getRepeatDescription(_rt, _ri, _rd) || '—';
+            }
 
             // 刷新结束日期
             if (scheduleObject.endDate) {
@@ -685,6 +710,9 @@ async function renderStudentBookingCards() {
             setVal('startDate_weekday');
             setVal('startTime');
             setVal('endDate');
+            // 重复规则（学生端只读展示）：切换课程/未选排期时清空，避免残留上一排期的值
+            setVal('repeatTypeDisplay');
+            setVal('repeatCycleDisplay');
             // 席位两项留空 = “未知”：总席位数是管理员在「排期设置」时设定的数据（存在排期上），
             // 学生页不产生这个数，未选排期时编一个 1 出来反而像真值。
             // 归空后 isScheduleFull() 按“未知即未满”处理，不会误阻断预定。
