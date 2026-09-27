@@ -476,11 +476,18 @@
           // 跳转保护：避免多个并发请求同时触发跳转
           if (!isRedirecting) {
             isRedirecting = true;
-            undefined;
-            saveLoginRedirect('401');
-            setTimeout(() => {
-              location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('index.html') : './index.html';
-            }, 500);
+            if (config.noAuthRedirect) {
+              // 公开页（如师资落地页）的公开接口偶发 401：不跳登录页，否则会与 index 的
+              // tCode 未登录重定向形成 index↔landing 死循环；由调用方自行降级（展示空数据）。
+              // 仅释放跳转锁，不执行 saveLoginRedirect / 不跳转。
+              isRedirecting = false;
+            } else {
+              undefined;
+              saveLoginRedirect('401');
+              setTimeout(() => {
+                location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('index.html') : './index.html';
+              }, 500);
+            }
           }
           break;
         case 403:

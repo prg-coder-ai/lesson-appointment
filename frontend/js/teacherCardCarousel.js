@@ -53,10 +53,14 @@
       return MOCK_TEACHERS;
     }
     try {
+      // noAuthRedirect: 落地页是公开页，该公开接口若偶发 401，不应触发全局「跳登录页」，
+      // 否则会与 index 的 tCode 未登录重定向形成 index↔landing 死循环；这里静默降级为空数据。
       var list = await request({
         url: '/api/v1/teacher/published/public-list',
         method: 'GET',
-        params: { tenantCode: tCode }
+        params: { tenantCode: tCode },
+        noAuthRedirect: true,
+        customErrorMsg: false
       });
       if (!list || !list.length) {
         return [];
