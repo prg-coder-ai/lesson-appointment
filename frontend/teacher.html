@@ -209,6 +209,12 @@
           <div id="appoint-pagebar"></div>
         </div>
       </template>
+      <template id="tpl-waitlist-banner">
+        <i class="fa fa-clock-o" style="font-size:16px;"></i>
+        <span>候补排队中：你有 <b id="wl-count">0</b> 条候补申请<span id="wl-detail"></span></span>
+        <span style="color:#a06a00;font-size:12px;">有名额释放后由管理员按排队次序递补，递补成功会发消息通知你</span>
+        <button class="btn btn-default" id="wl-view-btn" type="button">查看我的预订</button>
+      </template>
       <!-- 教师课程/排期浏览页结构模板（2026-09-28 template+clone 改造）：JS 只负责取数/填值/绑事件 -->
       <template id="tpl-teacher-course-schedule">
         <!-- 课程列表 -->

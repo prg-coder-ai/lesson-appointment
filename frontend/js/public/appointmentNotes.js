@@ -1224,13 +1224,27 @@ async function renderWaitlistBanner() {
     const shown = details.filter(Boolean);
     const rest = waitList.length - shown.length;
 
-    banner.innerHTML =
-        '<i class="fa fa-clock-o" style="font-size:16px;"></i>'
+    var detailText = shown.length ? '（' + shown.join('；') + (rest > 0 ? '，另有 ' + rest + ' 条' : '') + '）' : '';
+    var viewBtn;
+    var tpl = document.getElementById('tpl-waitlist-banner');
+    if (tpl) {
+      banner.replaceChildren(tpl.content.cloneNode(true));
+      var countEl = banner.querySelector('#wl-count');
+      if (countEl) countEl.textContent = waitList.length;
+      var detailEl = banner.querySelector('#wl-detail');
+      if (detailEl) detailEl.textContent = detailText;
+      viewBtn = banner.querySelector('#wl-view-btn');
+    } else {
+      // 兜底：模板缺失（旧缓存/未引入模板的页面）时退回拼接，保证功能不退化（按钮仍走 addEventListener，不写内联 onclick）
+      banner.innerHTML = '<i class="fa fa-clock-o" style="font-size:16px;"></i>'
         + '<span>候补排队中：你有 <b>' + waitList.length + '</b> 条候补申请'
-        + (shown.length ? '（' + shown.join('；') + (rest > 0 ? '，另有 ' + rest + ' 条' : '') + '）' : '')
+        + detailText
         + '</span>'
         + '<span style="color:#a06a00;font-size:12px;">有名额释放后由管理员按排队次序递补，递补成功会发消息通知你</span>'
-        + '<button class="btn btn-default" onclick="goToStudentMyBooking()">查看我的预订</button>';
+        + '<button class="btn btn-default" id="wl-view-btn" type="button">查看我的预订</button>';
+      viewBtn = banner.querySelector('#wl-view-btn');
+    }
+    if (viewBtn) viewBtn.addEventListener('click', goToStudentMyBooking);
     banner.style.display = 'flex';
     return true;
 }

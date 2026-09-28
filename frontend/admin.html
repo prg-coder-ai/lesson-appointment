@@ -234,6 +234,12 @@
           <div id="appoint-pagebar"></div>
         </div>
       </template>
+      <template id="tpl-waitlist-banner">
+        <i class="fa fa-clock-o" style="font-size:16px;"></i>
+        <span>候补排队中：你有 <b id="wl-count">0</b> 条候补申请<span id="wl-detail"></span></span>
+        <span style="color:#a06a00;font-size:12px;">有名额释放后由管理员按排队次序递补，递补成功会发消息通知你</span>
+        <button class="btn btn-default" id="wl-view-btn" type="button">查看我的预订</button>
+      </template>
   </div>
 
   <!-- JavaScript交互逻辑 --> 
