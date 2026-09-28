@@ -87,7 +87,10 @@ window.FRONTEND_ORIGIN = window.FRONTEND_ORIGIN || location.origin;
           // 用于防止未登录用户强行访问需要权限的页面
           // 若 URL 带 ?tCode= 则一并带入登录页，使登录页按该租户预填/锁定
           // 保持在登录页时不做跳转；否则带着当前 tCode 回登录页（tCode 由 pageUrl 自动附加）
-          if (!window.location.pathname.endsWith('login.html')) {
+          // 公开落地页（师资展示页等免登录页）不做登录跳转：未登录正是这类页面的正常状态。
+          // 否则本文件在顶层「加载即执行」的 InitUserInfo() 会把 landing 直接踢回登录页。
+          const isPublicPage = !!window.__PUBLIC_LANDING__ || !!window.__PUBLIC_PAGE__;
+          if (!isPublicPage && !window.location.pathname.endsWith('login.html')) {
             window.location.href = pageUrl('login.html');
           }
           } else  { 

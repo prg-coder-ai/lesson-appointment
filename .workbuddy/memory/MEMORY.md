@@ -30,6 +30,12 @@
 - 后端口径：`POST /auth/login`、`POST /user/register`、`GET /user/account/exist`(裸路径经 utility_request.js 自动补 /api/v1)；注册落 `status=pending`(admin/platform_admin 强制 active)；登录仅拦 frozen/inactive，**pending 可登录**。
 - 回归测试：`test_login_api.js`(接口级 19 项，需 8080 代理+8081 后端)、`test_login_page.js`(jsdom 页面级 38 项，NODE_PATH 指向全局 node_modules 取 jsdom)。
 
+## 公开页(免登录)防跳登录页(2026-09-28)
+- `api.js` 是**顶层脚本**(无 IIFE)，第 61 行 `InitUserInfo();` **解析即执行**；未登录会 `window.location.href=pageUrl('login.html')` → 任何引入 api.js 的公开页一打开就被踢回登录页。已加守卫：`isPublicPage=(__PUBLIC_LANDING__||__PUBLIC_PAGE__)` 为真则不跳。
+- 公开页两处独立防线，缺一即漏：① utility_request.js 的 401 拦截(`__PUBLIC_LANDING__||config.noAuthRedirect`)；② api.js InitUserInfo 顶层跳转守卫。新增公开页**必须两处都有**，且 `window.__PUBLIC_LANDING__=true` 必须在 utility_request.js / api.js **之前**注入。
+- **`pageUrl` 有两份实现**：api.js:695 自带一份并 `window.pageUrl=...` **覆盖** utility_request.js 的同名全局；api.js 内部调用的是自己 IIFE 内提升的那份 → 测试若 hook `window.pageUrl` 判断跳转**恒假通过**。判据应用 jsdom 真实导航错误(`Not implemented: navigation`)。
+- 测试：`test_landing_noredirect.js`(13 项，含 T7 反向用例自证判据有效)、`test_landing_e2e.js`(jsdom.fromURL 真实页 4 项)。**dist 压缩后变量名 `isPublicPage` 消失**，产物校验须 grep 字符串常量 `__PUBLIC_LANDING__`。
+
 ## 免登录接口×租户插件
 - 无租户上下文入口被插件追加 tenant_id=-1→恒不命中("页面能开永远无数据")。放行=三处白名单(进得来)+查询 @InterceptorIgnore(tenantLine="true")。
 - admin 侧方法因 checkAdmin 放行平台管理员 + tenantId=0 插件不拼条件，一律先 requireTenantContext()。
