@@ -857,26 +857,6 @@ async function renderStudentBookingCards() {
             // ===== 排期加载：核心链路，优先于教师姓名，且自身已 try/catch =====
             try {
                 scheduleList = await fetchScheduleList(cid, "active");
-                const scheduleSelect = document.getElementById('scheduleSelect');
-                if (scheduleSelect && scheduleList && scheduleList.length > 0) {
-                    // 把 scheduleList 按 scheduleId 添加到排期下拉列表中
-                    // （下拉框已在函数开头重置为“请选择课程排期”占位，这里直接追加新选项）
-                    scheduleList.forEach(schedule => {
-                        if (schedule.status == 'active') { // TBD: 过滤在后端完成
-                            cnt++;
-                            const opt = document.createElement('option');
-                            opt.value = schedule.scheduleId;
-                            let displayText = `排期: ${schedule.name}`;
-                            if (schedule.startDate && schedule.startTime) {
-                                displayText += ` / ${schedule.startDate} ${schedule.startTime}`;
-                            } else if (schedule.startDate) {
-                                displayText += ` / ${schedule.startDate}`;
-                            }
-                            opt.innerText = displayText;
-                            scheduleSelect.appendChild(opt);
-                        }
-                    });
-                }
             } catch (e) {
                 // 拉取失败：清空可能残留的旧排期数据，避免用户误选到上一门课的排期
                 cnt = 0;
@@ -884,13 +864,54 @@ async function renderStudentBookingCards() {
                 console.error('加载排期列表失败:', e);
             }
 
-            if (cnt > 0) return;
+            // 下拉填充统一走 fillScheduleSelect（与「刷新」共用同一份口径，避免两处分叉）
+            cnt = fillScheduleSelect(scheduleList);
+        }
 
-            // 该课程没有有效排期：下拉框给出明确提示（面板已在函数开头 resetScheduleInfoPanel 中重置）
-            const scheduleSelectEmpty = document.getElementById('scheduleSelect');
-            if (scheduleSelectEmpty) {
-                scheduleSelectEmpty.innerHTML = '<option value="">暂时该<span data-term="course">课程</span>没有排期</option>';
+        /**
+         * 用排期列表重建「排期」下拉框，并可选地把选中项恢复为指定排期。
+         *
+         * 抽出来供两条路径共用：
+         *   - 切换课程（loadSchedule）：重置面板后按新列表填充；
+         *   - 原地刷新（refreshData_student）：填充后把选中项选回原排期。
+         * 否则 status 过滤、选项文案、空提示文案会在两处逐渐分叉。
+         *
+         * @param {Array} list fetchScheduleList 的返回值
+         * @param {string|number} [keepScheduleId] 需保持选中的排期 ID。该排期已不在
+         *        有效列表中时**不强行选中**（下拉停回占位项），由调用方判断原排期是否还在。
+         * @returns {number} 有效排期（status=active）数量
+         */
+        function fillScheduleSelect(list, keepScheduleId) {
+            resetScheduleSelect();   // 先写回占位项，顺带清掉上一门课程留下的选项
+            const scheduleSelect = document.getElementById('scheduleSelect');
+            if (!scheduleSelect) return 0;
+
+            let cnt = 0;
+            (Array.isArray(list) ? list : []).forEach(schedule => {
+                if (schedule.status == 'active') { // TBD: 过滤在后端完成
+                    cnt++;
+                    const opt = document.createElement('option');
+                    opt.value = schedule.scheduleId;
+                    let displayText = `排期: ${schedule.name}`;
+                    if (schedule.startDate && schedule.startTime) {
+                        displayText += ` / ${schedule.startDate} ${schedule.startTime}`;
+                    } else if (schedule.startDate) {
+                        displayText += ` / ${schedule.startDate}`;
+                    }
+                    opt.innerText = displayText;
+                    scheduleSelect.appendChild(opt);
+                }
+            });
+
+            if (cnt === 0) {
+                // 该课程没有有效排期：给明确提示（空白下拉会被误读成“还在加载”）
+                scheduleSelect.innerHTML = '<option value="">暂时该<span data-term="course">课程</span>没有排期</option>';
+            } else if (keepScheduleId) {
+                const exists = Array.prototype.some.call(
+                    scheduleSelect.options, o => String(o.value) === String(keepScheduleId));
+                if (exists) scheduleSelect.value = String(keepScheduleId);
             }
+            return cnt;
         }
 
         // 排期列表选择变化时，重新显示排期计划及预订情况
@@ -1301,10 +1322,81 @@ async function renderStudentBookingCards() {
             reloadBooking_student();
         }
 
-        // 刷新：重新读取排期数据并显示
-        function refreshData_student() {
-            loadSchedule();
-            // TBD: 如果原来的排期 ID 存在，则显示原排期（selected 指定相应的 id）
+        /**
+         * 「刷新」：保持当前排期不变，只重新从数据库读取该排期的数据并更新显示。
+         *
+         * 为什么不沿用 loadSchedule()：它是「切换课程」路径，函数开头就 resetScheduleInfoPanel()
+         * + resetScheduleSelect()（否则请求往返期间、以及返回后用户还没选排期时，页面上会残留
+         * 上一门课程的排期信息）。而刷新面对的是**同一个排期**，用户要的是“直接拿到最后的结果”
+         * （例如刚在另一个窗口完成审核/取消，或管理员调整了课次）——若把选中排期清掉，
+         * 用户还得分神重选一次，刷新反而变成了回退。
+         *
+         * 所以这里刻意不复用 loadSchedule()，改为：
+         *   1) 重新拉取该课程的排期列表 → 重建下拉并**选回原排期**；
+         *   2) 走 displaySchedule() 重渲染 —— 它内部依次重取「已预订人数」「我的预订状态」，
+         *      并重算剩余员额 / 满额样式 / 按钮组合 / 「我的时区」换算，全部来自数据库而非本地推算；
+         *   3) 刷新前若已预览过排期（结果区有内容），刷新后自动重放一次预览，
+         *      课次列表与课次状态一并更新到最新。
+         * 任何一步失败都**不清空页面**：宁可保留旧数据，也不要出现“刷新完啥也没了”。
+         */
+        async function refreshData_student() {
+            const btn = document.getElementById('refreshBtn');
+            const btnText = btn ? btn.textContent : '';
+            // 记住刷新前的排期：优先全局选中值，回退下拉框当前值
+            const keepScheduleId = selectedScheuleId
+                || ((document.getElementById('scheduleSelect') || {}).value || '');
+
+            if (btn) {
+                btn.disabled = true;             // 防连点造成并发请求
+                btn.textContent = '刷新中…';
+            }
+            try {
+                // 未选课程：没有可刷新的排期对象，退回“重新加载排期列表”
+                if (!currentCourseId) {
+                    await loadSchedule();
+                    return;
+                }
+
+                let list;
+                try {
+                    list = await fetchScheduleList(currentCourseId, 'active');
+                } catch (e) {
+                    // 关键：失败时保持页面原样（旧数据仍可用），不清空、不重置选中
+                    console.error('刷新排期数据失败:', e);
+                    alert('刷新失败，请稍后重试');
+                    return;
+                }
+                scheduleList = Array.isArray(list) ? list : [];
+
+                // 重建下拉并选回原排期；原排期已失效时下拉停在占位项
+                fillScheduleSelect(scheduleList, keepScheduleId);
+                const scheduleSelect = document.getElementById('scheduleSelect');
+                const kept = !!(scheduleSelect && keepScheduleId
+                    && String(scheduleSelect.value) === String(keepScheduleId));
+                if (!kept) {
+                    // 原排期已不在有效列表中（被取消 / 删除 / 改为非 active）：
+                    // 清空面板，避免页面停留在一个已失效的排期上
+                    // （resetScheduleInfoPanel 内会清 selectedScheuleId 并复位按钮组合）
+                    resetScheduleInfoPanel();
+                    return;
+                }
+
+                // 是否已展开课次列表：必须在 displaySchedule 之前取，避免被后续步骤影响
+                const hadPreview = Array.isArray(scheduleResult) && scheduleResult.length > 0;
+
+                // 与手动选排期完全同一条渲染链路
+                await displaySchedule();
+
+                if (hadPreview) {
+                    // 重放预览：把“最后的结果”直接落到结果区，用户无需再点一次「预览排期」
+                    await previewSchedule();
+                }
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = btnText || '刷新';
+                }
+            }
         }
 
         // 状态变化时更新当前用户对当前排期的预订状态

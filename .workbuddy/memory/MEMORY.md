@@ -79,6 +79,7 @@
 8. 显示口径≠判定口径：同一 DOM 字段既展示又用于判定时(如学生端 `#now_availableSites` 剩余员额)，展示文案进 `value`、数值进 `data-remaining`，回读优先 `data-remaining`。两个坑：① `<input type="number">` 会**静默丢弃**「满额」这类文本→必须 text；② 把「满额」交给 `Number()` 得 NaN→`isFinite(NaN)` false→被判「未满」→候补按钮消失。口径收敛成 `formatRemainingSites/applyRemainingSitesDisplay/readRemainingSitesFromDom`(顶层导出)，`tests/check_remaining_sites_display.js` 42 项(阴性对照 9 FAIL)。
 9. 只读展示字段口径(2026-09-28)：`.readonly` 文字 #999→#333(保留 #f5f5f5 浅灰底),`.nofocus` 删掉 `filter:grayscale(.8)`(会把整行文字一并去色,是"灰蒙蒙"元凶)。学生端「排期信息」统一"样式类+readonly 属性"双全——**只挂 class 的字段 pointer-events:none 挡不住键盘 Tab 输入=假只读**。教师端只统一样式、未加属性。守卫 `tests/check_readonly_display_style.js` 40 项(阴性对照 10 FAIL)。
 10. 静态守卫判据要**剥离 CSS 注释**：把"已移除的属性"写进注释说明后,裸 `grep grayscale` 会误报→`css.replace(/\/\*[\s\S]*?\*\//g,'')` 后再断言生效声明。
+11. 「刷新」≠「切换课程」(2026-09-28)：刷新**必须保持当前排期**。`loadSchedule` 开头就 `resetScheduleInfoPanel/resetScheduleSelect`(切课程需要,否则残留上一门课数据),刷新复用它会清掉选中排期、且请求失败时整块信息消失。正解:抽 `fillScheduleSelect(list, keepScheduleId)` 让两条路径共用填充口径;刷新走「拉列表→选回原排期→`displaySchedule()` 重渲染→已预览则重放 `previewSchedule()`」,失败只 alert 不清空。守卫 `tests/check_schedule_refresh_behavior.js` 45 项(阴性对照 22 FAIL)。
 
 ## 微信登录(2026-09-20 屏蔽)
 - 不考虑微信登录：User.wxOpenid 标 @TableField(exist=false)；UserMapper.getByWxOpenid/updateWxOpenid、UserService.wechatLogin/bindWechat、authController /wechat-login /bind-wechat 均块注释屏蔽(可恢复)。
