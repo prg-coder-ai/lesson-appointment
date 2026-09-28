@@ -276,5 +276,248 @@
  
   <script>
   </script>
+
+  <!-- ===================== A′ 改造：页面骨架模板（2026-09-28） ===================== -->
+  <!-- 结构原住在各 platform-admin-*.js 的 innerHTML 字符串里，现搬进此处；JS 改为取模板 -> clone -> 绑事件。 -->
+  <!-- 含插值的占位：term-search-lang 仅留"全部语言"、backend-info 的 endpoint-bar/tab-bar 留空由 JS 填、package 两个 tab 按钮留默认 class 由 JS 按 pkgTab 设高亮。 -->
+
+  <template id="tpl-config-page">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa fa-cog"></i> 系统设置</div>
+        <div class="tab-bar">
+          <button class="btn btn-default" id="tab-industry">行业管理</button>
+          <button class="btn btn-default" id="tab-term">行业词汇</button>
+          <button class="btn btn-default" id="tab-system">系统参数</button>
+        </div>
+        <button class="btn btn-primary" id="config-refresh-btn"><i class="fa fa-refresh"></i> 刷新</button>
+      </div>
+      <div id="config-tab-body"></div>
+    </div>
+  </template>
+
+  <template id="tpl-config-system">
+    <div class="table-container">
+      <table class="data-table"><thead><tr>
+        <th>名称</th><th>键</th><th>值</th><th>分组</th><th>类型</th><th>语言</th><th>可编辑</th><th>操作</th>
+      </tr></thead><tbody id="cfg-body"></tbody></table>
+    </div>
+    <div id="cfg-pagebar"></div>
+  </template>
+
+  <template id="tpl-industry-page">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa fa-industry"></i> 行业管理</div>
+        <button class="btn btn-primary" id="industry-add-btn"><i class="fa fa-plus"></i> 新增行业</button>
+      </div>
+      <div class="table-container">
+        <table class="data-table"><thead><tr>
+          <th>ID</th><th>编码</th><th>名称</th><th>状态</th><th>备注</th><th>操作</th>
+        </tr></thead><tbody id="industry-body"></tbody></table>
+      </div>
+      <div id="industry-pagebar"></div>
+    </div>
+  </template>
+
+  <template id="tpl-term-page">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa fa-book"></i> 行业词汇</div>
+        <div class="tab-bar" style="margin-left:16px;">
+          <select id="term-scope-select">
+            <option value="0">平台词（全系统默认）</option>
+            <option value="-1">-- 按行业过滤 --</option>
+          </select>
+        </div>
+        <button class="btn btn-default" id="term-copy-btn"><i class="fa fa-copy"></i> 行业词复制</button>
+        <button class="btn btn-primary" id="term-add-btn"><i class="fa fa-plus"></i> 新增词条</button>
+      </div>
+      <div style="margin-bottom:10px;padding:8px 12px;border-radius:6px;background:rgba(59,130,246,.08);color:#3b82f6;font-size:12px;line-height:1.7;">
+        编码命名规范：标签/菜单/按钮/提示词用语义名（如 <code>courseType</code>）；<b>下拉选项词 = 标签词 + "." + 选项编码</b>（如 <code>courseType.oneOnOne</code>），词表优先、缺词回退页面默认文案
+      </div>
+      <div class="filter-bar">
+        <input id="term-search-key" placeholder="编码（模糊）" style="width:130px;">
+        <input id="term-search-name" placeholder="显示词（模糊）" style="width:130px;">
+        <input id="term-search-remark" placeholder="备注（模糊）" style="width:150px;">
+        <select id="term-search-lang">
+          <option value="">全部语言</option>
+        </select>
+        <select id="term-search-type">
+          <option value="">全部类型</option>
+          <option value="label">label</option>
+          <option value="menu">menu</option>
+          <option value="button">button</option>
+          <option value="tip">tip</option>
+        </select>
+        <button class="btn btn-primary" id="term-search-btn"><i class="fa fa-search"></i> 搜索</button>
+        <button class="btn btn-default" id="term-reset-btn">重置</button>
+      </div>
+      <div class="table-container">
+        <table class="data-table"><thead><tr>
+          <th>编码</th><th>显示词</th><th>语言</th><th>类型</th><th>排序</th><th>状态</th><th>备注</th><th>操作</th>
+        </tr></thead><tbody id="term-body"></tbody></table>
+      </div>
+      <div id="term-pagebar"></div>
+    </div>
+  </template>
+
+  <template id="tpl-backend-info">
+    <div class="bi-card">
+      <div class="bi-card-header">
+        <div class="bi-card-title"><i class="fa fa-server"></i> 后台信息</div>
+        <button class="btn btn-default btn-sm" id="bi-refresh-btn"><i class="fa fa-refresh"></i> 刷新</button>
+      </div>
+      <div class="bi-endpoint-bar" id="bi-endpoint-bar"></div>
+      <div class="bi-frontend-build" id="bi-frontend-build"></div>
+      <div class="bi-tab-bar" id="bi-tab-bar"></div>
+      <div class="bi-body" id="bi-body"></div>
+    </div>
+  </template>
+
+  <template id="tpl-platform-overview">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa fa-tachometer-alt"></i> 平台总览</div>
+        <button class="btn btn-primary" id="overview-refresh-btn"><i class="fa fa-refresh"></i> 刷新</button>
+      </div>
+      <div id="pf-ov" class="stats-panel"></div>
+      <h3 style="margin:16px 0 8px;">租户趋势</h3>
+      <div id="pf-trend" class="trend-chart"></div>
+      <h3 style="margin:16px 0 8px;">各租户在线</h3>
+      <div id="pf-online" class="online-list"></div>
+    </div>
+  </template>
+
+  <template id="tpl-statistics-page">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa fa-chart-line"></i> 运营统计</div>
+        <button class="btn btn-primary" id="statistics-refresh-btn"><i class="fa fa-refresh"></i> 刷新</button>
+      </div>
+      <h3 style="margin:12px 0 8px;">平台汇总</h3>
+      <div id="st-ov" class="stats-panel"></div>
+      <h3 style="margin:16px 0 8px;">租户用量</h3>
+      <div class="filter-bar">
+        <div class="filter-item"><input type="text" id="usage-kw" placeholder="机构名/编码"></div>
+        <button class="btn" id="usage-search-btn"><i class="fa fa-search"></i> 搜索</button>
+      </div>
+      <div class="table-container">
+        <table class="data-table"><thead><tr>
+          <th>机构</th><th>编码</th><th>套餐等级</th><th><span data-term="course">课程</span></th><th><span data-term="schedule">排期</span></th><th>用户</th><th><span data-term="teacher">教师</span></th><th><span data-term="student">学生</span></th>
+        </tr></thead><tbody id="usage-body"></tbody></table>
+      </div>
+      <div id="usage-pagebar"></div>
+      <h3 style="margin:16px 0 8px;">到期预警</h3>
+      <div class="table-container">
+        <table class="data-table"><thead><tr>
+          <th>机构</th><th>联系人</th><th>电话</th><th>到期时间</th>
+        </tr></thead><tbody id="expire-body"></tbody></table>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-tenant-cards">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa fa-building"></i> 租户管理</div>
+        <button class="btn btn-primary" id="tenant-add-btn"><i class="fa fa-plus"></i> 新增租户</button>
+      </div>
+      <div class="filter-bar">
+        <div class="filter-item"><input type="text" id="tenant-kw" placeholder="机构名/编码/联系人"></div>
+        <div class="filter-item"><select id="tenant-status">
+          <option value="">全部状态</option>
+          <option value="1">正常</option>
+          <option value="2">停用</option>
+          <option value="3">退租</option>
+        </select></div>
+        <button class="btn" id="tenant-search-btn"><i class="fa fa-search"></i> 搜索</button>
+        <button class="btn btn-default" id="tenant-reset-btn">重置</button>
+      </div>
+      <div class="table-container">
+        <table class="data-table">
+          <thead><tr>
+            <th>序号</th><th>机构名称</th><th>编码</th><th>联系人</th><th>电话</th><th>行业</th><th>状态</th><th>到期时间</th><th>操作</th>
+          </tr></thead>
+          <tbody id="tenant-body"></tbody>
+        </table>
+      </div>
+      <div id="tenant-pagebar"></div>
+    </div>
+  </template>
+
+  <template id="tpl-platform-user-page">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa fa-users-cog"></i> 用户管理</div>
+        <button class="btn btn-primary" id="pu-add-btn"><i class="fa fa-plus"></i> 新增用户</button>
+      </div>
+      <div class="filter-bar">
+        <div class="filter-item"><input type="text" id="pu-account" placeholder="账号"></div>
+        <div class="filter-item"><input type="text" id="pu-name" placeholder="姓名"></div>
+        <div class="filter-item">
+          <select id="pu-role">
+            <option value="">全部角色</option>
+            <option value="platform_admin">平台管理员</option>
+            <option value="admin">租户管理员</option>
+          </select>
+        </div>
+        <div class="filter-item">
+          <select id="pu-status">
+            <option value="">全部状态</option>
+            <option value="active">正常</option>
+            <option value="frozen">已冻结</option>
+            <option value="pending">待审核</option>
+            <option value="inactive">停用</option>
+          </select>
+        </div>
+        <button class="btn" id="pu-search-btn"><i class="fa fa-search"></i> 搜索</button>
+        <button class="btn btn-default" id="pu-reset-btn">重置</button>
+      </div>
+      <div class="table-container">
+        <table class="data-table">
+          <thead><tr>
+            <th>序号</th><th>公司名称</th><th>角色</th><th>账号</th><th>姓名</th><th>电话</th><th>邮箱</th><th>状态</th><th>操作</th>
+          </tr></thead>
+          <tbody id="pu-body"></tbody>
+        </table>
+      </div>
+      <div id="pu-pagebar"></div>
+    </div>
+  </template>
+
+  <template id="tpl-package-cards">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa fa-th-large"></i> 套餐管理</div>
+      </div>
+      <div class="filter-bar">
+        <button class="btn btn-default" id="pkg-tab-template">套餐模板</button>
+        <button class="btn btn-default" id="pkg-tab-tenant">租户套餐</button>
+        <button class="btn btn-primary" style="margin-left:auto;" id="pkg-add-tpl-btn">新增模板</button>
+      </div>
+      <div id="pkg-body-area"></div>
+    </div>
+  </template>
+
+  <template id="tpl-pkg-tpl-table">
+    <div class="table-container">
+      <table class="data-table"><thead><tr>
+        <th>序号</th><th>模板名称</th><th>编码</th><th><span data-term="course">课程</span>上限</th><th><span data-term="schedule">排期</span>上限</th><th>用户上限</th><th><span data-term="teacher">教师</span>上限</th><th><span data-term="student">学生</span>上限</th><th>状态</th><th>操作</th>
+      </tr></thead><tbody id="pkgtpl-body"></tbody></table>
+    </div><div id="pkgtpl-pagebar"></div>
+  </template>
+
+  <template id="tpl-tenant-pkg-table">
+    <div class="table-container">
+      <table class="data-table"><thead><tr>
+        <th>序号</th><th>租户</th><th><span data-term="course">课程</span>(用/限)</th><th><span data-term="schedule">排期</span>(用/限)</th><th>用户(用/限)</th><th><span data-term="teacher">教师</span>(用/限)</th><th><span data-term="student">学生</span>(用/限)</th><th>操作</th>
+      </tr></thead><tbody id="tpkg-body"></tbody></table>
+    </div><div id="tpkg-pagebar"></div>
+    <div style="margin-top:12px;">
+      <button class="btn btn-primary" id="tpkg-create-btn">从模板为租户创建套餐</button>
+    </div>
+  </template>
+
 </body>
 </html>

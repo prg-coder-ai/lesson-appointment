@@ -7,19 +7,13 @@ let usagePage = { pageNum: 1, pageSize: 8, total: 0, totalPages: 0 };
 /* 平台总览（菜单：平台总览） */
 function renderPlatformOverview() {
   const c = document.getElementById('dynamic-content-center');
-  c.innerHTML = `
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title"><i class="fa fa-tachometer-alt"></i> 平台总览</div>
-        <button class="btn btn-primary" onclick="renderPlatformOverview()"><i class="fa fa-refresh"></i> 刷新</button>
-      </div>
-      <div id="pf-ov" class="stats-panel"></div>
-      <h3 style="margin:16px 0 8px;">租户趋势</h3>
-      <div id="pf-trend" class="trend-chart"></div>
-      <h3 style="margin:16px 0 8px;">各租户在线</h3>
-      <div id="pf-online" class="online-list"></div>
-    </div>`;
+  const tpl = document.getElementById('tpl-platform-overview');
+  if (!tpl) { console.error('[dashboard] 缺少 #tpl-platform-overview'); return; }
+  c.replaceChildren(tpl.content.cloneNode(true));
   if (window.applyTerms) applyTerms(c);
+  const $ = id => document.getElementById(id);
+  const on = (el, ev, fn) => { if (el) el.addEventListener(ev, fn); };
+  on($('overview-refresh-btn'), 'click', () => renderPlatformOverview());
   request({ url: '/dashboard/overview', method: 'get' })
     .then(m => {
       const el = document.getElementById('pf-ov');
@@ -49,33 +43,14 @@ function renderPlatformOverview() {
 /* 运营统计（菜单：运营统计） */
 function renderStatisticsPage() {
   const c = document.getElementById('dynamic-content-center');
-  c.innerHTML = `
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title"><i class="fa fa-chart-line"></i> 运营统计</div>
-        <button class="btn btn-primary" onclick="renderStatisticsPage()"><i class="fa fa-refresh"></i> 刷新</button>
-      </div>
-      <h3 style="margin:12px 0 8px;">平台汇总</h3>
-      <div id="st-ov" class="stats-panel"></div>
-      <h3 style="margin:16px 0 8px;">租户用量</h3>
-      <div class="filter-bar">
-        <div class="filter-item"><input type="text" id="usage-kw" placeholder="机构名/编码"></div>
-        <button class="btn" onclick="searchUsage()"><i class="fa fa-search"></i> 搜索</button>
-      </div>
-      <div class="table-container">
-        <table class="data-table"><thead><tr>
-          <th>机构</th><th>编码</th><th>套餐等级</th><th><span data-term="course">课程</span></th><th><span data-term="schedule">排期</span></th><th>用户</th><th><span data-term="teacher">教师</span></th><th><span data-term="student">学生</span></th>
-        </tr></thead><tbody id="usage-body"></tbody></table>
-      </div>
-      <div id="usage-pagebar"></div>
-      <h3 style="margin:16px 0 8px;">到期预警</h3>
-      <div class="table-container">
-        <table class="data-table"><thead><tr>
-          <th>机构</th><th>联系人</th><th>电话</th><th>到期时间</th>
-        </tr></thead><tbody id="expire-body"></tbody></table>
-      </div>
-    </div>`;
+  const tpl = document.getElementById('tpl-statistics-page');
+  if (!tpl) { console.error('[dashboard] 缺少 #tpl-statistics-page'); return; }
+  c.replaceChildren(tpl.content.cloneNode(true));
   if (window.applyTerms) applyTerms(c);
+  const $ = id => document.getElementById(id);
+  const on = (el, ev, fn) => { if (el) el.addEventListener(ev, fn); };
+  on($('statistics-refresh-btn'), 'click', () => renderStatisticsPage());
+  on($('usage-search-btn'), 'click', () => searchUsage());
   loadStatisticsOverview();
   loadUsageList();
   loadExpireWarning();

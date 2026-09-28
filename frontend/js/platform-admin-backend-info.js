@@ -327,32 +327,38 @@
     var host = container || document.getElementById('dynamic-content-center');
     if (!host) return;
 
-    host.innerHTML = `
-      <div class="bi-card">
-        <div class="bi-card-header">
-          <div class="bi-card-title"><i class="fa fa-server"></i> 后台信息</div>
-          <button class="btn btn-default btn-sm" id="bi-refresh-btn"><i class="fa fa-refresh"></i> 刷新</button>
-        </div>
-        <div class="bi-endpoint-bar" id="bi-endpoint-bar">
-          ${BACKEND_SERVICES.map(function (s) {
-            return `<div class="bi-endpoint-item">
-                      <span class="bi-endpoint-name"><i class="fa ${s.icon}"></i> ${s.label}</span>
-                      <code class="bi-endpoint-url" data-endpoint-key="${s.key}">${endpointOf(s)}</code>
-                      <span class="bi-endpoint-desc">${s.desc}</span>
-                      <span class="bi-endpoint-ip" id="bi-endpoint-ip-${s.key}"></span>
-                    </div>`;
-          }).join('')}
-        </div>
-        <div class="bi-frontend-build" id="bi-frontend-build"></div>
-        <div class="bi-tab-bar">
-          ${BACKEND_SERVICES.map(function (s, i) {
-            return `<button class="bi-tab-btn ${i === 0 ? 'active' : ''}" data-bi-key="${s.key}">
-                      <i class="fa ${s.icon}"></i> ${s.label}
-                    </button>`;
-          }).join('')}
-        </div>
-        <div class="bi-body" id="bi-body"></div>
-      </div>`;
+    var tpl = document.getElementById('tpl-backend-info');
+    if (!tpl) { console.error('[backend-info] 缺少 #tpl-backend-info'); host.innerHTML = '<div style="padding:20px;color:#f5222d;">页面骨架模板缺失</div>'; return; }
+    host.replaceChildren(tpl.content.cloneNode(true));
+
+    // 回填顶部服务端点条（模板留空，由 JS 按 BACKEND_SERVICES 生成）
+    var endpointBar = document.getElementById('bi-endpoint-bar');
+    if (endpointBar) {
+      endpointBar.innerHTML = '';
+      BACKEND_SERVICES.forEach(function (s) {
+        var item = document.createElement('div');
+        item.className = 'bi-endpoint-item';
+        item.innerHTML =
+          '<span class="bi-endpoint-name"><i class="fa ' + s.icon + '"></i> ' + s.label + '</span>' +
+          '<code class="bi-endpoint-url" data-endpoint-key="' + s.key + '">' + endpointOf(s) + '</code>' +
+          '<span class="bi-endpoint-desc">' + s.desc + '</span>' +
+          '<span class="bi-endpoint-ip" id="bi-endpoint-ip-' + s.key + '"></span>';
+        endpointBar.appendChild(item);
+      });
+    }
+
+    // 回填 TAB 按钮条（模板留空，由 JS 按 BACKEND_SERVICES 生成）
+    var tabBar = document.getElementById('bi-tab-bar');
+    if (tabBar) {
+      tabBar.innerHTML = '';
+      BACKEND_SERVICES.forEach(function (s, i) {
+        var btn = document.createElement('button');
+        btn.className = 'bi-tab-btn' + (i === 0 ? ' active' : '');
+        btn.setAttribute('data-bi-key', s.key);
+        btn.innerHTML = '<i class="fa ' + s.icon + '"></i> ' + s.label;
+        tabBar.appendChild(btn);
+      });
+    }
 
     var bodyEl = document.getElementById('bi-body');
     renderFrontendBuildInfo(document.getElementById('bi-frontend-build'));

@@ -14,20 +14,13 @@ let industryPage = { pageNum: 1, pageSize: 10 };
 function renderIndustryPage() {
   const body = document.getElementById('config-tab-body');
   if (!body) return;
-  body.innerHTML = `
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title"><i class="fa fa-industry"></i> 行业管理</div>
-        <button class="btn btn-primary" onclick="openIndustryModal(null)"><i class="fa fa-plus"></i> 新增行业</button>
-      </div>
-      <div class="table-container">
-        <table class="data-table"><thead><tr>
-          <th>ID</th><th>编码</th><th>名称</th><th>状态</th><th>备注</th><th>操作</th>
-        </tr></thead><tbody id="industry-body"></tbody></table>
-      </div>
-      <div id="industry-pagebar"></div>
-    </div>`;
+  const tpl = document.getElementById('tpl-industry-page');
+  if (!tpl) { console.error('[industry] 缺少 #tpl-industry-page'); return; }
+  body.replaceChildren(tpl.content.cloneNode(true));
   if (window.applyTerms) applyTerms(body);
+  const $ = id => document.getElementById(id);
+  const on = (el, ev, fn) => { if (el) el.addEventListener(ev, fn); };
+  on($('industry-add-btn'), 'click', () => openIndustryModal(null));
   loadIndustryList();
 }
 

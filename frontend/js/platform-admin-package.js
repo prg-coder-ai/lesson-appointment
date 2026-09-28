@@ -24,19 +24,20 @@ function tenantName(id) {
 
 function renderPackageCards() {
   const c = document.getElementById('dynamic-content-center');
-  c.innerHTML = `
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title"><i class="fa fa-th-large"></i> 套餐管理</div>
-      </div>
-      <div class="filter-bar">
-        <button class="btn ${pkgTab === 'template' ? 'btn-primary' : 'btn-default'}" onclick="switchPkgTab('template')">套餐模板</button>
-        <button class="btn ${pkgTab === 'tenant' ? 'btn-primary' : 'btn-default'}" onclick="switchPkgTab('tenant')">租户套餐</button>
-        <button class="btn btn-primary" style="margin-left:auto;" onclick="openPkgTplModal(null)">新增模板</button>
-      </div>
-      <div id="pkg-body-area"></div>
-    </div>`;
+  const tpl = document.getElementById('tpl-package-cards');
+  if (!tpl) { console.error('[package] 缺少 #tpl-package-cards'); return; }
+  c.replaceChildren(tpl.content.cloneNode(true));
   if (window.applyTerms) applyTerms(c);
+  const $ = id => document.getElementById(id);
+  const on = (el, ev, fn) => { if (el) el.addEventListener(ev, fn); };
+  // 按 pkgTab 设置当前 tab 高亮（模板两按钮默认 btn-default）
+  const isTpl = pkgTab === 'template';
+  const t1 = $('pkg-tab-template'), t2 = $('pkg-tab-tenant');
+  if (t1) t1.className = 'btn ' + (isTpl ? 'btn-primary' : 'btn-default');
+  if (t2) t2.className = 'btn ' + (isTpl ? 'btn-default' : 'btn-primary');
+  on(t1, 'click', () => switchPkgTab('template'));
+  on(t2, 'click', () => switchPkgTab('tenant'));
+  on($('pkg-add-tpl-btn'), 'click', () => openPkgTplModal(null));
 
      loadTenantNameMap().then(() => renderPkgTab()); 
 }
@@ -48,12 +49,9 @@ function renderPkgTab() {
 
 /* ---------------- 套餐模板 ---------------- */
 function renderPkgTplTable(area) {
-  area.innerHTML = `
-    <div class="table-container">
-      <table class="data-table"><thead><tr>
-        <th>序号</th><th>模板名称</th><th>编码</th><th><span data-term="course">课程</span>上限</th><th><span data-term="schedule">排期</span>上限</th><th>用户上限</th><th><span data-term="teacher">教师</span>上限</th><th><span data-term="student">学生</span>上限</th><th>状态</th><th>操作</th>
-      </tr></thead><tbody id="pkgtpl-body"></tbody></table>
-    </div><div id="pkgtpl-pagebar"></div>`;
+  const tpl = document.getElementById('tpl-pkg-tpl-table');
+  if (!tpl) { console.error('[package] 缺少 #tpl-pkg-tpl-table'); return; }
+  area.replaceChildren(tpl.content.cloneNode(true));
   loadPkgTplList();
 }
 function loadPkgTplList() {
@@ -170,15 +168,12 @@ function deletePkgTpl(id) {
 
 /* ---------------- 租户套餐 --及余量-------------- */
 function renderTenantPkgTable(area) {
-  area.innerHTML = `
-    <div class="table-container">
-      <table class="data-table"><thead><tr>
-        <th>序号</th><th>租户</th><th><span data-term="course">课程</span>(用/限)</th><th><span data-term="schedule">排期</span>(用/限)</th><th>用户(用/限)</th><th><span data-term="teacher">教师</span>(用/限)</th><th><span data-term="student">学生</span>(用/限)</th><th>操作</th>
-      </tr></thead><tbody id="tpkg-body"></tbody></table>
-    </div><div id="tpkg-pagebar"></div>
-    <div style="margin-top:12px;">
-      <button class="btn btn-primary" onclick="createTenantPkgFromTemplate()">从模板为租户创建套餐</button>
-    </div>`;
+  const tpl = document.getElementById('tpl-tenant-pkg-table');
+  if (!tpl) { console.error('[package] 缺少 #tpl-tenant-pkg-table'); return; }
+  area.replaceChildren(tpl.content.cloneNode(true));
+  const $ = id => document.getElementById(id);
+  const on = (el, ev, fn) => { if (el) el.addEventListener(ev, fn); };
+  on($('tpkg-create-btn'), 'click', () => createTenantPkgFromTemplate());
   loadTenantPkgList();
 }
 function loadTenantPkgList() {

@@ -27,20 +27,16 @@ function renderPaginationBar(el, state, gotoFnName) {
 
 function renderConfigPage() {
   const c = document.getElementById('dynamic-content-center');
-  c.innerHTML = `
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title"><i class="fa fa-cog"></i> 系统设置</div>
-        <div class="tab-bar">
-          <button class="btn ${currentConfigTab==='industry'?'btn-primary':'btn-default'}" id="tab-industry" onclick="switchConfigTab('industry')">行业管理</button>
-          <button class="btn ${currentConfigTab==='term'?'btn-primary':'btn-default'}" id="tab-term" onclick="switchConfigTab('term')">行业词汇</button>
-          <button class="btn ${currentConfigTab==='system'?'btn-primary':'btn-default'}" id="tab-system" onclick="switchConfigTab('system')">系统参数</button>
-        </div>
-        <button class="btn btn-primary" onclick="switchConfigTab(currentConfigTab)"><i class="fa fa-refresh"></i> 刷新</button>
-      </div>
-      <div id="config-tab-body"></div>
-    </div>`;
+  const tpl = document.getElementById('tpl-config-page');
+  if (!tpl) { console.error('[config] 缺少 #tpl-config-page'); return; }
+  c.replaceChildren(tpl.content.cloneNode(true));
   if (window.applyTerms) applyTerms(c);
+  const $ = id => document.getElementById(id);
+  const on = (el, ev, fn) => { if (el) el.addEventListener(ev, fn); };
+  on($('tab-industry'), 'click', () => switchConfigTab('industry'));
+  on($('tab-term'), 'click', () => switchConfigTab('term'));
+  on($('tab-system'), 'click', () => switchConfigTab('system'));
+  on($('config-refresh-btn'), 'click', () => switchConfigTab(currentConfigTab));
   // 默认进入本次新增的「行业管理」Tab
   switchConfigTab('industry');
 }
@@ -71,13 +67,9 @@ let configPage = { pageNum: 1, pageSize: 10 };
 
 // 系统参数（原 sys_system_config 列表）渲染到指定容器
 function renderSystemConfigInner(body) {
-  body.innerHTML = `
-    <div class="table-container">
-      <table class="data-table"><thead><tr>
-        <th>名称</th><th>键</th><th>值</th><th>分组</th><th>类型</th><th>语言</th><th>可编辑</th><th>操作</th>
-      </tr></thead><tbody id="cfg-body"></tbody></table>
-    </div>
-    <div id="cfg-pagebar"></div>`;
+  const tpl = document.getElementById('tpl-config-system');
+  if (!tpl) { console.error('[config] 缺少 #tpl-config-system'); return; }
+  body.replaceChildren(tpl.content.cloneNode(true));
   loadConfigList();
 }
 function loadConfigList() {

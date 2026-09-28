@@ -39,45 +39,15 @@ function platformOrgText(u) {
 
 function renderPlatformUserPage() {
   const c = document.getElementById('dynamic-content-center');
-  c.innerHTML = `
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title"><i class="fa fa-users-cog"></i> 用户管理</div>
-        <button class="btn btn-primary" onclick="openPlatformAddUser()"><i class="fa fa-plus"></i> 新增用户</button>
-      </div>
-      <div class="filter-bar">
-        <div class="filter-item"><input type="text" id="pu-account" placeholder="账号"></div>
-        <div class="filter-item"><input type="text" id="pu-name" placeholder="姓名"></div>
-        <div class="filter-item">
-          <select id="pu-role">
-            <option value="">全部角色</option>
-            <option value="platform_admin">平台管理员</option>
-            <option value="admin">租户管理员</option>
-          </select>
-        </div>
-        <div class="filter-item">
-          <select id="pu-status">
-            <option value="">全部状态</option>
-            <option value="active">正常</option>
-            <option value="frozen">已冻结</option>
-            <option value="pending">待审核</option>
-            <option value="inactive">停用</option>
-          </select>
-        </div>
-        <button class="btn" onclick="searchPlatformUsers()"><i class="fa fa-search"></i> 搜索</button>
-        <button class="btn btn-default" onclick="resetPlatformUserSearch()">重置</button>
-      </div>
-      <div class="table-container">
-        <table class="data-table">
-          <thead><tr>
-            <th>序号</th><th>公司名称</th><th>角色</th><th>账号</th><th>姓名</th><th>电话</th><th>邮箱</th><th>状态</th><th>操作</th>
-          </tr></thead>
-          <tbody id="pu-body"></tbody>
-        </table>
-      </div>
-      <div id="pu-pagebar"></div>
-    </div>`;
+  const tpl = document.getElementById('tpl-platform-user-page');
+  if (!tpl) { console.error('[user] 缺少 #tpl-platform-user-page'); return; }
+  c.replaceChildren(tpl.content.cloneNode(true));
   if (window.applyTerms) applyTerms(c);
+  const $ = id => document.getElementById(id);
+  const on = (el, ev, fn) => { if (el) el.addEventListener(ev, fn); };
+  on($('pu-add-btn'), 'click', () => openPlatformAddUser());
+  on($('pu-search-btn'), 'click', () => searchPlatformUsers());
+  on($('pu-reset-btn'), 'click', () => resetPlatformUserSearch());
   loadPlatformUserList();
 }
 

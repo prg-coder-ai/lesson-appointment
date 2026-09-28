@@ -21,34 +21,15 @@ function industryName(id) {
 
 function renderTenantCards() {
   const c = document.getElementById('dynamic-content-center');
-  c.innerHTML = `
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title"><i class="fa fa-building"></i> 租户管理</div>
-        <button class="btn btn-primary" onclick="openTenantModal(null)"><i class="fa fa-plus"></i> 新增租户</button>
-      </div>
-      <div class="filter-bar">
-        <div class="filter-item"><input type="text" id="tenant-kw" placeholder="机构名/编码/联系人"></div>
-        <div class="filter-item"><select id="tenant-status">
-          <option value="">全部状态</option>
-          <option value="1">正常</option>
-          <option value="2">停用</option>
-          <option value="3">退租</option>
-        </select></div>
-        <button class="btn" onclick="searchTenant()"><i class="fa fa-search"></i> 搜索</button>
-        <button class="btn btn-default" onclick="resetTenantSearch()">重置</button>
-      </div>
-      <div class="table-container">
-        <table class="data-table">
-          <thead><tr>
-            <th>序号</th><th>机构名称</th><th>编码</th><th>联系人</th><th>电话</th><th>行业</th><th>状态</th><th>到期时间</th><th>操作</th>
-          </tr></thead>
-          <tbody id="tenant-body"></tbody>
-        </table>
-      </div>
-      <div id="tenant-pagebar"></div>
-    </div>`;
+  const tpl = document.getElementById('tpl-tenant-cards');
+  if (!tpl) { console.error('[tenant] 缺少 #tpl-tenant-cards'); return; }
+  c.replaceChildren(tpl.content.cloneNode(true));
   if (window.applyTerms) applyTerms(c);
+  const $ = id => document.getElementById(id);
+  const on = (el, ev, fn) => { if (el) el.addEventListener(ev, fn); };
+  on($('tenant-add-btn'), 'click', () => openTenantModal(null));
+  on($('tenant-search-btn'), 'click', () => searchTenant());
+  on($('tenant-reset-btn'), 'click', () => resetTenantSearch());
   // 先加载行业字典，再渲染列表（保证行业名称可解析）
    loadIndustryMap().then(() => loadTenantList());
 
