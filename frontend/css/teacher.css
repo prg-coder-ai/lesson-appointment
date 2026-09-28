@@ -318,11 +318,12 @@ color: #fff;
 
 pointer-events: none;    /* 禁用交互（点击、输入、焦点） */
 background: #f5f5f5;
-filter: grayscale(0.8);
+/* 2026-09-28 移除 filter: grayscale(0.8)：会把整行文字一并去色，只读行显得灰蒙蒙 */
 }   
+/* 只读展示（2026-09-28 调整）：文字恢复正常深色，仍保留浅灰底以示只读。 */
 .readonly {
 background: #f5f5f5;
-color: #999; 
+color: #333; 
 outline: none; 
 pointer-events: none;    /* 禁用交互（点击、输入、焦点） */
 user-select: none;

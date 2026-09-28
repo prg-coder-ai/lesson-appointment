@@ -66,6 +66,7 @@
 ## 工具踩坑
 - 并行同文件多 Edit 只有最后一个生效→串行改+grep 核验；纯插入若少尾部换行会吞下一行→回读确认。
 - Maven 输出 GBK→先 iconv 再 grep。
+- 批量文本替换前**先探测行尾**：同一仓库里 `css/student.css`=CRLF、`css/teacher.css`=LF。用 `\n` 拼 old_string 会在 CRLF 文件上**静默 MISS**（脚本不报错、不抛异常，只留原样）→ 改前先 `s.includes('\r\n')` 定 NL，替换后回读确认。
 
 ## 前端铁律
 1. 顶部刷新=refreshRightPage()+registerPageRefresh(menuKey,fn)；标题≠菜单key。
@@ -76,6 +77,8 @@
 6. 登录门槛后移(2026-09-28)：landing 卡片不管登录态一律开 teacherPublishedProfile.html?id=<publishedProfileId>；登录门槛落在**公开页内点「排期」**——公开页 document 级委托只接管站内 booking.html 深链，未登录弹自绘层 → login.html?tCode=&redirect=<path+search>，login.html 的 getUrlRedirectTarget() 同源白名单校验后优先回跳(否则按角色进工作台)。
 7. 判定"某类链接"的正则**别用 `$` 锚定文件名**：`/\/booking\.html$/` 匹配不到 `booking.html?scdid=x`(末尾是查询串)；用 `/(^|\/)booking\.html(\?|#|$)/`。
 8. 显示口径≠判定口径：同一 DOM 字段既展示又用于判定时(如学生端 `#now_availableSites` 剩余员额)，展示文案进 `value`、数值进 `data-remaining`，回读优先 `data-remaining`。两个坑：① `<input type="number">` 会**静默丢弃**「满额」这类文本→必须 text；② 把「满额」交给 `Number()` 得 NaN→`isFinite(NaN)` false→被判「未满」→候补按钮消失。口径收敛成 `formatRemainingSites/applyRemainingSitesDisplay/readRemainingSitesFromDom`(顶层导出)，`tests/check_remaining_sites_display.js` 42 项(阴性对照 9 FAIL)。
+9. 只读展示字段口径(2026-09-28)：`.readonly` 文字 #999→#333(保留 #f5f5f5 浅灰底),`.nofocus` 删掉 `filter:grayscale(.8)`(会把整行文字一并去色,是"灰蒙蒙"元凶)。学生端「排期信息」统一"样式类+readonly 属性"双全——**只挂 class 的字段 pointer-events:none 挡不住键盘 Tab 输入=假只读**。教师端只统一样式、未加属性。守卫 `tests/check_readonly_display_style.js` 40 项(阴性对照 10 FAIL)。
+10. 静态守卫判据要**剥离 CSS 注释**：把"已移除的属性"写进注释说明后,裸 `grep grayscale` 会误报→`css.replace(/\/\*[\s\S]*?\*\//g,'')` 后再断言生效声明。
 
 ## 微信登录(2026-09-20 屏蔽)
 - 不考虑微信登录：User.wxOpenid 标 @TableField(exist=false)；UserMapper.getByWxOpenid/updateWxOpenid、UserService.wechatLogin/bindWechat、authController /wechat-login /bind-wechat 均块注释屏蔽(可恢复)。

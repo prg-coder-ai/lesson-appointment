@@ -130,48 +130,48 @@ async function renderStudentBookingCards() {
                 </div>
                 <div class="form-line nofocus" style="display:flex;">
                     <label><span data-term="teacher">教师</span></label>
-                    <input type="label" id="teacherNameForCourse" value="" class="readonly" style="display:flex;">
+                    <input type="label" id="teacherNameForCourse" value="" class="readonly" style="display:flex;" readonly>
                 </div>
                 <div class="schedule-container" style="display:flex;">
                     <!-- 左侧：排期时区 -->
                     <div class="schedule-column">
                         <div class="form-line">
                             <label>排期时区：</label>
-                            <input type="text" id="originalTimeZone" readonly>
+                            <input type="text" id="originalTimeZone" readonly class="readonly">
                         </div>
                         <div class="form-line">
                             <label>开始日期：</label>
-                            <input type="date" id="startDate" class="readonly">
-                            <input type="text" id="startDate_weekday" class="readonly" style="width:52px" placeholder="星期">
+                            <input type="date" id="startDate" class="readonly" readonly>
+                            <input type="text" id="startDate_weekday" class="readonly" style="width:52px" placeholder="星期" readonly>
                         </div>
                         <div class="form-line" style="display:flex;" >
                             <label><span data-term="lessonTime">上课时间</span>：</label>
-                            <input type="time" id="startTime" class="readonly">
+                            <input type="time" id="startTime" class="readonly" readonly>
                         </div>
                         <div class="form-line">
                             <label>结束日期：</label>
-                            <input type="date" id="endDate" class="readonly">
+                            <input type="date" id="endDate" class="readonly" readonly>
                         </div>
                     </div>
                     <!-- 右侧：用户时区 -->
                     <div class="schedule-column" id="rightBlock" style="display:${userTimeZoneDisplay};">
                         <div class="form-line">
                             <label>我的时区：</label>
-                            <input type="text" id="timeZone" class="readonly">
+                            <input type="text" id="timeZone" class="readonly" readonly>
                         </div>
                         <div class="form-line">
                             <label>开始日期：</label>
-                            <input type="date" id="displayStartDate" readonly>
-                            <input type="text" id="displayStartDate_weekday" class="readonly" style="width:52px">
+                            <input type="date" id="displayStartDate" readonly class="readonly">
+                            <input type="text" id="displayStartDate_weekday" class="readonly" style="width:52px" readonly>
                         </div>
                         <div class="form-line">
                             <label><span data-term="lessonTime">上课时间</span>：</label>
-                            <input type="time" id="displayStartTime" class="readonly">
+                            <input type="time" id="displayStartTime" class="readonly" readonly>
                         </div>
                         <div class="form-line">
                             <label>结束日期：</label>
-                            <input type="date" id="displayEndDate" readonly>
-                            <input type="text" id="displayEndDate_weekday" class="readonly" style="width:52px">
+                            <input type="date" id="displayEndDate" readonly class="readonly">
+                            <input type="text" id="displayEndDate_weekday" class="readonly" style="width:52px" readonly>
                         </div>
                     </div>
                 </div>
