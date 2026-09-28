@@ -31,170 +31,22 @@ const SCH_PAGE = { pageNum: 1, pageSize: 5, total: 0, totalPages: 0 };
 async function renderTeacherCourseAndScheduleBrowserCards() {
     assignLoadobjectListFunction( loadAndRenderCoursePage_teacher);// assign
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
-    if (!dynamicContentCenter) return; 
-    // 显示加载中
-  //  dynamicContentCenter.innerHTML = '<div style="padding:40px 0;text-align:center;">加载中...</div>';
-    // 渲染HTML
-    let html = '';
-
-             // 列表表头 ---模板-建立连接-悬浮显示模板内容（学生页面、管理、教师页面），教师--悬浮-显示教师的特色字段（学生页面）
-         html += `
-            <div class="card">
-              <div class="card-title" style="margin-bottom:8px;"><span data-term="course">课程</span>列表</div>
-              <table width="90%">
-                <thead>
-                    <tr>
-                        <th width="10%">序号</th> <th width="20%"><span data-term="course">课程</span>名称</th>  <th width="20%" style="max-width:240px;word-break:break-word;">内容</th>  <th width="20%">特色</th>  <th width="10%">状态</th>  <th width="20%" align="center">操作</th>
-                    </tr>
-                </thead>
-                <tbody id="courseResultBody"></tbody>
-              </table>
-            </div>
-        `;
-        html += getPagebar();
-// 排期列表：独立分页栏（sch-*）+ 固定高度滚动容器，避免无限拉长页面
-        html += `
-         <div id="scheduleListForm" class="card" style="display:none;">
-           <div class="card-title" style="margin-bottom:8px;"><span data-term="course">课程</span>排期列表</div>
-              <div style="max-height:420px;overflow-y:auto;">
-              <table width="90%">
-                <thead>
-                    <tr>
-                        <th width="10%">序号</th> <th width="60%">排期信息</th>   <th width="10%">状态</th>  <th width="20%" align="center">操作</th>
-                    </tr>
-                </thead>
-                <tbody id="schduleResultBody"></tbody>
-              </table>
-              </div>
-              <div class="pagination-bar" id="sch-pagination-bar" style="margin-top:12px;">
-                <div class="pagination-info">共 <span id="sch-total">0</span> 条记录，每页
-                  <select id="sch-page-size" onchange="changeSchPageSize()">
-                    <option value="5">5</option><option value="10">10</option><option value="20">20</option><option value="50">50</option>
-                  </select> 条
-                </div>
-                <div class="pagination-btns" id="sch-pagination-btns"></div>
-              </div>
-        </div>
-      
-        <div   class="card" id= "scdheduleDetailCard" style="display:none;">
-          <div class="card-title" style="margin-bottom:8px;">排期详情</div>
-            <div class="form-line" style="display:none;" >
-                <label>Id</label> 
-                <input type="label" id="scheduleId">
-            </div>
-
-            <div class="form-line"  style="display:none;">
-                <label>cId</label>
-                <input type="label" id="courseId">
-            </div>  
-
-            <div class="form-line nofocus"  style="display:none;">
-                <label><span data-term="teacher">教师</span></label>
-                <input type="label" id="teacherNameForCourse" value="" class="readonly">
-            </div>  
-
-            <div class="schedule-container" style="display:flex;">    
-            <!-- 左侧 -->
-            <div class="schedule-column">
-                <div class="form-line">
-                    <label>排期时区：</label>
-                    <input type="text" id="originalTimeZone" class="readonly">
-                </div>
-
-                <div class="form-line">
-                    <label>开始日期：</label>
-                    <input type="date" id="startDate" class="readonly">
-                </div>
-
-                <div class="form-line">
-                    <label><span data-term="lessonTime">上课时间</span>：</label>
-                    <input type="time" id="startTime" class="readonly">
-                </div>
-
-                <div class="form-line">
-                    <label>结束日期：</label>
-                    <input type="date" id="endDate" class="readonly">
-                </div>
-            </div>
-
-            <!-- 右侧 -->
-            <div class="schedule-column" id="rightBlock"  style="display:${userTimeZoneDisplay};">
-                <div class="form-line">
-                    <label>我的时区：</label>
-                    <input type="text" id="timeZone" class="readonly">
-                </div>
-
-                <div class="form-line">
-                    <label>开始日期：</label>
-                    <input type="date" id="displayStartDate" class="readonly">
-                    <input type="text" id="displayStartDate_weekday" class="readonly">
-                </div>
-
-                <div class="form-line">
-                    <label><span data-term="lessonTime">上课时间</span>：</label>
-                    <input type="time" id="displayStartTime" class="readonly">
-                </div>
-
-                <div class="form-line">
-                    <label>结束日期：</label>
-                    <input type="date" id="displayEndDate" class="readonly">
-                    <input type="text" id="displayEndDate_weekday" class="readonly">
-                </div>
-            </div> 
-         </div> 
-
-        <div class="form-line  nofocus">
-            <label>重复类型：</label>
-            <select id="repeatType" onchange="freshByRepeatType()">
-                <option value="none" disabled:true>不重复</option>
-                <option value="day" disabled:true>每天</option>
-                <option value="week" disabled:true>每周</option>
-                <option value="month" disabled:true>每月</option>
-            </select>
-        </div>
-
-        <div class="form-line  nofocus">
-            <label>重复周期：</label>
-            <input type="number" id="interval" value="1" min="1" style="width:80px">
-            <span id="repeatUnit">天</span>
-        </div>
-
-        <div class="form-line  nofocus" style="display:none;">
-            <label>状态：</label>
-           <select id="status" style="display:none;">
-                <option value="pending">待发布</option>
-                <option value="inactive">已收回</option>
-                <option value="active">已发布</option>
-                <option value="frozen">已删除</option>
-            </select>
-        </div>
-
-        <!-- 每周重复：星期选择 -->
-        <div class="form-line  nofocus" id="weekDaysBox" style="display:none;">
-            <label>重复星期：</label>
-            <div id="weekDays">
-                <label><input type="checkbox" value="1">周一</label>
-                <label><input type="checkbox" value="2">周二</label>
-                <label><input type="checkbox" value="3">周三</label>
-                <label><input type="checkbox" value="4">周四</label>
-                <label><input type="checkbox" value="5">周五</label>
-                <label><input type="checkbox" value="6">周六</label>
-                <label><input type="checkbox" value="7">周日</label>
-            </div>
-        </div>
-
-         <!-- 每月重复： -->
-        <div class="form-line nofocus" id="monthDaysBox" style="display:none;">
-            <label>重复日期：</label>
-            <div id="monthDays">                  
-            </div>
-        </div>      
-   </div> 
-        `;
-       
-   
-    dynamicContentCenter.innerHTML = html;
+    if (!dynamicContentCenter) return;
+    // A′ 改造：静态骨架走 template+clone，JS 只负责取数/填值/绑事件
+    const tpl = document.getElementById('tpl-teacher-course-schedule');
+    if (!tpl) { console.error('[teacher-course-schedule] 缺少 #tpl-teacher-course-schedule 模板'); return; }
+    dynamicContentCenter.replaceChildren(tpl.content.cloneNode(true));
     applyTerms(dynamicContentCenter);
+    // 课程列表分页栏由 pagefoot 组件 getPagebar() 动态生成（A′：动态部分保留 JS 注入）
+    const pagebarHost = document.getElementById('course-pagebar-host');
+    if (pagebarHost && typeof getPagebar === 'function') {
+      pagebarHost.innerHTML = getPagebar();
+    }
+    // 绑定静态骨架内的交互（列表行/分页按钮仍各自由渲染函数生成）
+    const schPageSize = document.getElementById('sch-page-size');
+    if (schPageSize) schPageSize.addEventListener('change', changeSchPageSize);
+    const repeatType = document.getElementById('repeatType');
+    if (repeatType) repeatType.addEventListener('change', freshByRepeatType);
     loadAndRenderCoursePage_teacher();
 }
 async function loadAndRenderCoursePage_teacher(){
