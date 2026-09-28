@@ -141,12 +141,10 @@
     <artifactId>jakarta.servlet-api</artifactId>
     <version>6.0.0</version>
     <scope>provided</scope>
-</dependency>
-
-
+</dependency> 
     </dependencies>
     <build>
-        <finalName>booking-api-2.0.1</finalName>
+        <finalName>booking-api-2.0.2</finalName>
 
         <plugins>
                 <plugin>
