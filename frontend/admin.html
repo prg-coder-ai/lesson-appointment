@@ -366,7 +366,7 @@
           window.saveLoginRedirect('noauth');
         }
         // 保留 onload 已做过的 cookie 回写，避免丢失
-        location.href = ((typeof window.pageUrl === 'function') ? window.pageUrl('index.html') : './index.html');
+        location.href = ((typeof window.pageUrl === 'function') ? window.pageUrl('login.html') : './login.html');
         return; // 不再执行后续的 DOM 渲染
       }
 

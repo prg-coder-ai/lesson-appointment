@@ -67,7 +67,7 @@
             if (typeof window.saveLoginRedirect === 'function') {
                 window.saveLoginRedirect('noauth');
             }
-            location.href = toPage('index.html');
+            location.href = toPage('login.html');
             return;
         }
 
@@ -93,14 +93,14 @@
             location.href = toPage('teacher.html');
         } else if (role === 'platform_admin') {
             // 平台管理员是跨租户管理账号，不属于任何租户；而预约链接的 scdid/tid/sid 全部绑定
-            // 到具体租户的数据，对该角色没有意义。原先会落进 else 静默跳 index.html，
+            // 到具体租户的数据，对该角色没有意义。原先会落进 else 静默跳登录页(login.html)，
             // 再由 index 的自动登录跳回 platform_admin.html —— 多一次无提示的白屏往返。
             // 这里按其他分支的惯例：先给出明确提示，再直达平台后台。
             msgText.textContent = '平台管理员为跨租户管理账号，不参与具体预约，正在跳转到平台后台...';
             setTimeout(function() { location.href = toPage('platform_admin.html', null, true); }, 2000);
         } else {
             msgText.textContent = '当前用户身份不支持访问预约链接，正在返回登录页...';
-            setTimeout(function() { location.href = toPage('index.html'); }, 2000);
+            setTimeout(function() { location.href = toPage('login.html'); }, 2000);
         }
     };
     </script>

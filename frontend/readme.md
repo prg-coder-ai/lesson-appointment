@@ -231,8 +231,8 @@ npm run lint:origin:strict   # 发现即 exit 1（CI / 发版前推荐）
 ### 7.1 本地开发（前端 `:8080` 托管 dist，反代 `:8081`）
 
 要点：
-- `listen 8080;`、`root <frontend/dist 绝对路径>;`、`index index.html;`
-- `location / { try_files $uri $uri/ /index.html; }` —— 未知路径 SPA 兜底
+- `listen 8080;`、`root <frontend/dist 绝对路径>;`、`index login.html;`
+- `location / { try_files $uri $uri/ /login.html; }` —— 未知路径 SPA 兜底
 - `location /api/v1/ { proxy_pass http://<后端host>:8081; ... }` —— 同源反代，浏览器无跨域
 - Windows 坑：必须用原生 `C:/` 路径；启动带 `-p <前缀目录> -c <配置文件>`，否则 Nginx 找不到配置
 
@@ -248,8 +248,8 @@ server {
     listen 443 ssl http2;
     server_name admin.example.com;
     root /var/www/frontend;                 # 与业务前端同一份 dist
-    index index.html;
-    location / { try_files $uri $uri/ /index.html; }
+    index login.html;
+    location / { try_files $uri $uri/ /login.html; }
     location /api/v1/ { proxy_pass http://127.0.0.1:8081; include /etc/nginx/proxy_params; proxy_read_timeout 120s; }
 }
 ```
@@ -260,8 +260,8 @@ server {
     listen 443 ssl http2;
     server_name booking.example.com;
     root /var/www/frontend;
-    index index.html;
-    location / { try_files $uri $uri/ /index.html; }
+    index login.html;
+    location / { try_files $uri $uri/ /login.html; }
     location /api/v1/message   { proxy_pass http://127.0.0.1:8090; include /etc/nginx/proxy_params; }
     location /api/v1/sse       { proxy_pass http://127.0.0.1:8090; include /etc/nginx/proxy_params; proxy_buffering off; proxy_read_timeout 3600s; }
     location /api/v1/users/   { proxy_pass http://127.0.0.1:8090; include /etc/nginx/proxy_params; }

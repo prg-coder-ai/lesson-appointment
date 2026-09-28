@@ -87,8 +87,8 @@ window.FRONTEND_ORIGIN = window.FRONTEND_ORIGIN || location.origin;
           // 用于防止未登录用户强行访问需要权限的页面
           // 若 URL 带 ?tCode= 则一并带入登录页，使登录页按该租户预填/锁定
           // 保持在登录页时不做跳转；否则带着当前 tCode 回登录页（tCode 由 pageUrl 自动附加）
-          if (!window.location.pathname.endsWith('index.html')) {
-            window.location.href = pageUrl('index.html');
+          if (!window.location.pathname.endsWith('login.html')) {
+            window.location.href = pageUrl('login.html');
           }
           } else  { 
         userId = userInfo.userId;
@@ -153,7 +153,7 @@ function getToken() {
   if (!currentUserStr) {
       alert('未登录，请重新登录');
       // 修正：旧版跳 '/login'（该页面并不存在）且丢失 tCode；统一走登录页并带上租户编码
-      window.location.href = pageUrl('index.html');
+      window.location.href = pageUrl('login.html');
       return '';
   }
   const currentUser = JSON.parse(currentUserStr);
@@ -215,15 +215,15 @@ const userStr = localStorage.getItem('currentUser');
     default:
       alert('未知用户身份，请联系管理员1');
       resetLoginForm();
-      window.location.href = pageUrl('index.html', null, false, user);
+      window.location.href = pageUrl('login.html', null, false, user);
   } 
 } else {
     alert('未知用户身份，请联系管理员2');
       // 判断当前页面是否为index.html
-      const isIndexPage = window.location.pathname.endsWith('index.html') || window.location.pathname === '/' || window.location.pathname === '';
+      const isIndexPage = window.location.pathname.endsWith('login.html') || window.location.pathname === '/' || window.location.pathname === '';
      if(isIndexPage ) resetLoginForm(); 
       else 
-      window.location.href = pageUrl('index.html', null, false, user);
+      window.location.href = pageUrl('login.html', null, false, user);
 }
 }
 
@@ -281,7 +281,7 @@ const userStr = localStorage.getItem('currentUser');
   // 读取本地 localStorage 保存的用户信息
   const userStr = localStorage.getItem('currentUser');
   if (!userStr) {
-    window.location.href = pageUrl('index.html'); // tCode 由 pageUrl 自动附加
+    window.location.href = pageUrl('login.html'); // tCode 由 pageUrl 自动附加
     return;
   }
   //let userInfo;
@@ -289,12 +289,12 @@ const userStr = localStorage.getItem('currentUser');
       userInfo = JSON.parse(userStr);
     } catch (e) {
       localStorage.removeItem('currentUser');
-      window.location.href = pageUrl('index.html'); // tCode 由 pageUrl 自动附加
+      window.location.href = pageUrl('login.html'); // tCode 由 pageUrl 自动附加
       return; 
     if (!userInfo || !userInfo.token) {
       // 信息不全，清理，停留
       localStorage.removeItem('currentUser');
-      window.location.href = pageUrl('index.html'); // tCode 由 pageUrl 自动附加
+      window.location.href = pageUrl('login.html'); // tCode 由 pageUrl 自动附加
       return;
     }
   } 
@@ -322,7 +322,7 @@ const userStr = localStorage.getItem('currentUser');
     // 清除Cookie
     document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
     alert('登录状态已过期，请重新登录');
-    window.location.href = pageUrl('index.html');
+    window.location.href = pageUrl('login.html');
     return;
   } 
   const loginInfo = {
@@ -365,7 +365,7 @@ const userStr = localStorage.getItem('currentUser');
       localStorage.removeItem('currentUser');
       document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
       alert('403登录状态已过期，请重新登录');
-      window.location.href = pageUrl('index.html');
+      window.location.href = pageUrl('login.html');
       throw new Error('未登录或登录已失效');
     }*/
   })
@@ -729,8 +729,8 @@ function maskEmail(email) {
     document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
     // tCode 优先取 URL 上的租户链接参数，其次才回填 urlTCode；两处都没有时 pageUrl 会兜 default
     window.location.href = urlTCode
-      ? pageUrl('index.html', { tCode: urlTCode })
-      : pageUrl('index.html');
+      ? pageUrl('login.html', { tCode: urlTCode })
+      : pageUrl('login.html');
   }
 
   /**

@@ -23,7 +23,7 @@
   'use strict';
 
   /** 允许落到首页的路径（大小写不敏感） */
-  var HOMEPAGE_FILES = ['index.html', 'default.html', 'home.html'];
+  var HOMEPAGE_FILES = ['login.html', 'default.html', 'home.html'];
 
   /** 取路径最后一段文件名（去 query / hash），如 /foo/teacherInfo.html -> teacherInfo.html */
   function basename(pathname) {
@@ -74,7 +74,7 @@
     backBtn.style.cssText = 'padding:4px 12px;border:1px solid #ffa39e;background:#fff;color:#a8071a;border-radius:4px;cursor:pointer;font-size:12px;';
     backBtn.addEventListener('click', function () {
       // 回首页时保留 tCode，避免把「页面不存在」变成「租户编码丢失」
-      location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('index.html') : './index.html';
+      location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('login.html') : './login.html';
     });
 
     var copyBtn = document.createElement('button');

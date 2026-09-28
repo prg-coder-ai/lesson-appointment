@@ -383,8 +383,8 @@
         }
         // 必须保留 tCode：否则登录页拿不到租户编码，登录后回不到本页
         window.location.href = (typeof window.pageUrl === 'function')
-          ? window.pageUrl('index.html')
-          : './index.html';
+          ? window.pageUrl('login.html')
+          : './login.html';
         return;
       }
       // 仅租户管理员可访问。

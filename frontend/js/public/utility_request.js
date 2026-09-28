@@ -127,7 +127,7 @@
       let relUrl = window.location.pathname + window.location.search + window.location.hash;
 
       if (!relUrl || relUrl === '/' || relUrl === '') {
-        relUrl = './index.html';
+        relUrl = './login.html';
       } else if (!relUrl.startsWith('.')) {
         // pathname 如 /admin.html → 转成 ./admin.html 匹配实际项目的相对路径
         relUrl = '.' + relUrl;
@@ -137,7 +137,7 @@
       const safe = /^(\.\/|\.\.\/)?[A-Za-z0-9_\-]+\.html(\?[^#]*)?(#.*)?$/.test(relUrl);
       if (!safe) {
         console.warn('[AuthRedirect] 3.a 未通过白名单，降级跳首页：', relUrl);
-        relUrl = './index.html';
+        relUrl = './login.html';
       }
 
       const info = {
@@ -295,7 +295,7 @@
       }
 
       // 业务层 403：权限不足（与 HTTP 403 同义）—— 不刷新 token，不跳转登录页
-      // 之前用 window.href（错误拼写，应为 window.location.href）跳转 index.html 是错的：
+      // 之前用 window.href（错误拼写，应为 window.location.href）跳转登录页(login.html)是错的：
       // 权限不足 ≠ 未登录，跳登录页会让用户困惑
       if (res.code === 403) {
          errMsg = res.message || res.msg || '无权限访问该资源';
@@ -472,7 +472,7 @@
             undefined;
             saveLoginRedirect('401');
             setTimeout(() => {
-              location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('index.html') : './index.html';
+              location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('login.html') : './login.html';
             }, 500);
           }
           return Promise.reject(refreshErr);
@@ -501,7 +501,7 @@
               undefined;
               saveLoginRedirect('401');
               setTimeout(() => {
-                location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('index.html') : './index.html';
+                location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('login.html') : './login.html';
               }, 500);
             }
           }

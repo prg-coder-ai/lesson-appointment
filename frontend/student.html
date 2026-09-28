@@ -145,7 +145,7 @@
         if (typeof window.saveLoginRedirect === 'function') {
           window.saveLoginRedirect('noauth');
         }
-        location.href = ((typeof window.pageUrl === 'function') ? window.pageUrl('index.html') : './index.html');
+        location.href = ((typeof window.pageUrl === 'function') ? window.pageUrl('login.html') : './login.html');
         return;
       }
 

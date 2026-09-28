@@ -64,8 +64,8 @@
   <header class="lp-header">
     <div class="lp-logo"><i class="fa fa-graduation-cap"></i> <span id="brand-title">语言教学预约系统</span></div>
     <div class="lp-actions" id="lpActions">
-      <a class="lp-btn lp-btn-ghost" href="index.html">登录</a>
-      <a class="lp-btn lp-btn-primary" href="index.html">注册</a>
+      <a class="lp-btn lp-btn-ghost" href="login.html">登录</a>
+      <a class="lp-btn lp-btn-primary" href="login.html">注册</a>
     </div>
   </header>
 
@@ -105,7 +105,7 @@
       // 若从 index 登录页（租户链接未登录）自动跳转而来，登录/注册需带 tCode + noredirect=1，
       // 既保留租户上下文，又避免 index 再次把其重定向回本页造成死循环。
       var tCode = (typeof window.getTenantCodeParam === 'function') ? window.getTenantCodeParam() : (params.get('tCode') || '');
-      var loginHref = 'index.html' + (tCode ? ('?tCode=' + encodeURIComponent(tCode) + '&noredirect=1') : '?noredirect=1');
+      var loginHref = 'login.html' + (tCode ? ('?tCode=' + encodeURIComponent(tCode) + '&noredirect=1') : '?noredirect=1');
       var backBtnHtml = fromWorkbench
         ? '<a class="lp-btn lp-btn-ghost" href="' + ((typeof window.pageUrl === 'function') ? window.pageUrl('student.html') : 'student.html') + '">← 返回</a>'
         : '';
@@ -129,7 +129,7 @@
         actions.innerHTML = html;
       }
       // 退出登录：在落地页内直接清本地登录态 + 尽力调服务端登出，然后原地重载落地页（已登出态）。
-      // 不要走通用 handleLogout（其会跳 index.html?tCode=A，再被 index 早期脚本重定向回 landing，造成地址栏闪烁）。
+      // 不要走通用 handleLogout（其会跳 login.html?tCode=A，再被 index 早期脚本重定向回 landing，造成地址栏闪烁）。
       window.__landingLogout = function () {
         var tCode = (typeof window.getTenantCodeParam === 'function') ? window.getTenantCodeParam() : '';
         try {
@@ -154,7 +154,7 @@
         setTimeout(function () {
           if (!window.closed) {
             if (window.history.length > 1) window.history.back();
-            else window.location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('index.html') : 'index.html';
+            else window.location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('login.html') : 'login.html';
           }
         }, 100);
       };

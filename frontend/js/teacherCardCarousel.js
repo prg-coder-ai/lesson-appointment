@@ -8,7 +8,7 @@
 //        返回裁剪 VO：{ publishedProfileId, teacherId, name, title, summary, coverUrl }
 //        注意：免登录接口须按 public-endpoint-tenant-bypass 处理（白名单 + @InterceptorIgnore(tenantLine="true") + 按 tenantCode 过滤）。
 //   3) 点击行为（登录态分支）：已登录 → 直接打开免登录公开个人页 teacherPublishedProfile.html?id=<publishedProfileId>；
-//        未登录 → 跳登录页再预约（index.html?from=landing&tid=xxx），登录后由 index 跳转逻辑处理回课程预订。
+//        未登录 → 跳登录页再预约（login.html?from=landing&tid=xxx），登录后由 login 跳转逻辑处理回课程预订。
 //
 (function () {
   'use strict';
@@ -39,7 +39,7 @@
       // pageUrl 可能已带 ?tCode=xxx，须用 & 续接，避免拼出第二个 ? 导致 id 解析失败
       window.location.href = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'id=' + encodeURIComponent(pid);
     } else {
-      var loginBase = (typeof window.pageUrl === 'function') ? window.pageUrl('index.html') : 'index.html';
+      var loginBase = (typeof window.pageUrl === 'function') ? window.pageUrl('login.html') : 'login.html';
       // noredirect=1：避免 index 早期脚本把「未登录 + 带 tCode」再次重定向回 landing，形成死循环
       window.location.href = loginBase + (loginBase.indexOf('?') >= 0 ? '&' : '?') + 'from=landing&tid=' + encodeURIComponent(teacher.teacherId) + '&noredirect=1';
     }

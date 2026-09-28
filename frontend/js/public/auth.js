@@ -53,7 +53,7 @@
     document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
     // 回到登录页时保留租户链接参数：pageUrl 由 api.js 提供（自动附 tCode），
     // 缺失时降级为相对路径，保证不因 helper 未加载而跳转失败
-    location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('index.html') : './index.html';
+    location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('login.html') : './login.html';
   }
   
   /**
