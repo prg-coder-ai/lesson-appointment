@@ -22,81 +22,32 @@ async function renderStudentBookingBrowserCards() {
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
     if (!dynamicContentCenter) return; 
         // 渲染HTML
-    let html = '';
-     
-    html += `       
-    <div class="card">
-             ` 
-    html += `    
-         <div class="card-header">
-         <div>
-            <div class="card-title"><i class="fa fa-calendar-alt"></i>预订列表</div>
-      <!-- 筛选条件 -->
-              <div class="filter-bar">  
-                <div class="filter-item" >
-                  <label><span data-term="course">课程</span>名称：</label>
-                  <input type="text" id="course-name-input" placeholder="课程名称">
-                </div>
-                        
-                <div class="filter-item">
-                  <label>状态：</label>
-                  <select id="booking-status-select">
-                    <option value="">全部</option>
-                    <option value="booking">预定待确认</option>
-                    <!-- status=waiting（候补预订）：名额已满时的候补申请，与 appointment 的状态机无关 -->
-                    <option value="waiting">候补</option>
-                    <option value="cancelling">取消待确认</option>
-                    <option value="booked">预定已确认</option>
-                    <option value="cancelled">已取消</option>
-                    <option value="delete">已删除</option> 
-                  </select>
-                </div> 
-                <button class="btn btn-default" onclick="localsearchAppoint_student()">
-                  <i class="fa fa-search"></i> 搜索
-                </button>
-                <button class="btn btn-default" onclick="resetFilterAppoint_student()">
-                  <i class="fa fa-redo"></i> 重置
-                </button>
-              </div> 
-           </div>
-         </div>
-    <!-- 预约状态显示和选择 -->            
-              <div id="my-bookings">
-       
-              </div>   
-        `  ;
+        // ===== 结构来自 student.html / teacher.html 的 <template id="tpl-student-booking-browser"> =====
+        // template+clone 改造（2026-09-28）：原主骨架 HTML 字符串已搬进 HTML 模板，
+        // 这里只负责「取模板 -> clone -> 填分页骨架 -> 绑事件」。（applyTerms 在下方原位置执行）
+        const tplEl = document.getElementById('tpl-student-booking-browser');
+        if (!tplEl) {
+            console.error('[student-bookingBrowserCards] 缺少 #tpl-student-booking-browser 模板，我的预定页无法渲染');
+            return;
+        }
+        dynamicContentCenter.replaceChildren(tplEl.content.cloneNode(true));
 
-   html += getPagebar();
-   html += ` </div> ` 
+        // 原 html += getPagebar() 的落点：分页骨架
+        const browserPagebar = document.getElementById('browser-pagebar');
+        if (browserPagebar && typeof getPagebar === 'function') browserPagebar.innerHTML = getPagebar();
 
-   html+=`   <!-- 排期结果（卡片标题）/ 日历视图：同一份 scheduleResult 的两种视图，用 card 内 tab 切换（方案Y） -->
-    <div class="card">
-        <div class="card-title" style="margin-bottom:8px;"><i class="fa fa-calendar-alt"></i> 排期结果</div>
-        <div class="result-tabs">
-            <button type="button" class="result-tab active" data-tab="list" onclick="switchResultTab('list')">日期列表</button>
-            <button type="button" class="result-tab" data-tab="calendar" onclick="switchResultTab('calendar')">日历视图</button>
-        </div>
-        <div class="result-panel" id="resultPanelList">
-        <table>
-            <thead>
-                <tr>
-                    <th>课次</th>
-                    <th>日期</th>
-                    <th>时间</th>
-                      <th>状态</th> 
-                      <th><span data-term="leave">取消课次</span></th>
-                </tr>
-            </thead>
-            <tbody id="resultBody"></tbody>
-        </table>
-        </div>
+        bindBrowserBookingEvents();
 
-        <div class="result-panel" id="resultPanelCalendar" style="display:none;">
-        <div id="calendar" class="calendar"></div>
-        </div>
-    </div>`;
-    
-    dynamicContentCenter.innerHTML = html; 
+        function bindBrowserBookingEvents() {
+            // 每次 replaceChildren 后节点都是全新的，直接绑定即可（旧节点已被销毁，不会重复挂监听）
+            const $ = (id) => document.getElementById(id);
+            const on = (el, ev, fn) => { if (el) el.addEventListener(ev, fn); };
+            on($('btn-search-booking'), 'click', localsearchAppoint_student);
+            on($('btn-reset-booking'), 'click', resetFilterAppoint_student);
+            document.querySelectorAll('.result-tab').forEach(function (tab) {
+                on(tab, 'click', function () { switchResultTab(tab.dataset.tab); });
+            });
+        }
     applyTerms(dynamicContentCenter);
     loadAndRenderBooking_student();   
     } 

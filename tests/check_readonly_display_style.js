@@ -25,6 +25,18 @@ const FRONTEND = process.env.FRONTEND_DIR
   ? path.resolve(process.env.FRONTEND_DIR)
   : path.join(__dirname, '..', 'frontend');
 
+/**
+ * template+clone 改造后，学生端「排期信息」的 <input> 已搬进 student.html 的
+ * <template id="tpl-student-booking">（源码里不再有这段 HTML）。C 组守卫须读真实模板，
+ * 字段 id / 样式类 / readonly 属性才是生产那一份。
+ */
+function extractBookingTemplate() {
+  const html = fs.readFileSync(path.join(FRONTEND, 'student.html'), 'utf8');
+  const m = html.match(/<template id="tpl-student-booking">[\s\S]*?<\/template>/);
+  if (!m) throw new Error('在 student.html 中找不到 #tpl-student-booking 模板');
+  return m[0];
+}
+
 let pass = 0;
 const fails = [];
 function assert(name, cond, extra) {
@@ -99,8 +111,9 @@ assert('满额提示色 .readonly.site-full 仍在且为红色',
 
 // =====================================================================
 console.log('\n=== C 组 学生端「排期信息」：样式类与只读属性双全 ===');
-const studentJs = fs.readFileSync(path.join(FRONTEND, 'js', 'student-bookingCards.js'), 'utf8');
-const sInputs = inputStats(studentJs);
+// 旧版这里读 student-bookingCards.js 里的 HTML 字符串；改造后那段 HTML 已迁到 student.html 模板。
+const bookingTpl = extractBookingTemplate();
+const sInputs = inputStats(bookingTpl);
 
 const onlyAttr = sInputs.filter(x => x.isReadonlyAttr && !x.hasReadonlyClass);
 assert('不存在「只带 readonly 属性、无统一样式类」的字段（底色/文字不一致的来源）',

@@ -22,7 +22,21 @@ const { JSDOM } = require('jsdom');
 
 const FRONTEND = process.env.FRONTEND_DIR || path.join(__dirname, '..', 'frontend');
 const SRC = path.join(FRONTEND, 'js', 'student-bookingCards.js');
+const HTML = path.join(FRONTEND, 'student.html');
 const CSS = path.join(FRONTEND, 'css', 'student.css');
+
+/**
+ * template+clone 改造后，「排期信息」DOM（含 now_availableSites 这个 input）已搬进
+ * student.html 的 <template id="tpl-student-booking">，源码里不再有这段 HTML 字符串。
+ * 守卫须读真实模板（type=text / data-remaining 都是生产那一份）。
+ */
+function extractBookingTemplate() {
+  const html = fs.readFileSync(HTML, 'utf8');
+  const m = html.match(/<template id="tpl-student-booking">[\s\S]*?<\/template>/);
+  if (!m) throw new Error('在 student.html 中找不到 #tpl-student-booking 模板');
+  return m[0];
+}
+const tplHtml = extractBookingTemplate();
 
 let pass = 0;
 let fail = 0;
@@ -157,10 +171,11 @@ apply(f1, 0);
 assert('回读结果永不为「满额」文案（否则 Number() 得 NaN）', read() !== '满额', String(read()));
 
 console.log('\n=== D 源码守卫：防止今后改回 number 类型 / 只改一边 ===');
+// 注：now_availableSites 的 HTML 定义已迁到 student.html 模板（见 tplHtml），故对模板断言。
 assert('模板用 text 而非 number（number 会丢弃「满额」）',
-  /id="now_availableSites"[^>]*/.test(code) && /<input type="text" id="now_availableSites"/.test(code));
+  /<input type="text" id="now_availableSites"/.test(tplHtml));
 assert('模板带 data-remaining 载体',
-  /<input type="text" id="now_availableSites"[^>]*data-remaining/.test(code));
+  /<input type="text" id="now_availableSites"[^>]*data-remaining/.test(tplHtml));
 assert('renderSchedule 走统一写入函数（不再直接 value = remainingSites）',
   /applyRemainingSitesDisplay\(now_availableSites, remainingSites\)/.test(code)
   && !/now_availableSites\.value\s*=\s*remainingSites/.test(code));

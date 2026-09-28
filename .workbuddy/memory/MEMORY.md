@@ -85,6 +85,12 @@
 - 不考虑微信登录：User.wxOpenid 标 @TableField(exist=false)；UserMapper.getByWxOpenid/updateWxOpenid、UserService.wechatLogin/bindWechat、authController /wechat-login /bind-wechat 均块注释屏蔽(可恢复)。
 - 恢复：去 exist=false + 取消注释 + ALTER TABLE user ADD COLUMN wx_openid VARCHAR(64) DEFAULT NULL, ADD UNIQUE uk_user_wx_openid(wx_openid)。
 
+## 一码多端（2026-09-28 评估）
+- **现状＝两套 UI(Web 12 页/21,168 行 JS；小程序 25 页/2,037 行 JS) + 一份失效的共享源**：`frontend/**` 0 处引用 `shared/`；`miniprogram/shared/` 与根 `shared/` 有 3/5 文件 md5 不一致（小程序副本更新→有人直接改副本），同一 key `leave` Web="取消课次" vs shared="请假"。
+- Web 端 PC/平板/手机已由响应式 A 方案覆盖（55/55 PASS），缺码的是小程序这类非浏览器运行时。
+- 端耦合量化：DOM 1,180 处/45 文件、alert+confirm+prompt 191、存储 115/18 文件、整页跳转 45/20 文件、内联 on* 305、innerHTML 289、document.write 14；依赖全走 CDN（axios 22 页/fullcalendar/FontAwesome/html2canvas）→ 小程序与内网不成立。
+- 路径：P0 修源(词典归一+构建桥接到 window+sync md5 守卫) → P1 Headless 领域层下沉 shared/domain → P2 六类能力适配层同接口名(net/storage/ui.modal/router/share/realtime) → P3 按端数分叉(≤2 端维持；≥3 端才上 uni-app，P1 为前置)。排除 Flutter/RN；web-view 套壳仅限公开页/富文本。方案文档：`一码多端改造方案-20260928.md`。
+
 ## 文档/技能
 - 三手册：腾讯云(权威)＞预约系统(原理排障)＞前端(仅前端)。scp -r 源目录/ 目标/(结尾/传内容)。
 - 技能：saas-api-build-smoke/booking-deeplink-routing/public-endpoint-tenant-bypass/browserless-frontend-itest/source-encoding-repair/saas-debug-output-cleanup/server-side-term-template/seat-oversell-concurrency-audit/saas-tenant-config-rule-module。

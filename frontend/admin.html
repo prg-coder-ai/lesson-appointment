@@ -174,6 +174,66 @@
       <!-- 动态内容中央区域（核心修改：独立容器+居中样式） -->
       <div id="dynamic-content-center" class="dynamic-content-center" data-page-node-id="x5LsOUnwTQFzRpsjGTuopw">
       </div>
+      <!-- 今日课程（上课通知）页结构模板（2026-09-28 template+clone 改造）：JS 只负责取数/填值/绑事件 -->
+      <template id="tpl-appointment-notes">
+        <div class="card">
+          <!-- 「今日课程」候补提示条：仅学生、且存在 status=waiting 的候补申请时显示。内容由 renderWaitlistBanner() 填充 -->
+          <div id="waitlist-banner" style="display:none;align-items:center;gap:12px;flex-wrap:wrap;background:#fff8e6;border:1px solid #ffe0a3;color:#8a5a00;padding:10px 14px;border-radius:6px;margin-bottom:12px;font-size:13px;"></div>
+          <div class="filter-bar">
+            <div class="filter-item" style="display:none;">
+              <label style="display:none;"><span data-term="course">课程</span>：</label>
+              <input type="text" id="course-name-input" style="display:none;" placeholder="课程名称">
+            </div>
+            <div class="filter-item">
+              <label>天数：</label>
+              <select id="appoint-days-select">
+                <option value=-1>全部</option>
+                <option value=1 selected>未来1天</option>
+                <option value=3>未来3天</option>
+                <option value=7>未来7天</option>
+              </select>
+            </div>
+            <div class="filter-item">
+              <label>状态：</label>
+              <select id="appoint-status-select">
+                <option value="">全部</option>
+                <option value="active">正常</option>
+                <option value="noted1">（历史）</option>
+                <option value="noted2">（历史）</option>
+                <option value="completed">已完成</option>
+                <option value="cancelling">取消待确认</option>
+                <option value="cancelled">已取消</option>
+                <option value="reject">已拒绝</option>
+                <option value="delete">已删除</option>
+                <option value="booked">预约已确认</option>
+                <option value="t-cancelling">申请取消（<span data-term="teacher">教师</span>）已取消</option>
+                <option value="t-cancelled">已取消（<span data-term="teacher">教师</span>）</option>
+                <option value="t-reject">已拒绝(T)</option>
+              </select>
+            </div>
+            <button type="button" class="btn btn-default" id="btn-search-appoint"><i class="fa fa-search"></i> 搜索</button>
+            <button type="button" class="btn btn-default" id="btn-reset-appoint"><i class="fa fa-redo"></i> 重置</button>
+          </div>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>序号</th>
+                  <th style="display:none;">预约ID</th>
+                  <th><span data-term="course">课程</span>名称</th>
+                  <th><span data-term="student">学生</span>姓名</th>
+                  <th><span data-term="teacher">教师</span>姓名</th>
+                  <th><span data-term="lessonTime">上课时间</span></th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="days-appointment-admin"></tbody>
+            </table>
+          </div>
+          <div id="appoint-pagebar"></div>
+        </div>
+      </template>
   </div>
 
   <!-- JavaScript交互逻辑 --> 

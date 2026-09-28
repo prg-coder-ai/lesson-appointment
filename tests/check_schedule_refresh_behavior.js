@@ -24,16 +24,30 @@ const FRONTEND = process.env.FRONTEND_DIR || path.join(__dirname, '..', 'fronten
 const SRC = path.join(FRONTEND, 'js', 'student-bookingCards.js');
 const code = fs.readFileSync(SRC, 'utf8');
 
+/**
+ * template+clone 改造后，「排期信息」DOM 不再由 JS 字符串生成，
+ * 而是 clone 自 student.html 里的 <template id="tpl-student-booking">。
+ * 测试必须注入**真实**模板（字段 id / 只读属性 / 按钮文案都是生产代码那一份），
+ * 否则 renderStudentBookingCards() 取不到模板会直接 return，模板不注入 → 全 FAIL。
+ */
+const STUDENT_HTML = path.join(FRONTEND, 'student.html');
+function extractBookingTemplate() {
+  const html = fs.readFileSync(STUDENT_HTML, 'utf8');
+  const m = html.match(/<template id="tpl-student-booking">[\s\S]*?<\/template>/);
+  if (!m) throw new Error('在 student.html 中找不到 #tpl-student-booking 模板');
+  return m[0];
+}
+
 let pass = 0, fail = 0;
 const assert = (n, c, x) => {
   if (c) { pass++; console.log('  PASS  ' + n); }
   else { fail++; console.log('  FAIL  ' + n + (x !== undefined ? '  :: ' + x : '')); }
 };
 
-// 页面骨架：只提供挂载点。真正的「排期信息」DOM 由脚本自身的模板生成 ——
-// 这样断言的是**真实模板**（字段 id、只读属性、按钮文案都是生产代码里的那一份），
-// 而不是测试自己手搓的近似 DOM（手搓的 DOM 一旦与模板漂移，测试会假通过）。
-const DOM_HTML = '<!DOCTYPE html><html><body><div id="dynamic-content-center"></div></body></html>';
+// 页面骨架：提供挂载点 + **真实**课程预订模板（从 student.html 抽取，保证断言的是生产模板）。
+const DOM_HTML = '<!DOCTYPE html><html><body><div id="dynamic-content-center"></div>'
+  + extractBookingTemplate()
+  + '</body></html>';
 
 /** 排期样本：availableSites 可在刷新前后不同（模拟管理员改席位/被预订） */
 const mkSchedule = (id, name, sites, extra) => Object.assign({
@@ -53,6 +67,11 @@ async function makeSandbox(cfg) {
   const sb = {};
   sb.window = sb; sb.self = sb; sb.globalThis = sb;
   sb.document = doc;
+  // 源码顶部有 document.write('/js/public/pagefoot.js')，jsdom 无 runScripts 时执行它会改写/清空文档，
+  // 把刚注入的 <template> 一并抹掉 → 测出“模板没克隆”。测试不需要 pagefoot.js（getPagebar/Pagination 已垫片），直接桩掉。
+  doc.write = function () {};
+  doc.open = function () { return doc; };
+  doc.close = function () {};
   sb.location = { href: 'http://127.0.0.1:8080/student.html', pathname: '/student.html', search: '', origin: 'http://127.0.0.1:8080' };
   sb.history = { replaceState() {}, pushState() {} };
   const store = new Map();

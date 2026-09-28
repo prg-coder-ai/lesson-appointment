@@ -20,92 +20,49 @@ function elVal(id, dflt) {
         await loadNotifyStageLabels();
         assignLoadobjectListFunction( loadAndShowAppointmentPage);// assign
            // 渲染数据总览面板 不显示课程搜素
-           let html=
-            `  <div class="card">           
-            <!-- 「今日课程」候补提示条：仅学生、且存在 status=waiting 的候补申请时显示。
-                 内容由 renderWaitlistBanner() 填充（appointmentNotes.js）——候补不是课次，
-                 不进下面的课次表格，也不进「状态」下拉（那个下拉筛的是 appointment.status）。 -->
-            <div id="waitlist-banner" style="display:none;align-items:center;gap:12px;flex-wrap:wrap;background:#fff8e6;border:1px solid #ffe0a3;color:#8a5a00;padding:10px 14px;border-radius:6px;margin-bottom:12px;font-size:13px;"></div>
-            <div class="filter-bar">  
-                <div class="filter-item" style="display:none;">
-                  <label style="display:none;"><span data-term="course">课程</span>：</label>
-                  <input type="text" id="course-name-input" style="display:none;" placeholder="课程名称">
-                </div>
-                      
-                <div class="filter-item">
-                  <label>天数：</label>
-                  <select id="appoint-days-select">
-                    <option value=-1>全部</option>
-                    <option value=1 selected>未来1天</option>
-                    <option value=3>未来3天</option>
-                    <option value=7>未来7天</option>
-                   </select>
-                </div> 
-                  
-                <div class="filter-item">
-                  <label>状态：</label>
-                  <select id="appoint-status-select">
-                    <option value="">全部</option>
-                    <option value="active">正常</option>
-                    <!-- noted1 / noted2 是「通知标记寄存在 appointment.status 里」那个时期的遗留值，
-                         现在通知记录在 notification_dispatch_log 流水表，新数据不会再产生这两个状态。
-                         文案按当前通知档位配置动态生成（见 loadNotifyStageLabels），保留它们只是为了能筛历史数据。 -->
-                    <option value="noted1">${notifyStageLabel(1)}（历史）</option>
-                    <option value="noted2">${notifyStageLabel(2)}（历史）</option>
-                    <option value="completed">已完成</option> 
+        const dynamicContentCenter = document.getElementById('dynamic-content-center');
+        if (!dynamicContentCenter) return;
+        // ===== 结构来自各页 <template id="tpl-appointment-notes">（admin/student/teacher 均放置）=====
+        // template+clone 改造（2026-09-28）：原主骨架 HTML 字符串已搬进 HTML 模板，
+        // 这里只负责「取模板 -> clone -> 注入动态文案(noted1/noted2) -> 填分页骨架 -> 绑事件」。
+        const tplEl = document.getElementById('tpl-appointment-notes');
+        if (!tplEl) {
+            console.error('[admin-AppointmentNotes] 缺少 #tpl-appointment-notes 模板，今日课程页无法渲染');
+            return;
+        }
+        dynamicContentCenter.replaceChildren(tplEl.content.cloneNode(true));
 
-                    <option value="cancelling">取消待确认</option>
-                    <option value="cancelled">已取消</option>
-                    <option value="reject">已拒绝</option>
+        // 状态下拉历史档位文案（noted1/noted2）按当前通知规则动态生成，模板留空、clone 后注入
+        const statusSel = document.getElementById('appoint-status-select');
+        if (statusSel) {
+            const fillNote = (val, n) => {
+                const o = statusSel.querySelector('option[value="' + val + '"]');
+                if (o) o.textContent = (typeof notifyStageLabel === 'function' ? notifyStageLabel(n) : '') + '（历史）';
+            };
+            fillNote('noted1', 1);
+            fillNote('noted2', 2);
+        }
 
-                    <option value="delete">已删除</option>                      
-                    <option value="booked">预约已确认</option>
-                    
-                    <option value="t-cancelling">申请取消（${termText('teacher')}）</option>
-                    <option value="t-cancelled">已取消（${termText('teacher')}）</option>
-                    <option value="t-reject">已拒绝(T)</option>
-                      
-                  </select>
-                </div> 
-                <button class="btn btn-default" onclick="localsearchAppoint()">
-                  <i class="fa fa-search"></i> 搜索
-                </button>
-                <button class="btn btn-default" onclick="resetFilterAppoint()">
-                  <i class="fa fa-redo"></i> 重置
-                </button>
-              </div> 
-            <div class="table-container">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>序号</th>
-                    <th  style="display:none;">预约ID</th>
-                    <th><span data-term="course">课程</span>名称</th>
-                    <th><span data-term="student">学生</span>姓名</th>
-                    <th><span data-term="teacher">教师</span>姓名</th>
-                    <th><span data-term="lessonTime">上课时间</span></th>
-                    <th>状态</th>
-                    <th>操作</th>
-                  </tr>
-                </thead>
-                <tbody id="days-appointment-admin">
-                  
-                </tbody>
-              </table>
-            </div>
-            </div>
-           `;
-           
-         html += getPagebar();
-         const dynamicContentCenter = document.getElementById('dynamic-content-center');
-         if(dynamicContentCenter) {
-            dynamicContentCenter.innerHTML =  html;  
-            applyTerms(dynamicContentCenter);
-         
-         loadAndShowAppointmentPage();
-         // 候补提示条（仅学生有内容；非学生或查询失败时自行隐藏）
-         renderWaitlistBanner();
-         }
+        // 术语替换：动态注入的内容须在 clone 后补一次（既有缺陷顺手修复）
+        if (typeof applyTerms === 'function') applyTerms(dynamicContentCenter);
+
+        // 原 html += getPagebar() 的落点：分页骨架
+        const appointPagebar = document.getElementById('appoint-pagebar');
+        if (appointPagebar && typeof getPagebar === 'function') appointPagebar.innerHTML = getPagebar();
+
+        bindAppointmentNotesEvents();
+
+        loadAndShowAppointmentPage();
+        // 候补提示条（仅学生有内容；非学生或查询失败时自行隐藏）
+        renderWaitlistBanner();
+
+        function bindAppointmentNotesEvents() {
+            // 每次 replaceChildren 后节点都是全新的，直接绑定即可（旧节点已被销毁，不会重复挂监听）
+            const $ = (id) => document.getElementById(id);
+            const on = (el, ev, fn) => { if (el) el.addEventListener(ev, fn); };
+            on($('btn-search-appoint'), 'click', localsearchAppoint);
+            on($('btn-reset-appoint'), 'click', resetFilterAppoint);
+        }
   }   
     
   async function loadAndShowAppointmentPage(){

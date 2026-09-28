@@ -85,6 +85,265 @@
       <div class="dynamic-content-center" id="dynamic-content-center">
         <!-- 初始内容由JS加载 -->
       </div>
+      <!-- 我的预定页结构模板（2026-09-28 template+clone 改造）：JS 只负责取数/填值/绑事件 -->
+      <template id="tpl-student-booking-browser">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title"><i class="fa fa-calendar-alt"></i>预订列表</div>
+              <div class="filter-bar">
+                <div class="filter-item">
+                  <label><span data-term="course">课程</span>名称：</label>
+                  <input type="text" id="course-name-input" placeholder="课程名称">
+                </div>
+                <div class="filter-item">
+                  <label>状态：</label>
+                  <select id="booking-status-select">
+                    <option value="">全部</option>
+                    <option value="booking">预定待确认</option>
+                    <option value="waiting">候补</option>
+                    <option value="cancelling">取消待确认</option>
+                    <option value="booked">预定已确认</option>
+                    <option value="cancelled">已取消</option>
+                    <option value="delete">已删除</option>
+                  </select>
+                </div>
+                <button type="button" class="btn btn-default" id="btn-search-booking"><i class="fa fa-search"></i> 搜索</button>
+                <button type="button" class="btn btn-default" id="btn-reset-booking"><i class="fa fa-redo"></i> 重置</button>
+              </div>
+            </div>
+          </div>
+          <div id="my-bookings"></div>
+          <div id="browser-pagebar"></div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="margin-bottom:8px;"><i class="fa fa-calendar-alt"></i> 排期结果</div>
+          <div class="result-tabs">
+            <button type="button" class="result-tab active" data-tab="list">日期列表</button>
+            <button type="button" class="result-tab" data-tab="calendar">日历视图</button>
+          </div>
+          <div class="result-panel" id="resultPanelList">
+            <table>
+              <thead>
+                <tr>
+                  <th>课次</th>
+                  <th>日期</th>
+                  <th>时间</th>
+                  <th>状态</th>
+                  <th><span data-term="leave">取消课次</span></th>
+                </tr>
+              </thead>
+              <tbody id="resultBody"></tbody>
+            </table>
+          </div>
+          <div class="result-panel" id="resultPanelCalendar" style="display:none;">
+            <div id="calendar" class="calendar"></div>
+          </div>
+        </div>
+      </template>
+      <!-- 今日课程（上课通知）页结构模板（2026-09-28 template+clone 改造）：JS 只负责取数/填值/绑事件 -->
+      <template id="tpl-appointment-notes">
+        <div class="card">
+          <!-- 「今日课程」候补提示条：仅学生、且存在 status=waiting 的候补申请时显示。内容由 renderWaitlistBanner() 填充 -->
+          <div id="waitlist-banner" style="display:none;align-items:center;gap:12px;flex-wrap:wrap;background:#fff8e6;border:1px solid #ffe0a3;color:#8a5a00;padding:10px 14px;border-radius:6px;margin-bottom:12px;font-size:13px;"></div>
+          <div class="filter-bar">
+            <div class="filter-item" style="display:none;">
+              <label style="display:none;"><span data-term="course">课程</span>：</label>
+              <input type="text" id="course-name-input" style="display:none;" placeholder="课程名称">
+            </div>
+            <div class="filter-item">
+              <label>天数：</label>
+              <select id="appoint-days-select">
+                <option value=-1>全部</option>
+                <option value=1 selected>未来1天</option>
+                <option value=3>未来3天</option>
+                <option value=7>未来7天</option>
+              </select>
+            </div>
+            <div class="filter-item">
+              <label>状态：</label>
+              <select id="appoint-status-select">
+                <option value="">全部</option>
+                <option value="active">正常</option>
+                <option value="noted1">（历史）</option>
+                <option value="noted2">（历史）</option>
+                <option value="completed">已完成</option>
+                <option value="cancelling">取消待确认</option>
+                <option value="cancelled">已取消</option>
+                <option value="reject">已拒绝</option>
+                <option value="delete">已删除</option>
+                <option value="booked">预约已确认</option>
+                <option value="t-cancelling">申请取消（<span data-term="teacher">教师</span>）已取消</option>
+                <option value="t-cancelled">已取消（<span data-term="teacher">教师</span>）</option>
+                <option value="t-reject">已拒绝(T)</option>
+              </select>
+            </div>
+            <button type="button" class="btn btn-default" id="btn-search-appoint"><i class="fa fa-search"></i> 搜索</button>
+            <button type="button" class="btn btn-default" id="btn-reset-appoint"><i class="fa fa-redo"></i> 重置</button>
+          </div>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>序号</th>
+                  <th style="display:none;">预约ID</th>
+                  <th><span data-term="course">课程</span>名称</th>
+                  <th><span data-term="student">学生</span>姓名</th>
+                  <th><span data-term="teacher">教师</span>姓名</th>
+                  <th><span data-term="lessonTime">上课时间</span></th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="days-appointment-admin"></tbody>
+            </table>
+          </div>
+          <div id="appoint-pagebar"></div>
+        </div>
+      </template>
+
+      <!-- 课程预订页结构模板（2026-09-28 template+clone 改造）：JS 只负责取数/填值/绑事件 -->
+      <template id="tpl-student-booking">
+        <div class="card">
+          <div class="card-title"><i class="fa fa-book"></i> <span data-term="course">课程</span>选择</div>
+          <div class="filter-form" style="display:flex; gap:12px; margin:10px 0 12px; flex-wrap:wrap; align-items:center;">
+            <input type="text" id="course-name-input" placeholder="搜索课程名称" style="padding:6px 10px; border:1px solid #d9d9d9; border-radius:4px; min-width:220px;">
+            <button type="button" class="btn" id="btn-search-course"><i class="fa fa-search"></i> 搜索</button>
+            <button type="button" class="btn btn-default" id="btn-reset-course"><i class="fa fa-redo"></i> 重置</button>
+          </div>
+          <div id="courseCardList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin:8px 0 14px;"></div>
+          <div id="coursePagebar"></div>
+        </div>
+        <hr>
+        <div>
+          <div class="form-line" style="display:flex;padding-top:10px;">
+            <label>选择排期：</label>
+            <select id="scheduleSelect">
+              <option value="">请选择排期</option>
+            </select>
+          </div>
+          <div class="section">
+            <div class="section-title">排期信息</div>
+            <div class="form-line" style="display:none;">
+              <label>Id</label>
+              <input type="label" id="scheduleId">
+            </div>
+            <div class="form-line" style="display:none;">
+              <label>cId</label>
+              <input type="label" id="courseId">
+              <input type="label" id="teacherIdForCourse" style="display:none;">
+            </div>
+            <div class="form-line nofocus" style="display:flex;">
+              <label><span data-term="teacher">教师</span></label>
+              <input type="label" id="teacherNameForCourse" value="" class="readonly" style="display:flex;" readonly>
+            </div>
+            <div class="schedule-container" style="display:flex;">
+              <div class="schedule-column">
+                <div class="form-line">
+                  <label>排期时区：</label>
+                  <input type="text" id="originalTimeZone" readonly class="readonly">
+                </div>
+                <div class="form-line">
+                  <label>开始日期：</label>
+                  <input type="date" id="startDate" class="readonly" readonly>
+                  <input type="text" id="startDate_weekday" class="readonly" style="width:52px" placeholder="星期" readonly>
+                </div>
+                <div class="form-line" style="display:flex;" >
+                  <label><span data-term="lessonTime">上课时间</span>：</label>
+                  <input type="time" id="startTime" class="readonly" readonly>
+                </div>
+                <div class="form-line">
+                  <label>结束日期：</label>
+                  <input type="date" id="endDate" class="readonly" readonly>
+                </div>
+              </div>
+              <div class="schedule-column" id="rightBlock" style="display:none;">
+                <div class="form-line">
+                  <label>我的时区：</label>
+                  <input type="text" id="timeZone" class="readonly" readonly>
+                </div>
+                <div class="form-line">
+                  <label>开始日期：</label>
+                  <input type="date" id="displayStartDate" readonly class="readonly">
+                  <input type="text" id="displayStartDate_weekday" class="readonly" style="width:52px" readonly>
+                </div>
+                <div class="form-line">
+                  <label><span data-term="lessonTime">上课时间</span>：</label>
+                  <input type="time" id="displayStartTime" class="readonly" readonly>
+                </div>
+                <div class="form-line">
+                  <label>结束日期：</label>
+                  <input type="date" id="displayEndDate" readonly class="readonly">
+                  <input type="text" id="displayEndDate_weekday" class="readonly" style="width:52px" readonly>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="form-line" style="display:flex;">
+            <label>重复类型：</label>
+            <input type="text" id="repeatTypeDisplay" class="readonly" readonly>
+          </div>
+          <div class="form-line" style="display:flex;">
+            <label>重复周期：</label>
+            <input type="text" id="repeatCycleDisplay" class="readonly" readonly>
+          </div>
+          <div class="form-line">
+            <label><input type="label" id="bookingId" value="" style="display:none;"></label>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 24px;">
+            <div class="form-line nofocus">
+              <label>预订状态：</label>
+              <select id="bookingStatus">
+                <option value="none">无预订</option>
+                <option value="booking">已预订,待确认</option>
+                <option value="waiting">候补</option>
+                <option value="booked">预订成功</option>
+                <option value="canceling">取消待确认</option>
+                <option value="canceled">已取消</option>
+                <option value="completed">已完成</option>
+              </select>
+            </div>
+            <div class="sched-form-line">
+              <label>员额：</label>
+              <input type="number" id="availableSites" value="1" min="1" readonly class="readonly" style="width:80px">
+            </div>
+            <div class="sched-form-line">
+              <label>剩余员额：</label>
+              <input type="text" id="now_availableSites" value="" data-remaining="" readonly class="readonly" style="width:80px">
+            </div>
+          </div>
+          <div class="btn-group">
+            <button type="button" class="btn-primary" id="previewBtn">预览排期</button>
+            <button type="button" class="btn-primary" id="bookBtn">预定<span data-term="course">排期</span></button>
+            <button type="button" class="btn-warning" id="waitBtn" style="display:none;">候补预订</button>
+            <button type="button" class="btn-danger" id="cancelBtn">取消预约</button>
+            <button type="button" class="btn-danger" id="deleteBtn">删除预定</button>
+            <button type="button" class="btn-success" id="refreshBtn">刷新</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="margin-bottom:8px;"><i class="fa fa-calendar-alt"></i> 排期结果</div>
+          <div class="result-tabs">
+            <button type="button" class="result-tab active" data-tab="list">日期列表</button>
+            <button type="button" class="result-tab" data-tab="calendar">日历视图</button>
+          </div>
+          <div class="result-panel" id="resultPanelList">
+            <table>
+              <thead>
+                <tr>
+                  <th>课次</th>
+                  <th>日期</th>
+                  <th>时间</th>
+                </tr>
+              </thead>
+              <tbody id="resultBody"></tbody>
+            </table>
+          </div>
+          <div class="result-panel" id="resultPanelCalendar" style="display:none;">
+            <div id="calendar" class="calendar"></div>
+          </div>
+        </div>
+      </template>
     </div>
   </div>
  

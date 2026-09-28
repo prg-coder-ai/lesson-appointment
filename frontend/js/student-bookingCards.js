@@ -95,167 +95,48 @@ async function renderStudentBookingCards() {
         // 「名额已满」的统一提示文案
         const WAITLIST_TIP = '该排期名额已满，可候补';
 
-        html += `
-        <div class="card">
-            <div class="card-title"><i class="fa fa-book"></i> <span data-term="course">课程</span>选择</div>
-            <div class="filter-form" style="display:flex; gap:12px; margin:10px 0 12px; flex-wrap:wrap; align-items:center;">
-                <input type="text" id="course-name-input" placeholder="搜索课程名称" style="padding:6px 10px; border:1px solid #d9d9d9; border-radius:4px; min-width:220px;">
-                <button class="btn" onclick="localsearchCourse()"><i class="fa fa-search"></i> 搜索</button>
-                <button class="btn btn-default" onclick="resetCourseFilter()"><i class="fa fa-redo"></i> 重置</button>
-            </div>
-            <div id="courseCardList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin:8px 0 14px;"></div>
-            ${getPagebar()}
-        </div>`;
+        // ===== 结构来自 student.html 的 <template id="tpl-student-booking"> =====
 
-        html += `
-        <hr>
-        <div>
-            <!-- 排期选择下拉 -->
-            <div class="form-line" style="display:flex;padding-top:10px;">
-                <label>选择排期：</label>
-                <select id="scheduleSelect" onchange="displaySchedule()">
-                    <option value="">请选择排期</option>
-                </select>
-            </div>
-            <div class="section">
-                <div class="section-title">排期信息</div>
-                <div class="form-line" style="display:none;">
-                    <label>Id</label>
-                    <input type="label" id="scheduleId">
-                </div>
-                <div class="form-line" style="display:none;">
-                    <label>cId</label>
-                    <input type="label" id="courseId">
-                    <input type="label" id="teacherIdForCourse" style="display:none;">
-                </div>
-                <div class="form-line nofocus" style="display:flex;">
-                    <label><span data-term="teacher">教师</span></label>
-                    <input type="label" id="teacherNameForCourse" value="" class="readonly" style="display:flex;" readonly>
-                </div>
-                <div class="schedule-container" style="display:flex;">
-                    <!-- 左侧：排期时区 -->
-                    <div class="schedule-column">
-                        <div class="form-line">
-                            <label>排期时区：</label>
-                            <input type="text" id="originalTimeZone" readonly class="readonly">
-                        </div>
-                        <div class="form-line">
-                            <label>开始日期：</label>
-                            <input type="date" id="startDate" class="readonly" readonly>
-                            <input type="text" id="startDate_weekday" class="readonly" style="width:52px" placeholder="星期" readonly>
-                        </div>
-                        <div class="form-line" style="display:flex;" >
-                            <label><span data-term="lessonTime">上课时间</span>：</label>
-                            <input type="time" id="startTime" class="readonly" readonly>
-                        </div>
-                        <div class="form-line">
-                            <label>结束日期：</label>
-                            <input type="date" id="endDate" class="readonly" readonly>
-                        </div>
-                    </div>
-                    <!-- 右侧：用户时区 -->
-                    <div class="schedule-column" id="rightBlock" style="display:${userTimeZoneDisplay};">
-                        <div class="form-line">
-                            <label>我的时区：</label>
-                            <input type="text" id="timeZone" class="readonly" readonly>
-                        </div>
-                        <div class="form-line">
-                            <label>开始日期：</label>
-                            <input type="date" id="displayStartDate" readonly class="readonly">
-                            <input type="text" id="displayStartDate_weekday" class="readonly" style="width:52px" readonly>
-                        </div>
-                        <div class="form-line">
-                            <label><span data-term="lessonTime">上课时间</span>：</label>
-                            <input type="time" id="displayStartTime" class="readonly" readonly>
-                        </div>
-                        <div class="form-line">
-                            <label>结束日期：</label>
-                            <input type="date" id="displayEndDate" readonly class="readonly">
-                            <input type="text" id="displayEndDate_weekday" class="readonly" style="width:52px" readonly>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <!-- 重复规则（学生端只读展示） -->
-            <div class="form-line" style="display:flex;">
-                <label>重复类型：</label>
-                <input type="text" id="repeatTypeDisplay" class="readonly" readonly>
-            </div>
-            <div class="form-line" style="display:flex;">
-                <label>重复周期：</label>
-                <input type="text" id="repeatCycleDisplay" class="readonly" readonly>
-            </div>
-            <!-- 预订号（隐藏） -->
-            <div class="form-line">
-                <label><input type="label" id="bookingId" value="" style="display:none;"></label>
-            </div>
-            <div style="display: flex; flex-wrap: wrap; gap: 24px;">
-                <div class="form-line nofocus">
-                    <label>预订状态：</label>
-                    <select id="bookingStatus">
-                        <option value="none">无预订</option>
-                        <option value="booking">已预订,待确认</option>
-                        <!-- status=waiting（候补预订）：名额已满时的候补申请 -->
-                        <option value="waiting">候补</option>
-                        <option value="booked">预订成功</option>
-                        <option value="canceling">取消待确认</option>
-                        <option value="canceled">已取消</option>
-                        <option value="completed">已完成</option>
-                    </select>
-                </div>
-                <div class="sched-form-line">
-                    <label>员额：</label>
-                    <input type="number" id="availableSites" value="1" min="1" readonly class="readonly" style="width:80px">
-                </div>
-                <div class="sched-form-line">
-                    <label>剩余员额：</label>
-                    <!-- 只读展示（2026-09-28）：剩余员额 <= 0 时显示「满额」，其余显示数字。
-                         必须是 text 而不是 number —— number 类型不接受非数字文本，写「满额」会被浏览器丢弃。
-                         原始数值另存 data-remaining，供 isScheduleFull() 判定用（显示文案与判定口径分离）。
-                         初始留空 = “未知”：学生页不产生总席位数，编一个 1 出来反而像真值。 -->
-                    <input type="text" id="now_availableSites" value="" data-remaining="" readonly class="readonly" style="width:80px">
-                </div>
-            </div>
-            <!-- 操作按钮 -->
-            <div class="btn-group">
-                <button class="btn-primary" onclick="previewSchedule()">预览排期</button>
-                <!-- 已预订当前排期时显示取消按钮，否则显示预订按钮 -->
-                <button class="btn-primary" id="bookBtn" onclick="submitBooking('booking')">预定<span data-term="course">排期</span></button>
-                <!-- 候补预订：仅当「剩余席位数」为 0（名额已满）时显示。
-                     流程与「预定排期」一致（同一接口、同一表单数据），只是 status 置为 waiting；
-                     显示条件由 applyBookingButtons() 统一决定，默认不在有余位时显示。 -->
-                <button class="btn-warning" id="waitBtn" style="display:none;" onclick="submitBooking('waiting')">候补预订</button>
-                <button class="btn-danger" id="cancelBtn" onclick="cancelBooking_student()">取消预约</button>
-                <!-- 用户已取消预订时显示删除按钮 -->
-                <button class="btn-danger" id="deleteBtn" onclick="deleteBooking_student()">删除预定</button>
-                <button class="btn-success" id="refreshBtn" onclick="refreshData_student()">刷新</button>
-            </div>
-        </div>
-        <!-- 排期结果（卡片标题）/ 日历视图：同一份 scheduleResult 的两种视图，用 card 内 tab 切换（方案Y） -->
-        <div class="card">
-            <div class="card-title" style="margin-bottom:8px;"><i class="fa fa-calendar-alt"></i> 排期结果</div>
-            <div class="result-tabs">
-                <button type="button" class="result-tab active" data-tab="list" onclick="switchResultTab('list')">日期列表</button>
-                <button type="button" class="result-tab" data-tab="calendar" onclick="switchResultTab('calendar')">日历视图</button>
-            </div>
-            <div class="result-panel" id="resultPanelList">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>课次</th>
-                            <th>日期</th>
-                            <th>时间</th>
-                        </tr>
-                    </thead>
-                    <tbody id="resultBody"></tbody>
-                </table>
-            </div>
-            <div class="result-panel" id="resultPanelCalendar" style="display:none;">
-                <div id="calendar" class="calendar"></div>
-            </div>
-        </div>`;
+        // template+clone 改造（2026-09-28）：原 159 行 HTML 字符串已搬进 HTML 模板，
 
-        dynamicContentCenter.innerHTML = html;
+        // 这里只负责「取模板 → clone → 填两处动态口（分页骨架 / 时区列显隐）→ 绑事件」。
+
+        const tplEl = document.getElementById('tpl-student-booking');
+
+        if (!tplEl) {
+
+            console.error('[student-bookingCards] 缺少 #tpl-student-booking 模板，课程预订页无法渲染');
+
+            return;
+
+        }
+
+        dynamicContentCenter.replaceChildren(tplEl.content.cloneNode(true));
+
+
+
+        // 术语替换：动态注入的内容须在 clone 后补一次，否则 data-term 锚点词不替换（既有缺陷顺手修复）
+
+        if (typeof applyTerms === 'function') applyTerms(dynamicContentCenter);
+
+
+
+        // 原 ${getPagebar()} 的落点：分页骨架
+
+        const coursePagebar = document.getElementById('coursePagebar');
+
+        if (coursePagebar && typeof getPagebar === 'function') {
+
+            coursePagebar.innerHTML = getPagebar();
+
+        }
+
+        // 原 style="display:${userTimeZoneDisplay};"：右侧「我的时区」列初始显隐
+
+        const rightBlockEl = document.getElementById('rightBlock');
+
+        if (rightBlockEl) rightBlockEl.style.display = userTimeZoneDisplay;
+
 
         // 设置默认结束日期为今天 + 30 天
         const endDateInput = document.getElementById("endDate");
@@ -719,22 +600,58 @@ async function renderStudentBookingCards() {
             }
         }
 
-        // 将内部函数暴露到 window 作用域，供页面内联事件（onclick 等）调用
+        // 分页回调依赖 window.loadAndRenderCourse_student（pagefoot.js 通过 window 取数）；
+        // 其余块内函数也保留 window 暴露：既要供 student.html 菜单/深链入口调用，
+        // 也要供回归测试 check_schedule_refresh_behavior 直接驱动（loadSchedule/displaySchedule/...）。
         window.renderStudentBookingCards = renderStudentBookingCards;
         window.loadAndRenderCourse_student = loadAndRenderCourse_student;
         window.previewSchedule = previewSchedule;
-        window.renderCalendar = renderCalendar;
         window.displaySchedule = displaySchedule;
-        window.submitBooking = submitBooking;
-        window.deleteBooking_student = deleteBooking_student;
-        window.cancelBooking_student = cancelBooking_student;
         window.refreshData_student = refreshData_student;
         window.loadSchedule = loadSchedule;
         window.selectCourse = selectCourse;
-        window.switchResultTab = switchResultTab;
-        window.reloadBooking = reloadBooking_student;
-        window.operateBookingStatus = operateBookingStatus;
-        window.contactAdminForSchedule = contactAdminForSchedule;
+
+
+        // 事件绑定改用 addEventListener（取代原 10+ 处内联 onclick），
+
+        // 这里统一绑定一次（带单次绑定守卫，避免 loadAndRenderCourse_student 重复触发时重复挂监听）。
+
+        function bindStudentBookingEvents() {
+            // 每次 replaceChildren 后节点都是全新的，直接绑定即可（旧节点已被销毁，不会重复挂监听）
+            const $ = (id) => document.getElementById(id);
+
+            const on = (el, ev, fn) => { if (el) el.addEventListener(ev, fn); };
+
+
+
+            on($('btn-search-course'), 'click', localsearchCourse);
+
+            on($('btn-reset-course'), 'click', resetCourseFilter);
+
+            on($('scheduleSelect'), 'change', displaySchedule);
+
+            on($('previewBtn'), 'click', previewSchedule);
+
+            on($('bookBtn'), 'click', () => submitBooking('booking'));
+
+            on($('waitBtn'), 'click', () => submitBooking('waiting'));
+
+            on($('cancelBtn'), 'click', cancelBooking_student);
+
+            on($('deleteBtn'), 'click', deleteBooking_student);
+
+            on($('refreshBtn'), 'click', refreshData_student);
+
+            document.querySelectorAll('.result-tab').forEach(function (tab) {
+
+                on(tab, 'click', function () { switchResultTab(tab.dataset.tab); });
+
+            });
+
+        }
+
+        bindStudentBookingEvents();
+
 
         // 把「排期信息」区域重置为“尚未选择排期”的初始状态。
         // 使用场景：切换课程（loadSchedule）、所选课程没有有效排期。
@@ -1507,3 +1424,4 @@ function contactAdminForSchedule(courseId, courseName) {
  * 1. 检查不可选择的排期（已报满）；
  * 2. 按天预订的情况：已排期——可用、不可用、选择、不选择。
  */
+
