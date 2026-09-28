@@ -634,7 +634,15 @@ window.sanitizeTenantCode = function (raw) {
         loginError.style.display = 'block';
         loginError.style.color = 'green';
         loginError.textContent = '登录成功，正在跳转...';
-        setTimeout(() => redirectToUserPage(currentUser), 800);
+        setTimeout(() => {
+          // redirect（如有）优先：来自教师公开页点「排期」的回跳，登录后直达该排期
+          const redirectTarget = getUrlRedirectTarget();
+          if (redirectTarget) {
+            window.location.href = redirectTarget;
+            return;
+          }
+          redirectToUserPage(currentUser);
+        }, 800);
       } catch (error) {
         console.error('登录请求出错:', error);
         loginError.style.display = 'block';
@@ -692,6 +700,22 @@ window.sanitizeTenantCode = function (raw) {
       return (typeof window.sanitizeTenantCode === 'function') ? window.sanitizeTenantCode(raw) : (raw && raw.trim() ? raw.trim() : '');
     }
 
+    /**
+     * 「上次到访的租户编码」本地缓存键（与 teacherPublishedProfile.html 同名约定）。
+     * 教师公开页会把 URL 上的 tCode 记到此键：分享链接本身刻意不带 tCode，
+     * 访客若曾从落地页（带 tCode）进过任一公开页，再来登录时就能自动预填，
+     * 免去「家长不知道租户编码」的卡点；仍保持可编辑，换租户不受影响。
+     */
+    const REMEMBERED_TENANT_CODE_KEY = 'lastTenantCode';
+
+    /** 读本地记住的租户编码（platform 是跨租户账号标识，不作为租户预填值） */
+    function getRememberedTenantCode() {
+      try {
+        var v = String(window.localStorage.getItem(REMEMBERED_TENANT_CODE_KEY) || '').trim();
+        return (v && v !== PLATFORM_TENANT_CODE) ? v : '';
+      } catch (e) { return ''; }
+    }
+
     /** 按角色与 URL 参数决定租户编码及其可编辑状态 */
     function applyTenantCodeRule() {
       const urlCode = getTenantCodeFromUrl();
@@ -732,8 +756,8 @@ window.sanitizeTenantCode = function (raw) {
         tenantCodeInput.readOnly = true;
         return;
       }
-      // 其他情况：由用户手动填写
-      tenantCodeInput.value = DEFAULT_TENANT_CODE;
+      // 其他情况：由用户手动填写；若本浏览器曾到访过某租户的公开页，先预填该编码省一次输入
+      tenantCodeInput.value = getRememberedTenantCode() || DEFAULT_TENANT_CODE;
       tenantCodeInput.readOnly = false;
     }
 
@@ -781,7 +805,9 @@ window.sanitizeTenantCode = function (raw) {
         roleItem.style.display = '';
         tcItem.style.display = '';
         roleSel.value = '';
-        tcInput.value = '';
+        // 无 tcode：本浏览器若到访过某租户的公开页，预填该租户编码（可改），
+        // 免去家长从分享链接进来时「不知道租户编码怎么写」的卡点
+        tcInput.value = getRememberedTenantCode();
         tcInput.readOnly = false;
       }
     }
@@ -864,6 +890,36 @@ window.sanitizeTenantCode = function (raw) {
     }, 100);
   }
 
+  /**
+   * 读取并校验 URL 上的 redirect 参数：登录成功后要回到的页内地址。
+   *
+   * 用途（2026-09-28）：未登录访客在教师公开页（teacherPublishedProfile.html）点「排期/预约」时，
+   * 由该页跳来本页并带上 redirect=booking.html?scdid=xxx；登录成功后直达该排期，
+   * 而不是把人扔进角色工作台让他自己再找一遍。
+   *
+   * 安全（防开放重定向）：只接受同源地址 —— 'booking.html?x=1' / './booking.html' /
+   * '/booking.html' / 同源绝对地址；拒绝 '//evil.com'、其它域名、以及 javascript:/data: 等伪协议。
+   */
+  function getUrlRedirectTarget() {
+    var raw = '';
+    try {
+      raw = new URLSearchParams(window.location.search).get('redirect') || '';
+    } catch (e) {
+      return '';
+    }
+    raw = String(raw).trim();
+    if (!raw) return '';
+    // 伪协议（javascript:/data:/vbscript:）直接拒绝；http(s) 交给下一步同源校验
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(raw) && !/^https?:/i.test(raw)) return '';
+    var a = document.createElement('a');
+    a.href = raw;
+    if (a.origin !== window.location.origin) return '';   // 跨域一律拒绝
+    var target = (a.pathname || '') + (a.search || '') + (a.hash || '');
+    // 兜底：解析结果必须落在某个页面文件上，避免 redirect= 空值/目录造成异常跳转
+    if (!/\.html(\?|#|$)/i.test(target)) return '';
+    return target;
+  }
+
   window.onload = function() {
       // ?registered=1：由注册成功后的跳转带来。此时必须停留在登录表单，
       // 否则下面的「已登录自动跳转」会立刻把用户弹到角色首页，注册后的登录提示形同虚设。
@@ -871,8 +927,23 @@ window.sanitizeTenantCode = function (raw) {
       try {
         justRegistered = new URLSearchParams(window.location.search).get('registered') === '1';
       } catch (e) {}
+      // redirect 优先于「按角色进工作台」：公开页点「排期」→ 去登录 → 回该排期。
+      //
+      // 但回跳必须加【已登录】前提（2026-09-28 修）：
+      //   未登录时若立即回跳 redirect，目标页（如 booking.html）的入口守卫
+      //   guardEntryPage → forceEntryLogin 会把人再弹回 login.html，而那条路径
+      //   只带 tCode、不带 redirect（api.js 里消费 auth_redirect_info 的分支也已被注释），
+      //   于是「登录后回到原排期」的意图在中转途中被吞掉，用户最终落在工作台。
+      //   正确顺序：未登录 → 停在登录表单（租户编码已按 tCode 锁定）→ 登录成功后再回跳。
+      var urlRedirect = getUrlRedirectTarget();
+      var __hasToken = false;
+      try { __hasToken = !!localStorage.getItem('token'); } catch (e) {}
+      if (!justRegistered && urlRedirect && __hasToken) {
+        window.location.href = urlRedirect;
+        return;
+      }
       // 已登录用户直接进入对应角色工作台，避免停留在登录框（登录页自身不是 401 兜底环的一环）
-      if (!justRegistered && localStorage.getItem('token')) {
+      if (!justRegistered && __hasToken) {
         try {
           var __cu = JSON.parse(localStorage.getItem('currentUser') || 'null');
           if (__cu && __cu.role) { redirectToUserPage(__cu); return; }

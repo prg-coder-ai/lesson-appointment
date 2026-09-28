@@ -278,6 +278,11 @@
     pointer-events: none;    /* 禁用交互（点击、输入、焦点） */
     user-select: none;
   }
+  /* 「剩余员额」满额（剩余 <= 0）：在只读灰底上给一条醒目提示色（2026-09-28） */
+  .readonly.site-full {
+    color: #f5222d;
+    font-weight: 600;
+  }
 
   /* 外层容器：左右两列 */
 .schedule-container {

@@ -35,6 +35,33 @@
     .pub-error { display: flex; align-items: center; justify-content: center; height: 100%; color: #f5222d; font-size: 14px; flex-direction: column; gap: 12px; padding: 60px 20px; text-align: center; }
     .pub-error .icon { font-size: 36px; }
     .pub-error .hint { color: #999; font-size: 12px; }
+
+    /* 未登录访客点「排期/预约」时的登录提示层
+       —— 遮罩层不放 overflow:auto 容器；显示/隐藏只用 display 切换（布尔语义），
+          按钮热区 ≥34px，避免移动端误触。 */
+    .pub-login-mask {
+      position: fixed; left: 0; top: 0; right: 0; bottom: 0; z-index: 100;
+      background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+    .pub-login-card {
+      width: 100%; max-width: 360px; background: #fff; border-radius: 10px;
+      padding: 22px 20px 16px; box-shadow: 0 8px 32px rgba(0,0,0,.18); text-align: center;
+    }
+    .pub-login-title {
+      font-size: 16px; font-weight: 600; color: #222; margin-bottom: 10px;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .pub-login-title i { color: #722ed1; font-size: 17px; }
+    .pub-login-text { font-size: 13px; color: #666; line-height: 1.7; margin-bottom: 18px; }
+    .pub-login-actions { display: flex; gap: 10px; }
+    .pub-login-actions button {
+      flex: 1; min-height: 34px; border-radius: 6px; font-size: 14px; cursor: pointer;
+      border: 1px solid transparent; font-family: inherit;
+    }
+    .pub-login-actions .btn-cancel { background: #fff; border-color: #d9d9d9; color: #555; }
+    .pub-login-actions .btn-cancel:hover { border-color: #722ed1; color: #722ed1; }
+    .pub-login-actions .btn-primary { background: #722ed1; color: #fff; }
+    .pub-login-actions .btn-primary:hover { background: #5b21b6; }
   </style>
 </head>
 <body data-page-node-id="e5iKbhrUVbdUc2HYH6A7YA">
@@ -62,6 +89,23 @@
         <div class="icon" data-page-node-id="HsUCq64XTtdDpItMAjYIeb"><i class="fa fa-exclamation-circle" data-page-node-id="J73HIHLrogXFFwPx90yYBh"></i></div>
         <div id="pub-error-msg" data-page-node-id="GENSWGG20B6o1vGEqVTZf1">加载失败</div>
         <div class="hint" data-page-node-id="m2hrAvBz63tP3yqAI4ZRSL">请检查链接是否正确，或稍后重试</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 未登录访客点击「排期/预约」时才出现的登录提示层（默认隐藏，display 切换） -->
+  <div class="pub-login-mask" id="pub-login-mask" style="display:none;">
+    <div class="pub-login-card" role="dialog" aria-modal="true" aria-labelledby="pub-login-title">
+      <div class="pub-login-title" id="pub-login-title">
+        <i class="fa fa-lock" aria-hidden="true"></i>
+        <span>预约需要先登录</span>
+      </div>
+      <div class="pub-login-text">
+        登录后即可查看该<span data-term="teacher">教师</span>的可预约<span data-term="schedule">排期</span>并在线提交预约。
+      </div>
+      <div class="pub-login-actions">
+        <button type="button" class="btn-cancel" onclick="window.__pubHideLoginTip()">取消</button>
+        <button type="button" class="btn-primary" onclick="window.__pubGoLogin()">去登录</button>
       </div>
     </div>
   </div>
@@ -252,6 +296,116 @@
 
       window.copyShareLink = copyShareLink;
       window.closePage = closePage;
+
+      // ====================== 未登录点「排期/预约」→ 页面内登录提示层 ======================
+      // 背景（2026-09-28）：师资卡片点击已改为「未登录也直接进本公开页」，登录门槛后移到
+      // 「点排期」这一步。快照（staticHtml）里的「直达预定 / 全部排期」是指向站内
+      // booking.html 的 <a>，而快照是异步注入的 → 用 document 上的事件委托统一接管：
+      //   已登录：完全放行（保持原 target=_blank 新窗口打开 booking.html）
+      //   未登录：拦下默认跳转，先弹提示层；点「去登录」带上 redirect=该排期地址，
+      //          由 login.html 在登录成功后回跳，续上预约流程（不再把人扔到工作台）。
+      var pendingBookingTarget = '';
+
+      function isLoggedIn() {
+        try { return !!localStorage.getItem('token'); } catch (e) { return false; }
+      }
+
+      /** 相对 href → 同源「path+search」；站外链接返回 ''（不由本页接管） */
+      function toSameOriginPath(href) {
+        try {
+          var a = document.createElement('a');
+          a.href = href;
+          if (a.origin !== window.location.origin) return '';
+          return (a.pathname || '') + (a.search || '');
+        } catch (e) {
+          return '';
+        }
+      }
+
+      /** 站内预约深链判定：booking.html（?scdid=排期 / ?tid=教师）
+       *  注意：**不能用 `$` 锚定整串末尾** —— 真实深链是 booking.html?scdid=xxx，
+       *  末尾是查询串而不是文件名。曾用 /\/booking\.html$/ 匹配到 "/booking.html?scdid=9001"
+       *  恒不命中，导致所有「排期/预约」点击都绕过提示层直接跳走。 */
+      function isBookingHref(href) {
+        return /(^|\/)booking\.html(\?|#|$)/i.test(toSameOriginPath(href));
+      }
+
+      /** 「上次到访的租户编码」本地缓存键。
+       *  对外分享的公开页链接刻意不带 tCode（见 publicProfileUrl 注释），
+       *  但访客可能先经由落地页（带 tCode）进来一次；记住它，后续再点分享链接
+       *  也能把租户上下文续到登录页，免去手填租户编码。 */
+      var TENANT_CODE_KEY = 'lastTenantCode';
+
+      /** 读 URL 上的租户编码（兼容「?tCode =xxx」键名带空格：手动按 & 解析）。不回退本地缓存 */
+      function tenantCodeFromUrlRaw() {
+        var raw = '';
+        var pairs = (window.location.search || '').replace(/^\?/, '').split('&');
+        for (var i = 0; i < pairs.length; i++) {
+          if (!pairs[i]) continue;
+          var eq = pairs[i].indexOf('=');
+          var k = eq === -1 ? pairs[i] : pairs[i].slice(0, eq);
+          var v = eq === -1 ? '' : pairs[i].slice(eq + 1);
+          try {
+            if (decodeURIComponent(k).trim().toLowerCase() === 'tcode') { raw = decodeURIComponent(v); break; }
+          } catch (e) { /* 单个参数解码失败不影响其余参数 */ }
+        }
+        return (typeof window.sanitizeTenantCode === 'function')
+          ? window.sanitizeTenantCode(raw)
+          : (raw && raw.trim() ? raw.trim() : '');
+      }
+
+      /** 当前租户编码：URL 优先，其次本浏览器记住的上次租户编码（分享链接场景兜底） */
+      function tenantCodeFromUrl() {
+        var tc = tenantCodeFromUrlRaw();
+        if (tc) return tc;
+        try { return window.localStorage.getItem(TENANT_CODE_KEY) || ''; } catch (e) { return ''; }
+      }
+
+      // 启动即记忆：URL 带 tCode 时写入本地，供后续「不带 tCode 的分享链接」兜底
+      (function rememberTenantCode() {
+        var tc = tenantCodeFromUrlRaw();
+        if (!tc) return;
+        try { window.localStorage.setItem(TENANT_CODE_KEY, tc); } catch (e) {}
+      })();
+
+      function showLoginTip(target) {
+        pendingBookingTarget = target || '';
+        var mask = document.getElementById('pub-login-mask');
+        if (!mask) return;
+        // 文案按当前行业词生成（termText 拉不到租户词时会退回平台词，与顶部条一致）
+        var textEl = mask.querySelector('.pub-login-text');
+        if (textEl) {
+          var tw = teacherWord();
+          var sw = (typeof termText === 'function') ? termText('schedule') : '排期';
+          textEl.textContent = '登录后即可查看该' + tw + '的可预约' + sw + '并在线提交预约。';
+        }
+        mask.style.display = 'flex';
+      }
+
+      window.__pubHideLoginTip = function () {
+        var mask = document.getElementById('pub-login-mask');
+        if (mask) mask.style.display = 'none';
+      };
+
+      window.__pubGoLogin = function () {
+        var tc = tenantCodeFromUrl();
+        var qs = [];
+        if (tc) qs.push('tCode=' + encodeURIComponent(tc));
+        // redirect 只在有目标时带：让登录页知道「登录后回到哪个排期」
+        if (pendingBookingTarget) qs.push('redirect=' + encodeURIComponent(pendingBookingTarget));
+        window.location.href = 'login.html' + (qs.length ? '?' + qs.join('&') : '');
+      };
+
+      document.addEventListener('click', function (e) {
+        var node = e.target;
+        var a = (node && node.closest) ? node.closest('a[href]') : null;
+        if (!a) return;
+        var href = a.getAttribute('href') || '';
+        if (!isBookingHref(href)) return;   // 只接管预约深链，站外链接/分享链接照旧
+        if (isLoggedIn()) return;           // 已登录：不干预
+        e.preventDefault();
+        showLoginTip(toSameOriginPath(href));
+      });
 
       // 启动
       loadPublished();

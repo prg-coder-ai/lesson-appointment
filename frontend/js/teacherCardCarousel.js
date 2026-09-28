@@ -7,8 +7,10 @@
 //        GET /api/v1/teacher/published/public-list?tenantCode=xxx
 //        返回裁剪 VO：{ publishedProfileId, teacherId, name, title, summary, coverUrl }
 //        注意：免登录接口须按 public-endpoint-tenant-bypass 处理（白名单 + @InterceptorIgnore(tenantLine="true") + 按 tenantCode 过滤）。
-//   3) 点击行为（登录态分支）：已登录 → 直接打开免登录公开个人页 teacherPublishedProfile.html?id=<publishedProfileId>；
-//        未登录 → 跳登录页再预约（login.html?from=landing&tid=xxx），登录后由 login 跳转逻辑处理回课程预订。
+//   3) 点击行为（不区分登录态）：一律直接打开免登录公开个人页 teacherPublishedProfile.html?id=<publishedProfileId>。
+//        未登录访客也允许查看师资介绍，不再在卡片点击处跳登录页；
+//        只有在该公开页内部点击「排期/预约」链接时，才由公开页自己弹出登录提示
+//        （见 teacherPublishedProfile.html 的拦截逻辑 + login.html 的 redirect 回跳）。
 //
 (function () {
   'use strict';
@@ -29,20 +31,15 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
-  // 点击卡片：已登录 → 跳该教师公开职业信息详情页（teacherPublishedProfile.html?id=）；未登录 → 跳登录页（带 tid）
+  // 点击卡片：不区分登录态，直接打开该教师的公开职业信息详情页（teacherPublishedProfile.html?id=）。
+  // 未登录也放行 —— 访客可自由浏览师资介绍；需要登录的动作（点「排期/预约」）由公开页内部再提示，
+  // 提示层由 teacherPublishedProfile.html 实现（含登录后回跳该排期）。
   function onTeacherCardClick(teacher) {
     if (!teacher) return;
     var pid = teacher.profileId || teacher.teacherId;
-    var loggedIn = !!localStorage.getItem('token');
-    if (loggedIn) {
-      var base = (typeof window.pageUrl === 'function') ? window.pageUrl('teacherPublishedProfile.html') : 'teacherPublishedProfile.html';
-      // pageUrl 可能已带 ?tCode=xxx，须用 & 续接，避免拼出第二个 ? 导致 id 解析失败
-      window.location.href = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'id=' + encodeURIComponent(pid);
-    } else {
-      var loginBase = (typeof window.pageUrl === 'function') ? window.pageUrl('login.html') : 'login.html';
-      // noredirect=1：避免 index 早期脚本把「未登录 + 带 tCode」再次重定向回 landing，形成死循环
-      window.location.href = loginBase + (loginBase.indexOf('?') >= 0 ? '&' : '?') + 'from=landing&tid=' + encodeURIComponent(teacher.teacherId) + '&noredirect=1';
-    }
+    var base = (typeof window.pageUrl === 'function') ? window.pageUrl('teacherPublishedProfile.html') : 'teacherPublishedProfile.html';
+    // pageUrl 可能已带 ?tCode=xxx，须用 & 续接，避免拼出第二个 ? 导致 id 解析失败
+    window.location.href = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'id=' + encodeURIComponent(pid);
   }
 
   // 加载卡片数据：优先走真实免登录公开列表接口（按当前租户 tCode 过滤）；

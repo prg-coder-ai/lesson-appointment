@@ -28,6 +28,22 @@
 
     <script>
     window.onload = function() {
+        // ====== 未登录：把当前深链作为 redirect 带去登录页（2026-09-28）======
+        // 家长/学生直接从分享或介绍页点开的「booking.html?scdid=xxx」通常是未登录态。
+        // 若交给下面的 guardEntryPage 处理，它内部走 api.js 的 forceEntryLogin()，
+        // 那只带 tCode、不带 redirect（api.js 里消费 auth_redirect_info 的分支已被注释），
+        // 结果登录成功后只能落在工作台，用户还得自己重新找一遍这个排期。
+        // 这里提前接管：带 redirect 跳登录页，登录成功后由 login.html 回跳本深链。
+        var __logged = false;
+        try { __logged = !!localStorage.getItem('token'); } catch (e) {}
+        if (!__logged) {
+          var __self = window.location.pathname + window.location.search;
+          window.location.href = (typeof window.pageUrl === 'function')
+            ? window.pageUrl('login.html', { redirect: __self })
+            : './login.html?redirect=' + encodeURIComponent(__self);
+          return;
+        }
+
         // ====== 入口登录态守卫：booking 为多角色路由页，不传 requiredRole，仅做会话/租户一致性校验 ======
         if (typeof window.guardEntryPage === 'function' && !window.guardEntryPage()) {
           return; // 守卫已触发强制跳转

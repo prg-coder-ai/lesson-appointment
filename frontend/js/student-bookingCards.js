@@ -8,6 +8,56 @@ document.write('<script src="/js/public/pagefoot.js"></script>');
 // 避免对同一课程反复请求排期列表（fetchScheduleList 是网络请求，N 门课程时尤其明显）。
 const _courseSchedulePublishCache = new Map();
 
+/* ============================================================================
+ * 「剩余员额」的显示口径与判定口径（2026-09-28）
+ *
+ * 显示：剩余员额 <= 0 时显示「满额」，其余显示数字。
+ * 判定：isScheduleFull() / applyBookingButtons() 仍需拿到**数值**来决定是否放出候补按钮。
+ *
+ * 两者必须分开存，否则会互相打架：
+ *   - <input type="number"> 不收非数字文本 → 写「满额」会被浏览器静默丢弃（所以改成了 text）；
+ *   - 若把「满额」当数值去 Number() → NaN → `Number.isFinite(NaN)` 为 false →
+ *     被判定成「未满」→ 满员时候补按钮反而不出现（原缺陷的翻版）。
+ * 故：显示文案写 value，数值另存 data-remaining，回读一律优先 data-remaining。
+ * 三个函数定义在文件顶层（而非渲染函数内），便于被 tests 直接覆盖。
+ * ========================================================================== */
+const FULLY_BOOKED_TEXT = '满额';
+
+/** 剩余员额 → 展示文案；''/null/undefined/非有限数 一律按「未知」返回空串（不伪装成 0） */
+function formatRemainingSites(remainingSites) {
+    if (remainingSites === null || remainingSites === undefined || remainingSites === '') return '';
+    const n = Number(remainingSites);
+    if (!Number.isFinite(n)) return '';
+    return n > 0 ? String(n) : FULLY_BOOKED_TEXT;
+}
+
+/** 把剩余员额写进只读展示框：文案 + 数值载体(data-remaining) + 满额样式(site-full) */
+function applyRemainingSitesDisplay(el, remainingSites) {
+    if (!el) return;
+    const text = formatRemainingSites(remainingSites);
+    el.value = text;
+    if (el.dataset) {
+        el.dataset.remaining = (text === '') ? '' : String(Number(remainingSites));
+    }
+    if (el.classList) {
+        el.classList.toggle('site-full', text === FULLY_BOOKED_TEXT);
+    }
+}
+
+/** 从 DOM 回读剩余员额：优先数值载体 data-remaining，其次才用显示文案 */
+function readRemainingSitesFromDom() {
+    const el = document.getElementById('now_availableSites');
+    if (!el) return null;
+    const raw = el.dataset ? el.dataset.remaining : undefined;
+    if (raw !== undefined && raw !== '') return raw;
+    return el.value;
+}
+
+// 导出给自动化测试使用（渲染函数本身在块内，未调用前拿不到其内部函数）
+window.formatRemainingSites = formatRemainingSites;
+window.applyRemainingSitesDisplay = applyRemainingSitesDisplay;
+window.readRemainingSitesFromDom = readRemainingSitesFromDom;
+
 /**
  * 渲染课程预订管理页面
  * 对于学生，仅显示已发布的课程（status=active）
@@ -159,7 +209,11 @@ async function renderStudentBookingCards() {
                 </div>
                 <div class="sched-form-line">
                     <label>剩余员额：</label>
-                    <input type="number" id="now_availableSites" value="1" min="1" readonly style="width:80px">
+                    <!-- 只读展示（2026-09-28）：剩余员额 <= 0 时显示「满额」，其余显示数字。
+                         必须是 text 而不是 number —— number 类型不接受非数字文本，写「满额」会被浏览器丢弃。
+                         原始数值另存 data-remaining，供 isScheduleFull() 判定用（显示文案与判定口径分离）。
+                         初始留空 = “未知”：学生页不产生总席位数，编一个 1 出来反而像真值。 -->
+                    <input type="text" id="now_availableSites" value="" data-remaining="" readonly class="readonly" style="width:80px">
                 </div>
             </div>
             <!-- 操作按钮 -->
@@ -486,7 +540,9 @@ async function renderStudentBookingCards() {
             if (!Number.isFinite(remainingSites) || remainingSites <= 0) {
                 remainingSites = 0;
             }
-            now_availableSites.value = remainingSites;
+            // 展示口径：剩余员额 <= 0 显示「满额」，其余显示数字。
+            // 数值同时写入 data-remaining（见文件顶部说明），供「是否已满」判定回读。
+            applyRemainingSitesDisplay(now_availableSites, remainingSites);
 
             // 记录剩余席位，供按钮组合（预定 / 候补预订）判定“名额是否已满”
             currentRemainingSites = Number(remainingSites) || 0;
@@ -718,6 +774,10 @@ async function renderStudentBookingCards() {
             // 归空后 isScheduleFull() 按“未知即未满”处理，不会误阻断预定。
             setVal('availableSites', '');
             setVal('now_availableSites', '');
+            // 「剩余员额」的数值载体与满额样式一并复位（文案已由上面的 setVal 清空）：
+            // 否则残留上一排期的 data-remaining，isScheduleFull() 在 currentRemainingSites
+            // 为 null 时会读到旧值，误弹候补按钮
+            applyRemainingSitesDisplay(document.getElementById('now_availableSites'), null);
 
             // 5) 预订状态回到“无预订”，按钮组合回到初始（否则会残留上一排期的取消/删除按钮）
             setVal('bookingId');
@@ -954,8 +1014,9 @@ async function renderStudentBookingCards() {
         function isScheduleFull() {
             let v = currentRemainingSites;
             if (v == null) {
-                const el = document.getElementById('now_availableSites');
-                v = el ? el.value : null;
+                // 回读走 readRemainingSitesFromDom()：它优先取数值载体 data-remaining，
+                // 因为满额时该字段的**显示文案**是「满额」，直接 Number('满额') 会得 NaN → 误判为「未满」
+                v = readRemainingSitesFromDom();
             }
             if (v == null || v === '') return false;
             const n = Number(v);

@@ -35,6 +35,7 @@
 - 公开页两处独立防线，缺一即漏：① utility_request.js 的 401 拦截(`__PUBLIC_LANDING__||config.noAuthRedirect`)；② api.js InitUserInfo 顶层跳转守卫。新增公开页**必须两处都有**，且 `window.__PUBLIC_LANDING__=true` 必须在 utility_request.js / api.js **之前**注入。
 - **`pageUrl` 有两份实现**：api.js:695 自带一份并 `window.pageUrl=...` **覆盖** utility_request.js 的同名全局；api.js 内部调用的是自己 IIFE 内提升的那份 → 测试若 hook `window.pageUrl` 判断跳转**恒假通过**。判据应用 jsdom 真实导航错误(`Not implemented: navigation`)。
 - 测试：`test_landing_noredirect.js`(13 项，含 T7 反向用例自证判据有效)、`test_landing_e2e.js`(jsdom.fromURL 真实页 4 项)。**dist 压缩后变量名 `isPublicPage` 消失**，产物校验须 grep 字符串常量 `__PUBLIC_LANDING__`。
+- **登录回跳 redirect 必须带"已登录"前提**(2026-09-28)：onload 里只判 redirect 非空就跳 → 未登录立即回跳 → 目标页守卫 `forceEntryLogin` 再弹回**不带 redirect** 的登录页 → 回跳意图被吞(`api.js` 消费 `auth_redirect_info` 的 consumeLoginRedirect 分支已整段注释)。另 `booking.html` 未登录须在 `guardEntryPage()` **之前**自带 redirect 跳登录。回归 `tests/check_login_redirect_roundtrip.js`(28 项，`FRONTEND_DIR=` 阴性对照实测 7 FAIL)。
 
 ## 免登录接口×租户插件
 - 无租户上下文入口被插件追加 tenant_id=-1→恒不命中("页面能开永远无数据")。放行=三处白名单(进得来)+查询 @InterceptorIgnore(tenantLine="true")。
@@ -72,6 +73,9 @@
 3. Nginx try_files 把不存在页渲染成登录首页→先确认文件在 frontend/与 dist/。
 4. 弹出层禁放 overflow:auto 容器；显隐用布尔变量；热区≥28px。
 5. 侧栏静态 HTML，菜单不显示先查 CSS：.layout-container overflow:hidden + .sidebar 须 overflow-y:auto(admin/student/teacher 已加)；菜单总高≈1040px<视口即裁底部组。
+6. 登录门槛后移(2026-09-28)：landing 卡片不管登录态一律开 teacherPublishedProfile.html?id=<publishedProfileId>；登录门槛落在**公开页内点「排期」**——公开页 document 级委托只接管站内 booking.html 深链，未登录弹自绘层 → login.html?tCode=&redirect=<path+search>，login.html 的 getUrlRedirectTarget() 同源白名单校验后优先回跳(否则按角色进工作台)。
+7. 判定"某类链接"的正则**别用 `$` 锚定文件名**：`/\/booking\.html$/` 匹配不到 `booking.html?scdid=x`(末尾是查询串)；用 `/(^|\/)booking\.html(\?|#|$)/`。
+8. 显示口径≠判定口径：同一 DOM 字段既展示又用于判定时(如学生端 `#now_availableSites` 剩余员额)，展示文案进 `value`、数值进 `data-remaining`，回读优先 `data-remaining`。两个坑：① `<input type="number">` 会**静默丢弃**「满额」这类文本→必须 text；② 把「满额」交给 `Number()` 得 NaN→`isFinite(NaN)` false→被判「未满」→候补按钮消失。口径收敛成 `formatRemainingSites/applyRemainingSitesDisplay/readRemainingSitesFromDom`(顶层导出)，`tests/check_remaining_sites_display.js` 42 项(阴性对照 9 FAIL)。
 
 ## 微信登录(2026-09-20 屏蔽)
 - 不考虑微信登录：User.wxOpenid 标 @TableField(exist=false)；UserMapper.getByWxOpenid/updateWxOpenid、UserService.wechatLogin/bindWechat、authController /wechat-login /bind-wechat 均块注释屏蔽(可恢复)。
