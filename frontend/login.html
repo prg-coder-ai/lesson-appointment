@@ -487,7 +487,7 @@ window.sanitizeTenantCode = function (raw) {
         registerSuccess.style.display = 'block';
         // request 拦截器 code=200 时只返回 res.data（Map：{userId,account,token,role}）
         // 所以 message 需从 localStorage 暂存或用默认文案；此处给用户友好提示
-        registerSuccess.textContent = '注册成功，请等待管理员审核';
+        registerSuccess.textContent = '注册成功，请等待管理员审核，即将跳转登录页...';
 
         // 5. 保存登录态：currentUser（完整用户信息） + token/refreshToken
         //    后端 Register 接口返回不含 refreshToken（只有 token），这里与登录返回对齐
@@ -532,7 +532,9 @@ window.sanitizeTenantCode = function (raw) {
             console.warn('保存注册租户编码失败（不影响跳转）：', e);
           }
           // 重定向到登录界面，URL 地址栏包含 tCode=注册时的租户编码（参数名与 getTenantCodeFromUrl 约定一致）
-          const loginUrl = './login.html?tCode=' + encodeURIComponent(regTenantCode);
+          // registered=1：告知登录页「本次是注册后的跳转」，须停留在登录表单，
+          //              不要被「已登录自动跳工作台」逻辑立刻弹走（否则想看登录框却被弹到角色首页）。
+          const loginUrl = './login.html?tCode=' + encodeURIComponent(regTenantCode) + '&registered=1';
           window.location.assign(loginUrl);
         }, 2000);
 
@@ -797,20 +799,19 @@ window.sanitizeTenantCode = function (raw) {
     registerForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       
-      // 验证表单
-      if (!(await validateRegisterForm())) {
-        return;
-      }
-
       // 禁用提交按钮，防止重复提交
       registerBtn.disabled = true;
 
       try {
-        await submitRegister();
-         alert('注册申请提交成功');
-        registerSuccess.style.display = 'block';
-        registerSuccess.style.color = 'green';
-        registerSuccess.textContent = '注册成功，正在跳转...';
+        // 校验 + 提交 + 成功提示 + 定时跳转，全部由 submitRegister 内部完成；
+        // 原先这里又单独跑了一遍 validateRegisterForm（导致账号存在性接口被请求两次），
+        // 且不检查 submitRegister 的返回值就弹「注册成功」，会出现「注册失败却提示成功」的自相矛盾。
+        const ok = await submitRegister();
+        if (!ok) {
+          // 校验未通过 / 提交失败：submitRegister 已给出具体错误提示，这里只恢复按钮
+          registerBtn.disabled = false;
+          return;
+        }
         // 跳转交由 submitRegister 内部统一处理（按角色落到对应首页，
         // 平台管理员 → platform_admin.html，租户端/教师/学生 → 各自首页），
         // 此处不再重复 redirect，避免与 submitRegister 的跳转互相覆盖
@@ -864,8 +865,14 @@ window.sanitizeTenantCode = function (raw) {
   }
 
   window.onload = function() {
+      // ?registered=1：由注册成功后的跳转带来。此时必须停留在登录表单，
+      // 否则下面的「已登录自动跳转」会立刻把用户弹到角色首页，注册后的登录提示形同虚设。
+      var justRegistered = false;
+      try {
+        justRegistered = new URLSearchParams(window.location.search).get('registered') === '1';
+      } catch (e) {}
       // 已登录用户直接进入对应角色工作台，避免停留在登录框（登录页自身不是 401 兜底环的一环）
-      if (localStorage.getItem('token')) {
+      if (!justRegistered && localStorage.getItem('token')) {
         try {
           var __cu = JSON.parse(localStorage.getItem('currentUser') || 'null');
           if (__cu && __cu.role) { redirectToUserPage(__cu); return; }
@@ -875,6 +882,15 @@ window.sanitizeTenantCode = function (raw) {
       applyTenantCodeRule();
       // 登录界面 tcode 专属链接：隐藏身份与租户编码并锁定为 tcode 对应值
       applyTcodeToLogin();
+      // 注册后跳回：给一条绿色成功提示，引导用户用刚注册的账号登录
+      if (justRegistered) {
+        var el = document.getElementById('login-error');
+        if (el) {
+          el.style.display = 'block';
+          el.style.color = 'green';
+          el.textContent = '注册成功，请使用刚注册的账号登录（账号需管理员审核后方可正常使用）';
+        }
+      }
   };
   </script>
 </body>

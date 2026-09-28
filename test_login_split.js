@@ -37,7 +37,7 @@ function runEarly(search, hasToken) {
   try { vm.runInContext(early, sb, { filename: 'early' }); } catch (e) { console.log('  [ERR] early run: ' + e.message); }
   return replaced;
 }
-assert('?tCode =tenant_A 未登录 → landing(干净tCode)', runEarly('?tCode =tenant_A', false) === 'student-landing.html?tCode=tenant_A&from=index', runEarly('?tCode =tenant_A', false));
+assert('?tCode =tenant_A 未登录 → landing(干净tCode,无from)', runEarly('?tCode =tenant_A', false) === 'student-landing.html?tCode=tenant_A', runEarly('?tCode =tenant_A', false));
 assert('无 tCode 未登录 → login.html', runEarly('', false) === 'login.html', runEarly('', false));
 assert('带 noredirect=1 → 不跳（防循环）', runEarly('?tCode=TENANT_A&noredirect=1', false) === null);
 assert('已登录 → 不跳（交 body 脚本进角色页）', runEarly('?tCode=TENANT_A', true) === null);
@@ -45,7 +45,7 @@ assert('已登录 → 不跳（交 body 脚本进角色页）', runEarly('?tCode
 console.log('\n=== 真实后端（landing 展示非空）===');
 (async () => {
   try {
-    const r = await fetch('http://localhost:8080/api/v1/teacher/published/public-list?tenantCode=TENANT_A');
+    const r = await fetch('http://localhost:8080/api/v1/teacher/published/public-list?tenantCode=TENANT_A', { signal: AbortSignal.timeout(3000) });
     let n = -1;
     try { const j = await r.json(); n = (j && j.data && Array.isArray(j.data)) ? j.data.length : -1; } catch (e) {}
     assert('public-list 返回教师(TENANT_A) 且 >0', r.status === 200 && n > 0, 'status=' + r.status + ' n=' + n);

@@ -144,7 +144,7 @@
           localStorage.removeItem('currentUser');
           localStorage.removeItem('auth_menu_state');
         } catch (e) {}
-        window.location.href = 'student-landing.html' + (tCode ? ('?tCode=' + encodeURIComponent(tCode) + '&from=index') : '?from=index');
+        window.location.href = 'student-landing.html' + (tCode ? ('?tCode=' + encodeURIComponent(tCode)) : '');
       };
 
       // 关闭本页面：弹窗直接关；顶层页（非 window.open 打开）window.close 通常被浏览器禁止，

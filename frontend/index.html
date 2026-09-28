@@ -22,8 +22,9 @@
       return raw;
     };
     // 租户专属链接（?tCode=xxx）且未登录：直接落到师资展示页（自带「登录/注册」入口），
-    // 跳过登录墙，体验更友好。用 location.replace 把 index 从历史栈移除，避免落地页「关闭」→
-    // history.back() → index → 再重定向形成的死循环；落地页「登录/注册」会带 noredirect=1 回到本页登录表单。
+    // 跳过登录墙，体验更友好。用 location.replace 把 index 从历史栈移除，让地址栏直接变为
+    // student-landing.html，避免落地页「关闭」→ history.back() → index → 再重定向形成的死循环。
+    // 落地页「登录/注册」按钮指向独立的 login.html 并带 noredirect=1，不再回 index。
     (function () {
       try {
         var sp = new URLSearchParams(window.location.search);
@@ -51,7 +52,7 @@
         // 未登录 + 有 tCode → 展示页(带登录入口)；未登录 + 无 tCode → 登录页；已登录 → 交由底部脚本进角色工作台
         if (!hasToken) {
           if (tCode && noRedirect !== '1') {
-            window.location.replace('student-landing.html?tCode=' + encodeURIComponent(tCode) + '&from=index');
+            window.location.replace('student-landing.html?tCode=' + encodeURIComponent(tCode));
           } else if (noRedirect !== '1') {
             window.location.replace('login.html');
           }
