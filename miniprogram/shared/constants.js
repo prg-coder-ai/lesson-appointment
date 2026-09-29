@@ -33,10 +33,10 @@ export function setRuntimeConfig(cfg) {
 // 角色 → 首页路由（两端共用，避免各写一套 switch）
 export function homePageForRole(role) {
   switch (role) {
-    case ROLES.PLATFORM_ADMIN: return '/package-admin/home/home';
-    case ROLES.ADMIN: return '/package-admin/home/home';
-    case ROLES.TEACHER: return '/package-teacher/home/home';
-    case ROLES.STUDENT: return '/package-student/home/home';
+    case ROLES.PLATFORM_ADMIN: return '/pages/admin/home';
+    case ROLES.ADMIN: return '/pages/admin/home';
+    case ROLES.TEACHER: return '/pages/teacher/home';
+    case ROLES.STUDENT: return '/pages/student/home';
     default: return '/pages/login/login';
   }
 }
@@ -45,20 +45,20 @@ export function homePageForRole(role) {
 // key 同时用于页面间的 active 高亮判断。
 export const TAB_ITEMS = {
   student: [
-    { key: 'home', page: '/package-student/home/home', text: '首页', icon: 'home' },
-    { key: 'booking', page: '/package-student/booking/booking', text: '约课', icon: 'calendar' },
-    { key: 'my', page: '/package-student/my-booking/my-booking', text: '我的预约', icon: 'list' },
+    { key: 'home', page: '/pages/student/home', text: '首页', icon: 'home' },
+    { key: 'booking', page: '/pages/student/booking', text: '约课', icon: 'calendar' },
+    { key: 'my', page: '/pages/student/my-booking', text: '我的预约', icon: 'list' },
     { key: 'mine', page: '/pages/mine/mine', text: '我的', icon: 'user' }
   ],
   teacher: [
-    { key: 'home', page: '/package-teacher/home/home', text: '工作台', icon: 'home' },
-    { key: 'courses', page: '/package-teacher/courses/courses', text: '我的课程', icon: 'book' },
-    { key: 'profile', page: '/package-teacher/profile/profile', text: '我的简介', icon: 'friend' },
+    { key: 'home', page: '/pages/teacher/home', text: '工作台', icon: 'home' },
+    { key: 'courses', page: '/pages/teacher/courses', text: '我的课程', icon: 'book' },
+    { key: 'profile', page: '/pages/teacher/profile', text: '我的简介', icon: 'friend' },
     { key: 'mine', page: '/pages/mine/mine', text: '我的', icon: 'user' }
   ],
   admin: [
-    { key: 'home', page: '/package-admin/home/home', text: '概览', icon: 'home' },
-    { key: 'dashboard', page: '/package-admin/dashboard/dashboard', text: '运营', icon: 'chart' },
+    { key: 'home', page: '/pages/admin/home', text: '概览', icon: 'home' },
+    { key: 'dashboard', page: '/pages/admin/dashboard', text: '运营', icon: 'chart' },
     { key: 'mine', page: '/pages/mine/mine', text: '我的', icon: 'user' }
   ]
 };

@@ -1,0 +1,25 @@
+.page { min-height: 100vh; background: #f5f7fa; padding-bottom: 20rpx; }
+.topbar { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 28rpx 12rpx; flex-wrap: wrap; }
+.tb-title { font-size: 34rpx; font-weight: 600; color: #1f2a4d; }
+.tb-filters { display: flex; flex-wrap: wrap; }
+.flt { font-size: 24rpx; color: #667; padding: 6rpx 16rpx; margin-left: 8rpx; background: #fff; border-radius: 24rpx; }
+.flt.on { color: #fff; background: #4e6ef2; }
+
+.tip { text-align: center; color: #99a; padding: 40rpx 0; font-size: 26rpx; }
+.empty { text-align: center; color: #99a; padding: 90rpx 0; }
+.empty-glyph { font-size: 80rpx; margin-bottom: 16rpx; }
+
+.list { padding: 8rpx 24rpx; }
+.item { background: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 16rpx; box-shadow: 0 2rpx 10rpx rgba(30,50,90,.06); }
+.it-top { display: flex; align-items: center; justify-content: space-between; }
+.it-title { font-size: 30rpx; font-weight: 600; color: #1f2a4d; }
+.it-status { font-size: 22rpx; padding: 2rpx 14rpx; border-radius: 20rpx; background: #eef1f7; color: #5a6472; }
+.it-status.s-booking { color: #c0871b; background: #fff3e0; }
+.it-status.s-booked { color: #3a8a3a; background: #e7f6e7; }
+.it-status.s-cancelled, .it-status.s-canceling { color: #c0392b; background: #fdecea; }
+.it-status.s-completed { color: #8a6d00; background: #fff7e0; }
+.it-sub { font-size: 26rpx; color: #667; margin-top: 8rpx; }
+.it-time { font-size: 24rpx; color: #889; margin-top: 6rpx; }
+.item-actions { display: flex; margin-top: 14rpx; }
+.act { font-size: 26rpx; color: #4e6ef2; padding: 8rpx 28rpx; border: 1px solid #4e6ef2; border-radius: 30rpx; margin-right: 16rpx; }
+.act.danger { color: #c0392b; border-color: #c0392b; }

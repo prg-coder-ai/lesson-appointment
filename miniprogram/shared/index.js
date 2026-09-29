@@ -4,3 +4,5 @@ export * from './constants.js';
 export * from './format.js';
 export * from './apiPaths.js';
 export * from './terms.js';
+// P1 领域层下沉：退改规则纯逻辑（零 DOM），Web 端经 P0 构建桥接后可挂 window.RefundRuleDomain。
+export * from './domain/refundRule.js';

@@ -1,0 +1,24 @@
+<view class="page">
+  <view class="topbar">
+    <view class="tb-title">浏览师资</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="tip">加载中…</view>
+  <view wx:elif="{{list.length===0}}" class="empty">
+    <view class="empty-glyph">👥</view>
+    <view>暂无可展示的师资</view>
+  </view>
+  <view wx:else class="cards">
+    <view wx:for="{{list}}" wx:key="id" class="card" data-id="{{item.id}}" bindtap="goProfile">
+      <view class="card-avatar">{{item.name[0]}}</view>
+      <view class="card-body">
+        <view class="card-name">{{item.name}}</view>
+        <view class="card-headline" wx:if="{{item.headline}}">{{item.headline}}</view>
+        <view class="card-summary">{{item.summary}}</view>
+      </view>
+      <view class="card-arrow">›</view>
+    </view>
+  </view>
+
+  <role-tabbar active="home" bind:change="onTabChange" />
+</view>

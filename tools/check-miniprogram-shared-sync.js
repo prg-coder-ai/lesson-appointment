@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 /*
- * P0-1 md5 守卫：小程序端术语镜像必须与根领域层一致，且 terms.js 必须是纯 re-export 桩。
+ * P0-1 md5 守卫：小程序端 shared/ 镜像必须与根 shared/ 逐文件一致（整目录镜像）。
  *
- * 不一致说明有人改了 mp 副本而非根 shared —— 会导致 web/mp 术语分叉。
+ * 不一致说明有人手改了 mp 副本而非根 shared —— 会导致 web/mp 逻辑分叉。
  * 构建前由 frontend/build.js 调用；也可单独运行做 CI 检查。
  * 紧急跳过：SKIP_SHARED_SYNC=1 node frontend/build.js
  */
@@ -12,9 +12,8 @@ const path = require('path');
 const crypto = require('crypto');
 
 const ROOT = path.resolve(__dirname, '..');
-const SRC = path.join(ROOT, 'shared', 'domain', 'term.js');
-const MIRROR = path.join(ROOT, 'miniprogram', 'shared', 'domain', 'term.js');
-const STUB = path.join(ROOT, 'miniprogram', 'shared', 'terms.js');
+const SRC_DIR = path.join(ROOT, 'shared');
+const MIRROR_DIR = path.join(ROOT, 'miniprogram', 'shared');
 
 function md5(p) {
   if (!fs.existsSync(p)) return null;
@@ -26,26 +25,29 @@ function fail(msg) {
   process.exit(1);
 }
 
-if (!fs.existsSync(SRC)) fail('根领域层缺失 ' + path.relative(ROOT, SRC));
-
-const srcMd5 = md5(SRC);
-const mirrorMd5 = md5(MIRROR);
-if (mirrorMd5 === null) {
-  fail('小程序镜像缺失 ' + path.relative(ROOT, MIRROR) + '（请跑 tools/sync-miniprogram-shared.js）');
-}
-if (srcMd5 !== mirrorMd5) {
-  fail('小程序镜像与根领域层 md5 不一致：' + path.relative(ROOT, MIRROR));
+function walk(dir, cb) {
+  for (const name of fs.readdirSync(dir)) {
+    const full = path.join(dir, name);
+    const st = fs.statSync(full);
+    if (st.isDirectory()) walk(full, cb);
+    else if (name.endsWith('.js')) cb(full);
+  }
 }
 
-if (!fs.existsSync(STUB)) fail('小程序 terms.js 桩缺失 ' + path.relative(ROOT, STUB));
-const stub = fs.readFileSync(STUB, 'utf8');
-if (!/export\s*\*\s*from\s*['"]\.\/domain\/term\.js['"]/.test(stub)) {
-  fail(path.relative(ROOT, STUB) + ' 未 re-export ./domain/term.js');
-}
-// 桩若退化成又一份独立术语实现（旧副本残留），守卫必须拦下
-const forbidden = /export\s+const\s+TERM_DICT|export\s+function\s+getTerms|export\s+const\s+INDUSTRY_NAMES/;
-if (forbidden.test(stub)) {
-  fail(path.relative(ROOT, STUB) + ' 仍含独立术语逻辑（应改为纯 re-export 桩）');
-}
+if (!fs.existsSync(SRC_DIR)) fail('根 shared/ 缺失 ' + path.relative(ROOT, SRC_DIR));
 
-console.log('[shared-sync] OK: 小程序术语镜像与根领域层一致');
+let count = 0;
+const missing = [];
+const diverge = [];
+walk(SRC_DIR, (src) => {
+  const rel = path.relative(SRC_DIR, src);
+  const mirror = path.join(MIRROR_DIR, rel);
+  count++;
+  if (!fs.existsSync(mirror)) { missing.push(rel); return; }
+  if (md5(src) !== md5(mirror)) diverge.push(rel);
+});
+
+if (missing.length) fail('小程序镜像缺失以下文件（请跑 tools/sync-miniprogram-shared.js）：\n  ' + missing.join('\n  '));
+if (diverge.length) fail('小程序镜像与根 shared/ md5 不一致：\n  ' + diverge.join('\n  '));
+
+console.log(`[shared-sync] OK: 小程序 shared/ 镜像与根 shared/ 一致（${count} 文件）`);

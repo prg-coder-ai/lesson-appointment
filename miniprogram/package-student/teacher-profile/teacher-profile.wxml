@@ -1,0 +1,20 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="tip">加载中…</view>
+  <block wx:else>
+    <view class="hero">
+      <view class="hero-avatar">{{profile.title[0]}}</view>
+      <view class="hero-title">{{profile.title}}</view>
+      <view class="hero-sub" wx:if="{{profile.headline}}">{{profile.headline}}</view>
+    </view>
+
+    <view class="card">
+      <view class="card-title">简介</view>
+      <view class="card-text">{{profile.intro}}</view>
+    </view>
+
+    <view class="card" wx:if="{{profile.highlights}}">
+      <view class="card-title">亮点</view>
+      <view class="card-text">{{profile.highlights}}</view>
+    </view>
+  </block>
+</view>

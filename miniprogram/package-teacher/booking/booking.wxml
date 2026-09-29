@@ -1,0 +1,36 @@
+<view class="page">
+  <view class="topbar">
+    <view class="tb-title">学生预约</view>
+    <view class="tb-filters">
+      <text class="flt {{status===''?'on':''}}" data-s="" bindtap="onStatusFilter">全部</text>
+      <text class="flt {{status==='booking'?'on':''}}" data-s="booking" bindtap="onStatusFilter">待确认</text>
+      <text class="flt {{status==='booked'?'on':''}}" data-s="booked" bindtap="onStatusFilter">已确认</text>
+      <text class="flt {{status==='cancelled'?'on':''}}" data-s="cancelled" bindtap="onStatusFilter">已取消</text>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="tip">加载中…</view>
+  <view wx:elif="{{list.length===0}}" class="empty">
+    <view class="empty-glyph">📋</view>
+    <view>暂无预约</view>
+  </view>
+  <view wx:else class="list">
+    <view wx:for="{{list}}" wx:key="bookingId" class="item">
+      <view class="it-top">
+        <text class="it-title">{{item.title}}</text>
+        <text class="it-status s-{{item.status}}">{{item.statusText}}</text>
+      </view>
+      <view class="it-sub">{{item.sub}}</view>
+      <view class="it-time" wx:if="{{item.time}}">🕒 {{item.time}}</view>
+      <view class="item-actions" wx:if="{{item.status==='booking'}}">
+        <text class="act" data-id="{{item.bookingId}}" data-status="booked" data-label="确认" bindtap="act">确认</text>
+        <text class="act danger" data-id="{{item.bookingId}}" data-status="cancelled" data-label="拒绝" bindtap="act">拒绝</text>
+      </view>
+      <view class="item-actions" wx:elif="{{item.status==='booked'}}">
+        <text class="act danger" data-id="{{item.bookingId}}" data-status="cancelled" data-label="取消" bindtap="act">取消</text>
+      </view>
+    </view>
+  </view>
+
+  <role-tabbar active="home" bind:change="onTabChange" />
+</view>

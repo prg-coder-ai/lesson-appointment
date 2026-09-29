@@ -7,11 +7,11 @@
   "subPackages": [
     {
       "root": "package-student",
-      "pages": ["home/home", "booking/booking", "booking-detail/booking-detail", "my-booking/my-booking"]
+      "pages": ["home/home", "booking/booking", "booking-detail/booking-detail", "my-booking/my-booking", "appointment/appointment", "teacher-list/teacher-list", "teacher-profile/teacher-profile"]
     },
     {
       "root": "package-teacher",
-      "pages": ["home/home", "courses/courses", "profile/profile", "schedule/schedule", "schedule-edit/schedule-edit"]
+      "pages": ["home/home", "courses/courses", "profile/profile", "schedule/schedule", "schedule-edit/schedule-edit", "appointment/appointment", "booking/booking"]
     },
     {
       "root": "package-admin",

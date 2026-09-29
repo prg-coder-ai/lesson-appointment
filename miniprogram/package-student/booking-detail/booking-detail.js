@@ -37,5 +37,10 @@ Page({
         }
       }
     });
+  },
+  goTeacher() {
+    const tid = this.data.course && this.data.course.teacherId;
+    if (!tid) { wx.showToast({ title: '暂无教师信息', icon: 'none' }); return; }
+    wx.navigateTo({ url: '/package-student/teacher-profile/teacher-profile?tid=' + tid });
   }
 });

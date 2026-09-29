@@ -23,7 +23,8 @@ Page(withTerms({
   goCourses() { wx.navigateTo({ url: '/package-teacher/courses/courses' }); },
   goProfile() { wx.navigateTo({ url: '/package-teacher/profile/profile' }); },
   goSchedule() { wx.navigateTo({ url: '/package-teacher/schedule/schedule' }); },
-  goMyBooking() { wx.showToast({ title: '学生预约查看即将上线', icon: 'none' }); },
+  goAppointment() { wx.navigateTo({ url: '/package-teacher/appointment/appointment' }); },
+  goMyBooking() { wx.navigateTo({ url: '/package-teacher/booking/booking' }); },
   goMessage() { wx.navigateTo({ url: '/package-message/inbox/inbox' }); },
   goMine() { wx.navigateTo({ url: '/pages/mine/mine' }); },
   // 分享带邀请人：好友打开后由 captureAttribution 抓取，形成获客闭环

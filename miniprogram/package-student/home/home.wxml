@@ -14,6 +14,14 @@
       <view class="gi-glyph">📋</view>
       <view class="gi-text">我的预约</view>
     </view>
+    <view class="grid-item" bindtap="goAppointment">
+      <view class="gi-glyph">📚</view>
+      <view class="gi-text">今日课程</view>
+    </view>
+    <view class="grid-item" bindtap="goTeacherList">
+      <view class="gi-glyph">👥</view>
+      <view class="gi-text">浏览师资</view>
+    </view>
     <view class="grid-item" bindtap="goMessage">
       <view class="gi-glyph">🔔</view>
       <view class="gi-text">消息中心</view>

@@ -81,5 +81,16 @@ export const ENDPOINTS = {
   SCHEDULE_LIST_BY_TEACHER: (tid) => `/api/v1/schedule/listByTeacher?teacherId=${encodeURIComponent(tid)}`,
   SCHEDULE_UPDATE_STATUS: '/api/v1/schedule/updateStatus',
   SCHEDULE_INC_SITE: '/api/v1/schedule/incSite',
-  SCHEDULE_GENERATE: '/api/v1/schedule/generate'
+  SCHEDULE_GENERATE: '/api/v1/schedule/generate',
+  // —— 课次 / 上课通知（业务端，学生/教师）——
+  // 近 N 天课次列表（Web refreshAppointmentNotes 同源）；userId+role 限定当前用户
+  APPOINTMENT_LIST_BY_DAYS: (days, userId, role) => {
+    const p = [`days=${encodeURIComponent(days)}`];
+    if (userId) p.push(`userId=${encodeURIComponent(userId)}`);
+    if (role) p.push(`role=${encodeURIComponent(role)}`);
+    return `/api/v1/course/appointment/statistical/listByDays?${p.join('&')}`;
+  },
+  // —— 教师公开主页（业务端，免登录公开接口）——
+  TEACHER_PUBLIC_LIST: (tc) => `/api/v1/teacher/published/public-list?tenantCode=${encodeURIComponent(tc || '')}`,
+  TEACHER_PUBLIC_GET: (id) => `/api/v1/teacher/published/public-get?id=${encodeURIComponent(id || '')}`
 };

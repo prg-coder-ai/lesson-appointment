@@ -27,6 +27,8 @@ Page(withTerms({
   onTabChange(e) { wx.redirectTo({ url: e.detail.page }); },
   goBooking() { wx.navigateTo({ url: '/package-student/booking/booking' }); },
   goMyBooking() { wx.navigateTo({ url: '/package-student/my-booking/my-booking' }); },
+  goAppointment() { wx.navigateTo({ url: '/package-student/appointment/appointment' }); },
+  goTeacherList() { wx.navigateTo({ url: '/package-student/teacher-list/teacher-list' }); },
   goMessage() { wx.navigateTo({ url: '/package-message/inbox/inbox' }); },
   goMine() { wx.navigateTo({ url: '/pages/mine/mine' }); },
   // 分享带邀请人：好友打开后由 captureAttribution 抓取，形成获客闭环

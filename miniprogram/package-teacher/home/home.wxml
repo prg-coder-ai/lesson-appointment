@@ -18,6 +18,10 @@
       <view class="gi-glyph">🗓️</view>
       <view class="gi-text">排期管理</view>
     </view>
+    <view class="grid-item" bindtap="goAppointment">
+      <view class="gi-glyph">📚</view>
+      <view class="gi-text">今日课程</view>
+    </view>
     <view class="grid-item" bindtap="goMyBooking">
       <view class="gi-glyph">📋</view>
       <view class="gi-text">学生预约</view>

@@ -1,0 +1,11 @@
+.page { min-height: 100vh; background: #f5f7fa; padding: 24rpx; }
+.tip { text-align: center; color: #99a; padding: 60rpx 0; font-size: 26rpx; }
+
+.hero { background: #fff; border-radius: 16rpx; padding: 40rpx 28rpx; text-align: center; box-shadow: 0 2rpx 10rpx rgba(30,50,90,.06); }
+.hero-avatar { width: 110rpx; height: 110rpx; border-radius: 50%; background: #4e6ef2; color: #fff; font-size: 50rpx; font-weight: 700; display: flex; align-items: center; justify-content: center; margin: 0 auto 16rpx; }
+.hero-title { font-size: 36rpx; font-weight: 700; color: #1f2a4d; }
+.hero-sub { font-size: 26rpx; color: #4e6ef2; margin-top: 8rpx; }
+
+.card { background: #fff; border-radius: 16rpx; padding: 28rpx; margin-top: 20rpx; box-shadow: 0 2rpx 10rpx rgba(30,50,90,.06); }
+.card-title { font-size: 28rpx; font-weight: 600; color: #1f2a4d; margin-bottom: 12rpx; }
+.card-text { font-size: 26rpx; color: #556; line-height: 1.7; white-space: pre-wrap; }

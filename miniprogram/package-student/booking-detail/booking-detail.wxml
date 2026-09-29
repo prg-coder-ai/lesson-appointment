@@ -4,6 +4,11 @@
     <view class="hero-sub">{{course.teacherName || course.teacherId || ''}} · {{course.subject || ''}}</view>
   </view>
 
+  <view class="teacher-bar" wx:if="{{course.teacherId}}">
+    <text class="tb-label">授课教师：{{course.teacherName || course.teacherId}}</text>
+    <text class="tb-btn" bindtap="goTeacher">查看主页 ›</text>
+  </view>
+
   <view class="card">
     <view class="card-title">课程介绍</view>
     <view class="card-text">{{course.description || course.intro || '暂无介绍'}}</view>
