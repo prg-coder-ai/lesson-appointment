@@ -91,6 +91,13 @@
 - 端耦合量化：DOM 1,180 处/45 文件、alert+confirm+prompt 191、存储 115/18 文件、整页跳转 45/20 文件、内联 on* 305、innerHTML 289、document.write 14；依赖全走 CDN（axios 22 页/fullcalendar/FontAwesome/html2canvas）→ 小程序与内网不成立。
 - 路径：P0 修源(词典归一+构建桥接到 window+sync md5 守卫) → P1 Headless 领域层下沉 shared/domain → P2 六类能力适配层同接口名(net/storage/ui.modal/router/share/realtime) → P3 按端数分叉(≤2 端维持；≥3 端才上 uni-app，P1 为前置)。排除 Flutter/RN；web-view 套壳仅限公开页/富文本。方案文档：`一码多端改造方案-20260928.md`。
 
+## 一码多端决策（2026-09-29 用户拍板，落实为硬约束）
+- **目标端 = Web + 微信小程序（仅 2 端）** → 路线 M3+M6（双视图+共享逻辑），**不上 uni-app/跨端框架**（≤2 端净负收益）。
+- **管理端范围**：多数配置/排期页不进小程序；仅审核(booking-audit)、通知(lesson-notice)进小程序；已进入的 admin 页保留不删不扩。
+- **视图层允许不一致**，各端用各自 CSS 适配（逻辑一码、视图薄写）；Web 端 DOM/alert/innerHTML/on* 等写法对 Web 合法，无需为"统一"改写。
+- **漂移校验=阻断**：`tools/check-miniprogram-shared-sync.js` 已扩 `checkWebTermDrift()`（Web 端重新出现硬编码 terms.js 即 fail）；根 package.json 增 `check:shared-sync`；`.git/hooks/pre-commit` 提交前跑守卫（支持 `SKIP_SHARED_SYNC=1` 跳过）。
+- **Web 术语单源已收口**（2026-09-29）：删除遗留 `frontend/js/public/terms.js`（含 `leave:"取消课次"` 漂移副本），桥接 `window.TermDomain`（由 shared/domain/term.js 生成）为唯一源；gen-shared-bridge.js 只读 shared，删副本不影响构建。
+
 ## 文档/技能
 - 三手册：腾讯云(权威)＞预约系统(原理排障)＞前端(仅前端)。scp -r 源目录/ 目标/(结尾/传内容)。
 - 技能：saas-api-build-smoke/booking-deeplink-routing/public-endpoint-tenant-bypass/browserless-frontend-itest/source-encoding-repair/saas-debug-output-cleanup/server-side-term-template/seat-oversell-concurrency-audit/saas-tenant-config-rule-module。

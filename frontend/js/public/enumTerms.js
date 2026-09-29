@@ -15,7 +15,7 @@
  *      applyTerms() 能顺带刷新，且与全站 data-term(opt-in) 机制一致；
  *   4. 未知 code 一律原样输出（绝不显示 undefined / 空串），便于发现脏数据。
  *
- * 权威映射（与 js/public/terms.js 中 TERM_DICT.education 保持一致）：
+ * 权威映射（与 shared/domain/term.js 中 TERM_DICT.education 保持一致，经 window.TermDomain 暴露）：
  *   french → classType1（法语）   english → classType2（英语）
  *   chinese → classType3（汉语）  spanish → classType4（西语）
  * ============================================================= */

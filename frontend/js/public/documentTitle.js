@@ -16,7 +16,7 @@
  *
  * 优先级（由 render() 保证）：租户品牌 > 服务端合并词 > 本地行业词 > 锚点词 > 占位符原样
  *
- * 依赖：js/public/terms.js（TERM_DICT）、js/public/termsFunction.js（getTerms，可选）
+ * 依赖：shared/domain/term.js（经 window.TermDomain / termsFunction.js 的 getTerms 提供 TERM_DICT）
  * 暴露：window.applyDocumentTitle({ brand })
  */
 (function () {

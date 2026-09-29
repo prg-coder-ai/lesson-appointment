@@ -50,4 +50,18 @@ walk(SRC_DIR, (src) => {
 if (missing.length) fail('小程序镜像缺失以下文件（请跑 tools/sync-miniprogram-shared.js）：\n  ' + missing.join('\n  '));
 if (diverge.length) fail('小程序镜像与根 shared/ md5 不一致：\n  ' + diverge.join('\n  '));
 
+checkWebTermDrift();
+
 console.log(`[shared-sync] OK: 小程序 shared/ 镜像与根 shared/ 一致（${count} 文件）`);
+
+// Web 端单源校验（P0-Web 收口）：frontend/js/public/terms.js 不得再携带硬编码词表，
+// 否则即「第二份源」漂移。允许该文件作为委托 window.TermDomain 的 re-export 桩；
+// 只要出现 TERM_DICT = { 字面量即判为漂移。文件不存在（已收口）时直接通过。
+function checkWebTermDrift() {
+  const webTerms = path.join(ROOT, 'frontend', 'js', 'public', 'terms.js');
+  if (!fs.existsSync(webTerms)) return;
+  const code = fs.readFileSync(webTerms, 'utf8');
+  if (/\bTERM_DICT\s*=\s*\{/.test(code)) {
+    fail('frontend/js/public/terms.js 仍含硬编码词表（TERM_DICT = {），违反 Web 单源约定。请改为委托 window.TermDomain 或直接删除该文件。');
+  }
+}
