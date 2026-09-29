@@ -199,6 +199,15 @@ const COURSE_TYPE_OPTIONS = [
   { value: 'spanish', termKey: 'classType4', anchor: '西语' }
 ];
 
+// 行业中文展示名（仅中文）。作为术语领域层的一部分收纳，使 Web / 小程序 / 单元测试共用同一份，
+// 消除 mp 旧副本里单独维护的 INDUSTRY_NAMES（曾导致 web/mp 术语分叉风险）。
+const INDUSTRY_NAMES = {
+  education: '教育',
+  legal: '法律咨询',
+  counseling: '心理咨询',
+  exercise: '健身'
+};
+
 const COURSE_TYPE_ALIAS = {
   fr: 'french', french: 'french',
   en: 'english', english: 'english',

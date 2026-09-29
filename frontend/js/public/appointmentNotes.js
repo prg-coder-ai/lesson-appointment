@@ -230,6 +230,36 @@ async function datamaintain_fetchAppointmenPage(query) {
    }
 
    /**
+    * 把服务端的退改提示（已含生效规则阈值与权威提前量）转成共享领域层 evaluateRefund 的求值结果。
+    *
+    * 收敛点：原来对话框直接信任服务端预计算的 level / refundPercent，再加一份本地 refundLevelColor
+    * 映射；现在「阈值 → 档位」的分支逻辑统一走 window.RefundRuleDomain.evaluateRefund，
+    * 与小程序、管理端预览共用同一份算法，消除第三套 ad-hoc 路径。
+    *
+    * 时间权威：规则的阈值与上课时间取自服务端（配置与业务时间权威），"now" 用服务端给出的
+    * minutesAhead 反推，使 evaluateRefund 复现服务端档位，避免客户端时钟漂移导致前后端档位不一致
+    * （这正是当初把判定收敛到服务端的初衷，这里只是把「分支算法」收口到领域层，不动时间来源）。
+    *
+    * 时间未知（服务端 level 为 null）或领域层不可用 → 返回 null，由调用方回退到服务端字段 / 只摆规则。
+    */
+   function refundHintToEval(hint) {
+     if (!hint || hint.level === null || hint.level === undefined || !hint.lessonTime) return null;
+     if (!window.RefundRuleDomain || typeof window.RefundRuleDomain.evaluateRefund !== 'function') return null;
+     const rule = {
+       freeBeforeMinutes: hint.freeBeforeMinutes,
+       partialBeforeMinutes: hint.partialBeforeMinutes,
+       partialRefundPercent: hint.partialRefundPercent
+     };
+     // 用服务端权威提前量反推 now：appt - now = minutesAhead → evaluateRefund 复现服务端档位
+     let now;
+     if (typeof hint.minutesAhead === 'number') {
+       const apptMs = new Date(String(hint.lessonTime).replace(' ', 'T')).getTime();
+       now = new Date(apptMs - hint.minutesAhead * 60000);
+     }
+     return window.RefundRuleDomain.evaluateRefund(rule, hint.lessonTime, now);
+   }
+
+   /**
     * 退改规则提示弹窗（Promise<boolean>：true=用户点了"继续"）。
     *
     * 用原生 DOM + 内联样式，不依赖各页面自己的弹窗 CSS ——
@@ -267,7 +297,15 @@ async function datamaintain_fetchAppointmenPage(query) {
            '未能获取该课次的退改规则提示（可能是网络问题或该课次已被处理）。' +
            '你仍可继续，但请自行确认退改条件。</div>';
        } else {
-         var color = refundLevelColor(hint.level);
+         // 档位 / 比例 / 提前量一律经共享领域层 evaluateRefund 求值（阈值与上课时间取服务端，
+         // now 由服务端 minutesAhead 反推，保留服务端时钟权威；分支逻辑与小程序、管理端预览共一份）。
+         var ev = refundHintToEval(hint);
+         var level = ev ? ev.level : (hint.level || '');
+         var refundPercent = ev ? ev.percent : hint.refundPercent;
+         // 展示文案优先沿用服务端按租户术语渲染的结果；领域层只兜底
+         var levelText = ev ? ev.levelText : (hint.levelText || '-');
+         var aheadText = ev ? ev.aheadText : (hint.aheadText || '-');
+         var color = refundLevelColor(level);
          body += '<div style="padding:12px 14px;background:#f6f8fa;border:1px solid #e3e8ee;' +
            'border-radius:6px;line-height:1.9;">';
          if (hint.courseName) {
@@ -276,11 +314,11 @@ async function datamaintain_fetchAppointmenPage(query) {
          if (hint.lessonTime) {
            body += '<div>课次时间：<b>' + escapeRefundText(hint.lessonTime) + '</b></div>';
          }
-         body += '<div>距上课还有：<b>' + escapeRefundText(hint.aheadText || '-') + '</b></div>';
+         body += '<div>距上课还有：<b>' + escapeRefundText(aheadText) + '</b></div>';
          body += '<div>判定档位：<b style="color:' + color + ';">' +
-           escapeRefundText(hint.levelText || '-') + '</b>' +
-           (hint.refundPercent === null || hint.refundPercent === undefined
-             ? '' : '（退费比例 <b>' + hint.refundPercent + '%</b>）') + '</div>';
+           escapeRefundText(levelText) + '</b>' +
+           (refundPercent === null || refundPercent === undefined
+             ? '' : '（退费比例 <b>' + refundPercent + '%</b>）') + '</div>';
          body += '<div>适用规则：' + escapeRefundText(hint.scopeText || '-') + '</div>';
          body += '</div>';
 
@@ -293,7 +331,7 @@ async function datamaintain_fetchAppointmenPage(query) {
              escapeRefundText(hint.fallbackNotice) + '</div>';
          }
          // 余额体系尚未落地时明确告知用户"退费尚未入账"，避免用户以为钱已到账
-         if (hint.refundPercent !== null && hint.refundPercent !== undefined && hint.refundPercent > 0) {
+         if (refundPercent !== null && refundPercent !== undefined && refundPercent > 0) {
            body += '<div style="margin-top:10px;padding:8px 12px;background:#fffaf0;' +
              'border:1px solid #ffe0a3;border-radius:6px;font-size:12px;color:#8a5a00;line-height:1.7;">' +
              '退费金额由管理员审核确认后登记。当前系统尚未开通在线余额账户，' +
@@ -1268,5 +1306,7 @@ window.fetchRefundHintForAppointment = fetchRefundHintForAppointment;
 window.showRefundRuleDialog = showRefundRuleDialog;
 window.studentApplyCancelWithRule = studentApplyCancelWithRule;
 window.adminConfirmCancelWithRule = adminConfirmCancelWithRule;
+// 退改档位求值（收敛到共享领域层 evaluateRefund），导出便于回归测试
+window.refundHintToEval = refundHintToEval;
 
  

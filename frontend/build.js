@@ -210,10 +210,35 @@ function runOriginLint() {
   return r.status === 0;
 }
 
+/*
+ * 小程序端共享术语镜像一致性检查（P0-1 md5 守卫）
+ * 共享领域层（repo/shared/domain/term.js）是 Web 与小程序术语的唯一权威源；小程序受工具链限制
+ * 不能直接 import 跨出 miniprogram/，故在 miniprogram/shared/domain/ 放镜像 + terms.js 纯 re-export 桩。
+ * 有人改了 mp 副本而非根 shared 会导致 web/mp 术语分叉，构建前先拦下。
+ * - 紧急可临时跳过：SKIP_SHARED_SYNC=1 node build.js
+ */
+function runSharedSyncCheck() {
+  if (process.env.SKIP_SHARED_SYNC === '1') {
+    console.log('  skipped (SKIP_SHARED_SYNC=1)');
+    return true;
+  }
+  // 守卫脚本位于仓库根 tools/（与同步脚本同源，操作仓库根 shared/ 与 miniprogram/），
+  // 而本构建脚本 ROOT=frontend/，故向上一级再进 tools/。
+  const script = path.resolve(ROOT, '..', 'tools', 'check-miniprogram-shared-sync.js');
+  if (!fs.existsSync(script)) { console.log('  checker not found, skipped'); return true; }
+  const r = require('child_process').spawnSync(process.execPath, [script], { stdio: 'inherit' });
+  return r.status === 0;
+}
+
 (async () => {
   console.log('[lint] hardcoded origin');
   if (!runOriginLint()) {
     console.error('=== frontend build ABORTED: 存在硬编码站点地址，请修正后重新构建 ===');
+    process.exit(1);
+  }
+  console.log('[lint] miniprogram shared sync');
+  if (!runSharedSyncCheck()) {
+    console.error('=== frontend build ABORTED: 小程序共享术语镜像与根领域层不一致，请跑 tools/sync-miniprogram-shared.js ===');
     process.exit(1);
   }
   fs.rmSync(DIST, { recursive: true, force: true });

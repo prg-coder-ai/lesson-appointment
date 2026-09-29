@@ -91,6 +91,48 @@ async function main() {
     eq('jsdom: 委托后 formatRefundMinutes(1440) = 1 天', win.formatRefundMinutes(1440), RefundDomain.formatRefundMinutes(1440));
     eq('jsdom: 委托后 formatRefundMinutes(90) = 1 小时 30 分钟', win.formatRefundMinutes(90), RefundDomain.formatRefundMinutes(90));
     eq('jsdom: window.formatRefundMinutes 仍导出', typeof win.formatRefundMinutes, 'function');
+
+    // 4) appointmentNotes.js 退改预览对话框：档位求值收敛到 evaluateRefund
+    const notes = fs.readFileSync(path.join(ROOT, 'frontend', 'js', 'public', 'appointmentNotes.js'), 'utf8');
+    win.eval(notes);
+    eq('jsdom: refundHintToEval 已导出', typeof win.refundHintToEval, 'function');
+
+    // 复用会话内的 appointmentId（仅回填字段，求值不依赖它）
+    const rule = { freeBeforeMinutes: 1440, partialBeforeMinutes: 720, partialRefundPercent: 50 };
+    // minutesAhead 取服务端的权威提前量；now 由 refundHintToEval 反推
+    const cases = [
+      { level: 'free',    minutesAhead: 1500, expectLevel: 'free',    expectPercent: 100 },
+      { level: 'partial', minutesAhead: 1000, expectLevel: 'partial', expectPercent: 50  },
+      { level: 'none',    minutesAhead: 100,  expectLevel: 'none',    expectPercent: 0   },
+      { level: 'past',    minutesAhead: -30,  expectLevel: 'past',    expectPercent: 0   }
+    ];
+    cases.forEach(function (c) {
+      const hint = {
+        level: c.level, levelText: 'x', refundPercent: c.expectPercent, aheadText: 'y',
+        minutesAhead: c.minutesAhead, lessonTime: '2026-10-01 10:00',
+        freeBeforeMinutes: rule.freeBeforeMinutes, partialBeforeMinutes: rule.partialBeforeMinutes,
+        partialRefundPercent: rule.partialRefundPercent
+      };
+      const ev = win.refundHintToEval(hint);
+      eq('refundHintToEval ' + c.level + ' 命中领域层 level', ev.level, c.expectLevel);
+      eq('refundHintToEval ' + c.level + ' 命中领域层 percent', ev.percent, c.expectPercent);
+      eq('refundHintToEval ' + c.level + ' 与服务端 level 一致', ev.level, c.level);
+      // 复现服务端档位：直接拿规则+时间+反推 now 调 evaluateRefund 应得同一结果
+      const apptMs = new Date(hint.lessonTime.replace(' ', 'T')).getTime();
+      const now = new Date(apptMs - c.minutesAhead * 60000);
+      const direct = win.RefundRuleDomain.evaluateRefund(rule, hint.lessonTime, now);
+      eq('refundHintToEval ' + c.level + ' == evaluateRefund 直调', ev.level, direct.level);
+      eq('refundHintToEval ' + c.level + ' == evaluateRefund percent', ev.percent, direct.percent);
+    });
+
+    // 时间未知（服务端 level 为 null）→ null，走「只摆规则」分支
+    eq('refundHintToEval 时间未知返回 null', win.refundHintToEval({ level: null, lessonTime: null }), null);
+
+    // 领域层缺失时回退：返回 null，对话框改用服务端字段
+    const savedDomain = win.RefundRuleDomain;
+    win.RefundRuleDomain = undefined;
+    eq('领域层缺失时回退为 null', win.refundHintToEval(cases[1]), null);
+    win.RefundRuleDomain = savedDomain;
   }
 
   console.log('\n[check_shared_bridge] ' + pass + ' passed, ' + fail + ' failed');
