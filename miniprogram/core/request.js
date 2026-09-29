@@ -4,6 +4,7 @@
 // 差异：浏览器用 axios + location 跳转；小程序用 wx.request，登录失效经 globalData.onAuthFail 回调。
 
 import { normalizeUrl, unwrapResult } from '../shared/apiPaths.js';
+import { errorMessage } from '../shared/domain/errorCode.js';
 import { storage, getToken, clearSession, getSession } from './storage.js';
 
 function appGlobal() {
@@ -90,7 +91,7 @@ export async function request(opts) {
   try {
     resp = await wxRequest({ url, method, data: opts.data, header });
   } catch (err) {
-    const msg = '网络连接失败，请检查网络';
+    const msg = errorMessage(err);
     if (opts.customErrorMsg !== false) showError(msg);
     throw new Error(msg);
   }

@@ -97,7 +97,10 @@
 - **视图层允许不一致**，各端用各自 CSS 适配（逻辑一码、视图薄写）；Web 端 DOM/alert/innerHTML/on* 等写法对 Web 合法，无需为"统一"改写。
 - **漂移校验=阻断**：`tools/check-miniprogram-shared-sync.js` 已扩 `checkWebTermDrift()`（Web 端重新出现硬编码 terms.js 即 fail）；根 package.json 增 `check:shared-sync`；`.git/hooks/pre-commit` 提交前跑守卫（支持 `SKIP_SHARED_SYNC=1` 跳过）。
 - **Web 术语单源已收口**（2026-09-29）：删除遗留 `frontend/js/public/terms.js`（含 `leave:"取消课次"` 漂移副本），桥接 `window.TermDomain`（由 shared/domain/term.js 生成）为唯一源；gen-shared-bridge.js 只读 shared，删副本不影响构建。
-- **P1 领域层下沉进度**（2026-09-29）：`shared/domain/` 已 4 模块 = term + refundRule + **bookingState(预约/排期状态机+占用+满额判定)** + **appointmentState(课次状态文案)**。覆盖 P1 五块中的 ①会话状态机 ②候补满额判定；剩余 ③时区/日历装配 ④脱敏校验 ⑤错误码→文案 未抽。验收：`tools/test-shared-domain.mjs`（68 断言，node 跑通即两端共用同一逻辑）；mp 两页(appointment/booking)已改 import 共享域、去掉内联 bkStatusText/apptStatusText。Web 端接 window.BookingStateDomain/AppointmentStateDomain 桥接仍属 P0-Web 阻塞。
+- **P1 领域层下沉进度**（2026-09-29 完成 5/5）：`shared/domain/` 已 7 模块 = term + refundRule + **bookingState(状态机+占用+满额)** + **appointmentState(课次状态)** + **mask(脱敏)** + **datetime(时区/日历装配)** + **errorCode(错误码→文案)**。P1 五块 **①状态机 ②候补满额 ③时区/日历 ④脱敏 ⑤错误码 全部完成**。验收：`tools/test-shared-domain.mjs`（**110 断言全绿**）。
+  - mp 接线：appointment.js `fmtTime`→`formatDateTime`；`miniprogram/shared/format.js` 的 maskPhone/maskEmail 改 **re-export `domain/mask.js`**（消除手迁副本漂移，与 Web api.js 同源）；request.js 网络错误分支改 `errorMessage(err)`。
+  - 根 `shared/format.js` 的 mask 改为 re-export `domain/mask.js`，`shared/index.js` 去掉重复的 `domain/mask` export（避免同名 `export *` 冲突，已实测 barrel 无冲突、index.maskPhone 可达）。
+  - Web 端接 `window.MaskDomain/DatetimeDomain/ErrorCodeDomain` 桥接仍属 **P0-Web 阻塞**（当前 Web 这些逻辑仍走各自本地实现，未接共享源）。
 
 ## 文档/技能
 - 三手册：腾讯云(权威)＞预约系统(原理排障)＞前端(仅前端)。scp -r 源目录/ 目标/(结尾/传内容)。

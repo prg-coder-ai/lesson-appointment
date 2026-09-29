@@ -2,10 +2,11 @@ import { requireAuth } from '../../core/auth.js';
 import { request } from '../../core/request.js';
 import { ENDPOINTS } from '../../shared/apiPaths.js';
 import { appointmentStatusText } from '../../shared/domain/appointmentState.js';
+import { formatDateTime } from '../../shared/domain/datetime.js';
 
 function fmtTime(s) {
   if (!s) return '时间待定';
-  return String(s).replace('T', ' ').slice(0, 16);
+  return formatDateTime(s, false);
 }
 
 Page({

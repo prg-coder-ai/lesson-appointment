@@ -12,6 +12,11 @@ import {
   APPOINTMENT_STATUS, APPOINTMENT_CLOSED_STATUSES,
   appointmentStatusText, isAppointmentClosed
 } from '../shared/domain/appointmentState.js';
+import { maskPhone, maskEmail } from '../shared/domain/mask.js';
+import {
+  formatDateTime, formatDate, parseLocalDate, parseLocalDateTime, weekdayCN, toDateTimeLocalValue
+} from '../shared/domain/datetime.js';
+import { RESULT_OK, resolveResult, resolveRequestError, errorMessage } from '../shared/domain/errorCode.js';
 
 let pass = 0, fail = 0;
 function eq(actual, expected, name) {
@@ -73,7 +78,6 @@ eq(bookingStatusText('rej-cancelling'), '已拒绝取消', 'bk rej-cancelling→
 eq(bookingStatusText('frozen'), '已失效', 'bk frozen→已失效');
 eq(bookingStatusText('deleted'), '已失效', 'bk deleted→已失效');
 eq(bookingStatusText('weird'), 'weird', 'bk 未知态透传');
-// mp 旧 bkStatusText 全部分支必须被覆盖且一致
 eq(bookingStatusText('booking'), '待确认', 'mp bkStatusText booking');
 eq(bookingStatusText('waiting'), '候补', 'mp bkStatusText waiting');
 eq(bookingStatusText('booked'), '已确认', 'mp bkStatusText booked');
@@ -107,6 +111,57 @@ eq(appointmentStatusText('changed'), '已改期', 'appt changed→已改期');
 ok(isAppointmentClosed('completed') && isAppointmentClosed('cancelled') &&
    isAppointmentClosed('t-cancelled') && isAppointmentClosed('changed'), 'appt closed 集合');
 ok(!isAppointmentClosed('active'), 'appt active 非终态');
+
+/* ---------------- 数据脱敏 mask.js ---------------- */
+eq(maskPhone('13812345678'), '138****5678', 'maskPhone 11位');
+eq(maskPhone('1234'), '****', 'maskPhone ≤4位全盘星');
+eq(maskPhone('12345'), '1***5', 'maskPhone 5位首尾留');
+eq(maskPhone(''), '', 'maskPhone 空串');
+eq(maskPhone(null), '', 'maskPhone null');
+eq(maskPhone('  13900001111  '), '139****1111', 'maskPhone trim');
+eq(maskEmail('a@b.cn'), '*@b.cn', 'maskEmail 1位local');
+eq(maskEmail('ab@c'), 'a*@c', 'maskEmail 2位');
+eq(maskEmail('abc@x'), 'a**@x', 'maskEmail 3位');
+eq(maskEmail('abcd@x'), 'a***@x', 'maskEmail 4位');
+eq(maskEmail('zhangsan@example.com'), 'zh****an@example.com', 'maskEmail 8位前2后2中4');
+eq(maskEmail('plaintext'), 'plaintext', 'maskEmail 无@原样');
+eq(maskEmail(null), '', 'maskEmail null');
+
+/* ---------------- 时区/日历 datetime.js ---------------- */
+eq(formatDateTime('2024-01-01T12:34:56'), '2024-01-01 12:34:56', 'fmt 含秒');
+eq(formatDateTime('2024-01-01T12:34:56', false), '2024-01-01 12:34', 'fmt 截分到分');
+eq(formatDateTime('2024-01-01 12:34:56'), '2024-01-01 12:34:56', 'fmt 空格分隔也行');
+eq(formatDateTime(null), '', 'fmt null');
+eq(formatDate('2024-01-01T12:34:56'), '2024-01-01', 'fmtDate 截日期');
+eq(formatDate(null), '', 'fmtDate null');
+// 时区偏移坑：parseLocalDate 必须不漂移（new Date('yyyy-MM-dd') 在某些时区会少一天）
+const jan1 = parseLocalDate('2024-01-01');
+ok(jan1 && jan1.getFullYear() === 2024 && jan1.getMonth() === 0 && jan1.getDate() === 1, 'parseLocalDate 无时区偏移');
+eq(weekdayCN('2024-01-01'), '周一', 'weekdayCN 2024-01-01 周一');
+eq(weekdayCN(parseLocalDate('2024-01-07')), '周日', 'weekdayCN 周日');
+ok(weekdayCN(null) === '', 'weekdayCN null→空');
+const dt = parseLocalDateTime('2024-01-01T12:34');
+ok(dt && dt.getHours() === 12 && dt.getMinutes() === 34, 'parseLocalDateTime 本地时间');
+ok(parseLocalDateTime('garbage') === null, 'parseLocalDateTime 无效→null');
+eq(toDateTimeLocalValue(parseLocalDate('2024-01-01')), '2024-01-01T00:00', 'toDateTimeLocalValue');
+
+/* ---------------- 错误码 errorCode.js ---------------- */
+eq(RESULT_OK, 200, 'RESULT_OK=200');
+eq(resolveResult({ code: 200, data: { a: 1 } }), { type: 'ok', message: '', data: { a: 1 }, code: 200 }, 'resolveResult 200');
+eq(resolveResult({ code: 401, message: 'x' }).type, 'unauthorized', 'resolveResult 401 type');
+eq(resolveResult({ code: 401, message: 'x' }).message, 'x', 'resolveResult 401 用 message');
+eq(resolveResult({ code: 401 }).message, '登录已过期', 'resolveResult 401 默认文案');
+eq(resolveResult({ code: 403 }).message, '无权限访问该资源', 'resolveResult 403 默认文案');
+eq(resolveResult({ code: 500, msg: 'boom' }).type, 'biz', 'resolveResult 其他→biz');
+eq(resolveResult({ code: 500, msg: 'boom' }).message, 'boom', 'resolveResult msg 兜底');
+eq(resolveResult({ code: 500 }).message, '操作失败', 'resolveResult 其他默认文案');
+eq(resolveResult(null).type, 'biz', 'resolveResult null→biz');
+eq(resolveRequestError({ code: 'ECONNABORTED', message: 'timeout of 1ms' }).type, 'timeout', 'req timeout');
+eq(resolveRequestError({}).type, 'network', 'req 无response→network');
+eq(resolveRequestError({ response: { status: 500 } }).type, 'http', 'req http');
+eq(resolveRequestError({ response: { status: 500 } }).message, '服务异常（HTTP 500）', 'req http 文案带状态');
+eq(errorMessage({ code: 'ECONNABORTED', message: 'timeout of 1ms' }), '请求超时，请稍后重试', 'errorMessage timeout');
+eq(errorMessage({}), '网络连接失败，请检查网络', 'errorMessage network');
 
 /* ---------------- 汇总 ---------------- */
 console.log(`[shared-domain] ${pass} passed, ${fail} failed`);
