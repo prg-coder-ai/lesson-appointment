@@ -25,28 +25,14 @@ var refundRuleEditing = null;     // 当前正在编辑的规则（复制体，�
 
 /* ------------------------------------------------------------ 小工具函数 */
 
-/** 分钟数转可读文案：390 → 6 小时 30 分钟；1440 → 24 小时；1500 → 1 天 1 小时 */
+/** 分钟数转可读文案：委托共享领域层（shared/domain/refundRule.js，P0 构建桥接挂到 window.RefundRuleDomain） */
 function formatRefundMinutes(minutes) {
-    if (minutes === null || minutes === undefined || minutes === '') return '-';
-    var m = Number(minutes);
-    if (isNaN(m)) return '-';
-    if (m <= 0) return '0 分钟';
-    var days = Math.floor(m / 1440);
-    var rest = m % 1440;
-    var hours = Math.floor(rest / 60);
-    var mins = rest % 60;
-    var parts = [];
-    if (days > 0) parts.push(days + ' 天');
-    if (hours > 0) parts.push(hours + ' 小时');
-    if (mins > 0) parts.push(mins + ' 分钟');
-    return parts.length ? parts.join(' ') : '0 分钟';
+    return window.RefundRuleDomain.formatRefundMinutes(minutes);
 }
 
 /** 按粒度把界面上的数值换算成分钟 */
 function refundRuleToMinutes(value, unit) {
-    var v = Number(value);
-    if (isNaN(v) || v < 0) return NaN;
-    return unit === 'minute' ? Math.round(v) : Math.round(v * 60);
+    return window.RefundRuleDomain.refundRuleToMinutes(value, unit);
 }
 
 /**
@@ -55,11 +41,7 @@ function refundRuleToMinutes(value, unit) {
  * 则退化为分钟显示，避免界面上出现 1.5 小时这种别扭的中间值。
  */
 function refundRuleFromMinutes(minutes, unit) {
-    var m = Number(minutes);
-    if (isNaN(m) || m < 0) return { value: '', unit: unit || 'hour' };
-    if (unit === 'minute') return { value: m, unit: 'minute' };
-    if (m % 60 === 0) return { value: m / 60, unit: 'hour' };
-    return { value: m, unit: 'minute' };
+    return window.RefundRuleDomain.refundRuleFromMinutes(minutes, unit);
 }
 
 function escapeRefundHtml(text) {
@@ -82,14 +64,9 @@ function notifyRefundRule(msg) {
     }
 }
 
-/** 三档区间说明（纯前端拼，用于表单实时预览） */
+/** 三档区间说明（纯前端拼，用于表单实时预览），委托共享领域层 */
 function refundRuleZoneText(freeMinutes, partialMinutes, percent) {
-    if (isNaN(freeMinutes) || isNaN(partialMinutes)) return '请先填写两个时间点';
-    if (freeMinutes < partialMinutes) return '⚠ 免责时间点必须 ≥ 部分退费时间点';
-    return '提前 ≥ ' + formatRefundMinutes(freeMinutes) + ' 免责（退 100%）　｜　'
-        + formatRefundMinutes(partialMinutes) + ' ≤ 提前 < ' + formatRefundMinutes(freeMinutes)
-        + ' 部分退费（退 ' + (percent === '' || isNaN(percent) ? '-' : percent) + '%）　｜　'
-        + '提前 < ' + formatRefundMinutes(partialMinutes) + ' 不退费（退 0%）';
+    return window.RefundRuleDomain.refundRuleZoneText(freeMinutes, partialMinutes, percent);
 }
 
 /* ------------------------------------------------------------ 数据访问层 */

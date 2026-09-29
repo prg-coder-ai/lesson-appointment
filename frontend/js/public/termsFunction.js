@@ -5,12 +5,10 @@ let domain_industry = "education";
 // 优先级：租户词 > 行业词 > 平台词（后端已合并），覆盖本地TERM_DICT
 let SERVER_TERM_MAP = null;
 
-// 取当前生效词表：本地行业字典为基底，服务端词表（若有）逐 key 覆盖
+// 取当前生效词表：委托共享领域层（shared/domain/term.js，P0 构建桥接挂到 window.TermDomain）。
+// 本地 SERVER_TERM_MAP 由 loadTermMapFromServer 拉取并赋值，作为 ctx.serverMap 透传，保持原行为。
 function getTerms() {
-  const industry = getCurrentIndustry();
-  const base = TERM_DICT[industry] || TERM_DICT.education;
-  if (!SERVER_TERM_MAP) return base;
-  return Object.assign({}, base, SERVER_TERM_MAP);
+  return window.TermDomain.getTerms({ industry: getCurrentIndustry(), serverMap: SERVER_TERM_MAP });
 }
 
 /**
@@ -22,10 +20,7 @@ function getTerms() {
  */
 function termText(key) {
   if (!key) return '';
-  const terms = getTerms();
-  if (terms[key] != null && terms[key] !== '') return terms[key];
-  if (TERM_DICT && TERM_DICT.education && TERM_DICT.education[key] != null) return TERM_DICT.education[key];
-  return String(key);
+  return window.TermDomain.termText(key, { industry: getCurrentIndustry(), serverMap: SERVER_TERM_MAP });
 }
 
 // 枚举型下拉选项取词（标签词 ↔ 选项词关联方案 A）
@@ -36,14 +31,7 @@ function termText(key) {
 // @param fallbackOptions 默认选项 [{ value, code, defaultText }]，code 用于拼词 key（缺省取 value），defaultText 为缺词回退文案
 // @returns [{ value, text }] 可直接渲染为 <option>
 function getOptions(tagKey, fallbackOptions) {
-  const terms = getTerms();
-  return (fallbackOptions || []).map(o => {
-    const key = tagKey + '.' + (o.code != null ? o.code : o.value);
-    return {
-      value: o.value,
-      text: (terms[key] != null && terms[key] !== '') ? terms[key] : (o.defaultText || o.value)
-    };
-  });
+  return window.TermDomain.getOptions(tagKey, fallbackOptions, { industry: getCurrentIndustry(), serverMap: SERVER_TERM_MAP });
 }
 
 // 仅对显式标记 data-term / data-term-placeholder 的元素做整词替换（opt-in）。
@@ -75,7 +63,7 @@ function normalizeTermText(text) {
   const industry = getCurrentIndustry();
   const terms = getTerms();
   if (!terms || industry === "education") return text;
-  const pairs = TERM_KEYS
+  const pairs = window.TermDomain.TERM_KEYS
     .filter(t => terms[t.key] && terms[t.key] !== t.anchor)
     .map(t => ({ from: terms[t.key], to: t.anchor }))
     .sort((a, b) => b.from.length - a.from.length);
@@ -96,13 +84,13 @@ function restoreAnchorTerms(root = document.body) {
 
   // data-term 元素：文本即整词，直接置回锚点词
   root.querySelectorAll("[data-term]").forEach(el => {
-    const t = TERM_KEYS.find(k => k.key === el.dataset.term);
+    const t = window.TermDomain.TERM_KEYS.find(k => k.key === el.dataset.term);
     if (t) el.textContent = t.anchor;
   });
 }
 
 function switchIndustry(industry) {
-  if (!TERM_DICT[industry]) { console.warn("switchIndustry: 未知行业", industry); return; }
+  if (!window.TermDomain.TERM_DICT[industry]) { console.warn("switchIndustry: 未知行业", industry); return; }
   // 1. 当前行业词→锚点词（归一化，保证 A→B→A 来回切换不出错）
   restoreAnchorTerms();
   // 2. 记录新行业
@@ -165,7 +153,7 @@ async function syncIndustryFromTenant(tenantCode) {
     });
     const json = await res.json();
     const code = (json && json.code === 200 && json.data) ? json.data.industryCode : null;
-    if (!code || !TERM_DICT[code]) return null;          // 无行业 / 未知行业，保持现状
+    if (!code || !window.TermDomain.TERM_DICT[code]) return null;          // 无行业 / 未知行业，保持现状
     const current = localStorage.getItem('industry') || domain_industry;
     if (current === code) return code;                    // 已是目标行业，不重复刷 DOM
     switchIndustry(code);                                 // 内部：还原锚点词 -> 记录新行业 -> 重新替换

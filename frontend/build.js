@@ -136,6 +136,40 @@ function writeBuildInfo() {
   return info;
 }
 
+/*
+ * 生成「共享领域层 → 浏览器全局」桥接产物 frontend/js/shared-domain-bridge.js。
+ * 领域层在 repo/shared/domain（ESM、零 DOM），本产物是供 classic <script> 委托的
+ * 经典脚本版本；buildJs() 会把它 minify 进 dist/js/，dev 代理直接读 frontend/ 源码也覆盖。
+ */
+function generateSharedBridge() {
+  const gen = path.join(ROOT, 'tools', 'gen-shared-bridge.js');
+  if (!fs.existsSync(gen)) { console.log('  bridge generator not found, skipped'); return; }
+  require('./tools/gen-shared-bridge.js').generateSharedBridge();
+}
+
+/*
+ * 把桥接脚本注入到每个 html 入口的 <head>（classic 脚本，同步执行，早于 body 里的消费脚本）。
+ * 与 injectBuildInfoGlobal 同理：所有页面统一注入即可，未消费的页面加载它无副作用。
+ */
+function injectSharedBridge() {
+  const script = '<script src="js/shared-domain-bridge.js"></script>';
+  const files = fs.readdirSync(DIST).filter(f => f.endsWith('.html'));
+  for (const f of files) {
+    const p = path.join(DIST, f);
+    let html = fs.readFileSync(p, 'utf8');
+    if (html.indexOf('shared-domain-bridge.js') >= 0) continue; // 已注入则跳过，避免重复
+    if (html.indexOf('</head>') >= 0) {
+      html = html.replace('</head>', script + '</head>');
+    } else if (html.indexOf('</body>') >= 0) {
+      html = html.replace('</body>', script + '</body>');
+    } else {
+      html += script;
+    }
+    fs.writeFileSync(p, html);
+    console.log('  inject bridge', f);
+  }
+}
+
 function injectBuildInfoGlobal(info) {
   const script = '<script>window.__BUILD_INFO__=' + JSON.stringify(info) + ';</script>';
   // 注入到 dist 下所有 html 入口页（index.html / admin.html / platform_admin.html 等），
@@ -184,6 +218,7 @@ function runOriginLint() {
   }
   fs.rmSync(DIST, { recursive: true, force: true });
   console.log('[build] JS');
+  generateSharedBridge();
   await buildJs();
   console.log('[build] CSS');
   buildCss();
@@ -194,5 +229,6 @@ function runOriginLint() {
   console.log('[build] build-info');
   const info = writeBuildInfo();
   injectBuildInfoGlobal(info);
+  injectSharedBridge();
   console.log('=== frontend build done ->', DIST, '===');
 })();
