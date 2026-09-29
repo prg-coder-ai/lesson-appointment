@@ -1,18 +1,7 @@
 import { requireAuth } from '../../core/auth.js';
 import { request } from '../../core/request.js';
 import { ENDPOINTS } from '../../shared/apiPaths.js';
-
-function bkStatusText(st) {
-  switch (st) {
-    case 'booking': return '待确认';
-    case 'waiting': return '候补';
-    case 'booked': return '已确认';
-    case 'canceling': return '取消中';
-    case 'cancelled': return '已取消';
-    case 'completed': return '已完成';
-    default: return st || '—';
-  }
-}
+import { bookingStatusText } from '../../shared/domain/bookingState.js';
 
 Page({
   data: { list: [], loading: false, page: 1, finished: false, status: '' },
@@ -41,7 +30,7 @@ Page({
         sub: r.studentName || ('学生 ' + (r.studentId || '')),
         time: r.timeText || '',
         status: r.status,
-        statusText: r.statusText || bkStatusText(r.status)
+        statusText: r.statusText || bookingStatusText(r.status)
       }));
       this.setData({
         list: this.data.page === 1 ? list : this.data.list.concat(list),

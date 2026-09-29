@@ -1,25 +1,11 @@
 import { requireAuth } from '../../core/auth.js';
 import { request } from '../../core/request.js';
 import { ENDPOINTS } from '../../shared/apiPaths.js';
+import { appointmentStatusText } from '../../shared/domain/appointmentState.js';
 
 function fmtTime(s) {
   if (!s) return '时间待定';
   return String(s).replace('T', ' ').slice(0, 16);
-}
-function apptStatusText(st) {
-  switch (st) {
-    case 'active': return '生效';
-    case 'noted1': return '已通知';
-    case 'noted2': return '已通知';
-    case 'completed': return '已完成';
-    case 'cancelled': return '已取消';
-    case 's-cancelling': return '取消待确认';
-    case 't-cancelling': return '教师取消中';
-    case 't-cancelled': return '教师已取消';
-    case 't-reject': return '已拒绝';
-    case 'changed': return '已改期';
-    default: return st || '—';
-  }
 }
 
 Page({
@@ -57,7 +43,7 @@ Page({
         return {
           id: r.id, bookingId: r.bookingId, courseId: r.courseId,
           title, sub, time: fmtTime(r.appointmentDatetime),
-          status: r.status, statusText: apptStatusText(r.status)
+          status: r.status, statusText: appointmentStatusText(r.status)
         };
       });
       this.setData({ list });
