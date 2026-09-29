@@ -287,7 +287,7 @@
       // 业务层 401：后端以 HTTP 200 + body.code=401 返回（token 失效）
       // 不在这里跳转/刷新，统一交给 error 拦截器或调用方处理；这里仅 reject
       if (res.code === 401) {
-          errMsg = res.message || res.msg || '登录已过期';
+          errMsg = window.ErrorCodeDomain.resolveResult(res).message;
         if (config.customErrorMsg !== false) {
           showError(errMsg);
         }
@@ -298,7 +298,7 @@
       // 之前用 window.href（错误拼写，应为 window.location.href）跳转登录页(login.html)是错的：
       // 权限不足 ≠ 未登录，跳登录页会让用户困惑
       if (res.code === 403) {
-         errMsg = res.message || res.msg || '无权限访问该资源';
+         errMsg = window.ErrorCodeDomain.resolveResult(res).message;
         if (config.customErrorMsg !== false) {
           showError(errMsg);
         }
@@ -306,7 +306,7 @@
       }
 
       // 其他业务错误码
-        errMsg = res.message || res.msg || '操作失败';
+        errMsg = window.ErrorCodeDomain.resolveResult(res).message;
       if (config.customErrorMsg !== false) {
         showError(errMsg);
       }
@@ -318,7 +318,7 @@
 
       // ① 超时
       if (error.code === 'ECONNABORTED' && error.message.includes('timeout')) {
-        const msg = '请求超时，请稍后重试';
+        const msg = window.ErrorCodeDomain.resolveRequestError(error).message;
         if (config.customErrorMsg !== false) {
           showError(msg);
         }
@@ -327,7 +327,7 @@
 
       // ② 网络不可达
       if (!error.response) {
-        const msg = '网络连接失败，请检查网络';
+        const msg = window.ErrorCodeDomain.resolveRequestError(error).message;
         if (config.customErrorMsg !== false) {
           showError(msg);
         }

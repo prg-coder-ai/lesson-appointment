@@ -59,6 +59,7 @@
   <!-- 标记本页为免登录公开落地页：utility_request.js 据此对「任意 401」都不跳登录页，
        彻底切断 index↔landing 的 tCode 未登录重定向死循环。必须在 utility_request.js 之前执行。 -->
   <script>window.__PUBLIC_LANDING__ = true;</script>
+<script src="js/shared-domain-bridge.js"></script>
 </head>
 <body>
   <header class="lp-header">
