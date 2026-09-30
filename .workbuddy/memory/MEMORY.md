@@ -112,7 +112,7 @@
     - mp 真实收敛：`core/request.js` 的 `wxRequest` 改调 `transport`（返回 {statusCode,data,header} 与旧 wx.request 解包兼容）；`core/storage.js` 的 `storage` 改 import 共享适配器（会话 helpers 保留）。mp `core/ui.js` 此前已转发共享 alert/confirm/prompt。
     - Web 真实收敛：`api.js`/`auth.js` 的 token/currentUser 存储经 `STORE` 别名优先走 `window.StorageAdapter.storage`（桥接未加载回退原生 localStorage，零回归）；`utility_request.js` 两处 401 跳登录改走 `window.RouterAdapter.openUrl`（带原生兜底）。
     - 验收：gen→sync→**守卫 GUARD_EXIT=0** → node --check 全绿 → build → test-shared-domain 122 / bridge 冒烟(含 4 适配器断言) / remaining-sites 42 / check_shared_bridge 19 全绿。
-    - **未做（下一阶段，避免破坏 5 套回归 + 违反 Decision 3）**：mp 页面级 wx.showModal/showToast/navigateTo 散点、Web 端 191 alert/115 localStorage/45 location.href 散点、net 在 Web 仍走 axios 未改 fetch（NetAdapter 已暴露供共享/未来用）。
+    - **下一阶段（避免破坏 5 套回归 + 违反 Decision 3）**：mp 页面级 wx.showToast/navigateTo 散点、Web 端 191 alert/115 localStorage/45 location.href 散点、net 在 Web 仍走 axios 未改 fetch（NetAdapter 已暴露供共享/未来用）。**mp 页面级 wx.showModal 已批量迁移完成**（8 文件 11 处 → confirm/alert，页面级清零，见当日日志）。
 
 ## 文档/技能
 - 三手册：腾讯云(权威)＞预约系统(原理排障)＞前端(仅前端)。scp -r 源目录/ 目标/(结尾/传内容)。

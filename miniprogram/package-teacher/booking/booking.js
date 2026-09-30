@@ -2,6 +2,7 @@ import { requireAuth } from '../../core/auth.js';
 import { request } from '../../core/request.js';
 import { ENDPOINTS } from '../../shared/apiPaths.js';
 import { bookingStatusText } from '../../shared/domain/bookingState.js';
+import { confirm } from '../../core/ui.js';
 
 Page({
   data: { list: [], loading: false, page: 1, finished: false, status: '' },
@@ -43,8 +44,8 @@ Page({
   },
   async act(e) {
     const { id, status, label } = e.currentTarget.dataset;
-    const r = await wx.showModal({ title: '确认', content: '确定' + label + '该预约？' });
-    if (!r.confirm) return;
+    const ok = await confirm('确定' + label + '该预约？', { title: '确认' });
+    if (!ok) return;
     try {
       await request({ url: ENDPOINTS.BOOKING_UPDATE_STATUS, method: 'POST', data: { bookingId: id, status } });
       wx.showToast({ title: label + '成功', icon: 'none' });

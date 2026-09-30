@@ -7,6 +7,7 @@ import { requireAuth } from '../../core/auth.js';
 import { request } from '../../core/request.js';
 import { ENDPOINTS } from '../../shared/apiPaths.js';
 import { withTerms } from '../../core/term.js';
+import { confirm } from '../../core/ui.js';
 
 const STATUS_TEXT = {
   booking: '待确认', waiting: '候补', cancelling: '取消待确认',
@@ -63,13 +64,12 @@ Page(withTerms({
     const { id, action } = e.currentTarget.dataset;
     const tip = action === 'booked' ? '确认预定' : (action === 'rej-booking' ? '拒绝预定'
       : (action === 'cancelled' ? '确认取消' : '拒绝取消'));
-    wx.showModal({ title: tip, content: '确定执行该操作？', success: async (r) => {
-      if (!r.confirm) return;
-      try {
-        await request({ url: ENDPOINTS.BOOKING_UPDATE_STATUS, method: 'POST', data: { id, status: action } });
-        wx.showToast({ title: '已更新', icon: 'success' });
-        this.load();
-      } catch (err) { wx.showToast({ title: (err && err.message) || '操作失败', icon: 'none' }); }
-    } });
+    const ok = await confirm('确定执行该操作？', { title: tip });
+    if (!ok) return;
+    try {
+      await request({ url: ENDPOINTS.BOOKING_UPDATE_STATUS, method: 'POST', data: { id, status: action } });
+      wx.showToast({ title: '已更新', icon: 'success' });
+      this.load();
+    } catch (err) { wx.showToast({ title: (err && err.message) || '操作失败', icon: 'none' }); }
   }
 }));

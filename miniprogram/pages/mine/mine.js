@@ -6,6 +6,7 @@ import { storage } from '../../core/storage.js';
 import { request } from '../../core/request.js';
 import { ENDPOINTS } from '../../shared/apiPaths.js';
 import { getUnreadCount } from '../../core/message.js';
+import { confirm } from '../../core/ui.js';
 
 Page(withTerms({
   data: {
@@ -47,10 +48,10 @@ Page(withTerms({
     } finally { this.setData({ saving: false }); }
   },
   onLogout() {
-    wx.showModal({ title: '退出登录', content: '确定退出当前账号？', success: (r) => { if (r.confirm) logout(); } });
+    confirm('确定退出当前账号？', { title: '退出登录' }).then((ok) => { if (ok) logout(); });
   },
   onSwitch() {
-    wx.showModal({ title: '切换租户', content: '将解绑当前租户（' + (this.data.user.tenantCode || '') + '）并返回登录，确定？', success: (r) => { if (r.confirm) switchTenant(); } });
+    confirm('将解绑当前租户（' + (this.data.user.tenantCode || '') + '）并返回登录，确定？', { title: '切换租户' }).then((ok) => { if (ok) switchTenant(); });
   },
   goMessage() { wx.navigateTo({ url: '/package-message/inbox/inbox' }); }
 }));

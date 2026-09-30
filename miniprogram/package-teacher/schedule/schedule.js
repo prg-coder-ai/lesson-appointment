@@ -3,6 +3,7 @@
 import { requireAuth } from '../../core/auth.js';
 import { request } from '../../core/request.js';
 import { ENDPOINTS } from '../../shared/apiPaths.js';
+import { confirm } from '../../core/ui.js';
 
 const STATUS_TEXT = { active: '已发布', frozen: '已冻结', pending: '待发布', inactive: '已下架' };
 const REPEAT_TEXT = { 0: '不重复', 1: '每天', 2: '每周', 3: '每月' };
@@ -46,27 +47,25 @@ Page({
   },
   goAdd() { wx.navigateTo({ url: '/package-teacher/schedule/schedule-edit?mode=add' }); },
   goEdit(e) { wx.navigateTo({ url: '/package-teacher/schedule/schedule-edit?mode=edit&id=' + e.currentTarget.dataset.id }); },
-  onDelete(e) {
+  async onDelete(e) {
     const id = e.currentTarget.dataset.id;
-    wx.showModal({ title: '删除排期', content: '确定删除该排期？', success: async (r) => {
-      if (!r.confirm) return;
-      try {
-        await request({ url: ENDPOINTS.SCHEDULE_DELETE(id), method: 'DELETE' });
-        wx.showToast({ title: '已删除', icon: 'success' });
-        this.load();
-      } catch (err) { wx.showToast({ title: (err && err.message) || '删除失败', icon: 'none' }); }
-    } });
+    const ok = await confirm('确定删除该排期？', { title: '删除排期' });
+    if (!ok) return;
+    try {
+      await request({ url: ENDPOINTS.SCHEDULE_DELETE(id), method: 'DELETE' });
+      wx.showToast({ title: '已删除', icon: 'success' });
+      this.load();
+    } catch (err) { wx.showToast({ title: (err && err.message) || '删除失败', icon: 'none' }); }
   },
-  onToggleStatus(e) {
+  async onToggleStatus(e) {
     const { id, status } = e.currentTarget.dataset;
     const next = status === 'active' ? 'frozen' : 'active';
-    wx.showModal({ title: '切换状态', content: next === 'frozen' ? '冻结该排期（不再接受预约）？' : '重新发布该排期？', success: async (r) => {
-      if (!r.confirm) return;
-      try {
-        await request({ url: ENDPOINTS.SCHEDULE_UPDATE_STATUS, method: 'POST', data: { scheduleId: id, status: next } });
-        wx.showToast({ title: '已更新', icon: 'success' });
-        this.load();
-      } catch (err) { wx.showToast({ title: (err && err.message) || '操作失败', icon: 'none' }); }
-    } });
+    const ok = await confirm(next === 'frozen' ? '冻结该排期（不再接受预约）？' : '重新发布该排期？', { title: '切换状态' });
+    if (!ok) return;
+    try {
+      await request({ url: ENDPOINTS.SCHEDULE_UPDATE_STATUS, method: 'POST', data: { scheduleId: id, status: next } });
+      wx.showToast({ title: '已更新', icon: 'success' });
+      this.load();
+    } catch (err) { wx.showToast({ title: (err && err.message) || '操作失败', icon: 'none' }); }
   }
 });

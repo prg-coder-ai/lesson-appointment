@@ -2,6 +2,7 @@ import { login, getBoundTenantCode, goHome } from '../../core/auth.js';
 import { withTerms } from '../../core/term.js';
 import { clearSession, storage, getSession } from '../../core/storage.js';
 import { ROLES } from '../../shared/constants.js';
+import { confirm, alert } from '../../core/ui.js';
 
 const ROLE_OPTIONS = [
   { role: ROLES.STUDENT, text: '学生端' },
@@ -49,29 +50,20 @@ Page(withTerms({
     this.setData({ role, isPlatformRole: role === ROLES.PLATFORM_ADMIN || role === ROLES.ADMIN });
   },
   clearBinding() {
-    wx.showModal({
-      title: '切换租户',
-      content: '将解绑当前租户（' + this.data.boundTenantCode + '）并返回登录，确定？',
-      success: (r) => {
-        if (!r.confirm) return;
-        const app2 = (typeof getApp === 'function') ? getApp() : null;
-        try { if (app2 && app2.globalData) app2.globalData.onAuthFail = () => wx.reLaunch({ url: '/pages/login/login' }); } catch (e) {}
-        // 解绑：清登录态 + 清绑定
-        clearSession();
-        storage.remove('boundTenantCode');
-        this.setData({ boundTenantCode: '', tenantCode: '' });
-      }
+    confirm('将解绑当前租户（' + this.data.boundTenantCode + '）并返回登录，确定？', { title: '切换租户' }).then((ok) => {
+      if (!ok) return;
+      const app2 = (typeof getApp === 'function') ? getApp() : null;
+      try { if (app2 && app2.globalData) app2.globalData.onAuthFail = () => wx.reLaunch({ url: '/pages/login/login' }); } catch (e) {}
+      // 解绑：清登录态 + 清绑定
+      clearSession();
+      storage.remove('boundTenantCode');
+      this.setData({ boundTenantCode: '', tenantCode: '' });
     });
   },
   toggleAgree() { this.setData({ agreed: !this.data.agreed }); },
   openAgreement() {
     // 占位：上线前需替换为真实《用户协议》《隐私政策》页面，并在微信公众平台配置隐私协议网址
-    wx.showModal({
-      title: '用户协议与隐私政策',
-      content: '登录即代表你同意我们依据《用户协议》《隐私政策》收集并处理你的账号与租户信息。正式版本请见小程序内隐私政策页。',
-      showCancel: false,
-      confirmText: '我知道了'
-    });
+    alert('登录即代表你同意我们依据《用户协议》《隐私政策》收集并处理你的账号与租户信息。正式版本请见小程序内隐私政策页。', { title: '用户协议与隐私政策', confirmText: '我知道了' });
   },
   async onLogin() {
     if (!this.data.agreed) { wx.showToast({ title: '请先阅读并同意用户协议', icon: 'none' }); return; }

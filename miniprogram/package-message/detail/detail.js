@@ -2,6 +2,7 @@
 
 import { requireAuth } from '../../core/auth.js';
 import { getDetail, setRead, toggleStar, deleteMessage, fmtTime } from '../../core/message.js';
+import { confirm } from '../../core/ui.js';
 
 Page({
   data: {
@@ -48,18 +49,15 @@ Page({
       wx.showToast({ title: (e && e.message) || '操作失败', icon: 'none' });
     }
   },
-  onDelete() {
-    wx.showModal({
-      title: '删除消息', content: '确定删除这条消息？', success: async (r) => {
-        if (!r.confirm) return;
-        try {
-          await deleteMessage(this.data.uid, this.data.mid);
-          wx.showToast({ title: '已删除', icon: 'success' });
-          setTimeout(() => wx.navigateBack(), 400);
-        } catch (e) {
-          wx.showToast({ title: (e && e.message) || '删除失败', icon: 'none' });
-        }
-      }
-    });
+  async onDelete() {
+    const ok = await confirm('确定删除这条消息？', { title: '删除消息' });
+    if (!ok) return;
+    try {
+      await deleteMessage(this.data.uid, this.data.mid);
+      wx.showToast({ title: '已删除', icon: 'success' });
+      setTimeout(() => wx.navigateBack(), 400);
+    } catch (e) {
+      wx.showToast({ title: (e && e.message) || '删除失败', icon: 'none' });
+    }
   }
 });
