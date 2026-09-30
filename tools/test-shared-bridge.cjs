@@ -12,6 +12,21 @@ assert.strictEqual(typeof w.MaskDomain, 'object', 'MaskDomain missing');
 assert.strictEqual(typeof w.DatetimeDomain, 'object', 'DatetimeDomain missing');
 assert.strictEqual(typeof w.ErrorCodeDomain, 'object', 'ErrorCodeDomain missing');
 
+// ---- 适配层（net/storage/ui/router）----
+assert.strictEqual(typeof w.NetAdapter, 'object', 'NetAdapter missing');
+assert.strictEqual(typeof w.StorageAdapter, 'object', 'StorageAdapter missing');
+assert.strictEqual(typeof w.UiAdapter, 'object', 'UiAdapter missing');
+assert.strictEqual(typeof w.RouterAdapter, 'object', 'RouterAdapter missing');
+assert.strictEqual(typeof w.NetAdapter.transport, 'function', 'NetAdapter.transport missing');
+assert.strictEqual(typeof w.StorageAdapter.storage, 'object', 'StorageAdapter.storage missing');
+assert.strictEqual(typeof w.UiAdapter.alert, 'function', 'UiAdapter.alert missing');
+assert.strictEqual(typeof w.UiAdapter.confirm, 'function', 'UiAdapter.confirm missing');
+assert.strictEqual(typeof w.RouterAdapter.to, 'function', 'RouterAdapter.to missing');
+assert.strictEqual(typeof w.RouterAdapter.openUrl, 'function', 'RouterAdapter.openUrl missing');
+assert.strictEqual(typeof w.RouterAdapter.parseQuery, 'function', 'RouterAdapter.parseQuery missing');
+// router.parseQuery 纯函数可独立验证（不依赖运行时平台）
+assert.deepStrictEqual(w.RouterAdapter.parseQuery('?a=1&b=2'), { a: '1', b: '2' });
+
 assert.strictEqual(w.MaskDomain.maskPhone('13812345678'), '138****5678');
 assert.strictEqual(w.MaskDomain.maskEmail('zhangsan@example.com'), 'zh****an@example.com');
 assert.strictEqual(w.BookingStateDomain.bookingStatusText('booking'), '待确认');

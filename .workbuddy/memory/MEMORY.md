@@ -106,6 +106,14 @@
   - **Web 接 bookingState/appointmentState（2026-09-30）**：纯逻辑已接——`courseAndBooking.js` 的 `bookingOccupiesSeat` 与 `student-bookingCards.js` 的 `formatRemainingSites` 改为委托 `window.BookingStateDomain` 并保留无桥接兜底（测试沙箱不加载桥接时自动回退，零回归）；`appointmentState.js` 扩展 `appointmentStatusText(status,{teacherLabel})`（新增 booking 态 booked/waiting/deleted/reject/rej-booking + changed，教师取消态带可配置行业词），Web 的 `appointmentNotes.js:checkAppointmentStatus` 与 `student-bookingBrowserCards.js:getAppointmentStatusLabel` 改为委托共享域（排期态 pending/inactive 留本地）；`gen-shared-bridge.js` 机械转译自动同步，镜像守卫触发 `sync-miniprogram-shared.js` 同步 16 文件。
   - **用户拍板两处口径**：① booking 状态文案 `checkStatus_booking` **保持 Web 本地**（'预定待确认'等，视图层允许不一致 Decision 3，且与 html 下拉项一致，不接共享域）；② appointmentState **扩展共享域后再接**（已执行）。验收：test-shared-domain 110→**122 断言**，bridge 冒烟、check_shared_bridge 19、check_remaining_sites 42 全绿。
 
+  - **P2 适配层真正接线（2026-09-30 启动）**：net/storage/ui/router 四适配器已落 `shared/adapters/`（运行时自动探测 wx/Web），并首度**真正消费**。
+    - 新建 `shared/adapters/router.js`（setRoutes/to/replace/back/current/parseQuery/openUrl：命名路由表 + 直接路径双形态；mp=wx.navigate*、Web=location/history）。
+    - `gen-shared-bridge.js` 扩展：把 `shared/adapters/{net,storage,ui,router}.js` 也机械转译挂 `window.{NetAdapter,StorageAdapter,UiAdapter,RouterAdapter}`（Web 首度可消费；stripEsm 加 `export default` 剥离）。
+    - mp 真实收敛：`core/request.js` 的 `wxRequest` 改调 `transport`（返回 {statusCode,data,header} 与旧 wx.request 解包兼容）；`core/storage.js` 的 `storage` 改 import 共享适配器（会话 helpers 保留）。mp `core/ui.js` 此前已转发共享 alert/confirm/prompt。
+    - Web 真实收敛：`api.js`/`auth.js` 的 token/currentUser 存储经 `STORE` 别名优先走 `window.StorageAdapter.storage`（桥接未加载回退原生 localStorage，零回归）；`utility_request.js` 两处 401 跳登录改走 `window.RouterAdapter.openUrl`（带原生兜底）。
+    - 验收：gen→sync→**守卫 GUARD_EXIT=0** → node --check 全绿 → build → test-shared-domain 122 / bridge 冒烟(含 4 适配器断言) / remaining-sites 42 / check_shared_bridge 19 全绿。
+    - **未做（下一阶段，避免破坏 5 套回归 + 违反 Decision 3）**：mp 页面级 wx.showModal/showToast/navigateTo 散点、Web 端 191 alert/115 localStorage/45 location.href 散点、net 在 Web 仍走 axios 未改 fetch（NetAdapter 已暴露供共享/未来用）。
+
 ## 文档/技能
 - 三手册：腾讯云(权威)＞预约系统(原理排障)＞前端(仅前端)。scp -r 源目录/ 目标/(结尾/传内容)。
-- 技能：saas-api-build-smoke/booking-deeplink-routing/public-endpoint-tenant-bypass/browserless-frontend-itest/source-encoding-repair/saas-debug-output-cleanup/server-side-term-template/seat-oversell-concurrency-audit/saas-tenant-config-rule-module。
+- 技能：saas-api-build-smoke/booking-deeplink-routing/public-endpoint-tenant-bypass/browserless-frontend-itest/source-encoding-repair/saas-debug-output-cleanup/server-side-term-template/seat-oversell-concurrency-audit/saas-tenant-config-rule-module/shared-domain-sink/shared-adapter-wire。
