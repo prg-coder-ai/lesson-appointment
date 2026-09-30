@@ -108,6 +108,19 @@ eq(appointmentStatusText('t-cancelling'), '教师取消中', 'appt t-cancelling�
 eq(appointmentStatusText('t-cancelled'), '教师已取消', 'appt t-cancelled→教师已取消');
 eq(appointmentStatusText('t-reject'), '已拒绝', 'appt t-reject→已拒绝');
 eq(appointmentStatusText('changed'), '已改期', 'appt changed→已改期');
+// Web 混合表里的 booking 态（appointmentNotes / 学生端预览）也走同一权威源
+eq(appointmentStatusText('booking'), '待确认', 'appt booking→待确认');
+eq(appointmentStatusText('booked'), '预约已确认', 'appt booked→预约已确认');
+eq(appointmentStatusText('waiting'), '候补', 'appt waiting→候补');
+eq(appointmentStatusText('deleted'), '已删除', 'appt deleted→已删除');
+eq(appointmentStatusText('frozen'), '已删除', 'appt frozen→已删除');
+eq(appointmentStatusText('reject'), '已拒绝', 'appt reject→已拒绝');
+eq(appointmentStatusText('rej-booking'), '已拒绝', 'appt rej-booking→已拒绝');
+eq(appointmentStatusText('canceling'), '取消待确认', 'appt canceling(美式)归一→取消待确认');
+eq(appointmentStatusText(''), '—', 'appt 空串兜底→—');
+eq(appointmentStatusText('t-cancelling', { teacherLabel: '律师' }), '律师取消中', 'appt t-cancelling 行业词参数化');
+eq(appointmentStatusText('t-cancelled', { teacherLabel: '教练' }), '教练已取消', 'appt t-cancelled 行业词参数化');
+eq(appointmentStatusText('t-cancelling'), '教师取消中', 'appt t-cancelling 缺省行业词=教师');
 ok(isAppointmentClosed('completed') && isAppointmentClosed('cancelled') &&
    isAppointmentClosed('t-cancelled') && isAppointmentClosed('changed'), 'appt closed 集合');
 ok(!isAppointmentClosed('active'), 'appt active 非终态');

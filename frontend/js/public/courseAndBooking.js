@@ -553,13 +553,20 @@ return [];
   * 用途：凡是「这条记录不再占席位 ⇒ 排期可能已空出位子」的地方，都据此判断。
   * 典型是预订管理页的「查询递补」入口——不占席位才需要去排期页看候补队列。
   */
- function bookingOccupiesSeat(status) {
-   const NON_OCCUPYING = ['waiting', 'cancelled', 'canceled', 'rej-booking', 'frozen'];
-   if (status === null || status === undefined) return true;
-   const s = String(status).trim();
-   if (s === '') return true;
-   return NON_OCCUPYING.indexOf(s) === -1;
- }
+// 委托到共享领域层 window.BookingStateDomain.bookingOccupiesSeat（P0-Web 桥接，单一权威源）。
+// 相比本地旧名单，共享域额外把 'deleted' 也归为非占位态（与后端 BookingStatus.NON_OCCUPYING 对齐）。
+// 无桥接环境（如纯单测沙箱未加载 shared-domain-bridge.js）保留原实现兜底，保证零回归。
+function bookingOccupiesSeat(status) {
+  if (typeof window !== 'undefined' && window.BookingStateDomain
+      && typeof window.BookingStateDomain.bookingOccupiesSeat === 'function') {
+    return window.BookingStateDomain.bookingOccupiesSeat(status);
+  }
+  const NON_OCCUPYING = ['waiting', 'cancelled', 'canceled', 'rej-booking', 'frozen'];
+  if (status === null || status === undefined) return true;
+  const s = String(status).trim();
+  if (s === '') return true;
+  return NON_OCCUPYING.indexOf(s) === -1;
+}
 
  //检查status，只有待确认的booking、cancelling才显示待确认，并显示相应的按钮
  function checkStatus_booking(status) {

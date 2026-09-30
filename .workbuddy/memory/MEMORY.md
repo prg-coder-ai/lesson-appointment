@@ -102,7 +102,9 @@
   - 根 `shared/format.js` 的 mask 改为 re-export `domain/mask.js`，`shared/index.js` 去掉重复的 `domain/mask` export（避免同名 `export *` 冲突，已实测 barrel 无冲突、index.maskPhone 可达）。
   - **P0-Web 桥接已完成**（2026-09-30）：`gen-shared-bridge.js` 升级为内联 `constants.js` + 7 个 domain，挂 `window.{TermDomain,RefundRuleDomain,BookingStateDomain,AppointmentStateDomain,MaskDomain,DatetimeDomain,ErrorCodeDomain}`（7 域全暴露）。**关键修复 dev 缺口**：桥接 `<script>` 补进全部 12 个源码 HTML（dev 代理直出 frontend/ 时原本不加载桥接，`window.TermDomain` 在 dev 下此前裸奔），build.js 因 indexOf 守卫不会重复注入。
   - **Web 消费三个域**：`api.js` `maskPhone/maskEmail`→`window.MaskDomain`（覆盖 5 个调用点：admin-user/platform-admin-*）；`utility_request.js` 错误文案(401/403/超时/网络)→`window.ErrorCodeDomain.resolveResult/resolveRequestError`；`api.js` `getWeekdayFromDateTime` 的 `new Date('yyyy-MM-dd')` 时区偏移坑→`window.DatetimeDomain.parseLocalDate`。
-  - 验证：`tools/test-shared-bridge.cjs`（浏览器模拟冒烟，7 对象齐全+13 断言）、`tools/test-shared-domain.mjs`（110 断言）；`node build.js` 重建 dist，12/12 html 注入桥接、`node --check` 源码+dist 桥接均 OK。bookingState/appointmentState 已暴露桥接待 Web 页面迁移时接。
+  - 验证：`tools/test-shared-bridge.cjs`（浏览器模拟冒烟，7 对象齐全+13 断言）、`tools/test-shared-domain.mjs`（110 断言）；`node build.js` 重建 dist，12/12 html 注入桥接、`node --check` 源码+dist 桥接均 OK。
+  - **Web 接 bookingState/appointmentState（2026-09-30）**：纯逻辑已接——`courseAndBooking.js` 的 `bookingOccupiesSeat` 与 `student-bookingCards.js` 的 `formatRemainingSites` 改为委托 `window.BookingStateDomain` 并保留无桥接兜底（测试沙箱不加载桥接时自动回退，零回归）；`appointmentState.js` 扩展 `appointmentStatusText(status,{teacherLabel})`（新增 booking 态 booked/waiting/deleted/reject/rej-booking + changed，教师取消态带可配置行业词），Web 的 `appointmentNotes.js:checkAppointmentStatus` 与 `student-bookingBrowserCards.js:getAppointmentStatusLabel` 改为委托共享域（排期态 pending/inactive 留本地）；`gen-shared-bridge.js` 机械转译自动同步，镜像守卫触发 `sync-miniprogram-shared.js` 同步 16 文件。
+  - **用户拍板两处口径**：① booking 状态文案 `checkStatus_booking` **保持 Web 本地**（'预定待确认'等，视图层允许不一致 Decision 3，且与 html 下拉项一致，不接共享域）；② appointmentState **扩展共享域后再接**（已执行）。验收：test-shared-domain 110→**122 断言**，bridge 冒烟、check_shared_bridge 19、check_remaining_sites 42 全绿。
 
 ## 文档/技能
 - 三手册：腾讯云(权威)＞预约系统(原理排障)＞前端(仅前端)。scp -r 源目录/ 目标/(结尾/传内容)。

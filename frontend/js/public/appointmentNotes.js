@@ -787,12 +787,20 @@ async function datamaintain_fetchAppointmenPage(query) {
     }
    }
    //检查status，只有待确认的booking、cancelling才显示待确认，并显示相应的按钮 3天、1天前、当天
+   // 委托到共享领域层 window.AppointmentStateDomain.appointmentStatusText（P0-Web 桥接，单一权威源）。
+   // 相比本地旧实现，共享域把 noted1/noted2 统一为「已通知」、教师取消态带可配置行业词，
+   // 并覆盖 booked/waiting/deleted/reject 等「课次/预订混合表」里出现的 booking 态。
+   // 无桥接环境（如纯单测沙箱未加载 shared-domain-bridge.js）保留原 Web 文案兜底，保证零回归。
    function checkAppointmentStatus(status) {
+    if (typeof window !== 'undefined' && window.AppointmentStateDomain
+        && typeof window.AppointmentStateDomain.appointmentStatusText === 'function') {
+      const teacherLabel = (typeof termText === 'function') ? termText('teacher') : '教师';
+      return window.AppointmentStateDomain.appointmentStatusText(status, { teacherLabel: teacherLabel });
+    }
+    // 兜底（无桥接环境）：保持原 Web 文案
     if (status === 'active' ) {
       return '正常';
     } else   if   (status === 'noted1') {
-      // noted1 / noted2 是「通知标记寄存在业务状态字段里」那个时期的遗留值，现在不再产生
-      // （通知记录已迁到 notification_dispatch_log 流水表）。保留展示仅为历史数据可读。
       return notifyLegacyNotedText(1);
     }  else   if   (status === 'noted2') {
       return notifyLegacyNotedText(2);
@@ -803,12 +811,10 @@ async function datamaintain_fetchAppointmenPage(query) {
     } else if   (status === 't-cancelling') {
       return '申请取消（' + termText('teacher') + '）';
     } else if (status === 't-cancelled') {
-      // 该课次由教师取消，标注取消方为「教师」；「教师」按行业词汇转换，全角色统一显示。
       return '已取消（' + termText('teacher') + '）';
     } else if (status === 'booked') {
       return '预约已确认';
     } else if (status === 'waiting') {
-      // 候补预订（名额已满时的候补申请）
       return '候补';
     } else if (status === 'cancelled' || status === 'canceled') {
       return '已取消';

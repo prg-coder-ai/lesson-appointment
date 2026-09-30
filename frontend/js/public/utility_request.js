@@ -472,7 +472,12 @@
             undefined;
             saveLoginRedirect('401');
             setTimeout(() => {
-              location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('login.html') : './login.html';
+              var _loginTarget = (typeof window.pageUrl === 'function') ? window.pageUrl('login.html') : './login.html';
+              if (window.RouterAdapter && typeof window.RouterAdapter.openUrl === 'function') {
+                window.RouterAdapter.openUrl(_loginTarget);
+              } else {
+                location.href = _loginTarget;
+              }
             }, 500);
           }
           return Promise.reject(refreshErr);
@@ -501,7 +506,12 @@
               undefined;
               saveLoginRedirect('401');
               setTimeout(() => {
-                location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('login.html') : './login.html';
+                var _loginTarget = (typeof window.pageUrl === 'function') ? window.pageUrl('login.html') : './login.html';
+              if (window.RouterAdapter && typeof window.RouterAdapter.openUrl === 'function') {
+                window.RouterAdapter.openUrl(_loginTarget);
+              } else {
+                location.href = _loginTarget;
+              }
               }, 500);
             }
           }

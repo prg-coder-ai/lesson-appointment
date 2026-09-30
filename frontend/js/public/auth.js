@@ -9,6 +9,12 @@
 
   const request = window.request;
 
+  // 存储统一走共享适配层 window.StorageAdapter.storage（Web 端内部即 localStorage，行为一致）；
+  // 桥接未加载时（如单测沙箱）回退到原生 localStorage，保证零回归。
+  var STORE = (typeof window !== 'undefined' && window.StorageAdapter && window.StorageAdapter.storage)
+    ? window.StorageAdapter.storage
+    : (typeof localStorage !== 'undefined' ? localStorage : null);
+
   // 登录 API：参数应当放在 data 中
   function login(data) {
     // data: { account: 'xxx', password: 'yyy' }
@@ -37,7 +43,7 @@
   async function handleLogout() {
     // 注意：退出登录不应保留「返回点」。若在此处 saveLoginRedirect，会把退出前所在页
     // （落地页/工作台）存为下次登录后的跳转目标，导致重新登录反而跳回落地页而非角色工作台。
-    const refreshToken = localStorage.getItem('refreshToken');
+    const refreshToken = STORE.getItem('refreshToken');
     if (refreshToken) {
       try {
         await logout(refreshToken);
@@ -46,10 +52,10 @@
       }
     }
     // 注意：不要直接 localStorage.clear()，否则会把刚存的 auth_redirect_info 也清掉
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('currentUser');
-    localStorage.removeItem('auth_menu_state');  // 常见菜单状态，按需扩展
+    STORE.removeItem('token');
+    STORE.removeItem('refreshToken');
+    STORE.removeItem('currentUser');
+    STORE.removeItem('auth_menu_state');  // 常见菜单状态，按需扩展
     document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
     // 回到登录页时保留租户链接参数：pageUrl 由 api.js 提供（自动附 tCode），
     // 缺失时降级为相对路径，保证不因 helper 未加载而跳转失败
@@ -72,8 +78,8 @@
    */
 
   function saveCurrentUserSession(user) {
-    localStorage.setItem('token', user.token);
-    localStorage.setItem('refreshToken', user.refreshToken);
+    STORE.setItem('token', user.token);
+    STORE.setItem('refreshToken', user.refreshToken);
     const currentUser = {
       userId: user.userId,
       account: user.account,
@@ -88,12 +94,12 @@
     if (!tCode && typeof window.getUrlParam === 'function') tCode = window.getUrlParam('tCode') || '';
     if (!tCode) {
       try {
-        const old = JSON.parse(localStorage.getItem('currentUser') || 'null');
+        const old = JSON.parse(STORE.getItem('currentUser') || 'null');
         tCode = (old && old.tenantCode) || '';
       } catch (e) { /* 旧值不可解析则忽略 */ }
     }
     if (tCode) currentUser.tenantCode = tCode;
-    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    STORE.setItem('currentUser', JSON.stringify(currentUser));
     try {
       const d = new Date();
       d.setTime(d.getTime() + 20 * 60 * 60 * 1000);

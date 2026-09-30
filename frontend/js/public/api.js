@@ -5,6 +5,11 @@
  * 旧的默认值 'http://<hostname>:8081' / ':8080' 会在生产跳到不存在的端口，已废弃。 */
 window.ADMIN_ORIGIN = window.ADMIN_ORIGIN || location.origin;
 window.FRONTEND_ORIGIN = window.FRONTEND_ORIGIN || location.origin;
+// 存储统一走共享适配层 window.StorageAdapter.storage（Web 端内部即 STORE，行为一致）；
+// 桥接未加载时（如单测沙箱）回退到原生 STORE，保证零回归。
+var STORE = (typeof window !== 'undefined' && window.StorageAdapter && window.StorageAdapter.storage)
+  ? window.StorageAdapter.storage
+  : (typeof STORE !== 'undefined' ? STORE : null);
 // API请求封装（简化JS请求，避免重复代码） 
     // 全局定义API服务器地址及端口号、根路径（可根据实际情况修改）
    
@@ -148,11 +153,11 @@ async function fetchUserList(conditionJson) {
   }
   
 /**
- * 获取Token（修复localStorage解析逻辑）
+ * 获取Token（修复STORE解析逻辑）
  */
 
 function getToken() {
-  const currentUserStr = localStorage.getItem('currentUser');
+  const currentUserStr = STORE.getItem('currentUser');
   if (!currentUserStr) {
       alert('未登录，请重新登录');
       // 修正：旧版跳 '/login'（该页面并不存在）且丢失 tCode；统一走登录页并带上租户编码
@@ -164,7 +169,7 @@ function getToken() {
 }
 
 function  getCurrentUserInfo() { 
-const userStr = localStorage.getItem('currentUser');
+const userStr = STORE.getItem('currentUser');
   if(userStr)
      return  JSON.parse(userStr);
     else return null;
@@ -248,7 +253,7 @@ const userStr = localStorage.getItem('currentUser');
   }
 
  function autoLoginCheck() {
-  const userStr = localStorage.getItem('currentUser');
+  const userStr = STORE.getItem('currentUser');
   if (!userStr) {
     return null;
   }
@@ -256,24 +261,24 @@ const userStr = localStorage.getItem('currentUser');
   try {
     userInfo = JSON.parse(userStr);
   } catch (e) {
-    localStorage.removeItem('currentUser');
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
+    STORE.removeItem('currentUser');
+    STORE.removeItem('token');
+    STORE.removeItem('refreshToken');
     return;
   }
 
-  const token = userInfo.token || localStorage.getItem('token');
+  const token = userInfo.token || STORE.getItem('token');
   if (!token || !userInfo.role) {
-    localStorage.removeItem('currentUser');
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
+    STORE.removeItem('currentUser');
+    STORE.removeItem('token');
+    STORE.removeItem('refreshToken');
     return;
   } 
 
   if (isJwtExpired(token)) {
-    localStorage.removeItem('currentUser');
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
+    STORE.removeItem('currentUser');
+    STORE.removeItem('token');
+    STORE.removeItem('refreshToken');
     document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
     return;
   }
@@ -281,8 +286,8 @@ const userStr = localStorage.getItem('currentUser');
 }
 
  function autoLoginCheck1() {
-  // 读取本地 localStorage 保存的用户信息
-  const userStr = localStorage.getItem('currentUser');
+  // 读取本地 STORE 保存的用户信息
+  const userStr = STORE.getItem('currentUser');
   if (!userStr) {
     window.location.href = pageUrl('login.html'); // tCode 由 pageUrl 自动附加
     return;
@@ -291,12 +296,12 @@ const userStr = localStorage.getItem('currentUser');
     try {
       userInfo = JSON.parse(userStr);
     } catch (e) {
-      localStorage.removeItem('currentUser');
+      STORE.removeItem('currentUser');
       window.location.href = pageUrl('login.html'); // tCode 由 pageUrl 自动附加
       return; 
     if (!userInfo || !userInfo.token) {
       // 信息不全，清理，停留
-      localStorage.removeItem('currentUser');
+      STORE.removeItem('currentUser');
       window.location.href = pageUrl('login.html'); // tCode 由 pageUrl 自动附加
       return;
     }
@@ -321,7 +326,7 @@ const userStr = localStorage.getItem('currentUser');
 
   // 检查token是否过期
   if (isJwtExpired(userInfo.token)) {
-    localStorage.removeItem('currentUser');
+    STORE.removeItem('currentUser');
     // 清除Cookie
     document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
     alert('登录状态已过期，请重新登录');
@@ -360,12 +365,12 @@ const userStr = localStorage.getItem('currentUser');
       }
     } /*else if (data && data.code === 401) {
       // 失效处理
-      localStorage.removeItem('currentUser');
+      STORE.removeItem('currentUser');
       document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
       alert('登录状态已过期，请重新登录');
     } else if (data && data.code === 403) {
       // token已过期或服务端不认，清理并跳转
-      localStorage.removeItem('currentUser');
+      STORE.removeItem('currentUser');
       document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
       alert('403登录状态已过期，请重新登录');
       window.location.href = pageUrl('login.html');
@@ -697,9 +702,9 @@ function maskEmail(email) {
 
   /** 强制跳登录页：清理本地登录态，并按需携带 ?tCode= 参数（作为登录页预填/锁定的租户编码） */
   function forceEntryLogin(urlTCode) {
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('currentUser');
+    STORE.removeItem('token');
+    STORE.removeItem('refreshToken');
+    STORE.removeItem('currentUser');
     document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
     // tCode 优先取 URL 上的租户链接参数，其次才回填 urlTCode；两处都没有时 pageUrl 会兜 default
     window.location.href = urlTCode

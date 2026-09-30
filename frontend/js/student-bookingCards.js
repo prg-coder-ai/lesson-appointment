@@ -24,7 +24,13 @@ const _courseSchedulePublishCache = new Map();
 const FULLY_BOOKED_TEXT = '满额';
 
 /** 剩余员额 → 展示文案；''/null/undefined/非有限数 一律按「未知」返回空串（不伪装成 0） */
+// 委托到共享领域层 window.BookingStateDomain.formatRemainingSites（P0-Web 桥接，单一权威源）。
+// 无桥接环境（如纯单测沙箱未加载 shared-domain-bridge.js）保留原实现兜底，保证零回归。
 function formatRemainingSites(remainingSites) {
+    if (typeof window !== 'undefined' && window.BookingStateDomain
+        && typeof window.BookingStateDomain.formatRemainingSites === 'function') {
+        return window.BookingStateDomain.formatRemainingSites(remainingSites);
+    }
     if (remainingSites === null || remainingSites === undefined || remainingSites === '') return '';
     const n = Number(remainingSites);
     if (!Number.isFinite(n)) return '';

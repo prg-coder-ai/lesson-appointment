@@ -2,10 +2,12 @@
 // 行为对齐 frontend/js/public/utility_request.js：normalizeUrl、Bearer 注入、
 // 401 静默刷新（队列防重）、响应解包（code===200 取 data）、错误 toast。
 // 差异：浏览器用 axios + location 跳转；小程序用 wx.request，登录失效经 globalData.onAuthFail 回调。
+// 底层传输统一委托 shared/adapters/net.js 的 transport（小程序端内部即 wx.request，返回 {statusCode,data,header}）。
 
 import { normalizeUrl, unwrapResult } from '../shared/apiPaths.js';
 import { errorMessage } from '../shared/domain/errorCode.js';
 import { storage, getToken, clearSession, getSession } from './storage.js';
+import { transport } from '../shared/adapters/net.js';
 
 function appGlobal() {
   try { return (typeof getApp === 'function') ? getApp() : null; } catch (e) { return null; }
@@ -24,16 +26,13 @@ function resolveBase(url) {
   return apiBase();
 }
 
+// 底层传输统一走共享适配层 transport（小程序端内部即 wx.request，返回 {statusCode,data,header}）。
 function wxRequest(config) {
-  return new Promise((resolve, reject) => {
-    wx.request({
-      url: config.url,
-      method: (config.method || 'GET').toUpperCase(),
-      data: config.data,
-      header: config.header || {},
-      success: (res) => resolve(res),
-      fail: (err) => reject(err)
-    });
+  return transport({
+    url: config.url,
+    method: config.method,
+    data: config.data,
+    header: config.header
   });
 }
 

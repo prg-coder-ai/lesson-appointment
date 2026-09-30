@@ -311,25 +311,30 @@ function deriveWeekday(dateStr) {
 
 // 渲染排期列表-有星期
 // 预约课次状态 → 用户可见文案（模块级，renderResult 与学员下钻弹层共用同一套，避免文案漂移）
+// 委托到共享领域层 window.AppointmentStateDomain.appointmentStatusText（P0-Web 桥接，单一权威源）。
+// 排期自身状态（pending/inactive）不属 appointment 域，本地处理；其余课次/预订态走共享域。
+// 无桥接环境（如纯单测沙箱未加载 shared-domain-bridge.js）保留原 Web 文案兜底，保证零回归。
 function getAppointmentStatusLabel(status) {
+    // 排期自身状态（previewSchedule 预览槽占位用）：本地处理，不属 appointment 域
+    if (status === 'pending') return '待发布';
+    if (status === 'inactive') return '已收回';
+    if (typeof window !== 'undefined' && window.AppointmentStateDomain
+        && typeof window.AppointmentStateDomain.appointmentStatusText === 'function') {
+      const teacherLabel = (typeof termText === 'function') ? termText('teacher') : '教师';
+      return window.AppointmentStateDomain.appointmentStatusText(status, { teacherLabel: teacherLabel });
+    }
+    // 兜底（无桥接环境）：保持原 Web 文案
     switch (status) {
         case 'active': return '生效';
-        // noted1 / noted2 是通知标记寄存在 appointment.status 时期的遗留值（不再产生）。
-        // 对用户只说「已提醒」——「第一次通知/第二次通知」是在替系统解释实现细节。
         case 'noted1':
         case 'noted2': return '已提醒';
         case 'completed': return '已完成';
         case 'cancelled': return '已取消';
-
         case 'cancelling': return '取消待确认';
         case 'reject': return '已拒绝';
-
         case 't-cancelling': return '申请取消（' + termText('teacher') + '）';
         case 't-cancelled':  return '已取消（' + termText('teacher') + '）';
         case 't-reject': return '已拒绝(T)';
-        // 排期自身状态（previewSchedule 预览槽占位用）：pending/active/inactive/frozen
-        case 'pending':   return '待发布';
-        case 'inactive':  return '已收回';
         case 'frozen':    return '已删除';
         default: return status || '—';
     }
