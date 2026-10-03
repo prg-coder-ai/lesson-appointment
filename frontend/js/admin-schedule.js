@@ -288,12 +288,6 @@ async function renderScheduleCards() {
   }
 </style>
 <div class="sched-page">
-       <div class="sched-tabs">
-         <button type="button" class="sched-tab-btn active" data-tab="tab-set" onclick="switchTab('tab-set')"><i class="fa fa-edit"></i> 排期设置</button>
-         <button type="button" class="sched-tab-btn" data-tab="tab-result" onclick="switchTab('tab-result')"><i class="fa fa-list-alt"></i> 排期结果</button>
-         <button type="button" class="sched-tab-btn" data-tab="tab-advanced" onclick="switchTab('tab-advanced')"><i class="fa fa-user-plus"></i> 候补 / 指定学生</button>
-       </div>
-       <div class="tab-panel active" id="tab-set">
        <div class="card sched-card">
         <div class="card-title sched-card-title"><i class="fa fa-search"></i> <span data-term="course">课程</span>检索</div>
             <!-- 1. 筛选条件（横向排列） -->
@@ -377,9 +371,14 @@ async function renderScheduleCards() {
             用户时间预览
         </label>
     </div>
-    
+  </div> <!-- 常驻：课程检索 / 选择排期 card 结束 -->
+  <div class="sched-tabs">
+    <button type="button" class="sched-tab-btn active" data-tab="tab-set" onclick="switchTab('tab-set')"><i class="fa fa-edit"></i> 排期设置</button>
+    <button type="button" class="sched-tab-btn" data-tab="tab-result" onclick="switchTab('tab-result')"><i class="fa fa-list-alt"></i> 排期结果</button>
+    <button type="button" class="sched-tab-btn" data-tab="tab-advanced" onclick="switchTab('tab-advanced')"><i class="fa fa-user-plus"></i> 候补 / 指定学生</button>
+  </div>
+  <div class="tab-panel active" id="tab-set">
     <div class="sched-section">
-        <div class="sched-section-title">排期设置</div>
         <div style="display: flex; flex-wrap: wrap; gap: 24px;">
             <div class="sched-form-line">
                 <label>排期名称：</label>
@@ -511,8 +510,7 @@ async function renderScheduleCards() {
        <button class="btn btn-primary" onclick="saveScheduleToDB()"><i class="fa fa-save"></i> 保存</button>
     </div>
 
-     </div> <!-- 课程检索 / 排期设置 card (tab-set 内容结束) -->
-   </div><!-- tab-set panel 结束 -->
+   </div> <!-- tab-set panel 结束 -->
 
    <div class="tab-panel" id="tab-result">
     <!-- 排期结果（与课程检索同属 .sched-page，确保完全相同的宽度 & 对齐规则） -->
