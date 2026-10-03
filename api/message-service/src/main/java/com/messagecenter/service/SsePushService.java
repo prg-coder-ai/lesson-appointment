@@ -100,4 +100,22 @@ public class SsePushService {
             }
         }
     }
+
+    /** 彻底删除事件：通知所有接收方某条消息已被全局删除（含已读副本），要求客户端立即从视图移除 */
+    public void pushDelete(Long tenantId, List<String> userIds, Long messageId) {
+        if (userIds == null) return;
+        for (String uid : userIds) {
+            String key = key(tenantId, uid);
+            SseEmitter em = emitters.get(key);
+            if (em == null) continue;
+            try {
+                Map<String, Object> payload = new java.util.HashMap<>();
+                payload.put("type", "message_deleted");
+                payload.put("messageId", messageId);
+                em.send(SseEmitter.event().name("message").data(payload));
+            } catch (IOException | IllegalStateException e) {
+                emitters.remove(key);
+            }
+        }
+    }
 }

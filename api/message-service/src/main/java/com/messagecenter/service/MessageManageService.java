@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 消息追踪与管理(管理员)：发送历史查询、单条投递状态、批量任务进度、撤回。
@@ -207,6 +208,31 @@ public class MessageManageService {
         messageMapper.updateById(m);
 
         ssePushService.pushRecall(m.getTenantId(), recallUids, messageId);
+    }
+
+    /**
+     * 管理员全局彻底删除（moderation 工具）：
+     *  - 删除主消息 + 所有收件箱索引(msg_inbox) + 所有投递记录(msg_delivery)
+     *  - 向所有接收方推送 SSE 删除事件，要求在线客户端立即移除该消息
+     *  - 非平台管理员仅可删除本租户消息
+     *  - 幂等：消息不存在直接返回
+     */
+    @Transactional
+    public void deleteMessageGlobal(Long messageId) {
+        Message m = messageMapper.selectById(messageId);
+        if (m == null) return;
+        if (!MessageAuthContext.isPlatformAdmin()) {
+            Long tenant = MessageAuthContext.currentTenantId();
+            if (tenant != null && tenant > 0 && !tenant.equals(m.getTenantId()))
+                throw new MessageBizException(403, "无权限删除其他租户消息");
+        }
+        // 删除前收集所有接收方（用于 SSE 通知）
+        List<String> uids = inboxMapper.selectList(new LambdaQueryWrapper<MessageInbox>().eq(MessageInbox::getMessageId, messageId))
+                .stream().map(MessageInbox::getUserId).distinct().collect(Collectors.toList());
+        inboxMapper.delete(new LambdaQueryWrapper<MessageInbox>().eq(MessageInbox::getMessageId, messageId));
+        deliveryMapper.delete(new LambdaQueryWrapper<MessageDelivery>().eq(MessageDelivery::getMessageId, messageId));
+        messageMapper.deleteById(messageId);
+        ssePushService.pushDelete(m.getTenantId(), uids, messageId);
     }
 
     /** 客户端 ack：标记某用户对某消息已确认接收(投递状态2) */

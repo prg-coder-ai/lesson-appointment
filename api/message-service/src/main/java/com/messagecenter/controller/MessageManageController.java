@@ -77,4 +77,12 @@ public class MessageManageController {
         manageService.ack(messageId, uid);
         return Result.success();
     }
+
+    /** 管理员全局彻底删除（连同所有收件人副本与投递记录），moderation 工具 */
+    @DeleteMapping("/{messageId}")
+    public Result<Object> deleteMessage(@PathVariable Long messageId) {
+        if (!MessageAuthContext.isManager()) throw new MessageBizException(403, "仅管理员可彻底删除消息");
+        manageService.deleteMessageGlobal(messageId);
+        return Result.success();
+    }
 }

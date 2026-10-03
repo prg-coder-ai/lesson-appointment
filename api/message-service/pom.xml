@@ -14,10 +14,10 @@
 
     <groupId>com.messagecenter</groupId>
     <artifactId>message-service</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <packaging>jar</packaging>
     <name>message-service</name>
-    <description>校内消息中心微服务：消息收发 / 收件箱状态 / 三级分类 / 模板 / 投递追踪 / 管理员管理 / SSE 实时推送</description>
+    <description>站内消息中心微服务：消息收发 / 收件箱状态 / 三级分类 / 模板 / 投递追踪 / 管理员管理 / SSE 实时推送</description>
 
     <properties>
         <java.version>17</java.version>

@@ -115,6 +115,10 @@
           <span data-page-node-id="deGpGL7nkaG3dD10fH8eYY">消息中心</span>
           <span class="msg-badge" id="msg-unread-badge" style="display:none;" data-page-node-id="1hoJFGlQGpPlXfhDWWDHBv"></span>
         </div>
+        <div class="menu-item" key="msg_manage">
+          <i class="fa fa-envelope-open-text"></i>
+          <span>消息管理</span>
+        </div>
       </div>
 
       <div class="menu-group" data-page-node-id="AxVxQrB10CUJkYkbpEgPMd">
@@ -318,6 +322,13 @@
             if (typeof window.initMessageBadge === 'function') window.initMessageBadge();
           } else {
             if(dynamicContentCenter) dynamicContentCenter.innerHTML = '<div class="card"><div class="card-body">消息中心模块未加载（messages-inbox.js）。</div></div>';
+          }
+          break;
+        case "msg_manage":
+          if (typeof window.renderMessageManagePage === 'function') {
+            window.renderMessageManagePage();
+          } else {
+            if(dynamicContentCenter) dynamicContentCenter.innerHTML = '<div class="card"><div class="card-body">消息管理模块未加载（admin-messageManage.js）。</div></div>';
           }
           break;
         case "sensitive_words":
@@ -546,6 +557,7 @@
     <!-- 系统配置 → 通知规则（上课提醒时间点）；同样依赖 registerPageRefresh -->
     <script src="js/admin-notify-rule.js"></script>
     <script src="js/admin-messageCategory.js"></script>
+    <script src="js/admin-messageManage.js"></script>
     <script src="js/test/testData.js"></script>
 
    <script>

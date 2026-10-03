@@ -54,6 +54,10 @@
 - 分类CRUD已全：CategoryController POST/PUT/DELETE/GET/tree，requireManager限admin/platform_admin；CategoryService租户隔离+编码唯一+系统预置保护(create时categoryCode可空自动生成CAT_xxx)。
 - 前端：发送弹窗#msg-category改readonly仅下拉选择(首项"不分类")；新增admin-messageCategory.js管理页挂admin.html+platform_admin.html「系统配置」分组。
 - 发送校验：MessageService.validateCommon非空categoryCode查库不存在即404；前端冗余拦截。
+- **数据模型双轨**：`msg_message`(主消息,全局唯一,发送者视角"已发"页来源) vs `msg_inbox`(按收件人写扩散,收件箱/收藏/回收站来源)。`msg_inbox`标题/内容不冗余存储，`composeInbox`联表取主消息。
+- **删除三档(已落地)**：①收件人视角软删→回收站→彻底删除(purge)作用在msg_inbox(只删个人副本)；②收回(withdraw)仅撤未读副本+改主消息status；③**管理员全局彻底删除(deleteMessageGlobal)**作用在msg_message——级联删主消息+所有msg_inbox+msg_delivery+SSE(message_deleted)，限admin/platform_admin，非平台管理员仅限本租户。**架构红线：绝不可让发送者自助删主消息，也绝不可单独DELETE主消息(会让所有收件人副本变空白)**。
+- 前端入口：sentRowHtml(管理员专属"彻底删除")+新增admin-messageManage.js(「消息中心→消息管理」页,GET /api/v1/messages历史+按状态/发送者筛选+彻底删除),挂admin.html+platform_admin.html。SSE监听已消费message_deleted即时移除收件人视图。
+- 后端编译：message-service的mvn离线编译(maven 3.9.11)通过；message-service**不挂TenantLineInnerInterceptor**，租户隔离靠显式tenantId过滤→全局删除不受租户插件干扰。
 
 ## 文档/技能
 - 常用技能：saas-api-build-smoke/shared-domain-sink/shared-adapter-wire/seat-oversell-concurrency-audit/public-endpoint-tenant-bypass/browserless-frontend-itest/server-side-term-template/source-encoding-repair/saas-debug-output-cleanup。
