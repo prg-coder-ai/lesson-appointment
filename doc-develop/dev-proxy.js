@@ -45,6 +45,7 @@ const MIME = {
 function toMessageService(urlPath) {
   return (
     urlPath.startsWith('/api/v1/message') ||
+    urlPath.startsWith('/api/v1/sensitive') ||
     urlPath.startsWith('/api/v1/sse') ||
     urlPath.startsWith('/api/v1/users/')
   );
