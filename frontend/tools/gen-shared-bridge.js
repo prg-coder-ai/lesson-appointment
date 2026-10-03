@@ -17,6 +17,12 @@
  *       领域层算法以 shared/domain 为唯一权威源，改算法只改那边。
  *       跨文件 import（如 bookingState 的 import { BOOKING_STATUS } from '../constants.js'）
  *       由本生成器通过内联 constants.js 源文本解决，剥离 import 行后常量仍在作用域内。
+ *
+ * 重要：整段产物用 IIFE 包裹（见 generateSharedBridge 末尾）。原因——constants.js 内联后
+ *       顶层 const（如 PLATFORM_TENANT_CODE / ROLES / BOOKING_STATUS）会进入页面全局词法环境，
+ *       若某页面内联脚本也声明同名 const（如 login.html），会以
+ *       "Identifier 'X' has already been declared" 整块崩溃，且其定义的全部函数（如 applyLoginTenantRule）
+ *       一并失效。IIFE 让内部声明留在作用域不泄漏，领域层/适配层只通过 window.*Domain/*Adapter 暴露。
  */
 const fs = require('fs');
 const path = require('path');
@@ -167,7 +173,11 @@ window.RouterAdapter = {
 };
 `;
 
-  fs.writeFileSync(OUT, header + constSrc + domainSrc + adapterSrc + body, 'utf8');
+  // 整段用 IIFE 包裹：constants/domain/adapters 的顶层声明留在作用域内，不污染页面全局词法环境，
+  // 避免与页面内联同名 const 冲突（如 login.html 的 PLATFORM_TENANT_CODE）。
+  // 领域层/适配层仅通过 window.*Domain / window.*Adapter 暴露，IIFE 内 window 赋值仍为全局。
+  const scoped = '(function(){\n' + constSrc + domainSrc + adapterSrc + body + '\n})();\n';
+  fs.writeFileSync(OUT, header + scoped, 'utf8');
   console.log('  shared-domain-bridge.js generated ->', OUT);
 }
 

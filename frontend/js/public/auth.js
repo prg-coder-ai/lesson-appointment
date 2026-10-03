@@ -9,11 +9,26 @@
 
   const request = window.request;
 
-  // 存储统一走共享适配层 window.StorageAdapter.storage（Web 端内部即 localStorage，行为一致）；
-  // 桥接未加载时（如单测沙箱）回退到原生 localStorage，保证零回归。
-  var STORE = (typeof window !== 'undefined' && window.StorageAdapter && window.StorageAdapter.storage)
+  // 存储统一走共享适配层 window.StorageAdapter.storage（接口 get/set/remove/clear）；
+  // 调用方沿用浏览器 localStorage 语义（getItem/setItem/removeItem），此处做接口归一——
+  // 适配器只暴露 get/set/remove/clear，故将其映射成 getItem/setItem/removeItem 供上层直接调用。
+  // 桥接未加载时（如单测沙箱）回退到原生 localStorage（自带 getItem/setItem/removeItem），保证零回归。
+  var _storageBackend = (typeof window !== 'undefined' && window.StorageAdapter && window.StorageAdapter.storage)
     ? window.StorageAdapter.storage
     : (typeof localStorage !== 'undefined' ? localStorage : null);
+  var STORE = _storageBackend
+    ? (typeof _storageBackend.getItem === 'function'
+        ? _storageBackend
+        : {
+            getItem: function (k) { return _storageBackend.get(k); },
+            setItem: function (k, v) { return _storageBackend.set(k, v); },
+            removeItem: function (k) { return _storageBackend.remove(k); },
+            clear: function () { return _storageBackend.clear(); },
+            get: function (k) { return _storageBackend.get(k); },
+            set: function (k, v) { return _storageBackend.set(k, v); },
+            remove: function (k) { return _storageBackend.remove(k); }
+          })
+    : null;
 
   // 登录 API：参数应当放在 data 中
   function login(data) {

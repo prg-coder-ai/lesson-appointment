@@ -80,6 +80,7 @@
 9. 只读展示字段口径(2026-09-28)：`.readonly` 文字 #999→#333(保留 #f5f5f5 浅灰底),`.nofocus` 删掉 `filter:grayscale(.8)`(会把整行文字一并去色,是"灰蒙蒙"元凶)。学生端「排期信息」统一"样式类+readonly 属性"双全——**只挂 class 的字段 pointer-events:none 挡不住键盘 Tab 输入=假只读**。教师端只统一样式、未加属性。守卫 `tests/check_readonly_display_style.js` 40 项(阴性对照 10 FAIL)。
 10. 静态守卫判据要**剥离 CSS 注释**：把"已移除的属性"写进注释说明后,裸 `grep grayscale` 会误报→`css.replace(/\/\*[\s\S]*?\*\//g,'')` 后再断言生效声明。
 11. 「刷新」≠「切换课程」(2026-09-28)：刷新**必须保持当前排期**。`loadSchedule` 开头就 `resetScheduleInfoPanel/resetScheduleSelect`(切课程需要,否则残留上一门课数据),刷新复用它会清掉选中排期、且请求失败时整块信息消失。正解:抽 `fillScheduleSelect(list, keepScheduleId)` 让两条路径共用填充口径;刷新走「拉列表→选回原排期→`displaySchedule()` 重渲染→已预览则重放 `previewSchedule()`」,失败只 alert 不清空。守卫 `tests/check_schedule_refresh_behavior.js` 45 项(阴性对照 22 FAIL)。
+12. 桥接脚本 `gen-shared-bridge.js` 产物**整段必须用 IIFE 包裹**（(function(){...})()）：共享 `constants.js` 内联后顶层 const（如 `PLATFORM_TENANT_CODE`/`ROLES`/`BOOKING_STATUS`）进入**页面全局词法环境**，而 classic `<script>` 跨块共享顶层 const —— 若某页面内联 `<script>` 也声明同名 const（实测 `login.html` 内联声明 `PLATFORM_TENANT_CODE`），会以 `Identifier 'X' has already been declared` 让**整段内联脚本崩溃**，其定义的全部函数（如 `applyLoginTenantRule`）一并失效（2026-10-03 实测连锁报错）。IIFE 让内部声明不泄漏全局，领域层/适配层仍只经 `window.*Domain`/`window.*Adapter` 暴露（IIFE 内 `window.X=...` 仍全局生效）。
 
 ## 微信登录(2026-09-20 屏蔽)
 - 不考虑微信登录：User.wxOpenid 标 @TableField(exist=false)；UserMapper.getByWxOpenid/updateWxOpenid、UserService.wechatLogin/bindWechat、authController /wechat-login /bind-wechat 均块注释屏蔽(可恢复)。
@@ -108,9 +109,9 @@
 
   - **P2 适配层真正接线（2026-09-30 启动）**：net/storage/ui/router 四适配器已落 `shared/adapters/`（运行时自动探测 wx/Web），并首度**真正消费**。
     - 新建 `shared/adapters/router.js`（setRoutes/to/replace/back/current/parseQuery/openUrl：命名路由表 + 直接路径双形态；mp=wx.navigate*、Web=location/history）。
-    - `gen-shared-bridge.js` 扩展：把 `shared/adapters/{net,storage,ui,router}.js` 也机械转译挂 `window.{NetAdapter,StorageAdapter,UiAdapter,RouterAdapter}`（Web 首度可消费；stripEsm 加 `export default` 剥离）。
+    - `gen-shared-bridge.js` 扩展：把 `shared/adapters/{net,storage,ui,router}.js` 也机械转译挂 `window.{NetAdapter,StorageAdapter,UiAdapter,RouterAdapter}`（Web 首度可消费；stripEsm 加 `export default` 剥离）。**整段产物必须用 IIFE 包裹**（见前端铁律 12）：`constants.js` 内联的顶层 const（`PLATFORM_TENANT_CODE` 等）会进页面全局词法环境，若不包裹会与 `login.html` 内联同名 const 冲突 → 整段内联脚本崩溃（2026-10-03 实测 `applyLoginTenantRule is not defined` 连锁）。
     - mp 真实收敛：`core/request.js` 的 `wxRequest` 改调 `transport`（返回 {statusCode,data,header} 与旧 wx.request 解包兼容）；`core/storage.js` 的 `storage` 改 import 共享适配器（会话 helpers 保留）。mp `core/ui.js` 此前已转发共享 alert/confirm/prompt。
-    - Web 真实收敛：`api.js`/`auth.js` 的 token/currentUser 存储经 `STORE` 别名优先走 `window.StorageAdapter.storage`（桥接未加载回退原生 localStorage，零回归）；`utility_request.js` 两处 401 跳登录改走 `window.RouterAdapter.openUrl`（带原生兜底）。
+    - Web 真实收敛：`api.js`/`auth.js` 的 token/currentUser 存储经 `STORE` 别名优先走 `window.StorageAdapter.storage`（**STORE 用垫片把 storage 适配器的 get/set/remove 归一成 getItem/setItem/removeItem**，否则桥接加载会报 `STORE.getItem is not a function`——2026-10-03 已修复并验证）；`utility_request.js` 两处 401 跳登录改走 `window.RouterAdapter.openUrl`（带原生兜底；其 localStorage 散点仍直调原生 localStorage，已知漏点）。
     - 验收：gen→sync→**守卫 GUARD_EXIT=0** → node --check 全绿 → build → test-shared-domain 122 / bridge 冒烟(含 4 适配器断言) / remaining-sites 42 / check_shared_bridge 19 全绿。
     - **下一阶段（避免破坏 5 套回归 + 违反 Decision 3）**：mp 页面级 wx.showToast/navigateTo 散点、Web 端 191 alert/115 localStorage/45 location.href 散点、net 在 Web 仍走 axios 未改 fetch（NetAdapter 已暴露供共享/未来用）。**mp 页面级 wx.showModal 已批量迁移完成**（8 文件 11 处 → confirm/alert，页面级清零，见当日日志）。
 

@@ -5,11 +5,26 @@
  * 旧的默认值 'http://<hostname>:8081' / ':8080' 会在生产跳到不存在的端口，已废弃。 */
 window.ADMIN_ORIGIN = window.ADMIN_ORIGIN || location.origin;
 window.FRONTEND_ORIGIN = window.FRONTEND_ORIGIN || location.origin;
-// 存储统一走共享适配层 window.StorageAdapter.storage（Web 端内部即 STORE，行为一致）；
-// 桥接未加载时（如单测沙箱）回退到原生 STORE，保证零回归。
-var STORE = (typeof window !== 'undefined' && window.StorageAdapter && window.StorageAdapter.storage)
+// 存储统一走共享适配层 window.StorageAdapter.storage（接口 get/set/remove/clear）；
+// 调用方沿用浏览器 localStorage 语义（getItem/setItem/removeItem），此处做接口归一——
+// 适配器只暴露 get/set/remove/clear，故将其映射成 getItem/setItem/removeItem 供上层直接调用。
+// 桥接未加载时（如单测沙箱）回退到原生 localStorage（自带 getItem/setItem/removeItem），保证零回归。
+var _storageBackend = (typeof window !== 'undefined' && window.StorageAdapter && window.StorageAdapter.storage)
   ? window.StorageAdapter.storage
-  : (typeof STORE !== 'undefined' ? STORE : null);
+  : (typeof localStorage !== 'undefined' ? localStorage : null);
+var STORE = _storageBackend
+  ? (typeof _storageBackend.getItem === 'function'
+      ? _storageBackend
+      : {
+          getItem: function (k) { return _storageBackend.get(k); },
+          setItem: function (k, v) { return _storageBackend.set(k, v); },
+          removeItem: function (k) { return _storageBackend.remove(k); },
+          clear: function () { return _storageBackend.clear(); },
+          get: function (k) { return _storageBackend.get(k); },
+          set: function (k, v) { return _storageBackend.set(k, v); },
+          remove: function (k) { return _storageBackend.remove(k); }
+        })
+  : null;
 // API请求封装（简化JS请求，避免重复代码） 
     // 全局定义API服务器地址及端口号、根路径（可根据实际情况修改）
    

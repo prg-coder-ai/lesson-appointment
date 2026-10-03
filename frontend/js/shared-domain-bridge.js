@@ -4,6 +4,7 @@
  * 本文件仅把纯函数/适配对象挂到 window.*Domain / window.*Adapter，供 classic 脚本委托。
  * 改算法请改 shared/，再重跑本生成器（build.js 已自动调用）。
  */
+(function(){
 // 跨端共享：常量与运行配置（无任何浏览器 / 小程序 API 依赖）
 // 这是 Web 端与小程序端唯一共享的"纯逻辑"层，被 frontend/ 与 miniprogram/ 同时引用。
 
@@ -1292,3 +1293,5 @@ window.RouterAdapter = {
   parseQuery: parseQuery,
   openUrl: openUrl
 };
+
+})();
