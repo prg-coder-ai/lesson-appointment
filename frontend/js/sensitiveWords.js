@@ -294,7 +294,7 @@
       params: { groupId: state.selectedGroupId, keyword: state.keyword, pageNum: state.pageNum, pageSize: state.pageSize }
     }).then(function (pr) {
       state.total = pr.total || 0;
-      renderWords(pr.list || []);
+      renderWords(pr.rows || []);
       renderPager();
     }).catch(function () {});
   }
