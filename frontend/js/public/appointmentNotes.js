@@ -852,8 +852,7 @@ async function datamaintain_fetchAppointmenPage(query) {
 
                             ${ (userRole == "admin")?
                  `   <button class="btn btn-warning" onclick='deleteAppointmentsById(${cardInfo.appointmentId})'>删除</button>                    
-                     <button class="btn btn-warning" onclick='deleteAppointmentsByBookingId(${cardInfo.bookingId})'>全部删除</button>                    
-                     `
+                    <button class="btn btn-warning"  style="display:none;" onclick='deleteAppointmentsByBookingId(${cardInfo.bookingId})'>全部删除</button>    `               
                   : ` `
               }
               

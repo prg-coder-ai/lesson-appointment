@@ -702,7 +702,7 @@
             '<select id="msg-priority"><option value="HIGH">高</option><option value="MEDIUM" selected>中</option><option value="LOW">低</option></select>' +
             '　分类编码：' +
             '<span class="combo" id="msg-category-combo">' +
-              '<input id="msg-category" autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="msg-category-list" placeholder="下拉选预设，或直接输入编码">' +
+              '<input id="msg-category" readonly autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="msg-category-list" placeholder="请在下拉中选择分类">' +
               '<span class="combo-arrow" id="msg-category-arrow" role="button" tabindex="-1" aria-label="展开分类列表" title="展开分类列表（↓↑ 选择，Enter 确认，Esc 关闭）"></span>' +
               '<ul class="combo-list" id="msg-category-list" role="listbox" style="display:none;"></ul>' +
             '</span>' +
@@ -853,7 +853,7 @@
     }).filter(Boolean);
   }
 
-  // 拉取消息分类预设，填充「分类编码」自定义下拉（失败则保持纯文本输入，仍可手动输入新分类）
+  // 拉取消息分类预设，填充「分类编码」下拉（输入框已 readonly，仅可下拉选择；失败则留空，发送可不分类）
   async function loadCategoryOptions(root) {
     const ul = root.querySelector('#msg-category-list');
     if (!ul) return;
@@ -861,7 +861,7 @@
       const list = await mreq.get('/api/v1/message-categories/tree');
       ul._items = Array.isArray(list) ? list : [];   // 缓存原始数据，供过滤与重渲染
     } catch (e) {
-      ul._items = [];                                // 拉取失败同样落空数组：不阻塞发送，仍可手动输入
+      ul._items = [];                                // 拉取失败同样落空数组：不阻塞发送（不可手输，发送可不分类）
     }
     const input = root.querySelector('#msg-category');
     renderComboList(root, '', input ? input.value : '');
@@ -872,16 +872,23 @@
   function renderComboList(root, filter, currentValue) {
     const ul = root.querySelector('#msg-category-list');
     if (!ul) return;
-    if (!ul._items) { ul.innerHTML = '<li class="cc-empty">分类列表加载中…可直接输入编码</li>'; return; }
+    if (!ul._items) { ul.innerHTML = '<li class="cc-empty">分类列表加载中…</li>'; return; }
     const f = (filter || '').trim().toLowerCase();
     const cur = (currentValue || '').trim().toLowerCase();
+    const noFilter = !f;
     const items = ul._items.filter(function (c) {
       if (!f) return true;
       const code = (c.categoryCode || '').toLowerCase();
       const name = (c.categoryName || '').toLowerCase();
       return code.indexOf(f) >= 0 || name.indexOf(f) >= 0;
     });
-    ul.innerHTML = items.length
+    // 「不分类」恒为首项（data-code="__NONE__"，选中后归零为未分类）；仅无过滤时展示
+    let html = noFilter
+      ? '<li role="option" data-code="__NONE__" class="' + (cur === '' ? 'is-cur' : '') +
+        '" aria-selected="' + (cur === '' ? 'true' : 'false') + '">' +
+        '<span class="cc-code">（不分类）</span></li>'
+      : '';
+    html += items.length
       ? items.map(function (c) {
           const code = c.categoryCode || '';
           const name = c.categoryName || '';
@@ -892,7 +899,8 @@
             + (isCur ? '<span class="cc-tick">✓</span>' : '')
             + '</li>';
         }).join('')
-      : '<li class="cc-empty">' + (ul._items.length ? '无匹配分类，可直接输入新编码' : '暂无预设分类，可直接输入新编码') + '</li>';
+      : (noFilter ? '' : '<li class="cc-empty">无匹配分类</li>');
+    ul.innerHTML = html;
   }
 
   /**
@@ -976,7 +984,12 @@
       }
       if (e.key === 'Enter' && open && activeIdx >= 0) {
         const li = ul.querySelectorAll('li[data-code]')[activeIdx];
-        if (li) { e.preventDefault(); input.value = li.getAttribute('data-code') || ''; hide(); }
+        if (li) {
+          e.preventDefault();
+          const dc = li.getAttribute('data-code') || '';
+          input.value = (dc === '__NONE__') ? '' : dc;
+          hide();
+        }
       }
     });
 
@@ -991,7 +1004,8 @@
       const li = e.target.closest('li');
       if (!li || typeof li.getAttribute !== 'function' || !li.getAttribute('data-code')) { e.preventDefault(); return; }
       e.preventDefault();
-      input.value = li.getAttribute('data-code') || '';
+      const dc = li.getAttribute('data-code') || '';
+      input.value = (dc === '__NONE__') ? '' : dc;
       hide();
     });
 
@@ -1012,6 +1026,25 @@
     const content = root.querySelector('#msg-content').value;
     const priority = root.querySelector('#msg-priority').value;
     const categoryCode = root.querySelector('#msg-category').value.trim();
+    // 分类编码仅可从下拉选择（输入框已 readonly），下面为冗余兜底：
+    // 万一（如下拉未加载时）输入框出现非下拉值，前端先拦截，避免后端 404。
+    if (categoryCode) {
+      const catList = root.querySelector('#msg-category-list');
+      const items = (catList && catList._items) || [];
+      if (items.length) {
+        const valid = {};
+        (function walk(arr) {
+          (arr || []).forEach(function (c) {
+            if (c && c.categoryCode) valid[String(c.categoryCode).toLowerCase()] = 1;
+            if (c && Array.isArray(c.children)) walk(c.children);
+          });
+        })(items);
+        if (!valid[String(categoryCode).toLowerCase()]) {
+          toast('消息分类编码无效，请从下拉中选择', false);
+          return;
+        }
+      }
+    }
     if (!title) { toast('请填写标题', false); return; }
     const mode = root.querySelector('input[name="msg-mode"]:checked').value;
     let ids = [];

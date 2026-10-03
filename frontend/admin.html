@@ -159,6 +159,10 @@
           <i class="fa fa-bell" data-page-node-id="l2H8GJ6BlG0MoCSh95UjpB"></i>
           <span data-page-node-id="uH6g2k3Q6fWPTtBE0MV65a">通知规则</span>
         </div>
+        <div class="menu-item" key="msg_category">
+          <i class="fa fa-tags"></i>
+          <span>消息分类管理</span>
+        </div>
       </div>
     </aside>
 
@@ -343,6 +347,11 @@
         // ===== 系统配置：通知规则（上课提醒的时间点，替代原先写死在前端的 3天/1天/课前60分钟） =====
         case "notify_rule":
           if (typeof renderNotifyRulePage === 'function') renderNotifyRulePage();//admin-notify-rule.js
+          break;
+        // ===== 系统配置：消息分类管理（发送时仅可下拉选择，由管理员在此维护） =====
+        case "msg_category":
+          if (typeof renderMessageCategoryPage === 'function') renderMessageCategoryPage();//admin-messageCategory.js
+          else if (dynamicContentCenter) dynamicContentCenter.innerHTML = '<div class="card"><div class="card-body">消息分类模块未加载（admin-messageCategory.js）。</div></div>';
           break;
         case "base_config":
           if(dynamicContentCenter)
@@ -536,6 +545,7 @@
     <script src="js/admin-refund-rule.js"></script>
     <!-- 系统配置 → 通知规则（上课提醒时间点）；同样依赖 registerPageRefresh -->
     <script src="js/admin-notify-rule.js"></script>
+    <script src="js/admin-messageCategory.js"></script>
     <script src="js/test/testData.js"></script>
 
    <script>

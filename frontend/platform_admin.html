@@ -77,6 +77,14 @@
       </div>
 
       <div class="menu-group">
+        <div class="menu-group-title">系统配置</div>
+        <div class="menu-item" key="msg_category">
+          <i class="fa fa-tags"></i>
+          <span>消息分类管理</span>
+        </div>
+      </div>
+
+      <div class="menu-group">
         <div class="menu-group-title">系统维护</div>
         <div class="menu-item" key="sys_log">
           <i class="fa fa-file-alt"></i>
@@ -154,6 +162,14 @@
           window.renderSensitiveWordsPage(dynamicContentCenter);
         } else {
           dynamicContentCenter.innerHTML = '<div class="card"><div class="card-body">敏感词模块未加载（sensitiveWords.js）。</div></div>';
+        }
+        break;
+      // 系统配置：消息分类管理（发送时仅可下拉选择，由管理员在此维护）
+      case "msg_category":
+        if (typeof renderMessageCategoryPage === 'function') {
+          renderMessageCategoryPage();
+        } else if (dynamicContentCenter) {
+          dynamicContentCenter.innerHTML = '<div class="card"><div class="card-body">消息分类模块未加载（admin-messageCategory.js）。</div></div>';
         }
         break;
       // 系统日志 / 审计日志：与 admin.html 一致，跳转到独立页面浏览。
@@ -273,6 +289,7 @@
   <script src="js/platform-admin-backend-info.js"></script>
   <script src="js/messages-inbox.js"></script>
   <script src="js/sensitiveWords.js"></script>
+  <script src="js/admin-messageCategory.js"></script>
  
   <script>
   </script>

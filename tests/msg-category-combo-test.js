@@ -235,8 +235,10 @@ function isOpen(env) { return env.ul.style.display !== 'none'; }
     ck('G6c ↑ 键可回到末项（环绕）', lis[lis.length - 1].classList.contains('active'));
     env.input.dispatch('keydown', { key: 'ArrowDown' });
     env.input.dispatch('keydown', { key: 'Enter' });
+    var activeLi = env.ul.querySelectorAll('li[data-code]').filter(function (l) { return l.classList.contains('active'); })[0];
+    var expected = activeLi ? (activeLi.getAttribute('data-code') === '__NONE__' ? '' : activeLi.getAttribute('data-code')) : null;
     ck('G6d Enter 选中当前项并收起',
-        env.input.value === lis[0].getAttribute('data-code') && !isOpen(env), env.input.value);
+        expected !== null && env.input.value === expected && !isOpen(env), env.input.value);
     env.input.dispatch('focus');
     env.input.dispatch('keydown', { key: 'Escape' });
     ck('G6e Esc 关闭下拉', !isOpen(env));
@@ -259,7 +261,7 @@ function isOpen(env) { return env.ul.style.display !== 'none'; }
     ck('G8 数据未就绪时提示「加载中」而非空框', env.ul.innerHTML.indexOf('加载中') >= 0, env.ul.innerHTML.slice(0, 40));
     env.ul._items = [];
     env.input.dispatch('input');
-    ck('G8b 接口返回空数组时提示「暂无预设分类」', env.ul.innerHTML.indexOf('暂无预设分类') >= 0, env.ul.innerHTML.slice(0, 40));
+    ck('G8b 接口返回空数组时给出「不分类」可选项', env.ul.innerHTML.indexOf('（不分类）') >= 0, env.ul.innerHTML.slice(0, 40));
 
     // --- G9 loadCategoryOptions：填充 + 失败兜底 ---
     mreqReply = ITEMS;
@@ -272,14 +274,14 @@ function isOpen(env) { return env.ul.style.display !== 'none'; }
     env.ctx.setupCategoryCombo(env.root);
     await env.ctx.loadCategoryOptions(env.root);
     env.input.dispatch('focus');
-    ck('G9b 接口返回空 → 仍可打开下拉且给出提示（不空白）',
-        isOpen(env) && env.ul.innerHTML.indexOf('暂无预设分类') >= 0);
+    ck('G9b 接口返回空 → 仍可打开下拉且给出「不分类」选项',
+        isOpen(env) && env.ul.innerHTML.indexOf('（不分类）') >= 0);
     mreqReply = 'THROW';
     env = buildCtx();
     env.ctx.setupCategoryCombo(env.root);
     await env.ctx.loadCategoryOptions(env.root);
     env.input.dispatch('focus');
-    ck('G9c 接口异常 → 不阻塞，下拉仍可打开且可手输',
+    ck('G9c 接口异常 → 不阻塞，下拉仍可打开（不可手输）',
         isOpen(env) && Array.isArray(env.ul._items) && env.ul._items.length === 0);
     mreqReply = ITEMS;
 
