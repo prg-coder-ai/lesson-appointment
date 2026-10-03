@@ -143,6 +143,8 @@
       '.msg-empty{text-align:center;color:#999;padding:40px 0;}',
       '.msg-pager{display:flex;justify-content:center;align-items:center;gap:12px;margin-top:16px;font-size:14px;}',
       '.btn-sm{padding:4px 10px;font-size:12px;}',
+      '.btn-danger{background:#ff4d4f;color:#fff;border:none;}',
+      '.btn-danger:hover{background:#e04345;}',
       '.msg-modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:2000;}',
       '.msg-modal{background:#fff;width:600px;max-width:92vw;max-height:86vh;overflow:auto;border-radius:12px;padding:22px 24px;margin:0 auto;}',
       '.msg-modal h3{margin:0 0 10px;}',
@@ -268,6 +270,11 @@
         container.querySelectorAll('.msg-tab').forEach(function (x) { x.classList.remove('active'); });
         t.classList.add('active');
         state.folder = t.getAttribute('data-folder'); state.pageNum = 1; state.selected = {};
+        // 回收站内批量按钮语义变为「彻底删除」，其余文件夹为「删除(移回收站)」
+        const bd = container.querySelector('#msg-batch-del');
+        if (bd) bd.innerHTML = (state.folder === 'trash')
+          ? '<i class="fa fa-trash-alt"></i> 批量彻底删除'
+          : '<i class="fa fa-trash"></i> 批量删除';
         loadMessages(container);
       });
     });
@@ -277,7 +284,9 @@
     container.querySelector('#msg-search').addEventListener('keydown', function (e) { if (e.key === 'Enter') container.querySelector('#msg-search-btn').click(); });
     container.querySelector('#msg-allread').addEventListener('click', function () { markAllRead(container); });
     container.querySelector('#msg-batch-read').addEventListener('click', function () { batchRead(container); });
-    container.querySelector('#msg-batch-del').addEventListener('click', function () { batchDelete(container); });
+    container.querySelector('#msg-batch-del').addEventListener('click', function () {
+      (state.folder === 'trash' ? batchPurge : batchDelete)(container);
+    });
     const composeEl = container.querySelector('#msg-compose');
     if (composeEl) composeEl.addEventListener('click', function () { openComposeMessage(); });
 
@@ -344,6 +353,7 @@
             : '<button class="btn btn-gray btn-sm" data-act="unread" data-mid="' + mid + '">标未读</button>') +
           (state.folder === 'trash'
             ? '<button class="btn btn-gray btn-sm" data-act="restore" data-mid="' + mid + '">恢复</button>'
+              + '<button class="btn btn-danger btn-sm" data-act="purge" data-mid="' + mid + '">彻底删除</button>'
             : '<button class="btn btn-gray btn-sm" data-act="delete" data-mid="' + mid + '">删除</button>') +
         '</div>' +
       '</div>';
@@ -389,7 +399,7 @@
       if (star) star.addEventListener('click', function (e) { e.stopPropagation(); toggleStar(container, mid); });
       const main = item.querySelector('[data-act="open"]');
       if (main) main.addEventListener('click', function () { openDetail(container, mid); });
-      item.querySelectorAll('[data-act="read"],[data-act="unread"],[data-act="delete"],[data-act="restore"]').forEach(function (b) {
+      item.querySelectorAll('[data-act="read"],[data-act="unread"],[data-act="delete"],[data-act="restore"],[data-act="purge"]').forEach(function (b) {
         b.addEventListener('click', function (e) {
           e.stopPropagation();
           const act = b.getAttribute('data-act');
@@ -397,6 +407,7 @@
           else if (act === 'unread') markRead(container, mid, false);
           else if (act === 'delete') removeMsg(container, mid);
           else if (act === 'restore') restoreMsg(container, mid);
+          else if (act === 'purge') purgeMsg(container, mid);
         });
       });
     });
@@ -552,7 +563,23 @@
     const ids = Object.keys(state.selected).filter(function (k) { return state.selected[k]; });
     if (!ids.length) { alert('请先勾选消息'); return; }
     if (!confirm('确定删除选中的 ' + ids.length + ' 条消息？将移入回收站。')) return;
-    try { await mreq.post('/api/v1/users/' + encodeURIComponent(state.userId) + '/messages/batch', { messageIds: ids }); }
+    try { await mreq.delete('/api/v1/users/' + encodeURIComponent(state.userId) + '/messages/batch', { data: { messageIds: ids } }); }
+    catch (e) { return; }
+    state.selected = {}; loadMessages(container); refreshBadge();
+  }
+
+  async function purgeMsg(container, mid) {
+    if (!confirm('彻底删除后不可恢复，确定要永久删除该消息？')) return;
+    try { await mreq.delete('/api/v1/users/' + encodeURIComponent(state.userId) + '/messages/' + mid + '/purge'); }
+    catch (e) { return; }
+    loadMessages(container); refreshBadge();
+  }
+
+  async function batchPurge(container) {
+    const ids = Object.keys(state.selected).filter(function (k) { return state.selected[k]; });
+    if (!ids.length) { alert('请先勾选消息'); return; }
+    if (!confirm('彻底删除后不可恢复，确定要永久删除选中的 ' + ids.length + ' 条消息？')) return;
+    try { await mreq.delete('/api/v1/users/' + encodeURIComponent(state.userId) + '/messages/batch/purge', { data: { messageIds: ids } }); }
     catch (e) { return; }
     state.selected = {}; loadMessages(container); refreshBadge();
   }

@@ -172,6 +172,20 @@ public class InboxService {
         inboxMapper.updateById(in);
     }
 
+    /** 物理删除（彻底删除）：仅本人或管理员可对自己/代管的消息执行；回收站清空用它。 */
+    @Transactional
+    public void purgeOne(String userId, Long messageId) {
+        MessageInbox in = require(userId, messageId);
+        inboxMapper.deleteById(in.getMessageId());
+    }
+
+    @Transactional
+    public void purgeBatch(String userId, List<Long> messageIds) {
+        for (Long mid : messageIds) {
+            try { purgeOne(userId, mid); } catch (Exception ignored) {}
+        }
+    }
+
     public long unreadCount(String userId) {
         LambdaQueryWrapper<MessageInbox> w = scopedWrapper(userId)
                 .eq(MessageInbox::getIsDeleted, 0).eq(MessageInbox::getIsRead, 0);
