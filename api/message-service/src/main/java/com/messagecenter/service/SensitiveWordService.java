@@ -161,7 +161,14 @@ public class SensitiveWordService {
     public List<MsgSensitiveGroup> listGroups(Long callerTenant, boolean platformAdmin) {
         LambdaQueryWrapper<MsgSensitiveGroup> w = new LambdaQueryWrapper<>();
         w.eq(MsgSensitiveGroup::getIsDeleted, 0);
-        if (!platformAdmin) w.eq(MsgSensitiveGroup::getTenantId, callerTenant == null ? 0L : callerTenant);
+        if (!platformAdmin) {
+            // 租户管理员可见「全平台(tenant=0)分组 ∪ 本租户分组」
+            if (callerTenant == null) {
+                w.eq(MsgSensitiveGroup::getTenantId, 0L);
+            } else {
+                w.in(MsgSensitiveGroup::getTenantId, 0L, callerTenant);
+            }
+        }
         w.orderByDesc(MsgSensitiveGroup::getGroupId);
         return groupMapper.selectList(w);
     }
@@ -217,7 +224,14 @@ public class SensitiveWordService {
         w.eq(MsgSensitiveWord::getIsDeleted, 0);
         if (groupId != null) w.eq(MsgSensitiveWord::getGroupId, groupId);
         if (keyword != null && !keyword.isBlank()) w.like(MsgSensitiveWord::getWord, keyword);
-        if (!platformAdmin) w.eq(MsgSensitiveWord::getTenantId, callerTenant == null ? 0L : callerTenant);
+        if (!platformAdmin) {
+            // 租户管理员可见「全平台(tenant=0)词 ∪ 本租户词」
+            if (callerTenant == null) {
+                w.eq(MsgSensitiveWord::getTenantId, 0L);
+            } else {
+                w.in(MsgSensitiveWord::getTenantId, 0L, callerTenant);
+            }
+        }
         w.orderByDesc(MsgSensitiveWord::getWordId);
         List<MsgSensitiveWord> all = wordMapper.selectList(w);
         int total = all.size();
