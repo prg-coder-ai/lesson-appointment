@@ -14,6 +14,7 @@
 
 ## 本地全栈拓扑与排障
 - 端口：8080=dev代理(源码直出frontend/)；8081=booking API；8090=message-service；3306=MySQL。
+- **后台 java 会被回收**：`run_in_background` 起的 booking/message-service 进程偶发被回收(exit 0 无 shutdown 日志)，导致 8081/8090 双双掉线、前端全挂。**本地起全栈须确认两端都在**：`netstat` 查 8081+8090；掉了就 `java -jar .../booking-api-2.0.2.jar --server.port=8081`(路径 api/beforeRun/) 与 `message-service-1.0.1.jar --server.port=8090` 各起一份。**登录须带 tenantCode**：租户端 `/auth/login` 必传 `tenantCode`(如 TENANT_A)，否则 403「租户编码无效」；平台管理员 tenantCode="platform"、role="platform_admin"。
 - **API分流(根因坑)**：dev代理 toMessageService(doc-develop/dev-proxy.js)+Nginx booking*.conf 须覆盖 message-service 全部 /api/v1 前缀(message/sensitive/sse/users)。漏配→请求误路由 booking→返回"资源不存在"。(2026-10-03 敏感词 /api/v1/sensitive 漏配已修：dev-proxy.js + booking.conf + booking-ip.conf 三处加 sensitive 分支)
 - 后端挂死：非API路径秒回404、/api/**全超时；jstack见http-nio线程BLOCKED@StandardWrapper.allocate；处置：java启动必 > 日志 2>&1 后taskkill重启。
 - 排障：netstat -ano|grep LISTENING→PID；jcmd <pid> VM.command_line；jstack <pid>。wmic禁用；**Git Bash 下 taskkill /PID 会被 MSYS 路径转换误判→用 MSYS_NO_PATHCONV=1 taskkill /PID <pid> /F 强杀代理/后端**；命令行含password触发敏感审批→curl -d @json文件(Write落盘UTF-8)。
