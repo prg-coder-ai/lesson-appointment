@@ -9,11 +9,12 @@ set -e
 SERVER=${SERVER:-root@1.2.3.4}
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
-# 版本号不写死：pom 里 api 的 <version> 会变（曾写死 2.0.0 而产物已是 2.0.1，scp 直接 No such file）
-BOOKING_JAR="$(ls -1 "$ROOT"/api/target/booking_api-*.jar 2>/dev/null | head -1)"
-MSG_JAR="$ROOT/api/message-service/target/message-service-1.0.0.jar"
-[ -f "$BOOKING_JAR" ] || { echo "找不到 api 产物，请先在 api/ 执行 mvn package"; exit 1; }
-[ -f "$MSG_JAR" ]     || { echo "找不到 message-service 产物，请先在 api/message-service/ 执行 mvn package"; exit 1; }
+# 版本号不写死：pom 里 <version> 会变，动态取 target 下最新的同名 jar（避免写死 1.0.0 而实际已是 1.0.1 导致传不上去）
+BOOKING_JAR="$(ls -1 "$ROOT"/api/target/booking-api-*.jar 2>/dev/null | head -1)"
+[ -z "$BOOKING_JAR" ] && BOOKING_JAR="$(ls -1 "$ROOT"/api/beforeRun/booking-api-*.jar 2>/dev/null | head -1)"
+MSG_JAR="$(ls -1 "$ROOT"/api/message-service/target/message-service-*.jar 2>/dev/null | head -1)"
+[ -n "$BOOKING_JAR" ] || { echo "找不到 booking 产物，请先在 api/ 执行 mvn package"; exit 1; }
+[ -n "$MSG_JAR" ]     || { echo "找不到 message-service 产物，请先在 api/message-service/ 执行 mvn package"; exit 1; }
 
 echo "==> 1/5 两个 jar"
 scp "$BOOKING_JAR"                                        "$SERVER:/opt/lesson/booking_api.jar.new"
@@ -36,6 +37,11 @@ scp "$ROOT/deploy/nginx/booking.conf"     "$SERVER:/etc/nginx/sites-available/bo
 scp "$ROOT/deploy/nginx/booking-ip.conf"  "$SERVER:/etc/nginx/sites-available/booking-ip"
 scp "$ROOT/deploy/backup.sh"              "$SERVER:/opt/lesson/backup.sh"
 
+echo "==> 6/6 启用软链并平滑重载 Nginx（默认仅启用纯 HTTP 的 booking-ip；无域名/无证书切勿启用 booking.conf 的 443 SSL 块，否则 nginx 因证书缺失起不来）"
+ssh "$SERVER" 'rm -f /etc/nginx/sites-enabled/booking /etc/nginx/sites-enabled/default && ln -sf /etc/nginx/sites-available/booking-ip /etc/nginx/sites-enabled/booking-ip && sudo nginx -t && sudo systemctl reload nginx' \
+  || echo "⚠ 自动 reload nginx 失败，请登录服务器手动执行：sudo nginx -t && sudo systemctl reload nginx"
+echo "   （有域名+证书后启用 HTTPS 版：sudo ln -sf /etc/nginx/sites-available/booking /etc/nginx/sites-enabled/booking && sudo systemctl reload nginx）"
+
 echo "上传完成。接下来在服务器上执行："
 echo "  sudo chmod +x /opt/lesson/backup.sh"
 echo "  sudo cp /opt/lesson/booking.env.template /etc/lesson/booking.env   # 再填真实密钥"
@@ -43,3 +49,4 @@ echo "  sudo cp /opt/lesson/message.env.template /etc/lesson/message.env"
 echo "  sudo chmod 600 /etc/lesson/*.env && sudo chown lesson:lesson /etc/lesson/*.env"
 echo "  cd /opt/lesson && mv -f booking_api.jar.new booking_api.jar && mv -f message-service.jar.new message-service.jar"
 echo "  sudo systemctl daemon-reload && sudo systemctl restart booking message-service"
+echo "  sudo systemctl reload nginx   # 若上面 6/6 已自动 reload 可跳过；但凡改过 nginx 分流就必须 reload"
