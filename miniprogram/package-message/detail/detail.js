@@ -6,7 +6,7 @@
 import { requireAuth } from '../../core/auth.js';
 import {
   getDetail, setRead, toggleStar, deleteMessage, fmtTime,
-  getDeliveryStatus, restore, purge, isManager
+  getDeliveryStatus, restore, purge, isManager, deleteSentGlobal
 } from '../../core/message.js';
 import { confirm } from '../../core/ui.js';
 
@@ -27,7 +27,8 @@ Page({
   async load(mid, from) {
     this.setData({ loading: true });
     try {
-      if (from === 'sent') {
+      if (from === 'sent' || from === 'manage') {
+        // 已发 / 本租户管理：拉投递追踪（含正文与接收/已读统计）
         const d = await getDeliveryStatus(mid);
         this.setData({
           delivery: {
@@ -106,6 +107,17 @@ Page({
     if (!ok) return;
     try {
       await purge(this.data.uid, this.data.mid);
+      wx.showToast({ title: '已彻底删除', icon: 'success' });
+      setTimeout(() => wx.navigateBack(), 400);
+    } catch (e) {
+      wx.showToast({ title: (e && e.message) || '删除失败', icon: 'none' });
+    }
+  },
+  async onManageDelete() {
+    const ok = await confirm('彻底删除该消息？\n将永久删除主消息、所有收件人的收件箱副本及投递记录，且无法恢复！', { title: '彻底删除' });
+    if (!ok) return;
+    try {
+      await deleteSentGlobal(this.data.mid);
       wx.showToast({ title: '已彻底删除', icon: 'success' });
       setTimeout(() => wx.navigateBack(), 400);
     } catch (e) {

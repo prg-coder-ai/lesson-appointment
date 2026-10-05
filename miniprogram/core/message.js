@@ -114,6 +114,35 @@ export async function getSent(uid, { pageNum = 1, pageSize = 15 } = {}) {
   return request({ url: ENDPOINTS.MSG_SENT, method: 'GET', params: { pageNum, pageSize }, customErrorMsg: false });
 }
 
+// 发送历史列表（管理员/租户管理员视角，本租户全部已发）：GET /api/v1/messages
+// 后端 history() 要求 isManager()；非平台管理员自动按当前租户隔离。
+export async function getMessageList({ status, senderType, pageNum = 1, pageSize = 15 } = {}) {
+  const params = { pageNum, pageSize };
+  if (status) params.status = status;
+  if (senderType) params.senderType = senderType;
+  return request({ url: ENDPOINTS.MSG_LIST, method: 'GET', params, customErrorMsg: false });
+}
+
+// 发送者类型中文
+const SENDER_TEXT = {
+  teacher: '教师', admin: '管理员', platform_admin: '平台管理员', system: '系统'
+};
+
+// 发送历史（管理/本租户）列表项 → 视图模型（标题/发送者/时间/状态；不含接收统计，统计见详情）
+export function toManageItem(m) {
+  const base = toSentItem(m);
+  const sender = (SENDER_TEXT[m.senderType] || m.senderType || '') +
+    (m.senderId != null && m.senderId !== '' ? '（' + m.senderId + '）' : '');
+  const statusText = m.status === 'recalled' ? '已收回'
+    : (m.status === 'partial_recalled' ? '部分收回' : '已发送');
+  return Object.assign(base, {
+    sender,
+    statusText,
+    // 管理列表不显示接收/已读统计（toSentItem 默认算成 0 会误导），统一以详情页为准
+    recipientCount: 0, readCount: 0
+  });
+}
+
 // 批量已读
 export async function batchRead(uid, ids) {
   return request({ url: ENDPOINTS.MSG_BATCH_READ(uid), method: 'POST', data: { messageIds: ids }, customErrorMsg: false });

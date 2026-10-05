@@ -97,6 +97,10 @@ export const ENDPOINTS = {
   // —— 消息中心：已发 / 批量 / 回收站 / 撤回 / 接收人（message-service）——
   // 已发列表：GET /api/v1/messages/sent（发送者视角，含接收/已读统计与是否可收回）
   MSG_SENT: '/api/v1/messages/sent',
+  // 发送历史列表（管理员/租户管理员视角，本租户全部已发）：GET /api/v1/messages?status=&senderType=
+  // 后端 history() 要求 isManager()；非平台管理员自动按当前租户隔离（tenantId 无需传）。
+  // 列表仅含标题/发送者/时间/状态（不含接收/已读统计，统计在 delivery-status 详情）。
+  MSG_LIST: '/api/v1/messages',
   // 批量已读 / 批量删除(移回收站) / 批量彻底删除：userId 维度
   MSG_BATCH_READ: (uid) => `/api/v1/users/${encodeURIComponent(uid)}/messages/read/batch`,
   MSG_BATCH_DELETE: (uid) => `/api/v1/users/${encodeURIComponent(uid)}/messages/batch`,

@@ -13,7 +13,10 @@
       <view class="card body">
         <text class="content">{{delivery.content || '（无正文内容）'}}</text>
       </view>
-      <view class="hint">撤回 / 彻底删除请在「已发」列表页操作。</view>
+      <view wx:if="{{from === 'manage'}}" class="actions">
+        <button class="btn btn-del" bindtap="onManageDelete">彻底删除（永久）</button>
+      </view>
+      <view wx:else class="hint">撤回 / 彻底删除请在「已发」列表页操作。</view>
     </block>
     <view wx:else class="tip">消息不存在或已删除</view>
   </block>

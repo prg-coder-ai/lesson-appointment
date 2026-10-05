@@ -6,7 +6,7 @@
 import { requireAuth } from '../../core/auth.js';
 import {
   getUnreadCount, getInbox, getCategories,
-  getSent, toInboxItem, toSentItem,
+  getSent, getMessageList, toInboxItem, toSentItem, toManageItem,
   batchRead, batchDelete, batchPurge,
   restore, purge, getMessageIds,
   recallMessage, deleteSentGlobal,
@@ -18,13 +18,20 @@ const POLL_MS = 20000; // 轮询间隔
 
 Page({
   data: {
-    uid: '', role: '', canSend: false, isManager: false, showSent: false,
+    uid: '', role: '', canSend: false, isManager: false, showSent: false, showManage: false,
     folder: 'inbox',
     list: [], loading: false, refreshing: false,
     unreadCount: 0,
     onlyUnread: false, categories: [], activeCategory: '',
     keyword: '', pageNum: 1, pageSize: 20, total: 0, finished: false,
-    selecting: false, selectedCount: 0
+    selecting: false, selectedCount: 0,
+    // 管理页（本租户消息）筛选
+    statusOptions: ['全部', '已发送', '部分收回', '已收回'],
+    statusValues: ['', 'sent', 'partial_recalled', 'recalled'],
+    statusIndex: 0,
+    senderOptions: ['全部', '教师', '管理员', '平台管理员', '系统'],
+    senderValues: ['', 'teacher', 'admin', 'platform_admin', 'system'],
+    senderIndex: 0
   },
   onLoad() {
     const u = requireAuth();
@@ -32,7 +39,7 @@ Page({
     const role = u.role;
     this.setData({
       uid: u.userId, role,
-      canSend: canSend(role), isManager: isManager(role), showSent: canSend(role)
+      canSend: canSend(role), isManager: isManager(role), showSent: canSend(role), showManage: isManager(role)
     });
     this._active = true;
     this._polling = false;
@@ -75,6 +82,19 @@ Page({
           list, total: (box && box.total) || rows.length, unreadCount: unread, pageNum: 1,
           finished: rows.length < this.data.pageSize
         });
+      } else if (this.data.folder === 'manage') {
+        // 管理：本租户全部已发（租户隔离由后端按登录上下文处理）
+        const box = await getMessageList({
+          status: this.data.statusValues[this.data.statusIndex] || undefined,
+          senderType: this.data.senderValues[this.data.senderIndex] || undefined,
+          pageNum: 1, pageSize: this.data.pageSize
+        });
+        const rows = (box && box.rows) || [];
+        const list = rows.map(toManageItem);
+        this.setData({
+          list, total: (box && box.total) || rows.length, pageNum: 1,
+          finished: rows.length < this.data.pageSize
+        });
       } else {
         const params = {
           pageNum: 1, pageSize: this.data.pageSize, folder: this.data.folder,
@@ -111,6 +131,13 @@ Page({
       if (this.data.folder === 'sent') {
         const box = await getSent(this.data.uid, { pageNum: next, pageSize: this.data.pageSize });
         rows = (box && box.rows) || [];
+      } else if (this.data.folder === 'manage') {
+        const box = await getMessageList({
+          status: this.data.statusValues[this.data.statusIndex] || undefined,
+          senderType: this.data.senderValues[this.data.senderIndex] || undefined,
+          pageNum: next, pageSize: this.data.pageSize
+        });
+        rows = (box && box.rows) || [];
       } else {
         const box = await getInbox(this.data.uid, {
           pageNum: next, pageSize: this.data.pageSize, folder: this.data.folder,
@@ -121,7 +148,8 @@ Page({
         rows = (box && box.rows) || [];
       }
       if (!rows.length) { this.setData({ finished: true }); return; }
-      const mapped = this.data.folder === 'sent' ? rows.map(toSentItem) : rows.map(toInboxItem);
+      const mapped = this.data.folder === 'sent' ? rows.map(toSentItem)
+        : (this.data.folder === 'manage' ? rows.map(toManageItem) : rows.map(toInboxItem));
       this.setData({
         list: this.data.list.concat(mapped), pageNum: next,
         finished: rows.length < this.data.pageSize
@@ -184,6 +212,14 @@ Page({
   onPickCategory(e) {
     const code = e.currentTarget.dataset.code;
     this.setData({ activeCategory: this.data.activeCategory === code ? '' : code, pageNum: 1 });
+    this.refresh(false);
+  },
+  onStatusChange(e) {
+    this.setData({ statusIndex: Number(e.detail.value) || 0, pageNum: 1 });
+    this.refresh(false);
+  },
+  onSenderChange(e) {
+    this.setData({ senderIndex: Number(e.detail.value) || 0, pageNum: 1 });
     this.refresh(false);
   },
 
@@ -258,6 +294,9 @@ Page({
       if (item.recallable) { actions.push('收回'); map['收回'] = () => this.doRecall(id); }
       if (this.data.isManager) { actions.push('彻底删除'); map['彻底删除'] = () => this.doDeleteGlobal(id); }
       if (!actions.length) { wx.showToast({ title: '当前消息不可操作', icon: 'none' }); return; }
+    } else if (f === 'manage') {
+      // 管理（本租户消息）：管理员可永久删除任意消息（级联主消息+所有收件人副本+投递记录）
+      actions.push('彻底删除'); map['彻底删除'] = () => this.doDeleteGlobal(id);
     } else if (f === 'trash') {
       actions.push('恢复'); map['恢复'] = () => this.doRestore(id);
       actions.push('彻底删除'); map['彻底删除'] = () => this.doPurge(id);
