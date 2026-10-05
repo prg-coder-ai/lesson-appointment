@@ -66,3 +66,105 @@ export function fmtTime(ts) {
   const p = (x) => (x < 10 ? '0' + x : '' + x);
   return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
 }
+
+// 角色是否可发送通知（学生/教师/管理员/平台管理员均可）
+export function canSend(role) {
+  return role === 'student' || role === 'teacher' || role === 'admin' || role === 'platform_admin';
+}
+// 角色是否管理员（可全局彻底删除任意已发消息）
+export function isManager(role) {
+  return role === 'admin' || role === 'platform_admin';
+}
+
+// 收件/收藏/回收站 列表项 → 视图模型
+export function toInboxItem(m) {
+  return {
+    id: m.messageId,
+    title: m.title || '(无标题)',
+    preview: previewText(m),
+    time: fmtTime(m.sendTime || m.createTime),
+    unread: !m.isRead,
+    starred: !!m.isStarred,
+    category: m.categoryName || '',
+    priority: m.priority || '',
+    folder: m.folder || '',
+    checked: false
+  };
+}
+
+// 已发列表项 → 视图模型
+export function toSentItem(m) {
+  return {
+    id: m.messageId,
+    title: m.title || '(无标题)',
+    preview: m.status === 'recalled' ? '已收回' : (m.status === 'partial_recalled' ? '部分收回' : '已发送'),
+    time: fmtTime(m.sendTime || m.createTime),
+    category: m.categoryCode || '',
+    priority: m.priority || '',
+    recipientCount: Number(m.recipientCount) || 0,
+    readCount: Number(m.readCount) || 0,
+    recallable: !!m.recallable,
+    status: m.status || 'sent',
+    checked: false
+  };
+}
+
+// 已发列表（发送者视角）
+export async function getSent(uid, { pageNum = 1, pageSize = 15 } = {}) {
+  return request({ url: ENDPOINTS.MSG_SENT, method: 'GET', params: { pageNum, pageSize }, customErrorMsg: false });
+}
+
+// 批量已读
+export async function batchRead(uid, ids) {
+  return request({ url: ENDPOINTS.MSG_BATCH_READ(uid), method: 'POST', data: { messageIds: ids }, customErrorMsg: false });
+}
+// 批量删除（移回收站）
+export async function batchDelete(uid, ids) {
+  return request({ url: ENDPOINTS.MSG_BATCH_DELETE(uid), method: 'DELETE', data: { messageIds: ids }, customErrorMsg: false });
+}
+// 批量彻底删除（回收站清空）
+export async function batchPurge(uid, ids) {
+  return request({ url: ENDPOINTS.MSG_BATCH_PURGE(uid), method: 'DELETE', data: { messageIds: ids }, customErrorMsg: false });
+}
+
+// 回收站恢复（单条）
+export async function restore(uid, mid) {
+  return request({ url: ENDPOINTS.MSG_RESTORE(uid, mid), method: 'POST', customErrorMsg: false });
+}
+// 彻底删除单条个人副本（回收站内）
+export async function purge(uid, mid) {
+  return request({ url: ENDPOINTS.MSG_PURGE(uid, mid), method: 'DELETE', customErrorMsg: false });
+}
+
+// 列出某用户全部消息 id（供「全部已读」）；isDeleted=0 仅收件箱
+export async function getMessageIds(uid, isDeleted) {
+  const params = {};
+  if (isDeleted !== undefined && isDeleted !== null) params.isDeleted = isDeleted;
+  return request({ url: ENDPOINTS.MSG_IDS(uid), method: 'GET', params, customErrorMsg: false }) || [];
+}
+
+// 撤回已发消息（发送者/管理员，仅接收方均未读可撤回）
+export async function recallMessage(mid) {
+  return request({ url: ENDPOINTS.MSG_WITHDRAW(mid), method: 'POST', customErrorMsg: false });
+}
+// 管理员全局彻底删除（连同所有收件人副本与投递记录）
+export async function deleteSentGlobal(mid) {
+  return request({ url: ENDPOINTS.MSG_DELETE_GLOBAL(mid), method: 'DELETE', customErrorMsg: false });
+}
+
+// 单条消息投递追踪（接收/已读统计）
+export async function getDeliveryStatus(mid) {
+  return request({ url: ENDPOINTS.MSG_DELIVERY(mid), method: 'GET', customErrorMsg: false }) || {};
+}
+
+// 发送通知（scope 或指定用户）：body = { title, content, priority, recipientUserIds, broadcast, categoryCode }
+export async function sendMessage(body) {
+  return request({ url: ENDPOINTS.MSG_SEND, method: 'POST', data: body, customErrorMsg: false });
+}
+
+// 接收人 scope 解析（api 主模块）：GET /api/v1/user/message-recipients?scope=&tenantId=
+export async function getRecipients(scope, tenantId) {
+  const params = { scope };
+  if (tenantId) params.tenantId = tenantId;
+  return request({ url: ENDPOINTS.MSG_RECIPIENTS, method: 'GET', params, customErrorMsg: false }) || [];
+}

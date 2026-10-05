@@ -1,4 +1,5 @@
 <view class="page">
+  <!-- 顶部标题栏 -->
   <view class="topbar">
     <view class="tb-title">消息中心</view>
     <view class="tb-right">
@@ -7,38 +8,77 @@
     </view>
   </view>
 
-  <view class="filterbar">
+  <!-- 文件夹标签页 -->
+  <view class="tabs">
+    <view class="tab {{folder === 'inbox' ? 'on' : ''}}" data-folder="inbox" bindtap="switchFolder">收件箱</view>
+    <view class="tab {{folder === 'starred' ? 'on' : ''}}" data-folder="starred" bindtap="switchFolder">收藏</view>
+    <view class="tab {{folder === 'trash' ? 'on' : ''}}" data-folder="trash" bindtap="switchFolder">回收站</view>
+    <view wx:if="{{showSent}}" class="tab {{folder === 'sent' ? 'on' : ''}}" data-folder="sent" bindtap="switchFolder">已发</view>
+  </view>
+
+  <!-- 工具栏（非选择态） -->
+  <view wx:if="{{!selecting}}" class="toolbar">
+    <view wx:if="{{folder !== 'sent'}}" class="search">
+      <input class="search-input" placeholder="搜索标题关键词" value="{{keyword}}" bindinput="searchInput" confirm-type="search" bindconfirm="onSearch" />
+      <view class="search-btn" bindtap="onSearch">搜索</view>
+    </view>
+    <view class="tools-right">
+      <view wx:if="{{folder === 'inbox'}}" class="tool-btn" bindtap="markAllReadTap">全部已读</view>
+      <view wx:if="{{folder !== 'sent'}}" class="tool-btn" bindtap="enterSelect">选择</view>
+      <view wx:if="{{canSend}}" class="tool-btn primary" bindtap="goCompose">发送通知</view>
+    </view>
+  </view>
+
+  <!-- 仅看未读（收件箱/收藏/回收站） -->
+  <view wx:if="{{folder !== 'sent' && !selecting}}" class="filterbar">
     <view class="seg">
       <view class="seg-item {{!onlyUnread ? 'on' : ''}}" data-val="0" bindtap="onToggleUnread">全部</view>
       <view class="seg-item {{onlyUnread ? 'on' : ''}}" data-val="1" bindtap="onToggleUnread">仅看未读</view>
     </view>
   </view>
 
-  <scroll-view wx:if="{{categories.length}}" class="cats" scroll-x="true">
-    <view class="cat-item {{activeCategory === '' ? 'on' : ''}}" data-code="" bindtap="onPickCategory">全部分类</view>
-    <view wx:for="{{categories}}" wx:key="code" class="cat-item {{activeCategory === item.code ? 'on' : ''}}" data-code="{{item.code}}" bindtap="onPickCategory">{{item.name}}</view>
+  <!-- 分类筛选（收件箱/收藏/回收站） -->
+  <scroll-view wx:if="{{folder !== 'sent' && categories.length && !selecting}}" class="cats" scroll-x="true">
+    <view class="cat-item {{activeCategory === '' ? 'on' : ''}}" data-code="" bindtap="pickCategory">全部分类</view>
+    <view wx:for="{{categories}}" wx:key="code" class="cat-item {{activeCategory === item.code ? 'on' : ''}}" data-code="{{item.code}}" bindtap="pickCategory">{{item.name}}</view>
   </scroll-view>
 
+  <!-- 列表 -->
   <view wx:if="{{loading && list.length === 0}}" class="tip">加载中…</view>
   <view wx:elif="{{list.length === 0}}" class="empty">
     <view class="empty-glyph">📭</view>
     <view>暂无消息</view>
   </view>
-
   <view wx:else class="list">
-    <view wx:for="{{list}}" wx:key="id" class="msg" data-id="{{item.id}}" bindtap="goDetail">
-      <view wx:if="{{item.unread}}" class="dot"></view>
-      <view class="msg-main">
+    <view wx:for="{{list}}" wx:key="id" class="msg">
+      <view wx:if="{{selecting}}" class="check {{item.checked ? 'on' : ''}}" data-id="{{item.id}}" bindtap="onCheckItem">{{item.checked ? '✓' : ''}}</view>
+      <view wx:if="{{!selecting && folder !== 'sent' && item.unread}}" class="dot"></view>
+      <view class="msg-main" data-id="{{item.id}}" bindtap="goDetail">
         <view class="msg-row">
           <text class="msg-title">{{item.title}}</text>
-          <text wx:if="{{item.starred}}" class="star">★</text>
+          <text wx:if="{{folder !== 'sent' && item.starred}}" class="star">★</text>
         </view>
-        <view class="msg-preview">{{item.preview || '（无内容）'}}</view>
+        <view class="msg-preview" wx:if="{{folder !== 'sent'}}">{{item.preview || '（无内容）'}}</view>
         <view class="msg-meta">
+          <text wx:if="{{folder === 'sent'}}" class="tag">接收 {{item.recipientCount}} 人 · 已读 {{item.readCount}} 人</text>
           <text wx:if="{{item.category}}" class="tag">{{item.category}}</text>
+          <text wx:if="{{item.priority}}" class="pri pri-{{item.priority}}">{{item.priority}}</text>
           <text class="time">{{item.time}}</text>
         </view>
       </view>
+      <view wx:if="{{!selecting}}" class="more" data-id="{{item.id}}" bindtap="onItemAction">⋯</view>
+    </view>
+    <view wx:if="{{loading && list.length > 0}}" class="tip">加载中…</view>
+    <view wx:if="{{finished && list.length > 0}}" class="tip dim">— 没有更多了 —</view>
+  </view>
+
+  <!-- 选择态底部操作栏 -->
+  <view wx:if="{{selecting}}" class="selbar">
+    <view class="sel-info">已选 {{selectedCount}} 项</view>
+    <view class="sel-actions">
+      <view class="sel-btn" bindtap="exitSelect">取消</view>
+      <view wx:if="{{folder !== 'trash' && folder !== 'sent'}}" class="sel-btn" bindtap="batchReadTap">批量已读</view>
+      <view class="sel-btn danger" bindtap="batchDeleteTap">{{folder === 'trash' ? '批量彻底删除' : '批量删除'}}</view>
     </view>
   </view>
 </view>

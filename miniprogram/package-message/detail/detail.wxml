@@ -1,24 +1,53 @@
 <view class="page">
-  <view wx:if="{{loading}}" class="tip">加载中…</view>
-  <block wx:elif="{{msg}}">
-    <view class="card">
-      <view class="title">{{msg.title}}</view>
-      <view class="meta">
-        <text wx:if="{{msg.category}}" class="tag">{{msg.category}}</text>
-        <text wx:if="{{msg.priority}}" class="tag warn">{{msg.priority}}</text>
-        <text class="time">{{msg.time}}</text>
+  <!-- 已发详情（投递状态，sender 视角） -->
+  <block wx:if="{{from === 'sent'}}">
+    <view wx:if="{{loading}}" class="tip">加载中…</view>
+    <block wx:elif="{{delivery}}">
+      <view class="card">
+        <view class="title">{{delivery.title}}</view>
+        <view class="meta">
+          <text class="tag">接收 {{delivery.recipientCount}} 人</text>
+          <text class="tag warn">已读 {{delivery.readCount}} 人</text>
+        </view>
       </view>
-      <view wx:if="{{msg.sender}}" class="sender">发件人：{{msg.sender}}</view>
-    </view>
-
-    <view class="card body">
-      <text class="content">{{msg.content || '（无正文内容）'}}</text>
-    </view>
-
-    <view class="actions">
-      <button class="btn {{starred ? 'btn-star' : ''}}" bindtap="onToggleStar">{{starred ? '★ 已收藏' : '☆ 收藏'}}</button>
-      <button class="btn btn-del" bindtap="onDelete">删除</button>
-    </view>
+      <view class="card body">
+        <text class="content">{{delivery.content || '（无正文内容）'}}</text>
+      </view>
+      <view class="hint">撤回 / 彻底删除请在「已发」列表页操作。</view>
+    </block>
+    <view wx:else class="tip">消息不存在或已删除</view>
   </block>
-  <view wx:else class="tip">消息不存在或已删除</view>
+
+  <!-- 收件箱 / 收藏 / 回收站 详情 -->
+  <block wx:else>
+    <view wx:if="{{loading}}" class="tip">加载中…</view>
+    <block wx:elif="{{msg}}">
+      <view class="card">
+        <view class="title">{{msg.title}}</view>
+        <view class="meta">
+          <text wx:if="{{msg.category}}" class="tag">{{msg.category}}</text>
+          <text wx:if="{{msg.priority}}" class="tag warn">{{msg.priority}}</text>
+          <text class="time">{{msg.time}}</text>
+        </view>
+        <view wx:if="{{msg.sender}}" class="sender">发件人：{{msg.sender}}</view>
+      </view>
+
+      <view class="card body">
+        <text class="content">{{msg.content || '（无正文内容）'}}</text>
+      </view>
+
+      <view class="actions">
+        <block wx:if="{{from === 'trash'}}">
+          <button class="btn btn-restore" bindtap="onRestore">恢复</button>
+          <button class="btn btn-del" bindtap="onPurge">彻底删除</button>
+        </block>
+        <block wx:else>
+          <button class="btn {{unread ? '' : 'btn-ghost'}}" bindtap="onToggleRead">{{unread ? '标为已读' : '标为未读'}}</button>
+          <button class="btn {{starred ? 'btn-star' : ''}}" bindtap="onToggleStar">{{starred ? '★ 已收藏' : '☆ 收藏'}}</button>
+          <button class="btn btn-del" bindtap="onDelete">删除</button>
+        </block>
+      </view>
+    </block>
+    <view wx:else class="tip">消息不存在或已删除</view>
+  </block>
 </view>

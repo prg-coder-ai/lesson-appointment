@@ -31,7 +31,7 @@
     },
     {
       "root": "package-message",
-      "pages": ["inbox/inbox", "detail/detail"]
+      "pages": ["inbox/inbox", "detail/detail", "compose/compose"]
     }
   ],
   "preloadRule": {

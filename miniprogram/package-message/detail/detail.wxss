@@ -10,5 +10,8 @@
 .body .content { font-size: 30rpx; color: #333; line-height: 1.7; white-space: pre-wrap; word-break: break-all; }
 .actions { display: flex; gap: 20rpx; margin-top: 10rpx; }
 .btn { flex: 1; background: #fff; color: #333; border: 1rpx solid #e5e8ef; border-radius: 12rpx; font-size: 28rpx; }
+.btn-ghost { color: #999; }
 .btn-star { color: #faad14; border-color: #ffe58f; }
+.btn-restore { color: #1890ff; border-color: #91d5ff; }
 .btn-del { color: #fa5151; border-color: #ffccc7; }
+.hint { margin-top: 24rpx; text-align: center; font-size: 24rpx; color: #aaa; }

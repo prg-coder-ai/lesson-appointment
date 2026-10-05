@@ -94,6 +94,25 @@ export const ENDPOINTS = {
   MSG_UNSTAR: (uid, mid) => `/api/v1/users/${encodeURIComponent(uid)}/messages/${mid}/unstar`,
   MSG_DELETE: (uid, mid) => `/api/v1/users/${encodeURIComponent(uid)}/messages/${mid}`,
   MSG_CATEGORIES: '/api/v1/message-categories/tree',
+  // —— 消息中心：已发 / 批量 / 回收站 / 撤回 / 接收人（message-service）——
+  // 已发列表：GET /api/v1/messages/sent（发送者视角，含接收/已读统计与是否可收回）
+  MSG_SENT: '/api/v1/messages/sent',
+  // 批量已读 / 批量删除(移回收站) / 批量彻底删除：userId 维度
+  MSG_BATCH_READ: (uid) => `/api/v1/users/${encodeURIComponent(uid)}/messages/read/batch`,
+  MSG_BATCH_DELETE: (uid) => `/api/v1/users/${encodeURIComponent(uid)}/messages/batch`,
+  MSG_BATCH_PURGE: (uid) => `/api/v1/users/${encodeURIComponent(uid)}/messages/batch/purge`,
+  // 恢复(回收站→收件箱) / 彻底删除(个人副本)：userId + mid
+  MSG_RESTORE: (uid, mid) => `/api/v1/users/${encodeURIComponent(uid)}/messages/${mid}/restore`,
+  MSG_PURGE: (uid, mid) => `/api/v1/users/${encodeURIComponent(uid)}/messages/${mid}/purge`,
+  // 列出某用户全部消息 id（供「全部已读」）：GET ?isDeleted=0
+  MSG_IDS: (uid) => `/api/v1/users/${encodeURIComponent(uid)}/messages/ids`,
+  // 撤回(发送者/管理员) / 管理员全局彻底删除(连同所有收件人副本与投递记录)：纯 mid，走 messages 前缀
+  MSG_WITHDRAW: (mid) => `/api/v1/messages/${mid}/withdraw`,
+  MSG_DELETE_GLOBAL: (mid) => `/api/v1/messages/${mid}`,
+  // 单条消息投递追踪（已发详情）：接收/已读统计
+  MSG_DELIVERY: (mid) => `/api/v1/messages/${mid}/delivery-status`,
+  // 接收人 scope 解析：在 api 主模块（/api/v1/user/... 单数，不匹配 message-service 正则，走 apiBase 8081）
+  MSG_RECIPIENTS: '/api/v1/user/message-recipients',
   SENSITIVE_TEST: '/api/v1/sensitive/test',
   SENSITIVE_GROUPS: '/api/v1/sensitive/groups',
   SENSITIVE_WORDS: '/api/v1/sensitive/words',

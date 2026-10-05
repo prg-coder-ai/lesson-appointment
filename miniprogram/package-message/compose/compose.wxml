@@ -1,0 +1,65 @@
+<view class="page">
+  <view class="field">
+    <view class="label">接收方式</view>
+    <radio-group class="radio-row" bindchange="onModeChange">
+      <label class="radio"><radio value="scope" checked="{{mode === 'scope'}}" color="#1890ff" /> 按范围（自动解析接收人）</label>
+      <label class="radio"><radio value="specific" checked="{{mode === 'specific'}}" color="#1890ff" /> 指定用户ID</label>
+    </radio-group>
+  </view>
+
+  <!-- 按范围 -->
+  <block wx:if="{{mode === 'scope'}}">
+    <view class="field">
+      <view class="label">接收范围</view>
+      <picker mode="selector" range="{{scopes}}" range-key="label" value="{{scopeIndex}}" bindchange="onScopeChange">
+        <view class="picker">{{scopes[scopeIndex].label || '请选择'}}</view>
+      </picker>
+    </view>
+    <view wx:if="{{needTenant}}" class="field">
+      <view class="label">租户ID</view>
+      <input class="input" placeholder="平台管理员需填写" value="{{tenantId}}" bindinput="onTenantInput" />
+    </view>
+    <view class="field">
+      <button class="btn primary block" bindtap="onLoadRecipients">加载接收人</button>
+    </view>
+    <view wx:if="{{recipients.length}}" class="rcpt">
+      <view class="rcpt-item" wx:for="{{recipients}}" wx:key="userId" bindtap="onRecipientCheck" data-id="{{item.userId}}">
+        <view class="rcpt-check {{checkedIds.indexOf(item.userId) >= 0 ? 'on' : ''}}">{{checkedIds.indexOf(item.userId) >= 0 ? '✓' : ''}}</view>
+        <text class="rcpt-name">{{item.name}}</text>
+        <text class="rcpt-role">{{item.role}}</text>
+      </view>
+    </view>
+  </block>
+
+  <!-- 指定用户ID -->
+  <block wx:else>
+    <view class="field">
+      <view class="label">指定用户ID</view>
+      <textarea class="textarea" placeholder="多个用逗号/空格分隔；支持「名称:用户ID」格式" value="{{idsText}}" bindinput="onIdsInput" />
+    </view>
+  </block>
+
+  <view class="field">
+    <view class="label">标题</view>
+    <input class="input" maxlength="120" placeholder="通知标题" value="{{title}}" bindinput="onTitleInput" />
+  </view>
+  <view class="field">
+    <view class="label">正文</view>
+    <textarea class="textarea" placeholder="通知正文" value="{{content}}" bindinput="onContentInput" />
+  </view>
+  <view class="field">
+    <view class="label">优先级</view>
+    <picker mode="selector" range="{{priorities}}" value="{{priorityIndex}}" bindchange="onPriorityChange">
+      <view class="picker">{{priorities[priorityIndex]}}</view>
+    </picker>
+  </view>
+  <view class="field">
+    <view class="label">分类编码</view>
+    <picker mode="selector" range="{{categories}}" range-key="name" value="{{catIndex}}" bindchange="onCategoryChange">
+      <view class="picker">{{categories[catIndex].name || '（不分类）'}}</view>
+    </picker>
+  </view>
+
+  <button class="btn primary block send" bindtap="onSend">发送</button>
+  <view class="tip">提示：勾选接收人即「向所选的一个/多个发送」；全选即「向该范围所有人发送」。</view>
+</view>
