@@ -15,3 +15,7 @@ export * from './domain/appointmentState.js';
 export * from './domain/datetime.js';
 // P1 领域层下沉：HTTP/业务错误码→统一文案（零 DOM），Web 端经 P0 构建桥接后可挂 window.ErrorCodeDomain。
 export * from './domain/errorCode.js';
+// 注：domain/mask.js 经 ./format.js 已 re-export 进入本树，无需重复导出。
+// 补全下列两项的聚合，使其成为「被引用」共享树的一部分（消除小程序「主包未使用 js」检查误报）。
+export * from './domain/term.js';
+export * from './adapters/index.js';

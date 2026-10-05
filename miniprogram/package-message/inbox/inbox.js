@@ -70,7 +70,7 @@ Page({
         getInbox(this.data.uid, params),
         getUnreadCount(this.data.uid)
       ]);
-      const rows = (box && box.list) || [];
+      const rows = (box && box.rows) || [];
       const list = rows.map(m => ({
         id: m.messageId,
         title: m.title || '(无标题)',
@@ -122,7 +122,7 @@ Page({
     };
     try {
       const box = await getInbox(this.data.uid, params);
-      const rows = (box && box.list) || [];
+      const rows = (box && box.rows) || [];
       this.setData({
         list: rows.map(m => ({
           id: m.messageId, title: m.title || '(无标题)', preview: previewText(m),

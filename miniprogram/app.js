@@ -1,3 +1,7 @@
+// 副作用引入共享核心（barrel）与 utils 聚合出口，使整棵 shared/、utils/ 依赖树进入编译依赖图，
+// 避免微信「主包内不应存在未使用的js文件」检查把镜像进来但尚未逐个引用的共享模块误报为未使用。
+import './shared/index.js';
+import './utils/index.js';
 import { setRuntimeConfig } from './shared/constants.js';
 
 App({

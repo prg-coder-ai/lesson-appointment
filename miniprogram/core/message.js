@@ -13,7 +13,7 @@ export async function getUnreadCount(uid) {
   } catch (e) { return 0; }
 }
 
-// 收件箱列表：返回 PageResult<MessageInbox> { list, total, pageNum, pageSize }
+// 收件箱列表：返回 PageResult<MessageInbox> { rows, total, pageNum, pageSize }
 export async function getInbox(uid, { pageNum = 1, pageSize = 15, folder, unreadOnly, categoryCode, keyword } = {}) {
   const qs = { pageNum, pageSize, folder, unreadOnly, categoryCode, keyword };
   return request({ url: ENDPOINTS.MSG_INBOX(uid, qs), method: 'GET', customErrorMsg: false });
