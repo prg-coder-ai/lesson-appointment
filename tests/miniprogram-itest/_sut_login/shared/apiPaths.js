@@ -28,6 +28,12 @@ export const ENDPOINTS = {
   AUTH_LOGOUT: '/auth/logout',
   AUTH_REFRESH: '/auth/refreshToken',
   AUTH_KICK: (uid) => `/auth/kick/${uid}`,
+  // 微信登录/绑定：authController @PostMapping("/wechat-login")、("/bind-wechat")。
+  // 当前微信登录整体屏蔽（恢复流程：去 User.wxOpenid exist=false + 取消对应函数调用注释）；常量先就位，避免 undefined。
+  AUTH_WECHAT_LOGIN: '/auth/wechat-login',
+  AUTH_BIND_WECHAT: '/auth/bind-wechat',
+  // 获客归因上报：后端尚未实现该接口；acquisition.js 已做静默降级（404 不报错、不影响主流程）。
+  TRACK_ATTRIBUTION: '/api/v1/user/attribution',
   ACCOUNT_EXIST: (acc) => `/user/account/exist?account=${encodeURIComponent(acc)}`,
   TERM_MAP: (lang) => `/api/v1/term/map?lang=${encodeURIComponent(lang || 'zh')}`,
   TENANT_INDUSTRY: (tCode) => `/api/v1/tenant/industry${tCode ? '?tenantCode=' + encodeURIComponent(tCode) : ''}`,
@@ -37,9 +43,10 @@ export const ENDPOINTS = {
   COURSE_LIST: '/api/v1/course/list',
   COURSE_PAGE: '/api/v1/course/page',
   COURSE_DETAIL: (id) => `/api/v1/course/${id}`,
-  SCHEDULE_ADD: '/api/v1/course/schedule/add',
-  SCHEDULE_EDIT: '/api/v1/course/schedule/edit',
-  SCHEDULE_LIST: '/api/v1/course/schedule/list',
+  // 排期：ScheduleController @RequestMapping("/api/v1/schedule")，路径无 course 前缀。
+  // admin 排期页（package-admin/schedule）用 SCHEDULE_LIST；teacher 端增改走下方“排期”分组的 SCHEDULE_CREATE/SCHEDULE_UPDATE。
+  // 已清理早期误写的冗余别名 SCHEDULE_ADD/SCHEDULE_EDIT（与 CREATE/UPDATE 重复且易误导）。
+  SCHEDULE_LIST: '/api/v1/schedule/list',
   // —— 课程模板（业务端，管理员/教师，TemplateController）——
   // 后端 @RequestMapping("/api/v1/course/template") + @GetMapping("/list")，响应 Result<List<CourseTemplate>>
   COURSE_TEMPLATE_LIST: '/api/v1/course/template/list',
@@ -50,8 +57,9 @@ export const ENDPOINTS = {
   BOOKING_DETAIL: (id) => `/api/v1/course/booking/${id}`,
   BOOKING_UPDATE_STATUS: '/api/v1/course/booking/updateStatus',
   // —— 教师简介（业务端）——
-  TEACHER_PUBLISHED_LIST: (tid) => `/api/v1/teacher/published?teacherId=${encodeURIComponent(tid)}`,
-  TEACHER_PUBLISHED_LATEST: (tid) => `/api/v1/teacher/published/latestPublic?teacherId=${encodeURIComponent(tid)}`,
+  // 后端 TeacherPublishedProfileController：GET /list、GET /latest-public（kebab-case，注意非 latestPublic）
+  TEACHER_PUBLISHED_LIST: (tid) => `/api/v1/teacher/published/list?teacherId=${encodeURIComponent(tid)}`,
+  TEACHER_PUBLISHED_LATEST: (tid) => `/api/v1/teacher/published/latest-public?teacherId=${encodeURIComponent(tid)}`,
   // —— 管理端概览（业务端）——
   DASHBOARD_OVERVIEW: '/api/v1/dashboard/overview',
   DASHBOARD_TENANT_USAGE: (tid) => `/api/v1/dashboard/tenant/${tid}/usage`,
