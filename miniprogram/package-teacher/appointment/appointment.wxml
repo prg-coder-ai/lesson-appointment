@@ -9,9 +9,20 @@
     </view>
   </view>
 
+  <!-- 课程名搜索：对齐前端「课程名称」筛选框（course-name-input） -->
+  <view class="search-row">
+    <input class="search-input" placeholder="搜索课程名称" value="{{keyword}}"
+           bindinput="onKeywordInput" bindconfirm="onSearch" confirm-type="search" />
+    <text class="search-btn" bindtap="onSearch">搜索</text>
+    <text class="search-clear" wx:if="{{keyword}}" bindtap="onClearSearch">清空</text>
+  </view>
+
   <scroll-view scroll-x class="status-bar">
-    <text wx:for="{{statusOptions}}" wx:key="v" class="st {{status===item.v?'on':''}}" data-s="{{item.v}}" bindtap="onStatusChange">{{item.t}}</text>
+    <text wx:for="{{statusOptions}}" wx:key="v" class="st {{status===item.v?'on':''}}"
+          data-s="{{item.v}}" bindtap="onStatusChange">{{item.t}}</text>
   </scroll-view>
+
+  <view class="count-bar" wx:if="{{!loading && total>0}}">共 {{total}} 组课次</view>
 
   <view wx:if="{{loading}}" class="tip">加载中…</view>
   <view wx:elif="{{list.length===0}}" class="empty">
@@ -19,14 +30,33 @@
     <view>近期没有课程安排</view>
   </view>
   <view wx:else class="list">
-    <view wx:for="{{list}}" wx:key="id" class="item" bindtap="goSchedule" data-id="{{item.courseId}}">
-      <view class="it-top">
-        <text class="it-title">{{item.title}}</text>
-        <text class="it-status s-{{item.status}}">{{item.statusText}}</text>
+    <!-- 行内容对齐前端「今日课程」聚合行：序号 / 课程名称 / 学生列表 / 教师 / 预约时间 / 状态 -->
+    <view wx:for="{{list}}" wx:key="key" class="item">
+      <view class="it-head">
+        <text class="it-index">{{item.index}}</text>
+        <text class="it-title">{{item.className}}</text>
+        <text class="it-status s-{{item.tone}}">{{item.statusText}}</text>
       </view>
-      <view class="it-sub">{{item.sub}}</view>
-      <view class="it-time" wx:if="{{item.time}}">🕒 {{item.time}}</view>
-      <view class="it-go">查看排期 ›</view>
+      <view class="it-row">
+        <text class="it-label">课次</text>
+        <text class="it-val">第 {{item.classIndex}} 次 · 本组 {{item.count}} 个课次</text>
+      </view>
+      <view class="it-row">
+        <text class="it-label">学生</text>
+        <text class="it-val strong">{{item.students}}</text>
+      </view>
+      <view class="it-row" wx:if="{{item.teacherName}}">
+        <text class="it-label">教师</text>
+        <text class="it-val">{{item.teacherName}}</text>
+      </view>
+      <view class="it-row">
+        <text class="it-label">时间</text>
+        <text class="it-val">🕒 {{item.time}} {{item.tz}}</text>
+      </view>
+      <view class="it-actions">
+        <text class="act" data-id="{{item.courseId}}" bindtap="goSchedule">查看排期 ›</text>
+        <text class="act {{item.pending?'warn':''}}" data-idx="{{index}}" bindtap="onReschedule">{{item.pending?'取消改期':'申请改期'}}</text>
+      </view>
     </view>
   </view>
 

@@ -5,23 +5,41 @@
 .day { font-size: 24rpx; color: #667; padding: 6rpx 16rpx; margin-left: 8rpx; background: #fff; border-radius: 24rpx; }
 .day.on { color: #fff; background: #4e6ef2; }
 
+/* 课程名搜索（对齐前端「课程名称」筛选框） */
+.search-row { display: flex; align-items: center; padding: 10rpx 24rpx 4rpx; }
+.search-input { flex: 1; height: 64rpx; background: #fff; border-radius: 32rpx; padding: 0 24rpx; font-size: 26rpx; color: #1f2a4d; }
+.search-btn { font-size: 26rpx; color: #4e6ef2; padding: 0 18rpx; }
+.search-clear { font-size: 24rpx; color: #99a; padding: 0 6rpx; }
+
 .status-bar { white-space: nowrap; padding: 4rpx 24rpx 8rpx; }
 .st { display: inline-block; font-size: 24rpx; color: #667; padding: 8rpx 22rpx; margin-right: 12rpx; background: #fff; border-radius: 24rpx; }
 .st.on { color: #fff; background: #4e6ef2; }
 
+.count-bar { font-size: 24rpx; color: #99a; padding: 4rpx 28rpx 8rpx; }
+
 .tip { text-align: center; color: #99a; padding: 40rpx 0; font-size: 26rpx; }
 .empty { text-align: center; color: #99a; padding: 90rpx 0; }
-.it-go { font-size: 22rpx; color: #4a7cff; margin-top: 14rpx; }
 .empty-glyph { font-size: 80rpx; margin-bottom: 16rpx; }
 
 .list { padding: 8rpx 24rpx; }
 .item { background: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 16rpx; box-shadow: 0 2rpx 10rpx rgba(30,50,90,.06); }
-.it-top { display: flex; align-items: center; justify-content: space-between; }
-.it-title { font-size: 30rpx; font-weight: 600; color: #1f2a4d; }
-.it-status { font-size: 22rpx; padding: 2rpx 14rpx; border-radius: 20rpx; background: #eef1f7; color: #5a6472; }
-.it-status.s-active, .it-status.s-booked { color: #3a8a3a; background: #e7f6e7; }
-.it-status.s-cancelled, .it-status.s-t-cancelled, .it-status.s-t-reject { color: #c0392b; background: #fdecea; }
-.it-status.s-completed { color: #8a6d00; background: #fff7e0; }
-.it-status.s-s-cancelling, .it-status.s-t-cancelling { color: #c0871b; background: #fff3e0; }
-.it-sub { font-size: 26rpx; color: #667; margin-top: 8rpx; }
-.it-time { font-size: 24rpx; color: #889; margin-top: 6rpx; }
+
+/* 行头：序号 / 课程名 / 状态 */
+.it-head { display: flex; align-items: center; }
+.it-index { width: 44rpx; height: 44rpx; line-height: 44rpx; text-align: center; font-size: 24rpx; color: #fff; background: #4e6ef2; border-radius: 50%; margin-right: 14rpx; flex-shrink: 0; }
+.it-title { flex: 1; font-size: 30rpx; font-weight: 600; color: #1f2a4d; }
+.it-status { font-size: 22rpx; padding: 4rpx 14rpx; border-radius: 20rpx; background: #eef1f7; color: #5a6472; flex-shrink: 0; }
+.it-status.s-ok { color: #3a8a3a; background: #e7f6e7; }
+.it-status.s-done { color: #8a6d00; background: #fff7e0; }
+.it-status.s-warn { color: #c0871b; background: #fff3e0; }
+.it-status.s-bad { color: #c0392b; background: #fdecea; }
+
+/* 明细行：课次 / 学生 / 教师 / 时间 */
+.it-row { display: flex; align-items: flex-start; margin-top: 10rpx; }
+.it-label { width: 76rpx; flex-shrink: 0; font-size: 24rpx; color: #99a; }
+.it-val { flex: 1; font-size: 26rpx; color: #5a6472; line-height: 1.5; }
+.it-val.strong { color: #2c3542; }
+
+.it-actions { display: flex; justify-content: flex-end; margin-top: 16rpx; border-top: 1rpx solid #f0f2f6; padding-top: 14rpx; }
+.act { font-size: 24rpx; color: #4a7cff; padding: 6rpx 20rpx; margin-left: 16rpx; border: 1rpx solid #d6e0ff; border-radius: 24rpx; }
+.act.warn { color: #c0871b; border-color: #f0dcb4; }

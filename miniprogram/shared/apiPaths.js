@@ -50,6 +50,9 @@ export const ENDPOINTS = {
   // 后端 UserController：GET /page（租户隔离，按 role 过滤）；GET /platformPage（跨租户，仅平台管理员）
   USER_PAGE: '/api/v1/user/page',
   USER_PLATFORM_PAGE: '/api/v1/user/platformPage',
+  // 用户名（展示用）：GET 返回单值姓名字符串；与 frontend/js/public/api.js getUserNameById 同源。
+  // 「今日课程」要把 studentId/teacherId 渲染成人名，靠它逐个解析（带缓存，避免重复请求）。
+  USER_NAME: (id) => `/api/v1/user/name/${encodeURIComponent(id || '')}`,
   // —— 课程 / 排期（业务端）——
   COURSE_LIST: '/api/v1/course/list',
   COURSE_PAGE: '/api/v1/course/page',
@@ -143,6 +146,12 @@ export const ENDPOINTS = {
     if (role) p.push(`role=${encodeURIComponent(role)}`);
     return `/api/v1/course/appointment/statistical/listByDays?${p.join('&')}`;
   },
+  // 近 N 天课次（分页版，POST @RequestBody AppointmentQueryPage）。
+  // Web「今日课程」teacher 端按排期聚合展示走这个：服务端逐条分页会把同一排期拆到不同页，
+  // 故需循环翻页取回全量再客户端分组（见 frontend/js/admin-AppointmentNotes.js teacher 分支）。
+  APPOINTMENT_LIST_BY_DAYS_PAGE: '/api/v1/course/appointment/statistical/listByDaysByPage',
+  // 课次单条状态更新：PUT { id, status }（前端 operateAppointmentStatus / 「申请改期」批量走这个）
+  APPOINTMENT_UPDATE_STATUS_BY_ID: '/api/v1/course/appointment/updateStatusById',
   // —— 教师公开主页（业务端，免登录公开接口）——
   TEACHER_PUBLIC_LIST: (tc) => `/api/v1/teacher/published/public-list?tenantCode=${encodeURIComponent(tc || '')}`,
   TEACHER_PUBLIC_GET: (id) => `/api/v1/teacher/published/public-get?id=${encodeURIComponent(id || '')}`
