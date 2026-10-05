@@ -50,15 +50,13 @@ Page({
   onReachBottom() { this.loadMore(); },
 
   async loadCategories() {
+    // 后端 CategoryController.tree() 返回扁平 List<MessageCategory>（字段 categoryCode/categoryName/categoryLevel/parentId），非嵌套树
     const cats = await getCategories();
-    const flat = [];
-    const walk = (arr, depth) => {
-      (arr || []).forEach(c => {
-        flat.push({ code: c.code, name: (depth ? '　'.repeat(depth) : '') + (c.name || c.code), depth });
-        if (c.children && c.children.length) walk(c.children, depth + 1);
-      });
-    };
-    walk(cats, 0);
+    const flat = (cats || []).map(c => ({
+      code: c.categoryCode,
+      name: c.categoryName || c.categoryCode,
+      level: c.categoryLevel || 1
+    }));
     this.setData({ categories: flat });
   },
 

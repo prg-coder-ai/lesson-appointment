@@ -39,8 +39,8 @@
 
   <!-- 分类筛选（收件箱/收藏/回收站） -->
   <scroll-view wx:if="{{folder !== 'sent' && categories.length && !selecting}}" class="cats" scroll-x="true">
-    <view class="cat-item {{activeCategory === '' ? 'on' : ''}}" data-code="" bindtap="pickCategory">全部分类</view>
-    <view wx:for="{{categories}}" wx:key="code" class="cat-item {{activeCategory === item.code ? 'on' : ''}}" data-code="{{item.code}}" bindtap="pickCategory">{{item.name}}</view>
+    <view class="cat-item {{activeCategory === '' ? 'on' : ''}}" data-code="" bindtap="onPickCategory">全部分类</view>
+    <view wx:for="{{categories}}" wx:key="code" class="cat-item {{item.level === 2 ? 'sub' : ''}} {{activeCategory === item.code ? 'on' : ''}}" data-code="{{item.code}}" bindtap="onPickCategory">{{item.name}}</view>
   </scroll-view>
 
   <!-- 列表 -->

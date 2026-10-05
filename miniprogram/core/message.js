@@ -85,7 +85,7 @@ export function toInboxItem(m) {
     time: fmtTime(m.sendTime || m.createTime),
     unread: !m.isRead,
     starred: !!m.isStarred,
-    category: m.categoryName || '',
+    category: m.categoryCode || '',
     priority: m.priority || '',
     folder: m.folder || '',
     checked: false

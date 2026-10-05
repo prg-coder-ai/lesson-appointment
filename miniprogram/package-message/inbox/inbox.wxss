@@ -41,6 +41,7 @@
 .cats { white-space: nowrap; padding: 6rpx 24rpx 14rpx; }
 .cat-item { display: inline-block; padding: 8rpx 22rpx; margin-right: 12rpx; background: #fff; border: 1rpx solid #e5e8ef; border-radius: 28rpx; font-size: 24rpx; color: #555; }
 .cat-item.on { background: #e6f4ff; color: #1890ff; border-color: #91d5ff; }
+.cat-item.sub { margin-left: 24rpx; background: #fafbfc; }
 
 .tip, .empty { text-align: center; color: #999; padding: 80rpx 0; font-size: 28rpx; }
 .empty-glyph { font-size: 80rpx; margin-bottom: 16rpx; }
