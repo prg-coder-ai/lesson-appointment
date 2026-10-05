@@ -1,11 +1,12 @@
 import { requireAuth } from '../../core/auth.js';
-import { roleLabel, homePageForRole } from '../../shared/constants.js';
+import { roleLabel, homePageForRole, ROLES } from '../../shared/constants.js';
 import { withTerms } from '../../core/term.js';
 import { getUnreadCount } from '../../core/message.js';
 import { captureAttribution, reportAttributionOnce } from '../../core/acquisition.js';
+import { getCurrentTenant } from '../../core/tenant.js';
 
 Page(withTerms({
-  data: { user: {}, roleText: '', active: 'home', greeting: '', unreadCount: 0 },
+  data: { user: {}, roleText: '', active: 'home', greeting: '', unreadCount: 0, tenantName: '' },
   onLoad(options) {
     captureAttribution(options); // 先抓取渠道归因，即便被重定向到登录页也不丢
     const u = requireAuth();
@@ -14,10 +15,19 @@ Page(withTerms({
     const h = new Date().getHours();
     const greeting = h < 11 ? '早上好' : h < 14 ? '中午好' : h < 18 ? '下午好' : '晚上好';
     this.setData({ user: u, roleText: roleLabel(u.role), active: 'home', greeting });
+    this.loadTenantName(u);
   },
   onShow() {
     const u = this.data.user;
     if (u && u.userId) getUnreadCount(u.userId).then(n => this.setData({ unreadCount: n })).catch(() => {});
+    this.loadTenantName(u);
+  },
+  // 取当前租户的公司名称（orgName）替换顶部的租户编码展示；缺省回退 tenantCode
+  loadTenantName(u) {
+    getCurrentTenant().then(t => {
+      const name = (t && t.orgName) || (u && u.tenantCode) || '';
+      if (this.data.tenantName !== name) this.setData({ tenantName: name });
+    }).catch(() => {});
   },
   onTabChange(e) { wx.redirectTo({ url: e.detail.page }); },
   goCourses() { wx.navigateTo({ url: '/package-teacher/courses/courses' }); },

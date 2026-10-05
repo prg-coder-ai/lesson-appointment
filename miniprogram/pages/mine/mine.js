@@ -2,17 +2,21 @@ import { requireAuth, logout, switchTenant } from '../../core/auth.js';
 import { roleLabel, ROLES } from '../../shared/constants.js';
 import { getCurrentTenant } from '../../core/tenant.js';
 import { INDUSTRY_NAMES } from '../../shared/terms.js';
-import { withTerms, setLang, loadTermMap, getIndustry } from '../../core/term.js';
+import { withTerms, setLang, loadTermMap, getIndustry, getTermMap } from '../../core/term.js';
 import { storage } from '../../core/storage.js';
 import { request } from '../../core/request.js';
 import { ENDPOINTS } from '../../shared/apiPaths.js';
 import { getUnreadCount } from '../../core/message.js';
 import { confirm } from '../../core/ui.js';
 
-// 角色展示名：租户管理员在顶部统一显示为"管理员"（去掉"租户"前缀）；其余角色沿用 roleLabel。
-// 仅作用于小程序端这两个页面顶部的角色文案，不改共享 roleLabel（避免波及 Web）。
-function displayRole(role) {
+// 角色展示名（仅小程序端顶部，不改共享 roleLabel 以免波及 Web）：
+// - 平台管理员 → 平台管理员；租户管理员 → 管理员（去掉"租户"前缀）
+// - 教师 / 学生 → 走行业词表（terms.teacher / terms.student），随行业切换
+function displayRole(role, terms) {
+  if (role === ROLES.PLATFORM_ADMIN) return '平台管理员';
   if (role === ROLES.ADMIN) return '管理员';
+  if (role === ROLES.TEACHER) return (terms && terms.teacher) || '教师';
+  if (role === ROLES.STUDENT) return (terms && terms.student) || '学生';
   return roleLabel(role);
 }
 
@@ -25,7 +29,7 @@ Page(withTerms({
     const u = requireAuth();
     if (!u) return;
     this.setData({
-      user: u, roleText: displayRole(u.role),
+      user: u, roleText: displayRole(u.role, getTermMap()),
       industryText: INDUSTRY_NAMES[getIndustry()] || getIndustry(), lang: storage.get('lang') || 'zh', active: 'mine'
     });
     if (u.userId) getUnreadCount(u.userId).then(n => this.setData({ unreadCount: n })).catch(() => {});

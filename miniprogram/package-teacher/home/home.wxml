@@ -2,13 +2,13 @@
   <view class="header">
     <view class="sys">{{terms.lessonSystem}}</view>
     <view class="greet">{{greeting}}，{{user.name || user.account}}</view>
-    <view class="sub">{{roleText}} · 租户 {{user.tenantCode}}</view>
+    <view class="sub">{{terms.teacher}} · {{tenantName}}</view>
   </view>
 
   <view class="grid">
     <view class="grid-item" bindtap="goCourses">
       <view class="gi-glyph">📚</view>
-      <view class="gi-text">我的课程</view>
+      <view class="gi-text">我的{{terms.course}}</view>
     </view>
     <view class="grid-item" bindtap="goProfile">
       <view class="gi-glyph">👥</view>
@@ -20,11 +20,11 @@
     </view>
     <view class="grid-item" bindtap="goAppointment">
       <view class="gi-glyph">📚</view>
-      <view class="gi-text">今日课程</view>
+      <view class="gi-text">今日{{terms.course}}</view>
     </view>
     <view class="grid-item" bindtap="goMyBooking">
       <view class="gi-glyph">📋</view>
-      <view class="gi-text">学生预约</view>
+      <view class="gi-text">{{terms.student}}预约</view>
     </view>
     <view class="grid-item" bindtap="goMine">
       <view class="gi-glyph">👤</view>
@@ -39,7 +39,7 @@
 
   <view class="card">
     <view class="card-title">工作台</view>
-    <view class="card-line">在「我的课程」管理你的排期与可预约时间。</view>
+    <view class="card-line">在「我的{{terms.course}}」管理你的排期与可预约时间。</view>
     <view class="card-line">在「我的简介」维护对外展示的职业信息与课程介绍。</view>
   </view>
 
