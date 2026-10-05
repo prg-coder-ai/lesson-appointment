@@ -24,10 +24,6 @@
 .rcpt { background: #fff; border-radius: 16rpx; padding: 8rpx 24rpx; margin-bottom: 18rpx; }
 .rcpt-item { display: flex; align-items: center; padding: 18rpx 0; border-bottom: 1rpx solid #f0f2f5; }
 .rcpt-item:last-child { border-bottom: none; }
-.rcpt-check {
-  width: 36rpx; height: 36rpx; line-height: 36rpx; text-align: center; margin-right: 18rpx;
-  border: 1rpx solid #c8cdd6; border-radius: 50%; font-size: 24rpx; color: #fff;
-}
-.rcpt-check.on { background: #1890ff; border-color: #1890ff; }
+.rcpt-box { transform: scale(0.9); margin-right: 14rpx; }
 .rcpt-name { flex: 1; font-size: 28rpx; color: #333; }
 .rcpt-role { font-size: 24rpx; color: #aaa; }

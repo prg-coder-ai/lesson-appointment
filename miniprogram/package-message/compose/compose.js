@@ -78,15 +78,12 @@ Page({
     this.loadCategories();
   },
   async loadCategories() {
-    const tree = await getCategories();
+    // 后端 CategoryController.tree() 返回扁平 List<MessageCategory>（字段 categoryCode/categoryName），非嵌套树
+    const cats = await getCategories();
     const flat = [{ code: '', name: '（不分类）' }];
-    const walk = (arr, depth) => {
-      (arr || []).forEach(c => {
-        flat.push({ code: c.code, name: (depth ? '　'.repeat(depth) : '') + (c.name || c.code) });
-        if (c.children && c.children.length) walk(c.children, depth + 1);
-      });
-    };
-    walk(tree, 0);
+    (cats || []).forEach(c => {
+      flat.push({ code: c.categoryCode, name: c.categoryName || c.categoryCode });
+    });
     this.setData({ categories: flat, catIndex: 0, categoryCode: '' });
   },
   syncTenant() {
@@ -122,7 +119,7 @@ Page({
       if (this.data.needTenant) params.tenantId = (this.data.tenantId || '').trim();
       const users = await getRecipients(params.scope, params.tenantId);
       const list = (users || []).map(u => ({
-        userId: u.userId, name: u.name || u.userId || '未命名', role: u.role || ''
+        userId: u.userId, name: u.name || u.userId || '未命名', role: u.role || '', checked: true
       }));
       this.setData({
         recipients: list,
@@ -135,12 +132,12 @@ Page({
       wx.hideLoading();
     }
   },
-  onRecipientCheck(e) {
-    const id = e.currentTarget.dataset.id;
-    const checked = this.data.checkedIds.slice();
-    const i = checked.indexOf(id);
-    if (i >= 0) checked.splice(i, 1); else checked.push(id);
-    this.setData({ checkedIds: checked });
+  onRecipientChange(e) {
+    const checked = e.detail.value || [];
+    const map = {};
+    checked.forEach(id => { map[id] = true; });
+    const recipients = this.data.recipients.map(r => Object.assign({}, r, { checked: !!map[r.userId] }));
+    this.setData({ recipients, checkedIds: checked });
   },
 
   async onSend() {

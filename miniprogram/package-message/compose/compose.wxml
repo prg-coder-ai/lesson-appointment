@@ -22,13 +22,13 @@
     <view class="field">
       <button class="btn primary block" bindtap="onLoadRecipients">加载接收人</button>
     </view>
-    <view wx:if="{{recipients.length}}" class="rcpt">
-      <view class="rcpt-item" wx:for="{{recipients}}" wx:key="userId" bindtap="onRecipientCheck" data-id="{{item.userId}}">
-        <view class="rcpt-check {{checkedIds.indexOf(item.userId) >= 0 ? 'on' : ''}}">{{checkedIds.indexOf(item.userId) >= 0 ? '✓' : ''}}</view>
+    <checkbox-group wx:if="{{recipients.length}}" class="rcpt" bindchange="onRecipientChange">
+      <label class="rcpt-item" wx:for="{{recipients}}" wx:key="userId">
+        <checkbox class="rcpt-box" value="{{item.userId}}" checked="{{item.checked}}" color="#1890ff" />
         <text class="rcpt-name">{{item.name}}</text>
         <text class="rcpt-role">{{item.role}}</text>
-      </view>
-    </view>
+      </label>
+    </checkbox-group>
   </block>
 
   <!-- 指定用户ID -->
