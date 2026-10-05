@@ -79,7 +79,8 @@
           <text class="time">{{item.time}}</text>
         </view>
       </view>
-      <view wx:if="{{!selecting}}" class="more" data-id="{{item.id}}" bindtap="onItemAction">⋯</view>
+      <view wx:if="{{!selecting && folder === 'manage'}}" class="row-del" data-id="{{item.id}}" bindtap="onRowDelete">彻底删除</view>
+      <view wx:if="{{!selecting && folder !== 'manage'}}" class="more" data-id="{{item.id}}" bindtap="onItemAction">⋯</view>
     </view>
     <view wx:if="{{loading && list.length > 0}}" class="tip">加载中…</view>
     <view wx:if="{{finished && list.length > 0}}" class="tip dim">— 没有更多了 —</view>

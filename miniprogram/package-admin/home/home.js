@@ -26,6 +26,7 @@ const GROUPS = [
   ] },
   { title: '消息中心', items: [
     { text: '消息中心', page: '/package-message/inbox/inbox' },
+    { text: '消息管理', page: '/package-message/inbox/inbox?folder=manage' },
     { text: '敏感词管理', page: '/package-admin/sensitive/sensitive' }
   ] },
   { title: '课程管理', items: [

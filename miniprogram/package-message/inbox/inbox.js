@@ -33,13 +33,18 @@ Page({
     senderValues: ['', 'teacher', 'admin', 'platform_admin', 'system'],
     senderIndex: 0
   },
-  onLoad() {
+  onLoad(options) {
     const u = requireAuth();
     if (!u) return;
     const role = u.role;
+    const canS = canSend(role), isM = isManager(role);
+    // 支持从「消息管理」菜单深链到管理标签（仅管理员允许）
+    let folder = 'inbox';
+    if (options && options.folder === 'manage' && isM) folder = 'manage';
+    else if (options && options.folder === 'sent' && canS) folder = 'sent';
     this.setData({
-      uid: u.userId, role,
-      canSend: canSend(role), isManager: isManager(role), showSent: canSend(role), showManage: isManager(role)
+      uid: u.userId, role, folder,
+      canSend: canS, isManager: isM, showSent: canS, showManage: isM
     });
     this._active = true;
     this._polling = false;
@@ -312,6 +317,12 @@ Page({
       success: (res) => { const fn = map[actions[res.tapIndex]]; if (fn) fn(); },
       fail: () => {}
     });
+  },
+  // 管理列表行内「彻底删除」按钮（对齐 web 端每行直删：级联永久删除主消息+所有副本+投递记录）
+  onRowDelete(e) {
+    const id = e.currentTarget.dataset.id;
+    if (!id) return;
+    this.doDeleteGlobal(id);
   },
   async doSetRead(id, wasUnread) {
     try { await setRead(this.data.uid, id, !wasUnread); } catch (e) { return; }

@@ -78,6 +78,11 @@
 .pri-LOW { background: #f6ffed; color: #389e0d; }
 .time { font-size: 22rpx; color: #aaa; }
 .more { font-size: 40rpx; color: #bbb; padding: 0 6rpx 0 16rpx; align-self: center; }
+.row-del {
+  flex: none; align-self: center; margin-left: 16rpx; padding: 10rpx 22rpx;
+  font-size: 24rpx; color: #fff; background: #ff4d4f; border-radius: 10rpx;
+}
+.row-del:active { background: #d9363e; }
 
 .selbar {
   position: fixed; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: space-between;
