@@ -52,6 +52,14 @@ export const ENDPOINTS = {
   // —— 管理端概览（业务端）——
   DASHBOARD_OVERVIEW: '/api/v1/dashboard/overview',
   DASHBOARD_TENANT_USAGE: (tid) => `/api/v1/dashboard/tenant/${tid}/usage`,
+  // —— 管理端数据总览统计（租户隔离，package-admin/dashboard 页用）——
+  // 后端对应 User/Course/Booking/Appointment 各 Controller 的 /statistical/byMonth 与 /statistical/listByDays。
+  STAT_USER_BY_MONTH: (year, month) => `/api/v1/user/statistical/byMonth?year=${encodeURIComponent(year)}&month=${encodeURIComponent(month)}`,
+  STAT_COURSE_BY_MONTH: (year, month) => `/api/v1/course/statistical/byMonth?year=${encodeURIComponent(year)}&month=${encodeURIComponent(month)}`,
+  STAT_BOOKING_BY_MONTH: (year, month) => `/api/v1/course/booking/statistical/byMonth?year=${encodeURIComponent(year)}&month=${encodeURIComponent(month)}`,
+  STAT_APPOINT_BY_MONTH: (year, month) => `/api/v1/course/appointment/statistical/byMonth?year=${encodeURIComponent(year)}&month=${encodeURIComponent(month)}`,
+  // 今日（近 N 天）课次：复用 listByDays 列表接口，dashboard.js 取数组长度作为今日课次计数
+  STAT_APPOINT_ON_DAYS: (days) => `/api/v1/course/appointment/statistical/listByDays?days=${encodeURIComponent(days)}`,
   // —— 以下走 message-service（msgBase）——
   MSG_SEND: '/api/v1/messages/send',
   // 收件箱列表（分页/筛选）

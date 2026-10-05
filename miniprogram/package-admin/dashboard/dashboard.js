@@ -61,7 +61,7 @@ Page(withTerms({
       pending: {
         booking: bk,
         cancelling: cn,
-        today: (today && typeof today.count === 'number') ? today.count : (today && typeof today === 'number' ? today : 0)
+        today: Array.isArray(today) ? today.length : (today && typeof today.count === 'number' ? today.count : (today && typeof today === 'number' ? today : 0))
       }
     });
   },
