@@ -199,7 +199,7 @@
 - **登录页 `pages/login`**：租户编码 `tCode` 输入框 + 教师端/学生端/管理端 三个分段入口。
   - 管理端：租户管理员填真实 `tCode`；平台管理员 `tCode` 固定为 `platform`（输入框禁用）。
   - **tCode 与小程序绑定**：登录成功后把 `tCode` 写入 `boundTenantCode`（持久化）；再次进入自动回填；「我的 → 切换租户」可解绑并回登录页。
-  - 登录按角色路由：`student→pages/student/home`、`teacher→pages/teacher/home`、`admin/platform_admin→pages/admin/home`（`homePageForRole` 在 `shared/constants.js` 统一定义）。
+  - 登录按角色路由：`student→package-student/home/home`、`teacher→package-teacher/home/home`、`admin/platform_admin→package-admin/home/home`（`homePageForRole` 在 `shared/constants.js` 统一定义，与 `TAB_ITEMS` 的 home 项指向一致）。
 - **底部导航 `components/role-tabbar`**：按当前角色渲染对应导航项（`TAB_ITEMS` 在 `shared/constants.js`），`bind:change` 由各页 `wx.redirectTo` 处理，避免页面栈堆积。
 
 ### 12.2 占位符约定（待实际确定）
