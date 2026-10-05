@@ -1,5 +1,6 @@
 import { requireAuth, logout, switchTenant } from '../../core/auth.js';
-import { roleLabel } from '../../shared/constants.js';
+import { roleLabel, ROLES } from '../../shared/constants.js';
+import { getCurrentTenant } from '../../core/tenant.js';
 import { INDUSTRY_NAMES } from '../../shared/terms.js';
 import { withTerms, setLang, loadTermMap, getIndustry } from '../../core/term.js';
 import { storage } from '../../core/storage.js';
@@ -8,19 +9,34 @@ import { ENDPOINTS } from '../../shared/apiPaths.js';
 import { getUnreadCount } from '../../core/message.js';
 import { confirm } from '../../core/ui.js';
 
+// 角色展示名：租户管理员在顶部统一显示为"管理员"（去掉"租户"前缀）；其余角色沿用 roleLabel。
+// 仅作用于小程序端这两个页面顶部的角色文案，不改共享 roleLabel（避免波及 Web）。
+function displayRole(role) {
+  if (role === ROLES.ADMIN) return '管理员';
+  return roleLabel(role);
+}
+
 Page(withTerms({
   data: {
-    user: {}, roleText: '', industryText: '', lang: 'zh', active: 'mine', unreadCount: 0,
+    user: {}, roleText: '', industryText: '', lang: 'zh', active: 'mine', unreadCount: 0, tenantName: '',
     showPwd: false, oldPwd: '', newPwd: '', confirmPwd: '', saving: false
   },
   onShow() {
     const u = requireAuth();
     if (!u) return;
     this.setData({
-      user: u, roleText: roleLabel(u.role),
+      user: u, roleText: displayRole(u.role),
       industryText: INDUSTRY_NAMES[getIndustry()] || getIndustry(), lang: storage.get('lang') || 'zh', active: 'mine'
     });
     if (u.userId) getUnreadCount(u.userId).then(n => this.setData({ unreadCount: n })).catch(() => {});
+    this.loadTenantName(u);
+  },
+  // 取当前租户的公司名称（orgName）替换顶部的租户编码展示；缺省回退 tenantCode
+  loadTenantName(u) {
+    getCurrentTenant().then(t => {
+      const name = (t && t.orgName) || (u && u.tenantCode) || '';
+      if (this.data.tenantName !== name) this.setData({ tenantName: name });
+    }).catch(() => {});
   },
   onTabChange(e) { wx.redirectTo({ url: e.detail.page }); },
   pickLang(e) {

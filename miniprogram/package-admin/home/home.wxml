@@ -2,7 +2,7 @@
   <view class="header">
     <view class="sys">{{terms.lessonSystem}}</view>
     <view class="greet">{{user.name || user.account}}</view>
-    <view class="sub">{{roleText}} · 租户 {{user.tenantCode}}</view>
+    <view class="sub">{{roleText}} · {{tenantName}}</view>
   </view>
 
   <view wx:for="{{groups}}" wx:key="title" wx:for-item="g" class="group">

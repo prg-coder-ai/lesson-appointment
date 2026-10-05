@@ -4,7 +4,8 @@
 // 租户管理 / 套餐管理 / 运营统计 / 系统设置 / 后台信息等平台级功能）。
 
 import { requireAuth } from '../../core/auth.js';
-import { roleLabel } from '../../shared/constants.js';
+import { roleLabel, ROLES } from '../../shared/constants.js';
+import { getCurrentTenant } from '../../core/tenant.js';
 import { getUnreadCount } from '../../core/message.js';
 import { captureAttribution, reportAttributionOnce } from '../../core/acquisition.js';
 import { withTerms, getTermMap, registerTermUpdate, unregisterTermUpdate } from '../../core/term.js';
@@ -58,23 +59,39 @@ function buildGroups(terms) {
   }));
 }
 
+// 角色展示名：租户管理员在顶部统一显示为"管理员"（去掉"租户"前缀）；其余角色沿用 roleLabel。
+// 仅作用于小程序端这两个页面顶部的角色文案，不改共享 roleLabel（避免波及 Web）。
+function displayRole(role) {
+  if (role === ROLES.ADMIN) return '管理员';
+  return roleLabel(role);
+}
+
 Page(withTerms({
-  data: { user: {}, roleText: '', active: 'home', unreadCount: 0, groups: buildGroups(getTermMap()) },
+  data: { user: {}, roleText: '', active: 'home', unreadCount: 0, tenantName: '', groups: buildGroups(getTermMap()) },
   onLoad(options) {
     captureAttribution(options);
     const u = requireAuth();
     if (!u) return;
     reportAttributionOnce();
-    this.setData({ user: u, roleText: roleLabel(u.role), active: 'home', groups: buildGroups(getTermMap()) });
+    this.setData({ user: u, roleText: displayRole(u.role), active: 'home', groups: buildGroups(getTermMap()) });
     // 行业词表（含服务端租户自定义词）加载完成 / 切换后，重新解析菜单文案
     this.__groupsListener = () => this.setData({ groups: buildGroups(getTermMap()) });
     registerTermUpdate(this.__groupsListener);
+    this.loadTenantName(u);
   },
   onShow() {
     const u = this.data.user;
     if (u && u.userId) getUnreadCount(u.userId).then(n => this.setData({ unreadCount: n })).catch(() => {});
     // 每次展示也按最新词表刷新（覆盖服务端词表晚于首屏到达的情况）
     this.setData({ groups: buildGroups(getTermMap()) });
+    if (u && u.tenantCode) this.loadTenantName(u);
+  },
+  // 取当前租户的公司名称（orgName）替换顶部的租户编码展示；缺省回退 tenantCode
+  loadTenantName(u) {
+    getCurrentTenant().then(t => {
+      const name = (t && t.orgName) || (u && u.tenantCode) || '';
+      if (this.data.tenantName !== name) this.setData({ tenantName: name });
+    }).catch(() => {});
   },
   onUnload() {
     if (this.__groupsListener) unregisterTermUpdate(this.__groupsListener);
