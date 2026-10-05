@@ -63,7 +63,7 @@ clearSession(); calls.length = 0; reLaunches.length = 0; authFails = 0; wechatHi
 const resA = await auth.login({ tenantCode: 'tA', account: 'stu1', password: 'p', role: 'student' });
 ck('A: login 返回 token', resA && resA.token === 'T1');
 ck('A: 登录态写入', getToken() === 'T1');
-ck('A: term/map 用 tokenOnly(不带 Bearer)', callOf('/api/v1/term/map').auth === false);
+ck('A: term/map 带 Bearer(拉取租户自定义词)', callOf('/api/v1/term/map').auth === true);
 reLaunches.length = 0;
 auth.goHome();
 ck('A: goHome -> /package-student/home/home', reLaunches.includes('/package-student/home/home'));

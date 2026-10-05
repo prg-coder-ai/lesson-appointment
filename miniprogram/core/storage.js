@@ -3,6 +3,9 @@
 // 与 Web 端 window.StorageAdapter.storage 同源，保证双端存储语义一致。
 
 import { storage } from '../shared/adapters/storage.js';
+// 同时 re-export，供 core/request.js、core/term.js、页面等从本模块统一取 storage；
+// 漏导出会导致微信打包后 storage 为 undefined，进而 storage.get 报 "reading 'get' of undefined"。
+export { storage };
 
 // 当前登录态：结构对齐 frontend/api.js 的 currentUser
 export function getSession() {

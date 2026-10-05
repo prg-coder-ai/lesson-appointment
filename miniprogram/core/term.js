@@ -35,10 +35,11 @@ export async function loadTermMap() {
   const token = storage.get('token');
   if (!token) return;
   try {
-    // term/map 是公开接口（后端已白名单 + token 可空），但带上 Bearer 才能取到「租户自定义词」：
+    // term/map 是带 Bearer 的增强请求（enhance）：带上 Bearer 才能取到「租户自定义词」，
     // 后端三级合并（租户 > 行业 > 平台）依赖 JWT 识别租户，无 token 时只会返回行业/平台词。
-    // 遇 401 时由 request 层走正常刷新逻辑，失败则 login() 内 try/catch 兜底，不会崩页。
-    const res = await request({ url: ENDPOINTS.TERM_MAP(TERM_LANG), method: 'GET' });
+    // 用 enhance 标记使其在 401 时只静默失败、绝不触发"清登录态/跳登录页"（否则会复现
+    // "登录成功却被弹回登录页"的历史 bug）；失败由 login()/wechatSilentLogin() 内 try/catch 兜底退回本地词表。
+    const res = await request({ url: ENDPOINTS.TERM_MAP(TERM_LANG), method: 'GET', enhance: true });
     SERVER_TERM_MAP = res || null;
     notifyTermUpdate();
   } catch (e) { /* 拉取失败保持本地兜底 */ }
@@ -48,7 +49,7 @@ export async function syncIndustryFromTenant(tenantCode) {
   const token = storage.get('token');
   if (!token) return null;
   try {
-    const res = await request({ url: ENDPOINTS.TENANT_INDUSTRY(tenantCode), method: 'GET' });
+    const res = await request({ url: ENDPOINTS.TENANT_INDUSTRY(tenantCode), method: 'GET', enhance: true });
     const code = res && res.industryCode;
     if (!code || !TERM_DICT[code]) return null;
     if (INDUSTRY === code) { notifyTermUpdate(); return code; }

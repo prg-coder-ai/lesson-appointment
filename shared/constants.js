@@ -33,10 +33,10 @@ export function setRuntimeConfig(cfg) {
 // 角色 → 首页路由（两端共用，避免各写一套 switch）
 export function homePageForRole(role) {
   switch (role) {
-    case ROLES.PLATFORM_ADMIN: return '/pages/admin/home';
-    case ROLES.ADMIN: return '/pages/admin/home';
-    case ROLES.TEACHER: return '/pages/teacher/home';
-    case ROLES.STUDENT: return '/pages/student/home';
+    case ROLES.PLATFORM_ADMIN: return '/package-admin/home/home';
+    case ROLES.ADMIN: return '/package-admin/home/home';
+    case ROLES.TEACHER: return '/package-teacher/home/home';
+    case ROLES.STUDENT: return '/package-student/home/home';
     default: return '/pages/login/login';
   }
 }

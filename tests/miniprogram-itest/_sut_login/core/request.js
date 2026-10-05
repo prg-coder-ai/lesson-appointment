@@ -2,9 +2,12 @@
 // 行为对齐 frontend/js/public/utility_request.js：normalizeUrl、Bearer 注入、
 // 401 静默刷新（队列防重）、响应解包（code===200 取 data）、错误 toast。
 // 差异：浏览器用 axios + location 跳转；小程序用 wx.request，登录失效经 globalData.onAuthFail 回调。
+// 底层传输统一委托 shared/adapters/net.js 的 transport（小程序端内部即 wx.request，返回 {statusCode,data,header}）。
 
 import { normalizeUrl, unwrapResult } from '../shared/apiPaths.js';
+import { errorMessage } from '../shared/domain/errorCode.js';
 import { storage, getToken, clearSession, getSession } from './storage.js';
+import { transport } from '../shared/adapters/net.js';
 
 function appGlobal() {
   try { return (typeof getApp === 'function') ? getApp() : null; } catch (e) { return null; }
@@ -23,16 +26,13 @@ function resolveBase(url) {
   return apiBase();
 }
 
+// 底层传输统一走共享适配层 transport（小程序端内部即 wx.request，返回 {statusCode,data,header}）。
 function wxRequest(config) {
-  return new Promise((resolve, reject) => {
-    wx.request({
-      url: config.url,
-      method: (config.method || 'GET').toUpperCase(),
-      data: config.data,
-      header: config.header || {},
-      success: (res) => resolve(res),
-      fail: (err) => reject(err)
-    });
+  return transport({
+    url: config.url,
+    method: config.method,
+    data: config.data,
+    header: config.header
   });
 }
 
@@ -90,7 +90,7 @@ export async function request(opts) {
   try {
     resp = await wxRequest({ url, method, data: opts.data, header });
   } catch (err) {
-    const msg = '网络连接失败，请检查网络';
+    const msg = errorMessage(err);
     if (opts.customErrorMsg !== false) showError(msg);
     throw new Error(msg);
   }
@@ -99,7 +99,7 @@ export async function request(opts) {
   const res = resp.data;
 
   // 401：尝试刷新 token 后重试
-  if (status === 401 && !opts._retry && !opts.tokenOnly) {
+  if (status === 401 && !opts._retry && !opts.tokenOnly && !opts.enhance) {
     if (isRefreshing) {
       return new Promise((resolve, reject) => {
         requestQueue.push({
@@ -129,12 +129,13 @@ export async function request(opts) {
   }
 
   if (status === 401 || status === 403) {
-    // tokenOnly 请求（term/map、tenant/industry 等公开/匿名接口）遇 401 绝不能清登录态或跳登录页：
-    // 这类接口本就允许无 token 调用，401 只代表"无权限"，若把已有的登录会话踢掉会导致
-    // "刚登录成功却被弹回登录页"的诡异现象。仅在非 tokenOnly（真实业务鉴权）时执行踢人逻辑。
-    if (status === 401 && !opts.tokenOnly) { clearSession(); if (!isRedirecting) { isRedirecting = true; onAuthFail(); } }
+    // 增强型请求（enhance，如 term/map / tenant/industry 词表拉取）遇 401/403：只 reject，
+    // 绝不清登录态、不跳登录页、不打 toast——这类请求是"登录后的增强数据"，失败仅退回本地兜底词表，
+    // 若把它当鉴权失败踢人，会复现 auth.js 注释记录的"刚登录成功却被弹回登录页"历史 bug。
+    // 普通业务鉴权（非 tokenOnly 且非 enhance）才执行踢人逻辑；tokenOnly 同样免疫。
+    if (status === 401 && !opts.tokenOnly && !opts.enhance) { clearSession(); if (!isRedirecting) { isRedirecting = true; onAuthFail(); } }
     const msg = (res && (res.message || res.msg)) || (status === 403 ? '无权限访问该资源' : '登录已过期');
-    if (opts.customErrorMsg !== false) showError(msg);
+    if (opts.customErrorMsg !== false && !opts.enhance) showError(msg);
     throw new Error(msg);
   }
 
