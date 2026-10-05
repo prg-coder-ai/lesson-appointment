@@ -127,6 +127,7 @@ public class MessageManageService {
         Map<String, Object> out = new HashMap<>();
         out.put("messageId", m.getMessageId());
         out.put("title", dec(m.getTitle()));
+        out.put("content", dec(m.getContent()));
         out.put("priority", m.getPriority());
         out.put("senderId", m.getSenderId());
         out.put("senderType", m.getSenderType());
