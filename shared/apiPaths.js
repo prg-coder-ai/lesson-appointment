@@ -32,13 +32,18 @@ export const ENDPOINTS = {
   // 当前微信登录整体屏蔽（恢复流程：去 User.wxOpenid exist=false + 取消对应函数调用注释）；常量先就位，避免 undefined。
   AUTH_WECHAT_LOGIN: '/auth/wechat-login',
   AUTH_BIND_WECHAT: '/auth/bind-wechat',
-  // 获客归因上报：后端尚未实现该接口；acquisition.js 已做静默降级（404 不报错、不影响主流程）。
+  // 微信登录/绑定：authController @PostMapping("/wechat-login")、("/bind-wechat")。
+  // 当前微信登录整体屏蔽（恢复流程：去 User.wxOpenid exist=false + 取消对应函数调用注释）；常量先就位，避免 undefined。
   TRACK_ATTRIBUTION: '/api/v1/user/attribution',
   ACCOUNT_EXIST: (acc) => `/user/account/exist?account=${encodeURIComponent(acc)}`,
   TERM_MAP: (lang) => `/api/v1/term/map?lang=${encodeURIComponent(lang || 'zh')}`,
   TENANT_INDUSTRY: (tCode) => `/api/v1/tenant/industry${tCode ? '?tenantCode=' + encodeURIComponent(tCode) : ''}`,
   TENANT_NAME: (tCode) => `/api/v1/tenant/name?tenantCode=${encodeURIComponent(tCode)}`,
   CHANGE_PWD: '/user/account/changePassword',
+  // —— 用户管理（业务端，租户/平台管理员）——
+  // 后端 UserController：GET /page（租户隔离，按 role 过滤）；GET /platformPage（跨租户，仅平台管理员）
+  USER_PAGE: '/api/v1/user/page',
+  USER_PLATFORM_PAGE: '/api/v1/user/platformPage',
   // —— 课程 / 排期（业务端）——
   COURSE_LIST: '/api/v1/course/list',
   COURSE_PAGE: '/api/v1/course/page',
