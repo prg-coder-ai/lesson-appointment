@@ -40,6 +40,9 @@ export const ENDPOINTS = {
   SCHEDULE_ADD: '/api/v1/course/schedule/add',
   SCHEDULE_EDIT: '/api/v1/course/schedule/edit',
   SCHEDULE_LIST: '/api/v1/course/schedule/list',
+  // —— 课程模板（业务端，管理员/教师，TemplateController）——
+  // 后端 @RequestMapping("/api/v1/course/template") + @GetMapping("/list")，响应 Result<List<CourseTemplate>>
+  COURSE_TEMPLATE_LIST: '/api/v1/course/template/list',
   // —— 预约（业务端）——
   BOOKING_CREATE: '/api/v1/course/booking/create',
   BOOKING_PAGE: '/api/v1/course/booking/page',
