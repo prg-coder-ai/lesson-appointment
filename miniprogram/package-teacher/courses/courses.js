@@ -12,8 +12,8 @@ Page({
     this.setData({ loading: true });
     try {
       const res = await request({
-        url: ENDPOINTS.COURSE_PAGE, method: 'POST',
-        data: { pageNum: 1, pageSize: 20, teacherId: u.userId }
+        url: ENDPOINTS.COURSE_PAGE, method: 'GET',
+        params: { pageNum: 1, pageSize: 20, teacherId: u.userId }
       });
       const rows = (res && (res.list || res.records)) || res || [];
       this.setData({ list: rows });

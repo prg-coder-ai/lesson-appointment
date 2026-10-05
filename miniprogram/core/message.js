@@ -81,7 +81,7 @@ export function toInboxItem(m) {
   return {
     id: m.messageId,
     title: m.title || '(无标题)',
-    preview: previewText(m),
+    preview: (m.preview != null && m.preview !== '') ? m.preview : previewText(m),
     time: fmtTime(m.sendTime || m.createTime),
     unread: !m.isRead,
     starred: !!m.isStarred,

@@ -20,9 +20,15 @@ Page({
     if (this.data.loading) return;
     this.setData({ loading: true });
     try {
+      const u = requireAuth();
+      if (!u) return;
       const res = await request({
         url: ENDPOINTS.BOOKING_PAGE, method: 'POST',
-        data: { pageNum: this.data.page, pageSize: 10, status: this.data.status || undefined }
+        data: {
+          pageNum: this.data.page, pageSize: 10,
+          status: this.data.status || undefined,
+          userId: u.userId, userRole: u.role
+        }
       });
       const rows = (res && (res.list || res.records)) || res || [];
       const list = rows.map(r => ({

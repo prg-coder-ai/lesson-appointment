@@ -221,13 +221,21 @@ public class AppointmentController {
        //  log.debug("listByDays  listByDays 参数：days = " + days);
         // 获取当前时间（now）和days天之后的相同时间
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
-        java.time.LocalDateTime endOfPeriod = now.plusDays(days);
-   
+        java.time.LocalDateTime startOfPeriod, endOfPeriod;
+        if (days <= 0) {
+          // 「全部」：不限制时间，使用 MySQL DATETIME 合法边界（与 listByDaysByPage 一致）
+          startOfPeriod = java.time.LocalDateTime.of(1000, 1, 1, 0, 0, 0);
+          endOfPeriod = java.time.LocalDateTime.of(9999, 12, 31, 23, 59, 59);
+        } else {
+          startOfPeriod = now;
+          endOfPeriod = now.plusDays(days);
+        }
+
  //getBetweenTime
         List<Appointment> appList
          = appointmentService.getBetweenTime(
                 userId,role,
-                java.sql.Timestamp.valueOf(now),
+                java.sql.Timestamp.valueOf(startOfPeriod),
                 java.sql.Timestamp.valueOf(endOfPeriod),
                 sortField, sortOrder
          ); 

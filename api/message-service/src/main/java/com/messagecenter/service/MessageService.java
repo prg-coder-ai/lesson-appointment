@@ -281,6 +281,11 @@ public class MessageService {
             in.setIsBroadcast(msg.getIsBroadcast());
             in.setStatus(msg.getStatus());
             in.setSendTime(msg.getSendTime());
+            String raw = decryptContent(msg);
+            if (raw != null) {
+                int max = 60;
+                in.setPreview(raw.length() > max ? raw.substring(0, max) + "…" : raw);
+            }
             if (msg.getCategoryCode() != null) {
                 MessageCategory c = getCategoryByCode(msg.getCategoryCode(), in.getTenantId());
                 in.setCategoryName(c == null ? null : c.getCategoryName());
