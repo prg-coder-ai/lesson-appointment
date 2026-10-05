@@ -26,7 +26,8 @@
         "sensitive/sensitive",
         "lesson-notice/lesson-notice",
         "data-maintain/data-maintain",
-        "audit-log/audit-log"
+        "audit-log/audit-log",
+        "tenant-info/tenant-info"
       ]
     },
     {

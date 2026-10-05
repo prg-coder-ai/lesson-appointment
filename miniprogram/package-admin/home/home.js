@@ -13,6 +13,9 @@ const GROUPS = [
   { title: '系统概览', items: [
     { text: '数据总览', page: '/package-admin/dashboard/dashboard' }
   ] },
+  { title: '租户与套餐', items: [
+    { text: '租户信息', page: '/package-admin/tenant-info/tenant-info' }
+  ] },
   { title: '排期与预订', items: [
     { text: '课程排期', page: '/package-admin/schedule/schedule' },
     { text: '预订审核', page: '/package-admin/booking-audit/booking-audit' }

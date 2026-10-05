@@ -39,6 +39,12 @@ export const ENDPOINTS = {
   TERM_MAP: (lang) => `/api/v1/term/map?lang=${encodeURIComponent(lang || 'zh')}`,
   TENANT_INDUSTRY: (tCode) => `/api/v1/tenant/industry${tCode ? '?tenantCode=' + encodeURIComponent(tCode) : ''}`,
   TENANT_NAME: (tCode) => `/api/v1/tenant/name?tenantCode=${encodeURIComponent(tCode)}`,
+  // 租户只读信息（各角色可用）：GET 当前登录者所属租户（含 tenantCode / expireTime 租期 / packageId / status）
+  TENANT_CURRENT: '/api/v1/tenant/current',
+  // 租户套餐（各角色可用，传自己 tenantId）：GET 某租户实际持有的套餐（各资源限额与当前数量）
+  TENANT_PACKAGE_BY_TENANT: (tid) => `/api/v1/tenant/package/tenant/${tid}`,
+  // 套餐模板详情（admin/platform_admin 可查）：GET 套餐模板名称等，用于把 packageId 转成可读"套餐"名
+  PACKAGE_TEMPLATE_GET: (id) => `/api/v1/package/template/${id}`,
   CHANGE_PWD: '/user/account/changePassword',
   // —— 用户管理（业务端，租户/平台管理员）——
   // 后端 UserController：GET /page（租户隔离，按 role 过滤）；GET /platformPage（跨租户，仅平台管理员）

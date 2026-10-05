@@ -83,6 +83,14 @@
         </div>
       </div>
 
+      <div class="menu-group" data-page-node-id="kJtB7nQ2tenantInfo">
+        <div class="menu-group-title" data-page-node-id="kT3n4ntInfo">租户与套餐</div>
+        <div class="menu-item" key="tenant_info" data-page-node-id="kT1n4ntInfoItem">
+          <i class="fa fa-building"></i>
+          <span>租户信息</span>
+        </div>
+      </div>
+
       <div class="menu-group" data-page-node-id="AxVxQrB10CUJkYkbpEgPMd">
         <div class="menu-group-title" data-page-node-id="JwCLZ6CpiH1o3hJH9WOnBH"><span data-term="course" data-page-node-id="qBaaPFj9EJmtyxxGOH4qCv">课程</span>管理</div>
         <div class="menu-item" key="course_template" data-page-node-id="uE5duMvcSYwqCDFSH4bpgz">
@@ -296,6 +304,13 @@
         // ===== 租户管理员菜单（按 menu-item 的 key 字段分支） =====
         case "overview":
           refreshOverallpage();//admin-overall.js
+          break;
+        case "tenant_info":
+          if (typeof renderTenantInfoPage === 'function') {
+            renderTenantInfoPage();
+          } else if (dynamicContentCenter) {
+            dynamicContentCenter.innerHTML = '<div class="card"><div class="card-body">租户信息模块未加载（admin-tenant-info.js）。</div></div>';
+          }
           break;
         case "course_template":
           if (typeof renderTemplateCards === 'function') renderTemplateCards();//admin-template.js
@@ -560,6 +575,7 @@
     <script src="js/admin-notify-rule.js"></script>
     <script src="js/admin-messageCategory.js"></script>
     <script src="js/admin-messageManage.js"></script>
+    <script src="js/admin-tenant-info.js"></script>
     <script src="js/test/testData.js"></script>
 
    <script>

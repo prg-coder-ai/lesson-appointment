@@ -1,0 +1,22 @@
+.page { min-height: 100vh; padding: 24rpx 24rpx 60rpx; box-sizing: border-box; background: #f5f7fa; }
+.page-head { margin: 8rpx 8rpx 0; }
+.page-title { font-size: 40rpx; font-weight: 600; color: #1f2d3d; }
+.page-sub { font-size: 24rpx; color: #8a94a6; margin-top: 6rpx; }
+.loading { text-align: center; color: #8a94a6; padding: 80rpx 0; }
+.section-title { font-size: 28rpx; color: #5a6478; font-weight: 600; margin: 24rpx 8rpx 8rpx; }
+.card { margin-top: 8rpx; background: #fff; border-radius: 16rpx; padding: 8rpx 28rpx; box-shadow: 0 8rpx 30rpx rgba(31,42,68,0.05); }
+.row { display: flex; align-items: center; justify-content: space-between; padding: 26rpx 0; border-bottom: 1rpx solid #f0f2f5; }
+.row:last-child { border-bottom: none; }
+.rk { font-size: 28rpx; color: #5a6478; }
+.rv { font-size: 28rpx; color: #1f2a44; text-align: right; }
+
+/* 额度表 */
+.quota { padding: 8rpx 20rpx; }
+.qhead, .qrow { display: flex; align-items: center; padding: 22rpx 0; border-bottom: 1rpx solid #f0f2f5; }
+.qhead { color: #8a94a6; font-size: 24rpx; }
+.qrow:last-child { border-bottom: none; }
+.qcol { font-size: 28rpx; color: #1f2a44; }
+.q-name { flex: 2; color: #5a6478; }
+.q-num { flex: 1; text-align: center; }
+.q-num.unlimited { color: #1677ff; }
+.empty { text-align: center; color: #8a94a6; padding: 30rpx 0; font-size: 26rpx; }
