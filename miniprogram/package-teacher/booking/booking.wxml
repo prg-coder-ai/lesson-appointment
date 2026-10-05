@@ -8,6 +8,10 @@
       <text class="flt {{status==='cancelled'?'on':''}}" data-s="cancelled" bindtap="onStatusFilter">已取消</text>
     </view>
   </view>
+  <view class="search-row">
+    <input class="search-input" placeholder="搜索课程名 / 学生" value="{{keyword}}" bindinput="onSearchInput" bindconfirm="onSearch" confirm-type="search" />
+    <text class="search-btn" bindtap="onSearch">搜索</text>
+  </view>
 
   <view wx:if="{{loading}}" class="tip">加载中…</view>
   <view wx:elif="{{list.length===0}}" class="empty">

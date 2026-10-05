@@ -1,8 +1,27 @@
 .page { min-height: 100vh; padding: 24rpx 24rpx 140rpx; box-sizing: border-box; background: #f5f7fa; }
+.topbar { display: flex; align-items: baseline; justify-content: space-between; padding: 8rpx 8rpx 20rpx; }
+.tb-title { font-size: 34rpx; font-weight: 600; color: #1f2a44; }
+.tb-hint { font-size: 22rpx; color: #aab2c0; }
 .empty { text-align: center; color: #aab2c0; font-size: 28rpx; padding: 120rpx 0; }
+.empty-glyph { font-size: 64rpx; margin-bottom: 16rpx; }
 .list { background: #fff; border-radius: 16rpx; overflow: hidden; box-shadow: 0 8rpx 30rpx rgba(31,42,68,0.05); }
-.item { display: flex; align-items: center; justify-content: space-between; padding: 28rpx 24rpx; border-bottom: 1rpx solid #f0f2f5; }
+.item { padding: 28rpx 24rpx; border-bottom: 1rpx solid #f0f2f5; }
 .item:last-child { border-bottom: none; }
-.item-title { font-size: 30rpx; color: #1f2a44; font-weight: 500; }
-.item-sub { font-size: 24rpx; color: #8a94a6; margin-top: 8rpx; }
+.it-top { display: flex; align-items: center; justify-content: space-between; }
+.it-title { font-size: 30rpx; color: #1f2a44; font-weight: 500; }
+.it-sub { font-size: 24rpx; color: #8a94a6; margin-top: 10rpx; line-height: 1.5; }
+.it-sub .lbl { display: inline-block; color: #b3bccb; margin-right: 10rpx; }
+.it-go { font-size: 22rpx; color: #4a7cff; margin-top: 14rpx; }
 .foot { text-align: center; color: #aab2c0; font-size: 24rpx; padding: 24rpx 0; }
+
+/* 状态徽标（与 booking/appointment 同款配色） */
+.it-status { font-size: 22rpx; padding: 4rpx 14rpx; border-radius: 20rpx; flex-shrink: 0; margin-left: 12rpx; }
+.s-pending { color: #8a6d00; background: #fff7e0; }
+.s-inactive { color: #8a8a8a; background: #efefef; }
+.s-active { color: #1a7f4b; background: #e3f7ec; }
+.s-frozen { color: #b0455a; background: #fdeaef; }
+.s-booking { color: #8a6d00; background: #fff7e0; }
+.s-booked { color: #1a7f4b; background: #e3f7ec; }
+.s-cancelled { color: #8a8a8a; background: #efefef; }
+.s-completed { color: #4a7cff; background: #e8f0ff; }
+.s-default { color: #6b7689; background: #eef1f6; }

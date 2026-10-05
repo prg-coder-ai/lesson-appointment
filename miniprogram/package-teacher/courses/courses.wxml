@@ -1,16 +1,25 @@
 <view class="page">
-  <view wx:if="{{list.length===0 && !loading}}" class="empty">还没有课程</view>
-
-  <view class="list">
-    <view wx:for="{{list}}" wx:key="courseId" class="item">
-      <view class="item-main">
-        <view class="item-title">{{item.title || item.courseName || '未命名课程'}}</view>
-        <view class="item-sub">{{item.subject || ''}} · 状态 {{item.status || '-'}}</view>
-      </view>
-    </view>
+  <view class="topbar">
+    <view class="tb-title">我的课程</view>
+    <view class="tb-hint">点击课程查看排期</view>
   </view>
 
-  <view wx:if="{{loading}}" class="foot">加载中...</view>
+  <view wx:if="{{loading}}" class="tip">加载中…</view>
+  <view wx:elif="{{list.length===0}}" class="empty">
+    <view class="empty-glyph">📚</view>
+    <view>还没有课程</view>
+  </view>
+  <view wx:else class="list">
+    <view wx:for="{{list}}" wx:key="courseId" class="item" bindtap="goSchedule" data-id="{{item.courseId}}">
+      <view class="it-top">
+        <text class="it-title">{{item.name}}</text>
+        <text class="it-status s-{{item.status}}">{{item.statusText}}</text>
+      </view>
+      <view wx:if="{{item.content}}" class="it-sub"><text class="lbl">简介</text>{{item.content}}</view>
+      <view wx:if="{{item.feature}}" class="it-sub"><text class="lbl">特色</text>{{item.feature}}</view>
+      <view class="it-go">查看排期 ›</view>
+    </view>
+  </view>
 
   <role-tabbar active="courses" bind:change="onTabChange" />
 </view>

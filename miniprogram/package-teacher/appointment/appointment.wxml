@@ -9,19 +9,24 @@
     </view>
   </view>
 
+  <scroll-view scroll-x class="status-bar">
+    <text wx:for="{{statusOptions}}" wx:key="v" class="st {{status===item.v?'on':''}}" data-s="{{item.v}}" bindtap="onStatusChange">{{item.t}}</text>
+  </scroll-view>
+
   <view wx:if="{{loading}}" class="tip">加载中…</view>
   <view wx:elif="{{list.length===0}}" class="empty">
     <view class="empty-glyph">📚</view>
     <view>近期没有课程安排</view>
   </view>
   <view wx:else class="list">
-    <view wx:for="{{list}}" wx:key="id" class="item">
+    <view wx:for="{{list}}" wx:key="id" class="item" bindtap="goSchedule" data-id="{{item.courseId}}">
       <view class="it-top">
         <text class="it-title">{{item.title}}</text>
         <text class="it-status s-{{item.status}}">{{item.statusText}}</text>
       </view>
       <view class="it-sub">{{item.sub}}</view>
       <view class="it-time" wx:if="{{item.time}}">🕒 {{item.time}}</view>
+      <view class="it-go">查看排期 ›</view>
     </view>
   </view>
 

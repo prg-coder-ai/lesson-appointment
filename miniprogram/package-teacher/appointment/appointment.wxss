@@ -5,8 +5,13 @@
 .day { font-size: 24rpx; color: #667; padding: 6rpx 16rpx; margin-left: 8rpx; background: #fff; border-radius: 24rpx; }
 .day.on { color: #fff; background: #4e6ef2; }
 
+.status-bar { white-space: nowrap; padding: 4rpx 24rpx 8rpx; }
+.st { display: inline-block; font-size: 24rpx; color: #667; padding: 8rpx 22rpx; margin-right: 12rpx; background: #fff; border-radius: 24rpx; }
+.st.on { color: #fff; background: #4e6ef2; }
+
 .tip { text-align: center; color: #99a; padding: 40rpx 0; font-size: 26rpx; }
 .empty { text-align: center; color: #99a; padding: 90rpx 0; }
+.it-go { font-size: 22rpx; color: #4a7cff; margin-top: 14rpx; }
 .empty-glyph { font-size: 80rpx; margin-bottom: 16rpx; }
 
 .list { padding: 8rpx 24rpx; }

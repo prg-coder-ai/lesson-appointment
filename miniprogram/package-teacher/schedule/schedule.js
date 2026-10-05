@@ -16,11 +16,12 @@ function repeatText(s) {
 }
 
 Page({
-  data: { uid: '', list: [], loading: true },
-  onLoad() {
+  data: { uid: '', courseId: '', list: [], loading: true },
+  onLoad(options) {
     const u = requireAuth();
     if (!u) return;
-    this.setData({ uid: u.userId });
+    // 支持从「我的课程」点进按课程过滤排期（对齐前端 my_course 点进看排期）
+    this.setData({ uid: u.userId, courseId: (options && options.courseId) || '' });
   },
   onShow() { this.load(); },
   async load() {
@@ -28,7 +29,10 @@ Page({
     this.setData({ loading: true });
     try {
       const rows = await request({ url: ENDPOINTS.SCHEDULE_LIST_BY_TEACHER(this.data.uid), method: 'GET' }) || [];
-      const list = rows.map(s => ({
+      const filtered = this.data.courseId
+        ? rows.filter(s => String(s.courseId) === String(this.data.courseId))
+        : rows;
+      const list = filtered.map(s => ({
         id: s.scheduleId,
         title: s.name || s.courseId || '未命名排期',
         courseId: s.courseId,
