@@ -40,10 +40,10 @@ function setRuntimeConfig(cfg) {
 // 角色 → 首页路由（两端共用，避免各写一套 switch）
 function homePageForRole(role) {
   switch (role) {
-    case ROLES.PLATFORM_ADMIN: return '/pages/admin/home';
-    case ROLES.ADMIN: return '/pages/admin/home';
-    case ROLES.TEACHER: return '/pages/teacher/home';
-    case ROLES.STUDENT: return '/pages/student/home';
+    case ROLES.PLATFORM_ADMIN: return '/package-admin/home/home';
+    case ROLES.ADMIN: return '/package-admin/home/home';
+    case ROLES.TEACHER: return '/package-teacher/home/home';
+    case ROLES.STUDENT: return '/package-student/home/home';
     default: return '/pages/login/login';
   }
 }
@@ -65,7 +65,7 @@ const TAB_ITEMS = {
   ],
   admin: [
     { key: 'home', page: '/pages/admin/home', text: '概览', icon: 'home' },
-    { key: 'dashboard', page: '/pages/admin/dashboard', text: '运营', icon: 'chart' },
+    { key: 'dashboard', page: '/package-admin/dashboard/dashboard', text: '运营', icon: 'chart' },
     { key: 'mine', page: '/pages/mine/mine', text: '我的', icon: 'user' }
   ]
 };

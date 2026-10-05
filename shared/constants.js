@@ -58,7 +58,7 @@ export const TAB_ITEMS = {
   ],
   admin: [
     { key: 'home', page: '/pages/admin/home', text: '概览', icon: 'home' },
-    { key: 'dashboard', page: '/pages/admin/dashboard', text: '运营', icon: 'chart' },
+    { key: 'dashboard', page: '/package-admin/dashboard/dashboard', text: '运营', icon: 'chart' },
     { key: 'mine', page: '/pages/mine/mine', text: '我的', icon: 'user' }
   ]
 };
