@@ -5,6 +5,16 @@ import { bookingStatusText } from '../../shared/domain/bookingState.js';
 import { confirm } from '../../core/ui.js';
 import { withTerms, term } from '../../core/term.js';
 
+// POST /booking/page 返回 Result<PageResult<Booking>>：data 是
+// { rows, total, pageNum, pageSize, totalPages }。字段名是 rows，
+// 不是 list/records —— 取错会 fallback 到整个对象，随后 rows.filter/map 抛错被 catch 吞掉，
+// 页面表现为「学生预约没有数据」（不是真的没预约）。契约同 Web 端 student-bookingBrowserCards.js。
+function pickRows(res) {
+  if (!res) return [];
+  if (Array.isArray(res)) return res;
+  return res.rows || res.records || res.list || [];
+}
+
 // 页面标题 / 标签里的「学生」不做硬编码：本页由工作台的「{{terms.student}}预约」入口进入，
 // 入口名已按行业词渲染（如租户把 student 映射成「客户」→「客户预约」），
 // 页内文案必须同源，否则出现「客户预约 → 学生预约」的行业词漂移。
@@ -50,7 +60,7 @@ Page(withTerms({
           userId: u.userId, userRole: u.role
         }
       });
-      let rows = (res && (res.list || res.records)) || res || [];
+      let rows = pickRows(res);
       // 客户端兜底：若后端未对 courseName 过滤，则本地按课程名/学生名匹配
       if (kw) {
         const lk = kw.toLowerCase();

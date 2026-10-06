@@ -4,6 +4,7 @@
 .tb-hint { font-size: 22rpx; color: #aab2c0; }
 .empty { text-align: center; color: #aab2c0; font-size: 28rpx; padding: 120rpx 0; }
 .empty-glyph { font-size: 64rpx; margin-bottom: 16rpx; }
+.retry { display: inline-block; margin-top: 24rpx; padding: 10rpx 32rpx; font-size: 24rpx; color: #4a7cff; border: 1rpx solid #4a7cff; border-radius: 40rpx; }
 .list { background: #fff; border-radius: 16rpx; overflow: hidden; box-shadow: 0 8rpx 30rpx rgba(31,42,68,0.05); }
 .item { padding: 28rpx 24rpx; border-bottom: 1rpx solid #f0f2f5; }
 .item:last-child { border-bottom: none; }

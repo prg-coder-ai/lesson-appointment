@@ -8,6 +8,15 @@ const STATUS_TEXT = {
   cancelled: '已取消', non_occupying: '已释放'
 };
 
+// POST /booking/page 返回 Result<PageResult<Booking>>：data 是
+// { rows, total, pageNum, pageSize, totalPages }。字段名是 rows，
+// 不是 list/records —— 取错会 fallback 到整个对象，随后 rows.map 抛错 → 列表恒空。
+function pickRows(res) {
+  if (!res) return [];
+  if (Array.isArray(res)) return res;
+  return res.rows || res.records || res.list || [];
+}
+
 Page({
   data: { list: [], loading: false },
   onShow() { this.load(); },
@@ -21,7 +30,7 @@ Page({
         url: ENDPOINTS.BOOKING_PAGE, method: 'POST',
         data: { pageNum: 1, pageSize: 20, studentId: u.userId }
       });
-      const rows = (res && (res.list || res.records)) || res || [];
+      const rows = pickRows(res);
       this.setData({
         list: rows.map(it => Object.assign({}, it, {
           statusText: STATUS_TEXT[it.status] || it.status || '未知',
