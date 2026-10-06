@@ -10,11 +10,14 @@
 /* 只读展示（如排期时区）：视觉上退一档，明确不可编辑 */
 .picker.ro { color: #666; background: #f2f4f8; }
 .chips { display: flex; flex-wrap: wrap; gap: 14rpx; }
-.chip { padding: 12rpx 22rpx; background: #f2f4f8; border-radius: 30rpx; font-size: 26rpx; color: #555; }
-.chip.on { background: #e6f4ff; color: #1890ff; border: 1rpx solid #91d5ff; }
-/* 每月日期：7 列网格，1-31 均匀铺开 */
-.day-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12rpx; }
-.chip.num { padding: 12rpx 0; text-align: center; border-radius: 10rpx; }
+/* border 常驻（透明）+ border-box：选中时只换颜色，不因多出 1rpx 边框而抖动 */
+.chip { box-sizing: border-box; border: 1rpx solid transparent; padding: 12rpx 22rpx; background: #f2f4f8; border-radius: 30rpx; font-size: 26rpx; color: #555; }
+.chip.on { background: #e6f4ff; color: #1890ff; border-color: #91d5ff; font-weight: 500; }
+/* 按压反馈：即使状态回写延迟，手指落下去也能立刻看到响应 */
+.chip-hover { opacity: .65; }
+/* 每月日期：7 列网格，1-31 均匀铺开（用 flex 而非 grid，兼容旧基础库） */
+.day-grid { gap: 12rpx; }
+.day-grid .chip.num { width: calc((100% - 72rpx) / 7); padding: 12rpx 0; text-align: center; border-radius: 10rpx; }
 .hint { display: block; margin-top: 12rpx; font-size: 22rpx; color: #aaa; line-height: 1.5; }
 /* 名额步进器 */
 .stepper { display: flex; align-items: center; gap: 16rpx; }

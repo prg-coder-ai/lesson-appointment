@@ -52,6 +52,7 @@
 7. 教师端菜单名固定=「预订管理」(与 Web/文档一致)，**不参与行业词转换**；仅页内描述性文案走 `{{terms.*}}`。
 8. **用字口径（2026-10-06 用户拍板）**：**小程序内统一用「预订」**（`miniprogram/` 已零「预定」）；**Web/API 维持「预定」不动**（含状态「预定待确认」、深链「直达预定」、后端 TermMsg）——跨端用字不一致是**已知且接受**的状态，勿擅自"修正"Web 侧(会连动 tests 断言 + frontend/dist 重建)。
 9. **小程序表单页写库前必查 4 项**（排期编辑 2026-10-06 实证，同类页复用）：① 目标表 NOT NULL 且**无默认值**的列必须显式给值（`course_schedule.time_zone`/`name`；mapper XML 是显式列清单，传 `undefined` 会写成 NULL 而非走 DDL 默认 → 500）② `tinyint(1)` 列取值 −128..127（`available_sites` 上限 127）③ 表级 `CHECK` 约束要在前端先拦（`end_time > start_time`）④ 数值输入用**字符串承载 + text 类型**，允许空中间态，`bindblur` 再归一——`type="number"` 配 `Number(v)||1` 会让「清空重输」反弹成拼接。`setData` 路径写错（写到页面顶层而非 `form.x`）不会报错，只会静默漏清值——改完 grep 一遍旧字段名。
+10. **WXML 绑定里禁止函数调用**（2026-10-06 排期编辑「每周星期/每月日期点了没反应」根因）：WXML 表达式只支持 三元/算数/逻辑/字符串拼接/属性与下标取值，`{{arr.indexOf(x)>=0?'on':''}}` 编译期失败且**静默渲染成空**（不报错、值其实已改、就是不变色）。铁律：多选/列表类选中态一律由 JS 派生（`withSel(list,set)` → `item.on`）并**与数据同一次 setData**；命中点用 `<view>`（`<text>` 可点区只有字形）＋`hover-class` 反馈。扫全仓判据：`grep -rnE '\{\{[^}]*[a-zA-Z_$][a-zA-Z0-9_$]*\s*\(' miniprogram --include=*.wxml` 须零命中。
 
 ## 消息中心(message-service)
 - 分类CRUD已全(CategoryController)；发送弹窗#msg-category readonly仅下拉(首项"不分类")；admin-messageCategory.js挂admin+platform_admin「系统配置」。

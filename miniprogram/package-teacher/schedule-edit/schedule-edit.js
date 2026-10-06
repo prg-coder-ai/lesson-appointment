@@ -41,6 +41,18 @@ const WEEK_DAYS = [
 // 所以这里也应该是多选（对齐 Web 端 teacher-courseAndScheduleBrowserCards.js 的 #monthDays 复选框）。
 const MONTH_DAYS = Array.from({ length: 31 }, (_, i) => i + 1);
 
+// 选中态必须由 JS 预先算出并写进数组项（item.on），WXML 只做属性读取。
+// 反面教材（原本就是这么写的、也正是「点了没反应」的根因）：
+//   class="chip {{form.repeatDays.indexOf(item.v) >= 0 ? 'on' : ''}}"
+// WXML 数据绑定只支持 三元/算数/逻辑/字符串拼接/属性与下标取值，**不支持函数调用**，
+// indexOf(...) 在编译期就失败，整个插值静默渲染成空 → 'on' 永远加不上，
+// 于是点击虽改到了 form.repeatDays，界面上却毫无变化。
+const MONTH_DAY_OPTS = MONTH_DAYS.map(n => ({ v: n, label: String(n) }));
+
+function withSel(list, selSet) {
+  return list.map(d => ({ v: d.v, label: d.label, on: selSet.has(d.v) }));
+}
+
 const SITES_MIN = 1;
 const SITES_MAX = 127;              // tinyint(1) 上限
 const INTERVAL_MIN = 1;
@@ -77,7 +89,10 @@ Page(withTerms({
     },
     // picker 的取值下标单独放页面层，form.status 才是提交口径
     statusIndex: 1,
-    repeatOpts: REPEAT_OPTS, statusOpts: STATUS_OPTS, weekDays: WEEK_DAYS, monthDays: MONTH_DAYS,
+    repeatOpts: REPEAT_OPTS, statusOpts: STATUS_OPTS,
+    // 每项带 on 标记，供模板直接读（模板不能调 indexOf）
+    weekDays: withSel(WEEK_DAYS, new Set()),
+    monthDays: withSel(MONTH_DAY_OPTS, new Set()),
     repeatUnit: '天',
     sitesMin: SITES_MIN, sitesMax: SITES_MAX,
     submitting: false
@@ -104,6 +119,13 @@ Page(withTerms({
   },
 
   tr(key, fb) { const t = this.data.terms || {}; return t[key] || fb; },
+
+  // 由 form.repeatDays 派生两个多选网格的选中态；与 repeatDays 放在同一次 setData 里提交，
+  // 避免「先渲染数据、再渲染高亮」的两帧闪烁，也保证两者永远同源不漂移。
+  daySelPatch(days) {
+    const set = new Set((days || []).map(Number));
+    return { weekDays: withSel(WEEK_DAYS, set), monthDays: withSel(MONTH_DAY_OPTS, set) };
+  },
 
   async boot(mode, id, presetCourseId, presetCourseName) {
     // 课程列表必须先就绪，编辑模式的课程回显才准：原实现 loadCourses() 与 loadDetail()
@@ -188,6 +210,7 @@ Page(withTerms({
         ? String(s.repeatDays).split(',').map(Number).filter(n => !isNaN(n))
         : [];
       const repeatType = toNum(s.repeatType, 0);
+      const selDays = (repeatType === 2 || repeatType === 3) ? days : [];
       const status = s.status || 'active';
       const si = STATUS_OPTS.findIndex(o => o.v === status);
       // 该排期的课程也可能不在下拉列表里（课上超过一页、课程已下架、非本人课程）：
@@ -200,7 +223,7 @@ Page(withTerms({
           ci = 0;
         }
       }
-      this.setData({
+      this.setData(Object.assign({
         courseIndex: ci,
         statusIndex: si >= 0 ? si : 1,
         courseName: (ci >= 0 && this.data.courses[ci].courseName) || s.courseId || '',
@@ -211,14 +234,14 @@ Page(withTerms({
           name: s.name || '',
           startDate, startTime: startTime || '09:00', endDate, endTime: endTime || '10:00',
           repeatType,
-          repeatDays: (repeatType === 2 || repeatType === 3) ? days : [],
+          repeatDays: selDays,
           intervalInput: String(s.repeatInterval == null || s.repeatInterval < INTERVAL_MIN ? 1 : s.repeatInterval),
           sitesInput: String(s.availableSites == null || s.availableSites < SITES_MIN ? SITES_MIN : s.availableSites),
           // 编辑沿用库中时区，绝不在编辑时改写（时区一变，同一排期在不同人眼里就是不同时间）
           timeZone: s.timeZone || '',
           status
         }
-      });
+      }, this.daySelPatch(selDays)));
     } catch (e) {
       wx.showToast({ title: (e && e.message) || '加载失败', icon: 'none' });
     }
@@ -255,20 +278,22 @@ Page(withTerms({
     const v = REPEAT_OPTS[toNum(e.detail.value, 0)].v;
     // 原实现把清理写到了 data.repeatDays / data.monthDay —— 页面顶层根本没有这两个字段，
     // form 里上一轮选中的星期/日期原样留着 → 从「每周」切到「每天/每月」后旧值仍会被提交。
-    this.setData({
+    this.setData(Object.assign({
       'form.repeatType': v,
       'form.repeatDays': [],
       repeatUnit: REPEAT_UNIT[v] || '天'
-    });
+    }, this.daySelPatch([])));
   },
 
   // 每周星期 与 每月日期 共用同一个多选处理器（都落在 form.repeatDays，语义由 repeatType 决定）
   onDayPick(e) {
     const v = toNum(e.currentTarget.dataset.v, 0);
     if (!v) return;
-    const set = new Set(this.data.form.repeatDays);
+    const set = new Set((this.data.form.repeatDays || []).map(Number));
     if (set.has(v)) set.delete(v); else set.add(v);
-    this.setData({ 'form.repeatDays': Array.from(set).sort((a, b) => a - b) });
+    const next = Array.from(set).sort((a, b) => a - b);
+    // 选中态与数据同一次 setData 提交：模板只读 item.on，不再在 WXML 里做任何计算
+    this.setData(Object.assign({ 'form.repeatDays': next }, this.daySelPatch(next)));
   },
 
   onIntervalInput(e) {
