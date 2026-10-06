@@ -1,6 +1,6 @@
 import { requireAuth } from '../../core/auth.js';
 import { roleLabel, homePageForRole, ROLES } from '../../shared/constants.js';
-import { withTerms } from '../../core/term.js';
+import { term, withTerms } from '../../core/term.js';
 import { getUnreadCount } from '../../core/message.js';
 import { captureAttribution, reportAttributionOnce } from '../../core/acquisition.js';
 import { getCurrentTenant } from '../../core/tenant.js';
@@ -16,11 +16,19 @@ Page(withTerms({
     const greeting = h < 11 ? '早上好' : h < 14 ? '中午好' : h < 18 ? '下午好' : '晚上好';
     this.setData({ user: u, roleText: roleLabel(u.role), active: 'home', greeting });
     this.loadTenantName(u);
+    this.applyTitle();
+  },
+  // 导航栏标题接行业词（教师端 / 律师端 / 咨询师端 / 教练端）。
+  // 标题**需要**随行业变，故保留运行时 wx.setNavigationBarTitle；json 的 navigationBarTitleText 仅作首帧兜底。
+  // onShow 每次重设，兜住「行业切换后返回本页」的场景（json 不支持动态，只能运行时改）。
+  applyTitle() {
+    wx.setNavigationBarTitle({ title: term('teacher', '教师') + '端' });
   },
   onShow() {
     const u = this.data.user;
     if (u && u.userId) getUnreadCount(u.userId).then(n => this.setData({ unreadCount: n })).catch(() => {});
     this.loadTenantName(u);
+    this.applyTitle();
   },
   // 取当前租户的公司名称（orgName）替换顶部的租户编码展示；缺省回退 tenantCode
   loadTenantName(u) {
