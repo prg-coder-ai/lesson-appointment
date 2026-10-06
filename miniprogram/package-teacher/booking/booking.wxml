@@ -1,6 +1,6 @@
 <view class="page">
   <view class="topbar">
-    <view class="tb-title">学生预约</view>
+    <view class="tb-title">{{terms.student}}预约</view>
     <view class="tb-filters">
       <text class="flt {{status===''?'on':''}}" data-s="" bindtap="onStatusFilter">全部</text>
       <text class="flt {{status==='booking'?'on':''}}" data-s="booking" bindtap="onStatusFilter">待确认</text>
@@ -9,7 +9,7 @@
     </view>
   </view>
   <view class="search-row">
-    <input class="search-input" placeholder="搜索课程名 / 学生" value="{{keyword}}" bindinput="onSearchInput" bindconfirm="onSearch" confirm-type="search" />
+    <input class="search-input" placeholder="搜索{{terms.courseName}} / {{terms.student}}" value="{{keyword}}" bindinput="onSearchInput" bindconfirm="onSearch" confirm-type="search" />
     <text class="search-btn" bindtap="onSearch">搜索</text>
   </view>
 

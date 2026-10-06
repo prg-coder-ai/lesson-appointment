@@ -3,10 +3,23 @@ import { request } from '../../core/request.js';
 import { ENDPOINTS } from '../../shared/apiPaths.js';
 import { bookingStatusText } from '../../shared/domain/bookingState.js';
 import { confirm } from '../../core/ui.js';
+import { withTerms, term } from '../../core/term.js';
 
-Page({
+// 页面标题 / 标签里的「学生」不做硬编码：本页由工作台的「{{terms.student}}预约」入口进入，
+// 入口名已按行业词渲染（如租户把 student 映射成「客户」→「客户预约」），
+// 页内文案必须同源，否则出现「客户预约 → 学生预约」的行业词漂移。
+Page(withTerms({
   data: { list: [], loading: false, page: 1, finished: false, status: '', keyword: '' },
-  onLoad() { this.load(); },
+  onLoad() {
+    this.applyTermTitle();
+    this.load();
+  },
+  // 词表在行业切换 / 服务端合并词表到达后会刷新，标题需跟着重设；
+  // booking.json 里的 navigationBarTitleText 只作首帧兜底（默认教育行业词）。
+  onShow() { this.applyTermTitle(); },
+  applyTermTitle() {
+    wx.setNavigationBarTitle({ title: term('student') + '预约' });
+  },
   onPullDownRefresh() {
     this.setData({ page: 1, list: [], finished: false });
     this.load().then(() => wx.stopPullDownRefresh());
@@ -47,8 +60,8 @@ Page({
       }
       const list = rows.map(r => ({
         bookingId: r.bookingId,
-        title: r.courseTitle || r.title || '课程',
-        sub: r.studentName || ('学生 ' + (r.studentId || '')),
+        title: r.courseTitle || r.title || term('course'),
+        sub: r.studentName || (term('student') + ' ' + (r.studentId || '')),
         time: r.timeText || '',
         status: r.status,
         statusText: r.statusText || bookingStatusText(r.status)
@@ -76,4 +89,4 @@ Page({
     }
   },
   onTabChange(e) { wx.redirectTo({ url: e.detail.page }); }
-});
+}));
