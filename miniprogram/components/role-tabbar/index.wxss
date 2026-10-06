@@ -23,4 +23,13 @@
   line-height: 1;
   margin-bottom: 6rpx;
 }
-.tab-text { line-height: 1; }
+.tab-text {
+  line-height: 1;
+  /* 标签经行业词转换后可能变长（如「我的咨询话题」6 字），禁止折行、超长省略 */
+  max-width: 100%;
+  padding: 0 6rpx;
+  box-sizing: border-box;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

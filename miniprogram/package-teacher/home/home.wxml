@@ -10,10 +10,13 @@
       <view class="gi-glyph">📚</view>
       <view class="gi-text">我的{{terms.course}}</view>
     </view>
+    <!-- 「我的简介」图标入口已按要求隐藏（底部导航仍有该入口，功能不丢）。
+         如需恢复：删除本注释块首尾标记。
     <view class="grid-item" bindtap="goProfile">
       <view class="gi-glyph">👥</view>
       <view class="gi-text">我的简介</view>
     </view>
+    -->
     <view class="grid-item" bindtap="goSchedule">
       <view class="gi-glyph">🗓️</view>
       <view class="gi-text">排期管理</view>
@@ -26,10 +29,13 @@
       <view class="gi-glyph">📋</view>
       <view class="gi-text">预订管理</view>
     </view>
+    <!-- 「个人中心」图标入口已按要求隐藏（底部导航「我的」即此页，功能不丢）。
+         如需恢复：删除本注释块首尾标记。
     <view class="grid-item" bindtap="goMine">
       <view class="gi-glyph">👤</view>
       <view class="gi-text">个人中心</view>
     </view>
+    -->
     <view class="grid-item" bindtap="goMessage">
       <view class="gi-glyph">🔔</view>
       <view class="gi-text">消息中心</view>
@@ -40,7 +46,6 @@
   <view class="card">
     <view class="card-title">工作台</view>
     <view class="card-line">在「我的{{terms.course}}」管理你的排期与可预约时间。</view>
-    <view class="card-line">在「我的简介」维护对外展示的职业信息与课程介绍。</view>
   </view>
 
   <role-tabbar active="home" bind:change="onTabChange" />

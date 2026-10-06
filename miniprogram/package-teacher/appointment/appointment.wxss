@@ -1,4 +1,5 @@
-.page { min-height: 100vh; background: #f5f7fa; padding-bottom: 20rpx; }
+/* 底部留白 140rpx：本页已挂 role-tabbar（高 110rpx），否则最后一条会被遮挡 */
+.page { min-height: 100vh; background: #f5f7fa; padding-bottom: 140rpx; }
 .topbar { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 28rpx 12rpx; }
 .tb-title { font-size: 34rpx; font-weight: 600; color: #1f2a4d; }
 .tb-days { display: flex; }

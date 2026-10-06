@@ -43,6 +43,8 @@ export function homePageForRole(role) {
 
 // 底部导航项定义（按角色分组）。icon 用小程序内置 iconfont 名称（见组件 role-tabbar）。
 // key 同时用于页面间的 active 高亮判断。
+// textTerm：需要做行业词转换的标签模板，`{{key}}` 按 terms 字典（如 course）替换；
+//           缺省时用 text。渲染见 components/role-tabbar 的 renderText()。
 export const TAB_ITEMS = {
   student: [
     { key: 'home', page: '/package-student/home/home', text: '首页', icon: 'home' },
@@ -52,8 +54,9 @@ export const TAB_ITEMS = {
   ],
   teacher: [
     { key: 'home', page: '/package-teacher/home/home', text: '工作台', icon: 'home' },
-    { key: 'courses', page: '/package-teacher/courses/courses', text: '我的课程', icon: 'book' },
-    { key: 'profile', page: '/package-teacher/profile/profile', text: '我的简介', icon: 'friend' },
+    // 「我的课程」tab 已替换为「今日课程」入口（原指向 courses 页）；标签随行业词变（今日{{course}}）。
+    // 「我的简介」tab 已按要求去掉（如仍需该页，可从工作台入口进入）。
+    { key: 'appointment', page: '/package-teacher/appointment/appointment', text: '今日课程', textTerm: '今日{{course}}', icon: 'book' },
     { key: 'mine', page: '/pages/mine/mine', text: '我的', icon: 'user' }
   ],
   admin: [

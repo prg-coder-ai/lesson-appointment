@@ -16,13 +16,23 @@ function repeatText(s) {
 }
 
 Page({
-  data: { uid: '', courseId: '', list: [], loading: true },
+  data: { uid: '', courseId: '', courseName: '', list: [], loading: true },
   onLoad(options) {
     const u = requireAuth();
     if (!u) return;
     // 支持从「我的课程」点进按课程过滤排期（对齐前端 my_course 点进看排期）
-    this.setData({ uid: u.userId, courseId: (options && options.courseId) || '' });
+    const courseId = (options && options.courseId) || '';
+    this.setData({ uid: u.userId, courseId });
+    // 拉一次课程名用于顶部筛选提示；失败静默（只影响提示文案，不阻断列表）
+    if (courseId) this.loadCourseName(courseId);
   },
+  async loadCourseName(courseId) {
+    try {
+      const c = await request({ url: ENDPOINTS.COURSE_DETAIL(courseId), method: 'GET', customErrorMsg: false });
+      if (c) this.setData({ courseName: c.courseName || c.title || '' });
+    } catch (e) { /* 取不到课程名就只显示“已筛选” */ }
+  },
+  clearFilter() { this.setData({ courseId: '', courseName: '' }); this.load(); },
   onShow() { this.load(); },
   async load() {
     if (!this.data.uid) return;
@@ -51,7 +61,13 @@ Page({
   },
   // 路径必须与 app.json 注册项一致：subPackages[package-teacher].pages 里是
   // "schedule-edit/schedule-edit"（独立分包目录），不是 "schedule/schedule-edit"。
-  goAdd() { wx.navigateTo({ url: '/package-teacher/schedule-edit/schedule-edit?mode=add' }); },
+  // 课程带入：正在按某课程筛选时，「新增」直接把该课程带进编辑页并选中，
+  // 教师不必在几百门课的下拉里再找一遍。
+  goAdd() {
+    const cid = this.data.courseId;
+    const qs = cid ? '&courseId=' + encodeURIComponent(cid) + '&courseName=' + encodeURIComponent(this.data.courseName || '') : '';
+    wx.navigateTo({ url: '/package-teacher/schedule-edit/schedule-edit?mode=add' + qs });
+  },
   goEdit(e) { wx.navigateTo({ url: '/package-teacher/schedule-edit/schedule-edit?mode=edit&id=' + e.currentTarget.dataset.id }); },
   async onDelete(e) {
     const id = e.currentTarget.dataset.id;

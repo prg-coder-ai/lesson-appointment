@@ -3,6 +3,9 @@
 .tb-title { font-size: 34rpx; font-weight: 600; }
 .tb-add { background: #1890ff; color: #fff; font-size: 26rpx; padding: 12rpx 28rpx; border-radius: 30rpx; }
 .tip, .empty { text-align: center; color: #999; padding: 80rpx 0; }
+.filter-bar { display: flex; align-items: center; justify-content: space-between; background: #e6f4ff; border-radius: 12rpx; padding: 16rpx 20rpx; margin-bottom: 16rpx; }
+.fb-text { font-size: 26rpx; color: #0958d9; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.fb-clear { font-size: 26rpx; color: #1890ff; margin-left: 20rpx; }
 .empty-glyph { font-size: 80rpx; margin-bottom: 16rpx; }
 
 .list { margin-top: 8rpx; }

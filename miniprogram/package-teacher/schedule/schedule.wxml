@@ -4,6 +4,12 @@
     <view class="tb-add" bindtap="goAdd">＋ 新增</view>
   </view>
 
+  <!-- 从「我的课程」点进来时按课程筛选：明确提示当前口径，并提供一键回到全部 -->
+  <view wx:if="{{courseId}}" class="filter-bar">
+    <text class="fb-text">仅显示：{{courseName || '所选课程'}}</text>
+    <text class="fb-clear" bindtap="clearFilter">查看全部</text>
+  </view>
+
   <view wx:if="{{loading}}" class="tip">加载中…</view>
   <view wx:elif="{{list.length === 0}}" class="empty">
     <view class="empty-glyph">🗓️</view>
@@ -19,7 +25,9 @@
       <view class="it-range">🕒 {{item.range}}</view>
       <view class="it-meta">
         <text class="tag">{{item.repeat}}</text>
-        <text class="tag">余位 {{item.sites}}</text>
+        <!-- available_sites 是名额总量（更新时与已占位数比较，而不是递减后的余量），
+             真库可验证：某排期 available_sites=10 且有 2 条 booked 仍为 10。故不写「余位」。 -->
+        <text class="tag">名额 {{item.sites}}</text>
         <text wx:if="{{item.full}}" class="tag full">约满</text>
       </view>
       <view class="item-actions">

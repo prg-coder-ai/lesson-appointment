@@ -2,6 +2,7 @@ import { requireAuth } from '../../core/auth.js';
 import { request } from '../../core/request.js';
 import { ENDPOINTS } from '../../shared/apiPaths.js';
 import { ROLES } from '../../shared/constants.js';
+import { withTerms, term } from '../../core/term.js';
 
 // 课程状态：对齐前端 teacher-courseAndScheduleBrowserCards.js（pending/inactive/active/frozen）
 const STATUS_TEXT = {
@@ -22,9 +23,13 @@ function pickRows(res) {
   return res.rows || res.records || res.list || [];
 }
 
-Page({
+Page(withTerms({
   data: { list: [], loading: false, error: '', total: 0, active: 'courses' },
-  onShow() { this.load(); },
+  onLoad() { this.applyTitle(); },
+  onShow() { this.applyTitle(); this.load(); },
+  // 导航栏标题与底部导航「我的{{course}}」同源做行业词转换（教育「我的课程」/ 法律「我的咨询话题」）。
+  // courses.json 的 navigationBarTitleText 只作首帧兜底（json 不支持动态），加载后被本方法覆盖。
+  applyTitle() { wx.setNavigationBarTitle({ title: '我的' + term('course') }); },
   onPullDownRefresh() { this.load().then(() => wx.stopPullDownRefresh()); },
   async load() {
     const u = requireAuth();
@@ -65,4 +70,4 @@ Page({
     wx.navigateTo({ url: '/package-teacher/schedule/schedule?courseId=' + id });
   },
   onTabChange(e) { wx.redirectTo({ url: e.detail.page }); }
-});
+}));

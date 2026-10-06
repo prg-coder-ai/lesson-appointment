@@ -67,5 +67,6 @@
     </view>
   </view>
 
-  <role-tabbar active="home" bind:change="onTabChange" />
+  <!-- 本页已是底部导航的「今日课程」tab（TAB_ITEMS.teacher.appointment），active 必须与该 key 一致才能高亮 -->
+  <role-tabbar active="appointment" bind:change="onTabChange" />
 </view>
