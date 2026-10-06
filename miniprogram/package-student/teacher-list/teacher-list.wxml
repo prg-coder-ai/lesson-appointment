@@ -1,6 +1,6 @@
 <view class="page">
   <view class="topbar">
-    <view class="tb-title">浏览{{terms.teacher || '教师'}}</view>
+    <view class="tb-title">{{terms.teacher || '教师'}}列表</view>
     <view class="tb-sub">以下为本机构已发布的{{terms.teacher || '教师'}}职业信息</view>
   </view>
 

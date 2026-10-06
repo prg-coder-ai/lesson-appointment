@@ -12,7 +12,7 @@
     </view>
     <view class="grid-item" bindtap="goMyBooking">
       <view class="gi-glyph">📋</view>
-      <view class="gi-text">我的预约</view>
+      <view class="gi-text">我的预订</view>
     </view>
     <view class="grid-item" bindtap="goAppointment">
       <view class="gi-glyph">📚</view>

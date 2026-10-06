@@ -1,5 +1,5 @@
 <view class="page">
-  <view wx:if="{{list.length===0 && !loading}}" class="empty">{{error || '还没有预约记录'}}</view>
+  <view wx:if="{{list.length===0 && !loading}}" class="empty">{{error || '还没有预订记录'}}</view>
 
   <view class="list">
     <view wx:for="{{list}}" wx:key="bookingId" class="card">

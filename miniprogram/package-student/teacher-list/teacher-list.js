@@ -17,7 +17,7 @@
 import { requireAuth, getBoundTenantCode } from '../../core/auth.js';
 import { request } from '../../core/request.js';
 import { ENDPOINTS } from '../../shared/apiPaths.js';
-import { withTerms } from '../../core/term.js';
+import { applyTermsToPage, registerTermUpdate, unregisterTermUpdate } from '../../core/term.js';
 
 function pickRows(res) {
   if (!res) return [];
@@ -27,12 +27,17 @@ function pickRows(res) {
 
 const DEFAULT_COVER = 'background:linear-gradient(135deg,#4e6ef2,#7a8cff);';
 
-Page(withTerms({
+Page({
   data: { list: [], loading: false, error: '', tCode: '', emptyText: '' },
 
   onLoad(options) {
     const u = requireAuth();
     if (!u) return;
+    // 注入行业词表，并注册刷新监听（行业切换 / 服务端词表加载后自动重取词）
+    applyTermsToPage(this);
+    this.__termListener = () => { applyTermsToPage(this); this.applyTitle(); };
+    registerTermUpdate(this.__termListener);
+    this.applyTitle();
     // 会话里的 tenantCode 优先，回退登录时持久绑定的 tCode（避免空 tenantCode 拿到空列表）
     const tCode = u.tenantCode || getBoundTenantCode() || '';
     this.setData({ tCode });
@@ -87,5 +92,11 @@ Page(withTerms({
     });
   },
 
-  onTabChange(e) { wx.redirectTo({ url: e.detail.page }); }
-}));
+  onTabChange(e) { wx.redirectTo({ url: e.detail.page }); },
+
+  // 导航栏标题接行业词（教师列表 / 律师列表 / 咨询师列表 / 教练列表）。
+  // 标题**随行业变**，保留运行时 wx.setNavigationBarTitle；json 的 navigationBarTitleText 仅作首帧兜底。
+  onShow() { applyTermsToPage(this); this.applyTitle(); },
+  applyTitle() { wx.setNavigationBarTitle({ title: this.tr('teacher', '教师') + '列表' }); },
+  onUnload() { if (this.__termListener) unregisterTermUpdate(this.__termListener); }
+});

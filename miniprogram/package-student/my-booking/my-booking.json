@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "我的预约",
+  "navigationBarTitleText": "我的预订",
   "enablePullDownRefresh": true,
   "usingComponents": {
     "role-tabbar": "/components/role-tabbar/index"

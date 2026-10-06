@@ -1,4 +1,4 @@
-// 学生端「我的预约」——每条预约卡片展示 课程 / 时间 / 教师，并按课次提供延期(请假)与取消延期
+// 学生端「我的预订」——每条预订卡片展示 课程 / 时间 / 教师，并按课次提供延期(请假)与取消延期
 //
 // 数据链（全部复用既有端点，不动 api）：
 //   POST /course/booking/page  { userId, userRole:'student' } → 本人预约（Result<PageResult<Booking>>，字段 rows）

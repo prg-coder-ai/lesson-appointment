@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "浏览师资",
+  "navigationBarTitleText": "教师列表",
   "enablePullDownRefresh": true,
   "usingComponents": {
     "role-tabbar": "/components/role-tabbar/index"

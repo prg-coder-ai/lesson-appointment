@@ -7,7 +7,7 @@
   </view>
 
   <view class="card">
-    <view class="row"><text class="rk">行业</text><text class="rv">{{industryText}}</text></view>
+    <view class="row" wx:if="{{user.role !== 'student'}}"><text class="rk">行业</text><text class="rv">{{industryText}}</text></view>
     <view class="row"><text class="rk">账号</text><text class="rv">{{user.account}}</text></view>
     <view class="row"><text class="rk">用户ID</text><text class="rv">{{user.userId || '-'}}</text></view>
   </view>
