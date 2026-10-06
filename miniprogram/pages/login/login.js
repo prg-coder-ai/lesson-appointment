@@ -5,9 +5,9 @@ import { ROLES } from '../../shared/constants.js';
 import { confirm, alert } from '../../core/ui.js';
 
 const ROLE_OPTIONS = [
-  { role: ROLES.STUDENT, text: '学生端' },
-  { role: ROLES.TEACHER, text: '教师端' },
-  { role: ROLES.ADMIN, text: '管理端' }
+  { role: ROLES.STUDENT, termKey: 'student', fallback: '学生' },
+  { role: ROLES.TEACHER, termKey: 'teacher', fallback: '教师' },
+  { role: ROLES.ADMIN, termKey: null, fallback: '管理' }
 ];
 
 Page(withTerms({

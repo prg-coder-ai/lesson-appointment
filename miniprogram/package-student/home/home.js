@@ -1,6 +1,6 @@
 import { requireAuth } from '../../core/auth.js';
 import { roleLabel, homePageForRole, ROLES } from '../../shared/constants.js';
-import { withTerms } from '../../core/term.js';
+import { withTerms, term } from '../../core/term.js';
 import { getUnreadCount } from '../../core/message.js';
 import { captureAttribution, reportAttributionOnce } from '../../core/acquisition.js';
 import { getCurrentTenant } from '../../core/tenant.js';
@@ -21,11 +21,17 @@ Page(withTerms({
       active: 'home', greeting
     });
     this.loadTenantName(u);
+    this.applyTitle();
   },
   onShow() {
     const u = this.data.user;
     if (u && u.userId) getUnreadCount(u.userId).then(n => this.setData({ unreadCount: n })).catch(() => {});
     this.loadTenantName(u);
+    this.applyTitle();
+  },
+  // 导航栏标题随行业变：学生端 / 客户端 / 来访者端 / 学员端
+  applyTitle() {
+    wx.setNavigationBarTitle({ title: term('student', '学生') + '端' });
   },
   // 取当前租户的公司名称（orgName）替换顶部的租户编码展示；缺省回退 tenantCode
   loadTenantName(u) {

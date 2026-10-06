@@ -50,7 +50,8 @@ export const TAB_ITEMS = {
     { key: 'home', page: '/package-student/home/home', text: '首页', icon: 'home' },
     // 原「约课」→「课程预订」：与页面标题、工作台入口统一；标签随行业词变（课程预订/咨询话题预订/健身科目预订）。
     { key: 'booking', page: '/package-student/booking/booking', text: '课程预订', textTerm: '{{course}}预订', icon: 'calendar' },
-    { key: 'my', page: '/package-student/my-booking/my-booking', text: '我的预订', icon: 'list' },
+    // 「我的预订」tab 下架，由「今日课程」替代（原「我的预订」仍可从首页网格进入）；标签随行业词变（今日{{course}}）。
+    { key: 'appointment', page: '/package-student/appointment/appointment', text: '今日课程', textTerm: '今日{{course}}', icon: 'book' },
     { key: 'mine', page: '/pages/mine/mine', text: '我的', icon: 'user' }
   ],
   teacher: [

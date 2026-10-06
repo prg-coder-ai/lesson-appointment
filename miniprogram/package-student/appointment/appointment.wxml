@@ -26,5 +26,5 @@
     </view>
   </view>
 
-  <role-tabbar active="home" bind:change="onTabChange" />
+  <role-tabbar active="appointment" bind:change="onTabChange" />
 </view>

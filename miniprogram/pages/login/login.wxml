@@ -19,7 +19,7 @@
         <view wx:for="{{roleOptions}}" wx:key="role"
               class="role-item {{role===item.role ? 'active' : ''}}"
               data-role="{{item.role}}" bindtap="onPickRole">
-          {{item.text}}
+          {{terms[item.termKey] || item.fallback}}端
         </view>
       </view>
     </view>
