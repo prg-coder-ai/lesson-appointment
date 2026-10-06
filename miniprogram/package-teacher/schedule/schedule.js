@@ -49,8 +49,10 @@ Page({
       wx.showToast({ title: (e && e.message) || '加载失败', icon: 'none' });
     }
   },
-  goAdd() { wx.navigateTo({ url: '/package-teacher/schedule/schedule-edit?mode=add' }); },
-  goEdit(e) { wx.navigateTo({ url: '/package-teacher/schedule/schedule-edit?mode=edit&id=' + e.currentTarget.dataset.id }); },
+  // 路径必须与 app.json 注册项一致：subPackages[package-teacher].pages 里是
+  // "schedule-edit/schedule-edit"（独立分包目录），不是 "schedule/schedule-edit"。
+  goAdd() { wx.navigateTo({ url: '/package-teacher/schedule-edit/schedule-edit?mode=add' }); },
+  goEdit(e) { wx.navigateTo({ url: '/package-teacher/schedule-edit/schedule-edit?mode=edit&id=' + e.currentTarget.dataset.id }); },
   async onDelete(e) {
     const id = e.currentTarget.dataset.id;
     const ok = await confirm('确定删除该排期？', { title: '删除排期' });

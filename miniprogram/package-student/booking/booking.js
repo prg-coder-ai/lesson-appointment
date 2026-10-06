@@ -29,6 +29,8 @@ Page({
       wx.showToast({ title: (e && e.message) || '加载失败', icon: 'none' });
     } finally { this.setData({ loading: false }); }
   },
-  goDetail(e) { wx.navigateTo({ url: '/package-student/booking/booking-detail?id=' + e.currentTarget.dataset.id }); },
+  // 路径必须与 app.json 注册项一致：subPackages[package-student].pages 里是
+  // "booking-detail/booking-detail"（独立分包目录），不是 "booking/booking-detail"。
+  goDetail(e) { wx.navigateTo({ url: '/package-student/booking-detail/booking-detail?id=' + e.currentTarget.dataset.id }); },
   onTabChange(e) { wx.redirectTo({ url: e.detail.page }); }
 });
