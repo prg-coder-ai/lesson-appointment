@@ -48,7 +48,8 @@ export function homePageForRole(role) {
 export const TAB_ITEMS = {
   student: [
     { key: 'home', page: '/package-student/home/home', text: '首页', icon: 'home' },
-    { key: 'booking', page: '/package-student/booking/booking', text: '约课', icon: 'calendar' },
+    // 原「约课」→「课程预订」：与页面标题、工作台入口统一；标签随行业词变（课程预订/咨询话题预订/健身科目预订）。
+    { key: 'booking', page: '/package-student/booking/booking', text: '课程预订', textTerm: '{{course}}预订', icon: 'calendar' },
     { key: 'my', page: '/package-student/my-booking/my-booking', text: '我的预约', icon: 'list' },
     { key: 'mine', page: '/pages/mine/mine', text: '我的', icon: 'user' }
   ],

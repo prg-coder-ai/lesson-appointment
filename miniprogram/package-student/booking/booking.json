@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "浏览约课",
+  "navigationBarTitleText": "课程预订",
   "enablePullDownRefresh": true,
   "usingComponents": {
     "role-tabbar": "/components/role-tabbar/index"

@@ -1,15 +1,55 @@
 <view class="page">
-  <view wx:if="{{list.length===0 && !loading}}" class="empty">还没有预约记录</view>
+  <view wx:if="{{list.length===0 && !loading}}" class="empty">{{error || '还没有预约记录'}}</view>
 
   <view class="list">
-    <view wx:for="{{list}}" wx:key="bookingId" class="item">
-      <view class="item-main">
-        <view class="item-title">{{item.courseTitle || item.title || ('预约 ' + (item.scheduleId || ''))}}</view>
-        <view class="item-sub">{{item.teacherName || ''}} · {{item.timeText || ''}}</view>
+    <view wx:for="{{list}}" wx:key="bookingId" class="card">
+      <!-- 卡头：课程名称 + 状态 -->
+      <view class="card-head">
+        <view class="ch-name">{{item.courseName}}</view>
+        <text class="status {{item.tone}}">{{item.statusText}}</text>
       </view>
-      <view class="item-right">
-        <text class="status {{canCancel ? 'st-active' : ''}}">{{item.statusText}}</text>
-        <text wx:if="{{canCancel}}" class="btn-cancel" data-id="{{item.bookingId}}" bindtap="cancel">取消</text>
+
+      <!-- 关键信息：教师 / 时间 / 排期 -->
+      <view class="meta">
+        <view class="m-row" wx:if="{{item.teacherName}}">
+          <text class="m-key">{{terms.teacher || '教师'}}</text>
+          <text class="m-val">{{item.teacherName}}</text>
+        </view>
+        <view class="m-row">
+          <text class="m-key">上课时间</text>
+          <text class="m-val">{{item.scheduleText || '待安排'}}<text wx:if="{{item.timeZone}}" class="m-dim">（{{item.timeZone}}）</text></text>
+        </view>
+        <view class="m-row" wx:if="{{item.scheduleName}}">
+          <text class="m-key">{{terms.schedule || '排期'}}</text>
+          <text class="m-val">{{item.scheduleName}}</text>
+        </view>
+        <view class="m-row" wx:if="{{item.applyTime}}">
+          <text class="m-key">申请时间</text>
+          <text class="m-val m-dim">{{item.applyTime}}</text>
+        </view>
+      </view>
+
+      <!-- 课次列表：每节课一行，行内带「延期/请假」或「取消延期」 -->
+      <view wx:if="{{item.appointments.length}}" class="apts">
+        <view class="apts-title">共 {{item.aptTotal}} 节课<text wx:if="{{item.pendingApts > 0}}">，未完成 {{item.pendingApts}} 节</text></view>
+        <view wx:for="{{item.appointments}}" wx:for-item="a" wx:key="id" class="apt">
+          <view class="apt-info">
+            <view class="apt-when">{{a.dateText}} <text class="apt-week">{{a.weekText}}</text> {{a.timeText}}</view>
+            <text class="apt-status {{a.tone}}">{{a.statusText}}</text>
+          </view>
+          <view class="apt-btns">
+            <text wx:if="{{a.canApply}}" class="btn-sec" data-id="{{a.id}}" bindtap="leaveApply"
+                  hover-class="btn-hover" hover-stay-time="60">{{a.applyLabel}}</text>
+            <text wx:if="{{a.canWithdraw}}" class="btn-sec warn" data-id="{{a.id}}" bindtap="leaveWithdraw"
+                  hover-class="btn-hover" hover-stay-time="60">{{a.withdrawLabel}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 卡尾：预约级动作（撤销候补 / 撤销申请 / 取消预订 / 撤销取消） -->
+      <view class="card-foot" wx:if="{{item.canCancel}}">
+        <text class="btn-sec" data-id="{{item.bookingId}}" data-status="{{item.cancelStatus}}" data-label="{{item.cancelLabel}}"
+              bindtap="cancel" hover-class="btn-hover" hover-stay-time="60">{{item.cancelLabel}}</text>
       </view>
     </view>
   </view>

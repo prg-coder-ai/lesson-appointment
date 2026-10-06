@@ -8,7 +8,7 @@
   <view class="grid">
     <view class="grid-item" bindtap="goBooking">
       <view class="gi-glyph">📅</view>
-      <view class="gi-text">浏览约课</view>
+      <view class="gi-text">{{terms.course}}预订</view>
     </view>
     <view class="grid-item" bindtap="goMyBooking">
       <view class="gi-glyph">📋</view>
@@ -35,7 +35,7 @@
 
   <view class="card">
     <view class="card-title">快速开始</view>
-    <view class="card-line">在「浏览约课」中选择合适的时间段，确认后即可完成预约。</view>
+    <view class="card-line">在「{{terms.course}}预订」中选择合适的时段，确认后即可完成预约。</view>
     <view class="card-line">约满的排期可加入候补，有空位时会自动递补。</view>
   </view>
 

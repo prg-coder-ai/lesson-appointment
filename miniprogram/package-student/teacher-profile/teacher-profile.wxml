@@ -1,20 +1,32 @@
 <view class="page">
   <view wx:if="{{loading}}" class="tip">加载中…</view>
+
+  <view wx:elif="{{notFound}}" class="empty">
+    <view class="empty-glyph">🔍</view>
+    <view>未找到该{{terms.teacher || '教师'}}已发布的职业信息</view>
+  </view>
+
   <block wx:else>
     <view class="hero">
-      <view class="hero-avatar">{{profile.title[0]}}</view>
-      <view class="hero-title">{{profile.title}}</view>
-      <view class="hero-sub" wx:if="{{profile.headline}}">{{profile.headline}}</view>
+      <view class="hero-cover" style="{{profile.coverStyle}}">
+        <text class="hero-initial">{{profile.initial}}</text>
+      </view>
+      <view class="hero-name">{{profile.name}}</view>
+      <view class="hero-title" wx:if="{{profile.title}}">{{profile.title}}</view>
     </view>
 
     <view class="card">
-      <view class="card-title">简介</view>
-      <view class="card-text">{{profile.intro}}</view>
+      <view class="card-title">职业简介</view>
+      <view class="card-text">{{profile.summary || '该' + (terms.teacher || '教师') + '暂未填写简介'}}</view>
     </view>
 
-    <view class="card" wx:if="{{profile.highlights}}">
-      <view class="card-title">亮点</view>
-      <view class="card-text">{{profile.highlights}}</view>
+    <view class="card" wx:if="{{profile.publishedAt}}">
+      <view class="card-title">发布信息</view>
+      <view class="card-text">发布时间：{{profile.publishedAt}}</view>
+    </view>
+
+    <view class="actions">
+      <button class="btn-primary" bindtap="viewCourses">查看TA的可预订{{terms.course || '课程'}}</button>
     </view>
   </block>
 </view>

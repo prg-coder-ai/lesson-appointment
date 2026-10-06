@@ -1,17 +1,60 @@
 <view class="page">
-  <view class="search-bar">
-    <input class="search-input" placeholder="搜索课程 / 教师" value="{{keyword}}" bindinput="onSearch" bindconfirm="onConfirmSearch" confirm-type="search" />
+  <view wx:if="{{teacherFilter}}" class="filter-bar">
+    <text class="fb-text">仅显示该{{terms.teacher || '教师'}}的可预订{{terms.course || '课程'}}</text>
+    <text class="fb-clear" bindtap="clearTeacherFilter" hover-class="btn-hover" hover-stay-time="60">查看全部</text>
   </view>
 
-  <view wx:if="{{list.length===0 && !loading}}" class="empty">暂无可选课程</view>
+  <view class="search-bar">
+    <input class="search-input" placeholder="搜索{{terms.course || '课程'}}" value="{{keyword}}"
+           bindinput="onSearch" bindconfirm="onConfirmSearch" confirm-type="search" />
+  </view>
+
+  <view wx:if="{{list.length===0 && !loading}}" class="empty">暂无可预订{{terms.course || '课程'}}</view>
 
   <view class="list">
-    <view wx:for="{{list}}" wx:key="courseId" class="item" data-id="{{item.courseId}}" bindtap="goDetail">
-      <view class="item-main">
-        <view class="item-title">{{item.title || item.courseName || '未命名课程'}}</view>
-        <view class="item-sub">{{item.teacherName || item.teacherId || ''}} · {{item.subject || ''}}</view>
+    <!-- 课程卡：点开即在同一张卡内展开该课程的排期与操作（对齐 Web 端"选课程 → 选排期 → 预订"） -->
+    <view wx:for="{{list}}" wx:key="courseId" class="course">
+      <view class="course-head" data-id="{{item.courseId}}" bindtap="onCourse" hover-class="row-hover" hover-stay-time="60">
+        <view class="c-idx">{{item.index}}</view>
+        <view class="c-main">
+          <view class="c-name">{{item.courseName}}</view>
+          <view class="c-sub">
+            <text wx:if="{{item.teacherName}}">{{terms.teacher || '教师'}}：{{item.teacherName}}</text>
+            <text wx:elif="{{item.teacherId}}" class="c-dim">{{terms.teacher || '教师'}}：—</text>
+            <text wx:if="{{item.content}}" class="c-dim"> · {{item.content}}</text>
+          </view>
+        </view>
+        <view class="c-arrow">{{item.opened ? '⌃' : '›'}}</view>
       </view>
-      <view class="item-arrow">›</view>
+
+      <view wx:if="{{item.opened}}" class="scheds">
+        <view wx:if="{{item.schLoading}}" class="sched-tip">正在查询排期…</view>
+        <view wx:elif="{{item.schedules.length === 0}}" class="sched-tip">
+          该{{terms.course || '课程'}}暂无可预订排期，可联系管理员安排。
+        </view>
+        <view wx:else class="sched-list">
+          <view wx:for="{{item.schedules}}" wx:for-item="s" wx:key="scheduleId" class="sched">
+            <view class="s-top">
+              <text class="s-name">{{s.name}}</text>
+              <text class="s-sites {{s.full ? 'full' : ''}}">{{s.sitesText}}</text>
+            </view>
+            <view class="s-time">{{s.timeText || '时间待定'}}<text wx:if="{{s.timeZone}}" class="s-tz">（{{s.timeZone}}）</text></view>
+            <view class="s-foot">
+              <!-- 本人状态徽标：无有效预订时 statusText 为空 → 不渲染 -->
+              <text wx:if="{{s.statusText}}" class="s-status {{s.tone}}">{{s.statusText}}</text>
+              <text wx:else class="s-status-none"></text>
+              <view class="s-btns">
+                <text wx:if="{{s.primaryLabel}}" class="btn-pri"
+                      data-sid="{{s.scheduleId}}" data-status="{{s.primaryStatus}}" bindtap="onBook"
+                      hover-class="btn-hover" hover-stay-time="60">{{s.primaryLabel}}</text>
+                <text wx:if="{{s.canCancel}}" class="btn-sec"
+                      data-sid="{{s.scheduleId}}" data-status="{{s.cancelStatus}}" data-label="{{s.cancelLabel}}" bindtap="onCancel"
+                      hover-class="btn-hover" hover-stay-time="60">{{s.cancelLabel}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
     </view>
   </view>
 

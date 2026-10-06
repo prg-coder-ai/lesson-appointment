@@ -61,6 +61,13 @@ export const ENDPOINTS = {
   // admin 排期页（package-admin/schedule）用 SCHEDULE_LIST；teacher 端增改走下方“排期”分组的 SCHEDULE_CREATE/SCHEDULE_UPDATE。
   // 已清理早期误写的冗余别名 SCHEDULE_ADD/SCHEDULE_EDIT（与 CREATE/UPDATE 重复且易误导）。
   SCHEDULE_LIST: '/api/v1/schedule/list',
+  // 按课程查排期（学生「课程预订」选课后的排期列表）：ScheduleController#getScheduleByCourseId。
+  // 注意：该端点方法签名里 @RequestHeader("Authorization") token 是**必填**，
+  // 所以调用方不能传 tokenOnly（否则不带 Bearer → 400/500），必须带登录态。
+  // 只返回 Result<List<ScheduleCreateDTO>>（数组，不是分页对象），status 为空表示不过滤。
+  SCHEDULE_SELECT_BY_COURSE: (courseId, status) =>
+    `/api/v1/schedule/selectByCourseId/${encodeURIComponent(courseId || '')}`
+    + (status ? `?status=${encodeURIComponent(status)}` : ''),
   // —— 课程模板（业务端，管理员/教师，TemplateController）——
   // 后端 @RequestMapping("/api/v1/course/template") + @GetMapping("/list")，响应 Result<List<CourseTemplate>>
   COURSE_TEMPLATE_LIST: '/api/v1/course/template/list',
@@ -70,6 +77,11 @@ export const ENDPOINTS = {
   BOOKING_LIST: '/api/v1/course/booking/list',
   BOOKING_DETAIL: (id) => `/api/v1/course/booking/${id}`,
   BOOKING_UPDATE_STATUS: '/api/v1/course/booking/updateStatus',
+  // 某排期「已占席位」数：BookingController#getBookingCountBySchedule，返回 Result<Integer>。
+  // 口径 = 只统计占位状态（BOOKING/BOOKED/CANCELING…），候补(waiting)/已取消/被拒/已删除都不算，
+  // 因此「剩余名额 = 排期 availableSites − 本接口返回值」，见 shared/domain/bookingState.js。
+  BOOKING_COUNT_BY_SCHEDULE: (scheduleId) =>
+    `/api/v1/course/booking/countByScheduleId/${encodeURIComponent(scheduleId || '')}`,
   // —— 教师简介（业务端）——
   // 后端 TeacherPublishedProfileController：GET /list、GET /latest-public（kebab-case，注意非 latestPublic）
   TEACHER_PUBLISHED_LIST: (tid) => `/api/v1/teacher/published/list?teacherId=${encodeURIComponent(tid)}`,
@@ -152,6 +164,10 @@ export const ENDPOINTS = {
   APPOINTMENT_LIST_BY_DAYS_PAGE: '/api/v1/course/appointment/statistical/listByDaysByPage',
   // 课次单条状态更新：PUT { id, status }（前端 operateAppointmentStatus / 「申请改期」批量走这个）
   APPOINTMENT_UPDATE_STATUS_BY_ID: '/api/v1/course/appointment/updateStatusById',
+  // 某条预订下的全部课次：AppointmentController#getByBookingId，返回 Result<List<Appointment>>（数组）。
+  // 学生「我的预约」逐课次延期/请假靠它：请假=PUT updateStatusById 置 'cancelling'，取消延期=置回 'active'。
+  APPOINTMENT_LIST_BY_BOOKING: (bookingId) =>
+    `/api/v1/course/appointment/getByBookingId?bookingId=${encodeURIComponent(bookingId || '')}`,
   // —— 教师公开主页（业务端，免登录公开接口）——
   TEACHER_PUBLIC_LIST: (tc) => `/api/v1/teacher/published/public-list?tenantCode=${encodeURIComponent(tc || '')}`,
   TEACHER_PUBLIC_GET: (id) => `/api/v1/teacher/published/public-get?id=${encodeURIComponent(id || '')}`

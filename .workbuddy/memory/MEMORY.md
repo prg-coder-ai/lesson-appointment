@@ -53,6 +53,8 @@
 8. **用字口径（2026-10-06 用户拍板）**：**小程序内统一用「预订」**（`miniprogram/` 已零「预定」）；**Web/API 维持「预定」不动**（含状态「预定待确认」、深链「直达预定」、后端 TermMsg）——跨端用字不一致是**已知且接受**的状态，勿擅自"修正"Web 侧(会连动 tests 断言 + frontend/dist 重建)。
 9. **小程序表单页写库前必查 4 项**（排期编辑 2026-10-06 实证，同类页复用）：① 目标表 NOT NULL 且**无默认值**的列必须显式给值（`course_schedule.time_zone`/`name`；mapper XML 是显式列清单，传 `undefined` 会写成 NULL 而非走 DDL 默认 → 500）② `tinyint(1)` 列取值 −128..127（`available_sites` 上限 127）③ 表级 `CHECK` 约束要在前端先拦（`end_time > start_time`）④ 数值输入用**字符串承载 + text 类型**，允许空中间态，`bindblur` 再归一——`type="number"` 配 `Number(v)||1` 会让「清空重输」反弹成拼接。`setData` 路径写错（写到页面顶层而非 `form.x`）不会报错，只会静默漏清值——改完 grep 一遍旧字段名。
 10. **WXML 绑定里禁止函数调用**（2026-10-06 排期编辑「每周星期/每月日期点了没反应」根因）：WXML 表达式只支持 三元/算数/逻辑/字符串拼接/属性与下标取值，`{{arr.indexOf(x)>=0?'on':''}}` 编译期失败且**静默渲染成空**（不报错、值其实已改、就是不变色）。铁律：多选/列表类选中态一律由 JS 派生（`withSel(list,set)` → `item.on`）并**与数据同一次 setData**；命中点用 `<view>`（`<text>` 可点区只有字形）＋`hover-class` 反馈。扫全仓判据：`grep -rnE '\{\{[^}]*[a-zA-Z_$][a-zA-Z0-9_$]*\s*\(' miniprogram --include=*.wxml` 须零命中。
+11. **学生端约课链路三处契约（2026-10-06 实证，详见技能 student-booking-flow-align）**：① 提交预订必带 `teacherId`——`booking.teacher_id` NOT NULL 而 `course_schedule` **无 teacher_id 列**，只能取 `Course.teacherId`（缺了必 500 `Column 'teacher_id' cannot be null`）② 学生侧预约过滤字段是 **`userId` + `userRole:'student'`**（`BookingQueryPage` 无 studentId；传错＝`<choose>` 不生效＝返回本租户全部学生预约，是越权读）③ 「延期/请假」是**课次级**动作（`PUT /appointment/updateStatusById {id,status}`，申请=cancelling、取消延期=active），不是整单动作；`completed/cancelled/changed/t-cancelling` 不放出按钮。另：`selectByCourseId` 的 Authorization 头**必填**（不能 tokenOnly）；`teacher/published/public-list` 的 `tenantCode` 为空会**静默返回空数组**，且 VO 只有 `{publishedProfileId,teacherId,name,title,summary,coverUrl}` 五个字段。
+12. **学生端底部 tab/入口改名（2026-10-06）**：学生端「浏览约课/约课」统一为「课程预订」，走行业词 `{{course}}预订`（课程预订/咨询话题预订/健身科目预订）——含 `booking.json` 首帧标题、`home.wxml` 图标与快速开始文案、`shared/constants.js` 的 `textTerm`。该页标题**确实随行业变**，故保留运行时 `wx.setNavigationBarTitle`（与铁律 6 的"固定标题页"相反）。
 
 ## 消息中心(message-service)
 - 分类CRUD已全(CategoryController)；发送弹窗#msg-category readonly仅下拉(首项"不分类")；admin-messageCategory.js挂admin+platform_admin「系统配置」。
@@ -62,5 +64,5 @@
 - message-service不挂TenantLineInnerInterceptor，租户隔离靠显式tenantId；mvn离线编译通过。
 
 ## 文档/技能/工具
-- 技能：saas-api-build-smoke/shared-domain-sink/shared-adapter-wire/seat-oversell-concurrency-audit/public-endpoint-tenant-bypass/browserless-frontend-itest/server-side-term-template/source-encoding-repair/miniprogram-page-registry-audit/paged-response-field-contract-audit/miniprogram-grouped-enrich-list/miniprogram-term-localization/**miniprogram-form-schema-align**(表单页↔表结构对齐)。
+- 技能：saas-api-build-smoke/shared-domain-sink/shared-adapter-wire/seat-oversell-concurrency-audit/public-endpoint-tenant-bypass/browserless-frontend-itest/server-side-term-template/source-encoding-repair/miniprogram-page-registry-audit/paged-response-field-contract-audit/miniprogram-grouped-enrich-list/miniprogram-term-localization/**miniprogram-form-schema-align**(表单页↔表结构对齐)/**student-booking-flow-align**(学生端约课链路:课程→排期→预订/候补→我的预约→课次请假→浏览教师,含 6 坑)。
 - 工具踩坑：并行同文件多Edit只最后生效→串行+grep核验；替换前探测行尾(CRLF/LF)；Maven GBK输出先iconv。

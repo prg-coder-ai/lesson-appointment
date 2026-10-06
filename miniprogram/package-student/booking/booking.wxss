@@ -1,11 +1,42 @@
 .page { min-height: 100vh; padding: 24rpx 24rpx 140rpx; box-sizing: border-box; background: #f5f7fa; }
 .search-bar { margin-bottom: 20rpx; }
+.filter-bar { display: flex; align-items: center; justify-content: space-between; background: #eef3ff; border: 1rpx solid #d6e2ff; border-radius: 12rpx; padding: 14rpx 20rpx; margin-bottom: 16rpx; }
+.fb-text { font-size: 24rpx; color: #3f6fd8; flex: 1; min-width: 0; }
+.fb-clear { font-size: 24rpx; color: #3f6fd8; text-decoration: underline; margin-left: 16rpx; flex: none; }
 .search-input { height: 76rpx; background: #fff; border-radius: 12rpx; padding: 0 24rpx; font-size: 28rpx; box-shadow: 0 4rpx 16rpx rgba(31,42,68,0.04); }
 .empty { text-align: center; color: #aab2c0; font-size: 28rpx; padding: 120rpx 0; }
+
 .list { background: #fff; border-radius: 16rpx; overflow: hidden; box-shadow: 0 8rpx 30rpx rgba(31,42,68,0.05); }
-.item { display: flex; align-items: center; justify-content: space-between; padding: 28rpx 24rpx; border-bottom: 1rpx solid #f0f2f5; }
-.item:last-child { border-bottom: none; }
-.item-title { font-size: 30rpx; color: #1f2a44; font-weight: 500; }
-.item-sub { font-size: 24rpx; color: #8a94a6; margin-top: 8rpx; }
-.item-arrow { color: #c0c6d0; font-size: 36rpx; }
+.course { border-bottom: 1rpx solid #f0f2f5; }
+.course:last-child { border-bottom: none; }
+.course-head { display: flex; align-items: center; padding: 26rpx 24rpx; }
+.row-hover { background: #fafbfc; }
+.c-idx { width: 44rpx; height: 44rpx; line-height: 44rpx; text-align: center; border-radius: 50%; background: #eef3ff; color: #3f6fd8; font-size: 24rpx; margin-right: 18rpx; flex: none; }
+.c-main { flex: 1; min-width: 0; }
+.c-name { font-size: 30rpx; color: #1f2a44; font-weight: 500; }
+.c-sub { font-size: 24rpx; color: #8a94a6; margin-top: 8rpx; }
+.c-dim { color: #aab2c0; }
+.c-arrow { color: #c0c6d0; font-size: 32rpx; margin-left: 12rpx; }
+
+/* 展开的排期区：浅底 + 左侧色条，明确"属于上面那张课程卡" */
+.scheds { background: #f8fafd; border-top: 1rpx solid #eef2f8; padding: 8rpx 24rpx 18rpx; }
+.sched-tip { font-size: 24rpx; color: #97a1b2; padding: 20rpx 0; }
+.sched { padding: 20rpx 0; border-bottom: 1rpx dashed #e6ebf3; }
+.sched:last-child { border-bottom: none; }
+.s-top { display: flex; align-items: center; justify-content: space-between; }
+.s-name { font-size: 27rpx; color: #2b3852; font-weight: 500; }
+.s-sites { font-size: 22rpx; color: #1890ff; background: #e8f4ff; border-radius: 20rpx; padding: 4rpx 14rpx; }
+.s-sites.full { color: #d4380d; background: #fff1e6; }
+.s-time { font-size: 24rpx; color: #5c6a85; margin-top: 8rpx; }
+.s-tz { color: #97a1b2; font-size: 22rpx; }
+.s-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 14rpx; }
+.s-status { font-size: 22rpx; padding: 4rpx 14rpx; border-radius: 20rpx; }
+.s-status.ok { color: #0f9d58; background: #e8f7ef; }
+.s-status.warn { color: #d48806; background: #fff8e6; }
+.s-status-none { font-size: 22rpx; }
+.s-btns { display: flex; align-items: center; }
+.btn-pri { min-width: 128rpx; text-align: center; background: #1890ff; color: #fff; font-size: 26rpx; border-radius: 30rpx; padding: 10rpx 22rpx; margin-left: 12rpx; }
+.btn-sec { min-width: 128rpx; text-align: center; background: #fff; color: #5c6a85; font-size: 26rpx; border-radius: 30rpx; padding: 10rpx 22rpx; margin-left: 12rpx; border: 1rpx solid #d8dee9; }
+.btn-hover { opacity: .7; }
+
 .foot { text-align: center; color: #aab2c0; font-size: 24rpx; padding: 24rpx 0; }

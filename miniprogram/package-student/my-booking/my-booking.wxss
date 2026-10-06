@@ -1,12 +1,41 @@
 .page { min-height: 100vh; padding: 24rpx 24rpx 140rpx; box-sizing: border-box; background: #f5f7fa; }
-.empty { text-align: center; color: #aab2c0; font-size: 28rpx; padding: 120rpx 0; }
-.list { background: #fff; border-radius: 16rpx; overflow: hidden; box-shadow: 0 8rpx 30rpx rgba(31,42,68,0.05); }
-.item { display: flex; align-items: center; justify-content: space-between; padding: 28rpx 24rpx; border-bottom: 1rpx solid #f0f2f5; }
-.item:last-child { border-bottom: none; }
-.item-title { font-size: 30rpx; color: #1f2a44; font-weight: 500; }
-.item-sub { font-size: 24rpx; color: #8a94a6; margin-top: 8rpx; }
-.item-right { display: flex; flex-direction: column; align-items: flex-end; }
-.status { font-size: 24rpx; color: #8a94a6; }
-.status.st-active { color: #1677ff; }
-.btn-cancel { font-size: 24rpx; color: #d4380d; margin-top: 12rpx; }
+.empty { text-align: center; color: #aab2c0; font-size: 28rpx; padding: 120rpx 0; line-height: 1.6; }
+
+.card { background: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 20rpx; box-shadow: 0 8rpx 30rpx rgba(31,42,68,0.05); }
+.card:last-child { margin-bottom: 0; }
+
+.card-head { display: flex; align-items: flex-start; justify-content: space-between; }
+.ch-name { flex: 1; min-width: 0; font-size: 31rpx; color: #1f2a44; font-weight: 600; line-height: 1.4; }
+.status { flex: none; margin-left: 16rpx; font-size: 22rpx; padding: 6rpx 16rpx; border-radius: 22rpx; background: #f2f4f8; color: #6b7688; }
+.status.ok { color: #0f9d58; background: #e8f7ef; }
+.status.warn { color: #d48806; background: #fff8e6; }
+.status.done { color: #3f6fd8; background: #eef3ff; }
+.status.bad { color: #8a94a6; background: #f2f4f8; }
+
+.meta { margin-top: 16rpx; }
+.m-row { display: flex; align-items: flex-start; margin-top: 10rpx; font-size: 25rpx; line-height: 1.5; }
+.m-key { flex: none; width: 116rpx; color: #97a1b2; }
+.m-val { flex: 1; min-width: 0; color: #2b3852; word-break: break-all; }
+.m-dim { color: #97a1b2; }
+
+/* 课次区：浅底，与卡片上半部分的"预约信息"分层 */
+.apts { margin-top: 18rpx; background: #f8fafd; border-radius: 12rpx; padding: 16rpx 18rpx; }
+.apts-title { font-size: 23rpx; color: #97a1b2; margin-bottom: 6rpx; }
+.apt { padding: 14rpx 0; border-bottom: 1rpx dashed #e6ebf3; }
+.apt:last-child { border-bottom: none; padding-bottom: 0; }
+.apt-info { display: flex; align-items: center; justify-content: space-between; }
+.apt-when { font-size: 25rpx; color: #2b3852; }
+.apt-week { color: #5c6a85; font-size: 23rpx; }
+.apt-status { font-size: 21rpx; padding: 4rpx 12rpx; border-radius: 18rpx; background: #eef1f6; color: #6b7688; }
+.apt-status.ok { color: #0f9d58; background: #e8f7ef; }
+.apt-status.warn { color: #d48806; background: #fff8e6; }
+.apt-status.done { color: #8a94a6; background: #f2f4f8; }
+.apt-btns { display: flex; justify-content: flex-end; margin-top: 10rpx; }
+
+.card-foot { display: flex; justify-content: flex-end; margin-top: 18rpx; }
+
+.btn-sec { font-size: 25rpx; color: #3f6fd8; background: #fff; border: 1rpx solid #cdd8ea; border-radius: 28rpx; padding: 8rpx 26rpx; margin-left: 12rpx; }
+.btn-sec.warn { color: #d4380d; border-color: #f5c2b0; }
+.btn-hover { opacity: .7; }
+
 .foot { text-align: center; color: #aab2c0; font-size: 24rpx; padding: 24rpx 0; }
