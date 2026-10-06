@@ -24,7 +24,7 @@
     </view>
     <view class="grid-item" bindtap="goMyBooking">
       <view class="gi-glyph">📋</view>
-      <view class="gi-text">{{terms.student}}预约</view>
+      <view class="gi-text">预订管理</view>
     </view>
     <view class="grid-item" bindtap="goMine">
       <view class="gi-glyph">👤</view>

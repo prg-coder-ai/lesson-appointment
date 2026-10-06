@@ -1,37 +1,58 @@
 <view class="page">
   <view class="topbar">
-    <view class="tb-title">{{terms.student}}预约</view>
-    <view class="tb-filters">
-      <text class="flt {{status===''?'on':''}}" data-s="" bindtap="onStatusFilter">全部</text>
-      <text class="flt {{status==='booking'?'on':''}}" data-s="booking" bindtap="onStatusFilter">待确认</text>
-      <text class="flt {{status==='booked'?'on':''}}" data-s="booked" bindtap="onStatusFilter">已确认</text>
-      <text class="flt {{status==='cancelled'?'on':''}}" data-s="cancelled" bindtap="onStatusFilter">已取消</text>
-    </view>
+    <view class="tb-title">预订管理</view>
+    <view class="tb-hint">{{list.length ? '共 ' + list.length + ' 个排期 · ' + totalStudents + ' 条预约' : '按排期合并显示'}}</view>
   </view>
+
+  <view class="tb-filters">
+    <text wx:for="{{statusOptions}}" wx:key="v"
+          class="flt {{status===item.v?'on':''}}"
+          data-s="{{item.v}}" bindtap="onStatusFilter">{{item.t}}</text>
+  </view>
+
   <view class="search-row">
     <input class="search-input" placeholder="搜索{{terms.courseName}} / {{terms.student}}" value="{{keyword}}" bindinput="onSearchInput" bindconfirm="onSearch" confirm-type="search" />
     <text class="search-btn" bindtap="onSearch">搜索</text>
+    <text wx:if="{{keyword}}" class="search-clear" bindtap="onClearSearch">清空</text>
   </view>
 
   <view wx:if="{{loading}}" class="tip">加载中…</view>
+  <view wx:elif="{{error}}" class="empty">
+    <view class="empty-glyph">⚠️</view>
+    <view>加载失败：{{error}}</view>
+    <view class="retry" bindtap="load">点击重试</view>
+  </view>
   <view wx:elif="{{list.length===0}}" class="empty">
     <view class="empty-glyph">📋</view>
     <view>暂无预约</view>
   </view>
+
+  <!-- 一个排期一张卡：卡头=课程名 + 人数；卡身=预约时间；卡内逐行列出学生姓名与预约状态 -->
   <view wx:else class="list">
-    <view wx:for="{{list}}" wx:key="bookingId" class="item">
-      <view class="it-top">
-        <text class="it-title">{{item.title}}</text>
-        <text class="it-status s-{{item.status}}">{{item.statusText}}</text>
+    <view wx:for="{{list}}" wx:key="key" class="grp">
+      <view class="grp-head">
+        <text class="grp-title">{{item.className}}</text>
+        <text class="grp-count">共 {{item.shown || item.total}} 人</text>
       </view>
-      <view class="it-sub">{{item.sub}}</view>
-      <view class="it-time" wx:if="{{item.time}}">🕒 {{item.time}}</view>
-      <view class="item-actions" wx:if="{{item.status==='booking'}}">
-        <text class="act" data-id="{{item.bookingId}}" data-status="booked" data-label="确认" bindtap="act">确认</text>
-        <text class="act danger" data-id="{{item.bookingId}}" data-status="cancelled" data-label="拒绝" bindtap="act">拒绝</text>
+
+      <view class="grp-time">
+        <text class="gt-ico">🕒</text>
+        <text class="gt-text">{{item.scheduleText}}</text>
+        <text wx:if="{{item.timeZone}}" class="gt-tz">{{item.timeZone}}</text>
       </view>
-      <view class="item-actions" wx:elif="{{item.status==='booked'}}">
-        <text class="act danger" data-id="{{item.bookingId}}" data-status="cancelled" data-label="取消" bindtap="act">取消</text>
+
+      <view class="stu-list">
+        <view class="stu" wx:for="{{item.students}}" wx:for-item="s" wx:key="bookingId">
+          <view class="stu-line">
+            <text class="stu-name">{{s.name}}</text>
+            <text class="stu-status st-{{s.tone}}">{{s.statusText}}</text>
+          </view>
+          <view wx:if="{{s.applyTime}}" class="stu-sub">申请 {{s.applyTime}}</view>
+          <view class="stu-actions" wx:if="{{s.canConfirm || s.canCancel}}">
+            <text wx:if="{{s.canConfirm}}" class="act" data-id="{{s.bookingId}}" data-status="booked" data-label="确认" bindtap="act">确认</text>
+            <text wx:if="{{s.canCancel}}" class="act danger" data-id="{{s.bookingId}}" data-status="cancelled" data-label="取消" bindtap="act">取消</text>
+          </view>
+        </view>
       </view>
     </view>
   </view>

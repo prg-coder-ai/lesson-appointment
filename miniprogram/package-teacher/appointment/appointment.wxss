@@ -34,11 +34,22 @@
 .it-status.s-warn { color: #c0871b; background: #fff3e0; }
 .it-status.s-bad { color: #c0392b; background: #fdecea; }
 
-/* 明细行：课次 / 学生 / 教师 / 时间 */
+/* 明细行：{课次} / {学生} / {教师} / {时间}
+   标签已接行业词，字数不一（如「咨询时间」4 字），故标签列留够宽度，保证各行对齐 */
 .it-row { display: flex; align-items: flex-start; margin-top: 10rpx; }
-.it-label { width: 76rpx; flex-shrink: 0; font-size: 24rpx; color: #99a; }
+.it-label { width: 112rpx; flex-shrink: 0; font-size: 24rpx; color: #99a; }
 .it-val { flex: 1; font-size: 26rpx; color: #5a6472; line-height: 1.5; }
 .it-val.strong { color: #2c3542; }
+
+/* 学生列表：一人一行 = 姓名 + 该学生自己的「预约」状态 */
+.stu-list { flex: 1; }
+.stu { display: flex; align-items: center; justify-content: space-between; padding: 4rpx 0; }
+.stu-name { font-size: 26rpx; color: #2c3542; }
+.stu-tag { font-size: 22rpx; padding: 2rpx 14rpx; border-radius: 18rpx; background: #eef1f7; color: #5a6472; flex-shrink: 0; margin-left: 12rpx; }
+.stu-tag.tone-ok { color: #3a8a3a; background: #e7f6e7; }
+.stu-tag.tone-done { color: #8a6d00; background: #fff7e0; }
+.stu-tag.tone-warn { color: #c0871b; background: #fff3e0; }
+.stu-tag.tone-bad { color: #c0392b; background: #fdecea; }
 
 .it-actions { display: flex; justify-content: flex-end; margin-top: 16rpx; border-top: 1rpx solid #f0f2f6; padding-top: 14rpx; }
 .act { font-size: 24rpx; color: #4a7cff; padding: 6rpx 20rpx; margin-left: 16rpx; border: 1rpx solid #d6e0ff; border-radius: 24rpx; }

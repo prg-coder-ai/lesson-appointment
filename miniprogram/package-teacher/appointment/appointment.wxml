@@ -1,6 +1,7 @@
 <view class="page">
   <view class="topbar">
-    <view class="tb-title">今日课程</view>
+    <!-- 标题里的「课程」走行业词（法律/心理行业渲染为「今日咨询话题 / 今日咨询项目」） -->
+    <view class="tb-title">今日{{terms.course}}</view>
     <view class="tb-days">
       <text class="day {{days===1?'on':''}}" data-days="1" bindtap="onDayChange">1天</text>
       <text class="day {{days===3?'on':''}}" data-days="3" bindtap="onDayChange">3天</text>
@@ -9,9 +10,9 @@
     </view>
   </view>
 
-  <!-- 课程名搜索：对齐前端「课程名称」筛选框（course-name-input） -->
+  <!-- {{terms.courseName}}搜索：对齐前端「课程名称」筛选框（course-name-input） -->
   <view class="search-row">
-    <input class="search-input" placeholder="搜索课程名称" value="{{keyword}}"
+    <input class="search-input" placeholder="搜索{{terms.courseName}}" value="{{keyword}}"
            bindinput="onKeywordInput" bindconfirm="onSearch" confirm-type="search" />
     <text class="search-btn" bindtap="onSearch">搜索</text>
     <text class="search-clear" wx:if="{{keyword}}" bindtap="onClearSearch">清空</text>
@@ -22,15 +23,15 @@
           data-s="{{item.v}}" bindtap="onStatusChange">{{item.t}}</text>
   </scroll-view>
 
-  <view class="count-bar" wx:if="{{!loading && total>0}}">共 {{total}} 组课次</view>
+  <view class="count-bar" wx:if="{{!loading && total>0}}">共 {{total}} 组{{terms.lessonNumber}}</view>
 
   <view wx:if="{{loading}}" class="tip">加载中…</view>
   <view wx:elif="{{list.length===0}}" class="empty">
     <view class="empty-glyph">📚</view>
-    <view>近期没有课程安排</view>
+    <view>近期没有{{terms.course}}安排</view>
   </view>
   <view wx:else class="list">
-    <!-- 行内容对齐前端「今日课程」聚合行：序号 / 课程名称 / 学生列表 / 教师 / 预约时间 / 状态 -->
+    <!-- 行内容对齐前端「今日课程」聚合行：序号 / {课程}名称 / 学生列表 / {教师} / {时间} / 状态 -->
     <view wx:for="{{list}}" wx:key="key" class="item">
       <view class="it-head">
         <text class="it-index">{{item.index}}</text>
@@ -38,19 +39,25 @@
         <text class="it-status s-{{item.tone}}">{{item.statusText}}</text>
       </view>
       <view class="it-row">
-        <text class="it-label">课次</text>
-        <text class="it-val">第 {{item.classIndex}} 次 · 本组 {{item.count}} 个课次</text>
+        <text class="it-label">{{terms.lessonNumber}}</text>
+        <text class="it-val">第 {{item.classIndex}} 次 · 本组 {{item.count}} 个{{terms.lessonNumber}}</text>
       </view>
+      <!-- 学生列表：逐人展示各自的「预约」状态（本页对前端的增强项） -->
       <view class="it-row">
-        <text class="it-label">学生</text>
-        <text class="it-val strong">{{item.students}}</text>
+        <text class="it-label">{{terms.student}}</text>
+        <view class="stu-list">
+          <view class="stu" wx:for="{{item.students}}" wx:for-item="s" wx:key="name">
+            <text class="stu-name">{{s.name}}</text>
+            <text class="stu-tag tone-{{s.tone}}">{{s.statusText}}</text>
+          </view>
+        </view>
       </view>
       <view class="it-row" wx:if="{{item.teacherName}}">
-        <text class="it-label">教师</text>
+        <text class="it-label">{{terms.teacher}}</text>
         <text class="it-val">{{item.teacherName}}</text>
       </view>
       <view class="it-row">
-        <text class="it-label">时间</text>
+        <text class="it-label">{{terms.lessonTime}}</text>
         <text class="it-val">🕒 {{item.time}} {{item.tz}}</text>
       </view>
       <view class="it-actions">

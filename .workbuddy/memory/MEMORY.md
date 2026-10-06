@@ -48,6 +48,9 @@
 3. 判定链接正则勿用$锚定文件名(末尾是查询串)。
 4. 显示≠判定口径：数值进data-*、文案进value；<input type=number>静默丢文本→须text；只读须readonly属性+class双全。
 5. 刷新≠切换课程：刷新须保持当前排期(fillScheduleSelect(list,keepScheduleId))。
+6. 小程序标题双源：json `navigationBarTitleText`(首帧) vs 运行时 `wx.setNavigationBarTitle`(**会覆盖 json**)——固定标题页须 grep 清掉运行时设标题，否则"改了没生效"。
+7. 教师端菜单名固定=「预订管理」(与 Web/文档一致)，**不参与行业词转换**；仅页内描述性文案走 `{{terms.*}}`。
+8. **用字口径（2026-10-06 用户拍板）**：**小程序内统一用「预订」**（`miniprogram/` 已零「预定」）；**Web/API 维持「预定」不动**（含状态「预定待确认」、深链「直达预定」、后端 TermMsg）——跨端用字不一致是**已知且接受**的状态，勿擅自"修正"Web 侧(会连动 tests 断言 + frontend/dist 重建)。
 
 ## 消息中心(message-service)
 - 分类CRUD已全(CategoryController)；发送弹窗#msg-category readonly仅下拉(首项"不分类")；admin-messageCategory.js挂admin+platform_admin「系统配置」。

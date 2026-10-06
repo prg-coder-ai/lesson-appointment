@@ -1,6 +1,6 @@
 // 租户管理端 · 预订审核（对应 admin.html 的"预订审核"）
 // 列表来自 /course/booking/page（自动按当前租户隔离）；审核动作调用 /course/booking/updateStatus。
-// 状态语义（与网页端一致）：booking=预定待确认 / cancelling=取消待确认 /
+// 状态语义（与网页端一致）：booking=预订待确认 / cancelling=取消待确认 /
 //   booked=已确认 / rej-booking=已拒绝预订 / cancelled=已取消 / rej-cancelling=已拒绝取消。
 
 import { requireAuth } from '../../core/auth.js';
@@ -11,8 +11,8 @@ import { confirm } from '../../core/ui.js';
 
 const STATUS_TEXT = {
   booking: '待确认', waiting: '候补', cancelling: '取消待确认',
-  booked: '已确认', 'rej-booking': '已拒预订', cancelled: '已取消',
-  'rej-cancelling': '已拒取消', frozen: '已冻结', delete: '已删除'
+  booked: '已确认', 'rej-booking': '已拒绝预订', cancelled: '已取消',
+  'rej-cancelling': '已拒绝取消', frozen: '已冻结', delete: '已删除'
 };
 
 const FILTERS = [
@@ -62,7 +62,7 @@ Page(withTerms({
   },
   async audit(e) {
     const { id, action } = e.currentTarget.dataset;
-    const tip = action === 'booked' ? '确认预定' : (action === 'rej-booking' ? '拒绝预定'
+    const tip = action === 'booked' ? '确认预订' : (action === 'rej-booking' ? '拒绝预订'
       : (action === 'cancelled' ? '确认取消' : '拒绝取消'));
     const ok = await confirm('确定执行该操作？', { title: tip });
     if (!ok) return;

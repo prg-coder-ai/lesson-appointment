@@ -22,7 +22,7 @@
       </view>
       <view class="stat">
         <view class="stat-num">{{stat.booking != null ? stat.booking : '-'}}</view>
-        <view class="stat-label">本月预定量</view>
+        <view class="stat-label">本月预订量</view>
       </view>
       <view class="stat">
         <view class="stat-num">{{stat.appoint != null ? stat.appoint : '-'}}</view>

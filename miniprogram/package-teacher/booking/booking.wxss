@@ -1,29 +1,49 @@
 .page { min-height: 100vh; background: #f5f7fa; padding-bottom: 20rpx; }
-.topbar { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 28rpx 12rpx; flex-wrap: wrap; }
+
+.topbar { display: flex; align-items: baseline; justify-content: space-between; padding: 24rpx 28rpx 12rpx; }
 .tb-title { font-size: 34rpx; font-weight: 600; color: #1f2a4d; }
-.tb-filters { display: flex; flex-wrap: wrap; }
-.flt { font-size: 24rpx; color: #667; padding: 6rpx 16rpx; margin-left: 8rpx; background: #fff; border-radius: 24rpx; }
+.tb-hint { font-size: 22rpx; color: #aab2c0; }
+
+.tb-filters { display: flex; flex-wrap: wrap; padding: 0 24rpx 4rpx; }
+.flt { font-size: 24rpx; color: #667; padding: 6rpx 18rpx; margin: 0 10rpx 10rpx 0; background: #fff; border-radius: 24rpx; }
 .flt.on { color: #fff; background: #4e6ef2; }
 
-.search-row { display: flex; align-items: center; padding: 8rpx 28rpx 12rpx; }
+.search-row { display: flex; align-items: center; padding: 4rpx 28rpx 12rpx; }
 .search-input { flex: 1; height: 64rpx; background: #fff; border-radius: 32rpx; padding: 0 28rpx; font-size: 26rpx; color: #1f2a4d; }
-.search-btn { font-size: 26rpx; color: #4e6ef2; padding: 12rpx 24rpx; margin-left: 12rpx; }
+.search-btn { font-size: 26rpx; color: #4e6ef2; padding: 12rpx 20rpx; }
+.search-clear { font-size: 24rpx; color: #99a; padding: 12rpx 0 12rpx 8rpx; }
 
 .tip { text-align: center; color: #99a; padding: 40rpx 0; font-size: 26rpx; }
 .empty { text-align: center; color: #99a; padding: 90rpx 0; }
 .empty-glyph { font-size: 80rpx; margin-bottom: 16rpx; }
+.retry { display: inline-block; margin-top: 24rpx; padding: 10rpx 32rpx; font-size: 24rpx; color: #4e6ef2; border: 1rpx solid #4e6ef2; border-radius: 40rpx; }
 
 .list { padding: 8rpx 24rpx; }
-.item { background: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 16rpx; box-shadow: 0 2rpx 10rpx rgba(30,50,90,.06); }
-.it-top { display: flex; align-items: center; justify-content: space-between; }
-.it-title { font-size: 30rpx; font-weight: 600; color: #1f2a4d; }
-.it-status { font-size: 22rpx; padding: 2rpx 14rpx; border-radius: 20rpx; background: #eef1f7; color: #5a6472; }
-.it-status.s-booking { color: #c0871b; background: #fff3e0; }
-.it-status.s-booked { color: #3a8a3a; background: #e7f6e7; }
-.it-status.s-cancelled, .it-status.s-canceling { color: #c0392b; background: #fdecea; }
-.it-status.s-completed { color: #8a6d00; background: #fff7e0; }
-.it-sub { font-size: 26rpx; color: #667; margin-top: 8rpx; }
-.it-time { font-size: 24rpx; color: #889; margin-top: 6rpx; }
-.item-actions { display: flex; margin-top: 14rpx; }
-.act { font-size: 26rpx; color: #4e6ef2; padding: 8rpx 28rpx; border: 1px solid #4e6ef2; border-radius: 30rpx; margin-right: 16rpx; }
+
+/* 一个排期一张卡 */
+.grp { background: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 18rpx; box-shadow: 0 2rpx 10rpx rgba(30,50,90,.06); }
+.grp-head { display: flex; align-items: baseline; justify-content: space-between; }
+.grp-title { font-size: 30rpx; font-weight: 600; color: #1f2a4d; flex: 1; margin-right: 12rpx; }
+.grp-count { font-size: 22rpx; color: #5a6472; background: #eef1f7; padding: 4rpx 14rpx; border-radius: 20rpx; flex-shrink: 0; }
+
+.grp-time { display: flex; align-items: baseline; flex-wrap: wrap; margin-top: 10rpx; padding-bottom: 14rpx; border-bottom: 1rpx solid #f0f2f5; }
+.gt-ico { font-size: 22rpx; margin-right: 8rpx; }
+.gt-text { font-size: 25rpx; color: #4a5568; }
+.gt-tz { font-size: 20rpx; color: #a0aec0; margin-left: 10rpx; }
+
+/* 卡内每个学生一行 */
+.stu-list { margin-top: 6rpx; }
+.stu { padding: 16rpx 0; border-bottom: 1rpx dashed #f0f2f5; }
+.stu:last-child { border-bottom: none; padding-bottom: 0; }
+.stu-line { display: flex; align-items: center; justify-content: space-between; }
+.stu-name { font-size: 28rpx; color: #1f2a4d; }
+.stu-status { font-size: 22rpx; padding: 2rpx 14rpx; border-radius: 20rpx; background: #eef1f7; color: #5a6472; flex-shrink: 0; margin-left: 12rpx; }
+.st-ok { color: #1a7f4b; background: #e3f7ec; }
+.st-warn { color: #c0871b; background: #fff3e0; }
+.st-bad { color: #c0392b; background: #fdecea; }
+.st-done { color: #4a7cff; background: #e8f0ff; }
+.stu-sub { font-size: 22rpx; color: #a0aec0; margin-top: 6rpx; }
+
+.stu-actions { display: flex; margin-top: 12rpx; }
+.act { font-size: 24rpx; color: #4e6ef2; padding: 6rpx 26rpx; border: 1rpx solid #4e6ef2; border-radius: 30rpx; margin-right: 16rpx; }
 .act.danger { color: #c0392b; border-color: #c0392b; }

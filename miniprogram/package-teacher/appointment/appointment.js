@@ -2,10 +2,11 @@ import { requireAuth } from '../../core/auth.js';
 import { request } from '../../core/request.js';
 import { ENDPOINTS } from '../../shared/apiPaths.js';
 import { appointmentStatusText } from '../../shared/domain/appointmentState.js';
-import { term as termText } from '../../core/term.js';
+import { bookingStatusText, normalizeBookingStatus } from '../../shared/domain/bookingState.js';
+import { term as termText, withTerms } from '../../core/term.js';
 
 /* ============================================================================
- * 教师端「今日课程」—— 展示对齐 Web（frontend/js/public/appointmentNotes.js）
+ * 教师端「今日{课程}」—— 展示对齐 Web（frontend/js/public/appointmentNotes.js）
  * ----------------------------------------------------------------------------
  * 前端 teacher 分支的做法（formAppointmentGroupTr）：
  *   ① 数据源：POST /course/appointment/statistical/listByDaysByPage 循环翻页取全量
@@ -14,8 +15,13 @@ import { term as termText } from '../../core/term.js';
  *             → schedule（courseId/timeZone）→ course（courseName）
  *             + 学生/教师姓名经 /user/name/{id} 解析，全程带缓存；
  *   ③ 分组：同一 scheduleId + 同一上课日期 的课次聚合为一行；
- *   ④ 行内容（本页对齐目标）：序号 / 课程名称 / 学生列表 / 教师 / 预约时间(+时区) / 状态
+ *   ④ 行内容（本页对齐目标）：序号 / {课程}名称 / 学生列表 / {教师} / {时间}(+时区) / 状态
  *      + 操作「申请改期 / 取消改期」（前端 teacherRescheduleTodayGroup）。
+ *
+ * 本页两处**超出前端**的增强（用户要求）：
+ *   · 所有标签 / 输入框 placeholder 的行业词化（{{terms.*}}，页面用 withTerms 包装）；
+ *   · 学生列表**逐人**展示各自的「预约(booking)」状态 —— 前端只拼姓名字符串。
+ *     故状态必须取 booking.status（appointment.status 是课次状态，不是预约状态）。
  * 全部复用既有端点，不动 api。
  * ========================================================================== */
 
@@ -30,10 +36,24 @@ function datePart(s) {
   if (!s) return '';
   return String(s).slice(0, 10);
 }
+
+// 行业词取值（词表未就绪 / key 缺失时退回 fallback，避免渲染空串）
+function t(key, fallback) {
+  try { return termText(key) || fallback; } catch (e) { return fallback; }
+}
+
 function statusLabel(st) {
-  let teacherLabel = '教师';
-  try { teacherLabel = termText('teacher') || '教师'; } catch (e) { /* 词表未就绪：兜底 */ }
-  return appointmentStatusText(st, { teacherLabel: teacherLabel });
+  return appointmentStatusText(st, { teacherLabel: t('teacher', '教师') });
+}
+
+// 预约(booking)状态 → 色调：绿=已确认 / 黄=已完成 / 橙=待处理(待确认·候补·取消待确认) / 红=已取消·被拒
+// 语义与共享领域层 normalizeBookingStatus 对齐（与学生预约页同一套口径）
+function toneOfBooking(status) {
+  const s = normalizeBookingStatus(status);
+  if (s === 'booked') return 'ok';
+  if (s === 'completed') return 'done';
+  if (s === 'booking' || s === 'waiting' || s === 'canceling') return 'warn';
+  return 'bad';
 }
 
 // 状态筛选：文案统一取共享领域层（单一权威源），避免小程序再写一套 switch
@@ -57,7 +77,7 @@ function memo(map, key, loader) {
   return map[key];
 }
 
-Page({
+Page(withTerms({
   data: {
     list: [],
     loading: false,
@@ -72,7 +92,16 @@ Page({
     const u = requireAuth();
     if (!u) return;
     this.user = u;
+    this.applyTitle();
     this.load();
+  },
+  // 导航栏标题也接行业词（今日课程 / 今日咨询话题 / 今日咨询项目）。
+  // 注意与「预订管理」那类**固定**标题页面的区别：这里标题**需要**随行业变，
+  // 所以必须保留运行时 wx.setNavigationBarTitle；json 的 navigationBarTitleText 仅作首帧兜底。
+  // onShow 每次重设，兜住「行业切换后返回本页」的场景（json 不支持动态，只能运行时改）。
+  onShow() { this.applyTitle(); },
+  applyTitle() {
+    wx.setNavigationBarTitle({ title: '今日' + t('course', '课程') });
   },
 
   /* ---------------- 取数：分页循环取全量（前端 teacher 分支同款） ---------------- */
@@ -152,21 +181,26 @@ Page({
           }))
         : null;
 
-      const t = fmtTime(a.appointmentDatetime);
+      const tm = fmtTime(a.appointmentDatetime);
       return {
         appointmentId: a.id,
         bookingId: a.bookingId,
         scheduleId: (schedule && schedule.scheduleId) || (booking && booking.scheduleId) || '',
         courseId: (schedule && schedule.courseId) || (course && course.courseId) || '',
-        className: (course && (course.courseName || course.title)) || '课程',
+        className: (course && (course.courseName || course.title)) || t('course', '课程'),
         classIndex: a.classIndex,
         studentName: (typeof studentName === 'string' && studentName) ? studentName : '—',
         teacherName: (typeof teacherName === 'string' && teacherName) ? teacherName : '',
-        time: t,
-        date: datePart(t),
+        time: tm,
+        date: datePart(tm),
         tz: (schedule && schedule.timeZone) || '',
+        // 课次状态（聚合后展示在卡头）
         status: a.status,
-        statusText: statusLabel(a.status)
+        statusText: statusLabel(a.status),
+        // 该学生「预约(booking)」状态 —— 逐人展示，故取 booking.status；appointment.status 是课次状态
+        bkStatus: booking ? booking.status : '',
+        bkStatusText: booking ? bookingStatusText(booking.status) : '',
+        bkTone: toneOfBooking(booking && booking.status)
       };
     });
     return Promise.all(tasks);
@@ -184,16 +218,34 @@ Page({
 
     const groups = order.map(function (k) {
       const arr = buckets[k];
-      const names = [];
       const stSet = [];
       const stList = [];
+      const stuSeen = {};
+      const students = [];
       let minTime = '';
       arr.forEach(function (it) {
-        if (it.studentName && names.indexOf(it.studentName) < 0) names.push(it.studentName);
+        // 逐学生一行：姓名 + 各自的「预约」状态。
+        // 同一学生在该 排期+日期 下若有多条课次，状态并列展示而不重复成行。
+        const name = it.studentName || '—';
+        let row = stuSeen[name];
+        if (!row) {
+          row = { name: name, statusTexts: [], tone: it.bkTone || 'bad' };
+          stuSeen[name] = row;
+          students.push(row);
+        }
+        if (it.bkStatusText && row.statusTexts.indexOf(it.bkStatusText) < 0) {
+          row.statusTexts.push(it.bkStatusText);
+        }
         if (stSet.indexOf(it.statusText) < 0) stSet.push(it.statusText);
         stList.push(it.status);
         if (it.time && (!minTime || it.time < minTime)) minTime = it.time;
       });
+      // 收尾：把累积的状态文案拼成展示串
+      students.forEach(function (s) {
+        s.statusText = s.statusTexts.join('、') || '—';
+        delete s.statusTexts;
+      });
+
       const first = arr[0] || {};
       // 组内任一课次处于「取消中」→ 按钮变为「取消改期」（回退为 active）
       const pending = stList.some(function (s) {
@@ -207,10 +259,11 @@ Page({
 
       return {
         key: k,
-        className: first.className || '课程',
+        className: first.className || t('course', '课程'),
         classIndex: first.classIndex,
         count: arr.length,
-        students: names.join('、') + '（共 ' + arr.length + ' 人）',
+        students: students,
+        studentCount: students.length,
         teacherName: first.teacherName || '',
         time: minTime || first.time || '',
         tz: first.tz || '',
@@ -284,7 +337,10 @@ Page({
   // 点「查看排期」→ 下钻到该课程排期页（对齐前端「查看排期」）
   goSchedule(e) {
     const id = e.currentTarget.dataset.id;
-    if (!id) { wx.showToast({ title: '该课次未关联课程', icon: 'none' }); return; }
+    if (!id) {
+      wx.showToast({ title: '该' + t('lessonNumber', '课次') + '未关联' + t('course', '课程'), icon: 'none' });
+      return;
+    }
     wx.navigateTo({ url: '/package-teacher/schedule/schedule?courseId=' + id });
   },
 
@@ -299,8 +355,10 @@ Page({
       wx.showModal({
         title: apply ? '申请改期' : '取消改期',
         content: apply
-          ? '将把「' + g.className + '」本组 ' + g.count + ' 个课次标记为「' + statusLabel('t-cancelling') + '」，需管理员确认。'
-          : '将把「' + g.className + '」本组 ' + g.count + ' 个课次恢复为「' + statusLabel('active') + '」。',
+          ? '将把「' + g.className + '」本组 ' + g.count + ' 个' + t('lessonNumber', '课次')
+            + '标记为「' + statusLabel('t-cancelling') + '」，需管理员确认。'
+          : '将把「' + g.className + '」本组 ' + g.count + ' 个' + t('lessonNumber', '课次')
+            + '恢复为「' + statusLabel('active') + '」。',
         success: function (r) { resolve(!!r.confirm); },
         fail: function () { resolve(false); }
       });
@@ -330,4 +388,4 @@ Page({
     this.load().then(() => wx.stopPullDownRefresh()).catch(() => wx.stopPullDownRefresh());
   },
   onTabChange(e) { wx.redirectTo({ url: e.detail.page }); }
-});
+}));
