@@ -5,7 +5,9 @@
  *
  * 目的：证明 tools/check-endpoints-refs.mjs 的三项检查**真的会失败**。
  * 「守卫全绿」只有在守卫被证明会变红时才有意义；否则它可能只是恰好没扫到。
- * 本自测注入三类缺陷并断言守卫确实报错，最后还原。
+ * 本自测注入四类缺陷并断言守卫确实报错：
+ *   ①② 未定义端点引用 / 硬编码（.js）、③ BACKEND_PROBES 快照漂移、
+ *   ④ html 内联 <script> 硬编码（并验证 HTML 注释块内的示例**不会**被误报）。
  *
  * 实现说明：不能用 child_process 再起一个 node —— 从 node 里 spawn 托管版 node.exe
  * 会 EBUSY（沙箱/文件锁）。改为**同进程动态导入**守卫，临时接管 process.exit 取退出码，
@@ -15,7 +17,7 @@
  * 本脚本启动时会先清掉它（见 STALE_PROBE 处理）。
  *
  * 用法：node tests/check_endpoints_guard.js
- * 退出码：0=三项断言全部符合预期；1=有不符合项
+ * 退出码：0=全部断言符合预期；1=有不符合项
  */
 const fs = require('fs');
 const path = require('path');
@@ -24,12 +26,17 @@ const { pathToFileURL } = require('url');
 const ROOT = path.resolve(__dirname, '..');
 const GUARD = path.join(ROOT, 'tools', 'check-endpoints-refs.mjs');
 const PROBE = path.join(ROOT, 'frontend', 'js', '_tmp_guard_probe.js');
+// HTML 探针必须落在 frontend/ 根下（守卫只扫 frontend/*.html，不进 frontend/js/）
+const PROBE_HTML = path.join(ROOT, 'frontend', '_tmp_guard_probe.html');
 const SNAP = path.join(ROOT, 'frontend', 'js', 'platform-admin-backend-info.js');
 
+const STALE = [PROBE, PROBE_HTML];
 // 上次运行崩溃可能残留：残留会让基线用例直接失败，先把现场清干净再测。
-if (fs.existsSync(PROBE)) {
-  console.warn('⚠ 发现上次运行残留的探针文件，已清理：' + path.relative(ROOT, PROBE));
-  fs.unlinkSync(PROBE);
+for (const p of STALE) {
+  if (fs.existsSync(p)) {
+    console.warn('⚠ 发现上次运行残留的探针文件，已清理：' + path.relative(ROOT, p));
+    fs.unlinkSync(p);
+  }
 }
 
 async function runGuard() {
@@ -90,6 +97,50 @@ let snapBackup = null;
     }
     fs.unlinkSync(PROBE);
 
+    // ---- ④ *.html 已并入扫描范围：内联 <script> 里的硬编码必须被抓 ----
+    // 反向测试要点有二：
+    //   a) 内联 script 里的硬编码 → 必须 exit 1（证明范围真并入了，而非只改了 ROOTS 声明）
+    //   b) HTML 注释块里的硬编码 → 必须仍 exit 0（证明掩码有效，不把说明性示例当违规）
+    fs.writeFileSync(PROBE_HTML, [
+      '<!DOCTYPE html>',
+      '<html><head><meta charset="utf-8"></head><body>',
+      '<script>',
+      "  var u = '/api/v1/bogus/html-inline';",
+      '  var EP = (window.ApiPaths && window.ApiPaths.ENDPOINTS) || {};',
+      '  var v = EP.NOT_DEFINED_HTML_XYZ;',
+      '</script>',
+      '<!--',
+      "  说明性示例（不是可执行代码，守卫不该报）：fetch('/api/v1/bogus/in/comment')",
+      '-->',
+      '</body></html>',
+      ''
+    ].join('\n'), 'utf8');
+    {
+      const r = await runGuard();
+      expect('html 内联 script 硬编码 → exit 1', r.code === 1, `exit=${r.code}\n${r.out}`);
+      expect('② 报出 html 内联 script 的硬编码', r.out.includes('bogus/html-inline'), r.out);
+      expect('① 报出 html 内联 script 的未定义常量', r.out.includes('NOT_DEFINED_HTML_XYZ'), r.out);
+      expect('html 命中定位到探针 html', r.out.includes('_tmp_guard_probe.html'), r.out);
+      // 注释块里那一行**不得**出现 —— 出现即说明掩码没生效（index.html 尾部正靠它免报）
+      expect('HTML 注释块内的示例未被误报', !r.out.includes('bogus/in/comment'), r.out);
+      expect('报告说明 html 覆盖数量', /html 覆盖：\d+ 个文件 \/ \d+ 段内联/.test(r.out), r.out);
+    }
+    {
+      // b) 只有注释含硬编码时必须仍然通过 —— 纯注释不产生任何违规
+      fs.writeFileSync(PROBE_HTML, [
+        '<!DOCTYPE html>',
+        '<html><body>',
+        '<!--',
+        "  文档示例：'/api/v1/only/in/comment'",
+        '-->',
+        '</body></html>',
+        ''
+      ].join('\n'), 'utf8');
+      const r = await runGuard();
+      expect('仅注释含硬编码 → 仍 exit 0（掩码有效）', r.code === 0, `exit=${r.code}\n${r.out}`);
+    }
+    fs.unlinkSync(PROBE_HTML);
+
     // ---- ③ 快照漂移 ----
     snapBackup = fs.readFileSync(SNAP, 'utf8');
     const drift = snapBackup.replace("prefix: '/api/v1/message'", "prefix: '/api/v9/message'");
@@ -110,7 +161,7 @@ let snapBackup = null;
     }
   } finally {
     if (snapBackup !== null) fs.writeFileSync(SNAP, snapBackup, 'utf8');
-    if (fs.existsSync(PROBE)) fs.unlinkSync(PROBE);
+    for (const p of STALE) if (fs.existsSync(p)) fs.unlinkSync(p);
     console.log('\n（探针文件已删除，快照已还原）');
   }
 

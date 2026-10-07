@@ -44,7 +44,8 @@
 
 ## 跨端冗余收敛（2026-10-07 完成）
 - **端点常量唯一权威源 = `shared/apiPaths.js`（87 个）**。Web 各文件顶部 `const EP = (window.ApiPaths && window.ApiPaths.ENDPOINTS) || {};`（桥接挂 `window.ApiPaths`）；小程序端 ESM 直 `import`。代码层 `/api/v1/...` 字面量已清零（仅注释保留说明）。
-- **守卫**：`node tools/check-endpoints-refs.mjs` —— ①引用完整性(两端 `ENDPOINTS.X`/别名 `EP.X`) ②硬编码防回归 ③`BACKEND_PROBES` 降级快照一致性。自测 `node tests/check_endpoints_guard.js`(证明守卫真会红)。npm: `check:endpoints` / `test:endpoints-guard`。**改 shared/apiPaths.js 后必重跑** `frontend/tools/gen-shared-bridge.js` + `tools/sync-miniprogram-shared.js` + `check-miniprogram-shared-sync.js` + `node frontend/build.js`。
+- **守卫**：`node tools/check-endpoints-refs.mjs` —— ①引用完整性(两端 `ENDPOINTS.X`/别名 `EP.X`) ②硬编码防回归(**含 `frontend/*.html` 的内联 `<script>`**) ③`BACKEND_PROBES` 降级快照一致性。自测 `node tests/check_endpoints_guard.js`（15 项反向测试，证明守卫真会红）。npm: `check:endpoints` / `test:endpoints-guard`。**改 shared/apiPaths.js 后必重跑** `frontend/tools/gen-shared-bridge.js` + `tools/sync-miniprogram-shared.js` + `check-miniprogram-shared-sync.js` + `node frontend/build.js`。
+- **扫 html 必须先掩码**：`maskHtmlForScan()` 把 `<!-- -->` 与 `<script>` 标签及外围内容替换成**等长空格**（`s.replace(/[^\n]/g,' ')`）——去掉换行会毁掉行号/偏移、报告指错位置。现状 12 个 html / 19 段有效内联 script，零硬编码。**index.html 原 5 处 `/api/v1/` 全在注释内无需收敛**；另 `index.html:306-321` 的 `showApiError` script 整块位于 275-331 注释区间，是从未执行的历史遗留。
 - **`BACKEND_PROBES`**：后端探测目标(key/label/url/prefix)权威源在 shared/apiPaths.js；`admin-dataMaintainPage.js` / `platform-admin-backend-info.js` 各留一份**降级快照**（守卫逐字段校验，防退化成"第二份会漂移的真相"）。**`prefix` 是载荷字段**（决定 Nginx/dev 代理分流到 8081 还是 8090），不是展示字段。desc/icon 属界面文案，各页自持。
 - **文案"重复"要参数化，不要统一**：`bookingStatusText(status, {profile:'web'|'default'})` + `STATUS_TEXT_PROFILES`。Web=「预定待确认/预定已确认」，小程序=「待确认/已确认」——合成一套＝把已拍板的差异单方面回退（用户可见）。
 - `frontend/index.html` 内联脚本仍 5 处 `/api/v1/...` 未收敛：该文件含需单独审批内容，**未读未改**；收敛后把 `*.html` 并入守卫 ROOTS。
