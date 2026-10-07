@@ -554,7 +554,11 @@ return [];
   * 典型是预订管理页的「查询递补」入口——不占席位才需要去排期页看候补队列。
   */
 // 委托到共享领域层 window.BookingStateDomain.bookingOccupiesSeat（P0-Web 桥接，单一权威源）。
-// 相比本地旧名单，共享域额外把 'deleted' 也归为非占位态（与后端 BookingStatus.NON_OCCUPYING 对齐）。
+// 相比下方降级快照，共享域额外把 'deleted' 也归为非占位态。注意这**不是**「与后端完全对齐」：
+// 后端 BookingStatus.NON_OCCUPYING = [waiting, cancelled, canceled, rej-booking, frozen] **不含** deleted，
+// （后端 BookingStatus.DELETE='delete' 是 updateStatus 的动作值、走 deleteById 不落库；落库的删除态由 frozen 承载）。
+// 共享域把 deleted 一并列为非占位是**防御性**选择：万一将来真有 'deleted' 落库，判成占位会让席位被永久吃掉。
+// 权威说明见 shared/domain/bookingState.js 的 NON_OCCUPYING_STATUSES 注释。
 // 无桥接环境（如纯单测沙箱未加载 shared-domain-bridge.js）保留原实现兜底，保证零回归。
 function bookingOccupiesSeat(status) {
   if (typeof window !== 'undefined' && window.BookingStateDomain
@@ -570,6 +574,17 @@ function bookingOccupiesSeat(status) {
 
  //检查status，只有待确认的booking、cancelling才显示待确认，并显示相应的按钮
  function checkStatus_booking(status) {
+  // 委托到共享领域层 window.BookingStateDomain.bookingStatusText（单一权威源）。
+  // profile:'web' 用于保留 Web 口径的「预定」用字（2026-10-06 拍板：Web/API 维持「预定」不动）；
+  // 小程序侧不传 profile 走 default 档案——两端共用同一份状态语义，各自渲染各自文案。
+  // 顺带修一处既有缺陷：本函数原先没有 completed 分支，「已完成」会被原样输出成英文 'completed'。
+  // 下方 if 链是**降级快照**（不是第二权威源）：仅供未加载 shared-domain-bridge.js 的纯 Node vm
+  // 单测沙箱使用（见 tests/check_remaining_sites_display.js 的加载方式）。
+  // 状态语义有变更时请改 shared/domain/bookingState.js，不要在这里加分支。
+  if (typeof window !== 'undefined' && window.BookingStateDomain
+      && typeof window.BookingStateDomain.bookingStatusText === 'function') {
+    return window.BookingStateDomain.bookingStatusText(status, { profile: 'web' });
+  }
   if (status === 'booking' ) {
     return '预定待确认';
   } else if (status === 'waiting' ) {

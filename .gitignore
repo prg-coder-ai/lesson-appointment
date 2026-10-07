@@ -87,4 +87,6 @@ api/message-service/logs/
 doc-develop/logs/
 hs_err_pid*.log
 replay_pid*.log
-tests/miniprogram-itest/_sut
+# miniprogram-itest 的「被测系统」暂存目录：由 logic.mjs / login-flow.mjs 每次运行 cpSync 生成，
+# 不得入库（曾因 _sut_login 漏配而把 26 个生成文件提交进去，导致每次跑测试都产生 diff 噪声）。
+tests/miniprogram-itest/_sut*

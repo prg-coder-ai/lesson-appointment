@@ -4,7 +4,7 @@
 // 差异：浏览器用 axios + location 跳转；小程序用 wx.request，登录失效经 globalData.onAuthFail 回调。
 // 底层传输统一委托 shared/adapters/net.js 的 transport（小程序端内部即 wx.request，返回 {statusCode,data,header}）。
 
-import { normalizeUrl, unwrapResult } from '../shared/apiPaths.js';
+import { normalizeUrl, unwrapResult, ENDPOINTS } from '../shared/apiPaths.js';
 import { errorMessage } from '../shared/domain/errorCode.js';
 import { storage, getToken, clearSession, getSession } from './storage.js';
 import { transport } from '../shared/adapters/net.js';
@@ -48,7 +48,10 @@ async function doRefresh() {
   const refreshToken = storage.get('refreshToken');
   const cuser = getSession();
   const res = await wxRequest({
-    url: apiBase() + '/api/v1/auth/refreshToken',
+    // doRefresh 绕过 request() 直接走 wxRequest，不经过 normalizeUrl；
+    // 而 ENDPOINTS.AUTH_REFRESH 是**裸路径**（/auth/refreshToken），故必须显式 normalizeUrl
+    // 才能带上 /api/v1 前缀，否则请求落到 SPA/404 兜底、刷新恒失败。
+    url: apiBase() + normalizeUrl(ENDPOINTS.AUTH_REFRESH),
     method: 'POST',
     data: { refreshToken: refreshToken, account: cuser && cuser.account, role: cuser && cuser.role },
     _noAuth: true

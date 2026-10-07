@@ -5,6 +5,8 @@
  *
  * 输入：shared/domain/{term,refundRule,bookingState,appointmentState,mask,datetime,errorCode}.js
  *       + shared/constants.js（bookingState 依赖其中的 BOOKING_STATUS，须一并内联）
+ *       + shared/apiPaths.js（端点常量 normalizeUrl/unwrapResult + ENDPOINTS + BACKEND_PROBES，
+ *         Web 端硬编码路径/探测目标收敛用）
  *       + shared/adapters/{net,storage,ui,router}.js（平台适配层，运行时自动探测 wx/Web）
  *       （均为 ESM、零 DOM、零运行时 API 依赖）
  * 产出：frontend/js/shared-domain-bridge.js（经典脚本，非模块）
@@ -65,6 +67,8 @@ function readStripped(relPath) {
 
 function generateSharedBridge() {
   const constSrc = readStripped('constants.js');
+  // apiPaths.js（shared 根目录）：让 Web 端也能取用同一份端点常量，收敛散落的硬编码路径。
+  const apiPathsSrc = readStripped('apiPaths.js');
   let domainSrc = '';
   for (const f of DOMAIN_FILES) {
     domainSrc += readStripped(path.join('domain', f));
@@ -83,6 +87,13 @@ function generateSharedBridge() {
 `;
 
   const body = `
+window.ApiPaths = {
+  API_V1: API_V1,
+  ENDPOINTS: ENDPOINTS,
+  BACKEND_PROBES: BACKEND_PROBES,
+  normalizeUrl: normalizeUrl,
+  unwrapResult: unwrapResult
+};
 window.TermDomain = {
   TERM_DICT: TERM_DICT,
   TERM_KEYS: TERM_KEYS,
@@ -176,7 +187,7 @@ window.RouterAdapter = {
   // 整段用 IIFE 包裹：constants/domain/adapters 的顶层声明留在作用域内，不污染页面全局词法环境，
   // 避免与页面内联同名 const 冲突（如 login.html 的 PLATFORM_TENANT_CODE）。
   // 领域层/适配层仅通过 window.*Domain / window.*Adapter 暴露，IIFE 内 window 赋值仍为全局。
-  const scoped = '(function(){\n' + constSrc + domainSrc + adapterSrc + body + '\n})();\n';
+  const scoped = '(function(){\n' + constSrc + apiPathsSrc + domainSrc + adapterSrc + body + '\n})();\n';
   fs.writeFileSync(OUT, header + scoped, 'utf8');
   console.log('  shared-domain-bridge.js generated ->', OUT);
 }

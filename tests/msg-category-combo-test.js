@@ -103,7 +103,18 @@ const startMark = '  // 拉取消息分类预设';
 const endMark = '  async function doSend(root)';
 const s = src.indexOf(startMark), e = src.indexOf(endMark);
 if (s < 0 || e < 0 || e <= s) { console.error('切片失败：标记未找到'); process.exit(2); }
-const slice = src.slice(s, e);
+
+// 切片自 IIFE 体内截取，**不含文件顶部的端点别名声明**（在文件第 ~30 行）。
+// messages-inbox.js 已把写死的 /api/v1/... 换成共享端点常量（唯一权威源 shared/apiPaths.js，
+// 经桥接挂到 window.ApiPaths），切片里的调用点因此依赖 EP 绑定。
+// 处理：把源码里那一行**原样**取出来补在切片前 —— 不是另写一份，形状变了就直接报错退出，
+// 不会静默降级成"请求发到 undefined URL"。
+const EP_DECL = '  const EP = (window.ApiPaths && window.ApiPaths.ENDPOINTS) || {};';
+if (src.indexOf(EP_DECL) < 0) {
+    console.error('切片失败：messages-inbox.js 的 EP 别名声明形状已变（期望原样出现：' + EP_DECL.trim() + '）');
+    process.exit(2);
+}
+const slice = EP_DECL + '\n' + src.slice(s, e);
 
 const ITEMS = [
     { categoryCode: 'SENDER_TEACHER_ADMIN', categoryName: '教师/管理员消息' },
@@ -113,11 +124,19 @@ const ITEMS = [
     { categoryCode: 'LEAVE_NOTICE', categoryName: '请假审批通知' }
 ];
 
+// 端点常量的**字面量期望值**：messages-inbox.js 已把写死的 '/api/v1/message-categories/tree'
+// 换成共享端点常量 EP.MSG_CATEGORIES（唯一权威源 shared/apiPaths.js，经桥接挂到 window.ApiPaths）。
+// 本测试按生产形态注入同一份契约，并把路径钉成字面量——若权威源里这条路径被改动，
+// 本测试会失败，这正是要的护栏（原来 mreq.get 直接忽略 url，等于零护栏）。
+const CATEGORY_TREE_URL = '/api/v1/message-categories/tree';
+
 let mreqReply = ITEMS;      // 可切换成 [] / 抛错
 let mreqCalls = 0;
+const mreqUrls = [];        // 记录每次请求命中的 URL，供护栏断言
 const mreq = {
     get(url) {
         mreqCalls++;
+        mreqUrls.push(url);
         if (mreqReply === 'THROW') return Promise.reject(new Error('network'));
         return Promise.resolve(mreqReply);
     }
@@ -147,6 +166,10 @@ function buildCtx() {
         window: win, document: doc, console, Promise, Array
     };
     ctx.window.escapeHtml = ctx.esc;
+    // 生产形态：所有加载 messages-inbox.js 的页面（admin/platform_admin/student/teacher）
+    // 都先在 <head> 引入 shared-domain-bridge.js，故切片运行时 window.ApiPaths 必然存在。
+    // vm 里没有真桥接，这里显式注入同一份端点契约。
+    win.ApiPaths = { ENDPOINTS: { MSG_CATEGORIES: CATEGORY_TREE_URL } };
     vm.createContext(ctx);
     vm.runInContext(slice, ctx);
     return { ctx, root, combo, input, ul, arrow, win };
@@ -269,6 +292,9 @@ function isOpen(env) { return env.ul.style.display !== 'none'; }
     env.ctx.setupCategoryCombo(env.root);
     await env.ctx.loadCategoryOptions(env.root);
     ck('G9 拉取成功 → 缓存进 ul._items', Array.isArray(env.ul._items) && env.ul._items.length === ITEMS.length);
+    ck('G9a 请求命中的是共享端点常量给出的路径（字面量护栏）',
+        mreqUrls[mreqUrls.length - 1] === CATEGORY_TREE_URL,
+        '实际=' + String(mreqUrls[mreqUrls.length - 1]) + ' 期望=' + CATEGORY_TREE_URL);
     mreqReply = [];
     env = buildCtx();
     env.ctx.setupCategoryCombo(env.root);

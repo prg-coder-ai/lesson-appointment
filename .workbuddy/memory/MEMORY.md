@@ -42,6 +42,13 @@
 - shared/(ESM零DOM)单一权威源：P0桥接window.*Domain/*Adapter；P1 domain已7模块；P2适配器net/storage/ui/router已接线。
 - 关键坑：①桥接须IIFE包裹(否则const冲突→整段内联崩溃) ②STORE垫片归一getItem/setItem/removeItem。
 
+## 跨端冗余收敛（2026-10-07 完成）
+- **端点常量唯一权威源 = `shared/apiPaths.js`（87 个）**。Web 各文件顶部 `const EP = (window.ApiPaths && window.ApiPaths.ENDPOINTS) || {};`（桥接挂 `window.ApiPaths`）；小程序端 ESM 直 `import`。代码层 `/api/v1/...` 字面量已清零（仅注释保留说明）。
+- **守卫**：`node tools/check-endpoints-refs.mjs` —— ①引用完整性(两端 `ENDPOINTS.X`/别名 `EP.X`) ②硬编码防回归 ③`BACKEND_PROBES` 降级快照一致性。自测 `node tests/check_endpoints_guard.js`(证明守卫真会红)。npm: `check:endpoints` / `test:endpoints-guard`。**改 shared/apiPaths.js 后必重跑** `frontend/tools/gen-shared-bridge.js` + `tools/sync-miniprogram-shared.js` + `check-miniprogram-shared-sync.js` + `node frontend/build.js`。
+- **`BACKEND_PROBES`**：后端探测目标(key/label/url/prefix)权威源在 shared/apiPaths.js；`admin-dataMaintainPage.js` / `platform-admin-backend-info.js` 各留一份**降级快照**（守卫逐字段校验，防退化成"第二份会漂移的真相"）。**`prefix` 是载荷字段**（决定 Nginx/dev 代理分流到 8081 还是 8090），不是展示字段。desc/icon 属界面文案，各页自持。
+- **文案"重复"要参数化，不要统一**：`bookingStatusText(status, {profile:'web'|'default'})` + `STATUS_TEXT_PROFILES`。Web=「预定待确认/预定已确认」，小程序=「待确认/已确认」——合成一套＝把已拍板的差异单方面回退（用户可见）。
+- `frontend/index.html` 内联脚本仍 5 处 `/api/v1/...` 未收敛：该文件含需单独审批内容，**未读未改**；收敛后把 `*.html` 并入守卫 ROOTS。
+
 ## 前端铁律(补充)
 1. 顶部刷新=refreshRightPage()+registerPageRefresh(menuKey,fn)；标题≠菜单key。
 2. 异步必await；切换刷新带序号丢弃过期响应。
@@ -66,6 +73,10 @@
 ## 文档/技能/工具
 - 技能：saas-api-build-smoke/shared-domain-sink/shared-adapter-wire/seat-oversell-concurrency-audit/public-endpoint-tenant-bypass/browserless-frontend-itest/server-side-term-template/source-encoding-repair/miniprogram-page-registry-audit/paged-response-field-contract-audit/miniprogram-grouped-enrich-list/miniprogram-term-localization/**miniprogram-form-schema-align**(表单页↔表结构对齐)/**student-booking-flow-align**(学生端约课链路:课程→排期→预订/候补→我的预约→课次请假→浏览教师,含 6 坑)。
 - 工具踩坑：并行同文件多Edit只最后生效→串行+grep核验；替换前探测行尾(CRLF/LF)；Maven GBK输出先iconv。
+- **Windows `path.join` 陷阱**（2026-10-07 实证）：`path.join` 在 Windows 产**反斜杠**，与 `path.relative().split(path.sep).join('/')` 产出的正斜杠比对恒 false → Set.includes 静默失效（生成产物没被跳过、子检查空跑**假通过**）。脚本内相对路径清单一律写 **POSIX 正斜杠**，另加"必须真校验过 N 份"的断言。
+- **node 内 `spawnSync(process.execPath)` → EBUSY**（托管 node.exe 占用/沙箱）：需在脚本里跑另一个 node 脚本时，改用**同进程动态导入 + 临时接管 `process.exit`** 取退出码。`tests/miniprogram-itest/static.mjs` 的 63 FAIL 也是它自己 `spawnSync cmd.exe EBUSY`，非代码问题。
+- 缺 `jsdom` 的用例：`export NODE_PATH=C:/Users/Administrator/.workbuddy/binaries/node/workspace/node_modules`（该工作区已装 jsdom）。
+- **vm 源码切片测试易被"外层新增声明"打断**：改被切片文件顶部后，切片内引用的绑定可能不在切片里 → ReferenceError。修法＝把源码那**一行原样**补在切片前 + 断言该行仍存在（形状变了 exit 2，不静默降级）。
 
 ## 薄弱环节审计结论（2026-10-07，报告=预约系统薄弱环节分析报告-20261007.md）
 - **五根因**（比缺陷清单更重要）：A 授权模型缺失(全仓0处hasRole/@PreAuthorize，只认证不授权，靠手写PermissionCheck→抽样命中) B 业务正确性外包前端(课次生成/级联取消/状态机合法性都在浏览器) C DB定义无单一事实源(完整DDL被.gitignore排除) D 密钥明文入库(jwt/aes/hmac/DB密码，**AES泄露不可靠轮换补救，须+历史数据重加密**) E 可观测性与后端测试真空。

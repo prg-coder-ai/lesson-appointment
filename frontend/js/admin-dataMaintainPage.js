@@ -359,15 +359,27 @@ setTimeout(function(){
 /* ==================== 后台信息 Tab（名称 / 版本 / 构建时间） ==================== */
 
 /**
- * 两个后端程序的 getApiInfo 数据源。
- * 说明：message-service 走 /message/system/info（带 /api/v1/message 前缀），
- * 才能被前端站点（Nginx / 本地开发代理）的分流规则转发到 8090；
- * 若直接用 /api/v1/system/info，会被当成 booking 的接口转发走。
+ * 两个后端程序的 getApiInfo 探测目标。
+ *
+ * url/prefix 是**契约数据**（prefix 决定前端站点分流：message-service 必须带 /message 前缀
+ * 才会被转发到 8090；写成 /api/v1/system/info 会被当成 booking 接口转发走）。
+ * 权威源：shared/apiPaths.js 的 BACKEND_PROBES，经桥接挂到 window.ApiPaths。
+ *
+ * 下方数组是**降级快照**（桥接未加载时兜底），不是第二权威源——
+ * tools/check-endpoints-refs.mjs 会逐字校验它与权威源一致，防止再次漂移。
+ * desc 属界面文案，口径与平台端不同，故意各自自持。
  */
-var BACKEND_BRIEF_SOURCES = [
-  { label: 'booking_api',     desc: '业务后台（:8081）',     url: '/system/info',          prefix: '/api/v1' },
-  { label: 'message-service', desc: '消息中心（:8090）',     url: '/message/system/info',  prefix: '/api/v1/message' }
-];
+var BACKEND_BRIEF_SOURCES = ((window.ApiPaths && window.ApiPaths.BACKEND_PROBES) || [
+  { key: 'booking', label: 'booking_api',     url: '/system/info',         prefix: '/api/v1' },
+  { key: 'message', label: 'message-service', url: '/message/system/info', prefix: '/api/v1/message' }
+]).map(function (p) {
+  return {
+    label: p.label,
+    url: p.url,
+    prefix: p.prefix,
+    desc: (p.key === 'message') ? '消息中心（:8090）' : '业务后台（:8081）'
+  };
+});
 
 /** 当前前端所在站点地址（origin），如 http://152.136.254.127 或 http://localhost:8080 */
 function backendSiteOrigin() {

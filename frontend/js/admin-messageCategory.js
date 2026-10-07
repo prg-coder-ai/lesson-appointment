@@ -16,6 +16,9 @@
 /* 菜单 key，必须与 admin.html / platform_admin.html 中 menu-item 的 key 一致 */
 var MSG_CAT_MENU_KEY = 'msg_category';
 
+/* 端点常量：统一取共享事实源 shared/apiPaths.js（经桥接挂到 window.ApiPaths） */
+var EP = (window.ApiPaths && window.ApiPaths.ENDPOINTS) || {};
+
 /* tree 返回的扁平分类列表（缓存，供弹窗构造父级下拉复用） */
 var msgCatList = [];
 
@@ -58,7 +61,7 @@ function msgCatHasChild(id) {
 async function loadMsgCategories() {
     try {
         // tree 返回扁平列表；路由经 dev 代理 /api/v1/message* → 8090(message-service)
-        var list = await request({ url: '/api/v1/message-categories/tree', method: 'get' });
+        var list = await request({ url: EP.MSG_CATEGORIES, method: 'get' });
         msgCatList = Array.isArray(list) ? list : [];
     } catch (e) {
         msgCatList = [];
@@ -246,9 +249,9 @@ async function saveMsgCat() {
     try {
         if (id) {
             body.categoryId = Number(id);
-            await request({ url: '/api/v1/message-categories/' + id, method: 'put', data: body });
+            await request({ url: EP.MSG_CATEGORY_BY_ID(id), method: 'put', data: body });
         } else {
-            await request({ url: '/api/v1/message-categories', method: 'post', data: body });
+            await request({ url: EP.MSG_CATEGORY_CREATE, method: 'post', data: body });
         }
         notifyMsgCat('保存成功');
         closeMsgCatEditor();
@@ -264,7 +267,7 @@ async function deleteMsgCat(id, name) {
         return;
     }
     try {
-        await request({ url: '/api/v1/message-categories/' + id, method: 'delete' });
+        await request({ url: EP.MSG_CATEGORY_BY_ID(id), method: 'delete' });
         notifyMsgCat('删除成功');
         await loadMsgCategories();
     } catch (e) {

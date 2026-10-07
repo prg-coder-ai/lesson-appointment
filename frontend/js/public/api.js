@@ -597,6 +597,18 @@ function escapeAttr(str) {
   return escapeHtml(str);
 }
 
+// 租户状态（sys_tenant.status）→ 文案。后端是**数字码**：1=正常 2=停用 3=退租。
+// 收敛说明：此前 platform-admin-tenant.js 与 admin-tenant-info.js 各写一份同名函数，
+// 且兜底语义已经漂移——前者 null→''，后者 null→'未知'。现统一到本处唯一实现。
+// 兜底取 '未知'：租户列表/详情里把 null 渲染成空白，会被误读成"数据缺失"。
+// 两个页面都在本文件之后加载（platform_admin.html / admin.html），故可直接取用。
+function tenantStatusText(s) {
+  if (s === 1) return '正常';
+  if (s === 2) return '停用';
+  if (s === 3) return '退租';
+  return s == null ? '未知' : '' + s;
+}
+
 // 数据脱敏（手机号/邮箱）：委托共享领域层（shared/domain/mask.js，经 P0 构建桥接挂到 window.MaskDomain），
 // Web 端不再保留本地副本，保持单一事实来源。算法以 shared 为权威，改算法只改那边。
 function maskPhone(phone) {

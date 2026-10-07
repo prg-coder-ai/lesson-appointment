@@ -115,6 +115,16 @@ export const ENDPOINTS = {
   MSG_UNSTAR: (uid, mid) => `/api/v1/users/${encodeURIComponent(uid)}/messages/${mid}/unstar`,
   MSG_DELETE: (uid, mid) => `/api/v1/users/${encodeURIComponent(uid)}/messages/${mid}`,
   MSG_CATEGORIES: '/api/v1/message-categories/tree',
+  // 分类 CRUD（message-service）：POST 新建 / PUT、DELETE 按 id。
+  // 注意 MSG_CATEGORIES 是 tree 视图，与这里的裸前缀不是同一路径，勿混用。
+  MSG_CATEGORY_CREATE: '/api/v1/message-categories',
+  MSG_CATEGORY_BY_ID: (id) => `/api/v1/message-categories/${encodeURIComponent(id)}`,
+  // 收件箱视图：星标列表 / 回收站列表（与 MSG_INBOX 同前缀，仅末段不同）
+  MSG_STARRED: (uid) => `/api/v1/users/${encodeURIComponent(uid)}/starred`,
+  MSG_DELETED_LIST: (uid) => `/api/v1/users/${encodeURIComponent(uid)}/deleted`,
+  // SSE 长连接：access_token 走 query（EventSource 无法自定义请求头），
+  // 注意该 token 会落到 Nginx access log，属于已知取舍（见薄弱环节报告的 P1-26）。
+  MSG_SSE_CONNECT: (token) => `/api/v1/sse/connect?access_token=${encodeURIComponent(token || '')}`,
   // —— 消息中心：已发 / 批量 / 回收站 / 撤回 / 接收人（message-service）——
   // 已发列表：GET /api/v1/messages/sent（发送者视角，含接收/已读统计与是否可收回）
   MSG_SENT: '/api/v1/messages/sent',
@@ -139,6 +149,10 @@ export const ENDPOINTS = {
   // 接收人 scope 解析：在 api 主模块（/api/v1/user/... 单数，不匹配 message-service 正则，走 apiBase 8081）
   MSG_RECIPIENTS: '/api/v1/user/message-recipients',
   SENSITIVE_TEST: '/api/v1/sensitive/test',
+  // 敏感词组/词的按 id 操作，以及手动刷新词库缓存（message-service）
+  SENSITIVE_GROUP_BY_ID: (id) => `/api/v1/sensitive/groups/${encodeURIComponent(id)}`,
+  SENSITIVE_WORD_BY_ID: (id) => `/api/v1/sensitive/words/${encodeURIComponent(id)}`,
+  SENSITIVE_REFRESH: '/api/v1/sensitive/refresh',
   SENSITIVE_GROUPS: '/api/v1/sensitive/groups',
   SENSITIVE_WORDS: '/api/v1/sensitive/words',
   // —— 排期（业务端，教师/管理员）——
@@ -170,5 +184,20 @@ export const ENDPOINTS = {
     `/api/v1/course/appointment/getByBookingId?bookingId=${encodeURIComponent(bookingId || '')}`,
   // —— 教师公开主页（业务端，免登录公开接口）——
   TEACHER_PUBLIC_LIST: (tc) => `/api/v1/teacher/published/public-list?tenantCode=${encodeURIComponent(tc || '')}`,
+  // 同上端点的**裸路径**（不带 query）：供 Web 端「用 axios params 传 tenantCode」的写法复用，
+  // 既保持"一个端点只有一份字符串"，又不改变该调用点的请求形态（query 由 axios 拼）。
+  TEACHER_PUBLIC_LIST_PATH: '/api/v1/teacher/published/public-list',
   TEACHER_PUBLIC_GET: (id) => `/api/v1/teacher/published/public-get?id=${encodeURIComponent(id || '')}`
 };
+
+// ── 后端程序探测目标（「数据维护 → 后台信息」Tab 与平台端「后端信息」页共用）──
+// 只放**契约数据**（key/label/url/prefix）；界面文案（desc/icon）由各页面自持——
+// 两个页面的中文描述与图标口径本就不同，按"视图层可不一致"约定不作统一。
+//
+// prefix 是**载荷字段**而非展示字段：前端站点（Nginx / dev 代理）按它分流到 8081 / 8090。
+// message-service 必须带 /message 前缀（→ /api/v1/message/system/info）才会被转到 8090；
+// 若写成 booking 用的 /api/v1/system/info，会被当成 booking 接口转发走（历史上正是此类漏配）。
+export const BACKEND_PROBES = [
+  { key: 'booking', label: 'booking_api',     url: '/system/info',         prefix: '/api/v1' },
+  { key: 'message', label: 'message-service', url: '/message/system/info', prefix: '/api/v1/message' }
+];

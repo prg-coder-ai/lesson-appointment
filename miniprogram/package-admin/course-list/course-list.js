@@ -6,7 +6,10 @@ import { request } from '../../core/request.js';
 import { ENDPOINTS } from '../../shared/apiPaths.js';
 import { withTerms } from '../../core/term.js';
 
-const STATUS_TEXT = { 1: '已发布', 0: '草稿', 2: '已下架' };
+// 课程状态 → 文案。后端 Course.status 是字符串枚举（active/pending/frozen/inactive）；
+// 此前用数字键 { 1:'已发布', 0:'草稿', 2:'已下架' } → STATUS_TEXT['active'] 恒 undefined
+// → 列表显示英文 "active"。文案口径与同 package 下 schedule/schedule.js 的 STATUS_TEXT 对齐。
+const STATUS_TEXT = { active: '已发布', pending: '待发布', frozen: '已冻结', inactive: '已下架' };
 
 Page(withTerms({
   data: { list: [], loading: true, total: 0 },

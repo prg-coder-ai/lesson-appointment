@@ -16,6 +16,9 @@
 /* 菜单 key，必须与 admin.html / platform_admin.html 中 menu-item 的 key 一致 */
 var MSG_MANAGE_MENU_KEY = 'msg_manage';
 
+/* 端点常量：统一取共享事实源 shared/apiPaths.js（经桥接挂到 window.ApiPaths） */
+var EP = (window.ApiPaths && window.ApiPaths.ENDPOINTS) || {};
+
 var STATUS_TEXT = {
     sent: '已发送',
     recalled: '已收回',
@@ -46,7 +49,7 @@ async function loadMsgManageRows(filters) {
     var qs = [];
     if (filters.status) qs.push('status=' + encodeURIComponent(filters.status));
     if (filters.senderType) qs.push('senderType=' + encodeURIComponent(filters.senderType));
-    var url = '/api/v1/messages' + (qs.length ? '?' + qs.join('&') : '');
+    var url = EP.MSG_LIST + (qs.length ? '?' + qs.join('&') : '');
     var page = await request({ url: url, method: 'get' });
     return (page && page.rows) ? page.rows : [];
 }
@@ -124,7 +127,7 @@ async function loadMsgManageTable() {
         var title = m.title || '(无标题)';
         var sender = (SENDER_TEXT[m.senderType] || m.senderType || '') +
             (m.senderId ? '（' + m.senderId + '）' : '');
-        var time = m.sendTime ? String(m.sendTime).replace('T', ' ').substring(0, 16) : '';
+        var time = m.sendTime ? (window.DatetimeDomain ? window.DatetimeDomain.formatDateTime(m.sendTime, false) : String(m.sendTime).replace('T', ' ').substring(0, 16)) : '';
         var statusTxt = STATUS_TEXT[m.status] || m.status || '';
         return '<tr>' +
             '<td>' + escMsgManage(title) + '</td>' +
@@ -151,7 +154,7 @@ async function loadMsgManageTable() {
                 !window.confirm('彻底删除该消息（ID ' + mid + '）？\n将永久删除主消息、所有收件人副本及投递记录，且无法恢复！')) {
                 return;
             }
-            request({ url: '/api/v1/messages/' + mid, method: 'delete' })
+            request({ url: EP.MSG_DELETE_GLOBAL(mid), method: 'delete' })
                 .then(function () { notifyMsgManage('已彻底删除'); loadMsgManageTable(); })
                 .catch(function () { /* 拦截器已提示 */ });
         });

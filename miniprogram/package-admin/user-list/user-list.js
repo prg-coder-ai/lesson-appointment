@@ -6,7 +6,11 @@ import { request } from '../../core/request.js';
 import { ENDPOINTS } from '../../shared/apiPaths.js';
 import { withTerms } from '../../core/term.js';
 
-const STATUS_TEXT = { 1: '正常', 0: '禁用', 2: '待审核' };
+// 用户状态 → 文案。后端 User.status 是**字符串枚举**（active/pending/frozen/inactive），
+// 不是数字码。此前写成 { 1:'正常', 0:'禁用', 2:'待审核' } 用数字键，
+// STATUS_TEXT['active'] 恒为 undefined → 落到下面的 String(r.status) 兜底 → 列表直接显示英文 "active"。
+// 文案口径与 Web 端 platform-admin-user.js 的 platformStatusText 对齐。
+const STATUS_TEXT = { active: '正常', pending: '待审核', frozen: '已冻结', inactive: '停用' };
 
 Page(withTerms({
   data: { role: 'teacher', roleText: '教师', list: [], loading: true, total: 0 },

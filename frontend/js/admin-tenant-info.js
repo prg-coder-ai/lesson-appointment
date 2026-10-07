@@ -6,9 +6,7 @@
  * 依赖：window.request（utility_request.js）、escapeHtml（api.js）、applyTerms（termsFunction.js）
  * ========================================================================== */
 
-function tenantStatusText(s) {
-  return s === 1 ? '正常' : s === 2 ? '停用' : s === 3 ? '退租' : (s == null ? '未知' : '' + s);
-}
+// tenantStatusText 已收敛到 js/public/api.js（本页与 platform-admin-tenant.js 原先各写一份同名实现）。
 function fmtDate(s) {
   if (!s) return '—';
   // 后端 LocalDateTime 序列化为 ISO 字符串，如 2026-10-05T00:00:00

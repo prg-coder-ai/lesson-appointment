@@ -17,7 +17,8 @@
 //
 // 消费方式：
 //   - 小程序端：import { bookingStatusText, bookingOccupiesSeat, formatRemainingSites } from '../../shared/domain/bookingState.js'
-//   - Web 端：经 P0 构建桥接挂到 window.BookingStateDomain（TODO，属 P0-Web 范围）
+//   - Web 端：经构建桥接挂到 window.BookingStateDomain（P0-Web 已闭环；改本文件后需重跑
+//     frontend/tools/gen-shared-bridge.js 才在浏览器生效，build.js 会自动调用）
 //   - Node 端：直接 import 做单测（本文件无任何 document/window/fetch 引用）
 
 import { BOOKING_STATUS } from '../constants.js';
@@ -36,8 +37,17 @@ export const BOOKING_STATUS_ALL = Object.freeze({
   DELETED: 'deleted'                  // 已删除
 });
 
-// 非占位态集合（单一事实来源，与后端 BookingStatus.NON_OCCUPYING 对齐）。
-// 候补(waiting) 不占席位；取消/拒/冻结 也不再占席位。
+// 非占位态集合（单一事实来源）。
+//
+// 与后端 BookingStatus.NON_OCCUPYING = [waiting, cancelled, canceled, rej-booking, frozen] 的关系：
+//   前五项严格对齐；'deleted' 是本层**额外的防御项**，后端并不存在这个落库值——
+//   后端 BookingStatus.DELETE = 'delete' 只是 updateStatus 的动作值（走 deleteById、不落库），
+//   而落库的「已删除」语义由 frozen 承载（见 BookingStatus.FROZEN 的注释）。
+//   保留它的理由：万一将来有写路径把 'deleted' 落库，判成「占位」会让席位被永久吃掉，
+//   排期一直显示满员、候补永远递补不进来——这正是后端 frozen 当初漏在 NON_OCCUPYING 里踩过的坑。
+//   宁可多判一个非占位，也不冒席位泄漏的风险。
+//
+// 因此这里**不是**与后端逐字相等，而是「后端子集 + deleted 防御项」。改名单时两边都要看。
 export const NON_OCCUPYING_STATUSES = Object.freeze([
   'waiting', 'cancelled', 'canceled', 'rej-booking', 'frozen', 'deleted'
 ]);
@@ -101,25 +111,79 @@ export function canReject(status) {
   return s === 'waiting' || s === 'booking' || s === 'canceling';
 }
 
-/* -------------------------------------------------- 状态 → 展示文案（单一来源） */
+/* -------------------------------------------------- 状态 → 展示文案（单一来源，支持两端用字档案） */
 
 /**
- * 状态 → 中文展示文案。两端统一语义：
- *   待确认 / 候补 / 取消待确认 / 已确认 / 已取消 / 已完成 / 已拒绝 / 已拒绝取消 / 已失效
- * 以 Web 端 checkStatus_booking 的语义为基准（最完整），覆盖 mp bkStatusText 全部分支。
+ * 文案档案：把「两端用字差异」显式建模成两个受支持的档案，而不是让各端各写一套 switch。
+ *
+ * 背景：Web 与小程序在这一处的文案**刻意不同**，且该差异已被接受（2026-10-06 拍板：
+ * 小程序统一用「预订」，Web/API 维持「预定」不动，含状态「预定待确认」）。
+ * 所以这里不是「谁没对齐谁」，而是两个并列的合法口径。
+ *
+ * 差异清单（web vs default）：
+ *   booking         预定待确认 | 待确认
+ *   booked          预定已确认 | 已确认
+ *   rej-booking     已拒绝预订 | 已拒绝     ← Web 侧原本就用「订」，两端各自沿用，不强行拉平
+ *   frozen/deleted  已删除     | 已失效
+ * 其余分支（waiting / canceling / cancelled / completed / rej-cancelling）两端完全一致。
+ *
+ * 为什么用「档案」而不是三个独立参数：这四处分歧不是三个正交维度，
+ * 而是「Web 说法」与「小程序说法」两套整体；档案能精确复刻两端现状，不引入猜测规则。
  */
-export function bookingStatusText(status) {
+const STATUS_TEXT_PROFILES = {
+  // 小程序口径（缺省）。同时是 Web 端 completed 分支缺失时的正确回落值。
+  default: {
+    booking: '待确认',
+    waiting: '候补',
+    canceling: '取消待确认',
+    booked: '已确认',
+    cancelled: '已取消',
+    completed: '已完成',
+    rejBooking: '已拒绝',
+    rejCanceling: '已拒绝取消',
+    ended: '已失效'
+  },
+  // Web 口径：保留「预定」用字（2026-10-06 拍板），ended 用「已删除」。
+  web: {
+    booking: '预定待确认',
+    waiting: '候补',
+    canceling: '取消待确认',
+    booked: '预定已确认',
+    cancelled: '已取消',
+    completed: '已完成',
+    rejBooking: '已拒绝预订',
+    rejCanceling: '已拒绝取消',
+    ended: '已删除'
+  }
+};
+
+/**
+ * 状态 → 中文展示文案。
+ *
+ * @param {string} status
+ * @param {Object} [opts] { profile?: 'default' | 'web' }
+ *        不传或传未知值一律按 'default'（小程序口径）——保持旧调用点行为不变。
+ * @returns {string} 未知状态透传原值；空值回落 '—'。
+ *
+ * 注：显式调用 web 档案还能顺带修掉 Web 端一个既有缺陷——
+ * courseAndBooking.js 的 checkStatus_booking() 没有 completed 分支，
+ * 导致「已完成」被原样输出成英文 'completed'；委托后回落 '已完成'。
+ */
+export function bookingStatusText(status, opts) {
+  const profile = (opts && opts.profile === 'web')
+    ? STATUS_TEXT_PROFILES.web
+    : STATUS_TEXT_PROFILES.default;
   switch (normalizeBookingStatus(status)) {
-    case 'booking': return '待确认';
-    case 'waiting': return '候补';
-    case 'canceling': return '取消待确认';
-    case 'booked': return '已确认';
-    case 'cancelled': return '已取消';
-    case 'completed': return '已完成';
-    case 'rej-booking': return '已拒绝';
-    case 'rej-cancelling': return '已拒绝取消';
+    case 'booking': return profile.booking;
+    case 'waiting': return profile.waiting;
+    case 'canceling': return profile.canceling;
+    case 'booked': return profile.booked;
+    case 'cancelled': return profile.cancelled;
+    case 'completed': return profile.completed;
+    case 'rej-booking': return profile.rejBooking;
+    case 'rej-cancelling': return profile.rejCanceling;
     case 'frozen':
-    case 'deleted': return '已失效';
+    case 'deleted': return profile.ended;
     default: return status || '—';
   }
 }

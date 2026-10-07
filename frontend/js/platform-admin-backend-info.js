@@ -52,24 +52,29 @@
   }
 
   /* ==================== 数据源定义 ==================== */
-  var BACKEND_SERVICES = [
-    {
-      key: 'booking',
-      label: 'booking_api',
-      desc: '预约系统业务后台（:8081）',
-      icon: 'fa-database',
-      url: '/system/info',
-      prefix: '/api/v1'            // 前端站点转发前缀：拼到站点 origin 后即前端实际请求地址
-    },
-    {
-      key: 'message',
-      label: 'message-service',
-      desc: '消息中心微服务（:8090）',
-      icon: 'fa-comments',
-      url: '/message/system/info',
-      prefix: '/api/v1/message'    // 带 /message 前缀才会被前端站点分流到 :8090
-    }
-  ];
+  // key/label/url/prefix 属**契约数据**，权威源：shared/apiPaths.js 的 BACKEND_PROBES
+  // （经桥接挂到 window.ApiPaths）。prefix 决定前端站点分流：message-service 必须带
+  // /message 前缀才会被转发到 8090。下方数组是**降级快照**（桥接未加载时兜底），
+  // 不是第二权威源——tools/check-endpoints-refs.mjs 会逐字校验其一致性。
+  // desc/icon 属界面文案与图标，口径与本页设计一致，故意自持。
+  var BACKEND_SERVICE_UI = {
+    booking: { desc: '预约系统业务后台（:8081）', icon: 'fa-database' },
+    message: { desc: '消息中心微服务（:8090）',   icon: 'fa-comments' }
+  };
+  var BACKEND_SERVICES = ((window.ApiPaths && window.ApiPaths.BACKEND_PROBES) || [
+    { key: 'booking', label: 'booking_api',     url: '/system/info',         prefix: '/api/v1' },
+    { key: 'message', label: 'message-service', url: '/message/system/info', prefix: '/api/v1/message' }
+  ]).map(function (p) {
+    var ui = BACKEND_SERVICE_UI[p.key] || { desc: '', icon: 'fa-server' };
+    return {
+      key: p.key,
+      label: p.label,
+      url: p.url,
+      prefix: p.prefix,
+      desc: ui.desc,
+      icon: ui.icon
+    };
+  });
 
   /** 当前前端所在站点地址（origin），如 http://152.136.254.127 或 http://localhost:8080 */
   function siteOrigin() {

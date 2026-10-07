@@ -15,6 +15,9 @@
 (function () {
   'use strict';
 
+  // 端点常量：统一取共享事实源 shared/apiPaths.js（经桥接挂到 window.ApiPaths）
+  var EP = (window.ApiPaths && window.ApiPaths.ENDPOINTS) || {};
+
   // ===== 原型 mock 数据（接真实接口后整体删除）=====
   // 当前业务聚焦律师咨询行业，示例用律师职业信息；其它行业由真实接口返回覆盖。
   var MOCK_TEACHERS = [
@@ -49,7 +52,7 @@
   async function fetchTeacherList(tc) {
     try {
       var list = await request({
-        url: '/api/v1/teacher/published/public-list',
+        url: EP.TEACHER_PUBLIC_LIST_PATH,
         method: 'GET',
         params: { tenantCode: tc },
         noAuthRedirect: true,

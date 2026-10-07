@@ -723,7 +723,7 @@ async function datamaintain_fetchAppointmenPage(query) {
             teacherName:   teacherName,
             studentId:     bookedObject.studentId,
             teacherId:     bookedObject.teacherId,
-            appointmentTime: appointment.appointmentDatetime ? appointment.appointmentDatetime.replace('T', ' ') : '',
+            appointmentTime: appointment.appointmentDatetime ? (window.DatetimeDomain ? window.DatetimeDomain.formatDateTime(appointment.appointmentDatetime) : String(appointment.appointmentDatetime).replace('T', ' ')) : '',
             status:        appointment.status
         };
     }
@@ -965,7 +965,7 @@ async function datamaintain_fetchAppointmenPage(query) {
             let time = "";
             if (item.appointmentDatetime) {
               // 兼容 'YYYY-MM-DD HH:mm' 或 'YYYY-MM-DDTHH:mm'
-              const dtString = item.appointmentDatetime.replace('T', ' ');
+              const dtString = window.DatetimeDomain ? window.DatetimeDomain.formatDateTime(item.appointmentDatetime) : String(item.appointmentDatetime).replace('T', ' ');
               const [d, t] = dtString.split(' ');
               date = d;
               time = t;

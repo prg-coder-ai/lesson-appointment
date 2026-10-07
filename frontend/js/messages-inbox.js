@@ -24,6 +24,10 @@
   // api 基址：同源 8081（默认相对路径）
   const API_BASE = window.API_BASE_URL || '';
   const OFFLINE_KEY = 'msg_offline_queue';
+  // 端点常量：统一取共享事实源 shared/apiPaths.js（经桥接挂到 window.ApiPaths）。
+  // 本文件只在页面环境运行（所有 HTML 均已加载 shared-domain-bridge.js）；
+  // 桥接缺失时降级为空对象，调用处会抛明确错误，而不是静默发到错误的服务端口。
+  const EP = (window.ApiPaths && window.ApiPaths.ENDPOINTS) || {};
 
   const esc = (typeof window.escapeHtml === 'function')
     ? window.escapeHtml
@@ -204,7 +208,7 @@
   async function refreshBadge() {
     const uid = state.userId || curUserId();
     if (!uid) return;
-    try { const n = await mreq.get('/api/v1/users/' + encodeURIComponent(uid) + '/inbox/unread-count'); setBadge(n); } catch (e) { /* 静默 */ }
+    try { const n = await mreq.get(EP.MSG_UNREAD(uid)); setBadge(n); } catch (e) { /* 静默 */ }
   }
   window.initMessageBadge = function () {
     state.userId = curUserId();
@@ -310,11 +314,11 @@
     let url; const params = { pageNum: state.pageNum, pageSize: state.pageSize };
     let renderRow;
     if (state.folder === 'sent') {
-      url = '/api/v1/messages/sent';
+      url = EP.MSG_SENT;
       renderRow = sentRowHtml;
-    } else if (state.folder === 'starred') { url = '/api/v1/users/' + encodeURIComponent(uid) + '/starred'; renderRow = rowHtml; }
-    else if (state.folder === 'trash') { url = '/api/v1/users/' + encodeURIComponent(uid) + '/deleted'; renderRow = rowHtml; }
-    else { url = '/api/v1/users/' + encodeURIComponent(uid) + '/inbox'; if (state.keyword) params.keyword = state.keyword; renderRow = rowHtml; }
+    } else if (state.folder === 'starred') { url = EP.MSG_STARRED(uid); renderRow = rowHtml; }
+    else if (state.folder === 'trash') { url = EP.MSG_DELETED_LIST(uid); renderRow = rowHtml; }
+    else { url = EP.MSG_INBOX(uid); if (state.keyword) params.keyword = state.keyword; renderRow = rowHtml; }
     let data;
     try { data = await mreq.get(url, { params: params }); }
     catch (e) { listEl.innerHTML = '<div class="msg-empty">加载失败，请稍后重试。</div>'; return; }
@@ -333,7 +337,7 @@
     const unread = !m.isRead;
     const starred = !!m.isStarred;
     const pri = m.priority || 'MEDIUM';
-    const time = m.sendTime ? String(m.sendTime).replace('T', ' ').substring(0, 16) : '';
+    const time = m.sendTime ? (window.DatetimeDomain ? window.DatetimeDomain.formatDateTime(m.sendTime, false) : String(m.sendTime).replace('T', ' ').substring(0, 16)) : '';
     const cat = m.categoryName ? esc(m.categoryName) : '';
     const sender = m.senderName ? esc(m.senderName) : '系统';
     const title = m.title ? esc(m.title) : '(无标题)';
@@ -367,7 +371,7 @@
   function sentRowHtml(m) {
     const mid = m.messageId;
     const pri = m.priority || 'MEDIUM';
-    const time = m.sendTime ? String(m.sendTime).replace('T', ' ').substring(0, 16) : '';
+    const time = m.sendTime ? (window.DatetimeDomain ? window.DatetimeDomain.formatDateTime(m.sendTime, false) : String(m.sendTime).replace('T', ' ').substring(0, 16)) : '';
     const cat = m.categoryCode ? esc(m.categoryCode) : '';
     const title = m.title ? esc(m.title) : '(无标题)';
     const rc = Number(m.recipientCount) || 0;
@@ -454,7 +458,7 @@
 
   async function openDetail(container, mid) {
     let d;
-    try { d = await mreq.get('/api/v1/users/' + encodeURIComponent(state.userId) + '/messages/' + mid); }
+    try { d = await mreq.get(EP.MSG_DETAIL(state.userId, mid)); }
     catch (e) {
       const root = container.querySelector('#msg-modal-root');
       const msg = (e && e.message) ? e.message : '无法加载消息详情';
@@ -493,7 +497,7 @@
 
   async function openSentDetail(container, mid) {
     let d;
-    try { d = await mreq.get('/api/v1/messages/' + mid + '/delivery-status'); }
+    try { d = await mreq.get(EP.MSG_DELIVERY(mid)); }
     catch (e) { d = null; }
     const root = container.querySelector('#msg-modal-root');
     const content = d && d.content ? esc(d.content) : '(无正文/无详情权限)';
@@ -517,7 +521,7 @@
   async function recallMessage(container, mid) {
     if (!confirm('确定收回该消息？仅对「接收方均未读」的消息可收回。')) return;
     try {
-      await mreq.post('/api/v1/messages/' + mid + '/withdraw');
+      await mreq.post(EP.MSG_WITHDRAW(mid));
       toast('已收回', true);
       loadMessages(container);
     } catch (e) { /* 拦截器已提示 */ }
@@ -527,15 +531,14 @@
   async function deleteSentGlobal(container, mid) {
     if (!confirm('彻底删除该消息？\n将永久删除主消息、所有收件人的收件箱副本及投递记录，且无法恢复！')) return;
     try {
-      await mreq.delete('/api/v1/messages/' + mid);
+      await mreq.delete(EP.MSG_DELETE_GLOBAL(mid));
       toast('已彻底删除', true);
       loadMessages(container);
     } catch (e) { /* 拦截器已提示 */ }
   }
 
   async function markRead(container, mid, read) {
-    const path = read ? '/read' : '/unread';
-    try { await mreq.post('/api/v1/users/' + encodeURIComponent(state.userId) + '/messages/' + mid + path); }
+    try { await mreq.post(read ? EP.MSG_READ(state.userId, mid) : EP.MSG_UNREAD_SET(state.userId, mid)); }
     catch (e) { toast('标记' + (read ? '已读' : '未读') + '失败：' + ((e && e.message) ? e.message : '请重试'), false); return Promise.reject(e); }
     if (read) bumpBadge(-1); else bumpBadge(1);
     loadMessages(container); refreshBadge();
@@ -545,30 +548,29 @@
   async function toggleStar(container, mid) {
     const item = container.querySelector('.msg-item[data-mid="' + mid + '"]');
     const starred = item && item.querySelector('.msg-star') && !item.querySelector('.msg-star').classList.contains('off');
-    const path = starred ? '/unstar' : '/star';
-    try { await mreq.post('/api/v1/users/' + encodeURIComponent(state.userId) + '/messages/' + mid + path); }
+    try { await mreq.post(starred ? EP.MSG_UNSTAR(state.userId, mid) : EP.MSG_STAR(state.userId, mid)); }
     catch (e) { return; }
     loadMessages(container);
   }
 
   async function removeMsg(container, mid) {
     if (!confirm('确定删除该消息？将移入回收站。')) return;
-    try { await mreq.delete('/api/v1/users/' + encodeURIComponent(state.userId) + '/messages/' + mid); }
+    try { await mreq.delete(EP.MSG_DELETE(state.userId, mid)); }
     catch (e) { return; }
     loadMessages(container); refreshBadge();
   }
 
   async function restoreMsg(container, mid) {
-    try { await mreq.post('/api/v1/users/' + encodeURIComponent(state.userId) + '/messages/' + mid + '/restore'); }
+    try { await mreq.post(EP.MSG_RESTORE(state.userId, mid)); }
     catch (e) { return; }
     loadMessages(container);
   }
 
   async function markAllRead(container) {
     try {
-      const ids = await mreq.get('/api/v1/users/' + encodeURIComponent(state.userId) + '/messages/ids', { params: { isDeleted: 0 } });
+      const ids = await mreq.get(EP.MSG_IDS(state.userId), { params: { isDeleted: 0 } });
       if (ids && ids.length) {
-        await mreq.post('/api/v1/users/' + encodeURIComponent(state.userId) + '/messages/read/batch', { messageIds: ids });
+        await mreq.post(EP.MSG_BATCH_READ(state.userId), { messageIds: ids });
       }
     } catch (e) { return; }
     loadMessages(container); refreshBadge();
@@ -577,7 +579,7 @@
   async function batchRead(container) {
     const ids = Object.keys(state.selected).filter(function (k) { return state.selected[k]; });
     if (!ids.length) { alert('请先勾选消息'); return; }
-    try { await mreq.post('/api/v1/users/' + encodeURIComponent(state.userId) + '/messages/read/batch', { messageIds: ids }); }
+    try { await mreq.post(EP.MSG_BATCH_READ(state.userId), { messageIds: ids }); }
     catch (e) { return; }
     loadMessages(container); refreshBadge();
   }
@@ -586,14 +588,14 @@
     const ids = Object.keys(state.selected).filter(function (k) { return state.selected[k]; });
     if (!ids.length) { alert('请先勾选消息'); return; }
     if (!confirm('确定删除选中的 ' + ids.length + ' 条消息？将移入回收站。')) return;
-    try { await mreq.delete('/api/v1/users/' + encodeURIComponent(state.userId) + '/messages/batch', { data: { messageIds: ids } }); }
+    try { await mreq.delete(EP.MSG_BATCH_DELETE(state.userId), { data: { messageIds: ids } }); }
     catch (e) { return; }
     state.selected = {}; loadMessages(container); refreshBadge();
   }
 
   async function purgeMsg(container, mid) {
     if (!confirm('彻底删除后不可恢复，确定要永久删除该消息？')) return;
-    try { await mreq.delete('/api/v1/users/' + encodeURIComponent(state.userId) + '/messages/' + mid + '/purge'); }
+    try { await mreq.delete(EP.MSG_PURGE(state.userId, mid)); }
     catch (e) { return; }
     loadMessages(container); refreshBadge();
   }
@@ -602,7 +604,7 @@
     const ids = Object.keys(state.selected).filter(function (k) { return state.selected[k]; });
     if (!ids.length) { alert('请先勾选消息'); return; }
     if (!confirm('彻底删除后不可恢复，确定要永久删除选中的 ' + ids.length + ' 条消息？')) return;
-    try { await mreq.delete('/api/v1/users/' + encodeURIComponent(state.userId) + '/messages/batch/purge', { data: { messageIds: ids } }); }
+    try { await mreq.delete(EP.MSG_BATCH_PURGE(state.userId), { data: { messageIds: ids } }); }
     catch (e) { return; }
     state.selected = {}; loadMessages(container); refreshBadge();
   }
@@ -612,7 +614,7 @@
     disconnectSse();
     const uid = state.userId; const token = localStorage.getItem('token');
     if (!uid || !token || typeof EventSource === 'undefined') return;
-    const url = MSG_BASE + '/api/v1/sse/connect?access_token=' + encodeURIComponent(token);
+    const url = MSG_BASE + EP.MSG_SSE_CONNECT(token);
     try {
       es = new EventSource(url);
       es.addEventListener('ready', function () { flushOfflineQueue(); }); // 连接就绪即尝试重发离线消息
@@ -660,7 +662,7 @@
     const remaining = [];
     let pending = q.length;
     q.forEach(function (body) {
-      mreq.post('/api/v1/messages/send', body).then(function () {
+      mreq.post(EP.MSG_SEND, body).then(function () {
         sent.push(body);
       }).catch(function () {
         remaining.push(body); // 仍不可达，保留
@@ -880,7 +882,7 @@
         if (!tid) { listEl.innerHTML = '<div style="color:#c00;padding:6px;">请先填写租户ID</div>'; return; }
         params.tenantId = tid;
       }
-      const users = await areq.get('/api/v1/user/message-recipients', { params: params });
+      const users = await areq.get(EP.MSG_RECIPIENTS, { params: params });
       if (!users || !users.length) { listEl.innerHTML = '<div style="color:#999;padding:6px;">该范围暂无接收人</div>'; return; }
       listEl.innerHTML = users.map(function (u) {
         const name = u.name || u.userId || '未命名';
@@ -914,7 +916,7 @@
     const ul = root.querySelector('#msg-category-list');
     if (!ul) return;
     try {
-      const list = await mreq.get('/api/v1/message-categories/tree');
+      const list = await mreq.get(EP.MSG_CATEGORIES);
       ul._items = Array.isArray(list) ? list : [];   // 缓存原始数据，供过滤与重渲染
     } catch (e) {
       ul._items = [];                                // 拉取失败同样落空数组：不阻塞发送（不可手输，发送可不分类）
@@ -1115,7 +1117,7 @@
     const body = { title: title, content: content || '', priority: priority, recipientUserIds: ids, broadcast: false };
     if (categoryCode) body.categoryCode = categoryCode;
     try {
-      await mreq.post('/api/v1/messages/send', body);
+      await mreq.post(EP.MSG_SEND, body);
       root.innerHTML = '';
       toast('发送成功', true);
       flushOfflineQueue();

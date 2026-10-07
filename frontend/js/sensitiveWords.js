@@ -18,6 +18,8 @@
   }
 
   const MSG_BASE = window.MESSAGE_API_BASE_URL || (window.API_BASE_URL || '');
+  // 端点常量：统一取共享事实源 shared/apiPaths.js（经桥接挂到 window.ApiPaths）。
+  const EP = (window.ApiPaths && window.ApiPaths.ENDPOINTS) || {};
 
   const esc = (typeof window.escapeHtml === 'function')
     ? window.escapeHtml
@@ -180,7 +182,7 @@
 
   // ===================== 分组 =====================
   function loadGroups() {
-    mreq.get('/api/v1/sensitive/groups').then(function (list) {
+    mreq.get(EP.SENSITIVE_GROUPS).then(function (list) {
       state.groups = list || [];
       renderGroups();
       // 默认选中第一个组
@@ -226,7 +228,7 @@
       s.addEventListener('change', function () {
         const id = s.getAttribute('data-id');
         const g = state.groups.find(function (x) { return String(x.groupId) === String(id); });
-        mreq.put('/api/v1/sensitive/groups/' + id, { defaultAction: s.value }).then(function () {
+        mreq.put(EP.SENSITIVE_GROUP_BY_ID(id), { defaultAction: s.value }).then(function () {
           if (g) g.defaultAction = s.value;
         }).catch(function () {});
       });
@@ -235,7 +237,7 @@
       b.addEventListener('click', function () {
         const id = b.getAttribute('data-id');
         if (!confirm('删除该分组将同时删除组内全部敏感词，确定？')) return;
-        mreq.delete('/api/v1/sensitive/groups/' + id).then(function () {
+        mreq.delete(EP.SENSITIVE_GROUP_BY_ID(id)).then(function () {
           state.groups = state.groups.filter(function (x) { return String(x.groupId) !== String(id); });
           if (String(state.selectedGroupId) === String(id)) state.selectedGroupId = null;
           renderGroups();
@@ -272,8 +274,8 @@
         const tv = root.querySelector('#sw-modal-tenant').value.trim();
         payload.tenantId = tv === '' ? 0 : Number(tv);
       }
-      const op = group ? mreq.put('/api/v1/sensitive/groups/' + group.groupId, payload)
-        : mreq.post('/api/v1/sensitive/groups', payload);
+      const op = group ? mreq.put(EP.SENSITIVE_GROUP_BY_ID(group.groupId), payload)
+        : mreq.post(EP.SENSITIVE_GROUPS, payload);
       op.then(function () { root.innerHTML = ''; loadGroups(); }).catch(function () {});
     });
   }
@@ -290,7 +292,7 @@
     const g = state.groups.find(function (x) { return String(x.groupId) === String(state.selectedGroupId); });
     const cur = state.container.querySelector('#sw-cur-group');
     if (cur) cur.textContent = g ? g.groupName : '未选择分组';
-    mreq.get('/api/v1/sensitive/words', {
+    mreq.get(EP.SENSITIVE_WORDS, {
       params: { groupId: state.selectedGroupId, keyword: state.keyword, pageNum: state.pageNum, pageSize: state.pageSize }
     }).then(function (pr) {
       state.total = pr.total || 0;
@@ -320,14 +322,14 @@
       s.addEventListener('change', function () {
         const id = s.getAttribute('data-id');
         const action = s.value === '' ? null : s.value;
-        mreq.put('/api/v1/sensitive/words/' + id, { action: action }).catch(function () {});
+        mreq.put(EP.SENSITIVE_WORD_BY_ID(id), { action: action }).catch(function () {});
       });
     });
     body.querySelectorAll('.sw-word-del').forEach(function (b) {
       b.addEventListener('click', function () {
         const id = b.getAttribute('data-id');
         if (!confirm('确定删除该敏感词？')) return;
-        mreq.delete('/api/v1/sensitive/words/' + id).then(function () { loadWords(); }).catch(function () {});
+        mreq.delete(EP.SENSITIVE_WORD_BY_ID(id)).then(function () { loadWords(); }).catch(function () {});
       });
     });
   }
@@ -358,7 +360,7 @@
     if (!word) { alert('请填写敏感词'); return; }
     const actionSel = state.container.querySelector('#sw-word-action');
     const action = actionSel.value === '' ? null : actionSel.value;
-    mreq.post('/api/v1/sensitive/words', { groupId: state.selectedGroupId, word: word, action: action })
+    mreq.post(EP.SENSITIVE_WORDS, { groupId: state.selectedGroupId, word: word, action: action })
       .then(function () { input.value = ''; state.pageNum = 1; loadWords(); })
       .catch(function () {});
   }
@@ -370,7 +372,7 @@
     const resultEl = state.container.querySelector('#sw-test-result');
     const detailEl = state.container.querySelector('#sw-test-detail');
     if (!text.trim()) { resultEl.textContent = ''; detailEl.innerHTML = ''; return; }
-    mreq.post('/api/v1/sensitive/test', { text: text }).then(function (d) {
+    mreq.post(EP.SENSITIVE_TEST, { text: text }).then(function (d) {
       if (!d.hit) {
         resultEl.innerHTML = '<span style="color:#389e0d;">未命中敏感词</span>';
         detailEl.innerHTML = '';
@@ -389,7 +391,7 @@
   }
 
   function refreshCache() {
-    mreq.post('/api/v1/sensitive/refresh', {}).then(function () {
+    mreq.post(EP.SENSITIVE_REFRESH, {}).then(function () {
       if (typeof window.showApiError === 'function') window.showApiError('敏感词缓存已刷新');
       else alert('敏感词缓存已刷新');
     }).catch(function () {});

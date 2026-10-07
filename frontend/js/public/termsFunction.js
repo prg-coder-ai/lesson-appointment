@@ -5,6 +5,10 @@ let domain_industry = "education";
 // 优先级：租户词 > 行业词 > 平台词（后端已合并），覆盖本地TERM_DICT
 let SERVER_TERM_MAP = null;
 
+// 端点常量：统一取共享事实源 shared/apiPaths.js（经桥接挂到 window.ApiPaths）。
+// 原生 fetch 不经过 utility_request 的 normalizeUrl，因此这里取到的必须是带 /api/v1 的完整路径。
+const EP = (window.ApiPaths && window.ApiPaths.ENDPOINTS) || {};
+
 // 取当前生效词表：委托共享领域层（shared/domain/term.js，P0 构建桥接挂到 window.TermDomain）。
 // 本地 SERVER_TERM_MAP 由 loadTermMapFromServer 拉取并赋值，作为 ctx.serverMap 透传，保持原行为。
 function getTerms() {
@@ -114,7 +118,7 @@ async function loadTermMapFromServer() {
     const auth = token.startsWith('Bearer ') ? token : ('Bearer ' + token);
     // 注意：此处用原生 fetch（非 request 封装），不会经过 utility_request.js 的 normalizeUrl。
     // 必须自行带全 /api/v1 前缀，否则落到 Nginx location / 的 SPA 兜底返回 HTML，json 解析失败。
-    const res = await fetch((window.API_BASE_URL || '') + '/api/v1/term/map?lang=' + encodeURIComponent(lang), {
+    const res = await fetch((window.API_BASE_URL || '') + EP.TERM_MAP(lang), {
       headers: { 'Authorization': auth }
     });
     const json = await res.json();
@@ -144,11 +148,10 @@ async function syncIndustryFromTenant(tenantCode) {
   const token = localStorage.getItem('token');
   if (!token) return null;
   try {
-    const qs = tenantCode ? ('?tenantCode=' + encodeURIComponent(tenantCode)) : '';
     // 后端 JwtAuthenticationFilter 只认 `Bearer <token>`，缺前缀会直接 401
     const auth = token.startsWith('Bearer ') ? token : ('Bearer ' + token);
     // 原生 fetch 不经过 normalizeUrl，必须带全 /api/v1 前缀（同 /term/map、tenant/name）
-    const res = await fetch((window.API_BASE_URL || '') + '/api/v1/tenant/industry' + qs, {
+    const res = await fetch((window.API_BASE_URL || '') + EP.TENANT_INDUSTRY(tenantCode), {
       headers: { 'Authorization': auth }
     });
     const json = await res.json();
@@ -205,7 +208,7 @@ function applyTenantTitle() {
   const el = document.getElementById('brand-title');
   const base = (window.API_BASE_URL || '');
   // 原生 fetch 不经过normalizeUrl，必须带全/api/v1 前缀（否则请求落到 SPA 兜底返回 HTML，json 解析失败 → 标题不变。
-  fetch(base + '/api/v1/tenant/name?tenantCode=' + encodeURIComponent(tCode), { method: 'GET' })
+  fetch(base + EP.TENANT_NAME(tCode), { method: 'GET' })
     .then(r => r.json())
     .then(json => {
       const orgName = (json && json.code === 200 && json.data && json.data.orgName) ? json.data.orgName : null;

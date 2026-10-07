@@ -54,7 +54,7 @@ async function renderWaitlistPanel(scheduleId) {
     for (let i = 0; i < queue.length; i++) {
         const item = queue[i];
         const studentName = await getUserNameById(item.studentId);
-        const appliedAt = String(item.createTime || '').replace('T', ' ').slice(0, 16);
+        const appliedAt = item.createTime ? (window.DatetimeDomain ? window.DatetimeDomain.formatDateTime(item.createTime, false) : String(item.createTime).replace('T', ' ').slice(0, 16)) : '';
         rows += '<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #F1EFE8;">'
               +   '<span style="min-width:56px;color:#888780;">第 ' + (i + 1) + ' 位</span>'
               +   '<span style="flex:1;color:#2C2C2A;">' + studentName + '</span>'

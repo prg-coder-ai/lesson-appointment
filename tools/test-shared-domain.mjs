@@ -85,6 +85,26 @@ eq(bookingStatusText('canceling'), '取消待确认', 'mp bkStatusText canceling
 eq(bookingStatusText('cancelled'), '已取消', 'mp bkStatusText cancelled');
 eq(bookingStatusText('completed'), '已完成', 'mp bkStatusText completed');
 
+/* ---------------- 状态→文案：web 档案（用字口径，2026-10-06 拍板保留两端差异） ---------------- */
+eq(bookingStatusText('booking', { profile: 'web' }), '预定待确认', 'bk(web) booking→预定待确认');
+eq(bookingStatusText('booked', { profile: 'web' }), '预定已确认', 'bk(web) booked→预定已确认');
+eq(bookingStatusText('rej-booking', { profile: 'web' }), '已拒绝预订', 'bk(web) rej-booking→已拒绝预订');
+eq(bookingStatusText('frozen', { profile: 'web' }), '已删除', 'bk(web) frozen→已删除');
+eq(bookingStatusText('deleted', { profile: 'web' }), '已删除', 'bk(web) deleted→已删除');
+// 两端一致的分支：web 档案不得改变它们
+eq(bookingStatusText('waiting', { profile: 'web' }), '候补', 'bk(web) waiting 与 default 一致');
+eq(bookingStatusText('canceling', { profile: 'web' }), '取消待确认', 'bk(web) canceling 与 default 一致');
+eq(bookingStatusText('cancelling', { profile: 'web' }), '取消待确认', 'bk(web) cancelling 归一同上');
+eq(bookingStatusText('cancelled', { profile: 'web' }), '已取消', 'bk(web) cancelled 与 default 一致');
+eq(bookingStatusText('rej-cancelling', { profile: 'web' }), '已拒绝取消', 'bk(web) rej-cancelling 与 default 一致');
+// web 档案顺带修掉 Web 端 completed 缺分支（原样输出英文 'completed'）的缺陷
+eq(bookingStatusText('completed', { profile: 'web' }), '已完成', 'bk(web) completed→已完成(修 Web 缺分支)');
+// 档案参数容错：未知 profile / 空 opts / null 一律回落 default，保证旧调用点零变化
+eq(bookingStatusText('booking', { profile: 'nope' }), '待确认', 'bk 未知 profile 回落 default');
+eq(bookingStatusText('booking', {}), '待确认', 'bk 空 opts 回落 default');
+eq(bookingStatusText('booking', null), '待确认', 'bk null opts 回落 default');
+eq(bookingStatusText('weird', { profile: 'web' }), 'weird', 'bk(web) 未知态透传');
+
 /* ---------------- 候补 / 满额判定 ---------------- */
 eq(formatRemainingSites(5), '5', 'remain 5→"5"');
 eq(formatRemainingSites(0), FULLY_BOOKED_TEXT, 'remain 0→满额');

@@ -53,9 +53,8 @@ function loadTenantList() {
   }).catch(() => { renderTenantRows([]); renderTenantPagebar(); });
 }
 
-function tenantStatusText(s) {
-  return s === 1 ? '正常' : s === 2 ? '停用' : s === 3 ? '退租' : ('' + (s == null ? '' : s));
-}
+// tenantStatusText 已收敛到 js/public/api.js（本页与 admin-tenant-info.js 原先各写一份同名实现，
+// 且兜底语义已漂移：本页 null→''，另一份 null→'未知'）。此处不再保留本地副本。
 
 function renderTenantRows(rows) {
   const tb = document.getElementById('tenant-body');
@@ -73,7 +72,7 @@ function renderTenantRows(rows) {
       <td>${maskPhone(t.phone || '')}</td>
       <td>${industryName(t.industryId)}</td>
       <td>${tenantStatusText(t.status)}</td>
-      <td>${t.expireTime ? ('' + t.expireTime).replace('T', ' ') : '-'}</td>
+      <td>${t.expireTime ? (window.DatetimeDomain ? window.DatetimeDomain.formatDateTime(t.expireTime) : ('' + t.expireTime).replace('T', ' ')) : '-'}</td>
       <td>
         <button class="btn btn-default" onclick="openTenantModal(${e})">编辑</button>
         <button class="btn btn-warning" onclick="toggleTenantStatus(${t.id},${t.status})">${t.status === 1 ? '停用' : '启用'}</button>

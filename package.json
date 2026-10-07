@@ -8,7 +8,9 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "check:shared-sync": "node tools/check-miniprogram-shared-sync.js"
+    "check:shared-sync": "node tools/check-miniprogram-shared-sync.js",
+    "check:endpoints": "node tools/check-endpoints-refs.mjs",
+    "test:endpoints-guard": "node tests/check_endpoints_guard.js"
   },
   "repository": {
     "type": "git",

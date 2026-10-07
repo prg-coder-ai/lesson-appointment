@@ -15,6 +15,9 @@
 
   const API_BASE_URL = window.API_BASE_URL || '';
 
+  // 端点常量：统一取共享事实源 shared/apiPaths.js（经桥接挂到 window.ApiPaths）。
+  const ENDPOINTS = (window.ApiPaths && window.ApiPaths.ENDPOINTS) || {};
+
   /**
    * 统一 API 路径前缀：前后端分离后所有接口收敛到 /api/v1
    * - 绝对地址（含 http，如 message-service 的 MESSAGE_API_BASE_URL）原样返回
@@ -22,8 +25,16 @@
    * - 旧 /api/* 自动升 /api/v1
    * - 裸路径 /xxx 补 /api/v1
    * 注意：axios 对以 / 开头的 url 会忽略 baseURL，故不能靠设 baseURL 解决，必须改 url 字符串
+   *
+   * 权威源：shared/apiPaths.js 的 normalizeUrl（经桥接挂到 window.ApiPaths），与小程序端
+   * miniprogram/core/request.js 共用同一份实现。此处保留同语义的实现作为**降级快照**
+   * （bridge 未加载时兜底），不是第二权威源——改算法只改 shared/，再重跑桥接生成器。
    */
   function normalizeUrl(url) {
+    if (typeof window !== 'undefined' && window.ApiPaths
+        && typeof window.ApiPaths.normalizeUrl === 'function') {
+      return window.ApiPaths.normalizeUrl(url);
+    }
     if (!url) return url;
     if (/^https?:\/\//i.test(url)) return url;
     if (url.indexOf('/api/v1') === 0) return url;
@@ -98,7 +109,9 @@
     } catch (e) {
       console.warn('解析 currentUser 失败：', e);
     }
-    return refreshTokenAxios.post('/auth/refreshToken', {
+    // 端点常量：权威源 shared/apiPaths.js 的 ENDPOINTS.AUTH_REFRESH（裸路径，
+    // 由 refreshTokenAxios 的请求拦截器统一过 normalizeUrl 补 /api/v1 前缀）。
+    return refreshTokenAxios.post(ENDPOINTS.AUTH_REFRESH || '/auth/refreshToken', {
       refreshToken: refreshToken,
       account: account,
       role: role
