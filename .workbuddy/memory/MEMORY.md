@@ -66,3 +66,10 @@
 ## 文档/技能/工具
 - 技能：saas-api-build-smoke/shared-domain-sink/shared-adapter-wire/seat-oversell-concurrency-audit/public-endpoint-tenant-bypass/browserless-frontend-itest/server-side-term-template/source-encoding-repair/miniprogram-page-registry-audit/paged-response-field-contract-audit/miniprogram-grouped-enrich-list/miniprogram-term-localization/**miniprogram-form-schema-align**(表单页↔表结构对齐)/**student-booking-flow-align**(学生端约课链路:课程→排期→预订/候补→我的预约→课次请假→浏览教师,含 6 坑)。
 - 工具踩坑：并行同文件多Edit只最后生效→串行+grep核验；替换前探测行尾(CRLF/LF)；Maven GBK输出先iconv。
+
+## 薄弱环节审计结论（2026-10-07，报告=预约系统薄弱环节分析报告-20261007.md）
+- **五根因**（比缺陷清单更重要）：A 授权模型缺失(全仓0处hasRole/@PreAuthorize，只认证不授权，靠手写PermissionCheck→抽样命中) B 业务正确性外包前端(课次生成/级联取消/状态机合法性都在浏览器) C DB定义无单一事实源(完整DDL被.gitignore排除) D 密钥明文入库(jwt/aes/hmac/DB密码，**AES泄露不可靠轮换补救，须+历史数据重加密**) E 可观测性与后端测试真空。
+- **已实测脏数据**：appointment 142行中102行 booking_id 悬空——根因是 booking_id 有**两个生成器**(BookingService.java:74 产32位hex vs CourseScheduleService.java:464 产36位dashed UUID)，且 appointment **无FK无索引**。notification_dispatch_log 12行悬空。
+- **提权链事实（勿遗忘）**：UserController.java:144 `role` 取自请求体即免审核激活 admin/platform_admin（旁有作者 `//TBD:check if exists a admin before`）；`/user/add`:159 无条件 active 是第二条入口；InboxService.java:179 `deleteById(in.getMessageId())` 用消息ID删主键id。
+- **做得好、勿误伤**：BookingSeatService 席位闸门(行锁+锁定读+CAS，5路径全覆盖)、通知幂等 uk_dispatch_once、备份脚本、调试输出0残留。
+- 待用户确认：hardening脚本是否已执行 / refreshToken是否真NPE不可达 / jwt.expiration=360000000(100h)是否笔误 / 8081-8090是否公网可直连。
