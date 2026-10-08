@@ -10,7 +10,9 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "check:shared-sync": "node tools/check-miniprogram-shared-sync.js",
     "check:endpoints": "node tools/check-endpoints-refs.mjs",
-    "test:endpoints-guard": "node tests/check_endpoints_guard.js"
+    "test:endpoints-guard": "node tests/check_endpoints_guard.js",
+    "check:authz": "node tools/check-authz-declarative.mjs",
+    "test:authz-guard": "node tests/check_authz_declarative_guard.js"
   },
   "repository": {
     "type": "git",

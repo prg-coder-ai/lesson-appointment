@@ -3,6 +3,17 @@
 ## 协作偏好
 - 多次失败(2~3次)即问用户；先根因+证据再修复；代码写完直接交付跳过自测(仍要编译验证)。
 - 库内数据都是测试数据(2026-09-18确认)：脏数据/历史状态一律不清理、不刷、不必再问；只诊断报告。
+- **改动已有校验时**：先摆事实与选项让用户拍板（范围/严格度/是否双层），别机械执行"教科书最优"；本项目用户偏好分步推进 + 保留既有实现（双层并行）而非一次性大改。
+
+## 声明式授权（第2批，2026-10-08 落地）
+- **单一权威源 = `api/.../config/AuthzRules.java`**（170 条「方法+路径+角色数组+出处注释」）。SecurityConfig 只做 `applyDeclarativeAuthz(auth)` 展开成 hasRole/hasAnyRole。角色数组常量 4 个：PLATFORM_ONLY / PLATFORM_OR_TENANT_ADMIN / TEACHER_OR_ADMIN / ALL_ROLES。
+- **兜底仍 `.anyRequest().authenticated()`，故意不换 denyAll**：171 端点中学生/教师共用读接口的角色归属只能从前端调用链反推，一处推断错 denyAll 立刻变线上 403。已回归确认后**改这一行即可**切换（规则表已完整 182/182）。
+- **两层并存不是替换**：路径层管"能否进接口"(AuthzRules)；方法层继续管"能否操作这条数据"(PermissionCheck 120 处，含 checkTeacherOwner/checkStudentOwner 需查库比对归属，SpEL 表达不了)。
+- **守卫 = `tools/check-authz-declarative.mjs`（npm run check:authz），已挂 .git/hooks/pre-commit（SKIP_AUTHZ=1 跳过）**。改 Controller 端点必须同步 AuthzRules，否则提交被拒。5 类判红：漏声明/陈旧规则/非法角色/空角色数组/重复声明。改 AuthzRules 后必跑 `npm run test:authz-guard`（7 项反向测试）。
+- 排除范围：message-service 前缀（message/sensitive/sse/users，Nginx 分流 8090 不到 booking-api）、页面路由(/ /favicon.ico /booking)、permitAll 白名单。
+- **造测试 token**（起真实实例验证用）：JwtUtil 是 **HS512**（非 HS256），payload `{sub:userId, role, tenantId, iat, exp}`，密钥取 application.properties 的 jwt.secret。`sub` 必须是**真实 user_id**，误传 account 会让 PermissionCheck 查库落空 → 兜底 403，误判成"规则配错"。
+- **SecurityConfig 用块体 lambda** `auth -> { ... }`（非表达式体）——表达式体里插语句会被分号截断，报错位置还指向更早的无关行。
+- 待第3批：兜底切 denyAll；8 个 Controller 方法级授权；P1-1~P1-7 逐条补；`/course/list|page|{id}` 三者方法体校验现状不一致（/list 活着会 403 学生，/page 与 /{id} 已注释）。
 
 ## 技术栈与构建
 - api(Spring Boot 3.3.5+MyBatis-Plus 3.5.7)+message-service 独立模块；MySQL lesson_appointment/message_center；三产物：booking-api jar / message-service-1.0.0.jar / frontend/dist/。
