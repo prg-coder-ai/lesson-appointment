@@ -141,6 +141,8 @@ public class TenantPackageService {
             throw new BusinessException("套餐ID不能为空");
         }
         log.info("删除租户套餐, packageId={}", id);
+        // cascade: none sys_tenant_package 是叶子表；它被引用的方向是
+        // sys_tenant.package_id（租户指向模板），反向无表引用本表
         return tenantPackageMapper.deleteById(id);
     }
 

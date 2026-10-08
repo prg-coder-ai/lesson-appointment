@@ -400,6 +400,8 @@ public class NotifyDispatchService {
                 log.warn("上课提醒推送失败，已回滚流水以便稍后重试: appointmentId={}, seq={}, receiver={}",
                         appointment.getId(), point.getSeq(), receiverId);
                 try {
+                    // cascade: none 删的是本次刚插入、推送失败要回滚的那一行流水本身，
+                    // 它没有任何下游引用；这不是"删父"，而是"撤销一次失败的写入"
                     dispatchLogMapper.deleteById(row.getId());
                 } catch (Exception ignore) {
                     // 删不掉也不影响：该档会因唯一键被判为已发（宁可漏发一条，不重复轰炸用户）

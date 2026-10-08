@@ -70,7 +70,13 @@ api/node_modules
 logs/spring-boot-app.log
 logs/spring-boot-app.log
 logs/spring-boot-app.log
-api/beforeRun
+# beforeRun 只排除「构建产物与运行时配置」，不再排除整个目录。
+# 原为整目录排除（曾导致 lesson_appointment 完整 DDL 无法入库 = 报告根因 C：
+# 「DB 定义没有单一事实源」）。现权威脚本已集中到 api/sql/（见 api/sql/README.md），
+# 这里仍放行 beforeRun/sql/ 下的历史脚本以备追溯。
+api/beforeRun/*
+!api/beforeRun/sql/
+!api/beforeRun/sql/*.sql
 api/beforeRun/booking.evn.template
 api/beforeRun/message.evn.template
 

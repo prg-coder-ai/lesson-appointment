@@ -217,6 +217,8 @@ public class TermController {
                 return Result.fail(403, "您只能删除本租户的词条");
             }
         }
+        // cascade: none sys_term 是词表叶子表（实测全库无任何表引用 term_id），
+        // 删词条不产生悬空引用
         int rows = termMapper.deleteById(id);
         return rows > 0 ? Result.success(true, "删除成功") : Result.fail(404, "记录不存在");
     }

@@ -264,6 +264,8 @@ public Result<Integer> deleteById(@PathVariable("id") String id, @RequestHeader(
     try {
         // 权限校验，只允许老师和管理员删除排期
         permissionCheck.checkTeacherOrAdmin(token);
+        // cascade: none 本层不处置——CourseScheduleService#deleteById 内已先清
+        // 该排期的课次与预订（SCHEDULE_DELETE / BOOKING_DELETE 场景）
         int rows = scheduleService.deleteById(id);
         return Result.success(rows, "删除成功");
     } catch (Exception e) {

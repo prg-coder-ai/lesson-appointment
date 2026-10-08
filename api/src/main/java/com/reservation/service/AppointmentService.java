@@ -15,6 +15,7 @@ import com.reservation.query.*;
  import com.baomidou.mybatisplus.core.toolkit.Wrappers;
   
 import java.util.List;
+import java.util.stream.Collectors;
 
 import jakarta.annotation.Resource;
 
@@ -30,6 +31,8 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
 
     @Resource
     private BookingMapper bookingMapper;
+    @Resource
+    private ReferentialCascadeService cascadeService;
 
     // 批量插入Appointment对象到数据库
     @Transactional(rollbackFor = Exception.class)
@@ -283,6 +286,11 @@ log.debug(userId + role + startTime + endTime + pageNum + pageSize + status);
 
 public boolean removeById(Integer appId){
         log.info("删除预约时间开始, appointmentId={}", appId);
+        // 先清该课次的通知发送流水。notification_dispatch_log 的幂等键
+        // uk_dispatch_once(appointment_id, seq, receiver_user_id, dedup_key) 含 appointment_id，
+        // 留着流水会让这个课次此后的通知永远发不出去（每次插入都撞唯一键）。
+        // 实测该表已有 12 行指向不存在的课次——同类问题的既有证据。
+        cascadeService.run(CascadeRules.SCENARIO_APPOINTMENT_DELETE, String.valueOf(appId));
         int deleted = baseMapper.deleteById(appId);
         log.info("删除预约时间结束, appointmentId={}, 影响行数={}", appId, deleted);
         return deleted > 0;
@@ -290,10 +298,21 @@ public boolean removeById(Integer appId){
 
     public boolean removeByBookingId(String bookingId){
         log.info("按预约ID批量删除预约时间开始, bookingId={}", bookingId);
+        // 同样先清通知流水：批量删课次前逐个清理，否则留下悬空流水。
+        // 这里不逐条调 removeById（那是 N 次 SQL），而是先取出课次 id 集合再批量清。
+        if (bookingId != null && !bookingId.trim().isEmpty()) {
+            List<Appointment> appts = getByBookingId(bookingId);
+            if (appts != null && !appts.isEmpty()) {
+                List<String> apptIds = appts.stream()
+                        .map(a -> String.valueOf(a.getId()))
+                        .collect(Collectors.toList());
+                cascadeService.run(CascadeRules.SCENARIO_APPOINTMENT_DELETE, apptIds);
+            }
+        }
         int deleted = baseMapper.deleteByBookingId(bookingId);
         log.info("按预约ID批量删除预约时间结束, bookingId={}, 影响行数={}", bookingId, deleted);
         return deleted > 0;
-    } 
+    }
 /**
  * 统计指定时间段以及状态下的预约数量（int）
  * 用于Controller直接调用，参数可以为 LocalDateTime 或 Timestamp，内部统一为 Timestamp 以便数据库查询。

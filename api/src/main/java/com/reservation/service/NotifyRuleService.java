@@ -220,6 +220,8 @@ public class NotifyRuleService {
         // 发送流水存的是 offset/seq 快照（不是 point_id），故重建导致的 id 变化无影响。
         LambdaQueryWrapper<CourseNotifyRulePoint> delWrapper = new LambdaQueryWrapper<>();
         delWrapper.eq(CourseNotifyRulePoint::getRuleId, ruleId);
+        // cascade: none course_notify_rule_point 是规则明细的叶子表，无表引用它；
+        // "整组覆盖"语义要求先全删再重建（发送流水存的是 offset/seq 快照，不依赖 point_id）
         pointMapper.delete(delWrapper);
         for (CourseNotifyRulePoint p : parsed) {
             p.setId(null);
@@ -248,7 +250,12 @@ public class NotifyRuleService {
         }
         LambdaQueryWrapper<CourseNotifyRulePoint> delPoints = new LambdaQueryWrapper<>();
         delPoints.eq(CourseNotifyRulePoint::getRuleId, existing.getId());
+        // cascade: none 已在上方先删明细（叶子表），此处删的是规则头本身，
+        // 其发送流水 notification_dispatch_log 存的是 offset/seq/收件人快照、不引用 rule_id，
+        // 故无需级联（删规则不删历史发送记录，是审计要求）
         pointMapper.delete(delPoints);
+        // cascade: none 删的是规则头本身；发送流水存的是 offset/seq 快照不引用 rule_id，
+        // 保留历史发送记录是审计要求（明细已在上一行先删）
         int rows = ruleMapper.deleteById(existing.getId());
         log.info("删除上课通知规则, courseId='{}', 影响{}行", cid, rows);
         return rows;

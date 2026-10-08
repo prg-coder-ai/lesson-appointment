@@ -65,6 +65,8 @@ public class AppointmentController {
      */
     @DeleteMapping("/delete/{id}")
     public Result<Boolean> delete(@PathVariable Integer id) {
+        // cascade: none 本层不处置——AppointmentService#removeById 内已先清
+        // notification_dispatch_log（APPOINTMENT_DELETE 场景）再删课次。Controller 只是薄转发。
         return Result.success(appointmentService.removeById(id),"ok");
     }
     /**
@@ -76,6 +78,7 @@ public class AppointmentController {
      */
     @DeleteMapping("/deleteByBookingId")
     public Result<Boolean> deleteByBookingId(@RequestParam String bookingId) {
+        // cascade: none 同上，级联在 AppointmentService#removeByBookingId 内完成
         return Result.success(appointmentService.removeByBookingId(bookingId),"ok");
     }
     /**

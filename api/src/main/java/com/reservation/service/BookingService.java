@@ -9,6 +9,7 @@ import com.reservation.utils.TermMsg;
 import com.reservation.query.BookingQueryPage;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 
 import com.reservation.mapper.BookingMapper;
 
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.annotation.Resource;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -48,6 +50,8 @@ public class BookingService {
     /** 真删除预订时一并清除其课次，避免产生 booking_id 悬空引用 */
     @Resource
     private AppointmentService appointmentService;
+    @Resource
+    private ReferentialCascadeService cascadeService;
 
     @Transactional(rollbackFor = Exception.class)
     public String create(Booking booking) {
@@ -90,7 +94,7 @@ public class BookingService {
             return existing.getBookingId();
         }
 
-        String id = UUID.randomUUID().toString().replace("-", ""); // 移除UUID分隔符
+        String id = BookingIdGenerator.next();
         booking.setBookingId(id);
 
         // 默认落 booked 时同步生成课次：学生端「立即预订」提交的就是空 status。
@@ -157,13 +161,10 @@ public class BookingService {
           String id= dto.getId();
           String status =dto.getStatus();
           if (BookingStatus.DELETE.equals(status)) {
-              // 先查该预订下有无课次：真删除预订而留下课次，就是"booking_id 悬空"。
-              // 报告实测过现网 appointment 有 102/142 行 booking_id 指向不存在的预订，
-              // 这里按同一口径补一道：随预订一并清除，避免再制造悬空引用。
-              Booking toDelete = bookingMapper.selectById(id);
-              if (toDelete != null) {
-                  appointmentService.removeByBookingId(id);
-              }
+              // 真删除预订前先清课次：课次唯一的父引用就是 booking_id，
+              // 不清就必然留下悬空行（实测 appointment 149 行里 109 行 booking_id 指向不存在的预订）。
+              // 改走统一级联执行器，避免"这条路径自己清一次、另一条路径忘了清"的漂移。
+              cascadeService.run(CascadeRules.SCENARIO_BOOKING_DELETE, id);
               bookingMapper.deleteById(id);
               return id;
           }
@@ -316,14 +317,29 @@ public class BookingService {
     @Transactional(propagation = Propagation.REQUIRED)
     public int delete(String id) {
        log.info("删除预约开始, bookingId={}", id);
+       // 先删其课次（课次唯一的父引用就是 booking_id，不删必然留下悬空行），
+       // 再删预订本身。原先这里只有一句 deleteById，课次留在库里变成孤儿
+       // ——实测 appointment 表 149 行里 109 行 booking_id 指向不存在的预订。
+       cascadeService.run(CascadeRules.SCENARIO_BOOKING_DELETE, id);
        int rows = bookingMapper.deleteById(id);
        log.info("删除预约结束, bookingId={}, 影响行数={}", id, rows);
        return rows;
     }
 
-@Transactional(propagation = Propagation.REQUIRED)
+    @Transactional(propagation = Propagation.REQUIRED)
     public int deleteByScheduleId(String id) {
        log.info("按排期ID删除预约开始, scheduleId={}", id);
+       // 先把该排期下每条预订的课次清掉，再批量删预订。
+       // 顺序不能颠倒：booking 一旦先没，按 booking_id 就再也定位不到课次。
+       List<Booking> bookings = bookingMapper.selectList(
+               Wrappers.<Booking>lambdaQuery().eq(Booking::getScheduleId, id));
+       if (bookings != null && !bookings.isEmpty()) {
+           List<String> bookingIds = bookings.stream()
+                   .map(Booking::getBookingId)
+                   .filter(b -> b != null && !b.trim().isEmpty())
+                   .collect(Collectors.toList());
+           cascadeService.run(CascadeRules.SCENARIO_BOOKING_DELETE, bookingIds);
+       }
        int rows = bookingMapper.deleteByScheduleId(id);
        log.info("按排期ID删除预约结束, scheduleId={}, 影响行数={}", id, rows);
        return rows;

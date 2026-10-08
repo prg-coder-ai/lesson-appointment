@@ -108,10 +108,11 @@ public class TeacherProfessionalService {
         }
         String teacherId = tp.getTeacherId();
 
-        // 先删子表（证书 + 时间段）
+        // 先删子表（证书 + 时间段）——这就是 teacher_professional 的级联，
+        // 由本方法显式完成（规则表登记在 TEACHER_* 场景；此处是它的唯一调用方）
         certMapper.deleteByTeacherId(teacherId);
         timeMapper.deleteByTeacherId(teacherId);
-        // 再删主表
+        // 再删主表。cascade: none 子表已在上两行清完，主表无其它下游
         int ret = tpMapper.deleteById(teacherProfessionalId);
         log.debug("[TeacherProfessionalService] delete operation end, id=" + teacherProfessionalId + ", affected rows=" + ret);
         return Result.success(ret, "删除成功");

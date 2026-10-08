@@ -261,6 +261,8 @@ public class RefundRuleService {
         String cid = courseId == null ? TENANT_DEFAULT_COURSE_ID : courseId.trim();
         LambdaQueryWrapper<CourseRefundRule> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CourseRefundRule::getCourseId, cid);
+        // cascade: none course_refund_rule 是规则头叶子表，无表引用它；
+        // 发送流水/通知规则都存快照不引用本表，故无需级联
         int rows = ruleMapper.delete(wrapper);
         log.info("删除退改规则, courseId='{}', 影响{}行", cid, rows);
         return rows;
