@@ -7,6 +7,7 @@ import com.reservation.entity.Booking;
 import com.reservation.entity.Course;
 import com.reservation.entity.CourseRefundRule;
 import com.reservation.entity.CourseSchedule;
+import com.reservation.common.ScheduleGenerator;
 import com.reservation.exception.BusinessException;
 import com.reservation.mapper.AppointmentMapper;
 import com.reservation.mapper.BookingMapper;
@@ -413,7 +414,10 @@ public class RefundRuleService {
         }
 
         vo.setLessonTime(lessonTime.format(LESSON_TIME_FMT));
-        long minutesAhead = Duration.between(LocalDateTime.now(), lessonTime).toMinutes();
+        // 退改档位按「距上课还有多久」判定，双方必须是同一时区口径：
+        // lessonTime 是 UTC（2026-10-08 起），所以 now 也要取 UTC。
+        // 若这里用裸 LocalDateTime.now()（服务器时区），服务器 TZ 一改档位就判错。
+        long minutesAhead = Duration.between(ScheduleGenerator.nowUtc(), lessonTime).toMinutes();
         vo.setMinutesAhead(minutesAhead);
         vo.setAheadText(aheadText(minutesAhead));
 

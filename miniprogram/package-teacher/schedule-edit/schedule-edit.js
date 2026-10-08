@@ -57,7 +57,25 @@ const SITES_MIN = 1;
 const SITES_MAX = 127;              // tinyint(1) 上限
 const INTERVAL_MIN = 1;
 const INTERVAL_MAX = 99;
+/** 兜底时区：取不到系统时区时用国内时区。
+ *  ⚠️ 2026-10-08 起不再硬编码为唯一来源 —— 原先 DEFAULT_TIME_ZONE='Asia/Shanghai'
+ *  被直接写进 dto.timeZone，导致海外教师在小程序建排期时被标成国内时区，
+ *  与 Web 端（取浏览器时区）认知不一致。这里改为运行时取 wx.getSystemInfoSync().timeZone。 */
 const DEFAULT_TIME_ZONE = 'Asia/Shanghai';
+
+/** 取小程序运行环境的用户时区（IANA，如 'America/Edmonton'）。取不到返回 null。 */
+function systemTimeZone() {
+  try {
+    const info = wx.getSystemInfoSync();
+    const tz = info && info.timeZone;
+    // 只接受 Region/City 形态：Intl 认得 'CST' 这类缩写并会静默按 UTC-6 处理，
+    // 传进去会让排期时间平白差 14 小时（与 shared/domain/datetime.js 同源判据）。
+    if (tz && /^[A-Za-z][A-Za-z0-9_+-]*\/[A-Za-z0-9_+-]+$/.test(String(tz).trim())) {
+      return String(tz).trim();
+    }
+  } catch (e) { /* 老基础库可能无 timeZone 字段 */ }
+  return null;
+}
 const REPEAT_UNIT = { 1: '天', 2: '周', 3: '月' };
 
 // PageResult 的字段名是 rows（不是 list / records）——取错会静默 fallback 成空数组。
@@ -248,9 +266,9 @@ Page(withTerms({
   },
 
   // 新增时的时区来源：优先继承该教师已有排期的时区（同一教师口径一致），
-  // 无历史排期才退回默认值。
+  // 其次用设备时区，最后才退回默认值。
   async loadDefaultTimeZone() {
-    let tz = DEFAULT_TIME_ZONE;
+    let tz = systemTimeZone() || DEFAULT_TIME_ZONE;
     try {
       const rows = await request({
         url: ENDPOINTS.SCHEDULE_LIST_BY_TEACHER(this.data.teacherId),

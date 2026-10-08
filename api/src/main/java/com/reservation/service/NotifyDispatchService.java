@@ -5,6 +5,7 @@ import com.reservation.common.BookingStatus;
 import com.reservation.common.NotifyAudience;
 import com.reservation.common.NotifyStage;
 import com.reservation.common.RoleConst;
+import com.reservation.common.ScheduleGenerator;
 import com.reservation.entity.Appointment;
 import com.reservation.entity.Booking;
 import com.reservation.entity.Course;
@@ -125,7 +126,10 @@ public class NotifyDispatchService {
      * @return 实际成功发送的消息条数
      */
     public int dispatchDueNotifications() {
-        LocalDateTime now = LocalDateTime.now();
+        // 「当前时刻」取 UTC：课次 appointment_datetime 自 2026-10-08 起是 UTC，
+        // 裸 LocalDateTime.now() 取的是服务器默认时区，两者不同源 ——
+        // 服务器 TZ 一改，提醒窗口就整体错位。
+        LocalDateTime now = ScheduleGenerator.nowUtc();
         List<Appointment> candidates = loadCandidates(now);
         if (candidates.isEmpty()) {
             return 0;
@@ -254,7 +258,7 @@ public class NotifyDispatchService {
         if (lesson == null) {
             throw new BusinessException(TermMsg.t("该课次没有上课时间，无法发送提醒"));
         }
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = ScheduleGenerator.nowUtc();
         if (!lesson.isAfter(now)) {
             throw new BusinessException(TermMsg.t("该课次的上课时间已过，不再发送提醒"));
         }

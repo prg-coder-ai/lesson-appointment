@@ -15,8 +15,11 @@ public class AppointmentQueryPage  extends PageQuery {
     private String teacherName;// 与Days一起查询 用于管理端 TBD
     private String courseName;//课程名称
     private int days;
-   // private String sortField;    
- //   private String sortOrder; 
-    private String status;   
+   // private String sortField;
+ //   private String sortOrder;
+    private String status;
+    /** 用户时区（IANA，如 Asia/Shanghai）。课次时间是 UTC，返回前按它转成用户本地时间。
+     *  <p>可空：为空时后端原样返回 UTC，由前端自行渲染。 */
+    private String userTimeZone;
 }
   

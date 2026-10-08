@@ -1,10 +1,13 @@
 package com.reservation.service;
 
 import com.reservation.common.RoleConst;
+import com.reservation.common.ScheduleGenerator;
 import com.reservation.entity.Appointment;
 import com.reservation.entity.Booking;
+import com.reservation.entity.CourseSchedule;
 import com.reservation.entity.User;
 import com.reservation.mapper.BookingMapper;
+import com.reservation.mapper.CourseScheduleMapper;
 import com.reservation.utils.JwtUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,6 +51,11 @@ public class MessageNotifyService {
     /** 递补通知要带首节课时间，故读取课次表 */
     @Resource
     private AppointmentService appointmentService;
+
+    /** 课次时间是 UTC，通知正文要按排期时区渲染成人能对上的墙上时间，
+     *  故须由 booking.schedule_id 取排期时区（见 firstAppointmentText）。 */
+    @Resource
+    private CourseScheduleMapper courseScheduleMapper;
 
     /** 通知正文要按租户行业词渲染（法律咨询租户应看到「咨询话题/预约时间/咨询」而不是「课程/上课时间/上课」） */
     @Resource
@@ -278,19 +286,52 @@ public class MessageNotifyService {
                 "候补递补成功", content.toString(), "MEDIUM", "BOOKING_CONFIRMED");
     }
 
-    /** 取该 booking 最早一次课的时间文案，用于通知正文；查不到返回 null（不影响消息发送） */
+    /**
+     * 取该 booking 最早一次课的时间文案，用于通知正文；查不到返回 null（不影响消息发送）。
+     *
+     * <p><b>时区口径</b>：课次 {@code appointment_datetime} 自 2026-10-08 起是 UTC，
+     * 直接 {@code toString()} 会把 "21:00" 之类的 UTC 数字甩给用户，与本地差 6~7 小时。
+     * 故按「booking → schedule → course_schedule.time_zone」取排期时区再转成墙上时间。
+     *
+     * <p><b>为什么用排期时区而不是"阅读者时区"</b>：通知是异步派发的，线程里拿不到
+     * "谁在读这条消息"。排期时区是通知产生那一刻唯一确定的时区，用它渲染对收发双方
+     * 都成立；页面展示则由前端按各自本地时区渲染 —— 两者语义不同，是刻意取舍。
+     *
+     * <p>取不到时区时降级为 UTC 展示（{@code scheduleLocalToUtc} 内部的 safeZone 会兜底），
+     * 不因为排期被删就丢整条通知。
+     */
     private String firstAppointmentText(String bookingId) {
         try {
             List<Appointment> list = appointmentService.getByBookingId(bookingId);
             if (list == null || list.isEmpty()) return null;
+            String zone = resolveScheduleZone(bookingId);
             for (Appointment a : list) {
                 if (a != null && a.getAppointmentDatetime() != null) {
-                    return a.getAppointmentDatetime().toString().replace("T", " ");
+                    java.time.LocalDateTime local = ScheduleGenerator.utcToUserZone(
+                            a.getAppointmentDatetime(), zone);
+                    return local.toString().replace("T", " ");
                 }
             }
             return null;
         } catch (Exception e) {
             log.debug("取首节课时间失败（忽略）: bookingId={}, {}", bookingId, e.getMessage());
+            return null;
+        }
+    }
+
+    /** 由 bookingId 反查排期时区；查不到返回 null（由调用方按 UTC 降级，不抛异常）。 */
+    private String resolveScheduleZone(String bookingId) {
+        try {
+            Booking b = bookingMapper.selectOne(
+                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Booking>()
+                            .eq(Booking::getBookingId, bookingId));
+            if (b == null || b.getScheduleId() == null || b.getScheduleId().trim().isEmpty()) {
+                return null;
+            }
+            CourseSchedule cs = courseScheduleMapper.selectById(b.getScheduleId());
+            return cs == null ? null : cs.getTimeZone();
+        } catch (Exception e) {
+            log.debug("反查排期时区失败（按 UTC 降级）: bookingId={}, {}", bookingId, e.getMessage());
             return null;
         }
     }

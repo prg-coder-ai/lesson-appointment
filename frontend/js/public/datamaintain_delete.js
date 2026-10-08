@@ -356,7 +356,7 @@ async function deleteCourseById(id) {
           item.teacherName = '';
           item.courseName = ''; 
         }
- item.appointmentTime = item.appointmentDatetime ? (window.DatetimeDomain ? window.DatetimeDomain.formatDateTime(item.appointmentDatetime) : String(item.appointmentDatetime).replace('T', ' ')) : '';
+ item.appointmentTime = renderLessonTime(item.appointmentDatetime);
         // 【层 B】booking 拿到后，三个互不依赖的请求并行：
         //   - fetchSchedule(bookedObject.scheduleId)
         //   - getUserNameById(bookedObject.studentId)
@@ -381,10 +381,8 @@ async function deleteCourseById(id) {
         item.courseName = courseObject ? (courseObject.courseName || courseObject.name || '') : '';
         item.courseId = scheduleObject ? scheduleObject.courseId : '';
 
-        // 预约时间格式化（去掉 ISO 的 T 分隔符）
-        item.appointmentTime = item.appointmentDatetime
-          ? (window.DatetimeDomain ? window.DatetimeDomain.formatDateTime(item.appointmentDatetime) : String(item.appointmentDatetime).replace('T', ' '))
-          : '';
+        // 预约时间格式化（课次为 UTC，转用户时区显示；见 appointmentNotes.js 的 renderLessonTime）
+        item.appointmentTime = renderLessonTime(item.appointmentDatetime, true);
         item.appointmentStatus =  checkAppointmentStatus(item.status) || item.status || '';
       } catch (e) {
         // 单条失败不影响整体，保证列表仍能渲染
@@ -393,7 +391,7 @@ async function deleteCourseById(id) {
         item.studentName = item.studentName || item.studentId || '';
         item.teacherName = item.teacherName || item.teacherId || '';
         item.courseName = item.courseName || item.courseId ||  '';
-        item.appointmentTime = item.appointmentDatetime ? (window.DatetimeDomain ? window.DatetimeDomain.formatDateTime(item.appointmentDatetime) : String(item.appointmentDatetime).replace('T', ' ')) : '';
+        item.appointmentTime = renderLessonTime(item.appointmentDatetime);
         item.appointmentStatus = item.appointmentStatus ||  item.status || '';
       }
     }));

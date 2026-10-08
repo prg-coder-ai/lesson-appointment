@@ -1,6 +1,27 @@
 // functoions for appointmentNotes display and data load
 
 /* ============================================================
+ * 课次时间渲染（2026-10-08 课次 UTC 化，见 doc-develop/课次时间UTC化改造方案.md）
+ * ------------------------------------------------------------
+ * 课次 appointment_datetime 后端一律存 UTC。展示要走两级：
+ *   ① 首选后端转好——请求时带 userTimeZone，后端按用户时区返回墙上时间；
+ *   ② 后端没转（老接口 / 未传时区）时，本地用 utcToZoned 兜底按浏览器时区渲染。
+ *
+ * ⚠️ 不要对"已是本地时间"的串再调 utcToZoned —— 会二次偏移。
+ *    本函数默认认为传入的是 UTC（后端口径），故先尝试带 Z 解析。
+ * ============================================================ */
+function renderLessonTime(appointmentDatetime, withSeconds) {
+  if (!appointmentDatetime) return '';
+  const D = window.DatetimeDomain;
+  if (D && typeof D.utcToZoned === 'function') {
+    const zoned = D.utcToZoned(appointmentDatetime, undefined, !!withSeconds);
+    if (zoned) return zoned;
+  }
+  // 兜底：DatetimeDomain 未就绪时至少把 T 换成空格，别把 ISO 串直接甩给用户
+  return String(appointmentDatetime).replace('T', ' ').substring(0, withSeconds ? 19 : 16);
+}
+
+/* ============================================================
  * 通用刷新入口（页面顶部「刷新」按钮）
  * ------------------------------------------------------------
  * 历史问题：原实现把「标题文本」直接当 key 传给 loadAdminPageContent()，
@@ -124,7 +145,10 @@ async function getAppointmentList(conditions ) {
          role:    conditions.Role,
          // 向后端传递排序参数，需后端Controller方法新增@RequestParam("sortField")和@RequestParam("sortOrder")参数，并在Service/Mapper中根据这两个参数动态设置order by子句
          sortField: "appointmentDatetime",   // 例如后端：@RequestParam(required = false, defaultValue = "appointmentTime") String sortField
-         sortOrder: "asc"               // 例如后端：@RequestParam(required = false, defaultValue = "desc") String sortOrder
+         sortOrder: "asc",              // 例如后端：@RequestParam(required = false, defaultValue = "desc") String sortOrder
+         // 课次时间是 UTC（2026-10-08 起），传用户时区让后端转成墙上时间再返回。
+         // 传了之后下面渲染处拿到的已经是本地时间，不要再转一次。
+         userTimeZone: (window.DatetimeDomain && window.DatetimeDomain.nowUserTz) ? window.DatetimeDomain.nowUserTz() : ''
        }
      });
      
@@ -723,7 +747,9 @@ async function datamaintain_fetchAppointmenPage(query) {
             teacherName:   teacherName,
             studentId:     bookedObject.studentId,
             teacherId:     bookedObject.teacherId,
-            appointmentTime: appointment.appointmentDatetime ? (window.DatetimeDomain ? window.DatetimeDomain.formatDateTime(appointment.appointmentDatetime) : String(appointment.appointmentDatetime).replace('T', ' ')) : '',
+            // 课次时间：后端若已按 userTimeZone 转好则直接格式化；
+            // 未传时区时后端原样返回 UTC，这里用 utcToZoned 兜底按浏览器时区渲染。
+            appointmentTime: renderLessonTime(appointment.appointmentDatetime),
             status:        appointment.status
         };
     }
@@ -964,7 +990,7 @@ async function datamaintain_fetchAppointmenPage(query) {
             let date = "";
             let time = "";
             if (item.appointmentDatetime) {
-              // 兼容 'YYYY-MM-DD HH:mm' 或 'YYYY-MM-DDTHH:mm'
+              // 兼容 'YYYY-MM-DD HH:mm' 或 'YYYY-MM-DDTHH:mm'（后端已转本地时区）
               const dtString = window.DatetimeDomain ? window.DatetimeDomain.formatDateTime(item.appointmentDatetime) : String(item.appointmentDatetime).replace('T', ' ');
               const [d, t] = dtString.split(' ');
               date = d;

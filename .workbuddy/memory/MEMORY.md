@@ -95,6 +95,18 @@
 11. **学生端约课链路三处契约（2026-10-06 实证，详见技能 student-booking-flow-align）**：① 提交预订必带 `teacherId`——`booking.teacher_id` NOT NULL 而 `course_schedule` **无 teacher_id 列**，只能取 `Course.teacherId`（缺了必 500 `Column 'teacher_id' cannot be null`）② 学生侧预约过滤字段是 **`userId` + `userRole:'student'`**（`BookingQueryPage` 无 studentId；传错＝`<choose>` 不生效＝返回本租户全部学生预约，是越权读）③ 「延期/请假」是**课次级**动作（`PUT /appointment/updateStatusById {id,status}`，申请=cancelling、取消延期=active），不是整单动作；`completed/cancelled/changed/t-cancelling` 不放出按钮。另：`selectByCourseId` 的 Authorization 头**必填**（不能 tokenOnly）；`teacher/published/public-list` 的 `tenantCode` 为空会**静默返回空数组**，且 VO 只有 `{publishedProfileId,teacherId,name,title,summary,coverUrl}` 五个字段。
 12. **学生端底部 tab/入口改名（2026-10-06）**：学生端「浏览约课/约课」统一为「课程预订」，走行业词 `{{course}}预订`（课程预订/咨询话题预订/健身科目预订）——含 `booking.json` 首帧标题、`home.wxml` 图标与快速开始文案、`shared/constants.js` 的 `textTerm`。该页标题**确实随行业变**，故保留运行时 `wx.setNavigationBarTitle`（与铁律 6 的"固定标题页"相反）。
 
+## 课次时间 UTC 化（2026-10-08 落地，方案 doc-develop/课次时间UTC化改造方案.md v1.1）
+- **口径铁律**：排期 `course_schedule` = 本地墙钟时间 + `time_zone`（**不动**）；**`appointment` 起 = UTC**（唯一真相源）；展示 = 用户时区。转换**只发生在"生成课次那一刻**，此后比较都在 UTC 空间做。
+- **三个入口一律经 `ScheduleGenerator`，禁止散落**：`scheduleLocalToUtc(排期本地,排期时区)` / `utcToUserZone(utc,用户时区)` / `nowUtc()`（审计监控类仍用裸 now()，已白名单豁免）。
+- **不新增 `appointment.time_zone` 列**（v1.1 修订，用户质疑后删）：课次存 UTC 后"排期时区快照"不提供额外保护——UTC 本身已防住；且会自造"两处时区不一致该信谁"的新漂移面。需要时走 `appointment→booking→schedule→course_schedule.time_zone`。
+- 课次 6 个返回接口统一收 `userTimeZone`（`AppointmentQueryPage.userTimeZone`），Controller 内 `toUserZone()` 转换。⚠️ `PageResult` 记录字段是 **`rows`**。
+- **通知正文只能按排期时区渲染，不能按阅读者时区**（异步派发无用户上下文）→ 走 `MessageNotifyService.resolveScheduleZone`，不用模板占位符。
+- 通知规则用 `offsetMinutes`（相对偏移）→ **规则表不需改**，课次转 UTC 后自动正确。
+- `serverTimezone=UTC` **保持不动**（与新语义恰好一致）。`isMatchWeek` 的 `atStartOfDay(zoneId)` 仍被注释（`getDayOfWeek()`），因排期层按用户时区生成故不属本次范围。
+- **守卫 `tools/check-tz-guard.mjs`（npm `check:tz`，pre-commit 第 5 条，`SKIP_TZ=1`）+ `tests/check_tz_guard.js`（npm `test:tz-guard`）15/15**。五条检查：课次写入必须过 `scheduleLocalToUtc` 且两个 setter 都要调、四个文件禁裸 now()、三个方法必须存在、前端禁手算偏移且须有 `isValidZone`。
+- **踩过的坑（写守卫/测试通用）**：① `stripComments` 里 for 循环 `continue` 后仍 `i++`，不显式输出 `'\n'` 会**整行消失**（537→507 行）导致行号错位产生误报 —— **误报比漏报更伤信任**，已加行数自检断言；② `methodBody` 只 indexOf 方法名会**匹配到调用点**、拿到上一个方法体，防护静默归零，正则须强制修饰符；③ JSDoc 里写块注释结束标记字面量会**提前闭合注释**；④ **反向测试会污染源码**（锚点叠加出 `// // // appt.setXxx`，编译能过守卫能绿但功能已废），必须加 touchedFiles 缓存 + 结束逐字节比对不一致则 exit 2；⑤ **`Intl` 认得 `CST` 并静默按 UTC-6 解析**（差 14 小时无报错），而 `GMT+8` 反而抛错 → 前端须 `isValidZone` 强制 `Region/City`；Java 侧 `ZoneId.of("CST")` 抛异常天然安全。
+- **未实测**：验证清单第 5 条「改服务器 TZ 重跑结果不变」需完整环境。
+
 ## 消息中心(message-service)
 - 分类CRUD已全(CategoryController)；发送弹窗#msg-category readonly仅下拉(首项"不分类")；admin-messageCategory.js挂admin+platform_admin「系统配置」。
 - 数据模型双轨：msg_message(主,全局唯一) vs msg_inbox(按收件人写扩散,联表取主消息)。**架构红线：绝不可单独DELETE主消息(会让收件人副本空白)**。
@@ -121,5 +133,6 @@
 - **已实测脏数据**：appointment 142行中102行 booking_id 悬空——根因是 booking_id 有**两个生成器**(BookingService.java:74 产32位hex vs CourseScheduleService.java:464 产36位dashed UUID)，且 appointment **无FK无索引**。notification_dispatch_log 12行悬空。
 - **提权链已于 2026-10-08 修复**（勿再按旧描述当现存缺陷）：① 角色白名单+首账号 bootstrap 统一收口到 `UserService.applyRoleAdmission`，两入口共用；`/register` 走 bootstrap(本租户首个 admin / 全系统首个 platform_admin，其余 pending)，`/add` 按调用者角色裁定(须管理员；租户管理员禁建 platform_admin)。并发用 `countByTenantAndRoleForUpdate/countByRoleGlobalForUpdate` 的 FOR UPDATE 锁定读，**已双会话实测阻塞 4115ms**（user 表只有单列 idx_tenant_id，锁范围偏宽但不影响正确性）。② `/auth/password/reset` 加 checkAdmin（零前端调用点，收窄安全）。③ changePassword 改**两态**：管理员同租户代管免原密码 / 本人改密必填 oldPassword(前端已 prompt 采集) / 其余 403。④ `assertUserScope` 接入 listInbox/unreadCount/listMessageIds。⑤ purgeOne 改 deleteById(in.getId())。
 - **做得好、勿误伤**：BookingSeatService 席位闸门(行锁+锁定读+CAS，5路径全覆盖)、通知幂等 uk_dispatch_once、备份脚本、调试输出0残留。
-- **待用户确认**：各租户是否都已有 admin（bootstrap 改造后"无人可审批"会死锁）；hardening脚本是否已执行 / refreshToken是否真NPE不可达 / jwt.expiration=360000000(100h)是否笔误 / 8081-8090是否公网可直连。
+- **已拍板（2026-10-08）**：`course_check_in` / `course_evaluation` 两表**保留**、功能将来启用，**不要删**。实体 Javadoc 已写明"✅已决定保留"+启用前须补的列（见当日日志第 4.6 回合）。
+- **待用户确认**：各租户是否都已有 admin（bootstrap 改造后"无人可审批"会死锁）；hardening脚本是否已执行 / refreshToken是否真NPE不可达 / jwt.expiration=360000000(100h)是否笔误 / 8081-8090是否公网可直连；**是否引入 Flyway**（Boot 3.3.5 内置，`flyway-core`+`flyway-mysql` 无需版本号；引入前须定 baseline 方案与 patch 目录去留）。
 - **`/user/add` 口径勿再改回"只允许 student/teacher"**：`platform-admin-user.js:161` 的新增用户下拉只有 platform_admin/admin 两项，平台管理员靠它开租户管理员，一刀切会打死该功能。

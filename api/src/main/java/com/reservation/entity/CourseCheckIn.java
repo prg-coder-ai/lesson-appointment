@@ -8,9 +8,17 @@ import  java.util.Date;
 import java.io.Serializable;
 /**
  * 课程签到实体类，对应设计2.4 课程执行-签到功能
+ *
+ * ddl-align: ignore-table 已决定保留表、功能未启用，实体多出的列属已知待补项
+ * ✅ 已决定保留 course_check_in 表与本实体（2026-10-08 用户拍板，功能将来启用），**不要删**。
+ *    当前状态：无 Mapper/Service/Controller 引用，表实测 0 行，属"表与实体先备好、功能未启用"。
+ *    启用时必须先补 DDL 列：实体多出的 schedule_id/student_id/teacher_id/check_in_status
+ *    目前表里没有（本表只有 check_in_id/tenant_id/booking_id/check_in_time）。
+ *    ⚠️ 本表已有 fk_check_in_booking（ON DELETE CASCADE），按项目铁律级联须由程序显式做
+ *    （见 CascadeRules），不能靠 FK CASCADE 盲删。
  */
 @Data
-public class CourseCheckIn implements Serializable { 
+public class CourseCheckIn implements Serializable {
     private static final long serialVersionUID = 1L;
     /** 租户ID（0=平台/历史单租户数据）— SaaS多租户 */
     private Long tenantId;
@@ -18,7 +26,7 @@ public class CourseCheckIn implements Serializable {
     @NotBlank(message = "订单ID不能为空")
     private String booking_id;    // 关联预约订单
     @NotBlank(message = "排期ID不能为空")
-    private String scheduleId; // 关联课程排期
+    private String scheduleId; // ddl-align: ignore 表已保留、功能未启用，启用时补列
 //    @NotBlank(message = "排期ID不能为空       ")
    // private String scheduleId; // 关联课程排期
     @NotBlank(message = "学生ID不能为空")

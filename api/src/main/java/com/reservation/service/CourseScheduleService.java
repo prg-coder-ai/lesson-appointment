@@ -569,6 +569,12 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
       ScheduleGenerateDTO genDto = CreateDtoToGenerateDto(crtDto);
       List<ScheduleVO> instanceList = ScheduleGenerator.generateUserZoneSchedule(genDto);
 
+      // 排期时区：从排期实体取，是本次换算的唯一依据。
+      // generateUserZoneSchedule 展开出的 date+time 是「排期本地墙钟时间」，
+      // 落库前必须转成 UTC，否则课次时间会随服务器时区/比较口径整体错位
+      // （见 doc-develop/课次时间UTC化改造方案.md 步骤 2）。
+      String scheduleZone = schedule.getTimeZone();
+
       List<Appointment> appointmentList = new ArrayList<>();
       int index = 1;
       for (ScheduleVO vo : instanceList) {
@@ -576,10 +582,12 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
           appt.setBookingId(bookingId);
           appt.setClassIndex(index++);
           String appointmentDateTime = vo.getDate() + " " + vo.getTime();
-          LocalDateTime localDateTime = LocalDateTime.parse(
+          LocalDateTime scheduleLocal = LocalDateTime.parse(
                   appointmentDateTime, java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-          appt.setAppointmentDatetime(localDateTime);
-          appt.setLastDatetime(localDateTime);
+          // 排期本地时间 → UTC。写入 appointment 的唯一转换点，勿绕过。
+          LocalDateTime utc = ScheduleGenerator.scheduleLocalToUtc(scheduleLocal, scheduleZone);
+          appt.setAppointmentDatetime(utc);
+          appt.setLastDatetime(utc);
           appt.setStatus("active");
           appointmentList.add(appt);
       }

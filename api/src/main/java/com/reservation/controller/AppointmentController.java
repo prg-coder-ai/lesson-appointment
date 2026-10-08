@@ -29,6 +29,36 @@ public class AppointmentController {
     @Autowired
     private com.reservation.utils.PermissionCheck permissionCheck;
 
+    // ================================================================
+    // 课次时间出参转换（2026-10-08 课次 UTC 化改造）
+    //
+    // 背景：课次 appointment_datetime 自 2026-10-08 起一律存 UTC（唯一真相源），
+    // 而列表页/详情页/导出/消息预览都要展示"人能对上的墙上时间"。
+    // 由后端统一转一次，保证四处口径一致；交给前端各转一遍必然漂移。
+    //
+    // userTimeZone 缺省或非法时**原样返回 UTC**（safeZone 内部降级不抛异常），
+    // 前端拿到的仍是合法 ISO 串，不会因为没传时区而报错。
+    // ================================================================
+
+    /** 把课次实体上的 UTC 时间就地转成用户时区。null 安全。 */
+    private Appointment toUserZone(Appointment a, String userTimeZone) {
+        if (a == null) return null;
+        if (userTimeZone == null || userTimeZone.trim().isEmpty()) return a;
+        a.setAppointmentDatetime(
+                ScheduleGenerator.utcToUserZone(a.getAppointmentDatetime(), userTimeZone));
+        a.setLastDatetime(
+                ScheduleGenerator.utcToUserZone(a.getLastDatetime(), userTimeZone));
+        return a;
+    }
+
+    private List<Appointment> toUserZone(List<Appointment> list, String userTimeZone) {
+        if (list == null) return null;
+        for (Appointment a : list) {
+            toUserZone(a, userTimeZone);
+        }
+        return list;
+    }
+
     /**
      * 1. 新增预约时间
      */
@@ -139,36 +169,44 @@ public class AppointmentController {
      * 4. 根据ID查询单条
      */
     @GetMapping("/get/{id}")
-    public Result<Appointment> getById(@PathVariable Integer id) {
-        return Result.success(appointmentService.getById(id),"ok");
+    public Result<Appointment> getById(@PathVariable Integer id,
+            @RequestParam(required = false) String userTimeZone) {
+        return Result.success(toUserZone(appointmentService.getById(id), userTimeZone),"ok");
     }
 
     /**
      * 5. 查询所有预约时间
      */
     @GetMapping("/list")
-    public Result<List<Appointment>> list() {
-        return Result.success(appointmentService.list(),"ok");
+    public Result<List<Appointment>> list(@RequestParam(required = false) String userTimeZone) {
+        return Result.success(toUserZone(appointmentService.list(), userTimeZone),"ok");
     }
-  
+
       @PostMapping("/listByPage")
     public Result<PageResult<Appointment>> listByPage(@RequestBody AppointmentQueryPage query) {
-        return Result.success(appointmentService.listByPage(query.getPageNum(),query.getPageSize(),query.getStatus()),"ok");
+        PageResult<Appointment> rs = appointmentService.listByPage(
+                query.getPageNum(), query.getPageSize(), query.getStatus());
+        if (rs != null && rs.getRows() != null) {
+            toUserZone(rs.getRows(), query.getUserTimeZone());
+        }
+        return Result.success(rs,"ok");
     }
     /**
      * 查询指定 bookingId 的预约列表
      * GET /course/appointment/listByBookingId?bookingId=xxx
-     */   
-    
+     */
+
     @GetMapping("/getByBookingId")
-    public Result<List<Appointment>> getByBookingId(@RequestParam("bookingId") String bookingId) {
-        return Result.success(appointmentService.getByBookingId(bookingId),"ok");
+    public Result<List<Appointment>> getByBookingId(@RequestParam("bookingId") String bookingId,
+            @RequestParam(required = false) String userTimeZone) {
+        return Result.success(toUserZone(appointmentService.getByBookingId(bookingId), userTimeZone),"ok");
     }
 
     // 根据状态查询
     @GetMapping("/getByStatus")
-    public Result<List<Appointment>> getByStatus(@RequestParam String status) {
-        return Result.success(appointmentService.getByStatus(status),"ok");
+    public Result<List<Appointment>> getByStatus(@RequestParam String status,
+            @RequestParam(required = false) String userTimeZone) {
+        return Result.success(toUserZone(appointmentService.getByStatus(status), userTimeZone),"ok");
     }
  
 
@@ -219,11 +257,13 @@ public class AppointmentController {
              @RequestParam(required = false, defaultValue = "") String userId,
              @RequestParam(required = false, defaultValue = "")  String role,
              @RequestParam(required = false, defaultValue = "appointmentDatetime") String sortField,
-             @RequestParam(required = false, defaultValue = "asc") String sortOrder
-    ) { 
+             @RequestParam(required = false, defaultValue = "asc") String sortOrder,
+             @RequestParam(required = false) String userTimeZone
+    ) {
        //  log.debug("listByDays  listByDays 参数：days = " + days);
-        // 获取当前时间（now）和days天之后的相同时间
-        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        // 「现在」取 UTC：课次时间自 2026-10-08 起是 UTC，查询窗口边界必须同源。
+        // 否则服务器时区一变，"近 N 天"查出来的课次就会整体偏移。
+        java.time.LocalDateTime now = com.reservation.common.ScheduleGenerator.nowUtc();
         java.time.LocalDateTime startOfPeriod, endOfPeriod;
         if (days <= 0) {
           // 「全部」：不限制时间，使用 MySQL DATETIME 合法边界（与 listByDaysByPage 一致）
@@ -241,8 +281,9 @@ public class AppointmentController {
                 java.sql.Timestamp.valueOf(startOfPeriod),
                 java.sql.Timestamp.valueOf(endOfPeriod),
                 sortField, sortOrder
-         ); 
-        return Result.success(appList, "查询成功");
+         );
+        // 出参转用户时区：库里的筛选区间是 UTC 空间（正确），但页面要显示本地时间
+        return Result.success(toUserZone(appList, userTimeZone), "查询成功");
     }
 // 
     @PostMapping("/statistical/listByDaysByPage")
@@ -258,7 +299,8 @@ public class AppointmentController {
           startOfPeriod = java.time.LocalDateTime.of(1000, 1, 1, 0, 0, 0);
           endOfPeriod   = java.time.LocalDateTime.of(9999, 12, 31, 23, 59, 59);
         } else {
-          startOfPeriod = java.time.LocalDateTime.now();
+          // 同上：课次时间是 UTC，窗口起点必须用 UTC 的"现在"，不能用服务器时区的 now()
+          startOfPeriod = com.reservation.common.ScheduleGenerator.nowUtc();
           endOfPeriod = startOfPeriod.plusDays(days);
         }
         Integer pageNum = (query.getPageNum() != null) ? query.getPageNum() : null;
@@ -274,7 +316,10 @@ public class AppointmentController {
                 pageNum,
                 pageSize,
                 query.getStatus()
-        ); 
+        );
+        if (appList != null && appList.getRows() != null) {
+            toUserZone(appList.getRows(), query.getUserTimeZone());
+        }
         return Result.success(appList, "查询成功");
     }
  // 对应前端调用示例（appointmentNotes.js）:
@@ -307,8 +352,11 @@ public class AppointmentController {
         // INSERT_YOUR_CODE
        // log.debug("onDays countByTimeOnDays ondays = " + days);
 
-        // now为当日零点
-        java.time.LocalDateTime now = java.time.LocalDate.now().atStartOfDay();
+        // 「当日零点」= UTC 当日零点。课次时间是 UTC，日期分界也必须按 UTC 切，
+        // 否则服务器时区一变，"近 N 天"统计的起点就跟着漂。
+        // （原写法 LocalDate.now().atStartOfDay() 取的是服务器时区的"今天"。）
+        java.time.LocalDateTime now =
+                com.reservation.common.ScheduleGenerator.nowUtc().toLocalDate().atStartOfDay();
         // endOfPeriod为days后的零点（不含最后一天）
         java.time.LocalDateTime endOfPeriod = now.plusDays(days);
    
