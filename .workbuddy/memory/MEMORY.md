@@ -29,6 +29,8 @@
 - **API分流(根因坑)**：dev代理 toMessageService(doc-develop/dev-proxy.js)+Nginx booking*.conf 须覆盖 message-service 全部 /api/v1 前缀(message/sensitive/sse/users)。漏配→请求误路由 booking→返回"资源不存在"。(2026-10-03 敏感词 /api/v1/sensitive 漏配已修：dev-proxy.js + booking.conf + booking-ip.conf 三处加 sensitive 分支)
 - 后端挂死：非API路径秒回404、/api/**全超时；jstack见http-nio线程BLOCKED@StandardWrapper.allocate；处置：java启动必 > 日志 2>&1 后taskkill重启。
 - 排障：netstat -ano|grep LISTENING→PID；jcmd <pid> VM.command_line；jstack <pid>。wmic禁用；**Git Bash 下 taskkill /PID 会被 MSYS 路径转换误判→用 MSYS_NO_PATHCONV=1 taskkill /PID <pid> /F 强杀代理/后端**；命令行含password触发敏感审批→curl -d @json文件(Write落盘UTF-8)。
+- **异常堆栈去 `api/logs/spring-boot-app.log` 找**（相对 jar 启动目录）：logback-spring.xml:8 是 `LOG_DIR=${LOG_PATH:-./logs}`，认**环境变量 LOG_PATH**、**不认** spring 的 `--logging.file.name`（传了也不落盘，别在它上面浪费时间）。要完整堆栈直接查该文件，比重定向 stdout 可靠（后者 GBK 混杂会被截断）。
+- **curl 前先查注解的 method 与路径，别猜**：`/course/booking/updateStatus` 是 **@PostMapping**（PUT 会 500 `HttpRequestMethodNotSupportedException`）；候补递补是 `/booking/waitlist/promote` 且字段 `id`（非 `bookingId`）。造 token 用 HS512、sub 须真实 user_id。
 
 ## 登录/注册/公开页
 - login.html：index→landing→login→角色页；tCode锁tenant、registered=1须跳过自动跳转；submitRegister返回false不得弹成功。
@@ -36,11 +38,15 @@
 - 公开页防跳登录：utility_request.js 401拦截(__PUBLIC_LANDING__||noAuthRedirect)+api.js InitUserInfo顶层守卫(isPublicPage)；__PUBLIC_LANDING__=true须在api.js前注入。
 
 ## 业务规则
+- **booking→appointment 联动（2026-10-08 第3批已收回服务端）**：单一实现 `BookingAppointmentSyncService`，接入 `BookingService` 三入口(updateStatus/update/create含复用分支)。**仅 booked 生成课次**；映射表：cancelling→`cancelling`(学生/整单发起)、cancelled→`cancelled`、frozen→`frozen`(课次保留行不物理删)、waiting/rej-booking→不生成+置cancelled、booking/rej-cancelling→还原active、**未登记状态→不动**(宁不同步不盲写)。`completed`/`changed` 课次**不覆写**(真实已发生的事实)。
+- **课次状态前缀语义（铁律，混用即失去可追溯性）**：`s-`=学生课次级 / `t-`=教师课次级 / 无前缀=整单级。`t-cancelling`/`t-cancelled` 已被教师端「申请改期」占用(`appointmentState.js:26`)，**整单取消绝不可用 t-**；学生/整单发起的取消待确认用 `cancelling`。权威源 `common/AppointmentStatus.java` ↔ `shared/domain/appointmentState.js` 须同步登记。
+- **课次生成幂等缺口(已修)**：`generateAppointmentsForBooking` 原「已存在就跳过」会让 `booked→cancelled→booked` 后课次永远停在 cancelled(**时间表凭空消失**)。现校验是否存在仍生效课次(`occupiesTime`)，全失效才 removeByBookingId+重生成。
 - 术语(sys_term)：三级(0,0)平台/(行业,0)行业/(租户,行业)租户；语言优先作用域；TermMsg.t("{key}")只替换显式{key}。
 - 候补/名额并发：排期行锁+锁定读计数(禁COUNT+FOR UPDATE)+加锁顺序"排期→booking"+CAS。(详见seat-oversell-concurrency-audit)
 - 退改规则：course_id=''租户默认；两阈值+partial_refund_percent；生效课程>租户默认>内置兜底(24h/12h/50%)。
 - 上课通知规则：三表(头/明细/流水)；明细进IGNORE_TABLES；整组覆盖；生效课程>租户默认>内置兜底(3天/1天/1h/30min)；NotifyTask每60s逐租户setTenantId+finally clear。
 - SSE：pushToUser catch生效；connect覆盖旧emitter必old.complete()。
+- **`booking.teacher_id` NOT NULL 无默认值**：直接调 `POST /booking/create` 不带 teacherId 必 500(前端正式链路会带)。
 
 ## 免登录接口×租户插件
 - 无租户上下文入口被追加tenant_id=-1→恒不命中；放行=白名单(进得来)+查询@InterceptorIgnore(tenantLine="true")；admin侧先requireTenantContext()。

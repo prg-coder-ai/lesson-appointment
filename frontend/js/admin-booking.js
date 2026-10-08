@@ -281,77 +281,23 @@ function gotoScheduleForWaitlist(scheduleId) {
     alert('无法定位「课程排期」页面，请手动切换到该菜单。');
 }
 
-async function confirmOrCancelBooking(bookingid,status) { 
-  // 根据bookingid在bookingList中查找对应的booking对象
-  const bookingList = pendingBookingList;
-  const bookingObj = Array.isArray(bookingList) ? bookingList.find(b => b.bookingId === bookingid) : null; 
-  
-  if(bookingObj ==null)
-    return ;
-  const scheduleInfo = await fetchSchedule(bookingObj.scheduleId);
- 
-  //按照排期所用的时区时刻 
-  if(status == "booked"  ){   // 获取时间列表  booking--》booked
-         const appointmentResults = await generateAppointmentList (bookingObj.scheduleId,scheduleInfo.timeZone );
-         // 遍历scheduleResult数组的每个元素，添加到appointmentDateTimeList中 
-         let appointmentDateTimeList = [];
-         if (Array.isArray(appointmentResults)) {
-            appointmentResults.forEach(item => {
-             // 假设item中有appointment_datetime字段，如果不是可根据实际字段名调�?
-             // 这里假设item就是约定的预约时间对象或类似格式
-             // 如果item有date和time字段，合成为一个appointment_datetime字段（ 如 2024-06-10T09:00:00）
-             if (item.date && item.time) {
-                 appointmentDateTimeList.push(`${item.date}T${item.time}`); 
-             }
-         });
-         } 
- 
-         appointmentDateTimeList.forEach(async (dt, idx) => { 
-             let AppointmentData = {
-              bookingId: bookingid,
-              appointmentDatetime: dt,  // 拼写修正
-              lastDatetime: dt,
-              classIndex: idx+1           // 用forEach的下标，避免indexOf找不�?           
-         };
+async function confirmOrCancelBooking(bookingid, status) {
+  // ===== 第 3 批（2026-10-08）：状态联动已收回服务端，这里只发一次请求 =====
+  //
+  // 原先这个函数在浏览器里编排整套业务规则：
+  //   booked      → 前端自己算排期时间 → 逐条 POST saveAppointment（forEach 未 await，
+  //                 中途刷新页面就留下半份时间表）→ 再 PUT 改预订状态
+  //   cancelled   → 先 PUT 改课次状态，再 PUT 改预订状态（两次 HTTP，非原子）
+  //   booking     → 先 DELETE 课次，再 PUT 改预订状态（同上）
+  //   cancelling  → 先 PUT 改课次状态，再 PUT 改预订状态（同上）
+  // 后果：课次生成规则只存在于这个浏览器函数里。小程序端同一操作不生成课次，
+  // curl 直接调预订接口也能拿到"已确认却没有任何课次行"的预订。
+  //
+  // 现在服务端在单个事务内完成「状态迁移 + 课次生成/级联」，前端只负责发一次状态变更。
+  // 保持调用点签名不变，按钮渲染与状态映射（下方按钮各传的 status）完全不动。
+  await operateBookingStatus(bookingid, status);
 
-         // 清理掉undefined属性（只保留有效字段）
-         Object.keys(AppointmentData).forEach(
-         key => AppointmentData[key] === undefined && delete AppointmentData[key]
-         );  
-         // 如果核心值有空，进行警告
-         if (!bookingid || !dt) {
-             //console .warn("警告：bookingid或appointmentDatetime为空�?, AppointmentData);
-             return;
-         }
-
-         //把booking-》booked,添加时间列表  
-         await saveAppointment(AppointmentData);
-     });
-
-    await validBooking(bookingid);
-
-    } else if(status == "cancelled"  ){ 
-    //确认取消预约--把book状态设置为booking   
-      await validCancelBooking(bookingid);
-    }  else if(status == "booking"  ){ // 
-          //删除所有相关预约列表，并把book状态设置为booking
-          await deleteAppointmentsByBookingId(bookingid);
-          await operateBookingStatus( bookingid, "booking") ;   
-    } else if(status == "cancelling"  ){ 
-    //把相关预约列表的状态设置为cancelling--未确定状�?
-    //更新预约表的bookingid对应的所有项的状态为cancelling 
-          await cancelBooking(bookingid); 
-    } else {//兜底处理--直接设置
-      //拒绝预约--把book状态设置为rej-booking
-      await operateBookingStatus( bookingid, status) ;   
-    }
-
-    async function sleep(ms) {
-      return new Promise(resolve => setTimeout(resolve, ms));
-    }
-    await sleep(200); 
-    
-    getBookingListByPage();
+  getBookingListByPage();
 }
 
 async function checkAppointmentExistsBookingId(bookingid) {
@@ -377,44 +323,40 @@ async function checkAppointmentExistsBookingId(bookingid) {
   }
 }
 async function deleteBookingByFrozen(id) {
-    // 调用后端删除预约接口（假定全局已定义 request 方法和 API_BASE_URL）
-    // 查询是否存在以此id为排期id的appointment（预约/子项），返回结果布尔型
-     if (checkAppointmentExistsBookingId(id))
-     { 
+    // 第 3 批：课次置 frozen 的级联已由服务端在事务内完成，
+    // 这里原先额外调一次 updateAppointmentsStatusByBookingId(id,"frozen") —— 双写且未 await，
+    // 服务端已覆盖该行为，重复调用只会让课次状态被写两次。
+    // 保留"该预订存在课次"的二次确认：那是删除前的用户提示，不是业务规则。
+    if (checkAppointmentExistsBookingId(id)) {
       const userChoice = confirm('该预订存在预约，是否继续删除？继续将删除该预订下的全部预约。点击“确定”继续，点击“取消”放弃删除。');
       if (!userChoice) {
         return;
       }
-      //删除该预定的全部预约 
-     updateAppointmentsStatusByBookingId(id,"frozen");
-     }
-    
+    }
+
     try {
       await operateBookingStatus( id, "frozen");
       getBookingListByPage();
      } catch (e) {
       //  alert('网络错误，删除失败');
         console.error(e);
-    } 
+    }
     }
 
-async function validBooking(bookingid){ 
-  await operateBookingStatus( bookingid, "booked"); 
-    } 
+// 以下三个是旧入口的薄转发，保留 window 挂载是为了不破坏外部/历史调用点。
+// 第 3 批后它们都不再自己编排业务规则——课次生成与级联一律由服务端在事务内完成，
+// 因此这里只剩一次状态请求；原先各自附带的 updateAppointmentsStatusByBookingId 双写已删除。
+async function validBooking(bookingid){
+  await operateBookingStatus( bookingid, "booked");
+    }
 
 //确认取消----
-async function validCancelBooking(bookingid){ 
-   //将appointment的bookingid=bookingid的所有项的状态设置为“cancelled->cancelling ->booked-->booking 
-   await updateAppointmentsStatusByBookingId(bookingid, "cancelled");
-   //更新booking预定状态
-   await operateBookingStatus( bookingid, "cancelled"); 
-    } 
+async function validCancelBooking(bookingid){
+   await operateBookingStatus( bookingid, "cancelled");
+    }
 
-    async function cancelBooking(bookingid){ 
-        //将appointment的bookingid=bookingid的所有项的状态设置为“cancelled->cancelling ->booked-->booking 
-        await updateAppointmentsStatusByBookingId(bookingid, "cancelling");
-        //更新booking预定状态
-        await operateBookingStatus( bookingid, "cancelling"); //--学生、教师取消 
+    async function cancelBooking(bookingid){
+        await operateBookingStatus( bookingid, "cancelling"); //--学生、教师取消
          }
 
 

@@ -38,6 +38,17 @@ public class BookingService {
     @Resource
     private CourseScheduleService courseScheduleService;
 
+    /**
+     * booking → appointment 状态联动（第 3 批：把课次生成/级联从浏览器收回服务端）。
+     * 仅 booked 生成课次；离开 booked 时按映射整组调整课次状态。
+     */
+    @Resource
+    private BookingAppointmentSyncService bookingAppointmentSyncService;
+
+    /** 真删除预订时一并清除其课次，避免产生 booking_id 悬空引用 */
+    @Resource
+    private AppointmentService appointmentService;
+
     @Transactional(rollbackFor = Exception.class)
     public String create(Booking booking) {
         // 第一步先取排期行锁，把「查重 → 名额校验 → 落库」整段串行化到同一把锁上。
@@ -68,13 +79,29 @@ public class BookingService {
             String targetStatus = (booking.getStatus() == null || booking.getStatus().trim().isEmpty())
                     ? BookingStatus.BOOKED : booking.getStatus();
             bookingMapper.updateStatus(existing.getBookingId(), targetStatus);
+
+            // 复用分支原先只改状态、不生成课次，是「课次生成在前端」的又一处漏洞：
+            // 候补(cancelled→booked)经本路径转正时，前端若未走 Web 管理端就永远没有课次。
+            // 第 3 批起联动由服务端统一负责，任何客户端调 create 都会得到一致的课次。
+            Booking reused = bookingMapper.selectById(existing.getBookingId());
+            if (reused != null) {
+                bookingAppointmentSyncService.syncOnStatusChange(reused, targetStatus);
+            }
             return existing.getBookingId();
         }
 
         String id = UUID.randomUUID().toString().replace("-", ""); // 移除UUID分隔符
         booking.setBookingId(id);
 
-        bookingMapper.insert(booking); 
+        // 默认落 booked 时同步生成课次：学生端「立即预订」提交的就是空 status。
+        // 若显式传了 waiting 等非 booked 状态，联动内部按映射表判定为「不生成」。
+        String effectiveStatus = (booking.getStatus() == null || booking.getStatus().trim().isEmpty())
+                ? BookingStatus.BOOKED : booking.getStatus();
+        bookingMapper.insert(booking);
+
+        if (BookingStatus.isBooked(effectiveStatus)) {
+            bookingAppointmentSyncService.syncOnStatusChange(booking, BookingStatus.BOOKED);
+        }
         return   id;
     }
 
@@ -113,6 +140,11 @@ public class BookingService {
             if (rows == 0) {
                 throw new BusinessException(TermMsg.t("该预订已被他人修改，请刷新后重试"));
             }
+            // 第 3 批：改状态的这条入口同样要联动课次。
+            // 原先只做 CAS 改状态，课次生成/级联全靠前端另一条链路，导致绕过
+            // updateStatus 直接调 update 的客户端（导入脚本、运维接口）拿不到课次。
+            // 用 current（含 scheduleId）作联动输入，状态以 targetStatus 为准。
+            bookingAppointmentSyncService.syncOnStatusChange(current, targetStatus);
         }
 
         bookingMapper.updateById(booking);
@@ -125,6 +157,13 @@ public class BookingService {
           String id= dto.getId();
           String status =dto.getStatus();
           if (BookingStatus.DELETE.equals(status)) {
+              // 先查该预订下有无课次：真删除预订而留下课次，就是"booking_id 悬空"。
+              // 报告实测过现网 appointment 有 102/142 行 booking_id 指向不存在的预订，
+              // 这里按同一口径补一道：随预订一并清除，避免再制造悬空引用。
+              Booking toDelete = bookingMapper.selectById(id);
+              if (toDelete != null) {
+                  appointmentService.removeByBookingId(id);
+              }
               bookingMapper.deleteById(id);
               return id;
           }
@@ -154,6 +193,19 @@ public class BookingService {
           int rows = bookingMapper.updateStatusIfCurrent(id, current.getStatus(), status);
           if (rows == 0) {
               throw new BusinessException(TermMsg.t("该预订已被他人修改，请刷新后重试"));
+          }
+
+          // 第 3 批：课次联动收回服务端。
+          // 原先这条路径完全没有课次逻辑——课次由浏览器在 confirm 前自己算好并逐条 POST，
+          // 因此「booking→booked」在 Web 之外（小程序、curl）都不产生任何课次，
+          // 「booked→cancelled」也要靠前端再发一次 PUT 改课次状态，非原子且两端不一致。
+          // 现在与 CAS 在同一事务内完成：状态已改但课次没跟上时整体回滚，
+          // 不会再留下"已确认却没有上课时间表"的半成品。
+          BookingAppointmentSyncService.SyncOutcome outcome =
+                  bookingAppointmentSyncService.syncOnStatusChange(current, status);
+          if (outcome.isChanged()) {
+              log.info("预订状态联动完成, bookingId={}, {} → {}, {}",
+                      id, current.getStatus(), status, outcome.toMap());
           }
         return id;
     }

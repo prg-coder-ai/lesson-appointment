@@ -7,6 +7,7 @@ import com.reservation.mapper.CourseScheduleMapper;
 import com.reservation.mapper.ScheduleExceptionMapper;
 import com.reservation.common.ScheduleGenerator;
 import com.reservation.common.BookingStatus;
+import com.reservation.common.AppointmentStatus;
 
 import com.reservation.mapper.BookingMapper;
 import com.reservation.query.ScheduleQueryPage;
@@ -488,8 +489,21 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
       }
       List<Appointment> existingAppointments = appointmentService.getByBookingId(bookingId);
       if (existingAppointments != null && !existingAppointments.isEmpty()) {
-          log.info("课次已存在，跳过生成：bookingId={}, 已有{}条", bookingId, existingAppointments.size());
-          return true;
+          // 幂等返回，但**不能就此认为完好**：课次存在不等于还在生效。
+          // 典型场景 booked → cancelled（课次置 cancelled）→ 又被确认回 booked，
+          // 此时若直接 return，booking 是 booked 而课次全是 cancelled —— 上课时间表"凭空消失"。
+          // 故这里校验是否存在仍生效的课次；全是非生效态时补生成一份并显式核对条数。
+          boolean anyActive = existingAppointments.stream()
+                  .anyMatch(a -> AppointmentStatus.occupiesTime(a.getStatus()));
+          if (anyActive) {
+              log.info("课次已存在且仍生效，跳过生成：bookingId={}, 已有{}条",
+                      bookingId, existingAppointments.size());
+              return true;
+          }
+          // 走到这里说明课次存在但全部已取消/冻结：先物理清理再重新展开。
+          // 这是唯一允许物理删除课次的路径——重复生成会导致同一时段出现两条时间行。
+          log.info("课次存在但全部失效，重新生成：bookingId={}, 原{}条", bookingId, existingAppointments.size());
+          appointmentService.removeByBookingId(bookingId);
       }
       CourseSchedule schedule = scheduleMapper.selectById(scheduleId);
       if (schedule == null) {
