@@ -15,6 +15,18 @@
 - **SecurityConfig 用块体 lambda** `auth -> { ... }`（非表达式体）——表达式体里插语句会被分号截断，报错位置还指向更早的无关行。
 - 待第3批：兜底切 denyAll；8 个 Controller 方法级授权；P1-1~P1-7 逐条补；`/course/list|page|{id}` 三者方法体校验现状不一致（/list 活着会 403 学生，/page 与 /{id} 已注释）。
 
+## 引用完整性级联（第4批，2026-10-08 落地）
+- **⚠️ 报告根因 C 原写"库中无外键"是错的**：实测 14 个 FK 且 `DELETE_RULE` **全为 CASCADE**。悬空引用（149 行课次 109 行 booking_id 悬空）**不是缺约束，是 DB 盲级联删父、无人管子**：`DELETE course_schedule` → CASCADE 删 booking → appointment 无 FK 指 booking → 课次成孤儿。
+- **用户拍板：不用 DB 级联，程序内完成**（含软删除：用户确认后对关联表置状态）。理由：DB 不认业务语义（课次须保行+置态，删了抹上课历史）/ 第3批联动已回服务端，两边都删会错位 / 隐式级联不可观测。
+- **单一权威源 = `api/.../common/CascadeRules.java`**（12 场景 / 17 规则「父表.父键→子表.子键+动作」）；执行器 `ReferentialCascadeService`（唯一，REQUIRED 同事务，级联失败必须让父删回滚）；SQL `mapper/CascadeMapper`（动态表列名，**全 @InterceptorIgnore(tenantLine)** —— 级联漏删不报错只静默留悬空，租户边界靠入口权限）。
+- **6 种动作**：FREEZE(置态保行) / SOFT_STATUS(置指定态) / DELETE / RESTORE_STATUS(只改 fromStatuses 内) / **KEEP(显式不动，必须写理由)** / **SKIP(做不到，必须写理由)**。KEEP|SKIP 强制写理由 = 让"为什么不做级联"必须被回答。
+- **软删除处置**：排期 frozen→预订+课次 frozen(保行)；课程 frozen→排期 **inactive**(非frozen，恢复上架即原样可用) 且**预订/课次 KEEP**(已付款不能静默取消)；租户软删→**账号 frozen + 会话下线**(原先只改 sys_tenant 一行，被删租户用户仍能登录写数据)；租户恢复→只解冻 frozen，pending/inactive 不动；删行业→词条 status=0 + 删前校验租户占用返 409。
+- **物理删除必须先子后父**：`appointment` 无 schedule_id 列，只能经 booking_id 两跳；**booking 先删就定位不到课次**。删课次**必须先删 notification_dispatch_log**（uk_dispatch_once 含 appointment_id，留着该课次此后通知永远发不出去）。**规则表不做跨层展开**（链上每层父键类型不同，跨层展开等于在规则表里重写查询引擎）——规则只管"这一步内子表怎么处置"，跨层取键由调用方 Service 显式做。
+- **bookingId 双生成器已统一**（`BookingIdGenerator.next()` = 32位hex）：原 32位hex 105行 与 36位dashed 5行并存，appointment 里 32位的 124 行仅 15 行能匹配。危害是"关联失败会被误读成另一种正常格式而静默跳过"。历史数据不改写。
+- **守卫 `tools/check-cascade-rules.mjs`（npm run check:cascade，pre-commit SKIP_CASCADE=1 跳过）**；反向测试 `npm run test:cascade-guard`（9/9，需 --experimental-vm-modules）。**豁免写法：删除/软删除处写 `// cascade: none <理由>`**。
+- **根因 C「单一事实源」已落地 `api/sql/`**（2026-10-08）：`schema/` 现网mysqldump 权威 DDL（lesson_appointment 29表/3 CHECK/13FK、message_center 8表）+ `seed/` 基础数据（sys_term 317、msg_category 14 含 BOOKING_CREATED/CONFIRMED/LEAVE_CREATED）+ `patch/` 历史补丁（新环境**不执行**）+ `README.md`。**命名铁律：`YYYYMMDD-HHMM-<库>-<用途>.sql`，字典序即执行顺序**。改表结构后必须重新导出落此目录。**mysqldump 必须用 `--result-file=`（`>` 重定向在 Windows 写成 GBK 中文注释全乱码）且须 `--ignore-table=` 排除 `bak_*` 备份表。** 旧 `api/beforeRun/sql/*` 已打【已废弃】标记（少4表：course_notify_rule/_point、course_refund_rule、notification_dispatch_log）。
+- **根因 C 剩余：仍未引入 Flyway/schema_version**——有事实源了但无自动迁移与版本号。
+
 ## 技术栈与构建
 - api(Spring Boot 3.3.5+MyBatis-Plus 3.5.7)+message-service 独立模块；MySQL lesson_appointment/message_center；三产物：booking-api jar / message-service-1.0.0.jar / frontend/dist/。
 - 改前端必重 node frontend/build.js(CODEBUDDY_SAFE_DELETE_ENABLED=0)；编译验证用 saas-api-build-smoke(GBK输出iconv)。
@@ -92,7 +104,10 @@
 - 技能：saas-api-build-smoke/shared-domain-sink/shared-adapter-wire/seat-oversell-concurrency-audit/public-endpoint-tenant-bypass/browserless-frontend-itest/server-side-term-template/source-encoding-repair/miniprogram-page-registry-audit/paged-response-field-contract-audit/miniprogram-grouped-enrich-list/miniprogram-term-localization/**miniprogram-form-schema-align**(表单页↔表结构对齐)/**student-booking-flow-align**(学生端约课链路:课程→排期→预订/候补→我的预约→课次请假→浏览教师,含 6 坑)。
 - 工具踩坑：并行同文件多Edit只最后生效→串行+grep核验；替换前探测行尾(CRLF/LF)；Maven GBK输出先iconv。
 - **Windows `path.join` 陷阱**（2026-10-07 实证）：`path.join` 在 Windows 产**反斜杠**，与 `path.relative().split(path.sep).join('/')` 产出的正斜杠比对恒 false → Set.includes 静默失效（生成产物没被跳过、子检查空跑**假通过**）。脚本内相对路径清单一律写 **POSIX 正斜杠**，另加"必须真校验过 N 份"的断言。
-- **node 内 `spawnSync(process.execPath)` → EBUSY**（托管 node.exe 占用/沙箱）：需在脚本里跑另一个 node 脚本时，改用**同进程动态导入 + 临时接管 `process.exit`** 取退出码。`tests/miniprogram-itest/static.mjs` 的 63 FAIL 也是它自己 `spawnSync cmd.exe EBUSY`，非代码问题。
+- **node 内 `spawnSync(process.execPath)` → EBUSY**（托管 node.exe 占用/沙箱）：`spawnSync`/`execFileSync`/`spawn` **全部** EBUSY（已实测三者皆不可用）。且 **同进程 `import(url+'?t=rand')` 也绕不开 ESM 缓存**（文件已改、URL 带随机 query，模块读到的仍是旧内容）。唯一可靠 = **`vm.SourceTextModule` 每次重新求值源码**（需 `--experimental-vm-modules`）；注意合成模块要按来源模块给 `default` 导出（守卫用 `import fs from 'node:fs'`），守卫末尾 `process.exit` 在 vm 里要 catch 成中断信号。
+- **测试用例必须断言"注入真的生效"**（mutate 返回 true 而非静默 false）：否则拿到的是"守卫在原文件上通过"的**假绿灯**。
+- **解析嵌套构造的单正则会静默漏条目**：如 `new Rule(...List.of(...)...)` 用单正则只抓到 5/17 条，而"没报错"看起来是绿的。须按**括号配平**逐条提取。
+- **分组判定不要按行号推断归属**：常量声明在文件末尾时，前面条目会被全归到最后一个分组 → 报出一堆假重复。改按**代码块**（`XXX = List.of(...)`）分组。
 - 缺 `jsdom` 的用例：`export NODE_PATH=C:/Users/Administrator/.workbuddy/binaries/node/workspace/node_modules`（该工作区已装 jsdom）。
 - **vm 源码切片测试易被"外层新增声明"打断**：改被切片文件顶部后，切片内引用的绑定可能不在切片里 → ReferenceError。修法＝把源码那**一行原样**补在切片前 + 断言该行仍存在（形状变了 exit 2，不静默降级）。
 
