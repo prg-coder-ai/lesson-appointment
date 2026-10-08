@@ -120,7 +120,8 @@ public class CourseController {
        // 校验权限：只能教师或管理员有权限删除.教师只删除自己的课程
         permissionCheck.checkTeacherOrAdmin(token);
      try {
-        // 实际删除操作
+        // 实际删除操作（级联在 CourseService#deleteById 内：排期 → 预订 → 课次）
+        // cascade: none 本层不处置，Controller 只是薄转发
           int result = courseService.deleteById(id);
         
            return Result.success(result, TermMsg.t("{course}删除成功"));

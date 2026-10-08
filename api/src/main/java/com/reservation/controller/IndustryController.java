@@ -1,11 +1,17 @@
 package com.reservation.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.reservation.common.CascadeRules;
 import com.reservation.common.Result;
 import com.reservation.entity.Industry;
+import com.reservation.entity.Tenant;
 import com.reservation.mapper.IndustryMapper;
+import com.reservation.mapper.TenantMapper;
+import com.reservation.service.ReferentialCascadeService;
 import com.reservation.utils.PermissionCheck;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -24,6 +30,10 @@ public class IndustryController {
     private IndustryMapper industryMapper;
     @Autowired
     private PermissionCheck permissionCheck;
+    @Autowired
+    private ReferentialCascadeService cascadeService;
+    @Autowired
+    private TenantMapper tenantMapper;
 
     /**
      * 行业列表（按 id 升序）
@@ -107,14 +117,34 @@ public class IndustryController {
     }
 
     /**
-     * 删除行业
+     * 删除行业。
+     *
+     * <p><b>删前先停用其词条</b>：sys_term.industry_id 引用本表 id（实测 industry_id 取值
+     * 0/4/5/6/7，对应本表行），且<b>没有外键约束</b>——直接删行业会留下一批
+     * 指向不存在行业的词条，而这些词条正是三级词表里"行业词"那一层的全部内容。
+     *
+     * <p>处置用<b>停用（status=0）而不是物理删除</b>：词条是展示文案，
+     * 误删一个行业不该连带抹掉它的全部术语；停用后词条不再参与词表合并，
+     * 但历史数据与误操作都可回退。
      */
     @DeleteMapping("/{id}")
+    @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public Result<Boolean> delete(@PathVariable Long id,
                                   @RequestHeader("Authorization") String token) {
         permissionCheck.checkPlatformAdmin(token);
+        // 删前先校验占用：sys_tenant.industry_id 无外键，若有租户仍属该行业，
+        // 删掉就会让这些租户指向不存在的行业。规则表把这一层登记为 KEEP
+        // （刻意不级联清空——那会静默改掉租户的业务归属），代价是必须在这里拦住。
+        Long tenantsUsing = tenantMapper.selectCount(
+                new QueryWrapper<Tenant>().eq("industry_id", id));
+        if (tenantsUsing != null && tenantsUsing > 0) {
+            return Result.fail(409, "仍有 " + tenantsUsing + " 个租户属于该行业，请先迁移这些租户再删除");
+        }
+        // 先停用该行业的全部词条，再删行业行（词表无外键，删父留子就会产生孤儿词条）
+        int disabledRows = cascadeService.run(CascadeRules.SCENARIO_INDUSTRY_DELETE, String.valueOf(id))
+                .getAffected().values().stream().mapToInt(Integer::intValue).sum();
         int rows = industryMapper.deleteById(id);
-        return rows > 0 ? Result.success(true, "删除成功")
+        return rows > 0 ? Result.success(true, "删除成功（已停用 " + disabledRows + " 条行业词条）")
                         : Result.fail(404, "记录不存在");
     }
 }
