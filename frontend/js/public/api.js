@@ -444,11 +444,13 @@ const userStr = STORE.getItem('currentUser');
 
   /**
    * 更换密码接口，调用后端API完成用户密码修改
-   * @param {string} userId  当前用户Id
-   * @param {string} newPwd 新密码
+   * @param {string} userId   目标用户Id
+   * @param {string} newPwd   新密码
+   * @param {string} [oldPwd] 原密码。**本人改密时必填**（后端 P0-2 已补原密码校验）；
+   *                         管理员代管重置他人密码时省略。
    * @returns {Promise<object>} API返回数据
    */
-  async function changePasswordAPI(userId, newPwd) {
+  async function changePasswordAPI(userId, newPwd, oldPwd) {
    // if (!getToken()) throw new Error('用户未登录');
     try {
      
@@ -457,7 +459,9 @@ const userStr = STORE.getItem('currentUser');
         method: "post",
         params: {
           userId: userId,
-          password: newPwd
+          password: newPwd,
+          // 本人改密才带；为 undefined 时 axios 会自动略过该参数，不会污染管理员重置请求
+          oldPassword: oldPwd
         }, 
       });
       return res;
@@ -472,12 +476,15 @@ const userStr = STORE.getItem('currentUser');
    */
   function showChangePasswordDialog() {
     // 简单的prompt实现；可替换为更友好的UI弹窗
-   // const currentPwd = window.prompt('请输入当前密码:');
-   // if (!currentPwd) return;
+    // 原密码不能省：后端 P0-2 起本人改密必须校验原密码，
+    // 只问新密码等于"登录后即可改密"，token 一旦被窃取账号就彻底失守。
+    const oldPwd = window.prompt('请输入当前密码:');
+    if (oldPwd === null) return;
     const newPwd = window.prompt('请输入新密码:');
     if (!newPwd) return;
+    if (oldPwd === newPwd) { alert('新密码不能与原密码相同'); return; }
 
-    changePasswordAPI(userId, newPwd)
+    changePasswordAPI(userId, newPwd, oldPwd)
       .then((data) => {
         alert(data.message || '密码修改成功');
         // 可选：修改密码成功后自动登出

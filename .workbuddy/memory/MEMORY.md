@@ -82,6 +82,7 @@
 ## 薄弱环节审计结论（2026-10-07，报告=预约系统薄弱环节分析报告-20261007.md）
 - **五根因**（比缺陷清单更重要）：A 授权模型缺失(全仓0处hasRole/@PreAuthorize，只认证不授权，靠手写PermissionCheck→抽样命中) B 业务正确性外包前端(课次生成/级联取消/状态机合法性都在浏览器) C DB定义无单一事实源(完整DDL被.gitignore排除) D 密钥明文入库(jwt/aes/hmac/DB密码，**AES泄露不可靠轮换补救，须+历史数据重加密**) E 可观测性与后端测试真空。
 - **已实测脏数据**：appointment 142行中102行 booking_id 悬空——根因是 booking_id 有**两个生成器**(BookingService.java:74 产32位hex vs CourseScheduleService.java:464 产36位dashed UUID)，且 appointment **无FK无索引**。notification_dispatch_log 12行悬空。
-- **提权链事实（勿遗忘）**：UserController.java:144 `role` 取自请求体即免审核激活 admin/platform_admin（旁有作者 `//TBD:check if exists a admin before`）；`/user/add`:159 无条件 active 是第二条入口；InboxService.java:179 `deleteById(in.getMessageId())` 用消息ID删主键id。
+- **提权链已于 2026-10-08 修复**（勿再按旧描述当现存缺陷）：① 角色白名单+首账号 bootstrap 统一收口到 `UserService.applyRoleAdmission`，两入口共用；`/register` 走 bootstrap(本租户首个 admin / 全系统首个 platform_admin，其余 pending)，`/add` 按调用者角色裁定(须管理员；租户管理员禁建 platform_admin)。并发用 `countByTenantAndRoleForUpdate/countByRoleGlobalForUpdate` 的 FOR UPDATE 锁定读，**已双会话实测阻塞 4115ms**（user 表只有单列 idx_tenant_id，锁范围偏宽但不影响正确性）。② `/auth/password/reset` 加 checkAdmin（零前端调用点，收窄安全）。③ changePassword 改**两态**：管理员同租户代管免原密码 / 本人改密必填 oldPassword(前端已 prompt 采集) / 其余 403。④ `assertUserScope` 接入 listInbox/unreadCount/listMessageIds。⑤ purgeOne 改 deleteById(in.getId())。
 - **做得好、勿误伤**：BookingSeatService 席位闸门(行锁+锁定读+CAS，5路径全覆盖)、通知幂等 uk_dispatch_once、备份脚本、调试输出0残留。
-- 待用户确认：hardening脚本是否已执行 / refreshToken是否真NPE不可达 / jwt.expiration=360000000(100h)是否笔误 / 8081-8090是否公网可直连。
+- **待用户确认**：各租户是否都已有 admin（bootstrap 改造后"无人可审批"会死锁）；hardening脚本是否已执行 / refreshToken是否真NPE不可达 / jwt.expiration=360000000(100h)是否笔误 / 8081-8090是否公网可直连。
+- **`/user/add` 口径勿再改回"只允许 student/teacher"**：`platform-admin-user.js:161` 的新增用户下拉只有 platform_admin/admin 两项，平台管理员靠它开租户管理员，一刀切会打死该功能。

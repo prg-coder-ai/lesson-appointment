@@ -134,8 +134,13 @@ public class UserService {
 
     // 学生注册（对应设计2.2.1 学生注册接口）
     // 注册（对应设计2.2.1 注册接口）
+    //
+    // @param user 用户数据
+    // @param approvedByAdmin true = 由已鉴权的管理员在后台创建（/user/add）。
+    //        管理员的创建动作本身就是审批，故新账号直接 active，不再走 bootstrap 待审。
+    //        false = 匿名自助注册（/user/register），初始状态由 {@link #applyRoleAdmission} 判定。
     @Transactional
-    public Result< Object> Register(User user) {
+    public Result< Object> Register(User user, boolean approvedByAdmin) {
         // 校验手机号/邮箱是否已注册（对应业务异常校验）
          log.debug("UserService Register：" + user);
         // ① 先解析租户归属：优先取租户上下文（已登录的租户内添加用户）；
@@ -168,6 +173,14 @@ public class UserService {
             if (existAccount(user.getAccount(), regTenantId)) {
                 return Result.fail(400, "该账号已注册，请登录或重置密码");
             }
+            // ④ 角色准入判定：必须在**写库之前**完成，
+            //    且判定与写入同处一个事务（外层 @Transactional + mapper 的 FOR UPDATE 锁定读），
+            //    否则并发自注册会双双通过"本租户尚无管理员"的判定。
+            //    白名单外的角色直接拒绝，不进入落库流程。
+            Result<Object> roleGuard = applyRoleAdmission(user, regTenantId, approvedByAdmin);
+            if (roleGuard != null) {
+                return roleGuard;
+            }
             // 密码加密（对应设计2.3 安全设计-密码加密）
             user.setPassword(passwordEncoder.encode(user.getPassword()));
             // 生成唯一userId（对应通用校验规则-ID类参数）
@@ -176,6 +189,74 @@ public class UserService {
         } finally {
             TenantContext.clear();
         }
+    }
+
+    /**
+     * 角色准入判定（P0-1 提权链收口）：决定新用户的 role 与初始 status。
+     *
+     * <p>规则（两个入口共用，因此判定逻辑只写这一处）：
+     * <ul>
+     *   <li>白名单：只接受 {@code student} / {@code teacher} / {@code admin} / {@code platform_admin}，
+     *       其余值一律 400 拒绝 —— 角色取自请求体，不设白名单等于把提权口直接敞开。</li>
+     *   <li>{@code student} / {@code teacher}：一律 {@code pending}，须管理员审批（沿用原语义）。</li>
+     *   <li>{@code admin}：**仅当本租户尚无 admin 用户时**置 {@code active}（首管理员 bootstrap）；
+     *       否则 {@code pending}。判定按 tenant_id 限定，不是"全局第一个 admin"。</li>
+     *   <li>{@code platform_admin}：**仅当全系统尚无 platform_admin 时**置 {@code active}；
+     *       否则一律 {@code pending}。平台管理员全局唯一且不可再生。</li>
+     * </ul>
+     *
+     * <p>为什么 tenant_admin 的判定要按 tenant_id：若写成全局判定，租户 B 的攻击者会因为
+     * "租户 A 已经有 admin 了"而永远拿不到自己租户的 admin（可用性事故）；
+     * 反之若漏了 tenant_id 条件，则会跨租户误判、把别人租户的存在当成自己的。
+     *
+     * <p><b>并发</b>：判据由 {@code UserMapper.countByTenantAndRoleForUpdate /
+     * countByRoleGlobalForUpdate} 的 FOR UPDATE 锁定读提供，与本方法的 INSERT 同处一个事务，
+     * 因此"判定为 0 → 激活"不会被并发请求同时成立。
+     *
+     * @param approvedByAdmin 由已鉴权管理员创建时为 true：跳过 bootstrap，角色合法即 active。
+     *        管理员的创建动作本身即审批，若此处也套用"非首账号 pending"，
+     *        会让平台后台刚建好的管理员账号当场无法使用（可用性事故）。
+     * @return null 表示放行（user 的 role/status 已被就地设置）；非 null 表示拒绝，直接返回给调用方
+     */
+    private Result<Object> applyRoleAdmission(User user, Long regTenantId, boolean approvedByAdmin) {
+        String role = user.getRole() == null || user.getRole().isEmpty() ? RoleConst.STUDENT : user.getRole().trim();
+
+        if (!RoleConst.STUDENT.equals(role) && !RoleConst.TEACHER.equals(role)
+                && !RoleConst.ADMIN.equals(role) && !RoleConst.PLATFORM_ADMIN.equals(role)) {
+            log.warn("创建用户的角色不在白名单内，已拒绝, role={}, tenantId={}", role, regTenantId);
+            return Result.fail(400, "角色不合法，仅支持学生、教师或管理员");
+        }
+        user.setRole(role);
+
+        // 管理员在后台创建：创建即审批，直接可用
+        if (approvedByAdmin) {
+            user.setStatus("active");
+            return null;
+        }
+
+        if (RoleConst.STUDENT.equals(role) || RoleConst.TEACHER.equals(role)) {
+            user.setStatus("pending"); // 需要管理员审核
+            return null;
+        }
+
+        boolean first;
+        if (RoleConst.PLATFORM_ADMIN.equals(role)) {
+            // 平台管理员：全系统唯一，不可再生
+            first = userMapper.countByRoleGlobalForUpdate(RoleConst.PLATFORM_ADMIN) == 0;
+        } else {
+            // 租户管理员：按 tenant_id 判定本租户是否尚无 admin（regTenantId 必为真实租户 id）
+            first = regTenantId != null && regTenantId > 0
+                    && userMapper.countByTenantAndRoleForUpdate(regTenantId, RoleConst.ADMIN) == 0;
+        }
+
+        if (first) {
+            log.warn("首管理员自助激活: role={}, tenantId={}", role, regTenantId);
+            user.setStatus("active");
+        } else {
+            log.warn("非首管理员自注册，转待审批: role={}, tenantId={}", role, regTenantId);
+            user.setStatus("pending");
+        }
+        return null;
     }
 
     /**
@@ -189,10 +270,15 @@ public class UserService {
             // 否则 tenantPackageService.tryAcquire(0,...) 找不到记录会返回 false 而误报“已达上限”。
             if (regTenantId != null && regTenantId > 0) {
                 tenantQuotaService.acquire(regTenantId, TenantQuotaService.USER);
-                String role = user.getRole() == null ? "student" : user.getRole();
-                TenantPackageService.QuotaType roleQuota =
-                        "teacher".equals(role) ? TenantQuotaService.TEACHER : TenantQuotaService.STUDENT;
-                tenantQuotaService.acquire(regTenantId, roleQuota);
+                // 按角色配额只对 teacher/student 生效：QuotaType 里没有 ADMIN 项，
+                // 若沿用三元表达式的 else 分支，建管理员会白占一个「注册学生」名额 ——
+                // 管理员只应计入注册用户总数，不该挤占学生配额。
+                String role = user.getRole() == null ? RoleConst.STUDENT : user.getRole();
+                if (RoleConst.TEACHER.equals(role)) {
+                    tenantQuotaService.acquire(regTenantId, TenantQuotaService.TEACHER);
+                } else if (RoleConst.STUDENT.equals(role)) {
+                    tenantQuotaService.acquire(regTenantId, TenantQuotaService.STUDENT);
+                }
             }
         } catch (BusinessException e) {
             return Result.fail(403, e.getMessage());
@@ -419,20 +505,82 @@ public class UserService {
 
     } 
 
- @Transactional
-    public boolean changePassword(String userId,String password) { 
-        // 查找用户
-        User user = new User();// userMapper.getUserByAccount(account); 
-        user.setUserId(userId); 
-        // 加密新密码并更新- 
-         user.setPassword(passwordEncoder.encode(password));
-         try {
-         updatePassword(user);
-         return true;
-         } catch (Exception ex) {
-            log.debug("changePassword Error:userId= "+userId);
-         };
-          return false ;  
+ /**
+     * 修改密码（P0-2）。
+     *
+     * <p>原实现只凭请求里的 userId 就改密码，既不校验调用者是谁、也不校验原密码，
+     * 任何登录用户都能把任意 userId 的密码改成自己知道的值（拿老师/同学的账号去登录）。
+     *
+     * <p>现按两条合法路径区分：
+     * <ul>
+     *   <li><b>管理员代管</b>：{@code operatorRole} 为 admin/platform_admin，且目标用户与操作者同租户
+     *       （平台管理员 tenantId=0 可跨租户）。这是后台"重置密码"按钮的既有语义，
+     *       管理员本就持有重置权，不应要求他知道用户的原密码。</li>
+     *   <li><b>本人改密</b>：{@code targetUserId} 等于调用者自己，必须提供正确的原密码。</li>
+     * </ul>
+     * 两者都不满足则拒绝 —— 尤其是"普通用户改他人密码"这条路被彻底关闭。
+     *
+     * @param userId         目标用户 id
+     * @param password       新密码
+     * @param callerUserId   调用者 userId（来自 token）
+     * @param callerRole     调用者角色（来自 token）
+     * @param callerTenantId 调用者租户 id（来自 token）
+     * @param oldPassword    原密码；本人改密时必填，管理员代管时忽略
+     * @return null 表示成功，非 null 为可直接回给调用方的失败结果
+     */
+    @Transactional
+    public Result<Object> changePassword(String userId, String password,
+                                          String callerUserId, String callerRole,
+                                          Long callerTenantId, String oldPassword) {
+        if (userId == null || userId.trim().isEmpty()) {
+            return Result.fail(400, "用户Id不能为空");
+        }
+        if (password == null || password.isEmpty()) {
+            return Result.fail(400, "新密码不能为空");
+        }
+        String targetId = userId.trim();
+
+        boolean isAdminCaller = RoleConst.ADMIN.equals(callerRole) || RoleConst.PLATFORM_ADMIN.equals(callerRole);
+        boolean isSelf = callerUserId != null && callerUserId.equals(targetId);
+
+        if (!isSelf && !isAdminCaller) {
+            log.warn("非管理员尝试改他人密码，已拒绝, caller={}, target={}", callerUserId, targetId);
+            return Result.fail(403, "只能修改本人密码");
+        }
+
+        User target = userMapper.selectById(targetId);
+        if (target == null) {
+            return Result.fail(404, "用户不存在");
+        }
+
+        if (isAdminCaller && !isSelf) {
+            // 租户管理员只能管本租户；平台管理员（tenantId=0）跨租户放行
+            boolean platformCaller = RoleConst.PLATFORM_ADMIN.equals(callerRole);
+            Long targetTenant = target.getTenantId();
+            if (!platformCaller && callerTenantId != null && targetTenant != null
+                    && !callerTenantId.equals(targetTenant)) {
+                log.warn("跨租户改密被拒, callerTenant={}, targetTenant={}", callerTenantId, targetTenant);
+                return Result.fail(403, "只能重置本租户用户的密码");
+            }
+        } else if (isSelf) {
+            // 本人改密必须验原密码，否则 token 被窃取即可改密、账号彻底失守
+            if (oldPassword == null || oldPassword.isEmpty()) {
+                return Result.fail(400, "修改本人密码需提供原密码");
+            }
+            User db = userMapper.selectById(targetId);
+            if (db == null || db.getPassword() == null
+                    || !passwordEncoder.matches(oldPassword, db.getPassword())) {
+                log.warn("原密码校验失败, userId={}", targetId);
+                return Result.fail(400, "原密码不正确");
+            }
+        }
+
+        User upd = new User();
+        upd.setUserId(targetId);
+        upd.setPassword(passwordEncoder.encode(password));
+        updatePassword(upd);
+        log.warn("密码已修改, 操作者={}, 目标用户={}, 是否本人={}", callerUserId, targetId, isSelf);
+        return null;
     } 
     public List<User> selectByPhone(String phone) {
         List<User> users = userMapper.selectByPhone(cryptoUtil.searchIndex(phone), phone);

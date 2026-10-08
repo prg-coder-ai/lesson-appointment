@@ -127,39 +127,49 @@ public class UserController {
      @Audit(action = AuditAction.USER_REGISTER, resourceType = "user")
       @ResponseBody
     public Result<Object> register_a_User(@Validated @RequestBody User user ) {
-        // 调用服务层实现注册逻辑，返回userId和Token（对应设计2.2.1 学生注册返回数据）
-        //// 调用服务层实现注册逻辑，返回userId和Token（对应设计2.2.1 学生注册返回数据）
-        ///  教师
-        String role = user.getRole();
-        if(role== null || role.isEmpty())
-        {
-            role="student";
-        }
-       // user.setRole(role);
-        // 注意两点：
-        // 1) 必须用 equals 比较。role 来自请求体反序列化，用 == 比较引用恒成立为 false
-        // 2) 角色值必须与 RoleConst 一致（platform_admin 用下划线）。
-        //    此前写成 "platform-admin"（连字符），导致注册出来的平台管理员在登录
-        //    与权限校验时都匹配不上 RoleConst.PLATFORM_ADMIN，账号完全不可用
-        if (RoleConst.ADMIN.equals(role) || RoleConst.PLATFORM_ADMIN.equals(role)) {
-           user.setStatus("active");//TBD:check if exists a admin before
-        }  else   {
-            user.setStatus("pending");//需要管理员审核
-         }
-        Result<Object> rst = userService.Register(user);
+        // 角色白名单与初始状态（active/pending）全部由 UserService.applyRoleAdmission 判定，
+        // 控制器不再自行决定 —— 此前这里对 admin/platform_admin 无条件 setStatus("active")
+        // （旁注 //TBD:check if exists a admin before 就是这套 bootstrap 的作者自述），
+        // 叠加 login.html 把 admin/platform_admin 做成了下拉选项，
+        // 构成完整提权链：自助注册管理员 → 登录 → tenantId=0 时租户插件对所有表放弃租户条件。
+        // 判定必须落在 Service 层：本条与 /user/add 共用同一入口逻辑，两处各判一次必然漂移。
+        Result<Object> rst = userService.Register(user, false);
         return rst;//Result.success(rst, "注册成功");
     }
  
  
-// 添加用户
-    @PostMapping("/add") 
+// 添加用户（管理端后台建号）
+    @PostMapping("/add")
+    @Audit(action = AuditAction.USER_REGISTER, resourceType = "user")
     @ResponseBody
-    public Result<Object> addUser(@Validated @RequestBody User user) {
-        
-         user.setStatus("active");
-        Result<Object> rst = userService.Register(user); 
-       // log.debug("rst：" + rst);
-        return rst; 
+    public Result<Object> addUser(@Validated @RequestBody User user,
+                                  @RequestHeader("Authorization") String token) {
+        // P0-1：本条与 /user/register 是**两条独立的提权入口**，只修注册接口会漏掉这里。
+        // 原实现无任何角色校验、且无条件 setStatus("active") —— 任何登录用户（含学生）都能
+        // 调它给自己建一个 admin/platform_admin 且立即可用。
+        //
+        // 收口口径：**按调用者权限限定可建角色**，而不是一律拒绝 admin。
+        // 平台管理员需要靠本接口在后台开出租户管理员（platform_admin.html 的「新增用户」下拉
+        // 只有 platform_admin / admin 两项），一刀切会把该功能打死；
+        // 但"谁可以创建什么"必须由服务端裁定，不能由请求体的 role 说了算。
+        String callerRole = permissionCheck.getRoleFromToken(token);
+        boolean callerIsPlatformAdmin = RoleConst.PLATFORM_ADMIN.equals(callerRole);
+        boolean callerIsAdmin = RoleConst.ADMIN.equals(callerRole);
+
+        if (!callerIsAdmin && !callerIsPlatformAdmin) {
+            throw new com.reservation.exception.NoPermissionException("仅管理员可新增用户");
+        }
+        // 租户管理员不得创建平台管理员 —— 否则租户管理员能横向拿到跨租户权限，
+        // 这正是 P0-1 要断的链；平台管理员自身不受此限（全局唯一性由 Service 层兜底）。
+        String role = user.getRole() == null || user.getRole().isEmpty()
+                ? RoleConst.TEACHER : user.getRole().trim();
+        if (!callerIsPlatformAdmin && RoleConst.PLATFORM_ADMIN.equals(role)) {
+            throw new com.reservation.exception.NoPermissionException("仅平台管理员可创建平台管理员账号");
+        }
+
+        Result<Object> rst = userService.Register(user, true);
+   // log.debug("rst：" + rst);
+        return rst;
     }
 
     @PostMapping("/updateStatus")
@@ -259,14 +269,24 @@ public class UserController {
     @PostMapping("/account/changePassword")
     @Audit(action = AuditAction.USER_CHANGE_PASSWORD, resourceType = "user", resourceId = "userId")
     @ResponseBody
-    public Result<Boolean> changePassword(@RequestParam("userId") String userId,
-                                          @RequestParam("password") String password) {
-                                            
-        if (userId == null || userId.trim().isEmpty()) {
-            return Result.success(false, "用户Id不能为空");
+    public Result<Object> changePassword(@RequestParam("userId") String userId,
+                                         @RequestParam("password") String password,
+                                         // 本人改密时必填的原密码；管理员代管重置时忽略该参数
+                                         @RequestParam(value = "oldPassword", required = false) String oldPassword,
+                                         @RequestHeader("Authorization") String token) {
+        // P0-2：原先只凭 userId 就改密码 —— 任何登录用户都能改掉他人密码并用新密码登录。
+        // 现由 Service 按调用者身份分两种合法路径（本人改密需验原密码 / 管理员同租户代管），
+        // 其余一律 403。归属与原密码校验必须在 Service 做：控制器拿不到 role 与租户的可信副本。
+        Result<Object> err = userService.changePassword(
+                userId, password,
+                permissionCheck.getUserIdFromToken(token),
+                permissionCheck.getRoleFromToken(token),
+                permissionCheck.getTenantIdFromToken(token),
+                oldPassword);
+        if (err != null) {
+            return err;
         }
-        boolean bok = userService.changePassword(userId.trim(),password);
-        return Result.success(bok, bok ? "修改成功" : "修改失败");
+        return Result.success(true, "修改成功");
     } 
 
     /**

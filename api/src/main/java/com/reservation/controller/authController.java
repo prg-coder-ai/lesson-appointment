@@ -16,6 +16,7 @@ import com.reservation.service.UserSessionService;
 import com.reservation.service.WeChatService;
 
  import com.reservation.utils.JwtUtil;
+import com.reservation.utils.PermissionCheck;
 import com.reservation.audit.Audit;
 import com.reservation.audit.AuditAction;
 
@@ -73,6 +74,8 @@ public class authController {
      private UserSessionService userSessionService;
     @Autowired
     private JwtUtil jwtUtil;
+    @Autowired
+    private PermissionCheck permissionCheck;
     @Autowired
     private WeChatService weChatService;
       @PostMapping("/login")
@@ -281,15 +284,29 @@ UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthent
         return Result.success(null, "验证码验证成功，请重置密码");
     }
 */
-    /**
+/**
      * 密码重置，对应设计2.2.1 接口：/api/v1/user/password/reset
+     *
+     * <p>P0-2 收窄：本接口重置为固定默认密码，不要求原密码，因此**不能凭登录身份任意使用**。
+     * 改造前只要带着任意合法 token 就能重置本租户任意账号 —— 学生登录后重置管理员密码、
+     * 再登录管理员账号即可完成提权。现限定为平台管理员与租户管理员。
+     *
+     * <p>注：本接口在两端前端均无调用点（已 grep 全仓确认），收窄不破坏任何现有流程；
+     * "忘记密码"的自助流程仍是被注释掉的状态（见上方 /password/forgot 注释块），
+     * 若将来要开放自助找回，必须另做验证码/短信校验，不能直接放开本接口。
      */
       @PostMapping("/password/reset")
-      @ResponseBody
+      @Audit(action = AuditAction.USER_RESET_PASSWORD, resourceType = "user")
+    @ResponseBody
     public Result <Object>  resetPassword(
-            @NotBlank(message = "账号不能为空") String account)
+            @NotBlank(message = "账号不能为空") String account,
+            @RequestHeader("Authorization") String token)
             {
+        permissionCheck.checkAdmin(token);
         // 调用服务层重置密码（对应设计2.2.1 密码重置功能说明）
+        // 租户上下文由 TenantInterceptor 从 token 解析，租户管理员只能重置本租户账号；
+        // 平台管理员 tenantId=0，此时 getUserByAccount(account, 0) 匹配不到行 —— 
+        // 平台侧跨租户重置请走 /user/account/changePassword。
         userService.resetPassword(account, TenantContext.getTenantId());
         return Result.success(null, "密码重置成功");
     }

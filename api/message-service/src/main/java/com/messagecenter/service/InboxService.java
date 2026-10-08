@@ -42,6 +42,28 @@ public class InboxService {
         }
     }
 
+    /**
+     * 列表/计数场景的访问权判据。
+     *
+     * <p>为什么不能直接用 {@link #assertAccess(MessageInbox)}：那需要先查出一行具体的收件箱记录，
+     * 而 listInbox / unreadCount / listMessageIds 在鉴权前并不持有任何行；先查再判等于把
+     * "能否访问 userId 的收件箱"这个判断寄托在查询结果上——越权者恰好会因为查不到行而拿到 404，
+     * 语义混乱，且批量接口每行判一次会把开销放大。
+     *
+     * <p>租户维度不在这里判：它由 {@link #scopedWrapper(String)} 在查询条件里兜住
+     * （非平台管理员自动拼 tenant_id），越权者只会查到空列表，不会拿到数据。这里只判"能不能看这个 userId"。
+     */
+    private void assertUserScope(String userId) {
+        if (userId == null || userId.isBlank()) {
+            throw new MessageBizException(400, "用户ID不能为空");
+        }
+        String curUser = MessageAuthContext.currentUserId();
+        boolean self = curUser != null && curUser.equals(userId);
+        if (!self && !MessageAuthContext.isManager()) {
+            throw new MessageBizException(403, "无权访问他人消息");
+        }
+    }
+
     private LambdaQueryWrapper<MessageInbox> scopedWrapper(String userId) {
         LambdaQueryWrapper<MessageInbox> w = new LambdaQueryWrapper<>();
         w.eq(MessageInbox::getUserId, userId);
@@ -87,6 +109,7 @@ public class InboxService {
     public PageResult<MessageInbox> listInbox(String userId, int pageNum, int pageSize, String folder,
                                               String keyword, Integer unreadOnly, String categoryCode,
                                               String priority, String start, String end) {
+        assertUserScope(userId);
         LambdaQueryWrapper<MessageInbox> w = scopedWrapper(userId);
         if (folder != null && !folder.isBlank()) {
             if ("trash".equalsIgnoreCase(folder)) w.eq(MessageInbox::getIsDeleted, 1);
@@ -176,7 +199,13 @@ public class InboxService {
     @Transactional
     public void purgeOne(String userId, Long messageId) {
         MessageInbox in = require(userId, messageId);
-        inboxMapper.deleteById(in.getMessageId());
+        // 必须按主键 id 删自己的收件箱副本，不能用 messageId：
+        // messageId 对应的是 msg_message 的主键，而 msg_inbox.id 是自增主键。
+        // 传 messageId 会命中「id 恰好等于该 messageId」的任意一行（别人的收件箱副本也可能被删），
+        // 症状是「A 彻底删除了自己的消息，B 的那条却凭空消失」。
+        // 注意：这里只删收件箱副本，绝不碰 msg_message 主消息——
+        // 主消息是全局唯一且被所有收件人共享，单独删除会让其他收件人的副本变成空白。
+        inboxMapper.deleteById(in.getId());
     }
 
     @Transactional
@@ -187,12 +216,14 @@ public class InboxService {
     }
 
     public long unreadCount(String userId) {
+        assertUserScope(userId);
         LambdaQueryWrapper<MessageInbox> w = scopedWrapper(userId)
                 .eq(MessageInbox::getIsDeleted, 0).eq(MessageInbox::getIsRead, 0);
         return inboxMapper.selectCount(w);
     }
 
     public List<Long> listMessageIds(String userId, Integer isDeleted) {
+        assertUserScope(userId);
         LambdaQueryWrapper<MessageInbox> w = scopedWrapper(userId);
         if (isDeleted != null) w.eq(MessageInbox::getIsDeleted, isDeleted);
         w.orderByDesc(MessageInbox::getCreatedAt);
