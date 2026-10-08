@@ -25,7 +25,9 @@
 - **bookingId 双生成器已统一**（`BookingIdGenerator.next()` = 32位hex）：原 32位hex 105行 与 36位dashed 5行并存，appointment 里 32位的 124 行仅 15 行能匹配。危害是"关联失败会被误读成另一种正常格式而静默跳过"。历史数据不改写。
 - **守卫 `tools/check-cascade-rules.mjs`（npm run check:cascade，pre-commit SKIP_CASCADE=1 跳过）**；反向测试 `npm run test:cascade-guard`（9/9，需 --experimental-vm-modules）。**豁免写法：删除/软删除处写 `// cascade: none <理由>`**。
 - **根因 C「单一事实源」已落地 `api/sql/`**（2026-10-08）：`schema/` 现网mysqldump 权威 DDL（lesson_appointment 29表/3 CHECK/13FK、message_center 8表）+ `seed/` 基础数据（sys_term 317、msg_category 14 含 BOOKING_CREATED/CONFIRMED/LEAVE_CREATED）+ `patch/` 历史补丁（新环境**不执行**）+ `README.md`。**命名铁律：`YYYYMMDD-HHMM-<库>-<用途>.sql`，字典序即执行顺序**。改表结构后必须重新导出落此目录。**mysqldump 必须用 `--result-file=`（`>` 重定向在 Windows 写成 GBK 中文注释全乱码）且须 `--ignore-table=` 排除 `bak_*` 备份表。** 旧 `api/beforeRun/sql/*` 已打【已废弃】标记（少4表：course_notify_rule/_point、course_refund_rule、notification_dispatch_log）。
-- **根因 C 剩余：仍未引入 Flyway/schema_version**——有事实源了但无自动迁移与版本号。
+- **DDL 漂移守卫（方案 B，2026-10-08）`tools/check-ddl-entity-align.mjs`**（npm `check:ddl-align`，pre-commit 第 4 条门禁，`SKIP_DDL_ALIGN=1` 跳过）；反向测试 `npm run test:ddl-align-guard`（19/19）。静态比对 Entity ↔ `api/sql/schema/*.sql`（36实体/417字段/37表/426列/13FK，含 message-service）。6 类判红：表不存在 / 字段列不存在 / NOT NULL 无默认列无实体字段 / @TableId 非 PK 或类型族不兼容 / DDL 内 FK 引用不存在 / 孤儿表(只提示)。**两级豁免都要非空理由：字段级 `// ddl-align: ignore <理由>`、类级 `// ddl-align: ignore-table <理由>`；只写标记不写理由→判红**。选 B(静态) 不选 A(连库) 的理由：**A 只能进 CI，且拿"库里的表"当真相会让"忘了 ALTER"变合法状态**。**A 仍未实现 → mapper XML 显式列清单是唯一未覆盖的漂移面**（XML 静态解析实测 69 候选约 44 误报）。
+- **驼峰→列名必须与 MP 逐字符等价**：MP `StringUtils.camelToUnderline` 是"每个大写字母前插下划线"，**不做连续大写合并** → `scheduleID` 得 `schedule_i_d`（非 `schedule_id`）。表名推导 = `camelToUnderline(类名)` + `firstToLowerCase`（`TableInfoHelper.initTableNameWithDbConfig`，默认 tableUnderline=true/capitalMode=false）。**守卫比运行时更宽容 = 假绿**，判据：宁可误报不存在的列，不能漏报被 MP 映射成别的列的字段。核对方式：解包 `mybatis-plus-core-<ver>-sources.jar` 看源码。
+- **根因 C 剩余：仍未引入 Flyway/schema_version**——有事实源了但无自动迁移与版本号。孤儿实体 `CourseCheckIn`(4列实体有表无) / `CourseEvaluation`(teacher_id 表无 + booking_id NOT NULL 无默认但实体无该字段) 均 0 行无引用，已整表豁免，**待业务决策补列 or 删除**。
 
 ## 技术栈与构建
 - api(Spring Boot 3.3.5+MyBatis-Plus 3.5.7)+message-service 独立模块；MySQL lesson_appointment/message_center；三产物：booking-api jar / message-service-1.0.0.jar / frontend/dist/。
@@ -106,6 +108,9 @@
 - **Windows `path.join` 陷阱**（2026-10-07 实证）：`path.join` 在 Windows 产**反斜杠**，与 `path.relative().split(path.sep).join('/')` 产出的正斜杠比对恒 false → Set.includes 静默失效（生成产物没被跳过、子检查空跑**假通过**）。脚本内相对路径清单一律写 **POSIX 正斜杠**，另加"必须真校验过 N 份"的断言。
 - **node 内 `spawnSync(process.execPath)` → EBUSY**（托管 node.exe 占用/沙箱）：`spawnSync`/`execFileSync`/`spawn` **全部** EBUSY（已实测三者皆不可用）。且 **同进程 `import(url+'?t=rand')` 也绕不开 ESM 缓存**（文件已改、URL 带随机 query，模块读到的仍是旧内容）。唯一可靠 = **`vm.SourceTextModule` 每次重新求值源码**（需 `--experimental-vm-modules`）；注意合成模块要按来源模块给 `default` 导出（守卫用 `import fs from 'node:fs'`），守卫末尾 `process.exit` 在 vm 里要 catch 成中断信号。
 - **测试用例必须断言"注入真的生效"**（mutate 返回 true 而非静默 false）：否则拿到的是"守卫在原文件上通过"的**假绿灯**。
+- **守卫解析 Java 实体的三个必踩坑**（均源自 `check-ddl-entity-align.mjs` 实测）：① 字段普遍带**行尾注释**，字段正则要求整行以 `;` 结尾会把它们**整条丢弃**（32 条假告警）——结构判定用剥行尾注释后的文本，豁免归集用原文；② **块注释结束（`*/` 单独成行）时清空注释缓存**会让写在 Javadoc 里的类级豁免永不生效；③ `AUTO_INCREMENT` 列**不是**"NOT NULL 且无默认"，按字面判会给每个自增主键表产假告警。
+- **反向测试锚点会被行尾打脸**：实体文件是 **CRLF**、schema 脚本是 **LF**，锚点写死 `\n` → 命中 0 次（且这类失败会让人怀疑守卫而不是怀疑测试）。变异原语须按文件实测行尾改写锚点，且强制"**恰好命中一次**"（命中 0 次要抛错而非静默跳过）。
+- **死检查与真检查在输出里长得一模一样**：写完守卫后逐条用反向测试验证"注入缺陷必须判红"，跑不红的多半是**不可达分支**（如 `!f.autoId && ...` 而外层已要求 `f.pk`，无 `@TableId` 时 `f.pk=false` 根本进不去）。
 - **解析嵌套构造的单正则会静默漏条目**：如 `new Rule(...List.of(...)...)` 用单正则只抓到 5/17 条，而"没报错"看起来是绿的。须按**括号配平**逐条提取。
 - **分组判定不要按行号推断归属**：常量声明在文件末尾时，前面条目会被全归到最后一个分组 → 报出一堆假重复。改按**代码块**（`XXX = List.of(...)`）分组。
 - 缺 `jsdom` 的用例：`export NODE_PATH=C:/Users/Administrator/.workbuddy/binaries/node/workspace/node_modules`（该工作区已装 jsdom）。
