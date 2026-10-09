@@ -2,8 +2,11 @@ package com.reservation.common;
 import com.reservation.dto.ScheduleGenerateDTO;
 import com.reservation.dto.ScheduleVO;
 import java.time.*;
+import java.time.format.DateTimeFormatter;
+import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import lombok.extern.slf4j.Slf4j;
 
 /* 排期测试
@@ -230,6 +233,51 @@ public class ScheduleGenerator {
      *  <p><b>不适用</b>：审计日志、监控采样、token 过期等与业务时区无关的场合。 */
     public static LocalDateTime nowUtc() {
         return LocalDateTime.now(Clock.systemUTC());
+    }
+
+    /**
+     * 把 UTC 课次时间渲染成"排期时区墙上时间 + 时区标注"，供通知正文这类
+     * <b>静态文本</b>使用。
+     *
+     * <p><b>为什么通知正文不能只放一个时间数字</b>：消息落库即静态文本，读者打开时
+     * 无法再按自己的时区重渲染。若排期在 {@code America/Edmonton}、收件人在国内，
+     * 正文只写「21:00」会被直接误读成北京时间。附上时区名可消除这个歧义。
+     *
+     * @param utc 课次时间（UTC）
+     * @param zone 排期时区（{@code course_schedule.time_zone}）
+     * @param fmt  格式；传 null 用 {@code yyyy-MM-dd HH:mm}
+     * @return 形如 {@code 2026-10-09 21:00（America/Edmonton）}；
+     *         {@code utc} 为空时返回 {@code null}
+     */
+    public static String utcToZonedText(LocalDateTime utc, String zone, DateTimeFormatter fmt) {
+        if (utc == null) {
+            return null;
+        }
+        DateTimeFormatter f = (fmt == null)
+                ? DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+                : fmt;
+        return utcToUserZone(utc, zone).format(f) + "（" + zoneLabel(zone) + "）";
+    }
+
+    /**
+     * 时区id → 人类可读的短标签，用于正文/界面标注。
+     *
+     * <p>取 {@link ZoneId#getDisplayName} 的短名（如 {@code Asia/Shanghai} → "中国标准时间"），
+     * 解析失败则原样返回 id ——<b>宁可显示一个用户看得懂的 {@code Region/City} 字符串，
+     * 也不要静默降级成 UTC</b>：通知正文里的时间没有第二处可对照，
+     * 标错时区比不标更危险。
+     */
+    public static String zoneLabel(String zone) {
+        if (zone == null || zone.trim().isEmpty()) {
+            return "UTC";
+        }
+        String z = zone.trim();
+        try {
+            String name = ZoneId.of(z).getDisplayName(TextStyle.SHORT, Locale.SIMPLIFIED_CHINESE);
+            return (name == null || name.trim().isEmpty()) ? z : name;
+        } catch (Exception ex) {
+            return z;
+        }
     }
 
     // 用户时区 → UTC（存库）

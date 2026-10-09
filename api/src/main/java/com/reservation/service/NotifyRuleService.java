@@ -3,6 +3,7 @@ package com.reservation.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.reservation.common.NotifyAudience;
 import com.reservation.common.NotifyStage;
+import com.reservation.common.ScheduleGenerator;
 import com.reservation.dto.NotifyPointDTO;
 import com.reservation.dto.NotifyRuleDTO;
 import com.reservation.entity.Course;
@@ -346,6 +347,11 @@ public class NotifyRuleService {
      * 试算预览：给定假想的课次时间，列出每档的应发时刻。
      *
      * <p>{@code lessonTime} 为空时按「明天此刻」试算，保证界面一定有东西可看。
+     *
+     * <p><b>时区口径</b>：本方法面向「管理员手输假想时间」的场景，
+     * 输入的是<b>排期时区的墙上时间</b>（与 {@code course_schedule} 同口径），
+     * 故原样使用、不做UTC 转换——它不是课次。真正来自课次的入口是
+     * {@link #plan}，那里传入的才是 UTC。
      */
     public NotifyPlanVO preview(String courseId, String lessonTime) {
         requireTenantContext();
@@ -353,7 +359,7 @@ public class NotifyRuleService {
         if (lesson == null) {
             lesson = LocalDateTime.now().plusDays(1).withSecond(0).withNano(0);
         }
-        return buildPlan(courseId, lesson, null);
+        return buildPlan(courseId, lesson, null, null);
     }
 
     /**
@@ -362,25 +368,37 @@ public class NotifyRuleService {
      * <p>两个调用方：发送服务在推送前取生效档位；管理端排查「为什么这档没发」。
      * 刻意<b>不做</b>租户上下文校验——调用方（定时任务 / HTTP 接口）自己保证上下文已就绪，
      * 这里再加一道会在定时任务里误报（任务已显式 setTenantId，但那是合法租户身份）。
+     *
+     * @param zone 排期时区；非空时返回的上课时间/应发时刻按它渲染并附时区标注，
+     *             为空则原样输出 UTC（仅供排查用，界面会显示一个带 Z 的裸数字）
      */
-    public NotifyPlanVO plan(String courseId, LocalDateTime lesson, Set<Integer> dispatchedSeqs) {
-        return buildPlan(courseId, lesson, dispatchedSeqs);
+    public NotifyPlanVO plan(String courseId, LocalDateTime lesson, Set<Integer> dispatchedSeqs, String zone) {
+        return buildPlan(courseId, lesson, dispatchedSeqs, zone);
     }
 
-    private NotifyPlanVO buildPlan(String courseId, LocalDateTime lesson, Set<Integer> dispatchedSeqs) {
+    private NotifyPlanVO buildPlan(String courseId, LocalDateTime lesson, Set<Integer> dispatchedSeqs,
+                                   String zone) {
         Effective eff = resolve(courseId);
         NotifyPlanVO plan = new NotifyPlanVO();
         plan.setCourseId(courseId);
         plan.setScope(eff.scope);
         plan.setScopeText(scopeText(eff.scope));
         plan.setFallbackNotice(eff.fallbackNotice);
-        plan.setLessonTime(lesson.format(FMT));
+        // 上课时间是 UTC（preview 入口除外，那里传的是墙上时间且 zone 为 null），
+        // 直接 format 会把UTC 数字当成当地时间显示，管理员会照着错误时间排查。
+        java.util.function.Function<LocalDateTime, String> render =
+                (zone == null || zone.trim().isEmpty())
+                        ? (t) -> t.format(FMT)
+                        : (t) -> ScheduleGenerator.utcToZonedText(t, zone.trim(), FMT);
+        plan.setLessonTime(render.apply(lesson));
         if (courseId != null && !courseId.isEmpty()) {
             Course course = courseMapper.selectById(courseId);
             plan.setCourseName(course == null ? courseId : course.getCourseName());
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        // 判定"是否已过期"要与课次时间同源：课次是 UTC，用裸 now()（服务器时区）
+        // 会让服务器 TZ 一改、整张表的"已过期/待发送"标签整体翻转。
+        LocalDateTime now = ScheduleGenerator.nowUtc();
         List<NotifyPlanItemVO> items = new ArrayList<>();
         for (CourseNotifyRulePoint p : eff.points) {
             NotifyPlanItemVO item = new NotifyPlanItemVO();
@@ -392,7 +410,7 @@ public class NotifyRuleService {
             item.setAudience(p.getAudience());
             item.setAudienceText(NotifyAudience.text(p.getAudience()));
             LocalDateTime expect = lesson.minusMinutes(p.getOffsetMinutes() == null ? 0 : p.getOffsetMinutes());
-            item.setExpectTime(expect.format(FMT));
+            item.setExpectTime(render.apply(expect));
 
             boolean dispatched = dispatchedSeqs != null && p.getSeq() != null
                     && dispatchedSeqs.contains(p.getSeq());

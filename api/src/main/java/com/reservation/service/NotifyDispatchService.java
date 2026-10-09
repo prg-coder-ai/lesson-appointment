@@ -354,7 +354,10 @@ public class NotifyDispatchService {
         LocalDateTime lesson = appointment.getAppointmentDatetime();
         LocalDateTime expect = lesson.minusMinutes(point.getOffsetMinutes());
         String offsetText = notifyRuleService.formatMinutes(point.getOffsetMinutes());
-        String lessonAtText = lesson.format(TIME_FMT);
+        // ⚠️ lesson 是 UTC。正文里直接写 lesson.format(...) 会把UTC 数字当成用户当地墙钟时间发出去
+        //（排期 Asia/Shanghai 21:00 → 课次存 UTC 13:00 → 提醒写「13:00」，而用户晚上9 点上课）。
+        // 须经 lessonTimeClause 转成排期时区并附时区标注；取不到时区则整句省略时间。
+        String lessonAtClause = lessonTimeClause(booking, lesson);
         String dedupKey = manual
                 ? NotificationDispatchLog.DEDUP_MANUAL_PREFIX + LocalDateTime.now().format(DEDUP_STAMP)
                 : NotificationDispatchLog.DEDUP_AUTO;
@@ -397,7 +400,7 @@ public class NotifyDispatchService {
             // 「尝试过但失败」的事实留在日志里，不用一行永远为 FAILED 的流水占位。
             boolean ok = messageNotifyService.notifyLessonReminder(
                     booking.getTenantId(), Collections.singletonList(receiverId),
-                    point.getStage(), courseName, offsetText, lessonAtText);
+                    point.getStage(), courseName, offsetText, lessonAtClause);
             if (ok) {
                 sent++;
             } else {
@@ -420,6 +423,54 @@ public class NotifyDispatchService {
     // ========================================================================
 
     /**
+     * 上课时间短语（含括号），直接进消息模板的 {@code {lessonAt}}。
+     *
+     * <p><b>时区口径</b>：课次 {@code appointment_datetime} 是 UTC，而消息正文是
+     * <b>静态文本</b>——落库即固化，读者打开时无法按自己的时区重渲染。
+     * 故按「booking → schedule → course_schedule.time_zone」转成排期时区的墙上时间，
+     * 并附上时区名（跨时区排期时，否则「21:00」会被误读成本地时间）。
+     *
+     * <p><b>为什么用排期时区而不是"阅读者时区"</b>：通知由定时任务异步派发，
+     * 线程里没有阅读者上下文（根因是 {@code user} 表没有 time_zone 列）。
+     * 排期时区是通知产生那一刻唯一确定的时区；页面上的时间由前端按用户时区渲染，
+     * 两者语义不同，是刻意取舍。
+     *
+     * @return 形如「（2026-10-09 21:00，中国标准时间）」；
+     *         <b>取不到排期时区时返回空串</b>——正文里留一个无标注的数字比不说更糟：
+     *         用户无从判断它是哪个时区的时间，只能按错的理解出门。
+     */
+    private String lessonTimeClause(Booking booking, LocalDateTime lessonUtc) {
+        if (booking == null || lessonUtc == null) {
+            return "";
+        }
+        String zone = resolveScheduleZone(booking.getScheduleId());
+        if (!notBlank(zone)) {
+            log.warn("排期时区缺失，上课提醒正文省略时间: bookingId={}, scheduleId={}",
+                    booking.getBookingId(), booking.getScheduleId());
+            return "";
+        }
+        return "（" + ScheduleGenerator.utcToZonedText(lessonUtc, zone, TIME_FMT) + "）";
+    }
+
+    /** 由排期取时区；排期不存在或time_zone 为空返回 null（由调用方决定省略，不降级 UTC） */
+    private String resolveScheduleZone(String scheduleId) {
+        if (!notBlank(scheduleId)) {
+            return null;
+        }
+        try {
+            CourseSchedule schedule = courseScheduleMapper.selectById(scheduleId);
+            if (schedule == null) {
+                return null;
+            }
+            String zone = schedule.getTimeZone();
+            return notBlank(zone) ? zone.trim() : null;
+        } catch (Exception e) {
+            log.warn("取排期时区失败（正文将省略时间）: scheduleId={}, err={}", scheduleId, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * 按课次ID试算各档应发时刻（含「该档是否已发」）。
      *
      * <p>供两类入口使用：管理端在课次上点「发送提醒」前先看会发哪一档；
@@ -439,8 +490,11 @@ public class NotifyDispatchService {
         Booking booking = appointment.getBookingId() == null
                 ? null : bookingMapper.selectById(appointment.getBookingId());
         String courseId = booking == null ? null : resolveCourseId(booking.getScheduleId());
+        // 课次时间是 UTC，而这张表要给管理员照着排查问题——须按排期时区渲染，
+        // 否则管理员看到的"应发时刻"比真实时间差6~7 小时，会照着错时间去查流水。
+        String zone = booking == null ? null : resolveScheduleZone(booking.getScheduleId());
         return notifyRuleService.plan(courseId, appointment.getAppointmentDatetime(),
-                dispatchedSeqs(appointmentId));
+                dispatchedSeqs(appointmentId), zone);
     }
 
     /** 某课次已发送过的档位序号集合（供配置页 / 课次详情展示「哪几档已发」） */

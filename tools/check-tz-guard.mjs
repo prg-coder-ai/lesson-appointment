@@ -165,6 +165,7 @@ const TZ_SENSITIVE = [
   ['service/RefundRuleService.java', '退改档位（Duration.between(now, lessonTime)）'],
   ['controller/AppointmentController.java', '课次查询窗口（"近 N 天"边界）'],
   ['service/MessageNotifyService.java', '通知正文里的课次时间渲染'],
+  ['service/NotifyRuleService.java', '通知试算的"应发时刻已过期"判定（与课次时间同源）'],
 ];
 
 // 豁免：这些文件里的 now() 是审计/监控/会话性质，与业务时区无关
@@ -207,6 +208,14 @@ for (const [rel, why] of TZ_SENSITIVE) {
       rel.includes('NotifyDispatchService') &&
       (raw.includes('DEDUP_STAMP') || raw.includes('setSentAt'));
     if (isAuditStamp) return;
+
+    // NotifyRuleService 例外：preview() 里"明天此刻"是给管理员看的**假想输入框默认值**，
+    // 取本地墙钟才符合"明天此刻"的直觉（换 nowUtc 会让默认值在某些时区差一天）。
+    // 它不是对课次时间的比较，故不参与口径统一。注意判据必须挂到具体方法上：
+    // 只按"变量名叫 preview"判断会随重构失效，只按"有 plusDays"又太宽。
+    const isHypotheticalSeed =
+      rel.includes('NotifyRuleService') && raw.includes('plusDays(1)');
+    if (isHypotheticalSeed) return;
 
     hits.push({ line: i + 1, text: raw });
   });
@@ -280,6 +289,90 @@ if (dtSrc) {
       'shared/domain/datetime.js 缺少 isValidZone 函数定义。\n' +
       '    → 实测 Intl **认得** 三字母缩写：utcToZoned(x, "CST") 不抛错，而是静默按 UTC-6 解析，\n' +
       '      用户看到的时间平白差 14 小时且无任何报错。判据见 datetime.js 内注释。');
+  }
+}
+
+// ============================================================ 检查 5：通知/试算正文的时间必须带时区换算
+// 退化形态：2026-10-08 UTC 化时只把候补递补那条路径接上了换算，
+// 上课提醒（4 档 × 每分钟轮询的高频路径）与管理端试算仍是
+// `lesson.format(TIME_FMT)` 裸 UTC —— 排期 21:00(Asia/Shanghai) 会显示成 13:00。
+// 两种退化都不报错、只在用户看到错时间时才暴露，靠review 抓不住。
+//
+// 判据用**禁形清单**而不是"必须出现某个调用"：后者只能覆盖已知的正确写法，
+// 换一种写法（如直接 .toString()）就静默失去防护；禁形是黑名单，
+// 新增任何"把课次时间直接变成用户可见文本"的写法都会撞上。
+{
+  const CONVERTERS = /utcToZonedText|utcToUserZone|lessonTimeClause|render\.apply/;
+  const TEXT_PATHS = [
+    ['service/NotifyDispatchService.java', '上课提醒正文 / 管理端试算'],
+    ['service/MessageNotifyService.java', '候补递补正文'],
+    ['service/NotifyRuleService.java', '管理端试算的上课时间与应发时刻'],
+  ];
+  // 每条：[正则, 说明] —— 正则只匹配"把课次时间变成用户可见文本"的形态。
+  // ⚠️ 两条坑（都是反向测试实测撞出来的，不是设想的）：
+  //   ① getter 调用形态必须一并覆盖：`a.getAppointmentDatetime().toString()` 的
+  //      接收者是 `getAppointmentDatetime()` 而不是标识符，只写 \w* 会漏掉它
+  //      （⑤b曾因此判绿——输出全绿而防护为零）。
+  //   ② **顺序即优先级**：命中即 return，排在后面的规则会被前面的**完全遮蔽**。
+  //      `plan.setLessonTime(lesson.format(FMT))` 同时命中规则 1 与规则 3，
+  //      规则 3 写在后面就成了死检查——跑不红的检查和没有检查长得一模一样。
+  //      故更具体的（带方法名的）放前面。
+  const FORBIDDEN = [
+    [/\bset(?:LessonTime|ExpectTime)\s*\(\s*\w+\s*\.\s*format\s*\(/,
+     '把课次时间未换算就写进试算 VO 的上课时间/应发时刻字段'],
+    [/\b\w*(?:lesson|appointment)\w*\s*\.\s*format\s*\(\s*(?:TIME_FMT|FMT)\s*\)/i,
+     '把课次时间直接 format 成文本（应经utcToZonedText）'],
+    [/\b\w*(?:lesson|appointment)\w*\s*(?:\(\s*\))?\s*\.\s*toString\s*\(\s*\)/i,
+     '把课次时间直接 toString（会得到裸 UTC 数字且无时区标注）'],
+  ];
+
+  for (const [rel, why] of TEXT_PATHS) {
+    const p = path.join(JAVA_ROOT, rel);
+    const src = readOrDie(p, '通知服务');
+    if (!src) continue;
+    const rawLines = src.split(/\r?\n/);
+    const cleanLines = stripComments(src).split(/\r?\n/);
+    if (cleanLines.length !== rawLines.length) {
+      problems.push(
+        `${path.relative(ROOT, p)}：剥注释后行数不一致，报错行号不可信。这是守卫自身的 bug。`);
+      continue;
+    }
+
+    const hits = [];
+    cleanLines.forEach((line, i) => {
+      if (CONVERTERS.test(line)) return;      // 走了换算出口 → 合法
+      for (const [re, desc] of FORBIDDEN) {
+        if (re.test(line)) {
+          hits.push({ line: i + 1, text: (rawLines[i] || '').trim(), desc });
+          return;
+        }
+      }
+    });
+
+    if (hits.length) {
+      problems.push(
+        `${path.relative(ROOT, p)}：${hits.length} 处把课次时间（UTC）直接变成用户可见文本（${why}）。\n` +
+        hits.map((h) => `      L${h.line}  ${h.text}\n            ↳ ${h.desc}`).join('\n') +
+        `\n    → 课次是 UTC，直接输出会把 UTC 数字当成本地时间甩给用户。\n` +
+        `      必须走 ScheduleGenerator.utcToZonedText(utc, 排期时区, fmt)（自带时区标注）。\n` +
+        `      注：这条检查是 2026-10-09 补的——此前只有候补递补路径接了换算。`);
+    } else {
+      notes.push(`${path.relative(ROOT, p)}：课次时间文本已带时区换算（${why}）✓`);
+    }
+  }
+
+  // 换算出口本身必须存在，且必须带时区标注能力。
+  if (genSrc) {
+    if (!/public static String utcToZonedText\s*\(/.test(genSrc)) {
+      problems.push(
+        'ScheduleGenerator 缺少 public static String utcToZonedText() —— 课次时间转可见文本的唯一出口。\n' +
+        '    → 通知正文/试算都要用它把 UTC 转成排期时区并附时区标注。');
+    }
+    if (!/public static String zoneLabel\s*\(/.test(genSrc)) {
+      problems.push(
+        'ScheduleGenerator 缺少 public static String zoneLabel() —— 时区 id 转可读标签。\n' +
+        '    → 正文里只写「21:00」而不标时区，跨时区排期时会被读者误读成本地时间。');
+    }
   }
 }
 

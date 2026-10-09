@@ -18,6 +18,9 @@ const GUARD = path.join(ROOT, 'tools/check-tz-guard.mjs');
 
 const SCHEDULE_SVC = path.join(ROOT, 'api/src/main/java/com/reservation/service/CourseScheduleService.java');
 const NOTIFY_SVC = path.join(ROOT, 'api/src/main/java/com/reservation/service/NotifyDispatchService.java');
+const NOTIFY_MSG_SVC = path.join(ROOT, 'api/src/main/java/com/reservation/service/MessageNotifyService.java');
+const NOTIFY_RULE_SVC = path.join(ROOT, 'api/src/main/java/com/reservation/service/NotifyRuleService.java');
+const GENERATOR = path.join(ROOT, 'api/src/main/java/com/reservation/common/ScheduleGenerator.java');
 const REFUND_SVC = path.join(ROOT, 'api/src/main/java/com/reservation/service/RefundRuleService.java');
 const APPT_CTRL = path.join(ROOT, 'api/src/main/java/com/reservation/controller/AppointmentController.java');
 const DATETIME_JS = path.join(ROOT, 'shared/domain/datetime.js');
@@ -333,6 +336,86 @@ await variant(
     'function utcToZoned_internal(iso, timeZone, withSeconds = false) {'
   ),
   '缺少 export function utcToZoned()'
+);
+
+// ---------------------------------------------------------------- 检查 5：通知/试算的课次时间未换算
+// 这组对应 2026-10-09 修的 P0：上课提醒正文把 UTC 直接 format 成用户可见时间。
+// 每条变异都必须把"已接上换算"改回"裸 UTC"，且判红理由要指向具体那条禁形。
+await variant(
+  '⑤ 上课提醒正文改回裸 UTC（lesson.format(TIME_FMT)）应判红',
+  'red',
+  () => replaceOnce(
+    NOTIFY_SVC,
+    'String lessonAtClause = lessonTimeClause(booking, lesson);',
+    'String lessonAtClause = "（" + lesson.format(TIME_FMT) + "）";'
+  ),
+  '直接 format 成文本'
+);
+
+await variant(
+  '⑤b 候补递补改回 toString（裸 UTC 数字、无时区标注）应判红',
+  'red',
+  () => replaceOnce(
+    NOTIFY_MSG_SVC,
+    'return ScheduleGenerator.utcToZonedText(a.getAppointmentDatetime(), zone, FIRST_LESSON_FMT);',
+    'return a.getAppointmentDatetime().toString().replace("T", " ");'
+  ),
+  '直接 toString'
+);
+
+await variant(
+  '⑤c 管理端试算把上课时间未换算就写进 VO 应判红',
+  'red',
+  () => replaceOnce(
+    NOTIFY_RULE_SVC,
+    'plan.setLessonTime(render.apply(lesson));',
+    'plan.setLessonTime(lesson.format(FMT));'
+  ),
+  '上课时间/应发时刻字段'
+);
+
+await variant(
+  '⑤c2 应发时刻字段未换算也应判红（不能只靠上课时间那条规则兜着）',
+  'red',
+  () => replaceOnce(
+    NOTIFY_RULE_SVC,
+    'item.setExpectTime(render.apply(expect));',
+    'item.setExpectTime(expect.format(FMT));'
+  ),
+  '上课时间/应发时刻字段'
+);
+
+await variant(
+  '⑤d 删掉 utcToZonedText 出口应判红',
+  'red',
+  () => replaceOnce(
+    GENERATOR,
+    'public static String utcToZonedText(LocalDateTime utc, String zone, DateTimeFormatter fmt) {',
+    'public static String utcToZonedText_internal(LocalDateTime utc, String zone, DateTimeFormatter fmt) {'
+  ),
+  '缺少 public static String utcToZonedText()'
+);
+
+await variant(
+  '⑤e 删掉 zoneLabel（正文无时区标注）应判红',
+  'red',
+  () => replaceOnce(
+    GENERATOR,
+    'public static String zoneLabel(String zone) {',
+    'public static String zoneLabel_internal(String zone) {'
+  ),
+  '缺少 public static String zoneLabel()'
+);
+
+await variant(
+  '⑤f 试算的"已过期"判定用回裸 now() 应判红',
+  'red',
+  () => replaceOnce(
+    NOTIFY_RULE_SVC,
+    'LocalDateTime now = ScheduleGenerator.nowUtc();\n        List<NotifyPlanItemVO> items = new ArrayList<>();',
+    'LocalDateTime now = LocalDateTime.now();\n        List<NotifyPlanItemVO> items = new ArrayList<>();'
+  ),
+  '裸 now()'
 );
 
 // ---------------------------------------------------------------- 还原校验（先于汇总）

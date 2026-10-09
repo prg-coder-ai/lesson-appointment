@@ -23,6 +23,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -40,6 +41,13 @@ import java.util.Map;
 @Slf4j
 @Service
 public class MessageNotifyService {
+
+    /**
+     * 通知正文里课次时间的格式：分钟精度足够（课次本身以分钟为单位），
+     * 且秒数对「几点上课」这个信息没有意义，还会让人多扫一眼。
+     */
+    private static final DateTimeFormatter FIRST_LESSON_FMT =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     @Value("${message.service.base-url:http://localhost:8090}")
     private String baseUrl;
@@ -140,23 +148,26 @@ public class MessageNotifyService {
      * 动态数据一律用 **非术语 key** 的占位符（{lessonAt} / {offsetText}）：
      * {lessonTime} 本身是术语 key（取值「上课时间」），若拿它当动态数据的占位符，
      * 插进词表 Map 时会把术语词覆盖掉——参考 WAITLIST_PROMOTED_FIRST 用 {firstLesson} 的同款规避。
+     *
+     * <p><b>{lessonAt} 自带括号</b>（形如「（2026-10-09 21:00，中国标准时间）」），
+     * 取不到排期时区时传空串——若把括号写死在模板里，空值会留下一个孤零零的「（）」。
      * ================================================================== */
 
     private static final String REMIND_FIRST_TITLE = "{courseName}{lesson}预告";
     private static final String REMIND_FIRST_BODY =
-            "温馨提醒：本节{course}将在{offsetText}后开始（{lessonAt}），请提前安排时间。";
+            "温馨提醒：本节{course}将在{offsetText}后开始{lessonAt}，请提前安排时间。";
 
     private static final String REMIND_AGAIN_TITLE = "{courseName}{lesson}预告";
     private static final String REMIND_AGAIN_BODY =
-            "再次提醒：本节{course}将在{offsetText}后开始（{lessonAt}），请留意时间安排。";
+            "再次提醒：本节{course}将在{offsetText}后开始{lessonAt}，请留意时间安排。";
 
     private static final String REMIND_SOON_TITLE = "{courseName}{lesson}即将开始";
     private static final String REMIND_SOON_BODY =
-            "本节{course}将在{offsetText}后开始（{lessonAt}），请准时{lesson}。";
+            "本节{course}将在{offsetText}后开始{lessonAt}，请准时{lesson}。";
 
     private static final String REMIND_FINAL_TITLE = "{courseName}{lesson}即将开始（最后提示）";
     private static final String REMIND_FINAL_BODY =
-            "最后提示：本节{course}将在{offsetText}后开始（{lessonAt}），请立即准备。";
+            "最后提示：本节{course}将在{offsetText}后开始{lessonAt}，请立即准备。";
 
     /**
      * 上课提醒的消息分类编码。
@@ -290,26 +301,31 @@ public class MessageNotifyService {
      * 取该 booking 最早一次课的时间文案，用于通知正文；查不到返回 null（不影响消息发送）。
      *
      * <p><b>时区口径</b>：课次 {@code appointment_datetime} 自 2026-10-08 起是 UTC，
-     * 直接 {@code toString()} 会把 "21:00" 之类的 UTC 数字甩给用户，与本地差 6~7 小时。
-     * 故按「booking → schedule → course_schedule.time_zone」取排期时区再转成墙上时间。
+     * 直接 {@code toString()} 会把 "13:00" 之类的 UTC 数字甩给用户，与本地差 6~7 小时。
+     * 故按「booking → schedule → course_schedule.time_zone」取排期时区再转成墙上时间，
+     * 并由 {@link ScheduleGenerator#utcToZonedText} 附上时区标注。
      *
      * <p><b>为什么用排期时区而不是"阅读者时区"</b>：通知是异步派发的，线程里拿不到
-     * "谁在读这条消息"。排期时区是通知产生那一刻唯一确定的时区，用它渲染对收发双方
-     * 都成立；页面展示则由前端按各自本地时区渲染 —— 两者语义不同，是刻意取舍。
+     * "谁在读这条消息"（根因是 {@code user} 表没有 time_zone 列）。
+     * 排期时区是通知产生那一刻唯一确定的时区；页面展示则由前端按各自本地时区渲染——
+     * 两者语义不同，是刻意取舍。
      *
-     * <p>取不到时区时降级为 UTC 展示（{@code scheduleLocalToUtc} 内部的 safeZone 会兜底），
-     * 不因为排期被删就丢整条通知。
+     * <p><b>取不到时区就整句省略</b>（返回 null），而不是降级成 UTC：
+     * 正文是一个裸数字，读者无从判断它是哪个时区的时间，误读的代价（按错时间出门）
+     * 远大于少一句时间提示。
      */
     private String firstAppointmentText(String bookingId) {
         try {
+            String zone = resolveScheduleZone(bookingId);
+            if (zone == null) {
+                return null;   // 排期已被删/ 时区为空 → 宁可不说时间，也不说一个错时区的时间
+            }
             List<Appointment> list = appointmentService.getByBookingId(bookingId);
             if (list == null || list.isEmpty()) return null;
-            String zone = resolveScheduleZone(bookingId);
             for (Appointment a : list) {
                 if (a != null && a.getAppointmentDatetime() != null) {
-                    java.time.LocalDateTime local = ScheduleGenerator.utcToUserZone(
-                            a.getAppointmentDatetime(), zone);
-                    return local.toString().replace("T", " ");
+                    // getByBookingId 已按 appointment_datetime 升序，首个非空即最早一次课
+                    return ScheduleGenerator.utcToZonedText(a.getAppointmentDatetime(), zone, FIRST_LESSON_FMT);
                 }
             }
             return null;
@@ -366,11 +382,12 @@ public class MessageNotifyService {
      * @param stage          档位码，决定用哪套文案
      * @param courseName     课程名（放进标题，让管理端消息列表一眼看出是哪门课）
      * @param offsetText     提前量文案，如「3 天」「30 分钟」
-     * @param lessonAtText   上课时间文案
+     * @param lessonAtClause 上课时间短语，**自带括号**，如「（2026-10-09 21:00，中国标准时间）」；
+     *                       取不到排期时区时传空串（整句省略，别留一个空括号）
      * @return true = 已成功投递给 message-service；false = 失败（调用方据此把流水标 FAILED）
      */
     public boolean notifyLessonReminder(Long tenantId, List<String> recipientIds, String stage,
-                                        String courseName, String offsetText, String lessonAtText) {
+                                        String courseName, String offsetText, String lessonAtClause) {
         if (recipientIds == null || recipientIds.isEmpty()) {
             return false;
         }
@@ -397,7 +414,7 @@ public class MessageNotifyService {
         Map<String, String> vars = new LinkedHashMap<>(termService.getTermMap(tenantId, null));
         vars.put("courseName", courseName == null || courseName.isEmpty() ? "" : courseName);
         vars.put("offsetText", offsetText == null ? "" : offsetText);
-        vars.put("lessonAt", lessonAtText == null ? "" : lessonAtText);
+        vars.put("lessonAt", lessonAtClause == null ? "" : lessonAtClause);
 
         String title = termService.renderTemplate(titleTpl, vars);
         String content = termService.renderTemplate(bodyTpl, vars);
