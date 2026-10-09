@@ -560,26 +560,20 @@ async function renderBackendBriefInfo(container) {
     html += '<div class="dm-endpoint" style="padding:10px 12px;color:#666;">' + summaries.join('') + '</div>';
   }
 
-  box.innerHTML = html;
+box.innerHTML = html;
 }
 
-
- // 搜索按钮：重置为第1页再查询
-function localsearchCourse() {
-  Pagination.pageNum = 1;
-
-  loadAndRenderObjectListByPage();
-}
-
-// 重置筛选条件
-function resetCourseFilter() {
-  //document.getElementById('course-name-input').value = '';
-  //document.getElementById('language-select').value = '';
-  //.getElementById('course-status-select').value = '';
- // document.getElementById('difficulty-level-select').value = '';
-  
-  Pagination.pageNum = 1;
-  loadAndRenderObjectListByPage();
-}
+/*原localsearchCourse() / resetCourseFilter() 已删除（2026-10-09）。
+ *
+ * 这两个函数在本文件内**从未被调用**（无任何 onclick= 或 JS 调用点），
+ * 但它们与 admin-course.js 的同名顶层函数冲突：本文件在 admin.html 里
+ * 后加载，于是静默覆盖了 admin-course.js 的实现 —— 课程管理页的
+ * 「搜索 / 重置」按钮实际会调到本文件的 loadAndRenderObjectListByPage()，
+ * 而非它自己页面用的 loadAndRenderCourseListByPage()。
+ *
+ * 症状不是报错而是"点了没反应 / 列表刷错"，因此比语法错更难查。
+ * 浏览器不会对同名 function 声明报错，只会静默覆盖 —— 这类问题由
+ * tools/check-global-collide.mjs 的「情况③：同名顶层 function」拦截。
+ */
  
   

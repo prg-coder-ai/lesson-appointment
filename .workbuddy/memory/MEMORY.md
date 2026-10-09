@@ -5,16 +5,28 @@
 - 库内数据都是测试数据：脏数据/历史状态不清理不刷，只诊断报告。
 - **改动已有校验时**先摆事实与选项让用户拍板（范围/严格度/双层），不机械执行"教科书最优"；本项目偏好分步推进 + 保留既有实现（双层并行）。
 
-## 四条"单一权威源"治理（均有守卫 + pre-commit 门禁）
+## 七道守卫（均有 pre-commit 门禁 + 反向测试）
 | 领域 | 权威源 | 守卫（npm） | 反向测试 |
 |---|---|---|---|
 | 授权 | `config/AuthzRules.java`（170条） | `check-authz-declarative.mjs` (`check:authz`) | `test:authz-guard` 7项 |
 | 引用完整性 | `common/CascadeRules.java`（12场景/17规则） | `check-cascade-rules.mjs` (`check:cascade`) | `test:cascade-guard` 9项 |
 | DDL | `api/sql/{schema,seed,patch}/` | `check-ddl-entity-align.mjs` (`check:ddl-align`) | `test:ddl-align-guard` 19项 |
-| 时区 | `common/ScheduleGenerator.java` 三入口 | `check-tz-guard.mjs` (`check:tz`) | `test:tz-guard` 15项 |
+| 时区 | `common/ScheduleGenerator.java` 三入口 | `check-tz-guard.mjs` (`check:tz`) | `test:tz-guard` 22项 |
 | 端点常量 | `shared/apiPaths.js`（87个） | `check-endpoints-refs.mjs` (`check:endpoints`) | `check_endpoints_guard.js` 15项 |
+| 前端全局作用域 | 无权威源（物理隔离即可） | `check-global-collide.mjs` (`check:global-collide`) | `check_global_collide_guard.js` 18项 |
 
-统一跳过后缀：`SKIP_AUTHZ / SKIP_CASCADE / SKIP_DDL_ALIGN / SKIP_TZ`。改权威源必跑反向测试证明守卫真会红。
+统一跳过后缀：`SKIP_AUTHZ / SKIP_CASCADE / SKIP_DDL_ALIGN / SKIP_TZ / SKIP_GLOBAL_COLLIDE`。
+改权威源必跑反向测试证明守卫真会红。
+
+### 前端顶层标识符必须包 IIFE（2026-10-09 故障换来的铁律）
+多文件页面里**任何顶层标识符都会共享全局作用域**，`const/let/var/function` 之间会互相踩：
+- `const`/`let`（全局词法绑定）**不可被 `var` 重新声明** → 后者整个脚本**解析期** SyntaxError，
+  一个函数都不注册 → 页面只显示「模块未加载」，而文件在、语法过、无 404，**极难定位**。
+- 两个同名顶层 `function` 浏览器**不报错**，只是后加载的**静默覆盖**先加载的 → "能跑但行为是错的"。
+
+规矩：页面脚本默认整体 `(function(){ 'use strict'; ... })()`，对外入口显式挂 `window`。
+**内联 `onclick="fn()"` 写在 HTML 字符串里的函数也必须挂 window**，漏挂= 按钮全哑。
+⚠️ 只加 IIFE 不给函数体缩进 = 没加（守卫按"缩进 0 = 顶层"判据）。
 
 ### 授权要点
 - SecurityConfig 只做 `applyDeclarativeAuthz(auth)` 展开 hasRole/hasAnyRole；兜底**故意仍 `.anyRequest().authenticated()`** 不换 denyAll（171 端点角色归属只能从前端调用链反推，判错一条即线上 403）。已回归确认后改这一行即可切换。

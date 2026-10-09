@@ -17,6 +17,7 @@
     "test:cascade-guard": "node --experimental-vm-modules tests/check_cascade_rules_guard.js",
     "check:tz": "node tools/check-tz-guard.mjs",
     "test:tz-guard": "node --experimental-vm-modules tests/check_tz_guard.js",
+    "check:global-collide": "node tools/check-global-collide.mjs",
     "check:ddl-align": "node tools/check-ddl-entity-align.mjs",
     "test:ddl-align-guard": "node --experimental-vm-modules tests/check_ddl_entity_align_guard.js"
   },
