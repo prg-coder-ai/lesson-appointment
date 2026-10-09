@@ -54,7 +54,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/interfaces", "/api/v1/interfaces",
             "/tenant/name", "/api/v1/tenant/name",
             // 服务运行信息（与缺省页同源，匿名可访问）
-            "/system/info", "/api/v1/system/info", "/apiInfo", "/api/v1/apiInfo"
+            "/system/info", "/api/v1/system/info", "/apiInfo", "/api/v1/apiInfo",
+            // Actuator 探针（2026-09新增，与 SecurityConfig 的 permitAll 同步）
+            // ⚠️ 这里必须与 SecurityConfig 同时改：只改一处 → 探针 401。
+            // 用 /actuator/health 前缀式匹配而非 Set.contains 精确匹配，
+            // 因为 liveness/readiness 的实际路径是
+            //   /actuator/health/liveness、/actuator/health/readiness
+            // （content negotiation 不同会出现 /actuator/health/readiness/ 之类变体）。
+            // ⚠️ 不能写成 "/actuator" 前缀 —— 那会连带放行 env/beans/loggers。
+            "/actuator/health"
+    );
+
+    /** 免认证的 Actuator 前缀（需与 WHITELIST_PATHS 分开：这里走 startsWith） */
+    private static final java.util.List<String> WHITELIST_PREFIXES = java.util.List.of(
+            "/actuator/health"
     );
 
     /** 静态资源前缀 */
@@ -78,6 +91,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // 2. 跳过白名单中的精确路径
         if (WHITELIST_PATHS.contains(uri)) {
             return true;
+        }
+
+        // 2b. 跳过白名单前缀（Actuator 的 liveness/readiness 子路径，
+        //     形如 /actuator/health/liveness、/actuator/health/readiness）
+        //⚠️ 必须校验分隔符：裸 startsWith 会把 /actuator/healthz、
+        //     /actuator/health-foo 这类**不存在但将来可能存在**的路径一并放行。
+        //     日后 Actuator 加自定义 health group 时会撞上这条。
+        for (String prefix : WHITELIST_PREFIXES) {
+            if (uri.equals(prefix) || uri.startsWith(prefix + "/")) {
+                return true;
+            }
         }
 
         // 3. 跳过静态资源

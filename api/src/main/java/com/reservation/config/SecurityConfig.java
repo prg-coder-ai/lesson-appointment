@@ -126,6 +126,20 @@ public class SecurityConfig {
                     // 服务运行信息（缺省页同款字段，健康检查/环境自检用，匿名可访问）
                     auth.requestMatchers("/system/info", "/api/v1/system/info", "/apiInfo", "/api/v1/apiInfo").permitAll();
 
+                    // ===== Actuator 探针（2026-10-09 接入，匿名可访问）=====
+                    // ⚠️ 两处必须同步改，漏一处症状不同但都探针不通：
+                    //   · 这里 permitAll 但 JwtAuthenticationFilter 没跳→过滤器清空 SecurityContext → 401
+                    //   · 这里没放行但过滤器跳了            → 落到兜底 anyRequest().authenticated() → 401
+                    // 已同步加入 JwtAuthenticationFilter.WHITELIST_PATHS，改一处必须改另一处。
+                    //
+                    // 只放行 health（liveness/readiness）。**不放行 /actuator/info**：
+                    // 它含构建时间与版本，虽不敏感但对匿名无价值，多暴露一个端点多一份风险。
+                    // 也不放行 /actuator/** 通配 —— 那等于把 env/beans/loggers 一并放开。
+                    auth.requestMatchers(
+                            "/actuator/health",
+                            "/actuator/health/**"
+                    ).permitAll();
+
                     // 静态资源
                     auth.requestMatchers(
                             "/js/**", "/css/**", "/images/**", "/favicon.ico"

@@ -34,6 +34,15 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+
+        <!-- Actuator：存活/就绪探针（2026-10-09 接入）
+             与 booking-api 同步接入：两者互相依赖（api 同步 HTTP 调本服务投递消息），
+             探针必须都具备，否则 Nginx 只能看到"8090 端口通"而看不到 message_center 库是否可用。
+             暴露面同样只开 health/info。 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>

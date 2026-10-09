@@ -21,7 +21,22 @@ Restart=on-failure
 # 每次重启前等待 10 秒，避免崩溃雪崩
 RestartSec=10s
 
+# ---- stdout/stderr 去向 ----
+# ⚠️ 这里的坑很隐蔽：`append:` 是 systemd 240+ 才有的语法，语义是"**只追加，不滚动**"。
+# 它不像 journal 那样自带大小上限，也不像 logrotate 那样有默认策略 ——
+# 写多少就留多少，写满就撑爆磁盘。而且它在 logrotate 配置里排到后面才生效，
+# 所以第一次部署往往"看起来正常"，直到某天日志涨到几十 GB 才出事。
+#
+# 现在由 deploy/logrotate/lesson 接管滚动（daily + maxsize 100M + rotate 14 + copytruncate）。
+# **部署时必须装它**：sudo cp deploy/logrotate/lesson /etc/logrotate.d/lesson
+# 漏装则本文件退回"永不滚动"的原始状态，且没有任何报错提示。
+#
+# 应用自身的业务日志不在这里 —— 见 booking.env 的 LOG_PATH=/var/log/lesson/api
+# （logback 管，有 50MB/30天/5GB 三重滚动）。两者刻意分目录，别混。
 StandardOutput=append:/var/log/lesson/booking.log
 StandardError=append:/var/log/lesson/booking.log
+
+# 目录不存在时 systemd 会因 append: 打开失败而**启动失败**（这是好事，早失败好过静默丢日志）。
+# 但首次部署仍需手动建目录：sudo mkdir -p /var/log/lesson && sudo chown lesson:lesson /var/log/lesson
 [Install]
 WantedBy=multi-user.target

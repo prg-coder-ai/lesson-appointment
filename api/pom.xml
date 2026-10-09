@@ -64,6 +64,16 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <!-- Actuator：存活/就绪探针（2026-10-09 接入）
+             之前完全没有健康检查端点，LB/Nginx 只能靠"端口通不通"判断存活 ——
+             端口通但DB 连不上、线程池耗尽时，服务已不可用却仍被认为健康。
+             暴露面严格限定为 health/info（见 application.properties 的 management.endpoints 配置），
+             env/beans/metrics/loggers 等一律不开放，避免泄露配置与内部结构。 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>

@@ -5,7 +5,7 @@
 - 库内数据都是测试数据：脏数据/历史状态不清理不刷，只诊断报告。
 - **改动已有校验时**先摆事实与选项让用户拍板（范围/严格度/双层），不机械执行"教科书最优"；本项目偏好分步推进 + 保留既有实现（双层并行）。
 
-## 七道守卫（均有 pre-commit 门禁 + 反向测试）
+## 十道守卫（均有 pre-commit 门禁 + 反向测试）
 | 领域 | 权威源 | 守卫（npm） | 反向测试 |
 |---|---|---|---|
 | 授权 | `config/AuthzRules.java`（170条） | `check-authz-declarative.mjs` (`check:authz`) | `test:authz-guard` 7项 |
@@ -14,6 +14,26 @@
 | 时区 | `common/ScheduleGenerator.java` 三入口 | `check-tz-guard.mjs` (`check:tz`) | `test:tz-guard` 22项 |
 | 端点常量 | `shared/apiPaths.js`（87个） | `check-endpoints-refs.mjs` (`check:endpoints`) | `check_endpoints_guard.js` 15项 |
 | 前端全局作用域 | 无权威源（物理隔离即可） | `check-global-collide.mjs` (`check:global-collide`) | `check_global_collide_guard.js` 18项 |
+| 调度线程池 | 两 properties | `check-scheduler-guard.mjs` (`check:scheduler`) | `check_scheduler_guard.js` 11项 |
+| Actuator 暴露面 | 两 properties + 两处白名单 | `check-actuator-guard.mjs` (`check:actuator`) | `check_actuator_guard.js` 12项 |
+| 租户跨线程 | `task/TenantAwareExecutor.java` | `check-tenant-cross-thread.mjs` (`check:tenant-xt`) | `check_tenant_cross_thread_guard.js` 11项 |
+
+统一跳过后缀：`SKIP_AUTHZ / SKIP_CASCADE / SKIP_DDL_ALIGN / SKIP_TZ / SKIP_GLOBAL_COLLIDE / SKIP_SCHEDULER / SKIP_ACTUATOR / SKIP_TENANT_XT`。
+
+### 第5 批可观测性（2026-10-09 落地，实测过）
+- **日志三处互不重叠**：systemd `append:` 管 `/var/log/lesson/{booking,message}.log`（logrotate daily+14+maxsize100M+**copytruncate**+su lesson）；logback 管 `${LOG_PATH}`（booking=`/var/log/lesson/api`、message=`/var/log/lesson/message`）。**两套引擎管同一文件会互相踩**（fd 指向已重命名 inode）。
+- **调度池** `pool.size=4`（api）/2（msg）+ `thread-name-prefix=sched-`。实测 jstack 有 `sched-1..4`。
+  ⚠️ **池不能让同一任务并行**（fixedDelay/cron 不重入），只解决任务间阻塞；`MonitorTask.lastSampleTime` 因此无需加锁。
+  ⚠️ `thread-name-prefix` **不含任务名**（Spring 做不到），认任务要靠 jstack **栈帧**。
+- **探针实测**：health/liveness/readiness 匿名 **200**；env/beans/configprops/loggers/threaddump/heapdump/mappings/scheduledtasks/shutdown 全 **401**。
+  ⚠️ 放行必须改**两处**（SecurityConfig permitAll + JwtAuthenticationFilter 白名单）。
+  ⚠️ 子路径需前缀匹配且**校验分隔符**（`equals(p)||startsWith(p+"/")`），裸 startsWith 会放行 `/actuator/healthz`。
+- **NotifyTask 已异步化**（`task/TenantAwareExecutor`：池 4 + 有界队列 64 + **CallerRuns** 背压）。
+  **setTenantId/finally clear 必须在执行器的工作线程内**——ThreadLocal 不跨线程。
+  幂等靠 `uk_dispatch_once` + catch DuplicateKeyException，**刻意不加同租户去重**。
+- **`api/src/test/` 已建**（原本不存在）：`ScheduleGeneratorTimeZoneTest` 27 用例。
+  ⚠️ 时区偏移期望值**必须用 JDK 实测**（悉尼10月是 AEDT+11 不是 +10）。
+- ⚠️ `api/beforeRun/*` 被 `.gitignore:77` 整体排除 → env 模板与 .service 改动**不随 git 分发**。
 
 统一跳过后缀：`SKIP_AUTHZ / SKIP_CASCADE / SKIP_DDL_ALIGN / SKIP_TZ / SKIP_GLOBAL_COLLIDE`。
 改权威源必跑反向测试证明守卫真会红。
@@ -62,6 +82,21 @@
 - 通知规则用 `offsetMinutes` 相对偏移 → 规则表不需改，课次转 UTC 后自动正确。
 - **守卫 `tools/check-tz-guard.mjs`（npm `check:tz`，pre-commit 第 5 条，`SKIP_TZ=1`）+ `tests/check_tz_guard.js` 22/22**。五条检查：课次写入过 `scheduleLocalToUtc` 且两 setter 都调 / 五个文件禁裸 now() / 三个方法必须存在 / 前端禁手算偏移且须有 `isValidZone` / **通知文本禁形清单**（覆盖 3 个文件）。
 - **未实测**：验证清单第 5 条「改服务器 TZ 重跑结果不变」需完整环境。
+
+### 可观测性待办（2026-10-09 复核报告第5批，见 doc-develop/第5批可观测性与时区-现状复核与剩余清单.md）
+时区两项（P1-13/P1-14）已关闭；余下 4 项零进度。**两个报告未点的物理故障最紧迫**：
+- **H2 日志永不滚动（P0）**：`api/beforeRun/*.service` 用 `StandardOutput=append:/var/log/lesson/*.log`，
+  systemd 1.4+ 的 `append:` **只追加不滚动**，全仓零 logrotate。logback 写的是**另一份**
+  `${LOG_PATH:-./logs}/`（两个 env 模板都没配 LOG_PATH）→ 两份日志两种命运，systemd 那份写满拖垮全站。
+- **H1 调度器单线程（P0）**：`@EnableScheduling` 在，但两个 properties 都无
+  `spring.task.scheduling.pool.size` → **默认 size=1**，全仓 **9 个 `@Scheduled` 共用**。
+  `MonitorTask`（读 CPU/内存/磁盘）一慢 → `NotifyTask`（逐租户 + 同步 HTTP 到8090）被整体推迟。
+  配池即可（`pool.size=4`）；**异步化必须排在配池之后** —— `TenantContext` 现在靠
+  `setTenantId/clear` 显式管理，异步化要先设计跨线程传递。
+- **`/api/v1/monitor/*` 不是探针**：名字像但 `checkPlatformAdmin(token)` 平台管理员专用、给人看的；
+  探针须免登录。⚠️ 加白名单要同时改 `SecurityConfig` 与 `JwtAuthenticationFilter.WHITELIST_PATHS`
+  （SecurityConfig:34-36 自己写着这两处分处之地必须同步，只改一处出 401）。
+- `api/src/test` **目录不存在**（`spring-boot-starter-test` 依赖已引入，零测试类）。
 
 ## 技术栈与构建
 - api(Spring Boot 3.3.5 + MyBatis-Plus 3.5.7) + message-service 独立模块；MySQL lesson_appointment/message_center；三产物：booking-api jar / message-service-1.0.0.jar / frontend/dist/。

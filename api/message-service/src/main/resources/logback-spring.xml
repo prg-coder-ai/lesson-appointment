@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  message-service 日志配置（2026-10-09 新增，此前本模块**没有任何** logback 配置）
+
+  为什么必须补：本模块此前只有 application.properties 里一行 logging.pattern.console，
+  全部日志走 stdout → 被 systemd 的 `StandardOutput=append:/var/log/lesson/message.log`
+  接走，而 `append:` 只追加不滚动，也没有任何 logrotate 配置。
+  也就是说**唯一一份日志没有任何保留期和体积上限** —— 磁盘写满会拖垮全站，
+  而 message-service 承载 SSE 长连接，一旦被 OOM/重启，用户表现为"消息悄悄不来了"。
+
+  与 api 的 logback 有意保持差异的三处（不要盲目照抄）：
+  1. 文件名 message-service.log —— 不能叫 spring-boot-app.log：
+     两个服务若配了同一个 LOG_PATH 会写进同一文件，排查时分不清堆栈属于谁。
+  2. pattern 不含 [%X{tenantId}] —— 本模块没有 MDC / TenantContext
+     （租户隔离靠显式 tenantId 参数，不挂 TenantLineInnerInterceptor），
+     抄过来会永远打印空值 []，看着像 bug。
+  3. maxHistory 60 天 & totalSizeCap 3GB（api 是 30 天 / 5GB）——
+     本服务日志量比主系统小得多，但 SSE 断连/重连的排查需要更长的回溯窗口。
+
+  ⚠️ 不要在这里加"投递追踪单独一份文件"的 appender：
+  曾这么写过并引用了 com.messagecenter.service.MessageDeliverService —— **该类不存在**。
+  投递流水（notification_dispatch_log）的写入与失败重试日志全部在**api 侧**
+  NotifyDispatchService 里，不在本服务。
+  本服务与投递相关的实际日志只有 MessageService:139「广播写扩散失败」
+  与 SsePushService 的推送结果，量很小，混在 INFO 里足够。
+-->
+<configuration>
+    <!-- ======================== 日志乱码最终防线 ========================
+         与 api 同一套：终端可能是乱码，但落盘文件必须是标准 UTF-8 中文。
+         本服务的 AES/JWT 密钥、租户码、消息正文都是中文，
+         落盘乱码会让"拿日志去比对密钥"这类排障手段直接失效。-->
+    <property name="LOG_CHARSET" value="UTF-8"/>
+    <!-- 与 message.env 的 LOG_PATH=/var/log/lesson/message 对应；
+         不设时退化成 ./logs（相对 WorkingDirectory=/opt/lesson），
+         会让运维在 /var/log/lesson/ 和 /opt/lesson/logs/ 两处都找一遍。-->
+    <property name="LOG_DIR"     value="${LOG_PATH:-./logs}"/>
+    <property name="LOG_PATTERN"
+              value="%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}  %-5level [%thread] %logger{36} : %msg%n"/>
+
+    <!-- 1) 控制台（systemd 接走，滚动由 deploy/logrotate/lesson 管） -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder charset="${LOG_CHARSET}">
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 2) 滚动文件（按日期轮转 + 单文件超 50MB 按 %i 切分；保留 60 天 / 总量上限 3GB） -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/message-service.log</file>
+        <encoder charset="${LOG_CHARSET}">
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/archived/message-service.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>60</maxHistory>
+            <totalSizeCap>3GB</totalSizeCap>
+            <cleanHistoryOnStart>true</cleanHistoryOnStart>
+        </rollingPolicy>
+    </appender>
+
+    <!-- 兜底：MyBatis 打印的 SQL 与参数里含手机号/邮箱，属个人信息。
+         与 api 的 application.properties 保持一致（那里是 level=ERROR），
+         不因"排障方便"放开 —— 这条是合规线，不是可调项。 -->
+    <logger name="com.messagecenter.mapper" level="ERROR"/>
+    <logger name="org.apache.ibatis" level="ERROR"/>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+    </root>
+</configuration>

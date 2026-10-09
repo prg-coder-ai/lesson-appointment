@@ -18,6 +18,12 @@
     "check:tz": "node tools/check-tz-guard.mjs",
     "test:tz-guard": "node --experimental-vm-modules tests/check_tz_guard.js",
     "check:global-collide": "node tools/check-global-collide.mjs",
+    "check:scheduler": "node tools/check-scheduler-guard.mjs",
+    "test:scheduler-guard": "node tests/check_scheduler_guard.js",
+    "check:actuator": "node tools/check-actuator-guard.mjs",
+    "test:actuator-guard": "node tests/check_actuator_guard.js",
+    "check:tenant-xt": "node tools/check-tenant-cross-thread.mjs",
+    "test:tenant-xt-guard": "node tests/check_tenant_cross_thread_guard.js",
     "check:ddl-align": "node tools/check-ddl-entity-align.mjs",
     "test:ddl-align-guard": "node --experimental-vm-modules tests/check_ddl_entity_align_guard.js"
   },
