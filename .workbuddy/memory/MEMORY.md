@@ -18,8 +18,11 @@
 | Actuator 暴露面 | 两 properties + 两处白名单 | `check-actuator-guard.mjs` (`check:actuator`) | `check_actuator_guard.js` 12项 |
 | 租户跨线程 | `task/TenantAwareExecutor.java` | `check-tenant-cross-thread.mjs` (`check:tenant-xt`) | `check_tenant_cross_thread_guard.js` 11项 |
 | 密钥注入 | 两 properties + 两 env 模板 | `check-secret-env-guard.mjs` (`check:secret-env`) | 4 条判定均反向验证会红 |
+| 错误响应契约 | `common/Result.java` + `ErrorCodes` + `GlobalExceptionHandler` | `check-result-contract-guard.mjs` (`check:result-contract`) | 8 变异均会红 |
+| JSON 日期契约 | `config/JacksonConfig.java` + `shared/domain/datetime.js` | `check-date-contract-guard.mjs` (`check:date-contract`) | 2 变异会红 |
+| 跨端状态契约 | `shared/domain/status-contract.json` | `check-status-contract-guard.mjs` (`check:status-contract`) | 6 变异均会红 |
 
-统一跳过后缀：`SKIP_AUTHZ / SKIP_CASCADE / SKIP_DDL_ALIGN / SKIP_TZ / SKIP_GLOBAL_COLLIDE / SKIP_SCHEDULER / SKIP_ACTUATOR / SKIP_TENANT_XT / SKIP_SECRET_ENV`。
+统一跳过后缀：`SKIP_AUTHZ / SKIP_CASCADE / SKIP_DDL_ALIGN / SKIP_TZ / SKIP_GLOBAL_COLLIDE / SKIP_SCHEDULER / SKIP_ACTUATOR / SKIP_TENANT_XT / SKIP_SECRET_ENV / SKIP_RESULT_CONTRACT / SKIP_DATE_CONTRACT / SKIP_STATUS_CONTRACT`。
 
 ### 第5 批可观测性（2026-10-09 落地，实测过）
 - **日志三处互不重叠**：systemd `append:` 管 `/var/log/lesson/{booking,message}.log`（logrotate daily+14+maxsize100M+**copytruncate**+su lesson）；logback 管 `${LOG_PATH}`（booking=`/var/log/lesson/api`、message=`/var/log/lesson/message`）。**两套引擎管同一文件会互相踩**（fd 指向已重命名 inode）。
@@ -36,7 +39,7 @@
   ⚠️ 时区偏移期望值**必须用 JDK 实测**（悉尼10月是 AEDT+11 不是 +10）。
 - ⚠️ `api/beforeRun/*` 被 `.gitignore:77` 整体排除 → env 模板与 .service 改动**不随 git 分发**。
 
-统一跳过后缀：`SKIP_AUTHZ / SKIP_CASCADE / SKIP_DDL_ALIGN / SKIP_TZ / SKIP_GLOBAL_COLLIDE / SKIP_SCHEDULER / SKIP_ACTUATOR / SKIP_TENANT_XT / SKIP_SECRET_ENV`。
+统一跳过后缀：`SKIP_AUTHZ / SKIP_CASCADE / SKIP_DDL_ALIGN / SKIP_TZ / SKIP_GLOBAL_COLLIDE / SKIP_SCHEDULER / SKIP_ACTUATOR / SKIP_TENANT_XT / SKIP_SECRET_ENV / SKIP_RESULT_CONTRACT / SKIP_DATE_CONTRACT / SKIP_STATUS_CONTRACT`。
 改权威源必跑反向测试证明守卫真会红。
 
 ### 前端顶层标识符必须包 IIFE（2026-10-09 故障换来的铁律）
@@ -192,3 +195,27 @@ saas-api-build-smoke / shared-domain-sink / shared-adapter-wire / seat-oversell-
 - 端到端实测：不注入 → 8082 readiness 200；注入 83 字节 → 8083 readiness 200。
 - 守卫第 11 条 `check:secret-env`：必走占位 / 兜底非空 / **逐模板**校验同名（合并变量集会假绿）/ 模板无真值。`.mjs` 不能用 `require`；兜底正则须 `[\s\S]*`（密钥含 Base64 的 `=` 与换行，`.` 会 No match found 抛异常）。
 - 测 Spring 行为时类文件从 `api/target/*.jar` 的 `BOOT-INF/lib/` `jar xf` 取出当 classpath，**本机 `.m2` 下 find 不到 spring-core**。
+
+## 第6批契约治理（2026-10-09 落地，动作 27删除/ 25/26/28 完成 / 29 待拍板）
+- **`Result.code` 是 primitive `int` 不是 `Integer`**（api + msg 两处）。历史 `fail(null)` 叠加 `default-property-inclusion=non_null` → 整个 code 字段从 JSON 消失；该配置已删。`fail()` 有`ALLOWED_CODES` 白名单断言（200/400/401/403/404/409/500/**1001**）。`fail()` 入参**故意保持 Integer** —— 让 `fail(null)` 能编译再被断言拦下并报出成因，改成 int 只会让编译错误指向参数、批量清理时更难定位。
+- **`common/ErrorCodes.java`**：按异常语义给码（UnLogin→401 / NoPermission→403 / User+ResourceNotFound→404 / Business+IllegalArgument→400 / 其余 500），**必须与 `GlobalExceptionHandler` 的 handler 一致**，守卫强制比对。已用它替换 10 处 `fail(null/0)`。
+- **补了 `GlobalExceptionHandler` 缺的 handler**：`ResourceNotFoundException`/`UserNotFoundException` 原**无任何 handler** → 「课程不存在」被报成 500。
+- ⚠️ **`LocalDateTimeSerializer.withZone(UTC)` 对 `LocalDateTime` 无效**（它是无时区类型，实测输出仍不带 Z 且不报错）。`JacksonConfig` 改用手写序列化器 `value.format(fmt) + "Z"`。**不做本地→UTC 转换**（第5批入库前已转过，再转一次= 转两次）。
+- ⚠️ **`fail(1001)`** 是微信登录业务码，不在标准白名单但**必须保留**；若将来统一 HTTP 映射，它对应 HTTP 400（请求侧问题，用 500 会让网关重试）。
+- ⚠️ **29-b（HTTP 状态映射 body.code）已暂停**：小程序 `request.js` 把 **HTTP 401 当 token 过期自动刷新重试**、**403 当鉴权失败踢登录**；而业务 `code=401/403` 大量存在且非鉴权问题（`MessageBizException(403,"仅管理员可操作消息分类")`）。全量映射会触发误踢登录= 复现该文件注释记载的"刚登录成功却被弹回登录页"历史 bug。建议方案 A：只映射 500/400/404/409，**401/403 保持 HTTP 200**。
+- **11 处 `Result.success(失败文案)` 未修**（比 code=null 更隐蔽：code=200 语义直接反了）。分两类：A 类 8 处前端零调用可安全改；B 类 3 处（`CourseController:111/129/144`，`datamaintain_delete.js`/`admin-course.js` 真在调）需先确认前端是否按 `data===false` 消费。
+- **状态契约用"登记式守卫"不用强行相等**：前端 `NON_OCCUPYING` 多一个 `'deleted'` 是**有意防御项**（后端落库语义是 frozen，DELETE='delete' 只是动作值不落库）。`status-contract.json` 的 `registeredDiffs` 记录理由，**理由不足 20 字即报错**。`bookingStatusText(status, opts)` 的 profile 参数受守卫保护（跨端文案差异是已拍板决策）。
+- **测试进程会被回收**：本机起服务验证时 8084/8085 起来后几分钟内自己消失（记忆里已有此现象）。curl 拿到空响应先 `netstat` 复查端口，别怀疑路径。改用**从 jar 的 `BOOT-INF/classes` + `BOOT-INF/lib` 取 classpath 跑独立 main**做端到端验证，比反复起进程可靠。
+
+### 本批踩到的坑（都是"看起来该绿却没绿"）
+| 坑 | 根因 |
+|---|---|
+| Python `
+` 模板 replace CRLF 文件**静默不替换** | 行尾不一致。改按行遍历处理；Edit 后必须 `grep` 核验是否真生效 |
+| `withZone(UTC)` 无效 | 见上 |
+| 守卫文本匹配假绿 | `if(code==null)` 改成 `if(false)` 仍绿（判定被其它词掩盖）。改为剥离注释后要求"null 分支内必须有 throw" |
+| 守卫剥字符串自伤 | 日期守卫剥掉字符串后 `+ "Z"` 变 `+ ""`，对着正确代码报红。该守卫改用**只剥注释** |
+| 注释里的示例被当违规 | 扫描未跳过注释行（3 处误报） |
+| 正则不认数组式注解 | `@ExceptionHandler({A,B})` 被判缺 handler |
+| 解析后端列表失败 | 后端写 `List.of(WAITING, ...)` 是**常量名**非字面量，只认`"..."` 会解析成空 |
+| **后台变异脚本覆盖交互编辑** | 变异测试跑着时我改了同文件，还原时旧备份把 `featuresToDisable` 覆盖成变异注释。**变异必须串行 + 结束后 md5 逐字节校验** |

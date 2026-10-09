@@ -40,7 +40,9 @@ public class BookingController {
             }
             return Result.success(id,"ok");
         } catch (IllegalArgumentException e) {
-            return Result.fail(null,e.getMessage());
+            // 契约：失败必须给出可判定的错误码。历史写为 fail(null,...)，
+            // 叠加 non_null 序列化会让 code 字段整个消失，客户端只能读到 message。
+            return Result.fail(400, e.getMessage());
         }
     }
 
@@ -49,7 +51,9 @@ public class BookingController {
         try {
             return Result.success(bookingService.update(id, booking),"ok");
         } catch (RuntimeException e) {
-            return Result.fail(null,e.getMessage());
+            // 按异常语义给码（Business→400 / NoPermission→403 / 未找到→404 / 其余 500），
+            // 与 GlobalExceptionHandler 的映射表一致，避免两条路径 code 分叉。
+            return ErrorCodes.fail(e);
         }
     }
 //@PathVariable String id, 
@@ -121,7 +125,9 @@ public class BookingController {
             List<Booking> bookings = bookingService.selectList(dto);
             return Result.success(bookings, "ok");
         } catch (RuntimeException e) {
-            return Result.fail(null, e.getMessage());
+            // 按异常语义给码（Business→400 / NoPermission→403 / 未找到→404 / 其余 500），
+            // 与 GlobalExceptionHandler 的映射表一致，避免两条路径 code 分叉。
+            return ErrorCodes.fail(e);
         }
     }
 
@@ -135,7 +141,9 @@ public class BookingController {
             Integer count = bookingService.getBookingCountByScheduleId(scheduleId);
             return Result.success(count, "ok");
         } catch (RuntimeException e) {
-            return Result.fail(null, e.getMessage());
+            // 按异常语义给码（Business→400 / NoPermission→403 / 未找到→404 / 其余 500），
+            // 与 GlobalExceptionHandler 的映射表一致，避免两条路径 code 分叉。
+            return ErrorCodes.fail(e);
         }
     }
 
@@ -150,7 +158,9 @@ public class BookingController {
              return Result.success(rs,"ok");
             } catch (RuntimeException e) {
                  // log.debug("filterList fail: " + e.getMessage());
-             return Result.fail(0,e.getMessage());
+             // 按异常语义给码（Business→400 / NoPermission→403 / 未找到→404 / 其余 500），
+             // 与 GlobalExceptionHandler 的映射表一致，避免两条路径 code 分叉。
+             return ErrorCodes.fail(e);
         } 
     }
 
@@ -164,7 +174,9 @@ public class BookingController {
              return Result.success(rs,"ok");
             } catch (RuntimeException e) {
                  // log.debug("filterList fail: " + e.getMessage());
-             return Result.fail(0,e.getMessage());
+             // 按异常语义给码（Business→400 / NoPermission→403 / 未找到→404 / 其余 500），
+             // 与 GlobalExceptionHandler 的映射表一致，避免两条路径 code 分叉。
+             return ErrorCodes.fail(e);
         } 
     }
 
@@ -226,7 +238,9 @@ public class BookingController {
            int rows= bookingService.delete(id);
             return Result.success(rows,"delete");
         } catch (RuntimeException e) {
-            return Result.fail(0,e.getMessage());
+            // 按异常语义给码（Business→400 / NoPermission→403 / 未找到→404 / 其余 500），
+            // 与 GlobalExceptionHandler 的映射表一致，避免两条路径 code 分叉。
+            return ErrorCodes.fail(e);
         }
     }
     @DeleteMapping("/deleteByScheduleId/{id}")

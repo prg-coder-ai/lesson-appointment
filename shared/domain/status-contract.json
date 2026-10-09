@@ -1,0 +1,60 @@
+{
+  "_comment": [
+    "跨端状态契约（第 6 批动作 25）。",
+    "作用不是当代码生成源，而是给守卫当'已登记差异'的清单：",
+    "凡后端与前端状态集合不一致的地方，必须在此写明理由；未登记的差异一律报错。",
+    "选这个形态而非'JSON→生成 Java/JS'，是因为生成步骤会引入",
+    "'改了 JSON 忘记重新生成'这种新漂移面，与本项目'守卫优先于流程'的取向不符。"
+  ],
+
+  "booking": {
+    "backend": "api/src/main/java/com/reservation/common/BookingStatus.java",
+    "frontend": "shared/domain/bookingState.js",
+    "backendConstantsRegex": "public static final String ([A-Z][A-Z0-9_]*)\\s*=\\s*\"([a-zA-Z-]+)\"",
+    "frontendSetRegex": "NON_OCCUPYING_STATUSES\\s*=\\s*Object\\.freeze\\(\\[([^\\]]*)\\]",
+
+    "_note_backend_vs_frontend": [
+      "两侧的 NON_OCCUPYING（不占席位）集合刻意不相等，逐项差异登记如下。",
+      "登记格式：{ value, reason }，reason 必须说清'为什么两边不一样'，",
+      "不能只写'前端需要'这种无法复核的说法。"
+    ],
+
+    "nonOccupying": {
+      "backend": ["waiting", "cancelled", "canceled", "rej-booking", "frozen"],
+      "frontend": ["waiting", "cancelled", "canceled", "rej-booking", "frozen", "deleted"],
+
+      "registeredDiffs": [
+        {
+          "value": "deleted",
+          "presentIn": "frontend",
+          "reason": "防御项，不是漂移。后端落库的「已删除」语义由 frozen 承载（DELETE='delete' 只是 updateStatus 的动作值，不落库）。前端保留 'deleted' 是为防将来某条写路径把它落库——判成占位会让席位被永久吃掉、排期永远满员、候补递补不进来，与后端 frozen 当初漏进 NON_OCCUPYING 是同一类坑。宁可多判一个非占位。"
+        }
+      ],
+
+      "_prefix_rule": "同前缀约束不在本文件登记，由check-status-contract 直接校验前端 predicate 与后端常量字面量：前端出现的每个状态串都必须在后端常量或 registeredDiffs 中出现，反之亦然。"
+    },
+
+    "wordingDiff": {
+      "_note": "跨端文案差异是**已拍板的产品决策**，不是缺陷：",
+      "_rule": "Web 用「预定待确认/预定已确认」，小程序用「待确认/已确认」。",
+      "_guard": "文案差异不做逐字比对（会推翻该决策），但 bookingStatusText 必须带 profile 参数；缺 profile 即报错。",
+      "requiredProfileParam": true
+    }
+  },
+
+  "appointment": {
+    "backend": "api/src/main/java/com/reservation/common/AppointmentStatus.java",
+    "frontend": "shared/domain/appointmentState.js",
+    "prefixSemantics": {
+      "_note": "课次状态前缀语义是铁律：前缀决定作用范围。",
+      "s": "学生课次级动作",
+      "t": "教师课次级动作",
+      "none": "整单级"
+    },
+    "reservedPrefixes": {
+      "t-cancelling": "已被教师端「申请改期」占用",
+      "t-cancelled": "已被教师端「申请改期」占用"
+    },
+    "_guard": "整单级取消绝不可用 t- 前缀；守卫校验 shared/domain/appointmentState.js 中这些值仍在，且未被挪作他用。"
+  }
+}

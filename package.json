@@ -25,6 +25,9 @@
     "check:tenant-xt": "node tools/check-tenant-cross-thread.mjs",
     "test:tenant-xt-guard": "node tests/check_tenant_cross_thread_guard.js",
     "check:secret-env": "node tools/check-secret-env-guard.mjs",
+    "check:result-contract": "node tools/check-result-contract-guard.mjs",
+    "check:date-contract": "node tools/check-date-contract-guard.mjs",
+    "check:status-contract": "node tools/check-status-contract-guard.mjs",
     "check:ddl-align": "node tools/check-ddl-entity-align.mjs",
     "test:ddl-align-guard": "node --experimental-vm-modules tests/check_ddl_entity_align_guard.js"
   },

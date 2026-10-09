@@ -124,7 +124,9 @@ public class ScheduleController {
              return Result.success(rs,"ok");
             } catch (RuntimeException e) {
                  // log.debug("filterList fail: " + e.getMessage());
-             return Result.fail(0,e.getMessage());
+             // 按异常语义给码（Business→400 / NoPermission→403 / 未找到→404 / 其余 500），
+             // 与 GlobalExceptionHandler 的映射表一致，避免两条路径 code 分叉。
+             return ErrorCodes.fail(e);
         } 
     }
 
@@ -269,7 +271,9 @@ public Result<Integer> deleteById(@PathVariable("id") String id, @RequestHeader(
         int rows = scheduleService.deleteById(id);
         return Result.success(rows, "删除成功");
     } catch (Exception e) {
-        return Result.fail(0, "删除失败: " + e.getMessage());
+        // 按异常语义给码（Business→400 / NoPermission→403 / 未找到→404 / 其余 500），
+        // 与 GlobalExceptionHandler 的映射表一致，避免两条路径 code 分叉。
+        return ErrorCodes.fail(e, "删除失败: " + e.getMessage());
     }
 }
 /**
@@ -287,7 +291,9 @@ public Result<Integer> deleteByCourseId(@PathVariable("courseId") String courseI
         int deletedCount = scheduleService.deleteByCourseId(courseId);
         return Result.success(deletedCount, "删除成功");
     } catch (Exception e) {
-        return Result.fail(0, TermMsg.t("删除{schedule}失败: ") + e.getMessage());
+        // 按异常语义给码（Business→400 / NoPermission→403 / 未找到→404 / 其余 500），
+        // 与 GlobalExceptionHandler 的映射表一致，避免两条路径 code 分叉。
+        return ErrorCodes.fail(e, TermMsg.t("删除{schedule}失败: ") + e.getMessage());
     }
     }
 

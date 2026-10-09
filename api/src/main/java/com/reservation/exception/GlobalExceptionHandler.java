@@ -70,6 +70,18 @@ public class GlobalExceptionHandler {
         return Result.fail(400, e.getMessage());  // 400-业务异常（对应设计2.1）
     }
 
+    // 资源不存在（404）。
+    //
+    // 补于 2026-10-09（第6 批契约治理）：此前 ResourceNotFoundException / UserNotFoundException
+    // **没有任何 @ExceptionHandler**，于是「课程不存在」「租户不存在」「用户不存在」这类
+    // 明确的 404 语义会一路落到兜底的 handleException，被报成 500「服务器繁忙」——
+    // 让调用方以为系统坏了，也让监控把业务问题计成服务端故障。
+    // 口径与 common/ErrorCodes 的映射表保持一致（那边Controller 就地捕获时也走同一张表）。
+    @ExceptionHandler({ResourceNotFoundException.class, UserNotFoundException.class})
+    public Result<Void> handleNotFoundException(RuntimeException e) {
+        return Result.fail(404, e.getMessage());  // 404-资源不存在（对应设计2.1）
+    }
+
     // 数据库唯一键冲突（400）：对应 Duplicate entry 'xxx' for key 'yyy'
     // 典型场景：注册时 account / phone / email 重复，userMapper.insert 抛此异常
     @ExceptionHandler({
