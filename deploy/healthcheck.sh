@@ -31,6 +31,33 @@ DB_NAME="${DB_NAME:-lesson_appointment}"
 # 巡检要不要连库。连库才准确；不配则明确告警而不是静默跳过
 #（静默跳过会让人以为这条监控在跑）。
 MYSQL_LOGIN_PATH="${MYSQL_LOGIN_PATH:-}"
+# 本机（Windows + Git Bash）没有 tty，mysql_config_editor 的密码提示无法非交互应答
+# （winpty 在本环境直接 abort：conout != INVALID_HANDLE_VALUE）。
+# 所以本机调试期允许走 MYSQL_PWD 回退；服务器上仍应优先用 --login-path
+#（mylogin.cnf 混淆存储，避免明文密码落在 crontab /进程环境里）。
+MYSQL_PWD="${MYSQL_PWD:-}"
+DB_HOST="${DB_HOST:-127.0.0.1}"
+DB_PORT="${DB_PORT:-3306}"
+DB_USER="${DB_USER:-root}"
+
+# 组装 mysql 客户端认证参数：login-path 优先，其次 MYSQL_PWD 明文回退。
+# 两者都没给 → MYSQL_AUTH 为空数组，check_notify 里明确告警而不是静默跳过。
+#
+# ⚠️ 不要用 `${#MYSQL_AUTH[@]}` 判空、也不要把 "${MYSQL_AUTH[@]}" 直接展开：
+#    CentOS7 自带 bash 4.2 在 set -u 下展开空数组会报 unbound variable 并中断整个脚本
+#    （bash 4.4 起才允许）。改用字符串标志 + ${arr[@]+...} 惯用法，两版本都安全。
+MYSQL_AUTH_READY=1
+if [ -n "$MYSQL_LOGIN_PATH" ]; then
+  MYSQL_AUTH=(--login-path="$MYSQL_LOGIN_PATH")
+elif [ -n "$MYSQL_PWD" ]; then
+  MYSQL_AUTH=(-h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER")
+else
+  MYSQL_AUTH=()
+  MYSQL_AUTH_READY=0
+fi
+
+# 统一取用：bash 4.2 / 4.4+ 行为一致
+mysql_db() { mysql ${MYSQL_AUTH[@]+"${MYSQL_AUTH[@]}"} "$@"; }
 
 ALERTS=0
 say()   { echo "[$(date '+%F %T')] $*"; }
@@ -86,10 +113,11 @@ check_disk() {
 #     （与 NotifyDispatchService.resolveCourseId 同口径）
 #   · 成功口径  → notification_dispatch_log.status = 'SENT'
 check_notify() {
-  if [ -z "$MYSQL_LOGIN_PATH" ]; then
-    alert "通知巡检未启用：MYSQL_LOGIN_PATH 未配置，无法判断'应发却 0 条'。
-       配置：mysql_config_editor set --login-path=health --host=localhost --user=root --password，
-       然后在本脚本顶部 export MYSQL_LOGIN_PATH=health"
+  if [ "$MYSQL_AUTH_READY" -eq 0 ]; then
+    alert "通知巡检未启用：未配置数据库凭据，无法判断'应发却 0 条'。
+       服务器（推荐）：mysql_config_editor set --login-path=health --host=localhost --user=root --password
+                然后 export MYSQL_LOGIN_PATH=health
+       本机调试：export MYSQL_PWD='<密码>'（或 MYSQL_PWD 已在环境中）"
     return
   fi
 
@@ -127,7 +155,7 @@ check_notify() {
   "
 
   local should sent_ratio
-  should=$(mysql --login-path="$MYSQL_LOGIN_PATH" -N -B -D "$DB_NAME" -e "$q_should" 2>/dev/null)
+  should=$(mysql_db -N -B -D "$DB_NAME" -e "$q_should" 2>/dev/null)
   if [ -z "$should" ]; then
     alert "通知巡检查询失败：表名/字段与当前 schema 不符，或 DB 不可达。
        本查询依赖 appointment / booking / course_schedule / course_notify_rule /
@@ -136,7 +164,7 @@ check_notify() {
     return
   fi
 
-  sent_ratio=$(mysql --login-path="$MYSQL_LOGIN_PATH" -N -B -D "$DB_NAME" -e "$q_sent" 2>/dev/null)
+  sent_ratio=$(mysql_db -N -B -D "$DB_NAME" -e "$q_sent" 2>/dev/null)
   local sent failed
   sent=$(echo "${sent_ratio:-0/0}" | cut -d/ -f1)
   failed=$(echo "${sent_ratio:-0/0}" | cut -d/ -f2)

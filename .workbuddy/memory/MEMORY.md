@@ -17,8 +17,9 @@
 | 调度线程池 | 两 properties | `check-scheduler-guard.mjs` (`check:scheduler`) | `check_scheduler_guard.js` 11项 |
 | Actuator 暴露面 | 两 properties + 两处白名单 | `check-actuator-guard.mjs` (`check:actuator`) | `check_actuator_guard.js` 12项 |
 | 租户跨线程 | `task/TenantAwareExecutor.java` | `check-tenant-cross-thread.mjs` (`check:tenant-xt`) | `check_tenant_cross_thread_guard.js` 11项 |
+| 密钥注入 | 两 properties + 两 env 模板 | `check-secret-env-guard.mjs` (`check:secret-env`) | 4 条判定均反向验证会红 |
 
-统一跳过后缀：`SKIP_AUTHZ / SKIP_CASCADE / SKIP_DDL_ALIGN / SKIP_TZ / SKIP_GLOBAL_COLLIDE / SKIP_SCHEDULER / SKIP_ACTUATOR / SKIP_TENANT_XT`。
+统一跳过后缀：`SKIP_AUTHZ / SKIP_CASCADE / SKIP_DDL_ALIGN / SKIP_TZ / SKIP_GLOBAL_COLLIDE / SKIP_SCHEDULER / SKIP_ACTUATOR / SKIP_TENANT_XT / SKIP_SECRET_ENV`。
 
 ### 第5 批可观测性（2026-10-09 落地，实测过）
 - **日志三处互不重叠**：systemd `append:` 管 `/var/log/lesson/{booking,message}.log`（logrotate daily+14+maxsize100M+**copytruncate**+su lesson）；logback 管 `${LOG_PATH}`（booking=`/var/log/lesson/api`、message=`/var/log/lesson/message`）。**两套引擎管同一文件会互相踩**（fd 指向已重命名 inode）。
@@ -35,7 +36,7 @@
   ⚠️ 时区偏移期望值**必须用 JDK 实测**（悉尼10月是 AEDT+11 不是 +10）。
 - ⚠️ `api/beforeRun/*` 被 `.gitignore:77` 整体排除 → env 模板与 .service 改动**不随 git 分发**。
 
-统一跳过后缀：`SKIP_AUTHZ / SKIP_CASCADE / SKIP_DDL_ALIGN / SKIP_TZ / SKIP_GLOBAL_COLLIDE`。
+统一跳过后缀：`SKIP_AUTHZ / SKIP_CASCADE / SKIP_DDL_ALIGN / SKIP_TZ / SKIP_GLOBAL_COLLIDE / SKIP_SCHEDULER / SKIP_ACTUATOR / SKIP_TENANT_XT / SKIP_SECRET_ENV`。
 改权威源必跑反向测试证明守卫真会红。
 
 ### 前端顶层标识符必须包 IIFE（2026-10-09 故障换来的铁律）
@@ -83,20 +84,13 @@
 - **守卫 `tools/check-tz-guard.mjs`（npm `check:tz`，pre-commit 第 5 条，`SKIP_TZ=1`）+ `tests/check_tz_guard.js` 22/22**。五条检查：课次写入过 `scheduleLocalToUtc` 且两 setter 都调 / 五个文件禁裸 now() / 三个方法必须存在 / 前端禁手算偏移且须有 `isValidZone` / **通知文本禁形清单**（覆盖 3 个文件）。
 - **未实测**：验证清单第 5 条「改服务器 TZ 重跑结果不变」需完整环境。
 
-### 可观测性待办（2026-10-09 复核报告第5批，见 doc-develop/第5批可观测性与时区-现状复核与剩余清单.md）
-时区两项（P1-13/P1-14）已关闭；余下 4 项零进度。**两个报告未点的物理故障最紧迫**：
-- **H2 日志永不滚动（P0）**：`api/beforeRun/*.service` 用 `StandardOutput=append:/var/log/lesson/*.log`，
-  systemd 1.4+ 的 `append:` **只追加不滚动**，全仓零 logrotate。logback 写的是**另一份**
-  `${LOG_PATH:-./logs}/`（两个 env 模板都没配 LOG_PATH）→ 两份日志两种命运，systemd 那份写满拖垮全站。
-- **H1 调度器单线程（P0）**：`@EnableScheduling` 在，但两个 properties 都无
-  `spring.task.scheduling.pool.size` → **默认 size=1**，全仓 **9 个 `@Scheduled` 共用**。
-  `MonitorTask`（读 CPU/内存/磁盘）一慢 → `NotifyTask`（逐租户 + 同步 HTTP 到8090）被整体推迟。
-  配池即可（`pool.size=4`）；**异步化必须排在配池之后** —— `TenantContext` 现在靠
-  `setTenantId/clear` 显式管理，异步化要先设计跨线程传递。
-- **`/api/v1/monitor/*` 不是探针**：名字像但 `checkPlatformAdmin(token)` 平台管理员专用、给人看的；
-  探针须免登录。⚠️ 加白名单要同时改 `SecurityConfig` 与 `JwtAuthenticationFilter.WHITELIST_PATHS`
-  （SecurityConfig:34-36 自己写着这两处分处之地必须同步，只改一处出 401）。
-- `api/src/test` **目录不存在**（`spring-boot-starter-test` 依赖已引入，零测试类）。
+### 可观测性剩余（2026-10-09 第5批已落地 H1/H2，见上）
+- **`/api/v1/monitor/*` 不是探针**：平台管理员专用给人看的；探针须免登录。加白名单要同时改 `SecurityConfig` 与 `JwtAuthenticationFilter.WHITELIST_PATHS`（两处分处之地）。
+- **服务器侧三项待用户手动做**：装 logrotate（`sudo logrotate -d /etc/logrotate.d/lesson` 必做）、建 cron（`*/5 * * * * /opt/lesson/healthcheck.sh`）、`mysql_config_editor set --login-path=health`。本机（Windows+Git Bash）三项均不可原样做：logrotate 无 systemd 不需要、cron 无 → 用 `deploy/healthcheck-local.sh`（`--loop`，长期用 schtasks）、mysql_config_editor **无 tty 写不进密码** → `deploy/healthcheck.sh` 已加 `MYSQL_PWD` 回退。
+- ⚠️ **bash 4.2（CentOS7）**：`set -u` 下 `${#arr[@]}` 判空与展开空数组都报 `unbound variable`（4.4 起才允许）。用字符串标志 + `${arr[@]+"${arr[@]}"}`。
+- ⚠️ **Windows 下 `.mylogin.cnf` 在 `%APPDATA%/MySQL/`**，不是 `~/.mylogin.cnf`。
+- ⚠️ **本机 curl 探针必须 `--noproxy '*'`**（http_proxy 会让回环失败）。
+- ⚠️ **库内 `course_notify_rule` 唯一一条规则指向孤儿 course_id**（不在课次实际所属 course_id 集合内）→ 巡检 q_should 的INNER JOIN 恒空，should 永远 0，② 号巡检在真实数据下测不出东西。待修数据。
 
 ## 技术栈与构建
 - api(Spring Boot 3.3.5 + MyBatis-Plus 3.5.7) + message-service 独立模块；MySQL lesson_appointment/message_center；三产物：booking-api jar / message-service-1.0.0.jar / frontend/dist/。
@@ -112,6 +106,7 @@
 - **API分流根因坑**：dev 代理 `doc-develop/dev-proxy.js` + Nginx booking*.conf 须覆盖 message-service 全部 `/api/v1` 前缀(message/sensitive/sse/users)。漏配→误路由 booking→"资源不存在"。
 - 后端挂死：非API路径秒回404、`/api/**` 全超时；jstack 见 `StandardWrapper.allocate` BLOCKED。java 启动必 `> 日志 2>&1` 后 taskkill 重启。
 - 排障：netstat -ano|grep LISTENING→PID；jcmd PID VM.command_line；jstack PID。wmic禁用；**Git Bash 下 taskkill 需 `MSYS_NO_PATHCONV=1`**；命令行含 password 触发审批 → curl -d @json文件。
+- ⚠️ **本机无 docker machine**（CA pem 缺失）→ 容器里跑 logrotate/一次性 Linux 环境验证这条路走不通。
 - **异常堆栈去 `api/logs/spring-boot-app.log`**（相对 jar 启动目录）；认**环境变量 LOG_PATH**，**不认** `--logging.file.name`。
 - **curl 前先查注解 method 与路径**：`/course/booking/updateStatus` 是 **@PostMapping**；候补递补是 `/booking/waitlist/promote` 且字段 `id`（非 bookingId）。
 
@@ -177,13 +172,23 @@
 - Javadoc 里写块注释结束标记字面量会**提前闭合注释**。
 - **`Intl` 认得 `CST` 并静默按 UTC-6 解析**（差 14 小时无报错），`GMT+8` 反而抛错 → 前端须 `isValidZone` 强制 `Region/City`；Java 侧 `ZoneId.of("CST")` 抛异常天然安全。
 - 并行同文件多 Edit 只最后生效 → 串行 + grep 核验；替换前探测行尾；缺 jsdom 时 `export NODE_PATH=C:/Users/Administrator/.workbuddy/binaries/node/workspace/node_modules`。
+- **写shell 脚本时：bash 4.2 兼容是硬约束**（见上文可观测性段）；`bash -c` 在 Git Bash 是 5.3，**本地测不出 4.2 的 unbound variable**，须靠`${arr[@]+...}` 惯用法主动规避。
 
 ## 薄弱环节审计结论（报告=预约系统薄弱环节分析报告-20261007.md）
-- **五根因**：A 授权模型缺失(全仓 0 处 hasRole) B 业务正确性外包前端 C DB 定义无单一事实源 D 密钥明文入库(**AES 泄露不可靠轮换补救，须+历史数据重加密**) E 可观测性与后端测试真空。
-- **提权链已于 2026-10-08 修复**（勿再当现存缺陷）：角色白名单+bootstrap 收口到 `UserService.applyRoleAdmission`（并发用 FOR UPDATE 锁定读，已双会话实测阻塞 4115ms）；reset 加 checkAdmin；changePassword 改两态；`assertUserScope` 接入 listInbox/unreadCount/listMessageIds；purgeOne 改 deleteById。
+- **五根因**：A 授权模型缺失(全仓 0 处 hasRole) B 业务正确性外包前端 C DB 定义无单一事实源 D 密钥明文入库 E 可观测性与后端测试真空（A/B/C/E 已处理；**D 已于 2026-10-09 打通注入通道，见下**）。
+- **提权链已于 2026-10-08 修复**（勿再当现存缺陷）：角色白名单+bootstrap 收口到 `UserService.applyRoleAdmission`（并发用 FOR UPDATE 锁定读）；reset 加 checkAdmin；changePassword 改两态；`assertUserScope` 接入 listInbox/unreadCount/listMessageIds；purgeOne 改 deleteById。
 - **做得好、勿误伤**：BookingSeatService 席位闸门、通知幂等 uk_dispatch_once、备份脚本、调试输出 0 残留。
 - **`/user/add` 口径勿改回"只允许 student/teacher"**：`platform-admin-user.js:161` 下拉只有 platform_admin/admin，平台管理员靠它开租户管理员，一刀切会打死该功能。
 - 待用户确认：各租户是否都已有 admin；hardening 脚本是否已执行；jwt.expiration=360000000(100h) 是否笔误；8081-8090 是否公网可直连；是否引入 Flyway。
 
 ## 技能
 saas-api-build-smoke / shared-domain-sink / shared-adapter-wire / seat-oversell-concurrency-audit / public-endpoint-tenant-bypass / browserless-frontend-itest / server-side-term-template / source-encoding-repair / miniprogram-page-registry-audit / paged-response-field-contract-audit / miniprogram-grouped-enrich-list / miniprogram-term-localization / miniprogram-form-schema-align / student-booking-flow-align / html-template-clone-refactor / booking-deeplink-routing
+
+## 密钥 env 注入（根因 D，2026-10-09 落地，根因 A~E 现已全部处理）
+- **先分清"测试口令"与"密钥"**：`123456` 是测试库口令，仓库 108 处出现、部署即覆盖，**不构成泄露**（用户纠正过一次）。真问题是 `jwt.secret`(HS512 共享签名密钥)/`crypto.aes-key`/`crypto.hmac-key`/微信 secret。
+- 改法：`xxx=${ENV_NAME:<原明文兜底>}`，共 8 处；**兜底值逐字保留**（本机不注入也能起，不破坏现有部署）。env 模板里的真值全改 `CHANGE_ME`——模板带真值=改名即入库。
+- ⚠️ **Spring 占位符实测规则（spring-core 6.1.14 对照实验，别再凭直觉改）**：环境变量名只有与属性名**词根一致**才命中。`JWT_SECRET`→`jwt.secret` ✅；`AES_KEY`→`crypto.aes-key` ❌ **null 不生效**；`crypto.aes-key`→同名 ✅。模板原用 `CRYPTO_AESKEY` 就是踩这个坑，已改名 `AES_KEY/HMAC_KEY`。
+- ⚠️ **服务器 env 里 JWT_SECRET 必须 ≥64 字节**：`JwtUtil` 会校验 HS512 长度，不够直接启动失败（实测 51 字节 → `IllegalStateException: jwt.secret 长度不足`）。
+- 端到端实测：不注入 → 8082 readiness 200；注入 83 字节 → 8083 readiness 200。
+- 守卫第 11 条 `check:secret-env`：必走占位 / 兜底非空 / **逐模板**校验同名（合并变量集会假绿）/ 模板无真值。`.mjs` 不能用 `require`；兜底正则须 `[\s\S]*`（密钥含 Base64 的 `=` 与换行，`.` 会 No match found 抛异常）。
+- 测 Spring 行为时类文件从 `api/target/*.jar` 的 `BOOT-INF/lib/` `jar xf` 取出当 classpath，**本机 `.m2` 下 find 不到 spring-core**。
