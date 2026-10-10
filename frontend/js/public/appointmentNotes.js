@@ -398,7 +398,7 @@ async function datamaintain_fetchAppointmenPage(query) {
     * 学生点「取消课次」：先展示退改规则提示，用户确认后再提交申请。
     * 原来是一点就直接把状态改成 cancelling，学生完全看不到自己会承担什么退改代价。
     */
-   async function studentApplyCancelWithRule(appointmentId) {
+   async function studentApplyCancelWithRule(bid,appointmentId) {
      const hint = await fetchRefundHintForAppointment(appointmentId);
      const ok = await showRefundRuleDialog(hint, {
        title: '提交前请确认退改规则',
@@ -406,14 +406,14 @@ async function datamaintain_fetchAppointmenPage(query) {
        confirmText: '确认提交'
      });
      if (!ok) return;
-     await setApointmentStatusAndReload(appointmentId, "cancelling");
+     await setApointmentStatusAndReload(bid,appointmentId, "cancelling");
    }
 
    /**
     * 管理员点「确认」取消课次：先把该课次的退费档位摆出来，确认后再落库。
     * 审核人据此判断是否该退、退多少，避免"点了确认才发现早过了免责线"。
     */
-   async function adminConfirmCancelWithRule(appointmentId) {
+   async function adminConfirmCancelWithRule(bookingId, appointmentId) {
      const hint = await fetchRefundHintForAppointment(appointmentId);
      const ok = await showRefundRuleDialog(hint, {
        title: '审核确认前请核对退费档位',
@@ -421,7 +421,9 @@ async function datamaintain_fetchAppointmenPage(query) {
        confirmText: '确认取消'
      });
      if (!ok) return;
-     await confirmCancellingAppointment(appointmentId, true);
+     // confirmCancellingAppointment 签名是 (bookingId, appointmentId, bCancelled)，
+     // 原来只传 (appointmentId, true) 造成整体错位（2026-10-10 修复）。
+     await confirmCancellingAppointment(bookingId, appointmentId, true);
    }
 
    // ========================================================================
@@ -874,49 +876,51 @@ async function datamaintain_fetchAppointmenPage(query) {
               <td>    ${checkAppointmentStatus(cardInfo.status)}</td>
               <td class="course-info">
                 ${ (userRole == "admin" && isNotifyActionable(cardInfo.status)) ?
-                  `   <button class="btn btn-success" onclick='openLessonNotifyDialog(${cardInfo.appointmentId})'><i class="fa fa-bell"></i> 发送提醒</button> `
+                  `   <button class="btn btn-success" onclick='openLessonNotifyDialog("${cardInfo.appointmentId}")'><i class="fa fa-bell"></i> 发送提醒</button> `
                   : ` `
               }
               ${ (userRole == "admin" && cardInfo.status=="cancelling")?
-                 `   <button class="btn btn-success" onclick='adminConfirmCancelWithRule(${cardInfo.bookingId},${cardInfo.appointmentId})'>确认</button>  
-                     <button class="btn btn-success" onclick='confirmCancellingAppointment(${cardInfo.bookingId},${cardInfo.appointmentId},false})'>取消</button>  
+                 // adminConfirmCancelWithRule(bookingId, appointmentId)——原误传顺序错位 + false 后多一个 }
+                 `   <button class="btn btn-success" onclick='adminConfirmCancelWithRule("${cardInfo.bookingId}","${cardInfo.appointmentId}")'>确认</button>
+                     <button class="btn btn-success" onclick='confirmCancellingAppointment("${cardInfo.bookingId}","${cardInfo.appointmentId}",false)'>取消</button>
                      `
                   : ` `
               }
 
                             ${ (userRole == "admin")?
-                 `   <button class="btn btn-warning" onclick='deleteAppointmentsById(${cardInfo.bookingId},${cardInfo.appointmentId})'>删除</button>                    
-                    <button class="btn btn-warning"  style="display:none;" onclick='deleteAppointmentsByBookingId(${cardInfo.bookingId})'>全部删除</button>    `               
+                 `   <button class="btn btn-warning" onclick='deleteAppointmentsById("${cardInfo.bookingId}","${cardInfo.appointmentId}")'>删除</button>
+                    <button class="btn btn-warning"  style="display:none;" onclick='deleteAppointmentsByBookingId("${cardInfo.bookingId}")'>全部删除</button>`
                   : ` `
               }
-              
+
 
               ${ (userRole == "admin" && cardInfo.status=="t-cancelling")?
-                `   <button class="btn btn-success" onclick='teacherConfirmCancellingAppointment(${cardInfo.bookingId},${cardInfo.appointmentId},true)'>确认</button>  
-                    <button class="btn btn-success" onclick='teacherConfirmCancellingAppointment(${cardInfo.bookingId},${cardInfo.appointmentId},false)'>取消</button>  
+                `   <button class="btn btn-success" onclick='teacherConfirmCancellingAppointment("${cardInfo.bookingId}","${cardInfo.appointmentId}",true)'>确认</button>
+                    <button class="btn btn-success" onclick='teacherConfirmCancellingAppointment("${cardInfo.bookingId}","${cardInfo.appointmentId}",false)'>取消</button>
                     `
                  : ` `
              }
              ${ (userRole == "student" && cardInfo.status=="cancelling")?
-              `   <button class="btn btn-success" onclick='setApointmentStatusAndReload(${cardInfo.bookingId},${cardInfo.appointmentId},"active")'>撤回申请</button>                    
+              `   <button class="btn btn-success" onclick='setApointmentStatusAndReload("${cardInfo.bookingId}","${cardInfo.appointmentId}","active")'>撤回申请</button>
                   `
                : ` `
            }
              ${ (userRole == "student" && cardInfo.status !="cancelling")?
-              `   <button class="btn btn-success" onclick='studentApplyCancelWithRule(${cardInfo.bookingId},${cardInfo.appointmentId})'>${termText('leave')}</button>                    
+              `   <button class="btn btn-success" onclick='studentApplyCancelWithRule("${cardInfo.bookingId}","${cardInfo.appointmentId}")'>${termText('leave')}</button>
                   `
                : ` `
-           } 
-            ${ (userRole == "teacher" && cardInfo.status=="t-cancelling")?
-              `   <button class="btn btn-success" onclick='setApointmentStatusAndReload(${cardInfo.appointmentId},"active")'>撤回申请</button>                    
+           }
+             ${ (userRole == "teacher" && cardInfo.status=="t-cancelling")?
+              // setApointmentStatusAndReload 签名是 (bookingId, appointmentId, status)，原只传 2 参导致错位
+              `   <button class="btn btn-success" onclick='setApointmentStatusAndReload("${cardInfo.bookingId}","${cardInfo.appointmentId}","active")'>撤回申请</button>
                   `
                : ` `
            }
              ${ (userRole == "teacher" && cardInfo.status !="t-cancelling")?
-              `   <button class="btn btn-success" onclick='setApointmentStatusAndReload(${cardInfo.bookingId},${cardInfo.appointmentId},"t-cancelling")'>${termText('leave')}</button>                    
+              `   <button class="btn btn-success" onclick='setApointmentStatusAndReload("${cardInfo.bookingId}","${cardInfo.appointmentId}","t-cancelling")'>${termText('leave')}</button>
                   `
                : ` `
-           } 
+           }
               </td>
               </tr>
      `; 
@@ -949,8 +953,10 @@ async function datamaintain_fetchAppointmenPage(query) {
       const bIds   = items.map(it => it.bookingId).filter(x => x != null && x !== '');
       const pending = items.some(it => it.status === 't-cancelling' || it.status === 'cancelling');
       const rescheduleBtn = pending
-          ? `<button class="btn btn-warning" onclick='teacherRescheduleTodayGroup(bIds,${JSON.stringify(aptIds)}, false)'>取消改期</button>`
-          : `<button class="btn btn-warning" onclick='teacherRescheduleTodayGroup(bIds,${JSON.stringify(aptIds)}, true)'>申请改期</button>`;
+          // bIds/aptIds 必须以 JSON 数组字面量注入 onclick——裸 bIds 是未声明标识符，点击即 ReferenceError；
+          // teacherRescheduleTodayGroup 内部只消费 aptIds，首参 bookingId 形参保留未用（聚合行无单一 booking）。
+          ? `<button class="btn btn-warning" onclick='teacherRescheduleTodayGroup(${JSON.stringify(bIds)},${JSON.stringify(aptIds)}, false)'>取消改期</button>`
+          : `<button class="btn btn-warning" onclick='teacherRescheduleTodayGroup(${JSON.stringify(bIds)},${JSON.stringify(aptIds)}, true)'>申请改期</button>`;
 
       return `
           <tr>
@@ -1156,7 +1162,7 @@ async function deleteAppointmentsById(bookingid, appId) {
       const res  = await request({url:`${API_BASE_URL}/course/appointment/delete/${appId}`,
            method:"delete"
       });
- viewMyReservationDetail(bookingId);
+ viewMyReservationDetail(bookingid);
         return res ; 
   } catch (e) {
       //alert("网络错误，获取课程列表失败");

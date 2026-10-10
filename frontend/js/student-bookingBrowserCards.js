@@ -109,9 +109,12 @@ async function loadAndRenderBooking_student(){
                  let scheduleInfoStr = getScheduleInfo(scheduleObject);
                  const classObject = await getCourseById(scheduleObject.courseId);
 
-                 const teacherName= await getUserNameById(classObject.teacherId);
+                 const studentName= await getUserNameById(booking.studentId);
+                 // 课程查不到（已删除/网络抖动）时 classObject 为 null。
+                 // 原代码在 null 判定之前就取 classObject.teacherId → TypeError → 整个渲染循环中断、
+                 // 列表卡在旧内容/空白（2026-10-10 修复：先判空，null 时渲染占位卡片保住分页一致性）。
                  if (classObject != null) {
-                         const studentName = await getUserNameById(booking.studentId);
+                         const teacherName = await getUserNameById(classObject.teacherId);
                          let cardItems = {
                              index: index,
                              scheduleId:    scheduleObject.scheduleId,
@@ -124,6 +127,21 @@ async function loadAndRenderBooking_student(){
                              status:        booking.status
                          };
                          // teacher 端恢复合并前：每个学生预订独立卡片 + 排期详情/确认预订/取消预订
+                         bookingsHtml += (userRole === 'teacher')
+                             ? formTeacherBookingCard(cardItems)
+                             : formACourseCard(cardItems);
+                 } else {
+                         let cardItems = {
+                             index: index,
+                             scheduleId:    scheduleObject.scheduleId,
+                             origTz:        scheduleObject.timeZone,
+                             bookingId:     booking.bookingId || booking.id || '',
+                             className:     '（课程已不可用）',
+                             teacherName:   'n/a',
+                             studentName:   studentName,
+                             scheduleInfo:  scheduleInfoStr,
+                             status:        booking.status
+                         };
                          bookingsHtml += (userRole === 'teacher')
                              ? formTeacherBookingCard(cardItems)
                              : formACourseCard(cardItems);
@@ -176,10 +194,10 @@ async function loadAndRenderBooking_student(){
                      <h4>${cardInfo.index} ${cardInfo.className} </h4>
                      <p>教师：${cardInfo.teacherName} | 学生：${cardInfo.studentName} | 预约时间：${cardInfo.scheduleInfo} | 状态：${
                         {
-                            none: "无预约",
-                            booking: "已预约,待确认",
+                            none: "无预订",
+                            booking: "已预订,待确认",
                             waiting: "候补",
-                            booked: "预约成功",
+                            booked: "预订成功",
                             cancelling: "取消待确认",
                             cancelled: "已取消",
                             canceling: "取消待确认",
@@ -198,7 +216,7 @@ async function loadAndRenderBooking_student(){
                           // 学生侧不提供"直接确认"入口，避免绕过名额校验。
                           ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','cancelled')">撤销候补</button>`
                           : userRole === 'student' && cardInfo.status === 'booked'
-                          ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','cancelling')">取消预约</button>`
+                          ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','cancelling')">取消预订</button>`
                           : userRole === 'student' && (cardInfo.status === 'canceling' || cardInfo.status === 'cancelling')
                           ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','booked')">撤销</button>`
                           : userRole === 'student' && (cardInfo.status === 'canceled' ||  cardInfo.status === 'cancelled' )
@@ -211,7 +229,7 @@ async function loadAndRenderBooking_student(){
                      // 点详情必然是空表 —— 空面板比没有按钮更让人困惑。
                      ( cardInfo.status === 'booking' || cardInfo.status === 'waiting' || cardInfo.status === 'canceled' ||  cardInfo.status === 'cancelled' )
                           ? `<label> </label>`
-                          : `<button class="btn btn-gray" onclick="viewMyReservationDetail('${cardInfo.bookingId}','${cardInfo.origTz}')">预约详情</button>`
+                          : `<button class="btn btn-gray" onclick="viewMyReservationDetail('${cardInfo.bookingId}','${cardInfo.origTz}')">预订详情</button>`
                      }
                      
                  </div>
@@ -229,10 +247,10 @@ async function loadAndRenderBooking_student(){
       */
      function formTeacherBookingCard(cardInfo) {
          const statusLabel = ({
-             none: "无预约",
-             booking: "已预约,待确认",
+            none: "无预订",
+            booking: "已预订,待确认",
              waiting: "候补",
-             booked: "预约成功",
+             booked: "预订成功",
              cancelling: "取消待确认",
              cancelled: "已取消",
              canceling: "取消待确认",
@@ -367,13 +385,31 @@ function renderResult(dateTimeList) {
             const tdBtn = document.createElement('td');
             //console.log("item.id:",item.id,"hasId:",hasId,"status:",item.status);
             if (hasId) {
+                        if (userRole && userRole === 'teacher') {
+                 const canCancel= (item.status!= "completed")  && (item.status!= "t-cancelled") && (item.status!= "t-cancelling") && item.status!= "t-cancelled" && item.status!= "cancelling";// 可延期、 如果为cancelling--则可撤回
+                const applyDelayBtn = document.createElement('button');
+                applyDelayBtn.className = 'btn btn-warning'; // 给按钮加一些样式，非必须可移除
+                if(canCancel) {
+                    applyDelayBtn.textContent = termText('leave');
+                    applyDelayBtn.onclick = function() {
+                        teacherCancellingAppointment(item.bookingid,item.id,true);//appointmentNotes.js
+                    }
+                }  else if(item.status == "t-cancelling") {
+                        applyDelayBtn.textContent = '撤回申请';
+                        applyDelayBtn.onclick = function() {
+                            teacherCancellingAppointment(item.bookingid,item.id,false);
+                        }
+                }
+                tdBtn.appendChild(applyDelayBtn);
+            } else if (userRole && userRole === 'student') {
                 const canCancel= (item.status!= "completed")  && (item.status!= "cancelled") && (item.status!= "cancelling") && item.status!= "cancelled" && item.status!= "t-cancelling";// 可延期、 如果为cancelling--则可撤回
                 const applyDelayBtn = document.createElement('button');
                 applyDelayBtn.className = 'btn btn-warning'; // 给按钮加一些样式，非必须可移除
                 if(canCancel) {
                     applyDelayBtn.textContent = termText('leave');
                     applyDelayBtn.onclick = function() {
-                        cancellingAppointment(item.bookingid,item.id,true);//appointmentNotes.js
+                        // 与「今日课程」同款：先弹退改规则提示卡，用户确认后再提交（appointmentNotes.js）
+                        studentApplyCancelWithRule(item.bookingid,item.id);
                     }
                 }  else if(item.status == "cancelling") {
                         applyDelayBtn.textContent = '撤回申请';
@@ -383,11 +419,9 @@ function renderResult(dateTimeList) {
                 }
                 tdBtn.appendChild(applyDelayBtn);
             }
-            //console.log("item.id:",item.id,"hasId:",hasId,"status:",item.status);
-            //如果是老师，则不显示取消课次按钮
-            if (userRole && userRole === 'teacher') {
-                tdBtn.style.display = 'none';
-            }
+        }
+           
+            
             tr.appendChild(tdBtn);
 
             body.appendChild(tr);

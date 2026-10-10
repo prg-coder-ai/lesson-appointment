@@ -292,9 +292,14 @@ public final class AuthzRules {
         r.add(new Rule(HttpMethod.GET, "/api/v1/course/booking/ListByScheduleId/{scheduleId}", ALL_ROLES, "新增：按排期查预订"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/course/booking/countByScheduleId/{scheduleId}", ALL_ROLES, "新增：按排期计数"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/course/booking/statistical/byMonth", PLATFORM_OR_TENANT_ADMIN, "新增：预订统计（管理面）"));
-        // 改状态 = 管理员确认/驳回；候补→正式 = 管理员递补。学生自己只走
-        // appointment/updateStatusById（课次级请假），不碰这里。
-        r.add(new Rule(HttpMethod.POST, "/api/v1/course/booking/updateStatus", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，确认/驳回预订"));
+        // 改状态端点是复用端点：管理员确认/驳回预订 + 学生自助操作（撤销 booking→none、
+        // 撤销候补 waiting→cancelled、取消预约 booked→cancelling、撤回取消 cancelling→booked、
+        // 重新申请 cancelled→booking，student-bookingBrowserCards.js 的 actionForButton 全走它）。
+        // 2026-10-10 P1 曾按"确认/驳回"管理语义收紧为 PLATFORM_OR_TENANT_ADMIN + checkAdmin，
+        // 实测学生点「取消预约」→ {"code":403} 功能全断（同 /course/list 的教训）。
+        // 现统一 ALL_ROLES ≡checkAnyLogin 恢复学生自助；P1 前此端点为零检查（匿名可改），
+        // 收紧到"须登录"仍是净增益；数据级归属校验（学生仅能改自己的预订）沿用 /booking/{id} 挂账。
+        r.add(new Rule(HttpMethod.POST, "/api/v1/course/booking/updateStatus", ALL_ROLES, "≡checkAnyLogin（复用端点：管理员确认驳回+学生5种自助转移，2026-10-10 修 P1 误伤）"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/course/booking/waitlist/promote", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，候补递补（占名额）"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/course/booking/update/{id}", PLATFORM_OR_TENANT_ADMIN, "新增：改预订（管理面）"));
         r.add(new Rule(HttpMethod.DELETE, "/api/v1/course/booking/delete/{id}", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，删预订"));

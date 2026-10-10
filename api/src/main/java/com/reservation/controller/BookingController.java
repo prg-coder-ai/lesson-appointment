@@ -68,8 +68,13 @@ public class BookingController {
     @PostMapping("/updateStatus")
     public Result<String> updateStatus(@RequestBody(required = true) BookingDTO dto,
                                        @RequestHeader("Authorization") String token) {
-        // 方法级兜底：对齐 AuthzRules 声明 PLATFORM_OR_TENANT_ADMIN（确认/驳回预订）
-        permissionCheck.checkAdmin(token);
+        // 方法级兜底：对齐 AuthzRules 声明 ALL_ROLES（≡checkAnyLogin）。
+        // 本端点是复用端点：学生自助操作（撤销/撤销候补/取消预约/撤回取消/重新申请，
+        // student-bookingBrowserCards.js 的 5 种 actionForButton 全走它）与管理员确认/驳回预订共用。
+        // 2026-10-10 P1 曾按"确认/驳回"的管理语义收紧为 checkAdmin，误伤学生 → 取消预约 403
+        // （同款教训见 /course/list，AuthzRules 同日登记）。现统一 checkAnyLogin 恢复学生自助；
+        // 数据级归属校验（学生只能改自己的预订）沿用 /booking/{id} 的既有挂账，待服务层补。
+        permissionCheck.checkAnyLogin(token);
         try {
             String rs = bookingService.updateStatus(dto);
             // 系统自动通知：管理员确认预订 → 该学生（仅"确认"状态触发）
