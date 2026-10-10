@@ -10,15 +10,20 @@
  * ⚠️ 不要对"已是本地时间"的串再调 utcToZoned —— 会二次偏移。
  *    本函数默认认为传入的是 UTC（后端口径），故先尝试带 Z 解析。
  * ============================================================ */
-function renderLessonTime(appointmentDatetime, withSeconds) {
+function renderLessonTime(appointmentDatetime, nowUserTz, withSeconds) {
+  console.log("renderLessonTime", appointmentDatetime, nowUserTz, withSeconds);
   if (!appointmentDatetime) return '';
   const D = window.DatetimeDomain;
   if (D && typeof D.utcToZoned === 'function') {
-    const zoned = D.utcToZoned(appointmentDatetime, undefined, !!withSeconds);
+
+    const zoned = D.utcToZoned(appointmentDatetime, nowUserTz, !!withSeconds);
+
+    console.log("renderLessonTime D.utcToZoned", zoned, nowUserTz);
     if (zoned) return zoned;
   }
+  //console.log("renderLessonTime DatetimeDomain 未就绪时至少把 T 换成空格" ,appointmentDatetime);
   // 兜底：DatetimeDomain 未就绪时至少把 T 换成空格，别把 ISO 串直接甩给用户
-  return String(appointmentDatetime).replace('T', ' ').substring(0, withSeconds ? 19 : 16);
+  return String(appointmentDatetime).replace('T', ' ').substring(0, withSeconds ? 19 : 16)+ "(UTC)";
 }
 
 /* ============================================================
@@ -735,11 +740,14 @@ async function datamaintain_fetchAppointmenPage(query) {
         ]);
         if (!classObject) return null;
 
+        // 获取浏览器的时区
+        //const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
         return {
             index: idx,
             scheduleId:    scheduleObject.scheduleId,
-            origTz:        scheduleObject.timeZone,
-            appointmentId: appointment.id,
+            origTz:        userTimeZone,//scheduleObject.timeZone,
+            appointmentId: appointment.id,  
             bookingId:     bookedObject.bookingId || bookedObject.id,
             className:     classObject.courseName,
             classIndex:    appointment.classIndex,
@@ -748,8 +756,8 @@ async function datamaintain_fetchAppointmenPage(query) {
             studentId:     bookedObject.studentId,
             teacherId:     bookedObject.teacherId,
             // 课次时间：后端若已按 userTimeZone 转好则直接格式化；
-            // 未传时区时后端原样返回 UTC，这里用 utcToZoned 兜底按浏览器时区渲染。
-            appointmentTime: renderLessonTime(appointment.appointmentDatetime),
+            // 未传时区时后端原样返回 UTC，这里用 utcToZoned 兜底按浏览器时区渲染。TBD
+            appointmentTime: renderLessonTime(appointment.appointmentDatetime, userTimeZone),
             status:        appointment.status
         };
     }

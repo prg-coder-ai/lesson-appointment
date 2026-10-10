@@ -278,7 +278,7 @@ async function viewMyReservationDetail(bookingId,origTzTimeZone){
    // 卡尔加里: "America/Edmonton"
 
    scheduleResult = await getAppointmentsByBookingId(bookingId);// dataFunction.js 日期时间-》转为用户当前时区
-   // origTzTimeZone,userTimeZOne 
+   // origTzTimeZone,userTimeZOne  userTimeZone
    // 遍历scheduleResult，处理每一项（此处仅做遍历，如果要具体操作可添加逻辑）
    let restlts=[];// date:xx,time:xx
   // const testTz = "Asia/Shanghai"; 
@@ -287,11 +287,20 @@ async function viewMyReservationDetail(bookingId,origTzTimeZone){
        restlts = [];
        for (let i = 0; i < scheduleResult.length; i++) {
            const item = scheduleResult[i];
-           const dateTime = item.date + " " + item.time;
-           const userDateTime = await tzSwitchTo(origTzTimeZone, dateTime, userTimeZone);
-           const newDate = userDateTime.dateTime.split(' ')[0];
-           const newTime = userDateTime.dateTime.split(' ')[1];
-           const newDt = {id:item.id, date: newDate, time: newTime, weekday: userDateTime.weekday, status: item.status }
+           const dateTime = item.date + "T" + item.time;
+           // renderLessonTime 返回字符串 'YYYY-MM-DD HH:mm'（未传时区时 utcToZoned 默认按浏览器时区转），
+           // 不是旧 tzSwitchTo 的 {dateTime, weekday} 对象——旧写法 userDateTime.dateTime 恒 undefined，
+           // 全部项被 continue 跳过，列表/日历恒空（2026-10-10 修复）。
+           // weekday 用本文件 deriveWeekday 从日期串兜底推导。
+           const zoned = renderLessonTime(dateTime,undefined, false); // 传 undefined 让 renderLessonTime 用浏览器时区
+           if (!zoned) {
+               console.error("viewMyReservationDetail: renderLessonTime failed for", dateTime, "origTz:", origTzTimeZone);
+               continue;
+           }
+           const parts = zoned.split(' ');
+           const newDate = parts[0];
+           const newTime = parts[1];
+           const newDt = {id:item.id, date: newDate, time: newTime, weekday: deriveWeekday(newDate), status: item.status };
            restlts.push(newDt);
        }
    }

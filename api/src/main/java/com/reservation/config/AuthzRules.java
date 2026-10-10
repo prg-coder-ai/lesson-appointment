@@ -117,7 +117,7 @@ public final class AuthzRules {
 
         r.add(new Rule(HttpMethod.GET, "/api/v1/tenant/list", PLATFORM_ONLY, "≡checkPlatformAdmin 租户列表"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/tenant/page", PLATFORM_ONLY, "≡isPlatformAdmin 租户分页"));
-        r.add(new Rule(HttpMethod.GET, "/api/v1/tenant/industry", PLATFORM_ONLY, "≡isPlatformAdmin 租户行业（平台可查任意租户）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/tenant/industry", ALL_ROLES, "≡isPlatformAdmin 租户行业（平台可查任意租户）"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/tenant/insert", PLATFORM_ONLY, "≡checkPlatformAdmin 开租户"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/tenant/update", PLATFORM_ONLY, "≡checkPlatformAdmin 改租户"));
         r.add(new Rule(HttpMethod.DELETE, "/api/v1/tenant/{id}", PLATFORM_ONLY, "≡checkPlatformAdmin 删租户"));

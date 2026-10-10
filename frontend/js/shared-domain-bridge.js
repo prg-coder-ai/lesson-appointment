@@ -1641,7 +1641,10 @@ window.DatetimeDomain = {
   parseLocalDate: parseLocalDate,
   parseLocalDateTime: parseLocalDateTime,
   weekdayCN: weekdayCN,
-  toDateTimeLocalValue: toDateTimeLocalValue
+  toDateTimeLocalValue: toDateTimeLocalValue,
+  nowUserTz: nowUserTz,
+  utcToZoned: utcToZoned,
+  utcToZonedWithWeekday: utcToZonedWithWeekday
 };
 window.ErrorCodeDomain = {
   RESULT_OK: RESULT_OK,
