@@ -300,7 +300,7 @@ async function viewMyReservationDetail(bookingId,origTzTimeZone){
            const parts = zoned.split(' ');
            const newDate = parts[0];
            const newTime = parts[1];
-           const newDt = {id:item.id, date: newDate, time: newTime, weekday: deriveWeekday(newDate), status: item.status };
+           const newDt = {id:item.id, bookingid:item.bookingId, date: newDate, time: newTime, weekday: deriveWeekday(newDate), status: item.status };
            restlts.push(newDt);
        }
    }
@@ -373,12 +373,12 @@ function renderResult(dateTimeList) {
                 if(canCancel) {
                     applyDelayBtn.textContent = termText('leave');
                     applyDelayBtn.onclick = function() {
-                        cancellingAppointment(item.id,true);//appointmentNotes.js
+                        cancellingAppointment(item.bookingid,item.id,true);//appointmentNotes.js
                     }
                 }  else if(item.status == "cancelling") {
                         applyDelayBtn.textContent = '撤回申请';
                         applyDelayBtn.onclick = function() {
-                            cancellingAppointment(item.id,false);
+                            cancellingAppointment(item.bookingid,item.id,false);
                         }
                 }
                 tdBtn.appendChild(applyDelayBtn);

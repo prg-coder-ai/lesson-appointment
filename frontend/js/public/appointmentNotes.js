@@ -11,14 +11,14 @@
  *    本函数默认认为传入的是 UTC（后端口径），故先尝试带 Z 解析。
  * ============================================================ */
 function renderLessonTime(appointmentDatetime, nowUserTz, withSeconds) {
-  console.log("renderLessonTime", appointmentDatetime, nowUserTz, withSeconds);
+ // console.log("renderLessonTime", appointmentDatetime, nowUserTz, withSeconds);
   if (!appointmentDatetime) return '';
   const D = window.DatetimeDomain;
   if (D && typeof D.utcToZoned === 'function') {
 
     const zoned = D.utcToZoned(appointmentDatetime, nowUserTz, !!withSeconds);
 
-    console.log("renderLessonTime D.utcToZoned", zoned, nowUserTz);
+   // console.log("renderLessonTime D.utcToZoned", zoned, nowUserTz);
     if (zoned) return zoned;
   }
   //console.log("renderLessonTime DatetimeDomain 未就绪时至少把 T 换成空格" ,appointmentDatetime);
@@ -878,32 +878,32 @@ async function datamaintain_fetchAppointmenPage(query) {
                   : ` `
               }
               ${ (userRole == "admin" && cardInfo.status=="cancelling")?
-                 `   <button class="btn btn-success" onclick='adminConfirmCancelWithRule(${cardInfo.appointmentId})'>确认</button>  
-                     <button class="btn btn-success" onclick='confirmCancellingAppointment(${cardInfo.appointmentId},false)'>取消</button>  
+                 `   <button class="btn btn-success" onclick='adminConfirmCancelWithRule(${cardInfo.bookingId},${cardInfo.appointmentId})'>确认</button>  
+                     <button class="btn btn-success" onclick='confirmCancellingAppointment(${cardInfo.bookingId},${cardInfo.appointmentId},false})'>取消</button>  
                      `
                   : ` `
               }
 
                             ${ (userRole == "admin")?
-                 `   <button class="btn btn-warning" onclick='deleteAppointmentsById(${cardInfo.appointmentId})'>删除</button>                    
+                 `   <button class="btn btn-warning" onclick='deleteAppointmentsById(${cardInfo.bookingId},${cardInfo.appointmentId})'>删除</button>                    
                     <button class="btn btn-warning"  style="display:none;" onclick='deleteAppointmentsByBookingId(${cardInfo.bookingId})'>全部删除</button>    `               
                   : ` `
               }
               
 
               ${ (userRole == "admin" && cardInfo.status=="t-cancelling")?
-                `   <button class="btn btn-success" onclick='teacherConfirmCancellingAppointment(${cardInfo.appointmentId},true)'>确认</button>  
-                    <button class="btn btn-success" onclick='teacherConfirmCancellingAppointment(${cardInfo.appointmentId},false)'>取消</button>  
+                `   <button class="btn btn-success" onclick='teacherConfirmCancellingAppointment(${cardInfo.bookingId},${cardInfo.appointmentId},true)'>确认</button>  
+                    <button class="btn btn-success" onclick='teacherConfirmCancellingAppointment(${cardInfo.bookingId},${cardInfo.appointmentId},false)'>取消</button>  
                     `
                  : ` `
              }
              ${ (userRole == "student" && cardInfo.status=="cancelling")?
-              `   <button class="btn btn-success" onclick='setApointmentStatusAndReload(${cardInfo.appointmentId},"active")'>撤回申请</button>                    
+              `   <button class="btn btn-success" onclick='setApointmentStatusAndReload(${cardInfo.bookingId},${cardInfo.appointmentId},"active")'>撤回申请</button>                    
                   `
                : ` `
            }
              ${ (userRole == "student" && cardInfo.status !="cancelling")?
-              `   <button class="btn btn-success" onclick='studentApplyCancelWithRule(${cardInfo.appointmentId})'>${termText('leave')}</button>                    
+              `   <button class="btn btn-success" onclick='studentApplyCancelWithRule(${cardInfo.bookingId},${cardInfo.appointmentId})'>${termText('leave')}</button>                    
                   `
                : ` `
            } 
@@ -913,7 +913,7 @@ async function datamaintain_fetchAppointmenPage(query) {
                : ` `
            }
              ${ (userRole == "teacher" && cardInfo.status !="t-cancelling")?
-              `   <button class="btn btn-success" onclick='setApointmentStatusAndReload(${cardInfo.appointmentId},"t-cancelling")'>${termText('leave')}</button>                    
+              `   <button class="btn btn-success" onclick='setApointmentStatusAndReload(${cardInfo.bookingId},${cardInfo.appointmentId},"t-cancelling")'>${termText('leave')}</button>                    
                   `
                : ` `
            } 
@@ -949,8 +949,8 @@ async function datamaintain_fetchAppointmenPage(query) {
       const bIds   = items.map(it => it.bookingId).filter(x => x != null && x !== '');
       const pending = items.some(it => it.status === 't-cancelling' || it.status === 'cancelling');
       const rescheduleBtn = pending
-          ? `<button class="btn btn-warning" onclick='teacherRescheduleTodayGroup(${JSON.stringify(aptIds)}, false)'>取消改期</button>`
-          : `<button class="btn btn-warning" onclick='teacherRescheduleTodayGroup(${JSON.stringify(aptIds)}, true)'>申请改期</button>`;
+          ? `<button class="btn btn-warning" onclick='teacherRescheduleTodayGroup(bIds,${JSON.stringify(aptIds)}, false)'>取消改期</button>`
+          : `<button class="btn btn-warning" onclick='teacherRescheduleTodayGroup(bIds,${JSON.stringify(aptIds)}, true)'>申请改期</button>`;
 
       return `
           <tr>
@@ -1006,6 +1006,10 @@ async function datamaintain_fetchAppointmenPage(query) {
             }
             return {
               id  : item.id,
+              // 带 bookingId：renderResult 行内「请假/撤回申请」→ cancellingAppointment(bookingId,...)
+              // → setApointmentStatusAndReload → viewMyReservationDetail(bookingId) 自动刷新详情
+              // 的整条链都依赖它；此前缺失导致操作后无法自动重载（2026-10-10 修复）。
+              bookingId: bookingId,
               date: date,
               time: time,
               status: item.status
@@ -1040,55 +1044,56 @@ async function saveAppointment( appointdata) {
       return   false;
   }
 }
-async function setApointmentStatusAndReload(appointmentId,status){
+async function setApointmentStatusAndReload(bookingId,appointmentId,status){
    await operateAppointmentStatus(appointmentId,status);
-  loadAndShowAppointmentPage();
+  //loadAndShowAppointmentPage();
+  viewMyReservationDetail(bookingId);
 }
 //设置一个预约时间的状态--学生提出
-async function cancellingAppointment(appointmentId,bCancelling){
+async function cancellingAppointment(bookingId,appointmentId,bCancelling){
   let status="";
   if(bCancelling){
      status= "cancelling";
   } else {
      status= "active";
   }
- await setApointmentStatusAndReload(appointmentId,status);//courseAndBooking.js
+ await setApointmentStatusAndReload(bookingId,appointmentId,status);//courseAndBooking.js
  return ;
 }
 
 //教师、管理员提出的确认或拒绝
-async function confirmCancellingAppointment(appointmentId,bCancelled){
+async function confirmCancellingAppointment(bookingId,appointmentId,bCancelled){
   let status="";
   if(bCancelled){
      status= "cancelled";
   } else {
      status= "reject";
   }
- await setApointmentStatusAndReload(appointmentId,status);//courseAndBooking.js
+ await setApointmentStatusAndReload(bookingId,appointmentId,status);//courseAndBooking.js
  return ;
 }
 
 //教师申请延期与撤回
-async function teacherCancellingAppointment(appointmentId,bCancelling){
+async function teacherCancellingAppointment(bookingId,appointmentId,bCancelling){
   let status="";
   if(bCancelling){
      status= "t-cancelling";
   } else {
      status= "active";
   }
- await setApointmentStatusAndReload(appointmentId,status);//courseAndBooking.js
+ await setApointmentStatusAndReload(bookingId,appointmentId,status);//courseAndBooking.js
  return ;
 }
 
 //对教师延期申请的确认或拒绝
-async function teacherConfirmCancellingAppointment(appointmentId,bCancelled){
+async function teacherConfirmCancellingAppointment(bookingId,appointmentId,bCancelled){
   let status="";
   if(bCancelled){
      status= "t-cancelled";
   } else {
      status= "t-reject";
   }
- await setApointmentStatusAndReload(appointmentId,status);//courseAndBooking.js
+ await setApointmentStatusAndReload(bookingId,appointmentId,status);//courseAndBooking.js
  return ;
 }
 // teacher 端：对一组/一次课次批量「申请改期」(t-cancelling) 或「取消改期」(active)
@@ -1099,7 +1104,7 @@ async function bulkSetAppointmentStatus(aptIds, status) {
     }
 }
 // 「今日课程」聚合行：整组课次批量改期，成功后刷新今日课程列表
-async function teacherRescheduleTodayGroup(aptIds, bApply) {
+async function teacherRescheduleTodayGroup(bookingId,aptIds, bApply) {
     await bulkSetAppointmentStatus(aptIds, bApply ? 't-cancelling' : 'active');
     if (typeof loadAndShowAppointmentPage === 'function') loadAndShowAppointmentPage();
 }
@@ -1117,7 +1122,8 @@ async function updateAppointmentsStatusByBookingId( bookingId,status) {
               params: { bookingId: bookingId, status: status }
           }
       ); 
-      console.info("appointments:", res );  
+    //  console.info("appointments:", res );  
+     viewMyReservationDetail(bookingId);
           return res  ;  
   } catch (e) {        
       console.error(e);
@@ -1136,6 +1142,7 @@ async function deleteAppointmentsByBookingId(bookingId) {
       method: "delete",
       params: { bookingId: bookingId } // 参数名称需与后端一致
     });
+     viewMyReservationDetail(bookingId);
     return res;
   } catch (e) {
     console.error(e);
@@ -1143,12 +1150,13 @@ async function deleteAppointmentsByBookingId(bookingId) {
   }
 }
 
-async function deleteAppointmentsById( appId) { 
+async function deleteAppointmentsById(bookingid, appId) { 
   try {
       // Axios GET请求（修复response.json()错误，Axios已自动解析）
       const res  = await request({url:`${API_BASE_URL}/course/appointment/delete/${appId}`,
            method:"delete"
       });
+ viewMyReservationDetail(bookingId);
         return res ; 
   } catch (e) {
       //alert("网络错误，获取课程列表失败");
