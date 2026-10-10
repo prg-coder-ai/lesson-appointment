@@ -20,7 +20,7 @@
 反向测试模式：不用 spawnSync（本机 node 子进程 EBUSY），用同进程 import(url+'?t=rand') + 拦 process.exit；变异串行 + 结束 md5 逐字节校验防污染。
 
 ## 第6批契约治理（2026-10-09/10 落地）
-- `Result.code` 是 primitive int（api+msg）；`fail()` 白名单 {200,400,401,403,404,409,500,1001}；fail 入参刻意保持 Integer 让 fail(null) 编译过再被拦。`ErrorCodes.java` 按异常语义给码，须与 GlobalExceptionHandler 一致（守卫④）。
+- `Result.code` 是 primitive int（api+msg）；`fail()` 白名单 {200,400,401,403,404,409,500,1001}；fail 入参刻意保持 Integer 让 fail(null) 编译过再被拦。`ErrorCodes.java` 按异常语义给码，须与 GlobalExceptionHandler 一致（守卫④）。**fail(200) 已列禁形（守卫②拦，白名单保留 200 是既有设计）**。
 - `JacksonConfig`：LocalDateTime 手写序列化器 `format(fmt)+"Z"`（**withZone(UTC) 对 LocalDateTime 无效**，实测）。不做二次 UTC 转换。
 - **29-b 方案 A（2026-10-10 用户拍板落地）**：`ResultHttpStatusAdvice`（api+msg 各一）按 Result.code 映射 HTTP 状态，**只映射 400/404/409/500**；401/403 保持 HTTP 200（业务层 401/403 大量存在且非鉴权问题，全量映射会触发小程序刷新/踢登录=复现"刚登录被弹回登录页"）；1001/200 同样保持 200。真鉴权 401/403 由 Security/JwtFilter 过滤器层直出，不过该出口。守卫⑤校验四个 case 在、401/403 禁出现。
 - **文案策略（2026-10-10 用户拍板"两端都保留真实文案"）**：HTTP 级错误两端都**优先读 body 的 message/msg**，固定文案仅兜底（401 分支例外：frontend 清态跳转路径保持固定文案）。落点 frontend `utility_request.js` ④ 号分支 + 小程序 `request.js`；Security 过滤器层 401/403 JSON 也用 `message` 字段，bodyMsg 优先对它同样成立。
@@ -37,6 +37,7 @@
 - 小程序表单页写库前 4 项：NOT NULL 无默认列须显式给值；tinyint(1) ≤127；表级 CHECK 前端先拦；数值输入字符串承载。
 
 ## 业务要点（精选）
+- **授权（2026-10-10 P1 全收口）**：SecurityConfig 兜底已切 `denyAll()`（两步策略走完，漏声明=运行期 403）；方法级 PermissionCheck 补齐 AuditLog/DataMaintain/log/Booking/TeacherProfessional/TimezoneCalc 六个 Controller（新增 `checkAnyLogin` 对齐 ALL_ROLES，**勿用 checkAnyLogin 替代 checkTeacherOrAdmin**——后者禁学生）；course /list|/page|/{courseid} 三端统一 checkAnyLogin（原 /list 的 checkTeacherOrAdmin 会把学生浏览课程打成 403，既存缺陷已修）。
 - 课次 UTC 化：排期=本地墙钟+time_zone（不动）；appointment=UTC 唯一真相源；转换只经 ScheduleGenerator 三入口；可见文本出口 utcToZonedText（空时区整句省略，不降级 UTC）。
 - 状态前缀：`s-`学生/`t-`教师课次级/无前缀整单级；t- 被"申请改期"占用，整单取消禁用 t-。
 - booking→appointment 联动单一实现 BookingAppointmentSyncService，仅 booked 生成课次。
