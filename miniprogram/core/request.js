@@ -1,11 +1,14 @@
 // 小程序端：HTTP 请求适配层（wx.request 版）
 // 行为对齐 frontend/js/public/utility_request.js：normalizeUrl、Bearer 注入、
 // 401 静默刷新（队列防重）、响应解包（code===200 取 data）、错误 toast。
+// 2026-10-10 对齐 29-b 方案 A：HTTP 级错误优先读 body 真实文案（与 frontend 同口径，
+// 用户拍板"两端都保留真实文案"），固定文案仅兜底；HTTP 200 下 body.code 401/403
+// 走 resolveResult 提示且不清会话不踢登录。
 // 差异：浏览器用 axios + location 跳转；小程序用 wx.request，登录失效经 globalData.onAuthFail 回调。
 // 底层传输统一委托 shared/adapters/net.js 的 transport（小程序端内部即 wx.request，返回 {statusCode,data,header}）。
 
 import { normalizeUrl, unwrapResult, ENDPOINTS } from '../shared/apiPaths.js';
-import { errorMessage } from '../shared/domain/errorCode.js';
+import { errorMessage, resolveResult } from '../shared/domain/errorCode.js';
 import { storage, getToken, clearSession, getSession } from './storage.js';
 import { transport } from '../shared/adapters/net.js';
 
@@ -136,18 +139,49 @@ export async function request(opts) {
     // 绝不清登录态、不跳登录页、不打 toast——这类请求是"登录后的增强数据"，失败仅退回本地兜底词表，
     // 若把它当鉴权失败踢人，会复现 auth.js 注释记录的"刚登录成功却被弹回登录页"历史 bug。
     // 普通业务鉴权（非 tokenOnly 且非 enhance）才执行踢人逻辑；tokenOnly 同样免疫。
+    // 文案口径对齐 frontend utility_request.js：HTTP 级错误用固定文案，不读 body
+    //（HTTP 401 走刷新重试，落到这里的 401 是"已重试仍失效/tokenOnly/enhance"）。
     if (status === 401 && !opts.tokenOnly && !opts.enhance) { clearSession(); if (!isRedirecting) { isRedirecting = true; onAuthFail(); } }
-    const msg = (res && (res.message || res.msg)) || (status === 403 ? '无权限访问该资源' : '登录已过期');
+    const authBodyMsg = (res && (res.message || res.msg)) || '';
+    const msg = status === 403 ? (authBodyMsg || '无权限访问该资源') : '登录已过期，请重新登录';
     if (opts.customErrorMsg !== false && !opts.enhance) showError(msg);
     throw new Error(msg);
   }
 
   if (status !== 200) {
-    const msg = (res && (res.message || res.msg)) || ('请求错误：' + status);
+    // 2026-10-10 用户拍板（29-b 方案 A 配套，与 frontend utility_request.js ④ 号分支同口径）：
+    // 优先读后端 body 的真实文案（message/msg），取不到再退回固定文案——
+    // 业务 400/404/409 现在走真实 HTTP 状态落到这里，只显示固定文案会丢真实原因。
+    const bodyMsg = (res && (res.message || res.msg)) || '';
+    let msg;
+    switch (status) {
+      case 403: msg = bodyMsg || '无权限访问该资源'; break;
+      case 404: msg = bodyMsg || '接口地址不存在'; break;
+      case 500: msg = bodyMsg || '服务器内部错误'; break;
+      default: msg = bodyMsg || '请求错误：' + status;
+    }
     if (opts.customErrorMsg !== false) showError(msg);
     throw new Error(msg);
   }
 
+  // ===== HTTP 200：按 body.code 分流，行为对齐 frontend utility_request.js 响应拦截器 =====
+  if (res && res.code === 200) {
+    // 业务成功：直接返回 data 字段（与 unwrapResult 的 ok 路径一致）
+    return res.data;
+  }
+
+  // 业务层 401/403（29-b 方案 A 下这两类码保持 HTTP 200）：只提示与 reject——
+  // 不清会话、不踢登录、不刷新 token（权限不足 ≠ 未登录，frontend 同口径）。
+  if (res && (res.code === 401 || res.code === 403)) {
+    const r = resolveResult(res);
+    if (opts.customErrorMsg !== false) showError(r.message);
+    const err = new Error(r.message);
+    err.code = res.code;
+    err.raw = res;
+    throw err;
+  }
+
+  // 其它业务错误码（1001 等残留 HTTP 200 的历史路径）
   try {
     return unwrapResult(res);
   } catch (e) {

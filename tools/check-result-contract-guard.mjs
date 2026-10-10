@@ -1,6 +1,6 @@
 // 统一错误响应契约守卫（第 6 批动作 28/29）
 //
-// 守护四条不变式：
+// 守护五条不变式：
 //   ① Result.code 必须是 primitive int —— 历史上是 Integer，于是出现了 fail(null, ...)。
 //      null 叠加 spring.jackson 的 default-property-inclusion=non_null，
 //      序列化后整个 code 字段从JSON 里消失，响应只剩 {"message":"..."}。
@@ -9,6 +9,9 @@
 //   ③ fail() 必须有code 白名单断言（开发期把非法码暴露出来，而不是让它上线）。
 //   ④ ErrorCodes 的异常→码映射必须与 GlobalExceptionHandler 的 @ExceptionHandler 保持一致，
 //      否则同一个异常在"被 Controller 捕获"与"逃到 handler"两条路径下 code 不同（契约分叉）。
+//   ⑤ 29-b 方案 A：两个服务各必须有 ResultHttpStatusAdvice 统一出口，且映射表恰好是
+//      400/404/409/500——删一条=该码伪装成 HTTP 200；出现 case 401/403=触发两端
+//      拦截器的刷新/踢登录（"刚登录被弹回登录页"历史 bug）。401/403 必须保持 HTTP 200。
 //
 // 统一跳过后缀：SKIP_RESULT_CONTRACT=1
 
@@ -207,6 +210,41 @@ for (const fp of [
   }
 }
 
+// ── ⑤ 29-b 方案 A：Result.code → HTTP 状态统一出口 ──────────────────────
+{
+  const ADVICES = [
+    'api/src/main/java/com/reservation/common/ResultHttpStatusAdvice.java',
+    'api/message-service/src/main/java/com/messagecenter/common/ResultHttpStatusAdvice.java',
+  ];
+  const MAPPED = ['400', '404', '409', '500']; // 方案 A 恰好映射这四个
+  const FORBIDDEN = ['401', '403'];            // 业务 401/403 必须保持 HTTP 200
+  for (const p of ADVICES) {
+    const fp = path.join(ROOT, p);
+    if (!fs.existsSync(fp)) {
+      problems.push(`${p} 不存在：29-b 统一出口缺失，业务失败码会全部伪装成 HTTP 200。`);
+      continue;
+    }
+    // 剥注释后再判：Javadoc 里写了"401/403 保持 200"的说明，不剥会把说明当违规/当映射
+    const src = stripCommentsAndStrings(fs.readFileSync(fp, 'utf8'));
+    for (const c of MAPPED) {
+      if (!new RegExp(`case\\s+${c}\\s*:`).test(src)) {
+        problems.push(`${p} 缺少 case ${c}：方案 A 要求 400/404/409/500 全部映射，缺一条=该码继续伪装 HTTP 200。`);
+      }
+    }
+    for (const c of FORBIDDEN) {
+      if (new RegExp(`case\\s+${c}\\s*:`).test(src)) {
+        problems.push(
+          `${p} 出现 case ${c}：业务 401/403 映射成 HTTP 状态会触发两端拦截器的刷新/踢登录\n` +
+          `      （复现"刚登录成功却被弹回登录页"），方案 A 明确禁止。`
+        );
+      }
+    }
+    if (!/implements\s+ResponseBodyAdvice/.test(src)) {
+      problems.push(`${p} 未实现 ResponseBodyAdvice，无法作为统一出口生效。`);
+    }
+  }
+}
+
 // ── 输出 ────────────────────────────────────────────────────────────────
 if (problems.length) {
   console.log('\n❪ check:result-contract 失败\n');
@@ -219,5 +257,9 @@ if (problems.length) {
   console.log('✅ ② 无 Result.fail(null/0)');
   console.log('✅ ③ fail() 含错误码断言且白名单无 0');
   console.log('✅ ④ ErrorCodes 与 GlobalExceptionHandler 映射一致');
+  console.log('✅ ⑤ 29-b 映射出口齐全（A 案：400/404/409/500；401/403 保持 200）');
   console.log(`\n扫描 ${files} 个 Java 文件，${failCalls} 处 Result.fail 调用。`);
+  // 显式 exit 0：反向测试（tests/check_result_contract_guard.js）靠拦截 process.exit
+  // 判定成败，自然结束会拿到 code=null 造成假红；与 check-tenant-cross-thread.mjs 同口径。
+  process.exit(0);
 }

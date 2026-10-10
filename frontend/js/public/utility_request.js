@@ -498,7 +498,14 @@
       }
       }
 
-      // ④ 非 401 / 已重试过的 401 / 403 等：按状态码提示，不再刷新
+      // ④ 非 401 / 已重试过的 401 / 403 等：按状态码提示，不再刷新。
+      // 2026-10-10 用户拍板（29-b 方案 A 配套）：优先读后端 body 的真实文案（message/msg）——
+      // 业务 400/404/409 现在走真实 HTTP 状态落到这里，固定文案会丢真实原因
+      //（如注册重名"该账号已注册"→"请求错误：400"）；取不到再退回固定文案。
+      // 安全层 401/403 的 JSON 也用 message 字段，故 bodyMsg 优先对它们同样成立。
+      // 401 分支保持固定文案：那是"清登录态 + 跳转"的鉴权路径，不动。
+      const bodyMsg = error.response && error.response.data
+        ? (error.response.data.message || error.response.data.msg) : '';
       let errMsg = '';
       switch (status) {
         case 401:
@@ -531,16 +538,16 @@
           break;
         case 403:
           // 权限不足：只提示，不刷新，不跳转（保留当前页面上下文）
-          errMsg = '无权限访问该资源';
+          errMsg = bodyMsg || '无权限访问该资源';
           break;
         case 404:
-          errMsg = '接口地址不存在';
+          errMsg = bodyMsg || '接口地址不存在';
           break;
         case 500:
-          errMsg = '服务器内部错误';
+          errMsg = bodyMsg || '服务器内部错误';
           break;
         default:
-          errMsg = `请求错误：${status}`;
+          errMsg = bodyMsg || `请求错误：${status}`;
       }
       if (config.customErrorMsg !== false) {
         showError(errMsg);
