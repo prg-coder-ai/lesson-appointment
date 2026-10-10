@@ -254,7 +254,7 @@ public final class AuthzRules {
         // updateStatus 方法体无 check（已被注释掉的 generate 同理），但改排期状态=改课次，
         // 属管理/教师动作
         r.add(new Rule(HttpMethod.POST, "/api/v1/schedule/updateStatus", TEACHER_OR_ADMIN, "新增：改排期状态（课次连带变更）"));
-        r.add(new Rule(HttpMethod.POST, "/api/v1/schedule/generate", TEACHER_OR_ADMIN, "新增·关键：批量生成排期，校验被注释"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/schedule/generate", ALL_ROLES, "新增·关键：批量生成排期，获取排期课次时间，校验被注释"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/schedule/checkConflict", TEACHER_OR_ADMIN, "新增：排期冲突检测"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/schedule/assign-student", TEACHER_OR_ADMIN, "新增·关键：指派学生到排期，校验被注释"));
 
@@ -311,7 +311,7 @@ public final class AuthzRules {
         r.add(new Rule(HttpMethod.PUT, "/api/v1/course/appointment/updateStatusById", ALL_ROLES, "新增：课次级请假/取消延期（学生本人链路）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/course/appointment/statistical/byMonth", PLATFORM_OR_TENANT_ADMIN, "新增：课次统计（管理面）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/course/appointment/statistical/listByDays", PLATFORM_OR_TENANT_ADMIN, "新增：课次统计（管理面）"));
-        r.add(new Rule(HttpMethod.POST, "/api/v1/course/appointment/statistical/listByDaysByPage", PLATFORM_OR_TENANT_ADMIN, "新增：课次统计（管理面）"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/course/appointment/statistical/listByDaysByPage", ALL_ROLES, "新增：课次统计列表"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/course/appointment/statistical/onDays", PLATFORM_OR_TENANT_ADMIN, "新增：课次统计（管理面）"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/course/appointment/add", TEACHER_OR_ADMIN, "新增：加课次（管理/教师）"));
         r.add(new Rule(HttpMethod.PUT, "/api/v1/course/appointment/update", TEACHER_OR_ADMIN, "新增：改课次（管理/教师）"));
