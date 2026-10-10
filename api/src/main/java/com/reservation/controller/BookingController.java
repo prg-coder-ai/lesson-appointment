@@ -9,6 +9,7 @@ import com.reservation.service.BookingService;
 import com.reservation.audit.Audit;
 import com.reservation.audit.AuditAction;
 import com.reservation.service.MessageNotifyService;
+import com.reservation.utils.PermissionCheck;
 import com.reservation.utils.TermMsg;
 
 import lombok.RequiredArgsConstructor;
@@ -22,13 +23,17 @@ import lombok.extern.slf4j.Slf4j;
 @RequestMapping("/api/v1/course/booking")
 @RequiredArgsConstructor
 @Slf4j
-public class BookingController { 
+public class BookingController {
     private final BookingService bookingService;
     private final MessageNotifyService messageNotifyService;
+    private final PermissionCheck permissionCheck;
 //create/update/updateStatus：返回id
     @PostMapping("/create")
     @Audit(action = AuditAction.BOOKING_CREATE, resourceType = "booking")
-    public Result<String> create(@RequestBody Booking booking) {
+    public Result<String> create(@RequestBody Booking booking,
+                                 @RequestHeader("Authorization") String token) {
+        // 方法级兜底（2026-10-10 P1-4）：对齐 AuthzRules 声明 ALL_ROLES
+        permissionCheck.checkAnyLogin(token);
         try {
             String id = bookingService.create(booking);
             // 系统自动通知：学生预订课程 → 对应教师 + 本租户管理员
@@ -47,7 +52,10 @@ public class BookingController {
     }
 
     @PostMapping("/update/{id}")
-    public Result<String> update(@PathVariable String id, @RequestBody Booking booking) {
+    public Result<String> update(@PathVariable String id, @RequestBody Booking booking,
+                                 @RequestHeader("Authorization") String token) {
+        // 方法级兜底：对齐 AuthzRules 声明 PLATFORM_OR_TENANT_ADMIN
+        permissionCheck.checkAdmin(token);
         try {
             return Result.success(bookingService.update(id, booking),"ok");
         } catch (RuntimeException e) {
@@ -58,7 +66,10 @@ public class BookingController {
     }
 //@PathVariable String id, 
     @PostMapping("/updateStatus")
-    public Result<String> updateStatus(@RequestBody(required = true) BookingDTO dto) {
+    public Result<String> updateStatus(@RequestBody(required = true) BookingDTO dto,
+                                       @RequestHeader("Authorization") String token) {
+        // 方法级兜底：对齐 AuthzRules 声明 PLATFORM_OR_TENANT_ADMIN（确认/驳回预订）
+        permissionCheck.checkAdmin(token);
         try {
             String rs = bookingService.updateStatus(dto);
             // 系统自动通知：管理员确认预订 → 该学生（仅"确认"状态触发）
@@ -82,7 +93,10 @@ public class BookingController {
      */
     @GetMapping("/waitlist/{scheduleId}")
     @ResponseBody
-    public Result<List<Booking>> getWaitlistQueue(@PathVariable("scheduleId") String scheduleId) {
+    public Result<List<Booking>> getWaitlistQueue(@PathVariable("scheduleId") String scheduleId,
+                                                  @RequestHeader("Authorization") String token) {
+        // 方法级兜底：对齐 AuthzRules 声明 ALL_ROLES
+        permissionCheck.checkAnyLogin(token);
         try {
             return Result.success(bookingService.getWaitlistQueue(scheduleId), "ok");
         } catch (RuntimeException e) {
@@ -98,7 +112,10 @@ public class BookingController {
      */
     @PostMapping("/waitlist/promote")
     @Audit(action = AuditAction.BOOKING_CONFIRM, resourceType = "booking")
-    public Result<Map<String, Object>> promoteWaitlist(@RequestBody BookingDTO dto) {
+    public Result<Map<String, Object>> promoteWaitlist(@RequestBody BookingDTO dto,
+                                                       @RequestHeader("Authorization") String token) {
+        // 方法级兜底：对齐 AuthzRules 声明 PLATFORM_OR_TENANT_ADMIN（递补占名额）
+        permissionCheck.checkAdmin(token);
         try {
             Map<String, Object> data = bookingService.promoteWaitlist(dto.getId());
             // 系统自动通知：递补成功 → 该学生（发送者=当前登录管理员）
@@ -116,8 +133,10 @@ public class BookingController {
      */
     @GetMapping("/ListByScheduleId/{scheduleId}")
     @ResponseBody
-    public Result<List<Booking>> getBookingListBySchedule(@PathVariable("scheduleId") String scheduleId) {
-      
+    public Result<List<Booking>> getBookingListBySchedule(@PathVariable("scheduleId") String scheduleId,
+                                                          @RequestHeader("Authorization") String token) {
+        // 方法级兜底：对齐 AuthzRules 声明 ALL_ROLES
+        permissionCheck.checkAnyLogin(token);
         BookingQueryParaDTO dto= new BookingQueryParaDTO();
       dto.setScheduleId(scheduleId);
 
@@ -133,7 +152,10 @@ public class BookingController {
 
      @GetMapping("/countByScheduleId/{scheduleId}")
     @ResponseBody
-    public Result<Integer> getBookingCountBySchedule(@PathVariable("scheduleId") String scheduleId) {
+    public Result<Integer> getBookingCountBySchedule(@PathVariable("scheduleId") String scheduleId,
+                                                     @RequestHeader("Authorization") String token) {
+        // 方法级兜底：对齐 AuthzRules 声明 ALL_ROLES
+        permissionCheck.checkAnyLogin(token);
       BookingQueryParaDTO dto= new BookingQueryParaDTO();
       dto.setScheduleId(scheduleId);
 
@@ -149,8 +171,11 @@ public class BookingController {
 
     @PostMapping("/list")
     @ResponseBody
-    public Result<List<Booking>> filterList(@RequestBody BookingQueryParaDTO dto) {
-        //  log.debug("booking list input dto: " + dto); 
+    public Result<List<Booking>> filterList(@RequestBody BookingQueryParaDTO dto,
+                                            @RequestHeader("Authorization") String token) {
+        // 方法级兜底：对齐 AuthzRules 声明 ALL_ROLES
+        permissionCheck.checkAnyLogin(token);
+        //  log.debug("booking list input dto: " + dto);
          try {
            List<Booking> rs = bookingService.selectList(dto);
           
@@ -166,8 +191,11 @@ public class BookingController {
 
     @PostMapping("/page")
     @ResponseBody
-    public Result<PageResult<Booking>> filterListPage(@RequestBody BookingQueryPage dto) {
-        //  log.debug("booking list input dto: " + dto); 
+    public Result<PageResult<Booking>> filterListPage(@RequestBody BookingQueryPage dto,
+                                                      @RequestHeader("Authorization") String token) {
+        // 方法级兜底：对齐 AuthzRules 声明 ALL_ROLES
+        permissionCheck.checkAnyLogin(token);
+        //  log.debug("booking list input dto: " + dto);
          try {
            PageResult <Booking> rs = bookingService.selectListPage(dto);
            
@@ -182,7 +210,10 @@ public class BookingController {
 
 
     @GetMapping("/{id}")
-    public Result<Booking> getById(@PathVariable String id) {
+    public Result<Booking> getById(@PathVariable String id,
+                                   @RequestHeader("Authorization") String token) {
+        // 方法级兜底：对齐 AuthzRules 声明 ALL_ROLES（数据级归属校验留待服务层补）
+        permissionCheck.checkAnyLogin(token);
         Booking bk = bookingService.selectById(id);
         return  Result.success(bk,"ok");
     }
@@ -197,8 +228,11 @@ public class BookingController {
     @ResponseBody
     public Result<java.util.Map<String, Integer>> getBookingStatisticalByMonth(
             @RequestParam("year") int year,
-            @RequestParam("month") int month
+            @RequestParam("month") int month,
+            @RequestHeader("Authorization") String token
     ) {
+        // 方法级兜底：对齐 AuthzRules 声明 PLATFORM_OR_TENANT_ADMIN（管理面统计）
+        permissionCheck.checkAdmin(token);
         // 获取月初和月末的具体时间
         java.time.LocalDate monthStart = java.time.LocalDate.of(year, month, 1);
         java.time.LocalDate monthEnd = monthStart.with(java.time.temporal.TemporalAdjusters.lastDayOfMonth());
@@ -233,7 +267,10 @@ public class BookingController {
 
     @DeleteMapping("/delete/{id}")
     @Audit(action = AuditAction.BOOKING_CANCEL, resourceType = "booking", resourceId = "id")
-    public Result<Integer> delete(@PathVariable String id) {
+    public Result<Integer> delete(@PathVariable String id,
+                                  @RequestHeader("Authorization") String token) {
+        // 方法级兜底：对齐 AuthzRules 声明 PLATFORM_OR_TENANT_ADMIN
+        permissionCheck.checkAdmin(token);
         try {
            int rows= bookingService.delete(id);
             return Result.success(rows,"delete");
@@ -244,7 +281,10 @@ public class BookingController {
         }
     }
     @DeleteMapping("/deleteByScheduleId/{id}")
-    public Result<Integer> deleteByScheduleId(@PathVariable String id) {
+    public Result<Integer> deleteByScheduleId(@PathVariable String id,
+                                              @RequestHeader("Authorization") String token) {
+        // 方法级兜底：对齐 AuthzRules 声明 PLATFORM_OR_TENANT_ADMIN（级联删预订）
+        permissionCheck.checkAdmin(token);
         return Result.success(bookingService.deleteByScheduleId(id),"ok");
     }
 }

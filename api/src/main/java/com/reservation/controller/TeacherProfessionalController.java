@@ -5,6 +5,7 @@ import com.reservation.common.Result;
 import com.reservation.dto.TeacherProfessionalDTO;
 import com.reservation.query.TeacherProfessionalQueryPage;
 import com.reservation.service.TeacherProfessionalService;
+import com.reservation.utils.PermissionCheck;
 import com.reservation.vo.TeacherProfessionalDetailVO;
 import com.reservation.vo.TeacherProfessionalListVO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,24 +31,34 @@ public class TeacherProfessionalController {
     @Autowired
     private TeacherProfessionalService teacherProfessionalService;
 
+    @Autowired
+    private PermissionCheck permissionCheck;
+
     // 1. 添加教师职业信息
     @PostMapping("/addTeacherProfessionalInfo")
     @ResponseBody
-    public Result<Object> addTeacherProfessionalInfo(@RequestBody TeacherProfessionalDTO dto) {
+    public Result<Object> addTeacherProfessionalInfo(@RequestBody TeacherProfessionalDTO dto,
+                                                     @RequestHeader("Authorization") String token) {
+        // 方法级兜底（2026-10-10 P1-4）：对齐 AuthzRules 声明 TEACHER_OR_ADMIN
+        permissionCheck.checkTeacherOrAdmin(token);
         return teacherProfessionalService.addTeacherProfessionalInfo(dto);
     }
 
     // 2. 删除教师职业信息（按 teacherProfessionalId）
     @PostMapping("/deleteTeacherProfessionalInfo")
     @ResponseBody
-    public Result<Object> deleteTeacherProfessionalInfo(@RequestParam("teacherProfessionalId") String teacherProfessionalId) {
+    public Result<Object> deleteTeacherProfessionalInfo(@RequestParam("teacherProfessionalId") String teacherProfessionalId,
+                                                        @RequestHeader("Authorization") String token) {
+        permissionCheck.checkTeacherOrAdmin(token);
         return teacherProfessionalService.deleteTeacherProfessionalInfo(teacherProfessionalId);
     }
 
     // 3. 修改教师职业信息
     @PostMapping("/updateTeacherProfessionalInfo")
     @ResponseBody
-    public Result<Object> updateTeacherProfessionalInfo(@RequestBody TeacherProfessionalDTO dto) {
+    public Result<Object> updateTeacherProfessionalInfo(@RequestBody TeacherProfessionalDTO dto,
+                                                        @RequestHeader("Authorization") String token) {
+        permissionCheck.checkTeacherOrAdmin(token);
         return teacherProfessionalService.updateTeacherProfessionalInfo(dto);
     }
 
@@ -56,7 +67,10 @@ public class TeacherProfessionalController {
     @ResponseBody
     public Result<TeacherProfessionalDetailVO> queryTeacherProfessionalInfo(
             @RequestParam(value = "teacherProfessionalId", required = false) String teacherProfessionalId,
-            @RequestParam(value = "teacherId", required = false) String teacherId) {
+            @RequestParam(value = "teacherId", required = false) String teacherId,
+            @RequestHeader("Authorization") String token) {
+        // 方法级兜底：对齐 AuthzRules 声明 ALL_ROLES（学生浏览教师资料）
+        permissionCheck.checkAnyLogin(token);
         return teacherProfessionalService.queryTeacherProfessionalInfo(teacherProfessionalId, teacherId);
     }
 
@@ -66,6 +80,7 @@ public class TeacherProfessionalController {
     public Result<PageResult<TeacherProfessionalListVO>> listByPage(
             TeacherProfessionalQueryPage query,
             @RequestHeader("Authorization") String token) {
+        permissionCheck.checkAnyLogin(token);
         return teacherProfessionalService.listByPage(query);
     }
 }

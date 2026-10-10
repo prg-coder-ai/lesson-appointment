@@ -5,8 +5,7 @@ import com.reservation.dto.TzSwitchPO;
 import com.reservation.dto.TzSwitchVO;
   
 import com.reservation.service.TzSwitchService ;
-/*
-import  com.reservation.utils.PermissionCheck;*/
+import com.reservation.utils.PermissionCheck;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -23,6 +22,8 @@ import lombok.extern.slf4j.Slf4j;
 public class TimezoneCalcController {  
        @Autowired
     private TzSwitchService tzSwitchService;
+       @Autowired
+    private PermissionCheck permissionCheck;
  
     /**
      * 
@@ -30,7 +31,9 @@ public class TimezoneCalcController {
     @PostMapping("/switch")
     @ResponseBody
     public Result<TzSwitchVO> switch_to(@Validated @RequestBody TzSwitchPO dataIn,
-                                                   @RequestHeader("Authorization") String token) { 
+                                                   @RequestHeader("Authorization") String token) {
+        // 方法级兜底（2026-10-10 P1-4）：对齐 AuthzRules 声明 ALL_ROLES（各端表单共用）
+        permissionCheck.checkAnyLogin(token);
         // 把dataIn的日期时间按照时区进行转化，同时计算星期几（中文名）与周内序号（周一为1，周日为7）
         //TzSwitchVO resultMap = new TzSwitchVO(); 
         try {

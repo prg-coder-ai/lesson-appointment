@@ -151,6 +151,27 @@ public class PermissionCheck {
      * @param token 请求头中的Authorization Token
      * @return 用户ID（userId）
      */
+    /**
+     * 校验：任意已登录且账号 active 的角色可操作（学生/教师/管理员/平台管理员）。
+     * 对齐 AuthzRules 中 ALL_ROLES 声明的方法级兜底，用于跨角色只读端点
+     * （课程浏览 /course/list|page|{id}、时区换算 /tz/switch 等）。
+     * 注意：不要为"省事"用本方法替代 checkTeacherOrAdmin——后者不允许学生通过。
+     */
+    public void checkAnyLogin(String token) {
+        String role = getRoleFromToken(token);
+        if (RoleConst.ADMIN.equals(role) || RoleConst.PLATFORM_ADMIN.equals(role)) {
+            return;
+        }
+        if (RoleConst.STUDENT.equals(role) || RoleConst.TEACHER.equals(role)) {
+            User u = userMapper.selectById(getUserIdFromToken(token));
+            if (u != null && "active".equals(u.getStatus())) {
+                return;
+            }
+            throw new NoPermissionException("账号未激活或已冻结，无法执行操作");
+        }
+        throw new NoPermissionException("您无权限执行该操作");
+    }
+
     public String getUserIdFromToken(String token) {
         try {
             return jwtUtil.getUserIdFromToken(token);

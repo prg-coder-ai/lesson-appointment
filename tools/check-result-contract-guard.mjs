@@ -4,8 +4,9 @@
 //   ① Result.code 必须是 primitive int —— 历史上是 Integer，于是出现了 fail(null, ...)。
 //      null 叠加 spring.jackson 的 default-property-inclusion=non_null，
 //      序列化后整个 code 字段从JSON 里消失，响应只剩 {"message":"..."}。
-//   ② 禁止 Result.fail(null, ...) 与 Result.fail(0, ...)：
-//      0 既非成功码也非标准错误码；null 见①。两者都让客户端无法判定成败。
+//   ② 禁止 Result.fail(null/0/200, ...)：
+//      0 既非成功码也非标准错误码；null 见①；200 在白名单内不会抛，
+//      fail(200) 造出 code=200 的"失败"且 29-b 下 HTTP 也是 200——两端当成功，语义反向。
 //   ③ fail() 必须有code 白名单断言（开发期把非法码暴露出来，而不是让它上线）。
 //   ④ ErrorCodes 的异常→码映射必须与 GlobalExceptionHandler 的 @ExceptionHandler 保持一致，
 //      否则同一个异常在"被 Controller 捕获"与"逃到 handler"两条路径下 code 不同（契约分叉）。
@@ -85,14 +86,18 @@ for (const d of JAVA_DIRS) {
         );
       }
 
-      // ② 禁止 fail(null) / fail(0)
-      const bad = /Result\.fail\(\s*(null|0)\s*[,)]/.exec(ln);
+      // ② 禁止 fail(null) / fail(0) / fail(200)
+      const bad = /Result\.fail\(\s*(null|0|200)\s*[,)]/.exec(ln);
       if (bad) {
         problems.push(
           `${at} 禁止 Result.fail(${bad[1]}, ...)。\n` +
           `      ${bad[1] === 'null'
             ? 'null + non_null 序列化会让整个 code 字段消失，客户端读res.code 得到 undefined。'
-            : '0 既非成功码（200）也非标准错误码，属于"看起来有契约、实则无意义"。'}\n` +
+            : bad[1] === '0'
+            ? '0 既非成功码（200）也非标准错误码，属于"看起来有契约、实则无意义"。'
+            : '200 在 ALLOWED_CODES 白名单内不会抛——fail(200) 造出 code=200 的"失败"，\n' +
+              '      29-b 下还是 HTTP 200：两端拦截器都当成功消费，语义完全反向且零报错\n' +
+              '      （薄弱环节报告 2026-10-10 N2/P1-5）。'}\n` +
           `      应改为具体错误码，或用 ErrorCodes.fail(e) 由异常语义推导。`
         );
       }
@@ -254,7 +259,7 @@ if (problems.length) {
   process.exit(1);
 } else {
   console.log('✅ ① Result.code 为 primitive int');
-  console.log('✅ ② 无 Result.fail(null/0)');
+  console.log('✅ ② 无 Result.fail(null/0/200)');
   console.log('✅ ③ fail() 含错误码断言且白名单无 0');
   console.log('✅ ④ ErrorCodes 与 GlobalExceptionHandler 映射一致');
   console.log('✅ ⑤ 29-b 映射出口齐全（A 案：400/404/409/500；401/403 保持 200）');

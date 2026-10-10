@@ -156,10 +156,12 @@ public class CourseController {
      */
     @GetMapping("/list")
     @ResponseBody
-        // 权限校验：教师或管理员、学生均可操作  //@Validated @RequestBody(required = false) 
+        // 权限校验（2026-10-10 P1-4 一致化）：教师/管理员/学生均可——学生约课链路确实要读课程列表
+        // （student-bookingBrowserCards.js 走 fetchCourseList 打本端点）。原 checkTeacherOrAdmin 会把学生
+        // 挡成 403（既存缺陷），现与 /page、/{courseid} 统一为 checkAnyLogin（对齐 ALL_ROLES 声明）。
    public Result<List<Course>> getCourseList(CourseQueryParam params,
                                                           @RequestHeader("Authorization") String token) {
-        permissionCheck.checkTeacherOrAdmin(token);
+        permissionCheck.checkAnyLogin(token);
         // 调用服务层查询课程列表
          log.debug("getCourseList controller: " + params);
         List<Course> courseList = courseService.getCourseList(params);
@@ -176,13 +178,11 @@ public class CourseController {
     private Integer pageSize;  // 每页条数
     private Integer totalPages;// 总页数
     */
-   public Result<PageResult<Course>> getCourseListByPage(CourseQueryPage query, 
+   public Result<PageResult<Course>> getCourseListByPage(CourseQueryPage query,
                                                           @RequestHeader("Authorization") String token) {
 
-        //   log.debug("getCourseListByPage input:" + query);                                                   
-        //permissionCheck.checkTeacherOrAdmin(token);
-        // 调用服务层查询课程列表
-       //  log.debug("getCourseList controller: " + query);
+        // 方法级兜底（2026-10-10 P1-4 一致化）：与 /list、/{courseid} 统一为 ALL_ROLES
+        permissionCheck.checkAnyLogin(token);
         PageResult<Course> courseList = courseService.getCoursePage( query);
         //Map<String, List<Course>> resultMap = Map.of("courses", courseList);
        // log.debug("getCourseListByPage output:" + courseList);
@@ -194,9 +194,8 @@ public class CourseController {
         // 权限校验：教师或管理员、学生均可操作
    public Result<Course> getCourseById(@PathVariable String courseid,
                                                           @RequestHeader("Authorization") String token) {
-        //permissionCheck.checkTeacherOrAdmin(token);
-        // 调用服务层查询课程列表
-        // log.debug("getCourseByID controller: " + courseid);
+        // 方法级兜底（2026-10-10 P1-4 一致化）：与 /list、/page 统一为 ALL_ROLES
+        permissionCheck.checkAnyLogin(token);
          Course  course  = courseService.getCourseById(courseid);
         //Map<String, List<Course>> resultMap = Map.of("courses", courseList);
         return Result.success(course, "查询成功");

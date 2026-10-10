@@ -151,11 +151,12 @@ public class SecurityConfig {
                     // 这里把 AuthzRules.RULES 的每条声明展开为 hasRole/hasAnyRole。
                     applyDeclarativeAuthz(auth);
 
-                    // 兜底：已认证。
-                    // 下一步（本批规则经回归确认后）改为 denyAll()，
-                    // 届时"漏声明 = 403"的安全收益才真正生效。
-                    // 当前仍用 authenticated() 是刻意的分两步策略，理由见 AuthzRules 类注释。
-                    auth.anyRequest().authenticated();
+                    // 兜底：denyAll()（2026-10-10 切换，两步策略第二步落地）。
+                    // 第一步 authenticated() 阶段"漏声明 = 静默放行"（已登录即全通），
+                    // 是根因 A 的隐性残留；authz 守卫实测 182 个端点已全部声明授权角色后，
+                    // 切为 denyAll() 让"漏声明 = 403"真正生效——新增端点忘了在 AuthzRules
+                    // 声明时，运行期立刻炸而不是静默放行（构建期仍由 check:authz 拦截）。
+                    auth.anyRequest().denyAll();
                 })
 
                 // ===== 异常处理 =====

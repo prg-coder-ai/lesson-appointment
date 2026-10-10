@@ -25,16 +25,17 @@ import java.util.List;
  *       SpEL 表达不了，仍由 {@code PermissionCheck} 承担。<b>两层并存，不是替换关系。</b></li>
  * </ul>
  *
- * <h3>关键取舍：为什么现在不改成 denyAll 默认拒绝</h3>
+ * <h3>关键取舍：分两步切到 denyAll 默认拒绝（已两步走完）</h3>
  * 171 个生效端点里，学生端与教师端共用的读接口（如 {@code /course/booking/page}、
  * {@code /schedule/selectByCourseId/*}）真实存在，但角色归属只能从前端调用链反推；
  * 一旦有一处推断错误，{@code denyAll} 会立刻把它变成线上 403 故障。
- * 因此本次策略是<b>分两步</b>：
+ * 因此策略是<b>分两步</b>：
  * <ol>
- *   <li><b>本批</b>：把已核实的端点全部显式声明（{@link #RULES}），
- *       兜底仍为 {@code authenticated()}。此时规则表已完整，规则外的路径数量为 0。</li>
- *   <li><b>下一批</b>：确认无回退后把兜底改为 {@code denyAll()}。
- *       届时"漏声明 = 403"的安全收益才真正生效，而不是现在就承担误伤风险。</li>
+ *   <li><b>第一批</b>：把已核实的端点全部显式声明（{@link #RULES}），
+ *       兜底暂为 {@code authenticated()}。规则表已完整，规则外的路径数量为 0。</li>
+ *   <li><b>第二批（2026-10-10 落地）</b>：守卫实测 182 个端点全部声明、无陈旧规则后，
+ *       SecurityConfig 兜底已切为 {@code denyAll()}——"漏声明 = 403"真正生效；
+ *       构建期仍由 check:authz 守卫先行拦截。</li>
  * </ol>
  * 规则表与兜底的关系由守卫脚本强制：{@link #RULES} 未覆盖的 {@code /api/v1/**} 端点会被判红。
  *
@@ -234,19 +235,14 @@ public final class AuthzRules {
         r.add(new Rule(HttpMethod.POST, "/api/v1/course/updateStatusByLastId/{id}", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin"));
         r.add(new Rule(HttpMethod.DELETE, "/api/v1/course/deleteById/{id}", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin"));
         r.add(new Rule(HttpMethod.DELETE, "/api/v1/course/deleteByTemplateId/{id}", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin"));
-        // 重要：GET /course/list、/page、/{id} 三者的现状不一致，本批只统一"路径层"，不掩盖差异：
-        //   · /list   方法体 checkTeacherOrAdmin **是活的** → 学生调它会拿到 code=403
-        //            （实测：student token → {"code":403,"message":"您无权限执行该操作"}）
-        //            而前端 student-bookingBrowserCards.js:149 走 fetchCourseList → 正是打这个端点。
-        //            即"学生浏览课程"功能**先于本批就是坏的**（作者注释写"教师或管理员、学生均可操作"，
-        //            但代码只实现了前者），属报告里的功能缺陷，不是本批引入。
-        //   · /page、/{id} 的 check 已被注释掉 → 学生可读。
-        // 此处三条一律 ALL_ROLES：路径层按"学生约课链路确实需要读课程"这一事实放行，
-        // 否则把学生浏览课程彻底打死。/list 那层方法体校验是既有缺陷，留待第 3 批方法级统一 ——
-        // 届时要么给 checkTeacherOrAdmin 加 student 分支（对齐作者注释的本意），要么前端改走 /page。
-        r.add(new Rule(HttpMethod.GET, "/api/v1/course/list", ALL_ROLES, "偏差·见上方注释：/list 方法体校验仍会 403（既存缺陷）"));
-        r.add(new Rule(HttpMethod.GET, "/api/v1/course/page", ALL_ROLES, "偏差·见上方注释：与 /list 现状不一致"));
-        r.add(new Rule(HttpMethod.GET, "/api/v1/course/{courseid}", ALL_ROLES, "偏差·见上方注释：check 已被注释"));
+        // GET /course/list、/page、/{id} 三端已于 2026-10-10（P1-4）方法级统一：
+        //   · /list 原 checkTeacherOrAdmin 会把学生挡成 403（既存缺陷，实测
+        //     student token → {"code":403}，而 student-bookingBrowserCards.js 走它）；
+        //   · 三端现统一 permissionCheck.checkAnyLogin(token)——对齐作者注释本意
+        //     （"教师或管理员、学生均可操作"）与本处 ALL_ROLES 声明。
+        r.add(new Rule(HttpMethod.GET, "/api/v1/course/list", ALL_ROLES, "≡checkAnyLogin（2026-10-10 方法级统一）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/course/page", ALL_ROLES, "≡checkAnyLogin（2026-10-10 方法级统一）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/course/{courseid}", ALL_ROLES, "≡checkAnyLogin（2026-10-10 方法级统一）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/course/classform", TEACHER_OR_ADMIN, "新增：班级表单（建课辅助）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/course/statistical/byMonth", TEACHER_OR_ADMIN, "新增：课程统计（管理面）"));
 

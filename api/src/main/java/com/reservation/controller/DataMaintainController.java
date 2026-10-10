@@ -13,10 +13,12 @@ import com.reservation.mapper.BookingMapper;
 import com.reservation.mapper.CourseScheduleMapper;
 import com.reservation.mapper.CourseTemplateMapper;
 import com.reservation.service.ReferentialCascadeService;
+import com.reservation.utils.PermissionCheck;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -66,10 +68,15 @@ public class DataMaintainController {
     private CourseTemplateMapper courseTemplateMapper;
     @Autowired
     private ReferentialCascadeService cascadeService;
+    @Autowired
+    private PermissionCheck permissionCheck;
 
     @PostMapping("/purge/template")
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
-    public Result<Integer> purgeTemplate() {
+    public Result<Integer> purgeTemplate(@RequestHeader("Authorization") String token) {
+        // 方法级兜底（2026-10-10 P1-4）：对齐 AuthzRules 声明 PLATFORM_OR_TENANT_ADMIN。
+        // 本类注释所述"租户边界由入口权限兜底"即指此处——物理删除必须双闸（声明式 + 方法级）。
+        permissionCheck.checkAdmin(token);
         // 模板无软删状态列（course_template.status 为 active/inactive/frozen，
         // 但本端点语义是"清理已删"，模板侧的软删统一经其课程体现）。
         // 仍先展开课程链，避免删模板时课程被 CASCADE 带走而其排期/课次留成孤儿。
@@ -87,7 +94,8 @@ public class DataMaintainController {
 
     @PostMapping("/purge/course")
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
-    public Result<Integer> purgeCourse() {
+    public Result<Integer> purgeCourse(@RequestHeader("Authorization") String token) {
+        permissionCheck.checkAdmin(token);
         // 先按课程逐条展开（排期 → 预订 → 课次），再删课程行。
         // 只删课程行而不管排期，排期会被数据库 CASCADE 连带删，其课次则变悬空。
         List<Course> frozen = courseMapper.selectList(
@@ -106,7 +114,8 @@ public class DataMaintainController {
 
     @PostMapping("/purge/schedule")
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
-    public Result<Integer> purgeSchedule() {
+    public Result<Integer> purgeSchedule(@RequestHeader("Authorization") String token) {
+        permissionCheck.checkAdmin(token);
         // 先把待清排期下的预订→课次清干净，再删排期行。
         List<CourseSchedule> frozen = courseScheduleMapper.selectList(
                 new QueryWrapper<CourseSchedule>().in("status", SOFT_DELETED));
@@ -137,7 +146,8 @@ public class DataMaintainController {
 
     @PostMapping("/purge/booking")
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
-    public Result<Integer> purgeBooking() {
+    public Result<Integer> purgeBooking(@RequestHeader("Authorization") String token) {
+        permissionCheck.checkAdmin(token);
         // 先删这些预订下的<b>全部</b>课次（不只是 frozen 的），
         // 再删预订行。原实现只清 frozen 的课次，于是 active 课次被留成悬空行——
         // 这正是 109 行悬空课次的直接来源。
@@ -159,7 +169,8 @@ public class DataMaintainController {
 
     @PostMapping("/purge/appointment")
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
-    public Result<Integer> purgeAppointment() {
+    public Result<Integer> purgeAppointment(@RequestHeader("Authorization") String token) {
+        permissionCheck.checkAdmin(token);
         // 课次删除前先清其通知发送流水：uk_dispatch_once 幂等键含 appointment_id，
         // 留着流水会让该课次此后的通知永远发不出去（每次插入都撞唯一键）。
         List<Appointment> frozen = appointmentMapper.selectList(

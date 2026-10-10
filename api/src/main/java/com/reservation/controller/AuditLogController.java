@@ -7,6 +7,8 @@ import com.reservation.common.PageResult;
 import com.reservation.common.Result;
 import com.reservation.entity.AuditLog;
 import com.reservation.mapper.AuditLogMapper;
+import com.reservation.utils.PermissionCheck;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Arrays;
@@ -20,6 +22,9 @@ import java.util.List;
 public class AuditLogController {
 
     private final AuditLogMapper auditLogMapper;
+
+    @Autowired
+    private PermissionCheck permissionCheck;
 
     public AuditLogController(AuditLogMapper auditLogMapper) {
         this.auditLogMapper = auditLogMapper;
@@ -35,8 +40,11 @@ public class AuditLogController {
             @RequestParam(required = false) String resourceType,
             @RequestParam(required = false) String resultStatus,
             @RequestParam(required = false) String startDate,
-            @RequestParam(required = false) String endDate) {
+            @RequestParam(required = false) String endDate,
+            @RequestHeader("Authorization") String token) {
 
+        // 方法级兜底（2026-10-10 P1-4）：对齐 AuthzRules 声明 PLATFORM_OR_TENANT_ADMIN
+        permissionCheck.checkAdmin(token);
         LambdaQueryWrapper<AuditLog> wrapper = new LambdaQueryWrapper<>();
         if (userId != null && !userId.isEmpty())
             wrapper.eq(AuditLog::getUserId, userId);
@@ -59,7 +67,10 @@ public class AuditLogController {
 
     /** 查看单条审计日志详情 */
     @GetMapping("/{logId}")
-    public Result<AuditLog> detail(@PathVariable String logId) {
+    public Result<AuditLog> detail(@PathVariable String logId,
+                                   @RequestHeader("Authorization") String token) {
+        // 方法级兜底（2026-10-10 P1-4）：对齐 AuthzRules 声明 PLATFORM_OR_TENANT_ADMIN
+        permissionCheck.checkAdmin(token);
         LambdaQueryWrapper<AuditLog> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(AuditLog::getLogId, logId);
         return Result.ok(auditLogMapper.selectOne(wrapper));
@@ -67,7 +78,8 @@ public class AuditLogController {
 
     /** 操作类型枚举列表（供前端下拉框使用） */
     @GetMapping("/actions")
-    public Result<List<String>> actions() {
+    public Result<List<String>> actions(@RequestHeader("Authorization") String token) {
+        permissionCheck.checkAdmin(token);
         return Result.ok(Arrays.stream(AuditAction.values())
             .map(Enum::name).toList());
     }

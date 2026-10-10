@@ -153,6 +153,23 @@ try {
     bak.restore();
   }
 
+  // ---------- ④b 出现 fail(200)（N2：白名单内不抛 → 假成功） ----------
+  {
+    const bak = backup(path.join(ROOT, 'api/src/main/java/com/reservation/controller/TimezoneCalcController.java'));
+    touched.push(bak);
+    const anchor = 'return Result.fail(400,  "时间格式或时区错误: " + e.getMessage());';
+    const txt = fs.readFileSync(bak.file, 'utf8');
+    if (!txt.includes(anchor)) {
+      expect('④b 加 fail(200) 应判红', false, '未找到锚点 fail(400,  "时间格式或时区错误');
+    } else {
+      fs.writeFileSync(bak.file, txt.replace(anchor, 'return Result.fail(200,  "回归：假成功码");'), 'utf8');
+      const r = await runGuard();
+      expect('④b 出现 Result.fail(200) → exit 1 且点明假成功风险',
+        r.code === 1 && /Result\.fail\(200/.test(r.out) && /(假成功|语义完全反向)/.test(r.out), r.out);
+    }
+    bak.restore();
+  }
+
   // ---------- ⑤ api 出口文件被删 ----------
   {
     const bak = backup(API_ADVICE);
