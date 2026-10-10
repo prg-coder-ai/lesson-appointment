@@ -498,9 +498,7 @@ public class UserService {
             // userMapper.updatePassword(user.getUserId(),user.getPassword());
         } else {
            // throw new BusinessException("账号 【" + account + "】对应的用户不存在");
-           resultMap.put("message", "账号 【" + account + "】对应的用户不存在");
-           resultMap.put("code", 404);
-           return Result.success(resultMap,"账号不存在");
+           return Result.fail(404, "账号 【" + account + "】对应的用户不存在");
         }   
 
     } 

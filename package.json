@@ -29,6 +29,8 @@
  "test:result-contract-guard": "node tests/check_result_contract_guard.js",
     "check:date-contract": "node tools/check-date-contract-guard.mjs",
     "check:status-contract": "node tools/check-status-contract-guard.mjs",
+    "check:itest-sut": "node tools/check-itest-sut-sync.mjs",
+    "test:itest-sut-guard": "node tests/check_itest_sut_sync_guard.js",
     "check:ddl-align": "node tools/check-ddl-entity-align.mjs",
     "test:ddl-align-guard": "node --experimental-vm-modules tests/check_ddl_entity_align_guard.js"
   },

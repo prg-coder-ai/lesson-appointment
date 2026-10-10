@@ -41,7 +41,7 @@ public class TimezoneCalcController {
             return Result.success(resultMap, "ok");
         } catch (Exception e) {
            //  log.debug("Tz/switch_to resultMap: " + dataIn+"->" +"时间格式或时区错误: " + e.getMessage());
-            return Result.success(null,  "时间格式或时区错误: " + e.getMessage());
+            return Result.fail(400,  "时间格式或时区错误: " + e.getMessage());
         } 
     }
  

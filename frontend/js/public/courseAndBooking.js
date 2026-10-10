@@ -144,7 +144,8 @@ async function operateTemplate(templateId, action) {
        });
        return res;//return id
    } catch (err) {
-       alert('网络异常，操作失败');
+       // /course/update 失败返回 HTTP 400，拦截器抛出带后端真实文案的 Error，优先展示
+       alert(err && err.message ? err.message : '网络异常，操作失败');
        console.error(err);
        return null;
    }

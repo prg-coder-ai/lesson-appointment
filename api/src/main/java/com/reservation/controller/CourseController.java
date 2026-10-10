@@ -108,7 +108,7 @@ public class CourseController {
         return Result.success(true, TermMsg.t("{course}修改成功"));
          }  catch (Exception e) {
            // 异常详情属动态数据，接在术语模板**之外**——不参与取词，否则详情里恰好出现的行业词会被误改
-           return Result.success(false, TermMsg.t("{course}修改失败: ") + e.getMessage());      
+           return Result.fail(400, TermMsg.t("{course}修改失败: ") + e.getMessage());
        }
     }
 
@@ -126,7 +126,7 @@ public class CourseController {
         
            return Result.success(result, TermMsg.t("{course}删除成功"));
        } catch (Exception e) {
-           return Result.success(0, TermMsg.t("{course}删除失败: ") + e.getMessage());      
+           return Result.fail(400, TermMsg.t("{course}删除失败: ") + e.getMessage());
        }
    }
 
@@ -141,7 +141,7 @@ public class CourseController {
          return Result.success(result, TermMsg.t("{course}删除成功"));
        
        } catch (Exception e) {
-           return Result.success(0, TermMsg.t("{course}删除失败: ") + e.getMessage());      
+           return Result.fail(400, TermMsg.t("{course}删除失败: ") + e.getMessage());
        }
    }
 

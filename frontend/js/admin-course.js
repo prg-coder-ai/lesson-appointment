@@ -175,13 +175,14 @@ async function submitCourseForm() {
     //const token = getToken();
     const url = formData.courseId !=""? `course/update` : `course/insert`;
    let res = await updateORCreateCourse(url, formData);
-   if(res!=""){
+   // 29-b 后端契约：/course/update 失败返回 Result.fail(400) → 拦截器抛错 → updateORCreateCourse 提示真实原因后返回 null。
+   // 成功时 data=true；用严格相等判断，避免 null != "" 为 true 把失败误判成「编辑成功」。
+   if(res===true){
     alert(formData.courseId !="" ? '编辑成功' : '新增成功');
     closeCourseModal(); // 关闭弹窗
     await renderCourseCards(); // 刷新列表
-   } else {
-    alert( formData.courseId!=""  ? '编辑失败' : '新增失败');
-   } 
+   }
+   // 失败（res===null）：真实原因已由 updateORCreateCourse 提示，此处不再重复弹窗
 }
 
 function validateCourseForm(formData){

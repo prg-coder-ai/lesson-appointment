@@ -5,7 +5,7 @@
 - 改动已有校验先摆事实与选项让用户拍板；分步推进+保留既有实现（双层并行）。
 - 库内数据都是测试数据：只诊断不清理。
 
-## 守卫（13 道，pre-commit 门禁；反向测试须证真会红）
+## 守卫（14 道，pre-commit 门禁；反向测试须证真会红）
 | 领域 | npm | 领域 | npm |
 |---|---|---|---|
 | 授权 | check:authz | 调度池 | check:scheduler |
@@ -14,7 +14,7 @@
 | 时区 | check:tz | 密钥注入 | check:secret-env |
 | 端点常量 | check:endpoints | 错误响应契约 | check:result-contract |
 | 前端全局作用域 | check:global-collide | JSON日期契约 | check:date-contract |
-| 跨端状态契约 | check:status-contract | | |
+| 跨端状态契约 | check:status-contract | itest快照同步 | check:itest-sut |
 
 跳过后缀：`SKIP_<领域大写>`（如 SKIP_RESULT_CONTRACT）。改权威源必跑反向测试。
 反向测试模式：不用 spawnSync（本机 node 子进程 EBUSY），用同进程 import(url+'?t=rand') + 拦 process.exit；变异串行 + 结束 md5 逐字节校验防污染。
@@ -24,8 +24,9 @@
 - `JacksonConfig`：LocalDateTime 手写序列化器 `format(fmt)+"Z"`（**withZone(UTC) 对 LocalDateTime 无效**，实测）。不做二次 UTC 转换。
 - **29-b 方案 A（2026-10-10 用户拍板落地）**：`ResultHttpStatusAdvice`（api+msg 各一）按 Result.code 映射 HTTP 状态，**只映射 400/404/409/500**；401/403 保持 HTTP 200（业务层 401/403 大量存在且非鉴权问题，全量映射会触发小程序刷新/踢登录=复现"刚登录被弹回登录页"）；1001/200 同样保持 200。真鉴权 401/403 由 Security/JwtFilter 过滤器层直出，不过该出口。守卫⑤校验四个 case 在、401/403 禁出现。
 - **文案策略（2026-10-10 用户拍板"两端都保留真实文案"）**：HTTP 级错误两端都**优先读 body 的 message/msg**，固定文案仅兜底（401 分支例外：frontend 清态跳转路径保持固定文案）。落点 frontend `utility_request.js` ④ 号分支 + 小程序 `request.js`；Security 过滤器层 401/403 JSON 也用 `message` 字段，bodyMsg 优先对它同样成立。
-- 11 处 `Result.success(失败文案)` 未修：A 类 8 处前端零调用可安全改；B 类 3 处（CourseController:111/129/144）需确认前端 data===false 消费。
+- `Result.success(失败文案)` 已全部收口（2026-10-10 P0-1，13 处改 fail(400/404)）：B 类 CourseController:111/129/144 改 fail 时**必须同步修前端消费**——`admin-course.js` 的 `res!=""` 判定已改 `res===true`（`null != ""` 为 true 会把失败误判成「编辑成功」），`updateORCreateCourse`/`datamaintain_delete.js` catch 已改为优先展示 `err.message` 真实文案。
 - 状态契约是登记式（status-contract.json，理由≥20字）；前端 NON_OCCUPYING 多 'deleted' 是有意防御项。
+- itest `_sut*` 是运行时 cpSync 生成（已 gitignore 不入库）；cpSync 只覆盖不删除 → harness 已改先 rmSync 再 cpSync；守卫 check:itest-sut 钉住（扫 .git/index 二进制查跟踪，**守卫禁用 spawnSync——本机 EBUSY**）。
 
 ## 小程序/前端铁律（精选）
 - 前端顶层标识符必须包 IIFE（全局词法冲突=解析期全崩）；内联 onclick 的函数必须挂 window。

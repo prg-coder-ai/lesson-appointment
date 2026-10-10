@@ -4,12 +4,14 @@
 //   A. 后端正常（term/map 返回 200）
 //   B. 极端：term/map 返回 401（模拟未部署 401 修复的旧后端）——验证公开接口 401 不再清登录态/跳登录页
 // 并断言：登录后能正确 reLaunch 到分包首页；全程不发 /auth/wechat-login。
-import { cpSync, mkdirSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const SRC = resolve(fileURLToPath(import.meta.url), '../../../miniprogram');
 const SUT = join(dirname(fileURLToPath(import.meta.url)), '_sut_login');
+// 先删后拷：cpSync 只覆盖不删除，源码里移除的模块会在 _sut_login 残留成幽灵文件被 import 命中（漂移守卫 check:itest-sut 钉住此约定）
+rmSync(SUT, { recursive: true, force: true });
 mkdirSync(SUT, { recursive: true });
 cpSync(join(SRC, 'core'), join(SUT, 'core'), { recursive: true });
 cpSync(join(SRC, 'shared'), join(SUT, 'shared'), { recursive: true });

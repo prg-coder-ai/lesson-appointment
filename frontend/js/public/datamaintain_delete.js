@@ -35,7 +35,8 @@ function deleteTemplateNextLavel(templateId){
             });
                return res;//
         } catch (err) {
-            alert('网络异常，模板批量删除失败');
+            // /course/deleteByTemplateId 失败返回 HTTP 400，拦截器抛出带后端真实文案的 Error，优先展示
+            alert(err && err.message ? err.message : '网络异常，模板批量删除失败');
             console.error(err);
         }
     })();    
@@ -119,7 +120,8 @@ async function deleteCourseById(id) {
         }
     } catch (error) {
         console.error('删除失败：', error);
-        alert('网络异常，课程删除失败');
+        // /course/deleteById 失败返回 HTTP 400，拦截器抛出带后端真实文案的 Error，优先展示
+        alert(error && error.message ? error.message : '网络异常，课程删除失败');
     }
 }
   

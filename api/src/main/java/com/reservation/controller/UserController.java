@@ -259,7 +259,7 @@ public class UserController {
     @ResponseBody
     public Result<Boolean> accountExist(@RequestParam("account") String account) {
         if (account == null || account.trim().isEmpty()) {
-            return Result.success(false, "账号不能为空");
+            return Result.fail(400, "账号不能为空");
         }
         boolean existed = userService.existAccount(account.trim(), TenantContext.getTenantId());
         return Result.success(existed, existed ? "账号已存在" : "账号可用");

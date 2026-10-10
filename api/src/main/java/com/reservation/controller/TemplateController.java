@@ -78,7 +78,7 @@ public class TemplateController {
         if (rowsDeleted > 0) {
             return Result.success(true, "模板删除成功");
         } else {
-            return Result.success(false, "模板删除失败");
+            return Result.fail(404, "模板删除失败，记录不存在");
         }
     }
 
