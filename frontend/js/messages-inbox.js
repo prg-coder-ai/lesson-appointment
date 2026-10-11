@@ -161,7 +161,10 @@
       '.msg-modal .body{margin-top:12px;padding:12px;background:#fafafa;border-radius:8px;white-space:pre-wrap;word-break:break-word;font-size:14px;color:#333;}',
       '.msg-rcpt-list{max-height:200px;overflow:auto;border:1px solid #eee;border-radius:8px;padding:8px;margin-top:6px;}',
       // 发送弹窗：浮动卡片（可左键拖动），不再用全屏遮罩
-      '.msg-compose-card{position:fixed;top:120px;left:50%;transform:translateX(-50%);width:620px;max-width:92vw;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);z-index:2000;overflow:hidden;}',
+      // 居中用 left:0;right:0;margin:auto，不能用 transform:translateX(-50%)——
+      // transform 会让后代 position:fixed 的 .combo-list 包含块变成卡片而非视口，
+      // place() 的视口坐标全部失效（下拉面板飘出视口"显示不出"），且 overflow:hidden 还会裁剪它。
+      '.msg-compose-card{position:fixed;top:120px;left:0;right:0;margin:0 auto;width:620px;max-width:92vw;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);z-index:2000;overflow:hidden;}',
       '.msg-compose-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--primary-color,#3a7afe);color:#fff;cursor:move;user-select:none;}',
       '.msg-compose-title{font-size:15px;font-weight:600;}',
       '.msg-compose-close{border:none;background:transparent;color:#fff;font-size:20px;line-height:1;cursor:pointer;padding:0 6px;}',

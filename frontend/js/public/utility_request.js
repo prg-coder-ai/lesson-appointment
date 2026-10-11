@@ -552,6 +552,10 @@
       if (config.customErrorMsg !== false) {
         showError(errMsg);
       }
+      // 把最终文案（body 真实文案优先）挂到 error 上再 reject：
+      // reject 的仍是 axios 原始 error（.message 是 "Request failed with status code xxx"），
+      // 调用方读 error.bodyMsg 才能拿到后端真实原因，否则 UI 只能显示英文 404。
+      error.bodyMsg = errMsg;
       return Promise.reject(error);
     }
   );

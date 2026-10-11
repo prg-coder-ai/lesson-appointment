@@ -176,10 +176,15 @@
       //console .log("authenticateUser",res);
       return saveCurrentUserSession(res);
     } catch (err) {
+      // 登录 404（账号不存在 / 密码错误）统一显示固定文案，防止账号枚举；
+      // 其余错误（500 等）仍透传真实原因。err 是 axios error，status 在 err.response.status。
+      if (err && err.response && err.response.status === 404) {
+        throw '账号或密码不正确';
+      }
       const msg =
         typeof err === 'string'
           ? err
-          : err.message || err.msg || '账号或密码错误，请重试';
+          : err.bodyMsg || err.message || err.msg || '账号或密码错误，请重试';
       throw msg;
     }
   }
