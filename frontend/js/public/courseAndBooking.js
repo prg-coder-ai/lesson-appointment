@@ -905,7 +905,10 @@ async function operateAppointmentStatus(aid, action) {
        alert("更新预约时间"+(msg || '操作失败'));
      }
    } catch (e) {
-     alert("网络错误或数据解析异常，操作失败");
+     // 409 等业务拒绝（如 B1 时间态闸「该课次已开始或已结束，无法提交改期申请」）的真实文案
+     // 已由拦截器挂到 error.bodyMsg（utility_request.js）——优先透出，避免误导性"网络错误"
+     // 盖过正确 toast，让用户误以为提交成功只是"没变化"（2026-10-11）。
+     alert((e && e.bodyMsg) ? e.bodyMsg : "网络错误或数据解析异常，操作失败");
      console.error(e);
    }
  
