@@ -249,7 +249,7 @@
       ? '<button class="btn btn-primary" id="msg-compose"><i class="fa fa-paper-plane"></i> 发送通知</button>'
       : '';
     const sentTab = canSend()
-      ? '<button class="msg-tab" data-folder="sent">已发</button>'
+      ? '<button class="msg-tab" data-folder="sent"><i class="fa fa-paper-plane"></i> 已发</button>'
       : '';
     // 工具条不再渲染页内「刷新」按钮：它与页面顶部的通用刷新（refreshRightPage → refreshMessagesView）
     // 功能完全重复，且位置紧贴内容区顶部，按需求隐藏。
@@ -258,9 +258,10 @@
     container.innerHTML =
       '<div class="msg-toolbar">' +
         '<div class="msg-tabs">' +
-          '<button class="msg-tab active" data-folder="inbox">收件箱</button>' +
-          '<button class="msg-tab" data-folder="starred">收藏</button>' +
-          '<button class="msg-tab" data-folder="trash">回收站</button>' +
+          '<button class="msg-tab active" data-folder="inbox"><i class="fa fa-inbox"></i> 收件箱</button>' +
+          // 收藏 tab 的星标图标与行内收藏星（.msg-star）同色，建立「☆/★ = 收藏」的视觉对应
+          '<button class="msg-tab" data-folder="starred"><i class="fa fa-star" style="color:#f5a623;"></i> 收藏</button>' +
+          '<button class="msg-tab" data-folder="trash"><i class="fa fa-trash"></i> 回收站</button>' +
           sentTab +
         '</div>' +
         '<input class="msg-search" id="msg-search" placeholder="搜索标题关键词">' +
