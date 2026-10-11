@@ -881,8 +881,9 @@ async function datamaintain_fetchAppointmenPage(query) {
               }
               ${ (userRole == "admin" && cardInfo.status=="cancelling")?
                  // adminConfirmCancelWithRule(bookingId, appointmentId)——原误传顺序错位 + false 后多一个 }
-                 `   <button class="btn btn-success" onclick='adminConfirmCancelWithRule("${cardInfo.bookingId}","${cardInfo.appointmentId}")'>确认</button>
-                     <button class="btn btn-success" onclick='confirmCancellingAppointment("${cardInfo.bookingId}","${cardInfo.appointmentId}",false)'>取消</button>
+                 // 学生发起的改期/请假申请：确认（cancelled，按提交时退费快照）与拒绝（reject）
+                 `   <button class="btn btn-success" onclick='adminConfirmCancelWithRule("${cardInfo.bookingId}","${cardInfo.appointmentId}")'>确认改期</button>
+                     <button class="btn btn-success" onclick='confirmCancellingAppointment("${cardInfo.bookingId}","${cardInfo.appointmentId}",false)'>拒绝改期</button>
                      `
                   : ` `
               }
@@ -895,8 +896,9 @@ async function datamaintain_fetchAppointmenPage(query) {
 
 
               ${ (userRole == "admin" && cardInfo.status=="t-cancelling")?
-                `   <button class="btn btn-success" onclick='teacherConfirmCancellingAppointment("${cardInfo.bookingId}","${cardInfo.appointmentId}",true)'>确认</button>
-                    <button class="btn btn-success" onclick='teacherConfirmCancellingAppointment("${cardInfo.bookingId}","${cardInfo.appointmentId}",false)'>取消</button>
+                // 教师发起的改期申请：管理员确认（t-cancelled）与拒绝（t-reject）
+                `   <button class="btn btn-success" onclick='teacherConfirmCancellingAppointment("${cardInfo.bookingId}","${cardInfo.appointmentId}",true)'>确认改期</button>
+                    <button class="btn btn-success" onclick='teacherConfirmCancellingAppointment("${cardInfo.bookingId}","${cardInfo.appointmentId}",false)'>拒绝改期</button>
                     `
                  : ` `
              }
@@ -961,8 +963,10 @@ async function datamaintain_fetchAppointmenPage(query) {
       // 整组课次的 appointmentId / bookingId（用于「改期」批量操作与下钻预览）
       const aptIds = items.map(it => it.appointmentId).filter(x => x != null && x !== '');
       const bIds   = items.map(it => it.bookingId).filter(x => x != null && x !== '');
-      const pending = items.some(it => it.status === 't-cancelling' || it.status === 'cancelling');
-      const rescheduleBtn = pending
+      // 「取消改期」仅对教师自己发起的申请（t-cancelling）成立；
+      // 学生发起的 cancelling 不属于教师可撤回的申请，教师视角仍显示「申请改期」。
+      const teacherPending = items.some(it => it.status === 't-cancelling');
+      const rescheduleBtn = teacherPending
           // bIds/aptIds 必须以 JSON 数组字面量注入 onclick——裸 bIds 是未声明标识符，点击即 ReferenceError；
           // teacherRescheduleTodayGroup 内部只消费 aptIds，首参 bookingId 形参保留未用（聚合行无单一 booking）。
           ? `<button class="btn btn-warning" onclick='teacherRescheduleTodayGroup(${JSON.stringify(bIds)},${JSON.stringify(aptIds)}, false)'>取消改期</button>`
