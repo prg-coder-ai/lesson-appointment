@@ -999,6 +999,7 @@ async function datamaintain_fetchAppointmenPage(query) {
           params:{ bookingId:bookingId } // 筛选条件通过params传递
       });
       const results =   res ;
+    //  console.log("getAppointmentsByBookingId results:",results,bookingId);
       if (Array.isArray(results)) {
           appointmentResults = results.map(item => {
             let date = "";
@@ -1051,7 +1052,12 @@ async function saveAppointment( appointdata) {
   }
 }
 async function setApointmentStatusAndReload(bookingId,appointmentId,status){
-   await operateAppointmentStatus(appointmentId,status);
+  if(operateAppointmentStatus==null){
+    console.error("operateAppointmentStatus is null, please check if courseAndBooking.js is loaded");
+    return;
+  }
+      const rt= await operateAppointmentStatus(appointmentId,status);
+     // console.log("setApointmentStatusAndReload rt:",appointmentId,status,rt);
    //loadAndShowAppointmentPage();
    // 按上下文刷新：resultBody 存在（我的预订/课程预订的详情表格）→ 刷新详情；
    // 不存在（今日课程页，模板 tpl-appointment-notes 无该元素）→ 刷新今日课程列表。
@@ -1059,8 +1065,10 @@ async function setApointmentStatusAndReload(bookingId,appointmentId,status){
    //（2026-09-28 template+clone 改造回归：getElementById('resultBody') 为 null）。
    if (document.getElementById('resultBody')) {
        viewMyReservationDetail(bookingId);
+       //("resultBody rt2:",bookingId);
    } else if (typeof loadAndShowAppointmentPage === 'function') {
        loadAndShowAppointmentPage();
+      //  console.log("loadAndShowAppointmentPage");
    }
 }
 //设置一个预约时间的状态--学生提出

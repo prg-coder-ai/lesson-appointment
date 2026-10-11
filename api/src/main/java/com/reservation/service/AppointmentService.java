@@ -336,6 +336,7 @@ log.debug(userId + role + startTime + endTime + pageNum + pageSize + status);
             String snapshot = refundRuleService.captureSnapshotJson(id);
             if (snapshot != null) {
                 current.setRefundSnapshot(snapshot);
+                current.setStatus(status); // 2026-10-11 方案 B1：快照落库时 status 已变更，需同步 current.status
                 baseMapper.updateById(current);
             }
         } catch (Exception e) {
