@@ -940,13 +940,23 @@ async function datamaintain_fetchAppointmenPage(query) {
       }
       const studentStr = names.join('、') + `（共 ${items.length} 人）`;
 
-      // 状态聚合：同一排期课次状态通常一致，若有差异并列展示
-      const statusSet = [];
+      // 状态聚合：同一排期课次状态通常一致，只显示状态；
+      // 若组内状态有差异，按状态分组并列出各状态下的学生名，以示区别。
+      const byStatus = new Map();
       for (const it of items) {
           const s = checkAppointmentStatus(it.status);
-          if (!statusSet.includes(s)) statusSet.push(s);
+          if (!byStatus.has(s)) byStatus.set(s, []);
+          const nm = it.studentName || '未知学生';
+          if (!byStatus.get(s).includes(nm)) byStatus.get(s).push(nm);
       }
-      const statusStr = statusSet.join('、');
+      let statusStr;
+      if (byStatus.size > 1) {
+          statusStr = Array.from(byStatus.entries())
+              .map(function (entry) { return entry[0] + '（' + entry[1].join('、') + '）'; })
+              .join('；');
+      } else {
+          statusStr = byStatus.keys().next().value || '';
+      }
 
       // 整组课次的 appointmentId / bookingId（用于「改期」批量操作与下钻预览）
       const aptIds = items.map(it => it.appointmentId).filter(x => x != null && x !== '');
