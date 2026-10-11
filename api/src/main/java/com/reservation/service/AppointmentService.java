@@ -9,6 +9,7 @@ import com.reservation.mapper.BookingMapper;
 
 import com.reservation.common.*;
 import com.reservation.exception.ConflictException;
+import com.reservation.exception.ResourceNotFoundException;
 import com.reservation.utils.TermMsg;
 import com.reservation.query.*;
  import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -302,6 +303,10 @@ log.debug(userId + role + startTime + endTime + pageNum + pageSize + status);
         }
     }
     int updated = baseMapper.updateStatusByBookingId(bookingId, status);
+    if (updated <= 0) {
+        // 同 updateStatusById：0 行更新显式 404，杜绝 Result.success(false) 假成功（2026-10-11）
+        throw new ResourceNotFoundException(TermMsg.t("{lesson}不存在或无权操作"));
+    }
     return updated > 0;
     }
 
@@ -315,6 +320,13 @@ log.debug(userId + role + startTime + endTime + pageNum + pageSize + status);
         throw new ConflictException(TermMsg.t("该{lesson}已开始或已结束，无法提交{leave}申请"));
     }
     int updated = baseMapper.updateStatusById(id, status);
+    if (updated <= 0) {
+        // 0 行更新 = 课次不存在或 tenant_id 不匹配（租户插件给 UPDATE 追加了 tenant_id 条件，
+        // 测试数据租户混乱时极易发生）。此前静默返回 false → Result.success(false) →
+        // HTTP 200 + 审计记 success 的"假成功"，前端与审计都无从察觉
+        //（2026-10-11「改期审计成功但列表无变化」排查定位的盲区）。显式 404 上抛。
+        throw new ResourceNotFoundException(TermMsg.t("{lesson}不存在或无权操作"));
+    }
     // 退费档位快照：申请提交（cancelling/t-cancelling）时按【提交时刻】判定并落库。
     // 管理端审核（/refund-rule/hint 与结算）读快照执行，不按确认时刻重算。
     // 快照失败不阻断申请（warn 后继续），结算侧对无快照行回落现状。
