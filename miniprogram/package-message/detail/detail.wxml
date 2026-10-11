@@ -1,6 +1,6 @@
 <view class="page">
-  <!-- 已发详情（投递状态，sender 视角） -->
-  <block wx:if="{{from === 'sent'}}">
+  <!-- 已发详情（投递状态，sender 视角）；from=manage（消息管理）同走 delivery 视图 -->
+  <block wx:if="{{from === 'sent' || from === 'manage'}}">
     <view wx:if="{{loading}}" class="tip">加载中…</view>
     <block wx:elif="{{delivery}}">
       <view class="card">

@@ -145,6 +145,8 @@
                 '<td>' + escMsgManage(time) + '</td>' +
                 '<td>' + escMsgManage(statusTxt) + '</td>' +
                 '<td>' +
+                '<button class="btn btn-sm" data-act="view" data-mid="' + escMsgManage(mid) + '" style="margin-right:6px;">' +
+                '<i class="fa fa-eye"></i> 查看</button>' +
                 '<button class="btn btn-danger btn-sm" data-act="global-delete" data-mid="' + escMsgManage(mid) + '">' +
                 '<i class="fa fa-trash"></i> 彻底删除</button>' +
                 '</td>' +
@@ -155,6 +157,50 @@
             '<div class="table-container"><table class="data-table"><thead><tr>' +
             '<th>标题</th><th>发送者</th><th>发送时间</th><th>状态</th><th>操作</th>' +
             '</tr></thead><tbody>' + trs + '</tbody></table></div>';
+
+    // 事件委托：查看（投递追踪弹窗：标题/发送者/状态/接收已读统计/正文）
+    // 接口 GET /api/v1/messages/{mid}/delivery-status（messageTrace），后端 assertManagerOrSender 把关
+    host.querySelectorAll('[data-act="view"]').forEach(function (btn) {
+            btn.addEventListener('click', async function () {
+                var mid = btn.getAttribute('data-mid');
+                var d = null;
+                try {
+                    d = await request({ url: EP.MSG_DELIVERY(mid), method: 'get' });
+                } catch (e) { return; /* 拦截器已提示（消息被删/无权限等） */ }
+
+                var container = document.getElementById('dynamic-content-center');
+                if (!container) return;
+                var root = container.querySelector('#mm-modal-root');
+                if (!root) {
+                    root = document.createElement('div');
+                    root.id = 'mm-modal-root';
+                    container.appendChild(root);
+                }
+                var senderTxt = (d && d.senderType)
+                    ? (SENDER_TEXT[d.senderType] || d.senderType) + (d.senderId ? '（' + d.senderId + '）' : '')
+                    : '—';
+                var statusTxt = (d && d.status) ? (STATUS_TEXT[d.status] || d.status) : '—';
+                var rc = d && d.recipientCount != null ? d.recipientCount : '—';
+                var rd = d && d.readCount != null ? d.readCount : '—';
+                var content = d && d.content ? escMsgManage(d.content) : '(无正文)';
+                root.innerHTML =
+                    '<div class="msg-modal-mask" id="mm-mask">' +
+                      '<div class="msg-modal">' +
+                        '<h3>' + escMsgManage((d && d.title) || '(无标题)') + '</h3>' +
+                        '<div class="row">发送者：' + escMsgManage(senderTxt) +
+                        '　|　状态：' + escMsgManage(statusTxt) + '</div>' +
+                        '<div class="row">接收人数：' + escMsgManage(rc) +
+                        '　|　已读：' + escMsgManage(rd) + '</div>' +
+                        '<div class="body">' + content + '</div>' +
+                        '<div style="display:flex;justify-content:flex-end;margin-top:16px;">' +
+                          '<button class="btn btn-gray" id="mm-detail-close">关闭</button>' +
+                        '</div>' +
+                      '</div>' +
+                    '</div>';
+                root.querySelector('#mm-mask').addEventListener('click', function (e) { if (e.target.id === 'mm-mask') root.innerHTML = ''; });
+                root.querySelector('#mm-detail-close').addEventListener('click', function () { root.innerHTML = ''; });
+            });
+    });
 
     // 事件委托：彻底删除
     host.querySelectorAll('[data-act="global-delete"]').forEach(function (btn) {
