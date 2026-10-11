@@ -142,9 +142,10 @@ public class AppointmentController {
         } catch (Exception ignore) { /* 通知失败不影响主流程 */ }
 
         // ===== 退改规则结算 =====
-        // 管理员确认请假（课次置为 cancelled）时，按「确认这一刻」的提前量重算退费档位，
-        // 并把结果交给预留的学生余额调整接口。内部已吞异常，这里再包一层双保险，
-        // 确保结算问题绝不让「确认请假」这个业务动作失败。
+        // 管理员确认请假（课次置为 cancelled）时，按【学生提交申请时刻】锁定的档位快照结算
+        // （快照在申请落库时写入 appointment.refund_snapshot，2026-10-11 时间态方案第六节）；
+        // 存量无快照行按确认时刻重算兜底。结果交给预留的学生余额调整接口。
+        // 内部已吞异常，这里再包一层双保险，确保结算问题绝不让「确认请假」这个业务动作失败。
         if (ok && isLeaveConfirmed(status)) {
             try {
                 String operatorId = null;

@@ -1,6 +1,6 @@
 -- MySQL dump 10.13  Distrib 8.4.11, for Win64 (x86_64)
 --
--- Host: 127.0.0.1    Database: lesson_appointment
+-- Host: localhost    Database: lesson_appointment
 -- ------------------------------------------------------
 -- Server version	8.4.11
 
@@ -16,6 +16,14 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
+-- Current Database: `lesson_appointment`
+--
+
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `lesson_appointment` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
+
+USE `lesson_appointment`;
+
+--
 -- Table structure for table `appointment`
 --
 
@@ -27,15 +35,16 @@ CREATE TABLE `appointment` (
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（0=平台/历史单租户数据）',
   `booking_id` varchar(36) DEFAULT NULL COMMENT '棰勭害id',
   `class_index` int DEFAULT '1' COMMENT '璇炬椂搴忓彿',
-  `appointment_datetime` datetime DEFAULT NULL COMMENT '鎺掓湡棰勭害涓?殑涓?釜璇炬椂鏃堕棿',
-  `last_datetime` datetime DEFAULT NULL COMMENT '鍙?兘淇?敼鍓嶇殑鏃ユ湡鏃堕棿',
+  `appointment_datetime` datetime DEFAULT NULL COMMENT '璇炬?鏃堕棿锛圲TC锛夆?鈥旂敱鎺掓湡鏈?湴鏃堕棿鎸?course_schedule.time_zone 鎹㈢畻鍐欏叆',
+  `last_datetime` datetime DEFAULT NULL COMMENT '鏀规湡鍓嶅師璇炬?鏃堕棿锛圲TC锛',
   `status` varchar(16) NOT NULL DEFAULT 'active' COMMENT '鏈??绾︽椂闂寸殑鐘舵?:active鐢熸晥/noted1銆?宸插彂閫氱煡/completed宸插畬鎴?宸叉敼鏈焎ancelled/鐢宠?鍙栨秷cancelling',
+  `refund_snapshot` text COMMENT '閫?垂妗ｄ綅蹇?収(JSON: snapshotAt+hint锛屽?鐢熸彁浜ょ敵璇锋椂鎸夋彁浜ゆ椂鍒诲垽瀹氾紱绠＄悊绔??鏍告寜蹇?収鎵ц?)',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_appt_booking_class` (`booking_id`,`class_index`),
   KEY `idx_tenant_id` (`tenant_id`),
   KEY `idx_appt_datetime_status` (`appointment_datetime`,`status`),
   KEY `idx_appt_booking_id` (`booking_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=413 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='棰勭害鏃堕棿鍒楄〃';
+) ENGINE=InnoDB AUTO_INCREMENT=1122 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='棰勭害鏃堕棿鍒楄〃';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -73,7 +82,107 @@ CREATE TABLE `audit_log` (
   KEY `idx_resource` (`resource_type`,`resource_id`),
   KEY `idx_created_at` (`created_at`),
   KEY `idx_tenant_id` (`tenant_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2108063220658991107 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='瀹¤?鏃ュ織琛';
+) ENGINE=InnoDB AUTO_INCREMENT=2108963165763559426 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='瀹¤?鏃ュ織琛';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `bak_appointment_20261008`
+--
+
+DROP TABLE IF EXISTS `bak_appointment_20261008`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `bak_appointment_20261008` (
+  `id` int NOT NULL AUTO_INCREMENT COMMENT '鍞?竴缂栧彿',
+  `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（0=平台/历史单租户数据）',
+  `booking_id` varchar(36) DEFAULT NULL COMMENT '棰勭害id',
+  `class_index` int DEFAULT '1' COMMENT '璇炬椂搴忓彿',
+  `appointment_datetime` datetime DEFAULT NULL COMMENT '鎺掓湡棰勭害涓?殑涓?釜璇炬椂鏃堕棿',
+  `last_datetime` datetime DEFAULT NULL COMMENT '鍙?兘淇?敼鍓嶇殑鏃ユ湡鏃堕棿',
+  `status` varchar(16) NOT NULL DEFAULT 'active' COMMENT '鏈??绾︽椂闂寸殑鐘舵?:active鐢熸晥/noted1銆?宸插彂閫氱煡/completed宸插畬鎴?宸叉敼鏈焎ancelled/鐢宠?鍙栨秷cancelling',
+  PRIMARY KEY (`id`),
+  KEY `idx_tenant_id` (`tenant_id`),
+  KEY `idx_appt_datetime_status` (`appointment_datetime`,`status`)
+) ENGINE=InnoDB AUTO_INCREMENT=412 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='棰勭害鏃堕棿鍒楄〃';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `bak_booking_20261008`
+--
+
+DROP TABLE IF EXISTS `bak_booking_20261008`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `bak_booking_20261008` (
+  `booking_id` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '棰勭害鍞?竴鏍囪瘑锛圲UID锛',
+  `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（0=平台/历史单租户数据）',
+  `schedule_id` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '鍏宠仈鐨勮?绋嬫帓鏈烮D',
+  `teacher_id` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '鍏宠仈鐨勬暀甯圛D锛堝?搴攗ser琛ㄧ殑user_id锛',
+  `student_id` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '鍏宠仈鐨勫?鐢烮D锛堝?搴攗ser琛ㄧ殑user_id锛',
+  `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'booked' COMMENT '棰勭害鐘舵?锛坆ooked锛氬凡棰勭害锛宑ancelled锛氬凡鍙栨秷锛宑ompleted锛氬凡瀹屾垚锛',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '鍒涘缓鏃堕棿',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '鏇存柊鏃堕棿'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `bak_notif_log_20261008`
+--
+
+DROP TABLE IF EXISTS `bak_notif_log_20261008`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `bak_notif_log_20261008` (
+  `id` bigint NOT NULL DEFAULT '0' COMMENT '自增主键',
+  `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（冗余，便于按租户审计）',
+  `appointment_id` int NOT NULL COMMENT '课次ID appointment.id',
+  `booking_id` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '订单ID（冗余，便于查询）',
+  `rule_id` bigint DEFAULT NULL COMMENT '发送时所用规则头ID（审计快照）',
+  `seq` tinyint NOT NULL COMMENT '本次发送的档位序号',
+  `stage` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '本次发送的档位码（审计快照）',
+  `offset_minutes` int NOT NULL COMMENT '发送时该档的提前量（审计快照，规则之后可能被改）',
+  `expect_time` datetime NOT NULL COMMENT '应发时刻 = 上课时刻 - offset_minutes',
+  `receiver_user_id` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '收件人用户ID',
+  `receiver_role` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '收件人角色（审计快照）',
+  `trigger_type` varchar(8) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'AUTO' COMMENT '触发方式 AUTO自动任务/MANUAL管理员手动',
+  `operator_id` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '手动发送时的操作管理员ID',
+  `dedup_key` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'AUTO' COMMENT '幂等键：AUTO=自动仅一次；MANUAL#时间戳=手动可重复',
+  `sent_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '实际发送时刻',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'SENT' COMMENT '发送结果 SENT/FAILED',
+  `error_msg` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '失败原因'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `bak_notification_dispatch_log_20261008`
+--
+
+DROP TABLE IF EXISTS `bak_notification_dispatch_log_20261008`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `bak_notification_dispatch_log_20261008` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '自增主键',
+  `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（冗余，便于按租户审计）',
+  `appointment_id` int NOT NULL COMMENT '课次ID appointment.id',
+  `booking_id` varchar(36) DEFAULT NULL COMMENT '订单ID（冗余，便于查询）',
+  `rule_id` bigint DEFAULT NULL COMMENT '发送时所用规则头ID（审计快照）',
+  `seq` tinyint NOT NULL COMMENT '本次发送的档位序号',
+  `stage` varchar(16) DEFAULT NULL COMMENT '本次发送的档位码（审计快照）',
+  `offset_minutes` int NOT NULL COMMENT '发送时该档的提前量（审计快照，规则之后可能被改）',
+  `expect_time` datetime NOT NULL COMMENT '应发时刻 = 上课时刻 - offset_minutes',
+  `receiver_user_id` varchar(36) NOT NULL COMMENT '收件人用户ID',
+  `receiver_role` varchar(16) DEFAULT NULL COMMENT '收件人角色（审计快照）',
+  `trigger_type` varchar(8) NOT NULL DEFAULT 'AUTO' COMMENT '触发方式 AUTO自动任务/MANUAL管理员手动',
+  `operator_id` varchar(36) DEFAULT NULL COMMENT '手动发送时的操作管理员ID',
+  `dedup_key` varchar(64) NOT NULL DEFAULT 'AUTO' COMMENT '幂等键：AUTO=自动仅一次；MANUAL#时间戳=手动可重复',
+  `sent_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '实际发送时刻',
+  `status` varchar(16) NOT NULL DEFAULT 'SENT' COMMENT '发送结果 SENT/FAILED',
+  `error_msg` varchar(255) DEFAULT NULL COMMENT '失败原因',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_dispatch_once` (`appointment_id`,`seq`,`receiver_user_id`,`dedup_key`),
+  KEY `idx_dispatch_appointment` (`appointment_id`),
+  KEY `idx_dispatch_expect` (`expect_time`)
+) ENGINE=InnoDB AUTO_INCREMENT=201 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='通知发送流水（自动发送同档同人仅一次，手动不受限）';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -360,7 +469,7 @@ CREATE TABLE `notification_dispatch_log` (
   UNIQUE KEY `uk_dispatch_once` (`appointment_id`,`seq`,`receiver_user_id`,`dedup_key`),
   KEY `idx_dispatch_appointment` (`appointment_id`),
   KEY `idx_dispatch_expect` (`expect_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=209 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='通知发送流水（自动发送同档同人仅一次，手动不受限）';
+) ENGINE=InnoDB AUTO_INCREMENT=227 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='通知发送流水（自动发送同档同人仅一次，手动不受限）';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -406,7 +515,7 @@ CREATE TABLE `sys_metric_hourly` (
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_hour` (`hour_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=190 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='绯荤粺鎸囨爣灏忔椂鑱氬悎';
+) ENGINE=InnoDB AUTO_INCREMENT=211 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='绯荤粺鎸囨爣灏忔椂鑱氬悎';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -435,7 +544,7 @@ CREATE TABLE `sys_metric_sample` (
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_sample_time` (`sample_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=11650 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='绯荤粺鎸囨爣閲囨牱鏄庣粏';
+) ENGINE=InnoDB AUTO_INCREMENT=12955 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='绯荤粺鎸囨爣閲囨牱鏄庣粏';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -622,7 +731,7 @@ CREATE TABLE `sys_user_session` (
   KEY `idx_tenant_status` (`tenant_id`,`status`),
   KEY `idx_last_active` (`last_active`),
   KEY `idx_user` (`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=156 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='鐢ㄦ埛浼氳瘽琛?紙鍦ㄧ嚎缁熻?锛';
+) ENGINE=InnoDB AUTO_INCREMENT=176 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='鐢ㄦ埛浼氳瘽琛?紙鍦ㄧ嚎缁熻?锛';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -794,16 +903,8 @@ CREATE TABLE `user_refresh_token` (
   PRIMARY KEY (`id`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_refresh_token` (`refresh_token`)
-) ENGINE=InnoDB AUTO_INCREMENT=215 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='鐢ㄦ埛鍒锋柊user_refresh_tokenToken鎸佷箙鍖栬〃';
+) ENGINE=InnoDB AUTO_INCREMENT=235 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='鐢ㄦ埛鍒锋柊user_refresh_tokenToken鎸佷箙鍖栬〃';
 /*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping events for database 'lesson_appointment'
---
-
---
--- Dumping routines for database 'lesson_appointment'
---
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -814,4 +915,4 @@ CREATE TABLE `user_refresh_token` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed
+-- Dump completed on 2026-10-11  1:09:53

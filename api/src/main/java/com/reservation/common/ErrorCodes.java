@@ -1,6 +1,7 @@
 package com.reservation.common;
 
 import com.reservation.exception.BusinessException;
+import com.reservation.exception.ConflictException;
 import com.reservation.exception.NoPermissionException;
 import com.reservation.exception.ResourceNotFoundException;
 import com.reservation.exception.UnLoginException;
@@ -18,7 +19,7 @@ import com.reservation.exception.UserNotFoundException;
  * <p><b>口径与GlobalExceptionHandler 对齐</b>：本类必须与
  * {@code GlobalExceptionHandler} 的各 {@code @ExceptionHandler} 映射保持一致
  * （Business→400、NoPermission→403、UserNotFound/ResourceNotFound→404、
- * UnLogin→401、其余→500）。两边若不一致，同一个异常在"被Controller 捕获"
+ * UnLogin→401、Conflict→409、其余→500）。两边若不一致，同一个异常在"被Controller 捕获"
  * 与"逃到 handler"两条路径下会返回不同 code —— 这正是契约分叉。
  *
  * <p><b>为何不让异常逃到 GlobalExceptionHandler</b>：那是更彻底的方案（Controller
@@ -35,7 +36,7 @@ public final class ErrorCodes {
      * 按异常类型返回 {@link Result} 错误码。
      *
      * @param e 捕获到的异常，允许为 null（视为未知 → 500）
-     * @return 200/400/401/403/404/500 之一；不会返回 null 或 0
+     * @return 200/400/401/403/404/409/500 之一；不会返回 null 或 0
      */
     public static int from(Throwable e) {
         if (e == null) {
@@ -51,6 +52,10 @@ public final class ErrorCodes {
         }
         if (e instanceof UserNotFoundException || e instanceof ResourceNotFoundException) {
             return 404;
+        }
+        // Conflict 必须在 BusinessException 之前判（两者无继承关系，此处只为语义分组清晰）
+        if (e instanceof ConflictException) {
+            return 409;
         }
         if (e instanceof BusinessException || e instanceof IllegalArgumentException) {
             return 400;

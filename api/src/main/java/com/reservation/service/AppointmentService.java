@@ -8,6 +8,8 @@ import com.reservation.dto.BookingQueryParaDTO;
 import com.reservation.mapper.BookingMapper;
 
 import com.reservation.common.*;
+import com.reservation.exception.ConflictException;
+import com.reservation.utils.TermMsg;
 import com.reservation.query.*;
  import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
@@ -33,6 +35,20 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
     private BookingMapper bookingMapper;
     @Resource
     private ReferentialCascadeService cascadeService;
+    /** 退费档位快照：申请提交（cancelling/t-cancelling）时按提交时刻判定并落库（2026-10-11 方案 B1） */
+    @Resource
+    private RefundRuleService refundRuleService;
+
+    /**
+     * 写路径时间态闸的受控状态：申请请假/改期（cancelling / t-cancelling）与撤回（active）。
+     * 课次一旦开始（now ≥ appointment_datetime，UTC），这三类变更一律 409 拒绝；
+     * 管理员确认类状态（cancelled/reject/t-cancelled 等）不拦——管理员保留「课后补处理」特权。
+     */
+    private static boolean isTimeGateStatus(String status) {
+        return "cancelling".equalsIgnoreCase(status)
+                || "t-cancelling".equalsIgnoreCase(status)
+                || "active".equalsIgnoreCase(status);
+    }
 
     // 批量插入Appointment对象到数据库
     @Transactional(rollbackFor = Exception.class)
@@ -274,13 +290,46 @@ log.debug(userId + role + startTime + endTime + pageNum + pageSize + status);
     public boolean updateStatusByBookingId(String bookingId,String status){
 
     // 调用 AppointmentMapper 的 updateStatusByBookingId 方法
+    // 时间态闸（2026-10-11 方案 B1）：受控状态（申请/撤回）下，任一课次已开始即整批 409，
+    // 避免逐条半成功。管理员确认类状态不拦（课后补处理特权）。
+    if (isTimeGateStatus(status)) {
+        List<Appointment> appts = lambdaQuery().eq(Appointment::getBookingId, bookingId).list();
+        for (Appointment a : appts) {
+            if (a != null && TimePhaseService.hasStarted(a.getAppointmentDatetime(),
+                    ScheduleGenerator.nowUtc())) {
+                throw new ConflictException(TermMsg.t("课程已开始，无法批量变更{lesson}状态"));
+            }
+        }
+    }
     int updated = baseMapper.updateStatusByBookingId(bookingId, status);
     return updated > 0;
     }
 
       @Transactional
-    public boolean updateStatusById(Integer id,String status){ 
+    public boolean updateStatusById(Integer id,String status){
+    // 时间态闸（2026-10-11 方案 B1）：课次已开始/已结束，禁止申请请假/改期与撤回（409）。
+    // 管理员确认类状态（cancelled/reject/t-cancelled/completed 等）不拦——课后补处理特权。
+    Appointment current = baseMapper.selectById(id);
+    if (current != null && isTimeGateStatus(status)
+            && TimePhaseService.hasStarted(current.getAppointmentDatetime(), ScheduleGenerator.nowUtc())) {
+        throw new ConflictException(TermMsg.t("该{lesson}已开始或已结束，无法提交{leave}申请"));
+    }
     int updated = baseMapper.updateStatusById(id, status);
+    // 退费档位快照：申请提交（cancelling/t-cancelling）时按【提交时刻】判定并落库。
+    // 管理端审核（/refund-rule/hint 与结算）读快照执行，不按确认时刻重算。
+    // 快照失败不阻断申请（warn 后继续），结算侧对无快照行回落现状。
+    if (updated > 0 && current != null
+            && ("cancelling".equalsIgnoreCase(status) || "t-cancelling".equalsIgnoreCase(status))) {
+        try {
+            String snapshot = refundRuleService.captureSnapshotJson(id);
+            if (snapshot != null) {
+                current.setRefundSnapshot(snapshot);
+                baseMapper.updateById(current);
+            }
+        } catch (Exception e) {
+            log.warn("退费档位快照落库失败, appointmentId={}, 原因={}", id, e.getMessage());
+        }
+    }
     return updated > 0;
     }
 

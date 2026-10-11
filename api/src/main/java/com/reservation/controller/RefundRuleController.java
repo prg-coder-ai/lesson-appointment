@@ -76,8 +76,13 @@ public class RefundRuleController {
     /**
      * 按课次计算退改提示。
      *
-     * <p>学生提交请假前、管理员审核确认请假前都调这个接口，
-     * 保证两端看到同一份判定与文案。
+     * <p>学生提交请假前、管理员审核确认请假前都调这个接口。
+     * 口径（2026-10-11 时间态方案第六节）：
+     * <ul>
+     *   <li>申请尚未提交（无快照）：按「当前时刻」判定——学生提交前看到的提示；</li>
+     *   <li>申请已提交（有快照）：返回学生提交时刻锁定的档位快照——
+     *       管理员审核按该档位执行，<b>不按确认时刻重算</b>。</li>
+     * </ul>
      *
      * @param appointmentId 课次ID（appointment.id），优先使用
      * @param scheduleId    排期ID，课次记录尚不存在时的兜底（配合 lessonTime）
@@ -91,7 +96,8 @@ public class RefundRuleController {
         // 仅要求登录（学生/教师/管理员都要看得到提示），不做管理员限制
         permissionCheck.getRoleFromToken(token);
         if (appointmentId != null) {
-            return Result.success(refundRuleService.hintByAppointment(appointmentId), "查询成功");
+            // 有快照（申请已提交）返回快照档位；无快照（提交前预览/存量）按当前时刻判定
+            return Result.success(refundRuleService.hintByAppointmentForReview(appointmentId), "查询成功");
         }
         if (scheduleId != null && !scheduleId.isBlank()) {
             return Result.success(refundRuleService.hintBySchedule(scheduleId, lessonTime), "查询成功");

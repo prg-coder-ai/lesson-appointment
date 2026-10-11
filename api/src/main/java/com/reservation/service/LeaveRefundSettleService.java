@@ -16,14 +16,17 @@ import org.springframework.stereotype.Service;
  *
  * <p>把三件事串起来，让控制器保持轻薄：
  * <ol>
- *   <li>{@link RefundRuleService} 按课次时间算出应退档位（免责 / 部分退费 / 不退费）；</li>
+ *   <li>{@link RefundRuleService} 给出应退档位（免责 / 部分退费 / 不退费）；</li>
  *   <li>{@link StudentBalanceService} 按该档位登记余额调整（当前为预留实现，不入账）；</li>
  *   <li>全过程只记日志，<b>不抛异常</b>——结算出错不该让「确认请假」这个业务动作失败。</li>
  * </ol>
  *
- * <p>为什么要在"确认"这一刻重新算一次，而不是沿用学生申请时的判定：
- * 学生提交申请到管理员确认之间可能隔了很久，甚至跨越了免责线，
- * <b>以管理员确认时刻的提前量为准</b>才符合「提前多久免责」的业务语义。
+ * <p><b>档位时间基准（2026-10-11 时间态处理方案 第六节，用户拍板）</b>：
+ * 按<b>学生提交申请时刻</b>的提前量判定——申请提交时档位快照已落库
+ * （{@code appointment.refund_snapshot}），审核结算读快照执行，
+ * <b>不按管理员确认时刻重算</b>。管理端拖延不应让学生档位恶化，
+ * 学生也不能靠撤回重提刷新提前量（双向锁定）。
+ * 存量无快照行：按确认时刻重算（旧行为兜底），日志注明。
  */
 @Service
 public class LeaveRefundSettleService {
@@ -48,7 +51,8 @@ public class LeaveRefundSettleService {
      */
     public RefundHintVO settleAfterLeaveConfirmed(Integer appointmentId, String operatorId) {
         try {
-            RefundHintVO hint = refundRuleService.hintByAppointment(appointmentId);
+            // 有快照 → 学生提交时刻锁定的档位；无快照（存量）→ 确认时刻重算（旧行为兜底）
+            RefundHintVO hint = refundRuleService.hintByAppointmentForReview(appointmentId);
             if (hint == null) {
                 return null;
             }

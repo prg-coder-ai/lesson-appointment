@@ -417,7 +417,7 @@ async function datamaintain_fetchAppointmenPage(query) {
      const hint = await fetchRefundHintForAppointment(appointmentId);
      const ok = await showRefundRuleDialog(hint, {
        title: '审核确认前请核对退费档位',
-       intro: '确认后该课次将被取消，并按下列档位登记退费。档位按「此刻」的提前量重新计算，可能与学生申请时不同。',
+       intro: '确认后该课次将被取消，并按下列档位登记退费。档位按学生提交申请时的提前量锁定执行，不随审核时间变化。',
        confirmText: '确认取消'
      });
      if (!ok) return;

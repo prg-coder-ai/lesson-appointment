@@ -1,10 +1,13 @@
 package com.reservation.service;
 
 import com.reservation.common.*;
+import com.reservation.entity.Appointment;
+import com.reservation.entity.CourseSchedule;
 import com.reservation.entity.Booking;
 import com.reservation.dto.BookingDTO;
 import com.reservation.dto.BookingQueryParaDTO;
 import com.reservation.exception.BusinessException;
+import com.reservation.exception.ConflictException;
 import com.reservation.utils.TermMsg;
 import com.reservation.query.BookingQueryPage;
 
@@ -61,6 +64,27 @@ public class BookingService {
         // （总席位没超额，但其他学生白白少一位）。排期锁让后到的请求能看到先到者写入的行。
         String scheduleId = booking.getScheduleId();
         bookingSeatService.lockScheduleAndAssertExists(scheduleId);
+
+        // 时间态闸（2026-10-11 方案 B1）：排期首课次已开始的排期不受理新预订。
+        // 学生端列表过滤是体验层，这里才是写入闸门；墙钟→UTC 只经 ScheduleGenerator 单点。
+        CourseSchedule scheduleForGate = courseScheduleService.selectById(scheduleId);
+        if (scheduleForGate != null && scheduleForGate.getStartTime() != null) {
+            try {
+                java.time.LocalDateTime firstLessonLocal = java.time.LocalDateTime.parse(
+                        scheduleForGate.getStartTime().trim().substring(0, 16),
+                        java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+                java.time.LocalDateTime firstLessonUtc = ScheduleGenerator.scheduleLocalToUtc(
+                        firstLessonLocal, scheduleForGate.getTimeZone());
+                if (TimePhaseService.hasStarted(firstLessonUtc, ScheduleGenerator.nowUtc())) {
+                    throw new ConflictException(TermMsg.t("该{schedule}已开始，无法预订"));
+                }
+            } catch (ConflictException e) {
+                throw e;
+            } catch (Exception e) {
+                // 首课次时间解析/换算失败：不拦（与 TimePhaseService 的 null 语义一致，宁放行不误伤）
+                log.warn("预订创建闸读取首课次时间失败, scheduleId={}, 原因={}", scheduleId, e.getMessage());
+            }
+        }
 
         // 同一学生同一排期只应占一个席位。
         Booking existing = bookingMapper.selectLatestByScheduleAndStudent(scheduleId, booking.getStudentId());
@@ -172,6 +196,18 @@ public class BookingService {
           Booking current = bookingMapper.selectById(id);
           if (current == null) {
               throw new BusinessException("预订记录不存在");
+          }
+
+          // 时间态闸（2026-10-11 方案 B1）：booked 预订只要存在已开始（进行中或已结束）的课次，
+          // 就不允许整单取消——已开始的部分只能走课次级请假/改期，管理员确认类转换不拦。
+          if (BookingStatus.isBooked(current.getStatus()) && BookingStatus.CANCELLING.equals(status)) {
+              List<Appointment> appts = appointmentService.getByBookingId(id);
+              boolean anyStarted = appts != null && appts.stream().anyMatch(a ->
+                      a != null && TimePhaseService.hasStarted(a.getAppointmentDatetime(),
+                              ScheduleGenerator.nowUtc()));
+              if (anyStarted) {
+                  throw new ConflictException(TermMsg.t("课程已开始，无法取消预订；单次{lesson}请使用{leave}"));
+              }
           }
 
           // 候补转正统一走 promoteWaitlist（席位校验 + CAS + 生成课次 + 后续通知），

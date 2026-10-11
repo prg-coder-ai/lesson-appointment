@@ -56,6 +56,13 @@ import java.time.LocalDateTime;
      
     @NotBlank(message = "预约状态不能为空")
     private String status;  //'预约状态（active生效/noted已发通知1/2/cancelled/s-cancelling/t-cancelling/completed已完成（自动移到历史库中，实时库中删除，降低数据量）/已改期changed'、',
+    /**
+     * 退费档位快照（JSON）：学生提交请假/改期申请（cancelling/t-cancelling）时，
+     * 按【提交时刻】的提前量判定档位并落库；管理端审核确认按快照执行，
+     * 不按确认时刻重算（2026-10-11 时间态处理方案 第六节）。
+     * 结构：{"snapshotAt":"yyyy-MM-dd HH:mm:ss"(UTC),"hint":{...RefundHintVO}}；存量行为 NULL。
+     */
+    private String refundSnapshot;
    // private LocalDateTime createTime;  // 订单创建时间
   //  private LocalDateTime updateTime;  // 更新时间'
 }

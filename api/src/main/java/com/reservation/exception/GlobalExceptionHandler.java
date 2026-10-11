@@ -70,6 +70,14 @@ public class GlobalExceptionHandler {
         return Result.fail(400, e.getMessage());  // 400-业务异常（对应设计2.1）
     }
 
+    // 状态冲突（409）：请求合法但与资源当前状态矛盾——
+    // 典型如「课程已开始，无法取消预订」「课次进行中，无法请假」（时间态闸，2026-10-11 方案 B1）。
+    // 须与 common/ErrorCodes 的映射表保持一致（Conflict → 409），避免两条出口 code 分叉。
+    @ExceptionHandler(ConflictException.class)
+    public Result<Void> handleConflictException(ConflictException e) {
+        return Result.fail(409, e.getMessage());
+    }
+
     // 资源不存在（404）。
     //
     // 补于 2026-10-09（第6 批契约治理）：此前 ResourceNotFoundException / UserNotFoundException

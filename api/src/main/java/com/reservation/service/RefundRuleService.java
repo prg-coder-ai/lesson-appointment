@@ -273,6 +273,66 @@ public class RefundRuleService {
     // 二、规则求值 / 提示
     // ========================================================================
 
+    /** 退费档位快照的 JSON 结构（2026-10-11 时间态方案第六节）：提交时刻 + 当时的完整判定 */
+    public static class RefundSnapshot {
+        /** 快照生成时刻（UTC，yyyy-MM-dd HH:mm:ss）＝学生提交申请的时刻 */
+        public String snapshotAt;
+        /** 提交时刻的完整档位判定 */
+        public RefundHintVO hint;
+    }
+
+    /** 快照序列化器：VO/DTO 均为简单 POJO，可安全全局共享 */
+    private static final com.fasterxml.jackson.databind.ObjectMapper SNAPSHOT_MAPPER =
+            new com.fasterxml.jackson.databind.ObjectMapper();
+
+    /**
+     * 学生提交请假/改期申请时调用：按【当前时刻】判定档位并序列化为快照 JSON。
+     *
+     * <p>调用点在申请落库的同一事务里；解析/序列化失败返回 null（由调用方决定降级），
+     * 绝不因快照问题阻断申请主流程。
+     */
+    public String captureSnapshotJson(Integer appointmentId) {
+        try {
+            RefundHintVO hint = hintByAppointment(appointmentId);
+            if (hint == null) {
+                return null;
+            }
+            RefundSnapshot snap = new RefundSnapshot();
+            snap.snapshotAt = ScheduleGenerator.nowUtc().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            snap.hint = hint;
+            return SNAPSHOT_MAPPER.writeValueAsString(snap);
+        } catch (Exception e) {
+            log.warn("退费档位快照生成失败, appointmentId={}, 原因={}", appointmentId, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 审核视角的档位查询：有快照（申请已提交）返回提交时刻锁定的档位；
+     * 无快照（学生提交前预览、存量数据）回落到按「当前时刻」判定的 hintByAppointment。
+     */
+    public RefundHintVO hintByAppointmentForReview(Integer appointmentId) {
+        if (appointmentId == null) {
+            throw new BusinessException("课次ID不能为空");
+        }
+        Appointment appointment = appointmentMapper.selectById(appointmentId);
+        if (appointment != null && appointment.getRefundSnapshot() != null
+                && !appointment.getRefundSnapshot().isBlank()) {
+            try {
+                RefundSnapshot snap = SNAPSHOT_MAPPER.readValue(appointment.getRefundSnapshot(), RefundSnapshot.class);
+                if (snap != null && snap.hint != null) {
+                    RefundHintVO vo = snap.hint;
+                    vo.setMessage((vo.getMessage() == null ? "" : vo.getMessage() + " ")
+                            + "（本档位按学生提交申请时（" + snap.snapshotAt + " UTC）的提前量锁定，审核按该档位执行）");
+                    return vo;
+                }
+            } catch (Exception e) {
+                log.warn("退费快照解析失败, appointmentId={}, 按当前时刻重算兜底", appointmentId, e);
+            }
+        }
+        return hintByAppointment(appointmentId);
+    }
+
     /**
      * 按课次ID给出退改规则提示。学生端、管理端审核都用这一个入口。
      *
