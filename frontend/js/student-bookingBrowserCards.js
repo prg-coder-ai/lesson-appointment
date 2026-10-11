@@ -368,7 +368,10 @@ function getAppointmentStatusLabel(status) {
 }
 function renderResult(dateTimeList) {
     const body = document.getElementById('resultBody');
-    body.innerHTML = ''; 
+    // 判空兜底：本函数被「今日课程」等上下文经 setApointmentStatusAndReload 联动调用，
+    // 而该视图模板（tpl-appointment-notes）不含 resultBody —— 直接 return，由调用方分流刷新列表。
+    if (!body) return;
+    body.innerHTML = '';
     // 不同状态对应的提示（getAppointmentStatusLabel 已上浮为模块级函数，见上方定义）
     //TBD：比较时间与当前时间，对于过去时间，2天内的，不允许延期、视为已完成
     if(dateTimeList!= null ) {
@@ -434,6 +437,8 @@ function renderResult(dateTimeList) {
  // 渲染日历
  function renderCalendar(dateTimeList) {
         const cal = document.getElementById('calendar');
+        // 判空兜底：同 renderResult —— 今日课程等上下文无 #calendar 容器，静默跳过
+        if (!cal) return;
         cal.innerHTML = '';
         if(scheduleResult == null )
             return;

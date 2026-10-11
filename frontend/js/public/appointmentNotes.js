@@ -1052,8 +1052,16 @@ async function saveAppointment( appointdata) {
 }
 async function setApointmentStatusAndReload(bookingId,appointmentId,status){
    await operateAppointmentStatus(appointmentId,status);
-  //loadAndShowAppointmentPage();
-  viewMyReservationDetail(bookingId);
+   //loadAndShowAppointmentPage();
+   // 按上下文刷新：resultBody 存在（我的预订/课程预订的详情表格）→ 刷新详情；
+   // 不存在（今日课程页，模板 tpl-appointment-notes 无该元素）→ 刷新今日课程列表。
+   // 直接调 viewMyReservationDetail 会在今日课程上下文里渲染到 null 容器崩溃
+   //（2026-09-28 template+clone 改造回归：getElementById('resultBody') 为 null）。
+   if (document.getElementById('resultBody')) {
+       viewMyReservationDetail(bookingId);
+   } else if (typeof loadAndShowAppointmentPage === 'function') {
+       loadAndShowAppointmentPage();
+   }
 }
 //设置一个预约时间的状态--学生提出
 async function cancellingAppointment(bookingId,appointmentId,bCancelling){
