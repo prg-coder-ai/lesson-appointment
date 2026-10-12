@@ -69,9 +69,15 @@ async function loadTeacherInfo(teacherId) {
     enrichOriginalDataFull(currentTeacherId);
   } catch (e) {
     // 后端对「该教师还没有职业信息」返回 Result.fail(404, "职业信息不存在")，
-    // 这是预期业务态而非异常：直接加载编辑/新增界面，让管理员补录职业信息
-    const msg = (e && e.message) || '';
-    const code = e && e.code;
+    // 这是预期业务态而非异常：直接加载编辑/新增界面，让管理员补录职业信息。
+    // 两种链路都要识别（2026-10-10 29-b 方案 A 后业务 404 走真实 HTTP 状态）：
+    // ① HTTP 404 链路（现行）：拦截器 reject 原始 axios error——e.message 是英文
+    //    "Request failed with status code 404"、e.code 为 undefined，真实文案在
+    //    e.bodyMsg（body.message/msg 优先，见 utility_request.js ④ 号分支）；
+    // ② HTTP 200 + body.code=404 旧链路（兜底兼容）：e.code === 404。
+    const code = (e && e.code) || (e && e.response && e.response.data && e.response.data.code);
+    const bodyMsg = (e && e.bodyMsg) || '';
+    const msg = bodyMsg || (e && e.message) || '';
     if (code === 404 || msg.indexOf('职业信息不存在') !== -1) {
       await enterAddMode(teacherId);
       return;
