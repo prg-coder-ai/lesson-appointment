@@ -37,7 +37,9 @@
     priority: function (code) { return MD.priorityText ? MD.priorityText(code) : (code || ''); },
     priorityCode: function (code) { return MD.priorityCode ? MD.priorityCode(code) : (code || ''); },
     category: function (code, name) { return MD.categoryText ? MD.categoryText(code, name) : (name || code || ''); },
-    senderType: function (type) { return MD.senderTypeText ? MD.senderTypeText(type) : (type || ''); }
+    senderType: function (type) { return MD.senderTypeText ? MD.senderTypeText(type) : (type || ''); },
+    // 消息状态（已发送/已收回/部分收回）：含历史值 withdrawn 的归一，见 shared/domain/message.js
+    msgStatus: function (st) { return MD.messageStatusText ? MD.messageStatusText(st) : (st || ''); }
   };
 
   const esc = (typeof window.escapeHtml === 'function')
@@ -460,7 +462,8 @@
     const rc = Number(m.recipientCount) || 0;
     const rd = Number(m.readCount) || 0;
     const recallable = !!m.recallable;
-    const statusTxt = m.status === 'recalled' ? '已收回' : (m.status === 'partial_recalled' ? '部分收回' : '已发送');
+    // 状态文案走共享域（含历史值 withdrawn → 已收回）；空值兜底「已发送」与既有行为一致
+    const statusTxt = mText.msgStatus(m.status) || '已发送';
     return '' +
       '<div class="msg-item" data-mid="' + mid + '">' +
         '<span class="msg-dot" style="visibility:hidden;"></span>' +
@@ -775,6 +778,29 @@
     if (!alive()) return;
     renderRecipients(root);
   }
+
+  /**
+   * 供其他管理页复用：注入消息中心样式（.msg-tabs/.msg-modal/.rec-* 等）。幂等，重复调用无副作用。
+   * 消息管理页（admin-messageManage.js）复用 .rec-* / .msg-modal 与 tab 样式，但它未必经过
+   * renderMessagesPage/initMessageBadge，故在此显式导出，避免"样式没注入"这类难查的视觉缺陷。
+   */
+  window.ensureMessageCenterStyle = ensureStyle;
+
+  /**
+   * 供其他管理页复用「接收人明细」区块（当前唯一外部使用方：消息管理详情 admin-messageManage.js）。
+   *
+   * 契约：目标容器（root）内必须存在挂载点 `<div class="rec-box" id="msg-recipients"></div>`；
+   * 本模块按 **id** 取挂载点、不区分页面，故同屏只能有一个该区块（消息管理弹层与「已发」详情弹层
+   * 分别属于不同菜单/页面，不会同时出现）。
+   *
+   * 复用而非重写的原因：接收人明细 = 明细分页 + 未读优先 + 两段式补姓名/账号 + 加载更多，
+   * 重写一份必然与这里漂移；本模块的 recState 是单例，pageNum=1 时整体重置，按消息切换不会串数据。
+   */
+  window.mountMessageRecipients = function (root, mid) {
+    if (!root || !mid) return;
+    ensureStyle(); // 保证 .rec-* / .msg-modal 样式已注入（消息管理页未必渲染过收件箱）
+    loadRecipients(root, mid, 1); // 不 await：明细独立加载，不拖住详情主体
+  };
 
   async function recallMessage(container, mid) {
     if (!confirm('确定收回该消息？仅对「接收方均未读」的消息可收回。')) return;

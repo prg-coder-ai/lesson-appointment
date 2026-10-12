@@ -37,3 +37,6 @@
 .rec-time { flex: none; font-size: 22rpx; color: #aaa; }
 .rec-more { text-align: center; font-size: 24rpx; color: #1890ff; padding: 16rpx 0 4rpx; }
 .rec-empty { text-align: center; font-size: 24rpx; color: #aaa; padding: 24rpx 0; }
+
+/* 接收台账：只看未读切换 */
+.rec-toggle { margin-left: auto; font-size: 24rpx; color: #1890ff; padding: 4rpx 12rpx; }

@@ -164,6 +164,12 @@ public final class AuthzRules {
         r.add(new Rule(HttpMethod.POST, "/api/v1/notify-rule/manual-send", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/notify-rule/dispatch-log", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
 
+        // 接收台账（平台方消息 → 本租户用户，接收方视角）：管理端「消息管理 → 接收台账」。
+        // 数据跨 schema 只读聚合，租户作用域在 MessageLedgerService 内强制：
+        // 租户管理员恒为本租户（入参 tenantId 被忽略），平台管理员可指定租户或看全平台。
+        r.add(new Rule(HttpMethod.GET, "/api/v1/msg-ledger/inbound", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin 接收台账列表"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/msg-ledger/inbound/{messageId}/recipients", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin 接收人明细"));
+
         r.add(new Rule(HttpMethod.GET, "/api/v1/package/template/{id}", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/package/template/page", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/package/template/list", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));

@@ -265,6 +265,20 @@ const ENDPOINTS = {
   },
   // 接收人 scope 解析：在 api 主模块（/api/v1/user/... 单数，不匹配 message-service 正则，走 apiBase 8081）
   MSG_RECIPIENTS: '/api/v1/user/message-recipients',
+  // —— 接收台账：平台方发出的消息 → 本租户用户（接收方视角；api 主模块跨 schema 只读聚合）——
+  // 为什么不放 message-service：msg_message / msg_delivery / msg_inbox 三张表的 tenant_id 记的都是
+  // 「发送方租户」，**没有任何一列是「接收方租户」**；接收人归属只存在于主库 user.tenant_id。
+  // 故该视图由主系统提供（见 MessageLedgerService 类注释），前端必须走 apiBase(8081)。
+  // 权限：checkAdmin（平台管理员 + 租户管理员）；租户管理员恒为本租户，tenantId 入参对其无效。
+  MSG_LEDGER_INBOUND: '/api/v1/msg-ledger/inbound',
+  // 某条平台方消息在**本租户**的接收人明细（姓名/账号/已读状态，未读优先）
+  MSG_LEDGER_RECIPIENTS: (mid, qs) => {
+    const base = `/api/v1/msg-ledger/inbound/${encodeURIComponent(mid)}/recipients`;
+    if (!qs) return base;
+    const s = Object.keys(qs).filter(k => qs[k] !== undefined && qs[k] !== null && qs[k] !== '')
+      .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(qs[k])).join('&');
+    return s ? base + '?' + s : base;
+  },
   SENSITIVE_TEST: '/api/v1/sensitive/test',
   // 敏感词组/词的按 id 操作，以及手动刷新词库缓存（message-service）
   SENSITIVE_GROUP_BY_ID: (id) => `/api/v1/sensitive/groups/${encodeURIComponent(id)}`,
@@ -1431,6 +1445,30 @@ function senderTypeText(type) {
   return SENDER_TYPE_TEXT[type] || String(type);
 }
 
+/* ==================== 消息状态（发送台账：「已发」/「消息管理」列表与详情用） ==================== */
+
+/**
+ * 消息状态编码 → 文案（msg_message.status）。
+ *
+ * `withdrawn` 是**历史值**，与 `recalled` 同义（都是「已收回」）：
+ *   · 建表注释里声明的词汇表是 `sent/withdrawn`（原文「已撤回」，注释本身已被 GBK 误读成乱码）；
+ *   · 而代码从第一版提交起只写 `sent`/`recalled`/`partial_recalled`（全历史 .java 中 grep `withdrawn` 命中 0）；
+ *   · 库里现存 3 行 `withdrawn` 均为 2026-09-05 的早期数据（send_time = update_time，从未执行过撤回动作）。
+ * 故此处按「同义别名」归一，而不是当脏数据丢弃 —— 界面上必须给出中文，不能漏出裸英文。
+ */
+const MESSAGE_STATUS_TEXT = {
+  sent: '已发送',
+  recalled: '已收回',
+  partial_recalled: '部分收回',
+  withdrawn: '已收回',
+};
+
+/** 消息状态编码 → 文案；未知编码原样透出，便于发现新增档位 */
+function messageStatusText(status) {
+  if (!status) return '';
+  return MESSAGE_STATUS_TEXT[status] || String(status);
+}
+
 /* ==================== 投递 / 接收人状态（「已发」详情的接收人列表用） ==================== */
 
 /** 投递状态编码 → 文案（msg_delivery.delivery_status） */
@@ -1882,6 +1920,7 @@ window.ErrorCodeDomain = {
 window.MessageDomain = {
   PRIORITY_TEXT: PRIORITY_TEXT,
   SENDER_TYPE_TEXT: SENDER_TYPE_TEXT,
+  MESSAGE_STATUS_TEXT: MESSAGE_STATUS_TEXT,
   DELIVERY_STATUS_TEXT: DELIVERY_STATUS_TEXT,
   setCategoryDict: setCategoryDict,
   getCategoryDict: getCategoryDict,
@@ -1891,6 +1930,7 @@ window.MessageDomain = {
   priorityCode: priorityCode,
   priorityText: priorityText,
   senderTypeText: senderTypeText,
+  messageStatusText: messageStatusText,
   deliveryStatusText: deliveryStatusText,
   recipientStateText: recipientStateText,
   setTenantDict: setTenantDict,

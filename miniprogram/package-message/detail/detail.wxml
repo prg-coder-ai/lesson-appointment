@@ -1,6 +1,6 @@
 <view class="page">
-  <!-- 已发详情（投递状态，sender 视角）；from=manage（消息管理）同走 delivery 视图 -->
-  <block wx:if="{{from === 'sent' || from === 'manage'}}">
+  <!-- 已发详情（投递状态，sender 视角）；from=manage（消息管理）/ from=ledger（接收台账）同走 delivery 视图 -->
+  <block wx:if="{{from === 'sent' || from === 'manage' || from === 'ledger'}}">
     <view wx:if="{{loading}}" class="tip">加载中…</view>
     <block wx:elif="{{delivery}}">
       <view class="card">
@@ -8,6 +8,12 @@
         <view class="meta">
           <text class="tag">接收 {{delivery.recipientCount}} 人</text>
           <text class="tag warn">已读 {{delivery.readCount}} 人</text>
+          <text wx:if="{{from === 'ledger'}}" class="tag">{{delivery.statusText}}</text>
+          <text wx:if="{{from === 'ledger'}}" class="time">{{delivery.time}}</text>
+        </view>
+        <!-- 接收台账：平台方发来的消息，发送者另列一行（接收方视角更关心"谁发的"） -->
+        <view wx:if="{{from === 'ledger'}}" class="sender">
+          <view>发送者：{{delivery.senderLabel}}</view>
         </view>
       </view>
       <view class="card body">
@@ -16,7 +22,11 @@
       <!-- 接收人明细（分页，触底加载更多）：谁收到 / 谁已读 / 何时读。
            状态文案与样式类由 detail.js 的 toRecRow 算好（WXML 绑定禁止函数调用）。 -->
       <view class="card">
-        <view class="rec-head">接收人（{{recTotal}}）<text class="rec-tip">未读优先</text></view>
+        <view class="rec-head">接收人（{{recTotal}}）
+          <text class="rec-tip">未读优先</text>
+          <!-- 接收台账：只看未读（台账最关心"谁还没看"），点击按钮切换后回第一页重取 -->
+          <text wx:if="{{from === 'ledger'}}" class="rec-toggle" bindtap="onToggleLedgerRead">{{ledgerOnlyUnread ? '显示全部' : '只看未读'}}</text>
+        </view>
         <view wx:if="{{!recipients.length}}" class="rec-empty">{{recLoading ? '加载中…' : '暂无接收人记录'}}</view>
         <block wx:else>
           <view class="rec-row" wx:for="{{recipients}}" wx:key="userId">
@@ -31,6 +41,7 @@
       <view wx:if="{{from === 'manage'}}" class="actions">
         <button class="btn btn-del" bindtap="onManageDelete">彻底删除（永久）</button>
       </view>
+      <view wx:elif="{{from === 'ledger'}}" class="hint">接收台账为只读视图；撤回 / 删除由发送方（平台）操作。</view>
       <view wx:else class="hint">撤回 / 彻底删除请在「已发」列表页操作。</view>
     </block>
     <view wx:else class="tip">消息不存在或已删除</view>

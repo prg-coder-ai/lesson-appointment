@@ -9,7 +9,7 @@ import { ENDPOINTS } from '../shared/apiPaths.js';
 import {
   categoryText, priorityCode, priorityText, senderTypeText,
   setCategoryDict, getCategoryDict, categoryListFromTree, collectCategoryCodes,
-  deliveryStatusText, recipientStateText,
+  messageStatusText, deliveryStatusText, recipientStateText,
   setTenantDict, getTenantDict, tenantText
 } from '../shared/domain/message.js';
 
@@ -98,7 +98,7 @@ export function isManager(role) {
 export {
   categoryText, priorityCode, priorityText, senderTypeText,
   setCategoryDict, getCategoryDict, categoryListFromTree, collectCategoryCodes,
-  deliveryStatusText, recipientStateText,
+  messageStatusText, deliveryStatusText, recipientStateText,
   setTenantDict, getTenantDict, tenantText
 };
 
@@ -176,7 +176,7 @@ export function toSentItem(m) {
   return {
     id: m.messageId,
     title: m.title || '(无标题)',
-    preview: m.status === 'recalled' ? '已收回' : (m.status === 'partial_recalled' ? '部分收回' : '已发送'),
+    preview: messageStatusText(m.status) || '已发送',
     time: fmtTime(m.sendTime || m.createTime),
     categoryCode: m.categoryCode || '',
     categoryName: m.categoryName || '',
@@ -216,6 +216,40 @@ export async function getMessageList({ status, senderType, pageNum = 1, pageSize
   return request({ url: ENDPOINTS.MSG_LIST, method: 'GET', params, customErrorMsg: false });
 }
 
+// —— 接收台账（平台方发出的消息 → 本租户用户，**接收方视角**）——
+// 数据源在主系统 api(8081)：消息库三张表的 tenant_id 都是「发送方租户」，没有「接收方租户」列，
+// 接收人归属只在主库 user.tenant_id，故该视图由主系统跨 schema 只读聚合（见 MessageLedgerService）。
+// 走 apiBase 由 core/request.js 的正则决定（/api/v1/msg-ledger 不匹配 message-service 前缀）→ 自动打 8081。
+export async function getLedgerInbound({ messageId, readState, pageNum = 1, pageSize = 15 } = {}) {
+  const params = { pageNum, pageSize };
+  if (messageId) params.messageId = messageId;   // 传 messageId = 取单条（详情页消息头复用同一端点）
+  if (readState) params.readState = readState;
+  return request({ url: ENDPOINTS.MSG_LEDGER_INBOUND, method: 'GET', params, customErrorMsg: false });
+}
+
+/** 某条平台方消息在**本租户**的接收人明细（姓名/账号/已读，未读优先）；行自带姓名账号，无需再补 briefs */
+export async function getLedgerRecipients(mid, { readState, pageNum = 1, pageSize = 20 } = {}) {
+  return request({ url: ENDPOINTS.MSG_LEDGER_RECIPIENTS(mid, { pageNum, pageSize, readState }), method: 'GET', customErrorMsg: false });
+}
+
+/** 接收台账列表项 → 视图模型（本租户接收/已读人数；unreadCount 是"还有几个人没看"） */
+export function toLedgerItem(m) {
+  const rc = Number(m.recipientCount) || 0;
+  const rd = Number(m.readCount) || 0;
+  return {
+    id: m.messageId,
+    title: m.title || '(无标题)',
+    sender: (senderTypeText(m.senderType) || '') +
+      (m.senderId != null && m.senderId !== '' ? '（' + m.senderId + '）' : ''),
+    time: fmtTime(m.sendTime),
+    statusText: messageStatusText(m.status) || '已发送',
+    recipientCount: rc,
+    readCount: rd,
+    unreadCount: Math.max(0, rc - rd),
+    checked: false
+  };
+}
+
 // 发送历史（管理/本租户）列表项 → 视图模型（标题/发送者/时间/状态；不含接收统计，统计见详情）
 export function toManageItem(m) {
   const base = toSentItem(m);
@@ -224,8 +258,8 @@ export function toManageItem(m) {
   // 姓名与账号以详情页为准 —— 详情页按角色解析，见 resolveSender）
   const sender = senderTypeVal +
     (m.senderId != null && m.senderId !== '' ? '（' + m.senderId + '）' : '');
-  const statusText = m.status === 'recalled' ? '已收回'
-    : (m.status === 'partial_recalled' ? '部分收回' : '已发送');
+  // 状态文案走共享域（含历史值 withdrawn → 已收回）；空值兜底「已发送」与既有行为一致
+  const statusText = messageStatusText(m.status) || '已发送';
   return Object.assign(base, {
     sender,
     statusText,

@@ -69,7 +69,19 @@ public class MessageManageService {
             w.eq(Message::getTenantId, tenant == null ? -1 : tenant);
         }
         if (senderType != null && !senderType.isBlank()) w.eq(Message::getSenderType, senderType);
-        if (status != null && !status.isBlank()) w.eq(Message::getStatus, status);
+        if (status != null && !status.isBlank()) {
+            // 状态筛选：支持多值（逗号分隔），并把历史值 withdrawn 并入 recalled ——
+            // 建表注释声明的词汇表是 sent/withdrawn（「已撤回」），而代码只写 recalled/partial_recalled；
+            // 库里 3 行早期数据是 withdrawn，若按 recalled 精确匹配会漏掉它们（前端「已收回」筛不到）。
+            java.util.List<String> ss = new ArrayList<>();
+            for (String s : status.split(",")) {
+                String t = s.trim();
+                if (!t.isEmpty() && !ss.contains(t)) ss.add(t);
+            }
+            if (ss.contains("recalled") && !ss.contains("withdrawn")) ss.add("withdrawn");
+            if (ss.size() == 1) w.eq(Message::getStatus, ss.get(0));
+            else if (!ss.isEmpty()) w.in(Message::getStatus, ss);
+        }
         w.orderByDesc(Message::getSendTime);
         List<Message> all = messageMapper.selectList(w);
         for (Message m : all) m.setTitle(dec(m.getTitle()));
@@ -295,7 +307,8 @@ public class MessageManageService {
         }
         messageMapper.updateById(m);
 
-        ssePushService.pushRecall(m.getTenantId(), recallUids, messageId);
+        // 推送目标按 userId 路由（2026-10-12 起会话 key 不再含租户，见 SsePushService）
+        ssePushService.pushRecall(recallUids, messageId);
     }
 
     /**
@@ -320,7 +333,7 @@ public class MessageManageService {
         inboxMapper.delete(new LambdaQueryWrapper<MessageInbox>().eq(MessageInbox::getMessageId, messageId));
         deliveryMapper.delete(new LambdaQueryWrapper<MessageDelivery>().eq(MessageDelivery::getMessageId, messageId));
         messageMapper.deleteById(messageId);
-        ssePushService.pushDelete(m.getTenantId(), uids, messageId);
+        ssePushService.pushDelete(uids, messageId);
     }
 
     /** 客户端 ack：标记某用户对某消息已确认接收(投递状态2) */

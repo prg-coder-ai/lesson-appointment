@@ -66,7 +66,14 @@ function readStripped(relPath) {
   return stripEsm(fs.readFileSync(path.join(SHARED_ROOT, relPath), 'utf8')) + '\n';
 }
 
-function generateSharedBridge() {
+/**
+ * 纯生成：返回桥接产物的完整文本，**不写盘**。
+ *
+ * 守卫 tools/check-shared-bridge-exports.mjs 复用本函数，把它与磁盘上的产物逐字节比对，
+ * 以检出「改了 shared/ 或改了下面 window.* 清单、却忘了重跑生成器」这种静默漂移。
+ * 因此本函数必须保持**零副作用**（不得写盘、不得打日志），否则守卫的比对会自我干扰。
+ */
+function buildBridgeContent() {
   const constSrc = readStripped('constants.js');
   // apiPaths.js（shared 根目录）：让 Web 端也能取用同一份端点常量，收敛散落的硬编码路径。
   const apiPathsSrc = readStripped('apiPaths.js');
@@ -166,6 +173,7 @@ window.ErrorCodeDomain = {
 window.MessageDomain = {
   PRIORITY_TEXT: PRIORITY_TEXT,
   SENDER_TYPE_TEXT: SENDER_TYPE_TEXT,
+  MESSAGE_STATUS_TEXT: MESSAGE_STATUS_TEXT,
   DELIVERY_STATUS_TEXT: DELIVERY_STATUS_TEXT,
   setCategoryDict: setCategoryDict,
   getCategoryDict: getCategoryDict,
@@ -175,6 +183,7 @@ window.MessageDomain = {
   priorityCode: priorityCode,
   priorityText: priorityText,
   senderTypeText: senderTypeText,
+  messageStatusText: messageStatusText,
   deliveryStatusText: deliveryStatusText,
   recipientStateText: recipientStateText,
   setTenantDict: setTenantDict,
@@ -210,11 +219,16 @@ window.RouterAdapter = {
   // 避免与页面内联同名 const 冲突（如 login.html 的 PLATFORM_TENANT_CODE）。
   // 领域层/适配层仅通过 window.*Domain / window.*Adapter 暴露，IIFE 内 window 赋值仍为全局。
   const scoped = '(function(){\n' + constSrc + apiPathsSrc + domainSrc + adapterSrc + body + '\n})();\n';
-  fs.writeFileSync(OUT, header + scoped, 'utf8');
+  return header + scoped;
+}
+
+/** 生成并落盘（frontend/build.js 与 CLI 入口使用） */
+function generateSharedBridge() {
+  fs.writeFileSync(OUT, buildBridgeContent(), 'utf8');
   console.log('  shared-domain-bridge.js generated ->', OUT);
 }
 
-module.exports = { generateSharedBridge, stripEsm };
+module.exports = { generateSharedBridge, buildBridgeContent, stripEsm, OUT, DOMAIN_FILES, ADAPTER_FILES };
 
 // 直接 node 调用时也执行
 if (require.main === module) generateSharedBridge();

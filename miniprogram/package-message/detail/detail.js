@@ -2,6 +2,8 @@
 // - 收件箱/收藏（from=inbox/starred）：打开即标记已读；支持标已读/未读、收藏/取消、删除(移回收站)
 // - 回收站（from=trash）：支持恢复、彻底删除
 // - 已发（from=sent）：拉投递状态，展示接收/已读统计（sender 视角无单条操作，撤回/彻底删除在列表页进行）
+// - 接收台账（from=ledger）：**平台方发来的**消息在本租户的接收情况（标题/正文/发送者/谁读谁没读）。
+//   必须走主系统 /api/v1/msg-ledger/*：这类消息的发送方租户是平台，租户管理员在 message-service 侧查会 403。
 // 分类 / 优先级 / 发送者类型一律展示**文案**（编码→文案的映射集中在 core/message.js）：
 // 详情接口只回 categoryCode + priority 编码，直接在页面上贴出来就是裸编码，必须过映射。
 
@@ -11,6 +13,7 @@ import {
   getDeliveryStatus, restore, purge, isManager, deleteSentGlobal,
   categoryText, priorityCode, priorityText, senderTypeText, resolveSender,
   getMessageRecipients, getUserBriefs, recipientStateText,
+  messageStatusText, getLedgerInbound, getLedgerRecipients,
   getTenantList, tenantText
 } from '../../core/message.js';
 import { confirm } from '../../core/ui.js';
@@ -20,8 +23,10 @@ Page({
     uid: '', mid: '', from: 'inbox', role: '', isManager: false,
     msg: null, starred: false, unread: true, loading: true,
     delivery: null,
-    // 「已发 / 消息管理」详情：接收人明细（分页，触底加载更多）
-    recipients: [], recTotal: 0, recPage: 1, recLoading: false
+    // 「已发 / 消息管理 / 接收台账」详情：接收人明细（分页，触底加载更多）
+    recipients: [], recTotal: 0, recPage: 1, recLoading: false,
+    // 接收台账专属：只看未读（台账最关心"谁还没看"）
+    ledgerOnlyUnread: false
   },
   onLoad(options) {
     const u = requireAuth();
@@ -34,6 +39,29 @@ Page({
   async load(mid, from) {
     this.setData({ loading: true });
     try {
+      if (from === 'ledger') {
+        // 接收台账（平台方 → 本租户）：消息头复用台账列表端点（传 messageId 取单条），
+        // 不新增路由；正文/标题/发送者/本租户计数一次拿全。
+        const box = await getLedgerInbound({ messageId: mid, pageNum: 1, pageSize: 1 });
+        const row = ((box && box.rows) || [])[0];
+        if (!row) { this.setData({ loading: false }); return; }
+        this.setData({
+          delivery: {
+            title: row.title || '(无标题)',
+            content: row.content || '',
+            recipientCount: Number(row.recipientCount) || 0,
+            readCount: Number(row.readCount) || 0,
+            senderLabel: (senderTypeText(row.senderType) || '') +
+              (row.senderId ? '（' + row.senderId + '）' : ''),
+            statusText: messageStatusText(row.status) || '已发送',
+            time: fmtTime(row.sendTime)
+          },
+          loading: false
+        });
+        // 不 await：接收人明细独立分页加载，不拖住正文与统计的渲染
+        this.loadRecipients(mid, 1);
+        return;
+      }
       if (from === 'sent' || from === 'manage') {
         // 已发 / 本租户管理：拉投递追踪（含正文与接收/已读统计）
         const d = await getDeliveryStatus(mid);
@@ -139,9 +167,16 @@ Page({
     if (!mid || this.data.recLoading) return;
     if (pageNum <= 1) this.setData({ recipients: [], recTotal: 0 });
     this.setData({ recLoading: true });
+    const useLedger = this.data.from === 'ledger';
     let rows = [];
     try {
-      const box = await getMessageRecipients(mid, { pageNum: pageNum, pageSize: 20 });
+      const box = useLedger
+        // 台账端点：按**本租户**返回，且行里自带姓名/账号（主系统持有用户表）→ 无需再补 briefs
+        ? await getLedgerRecipients(mid, {
+            pageNum: pageNum, pageSize: 20,
+            readState: this.data.ledgerOnlyUnread ? 'unread' : undefined
+          })
+        : await getMessageRecipients(mid, { pageNum: pageNum, pageSize: 20 });
       rows = (box && box.rows) || [];
       this.setData({ recTotal: box ? (Number(box.total) || 0) : 0 });
     } catch (e) {
@@ -150,8 +185,8 @@ Page({
       return;
     }
     if (!this._recBriefs) this._recBriefs = {};
-    // 只补「本页还没解析过」的 id：翻页/重入不重复请求
-    const missing = rows.map((r) => r.userId).filter((id) => id && !this._recBriefs[id]);
+    // 只补「本页还没解析过」的 id：翻页/重入不重复请求（台账行已有姓名账号，跳过）
+    const missing = useLedger ? [] : rows.map((r) => r.userId).filter((id) => id && !this._recBriefs[id]);
     if (missing.length) {
       const briefs = await getUserBriefs(missing);   // 任何失败返回 {}，静默降级
       Object.keys(briefs).forEach((id) => { this._recBriefs[id] = briefs[id]; });
@@ -163,7 +198,11 @@ Page({
 
   /** 接收人行 → 视图模型（文案与样式类都在 js 里算好：WXML 绑定禁止函数调用） */
   toRecRow(r, briefs) {
-    const b = (briefs || {})[r.userId] || {};
+    // 台账端点直接回 name/account；message-service 端点只回 userId，需 briefs 补齐。
+    // 两个来源**各自独立**取兜底：不能用 Object.assign 整体覆盖，否则「行里有姓名但账号只在 briefs」
+    // 这种混合情况会把账号冲成空串。
+    const bf = (briefs || {})[r.userId] || {};
+    const b = { name: r.name || bf.name || '', account: r.account || bf.account || '' };
     const st = recipientStateText(r);
     // 已读显示阅读时间，未读显示投递/确认时间（看得出「何时送达但未读」）
     const t = (r.isRead && r.readTime) ? r.readTime : (r.deliveryTime || r.ackTime || '');
@@ -177,12 +216,19 @@ Page({
     };
   },
 
-  // 触底加载下一页接收人（仅「已发 / 消息管理」视图有该列表）
+  // 触底加载下一页接收人（「已发 / 消息管理 / 接收台账」视图有该列表）
   onReachBottom() {
-    if (this.data.from !== 'sent' && this.data.from !== 'manage') return;
+    const f = this.data.from;
+    if (f !== 'sent' && f !== 'manage' && f !== 'ledger') return;
     if (this.data.recLoading) return;
     if (this.data.recipients.length >= this.data.recTotal) return;
     this.loadRecipients(this.data.mid, this.data.recPage + 1);
+  },
+  /** 接收台账：只看未读 / 显示全部（切换即回第一页重取） */
+  onToggleLedgerRead() {
+    const next = !this.data.ledgerOnlyUnread;
+    this.setData({ ledgerOnlyUnread: next });
+    this.loadRecipients(this.data.mid, 1);
   },
   async onToggleStar() {
     const next = !this.data.starred;

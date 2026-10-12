@@ -108,6 +108,30 @@ export function senderTypeText(type) {
   return SENDER_TYPE_TEXT[type] || String(type);
 }
 
+/* ==================== 消息状态（发送台账：「已发」/「消息管理」列表与详情用） ==================== */
+
+/**
+ * 消息状态编码 → 文案（msg_message.status）。
+ *
+ * `withdrawn` 是**历史值**，与 `recalled` 同义（都是「已收回」）：
+ *   · 建表注释里声明的词汇表是 `sent/withdrawn`（原文「已撤回」，注释本身已被 GBK 误读成乱码）；
+ *   · 而代码从第一版提交起只写 `sent`/`recalled`/`partial_recalled`（全历史 .java 中 grep `withdrawn` 命中 0）；
+ *   · 库里现存 3 行 `withdrawn` 均为 2026-09-05 的早期数据（send_time = update_time，从未执行过撤回动作）。
+ * 故此处按「同义别名」归一，而不是当脏数据丢弃 —— 界面上必须给出中文，不能漏出裸英文。
+ */
+export const MESSAGE_STATUS_TEXT = {
+  sent: '已发送',
+  recalled: '已收回',
+  partial_recalled: '部分收回',
+  withdrawn: '已收回',
+};
+
+/** 消息状态编码 → 文案；未知编码原样透出，便于发现新增档位 */
+export function messageStatusText(status) {
+  if (!status) return '';
+  return MESSAGE_STATUS_TEXT[status] || String(status);
+}
+
 /* ==================== 投递 / 接收人状态（「已发」详情的接收人列表用） ==================== */
 
 /** 投递状态编码 → 文案（msg_delivery.delivery_status） */
