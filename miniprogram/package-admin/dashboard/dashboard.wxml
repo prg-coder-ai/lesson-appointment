@@ -26,7 +26,7 @@
       </view>
       <view class="stat">
         <view class="stat-num">{{stat.appoint != null ? stat.appoint : '-'}}</view>
-        <view class="stat-label">本月预约人次</view>
+        <view class="stat-label">本月预约人课次</view>
       </view>
     </view>
 

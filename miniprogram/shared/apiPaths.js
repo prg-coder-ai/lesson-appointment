@@ -41,6 +41,9 @@ export const ENDPOINTS = {
   TENANT_NAME: (tCode) => `/api/v1/tenant/name?tenantCode=${encodeURIComponent(tCode)}`,
   // 租户只读信息（各角色可用）：GET 当前登录者所属租户（含 tenantCode / expireTime 租期 / packageId / status）
   TENANT_CURRENT: '/api/v1/tenant/current',
+  // 全部租户（PLATFORM_ONLY：后端 checkPlatformAdmin）。平台管理员用「租户ID → 公司名」映射，
+  // 例如消息详情里展示「发送方租户」；非平台管理员调用会被服务端挡下（403）。
+  TENANT_LIST: '/api/v1/tenant/list',
   // 租户套餐（各角色可用，传自己 tenantId）：GET 某租户实际持有的套餐（各资源限额与当前数量）
   TENANT_PACKAGE_BY_TENANT: (tid) => `/api/v1/tenant/package/tenant/${tid}`,
   // 套餐模板详情（admin/platform_admin 可查）：GET 套餐模板名称等，用于把 packageId 转成可读"套餐"名
@@ -58,6 +61,10 @@ export const ENDPOINTS = {
   // 用户名（展示用）：GET 返回单值姓名字符串；与 frontend/js/public/api.js getUserNameById 同源。
   // 「今日课程」要把 studentId/teacherId 渲染成人名，靠它逐个解析（带缓存，避免重复请求）。
   USER_NAME: (id) => `/api/v1/user/name/${encodeURIComponent(id || '')}`,
+  // 批量用户摘要（消息中心「接收人列表」按 id 反查姓名/账号）：ids 传数组或逗号分隔串（服务端上限 200）。
+  // 权限 ALL_ROLES；account 仅管理员下发（服务端按 token 角色裁定，前端无法越权索取）。
+  // 在 api 主模块（/api/v1/user 单数），与 MSG_* 不同服务，故走 apiBase(8081)。
+  USER_BRIEFS: (ids) => '/api/v1/user/briefs?ids=' + encodeURIComponent(Array.isArray(ids) ? ids.join(',') : (ids || '')),
   // —— 课程 / 排期（业务端）——
   COURSE_LIST: '/api/v1/course/list',
   COURSE_PAGE: '/api/v1/course/page',
@@ -151,6 +158,16 @@ export const ENDPOINTS = {
   MSG_DELETE_GLOBAL: (mid) => `/api/v1/messages/${mid}`,
   // 单条消息投递追踪（已发详情）：接收/已读统计
   MSG_DELIVERY: (mid) => `/api/v1/messages/${mid}/delivery-status`,
+  // 单条消息的接收人明细（分页）：谁收到 / 谁已读 / 何时读。
+  // 权限与 delivery-status 一致（管理员或发送者本人，非平台管理员限本租户），在 message-service 内断言。
+  // 返回行只含 userId + 投递/已读状态，姓名与账号另经 USER_BRIEFS 批量补齐。
+  MSG_RECIPIENTS_OF: (mid, qs) => {
+    const base = `/api/v1/messages/${encodeURIComponent(mid)}/recipients`;
+    if (!qs) return base;
+    const s = Object.keys(qs).filter(k => qs[k] !== undefined && qs[k] !== null && qs[k] !== '')
+      .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(qs[k])).join('&');
+    return s ? base + '?' + s : base;
+  },
   // 接收人 scope 解析：在 api 主模块（/api/v1/user/... 单数，不匹配 message-service 正则，走 apiBase 8081）
   MSG_RECIPIENTS: '/api/v1/user/message-recipients',
   SENSITIVE_TEST: '/api/v1/sensitive/test',

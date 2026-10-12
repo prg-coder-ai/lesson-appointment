@@ -3,7 +3,7 @@
 /*
  * 生成「共享领域层 → 浏览器全局」桥接产物。
  *
- * 输入：shared/domain/{term,refundRule,bookingState,appointmentState,mask,datetime,errorCode}.js
+ * 输入：shared/domain/{term,refundRule,bookingState,appointmentState,mask,datetime,errorCode,message}.js
  *       + shared/constants.js（bookingState 依赖其中的 BOOKING_STATUS，须一并内联）
  *       + shared/apiPaths.js（端点常量 normalizeUrl/unwrapResult + ENDPOINTS + BACKEND_PROBES，
  *         Web 端硬编码路径/探测目标收敛用）
@@ -51,7 +51,8 @@ const DOMAIN_FILES = [
   'appointmentState.js',
   'mask.js',
   'datetime.js',
-  'errorCode.js'
+  'errorCode.js',
+  'message.js'
 ];
 
 const ADAPTER_FILES = [
@@ -161,6 +162,24 @@ window.ErrorCodeDomain = {
   resolveResult: resolveResult,
   resolveRequestError: resolveRequestError,
   errorMessage: errorMessage
+};
+window.MessageDomain = {
+  PRIORITY_TEXT: PRIORITY_TEXT,
+  SENDER_TYPE_TEXT: SENDER_TYPE_TEXT,
+  DELIVERY_STATUS_TEXT: DELIVERY_STATUS_TEXT,
+  setCategoryDict: setCategoryDict,
+  getCategoryDict: getCategoryDict,
+  categoryText: categoryText,
+  categoryListFromTree: categoryListFromTree,
+  collectCategoryCodes: collectCategoryCodes,
+  priorityCode: priorityCode,
+  priorityText: priorityText,
+  senderTypeText: senderTypeText,
+  deliveryStatusText: deliveryStatusText,
+  recipientStateText: recipientStateText,
+  setTenantDict: setTenantDict,
+  getTenantDict: getTenantDict,
+  tenantText: tenantText
 };
 
 /* ---- 平台适配层（shared/adapters/*，零 DOM，运行时自动探测 wx/Web） ---- */

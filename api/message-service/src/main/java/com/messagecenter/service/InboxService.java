@@ -94,6 +94,11 @@ public class InboxService {
         out.put("priority", m.getPriority());
         out.put("senderId", m.getSenderId());
         out.put("senderType", m.getSenderType());
+        // 发送方租户：msg_message.tenant_id 在发送时取自**发送者**的令牌租户（写扩散时原样落到 msg_inbox），
+        // 所以它就是「这条消息属于哪家租户」。平台管理员（tenant_id=0）收到的租户来函，靠这个字段
+        // 在前端映射成公司名（sys_tenant.org_name 在主库，本服务是独立库拿不到，故只回 ID 不回名称）。
+        // 平台自身发出的消息该值为 0，前端据此省略整段展示。
+        out.put("senderTenantId", m.getTenantId());
         out.put("categoryCode", m.getCategoryCode());
         out.put("categoryName", c.getCategoryName());
         out.put("payload", messageService.decryptPayload(m));

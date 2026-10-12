@@ -113,7 +113,10 @@ const ACTION_TIP = {
 Page(withTerms({
   data: {
     list: [],
-    loading: true,
+    // 必须是 false：load() 开头有重入守卫 `if (this.data.loading || ...) return;`，
+    // 若首屏初值为 true，onLoad 里的首个 load(true) 会在守卫处直接 return，
+    // 而 loading 再没人置回 false → 页面永远停在「加载中…」，下拉刷新也救不回来。
+    loading: false,
     loadingMore: false,
     hasMore: false,
     total: 0,

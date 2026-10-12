@@ -3,9 +3,12 @@
 // 范围选项随角色变化；平台管理员部分范围需填租户ID；分类编码来自消息分类树。
 
 import { requireAuth } from '../../core/auth.js';
-import { getCategories, sendMessage, getRecipients, canSend } from '../../core/message.js';
+import { getCategories, sendMessage, getRecipients, canSend, priorityText } from '../../core/message.js';
 
-const PRIORITIES = ['HIGH', 'MEDIUM', 'LOW'];
+// 优先级：**编码提交后端、中文展示界面**。文案取自 core/message.js 的 priorityText，
+// 不在这里另写一份字面量（否则与列表/详情的映射各说各话）。
+const PRIORITY_VALUES = ['HIGH', 'MEDIUM', 'LOW'];
+const PRIORITY_LABELS = PRIORITY_VALUES.map(priorityText);   // ['高', '中', '低']
 
 // 角色 → 接收范围（对齐 web 端 composeScopes）
 function composeScopes(role) {
@@ -58,7 +61,7 @@ Page({
     idsText: '',
     title: '',
     content: '',
-    priorities: PRIORITIES,
+    priorityLabels: PRIORITY_LABELS,   // 选择器展示项（中文）；提交值取模块常量 PRIORITY_VALUES
     priorityIndex: 1,
     categories: [],   // [{code,name}]；首项为「不分类」(code='')
     catIndex: 0,
@@ -174,7 +177,8 @@ Page({
     const body = {
       title,
       content: this.data.content || '',
-      priority: this.data.priorities[this.data.priorityIndex],
+      // 提交的是**编码**（HIGH/MEDIUM/LOW），不是界面上的中文
+      priority: PRIORITY_VALUES[this.data.priorityIndex] || 'MEDIUM',
       recipientUserIds: ids,
       broadcast: false
     };

@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -150,6 +151,92 @@ public class MessageManageService {
         out.put("starredCount", starred);
         out.put("deletedCount", deleted);
         return out;
+    }
+
+    /**
+     * 接收人明细（分页）：谁收到了这条消息、看没看、什么时候看的。
+     *
+     * <p>数据跨两张**同库**表：{@code msg_delivery}（投递状态，一次发送即一人一条）与
+     * {@code msg_inbox}（已读/收藏/删除）。以 delivery 为驱动（它是「发给谁」的唯一记录，
+     * 投递失败时 inbox 副本可能不存在），再按 userId 批量回捞 inbox —— 一次 IN 查询，
+     * 不做 N+1。单条消息的接收人上限就是「一次发送的受众规模」，故沿用本类既有的
+     * 「全量取 + 内存过滤分页」写法（与 {@link #sentMessages} 一致），不引入联表 SQL。
+     *
+     * <p>排序：**未读优先**（管理端最关心「谁还没看」），组内保持 deliveryId 升序（即投递顺序，
+     * 用稳定排序实现，便于「加载更多」逐页拼接时顺序可预期）。
+     *
+     * @param readState all（默认/null）/ read / unread
+     */
+    public PageResult<Map<String, Object>> recipients(Long messageId, int pageNum, int pageSize, String readState) {
+        Message m = messageMapper.selectById(messageId);
+        if (m == null) throw new MessageBizException(404, "消息不存在");
+        assertManagerOrSender(m);
+
+        if (pageNum <= 0) pageNum = 1;
+        if (pageSize <= 0 || pageSize > 200) pageSize = 20;   // 上限保护：不给前端当导出接口用
+
+        List<MessageDelivery> deliveries = deliveryMapper.selectList(
+                new LambdaQueryWrapper<MessageDelivery>()
+                        .eq(MessageDelivery::getMessageId, messageId)
+                        .orderByAsc(MessageDelivery::getDeliveryId));
+
+        Map<String, MessageInbox> inboxByUser = new HashMap<>();
+        if (!deliveries.isEmpty()) {
+            List<String> uids = deliveries.stream()
+                    .map(MessageDelivery::getUserId)
+                    .filter(u -> u != null && !u.isBlank())
+                    .distinct()
+                    .collect(Collectors.toList());
+            if (!uids.isEmpty()) {
+                List<MessageInbox> boxes = inboxMapper.selectList(new LambdaQueryWrapper<MessageInbox>()
+                        .eq(MessageInbox::getMessageId, messageId)
+                        .in(MessageInbox::getUserId, uids));
+                for (MessageInbox in : boxes) {
+                    if (in != null && in.getUserId() != null) inboxByUser.put(in.getUserId(), in);
+                }
+            }
+        }
+
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (MessageDelivery d : deliveries) {
+            MessageInbox in = inboxByUser.get(d.getUserId());
+            boolean isRead = in != null && in.getIsRead() != null && in.getIsRead() == 1;
+            boolean isDeleted = in != null && in.getIsDeleted() != null && in.getIsDeleted() == 1;
+            if ("read".equalsIgnoreCase(readState) && !isRead) continue;
+            if ("unread".equalsIgnoreCase(readState) && isRead) continue;
+            Map<String, Object> row = new HashMap<>();
+            // 只有 userId：姓名/账号在主库（本服务是独立库），由前端按角色到 /api/v1/user/briefs 批量补齐
+            row.put("userId", d.getUserId());
+            row.put("deliveryStatus", d.getDeliveryStatus());
+            row.put("deliveryTime", ts(d.getDeliveryTime()));
+            row.put("ackTime", ts(d.getAckTime()));
+            row.put("retryCount", d.getRetryCount());
+            row.put("isRead", isRead);
+            row.put("readTime", in == null ? null : ts(in.getReadTime()));
+            row.put("isStarred", in != null && in.getIsStarred() != null && in.getIsStarred() == 1);
+            // isDeleted=1：收回会把未读副本置为已删除（见 withdraw），前端要显示「已撤回」
+            row.put("isDeleted", isDeleted);
+            rows.add(row);
+        }
+
+        // 未读优先；List.sort 是稳定排序 → 组内保持 deliveryId 升序
+        rows.sort(Comparator.comparing(r -> Boolean.TRUE.equals(r.get("isRead")) ? 1 : 0));
+
+        int total = rows.size();
+        int from = (pageNum - 1) * pageSize;
+        int to = Math.min(from + pageSize, total);
+        List<Map<String, Object>> page = from < total
+                ? new ArrayList<>(rows.subList(from, to)) : new ArrayList<>();
+        return PageResult.of(page, total, pageNum, pageSize);
+    }
+
+    /**
+     * 时间出参统一为 {@code LocalDateTime.toString()}（本地墙钟串，无 Z）。
+     * 刻意与 {@link #messageTrace} 等既有出口保持一致：前端按本地时间直接展示；
+     * 若这里改用带 Z 的形态，前端会按 UTC 解读而静默偏移 8 小时。
+     */
+    private String ts(java.time.LocalDateTime t) {
+        return t == null ? null : t.toString();
     }
 
     public Map<String, Object> taskStatus(Long taskId) {

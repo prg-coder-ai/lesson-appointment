@@ -332,6 +332,7 @@ public final class AuthzRules {
 
         // —— 用户只读 / 自身数据 ——
         r.add(new Rule(HttpMethod.GET, "/api/v1/user/name/{userId}", ALL_ROLES, "新增：查用户名（「今日课程」渲染人名用）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/user/briefs", ALL_ROLES, "新增：批量用户摘要（消息中心接收人列表按 id 反查姓名，账号仅管理员下发由服务端裁定）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/user/message-recipients", ALL_ROLES, "新增：站内信收件人候选（各角色发消息用）"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/user/account/changePassword", ALL_ROLES, "第1批：本人改密需原密码，管理员代管免原密码"));
 

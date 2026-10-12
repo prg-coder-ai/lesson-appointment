@@ -13,6 +13,21 @@
       <view class="card body">
         <text class="content">{{delivery.content || '（无正文内容）'}}</text>
       </view>
+      <!-- 接收人明细（分页，触底加载更多）：谁收到 / 谁已读 / 何时读。
+           状态文案与样式类由 detail.js 的 toRecRow 算好（WXML 绑定禁止函数调用）。 -->
+      <view class="card">
+        <view class="rec-head">接收人（{{recTotal}}）<text class="rec-tip">未读优先</text></view>
+        <view wx:if="{{!recipients.length}}" class="rec-empty">{{recLoading ? '加载中…' : '暂无接收人记录'}}</view>
+        <block wx:else>
+          <view class="rec-row" wx:for="{{recipients}}" wx:key="userId">
+            <view class="rec-name">{{item.name}}<text wx:if="{{item.account}}" class="rec-acct">（{{item.account}}）</text></view>
+            <text class="rec-state rec-{{item.stateCls}}">{{item.stateText}}</text>
+            <text class="rec-time">{{item.time}}</text>
+          </view>
+          <view wx:if="{{recLoading}}" class="rec-more">加载中…</view>
+          <view wx:elif="{{recipients.length < recTotal}}" class="rec-more">上拉加载更多（{{recipients.length}}/{{recTotal}}）</view>
+        </block>
+      </view>
       <view wx:if="{{from === 'manage'}}" class="actions">
         <button class="btn btn-del" bindtap="onManageDelete">彻底删除（永久）</button>
       </view>
@@ -29,10 +44,15 @@
         <view class="title">{{msg.title}}</view>
         <view class="meta">
           <text wx:if="{{msg.category}}" class="tag">{{msg.category}}</text>
-          <text wx:if="{{msg.priority}}" class="tag warn">{{msg.priority}}</text>
+          <text wx:if="{{msg.priority}}" class="tag pri-{{msg.priorityCode}}">{{msg.priority}}</text>
           <text class="time">{{msg.time}}</text>
         </view>
-        <view wx:if="{{msg.sender}}" class="sender">发件人：{{msg.sender}}</view>
+        <view class="sender">
+          <view>发件人：{{msg.senderLabel}}</view>
+          <view wx:if="{{msg.senderAccount}}" class="sender-acc">账号：{{msg.senderAccount}}</view>
+          <!-- 发送方租户：仅平台管理员且 company 名解析出来才显示（见 detail.js loadSenderTenant，无兜底文案） -->
+          <view wx:if="{{msg.senderTenantText}}" class="sender-acc">发送方租户：{{msg.senderTenantText}}</view>
+        </view>
       </view>
 
       <view class="card body">

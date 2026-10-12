@@ -34,6 +34,12 @@
 - 两端拦截器语义（frontend=权威定义）：HTTP 401→刷新 token 重试（公开页 noAuthRedirect 短路）；403→只提示不踢；HTTP 200 下 body.code 200→data、401/403→resolveResult 提示+reject（不清会话）、其他→reject。小程序 request.js 已对齐（2026-10-10）。
 - 文案差异是拍板事实：小程序「预订」/Web「预定」；bookingStatusText 带 profile 参数。
 - 改 shared/apiPaths.js 必重跑 gen-shared-bridge + sync-miniprogram-shared + check-shared-sync + frontend/build.js。
+- **消息中心展示映射唯一权威源 = `shared/domain/message.js`**（2026-10-12 下沉，用户拍板双端共用）：`categoryText/priorityCode/priorityText/senderTypeText/categoryListFromTree/collectCategoryCodes` + 分类字典；Web 经桥接 `window.MessageDomain` 用，小程序 `core/message.js` 只 import + re-export 转发。新增优先级档位/发送者类型只改这一处。**改 shared/domain/*.js 同样要走上面那条 sync+桥接+build 四步**。
+- **发送者账号可见范围按角色收敛（两端一致）**：管理员走 `/user/page?userId=`（name+account），学生/教师走 `/user/name/{id}`（仅姓名，挡 `'N/A'` 字面量），system 不发请求；web 端这些调用必须走 `areq`（8081），不能走 message-service 的 `mreq`（8090）。web `areq` 支持 `config.__silent`（失败不弹提示，供增强信息用）。
+- 已知待修（用户已拍板维持）：收件箱列表后端 `composeInbox` 不填 `senderType/senderName` → web 列表「来自」恒「系统」；前端已写成「有 senderType 优先」的兼容形态。
+- **已知缺陷未修（2026-10-12 报用户，待其拍板）**：平台管理员发给租户用户时 `msg.tenant_id=0` 落进对方 `msg_inbox.tenant_id=0`，而租户用户侧 `scopedWrapper` 强制拼 `tenant_id=本租户`、`assertAccess` 判 `0≠本租户` → **平台→租户用户的通知在租户端列表看不到、详情 404**（真库现存 7 行受影响：rcpt_tenant 1/2/3 分别 2/2/1 条，sender 均为 platform_admin）。
+- **「已发」详情接收人列表（2026-10-12）**：明细 `MSG_RECIPIENTS_OF(mid,{pageNum,pageSize,readState})`（message-service，只回 userId+投递/已读状态，每页 20，未读优先）；姓名/账号 `USER_BRIEFS(ids)`（主系统，≤200 去重，**account 仅管理员**，**必须走 areq/8081**）。新增 `/api/v1/user/*` 单数前缀端点**必须在 AuthzRules 登记**（不在 message-service 排除名单里）。后端时间出参统一 `LocalDateTime.toString()`（无 Z）—— 改成带 Z 前端会按 UTC 解读、偏 8 小时。
+- **「发送方租户」口径（2026-10-12，仅消息详情页、仅平台管理员）**：`msg_message.tenant_id` 发送时取自**发送者**令牌租户，写扩散原样落到 `msg_inbox.tenant_id` → **该列语义 = 发送方租户**（非接收方租户，别当收件人隔离依据）。详情接口回 `senderTenantId`；公司名靠 `TENANT_LIST`（`/api/v1/tenant/list`，PLATFORM_ONLY）建 `tenantId→orgName` 字典：`shared/domain/message.js` 的 `setTenantDict/getTenantDict/tenantText`，**`tenantText` 无兜底文案**（空/≤0/查不到一律空串 → 调用方省略整行）。
 - 小程序表单页写库前 4 项：NOT NULL 无默认列须显式给值；tinyint(1) ≤127；表级 CHECK 前端先拦；数值输入字符串承载。
 
 ## 业务要点（精选）
@@ -48,7 +54,8 @@
 ## 技术栈/构建/排障（精选）
 - api(Spring Boot 3.3.5+MP 3.5.7)+message-service(8090)；8080=dev代理、8081=booking API。编译：bash build_smoke.sh compile；改前端必重 node frontend/build.js。
 - 本机后台 java 会被回收 → 端到端验证用 jar 内 BOOT-INF classpath 跑独立 main；测 Spring 行为从 jar 解 class。
-- mysqldump 必须 --result-file=；改表结构后重 dump 落 api/sql/schema/。DDL 命名 YYYYMMDD-HHMM-<库>-<用途>.sql。
+- mysqldump 必须 --result-file=；改表结构后重 dump 落 api/sql/schema/。DDL 命名 YYYYMMDD-HHMM-<库>-<用途>.sql。本机 mysql 密码 123456。
+- **跨库 JOIN 坑**：`lesson_appointment`(utf8mb4_general_ci) 与 `message_center`(utf8mb4_0900_ai_ci) collation 不同，直接 `join ... on user_id = user_id` 报 `ERROR 1267 Illegal mix of collations`；必须 `u.user_id collate utf8mb4_general_ci = i.user_id collate utf8mb4_general_ci`。
 - Spring 占位符：env 名须与属性名词根一致（JWT_SECRET→jwt.secret ✅；CRYPTO_AESKEY ❌）。bash 4.2 兼容（${arr[@]+...}）。
 - Git Bash taskkill 需 MSYS_NO_PATHCONV=1；本机 curl 探针须 --noproxy '*'；异常堆栈去 api/logs/spring-boot-app.log。
 - 守卫编写坑：stripComments 后判逻辑；禁形清单"命中即return"顺序即优先级；正则认数组注解与常量引用；行尾 CRLF/LF 探测后替换并 grep 核验；误报比漏报更伤信任。

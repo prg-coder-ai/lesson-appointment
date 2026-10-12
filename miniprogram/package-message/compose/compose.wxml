@@ -50,12 +50,12 @@
   </view>
   <view class="field">
     <view class="label">优先级</view>
-    <picker mode="selector" range="{{priorities}}" value="{{priorityIndex}}" bindchange="onPriorityChange">
-      <view class="picker">{{priorities[priorityIndex]}}</view>
+    <picker mode="selector" range="{{priorityLabels}}" value="{{priorityIndex}}" bindchange="onPriorityChange">
+      <view class="picker">{{priorityLabels[priorityIndex]}}</view>
     </picker>
   </view>
   <view class="field">
-    <view class="label">分类编码</view>
+    <view class="label">分类</view>
     <picker mode="selector" range="{{categories}}" range-key="name" value="{{catIndex}}" bindchange="onCategoryChange">
       <view class="picker">{{categories[catIndex].name || '（不分类）'}}</view>
     </picker>

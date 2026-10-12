@@ -2,6 +2,8 @@
 // 收件箱 / 收藏 / 回收站 / 已发 四标签页；关键词搜索；仅看未读；分类筛选；
 // 选择模式 + 批量已读/批量删除（回收站为彻底删除）；全部已读；单条操作（标已读/未读、收藏、删除移回收站、恢复、彻底删除）；
 // 发送通知入口；已发撤回 / 管理员彻底删除。小程序无 SSE，未读以轮询实现即时更新。
+// 行内「分类 / 优先级」显示的是**文案**不是编码（映射见 core/message.js 的 categoryText / priorityText）；
+// 视图模型同时保留 *Code 字段（priorityCode 供 .pri-XXX 着色、categoryCode 供分类筛选）。
 
 import { requireAuth } from '../../core/auth.js';
 import {
@@ -10,7 +12,8 @@ import {
   batchRead, batchDelete, batchPurge,
   restore, purge, getMessageIds,
   recallMessage, deleteSentGlobal,
-  canSend, isManager, setRead, toggleStar, deleteMessage
+  canSend, isManager, setRead, toggleStar, deleteMessage,
+  setCategoryDict, relabelCategory
 } from '../../core/message.js';
 import { confirm } from '../../core/ui.js';
 
@@ -69,7 +72,12 @@ Page({
       name: c.categoryName || c.categoryCode,
       level: c.categoryLevel || 1
     }));
-    this.setData({ categories: flat });
+    // 字典灌进 core/message.js：列表行要把 categoryCode 翻成分类名（已发/管理列表只给编码）
+    setCategoryDict(flat);
+    // 分类树与列表是并发拉的，首屏可能先于字典渲染；字典到手后把已渲染的行重贴一次文案，
+    // 否则只给 categoryCode 的行会停在「未分类」直到下次刷新。
+    const list = (this.data.list || []).map(relabelCategory);
+    this.setData({ categories: flat, list });
   },
 
   // 拉取当前文件夹列表 + 未读数。pull=true 处理下拉刷新收尾
