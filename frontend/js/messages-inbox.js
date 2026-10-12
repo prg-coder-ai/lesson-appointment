@@ -1107,7 +1107,7 @@
 
     loadCategoryOptions(root);
     setupCategoryCombo(root); // 无条件装配交互，分类树拉取失败时仍可自由输入
-    root.querySelector('#msg-load-rcpt').addEventListener('click', function () { loadRecipients(root); });
+    root.querySelector('#msg-load-rcpt').addEventListener('click', function () { loadScopeRecipients(root); });
 
     root.querySelector('#msg-compose-send').addEventListener('click', function () { doSend(root); });
 
@@ -1116,7 +1116,7 @@
     syncTenant();
     if (!(preset && preset.userIds && preset.userIds.length)) {
       // 默认加载第一范围的接收人，方便直接勾选
-      loadRecipients(root);
+      loadScopeRecipients(root);
     }
   };
 
@@ -1145,7 +1145,7 @@
         return '<option value="' + esc(t.id) + '">' + esc(label) + '</option>';
       }).join('');
     } catch (e) {
-      // 降级：替换为手输数字ID（沿用 loadRecipients 的 /^\d+$/ 校验兜底）
+      // 降级：替换为手输数字ID（沿用 loadScopeRecipients 的 /^\d+$/ 校验兜底）
       const input = document.createElement('input');
       input.id = 'msg-tenant-id';
       input.placeholder = '数字租户ID（非编码）';
@@ -1155,7 +1155,10 @@
     }
   }
 
-  async function loadRecipients(root) {
+  // 发送卡片的「按范围解析可选接收人」——注意与上方「已发」详情版的 loadRecipients(root, mid, pageNum) 区分：
+  // 两者操作完全不同的 DOM（这里 #msg-scope/#msg-rcpt-list，那里 #msg-recipients），**不可同名**——
+  // 同作用域重复函数声明会让后者覆盖前者，导致详情页接收人列表静默不显示（2026-10-12 已踩过）。
+  async function loadScopeRecipients(root) {
     const scopeSel = root.querySelector('#msg-scope');
     const scope = scopeSel.value;
     const opt = scopeSel.options[scopeSel.selectedIndex];
