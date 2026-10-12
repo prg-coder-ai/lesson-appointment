@@ -78,6 +78,7 @@ public class UserSessionService {
         }
         try {
             // 同一会话重复登录时先清理旧记录
+            // cascade: none 删的是同 session_id 的旧行本身（不是父记录），无下游
             LambdaUpdateWrapper<UserSession> del = new LambdaUpdateWrapper<>();
             del.eq(UserSession::getSessionId, sessionId);
             userSessionMapper.delete(del);
@@ -203,6 +204,8 @@ public class UserSessionService {
         LocalDateTime before = LocalDateTime.now().minusDays(keepDays);
         LambdaQueryWrapper<UserSession> wrapper = new LambdaQueryWrapper<>();
         wrapper.lt(UserSession::getLoginTime, before);
+        // cascade: none sys_user_session 是叶子表（会话流水，仅供在线统计与审计查阅），
+        // 无任何表引用它；过期会话本就该被清掉，级联无处可去
         int rows = userSessionMapper.delete(wrapper);
         if (rows > 0) {
             log.info("清理历史会话记录, 数量={}", rows);

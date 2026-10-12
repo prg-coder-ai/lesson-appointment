@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -69,6 +70,26 @@ public class GlobalExceptionHandler {
         return Result.fail(400, e.getMessage());  // 400-业务异常（对应设计2.1）
     }
 
+    // 状态冲突（409）：请求合法但与资源当前状态矛盾——
+    // 典型如「课程已开始，无法取消预订」「课次进行中，无法请假」（时间态闸，2026-10-11 方案 B1）。
+    // 须与 common/ErrorCodes 的映射表保持一致（Conflict → 409），避免两条出口 code 分叉。
+    @ExceptionHandler(ConflictException.class)
+    public Result<Void> handleConflictException(ConflictException e) {
+        return Result.fail(409, e.getMessage());
+    }
+
+    // 资源不存在（404）。
+    //
+    // 补于 2026-10-09（第6 批契约治理）：此前 ResourceNotFoundException / UserNotFoundException
+    // **没有任何 @ExceptionHandler**，于是「课程不存在」「租户不存在」「用户不存在」这类
+    // 明确的 404 语义会一路落到兜底的 handleException，被报成 500「服务器繁忙」——
+    // 让调用方以为系统坏了，也让监控把业务问题计成服务端故障。
+    // 口径与 common/ErrorCodes 的映射表保持一致（那边Controller 就地捕获时也走同一张表）。
+    @ExceptionHandler({ResourceNotFoundException.class, UserNotFoundException.class})
+    public Result<Void> handleNotFoundException(RuntimeException e) {
+        return Result.fail(404, e.getMessage());  // 404-资源不存在（对应设计2.1）
+    }
+
     // 数据库唯一键冲突（400）：对应 Duplicate entry 'xxx' for key 'yyy'
     // 典型场景：注册时 account / phone / email 重复，userMapper.insert 抛此异常
     @ExceptionHandler({
@@ -106,6 +127,33 @@ public class GlobalExceptionHandler {
             log.debug("静态资源不存在（已忽略）：{}", e.getMessage());
         }
         return Result.fail(404, "资源不存在");
+    }
+
+    // 缺少必填请求参数（400）。
+    // 典型场景：公开分享链接被截断或手工改写（少了 ?teacherId=xxx）。前端页面会先自行校验，
+    // 但从微信/QQ 抓取链接、或第三方直接调接口时不该看到 500「服务器繁忙，请稍后再试」——
+    // 那会让用户以为是系统坏了，而实际上只是链接不完整。
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public Result<Void> handleMissingParameter(MissingServletRequestParameterException e) {
+        if (log.isDebugEnabled()) {
+            log.debug("缺少必填参数：{}", e.getParameterName());
+        }
+        return Result.fail(400, "缺少必填参数：" + e.getParameterName());
+    }
+
+    // 参数类型不匹配（400）。
+    // 典型场景（2026-10-12）：消息发送弹窗「租户ID」手输框填了租户编码 TENANT_A（字符串），
+    // GET /user/message-recipients?tenantId=TENANT_A 向 Long 转换失败——
+    // 此前落兜底 handleException，报 500「服务器繁忙」+ ERROR 全堆栈刷日志，实为调用方传参错误。
+    // 与 handleMissingParameter 同口径：debug 级日志 + 400 明确告知哪个参数、该是什么类型。
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    public Result<Void> handleTypeMismatch(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException e) {
+        if (log.isDebugEnabled()) {
+            log.debug("参数类型不匹配：{} 需为 {}", e.getName(), e.getRequiredType());
+        }
+        String typeName = e.getRequiredType() != null ? e.getRequiredType().getSimpleName() : "";
+        return Result.fail(400, "参数类型错误：" + e.getName()
+                + (typeName.isEmpty() ? "" : "（需为 " + typeName + "，请勿填编码/文本）"));
     }
 
     // 服务器异常（500），对应设计2.4 服务器异常

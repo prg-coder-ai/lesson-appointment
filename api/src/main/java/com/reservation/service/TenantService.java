@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.reservation.common.PageResult;
+import com.reservation.common.CascadeRules;
 import com.reservation.entity.Tenant;
 import com.reservation.exception.BusinessException;
 import com.reservation.exception.ResourceNotFoundException;
@@ -40,6 +41,8 @@ public class TenantService {
 
     @Autowired
     private TenantMapper tenantMapper;
+    @Autowired
+    private ReferentialCascadeService cascadeService;
 
     public Tenant getById(Long id) {
         return tenantMapper.selectById(id);
@@ -162,12 +165,23 @@ public class TenantService {
           .set(Tenant::getStatus, STATUS_OFFLINE)
           .set(Tenant::getOfflineTime, LocalDateTime.now());
         int rows = tenantMapper.update(null, uw);
-        log.info("软删除租户, tenantId={}, 影响行数={}", id, rows);
+        // 级联：冻结该租户的账号、下线其在线会话（报告根因 C：数据完整性兜底）。
+        // 原先只改 sys_tenant 一行——租户被"删除"后，其用户仍能正常登录并继续写入数据，
+        // 租户数据并未真正停止增长，deleted 标记形同虚设。
+        // 这里的规则表登记见 CascadeRules.SCENARIO_TENANT_SOFT_DELETE。
+        ReferentialCascadeService.CascadeReport report = cascadeService.run(
+                CascadeRules.SCENARIO_TENANT_SOFT_DELETE, String.valueOf(id));
+        log.info("软删除租户, tenantId={}, 影响行数={}, 级联={}", id, rows, report.toMap());
         return rows;
     }
 
     /**
-     * 恢复软删除的租户
+     * 恢复软删除的租户。
+     *
+     * <p><b>一并解冻其账号</b>：软删时账号被置 {@code frozen}，
+     * 若这里只把租户标记复原，账号仍是 frozen —— 租户"恢复"了却没人能登录。
+     * 账号只从 frozen 复原，inactive / pending 等状态保持不变：
+     * 后两者是审批结论，不是删除的副产物，不该被这次恢复顺手抹掉。
      */
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public int restore(Long id) {
@@ -184,7 +198,10 @@ public class TenantService {
           .set(Tenant::getStatus, STATUS_NORMAL)
           .set(Tenant::getOfflineTime, null);
         int rows = tenantMapper.update(null, uw);
-        log.info("恢复租户, tenantId={}, 影响行数={}", id, rows);
+        int thawed = cascadeService.run(
+                CascadeRules.SCENARIO_TENANT_RESTORE, String.valueOf(id)).getAffected()
+                .values().stream().mapToInt(Integer::intValue).sum();
+        log.info("恢复租户, tenantId={}, 影响行数={}, 解冻账号={} 条", id, rows, thawed);
         return rows;
     }
 

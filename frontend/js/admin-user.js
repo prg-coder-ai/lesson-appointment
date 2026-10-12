@@ -29,7 +29,8 @@
       const id = btn.getAttribute('data-compose-uid');
       const role = btn.getAttribute('data-compose-role');
       const name = btn.getAttribute('data-compose-name') || '';
-      if (typeof window.openComposeToUser === 'function') window.openComposeToUser(id, role, name);
+      const account = btn.getAttribute('data-compose-account') || '';
+      if (typeof window.openComposeToUser === 'function') window.openComposeToUser(id, role, name, account);
     });
   }
 
@@ -186,43 +187,7 @@
             }
           }
   
-          // 数据脱敏：手机号屏蔽中间4位
-          function maskPhone(phone) {
-            if (!phone) return "";
-            const s = String(phone).trim();
-            if (s.length === 0) return "";
-            if (s.length === 11) {
-              return s.substring(0, 3) + "****" + s.substring(7);
-            }
-            if (s.length <= 4) {
-              return "*".repeat(s.length);
-            }
-            return s.substring(0, 1) + "*".repeat(s.length - 2) + s.substring(s.length - 1);
-          }
-
-          // 数据脱敏：邮箱@之前部分保留首尾字符，中间屏蔽4个字符
-          function maskEmail(email) {
-            if (!email) return "";
-            const s = String(email).trim();
-            if (s.length === 0) return "";
-            const atIdx = s.indexOf("@");
-            if (atIdx < 0) return s;
-            const local = s.substring(0, atIdx);
-            const domain = s.substring(atIdx);
-            const len = local.length;
-            if (len === 0) return domain;
-            let masked;
-            if (len === 1) {
-              masked = "*";
-            } else if (len === 2) {
-              masked = local.substring(0, 1) + "*";
-            } else if (len <= 5) {
-              masked = local.substring(0, 1) + "*".repeat(len - 2) + local.substring(len - 1);
-            } else {
-              masked = local.substring(0, 1) + "****" + local.substring(len - 1);
-            }
-            return masked + domain;
-          }
+          // 数据脱敏：手机号/邮箱 使用 api.js 的全局 maskPhone / maskEmail（单一来源，避免多份实现）
 
           function renderUserTable(userList,role){
                 
@@ -248,7 +213,7 @@
                     <tr>
                      <td> ${index} </td>
                      <td style="display:none;">${tea.userId || ""}</td>
-                    <td ${role=="teacher"? ` class="js-teacher-name"style="cursor:pointer;" onclick="teacherInfoBoard('${tea.userId}')"` : ""}>${tea.name || ""}</td>
+                    <td ${role=="teacher"? ` class="js-teacher-name"style="cursor:pointer;" onclick="teacherInfoBoard('${escAttr(tea.userId)}')"` : ""}>${tea.name || ""}</td>
                     <td>${tea.account || ""}</td>
                      <td>${maskEmail(tea.email || "")}</td>
                      <td>${maskPhone(tea.phone || "")}</td>
@@ -266,7 +231,7 @@
                     ${tea.status === "active" ? `<button class="btn btn-warning" onclick="disableTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-ban"></i> 禁用</button>` :'' }
                     ${tea.status === "pending" ? `<button class="btn btn-danger" onclick="deleteTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-trash"></i> 删除</button>` :'' }
                     <button class="btn btn-warning" onclick="resetUserPasswd('${tea.userId}')"><i class="fa fa-trash"></i> 重置密码</button>
-                    <button class="btn btn-info" data-compose-uid="${escAttr(tea.userId)}" data-compose-role="${escAttr(tea.role)}" data-compose-name="${escAttr(tea.name || '')}"><i class="fa fa-comment"></i> 发消息</button>
+                    <button class="btn btn-info" data-compose-uid="${escAttr(tea.userId)}" data-compose-role="${escAttr(tea.role)}" data-compose-name="${escAttr(tea.name || '')}" data-compose-account="${escAttr(tea.account || '')}"><i class="fa fa-comment"></i> 发消息</button>
                      
                   </td>
                 </tr>
@@ -438,7 +403,13 @@
 
                 //Detail--教师信息,用于提交图片、专业信息、时间段等，输出该教师的可用时段及推广信息
                 function teacherInfoBoard(userId) {
-                  window.location.href = `./teacherInfo.html?userId=${userId}`;
+                  // 必须走 pageUrl：teacherInfo.html 属于受保护的管理端子页，
+                  // 少了 tCode 会被引擎守卫判为「租户不一致」而踢回登录页
+                  //（历史上表现为：点了教师姓名先闪一下又回到登录界面）。
+                  const href = (typeof window.pageUrl === 'function')
+                    ? window.pageUrl('teacherInfo.html', { userId: userId })
+                    : './teacherInfo.html?userId=' + encodeURIComponent(userId || '');
+                  window.location.href = href;
                 }
                //禁用
                 async  function disableTeacher(userId,role) {

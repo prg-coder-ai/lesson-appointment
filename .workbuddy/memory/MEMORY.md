@@ -1,48 +1,78 @@
 # 项目长期记忆
 
 ## 协作偏好
-- **遇到多次尝试仍失败时，停下来询问用户，不要反复重试死磕**（2026-08-30，用户明确提出）。一般 2~3 次仍失败即应汇报现状并给出选项。
+- 多次失败(2~3次)即问用户；先根因+证据再修复；代码写完直接交付跳过自测(仍要编译验证)。
+- 改动已有校验先摆事实与选项让用户拍板；分步推进+保留既有实现（双层并行）。
+- 库内数据都是测试数据：只诊断不清理。
 
-## 项目背景
-- 单租户 → 多租户（SaaS）迁移项目，位于 `api/` 目录
-- 技术栈：Spring Boot 3.3.5 + Java 17 + MyBatis-Plus，数据库 lesson_appointment
-- Maven 3.9.11 安装在 `C:\Program Files\apache-maven-3.9.11`，Git Bash 下须直接调 `mvn.cmd`
-- 本机 target 目录偶发被残留 java.exe 进程锁定（杀毒/IDEA/中断的 Maven 进程）
+## 守卫（15 道，pre-commit 门禁；反向测试须证真会红）
+| 领域 | npm | 领域 | npm |
+|---|---|---|---|
+| 授权 | check:authz | 调度池 | check:scheduler |
+| 引用完整性 | check:cascade | Actuator | check:actuator |
+| DDL | check:ddl-align | 租户跨线程 | check:tenant-xt |
+| 时区 | check:tz | 密钥注入 | check:secret-env |
+| 端点常量 | check:endpoints | 错误响应契约 | check:result-contract |
+| 前端全局作用域 | check:global-collide | JSON日期契约 | check:date-contract |
+| 跨端状态契约 | check:status-contract | itest快照同步 | check:itest-sut |
+| **桥接导出对齐** | **check:bridge-exports** | | |
 
-## 环境备忘
-- Windows 上 Bash 管道与 Maven 输出捕获不稳定，可用 `*> 文件` 重定向或 PowerShell 原生调用
+跳过后缀：`SKIP_<领域大写>`（如 SKIP_RESULT_CONTRACT）。改权威源必跑反向测试。
+反向测试模式：不用 spawnSync（本机 node 子进程 EBUSY），用同进程 import(url+'?t=rand') + 拦 process.exit；变异串行 + 结束 md5 逐字节校验防污染。
 
-## 术语表设计（2026-09-02 定稿，待工作区任务完成后开工）
-- 目标：行业专业词汇表 sys_term，按行业切换菜单/标签词汇；平台维护全系统词，租户可添加/自定义，显示以租户词优先
-- 单表三级作用域，industry_id + tenant_id 用 0 哨兵（NULL 唯一键不生效 + 契合 tenant_id=0=平台语义）：
-  - (0,0)=平台词；(行业id,0)=行业词；(租户id, 冗余行业id)=租户词
-  - 唯一键 uk_scope_key(term_key, industry_id, tenant_id)；索引 idx_tenant / idx_industry
-  - 字段：id / term_key(编码,如 course) / term_name(显示词) / term_type(label|menu|button|tip,先只做label) / industry_id / tenant_id / sort_order / status / remark / create_time / update_time
-  - 解析优先级：租户词 > 行业词 > 平台词，逐级回退，最终前端硬编码兜底
-- 接口：GET /term/map（当前租户合并词表 key→name）、GET /term/list（平台/行业管理）、GET /term/tenant/list、POST /term、PUT /term/{id}、POST /term/{id}/status、DELETE /term/{id}、POST /term/copy（行业词批量复制，新行业上线从已有行业拷）
-- 待拍板：①租户新增词条是否限行业现有 key（倾向不限，可发明新 key）②term_type 先只做 label ③/term/map 租户维度缓存 5 分钟或改词失效
+## 第6批契约治理（2026-10-09/10 落地）
+- `Result.code` 是 primitive int（api+msg）；`fail()` 白名单 {200,400,401,403,404,409,500,1001}；fail 入参刻意保持 Integer 让 fail(null) 编译过再被拦。`ErrorCodes.java` 按异常语义给码，须与 GlobalExceptionHandler 一致（守卫④）。**fail(200) 已列禁形（守卫②拦，白名单保留 200 是既有设计）**。
+- `JacksonConfig`：LocalDateTime 手写序列化器 `format(fmt)+"Z"`（**withZone(UTC) 对 LocalDateTime 无效**，实测）。不做二次 UTC 转换。
+- **29-b 方案 A（2026-10-10 用户拍板落地）**：`ResultHttpStatusAdvice`（api+msg 各一）按 Result.code 映射 HTTP 状态，**只映射 400/404/409/500**；401/403 保持 HTTP 200（业务层 401/403 大量存在且非鉴权问题，全量映射会触发小程序刷新/踢登录=复现"刚登录被弹回登录页"）；1001/200 同样保持 200。真鉴权 401/403 由 Security/JwtFilter 过滤器层直出，不过该出口。守卫⑤校验四个 case 在、401/403 禁出现。
+- **文案策略（2026-10-10 用户拍板"两端都保留真实文案"）**：HTTP 级错误两端都**优先读 body 的 message/msg**，固定文案仅兜底（401 分支例外：frontend 清态跳转路径保持固定文案）。落点 frontend `utility_request.js` ④ 号分支 + 小程序 `request.js`；Security 过滤器层 401/403 JSON 也用 `message` 字段，bodyMsg 优先对它同样成立。
+- `Result.success(失败文案)` 已全部收口（2026-10-10 P0-1，13 处改 fail(400/404)）：B 类 CourseController:111/129/144 改 fail 时**必须同步修前端消费**——`admin-course.js` 的 `res!=""` 判定已改 `res===true`（`null != ""` 为 true 会把失败误判成「编辑成功」），`updateORCreateCourse`/`datamaintain_delete.js` catch 已改为优先展示 `err.message` 真实文案。
+- 状态契约是登记式（status-contract.json，理由≥20字）；前端 NON_OCCUPYING 多 'deleted' 是有意防御项。
+- itest `_sut*` 是运行时 cpSync 生成（已 gitignore 不入库）；cpSync 只覆盖不删除 → harness 已改先 rmSync 再 cpSync；守卫 check:itest-sut 钉住（扫 .git/index 二进制查跟踪，**守卫禁用 spawnSync——本机 EBUSY**）。
 
-## 前端构建与部署（2026-09-07 落地）
-- `frontend/` 为 vanilla 业务前端源码；standalone `frontend/pom.xml`(packaging=pom) + frontend-maven-plugin 自动下载 Node v20.11.1/npm 10.2.4，prepare-package 阶段跑 `build.js` 产出 `frontend/dist/`（terser/clean-css/html-minifier-terser 压缩混淆，仅混淆局部变量、保留跨文件全局名）。
-- 部署根 = `frontend/dist`（非源码 `frontend/`）；Nginx `root` 须指向 `dist`。`dist/`、`node_modules/`、`target/` 均被 frontend/.gitignore 忽略不入库。
-- 本机系统 `mvn` 损坏，前端构建同后端须用 Maven launcher JAR 直启（unset CLASSPATH + java -classpath plexus-classworlds-2.9.0.jar）。
-- 平台管理端 platform-admin-*.js 随 api jar 构建混淆：`api/build-platform.js`（仅局部变量，覆盖 target/classes/static，源码保持未混淆）+ `api/pom.xml` 的 frontend-maven-plugin 绑 prepare-package；spring-boot repackage 把混淆版打进 jar。跨文件全局名（request 等）保留。**构建命令与端到端联调实测见部署手册 2.8 节**。
-- 本地开发代理（`doc-develop/`，2026-09-09 重构）：引擎 `dev-proxy.js` + 两个入口 `dev-frontend-local.js`（全本地）/ `dev-frontend-remote.js`（全远程，默认 152.136.254.127）；`dev-frontend.js` 仅作兼容薄封装。Windows 双击用 `start-frontend-local.cmd` / `start-frontend-remote.cmd`。环境变量：`DEV_PORT`、`FRONTEND_ROOT`、`DIST=1`、`API_HOST`、`BOOKING_PORT`、`MSG_HOST`、`MSG_PORT`、`NO_PROBE=1`。脚本内置**混合拓扑守卫**（一端本地一端远程即告警）。
+## 小程序/前端铁律（精选）
+- 前端顶层标识符必须包 IIFE（全局词法冲突=解析期全崩）；内联 onclick 的函数必须挂 window。
+- WXML 绑定禁止函数调用（编译期静默渲染成空）。
+- 两端拦截器语义（frontend=权威定义）：HTTP 401→刷新 token 重试（公开页 noAuthRedirect 短路）；403→只提示不踢；HTTP 200 下 body.code 200→data、401/403→resolveResult 提示+reject（不清会话）、其他→reject。小程序 request.js 已对齐（2026-10-10）。
+- 文案差异是拍板事实：小程序「预订」/Web「预定」；bookingStatusText 带 profile 参数。
+- 改 shared/apiPaths.js 必重跑 gen-shared-bridge + sync-miniprogram-shared + check-shared-sync + frontend/build.js。
+- **消息中心展示映射唯一权威源 = `shared/domain/message.js`**（2026-10-12 下沉，用户拍板双端共用）：`categoryText/priorityCode/priorityText/senderTypeText/categoryListFromTree/collectCategoryCodes` + 分类字典；Web 经桥接 `window.MessageDomain` 用，小程序 `core/message.js` 只 import + re-export 转发。新增优先级档位/发送者类型只改这一处。**改 shared/domain/*.js 同样要走上面那条 sync+桥接+build 四步**。
+- **发送者账号可见范围按角色收敛（两端一致）**：管理员走 `/user/page?userId=`（name+account），学生/教师走 `/user/name/{id}`（仅姓名，挡 `'N/A'` 字面量），system 不发请求；web 端这些调用必须走 `areq`（8081），不能走 message-service 的 `mreq`（8090）。web `areq` 支持 `config.__silent`（失败不弹提示，供增强信息用）。
+- 已知待修（用户已拍板维持）：收件箱列表后端 `composeInbox` 不填 `senderType/senderName` → web 列表「来自」恒「系统」；前端已写成「有 senderType 优先」的兼容形态。
+- **✅已修（2026-10-12 方案 C 落地，message-service 编译通过）——收件箱误用发送方租户过滤**：根因 `InboxService.scopedWrapper` 曾拼 `user_id=me AND tenant_id=本租户`，而 `msg_inbox.tenant_id` 语义是**发送方租户** → 平台方发出（tenant_id=0）的消息在租户用户的列表/详情/未读数里全消失（真库 13 行 / 9 用户，全部未读）。**修法**：① `scopedWrapper` 只按 userId（唯一键 `uk_user_msg(user_id,message_id)` 本就不含 tenant_id；同一 userId 的行跨多个 tenant_id 值，租户2某 admin 874 行跨 {0,2}）；② `assertUserScope` 与 `assertAccess` 的边界**统一收敛为 `self || platform_admin`**（原 `isManager` 允许租户 admin 代查他人，而这正是原先 tenant_id 过滤在"顺便"挡的东西——但挡法本身也是错的：会漏行又拦不住跨租户）；③ SSE `key` 只按 userId（原先订阅用订阅者租户、推送用发送方租户，两侧 key 不同 → 平台→租户用户推送静默丢弃）。
+- **行为变化（需知）**：**租户管理员代查他人收件箱现在 403**（两端 UI 经核查无此入口，全部传本人 uid）。若将来要恢复，需让 `/user/briefs` 回 `tenantId`（该接口至今不回租户，见下条）或写扩散新增 `owner_tenant_id`（接收方租户）。
+- `msg_inbox.tenant_id` 仍保留写入；它在**发送方语义**上的用法是对的（如 `composeInbox` 用 `getCategoryByCode(code, in.getTenantId())` 找分类名——发送者用自己租户的分类发消息），**只有"接收人过滤"是误用**。
+- **「已发」详情接收人列表（2026-10-12）**：明细 `MSG_RECIPIENTS_OF(mid,{pageNum,pageSize,readState})`（message-service，只回 userId+投递/已读状态，每页 20，未读优先）；姓名/账号 `USER_BRIEFS(ids)`（主系统，≤200 去重，**account 仅管理员**，**必须走 areq/8081**）。新增 `/api/v1/user/*` 单数前缀端点**必须在 AuthzRules 登记**（不在 message-service 排除名单里）。后端时间出参统一 `LocalDateTime.toString()`（无 Z）—— 改成带 Z 前端会按 UTC 解读、偏 8 小时。
+- **★同作用域重复函数声明 → 静默覆盖（2026-10-12 诊断并修复）**：web `messages-inbox.js` 的 IIFE 顶层曾有**两个 `function loadRecipients`**（738 详情版 / 1158 发送卡片版），JS 同作用域重复函数声明**后者覆盖前者** → 682 行调用实际走发送卡片版 → 读不存在的 `#msg-scope` 抛 TypeError（裸调用无 catch，只在 console 留 unhandled rejection）→ **「已发」详情接收人列表 web 端恒空**；`recState/renderRecipients` 从未执行。**小程序端无此问题**（Page 内唯一）。**A 方案已落地**：发送卡片版改名 `loadScopeRecipients`（调用点 1110/1119 同步），详情版保留 `loadRecipients`；两者 DOM 归属互相隔离（`#msg-recipients` vs `#msg-scope/#msg-rcpt-list/#msg-tenant-id`），`frontend/build.js` 已重建 dist。**教训：`node --check` 与 `check:global-collide` 都拦不住这类（前者合法语法、后者只扫顶层全局标识符）——新写同文件同名函数前先查重名；小程序 Page 对象重复方法键同理静默覆盖。**
+- **「发送方租户」口径（2026-10-12，仅消息详情页、仅平台管理员）**：`msg_message.tenant_id` 发送时取自**发送者**令牌租户，写扩散原样落到 `msg_inbox.tenant_id` → **该列语义 = 发送方租户**（非接收方租户，别当收件人隔离依据）。详情接口回 `senderTenantId`；公司名靠 `TENANT_LIST`（`/api/v1/tenant/list`，PLATFORM_ONLY）建 `tenantId→orgName` 字典：`shared/domain/message.js` 的 `setTenantDict/getTenantDict/tenantText`，**`tenantText` 无兜底文案**（空/≤0/查不到一律空串 → 调用方省略整行）。
+- **「消息管理」= 发送台账，与收件箱是两套口径（2026-10-12 核查）**：`MessageManageService.pageMessages` 按 `msg_message.tenant_id=本租户` 过滤 → 因该列=发送方租户，租户管理员看到的是「**本租户发出的**消息」，看不到平台发出的（真库平台 25 条 / 租户2 1145 条 / 租户3 8 条），作为发送台账语义正确；平台管理员跨租户全量（tenantId 入参仅 >0 生效）。`assertManagerOrSender` 保留 `非平台管理员 && 租户≠msg.tenant_id → 403`。**消息管理不经过 `InboxService.scopedWrapper/assertUserScope`**，本轮收件箱修复对其无影响；受影响的是 SSE（彻底删除/收回推送现按 userId 路由 → 平台删跨租户消息的通知不再静默丢失）。web `admin-messageManage.js` 详情只有计数无接收人列表（小程序 manage 详情有）→ 两端不对称。
+- 小程序表单页写库前 4 项：NOT NULL 无默认列须显式给值；tinyint(1) ≤127；表级 CHECK 前端先拦；数值输入字符串承载。
 
-## JWT 密钥域与部署拓扑铁律（2026-09-08 用户权威确认）
-- **密钥域约定**：远程的 message-service 与远程 booking api **使用系统的 jwt 密钥**（线上实际部署密钥）；本地 maven 构建出的 message-service/booking jar 用的是 `api/src/main/resources/application.properties` 里的源 `jwt.secret`（882 串）——**与远程系统密钥不同**。
-- **铁律**：token 只能被「与其同源密钥」的服务校验。前端**不能一边连本地、一边连远程**：
-  - ✅ 全远程：远程 booking + 远程 message-service（同系统密钥），兼容；前提是远程 message-service 真在跑 + 防火墙放行 8090 入站。
-  - ✅ 全本地：本地 booking(8081) + 本地 message-service(8090)（同 882 串源密钥），兼容；前提是本地库数据就绪。
-  - ❌ 混合（本地 message + 远程 booking，或反向）：跨服务 token 验不过，必 401。
-- **实证锚点**：曾用源 882 串密钥伪造 token，本地 message-service 验过→send 200；远程 booking 拒→load recipients 401。该 401 是**密钥不一致**，非 sys_user_session 登录态校验（JwtAuthenticationFilter 只验签名、不查 session）。
-- **工具约束**：`doc-develop/dev-frontend.js` 的 `MSG_HOST` 分流**仅在两端密钥一致时（全本地或全远程同密钥）才安全**；不可用于"前端一边本地一边远程"的联调。
-- **本地起 message-service 必带 `--server.port=8090`**：沙箱环境变量 `SERVER__PORT=55058` 会被 Spring Boot 宽松绑定映射成 `server.port`，覆盖 jar 的 8090 → 绑 55058 撞 WorkBuddy IDE 退出。
+## 业务要点（精选）
+- **授权（2026-10-10 P1 全收口）**：SecurityConfig 兜底已切 `denyAll()`（两步策略走完，漏声明=运行期 403）；方法级 PermissionCheck 补齐 AuditLog/DataMaintain/log/Booking/TeacherProfessional/TimezoneCalc 六个 Controller（新增 `checkAnyLogin` 对齐 ALL_ROLES，**勿用 checkAnyLogin 替代 checkTeacherOrAdmin**——后者禁学生）；course /list|/page|/{courseid} 三端统一 checkAnyLogin（原 /list 的 checkTeacherOrAdmin 会把学生浏览课程打成 403，既存缺陷已修）。
+- 课次 UTC 化：排期=本地墙钟+time_zone（不动）；appointment=UTC 唯一真相源；转换只经 ScheduleGenerator 三入口；可见文本出口 utcToZonedText（空时区整句省略，不降级 UTC）。
+- 状态前缀：`s-`学生/`t-`教师课次级/无前缀整单级；t- 被"申请改期"占用，整单取消禁用 t-。
+- booking→appointment 联动单一实现 BookingAppointmentSyncService，仅 booked 生成课次。
+- 课次生成幂等：存在仍生效课次则不重建。候补/名额：排期行锁+锁定读计数+CAS。
+- 消息中心红线：绝不可单独 DELETE 主消息；message-service 无租户插件，隔离靠显式 tenantId。
+- **接收台账 `/api/v1/msg-ledger/*`（2026-10-12 新增，落在主系统 api 而非 message-service）**：解决「平台发给本租户用户」这类消息在租户侧完全不可见的问题——`/inbound`（列表，pageNum/pageSize/readState/messageId/tenantId）+ `/inbound/{mid}/recipients`（明细，未读优先）。用 `JdbcTemplate` 原生 SQL 跨 schema 只读聚合（`msg_message`/`msg_delivery`/`msg_inbox` ⋈ `lesson_appointment.user`，**`u.user_id = d.user_id COLLATE utf8mb4_general_ci`**；不用 MP 是因为 msg 表的 `tenant_id` 会被租户插件误加条件）。口径：**仅 `m.tenant_id = 0`（平台方发出）**；接收方租户**只能**取 `user.tenant_id`（msg 三表的 tenant_id 全是发送方租户）；平台管理员可空/指定租户，**租户管理员强制本租户**（`cur<=0` 抛 IllegalStateException → 403）。`readState` 判 `COALESCE(i.is_read,0)`，排序 `COALESCE(i.is_read,0) ASC, d.delivery_id ASC`。**时间出参必须在 SQL 层 `DATE_FORMAT(...,'%Y-%m-%dT%H:%i:%s')` 产裸串**（主系统 JacksonConfig 会给 LocalDateTime 补 Z，否则前端按 UTC 解读偏 8 小时）。AuthzRules 需登记 `PLATFORM_OR_TENANT_ADMIN`。`withdrawn` = `recalled` 的**历史同义值**（DDL 注释词汇表原文 `sent/withdrawn(已撤回)`，代码从未写过；真库 3 行 send_time==update_time），文案归一「已收回」、后端筛选并入 recalled 的 IN 集合。
+- **送信写扩散 = 接收方列表的唯一保存方式（2026-10-12 复核）**：`MessageService.sendToUsers`/`broadcast` 落 **1 条 `msg_message` + 每接收人 1 条 `msg_inbox`(folder=inbox, isRead=0, isStarred=0, isDeleted=0) + 1 条 `msg_delivery`(deliveryStatus=1, channel=rest, deliveryTime=now)**——**没有「接收人列表」字段**，列表就是这两张子表的行（recipients 去重：null/blank 过滤 + distinct）。读侧：`msg_delivery` 是**驱动表**（`orderByAsc(deliveryId)` 定序、未读优先靠**稳定排序**保组内序），`msg_inbox` 按本页 userId **一次 IN 回捞**（无 N+1）。「已发」列表按 `sender_id=当前用户`（非平台管理员再拼本租户）查 `msg_message`，计数 `recipientCount=count(msg_delivery)`、`readCount=count(msg_inbox where isRead=1 and isDeleted=0)`、`recallable=recipientCount>readCount`。**已读唯一真相源 = `msg_inbox.is_read`**（打开详情时 `InboxService.setRead` 写 isRead+readTime，**不写 msg_delivery**）；`delivery_status` 只管投递：1=已投递(发送时)、2=客户端 `ack`、3=失败（**撤回未读副本时也置 3**，前端据此显示「已撤回」）。撤回只动未读副本（isDeleted=1 + folder=trash、delivery 置 3、status→recalled/partial_recalled），已读的不动；`deleteMessageGlobal` 才三表全删（先收集 uid 推 SSE 再删）。
+- **接收人 userId 可拼装性（2026-10-12 真库分析）**：`user.account` **明文** varchar(255) NOT NULL（`student165`/`admin@TENANT_B`），**`user.name` 才加密**（hex）；`CryptoUtil.decrypt` 对非加密格式**原样返回**，故 `briefs` 里 decrypt(account) 安全；account 的可见性限制在**权限层**（`userBriefs` 的 `withAccount` 仅 admin/platform_admin），非数据层。租户名链路 `userId → user.tenant_id → sys_tenant.id → org_name`，sys_tenant 现有 id 1/2/3/4/10/11（倍嘉律师事务所/高才嘉培/英才大厦/五人行健身俱乐部/默认机构/平台自身），**无 id=0**。msg_delivery 全量 11304 行：匹配用户 11270、有账号 11270；**所属租户口径可拼 11207**（盲区 = 孤儿 userId 34 行 + **`user.tenant_id=0` 的 63 行**）；**发送方租户口径（`msg_delivery.tenant_id`）可拼 11253**（盲区仅发送方=0 的 51 行）；**77 行跨租户投递**（接收人租户≠发送方租户）。**接口缺口：`MSG_RECIPIENTS_OF` 与 `/user/briefs` 都不回 tenantId** → 租户名在库里但出不来；修法：briefs 多回 `tenantId`（复用 `tenantText`+`/tenant/list` 字典）或直接回 `orgName`。
+- JWT HS512：测试 token 的 sub 必须真实 user_id；JWT_SECRET 服务器侧 ≥64 字节。
 
-## 前后端职责边界（2026-09-09 改造落地）
-- **booking api = 纯后台**：仅提供 REST（`/api/v1/**`），**不再伺服任何 UI 页面**；`api/src/main/resources/static/` 已整体删除，jar 内 static 条目为 0。
-- **平台管理端归 frontend**：`platform_admin.html`、`logBrowser.html`、`js/platform-admin-*.js`、`js/main.js`、`js/logBrowser.js` 已迁至 `frontend/`，由 `frontend/build.js` 构建进 `dist/`，Nginx 伺服。平台管理员从前端登录（frontend/index.html 已支持 platform_admin 角色）→ 跳 `FRONTEND_ORIGIN + '/platform_admin.html'`。
-- **api 唯一缺省页**：`api/.../controller/DefaultPageController.java`，映射 `"/"` 与 `"/index.html"`，动态显示程序名/版本（build-info）/服务器时间/时区/已运行时长，用于自我标识。`"/"` 已在 SecurityConfig permitAll。
-- **api 不再跑 node**：`api/pom.xml` 的 `frontend-maven-plugin` 已移除，`api/build-platform.js`、`package.json`、`package-lock.json`、`node_modules` 已删；版本信息改由 `spring-boot-maven-plugin` 的 `build-info` goal 生成。
-- **共用资源零冲突**：`css/admin.css` 等共享文件两处原本内容完全一致（仅差末尾换行），合并到 frontend 一份后样式不变；但今后改 `admin.css` 会同时影响 platform_admin 与 admin 两页。
-- **构建注意**：frontend `build.js` 全量扫描 `frontend/`（html + js/** + css/** + 资源），新增页面/脚本放进去即自动进 dist，无需改构建配置。
+## 技术栈/构建/排障（精选）
+- api(Spring Boot 3.3.5+MP 3.5.7)+message-service(8090)；8080=dev代理、8081=booking API。编译：bash build_smoke.sh compile；改前端必重 node frontend/build.js。
+- 本机后台 java 会被回收 → 端到端验证用 jar 内 BOOT-INF classpath 跑独立 main；测 Spring 行为从 jar 解 class。
+- mysqldump 必须 --result-file=；改表结构后重 dump 落 api/sql/schema/。DDL 命名 YYYYMMDD-HHMM-<库>-<用途>.sql。本机 mysql 密码 123456。
+- **跨库 JOIN 坑**：`lesson_appointment`(utf8mb4_general_ci) 与 `message_center`(utf8mb4_0900_ai_ci) collation 不同，直接 `join ... on user_id = user_id` 报 `ERROR 1267 Illegal mix of collations`；必须 `u.user_id collate utf8mb4_general_ci = i.user_id collate utf8mb4_general_ci`。
+- Spring 占位符：env 名须与属性名词根一致（JWT_SECRET→jwt.secret ✅；CRYPTO_AESKEY ❌）。bash 4.2 兼容（${arr[@]+...}）。
+- Git Bash taskkill 需 MSYS_NO_PATHCONV=1；本机 curl 探针须 --noproxy '*'；异常堆栈去 api/logs/spring-boot-app.log。
+- 守卫编写坑：stripComments 后判逻辑；禁形清单"命中即return"顺序即优先级；正则认数组注解与常量引用；行尾 CRLF/LF 探测后替换并 grep 核验；误报比漏报更伤信任。
+- **★桥接白名单漂移（2026-10-12 踩到并修，并已由守卫钉住）**：给 `shared/domain/*.js` 加导出后，**必须同步改 `frontend/tools/gen-shared-bridge.js` 里对应的 `window.XxxDomain = {...}` 清单**——该对象是**手工白名单**，不自动跟随源导出；漏了则 Web 端 `MD.xxx` 为 undefined（走回退分支，常见后果=显示裸英文），小程序端走 ESM 具名 import 不受影响。**第 15 道守卫 `check:bridge-exports` 已自动化钉住**：① 产物新鲜度（`buildBridgeContent()` vs 磁盘产物、行尾归一后比对）② 导出对齐（vm 真加载产物取 window 键集合 vs 源导出；遗漏须在 `shared/domain/bridge-exports.json` 的 `notExposed` 登记 ≥20 字理由，多余键直接红）③ 登记表死条目清理。**配套契约：生成器的 `buildBridgeContent()` 必须零副作用**（不写盘、不打日志），否则守卫比对会自我干扰；重跑生成器在测试里**禁用 spawnSync**（本机 EBUSY），用 `delete require.cache[require.resolve(GEN)]` + 同进程 require。
+- **★「查不到名称别回退 id」原则 + 通知规则孤儿（2026-10-12）**：`NotifyRuleService` 曾在三处把 `courseId` 当 `courseName` 兜底 → 课程被硬删后「通知规则」列表「课程」列直接显示 32 位 id。**用户可见的名称字段查不到时留空**，由前端给可读文案（本轮：「课程已删除」+ id 移入 `title`），绝不把标识符塞进名称位。**根因是级联遗漏**：`course_notify_rule` 未登记进 `CascadeRules` → 删课程留孤儿。修法：`COURSE_DELETE_RULES` 加 `course.course_id → course_notify_rule.course_id` DELETE（引擎自动执行）+ `course_notify_rule.id → course_notify_rule_point.rule_id` **SKIP 占位**（父键类型不同、规则表跨不了层，由 `CourseService#deleteNotifyRulePointsOfCourse` 先展开删明细，**必须排在删规则头之前**）。**三条删除路径都要走 `SCENARIO_COURSE_DELETE`**：`deleteById` / `deleteByTemplateId` / **`deleteTemplate`（原先只 run TEMPLATE_DELETE，只删 course 一层）**。**级联守卫的盲区**：`check:cascade` 按 `CascadeRules` 场景常量的引用判定、**不做子表穷举** → 未登记的父子关系它结构上发现不了（登记后规则表 17→19 条）。DDL 基线是 `api/beforeRun/referential-integrity-20261008.sql`（迁移脚本，识别到的表不足 5 张，检查 6 只覆盖部分）。
+- **待拍板（未改）**：`CourseService.deleteById` / `deleteByTemplateId` 缺 `@Transactional`，删课程/模板跨多表写，中途失败会留半删状态。`CourseService.deleteTemplate` 的逐门展开已补齐，但同样无事务。
+- **★门禁入口已版本化（2026-10-12）**：pre-commit 本体在 **`tools/git-hooks/pre-commit`**（git 跟踪），git 经 **`core.hooksPath=tools/git-hooks`** 指向它；`.git/hooks/` 下已无自定义 hook（全 `.sample`）。**新克隆 / 新机器必须跑一次 `npm run hooks:install`** —— core.hooksPath 是本地配置、不入库。`tools/git-hooks/*` 在 `.gitattributes` 锁 **`eol=lf`**：本机 `core.autocrlf=true`，不锁的话钩子检出成 CRLF 会被 bash 以 `\r: command not found` 崩掉，而**提交照常成功**（静默失效）。相对路径**可移植**：子目录提交时 git 自动解析为 `../tools/git-hooks/pre-commit`，且钩子始终在**工作树根**执行（内部 `node tools/...` 安全）。验证手段：`git hook run pre-commit`（真实触发、不产生提交）+ `git rev-parse --git-path hooks/pre-commit`。
+- 守卫脚本名 ≠ npm script 名：桥接导出守卫文件是 **`tools/check-shared-bridge-exports.mjs`**（script 名 `check:bridge-exports`）；按 npm 名去 `tools/` 找文件会 MODULE_NOT_FOUND。
+- **行尾探测坑（2026-10-12）**：`grep -c $'\r' file` 在 Git Bash 里会被吞掉转义 → 变成"匹配所有行"，**误判 LF 文件为 CRLF**。判真实行尾用 Node 统计 `\r\n` 与 `\n` 计数；本仓库工作区是 LF、git 索引是 CRLF（autocrlf），用 Node 脚本改写并保持行尾后，`git diff --stat` 应只显示预期新增数。
+- **dist 的 js 是 terser 压缩产物**：局部函数名被改成单字母 → **核验 dist 必须 grep 字符串字面量 / DOM id / 属性名**（grep 函数名查不到属正常，别误判成「改动没生效」）。
+- `tools/check-authz-declarative.mjs` 的 `MSG_SERVICE_PREFIXES` 含 `/api/v1/message` → 该前缀下的端点被整段跳过授权校验；**新增主系统端点的路径若以它开头会被判「陈旧规则」误报**，命名须避开（本轮由 `/api/v1/message-ledger` 改为 `/api/v1/msg-ledger` 后全绿）。
+- 编译验证脚本支持指定模块：`bash build_smoke.sh compile <port> <api_dir>`（默认 api；message-service 传 `api/message-service`）。增量编译仅数秒，全量约 57s。

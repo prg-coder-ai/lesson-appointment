@@ -3,91 +3,66 @@
 // ===================== 核心函数 =====================
  
 let appointmentList=[];// ID,ciurseName,studentName,teacherName,dateTime(创建时间),状态、操作（预览、确认、拒绝） 
- 
+
+// 读筛选控件值；控件缺失（如某些页面复用本渲染但未挂对应筛选条）时返回默认值，避免整页崩溃
+function elVal(id, dflt) {
+  var e = document.getElementById(id);
+  return e ? e.value : (dflt === undefined ? '' : dflt);
+}
+
  // 引入分页组件js
  document.write('<script src="/js/public/pagefoot.js"></script>');
  window.refreshAppointmentNotes  = refreshAppointmentNotes ;  
 
  async function refreshAppointmentNotes(){
+        // 通知档位文案（下拉的 noted1/noted2 与状态列共用）取自租户默认通知规则，
+        // 先把档位配置拿到手再拼 HTML —— 否则下拉会先渲染成硬编码文案再"闪一下"变掉。
+        await loadNotifyStageLabels();
         assignLoadobjectListFunction( loadAndShowAppointmentPage);// assign
            // 渲染数据总览面板 不显示课程搜素
-           let html=
-            `  <div class="card">           
-            <div class="filter-bar">  
-                <div class="filter-item" style="display:none;">
-                  <label style="display:none;“><span data-term="course">课程</span>：</label>
-                  <input type="text" id="course-name-input" style="display:none;” placeholder="课程名称">
-                </div>
-                      
-                <div class="filter-item">
-                  <label>天数：</label>
-                  <select id="appoint-days-select">
-                    <option value=-1>全部</option>
-                    <option value=1>未来1天</option>
-                    <option value=3>未来3天</option>
-                    <option value=7>未来7天</option>
-                   </select>
-                </div> 
-                  
-                <div class="filter-item">
-                  <label>状态：</label>
-                  <select id="appoint-status-select">
-                    <option value="">全部</option>
-                    <option value="active">正常</option>
-                    <option value="noted1">7日内通知</option>
-                    <option value="noted2">正常 当日通知已发</option>
-                    <option value="completed">已完成 通知已发出 </option> 
+        const dynamicContentCenter = document.getElementById('dynamic-content-center');
+        if (!dynamicContentCenter) return;
+        // ===== 结构来自各页 <template id="tpl-appointment-notes">（admin/student/teacher 均放置）=====
+        // template+clone 改造（2026-09-28）：原主骨架 HTML 字符串已搬进 HTML 模板，
+        // 这里只负责「取模板 -> clone -> 注入动态文案(noted1/noted2) -> 填分页骨架 -> 绑事件」。
+        const tplEl = document.getElementById('tpl-appointment-notes');
+        if (!tplEl) {
+            console.error('[admin-AppointmentNotes] 缺少 #tpl-appointment-notes 模板，今日课程页无法渲染');
+            return;
+        }
+        dynamicContentCenter.replaceChildren(tplEl.content.cloneNode(true));
 
-                    <option value="cancelling">取消待确认</option>
-                    <option value="cancelled">已取消</option>
-                    <option value="reject">已拒绝</option>
+        // 状态下拉历史档位文案（noted1/noted2）按当前通知规则动态生成，模板留空、clone 后注入
+        const statusSel = document.getElementById('appoint-status-select');
+        if (statusSel) {
+            const fillNote = (val, n) => {
+                const o = statusSel.querySelector('option[value="' + val + '"]');
+                if (o) o.textContent = (typeof notifyStageLabel === 'function' ? notifyStageLabel(n) : '') + '（历史）';
+            };
+            fillNote('noted1', 1);
+            fillNote('noted2', 2);
+        }
 
-                    <option value="delete">已删除</option>                      
-                    <option value="booked">预约已确认</option>
-                    
-                    <option value="t-cancelling">取消待确认(T)</option>
-                    <option value="t-cancelled"> 已取消(T)</option>
-                    <option value="t-reject">已拒绝(T)</option>
-                      
-                  </select>
-                </div> 
-                <button class="btn btn-default" onclick="localsearchAppoint()">
-                  <i class="fa fa-search"></i> 搜索
-                </button>
-                <button class="btn btn-default" onclick="resetFilterAppoint()">
-                  <i class="fa fa-redo"></i> 重置
-                </button>
-              </div> 
-            <div class="table-container">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>序号</th>
-                    <th  style="display:none;">预约ID</th>
-                    <th><span data-term="course">课程</span>名称</th>
-                    <th><span data-term="student">学生</span>姓名</th>
-                    <th><span data-term="teacher">教师</span>姓名</th>
-                    <th><span data-term="lessonTime">上课时间</span></th>
-                    <th>状态</th>
-                    <th>操作</th>
-                  </tr>
-                </thead>
-                <tbody id="days-appointment-admin">
-                  
-                </tbody>
-              </table>
-            </div>
-            </div>
-           `;
-           
-         html += getPagebar();
-         const dynamicContentCenter = document.getElementById('dynamic-content-center');
-         if(dynamicContentCenter) {
-            dynamicContentCenter.innerHTML =  html;  
-            applyTerms(dynamicContentCenter);
-         
-         loadAndShowAppointmentPage();
-         }
+        // 术语替换：动态注入的内容须在 clone 后补一次（既有缺陷顺手修复）
+        if (typeof applyTerms === 'function') applyTerms(dynamicContentCenter);
+
+        // 原 html += getPagebar() 的落点：分页骨架
+        const appointPagebar = document.getElementById('appoint-pagebar');
+        if (appointPagebar && typeof getPagebar === 'function') appointPagebar.innerHTML = getPagebar();
+
+        bindAppointmentNotesEvents();
+
+        loadAndShowAppointmentPage();
+        // 候补提示条（仅学生有内容；非学生或查询失败时自行隐藏）
+        renderWaitlistBanner();
+
+        function bindAppointmentNotesEvents() {
+            // 每次 replaceChildren 后节点都是全新的，直接绑定即可（旧节点已被销毁，不会重复挂监听）
+            const $ = (id) => document.getElementById(id);
+            const on = (el, ev, fn) => { if (el) el.addEventListener(ev, fn); };
+            on($('btn-search-appoint'), 'click', localsearchAppoint);
+            on($('btn-reset-appoint'), 'click', resetFilterAppoint);
+        }
   }   
     
   async function loadAndShowAppointmentPage(){
@@ -102,9 +77,9 @@ let appointmentList=[];// ID,ciurseName,studentName,teacherName,dateTime(创建�
       pageSize: Pagination.pageSize,
       userId:   userId,
       userRole: userRole,    
-      name:   document.getElementById('course-name-input').value,
-      days:   document.getElementById('appoint-days-select').value,
-      status: document.getElementById('appoint-status-select').value 
+      name:   elVal('course-name-input', ''),
+      days:   elVal('appoint-days-select', -1),
+      status: elVal('appoint-status-select', '')
    }
     if(userRole== "admin") {
       params.userId =null;
@@ -114,16 +89,34 @@ let appointmentList=[];// ID,ciurseName,studentName,teacherName,dateTime(创建�
     Pagination.total = 0;
     Pagination.totalPages = 0;
     appointmentList = [ ];
- 
-     const pageResult = await fetchAppointmentListPage(params);//调用后台接口获取预约列表
-     if(pageResult){
-      appointmentList = pageResult.rows;
-      
-      const pageData = pageResult;
-      Pagination.total = pageData.total ;
-      Pagination.totalPages = pageData.totalPages;
-     } 
-       showAppointmentList( appointmentList,renderTo); //defined in appointmentNotes.js
+
+    if (userRole === 'teacher') {
+        // teacher 端「今日课程」按排期聚合：需对「全部课次」做客户端分组 + 分页，
+        // 否则服务端逐条分页会把同一排期拆到不同页，聚合行数与分页总数对不上。
+        // 近7天数据量有限，循环翻页取回全部即可。
+        let p = 1; const BATCH = 200;
+        while (true) {
+            const pr = await fetchAppointmentListPage(Object.assign({}, params, { pageNum: p, pageSize: BATCH }));
+            if (!pr || !Array.isArray(pr.rows) || pr.rows.length === 0) break;
+            appointmentList = appointmentList.concat(pr.rows);
+            if (pr.rows.length < BATCH) break; // 已是最后一页
+            p++;
+        }
+        // Pagination.total / totalPages 由 showAppointmentList 按聚合后的行数回填
+    } else {
+        const pageResult = await fetchAppointmentListPage(params);//调用后台接口获取预约列表
+        if(pageResult){
+         appointmentList = pageResult.rows;
+         
+         const pageData = pageResult;
+         Pagination.total = pageData.total ;
+         Pagination.totalPages = pageData.totalPages;
+        }
+    }
+       // showAppointmentList 是 async：teacher 分支在 await 之后才把聚合后的组数写回 Pagination.total。
+       // 不加 await 的话，下方 renderPagination 会同步抢跑，拿到 total=0（第132行清的初值），
+       // 表现为「列表行数对、分页条显示 0 条」。故必须 await。
+       await showAppointmentList( appointmentList,renderTo); //defined in appointmentNotes.js
        renderPagination( Pagination);        
       
   }
@@ -134,9 +127,9 @@ let appointmentList=[];// ID,ciurseName,studentName,teacherName,dateTime(创建�
 }
 // 重置筛选条件
 function resetFilterAppoint() {
-   document.getElementById('course-name-input').value = '';
-   document.getElementById('appoint-days-select').value = ''; 
-   document.getElementById('appoint-status-select').value = '';
+   var cn = document.getElementById('course-name-input');   if (cn) cn.value = '';
+   var ds = document.getElementById('appoint-days-select'); if (ds) ds.value = '1'; 
+   var ss = document.getElementById('appoint-status-select'); if (ss) ss.value = '';
    Pagination.pageNum = 1;
    loadAndShowAppointmentPage();
 
@@ -162,3 +155,19 @@ function resetFilterAppoint() {
 // select * from lesson_appointment.appointment 
 // where appointment_datetime between #{startTime} and #{endTime}
 // （#{}的传参建议为'yyyy-MM-dd HH:mm:ss'格式、无毫秒）
+
+/* ============================================================
+ * 顶部「刷新」按钮：注册页内刷新
+ * ------------------------------------------------------------
+ * 之前本页没有注册，点刷新会走「整页重渲染」兜底 —— 表现上就是筛选条件（天数/状态）
+ * 和当前页码被重置。本页表格本来就依赖筛选栏的取值渲染，故只重载表格即可。
+ * 容器不在了（页面已切走）返回 false，交回通用逻辑兜底。
+ * ============================================================ */
+function refreshLessonNoticeTable() {
+    if (!document.getElementById('days-appointment-admin')) return false;
+    loadAndShowAppointmentPage();
+    return true;
+}
+if (typeof registerPageRefresh === 'function') {
+    registerPageRefresh('lesson_notice', refreshLessonNoticeTable);
+}

@@ -39,7 +39,11 @@ public class MyBatisPlusConfig {
             // 行业字典是平台级共享数据，表结构也无 tenant_id 列；
             // 租户端需据其解析所属行业编码（/tenant/industry -> switchIndustry），
             // 若不排除，插件会拼出 `tenant_id = ?` 导致 Unknown column 报错
-            "sys_industry"
+            "sys_industry",
+            // 通知规则的「时间点明细」表刻意没有 tenant_id 列（规则头才有），
+            // 隔离靠 rule_id 关联的规则头间接保证（规则头走插件过滤）。
+            // 同样必须排除，否则插件的 `tenant_id = ?` 会直接撞 Unknown column
+            "course_notify_rule_point"
     );
 
     @Bean

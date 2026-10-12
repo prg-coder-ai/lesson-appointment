@@ -177,6 +177,8 @@ public class MonitorTask {
         String deadlineMonth = java.time.YearMonth.now().minusMonths(keepMonths).toString();
         LambdaQueryWrapper<TenantStatsMonthly> wrapper = new LambdaQueryWrapper<>();
         wrapper.lt(TenantStatsMonthly::getStatMonth, deadlineMonth);
+        // cascade: none sys_tenant_stats_monthly 是统计快照叶子表，无表引用它；
+        // 过期快照按保留期清理是设计意图，不涉及任何父子关系
         int rows = tenantStatsMonthlyMapper.delete(wrapper);
         if (rows > 0) {
             log.info("清理过期月度快照, 保留{}个月, 删除{}条", keepMonths, rows);

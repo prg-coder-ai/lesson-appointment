@@ -4,6 +4,7 @@ package com.reservation.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -36,5 +37,8 @@ public class CourseSchedule implements Serializable {
     private String status;  // 枚举值：pending/active/inactive/frozen
     private String timeZone;//排期计划的时区
      private String name;//排期名称
+    /** 是否满额（瞬时字段，不入库）：availableSites <= 占用席位数 时为 true。供编辑/发布界面向客户标注。 */
+    @TableField(exist = false)
+    private Boolean full;
 }
 //简化版本：每个排期只包含1次课（repeate_type=0),只允许available_sites个人参与预定，available_sites可以编辑（将来可从模板、课程中带入）。

@@ -6,6 +6,7 @@ import  com.reservation.query.*;
 import  com.reservation.dto.CourseQueryParam;
 import com.reservation.service.CourseService;
 import com.reservation.utils.PermissionCheck;
+import com.reservation.utils.TermMsg;
 import com.reservation.audit.Audit;
 import com.reservation.audit.AuditAction;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -59,7 +60,7 @@ public class CourseController {
           }
         // 调用服务层创建课程，返回courseId（对应设计2.2.2 课程创建返回数据）
         Map<String, String> resultMap = courseService.addCourse(course);
-        return Result.success(resultMap, "课程创建成功");
+        return Result.success(resultMap, TermMsg.t("{course}创建成功"));
     }
      
     /**
@@ -76,7 +77,7 @@ public class CourseController {
          String courseId = req.getCourseid(); 
         // 执行对应操作
         courseService.updateCourseStatus(courseId, req.getStatus()); 
-        return Result.success(true, "课程状态修改成功");
+        return Result.success(true, TermMsg.t("{course}状态修改成功"));
     }
 
     @PostMapping("/updateStatusByLastId/{id}")
@@ -87,7 +88,7 @@ public class CourseController {
         permissionCheck.checkTeacherOrAdmin(token);
         // 执行对应操作
         Integer rows = courseService.updateCourseStatusByLastId(id, status);
-        return Result.success(rows, "课程状态修改成功");
+        return Result.success(rows, TermMsg.t("{course}状态修改成功"));
     }
 
 
@@ -104,9 +105,10 @@ public class CourseController {
          try{
         // 执行对应操作
         courseService.update(req); 
-        return Result.success(true, "课程修改成功");
+        return Result.success(true, TermMsg.t("{course}修改成功"));
          }  catch (Exception e) {
-           return Result.success(false, "课程修失败: " + e.getMessage());      
+           // 异常详情属动态数据，接在术语模板**之外**——不参与取词，否则详情里恰好出现的行业词会被误改
+           return Result.fail(400, TermMsg.t("{course}修改失败: ") + e.getMessage());
        }
     }
 
@@ -118,12 +120,13 @@ public class CourseController {
        // 校验权限：只能教师或管理员有权限删除.教师只删除自己的课程
         permissionCheck.checkTeacherOrAdmin(token);
      try {
-        // 实际删除操作
+        // 实际删除操作（级联在 CourseService#deleteById 内：排期 → 预订 → 课次）
+        // cascade: none 本层不处置，Controller 只是薄转发
           int result = courseService.deleteById(id);
         
-           return Result.success(result, "课程删除成功");
+           return Result.success(result, TermMsg.t("{course}删除成功"));
        } catch (Exception e) {
-           return Result.success(0, "课程删除失败: " + e.getMessage());      
+           return Result.fail(400, TermMsg.t("{course}删除失败: ") + e.getMessage());
        }
    }
 
@@ -135,10 +138,10 @@ public class CourseController {
        try{
         // 实际删除操作
          int result = courseService.deleteByTemplateId(id);
-         return Result.success(result, "课程删除成功");
+         return Result.success(result, TermMsg.t("{course}删除成功"));
        
        } catch (Exception e) {
-           return Result.success(0, "课程删除失败: " + e.getMessage());      
+           return Result.fail(400, TermMsg.t("{course}删除失败: ") + e.getMessage());
        }
    }
 
@@ -153,10 +156,12 @@ public class CourseController {
      */
     @GetMapping("/list")
     @ResponseBody
-        // 权限校验：教师或管理员、学生均可操作  //@Validated @RequestBody(required = false) 
+        // 权限校验（2026-10-10 P1-4 一致化）：教师/管理员/学生均可——学生约课链路确实要读课程列表
+        // （student-bookingBrowserCards.js 走 fetchCourseList 打本端点）。原 checkTeacherOrAdmin 会把学生
+        // 挡成 403（既存缺陷），现与 /page、/{courseid} 统一为 checkAnyLogin（对齐 ALL_ROLES 声明）。
    public Result<List<Course>> getCourseList(CourseQueryParam params,
                                                           @RequestHeader("Authorization") String token) {
-        permissionCheck.checkTeacherOrAdmin(token);
+        permissionCheck.checkAnyLogin(token);
         // 调用服务层查询课程列表
          log.debug("getCourseList controller: " + params);
         List<Course> courseList = courseService.getCourseList(params);
@@ -173,13 +178,11 @@ public class CourseController {
     private Integer pageSize;  // 每页条数
     private Integer totalPages;// 总页数
     */
-   public Result<PageResult<Course>> getCourseListByPage(CourseQueryPage query, 
+   public Result<PageResult<Course>> getCourseListByPage(CourseQueryPage query,
                                                           @RequestHeader("Authorization") String token) {
 
-        //   log.debug("getCourseListByPage input:" + query);                                                   
-        //permissionCheck.checkTeacherOrAdmin(token);
-        // 调用服务层查询课程列表
-       //  log.debug("getCourseList controller: " + query);
+        // 方法级兜底（2026-10-10 P1-4 一致化）：与 /list、/{courseid} 统一为 ALL_ROLES
+        permissionCheck.checkAnyLogin(token);
         PageResult<Course> courseList = courseService.getCoursePage( query);
         //Map<String, List<Course>> resultMap = Map.of("courses", courseList);
        // log.debug("getCourseListByPage output:" + courseList);
@@ -191,9 +194,8 @@ public class CourseController {
         // 权限校验：教师或管理员、学生均可操作
    public Result<Course> getCourseById(@PathVariable String courseid,
                                                           @RequestHeader("Authorization") String token) {
-        //permissionCheck.checkTeacherOrAdmin(token);
-        // 调用服务层查询课程列表
-        // log.debug("getCourseByID controller: " + courseid);
+        // 方法级兜底（2026-10-10 P1-4 一致化）：与 /list、/page 统一为 ALL_ROLES
+        permissionCheck.checkAnyLogin(token);
          Course  course  = courseService.getCourseById(courseid);
         //Map<String, List<Course>> resultMap = Map.of("courses", courseList);
         return Result.success(course, "查询成功");

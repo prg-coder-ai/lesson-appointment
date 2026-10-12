@@ -9,6 +9,27 @@
 
   const request = window.request;
 
+  // 存储统一走共享适配层 window.StorageAdapter.storage（接口 get/set/remove/clear）；
+  // 调用方沿用浏览器 localStorage 语义（getItem/setItem/removeItem），此处做接口归一——
+  // 适配器只暴露 get/set/remove/clear，故将其映射成 getItem/setItem/removeItem 供上层直接调用。
+  // 桥接未加载时（如单测沙箱）回退到原生 localStorage（自带 getItem/setItem/removeItem），保证零回归。
+  var _storageBackend = (typeof window !== 'undefined' && window.StorageAdapter && window.StorageAdapter.storage)
+    ? window.StorageAdapter.storage
+    : (typeof localStorage !== 'undefined' ? localStorage : null);
+  var STORE = _storageBackend
+    ? (typeof _storageBackend.getItem === 'function'
+        ? _storageBackend
+        : {
+            getItem: function (k) { return _storageBackend.get(k); },
+            setItem: function (k, v) { return _storageBackend.set(k, v); },
+            removeItem: function (k) { return _storageBackend.remove(k); },
+            clear: function () { return _storageBackend.clear(); },
+            get: function (k) { return _storageBackend.get(k); },
+            set: function (k, v) { return _storageBackend.set(k, v); },
+            remove: function (k) { return _storageBackend.remove(k); }
+          })
+    : null;
+
   // 登录 API：参数应当放在 data 中
   function login(data) {
     // data: { account: 'xxx', password: 'yyy' }
@@ -35,15 +56,9 @@
   }
 
   async function handleLogout() {
-    // 注意：必须在 localStorage.clear() 之前先保存 redirect 信息！
-    // 因为 saveLoginRedirect 也是写 localStorage，清了之后会丢失。
-    undefined;
-    if (typeof window.saveLoginRedirect === 'function') {
-      window.saveLoginRedirect('logout');
-    } else {
-      console.warn('[AuthRedirect] window.saveLoginRedirect 不存在（utility_request.js 未加载？）');
-    }
-    const refreshToken = localStorage.getItem('refreshToken');
+    // 注意：退出登录不应保留「返回点」。若在此处 saveLoginRedirect，会把退出前所在页
+    // （落地页/工作台）存为下次登录后的跳转目标，导致重新登录反而跳回落地页而非角色工作台。
+    const refreshToken = STORE.getItem('refreshToken');
     if (refreshToken) {
       try {
         await logout(refreshToken);
@@ -52,12 +67,14 @@
       }
     }
     // 注意：不要直接 localStorage.clear()，否则会把刚存的 auth_redirect_info 也清掉
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('currentUser');
-    localStorage.removeItem('auth_menu_state');  // 常见菜单状态，按需扩展
+    STORE.removeItem('token');
+    STORE.removeItem('refreshToken');
+    STORE.removeItem('currentUser');
+    STORE.removeItem('auth_menu_state');  // 常见菜单状态，按需扩展
     document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
-    location.href = './index.html';
+    // 回到登录页时保留租户链接参数：pageUrl 由 api.js 提供（自动附 tCode），
+    // 缺失时降级为相对路径，保证不因 helper 未加载而跳转失败
+    location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('login.html') : './login.html';
   }
   
   /**
@@ -76,8 +93,8 @@
    */
 
   function saveCurrentUserSession(user) {
-    localStorage.setItem('token', user.token);
-    localStorage.setItem('refreshToken', user.refreshToken);
+    STORE.setItem('token', user.token);
+    STORE.setItem('refreshToken', user.refreshToken);
     const currentUser = {
       userId: user.userId,
       account: user.account,
@@ -85,7 +102,19 @@
       role: user.role,
       token: user.token
     };
-    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    // tenantCode 必须落盘：后端登录响应不返回该字段，若不补，
+    // 后续 redirectToUserPage(user) 会拼出 'xxx.html?tCode=undefined'，
+    // 目标页入口守卫因此把用户踢回登录页。
+    let tCode = user.tenantCode || '';
+    if (!tCode && typeof window.getUrlParam === 'function') tCode = window.getUrlParam('tCode') || '';
+    if (!tCode) {
+      try {
+        const old = JSON.parse(STORE.getItem('currentUser') || 'null');
+        tCode = (old && old.tenantCode) || '';
+      } catch (e) { /* 旧值不可解析则忽略 */ }
+    }
+    if (tCode) currentUser.tenantCode = tCode;
+    STORE.setItem('currentUser', JSON.stringify(currentUser));
     try {
       const d = new Date();
       d.setTime(d.getTime() + 20 * 60 * 60 * 1000);
@@ -147,10 +176,15 @@
       //console .log("authenticateUser",res);
       return saveCurrentUserSession(res);
     } catch (err) {
+      // 登录 404（账号不存在 / 密码错误）统一显示固定文案，防止账号枚举；
+      // 其余错误（500 等）仍透传真实原因。err 是 axios error，status 在 err.response.status。
+      if (err && err.response && err.response.status === 404) {
+        throw '账号或密码不正确';
+      }
       const msg =
         typeof err === 'string'
           ? err
-          : err.message || err.msg || '账号或密码错误，请重试';
+          : err.bodyMsg || err.message || err.msg || '账号或密码错误，请重试';
       throw msg;
     }
   }

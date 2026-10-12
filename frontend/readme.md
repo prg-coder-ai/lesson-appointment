@@ -12,7 +12,7 @@
   - 源码根：`frontend/`（含 `node_modules/`、`target/`、`pom.xml`、测试目录，**不入库、不上线**）
   - 部署产物：`frontend/dist/`（由构建脚本压缩混淆生成，结构镜像源码、文件名不变）
   - `frontend/.gitignore` 已忽略 `dist/`、`node_modules/`、`target/`。**线上发布的是 `dist/`，不是源码 `frontend/`**。
-- **运行方式**：由 Nginx 静态托管 `dist/`（默认 `:8080`），浏览器侧的 API 调用经 Nginx 同源反代 `/api/v1/` 转发到后端，**无跨域**。
+- **运行方式**：Nginx 静态托管 `dist/` 并同源反代 `/api/v1/`（**无跨域**）。监听端口由 Nginx 站点决定：本地开发代理默认 `:8080`，生产通常 `:80`/`:443`。**前端代码不感知端口**——跳转一律 `location.origin`，请求一律相对路径。
 
 ---
 
@@ -34,6 +34,7 @@ frontend/
 │   │   ├── auth.js           # 登录/鉴权/token
 │   │   ├── terms.js          # 本地术语兜底字典 TERM_DICT（按行业）
 │   │   ├── termsFunction.js  # applyTerms() 行业词替换、语言切换下拉注入、/term/map 拉取
+│   │   ├── documentTitle.js  # <title>（浏览器标签页）术语化：data-term-title 模板 + 租户品牌
 │   │   ├── dataFunctions.js  # 通用数据函数
 │   │   ├── courseAndBooking.js / appointmentNotes.js / pagefoot.js / datamaintain_delete.js
 │   ├── admin-*.js           # 租户管理端业务脚本（约 8 个）
@@ -43,8 +44,10 @@ frontend/
 │   ├── messages-inbox.js     # 消息收件箱（对接 message-service）
 │   └── test/testData.js      # 批量造数工具（发行版隐藏菜单，不进 dist 构建）
 ├── images/                 # 图标等静态资源
+├── tools/
+│   └── check-origin.js      # 站点地址硬编码检查（构建前自动跑，见第 6.2 节）
 ├── build.js                # 压缩混淆构建脚本（terser + clean-css + html-minifier-terser）
-├── package.json            # 含 build 脚本；.npmrc 锁定官方 registry
+├── package.json            # 含 build / lint:origin 脚本；.npmrc 锁定官方 registry
 └── pom.xml                 # packaging=pom，frontend-maven-plugin 自动下载 Node/npm 并触发构建
 ```
 
@@ -65,9 +68,14 @@ frontend/
 跨源导航常量在 `js/public/api.js` 中定义（后端 `static/` 已删除，**现仅此一份，无需再同步**）：
 
 ```js
-window.ADMIN_ORIGIN    = window.ADMIN_ORIGIN    || ('http://' + location.hostname + ':8081'); // 遗留变量，已不再使用
-window.FRONTEND_ORIGIN = window.FRONTEND_ORIGIN || ('http://' + location.hostname + ':8080'); // 业务前端 + 平台管理端
+// 2026-09-10 起：默认同源。需要独立子域部署管理端时，由页面显式注入同名变量覆盖即可
+window.ADMIN_ORIGIN    = window.ADMIN_ORIGIN    || location.origin;
+window.FRONTEND_ORIGIN = window.FRONTEND_ORIGIN || location.origin;
 ```
+
+> **地址约定（务必遵守）**：前端**不拼接任何主机 + 端口**。同源用 `location.origin`，接口用相对路径或 `window.API_BASE_URL`（默认为空=同源）。
+> 旧的 `'http://' + location.hostname + ':8080'` 写法在本地 dev 代理下正常、生产会跳到未开放端口
+> （2026-09-09 平台管理员注册后跳 `:8080` 即由此引起）。构建前会自动检查，见第 6.2 节。
 
 登录分发逻辑（`api.js`，2026-09-09 起 `platform_admin` 也走 `FRONTEND_ORIGIN`）：
 - `platform_admin` 角色 → `FRONTEND_ORIGIN + '/platform_admin.html?tCode=platform'`
@@ -81,7 +89,7 @@ window.FRONTEND_ORIGIN = window.FRONTEND_ORIGIN || ('http://' + location.hostnam
 
 | 服务 | 端口 | 作用 | 在 SaaS 仓库位置 |
 |------|------|------|------------------|
-| booking（api） | `:8081` | 主业务 API：预约/课程/用户/租户/术语（**纯后台，无静态页**） | `api/` 模块，产出 `booking_api-1.0.0.jar` |
+| booking（api） | `:8081` | 主业务 API：预约/课程/用户/租户/术语（**纯后台，无静态页**） | `api/` 模块，产出 `booking_api-2.0.0.jar` |
 | message-service | `:8090` | 消息中心：收件箱/模板/SSE 推送/投递追踪（**纯后台，无静态页**） | `message-service/` 模块，独立库 `message_center` |
 | 前端（Nginx） | `:8080` | 静态托管 `dist/`，同源反代 `/api/v1` | 本目录构建产物 |
 
@@ -130,6 +138,36 @@ window.API_BASE_URL = API_BASE_URL;
   - 本地兜底：`terms.js` 的 `TERM_DICT[行业]`（education / legal / counseling / exercise）
   - 服务端覆盖：`/term/map` 三级合并词表（租户词 > 行业词 > 平台词）；`loadTermMapFromServer()` 拉取后再次 `applyTerms()`
 - **生命周期**：静态页 `DOMContentLoaded` 调 `applyTerms()`；登录后/切语言再调一次。动态注入内容在渲染末尾补 `applyTerms(container)`。
+
+- **浏览器标签页标题（`<title>`）单独处理** —— `js/public/documentTitle.js`：
+  - 原因：`applyTerms(root = document.body)` **只扫 body**，`<title>` 在 `<head>`，标记 `data-term` 永远不生效；
+    且 `<title>` 是 RCDATA 元素，里面写 `<span data-term="x">` 会被当作**纯文本**显示（曾导致标题出现尖括号乱码）。
+  - 写法：`<title data-term-title="{lessonSystem} - 管理端">语言教学预约系统 - 管理端</title>`
+    —— `data-term-title` 是模板，`{key}` 替换为当前词；标签内文本只是未执行 JS 时的兜底（写锚点词）。
+  - 不加 `data-term-title` 的旧页面走兜底：标题里的锚点词（"语言教学预约系统"）自动替换为行业词。
+  - 优先级：**租户品牌 > 服务端合并词 > 本地行业词 > 锚点词**；未知 key 保留 `{key}` 占位，绝不出现 `undefined`。
+  - 调用时机：`DOMContentLoaded`、`window load`、`/term/map` 返回后、`switchIndustry()`、`applyTenantTitle({brand})`。
+  - 页内 `#brand-title`：带 `data-term` 的交给 `applyTerms`；被租户品牌改写的打 `data-tenant-brand` 标记，避免被行业词回写。
+  - 回归：`node doc-develop/itest_document_title.js`（23 项：行业切换/服务端词/租户品牌/幂等/健壮性/真实链路）。
+- **枚举字段（下拉/列表）的 code → 行业词** —— `js/public/enumTerms.js`：
+  - 原因：`languageType` 在库里存 code（`french/english/chinese/spanish`），而**显示词只存在于 `<option>` 的 DOM 文本里**（靠 `data-term` 换词）。
+    列表是 JS 拼字符串渲染的，拿不到 DOM 文本 → 曾经直接把 `english` 拼进页面。
+  - **唯一权威映射**（与 `TERM_DICT.education` 一致，`french→classType1` `english→classType2` `chinese→classType3` `spanish→classType4`）。
+    历史上有 5 个文件各写一套、`admin-template.js` 还写反了，现统一收敛到本模块。
+  - 用法，禁止再手写 `<option value="xx"><span data-term="classTypeN">`：
+
+    | 场景 | 调用 |
+    |---|---|
+    | 列表单元格 | `courseTypeCellHtml(code)` → `<span data-term="classType2">劳动</span>`（切行业会被 `applyTerms` 刷新） |
+    | 下拉 `<option>` | `courseTypeOptionsHtml(selected, { empty: '全部' })` |
+    | 字符串拼接 | `courseTypeText(code)`（如"法语 B1入门 60 300"） |
+    | 其它 code 后缀型字段 | `enumTermText('classForm','1p1')` / `enumTermCellHtml('classLevel','B1')` |
+
+  - 兜底链：**服务端合并词 > 当前行业词 > 锚点词**；脏数据兼容（`'English'`/`'英语'` 归一化），未知 code **原样输出**（不丢数据、不出 `undefined`）。
+  - 引用注意：`terms.js` 里 `const TERM_DICT` 是**词法声明，不挂 window**，模块内须用裸标识符 + `typeof` 探测。
+  - 涉及页面必须在 `termsFunction.js` 之后引入 `js/public/enumTerms.js`（当前：admin/student/teacher）。
+  - 回归：`node doc-develop/itest_enum_terms.js`（55 项：四行业词/脏数据/选中项/服务端词覆盖/静态防回退/锚点一致性）。
+
 - **语言切换**：头部下拉菜单（`#lang-switch-dropdown`，自注入到退出按钮 `<i class="fa fa-sign-out-alt">` 左侧），`localStorage.lang` 记录 zh/en/fr，`setLang()` 派发 `langchange` 事件刷新 UI；登录页无 header 时回退右上角固定。
 
 ---
@@ -164,6 +202,28 @@ java -classpath "$M2\boot\plexus-classworlds-2.9.0.jar" \
 
 > 仅改业务前端（如 `admin-user.js`、`termsFunction.js`）只需重打 **frontend 模块**；API jar 不含业务前端，无需重打。
 
+### 6.2 构建前的地址硬编码检查（origin lint）
+
+`build.js` 在构建**之前**自动执行 `tools/check-origin.js`，扫描源码（跳过 `js/test/`、`node_modules/`、`dist/`、`tools/`）中的 4 类写法：
+
+| 规则 ID | 命中写法 | 为什么禁 |
+|---|---|---|
+| `HOSTNAME_PORT` | `'http://' + location.hostname + ':8080'` | 生产没有该 dev 端口，跳转/请求必失败 |
+| `PROTO_HOSTNAME` | `'http://' + location.host`（拼绝对地址） | 同上，且绕过 Nginx 同源反代 |
+| `LOCALHOST_URL` | `'http://localhost:8081'` | 该地址指向**访客自己的机器**，生产必错 |
+| `IP_URL` | `'http://152.136.254.127:8081'` | 服务器 IP/域名会变，写死必漂移 |
+
+- **默认发现即中止构建**（不会删已有 dist），请先修正；确属说明文案（如界面上的"业务后台（:8081）"）就在该行加注释 `/* ORIGIN-LINT-DISABLE */` 豁免。
+- 单独执行：
+
+```bash
+cd frontend
+npm run lint:origin          # 只看告警，不阻断
+npm run lint:origin:strict   # 发现即 exit 1（CI / 发版前推荐）
+```
+
+- 紧急发版临时跳过：`SKIP_ORIGIN_LINT=1 node build.js`（**不建议常态化**）。
+
 ---
 
 ## 7. Nginx 配置
@@ -171,8 +231,8 @@ java -classpath "$M2\boot\plexus-classworlds-2.9.0.jar" \
 ### 7.1 本地开发（前端 `:8080` 托管 dist，反代 `:8081`）
 
 要点：
-- `listen 8080;`、`root <frontend/dist 绝对路径>;`、`index index.html;`
-- `location / { try_files $uri $uri/ /index.html; }` —— 未知路径 SPA 兜底
+- `listen 8080;`、`root <frontend/dist 绝对路径>;`、`index login.html;`
+- `location / { try_files $uri $uri/ /login.html; }` —— 未知路径 SPA 兜底
 - `location /api/v1/ { proxy_pass http://<后端host>:8081; ... }` —— 同源反代，浏览器无跨域
 - Windows 坑：必须用原生 `C:/` 路径；启动带 `-p <前缀目录> -c <配置文件>`，否则 Nginx 找不到配置
 
@@ -188,8 +248,8 @@ server {
     listen 443 ssl http2;
     server_name admin.example.com;
     root /var/www/frontend;                 # 与业务前端同一份 dist
-    index index.html;
-    location / { try_files $uri $uri/ /index.html; }
+    index login.html;
+    location / { try_files $uri $uri/ /login.html; }
     location /api/v1/ { proxy_pass http://127.0.0.1:8081; include /etc/nginx/proxy_params; proxy_read_timeout 120s; }
 }
 ```
@@ -200,8 +260,8 @@ server {
     listen 443 ssl http2;
     server_name booking.example.com;
     root /var/www/frontend;
-    index index.html;
-    location / { try_files $uri $uri/ /index.html; }
+    index login.html;
+    location / { try_files $uri $uri/ /login.html; }
     location /api/v1/message   { proxy_pass http://127.0.0.1:8090; include /etc/nginx/proxy_params; }
     location /api/v1/sse       { proxy_pass http://127.0.0.1:8090; include /etc/nginx/proxy_params; proxy_buffering off; proxy_read_timeout 3600s; }
     location /api/v1/users/   { proxy_pass http://127.0.0.1:8090; include /etc/nginx/proxy_params; }
@@ -215,14 +275,18 @@ server {
 
 ## 8. 常见维护坑
 
-1. **API 基址不一致**：若历史代码把 `API_BASE_URL` 写死成 `http://localhost:8081`，会与 `utility_request.js` 的同源实例冲突，表现为"部分接口坏、随页面切换变化"。保持 `api.js` 中 `API_SERVER_HOST/PORT` 为空（同源）即可。
+1. **API 基址不一致**：若历史代码把 `API_BASE_URL` 写死成 `http://localhost:8081`，会与 `utility_request.js` 的同源实例冲突，表现为"部分接口坏、随页面切换变化"。保持 `api.js` 中 `API_SERVER_HOST/PORT` 为空（同源）即可；构建前的 `lint:origin` 会拦截这类写法。
 2. **改了前端却没生效**：记得发布的是 `dist/`，改完源码必须重跑 `mvn package` 重建 dist 并上传到 Nginx `root`。
 3. **SSE 收不到推送**：Nginx 未关缓冲 → 在 `/api/v1/sse` 加 `proxy_buffering off;`。
 4. **术语/语言不切换**：确认元素带 `data-term`/`data-term-placeholder` 标记，且 key 在 `terms.js` 或 `/term/map` 中存在；动态内容渲染后须调 `applyTerms(container)`。
 5. **管理端 vs 租户端混淆**：`platform_admin.html`（平台端，系统级）≠ `admin.html`（租户端，租户级）。二者**现在都在本前端 `:8080`**（平台端于 2026-09-09 迁入），共用 `css/admin.css` —— 改该 CSS 会同时影响两页。
-6. **登录后跳错端口**：所有角色都应跳 `FRONTEND_ORIGIN`（`:8080`）。若 `platform_admin` 仍跳 `ADMIN_ORIGIN`（`:8081`）说明代码是迁移前的旧版，会 404/500。
+6. **登录后跳错端口（2026-09-09 真实事故）**：`api.js` 曾把 `FRONTEND_ORIGIN` 兜底成 `'http://'+location.hostname+':8080'`，生产未注入该变量 → 平台管理员注册后跳到未开放的 8080。**现已改为默认 `location.origin`**；新增的规则会被 `lint:origin` 拦住。需要跨站部署时，在页面里 `<script>window.FRONTEND_ORIGIN='https://admin.example.com'</script>` 注入即可。
 7. **后端根路径不再是页面**：`http://<host>:8081/` 与 `http://<host>:8090/` 只返回「缺省自我标识页」（程序名/版本/服务器时间/时区/已运行时长），用于确认进程存活；页面一律走前端。
 8. **本机 mvn 损坏**：用第 6.1 节的 Maven launcher 直启命令，不要依赖系统 `mvn`。
+9. **标签页标题不随行业变 / 标题里出现尖括号（2026-09-10 修复）**：`<title>` 在 `<head>`，`applyTerms()` 只扫 body，
+   所以 `<title>` 上写 `data-term` 无效；写 `<span data-term>` 更糟——title 是 RCDATA，标签会被当纯文本显示。
+   正确做法：`<title data-term-title="{lessonSystem} - 管理端">语言教学预约系统 - 管理端</title>`，
+   并确保页面引入了 `js/public/documentTitle.js`（在 `termsFunction.js` 之后）。
 
 ---
 

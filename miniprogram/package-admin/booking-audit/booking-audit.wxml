@@ -1,0 +1,43 @@
+<view class="page">
+  <!-- 检索栏：课程名（后端 LIKE 筛选）+ 状态（服务端精准筛选） -->
+  <view class="filter">
+    <view class="f-row">
+      <input class="f-input" placeholder="{{terms.course}}名称" value="{{courseName}}"
+        confirm-type="search" bindinput="onCourseNameInput" bindconfirm="onSearch" />
+      <button class="f-btn" size="mini" bindtap="onSearch">搜索</button>
+      <button class="f-btn ghost" size="mini" bindtap="onReset">重置</button>
+    </view>
+    <view class="f-row">
+      <picker class="f-pick" mode="selector" range="{{statusOptions}}" range-key="t" value="{{statusIndex}}" bindchange="onStatusChange">
+        <view class="f-picker">状态：{{statusOptions[statusIndex].t}}</view>
+      </picker>
+    </view>
+    <view class="f-hint">共 {{total}} 条，已加载 {{shown}} 条</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="center">加载中…</view>
+  <view wx:elif="{{list.length === 0}}" class="center">暂无预订</view>
+  <view wx:else class="list">
+    <view wx:for="{{list}}" wx:key="id" class="item">
+      <view class="row1">
+        <text class="name">{{item.courseName || terms.course}}</text>
+        <text class="status {{item.tone}}">{{item.statusText}}</text>
+      </view>
+      <view class="row2">
+        <text class="meta">{{terms.student}} {{item.studentName}}</text>
+        <text class="meta">{{terms.teacher}} {{item.teacherName}}</text>
+      </view>
+      <view wx:if="{{item.scheduleInfo}}" class="row2"><text class="meta">{{item.scheduleInfo}}</text></view>
+
+      <view wx:if="{{item.actions.length > 0}}" class="actions">
+        <button wx:for="{{item.actions}}" wx:for-item="a" wx:for-index="ai" wx:key="action"
+          class="btn {{a.danger ? 'no' : 'ok'}}" size="mini"
+          data-id="{{item.id}}" data-action="{{a.action}}" data-tip="{{a.tip}}"
+          bindtap="audit">{{a.text}}</button>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{loadingMore}}" class="more">加载更多…</view>
+  <view wx:elif="{{list.length > 0 && !hasMore}}" class="more">没有更多了</view>
+</view>

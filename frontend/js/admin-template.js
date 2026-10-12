@@ -1,5 +1,4 @@
-// 全局常量（后端可通过Thymeleaf注入，如 th:inline="javascript"）
-//const API_BASE_URL = 'http://localhost:8081'; // 优先取后端注入的地址
+// 全局常量：统一取 js/public/api.js 导出的 API_BASE_URL（默认同源，由 Nginx 反代 /api/v1）
 const baseUrl = API_BASE_URL;
 
 // 全局变量（替代Vue响应式，直接操作DOM/变量）
@@ -101,10 +100,7 @@ function validateForm() {
       <label><span data-term="classType">语言类型</span> <span style="color:red">*</span></label>
       <select name="languageType" class="form-select" required>
         <option value="">请选择</option>
-        <option value="english" ${defaultTemplate.languageType === 'english' ? 'selected' : ''}><span data-term="classType1">英语</span></option>
-        <option value="french" ${defaultTemplate.languageType === 'french' ? 'selected' : ''}><span data-term="classType2">法语</span></option>
-        <option value="spanish" ${defaultTemplate.languageType === 'spanish' ? 'selected' : ''}><span data-term="classType3">西班牙语</span></option>
-        <option value="chinese" ${defaultTemplate.languageType === 'chinese' ? 'selected' : ''}><span data-term="classType4">中文</span></option>
+        ${courseTypeOptionsHtml(defaultTemplate.languageType)}
       </select>
       <div class="form-error" id="languageTypeError"></div>
     </div>
@@ -277,10 +273,7 @@ async function renderTemplateCards() {
                     <label><span data-term="classType">语言类型</span>：</label>
                     <select id="languageType-select" >
                         <option value="">全部</option>
-                         <option value="english"><span data-term="classType1">英语</span></option> 
-                        <option value="french"><span data-term="classType2">法语</span></option>
-                       <option value="chinese"><span data-term="classType3">中文</span></option>
-                        <option value="spanish"><span data-term="classType4">西班牙语</span></option>                        
+                        ${courseTypeOptionsHtml('', { empty: '全部' })}
                     </select>
                 </div>
                 <div class="filter-item">
@@ -399,15 +392,9 @@ async function loadAndRenderTemplateCards() {
           html += `
               <tr> 
                  <td  >${index  }</td> 
-                  <td  >${template.languageType || ''}</td>
-                  <td  >${template.difficultyLevel === 'B1' ? 'B1入门' : 
-                    template.difficultyLevel === 'B2' ? 'B2初级' : 
-                    template.difficultyLevel === 'B3' ? 'B3中级' :
-                     template.difficultyLevel === 'B4' ? 'B4高级' : (template.difficultyLevel || '')}</td>
-                  <td  >${template.classForm === '1p1' ? '一对一' : 
-                    template.classForm === '1pN' ? '小班课' : 
-                    template.classForm === '1p2N' ? '中班课' : 
-                    (template.classForm || '')}</td>
+                  <td>${courseTypeCellHtml(template.languageType)}</td>
+                  <td>${enumTermCellHtml('classLevel', template.difficultyLevel)}</td>
+                  <td>${enumTermCellHtml('classForm', template.classForm)}</td>
                   <td  >${template.classDuration || ''}</td>
                   <td  >${template.classFee || ''}</td>  
                    <td>                       

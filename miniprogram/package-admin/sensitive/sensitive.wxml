@@ -1,0 +1,15 @@
+<view class="page">
+  <view class="card">
+    <view class="card-title">敏感词检测</view>
+    <input class="input" placeholder="输入要检测的内容" value="{{testText}}" bindinput="onInput" />
+    <button class="btn" size="mini" loading="{{testing}}" bindtap="onTest">检测</button>
+    <view wx:if="{{testResult}}" class="result">{{testResult}}</view>
+  </view>
+
+  <view class="bar"><text class="bar-title">敏感词库</text><text class="bar-count">{{list.length}} 个</text></view>
+  <view wx:if="{{loading}}" class="center">加载中…</view>
+  <view wx:elif="{{list.length === 0}}" class="center">暂无敏感词</view>
+  <view wx:else class="tags">
+    <view wx:for="{{list}}" wx:key="word" class="tag">{{item.word}}</view>
+  </view>
+</view>

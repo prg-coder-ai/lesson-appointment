@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "学生端",
+  "usingComponents": {
+    "role-tabbar": "/components/role-tabbar/index"
+  }
+}

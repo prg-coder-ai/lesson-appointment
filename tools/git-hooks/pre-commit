@@ -1,0 +1,164 @@
+#!/bin/sh
+# 提交前门禁。两条独立阻断，紧急跳过须显式声明（不要习惯性跳过）。
+#
+# 1) shared-sync：共享源漂移阻断（P0-Web 收口）。小程序/Web 端术语源必须与根 shared/ 一致。
+#    紧急跳过：SKIP_SHARED_SYNC=1 git commit ...
+#
+# 2) authz：声明式授权守卫。新增/改名 Controller 端点却没在 AuthzRules 里声明角色时拒绝提交。
+#    必要性：SecurityConfig 的兜底目前是 authenticated()，漏声明**不会报错、只会静默放行**
+#    —— 这正是根因 A 的本质。守卫是"漏配"唯一的自动化发现手段，不挂钩子等于形同虚设。
+#    紧急跳过：SKIP_AUTHZ=1 git commit ...
+#
+# 说明：兜底切到 denyAll() 后本守卫仍需保留（denyAll 只会在运行期炸，守卫是构建期拦截）。
+#
+# 3) cascade：引用完整性级联守卫（第 4 批）。删除/软删除路径未声明关联表处置时拒绝提交。
+#    必要性：漏级联**不报错**，只会静默留下悬空引用（实测 appointment 149 行里 109 行
+#    booking_id 指向不存在的预订）。本项目已不用数据库级联，改由程序显式级联，
+#    于是"新增一个 delete 方法却忘了处置子表"就成了唯一入口——守卫是它的发现手段。
+#    紧急跳过：SKIP_CASCADE=1 git commit ...
+#
+# 4) ddl-align：DDL 漂移守卫（方案 B · 静态）。实体字段与 api/sql/schema 基线不一致时拒绝提交。
+#    必要性：实体加字段忘 ALTER、表加 NOT NULL 无默认列而实体没有——这类漂移
+#    **不编译失败、不启动失败**，只在真实读写那一刻炸，报错还指向 SQL 而不指向"你改了实体没改表"。
+#    静态方案（不连库）才能挂在 pre-commit；连库比对留作 CI 补充（能覆盖 mapper XML）。
+#    紧急跳过：SKIP_DDL_ALIGN=1 git commit ...
+#
+# 11) secret-env：密钥 env 注入通道守卫（2026-10-09 新增）。
+#     必要性：env 模板里写了 JWT_SECRET、但 properties 写的是裸明文时，systemd 注入的
+#     环境变量**根本不会被读取**，实际生效的是那串明文——不报错、不告警、对照两处文件
+#     才发现得了。更阴的是 `${}` 占位**不做 Spring 松散绑定**：模板写 CRYPTO_AESKEY、
+#     properties 写 ${AES_KEY:} 时两边"看起来都配了"，注入照样失效。
+#     紧急跳过：SKIP_SECRET_ENV=1 git commit ...
+
+if [ "$SKIP_SHARED_SYNC" != "1" ]; then
+  node tools/check-miniprogram-shared-sync.js || exit 1
+else
+  echo "[shared-sync] SKIP_SHARED_SYNC=1，跳过漂移校验"
+fi
+
+if [ "$SKIP_AUTHZ" != "1" ]; then
+  node tools/check-authz-declarative.mjs || exit 1
+else
+  echo "[authz] SKIP_AUTHZ=1，跳过声明式授权守卫"
+fi
+
+if [ "$SKIP_CASCADE" != "1" ]; then
+  node tools/check-cascade-rules.mjs || exit 1
+else
+  echo "[cascade] SKIP_CASCADE=1，跳过引用完整性级联守卫"
+fi
+
+if [ "$SKIP_DDL_ALIGN" != "1" ]; then
+  node tools/check-ddl-entity-align.mjs || exit 1
+else
+  echo "[ddl-align] SKIP_DDL_ALIGN=1，跳过 DDL 漂移守卫"
+fi
+
+if [ "$SKIP_TZ" != "1" ]; then
+  node tools/check-tz-guard.mjs || exit 1
+else
+  echo "[tz] SKIP_TZ=1，跳过课次 UTC 时区守卫"
+fi
+
+if [ "$SKIP_GLOBAL_COLLIDE" != "1" ]; then
+  node tools/check-global-collide.mjs || exit 1
+else
+  echo "[global-collide] SKIP_GLOBAL_COLLIDE=1，跳过前端全局标识符碰撞守卫"
+fi
+
+if [ "$SKIP_SCHEDULER" != "1" ]; then
+  node tools/check-scheduler-guard.mjs || exit 1
+else
+  echo "[scheduler] SKIP_SCHEDULER=1，跳过定时任务调度线程池守卫"
+fi
+
+if [ "$SKIP_ACTUATOR" != "1" ]; then
+  node tools/check-actuator-guard.mjs || exit 1
+else
+  echo "[actuator] SKIP_ACTUATOR=1，跳过 Actuator 探针与放行守卫"
+fi
+
+if [ "$SKIP_TENANT_XT" != "1" ]; then
+  node tools/check-tenant-cross-thread.mjs || exit 1
+else
+  echo "[tenant-xt] SKIP_TENANT_XT=1，跳过租户上下文跨线程守卫"
+fi
+
+if [ "$SKIP_SECRET_ENV" != "1" ]; then
+  node tools/check-secret-env-guard.mjs || exit 1
+else
+  echo "[secret-env] SKIP_SECRET_ENV=1，跳过密钥 env 注入通道守卫"
+fi
+
+# 12) result-contract：统一错误响应契约守卫（第 6 批动作 28，2026-10-09 新增）。
+#     必要性：Result.code 历史上是 Integer，于是出现了 Result.fail(null, ...) 与
+#     Result.fail(0, ...)。叠加 spring.jackson 的 default-property-inclusion=non_null，
+#     code=null 会让整个 code 字段从 JSON 里消失，响应只剩 {"message":"..."}；
+#     客户端只判 res.code === 200，于是 err.code 变undefined、按 code 聚合的监控全失效。
+#     0 则既非成功码也非标准错误码，属于"看起来有契约、实则无意义"。
+#     这两类写法**不报错、不告警**，只能靠构建期守卫拦住。
+#     另含一道一致性判定：ErrorCodes 的异常→码映射必须与 GlobalExceptionHandler 的
+#     @ExceptionHandler 一致，否则同一异常在"被 Controller 捕获"与"逃到 handler"
+#     两条路径下返回不同 code，构成契约分叉。
+#     紧急跳过：SKIP_RESULT_CONTRACT=1 git commit ...
+if [ "$SKIP_RESULT_CONTRACT" != "1" ]; then
+  node tools/check-result-contract-guard.mjs || exit 1
+else
+  echo "[result-contract] SKIP_RESULT_CONTRACT=1，跳过统一错误响应契约守卫"
+fi
+
+# 13) date-contract：JSON 日期契约守卫（第 6 批动作 26，2026-10-09 新增）。
+#     必要性：前端 shared/domain/datetime.js 的 utcToZoned 只看时间串尾部有没有 Z，
+#     没有就自己补一个并按 UTC 解读。后端若输出裸串（java.util.Date 默认就是这样），
+#     则「本意是本地墙钟」的时间会被静默偏移——这正是第5 批刚堵掉的时区缺陷换个入口重来。
+#     守卫同时盯住一个实测踩过的坑：`new LocalDateTimeSerializer(fmt.withZone(UTC))`
+#     对 LocalDateTime **不生效**（无时区类型），产出仍是裸串且不报错，
+#     所以必须要求源码里存在显式的 `+ "Z"`。
+#     紧急跳过：SKIP_DATE_CONTRACT=1 git commit ...
+if [ "$SKIP_DATE_CONTRACT" != "1" ]; then
+  node tools/check-date-contract-guard.mjs || exit 1
+else
+  echo "[date-contract] SKIP_DATE_CONTRACT=1，跳过 JSON 日期契约守卫"
+fi
+
+# 14) status-contract：跨端状态契约守卫（第 6 批动作 25，2026-10-09 新增）。
+#     必要性：booking 状态的两份定义（后端 BookingStatus.java / 前端 bookingState.js）
+#     历史上出现过 cancelled/canceled 双拼写并存。这里不做"强行逐字相等"——
+#     前端NON_OCCUPYING 有个刻意保留的防御项 'deleted'（后端落库语义是 frozen），
+#     抹平它会让席位泄漏。守卫的职责是：凡两边不一致，必须在
+#     shared/domain/status-contract.json 的 registeredDiffs 里写明理由；
+#     未登记的差异 = 漂移 = 拦截。另校验 bookingStatusText 保留 profile 参数，
+#     防止有人把 Web/小程序文案差异"统一"掉（那是已拍板的决策，不是缺陷）。
+#     紧急跳过：SKIP_STATUS_CONTRACT=1 git commit ...
+if [ "$SKIP_STATUS_CONTRACT" != "1" ]; then
+  node tools/check-status-contract-guard.mjs || exit 1
+else
+  echo "[status-contract] SKIP_STATUS_CONTRACT=1，跳过跨端状态契约守卫"
+fi
+
+# 15) itest-sut：itest 被测快照同步守卫（薄弱环节报告 2026-10-10 P0-2）。
+#     必要性：tests/miniprogram-itest/_sut* 是每次跑测试时从 miniprogram/ 拷出的副本，
+#     历史上曾被整目录误提交（26 个生成文件入库）；cpSync 只覆盖不删除，源码移除的
+#     模块会在副本残留成幽灵文件被 import 命中——集成测试测的是不存在于源码里的逻辑。
+#     守卫钉住：gitignore 在位 + git 零跟踪 + harness 必须先删后拷 + 只从副本 import。
+#     紧急跳过：SKIP_ITEST_SUT=1 git commit ...
+if [ "$SKIP_ITEST_SUT" != "1" ]; then
+  node tools/check-itest-sut-sync.mjs || exit 1
+else
+  echo "[itest-sut] SKIP_ITEST_SUT=1，跳过 itest 快照同步守卫"
+fi
+
+# 16) bridge-exports：桥接导出对齐守卫（2026-10-12 新增）。
+#     必要性：frontend/js/shared-domain-bridge.js 是生成产物，其中 window.*Domain = {...}
+#     是**手工白名单**，不会跟随 shared/domain/*.js 的导出。给源加了导出却忘了补白名单时，
+#     Web 端读到 undefined → 落进各自的回退分支（界面漏出裸英文/编码值），
+#     而编译、构建、其余守卫全绿（shared-sync 只比 md5、global-collide 只扫顶层标识符）。
+#     2026-10-12 的 messageStatusText 正是这样漏的；小程序端走 ESM 具名导入不受影响，
+#     两端行为不一致最难察觉。守卫同时拦住「改了 shared/ 忘了重跑生成器」（产物陈旧），
+#     以及登记表腐化（notExposed 的死条目）。
+#     紧急跳过：SKIP_BRIDGE_EXPORTS=1 git commit ...
+if [ "$SKIP_BRIDGE_EXPORTS" != "1" ]; then
+  node tools/check-shared-bridge-exports.mjs || exit 1
+else
+  echo "[bridge-exports] SKIP_BRIDGE_EXPORTS=1，跳过桥接导出对齐守卫"
+fi

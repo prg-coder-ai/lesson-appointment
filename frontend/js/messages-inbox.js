@@ -24,6 +24,23 @@
   // api 基址：同源 8081（默认相对路径）
   const API_BASE = window.API_BASE_URL || '';
   const OFFLINE_KEY = 'msg_offline_queue';
+  // 端点常量：统一取共享事实源 shared/apiPaths.js（经桥接挂到 window.ApiPaths）。
+  // 本文件只在页面环境运行（所有 HTML 均已加载 shared-domain-bridge.js）；
+  // 桥接缺失时降级为空对象，调用处会抛明确错误，而不是静默发到错误的服务端口。
+  const EP = (window.ApiPaths && window.ApiPaths.ENDPOINTS) || {};
+
+  // 编码→文案映射：权威源 shared/domain/message.js（经桥接挂 window.MessageDomain），
+  // 小程序端 core/message.js 委托同一份——两端不再各存一套（否则新增优先级档位/发送者类型必漂移）。
+  // 桥接缺失时降级为原样透出，避免整页因缺依赖直接崩。
+  const MD = window.MessageDomain || {};
+  const mText = {
+    priority: function (code) { return MD.priorityText ? MD.priorityText(code) : (code || ''); },
+    priorityCode: function (code) { return MD.priorityCode ? MD.priorityCode(code) : (code || ''); },
+    category: function (code, name) { return MD.categoryText ? MD.categoryText(code, name) : (name || code || ''); },
+    senderType: function (type) { return MD.senderTypeText ? MD.senderTypeText(type) : (type || ''); },
+    // 消息状态（已发送/已收回/部分收回）：含历史值 withdrawn 的归一，见 shared/domain/message.js
+    msgStatus: function (st) { return MD.messageStatusText ? MD.messageStatusText(st) : (st || ''); }
+  };
 
   const esc = (typeof window.escapeHtml === 'function')
     ? window.escapeHtml
@@ -50,7 +67,7 @@
     let msg = '网络异常，请稍后重试';
     if (error.response) {
       const st = error.response.status;
-      if (st === 401) { msg = '登录已过期，请重新登录'; cleanupAuth(); setTimeout(function () { location.href = './index.html'; }, 600); }
+      if (st === 401) { msg = '登录已过期，请重新登录'; cleanupAuth(); setTimeout(function () { location.href = ((typeof window.pageUrl === 'function') ? window.pageUrl('login.html') : './login.html'); }, 600); }
       else if (st === 403) { msg = '无权限访问该资源'; }
       else if (st === 404) { msg = '接口地址不存在'; }
       else if (st === 500) { msg = '服务器内部错误'; }
@@ -71,17 +88,23 @@
     const res = resp.data;
     if (res && res.code === 200) return res.data;
     const msg = (res && (res.message || res.msg)) || '操作失败';
-    if (typeof window.showApiError === 'function') window.showApiError(msg); else console.error(msg);
+    // __silent：调用方明确声明「失败也不弹提示」时静默（见 fillSenderInfo —— 详情页补齐
+    // 发送者姓名/账号属于增强信息，查不到不该弹「请求错误」打断阅读）
+    if (!(resp.config && resp.config.__silent)) {
+      if (typeof window.showApiError === 'function') window.showApiError(msg); else console.error(msg);
+    }
     return Promise.reject(res || new Error(msg));
   }, function (error) {
     let msg = '网络异常，请稍后重试';
     if (error.response) {
       const st = error.response.status;
-      if (st === 401) { msg = '登录已过期，请重新登录'; cleanupAuth(); setTimeout(function () { location.href = './index.html'; }, 600); }
+      if (st === 401) { msg = '登录已过期，请重新登录'; cleanupAuth(); setTimeout(function () { location.href = ((typeof window.pageUrl === 'function') ? window.pageUrl('login.html') : './login.html'); }, 600); }
       else if (st === 403) { msg = '无权限访问该资源'; }
       else { msg = '请求错误：' + st; }
     }
-    if (typeof window.showApiError === 'function') window.showApiError(msg); else console.error(msg);
+    if (!(error.config && error.config.__silent)) {
+      if (typeof window.showApiError === 'function') window.showApiError(msg); else console.error(msg);
+    }
     return Promise.reject(error);
   });
 
@@ -90,7 +113,8 @@
   }
 
   // ---- 模块级状态（单例）----
-  const state = { userId: null, folder: 'inbox', pageNum: 1, pageSize: 10, keyword: '', total: 0, selected: {} };
+  // container：当前挂载的中央内容容器，供「页面顶部通用刷新」复用（软刷新时不必重新渲染整页）
+  const state = { userId: null, folder: 'inbox', pageNum: 1, pageSize: 10, keyword: '', total: 0, selected: {}, container: null };
   let es = null;
 
   function curUserId() {
@@ -103,6 +127,15 @@
   function canSend() {
     const r = currentUserRole();
     return r === 'student' || r === 'teacher' || r === 'admin' || r === 'platform_admin';
+  }
+  // 管理员（admin/platform_admin）：可全局彻底删除任意已发消息
+  function isManager() {
+    const r = currentUserRole();
+    return r === 'admin' || r === 'platform_admin';
+  }
+  // 平台管理员：跨租户视角。只有这个角色需要（也才有权限）把「发送方租户」翻成公司名
+  function isPlatformAdmin() {
+    return currentUserRole() === 'platform_admin';
   }
   // 服务是否不可达（用于离线暂存判定）
   function isUnreachable(err) {
@@ -142,19 +175,60 @@
       '.msg-empty{text-align:center;color:#999;padding:40px 0;}',
       '.msg-pager{display:flex;justify-content:center;align-items:center;gap:12px;margin-top:16px;font-size:14px;}',
       '.btn-sm{padding:4px 10px;font-size:12px;}',
+      '.btn-danger{background:#ff4d4f;color:#fff;border:none;}',
+      '.btn-danger:hover{background:#e04345;}',
       '.msg-modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:2000;}',
       '.msg-modal{background:#fff;width:600px;max-width:92vw;max-height:86vh;overflow:auto;border-radius:12px;padding:22px 24px;margin:0 auto;}',
       '.msg-modal h3{margin:0 0 10px;}',
       '.msg-modal .row{font-size:13px;color:#666;margin:6px 0;}',
       '.msg-modal .body{margin-top:12px;padding:12px;background:#fafafa;border-radius:8px;white-space:pre-wrap;word-break:break-word;font-size:14px;color:#333;}',
       '.msg-rcpt-list{max-height:200px;overflow:auto;border:1px solid #eee;border-radius:8px;padding:8px;margin-top:6px;}',
+      // 「已发」详情的接收人列表：姓名（账号）+ 状态标签 + 时间，超过一页时底部「加载更多」
+      '.rec-box{margin-top:14px;}',
+      '.rec-head{font-size:13px;color:#333;font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:8px;}',
+      '.rec-tip{font-weight:400;font-size:12px;color:#999;}',
+      '.rec-list{max-height:240px;overflow:auto;border:1px solid #eee;border-radius:8px;}',
+      '.rec-row{display:flex;align-items:center;gap:8px;padding:7px 10px;font-size:13px;color:#333;border-bottom:1px solid #f5f5f5;}',
+      '.rec-row:last-child{border-bottom:none;}',
+      '.rec-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
+      '.rec-state{flex:none;font-size:11px;padding:1px 6px;border-radius:4px;}',
+      '.rec-read{background:#f6ffed;color:#389e0d;}',
+      '.rec-unread{background:#e6f7ff;color:#096dd9;}',
+      '.rec-failed{background:#fff1f0;color:#cf1322;}',
+      '.rec-pending{background:#fafafa;color:#8c8c8c;}',
+      '.rec-revoked{background:#f0f0f0;color:#8c8c8c;}',
+      '.rec-time{flex:none;color:#999;font-size:12px;}',
+      // 接收人所属公司：与姓名同行的灰色小字（服务端 /user/briefs 回 orgName）
+      '.rec-org{flex:none;color:#999;font-size:12px;}',
+      '.rec-more{text-align:center;font-size:12px;color:var(--primary-color,#3a7afe);cursor:pointer;padding:8px 0;}',
+      '.rec-empty{color:#999;font-size:13px;padding:12px 0;text-align:center;}',
       // 发送弹窗：浮动卡片（可左键拖动），不再用全屏遮罩
-      '.msg-compose-card{position:fixed;top:120px;left:50%;transform:translateX(-50%);width:620px;max-width:92vw;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);z-index:2000;overflow:hidden;}',
+      // 居中用 left:0;right:0;margin:auto，不能用 transform:translateX(-50%)——
+      // transform 会让后代 position:fixed 的 .combo-list 包含块变成卡片而非视口，
+      // place() 的视口坐标全部失效（下拉面板飘出视口"显示不出"），且 overflow:hidden 还会裁剪它。
+      '.msg-compose-card{position:fixed;top:120px;left:0;right:0;margin:0 auto;width:620px;max-width:92vw;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);z-index:2000;overflow:hidden;}',
       '.msg-compose-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--primary-color,#3a7afe);color:#fff;cursor:move;user-select:none;}',
       '.msg-compose-title{font-size:15px;font-weight:600;}',
       '.msg-compose-close{border:none;background:transparent;color:#fff;font-size:20px;line-height:1;cursor:pointer;padding:0 6px;}',
       '.msg-compose-close:hover{opacity:.8;}',
-      '.msg-compose-body{padding:16px 20px 20px;max-height:72vh;overflow:auto;}'
+      '.msg-compose-body{padding:16px 20px 20px;max-height:72vh;overflow:auto;}',
+      // 分类编码：自定义组合框（替代原生 datalist，规避 Chromium 选过一次后不再弹出的问题）
+      // 箭头做成「输入框右端内嵌的独立按钮」——热区 30px、有分隔线与 hover 反馈，避免点不中/误触
+      '.combo{position:relative;display:inline-flex;align-items:center;vertical-align:middle;}',
+      '.combo input{width:240px;padding:6px 34px 6px 8px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;box-sizing:border-box;outline:none;}',
+      '.combo input:focus{border-color:var(--primary-color,#3a7afe);box-shadow:0 0 0 2px rgba(58,122,254,.12);}',
+      '.combo-arrow{position:absolute;right:0;top:0;bottom:0;width:30px;display:flex;align-items:center;justify-content:center;border-left:1px solid #e5e5e5;background:#fafafa;border-radius:0 4px 4px 0;color:#8c8c8c;cursor:pointer;user-select:none;}',
+      '.combo-arrow:hover{background:#f0f6ff;color:var(--primary-color,#3a7afe);}',
+      '.combo-arrow::before{content:"";width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid currentColor;transition:transform .15s;}',
+      '.combo-arrow.is-open::before{transform:rotate(180deg);}',
+      '.combo-list{position:fixed;z-index:99999;left:0;top:0;margin:0;padding:4px 0;list-style:none;background:#fff;border:1px solid #ddd;border-radius:4px;max-height:240px;overflow:auto;box-shadow:0 6px 16px rgba(0,0,0,.14);}',
+      '.combo-list li{display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;font-size:13px;white-space:nowrap;}',
+      '.combo-list li:hover,.combo-list li.active{background:#f0f6ff;}',
+      '.combo-list li .cc-code{font-family:Consolas,Monaco,monospace;}',
+      '.combo-list li .cc-name{color:#8c8c8c;font-size:12px;}',
+      '.combo-list li.is-cur .cc-code{color:var(--primary-color,#3a7afe);font-weight:600;}',
+      '.combo-list li .cc-tick{margin-left:auto;color:var(--primary-color,#3a7afe);}',
+      '.combo-list li.cc-empty{display:block;padding:10px 12px;color:#999;cursor:default;}'
     ].join('');
     const st = document.createElement('style');
     st.id = 'msg-inbox-style';
@@ -170,10 +244,16 @@
     if (n > 0) { el.style.display = 'inline-block'; el.textContent = n > 99 ? '99+' : n; }
     else { el.style.display = 'none'; }
   }
+  function bumpBadge(delta) {
+    const el = document.getElementById('msg-unread-badge');
+    if (!el) return;
+    let cur = parseInt(el.textContent, 10); if (isNaN(cur)) cur = 0;
+    setBadge(cur + delta);
+  }
   async function refreshBadge() {
     const uid = state.userId || curUserId();
     if (!uid) return;
-    try { const n = await mreq.get('/api/v1/users/' + encodeURIComponent(uid) + '/inbox/unread-count'); setBadge(n); } catch (e) { /* 静默 */ }
+    try { const n = await mreq.get(EP.MSG_UNREAD(uid)); setBadge(n); } catch (e) { /* 静默 */ }
   }
   window.initMessageBadge = function () {
     state.userId = curUserId();
@@ -182,25 +262,52 @@
     refreshBadge();
   };
 
+  // ---- 本页面的刷新函数（唯一实现）----
+  // 页面顶部的通用刷新（refreshRightPage）会调用它；页内已不再单独放「刷新」按钮。
+  // 软刷新：只重载「当前文件夹 / 当前页码 / 当前关键词」下的列表 + 未读角标 + 离线队列，
+  // 不清空整页、不重置用户当前的操作态（页码、标签、搜索词都不丢）。
+  // @returns {boolean} true = 已处理；false = 容器已不在（用户已切到别的菜单），交给通用逻辑兜底重渲染
+  function refreshMessagesView() {
+    const c = state.container || document.getElementById('dynamic-content-center');
+    if (!c || !document.body.contains(c) || !c.querySelector('#msg-list')) return false;
+    loadMessages(c);
+    refreshBadge();
+    flushOfflineQueue();
+    return true;
+  }
+  window.refreshMessagesPage = refreshMessagesView;
+
+  // 注册进通用刷新函数：页面顶部「刷新」按钮会优先调用这里
+  if (typeof window.registerPageRefresh === 'function') {
+    window.registerPageRefresh('messages', refreshMessagesView);
+  }
+
   // ---- 主渲染 ----
   window.renderMessagesPage = function (container) {
     if (!container) return;
+    state.container = container; // 记录容器，供 refreshMessagesView 复用
     state.userId = curUserId();
     if (!state.userId) { container.innerHTML = '<div class="msg-empty">未登录，无法加载消息中心。</div>'; return; }
     ensureStyle();
     state.folder = 'inbox'; state.pageNum = 1; state.keyword = ''; state.selected = {};
+    catDictReady = false; // 重新进页面时允许再拉一次分类字典（期间分类/租户可能已变）
     const composeBtn = canSend()
       ? '<button class="btn btn-primary" id="msg-compose"><i class="fa fa-paper-plane"></i> 发送通知</button>'
       : '';
     const sentTab = canSend()
-      ? '<button class="msg-tab" data-folder="sent">已发</button>'
+      ? '<button class="msg-tab" data-folder="sent"><i class="fa fa-paper-plane"></i> 已发</button>'
       : '';
+    // 工具条不再渲染页内「刷新」按钮：它与页面顶部的通用刷新（refreshRightPage → refreshMessagesView）
+    // 功能完全重复，且位置紧贴内容区顶部，按需求隐藏。
+    // 如需恢复：加回 '<button class="btn btn-primary" id="msg-refresh"><i class="fa fa-refresh"></i> 刷新</button>'
+    // （放在「批量删除」与 composeBtn 之间），并在下方补回 #msg-refresh 的 click 绑定。
     container.innerHTML =
       '<div class="msg-toolbar">' +
         '<div class="msg-tabs">' +
-          '<button class="msg-tab active" data-folder="inbox">收件箱</button>' +
-          '<button class="msg-tab" data-folder="starred">收藏</button>' +
-          '<button class="msg-tab" data-folder="trash">回收站</button>' +
+          '<button class="msg-tab active" data-folder="inbox"><i class="fa fa-inbox"></i> 收件箱</button>' +
+          // 收藏 tab 的星标图标与行内收藏星（.msg-star）同色，建立「☆/★ = 收藏」的视觉对应
+          '<button class="msg-tab" data-folder="starred"><i class="fa fa-star" style="color:#f5a623;"></i> 收藏</button>' +
+          '<button class="msg-tab" data-folder="trash"><i class="fa fa-trash"></i> 回收站</button>' +
           sentTab +
         '</div>' +
         '<input class="msg-search" id="msg-search" placeholder="搜索标题关键词">' +
@@ -208,7 +315,6 @@
         '<button class="btn btn-gray" id="msg-allread"><i class="fa fa-check-double"></i> 全部已读</button>' +
         '<button class="btn btn-gray" id="msg-batch-read"><i class="fa fa-check"></i> 批量已读</button>' +
         '<button class="btn btn-gray" id="msg-batch-del"><i class="fa fa-trash"></i> 批量删除</button>' +
-        '<button class="btn btn-primary" id="msg-refresh"><i class="fa fa-refresh"></i> 刷新</button>' +
         composeBtn +
       '</div>' +
       '<div class="msg-list" id="msg-list"></div>' +
@@ -220,6 +326,11 @@
         container.querySelectorAll('.msg-tab').forEach(function (x) { x.classList.remove('active'); });
         t.classList.add('active');
         state.folder = t.getAttribute('data-folder'); state.pageNum = 1; state.selected = {};
+        // 回收站内批量按钮语义变为「彻底删除」，其余文件夹为「删除(移回收站)」
+        const bd = container.querySelector('#msg-batch-del');
+        if (bd) bd.innerHTML = (state.folder === 'trash')
+          ? '<i class="fa fa-trash-alt"></i> 批量彻底删除'
+          : '<i class="fa fa-trash"></i> 批量删除';
         loadMessages(container);
       });
     });
@@ -227,18 +338,52 @@
       state.keyword = container.querySelector('#msg-search').value.trim(); state.pageNum = 1; loadMessages(container);
     });
     container.querySelector('#msg-search').addEventListener('keydown', function (e) { if (e.key === 'Enter') container.querySelector('#msg-search-btn').click(); });
-    container.querySelector('#msg-refresh').addEventListener('click', function () { loadMessages(container); refreshBadge(); flushOfflineQueue(); });
     container.querySelector('#msg-allread').addEventListener('click', function () { markAllRead(container); });
     container.querySelector('#msg-batch-read').addEventListener('click', function () { batchRead(container); });
-    container.querySelector('#msg-batch-del').addEventListener('click', function () { batchDelete(container); });
+    container.querySelector('#msg-batch-del').addEventListener('click', function () {
+      (state.folder === 'trash' ? batchPurge : batchDelete)(container);
+    });
     const composeEl = container.querySelector('#msg-compose');
     if (composeEl) composeEl.addEventListener('click', function () { openComposeMessage(); });
 
     connectSse();
+    loadCategoryDict(); // 分类字典先发（与列表并发；字典晚到时重贴一次分类文案）
     loadMessages(container);
     refreshBadge();
     flushOfflineQueue(); // 进入页面即尝试重发离线消息
   };
+
+  // 分类字典：已发 / 管理列表与投递详情**只回 categoryCode**，「分类」文案要靠这份字典翻。
+  // 与列表并发拉取；字典晚到（首屏已渲染出行）时重渲染一次列表 —— 勾选态在 state.selected 里，不会丢。
+  let catDictReady = false;
+  async function loadCategoryDict() {
+    if (catDictReady) return;
+    try {
+      const list = await mreq.get(EP.MSG_CATEGORIES);
+      if (MD.setCategoryDict) MD.setCategoryDict(MD.categoryListFromTree ? MD.categoryListFromTree(list) : []);
+    } catch (e) {
+      if (MD.setCategoryDict) MD.setCategoryDict([]); // 拉取失败也置空：不再重试，缺失时显示「未分类」
+    }
+    catDictReady = true;
+    const c = state.container;
+    if (c && document.body.contains(c) && c.querySelector('#msg-list .msg-item')) loadMessages(c);
+  }
+
+  // 租户字典：把「发送方 tenantId」翻成公司名（详情页展示用）。
+  // 数据源是 GET /api/v1/tenant/list（后端 checkPlatformAdmin → 非平台管理员 403），
+  // 故只在平台管理员身份下调用；拉一次全量建 id→orgName 映射（租户量级小，比逐个查 /tenant/{id} 省 N 次请求）。
+  // 懒加载 + 只建一次：不放在页面初始化里，避免普通角色白挨一次 403。
+  let tenantDictReady = false;
+  async function loadTenantDict() {
+    if (tenantDictReady) return;
+    try {
+      const list = await areq.get(EP.TENANT_LIST, { __silent: true });
+      if (MD.setTenantDict) MD.setTenantDict(list);
+    } catch (e) {
+      if (MD.setTenantDict) MD.setTenantDict([]); // 拉取失败置空：本次不显示租户名，不重试
+    }
+    tenantDictReady = true;
+  }
 
   async function loadMessages(container) {
     const listEl = container.querySelector('#msg-list');
@@ -249,11 +394,11 @@
     let url; const params = { pageNum: state.pageNum, pageSize: state.pageSize };
     let renderRow;
     if (state.folder === 'sent') {
-      url = '/api/v1/messages/sent';
+      url = EP.MSG_SENT;
       renderRow = sentRowHtml;
-    } else if (state.folder === 'starred') { url = '/api/v1/users/' + encodeURIComponent(uid) + '/starred'; renderRow = rowHtml; }
-    else if (state.folder === 'trash') { url = '/api/v1/users/' + encodeURIComponent(uid) + '/deleted'; renderRow = rowHtml; }
-    else { url = '/api/v1/users/' + encodeURIComponent(uid) + '/inbox'; if (state.keyword) params.keyword = state.keyword; renderRow = rowHtml; }
+    } else if (state.folder === 'starred') { url = EP.MSG_STARRED(uid); renderRow = rowHtml; }
+    else if (state.folder === 'trash') { url = EP.MSG_DELETED_LIST(uid); renderRow = rowHtml; }
+    else { url = EP.MSG_INBOX(uid); if (state.keyword) params.keyword = state.keyword; renderRow = rowHtml; }
     let data;
     try { data = await mreq.get(url, { params: params }); }
     catch (e) { listEl.innerHTML = '<div class="msg-empty">加载失败，请稍后重试。</div>'; return; }
@@ -271,10 +416,15 @@
     const mid = m.messageId;
     const unread = !m.isRead;
     const starred = !!m.isStarred;
-    const pri = m.priority || 'MEDIUM';
-    const time = m.sendTime ? String(m.sendTime).replace('T', ' ').substring(0, 16) : '';
-    const cat = m.categoryName ? esc(m.categoryName) : '';
-    const sender = m.senderName ? esc(m.senderName) : '系统';
+    // 优先级：编码只作样式类名（.msg-pri.HIGH 着色），展示一律走文案
+    const priCls = mText.priorityCode(m.priority) || 'MEDIUM';
+    const priTxt = mText.priority(m.priority);
+    const time = m.sendTime ? (window.DatetimeDomain ? window.DatetimeDomain.formatDateTime(m.sendTime, false) : String(m.sendTime).replace('T', ' ').substring(0, 16)) : '';
+    // 分类：后端回填了 categoryName 就直接用，只给编码时靠分类字典兜底（见 loadCategoryDict，与列表并发）
+    const cat = mText.category(m.categoryCode, m.categoryName);
+    // 发送者：收件箱列表后端暂不回 senderType/senderName（composeInbox 未填这两列），
+    // 有类型则显示「教师/管理员/…」，否则退姓名、再退「系统」。
+    const sender = mText.senderType(m.senderType) || m.senderName || '系统';
     const title = m.title ? esc(m.title) : '(无标题)';
     const checked = state.selected[mid] ? 'checked' : '';
     return '' +
@@ -285,9 +435,9 @@
         '<div class="msg-main" data-act="open" data-mid="' + mid + '">' +
           '<div class="msg-title">' + title + '</div>' +
           '<div class="msg-sub">' +
-            '<span>来自：' + sender + '</span>' +
-            (cat ? '<span>分类：' + cat + '</span>' : '') +
-            '<span class="msg-pri ' + pri + '">' + pri + '</span>' +
+            '<span>来自：' + esc(sender) + '</span>' +
+            (cat ? '<span>分类：' + esc(cat) + '</span>' : '') +
+            (priTxt ? '<span class="msg-pri ' + esc(priCls) + '">' + esc(priTxt) + '</span>' : '') +
             '<span>' + time + '</span>' +
           '</div>' +
         '</div>' +
@@ -297,6 +447,7 @@
             : '<button class="btn btn-gray btn-sm" data-act="unread" data-mid="' + mid + '">标未读</button>') +
           (state.folder === 'trash'
             ? '<button class="btn btn-gray btn-sm" data-act="restore" data-mid="' + mid + '">恢复</button>'
+              + '<button class="btn btn-danger btn-sm" data-act="purge" data-mid="' + mid + '">彻底删除</button>'
             : '<button class="btn btn-gray btn-sm" data-act="delete" data-mid="' + mid + '">删除</button>') +
         '</div>' +
       '</div>';
@@ -304,22 +455,25 @@
 
   function sentRowHtml(m) {
     const mid = m.messageId;
-    const pri = m.priority || 'MEDIUM';
-    const time = m.sendTime ? String(m.sendTime).replace('T', ' ').substring(0, 16) : '';
-    const cat = m.categoryCode ? esc(m.categoryCode) : '';
+    const priCls = mText.priorityCode(m.priority) || 'MEDIUM';
+    const priTxt = mText.priority(m.priority);
+    const time = m.sendTime ? (window.DatetimeDomain ? window.DatetimeDomain.formatDateTime(m.sendTime, false) : String(m.sendTime).replace('T', ' ').substring(0, 16)) : '';
+    // 已发列表后端只回 categoryCode（不回 categoryName）→ 必须靠分类字典翻成名称，否则这里贴的就是裸编码
+    const cat = mText.category(m.categoryCode, m.categoryName);
     const title = m.title ? esc(m.title) : '(无标题)';
     const rc = Number(m.recipientCount) || 0;
     const rd = Number(m.readCount) || 0;
     const recallable = !!m.recallable;
-    const statusTxt = m.status === 'recalled' ? '已收回' : (m.status === 'partial_recalled' ? '部分收回' : '已发送');
+    // 状态文案走共享域（含历史值 withdrawn → 已收回）；空值兜底「已发送」与既有行为一致
+    const statusTxt = mText.msgStatus(m.status) || '已发送';
     return '' +
       '<div class="msg-item" data-mid="' + mid + '">' +
         '<span class="msg-dot" style="visibility:hidden;"></span>' +
         '<div class="msg-main" data-act="open-sent" data-mid="' + mid + '">' +
           '<div class="msg-title">' + title + '</div>' +
           '<div class="msg-sub">' +
-            (cat ? '<span>分类：' + cat + '</span>' : '') +
-            '<span class="msg-pri ' + pri + '">' + pri + '</span>' +
+            (cat ? '<span>分类：' + esc(cat) + '</span>' : '') +
+            (priTxt ? '<span class="msg-pri ' + esc(priCls) + '">' + esc(priTxt) + '</span>' : '') +
             '<span>接收 ' + rc + ' 人 · 已读 ' + rd + ' 人</span>' +
             '<span>状态：' + statusTxt + '</span>' +
             '<span>' + time + '</span>' +
@@ -329,6 +483,9 @@
           (recallable
             ? '<button class="btn btn-warning btn-sm" data-act="recall" data-mid="' + mid + '">收回</button>'
             : '<button class="btn btn-gray btn-sm" disabled>不可收回</button>') +
+          (isManager()
+            ? '<button class="btn btn-danger btn-sm" data-act="global-delete" data-mid="' + mid + '">彻底删除</button>'
+            : '') +
         '</div>' +
       '</div>';
   }
@@ -342,7 +499,7 @@
       if (star) star.addEventListener('click', function (e) { e.stopPropagation(); toggleStar(container, mid); });
       const main = item.querySelector('[data-act="open"]');
       if (main) main.addEventListener('click', function () { openDetail(container, mid); });
-      item.querySelectorAll('[data-act="read"],[data-act="unread"],[data-act="delete"],[data-act="restore"]').forEach(function (b) {
+      item.querySelectorAll('[data-act="read"],[data-act="unread"],[data-act="delete"],[data-act="restore"],[data-act="purge"]').forEach(function (b) {
         b.addEventListener('click', function (e) {
           e.stopPropagation();
           const act = b.getAttribute('data-act');
@@ -350,6 +507,7 @@
           else if (act === 'unread') markRead(container, mid, false);
           else if (act === 'delete') removeMsg(container, mid);
           else if (act === 'restore') restoreMsg(container, mid);
+          else if (act === 'purge') purgeMsg(container, mid);
         });
       });
     });
@@ -364,6 +522,11 @@
       if (recall) recall.addEventListener('click', function (e) {
         e.stopPropagation();
         recallMessage(container, mid);
+      });
+      const gdel = item.querySelector('[data-act="global-delete"]');
+      if (gdel) gdel.addEventListener('click', function (e) {
+        e.stopPropagation();
+        deleteSentGlobal(container, mid);
       });
     });
   }
@@ -383,16 +546,39 @@
 
   async function openDetail(container, mid) {
     let d;
-    try { d = await mreq.get('/api/v1/users/' + encodeURIComponent(state.userId) + '/messages/' + mid); }
-    catch (e) { return; }
+    try { d = await mreq.get(EP.MSG_DETAIL(state.userId, mid)); }
+    catch (e) {
+      const root = container.querySelector('#msg-modal-root');
+      const msg = (e && e.message) ? e.message : '无法加载消息详情';
+      if (root) root.innerHTML =
+        '<div class="msg-modal-mask"><div class="msg-modal">' +
+          '<h3>加载失败</h3>' +
+          '<div class="body">' + esc(msg) + '</div>' +
+          '<div style="text-align:right;margin-top:16px;"><button class="btn btn-gray" id="msg-detail-close">关闭</button></div>' +
+        '</div></div>';
+      const cb = root && root.querySelector('#msg-detail-close');
+      if (cb) cb.addEventListener('click', function () { root.innerHTML = ''; });
+      return;
+    }
     const root = container.querySelector('#msg-modal-root');
     const content = d.content ? esc(d.content) : '(无正文)';
     const payload = d.payload ? esc(JSON.stringify(d.payload)) : '';
+    // 发送者：详情接口只回 senderId + senderType（**不回 senderName**），姓名与账号要按角色另取（见 fillSenderInfo）；
+    // 未取到之前先落「类型文案」兜底，不留空白。
+    const senderTypeCls = mText.senderType(d.senderType) || '系统';
+    const priTxt = mText.priority(d.priority);
+    const catTxt = mText.category(d.categoryCode, d.categoryName);
     root.innerHTML =
       '<div class="msg-modal-mask" id="msg-mask">' +
         '<div class="msg-modal">' +
           '<h3>' + esc(d.title || '(无标题)') + '</h3>' +
-          '<div class="row">来自：' + esc(d.senderName || d.senderType || '系统') + '　|　优先级：' + esc(d.priority || '') + '　|　分类：' + esc(d.categoryName || '') + '</div>' +
+          '<div class="row">来自：<span id="msg-detail-sender">' + esc(senderTypeCls) + '</span>' +
+            (priTxt ? '　|　优先级：' + esc(priTxt) : '') +
+            (catTxt ? '　|　分类：' + esc(catTxt) : '') + '</div>' +
+          '<div class="row" id="msg-detail-account-row" style="display:none;">账号：<span id="msg-detail-account"></span></div>' +
+          // 发送方租户：仅平台管理员（跨租户视角）需要，且要等 /tenant/list 字典到位才知道公司名，
+          // 故先留空行（display:none），由 fillSenderTenant 解析成功后显形；平台自身(tenantId=0)永不显形。
+          '<div class="row" id="msg-detail-tenant-row" style="display:none;">发送方租户：<span id="msg-detail-tenant"></span></div>' +
           '<div class="row">发送时间：' + esc(d.sendTime || '') + '</div>' +
           '<div class="body">' + content + '</div>' +
           (payload ? '<div class="row" style="margin-top:10px;">附加信息：' + payload + '</div>' : '') +
@@ -405,23 +591,92 @@
     root.querySelector('#msg-mask').addEventListener('click', function (e) { if (e.target.id === 'msg-mask') root.innerHTML = ''; });
     root.querySelector('#msg-detail-close').addEventListener('click', function () { root.innerHTML = ''; });
     root.querySelector('#msg-detail-read').addEventListener('click', function () { markRead(container, mid, !d.isRead).then(function () { root.innerHTML = ''; }); });
+    fillSenderInfo(d, root); // 不 await：姓名/账号是增强信息，不阻塞正文渲染
+    fillSenderTenant(d, root); // 同上：仅平台管理员会真正发请求
     if (!d.isRead) markRead(container, mid, true);
+  }
+
+  /**
+   * 平台管理员专属：在详情里补「发送方租户：XX公司」。
+   *
+   * 口径：
+   *   · 只有 platform_admin 会渲染（tenant 名映射依赖 /tenant/list，该接口本就 PLATFORM_ONLY）；
+   *     租户/学生/教师看到的详情与改造前完全一致。
+   *   · senderTenantId 来自后端 detail：值就是 msg_message.tenant_id（发送者租户），
+   *     **不含兜底文案** —— 为 0（平台自身发出）或字典查不到（租户已删/字典未到位）时整行不显示，
+   *     不出现「未知租户」「租户 12」这类降级文案。见 shared/domain/message.js 的 tenantText。
+   *   · 失败一律静默（__silent），不阻断阅读。
+   */
+  async function fillSenderTenant(d, root) {
+    if (!isPlatformAdmin()) return;
+    const tid = d && d.senderTenantId;
+    if (tid === null || tid === undefined || Number(tid) <= 0) return;
+    const rowEl = root.querySelector('#msg-detail-tenant-row');
+    const nameEl = root.querySelector('#msg-detail-tenant');
+    if (!rowEl || !nameEl) return;
+    await loadTenantDict();
+    const name = MD.tenantText ? MD.tenantText(tid) : '';
+    if (!name) return;
+    // 期间用户可能已关闭弹层（root 被清空）→ 丢弃这次结果
+    if (!document.body.contains(rowEl)) return;
+    nameEl.textContent = name;
+    rowEl.style.display = '';
+  }
+
+  /**
+   * 补齐发送者的「姓名 + 账号」（不阻塞详情正文渲染）。
+   * 账号的可见范围受后端权限约束，按角色分路，与小程序端 detail 页一致：
+   *   · 管理员（admin / platform_admin）：GET /user/page?userId= → 同时拿到 name 与 account；
+   *   · 学生 / 教师：GET /user/name/{id} → 只有姓名（该接口 ALL_ROLES）。
+   * 刻意不给普通角色开「按 userId 查账号」的口子：那等于允许拿 userId 枚举他人登录账号。
+   * 系统消息无发送者；任何失败都静默降级为「类型文案」，不阻断阅读（故走 __silent）。
+   * 注意：/user/* 在主系统 api(8081)，必须用 areq，不能走 message-service 的 mreq。
+   */
+  async function fillSenderInfo(d, root) {
+    const sid = d && d.senderId;
+    const st = d && d.senderType;
+    if (!sid || !st || st === 'system') return;
+    const labelEl = root.querySelector('#msg-detail-sender');
+    if (!labelEl) return;
+    const typeText = mText.senderType(st);
+    let name = '';
+    let account = '';
+    try {
+      if (isManager()) {
+        const box = await areq.get(EP.USER_PAGE, { params: { userId: sid, pageNum: 1, pageSize: 1 }, __silent: true });
+        const row = (box && box.rows && box.rows[0]) || null;
+        if (row) { name = row.name || ''; account = row.account || ''; }
+      } else {
+        const n = await areq.get(EP.USER_NAME(sid), { __silent: true });
+        // 后端查不到用户时返回字面量 'N/A'（不是空串），要挡掉
+        name = (typeof n === 'string' && n !== 'N/A') ? n : '';
+      }
+    } catch (e) { /* 解析失败不影响详情展示 */ }
+    // 期间用户可能已关闭弹层（root 被清空）→ 丢弃这次结果
+    if (!document.body.contains(labelEl)) return;
+    labelEl.textContent = name ? (name + (typeText ? '（' + typeText + '）' : '')) : (typeText || '系统');
+    const rowEl = root.querySelector('#msg-detail-account-row');
+    const accEl = root.querySelector('#msg-detail-account');
+    if (account && rowEl && accEl) { accEl.textContent = account; rowEl.style.display = ''; }
   }
 
   async function openSentDetail(container, mid) {
     let d;
-    try { d = await mreq.get('/api/v1/messages/' + mid + '/delivery-status'); }
+    try { d = await mreq.get(EP.MSG_DELIVERY(mid)); }
     catch (e) { d = null; }
     const root = container.querySelector('#msg-modal-root');
     const content = d && d.content ? esc(d.content) : '(无正文/无详情权限)';
     const rc = d && d.recipientCount != null ? d.recipientCount : '—';
     const rd = d && d.readCount != null ? d.readCount : '—';
+    // 投递追踪（trace）回 priority 编码、不回分类 → 优先级过映射，分类无从展示
+    const priTxt = d ? mText.priority(d.priority) : '';
     root.innerHTML =
       '<div class="msg-modal-mask" id="msg-mask">' +
         '<div class="msg-modal">' +
           '<h3>' + esc((d && d.title) || '(无标题)') + '</h3>' +
-          '<div class="row">接收人数：' + rc + '　|　已读：' + rd + '</div>' +
+          '<div class="row">' + (priTxt ? '优先级：' + esc(priTxt) + '　|　' : '') + '接收人数：' + rc + '　|　已读：' + rd + '</div>' +
           '<div class="body">' + content + '</div>' +
+          '<div class="rec-box" id="msg-recipients"></div>' +
           '<div style="display:flex;justify-content:flex-end;margin-top:16px;">' +
             '<button class="btn btn-gray" id="msg-detail-close">关闭</button>' +
           '</div>' +
@@ -429,21 +684,154 @@
       '</div>';
     root.querySelector('#msg-mask').addEventListener('click', function (e) { if (e.target.id === 'msg-mask') root.innerHTML = ''; });
     root.querySelector('#msg-detail-close').addEventListener('click', function () { root.innerHTML = ''; });
+    loadRecipients(root, mid, 1); // 不 await：接收人明细独立加载，不拖住正文与统计的渲染
   }
+
+  // 「已发」详情的接收人列表状态。弹层关闭即作废；pageNum=1 时整体重置，故不必显式清理。
+  const recState = { mid: null, pageNum: 0, total: 0, list: [], loading: false, briefs: {} };
+
+  function fmtShort(t) {
+    if (!t) return '';
+    return window.DatetimeDomain
+      ? window.DatetimeDomain.formatDateTime(t, false)
+      : String(t).replace('T', ' ').substring(0, 16);
+  }
+
+  /** 整块重绘接收人列表（含底部「加载更多」），每次渲染都重新绑定加载更多事件 */
+  function renderRecipients(root) {
+    const box = root.querySelector('#msg-recipients');
+    if (!box) return;
+    let html = '<div class="rec-head">接收人（' + recState.total + '）<span class="rec-tip">未读优先</span></div>';
+    if (!recState.list.length) {
+      html += '<div class="rec-empty">' + (recState.loading ? '加载中…' : '暂无接收人记录') + '</div>';
+    } else {
+      html += '<div class="rec-list">';
+      recState.list.forEach(function (r) {
+        const b = recState.briefs[r.userId] || {};
+        const st = MD.recipientStateText ? MD.recipientStateText(r) : { text: '', cls: '' };
+        // 姓名缺失时退回 userId：接收人 id 本身是可核对的线索，也好过一片空白
+        const name = b.name || r.userId || '';
+        // 账号只有管理员拿得到（服务端按角色裁定），拿不到就不渲染括号
+        const acct = b.account ? '（' + esc(b.account) + '）' : '';
+        // 已读显示阅读时间，未读显示投递时间（让人看出「什么时候送达但没看」）
+        const t = (r.isRead && r.readTime) ? r.readTime : (r.deliveryTime || r.ackTime || '');
+        html += '<div class="rec-row">' +
+          '<span class="rec-name">' + esc(name) + acct + '</span>' +
+          // 公司名：一律由服务端带回（/user/briefs 的 orgName）；空则不渲染这一节
+          (b.orgName ? '<span class="rec-org">' + esc(b.orgName) + '</span>' : '') +
+          (st.text ? '<span class="rec-state rec-' + esc(st.cls) + '">' + esc(st.text) + '</span>' : '') +
+          '<span class="rec-time">' + esc(fmtShort(t)) + '</span>' +
+        '</div>';
+      });
+      html += '</div>';
+      if (recState.list.length < recState.total) {
+        html += '<div class="rec-more" id="msg-rec-more">' +
+          (recState.loading ? '加载中…' : '加载更多（已显示 ' + recState.list.length + '/' + recState.total + '）') + '</div>';
+      }
+    }
+    box.innerHTML = html;
+    const more = box.querySelector('#msg-rec-more');
+    if (more) {
+      more.addEventListener('click', function () { loadRecipients(root, recState.mid, recState.pageNum + 1); });
+    }
+  }
+
+  /**
+   * 拉取接收人明细一页（pageNum=1 视为从头开始）。
+   * 两段式渲染：先出 userId + 状态（一次请求），再把本页 userId 批量送 /user/briefs 补姓名/账号，
+   * 拿到后只重绘一次 —— 不让姓名查询拖住整个列表，也避免逐人反查（一页 20 人=20 次请求）。
+   * 任何一步失败都降级：明细失败给一行提示，姓名失败保留 userId 形态，都不抛给用户。
+   */
+  async function loadRecipients(root, mid, pageNum) {
+    if (!mid || recState.loading) return;
+    if (pageNum <= 1) {
+      recState.mid = mid; recState.pageNum = 0; recState.total = 0;
+      recState.list = []; recState.briefs = {};
+    }
+    // 存活判据：弹层仍在（#msg-recipients 存在）且没被换成另一条消息的详情
+    const alive = function () { return recState.mid === mid && root.querySelector('#msg-recipients'); };
+    recState.loading = true;
+    renderRecipients(root);
+    try {
+      const box = await mreq.get(EP.MSG_RECIPIENTS_OF(mid, { pageNum: pageNum, pageSize: 20 }));
+      const rows = (box && box.rows) || [];
+      recState.total = box ? (Number(box.total) || 0) : 0;
+      recState.list = (pageNum <= 1) ? rows : recState.list.concat(rows);
+      recState.pageNum = pageNum;
+    } catch (e) {
+      recState.loading = false;
+      if (!alive()) return;
+      const listBox = root.querySelector('#msg-recipients');
+      if (listBox) listBox.innerHTML = '<div class="rec-empty">接收人明细加载失败</div>';
+      return;
+    }
+    recState.loading = false;
+    if (!alive()) return;
+    renderRecipients(root);
+
+    const missing = recState.list.map(function (r) { return r.userId; })
+      .filter(function (id) { return id && !recState.briefs[id]; });
+    if (!missing.length) return;
+    try {
+      // 必须走 areq：/user/briefs 在主系统 api(8081)，mreq 打的是 message-service(8090)
+      const briefs = await areq.get(EP.USER_BRIEFS(missing), { __silent: true }) || [];
+      briefs.forEach(function (b) {
+        // 整体存、不挑字段：此前这里写成白名单 { name, account }，后端新增的 orgName（所属公司）
+        // 被静默丢弃 —— 界面表现就是「后端改了、前端没生效」且无任何报错。
+        // 该接口的字段已由服务端按角色收敛（account 仅管理员），整体存不会引入越权。
+        if (b && b.userId) recState.briefs[b.userId] = b;
+      });
+    } catch (e) { /* 静默：姓名属增强信息，缺失时列表照常显示 userId 与状态 */ }
+    if (!alive()) return;
+    renderRecipients(root);
+  }
+
+  /**
+   * 供其他管理页复用：注入消息中心样式（.msg-tabs/.msg-modal/.rec-* 等）。幂等，重复调用无副作用。
+   * 消息管理页（admin-messageManage.js）复用 .rec-* / .msg-modal 与 tab 样式，但它未必经过
+   * renderMessagesPage/initMessageBadge，故在此显式导出，避免"样式没注入"这类难查的视觉缺陷。
+   */
+  window.ensureMessageCenterStyle = ensureStyle;
+
+  /**
+   * 供其他管理页复用「接收人明细」区块（当前唯一外部使用方：消息管理详情 admin-messageManage.js）。
+   *
+   * 契约：目标容器（root）内必须存在挂载点 `<div class="rec-box" id="msg-recipients"></div>`；
+   * 本模块按 **id** 取挂载点、不区分页面，故同屏只能有一个该区块（消息管理弹层与「已发」详情弹层
+   * 分别属于不同菜单/页面，不会同时出现）。
+   *
+   * 复用而非重写的原因：接收人明细 = 明细分页 + 未读优先 + 两段式补姓名/账号 + 加载更多，
+   * 重写一份必然与这里漂移；本模块的 recState 是单例，pageNum=1 时整体重置，按消息切换不会串数据。
+   */
+  window.mountMessageRecipients = function (root, mid) {
+    if (!root || !mid) return;
+    ensureStyle(); // 保证 .rec-* / .msg-modal 样式已注入（消息管理页未必渲染过收件箱）
+    loadRecipients(root, mid, 1); // 不 await：明细独立加载，不拖住详情主体
+  };
 
   async function recallMessage(container, mid) {
     if (!confirm('确定收回该消息？仅对「接收方均未读」的消息可收回。')) return;
     try {
-      await mreq.post('/api/v1/messages/' + mid + '/withdraw');
+      await mreq.post(EP.MSG_WITHDRAW(mid));
       toast('已收回', true);
       loadMessages(container);
     } catch (e) { /* 拦截器已提示 */ }
   }
 
+  // 管理员全局彻底删除（连同所有收件人副本与投递记录，不可逆）
+  async function deleteSentGlobal(container, mid) {
+    if (!confirm('彻底删除该消息？\n将永久删除主消息、所有收件人的收件箱副本及投递记录，且无法恢复！')) return;
+    try {
+      await mreq.delete(EP.MSG_DELETE_GLOBAL(mid));
+      toast('已彻底删除', true);
+      loadMessages(container);
+    } catch (e) { /* 拦截器已提示 */ }
+  }
+
   async function markRead(container, mid, read) {
-    const path = read ? '/read' : '/unread';
-    try { await mreq.post('/api/v1/users/' + encodeURIComponent(state.userId) + '/messages/' + mid + path); }
-    catch (e) { return Promise.reject(e); }
+    try { await mreq.post(read ? EP.MSG_READ(state.userId, mid) : EP.MSG_UNREAD_SET(state.userId, mid)); }
+    catch (e) { toast('标记' + (read ? '已读' : '未读') + '失败：' + ((e && e.message) ? e.message : '请重试'), false); return Promise.reject(e); }
+    if (read) bumpBadge(-1); else bumpBadge(1);
     loadMessages(container); refreshBadge();
     return Promise.resolve();
   }
@@ -451,30 +839,29 @@
   async function toggleStar(container, mid) {
     const item = container.querySelector('.msg-item[data-mid="' + mid + '"]');
     const starred = item && item.querySelector('.msg-star') && !item.querySelector('.msg-star').classList.contains('off');
-    const path = starred ? '/unstar' : '/star';
-    try { await mreq.post('/api/v1/users/' + encodeURIComponent(state.userId) + '/messages/' + mid + path); }
+    try { await mreq.post(starred ? EP.MSG_UNSTAR(state.userId, mid) : EP.MSG_STAR(state.userId, mid)); }
     catch (e) { return; }
     loadMessages(container);
   }
 
   async function removeMsg(container, mid) {
     if (!confirm('确定删除该消息？将移入回收站。')) return;
-    try { await mreq.delete('/api/v1/users/' + encodeURIComponent(state.userId) + '/messages/' + mid); }
+    try { await mreq.delete(EP.MSG_DELETE(state.userId, mid)); }
     catch (e) { return; }
     loadMessages(container); refreshBadge();
   }
 
   async function restoreMsg(container, mid) {
-    try { await mreq.post('/api/v1/users/' + encodeURIComponent(state.userId) + '/messages/' + mid + '/restore'); }
+    try { await mreq.post(EP.MSG_RESTORE(state.userId, mid)); }
     catch (e) { return; }
     loadMessages(container);
   }
 
   async function markAllRead(container) {
     try {
-      const ids = await mreq.get('/api/v1/users/' + encodeURIComponent(state.userId) + '/messages/ids', { params: { isDeleted: 0 } });
+      const ids = await mreq.get(EP.MSG_IDS(state.userId), { params: { isDeleted: 0 } });
       if (ids && ids.length) {
-        await mreq.post('/api/v1/users/' + encodeURIComponent(state.userId) + '/messages/read/batch', { messageIds: ids });
+        await mreq.post(EP.MSG_BATCH_READ(state.userId), { messageIds: ids });
       }
     } catch (e) { return; }
     loadMessages(container); refreshBadge();
@@ -483,7 +870,7 @@
   async function batchRead(container) {
     const ids = Object.keys(state.selected).filter(function (k) { return state.selected[k]; });
     if (!ids.length) { alert('请先勾选消息'); return; }
-    try { await mreq.post('/api/v1/users/' + encodeURIComponent(state.userId) + '/messages/read/batch', { messageIds: ids }); }
+    try { await mreq.post(EP.MSG_BATCH_READ(state.userId), { messageIds: ids }); }
     catch (e) { return; }
     loadMessages(container); refreshBadge();
   }
@@ -492,7 +879,23 @@
     const ids = Object.keys(state.selected).filter(function (k) { return state.selected[k]; });
     if (!ids.length) { alert('请先勾选消息'); return; }
     if (!confirm('确定删除选中的 ' + ids.length + ' 条消息？将移入回收站。')) return;
-    try { await mreq.post('/api/v1/users/' + encodeURIComponent(state.userId) + '/messages/batch', { messageIds: ids }); }
+    try { await mreq.delete(EP.MSG_BATCH_DELETE(state.userId), { data: { messageIds: ids } }); }
+    catch (e) { return; }
+    state.selected = {}; loadMessages(container); refreshBadge();
+  }
+
+  async function purgeMsg(container, mid) {
+    if (!confirm('彻底删除后不可恢复，确定要永久删除该消息？')) return;
+    try { await mreq.delete(EP.MSG_PURGE(state.userId, mid)); }
+    catch (e) { return; }
+    loadMessages(container); refreshBadge();
+  }
+
+  async function batchPurge(container) {
+    const ids = Object.keys(state.selected).filter(function (k) { return state.selected[k]; });
+    if (!ids.length) { alert('请先勾选消息'); return; }
+    if (!confirm('彻底删除后不可恢复，确定要永久删除选中的 ' + ids.length + ' 条消息？')) return;
+    try { await mreq.delete(EP.MSG_BATCH_PURGE(state.userId), { data: { messageIds: ids } }); }
     catch (e) { return; }
     state.selected = {}; loadMessages(container); refreshBadge();
   }
@@ -502,7 +905,7 @@
     disconnectSse();
     const uid = state.userId; const token = localStorage.getItem('token');
     if (!uid || !token || typeof EventSource === 'undefined') return;
-    const url = MSG_BASE + '/api/v1/sse/connect?access_token=' + encodeURIComponent(token);
+    const url = MSG_BASE + EP.MSG_SSE_CONNECT(token);
     try {
       es = new EventSource(url);
       es.addEventListener('ready', function () { flushOfflineQueue(); }); // 连接就绪即尝试重发离线消息
@@ -516,6 +919,12 @@
             else if (cont) refreshBadge();
           } else if (p && p.type === 'message_recalled') {
             if (state.folder === 'sent') loadMessages(document.getElementById('dynamic-content-center') || document);
+          } else if (p && p.type === 'message_deleted') {
+            // 管理员全局彻底删除：所有接收方（含收件箱/收藏/回收站）即时移除该消息
+            const cont = document.getElementById('dynamic-content-center');
+            if (state.folder === 'sent') { if (cont) loadMessages(cont); }
+            else if (cont) loadMessages(cont);
+            refreshBadge();
           }
         } catch (err) { /* 忽略心跳/异常帧 */ }
       });
@@ -544,7 +953,7 @@
     const remaining = [];
     let pending = q.length;
     q.forEach(function (body) {
-      mreq.post('/api/v1/messages/send', body).then(function () {
+      mreq.post(EP.MSG_SEND, body).then(function () {
         sent.push(body);
       }).catch(function () {
         remaining.push(body); // 仍不可达，保留
@@ -609,8 +1018,15 @@
     const scopeOptions = scopes.map(function (s, i) {
       return '<option value="' + s.scope + '"' + (s.needsTenant ? ' data-tenant="1"' : '') + (i === 0 ? ' selected' : '') + '>' + s.label + '</option>';
     }).join('');
-    const presetIds = (preset.userIds || []).join(',');
     const presetName = preset.name ? ('（致：' + esc(preset.name) + '）') : '';
+    // 指定用户ID 文本框：单用户且有名称时，预填「用户名称（用户账号）:用户ID」，便于识别收件人
+    let presetIds;
+    if (preset.userIds && preset.userIds.length === 1 && preset.name) {
+      const acc = preset.account ? ('（' + preset.account + '）') : '';
+      presetIds = preset.name + acc + ':' + preset.userIds[0];
+    } else {
+      presetIds = (preset.userIds || []).join(',');
+    }
     return '' +
       '<div class="msg-compose-card" id="msg-compose-card" style="width:620px;">' +
         '<div class="msg-compose-header" id="msg-compose-header">' +
@@ -624,7 +1040,7 @@
           '</div>' +
           '<div class="row" id="msg-scope-row">' +
             '接收范围：<select id="msg-scope" style="padding:6px;">' + scopeOptions + '</select>' +
-            '<span id="msg-tenant-wrap" style="display:none;margin-left:10px;">租户ID：<input id="msg-tenant-id" placeholder="平台管理员需填" style="padding:6px;width:120px;"></span>' +
+            '<span id="msg-tenant-wrap" style="display:none;margin-left:10px;">租户：<select id="msg-tenant-id" style="padding:6px;max-width:240px;"><option value="">加载租户列表…</option></select></span>' +
             ' <button class="btn btn-gray btn-sm" id="msg-load-rcpt"><i class="fa fa-refresh"></i> 加载接收人</button>' +
           '</div>' +
           '<div class="row" id="msg-ids-row" style="display:none;">指定用户ID（多个用逗号/空格分隔）：<br><textarea id="msg-ids" rows="2" style="width:100%;margin-top:6px;">' + esc(presetIds) + '</textarea></div>' +
@@ -633,7 +1049,12 @@
           '<div class="row">正文：<textarea id="msg-content" rows="5" style="width:100%;margin-top:6px;"></textarea></div>' +
           '<div class="row">优先级：' +
             '<select id="msg-priority"><option value="HIGH">高</option><option value="MEDIUM" selected>中</option><option value="LOW">低</option></select>' +
-            '　分类编码：<input id="msg-category" placeholder="如 BOOKING_CREATED" style="padding:6px;">' +
+            '　分类编码：' +
+            '<span class="combo" id="msg-category-combo">' +
+              '<input id="msg-category" readonly autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="msg-category-list" placeholder="请在下拉中选择分类">' +
+              '<span class="combo-arrow" id="msg-category-arrow" role="button" tabindex="-1" aria-label="展开分类列表" title="展开分类列表（↓↑ 选择，Enter 确认，Esc 关闭）"></span>' +
+              '<ul class="combo-list" id="msg-category-list" role="listbox" style="display:none;"></ul>' +
+            '</span>' +
           '</div>' +
           '<div class="row" style="color:#999;">提示：勾选接收人即「向所选的一个/多个发送」；全选即「向该范围所有人发送」。系统不要求你指定具体管理员。</div>' +
           '<div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">' +
@@ -682,6 +1103,7 @@
   // 打开发送弹窗（preset: {userIds:[], role, name} 用于列表页「发消息」链接）
   window.openComposeMessage = function (preset) {
     if (!canSend()) { toast('当前角色无权发送通知', false); return; }
+    ensureStyle(); // 保证浮动卡片样式已注入（从用户/租户管理等列表直接发消息时收件箱未必渲染过）
     let root = document.getElementById('msg-compose-root');
     if (!root) { root = document.createElement('div'); root.id = 'msg-compose-root'; document.body.appendChild(root); }
     root.innerHTML = buildComposeHtml(preset);
@@ -712,10 +1134,13 @@
       const opt = scopeSel.options[scopeSel.selectedIndex];
       const need = opt && opt.getAttribute('data-tenant') === '1';
       tenantWrap.style.display = need ? '' : 'none';
+      if (need) loadTenantOptions(root);
     }
     scopeSel.addEventListener('change', syncTenant);
 
-    root.querySelector('#msg-load-rcpt').addEventListener('click', function () { loadRecipients(root); });
+    loadCategoryOptions(root);
+    setupCategoryCombo(root); // 无条件装配交互，分类树拉取失败时仍可自由输入
+    root.querySelector('#msg-load-rcpt').addEventListener('click', function () { loadScopeRecipients(root); });
 
     root.querySelector('#msg-compose-send').addEventListener('click', function () { doSend(root); });
 
@@ -724,17 +1149,49 @@
     syncTenant();
     if (!(preset && preset.userIds && preset.userIds.length)) {
       // 默认加载第一范围的接收人，方便直接勾选
-      loadRecipients(root);
+      loadScopeRecipients(root);
     }
   };
 
   // 列表页「发消息」链接入口
-  window.openComposeToUser = function (userId, role, name) {
+  window.openComposeToUser = function (userId, role, name, account) {
     if (!userId) { toast('缺少用户ID', false); return; }
-    window.openComposeMessage({ userIds: [String(userId)], role: role, name: name });
+    window.openComposeMessage({ userIds: [String(userId)], role: role, name: name, account: account });
   };
 
-  async function loadRecipients(root) {
+  // 租户列表（平台管理员跨租户发送用）：GET /api/v1/tenant/list（后端 checkPlatformAdmin）。
+  // 模块级缓存一次拉取；失败（非平台管理员/token 过期等）降级回手输数字ID，不阻塞发送弹窗。
+  // 本模块局部路径，不进 shared/apiPaths.js（仅消息模块消费，避免触发共享桥同步链）。
+  let tenantListCache = null;
+  async function loadTenantOptions(root) {
+    const sel = root.querySelector('#msg-tenant-id');
+    if (!sel || sel.tagName !== 'SELECT') return; // 已降级为手输入框
+    try {
+      let list = tenantListCache;
+      if (!list) {
+        list = await areq.get('/api/v1/tenant/list');
+        if (!Array.isArray(list) || !list.length) throw new Error('empty tenant list');
+        tenantListCache = list;
+      }
+      sel.innerHTML = '<option value="">请选择租户</option>' + list.map(function (t) {
+        const label = (t.orgName || t.tenantCode || ('租户 ' + t.id)) + '（' + (t.tenantCode || '无编码') + ' · ID ' + t.id + '）';
+        return '<option value="' + esc(t.id) + '">' + esc(label) + '</option>';
+      }).join('');
+    } catch (e) {
+      // 降级：替换为手输数字ID（沿用 loadScopeRecipients 的 /^\d+$/ 校验兜底）
+      const input = document.createElement('input');
+      input.id = 'msg-tenant-id';
+      input.placeholder = '数字租户ID（非编码）';
+      input.inputMode = 'numeric';
+      input.style.cssText = 'padding:6px;width:120px;';
+      sel.replaceWith(input);
+    }
+  }
+
+  // 发送卡片的「按范围解析可选接收人」——注意与上方「已发」详情版的 loadRecipients(root, mid, pageNum) 区分：
+  // 两者操作完全不同的 DOM（这里 #msg-scope/#msg-rcpt-list，那里 #msg-recipients），**不可同名**——
+  // 同作用域重复函数声明会让后者覆盖前者，导致详情页接收人列表静默不显示（2026-10-12 已踩过）。
+  async function loadScopeRecipients(root) {
     const scopeSel = root.querySelector('#msg-scope');
     const scope = scopeSel.value;
     const opt = scopeSel.options[scopeSel.selectedIndex];
@@ -747,9 +1204,14 @@
       if (needsTenant) {
         const tid = (root.querySelector('#msg-tenant-id').value || '').trim();
         if (!tid) { listEl.innerHTML = '<div style="color:#c00;padding:6px;">请先填写租户ID</div>'; return; }
+        // 必须是数字租户ID（sys_tenant.id），填租户编码（如 TENANT_A）会让后端 Long 转换失败
+        if (!/^\d+$/.test(tid)) {
+          listEl.innerHTML = '<div style="color:#c00;padding:6px;">租户ID须为数字ID（如 1），不是租户编码（如 TENANT_A）</div>';
+          return;
+        }
         params.tenantId = tid;
       }
-      const users = await areq.get('/api/v1/user/message-recipients', { params: params });
+      const users = await areq.get(EP.MSG_RECIPIENTS, { params: params });
       if (!users || !users.length) { listEl.innerHTML = '<div style="color:#999;padding:6px;">该范围暂无接收人</div>'; return; }
       listEl.innerHTML = users.map(function (u) {
         const name = u.name || u.userId || '未命名';
@@ -764,8 +1226,188 @@
     }
   }
 
+  // 解析「指定用户ID」文本框：兼容纯 ID 与「名称（账号）:ID」格式（自动截取冒号后的真实用户ID）
   function parseIds(str) {
-    return (str || '').split(/[\s,，;；]+/).map(function (s) { return s.trim(); }).filter(Boolean);
+    return (str || '').split(/[\s,，;；]+/).map(function (s) {
+      s = s.trim();
+      if (!s) return '';
+      const i = s.lastIndexOf(':');
+      if (i > 0) {
+        const idPart = s.slice(i + 1).trim();
+        if (idPart && !/[\s,，;；]/.test(idPart)) return idPart;
+      }
+      return s;
+    }).filter(Boolean);
+  }
+
+  // 拉取消息分类预设，填充「分类编码」下拉（输入框已 readonly，仅可下拉选择；失败则留空，发送可不分类）
+  async function loadCategoryOptions(root) {
+    const ul = root.querySelector('#msg-category-list');
+    if (!ul) return;
+    try {
+      const list = await mreq.get(EP.MSG_CATEGORIES);
+      ul._items = Array.isArray(list) ? list : [];   // 缓存原始数据，供过滤与重渲染
+      // 顺带刷新共享字典：从用户管理/租户管理等页面直接打开「发送通知」时，收件箱未必渲染过（字典可能还没拉）
+      if (MD.setCategoryDict) MD.setCategoryDict(MD.categoryListFromTree ? MD.categoryListFromTree(ul._items) : []);
+    } catch (e) {
+      ul._items = [];                                // 拉取失败同样落空数组：不阻塞发送（不可手输，发送可不分类）
+    }
+    const input = root.querySelector('#msg-category');
+    renderComboList(root, '', input ? input.value : '');
+  }
+
+  // 按当前输入过滤并渲染下拉项（始终可重开，规避原生 datalist 选过一次后不再弹出）
+  // currentValue 用于标注「当前选中的是哪个」，避免用户看错行
+  function renderComboList(root, filter, currentValue) {
+    const ul = root.querySelector('#msg-category-list');
+    if (!ul) return;
+    if (!ul._items) { ul.innerHTML = '<li class="cc-empty">分类列表加载中…</li>'; return; }
+    const f = (filter || '').trim().toLowerCase();
+    const cur = (currentValue || '').trim().toLowerCase();
+    const noFilter = !f;
+    const items = ul._items.filter(function (c) {
+      if (!f) return true;
+      const code = (c.categoryCode || '').toLowerCase();
+      const name = (c.categoryName || '').toLowerCase();
+      return code.indexOf(f) >= 0 || name.indexOf(f) >= 0;
+    });
+    // 「不分类」恒为首项（data-code="__NONE__"，选中后归零为未分类）；仅无过滤时展示
+    let html = noFilter
+      ? '<li role="option" data-code="__NONE__" class="' + (cur === '' ? 'is-cur' : '') +
+        '" aria-selected="' + (cur === '' ? 'true' : 'false') + '">' +
+        '<span class="cc-code">（不分类）</span></li>'
+      : '';
+    html += items.length
+      ? items.map(function (c) {
+          const code = c.categoryCode || '';
+          const name = c.categoryName || '';
+          const isCur = cur && code.toLowerCase() === cur;
+          return '<li role="option" data-code="' + esc(code) + '"' + (isCur ? ' class="is-cur" aria-selected="true"' : '') + '>'
+            + '<span class="cc-code">' + esc(code) + '</span>'
+            + (name ? ('<span class="cc-name">' + esc(name) + '</span>') : '')
+            + (isCur ? '<span class="cc-tick">✓</span>' : '')
+            + '</li>';
+        }).join('')
+      : (noFilter ? '' : '<li class="cc-empty">无匹配分类</li>');
+    ul.innerHTML = html;
+  }
+
+  /**
+   * 组合框交互。
+   * 与旧实现的差别（都是「箭头看不清 / 容易点错」的成因）：
+   *  1) 箭头是独立按钮（30px 热区 + 分隔线 + hover 变色 + 展开时翻转），不再是一个小字符；
+   *  2) 用 open 变量判断显隐，不再读 style —— 旧代码点箭头时先 focus()（会触发 focus→显示）
+   *     再翻转 style，结果「展开后立刻收起」，表现为点了没反应；
+   *  3) 下拉用 fixed 定位并按输入框实时定位，避免被 .msg-compose-body 的 overflow:auto 裁剪；
+   *  4) 支持键盘（↓↑ 移动 / Enter 确认 / Esc 关闭），鼠标不易瞄准时也能操作。
+   */
+  function setupCategoryCombo(root) {
+    const combo = root.querySelector('#msg-category-combo');
+    const input = root.querySelector('#msg-category');
+    const ul = root.querySelector('#msg-category-list');
+    const arrow = root.querySelector('#msg-category-arrow');
+    if (!combo || !input || !ul || !arrow) return;
+
+    let open = false, activeIdx = -1;
+
+    // 跟随输入框定位；下方空间不足且上方更宽裕时向上翻转
+    function place() {
+      const r = input.getBoundingClientRect();
+      const gap = 2, w = Math.min(Math.max(r.width, 260), Math.max(200, window.innerWidth - r.left - 8));
+      ul.style.width = w + 'px';
+      ul.style.left = r.left + 'px';
+      const below = window.innerHeight - r.bottom - gap;
+      if (below < 160 && r.top > below) {
+        ul.style.top = 'auto';
+        ul.style.bottom = (window.innerHeight - r.top + gap) + 'px';
+      } else {
+        ul.style.bottom = 'auto';
+        ul.style.top = (r.bottom + gap) + 'px';
+      }
+    }
+    function markActive() {
+      const lis = ul.querySelectorAll('li[data-code]');
+      Array.prototype.forEach.call(lis, function (li, i) { li.classList.toggle('active', i === activeIdx); });
+      const cur = lis[activeIdx];
+      if (cur && typeof cur.scrollIntoView === 'function') cur.scrollIntoView({ block: 'nearest' });
+    }
+    function show(filter) {
+      renderComboList(root, filter, input.value);
+      place();
+      ul.style.display = '';
+      arrow.classList.add('is-open');
+      input.setAttribute('aria-expanded', 'true');
+      open = true;
+      // 展开时高亮「当前值」对应项，让选了什么一目了然
+      const items = ul._items || [];
+      const cur = (input.value || '').trim().toLowerCase();
+      activeIdx = items.findIndex(function (c) { return (c.categoryCode || '').toLowerCase() === cur; });
+      markActive();
+    }
+    function hide() {
+      ul.style.display = 'none';
+      arrow.classList.remove('is-open');
+      input.setAttribute('aria-expanded', 'false');
+      open = false; activeIdx = -1;
+    }
+    function toggle() {
+      if (open) { hide(); return; }
+      input.focus();     // 先聚焦再展开；open 已由 show() 接管，不会像旧代码那样自相抵消
+      show('');
+    }
+
+    input.addEventListener('focus', function () { if (!open) show(''); });
+    input.addEventListener('click', function () { if (!open) show(''); });
+    input.addEventListener('input', function () { show(input.value); });
+
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { hide(); input.blur(); return; }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        if (!open) { show(''); return; }
+        const lis = ul.querySelectorAll('li[data-code]');
+        if (!lis.length) return;
+        e.preventDefault();
+        activeIdx = e.key === 'ArrowDown' ? (activeIdx + 1) % lis.length : (activeIdx - 1 + lis.length) % lis.length;
+        markActive();
+        return;
+      }
+      if (e.key === 'Enter' && open && activeIdx >= 0) {
+        const li = ul.querySelectorAll('li[data-code]')[activeIdx];
+        if (li) {
+          e.preventDefault();
+          const dc = li.getAttribute('data-code') || '';
+          input.value = (dc === '__NONE__') ? '' : dc;
+          hide();
+        }
+      }
+    });
+
+    // 箭头：mousedown + preventDefault 避免输入框失焦，然后切换显隐（一次点击=一次切换）
+    arrow.addEventListener('mousedown', function (e) {
+      e.preventDefault();
+      toggle();
+    });
+
+    // 点选项：mousedown + preventDefault 阻止输入框失焦，先填值再关
+    ul.addEventListener('mousedown', function (e) {
+      const li = e.target.closest('li');
+      if (!li || typeof li.getAttribute !== 'function' || !li.getAttribute('data-code')) { e.preventDefault(); return; }
+      e.preventDefault();
+      const dc = li.getAttribute('data-code') || '';
+      input.value = (dc === '__NONE__') ? '' : dc;
+      hide();
+    });
+
+    // 点卡片外关闭（捕获阶段：卡片内其它元素被点也立即收起）
+    document.addEventListener('mousedown', function (e) {
+      if (!open) return;
+      if (combo.contains(e.target)) return;
+      hide();
+    }, true);
+    // 定位跟随：窗口尺寸变化或容器滚动时重算（fixed 定位不会自动跟着走）
+    function reposition() { if (open) place(); }
+    window.addEventListener('resize', reposition);
+    window.addEventListener('scroll', reposition, true);
   }
 
   async function doSend(root) {
@@ -773,6 +1415,20 @@
     const content = root.querySelector('#msg-content').value;
     const priority = root.querySelector('#msg-priority').value;
     const categoryCode = root.querySelector('#msg-category').value.trim();
+    // 分类编码仅可从下拉选择（输入框已 readonly），下面为冗余兜底：
+    // 万一（如下拉未加载时）输入框出现非下拉值，前端先拦截，避免后端 404。
+    if (categoryCode) {
+      const catList = root.querySelector('#msg-category-list');
+      const items = (catList && catList._items) || [];
+      if (items.length) {
+        // 编码白名单用共享实现收集（与小程序端同一份语义），不再两端各写一份递归
+        const valid = MD.collectCategoryCodes ? MD.collectCategoryCodes(items) : null;
+        if (valid && !valid[String(categoryCode).toLowerCase()]) {
+          toast('消息分类编码无效，请从下拉中选择', false);
+          return;
+        }
+      }
+    }
     if (!title) { toast('请填写标题', false); return; }
     const mode = root.querySelector('input[name="msg-mode"]:checked').value;
     let ids = [];
@@ -787,7 +1443,7 @@
     const body = { title: title, content: content || '', priority: priority, recipientUserIds: ids, broadcast: false };
     if (categoryCode) body.categoryCode = categoryCode;
     try {
-      await mreq.post('/api/v1/messages/send', body);
+      await mreq.post(EP.MSG_SEND, body);
       root.innerHTML = '';
       toast('发送成功', true);
       flushOfflineQueue();

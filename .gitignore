@@ -70,7 +70,13 @@ api/node_modules
 logs/spring-boot-app.log
 logs/spring-boot-app.log
 logs/spring-boot-app.log
-api/beforeRun
+# beforeRun 只排除「构建产物与运行时配置」，不再排除整个目录。
+# 原为整目录排除（曾导致 lesson_appointment 完整 DDL 无法入库 = 报告根因 C：
+# 「DB 定义没有单一事实源」）。现权威脚本已集中到 api/sql/（见 api/sql/README.md），
+# 这里仍放行 beforeRun/sql/ 下的历史脚本以备追溯。
+api/beforeRun/*
+!api/beforeRun/sql/
+!api/beforeRun/sql/*.sql
 api/beforeRun/booking.evn.template
 api/beforeRun/message.evn.template
 
@@ -87,3 +93,11 @@ api/message-service/logs/
 doc-develop/logs/
 hs_err_pid*.log
 replay_pid*.log
+# miniprogram-itest 的「被测系统」暂存目录：由 logic.mjs / login-flow.mjs 每次运行 cpSync 生成，
+# 不得入库（曾因 _sut_login 漏配而把 26 个生成文件提交进去，导致每次跑测试都产生 diff 噪声）。
+tests/miniprogram-itest/_sut*
+
+# 本机巡检凭据：deploy/healthcheck-local.sh 会自动 source它。
+# 内含数据库明文密码，绝不入库（模板见 .healthcheck.local.env.example）。
+.healthcheck.local.env
+.workbuddy/healthcheck-local.log

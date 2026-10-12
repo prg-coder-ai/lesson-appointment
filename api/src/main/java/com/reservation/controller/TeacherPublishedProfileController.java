@@ -1,6 +1,7 @@
 package com.reservation.controller;
 
 import com.reservation.common.Result;
+import com.reservation.dto.TeacherPublishedProfileCardVO;
 import com.reservation.dto.TeacherPublishedProfileDTO;
 import com.reservation.entity.TeacherPublishedProfile;
 import com.reservation.service.TeacherPublishedProfileService;
@@ -66,6 +67,15 @@ public class TeacherPublishedProfileController {
     @ResponseBody
     public Result<TeacherPublishedProfile> publicGet(@RequestParam("id") String publishedProfileId) {
         return service.getPublishedById(publishedProfileId);
+    }
+
+    // 3.2 公开：列出某租户下全部已发布教师职业信息（落地页师资滚动卡片用，白名单）
+    //      无需登录；tenantCode 来自落地页 URL 的 tCode，服务端解析成 tenantId 后按租户过滤。
+    //      返回裁剪 VO（不含 draftData），查询本身走 IgnoreTenant + 显式 status='published'。
+    @GetMapping("/public-list")
+    @ResponseBody
+    public Result<List<TeacherPublishedProfileCardVO>> publicList(@RequestParam("tenantCode") String tenantCode) {
+        return service.listPublishedByTenant(tenantCode);
     }
 
     // 4. 保存草稿 / 发布（后端唯一入口：status=published 时触发归档旧版本）

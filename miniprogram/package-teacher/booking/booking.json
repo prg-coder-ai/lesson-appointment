@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "预订管理",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "role-tabbar": "/components/role-tabbar/index"
+  }
+}

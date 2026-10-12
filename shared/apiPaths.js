@@ -1,0 +1,254 @@
+// 跨端共享：API 路径约定与响应解包（无网络依赖，纯函数）
+// normalizeUrl / unwrapResult 与 frontend/js/public/utility_request.js 行为保持一致。
+
+export const API_V1 = '/api/v1';
+
+// 绝对地址原样；已是 /api/v1 原样；旧 /api/* 升 v1；裸 /xxx 补 /api/v1
+export function normalizeUrl(url) {
+  if (!url) return url;
+  if (/^https?:\/\//i.test(url)) return url;
+  if (url.indexOf('/api/v1') === 0) return url;
+  if (url.indexOf('/api/') === 0) return '/api/v1' + url.slice(4);
+  if (url.charAt(0) === '/') return '/api/v1' + url;
+  return url;
+}
+
+// 业务响应解包：后端统一 { code, data, message }；code===200 取 data，否则抛错
+export function unwrapResult(res) {
+  if (res && res.code === 200) return res.data;
+  const err = new Error((res && (res.message || res.msg)) || '操作失败');
+  err.code = res && res.code;
+  err.raw = res;
+  throw err;
+}
+
+// 端点路径常量（与现有 frontend 调用保持一致；message-service 的端点走 msgBase）
+export const ENDPOINTS = {
+  AUTH_LOGIN: '/auth/login',
+  AUTH_LOGOUT: '/auth/logout',
+  AUTH_REFRESH: '/auth/refreshToken',
+  AUTH_KICK: (uid) => `/auth/kick/${uid}`,
+  // 微信登录/绑定：authController @PostMapping("/wechat-login")、("/bind-wechat")。
+  // 当前微信登录整体屏蔽（恢复流程：去 User.wxOpenid exist=false + 取消对应函数调用注释）；常量先就位，避免 undefined。
+  AUTH_WECHAT_LOGIN: '/auth/wechat-login',
+  AUTH_BIND_WECHAT: '/auth/bind-wechat',
+  // 微信登录/绑定：authController @PostMapping("/wechat-login")、("/bind-wechat")。
+  // 当前微信登录整体屏蔽（恢复流程：去 User.wxOpenid exist=false + 取消对应函数调用注释）；常量先就位，避免 undefined。
+  TRACK_ATTRIBUTION: '/api/v1/user/attribution',
+  ACCOUNT_EXIST: (acc) => `/user/account/exist?account=${encodeURIComponent(acc)}`,
+  TERM_MAP: (lang) => `/api/v1/term/map?lang=${encodeURIComponent(lang || 'zh')}`,
+  TENANT_INDUSTRY: (tCode) => `/api/v1/tenant/industry${tCode ? '?tenantCode=' + encodeURIComponent(tCode) : ''}`,
+  TENANT_NAME: (tCode) => `/api/v1/tenant/name?tenantCode=${encodeURIComponent(tCode)}`,
+  // 租户只读信息（各角色可用）：GET 当前登录者所属租户（含 tenantCode / expireTime 租期 / packageId / status）
+  TENANT_CURRENT: '/api/v1/tenant/current',
+  // 全部租户（PLATFORM_ONLY：后端 checkPlatformAdmin）。平台管理员用「租户ID → 公司名」映射，
+  // 例如消息详情里展示「发送方租户」；非平台管理员调用会被服务端挡下（403）。
+  TENANT_LIST: '/api/v1/tenant/list',
+  // 租户套餐（各角色可用，传自己 tenantId）：GET 某租户实际持有的套餐（各资源限额与当前数量）
+  TENANT_PACKAGE_BY_TENANT: (tid) => `/api/v1/tenant/package/tenant/${tid}`,
+  // 套餐模板详情（admin/platform_admin 可查）：GET 套餐模板名称等，用于把 packageId 转成可读"套餐"名
+  PACKAGE_TEMPLATE_GET: (id) => `/api/v1/package/template/${id}`,
+  CHANGE_PWD: '/user/account/changePassword',
+  // —— 用户管理（业务端，租户/平台管理员）——
+  // 后端 UserController：GET /page（租户隔离，按 role 过滤）；GET /platformPage（跨租户，仅平台管理员）
+  USER_PAGE: '/api/v1/user/page',
+  USER_PLATFORM_PAGE: '/api/v1/user/platformPage',
+  // 用户状态变更（POST { userId, status }）：status ∈ active/pending/frozen/inactive。
+  // 与 Web 端 admin-user.js 的 confirmTeacher/disableTeacher/deleteTeacher 同源（同一端点、同一取值域）。
+  USER_UPDATE_STATUS: '/api/v1/user/updateStatus',
+  // 管理员代管改密（POST ?userId=&password=[&oldPassword]）：管理员重置为默认密码走这条，免原密码；
+  // 不用 /auth/password/reset —— 那个端点硬编码固定值且平台管理员 tenantId=0 匹配不到行（见 UserService.resetPassword）。
+  // 用户名（展示用）：GET 返回单值姓名字符串；与 frontend/js/public/api.js getUserNameById 同源。
+  // 「今日课程」要把 studentId/teacherId 渲染成人名，靠它逐个解析（带缓存，避免重复请求）。
+  USER_NAME: (id) => `/api/v1/user/name/${encodeURIComponent(id || '')}`,
+  // 批量用户摘要（消息中心「接收人列表」按 id 反查姓名/账号）：ids 传数组或逗号分隔串（服务端上限 200）。
+  // 权限 ALL_ROLES；account 仅管理员下发（服务端按 token 角色裁定，前端无法越权索取）。
+  // 在 api 主模块（/api/v1/user 单数），与 MSG_* 不同服务，故走 apiBase(8081)。
+  USER_BRIEFS: (ids) => '/api/v1/user/briefs?ids=' + encodeURIComponent(Array.isArray(ids) ? ids.join(',') : (ids || '')),
+  // —— 课程 / 排期（业务端）——
+  COURSE_LIST: '/api/v1/course/list',
+  COURSE_PAGE: '/api/v1/course/page',
+  COURSE_DETAIL: (id) => `/api/v1/course/${id}`,
+  // 排期：ScheduleController @RequestMapping("/api/v1/schedule")，路径无 course 前缀。
+  // admin 排期页（package-admin/schedule）用 SCHEDULE_LIST；teacher 端增改走下方“排期”分组的 SCHEDULE_CREATE/SCHEDULE_UPDATE。
+  // 已清理早期误写的冗余别名 SCHEDULE_ADD/SCHEDULE_EDIT（与 CREATE/UPDATE 重复且易误导）。
+  SCHEDULE_LIST: '/api/v1/schedule/list',
+  // 按课程查排期（学生「课程预订」选课后的排期列表）：ScheduleController#getScheduleByCourseId。
+  // 注意：该端点方法签名里 @RequestHeader("Authorization") token 是**必填**，
+  // 所以调用方不能传 tokenOnly（否则不带 Bearer → 400/500），必须带登录态。
+  // 只返回 Result<List<ScheduleCreateDTO>>（数组，不是分页对象），status 为空表示不过滤。
+  SCHEDULE_SELECT_BY_COURSE: (courseId, status) =>
+    `/api/v1/schedule/selectByCourseId/${encodeURIComponent(courseId || '')}`
+    + (status ? `?status=${encodeURIComponent(status)}` : ''),
+  // —— 课程模板（业务端，管理员/教师，TemplateController）——
+  // 后端 @RequestMapping("/api/v1/course/template") + @GetMapping("/list")，响应 Result<List<CourseTemplate>>
+  COURSE_TEMPLATE_LIST: '/api/v1/course/template/list',
+  // —— 预约（业务端）——
+  BOOKING_CREATE: '/api/v1/course/booking/create',
+  BOOKING_PAGE: '/api/v1/course/booking/page',
+  BOOKING_LIST: '/api/v1/course/booking/list',
+  BOOKING_DETAIL: (id) => `/api/v1/course/booking/${id}`,
+  BOOKING_UPDATE_STATUS: '/api/v1/course/booking/updateStatus',
+  // 某排期「已占席位」数：BookingController#getBookingCountBySchedule，返回 Result<Integer>。
+  // 口径 = 只统计占位状态（BOOKING/BOOKED/CANCELING…），候补(waiting)/已取消/被拒/已删除都不算，
+  // 因此「剩余名额 = 排期 availableSites − 本接口返回值」，见 shared/domain/bookingState.js。
+  BOOKING_COUNT_BY_SCHEDULE: (scheduleId) =>
+    `/api/v1/course/booking/countByScheduleId/${encodeURIComponent(scheduleId || '')}`,
+  // —— 教师简介（业务端）——
+  // 后端 TeacherPublishedProfileController：GET /list、GET /latest-public（kebab-case，注意非 latestPublic）
+  TEACHER_PUBLISHED_LIST: (tid) => `/api/v1/teacher/published/list?teacherId=${encodeURIComponent(tid)}`,
+  TEACHER_PUBLISHED_LATEST: (tid) => `/api/v1/teacher/published/latest-public?teacherId=${encodeURIComponent(tid)}`,
+  // —— 管理端概览（业务端）——
+  DASHBOARD_OVERVIEW: '/api/v1/dashboard/overview',
+  DASHBOARD_TENANT_USAGE: (tid) => `/api/v1/dashboard/tenant/${tid}/usage`,
+  // —— 管理端数据总览统计（租户隔离，package-admin/dashboard 页用）——
+  // 后端对应 User/Course/Booking/Appointment 各 Controller 的 /statistical/byMonth 与 /statistical/listByDays。
+  STAT_USER_BY_MONTH: (year, month) => `/api/v1/user/statistical/byMonth?year=${encodeURIComponent(year)}&month=${encodeURIComponent(month)}`,
+  STAT_COURSE_BY_MONTH: (year, month) => `/api/v1/course/statistical/byMonth?year=${encodeURIComponent(year)}&month=${encodeURIComponent(month)}`,
+  STAT_BOOKING_BY_MONTH: (year, month) => `/api/v1/course/booking/statistical/byMonth?year=${encodeURIComponent(year)}&month=${encodeURIComponent(month)}`,
+  STAT_APPOINT_BY_MONTH: (year, month) => `/api/v1/course/appointment/statistical/byMonth?year=${encodeURIComponent(year)}&month=${encodeURIComponent(month)}`,
+  // 今日（近 N 天）课次：复用 listByDays 列表接口，dashboard.js 取数组长度作为今日课次计数
+  STAT_APPOINT_ON_DAYS: (days) => `/api/v1/course/appointment/statistical/listByDays?days=${encodeURIComponent(days)}`,
+  // —— 以下走 message-service（msgBase）——
+  MSG_SEND: '/api/v1/messages/send',
+  // 收件箱列表（分页/筛选）
+  MSG_INBOX: (uid, qs) => {
+    const base = `/api/v1/users/${encodeURIComponent(uid)}/inbox`;
+    if (!qs) return base;
+    const s = Object.keys(qs).filter(k => qs[k] !== undefined && qs[k] !== null && qs[k] !== '')
+      .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(qs[k])).join('&');
+    return s ? base + '?' + s : base;
+  },
+  MSG_UNREAD: (uid) => `/api/v1/users/${encodeURIComponent(uid)}/inbox/unread-count`,
+  MSG_DETAIL: (uid, mid) => `/api/v1/users/${encodeURIComponent(uid)}/messages/${mid}`,
+  MSG_READ: (uid, mid) => `/api/v1/users/${encodeURIComponent(uid)}/messages/${mid}/read`,
+  MSG_UNREAD_SET: (uid, mid) => `/api/v1/users/${encodeURIComponent(uid)}/messages/${mid}/unread`,
+  MSG_STAR: (uid, mid) => `/api/v1/users/${encodeURIComponent(uid)}/messages/${mid}/star`,
+  MSG_UNSTAR: (uid, mid) => `/api/v1/users/${encodeURIComponent(uid)}/messages/${mid}/unstar`,
+  MSG_DELETE: (uid, mid) => `/api/v1/users/${encodeURIComponent(uid)}/messages/${mid}`,
+  MSG_CATEGORIES: '/api/v1/message-categories/tree',
+  // 分类 CRUD（message-service）：POST 新建 / PUT、DELETE 按 id。
+  // 注意 MSG_CATEGORIES 是 tree 视图，与这里的裸前缀不是同一路径，勿混用。
+  MSG_CATEGORY_CREATE: '/api/v1/message-categories',
+  MSG_CATEGORY_BY_ID: (id) => `/api/v1/message-categories/${encodeURIComponent(id)}`,
+  // 收件箱视图：星标列表 / 回收站列表（与 MSG_INBOX 同前缀，仅末段不同）
+  MSG_STARRED: (uid) => `/api/v1/users/${encodeURIComponent(uid)}/starred`,
+  MSG_DELETED_LIST: (uid) => `/api/v1/users/${encodeURIComponent(uid)}/deleted`,
+  // SSE 长连接：access_token 走 query（EventSource 无法自定义请求头），
+  // 注意该 token 会落到 Nginx access log，属于已知取舍（见薄弱环节报告的 P1-26）。
+  MSG_SSE_CONNECT: (token) => `/api/v1/sse/connect?access_token=${encodeURIComponent(token || '')}`,
+  // —— 消息中心：已发 / 批量 / 回收站 / 撤回 / 接收人（message-service）——
+  // 已发列表：GET /api/v1/messages/sent（发送者视角，含接收/已读统计与是否可收回）
+  MSG_SENT: '/api/v1/messages/sent',
+  // 发送历史列表（管理员/租户管理员视角，本租户全部已发）：GET /api/v1/messages?status=&senderType=
+  // 后端 history() 要求 isManager()；非平台管理员自动按当前租户隔离（tenantId 无需传）。
+  // 列表仅含标题/发送者/时间/状态（不含接收/已读统计，统计在 delivery-status 详情）。
+  MSG_LIST: '/api/v1/messages',
+  // 批量已读 / 批量删除(移回收站) / 批量彻底删除：userId 维度
+  MSG_BATCH_READ: (uid) => `/api/v1/users/${encodeURIComponent(uid)}/messages/read/batch`,
+  MSG_BATCH_DELETE: (uid) => `/api/v1/users/${encodeURIComponent(uid)}/messages/batch`,
+  MSG_BATCH_PURGE: (uid) => `/api/v1/users/${encodeURIComponent(uid)}/messages/batch/purge`,
+  // 恢复(回收站→收件箱) / 彻底删除(个人副本)：userId + mid
+  MSG_RESTORE: (uid, mid) => `/api/v1/users/${encodeURIComponent(uid)}/messages/${mid}/restore`,
+  MSG_PURGE: (uid, mid) => `/api/v1/users/${encodeURIComponent(uid)}/messages/${mid}/purge`,
+  // 列出某用户全部消息 id（供「全部已读」）：GET ?isDeleted=0
+  MSG_IDS: (uid) => `/api/v1/users/${encodeURIComponent(uid)}/messages/ids`,
+  // 撤回(发送者/管理员) / 管理员全局彻底删除(连同所有收件人副本与投递记录)：纯 mid，走 messages 前缀
+  MSG_WITHDRAW: (mid) => `/api/v1/messages/${mid}/withdraw`,
+  MSG_DELETE_GLOBAL: (mid) => `/api/v1/messages/${mid}`,
+  // 单条消息投递追踪（已发详情）：接收/已读统计
+  MSG_DELIVERY: (mid) => `/api/v1/messages/${mid}/delivery-status`,
+  // 单条消息的接收人明细（分页）：谁收到 / 谁已读 / 何时读。
+  // 权限与 delivery-status 一致（管理员或发送者本人，非平台管理员限本租户），在 message-service 内断言。
+  // 返回行只含 userId + 投递/已读状态，姓名与账号另经 USER_BRIEFS 批量补齐。
+  MSG_RECIPIENTS_OF: (mid, qs) => {
+    const base = `/api/v1/messages/${encodeURIComponent(mid)}/recipients`;
+    if (!qs) return base;
+    const s = Object.keys(qs).filter(k => qs[k] !== undefined && qs[k] !== null && qs[k] !== '')
+      .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(qs[k])).join('&');
+    return s ? base + '?' + s : base;
+  },
+  // 接收人 scope 解析：在 api 主模块（/api/v1/user/... 单数，不匹配 message-service 正则，走 apiBase 8081）
+  MSG_RECIPIENTS: '/api/v1/user/message-recipients',
+  // —— 接收台账：平台方发出的消息 → 本租户用户（接收方视角；api 主模块跨 schema 只读聚合）——
+  // 为什么不放 message-service：msg_message / msg_delivery / msg_inbox 三张表的 tenant_id 记的都是
+  // 「发送方租户」，**没有任何一列是「接收方租户」**；接收人归属只存在于主库 user.tenant_id。
+  // 故该视图由主系统提供（见 MessageLedgerService 类注释），前端必须走 apiBase(8081)。
+  // 权限：checkAdmin（平台管理员 + 租户管理员）；租户管理员恒为本租户，tenantId 入参对其无效。
+  MSG_LEDGER_INBOUND: '/api/v1/msg-ledger/inbound',
+  // 某条平台方消息在**本租户**的接收人明细（姓名/账号/已读状态，未读优先）
+  MSG_LEDGER_RECIPIENTS: (mid, qs) => {
+    const base = `/api/v1/msg-ledger/inbound/${encodeURIComponent(mid)}/recipients`;
+    if (!qs) return base;
+    const s = Object.keys(qs).filter(k => qs[k] !== undefined && qs[k] !== null && qs[k] !== '')
+      .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(qs[k])).join('&');
+    return s ? base + '?' + s : base;
+  },
+  SENSITIVE_TEST: '/api/v1/sensitive/test',
+  // 敏感词组/词的按 id 操作，以及手动刷新词库缓存（message-service）
+  SENSITIVE_GROUP_BY_ID: (id) => `/api/v1/sensitive/groups/${encodeURIComponent(id)}`,
+  SENSITIVE_WORD_BY_ID: (id) => `/api/v1/sensitive/words/${encodeURIComponent(id)}`,
+  SENSITIVE_REFRESH: '/api/v1/sensitive/refresh',
+  SENSITIVE_GROUPS: '/api/v1/sensitive/groups',
+  SENSITIVE_WORDS: '/api/v1/sensitive/words',
+  // —— 排期（业务端，教师/管理员）——
+  SCHEDULE_CREATE: '/api/v1/schedule/create',
+  SCHEDULE_UPDATE: '/api/v1/schedule/update',
+  SCHEDULE_DELETE: (id) => `/api/v1/schedule/delete/${encodeURIComponent(id)}`,
+  SCHEDULE_DETAIL: (id) => `/api/v1/schedule/detail/${encodeURIComponent(id)}`,
+  SCHEDULE_LIST_BY_TEACHER: (tid) => `/api/v1/schedule/listByTeacher?teacherId=${encodeURIComponent(tid)}`,
+  SCHEDULE_UPDATE_STATUS: '/api/v1/schedule/updateStatus',
+  SCHEDULE_INC_SITE: '/api/v1/schedule/incSite',
+  SCHEDULE_GENERATE: '/api/v1/schedule/generate',
+  // —— 课次 / 上课通知（业务端，学生/教师）——
+  // 近 N 天课次列表（Web refreshAppointmentNotes 同源）；userId+role 限定当前用户
+  APPOINTMENT_LIST_BY_DAYS: (days, userId, role) => {
+    const p = [`days=${encodeURIComponent(days)}`];
+    if (userId) p.push(`userId=${encodeURIComponent(userId)}`);
+    if (role) p.push(`role=${encodeURIComponent(role)}`);
+    return `/api/v1/course/appointment/statistical/listByDays?${p.join('&')}`;
+  },
+  // 近 N 天课次（分页版，POST @RequestBody AppointmentQueryPage）。
+  // Web「今日课程」teacher 端按排期聚合展示走这个：服务端逐条分页会把同一排期拆到不同页，
+  // 故需循环翻页取回全量再客户端分组（见 frontend/js/admin-AppointmentNotes.js teacher 分支）。
+  APPOINTMENT_LIST_BY_DAYS_PAGE: '/api/v1/course/appointment/statistical/listByDaysByPage',
+  // 课次单条状态更新：PUT { id, status }（前端 operateAppointmentStatus / 「申请改期」批量走这个）
+  APPOINTMENT_UPDATE_STATUS_BY_ID: '/api/v1/course/appointment/updateStatusById',
+  // 课次分页列表：POST @RequestBody AppointmentQueryPage（status/pageNum/pageSize）。
+  // dashboard 用 pageNum=1&pageSize=1 取 PageResult.total 作精确计数（学生改期=cancelling、教师改期=t-cancelling）。
+  APPOINTMENT_PAGE: '/api/v1/course/appointment/listByPage',
+  // 某条预订下的全部课次：AppointmentController#getByBookingId，返回 Result<List<Appointment>>（数组）。
+  // 学生「我的预约」逐课次延期/请假靠它：请假=PUT updateStatusById 置 'cancelling'，取消延期=置回 'active'。
+  APPOINTMENT_LIST_BY_BOOKING: (bookingId) =>
+    `/api/v1/course/appointment/getByBookingId?bookingId=${encodeURIComponent(bookingId || '')}`,
+  // —— 上课通知规则（业务端，租户/平台管理员，NotifyRuleController @RequestMapping("/api/v1/notify-rule")）——
+  // 三者都是 GET/POST 都带租户上下文，租户隔离由 MyBatis-Plus 租户插件自动完成；
+  // 均要求 PLATFORM_OR_TENANT_ADMIN（AuthzRules:157-164），学生/教师调用会 403。
+  // /detail  ：单个作用域的规则明细（courseId 空 = 租户默认规则）；管理端用它把历史状态
+  //            noted1/noted2 翻译成「已发第 N 档·提前 X」（见 frontend/js/public/appointmentNotes.js:448）。
+  // /preview ：试算某课次各档应发时刻与「已发/待发/已过期」；传 appointmentId 走真实课次
+  //            （回带该档是否已发），传 courseId + lessonTime 走假设值。
+  // /manual-send：管理员手动补发一次（POST { appointmentId }）。服务端按「当前距上课还有多久」
+  //            自动选档，不受自动发送幂等限制（dedup_key 每次不同），可重复发；已过上课时间会被拒。
+  NOTIFY_RULE_DETAIL: '/api/v1/notify-rule/detail',
+  NOTIFY_RULE_PREVIEW: '/api/v1/notify-rule/preview',
+  NOTIFY_RULE_MANUAL_SEND: '/api/v1/notify-rule/manual-send',
+  // —— 教师公开主页（业务端，免登录公开接口）——
+  TEACHER_PUBLIC_LIST: (tc) => `/api/v1/teacher/published/public-list?tenantCode=${encodeURIComponent(tc || '')}`,
+  // 同上端点的**裸路径**（不带 query）：供 Web 端「用 axios params 传 tenantCode」的写法复用，
+  // 既保持"一个端点只有一份字符串"，又不改变该调用点的请求形态（query 由 axios 拼）。
+  TEACHER_PUBLIC_LIST_PATH: '/api/v1/teacher/published/public-list',
+  TEACHER_PUBLIC_GET: (id) => `/api/v1/teacher/published/public-get?id=${encodeURIComponent(id || '')}`
+};
+
+// ── 后端程序探测目标（「数据维护 → 后台信息」Tab 与平台端「后端信息」页共用）──
+// 只放**契约数据**（key/label/url/prefix）；界面文案（desc/icon）由各页面自持——
+// 两个页面的中文描述与图标口径本就不同，按"视图层可不一致"约定不作统一。
+//
+// prefix 是**载荷字段**而非展示字段：前端站点（Nginx / dev 代理）按它分流到 8081 / 8090。
+// message-service 必须带 /message 前缀（→ /api/v1/message/system/info）才会被转到 8090；
+// 若写成 booking 用的 /api/v1/system/info，会被当成 booking 接口转发走（历史上正是此类漏配）。
+export const BACKEND_PROBES = [
+  { key: 'booking', label: 'booking_api',     url: '/system/info',         prefix: '/api/v1' },
+  { key: 'message', label: 'message-service', url: '/message/system/info', prefix: '/api/v1/message' }
+];

@@ -380,8 +380,10 @@ public class TenantQuotaService {
             int real = countUsage(tenantId, type);
             int cur = currentOf(pkg, type);
             if (real != cur) {
+                // 日志用枚举名：中性、与租户无关。getLabel() 已改成按当前租户渲染的用户话术，
+                // 放进日志会让同一事件在不同租户下显示成不同文字，不利排障
                 log.warn("套餐额度对账发现偏差, tenantId={}, type={}, 记录值={}, 实际值={}",
-                        tenantId, type.getLabel(), cur, real);
+                        tenantId, type.name(), cur, real);
                 changed = true;
             }
             setCurrent(update, type, real);

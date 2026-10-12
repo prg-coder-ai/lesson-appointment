@@ -22,6 +22,8 @@ let pendingBooking = [];         // ID,ciurseName,studentName,teacherName,dateTi
 let activeDataForTearcher = [];  // id="activity-teachers" 教师姓名 授课总节数  预约完成率  学生平均评分  操作
 let BookingCount = 0,
     CancelBookingCount = 0,
+    StudentRescheduleCount = 0,   // 学生课次级改期/请假申请数（appointment.status='cancelling'）
+    TeacherRescheduleCount = 0,   // 教师课次级改期申请数（appointment.status='t-cancelling'）
     TodayLessonsCount;           //本周待处理预定单数、今日课程数，宏观显示
 let monthTotalTeacherIcon = {},
     monthTotalStudentIcon = {},
@@ -45,27 +47,27 @@ async function refreshOverallpage() {
     <!-- 数据统计面板 -->
     <div class="stats-panel">
       <div class="stats-item">
-        <div class="stats-label">总<span data-term="teacher">教师</span>数</div>
+        <div class="stats-label"><span data-term="teacher">教师</span>总数</div>
         <div class="stats-value">${monthTotalTeacher}</div>
         <div class="stats-desc"><i class="fa ${monthTotalTeacherIcon.icon}" style="color:  ${monthTotalTeacherIcon.color};"></i>${monthTotalTeacherIcon.v} 人 (${monthTotalTeacherIcon.str})</div>
       </div>
       <div class="stats-item success">
-        <div class="stats-label">总<span data-term="student">学生</span>数</div>
+        <div class="stats-label"><span data-term="student">学生</span>总数</div>
         <div class="stats-value">${monthTotalStudent}</div>
         <div class="stats-desc"><i class="fa ${monthTotalStudentIcon.icon}" style="color: ${monthTotalStudentIcon.color};"></i> ${monthTotalStudentIcon.v}  人 (${monthTotalStudentIcon.str})</div>
       </div>
       <div class="stats-item warning">
-        <div class="stats-label">总<span data-term="course">课程</span>数</div>
+        <div class="stats-label"><span data-term="course">课程</span>总数</div>
         <div class="stats-value">${monthTotalCourse}</div>
         <div class="stats-desc"><i class="fa  ${monthTotalCourseIcon.icon}" style="color: ${monthTotalCourseIcon.color};"></i> ${monthTotalCourseIcon.v} 门  (${monthTotalCourseIcon.str})</div>
       </div>
       <div class="stats-item danger">
-        <div class="stats-label">本月预定数</div>
+        <div class="stats-label">本月预订数</div>
         <div class="stats-value">${monthTotalBooking}</div>
         <div class="stats-desc"><i class="fa  ${monthTotalBookingIcon.icon}" style="color:${monthTotalBookingIcon.color};"></i>${monthTotalBookingIcon.v} 单  (${monthTotalBookingIcon.str})</div>
       </div>
       <div class="stats-item danger">
-        <div class="stats-label">本月预约<span data-term="lessonUnit">课时</span></div>
+        <div class="stats-label">本月<span data-term="course">课程</span>预约人次</span></div>
         <div class="stats-value">${monthTotalAppoint}</div>
         <div class="stats-desc"><i class="fa  ${monthTotalAppointIcon.icon}" style="color: ${monthTotalAppointIcon.color};"></i> ${monthTotalAppointIcon.v} 课次(${monthTotalAppointIcon.str})  </div>
       </div>
@@ -74,19 +76,27 @@ async function refreshOverallpage() {
     <!-- 近期预约审核卡片  -->
     <div class="card">
       <div class="card-header">
-        <div class="card-title"><i class="fa fa-calendar-check"></i> 待审核预约</div>
+        <div class="card-title"><i class="fa fa-calendar-check"></i> 待审核</div>
       </div>
       <div class="stats-panel">
         <div class="stats-item">
-          <div class="stats-label">预约待确认</div>
+          <div class="stats-label">预订</div>
           <div class="stats-value">${BookingCount || 0}</div>
         </div>
         <div class="stats-item success">
-          <div class="stats-label">取消待确认</div>
+          <div class="stats-label">取消预订</div>
           <div class="stats-value">${CancelBookingCount || 0}</div>
         </div>
+        <div class="stats-item warning">
+          <div class="stats-label"><span data-term="student">学生</span>改期</div>
+          <div class="stats-value">${StudentRescheduleCount || 0}</div>
+        </div>
+        <div class="stats-item warning">
+          <div class="stats-label"><span data-term="teacher">教师</span>改期</div>
+          <div class="stats-value">${TeacherRescheduleCount || 0}</div>
+        </div>
         <div class="stats-item success">
-          <div class="stats-label">今日<span data-term="course">课程</span></div>
+          <div class="stats-label">今日<span data-term="course">课程</span>数</div>
           <!--24小时内的预约课程 booked/completed、active -->
           <div class="stats-value">${TodayLessonsCount || 0}</div>
         </div>
@@ -201,11 +211,13 @@ async function showAppointments() {
   // search current pendding booking items ,and dispaly here /pendingBooking
   const userRole = null, userId = null;//TB TEST "pending";
 
-  // 3 个接口互相独立，整体并行：2 个 booking 列表 + 今日课程数
-  const [list1, list2, todayCount] = await Promise.all([
+  // 5 个接口互相独立，整体并行：2 个 booking 列表 + 今日课程数 + 学生/教师改期申请数
+  const [list1, list2, todayCount, stuReschedule, teaReschedule] = await Promise.all([
     getBookingList(userRole, userId, 'cancelling'),
     getBookingList(userRole, userId, 'booking'),
-    getCountOfTodayAppointment()
+    getCountOfTodayAppointment(),
+    getReschedulePendingCount('cancelling'),
+    getReschedulePendingCount('t-cancelling')
   ]);
 
   bookingList1 = list1;
@@ -214,7 +226,25 @@ async function showAppointments() {
   BookingCount = (list2 && list2.length) || 0;
   //console .log("BookingCount:", BookingCount,CancelBookingCount);
 
+  StudentRescheduleCount = stuReschedule || 0;
+  TeacherRescheduleCount = teaReschedule || 0;
   TodayLessonsCount = todayCount;//获取今日课程数量
+}
+
+// 改期申请数：POST /course/appointment/listByPage（pageNum=1,pageSize=1）取 PageResult.total，
+// total 是 SQL COUNT 精确值，不拉全量列表。status：'cancelling'=学生课次级申请；'t-cancelling'=教师课次级申请。
+async function getReschedulePendingCount(status) {
+  try {
+    const res = await request({
+      url: `${API_BASE_URL}/course/appointment/listByPage`,
+      method: 'post',
+      data: { pageNum: 1, pageSize: 1, status: status }
+    });
+    return (res && res.total) || 0;
+  } catch (e) {
+    console.error('getReschedulePendingCount(' + status + ') 失败', e);
+    return 0;
+  }
 }
 
 // ===================== 交互函数 =====================

@@ -143,7 +143,7 @@ function renderPagination(current, totalPages) {
 // 工具函数
 function formatTime(t) {
     if (!t) return '-';
-    return String(t).replace('T', ' ').substring(0, 19);
+    return window.DatetimeDomain ? window.DatetimeDomain.formatDateTime(t) : String(t).replace('T', ' ').substring(0, 19);
 }
 
 function escHtml(s) {

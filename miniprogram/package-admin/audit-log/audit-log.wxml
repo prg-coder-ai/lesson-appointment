@@ -1,0 +1,7 @@
+<view class="page">
+  <view class="empty">
+    <view class="empty-icon">📋</view>
+    <view class="empty-title">审计日志</view>
+    <view class="empty-desc">管理操作审计记录浏览能力正在建设中，后续版本开放。</view>
+  </view>
+</view>

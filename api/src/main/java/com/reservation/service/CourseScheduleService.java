@@ -6,13 +6,19 @@ import com.reservation.dto.*;
 import com.reservation.mapper.CourseScheduleMapper;
 import com.reservation.mapper.ScheduleExceptionMapper;
 import com.reservation.common.ScheduleGenerator;
+import com.reservation.common.BookingStatus;
+import com.reservation.common.AppointmentStatus;
+import com.reservation.common.CascadeRules;
+import com.reservation.common.BookingIdGenerator;
 
 import com.reservation.mapper.BookingMapper;
 import com.reservation.query.ScheduleQueryPage;
 import com.reservation.common.PageResult;
 import com.reservation.exception.BusinessException;
 import com.reservation.utils.TenantContext;
+import com.reservation.utils.TermMsg;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.reservation.dto.ScheduleCreateDTO;
 /*import com.reservation.service.AppointmentService;
       import java.time.LocalDate;
@@ -39,6 +45,8 @@ public class CourseScheduleService {
     private CourseScheduleMapper scheduleMapper;
     @Resource
     private ScheduleExceptionMapper exceptionMapper;
+    @Resource
+    private ReferentialCascadeService cascadeService;
 
   @Resource
     private BookingMapper bookingMapper;
@@ -46,6 +54,10 @@ public class CourseScheduleService {
     private AppointmentService appointmentService;
      @Resource
     private TenantQuotaService tenantQuotaService;
+
+    /** 名额校验（含加锁与锁定读）统一由 BookingSeatService 提供，与学生预定/候补递补共用同一闸门 */
+    @Resource
+    private BookingSeatService bookingSeatService;
 
 // 3. 冲突检测：先展开重复规则，检查每个实例是否冲突--TBD：课程+room是否冲突
 // 参数excludeSchid 在修改已存在的排期时，带
@@ -208,8 +220,19 @@ public class CourseScheduleService {
   @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public Map<String, String> update(ScheduleCreateDTO dto) { 
         //  System.out .println("update : " +dto); 
+          // 席位字段可空，语义是「本次不改席位」。必须先取排期行锁并沿用库中现值：
+          // CreateDtoToObject 会给 int 字段填兜底默认值，不处理的话，一次没带席位的普通编辑
+          // 就会把容量整体改写成那个默认值；显式改小时则要求不低于已占位数，否则改完立即超卖。
+          CourseSchedule current = bookingSeatService.lockScheduleAndAssertExists(dto.getScheduleId());
+          Integer newSites = dto.getAvailableSites();
+          if (newSites != null && newSites != current.getAvailableSites()) {
+              bookingSeatService.assertSitesNotBelowOccupied(dto.getScheduleId(), newSites);
+          }
           CourseSchedule schedule = CreateDtoToObject(dto);     
          // System.out .println("update : " + schedule); 
+          if (newSites == null) {
+              schedule.setAvailableSites(current.getAvailableSites());
+          }
           scheduleMapper.updateById (schedule);
         return Collections.singletonMap("Id", dto.getScheduleId());
     }
@@ -218,16 +241,69 @@ public class CourseScheduleService {
   @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public String updateScheduleSites(IncSiteBody Obj) {
          //log.debug("updateScheduleSites : " +Obj);         
-         scheduleMapper.updateSites(Obj);
+         // 席位调整必须过闸门：先锁排期行，再按已占位数校验新容量。
+         // 原先是无条件 available_sites = available_sites + inc，可以一路减到低于已占位数、
+         // 甚至负数（列是 tinyint，允许负值），把「满员」改成「超员」——这是顺序操作即可触发的超卖。
+         CourseSchedule current = bookingSeatService.lockScheduleAndAssertExists(Obj.getScheduleId());
+         bookingSeatService.assertSitesNotBelowOccupied(
+                 Obj.getScheduleId(), current.getAvailableSites() + Obj.getInc());
+         int rows = scheduleMapper.updateSites(Obj);
+         if (rows == 0) {
+             // SQL 侧的下界兜底拦下了这次调整（正常路径不会走到这里，走到了说明校验被绕过）
+             throw new BusinessException(TermMsg.t("该{schedule}席位调整失败，请刷新后重试"));
+         }
         return Obj.getScheduleId();
     }
 
 
 @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
-    public   String updateStatus (StatusBody data) {       
+    public   String updateStatus (StatusBody data) {
          //System.out .println("updateStatus called with scheduleId: " + data);
          scheduleMapper.updateStatus(data);
+        cascadeOnScheduleStatusChange(data.getScheduleId(), data.getStatus());
         return  data.getScheduleId();
+    }
+
+    /**
+     * 排期状态变更后的级联处置（报告根因 C：数据完整性兜底）。
+     *
+     * <p><b>为什么只在 frozen 时级联</b>：本方法被所有排期状态变更调用（active/pending/
+     * inactive/frozen/结束等）。只有 {@code frozen} 是<b>软删除</b>语义——
+     * 用户在界面上确认"删除"后前端走的就是这条路径（{@code operateSchedule(id,"frozen")}）。
+     * 其余状态（激活、结束…）不改变"这条排期是否还存在"的判断，
+     * 级联置子表状态反而会误伤：把排期临时置 pending 再切回 active，
+     * 若每次都级联，其下的预订与课次会被反复改写。
+     *
+     * <p><b>处置内容</b>（规则见 {@link CascadeRules#SCENARIO_SCHEDULE_FREEZE}）：
+     * 其下 booking 置 {@code frozen}、其下 appointment 置 {@code frozen}，全部<b>保留行</b>。
+     * 保留而非物理删，是因为"排期暂停"不等于"这些预订从未存在"，
+     * 排期恢复后这些预订应当原样可用；删掉就等于抹掉历史且不可恢复。
+     *
+     * <p>原先这个级联由浏览器编排（{@code deleteScheduleByFrozen} 先 confirm
+     * 再逐个把预订置 frozen，最后才置排期），非原子、且只有 Web 端有；
+     * 小程序调同一条接口完全不会级联——这与根因 B 同源。
+     */
+    private void cascadeOnScheduleStatusChange(String scheduleId, String status) {
+        if (scheduleId == null || status == null
+                || !BookingStatus.FROZEN.equalsIgnoreCase(status.trim())) {
+            return;
+        }
+        // 先把该排期下每条预订的课次置 frozen，再把预订置 frozen。
+        // 顺序与物理删除相反（软删是先把子置好、父最后），因为冻结全程保留行：
+        // booking 只要还在，就能按 booking_id 找到它的课次。
+        List<Booking> bookings = bookingMapper.selectList(
+                Wrappers.<Booking>lambdaQuery().eq(Booking::getScheduleId, scheduleId));
+        if (bookings != null && !bookings.isEmpty()) {
+            List<String> bookingIds = bookings.stream()
+                    .map(Booking::getBookingId)
+                    .filter(b -> b != null && !b.trim().isEmpty())
+                    .collect(Collectors.toList());
+            cascadeService.run(CascadeRules.SCENARIO_BOOKING_FREEZE, bookingIds);
+        }
+        ReferentialCascadeService.CascadeReport report = cascadeService.run(
+                CascadeRules.SCENARIO_SCHEDULE_FREEZE, scheduleId);
+        log.info("排期冻结级联：scheduleId={}，预订 {} 条，{}", scheduleId,
+                bookings == null ? 0 : bookings.size(), report.toMap());
     }
 
 // 可以返回DTO对象，TBD
@@ -345,7 +421,11 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
  
     cs.setRepeatType(dto.getRepeatType() == null ? 0 : dto.getRepeatType());
     cs.setRepeatInterval(dto.getRepeatInterval() == null ? 0 : dto.getRepeatInterval());
-    cs.setAvailableSites(dto.getAvailableSites());
+    // 席位总数：dto 里是 Integer（可空），实体是 int（不可空）。
+    // 直接 setAvailableSites(dto.getAvailableSites()) 在当前端未传该字段时拆箱 NPE（500）。
+    // 缺省为 1 与实体注释、DB 列 DEFAULT '1' 保持一致。
+    // 注意：编辑排期时若 dto 未传，update() 会用库中现值覆盖这里，不会把容量重置成 1。
+    cs.setAvailableSites(dto.getAvailableSites() == null ? 1 : dto.getAvailableSites());
     // 将 List<Integer> repeatDays 转为字符串存储（如 "1,3,5"）
     if (dto.getRepeatDays() != null && !dto.getRepeatDays().isEmpty()) {
         cs.setRepeatDays(dto.getRepeatDays().stream().map(String::valueOf).collect(Collectors.joining(",")));
@@ -398,54 +478,123 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
 
   @Transactional(rollbackFor = Exception.class)
   public boolean asgn_student(String scheduleId, String studentId,String teacherId) {
-      // 1. 创建 booking 数据
-      Booking booking = new Booking();
-      String bookingId = UUID.randomUUID().toString();
-      booking.setBookingId(bookingId);
-      booking.setScheduleId(scheduleId);
-      booking.setStudentId(studentId);
-      booking.setTeacherId(teacherId);
-      booking.setStatus("booked");
-    //  booking.setCreateTime(LocalDateTime.now());
-      bookingMapper.insert(booking);
- //System.out .println("insert Book:" + booking);
+      if (scheduleId == null || studentId == null) {
+          throw new BusinessException(TermMsg.t("{schedule}ID与{student}ID不能为空"));
+      }
 
-      // 2. 根据 scheduleId 获取排期详情（比如起止日期、重复规则）
+      // 1. 同一学生同一排期只应存在一条 booking。
+      //    原实现无条件 insert：候补转正后再点「指定学生」会多出一条记录，
+      //    同一学生同一排期出现两条 booked，席位被重复占用。
+      //
+      //    查重必须落在排期行锁**之内**：排期锁把并发的「指定学生」串行化，后到的请求
+      //    才能看到先到者刚插入的那一行；若像原先那样先普通读查重、再进闸门拿锁，
+      //    两个并发请求都会读到 null，各自走 insert 分支，锁完全覆盖不到这次判断。
+      bookingSeatService.lockScheduleAndAssertExists(scheduleId);
+      Booking existing = bookingMapper.selectLatestByScheduleAndStudent(scheduleId, studentId);
+      String bookingId;
+      if (existing != null) {
+          bookingId = existing.getBookingId();
+          if (BookingStatus.isBooked(existing.getStatus())) {
+              // 已是正式预订：幂等返回，不新建记录、不重复占位、不重复生成课次
+              log.info("指定学生：已存在正式预订，幂等返回。scheduleId={}, studentId={}, bookingId={}",
+                      scheduleId, studentId, bookingId);
+              return true;
+          }
+          // 候补 / 已取消 / 待确认 → 复用该记录转正（校验名额时排除自身）
+          bookingSeatService.assertSeatsAvailable(
+                  scheduleId, bookingId, BookingStatus.BOOKED, "无法再指定学生");
+          bookingMapper.updateStatus(bookingId, BookingStatus.BOOKED);
+          log.info("指定学生：复用已有记录并转为正式预订。bookingId={}, 原状态={}",
+                  bookingId, existing.getStatus());
+      } else {
+          bookingSeatService.assertSeatsAvailable(
+                  scheduleId, null, BookingStatus.BOOKED, "无法再指定学生");
+          Booking booking = new Booking();
+          // bookingId 生成口径与 BookingService#create 统一（32 位无横线 hex）。
+          // 原先这里是 UUID.randomUUID().toString()（36 位带横线），而 BookingService
+          // 产出的是 replace("-","") 的 32 位——同一张表两种格式的 ID 并存，
+          // 是"悬空 booking_id"的根因之一：任何按 booking_id 的关联/排查都得同时对付
+          // 两种长度，写错一处（少个 replace）就查不到对上行。
+          bookingId = BookingIdGenerator.next();
+          booking.setBookingId(bookingId);
+          booking.setScheduleId(scheduleId);
+          booking.setStudentId(studentId);
+          booking.setTeacherId(teacherId);
+          booking.setStatus(BookingStatus.BOOKED);
+          bookingMapper.insert(booking);
+      }
+
+      // 2. 生成该 booking 的课次时间列表（幂等）
+      generateAppointmentsForBooking(bookingId, scheduleId);
+      return true;
+  }
+
+  /**
+   * 为指定 booking 生成课次（appointment）时间列表。
+   *
+   * <p>幂等：该 booking 已有课次则直接返回，重复调用不会产生双份时间表。
+   * 「指定学生」与「候补递补」共用这一份实现，避免两处各写一遍、日后走偏。
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public boolean generateAppointmentsForBooking(String bookingId, String scheduleId) {
+      if (bookingId == null || scheduleId == null) {
+          return false;
+      }
+      List<Appointment> existingAppointments = appointmentService.getByBookingId(bookingId);
+      if (existingAppointments != null && !existingAppointments.isEmpty()) {
+          // 幂等返回，但**不能就此认为完好**：课次存在不等于还在生效。
+          // 典型场景 booked → cancelled（课次置 cancelled）→ 又被确认回 booked，
+          // 此时若直接 return，booking 是 booked 而课次全是 cancelled —— 上课时间表"凭空消失"。
+          // 故这里校验是否存在仍生效的课次；全是非生效态时补生成一份并显式核对条数。
+          boolean anyActive = existingAppointments.stream()
+                  .anyMatch(a -> AppointmentStatus.occupiesTime(a.getStatus()));
+          if (anyActive) {
+              log.info("课次已存在且仍生效，跳过生成：bookingId={}, 已有{}条",
+                      bookingId, existingAppointments.size());
+              return true;
+          }
+          // 走到这里说明课次存在但全部已取消/冻结：先物理清理再重新展开。
+          // 这是唯一允许物理删除课次的路径——重复生成会导致同一时段出现两条时间行。
+          log.info("课次存在但全部失效，重新生成：bookingId={}, 原{}条", bookingId, existingAppointments.size());
+          // cascade: none AppointmentService#removeByBookingId 内已先清
+          // notification_dispatch_log（APPOINTMENT_DELETE 场景）再删课次
+          appointmentService.removeByBookingId(bookingId);
+      }
       CourseSchedule schedule = scheduleMapper.selectById(scheduleId);
       if (schedule == null) {
-          throw new RuntimeException("排期不存在");
+          throw new BusinessException(TermMsg.t("{schedule}不存在"));
       }
-      // 构造 generateDTO 用于生成 appointment 时间列表 ScheduleGenerateDTO
-      ScheduleCreateDTO crtDto= ObjectToCreateDto(schedule); 
-      ScheduleGenerateDTO genDto   =  CreateDtoToGenerateDto(crtDto);
-//.out .println("asgn_student genDto:" + genDto);
-      // 3. 由工具类展开实例日期+时间
+      // 由排期的重复规则展开实例日期+时间
+      ScheduleCreateDTO crtDto = ObjectToCreateDto(schedule);
+      ScheduleGenerateDTO genDto = CreateDtoToGenerateDto(crtDto);
       List<ScheduleVO> instanceList = ScheduleGenerator.generateUserZoneSchedule(genDto);
-//System.out .println("asgn_student instanceList:" + instanceList);
+
+      // 排期时区：从排期实体取，是本次换算的唯一依据。
+      // generateUserZoneSchedule 展开出的 date+time 是「排期本地墙钟时间」，
+      // 落库前必须转成 UTC，否则课次时间会随服务器时区/比较口径整体错位
+      // （见 doc-develop/课次时间UTC化改造方案.md 步骤 2）。
+      String scheduleZone = schedule.getTimeZone();
 
       List<Appointment> appointmentList = new ArrayList<>();
-      int index =1;
+      int index = 1;
       for (ScheduleVO vo : instanceList) {
           Appointment appt = new Appointment();
-         // appt.setAppointmentId(UUID.randomUUID().toString());
-         appt.setBookingId(bookingId); 
-          appt.setClassIndex(index++); 
-              String appointmentDateTime = vo.getDate() + " " + vo.getTime(); 
-          // 将 appointmentDateTime 字符串转为 LocalDateTime
-          LocalDateTime localDateTime = LocalDateTime.parse(appointmentDateTime, java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-          appt.setAppointmentDatetime(localDateTime);
-           appt.setLastDatetime(localDateTime); 
-         
-          appt.setStatus("active");  
+          appt.setBookingId(bookingId);
+          appt.setClassIndex(index++);
+          String appointmentDateTime = vo.getDate() + " " + vo.getTime();
+          LocalDateTime scheduleLocal = LocalDateTime.parse(
+                  appointmentDateTime, java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+          // 排期本地时间 → UTC。写入 appointment 的唯一转换点，勿绕过。
+          LocalDateTime utc = ScheduleGenerator.scheduleLocalToUtc(scheduleLocal, scheduleZone);
+          appt.setAppointmentDatetime(utc);
+          appt.setLastDatetime(utc);
+          appt.setStatus("active");
           appointmentList.add(appt);
       }
-     // System.out .println("asgn_student appointmentList:" + appointmentList);
-      // 批量插入 appointments
       if (!appointmentList.isEmpty()) {
           appointmentService.insertAppointmentList(appointmentList);
-         // System.out .println("asgn_student:insertAppointmentList");
       }
-      // 成功
+      log.info("生成课次完成：bookingId={}, scheduleId={}, 共{}条", bookingId, scheduleId, appointmentList.size());
       return true;
   }
     /**
@@ -453,22 +602,77 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
      * @param id 排期ID
      * @return 删除的排期数量（通常为1，若未找到则为0）
      */
+    @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public int deleteById(String id) {
         log.info("删除排期开始, scheduleId={}", id);
+            // 先由程序显式清理子表（课次 → 预订），再删排期本身。
+            // 原先这里只有一句 DELETE，排期的预订由数据库的 ON DELETE CASCADE 连带删掉——
+            // 而 appointment 没有指向 booking 的外键，于是那些课次全部变成悬空行
+            // （实测 149 行课次中 109 行 booking_id 指向不存在的预订）。
+            // 级联改由程序做，顺序与范围才可见、可审计（报告根因 C）。
+            cascadeDeleteSchedules(Collections.singletonList(id));
             // 删除排期
-            scheduleMapper.deleteById(id);
-            log.info("删除排期结束, scheduleId={}", id);
+            int deleted = scheduleMapper.deleteById(id);
+            log.info("删除排期结束, scheduleId={}, 影响行数={}", id, deleted);
             // 释放租户排期额度
-            tenantQuotaService.release(TenantContext.getTenantId(), TenantQuotaService.SCHEDULE);
-            return 1;
+            if (deleted > 0) {
+                tenantQuotaService.release(TenantContext.getTenantId(), TenantQuotaService.SCHEDULE);
+            }
+            // 返回实际删除条数：原先无条件 return 1，排期不存在时也报"删除成功"
+            // （配合 FK CASCADE，删除 0 行时子表却已被连带删掉，调用方无从察觉）。
+            return deleted;
       }
+
+    /**
+     * 删除一批排期的级联展开（课次 → 预订），<b>不删排期本身</b>。
+     *
+     * <p><b>为什么逐层展开而不写在一条规则里</b>：appointment 没有 schedule_id 列，
+     * 只能经 {@code appointment.booking_id → booking.booking_id} 两跳抵达；
+     * 而 booking 一旦先被删掉，第二跳就断了。因此必须"先按排期取 booking_id 集合，
+     * 再逐条删课次，最后删预订"。这条跳数写在代码里而不是藏进规则表，
+     * 是为了让"为什么这里要查一次 booking"成为显式的一步。
+     */
+    private void cascadeDeleteSchedules(List<String> scheduleIds) {
+        if (scheduleIds == null || scheduleIds.isEmpty()) {
+            return;
+        }
+        for (String scheduleId : scheduleIds) {
+            if (scheduleId == null || scheduleId.trim().isEmpty()) {
+                continue;
+            }
+            List<Booking> bookings = bookingMapper.selectList(
+                    Wrappers.<Booking>lambdaQuery().eq(Booking::getScheduleId, scheduleId));
+            if (bookings != null && !bookings.isEmpty()) {
+                List<String> bookingIds = bookings.stream()
+                        .map(Booking::getBookingId)
+                        .filter(b -> b != null && !b.trim().isEmpty())
+                        .collect(Collectors.toList());
+                // 第一跳：按 booking_id 删课次（课次的唯一父引用就是 booking_id）
+                cascadeService.run(CascadeRules.SCENARIO_BOOKING_DELETE, bookingIds);
+            }
+            // 第二跳：删预订（规则里 course_schedule→appointment 是 SKIP 占位，说明跳数）
+            cascadeService.run(CascadeRules.SCENARIO_SCHEDULE_DELETE, scheduleId);
+        }
+    }
     /**
      * 根据课程ID删除该课程下的所有排期
      * @param courseId 课程ID
      * @return 删除的排期数量
      */
+    @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public int deleteByCourseId(String courseId) {
             log.info("按课程ID删除排期开始, courseId={}", courseId);
+             // 同 deleteById：先按排期逐条做程序级联，再批量删排期。
+             // 顺序不能颠倒——booking 一旦先被删掉，就再也定位不到它的课次。
+             List<CourseSchedule> schedules = scheduleMapper.selectList(
+                     Wrappers.<CourseSchedule>lambdaQuery().eq(CourseSchedule::getCourseId, courseId));
+             if (schedules != null && !schedules.isEmpty()) {
+                 List<String> scheduleIds = schedules.stream()
+                         .map(CourseSchedule::getScheduleId)
+                         .filter(s -> s != null && !s.trim().isEmpty())
+                         .collect(Collectors.toList());
+                 cascadeDeleteSchedules(scheduleIds);
+             }
              int rows=            scheduleMapper.deleteByCourseId(courseId);
             log.info("按课程ID删除排期结束, courseId={}, 影响行数={}", courseId, rows);
             // 释放租户排期额度（按删除的排期条数）
@@ -491,19 +695,42 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
 
     // 查询指定教师的可预约排期（可用席位 > 已预约数量）
     public List<CourseSchedule> getAvailableSchedule(String teacherId) {
-        List<CourseSchedule> schedules = scheduleMapper.selectActiveSchedulesByTeacherId(teacherId);
-        log.info("getAvailableSchedule 1, teacherId={}, rows={}", teacherId, schedules.size());
+        // 本方法是**免登录公开接口**（/schedule/getAvailableSchedule 在三处白名单里）的专用实现：
+        // 公开链接的访问者没有租户身份，TenantContext 为空，普通查询会被租户插件追加
+        // tenant_id = -1 而恒不命中（返回空列表），故这里统一走 *IgnoreTenant 版本。
+        // 详见 CourseScheduleMapper#selectActiveSchedulesByTeacherIdIgnoreTenant 的注释。
+        List<CourseSchedule> schedules = scheduleMapper.selectActiveSchedulesByTeacherIdIgnoreTenant(teacherId);
 
         List<CourseSchedule> availableSchedules = new ArrayList<>();
         for (CourseSchedule schedule : schedules) {
-            int bookingCount = bookingMapper.countBookingByScheduleId(schedule.getScheduleId());
-            log.info("schedule {} bookingCount={}", schedule.getScheduleId(), bookingCount);
+            // 剩余席位同样必须用忽略租户的计数，否则计数恒为 0，
+            // 会把「已约满」的排期也当成有空位返回给家长
+            int bookingCount = bookingMapper.countBookingByScheduleIdIgnoreTenant(
+                    schedule.getScheduleId(), BookingStatus.NON_OCCUPYING);
             if (schedule.getAvailableSites() > bookingCount) {
                 availableSchedules.add(schedule);
             }
         }
-        log.info("getAvailableSchedule 2, teacherId={}, rows={}", teacherId, availableSchedules.size());
         return availableSchedules;
+    }
+
+    // 查询指定教师的全部活跃排期（含已约满），供职业信息编辑界面「读取排期」使用。
+    // 与 getAvailableSchedule（公开预订页专用，仅返回有空位的排期）区分：编辑/发布场景
+    // 需要看到全部活跃排期，以便配置对外链接与优选标记。复用忽略租户的查询——
+    // teacherId 取自已登录教师的职业信息（受信任），且本接口置于登录鉴权之下（不进公开
+    // 白名单），平台管理员跨租户查看时也正确返回该教师的排期。
+    public List<CourseSchedule> getSchedulesByTeacher(String teacherId) {
+        // 编辑/发布界面专用：放开 course 状态限制（仅要求排期本身 active），
+        // 这样课程处于 pending/draft/frozen 时其 active 排期仍可在「读取排期」中显示并配置优选/链接。
+        List<CourseSchedule> schedules = scheduleMapper.selectActiveSchedulesByTeacherIdManageIgnoreTenant(teacherId);
+        for (CourseSchedule schedule : schedules) {
+            // 与 getAvailableSchedule 相同的余位口径：占用席位 = 状态不在 NON_OCCUPYING 的预订数。
+            // full = 可用席位 <= 占用数（即没有空位）。前端据此向客户标注「满额」。
+            int bookingCount = bookingMapper.countBookingByScheduleIdIgnoreTenant(
+                    schedule.getScheduleId(), BookingStatus.NON_OCCUPYING);
+            schedule.setFull(!(schedule.getAvailableSites() > bookingCount));
+        }
+        return schedules;
     }
   
 }//all 

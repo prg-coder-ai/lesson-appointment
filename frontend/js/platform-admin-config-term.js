@@ -30,48 +30,27 @@ const TERM_LANG_OPTIONS = [
 function renderTermPage() {
   const body = document.getElementById('config-tab-body');
   if (!body) return;
-  body.innerHTML = `
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title"><i class="fa fa-book"></i> 行业词汇</div>
-        <div class="tab-bar" style="margin-left:16px;">
-          <select id="term-scope-select" onchange="switchTermScope(this.value)">
-            <option value="0">平台词（全系统默认）</option>
-            <option value="-1">-- 按行业过滤 --</option>
-          </select>
-        </div>
-        <button class="btn btn-default" onclick="copyIndustryTerms()"><i class="fa fa-copy"></i> 行业词复制</button>
-        <button class="btn btn-primary" onclick="openTermModal(null)"><i class="fa fa-plus"></i> 新增词条</button>
-      </div>
-      <div style="margin-bottom:10px;padding:8px 12px;border-radius:6px;background:rgba(59,130,246,.08);color:#3b82f6;font-size:12px;line-height:1.7;">
-        编码命名规范：标签/菜单/按钮/提示词用语义名（如 <code>courseType</code>）；<b>下拉选项词 = 标签词 + "." + 选项编码</b>（如 <code>courseType.oneOnOne</code>），词表优先、缺词回退页面默认文案
-      </div>
-      <div class="filter-bar">
-        <input id="term-search-key" placeholder="编码（模糊）" style="width:130px;">
-        <input id="term-search-name" placeholder="显示词（模糊）" style="width:130px;">
-        <input id="term-search-remark" placeholder="备注（模糊）" style="width:150px;">
-        <select id="term-search-lang">
-          <option value="">全部语言</option>
-          ${TERM_LANG_OPTIONS.map(o => `<option value="${o.code}">${o.label}</option>`).join('')}
-        </select>
-        <select id="term-search-type">
-          <option value="">全部类型</option>
-          <option value="label">label</option>
-          <option value="menu">menu</option>
-          <option value="button">button</option>
-          <option value="tip">tip</option>
-        </select>
-        <button class="btn btn-primary" onclick="applyTermFilter(true)"><i class="fa fa-search"></i> 搜索</button>
-        <button class="btn btn-default" onclick="resetTermFilter()">重置</button>
-      </div>
-      <div class="table-container">
-        <table class="data-table"><thead><tr>
-          <th>编码</th><th>显示词</th><th>语言</th><th>类型</th><th>排序</th><th>状态</th><th>备注</th><th>操作</th>
-        </tr></thead><tbody id="term-body"></tbody></table>
-      </div>
-      <div id="term-pagebar"></div>
-    </div>`;
+  const tpl = document.getElementById('tpl-term-page');
+  if (!tpl) { console.error('[term] 缺少 #tpl-term-page'); return; }
+  body.replaceChildren(tpl.content.cloneNode(true));
   if (window.applyTerms) applyTerms(body);
+  // 回填语言下拉（模板仅含"全部语言"，由 JS 追加 TERM_LANG_OPTIONS）
+  const langSel = document.getElementById('term-search-lang');
+  if (langSel) {
+    TERM_LANG_OPTIONS.forEach(o => {
+      const opt = document.createElement('option');
+      opt.value = o.code;
+      opt.textContent = o.label;
+      langSel.appendChild(opt);
+    });
+  }
+  const $ = id => document.getElementById(id);
+  const on = (el, ev, fn) => { if (el) el.addEventListener(ev, fn); };
+  on($('term-scope-select'), 'change', e => switchTermScope(e.target.value));
+  on($('term-copy-btn'), 'click', () => copyIndustryTerms());
+  on($('term-add-btn'), 'click', () => openTermModal(null));
+  on($('term-search-btn'), 'click', () => applyTermFilter(true));
+  on($('term-reset-btn'), 'click', () => resetTermFilter());
   loadTermIndustries();
   loadTermList(currentTermIndustryId);
   bindTermRowActions();

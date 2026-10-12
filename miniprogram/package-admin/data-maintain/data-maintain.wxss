@@ -1,0 +1,5 @@
+.page { min-height: 100vh; padding: 24rpx; box-sizing: border-box; background: #f5f7fa; }
+.empty { margin-top: 160rpx; text-align: center; }
+.empty-icon { font-size: 96rpx; }
+.empty-title { font-size: 34rpx; font-weight: 600; color: #1f2a44; margin-top: 20rpx; }
+.empty-desc { font-size: 26rpx; color: #8a94a6; margin-top: 16rpx; line-height: 1.7; padding: 0 40rpx; }

@@ -15,6 +15,9 @@
 
   const API_BASE_URL = window.API_BASE_URL || '';
 
+  // 端点常量：统一取共享事实源 shared/apiPaths.js（经桥接挂到 window.ApiPaths）。
+  const ENDPOINTS = (window.ApiPaths && window.ApiPaths.ENDPOINTS) || {};
+
   /**
    * 统一 API 路径前缀：前后端分离后所有接口收敛到 /api/v1
    * - 绝对地址（含 http，如 message-service 的 MESSAGE_API_BASE_URL）原样返回
@@ -22,8 +25,16 @@
    * - 旧 /api/* 自动升 /api/v1
    * - 裸路径 /xxx 补 /api/v1
    * 注意：axios 对以 / 开头的 url 会忽略 baseURL，故不能靠设 baseURL 解决，必须改 url 字符串
+   *
+   * 权威源：shared/apiPaths.js 的 normalizeUrl（经桥接挂到 window.ApiPaths），与小程序端
+   * miniprogram/core/request.js 共用同一份实现。此处保留同语义的实现作为**降级快照**
+   * （bridge 未加载时兜底），不是第二权威源——改算法只改 shared/，再重跑桥接生成器。
    */
   function normalizeUrl(url) {
+    if (typeof window !== 'undefined' && window.ApiPaths
+        && typeof window.ApiPaths.normalizeUrl === 'function') {
+      return window.ApiPaths.normalizeUrl(url);
+    }
     if (!url) return url;
     if (/^https?:\/\//i.test(url)) return url;
     if (url.indexOf('/api/v1') === 0) return url;
@@ -98,7 +109,9 @@
     } catch (e) {
       console.warn('解析 currentUser 失败：', e);
     }
-    return refreshTokenAxios.post('/auth/refreshToken', {
+    // 端点常量：权威源 shared/apiPaths.js 的 ENDPOINTS.AUTH_REFRESH（裸路径，
+    // 由 refreshTokenAxios 的请求拦截器统一过 normalizeUrl 补 /api/v1 前缀）。
+    return refreshTokenAxios.post(ENDPOINTS.AUTH_REFRESH || '/auth/refreshToken', {
       refreshToken: refreshToken,
       account: account,
       role: role
@@ -127,7 +140,7 @@
       let relUrl = window.location.pathname + window.location.search + window.location.hash;
 
       if (!relUrl || relUrl === '/' || relUrl === '') {
-        relUrl = './index.html';
+        relUrl = './login.html';
       } else if (!relUrl.startsWith('.')) {
         // pathname 如 /admin.html → 转成 ./admin.html 匹配实际项目的相对路径
         relUrl = '.' + relUrl;
@@ -137,7 +150,7 @@
       const safe = /^(\.\/|\.\.\/)?[A-Za-z0-9_\-]+\.html(\?[^#]*)?(#.*)?$/.test(relUrl);
       if (!safe) {
         console.warn('[AuthRedirect] 3.a 未通过白名单，降级跳首页：', relUrl);
-        relUrl = './index.html';
+        relUrl = './login.html';
       }
 
       const info = {
@@ -287,7 +300,7 @@
       // 业务层 401：后端以 HTTP 200 + body.code=401 返回（token 失效）
       // 不在这里跳转/刷新，统一交给 error 拦截器或调用方处理；这里仅 reject
       if (res.code === 401) {
-          errMsg = res.message || res.msg || '登录已过期';
+          errMsg = window.ErrorCodeDomain.resolveResult(res).message;
         if (config.customErrorMsg !== false) {
           showError(errMsg);
         }
@@ -295,10 +308,10 @@
       }
 
       // 业务层 403：权限不足（与 HTTP 403 同义）—— 不刷新 token，不跳转登录页
-      // 之前用 window.href（错误拼写，应为 window.location.href）跳转 index.html 是错的：
+      // 之前用 window.href（错误拼写，应为 window.location.href）跳转登录页(login.html)是错的：
       // 权限不足 ≠ 未登录，跳登录页会让用户困惑
       if (res.code === 403) {
-         errMsg = res.message || res.msg || '无权限访问该资源';
+         errMsg = window.ErrorCodeDomain.resolveResult(res).message;
         if (config.customErrorMsg !== false) {
           showError(errMsg);
         }
@@ -306,7 +319,7 @@
       }
 
       // 其他业务错误码
-        errMsg = res.message || res.msg || '操作失败';
+        errMsg = window.ErrorCodeDomain.resolveResult(res).message;
       if (config.customErrorMsg !== false) {
         showError(errMsg);
       }
@@ -318,7 +331,7 @@
 
       // ① 超时
       if (error.code === 'ECONNABORTED' && error.message.includes('timeout')) {
-        const msg = '请求超时，请稍后重试';
+        const msg = window.ErrorCodeDomain.resolveRequestError(error).message;
         if (config.customErrorMsg !== false) {
           showError(msg);
         }
@@ -327,7 +340,7 @@
 
       // ② 网络不可达
       if (!error.response) {
-        const msg = '网络连接失败，请检查网络';
+        const msg = window.ErrorCodeDomain.resolveRequestError(error).message;
         if (config.customErrorMsg !== false) {
           showError(msg);
         }
@@ -344,9 +357,17 @@
       //
       // ====== 关键修复：originalRequest._retry 标记 ======
       // 已重试过的请求若再次 401，不再刷新，避免嵌套循环
-      if (status === 401 && !originalRequest._retry) {
+      if (status === 401) {
+        // 公开页接口（如师资落地页的 public-list）401 属预期内（未登录），不刷新 token、不跳登录页，
+        // 直接 reject 交由调用方静默降级（展示空数据），避免与 index 的 tCode 未登录重定向
+        // 形成 index↔landing 死循环。noAuthRedirect 由调用方在 request 时显式声明。
+        // 注意：必须在此处（首次 401 进入刷新分支前）短路，否则会进入下方 refresh 失败分支触发跳转。
+        if (window.__PUBLIC_LANDING__ || config.noAuthRedirect) {
+          return Promise.reject(error);
+        }
 
-        originalRequest._retry = true; // 标记：本请求已尝试过刷新重试
+        if (!originalRequest._retry) {
+          originalRequest._retry = true; // 标记：本请求已尝试过刷新重试
 
         // ②-a 已有刷新在进行：排队等待，刷新完成后用新 token 重发
         if (isRefreshing) {
@@ -453,18 +474,38 @@
 
           // 跳转保护：避免多个并发请求同时触发跳转
           if (!isRedirecting) {
+            // 公开落地页（student-landing.html 设了 window.__PUBLIC_LANDING__）：任何 401 都不跳登录页，
+            // 否则会与 index 的 tCode 未登录重定向形成 index↔landing 死循环；交由调用方静默降级。
+            // 即便调用方已显式声明 noAuthRedirect 也走同一兜底。
+            if (window.__PUBLIC_LANDING__ || config.noAuthRedirect) {
+              isRedirecting = false;
+              return Promise.reject(refreshErr);
+            }
             isRedirecting = true;
             undefined;
             saveLoginRedirect('401');
             setTimeout(() => {
-              location.href = './index.html';
+              var _loginTarget = (typeof window.pageUrl === 'function') ? window.pageUrl('login.html') : './login.html';
+              if (window.RouterAdapter && typeof window.RouterAdapter.openUrl === 'function') {
+                window.RouterAdapter.openUrl(_loginTarget);
+              } else {
+                location.href = _loginTarget;
+              }
             }, 500);
           }
           return Promise.reject(refreshErr);
         }
       }
+      }
 
-      // ④ 非 401 / 已重试过的 401 / 403 等：按状态码提示，不再刷新
+      // ④ 非 401 / 已重试过的 401 / 403 等：按状态码提示，不再刷新。
+      // 2026-10-10 用户拍板（29-b 方案 A 配套）：优先读后端 body 的真实文案（message/msg）——
+      // 业务 400/404/409 现在走真实 HTTP 状态落到这里，固定文案会丢真实原因
+      //（如注册重名"该账号已注册"→"请求错误：400"）；取不到再退回固定文案。
+      // 安全层 401/403 的 JSON 也用 message 字段，故 bodyMsg 优先对它们同样成立。
+      // 401 分支保持固定文案：那是"清登录态 + 跳转"的鉴权路径，不动。
+      const bodyMsg = error.response && error.response.data
+        ? (error.response.data.message || error.response.data.msg) : '';
       let errMsg = '';
       switch (status) {
         case 401:
@@ -476,29 +517,45 @@
           // 跳转保护：避免多个并发请求同时触发跳转
           if (!isRedirecting) {
             isRedirecting = true;
-            undefined;
-            saveLoginRedirect('401');
-            setTimeout(() => {
-              location.href = './index.html';
-            }, 500);
+            if (window.__PUBLIC_LANDING__ || config.noAuthRedirect) {
+              // 公开页（如师资落地页）的公开接口偶发 401：不跳登录页，否则会与 index 的
+              // tCode 未登录重定向形成 index↔landing 死循环；由调用方自行降级（展示空数据）。
+              // 仅释放跳转锁，不执行 saveLoginRedirect / 不跳转。
+              isRedirecting = false;
+            } else {
+              undefined;
+              saveLoginRedirect('401');
+              setTimeout(() => {
+                var _loginTarget = (typeof window.pageUrl === 'function') ? window.pageUrl('login.html') : './login.html';
+              if (window.RouterAdapter && typeof window.RouterAdapter.openUrl === 'function') {
+                window.RouterAdapter.openUrl(_loginTarget);
+              } else {
+                location.href = _loginTarget;
+              }
+              }, 500);
+            }
           }
           break;
         case 403:
           // 权限不足：只提示，不刷新，不跳转（保留当前页面上下文）
-          errMsg = '无权限访问该资源';
+          errMsg = bodyMsg || '无权限访问该资源';
           break;
         case 404:
-          errMsg = '接口地址不存在';
+          errMsg = bodyMsg || '接口地址不存在';
           break;
         case 500:
-          errMsg = '服务器内部错误';
+          errMsg = bodyMsg || '服务器内部错误';
           break;
         default:
-          errMsg = `请求错误：${status}`;
+          errMsg = bodyMsg || `请求错误：${status}`;
       }
       if (config.customErrorMsg !== false) {
         showError(errMsg);
       }
+      // 把最终文案（body 真实文案优先）挂到 error 上再 reject：
+      // reject 的仍是 axios 原始 error（.message 是 "Request failed with status code xxx"），
+      // 调用方读 error.bodyMsg 才能拿到后端真实原因，否则 UI 只能显示英文 404。
+      error.bodyMsg = errMsg;
       return Promise.reject(error);
     }
   );

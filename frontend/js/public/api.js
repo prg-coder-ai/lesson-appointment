@@ -5,6 +5,26 @@
  * 旧的默认值 'http://<hostname>:8081' / ':8080' 会在生产跳到不存在的端口，已废弃。 */
 window.ADMIN_ORIGIN = window.ADMIN_ORIGIN || location.origin;
 window.FRONTEND_ORIGIN = window.FRONTEND_ORIGIN || location.origin;
+// 存储统一走共享适配层 window.StorageAdapter.storage（接口 get/set/remove/clear）；
+// 调用方沿用浏览器 localStorage 语义（getItem/setItem/removeItem），此处做接口归一——
+// 适配器只暴露 get/set/remove/clear，故将其映射成 getItem/setItem/removeItem 供上层直接调用。
+// 桥接未加载时（如单测沙箱）回退到原生 localStorage（自带 getItem/setItem/removeItem），保证零回归。
+var _storageBackend = (typeof window !== 'undefined' && window.StorageAdapter && window.StorageAdapter.storage)
+  ? window.StorageAdapter.storage
+  : (typeof localStorage !== 'undefined' ? localStorage : null);
+var STORE = _storageBackend
+  ? (typeof _storageBackend.getItem === 'function'
+      ? _storageBackend
+      : {
+          getItem: function (k) { return _storageBackend.get(k); },
+          setItem: function (k, v) { return _storageBackend.set(k, v); },
+          removeItem: function (k) { return _storageBackend.remove(k); },
+          clear: function () { return _storageBackend.clear(); },
+          get: function (k) { return _storageBackend.get(k); },
+          set: function (k, v) { return _storageBackend.set(k, v); },
+          remove: function (k) { return _storageBackend.remove(k); }
+        })
+  : null;
 // API请求封装（简化JS请求，避免重复代码） 
     // 全局定义API服务器地址及端口号、根路径（可根据实际情况修改）
    
@@ -86,11 +106,13 @@ window.FRONTEND_ORIGIN = window.FRONTEND_ORIGIN || location.origin;
           // 检查当前页面是否为登录页，如果不是则重定向到首页
           // 用于防止未登录用户强行访问需要权限的页面
           // 若 URL 带 ?tCode= 则一并带入登录页，使登录页按该租户预填/锁定
-          if (!window.location.pathname.endsWith('index.html')) 
-            { 
-              const t = getUrlParam('tCode');
-              window.location.href  = t ? './index.html?tCode=' + encodeURIComponent(t) : './index.html';
-            }
+          // 保持在登录页时不做跳转；否则带着当前 tCode 回登录页（tCode 由 pageUrl 自动附加）
+          // 公开落地页（师资展示页等免登录页）不做登录跳转：未登录正是这类页面的正常状态。
+          // 否则本文件在顶层「加载即执行」的 InitUserInfo() 会把 landing 直接踢回登录页。
+          const isPublicPage = !!window.__PUBLIC_LANDING__ || !!window.__PUBLIC_PAGE__;
+          if (!isPublicPage && !window.location.pathname.endsWith('login.html')) {
+            window.location.href = pageUrl('login.html');
+          }
           } else  { 
         userId = userInfo.userId;
         userRole = userInfo.role; 
@@ -146,14 +168,15 @@ async function fetchUserList(conditionJson) {
   }
   
 /**
- * 获取Token（修复localStorage解析逻辑）
+ * 获取Token（修复STORE解析逻辑）
  */
 
 function getToken() {
-  const currentUserStr = localStorage.getItem('currentUser');
+  const currentUserStr = STORE.getItem('currentUser');
   if (!currentUserStr) {
       alert('未登录，请重新登录');
-      window.location.href = '/login'; // 跳转到登录页
+      // 修正：旧版跳 '/login'（该页面并不存在）且丢失 tCode；统一走登录页并带上租户编码
+      window.location.href = pageUrl('login.html');
       return '';
   }
   const currentUser = JSON.parse(currentUserStr);
@@ -161,7 +184,7 @@ function getToken() {
 }
 
 function  getCurrentUserInfo() { 
-const userStr = localStorage.getItem('currentUser');
+const userStr = STORE.getItem('currentUser');
   if(userStr)
      return  JSON.parse(userStr);
     else return null;
@@ -198,31 +221,32 @@ const userStr = localStorage.getItem('currentUser');
 */
   if(user && user.role){
   // 根据角色跳转对应页面
+  // 统一用 pageUrl 拼接：自动携带 tCode，避免 ?tCode=undefined / 写死 default 两类丢失
   switch(user.role) {
      case 'platform_admin': // 平台管理员
-      window.location.href = FRONTEND_ORIGIN + '/platform_admin.html?tCode=platform'; //
+      window.location.href = pageUrl('platform_admin.html', null, true, user); // resolveTenantCode 对平台账号恒返回 platform
       break;
     case 'admin':
-      window.location.href = FRONTEND_ORIGIN + '/admin.html?tCode=' + user.tenantCode; // 
+      window.location.href = pageUrl('admin.html', null, true, user);
       break;
     case 'teacher':
-      window.location.href = './teacher.html?tCode=' + user.tenantCode; // 
+      window.location.href = pageUrl('teacher.html', null, false, user);
       break;
     case 'student':
-      window.location.href = './student.html?tCode=' + user.tenantCode; // 
+      window.location.href = pageUrl('student.html', null, false, user);
       break;
     default:
       alert('未知用户身份，请联系管理员1');
       resetLoginForm();
-      window.location.href = './index.html?tCode=default'; // 
+      window.location.href = pageUrl('login.html', null, false, user);
   } 
 } else {
     alert('未知用户身份，请联系管理员2');
       // 判断当前页面是否为index.html
-      const isIndexPage = window.location.pathname.endsWith('index.html') || window.location.pathname === '/' || window.location.pathname === '';
+      const isIndexPage = window.location.pathname.endsWith('login.html') || window.location.pathname === '/' || window.location.pathname === '';
      if(isIndexPage ) resetLoginForm(); 
       else 
-      window.location.href = './index.html?tCode=default'; // 
+      window.location.href = pageUrl('login.html', null, false, user);
 }
 }
 
@@ -244,7 +268,7 @@ const userStr = localStorage.getItem('currentUser');
   }
 
  function autoLoginCheck() {
-  const userStr = localStorage.getItem('currentUser');
+  const userStr = STORE.getItem('currentUser');
   if (!userStr) {
     return null;
   }
@@ -252,24 +276,24 @@ const userStr = localStorage.getItem('currentUser');
   try {
     userInfo = JSON.parse(userStr);
   } catch (e) {
-    localStorage.removeItem('currentUser');
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
+    STORE.removeItem('currentUser');
+    STORE.removeItem('token');
+    STORE.removeItem('refreshToken');
     return;
   }
 
-  const token = userInfo.token || localStorage.getItem('token');
+  const token = userInfo.token || STORE.getItem('token');
   if (!token || !userInfo.role) {
-    localStorage.removeItem('currentUser');
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
+    STORE.removeItem('currentUser');
+    STORE.removeItem('token');
+    STORE.removeItem('refreshToken');
     return;
   } 
 
   if (isJwtExpired(token)) {
-    localStorage.removeItem('currentUser');
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
+    STORE.removeItem('currentUser');
+    STORE.removeItem('token');
+    STORE.removeItem('refreshToken');
     document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
     return;
   }
@@ -277,23 +301,23 @@ const userStr = localStorage.getItem('currentUser');
 }
 
  function autoLoginCheck1() {
-  // 读取本地 localStorage 保存的用户信息
-  const userStr = localStorage.getItem('currentUser');
+  // 读取本地 STORE 保存的用户信息
+  const userStr = STORE.getItem('currentUser');
   if (!userStr) {
-    window.location.href = './index.html?tCode=default'; // 
+    window.location.href = pageUrl('login.html'); // tCode 由 pageUrl 自动附加
     return;
   }
   //let userInfo;
     try {
       userInfo = JSON.parse(userStr);
     } catch (e) {
-      localStorage.removeItem('currentUser');
-      window.location.href = './index.html?tCode=default'; // 
+      STORE.removeItem('currentUser');
+      window.location.href = pageUrl('login.html'); // tCode 由 pageUrl 自动附加
       return; 
     if (!userInfo || !userInfo.token) {
       // 信息不全，清理，停留
-      localStorage.removeItem('currentUser');
-      window.location.href = './index.html?tCode=default'; // 
+      STORE.removeItem('currentUser');
+      window.location.href = pageUrl('login.html'); // tCode 由 pageUrl 自动附加
       return;
     }
   } 
@@ -317,11 +341,11 @@ const userStr = localStorage.getItem('currentUser');
 
   // 检查token是否过期
   if (isJwtExpired(userInfo.token)) {
-    localStorage.removeItem('currentUser');
+    STORE.removeItem('currentUser');
     // 清除Cookie
     document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
     alert('登录状态已过期，请重新登录');
-    window.location.href = './index.html';
+    window.location.href = pageUrl('login.html');
     return;
   } 
   const loginInfo = {
@@ -345,26 +369,26 @@ const userStr = localStorage.getItem('currentUser');
       const role = data.role || userInfo.role;
       // 按角色跳转
        if (role === 'platform_admin') {
-        window.location.href = FRONTEND_ORIGIN + '/platform_admin.html?tCode=platform'; //
+        window.location.href = pageUrl('platform_admin.html', null, true, { role: role });
       } else
       if (role === 'admin') {
-        window.location.href = FRONTEND_ORIGIN + '/admin.html?tCode=' + user.tenantCode; // 
+        window.location.href = pageUrl('admin.html', null, true, { role: role });
       } else if (role === 'teacher') {
-        window.location.href = './teacher.html?tCode=' + user.tenantCode; // 
+        window.location.href = pageUrl('teacher.html', null, false, { role: role });
       } else if (role === 'student') {
-        window.location.href = './student.html?tCode=' + user.tenantCode; // 
+        window.location.href = pageUrl('student.html', null, false, { role: role });
       }
     } /*else if (data && data.code === 401) {
       // 失效处理
-      localStorage.removeItem('currentUser');
+      STORE.removeItem('currentUser');
       document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
       alert('登录状态已过期，请重新登录');
     } else if (data && data.code === 403) {
       // token已过期或服务端不认，清理并跳转
-      localStorage.removeItem('currentUser');
+      STORE.removeItem('currentUser');
       document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
       alert('403登录状态已过期，请重新登录');
-      window.location.href = './index.html';
+      window.location.href = pageUrl('login.html');
       throw new Error('未登录或登录已失效');
     }*/
   })
@@ -379,7 +403,8 @@ const userStr = localStorage.getItem('currentUser');
     // dateTimeStr 形如 'yyyy-MM-dd HH:mm:ss' 或 'yyyy-MM-dd'
     if (!dateTimeStr) return "";
     let datePart = dateTimeStr.split(" ")[0];
-    let d = new Date(datePart);
+    // 规避 new Date('yyyy-MM-dd') 的 UTC/时区偏移（会少一天）：委托共享领域层 parseLocalDate 按年/月/日构造本地 Date
+    let d = (window.DatetimeDomain && window.DatetimeDomain.parseLocalDate(datePart)) || new Date(datePart);
     // JS getDay(): 0=Sunday, 1=Monday,...6=Saturday
     //let jsDay = d.getDay();
     //let cursorWeek = jsDay === 0 ? 7 : jsDay; // 1=Monday,...7=Sunday 
@@ -419,11 +444,13 @@ const userStr = localStorage.getItem('currentUser');
 
   /**
    * 更换密码接口，调用后端API完成用户密码修改
-   * @param {string} userId  当前用户Id
-   * @param {string} newPwd 新密码
+   * @param {string} userId   目标用户Id
+   * @param {string} newPwd   新密码
+   * @param {string} [oldPwd] 原密码。**本人改密时必填**（后端 P0-2 已补原密码校验）；
+   *                         管理员代管重置他人密码时省略。
    * @returns {Promise<object>} API返回数据
    */
-  async function changePasswordAPI(userId, newPwd) {
+  async function changePasswordAPI(userId, newPwd, oldPwd) {
    // if (!getToken()) throw new Error('用户未登录');
     try {
      
@@ -432,7 +459,9 @@ const userStr = localStorage.getItem('currentUser');
         method: "post",
         params: {
           userId: userId,
-          password: newPwd
+          password: newPwd,
+          // 本人改密才带；为 undefined 时 axios 会自动略过该参数，不会污染管理员重置请求
+          oldPassword: oldPwd
         }, 
       });
       return res;
@@ -447,12 +476,15 @@ const userStr = localStorage.getItem('currentUser');
    */
   function showChangePasswordDialog() {
     // 简单的prompt实现；可替换为更友好的UI弹窗
-   // const currentPwd = window.prompt('请输入当前密码:');
-   // if (!currentPwd) return;
+    // 原密码不能省：后端 P0-2 起本人改密必须校验原密码，
+    // 只问新密码等于"登录后即可改密"，token 一旦被窃取账号就彻底失守。
+    const oldPwd = window.prompt('请输入当前密码:');
+    if (oldPwd === null) return;
     const newPwd = window.prompt('请输入新密码:');
     if (!newPwd) return;
+    if (oldPwd === newPwd) { alert('新密码不能与原密码相同'); return; }
 
-    changePasswordAPI(userId, newPwd)
+    changePasswordAPI(userId, newPwd, oldPwd)
       .then((data) => {
         alert(data.message || '密码修改成功');
         // 可选：修改密码成功后自动登出
@@ -572,17 +604,39 @@ function escapeAttr(str) {
   return escapeHtml(str);
 }
 
+// 租户状态（sys_tenant.status）→ 文案。后端是**数字码**：1=正常 2=停用 3=退租。
+// 收敛说明：此前 platform-admin-tenant.js 与 admin-tenant-info.js 各写一份同名函数，
+// 且兜底语义已经漂移——前者 null→''，后者 null→'未知'。现统一到本处唯一实现。
+// 兜底取 '未知'：租户列表/详情里把 null 渲染成空白，会被误读成"数据缺失"。
+// 两个页面都在本文件之后加载（platform_admin.html / admin.html），故可直接取用。
+function tenantStatusText(s) {
+  if (s === 1) return '正常';
+  if (s === 2) return '停用';
+  if (s === 3) return '退租';
+  return s == null ? '未知' : '' + s;
+}
+
+// 数据脱敏（手机号/邮箱）：委托共享领域层（shared/domain/mask.js，经 P0 构建桥接挂到 window.MaskDomain），
+// Web 端不再保留本地副本，保持单一事实来源。算法以 shared 为权威，改算法只改那边。
+function maskPhone(phone) {
+  return window.MaskDomain.maskPhone(phone);
+}
+function maskEmail(email) {
+  return window.MaskDomain.maskEmail(email);
+}
+
 
     function goBack() {
       // 优先返回来源页，没有则回到管理首页
       const from = new URLSearchParams(window.location.search).get('from');
-      if (from) {
-        window.location.href = from;
-      } else if (document.referrer) {
-        window.history.back();
-      } else {
-        window.location.href = FRONTEND_ORIGIN + '/admin.html';
-      }
+    if (from) {
+      // 来源地址已经带齐参数时直接回跳
+      window.location.href = from;
+    } else if (document.referrer) {
+      window.history.back();
+    } else {
+      window.location.href = pageUrl('admin.html', null, true);
+    }
     }
 
   // ============================================================
@@ -609,6 +663,68 @@ function escapeAttr(str) {
     }
   }
 
+  // ============================================================
+  // 租户编码（tCode）保持 —— 所有页面跳转必须走下面的 helper，禁止手写 '?tCode=' + x
+  //
+  // 背景：URL 携带 ?tCode=xxx 表示「租户专属链接」。一旦某次跳转忘了带它，目标页
+  //       的 guardEntryPage 会发现「URL 无 tCode / 与本地 tenantCode 不一致」而踢回登录页，
+  //       表现为「登录后闪一下又回到登录页」的跳转死循环。
+  //
+  // 优先级：平台账号恒 platform > 当前 URL 的 tCode > 传入用户的 tenantCode
+  //         > 本地登录态的 tenantCode > ''（拿不到线索时不附加 tCode 参数）
+  //
+  // 为什么兜底不回填 'default'：登录页 index.html 一见 tCode 就会隐藏/锁定租户输入框
+  // （applyTenantCodeRule），把「让用户自己填租户编码」的普通入口变成写死的 default 入口。
+  // ============================================================
+
+  /** 求「本次跳转应当携带的租户编码」 */
+  function resolveTenantCode(user) {
+    // 平台管理员跨租户，不属于任何租户，恒为 platform（与守卫 isRoleTenantCodeMatch 一致）
+    const role = (user && user.role) || ((getCurrentUserInfo() || {}).role);
+    if (role === 'platform_admin') return 'platform';
+
+    const urlCode = getUrlParam('tCode');
+    if (urlCode) return urlCode;
+
+    if (user && user.tenantCode) return user.tenantCode;
+
+    const local = getCurrentUserInfo();
+    if (local && local.tenantCode) return local.tenantCode;
+
+    return '';
+  }
+
+  /**
+   * 拼带 tCode 的页面地址
+   * @param {string} file        目标页文件名，如 'admin.html'
+   * @param {object|string} [extra] 额外参数（对象或 query 串），如 { scdid: 'S1' } / 'sid=u1'
+   * @param {boolean} [absolute]  true = 拼 FRONTEND_ORIGIN 绝对地址（跨子域部署管理端时使用）
+   * @param {object} [user]     当前用户对象，用于推断租户编码（可选，缺省时按 URL/本地登录态推断）
+   * @returns {string} 形如 './admin.html?tCode=xxx' 的地址
+   */
+  function pageUrl(file, extra, absolute, user) {
+    const params = new URLSearchParams();
+    if (typeof extra === 'string') {
+      try {
+        new URLSearchParams(extra.replace(/^\?/, '')).forEach((v, k) => params.set(k, v));
+      } catch (e) { /* 非法 query 忽略 */ }
+    } else if (extra && typeof extra === 'object') {
+      Object.keys(extra).forEach((k) => {
+        const v = extra[k];
+        if (v !== undefined && v !== null && String(v) !== '') params.set(k, String(v));
+      });
+    }
+    // tCode 放在最后：保证存在且不会被 extra 里的同名参数冲掉；
+    // 解析不出租户时（''）不附加该参数，保持原有「无租户链接」的行为
+    const tCode = resolveTenantCode(user);
+    if (tCode) params.set('tCode', tCode);
+    const base = absolute ? (window.FRONTEND_ORIGIN + '/' + file) : ('./' + file);
+    return params.toString() ? base + '?' + params.toString() : base;
+  }
+
+  window.resolveTenantCode = resolveTenantCode;
+  window.pageUrl = pageUrl;
+
   /** 校验「角色 ↔ 租户编码」是否匹配 */
   function isRoleTenantCodeMatch(role, tenantCode) {
     if (role === 'platform_admin') {
@@ -620,13 +736,14 @@ function escapeAttr(str) {
 
   /** 强制跳登录页：清理本地登录态，并按需携带 ?tCode= 参数（作为登录页预填/锁定的租户编码） */
   function forceEntryLogin(urlTCode) {
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('currentUser');
+    STORE.removeItem('token');
+    STORE.removeItem('refreshToken');
+    STORE.removeItem('currentUser');
     document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
+    // tCode 优先取 URL 上的租户链接参数，其次才回填 urlTCode；两处都没有时 pageUrl 会兜 default
     window.location.href = urlTCode
-      ? './index.html?tCode=' + encodeURIComponent(urlTCode)
-      : './index.html';
+      ? pageUrl('login.html', { tCode: urlTCode })
+      : pageUrl('login.html');
   }
 
   /**

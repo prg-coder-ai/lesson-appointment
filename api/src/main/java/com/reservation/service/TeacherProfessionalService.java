@@ -17,6 +17,8 @@ import com.reservation.mapper.UserMapper;
 import com.reservation.query.TeacherProfessionalQueryPage;
 import com.reservation.vo.TeacherProfessionalDetailVO;
 import com.reservation.vo.TeacherProfessionalListVO;
+import com.reservation.utils.CryptoUtil;
+import com.reservation.utils.TermMsg;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +47,8 @@ public class TeacherProfessionalService {
     private TeacherAvailableTimeMapper timeMapper;
     @Autowired
     private UserMapper userMapper;
+    @Autowired
+    private CryptoUtil cryptoUtil;
 
     // ================================================================
     // 1. 添加教师职业信息（级联：主表 + 证书列表 + 时间列表）
@@ -52,21 +56,21 @@ public class TeacherProfessionalService {
     @Transactional
     public Result<Object> addTeacherProfessionalInfo(TeacherProfessionalDTO dto) {
         if (dto == null || dto.getTeacherId() == null || dto.getTeacherId().trim().isEmpty()) {
-            return Result.fail(400, "教师ID不能为空");
+            return Result.fail(400, TermMsg.t("{teacher}ID不能为空"));
         }
         // 校验教师存在且 role=teacher
         User teacher = userMapper.selectById(dto.getTeacherId());
         if (teacher == null) {
-            return Result.fail(404, "教师用户不存在");
+            return Result.fail(404, TermMsg.t("{teacher}用户不存在"));
         }
         if (!"teacher".equals(teacher.getRole())) {
-            return Result.fail(400, "该用户不是教师，无法添加职业信息");
+            return Result.fail(400, TermMsg.t("该用户不是{teacher}，无法添加职业信息"));
         }
         // 校验是否已有职业信息（1:1 唯一约束）
         TeacherProfessional exist = tpMapper.selectOne(
                 new QueryWrapper<TeacherProfessional>().eq("teacher_id", dto.getTeacherId()));
         if (exist != null) {
-            return Result.fail(400, "该教师已存在职业信息，请使用修改功能");
+            return Result.fail(400, TermMsg.t("该{teacher}已存在职业信息，请使用修改功能"));
         }
 
         // 1.1 插入主表
@@ -104,10 +108,11 @@ public class TeacherProfessionalService {
         }
         String teacherId = tp.getTeacherId();
 
-        // 先删子表（证书 + 时间段）
+        // 先删子表（证书 + 时间段）——这就是 teacher_professional 的级联，
+        // 由本方法显式完成（规则表登记在 TEACHER_* 场景；此处是它的唯一调用方）
         certMapper.deleteByTeacherId(teacherId);
         timeMapper.deleteByTeacherId(teacherId);
-        // 再删主表
+        // 再删主表。cascade: none 子表已在上两行清完，主表无其它下游
         int ret = tpMapper.deleteById(teacherProfessionalId);
         log.debug("[TeacherProfessionalService] delete operation end, id=" + teacherProfessionalId + ", affected rows=" + ret);
         return Result.success(ret, "删除成功");
@@ -163,9 +168,13 @@ public class TeacherProfessionalService {
         vo.setCertificates(certMapper.listByTeacherId(tp.getTeacherId()));
         vo.setAvailableTimes(timeMapper.listByTeacherId(tp.getTeacherId()));
 
-        // 冗余 user 字段
+        // 冗余 user 字段（name/phone/email 入库时经 cryptoUtil.encryptWithIndex 加密，
+        // 查询必须解密，否则前端看到 AES 密文而非可读字符串；与 UserService.decryptUserFields 一致）
         User teacher = userMapper.selectById(tp.getTeacherId());
         if (teacher != null) {
+            teacher.setName(cryptoUtil.decrypt(teacher.getName()));
+            teacher.setPhone(cryptoUtil.decrypt(teacher.getPhone()));
+            teacher.setEmail(cryptoUtil.decrypt(teacher.getEmail()));
             vo.setName(teacher.getName());
             vo.setAccount(teacher.getAccount());
             vo.setPhone(teacher.getPhone());

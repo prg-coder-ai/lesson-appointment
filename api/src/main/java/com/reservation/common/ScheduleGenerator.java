@@ -2,8 +2,11 @@ package com.reservation.common;
 import com.reservation.dto.ScheduleGenerateDTO;
 import com.reservation.dto.ScheduleVO;
 import java.time.*;
+import java.time.format.DateTimeFormatter;
+import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import lombok.extern.slf4j.Slf4j;
 
 /* 排期测试
@@ -176,6 +179,107 @@ public class ScheduleGenerator {
     }
 
     // ==================== 时区转换工具 ======================
+    // ⚠️ 时间口径铁律（2026-10-08 课次 UTC 化改造，见 doc-develop/课次时间UTC化改造方案.md）：
+    //   排期层（course_schedule）存「排期本地墙钟时间」，必须结合 course_schedule.time_zone 解读；
+    //   课次层（appointment）起一律存 UTC，是唯一真相源。
+    //   转换只发生在「生成课次那一刻」，此后一切时间比较都在 UTC 空间做。
+    //   写入库走 scheduleLocalToUtc，返回前端走 utcToUserZone，取"当前时刻"走 nowUtc。
+    //   ——三者必须经由本类，禁止在业务代码里散落 ZoneId 运算。
+
+    /** 解析时区，非法值降级为 UTC 并记 warn，不抛异常。
+     *  <p>为什么必须容错：tzSwitch 是公开接口，前端可传任意字符串；
+     *  `CST` / `GMT+8` 这类非 IANA 值会让 {@code ZoneId.of()} 抛 DateTimeException，
+     *  应当让用户看到"时区格式无效"，而不是后端 500 堆栈。 */
+    private static ZoneId safeZone(String zoneId) {
+        if (zoneId == null || zoneId.trim().isEmpty()) {
+            log.warn("时区为空，降级为 UTC");
+            return ZoneId.of("UTC");
+        }
+        try {
+            return ZoneId.of(zoneId.trim());
+        } catch (Exception ex) {
+            log.warn("非法时区「{}」，降级为 UTC：{}", zoneId, ex.getMessage());
+            return ZoneId.of("UTC");
+        }
+    }
+
+    /** 排期本地时间 + 排期时区 → UTC。<b>写入课次表的唯一入口。</b>
+     *  <p>课程排期存的是本地墙钟时间（如 America/Edmonton 的 2026-09-07 09:00），
+     *  换算成 UTC 瞬时值后才能落库，否则与服务器时区/比较口径全都对不上。 */
+    public static LocalDateTime scheduleLocalToUtc(LocalDateTime scheduleLocal, String scheduleZone) {
+        if (scheduleLocal == null) {
+            return null;
+        }
+        return scheduleLocal.atZone(safeZone(scheduleZone))
+                .withZoneSameInstant(ZoneId.of("UTC"))
+                .toLocalDateTime();
+    }
+
+    /** UTC → 用户时区本地时间。<b>返回前端的唯一出口。</b>
+     *  <p>课次时间是 UTC 瞬时值，展示必须转成用户能对上的墙上时间，
+     *  否则国内用户会看到与本地差 6~7 小时的数字。 */
+    public static LocalDateTime utcToUserZone(LocalDateTime utc, String userZone) {
+        if (utc == null) {
+            return null;
+        }
+        return utc.atZone(ZoneId.of("UTC"))
+                .withZoneSameInstant(safeZone(userZone))
+                .toLocalDateTime();
+    }
+
+    /** 取"当前时刻"的 UTC 表示，替换业务代码里裸的 {@code LocalDateTime.now()}。
+     *  <p>为什么：服务器时区一变，{@code now()} 跟着变，而课次时间是 UTC 不变 ——
+     *  两者不同源，提醒窗口与退改档位会整体错位。业务时间判定一律走本方法。
+     *  <p><b>不适用</b>：审计日志、监控采样、token 过期等与业务时区无关的场合。 */
+    public static LocalDateTime nowUtc() {
+        return LocalDateTime.now(Clock.systemUTC());
+    }
+
+    /**
+     * 把 UTC 课次时间渲染成"排期时区墙上时间 + 时区标注"，供通知正文这类
+     * <b>静态文本</b>使用。
+     *
+     * <p><b>为什么通知正文不能只放一个时间数字</b>：消息落库即静态文本，读者打开时
+     * 无法再按自己的时区重渲染。若排期在 {@code America/Edmonton}、收件人在国内，
+     * 正文只写「21:00」会被直接误读成北京时间。附上时区名可消除这个歧义。
+     *
+     * @param utc 课次时间（UTC）
+     * @param zone 排期时区（{@code course_schedule.time_zone}）
+     * @param fmt  格式；传 null 用 {@code yyyy-MM-dd HH:mm}
+     * @return 形如 {@code 2026-10-09 21:00（America/Edmonton）}；
+     *         {@code utc} 为空时返回 {@code null}
+     */
+    public static String utcToZonedText(LocalDateTime utc, String zone, DateTimeFormatter fmt) {
+        if (utc == null) {
+            return null;
+        }
+        DateTimeFormatter f = (fmt == null)
+                ? DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+                : fmt;
+        return utcToUserZone(utc, zone).format(f) + "（" + zoneLabel(zone) + "）";
+    }
+
+    /**
+     * 时区id → 人类可读的短标签，用于正文/界面标注。
+     *
+     * <p>取 {@link ZoneId#getDisplayName} 的短名（如 {@code Asia/Shanghai} → "中国标准时间"），
+     * 解析失败则原样返回 id ——<b>宁可显示一个用户看得懂的 {@code Region/City} 字符串，
+     * 也不要静默降级成 UTC</b>：通知正文里的时间没有第二处可对照，
+     * 标错时区比不标更危险。
+     */
+    public static String zoneLabel(String zone) {
+        if (zone == null || zone.trim().isEmpty()) {
+            return "UTC";
+        }
+        String z = zone.trim();
+        try {
+            String name = ZoneId.of(z).getDisplayName(TextStyle.SHORT, Locale.SIMPLIFIED_CHINESE);
+            return (name == null || name.trim().isEmpty()) ? z : name;
+        } catch (Exception ex) {
+            return z;
+        }
+    }
+
     // 用户时区 → UTC（存库）
     public static LocalDateTime toUtc(LocalDateTime userDateTime, String zoneId) {
         ZoneId userZone = ZoneId.of(zoneId);

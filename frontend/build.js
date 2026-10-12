@@ -112,9 +112,138 @@ function copyAssets() {
   console.log('  assets copied (images/fonts/others)');
 }
 
+/*
+ * 生成前端构建元信息：打包时间 + 当前 git 信息（commit / branch / 工作区是否脏）。
+ * 产出 dist/build-info.json，并把同一对象烤进 index.html 的 window.__BUILD_INFO__，
+ * 便于前端运行时（如后端信息页）直接读取，无需额外请求。
+ */
+function getGitInfo() {
+  function exec(cmd) {
+    try {
+      return require('child_process').execSync(cmd, { cwd: ROOT, encoding: 'utf8' }).trim();
+    } catch (e) { return ''; }
+  }
+  const commit = exec('git rev-parse HEAD');
+  const branch = exec('git rev-parse --abbrev-ref HEAD');
+  const dirty = exec('git status --porcelain') !== '';
+  return { gitCommit: commit, gitBranch: branch, gitDirty: dirty };
+}
+
+function writeBuildInfo() {
+  const info = Object.assign({ buildTime: new Date().toISOString() }, getGitInfo());
+  fs.writeFileSync(path.join(DIST, 'build-info.json'), JSON.stringify(info, null, 2));
+  console.log('  build-info', JSON.stringify(info));
+  return info;
+}
+
+/*
+ * 生成「共享领域层 → 浏览器全局」桥接产物 frontend/js/shared-domain-bridge.js。
+ * 领域层在 repo/shared/domain（ESM、零 DOM），本产物是供 classic <script> 委托的
+ * 经典脚本版本；buildJs() 会把它 minify 进 dist/js/，dev 代理直接读 frontend/ 源码也覆盖。
+ */
+function generateSharedBridge() {
+  const gen = path.join(ROOT, 'tools', 'gen-shared-bridge.js');
+  if (!fs.existsSync(gen)) { console.log('  bridge generator not found, skipped'); return; }
+  require('./tools/gen-shared-bridge.js').generateSharedBridge();
+}
+
+/*
+ * 把桥接脚本注入到每个 html 入口的 <head>（classic 脚本，同步执行，早于 body 里的消费脚本）。
+ * 与 injectBuildInfoGlobal 同理：所有页面统一注入即可，未消费的页面加载它无副作用。
+ */
+function injectSharedBridge() {
+  const script = '<script src="js/shared-domain-bridge.js"></script>';
+  const files = fs.readdirSync(DIST).filter(f => f.endsWith('.html'));
+  for (const f of files) {
+    const p = path.join(DIST, f);
+    let html = fs.readFileSync(p, 'utf8');
+    if (html.indexOf('shared-domain-bridge.js') >= 0) continue; // 已注入则跳过，避免重复
+    if (html.indexOf('</head>') >= 0) {
+      html = html.replace('</head>', script + '</head>');
+    } else if (html.indexOf('</body>') >= 0) {
+      html = html.replace('</body>', script + '</body>');
+    } else {
+      html += script;
+    }
+    fs.writeFileSync(p, html);
+    console.log('  inject bridge', f);
+  }
+}
+
+function injectBuildInfoGlobal(info) {
+  const script = '<script>window.__BUILD_INFO__=' + JSON.stringify(info) + ';</script>';
+  // 注入到 dist 下所有 html 入口页（index.html / admin.html / platform_admin.html 等），
+  // 而非仅 index.html；否则非 SPA 直入口页（如数据维护页 admin.html）读不到全局，
+  // 会回退到 fetch('build-info.json') 而在未部署该文件时 404。
+  const files = fs.readdirSync(DIST).filter(function (f) { return f.endsWith('.html'); });
+  for (const f of files) {
+    const p = path.join(DIST, f);
+    let html = fs.readFileSync(p, 'utf8');
+    if (html.indexOf('__BUILD_INFO__') >= 0) continue; // 已注入则跳过，避免重复
+    if (html.indexOf('</head>') >= 0) {
+      html = html.replace('</head>', script + '</head>');
+    } else if (html.indexOf('</body>') >= 0) {
+      html = html.replace('</body>', script + '</body>');
+    } else {
+      html += script;
+    }
+    fs.writeFileSync(p, html);
+    console.log('  inject', f);
+  }
+}
+
+/*
+ * 站点地址硬编码检查（origin lint）
+ * 默认在构建前执行：扫源码中的 'http://'+hostname+':端口' / localhost:端口 / IP:端口 写法。
+ * 这类写法在本地 dev 代理下正常，生产会跳到未开放端口（曾导致注册后跳 :8080）。
+ * - 发现即中止构建，修完再构建；确属说明文案就在该行加 ORIGIN-LINT-DISABLE 注释豁免
+ * - 紧急发版可临时跳过：SKIP_ORIGIN_LINT=1 node build.js
+ */
+function runOriginLint() {
+  if (process.env.SKIP_ORIGIN_LINT === '1') {
+    console.log('  skipped (SKIP_ORIGIN_LINT=1)');
+    return true;
+  }
+  const script = path.join(ROOT, 'tools', 'check-origin.js');
+  if (!fs.existsSync(script)) { console.log('  checker not found, skipped'); return true; }
+  const r = require('child_process').spawnSync(process.execPath, [script, '--strict'], { stdio: 'inherit' });
+  return r.status === 0;
+}
+
+/*
+ * 小程序端共享术语镜像一致性检查（P0-1 md5 守卫）
+ * 共享领域层（repo/shared/domain/term.js）是 Web 与小程序术语的唯一权威源；小程序受工具链限制
+ * 不能直接 import 跨出 miniprogram/，故在 miniprogram/shared/domain/ 放镜像 + terms.js 纯 re-export 桩。
+ * 有人改了 mp 副本而非根 shared 会导致 web/mp 术语分叉，构建前先拦下。
+ * - 紧急可临时跳过：SKIP_SHARED_SYNC=1 node build.js
+ */
+function runSharedSyncCheck() {
+  if (process.env.SKIP_SHARED_SYNC === '1') {
+    console.log('  skipped (SKIP_SHARED_SYNC=1)');
+    return true;
+  }
+  // 守卫脚本位于仓库根 tools/（与同步脚本同源，操作仓库根 shared/ 与 miniprogram/），
+  // 而本构建脚本 ROOT=frontend/，故向上一级再进 tools/。
+  const script = path.resolve(ROOT, '..', 'tools', 'check-miniprogram-shared-sync.js');
+  if (!fs.existsSync(script)) { console.log('  checker not found, skipped'); return true; }
+  const r = require('child_process').spawnSync(process.execPath, [script], { stdio: 'inherit' });
+  return r.status === 0;
+}
+
 (async () => {
+  console.log('[lint] hardcoded origin');
+  if (!runOriginLint()) {
+    console.error('=== frontend build ABORTED: 存在硬编码站点地址，请修正后重新构建 ===');
+    process.exit(1);
+  }
+  console.log('[lint] miniprogram shared sync');
+  if (!runSharedSyncCheck()) {
+    console.error('=== frontend build ABORTED: 小程序共享术语镜像与根领域层不一致，请跑 tools/sync-miniprogram-shared.js ===');
+    process.exit(1);
+  }
   fs.rmSync(DIST, { recursive: true, force: true });
   console.log('[build] JS');
+  generateSharedBridge();
   await buildJs();
   console.log('[build] CSS');
   buildCss();
@@ -122,5 +251,9 @@ function copyAssets() {
   await buildHtml();
   console.log('[build] assets');
   copyAssets();
+  console.log('[build] build-info');
+  const info = writeBuildInfo();
+  injectBuildInfoGlobal(info);
+  injectSharedBridge();
   console.log('=== frontend build done ->', DIST, '===');
 })();

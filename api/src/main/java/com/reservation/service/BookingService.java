@@ -1,12 +1,18 @@
 package com.reservation.service;
 
 import com.reservation.common.*;
+import com.reservation.entity.Appointment;
+import com.reservation.entity.CourseSchedule;
 import com.reservation.entity.Booking;
 import com.reservation.dto.BookingDTO;
 import com.reservation.dto.BookingQueryParaDTO;
+import com.reservation.exception.BusinessException;
+import com.reservation.exception.ConflictException;
+import com.reservation.utils.TermMsg;
 import com.reservation.query.BookingQueryPage;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 
 import com.reservation.mapper.BookingMapper;
 
@@ -17,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.annotation.Resource;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -25,13 +32,104 @@ public class BookingService {
     @Resource
     private BookingMapper bookingMapper;
 
+    /** 名额校验（含并发正确性）统一由 BookingSeatService 提供，见该类注释 */
+    @Resource
+    private BookingSeatService bookingSeatService;
+
+    /**
+     * 递补成功后需要生成课次（appointment）。
+     * 生成逻辑与「指定学生」共用同一份实现，避免两处各写一遍、日后走偏。
+     */
+    @Resource
+    private CourseScheduleService courseScheduleService;
+
+    /**
+     * booking → appointment 状态联动（第 3 批：把课次生成/级联从浏览器收回服务端）。
+     * 仅 booked 生成课次；离开 booked 时按映射整组调整课次状态。
+     */
+    @Resource
+    private BookingAppointmentSyncService bookingAppointmentSyncService;
+
+    /** 真删除预订时一并清除其课次，避免产生 booking_id 悬空引用 */
+    @Resource
+    private AppointmentService appointmentService;
+    @Resource
+    private ReferentialCascadeService cascadeService;
+
     @Transactional(rollbackFor = Exception.class)
     public String create(Booking booking) {
+        // 第一步先取排期行锁，把「查重 → 名额校验 → 落库」整段串行化到同一把锁上。
+        // 为什么查重必须在锁内：前端防重复点击挡不住超时重试、F5 重放、双开标签页。
+        // 两个并发提交都会读到「该学生在本排期没有记录」，于是各插一条 booked、吃掉两个席位
+        // （总席位没超额，但其他学生白白少一位）。排期锁让后到的请求能看到先到者写入的行。
+        String scheduleId = booking.getScheduleId();
+        bookingSeatService.lockScheduleAndAssertExists(scheduleId);
 
-        String id = UUID.randomUUID().toString().replace("-", ""); // 移除UUID分隔符
+        // 时间态闸（2026-10-11 方案 B1）：排期首课次已开始的排期不受理新预订。
+        // 学生端列表过滤是体验层，这里才是写入闸门；墙钟→UTC 只经 ScheduleGenerator 单点。
+        CourseSchedule scheduleForGate = courseScheduleService.selectById(scheduleId);
+        if (scheduleForGate != null && scheduleForGate.getStartTime() != null) {
+            try {
+                java.time.LocalDateTime firstLessonLocal = java.time.LocalDateTime.parse(
+                        scheduleForGate.getStartTime().trim().substring(0, 16),
+                        java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+                java.time.LocalDateTime firstLessonUtc = ScheduleGenerator.scheduleLocalToUtc(
+                        firstLessonLocal, scheduleForGate.getTimeZone());
+                if (TimePhaseService.hasStarted(firstLessonUtc, ScheduleGenerator.nowUtc())) {
+                    throw new ConflictException(TermMsg.t("该{schedule}已开始，无法预订"));
+                }
+            } catch (ConflictException e) {
+                throw e;
+            } catch (Exception e) {
+                // 首课次时间解析/换算失败：不拦（与 TimePhaseService 的 null 语义一致，宁放行不误伤）
+                log.warn("预订创建闸读取首课次时间失败, scheduleId={}, 原因={}", scheduleId, e.getMessage());
+            }
+        }
+
+        // 同一学生同一排期只应占一个席位。
+        Booking existing = bookingMapper.selectLatestByScheduleAndStudent(scheduleId, booking.getStudentId());
+        if (existing != null && BookingStatus.occupiesSeat(existing.getStatus())) {
+            throw new BusinessException(TermMsg.t("该{student}已预约此{schedule}，请勿重复提交"));
+        }
+
+        // 服务端名额校验。学生端「剩余席位=0 就不让点预定」只是 UI 层约束，
+        // 直接调接口或并发提交仍可超额，这里才是真正的闸门。
+        // 候补(waiting)不占席位，故不校验（assertSeatsAvailable 内部按目标状态放行）。
+        bookingSeatService.assertSeatsAvailable(
+                scheduleId, existing == null ? null : existing.getBookingId(),
+                booking.getStatus(), "可申请候补");
+
+        if (existing != null) {
+            // 复用已有的非占位记录（候补转正 / 取消后重新预约）而不是新插一条，
+            // 与「指定学生」的语义保持一致，避免同一学生同一排期堆出多行历史。
+            // status 为空时显式落 booked，与 DB 列 DEFAULT 'booked' 的语义一致
+            // （updateStatus 不做默认值兜底，传 null 会写进 NOT NULL 列报错）。
+            String targetStatus = (booking.getStatus() == null || booking.getStatus().trim().isEmpty())
+                    ? BookingStatus.BOOKED : booking.getStatus();
+            bookingMapper.updateStatus(existing.getBookingId(), targetStatus);
+
+            // 复用分支原先只改状态、不生成课次，是「课次生成在前端」的又一处漏洞：
+            // 候补(cancelled→booked)经本路径转正时，前端若未走 Web 管理端就永远没有课次。
+            // 第 3 批起联动由服务端统一负责，任何客户端调 create 都会得到一致的课次。
+            Booking reused = bookingMapper.selectById(existing.getBookingId());
+            if (reused != null) {
+                bookingAppointmentSyncService.syncOnStatusChange(reused, targetStatus);
+            }
+            return existing.getBookingId();
+        }
+
+        String id = BookingIdGenerator.next();
         booking.setBookingId(id);
 
-        bookingMapper.insert(booking); 
+        // 默认落 booked 时同步生成课次：学生端「立即预订」提交的就是空 status。
+        // 若显式传了 waiting 等非 booked 状态，联动内部按映射表判定为「不生成」。
+        String effectiveStatus = (booking.getStatus() == null || booking.getStatus().trim().isEmpty())
+                ? BookingStatus.BOOKED : booking.getStatus();
+        bookingMapper.insert(booking);
+
+        if (BookingStatus.isBooked(effectiveStatus)) {
+            bookingAppointmentSyncService.syncOnStatusChange(booking, BookingStatus.BOOKED);
+        }
         return   id;
     }
 
@@ -39,7 +137,44 @@ public class BookingService {
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public String update(String id, Booking booking) {
        // log.debug("update : " + booking);
+        Booking current = bookingMapper.selectById(id);
+        if (current == null) {
+            throw new BusinessException("预订记录不存在");
+        }
         booking.setBookingId(id);
+
+        // 席位校验：只在「转入占位状态」时校验，且排除自身（自己原本就占着一个位）。
+        // 换排期时目标排期与当前不同，也要校验一次。
+        String targetStatus = booking.getStatus() != null ? booking.getStatus() : current.getStatus();
+        String targetScheduleId = booking.getScheduleId() != null ? booking.getScheduleId() : current.getScheduleId();
+        boolean scheduleChanged = !Objects.equals(targetScheduleId, current.getScheduleId());
+        if (BookingStatus.occupiesSeat(targetStatus)
+                && (scheduleChanged || !BookingStatus.occupiesSeat(current.getStatus()))) {
+            bookingSeatService.assertSeatsAvailable(targetScheduleId, id, targetStatus, "可申请候补");
+        }
+
+        // 状态变更走 CAS：只有库里状态仍等于上面读到的那一次值，才允许更新。
+        // 原先是无条件 updateById，两个并发编辑会互相覆盖；更要紧的是「是否转入占位」这个判断
+        // 基于 current 这次普通读的快照，若期间该预订已被他人取消、腾出的席位又被候补递补占走，
+        // 这次覆盖式写回 booked 就会凭空多出一个占位（4 个人坐 3 个位）。
+        // 影响行数为 0 说明状态已被他人改过，抛错让前端刷新重试，绝不硬写。
+        //
+        // 注意：CAS 成功后**不要**把 booking.status 置 null 再交给 updateById——当调用方只传了
+        // status 一个字段时（管理端改状态就是这种载荷），置 null 会让 updateById 的 SET 子句为空、
+        // 拼出 `UPDATE booking WHERE booking_id=?` 直接报语法错。这里让 updateById 照原样再写一次
+        // 同值即可：CAS 已持该行 X 锁，同一事务内不存在被他人插队的窗口。
+        if (!Objects.equals(targetStatus, current.getStatus())) {
+            int rows = bookingMapper.updateStatusIfCurrent(id, current.getStatus(), targetStatus);
+            if (rows == 0) {
+                throw new BusinessException(TermMsg.t("该预订已被他人修改，请刷新后重试"));
+            }
+            // 第 3 批：改状态的这条入口同样要联动课次。
+            // 原先只做 CAS 改状态，课次生成/级联全靠前端另一条链路，导致绕过
+            // updateStatus 直接调 update 的客户端（导入脚本、运维接口）拿不到课次。
+            // 用 current（含 scheduleId）作联动输入，状态以 targetStatus 为准。
+            bookingAppointmentSyncService.syncOnStatusChange(current, targetStatus);
+        }
+
         bookingMapper.updateById(booking);
         return id;
     }
@@ -49,12 +184,141 @@ public class BookingService {
 //log.debug("updateStatus dto: " + dto);
           String id= dto.getId();
           String status =dto.getStatus();
-          if ("delete".equals(status)) {
+          if (BookingStatus.DELETE.equals(status)) {
+              // 真删除预订前先清课次：课次唯一的父引用就是 booking_id，
+              // 不清就必然留下悬空行（实测 appointment 149 行里 109 行 booking_id 指向不存在的预订）。
+              // 改走统一级联执行器，避免"这条路径自己清一次、另一条路径忘了清"的漂移。
+              cascadeService.run(CascadeRules.SCENARIO_BOOKING_DELETE, id);
               bookingMapper.deleteById(id);
-          }    else  {
-            bookingMapper.updateStatus(id, status);
+              return id;
+          }
+
+          Booking current = bookingMapper.selectById(id);
+          if (current == null) {
+              throw new BusinessException("预订记录不存在");
+          }
+
+          // 时间态闸（2026-10-11 方案 B1）：booked 预订只要存在已开始（进行中或已结束）的课次，
+          // 就不允许整单取消——已开始的部分只能走课次级请假/改期，管理员确认类转换不拦。
+          if (BookingStatus.isBooked(current.getStatus()) && BookingStatus.CANCELLING.equals(status)) {
+              List<Appointment> appts = appointmentService.getByBookingId(id);
+              boolean anyStarted = appts != null && appts.stream().anyMatch(a ->
+                      a != null && TimePhaseService.hasStarted(a.getAppointmentDatetime(),
+                              ScheduleGenerator.nowUtc()));
+              if (anyStarted) {
+                  throw new ConflictException(TermMsg.t("课程已开始，无法取消预订；单次{lesson}请使用{leave}"));
               }
+          }
+
+          // 候补转正统一走 promoteWaitlist（席位校验 + CAS + 生成课次 + 后续通知），
+          // 否则「确认候补」会成为绕过名额校验、且不生成课次的后门。
+          if (BookingStatus.isWaiting(current.getStatus()) && BookingStatus.isBooked(status)) {
+              promoteWaitlist(id);
+              return id;
+          }
+
+          // 转入占位状态时补名额校验：原先这里是无条件 UPDATE，
+          // 从 cancelled 改回 booked 可以无限加人，正是超额预订的入口之一。
+          if (!BookingStatus.occupiesSeat(current.getStatus()) && BookingStatus.occupiesSeat(status)) {
+              bookingSeatService.assertSeatsAvailable(
+                      current.getScheduleId(), id, status, "可申请候补");
+          }
+
+          // CAS：库里状态仍等于刚才读到的值才更新。并发的两个状态变更（例如一个取消、一个确认）
+          // 原会各自成功、后写者覆盖先写者，最终「占不占席位」与操作意图对不上。
+          // 影响行数为 0 说明已被他人改过，抛错让前端刷新重试，不硬写。
+          int rows = bookingMapper.updateStatusIfCurrent(id, current.getStatus(), status);
+          if (rows == 0) {
+              throw new BusinessException(TermMsg.t("该预订已被他人修改，请刷新后重试"));
+          }
+
+          // 第 3 批：课次联动收回服务端。
+          // 原先这条路径完全没有课次逻辑——课次由浏览器在 confirm 前自己算好并逐条 POST，
+          // 因此「booking→booked」在 Web 之外（小程序、curl）都不产生任何课次，
+          // 「booked→cancelled」也要靠前端再发一次 PUT 改课次状态，非原子且两端不一致。
+          // 现在与 CAS 在同一事务内完成：状态已改但课次没跟上时整体回滚，
+          // 不会再留下"已确认却没有上课时间表"的半成品。
+          BookingAppointmentSyncService.SyncOutcome outcome =
+                  bookingAppointmentSyncService.syncOnStatusChange(current, status);
+          if (outcome.isChanged()) {
+              log.info("预订状态联动完成, bookingId={}, {} → {}, {}",
+                      id, current.getStatus(), status, outcome.toMap());
+          }
         return id;
+    }
+
+    /**
+     * 席位校验：目标排期是否还有空位容纳一笔「占位」预订。
+     *
+     * <p>不占位的状态（候补 / 已取消 / 预订被拒）直接放行——候补正是名额已满时的申请通道，
+     * 若在这里拦掉，候补功能就废了。
+     *
+     * @param excludeBookingId 需排除自身的预订ID（改订、递补用），可为 null
+     * @param targetStatus     目标状态；决定是否需要占位校验
+     */
+    /**
+     * 递补：把一条候补（waiting）晋升为正式预订（booked），并生成课次。
+     *
+     * <p>全过程在单个事务内完成，并发安全由 CAS 保证：
+     * <ol>
+     *   <li>校验该记录仍是候补；</li>
+     *   <li>校验该排期仍有空位——候补不占席位，空位可能已被别人订走；</li>
+     *   <li>CAS 更新 {@code waiting → booked}，影响行数为 0 即已被他人抢先，抛错回滚；</li>
+     *   <li>生成课次，幂等（已有课次则跳过，重复调用不会产生双份时间表）。</li>
+     * </ol>
+     *
+     * @param bookingId 候补记录ID
+     * @return 递补结果快照（bookingId / scheduleId / studentId / status / appointmentsReady）
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String, Object> promoteWaitlist(String bookingId) {
+        if (bookingId == null || bookingId.trim().isEmpty()) {
+            throw new BusinessException("候补记录ID不能为空");
+        }
+        Booking candidate = bookingMapper.selectById(bookingId);
+        if (candidate == null) {
+            throw new BusinessException("候补记录不存在");
+        }
+        if (!BookingStatus.isWaiting(candidate.getStatus())) {
+            throw new BusinessException("该记录当前状态为【" + candidate.getStatus() + "】，不是候补，无法递补");
+        }
+
+        // 名额校验（含加锁 + 锁定读计数）。
+        // 注意：上面 selectById(candidate) 是一次普通读，已经让本事务的读快照定格；
+        // 若这里改用普通 SELECT 计数，就会读到旧快照里的“还有空位”，并发递补会双双成功。
+        // 因此校验必须走锁定读，详见 BookingSeatService 类注释。
+        bookingSeatService.assertSeatsAvailable(
+                candidate.getScheduleId(), bookingId, BookingStatus.BOOKED, "无法递补");
+
+        int rows = bookingMapper.updateStatusIfCurrent(
+                bookingId, BookingStatus.WAITING, BookingStatus.BOOKED);
+        if (rows == 0) {
+            // 事务会回滚，不会留下“已占位却没生成课次”的中间态
+            throw new BusinessException(TermMsg.t("该候补已被处理（可能刚被他人递补或已被{student}撤销），请刷新后重试"));
+        }
+
+        boolean appointmentsReady =
+                courseScheduleService.generateAppointmentsForBooking(bookingId, candidate.getScheduleId());
+
+        log.info("候补递补成功, bookingId={}, scheduleId={}, studentId={}, 课次生成={}",
+                bookingId, candidate.getScheduleId(), candidate.getStudentId(), appointmentsReady);
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("bookingId", bookingId);
+        data.put("scheduleId", candidate.getScheduleId());
+        data.put("studentId", candidate.getStudentId());
+        data.put("status", BookingStatus.BOOKED);
+        data.put("appointmentsReady", appointmentsReady);
+        return data;
+    }
+
+    /** 某排期的候补队列，按申请时间升序（先来先得，次序即为递补次序） */
+    @Transactional(readOnly = true)
+    public List<Booking> getWaitlistQueue(String scheduleId) {
+        if (scheduleId == null || scheduleId.trim().isEmpty()) {
+            throw new BusinessException(TermMsg.t("{schedule}ID不能为空"));
+        }
+        return bookingMapper.selectWaitlistByScheduleId(scheduleId);
     }
 
     @Transactional(propagation = Propagation.REQUIRED)
@@ -89,14 +353,29 @@ public class BookingService {
     @Transactional(propagation = Propagation.REQUIRED)
     public int delete(String id) {
        log.info("删除预约开始, bookingId={}", id);
+       // 先删其课次（课次唯一的父引用就是 booking_id，不删必然留下悬空行），
+       // 再删预订本身。原先这里只有一句 deleteById，课次留在库里变成孤儿
+       // ——实测 appointment 表 149 行里 109 行 booking_id 指向不存在的预订。
+       cascadeService.run(CascadeRules.SCENARIO_BOOKING_DELETE, id);
        int rows = bookingMapper.deleteById(id);
        log.info("删除预约结束, bookingId={}, 影响行数={}", id, rows);
        return rows;
     }
 
-@Transactional(propagation = Propagation.REQUIRED)
+    @Transactional(propagation = Propagation.REQUIRED)
     public int deleteByScheduleId(String id) {
        log.info("按排期ID删除预约开始, scheduleId={}", id);
+       // 先把该排期下每条预订的课次清掉，再批量删预订。
+       // 顺序不能颠倒：booking 一旦先没，按 booking_id 就再也定位不到课次。
+       List<Booking> bookings = bookingMapper.selectList(
+               Wrappers.<Booking>lambdaQuery().eq(Booking::getScheduleId, id));
+       if (bookings != null && !bookings.isEmpty()) {
+           List<String> bookingIds = bookings.stream()
+                   .map(Booking::getBookingId)
+                   .filter(b -> b != null && !b.trim().isEmpty())
+                   .collect(Collectors.toList());
+           cascadeService.run(CascadeRules.SCENARIO_BOOKING_DELETE, bookingIds);
+       }
        int rows = bookingMapper.deleteByScheduleId(id);
        log.info("按排期ID删除预约结束, scheduleId={}, 影响行数={}", id, rows);
        return rows;
@@ -116,6 +395,8 @@ public class BookingService {
 
     @Transactional(readOnly = true)
     public Integer getBookingCountByScheduleId(String scheduleId) {
-        return bookingMapper.countBookingByScheduleId(scheduleId);
+        // 只统计「占位」的预订：候补 / 已取消 / 预订被拒都不算，
+        // 否则已取消的预订会永久吃掉一个席位、剩余席位越用越少。
+        return bookingMapper.countBookingByScheduleId(scheduleId, BookingStatus.NON_OCCUPYING, null);
     }
 } 

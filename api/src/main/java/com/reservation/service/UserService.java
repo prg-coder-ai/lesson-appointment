@@ -134,8 +134,13 @@ public class UserService {
 
     // 学生注册（对应设计2.2.1 学生注册接口）
     // 注册（对应设计2.2.1 注册接口）
+    //
+    // @param user 用户数据
+    // @param approvedByAdmin true = 由已鉴权的管理员在后台创建（/user/add）。
+    //        管理员的创建动作本身就是审批，故新账号直接 active，不再走 bootstrap 待审。
+    //        false = 匿名自助注册（/user/register），初始状态由 {@link #applyRoleAdmission} 判定。
     @Transactional
-    public Result< Object> Register(User user) {
+    public Result< Object> Register(User user, boolean approvedByAdmin) {
         // 校验手机号/邮箱是否已注册（对应业务异常校验）
          log.debug("UserService Register：" + user);
         // ① 先解析租户归属：优先取租户上下文（已登录的租户内添加用户）；
@@ -168,6 +173,14 @@ public class UserService {
             if (existAccount(user.getAccount(), regTenantId)) {
                 return Result.fail(400, "该账号已注册，请登录或重置密码");
             }
+            // ④ 角色准入判定：必须在**写库之前**完成，
+            //    且判定与写入同处一个事务（外层 @Transactional + mapper 的 FOR UPDATE 锁定读），
+            //    否则并发自注册会双双通过"本租户尚无管理员"的判定。
+            //    白名单外的角色直接拒绝，不进入落库流程。
+            Result<Object> roleGuard = applyRoleAdmission(user, regTenantId, approvedByAdmin);
+            if (roleGuard != null) {
+                return roleGuard;
+            }
             // 密码加密（对应设计2.3 安全设计-密码加密）
             user.setPassword(passwordEncoder.encode(user.getPassword()));
             // 生成唯一userId（对应通用校验规则-ID类参数）
@@ -176,6 +189,74 @@ public class UserService {
         } finally {
             TenantContext.clear();
         }
+    }
+
+    /**
+     * 角色准入判定（P0-1 提权链收口）：决定新用户的 role 与初始 status。
+     *
+     * <p>规则（两个入口共用，因此判定逻辑只写这一处）：
+     * <ul>
+     *   <li>白名单：只接受 {@code student} / {@code teacher} / {@code admin} / {@code platform_admin}，
+     *       其余值一律 400 拒绝 —— 角色取自请求体，不设白名单等于把提权口直接敞开。</li>
+     *   <li>{@code student} / {@code teacher}：一律 {@code pending}，须管理员审批（沿用原语义）。</li>
+     *   <li>{@code admin}：**仅当本租户尚无 admin 用户时**置 {@code active}（首管理员 bootstrap）；
+     *       否则 {@code pending}。判定按 tenant_id 限定，不是"全局第一个 admin"。</li>
+     *   <li>{@code platform_admin}：**仅当全系统尚无 platform_admin 时**置 {@code active}；
+     *       否则一律 {@code pending}。平台管理员全局唯一且不可再生。</li>
+     * </ul>
+     *
+     * <p>为什么 tenant_admin 的判定要按 tenant_id：若写成全局判定，租户 B 的攻击者会因为
+     * "租户 A 已经有 admin 了"而永远拿不到自己租户的 admin（可用性事故）；
+     * 反之若漏了 tenant_id 条件，则会跨租户误判、把别人租户的存在当成自己的。
+     *
+     * <p><b>并发</b>：判据由 {@code UserMapper.countByTenantAndRoleForUpdate /
+     * countByRoleGlobalForUpdate} 的 FOR UPDATE 锁定读提供，与本方法的 INSERT 同处一个事务，
+     * 因此"判定为 0 → 激活"不会被并发请求同时成立。
+     *
+     * @param approvedByAdmin 由已鉴权管理员创建时为 true：跳过 bootstrap，角色合法即 active。
+     *        管理员的创建动作本身即审批，若此处也套用"非首账号 pending"，
+     *        会让平台后台刚建好的管理员账号当场无法使用（可用性事故）。
+     * @return null 表示放行（user 的 role/status 已被就地设置）；非 null 表示拒绝，直接返回给调用方
+     */
+    private Result<Object> applyRoleAdmission(User user, Long regTenantId, boolean approvedByAdmin) {
+        String role = user.getRole() == null || user.getRole().isEmpty() ? RoleConst.STUDENT : user.getRole().trim();
+
+        if (!RoleConst.STUDENT.equals(role) && !RoleConst.TEACHER.equals(role)
+                && !RoleConst.ADMIN.equals(role) && !RoleConst.PLATFORM_ADMIN.equals(role)) {
+            log.warn("创建用户的角色不在白名单内，已拒绝, role={}, tenantId={}", role, regTenantId);
+            return Result.fail(400, "角色不合法，仅支持学生、教师或管理员");
+        }
+        user.setRole(role);
+
+        // 管理员在后台创建：创建即审批，直接可用
+        if (approvedByAdmin) {
+            user.setStatus("active");
+            return null;
+        }
+
+        if (RoleConst.STUDENT.equals(role) || RoleConst.TEACHER.equals(role)) {
+            user.setStatus("pending"); // 需要管理员审核
+            return null;
+        }
+
+        boolean first;
+        if (RoleConst.PLATFORM_ADMIN.equals(role)) {
+            // 平台管理员：全系统唯一，不可再生
+            first = userMapper.countByRoleGlobalForUpdate(RoleConst.PLATFORM_ADMIN) == 0;
+        } else {
+            // 租户管理员：按 tenant_id 判定本租户是否尚无 admin（regTenantId 必为真实租户 id）
+            first = regTenantId != null && regTenantId > 0
+                    && userMapper.countByTenantAndRoleForUpdate(regTenantId, RoleConst.ADMIN) == 0;
+        }
+
+        if (first) {
+            log.warn("首管理员自助激活: role={}, tenantId={}", role, regTenantId);
+            user.setStatus("active");
+        } else {
+            log.warn("非首管理员自注册，转待审批: role={}, tenantId={}", role, regTenantId);
+            user.setStatus("pending");
+        }
+        return null;
     }
 
     /**
@@ -189,10 +270,15 @@ public class UserService {
             // 否则 tenantPackageService.tryAcquire(0,...) 找不到记录会返回 false 而误报“已达上限”。
             if (regTenantId != null && regTenantId > 0) {
                 tenantQuotaService.acquire(regTenantId, TenantQuotaService.USER);
-                String role = user.getRole() == null ? "student" : user.getRole();
-                TenantPackageService.QuotaType roleQuota =
-                        "teacher".equals(role) ? TenantQuotaService.TEACHER : TenantQuotaService.STUDENT;
-                tenantQuotaService.acquire(regTenantId, roleQuota);
+                // 按角色配额只对 teacher/student 生效：QuotaType 里没有 ADMIN 项，
+                // 若沿用三元表达式的 else 分支，建管理员会白占一个「注册学生」名额 ——
+                // 管理员只应计入注册用户总数，不该挤占学生配额。
+                String role = user.getRole() == null ? RoleConst.STUDENT : user.getRole();
+                if (RoleConst.TEACHER.equals(role)) {
+                    tenantQuotaService.acquire(regTenantId, TenantQuotaService.TEACHER);
+                } else if (RoleConst.STUDENT.equals(role)) {
+                    tenantQuotaService.acquire(regTenantId, TenantQuotaService.STUDENT);
+                }
             }
         } catch (BusinessException e) {
             return Result.fail(403, e.getMessage());
@@ -303,6 +389,61 @@ public class UserService {
         return Result.success(resultMap   ,"登陆成功");
     }
 
+    /* [微信登录-暂未启用 2026-09-20 屏蔽：user 表无 wx_openid 列，恢复时取消注释 + User.wxOpenid 去 exist=false + ALTER TABLE user 加列建唯一索引]
+     * 微信静默登录：按 openid 找已绑定账号，直接发 token（返回结构与密码登录完全一致）。
+     * 未找到绑定账号 → code=1001，前端据此静默降级走账号密码登录，不弹错误。
+    public Result<HashMap<String, Object>> wechatLogin(String openid) {
+        User user = userMapper.getByWxOpenid(openid);
+        if (user == null) {
+            return Result.fail(1001, "微信尚未绑定，请使用账号密码登录");
+        }
+        if ("frozen".equals(user.getStatus())) {
+            return Result.fail(400, "账号已冻结，请联系管理员");
+        }
+        if (!"active".equals(user.getStatus())) {
+            return Result.fail(400, "账号未审核，请等待管理员审核");
+        }
+        Long tenantId = user.getTenantId() == null ? 0L : user.getTenantId();
+        String token = jwtUtil.generateToken(tenantId, user.getUserId(), user.getRole());
+        String refreshToken = jwtUtil.generateRefreshToken(tenantId, user.getUserId());
+        HashMap<String, Object> resultMap = new HashMap<>();
+        resultMap.put("userId", user.getUserId());
+        resultMap.put("account", user.getAccount());
+        resultMap.put("name", user.getName());
+        resultMap.put("role", user.getRole());
+        resultMap.put("token", token);
+        // tenantCode 解析（平台管理员 tenantId=0 无对应租户记录，留 null）
+        String tenantCode = null;
+        if (tenantId > 0) {
+            Tenant tenant = tenantService.getById(tenantId);
+            if (tenant != null) tenantCode = tenant.getTenantCode();
+        }
+        resultMap.put("tenantCode", tenantCode);
+        resultMap.put("refreshToken", refreshToken);
+        resultMap.put("code", 200);
+        refreshTokenService.saveNewToken(user.getUserId(), refreshToken, jwtUtil.getRefreshExpireTime());
+        userSessionService.onLogin(token, tenantId, user.getUserId(), user.getRole(),
+                currentRequestIp(), currentRequestUserAgent());
+        return Result.success(resultMap, "登录成功");
+    }
+     [微信登录屏蔽结束] */
+
+    /* [微信绑定-暂未启用 2026-09-20 屏蔽]
+     * 绑定微信 openid 到当前账号（密码登录成功后调用）。
+     * 校验唯一性：若该 openid 已被其他账号占用则拒绝（409）；否则按 user_id 精确写入。
+    public Result<Boolean> bindWechat(String userId, String openid) {
+        User exist = userMapper.getByWxOpenid(openid);
+        if (exist != null && !exist.getUserId().equals(userId)) {
+            return Result.fail(409, "该微信已绑定其他账号，无法重复绑定");
+        }
+        int rows = userMapper.updateWxOpenid(userId, openid);
+        if (rows > 0) {
+            return Result.success(true, "微信绑定成功");
+        }
+        return Result.fail(404, "用户不存在");
+    }
+     [微信绑定屏蔽结束] */
+
     /**
      * 取当前请求IP（会话记录用，取不到返回null不影响主流程）
      */
@@ -357,27 +498,87 @@ public class UserService {
             // userMapper.updatePassword(user.getUserId(),user.getPassword());
         } else {
            // throw new BusinessException("账号 【" + account + "】对应的用户不存在");
-           resultMap.put("message", "账号 【" + account + "】对应的用户不存在");
-           resultMap.put("code", 404);
-           return Result.success(resultMap,"账号不存在");
+           return Result.fail(404, "账号 【" + account + "】对应的用户不存在");
         }   
 
     } 
 
- @Transactional
-    public boolean changePassword(String userId,String password) { 
-        // 查找用户
-        User user = new User();// userMapper.getUserByAccount(account); 
-        user.setUserId(userId); 
-        // 加密新密码并更新- 
-         user.setPassword(passwordEncoder.encode(password));
-         try {
-         updatePassword(user);
-         return true;
-         } catch (Exception ex) {
-            log.debug("changePassword Error:userId= "+userId);
-         };
-          return false ;  
+ /**
+     * 修改密码（P0-2）。
+     *
+     * <p>原实现只凭请求里的 userId 就改密码，既不校验调用者是谁、也不校验原密码，
+     * 任何登录用户都能把任意 userId 的密码改成自己知道的值（拿老师/同学的账号去登录）。
+     *
+     * <p>现按两条合法路径区分：
+     * <ul>
+     *   <li><b>管理员代管</b>：{@code operatorRole} 为 admin/platform_admin，且目标用户与操作者同租户
+     *       （平台管理员 tenantId=0 可跨租户）。这是后台"重置密码"按钮的既有语义，
+     *       管理员本就持有重置权，不应要求他知道用户的原密码。</li>
+     *   <li><b>本人改密</b>：{@code targetUserId} 等于调用者自己，必须提供正确的原密码。</li>
+     * </ul>
+     * 两者都不满足则拒绝 —— 尤其是"普通用户改他人密码"这条路被彻底关闭。
+     *
+     * @param userId         目标用户 id
+     * @param password       新密码
+     * @param callerUserId   调用者 userId（来自 token）
+     * @param callerRole     调用者角色（来自 token）
+     * @param callerTenantId 调用者租户 id（来自 token）
+     * @param oldPassword    原密码；本人改密时必填，管理员代管时忽略
+     * @return null 表示成功，非 null 为可直接回给调用方的失败结果
+     */
+    @Transactional
+    public Result<Object> changePassword(String userId, String password,
+                                          String callerUserId, String callerRole,
+                                          Long callerTenantId, String oldPassword) {
+        if (userId == null || userId.trim().isEmpty()) {
+            return Result.fail(400, "用户Id不能为空");
+        }
+        if (password == null || password.isEmpty()) {
+            return Result.fail(400, "新密码不能为空");
+        }
+        String targetId = userId.trim();
+
+        boolean isAdminCaller = RoleConst.ADMIN.equals(callerRole) || RoleConst.PLATFORM_ADMIN.equals(callerRole);
+        boolean isSelf = callerUserId != null && callerUserId.equals(targetId);
+
+        if (!isSelf && !isAdminCaller) {
+            log.warn("非管理员尝试改他人密码，已拒绝, caller={}, target={}", callerUserId, targetId);
+            return Result.fail(403, "只能修改本人密码");
+        }
+
+        User target = userMapper.selectById(targetId);
+        if (target == null) {
+            return Result.fail(404, "用户不存在");
+        }
+
+        if (isAdminCaller && !isSelf) {
+            // 租户管理员只能管本租户；平台管理员（tenantId=0）跨租户放行
+            boolean platformCaller = RoleConst.PLATFORM_ADMIN.equals(callerRole);
+            Long targetTenant = target.getTenantId();
+            if (!platformCaller && callerTenantId != null && targetTenant != null
+                    && !callerTenantId.equals(targetTenant)) {
+                log.warn("跨租户改密被拒, callerTenant={}, targetTenant={}", callerTenantId, targetTenant);
+                return Result.fail(403, "只能重置本租户用户的密码");
+            }
+        } else if (isSelf) {
+            // 本人改密必须验原密码，否则 token 被窃取即可改密、账号彻底失守
+            if (oldPassword == null || oldPassword.isEmpty()) {
+                return Result.fail(400, "修改本人密码需提供原密码");
+            }
+            User db = userMapper.selectById(targetId);
+            if (db == null || db.getPassword() == null
+                    || !passwordEncoder.matches(oldPassword, db.getPassword())) {
+                log.warn("原密码校验失败, userId={}", targetId);
+                return Result.fail(400, "原密码不正确");
+            }
+        }
+
+        User upd = new User();
+        upd.setUserId(targetId);
+        upd.setPassword(passwordEncoder.encode(password));
+        updatePassword(upd);
+        log.warn("密码已修改, 操作者={}, 目标用户={}, 是否本人={}", callerUserId, targetId, isSelf);
+        return null;
     } 
     public List<User> selectByPhone(String phone) {
         List<User> users = userMapper.selectByPhone(cryptoUtil.searchIndex(phone), phone);
@@ -756,6 +957,69 @@ public User selectById(String userId) {
     }
 
     /**
+     * 批量取用户摘要（userId → name[/account]），供消息中心「接收人列表」一次拿一页姓名。
+     *
+     * <p>存在的理由：消息中心存的是 userId（message-service 是独立库，拿不到主库用户），
+     * 而既有能力只有单条的 {@code /user/name/{id}} 与只认单值的 {@code /user/list?userId=}，
+     * 一页 20 个接收人就得 20 次请求。这里一次 IN 查询解决。
+     *
+     * <p>字段按角色收敛（与 /user/name 的口径一致）：管理员（admin / platform_admin）额外返回 account；
+     * 学生 / 教师只返回 name —— 「按 userId 批量拿账号」若对普通角色开放，等于允许拿 userId 枚举他人登录账号。
+     *
+     * <p><b>orgName（所属公司）不按角色门控，一律返回</b>：它服务于「已发」详情的接收人列表——
+     * 让发送方看清消息发到了哪家公司（平台管理员跨租户发信时尤其需要）。租户内发信时该值就是自己
+     * 租户，不产生额外信息暴露；{@code tenant_id <= 0}（平台自身）无 sys_tenant 行，按既有约定
+     * 返回固定文案「平台」。租户已删时返回空串，由前端省略不显示。
+     *
+     * <p>ids：逗号分隔，去空去重、上限 200（超出截断，避免被当成全量导出用）。
+     * 查不到的用户**不回占位**，由前端按 userId 兜底展示。
+     */
+    public Result<List<Map<String, Object>>> userBriefs(String ids, String token) {
+        String raw = (token != null && token.startsWith("Bearer ")) ? token.substring(7) : token;
+        if (raw == null || raw.isEmpty() || !jwtUtil.verifyAccessToken(raw)) {
+            return Result.fail(401, "未登录或令牌无效");
+        }
+        String curRole = jwtUtil.getRoleFromToken(raw);
+        boolean withAccount = RoleConst.ADMIN.equals(curRole) || RoleConst.PLATFORM_ADMIN.equals(curRole);
+
+        List<String> idList = new java.util.ArrayList<>();
+        if (ids != null) {
+            for (String s : ids.split(",")) {
+                String v = s.trim();
+                if (!v.isEmpty() && !idList.contains(v)) idList.add(v);
+                if (idList.size() >= 200) break;
+            }
+        }
+        List<Map<String, Object>> out = new java.util.ArrayList<>();
+        if (idList.isEmpty()) return Result.success(out, "查询成功");
+
+        // 租户拦截器会自动追加 tenant_id（平台管理员 tenantId=0 时短路为全量），无需手工隔离
+        List<User> users = userMapper.selectBatchIds(idList);
+        if (users != null) {
+            // 补机构名：tenant_id>0 → sys_tenant.org_name（租户已删则为 null → 出空串）。
+            // fillOrgName 对 tenant_id<=0 会填 platform 行的 org_name，但简报口径要的是固定「平台」，
+            // 故下面按 tenant_id 判、不走它填的值（详见下方 orgName 的赋值）。
+            fillOrgName(users);
+            for (User u : users) {
+                if (u == null) continue;
+                decryptUserFields(u);   // name 入库加密，必须解密
+                Map<String, Object> brief = new java.util.HashMap<>();
+                brief.put("userId", u.getUserId());
+                brief.put("name", u.getName());
+                if (withAccount) brief.put("account", cryptoUtil.decrypt(u.getAccount()));
+                // 公司名一律回（不按角色门控）：它用于「已发」详情的接收人列表，
+                // 让发送方看清这条消息发到了哪家公司；租户内发信时公司名就是自己，不构成额外暴露。
+                Long tid = u.getTenantId();
+                brief.put("orgName", (tid != null && tid > 0)
+                        ? (u.getOrgName() == null ? "" : u.getOrgName())
+                        : "平台");   // 平台自身无对应 sys_tenant 行，按既有约定显示「平台」
+                out.add(brief);
+            }
+        }
+        return Result.success(out, "查询成功");
+    }
+
+    /**
      * 内部「接收人解析」（不走 HTTP、不校验令牌），供消息自动发送复用。
      * 身份参数由调用方显式传入：curRole/curTenant/curUserId 为「当前操作者」，
      * tenantId 仅在平台管理员跨租户查询时生效（effectiveTenant=tenantId）。
@@ -799,7 +1063,12 @@ public User selectById(String userId) {
                 return null;
         }
         if (result == null) result = new java.util.ArrayList<>();
-        for (User u : result) u.setPassword(null);
+        // 接收人列表须解密敏感字段（name 入库时加密；account 虽明文存储，decrypt 容错降级不影响）
+        for (User u : result) {
+            u.setPassword(null);
+            decryptUserFields(u);
+            u.setAccount(cryptoUtil.decrypt(u.getAccount()));
+        }
         return result;
     }
 

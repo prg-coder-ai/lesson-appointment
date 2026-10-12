@@ -19,6 +19,13 @@ ExecStart=/usr/bin/java $JAVA_OPTS -jar /opt/lesson/message-service.jar
 Restart=on-failure
 # 每次重启前等待 10 秒，避免崩溃雪崩
 RestartSec=10s
+# ---- stdout/stderr 去向 ----
+# ⚠️ 与 booking.service 同理：`append:` 是 systemd 240+ 语法，**只追加不滚动**。
+# 滚动由 deploy/logrotate/lesson 统一接管，部署时必须装：
+#   sudo cp deploy/logrotate/lesson /etc/logrotate.d/lesson
+#
+# message-service 的风险更高一级：它原先连 logback-spring.xml 都没有
+# （2026-10-09 补上），即 systemd 那份是它**唯一**的日志去向 —— 之前没有任何备份计划。
 StandardOutput=append:/var/log/lesson/message.log
 StandardError=append:/var/log/lesson/message.log
 

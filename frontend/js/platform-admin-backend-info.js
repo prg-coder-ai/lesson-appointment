@@ -46,29 +46,35 @@
       .bi-error { padding: 40px 0; text-align: center; color: #f5222d; font-size: 14px; }
       .bi-ok-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #52c41a; margin-right: 6px; }
       .bi-bad-down { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #f5222d; margin-right: 6px; }
+      .bi-frontend-build { padding: 12px 20px; background: #f7faff; border-bottom: 1px solid #f0f0f0; }
     `;
     document.head.appendChild(style);
   }
 
   /* ==================== 数据源定义 ==================== */
-  var BACKEND_SERVICES = [
-    {
-      key: 'booking',
-      label: 'booking_api',
-      desc: '预约系统业务后台（:8081）',
-      icon: 'fa-database',
-      url: '/system/info',
-      prefix: '/api/v1'            // 前端站点转发前缀：拼到站点 origin 后即前端实际请求地址
-    },
-    {
-      key: 'message',
-      label: 'message-service',
-      desc: '消息中心微服务（:8090）',
-      icon: 'fa-comments',
-      url: '/message/system/info',
-      prefix: '/api/v1/message'    // 带 /message 前缀才会被前端站点分流到 :8090
-    }
-  ];
+  // key/label/url/prefix 属**契约数据**，权威源：shared/apiPaths.js 的 BACKEND_PROBES
+  // （经桥接挂到 window.ApiPaths）。prefix 决定前端站点分流：message-service 必须带
+  // /message 前缀才会被转发到 8090。下方数组是**降级快照**（桥接未加载时兜底），
+  // 不是第二权威源——tools/check-endpoints-refs.mjs 会逐字校验其一致性。
+  // desc/icon 属界面文案与图标，口径与本页设计一致，故意自持。
+  var BACKEND_SERVICE_UI = {
+    booking: { desc: '预约系统业务后台（:8081）', icon: 'fa-database' },
+    message: { desc: '消息中心微服务（:8090）',   icon: 'fa-comments' }
+  };
+  var BACKEND_SERVICES = ((window.ApiPaths && window.ApiPaths.BACKEND_PROBES) || [
+    { key: 'booking', label: 'booking_api',     url: '/system/info',         prefix: '/api/v1' },
+    { key: 'message', label: 'message-service', url: '/message/system/info', prefix: '/api/v1/message' }
+  ]).map(function (p) {
+    var ui = BACKEND_SERVICE_UI[p.key] || { desc: '', icon: 'fa-server' };
+    return {
+      key: p.key,
+      label: p.label,
+      url: p.url,
+      prefix: p.prefix,
+      desc: ui.desc,
+      icon: ui.icon
+    };
+  });
 
   /** 当前前端所在站点地址（origin），如 http://152.136.254.127 或 http://localhost:8080 */
   function siteOrigin() {
@@ -207,6 +213,39 @@
     return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
+  /** 渲染「前端构建信息」块：优先读 window.__BUILD_INFO__（由 build.js 烤进 index.html），
+   *  缺失时回退 fetch 同目录 build-info.json；都拿不到则提示不可用。 */
+  function renderFrontendBuildInfo(el) {
+    function fill(info) {
+      if (!info || (!info.buildTime && !info.gitCommit)) {
+        el.innerHTML = '<span style="color:#999;">前端构建信息不可用（dist 未含 build-info.json）</span>';
+        return;
+      }
+      var rows = [
+        ['打包时间 buildTime', info.buildTime],
+        ['Git 提交 gitCommit', info.gitCommit],
+        ['Git 分支 gitBranch', info.gitBranch],
+        ['工作区是否脏 gitDirty', info.gitDirty ? '是（构建时存在未提交改动）' : '否']
+      ];
+      el.innerHTML =
+        '<div class="bi-group-title" style="margin:0 0 6px;"><i class="fa fa-cube"></i> 前端构建信息（本静态包）</div>' +
+        '<table class="bi-info-table"><tbody>' +
+        rows.map(function (r) { return '<tr><th>' + r[0] + '</th><td>' + esc(r[1]) + '</td></tr>'; }).join('') +
+        '</tbody></table>';
+    }
+    if (window.__BUILD_INFO__) { fill(window.__BUILD_INFO__); return; }
+    // 回退：读取同源静态文件 build-info.json（前端静态包自己的文件，非后台接口），
+    // AbortController 限时 5s，防止异常环境（如被路由到慢后端）挂起渲染
+    try {
+      var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 5000) : null;
+      fetch('build-info.json', { cache: 'no-cache', signal: ctrl ? ctrl.signal : undefined })
+        .then(function (r) { if (timer) clearTimeout(timer); return r.ok ? r.json() : null; })
+        .then(function (info) { fill(info); })
+        .catch(function () { fill(null); });
+    } catch (e) { fill(null); }
+  }
+
   /* ==================== 渲染 ==================== */
   function renderInfoTable(info, svc) {
     var conn = (info && info.connection) ? info.connection : null;
@@ -293,33 +332,41 @@
     var host = container || document.getElementById('dynamic-content-center');
     if (!host) return;
 
-    host.innerHTML = `
-      <div class="bi-card">
-        <div class="bi-card-header">
-          <div class="bi-card-title"><i class="fa fa-server"></i> 后台信息</div>
-          <button class="btn btn-default btn-sm" id="bi-refresh-btn"><i class="fa fa-refresh"></i> 刷新</button>
-        </div>
-        <div class="bi-endpoint-bar" id="bi-endpoint-bar">
-          ${BACKEND_SERVICES.map(function (s) {
-            return `<div class="bi-endpoint-item">
-                      <span class="bi-endpoint-name"><i class="fa ${s.icon}"></i> ${s.label}</span>
-                      <code class="bi-endpoint-url" data-endpoint-key="${s.key}">${endpointOf(s)}</code>
-                      <span class="bi-endpoint-desc">${s.desc}</span>
-                      <span class="bi-endpoint-ip" id="bi-endpoint-ip-${s.key}"></span>
-                    </div>`;
-          }).join('')}
-        </div>
-        <div class="bi-tab-bar">
-          ${BACKEND_SERVICES.map(function (s, i) {
-            return `<button class="bi-tab-btn ${i === 0 ? 'active' : ''}" data-bi-key="${s.key}">
-                      <i class="fa ${s.icon}"></i> ${s.label}
-                    </button>`;
-          }).join('')}
-        </div>
-        <div class="bi-body" id="bi-body"></div>
-      </div>`;
+    var tpl = document.getElementById('tpl-backend-info');
+    if (!tpl) { console.error('[backend-info] 缺少 #tpl-backend-info'); host.innerHTML = '<div style="padding:20px;color:#f5222d;">页面骨架模板缺失</div>'; return; }
+    host.replaceChildren(tpl.content.cloneNode(true));
+
+    // 回填顶部服务端点条（模板留空，由 JS 按 BACKEND_SERVICES 生成）
+    var endpointBar = document.getElementById('bi-endpoint-bar');
+    if (endpointBar) {
+      endpointBar.innerHTML = '';
+      BACKEND_SERVICES.forEach(function (s) {
+        var item = document.createElement('div');
+        item.className = 'bi-endpoint-item';
+        item.innerHTML =
+          '<span class="bi-endpoint-name"><i class="fa ' + s.icon + '"></i> ' + s.label + '</span>' +
+          '<code class="bi-endpoint-url" data-endpoint-key="' + s.key + '">' + endpointOf(s) + '</code>' +
+          '<span class="bi-endpoint-desc">' + s.desc + '</span>' +
+          '<span class="bi-endpoint-ip" id="bi-endpoint-ip-' + s.key + '"></span>';
+        endpointBar.appendChild(item);
+      });
+    }
+
+    // 回填 TAB 按钮条（模板留空，由 JS 按 BACKEND_SERVICES 生成）
+    var tabBar = document.getElementById('bi-tab-bar');
+    if (tabBar) {
+      tabBar.innerHTML = '';
+      BACKEND_SERVICES.forEach(function (s, i) {
+        var btn = document.createElement('button');
+        btn.className = 'bi-tab-btn' + (i === 0 ? ' active' : '');
+        btn.setAttribute('data-bi-key', s.key);
+        btn.innerHTML = '<i class="fa ' + s.icon + '"></i> ' + s.label;
+        tabBar.appendChild(btn);
+      });
+    }
 
     var bodyEl = document.getElementById('bi-body');
+    renderFrontendBuildInfo(document.getElementById('bi-frontend-build'));
     var tabs = host.querySelectorAll('.bi-tab-btn');
 
     function activate(key) {

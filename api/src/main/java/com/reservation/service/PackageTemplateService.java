@@ -100,6 +100,9 @@ public class PackageTemplateService {
             throw new BusinessException("仍有 " + used + " 个租户选用该模板，请先变更这些租户的套餐");
         }
         log.info("删除套餐模板, templateId={}", id);
+        // cascade: none 已在上方 countTenantUsing 拦截了"仍有租户在用"的情况，
+        // 无引用时 sys_package_template 是叶子表（租户侧存的是 package_id 指向模板，
+        // 但那条路径已被这个前置校验堵住），无可级联的子表
         return packageTemplateMapper.deleteById(id);
     }
 

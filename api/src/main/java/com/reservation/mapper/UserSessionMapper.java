@@ -15,10 +15,10 @@ import java.util.Map;
 public interface UserSessionMapper extends BaseMapper<UserSession> {
 
     /**
-     * ¸÷×â»§ÔÚÏßÈËÊı£¨Áª±í sys_tenant È¡»ú¹¹Ãû£©¡£
-     * Æ½Ì¨ÔËÓªÍ³¼Æ±ØĞë²éÈ«Æ½Ì¨£¬¹ÊÏÔÊ½ºöÂÔ×â»§À¹½ØÆ÷ tenantLine£¬
-     * ±ÜÃâ²å¼ş¸ø sys_user_session / sys_tenant ×·¼Ó tenant_id Ìõ¼şµ¼ÖÂÍ³¼ÆÊ§Õæ¡£
-     * ·µ»ØÃ¿ĞĞµÄ Map º¬£ºtenantId(Long)¡¢tenantName(String|null)¡¢onlineCount(Long)¡£
+     * å„ç§Ÿæˆ·åœ¨çº¿äººæ•°ï¼ˆè”è¡¨ sys_tenant å–æœºæ„åï¼‰ã€‚
+     * å¹³å°è¿è¥ç»Ÿè®¡å¿…é¡»æŸ¥å…¨å¹³å°ï¼Œæ•…æ˜¾å¼å¿½ç•¥ç§Ÿæˆ·æ‹¦æˆªå™¨ tenantLineï¼Œ
+     * é¿å…æ’ä»¶ç»™ sys_user_session / sys_tenant è¿½åŠ  tenant_id æ¡ä»¶å¯¼è‡´ç»Ÿè®¡å¤±çœŸã€‚
+     * è¿”å›æ¯è¡Œçš„ Map å«ï¼štenantId(Long)ã€tenantName(String|null)ã€onlineCount(Long)ã€‚
      */
     @InterceptorIgnore(tenantLine = "true")
     @Select("SELECT us.tenant_id AS tenantId, t.org_name AS tenantName, COUNT(*) AS onlineCount "

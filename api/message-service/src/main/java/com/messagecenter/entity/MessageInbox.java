@@ -30,6 +30,8 @@ public class MessageInbox {
     @TableField(exist = false)
     private String title;
     @TableField(exist = false)
+    private String preview;       // 列表预览正文（解密后，截断）
+    @TableField(exist = false)
     private String senderName;
     @TableField(exist = false)
     private String priority;

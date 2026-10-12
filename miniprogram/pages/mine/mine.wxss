@@ -1,0 +1,23 @@
+.page { min-height: 100vh; padding: 32rpx 32rpx 140rpx; box-sizing: border-box; background: #f5f7fa; }
+.profile { display: flex; flex-direction: column; align-items: center; padding: 32rpx 0 16rpx; }
+.avatar {
+  width: 120rpx; height: 120rpx; border-radius: 50%;
+  background: #1677ff; color: #fff; font-size: 52rpx; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+}
+.p-name { font-size: 34rpx; font-weight: 600; color: #1f2a44; margin-top: 16rpx; }
+.p-role { font-size: 24rpx; color: #8a94a6; margin-top: 6rpx; }
+.card { margin-top: 24rpx; background: #fff; border-radius: 20rpx; padding: 8rpx 28rpx; box-shadow: 0 8rpx 30rpx rgba(31,42,68,0.05); }
+.row { display: flex; align-items: center; justify-content: space-between; padding: 26rpx 0; border-bottom: 1rpx solid #f0f2f5; }
+.row:last-child { border-bottom: none; }
+.rk { font-size: 28rpx; color: #5a6478; }
+.rv { font-size: 28rpx; color: #1f2a44; }
+.link .rv { color: #1677ff; }
+.row.danger .rk, .row.danger .rv { color: #d4380d; }
+.lang-seg { display: flex; background: #f0f2f5; border-radius: 10rpx; padding: 4rpx; }
+.lang-item { font-size: 24rpx; color: #5a6478; padding: 8rpx 18rpx; border-radius: 8rpx; }
+.lang-item.on { background: #fff; color: #1677ff; font-weight: 600; }
+.pwd-field { margin-top: 16rpx; }
+.pwd-input { height: 80rpx; background: #f5f7fa; border-radius: 10rpx; padding: 0 24rpx; font-size: 28rpx; }
+.btn-save { margin-top: 20rpx; height: 80rpx; line-height: 80rpx; background: #1677ff; color: #fff; font-size: 28rpx; border-radius: 10rpx; }
+.btn-save::after { border: none; }

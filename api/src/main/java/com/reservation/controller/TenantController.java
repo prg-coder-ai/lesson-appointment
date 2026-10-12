@@ -197,7 +197,7 @@ public class TenantController {
         permissionCheck.checkPlatformAdmin(token);
         int rows = tenantService.softDelete(id);
         return rows > 0 ? Result.success(true, "租户已删除（数据保留，可恢复）")
-                        : Result.success(false, "删除失败，记录不存在");
+                        : Result.fail(404, "删除失败，记录不存在");
     }
 
     /**
@@ -209,7 +209,7 @@ public class TenantController {
         permissionCheck.checkPlatformAdmin(token);
         int rows = tenantService.restore(id);
         return rows > 0 ? Result.success(true, "租户已恢复")
-                        : Result.success(false, "恢复失败，记录不存在");
+                        : Result.fail(404, "恢复失败，记录不存在");
     }
 
     /**
@@ -222,7 +222,7 @@ public class TenantController {
         permissionCheck.checkPlatformAdmin(token);
         int rows = tenantService.changeStatus(id, status);
         return rows > 0 ? Result.success(true, "状态更新成功")
-                        : Result.success(false, "状态更新失败");
+                        : Result.fail(404, "状态更新失败，记录不存在");
     }
 
     /**
@@ -235,7 +235,7 @@ public class TenantController {
         permissionCheck.checkPlatformAdmin(token);
         int rows = tenantService.renew(id, months);
         return rows > 0 ? Result.success(true, "续期成功")
-                        : Result.success(false, "续期失败");
+                        : Result.fail(404, "续期失败，记录不存在");
     }
 
     /**

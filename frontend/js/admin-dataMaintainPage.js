@@ -28,6 +28,8 @@ document.write('<script src="/js/public/datamaintain_delete.js"></script>');
     .dm-filter-bar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; padding: 16px 20px; border-bottom: 1px solid #f0f0f0; }
     .dm-filter-bar input { padding: 8px 12px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 14px; min-width: 220px; box-sizing: border-box; }
     .dm-filter-bar input:focus { outline: none; border-color: #722ed1; box-shadow: 0 0 0 2px rgba(114,46,209,.12); }
+    /* 刷新按钮：推到筛选条最右侧，与查询/重置区分 */
+    .dm-filter-bar .filter-purge { margin-left: auto; }
     /* 分区标题：紫色 + 图标 */
     .dm-section-title { font-size: 14px; font-weight: 600; color: #333; padding: 16px 20px 8px; display: flex; align-items: center; gap: 8px; }
     .dm-section-title i { color: #722ed1; }
@@ -137,6 +139,9 @@ function renderMaintainTable(type) {
       <input id='maintain-filter-keyword' type='text' placeholder='输入名称关键词' onkeydown="if(event.key==='Enter'){Pagination.pageNum=1;loadMaintainTableData('${type}');}"/>
       <button class='btn btn-primary btn-sm' onclick="Pagination.pageNum=1;loadMaintainTableData('${type}')"><i class='fa fa-search'></i> 查询</button>
       <button class="btn btn-default btn-sm" onclick="resetFilter()"><i class="fa fa-redo"></i> 重置</button>
+      <button class="btn btn-warning btn-sm filter-purge" onclick="purgeDeletedMaintain('${type}')"><i class="fa fa-eraser"></i> 清理已删</button>
+      <button class="btn btn-danger btn-sm filter-delete" onclick="batchDeleteMaintain('${type}')"><i class="fa fa-trash"></i> 删除</button>
+      <button class="btn btn-default btn-sm filter-refresh" onclick="Pagination.pageNum=1;loadMaintainTableData('${type}')"><i class="fa fa-sync"></i> 刷新</button>
     </div>
   `;
 
@@ -159,56 +164,99 @@ function resetFilter() {
   loadMaintainTableData(objectType);
 }
 
+// 表头复选框：点击后对当前页所有行复选框执行“反转”操作（勾选的取消、未勾选的勾上）
+function invertAllMaintainRows(master) {
+  var boxes = document.querySelectorAll('#maintain-table-box .dm-row-check');
+  for (var i = 0; i < boxes.length; i++) {
+    boxes[i].checked = !boxes[i].checked;
+  }
+  // 反转是瞬时动作，表头复选框自身复位为未勾选，避免与“全选”语义混淆
+  master.checked = false;
+}
+
+// 批量删除：弹出警告确认后，删除所有勾选行
+function batchDeleteMaintain(type) {
+  var delFuncMap = {
+    template: 'deleteTemplate',
+    course: 'deleteCourseById',
+    schedule: 'deleteScheduleById',
+    booking: 'deleteBooking',
+    appointment: 'deleteAppointmentsById'
+  };
+  var fnName = delFuncMap[type];
+  if (!fnName) { alert('该类型暂不支持批量删除'); return; }
+  var checks = document.querySelectorAll('#maintain-table-box .dm-row-check:checked');
+  if (checks.length === 0) {
+    alert('请先勾选要删除的行');
+    return;
+  }
+  if (!confirm('确定要删除选中的 ' + checks.length + ' 条数据吗？此操作不可恢复！')) {
+    return;
+  }
+  var ids = [];
+  for (var i = 0; i < checks.length; i++) { ids.push(checks[i].value); }
+  var fn = (typeof window[fnName] === 'function') ? window[fnName] : null;
+  if (!fn) { alert('删除函数未找到：' + fnName); return; }
+  var tasks = ids.map(function (id) { return Promise.resolve(fn(id)); });
+  Promise.all(tasks).then(function () {
+    loadMaintainTableData(type);
+  }).catch(function (err) {
+    console.error('批量删除失败:', err);
+    alert('部分数据删除失败，请刷新后查看');
+    loadMaintainTableData(type);
+  });
+}
+
 // 动态加载数据并渲染表格
 window.loadMaintainTableData = async function(type){
   var cfg = {
-    template:    { api: fetchTemplateListPage,                                         delFunc: "deleteTemplate" },
-    course:      { api: fetchCourseListPage || (async () => ({rows: [], total: 0, totalPages: 0})), delFunc: "deleteCourse" },
-    schedule:    { api: fetchScheduleListPage,                                         delFunc: "deleteSchedule" },
-    booking:     { api: fetchBookingListPage,                                          delFunc: "deleteBooking" },
-    appointment: { api: datamaintain_fetchAppointmentListPage,                         delFunc: "deleteAppointmentsById" }
+    template:    { api: fetchTemplateListPage,                                         delFunc: "deleteTemplate",     idKey: "templateId" },
+    course:      { api: fetchCourseListPage || (async () => ({rows: [], total: 0, totalPages: 0})), delFunc: "deleteCourseById", idKey: "courseId" },
+    schedule:    { api: fetchScheduleListPage,                                         delFunc: "deleteScheduleById", idKey: "scheduleId" },
+    booking:     { api: fetchBookingListPage,                                          delFunc: "deleteBooking",      idKey: "bookingId" },
+    appointment: { api: datamaintain_fetchAppointmentListPage,                         delFunc: "deleteAppointmentsById", idKey: "id" }
   }[type];
 
   var columns = {
     template: [
       {key: "templateId", label: "编号"},
-      {key: "languageType", label: "语言类型"},
-      {key: "difficultyLevel", label: "难度等级"},
-      {key: "classForm", label: "课程形式"},
-      {key: "classFee", label: "课时费(元)"},
+      {key: "languageType", label: "语言类型", fmt: function (v) { return courseTypeCellHtml(v); }, term: {key: "classType", anchor: "语言类型"}},
+      {key: "difficultyLevel", label: "难度等级", fmt: function (v) { return enumTermCellHtml('classLevel', v); }, term: {key: "classLevel", anchor: "难度等级"}},
+      {key: "classForm", label: "课程形式", fmt: function (v) { return enumTermCellHtml('classForm', v); }, term: {key: "course", anchor: "课程", suffix: "形式"}},
+      {key: "classFee", label: "课时费(元)", term: {key: "lessonFee", anchor: "课时费", suffix: "(元)"}},
       {key: "status", label: "状态"}
     ],
     course: [
       {key: "courseId", label: "编号"},
-      {key: "courseName", label: "课程名"},
+      {key: "courseName", label: "课程名", term: {key: "course", anchor: "课程", suffix: "名"}},
       {key: "content", label: "内容"},
       {key: "feature", label: "特色"},
       {key: "tempInfo", label: "模板"},
-      {key: "teacherInfo", label: "教师"},
+      {key: "teacherInfo", label: "教师", term: {key: "teacher", anchor: "教师"}},
       {key: "status", label: "状态"}
     ],
     schedule: [
-      {key: "courseName", label: "课程名"},
-      {key: "name", label: "排期"},
+      {key: "courseName", label: "课程名", term: {key: "course", anchor: "课程", suffix: "名"}},
+      {key: "name", label: "排期", term: {key: "schedule", anchor: "排期"}},
       {key: "startDate", label: "开始日期"},
-      {key: "startTime", label: "上课时间"},
+      {key: "startTime", label: "上课时间", term: {key: "lessonTime", anchor: "上课时间"}},
       {key: "timeZone", label: "时区"},
       {key: "status", label: "状态"}
     ],
     booking: [
       {key: "bookingId", label: "编号"},
-      {key: "studentName", label: "学生"},
-      {key: "courseName", label: "课程"},
-      {key: "scheduleName", label: "排期"},
-      {key: "teacherName", label: "教师"},
+      {key: "studentName", label: "学生", term: {key: "student", anchor: "学生"}},
+      {key: "courseName", label: "课程", term: {key: "course", anchor: "课程"}},
+      {key: "scheduleName", label: "排期", term: {key: "schedule", anchor: "排期"}},
+      {key: "teacherName", label: "教师", term: {key: "teacher", anchor: "教师"}},
       {key: "bookingStatus", label: "状态"}
     ],
     appointment: [
       {key: "id", label: "编号"},
-      {key: "studentName", label: "学生"},
-      {key: "teacherName", label: "教师"},
-      {key: "courseName", label: "课程"},
-      {key: "scheduleName", label: "排期"},
+      {key: "studentName", label: "学生", term: {key: "student", anchor: "学生"}},
+      {key: "teacherName", label: "教师", term: {key: "teacher", anchor: "教师"}},
+      {key: "courseName", label: "课程", term: {key: "course", anchor: "课程"}},
+      {key: "scheduleName", label: "排期", term: {key: "schedule", anchor: "排期"}},
       {key: "classIndex", label: "序号"},
       {key: "appointmentTime", label: "时间"},
       {key: "appointmentStatus", label: "状态"}
@@ -222,13 +270,28 @@ window.loadMaintainTableData = async function(type){
   tableBox.innerHTML = '<div class="dm-loading"><i class="fa fa-spinner fa-spin"></i> 加载中...</div>';
 
   var kw = document.getElementById('maintain-filter-keyword')?.value?.trim();
-  if(kw) { /* name 关键词会作为 conditionJson 之外的参数注入，此处保留 */ }
+
+  // 各类型查询关键词对应的后端 DTO 字段名（此前统一传 name，但只有模板 DTO 认 name，
+  // 导致课程/排期/预定/预约的查询事实上全部失效）。按类型映射到后端真实字段：
+  //  - template  -> name        （TemplateQueryPage.name 已支持模糊匹配）
+  //  - course    -> courseName  （CourseQueryPage.courseName，CourseMapper 已 LIKE）
+  //  - schedule  -> scheduleName（ScheduleQueryPage.scheduleName，本次补 SQL 过滤）
+  //  - booking   -> courseName  （BookingQueryPage.courseName，BookingMapper 已 LIKE）
+  //  - appointment -> 后端 listByPage 仅用 status 过滤，名称搜索需 join 改造，暂不支持
+  var nameFieldByType = {
+    template: 'name',
+    course: 'courseName',
+    schedule: 'scheduleName',
+    booking: 'courseName',
+    appointment: null
+  };
+  var nameField = nameFieldByType[type];
 
   const conditionJson = {
     pageSize: Pagination.pageSize,
     pageNum:  Pagination.pageNum
   };
-  if (kw) conditionJson.name = kw;
+  if (kw && nameField) conditionJson[nameField] = kw;
 
   try {
     const REQUEST_TIMEOUT = 30000;
@@ -249,8 +312,14 @@ window.loadMaintainTableData = async function(type){
     let html = '<table class="dm-data-table">';
     html += '<thead><tr>';
     html += '<th>序号</th>';
-    columns.forEach(col => html += `<th>${col.label}</th>`);
-    html += '<th style="width:80px;">操作</th></tr></thead><tbody>';
+    columns.forEach(col => {
+      if (col.term) {
+        html += `<th><span data-term="${col.term.key}">${col.term.anchor}</span>${col.term.suffix || ''}</th>`;
+      } else {
+        html += `<th>${col.label}</th>`;
+      }
+    });
+    html += '<th style="width:50px; text-align:center;">选择<br><input type="checkbox" id="dm-select-all" title="点击反转本页所有行的勾选状态" onclick="invertAllMaintainRows(this)"></th></tr></thead><tbody>';
 
     if (list.length === 0) {
       var colSpan = columns.length + 2;
@@ -258,21 +327,24 @@ window.loadMaintainTableData = async function(type){
     } else {
       list.forEach(item => {
         index++;
-        var firstKey = item[columns[0].key] ?? '';
+        var firstKey = item[cfg.idKey || columns[0].key] ?? '';
         html += '<tr>';
         html += `<td>${index}</td>`;
         columns.forEach(col => {
-          var val = item[col.key];
+          // 支持列级格式化：枚举字段（语言类型/难度等级/课程形式）经 enumTerms.js 转成行业词
+          var raw = item[col.key];
+          var val = (typeof col.fmt === 'function') ? col.fmt(raw) : raw;
           html += `<td>${(val === null || val === undefined) ? '' : val}</td>`;
         });
-        html += `<td>
-          <button class="btn btn-danger btn-sm" onclick="(typeof ${cfg.delFunc}==='function')?${cfg.delFunc}('${firstKey}'):(typeof window.${cfg.delFunc}==='function'?window.${cfg.delFunc}('${firstKey}'):null)"><i class="fa fa-trash"></i> 删除</button>
+        html += `<td style="text-align:center;">
+          <input type="checkbox" class="dm-row-check" value="${firstKey}" />
         </td>`;
         html += '</tr>';
       });
     }
     html += '</tbody></table>';
     tableBox.innerHTML = html;
+    applyTerms(tableBox); // 动态注入的表头/单元格 data-term 需在渲染后刷新，否则不随行业切换
   } catch(e) {
     console.error('loadMaintainTableData 失败:', e);
     tableBox.innerHTML = '<div class="dm-error"><i class="fa fa-exclamation-circle"></i> 加载失败：' + (e.message || String(e)) + '</div>';
@@ -287,15 +359,27 @@ setTimeout(function(){
 /* ==================== 后台信息 Tab（名称 / 版本 / 构建时间） ==================== */
 
 /**
- * 两个后端程序的 getApiInfo 数据源。
- * 说明：message-service 走 /message/system/info（带 /api/v1/message 前缀），
- * 才能被前端站点（Nginx / 本地开发代理）的分流规则转发到 8090；
- * 若直接用 /api/v1/system/info，会被当成 booking 的接口转发走。
+ * 两个后端程序的 getApiInfo 探测目标。
+ *
+ * url/prefix 是**契约数据**（prefix 决定前端站点分流：message-service 必须带 /message 前缀
+ * 才会被转发到 8090；写成 /api/v1/system/info 会被当成 booking 接口转发走）。
+ * 权威源：shared/apiPaths.js 的 BACKEND_PROBES，经桥接挂到 window.ApiPaths。
+ *
+ * 下方数组是**降级快照**（桥接未加载时兜底），不是第二权威源——
+ * tools/check-endpoints-refs.mjs 会逐字校验它与权威源一致，防止再次漂移。
+ * desc 属界面文案，口径与平台端不同，故意各自自持。
  */
-var BACKEND_BRIEF_SOURCES = [
-  { label: 'booking_api',     desc: '业务后台（:8081）',     url: '/system/info',          prefix: '/api/v1' },
-  { label: 'message-service', desc: '消息中心（:8090）',     url: '/message/system/info',  prefix: '/api/v1/message' }
-];
+var BACKEND_BRIEF_SOURCES = ((window.ApiPaths && window.ApiPaths.BACKEND_PROBES) || [
+  { key: 'booking', label: 'booking_api',     url: '/system/info',         prefix: '/api/v1' },
+  { key: 'message', label: 'message-service', url: '/message/system/info', prefix: '/api/v1/message' }
+]).map(function (p) {
+  return {
+    label: p.label,
+    url: p.url,
+    prefix: p.prefix,
+    desc: (p.key === 'message') ? '消息中心（:8090）' : '业务后台（:8081）'
+  };
+});
 
 /** 当前前端所在站点地址（origin），如 http://152.136.254.127 或 http://localhost:8080 */
 function backendSiteOrigin() {
@@ -369,6 +453,25 @@ async function fetchBackendBriefInfo(url) {
   return info;
 }
 
+/** 读取前端静态包构建信息（build-info.json / window.__BUILD_INFO__）
+ *  构建时 build.js 已把 dist/build-info.json 的同一份数据烤进每个 html 页面的
+ *  window.__BUILD_INFO__——存在即直接读取，零网络请求、不依赖任何后端接口。
+ *  仅当页面未烤入（旧构建产物）才回退读取同源静态文件 build-info.json
+ *  （注意：这是读前端静态包自己的文件，不是请求后台接口），
+ *  并用 AbortController 限时 5s 兜底，防止异常环境（如被路由到慢后端）挂起渲染。
+ */
+async function fetchFrontendBuildInfo() {
+  if (window.__BUILD_INFO__) return window.__BUILD_INFO__;
+  try {
+    var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 5000) : null;
+    var r = await fetch('build-info.json', { cache: 'no-cache', signal: ctrl ? ctrl.signal : undefined });
+    if (timer) clearTimeout(timer);
+    if (r.ok) return await r.json();
+  } catch (e) { /* 超时或文件不存在 → 回退 null */ }
+  return null;
+}
+
 /** 渲染「后台信息」Tab 内容 */
 async function renderBackendBriefInfo(container) {
   if (!container) return;
@@ -376,7 +479,7 @@ async function renderBackendBriefInfo(container) {
     <style>
       .dm-endpoint { font-family: Consolas, Monaco, monospace; font-size: 12px; color: #2c3e50; word-break: break-all; }
     </style>
-    <div class="dm-section-title"><i class="fa fa-server"></i> 后台程序信息</div>
+    <div class="dm-section-title"><i class="fa fa-server"></i> 程序信息</div>
     <div class="dm-table-box" id="backend-brief-box">
       <div class="dm-loading"><i class="fa fa-spinner fa-spin"></i> 加载中...</div>
     </div>
@@ -390,7 +493,11 @@ async function renderBackendBriefInfo(container) {
   var box = document.getElementById('backend-brief-box');
   if (!box) return;
 
-  // 并发取两个服务，单个失败不影响另一个
+  // 前端构建信息先行并行发起：只读本地（window.__BUILD_INFO__ / 同源静态 build-info.json），
+  // 不依赖任何后端接口；后端行失败/超时各自显示错误，不影响前端行展示。
+  var fbPromise = fetchFrontendBuildInfo().catch(function () { return null; });
+
+  // 并发取两个服务，单个失败不影响另一个（各自 15s 超时，超时行显示获取失败）
   var results = await Promise.all(BACKEND_BRIEF_SOURCES.map(async function (src) {
     try {
       return { src: src, info: await fetchBackendBriefInfo(src.url), error: null };
@@ -398,6 +505,8 @@ async function renderBackendBriefInfo(container) {
       return { src: src, info: null, error: (e && e.message) ? e.message : String(e) };
     }
   }));
+
+  const fb = await fbPromise;
 
   var html = '<table class="dm-data-table"><thead><tr>' +
              '<th>程序</th><th>名称</th><th>版本</th><th>构建时间</th>' +
@@ -425,6 +534,20 @@ async function renderBackendBriefInfo(container) {
     html += '</tr>';
   });
 
+  {
+    // 始终渲染前端行：拿不到数据时显示原因，而不是整行消失
+    var pkg = (fb && fb.mode === 'source') ? '源码直出' : 'dist';
+    var fbDesc;
+    if (!fb) {
+      fbDesc = '（不可用：页面未烤入 __BUILD_INFO__，且 build-info.json 请求失败/不存在）';
+    } else if (fb.gitCommit) {
+      fbDesc = fb.gitCommit + (fb.gitBranch ? (' @ ' + fb.gitBranch) : '') + (fb.gitDirty ? '（工作区脏）' : '');
+      if (fb.mode === 'source') fbDesc += '（dev 代理合成，源码当前 git 状态）';
+    } else {
+      fbDesc = '（build-info.json 无 git 信息）';
+    }
+    html += '<tr><td>前端(静态包)</td><td>' + pkg + '</td><td>-</td><td>' + ((fb && fb.buildTime) || '-') + '</td><td>-</td><td>-</td><td>-</td><td>' + fbDesc + '</td></tr>';
+  }
   html += '</tbody></table>';
 
   // 链路摘要：把「客户端 → 访问域名(解析IP) → 对端 → 本服务监听」整串展示出来
@@ -437,26 +560,20 @@ async function renderBackendBriefInfo(container) {
     html += '<div class="dm-endpoint" style="padding:10px 12px;color:#666;">' + summaries.join('') + '</div>';
   }
 
-  box.innerHTML = html;
+box.innerHTML = html;
 }
 
-
- // 搜索按钮：重置为第1页再查询
-function localsearchCourse() {
-  Pagination.pageNum = 1;
-
-  loadAndRenderObjectListByPage();
-}
-
-// 重置筛选条件
-function resetCourseFilter() {
-  //document.getElementById('course-name-input').value = '';
-  //document.getElementById('language-select').value = '';
-  //.getElementById('course-status-select').value = '';
- // document.getElementById('difficulty-level-select').value = '';
-  
-  Pagination.pageNum = 1;
-  loadAndRenderObjectListByPage();
-}
+/*原localsearchCourse() / resetCourseFilter() 已删除（2026-10-09）。
+ *
+ * 这两个函数在本文件内**从未被调用**（无任何 onclick= 或 JS 调用点），
+ * 但它们与 admin-course.js 的同名顶层函数冲突：本文件在 admin.html 里
+ * 后加载，于是静默覆盖了 admin-course.js 的实现 —— 课程管理页的
+ * 「搜索 / 重置」按钮实际会调到本文件的 loadAndRenderObjectListByPage()，
+ * 而非它自己页面用的 loadAndRenderCourseListByPage()。
+ *
+ * 症状不是报错而是"点了没反应 / 列表刷错"，因此比语法错更难查。
+ * 浏览器不会对同名 function 声明报错，只会静默覆盖 —— 这类问题由
+ * tools/check-global-collide.mjs 的「情况③：同名顶层 function」拦截。
+ */
  
   

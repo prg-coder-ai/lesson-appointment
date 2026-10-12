@@ -107,6 +107,18 @@ public class UserInboxController {
         return Result.success();
     }
 
+    @DeleteMapping("/messages/{messageId}/purge")
+    public Result<Object> purge(@PathVariable String userId, @PathVariable Long messageId) {
+        inboxService.purgeOne(userId, messageId);
+        return Result.success();
+    }
+
+    @DeleteMapping("/messages/batch/purge")
+    public Result<Object> batchPurge(@PathVariable String userId, @RequestBody BatchMessageIdsReq req) {
+        inboxService.purgeBatch(userId, req.getMessageIds());
+        return Result.success();
+    }
+
     /** 审计辅助：列出某用户全部消息 id（供管理端选批量） */
     @GetMapping("/messages/ids")
     public Result<List<Long>> ids(@PathVariable String userId, @RequestParam(required = false) Integer isDeleted) {

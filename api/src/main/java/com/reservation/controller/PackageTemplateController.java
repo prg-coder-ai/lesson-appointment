@@ -57,7 +57,7 @@ public class PackageTemplateController {
         permissionCheck.checkPlatformAdmin(token);
         int rows = packageTemplateService.deleteTemplate(id);
         return rows > 0 ? Result.success(true, "套餐模板删除成功")
-                        : Result.success(false, "删除失败，记录不存在");
+                        : Result.fail(404, "删除失败，记录不存在");
     }
 
     /**

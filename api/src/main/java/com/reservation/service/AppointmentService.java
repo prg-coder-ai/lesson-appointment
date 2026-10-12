@@ -8,6 +8,9 @@ import com.reservation.dto.BookingQueryParaDTO;
 import com.reservation.mapper.BookingMapper;
 
 import com.reservation.common.*;
+import com.reservation.exception.ConflictException;
+import com.reservation.exception.ResourceNotFoundException;
+import com.reservation.utils.TermMsg;
 import com.reservation.query.*;
  import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
@@ -15,6 +18,7 @@ import com.reservation.query.*;
  import com.baomidou.mybatisplus.core.toolkit.Wrappers;
   
 import java.util.List;
+import java.util.stream.Collectors;
 
 import jakarta.annotation.Resource;
 
@@ -30,6 +34,22 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
 
     @Resource
     private BookingMapper bookingMapper;
+    @Resource
+    private ReferentialCascadeService cascadeService;
+    /** 退费档位快照：申请提交（cancelling/t-cancelling）时按提交时刻判定并落库（2026-10-11 方案 B1） */
+    @Resource
+    private RefundRuleService refundRuleService;
+
+    /**
+     * 写路径时间态闸的受控状态：申请请假/改期（cancelling / t-cancelling）与撤回（active）。
+     * 课次一旦开始（now ≥ appointment_datetime，UTC），这三类变更一律 409 拒绝；
+     * 管理员确认类状态（cancelled/reject/t-cancelled 等）不拦——管理员保留「课后补处理」特权。
+     */
+    private static boolean isTimeGateStatus(String status) {
+        return "cancelling".equalsIgnoreCase(status)
+                || "t-cancelling".equalsIgnoreCase(status)
+                || "active".equalsIgnoreCase(status);
+    }
 
     // 批量插入Appointment对象到数据库
     @Transactional(rollbackFor = Exception.class)
@@ -271,18 +291,68 @@ log.debug(userId + role + startTime + endTime + pageNum + pageSize + status);
     public boolean updateStatusByBookingId(String bookingId,String status){
 
     // 调用 AppointmentMapper 的 updateStatusByBookingId 方法
+    // 时间态闸（2026-10-11 方案 B1）：受控状态（申请/撤回）下，任一课次已开始即整批 409，
+    // 避免逐条半成功。管理员确认类状态不拦（课后补处理特权）。
+    if (isTimeGateStatus(status)) {
+        List<Appointment> appts = lambdaQuery().eq(Appointment::getBookingId, bookingId).list();
+        for (Appointment a : appts) {
+            if (a != null && TimePhaseService.hasStarted(a.getAppointmentDatetime(),
+                    ScheduleGenerator.nowUtc())) {
+                throw new ConflictException(TermMsg.t("课程已开始，无法批量变更{lesson}状态"));
+            }
+        }
+    }
     int updated = baseMapper.updateStatusByBookingId(bookingId, status);
+    if (updated <= 0) {
+        // 同 updateStatusById：0 行更新显式 404，杜绝 Result.success(false) 假成功（2026-10-11）
+        throw new ResourceNotFoundException(TermMsg.t("{lesson}不存在或无权操作"));
+    }
     return updated > 0;
     }
 
       @Transactional
-    public boolean updateStatusById(Integer id,String status){ 
+    public boolean updateStatusById(Integer id,String status){
+    // 时间态闸（2026-10-11 方案 B1）：课次已开始/已结束，禁止申请请假/改期与撤回（409）。
+    // 管理员确认类状态（cancelled/reject/t-cancelled/completed 等）不拦——课后补处理特权。
+    Appointment current = baseMapper.selectById(id);
+    if (current != null && isTimeGateStatus(status)
+            && TimePhaseService.hasStarted(current.getAppointmentDatetime(), ScheduleGenerator.nowUtc())) {
+        throw new ConflictException(TermMsg.t("该{lesson}已开始或已结束，无法提交{leave}申请"));
+    }
     int updated = baseMapper.updateStatusById(id, status);
+    if (updated <= 0) {
+        // 0 行更新 = 课次不存在或 tenant_id 不匹配（租户插件给 UPDATE 追加了 tenant_id 条件，
+        // 测试数据租户混乱时极易发生）。此前静默返回 false → Result.success(false) →
+        // HTTP 200 + 审计记 success 的"假成功"，前端与审计都无从察觉
+        //（2026-10-11「改期审计成功但列表无变化」排查定位的盲区）。显式 404 上抛。
+        throw new ResourceNotFoundException(TermMsg.t("{lesson}不存在或无权操作"));
+    }
+    // 退费档位快照：申请提交（cancelling/t-cancelling）时按【提交时刻】判定并落库。
+    // 管理端审核（/refund-rule/hint 与结算）读快照执行，不按确认时刻重算。
+    // 快照失败不阻断申请（warn 后继续），结算侧对无快照行回落现状。
+    if (updated > 0 && current != null
+            && ("cancelling".equalsIgnoreCase(status) || "t-cancelling".equalsIgnoreCase(status))) {
+        try {
+            String snapshot = refundRuleService.captureSnapshotJson(id);
+            if (snapshot != null) {
+                current.setRefundSnapshot(snapshot);
+                current.setStatus(status); // 2026-10-11 方案 B1：快照落库时 status 已变更，需同步 current.status
+                baseMapper.updateById(current);
+            }
+        } catch (Exception e) {
+            log.warn("退费档位快照落库失败, appointmentId={}, 原因={}", id, e.getMessage());
+        }
+    }
     return updated > 0;
     }
 
 public boolean removeById(Integer appId){
         log.info("删除预约时间开始, appointmentId={}", appId);
+        // 先清该课次的通知发送流水。notification_dispatch_log 的幂等键
+        // uk_dispatch_once(appointment_id, seq, receiver_user_id, dedup_key) 含 appointment_id，
+        // 留着流水会让这个课次此后的通知永远发不出去（每次插入都撞唯一键）。
+        // 实测该表已有 12 行指向不存在的课次——同类问题的既有证据。
+        cascadeService.run(CascadeRules.SCENARIO_APPOINTMENT_DELETE, String.valueOf(appId));
         int deleted = baseMapper.deleteById(appId);
         log.info("删除预约时间结束, appointmentId={}, 影响行数={}", appId, deleted);
         return deleted > 0;
@@ -290,10 +360,21 @@ public boolean removeById(Integer appId){
 
     public boolean removeByBookingId(String bookingId){
         log.info("按预约ID批量删除预约时间开始, bookingId={}", bookingId);
+        // 同样先清通知流水：批量删课次前逐个清理，否则留下悬空流水。
+        // 这里不逐条调 removeById（那是 N 次 SQL），而是先取出课次 id 集合再批量清。
+        if (bookingId != null && !bookingId.trim().isEmpty()) {
+            List<Appointment> appts = getByBookingId(bookingId);
+            if (appts != null && !appts.isEmpty()) {
+                List<String> apptIds = appts.stream()
+                        .map(a -> String.valueOf(a.getId()))
+                        .collect(Collectors.toList());
+                cascadeService.run(CascadeRules.SCENARIO_APPOINTMENT_DELETE, apptIds);
+            }
+        }
         int deleted = baseMapper.deleteByBookingId(bookingId);
         log.info("按预约ID批量删除预约时间结束, bookingId={}, 影响行数={}", bookingId, deleted);
         return deleted > 0;
-    } 
+    }
 /**
  * 统计指定时间段以及状态下的预约数量（int）
  * 用于Controller直接调用，参数可以为 LocalDateTime 或 Timestamp，内部统一为 Timestamp 以便数据库查询。

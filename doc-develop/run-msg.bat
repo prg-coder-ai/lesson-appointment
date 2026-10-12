@@ -1,0 +1,1 @@
+java -jar C:\Users\Administrator\WorkBuddy\2026-08-30-17-19-24\api\message-service\target\message-service-1.0.1.jar

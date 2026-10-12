@@ -1,18 +1,22 @@
 package  com.reservation.controller;
 
- import com.reservation.dto.LoginDTO;
- import  com.reservation.dto.RefreshDTO;
- import com.reservation.dto.RefreshTokenPO;
- import com.reservation.dto.TokenDTO;
+import com.reservation.dto.LoginDTO;
+import  com.reservation.dto.RefreshDTO;
+import com.reservation.dto.RefreshTokenPO;
+import com.reservation.dto.TokenDTO;
+import com.reservation.dto.WeChatCodeDTO;
+import com.reservation.dto.WeChatSession;
 
 import com.reservation.common.Result;
 import com.reservation.common.RoleConst;
 import com.reservation.entity.User;
 import com.reservation.service.UserService;
- import com.reservation.service.RefreshTokenService;
+import com.reservation.service.RefreshTokenService;
 import com.reservation.service.UserSessionService;
+import com.reservation.service.WeChatService;
 
  import com.reservation.utils.JwtUtil;
+import com.reservation.utils.PermissionCheck;
 import com.reservation.audit.Audit;
 import com.reservation.audit.AuditAction;
 
@@ -68,8 +72,12 @@ public class authController {
      private RefreshTokenService refreshTokenService;
      @Autowired
      private UserSessionService userSessionService;
-     @Autowired
-     private JwtUtil jwtUtil;
+    @Autowired
+    private JwtUtil jwtUtil;
+    @Autowired
+    private PermissionCheck permissionCheck;
+    @Autowired
+    private WeChatService weChatService;
       @PostMapping("/login")
     @Audit(action = AuditAction.USER_LOGIN, resourceType = "user")
     @ResponseBody
@@ -221,6 +229,46 @@ UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthent
         return Result.success( true,"ok"     );
         else  return  Result.success( false,"kick failed"     );
     }
+
+    /* [微信登录/绑定端点-暂未启用 2026-09-20 屏蔽：user 表无 wx_openid 列，相关 Service 方法已屏蔽]
+     * 微信静默登录（免登录公开接口，不带 Bearer）。
+     * 小程序 wx.login() 拿 code → 后端 code2Session 换 openid → 按 openid 找已绑定账号发 token。
+     * 返回结构与 /login 完全一致；未绑定返回 code=1001，前端静默降级走账号密码登录。
+    @PostMapping("/wechat-login")
+    @ResponseBody
+    public Result<HashMap<String, Object>> wechatLogin(@Validated @RequestBody WeChatCodeDTO dto) {
+        WeChatSession session = weChatService.code2Session(dto.getCode());
+        if (session.getOpenid() == null) {
+            // 用 1001（而非 401）返回：避免触发小程序 request.js 的 onAuthFail 重定向把用户踢回登录页；
+            // 此处只是"微信不可用/未配置"，应静默降级走账号密码登录。
+            return Result.fail(1001, "微信登录失败：" + (session.getErrmsg() == null ? "未知错误" : session.getErrmsg()));
+        }
+        return userService.wechatLogin(session.getOpenid());
+    }
+
+     * 绑定微信（需登录：带当前会话 Bearer）。
+     * 密码登录成功后调用，把当前账号与微信 openid 绑定，下次即可静默登录。
+    @PostMapping("/bind-wechat")
+    @ResponseBody
+    public Result<Boolean> bindWechat(@Validated @RequestBody WeChatCodeDTO dto,
+                                      @RequestHeader(value = "Authorization", required = false) String token) {
+        if (token == null || !token.startsWith("Bearer ")) {
+            return Result.unauthorized("请先登录");
+        }
+        String userId;
+        try {
+            userId = jwtUtil.getUserIdFromToken(token);
+        } catch (Exception e) {
+            return Result.unauthorized("登录已过期，请重新登录");
+        }
+        WeChatSession session = weChatService.code2Session(dto.getCode());
+        if (session.getOpenid() == null) {
+            // 用 400（而非 401）返回：绑定是已登录态操作，401 会让小程序触发刷新/踢登录页，反而把已登录用户踢出。
+            return Result.fail(400, "微信授权失败：" + (session.getErrmsg() == null ? "未知错误" : session.getErrmsg()));
+        }
+        return userService.bindWechat(userId, session.getOpenid());
+    }
+     [微信端点屏蔽结束] */
     /**
      * 密码找回（验证码验证），对应设计2.2.1 接口：/api/v1/user/password/forgot
      * ---》用户密码忘记后，通过管理员重置该用户的密码，然后用户登录后自行修改密码
@@ -236,15 +284,29 @@ UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthent
         return Result.success(null, "验证码验证成功，请重置密码");
     }
 */
-    /**
+/**
      * 密码重置，对应设计2.2.1 接口：/api/v1/user/password/reset
+     *
+     * <p>P0-2 收窄：本接口重置为固定默认密码，不要求原密码，因此**不能凭登录身份任意使用**。
+     * 改造前只要带着任意合法 token 就能重置本租户任意账号 —— 学生登录后重置管理员密码、
+     * 再登录管理员账号即可完成提权。现限定为平台管理员与租户管理员。
+     *
+     * <p>注：本接口在两端前端均无调用点（已 grep 全仓确认），收窄不破坏任何现有流程；
+     * "忘记密码"的自助流程仍是被注释掉的状态（见上方 /password/forgot 注释块），
+     * 若将来要开放自助找回，必须另做验证码/短信校验，不能直接放开本接口。
      */
       @PostMapping("/password/reset")
-      @ResponseBody
+      @Audit(action = AuditAction.USER_RESET_PASSWORD, resourceType = "user")
+    @ResponseBody
     public Result <Object>  resetPassword(
-            @NotBlank(message = "账号不能为空") String account)
+            @NotBlank(message = "账号不能为空") String account,
+            @RequestHeader("Authorization") String token)
             {
+        permissionCheck.checkAdmin(token);
         // 调用服务层重置密码（对应设计2.2.1 密码重置功能说明）
+        // 租户上下文由 TenantInterceptor 从 token 解析，租户管理员只能重置本租户账号；
+        // 平台管理员 tenantId=0，此时 getUserByAccount(account, 0) 匹配不到行 —— 
+        // 平台侧跨租户重置请走 /user/account/changePassword。
         userService.resetPassword(account, TenantContext.getTenantId());
         return Result.success(null, "密码重置成功");
     }

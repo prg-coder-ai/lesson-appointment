@@ -70,7 +70,7 @@ async function openEditCourseDialog(CourseJsonStr )
        //显示，每个模板的内容
        if (templateList &&  (Array.isArray(templateList) && templateList.length > 0))  
      { templateList.forEach(template => { 
-       var str = template.languageType+ " "+ template.difficultyLevel + " "+template.classDuration+ " "+template.classFee ;
+       var str = courseTypeText(template.languageType) + " " + enumTermText('classLevel', template.difficultyLevel) + " "+template.classDuration+ " "+template.classFee ;
         formHtml += ` <option value= ${template.templateId } ${template.templateId === defaultCourse.templateId ? "selected" : ""}> ${str}</option>` 
       });
     }
@@ -102,7 +102,7 @@ async function openEditCourseDialog(CourseJsonStr )
         `;
        //显示，每个模板的内容
       teacherList.forEach(teacher => { 
-        var str = teacher.name+ " "+ teacher.languageType + " "+teacher.phone+ " "+teacher.email ;
+        var str = teacher.name+ " "+ courseTypeText(teacher.languageType) + " "+teacher.phone+ " "+teacher.email ;
         formHtml += ` <option value="${teacher.userId}" ${teacher.userId === defaultCourse.teacherId ? "selected" : ""}> ${str}</option>`;
      
       });
@@ -175,13 +175,14 @@ async function submitCourseForm() {
     //const token = getToken();
     const url = formData.courseId !=""? `course/update` : `course/insert`;
    let res = await updateORCreateCourse(url, formData);
-   if(res!=""){
+   // 29-b 后端契约：/course/update 失败返回 Result.fail(400) → 拦截器抛错 → updateORCreateCourse 提示真实原因后返回 null。
+   // 成功时 data=true；用严格相等判断，避免 null != "" 为 true 把失败误判成「编辑成功」。
+   if(res===true){
     alert(formData.courseId !="" ? '编辑成功' : '新增成功');
     closeCourseModal(); // 关闭弹窗
     await renderCourseCards(); // 刷新列表
-   } else {
-    alert( formData.courseId!=""  ? '编辑失败' : '新增失败');
-   } 
+   }
+   // 失败（res===null）：真实原因已由 updateORCreateCourse 提示，此处不再重复弹窗
 }
 
 function validateCourseForm(formData){
@@ -253,10 +254,7 @@ html = `
           <label><span data-term="classType">语言类型</span>：</label>
           <select id="language-select">
             <option value="">全部</option>
-            <option value="french"><span data-term="classType1">法语</span></option>
-            <option value="english"><span data-term="classType2">英语</span></option> 
-            <option value="chinese"><span data-term="classType3">汉语</span></option>
-            <option value="spanish"><span data-term="classType4">西语</span></option>
+            ${courseTypeOptionsHtml('', { empty: '全部' })}
           </select>
         </div>
         <div class="filter-item">
@@ -387,7 +385,7 @@ function renderCourseTable(list) {
          const templateObj = templateList?templateList.find(t => t.templateId === Course.templateId) : null;
          const teacherObj = teacherList?teacherList.find(t => t.userId === Course.teacherId) : null;
 
-         let tempInfo=templateObj? templateObj.languageType+ " "+ templateObj.difficultyLevel + " "+templateObj.classFee : "" ;
+         let tempInfo=templateObj? courseTypeText(templateObj.languageType) + " " + enumTermText('classLevel', templateObj.difficultyLevel) + " "+templateObj.classFee : "" ;
          let teacherInfo=teacherObj? teacherObj.name : "n/a" ;//+ " "+ teacherObj.phone + " "+ teacherObj.email
           if(cnt++ ==1){
            } 
@@ -408,18 +406,17 @@ function renderCourseTable(list) {
                       <td >${teacherInfo || ''}</td> 
 
                        <td>                       
-                          ${ Course.status === "pending" ? '<span style="color:#faad14;">待审核</span>' :
-                            Course.status === "active" ? '<span style="color:#52c41a;">正常</span>' :
-                            Course.status === "inactive" ? '<span style="color:#faad14;">待启用</span>' :
-                            Course.status === "frozen" ? '<span style="color:#f5222d;">已删除</span>' :
-                            `<span>${Course.status||"未知"}</span>`
+                          ${ Course.status === "active" ? '<span style="color:#52c41a;">有效</span>' :
+                            Course.status === "pending" ? '<span style="color:#faad14;">冻结</span>' :
+                            Course.status === "delete" ? '<span style="color:#f5222d;">删除</span>' :
+                            `<span>${Course.status || "未知"}</span>`
                           }
                         </td>
                     <td>
-                        <button class="btn btn-success" onclick='openEditCourseDialog(${JSON.stringify(Course).replace(/'/g, "\\'")})'>修改</button>                   
-                         ${Course.status === "inactive" ? `<button class="btn btn-success" onclick="changeCourseStatus('${Course.courseId}', 'active')">发布</button>` :'' }
-                        ${Course.status === "active" ? `<button class="btn btn-warning" onclick="changeCourseStatus('${Course.courseId}', 'inactive')">撤回</button>` :'' }
-                        ${Course.status === "inactive" ? `<button class="btn btn-danger"  onclick="deleteCourseByFrozen ('${Course.courseId}')">删除</button>` :'' }
+                        <button class="btn btn-success" onclick='openEditCourseDialog(${JSON.stringify(Course).replace(/'/g, "\\'")})'>修改</button>
+                        ${Course.status === "active" ? `<button class="btn btn-warning" onclick="changeCourseStatus('${Course.courseId}', 'pending')">冻结</button>` : '' }
+                        ${Course.status === "pending" ? `<button class="btn btn-success" onclick="changeCourseStatus('${Course.courseId}', 'active')">启用</button>` : '' }
+                        ${Course.status === "pending" ? `<button class="btn btn-danger" onclick="deleteCourse('${Course.courseId}')">删除</button>` : '' }
                     </td>
                 </tr> 
             `;
@@ -443,7 +440,7 @@ function resetCourseFilter() {
 }
 
 // 删除课程（操作后刷新当前页）
-async function deleteCourseByFrozen(id) {
+async function deleteCourse(id) {
   
   try {
     const scdList = fetchScheduleList(id,null);
@@ -467,7 +464,7 @@ async function deleteCourseByFrozen(id) {
        if(!bcomfirmed) //提示1次
          if (!confirm('确定要删除该课程吗？')) return;
   try { 
-      await  changeCourseStatus(id,"frozen"); 
+      await  changeCourseStatus(id,"delete"); 
       loadAndRenderCourseListByPage();
   } catch (error) {
     console.error('删除失败：', error);

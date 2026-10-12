@@ -35,6 +35,23 @@ public interface UserMapper extends BaseMapper<User> {
     @InterceptorIgnore(tenantLine = "true")
     @Update("UPDATE user SET tenant_id = #{tenantId} WHERE user_id = #{userId}")
     int bindTenant(@Param("userId") String userId, @Param("tenantId") Long tenantId);
+
+    /* ── 微信相关（暂未启用，2026-09-20 屏蔽）──
+     * 当前阶段不考虑微信登录，user 表无 wx_openid 列，下列自定义 SQL 会触发 Unknown column。
+     * 恢复：取消注释 + 为 User.wxOpenid 去掉 @TableField(exist=false) + ALTER TABLE user 加列建唯一索引。
+     * 按微信 openid 查用户（微信静默登录：用 openid 找已绑定账号）。
+     * 必须跳过租户过滤：openid 是平台级全局标识，与租户无关；
+     * 且 wechat-login 是免登录公开接口，无租户上下文，插件会兜底 tenant_id=-1 导致查不到。
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT * FROM user WHERE wx_openid = #{openid} LIMIT 1")
+    User getByWxOpenid(@Param("openid") String openid);
+
+     * 绑定微信 openid 到指定用户（密码登录成功后调用）。
+     * 同样跳过租户过滤：openid 全局唯一，按 user_id 精确更新，避免被租户条件误伤。
+    @InterceptorIgnore(tenantLine = "true")
+    @Update("UPDATE user SET wx_openid = #{openid}, update_time = NOW() WHERE user_id = #{userId}")
+    int updateWxOpenid(@Param("userId") String userId, @Param("openid") String openid);
+     [微信 Mapper 屏蔽结束] */
     /**
       * 根据手机号查询用户（一对多：同一手机号可对应多个账号/用户）
       * @param hmac 手机号的 HMAC 搜索索引
@@ -133,9 +150,47 @@ public interface UserMapper extends BaseMapper<User> {
      * 忽略租户插件过滤，按角色查询全量用户（用于消息中心接收人解析：跨租户查平台管理员 / 指定租户管理员）。
      * 注意：返回结果仍含 tenant_id，调用方需按业务租户自行过滤。
      */
+@InterceptorIgnore(tenantLine = "true")
+   @Select("SELECT * FROM user WHERE role = #{role}")
+   List<User> listByRoleIgnoreTenant(@Param("role") String role);
+
+    // ==================== 首管理员自助激活（bootstrap）的并发判据 ====================
+    //
+    // 为什么必须锁定读而不是普通 count：
+    //   「判定 count==0」与「INSERT 管理员」之间存在窗口，两个并发自注册请求会各自读到 0 从而双双激活。
+    //   已在 MySQL 8.4.11 / REPEATABLE READ 下实测（两条并发会话）：
+    //     会话 A：SELECT COUNT(*) ... WHERE tenant_id=T AND role='admin' FOR UPDATE  → 命中 0 行
+    //     会话 B：1.5s 后 INSERT 同 tenant_id 的 admin                              → 被阻塞 4115ms
+    //   即零行时同样加 next-key 锁，阻塞并发插入；会话 A 回滚后 B 才继续。
+    //   注意 user 表只有单列索引 idx_tenant_id（无 (tenant_id, role) 复合索引），
+    //   因此锁范围是「该 tenant_id 的整个区间」而非精确到 role —— 只影响并发度，不影响正确性。
+    //
+    // 为什么必须 @InterceptorIgnore：
+    //   平台管理员判定是**全系统**语义（tenant_id=0），而 TenantLineInnerInterceptor 在 tenantId=0 时
+    //   会对所有表放弃租户条件、在无上下文时又拼 tenant_id=-1 兜底 —— 两种行为都不是这里要的
+    //   「显式按传入 tenant_id 判定」，故显式忽略插件并在 SQL 里写明 tenant_id。
+    //   注意 tenant_id=0 在本方法里代表"平台"，不是"未归属"。
+
+    /**
+     * 按 tenant_id + role 锁定计数（判定"本租户/全系统是否已存在该角色用户"）。
+     * 必须在事务内调用，锁在事务提交/回滚时释放。
+     *
+     * @param tenantId 0 表示全系统（平台管理员判定）；>0 表示具体租户
+     * @param role     待判定的角色
+     * @return 该范围内该角色的用户数（0 = 可自助激活）
+     */
     @InterceptorIgnore(tenantLine = "true")
-    @Select("SELECT * FROM user WHERE role = #{role}")
-    List<User> listByRoleIgnoreTenant(@Param("role") String role);
- 
-    
+    @Select("SELECT COUNT(*) FROM user WHERE tenant_id = #{tenantId} AND role = #{role} FOR UPDATE")
+    int countByTenantAndRoleForUpdate(@Param("tenantId") Long tenantId, @Param("role") String role);
+
+    /**
+     * 全系统范围内按 role 锁定计数（判定"是否已存在平台管理员"）。
+     * 与 {@link #countByTenantAndRoleForUpdate} 的区别是不带 tenant_id 条件 ——
+     * 平台管理员的 bootstrap 是**全局唯一且不可再生**：一旦存在，任何后续自注册都只能是 pending。
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT COUNT(*) FROM user WHERE role = #{role} FOR UPDATE")
+    int countByRoleGlobalForUpdate(@Param("role") String role);
+
+
 }
