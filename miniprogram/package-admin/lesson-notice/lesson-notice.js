@@ -106,6 +106,28 @@ function notifyPlanText(plan) {
   return lines.join('\n');
 }
 
+// 入口入参 → 检索栏初值（数据总览的「学生/教师改期待确认」会带 status 进本页）：
+//   ?status=cancelling|t-cancelling|…  按课次状态预筛（服务端过滤，取值须在 STATUS_VALUES 内）
+//   ?days=0|1|3|7|30                   时间窗档位（0=全部）
+// 非法/缺省值一律回落到页面缺省（全部状态 · 近 7 天），不抛错、不白屏。
+function entryFilter(options) {
+  const opt = options || {};
+  const init = {};
+  const st = (opt.status === undefined || opt.status === null) ? '' : String(opt.status);
+  if (st) {
+    const si = STATUS_VALUES.indexOf(st);
+    if (si >= 0) { init.status = st; init.statusIndex = si; }
+  }
+  const daysRaw = (opt.days === undefined || opt.days === null) ? '' : String(opt.days);
+  if (daysRaw !== '') {
+    const dv = Number(daysRaw);
+    // 精确命中原类型（dayIndex 必须与 dayLabels 下标一致，否则 picker 显示错档）
+    const di = DAY_OPTIONS.findIndex(function (o) { return o.v === dv; });
+    if (di >= 0) { init.days = DAY_OPTIONS[di].v; init.dayIndex = di; }
+  }
+  return init;
+}
+
 Page(withTerms({
   data: {
     list: [],
@@ -125,12 +147,16 @@ Page(withTerms({
     status: ''
   },
 
-  onLoad() {
+  onLoad(options) {
     const u = requireAuth();
     if (!u) return;
     this.rawList = [];       // 未过滤的原始行（keyword 只在客户端过滤）
     this.enricher = createEnricher();
     this.stageLabels = {};   // { 档位序号: 提前量文案 }，来自租户默认通知规则
+    // 入口筛选（带参进入时）必须先落到 data，再触发首屏 load —— setData 对 this.data 是同步的，
+    // 保证首个请求就带上 status/days，不会先拉一遍缺省数据再重拉。
+    const init = entryFilter(options);
+    if (Object.keys(init).length) this.setData(init);
     // 先取档位文案再取列表：noted1/noted2 要翻成「已发第 N 档·提前 X」才有排查价值
     // （对齐 Web public/appointmentNotes.js 的 loadNotifyStageLabels）；
     // 拉取失败不阻断列表，标签退化为「已发第 N 档」。
