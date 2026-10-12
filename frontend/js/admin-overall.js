@@ -47,27 +47,27 @@ async function refreshOverallpage() {
     <!-- 数据统计面板 -->
     <div class="stats-panel">
       <div class="stats-item">
-        <div class="stats-label">总<span data-term="teacher">教师</span>数</div>
+        <div class="stats-label"><span data-term="teacher">教师</span>总数</div>
         <div class="stats-value">${monthTotalTeacher}</div>
         <div class="stats-desc"><i class="fa ${monthTotalTeacherIcon.icon}" style="color:  ${monthTotalTeacherIcon.color};"></i>${monthTotalTeacherIcon.v} 人 (${monthTotalTeacherIcon.str})</div>
       </div>
       <div class="stats-item success">
-        <div class="stats-label">总<span data-term="student">学生</span>数</div>
+        <div class="stats-label"><span data-term="student">学生</span>总数</div>
         <div class="stats-value">${monthTotalStudent}</div>
         <div class="stats-desc"><i class="fa ${monthTotalStudentIcon.icon}" style="color: ${monthTotalStudentIcon.color};"></i> ${monthTotalStudentIcon.v}  人 (${monthTotalStudentIcon.str})</div>
       </div>
       <div class="stats-item warning">
-        <div class="stats-label">总<span data-term="course">课程</span>数</div>
+        <div class="stats-label"><span data-term="course">课程</span>总数</div>
         <div class="stats-value">${monthTotalCourse}</div>
         <div class="stats-desc"><i class="fa  ${monthTotalCourseIcon.icon}" style="color: ${monthTotalCourseIcon.color};"></i> ${monthTotalCourseIcon.v} 门  (${monthTotalCourseIcon.str})</div>
       </div>
       <div class="stats-item danger">
-        <div class="stats-label">本月预定数</div>
+        <div class="stats-label">本月预订数</div>
         <div class="stats-value">${monthTotalBooking}</div>
         <div class="stats-desc"><i class="fa  ${monthTotalBookingIcon.icon}" style="color:${monthTotalBookingIcon.color};"></i>${monthTotalBookingIcon.v} 单  (${monthTotalBookingIcon.str})</div>
       </div>
       <div class="stats-item danger">
-        <div class="stats-label">本月预约<span data-term="lessonUnit">课时</span></div>
+        <div class="stats-label">本月<span data-term="course">课程</span>预约人次</span></div>
         <div class="stats-value">${monthTotalAppoint}</div>
         <div class="stats-desc"><i class="fa  ${monthTotalAppointIcon.icon}" style="color: ${monthTotalAppointIcon.color};"></i> ${monthTotalAppointIcon.v} 课次(${monthTotalAppointIcon.str})  </div>
       </div>

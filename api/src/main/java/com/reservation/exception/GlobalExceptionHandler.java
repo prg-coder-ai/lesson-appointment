@@ -141,6 +141,21 @@ public class GlobalExceptionHandler {
         return Result.fail(400, "缺少必填参数：" + e.getParameterName());
     }
 
+    // 参数类型不匹配（400）。
+    // 典型场景（2026-10-12）：消息发送弹窗「租户ID」手输框填了租户编码 TENANT_A（字符串），
+    // GET /user/message-recipients?tenantId=TENANT_A 向 Long 转换失败——
+    // 此前落兜底 handleException，报 500「服务器繁忙」+ ERROR 全堆栈刷日志，实为调用方传参错误。
+    // 与 handleMissingParameter 同口径：debug 级日志 + 400 明确告知哪个参数、该是什么类型。
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    public Result<Void> handleTypeMismatch(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException e) {
+        if (log.isDebugEnabled()) {
+            log.debug("参数类型不匹配：{} 需为 {}", e.getName(), e.getRequiredType());
+        }
+        String typeName = e.getRequiredType() != null ? e.getRequiredType().getSimpleName() : "";
+        return Result.fail(400, "参数类型错误：" + e.getName()
+                + (typeName.isEmpty() ? "" : "（需为 " + typeName + "，请勿填编码/文本）"));
+    }
+
     // 服务器异常（500），对应设计2.4 服务器异常
     // 注意：该 handler 必须放在最后，否则会覆盖前面更具体的异常 handler
     @ExceptionHandler(Exception.class)

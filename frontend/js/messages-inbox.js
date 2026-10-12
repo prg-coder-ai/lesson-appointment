@@ -753,7 +753,7 @@
           '</div>' +
           '<div class="row" id="msg-scope-row">' +
             '接收范围：<select id="msg-scope" style="padding:6px;">' + scopeOptions + '</select>' +
-            '<span id="msg-tenant-wrap" style="display:none;margin-left:10px;">租户ID：<input id="msg-tenant-id" placeholder="平台管理员需填" style="padding:6px;width:120px;"></span>' +
+            '<span id="msg-tenant-wrap" style="display:none;margin-left:10px;">租户：<select id="msg-tenant-id" style="padding:6px;max-width:240px;"><option value="">加载租户列表…</option></select></span>' +
             ' <button class="btn btn-gray btn-sm" id="msg-load-rcpt"><i class="fa fa-refresh"></i> 加载接收人</button>' +
           '</div>' +
           '<div class="row" id="msg-ids-row" style="display:none;">指定用户ID（多个用逗号/空格分隔）：<br><textarea id="msg-ids" rows="2" style="width:100%;margin-top:6px;">' + esc(presetIds) + '</textarea></div>' +
@@ -847,6 +847,7 @@
       const opt = scopeSel.options[scopeSel.selectedIndex];
       const need = opt && opt.getAttribute('data-tenant') === '1';
       tenantWrap.style.display = need ? '' : 'none';
+      if (need) loadTenantOptions(root);
     }
     scopeSel.addEventListener('change', syncTenant);
 
@@ -871,6 +872,35 @@
     window.openComposeMessage({ userIds: [String(userId)], role: role, name: name, account: account });
   };
 
+  // 租户列表（平台管理员跨租户发送用）：GET /api/v1/tenant/list（后端 checkPlatformAdmin）。
+  // 模块级缓存一次拉取；失败（非平台管理员/token 过期等）降级回手输数字ID，不阻塞发送弹窗。
+  // 本模块局部路径，不进 shared/apiPaths.js（仅消息模块消费，避免触发共享桥同步链）。
+  let tenantListCache = null;
+  async function loadTenantOptions(root) {
+    const sel = root.querySelector('#msg-tenant-id');
+    if (!sel || sel.tagName !== 'SELECT') return; // 已降级为手输入框
+    try {
+      let list = tenantListCache;
+      if (!list) {
+        list = await areq.get('/api/v1/tenant/list');
+        if (!Array.isArray(list) || !list.length) throw new Error('empty tenant list');
+        tenantListCache = list;
+      }
+      sel.innerHTML = '<option value="">请选择租户</option>' + list.map(function (t) {
+        const label = (t.orgName || t.tenantCode || ('租户 ' + t.id)) + '（' + (t.tenantCode || '无编码') + ' · ID ' + t.id + '）';
+        return '<option value="' + esc(t.id) + '">' + esc(label) + '</option>';
+      }).join('');
+    } catch (e) {
+      // 降级：替换为手输数字ID（沿用 loadRecipients 的 /^\d+$/ 校验兜底）
+      const input = document.createElement('input');
+      input.id = 'msg-tenant-id';
+      input.placeholder = '数字租户ID（非编码）';
+      input.inputMode = 'numeric';
+      input.style.cssText = 'padding:6px;width:120px;';
+      sel.replaceWith(input);
+    }
+  }
+
   async function loadRecipients(root) {
     const scopeSel = root.querySelector('#msg-scope');
     const scope = scopeSel.value;
@@ -884,6 +914,11 @@
       if (needsTenant) {
         const tid = (root.querySelector('#msg-tenant-id').value || '').trim();
         if (!tid) { listEl.innerHTML = '<div style="color:#c00;padding:6px;">请先填写租户ID</div>'; return; }
+        // 必须是数字租户ID（sys_tenant.id），填租户编码（如 TENANT_A）会让后端 Long 转换失败
+        if (!/^\d+$/.test(tid)) {
+          listEl.innerHTML = '<div style="color:#c00;padding:6px;">租户ID须为数字ID（如 1），不是租户编码（如 TENANT_A）</div>';
+          return;
+        }
         params.tenantId = tid;
       }
       const users = await areq.get(EP.MSG_RECIPIENTS, { params: params });
