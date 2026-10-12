@@ -106,12 +106,13 @@ Page(withTerms({
   // 跳到上课通知页（课次维度）。
   //   data-status：按课次状态预筛（学生改期待确认=cancelling / 教师改期待确认=t-cancelling）；
   //   data-days  ：时间窗档位，0=全部（后端按 MySQL DATETIME 极值处理）；
-  //   两者都不带 → 缺省页面（全部状态 + 近 7 天），供「今日课程」行使用。
+  //   两者都不带 → 缺省页面（全部状态 + 近 1 天），供「今日课程」行使用
+  //   （近 1 天与该行角标 STAT_APPOINT_ON_DAYS(1) 同口径，进去条数即对齐）。
   //
   // 为什么改期待确认要带 days=0：该角标由 countAppointment(status) 统计，
   // 走 APPOINTMENT_PAGE 只按 status 过滤、**不设时间窗**（全时段口径）；
-  // 而上课通知页缺省是「近 7 天」，days 窗口作用在 appointment_datetime（上课时间）上，
-  // 会把「上课时间在 7 天之外」的待处理申请整条挡掉（角标 3 条、点进去 0 条）。
+  // 而上一天数窗口（默认「近 1 天」）作用在 appointment_datetime（上课时间）上，
+  // 会把「上课时间在窗口之外」的待处理申请整条挡掉（角标 3 条、点进去 0 条）。
   // 带 days=0 后与角标口径逐条对齐。
   goLessonNotice(e) {
     const ds = (e.currentTarget && e.currentTarget.dataset) || {};

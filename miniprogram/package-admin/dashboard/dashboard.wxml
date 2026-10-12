@@ -1,7 +1,7 @@
 <view class="page">
   <view class="page-head">
     <view class="page-title">数据总览</view>
-    <view class="page-sub">本租户运营概览（按月统计）</view>
+    <view class="page-sub">本公司运营概览（按月统计）</view>
   </view>
 
   <view wx:if="{{loading}}" class="loading">加载中…</view>
@@ -10,15 +10,15 @@
     <view class="stat-grid">
       <view class="stat">
         <view class="stat-num">{{stat.teacher != null ? stat.teacher : '-'}}</view>
-        <view class="stat-label">总{{terms.teacher}}数</view>
+        <view class="stat-label">{{terms.teacher}}总数</view>
       </view>
       <view class="stat">
         <view class="stat-num">{{stat.student != null ? stat.student : '-'}}</view>
-        <view class="stat-label">总{{terms.student}}数</view>
+        <view class="stat-label">{{terms.student}}总数</view>
       </view>
       <view class="stat">
         <view class="stat-num">{{stat.course != null ? stat.course : '-'}}</view>
-        <view class="stat-label">总{{terms.course}}数</view>
+        <view class="stat-label">{{terms.course}}总数</view>
       </view>
       <view class="stat">
         <view class="stat-num">{{stat.booking != null ? stat.booking : '-'}}</view>
@@ -26,28 +26,28 @@
       </view>
       <view class="stat">
         <view class="stat-num">{{stat.appoint != null ? stat.appoint : '-'}}</view>
-        <view class="stat-label">本月预约{{terms.lessonUnit}}</view>
+        <view class="stat-label">本月预约人次</view>
       </view>
     </view>
 
     <view class="section-title">待审核</view>
     <view class="card">
       <view class="row" bindtap="goAudit" data-status="booking">
-        <text class="rk">预订待确认</text>
+        <text class="rk">预订</text>
         <text class="rv">{{pending.booking}}</text>
       </view>
       <view class="row" bindtap="goAudit" data-status="cancelling">
-        <text class="rk">预订取消待确认</text>
+        <text class="rk">取消预订</text>
         <text class="rv">{{pending.cancelling}}</text>
       </view>
       <!-- 后三行跳「上课通知」：改期待确认按课次状态预筛 + days=0（与角标的全时段口径对齐）；
-           「今日课程」不带参 → 上课通知缺省页面（全部状态 · 近 7 天） -->
+           「今日课程」不带参 → 上课通知缺省页面（全部状态 · 近 1 天） -->
       <view class="row" bindtap="goLessonNotice" data-status="cancelling" data-days="0">
-        <text class="rk">{{terms.student}}改期待确认</text>
+        <text class="rk">{{terms.student}}改期</text>
         <text class="rv">{{pending.rescheduleStudent}}</text>
       </view>
       <view class="row" bindtap="goLessonNotice" data-status="t-cancelling" data-days="0">
-        <text class="rk">{{terms.teacher}}改期待确认</text>
+        <text class="rk">{{terms.teacher}}改期</text>
         <text class="rv">{{pending.rescheduleTeacher}}</text>
       </view>
       <view class="row" bindtap="goLessonNotice">

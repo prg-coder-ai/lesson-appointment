@@ -39,6 +39,13 @@ const DAY_OPTIONS = [
   { v: 30, t: '近 30 天' }, { v: 0, t: '全部' }
 ];
 
+// 缺省天数档位下标 → 近 1 天（dayLabels[0]）。
+// 收成常量是因为这个值有 3 处必须同源：data 初值 / onDayChange 越界兜底 / onReset，
+// 散着写数字下标时「改缺省天数」极易漏改其中一处，导致 picker 显示与请求参数不一致。
+// 取近 1 天而非近 7 天：与数据总览「今日课程」角标同口径（STAT_APPOINT_ON_DAYS(1)），
+// 该行不带参直接进本页，进去之后条数就与角标逐条对齐。
+const DEFAULT_DAY_INDEX = 0;
+
 // 状态筛选项（服务端 status 精准筛选已支持）；文案取自共享领域层，避免小程序再写一套 switch。
 const STATUS_VALUES = [
   '', 'active', 'noted1', 'cancelling', 't-cancelling',
@@ -109,7 +116,7 @@ function notifyPlanText(plan) {
 // 入口入参 → 检索栏初值（数据总览的「学生/教师改期待确认」会带 status 进本页）：
 //   ?status=cancelling|t-cancelling|…  按课次状态预筛（服务端过滤，取值须在 STATUS_VALUES 内）
 //   ?days=0|1|3|7|30                   时间窗档位（0=全部）
-// 非法/缺省值一律回落到页面缺省（全部状态 · 近 7 天），不抛错、不白屏。
+// 非法/缺省值一律回落到页面缺省（全部状态 · 近 1 天），不抛错、不白屏。
 function entryFilter(options) {
   const opt = options || {};
   const init = {};
@@ -140,8 +147,8 @@ Page(withTerms({
     // 检索栏
     keyword: '',
     dayLabels: DAY_OPTIONS.map(o => o.t),
-    dayIndex: 2,                                       // 默认「近 7 天」
-    days: DAY_OPTIONS[2].v,
+    dayIndex: DEFAULT_DAY_INDEX,                       // 默认「近 1 天」
+    days: DAY_OPTIONS[DEFAULT_DAY_INDEX].v,
     statusOptions: statusOptions(),
     statusIndex: 0,
     status: ''
@@ -263,7 +270,7 @@ Page(withTerms({
   onKeywordInput(e) { this.setData({ keyword: e.detail.value || '' }); },
   onDayChange(e) {
     const idx = Number(e.detail.value);
-    const opt = DAY_OPTIONS[idx] || DAY_OPTIONS[2];
+    const opt = DAY_OPTIONS[idx] || DAY_OPTIONS[DEFAULT_DAY_INDEX];
     if (opt.v === this.data.days && idx === this.data.dayIndex) return;
     this.setData({ dayIndex: idx, days: opt.v });
     this.load(true);
@@ -279,7 +286,7 @@ Page(withTerms({
   onReset() {
     this.setData({
       keyword: '',
-      dayIndex: 2, days: DAY_OPTIONS[2].v,
+      dayIndex: DEFAULT_DAY_INDEX, days: DAY_OPTIONS[DEFAULT_DAY_INDEX].v,
       statusIndex: 0, status: ''
     });
     this.load(true);
