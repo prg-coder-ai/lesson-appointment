@@ -161,7 +161,14 @@ export async function request(opts) {
       default: msg = bodyMsg || '请求错误：' + status;
     }
     if (opts.customErrorMsg !== false) showError(msg);
-    throw new Error(msg);
+    // 挂业务态元信息（对齐 frontend teacherInfo.js 教训：29-b 后业务 404 走真实 HTTP 状态，
+    // 调用方需读 err.code（HTTP 状态）与 err.bodyMsg（真实文案）做「无档案→进创建页」类
+    // 业务态分支，不能再依赖 e.message 文本匹配——bare Error 会让这类判定静默失效。
+    const httpErr = new Error(msg);
+    httpErr.code = status;
+    httpErr.bodyMsg = msg;
+    httpErr.raw = res;
+    throw httpErr;
   }
 
   // ===== HTTP 200：按 body.code 分流，行为对齐 frontend utility_request.js 响应拦截器 =====
