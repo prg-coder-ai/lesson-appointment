@@ -28,6 +28,13 @@ public interface UserMapper extends BaseMapper<User> {
    @Select("select * from user where account = #{account} AND tenant_id = #{tenantId}")
    User getUserByAccount( @Param("account") String account, @Param("tenantId") Long tenantId);
 
+    // 微信静默登录（/auth/wechat-login）是 permitAll、没有 Bearer，TenantInterceptor 不会设置
+    // 租户上下文，插件会拼出 tenant_id = -1 而恒不命中。与 getUserByAccount 同一处理：
+    // 显式跳过租户插件取值，归属校验由 UserService.wechatLogin 自己做。
+    @InterceptorIgnore(tenantLine = "true")
+   @Select("select * from user where user_id = #{userId}")
+   User getByUserIdNoTenant( @Param("userId") String userId);
+
     /**
      * 绑定用户到指定租户（存量数据迁移：迁移前创建的用户 tenant_id 为 0）
      * 同样需跳过租户过滤，否则会被拼上兜底条件而更新不到目标用户

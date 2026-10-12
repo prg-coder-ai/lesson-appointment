@@ -40,8 +40,8 @@
       <text class="link" catchtap="openAgreement">《用户协议》《隐私政策》</text>
     </view>
 
-    <!-- 暂不启用微信登录/绑定（用户确认先专注密码登录）：临时隐藏勾选框；
-         待微信能力就绪后删除 wx:if="{{false}}" 即可恢复。 -->
+    <!-- 微信登录勾选框（2026-10-13 恢复）：勾选后密码登录成功即绑定当前微信，
+         下次启动可免输入直接进入。后端未配置 appid/secret 时绑定静默失败，不影响登录。 -->
     <view wx:if="{{false}}" class="agree" bindtap="toggleBindWechat">
       <view class="checkbox {{bindWechat ? 'checked' : ''}}"></view>
       <text class="agree-text">允许微信登录（下次本微信免输入直接进入）</text>

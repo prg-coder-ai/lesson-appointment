@@ -171,7 +171,8 @@ for (const fn of fs.readdirSync(CTRL_DIR)) {
 const PERMIT_ALL = [
   '/api/v1/system/info', '/api/v1/apiInfo', '/api/v1/term/map', '/api/v1/tenant/name',
   '/api/v1/auth/login', '/api/v1/auth/refreshToken', '/api/v1/auth/logout',
-  '/api/v1/auth/wechat-login', '/api/v1/user/register', '/api/v1/user/account/exist',
+  '/api/v1/auth/wechat-login', '/api/v1/auth/wechat-register',
+  '/api/v1/user/register', '/api/v1/user/account/exist',
   '/api/v1/teacher/published/latest-public', '/api/v1/teacher/published/public-get',
   '/api/v1/teacher/published/public-list', '/api/v1/schedule/getAvailableSchedule',
 ];

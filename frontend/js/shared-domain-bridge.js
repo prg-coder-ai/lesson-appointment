@@ -123,12 +123,15 @@ const ENDPOINTS = {
   AUTH_LOGOUT: '/auth/logout',
   AUTH_REFRESH: '/auth/refreshToken',
   AUTH_KICK: (uid) => `/auth/kick/${uid}`,
-  // 微信登录/绑定：authController @PostMapping("/wechat-login")、("/bind-wechat")。
-  // 当前微信登录整体屏蔽（恢复流程：去 User.wxOpenid exist=false + 取消对应函数调用注释）；常量先就位，避免 undefined。
+  // 微信登录/绑定/注册/解绑：authController 的 /auth/* 端点。
+  // 2026-10-13 解除屏蔽：openid 存独立的 wx_userid 表（user 表零改动），
+  // 不再是老方案「ALTER TABLE user 加 wx_openid 列」。
   AUTH_WECHAT_LOGIN: '/auth/wechat-login',
   AUTH_BIND_WECHAT: '/auth/bind-wechat',
-  // 微信登录/绑定：authController @PostMapping("/wechat-login")、("/bind-wechat")。
-  // 当前微信登录整体屏蔽（恢复流程：去 User.wxOpenid exist=false + 取消对应函数调用注释）；常量先就位，避免 undefined。
+  AUTH_WECHAT_REGISTER: '/auth/wechat-register',
+  AUTH_UNBIND_WECHAT: '/auth/unbind-wechat',
+  AUTH_WECHAT_STATUS: '/auth/wechat-status',
+  // 获客渠道归因上报（小程序 core/acquisition.js 已埋点，后端 2026-10-13 补实现）
   TRACK_ATTRIBUTION: '/api/v1/user/attribution',
   ACCOUNT_EXIST: (acc) => `/user/account/exist?account=${encodeURIComponent(acc)}`,
   TERM_MAP: (lang) => `/api/v1/term/map?lang=${encodeURIComponent(lang || 'zh')}`,

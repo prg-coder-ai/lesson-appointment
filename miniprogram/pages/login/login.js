@@ -1,4 +1,4 @@
-import { login, getBoundTenantCode, goHome } from '../../core/auth.js';
+import { login, getBoundTenantCode, goHome, wechatSilentLogin, wechatRegister, bindWechat } from '../../core/auth.js';
 import { withTerms } from '../../core/term.js';
 import { clearSession, storage, getSession } from '../../core/storage.js';
 import { ROLES } from '../../shared/constants.js';
@@ -24,7 +24,7 @@ Page(withTerms({
     agreed: false,
     bindWechat: false
   },
-  onLoad() {
+  async onLoad(options) {
     const app = (typeof getApp === 'function') ? getApp() : null;
     if (app && app.globalData) app.globalData.onAuthFail = () => wx.reLaunch({ url: '/pages/login/login' });
     // 已登录直接进首页。注意：登录页本身不能用 requireAuth() 守卫——
@@ -32,14 +32,23 @@ Page(withTerms({
     const u = getSession();
     if (u && u.token && u.role) { goHome(); return; }
     const bound = getBoundTenantCode();
+    // 扫码/分享链接带来的租户编码（推广路径2、微信直接注册都靠它）
+    const tcode = (options && (options.tcode || options.tCode)) || '';
     this.setData({
       brandTitle: '预约系统',
       boundTenantCode: bound,
-      tenantCode: bound
+      tenantCode: bound || tcode
     });
-    // 暂不启用微信静默登录/绑定（用户确认先专注密码登录流程）：
-    // 不在此自动调用 wechatSilentLogin，避免无谓的 /auth/wechat-login 请求干扰调试。
-    // 待微信登录能力就绪后，可恢复 tryWechatAutoLogin() 调用。
+    // 微信登录能力已就绪（2026-10-13）：先试静默登录，再按需走微信直接注册。
+    // 两步都是静默降级 —— 失败/未绑定都只是继续显示密码登录表单，不报错、不打扰。
+    try {
+      const wxRes = await wechatSilentLogin();
+      if (wxRes) { goHome(); return; }
+      if (tcode) {
+        const regRes = await wechatRegister({ tenantCode: tcode });
+        if (regRes) { goHome(); return; }
+      }
+    } catch (e) { /* 静默降级 */ }
   },
   toggleBindWechat() { this.setData({ bindWechat: !this.data.bindWechat }); },
   onAccount(e) { this.setData({ account: e.detail.value }); },
@@ -77,7 +86,11 @@ Page(withTerms({
     try {
       const res = await login({ tenantCode: finalTenant, account, password, role });
       wx.showToast({ title: '登录成功', icon: 'success' });
-      // 暂不启用微信绑定（用户确认先专注密码登录流程）；待微信能力就绪再接回 bindWechat()。
+      // 勾选了「允许微信登录」→ 绑定当前微信，下次即可静默登录。
+      // 绑定失败不影响已成功的密码登录态（bindWechat 内部静默返回 false）。
+      if (this.data.bindWechat) {
+        try { await bindWechat(); } catch (e) { /* 静默 */ }
+      }
       setTimeout(() => goHome(), 400);
     } catch (e) {
       wx.showToast({ title: (e && e.message) || '登录失败', icon: 'none' });

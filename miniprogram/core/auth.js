@@ -123,3 +123,54 @@ export async function bindWechat() {
     return false;
   }
 }
+
+// 微信直接注册（场景 C）：扫码带 tenantCode 进来、该微信又没绑定过 → 免填写直接建号。
+// 与 wechatSilentLogin 同样静默降级：失败返回 null，由登录页继续走密码登录。
+export async function wechatRegister({ tenantCode, role } = {}) {
+  try {
+    if (!tenantCode) return null;
+    const { code } = await wxLoginCode();
+    const res = await request({
+      url: ENDPOINTS.AUTH_WECHAT_REGISTER,
+      method: 'POST',
+      data: { code, tenantCode, role: role || 'student' },
+      tokenOnly: true,
+      customErrorMsg: false
+    });
+    if (!res || !res.token) return null;
+    setSession(res);
+    try {
+      await loadTermMap();
+      await syncIndustryFromTenant(res.tenantCode);
+    } catch (e) { /* 术语加载失败不阻断，首页会重新拉取 */ }
+    return res;
+  } catch (e) {
+    return null;
+  }
+}
+
+// 解绑微信：auto_register（微信直接注册）的账号会被后端拒绝（400），
+// 因为这类账号 account=openid、password 随机，解绑后将永久无法登录。
+export async function unbindWechat() {
+  try {
+    await request({ url: ENDPOINTS.AUTH_UNBIND_WECHAT, method: 'POST' });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// 查询当前账号的微信绑定状态（web 端「微信绑定」菜单 / 小程序「我的」共用）。
+// 只回 bound / bindSource，不回 openid。失败按「未绑定」处理，不打扰用户。
+export async function getWechatStatus() {
+  try {
+    const res = await request({
+      url: ENDPOINTS.AUTH_WECHAT_STATUS,
+      method: 'GET',
+      customErrorMsg: false
+    });
+    return { bound: !!(res && res.bound), bindSource: (res && res.bindSource) || '' };
+  } catch (e) {
+    return { bound: false, bindSource: '' };
+  }
+}

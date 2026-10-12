@@ -200,8 +200,14 @@ public final class AuthzRules {
 
         r.add(new Rule(HttpMethod.POST, "/api/v1/auth/password/reset", PLATFORM_OR_TENANT_ADMIN, "第1批：仅管理员可重置密码"));
         r.add(new Rule(HttpMethod.DELETE, "/api/v1/auth/kick/{userId}", PLATFORM_OR_TENANT_ADMIN, "新增：踢下线属管理动作"));
-        // 注：/auth/bind-wechat 与 /auth/wechat-login 当前整体位于 authController 的块注释内
-        // （微信登录已于 2026-09-20 屏蔽），故不为其声明规则 —— 屏蔽解除时须同步补回。
+        // 微信端点已于 2026-10-13 解除屏蔽（改查独立的 wx_userid 表，user 表零改动）：
+        //   · wechat-login / wechat-register 是 permitAll（免认证），不在此声明，
+        //     见 SecurityConfig 白名单与本守卫的 PERMIT_ALL。
+        //   · bind / unbind 需登录，且操作的是「自己的绑定」，故 ALL_ROLES 放行 ——
+        //     越权面在方法体内由 token 里的 userId 兜住（只能绑/解绑当前会话账号）。
+        r.add(new Rule(HttpMethod.POST, "/api/v1/auth/bind-wechat", ALL_ROLES, "≡需登录 绑定微信（仅当前会话账号）"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/auth/unbind-wechat", ALL_ROLES, "≡需登录 解绑微信（仅当前会话账号）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/auth/wechat-status", ALL_ROLES, "≡需登录 查询自己的微信绑定状态"));
 
         r.add(new Rule(HttpMethod.GET, "/api/v1/user/list", PLATFORM_OR_TENANT_ADMIN, "新增：用户列表（管理面）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/user/page", PLATFORM_OR_TENANT_ADMIN, "新增：用户分页（管理面）"));

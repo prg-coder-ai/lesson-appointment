@@ -43,7 +43,11 @@ public class MyBatisPlusConfig {
             // 通知规则的「时间点明细」表刻意没有 tenant_id 列（规则头才有），
             // 隔离靠 rule_id 关联的规则头间接保证（规则头走插件过滤）。
             // 同样必须排除，否则插件的 `tenant_id = ?` 会直接撞 Unknown column
-            "course_notify_rule_point"
+            "course_notify_rule_point",
+            // 微信 openid 关联表：虽然有 tenant_id 列，但语义是冗余统计，
+            // 隔离语义是「一个微信全局只绑一个账号」（uk_wx_openid 全局唯一）。
+            // 若走租户插件，平台管理员视角会被拼 tenant_id = 当前租户 → 查不到绑定、静默失败。
+            "wx_userid"
     );
 
     @Bean

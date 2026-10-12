@@ -105,6 +105,10 @@ public class SecurityConfig {
                     auth.requestMatchers(
                             "/api/v1/auth/wechat-login",
                             "/auth/wechat-login",
+                            // 微信直接注册（场景 C）：扫码即注册，免登录。与 wechat-login 同组，
+                            // 白名单须同时放裸路径与 /api/v1 前缀
+                            "/api/v1/auth/wechat-register",
+                            "/auth/wechat-register",
                             "/term/map",
                             "/api/v1/term/map"
                     ).permitAll();

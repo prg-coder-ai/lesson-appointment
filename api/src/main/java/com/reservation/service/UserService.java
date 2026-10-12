@@ -6,6 +6,7 @@ import com.reservation.query.UserQueryPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
 import com.reservation.entity.Tenant;
+import com.reservation.entity.WxUserid;
 import com.reservation.entity.User;  
 import com.reservation.exception.BusinessException;
 import com.reservation.exception.ResourceNotFoundException;
@@ -63,6 +64,10 @@ public class UserService {
     private BookingMapper bookingMapper;
     @Autowired
     private UserSessionService userSessionService;
+
+    // 微信 openid 关联（wx_userid 表）。user 表零改动：不再走「ALTER TABLE user 加 wx_openid 列」的老路。
+    @Autowired
+    private WxUseridService wxUseridService;
 
     // ===================== 字段加密/解密辅助方法 =====================
     // 对 phone/email/name 字段做 AES-GCM 加密并附加 HMAC 搜索索引（复合格式 hmac:ciphertext）
@@ -389,13 +394,26 @@ public class UserService {
         return Result.success(resultMap   ,"登陆成功");
     }
 
-    /* [微信登录-暂未启用 2026-09-20 屏蔽：user 表无 wx_openid 列，恢复时取消注释 + User.wxOpenid 去 exist=false + ALTER TABLE user 加列建唯一索引]
+
+    /**
      * 微信静默登录：按 openid 找已绑定账号，直接发 token（返回结构与密码登录完全一致）。
-     * 未找到绑定账号 → code=1001，前端据此静默降级走账号密码登录，不弹错误。
+     *
+     * <p><b>为什么不能用 {@code userMapper.selectById}</b>：本接口是 permitAll、不带 Bearer，
+     * {@code TenantInterceptor} 不会设置租户上下文，租户插件会拼出 {@code tenant_id = -1} 而恒不命中。
+     * 与密码登录的 {@code getUserByAccount} 同一处理——用 {@code @InterceptorIgnore} 的
+     * {@code getByUserIdNoTenant} 取用户，归属校验由本方法显式完成。
+     *
+     * <p>未绑定 → {@code code=1001}，前端据此静默降级走账号密码登录，不弹错误。
+     * （必须用 1001 而非 401：401 会触发小程序 request.js 的 onAuthFail 把用户踢回登录页。）
+     */
     public Result<HashMap<String, Object>> wechatLogin(String openid) {
-        User user = userMapper.getByWxOpenid(openid);
+        WxUserid binding = wxUseridService.findByOpenid(openid);
+        if (binding == null) {
+            return Result.fail(1001, "微信尚未绑定，请使用账号密码登录或直接注册");
+        }
+        User user = userMapper.getByUserIdNoTenant(binding.getUserId());
         if (user == null) {
-            return Result.fail(1001, "微信尚未绑定，请使用账号密码登录");
+            return Result.fail(1001, "关联账号不存在");
         }
         if ("frozen".equals(user.getStatus())) {
             return Result.fail(400, "账号已冻结，请联系管理员");
@@ -403,6 +421,7 @@ public class UserService {
         if (!"active".equals(user.getStatus())) {
             return Result.fail(400, "账号未审核，请等待管理员审核");
         }
+        decryptUserFields(user);   // name 入库加密，返回前必须解密
         Long tenantId = user.getTenantId() == null ? 0L : user.getTenantId();
         String token = jwtUtil.generateToken(tenantId, user.getUserId(), user.getRole());
         String refreshToken = jwtUtil.generateRefreshToken(tenantId, user.getUserId());
@@ -412,13 +431,7 @@ public class UserService {
         resultMap.put("name", user.getName());
         resultMap.put("role", user.getRole());
         resultMap.put("token", token);
-        // tenantCode 解析（平台管理员 tenantId=0 无对应租户记录，留 null）
-        String tenantCode = null;
-        if (tenantId > 0) {
-            Tenant tenant = tenantService.getById(tenantId);
-            if (tenant != null) tenantCode = tenant.getTenantCode();
-        }
-        resultMap.put("tenantCode", tenantCode);
+        resultMap.put("tenantCode", user.getTenantCode());
         resultMap.put("refreshToken", refreshToken);
         resultMap.put("code", 200);
         refreshTokenService.saveNewToken(user.getUserId(), refreshToken, jwtUtil.getRefreshExpireTime());
@@ -426,23 +439,118 @@ public class UserService {
                 currentRequestIp(), currentRequestUserAgent());
         return Result.success(resultMap, "登录成功");
     }
-     [微信登录屏蔽结束] */
 
-    /* [微信绑定-暂未启用 2026-09-20 屏蔽]
+    /**
      * 绑定微信 openid 到当前账号（密码登录成功后调用）。
-     * 校验唯一性：若该 openid 已被其他账号占用则拒绝（409）；否则按 user_id 精确写入。
+     *
+     * <p>本接口需登录，{@code TenantInterceptor} 已设好租户上下文，可直接用 {@code selectById}。
+     * 唯一性由 {@code wx_userid.uk_wx_openid} 保证：该 openid 已绑到别的账号时返回 409，
+     * 不做静默改绑（否则等同于账号接管）。
+     */
     public Result<Boolean> bindWechat(String userId, String openid) {
-        User exist = userMapper.getByWxOpenid(openid);
-        if (exist != null && !exist.getUserId().equals(userId)) {
-            return Result.fail(409, "该微信已绑定其他账号，无法重复绑定");
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            return Result.fail(404, "用户不存在");
         }
-        int rows = userMapper.updateWxOpenid(userId, openid);
-        if (rows > 0) {
-            return Result.success(true, "微信绑定成功");
-        }
-        return Result.fail(404, "用户不存在");
+        wxUseridService.bind(openid, userId, user.getTenantId(), "manual");
+        return Result.success(true, "微信绑定成功");
     }
-     [微信绑定屏蔽结束] */
+
+    /**
+     * 微信直接注册（场景 C）：以 openid 为账号创建用户并建立绑定，返回 token。
+     *
+     * <p><b>租户上下文必须自己设置并清理</b>：本接口是 permitAll，{@code TenantInterceptor} 不跑，
+     * 而 {@code userMapper.insert} 依赖租户插件写入正确的 {@code tenant_id}（否则会填 -1）。
+     * 由于 TenantInterceptor 没跑，它的 {@code afterCompletion} 也不会来清理，
+     * 因此必须在本方法内 try/finally 清理，避免污染 Tomcat 线程池里的下一个请求。
+     *
+     * <p>账号 = openid、密码 = 随机 UUID 密文（用户无从得知）→ <b>该账号只能走微信登录，不能密码登录</b>。
+     * 这也是 {@link #unbindWechat} 必须拒绝 {@code auto_register} 解绑的原因。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public Result<HashMap<String, Object>> wechatRegister(String openid, String tenantCode, String role) {
+        if (wxUseridService.findByOpenid(openid) != null) {
+            return Result.fail(409, "该微信已注册，请直接登录");
+        }
+        Tenant tenant = tenantService.getByCode(tenantCode);
+        if (tenant == null || !Integer.valueOf(1).equals(tenant.getStatus())) {
+            return Result.fail(403, "租户不存在或已停用");
+        }
+        // 管理员不能靠扫码产生：否则任何人拿一个推广码就能给自己造一个租户管理员
+        String resolvedRole = (role != null && !role.isBlank()
+                && (RoleConst.STUDENT.equals(role) || RoleConst.TEACHER.equals(role)))
+                ? role : RoleConst.STUDENT;
+        Long tenantId = tenant.getId();
+        try {
+            TenantContext.setTenantId(tenantId);
+            tenantQuotaService.acquire(tenantId, TenantQuotaService.USER);
+            if (RoleConst.STUDENT.equals(resolvedRole)) {
+                tenantQuotaService.acquire(tenantId, TenantQuotaService.STUDENT);
+            }
+            String userId = UUID.randomUUID().toString().replace("-", "");
+            User user = new User();
+            user.setUserId(userId);
+            user.setTenantId(tenantId);
+            user.setTenantCode(tenant.getTenantCode());
+            user.setAccount(openid);
+            user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+            user.setRole(resolvedRole);
+            user.setStatus("pending");
+            userMapper.insert(user);
+            wxUseridService.bind(openid, userId, tenantId, "auto_register");
+
+            String token = jwtUtil.generateToken(tenantId, userId, resolvedRole);
+            String refreshToken = jwtUtil.generateRefreshToken(tenantId, userId);
+            HashMap<String, Object> resultMap = new HashMap<>();
+            resultMap.put("userId", userId);
+            resultMap.put("account", openid);
+            resultMap.put("name", null);
+            resultMap.put("role", resolvedRole);
+            resultMap.put("token", token);
+            resultMap.put("tenantCode", tenant.getTenantCode());
+            resultMap.put("refreshToken", refreshToken);
+            resultMap.put("status", "pending");
+            resultMap.put("code", 200);
+            refreshTokenService.saveNewToken(userId, refreshToken, jwtUtil.getRefreshExpireTime());
+            return Result.success(resultMap, "注册成功，请等待管理员审核");
+        } finally {
+            TenantContext.clear();
+        }
+    }
+
+    /**
+     * 解除微信绑定。
+     *
+     * <p><b>{@code auto_register} 一律拒绝</b>：这类账号 account=openid、password=随机密文，
+     * 解绑后用户既没有密码也失去了微信入口 —— 账号<b>永久无法登录</b>，变成僵尸数据。
+     * 需要解绑的场景应先让用户设置登录密码，再放行。
+     */
+    /**
+     * 查询当前账号的微信绑定状态（web 端「微信绑定」菜单用）。
+     *
+     * <p>只回 {@code bound} 与 {@code bindSource} —— <b>不回 openid</b>：
+     * openid 属于凭证级信息，前端拿到也没有用途，没必要暴露。
+     */
+    public Result<HashMap<String, Object>> wechatStatus(String userId) {
+        WxUserid binding = wxUseridService.findByUserId(userId);
+        HashMap<String, Object> map = new HashMap<>();
+        map.put("bound", binding != null);
+        map.put("bindSource", binding == null ? null : binding.getBindSource());
+        return Result.success(map, "查询成功");
+    }
+
+    public Result<Boolean> unbindWechat(String userId) {
+        WxUserid binding = wxUseridService.findByUserId(userId);
+        if (binding == null) {
+            return Result.fail(404, "未绑定微信");
+        }
+        if ("auto_register".equals(binding.getBindSource())) {
+            return Result.fail(400, "微信注册的账号需先设置登录密码，方可解绑");
+        }
+        wxUseridService.unbind(userId);
+        return Result.success(true, "已解绑");
+    }
+
 
     /**
      * 取当前请求IP（会话记录用，取不到返回null不影响主流程）

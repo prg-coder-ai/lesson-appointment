@@ -16,18 +16,9 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
--- Current Database: `lesson_appointment`
---
-
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `lesson_appointment` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
-
-USE `lesson_appointment`;
-
---
 -- Table structure for table `appointment`
 --
 
-DROP TABLE IF EXISTS `appointment`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `appointment` (
@@ -44,14 +35,13 @@ CREATE TABLE `appointment` (
   KEY `idx_tenant_id` (`tenant_id`),
   KEY `idx_appt_datetime_status` (`appointment_datetime`,`status`),
   KEY `idx_appt_booking_id` (`booking_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1122 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='棰勭害鏃堕棿鍒楄〃';
+) ENGINE=InnoDB AUTO_INCREMENT=1127 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='棰勭害鏃堕棿鍒楄〃';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `audit_log`
 --
 
-DROP TABLE IF EXISTS `audit_log`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `audit_log` (
@@ -82,14 +72,13 @@ CREATE TABLE `audit_log` (
   KEY `idx_resource` (`resource_type`,`resource_id`),
   KEY `idx_created_at` (`created_at`),
   KEY `idx_tenant_id` (`tenant_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2108963165763559426 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='瀹¤?鏃ュ織琛';
+) ENGINE=InnoDB AUTO_INCREMENT=2109688323012386818 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='瀹¤?鏃ュ織琛';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `bak_appointment_20261008`
 --
 
-DROP TABLE IF EXISTS `bak_appointment_20261008`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `bak_appointment_20261008` (
@@ -110,7 +99,6 @@ CREATE TABLE `bak_appointment_20261008` (
 -- Table structure for table `bak_booking_20261008`
 --
 
-DROP TABLE IF EXISTS `bak_booking_20261008`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `bak_booking_20261008` (
@@ -129,7 +117,6 @@ CREATE TABLE `bak_booking_20261008` (
 -- Table structure for table `bak_notif_log_20261008`
 --
 
-DROP TABLE IF EXISTS `bak_notif_log_20261008`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `bak_notif_log_20261008` (
@@ -157,7 +144,6 @@ CREATE TABLE `bak_notif_log_20261008` (
 -- Table structure for table `bak_notification_dispatch_log_20261008`
 --
 
-DROP TABLE IF EXISTS `bak_notification_dispatch_log_20261008`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `bak_notification_dispatch_log_20261008` (
@@ -189,7 +175,6 @@ CREATE TABLE `bak_notification_dispatch_log_20261008` (
 -- Table structure for table `booking`
 --
 
-DROP TABLE IF EXISTS `booking`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `booking` (
@@ -216,7 +201,6 @@ CREATE TABLE `booking` (
 -- Table structure for table `course`
 --
 
-DROP TABLE IF EXISTS `course`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `course` (
@@ -243,7 +227,6 @@ CREATE TABLE `course` (
 -- Table structure for table `course_check_in`
 --
 
-DROP TABLE IF EXISTS `course_check_in`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `course_check_in` (
@@ -262,7 +245,6 @@ CREATE TABLE `course_check_in` (
 -- Table structure for table `course_evaluation`
 --
 
-DROP TABLE IF EXISTS `course_evaluation`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `course_evaluation` (
@@ -288,7 +270,6 @@ CREATE TABLE `course_evaluation` (
 -- Table structure for table `course_feedback`
 --
 
-DROP TABLE IF EXISTS `course_feedback`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `course_feedback` (
@@ -315,7 +296,6 @@ CREATE TABLE `course_feedback` (
 -- Table structure for table `course_notify_rule`
 --
 
-DROP TABLE IF EXISTS `course_notify_rule`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `course_notify_rule` (
@@ -329,14 +309,13 @@ CREATE TABLE `course_notify_rule` (
   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_notify_rule_tenant_course` (`tenant_id`,`course_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='课程上课通知规则（规则头；整组覆盖）';
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='课程上课通知规则（规则头；整组覆盖）';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `course_notify_rule_point`
 --
 
-DROP TABLE IF EXISTS `course_notify_rule_point`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `course_notify_rule_point` (
@@ -353,14 +332,13 @@ CREATE TABLE `course_notify_rule_point` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_point_rule_seq` (`rule_id`,`seq`),
   KEY `idx_point_rule` (`rule_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='课程上课通知时间点（明细行）';
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='课程上课通知时间点（明细行）';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `course_refund_rule`
 --
 
-DROP TABLE IF EXISTS `course_refund_rule`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `course_refund_rule` (
@@ -386,7 +364,6 @@ CREATE TABLE `course_refund_rule` (
 -- Table structure for table `course_schedule`
 --
 
-DROP TABLE IF EXISTS `course_schedule`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `course_schedule` (
@@ -419,7 +396,6 @@ CREATE TABLE `course_schedule` (
 -- Table structure for table `course_template`
 --
 
-DROP TABLE IF EXISTS `course_template`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `course_template` (
@@ -444,7 +420,6 @@ CREATE TABLE `course_template` (
 -- Table structure for table `notification_dispatch_log`
 --
 
-DROP TABLE IF EXISTS `notification_dispatch_log`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `notification_dispatch_log` (
@@ -469,14 +444,13 @@ CREATE TABLE `notification_dispatch_log` (
   UNIQUE KEY `uk_dispatch_once` (`appointment_id`,`seq`,`receiver_user_id`,`dedup_key`),
   KEY `idx_dispatch_appointment` (`appointment_id`),
   KEY `idx_dispatch_expect` (`expect_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=227 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='通知发送流水（自动发送同档同人仅一次，手动不受限）';
+) ENGINE=InnoDB AUTO_INCREMENT=269 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='通知发送流水（自动发送同档同人仅一次，手动不受限）';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `sys_industry`
 --
 
-DROP TABLE IF EXISTS `sys_industry`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_industry` (
@@ -496,7 +470,6 @@ CREATE TABLE `sys_industry` (
 -- Table structure for table `sys_metric_hourly`
 --
 
-DROP TABLE IF EXISTS `sys_metric_hourly`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_metric_hourly` (
@@ -515,14 +488,13 @@ CREATE TABLE `sys_metric_hourly` (
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_hour` (`hour_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=211 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='绯荤粺鎸囨爣灏忔椂鑱氬悎';
+) ENGINE=InnoDB AUTO_INCREMENT=221 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='绯荤粺鎸囨爣灏忔椂鑱氬悎';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `sys_metric_sample`
 --
 
-DROP TABLE IF EXISTS `sys_metric_sample`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_metric_sample` (
@@ -544,14 +516,13 @@ CREATE TABLE `sys_metric_sample` (
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_sample_time` (`sample_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=12955 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='绯荤粺鎸囨爣閲囨牱鏄庣粏';
+) ENGINE=InnoDB AUTO_INCREMENT=13540 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='绯荤粺鎸囨爣閲囨牱鏄庣粏';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `sys_package_template`
 --
 
-DROP TABLE IF EXISTS `sys_package_template`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_package_template` (
@@ -578,7 +549,6 @@ CREATE TABLE `sys_package_template` (
 -- Table structure for table `sys_system_config`
 --
 
-DROP TABLE IF EXISTS `sys_system_config`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_system_config` (
@@ -603,7 +573,6 @@ CREATE TABLE `sys_system_config` (
 -- Table structure for table `sys_tenant`
 --
 
-DROP TABLE IF EXISTS `sys_tenant`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_tenant` (
@@ -633,7 +602,6 @@ CREATE TABLE `sys_tenant` (
 -- Table structure for table `sys_tenant_package`
 --
 
-DROP TABLE IF EXISTS `sys_tenant_package`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_tenant_package` (
@@ -662,7 +630,6 @@ CREATE TABLE `sys_tenant_package` (
 -- Table structure for table `sys_tenant_stats_monthly`
 --
 
-DROP TABLE IF EXISTS `sys_tenant_stats_monthly`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_tenant_stats_monthly` (
@@ -685,7 +652,6 @@ CREATE TABLE `sys_tenant_stats_monthly` (
 -- Table structure for table `sys_term`
 --
 
-DROP TABLE IF EXISTS `sys_term`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_term` (
@@ -712,7 +678,6 @@ CREATE TABLE `sys_term` (
 -- Table structure for table `sys_user_session`
 --
 
-DROP TABLE IF EXISTS `sys_user_session`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_user_session` (
@@ -731,14 +696,13 @@ CREATE TABLE `sys_user_session` (
   KEY `idx_tenant_status` (`tenant_id`,`status`),
   KEY `idx_last_active` (`last_active`),
   KEY `idx_user` (`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=176 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='鐢ㄦ埛浼氳瘽琛?紙鍦ㄧ嚎缁熻?锛';
+) ENGINE=InnoDB AUTO_INCREMENT=196 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='鐢ㄦ埛浼氳瘽琛?紙鍦ㄧ嚎缁熻?锛';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `teacher_available_time`
 --
 
-DROP TABLE IF EXISTS `teacher_available_time`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `teacher_available_time` (
@@ -768,7 +732,6 @@ CREATE TABLE `teacher_available_time` (
 -- Table structure for table `teacher_certificate`
 --
 
-DROP TABLE IF EXISTS `teacher_certificate`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `teacher_certificate` (
@@ -791,7 +754,6 @@ CREATE TABLE `teacher_certificate` (
 -- Table structure for table `teacher_professional`
 --
 
-DROP TABLE IF EXISTS `teacher_professional`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `teacher_professional` (
@@ -825,7 +787,6 @@ CREATE TABLE `teacher_professional` (
 -- Table structure for table `teacher_published_profile`
 --
 
-DROP TABLE IF EXISTS `teacher_published_profile`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `teacher_published_profile` (
@@ -855,7 +816,6 @@ CREATE TABLE `teacher_published_profile` (
 -- Table structure for table `user`
 --
 
-DROP TABLE IF EXISTS `user`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `user` (
@@ -890,7 +850,6 @@ CREATE TABLE `user` (
 -- Table structure for table `user_refresh_token`
 --
 
-DROP TABLE IF EXISTS `user_refresh_token`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `user_refresh_token` (
@@ -903,7 +862,28 @@ CREATE TABLE `user_refresh_token` (
   PRIMARY KEY (`id`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_refresh_token` (`refresh_token`)
-) ENGINE=InnoDB AUTO_INCREMENT=235 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='鐢ㄦ埛鍒锋柊user_refresh_tokenToken鎸佷箙鍖栬〃';
+) ENGINE=InnoDB AUTO_INCREMENT=255 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='鐢ㄦ埛鍒锋柊user_refresh_tokenToken鎸佷箙鍖栬〃';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `wx_userid`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `wx_userid` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '自增主键',
+  `wx_openid` varchar(64) NOT NULL COMMENT '微信 openid（全局唯一，不随租户隔离）',
+  `user_id` varchar(36) NOT NULL COMMENT '关联的系统用户 user.user_id',
+  `tenant_id` bigint NOT NULL COMMENT '用户所属租户（冗余，便于按租户统计）',
+  `bind_source` varchar(20) NOT NULL DEFAULT 'manual' COMMENT '关联来源：manual=已有账号绑定 / auto_register=微信直接注册',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_wx_openid` (`wx_openid`) COMMENT '一个微信最多关联一个账号',
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_tenant_id` (`tenant_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='微信 openid 与用户 ID 关联表';
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -915,4 +895,4 @@ CREATE TABLE `user_refresh_token` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-10-11  1:09:53
+-- Dump completed on 2026-10-13  2:26:36

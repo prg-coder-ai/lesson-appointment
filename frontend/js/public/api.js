@@ -496,6 +496,68 @@ const userStr = STORE.getItem('currentUser');
   }
 
 
+
+  // —— 微信绑定状态与解绑（web 端）——
+  // Web 端拿不到 wx.login() 的 code，所以只能「查状态 + 解绑」；绑定动作在小程序侧完成。
+  // auto_register（微信直接注册）的账号后端会拒绝解绑并回 400，这里原样展示后端文案。
+  async function getWechatBindStatus() {
+    try {
+      // 与 changePasswordAPI 保持一致：用本文件的 request 封装 + 相对路径
+      const res = await request({ url: '/auth/wechat-status', method: 'get' });
+      return { bound: !!(res && res.bound), bindSource: (res && res.bindSource) || '' };
+    } catch (e) {
+      return { bound: false, bindSource: '', error: true };
+    }
+  }
+
+  async function doUnbindWechat() {
+    try {
+      await request({ url: '/auth/unbind-wechat', method: 'post' });
+      return { ok: true, msg: '' };
+    } catch (e) {
+      return { ok: false, msg: (e && e.message) || '解绑失败' };
+    }
+  }
+
+  async function showWechatBindDialog() {
+    const st = await getWechatBindStatus();
+    const tip = st.error
+      ? '（查询失败，请稍后重试）'
+      : (st.bound
+          ? (st.bindSource === 'auto_register'
+              ? '已绑定：该账号由微信直接注册，解绑后将无法登录，如需解绑请先设置登录密码。'
+              : '已绑定：下次在小程序中可免输入直接进入。')
+          : '未绑定：请到微信小程序中登录时勾选「允许微信登录」。');
+    const canUnbind = st.bound && st.bindSource !== 'auto_register';
+    const box = document.createElement('div');
+    box.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,.35);z-index:2000;display:flex;align-items:center;justify-content:center;';
+    const card = document.createElement('div');
+    card.style.cssText = 'background:#fff;border-radius:8px;padding:20px;width:380px;max-width:90vw;';
+    card.innerHTML =
+      '<h3 style="margin:0 0 12px;font-size:16px;">微信绑定</h3>' +
+      '<div style="font-size:14px;color:#555;line-height:1.6;">' + String(tip).replace(/</g, '&lt;') + '</div>' +
+      '<div style="margin-top:18px;text-align:right;">' +
+      '<button class="btn btn-gray" data-act="wx-close" style="margin-right:8px;">关闭</button>' +
+      (canUnbind ? '<button class="btn btn-danger" data-act="wx-unbind">解绑微信</button>' : '') +
+      '</div>';
+    box.appendChild(card);
+    document.body.appendChild(box);
+    box.addEventListener('click', async function(e) {
+      const act = e.target && e.target.getAttribute && e.target.getAttribute('data-act');
+      if (act === 'wx-close' || e.target === box) { document.body.removeChild(box); return; }
+      if (act === 'wx-unbind') {
+        const r = await doUnbindWechat();
+        if (r.ok) {
+          document.body.removeChild(box);
+          if (typeof window.showToast === 'function') window.showToast('已解绑');
+          else alert('已解绑');
+        } else {
+          alert(r.msg, '解绑失败');
+        }
+      }
+    });
+  }
+
   function addChangePasswordButton(){
     // 找到一个合适的容器插入按钮（例如头部或用户菜单），此处假设有id="user-menu"
   let menu = document.getElementById('user-name');
@@ -527,6 +589,22 @@ const userStr = STORE.getItem('currentUser');
       showChangePasswordDialog();
     };
     dropdown.appendChild(changePwdItem);
+
+
+    // 菜单项 - 微信绑定（状态查看 + 解绑）
+    // Web 端没有 wx.login()，无法发起绑定；能做的是查看绑定状态与解绑（解绑后小程序侧需重新绑定）。
+    const wxBindItem = document.createElement('div');
+    wxBindItem.textContent = '微信绑定';
+    wxBindItem.style.padding = '10px 16px';
+    wxBindItem.style.cursor = 'pointer';
+    wxBindItem.onmouseover = function() { wxBindItem.style.background = "#f5f5f5"; };
+    wxBindItem.onmouseout = function() { wxBindItem.style.background = "#fff"; };
+    wxBindItem.onclick = function(e) {
+      e.stopPropagation();
+      dropdown.style.display = 'none';
+      showWechatBindDialog();
+    };
+    dropdown.appendChild(wxBindItem);
 
     // 菜单项 - 退出登录
     const logoutItem = document.createElement('div');

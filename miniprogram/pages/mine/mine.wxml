@@ -43,6 +43,7 @@
   </view>
 
   <view class="card">
+    <view class="row link" bindtap="onUnbindWechat"><text class="rk">微信绑定</text><text class="rv">解绑 ›</text></view>
     <view class="row link" bindtap="onSwitch"><text class="rk">切换租户</text><text class="rv">解绑并重新登录 ›</text></view>
     <view class="row link danger" bindtap="onLogout"><text class="rk">退出登录</text><text class="rv">›</text></view>
   </view>

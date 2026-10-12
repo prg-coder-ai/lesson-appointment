@@ -5,6 +5,7 @@ import  com.reservation.dto.RefreshDTO;
 import com.reservation.dto.RefreshTokenPO;
 import com.reservation.dto.TokenDTO;
 import com.reservation.dto.WeChatCodeDTO;
+import com.reservation.dto.WeChatRegisterDTO;
 import com.reservation.dto.WeChatSession;
 
 import com.reservation.common.Result;
@@ -230,10 +231,17 @@ UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthent
         else  return  Result.success( false,"kick failed"     );
     }
 
-    /* [微信登录/绑定端点-暂未启用 2026-09-20 屏蔽：user 表无 wx_openid 列，相关 Service 方法已屏蔽]
+
+    /**
      * 微信静默登录（免登录公开接口，不带 Bearer）。
-     * 小程序 wx.login() 拿 code → 后端 code2Session 换 openid → 按 openid 找已绑定账号发 token。
-     * 返回结构与 /login 完全一致；未绑定返回 code=1001，前端静默降级走账号密码登录。
+     *
+     * <p>小程序 {@code wx.login()} 拿 code → 后端 {@code code2Session} 换 openid →
+     * 按 openid 找已绑定账号发 token。返回结构与 {@code /login} 完全一致。
+     *
+     * <p><b>2026-10-13 解除屏蔽</b>：原实现按 {@code user.wx_openid} 列查，而该列并不存在
+     * （老方案 {@code ALTER TABLE user ADD wx_openid} 从未执行，故于 2026-09-20 屏蔽）。
+     * 现改为独立的 {@code wx_userid} 表，<b>user 表零改动</b>。
+     */
     @PostMapping("/wechat-login")
     @ResponseBody
     public Result<HashMap<String, Object>> wechatLogin(@Validated @RequestBody WeChatCodeDTO dto) {
@@ -246,8 +254,10 @@ UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthent
         return userService.wechatLogin(session.getOpenid());
     }
 
+    /**
      * 绑定微信（需登录：带当前会话 Bearer）。
      * 密码登录成功后调用，把当前账号与微信 openid 绑定，下次即可静默登录。
+     */
     @PostMapping("/bind-wechat")
     @ResponseBody
     public Result<Boolean> bindWechat(@Validated @RequestBody WeChatCodeDTO dto,
@@ -268,7 +278,62 @@ UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthent
         }
         return userService.bindWechat(userId, session.getOpenid());
     }
-     [微信端点屏蔽结束] */
+
+    /**
+     * 微信直接注册（场景 C，免登录公开接口）：新用户扫码即注册，无需填写任何信息。
+     *
+     * <p>入参带 {@code tenantCode}（来自推广/分享链接的 tcode），角色限 student / teacher，
+     * 注册后 {@code status=pending} 需租户管理员审批。
+     */
+    @PostMapping("/wechat-register")
+    @ResponseBody
+    public Result<HashMap<String, Object>> wechatRegister(@Validated @RequestBody WeChatRegisterDTO dto) {
+        WeChatSession session = weChatService.code2Session(dto.getCode());
+        if (session.getOpenid() == null) {
+            // 同 /wechat-login：用 1001 而非 401，让前端静默降级而不是被踢回登录页
+            return Result.fail(1001, "微信授权失败：" + (session.getErrmsg() == null ? "未知错误" : session.getErrmsg()));
+        }
+        return userService.wechatRegister(session.getOpenid(), dto.getTenantCode(), dto.getRole());
+    }
+
+    /**
+     * 查询当前账号的微信绑定状态（需登录，web 端「微信绑定」菜单用）。
+     * 只回 bound / bindSource，不回 openid。
+     */
+    @GetMapping("/wechat-status")
+    @ResponseBody
+    public Result<HashMap<String, Object>> wechatStatus(@RequestHeader(value = "Authorization", required = false) String token) {
+        if (token == null || !token.startsWith("Bearer ")) {
+            return Result.unauthorized("请先登录");
+        }
+        String userId;
+        try {
+            userId = jwtUtil.getUserIdFromToken(token);
+        } catch (Exception e) {
+            return Result.unauthorized("登录已过期，请重新登录");
+        }
+        return userService.wechatStatus(userId);
+    }
+
+    /**
+     * 解绑微信（需登录）。
+     * {@code auto_register}（微信直接注册）的账号会被拒绝 —— 详见 UserService#unbindWechat 的说明。
+     */
+    @PostMapping("/unbind-wechat")
+    @ResponseBody
+    public Result<Boolean> unbindWechat(@RequestHeader(value = "Authorization", required = false) String token) {
+        if (token == null || !token.startsWith("Bearer ")) {
+            return Result.unauthorized("请先登录");
+        }
+        String userId;
+        try {
+            userId = jwtUtil.getUserIdFromToken(token);
+        } catch (Exception e) {
+            return Result.unauthorized("登录已过期，请重新登录");
+        }
+        return userService.unbindWechat(userId);
+    }
+
     /**
      * 密码找回（验证码验证），对应设计2.2.1 接口：/api/v1/user/password/forgot
      * ---》用户密码忘记后，通过管理员重置该用户的密码，然后用户登录后自行修改密码
