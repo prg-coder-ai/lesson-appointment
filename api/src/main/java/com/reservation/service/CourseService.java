@@ -15,6 +15,8 @@ import com.reservation.mapper.CourseTemplateMapper;
 import com.reservation.mapper.CourseMapper;
 import com.reservation.mapper.CourseScheduleMapper;
 import com.reservation.mapper.BookingMapper;
+import com.reservation.mapper.CourseNotifyRuleMapper;
+import com.reservation.mapper.CourseNotifyRulePointMapper;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,6 +56,10 @@ public class CourseService   {
     private CourseScheduleMapper courseScheduleMapper;
     @Autowired
     private BookingMapper bookingMapper;
+    @Autowired
+    private CourseNotifyRuleMapper courseNotifyRuleMapper;
+    @Autowired
+    private CourseNotifyRulePointMapper courseNotifyRulePointMapper;
 
 /**
      * 分页查询课程列表
@@ -149,10 +155,23 @@ public class CourseService   {
 //          deleteTemplateById
         public int deleteTemplate(String Id) {
             log.info("删除课程模板开始, templateId={}", Id);
-            // 先把该模板下每门课程（→排期→预订→课次）整条链清掉，再删模板。
+            // 先把该模板下每门课程（→通知规则→排期→预订→课次）整条链清掉，再删模板。
             // 原先只有一句 DELETE，课程由数据库 fk_course_template 的 CASCADE 连带删除，
             // 而排期再往下的 booking / appointment 无人管 —— 删一次模板就制造一批悬空课次。
             // 级联改由程序显式逐层执行（报告根因 C）。
+            // 2026-10-12 补：原先只 run(TEMPLATE_DELETE)，而那条规则只删 course 这一层，
+            // 于是通知规则随课程消失成为孤儿（「通知规则」列表里回退显示 course_id）。
+            // 改为与 deleteByTemplateId 一致：逐门课程走一遍 SCENARIO_COURSE_DELETE。
+            List<Course> courses = courseMapper.selectList(
+                    Wrappers.<Course>lambdaQuery().eq(Course::getTemplateId, Id));
+            if (courses != null) {
+                for (Course c : courses) {
+                    if (c.getCourseId() != null && !c.getCourseId().trim().isEmpty()) {
+                        deleteNotifyRulePointsOfCourse(c.getCourseId());
+                        cascadeDeleteSchedulesOfCourse(c.getCourseId());
+                    }
+                }
+            }
             cascadeService.run(CascadeRules.SCENARIO_TEMPLATE_DELETE, Id);
             int rows = courseTemplateMapper.deleteTemplate(Id);
             log.info("删除课程模板结束, templateId={}, 影响行数={}", Id, rows);
@@ -284,6 +303,10 @@ public class CourseService   {
  
     public int deleteById(String courseId) {
         log.info("删除课程开始, courseId={}", courseId);
+        // 通知规则明细的父键是 rule_id（与 course_id 类型不同），规则表跨不了这一层，
+        // 故在此先展开删除；规则头由 SCENARIO_COURSE_DELETE 的 DELETE 规则处置。
+        // 顺序不可颠倒：先删明细、再让级联删规则头，否则会留下悬空明细行。
+        deleteNotifyRulePointsOfCourse(courseId);
         // 先删其排期（并由排期规则展开预订与课次），再删课程本身。
         // 原先只有一句 DELETE，排期由数据库 ON DELETE CASCADE 连带删除，
         // 而 course_schedule 下的 booking 又被 CASCADE、再往下的 appointment 无人管，
@@ -297,6 +320,37 @@ public class CourseService   {
             tenantQuotaService.release(TenantContext.getTenantId(), TenantQuotaService.COURSE, rows);
         }
         return rows;
+    }
+
+    /**
+     * 删一门课程前，先删掉它通知规则的「明细行」。
+     *
+     * <p>为什么只删明细、不删规则头：{@link CascadeRules#SCENARIO_COURSE_DELETE} 里已把
+     * {@code course.course_id → course_notify_rule.course_id} 登记为 DELETE，规则头由引擎负责；
+     * 而明细的父键是 {@code rule_id}（不是 course_id），一条规则只认一个父键，
+     * 跨层取键的活由调用方做——这是本项目「规则表只管这一步内部子表怎么处置」的一贯分工。
+     *
+     * <p>必须排在级联删规则头<b>之前</b>调用：否则规则头先被删掉，这里就查不到 rule_id 集合了。
+     */
+    private void deleteNotifyRulePointsOfCourse(String courseId) {
+        if (courseId == null || courseId.trim().isEmpty()) {
+            return;
+        }
+        List<CourseNotifyRule> rules = courseNotifyRuleMapper.selectList(
+                Wrappers.<CourseNotifyRule>lambdaQuery().eq(CourseNotifyRule::getCourseId, courseId));
+        if (rules == null || rules.isEmpty()) {
+            return;
+        }
+        List<Long> ruleIds = rules.stream()
+                .map(CourseNotifyRule::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        if (ruleIds.isEmpty()) {
+            return;
+        }
+        int points = courseNotifyRulePointMapper.delete(
+                Wrappers.<CourseNotifyRulePoint>lambdaQuery().in(CourseNotifyRulePoint::getRuleId, ruleIds));
+        log.info("删课程前清理通知规则明细, courseId={}, 规则数={}, 明细行={}", courseId, ruleIds.size(), points);
     }
 
     /**
@@ -371,9 +425,10 @@ public class CourseService   {
         if (courses != null && !courses.isEmpty()) {
             for (Course c : courses) {
                 if (c.getCourseId() != null && !c.getCourseId().trim().isEmpty()) {
-                    // 逐门课程展开整条链（排期→预订→课次）：规则表里
+                    // 逐门课程展开整条链（通知规则 → 排期 → 预订 → 课次）：规则表里
                     // TEMPLATE_DELETE 只管"删课程"这一步，链上的其余层由调用方走，
                     // 否则删模板会只删到 course 一层就收工。
+                    deleteNotifyRulePointsOfCourse(c.getCourseId());
                     cascadeDeleteSchedulesOfCourse(c.getCourseId());
                 }
             }

@@ -143,7 +143,8 @@ public class NotifyRuleService {
             if (row.getCourseId() == null || row.getCourseId().isEmpty()) {
                 tenantDefault = row;
             } else {
-                result.add(toVO(row, courseNameMap.getOrDefault(row.getCourseId(), row.getCourseId()),
+                // 取不到课程名时给 null（**不回退 courseId**，见 toVO 的说明）
+                result.add(toVO(row, courseNameMap.get(row.getCourseId()),
                         pointMap.getOrDefault(row.getId(), Collections.emptyList())));
             }
         }
@@ -163,7 +164,8 @@ public class NotifyRuleService {
         String courseName = null;
         if (!cid.isEmpty()) {
             Course course = courseMapper.selectById(cid);
-            courseName = course == null ? cid : course.getCourseName();
+            // 课程已不存在时给 null，交给前端显示「课程已删除」——不回退 cid（见 toVO 的说明）
+            courseName = course == null ? null : course.getCourseName();
         }
         return toVO(row, courseName, points);
     }
@@ -735,9 +737,10 @@ public class NotifyRuleService {
         vo.setEnabled(rule.getEnabled());
         vo.setRemark(rule.getRemark());
         vo.setUpdateTime(rule.getUpdateTime());
-        vo.setCourseName(tenantDefault
-                ? "租户默认规则"
-                : (courseName == null || courseName.isEmpty() ? rule.getCourseId() : courseName));
+        // 查不到课程名时**不再回退 courseId**（2026-10-12 改）：回退会让「课程」列直接显示
+        // 一长串 32 位 id，用户读不出这是哪门课。现在留 null，由前端按「课程作用域 + 无名称」
+        // 判为课程已删除并给出可读文案（courseId 照常返回，供排查与再次保存使用）。
+        vo.setCourseName(tenantDefault ? "租户默认规则" : courseName);
         vo.setPoints(toPointVOs(points));
         vo.setSummary(summary(points));
         return vo;
