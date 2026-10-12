@@ -63,9 +63,11 @@ Page({
     categories: [],   // [{code,name}]；首项为「不分类」(code='')
     catIndex: 0,
     categoryCode: '',
-    sending: false
+    sending: false,
+    // 从其他页面带参进入时的接收人预填提示（如「用户管理 → 发消息」）
+    prefillHint: ''
   },
-  onLoad() {
+  onLoad(options) {
     const u = requireAuth();
     if (!u) return;
     if (!canSend(u.role)) {
@@ -73,7 +75,22 @@ Page({
       setTimeout(() => wx.navigateBack(), 600);
       return;
     }
-    this.setData({ role: u.role, scopes: composeScopes(u.role) });
+    // 带参进入（?toUserId=&toName=）：直接切到「指定用户ID」模式并预填接收人。
+    // 输入框只预填**裸 ID**，姓名放 prefillHint —— 不能预填「姓名:ID」：
+    // parseIds 以空白/逗号切分，姓名里只要带空格（如英文名 "John Doe"）就会被切碎，
+    // 变成给一个叫 "John" 的不存在用户发消息；提示行已能满足「核对收件人是谁」。
+    const toUserId = (options && options.toUserId) || '';
+    const toName = (options && options.toName) || '';
+    const prefill = toUserId;
+    this.setData({
+      role: u.role,
+      scopes: composeScopes(u.role),
+      mode: prefill ? 'specific' : 'scope',
+      idsText: prefill,
+      prefillHint: toUserId
+        ? ('已指定接收人：' + (toName || toUserId) + '（' + toUserId + '）')
+        : ''
+    });
     this.syncTenant();
     this.loadCategories();
   },

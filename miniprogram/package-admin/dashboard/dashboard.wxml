@@ -30,15 +30,23 @@
       </view>
     </view>
 
-    <view class="section-title">待处理</view>
+    <view class="section-title">待审核</view>
     <view class="card">
       <view class="row" bindtap="goAudit" data-status="booking">
-        <text class="rk">预约待确认</text>
+        <text class="rk">预订待确认</text>
         <text class="rv">{{pending.booking}}</text>
       </view>
       <view class="row" bindtap="goAudit" data-status="cancelling">
-        <text class="rk">取消待确认</text>
+        <text class="rk">预订取消待确认</text>
         <text class="rv">{{pending.cancelling}}</text>
+      </view>
+      <view class="row">
+        <text class="rk">{{terms.student}}改期待确认</text>
+        <text class="rv">{{pending.rescheduleStudent}}</text>
+      </view>
+      <view class="row">
+        <text class="rk">{{terms.teacher}}改期待确认</text>
+        <text class="rv">{{pending.rescheduleTeacher}}</text>
       </view>
       <view class="row">
         <text class="rk">今日{{terms.course}}</text>

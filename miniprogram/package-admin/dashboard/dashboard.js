@@ -16,7 +16,7 @@ Page(withTerms({
     stat: {
       teacher: null, student: null, course: null, booking: null, appoint: null
     },
-    pending: { booking: 0, cancelling: 0, today: 0 }
+    pending: { booking: 0, cancelling: 0, today: 0, rescheduleStudent: 0, rescheduleTeacher: 0 }
   },
   onLoad() {
     const u = requireAuth();
@@ -49,10 +49,13 @@ Page(withTerms({
       appoint: appointStat ? safeNum(appointStat.appMonth) : null
     };
 
-    // 待审核预约计数：用分页接口取 total（status 过滤），不拉全量
-    const [bk, cn] = await Promise.all([
+    // 待审核计数：booking 整单级（预订/取消）+ appointment 课次级改期申请（学生 cancelling / 教师 t-cancelling）。
+    // 与网页版「数据总览 → 待审核」卡片同口径（2026-10-12 对齐）；均用分页接口取 total，不拉全量。
+    const [bk, cn, rs, rt] = await Promise.all([
       this.countBooking('booking').catch(() => 0),
-      this.countBooking('cancelling').catch(() => 0)
+      this.countBooking('cancelling').catch(() => 0),
+      this.countAppointment('cancelling').catch(() => 0),
+      this.countAppointment('t-cancelling').catch(() => 0)
     ]);
 
     this.setData({
@@ -61,6 +64,8 @@ Page(withTerms({
       pending: {
         booking: bk,
         cancelling: cn,
+        rescheduleStudent: rs,
+        rescheduleTeacher: rt,
         today: Array.isArray(today) ? today.length : (today && typeof today.count === 'number' ? today.count : (today && typeof today === 'number' ? today : 0))
       }
     });
@@ -69,6 +74,20 @@ Page(withTerms({
   async countBooking(status) {
     const res = await request({
       url: ENDPOINTS.BOOKING_PAGE, method: 'POST', customErrorMsg: false,
+      data: { status, pageNum: 1, pageSize: 1 }
+    });
+    if (!res) return 0;
+    if (typeof res.total === 'number') return res.total;
+    if (Array.isArray(res)) return res.length;
+    if (res.rows && Array.isArray(res.rows)) return res.rows.length;
+    return 0;
+  },
+
+  // 课次级改期申请计数：POST /course/appointment/listByPage 取 PageResult.total
+  // 学生请假/改期申请 = 'cancelling'；教师发起改期申请 = 't-cancelling'（与 booking 整单级 cancelling 正交）
+  async countAppointment(status) {
+    const res = await request({
+      url: ENDPOINTS.APPOINTMENT_PAGE, method: 'POST', customErrorMsg: false,
       data: { status, pageNum: 1, pageSize: 1 }
     });
     if (!res) return 0;

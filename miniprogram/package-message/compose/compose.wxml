@@ -33,6 +33,7 @@
 
   <!-- 指定用户ID -->
   <block wx:else>
+    <view wx:if="{{prefillHint}}" class="prefill">{{prefillHint}}</view>
     <view class="field">
       <view class="label">指定用户ID</view>
       <textarea class="textarea" placeholder="多个用逗号/空格分隔；支持「名称:用户ID」格式" value="{{idsText}}" bindinput="onIdsInput" />
