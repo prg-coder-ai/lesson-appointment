@@ -227,9 +227,13 @@ public final class CascadeRules {
     );
 
     /**
-     * 删课程：只删「排期」这一层；预订与课次由调用方先按 schedule_id 取 booking_id 集合，
+     * 删课程：删「排期」与「通知规则」两层；预订与课次由调用方先按 schedule_id 取 booking_id 集合，
      * 逐条走 {@link #SCENARIO_BOOKING_DELETE}，再回到本场景删排期，最后调用方删课程。
      * 与 {@link #SCENARIO_TEMPLATE_DELETE} 同理，链上每层父键类型不同，不在规则表里跨层展开。
+     *
+     * <p><b>通知规则为什么在此登记（2026-10-12 补）</b>：原先这条父子关系漏登记，
+     * 删课程后 {@code course_notify_rule} 成为孤儿行；「通知规则」列表因查不到课程名，
+     * 会回退把 {@code course_id} 当名称显示（一长串 32 位 id）。补登记后由引擎自动清理。
      */
     private static final List<Rule> COURSE_DELETE_RULES = List.of(
             new Rule("course", "course_id", "appointment", "course_id",
@@ -237,7 +241,16 @@ public final class CascadeRules {
                     "占位：appointment 无 course_id 列，无法按课程直连"),
             new Rule("course", "course_id", "course_schedule", "course_id",
                     Action.DELETE, null,
-                    "删课程必须先删其排期——这是排期→预订→课次整条链的入口")
+                    "删课程必须先删其排期——这是排期→预订→课次整条链的入口"),
+            new Rule("course", "course_id", "course_notify_rule", "course_id",
+                    Action.DELETE, null,
+                    "删课程连带删其专属通知规则（只此一门课的覆盖配置，课程没了就没有存在意义）；"
+                            + "规则明细由调用方展开，见下一条占位说明"),
+            new Rule("course_notify_rule", "id", "course_notify_rule_point", "rule_id",
+                    Action.SKIP, null,
+                    "占位：本场景入参是 course_id，而明细的父键是 rule_id，类型不同、规则表无法跨层取键；"
+                            + "由调用方先按 course_id 取 rule_id 集合再删明细"
+                            + "（CourseService#deleteNotifyRulePointsOfCourse，必须排在规则头删除之前）")
     );
 
     private static final List<Rule> COURSE_FREEZE_RULES = List.of(

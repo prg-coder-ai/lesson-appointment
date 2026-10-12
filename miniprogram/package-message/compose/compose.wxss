@@ -21,6 +21,12 @@
 .send { margin-top: 8rpx; }
 .tip { text-align: center; font-size: 23rpx; color: #aaa; margin-top: 16rpx; padding: 0 10rpx; }
 
+/* 带参进入时的接收人预填提示（如「用户管理 → 发消息」） */
+.prefill {
+  background: #eef7ff; border: 1rpx solid #cfe6ff; border-radius: 12rpx;
+  padding: 16rpx 20rpx; margin-bottom: 18rpx; font-size: 25rpx; color: #1a6fd4;
+}
+
 .rcpt { background: #fff; border-radius: 16rpx; padding: 8rpx 24rpx; margin-bottom: 18rpx; }
 .rcpt-item { display: flex; align-items: center; padding: 18rpx 0; border-bottom: 1rpx solid #f0f2f5; }
 .rcpt-item:last-child { border-bottom: none; }

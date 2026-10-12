@@ -49,6 +49,20 @@ public class MessageManageController {
         return Result.success(manageService.messageTrace(messageId), "查询成功");
     }
 
+    /**
+     * 单条消息的接收人明细（分页）：谁收到、谁已读、何时读。
+     * 权限与 delivery-status 一致（管理员 / 发送者本人，非平台管理员限本租户），在 service 内断言。
+     * readState 可传 all / read / unread；返回的每行只有 userId + 投递与已读状态，
+     * 姓名/账号由前端到 /api/v1/user/briefs 批量补齐（本服务独立库，拿不到主库用户信息）。
+     */
+    @GetMapping("/{messageId}/recipients")
+    public Result<PageResult<Map<String, Object>>> recipients(@PathVariable Long messageId,
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "20") int pageSize,
+            @RequestParam(required = false) String readState) {
+        return Result.success(manageService.recipients(messageId, pageNum, pageSize, readState), "查询成功");
+    }
+
     /** 批量任务进度 */
     @GetMapping("/batch/{taskId}")
     public Result<Map<String, Object>> task(@PathVariable Long taskId) {

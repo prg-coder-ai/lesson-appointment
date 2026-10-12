@@ -2,15 +2,19 @@
 // 收件箱 / 收藏 / 回收站 / 已发 四标签页；关键词搜索；仅看未读；分类筛选；
 // 选择模式 + 批量已读/批量删除（回收站为彻底删除）；全部已读；单条操作（标已读/未读、收藏、删除移回收站、恢复、彻底删除）；
 // 发送通知入口；已发撤回 / 管理员彻底删除。小程序无 SSE，未读以轮询实现即时更新。
+// 行内「分类 / 优先级」显示的是**文案**不是编码（映射见 core/message.js 的 categoryText / priorityText）；
+// 视图模型同时保留 *Code 字段（priorityCode 供 .pri-XXX 着色、categoryCode 供分类筛选）。
 
 import { requireAuth } from '../../core/auth.js';
 import {
   getUnreadCount, getInbox, getCategories,
   getSent, getMessageList, toInboxItem, toSentItem, toManageItem,
+  getLedgerInbound, toLedgerItem,
   batchRead, batchDelete, batchPurge,
   restore, purge, getMessageIds,
   recallMessage, deleteSentGlobal,
-  canSend, isManager, setRead, toggleStar, deleteMessage
+  canSend, isManager, setRead, toggleStar, deleteMessage,
+  setCategoryDict, relabelCategory
 } from '../../core/message.js';
 import { confirm } from '../../core/ui.js';
 
@@ -31,7 +35,14 @@ Page({
     statusIndex: 0,
     senderOptions: ['全部', '教师', '管理员', '平台管理员', '系统'],
     senderValues: ['', 'teacher', 'admin', 'platform_admin', 'system'],
-    senderIndex: 0
+    senderIndex: 0,
+    // 管理页内两个台账（数据源与语义不同，见 below 的 manageTab）：
+    //   sent   = 本租户**发出**的消息（message-service，发送方视角）
+    //   ledger = 平台方发出的消息进了本租户哪些用户（主系统，接收方视角）
+    manageTab: 'sent',
+    ledgerReadOptions: ['全部', '只看还有未读', '已全部读完'],
+    ledgerReadValues: ['', 'unread', 'read'],
+    ledgerReadIndex: 0
   },
   onLoad(options) {
     const u = requireAuth();
@@ -69,7 +80,12 @@ Page({
       name: c.categoryName || c.categoryCode,
       level: c.categoryLevel || 1
     }));
-    this.setData({ categories: flat });
+    // 字典灌进 core/message.js：列表行要把 categoryCode 翻成分类名（已发/管理列表只给编码）
+    setCategoryDict(flat);
+    // 分类树与列表是并发拉的，首屏可能先于字典渲染；字典到手后把已渲染的行重贴一次文案，
+    // 否则只给 categoryCode 的行会停在「未分类」直到下次刷新。
+    const list = (this.data.list || []).map(relabelCategory);
+    this.setData({ categories: flat, list });
   },
 
   // 拉取当前文件夹列表 + 未读数。pull=true 处理下拉刷新收尾
@@ -88,14 +104,19 @@ Page({
           finished: rows.length < this.data.pageSize
         });
       } else if (this.data.folder === 'manage') {
-        // 管理：本租户全部已发（租户隔离由后端按登录上下文处理）
-        const box = await getMessageList({
-          status: this.data.statusValues[this.data.statusIndex] || undefined,
-          senderType: this.data.senderValues[this.data.senderIndex] || undefined,
-          pageNum: 1, pageSize: this.data.pageSize
-        });
+        const box = this.data.manageTab === 'ledger'
+          ? await getLedgerInbound({
+              readState: this.data.ledgerReadValues[this.data.ledgerReadIndex] || undefined,
+              pageNum: 1, pageSize: this.data.pageSize
+            })
+          // 发送台账：本租户全部已发（租户隔离由后端按登录上下文处理）
+          : await getMessageList({
+              status: this.data.statusValues[this.data.statusIndex] || undefined,
+              senderType: this.data.senderValues[this.data.senderIndex] || undefined,
+              pageNum: 1, pageSize: this.data.pageSize
+            });
         const rows = (box && box.rows) || [];
-        const list = rows.map(toManageItem);
+        const list = rows.map(this.data.manageTab === 'ledger' ? toLedgerItem : toManageItem);
         this.setData({
           list, total: (box && box.total) || rows.length, pageNum: 1,
           finished: rows.length < this.data.pageSize
@@ -137,11 +158,16 @@ Page({
         const box = await getSent(this.data.uid, { pageNum: next, pageSize: this.data.pageSize });
         rows = (box && box.rows) || [];
       } else if (this.data.folder === 'manage') {
-        const box = await getMessageList({
-          status: this.data.statusValues[this.data.statusIndex] || undefined,
-          senderType: this.data.senderValues[this.data.senderIndex] || undefined,
-          pageNum: next, pageSize: this.data.pageSize
-        });
+        const box = this.data.manageTab === 'ledger'
+          ? await getLedgerInbound({
+              readState: this.data.ledgerReadValues[this.data.ledgerReadIndex] || undefined,
+              pageNum: next, pageSize: this.data.pageSize
+            })
+          : await getMessageList({
+              status: this.data.statusValues[this.data.statusIndex] || undefined,
+              senderType: this.data.senderValues[this.data.senderIndex] || undefined,
+              pageNum: next, pageSize: this.data.pageSize
+            });
         rows = (box && box.rows) || [];
       } else {
         const box = await getInbox(this.data.uid, {
@@ -153,8 +179,9 @@ Page({
         rows = (box && box.rows) || [];
       }
       if (!rows.length) { this.setData({ finished: true }); return; }
+      const manageMapper = this.data.manageTab === 'ledger' ? toLedgerItem : toManageItem;
       const mapped = this.data.folder === 'sent' ? rows.map(toSentItem)
-        : (this.data.folder === 'manage' ? rows.map(toManageItem) : rows.map(toInboxItem));
+        : (this.data.folder === 'manage' ? rows.map(manageMapper) : rows.map(toInboxItem));
       this.setData({
         list: this.data.list.concat(mapped), pageNum: next,
         finished: rows.length < this.data.pageSize
@@ -225,6 +252,17 @@ Page({
   },
   onSenderChange(e) {
     this.setData({ senderIndex: Number(e.detail.value) || 0, pageNum: 1 });
+    this.refresh(false);
+  },
+  /** 管理页内切换台账：发送台账（本租户发出）/ 接收台账（平台方发来的） */
+  switchManageTab(e) {
+    const t = e.currentTarget.dataset.tab;
+    if (!t || t === this.data.manageTab) return;
+    this.setData({ manageTab: t, pageNum: 1, finished: false, list: [] });
+    this.refresh(false);
+  },
+  onLedgerReadChange(e) {
+    this.setData({ ledgerReadIndex: Number(e.detail.value) || 0, pageNum: 1 });
     this.refresh(false);
   },
 
@@ -368,7 +406,9 @@ Page({
 
   goDetail(e) {
     const id = e.currentTarget.dataset.id;
-    wx.navigateTo({ url: '/package-message/detail/detail?mid=' + id + '&from=' + this.data.folder });
+    // 接收台账的行在 message-service 侧看不到（发送方租户≠本租户，会 403），详情页必须走台账端点
+    const from = (this.data.folder === 'manage' && this.data.manageTab === 'ledger') ? 'ledger' : this.data.folder;
+    wx.navigateTo({ url: '/package-message/detail/detail?mid=' + id + '&from=' + from });
   },
   goCompose() {
     wx.navigateTo({ url: '/package-message/compose/compose' });

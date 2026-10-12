@@ -41,6 +41,9 @@ export const ENDPOINTS = {
   TENANT_NAME: (tCode) => `/api/v1/tenant/name?tenantCode=${encodeURIComponent(tCode)}`,
   // 租户只读信息（各角色可用）：GET 当前登录者所属租户（含 tenantCode / expireTime 租期 / packageId / status）
   TENANT_CURRENT: '/api/v1/tenant/current',
+  // 全部租户（PLATFORM_ONLY：后端 checkPlatformAdmin）。平台管理员用「租户ID → 公司名」映射，
+  // 例如消息详情里展示「发送方租户」；非平台管理员调用会被服务端挡下（403）。
+  TENANT_LIST: '/api/v1/tenant/list',
   // 租户套餐（各角色可用，传自己 tenantId）：GET 某租户实际持有的套餐（各资源限额与当前数量）
   TENANT_PACKAGE_BY_TENANT: (tid) => `/api/v1/tenant/package/tenant/${tid}`,
   // 套餐模板详情（admin/platform_admin 可查）：GET 套餐模板名称等，用于把 packageId 转成可读"套餐"名
@@ -50,9 +53,18 @@ export const ENDPOINTS = {
   // 后端 UserController：GET /page（租户隔离，按 role 过滤）；GET /platformPage（跨租户，仅平台管理员）
   USER_PAGE: '/api/v1/user/page',
   USER_PLATFORM_PAGE: '/api/v1/user/platformPage',
+  // 用户状态变更（POST { userId, status }）：status ∈ active/pending/frozen/inactive。
+  // 与 Web 端 admin-user.js 的 confirmTeacher/disableTeacher/deleteTeacher 同源（同一端点、同一取值域）。
+  USER_UPDATE_STATUS: '/api/v1/user/updateStatus',
+  // 管理员代管改密（POST ?userId=&password=[&oldPassword]）：管理员重置为默认密码走这条，免原密码；
+  // 不用 /auth/password/reset —— 那个端点硬编码固定值且平台管理员 tenantId=0 匹配不到行（见 UserService.resetPassword）。
   // 用户名（展示用）：GET 返回单值姓名字符串；与 frontend/js/public/api.js getUserNameById 同源。
   // 「今日课程」要把 studentId/teacherId 渲染成人名，靠它逐个解析（带缓存，避免重复请求）。
   USER_NAME: (id) => `/api/v1/user/name/${encodeURIComponent(id || '')}`,
+  // 批量用户摘要（消息中心「接收人列表」按 id 反查姓名/账号）：ids 传数组或逗号分隔串（服务端上限 200）。
+  // 权限 ALL_ROLES；account 仅管理员下发（服务端按 token 角色裁定，前端无法越权索取）。
+  // 在 api 主模块（/api/v1/user 单数），与 MSG_* 不同服务，故走 apiBase(8081)。
+  USER_BRIEFS: (ids) => '/api/v1/user/briefs?ids=' + encodeURIComponent(Array.isArray(ids) ? ids.join(',') : (ids || '')),
   // —— 课程 / 排期（业务端）——
   COURSE_LIST: '/api/v1/course/list',
   COURSE_PAGE: '/api/v1/course/page',
@@ -146,8 +158,32 @@ export const ENDPOINTS = {
   MSG_DELETE_GLOBAL: (mid) => `/api/v1/messages/${mid}`,
   // 单条消息投递追踪（已发详情）：接收/已读统计
   MSG_DELIVERY: (mid) => `/api/v1/messages/${mid}/delivery-status`,
+  // 单条消息的接收人明细（分页）：谁收到 / 谁已读 / 何时读。
+  // 权限与 delivery-status 一致（管理员或发送者本人，非平台管理员限本租户），在 message-service 内断言。
+  // 返回行只含 userId + 投递/已读状态，姓名与账号另经 USER_BRIEFS 批量补齐。
+  MSG_RECIPIENTS_OF: (mid, qs) => {
+    const base = `/api/v1/messages/${encodeURIComponent(mid)}/recipients`;
+    if (!qs) return base;
+    const s = Object.keys(qs).filter(k => qs[k] !== undefined && qs[k] !== null && qs[k] !== '')
+      .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(qs[k])).join('&');
+    return s ? base + '?' + s : base;
+  },
   // 接收人 scope 解析：在 api 主模块（/api/v1/user/... 单数，不匹配 message-service 正则，走 apiBase 8081）
   MSG_RECIPIENTS: '/api/v1/user/message-recipients',
+  // —— 接收台账：平台方发出的消息 → 本租户用户（接收方视角；api 主模块跨 schema 只读聚合）——
+  // 为什么不放 message-service：msg_message / msg_delivery / msg_inbox 三张表的 tenant_id 记的都是
+  // 「发送方租户」，**没有任何一列是「接收方租户」**；接收人归属只存在于主库 user.tenant_id。
+  // 故该视图由主系统提供（见 MessageLedgerService 类注释），前端必须走 apiBase(8081)。
+  // 权限：checkAdmin（平台管理员 + 租户管理员）；租户管理员恒为本租户，tenantId 入参对其无效。
+  MSG_LEDGER_INBOUND: '/api/v1/msg-ledger/inbound',
+  // 某条平台方消息在**本租户**的接收人明细（姓名/账号/已读状态，未读优先）
+  MSG_LEDGER_RECIPIENTS: (mid, qs) => {
+    const base = `/api/v1/msg-ledger/inbound/${encodeURIComponent(mid)}/recipients`;
+    if (!qs) return base;
+    const s = Object.keys(qs).filter(k => qs[k] !== undefined && qs[k] !== null && qs[k] !== '')
+      .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(qs[k])).join('&');
+    return s ? base + '?' + s : base;
+  },
   SENSITIVE_TEST: '/api/v1/sensitive/test',
   // 敏感词组/词的按 id 操作，以及手动刷新词库缓存（message-service）
   SENSITIVE_GROUP_BY_ID: (id) => `/api/v1/sensitive/groups/${encodeURIComponent(id)}`,
@@ -178,10 +214,25 @@ export const ENDPOINTS = {
   APPOINTMENT_LIST_BY_DAYS_PAGE: '/api/v1/course/appointment/statistical/listByDaysByPage',
   // 课次单条状态更新：PUT { id, status }（前端 operateAppointmentStatus / 「申请改期」批量走这个）
   APPOINTMENT_UPDATE_STATUS_BY_ID: '/api/v1/course/appointment/updateStatusById',
+  // 课次分页列表：POST @RequestBody AppointmentQueryPage（status/pageNum/pageSize）。
+  // dashboard 用 pageNum=1&pageSize=1 取 PageResult.total 作精确计数（学生改期=cancelling、教师改期=t-cancelling）。
+  APPOINTMENT_PAGE: '/api/v1/course/appointment/listByPage',
   // 某条预订下的全部课次：AppointmentController#getByBookingId，返回 Result<List<Appointment>>（数组）。
   // 学生「我的预约」逐课次延期/请假靠它：请假=PUT updateStatusById 置 'cancelling'，取消延期=置回 'active'。
   APPOINTMENT_LIST_BY_BOOKING: (bookingId) =>
     `/api/v1/course/appointment/getByBookingId?bookingId=${encodeURIComponent(bookingId || '')}`,
+  // —— 上课通知规则（业务端，租户/平台管理员，NotifyRuleController @RequestMapping("/api/v1/notify-rule")）——
+  // 三者都是 GET/POST 都带租户上下文，租户隔离由 MyBatis-Plus 租户插件自动完成；
+  // 均要求 PLATFORM_OR_TENANT_ADMIN（AuthzRules:157-164），学生/教师调用会 403。
+  // /detail  ：单个作用域的规则明细（courseId 空 = 租户默认规则）；管理端用它把历史状态
+  //            noted1/noted2 翻译成「已发第 N 档·提前 X」（见 frontend/js/public/appointmentNotes.js:448）。
+  // /preview ：试算某课次各档应发时刻与「已发/待发/已过期」；传 appointmentId 走真实课次
+  //            （回带该档是否已发），传 courseId + lessonTime 走假设值。
+  // /manual-send：管理员手动补发一次（POST { appointmentId }）。服务端按「当前距上课还有多久」
+  //            自动选档，不受自动发送幂等限制（dedup_key 每次不同），可重复发；已过上课时间会被拒。
+  NOTIFY_RULE_DETAIL: '/api/v1/notify-rule/detail',
+  NOTIFY_RULE_PREVIEW: '/api/v1/notify-rule/preview',
+  NOTIFY_RULE_MANUAL_SEND: '/api/v1/notify-rule/manual-send',
   // —— 教师公开主页（业务端，免登录公开接口）——
   TEACHER_PUBLIC_LIST: (tc) => `/api/v1/teacher/published/public-list?tenantCode=${encodeURIComponent(tc || '')}`,
   // 同上端点的**裸路径**（不带 query）：供 Web 端「用 axios params 传 tenantCode」的写法复用，

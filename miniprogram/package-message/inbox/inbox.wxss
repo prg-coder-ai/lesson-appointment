@@ -39,6 +39,12 @@
 .seg-item.on { background: #fff; color: #1890ff; font-weight: 600; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.06); }
 
 /* 管理页筛选（状态 / 发送者） */
+/* 管理页内双台账切换（发送台账 / 接收台账） */
+.manage-tabs { display: flex; padding: 16rpx 24rpx 0; gap: 0; }
+.mtab { padding: 12rpx 28rpx; font-size: 26rpx; color: #555; background: #fff; border: 1rpx solid #e5e8ef; }
+.mtab:first-child { border-radius: 10rpx 0 0 10rpx; }
+.mtab:last-child { border-radius: 0 10rpx 10rpx 0; border-left: none; }
+.mtab.on { background: #e6f4ff; color: #1890ff; border-color: #91d5ff; font-weight: 600; }
 .manage-filters { display: flex; gap: 16rpx; flex-wrap: wrap; }
 .filter-picker { flex: 1; min-width: 240rpx; }
 .filter-picker .picker-inner { padding: 14rpx 20rpx; background: #fff; border: 1rpx solid #e5e8ef; border-radius: 10rpx; font-size: 26rpx; color: #333; }

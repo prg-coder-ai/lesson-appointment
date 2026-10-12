@@ -122,6 +122,19 @@ public class UserController {
        return Result.success("N/A", "查询成功");
     } 
     }
+
+    /**
+     * 批量取用户摘要（userId → name[/account]）：消息中心「接收人列表」按 id 反查姓名用。
+     * 单条版是 /user/name/{userId}，但它是**单个** id；接收人列表一页 20 人逐个查就是 20 次请求。
+     * 权限 ALL_ROLES（见 AuthzRules，与 /user/name/{userId} 同级）；
+     * account 仅管理员（admin / platform_admin）下发，由服务端按 token 里的角色裁定，前端无法越权索取。
+     */
+    @GetMapping("/briefs")
+    @ResponseBody
+    public Result<List<java.util.Map<String, Object>>> userBriefs(@RequestParam("ids") String ids,
+            @RequestHeader("Authorization") String token) {
+        return userService.userBriefs(ids, token);
+    }
      
      @PostMapping("/register")
      @Audit(action = AuditAction.USER_REGISTER, resourceType = "user")

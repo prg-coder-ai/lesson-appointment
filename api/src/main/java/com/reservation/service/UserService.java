@@ -957,6 +957,54 @@ public User selectById(String userId) {
     }
 
     /**
+     * 批量取用户摘要（userId → name[/account]），供消息中心「接收人列表」一次拿一页姓名。
+     *
+     * <p>存在的理由：消息中心存的是 userId（message-service 是独立库，拿不到主库用户），
+     * 而既有能力只有单条的 {@code /user/name/{id}} 与只认单值的 {@code /user/list?userId=}，
+     * 一页 20 个接收人就得 20 次请求。这里一次 IN 查询解决。
+     *
+     * <p>字段按角色收敛（与 /user/name 的口径一致）：管理员（admin / platform_admin）额外返回 account；
+     * 学生 / 教师只返回 name —— 「按 userId 批量拿账号」若对普通角色开放，等于允许拿 userId 枚举他人登录账号。
+     *
+     * <p>ids：逗号分隔，去空去重、上限 200（超出截断，避免被当成全量导出用）。
+     * 查不到的用户**不回占位**，由前端按 userId 兜底展示。
+     */
+    public Result<List<Map<String, Object>>> userBriefs(String ids, String token) {
+        String raw = (token != null && token.startsWith("Bearer ")) ? token.substring(7) : token;
+        if (raw == null || raw.isEmpty() || !jwtUtil.verifyAccessToken(raw)) {
+            return Result.fail(401, "未登录或令牌无效");
+        }
+        String curRole = jwtUtil.getRoleFromToken(raw);
+        boolean withAccount = RoleConst.ADMIN.equals(curRole) || RoleConst.PLATFORM_ADMIN.equals(curRole);
+
+        List<String> idList = new java.util.ArrayList<>();
+        if (ids != null) {
+            for (String s : ids.split(",")) {
+                String v = s.trim();
+                if (!v.isEmpty() && !idList.contains(v)) idList.add(v);
+                if (idList.size() >= 200) break;
+            }
+        }
+        List<Map<String, Object>> out = new java.util.ArrayList<>();
+        if (idList.isEmpty()) return Result.success(out, "查询成功");
+
+        // 租户拦截器会自动追加 tenant_id（平台管理员 tenantId=0 时短路为全量），无需手工隔离
+        List<User> users = userMapper.selectBatchIds(idList);
+        if (users != null) {
+            for (User u : users) {
+                if (u == null) continue;
+                decryptUserFields(u);   // name 入库加密，必须解密
+                Map<String, Object> brief = new java.util.HashMap<>();
+                brief.put("userId", u.getUserId());
+                brief.put("name", u.getName());
+                if (withAccount) brief.put("account", cryptoUtil.decrypt(u.getAccount()));
+                out.add(brief);
+            }
+        }
+        return Result.success(out, "查询成功");
+    }
+
+    /**
      * 内部「接收人解析」（不走 HTTP、不校验令牌），供消息自动发送复用。
      * 身份参数由调用方显式传入：curRole/curTenant/curUserId 为「当前操作者」，
      * tenantId 仅在平台管理员跨租户查询时生效（effectiveTenant=tenantId）。

@@ -164,6 +164,12 @@ public final class AuthzRules {
         r.add(new Rule(HttpMethod.POST, "/api/v1/notify-rule/manual-send", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/notify-rule/dispatch-log", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
 
+        // 接收台账（平台方消息 → 本租户用户，接收方视角）：管理端「消息管理 → 接收台账」。
+        // 数据跨 schema 只读聚合，租户作用域在 MessageLedgerService 内强制：
+        // 租户管理员恒为本租户（入参 tenantId 被忽略），平台管理员可指定租户或看全平台。
+        r.add(new Rule(HttpMethod.GET, "/api/v1/msg-ledger/inbound", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin 接收台账列表"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/msg-ledger/inbound/{messageId}/recipients", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin 接收人明细"));
+
         r.add(new Rule(HttpMethod.GET, "/api/v1/package/template/{id}", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/package/template/page", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/package/template/list", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
@@ -332,6 +338,7 @@ public final class AuthzRules {
 
         // —— 用户只读 / 自身数据 ——
         r.add(new Rule(HttpMethod.GET, "/api/v1/user/name/{userId}", ALL_ROLES, "新增：查用户名（「今日课程」渲染人名用）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/user/briefs", ALL_ROLES, "新增：批量用户摘要（消息中心接收人列表按 id 反查姓名，账号仅管理员下发由服务端裁定）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/user/message-recipients", ALL_ROLES, "新增：站内信收件人候选（各角色发消息用）"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/user/account/changePassword", ALL_ROLES, "第1批：本人改密需原密码，管理员代管免原密码"));
 

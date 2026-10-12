@@ -269,9 +269,17 @@ function renderNotifyRuleTable() {
         }).join(' → ');
         if (!summary) summary = '<span style="color:#c0392b;">无启用的时间点</span>';
 
+        // 课程名缺失 = 该课程已被删除（后端查不到课程名时不再回退 course_id，2026-10-12）：
+        // 课程列给出可读文案，id 放进 title 供排查 —— 界面上不出现裸 id。
+        var courseCell = rule.courseName
+            ? escapeNotifyHtml(rule.courseName)
+            : (rule.courseId
+                ? '<span style="color:#c0392b;" title="课程ID：' + escapeNotifyHtml(rule.courseId) + '">课程已删除</span>'
+                : '');
+
         return '<tr>' +
             '<td>' + scopeTag + '</td>' +
-            '<td>' + escapeNotifyHtml(rule.courseName || '') +
+            '<td>' + courseCell +
             (notSavedYet ? ' <span style="color:#c0871b;font-size:12px;">（未保存）</span>' : '') + '</td>' +
             '<td>' + enabledPoints.length + ' / ' + points.length + '</td>' +
             '<td style="font-size:12px;color:#5a6472;">' + summary + '</td>' +
@@ -283,7 +291,7 @@ function renderNotifyRuleTable() {
             (isTenantDefault
                 ? (notSavedYet ? '' : '  <button class="btn btn-warning" onclick="resetTenantNotifyRule()"><i class="fa fa-undo"></i> 恢复系统默认</button>')
                 : '  <button class="btn btn-warning" onclick="deleteCourseNotifyRule(\'' +
-                  escapeNotifyHtml(rule.courseId || '') + '\', \'' + escapeNotifyHtml(rule.courseName || '') + '\')">' +
+                  escapeNotifyHtml(rule.courseId || '') + '\', \'' + escapeNotifyHtml(rule.courseName || '已删除的课程') + '\')">' +
                   '<i class="fa fa-trash"></i> 删除</button>') +
             '</td>' +
             '</tr>';
@@ -361,7 +369,8 @@ function openNotifyRuleEditor(scopeKind, courseId) {
     if (scopeKind === 'course') {
         if (existing) {
             courseSelectHtml =
-                '<input type="text" id="nr-course" value="' + escapeNotifyHtml(existing.courseName || existing.courseId) + '" disabled ' +
+                '<input type="text" id="nr-course" value="' + escapeNotifyHtml(existing.courseName || '课程已删除') + '" disabled ' +
+                'title="' + escapeNotifyHtml(existing.courseId || '') + '" ' +
                 'style="width:100%;padding:8px 12px;border:1px solid #e9ecef;border-radius:4px;background:#f6f8fa;">';
         } else {
             // 第一项：缺省规则（courseId 空串 = 租户默认规则），对所有未单独配置的课程生效；
