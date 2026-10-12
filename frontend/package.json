@@ -1,6 +1,6 @@
 {
   "name": "lesson-frontend",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "description": "业务前端（student/teacher/booking/admin/auditLog）压缩混淆构建",
   "scripts": {

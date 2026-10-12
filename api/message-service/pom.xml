@@ -14,7 +14,7 @@
 
     <groupId>com.messagecenter</groupId>
     <artifactId>message-service</artifactId>
-    <version>1.0.1</version>
+    <version>1.1.0</version>
     <packaging>jar</packaging>
     <name>message-service</name>
     <description>站内消息中心微服务：消息收发 / 收件箱状态 / 三级分类 / 模板 / 投递追踪 / 管理员管理 / SSE 实时推送</description>
