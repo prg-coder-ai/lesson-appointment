@@ -202,7 +202,13 @@ Page({
     // 两个来源**各自独立**取兜底：不能用 Object.assign 整体覆盖，否则「行里有姓名但账号只在 briefs」
     // 这种混合情况会把账号冲成空串。
     const bf = (briefs || {})[r.userId] || {};
-    const b = { name: r.name || bf.name || '', account: r.account || bf.account || '' };
+    const b = {
+      name: r.name || bf.name || '',
+      account: r.account || bf.account || '',
+      // 公司名：台账端点行里自带（主系统持有 user + sys_tenant）；message-service 端点只回
+      // userId，姓名/账号/公司名都靠 /user/briefs 补齐 —— 两个来源各自独立兜底
+      orgName: r.orgName || bf.orgName || ''
+    };
     const st = recipientStateText(r);
     // 已读显示阅读时间，未读显示投递/确认时间（看得出「何时送达但未读」）
     const t = (r.isRead && r.readTime) ? r.readTime : (r.deliveryTime || r.ackTime || '');
@@ -210,6 +216,7 @@ Page({
       userId: r.userId,
       name: b.name || r.userId || '',   // 姓名拿不到就显示 userId：可核对的线索胜过空白
       account: b.account || '',          // 仅管理员拿得到，空则不渲染括号
+      orgName: b.orgName,                // 所属公司（服务端回，平台自身为「平台」），空则整段不渲染
       stateText: st.text,
       stateCls: st.cls,
       time: fmtTime(t)

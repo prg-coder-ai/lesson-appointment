@@ -966,6 +966,11 @@ public User selectById(String userId) {
      * <p>字段按角色收敛（与 /user/name 的口径一致）：管理员（admin / platform_admin）额外返回 account；
      * 学生 / 教师只返回 name —— 「按 userId 批量拿账号」若对普通角色开放，等于允许拿 userId 枚举他人登录账号。
      *
+     * <p><b>orgName（所属公司）不按角色门控，一律返回</b>：它服务于「已发」详情的接收人列表——
+     * 让发送方看清消息发到了哪家公司（平台管理员跨租户发信时尤其需要）。租户内发信时该值就是自己
+     * 租户，不产生额外信息暴露；{@code tenant_id <= 0}（平台自身）无 sys_tenant 行，按既有约定
+     * 返回固定文案「平台」。租户已删时返回空串，由前端省略不显示。
+     *
      * <p>ids：逗号分隔，去空去重、上限 200（超出截断，避免被当成全量导出用）。
      * 查不到的用户**不回占位**，由前端按 userId 兜底展示。
      */
@@ -991,6 +996,10 @@ public User selectById(String userId) {
         // 租户拦截器会自动追加 tenant_id（平台管理员 tenantId=0 时短路为全量），无需手工隔离
         List<User> users = userMapper.selectBatchIds(idList);
         if (users != null) {
+            // 补机构名：tenant_id>0 → sys_tenant.org_name（租户已删则为 null → 出空串）。
+            // fillOrgName 对 tenant_id<=0 会填 platform 行的 org_name，但简报口径要的是固定「平台」，
+            // 故下面按 tenant_id 判、不走它填的值（详见下方 orgName 的赋值）。
+            fillOrgName(users);
             for (User u : users) {
                 if (u == null) continue;
                 decryptUserFields(u);   // name 入库加密，必须解密
@@ -998,6 +1007,12 @@ public User selectById(String userId) {
                 brief.put("userId", u.getUserId());
                 brief.put("name", u.getName());
                 if (withAccount) brief.put("account", cryptoUtil.decrypt(u.getAccount()));
+                // 公司名一律回（不按角色门控）：它用于「已发」详情的接收人列表，
+                // 让发送方看清这条消息发到了哪家公司；租户内发信时公司名就是自己，不构成额外暴露。
+                Long tid = u.getTenantId();
+                brief.put("orgName", (tid != null && tid > 0)
+                        ? (u.getOrgName() == null ? "" : u.getOrgName())
+                        : "平台");   // 平台自身无对应 sys_tenant 行，按既有约定显示「平台」
                 out.add(brief);
             }
         }

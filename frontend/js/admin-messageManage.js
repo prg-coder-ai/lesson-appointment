@@ -486,6 +486,8 @@
                 var t = (r.isRead && r.readTime) ? r.readTime : (r.deliveryTime || r.ackTime || '');
                 html += '<div class="rec-row">' +
                     '<span class="rec-name">' + escMsgManage(name) + acct + '</span>' +
+                    // 台账端点行里自带 orgName（主系统同时持有 user 与 sys_tenant），无需 briefs 补齐
+                    (r.orgName ? '<span class="rec-org">' + escMsgManage(r.orgName) + '</span>' : '') +
                     (st.text ? '<span class="rec-state rec-' + escMsgManage(st.cls) + '">' + escMsgManage(st.text) + '</span>' : '') +
                     '<span class="rec-time">' + escMsgManage(fmtShort(t)) + '</span>' +
                     '</div>';

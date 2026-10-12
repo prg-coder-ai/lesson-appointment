@@ -31,6 +31,7 @@
         <block wx:else>
           <view class="rec-row" wx:for="{{recipients}}" wx:key="userId">
             <view class="rec-name">{{item.name}}<text wx:if="{{item.account}}" class="rec-acct">（{{item.account}}）</text></view>
+            <text wx:if="{{item.orgName}}" class="rec-org">{{item.orgName}}</text>
             <text class="rec-state rec-{{item.stateCls}}">{{item.stateText}}</text>
             <text class="rec-time">{{item.time}}</text>
           </view>

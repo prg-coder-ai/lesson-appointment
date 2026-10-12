@@ -198,6 +198,8 @@
       '.rec-pending{background:#fafafa;color:#8c8c8c;}',
       '.rec-revoked{background:#f0f0f0;color:#8c8c8c;}',
       '.rec-time{flex:none;color:#999;font-size:12px;}',
+      // 接收人所属公司：与姓名同行的灰色小字（服务端 /user/briefs 回 orgName）
+      '.rec-org{flex:none;color:#999;font-size:12px;}',
       '.rec-more{text-align:center;font-size:12px;color:var(--primary-color,#3a7afe);cursor:pointer;padding:8px 0;}',
       '.rec-empty{color:#999;font-size:13px;padding:12px 0;text-align:center;}',
       // 发送弹窗：浮动卡片（可左键拖动），不再用全屏遮罩
@@ -715,6 +717,8 @@
         const t = (r.isRead && r.readTime) ? r.readTime : (r.deliveryTime || r.ackTime || '');
         html += '<div class="rec-row">' +
           '<span class="rec-name">' + esc(name) + acct + '</span>' +
+          // 公司名：一律由服务端带回（/user/briefs 的 orgName）；空则不渲染这一节
+          (b.orgName ? '<span class="rec-org">' + esc(b.orgName) + '</span>' : '') +
           (st.text ? '<span class="rec-state rec-' + esc(st.cls) + '">' + esc(st.text) + '</span>' : '') +
           '<span class="rec-time">' + esc(fmtShort(t)) + '</span>' +
         '</div>';
@@ -772,7 +776,10 @@
       // 必须走 areq：/user/briefs 在主系统 api(8081)，mreq 打的是 message-service(8090)
       const briefs = await areq.get(EP.USER_BRIEFS(missing), { __silent: true }) || [];
       briefs.forEach(function (b) {
-        if (b && b.userId) recState.briefs[b.userId] = { name: b.name || '', account: b.account || '' };
+        // 整体存、不挑字段：此前这里写成白名单 { name, account }，后端新增的 orgName（所属公司）
+        // 被静默丢弃 —— 界面表现就是「后端改了、前端没生效」且无任何报错。
+        // 该接口的字段已由服务端按角色收敛（account 仅管理员），整体存不会引入越权。
+        if (b && b.userId) recState.briefs[b.userId] = b;
       });
     } catch (e) { /* 静默：姓名属增强信息，缺失时列表照常显示 userId 与状态 */ }
     if (!alive()) return;

@@ -28,6 +28,7 @@
 .rec-row:last-child { border-bottom: none; }
 .rec-name { flex: 1; font-size: 27rpx; color: #333; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .rec-acct { color: #999; font-size: 24rpx; }
+.rec-org { flex: none; font-size: 22rpx; color: #999; margin-right: 14rpx; }
 .rec-state { flex: none; font-size: 22rpx; padding: 2rpx 12rpx; border-radius: 8rpx; margin-right: 14rpx; }
 .rec-read { color: #389e0d; background: #f6ffed; }
 .rec-unread { color: #096dd9; background: #e6f7ff; }

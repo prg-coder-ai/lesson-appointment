@@ -65,11 +65,22 @@ public class MessageLedgerService {
           + " JOIN lesson_appointment.user u ON u.user_id = d.user_id" + USER_ID_COLLATE
           + " LEFT JOIN message_center.msg_inbox i ON i.message_id = m.message_id AND i.user_id = d.user_id ";
 
+    /**
+     * 明细的 FROM：比 {@link #INBOUND_FROM} 多挂一张 {@code sys_tenant}，用于把「接收人所属租户」
+     * 翻成公司名 —— 台账的价值就在于平台方看得见消息落到了哪些公司。
+     * sys_tenant.id 是主键，LEFT JOIN 至多命中一行，不会放大 COUNT(*) 的行数。
+     */
+    /**
+     * 明细的 FROM：比 {@link #INBOUND_FROM} 多挂一张 {@code sys_tenant}，用于把「接收人所属租户」
+     * 翻成公司名 —— 台账的价值就在于平台方看得见消息落到了哪些公司。
+     * sys_tenant.id 是主键，LEFT JOIN 至多命中一行，不会放大 COUNT(*) 的行数。
+     */
     private static final String RECIPIENTS_FROM =
             " FROM message_center.msg_delivery d "
           + " JOIN message_center.msg_message m ON m.message_id = d.message_id "
           + " JOIN lesson_appointment.user u ON u.user_id = d.user_id" + USER_ID_COLLATE
-          + " LEFT JOIN message_center.msg_inbox i ON i.message_id = d.message_id AND i.user_id = d.user_id ";
+          + " LEFT JOIN lesson_appointment.sys_tenant t ON t.id = u.tenant_id "
+          + " LEFT JOIN message_center.msg_inbox i ON i.message_id = m.message_id AND i.user_id = d.user_id ";
 
     private final JdbcTemplate jdbcTemplate;
     private final CryptoUtil cryptoUtil;
@@ -187,7 +198,8 @@ public class MessageLedgerService {
               + " DATE_FORMAT(d.ack_time, '%Y-%m-%dT%H:%i:%s') AS ackTime,"
               + " COALESCE(i.is_read, 0) AS isRead,"
               + " DATE_FORMAT(i.read_time, '%Y-%m-%dT%H:%i:%s') AS readTime,"
-              + " COALESCE(i.is_deleted, 0) AS isDeleted"
+              + " COALESCE(i.is_deleted, 0) AS isDeleted,"
+              + " (CASE WHEN u.tenant_id > 0 THEN COALESCE(t.org_name, '') ELSE '平台' END) AS orgName"
               + RECIPIENTS_FROM + where
               + " ORDER BY COALESCE(i.is_read, 0) ASC, d.delivery_id ASC LIMIT ?, ?",
                 pageArgs.toArray());
@@ -205,6 +217,9 @@ public class MessageLedgerService {
             row.put("isRead", toLong(r.get("isRead")) != null && toLong(r.get("isRead")) == 1L);
             row.put("readTime", r.get("readTime"));
             row.put("isDeleted", toLong(r.get("isDeleted")) != null && toLong(r.get("isDeleted")) == 1L);
+            // 接收人所属公司：tenant_id>0 → sys_tenant.org_name（租户已删则空串），<=0 → 固定「平台」
+            Object org = r.get("orgName");
+            row.put("orgName", org == null ? "" : String.valueOf(org));
             out.add(row);
         }
         return Result.success(page(out, totalRows, p, s), "查询成功");
