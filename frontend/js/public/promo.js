@@ -457,7 +457,10 @@
    *   · 租户码：login.html?ref=<code>&path=2&tcode=<我的租户编码>（登录页据此锁租户）
    */
   function buildPromoLink(code, pathType, data) {
-    var link = window.location.origin + '/login.html?ref=' + encodeURIComponent(code);
+    // 允许部署方注入 PROMO_PUBLIC_ORIGIN 覆盖落地域名（如开发机局域网 IP），
+    // 使手机扫码能访问到本机；默认沿用当前页面 origin，行为不变。
+    var origin = window.PROMO_PUBLIC_ORIGIN || window.location.origin;
+    var link = origin + '/login.html?ref=' + encodeURIComponent(code);
     if (pathType === 2) {
       link += '&path=2&tcode=' + encodeURIComponent((data && data.myTenantCode) || '');
     }
@@ -561,6 +564,42 @@
     });
   }
 
+  // —— 二维码（本地生成，不依赖网络；渐进增强，库加载失败仅影响本功能）——
+  function showPromoQr(pathType) {
+    var linkEl = document.getElementById(pathType === 2 ? 'promo-link-tenant' : 'promo-link-platform');
+    var link = linkEl ? linkEl.value : '';
+    if (!link) {
+      var tip = document.getElementById('promo-page-error');
+      if (tip) { tip.textContent = '请先生成推广码再生成二维码'; tip.style.display = 'block'; }
+      return;
+    }
+    var box = document.getElementById('promo-qr-box');
+    if (!box) return;
+    var title = document.getElementById('promo-qr-title');
+    if (title) title.textContent = pathType === 2 ? '租户推广二维码' : '平台推广二维码';
+    box.innerHTML = ''; // qrcodejs 对同容器重复 makeCode 会叠加画布，先清空
+    try {
+      if (typeof window.QRCode !== 'function') throw new Error('组件未加载');
+      new window.QRCode(box, {
+        text: link,
+        width: 220,
+        height: 220,
+        colorDark: '#1f2937',
+        colorLight: '#ffffff',
+        correctLevel: window.QRCode.CorrectLevel.M
+      });
+    } catch (e) {
+      box.innerHTML = '<div style="padding:24px;color:#c05656;font-size:13px;">二维码组件加载失败，请刷新页面</div>';
+    }
+    var mask = document.getElementById('promo-qr-mask');
+    if (mask) mask.classList.add('show');
+  }
+
+  function closePromoQr() {
+    var mask = document.getElementById('promo-qr-mask');
+    if (mask) mask.classList.remove('show');
+  }
+
   /** 返回各角色主页（从侧栏"我的推广"跳过来时用）。 */
   function goBack() {
     redirectByRole(currentUser());
@@ -595,6 +634,8 @@
     generateCode: generateCode,
     copyLink: copyPromoLink,
     copyCode: copyPromoCode,
+    showQr: showPromoQr,
+    closeQr: closePromoQr,
     goBack: goBack,
     reloadConversions: function (p) { return loadConversions(p); }
   };
