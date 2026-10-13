@@ -34,6 +34,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -470,6 +471,21 @@ public class UserService {
         }
         List<User> users = userMapper.listByAccountIgnoreTenant(account.trim());
         return users.isEmpty() ? null : users.get(0);
+    }
+
+    /**
+     * 按 user_id 批量全局查用户（忽略租户隔离）。
+     *
+     * <p>推广统计解析「推广人/被邀请者姓名」用：promo 三表是平台级数据，
+     * 业绩行里的 user_id 可能属于任意租户，走租户插件会拼
+     * {@code tenant_id = 当前租户} 而查不到人。ids 为空直接返回空列表
+     * （避免拼出 {@code IN ()} 的非法 SQL）。
+     */
+    public List<User> listByIdsIgnoreTenant(java.util.Collection<String> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return new ArrayList<>();
+        }
+        return userMapper.listByIdsIgnoreTenant(ids);
     }
 
     /**

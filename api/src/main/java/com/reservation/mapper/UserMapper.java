@@ -174,6 +174,19 @@ public interface UserMapper extends BaseMapper<User> {
     @Select("SELECT * FROM user WHERE account = #{account} ORDER BY tenant_id")
     List<User> listByAccountIgnoreTenant(@Param("account") String account);
 
+    /**
+     * 忽略租户插件过滤，按 user_id 批量查询（跨租户）。
+     *
+     * <p>推广统计解析「推广人/被邀请者姓名」用：promo 三表是平台级数据，
+     * 业绩行里的 user_id 可能属于任意租户，走租户插件会拼 {@code tenant_id = 当前租户}
+     * 而查不到人。调用方需自行保证 ids 非空（空集合会拼出非法 SQL）。
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("<script>SELECT * FROM user WHERE user_id IN "
+            + "<foreach item='id' collection='ids' open='(' separator=',' close=')'>#{id}</foreach>"
+            + "</script>")
+    List<User> listByIdsIgnoreTenant(@Param("ids") java.util.Collection<String> ids);
+
     // ==================== 首管理员自助激活（bootstrap）的并发判据 ====================
     //
     // 为什么必须锁定读而不是普通 count：

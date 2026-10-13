@@ -66,6 +66,7 @@ public final class AuthzRules {
     // —— 角色组合常量：避免每条规则重复拼数组，语义也更清楚 ——
     public static final String[] PLATFORM_ONLY = {RoleConst.PLATFORM_ADMIN};
     public static final String[] PLATFORM_OR_TENANT_ADMIN = {RoleConst.PLATFORM_ADMIN, RoleConst.ADMIN};
+    public static final String[] TENANT_ADMIN_ONLY = {RoleConst.ADMIN};
     public static final String[] TEACHER_OR_ADMIN = {RoleConst.TEACHER, RoleConst.ADMIN, RoleConst.PLATFORM_ADMIN};
     public static final String[] ALL_ROLES = {RoleConst.STUDENT, RoleConst.TEACHER, RoleConst.ADMIN, RoleConst.PLATFORM_ADMIN};
 
@@ -223,6 +224,9 @@ public final class AuthzRules {
         r.add(new Rule(HttpMethod.GET, "/api/v1/promo/conversions", ALL_ROLES, "新增：我的转化明细"));
         // 全平台排行属运营面，仅平台管理员
         r.add(new Rule(HttpMethod.GET, "/api/v1/promo/achievement/overview", PLATFORM_ONLY, "新增：全部推广者排行（运营面）"));
+        // 双码 + 两级统计（2026-10-13）：租户管理员看本租户加入漏斗，平台管理员看全平台
+        r.add(new Rule(HttpMethod.GET, "/api/v1/promo/achievement/tenant", TENANT_ADMIN_ONLY, "新增：本租户推广统计（加入漏斗+推广人明细）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/promo/achievement/platform", PLATFORM_ONLY, "新增：全平台推广统计（合计+排行+最近转化）"));
         // 归因上报：三种登录方式（密码/静默/微信注册）setSession 成功后各调一次，
         // 重复上报由 uk_conversion_invitee 去重；越权面由方法体按 token 取 userId 兜住。
         r.add(new Rule(HttpMethod.POST, "/api/v1/user/attribution", ALL_ROLES, "新增：推广归因上报（仅当前会话账号）"));

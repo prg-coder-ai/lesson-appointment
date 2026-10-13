@@ -35,4 +35,14 @@ public interface PromoReferralMapper extends BaseMapper<PromoReferral> {
     @Select("SELECT * FROM promo_referral WHERE promoter_user_id = #{promoterUserId} AND status = 'active' "
             + "ORDER BY (path_type = 1 AND target_tenant_id IS NULL) DESC, create_time ASC, id ASC LIMIT 1")
     PromoReferral getDefaultByPromoter(@Param("promoterUserId") String promoterUserId);
+
+    /**
+     * 某租户被指定的全部租户码（路径2，target_tenant_id=?），早建的在前。
+     *
+     * <p>租户推广统计用：{@code GET /promo/achievement/tenant} 的码清单。
+     * 本表无 tenant_id 列且已排除租户插件，可按 target_tenant_id 任意查。
+     */
+    @Select("SELECT * FROM promo_referral WHERE path_type = 2 AND target_tenant_id = #{targetTenantId} "
+            + "ORDER BY create_time ASC, id ASC")
+    List<PromoReferral> listByTargetTenant(@Param("targetTenantId") Long targetTenantId);
 }

@@ -1,11 +1,13 @@
 /**
- * 推广体系前端逻辑（2026-10-13 二期）。
+ * 推广体系前端逻辑（2026-10-13 二期；双码改造 2026-10-13）。
  *
  * 两个消费者：
  *   ① login.html —— URL 带 ref/path/tcode/inviter/source 时渲染推广注册表单
  *      （路径1 自助建租户 / 路径2 加入指定租户），首次访问带 touch=1 让后端点击 +1
  *      （localStorage 按 ref 去重，只上报一次）。
- *   ② promo.html —— 推广业绩页：我的推广码（可复制链接）、业绩汇总卡、转化明细表。
+ *   ② promo.html —— 推广业绩页：双推广码卡（平台码/租户码，可复制链接与码）、
+ *      业绩汇总卡、转化明细表。每个已登录用户都可进入；租户码对平台管理员隐藏
+ *      （平台管理员不属于任何租户，目标租户由服务端从令牌派生）。
  *
  * 依赖（均由页面先加载）：
  *   · window.request        utility_request.js 的 axios 实例（响应已解包为 data）
@@ -122,8 +124,10 @@
     if (!modal) return;
     var org = document.getElementById('promo-user-org');
     if (org) org.textContent = info.targetOrgName || promo.tcode || '';
+    // 锁定租户编码：优先 validate 反查的 targetTenantCode（ref 是唯一真相源），
+    // 链接没带 tcode（如小程序 scene 只有 ref）时也能锁住租户。
     var tc = document.getElementById('promo-user-tcode');
-    if (tc) tc.value = promo.tcode || '';
+    if (tc) tc.value = info.targetTenantCode || promo.tcode || '';
     modal.style.display = 'flex';
   }
 
@@ -273,7 +277,7 @@
 
   // ==================== ② promo.html：业绩页 ====================
 
-  /** 入口守卫：未登录回 login.html。 */
+  /** 入口守卫：未登录回 login.html（不限角色——每个已登录用户都有自己的推广页）。 */
   function guardPromoPage() {
     var user = currentUser();
     if (!user || !user.token) {
@@ -292,12 +296,10 @@
 
   function renderAchievement(data) {
     var ach = (data && data.achievement) || {};
-    var code = (data && data.referralCode) || '';
     var setText = function (id, v) {
       var el = document.getElementById(id);
       if (el) el.textContent = v;
     };
-    setText('promo-code', code || '尚未生成');
     setText('stat-clicks', ach.totalClicks || 0);
     setText('stat-registered', ach.totalRegistered || 0);
     setText('stat-approved', ach.totalApproved || 0);
@@ -307,23 +309,67 @@
     setText('stat-rate', ach.conversionRate || '0%');
     setText('stat-reward', ach.totalRewardAmount == null ? '0' : ach.totalRewardAmount);
 
-    // 推广链接：域名 + login.html?ref=<code>
-    var linkBox = document.getElementById('promo-link');
-    if (linkBox && code) {
-      linkBox.value = window.location.origin + '/login.html?ref=' + encodeURIComponent(code);
+    // —— 双码卡片：平台码（pathType=1）+ 租户码（pathType=2）——
+    var codes = (data && data.referralCodes) || [];
+    var platformCode = null;
+    var tenantCode = null;
+    for (var i = 0; i < codes.length; i++) {
+      if (codes[i] && codes[i].pathType === 2) {
+        tenantCode = codes[i];
+      } else if (codes[i]) {
+        platformCode = codes[i];
+      }
     }
-    var codesBox = document.getElementById('promo-codes');
-    if (codesBox) {
-      var codes = (data && data.referralCodes) || [];
-      codesBox.innerHTML = codes.length
-        ? codes.map(function (c) {
-            var scope = c.pathType === 2 ? '（指定租户）' : '（自助建租户）';
-            var state = c.status === 'active' ? '' : '［已停用］';
-            return '<div class="promo-code-row">推广码 <b>' + escapeHtml(c.referralCode) +
-              '</b>' + scope + state + '</div>';
-          }).join('')
-        : '<div class="promo-code-row">暂无推广码，点击上方按钮生成</div>';
+    renderCodeCard(1, platformCode, data);
+    renderCodeCard(2, tenantCode, data);
+
+    // 平台管理员没有归属租户：隐藏租户码卡并给出说明（目标租户由服务端派生，前端也无从拼链接）
+    var user = currentUser();
+    var tenantCard = document.getElementById('promo-card-tenant');
+    var noneTip = document.getElementById('promo-tenant-none');
+    if (tenantCard) {
+      var isPlatform = !!(user && user.role === 'platform_admin');
+      tenantCard.style.display = isPlatform ? 'none' : '';
+      if (noneTip) noneTip.style.display = isPlatform ? 'block' : 'none';
     }
+
+    // 租户名额提示（满员后新用户无法加入，推广前先让推广者看到）
+    var quotaEl = document.getElementById('promo-tenant-quota');
+    if (quotaEl) {
+      var q = data && data.tenantQuota;
+      if (q && q.userTotalLimit != null) {
+        var limit = q.userTotalLimit;
+        var cur = q.userCurrent || 0;
+        quotaEl.textContent = limit > 0
+          ? '本租户名额：已用 ' + cur + ' / ' + limit + '，剩余 ' + Math.max(limit - cur, 0) + '（满员后新用户将无法加入）'
+          : '本租户名额：不限（已加入 ' + cur + ' 人）';
+      } else {
+        quotaEl.textContent = '';
+      }
+    }
+  }
+
+  /** 渲染一张码卡：pathType 1=平台码 2=租户码；code=码对象（null=尚未生成）。 */
+  function renderCodeCard(pathType, code, data) {
+    var suffix = pathType === 2 ? '-tenant' : '-platform';
+    var codeEl = document.getElementById('promo-code' + suffix);
+    var linkEl = document.getElementById('promo-link' + suffix);
+    var codeText = code && code.referralCode ? code.referralCode : '';
+    if (codeEl) codeEl.textContent = codeText || '尚未生成';
+    if (linkEl) linkEl.value = codeText ? buildPromoLink(codeText, pathType, data) : '';
+  }
+
+  /**
+   * 拼注册落地链接：
+   *   · 平台码：login.html?ref=<code>
+   *   · 租户码：login.html?ref=<code>&path=2&tcode=<我的租户编码>（登录页据此锁租户）
+   */
+  function buildPromoLink(code, pathType, data) {
+    var link = window.location.origin + '/login.html?ref=' + encodeURIComponent(code);
+    if (pathType === 2) {
+      link += '&path=2&tcode=' + encodeURIComponent((data && data.myTenantCode) || '');
+    }
+    return link;
   }
 
   async function loadConversions(pageNum) {
@@ -360,35 +406,72 @@
     if (total) total.textContent = page.total || records.length;
   }
 
-  /** 生成/获取推广码（路径1 默认码）。 */
-  async function generateCode() {
+  /**
+   * 生成/获取推广码（pathType 1=平台码 2=租户码）。
+   *
+   * <p>只传 pathType：租户码的目标租户由服务端从令牌派生（推广者自己的租户），
+   * 不接受客户端传值——否则可给任意租户生成码刷业绩。
+   */
+  async function generateCode(pathType) {
     var data = await window.request({
       url: ENDPOINTS.PROMO_GENERATE_CODE,
       method: 'POST',
-      data: { pathType: 1 }
+      data: { pathType: pathType === 2 ? 2 : 1 }
     });
     await loadAchievement();
     return data;
   }
 
-  function copyPromoLink() {
-    var linkBox = document.getElementById('promo-link');
-    if (!linkBox || !linkBox.value) return;
-    var done = function () {
-      var btn = document.getElementById('promo-copy-btn');
-      if (btn) {
-        var old = btn.textContent;
-        btn.textContent = '已复制';
-        setTimeout(function () { btn.textContent = old; }, 1500);
-      }
-    };
+  // —— 复制（链接/推广码，平台码与租户码各一套）——
+
+  function legacyCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) { /* 老浏览器忽略 */ }
+    document.body.removeChild(ta);
+  }
+
+  function copyToClipboard(text, onDone) {
+    var done = function () { if (onDone) onDone(); };
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(linkBox.value).then(done, function () { linkBox.select(); document.execCommand('copy'); done(); });
+      navigator.clipboard.writeText(text).then(done, function () { legacyCopy(text); done(); });
     } else {
-      linkBox.select();
-      document.execCommand('copy');
+      legacyCopy(text);
       done();
     }
+  }
+
+  function flashButton(el, text) {
+    if (!el) return;
+    var old = el.textContent;
+    el.textContent = text || '已复制';
+    setTimeout(function () { el.textContent = old; }, 1500);
+  }
+
+  function copyPromoLink(pathType) {
+    var linkEl = document.getElementById(pathType === 2 ? 'promo-link-tenant' : 'promo-link-platform');
+    if (!linkEl || !linkEl.value) return;
+    copyToClipboard(linkEl.value, function () {
+      flashButton(document.getElementById(pathType === 2 ? 'promo-copy-btn-tenant' : 'promo-copy-btn-platform'));
+    });
+  }
+
+  function copyPromoCode(pathType) {
+    var codeEl = document.getElementById(pathType === 2 ? 'promo-code-tenant' : 'promo-code-platform');
+    var text = codeEl ? (codeEl.textContent || '') : '';
+    if (!text || text === '尚未生成' || text === '加载中...') return;
+    copyToClipboard(text, function () {
+      flashButton(document.getElementById(pathType === 2 ? 'promo-copycode-btn-tenant' : 'promo-copycode-btn-platform'), '已复制码');
+    });
+  }
+
+  /** 返回各角色主页（从侧栏"我的推广"跳过来时用）。 */
+  function goBack() {
+    redirectByRole(currentUser());
   }
 
   async function initPromoPage() {
@@ -419,6 +502,8 @@
     init: initPromoPage,
     generateCode: generateCode,
     copyLink: copyPromoLink,
+    copyCode: copyPromoCode,
+    goBack: goBack,
     reloadConversions: function (p) { return loadConversions(p); }
   };
 })();

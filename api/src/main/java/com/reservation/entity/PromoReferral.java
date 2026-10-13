@@ -1,6 +1,7 @@
 package com.reservation.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -48,4 +49,13 @@ public class PromoReferral implements Serializable {
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;
+
+    /**
+     * 路径2：目标租户编码（展示/拼注册链接用，不落库）。
+     *
+     * <p>由 Service 查询富化（{@code PromoService#myCodes}）——前端拿 targetTenantId
+     * 拼不出 {@code ?tcode=} 参数，必须带回租户编码字符串。
+     */
+    @TableField(exist = false)
+    private String targetTenantCode;
 }

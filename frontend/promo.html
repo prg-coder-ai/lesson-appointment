@@ -13,7 +13,7 @@
     .header { display: flex; align-items: center; justify-content: space-between; padding: 14px 28px; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
     .header .logo { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 600; }
     .header .logo i { color: #4e6ef2; font-size: 22px; }
-    .header-actions { display: flex; align-items: center; gap: 14px; }
+    .header-actions { display: flex; align-items: center; gap: 10px; }
     .user-name { color: #555; }
     .logout-btn { border: none; background: #f2f3f7; color: #555; padding: 7px 14px; border-radius: 6px; cursor: pointer; }
     .logout-btn:hover { background: #e6e8f0; }
@@ -21,15 +21,21 @@
     .card { background: #fff; border-radius: 10px; padding: 22px 24px; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
     .card h2 { font-size: 16px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
     .card h2 i { color: #4e6ef2; }
+    .promo-code-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 720px) { .promo-code-cards { grid-template-columns: 1fr; } }
+    .promo-code-card { border: 1px solid #e8eaf2; border-radius: 8px; padding: 14px 16px 12px; background: #fafbfe; }
+    .pcc-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 2px; }
+    .pcc-badge { background: #4e6ef2; color: #fff; font-size: 12px; padding: 2px 9px; border-radius: 4px; white-space: nowrap; }
+    .pcc-badge.tenant { background: #e64545; }
+    .pcc-sub { font-size: 12px; color: #888; }
     .promo-link-row { display: flex; gap: 10px; }
-    .promo-link-row input { flex: 1; padding: 9px 12px; border: 1px solid #dcdfe6; border-radius: 6px; font-size: 13px; color: #555; background: #fafbfc; }
-    .btn { border: none; background: #4e6ef2; color: #fff; padding: 9px 18px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    .promo-link-row input { flex: 1; min-width: 0; padding: 9px 12px; border: 1px solid #dcdfe6; border-radius: 6px; font-size: 13px; color: #555; background: #fafbfc; }
+    .promo-btn-row { margin-top: 8px; }
+    .btn { border: none; background: #4e6ef2; color: #fff; padding: 9px 18px; border-radius: 6px; cursor: pointer; font-size: 14px; white-space: nowrap; }
     .btn:hover { background: #3d5ce0; }
     .btn.plain { background: #eef1fe; color: #4e6ef2; }
     .btn.plain:hover { background: #e2e7fd; }
-    .promo-code-big { font-size: 26px; font-weight: 700; letter-spacing: 2px; color: #4e6ef2; font-family: Consolas, Menlo, monospace; margin: 6px 0 12px; }
-    .promo-codes { margin-top: 10px; }
-    .promo-code-row { font-size: 13px; color: #666; padding: 4px 0; }
+    .promo-code-big { font-size: 24px; font-weight: 700; letter-spacing: 2px; color: #4e6ef2; font-family: Consolas, Menlo, monospace; margin: 6px 0 12px; word-break: break-all; }
     .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
     .stat-box { background: #f7f8fc; border-radius: 8px; padding: 14px 12px; text-align: center; }
     .stat-box .num { font-size: 24px; font-weight: 700; color: #2c3e50; }
@@ -47,6 +53,7 @@
     <div class="logo"><i class="fa fa-bullhorn"></i><span>我的推广</span></div>
     <div class="header-actions">
       <span class="user-name" id="promo-user-name-display"></span>
+      <button class="logout-btn" onclick="window.PromoPage.goBack()"><i class="fa fa-arrow-left"></i> 返回</button>
       <button class="logout-btn" onclick="handleLogout()"><i class="fa fa-sign-out-alt"></i> 退出登录</button>
     </div>
   </header>
@@ -56,14 +63,41 @@
 
     <div class="card">
       <h2><i class="fa fa-link"></i>我的推广码</h2>
-      <div class="promo-code-big" id="promo-code">加载中...</div>
-      <div class="promo-link-row">
-        <input type="text" id="promo-link" readonly value="">
-        <button class="btn plain" id="promo-copy-btn" onclick="window.PromoPage.copyLink()">复制链接</button>
-        <button class="btn" onclick="window.PromoPage.generateCode()">生成推广码</button>
+      <div class="promo-code-cards">
+        <div class="promo-code-card" id="promo-card-platform">
+          <div class="pcc-head">
+            <span class="pcc-badge">平台推广码</span>
+            <span class="pcc-sub">好友打开链接即可自助开通新租户（免费试用）</span>
+          </div>
+          <div class="promo-code-big" id="promo-code-platform">加载中...</div>
+          <div class="promo-link-row">
+            <input type="text" id="promo-link-platform" readonly value="">
+            <button class="btn plain" id="promo-copy-btn-platform" onclick="window.PromoPage.copyLink(1)">复制链接</button>
+          </div>
+          <div class="promo-link-row promo-btn-row">
+            <button class="btn plain" id="promo-copycode-btn-platform" onclick="window.PromoPage.copyCode(1)">复制推广码</button>
+            <button class="btn" onclick="window.PromoPage.generateCode(1)">生成/获取平台码</button>
+          </div>
+        </div>
+        <div class="promo-code-card" id="promo-card-tenant">
+          <div class="pcc-head">
+            <span class="pcc-badge tenant">租户推广码</span>
+            <span class="pcc-sub">新用户打开链接直接加入本租户（待审批）</span>
+          </div>
+          <div class="promo-code-big" id="promo-code-tenant">加载中...</div>
+          <div class="promo-link-row">
+            <input type="text" id="promo-link-tenant" readonly value="">
+            <button class="btn plain" id="promo-copy-btn-tenant" onclick="window.PromoPage.copyLink(2)">复制链接</button>
+          </div>
+          <div class="promo-link-row promo-btn-row">
+            <button class="btn plain" id="promo-copycode-btn-tenant" onclick="window.PromoPage.copyCode(2)">复制推广码</button>
+            <button class="btn" onclick="window.PromoPage.generateCode(2)">生成/获取租户码</button>
+          </div>
+          <div class="muted" id="promo-tenant-quota"></div>
+        </div>
       </div>
-      <div class="promo-codes" id="promo-codes"></div>
-      <div class="muted">把链接发给好友：对方打开后即记录为一次点击；完成注册/建租户后计入下方业绩。</div>
+      <div class="muted" id="promo-tenant-none" style="display:none;">平台管理员不属于任何租户，仅可生成平台推广码。</div>
+      <div class="muted">把链接发给好友：对方打开后即记录为一次点击；完成注册/加入后计入下方业绩。两类推广码可同时使用，业绩分别累计。</div>
     </div>
 
     <div class="card">

@@ -56,7 +56,8 @@ export const ENDPOINTS = {
   // 校验推广码：GET ?code=&touch=1；touch=1 时后端点击数 +1（前端按 ref 去重只传一次）。
   PROMO_VALIDATE_CODE: (code, touch) =>
     `/api/v1/promo/referral/validate?code=${encodeURIComponent(code || '')}${touch ? '&touch=1' : ''}`,
-  // 生成/获取我的推广码：POST { pathType, targetTenantId? }（pathType 1=自助建租户 2=指定租户）
+  // 生成/获取我的推广码：POST { pathType }（1=平台码自助建租户 2=租户码加入本租户）。
+  // 租户码的目标租户由服务端从令牌派生，不接受客户端传值（防给任意租户生成码刷业绩）。
   PROMO_GENERATE_CODE: '/api/v1/promo/referral/code',
   PROMO_MY_CODES: '/api/v1/promo/referral/my-codes',
   PROMO_ACHIEVEMENT: '/api/v1/promo/achievement',
@@ -65,6 +66,10 @@ export const ENDPOINTS = {
   // 全部推广者排行（platform_admin）
   PROMO_OVERVIEW: (pageNum, pageSize) =>
     `/api/v1/promo/achievement/overview?pageNum=${encodeURIComponent(pageNum || 1)}&pageSize=${encodeURIComponent(pageSize || 20)}`,
+  // 租户推广统计（租户管理员，2026-10-13 双码）：本租户租户码的加入漏斗 + 推广人明细
+  PROMO_TENANT_STATS: '/api/v1/promo/achievement/tenant',
+  // 平台推广统计（platform_admin，2026-10-13 双码）：全平台合计 + 推广者排行 + 最近转化
+  PROMO_PLATFORM_STATS: '/api/v1/promo/achievement/platform',
   // 路径1：自助建租户 + 首管理员（免登录）
   PROMO_REGISTER_TENANT: '/api/v1/promo/register-tenant',
   // 路径2：加入指定租户（免登录，student/teacher 待审批）

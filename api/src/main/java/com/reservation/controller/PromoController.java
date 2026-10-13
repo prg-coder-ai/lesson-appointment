@@ -29,7 +29,15 @@ import java.util.Map;
  * <ul>
  *   <li>免登录（permitAll）：{@code /referral/validate}、{@code /register-tenant}、{@code /register-user}</li>
  *   <li>需登录（ALL_ROLES）：{@code /referral/code}、{@code /referral/my-codes}、{@code /achievement}、{@code /conversions}</li>
- *   <li>平台管理员：{@code /achievement/overview}</li>
+ *   <li>租户管理员：{@code /achievement/tenant}（本租户加入漏斗）</li>
+ *   <li>平台管理员：{@code /achievement/overview}、{@code /achievement/platform}</li>
+ * </ul>
+ *
+ * <h3>两种推广码（2026-10-13 双码）</h3>
+ * <ul>
+ *   <li><b>平台推广码</b>（pathType=1）：任何人用这个码自助开新租户。</li>
+ *   <li><b>租户推广码</b>（pathType=2）：新用户加入推广者所属租户（待审批）。
+ *       目标租户由服务端从令牌派生，不接受客户端传值。</li>
  * </ul>
  *
  * <h3>两条路径</h3>
@@ -60,15 +68,27 @@ public class PromoController {
 
     /**
      * 生成/获取我的推广码（幂等）。
-     * body: { "pathType": 1 } 或 { "pathType": 2, "targetTenantId": 3 }
+     * body: { "pathType": 1 } 或 { "pathType": 2 }
+     *
+     * <p><b>targetTenantId 一律由服务端从令牌派生，不接受客户端传值</b>：
+     * 租户码只能指向推广者自己的租户。曾经接受客户端传值 → 可给任意租户生成码、
+     * 把别人的拉新业绩记在自己头上（2026-10-13 端到端测试抓出，P0）。
+     * 平台管理员（tenantId=0）不属于任何租户，只能生成平台推广码。
      */
     @PostMapping("/referral/code")
     public Result<PromoReferral> generateCode(@RequestBody(required = false) PromoCodeDTO body,
                                               @RequestHeader("Authorization") String token) {
         String userId = permissionCheck.getUserIdFromToken(token);
         Long tenantId = permissionCheck.getTenantIdFromToken(token);
-        Integer pathType = body == null || body.getPathType() == null ? 1 : body.getPathType();
-        Long targetTenantId = body == null ? null : body.getTargetTenantId();
+        Integer pathType = body == null || body.getPathType() == null
+                ? PromoService.PATH_TENANT : body.getPathType();
+        Long targetTenantId = null;
+        if (pathType != null && pathType == PromoService.PATH_USER) {
+            if (tenantId == null || tenantId <= 0) {
+                throw new com.reservation.exception.BusinessException("平台管理员不属于任何租户，只能生成平台推广码");
+            }
+            targetTenantId = tenantId;
+        }
         PromoReferral code = promoService.getOrCreateCode(userId, tenantId, pathType, targetTenantId);
         return Result.success(code, "获取成功");
     }
@@ -104,9 +124,10 @@ public class PromoController {
         data.put("targetTenantId", ref.getTargetTenantId());
         data.put("trialDays", sysConfigService.getInt("promotion.trial.days", 14));
         if (ref.getTargetTenantId() != null) {
-            // 路径2：带上目标租户名，前端可渲染"加入 XX 机构"
+            // 路径2：带上目标租户名与编码，前端可渲染"加入 XX 机构"、小程序可自动微信注册
             com.reservation.entity.Tenant target = tenantService.getById(ref.getTargetTenantId());
             data.put("targetOrgName", target == null ? null : target.getOrgName());
+            data.put("targetTenantCode", target == null ? null : target.getTenantCode());
         }
         return Result.success(data, "推广码有效");
     }
@@ -150,11 +171,12 @@ public class PromoController {
         return Result.success(data, "注册成功，等待审批");
     }
 
-    /** 我的推广业绩（含默认推广码、转化率）。 */
+    /** 我的推广业绩（含默认推广码、转化率、我的租户与剩余名额）。 */
     @GetMapping("/achievement")
     public Result<Map<String, Object>> achievement(@RequestHeader("Authorization") String token) {
         String userId = permissionCheck.getUserIdFromToken(token);
-        return Result.success(promoService.myAchievement(userId), "查询成功");
+        Long tenantId = permissionCheck.getTenantIdFromToken(token);
+        return Result.success(promoService.myAchievement(userId, tenantId), "查询成功");
     }
 
     /** 我的转化明细（分页）。 */
@@ -175,6 +197,28 @@ public class PromoController {
             @RequestHeader("Authorization") String token) {
         permissionCheck.checkPlatformAdmin(token);
         return Result.success(promoService.overview(pageNum, pageSize), "查询成功");
+    }
+
+    /**
+     * 租户推广统计（租户管理员）：本租户「租户码」的加入漏斗 + 推广人明细。
+     *
+     * <p>租户从令牌派生，只能看自己租户；平台管理员（tenantId=0）没有归属租户，
+     * 走 {@link #platformAchievement}。方法体再兜一次底（路径层已是 TENANT_ADMIN_ONLY）。
+     */
+    @GetMapping("/achievement/tenant")
+    public Result<Map<String, Object>> tenantAchievement(@RequestHeader("Authorization") String token) {
+        Long tenantId = permissionCheck.getTenantIdFromToken(token);
+        if (tenantId == null || tenantId <= 0) {
+            throw new com.reservation.exception.BusinessException("平台管理员不属于任何租户，请使用平台推广统计");
+        }
+        return Result.success(promoService.tenantStats(tenantId), "查询成功");
+    }
+
+    /** 平台推广统计（platform_admin）：全平台合计 + 推广者排行 + 最近转化。 */
+    @GetMapping("/achievement/platform")
+    public Result<Map<String, Object>> platformAchievement(@RequestHeader("Authorization") String token) {
+        permissionCheck.checkPlatformAdmin(token);
+        return Result.success(promoService.platformStats(), "查询成功");
     }
 
     /**

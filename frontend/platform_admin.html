@@ -61,6 +61,14 @@
           <i class="fa fa-chart-line"></i>
           <span>运营统计</span>
         </div>
+        <div class="menu-item" key="promo_stats">
+          <i class="fa fa-chart-pie"></i>
+          <span>平台推广统计</span>
+        </div>
+        <div class="menu-item" key="my_promo">
+          <i class="fa fa-bullhorn"></i>
+          <span>我的推广</span>
+        </div>
         
         <div class="menu-item" key="messages">
           <i class="fa fa-bell"></i>
@@ -154,6 +162,19 @@
         break;
       case "statistics":
         if (typeof renderStatisticsPage === 'function') renderStatisticsPage();
+        break;
+      // 平台推广统计（2026-10-13 双码）：全平台推广漏斗 + 推广者排行 + 最近转化
+      case "promo_stats":
+        if (typeof window.renderPlatformPromoStatsPage === 'function') {
+          window.renderPlatformPromoStatsPage();
+        } else if (dynamicContentCenter) {
+          dynamicContentCenter.innerHTML = '<div class="card"><div class="card-body">平台推广统计模块未加载（platform-promo-stats.js）。</div></div>';
+        }
+        break;
+      // 我的推广（2026-10-13 双码）：每个已登录用户（含平台管理员）都有自己的推广页，
+      // 跳转独立业绩页 promo.html（平台码/租户码双卡 + 个人业绩）
+      case "my_promo":
+        window.location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('promo.html') : 'promo.html';
         break;
       case "config":
         if (typeof renderConfigPage === 'function') renderConfigPage();
@@ -304,6 +325,7 @@
   <script src="js/sensitiveWords.js"></script>
   <script src="js/admin-messageCategory.js"></script>
   <script src="js/admin-messageManage.js"></script>
+  <script src="js/platform-promo-stats.js"></script>
  
   <script>
   </script>

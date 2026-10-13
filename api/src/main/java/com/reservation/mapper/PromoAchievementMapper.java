@@ -8,6 +8,7 @@ import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * 推广者业绩汇总。
@@ -58,4 +59,24 @@ public interface PromoAchievementMapper extends BaseMapper<PromoAchievement> {
 
     @Select("SELECT * FROM promo_achievement WHERE promoter_user_id = #{promoterUserId}")
     PromoAchievement selectByPromoter(@Param("promoterUserId") String promoterUserId);
+
+    /**
+     * 全平台业绩合计（单行；空表时 SUM 为 NULL，已用 COALESCE 兜底成 0）。
+     *
+     * <p>平台统计卡用；列名走 snake_case 别名，与实体驼峰经
+     * map-underscore-to-camel-case 对应（本模块其余查询同理）。
+     */
+    @Select("SELECT COALESCE(SUM(total_clicks),0) AS total_clicks, "
+            + "COALESCE(SUM(total_registered),0) AS total_registered, "
+            + "COALESCE(SUM(total_approved),0) AS total_approved, "
+            + "COALESCE(SUM(total_paid),0) AS total_paid, "
+            + "COALESCE(SUM(total_tenants_created),0) AS total_tenants_created, "
+            + "COALESCE(SUM(total_wx_registered),0) AS total_wx_registered, "
+            + "COALESCE(SUM(total_reward_amount),0) AS total_reward_amount "
+            + "FROM promo_achievement")
+    PromoAchievement sumTotals();
+
+    /** 推广者排行榜 Top N（按注册人数降序，同数按 userId 升序保证确定性）。 */
+    @Select("SELECT * FROM promo_achievement ORDER BY total_registered DESC, promoter_user_id ASC LIMIT #{limit}")
+    List<PromoAchievement> listTopByRegistered(@Param("limit") int limit);
 }

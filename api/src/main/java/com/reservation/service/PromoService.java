@@ -32,6 +32,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -92,13 +93,23 @@ public class PromoService {
      *
      * <p>并发首查双插由 {@code uk_promoter_scope} / {@code uk_referral_code} 兜底：
      * 撞唯一键的一方回退为读取已存在的那条，不向用户报错。
+     *
+     * <p><b>路径2 不变式</b>：租户码的 {@code targetTenantId} 必须等于推广者自己的租户
+     * （{@code promoterTenantId}）——控制器只从令牌派生目标租户，这里再做一次服务端兜底：
+     * 双闸门保证"不能给任意租户生成码，把别人的拉新业绩记在自己头上"。
      */
     @Transactional(rollbackFor = Exception.class)
     public PromoReferral getOrCreateCode(String promoterUserId, Long promoterTenantId,
                                          Integer pathType, Long targetTenantId) {
         int path = (pathType != null && pathType == PATH_USER) ? PATH_USER : PATH_TENANT;
-        if (path == PATH_USER && targetTenantId == null) {
-            throw new BusinessException("指定租户的推广码必须带目标租户");
+        if (path == PATH_USER) {
+            if (targetTenantId == null) {
+                throw new BusinessException("指定租户的推广码必须带目标租户");
+            }
+            if (promoterTenantId == null || promoterTenantId <= 0
+                    || !targetTenantId.equals(promoterTenantId)) {
+                throw new BusinessException("只能为自己所属的租户生成推广码");
+            }
         }
         PromoReferral exist = findByScope(promoterUserId, path, targetTenantId);
         if (exist != null) {
@@ -183,10 +194,47 @@ public class PromoService {
         return ref;
     }
 
-    /** 我的全部推广码（早建的在前）。 */
+    /**
+     * 我的全部推广码（早建的在前）。
+     *
+     * <p>路径2 的码会富化 {@code targetTenantCode}（瞬态字段，不落库）：
+     * 前端拼注册链接要 {@code ?tcode=} 字符串，只有 targetTenantId 拼不出来。
+     */
     public List<PromoReferral> myCodes(String promoterUserId) {
         List<PromoReferral> list = promoReferralMapper.listByPromoter(promoterUserId);
-        return list == null ? new ArrayList<>() : list;
+        if (list == null) {
+            return new ArrayList<>();
+        }
+        fillTargetTenantCodes(list);
+        return list;
+    }
+
+    /**
+     * 给路径2 的码批量富化目标租户编码（sys_tenant 已排除租户插件，可跨租户读）。
+     *
+     * <p>按 distinct targetTenantId 逐个查（码量极小：一推广者一路径最多一个码），
+     * 不走 N+1 担忧；租户被删时该码的 targetTenantCode 留空，由前端回退展示 id。
+     */
+    private void fillTargetTenantCodes(List<PromoReferral> codes) {
+        List<Long> ids = new ArrayList<>();
+        for (PromoReferral c : codes) {
+            if (c.getTargetTenantId() != null && !ids.contains(c.getTargetTenantId())) {
+                ids.add(c.getTargetTenantId());
+            }
+        }
+        if (ids.isEmpty()) {
+            return;
+        }
+        Map<Long, String> codeOf = new HashMap<>();
+        for (Long id : ids) {
+            Tenant t = tenantService.getById(id);
+            if (t != null) {
+                codeOf.put(id, t.getTenantCode());
+            }
+        }
+        for (PromoReferral c : codes) {
+            c.setTargetTenantCode(codeOf.get(c.getTargetTenantId()));
+        }
     }
 
     // ==================== 点击计数 ====================
@@ -545,14 +593,35 @@ public class PromoService {
 
     // ==================== 业绩查询 ====================
 
-    /** 我的推广业绩（含默认推广码与转化率）。 */
-    public Map<String, Object> myAchievement(String promoterUserId) {
+    /**
+     * 我的推广业绩（含默认推广码与转化率）。
+     *
+     * @param promoterTenantId 推广者所属租户（从令牌取）：>0 时附带我的租户编码/机构名/
+     *        剩余名额（租户码卡片要展示"还能加多少人"，避免推广出去全是失败注册）；
+     *        平台管理员为 0，不带这些字段。
+     */
+    public Map<String, Object> myAchievement(String promoterUserId, Long promoterTenantId) {
         PromoAchievement a = promoAchievementMapper.selectByPromoter(promoterUserId);
         List<PromoReferral> codes = myCodes(promoterUserId);
         Map<String, Object> data = new HashMap<>();
         data.put("promoterUserId", promoterUserId);
+        data.put("promoterTenantId", promoterTenantId == null ? 0L : promoterTenantId);
         data.put("referralCodes", codes);
         data.put("referralCode", codes.isEmpty() ? null : codes.get(0).getReferralCode());
+        if (promoterTenantId != null && promoterTenantId > 0) {
+            Tenant mine = tenantService.getById(promoterTenantId);
+            if (mine != null) {
+                data.put("myTenantCode", mine.getTenantCode());
+                data.put("myOrgName", mine.getOrgName());
+                TenantPackage pkg = tenantPackageService.getByTenantId(promoterTenantId);
+                if (pkg != null) {
+                    Map<String, Object> quota = new HashMap<>();
+                    quota.put("userTotalLimit", pkg.getUserTotalLimit());
+                    quota.put("userCurrent", pkg.getUserCurrent());
+                    data.put("tenantQuota", quota);
+                }
+            }
+        }
         Map<String, Object> ach = new HashMap<>();
         if (a != null) {
             ach.put("totalClicks", a.getTotalClicks());
@@ -601,5 +670,224 @@ public class PromoService {
         Page<PromoAchievement> page = promoAchievementMapper.selectPage(
                 new Page<>(Math.max(pageNum, 1), Math.min(Math.max(pageSize, 1), 100)), qw);
         return PageResult.of(page);
+    }
+
+    // ==================== 两级统计（租户管理员 / 平台管理员） ====================
+
+    /**
+     * 租户推广统计（{@code GET /promo/achievement/tenant}，租户管理员）：
+     * 本租户「租户码」的加入漏斗 + 推广人明细。
+     *
+     * <p>口径：{@code promo_referral(path_type=2, target_tenant_id=?)} 的码 →
+     * {@code promo_conversion(path_type=2, invitee_tenant_id=?)} 的转化
+     * （registerUser 里两者同源写入）。点击只计数不落明细（二期决策），
+     * 故本统计只呈现真实加入漏斗，不含点击。
+     *
+     * <p>阶段口径：{@code joined}=全部；{@code pending}=registered（待审批）；
+     * {@code approved}=approved ∪ paid（缴费前必先审批，故 paid 计入已审批）；
+     * {@code paid}=paid。
+     */
+    public Map<String, Object> tenantStats(Long tenantId) {
+        Map<String, Object> data = new HashMap<>();
+        Tenant mine = tenantService.getById(tenantId);
+        data.put("tenantId", tenantId);
+        data.put("tenantCode", mine == null ? null : mine.getTenantCode());
+        data.put("orgName", mine == null ? null : mine.getOrgName());
+        TenantPackage pkg = tenantPackageService.getByTenantId(tenantId);
+        if (pkg != null) {
+            Map<String, Object> quota = new HashMap<>();
+            quota.put("userTotalLimit", pkg.getUserTotalLimit());
+            quota.put("userCurrent", pkg.getUserCurrent());
+            data.put("tenantQuota", quota);
+        }
+
+        List<PromoReferral> codes = promoReferralMapper.listByTargetTenant(tenantId);
+        List<PromoConversion> convs = promoConversionMapper.listByInviteeTenantPath(tenantId);
+
+        // 推广人 → 码数（保序：先建码的在前）
+        Map<String, Integer> codeCount = new LinkedHashMap<>();
+        for (PromoReferral c : codes) {
+            codeCount.merge(c.getPromoterUserId(), 1, Integer::sum);
+        }
+        // 推广人 → [joined, pending, approved, paid]
+        Map<String, int[]> stage = new HashMap<>();
+        for (PromoConversion c : convs) {
+            int[] s = stage.computeIfAbsent(c.getPromoterUserId(), k -> new int[4]);
+            s[0]++;
+            String st = c.getStage();
+            if ("registered".equals(st)) {
+                s[1]++;
+            } else if ("approved".equals(st) || "paid".equals(st)) {
+                s[2]++;
+                if ("paid".equals(st)) {
+                    s[3]++;
+                }
+            }
+        }
+
+        // 姓名解析：promo 是平台级数据，推广人 user_id 理论上在本租户，
+        // 仍走 IgnoreTenant 批量查（不依赖调用方租户上下文，统计接口要看全量）。
+        java.util.Set<String> pids = new java.util.LinkedHashSet<>(codeCount.keySet());
+        pids.addAll(stage.keySet());
+        Map<String, User> users = loadUsersForStats(pids);
+
+        List<Map<String, Object>> promoters = new ArrayList<>();
+        int tJoined = 0, tPending = 0, tApproved = 0, tPaid = 0;
+        for (String pid : pids) {
+            int[] s = stage.getOrDefault(pid, new int[4]);
+            User u = users.get(pid);
+            Map<String, Object> row = new HashMap<>();
+            row.put("promoterUserId", pid);
+            row.put("promoterName", u == null ? null : u.getName());
+            row.put("promoterAccount", u == null ? null : u.getAccount());
+            row.put("promoterRole", u == null ? null : u.getRole());
+            row.put("codeCount", codeCount.getOrDefault(pid, 0));
+            row.put("joined", s[0]);
+            row.put("pending", s[1]);
+            row.put("approved", s[2]);
+            row.put("paid", s[3]);
+            promoters.add(row);
+            tJoined += s[0];
+            tPending += s[1];
+            tApproved += s[2];
+            tPaid += s[3];
+        }
+        promoters.sort((x, y) -> {
+            int c = Integer.compare((Integer) y.get("joined"), (Integer) x.get("joined"));
+            if (c != 0) {
+                return c;
+            }
+            c = Integer.compare((Integer) y.get("codeCount"), (Integer) x.get("codeCount"));
+            if (c != 0) {
+                return c;
+            }
+            return String.valueOf(x.get("promoterUserId")).compareTo(String.valueOf(y.get("promoterUserId")));
+        });
+
+        Map<String, Object> totals = new HashMap<>();
+        totals.put("codeCount", codes.size());
+        totals.put("promoterCount", pids.size());
+        totals.put("joined", tJoined);
+        totals.put("pending", tPending);
+        totals.put("approved", tApproved);
+        totals.put("paid", tPaid);
+        data.put("totals", totals);
+        data.put("promoters", promoters);
+        log.info("租户推广统计, tenant={}, codes={}, joined={}", tenantId, codes.size(), tJoined);
+        return data;
+    }
+
+    /**
+     * 平台推广统计（{@code GET /promo/achievement/platform}，平台管理员）：
+     * 全平台合计 + 推广者排行 Top20 + 最近转化 10 条。
+     *
+     * <p>姓名/租户名解析走 {@code UserMapper.listByIdsIgnoreTenant} 与
+     * {@code sys_tenant}（均已排除租户插件）——业绩行里的 user_id 可能属于任意租户。
+     */
+    public Map<String, Object> platformStats() {
+        Map<String, Object> data = new HashMap<>();
+        PromoAchievement sum = promoAchievementMapper.sumTotals();
+        long promoters = promoAchievementMapper.selectCount(null);
+
+        Map<String, Object> totals = new HashMap<>();
+        totals.put("promoters", promoters);
+        totals.put("clicks", sum == null || sum.getTotalClicks() == null ? 0 : sum.getTotalClicks());
+        totals.put("registered", sum == null || sum.getTotalRegistered() == null ? 0 : sum.getTotalRegistered());
+        totals.put("approved", sum == null || sum.getTotalApproved() == null ? 0 : sum.getTotalApproved());
+        totals.put("paid", sum == null || sum.getTotalPaid() == null ? 0 : sum.getTotalPaid());
+        totals.put("tenantsCreated", sum == null || sum.getTotalTenantsCreated() == null ? 0 : sum.getTotalTenantsCreated());
+        totals.put("usersJoined", promoConversionMapper.countByPathType(PATH_USER));
+        totals.put("wxRegistered", sum == null || sum.getTotalWxRegistered() == null ? 0 : sum.getTotalWxRegistered());
+        totals.put("rewardAmount", sum == null || sum.getTotalRewardAmount() == null
+                ? BigDecimal.ZERO : sum.getTotalRewardAmount());
+        data.put("totals", totals);
+
+        List<PromoAchievement> top = promoAchievementMapper.listTopByRegistered(20);
+        List<PromoConversion> recent = promoConversionMapper.listRecent(10);
+
+        java.util.Set<String> userIds = new java.util.HashSet<>();
+        for (PromoAchievement a : top) {
+            userIds.add(a.getPromoterUserId());
+        }
+        for (PromoConversion c : recent) {
+            userIds.add(c.getPromoterUserId());
+            userIds.add(c.getInviteeUserId());
+        }
+        Map<String, User> users = loadUsersForStats(userIds);
+        Map<Long, String> tenantNames = new HashMap<>();
+        List<Map<String, Object>> ranking = new ArrayList<>();
+        int rank = 0;
+        for (PromoAchievement a : top) {
+            rank++;
+            User u = users.get(a.getPromoterUserId());
+            Map<String, Object> row = new HashMap<>();
+            row.put("rank", rank);
+            row.put("promoterUserId", a.getPromoterUserId());
+            row.put("promoterName", u == null ? null : u.getName());
+            row.put("promoterAccount", u == null ? null : u.getAccount());
+            row.put("tenantName", tenantNameOf(a.getPromoterTenantId(), tenantNames));
+            row.put("totalClicks", a.getTotalClicks() == null ? 0 : a.getTotalClicks());
+            row.put("totalRegistered", a.getTotalRegistered() == null ? 0 : a.getTotalRegistered());
+            row.put("totalApproved", a.getTotalApproved() == null ? 0 : a.getTotalApproved());
+            row.put("totalPaid", a.getTotalPaid() == null ? 0 : a.getTotalPaid());
+            row.put("totalRewardAmount", a.getTotalRewardAmount() == null ? BigDecimal.ZERO : a.getTotalRewardAmount());
+            ranking.add(row);
+        }
+
+        List<Map<String, Object>> recentRows = new ArrayList<>();
+        for (PromoConversion c : recent) {
+            User promoter = users.get(c.getPromoterUserId());
+            User invitee = users.get(c.getInviteeUserId());
+            Map<String, Object> row = new HashMap<>();
+            row.put("registeredAt", c.getRegisteredAt() == null ? null : c.getRegisteredAt().toString());
+            row.put("promoterName", promoter == null ? null : promoter.getName());
+            row.put("inviteeName", invitee == null ? null : invitee.getName());
+            row.put("pathType", c.getPathType());
+            row.put("tenantCode", c.getTenantCode() != null ? c.getTenantCode()
+                    : tenantNameOf(c.getInviteeTenantId(), tenantNames));
+            row.put("stage", c.getStage());
+            row.put("source", c.getSource());
+            recentRows.add(row);
+        }
+
+        data.put("ranking", ranking);
+        data.put("recent", recentRows);
+        return data;
+    }
+
+    /** 租户名缓存查询（sys_tenant 已排除租户插件；查不到的租户返回 null）。 */
+    private String tenantNameOf(Long tenantId, Map<Long, String> cache) {
+        if (tenantId == null) {
+            return null;
+        }
+        String cached = cache.get(tenantId);
+        if (cached != null) {
+            return cached;
+        }
+        Tenant t = tenantService.getById(tenantId);
+        String name = t == null ? null : t.getOrgName();
+        cache.put(tenantId, name);
+        return name;
+    }
+
+    /**
+     * 统计专用：批量取用户并解密姓名，返回 userId → User。
+     *
+     * <p><b>为什么必须就地解密</b>：{@code user.name} 入库加密、解密是服务级动作
+     * （{@code UserService.decryptUserFields}，无 MyBatis TypeHandler），
+     * 裸 {@code SELECT} 拿到的是密文（{@code hex:base64} 形态）。
+     * 账号（account）是登录标识、不明文加密，无需处理；
+     * 空值与历史明文由 {@code CryptoUtil.decrypt} 原样透传，可安全调用。
+     */
+    private Map<String, User> loadUsersForStats(java.util.Collection<String> ids) {
+        Map<String, User> users = new HashMap<>();
+        if (ids == null || ids.isEmpty()) {
+            return users;
+        }
+        for (User u : userService.listByIdsIgnoreTenant(ids)) {
+            u.setName(cryptoUtil.decrypt(u.getName()));
+            users.put(u.getUserId(), u);
+        }
+        return users;
     }
 }

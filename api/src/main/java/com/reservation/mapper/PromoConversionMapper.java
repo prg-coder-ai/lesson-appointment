@@ -7,6 +7,8 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
+import java.util.List;
+
 /**
  * 推广转化记录。
  *
@@ -48,4 +50,22 @@ public interface PromoConversionMapper extends BaseMapper<PromoConversion> {
     @Select("SELECT COUNT(*) FROM promo_conversion WHERE register_phone_hmac = #{hmac} "
             + "AND registered_at IS NOT NULL AND registered_at >= #{since}")
     int countByPhoneHmacSince(@Param("hmac") String hmac, @Param("since") java.time.LocalDateTime since);
+
+    /**
+     * 某租户的路径2 转化全量（加入漏斗统计用，新→旧）。
+     *
+     * <p>路径2 的 {@code invitee_tenant_id} 即被加入的租户，与推广码的
+     * {@code target_tenant_id} 一致（registerUser 里同源写入）。
+     */
+    @Select("SELECT * FROM promo_conversion WHERE path_type = 2 AND invitee_tenant_id = #{tenantId} "
+            + "ORDER BY registered_at DESC, id DESC")
+    List<PromoConversion> listByInviteeTenantPath(@Param("tenantId") Long tenantId);
+
+    /** 全平台最近转化（平台统计「最近转化」表用）。 */
+    @Select("SELECT * FROM promo_conversion ORDER BY registered_at DESC, id DESC LIMIT #{limit}")
+    List<PromoConversion> listRecent(@Param("limit") int limit);
+
+    /** 按路径统计转化总数（平台统计：路径1=新租户、路径2=加入用户）。 */
+    @Select("SELECT COUNT(*) FROM promo_conversion WHERE path_type = #{pathType}")
+    int countByPathType(@Param("pathType") int pathType);
 }
