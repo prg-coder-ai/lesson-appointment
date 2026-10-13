@@ -239,10 +239,26 @@
     }
   }
 
-  // 暴露到全局，供 auth.js / api.js / 各业务页面统一调用
-  window.saveLoginRedirect = saveLoginRedirect;
-  window.consumeLoginRedirect = consumeLoginRedirect;
-  window.clearLoginRedirect = clearLoginRedirect;
+// 暴露到全局，供 auth.js / api.js / 各业务页面统一调用
+window.saveLoginRedirect = saveLoginRedirect;
+window.consumeLoginRedirect = consumeLoginRedirect;
+window.clearLoginRedirect = clearLoginRedirect;
+
+/**
+ * 当前是否登录页（login.html）。
+ *
+ * 登录页自身的 401（公开端点被拒、登录 POST 被过滤器层拒绝等）不代表"登录过期"，
+ * 不应触发「清登录态 + 跳登录页」：跳转目标就是本页，整页刷新只会把 URL 参数
+ * （ref/tCode/redirect）全部打掉——2026-10-14 修复的推广落地页事故正是如此：
+ * 注册弹窗刚弹出，随后的行业下拉请求 401 就把用户踢到了裸 login.html。
+ */
+function isLoginPage() {
+  try {
+    return window.location.pathname.endsWith('login.html');
+  } catch (e) {
+    return false;
+  }
+}
 
   const service = axios.create({
     baseURL: API_BASE_URL,
@@ -361,8 +377,9 @@
         // 公开页接口（如师资落地页的 public-list）401 属预期内（未登录），不刷新 token、不跳登录页，
         // 直接 reject 交由调用方静默降级（展示空数据），避免与 index 的 tCode 未登录重定向
         // 形成 index↔landing 死循环。noAuthRedirect 由调用方在 request 时显式声明。
+        // 登录页同理：401 时跳转目标就是本页，整页刷新只会丢失 URL 参数，直接短路。
         // 注意：必须在此处（首次 401 进入刷新分支前）短路，否则会进入下方 refresh 失败分支触发跳转。
-        if (window.__PUBLIC_LANDING__ || config.noAuthRedirect) {
+        if (window.__PUBLIC_LANDING__ || config.noAuthRedirect || isLoginPage()) {
           return Promise.reject(error);
         }
 
@@ -477,7 +494,7 @@
             // 公开落地页（student-landing.html 设了 window.__PUBLIC_LANDING__）：任何 401 都不跳登录页，
             // 否则会与 index 的 tCode 未登录重定向形成 index↔landing 死循环；交由调用方静默降级。
             // 即便调用方已显式声明 noAuthRedirect 也走同一兜底。
-            if (window.__PUBLIC_LANDING__ || config.noAuthRedirect) {
+            if (window.__PUBLIC_LANDING__ || config.noAuthRedirect || isLoginPage()) {
               isRedirecting = false;
               return Promise.reject(refreshErr);
             }
@@ -517,7 +534,7 @@
           // 跳转保护：避免多个并发请求同时触发跳转
           if (!isRedirecting) {
             isRedirecting = true;
-            if (window.__PUBLIC_LANDING__ || config.noAuthRedirect) {
+            if (window.__PUBLIC_LANDING__ || config.noAuthRedirect || isLoginPage()) {
               // 公开页（如师资落地页）的公开接口偶发 401：不跳登录页，否则会与 index 的
               // tCode 未登录重定向形成 index↔landing 死循环；由调用方自行降级（展示空数据）。
               // 仅释放跳转锁，不执行 saveLoginRedirect / 不跳转。

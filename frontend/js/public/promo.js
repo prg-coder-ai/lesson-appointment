@@ -86,7 +86,11 @@
     try {
       info = await window.request({
         url: ENDPOINTS.PROMO_VALIDATE_CODE(promo.ref, touch),
-        method: 'GET'
+        method: 'GET',
+        // 公开端点：401 只可能是后端白名单漏配/旧代码，不是"登录过期"——
+        // 不触发清场跳转（noAuthRedirect），由下方 catch 静默降级为无效码提示，
+        // 否则会把用户从推广落地页踢到裸 login.html（2026-10-14 修复）。
+        noAuthRedirect: true
       });
     } catch (e) {
       info = null; // 校验失败静默：不弹错误，保持常规登录页可用
@@ -146,7 +150,11 @@
     if (!sel) return;
     var list = [];
     try {
-      list = (await window.request({ url: ENDPOINTS.INDUSTRY_OPTIONS, method: 'GET' })) || [];
+      // noAuthRedirect：行业下拉是公开端点，旧后端/漏配返回 401 时只走下方
+      // "行业加载失败"提示分支，绝不清场踢人（2026-10-14 修复）。
+      list = (await window.request({
+        url: ENDPOINTS.INDUSTRY_OPTIONS, method: 'GET', noAuthRedirect: true
+      })) || [];
     } catch (e) {
       list = []; // 失败走下面的提示分支，不抛断弹窗
     }
