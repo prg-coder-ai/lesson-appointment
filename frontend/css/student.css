@@ -430,8 +430,6 @@
 /* STUDENT_STATS_DESKTOP 数据总览桌面列数（base 提供 display 基础后补回，置于 media 之前避免被覆盖） */
 .stats-panel { grid-template-columns: repeat(3, 1fr); }
 
-/* STUDENT_STATS_DESKTOP 数据总览桌面列数（base 提供 display 基础后补回，置于 media 之前避免被覆盖） */
-.stats-panel { grid-template-columns: repeat(3, 1fr); }
 @media (max-width: 768px) {
   .layout-container {
     flex-direction: column;

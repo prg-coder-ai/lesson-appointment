@@ -154,6 +154,9 @@ user-select: none;
 
 /* ============ 移动端适配（A 方案响应式改造，2026-09-05）============ */
 /* 兼容式：电脑端默认样式不变，仅手机/平板断点内覆盖；不改动 HTML/JS 结构 */
+/* TEACHER_STATS_DESKTOP 数据总览桌面列数（base 提供 display 基础后补回，置于 media 之前避免被覆盖） */
+.stats-panel { grid-template-columns: repeat(4, 1fr); }
+
 @media (max-width: 768px) {
   .layout-container {
     flex-direction: column;
