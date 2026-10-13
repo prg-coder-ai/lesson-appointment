@@ -33,9 +33,9 @@ function quotaRowsOf(pkg) {
   });
 }
 function infoRow(k, v) {
-  return `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 4px;border-bottom:1px solid #f0f2f5;font-size:14px;">
-    <span style="color:#5a6478;">${escapeHtml(k)}</span>
-    <span style="color:#1f2a44;text-align:right;">${v}</span>
+  return `<div style="display:grid;grid-template-columns:128px 1fr;align-items:baseline;column-gap:16px;padding:11px 8px;border-bottom:1px solid #f0f0f0;font-size:14px;line-height:1.5;">
+    <span style="color:#5a6478;white-space:nowrap;">${escapeHtml(k)}</span>
+    <span style="color:#1f2a44;text-align:left;min-width:0;overflow-wrap:anywhere;word-break:break-word;">${v}</span>
   </div>`;
 }
 
