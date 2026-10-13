@@ -1,4 +1,4 @@
-import { requireAuth, logout, switchTenant, unbindWechat } from '../../core/auth.js';
+import { requireAuth, logout, switchTenant, unbindWechat, getWechatStatus, bindWechat } from '../../core/auth.js';
 import { roleLabel, ROLES } from '../../shared/constants.js';
 import { getCurrentTenant } from '../../core/tenant.js';
 import { INDUSTRY_NAMES } from '../../shared/terms.js';
@@ -23,7 +23,9 @@ function displayRole(role, terms) {
 Page(withTerms({
   data: {
     user: {}, roleText: '', industryText: '', lang: 'zh', active: 'mine', unreadCount: 0, tenantName: '',
-    showPwd: false, oldPwd: '', newPwd: '', confirmPwd: '', saving: false
+    showPwd: false, oldPwd: '', newPwd: '', confirmPwd: '', saving: false,
+    // 微信绑定状态：默认按"未绑定"呈现，避免未查询前就误显「解绑」
+    wechatBound: false, wechatAuto: false, wechatStatusText: '绑定'
   },
   onShow() {
     const u = requireAuth();
@@ -34,6 +36,45 @@ Page(withTerms({
     });
     if (u.userId) getUnreadCount(u.userId).then(n => this.setData({ unreadCount: n })).catch(() => {});
     this.loadTenantName(u);
+    this.loadWechatStatus();
+  },
+  // 查询微信绑定状态并按状态推导展示文案（对齐 web 端 getWechatBindStatus）：
+  // 未绑定 →「绑定」（点击发起绑定）；已绑定 manual →「解绑」；auto_register →「已绑定」（禁止解绑）。
+  loadWechatStatus() {
+    getWechatStatus().then(({ bound, bindSource }) => {
+      const auto = bindSource === 'auto_register';
+      this.setData({
+        wechatBound: bound,
+        wechatAuto: auto,
+        wechatStatusText: bound ? (auto ? '已绑定' : '解绑') : '绑定'
+      });
+    }).catch(() => {
+      this.setData({ wechatBound: false, wechatAuto: false, wechatStatusText: '绑定' });
+    });
+  },
+  // 微信绑定行点击：按状态分流 —— 未绑定则发起绑定，已绑定（manual）则解绑，
+  // auto_register 账号禁止解绑（该类账号 account=openid、password 随机，解绑即永久失联）。
+  async onWechatTap() {
+    if (!this.data.wechatBound) {
+      const ok = await this.doBindWechat();
+      return ok;
+    }
+    if (this.data.wechatAuto) {
+      wx.showToast({ title: '该账号由微信直接注册，无法解绑', icon: 'none' });
+      return;
+    }
+    this.onUnbindWechat();
+  },
+  // 在小程序侧发起微信绑定（web 端无 wx.login() 故只能查/解，小程序可以绑）。
+  async doBindWechat() {
+    const ok = await bindWechat();
+    if (ok) {
+      wx.showToast({ title: '已绑定微信', icon: 'success' });
+      this.loadWechatStatus();
+    } else {
+      wx.showToast({ title: '绑定失败，请稍后重试', icon: 'none' });
+    }
+    return ok;
   },
   // 取当前租户的公司名称（orgName）替换顶部的租户编码展示；缺省回退 tenantCode
   loadTenantName(u) {
@@ -81,6 +122,11 @@ Page(withTerms({
     const ok = await confirm('解绑后将无法用微信免输入登录，确定？', { title: '解绑微信' });
     if (!ok) return;
     const done = await unbindWechat();
-    wx.showToast({ title: done ? '已解绑' : '解绑失败', icon: done ? 'success' : 'none' });
+    if (done) {
+      wx.showToast({ title: '已解绑', icon: 'success' });
+      this.loadWechatStatus();
+    } else {
+      wx.showToast({ title: '解绑失败', icon: 'none' });
+    }
   }
 }));
