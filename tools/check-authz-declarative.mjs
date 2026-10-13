@@ -186,6 +186,9 @@ const PERMIT_ALL = [
   //   tenant/validate-code 给路径2 表单渲染前校验租户编码。防刷在 PromoService 内，不依赖登录态。
   '/api/v1/promo/referral/validate', '/api/v1/promo/register-tenant', '/api/v1/promo/register-user',
   '/api/v1/tenant/validate-code',
+  // 行业字典选项（2026-10-13 修订）：推广落地页「免费体验注册」的所属行业下拉，匿名读取。
+  // 与需平台管理员登录的 /industry/list 分开，只暴露启用行业的 id/code/name。
+  '/api/v1/industry/options',
 ];
 const isPermitAll = (p) => PERMIT_ALL.includes(p);
 

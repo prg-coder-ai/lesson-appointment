@@ -131,6 +131,15 @@ public class SecurityConfig {
                             "/tenant/validate-code"
                     ).permitAll();
 
+                    // 行业字典选项（免登录）：推广落地页「免费体验注册」的所属行业下拉数据源。
+                    // 与需平台管理员登录的 /industry/list 分开——落地页访客没有任何身份。
+                    // 裸路径与 /api/v1 前缀双写；另需同步 JwtFilter / WebMvcConfig /
+                    // check-authz-declarative 的 PERMIT_ALL（共四处，缺一即公开端点失效）。
+                    auth.requestMatchers(
+                            "/api/v1/industry/options",
+                            "/industry/options"
+                    ).permitAll();
+
                     // 注册相关（匿名用户必须能访问）
                     // 注意：/user/register 才是 UserController 实际映射（@PostMapping("/register")），
                     // 此前只放了不存在的 /user/admin/register，导致自助注册被 401 拦截；

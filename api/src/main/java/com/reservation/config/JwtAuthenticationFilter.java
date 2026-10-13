@@ -55,6 +55,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/api/v1/promo/register-tenant", "/promo/register-tenant",
             "/api/v1/promo/register-user", "/promo/register-user",
             "/api/v1/tenant/validate-code", "/tenant/validate-code",
+            // 行业字典选项（推广落地页匿名读取，与 SecurityConfig 白名单同步）
+            "/api/v1/industry/options", "/industry/options",
             "/term/map", "/api/v1/term/map",
             "/teacher/published/latest-public", "/api/v1/teacher/published/latest-public",
             "/teacher/published/public-get", "/api/v1/teacher/published/public-get",

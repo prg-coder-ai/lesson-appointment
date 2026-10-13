@@ -306,7 +306,16 @@ window.sanitizeTenantCode = function (raw) {
           <label>确认密码</label>
           <input type="password" id="promo-admin-password2" placeholder="请再次输入密码">
         </div>
-        <p style="margin:0 0 10px; color:#888; font-size:12px;">行业信息可在注册后进入「租户信息」页设置。</p>
+        <div class="form-item">
+          <label for="promo-industry">所属行业</label>
+          <!-- 2026-10-13 修订：推广路径1 注册时选定所属行业（默认「教育培训」）。
+               选项由 GET /industry/options（免登录）填充；选定值随注册提交，
+               服务端对缺省/无效值有兜底（教育培训）与校验。 -->
+          <select id="promo-industry">
+            <option value="">加载中...</option>
+          </select>
+        </div>
+        <p style="margin:0 0 10px; color:#888; font-size:12px;">所属行业决定术语体系（如“学生/咨询者”），注册后仍可在「租户信息」页修改。</p>
         <button type="submit" class="btn" id="promo-tenant-btn" onclick="window.PromoLanding.submitTenantForm()">立即创建</button>
         <button type="button" class="btn btn-cancel" id="promo-tenant-cancel">取消</button>
         <div class="success-tip" id="promo-tenant-success" style="text-align:center;"></div>

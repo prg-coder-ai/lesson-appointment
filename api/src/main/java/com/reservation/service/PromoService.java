@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.reservation.common.PageResult;
 import com.reservation.common.RoleConst;
 import com.reservation.common.Result;
+import com.reservation.entity.Industry;
 import com.reservation.entity.PromoAchievement;
 import com.reservation.entity.PromoConversion;
 import com.reservation.entity.PromoReferral;
@@ -14,6 +15,7 @@ import com.reservation.entity.User;
 import com.reservation.entity.WxUserid;
 import com.reservation.exception.BusinessException;
 import com.reservation.exception.ConflictException;
+import com.reservation.mapper.IndustryMapper;
 import com.reservation.mapper.PromoAchievementMapper;
 import com.reservation.mapper.PromoConversionMapper;
 import com.reservation.mapper.PromoReferralMapper;
@@ -67,6 +69,10 @@ public class PromoService {
     /** 路径2：指定租户注册用户。 */
     public static final int PATH_USER = 2;
 
+    /** 默认行业编码/名称（教育培训）：平台推广码自注册未选行业时的服务端兜底。 */
+    private static final String DEFAULT_INDUSTRY_CODE = "education";
+    private static final String DEFAULT_INDUSTRY_NAME = "教育培训";
+
     @Autowired
     private PromoReferralMapper promoReferralMapper;
     @Autowired
@@ -85,6 +91,8 @@ public class PromoService {
     private SysConfigService sysConfigService;
     @Autowired
     private CryptoUtil cryptoUtil;
+    @Autowired
+    private IndustryMapper industryMapper;
 
     // ==================== 推广码 ====================
 
@@ -427,6 +435,10 @@ public class PromoService {
      * 否则会留下"租户建了、管理员没建上"的孤儿租户（无账号可登录，只能平台方手工清理）。
      * 注意失败时必须<b>抛异常</b>而不能只返回 fail：返回 fail 会让本方法正常结束从而提交事务。
      *
+     * @param industryId 所属行业（sys_industry.id）：落地页下拉选定，可省略。
+     *                   省略时服务端兜底为默认行业「教育培训」；传了但不存在/已停用则拒绝
+     *                   （{@code sys_tenant.industry_id} 无外键，无效值会让租户指向
+     *                   不存在的行业，术语三级作用域随之失效）。
      * @param wxOpenid 可选：勾选了"微信登录"时由 Controller 经 {@code code2Session} 换取，
      *                 注册成功后把 openid 绑到新管理员账号。{@code bind_source=manual}：
      *                 该账号有登录密码，解绑不会永久丢失登录能力（auto_register 的
@@ -448,6 +460,8 @@ public class PromoService {
         if (!StringUtils.hasText(orgName) || !StringUtils.hasText(account) || !StringUtils.hasText(password)) {
             throw new BusinessException("机构名称、管理员账号、密码不能为空");
         }
+        // 行业先解析后开租户：无效行业必须在此刻拒绝，不能落到 tenant.industry_id 上
+        Long resolvedIndustryId = resolveIndustryId(industryId);
         checkRegisterAbuse(ip, phone, true);
 
         int trialDays = sysConfigService.getInt("promotion.trial.days", 14);
@@ -457,7 +471,7 @@ public class PromoService {
         Tenant tenant = new Tenant();
         tenant.setTenantCode(tenantService.generateUniqueTenantCode());
         tenant.setOrgName(orgName.trim());
-        tenant.setIndustryId(industryId);
+        tenant.setIndustryId(resolvedIndustryId);
         tenant.setContact(name);
         tenant.setPhone(phone);
         tenant.setCreatorAccount(account.trim());
@@ -504,8 +518,52 @@ public class PromoService {
         Map<String, Object> data = new HashMap<>(reg.data);
         data.put("trialExpireTime", trialExpire.toString());
         data.put("trialDays", trialDays);
-        log.info("路径1注册完成, tenant={}, code={}, admin={}", tenantId, tenant.getTenantCode(), reg.userId);
+        log.info("路径1注册完成, tenant={}, code={}, admin={}, industry={}",
+                tenantId, tenant.getTenantCode(), reg.userId, resolvedIndustryId);
         return data;
+    }
+
+    /**
+     * 解析路径1 注册的所属行业：缺省回退默认行业（教育培训），传了则必须存在且启用。
+     *
+     * <p>为什么服务端也要兜底：前端下拉只是第一道，API 客户端/旧版本可能不传
+     * {@code industryId}；而 {@code sys_tenant.industry_id} 没有外键约束
+     * （CascadeRules 对该引用登记为 KEEP），无效值会让租户指向不存在的行业，
+     * 术语三级作用域（平台词/行业词/租户词）直接塌一层。
+     */
+    private Long resolveIndustryId(Long industryId) {
+        if (industryId == null) {
+            return defaultIndustryId();
+        }
+        Industry ind = industryMapper.selectById(industryId);
+        if (ind == null || !Integer.valueOf(1).equals(ind.getStatus())) {
+            throw new BusinessException("所选行业不存在或已停用，请刷新页面重试");
+        }
+        return industryId;
+    }
+
+    /**
+     * 默认行业 ID：按 {@code code='education'} 找 → 退化按名称「教育培训」→
+     * 再退化取第一个启用项；都找不到返回 {@code null}（保持改造前"未指定行业"的旧行为，
+     * 不因字典被清空而阻塞注册）。
+     *
+     * <p>{@code sys_industry} 已登记进 {@code MyBatisPlusConfig.IGNORE_TABLES}，
+     * 此处查询不受租户插件影响。
+     */
+    private Long defaultIndustryId() {
+        Industry byCode = industryMapper.selectOne(new LambdaQueryWrapper<Industry>()
+                .eq(Industry::getCode, DEFAULT_INDUSTRY_CODE).last("LIMIT 1"));
+        if (byCode != null && Integer.valueOf(1).equals(byCode.getStatus())) {
+            return byCode.getId();
+        }
+        Industry byName = industryMapper.selectOne(new LambdaQueryWrapper<Industry>()
+                .eq(Industry::getName, DEFAULT_INDUSTRY_NAME).last("LIMIT 1"));
+        if (byName != null && Integer.valueOf(1).equals(byName.getStatus())) {
+            return byName.getId();
+        }
+        List<Industry> enabled = industryMapper.selectList(new LambdaQueryWrapper<Industry>()
+                .eq(Industry::getStatus, 1).orderByAsc(Industry::getId).last("LIMIT 1"));
+        return enabled.isEmpty() ? null : enabled.get(0).getId();
     }
 
     // ==================== 注册：路径2 指定租户 ====================

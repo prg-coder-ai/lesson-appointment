@@ -169,6 +169,9 @@ const ENDPOINTS = {
   PROMO_REGISTER_TENANT: '/api/v1/promo/register-tenant',
   // 路径2：加入指定租户（免登录，student/teacher 待审批）
   PROMO_REGISTER_USER: '/api/v1/promo/register-user',
+  // 行业字典选项（免登录）：推广落地页「免费体验注册」的所属行业下拉数据源，
+  // 仅返回启用行业的 id/code/name。与需平台管理员登录的 /industry/list 分开。
+  INDUSTRY_OPTIONS: '/api/v1/industry/options',
   // 用账号反查租户编码（本人或管理员）：GET ?account=
   TENANT_CODE_BY_ACCOUNT: (acc) => `/api/v1/tenant/code-by-account?account=${encodeURIComponent(acc || '')}`,
   // 校验租户编码是否有效（免登录）：GET ?code=

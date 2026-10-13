@@ -20,7 +20,8 @@ import java.util.List;
 /**
  * 行业管理控制器（平台管理端）
  * 接口前缀: /industry/*
- * 权限: 仅平台管理员可操作（挂在「系统设置 - 行业管理」菜单下）
+ * 权限: 除 GET /options（推广落地页匿名读行业下拉）外，仅平台管理员可操作
+ *       （挂在「系统设置 - 行业管理」菜单下）
  */
 @RestController
 @RequestMapping("/api/v1/industry")
@@ -43,6 +44,25 @@ public class IndustryController {
         permissionCheck.checkPlatformAdmin(token);
         QueryWrapper<Industry> qw = new QueryWrapper<>();
         qw.orderByAsc("id");
+        return Result.success(industryMapper.selectList(qw), "查询成功");
+    }
+
+    /**
+     * 行业选项（<b>免登录</b>）：推广落地页「免费体验注册」的所属行业下拉数据源。
+     *
+     * <p>与 {@link #list} 分开的原因：落地页访客此刻没有任何身份，不能复用
+     * 需平台管理员登录的列表端点。只暴露 {@code id/code/name} 三列、仅启用项 ——
+     * 字典本身是公开信息，但备注/时间戳对匿名没有价值，少一个字段少一份风险。
+     *
+     * <p>permitAll 需四处同步：SecurityConfig、JwtAuthenticationFilter、
+     * WebMvcConfig（TenantInterceptor 排除表）、check-authz-declarative 的 PERMIT_ALL。
+     */
+    @GetMapping("/options")
+    public Result<List<Industry>> options() {
+        QueryWrapper<Industry> qw = new QueryWrapper<>();
+        qw.select("id", "code", "name")
+                .eq("status", 1)
+                .orderByAsc("id");
         return Result.success(industryMapper.selectList(qw), "查询成功");
     }
 

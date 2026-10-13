@@ -4,7 +4,10 @@
  * 两个消费者：
  *   ① login.html —— URL 带 ref/path/tcode/inviter/source 时渲染推广注册表单
  *      （路径1 自助建租户 / 路径2 加入指定租户），首次访问带 touch=1 让后端点击 +1
- *      （localStorage 按 ref 去重，只上报一次）。
+ *      （localStorage 按 ref 去重，只上报一次）。路径1 表单含「所属行业」下拉
+ *      （默认教育培训，随注册提交，服务端对缺省/无效值有兜底与校验）；
+ *      路径2 注册成功后跳转 login.html?tCode=<租户编码>&registered=1
+ *      —— 租户编码进 URL，登录页据此锁定租户，登录后的跳转链才带得住它。
  *   ② promo.html —— 推广业绩页：双推广码卡（平台码/租户码，可复制链接与码）、
  *      业绩汇总卡、转化明细表。每个已登录用户都可进入；租户码对平台管理员隐藏
  *      （平台管理员不属于任何租户，目标租户由服务端从令牌派生）。
@@ -99,9 +102,70 @@
 
     if (info.pathType === 1) {
       openTenantModal(info);
+      loadIndustryOptions(); // 所属行业下拉（异步加载，不阻塞弹窗展示）
     } else {
+      // URL 归一：租户码链接带的是小写 tcode，而页面跳转体系（api.js 的
+      // resolveTenantCode / pageUrl）只认 tCode。这里补一个等值的 tCode 参数，
+      // 用户若关闭注册弹窗直接在登录页登录，登录后的跳转链也带得住租户编码。
+      normalizeTenantCodeParam(promo.tcode);
       openUserModal(info, promo);
     }
+  }
+
+  /**
+   * URL 归一：给地址栏补一个与 {@code tcode} 等值的 {@code tCode} 参数（2026-10-13 修订）。
+   *
+   * <p>{@code history.replaceState} 不刷新页面、不产生历史记录，仅统一参数名口径：
+   * 推广链接约定用小写 {@code tcode}，页面跳转体系（api.js）约定用 {@code tCode}，
+   * 两者只差大小写但读取方互不兼容（getUrlParam 大小写敏感）。
+   */
+  function normalizeTenantCodeParam(tcode) {
+    if (!tcode) return;
+    try {
+      var params = new URLSearchParams(window.location.search);
+      if (params.get('tCode')) return; // 已是规范形态，不重复补
+      params.set('tCode', tcode);
+      window.history.replaceState(null, '',
+        window.location.pathname + '?' + params.toString() + (window.location.hash || ''));
+    } catch (e) { /* 隐私模式等异常忽略，不影响注册主流程 */ }
+  }
+
+  /** 默认行业编码/名称（教育培训）：与后端 PromoService 的兜底口径一致。 */
+  var DEFAULT_INDUSTRY_CODE = 'education';
+  var DEFAULT_INDUSTRY_NAME = '教育培训';
+
+  /**
+   * 加载「所属行业」下拉（路径1 弹窗）：GET /industry/options（免登录，仅启用行业）。
+   *
+   * <p>默认选中「教育培训」：按 code 精确匹配 → 退化按名称 → 退化第一项；
+   * 加载失败时保留一个空值失败项，由提交校验给出明确提示（服务端另有默认兜底，
+   * API 客户端不传 industryId 也不会拿到"无行业"的租户）。
+   */
+  async function loadIndustryOptions() {
+    var sel = document.getElementById('promo-industry');
+    if (!sel) return;
+    var list = [];
+    try {
+      list = (await window.request({ url: ENDPOINTS.INDUSTRY_OPTIONS, method: 'GET' })) || [];
+    } catch (e) {
+      list = []; // 失败走下面的提示分支，不抛断弹窗
+    }
+    if (!Array.isArray(list) || list.length === 0) {
+      sel.innerHTML = '<option value="">行业加载失败，请刷新页面重试</option>';
+      return;
+    }
+    var html = '';
+    var defaultId = '';
+    for (var i = 0; i < list.length; i++) {
+      var it = list[i] || {};
+      html += '<option value="' + escapeHtml(it.id) + '">' + escapeHtml(it.name || it.code || '') + '</option>';
+      if (!defaultId && (it.code === DEFAULT_INDUSTRY_CODE || it.name === DEFAULT_INDUSTRY_NAME)) {
+        defaultId = String(it.id);
+      }
+    }
+    if (!defaultId) defaultId = String(list[0].id); // 字典被改名时兜底第一项
+    sel.innerHTML = html;
+    sel.value = defaultId;
   }
 
   function showPromoInvalid(ref) {
@@ -176,6 +240,7 @@
     var phone = (document.getElementById('promo-admin-phone').value || '').trim();
     var pwd = document.getElementById('promo-admin-password').value || '';
     var pwd2 = document.getElementById('promo-admin-password2').value || '';
+    var industryId = (document.getElementById('promo-industry').value || '').trim();
 
     if (!orgName || !account || !pwd) {
       if (errTip) { errTip.textContent = '机构名称、管理员账号、密码不能为空'; errTip.style.display = 'block'; }
@@ -183,6 +248,11 @@
     }
     if (pwd !== pwd2) {
       if (errTip) { errTip.textContent = '两次输入的密码不一致'; errTip.style.display = 'block'; }
+      return;
+    }
+    if (!industryId) {
+      // 只有行业下拉加载失败才会是空值：正常形态必有默认选中项
+      if (errTip) { errTip.textContent = '请选择所属行业（加载失败请刷新页面重试）'; errTip.style.display = 'block'; }
       return;
     }
     var btn = document.getElementById('promo-tenant-btn');
@@ -194,6 +264,7 @@
         data: {
           referralCode: attr.ref || '',
           orgName: orgName,
+          industryId: industryId ? Number(industryId) : null,
           account: account,
           name: name,
           phone: phone,
@@ -262,10 +333,23 @@
       });
       await reportAttribution();
       if (okTip) {
-        okTip.textContent = '注册申请已提交，请等待管理员审批；审批通过后即可登录。';
+        okTip.textContent = '注册申请已提交，请等待管理员审批；审批通过后即可登录。正在返回登录页...';
         okTip.style.display = 'block';
       }
-      if (btn) btn.disabled = false;
+      // 2026-10-13 修订：注册后跳转的 URL 必须带租户编码参数（与常规注册 submitRegister
+      // 同一约定：login.html?tCode=<注册时的租户编码>&registered=1）。
+      //  · tCode：登录页据此锁定租户（applyTcodeToLogin 隐藏并锁定身份/租户编码），
+      //    登录成功后 redirectToUserPage 也靠 resolveTenantCode 从 URL 取到它，
+      //    拼出带 tCode 的角色页——否则入口守卫 guardEntryPage 会以「URL 无 tCode /
+      //    与本地 tenantCode 不一致」把人弹回登录页（租户端角色的死循环）。
+      //  · registered=1：告知登录页停留在登录表单并显示绿色提示，不被「已登录自动跳转」弹走。
+      // 租户编码取自表单里的锁定值（打开弹窗时由 validate 接口的 targetTenantCode 反填，
+      // ref 是唯一真相源，不信任链接上可能被篡改的 tcode）。
+      var regTenantCode = (document.getElementById('promo-user-tcode').value || '').trim();
+      var loginUrl = regTenantCode
+        ? './login.html?tCode=' + encodeURIComponent(regTenantCode) + '&registered=1'
+        : './login.html?registered=1';
+      setTimeout(function () { window.location.assign(loginUrl); }, 2000);
     } catch (e) {
       if (errTip) {
         errTip.textContent = (e && e.message) || '注册失败，请稍后再试';
