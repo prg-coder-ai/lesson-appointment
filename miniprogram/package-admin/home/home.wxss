@@ -1,9 +1,9 @@
 .page { min-height: 100vh; padding: 32rpx 32rpx 140rpx; box-sizing: border-box; background: #f5f7fa; }
 .header { padding: 24rpx 8rpx 8rpx; }
 .greet { font-size: 40rpx; font-weight: 700; color: #1f2a44; }
-.sub { font-size: 26rpx; color: #8a94a6; margin-top: 8rpx; }
+.sub { font-size: 26rpx; color: #6b7587; margin-top: 8rpx; }
 .group { margin-top: 28rpx; }
-.group-title { font-size: 26rpx; color: #8a94a6; font-weight: 600; margin: 0 8rpx 12rpx; }
+.group-title { font-size: 26rpx; color: #6b7587; font-weight: 600; margin: 0 8rpx 12rpx; }
 .grid {
   display: flex; flex-wrap: wrap;
   background: #fff; border-radius: 20rpx; padding: 20rpx 0;

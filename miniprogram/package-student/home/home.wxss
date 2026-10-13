@@ -1,7 +1,7 @@
 .page { min-height: 100vh; padding: 32rpx 32rpx 140rpx; box-sizing: border-box; background: #f5f7fa; }
 .header { padding: 24rpx 8rpx 8rpx; }
 .greet { font-size: 40rpx; font-weight: 700; color: #1f2a44; }
-.sub { font-size: 26rpx; color: #8a94a6; margin-top: 8rpx; }
+.sub { font-size: 26rpx; color: #6b7587; margin-top: 8rpx; }
 .grid {
   display: flex; flex-wrap: wrap; margin-top: 28rpx;
   background: #fff; border-radius: 20rpx; padding: 20rpx 0;
@@ -16,4 +16,4 @@
 }
 .card { margin-top: 28rpx; background: #fff; border-radius: 20rpx; padding: 28rpx; box-shadow: 0 8rpx 30rpx rgba(31,42,68,0.05); }
 .card-title { font-size: 30rpx; font-weight: 600; color: #1f2a44; margin-bottom: 16rpx; }
-.card-line { font-size: 26rpx; color: #8a94a6; line-height: 1.7; }
+.card-line { font-size: 26rpx; color: #6b7587; line-height: 1.7; }

@@ -1,5 +1,5 @@
 .page { min-height: 100vh; padding: 24rpx 24rpx 140rpx; box-sizing: border-box; background: #f5f7fa; }
-.empty { text-align: center; color: #aab2c0; font-size: 28rpx; padding: 120rpx 0; line-height: 1.6; }
+.empty { text-align: center; color: #6b7587; font-size: 28rpx; padding: 120rpx 0; line-height: 1.6; }
 
 .card { background: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 20rpx; box-shadow: 0 8rpx 30rpx rgba(31,42,68,0.05); }
 .card:last-child { margin-bottom: 0; }
@@ -10,7 +10,7 @@
 .status.ok { color: #0f9d58; background: #e8f7ef; }
 .status.warn { color: #d48806; background: #fff8e6; }
 .status.done { color: #3f6fd8; background: #eef3ff; }
-.status.bad { color: #8a94a6; background: #f2f4f8; }
+.status.bad { color: #6b7587; background: #f2f4f8; }
 
 .meta { margin-top: 16rpx; }
 .m-row { display: flex; align-items: flex-start; margin-top: 10rpx; font-size: 25rpx; line-height: 1.5; }
@@ -29,7 +29,7 @@
 .apt-status { font-size: 21rpx; padding: 4rpx 12rpx; border-radius: 18rpx; background: #eef1f6; color: #6b7688; }
 .apt-status.ok { color: #0f9d58; background: #e8f7ef; }
 .apt-status.warn { color: #d48806; background: #fff8e6; }
-.apt-status.done { color: #8a94a6; background: #f2f4f8; }
+.apt-status.done { color: #6b7587; background: #f2f4f8; }
 .apt-btns { display: flex; justify-content: flex-end; margin-top: 10rpx; }
 
 .card-foot { display: flex; justify-content: flex-end; margin-top: 18rpx; }
@@ -38,4 +38,4 @@
 .btn-sec.warn { color: #d4380d; border-color: #f5c2b0; }
 .btn-hover { opacity: .7; }
 
-.foot { text-align: center; color: #aab2c0; font-size: 24rpx; padding: 24rpx 0; }
+.foot { text-align: center; color: #6b7587; font-size: 24rpx; padding: 24rpx 0; }

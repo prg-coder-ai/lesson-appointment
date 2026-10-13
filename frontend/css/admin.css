@@ -80,7 +80,7 @@ margin-bottom: 20px;
 .menu-group-title {
 padding: 12px 20px;
 font-size: 12px;
-color: #999;
+color: #6b7587;
 text-transform: uppercase;
 }
 .menu-item {
@@ -137,7 +137,7 @@ box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 .stats-label {
 font-size: 14px;
-color: #999;
+color: #6b7587;
 margin-bottom: 8px;
 }
 .stats-value {
@@ -192,7 +192,7 @@ background: #f5222d;
 color: #fff;
 }
 .btn-warning {
-background: #faad14;;
+background: #d48806;
 color: #fff;
 }
 .btn-default {
@@ -202,8 +202,9 @@ border: 1px solid #e9ecef;
 }
 /* 定义CSS变量 */
 :root {
+--primary-color: #722ed1;
 --success-color: #52c41a;
---warning-color: #faad14;
+--warning-color: #d48806;
 --danger-color: #f5222d;
 --border-color: #e9ecef;
 }
@@ -241,7 +242,7 @@ padding-bottom: 8px;
 .modal-close {
 cursor: pointer;
 font-size: 18px;
-color: #999;
+color: #6b7587;
 }
 .modal-close:hover {
 color: #333;
@@ -273,10 +274,6 @@ border: none;
 border-radius: 4px;
 cursor: pointer;
 font-size: 14px;
-}
-.btn-primary {
-background: #409eff;
-color: #fff;
 }
 .btn-cancel {
 background: #909399;
@@ -322,22 +319,7 @@ button {
   border-radius: 4px;
   cursor: pointer;
 }
-.btn-primary {
-  background: #409eff;
-  color: white;
-}
-.btn-success {
-  background: #67c23a;
-  color: white;
-}
-.btn-warning {
-  background: #e6a23c;
-  color: white;
-}
-.btn-danger {
-  background: #f56c6c;
-  color: white;
-}
+
 .btn-group {
   display: flex;
   gap: 10px;
@@ -499,7 +481,7 @@ table th {
 
 .js-teacher-name {
   cursor: pointer;
-  color: #409eff;
+  color: #722ed1;
   font-weight: bold;
   transition: all 0.2s;
 }
@@ -590,4 +572,10 @@ table th {
   .stats-panel { grid-template-columns: repeat(3, 1fr); }
   .schedule-container { max-width: 100%; }
   .container { max-width: 960px; }
+}
+
+/* 全局键盘焦点可见性（WCAG 2.2：焦点必须可辨识） */
+:focus-visible {
+  outline: 2px solid var(--primary-color, #722ed1);
+  outline-offset: 2px;
 }

@@ -16,7 +16,7 @@
   background: #f7f9fc; border: 1rpx solid #e5e8ef; border-radius: 12rpx; font-size: 28rpx;
 }
 .btn { background: #fff; color: #333; border: 1rpx solid #e5e8ef; border-radius: 12rpx; font-size: 28rpx; }
-.btn.primary { background: #1890ff; color: #fff; border-color: #1890ff; }
+.btn.primary { background: #1677ff; color: #fff; border-color: #1677ff; }
 .btn.block { width: 100%; margin-top: 8rpx; }
 .send { margin-top: 8rpx; }
 .tip { text-align: center; font-size: 23rpx; color: #aaa; margin-top: 16rpx; padding: 0 10rpx; }

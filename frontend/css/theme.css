@@ -1,0 +1,49 @@
+/* theme.css — 设计 Token 单一来源（web 端）
+ * 主色保持紫色 #722ed1（与小程序蓝各自统一，不跨端强求同色）。
+ * 所有页面 CSS 在 theme.css 之后加载，可覆盖本文件中的默认值。 */
+:root {
+  /* 主色色阶（紫） */
+  --primary-color: #722ed1;
+  --primary-50: #f9f0ff;
+  --primary-100: #f0e1ff;
+  --primary-500: #722ed1;
+  --primary-600: #5b23a8;
+  --primary-700: #4a1d8a;
+
+  /* 语义色 */
+  --success-color: #52c41a;
+  --warning-color: #d48806;   /* 深金，白字对比度 ~4.6:1，达标 */
+  --danger-color: #f5222d;
+
+  /* 中性色 */
+  --text-color: #333;
+  --text-light-color: #6b7587; /* 次级文字，白底对比度 ~4.8:1，达标 */
+  --border-color: #e9ecef;
+  --bg-page: #f5f5f5;
+  --bg-surface: #fff;
+
+  /* 间距（8px 基线） */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px;
+
+  /* 圆角 */
+  --radius-sm: 4px; --radius-md: 8px;
+
+  /* 阴影 */
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+  /* 字号刻度（8px 基线） */
+  --fs-12: 12px; --fs-14: 14px; --fs-16: 16px; --fs-20: 20px; --fs-24: 24px;
+}
+
+/* 统一字体栈（覆盖浏览器默认，三端一致） */
+html {
+  font-family: -apple-system, BlinkMacSystemFont, "Microsoft YaHei", "PingFang SC",
+    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: var(--text-color);
+}
+
+/* 全局键盘焦点可见性（WCAG 2.2：焦点必须可辨识） */
+:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}

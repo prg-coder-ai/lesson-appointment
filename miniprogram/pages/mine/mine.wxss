@@ -6,7 +6,7 @@
   display: flex; align-items: center; justify-content: center;
 }
 .p-name { font-size: 34rpx; font-weight: 600; color: #1f2a44; margin-top: 16rpx; }
-.p-role { font-size: 24rpx; color: #8a94a6; margin-top: 6rpx; }
+.p-role { font-size: 24rpx; color: #6b7587; margin-top: 6rpx; }
 .card { margin-top: 24rpx; background: #fff; border-radius: 20rpx; padding: 8rpx 28rpx; box-shadow: 0 8rpx 30rpx rgba(31,42,68,0.05); }
 .row { display: flex; align-items: center; justify-content: space-between; padding: 26rpx 0; border-bottom: 1rpx solid #f0f2f5; }
 .row:last-child { border-bottom: none; }

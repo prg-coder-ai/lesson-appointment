@@ -6,7 +6,7 @@
 .result { margin-top: 16rpx; font-size: 26rpx; color: #fa5151; }
 .bar { display: flex; align-items: baseline; justify-content: space-between; padding: 16rpx 8rpx 8rpx; }
 .bar-title { font-size: 32rpx; font-weight: 600; color: #1f2a44; }
-.bar-count { font-size: 24rpx; color: #8a94a6; }
-.center { text-align: center; color: #8a94a6; padding: 60rpx 0; }
+.bar-count { font-size: 24rpx; color: #6b7587; }
+.center { text-align: center; color: #6b7587; padding: 60rpx 0; }
 .tags { display: flex; flex-wrap: wrap; gap: 14rpx; margin-top: 8rpx; }
 .tag { background: #fff; color: #5a6478; font-size: 26rpx; padding: 12rpx 22rpx; border-radius: 24rpx; box-shadow: 0 2rpx 12rpx rgba(31,42,68,0.05); }

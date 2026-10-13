@@ -524,7 +524,7 @@
 .result-tab:hover { background: #eef3fb; }
 .result-tab.active {
   background: #fff;
-  color: #1a73e8;
+  color: var(--primary-color);
   font-weight: 600;
   border-color: #eee;
   border-bottom: 1px solid #fff;

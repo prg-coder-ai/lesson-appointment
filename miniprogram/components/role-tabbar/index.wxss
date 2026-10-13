@@ -14,7 +14,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: #8a94a6;
+  color: #6b7587;
   font-size: 22rpx;
 }
 .tab-item.active { color: #1677ff; }

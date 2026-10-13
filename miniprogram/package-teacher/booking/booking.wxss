@@ -2,7 +2,7 @@
 
 .topbar { display: flex; align-items: baseline; justify-content: space-between; padding: 24rpx 28rpx 12rpx; }
 .tb-title { font-size: 34rpx; font-weight: 600; color: #1f2a4d; }
-.tb-hint { font-size: 22rpx; color: #aab2c0; }
+.tb-hint { font-size: 22rpx; color: #6b7587; }
 
 .tb-filters { display: flex; flex-wrap: wrap; padding: 0 24rpx 4rpx; }
 .flt { font-size: 24rpx; color: #667; padding: 6rpx 18rpx; margin: 0 10rpx 10rpx 0; background: #fff; border-radius: 24rpx; }

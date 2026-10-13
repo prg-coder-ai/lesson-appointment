@@ -1,9 +1,9 @@
 .page { min-height: 100vh; background: #f5f7fa; padding: 24rpx; }
-.tip { text-align: center; color: #999; padding: 80rpx 0; }
+.tip { text-align: center; color: #6b7587; padding: 80rpx 0; }
 .card { background: #fff; border-radius: 16rpx; padding: 28rpx; margin-bottom: 20rpx; }
 .title { font-size: 36rpx; font-weight: 700; color: #222; }
 .meta { margin-top: 18rpx; display: flex; align-items: center; flex-wrap: wrap; }
-.tag { font-size: 22rpx; color: #1890ff; background: #e6f4ff; border-radius: 8rpx; padding: 4rpx 14rpx; margin-right: 14rpx; }
+.tag { font-size: 22rpx; color: #1677ff; background: #e6f4ff; border-radius: 8rpx; padding: 4rpx 14rpx; margin-right: 14rpx; }
 /* 已发详情「已读 N 人」仍在用 */
 .tag.warn { color: #fa8c16; background: #fff7e6; }
 /* 优先级用编码上色（HIGH/MEDIUM/LOW），但显示的是中文文案；与 inbox.wxss 的 .pri-* 同色系 */
@@ -12,13 +12,13 @@
 .tag.pri-LOW { color: #389e0d; background: #f6ffed; }
 .time { font-size: 24rpx; color: #aaa; }
 .sender { margin-top: 16rpx; font-size: 26rpx; color: #666; }
-.sender-acc { margin-top: 6rpx; color: #999; }
+.sender-acc { margin-top: 6rpx; color: #6b7587; }
 .body .content { font-size: 30rpx; color: #333; line-height: 1.7; white-space: pre-wrap; word-break: break-all; }
 .actions { display: flex; gap: 20rpx; margin-top: 10rpx; }
 .btn { flex: 1; background: #fff; color: #333; border: 1rpx solid #e5e8ef; border-radius: 12rpx; font-size: 28rpx; }
-.btn-ghost { color: #999; }
+.btn-ghost { color: #6b7587; }
 .btn-star { color: #faad14; border-color: #ffe58f; }
-.btn-restore { color: #1890ff; border-color: #91d5ff; }
+.btn-restore { color: #1677ff; border-color: #91d5ff; }
 .btn-del { color: #fa5151; border-color: #ffccc7; }
 .hint { margin-top: 24rpx; text-align: center; font-size: 24rpx; color: #aaa; }
 /* 「已发 / 消息管理」详情的接收人明细：姓名（账号）+ 状态标签 + 时间 */
@@ -27,8 +27,8 @@
 .rec-row { display: flex; align-items: center; padding: 14rpx 0; border-bottom: 1rpx solid #f2f4f7; }
 .rec-row:last-child { border-bottom: none; }
 .rec-name { flex: 1; font-size: 27rpx; color: #333; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.rec-acct { color: #999; font-size: 24rpx; }
-.rec-org { flex: none; font-size: 22rpx; color: #999; margin-right: 14rpx; }
+.rec-acct { color: #6b7587; font-size: 24rpx; }
+.rec-org { flex: none; font-size: 22rpx; color: #6b7587; margin-right: 14rpx; }
 .rec-state { flex: none; font-size: 22rpx; padding: 2rpx 12rpx; border-radius: 8rpx; margin-right: 14rpx; }
 .rec-read { color: #389e0d; background: #f6ffed; }
 .rec-unread { color: #096dd9; background: #e6f7ff; }
@@ -36,8 +36,8 @@
 .rec-pending { color: #8c8c8c; background: #fafafa; }
 .rec-revoked { color: #8c8c8c; background: #f0f0f0; }
 .rec-time { flex: none; font-size: 22rpx; color: #aaa; }
-.rec-more { text-align: center; font-size: 24rpx; color: #1890ff; padding: 16rpx 0 4rpx; }
+.rec-more { text-align: center; font-size: 24rpx; color: #1677ff; padding: 16rpx 0 4rpx; }
 .rec-empty { text-align: center; font-size: 24rpx; color: #aaa; padding: 24rpx 0; }
 
 /* 接收台账：只看未读切换 */
-.rec-toggle { margin-left: auto; font-size: 24rpx; color: #1890ff; padding: 4rpx 12rpx; }
+.rec-toggle { margin-left: auto; font-size: 24rpx; color: #1677ff; padding: 4rpx 12rpx; }

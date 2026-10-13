@@ -12,7 +12,7 @@
 }
 .subtitle {
   font-size: 26rpx;
-  color: #8a94a6;
+  color: #6b7587;
   text-align: center;
   margin-top: 12rpx;
   margin-bottom: 40rpx;
@@ -85,7 +85,7 @@
 .btn-primary::after { border: none; }
 .hint {
   font-size: 22rpx;
-  color: #aab2c0;
+  color: #6b7587;
   text-align: center;
   margin-top: 32rpx;
 }
@@ -94,7 +94,7 @@
   align-items: center;
   flex-wrap: wrap;
   font-size: 22rpx;
-  color: #8a94a6;
+  color: #6b7587;
   margin: 8rpx 0 28rpx;
 }
 .checkbox {
