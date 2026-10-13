@@ -14,6 +14,7 @@
   --success-color: #52c41a;
   --warning-color: #d48806;   /* 深金，白字对比度 ~4.6:1，达标 */
   --danger-color: #f5222d;
+  --orange-color: #fa8c16;   /* 星级评分激活色（student 端 var(--orange-color) 此前未定义） */
 
   /* 中性色 */
   --text-color: #333;

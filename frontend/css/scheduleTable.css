@@ -31,11 +31,11 @@ body {
 :root {
     --primary-color: #722ed1;
     --success-color: #52c41a;
-    --warning-color: #faad14;
+    --warning-color: #d48806;
     --danger-color: #f5222d;
     --border-color: #e9ecef;
     --text-color: #333;
-    --text-light-color: #999;
+    --text-light-color: #6b7587;
     --orange-color: #fa8c16;
   }
 .stats-panel {
@@ -52,7 +52,7 @@ body {
   }
   .stats-label {
     font-size: 14px;
-    color: #999;
+    color: #6b7587;
     margin-bottom: 8px;
   }
   .stats-value {
@@ -140,7 +140,7 @@ body {
     color: #fff;
   }
   .btn-warning {
-    background: #faad14;;
+    background: #d48806;
     color: #fff;
   }
   .btn-default {
@@ -183,7 +183,7 @@ padding-bottom: 8px;
 .modal-close {
 cursor: pointer;
 font-size: 18px;
-color: #999;
+color: #6b7587;
 }
 .modal-close:hover {
 color: #333;
@@ -302,7 +302,7 @@ font-size: 14px;
           cursor: pointer;
       }
       .btn-primary {
-          background: #409eff;
+          background: #722ed1;
           color: white;
       }
       .btn-success {
