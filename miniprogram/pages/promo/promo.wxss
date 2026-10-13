@@ -1,0 +1,51 @@
+.page { min-height: 100vh; padding: 32rpx 32rpx 140rpx; box-sizing: border-box; background: #f5f7fa; }
+.card { margin-top: 24rpx; background: #fff; border-radius: 20rpx; padding: 8rpx 28rpx; box-shadow: 0 8rpx 30rpx rgba(31,42,68,0.05); }
+.card-title { font-size: 30rpx; font-weight: 600; color: #1f2a44; padding: 24rpx 0 12rpx; }
+.muted { font-size: 22rpx; color: #8a93a6; line-height: 1.7; margin: 20rpx 8rpx 0; }
+
+/* —— 双码卡 —— */
+.pcc-head { display: flex; align-items: center; flex-wrap: wrap; gap: 12rpx; padding: 22rpx 0 4rpx; }
+.pcc-badge { background: #1677ff; color: #fff; font-size: 22rpx; padding: 4rpx 16rpx; border-radius: 8rpx; white-space: nowrap; }
+.pcc-badge.tenant { background: #d4380d; }
+.pcc-sub { font-size: 22rpx; color: #8a93a6; }
+.pcc-code { font-size: 44rpx; font-weight: 700; letter-spacing: 4rpx; color: #1677ff; font-family: Consolas, Menlo, monospace; margin: 12rpx 0 4rpx; word-break: break-all; }
+.pcc-quota { font-size: 22rpx; color: #d4380d; line-height: 1.6; margin-bottom: 8rpx; }
+.pcc-btns { display: flex; gap: 16rpx; margin: 16rpx 0 8rpx; }
+.pcc-btn { flex: 1; text-align: center; font-size: 26rpx; color: #1677ff; background: #eef4ff; border-radius: 12rpx; padding: 16rpx 0; }
+.pcc-btn.primary { background: #1677ff; color: #fff; }
+.pcc-gen { margin: 8rpx 0 20rpx; text-align: center; font-size: 26rpx; color: #5a6478; background: #f0f2f5; border-radius: 12rpx; padding: 18rpx 0; }
+.pcc-gen-hover { background: #e4e8f0; }
+
+/* —— 业绩汇总 —— */
+.stat-grid { display: flex; flex-wrap: wrap; gap: 16rpx; padding: 8rpx 0 20rpx; }
+.stat-box { width: calc((100% - 48rpx) / 4); background: #f7f8fc; border-radius: 12rpx; padding: 18rpx 6rpx; text-align: center; box-sizing: border-box; }
+.stat-box .num { font-size: 32rpx; font-weight: 700; color: #1f2a44; }
+.stat-box .lbl { font-size: 20rpx; color: #8a93a6; margin-top: 6rpx; }
+.stat-box.hot .num { color: #d4380d; }
+
+/* —— 转化明细 —— */
+.conv-list { padding-bottom: 16rpx; }
+.conv-item { padding: 20rpx 0; border-bottom: 1rpx solid #f0f2f5; }
+.conv-item:last-child { border-bottom: none; }
+.conv-main { display: flex; align-items: center; justify-content: space-between; }
+.conv-code { font-size: 28rpx; font-weight: 600; color: #1f2a44; font-family: Consolas, Menlo, monospace; }
+.conv-stage { font-size: 22rpx; color: #1677ff; background: #eef4ff; border-radius: 6rpx; padding: 4rpx 12rpx; }
+.conv-sub { font-size: 22rpx; color: #8a93a6; margin-top: 8rpx; }
+.conv-time { font-size: 22rpx; color: #aab2c2; margin-top: 4rpx; }
+.empty { text-align: center; color: #8a93a6; font-size: 24rpx; padding: 32rpx 0; }
+.more { text-align: center; color: #8a93a6; font-size: 24rpx; padding: 20rpx 0 8rpx; }
+
+/* —— 弹窗 —— */
+.mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.modal { width: 600rpx; background: #fff; border-radius: 24rpx; padding: 32rpx 28rpx 28rpx; }
+.modal-title { font-size: 30rpx; font-weight: 600; color: #1f2a44; text-align: center; }
+.qr-img { display: block; width: 480rpx; margin: 24rpx auto 0; border-radius: 12rpx; }
+.qr-loading { text-align: center; color: #8a93a6; font-size: 26rpx; padding: 120rpx 0; }
+.modal-tip { text-align: center; font-size: 22rpx; color: #8a93a6; line-height: 1.6; margin-top: 20rpx; }
+.modal-btns { display: flex; gap: 16rpx; margin-top: 28rpx; }
+.mbtn { flex: 1; text-align: center; font-size: 28rpx; color: #5a6478; background: #f0f2f5; border-radius: 12rpx; padding: 18rpx 0; }
+.mbtn.primary { background: #1677ff; color: #fff; }
+.link-box { margin-top: 24rpx; background: #f7f8fc; border-radius: 12rpx; padding: 20rpx; font-size: 24rpx; color: #1f2a44; line-height: 1.6; word-break: break-all; max-height: 240rpx; overflow-y: auto; }
+
+/* 离屏画布：旧版 canvas（canvas-id）常驻页面但不进入视口 */
+.qr-canvas-hidden { position: fixed; left: -3000rpx; top: 0; width: 240px; height: 240px; }

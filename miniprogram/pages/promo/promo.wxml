@@ -1,0 +1,84 @@
+<view class="page">
+  <!-- 双推广码卡：平台码 / 租户码（平台管理员仅展示平台码） -->
+  <view class="card code-card" wx:for="{{codeCards}}" wx:key="pathType" wx:if="{{item.pathType === 1 || !isPlatformAdmin}}">
+    <view class="pcc-head">
+      <text class="pcc-badge {{item.pathType === 2 ? 'tenant' : ''}}">{{item.title}}</text>
+      <text class="pcc-sub">{{item.sub}}</text>
+    </view>
+    <view class="pcc-code">{{item.code || '尚未生成'}}</view>
+    <view class="pcc-quota" wx:if="{{item.pathType === 2 && quotaText}}">{{quotaText}}</view>
+    <view class="pcc-btns">
+      <view class="pcc-btn" bindtap="copyCode" data-pt="{{item.pathType}}">复制推广码</view>
+      <view class="pcc-btn primary" bindtap="showQr" data-pt="{{item.pathType}}">小程序码</view>
+      <view class="pcc-btn primary" bindtap="genLink" data-pt="{{item.pathType}}">小程序链接</view>
+    </view>
+    <view class="pcc-gen" hover-class="pcc-gen-hover" bindtap="generateCode" data-pt="{{item.pathType}}">
+      {{item.generating ? '生成中…' : '生成/获取' + item.title}}
+    </view>
+  </view>
+  <view class="muted" wx:if="{{isPlatformAdmin}}">平台管理员不属于任何租户，仅可生成平台推广码。</view>
+  <view class="muted">把小程序码或链接发给好友：对方打开即记录一次点击；完成注册/加入后计入下方业绩。也可直接转发本页面。</view>
+
+  <!-- 业绩汇总 -->
+  <view class="card">
+    <view class="card-title">业绩汇总</view>
+    <view class="stat-grid">
+      <view class="stat-box"><view class="num">{{achievement.totalClicks || 0}}</view><view class="lbl">点击</view></view>
+      <view class="stat-box hot"><view class="num">{{achievement.totalRegistered || 0}}</view><view class="lbl">注册人数</view></view>
+      <view class="stat-box"><view class="num">{{achievement.totalApproved || 0}}</view><view class="lbl">审批通过</view></view>
+      <view class="stat-box"><view class="num">{{achievement.totalPaid || 0}}</view><view class="lbl">成功缴费</view></view>
+      <view class="stat-box"><view class="num">{{achievement.totalTenantsCreated || 0}}</view><view class="lbl">促成新租户</view></view>
+      <view class="stat-box"><view class="num">{{achievement.totalWxRegistered || 0}}</view><view class="lbl">微信注册</view></view>
+      <view class="stat-box"><view class="num">{{achievement.conversionRate || '0%'}}</view><view class="lbl">注册转化率</view></view>
+      <view class="stat-box hot"><view class="num">{{achievement.totalRewardAmount || 0}}</view><view class="lbl">累计奖励(元)</view></view>
+    </view>
+  </view>
+
+  <!-- 转化明细 -->
+  <view class="card">
+    <view class="card-title">转化明细（共 {{convTotal}} 条）</view>
+    <view class="conv-list">
+      <view class="conv-item" wx:for="{{conversions}}" wx:key="id">
+        <view class="conv-main">
+          <text class="conv-code">{{item.referralCode}}</text>
+          <text class="conv-stage">{{item.stageText}}</text>
+        </view>
+        <view class="conv-sub">{{item.pathText}} · 租户 {{item.tenantCode || '-'}} · 来源 {{item.source || '-'}}</view>
+        <view class="conv-time">{{item.registeredAt || '-'}}</view>
+      </view>
+      <view class="empty" wx:if="{{!loading && !conversions.length}}">暂无转化记录</view>
+      <view class="more" wx:if="{{convHasMore}}" bindtap="loadMore">加载更多</view>
+      <view class="more" wx:elif="{{conversions.length}}">— 已全部加载 —</view>
+    </view>
+  </view>
+
+  <!-- 小程序码弹窗 -->
+  <view class="mask" wx:if="{{qrModal}}" bindtap="closeQr">
+    <view class="modal" catchtap="noop">
+      <view class="modal-title">{{qrTitle}}</view>
+      <image wx:if="{{qrImage}}" class="qr-img" src="{{qrImage}}" mode="widthFix" show-menu-by-longpress />
+      <view wx:else class="qr-loading">{{qrLoading ? '生成中…' : '生成失败'}}</view>
+      <view class="modal-tip">微信「扫一扫」该码，即可打开邀请页</view>
+      <view class="modal-btns">
+        <view class="mbtn primary" bindtap="saveQr">{{qrSaving ? '保存中…' : '保存到相册'}}</view>
+        <view class="mbtn" bindtap="closeQr">关闭</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 小程序链接弹窗 -->
+  <view class="mask" wx:if="{{linkModal}}" bindtap="closeLink">
+    <view class="modal" catchtap="noop">
+      <view class="modal-title">小程序链接</view>
+      <view class="link-box">{{linkText || '生成中…'}}</view>
+      <view class="modal-tip">复制后发给微信好友，对方点击即可打开邀请页</view>
+      <view class="modal-btns">
+        <view class="mbtn primary" bindtap="copyLink">复制链接</view>
+        <view class="mbtn" bindtap="closeLink">关闭</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 小程序码绘制用画布（离屏常驻，避免弹窗开关时序导致 canvasId 找不到） -->
+  <canvas canvas-id="promo-qr-canvas" class="qr-canvas-hidden" />
+</view>

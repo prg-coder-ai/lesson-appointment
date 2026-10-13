@@ -1,0 +1,80 @@
+<view class="page">
+  <!-- 平台统计（platform_admin） -->
+  <block wx:if="{{isPlatform}}">
+    <view class="card">
+      <view class="card-title">平台推广统计</view>
+      <view class="desc">全平台推广漏斗：平台推广码（自助开新租户）与租户推广码（加入指定租户）的业绩汇总。点击只计数不落明细，「总注册」及之后为真实转化。</view>
+      <view class="stat-grid">
+        <view class="stat-box"><view class="num">{{totals.promoters || 0}}</view><view class="lbl">推广人数</view></view>
+        <view class="stat-box"><view class="num">{{totals.clicks || 0}}</view><view class="lbl">总点击</view></view>
+        <view class="stat-box hot"><view class="num">{{totals.registered || 0}}</view><view class="lbl">总注册</view></view>
+        <view class="stat-box hot"><view class="num">{{totals.tenantsCreated || 0}}</view><view class="lbl">促成新租户</view></view>
+        <view class="stat-box hot"><view class="num">{{totals.usersJoined || 0}}</view><view class="lbl">加入用户</view></view>
+        <view class="stat-box"><view class="num">{{totals.approved || 0}}</view><view class="lbl">已审批</view></view>
+        <view class="stat-box hot"><view class="num">{{totals.paid || 0}}</view><view class="lbl">已缴费</view></view>
+        <view class="stat-box hot"><view class="num">{{totals.rewardAmount || 0}}</view><view class="lbl">累计奖励(元)</view></view>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="card-title">推广者排行（Top 20，按注册人数）</view>
+      <view class="rank-list">
+        <view class="rank-item" wx:for="{{ranking}}" wx:key="promoterAccount">
+          <text class="rank-no {{index < 3 ? 'top' : ''}}">{{item.rank}}</text>
+          <view class="rank-main">
+            <view class="rank-name">{{item.promoterName || '-'}}（{{item.promoterAccount || '-'}}）</view>
+            <view class="rank-sub">所属租户：{{item.tenantName || '-'}}</view>
+          </view>
+          <view class="rank-nums">点击 {{item.totalClicks || 0}} · 注册 {{item.totalRegistered || 0}} · 审批 {{item.totalApproved || 0}} · 缴费 {{item.totalPaid || 0}}</view>
+        </view>
+        <view class="empty" wx:if="{{!loading && !ranking.length}}">暂无推广业绩</view>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="card-title">最近转化（10 条）</view>
+      <view class="conv-list">
+        <view class="conv-item" wx:for="{{recent}}" wx:key="registeredAt">
+          <view class="conv-main">
+            <text class="conv-code">{{item.promoterName || '-'}} → {{item.inviteeName || '-'}}</text>
+            <text class="conv-stage">{{item.stageText}}</text>
+          </view>
+          <view class="conv-sub">{{item.pathText}} · 租户 {{item.tenantCode || '-'}} · 来源 {{item.source || '-'}}</view>
+          <view class="conv-time">{{item.registeredAt || '-'}}</view>
+        </view>
+        <view class="empty" wx:if="{{!loading && !recent.length}}">暂无转化记录</view>
+      </view>
+    </view>
+  </block>
+
+  <!-- 租户统计（admin） -->
+  <block wx:else>
+    <view class="card">
+      <view class="card-title">租户推广统计</view>
+      <view class="desc">统计本租户「租户推广码」带来的加入漏斗：点击只计数不落明细，此处呈现注册之后的真实转化。</view>
+      <view class="org-line">机构：<text class="org-name">{{orgName}}</text>（{{tenantCode}}）{{quotaText}}</view>
+      <view class="stat-grid">
+        <view class="stat-box"><view class="num">{{tenantTotals.codeCount || 0}}</view><view class="lbl">租户推广码</view></view>
+        <view class="stat-box"><view class="num">{{tenantTotals.promoterCount || 0}}</view><view class="lbl">推广人数</view></view>
+        <view class="stat-box hot"><view class="num">{{tenantTotals.joined || 0}}</view><view class="lbl">加入人数</view></view>
+        <view class="stat-box"><view class="num">{{tenantTotals.pending || 0}}</view><view class="lbl">待审批</view></view>
+        <view class="stat-box hot"><view class="num">{{tenantTotals.approved || 0}}</view><view class="lbl">已审批</view></view>
+        <view class="stat-box hot"><view class="num">{{tenantTotals.paid || 0}}</view><view class="lbl">已缴费</view></view>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="card-title">推广人明细</view>
+      <view class="rank-list">
+        <view class="rank-item" wx:for="{{promoters}}" wx:key="promoterAccount">
+          <view class="rank-main">
+            <view class="rank-name">{{item.promoterName || '-'}}（{{item.promoterAccount || '-'}}）</view>
+            <view class="rank-sub">{{item.roleText}} · 推广码 {{item.codeCount || 0}} 个</view>
+          </view>
+          <view class="rank-nums">加入 {{item.joined || 0}} · 待审批 {{item.pending || 0}} · 已审批 {{item.approved || 0}} · 已缴费 {{item.paid || 0}}</view>
+        </view>
+        <view class="empty" wx:if="{{!loading && !promoters.length}}">暂无推广记录——租户内用户可在「我的推广」页生成租户推广码后分享</view>
+      </view>
+    </view>
+  </block>
+</view>

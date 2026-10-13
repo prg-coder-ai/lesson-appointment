@@ -2,7 +2,9 @@
   "pages": [
     "pages/login/login",
     "pages/mine/mine",
-    "pages/demo/demo"
+    "pages/demo/demo",
+    "pages/promo/promo",
+    "pages/promo-landing/promo-landing"
   ],
   "subPackages": [
     {
@@ -27,7 +29,8 @@
         "lesson-notice/lesson-notice",
         "data-maintain/data-maintain",
         "audit-log/audit-log",
-        "tenant-info/tenant-info"
+        "tenant-info/tenant-info",
+        "promo-stats/promo-stats"
       ]
     },
     {

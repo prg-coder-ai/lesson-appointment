@@ -32,10 +32,11 @@ function quotaRowsOf(pkg) {
     return { label: d.label, current, unlimited, limit, remain: unlimited ? null : Math.max(0, limit - current) };
   });
 }
-function infoRow(k, v) {
-  return `<div style="display:grid;grid-template-columns:128px 1fr;align-items:baseline;column-gap:16px;padding:11px 8px;border-bottom:1px solid #f0f0f0;font-size:14px;line-height:1.5;">
-    <span style="color:#5a6478;white-space:nowrap;">${escapeHtml(k)}</span>
-    <span style="color:#1f2a44;text-align:left;min-width:0;overflow-wrap:anywhere;word-break:break-word;">${v}</span>
+// 小卡片（对标数据概览 .stats-item）：标签在上（次要色）、值在下（突出）；网格列数由 .stats-panel.tenant-grid 控制
+function infoCard(k, v) {
+  return `<div class="stats-item">
+    <div class="stats-label">${escapeHtml(k)}</div>
+    <div class="stats-value" style="font-size:16px;line-height:1.45;font-weight:600;word-break:break-word;">${v}</div>
   </div>`;
 }
 
@@ -58,22 +59,22 @@ function renderTenantInfoPage() {
       c.innerHTML = `
         <div class="card" style="margin-bottom:16px;">
           <div class="card-header"><div class="card-title"><i class="fa fa-building"></i> 基本信息</div></div>
-          <div>
-            ${infoRow('租户编码', escapeHtml(tenant.tenantCode || '—'))}
-            ${infoRow('机构名称', escapeHtml(tenant.orgName || '—'))}
-            ${infoRow('状态', escapeHtml(tenantStatusText(tenant.status)))}
-            ${infoRow('租期（到期）', escapeHtml(fmtDate(tenant.expireTime)))}
-            ${infoRow('联系人', escapeHtml(tenant.contact || '—'))}
-            ${infoRow('联系电话', escapeHtml(tenant.phone || '—'))}
+          <div class="stats-panel tenant-grid">
+            ${infoCard('租户编码', escapeHtml(tenant.tenantCode || '—'))}
+            ${infoCard('机构名称', escapeHtml(tenant.orgName || '—'))}
+            ${infoCard('状态', escapeHtml(tenantStatusText(tenant.status)))}
+            ${infoCard('租期（到期）', escapeHtml(fmtDate(tenant.expireTime)))}
+            ${infoCard('联系人', escapeHtml(tenant.contact || '—'))}
+            ${infoCard('联系电话', escapeHtml(tenant.phone || '—'))}
           </div>
         </div>
 
         <div class="card" style="margin-bottom:16px;">
           <div class="card-header"><div class="card-title"><i class="fa fa-box"></i> 套餐</div></div>
-          <div>
-            ${infoRow('当前套餐', escapeHtml(packageName))}
-            ${packageCode ? infoRow('套餐编码', escapeHtml(packageCode)) : ''}
-            ${pkg ? '' : infoRow('说明', '未配置套餐，资源不限额')}
+          <div class="stats-panel tenant-grid">
+            ${infoCard('当前套餐', escapeHtml(packageName))}
+            ${packageCode ? infoCard('套餐编码', escapeHtml(packageCode)) : ''}
+            ${pkg ? '' : infoCard('说明', '未配置套餐，资源不限额')}
           </div>
         </div>
 

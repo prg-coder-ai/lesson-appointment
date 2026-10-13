@@ -352,6 +352,10 @@ table th {
 /* ADMIN_STATS_DESKTOP 数据总览桌面列数（base 提供 display 基础后补回，置于 media 之前避免被覆盖） */
 .stats-panel { grid-template-columns: repeat(5, 1fr); }
 
+/* 租户信息页「基本信息 / 套餐」小卡片网格：复用数据概览 .stats-item，自适应列数（无需媒体查询）。
+ * 本选择器特异性高于 .stats-panel，故与数据总览的 5 列布局互不干扰。 */
+.stats-panel.tenant-grid { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; padding: 16px 20px; margin-bottom: 0; }
+
 @media (max-width: 768px) {
   .layout-container {
     flex-direction: column;

@@ -74,6 +74,7 @@ Page(withTerms({
     confirm('将解绑当前租户（' + (this.data.user.tenantCode || '') + '）并返回登录，确定？', { title: '切换租户' }).then((ok) => { if (ok) switchTenant(); });
   },
   goMessage() { wx.navigateTo({ url: '/package-message/inbox/inbox' }); },
+  goPromo() { wx.navigateTo({ url: '/pages/promo/promo' }); },
   // 解绑微信：auto_register（微信直接注册）的账号会被后端拒绝（400），
   // 因为这类账号 account=openid、password 随机，解绑后就再也登不进来了。
   async onUnbindWechat() {

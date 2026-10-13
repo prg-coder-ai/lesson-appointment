@@ -18,12 +18,12 @@ function renderLessonTime(appointmentDatetime, nowUserTz, withSeconds) {
 
     const zoned = D.utcToZoned(appointmentDatetime, nowUserTz, !!withSeconds);
 
-   // console.log("renderLessonTime D.utcToZoned", zoned, nowUserTz);
+    console.log("renderLessonTime D.utcToZoned", zoned, nowUserTz);
     if (zoned) return zoned;
   }
   //console.log("renderLessonTime DatetimeDomain 未就绪时至少把 T 换成空格" ,appointmentDatetime);
   // 兜底：DatetimeDomain 未就绪时至少把 T 换成空格，别把 ISO 串直接甩给用户
-  return String(appointmentDatetime).replace('T', ' ').substring(0, withSeconds ? 19 : 16)+ "(UTC)";
+  return String(appointmentDatetime).replace('T', ' ').substring(0, withSeconds ? 19 : 16).concat(" (-UTC)");
 }
 
 /* ============================================================
@@ -614,6 +614,7 @@ async function datamaintain_fetchAppointmenPage(query) {
          if (plan.courseName) {
            body += '<div>课程：<b>' + escapeRefundText(plan.courseName) + '</b></div>';
          }
+         console.log('plan.lessonTime', plan.lessonTime,escapeRefundText(plan.lessonTime));
          if (plan.lessonTime) {
            body += '<div>上课时间：<b>' + escapeRefundText(plan.lessonTime) + '</b></div>';
          }
@@ -744,7 +745,7 @@ async function datamaintain_fetchAppointmenPage(query) {
 
         // 获取浏览器的时区
         //const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
+        //   console.log("userTimeZone", userTimeZone, renderLessonTime(appointment.appointmentDatetime, userTimeZone));
         return {
             index: idx,
             scheduleId:    scheduleObject.scheduleId,
@@ -864,7 +865,7 @@ async function datamaintain_fetchAppointmenPage(query) {
     return status;
    }
    function formAppointmentTr(cardInfo) {
-      //console .log("cardInfo:", cardInfo);
+    
      const info = `
           <tr>
               <td>   ${cardInfo.index}</td>

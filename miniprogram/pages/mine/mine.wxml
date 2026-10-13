@@ -40,6 +40,10 @@
       <text class="rk">消息中心</text>
       <view class="rv">{{unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) + ' 条未读 ›' : '查看 ›'}}</view>
     </view>
+    <view class="row link" bindtap="goPromo">
+      <text class="rk">我的推广</text>
+      <text class="rv">推广码与业绩 ›</text>
+    </view>
   </view>
 
   <view class="card">
