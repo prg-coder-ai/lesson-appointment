@@ -258,12 +258,117 @@ window.sanitizeTenantCode = function (raw) {
       </form>
     </div>
   </div>
+
+  <!-- 推广落地：无效推广码提示（不阻塞常规登录） -->
+  <div class="modal-mask" id="promo-invalid-mask" style="display:none; position:fixed; z-index:1200;">
+    <div class="modal-content" style="max-width:420px;">
+      <div class="modal-header">
+        <h3>推广链接提示</h3>
+        <span class="modal-close" id="promo-invalid-close"><i class="fa fa-times"></i></span>
+      </div>
+      <div style="padding:18px 22px;">
+        <div class="error-tip" id="promo-invalid-tip" style="display:none; text-align:left;"></div>
+        <p style="margin:8px 0 0; color:#666;">您仍可使用账号密码登录，或点击「还没有账号？点击注册」常规注册。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 推广路径1：免费体验注册（自助建租户 + 首管理员） -->
+  <div class="modal-mask" id="promo-tenant-modal" style="display:none;">
+    <div class="modal-content" style="max-width:460px;">
+      <div class="modal-header">
+        <h3>免费体验注册</h3>
+        <span class="modal-close" id="promo-tenant-close"><i class="fa fa-times"></i></span>
+      </div>
+      <form id="promo-tenant-form" onsubmit="return false;">
+        <p style="margin:0 0 12px; color:#4e6ef2;">通过好友推广注册，可免费体验 <b id="promo-trial-days">14</b> 天，您将成为新机构的管理员。</p>
+        <div class="form-item">
+          <label>机构名称</label>
+          <input type="text" id="promo-org-name" placeholder="请输入机构/工作室名称">
+        </div>
+        <div class="form-item">
+          <label>管理员账号(邮箱或电话号码)</label>
+          <input type="text" id="promo-admin-account" placeholder="将作为本机构的管理员登录账号">
+        </div>
+        <div class="form-item">
+          <label>联系人姓名</label>
+          <input type="text" id="promo-admin-name" placeholder="请输入真实姓名">
+        </div>
+        <div class="form-item">
+          <label>联系电话</label>
+          <input type="text" id="promo-admin-phone" placeholder="请输入联系电话（选填）">
+        </div>
+        <div class="form-item">
+          <label>密码</label>
+          <input type="password" id="promo-admin-password" placeholder="请设置登录密码">
+        </div>
+        <div class="form-item">
+          <label>确认密码</label>
+          <input type="password" id="promo-admin-password2" placeholder="请再次输入密码">
+        </div>
+        <p style="margin:0 0 10px; color:#888; font-size:12px;">行业信息可在注册后进入「租户信息」页设置。</p>
+        <button type="submit" class="btn" id="promo-tenant-btn" onclick="window.PromoLanding.submitTenantForm()">立即创建</button>
+        <button type="button" class="btn btn-cancel" id="promo-tenant-cancel">取消</button>
+        <div class="success-tip" id="promo-tenant-success" style="text-align:center;"></div>
+        <div class="error-tip" id="promo-tenant-error" style="text-align:center;"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 推广路径2：加入指定租户（student/teacher，待审批） -->
+  <div class="modal-mask" id="promo-user-modal" style="display:none;">
+    <div class="modal-content" style="max-width:460px;">
+      <div class="modal-header">
+        <h3>加入 <span id="promo-user-org"></span></h3>
+        <span class="modal-close" id="promo-user-close"><i class="fa fa-times"></i></span>
+      </div>
+      <form id="promo-user-form" onsubmit="return false;">
+        <div class="form-item">
+          <label>租户编码</label>
+          <input type="text" id="promo-user-tcode" readonly>
+        </div>
+        <div class="form-item">
+          <label>注册身份</label>
+          <select id="promo-user-role">
+            <option value="student"><span data-term="student">学生</span></option>
+            <option value="teacher"><span data-term="teacher">教师</span></option>
+          </select>
+        </div>
+        <div class="form-item">
+          <label>账号(邮箱或电话号码)</label>
+          <input type="text" id="promo-user-account" placeholder="请设置账号">
+        </div>
+        <div class="form-item">
+          <label>真实姓名</label>
+          <input type="text" id="promo-user-name" placeholder="请输入真实姓名">
+        </div>
+        <div class="form-item">
+          <label>联系电话</label>
+          <input type="text" id="promo-user-phone" placeholder="请输入联系电话（选填）">
+        </div>
+        <div class="form-item">
+          <label>密码</label>
+          <input type="password" id="promo-user-password" placeholder="请设置登录密码">
+        </div>
+        <div class="form-item">
+          <label>确认密码</label>
+          <input type="password" id="promo-user-password2" placeholder="请再次输入密码">
+        </div>
+        <button type="submit" class="btn" id="promo-user-btn" onclick="window.PromoLanding.submitUserForm()">提交注册</button>
+        <button type="button" class="btn btn-cancel" id="promo-user-cancel">取消</button>
+        <div class="success-tip" id="promo-user-success" style="text-align:center;"></div>
+        <div class="error-tip" id="promo-user-error" style="text-align:center;"></div>
+      </form>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
   <script src="js/public/termsFunction.js"></script>
   <script src="js/public/documentTitle.js"></script>
   <script src="js/public/api.js"></script>
   <script src="js/public/utility_request.js"></script>
   <script src="js/public/auth.js"></script>
+  <script src="js/public/promo.js"></script>
 <!-- 核心逻辑 -->
   <script> 
     // DOM元素获取（登录相关）
@@ -962,6 +1067,31 @@ window.sanitizeTenantCode = function (raw) {
           el.textContent = '注册成功，请使用刚注册的账号登录（账号需管理员审核后方可正常使用）';
         }
       }
+      // ====== 推广落地（2026-10-13 二期）======
+      // URL 带 ref 时：校验推广码（首次访问 touch=1 计数，storage 去重）→ 按 pathType
+      // 打开「免费体验注册 / 加入租户」弹窗。无 ref 时本调用直接返回，不影响常规登录页。
+      // 注意：上面的「已登录自动跳转」对 logged-in 访客优先——老用户点推广链接会直接进工作台，
+      // 注册弹窗只面向未登录的新用户（符合推广语义）。
+      if (typeof window.PromoLanding === 'object' && window.PromoLanding.init) {
+        window.PromoLanding.init();
+      }
+      // 推广弹窗的关闭/取消按钮（无效码提示Mask + 两个注册弹窗）
+      (function bindPromoClosers() {
+        var pairs = [
+          ['promo-invalid-close', 'promo-invalid-mask'],
+          ['promo-tenant-close', 'promo-tenant-modal'],
+          ['promo-tenant-cancel', 'promo-tenant-modal'],
+          ['promo-user-close', 'promo-user-modal'],
+          ['promo-user-cancel', 'promo-user-modal']
+        ];
+        pairs.forEach(function (p) {
+          var btn = document.getElementById(p[0]);
+          var mask = document.getElementById(p[1]);
+          if (btn && mask) {
+            btn.addEventListener('click', function () { mask.style.display = 'none'; });
+          }
+        });
+      })();
   };
   </script>
 </body>

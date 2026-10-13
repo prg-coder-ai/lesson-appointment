@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的推广 - 推广业绩</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="js/shared-domain-bridge.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; background: #f5f6fa; color: #333; }
+    .header { display: flex; align-items: center; justify-content: space-between; padding: 14px 28px; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    .header .logo { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 600; }
+    .header .logo i { color: #4e6ef2; font-size: 22px; }
+    .header-actions { display: flex; align-items: center; gap: 14px; }
+    .user-name { color: #555; }
+    .logout-btn { border: none; background: #f2f3f7; color: #555; padding: 7px 14px; border-radius: 6px; cursor: pointer; }
+    .logout-btn:hover { background: #e6e8f0; }
+    .container { max-width: 980px; margin: 24px auto; padding: 0 18px; }
+    .card { background: #fff; border-radius: 10px; padding: 22px 24px; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+    .card h2 { font-size: 16px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+    .card h2 i { color: #4e6ef2; }
+    .promo-link-row { display: flex; gap: 10px; }
+    .promo-link-row input { flex: 1; padding: 9px 12px; border: 1px solid #dcdfe6; border-radius: 6px; font-size: 13px; color: #555; background: #fafbfc; }
+    .btn { border: none; background: #4e6ef2; color: #fff; padding: 9px 18px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    .btn:hover { background: #3d5ce0; }
+    .btn.plain { background: #eef1fe; color: #4e6ef2; }
+    .btn.plain:hover { background: #e2e7fd; }
+    .promo-code-big { font-size: 26px; font-weight: 700; letter-spacing: 2px; color: #4e6ef2; font-family: Consolas, Menlo, monospace; margin: 6px 0 12px; }
+    .promo-codes { margin-top: 10px; }
+    .promo-code-row { font-size: 13px; color: #666; padding: 4px 0; }
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+    .stat-box { background: #f7f8fc; border-radius: 8px; padding: 14px 12px; text-align: center; }
+    .stat-box .num { font-size: 24px; font-weight: 700; color: #2c3e50; }
+    .stat-box .lbl { font-size: 12px; color: #888; margin-top: 4px; }
+    .stat-box.hot .num { color: #e64545; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 9px 10px; text-align: left; border-bottom: 1px solid #f0f1f5; }
+    th { color: #888; font-weight: 500; background: #fafbfc; }
+    .tip { display: none; background: #fef0f0; color: #c05656; border: 1px solid #fde2e2; border-radius: 6px; padding: 10px 14px; font-size: 13px; margin-bottom: 14px; }
+    .muted { color: #999; font-size: 12px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="logo"><i class="fa fa-bullhorn"></i><span>我的推广</span></div>
+    <div class="header-actions">
+      <span class="user-name" id="promo-user-name-display"></span>
+      <button class="logout-btn" onclick="handleLogout()"><i class="fa fa-sign-out-alt"></i> 退出登录</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="tip" id="promo-page-error"></div>
+
+    <div class="card">
+      <h2><i class="fa fa-link"></i>我的推广码</h2>
+      <div class="promo-code-big" id="promo-code">加载中...</div>
+      <div class="promo-link-row">
+        <input type="text" id="promo-link" readonly value="">
+        <button class="btn plain" id="promo-copy-btn" onclick="window.PromoPage.copyLink()">复制链接</button>
+        <button class="btn" onclick="window.PromoPage.generateCode()">生成推广码</button>
+      </div>
+      <div class="promo-codes" id="promo-codes"></div>
+      <div class="muted">把链接发给好友：对方打开后即记录为一次点击；完成注册/建租户后计入下方业绩。</div>
+    </div>
+
+    <div class="card">
+      <h2><i class="fa fa-chart-line"></i>业绩汇总</h2>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="num" id="stat-clicks">0</div><div class="lbl">点击</div></div>
+        <div class="stat-box hot"><div class="num" id="stat-registered">0</div><div class="lbl">注册人数</div></div>
+        <div class="stat-box"><div class="num" id="stat-approved">0</div><div class="lbl">审批通过</div></div>
+        <div class="stat-box"><div class="num" id="stat-paid">0</div><div class="lbl">成功缴费</div></div>
+        <div class="stat-box"><div class="num" id="stat-tenants">0</div><div class="lbl">促成新租户</div></div>
+        <div class="stat-box"><div class="num" id="stat-wx">0</div><div class="lbl">微信注册</div></div>
+        <div class="stat-box"><div class="num" id="stat-rate">0%</div><div class="lbl">注册转化率</div></div>
+        <div class="stat-box"><div class="num" id="stat-reward">0</div><div class="lbl">累计奖励(元)</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><i class="fa fa-list"></i>转化明细（共 <span id="promo-conversions-total">0</span> 条）</h2>
+      <table>
+        <thead>
+          <tr><th>推广码</th><th>路径</th><th>租户编码</th><th>阶段</th><th>来源</th><th>注册时间</th></tr>
+        </thead>
+        <tbody id="promo-conversions-body">
+          <tr><td colspan="6" style="text-align:center;color:#888;">加载中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="js/public/api.js"></script>
+  <script src="js/public/utility_request.js"></script>
+  <script src="js/public/auth.js"></script>
+  <script src="js/public/promo.js"></script>
+  <script>
+    window.addEventListener('DOMContentLoaded', function () {
+      if (typeof window.PromoPage === 'object' && window.PromoPage.init) {
+        window.PromoPage.init();
+      }
+    });
+  </script>
+</body>
+</html>

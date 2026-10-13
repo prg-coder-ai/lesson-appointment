@@ -457,6 +457,22 @@ public class UserService {
     }
 
     /**
+     * 按账号全局查用户（忽略租户隔离），取 tenant_id 最小的匹配。
+     *
+     * <p>仅 {@code GET /tenant/code-by-account} 的平台管理员代查分支可达
+     * （控制器已收敛 {@code self || platform_admin}，普通用户走本人令牌分支）。
+     * 同账号可跨租户重名（查重只在租户内做），"取首个"是支持场景的近似解；
+     * 需要精确定位时，调用方应改走带 tenantId 的 {@code getUserByAccount}。
+     */
+    public User getFirstUserByAccountIgnoreTenant(String account) {
+        if (account == null || account.isBlank()) {
+            return null;
+        }
+        List<User> users = userMapper.listByAccountIgnoreTenant(account.trim());
+        return users.isEmpty() ? null : users.get(0);
+    }
+
+    /**
      * 微信直接注册（场景 C）：以 openid 为账号创建用户并建立绑定，返回 token。
      *
      * <p><b>租户上下文必须自己设置并清理</b>：本接口是 permitAll，{@code TenantInterceptor} 不跑，

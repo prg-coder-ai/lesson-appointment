@@ -47,7 +47,11 @@ public class MyBatisPlusConfig {
             // 微信 openid 关联表：虽然有 tenant_id 列，但语义是冗余统计，
             // 隔离语义是「一个微信全局只绑一个账号」（uk_wx_openid 全局唯一）。
             // 若走租户插件，平台管理员视角会被拼 tenant_id = 当前租户 → 查不到绑定、静默失败。
-            "wx_userid"
+            "wx_userid",
+            // 推广三表：平台级数据，表结构也无 tenant_id 列。
+            // 若不排除，租户插件会拼出 `tenant_id = ?` → Unknown column 全线报错
+            // （与 sys_industry / course_notify_rule_point 同一原因）
+            "promo_referral", "promo_conversion", "promo_achievement"
     );
 
     @Bean

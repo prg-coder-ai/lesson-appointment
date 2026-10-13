@@ -10,6 +10,7 @@ import com.reservation.exception.BusinessException;
 import com.reservation.exception.ResourceNotFoundException;
 import com.reservation.mapper.TenantMapper;
 import com.reservation.query.TenantQueryPage;
+import com.reservation.utils.TenantCodeGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,6 +44,8 @@ public class TenantService {
     private TenantMapper tenantMapper;
     @Autowired
     private ReferentialCascadeService cascadeService;
+    @Autowired
+    private SysConfigService sysConfigService;
 
     public Tenant getById(Long id) {
         return tenantMapper.selectById(id);
@@ -52,6 +55,62 @@ public class TenantService {
         LambdaQueryWrapper<Tenant> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Tenant::getTenantCode, tenantCode);
         return tenantMapper.selectOne(wrapper);
+    }
+
+    /**
+     * 生成全局唯一租户编码（8 字符短码，便于传播/分享/手输）。
+     *
+     * <p><b>保留字必须拦</b>：{@code platform} 行（真库 id=11）是平台自身，
+     * {@code UserService.fillOrgName} 靠 {@code tenant_code = 'platform'} 定位它 ——
+     * 一旦被随机编码覆盖，平台管理员的「所属公司」映射就会失效。
+     * 同理 {@code default}（默认机构）。本方法只用于新建，绝不批量重编历史数据。
+     *
+     * <p>组合数按 29^8 ≈ 5.0×10^11 估（utf8mb4_general_ci 下大小写等价），
+     * 1 万租户碰撞概率约 1×10^-4；重试上限取 {@code tenant.code.max.retry}（默认 10）。
+     */
+    public String generateUniqueTenantCode() {
+        int maxRetry = 10;
+        try {
+            maxRetry = sysConfigService.getInt("tenant.code.max.retry", 10);
+        } catch (Exception ignore) {
+            // 配置表异常不阻塞开租户，用默认重试次数
+        }
+        for (int i = 0; i < maxRetry; i++) {
+            String code = TenantCodeGenerator.generate();
+            if (TenantCodeGenerator.isReserved(code)) {
+                continue; // 撞保留字则换
+            }
+            if (getByCode(code) == null) {
+                return code; // 命中 uk_tenant_code 意义上的唯一
+            }
+        }
+        throw new BusinessException("租户编码生成失败，请重试");
+    }
+
+    /** 推广创建的租户总数（referred_by 非空且未删除）—— 试用名额全局上限的分母。 */
+    public long countPromoCreatedTenants() {
+        LambdaQueryWrapper<Tenant> wrapper = new LambdaQueryWrapper<>();
+        wrapper.isNotNull(Tenant::getReferredBy).eq(Tenant::getDeleted, 0);
+        Long count = tenantMapper.selectCount(wrapper);
+        return count == null ? 0L : count;
+    }
+
+    /** 试用转正：配套餐成功后把 trial_status 置 converted（只从 trial 推进，幂等）。 */
+    @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
+    public int markTrialConverted(Long id) {
+        LambdaUpdateWrapper<Tenant> uw = new LambdaUpdateWrapper<>();
+        uw.eq(Tenant::getId, id)
+          .eq(Tenant::getTrialStatus, "trial")
+          .set(Tenant::getTrialStatus, "converted");
+        return tenantMapper.update(null, uw);
+    }
+
+    /** 绑定套餐（仅更新 package_id，不影响限额校验路径——额度按 sys_tenant_package 行走）。 */
+    @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
+    public int bindPackage(Long id, Long packageId) {
+        LambdaUpdateWrapper<Tenant> uw = new LambdaUpdateWrapper<>();
+        uw.eq(Tenant::getId, id).set(Tenant::getPackageId, packageId == null ? 0L : packageId);
+        return tenantMapper.update(null, uw);
     }
 
     /**

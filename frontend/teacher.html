@@ -63,6 +63,10 @@
         <span>消息中心</span>
         <span class="msg-badge" id="msg-unread-badge" style="display:none;"></span>
       </div>
+      <div class="menu-item" key="my_promo">
+        <i class="fa fa-bullhorn"></i>
+        <span>我的推广</span>
+      </div>
       <!-- div class="menu-item">
         <i class="fa fa-calendar-alt"></i>
         <span><span data-term="course">课程</span>通知</span>
@@ -458,6 +462,10 @@
             window.renderMessagesPage(dynamicContent);
           }
           break;
+        case 'my_promo':
+          // 推广业绩页（2026-10-13 二期）：我的推广码 / 业绩汇总 / 转化明细
+          window.location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('promo.html') : 'promo.html';
+          return;
         case 'student_review':
           dynamicContent.innerHTML = `
             <div class="card">

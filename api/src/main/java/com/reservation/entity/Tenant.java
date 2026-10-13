@@ -27,6 +27,14 @@ public class Tenant {
     /** 退租/停用时间 */
     private LocalDateTime offlineTime;
     private String remark;
+    /** 推广者 user_id（该租户由谁带来的）。 */
+    private String referredBy;
+    /** 试用状态：trial / expired / converted。 */
+    private String trialStatus;
+    /** 试用到期时间。 */
+    private LocalDateTime trialExpireTime;
+    /** 创建者账号：与 tenantCode 互查用（忘记租户编码时可用账号反查）。 */
+    private String creatorAccount;
     /** 软删除标记：0正常 1已删除（保留可恢复） */
      private Integer deleted;
 

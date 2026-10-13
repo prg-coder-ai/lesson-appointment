@@ -51,6 +51,28 @@ export const ENDPOINTS = {
   TENANT_PACKAGE_BY_TENANT: (tid) => `/api/v1/tenant/package/tenant/${tid}`,
   // 套餐模板详情（admin/platform_admin 可查）：GET 套餐模板名称等，用于把 packageId 转成可读"套餐"名
   PACKAGE_TEMPLATE_GET: (id) => `/api/v1/package/template/${id}`,
+  // —— 推广体系（2026-10-13 二期，PromoController @RequestMapping("/api/v1/promo")）——
+  // 注意分两组：免登录（VALIDATE/REGISTER_*）与需登录（CODE/MY_CODES/ACHIEVEMENT/CONVERSIONS/OVERVIEW）。
+  // 校验推广码：GET ?code=&touch=1；touch=1 时后端点击数 +1（前端按 ref 去重只传一次）。
+  PROMO_VALIDATE_CODE: (code, touch) =>
+    `/api/v1/promo/referral/validate?code=${encodeURIComponent(code || '')}${touch ? '&touch=1' : ''}`,
+  // 生成/获取我的推广码：POST { pathType, targetTenantId? }（pathType 1=自助建租户 2=指定租户）
+  PROMO_GENERATE_CODE: '/api/v1/promo/referral/code',
+  PROMO_MY_CODES: '/api/v1/promo/referral/my-codes',
+  PROMO_ACHIEVEMENT: '/api/v1/promo/achievement',
+  PROMO_CONVERSIONS: (pageNum, pageSize) =>
+    `/api/v1/promo/conversions?pageNum=${encodeURIComponent(pageNum || 1)}&pageSize=${encodeURIComponent(pageSize || 20)}`,
+  // 全部推广者排行（platform_admin）
+  PROMO_OVERVIEW: (pageNum, pageSize) =>
+    `/api/v1/promo/achievement/overview?pageNum=${encodeURIComponent(pageNum || 1)}&pageSize=${encodeURIComponent(pageSize || 20)}`,
+  // 路径1：自助建租户 + 首管理员（免登录）
+  PROMO_REGISTER_TENANT: '/api/v1/promo/register-tenant',
+  // 路径2：加入指定租户（免登录，student/teacher 待审批）
+  PROMO_REGISTER_USER: '/api/v1/promo/register-user',
+  // 用账号反查租户编码（本人或管理员）：GET ?account=
+  TENANT_CODE_BY_ACCOUNT: (acc) => `/api/v1/tenant/code-by-account?account=${encodeURIComponent(acc || '')}`,
+  // 校验租户编码是否有效（免登录）：GET ?code=
+  TENANT_VALIDATE_CODE: (code) => `/api/v1/tenant/validate-code?code=${encodeURIComponent(code || '')}`,
   CHANGE_PWD: '/user/account/changePassword',
   // —— 用户管理（业务端，租户/平台管理员）——
   // 后端 UserController：GET /page（租户隔离，按 role 过滤）；GET /platformPage（跨租户，仅平台管理员）

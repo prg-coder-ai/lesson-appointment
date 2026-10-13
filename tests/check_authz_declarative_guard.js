@@ -4,7 +4,12 @@
  *
  * 动机：守卫"全绿"本身不能证明它有效。解析型守卫最常见的失效方式是
  * 正则改坏 → 扫到 0 个端点 → 0 个问题 → 退出码 0 → 假通过。
- * 本测试对守卫注入 6 类故障，每类都必须以非 0 退出码被拒。
+ * 本测试对守卫注入 8 类故障，每类都必须以非 0 退出码被拒。
+ *
+ * 第 7/8 类（2026-10-13 新增）打的是守卫的「第四同步点」检查：
+ * permitAll 只解决请求进得来（SecurityConfig + JwtFilter），TenantInterceptor 的
+ * excludePathPatterns 是并列的第四处——漏配的症状是公开端点整体 401 且只在运行时暴露
+ * （wechat-register 与 promo 四个公开端点两次踩中）。变异 WebMvcConfig 必须判红。
  *
  * 用法：node tests/check_authz_declarative_guard.js
  */
@@ -16,10 +21,13 @@ const util = require('node:util');
 const ROOT = process.cwd();
 const RULES_REL = 'api/src/main/java/com/reservation/config/AuthzRules.java';
 const GUARD_REL = 'tools/check-authz-declarative.mjs';
+const WEBMVC_REL = 'api/src/main/java/com/reservation/config/WebMvcConfig.java';
 const RULES_ABS = path.join(ROOT, RULES_REL);
 const GUARD_ABS = path.join(ROOT, GUARD_REL);
+const WEBMVC_ABS = path.join(ROOT, WEBMVC_REL);
 
 const orig = fs.readFileSync(RULES_ABS, 'utf8');
+const webmvcOrig = fs.readFileSync(WEBMVC_ABS, 'utf8');
 let pass = 0;
 const failures = [];
 
@@ -102,6 +110,34 @@ async function scenario(name, mutate, expectCode, expectText) {
   }
 }
 
+/**
+ * 与 scenario 同构，但变异目标是 WebMvcConfig.java（第四同步点检查的输入）。
+ * 复用同一套"注入必须真改动 + 结束必须还原"的防假绿/防污染断言。
+ */
+async function scenarioWebmvc(name, mutate, expectCode, expectText) {
+  const backup = webmvcOrig;
+  const src = mutate(backup);
+  if (src === backup) {
+    failures.push(`${name}: 用例注入无效（mutate 未改动 WebMvcConfig），不能据此判守卫通过`);
+    console.log(`  ✗ ${name} → 注入无效（mutate 未改动文件）`);
+    return;
+  }
+  fs.writeFileSync(WEBMVC_ABS, src, 'utf8');
+  try {
+    const { code, out } = await runGuard();
+    const ok = code === expectCode && (!expectText || out.includes(expectText));
+    if (ok) {
+      pass++;
+      console.log(`  ✓ ${name} → 退出码 ${code}（符合预期）`);
+    } else {
+      failures.push(`${name}: 期望退出码 ${expectCode}${expectText ? ' 且输出含 "' + expectText + '"' : ''}，实际 ${code}\n${out.slice(0, 400)}`);
+      console.log(`  ✗ ${name} → 实际退出码 ${code}（期望 ${expectCode}）`);
+    }
+  } finally {
+    fs.writeFileSync(WEBMVC_ABS, backup, 'utf8');
+  }
+}
+
 console.log('声明式授权守卫 · 反向测试\n');
 
 async function main() {
@@ -118,9 +154,11 @@ async function main() {
 }
 
 // 1) 删掉一条已有端点的规则 → 必须报"未声明授权"
+// 注意 \r?\n：工作区是 CRLF（core.autocrlf 检出），JS 的 . 不匹配 \r，
+// 写死 \n 会让 replace 静默不命中 → 用例退化成"注入无效"假失败。
 await scenario(
   '删掉 /user/updateStatus 规则 → 未声明授权',
-  (s) => s.replace(/\s*r\.add\(new Rule\(HttpMethod\.POST, "\/api\/v1\/user\/updateStatus".*?\);\n/, '\n'),
+  (s) => s.replace(/\s*r\.add\(new Rule\(HttpMethod\.POST, "\/api\/v1\/user\/updateStatus".*?\);\r?\n/, '\n'),
   1,
   '未声明授权'
 );
@@ -137,7 +175,7 @@ await scenario(
 await scenario(
   '注入不存在的端点规则 → 陈旧规则',
   (s) => s.replace(
-    /(r\.add\(new Rule\(HttpMethod\.GET, "\/api\/v1\/dashboard\/overview".*?\);\n)/,
+    /(r\.add\(new Rule\(HttpMethod\.GET, "\/api\/v1\/dashboard\/overview".*?\);\r?\n)/,
     '$1        r.add(new Rule(HttpMethod.GET, "/api/v1/ghost/endpoint", PLATFORM_ONLY, "人为注入"));\n'
   ),
   1,
@@ -171,10 +209,43 @@ await scenario(
 // 6) 大面积删规则（模拟"重构时把规则表清空"）→ 必须报大量未声明
 await scenario(
   '删除全部规则 → 大量未声明',
-  (s) => s.replace(/^(\s*)r\.add\(new Rule\(.*?\);\n/gm, ''),
+  (s) => s.replace(/^(\s*)r\.add\(new Rule\(.*?\);\r?\n/gm, ''),
   1,
   '未声明授权'
 );
+
+// 7) 第四同步点：从 WebMvcConfig.EXCLUDE_PATTERNS 删掉 promo/register-tenant 两种形态
+//    → 必须报"未排除租户拦截"（二期推广公开端点曾因漏配整体 401）
+await scenarioWebmvc(
+  '删掉 promo/register-tenant 排除项 → 第四同步点漏配',
+  (s) => s.replace('"/api/v1/promo/register-tenant", "/promo/register-tenant",', ''),
+  1,
+  '未排除租户拦截'
+);
+
+// 8) 第四同步点：删掉 auth/wechat-register 排除项（一期漏配复现）→ 同样判红
+await scenarioWebmvc(
+  '删掉 auth/wechat-register 排除项 → 第四同步点漏配',
+  (s) => s.replace('"/api/v1/auth/wechat-register", "/auth/wechat-register",', ''),
+  1,
+  '未排除租户拦截'
+);
+
+// 收尾：两个被变异文件都必须逐字节还原，防止用例把污染留在工作区
+{
+  const rulesNow = fs.readFileSync(RULES_ABS, 'utf8');
+  const webmvcNow = fs.readFileSync(WEBMVC_ABS, 'utf8');
+  if (rulesNow !== orig) {
+    failures.push('污染：AuthzRules.java 与测试前不一致');
+    console.log('  ✗ 收尾校验：AuthzRules.java 未还原');
+  } else if (webmvcNow !== webmvcOrig) {
+    failures.push('污染：WebMvcConfig.java 与测试前不一致');
+    console.log('  ✗ 收尾校验：WebMvcConfig.java 未还原');
+  } else {
+    pass++;
+    console.log('  ✓ 收尾校验：两个被测文件均已逐字节还原');
+  }
+}
 
 console.log('\n结果：%d 项通过，%d 项失败', pass, failures.length);
 if (failures.length) {

@@ -162,3 +162,18 @@ if [ "$SKIP_BRIDGE_EXPORTS" != "1" ]; then
 else
   echo "[bridge-exports] SKIP_BRIDGE_EXPORTS=1，跳过桥接导出对齐守卫"
 fi
+
+# 17) endpoints：端点常量引用完整性 + 硬编码防回归（2026-10-13 补入钩子）。
+#     必要性：两类缺陷都不报错、只在运行时以「畸形 URL / 404」的形式出现：
+#       ① 引用了 ENDPOINTS 里不存在的常量 → undefined 拼进 URL（promo.js 注释里
+#          写过 ENDPOINTS.PROMO_*，正则当真，判红）；
+#       ② 代码里硬编码 /api/v1/... 字面量 → 绕过 shared/apiPaths.js 单一权威源，
+#          后端改路径时前端静默失联（messages-inbox.js:1172 的 tenant/list 即此，
+#          自 98066663 起潜伏到本次才被抓到——因为本守卫此前没进钩子）。
+#     守卫的「无人引用常量」只是提示不阻断，可安全挂钩。
+#     紧急跳过：SKIP_ENDPOINTS=1 git commit ...
+if [ "$SKIP_ENDPOINTS" != "1" ]; then
+  node tools/check-endpoints-refs.mjs || exit 1
+else
+  echo "[endpoints] SKIP_ENDPOINTS=1，跳过端点常量引用守卫"
+fi

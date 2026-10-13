@@ -161,6 +161,19 @@ public interface UserMapper extends BaseMapper<User> {
    @Select("SELECT * FROM user WHERE role = #{role}")
    List<User> listByRoleIgnoreTenant(@Param("role") String role);
 
+    /**
+     * 忽略租户插件过滤，按账号查询全量用户（跨租户）。
+     *
+     * <p>用于 {@code GET /tenant/code-by-account} 的平台管理员代查分支（账号 → 所属租户）。
+     * 该调用点已在控制器收敛为 {@code self || platform_admin}，仅平台管理员可达。
+     *
+     * <p><b>同账号可跨租户重名</b>（user 表无账号全局唯一索引，查重只在租户内），
+     * 故返回 List 由调用方取首个，并按 tenant_id 升序保证确定性。
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT * FROM user WHERE account = #{account} ORDER BY tenant_id")
+    List<User> listByAccountIgnoreTenant(@Param("account") String account);
+
     // ==================== 首管理员自助激活（bootstrap）的并发判据 ====================
     //
     // 为什么必须锁定读而不是普通 count：

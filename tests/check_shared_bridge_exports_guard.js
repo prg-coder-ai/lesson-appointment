@@ -132,7 +132,9 @@ function writeJson(f, o) {
     let code = null;
     try {
       const ANCHOR = '  messageStatusText: messageStatusText,\n';
-      const src = readText(GEN);
+      // 工作区是 CRLF（core.autocrlf 检出），锚点按 LF 书写——不归一化会
+      // "锚点明明在文件里却找不到"，用例退化成运行时异常（2026-10-13 实测）。
+      const src = readText(GEN).replace(/\r\n/g, '\n');
       if (!src.includes(ANCHOR)) throw new Error('变异锚点未找到：' + ANCHOR.trim());
       writeText(GEN, src.replace(ANCHOR, ''));
       regenerate(); // 产物同步缺该键 → 只应触发「漏挂」，不该靠「陈旧」来报红

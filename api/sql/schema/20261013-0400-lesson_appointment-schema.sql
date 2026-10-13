@@ -19,6 +19,7 @@
 -- Table structure for table `appointment`
 --
 
+DROP TABLE IF EXISTS `appointment`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `appointment` (
@@ -42,6 +43,7 @@ CREATE TABLE `appointment` (
 -- Table structure for table `audit_log`
 --
 
+DROP TABLE IF EXISTS `audit_log`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `audit_log` (
@@ -79,6 +81,7 @@ CREATE TABLE `audit_log` (
 -- Table structure for table `bak_appointment_20261008`
 --
 
+DROP TABLE IF EXISTS `bak_appointment_20261008`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `bak_appointment_20261008` (
@@ -99,6 +102,7 @@ CREATE TABLE `bak_appointment_20261008` (
 -- Table structure for table `bak_booking_20261008`
 --
 
+DROP TABLE IF EXISTS `bak_booking_20261008`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `bak_booking_20261008` (
@@ -117,6 +121,7 @@ CREATE TABLE `bak_booking_20261008` (
 -- Table structure for table `bak_notif_log_20261008`
 --
 
+DROP TABLE IF EXISTS `bak_notif_log_20261008`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `bak_notif_log_20261008` (
@@ -144,6 +149,7 @@ CREATE TABLE `bak_notif_log_20261008` (
 -- Table structure for table `bak_notification_dispatch_log_20261008`
 --
 
+DROP TABLE IF EXISTS `bak_notification_dispatch_log_20261008`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `bak_notification_dispatch_log_20261008` (
@@ -175,6 +181,7 @@ CREATE TABLE `bak_notification_dispatch_log_20261008` (
 -- Table structure for table `booking`
 --
 
+DROP TABLE IF EXISTS `booking`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `booking` (
@@ -201,6 +208,7 @@ CREATE TABLE `booking` (
 -- Table structure for table `course`
 --
 
+DROP TABLE IF EXISTS `course`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `course` (
@@ -227,6 +235,7 @@ CREATE TABLE `course` (
 -- Table structure for table `course_check_in`
 --
 
+DROP TABLE IF EXISTS `course_check_in`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `course_check_in` (
@@ -245,6 +254,7 @@ CREATE TABLE `course_check_in` (
 -- Table structure for table `course_evaluation`
 --
 
+DROP TABLE IF EXISTS `course_evaluation`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `course_evaluation` (
@@ -270,6 +280,7 @@ CREATE TABLE `course_evaluation` (
 -- Table structure for table `course_feedback`
 --
 
+DROP TABLE IF EXISTS `course_feedback`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `course_feedback` (
@@ -296,6 +307,7 @@ CREATE TABLE `course_feedback` (
 -- Table structure for table `course_notify_rule`
 --
 
+DROP TABLE IF EXISTS `course_notify_rule`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `course_notify_rule` (
@@ -316,6 +328,7 @@ CREATE TABLE `course_notify_rule` (
 -- Table structure for table `course_notify_rule_point`
 --
 
+DROP TABLE IF EXISTS `course_notify_rule_point`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `course_notify_rule_point` (
@@ -339,6 +352,7 @@ CREATE TABLE `course_notify_rule_point` (
 -- Table structure for table `course_refund_rule`
 --
 
+DROP TABLE IF EXISTS `course_refund_rule`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `course_refund_rule` (
@@ -364,6 +378,7 @@ CREATE TABLE `course_refund_rule` (
 -- Table structure for table `course_schedule`
 --
 
+DROP TABLE IF EXISTS `course_schedule`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `course_schedule` (
@@ -396,6 +411,7 @@ CREATE TABLE `course_schedule` (
 -- Table structure for table `course_template`
 --
 
+DROP TABLE IF EXISTS `course_template`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `course_template` (
@@ -420,6 +436,7 @@ CREATE TABLE `course_template` (
 -- Table structure for table `notification_dispatch_log`
 --
 
+DROP TABLE IF EXISTS `notification_dispatch_log`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `notification_dispatch_log` (
@@ -448,9 +465,93 @@ CREATE TABLE `notification_dispatch_log` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `promo_achievement`
+--
+
+DROP TABLE IF EXISTS `promo_achievement`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `promo_achievement` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `promoter_user_id` varchar(36) NOT NULL,
+  `promoter_tenant_id` bigint NOT NULL,
+  `total_clicks` int NOT NULL DEFAULT '0' COMMENT '总点击数',
+  `total_registered` int NOT NULL DEFAULT '0' COMMENT '成功注册人数',
+  `total_approved` int NOT NULL DEFAULT '0' COMMENT '审批通过人数',
+  `total_paid` int NOT NULL DEFAULT '0' COMMENT '成功缴费人数',
+  `total_tenants_created` int NOT NULL DEFAULT '0' COMMENT '路径1：促成新建租户数',
+  `total_wx_registered` int NOT NULL DEFAULT '0' COMMENT '微信直接注册人数',
+  `total_reward_amount` decimal(12,2) NOT NULL DEFAULT '0.00' COMMENT '累计奖励金额',
+  `last_conversion_at` datetime DEFAULT NULL,
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_promoter` (`promoter_user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='推广者业绩汇总';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `promo_conversion`
+--
+
+DROP TABLE IF EXISTS `promo_conversion`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `promo_conversion` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `referral_code` varchar(32) NOT NULL COMMENT '使用的推广码',
+  `promoter_user_id` varchar(36) NOT NULL COMMENT '推广者',
+  `invitee_user_id` varchar(36) NOT NULL COMMENT '被邀请者 user_id（注册成功后写入，非空）',
+  `invitee_tenant_id` bigint DEFAULT NULL COMMENT '被邀请者所属租户',
+  `path_type` tinyint NOT NULL COMMENT '1=自助建租户 2=指定租户注册',
+  `tenant_code` varchar(8) DEFAULT NULL COMMENT '路径1：新建的租户编码',
+  `stage` varchar(20) NOT NULL DEFAULT 'registered' COMMENT 'registered/approved/paid/expired',
+  `source` varchar(32) DEFAULT NULL COMMENT 'share/landing/qrcode/we/direct',
+  `register_ip` varchar(64) DEFAULT NULL COMMENT '注册来源IP（防刷：单IP每时限频）',
+  `register_phone_hmac` varchar(128) DEFAULT NULL COMMENT '注册手机号HMAC索引（防刷：同手机号限频；不明文存储）',
+  `registered_at` datetime DEFAULT NULL,
+  `paid_at` datetime DEFAULT NULL,
+  `reward_status` varchar(20) DEFAULT NULL COMMENT 'pending/granted/failed',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_conversion_invitee` (`invitee_user_id`) COMMENT '一个被邀请者只归因一次',
+  KEY `idx_promoter_stage` (`promoter_user_id`,`stage`),
+  KEY `idx_referral_code` (`referral_code`),
+  KEY `idx_registered_at` (`registered_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='推广转化记录表（点击仅计数，不落明细）';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `promo_referral`
+--
+
+DROP TABLE IF EXISTS `promo_referral`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `promo_referral` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `referral_code` varchar(32) NOT NULL COMMENT '推广码（全局唯一）',
+  `promoter_user_id` varchar(36) NOT NULL COMMENT '推广者 user_id',
+  `promoter_tenant_id` bigint NOT NULL COMMENT '推广者所属租户',
+  `target_tenant_id` bigint DEFAULT NULL COMMENT '路径2：指定目标租户（NULL=路径1自助建租户）',
+  `path_type` tinyint NOT NULL COMMENT '1=自助建租户 2=指定租户注册',
+  `status` varchar(16) NOT NULL DEFAULT 'active' COMMENT 'active/disabled',
+  `expire_time` datetime DEFAULT NULL COMMENT 'NULL=永不过期',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_referral_code` (`referral_code`),
+  UNIQUE KEY `uk_promoter_scope` (`promoter_user_id`,`path_type`,`target_tenant_id`),
+  KEY `idx_promoter` (`promoter_user_id`),
+  KEY `idx_target_tenant` (`target_tenant_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='推广码表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `sys_industry`
 --
 
+DROP TABLE IF EXISTS `sys_industry`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_industry` (
@@ -470,6 +571,7 @@ CREATE TABLE `sys_industry` (
 -- Table structure for table `sys_metric_hourly`
 --
 
+DROP TABLE IF EXISTS `sys_metric_hourly`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_metric_hourly` (
@@ -495,6 +597,7 @@ CREATE TABLE `sys_metric_hourly` (
 -- Table structure for table `sys_metric_sample`
 --
 
+DROP TABLE IF EXISTS `sys_metric_sample`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_metric_sample` (
@@ -523,6 +626,7 @@ CREATE TABLE `sys_metric_sample` (
 -- Table structure for table `sys_package_template`
 --
 
+DROP TABLE IF EXISTS `sys_package_template`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_package_template` (
@@ -549,6 +653,7 @@ CREATE TABLE `sys_package_template` (
 -- Table structure for table `sys_system_config`
 --
 
+DROP TABLE IF EXISTS `sys_system_config`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_system_config` (
@@ -566,13 +671,14 @@ CREATE TABLE `sys_system_config` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_config_key` (`config_key`),
   KEY `idx_group` (`config_group`)
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='系统配置表';
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='系统配置表';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `sys_tenant`
 --
 
+DROP TABLE IF EXISTS `sys_tenant`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_tenant` (
@@ -587,6 +693,10 @@ CREATE TABLE `sys_tenant` (
   `expire_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '过期时间',
   `offline_time` datetime DEFAULT NULL COMMENT '退租/停用时间',
   `remark` varchar(500) DEFAULT NULL COMMENT '备注',
+  `referred_by` varchar(36) DEFAULT NULL COMMENT '推广者 user_id',
+  `trial_status` varchar(16) DEFAULT NULL COMMENT 'trial/expired/converted',
+  `trial_expire_time` datetime DEFAULT NULL COMMENT '试用到期时间',
+  `creator_account` varchar(255) DEFAULT NULL COMMENT '创建者账号（与 tenantCode 关联校验用）',
   `deleted` tinyint NOT NULL DEFAULT '0' COMMENT '软删除标记：0正常 1已删除（保留可恢复）',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '操作时间',
@@ -602,6 +712,7 @@ CREATE TABLE `sys_tenant` (
 -- Table structure for table `sys_tenant_package`
 --
 
+DROP TABLE IF EXISTS `sys_tenant_package`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_tenant_package` (
@@ -630,6 +741,7 @@ CREATE TABLE `sys_tenant_package` (
 -- Table structure for table `sys_tenant_stats_monthly`
 --
 
+DROP TABLE IF EXISTS `sys_tenant_stats_monthly`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_tenant_stats_monthly` (
@@ -652,6 +764,7 @@ CREATE TABLE `sys_tenant_stats_monthly` (
 -- Table structure for table `sys_term`
 --
 
+DROP TABLE IF EXISTS `sys_term`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_term` (
@@ -678,6 +791,7 @@ CREATE TABLE `sys_term` (
 -- Table structure for table `sys_user_session`
 --
 
+DROP TABLE IF EXISTS `sys_user_session`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sys_user_session` (
@@ -703,6 +817,7 @@ CREATE TABLE `sys_user_session` (
 -- Table structure for table `teacher_available_time`
 --
 
+DROP TABLE IF EXISTS `teacher_available_time`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `teacher_available_time` (
@@ -732,6 +847,7 @@ CREATE TABLE `teacher_available_time` (
 -- Table structure for table `teacher_certificate`
 --
 
+DROP TABLE IF EXISTS `teacher_certificate`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `teacher_certificate` (
@@ -754,6 +870,7 @@ CREATE TABLE `teacher_certificate` (
 -- Table structure for table `teacher_professional`
 --
 
+DROP TABLE IF EXISTS `teacher_professional`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `teacher_professional` (
@@ -787,6 +904,7 @@ CREATE TABLE `teacher_professional` (
 -- Table structure for table `teacher_published_profile`
 --
 
+DROP TABLE IF EXISTS `teacher_published_profile`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `teacher_published_profile` (
@@ -816,6 +934,7 @@ CREATE TABLE `teacher_published_profile` (
 -- Table structure for table `user`
 --
 
+DROP TABLE IF EXISTS `user`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `user` (
@@ -850,6 +969,7 @@ CREATE TABLE `user` (
 -- Table structure for table `user_refresh_token`
 --
 
+DROP TABLE IF EXISTS `user_refresh_token`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `user_refresh_token` (
@@ -869,6 +989,7 @@ CREATE TABLE `user_refresh_token` (
 -- Table structure for table `wx_userid`
 --
 
+DROP TABLE IF EXISTS `wx_userid`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `wx_userid` (
@@ -895,4 +1016,4 @@ CREATE TABLE `wx_userid` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-10-13  2:26:36
+-- Dump completed on 2026-10-13  4:43:10

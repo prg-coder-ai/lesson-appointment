@@ -91,7 +91,11 @@ const touchedFiles = new Map();   // file -> 原始 Buffer
 function replaceOnce(file, anchor, replacement) {
   if (!touchedFiles.has(file)) touchedFiles.set(file, fs.readFileSync(file));
   const orig = touchedFiles.get(file);
-  const text = orig.toString('utf8');
+  // 工作区文本是 CRLF（core.autocrlf 检出），而锚点按 LF 书写。
+  // 先把全文归一成 LF 再匹配/替换：否则"锚点明明在文件里却命中 0 次"，
+  // 用例会以"测试自身失效"的形式假失败（2026-10-13 实测 ②/②d/⑤f 三例即此）。
+  // 还原走 orig Buffer 逐字节回写，不会把混合行尾留在工作区。
+  const text = orig.toString('utf8').replace(/\r\n/g, '\n');
   const hits = text.split(anchor).length - 1;
   if (hits !== 1) {
     throw new Error(`锚点在 ${path.basename(file)} 命中 ${hits} 次（须恰好 1 次）—— 测试自身失效`);

@@ -6,12 +6,18 @@
  * .anyRequest().authenticated() 兜底下是**静默放行**（不是报错），这正是
  * 根因 A 的本质。所以必须有工具把"漏声明"变成"构建失败"。
  *
- * 三条检查：
+ * 四条检查：
  *   1. 覆盖完整性：解析所有 Controller 的 @RequestMapping/@*Mapping，与 AuthzRules.RULES
  *      比对，列出既不在 RULES、也不在 permitAll 白名单里的端点 → 判红。
  *   2. 陈旧规则：RULES 里有、但 Controller 里已不存在的端点（改名/删除后忘了删规则）
  *      → 判红。否则规则表会越长越脏，最终没人信它。
  *   3. 角色合法性：RULES 里出现 RoleConst 之外的字面量角色 → 判红。
+ *   4. 第四同步点（2026-10-13 新增）：permitAll 只解决"进得来"（SecurityConfig 与
+ *      JwtFilter 两处），TenantInterceptor 的 excludePathPatterns 是并列的第四处——
+ *      漏配的症状是请求穿过前两层后被拦截器以「无 Authorization 头」为由 401，
+ *      公开端点整体失效且只在运行时暴露（wechat-register 与 promo 四端点两次踩中）。
+ *      本检查断言：PERMIT_ALL 里每个真实存在的端点，两种路径形态都必须在
+ *      WebMvcConfig.EXCLUDE_PATTERNS 中。
  *
  * 排除范围（重要，避免误报）：
  *   - message-service 的前缀（/api/v1/message、/sensitive、/sse、/users/）：
@@ -175,6 +181,11 @@ const PERMIT_ALL = [
   '/api/v1/user/register', '/api/v1/user/account/exist',
   '/api/v1/teacher/published/latest-public', '/api/v1/teacher/published/public-get',
   '/api/v1/teacher/published/public-list', '/api/v1/schedule/getAvailableSchedule',
+  // 推广公开端点（2026-10-13 二期，与 SecurityConfig 白名单同步）：
+  //   referral/validate 带 touch=1 时点击计数；register-tenant/register-user 是两条注册路径；
+  //   tenant/validate-code 给路径2 表单渲染前校验租户编码。防刷在 PromoService 内，不依赖登录态。
+  '/api/v1/promo/referral/validate', '/api/v1/promo/register-tenant', '/api/v1/promo/register-user',
+  '/api/v1/tenant/validate-code',
 ];
 const isPermitAll = (p) => PERMIT_ALL.includes(p);
 
@@ -208,6 +219,41 @@ for (const e of uncovered) {
 const stale = rules.filter((r) => !epKeys.has(r.verb + ' ' + r.path));
 for (const r of stale) {
   problems.push(`陈旧规则：${r.verb} ${r.path}  在 Controller 里已不存在（第 ${r.line} 行）—— 改名/删除后忘了同步规则表`);
+}
+
+// ---------------------------------------------------------------- 3.5 第四同步点：WebMvcConfig
+// permitAll 只解决"进得来"（SecurityConfig + JwtFilter 两处）。
+// TenantInterceptor 的 excludePathPatterns 是**第四处**同步点：漏配的症状是请求穿过
+// 前两层后，被拦截器以「无 Authorization 头」为由 401 —— 公开端点整体失效，且只在
+// 运行时暴露（2026-10-13 实测：wechat-register 与 promo 四个公开端点两次踩中）。
+// 本段断言：PERMIT_ALL 里每个**真实存在**的端点，其两种路径形态（/api/v1 前缀与裸路径，
+// 与 SecurityConfig 的双写惯例一致）都必须出现在 WebMvcConfig.EXCLUDE_PATTERNS 中。
+const WEBMVC_FILE = path.join(ROOT, 'api/src/main/java/com/reservation/config/WebMvcConfig.java');
+if (!fs.existsSync(WEBMVC_FILE)) {
+  problems.push(`找不到 ${WEBMVC_FILE} —— 第四同步点（TenantInterceptor 排除表）校验无法执行`);
+} else {
+  const mvcSrc = fs.readFileSync(WEBMVC_FILE, 'utf8');
+  // EXCLUDE_PATTERNS 是字符串数组，抓所有字面量即为放行清单
+  const excluded = new Set([...mvcSrc.matchAll(/"([^"]+)"/g)].map((x) => x[1]));
+  let checkedPublic = 0;
+  for (const p of PERMIT_ALL) {
+    // 只校验真实存在的端点：PERMIT_ALL 里可能有防御性冗余路径（无 Controller 映射），
+    // 对它们要求出现在排除表里会误报。
+    const real = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'].some((v) => epKeys.has(v + ' ' + p));
+    if (!real) continue;
+    checkedPublic++;
+    const bare = p.replace(/^\/api\/v1/, '');
+    for (const form of new Set([p, bare])) {
+      if (!excluded.has(form)) {
+        problems.push(`公开端点未排除租户拦截：${form} 不在 WebMvcConfig.EXCLUDE_PATTERNS —— TenantInterceptor 将以其无登录态为由 401（第四同步点漏配）`);
+      }
+    }
+  }
+  // 自检：这条检查必须真的核对到了东西，否则正则/路径改坏会静默假绿
+  if (checkedPublic === 0) {
+    problems.push('第四同步点自检失败：PERMIT_ALL 中没有任何路径匹配到真实端点，解析逻辑可能已失效');
+  }
+  console.log('第四同步点（WebMvcConfig 排除表）：已核对 %d 个公开端点', checkedPublic);
 }
 
 // ---------------------------------------------------------------- 4. 输出

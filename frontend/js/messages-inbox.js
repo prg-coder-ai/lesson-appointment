@@ -1169,7 +1169,7 @@
     try {
       let list = tenantListCache;
       if (!list) {
-        list = await areq.get('/api/v1/tenant/list');
+        list = await areq.get(EP.TENANT_LIST);
         if (!Array.isArray(list) || !list.length) throw new Error('empty tenant list');
         tenantListCache = list;
       }

@@ -113,6 +113,24 @@ public class SecurityConfig {
                             "/api/v1/term/map"
                     ).permitAll();
 
+                    // 推广公开端点（免登录，不带 token）：
+                    //   · referral/validate   登录页首访校验推广码，touch=1 时点击计数
+                    //   · register-tenant     路径1：自助建租户 + 首管理员（免费试用）
+                    //   · register-user       路径2：加入指定租户（待审批）
+                    //   · tenant/validate-code 路径2 表单渲染前校验租户编码
+                    // 防刷（IP/手机号限频、试用名额上限）在 PromoService.checkRegisterAbuse 内，
+                    // 不依赖登录态。裸路径与 /api/v1 前缀双写，与上文同惯例。
+                    auth.requestMatchers(
+                            "/api/v1/promo/referral/validate",
+                            "/promo/referral/validate",
+                            "/api/v1/promo/register-tenant",
+                            "/promo/register-tenant",
+                            "/api/v1/promo/register-user",
+                            "/promo/register-user",
+                            "/api/v1/tenant/validate-code",
+                            "/tenant/validate-code"
+                    ).permitAll();
+
                     // 注册相关（匿名用户必须能访问）
                     // 注意：/user/register 才是 UserController 实际映射（@PostMapping("/register")），
                     // 此前只放了不存在的 /user/admin/register，导致自助注册被 401 拦截；

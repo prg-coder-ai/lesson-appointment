@@ -136,6 +136,10 @@ public final class AuthzRules {
         r.add(new Rule(HttpMethod.POST, "/api/v1/tenant/package/reconcile/{tenantId}", PLATFORM_ONLY, "≡checkPlatformAdmin 对账"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/tenant/package/reconcile-all", PLATFORM_ONLY, "≡checkPlatformAdmin 全量对账"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/tenant/package/list", PLATFORM_ONLY, "≡checkPlatformAdmin"));
+        // 用账号反查租户编码（忘记租户编码时用）：本人或管理员。
+        // 路径层无法表达"token 账号 == 请求账号"，故按 ALL_ROLES 放行、
+        // 归属校验在 TenantController#codeByAccount 方法体（与 checkTenantRead 同模式）。
+        r.add(new Rule(HttpMethod.GET, "/api/v1/tenant/code-by-account", ALL_ROLES, "新增：本人或管理员（归属在方法体）"));
 
         r.add(new Rule(HttpMethod.POST, "/api/v1/package/template/insert", PLATFORM_ONLY, "≡checkPlatformAdmin"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/package/template/update", PLATFORM_ONLY, "≡checkPlatformAdmin"));
@@ -208,6 +212,20 @@ public final class AuthzRules {
         r.add(new Rule(HttpMethod.POST, "/api/v1/auth/bind-wechat", ALL_ROLES, "≡需登录 绑定微信（仅当前会话账号）"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/auth/unbind-wechat", ALL_ROLES, "≡需登录 解绑微信（仅当前会话账号）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/auth/wechat-status", ALL_ROLES, "≡需登录 查询自己的微信绑定状态"));
+
+        // ==================== 3.5、推广体系（2026-10-13 二期）====================
+        // 推广者不新增角色：任何已登录用户都能生成自己的码、看自己的业绩。
+        // permitAll 的三个端点（referral/validate、register-tenant、register-user）
+        // 走 SecurityConfig 白名单 + 本守卫 PERMIT_ALL，不在此表。
+        r.add(new Rule(HttpMethod.POST, "/api/v1/promo/referral/code", ALL_ROLES, "新增：生成/获取我的推广码"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/promo/referral/my-codes", ALL_ROLES, "新增：我的推广码列表"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/promo/achievement", ALL_ROLES, "新增：我的推广业绩"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/promo/conversions", ALL_ROLES, "新增：我的转化明细"));
+        // 全平台排行属运营面，仅平台管理员
+        r.add(new Rule(HttpMethod.GET, "/api/v1/promo/achievement/overview", PLATFORM_ONLY, "新增：全部推广者排行（运营面）"));
+        // 归因上报：三种登录方式（密码/静默/微信注册）setSession 成功后各调一次，
+        // 重复上报由 uk_conversion_invitee 去重；越权面由方法体按 token 取 userId 兜住。
+        r.add(new Rule(HttpMethod.POST, "/api/v1/user/attribution", ALL_ROLES, "新增：推广归因上报（仅当前会话账号）"));
 
         r.add(new Rule(HttpMethod.GET, "/api/v1/user/list", PLATFORM_OR_TENANT_ADMIN, "新增：用户列表（管理面）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/user/page", PLATFORM_OR_TENANT_ADMIN, "新增：用户分页（管理面）"));

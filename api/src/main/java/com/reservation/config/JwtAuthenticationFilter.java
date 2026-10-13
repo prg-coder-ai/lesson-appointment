@@ -46,6 +46,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
              "/user/admin/register", "/api/v1/user/admin/register",
             "/user/account/exist", "/api/v1/user/account/exist",
             "/api/v1/auth/wechat-login", "/auth/wechat-login",
+            // 微信直接注册（场景 C）同样免认证：一期只加了 SecurityConfig 与守卫两处，
+            // 漏了本过滤器 —— 带过期 token 调用时过滤器会解析失败并清空 SecurityContext，
+            // 与白名单"三处同步"的约定不符。二期一并补齐（含推广公开端点）。
+            "/api/v1/auth/wechat-register", "/auth/wechat-register",
+            // 推广公开端点（免登录）：与 SecurityConfig 白名单、守卫 PERMIT_ALL 三处同步
+            "/api/v1/promo/referral/validate", "/promo/referral/validate",
+            "/api/v1/promo/register-tenant", "/promo/register-tenant",
+            "/api/v1/promo/register-user", "/promo/register-user",
+            "/api/v1/tenant/validate-code", "/tenant/validate-code",
             "/term/map", "/api/v1/term/map",
             "/teacher/published/latest-public", "/api/v1/teacher/published/latest-public",
             "/teacher/published/public-get", "/api/v1/teacher/published/public-get",

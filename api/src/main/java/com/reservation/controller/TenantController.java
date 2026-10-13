@@ -1,14 +1,20 @@
 package com.reservation.controller;
 
 import com.reservation.common.PageResult;
+import com.reservation.common.RoleConst;
 import com.reservation.common.Result;
 import com.reservation.entity.Industry;
 import com.reservation.entity.Tenant;
+import com.reservation.entity.User;
 import com.reservation.mapper.IndustryMapper;
 import com.reservation.query.TenantQueryPage;
+import com.reservation.service.PromoService;
 import com.reservation.service.TenantQuotaService;
 import com.reservation.service.TenantService;
+import com.reservation.service.UserService;
 import com.reservation.utils.PermissionCheck;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,6 +33,8 @@ import java.util.Map;
 @RequestMapping("/api/v1/tenant")
 public class TenantController {
 
+    private static final Logger log = LoggerFactory.getLogger(TenantController.class);
+
     @Autowired
     private TenantService tenantService;
     @Autowired
@@ -35,6 +43,10 @@ public class TenantController {
     private PermissionCheck permissionCheck;
     @Autowired
     private IndustryMapper industryMapper;
+    @Autowired
+    private PromoService promoService;
+    @Autowired
+    private UserService userService;
 
     /**
      * 分页查询租户列表
@@ -248,6 +260,74 @@ public class TenantController {
                                          @RequestHeader("Authorization") String token) {
         permissionCheck.checkPlatformAdmin(token);
         tenantQuotaService.switchTemplate(id, templateId);
+        // 推广漏斗最后一环：缴费成功 → 该租户的转化记录置 paid、推广者业绩 +1、
+        // 租户试用标记转 converted。非推广来的租户（referred_by 为空）内部直接返回。
+        // 记账失败不回滚套餐变更（try 住）—— 配套餐是平台操作的主流程。
+        try {
+            promoService.onPaid(id);
+        } catch (Exception e) {
+            log.warn("推广缴费记账失败（不影响套餐变更）, tenantId={}, err={}", id, e.getMessage());
+        }
         return Result.success(true, "套餐变更成功");
+    }
+
+    /**
+     * 用账号反查关联的租户编码（方案文档 7.3：用户忘记 tenantCode /
+     * 推广链接 tenantCode 与账号所属租户一致性校验 / 登录时账号+租户编码双重校验）。
+     *
+     * <p><b>语义是「账号所属租户」</b>（{@code user.tenant_id → sys_tenant}），
+     * 不是「账号创建的租户」—— 推广者本人通常并不是他所建租户的归属人，
+     * 查创建者会答非所问（曾按创建者实现，T11 三项全红后纠正）。
+     *
+     * <p><b>鉴权（决策：本人或管理员）</b>：路径层放行全部已登录角色，
+     * 方法体按 token 裁定，边界收敛为 {@code self || platform_admin}
+     * （与消息中心 {@code assertUserScope} 同模式）：
+     * 租户管理员代查他人 → 403，避免跨租户探测 orgName。
+     *
+     * <p>本人查询优先走令牌 userId（同账号可跨租户重名，令牌解析无歧义）；
+     * 平台管理员代查走全局账号查询（{@code listByAccountIgnoreTenant}，仅平台管理员可达）。
+     * 平台管理员自身（tenant_id=0）没有 sys_tenant 行 → found=false，语义正确。
+     */
+    @GetMapping("/code-by-account")
+    public Result<Map<String, Object>> codeByAccount(@RequestParam("account") String account,
+                                                     @RequestHeader("Authorization") String token) {
+        if (account == null || account.trim().isEmpty()) {
+            return Result.fail(400, "账号不能为空");
+        }
+        String userId = permissionCheck.getUserIdFromToken(token);
+        String role = permissionCheck.getRoleFromToken(token);
+        String acc = account.trim();
+        User self = userService.selectById(userId);
+        boolean isSelf = self != null && acc.equals(self.getAccount());
+        if (!isSelf && !RoleConst.PLATFORM_ADMIN.equals(role)) {
+            return Result.fail(403, "无权查询该账号所属租户");
+        }
+        User target = isSelf ? self : userService.getFirstUserByAccountIgnoreTenant(acc);
+        // sys_tenant 在租户插件的 IGNORE_TABLES 内，此处不拼租户条件；
+        // target.tenant_id=0（平台账号）或账号不存在时 tenant 为 null → found=false
+        Tenant tenant = (target == null || target.getTenantId() == null)
+                ? null : tenantService.getById(target.getTenantId());
+        Map<String, Object> data = new HashMap<>();
+        data.put("found", tenant != null);
+        data.put("tenantCode", tenant == null ? null : tenant.getTenantCode());
+        data.put("orgName", tenant == null ? null : tenant.getOrgName());
+        data.put("trialStatus", tenant == null ? null : tenant.getTrialStatus());
+        return Result.success(data, tenant == null ? "未找到关联租户" : "查询成功");
+    }
+
+    /**
+     * 校验租户编码是否有效（免登录）：login.html 路径2 表单渲染前调用。
+     * 只回有效性与机构名，不暴露租户 id / 套餐等内部信息。
+     */
+    @GetMapping("/validate-code")
+    public Result<Map<String, Object>> validateCode(@RequestParam("code") String code) {
+        Map<String, Object> data = new HashMap<>();
+        Tenant tenant = (code == null || code.trim().isEmpty()) ? null : tenantService.getByCode(code.trim());
+        boolean valid = tenant != null
+                && (tenant.getDeleted() == null || tenant.getDeleted() == 0)
+                && Integer.valueOf(1).equals(tenant.getStatus());
+        data.put("valid", valid);
+        data.put("orgName", valid ? tenant.getOrgName() : null);
+        return Result.success(data, valid ? "租户编码有效" : "租户编码无效或已停用");
     }
 }

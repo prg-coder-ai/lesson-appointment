@@ -62,6 +62,10 @@
         <i class="fa fa-chalkboard-teacher"></i>
         <span>浏览师资</span>
       </div>
+      <div class="menu-item" key="my_promo">
+        <i class="fa fa-bullhorn"></i>
+        <span>我的推广</span>
+      </div>
       <!-- <div class="menu-item" key="course_review">
         <i class="fa fa-star-half-o"></i>
         <span><span data-term="course">课程</span>评价</span>
@@ -487,6 +491,10 @@
           var _landingHref = (typeof window.pageUrl === 'function') ? window.pageUrl('student-landing.html') : 'student-landing.html';
           _landingHref += (_landingHref.indexOf('?') >= 0 ? '&' : '?') + 'from=workbench';
           window.location.href = _landingHref;
+          return;
+        case 'my_promo':
+          // 推广业绩页（2026-10-13 二期）：我的推广码 / 业绩汇总 / 转化明细
+          window.location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('promo.html') : 'promo.html';
           return;
         case 'today_course':
            refreshAppointmentNotes( );//TBD "admin"

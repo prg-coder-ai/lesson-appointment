@@ -7,6 +7,8 @@ import com.reservation.query.*;
 import com.reservation.entity.User;
 import com.reservation.audit.Audit;
 import com.reservation.audit.AuditAction;
+import com.reservation.dto.AttributionDTO;
+import com.reservation.service.PromoService;
 import com.reservation.service.UserService;
 import com.reservation.utils.PermissionCheck;
 import com.reservation.utils.TenantContext;
@@ -31,6 +33,8 @@ public class UserController {
     private UserService userService; 
      @Autowired
     private PermissionCheck permissionCheck;
+    @Autowired
+    private PromoService promoService;
 
     //TBD条件：role,所属机构 
     /**
@@ -200,7 +204,35 @@ public class UserController {
 
         int ret = userService.updateStatus(user);
      //   log.debug("ret " + ret);
+        // 推广漏斗：审批通过 → 该用户的转化记录 registered → approved，推广者业绩 +1。
+        // 只对"改为 active"生效（frozen/inactive 等不是审批动作）。
+        // 记账失败不影响审批本身（try 住并记日志）—— 审批是主流程，推广统计是附属。
+        if (ret > 0 && "active".equals(user.getStatus())) {
+            try {
+                promoService.onApproved(user.getUserId());
+            } catch (Exception e) {
+                log.warn("推广归因记账失败（不影响审批结果）, userId={}, err={}",
+                        user.getUserId(), e.getMessage());
+            }
+        }
         return   Result.success(ret, "修改成功");
+    }
+
+    /**
+     * 推广归因上报（小程序 acquisition.js 已埋点，web 登录页同契约）。
+     *
+     * <p>三种登录方式（密码 / 微信静默 / 微信直接注册）对归因透明：setSession 成功后
+     * 上报一次即可，{@code uk_conversion_invitee} 保证重复上报不重复计数。
+     * 优先级：有 {@code ref} 按推广码归因；只有 {@code inviter} 按默认码归因；皆无不计业绩。
+     */
+    @PostMapping("/attribution")
+    @ResponseBody
+    public Result<Boolean> attribution(@RequestBody AttributionDTO dto,
+                                       @RequestHeader("Authorization") String token) {
+        String userId = permissionCheck.getUserIdFromToken(token);
+        Long tenantId = permissionCheck.getTenantIdFromToken(token);
+        promoService.recordAttribution(userId, tenantId, dto.getRef(), dto.getInviter(), dto.getSource());
+        return Result.success(true, "上报成功");
     }
 
     /**
