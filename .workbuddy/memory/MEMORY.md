@@ -25,7 +25,11 @@ shared-sync/authz/cascade/ddl-align/tz/global-collide/scheduler/actuator/tenant-
 ## 业务要点
 - 授权兜底 denyAll()；course /list|/page 用 checkAnyLogin（勿替代 checkTeacherOrAdmin）；课次 appointment=UTC 唯一真相源，转换只经 ScheduleGenerator；删除级联登记 CascadeRules；名称查不到留空、不回退 id。
 - 待拍板：CourseService.deleteById/deleteByTemplateId 缺 @Transactional。
-- **推广（2026-10-13 二期，b0b08e7b）**：promo 三表（IGNORE_TABLES 无 tenant_id 列）；路径1 自助建租户（8位码去 0/O/1/I/l，保留字 platform/default，14天试用）+ 路径2 加入租户（pending）；防刷三闸（IP/手机 HMAC/试用租户上限按 referred_by 计）；点击只计数；钩子 updateStatus→onApproved、changePackage→onPaid；code-by-account 查「账号所属租户」；排行/多码列表 UI 未建。
+- **推广（2026-10-13 二期 b0b08e7b + 三期双码）**：promo 三表（IGNORE_TABLES 无 tenant_id 列）；路径1 自助建租户（8位码去 0/O/1/I/l，保留字 platform/default，14天试用）+ 路径2 加入租户（pending）；防刷三闸（IP/手机 HMAC/试用租户上限按 referred_by 计）；点击只计数；钩子 updateStatus→onApproved、changePackage→onPaid；code-by-account 查「账号所属租户」。**三期**：我的推广双码（平台码 path1 + 租户码 path2，target 服务端从令牌派生、DTO 不接受客户端值，P0）；两级统计 GET /promo/achievement/tenant（TENANT_ADMIN_ONLY，租户从令牌派生）/platform（PLATFORM_ONLY，合计+Top20+最近转化）；租户/平台统计页挂 admin.html/platform_admin.html；平台端亦有「我的推广」菜单。
+- **★数据清理铁律**：删测试产物必须按条件 DELETE（promo_conversion 曾整表删误伤用户手动验证数据）。**租户16(fbKxQRAd)/promoter 0dc6977b 是用户手动验证产物，勿清**。
+- **★user.name 入库加密、服务级解密（无 TypeHandler）**：任何 IgnoreTenant 裸查回显姓名前必须 cryptoUtil.decrypt（PromoService.loadUsersForStats 模式），否则前端见 hex:base64 密文。
+- **JwtAuthenticationFilter 强制 `Authorization: Bearer ` 前缀**：不带前缀不报错、只不设 SecurityContext → denyAll 401（测试锻 token 必带前缀）。
+- 应用会被会话边界回收（后台任务终止即杀进程树）；重启前先 netstat 探活。四步链无 npm 脚本：`node tools/sync-miniprogram-shared.js` → `npm run check:shared-sync` → `node frontend/tools/gen-shared-bridge.js` → `node frontend/build.js`。
 - **微信（一期 8dc3e994）**：wx_userid 独立表 uk 全局唯一；wechat-login/register 免登录；secret 占位→1001 静默降级是设计姿态；auto_register 禁解绑。
 
 ## 技术栈/排障
