@@ -79,7 +79,11 @@ function buildCss() {
 async function buildHtml() {
   const files = fs.readdirSync(ROOT).filter(f => f.endsWith('.html'));
   for (const f of files) {
-    const code = fs.readFileSync(path.join(ROOT, f), 'utf8');
+    let code = fs.readFileSync(path.join(ROOT, f), 'utf8');
+    // 发行版剔除「开发态批量造数工具」脚本引用：js/test/ 目录不进 dist（见 copyAssets / buildJs），
+    // 若保留 <script src> 会在生产环境 404，并被 SPA 回退页以 HTML 返回，导致浏览器报
+    // "Uncaught SyntaxError: Unexpected token '<'"。dev 代理直接读 frontend/ 源码，标签保留、菜单照常工作。
+    code = code.replace(/\s*<script\s+src=["']js\/test\/testData\.js["']\s*>\s*<\/script>\s*/gi, '');
     const min = await minifyHtml(code, {
       collapseWhitespace: true,
       removeComments: true,
