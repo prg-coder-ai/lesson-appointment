@@ -21,7 +21,7 @@ const ROOT = path.resolve(__dirname, '..');
 const STRICT = process.argv.includes('--strict') || process.env.ORIGIN_LINT_STRICT === '1';
 
 const SKIP_DIR = new Set(['node_modules', 'dist', 'target', 'tools', '.git']);
-const SKIP_REL = [/^js[\\/]test[\\/]/, /^js[\\/]vendor[\\/]/];
+const SKIP_REL = [/^js[\\/]test[\\/]/, /[\\/]vendor[\\/]/];
 const SCAN_EXT = ['.js', '.html'];
 
 const RULES = [

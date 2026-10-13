@@ -101,7 +101,10 @@ function copyAssets() {
   for (const f of walk(ROOT)) {
     const rel = path.relative(ROOT, f);
     if (/(^|\/)(node_modules|dist)(\/|$)/.test(rel)) continue;
-    if (/\.(js|css|html)$/i.test(rel)) continue;
+    // vendor 下的第三方 css（如 font-awesome）位于 js/public/vendor/，buildCss 只扫 frontend/css/
+    // 扫不到；这里原样复制（已压缩，且内部 url(../webfonts/) 相对引用不能被 CleanCSS 改写）。
+    const isVendorCss = /(^|[\\/])js[\\/]public[\\/]vendor[\\/].+\.css$/i.test(rel);
+    if (/\.(js|css|html)$/i.test(rel) && !isVendorCss) continue;
     if (/(^|\/)js\/test(\/|$)/.test(rel)) continue;
     const base = path.basename(rel);
     if (path.dirname(rel) === '.' && SKIP_ROOT.has(base)) continue;
