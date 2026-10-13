@@ -483,9 +483,7 @@
           (recallable
             ? '<button class="btn btn-warning btn-sm" data-act="recall" data-mid="' + mid + '">收回</button>'
             : '<button class="btn btn-gray btn-sm" disabled>不可收回</button>') +
-          (isManager()
-            ? '<button class="btn btn-danger btn-sm" data-act="global-delete" data-mid="' + mid + '">彻底删除</button>'
-            : '') +
+          '' +
         '</div>' +
       '</div>';
   }
@@ -522,11 +520,6 @@
       if (recall) recall.addEventListener('click', function (e) {
         e.stopPropagation();
         recallMessage(container, mid);
-      });
-      const gdel = item.querySelector('[data-act="global-delete"]');
-      if (gdel) gdel.addEventListener('click', function (e) {
-        e.stopPropagation();
-        deleteSentGlobal(container, mid);
       });
     });
   }
@@ -814,16 +807,6 @@
     try {
       await mreq.post(EP.MSG_WITHDRAW(mid));
       toast('已收回', true);
-      loadMessages(container);
-    } catch (e) { /* 拦截器已提示 */ }
-  }
-
-  // 管理员全局彻底删除（连同所有收件人副本与投递记录，不可逆）
-  async function deleteSentGlobal(container, mid) {
-    if (!confirm('彻底删除该消息？\n将永久删除主消息、所有收件人的收件箱副本及投递记录，且无法恢复！')) return;
-    try {
-      await mreq.delete(EP.MSG_DELETE_GLOBAL(mid));
-      toast('已彻底删除', true);
       loadMessages(container);
     } catch (e) { /* 拦截器已提示 */ }
   }
