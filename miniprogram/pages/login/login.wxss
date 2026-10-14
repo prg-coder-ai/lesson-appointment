@@ -52,6 +52,14 @@
   font-size: 30rpx;
   color: #1f2a44;
 }
+.tenant-hint {
+  margin-top: 12rpx;
+  font-size: 22rpx;
+  color: #1677ff;
+  background: #e6f0ff;
+  border-radius: 8rpx;
+  padding: 10rpx 16rpx;
+}
 .role-seg {
   display: flex;
   background: #f0f2f5;

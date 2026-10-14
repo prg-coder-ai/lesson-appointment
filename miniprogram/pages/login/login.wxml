@@ -11,6 +11,7 @@
     <view class="field">
       <text class="label">租户编码 tCode</text>
       <input class="input" placeholder="如 TENANT_A 或 platform" value="{{tenantCode}}" bindinput="onTenant" disabled="{{role==='platform_admin'}}" />
+      <view wx:if="{{role==='platform_admin'}}" class="tenant-hint">平台管理员使用固定标识 platform，已自动填入，无需修改。</view>
     </view>
 
     <view class="field">

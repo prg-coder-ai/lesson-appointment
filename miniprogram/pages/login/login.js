@@ -1,13 +1,14 @@
 import { login, getBoundTenantCode, goHome, wechatSilentLogin, wechatRegister, bindWechat } from '../../core/auth.js';
 import { withTerms } from '../../core/term.js';
 import { clearSession, storage, getSession } from '../../core/storage.js';
-import { ROLES } from '../../shared/constants.js';
+import { ROLES, PLATFORM_TENANT_CODE } from '../../shared/constants.js';
 import { confirm, alert } from '../../core/ui.js';
 
 const ROLE_OPTIONS = [
   { role: ROLES.STUDENT, termKey: 'student', fallback: '学生' },
   { role: ROLES.TEACHER, termKey: 'teacher', fallback: '教师' },
-  { role: ROLES.ADMIN, termKey: null, fallback: '管理' }
+  { role: ROLES.ADMIN, termKey: null, fallback: '管理' },
+  { role: ROLES.PLATFORM_ADMIN, termKey: null, fallback: '平台' }
 ];
 
 Page(withTerms({
@@ -53,10 +54,33 @@ Page(withTerms({
   toggleBindWechat() { this.setData({ bindWechat: !this.data.bindWechat }); },
   onAccount(e) { this.setData({ account: e.detail.value }); },
   onPassword(e) { this.setData({ password: e.detail.value }); },
-  onTenant(e) { this.setData({ tenantCode: e.detail.value }); },
+  onTenant(e) {
+    const raw = e.detail.value || '';
+    const trimmed = raw.trim();
+    // 输入平台保留字 platform（区分大小写以对齐后端）自动切换为平台管理员入口，
+    // 直接命中"填 platform 登录失败"的现场 —— 无需额外选角色即可登录。
+    if (trimmed === PLATFORM_TENANT_CODE) {
+      this.setData({ tenantCode: PLATFORM_TENANT_CODE, role: ROLES.PLATFORM_ADMIN, isPlatformRole: true });
+      return;
+    }
+    const patch = { tenantCode: raw };
+    // 从平台标识改回普通租户编码时，自动退回默认角色，避免卡在平台管理员态
+    if (this.data.role === ROLES.PLATFORM_ADMIN) {
+      patch.role = ROLES.STUDENT;
+      patch.isPlatformRole = false;
+    }
+    this.setData(patch);
+  },
   onPickRole(e) {
     const role = e.currentTarget.dataset.role;
-    this.setData({ role, isPlatformRole: role === ROLES.PLATFORM_ADMIN || role === ROLES.ADMIN });
+    const patch = { role, isPlatformRole: role === ROLES.PLATFORM_ADMIN || role === ROLES.ADMIN };
+    // 平台管理员使用固定租户标识 platform，无需手填；切回其它角色时还原已绑定的租户编码
+    if (role === ROLES.PLATFORM_ADMIN) {
+      patch.tenantCode = PLATFORM_TENANT_CODE;
+    } else if (this.data.tenantCode === PLATFORM_TENANT_CODE) {
+      patch.tenantCode = this.data.boundTenantCode || '';
+    }
+    this.setData(patch);
   },
   clearBinding() {
     confirm('将解绑当前租户（' + this.data.boundTenantCode + '）并返回登录，确定？', { title: '切换租户' }).then((ok) => {
