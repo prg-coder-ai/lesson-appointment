@@ -66,6 +66,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/tenant/name", "/api/v1/tenant/name",
             // 服务运行信息（与缺省页同源，匿名可访问）
             "/system/info", "/api/v1/system/info", "/apiInfo", "/api/v1/apiInfo",
+            // 协议/隐私政策公开阅读端点（免登录，与 SecurityConfig 白名单/守卫 PERMIT_ALL 同步）
+            "/api/v1/legal/doc",
             // Actuator 探针（2026-09新增，与 SecurityConfig 的 permitAll 同步）
             // ⚠️ 这里必须与 SecurityConfig 同时改：只改一处 → 探针 401。
             // 用 /actuator/health 前缀式匹配而非 Set.contains 精确匹配，

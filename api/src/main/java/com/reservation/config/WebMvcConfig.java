@@ -55,6 +55,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
             "/tenant/name", "/api/v1/tenant/name",
             // 服务运行信息（无登录态/无租户上下文，须跳过租户校验）
             "/system/info", "/api/v1/system/info", "/apiInfo", "/api/v1/apiInfo",
+            // 协议/隐私政策公开阅读端点（免登录/无租户上下文，第四同步点：与 SecurityConfig/JwtFilter/PERMIT_ALL 同步）
+            "/api/v1/legal/doc", "/legal/doc",
             "/js/**", "/css/**", "/images/**", "/favicon.ico",
             "/error"
     };

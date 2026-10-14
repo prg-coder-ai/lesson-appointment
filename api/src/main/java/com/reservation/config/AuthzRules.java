@@ -193,6 +193,14 @@ public final class AuthzRules {
         r.add(new Rule(HttpMethod.GET, "/api/v1/sys/config/group/{group}", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/sys/config/{key}", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
 
+        // ==================== 协议 / 隐私政策（2026-10-14）====================
+        // 平台管理员维护平台级（tenantId=0），租户管理员维护本租户覆盖级；
+        // 作用域由方法体从令牌派生（防篡改），越权面在方法体 checkTenantAdmin 兜底。
+        r.add(new Rule(HttpMethod.GET, "/api/v1/sys/legal-doc", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin/checkTenantAdmin 读取协议文档"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/sys/legal-doc/update", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin/checkTenantAdmin 保存协议文档版本"));
+        // 用户/租户登录或注册成功后落签署留痕：任何已登录身份均可，版本号以服务端 resolve 为准（防篡改）
+        r.add(new Rule(HttpMethod.POST, "/api/v1/legal/accept", ALL_ROLES, "≡checkAnyLogin 签署协议/隐私政策留痕"));
+
         r.add(new Rule(HttpMethod.GET, "/api/v1/teacher/published/list", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin 教师发布列表"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/teacher/published/get", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/teacher/published/update", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));

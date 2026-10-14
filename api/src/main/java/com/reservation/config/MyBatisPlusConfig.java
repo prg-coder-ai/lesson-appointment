@@ -51,7 +51,11 @@ public class MyBatisPlusConfig {
             // 推广三表：平台级数据，表结构也无 tenant_id 列。
             // 若不排除，租户插件会拼出 `tenant_id = ?` → Unknown column 全线报错
             // （与 sys_industry / course_notify_rule_point 同一原因）
-            "promo_referral", "promo_conversion", "promo_achievement"
+            "promo_referral", "promo_conversion", "promo_achievement",
+            // 协议/隐私政策：平台级共享数据。sys_legal_doc 虽含 tenant_id 列，但该列是
+            // 「作用域维度」（0=平台级，>0=租户覆盖级），隔离由业务层显式按 tenant_id 过滤，
+            // 不能走租户插件；否则会被拼 `tenant_id = ?` 误伤（与 sys_term 同因）。
+            "sys_legal_doc", "sys_legal_accept"
     );
 
     @Bean

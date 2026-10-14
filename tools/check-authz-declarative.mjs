@@ -189,6 +189,8 @@ const PERMIT_ALL = [
   // 行业字典选项（2026-10-13 修订）：推广落地页「免费体验注册」的所属行业下拉，匿名读取。
   // 与需平台管理员登录的 /industry/list 分开，只暴露启用行业的 id/code/name。
   '/api/v1/industry/options',
+  // 协议/隐私政策公开阅读端点（2026-10-14）：匿名读取当前生效版本，与 SecurityConfig/JwtFilter/EXCLUDE_PATTERNS 同步。
+  '/api/v1/legal/doc',
 ];
 const isPermitAll = (p) => PERMIT_ALL.includes(p);
 

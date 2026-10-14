@@ -36,6 +36,7 @@ function renderConfigPage() {
   on($('tab-industry'), 'click', () => switchConfigTab('industry'));
   on($('tab-term'), 'click', () => switchConfigTab('term'));
   on($('tab-system'), 'click', () => switchConfigTab('system'));
+  on($('tab-legal'), 'click', () => switchConfigTab('legal'));
   on($('config-refresh-btn'), 'click', () => switchConfigTab(currentConfigTab));
   // 默认进入本次新增的「行业管理」Tab
   switchConfigTab('industry');
@@ -48,14 +49,18 @@ function switchConfigTab(tab) {
   const b1 = document.getElementById('tab-industry');
   const b2 = document.getElementById('tab-term');
   const b3 = document.getElementById('tab-system');
+  const b4 = document.getElementById('tab-legal');
   if (b1) b1.className = 'btn ' + (tab === 'industry' ? 'btn-primary' : 'btn-default');
   if (b2) b2.className = 'btn ' + (tab === 'term' ? 'btn-primary' : 'btn-default');
   if (b3) b3.className = 'btn ' + (tab === 'system' ? 'btn-primary' : 'btn-default');
+  if (b4) b4.className = 'btn ' + (tab === 'legal' ? 'btn-primary' : 'btn-default');
   const body = document.getElementById('config-tab-body');
   if (tab === 'industry') {
     if (typeof renderIndustryPage === 'function') renderIndustryPage();
   } else if (tab === 'term') {
     if (typeof renderTermPage === 'function') renderTermPage();
+  } else if (tab === 'legal') {
+    if (typeof renderLegalPage === 'function') renderLegalPage();
   } else {
     renderSystemConfigInner(body);
   }
@@ -107,4 +112,47 @@ function editConfig(cf) {
   if (v === null) return;
   request({ url: '/sys/config/update', method: 'POST', data: { configKey: cf.configKey, configValue: v } })
     .then(() => loadConfigList()).catch(() => {});
+}
+
+/* ---------- 协议与政策（平台级维护，平台管理员 scope=0） ---------- */
+function renderLegalPage() {
+  const tpl = document.getElementById('tpl-config-legal');
+  if (!tpl) { console.error('[legal] 缺少 #tpl-config-legal'); return; }
+  const body = document.getElementById('config-tab-body');
+  body.replaceChildren(tpl.content.cloneNode(true));
+  const $ = id => document.getElementById(id);
+  const on = (el, ev, fn) => { if (el) el.addEventListener(ev, fn); };
+
+  // 平台管理员维护平台级文档（后端 resolveScope 由令牌派生 tenantId=0）；
+  // 租户级覆盖由租户管理员在 admin.html 维护（本页不做），避免越权。
+  function loadLegal() {
+    const docType = $('legal-doc-type').value;
+    const lang = $('legal-doc-lang').value;
+    $('legal-hint').textContent = '读取中…';
+    request({ url: '/sys/legal-doc', method: 'get', params: { docType, lang }, customErrorMsg: false })
+      .then(doc => {
+        $('legal-title').value = doc && doc.title ? doc.title : '';
+        $('legal-content').value = doc && doc.content ? doc.content : '';
+        $('legal-hint').textContent = doc
+          ? ('当前生效版本 v' + doc.version + '（平台统一版本，tenantId=' + doc.tenantId + '）')
+          : '尚未配置，保存后将创建首个版本';
+      })
+      .catch(() => { $('legal-hint').textContent = '读取失败，请重试'; });
+  }
+
+  on($('legal-load-btn'), 'click', loadLegal);
+  on($('legal-save-btn'), 'click', () => {
+    const docType = $('legal-doc-type').value;
+    const lang = $('legal-doc-lang').value;
+    const title = $('legal-title').value.trim();
+    const content = $('legal-content').value;
+    if (!title) { alert('请填写标题'); return; }
+    $('legal-hint').textContent = '保存中…';
+    request({ url: '/sys/legal-doc/update', method: 'POST',
+      data: { docType, language: lang, title, content }, customErrorMsg: false })
+      .then(doc => { alert('已保存为新版本（v' + (doc && doc.version) + '），旧版本自动停用'); loadLegal(); })
+      .catch(() => { $('legal-hint').textContent = '保存失败，请重试'; });
+  });
+
+  loadLegal();
 }

@@ -344,6 +344,7 @@
           <button class="btn btn-default" id="tab-industry">行业管理</button>
           <button class="btn btn-default" id="tab-term">行业词汇</button>
           <button class="btn btn-default" id="tab-system">系统参数</button>
+          <button class="btn btn-default" id="tab-legal">协议与政策</button>
         </div>
         <button class="btn btn-primary" id="config-refresh-btn"><i class="fa fa-refresh"></i> 刷新</button>
       </div>
@@ -358,6 +359,36 @@
       </tr></thead><tbody id="cfg-body"></tbody></table>
     </div>
     <div id="cfg-pagebar"></div>
+  </template>
+
+  <template id="tpl-config-legal">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa fa-file-contract"></i> 协议与政策</div>
+        <div class="tab-bar" style="margin-left:16px;">
+          <select id="legal-doc-type">
+            <option value="user_agreement">用户协议</option>
+            <option value="privacy_policy">隐私政策</option>
+          </select>
+          <select id="legal-doc-lang">
+            <option value="zh">中文</option>
+            <option value="en">English</option>
+            <option value="fr">Français</option>
+          </select>
+          <button class="btn btn-primary" id="legal-load-btn"><i class="fa fa-refresh"></i> 读取</button>
+          <button class="btn btn-primary" id="legal-save-btn"><i class="fa fa-save"></i> 保存为新版本</button>
+        </div>
+      </div>
+      <div class="form-item" style="margin:16px 0 8px;">
+        <label>标题</label>
+        <input type="text" id="legal-title" placeholder="文档标题，如：用户服务协议 / 隐私政策">
+      </div>
+      <div class="form-item" style="margin-bottom:8px;">
+        <label>正文（支持 HTML，平台统一版本）</label>
+        <textarea id="legal-content" rows="18" style="width:100%;font-family:monospace;padding:10px;border:1px solid #ddd;border-radius:4px;box-sizing:border-box;"></textarea>
+      </div>
+      <div id="legal-hint" style="color:#6b7587;font-size:12px;margin-bottom:8px;"></div>
+    </div>
   </template>
 
   <template id="tpl-industry-page">

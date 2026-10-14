@@ -157,6 +157,9 @@ public class SecurityConfig {
                     // 服务运行信息（缺省页同款字段，健康检查/环境自检用，匿名可访问）
                     auth.requestMatchers("/system/info", "/api/v1/system/info", "/apiInfo", "/api/v1/apiInfo").permitAll();
 
+                    // 协议/隐私政策公开阅读端点（免登录，与 JwtFilter.WHITELIST_PATHS/守卫 PERMIT_ALL 同步）
+                    auth.requestMatchers("/api/v1/legal/doc").permitAll();
+
                     // ===== Actuator 探针（2026-10-09 接入，匿名可访问）=====
                     // ⚠️ 两处必须同步改，漏一处症状不同但都探针不通：
                     //   · 这里 permitAll 但 JwtAuthenticationFilter 没跳→过滤器清空 SecurityContext → 401

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title id="page-title">协议与政策</title>
+  <style>
+    :root {
+      --primary: #722ed1;
+      --text: #1f2a44;
+      --weak: #6b7587;
+      --line: #ebeef5;
+      --bg: #f5f7fa;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+    }
+    .legal-header {
+      position: sticky; top: 0; z-index: 10;
+      background: #fff; border-bottom: 1px solid var(--line);
+      padding: 14px 20px;
+      display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
+    }
+    .legal-title { font-size: 18px; font-weight: 600; margin-right: auto; }
+    .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+    .seg button {
+      border: none; background: #fff; color: var(--weak);
+      padding: 6px 14px; font-size: 14px; cursor: pointer;
+    }
+    .seg button.active { background: var(--primary); color: #fff; }
+    .legal-main {
+      max-width: 860px; margin: 24px auto; padding: 32px 36px;
+      background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.06);
+      min-height: 50vh;
+    }
+    .doc-title { font-size: 22px; font-weight: 700; text-align: center; margin: 0 0 6px; }
+    .doc-meta { text-align: center; color: var(--weak); font-size: 13px; margin-bottom: 24px; }
+    .doc-content { font-size: 15px; color: #2c3650; }
+    .doc-content h1, .doc-content h2, .doc-content h3 { color: var(--text); }
+    .doc-content p { margin: 10px 0; }
+    .doc-content ul, .doc-content ol { padding-left: 22px; }
+    .doc-content table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+    .doc-content th, .doc-content td { border: 1px solid var(--line); padding: 8px 10px; }
+    .legal-state { text-align: center; color: var(--weak); padding: 60px 20px; font-size: 15px; }
+    .legal-state.error { color: #f5222d; }
+    .legal-footer { text-align: center; color: var(--weak); font-size: 12px; padding: 20px; }
+    @media (max-width: 640px) {
+      .legal-main { margin: 12px; padding: 20px; }
+      .legal-title { width: 100%; margin-bottom: 4px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="legal-header">
+    <span class="legal-title" id="brand">协议与政策</span>
+    <div class="seg" id="type-seg">
+      <button data-type="user_agreement">用户协议</button>
+      <button data-type="privacy_policy">隐私政策</button>
+    </div>
+    <div class="seg" id="lang-seg">
+      <button data-lang="zh">中文</button>
+      <button data-lang="en">English</button>
+      <button data-lang="fr">Français</button>
+    </div>
+  </div>
+
+  <main class="legal-main">
+    <h1 class="doc-title" id="doc-title" style="display:none;"></h1>
+    <div class="doc-meta" id="doc-meta" style="display:none;"></div>
+    <div class="doc-content" id="doc-content"></div>
+    <div class="legal-state" id="state">加载中…</div>
+  </main>
+
+  <div class="legal-footer" id="footer">本页面内容由平台或您所属机构发布，仅供参考。如与正式签署文本不一致，以平台留存版本为准。</div>
+
+  <script>
+    (function () {
+      var PARAMS = new URLSearchParams(location.search);
+      var type = PARAMS.get('type') || 'user_agreement';
+      var lang = PARAMS.get('lang') || 'zh';
+      var tenant = PARAMS.get('tenant') || '';
+      // 统一 API 前缀：裸路径 + 前缀拼接，避免散落硬编码完整 /api/v1 端点（守卫约定）
+      var API_BASE = '/api/v1';
+
+      var TYPES = { user_agreement: '用户协议', privacy_policy: '隐私政策' };
+      var LANGS = { zh: '中文', en: 'English', fr: 'Français' };
+
+      var stateEl = document.getElementById('state');
+      var titleEl = document.getElementById('doc-title');
+      var metaEl = document.getElementById('doc-meta');
+      var contentEl = document.getElementById('doc-content');
+
+      function syncSeg() {
+        document.querySelectorAll('#type-seg button').forEach(function (b) {
+          b.className = (b.getAttribute('data-type') === type) ? 'active' : '';
+        });
+        document.querySelectorAll('#lang-seg button').forEach(function (b) {
+          b.className = (b.getAttribute('data-lang') === lang) ? 'active' : '';
+        });
+      }
+
+      function showState(msg, isError) {
+        stateEl.textContent = msg;
+        stateEl.className = 'legal-state' + (isError ? ' error' : '');
+        stateEl.style.display = 'block';
+        titleEl.style.display = 'none';
+        metaEl.style.display = 'none';
+        contentEl.innerHTML = '';
+      }
+
+      function render(data) {
+        stateEl.style.display = 'none';
+        titleEl.style.display = 'block';
+        metaEl.style.display = 'block';
+        titleEl.textContent = data.title || (TYPES[type] || '文档');
+        document.getElementById('page-title').textContent = (TYPES[type] || '协议与政策') + ' · ' + (LANGS[lang] || lang);
+        document.getElementById('brand').textContent = (tenant ? '机构' : '平台') + '协议与政策';
+        var scope = (data.scopeTenantId === 0 || data.scopeTenantId == null)
+          ? '平台统一版本' : '本机构定制版本';
+        metaEl.textContent = '版本 v' + (data.version || 1) + ' · ' + (LANGS[data.language] || data.language || '中文') + ' · ' + scope;
+        // content 为平台/机构管理员录入的受信任 HTML，直接渲染
+        contentEl.innerHTML = data.content || '<p style="color:#6b7587;">（文档内容为空）</p>';
+      }
+
+      function load() {
+        syncSeg();
+        showState('加载中…', false);
+        var qs = new URLSearchParams({ type: type, lang: lang });
+        if (tenant) qs.set('tenant', tenant);
+        fetch(API_BASE + '/legal/doc?' + qs.toString(), { headers: { 'Accept': 'application/json' } })
+          .then(function (r) { return r.json(); })
+          .then(function (json) {
+            if (json && json.code === 200 && json.data) {
+              render(json.data);
+            } else if (json && json.code === 404) {
+              showState('《' + (TYPES[type] || '文档') + '》尚未配置，暂无法阅读。', false);
+            } else {
+              showState((json && json.message) || '加载失败，请稍后重试。', true);
+            }
+          })
+          .catch(function () {
+            showState('网络异常，请检查网络连接后重试。', true);
+          });
+      }
+
+      function changeParam(key, value) {
+        var p = new URLSearchParams(location.search);
+        p.set(key, value);
+        history.replaceState(null, '', location.pathname + '?' + p.toString());
+        if (key === 'type') type = value;
+        if (key === 'lang') lang = value;
+        load();
+      }
+
+      document.getElementById('type-seg').addEventListener('click', function (e) {
+        var b = e.target.closest('button'); if (!b) return;
+        changeParam('type', b.getAttribute('data-type'));
+      });
+      document.getElementById('lang-seg').addEventListener('click', function (e) {
+        var b = e.target.closest('button'); if (!b) return;
+        changeParam('lang', b.getAttribute('data-lang'));
+      });
+
+      load();
+    })();
+  </script>
+</body>
+</html>

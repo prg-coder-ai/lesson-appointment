@@ -53,6 +53,22 @@ public class PermissionCheck {
     }
 
     /**
+     * 校验：仅租户管理员可操作（维护本租户覆盖级协议/隐私政策等）。
+     * 与 checkAdmin 的区别：checkAdmin 允许 admin 或 platform_admin；
+     * 此处仅允许 role=admin 且令牌带有效租户上下文（平台管理员 tenantId=0 走另一条分支）。
+     */
+    public void checkTenantAdmin(String token) {
+        String role = getRoleFromToken(token);
+        Long tenantId = getTenantIdFromToken(token);
+        if (!RoleConst.ADMIN.equals(role)) {
+            throw new NoPermissionException("您无租户管理员权限，无法执行该操作");
+        }
+        if (tenantId == null || tenantId <= 0) {
+            throw new NoPermissionException("租户上下文缺失，无法执行该操作");
+        }
+    }
+
+    /**
      * 校验：平台管理员可看全部租户，租户管理员/普通用户只能看自己所属租户（只读）
      */
     public void checkTenantRead(String token, Long tenantId) {

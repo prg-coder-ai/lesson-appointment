@@ -133,6 +133,32 @@
       background: #909399;
       margin-top: 8px;
     }
+    /* 登录 / 注册协议勾选（合规：场景 B 租户↔用户需签署用户协议+隐私政策） */
+    .agreement {
+      margin-bottom: 14px;
+    }
+    .agree-label {
+      display: flex;
+      align-items: flex-start;
+      font-size: 12px;
+      color: #6b7587;
+      line-height: 1.5;
+      cursor: pointer;
+      font-weight: 400;
+    }
+    .agree-label input[type="checkbox"] {
+      width: auto;
+      margin: 2px 6px 0 0;
+      flex: 0 0 auto;
+    }
+    .agree-label a {
+      color: #722ed1;
+      text-decoration: none;
+      padding: 0 2px;
+    }
+    .agree-label a:hover {
+      text-decoration: underline;
+    }
 </style>
 <script>
 window.sanitizeTenantCode = function (raw) {
@@ -183,6 +209,17 @@ window.sanitizeTenantCode = function (raw) {
         <label for="login-tenant-code" data-page-node-id="v64ketBKg4OxYFcM9Kbrm0">租户编码</label>
         <input type="text" id="login-tenant-code" required placeholder="平台管理员自动锁定为 platform；租户端可手动填写或由专属链接带入" data-page-node-id="R7g6WrwIHgBsJi8HffmgBC">
         <div class="error-tip" id="login-tenant-code-error" data-page-node-id="TFLn5gHCeS6QpB1HCjBDZf">请填写租户编码</div>
+      </div>
+
+      <div class="form-item agreement" data-page-node-id="lg-agree">
+        <label class="agree-label" data-page-node-id="lg-agree-l">
+          <input type="checkbox" id="agree-legal" data-page-node-id="lg-agree-cb">
+          <span>我已阅读并同意
+            <a href="legal.html?type=user_agreement" target="_blank" rel="noopener">《用户协议》</a>
+            <a href="legal.html?type=privacy_policy" target="_blank" rel="noopener">《隐私政策》</a>
+          </span>
+        </label>
+        <div class="error-tip" id="agree-error" data-page-node-id="lg-agree-err">请先阅读并勾选同意协议</div>
       </div>
 
       <button type="submit" class="btn" id="login-btn" data-page-node-id="sAEYdHnUfMmt608Jw3x4qb">
@@ -250,6 +287,17 @@ window.sanitizeTenantCode = function (raw) {
           <input type="text" id="tenant-code" placeholder="请输入租户编码" data-page-node-id="AL2b95WXUEFyzDDz03ZV0z">
           <div class="error-tip" id="tenant-error" data-page-node-id="BZfGA2BfEKb0ucLQU5UrAx"></div>
       </div>
+
+        <div class="form-item agreement" data-page-node-id="reg-agree">
+          <label class="agree-label" data-page-node-id="reg-agree-l">
+            <input type="checkbox" id="register-agree-legal" data-page-node-id="reg-agree-cb">
+            <span>我已阅读并同意
+              <a href="legal.html?type=user_agreement" target="_blank" rel="noopener">《用户协议》</a>
+              <a href="legal.html?type=privacy_policy" target="_blank" rel="noopener">《隐私政策》</a>
+            </span>
+          </label>
+          <div class="error-tip" id="register-agree-error" data-page-node-id="reg-agree-err">请先阅读并勾选同意协议</div>
+        </div>
 
         <button type="submit" class="btn" id="register-btn" data-page-node-id="lx0YSdTEGfPT3Q0Vyt3JqZ">提交注册</button>
         <button type="button" class="btn btn-cancel" id="cancel-register" data-page-node-id="nim8KMPwXBvgnLCbeFN0xJ">取消</button>
@@ -417,9 +465,24 @@ window.sanitizeTenantCode = function (raw) {
     const registerNameError = document.getElementById('register-name-error');
      const registerPasswordError = document.getElementById('register-password-error');
     const registerConfirmError = document.getElementById('register-confirm-error');
+    const registerAgreeError = document.getElementById('register-agree-error');
     const registerSuccess = document.getElementById('register-success');
     const registerError = document.getElementById('register-error');
    
+
+    // 场景 B：登录/注册成功后，将当前生效版本的用户协议 + 隐私政策签署留痕（幂等，fire-and-forget）
+    function recordLegalAccept(token) {
+      if (!token) return;
+      ['user_agreement', 'privacy_policy'].forEach(function (dt) {
+        // 裸路径交由 request() 的 normalizeUrl 统一补 /api/v1；noAuthRedirect 避免 401 跳登录
+        request({
+          url: '/legal/accept',
+          method: 'POST',
+          noAuthRedirect: true,
+          data: { docType: dt, channel: 'web' }
+        }).catch(function () { /* 签署留痕失败不影响主流程 */ });
+      });
+    }
 
     // 表单验证函数（登录）
     function validateForm() {
@@ -465,6 +528,7 @@ window.sanitizeTenantCode = function (raw) {
       tenantError.style.display = 'none';
       registerSuccess.style.display = 'none';
       registerError.style.display = 'none';
+      if (registerAgreeError) registerAgreeError.style.display = 'none';
 
       // 验证身份
       if (!registerRole.value) {
@@ -541,6 +605,12 @@ window.sanitizeTenantCode = function (raw) {
         isValid = false;
       }
 
+      // 协议勾选校验（场景 B 合规：未同意不得注册）
+      if (!document.getElementById('register-agree-legal').checked) {
+        if (registerAgreeError) registerAgreeError.style.display = 'block';
+        isValid = false;
+      }
+
       return isValid;
     }
 
@@ -599,6 +669,8 @@ window.sanitizeTenantCode = function (raw) {
         // 4. 注册成功：显示后端返回的 message（若有）
         registerError.style.display = 'none';
         registerSuccess.style.display = 'block';
+        // 场景 B：注册即视为同意，记录对当前生效版协议/政策的签署（fire-and-forget）
+        if (resultData && resultData.token) recordLegalAccept(resultData.token);
         // request 拦截器 code=200 时只返回 res.data（Map：{userId,account,token,role}）
         // 所以 message 需从 localStorage 暂存或用默认文案；此处给用户友好提示
         registerSuccess.textContent = '注册成功，请等待管理员审核，即将跳转登录页...';
@@ -712,6 +784,11 @@ window.sanitizeTenantCode = function (raw) {
       if (!validateForm()) {
         return;
       }
+      // 协议勾选校验（场景 B 合规：未同意不得登录）
+      if (!document.getElementById('agree-legal').checked) {
+        document.getElementById('agree-error').style.display = 'block';
+        return;
+      }
 
       // 显示加载状态
       loginBtn.disabled = true;
@@ -741,6 +818,8 @@ window.sanitizeTenantCode = function (raw) {
         // token 单独保存：utility_request.js 请求拦截器从 localStorage.getItem('token') 取
         if (user.token) {
           localStorage.setItem('token', user.token);
+          // 场景 B：登录成功即记录对当前生效版协议/政策的签署（fire-and-forget）
+          recordLegalAccept(user.token);
         }
         // 注册接口暂未返回 refreshToken，留空避免刷新逻辑误判
         localStorage.setItem('refreshToken', user.refreshToken || '');
