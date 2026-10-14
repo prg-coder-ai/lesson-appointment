@@ -2,7 +2,7 @@
   <view class="header">
     <view class="sys">{{terms.lessonSystem}}</view>
     <view class="greet">{{user.name || user.account}}</view>
-    <view class="sub">{{roleText}} · {{tenantName}}</view>
+    <view class="sub">{{roleText}}{{tenantName ? ' · ' + tenantName : ''}}</view>
   </view>
 
   <view wx:for="{{groups}}" wx:key="title" wx:for-item="g" class="group">
@@ -10,10 +10,12 @@
     <view class="grid">
       <view
         wx:for="{{g.items}}" wx:key="text" wx:for-item="it"
-        class="grid-item"
+        class="grid-item {{it.soon ? 'gi-disabled' : ''}}"
         data-page="{{it.page}}"
+        data-soon="{{it.soon}}"
         bindtap="onTapItem">
         <view class="gi-text">{{it.text}}</view>
+        <view wx:if="{{it.soon}}" class="gi-soon">建设中</view>
         <view wx:if="{{it.page === '/package-message/inbox/inbox' && unreadCount > 0}}" class="gi-badge">{{unreadCount > 99 ? '99+' : unreadCount}}</view>
       </view>
     </view>
