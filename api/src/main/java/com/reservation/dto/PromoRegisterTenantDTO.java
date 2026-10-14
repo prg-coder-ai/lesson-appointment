@@ -44,6 +44,9 @@ public class PromoRegisterTenantDTO {
     /** 来源标记：share / landing / qrcode / direct。 */
     private String source;
 
+    /** 签署渠道标记：web / miniprogram，落入 sys_legal_accept.channel 供审计（场景A 租户入驻签署）。缺省 web。 */
+    private String channel;
+
     /** 可选：wx.login() 临时 code，换取 openid 绑定到新管理员。 */
     private String wxCode;
 }

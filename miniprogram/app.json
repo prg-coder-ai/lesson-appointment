@@ -4,7 +4,9 @@
     "pages/mine/mine",
     "pages/demo/demo",
     "pages/promo/promo",
-    "pages/promo-landing/promo-landing"
+    "pages/promo-landing/promo-landing",
+    "pages/register-tenant/register-tenant",
+    "pages/legal/legal"
   ],
   "subPackages": [
     {

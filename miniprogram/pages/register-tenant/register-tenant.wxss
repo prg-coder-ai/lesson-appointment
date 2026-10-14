@@ -1,0 +1,20 @@
+.reg-page { padding: 40rpx 36rpx 60rpx; background: #f5f7fa; min-height: 100vh; }
+.brand { font-size: 42rpx; font-weight: 700; color: #1f2430; text-align: center; margin-top: 20rpx; }
+.subtitle { font-size: 26rpx; color: #8a94a6; text-align: center; margin: 12rpx 0 36rpx; }
+.field { margin-bottom: 26rpx; }
+.label { display: block; font-size: 26rpx; color: #4e5666; margin-bottom: 12rpx; }
+.input { background: #fff; border-radius: 12rpx; padding: 22rpx 24rpx; font-size: 28rpx; color: #1f2430; border: 1rpx solid #e6e9f0; }
+.picker { color: #1f2430; }
+.agree { display: flex; align-items: center; margin: 10rpx 0 30rpx; }
+.checkbox { width: 32rpx; height: 32rpx; border: 2rpx solid #c2c8d4; border-radius: 6rpx; margin-right: 14rpx; flex: none; }
+.checkbox.checked { background: #722ed1; border-color: #722ed1; }
+.agree-text { font-size: 26rpx; color: #4e5666; }
+.link { font-size: 26rpx; color: #722ed1; margin-left: 6rpx; }
+.btn-primary { background: #722ed1; color: #fff; border-radius: 12rpx; font-size: 30rpx; padding: 20rpx 0; }
+.btn-primary[disabled] { opacity: 0.6; }
+.success-card { background: #fff; border-radius: 20rpx; padding: 60rpx 40rpx; margin-top: 60rpx; text-align: center; box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.05); }
+.success-icon { width: 96rpx; height: 96rpx; line-height: 96rpx; border-radius: 50%; background: #07c160; color: #fff; font-size: 56rpx; margin: 0 auto 24rpx; }
+.success-title { font-size: 36rpx; font-weight: 700; color: #1f2430; margin-bottom: 24rpx; }
+.success-line { font-size: 28rpx; color: #4e5666; margin-bottom: 12rpx; }
+.code { color: #722ed1; font-weight: 600; }
+.success-tip { font-size: 24rpx; color: #8a94a6; margin: 20rpx 0 36rpx; }

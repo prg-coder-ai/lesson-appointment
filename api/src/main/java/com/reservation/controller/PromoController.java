@@ -154,7 +154,7 @@ public class PromoController {
         Map<String, Object> data = promoService.registerTenant(
                 dto.getReferralCode(), dto.getOrgName(), dto.getIndustryId(),
                 dto.getAccount(), dto.getPassword(), dto.getName(), dto.getPhone(),
-                dto.getSource(), wxOpenid, clientIp(request));
+                dto.getSource(), wxOpenid, clientIp(request), dto.getChannel());
         return Result.success(data, "注册成功，已进入免费体验");
     }
 

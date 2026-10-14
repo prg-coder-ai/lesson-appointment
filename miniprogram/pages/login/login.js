@@ -2,7 +2,9 @@ import { login, getBoundTenantCode, goHome, wechatSilentLogin, wechatRegister, b
 import { withTerms } from '../../core/term.js';
 import { clearSession, storage, getSession } from '../../core/storage.js';
 import { ROLES, PLATFORM_TENANT_CODE } from '../../shared/constants.js';
-import { confirm, alert } from '../../core/ui.js';
+import { confirm } from '../../core/ui.js';
+import { request } from '../../core/request.js';
+import { ENDPOINTS } from '../../shared/apiPaths.js';
 
 const ROLE_OPTIONS = [
   { role: ROLES.STUDENT, termKey: 'student', fallback: '学生' },
@@ -10,6 +12,24 @@ const ROLE_OPTIONS = [
   { role: ROLES.ADMIN, termKey: null, fallback: '管理' },
   { role: ROLES.PLATFORM_ADMIN, termKey: null, fallback: '平台' }
 ];
+
+// 场景B 用户级签署留痕（Phase 2）：登录/微信注册成功后 fire-and-forget 调 /api/v1/legal/accept。
+// 前置条件：会话已 setSession（request 层自动带 Bearer）；失败静默不阻断主流程；
+// 后端按 uk_subject_doc 幂等 upsert，重复签署无副作用。
+function recordLegalAccept() {
+  (async () => {
+    for (const dt of ['user_agreement', 'privacy_policy']) {
+      try {
+        await request({
+          url: ENDPOINTS.LEGAL_ACCEPT,
+          method: 'POST',
+          data: { docType: dt, channel: 'miniprogram' },
+          customErrorMsg: false
+        });
+      } catch (e) { /* 签署留痕失败不阻断登录/注册 */ }
+    }
+  })();
+}
 
 Page(withTerms({
   data: {
@@ -47,7 +67,7 @@ Page(withTerms({
       if (wxRes) { goHome(); return; }
       if (tcode) {
         const regRes = await wechatRegister({ tenantCode: tcode });
-        if (regRes) { goHome(); return; }
+        if (regRes) { recordLegalAccept(); goHome(); return; }
       }
     } catch (e) { /* 静默降级 */ }
   },
@@ -95,8 +115,8 @@ Page(withTerms({
   },
   toggleAgree() { this.setData({ agreed: !this.data.agreed }); },
   openAgreement() {
-    // 占位：上线前需替换为真实《用户协议》《隐私政策》页面，并在微信公众平台配置隐私协议网址
-    alert('登录即代表你同意我们依据《用户协议》《隐私政策》收集并处理你的账号与租户信息。正式版本请见小程序内隐私政策页。', { title: '用户协议与隐私政策', confirmText: '我知道了' });
+    // Phase 2：跳真实协议阅读页（rich-text 渲染 /api/v1/legal/doc，免登录）
+    wx.navigateTo({ url: '/pages/legal/legal' });
   },
   async onLogin() {
     if (!this.data.agreed) { wx.showToast({ title: '请先阅读并同意用户协议', icon: 'none' }); return; }
@@ -115,6 +135,8 @@ Page(withTerms({
       if (this.data.bindWechat) {
         try { await bindWechat(); } catch (e) { /* 静默 */ }
       }
+      // 场景B：登录成功落用户级签署留痕（幂等，fire-and-forget）
+      recordLegalAccept();
       setTimeout(() => goHome(), 400);
     } catch (e) {
       wx.showToast({ title: (e && e.message) || '登录失败', icon: 'none' });

@@ -6,6 +6,7 @@ import com.reservation.common.PageResult;
 import com.reservation.common.RoleConst;
 import com.reservation.common.Result;
 import com.reservation.entity.Industry;
+import com.reservation.entity.LegalDoc;
 import com.reservation.entity.PromoAchievement;
 import com.reservation.entity.PromoConversion;
 import com.reservation.entity.PromoReferral;
@@ -93,6 +94,8 @@ public class PromoService {
     private CryptoUtil cryptoUtil;
     @Autowired
     private IndustryMapper industryMapper;
+    @Autowired
+    private LegalDocService legalDocService;
 
     // ==================== 推广码 ====================
 
@@ -449,7 +452,7 @@ public class PromoService {
     public Map<String, Object> registerTenant(String referralCode, String orgName, Long industryId,
                                               String account, String password, String name,
                                               String phone, String source, String wxOpenid,
-                                              String ip) {
+                                              String ip, String channel) {
         PromoReferral ref = validateActiveCode(referralCode);
         if (ref == null) {
             throw new BusinessException("推广码无效或已停用");
@@ -479,6 +482,10 @@ public class PromoService {
         tenant.setTrialStatus("trial");
         tenant.setTrialExpireTime(trialExpire);
         Long tenantId = tenantService.insertTenant(tenant);
+
+        // ⑥ 场景A：租户入驻即签署平台级《用户协议》《隐私政策》（subject_type=1，幂等 upsert，同事务）
+        // 与租户建在同一事务：若后续步骤（套餐/首管理员/归因）失败回滚，本写入一并回滚，不留孤儿租户的签署痕迹。
+        recordTenantLegalAccept(tenantId, ip, channel);
 
         // ② 试用套餐（先建套餐再建账号，让首管理员的名额占用走额度校验）
         TenantPackage pkg = new TenantPackage();
@@ -521,6 +528,26 @@ public class PromoService {
         log.info("路径1注册完成, tenant={}, code={}, admin={}, industry={}",
                 tenantId, tenant.getTenantCode(), reg.userId, resolvedIndustryId);
         return data;
+    }
+
+    /**
+     * 场景A 租户级签署留痕：租户入驻即同意平台级（tenantId=0）《用户协议》《隐私政策》。
+     *
+     * <p>以服务端解析出的当前启用版本为准（防客户端篡改版本号）；平台级文档未配置（doc=null）
+     * 时跳过，不阻断注册。{@link LegalDocService#accept} 按 uk_subject_doc 幂等 upsert。
+     *
+     * @param channel 签署渠道：web / miniprogram（客户端透传，缺省 web）
+     */
+    private void recordTenantLegalAccept(Long tenantId, String ip, String channel) {
+        String ch = (channel == null || channel.isBlank()) ? "web" : channel.trim();
+        String[] docTypes = { LegalDocService.DOC_USER_AGREEMENT, LegalDocService.DOC_PRIVACY_POLICY };
+        for (String docType : docTypes) {
+            LegalDoc doc = legalDocService.resolve(0L, docType, null);
+            if (doc != null) {
+                legalDocService.accept(LegalDocService.SUBJECT_TENANT, tenantId, docType,
+                        doc.getVersion(), ch, ip);
+            }
+        }
     }
 
     /**

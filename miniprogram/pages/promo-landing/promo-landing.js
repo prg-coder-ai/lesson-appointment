@@ -85,11 +85,16 @@ Page({
   },
 
   enter() {
-    const { tenantCode, pathType } = this.data;
+    const { tenantCode, pathType, ref } = this.data;
     if (pathType === 2 && tenantCode) {
       wx.reLaunch({ url: '/pages/login/login?tCode=' + encodeURIComponent(tenantCode) });
     } else {
-      wx.reLaunch({ url: '/pages/login/login' });
+      // 路径1（自助开通新租户）：进原生「免费体验注册」表单页（Phase 2 场景A 落点）。
+      // navigateTo 而非 reLaunch：保留 promo-landing 在栈中，用户可从表单页返回邀请页。
+      wx.navigateTo({
+        url: '/pages/register-tenant/register-tenant' + (ref ? '?ref=' + encodeURIComponent(ref) : ''),
+        fail: () => wx.reLaunch({ url: '/pages/login/login' })
+      });
     }
   },
 

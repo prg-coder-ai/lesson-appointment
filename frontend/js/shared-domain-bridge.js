@@ -169,6 +169,14 @@ const ENDPOINTS = {
   PROMO_REGISTER_TENANT: '/api/v1/promo/register-tenant',
   // 路径2：加入指定租户（免登录，student/teacher 待审批）
   PROMO_REGISTER_USER: '/api/v1/promo/register-user',
+  // —— 协议 / 隐私政策（Phase 2 小程序签署）——
+  // 公开阅读（免登录，四处白名单）：GET ?type=&lang=&tenant=
+  LEGAL_DOC: (type, lang, tenant) =>
+    `/api/v1/legal/doc?type=${encodeURIComponent(type || 'user_agreement')}` +
+    `&lang=${encodeURIComponent(lang || 'zh')}` +
+    (tenant ? `&tenant=${encodeURIComponent(tenant)}` : ''),
+  // 签署留痕（需登录，SUBJECT_USER 由令牌派生）：POST { docType, channel }
+  LEGAL_ACCEPT: '/api/v1/legal/accept',
   // 行业字典选项（免登录）：推广落地页「免费体验注册」的所属行业下拉数据源，
   // 仅返回启用行业的 id/code/name。与需平台管理员登录的 /industry/list 分开。
   INDUSTRY_OPTIONS: '/api/v1/industry/options',
