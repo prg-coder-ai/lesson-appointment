@@ -50,6 +50,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // 漏了本过滤器 —— 带过期 token 调用时过滤器会解析失败并清空 SecurityContext，
             // 与白名单"三处同步"的约定不符。二期一并补齐（含推广公开端点）。
             "/api/v1/auth/wechat-register", "/auth/wechat-register",
+            // 微信 PC 扫码登录/绑定（P2，三端点全免登录）：
+            //   qr 的 bind 场景在控制器内校验 Bearer（userId 服务端从令牌解析）；
+            //   qr/status 以一次性 state 为凭证；pc-callback 由微信 302 触发。
+            // 与 SecurityConfig 白名单、WebMvcConfig EXCLUDE_PATTERNS、守卫 PERMIT_ALL 四处同步。
+            "/api/v1/auth/wechat/qr", "/auth/wechat/qr",
+            "/api/v1/auth/wechat/qr/status", "/auth/wechat/qr/status",
+            "/api/v1/auth/wechat/pc-callback", "/auth/wechat/pc-callback",
             // 推广公开端点（免登录）：与 SecurityConfig 白名单、守卫 PERMIT_ALL 三处同步
             "/api/v1/promo/referral/validate", "/promo/referral/validate",
             "/api/v1/promo/register-tenant", "/promo/register-tenant",

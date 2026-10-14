@@ -9,6 +9,7 @@ import com.reservation.entity.Tenant;
 import com.reservation.entity.WxUserid;
 import com.reservation.entity.User;  
 import com.reservation.exception.BusinessException;
+import com.reservation.exception.ConflictException;
 import com.reservation.exception.ResourceNotFoundException;
 import com.reservation.exception.UserNotFoundException;
 import com.reservation.mapper.UserMapper;
@@ -406,9 +407,12 @@ public class UserService {
      *
      * <p>未绑定 → {@code code=1001}，前端据此静默降级走账号密码登录，不弹错误。
      * （必须用 1001 而非 401：401 会触发小程序 request.js 的 onAuthFail 把用户踢回登录页。）
+     *
+     * <p><b>P1</b>：入参加 {@code unionid}，匹配走 {@code findByIdentity}（unionid → openid），
+     * PC 网站应用/H5 与小程序因此可登录同一账号。
      */
-    public Result<HashMap<String, Object>> wechatLogin(String openid) {
-        WxUserid binding = wxUseridService.findByOpenid(openid);
+    public Result<HashMap<String, Object>> wechatLogin(String openid, String unionid) {
+        WxUserid binding = wxUseridService.findByIdentity(openid, unionid);
         if (binding == null) {
             return Result.fail(1001, "微信尚未绑定，请使用账号密码登录或直接注册");
         }
@@ -445,15 +449,41 @@ public class UserService {
      * 绑定微信 openid 到当前账号（密码登录成功后调用）。
      *
      * <p>本接口需登录，{@code TenantInterceptor} 已设好租户上下文，可直接用 {@code selectById}。
-     * 唯一性由 {@code wx_userid.uk_wx_openid} 保证：该 openid 已绑到别的账号时返回 409，
+     * 唯一性由 {@code wx_userid.uk_wx_openid} / {@code uk_wx_unionid} 保证：该微信已绑到别的账号时返回 409，
      * 不做静默改绑（否则等同于账号接管）。
+     *
+     * <p><b>P1</b>：{@code unionid} 一并落库，后续 PC/H5 端登录同一开放平台账号即可命中本绑定。
      */
-    public Result<Boolean> bindWechat(String userId, String openid) {
+    public Result<Boolean> bindWechat(String userId, String openid, String unionid) {
         User user = userMapper.selectById(userId);
         if (user == null) {
             return Result.fail(404, "用户不存在");
         }
-        wxUseridService.bind(openid, userId, user.getTenantId(), "manual");
+        wxUseridService.bind(openid, unionid, userId, user.getTenantId(), "manual");
+        return Result.success(true, "微信绑定成功");
+    }
+
+    /**
+     * PC 扫码绑定（P2，{@code /auth/wechat/pc-callback} 的 bind 分支）。
+     *
+     * <p>与 {@link #bindWechat} 的差别：回调端点是 permitAll、无 TenantContext，
+     * 必须用 {@code getByUserIdNoTenant} 取用户——{@code selectById} 会被租户插件拼上
+     * {@code tenant_id = -1} 而恒查不到（与 {@link #wechatLogin} 同一处理）。
+     * userId 来自扫码时生成的 state（qr 端点已从令牌解析），不信客户端参数。
+     *
+     * <p>冲突（该微信已绑别的账号）返回 409 文案，由回调置 state=failed 透给前端，
+     * 不静默改绑（否则等同于账号接管）。
+     */
+    public Result<Boolean> wechatPcBind(String userId, String openid, String unionid) {
+        User user = userMapper.getByUserIdNoTenant(userId);
+        if (user == null) {
+            return Result.fail(404, "用户不存在");
+        }
+        try {
+            wxUseridService.bind(openid, unionid, userId, user.getTenantId(), "manual");
+        } catch (ConflictException e) {
+            return Result.fail(409, e.getMessage());
+        }
         return Result.success(true, "微信绑定成功");
     }
 
@@ -498,10 +528,13 @@ public class UserService {
      *
      * <p>账号 = openid、密码 = 随机 UUID 密文（用户无从得知）→ <b>该账号只能走微信登录，不能密码登录</b>。
      * 这也是 {@link #unbindWechat} 必须拒绝 {@code auto_register} 解绑的原因。
+     *
+     * <p><b>P1</b>：入参加 {@code unionid}；判重与绑定均走 {@code findByIdentity}
+     * （unionid → openid），避免「小程序已注册、PC 端同一人再注册」产生双账号。
      */
     @Transactional(rollbackFor = Exception.class)
-    public Result<HashMap<String, Object>> wechatRegister(String openid, String tenantCode, String role) {
-        if (wxUseridService.findByOpenid(openid) != null) {
+    public Result<HashMap<String, Object>> wechatRegister(String openid, String unionid, String tenantCode, String role) {
+        if (wxUseridService.findByIdentity(openid, unionid) != null) {
             return Result.fail(409, "该微信已注册，请直接登录");
         }
         Tenant tenant = tenantService.getByCode(tenantCode);
@@ -529,7 +562,7 @@ public class UserService {
             user.setRole(resolvedRole);
             user.setStatus("pending");
             userMapper.insert(user);
-            wxUseridService.bind(openid, userId, tenantId, "auto_register");
+            wxUseridService.bind(openid, unionid, userId, tenantId, "auto_register");
 
             String token = jwtUtil.generateToken(tenantId, userId, resolvedRole);
             String refreshToken = jwtUtil.generateRefreshToken(tenantId, userId);

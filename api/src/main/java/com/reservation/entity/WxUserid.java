@@ -20,6 +20,11 @@ import java.time.LocalDateTime;
  * 若走全局租户插件，平台管理员视角会被拼上 {@code tenant_id = 当前租户} 而<b>查不到绑定、静默失败</b>。
  * 因此本表已登记进 {@code MyBatisPlusConfig.IGNORE_TABLES}（集中式跳过）。
  *
+ * <p><b>P1（2026-10-14）新增 {@code wx_unionid}</b>：openid 在小程序/网站应用/公众号三个微信应用里
+ * 互不相同，只有都绑定同一开放平台账号时 unionid 才一致——它是浏览器侧登录/绑定与小程序打通的
+ * 唯一公共键。匹配优先级 unionid → openid（见 {@code WxUseridService.findByIdentity}），
+ * {@code uk_wx_unionid} 与 {@code uk_wx_openid} 一起兜住「一个微信只绑一个账号」。
+ *
  * <p>为什么不用 {@code @InterceptorIgnore} 方法级注解：项目里既有用法都是<b>方法级</b>
  * （见 {@code BookingMapper} / {@code CascadeMapper}），覆盖不到 {@code BaseMapper} 自带的
  * {@code insert} / {@code selectById} —— 那才是最常用的几个。集中登记才能一次性生效。
@@ -35,6 +40,12 @@ public class WxUserid implements Serializable {
 
     /** 微信 openid，全局唯一（uk_wx_openid）。不随租户隔离。 */
     private String wxOpenid;
+
+    /**
+     * 跨端统一身份（开放平台 unionid，全局唯一 uk_wx_unionid）。
+     * 小程序/网站应用/公众号绑定同一开放平台账号时才下发；缺失时回退按 openid 匹配。
+     */
+    private String wxUnionid;
 
     /** 关联的系统用户 user.user_id。 */
     private String userId;

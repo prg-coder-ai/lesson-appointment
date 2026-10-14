@@ -159,6 +159,85 @@
     .agree-label a:hover {
       text-decoration: underline;
     }
+    /* 微信扫码登录（P2：PC 网站应用二维码；手机微信扫码即登录） */
+    .wechat-login-entry {
+      margin-top: 12px;
+      text-align: center;
+    }
+    .wechat-login-entry .wx-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: #07c160;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 4px 10px;
+    }
+    .wechat-login-entry .wx-link:hover {
+      text-decoration: underline;
+    }
+    .wx-qr-mask {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1300;
+    }
+    .wx-qr-mask.show { display: flex; }
+    .wx-qr-modal {
+      background: #fff;
+      border-radius: 12px;
+      width: 300px;
+      max-width: 88vw;
+      padding: 20px 20px 16px;
+      text-align: center;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+    }
+    .wx-qr-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .wx-qr-head .wx-qr-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #1f2937;
+    }
+    .wx-qr-close {
+      cursor: pointer;
+      color: #9ca3af;
+      font-size: 20px;
+      line-height: 1;
+    }
+    .wx-qr-box {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 220px;
+    }
+    .wx-qr-tip {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #6b7587;
+      line-height: 1.6;
+      min-height: 32px;
+    }
+    .wx-qr-tip.ok { color: #2f855a; }
+    .wx-qr-tip.err { color: #c05656; }
+    .wx-qr-refresh {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #722ed1;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 4px;
+    }
 </style>
 <script>
 window.sanitizeTenantCode = function (raw) {
@@ -237,6 +316,13 @@ window.sanitizeTenantCode = function (raw) {
       <div class="register-btn" style="margin-top:10px;">
         <a href="javascript:void(0)" onclick="window.location.href=(typeof window.pageUrl==='function'?window.pageUrl('student-landing.html'):'student-landing.html')" style="color:#4e6ef2;">先浏览师资 ›</a>
       </div>
+      <!-- 微信扫码登录（P2：PC 网站应用二维码；与账号密码登录并列，不替代） -->
+      <div class="wechat-login-entry">
+        <button type="button" class="wx-link" id="wechat-login-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="#07c160" aria-hidden="true"><path d="M8.7 4C4.9 4 1.8 6.6 1.8 9.8c0 1.8 1 3.4 2.6 4.5l-.6 2 2.3-1.2c.8.2 1.7.4 2.6.4h.5c-.3-.8-.5-1.7-.5-2.6 0-3.4 3.2-6.1 7.2-6.1h.4C15.6 5.6 12.4 4 8.7 4zm-2.4 4.6a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8zm4.8 0a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8zM15.9 10c-3.6 0-6.5 2.3-6.5 5.1s2.9 5.1 6.5 5.1c.8 0 1.5-.1 2.2-.4l2.1 1.1-.5-1.8c1.4-.9 2.3-2.3 2.3-3.9 0-2.8-2.9-5.1-6.5-5.1zm-2.1 3.3a.8.8 0 1 1 0 1.6.8.8 0 0 1 0-1.6zm4.2 0a.8.8 0 1 1 0 1.6.8.8 0 0 1 0-1.6z"/></svg>
+          微信扫码登录
+        </button>
+      </div>
       
     </form>
   </div>
@@ -304,6 +390,19 @@ window.sanitizeTenantCode = function (raw) {
         <div class="success-tip" id="register-success" data-page-node-id="h7lYRD8t3uDl0MTQrPHxGD">注册申请提交成功！请等待管理员审核</div>
         <div class="error-tip" id="register-error" style="text-align: center;" data-page-node-id="JJGUKzT7NPAGcAd43wlmSn">账号已存在，请更换账号</div>
       </form>
+    </div>
+  </div>
+
+  <!-- 微信扫码登录弹层（P2：二维码 + 2s 轮询；confirmed 存 token 跳首页） -->
+  <div class="wx-qr-mask" id="wx-qr-mask">
+    <div class="wx-qr-modal">
+      <div class="wx-qr-head">
+        <span class="wx-qr-title">微信扫码登录</span>
+        <span class="wx-qr-close" id="wx-qr-close">&times;</span>
+      </div>
+      <div class="wx-qr-box" id="wx-qr-box"></div>
+      <div class="wx-qr-tip" id="wx-qr-tip">打开手机微信「扫一扫」，扫描二维码即可登录</div>
+      <button type="button" class="wx-qr-refresh" id="wx-qr-refresh" style="display:none;">二维码已过期，点击刷新</button>
     </div>
   </div>
 
@@ -422,6 +521,7 @@ window.sanitizeTenantCode = function (raw) {
   <script src="js/public/vendor/axios.min.js"></script>
   <script src="js/public/termsFunction.js"></script>
   <script src="js/public/documentTitle.js"></script>
+  <script src="js/public/qrcode.min.js"></script>
   <script src="js/public/api.js"></script>
   <script src="js/public/utility_request.js"></script>
   <script src="js/public/auth.js"></script>
@@ -483,6 +583,132 @@ window.sanitizeTenantCode = function (raw) {
         }).catch(function () { /* 签署留痕失败不影响主流程 */ });
       });
     }
+
+    // ===== 微信扫码登录（P2：PC 网站应用二维码）=====
+    // 流程：/auth/wechat/qr 生成一次性 state + 二维码 URL → qrcode.min.js 渲染 →
+    // 2s 轮询 /auth/wechat/qr/status → confirmed 存 token 跳首页 / expired 刷新 / failed 展示原因。
+    // state 一次性消费（confirmed 读取后行即删），轮询到终态必须停表，避免无限请求。
+    var wxQrPollTimer = null;
+
+    function stopWxQrPoll() {
+      if (wxQrPollTimer) {
+        clearInterval(wxQrPollTimer);
+        wxQrPollTimer = null;
+      }
+    }
+
+    function closeWechatQr() {
+      stopWxQrPoll();
+      var mask = document.getElementById('wx-qr-mask');
+      if (mask) mask.classList.remove('show');
+    }
+
+    function setWxQrTip(text, cls) {
+      var tip = document.getElementById('wx-qr-tip');
+      if (!tip) return;
+      tip.className = 'wx-qr-tip' + (cls ? ' ' + cls : '');
+      tip.textContent = text;
+    }
+
+    function loadWechatQr() {
+      var box = document.getElementById('wx-qr-box');
+      var refresh = document.getElementById('wx-qr-refresh');
+      if (!box) return;
+      stopWxQrPoll();
+      box.innerHTML = '';
+      if (refresh) refresh.style.display = 'none';
+      setWxQrTip('二维码生成中...');
+      request({ url: '/auth/wechat/qr', method: 'get', params: { purpose: 'login' }, noAuthRedirect: true })
+        .then(function (data) {
+          if (!data || !data.qrUrl) {
+            setWxQrTip('二维码生成失败，请重试', 'err');
+            return;
+          }
+          renderWxQr(data.qrUrl, data.state);
+        })
+        .catch(function (err) {
+          setWxQrTip((err && err.message) ? err.message : '二维码生成失败，请稍后重试', 'err');
+        });
+    }
+
+    function renderWxQr(qrUrl, state) {
+      var box = document.getElementById('wx-qr-box');
+      if (!box) return;
+      box.innerHTML = ''; // qrcodejs 对同容器重复 makeCode 会叠加画布，先清空
+      try {
+        if (typeof window.QRCode !== 'function') throw new Error('组件未加载');
+        new window.QRCode(box, {
+          text: qrUrl,
+          width: 200,
+          height: 200,
+          colorDark: '#1f2937',
+          colorLight: '#ffffff',
+          correctLevel: window.QRCode.CorrectLevel.M
+        });
+      } catch (e) {
+        box.innerHTML = '<div style="padding:24px;color:#c05656;font-size:13px;">二维码组件加载失败，请刷新页面</div>';
+        return;
+      }
+      setWxQrTip('打开手机微信「扫一扫」，扫描二维码即可登录');
+      startWxQrPoll(state);
+    }
+
+    function startWxQrPoll(state) {
+      stopWxQrPoll();
+      wxQrPollTimer = setInterval(function () {
+        request({ url: '/auth/wechat/qr/status', method: 'get', params: { state: state }, noAuthRedirect: true })
+          .then(function (res) {
+            var status = res && res.status;
+            if (status === 'pending') return;
+            stopWxQrPoll();
+            if (status === 'confirmed') {
+              setWxQrTip('登录成功，正在跳转...', 'ok');
+              onWechatLoginSuccess(res);
+            } else if (status === 'expired') {
+              setWxQrTip('二维码已过期', 'err');
+              var refresh = document.getElementById('wx-qr-refresh');
+              if (refresh) refresh.style.display = 'inline-block';
+            } else if (status === 'failed') {
+              setWxQrTip(res.message || '登录未完成，请重试', 'err');
+              var rf = document.getElementById('wx-qr-refresh');
+              if (rf) rf.style.display = 'inline-block';
+            }
+          })
+          .catch(function () { /* 轮询失败不打扰用户，下一轮再试 */ });
+      }, 2000);
+    }
+
+    // 扫码登录成功：与密码登录同一套会话落地（currentUser/token/refreshToken + 协议留痕 + 跳转）
+    function onWechatLoginSuccess(res) {
+      var currentUser = {
+        userId: res.userId,
+        account: res.account,
+        role: res.role,
+        token: res.token,
+        name: res.name || '',
+        tenantCode: res.tenantCode || ''
+      };
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
+      if (res.token) {
+        localStorage.setItem('token', res.token);
+        recordLegalAccept(res.token);
+      }
+      localStorage.setItem('refreshToken', res.refreshToken || '');
+      setTimeout(function () {
+        closeWechatQr();
+        redirectToUserPage(currentUser);
+      }, 600);
+    }
+
+    document.getElementById('wechat-login-btn').addEventListener('click', function () {
+      document.getElementById('wx-qr-mask').classList.add('show');
+      loadWechatQr();
+    });
+    document.getElementById('wx-qr-close').addEventListener('click', closeWechatQr);
+    document.getElementById('wx-qr-refresh').addEventListener('click', loadWechatQr);
+    document.getElementById('wx-qr-mask').addEventListener('click', function (e) {
+      if (e.target === this) closeWechatQr();
+    });
 
     // 表单验证函数（登录）
     function validateForm() {

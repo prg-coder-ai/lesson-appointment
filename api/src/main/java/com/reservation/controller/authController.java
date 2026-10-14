@@ -251,7 +251,7 @@ UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthent
             // 此处只是"微信不可用/未配置"，应静默降级走账号密码登录。
             return Result.fail(1001, "微信登录失败：" + (session.getErrmsg() == null ? "未知错误" : session.getErrmsg()));
         }
-        return userService.wechatLogin(session.getOpenid());
+        return userService.wechatLogin(session.getOpenid(), session.getUnionid());
     }
 
     /**
@@ -276,7 +276,7 @@ UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthent
             // 用 400（而非 401）返回：绑定是已登录态操作，401 会让小程序触发刷新/踢登录页，反而把已登录用户踢出。
             return Result.fail(400, "微信授权失败：" + (session.getErrmsg() == null ? "未知错误" : session.getErrmsg()));
         }
-        return userService.bindWechat(userId, session.getOpenid());
+        return userService.bindWechat(userId, session.getOpenid(), session.getUnionid());
     }
 
     /**
@@ -293,7 +293,7 @@ UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthent
             // 同 /wechat-login：用 1001 而非 401，让前端静默降级而不是被踢回登录页
             return Result.fail(1001, "微信授权失败：" + (session.getErrmsg() == null ? "未知错误" : session.getErrmsg()));
         }
-        return userService.wechatRegister(session.getOpenid(), dto.getTenantCode(), dto.getRole());
+        return userService.wechatRegister(session.getOpenid(), session.getUnionid(), dto.getTenantCode(), dto.getRole());
     }
 
     /**

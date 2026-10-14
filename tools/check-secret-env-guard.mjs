@@ -45,6 +45,10 @@ const SECRET_KEYS = [
   ['crypto.hmac-key',       'HMAC-SHA256 可搜索索引密钥', [0, 1]],
   ['wechat.miniapp.appid',  '小程序 appid（api 专属）', [0]],
   ['wechat.miniapp.secret', '小程序 appsecret（api 专属）', [0]],
+  // 开放平台网站应用（PC 扫码登录，2026-10-14 P2）：appid 非密钥但同样走 env；
+  // secret 是凭证级，与 miniapp.secret 同规格管理。
+  ['wechat.open.appid',     '开放平台网站应用 appid（PC 扫码登录，api 专属）', [0]],
+  ['wechat.open.secret',    '开放平台网站应用 appsecret（api 专属）', [0]],
 ];
 
 const problems = [];
@@ -125,7 +129,7 @@ if (skipped) {
     for (const l of readLines(tp)) {
       const m = /^\s*([A-Z][A-Z0-9_]*)=(.*)$/.exec(l);
       if (!m) continue;
-      if (!/^(JWT_SECRET|AES_KEY|HMAC_KEY|WECHAT_SECRET|DB_PASSWORD)$/.test(m[1])) continue;
+      if (!/^(JWT_SECRET|AES_KEY|HMAC_KEY|WECHAT_SECRET|WECHAT_OPEN_APPID|WECHAT_OPEN_SECRET|DB_PASSWORD)$/.test(m[1])) continue;
       const v = m[2].trim();
       if (!v) continue;
       if (v === 'CHANGE_ME') continue;

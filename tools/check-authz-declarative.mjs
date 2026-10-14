@@ -178,6 +178,11 @@ const PERMIT_ALL = [
   '/api/v1/system/info', '/api/v1/apiInfo', '/api/v1/term/map', '/api/v1/tenant/name',
   '/api/v1/auth/login', '/api/v1/auth/refreshToken', '/api/v1/auth/logout',
   '/api/v1/auth/wechat-login', '/api/v1/auth/wechat-register',
+  // 微信 PC 扫码登录/绑定（2026-10-14 P2，三端点全免登录）：
+  //   qr=生成一次性 state+二维码 URL（bind 场景方法体内校验 Bearer，userId 服务端解析）；
+  //   qr/status=轮询（state 即一次性凭证）；pc-callback=微信 302 回调。
+  // 四处白名单双形态已同步：SecurityConfig / JwtFilter / WebMvcConfig / 本清单。
+  '/api/v1/auth/wechat/qr', '/api/v1/auth/wechat/qr/status', '/api/v1/auth/wechat/pc-callback',
   '/api/v1/user/register', '/api/v1/user/account/exist',
   '/api/v1/teacher/published/latest-public', '/api/v1/teacher/published/public-get',
   '/api/v1/teacher/published/public-list', '/api/v1/schedule/getAvailableSchedule',

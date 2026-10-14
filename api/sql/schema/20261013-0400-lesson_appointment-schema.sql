@@ -986,6 +986,31 @@ CREATE TABLE `user_refresh_token` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `wx_login_state`
+--
+
+DROP TABLE IF EXISTS `wx_login_state`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `wx_login_state` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '自增主键',
+  `state` varchar(64) NOT NULL COMMENT '一次性 state（UUID 无横线），二维码 URL 携带',
+  `purpose` varchar(16) NOT NULL DEFAULT 'login' COMMENT 'login=扫码登录 / bind=已登录账号绑微信',
+  `user_id` varchar(36) DEFAULT NULL COMMENT 'bind 场景发起用户（服务端从令牌解析）',
+  `ip` varchar(64) DEFAULT NULL COMMENT '发起请求 IP（审计用）',
+  `status` varchar(16) NOT NULL DEFAULT 'pending' COMMENT 'pending/confirmed/failed',
+  `token_json` text COMMENT 'confirmed 且 login 场景的会话 JSON（一次性消费）',
+  `error_msg` varchar(255) DEFAULT NULL COMMENT 'failed 原因（透前端展示）',
+  `expire_at` datetime NOT NULL COMMENT '过期时间（生成 +5 分钟）',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_state` (`state`),
+  KEY `idx_expire_at` (`expire_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='微信 PC 扫码登录/绑定一次性 state';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `wx_userid`
 --
 
@@ -995,6 +1020,7 @@ DROP TABLE IF EXISTS `wx_userid`;
 CREATE TABLE `wx_userid` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '自增主键',
   `wx_openid` varchar(64) NOT NULL COMMENT '微信 openid（全局唯一，不随租户隔离）',
+  `wx_unionid` varchar(64) DEFAULT NULL COMMENT '跨端统一身份（开放平台 unionid，缺失回退 openid）',
   `user_id` varchar(36) NOT NULL COMMENT '关联的系统用户 user.user_id',
   `tenant_id` bigint NOT NULL COMMENT '用户所属租户（冗余，便于按租户统计）',
   `bind_source` varchar(20) NOT NULL DEFAULT 'manual' COMMENT '关联来源：manual=已有账号绑定 / auto_register=微信直接注册',
@@ -1002,6 +1028,7 @@ CREATE TABLE `wx_userid` (
   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_wx_openid` (`wx_openid`) COMMENT '一个微信最多关联一个账号',
+  UNIQUE KEY `uk_wx_unionid` (`wx_unionid`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_tenant_id` (`tenant_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='微信 openid 与用户 ID 关联表';

@@ -113,6 +113,22 @@ public class SecurityConfig {
                             "/api/v1/term/map"
                     ).permitAll();
 
+                    // 微信 PC 扫码登录/绑定（P2，网站应用 snsapi_login）：
+                    //   · qr         生成一次性 state + 二维码 URL（bind 场景在方法体内校验 Bearer，
+                    //                userId 由服务端从令牌解析，不信客户端参数）
+                    //   · qr/status  轮询结果（state 本身即一次性秘密：不可猜、一次性、5 分钟过期）
+                    //   · pc-callback 微信 302 目标，不可能带 Bearer
+                    // 三处均免登录，裸路径与 /api/v1 前缀双写；另需同步 JwtFilter /
+                    // WebMvcConfig / check-authz-declarative 的 PERMIT_ALL（共四处）。
+                    auth.requestMatchers(
+                            "/api/v1/auth/wechat/qr",
+                            "/auth/wechat/qr",
+                            "/api/v1/auth/wechat/qr/status",
+                            "/auth/wechat/qr/status",
+                            "/api/v1/auth/wechat/pc-callback",
+                            "/auth/wechat/pc-callback"
+                    ).permitAll();
+
                     // 推广公开端点（免登录，不带 token）：
                     //   · referral/validate   登录页首访校验推广码，touch=1 时点击计数
                     //   · register-tenant     路径1：自助建租户 + 首管理员（免费试用）

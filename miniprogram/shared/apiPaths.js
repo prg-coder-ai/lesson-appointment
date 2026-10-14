@@ -36,6 +36,10 @@ export const ENDPOINTS = {
   AUTH_WECHAT_REGISTER: '/auth/wechat-register',
   AUTH_UNBIND_WECHAT: '/auth/unbind-wechat',
   AUTH_WECHAT_STATUS: '/auth/wechat-status',
+  // PC 扫码登录/绑定（2026-10-14 P2，网站应用 snsapi_login，均免登录）
+  AUTH_WECHAT_QR: '/auth/wechat/qr',
+  AUTH_WECHAT_QR_STATUS: '/auth/wechat/qr/status',
+  AUTH_WECHAT_PC_CALLBACK: '/auth/wechat/pc-callback',
   // 获客渠道归因上报（小程序 core/acquisition.js 已埋点，后端 2026-10-13 补实现）
   TRACK_ATTRIBUTION: '/api/v1/user/attribution',
   ACCOUNT_EXIST: (acc) => `/user/account/exist?account=${encodeURIComponent(acc)}`,

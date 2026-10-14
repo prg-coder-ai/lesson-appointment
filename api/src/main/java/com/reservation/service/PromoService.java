@@ -446,13 +446,15 @@ public class PromoService {
      *                 注册成功后把 openid 绑到新管理员账号。{@code bind_source=manual}：
      *                 该账号有登录密码，解绑不会永久丢失登录能力（auto_register 的
      *                 解绑禁令只对"account=openid 且密码随机"的账号成立）。
+     * @param wxUnionid 可选：与 {@code wxOpenid} 同源兑换的跨端统一身份（P1），
+     *                   一并落库 {@code wx_userid.wx_unionid}，使 PC/H5 端可登录同一账号。
      * @return 与密码登录一致的会话 map（token/userId/role/tenantCode/...）+ trialExpireTime
      */
     @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> registerTenant(String referralCode, String orgName, Long industryId,
                                               String account, String password, String name,
                                               String phone, String source, String wxOpenid,
-                                              String ip, String channel) {
+                                              String wxUnionid, String ip, String channel) {
         PromoReferral ref = validateActiveCode(referralCode);
         if (ref == null) {
             throw new BusinessException("推广码无效或已停用");
@@ -514,7 +516,7 @@ public class PromoService {
 
         // ④ 微信绑定（可选，同事务）
         if (StringUtils.hasText(wxOpenid)) {
-            wxUseridService.bind(wxOpenid, reg.userId, tenantId, "manual");
+            wxUseridService.bind(wxOpenid, wxUnionid, reg.userId, tenantId, "manual");
         }
 
         // ⑤ 归因（同事务，注册成功才记账）

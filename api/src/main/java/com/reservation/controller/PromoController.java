@@ -142,6 +142,7 @@ public class PromoController {
     public Result<Map<String, Object>> registerTenant(
             @Valid @RequestBody PromoRegisterTenantDTO dto, HttpServletRequest request) {
         String wxOpenid = null;
+        String wxUnionid = null;
         if (dto.getWxCode() != null && !dto.getWxCode().isBlank()) {
             WeChatSession session = weChatService.code2Session(dto.getWxCode());
             if (session == null || session.getOpenid() == null) {
@@ -149,12 +150,13 @@ public class PromoController {
                 wxOpenid = null;
             } else {
                 wxOpenid = session.getOpenid();
+                wxUnionid = session.getUnionid();   // P1：跨端统一身份一并落库
             }
         }
         Map<String, Object> data = promoService.registerTenant(
                 dto.getReferralCode(), dto.getOrgName(), dto.getIndustryId(),
                 dto.getAccount(), dto.getPassword(), dto.getName(), dto.getPhone(),
-                dto.getSource(), wxOpenid, clientIp(request), dto.getChannel());
+                dto.getSource(), wxOpenid, wxUnionid, clientIp(request), dto.getChannel());
         return Result.success(data, "注册成功，已进入免费体验");
     }
 
