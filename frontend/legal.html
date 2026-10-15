@@ -57,6 +57,11 @@
     .legal-state { text-align: center; color: var(--weak); padding: 60px 20px; font-size: 15px; }
     .legal-state.error { color: #f5222d; }
     .legal-footer { text-align: center; color: var(--weak); font-size: 12px; padding: 20px; }
+    .close-btn {
+      border: 1px solid var(--line); background: #fff; color: var(--weak);
+      padding: 6px 14px; font-size: 14px; cursor: pointer; border-radius: 8px;
+    }
+    .close-btn:hover { color: var(--text); border-color: #d9d9d9; }
     @media (max-width: 640px) {
       .legal-main { margin: 12px; padding: 20px; }
       .legal-title { width: 100%; margin-bottom: 4px; }
@@ -65,18 +70,19 @@
 </head>
 <body>
   <div class="legal-header">
+    
     <span class="legal-title" id="brand">协议与政策</span>
+    <button class="close-btn" id="close-btn">关闭</button>
     <div class="seg" id="type-seg">
       <button data-type="user_agreement">用户协议</button>
       <button data-type="privacy_policy">隐私政策</button>
     </div>
     <!-- 语言选择暂不显示，默认中文；后续多语言启用时移除此注释 -->
     <!--
-    <div class="seg" id="lang-seg">
       <button data-lang="zh">中文</button>
       <button data-lang="en">English</button>
       <button data-lang="fr">Français</button>
-    </div>
+    </div> 
     -->
     <button class="close-btn" id="close-btn" title="返回">← 返回</button>
   </div>
