@@ -290,9 +290,9 @@ window.sanitizeTenantCode = function (raw) {
         <div class="error-tip" id="login-tenant-code-error" data-page-node-id="TFLn5gHCeS6QpB1HCjBDZf">请填写租户编码</div>
       </div>
 
-      <div class="form-item agreement" data-page-node-id="lg-agree">
+      <div class="form-item agreement" data-page-node-id="lg-agree" style="display:none">
         <label class="agree-label" data-page-node-id="lg-agree-l">
-          <input type="checkbox" id="agree-legal" data-page-node-id="lg-agree-cb">
+          <input type="checkbox" id="agree-legal" data-page-node-id="lg-agree-cb" value="true">
           <span>我已阅读并同意
             <a href="legal.html?type=user_agreement" target="_blank" rel="noopener">《用户协议》</a>
             <a href="legal.html?type=privacy_policy" target="_blank" rel="noopener">《隐私政策》</a>
@@ -306,7 +306,7 @@ window.sanitizeTenantCode = function (raw) {
       </button>
       <!-- 【修改】新增 display: none 隐藏初始错误提示 -->
       <div class="error-tip" id="login-error" style="text-align: center; margin-top: 16px; display: none;" data-page-node-id="DC2J2ceE67CQXPMJjlTmRd">账号或密码错误，请重试</div>
-      <div class="error-tip" id="api-error-tip" data-page-node-id="eJ0Q4AuOKKZOaUP8yjlCKW"></div>
+      <div class="error-tip" id="api-error-tip" data-page-node-id="eJ0Q4AuOKKZOaUP8yjlCKW" style="display:none"></div>
       <!-- 新增注册按钮 -->
       <div class="register-btn" data-page-node-id="ar1H2D9nbrR31xkw2xUSFB">
         <a href="javascript:;" id="show-register" data-page-node-id="obqEQe1in7OrhLBr8eGbiU">还没有账号？点击注册</a>
@@ -381,7 +381,7 @@ window.sanitizeTenantCode = function (raw) {
           <div class="error-tip" id="tenant-error" data-page-node-id="BZfGA2BfEKb0ucLQU5UrAx"></div>
       </div>
 
-        <div class="form-item agreement" data-page-node-id="reg-agree">
+        <div class="form-item agreement" data-page-node-id="reg-agree" >
           <label class="agree-label" data-page-node-id="reg-agree-l">
             <input type="checkbox" id="register-agree-legal" data-page-node-id="reg-agree-cb">
             <span>我已阅读并同意
@@ -1061,10 +1061,10 @@ window.sanitizeTenantCode = function (raw) {
         return;
       }
       // 协议勾选校验（场景 B 合规：未同意不得登录）
-      if (!document.getElementById('agree-legal').checked) {
+    /*  if (!document.getElementById('agree-legal').checked) {
         document.getElementById('agree-error').style.display = 'block';
         return;
-      }
+      }*/
 
       // 显示加载状态
       loginBtn.disabled = true;
