@@ -1,0 +1,69 @@
+# ==============================================================================
+# Nginx 反代配置模板（前端静态 + /api 反代）
+# 使用 envsubst 替换 ${API_UPSTREAM}，部署前执行：
+#
+#   export API_UPSTREAM=http://api.<envid>.svc.cluster.local:8081
+#   # 或公网地址：export API_UPSTREAM=https://api-<envid>.sh.run.tcloudbase.com
+#   envsubst '$API_UPSTREAM' < nginx.conf.template > nginx.conf
+#
+# 然后再 docker build（或让 Dockerfile 里的 RUN 步骤自动做）
+# ==============================================================================
+
+server {
+    listen       80;
+    server_name  _;
+
+    root   /usr/share/nginx/html;
+    index  index.html;
+
+    # ---------- 静态资源缓存 ----------
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?|ttf|eot|otf|mp4|webp)$ {
+        expires 7d;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    # ---------- SPA fallback：除了 /api 和静态资源，全部回 index.html ----------
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # ---------- /api 反代到后端 ----------
+    # ${API_UPSTREAM} 由 envsubst 填充
+    location /api/ {
+        proxy_pass         ${API_UPSTREAM}/api/;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_set_header   X-Forwarded-Host  $host;
+
+        # 关键：云托管私有协议网关的小程序 Header 透传
+        proxy_set_header   X-WX-OPENID    $http_x_wx_openid;
+        proxy_set_header   X-WX-UNIONID    $http_x_wx_unionid;
+        proxy_set_header   X-WX-APPID      $http_x_wx_appid;
+        proxy_set_header   X-WX-ENV        $http_x_wx_env;
+
+        # 超时
+        proxy_connect_timeout 10s;
+        proxy_read_timeout    120s;
+        proxy_send_timeout    120s;
+    }
+
+    # ---------- /actuator 只暴露 health,info ----------
+    location /actuator/ {
+        proxy_pass              ${API_UPSTREAM}/actuator/;
+        proxy_http_version      1.1;
+        proxy_set_header        Host              $host;
+        proxy_set_header        X-Real-IP         $remote_addr;
+        proxy_set_header        X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header        X-Forwarded-Proto $scheme;
+    }
+
+    # ---------- Gzip ----------
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
+    gzip_min_length 1024;
+    gzip_comp_level 6;
+}

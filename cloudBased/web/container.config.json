@@ -1,0 +1,17 @@
+{
+  "_comment": "web 服务 container.config.json —— 前端静态托管 + /api 反代",
+  "containerPort": 80,
+  "dockerfilePath": "Dockerfile",
+  "buildDir": "",
+  "minNum": 0,
+  "maxNum": 10,
+  "cpu": 0.25,
+  "mem": 0.5,
+  "policyType": "cpu",
+  "policyThreshold": 70,
+  "envParams": {
+    "API_UPSTREAM": "http://REPLACE_WITH_API_INTERNAL_HOST:8081"
+  },
+  "customLogs": "stdout",
+  "initialDelaySeconds": 5
+}

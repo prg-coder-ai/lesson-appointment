@@ -1,0 +1,30 @@
+# ==============================================================================
+# .dockerignore — 防止 cloudBased 自身被当成上下文传进 docker build
+# 放在 cloudBased/ 根，适用于在 cloudBased/ 根执行 docker build 的场景
+# （实际部署时各服务有自己的 Dockerfile 和独立 .dockerignore，这个是兜底）
+# ==============================================================================
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# 日志 / 临时文件
+*.log
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db
+
+# 非容器化的源代码（我们只把打包产物复制进来）
+# 注意：不要把 cloudBased/*/target 和 cloudBased/web/dist 加进来，那是要 COPY 的
+api/src/
+message-service/src/
+frontend/
+miniprogram/
+doc-develop/
+api/sql/
