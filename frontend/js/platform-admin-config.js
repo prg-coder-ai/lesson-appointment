@@ -115,6 +115,19 @@ function editConfig(cf) {
 }
 
 /* ---------- 协议与政策（平台级维护，平台管理员 scope=0） ---------- */
+// docType 白名单：正式版 + 租户参考模板；服务端 doc_type 为 varchar(32) 无枚举约束，前端加校验防脏
+const LEGAL_DOCTYPE_FORMAL = ['user_agreement', 'privacy_policy'];
+const LEGAL_DOCTYPE_TEMPLATE = ['user_agreement_template', 'privacy_policy_template'];
+const LEGAL_DOCTYPE_ALL = LEGAL_DOCTYPE_FORMAL.concat(LEGAL_DOCTYPE_TEMPLATE);
+const LEGAL_HINTS = {
+  user_agreement: '平台正式版：租户注册/自动开通时签署；终端用户访问 legal.html（tenant 未指定）时阅读此版本。',
+  privacy_policy: '平台正式版：与用户协议配套的隐私政策，租户注册时签署留痕。',
+  user_agreement_template: '租户参考模板（场景 B）：租户管理员"采纳模板"后，发布为 tenant_id=N 的本租户用户协议；终端用户看到的是租户发布版本，而非此处。',
+  privacy_policy_template: '租户参考模板（场景 B）：同上，租户采纳后发布为租户自己的隐私政策。'
+};
+
+function isLegalTemplate(docType) { return LEGAL_DOCTYPE_TEMPLATE.indexOf(docType) >= 0; }
+
 function renderLegalPage() {
   const tpl = document.getElementById('tpl-config-legal');
   if (!tpl) { console.error('[legal] 缺少 #tpl-config-legal'); return; }
@@ -125,29 +138,43 @@ function renderLegalPage() {
 
   // 平台管理员维护平台级文档（后端 resolveScope 由令牌派生 tenantId=0）；
   // 租户级覆盖由租户管理员在 admin.html 维护（本页不做），避免越权。
+
+  function updateHint(docType) {
+    const hint = $('legal-hint');
+    if (!hint) return;
+    hint.style.color = isLegalTemplate(docType) ? '#c56a00' : '#1f2937';
+    hint.textContent = LEGAL_HINTS[docType] || '';
+  }
+
   function loadLegal() {
     const docType = $('legal-doc-type').value;
     const lang = $('legal-doc-lang').value;
-    $('legal-hint').textContent = '读取中…';
+    if (LEGAL_DOCTYPE_ALL.indexOf(docType) < 0) { alert('不支持的文档类型：' + docType); return; }
+    updateHint(docType);
     request({ url: '/sys/legal-doc', method: 'get', params: { docType, lang }, customErrorMsg: false })
       .then(doc => {
         $('legal-title').value = doc && doc.title ? doc.title : '';
         $('legal-content').value = doc && doc.content ? doc.content : '';
+        const suffix = isLegalTemplate(docType)
+          ? '（租户参考模板 · tenantId=0）'
+          : '（平台统一版本 · tenantId=' + (doc ? doc.tenantId : 0) + '）';
         $('legal-hint').textContent = doc
-          ? ('当前生效版本 v' + doc.version + '（平台统一版本，tenantId=' + doc.tenantId + '）')
-          : '尚未配置，保存后将创建首个版本';
+          ? ('当前生效版本 v' + doc.version + suffix + ' — ' + LEGAL_HINTS[docType])
+          : ('尚未配置，保存后将创建首个版本' + suffix + ' — ' + LEGAL_HINTS[docType]);
       })
       .catch(() => { $('legal-hint').textContent = '读取失败，请重试'; });
   }
 
+  on($('legal-doc-type'), 'change', loadLegal);
   on($('legal-load-btn'), 'click', loadLegal);
   on($('legal-save-btn'), 'click', () => {
     const docType = $('legal-doc-type').value;
     const lang = $('legal-doc-lang').value;
     const title = $('legal-title').value.trim();
     const content = $('legal-content').value;
+    if (LEGAL_DOCTYPE_ALL.indexOf(docType) < 0) { alert('不支持的文档类型'); return; }
     if (!title) { alert('请填写标题'); return; }
-    $('legal-hint').textContent = '保存中…';
+    if (isLegalTemplate(docType) && !confirm('当前保存的是「租户参考模板」，不会直接展示给终端用户。确认保存？')) return;
     request({ url: '/sys/legal-doc/update', method: 'POST',
       data: { docType, language: lang, title, content }, customErrorMsg: false })
       .then(doc => { alert('已保存为新版本（v' + (doc && doc.version) + '），旧版本自动停用'); loadLegal(); })

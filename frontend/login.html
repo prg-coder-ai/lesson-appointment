@@ -316,11 +316,18 @@ window.sanitizeTenantCode = function (raw) {
       <div class="register-btn" style="margin-top:10px;">
         <a href="javascript:void(0)" onclick="window.location.href=(typeof window.pageUrl==='function'?window.pageUrl('student-landing.html'):'student-landing.html')" style="color:#4e6ef2;">先浏览师资 ›</a>
       </div>
-      <!-- 微信扫码登录（P2：PC 网站应用二维码；与账号密码登录并列，不替代） -->
-      <div class="wechat-login-entry">
+      <!-- 微信扫码登录（旧入口，暂保留但隐藏） -->
+      <div class="wechat-login-entry" style="display:none;">
         <button type="button" class="wx-link" id="wechat-login-btn">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="#07c160" aria-hidden="true"><path d="M8.7 4C4.9 4 1.8 6.6 1.8 9.8c0 1.8 1 3.4 2.6 4.5l-.6 2 2.3-1.2c.8.2 1.7.4 2.6.4h.5c-.3-.8-.5-1.7-.5-2.6 0-3.4 3.2-6.1 7.2-6.1h.4C15.6 5.6 12.4 4 8.7 4zm-2.4 4.6a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8zm4.8 0a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8zM15.9 10c-3.6 0-6.5 2.3-6.5 5.1s2.9 5.1 6.5 5.1c.8 0 1.5-.1 2.2-.4l2.1 1.1-.5-1.8c1.4-.9 2.3-2.3 2.3-3.9 0-2.8-2.9-5.1-6.5-5.1zm-2.1 3.3a.8.8 0 1 1 0 1.6.8.8 0 0 1 0-1.6zm4.2 0a.8.8 0 1 1 0 1.6.8.8 0 0 1 0-1.6z"/></svg>
           微信扫码登录
+        </button>
+      </div>
+      <!-- 扫码登录移动端（二维码内容为当前页面 URL，手机扫码直接打开） -->
+      <div class="wechat-login-entry">
+        <button type="button" class="wx-link" id="mobile-login-btn" style="color:#4e6ef2;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>
+          扫码登录移动端
         </button>
       </div>
       
@@ -353,8 +360,8 @@ window.sanitizeTenantCode = function (raw) {
           <div class="error-tip" id="register-username-error" data-page-node-id="MIJ5QKvmTtwBaLSFT4a1jE">请输入账号</div>
         </div>
         <div class="form-item" data-page-node-id="dwSDc3JxKsgEhmK34ElKU6">
-          <label for="register-name" data-page-node-id="dLgWoR1BswqonRtRemUPws">真实姓名</label>
-          <input type="text" id="register-name" placeholder="请输入真实姓名" required data-page-node-id="9rYYQFjjlTCzAvybpEml35">
+          <label for="register-name" data-page-node-id="dLgWoR1BswqonRtRemUPws">姓名</label>
+          <input type="text" id="register-name" placeholder="请输入姓名" required data-page-node-id="9rYYQFjjlTCzAvybpEml35">
           <div class="error-tip" id="register-name-error" data-page-node-id="pRx8Aa1TGXCr6UlKmfDcPe">请输入真实姓名</div>
         </div>
         
@@ -393,11 +400,11 @@ window.sanitizeTenantCode = function (raw) {
     </div>
   </div>
 
-  <!-- 微信扫码登录弹层（P2：二维码 + 2s 轮询；confirmed 存 token 跳首页） -->
+  <!-- 扫码弹层：复用同一 mask，标题随入口动态切换 -->
   <div class="wx-qr-mask" id="wx-qr-mask">
     <div class="wx-qr-modal">
       <div class="wx-qr-head">
-        <span class="wx-qr-title">微信扫码登录</span>
+        <span class="wx-qr-title" id="wx-qr-title">微信扫码登录</span>
         <span class="wx-qr-close" id="wx-qr-close">&times;</span>
       </div>
       <div class="wx-qr-box" id="wx-qr-box"></div>
@@ -462,7 +469,18 @@ window.sanitizeTenantCode = function (raw) {
             <option value="">加载中...</option>
           </select>
         </div>
-        <p style="margin:0 0 10px; color:#888; font-size:12px;">所属行业决定术语体系（如“学生/咨询者”），注册后仍可在「租户信息」页修改。</p>
+        <p style="margin:0 0 10px; color:#888; font-size:12px;">所属行业决定术语体系（如"学生/咨询者"），注册后仍可在「租户信息」页修改。</p>
+        <!-- 协议勾选（合规：自助建租户需同意平台协议+隐私政策） -->
+        <div class="form-item agreement" style="margin-bottom:10px;">
+          <label class="agree-label">
+            <input type="checkbox" id="promo-tenant-agree-legal">
+            <span>我已阅读并同意
+              <a href="legal.html?type=user_agreement" target="_blank" rel="noopener">《用户协议》</a>
+              <a href="legal.html?type=privacy_policy" target="_blank" rel="noopener">《隐私政策》</a>
+            </span>
+          </label>
+          <div class="error-tip" id="promo-tenant-agree-error" style="display:none;">请先阅读并勾选同意协议</div>
+        </div>
         <button type="submit" class="btn" id="promo-tenant-btn" onclick="window.PromoLanding.submitTenantForm()">立即创建</button>
         <button type="button" class="btn btn-cancel" id="promo-tenant-cancel">取消</button>
         <div class="success-tip" id="promo-tenant-success" style="text-align:center;"></div>
@@ -614,6 +632,9 @@ window.sanitizeTenantCode = function (raw) {
       var box = document.getElementById('wx-qr-box');
       var refresh = document.getElementById('wx-qr-refresh');
       if (!box) return;
+      // 切换到微信扫码模式
+      var title = document.getElementById('wx-qr-title');
+      if (title) title.textContent = '微信扫码登录';
       stopWxQrPoll();
       box.innerHTML = '';
       if (refresh) refresh.style.display = 'none';
@@ -629,6 +650,32 @@ window.sanitizeTenantCode = function (raw) {
         .catch(function (err) {
           setWxQrTip((err && err.message) ? err.message : '二维码生成失败，请稍后重试', 'err');
         });
+    }
+
+    // ===== 扫码登录移动端（纯前端：二维码 = 当前页面 URL，手机扫码即打开）=====
+    function openMobileQr() {
+      var title = document.getElementById('wx-qr-title');
+      var box = document.getElementById('wx-qr-box');
+      var refresh = document.getElementById('wx-qr-refresh');
+      if (title) title.textContent = '扫码登录移动端';
+      if (refresh) refresh.style.display = 'none';
+      stopWxQrPoll();
+      if (!box) return;
+      box.innerHTML = '';
+      try {
+        if (typeof window.QRCode !== 'function') throw new Error('组件未加载');
+        new window.QRCode(box, {
+          text: window.location.href,
+          width: 200, height: 200,
+          colorDark: '#1f2937', colorLight: '#ffffff',
+          correctLevel: window.QRCode.CorrectLevel.M
+        });
+      } catch (e) {
+        box.innerHTML = '<div style="padding:24px;color:#c05656;font-size:13px;">二维码组件加载失败，请刷新页面</div>';
+        return;
+      }
+      setWxQrTip('用手机浏览器扫描二维码，在手机上打开登录页面');
+      document.getElementById('wx-qr-mask').classList.add('show');
     }
 
     function renderWxQr(qrUrl, state) {
@@ -704,6 +751,7 @@ window.sanitizeTenantCode = function (raw) {
       document.getElementById('wx-qr-mask').classList.add('show');
       loadWechatQr();
     });
+    document.getElementById('mobile-login-btn').addEventListener('click', openMobileQr);
     document.getElementById('wx-qr-close').addEventListener('click', closeWechatQr);
     document.getElementById('wx-qr-refresh').addEventListener('click', loadWechatQr);
     document.getElementById('wx-qr-mask').addEventListener('click', function (e) {

@@ -105,8 +105,97 @@
       // 统一 API 前缀：裸路径 + 前缀拼接，避免散落硬编码完整 /api/v1 端点（守卫约定）
       var API_BASE = '/api/v1';
 
-      var TYPES = { user_agreement: '用户协议', privacy_policy: '隐私政策' };
+      var TYPES = {
+        user_agreement: '用户协议',
+        privacy_policy: '隐私政策',
+        user_agreement_template: '用户协议（平台参考模板）',
+        privacy_policy_template: '隐私政策（平台参考模板）'
+      };
       var LANGS = { zh: '中文', en: 'English', fr: 'Français' };
+
+      // 启发式检测：content 是 HTML 还是 Markdown
+      // 检测特征：存在明显的 HTML 标签对或 DOCTYPE/注释
+      function looksLikeHtml(text) {
+        if (!text) return false;
+        var s = text.trim();
+        if (s.indexOf('<!DOCTYPE') === 0 || s.indexOf('<!--') === 0) return true;
+        // 匹配开始标签（<tag 或 </tag），tag 必须是字母
+        return /<\/?[a-zA-Z][a-zA-Z0-9-]*(?:\s[^>]*)?>/.test(s);
+      }
+
+      // ---------- 极简 Markdown → HTML 渲染器 ----------
+      // 仅覆盖协议文本常用语法：标题、段落、粗/斜体、链接、无序列表、有序列表、换行、代码
+      // 设计原则：安全优先（不引入任何外部库，不执行任意代码），不追求 markdown 全特性
+      function escapeHtml(str) {
+        var div = document.createElement('div');
+        div.textContent = str == null ? '' : String(str);
+        return div.innerHTML;
+      }
+
+      function renderMarkdown(text) {
+        if (!text) return '';
+        var lines = text.replace(/\r\n?/g, '\n').split('\n');
+        var out = [];
+        var i = 0;
+        var inUl = false, inOl = false;
+        function closeLists() {
+          if (inUl) { out.push('</ul>'); inUl = false; }
+          if (inOl) { out.push('</ol>'); inOl = false; }
+        }
+        function fmtInline(line) {
+          // 先 escape HTML，再做 markdown 内联替换
+          var s = escapeHtml(line);
+          // 行内代码 `code`
+          s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+          // 链接 [text](url)
+          s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+          // 粗体 **text**
+          s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+          // 斜体 *text*（注意不要吞掉 bullet 的 *，前提是前后都是非空白）
+          s = s.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
+          return s;
+        }
+        while (i < lines.length) {
+          var line = lines[i];
+          // 空行：关闭列表
+          if (!line.trim()) { closeLists(); i++; continue; }
+          // 标题 # ~ ######
+          var h = line.match(/^(#{1,6})\s+(.*)$/);
+          if (h) {
+            closeLists();
+            out.push('<h' + h[1].length + '>' + fmtInline(h[2]) + '</h' + h[1].length + '>');
+            i++; continue;
+          }
+          // 无序列表 - 或 *
+          var ul = line.match(/^([-*])\s+(.*)$/);
+          if (ul) {
+            if (inOl) { out.push('</ol>'); inOl = false; }
+            if (!inUl) { out.push('<ul>'); inUl = true; }
+            out.push('<li>' + fmtInline(ul[2]) + '</li>');
+            i++; continue;
+          }
+          // 有序列表 1.
+          var ol = line.match(/^\d+\.\s+(.*)$/);
+          if (ol) {
+            if (inUl) { out.push('</ul>'); inUl = false; }
+            if (!inOl) { out.push('<ol>'); inOl = true; }
+            out.push('<li>' + fmtInline(ol[1]) + '</li>');
+            i++; continue;
+          }
+          // 段落（缩进 4 空格或 \t 的代码块简化处理：这里不做完整代码块）
+          closeLists();
+          out.push('<p>' + fmtInline(line) + '</p>');
+          i++;
+        }
+        closeLists();
+        return out.join('\n');
+      }
+
+      function renderContent(raw) {
+        if (!raw) return '<p style="color:#6b7587;">（文档内容为空）</p>';
+        if (looksLikeHtml(raw)) return raw; // 管理员录入的 HTML，直接信任
+        return renderMarkdown(raw);
+      }
 
       var stateEl = document.getElementById('state');
       var titleEl = document.getElementById('doc-title');
@@ -137,12 +226,17 @@
         metaEl.style.display = 'block';
         titleEl.textContent = data.title || (TYPES[type] || '文档');
         document.getElementById('page-title').textContent = (TYPES[type] || '协议与政策') + ' · ' + (LANGS[lang] || lang);
-        document.getElementById('brand').textContent = (tenant ? '机构' : '平台') + '协议与政策';
+        var isTemplate = /_template$/.test(type);
+        if (isTemplate) {
+          document.getElementById('brand').textContent = '平台参考模板';
+        } else {
+          document.getElementById('brand').textContent = (tenant ? '机构' : '平台') + '协议与政策';
+        }
         var scope = (data.scopeTenantId === 0 || data.scopeTenantId == null)
           ? '平台统一版本' : '本机构定制版本';
         metaEl.textContent = '版本 v' + (data.version || 1) + ' · ' + (LANGS[data.language] || data.language || '中文') + ' · ' + scope;
-        // content 为平台/机构管理员录入的受信任 HTML，直接渲染
-        contentEl.innerHTML = data.content || '<p style="color:#6b7587;">（文档内容为空）</p>';
+        // 自动检测 content 格式（HTML / Markdown）并正确渲染
+        contentEl.innerHTML = renderContent(data.content);
       }
 
       function load() {

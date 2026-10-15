@@ -63,15 +63,6 @@
           <i class="fa fa-chart-line"></i>
           <span>运营统计</span>
         </div>
-        <div class="menu-item" key="promo_stats">
-          <i class="fa fa-chart-pie"></i>
-          <span>平台推广统计</span>
-        </div>
-        <div class="menu-item" key="my_promo">
-          <i class="fa fa-bullhorn"></i>
-          <span>我的推广</span>
-        </div>
-        
         <div class="menu-item" key="messages">
           <i class="fa fa-bell"></i>
           <span>消息中心</span>
@@ -113,6 +104,14 @@
         <div class="menu-item" key="backend_info">
           <i class="fa fa-server"></i>
           <span>后台信息</span>
+        </div>
+        <div class="menu-item" key="promo_stats">
+          <i class="fa fa-chart-pie"></i>
+          <span>推广统计</span>
+        </div>
+        <div class="menu-item" key="my_promo">
+          <i class="fa fa-bullhorn"></i>
+          <span>我的推广</span>
         </div>
       </div>
     </aside>
@@ -367,8 +366,14 @@
         <div class="card-title"><i class="fa fa-file-contract"></i> 协议与政策</div>
         <div class="tab-bar" style="margin-left:16px;">
           <select id="legal-doc-type">
-            <option value="user_agreement">用户协议</option>
-            <option value="privacy_policy">隐私政策</option>
+            <optgroup label="正式版（用户实际阅读）">
+              <option value="user_agreement">用户协议 · 场景 A（平台对租户）</option>
+              <option value="privacy_policy">隐私政策 · 场景 A（平台对租户）</option>
+            </optgroup>
+            <optgroup label="租户参考模板（租户采纳后作为场景 B 生效）">
+              <option value="user_agreement_template">用户协议 · 租户对用户模板</option>
+              <option value="privacy_policy_template">隐私政策 · 租户对用户模板</option>
+            </optgroup>
           </select>
           <select id="legal-doc-lang">
             <option value="zh">中文</option>

@@ -76,6 +76,10 @@
         <i class="fa fa-user"></i>
         <span>个人中心</span>
       </div> -->
+      <div class="menu-item" key="legal_view">
+        <i class="fa fa-file-contract"></i>
+        <span>协议与政策</span>
+      </div>
     </aside>
 
     <!-- 主内容包装器 -->
@@ -497,6 +501,18 @@
         case 'my_promo':
           // 推广业绩页（2026-10-13 二期）：我的推广码 / 业绩汇总 / 转化明细
           window.location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('promo.html') : 'promo.html';
+          return;
+        // ===== 协议与政策（场景 B）：展示本租户生效版，用户可在其中切换协议 / 隐私政策 =====
+        case 'legal_view':
+          (function () {
+            var _cu = null;
+            try { _cu = JSON.parse(localStorage.getItem('currentUser') || 'null'); } catch (e) {}
+            var _tc = (_cu && _cu.tenantCode) || '';
+            var _base = (typeof window.pageUrl === 'function') ? window.pageUrl('legal.html') : 'legal.html';
+            var _sep = _base.indexOf('?') >= 0 ? '&' : '?';
+            var _url = _base + _sep + 'type=user_agreement' + (_tc ? '&tenant=' + encodeURIComponent(_tc) : '');
+            window.open(_url, '_blank', 'noopener');
+          })();
           return;
         case 'today_course':
            refreshAppointmentNotes( );//TBD "admin"

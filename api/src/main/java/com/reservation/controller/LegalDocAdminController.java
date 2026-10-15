@@ -52,6 +52,27 @@ public class LegalDocAdminController {
     }
 
     /**
+     * 读取平台提供的「租户参考模板」（docType + "_template"，tenantId=0）。
+     * 租户管理员调用后可一键采纳为自己 tenantId=N 的生效版本。
+     * 仅返回平台侧最新启用版本；若平台尚未配置，返回 404。
+     */
+    @GetMapping("/template")
+    public Result<LegalDoc> getTemplate(@RequestParam("docType") String docType,
+                                        @RequestParam(required = false) String lang,
+                                        @RequestHeader("Authorization") String token) {
+        if (docType == null || docType.isBlank()) {
+            return Result.fail(400, "docType 不能为空");
+        }
+        // 仅允许正式版 docType 查模板（避免直接查 *_template 绕回正式版路径）
+        if ("user_agreement".equals(docType) || "privacy_policy".equals(docType)) {
+            String templateType = docType + "_template";
+            LegalDoc doc = legalDocService.resolve(0L, templateType, lang);
+            return Result.success(doc, doc == null ? "尚未配置" : "查询成功");
+        }
+        return Result.fail(400, "非法 docType，仅支持 user_agreement / privacy_policy");
+    }
+
+    /**
      * 保存新版本。
      * 平台管理员写平台级（tenantId=0）；租户管理员写本租户覆盖级（tenantId=自身）。
      * tenant_id 一律由服务端从令牌派生，不接受客户端传值（防篡改）。

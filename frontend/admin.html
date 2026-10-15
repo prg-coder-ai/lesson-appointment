@@ -181,7 +181,11 @@
         </div>
         <div class="menu-item" key="tenant_promo_stats">
           <i class="fa fa-chart-pie"></i>
-          <span>租户推广统计</span>
+          <span>推广统计</span>
+        </div>
+        <div class="menu-item" key="tenant_legal">
+          <i class="fa fa-file-contract"></i>
+          <span>协议与政策</span>
         </div>
       </div>
     </aside>
@@ -396,6 +400,11 @@
           if (typeof renderTenantPromoStatsPage === 'function') renderTenantPromoStatsPage();//admin-promo-stats.js
           else if (dynamicContentCenter) dynamicContentCenter.innerHTML = '<div class="card"><div class="card-body">租户推广统计模块未加载（admin-promo-stats.js）。</div></div>';
           break;
+        // ===== 租户协议与政策（场景 B：租户对用户）：租户管理员维护 tenant_id=N 的覆盖版本；未发布时可采纳平台模板 =====
+        case "tenant_legal":
+          if (typeof renderTenantLegalPage === 'function') renderTenantLegalPage();
+          else if (dynamicContentCenter) dynamicContentCenter.innerHTML = '<div class="card"><div class="card-body">协议维护模块未加载（tenant-legal.js）。</div></div>';
+          break;
         case "base_config":
           if(dynamicContentCenter)
           dynamicContentCenter.innerHTML = `
@@ -591,6 +600,7 @@
     <script src="js/admin-messageCategory.js"></script>
     <script src="js/admin-messageManage.js"></script>
     <script src="js/admin-promo-stats.js"></script>
+    <script src="js/tenant-legal.js"></script>
     <script src="js/admin-tenant-info.js"></script>
     <script src="js/test/testData.js"></script>
 

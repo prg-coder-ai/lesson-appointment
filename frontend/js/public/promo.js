@@ -263,6 +263,14 @@
       if (errTip) { errTip.textContent = '请选择所属行业（加载失败请刷新页面重试）'; errTip.style.display = 'block'; }
       return;
     }
+    // 合规：未同意协议不得注册
+    var agreeCb = document.getElementById('promo-tenant-agree-legal');
+    var agreeErr = document.getElementById('promo-tenant-agree-error');
+    if (agreeCb && !agreeCb.checked) {
+      if (agreeErr) agreeErr.style.display = 'block';
+      return;
+    }
+    if (agreeErr) agreeErr.style.display = 'none';
     var btn = document.getElementById('promo-tenant-btn');
     if (btn) btn.disabled = true;
     try {
@@ -282,6 +290,12 @@
       });
       var user = savePromoSession(data, data.tenantCode);
       await reportAttribution();
+      // 场景 B：注册成功即记录对当前生效版协议/政策的签署留痕（fire-and-forget）
+      if (data.token) {
+        ['user_agreement', 'privacy_policy'].forEach(function (dt) {
+          try { window.request({ url: '/legal/accept', method: 'POST', noAuthRedirect: true, data: { docType: dt, channel: 'promo_tenant' } }); } catch (e) { /* ignore */ }
+        });
+      }
       if (okTip) {
         okTip.textContent = '注册成功！租户编码 ' + (data.tenantCode || '') +
           '，免费体验 ' + (data.trialDays || 14) + ' 天，正在进入管理端...';
