@@ -101,3 +101,6 @@ tests/miniprogram-itest/_sut*
 # 内含数据库明文密码，绝不入库（模板见 .healthcheck.local.env.example）。
 .healthcheck.local.env
 .workbuddy/healthcheck-local.log
+cloudBased/web
+cloudBased/api/booking-api-2.2.0.jar
+cloudBased/message-service/message-service-1.1.0.jar
