@@ -385,8 +385,8 @@ window.sanitizeTenantCode = function (raw) {
           <label class="agree-label" data-page-node-id="reg-agree-l">
             <input type="checkbox" id="register-agree-legal" data-page-node-id="reg-agree-cb">
             <span>我已阅读并同意
-              <a href="legal.html?type=user_agreement" target="_blank" rel="noopener">《用户协议》</a>
-              <a href="legal.html?type=privacy_policy" target="_blank" rel="noopener">《隐私政策》</a>
+              <a id="reg-agree-user-link" href="legal.html?type=user_agreement" target="_blank" rel="noopener">《用户协议》</a>
+              <a id="reg-agree-privacy-link" href="legal.html?type=privacy_policy" target="_blank" rel="noopener">《隐私政策》</a>
             </span>
           </label>
           <div class="error-tip" id="register-agree-error" data-page-node-id="reg-agree-err">请先阅读并勾选同意协议</div>
@@ -471,9 +471,11 @@ window.sanitizeTenantCode = function (raw) {
         </div>
         <p style="margin:0 0 10px; color:#888; font-size:12px;">所属行业决定术语体系（如"学生/咨询者"），注册后仍可在「租户信息」页修改。</p>
         <!-- 协议勾选（合规：自助建租户需同意平台协议+隐私政策） -->
-        <div class="form-item agreement" style="margin-bottom:10px;">
+        <!-- 隐藏：场景 A（租户自注册，平台对租户的协议）采用隐式签署——注册即视为同意，
+             不再让前端展示勾选项；注册成功后由 promo.js 自动调 /legal/accept 完成合规留痕。 -->
+        <div class="form-item agreement" style="margin-bottom:10px; display:none;">
           <label class="agree-label">
-            <input type="checkbox" id="promo-tenant-agree-legal">
+            <input type="checkbox" id="promo-tenant-agree-legal" checked>
             <span>我已阅读并同意
               <a href="legal.html?type=user_agreement" target="_blank" rel="noopener">《用户协议》</a>
               <a href="legal.html?type=privacy_policy" target="_blank" rel="noopener">《隐私政策》</a>
@@ -1187,8 +1189,7 @@ window.sanitizeTenantCode = function (raw) {
     function applyTenantCodeRule() {
       const urlCode = getTenantCodeFromUrl();
       const tcFormItem = tenantCodeInput.closest('.form-item');
-      if (urlCode) {
-        tenantCodeInput.value = urlCode;
+      if (urlCode) {        tenantCodeInput.value = urlCode;
         tenantCodeInput.readOnly = true;
         if (urlCode === PLATFORM_TENANT_CODE) {
           registerRole.value = PLATFORM_ROLE;
@@ -1281,6 +1282,33 @@ window.sanitizeTenantCode = function (raw) {
 
     // 切换注册身份时重新套用规则
     registerRole.addEventListener('change', applyTenantCodeRule);
+
+    /**
+     * 注册弹窗协议链接：根据租户编码动态切换到租户版本。
+     * - tenant-code 有值（且不是 platform）→ legal.html?type=xxx&tenant=tCode
+     * - tenant-code 为空或 platform → legal.html?type=xxx（平台兜底）
+     */
+    function syncRegisterLegalLinks() {
+      var tc = (tenantCodeInput && tenantCodeInput.value || '').trim();
+      var userLink = document.getElementById('reg-agree-user-link');
+      var privacyLink = document.getElementById('reg-agree-privacy-link');
+      if (!userLink || !privacyLink) return;
+      var sep;
+      if (tc && tc !== PLATFORM_TENANT_CODE) {
+        sep = '&tenant=' + encodeURIComponent(tc);
+      } else {
+        sep = '';
+      }
+      userLink.href = 'legal.html?type=user_agreement' + sep;
+      privacyLink.href = 'legal.html?type=privacy_policy' + sep;
+    }
+    // 在以下时机触发同步：初始加载 / tenant-code 输入变化 / 角色切换触发的 applyTenantCodeRule
+    if (tenantCodeInput) tenantCodeInput.addEventListener('keyup', syncRegisterLegalLinks);
+    if (tenantCodeInput) tenantCodeInput.addEventListener('change', syncRegisterLegalLinks);
+    syncRegisterLegalLinks();
+    // 也挂到 applyTenantCodeRule 里（角色切换时 tenant-code 会被赋值 / 清空）
+    var _origApply = applyTenantCodeRule;
+    applyTenantCodeRule = function () { _origApply(); syncRegisterLegalLinks(); };
 
     // 【修改】已移除「点击遮罩层关闭弹窗」逻辑。
     // 原因：填写过程中有两类操作会让 click 事件落到遮罩层上，导致弹窗被误关闭：

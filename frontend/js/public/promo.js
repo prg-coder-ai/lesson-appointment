@@ -263,14 +263,16 @@
       if (errTip) { errTip.textContent = '请选择所属行业（加载失败请刷新页面重试）'; errTip.style.display = 'block'; }
       return;
     }
-    // 合规：未同意协议不得注册
-    var agreeCb = document.getElementById('promo-tenant-agree-legal');
-    var agreeErr = document.getElementById('promo-tenant-agree-error');
-    if (agreeCb && !agreeCb.checked) {
-      if (agreeErr) agreeErr.style.display = 'block';
-      return;
-    }
-    if (agreeErr) agreeErr.style.display = 'none';
+    // 合规：场景 A（租户自注册 → 平台对租户协议）采用隐式签署——
+    //   前端不再展示勾选项，注册即视为同意；注册成功后 L294-297 自动调 /legal/accept 完成留痕。
+    //   场景 B（租户对用户）：终端用户在 register-modal 显式勾选，链接动态拼 tenant 参数。
+    // var agreeCb = document.getElementById('promo-tenant-agree-legal');
+    // var agreeErr = document.getElementById('promo-tenant-agree-error');
+    // if (agreeCb && !agreeCb.checked) {
+    //   if (agreeErr) agreeErr.style.display = 'block';
+    //   return;
+    // }
+    // if (agreeErr) agreeErr.style.display = 'none';
     var btn = document.getElementById('promo-tenant-btn');
     if (btn) btn.disabled = true;
     try {
