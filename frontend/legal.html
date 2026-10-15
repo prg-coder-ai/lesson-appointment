@@ -33,6 +33,14 @@
       padding: 6px 14px; font-size: 14px; cursor: pointer;
     }
     .seg button.active { background: var(--primary); color: #fff; }
+    .close-btn {
+      border: 1px solid var(--line); background: #fff; color: var(--text);
+      padding: 6px 14px; font-size: 14px; border-radius: 8px; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 4px;
+    }
+    .close-btn:hover { background: var(--bg); }
+    /* 语言选择暂不显示（默认中文） */
+    #lang-seg { display: none; }
     .legal-main {
       max-width: 860px; margin: 24px auto; padding: 32px 36px;
       background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.06);
@@ -62,11 +70,15 @@
       <button data-type="user_agreement">用户协议</button>
       <button data-type="privacy_policy">隐私政策</button>
     </div>
+    <!-- 语言选择暂不显示，默认中文；后续多语言启用时移除此注释 -->
+    <!--
     <div class="seg" id="lang-seg">
       <button data-lang="zh">中文</button>
       <button data-lang="en">English</button>
       <button data-lang="fr">Français</button>
     </div>
+    -->
+    <button class="close-btn" id="close-btn" title="返回">← 返回</button>
   </div>
 
   <main class="legal-main">
@@ -82,7 +94,7 @@
     (function () {
       var PARAMS = new URLSearchParams(location.search);
       var type = PARAMS.get('type') || 'user_agreement';
-      var lang = PARAMS.get('lang') || 'zh';
+      var lang = 'zh'; // 暂不提供语言切换，强制默认中文
       var tenant = PARAMS.get('tenant') || '';
       // 统一 API 前缀：裸路径 + 前缀拼接，避免散落硬编码完整 /api/v1 端点（守卫约定）
       var API_BASE = '/api/v1';
@@ -161,9 +173,16 @@
         var b = e.target.closest('button'); if (!b) return;
         changeParam('type', b.getAttribute('data-type'));
       });
-      document.getElementById('lang-seg').addEventListener('click', function (e) {
-        var b = e.target.closest('button'); if (!b) return;
-        changeParam('lang', b.getAttribute('data-lang'));
+
+      // 关闭/返回：优先尝试关闭窗口（target=_blank 打开的新窗口），否则 history.back
+      document.getElementById('close-btn').addEventListener('click', function () {
+        if (window.opener) {
+          window.close();
+        } else if (history.length > 1) {
+          history.back();
+        } else {
+          location.href = 'login.html';
+        }
       });
 
       load();
