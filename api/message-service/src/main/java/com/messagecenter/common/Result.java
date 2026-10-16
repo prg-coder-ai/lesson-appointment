@@ -32,7 +32,7 @@ public class Result<T> {
      */
     private static final java.util.Set<Integer> ALLOWED_CODES =
             java.util.Collections.unmodifiableSet(new java.util.HashSet<>(java.util.Arrays.asList(
-                    200, 400, 401, 403, 404, 409, 500, 1001)));
+                    200, 400, 401, 403, 404, 405, 409, 500, 1001)));
 
     /** 判断某个 code 是否在白名单内。 */
     public static boolean isAllowedCode(int code) {

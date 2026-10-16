@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -70,6 +71,16 @@ public class GlobalExceptionHandler {
         if (log.isDebugEnabled()) {
             log.debug("异步响应已不可用（客户端已断开），已忽略：{}", e.getMessage());
         }
+    }
+
+    // 请求方法不支持（405）。调用方用错 HTTP 方法（GET 一个 POST 接口等），
+    // 降级为 WARN + 405，避免误报成服务器故障。
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public Result<Void> methodNotSupported(HttpRequestMethodNotSupportedException e) {
+        String supported = e.getSupportedMethods() != null ? String.join(", ", e.getSupportedMethods()) : "无";
+        String msg = "HTTP 方法 " + e.getMethod() + " 不支持，支持：" + supported;
+        log.warn("请求方法不支持：{}", msg);
+        return Result.fail(405, msg);
     }
 
     @ExceptionHandler(Exception.class)

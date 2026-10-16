@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -154,6 +155,18 @@ public class GlobalExceptionHandler {
         String typeName = e.getRequiredType() != null ? e.getRequiredType().getSimpleName() : "";
         return Result.fail(400, "参数类型错误：" + e.getName()
                 + (typeName.isEmpty() ? "" : "（需为 " + typeName + "，请勿填编码/文本）"));
+    }
+
+    // 请求方法不支持（405）。
+    // 典型场景：浏览器地址栏直接访问只接受 POST 的接口、curl 没写 -X、前端 fetch 写错 method。
+    // 此前落兜底 handleException 打 ERROR 堆栈 + 返回 500，实质是调用方用错了 HTTP 方法，
+    // 不应伪装成"服务器繁忙"。降级为 WARN，返回标准 405 并告知支持的方法。
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public Result<Void> handleMethodNotSupported(HttpRequestMethodNotSupportedException e) {
+        String supported = e.getSupportedMethods() != null ? String.join(", ", e.getSupportedMethods()) : "无";
+        String msg = "HTTP 方法 " + e.getMethod() + " 不支持该接口，支持：" + supported;
+        log.warn("请求方法不支持：{}", msg);
+        return Result.fail(405, msg);
     }
 
     // 服务器异常（500），对应设计2.4 服务器异常
