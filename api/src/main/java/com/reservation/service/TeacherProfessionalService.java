@@ -152,36 +152,73 @@ public class TeacherProfessionalService {
     // 4. 查询单条（按 teacherProfessionalId 或 teacherId 查出主+子明细）
     // ================================================================
     public Result<TeacherProfessionalDetailVO> queryTeacherProfessionalInfo(String teacherProfessionalId, String teacherId) {
+        long t0 = System.currentTimeMillis();
         TeacherProfessional tp = null;
         if (teacherProfessionalId != null && !teacherProfessionalId.trim().isEmpty()) {
             tp = tpMapper.selectById(teacherProfessionalId);
         } else if (teacherId != null && !teacherId.trim().isEmpty()) {
-            tp = tpMapper.selectOne(
+            // selectOne 防御：物理上 teacher_professional 有 uk_teacher_id 唯一索引，
+            // 但历史脏数据/手工 SQL 可能留下重复行，selectOne 会抛 TooManyResultsException。
+            // 用 last("LIMIT 1") 兜底，同时 log.warn 提醒清理脏数据。
+            Long cnt = tpMapper.selectCount(
                     new QueryWrapper<TeacherProfessional>().eq("teacher_id", teacherId));
+            if (cnt != null && cnt > 1) {
+                log.warn("[TeacherProfessional] 教师 {} 存在 {} 条职业信息脏数据，兜底取最新一条，请清理", teacherId, cnt);
+            }
+            tp = tpMapper.selectOne(
+                    new QueryWrapper<TeacherProfessional>().eq("teacher_id", teacherId).last("LIMIT 1"));
         }
+        long t1 = System.currentTimeMillis();
+
         if (tp == null) {
+            log.info("[TeacherProfessional] 查询不存在: teacherProfessionalId={}, teacherId={}, 耗时={}ms",
+                    teacherProfessionalId, teacherId, t1 - t0);
             return Result.fail(404, "职业信息不存在");
         }
 
         TeacherProfessionalDetailVO vo = new TeacherProfessionalDetailVO();
         vo.setProfessional(tp);
-        vo.setCertificates(certMapper.listByTeacherId(tp.getTeacherId()));
-        vo.setAvailableTimes(timeMapper.listByTeacherId(tp.getTeacherId()));
+
+        List<com.reservation.entity.TeacherCertificate> certs = certMapper.listByTeacherId(tp.getTeacherId());
+        long t2 = System.currentTimeMillis();
+        List<com.reservation.entity.TeacherAvailableTime> times = timeMapper.listByTeacherId(tp.getTeacherId());
+        long t3 = System.currentTimeMillis();
+
+        vo.setCertificates(certs);
+        vo.setAvailableTimes(times);
 
         // 冗余 user 字段（name/phone/email 入库时经 cryptoUtil.encryptWithIndex 加密，
         // 查询必须解密，否则前端看到 AES 密文而非可读字符串；与 UserService.decryptUserFields 一致）
         User teacher = userMapper.selectById(tp.getTeacherId());
+        long t4 = System.currentTimeMillis();
         if (teacher != null) {
-            teacher.setName(cryptoUtil.decrypt(teacher.getName()));
-            teacher.setPhone(cryptoUtil.decrypt(teacher.getPhone()));
-            teacher.setEmail(cryptoUtil.decrypt(teacher.getEmail()));
+            try {
+                teacher.setName(cryptoUtil.decrypt(teacher.getName()));
+                teacher.setPhone(cryptoUtil.decrypt(teacher.getPhone()));
+                teacher.setEmail(cryptoUtil.decrypt(teacher.getEmail()));
+            } catch (Exception ex) {
+                // 解密失败不应整接口挂：某个字段被二次加密或历史空值时，继续返回剩余字段
+                log.warn("[TeacherProfessional] teacher {} 字段解密异常：{}", tp.getTeacherId(), ex.getMessage());
+            }
             vo.setName(teacher.getName());
             vo.setAccount(teacher.getAccount());
             vo.setPhone(teacher.getPhone());
             vo.setEmail(teacher.getEmail());
             vo.setUserStatus(teacher.getStatus());
         }
-      //  log.debug("queryTeacherProfessionalInfo: " + vo);
+        long t5 = System.currentTimeMillis();
+
+        long total = t5 - t0;
+        // 总耗时 > 300ms 才打 WARN（正常查询应在 50ms 内），避免刷屏
+        if (total > 300) {
+            log.warn("[TeacherProfessional] query 慢查询 teacherId={}, 总耗时={}ms | 主表={}ms 证书({})={}ms 时段({})={}ms user={}ms 解密={}ms",
+                    tp.getTeacherId(), total,
+                    (t1 - t0), certs.size(), (t2 - t1),
+                    times.size(), (t3 - t2), (t4 - t3), (t5 - t4));
+        } else {
+            log.debug("[TeacherProfessional] query teacherId={}, 总耗时={}ms 证书={} 时段={}",
+                    tp.getTeacherId(), total, certs.size(), times.size());
+        }
         return Result.success(vo, "查询成功");
     }
 
@@ -225,6 +262,25 @@ public class TeacherProfessionalService {
     /** 批量插入证书（子表） */
     private void saveCertificates(String teacherId, List<TeacherCertificateDTO> certs) {
         if (certs == null || certs.isEmpty()) return;
+
+        // 先查旧证书的 certId → certBase64 映射，用于 merge 未上传新图时保留原图
+        // （Entity 的 certBase64 已加 @TableField(select=false)，BaseMapper.selectById 拿不到，
+        //  这里直接写显式 SQL 只查这一列）。
+        java.util.Map<String, String> oldBase64Map = new java.util.HashMap<>();
+        try {
+            List<com.reservation.entity.TeacherCertificate> oldCerts =
+                    certMapper.selectList(new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<com.reservation.entity.TeacherCertificate>()
+                            .eq("teacher_id", teacherId)
+                            .select("certificate_id", "cert_base64"));
+            if (oldCerts != null) {
+                for (com.reservation.entity.TeacherCertificate oc : oldCerts) {
+                    if (oc.getCertificateId() != null && oc.getCertBase64() != null && !oc.getCertBase64().isEmpty()) {
+                        oldBase64Map.put(oc.getCertificateId(), oc.getCertBase64());
+                    }
+                }
+            }
+        } catch (Exception ignore) { /* 查询失败降级：不 merge，允许 base64 置空 */ }
+
         int sortNo = 0;
         for (TeacherCertificateDTO c : certs) {
             TeacherCertificate cert = new TeacherCertificate();
@@ -232,7 +288,13 @@ public class TeacherProfessionalService {
             cert.setTeacherId(teacherId);
             cert.setCertName(c.getCertName());
             cert.setCertUrl(c.getCertUrl());
-            cert.setCertBase64(c.getCertBase64());
+            // merge 逻辑：前端没上传新图（certBase64 为 null/空串），但传了 certificateId（表示编辑已有证书），
+            // 用旧 base64 回填；否则用新值。
+            String incoming = c.getCertBase64();
+            if ((incoming == null || incoming.isEmpty()) && c.getCertificateId() != null) {
+                incoming = oldBase64Map.get(c.getCertificateId());
+            }
+            cert.setCertBase64(incoming);
             cert.setSortNo(c.getSortNo() == null ? sortNo : c.getSortNo());
             sortNo++;
             certMapper.insert(cert);

@@ -1,6 +1,7 @@
 package com.reservation.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -32,7 +33,12 @@ public class TeacherProfessional implements Serializable {
     /** 个人照片URL（静态文件路径，优先） */
     private String personalPhotoUrl;
 
-    /** 个人照片Base64（与URL二选一，兼容老qualification方式） */
+    /** 个人照片Base64（与URL二选一，兼容老qualification方式）
+     * 加 select=false：mediumtext 字段理论最大 16MB，某些教师曾上传过大图后，
+     * selectById / selectOne 会把整列拉进内存 → 网络传输 + JSON 序列化爆炸，
+     * 表现为"有的教师查询超时、有的正常"。SELECT 默认不拉此列；
+     * INSERT/UPDATE 不受影响，写操作仍正常写入（前端保存时显式传递）。 */
+    @TableField(select = false)
     private String personalPhotoBase64;
 
     /** 文字说明（教师简介） */

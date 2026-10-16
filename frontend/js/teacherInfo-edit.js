@@ -381,82 +381,163 @@ async function deleteCurrent() {
   }
 }
 
-// ====================== 图片上传处理（FileReader → base64） ======================
+// ====================== 图片上传处理（压缩 → base64） ======================
 
 /**
- * 通用：选择图片文件 → 读为 base64 → 写入隐藏字段 + 更新预览 <img>
+ * 图片压缩：浏览器原生 canvas，无需任何第三方库。
+ *
+ * 策略（够用即可，不追求极致）：
+ *   1. 按 MIME 类型选输出格式（JPEG/PNG/WebP，默认 JPEG）
+ *   2. 先按目标最长边等比缩放（默认 1280px，头像 600px）
+ *   3. 循环降低 quality 直到 base64 体积 ≤ maxBytes
+ *   4. 极端情况降到最小尺寸仍超限，返回 null（上层弹提示）
+ *
+ * 体积参考：5MB PNG 拍照 → 压后 ~80KB JPEG，肉眼无差别。
+ *
+ * @param {File|Blob} file       原始文件
+ * @param {number} [maxBytes]    base64 输出上限（字节，默认 300KB）
+ * @param {number} [maxSide]     最长边像素（默认 1280，头像场景传 600）
+ * @param {number} [minQuality]  最低质量（默认 0.4，到这还超限就放弃）
+ * @returns {Promise<string|null>}  dataURL 或 null（超限）
  */
-function handlePhotoSelect(fileInput, previewImgId, base64InputId) {
+function compressImage(file, maxBytes, maxSide, minQuality) {
+  maxBytes   = maxBytes   || 300 * 1024;   // 默认 300KB（base64 后 ≈ 400KB 文本）
+  maxSide    = maxSide    || 1280;
+  minQuality = minQuality == null ? 0.4 : minQuality;
+
+  const mime = (file.type || 'image/jpeg').toLowerCase();
+  // 优先用 WebP（体积更小），次选 JPEG（通用）；PNG 只给不透明失败时兜底
+  let outMime = mime.startsWith('image/webp') ? 'image/webp'
+              : mime === 'image/png'            ? 'image/png'
+              : 'image/jpeg';                   // 其余一律 JPEG（有损压缩最合适）
+
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      const img = new Image();
+      img.onload = function () {
+        // 等比缩放，最长边不超过 maxSide
+        let w = img.naturalWidth, h = img.naturalHeight;
+        const longest = Math.max(w, h);
+        if (longest > maxSide) {
+          const ratio = maxSide / longest;
+          w = Math.round(w * ratio);
+          h = Math.round(h * ratio);
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        // 白底填充：JPEG 不透明，原图透明像素变黑底会很怪
+        if (outMime === 'image/jpeg') {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, w, h);
+        }
+        ctx.drawImage(img, 0, 0, w, h);
+
+        // 循环降 quality 直到 ≤ maxBytes
+        let quality = outMime === 'image/png' ? undefined : 0.9;
+        let dataUrl = canvas.toDataURL(outMime, quality);
+        while (quality != null && quality > minQuality && dataUrl.length > maxBytes) {
+          quality -= 0.1;
+          if (quality < minQuality) quality = minQuality;
+          dataUrl = canvas.toDataURL(outMime, quality);
+        }
+
+        // 若 PNG 或降到底仍超限（极低概率，maxSide 已卡了第一关）
+        if (dataUrl.length > maxBytes) {
+          resolve(null);
+        } else {
+          resolve(dataUrl);
+        }
+      };
+      img.onerror = function () { resolve(null); };
+      img.src = e.target.result;
+    };
+    reader.onerror = function () { resolve(null); };
+    reader.readAsDataURL(file);
+  });
+}
+
+/** 压缩配置：头像 vs 证书图，不同上限 */
+const IMG_LIMITS = {
+  avatar: { maxBytes: 300 * 1024, maxSide: 600  },  // 头像：300KB / 600px
+  cert:   { maxBytes: 500 * 1024, maxSide: 1280 },  // 证书：500KB / 1280px
+};
+
+/**
+ * 通用：选择图片文件 → 自动压缩 → 写入隐藏字段 + 更新预览 <img>
+ */
+async function handlePhotoSelect(fileInput, previewImgId, base64InputId) {
   const file = fileInput.files && fileInput.files[0];
   if (!file) return;
-  // 限制 5MB，避免 base64 撑爆请求体
-  if (!file.type.startsWith('image/')) {
-    alert('请选择图片文件');
+  if (!file.type.startsWith('image/')) { alert('请选择图片文件'); fileInput.value = ''; return; }
+
+  // 原图过大直接拒绝（压缩只是保险，给个明确提示更友好）
+  if (file.size > 10 * 1024 * 1024) {
+    alert('图片源文件不能超过 10MB（压缩后自动控制在 300KB 以内）');
     fileInput.value = '';
     return;
   }
-  if (file.size > 5 * 1024 * 1024) {
-    alert('图片不能超过 5MB');
+
+  const cfg = IMG_LIMITS.avatar;
+  const base64 = await compressImage(file, cfg.maxBytes, cfg.maxSide);
+  if (!base64) {
+    alert('图片压缩后仍然过大，请换一张更小的');
     fileInput.value = '';
     return;
   }
-  const reader = new FileReader();
-  reader.onload = function (e) {
-    const base64 = e.target.result;  // data:image/xxx;base64,....
-    const base64Input = document.getElementById(base64InputId);
-    if (base64Input) base64Input.value = base64;
-    const previewImg = document.getElementById(previewImgId);
-    if (previewImg) {
-      previewImg.src = base64;
-      previewImg.style.display = '';
-    }
-    // 隐藏同容器的占位 div
-    const placeholder = previewImg && previewImg.parentElement && previewImg.parentElement.querySelector('.photo-placeholder');
-    if (placeholder) placeholder.style.display = 'none';
-  };
-  reader.onerror = function () {
-    alert('图片读取失败，请重试');
-  };
-  reader.readAsDataURL(file);
+  const kb = Math.round((base64.length * 3 / 4) / 1024); // base64 → 原始字节
+  console.info('[图片] 头像压缩后约 ' + kb + 'KB');
+
+  const base64Input = document.getElementById(base64InputId);
+  if (base64Input) base64Input.value = base64;
+  const previewImg = document.getElementById(previewImgId);
+  if (previewImg) {
+    previewImg.src = base64;
+    previewImg.style.display = '';
+  }
+  const placeholder = previewImg && previewImg.parentElement && previewImg.parentElement.querySelector('.photo-placeholder');
+  if (placeholder) placeholder.style.display = 'none';
 }
 
 /**
- * 证书行内选择图片：定位到同行 .cert-base64 隐藏字段 + .cert-thumb-img 预览图
+ * 证书行内选择图片：定位到同行 .cert-base64 + .cert-thumb-img，自动压缩
  */
-function handleCertPhotoSelect(fileInput) {
+async function handleCertPhotoSelect(fileInput) {
   const row = fileInput.closest('.cert-row');
   if (!row) return;
   const base64Input = row.querySelector('.cert-base64');
   const previewImg = row.querySelector('.cert-thumb-img');
   const file = fileInput.files && fileInput.files[0];
   if (!file) return;
-  if (!file.type.startsWith('image/')) {
-    alert('请选择图片文件');
+  if (!file.type.startsWith('image/')) { alert('请选择图片文件'); fileInput.value = ''; return; }
+
+  if (file.size > 10 * 1024 * 1024) {
+    alert('图片源文件不能超过 10MB（压缩后自动控制在 500KB 以内）');
     fileInput.value = '';
     return;
   }
-  if (file.size > 5 * 1024 * 1024) {
-    alert('图片不能超过 5MB');
+
+  const cfg = IMG_LIMITS.cert;
+  const base64 = await compressImage(file, cfg.maxBytes, cfg.maxSide);
+  if (!base64) {
+    alert('图片压缩后仍然过大，请换一张更小的');
     fileInput.value = '';
     return;
   }
-  const reader = new FileReader();
-  reader.onload = function (e) {
-    const base64 = e.target.result;
-    if (base64Input) base64Input.value = base64;
-    if (previewImg) {
-      previewImg.src = base64;
-      previewImg.style.display = '';
-    }
-    // 隐藏缩略图容器内的占位 div
-    const thumb = row.querySelector('.cert-thumb');
-    const placeholder = thumb && thumb.querySelector('.photo-placeholder');
-    if (placeholder) placeholder.style.display = 'none';
-  };
-  reader.onerror = function () {
-    alert('图片读取失败，请重试');
-  };
-  reader.readAsDataURL(file);
+  const kb = Math.round((base64.length * 3 / 4) / 1024);
+  console.info('[图片] 证书压缩后约 ' + kb + 'KB');
+
+  if (base64Input) base64Input.value = base64;
+  if (previewImg) {
+    previewImg.src = base64;
+    previewImg.style.display = '';
+  }
+  const thumb = row.querySelector('.cert-thumb');
+  const placeholder = thumb && thumb.querySelector('.photo-placeholder');
+  if (placeholder) placeholder.style.display = 'none';
 }
 
 /**

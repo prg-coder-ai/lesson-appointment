@@ -17,9 +17,13 @@ import java.util.List;
 public interface TeacherCertificateMapper extends BaseMapper<TeacherCertificate> {
 
     /**
-     * 按教师ID查询全部证书（按 sort_no 排序）
+     * 按教师ID查询全部证书（按 sort_no 排序）。
+     * 显式列出列名排除 cert_base64（mediumtext 大字段），与 Entity 的 @TableField(select=false)
+     * 一致。BaseMapper 的 selectById 会自动遵守注解，但本方法是手写 @Select("SELECT * ...")，
+     * 必须显式排除 —— 否则某些教师传过大图时整批拉取会导致查询超时。
      */
-    @Select("SELECT * FROM teacher_certificate WHERE teacher_id = #{teacherId} ORDER BY sort_no ASC, create_time ASC")
+    @Select("SELECT certificate_id, tenant_id, teacher_id, cert_name, cert_url, sort_no, create_time " +
+            "FROM teacher_certificate WHERE teacher_id = #{teacherId} ORDER BY sort_no ASC, create_time ASC")
     List<TeacherCertificate> listByTeacherId(@Param("teacherId") String teacherId);
 
     /**

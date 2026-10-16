@@ -1,6 +1,7 @@
 package com.reservation.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -32,7 +33,11 @@ public class TeacherCertificate implements Serializable {
     /** 证书图片URL */
     private String certUrl;
 
-    /** 证书图片Base64（兼容） */
+    /** 证书图片Base64（兼容）
+     * 加 select=false：mediumtext 大字段，同 teacher_professional.personalPhotoBase64，
+     * 某些教师传多张大图时整批拉取会导致查询超时。SELECT 默认不拉此列；
+     * INSERT/UPDATE 不受影响。 */
+    @TableField(select = false)
     private String certBase64;
 
     /** 排序号，小在前 */
