@@ -52,26 +52,49 @@
     </view>
   </view>
 
-  <!-- 小程序码弹窗 -->
+  <!-- 二维码弹窗（Tab 切换：Web URL ↔ 小程序路径） -->
   <view class="mask" wx:if="{{qrModal}}" bindtap="closeQr">
     <view class="modal" catchtap="noop">
-      <view class="modal-title">{{qrTitle}}</view>
+      <view class="modal-title">{{qrTitle}} · 二维码</view>
+
+      <!-- Tab 切换 -->
+      <view class="tab-bar">
+        <view class="tab {{qrMode === 'web' ? 'active' : ''}}" bindtap="switchQrMode" data-mode="web">Web 链接（推荐）</view>
+        <view class="tab {{qrMode === 'mini' ? 'active' : ''}}" bindtap="switchQrMode" data-mode="mini">小程序路径</view>
+      </view>
+
       <image wx:if="{{qrImage}}" class="qr-img" src="{{qrImage}}" mode="widthFix" show-menu-by-longpress />
       <view wx:else class="qr-loading">{{qrLoading ? '生成中…' : '生成失败'}}</view>
-      <view class="modal-tip">微信「扫一扫」该码，即可打开邀请页</view>
+
+      <view class="modal-tip" wx:if="{{qrMode === 'web'}}">微信「扫一扫」或手机浏览器扫描均可打开；截图保存后微信内长按识别也可唤起</view>
+      <view class="modal-tip" wx:else>纯小程序路径：仅可通过微信内「长按识别图中二维码」唤起，或配合下方转发按钮使用</view>
+
+      <!-- 当前模式对应的文本预览 -->
+      <view class="text-preview">{{qrMode === 'web' ? qrWebUrl : qrMiniPath}}</view>
+
       <view class="modal-btns">
+        <view class="mbtn" bindtap="copyCurrentQr">复制文本</view>
         <view class="mbtn primary" bindtap="saveQr">{{qrSaving ? '保存中…' : '保存到相册'}}</view>
         <view class="mbtn" bindtap="closeQr">关闭</view>
       </view>
     </view>
   </view>
 
-  <!-- 小程序链接弹窗 -->
+  <!-- 链接弹窗（Tab 切换：Web URL ↔ 小程序路径） -->
   <view class="mask" wx:if="{{linkModal}}" bindtap="closeLink">
     <view class="modal" catchtap="noop">
-      <view class="modal-title">小程序链接</view>
-      <view class="link-box">{{linkText || '生成中…'}}</view>
-      <view class="modal-tip">复制后发给微信好友，对方点击即可打开邀请页</view>
+      <view class="modal-title">推广链接</view>
+
+      <view class="tab-bar">
+        <view class="tab {{linkMode === 'web' ? 'active' : ''}}" bindtap="switchLinkMode" data-mode="web">Web 链接（推荐）</view>
+        <view class="tab {{linkMode === 'mini' ? 'active' : ''}}" bindtap="switchLinkMode" data-mode="mini">小程序路径</view>
+      </view>
+
+      <view class="link-box">{{linkMode === 'web' ? linkWebUrl : linkMiniPath}}</view>
+
+      <view class="modal-tip" wx:if="{{linkMode === 'web'}}">完整 URL，复制粘贴到任何地方都能打开</view>
+      <view class="modal-tip" wx:else>纯小程序路径：仅在微信内长按识别或转发卡片可唤起</view>
+
       <view class="modal-btns">
         <view class="mbtn primary" bindtap="copyLink">复制链接</view>
         <view class="mbtn" bindtap="closeLink">关闭</view>

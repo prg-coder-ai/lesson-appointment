@@ -10,6 +10,7 @@ App({
     apiBase: 'http://152.136.254.127:8081',
     //'https://api.example.com'
     msgBase: 'http://152.136.254.127:8090',
+    webBase: 'http://152.136.254.127',
     //,'https://msg.example.com
     // 登录失效回调：由页面层注入（如跳回登录页）
     onAuthFail: null

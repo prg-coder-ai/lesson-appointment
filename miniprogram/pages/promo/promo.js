@@ -27,12 +27,44 @@ const PAGE_SIZE = 20;
 
 const STAGE_TEXT = { registered: '已注册', approved: '已审批', paid: '已缴费', expired: '已过期' };
 
-// 邀请落地页路径：ref 必带；path=2 标识租户码；inviter 增强归因（后端仍以 ref 为权威）
+// 小程序内路由路径（转发/唤起小程序用）
 function landingPath(code, pathType, userId) {
   let q = 'ref=' + encodeURIComponent(code);
   if (pathType === 2) q += '&path=2';
   if (userId) q += '&inviter=' + encodeURIComponent(userId);
   return '/pages/promo-landing/promo-landing?' + q;
+}
+
+// Web 端完整 URL（浏览器/短信/邮件通用，后端 promo.js L478-479 已对齐 login.html?ref=）
+// WEB_BASE_URL 推导：从 apiBase 取 protocol + hostname，端口固定用 80（http）/省略（https 默认 443）
+// 手写字符串解析，不依赖 new URL()（小程序 JSCore 兼容性存疑）
+function deriveWebBaseUrl() {
+  const app = typeof getApp === 'function' ? getApp() : null;
+  const api = app && app.globalData && app.globalData.apiBase;
+  console.log('[promo] deriveWebBaseUrl apiBase =', api);
+  if (!api || typeof api !== 'string' || !api.trim()) return '';
+
+  // 正则拆 http://host:port 或 https://host:port
+  const m = api.match(/^(https?):\/\/([^\/:?#]+)(?::\d+)?/i);
+  if (!m) { console.warn('[promo] apiBase 格式不合法，无法推导 Web 域名:', api); return ''; }
+  const proto = m[1].toLowerCase();   // 'http' | 'https'
+  const host  = m[2];                 // '152.136.254.127'
+  const port  = proto === 'https' ? '' : ':80';
+  const result = proto + '://' + host + port;
+  console.log('[promo] WEB_BASE_URL =', result);
+  return result;
+}
+
+function landingWebUrl(code, pathType, userId, tenantCode) {
+  let base = deriveWebBaseUrl();
+  if (!base) return '';
+  let q = 'ref=' + encodeURIComponent(code);
+  if (pathType === 2) {
+    q += '&path=2';
+    if (tenantCode) q += '&tcode=' + encodeURIComponent(tenantCode);
+  }
+  if (userId) q += '&inviter=' + encodeURIComponent(userId);
+  return base + '/login.html?' + q;
 }
 
 Page({
@@ -64,10 +96,15 @@ Page({
     qrImage: '',
     qrLoading: false,
     qrSaving: false,
+    qrMode: 'web',            // 'web'=Web URL 二维码（全平台可用）  'mini'=小程序内路由二维码（只能在微信内长按识别唤起）
+    qrWebUrl: '',             // Web 端完整 URL（扫码/复制通用）
+    qrMiniPath: '',            // 小程序内路由路径（转发卡片用）
     // 小程序链接弹窗
     linkModal: false,
     linkText: '',
-    linkGenerating: false
+    linkGenerating: false,
+    linkWebUrl: '',            // Web 端完整 URL（复制发给任何人都能打开）
+    linkMiniPath: ''           // 小程序内路由路径（转发卡片用）
   },
 
   onLoad() {
@@ -177,34 +214,47 @@ Page({
     });
   },
 
-  // —— 二维码：weapp-qrcode 在隐藏 canvas 绘制 → 导出临时图 → 弹窗展示 ——
+  // —— 二维码：默认画 Web URL（全平台扫码可用），可切小程序路径 ——
   showQr(e) {
     const pathType = Number(e.currentTarget.dataset.pt) || 1;
     const card = this.data.codeCards.find((c) => c.pathType === pathType);
     if (!card || !card.code) { wx.showToast({ title: '请先生成推广码', icon: 'none' }); return; }
 
-    const path = landingPath(card.code, pathType, this.data.user.userId);
-    this.setData({ qrModal: true, qrImage: '', qrLoading: true, qrTitle: card.title });
+    const miniPath = landingPath(card.code, pathType, this.data.user.userId);
+    const webUrl   = landingWebUrl(card.code, pathType, this.data.user.userId,
+                                    this.data.myTenantCode);
 
-    // 微信原生没有 wx.createCanvasQRCode —— 引入的 weapp-qrcode.js 用 QRCode 构造函数
-    // canvas 已在 wxml 底部常驻（避免弹窗开关时序导致 canvasId 找不到）
+    this.setData({
+      qrModal: true, qrImage: '', qrLoading: true, qrTitle: card.title,
+      qrMode: 'web',
+      qrWebUrl: webUrl || '(未配置 Web 域名，请在 app.js globalData.apiBase 指向的服务器部署前端)',
+      qrMiniPath: miniPath
+    });
+    // 默认画 Web URL
+    this.drawQr(webUrl || miniPath);
+  },
+
+  // 切模式：web（扫了打开浏览器） ↔ mini（纯微信内长按识别唤起小程序）
+  switchQrMode(e) {
+    const mode = e.currentTarget.dataset.mode; // 'web' | 'mini'
+    if (mode === this.data.qrMode) return;
+    const content = mode === 'web' ? this.data.qrWebUrl : this.data.qrMiniPath;
+    this.setData({ qrMode: mode, qrImage: '', qrLoading: !!content });
+    if (content) this.drawQr(content);
+    else { this.setData({ qrLoading: false }); wx.showToast({ title: mode === 'web' ? 'Web 域名未配置' : '小程序路径为空', icon: 'none' }); }
+  },
+
+  drawQr(text) {
+    if (!text) { this.setData({ qrLoading: false }); return; }
     try {
       new QRCode('promo-qr-canvas', {
-        text: path,
-        width: 240,
-        height: 240,
-        padding: 0,
+        text: text,
+        width: 240, height: 240, padding: 0,
         correctLevel: QRCode.CorrectLevel.M,
-        colorDark: '#000000',
-        colorLight: '#ffffff',
+        colorDark: '#000000', colorLight: '#ffffff',
         callback: (res) => {
-          // res.path = wx.canvasToTempFilePath 生成的临时图片路径
-          if (res && res.path) {
-            this.setData({ qrImage: res.path, qrLoading: false });
-          } else {
-            this.setData({ qrLoading: false });
-            wx.showToast({ title: '二维码导出失败', icon: 'none' });
-          }
+          if (res && res.path) this.setData({ qrImage: res.path, qrLoading: false });
+          else { this.setData({ qrLoading: false }); wx.showToast({ title: '二维码导出失败', icon: 'none' }); }
         }
       });
     } catch (err) {
@@ -212,6 +262,12 @@ Page({
       this.setData({ qrLoading: false });
       wx.showToast({ title: '二维码生成失败，请重试', icon: 'none' });
     }
+  },
+
+  copyCurrentQr() {
+    const text = this.data.qrMode === 'web' ? this.data.qrWebUrl : this.data.qrMiniPath;
+    if (!text) return;
+    wx.setClipboardData({ data: text, success: () => wx.showToast({ title: '已复制', icon: 'none' }) });
   },
   saveQr() {
     if (!this.data.qrImage) return;
@@ -235,22 +291,34 @@ Page({
   },
   closeQr() { this.setData({ qrModal: false }); },
 
-  // —— 小程序路径文本（供手动输入 / 转发引导）——
-  // 注：wx.createShortLink（URL Link）虽存在，但需要后端配合或开启业务域名，
-  // 当前降级为直接展示路径文本 + 复制按钮；后端补上 /link 生成接口后再升级。
+  // —— 链接弹窗：默认 Web URL（全平台可用），可切小程序路径 ——
   genLink(e) {
     const pathType = Number(e.currentTarget.dataset.pt) || 1;
     const card = this.data.codeCards.find((c) => c.pathType === pathType);
     if (!card || !card.code) { wx.showToast({ title: '请先生成推广码', icon: 'none' }); return; }
-    const path = landingPath(card.code, pathType, this.data.user.userId);
-    this.setData({ linkModal: true, linkText: path, linkGenerating: false });
+
+    const miniPath = landingPath(card.code, pathType, this.data.user.userId);
+    const webUrl   = landingWebUrl(card.code, pathType, this.data.user.userId,
+                                    this.data.myTenantCode);
+
+    this.setData({
+      linkModal: true,
+      linkMode: 'web',
+      linkWebUrl: webUrl || '(未配置 Web 域名)',
+      linkMiniPath: miniPath
+    });
+  },
+  switchLinkMode(e) {
+    const mode = e.currentTarget.dataset.mode;
+    if (mode === this.data.linkMode) return;
+    this.setData({ linkMode: mode });
   },
   copyLink() {
-    if (!this.data.linkText) return;
-    wx.setClipboardData({
-      data: this.data.linkText,
-      success: () => wx.showToast({ title: '已复制', icon: 'none' })
-    });
+    const text = this.data.linkMode === 'web' ? this.data.linkWebUrl : this.data.linkMiniPath;
+    if (!text || text.startsWith('(未配置')) {
+      wx.showToast({ title: '内容为空', icon: 'none' }); return;
+    }
+    wx.setClipboardData({ data: text, success: () => wx.showToast({ title: '已复制', icon: 'none' }) });
   },
   closeLink() { this.setData({ linkModal: false }); },
 

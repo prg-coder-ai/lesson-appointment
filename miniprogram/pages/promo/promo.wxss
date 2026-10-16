@@ -45,7 +45,15 @@
 .modal-btns { display: flex; gap: 16rpx; margin-top: 28rpx; }
 .mbtn { flex: 1; text-align: center; font-size: 28rpx; color: #5a6478; background: #f0f2f5; border-radius: 12rpx; padding: 18rpx 0; }
 .mbtn.primary { background: #1677ff; color: #fff; }
-.link-box { margin-top: 24rpx; background: #f7f8fc; border-radius: 12rpx; padding: 20rpx; font-size: 24rpx; color: #1f2a44; line-height: 1.6; word-break: break-all; max-height: 240rpx; overflow-y: auto; }
+.link-box { margin-top: 16rpx; background: #f7f8fc; border-radius: 12rpx; padding: 20rpx; font-size: 24rpx; color: #1f2a44; line-height: 1.6; word-break: break-all; max-height: 240rpx; overflow-y: auto; }
+
+/* Tab 切换 */
+.tab-bar { display: flex; margin-top: 20rpx; background: #f0f2f5; border-radius: 12rpx; padding: 6rpx; gap: 6rpx; }
+.tab { flex: 1; text-align: center; font-size: 24rpx; color: #8a93a6; padding: 14rpx 0; border-radius: 10rpx; transition: all .18s; }
+.tab.active { background: #fff; color: #1677ff; font-weight: 600; box-shadow: 0 2rpx 8rpx rgba(0,0,0,.05); }
+
+/* 二维码弹窗底部文本预览 */
+.text-preview { margin-top: 16rpx; background: #f7f8fc; border-radius: 12rpx; padding: 16rpx 20rpx; font-size: 22rpx; color: #5a6478; line-height: 1.5; word-break: break-all; max-height: 140rpx; overflow-y: auto; text-align: center; }
 
 /* 离屏画布：旧版 canvas（canvas-id）常驻页面但不进入视口 */
 .qr-canvas-hidden { position: fixed; left: -3000rpx; top: 0; width: 240px; height: 240px; }
