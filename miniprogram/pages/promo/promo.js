@@ -5,14 +5,17 @@
 //   · 业绩汇总 8 项（点击/注册/审批/缴费/新租户/微信注册/转化率/累计奖励）
 //   · 转化明细（分页，契约 PageResult.rows——不是 IPage 的 records）
 //
-// 与 Web 端的差异（本次需求核心）：Web 端分享的是 http://<ip>/login.html?ref= 链接，
-// 小程序端改为「小程序码 + 小程序链接 + 转发」三件套，目标统一指向邀请落地页
+// 与 Web 端的差异：Web 端分享的是 http://<ip>/login.html?ref= 链接，
+// 小程序端改为「二维码 + 路径文本 + 转发」三件套，目标统一指向邀请落地页
 // /pages/promo-landing/promo-landing?ref=<code>：
-//   · 小程序码：wx.createCanvasQRCode 在隐藏 canvas 绘制 → canvasToTempFilePath
-//     导出临时图 → 弹窗展示 / 保存到相册（纯前端，无后端依赖）
-//   · 小程序链接：wx.generateShortLink 生成 URL Link → 复制发给好友
+//   · 二维码：引入 weapp-qrcode（utils/weapp-qrcode.js）在 canvas 上绘制
+//     推广路径文本 → wx.canvasToTempFilePath 导出临时图 → 弹窗展示 / 保存相册
+//   · 路径文本：直接展示 + 复制（wx.createShortLink 需要后端配合，暂时降级为路径）
 //   · 转发：onShareAppMessage 带 ref/inviter 的分享卡片
-// 两个微信 API 的可用性均做存在性检测与失败降级（基础库版本以官方文档为准）。
+//
+// weapp-qrcode 来源：https://gitee.com/nur/weapp-qrcode （MIT，基于 davidshimjs/qrcodejs）
+
+var QRCode = require('../../utils/weapp-qrcode.js');
 
 import { requireAuth } from '../../core/auth.js';
 import { request } from '../../core/request.js';
@@ -174,35 +177,41 @@ Page({
     });
   },
 
-  // —— 小程序码：隐藏 canvas 绘制 → 导出临时图 → 弹窗展示 ——
+  // —— 二维码：weapp-qrcode 在隐藏 canvas 绘制 → 导出临时图 → 弹窗展示 ——
   showQr(e) {
     const pathType = Number(e.currentTarget.dataset.pt) || 1;
     const card = this.data.codeCards.find((c) => c.pathType === pathType);
     if (!card || !card.code) { wx.showToast({ title: '请先生成推广码', icon: 'none' }); return; }
-    if (typeof wx.createCanvasQRCode !== 'function') {
-      wx.showToast({ title: '当前微信版本不支持小程序码，请升级微信或使用转发', icon: 'none' });
-      return;
-    }
+
+    const path = landingPath(card.code, pathType, this.data.user.userId);
     this.setData({ qrModal: true, qrImage: '', qrLoading: true, qrTitle: card.title });
-    wx.createCanvasQRCode({
-      canvasId: 'promo-qr-canvas',
-      path: landingPath(card.code, pathType, this.data.user.userId),
-      width: 240,
-      success: () => {
-        wx.canvasToTempFilePath({
-          canvasId: 'promo-qr-canvas',
-          success: (res) => this.setData({ qrImage: res.tempFilePath, qrLoading: false }),
-          fail: () => {
+
+    // 微信原生没有 wx.createCanvasQRCode —— 引入的 weapp-qrcode.js 用 QRCode 构造函数
+    // canvas 已在 wxml 底部常驻（避免弹窗开关时序导致 canvasId 找不到）
+    try {
+      new QRCode('promo-qr-canvas', {
+        text: path,
+        width: 240,
+        height: 240,
+        padding: 0,
+        correctLevel: QRCode.CorrectLevel.M,
+        colorDark: '#000000',
+        colorLight: '#ffffff',
+        callback: (res) => {
+          // res.path = wx.canvasToTempFilePath 生成的临时图片路径
+          if (res && res.path) {
+            this.setData({ qrImage: res.path, qrLoading: false });
+          } else {
             this.setData({ qrLoading: false });
             wx.showToast({ title: '二维码导出失败', icon: 'none' });
           }
-        });
-      },
-      fail: () => {
-        this.setData({ qrLoading: false });
-        wx.showToast({ title: '小程序码生成失败，请重试', icon: 'none' });
-      }
-    });
+        }
+      });
+    } catch (err) {
+      console.error('[promo] QRCode draw failed:', err);
+      this.setData({ qrLoading: false });
+      wx.showToast({ title: '二维码生成失败，请重试', icon: 'none' });
+    }
   },
   saveQr() {
     if (!this.data.qrImage) return;
@@ -226,27 +235,15 @@ Page({
   },
   closeQr() { this.setData({ qrModal: false }); },
 
-  // —— 小程序链接（URL Link）：生成后复制；API 缺失/失败时降级为路径文本 + 转发引导 ——
+  // —— 小程序路径文本（供手动输入 / 转发引导）——
+  // 注：wx.createShortLink（URL Link）虽存在，但需要后端配合或开启业务域名，
+  // 当前降级为直接展示路径文本 + 复制按钮；后端补上 /link 生成接口后再升级。
   genLink(e) {
     const pathType = Number(e.currentTarget.dataset.pt) || 1;
     const card = this.data.codeCards.find((c) => c.pathType === pathType);
     if (!card || !card.code) { wx.showToast({ title: '请先生成推广码', icon: 'none' }); return; }
     const path = landingPath(card.code, pathType, this.data.user.userId);
-    this.setData({ linkModal: true, linkText: '', linkGenerating: true });
-    if (typeof wx.generateShortLink !== 'function') {
-      this.setData({ linkGenerating: false, linkText: '【当前微信版本不支持小程序链接，可复制下方路径或改用「转发」】\n' + path });
-      return;
-    }
-    const query = path.indexOf('?') >= 0 ? path.slice(path.indexOf('?') + 1) : '';
-    wx.generateShortLink({
-      path: '/pages/promo-landing/promo-landing',
-      query: query,
-      success: (res) => this.setData({ linkGenerating: false, linkText: res.link || '' }),
-      fail: () => this.setData({
-        linkGenerating: false,
-        linkText: '【小程序链接生成失败，可复制下方路径或改用「转发」】\n' + path
-      })
-    });
+    this.setData({ linkModal: true, linkText: path, linkGenerating: false });
   },
   copyLink() {
     if (!this.data.linkText) return;
