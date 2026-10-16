@@ -17,9 +17,6 @@ const TENANT_GROUPS = [
   { title: '系统概览', items: [
     { text: '数据总览', page: '/package-admin/dashboard/dashboard' }
   ] },
-  { title: '租户与套餐', items: [
-    { text: '租户信息', page: '/package-admin/tenant-info/tenant-info' }
-  ] },
   { title: { t: 'course', s: '管理' }, items: [
     { text: { t: 'course', s: '模板' }, page: '/package-admin/course-template/course-template' },
     { text: { t: 'course', s: '列表' }, page: '/package-admin/course-list/course-list' }
@@ -37,7 +34,8 @@ const TENANT_GROUPS = [
   ] },
   { title: '消息中心', items: [
     { text: '消息中心', page: '/package-message/inbox/inbox' },
-    { text: '消息管理', page: '/package-message/inbox/inbox?folder=manage' }
+    { text: '消息管理', page: '/package-message/inbox/inbox?folder=manage' },
+    { text: '租户与套餐', page: '/package-admin/tenant-info/tenant-info' }
   ] },
   { title: '系统维护', items: [
     { text: '数据维护', page: '/package-admin/data-maintain/data-maintain' },
