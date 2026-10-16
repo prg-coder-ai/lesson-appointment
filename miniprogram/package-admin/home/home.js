@@ -20,8 +20,9 @@ const TENANT_GROUPS = [
   { title: '租户与套餐', items: [
     { text: '租户信息', page: '/package-admin/tenant-info/tenant-info' }
   ] },
-  { title: '推广', items: [
-    { text: '推广统计', page: '/package-admin/promo-stats/promo-stats' }
+  { title: { t: 'course', s: '管理' }, items: [
+    { text: { t: 'course', s: '模板' }, page: '/package-admin/course-template/course-template' },
+    { text: { t: 'course', s: '列表' }, page: '/package-admin/course-list/course-list' }
   ] },
   { title: '排期与预订', items: [
     { text: { t: 'course', s: '排期' }, page: '/package-admin/schedule/schedule' },
@@ -36,16 +37,12 @@ const TENANT_GROUPS = [
   ] },
   { title: '消息中心', items: [
     { text: '消息中心', page: '/package-message/inbox/inbox' },
-    { text: '消息管理', page: '/package-message/inbox/inbox?folder=manage' },
-    { text: '敏感词管理', page: '/package-admin/sensitive/sensitive' }
-  ] },
-  { title: { t: 'course', s: '管理' }, items: [
-    { text: { t: 'course', s: '模板' }, page: '/package-admin/course-template/course-template' },
-    { text: { t: 'course', s: '列表' }, page: '/package-admin/course-list/course-list' }
+    { text: '消息管理', page: '/package-message/inbox/inbox?folder=manage' }
   ] },
   { title: '系统维护', items: [
     { text: '数据维护', page: '/package-admin/data-maintain/data-maintain' },
-    { text: '审计日志', page: '/package-admin/audit-log/audit-log' }
+    { text: '审计日志', page: '/package-admin/audit-log/audit-log' },
+    { text: '推广统计', page: '/package-admin/promo-stats/promo-stats' }
   ] }
 ];
 
