@@ -331,7 +331,7 @@ function generatePublishHtml(mode, opts) {
   const data = originalData || {};
   const fset = new Set(fields.map(f => f.key));
 
-  const getPhotoSrc = () => (data.personalPhotoBase64 || data.personalPhotoUrl || '');
+  const getPhotoSrc = () => (data.personalPhotoUrl || data.personalPhotoBase64 || '');
 
   // 取查看区里勾了「优先推荐」的第一行 scheduleId，作为对外直达预约链接。
   // 先把 DOM 上的勾选同步回 data（勾选是发布时的真值来源），再统一解析，
@@ -361,7 +361,7 @@ function generatePublishHtml(mode, opts) {
     if (f.key === 'certificates') {
       if (!data.certificates || !data.certificates.length) return '';
       const imgs = data.certificates.map(c => {
-        const src = c.certBase64 || c.certUrl || '';
+        const src = c.certUrl || c.certBase64 || '';
         if (!src) return '';
         return `<figure style="display:inline-block;margin:6px;text-align:center;">
           <img src="${escapeAttr(src)}" alt="${escapeAttr(c.certName || '')}"

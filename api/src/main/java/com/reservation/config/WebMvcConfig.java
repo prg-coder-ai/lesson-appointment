@@ -63,6 +63,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
             "/system/info", "/api/v1/system/info", "/apiInfo", "/api/v1/apiInfo",
             // 协议/隐私政策公开阅读端点（免登录/无租户上下文，第四同步点：与 SecurityConfig/JwtFilter/PERMIT_ALL 同步）
             "/api/v1/legal/doc", "/legal/doc",
+            // 教师已上传图片公开伺服（免登录/无租户上下文，第四同步点：与 SecurityConfig/JwtFilter/PERMIT_ALL 同步，
+            // 双路径形态；GET /api/v1/teacher/professional/file/** 与裸 /teacher/professional/file/**）
+            "/api/v1/teacher/professional/file/**", "/teacher/professional/file/**",
             "/js/**", "/css/**", "/images/**", "/favicon.ico",
             "/error"
     };

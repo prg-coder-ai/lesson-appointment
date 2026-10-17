@@ -321,6 +321,8 @@ public final class AuthzRules {
         r.add(new Rule(HttpMethod.POST, "/api/v1/teacher/professional/deleteTeacherProfessionalInfo", TEACHER_OR_ADMIN, "新增：同上"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/teacher/professional/queryTeacherProfessionalInfo", ALL_ROLES, "新增：只读（学生浏览教师资料）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/teacher/professional/listByPage", ALL_ROLES, "新增：只读（学生浏览教师资料）"));
+        // 教师图片上传（头像/证书）：本人或管理员可上传，返回可访问 URL；需登录
+        r.add(new Rule(HttpMethod.POST, "/api/v1/teacher/professional/upload", TEACHER_OR_ADMIN, "新增：教师图片上传（返回 URL，需登录）"));
 
         // ==================== 五、全部已登录角色 ====================
         // 业务读接口或"改自己的数据"接口：任何登录角色都可用。

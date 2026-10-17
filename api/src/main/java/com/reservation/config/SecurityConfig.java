@@ -176,6 +176,14 @@ public class SecurityConfig {
                     // 协议/隐私政策公开阅读端点（免登录，与 JwtFilter.WHITELIST_PATHS/守卫 PERMIT_ALL 同步）
                     auth.requestMatchers("/api/v1/legal/doc").permitAll();
 
+                    // 教师已上传图片公开伺服（免登录，匿名学生浏览发布页也要看得到）。
+                    // 与 JwtFilter.WHITELIST_PREFIXES / WebMvcConfig.EXCLUDE_PATTERNS /
+                    // 守卫 PERMIT_ALL 四处同步；双路径形态（/api/v1 前缀 + 裸路径）。
+                    auth.requestMatchers(
+                            "/api/v1/teacher/professional/file/**",
+                            "/teacher/professional/file/**"
+                    ).permitAll();
+
                     // ===== Actuator 探针（2026-10-09 接入，匿名可访问）=====
                     // ⚠️ 两处必须同步改，漏一处症状不同但都探针不通：
                     //   · 这里 permitAll 但 JwtAuthenticationFilter 没跳→过滤器清空 SecurityContext → 401

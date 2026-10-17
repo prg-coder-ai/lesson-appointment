@@ -103,14 +103,25 @@ for (const r of rules) {
 }
 
 // ---------------------------------------------------------------- 2. 解析 Controller 端点
-/** 去掉 // 与 /* *\/ 注释，但保留行数（用等长空格替换，不过滤换行） */
+/** 去掉行注释与块注释，但保留行数（用等长空格替换，不过滤换行）。
+ *  关键点（2026-10-15 修正）：必须跟踪双引号字符串字面量。否则路径里出现的
+ *  "/file/星星" 形式（斜杠+星号+星号）会被误判为块注释起点，
+ *  导致该行及之后内容被吞掉、端点漏扫。
+ *  仅在非字符串、非注释态才识别注释符号；字符串内的注释符号一概按普通字符保留。 */
 function maskComments(src) {
   let out = '';
   let inLine = false;
   let inBlock = false;
+  let inString = false;
   for (let i = 0; i < src.length; i++) {
     const c = src[i];
     const c2 = src.substr(i, 2);
+    if (inString) {
+      out += c;
+      // 遇未转义的双引号则结束字符串（转义 \" 不结束）
+      if (c === '"' && (i === 0 || src[i - 1] !== '\\')) inString = false;
+      continue;
+    }
     if (inLine) {
       if (c === '\n') { inLine = false; out += c; } else { out += ' '; }
       continue;
@@ -121,6 +132,7 @@ function maskComments(src) {
     }
     if (c2 === '//') { inLine = true; out += '  '; i++; continue; }
     if (c2 === '/*') { inBlock = true; out += '  '; i++; continue; }
+    if (c === '"') { inString = true; out += c; continue; }
     out += c;
   }
   return out;
@@ -196,6 +208,9 @@ const PERMIT_ALL = [
   '/api/v1/industry/options',
   // 协议/隐私政策公开阅读端点（2026-10-14）：匿名读取当前生效版本，与 SecurityConfig/JwtFilter/EXCLUDE_PATTERNS 同步。
   '/api/v1/legal/doc',
+  // 教师已上传图片公开伺服（2026-10-15）：匿名读取教师头像/证书，供发布页/编辑页展示。
+  // 四处白名单双形态已同步：SecurityConfig / JwtFilter / WebMvcConfig / 本清单（GET /file/**）。
+  '/api/v1/teacher/professional/file/**',
 ];
 const isPermitAll = (p) => PERMIT_ALL.includes(p);
 

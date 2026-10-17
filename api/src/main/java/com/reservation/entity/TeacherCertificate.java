@@ -34,10 +34,9 @@ public class TeacherCertificate implements Serializable {
     private String certUrl;
 
     /** 证书图片Base64（兼容）
-     * 加 select=false：mediumtext 大字段，同 teacher_professional.personalPhotoBase64，
-     * 某些教师传多张大图时整批拉取会导致查询超时。SELECT 默认不拉此列；
-     * INSERT/UPDATE 不受影响。 */
-    @TableField(select = false)
+     * mediumtext 大字段。原 select=false 导致详情查询读不到证书图 → "保存后看不到"。
+     * 现改为可回读：TeacherCertificateMapper.listByTeacherId 显式带上 cert_base64，
+     * 且仅在单条详情查询调用（不走列表），单教师证书数量有限，量可控。 */
     private String certBase64;
 
     /** 排序号，小在前 */

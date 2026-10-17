@@ -467,9 +467,33 @@ const IMG_LIMITS = {
 };
 
 /**
- * 通用：选择图片文件 → 自动压缩 → 写入隐藏字段 + 更新预览 <img>
+ * 上传教师图片到服务器，返回可访问 URL。
+ * 走 POST /teacher/professional/upload（需登录，TEACHER_OR_ADMIN），
+ * 成功返回 { fileUrl, fileName }。任何失败（网络/鉴权/业务错误）都 throw，交由调用方降级。
  */
-async function handlePhotoSelect(fileInput, previewImgId, base64InputId) {
+async function uploadTeacherImage(file, fileType, teacherId) {
+  if (typeof window.request !== 'function') throw new Error('request 未就绪');
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('fileType', fileType);
+  if (teacherId) fd.append('teacherId', teacherId);
+  // 上传失败不要弹通用错误（我们要静默降级到 base64），故关掉 customErrorMsg
+  const data = await window.request({
+    url: '/teacher/professional/upload',
+    method: 'post',
+    data: fd,
+    customErrorMsg: false,
+    customLoading: false
+  });
+  if (data && data.fileUrl) return data.fileUrl;
+  throw new Error('上传未返回 fileUrl');
+}
+
+/**
+ * 通用：选择图片文件 → 优先上传到服务器拿 URL（短串、不写大字段）→ 失败再本地压缩 base64 兜底。
+ * 参数新增 urlInputId / fileType：URL 模式下写入 URL 输入框并清空 base64，避免新旧并存导致显示错位。
+ */
+async function handlePhotoSelect(fileInput, previewImgId, base64InputId, urlInputId, fileType) {
   const file = fileInput.files && fileInput.files[0];
   if (!file) return;
   if (!file.type.startsWith('image/')) { alert('请选择图片文件'); fileInput.value = ''; return; }
@@ -481,6 +505,26 @@ async function handlePhotoSelect(fileInput, previewImgId, base64InputId) {
     return;
   }
 
+  const urlInput = urlInputId ? document.getElementById(urlInputId) : null;
+  const base64Input = base64InputId ? document.getElementById(base64InputId) : null;
+  const previewImg = previewImgId ? document.getElementById(previewImgId) : null;
+
+  // —— 优先：上传到服务器，返回短 URL ——
+  try {
+    const tid = (typeof currentTeacherId !== 'undefined' && currentTeacherId) ? currentTeacherId : '';
+    const fileUrl = await uploadTeacherImage(file, fileType || 'photo', tid);
+    if (urlInput) urlInput.value = fileUrl;
+    if (base64Input) base64Input.value = '';   // URL 模式不再带 base64，避免双写
+    if (previewImg) { previewImg.src = fileUrl; previewImg.style.display = ''; }
+    const placeholder = previewImg && previewImg.parentElement && previewImg.parentElement.querySelector('.photo-placeholder');
+    if (placeholder) placeholder.style.display = 'none';
+    console.info('[图片] 已上传到服务器，URL=' + fileUrl);
+    return;
+  } catch (upErr) {
+    console.warn('[图片] 服务端上传失败，降级为本地压缩 base64：', upErr && upErr.message ? upErr.message : upErr);
+  }
+
+  // —— 降级：本地压缩 → base64 ——
   const cfg = IMG_LIMITS.avatar;
   const base64 = await compressImage(file, cfg.maxBytes, cfg.maxSide);
   if (!base64) {
@@ -489,26 +533,24 @@ async function handlePhotoSelect(fileInput, previewImgId, base64InputId) {
     return;
   }
   const kb = Math.round((base64.length * 3 / 4) / 1024); // base64 → 原始字节
-  console.info('[图片] 头像压缩后约 ' + kb + 'KB');
+  console.info('[图片] 头像压缩后约 ' + kb + 'KB（base64 兜底）');
 
-  const base64Input = document.getElementById(base64InputId);
   if (base64Input) base64Input.value = base64;
-  const previewImg = document.getElementById(previewImgId);
-  if (previewImg) {
-    previewImg.src = base64;
-    previewImg.style.display = '';
-  }
+  if (urlInput) urlInput.value = '';           // base64 模式清空 URL，让新 base64 生效
+  if (previewImg) { previewImg.src = base64; previewImg.style.display = ''; }
   const placeholder = previewImg && previewImg.parentElement && previewImg.parentElement.querySelector('.photo-placeholder');
   if (placeholder) placeholder.style.display = 'none';
 }
 
 /**
- * 证书行内选择图片：定位到同行 .cert-base64 + .cert-thumb-img，自动压缩
+ * 证书行内选择图片：优先上传到服务器拿 URL，失败再本地压缩 base64 兜底。
+ * 同行内含 .cert-url / .cert-base64 / .cert-thumb-img。
  */
 async function handleCertPhotoSelect(fileInput) {
   const row = fileInput.closest('.cert-row');
   if (!row) return;
   const base64Input = row.querySelector('.cert-base64');
+  const urlInput = row.querySelector('.cert-url');
   const previewImg = row.querySelector('.cert-thumb-img');
   const file = fileInput.files && fileInput.files[0];
   if (!file) return;
@@ -520,6 +562,23 @@ async function handleCertPhotoSelect(fileInput) {
     return;
   }
 
+  // —— 优先：上传到服务器，返回短 URL ——
+  try {
+    const tid = (typeof currentTeacherId !== 'undefined' && currentTeacherId) ? currentTeacherId : '';
+    const fileUrl = await uploadTeacherImage(file, 'cert', tid);
+    if (urlInput) urlInput.value = fileUrl;
+    if (base64Input) base64Input.value = '';   // URL 模式不再带 base64
+    if (previewImg) { previewImg.src = fileUrl; previewImg.style.display = ''; }
+    const thumb = row.querySelector('.cert-thumb');
+    const placeholder = thumb && thumb.querySelector('.photo-placeholder');
+    if (placeholder) placeholder.style.display = 'none';
+    console.info('[图片] 证书已上传到服务器，URL=' + fileUrl);
+    return;
+  } catch (upErr) {
+    console.warn('[图片] 证书服务端上传失败，降级为本地压缩 base64：', upErr && upErr.message ? upErr.message : upErr);
+  }
+
+  // —— 降级：本地压缩 → base64 ——
   const cfg = IMG_LIMITS.cert;
   const base64 = await compressImage(file, cfg.maxBytes, cfg.maxSide);
   if (!base64) {
@@ -528,13 +587,11 @@ async function handleCertPhotoSelect(fileInput) {
     return;
   }
   const kb = Math.round((base64.length * 3 / 4) / 1024);
-  console.info('[图片] 证书压缩后约 ' + kb + 'KB');
+  console.info('[图片] 证书压缩后约 ' + kb + 'KB（base64 兜底）');
 
   if (base64Input) base64Input.value = base64;
-  if (previewImg) {
-    previewImg.src = base64;
-    previewImg.style.display = '';
-  }
+  if (urlInput) urlInput.value = '';           // base64 模式清空 URL，让新 base64 生效
+  if (previewImg) { previewImg.src = base64; previewImg.style.display = ''; }
   const thumb = row.querySelector('.cert-thumb');
   const placeholder = thumb && thumb.querySelector('.photo-placeholder');
   if (placeholder) placeholder.style.display = 'none';

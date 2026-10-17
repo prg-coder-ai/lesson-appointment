@@ -34,11 +34,10 @@ public class TeacherProfessional implements Serializable {
     private String personalPhotoUrl;
 
     /** 个人照片Base64（与URL二选一，兼容老qualification方式）
-     * 加 select=false：mediumtext 字段理论最大 16MB，某些教师曾上传过大图后，
-     * selectById / selectOne 会把整列拉进内存 → 网络传输 + JSON 序列化爆炸，
-     * 表现为"有的教师查询超时、有的正常"。SELECT 默认不拉此列；
-     * INSERT/UPDATE 不受影响，写操作仍正常写入（前端保存时显式传递）。 */
-    @TableField(select = false)
+     * mediumtext 字段理论最大 16MB。原设计曾加 select=false 避免大字段被列表查询拉爆，
+     * 但副作用是详情/编辑回填也读不到 → 图片"保存后看不到"。
+     * 现改为可回读：列表查询走 TeacherProfessionalMapper.xml 显式列清单（不含本列），
+     * 仅单条详情 selectById / 编辑回填会带上本列，单条数据量可控，不会拖垮列表。 */
     private String personalPhotoBase64;
 
     /** 文字说明（教师简介） */

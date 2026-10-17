@@ -87,7 +87,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     /** 免认证的 Actuator 前缀（需与 WHITELIST_PATHS 分开：这里走 startsWith） */
     private static final java.util.List<String> WHITELIST_PREFIXES = java.util.List.of(
-            "/actuator/health"
+            "/actuator/health",
+            // 教师已上传图片公开伺服：GET /api/v1/teacher/professional/file/** 免登录访问，
+            // 与 SecurityConfig permitAll / WebMvcConfig EXCLUDE_PATTERNS / 守卫 PERMIT_ALL 四处同步。
+            "/api/v1/teacher/professional/file"
     );
 
     /** 静态资源前缀 */
