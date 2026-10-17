@@ -253,15 +253,21 @@
       if (!modal) modal = createAddUserModal();
       modal.style.display = 'flex';
       const isTeacher = currentUserRole === 'teacher';
-      //用term替换教师/学生
-        let roleName = isTeacher ? '<span data-term="teacher">教师</span>' : '<span data-term="student">学生</span>';
-      document.getElementById('addUserModalTitle').innerHTML = '添加' + roleName;
+      // 角色显示词取「纯文本」：input 的 value 是属性上下文，塞不了 HTML 标签。
+      // 原写法把 '<span data-term="teacher">教师</span>' 直接放进 value="..."，
+      // 标签里的内层双引号会提前截断属性，浏览器把标签当成值渲染 → 只读框里显示一串 XML。
+      // 又：弹窗挂在 document.body，列表处那次 applyTerms 覆盖不到它，
+      // 故这里与 applyTerms 同源同优先级的 termText() 取词，标题与输入框才不会各说各话。
+      const roleText = (typeof termText === 'function')
+        ? (isTeacher ? termText('teacher') : termText('student'))
+        : (isTeacher ? '教师' : '学生');
+      document.getElementById('addUserModalTitle').textContent = '添加' + roleText;
       const fc = document.getElementById('addUserModalFormContainer');
     
       fc.innerHTML = `
         <form id="addUserForm" class="form-item">
           <input type="hidden" name="role" value="${currentUserRole}">
-          <div class="form-line"><label>角色</label><input value="${roleName}" readonly></div>
+          <div class="form-line"><label>角色</label><input value="${escapeAttr(roleText)}" readonly></div>
           <div class="form-line"><label>账号</label><input name="account" placeholder="登录账号（租户内唯一）" required></div>
           <div class="form-line"><label>姓名</label><input name="name" placeholder="用户姓名"></div>
           <div class="form-line"><label>手机号</label><input name="phone" placeholder="手机号（与邮箱至少填一项）"></div>
@@ -344,9 +350,13 @@
       let modal = document.getElementById('editUserModal');
       if (!modal) modal = createEditUserModal();
       modal.style.display = 'flex';
-  let roleName = isTeacher ? '<span data-term="teacher">教师</span>' : '<span data-term="student">学生</span>';
-      document.getElementById('editUserModalTitle').innerHTML =
-        '编辑' + roleName + '信息';
+      // 与添加弹窗一致：动态文案走 termText() 取纯文本（弹窗在 body 上，
+      // applyTerms 覆盖不到），避免标题与输入框显示不一致。
+      const roleText = (typeof termText === 'function')
+        ? (isTeacher ? termText('teacher') : termText('student'))
+        : (isTeacher ? '教师' : '学生');
+      document.getElementById('editUserModalTitle').textContent =
+        '编辑' + roleText + '信息';
 
       const status = user.status || 'pending';
       document.getElementById('editUserModalFormContainer').innerHTML = `
