@@ -47,10 +47,20 @@ public class Result<T> {
     /**
      * 允许的 code 白名单。200=成功；其余为失败码，取 HTTP 语义以便统一映射 HTTP 状态。
      * 1001 为微信登录专用业务码（登录已屏蔽，保留以免改动历史分支）。
+     * 1002 为「需要人机验证」业务码（2026-10-22 P0 新增，登录风控频率闸使用）。
+     *
+     * <p><b>1002 为什么不进 ResultHttpStatusAdvice 的映射表</b>：那张表刻意只映射
+     * 400/404/409/500（方案 A）。1002 走 default 分支 → **HTTP 200 + body.code=1002**，
+     * 与 1001 的静默降级姿态一致；前端 aixos 不会把它当 HTTP 错误，
+     * 两条 request 封装都由 body.code 分支处理，改造面最小。
+     * 若改成真 429，前端 axios 与小程序两条拦截器都要加分支，收益不抵成本。
      */
     private static final java.util.Set<Integer> ALLOWED_CODES =
             java.util.Collections.unmodifiableSet(new java.util.HashSet<>(java.util.Arrays.asList(
-                    200, 400, 401, 403, 404, 405, 409, 500, 1001)));
+                    200, 400, 401, 403, 404, 405, 409, 500, 1001, 1002)));
+
+    /** 需要人机验证（与前端 shared/domain/errorCode.js 的 RESULT_NEED_CHALLENGE 对齐）。 */
+    public static final int CODE_NEED_CHALLENGE = 1002;
 
     /** 判断某个 code 是否在白名单内（供守卫与断言复用）。 */
     public static boolean isAllowedCode(int code) {
@@ -81,6 +91,22 @@ public class Result<T> {
         Result<T> r = new Result<>();
         r.setCode(401);
         r.setMessage(msg);
+        return r;
+    }
+
+    /**
+     * 失败返回，且携带业务数据（2026-10-22 P0 新增）。
+     *
+     * <p>为什么需要它：{@code fail(code, message)} 只设 code 与 message，
+     * 而「需要人机验证」必须在失败响应的 {@code data} 里带 {@code challengeId} 与拼图素材，
+     * 否则前端没有任何东西可渲染。此前没有任何"失败 + 带数据"的出口，
+     * 就只能退化成 {@code success} 里塞错误码 —— 那会让两端所有按 code 聚合的统计失效。
+     *
+     * <p>仍走 {@link #fail(Integer, String)} 的白名单校验，不新增放行通道。
+     */
+    public static <T> Result<T> fail(Integer code, String message, T data) {
+        Result<T> r = fail(code, message);
+        r.setData(data);
         return r;
     }
 

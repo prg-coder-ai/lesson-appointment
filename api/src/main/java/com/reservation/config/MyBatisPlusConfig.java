@@ -59,7 +59,13 @@ public class MyBatisPlusConfig {
             // 微信 PC 扫码登录/绑定的一次性 state（2026-10-14 P2）：表结构无 tenant_id 列，
             // 生命周期只有 5 分钟（生成→确认/失败/过期即消费删除）。
             // 不排除则插件的 `tenant_id = ?` 直接撞 Unknown column（与 sys_industry 同因）。
-            "wx_login_state"
+            "wx_login_state",
+            // 登录风控三表（2026-10-22 P0）：无 tenant_id 列，且全部读写发生在**免登录端点**
+            // （/auth/login、/auth/wechat-login、/user/account/exist）——
+            // 此时 TenantContext 为空，插件会兜底拼 `tenant_id = -1`，不排除即 Unknown column。
+            // 这个坑的特殊性：只在免登录路径复现，本地带 token 测全绿、线上首登 500，
+            // 报错信息完全不像权限问题。
+            "auth_rate_counter", "auth_device", "auth_challenge"
     );
 
     @Bean

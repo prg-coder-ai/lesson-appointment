@@ -16,6 +16,7 @@ import com.reservation.mapper.UserMapper;
 import com.reservation.mapper.BookingMapper;
 import com.reservation.utils.JwtUtil;
 import com.reservation.utils.TenantContext;
+import com.reservation.utils.ClientIpResolver;
 import lombok.extern.slf4j.Slf4j;
 import com.reservation.utils.CryptoUtil;
 
@@ -70,6 +71,37 @@ public class UserService {
     // 微信 openid 关联（wx_userid 表）。user 表零改动：不再走「ALTER TABLE user 加 wx_openid 列」的老路。
     @Autowired
     private WxUseridService wxUseridService;
+
+    /**
+     * 登录失败统一文案（2026-10-22 P0.5）。
+     *
+     * <p>改造前是两套：账号不存在回 {@code 404 "账号不存在"}、密码错误回 {@code 400 "密码错误"}。
+     * 前端 {@code auth.js:181} 确实把 404 遮成了"账号或密码不正确"，但那层遮罩**只骗得过
+     * 浏览器里的用户**——攻击者直接 POST 接口看 code 是 404 还是 400，就知道账号存不存在，
+     * 零成本枚举。防护写在看得见的地方，等于没写。
+     */
+    private static final String LOGIN_FAIL_MESSAGE = "账号或密码不正确";
+
+    /**
+     * 假校验哈希：账号不存在时也跑一次 bcrypt，抹平时序差。
+     *
+     * <p>为什么必须做：统一了 code 还不够。若"账号不存在"直接 return（约 1ms），
+     * 而"密码错误"要先跑 bcrypt（约 80ms），攻击者用响应耗时就能区分两者，
+     * 枚举能力原封不动地保留了下来。这是典型的时序侧信道。
+     *
+     * <p>为什么在启动时用随机 UUID 现算、而不是硬编码一个常量串：
+     * <ul>
+     *   <li>硬编码有"恰好等于某个真实密码的哈希"的风险，且无法审计它从哪里来；</li>
+     *   <li>随便编一个格式不合法的串更糟：{@code matches()} 对非法 hashCode 会**快速返回 false**，
+     *       耗时不到 1ms，等于完全没做时序对齐，还给人"已经防了"的错觉。</li>
+     * </ul>
+     */
+    private String dummyPasswordHash;
+
+    @jakarta.annotation.PostConstruct
+    void initDummyPasswordHash() {
+        this.dummyPasswordHash = passwordEncoder.encode(UUID.randomUUID().toString());
+    }
 
     // ===================== 字段加密/解密辅助方法 =====================
     // 对 phone/email/name 字段做 AES-GCM 加密并附加 HMAC 搜索索引（复合格式 hmac:ciphertext）
@@ -337,21 +369,27 @@ public class UserService {
         log.debug("userService login：" + user);
         HashMap<String, Object> resultMap = new HashMap<>();
         if (user == null) {
-           return Result.fail(404, "账号不存在");
+            // P0.5：账号不存在时也跑一次同等代价的 bcrypt，让"不存在"与"密码错"耗时一致。
+            // 不加这一行，即便 code 统一成 400，攻击者用响应时间（1ms vs 80ms）照样能枚举。
+            safeDummyMatch(password);
+            log.warn("登录失败(账号不存在), tenantId={}, accountHmac={}", tenantId, accountHmacForLog(account));
+            return Result.fail(400, LOGIN_FAIL_MESSAGE);
         }
         // 校验账号归属：账号必须属于当前请求租户。
-        // 归属不符时返回与"账号不存在"一致的响应，避免据此枚举其他租户的账号
+        // 归属不符时返回与"账号不存在"一致的响应，避免据此枚举其他租户的账号。
+        //
+        // ★ P0.5 把"存量用户自动归属"的写操作挪到了密码校验之后（原来是先写后校验）：
+        //   否则错误密码也会触发一次 bindUserToTenant 写库，攻击者用错误密码就能把
+        //   tenant_id IS NULL 的存量账号绑到自己的租户下（等于抢号）。
+        //   调整后对正常用户行为完全一致（密码正确才绑），只是把写操作放到了"确定是本人"之后。
         Long userTenantId = user.getTenantId();
-        if (userTenantId == null) {
-            // 仅 tenant_id 为 NULL 才视为"尚未归属租户的存量用户"，首次登录自动绑定到当前请求租户。
-            // 注意：tenant_id = 0 是平台管理员（合法的特殊租户），不是未归属哨兵，绝不能在此自动重绑；
-            //       平台管理员必须用 tenantCode=platform 登录，否则在下面 else-if 中因 0 != 请求租户
-            //       被判为"账号不存在"(404)，从而无法被任何真实租户冒领。
-            bindUserToTenant(user, tenantId);
-        } else if (!userTenantId.equals(tenantId)) {
-            log.warn("跨租户登录被拒绝, account={}, 用户所属租户={}, 请求租户={}",
-                    account, userTenantId, tenantId);
-            return Result.fail(404, "账号不存在");
+        boolean needBindToTenant = (userTenantId == null);
+        if (!needBindToTenant && !userTenantId.equals(tenantId)) {
+            // 不入库、不区分文案：跨租户与"账号不存在"对客户端必须无法区分
+            safeDummyMatch(password);
+            log.warn("跨租户登录被拒绝, accountHmac={}, 用户所属租户={}, 请求租户={}",
+                    accountHmacForLog(account), userTenantId, tenantId);
+            return Result.fail(400, LOGIN_FAIL_MESSAGE);
         }
         // 解密敏感字段
         decryptUserFields(user);
@@ -359,7 +397,17 @@ public class UserService {
        // String encodedPassword = passwordEncoder.encode(password); 
        if(! passwordEncoder.matches(password,user.getPassword()))
         {
-           return Result.fail(400, "密码错误");
+           log.warn("登录失败(密码不正确), accountHmac={}, tenantId={}",
+                   accountHmacForLog(account), tenantId);
+           return Result.fail(400, LOGIN_FAIL_MESSAGE);
+        }
+        // 密码已验证通过，此时才允许写库：存量用户首次登录自动归属当前租户
+        if (needBindToTenant) {
+            // 仅 tenant_id 为 NULL 才视为"尚未归属租户的存量用户"。
+            // 注意：tenant_id = 0 是平台管理员（合法的特殊租户），不是未归属哨兵，绝不能在此自动重绑；
+            //       平台管理员必须用 tenantCode=platform 登录，否则在上面分支因 0 != 请求租户
+            //       被判为登录失败，从而无法被任何真实租户冒领。
+            bindUserToTenant(user, tenantId);
         }
         // 校验账号状态（冻结/未审核） && "teacher".equals(user.getRole())
         if ("frozen".equals(user.getStatus())) {
@@ -394,6 +442,42 @@ public class UserService {
 
       // log.debug("login ok with account：" +user.getAccount()); 
         return Result.success(resultMap   ,"登陆成功");
+    }
+
+    /**
+     * 执行一次与真实密码校验**等价代价**的 bcrypt 比对，用于抹平"账号不存在"路径的时序差。
+     *
+     * <p>返回值必然为 false，调用方不需要也不应该使用它——它的唯一作用是消耗相同的时间。
+     * 异常一律吞掉：这里已经在失败分支上，不能因为假校验出错而改变响应。
+     */
+    private void safeDummyMatch(String rawPassword) {
+        try {
+            passwordEncoder.matches(rawPassword == null ? "" : rawPassword, dummyPasswordHash);
+        } catch (Exception e) {
+            log.debug("登录失败路径的假校验异常（忽略，不影响响应）", e);
+        }
+    }
+
+    /**
+     * 日志用账号标识：盲索引前 12 位。
+     *
+     * <p><b>绝不能在日志里打明文账号</b>——它是手机号/邮箱，属个人敏感信息，
+     * 而登录失败日志恰恰是最容易被翻看、导出、贴进工单的一段。
+     * 改造前这里直接打了 {@code account} 明文（跨租户拒绝分支），P0.5 一并改掉。
+     */
+    private String accountHmacForLog(String account) {
+        if (account == null || account.isBlank()) {
+            return "-";
+        }
+        try {
+            String h = cryptoUtil.searchIndex(account.trim());
+            if (h == null || h.isEmpty()) {
+                return "-";
+            }
+            return h.length() > 12 ? h.substring(0, 12) : h;
+        } catch (Exception e) {
+            return "-";
+        }
     }
 
 
@@ -618,20 +702,16 @@ public class UserService {
 
 
     /**
-     * 取当前请求IP（会话记录用，取不到返回null不影响主流程）
+     * 取当前请求IP（会话记录用，取不到返回null不影响主流程）。
+     *
+     * <p><b>2026-10-22 P0 修正</b>：原先只读 {@code getRemoteAddr()}，部署在 nginx 之后时
+     * 记录到的是代理地址（127.0.0.1 / 内网 IP），与 {@code promo_conversion.register_ip}
+     * 走 XFF 得到的真实 IP 口径不一致 —— 同一用户在两张表里对不上，
+     * 于是"按 IP 的风控/审计"从一开始就没有可用数据。现统一委托
+     * {@link ClientIpResolver}（XFF 从右往左取、只信任可信代理跳）。
      */
     private String currentRequestIp() {
-        try {
-            org.springframework.web.context.request.ServletRequestAttributes attrs =
-                    (org.springframework.web.context.request.ServletRequestAttributes)
-                            org.springframework.web.context.request.RequestContextHolder.getRequestAttributes();
-            if (attrs == null) {
-                return null;
-            }
-            return attrs.getRequest().getRemoteAddr();
-        } catch (Exception e) {
-            return null;
-        }
+        return ClientIpResolver.resolveCurrent();
     }
 
     private String currentRequestUserAgent() {

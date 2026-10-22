@@ -14,6 +14,7 @@ import com.reservation.service.SysConfigService;
 import com.reservation.service.TenantService;
 import com.reservation.service.WeChatService;
 import com.reservation.utils.PermissionCheck;
+import com.reservation.utils.ClientIpResolver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -226,22 +227,13 @@ public class PromoController {
     /**
      * 取客户端 IP（限频计数用）。
      *
-     * <p>先看 {@code X-Forwarded-For} 再看 {@code X-Real-IP}，最后回落 remoteAddr ——
-     * 反向代理（nginx/8080 dev proxy）下 remoteAddr 全是代理地址，不取头部会限空。
+     * <p><b>2026-10-22 P0 修正</b>：原实现取 {@code X-Forwarded-For} 的**首段**。
+     * XFF 由"客户端 → 各级代理"依次追加，首段正是客户端自己写的那一段，因此
+     * {@code curl -H "X-Forwarded-For: 1.2.3.4"} 每请求换一个假头就能让 IP 闸完全失效。
+     * 现统一委托 {@link ClientIpResolver}：直连不信 XFF；来自可信代理时**从右往左**
+     * 取第一个非可信地址（最右侧才是代理亲手写入的那一跳）。
      */
     private String clientIp(HttpServletRequest request) {
-        if (request == null) {
-            return null;
-        }
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            int comma = forwarded.indexOf(',');
-            return (comma > 0 ? forwarded.substring(0, comma) : forwarded).trim();
-        }
-        String realIp = request.getHeader("X-Real-IP");
-        if (realIp != null && !realIp.isBlank()) {
-            return realIp.trim();
-        }
-        return request.getRemoteAddr();
+        return ClientIpResolver.resolve(request);
     }
 }

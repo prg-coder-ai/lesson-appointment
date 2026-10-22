@@ -10,6 +10,7 @@ import com.reservation.audit.AuditAction;
 import com.reservation.dto.AttributionDTO;
 import com.reservation.service.PromoService;
 import com.reservation.service.UserService;
+import com.reservation.service.LoginGuardService;
 import com.reservation.utils.PermissionCheck;
 import com.reservation.utils.TenantContext;
 import org.springframework.validation.annotation.Validated;
@@ -35,6 +36,8 @@ public class UserController {
     private PermissionCheck permissionCheck;
     @Autowired
     private PromoService promoService;
+    @Autowired
+    private LoginGuardService loginGuardService;
 
     //TBD条件：role,所属机构 
     /**
@@ -299,12 +302,22 @@ public class UserController {
      * 查询账号（邮箱/电话）是否已存在
      * 前端调用：GET /user/account/exist?account=xxx
      * 返回 Result<Boolean>
+     *
+     * <p><b>2026-10-22 P0：加频率闸。</b>本端点是 permitAll 免登录的（四处白名单都登记了），
+     * 且它本身就返回"账号是否存在"——对任何人、无限次开放，等于一台免费账号枚举器。
+     * 配合 {@code /auth/login} 对"账号不存在/密码错误"的区分，枚举成本为零。
+     * 先上频率闸止血；彻底下线该接口（改为注册提交时报冲突）属产品决策，不在本次改动范围。
      */
     @GetMapping("/account/exist")
     @ResponseBody
-    public Result<Boolean> accountExist(@RequestParam("account") String account) {
+    public Result<Boolean> accountExist(@RequestParam("account") String account,
+                                        jakarta.servlet.http.HttpServletRequest request) {
         if (account == null || account.trim().isEmpty()) {
             return Result.fail(400, "账号不能为空");
+        }
+        GuardVerdict probe = loginGuardService.evaluateAccountProbe(request);
+        if (probe.blocked()) {
+            return Result.fail(Result.CODE_NEED_CHALLENGE, "查询过于频繁，请稍后再试");
         }
         boolean existed = userService.existAccount(account.trim(), TenantContext.getTenantId());
         return Result.success(existed, existed ? "账号已存在" : "账号可用");

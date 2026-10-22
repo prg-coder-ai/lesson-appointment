@@ -10,7 +10,9 @@ import com.reservation.dto.WeChatSession;
 
 import com.reservation.common.Result;
 import com.reservation.common.RoleConst;
+import com.reservation.common.GuardVerdict;
 import com.reservation.entity.User;
+import com.reservation.service.LoginGuardService;
 import com.reservation.service.UserService;
 import com.reservation.service.RefreshTokenService;
 import com.reservation.service.UserSessionService;
@@ -79,15 +81,28 @@ public class authController {
     private PermissionCheck permissionCheck;
     @Autowired
     private WeChatService weChatService;
+    @Autowired
+    private LoginGuardService loginGuardService;
       @PostMapping("/login")
     @Audit(action = AuditAction.USER_LOGIN, resourceType = "user")
     @ResponseBody
-    public Result  <HashMap<String, Object>>  toLogin( @Validated @RequestBody LoginDTO userdto){
+    public Result  <HashMap<String, Object>>  toLogin( @Validated @RequestBody LoginDTO userdto,
+                                                      jakarta.servlet.http.HttpServletRequest request){
              String account = userdto.getAccount();
              String password = userdto.getPassword(); 
              String tenantCode = userdto.getTenantCode();
              String role = userdto.getRole();
              Long tenantId;
+
+            // ================= 登录频率闸（2026-10-22 P0） =================
+            // 放在最前面，连"租户编码是否存在"的查询都不做——这本身就是一次 DB 往返，
+            // 被批量打时先省掉它。超限返回 code=1002（HTTP 200，不进 400/404/409/500 映射表），
+            // 前端按 body.code 分支提示"请稍后再试"，不会触发 401 刷新/踢登录链路。
+            // 两端（Web auth.js:34 / 小程序 login.js:131）共用本端点，所以这是唯一控制点。
+            GuardVerdict guard = loginGuardService.evaluate(request, account, tenantCode);
+            if (guard.blocked()) {
+                return Result.fail(Result.CODE_NEED_CHALLENGE, "操作过于频繁，请稍后再试");
+            }
 
             // 平台管理员登录：tenantCode 传固定值 "platform"，角色用 RoleConst.PLATFORM_ADMIN
         if (PLATFORM_TENANT_CODE.equals(tenantCode) && RoleConst.PLATFORM_ADMIN.equals(role)) {

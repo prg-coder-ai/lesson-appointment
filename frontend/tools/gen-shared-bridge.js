@@ -166,6 +166,10 @@ window.DatetimeDomain = {
 };
 window.ErrorCodeDomain = {
   RESULT_OK: RESULT_OK,
+  // 2026-10-22 P0：登录风控「需要人机验证」业务码（与 1001 同属非 HTTP 语义业务码）。
+  // Web 端据 resolveResult(res).type === 'challenge' 判定是否弹滑块；
+  // 未挂到 window 时该常量在 Web 端读作 undefined，调用点会静默落进 biz 分支。
+  RESULT_NEED_CHALLENGE: RESULT_NEED_CHALLENGE,
   resolveResult: resolveResult,
   resolveRequestError: resolveRequestError,
   errorMessage: errorMessage
