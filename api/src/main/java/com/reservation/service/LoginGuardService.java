@@ -1,6 +1,7 @@
 package com.reservation.service;
 
 import com.reservation.common.GuardVerdict;
+import com.reservation.entity.AuthDevice;
 import com.reservation.mapper.AuthDeviceMapper;
 import com.reservation.mapper.AuthRateCounterMapper;
 import com.reservation.utils.ClientIpResolver;
@@ -84,6 +85,14 @@ public class LoginGuardService {
     @Value("${login.guard.rate.exist.limit:30}")
     private int existLimit;
 
+    /** 是否启用人机挑战（P1）。false 时退化为纯频率闸（P0 行为），作为线上应急开关。 */
+    @Value("${login.guard.challenge.enabled:true}")
+    private boolean challengeEnabled;
+
+    /** 风险分达到该值即要求挑战。40 分的含义：至少"新设备 + 换过身份"或"新设备 + 环境异常"。 */
+    @Value("${login.guard.challenge.score-threshold:40}")
+    private int scoreThreshold;
+
     public LoginGuardService(AuthRateCounterMapper counterMapper,
                              AuthDeviceMapper deviceMapper,
                              CryptoUtil cryptoUtil) {
@@ -93,18 +102,20 @@ public class LoginGuardService {
     }
 
     /**
-     * 登录入口频率闸：多维计数后取最先生效的一维。
+     * 登录入口总闸：频率闸（P0）+ 风险评分（P1）。
      *
-     * <p>注意<b>所有维度都要计数</b>，不能在第一个维度超限时提前 return ——
-     * 否则攻击者一旦被 IP 闸拦住，账号维度的计数就停止增长，
-     * 后续换 IP 继续打时会发现账号维度"很干净"，等于自己关掉了一层防线。
+     * <p>顺序刻意是"先频率、后评分"：频率是硬事实（数了多少次就是多少次），
+     * 评分是推断。先用确定的东西下判断，评分的误判不会被频率的误判放大。
      *
-     * @param request    当前请求（用于取真实 IP）
+     * @param request    当前请求（取真实 IP）
      * @param account    登录账号（内部转 HMAC，不落明文）
-     * @param tenantCode 租户编码（可空；平台管理员为 platform）
+     * @param tenantCode 租户编码（可空）
+     * @param deviceId   端上上报的设备标识（可空；空本身也计分，见 {@link #scoreAndTouchDevice}）
+     * @param emuFlag    端上判定的环境异常（模拟器/root/hook/调试）
      * @return 判定结果，永不为 null
      */
-    public GuardVerdict evaluate(HttpServletRequest request, String account, String tenantCode) {
+    public GuardVerdict evaluate(HttpServletRequest request, String account, String tenantCode,
+                                 String deviceId, boolean emuFlag) {
         try {
             String ip = ClientIpResolver.resolve(request);
             String accountHmac = (account == null || account.isBlank()) ? null : hmac(account);
@@ -116,6 +127,9 @@ public class LoginGuardService {
                 hits.add(hit(DIM_TENANT, tenantCode.trim(), tenantLimit));
             }
 
+            // ★ 所有维度都先计数完再判：若第一个维度超限就提前 return，
+            //   攻击者被 IP 闸拦住之后账号维度的计数就停止增长，
+            //   换 IP 继续打时会发现账号维度"很干净"——等于自己关掉一层防线。
             for (GuardVerdict v : hits) {
                 if (v != null && v.needChallenge()) {
                     log.warn("登录频率闸触发, dim={}, count={}, limit={}, ip={}, accountHmac={}",
@@ -123,11 +137,94 @@ public class LoginGuardService {
                     return v;
                 }
             }
+
+            // P1：风险评分（只在挑战功能开启时参与判定）
+            if (challengeEnabled) {
+                int score = scoreAndTouchDevice(accountHmac, deviceId, ip, emuFlag);
+                if (score >= scoreThreshold) {
+                    log.warn("登录风险评分达阈, score={}, threshold={}, ip={}, deviceId={}, accountHmac={}",
+                            score, scoreThreshold, ip, deviceId, accountHmac);
+                    return GuardVerdict.risk(score);
+                }
+            }
+
             return GuardVerdict.pass("rate:ok");
         } catch (Exception e) {
             // ★ 风控故障必须放行：宁可漏一次，也不能让全站登不上
             log.warn("登录频率闸异常，降级放行（本次不做限流）", e);
             return GuardVerdict.pass("rate:degraded");
+        }
+    }
+
+    /**
+     * 兼容 P0 旧签名的入口（无设备信息）。
+     *
+     * <p>保留它是为了让"只想用频率闸"的调用点不必编造 deviceId；
+     * 但注意：走这个入口时评分里"无设备标识 +10"恒定生效，
+     * 因此新代码应尽量用带 deviceId 的重载。
+     */
+    public GuardVerdict evaluate(HttpServletRequest request, String account, String tenantCode) {
+        return evaluate(request, account, tenantCode, null, false);
+    }
+
+    /**
+     * 风险评分 + 设备建档（P1）。
+     *
+     * <h3>为什么评分而不是直接拦</h3>
+     * <p>真机农场的每一台设备、每一个身份看起来都"合法"（真微信 + 真手机），
+     * 单看任何一个请求都挑不出毛病。能挑出毛病的是**关系**：
+     * 这台设备上换过几个身份、这台设备之前属于谁。评分就是把这些关系折算成一个数。
+     *
+     * <h3>为什么阈值定在 40 且老用户恒 0 分</h3>
+     * <p>老用户（同一设备 + 同一身份）恒为 0 分直接放行——**陌生人的攻击不应该让老客户
+     * 付出体验代价**，这是体验与安全唯一的平衡点。而"新设备 + 换过身份"正好 20+40=60、
+     * "新设备 + 环境异常"20+30=50，都跨过 40，即"可疑但可能无辜"的那类才需要拖一次滑块。
+     *
+     * @return 风险分 0~100；任何异常返回 0（等价放行，且不阻塞登录）
+     */
+    public int scoreAndTouchDevice(String accountHmac, String deviceId, String ip, boolean emuFlag) {
+        try {
+            int score = 0;
+            // 没有设备标识：可能是老客户端、可能被清了缓存、也可能是脚本懒得伪装
+            if (deviceId == null || deviceId.isBlank()) {
+                score += 10;
+            } else {
+                String dev = deviceId.length() > 64 ? deviceId.substring(0, 64) : deviceId;
+                AuthDevice exist = deviceMapper.selectByDeviceId(dev);
+                if (exist == null) {
+                    score += 20;                 // 新设备
+                    AuthDevice row = new AuthDevice();
+                    row.setDeviceId(dev);
+                    row.setFirstSubject(accountHmac == null ? "" : accountHmac);
+                    row.setLastSubject(accountHmac == null ? "" : accountHmac);
+                    row.setIdentityCnt(0);
+                    row.setLastIp(ip);
+                    row.setEmuFlag(emuFlag ? 1 : 0);
+                    try {
+                        deviceMapper.insert(row);
+                    } catch (Exception dup) {
+                        // 并发下同一台新设备两条请求同时建档会撞 uk_device：
+                        // 按"已存在"再判一次，不能因为这条异常把整个登录打成 500
+                        log.debug("设备档案并发建档冲突，按已存在处理, deviceId={}", dev);
+                    }
+                } else if (accountHmac != null && !accountHmac.isBlank()
+                        && exist.getLastSubject() != null && !exist.getLastSubject().isBlank()
+                        && !exist.getLastSubject().equals(accountHmac)) {
+                    // ★ 这台设备在换身份 —— 真机农场的核心形状
+                    score += 40;
+                    deviceMapper.incrIdentity(dev, accountHmac, ip);
+                } else {
+                    // 同一身份再次登录：只刷 IP 与异常标记，不积累风险
+                    deviceMapper.touch(dev, ip, emuFlag ? 1 : 0);
+                }
+            }
+            if (emuFlag) {
+                score += 30;
+            }
+            return Math.min(score, 100);
+        } catch (Exception e) {
+            log.warn("登录风险评分异常，本次按 0 分处理（放行）", e);
+            return 0;
         }
     }
 
@@ -191,6 +288,17 @@ public class LoginGuardService {
         LocalDateTime hourStart = now.truncatedTo(ChronoUnit.HOURS);
         int offsetMinutes = (now.getMinute() / step) * step;
         return hourStart.plusMinutes(offsetMinutes);
+    }
+
+    /**
+     * 身份摘要（供挑战出题/校验绑定 subject）。与频率闸内部同一算法，
+     * 保证"同一个账号在任何地方算出的 subject 都相同"，否则挑战永远校验不过。
+     */
+    public String subjectOf(String account) {
+        if (account == null || account.isBlank()) {
+            return null;
+        }
+        return hmac(account);
     }
 
     /** 账号等身份值统一走 HMAC 盲索引，与 {@code promo_conversion.phone_hmac} 同一算法，不存明文。 */

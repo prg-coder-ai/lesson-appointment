@@ -38,6 +38,19 @@ public record GuardVerdict(Verdict verdict, String reason, String dim, long coun
         return new GuardVerdict(Verdict.CHALLENGE, "rate:" + dim, dim, count, limit);
     }
 
+    /**
+     * 风险评分触发（P1）。
+     *
+     * <p>与频率触发共用 {@code CHALLENGE} 终态——对调用方来说"要过验证"是同一件事；
+     * 但 {@code reason} 区分开（{@code score:N} vs {@code rate:dim}），
+     * 线上排查时才能回答"到底是刷太快还是设备可疑"。
+     *
+     * @param score 当前风险分（0~100）
+     */
+    public static GuardVerdict risk(int score) {
+        return new GuardVerdict(Verdict.CHALLENGE, "score:" + score, "score", score, 0);
+    }
+
     public static GuardVerdict reject(String reason) {
         return new GuardVerdict(Verdict.REJECT, reason, null, 0L, 0);
     }

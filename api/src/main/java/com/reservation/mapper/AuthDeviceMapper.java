@@ -21,20 +21,23 @@ public interface AuthDeviceMapper extends BaseMapper<AuthDevice> {
     AuthDevice selectByDeviceId(@Param("deviceId") String deviceId);
 
     /**
-     * 记录一次「该设备上出现了这个身份」。
+     * 记录一次「该设备换了身份」：{@code identity_cnt + 1} 并刷新 {@code last_subject}。
      *
-     * <p>只在身份确实是**首次出现在该设备**时调用（调用方先用 {@link #selectByDeviceId} 比对
-     * {@code first_subject}，不一致才 +1），否则正常用户每登一次就 +1，会把
-     * {@code identity_cnt} 变成"登录次数"，彻底失去"设备上出现几个身份"的语义。
+     * <p>只在"本次身份 ≠ {@code last_subject}"时调用。这样：
+     * <ul>
+     *   <li>同一账号反复登录 → 不计数（正常用户不该被积累风险分）；</li>
+     *   <li>A→B→A → 计 2 次（这正是真机农场的形状：一台设备反复换号）。</li>
+     * </ul>
      *
-     * <p>{@code first_subject} 为 NOT NULL DEFAULT ''，故新设备先写空串再由调用方补，
-     * 这里不改它——它只在建档那一刻确定，是"这台设备最初属于谁"的历史事实。
+     * <p>{@code first_subject} 只在建档那一刻写，是"这台设备最初属于谁"的历史事实，之后不再改。
      */
-    @Update("UPDATE auth_device SET identity_cnt = identity_cnt + 1, last_ip = #{lastIp}, "
-            + "update_time = NOW() WHERE device_id = #{deviceId}")
-    int incrIdentity(@Param("deviceId") String deviceId, @Param("lastIp") String lastIp);
+    @Update("UPDATE auth_device SET identity_cnt = identity_cnt + 1, last_subject = #{subject}, "
+            + "last_ip = #{lastIp}, update_time = NOW() WHERE device_id = #{deviceId}")
+    int incrIdentity(@Param("deviceId") String deviceId,
+                     @Param("subject") String subject,
+                     @Param("lastIp") String lastIp);
 
-    /** 更新最近来源 IP 与环境异常标记（每次登录都刷，不累加）。 */
+    /** 同一身份再次登录：只刷新来源 IP 与环境标记，不累加风险。 */
     @Update("UPDATE auth_device SET last_ip = #{lastIp}, emu_flag = #{emuFlag}, update_time = NOW() "
             + "WHERE device_id = #{deviceId}")
     int touch(@Param("deviceId") String deviceId,

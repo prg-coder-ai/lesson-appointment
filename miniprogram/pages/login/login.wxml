@@ -54,4 +54,9 @@
   </view>
 
   <view class="hint">登录即代表本小程序绑定该租户（tCode），可在「我的」中切换。</view>
+
+  <!-- 登录人机验证（2026-10-22 P1）：服务端返回 code=1002 时弹出。
+       题目素材来自服务端，前端不含缺口坐标（答案只在服务端）。 -->
+  <slider-captcha show="{{showCaptcha}}" challenge="{{challengeData}}"
+                  bind:done="onCaptchaDone" bind:cancel="onCaptchaCancel" />
 </view>

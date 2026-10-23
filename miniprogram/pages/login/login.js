@@ -43,7 +43,10 @@ Page(withTerms({
     boundTenantCode: '',
     isPlatformRole: false,
     agreed: false,
-    bindWechat: false
+    bindWechat: false,
+    // 登录人机验证（2026-10-22 P1）
+    showCaptcha: false,
+    challengeData: null
   },
   async onLoad(options) {
     const app = (typeof getApp === 'function') ? getApp() : null;
@@ -128,7 +131,16 @@ Page(withTerms({
     this.setData({ submitting: true });
     this._loginStarted = true;
     try {
-      const res = await login({ tenantCode: finalTenant, account, password, role });
+      // 登录风控（P1）：设备标识随请求上报，采集失败按"无标识"处理，不阻断登录
+      const dev = this.collectDevice();
+      const res = await this.doLoginWithGuard({
+        tenantCode: finalTenant,
+        account,
+        password,
+        role,
+        deviceId: dev.deviceId,
+        emuFlag: dev.emuFlag
+      });
       wx.showToast({ title: '登录成功', icon: 'success' });
       // 勾选了「允许微信登录」→ 绑定当前微信，下次即可静默登录。
       // 绑定失败不影响已成功的密码登录态（bindWechat 内部静默返回 false）。
@@ -139,9 +151,106 @@ Page(withTerms({
       recordLegalAccept();
       setTimeout(() => goHome(), 400);
     } catch (e) {
-      wx.showToast({ title: (e && e.message) || '登录失败', icon: 'none' });
+      const msg = (e && (e.bodyMsg || e.message)) || '登录失败';
+      wx.showToast({ title: msg, icon: 'none' });
     } finally {
       this.setData({ submitting: false });
     }
+  },
+
+  /**
+   * 带人机验证的登录（2026-10-22 P1）。
+   *
+   * 与服务端 code=1002 配对：收到 1002 → 弹滑块 → 带答案重试，最多再试 2 次。
+   * 为什么要限次数：答错 → 服务端重新出题 → 答错 会变成无限循环，
+   * 用户会觉得"卡死了"，还不如明确失败一次。
+   */
+  async doLoginWithGuard(base) {
+    let attempt = 0;
+    let extra = {};
+    for (;;) {
+      try {
+        return await login(Object.assign({}, base, extra));
+      } catch (e) {
+        const chData = this.challengeOf(e);
+        if (!chData || attempt >= 2) throw e;
+        attempt++;
+        const ans = await this.promptCaptcha(chData);
+        if (!ans) throw e;      // 用户取消 → 原样抛出，由 onLogin 提示
+        extra = {
+          challengeId: chData.challengeId || '',
+          moveX: ans.moveX,
+          trackPoints: ans.trackPoints,
+          costMs: ans.costMs
+        };
+      }
+    }
+  },
+
+  /** 从错误对象里识别挑战（request 层对 1002 已挂 code 与 raw）。 */
+  challengeOf(e) {
+    if (!e) return null;
+    if (e.code === 1002) return (e.raw && e.raw.data) || {};
+    if (e.raw && e.raw.code === 1002) return e.raw.data || {};
+    return null;
+  },
+
+  /** 显示滑块并等待作答；取消时 resolve(null)。 */
+  promptCaptcha(chData) {
+    return new Promise((resolve) => {
+      this._captchaResolve = resolve;
+      this.setData({ showCaptcha: true, challengeData: chData });
+    });
+  },
+
+  onCaptchaDone(e) {
+    this.setData({ showCaptcha: false });
+    const r = this._captchaResolve;
+    this._captchaResolve = null;
+    if (r) r((e && e.detail) || null);
+  },
+
+  onCaptchaCancel() {
+    this.setData({ showCaptcha: false });
+    const r = this._captchaResolve;
+    this._captchaResolve = null;
+    if (r) r(null);
+  },
+
+  /**
+   * 采集设备标识（P1 风险评分的输入）。
+   *
+   * 说明：这是**降权信号**而非唯一判据——wx.setStorageSync 可清、改机工具能伪造整组环境字段，
+   * 所以服务端只把它算进风险分（+20 新设备 / +40 该设备换过身份），不用于黑名单。
+   * 新版 API（wx.getDeviceInfo / wx.getAppBaseInfo）优先，旧基础库回退 getSystemInfoSync。
+   */
+  collectDevice() {
+    const out = { deviceId: '', emuFlag: false };
+    try {
+      let d = {};
+      let a = {};
+      if (typeof wx.getDeviceInfo === 'function') {
+        d = wx.getDeviceInfo() || {};
+      }
+      if (typeof wx.getAppBaseInfo === 'function') {
+        a = wx.getAppBaseInfo() || {};
+      }
+      if ((!d.brand && !d.model) && typeof wx.getSystemInfoSync === 'function') {
+        d = wx.getSystemInfoSync() || {};
+      }
+      const raw = [d.brand || '', d.model || '', d.system || '', d.platform || '',
+                   a.SDKVersion || '', a.language || '', d.pixelRatio || ''].join('|');
+      out.deviceId = 'm' + this.hash32(raw);
+    } catch (e) { /* 采集失败按"无设备标识"处理（服务端 +10 分），绝不阻断登录 */ }
+    return out;
+  },
+
+  /** 32 位非加密哈希：只用于"同一台设备是否同一串"，不需要抗碰撞强度。 */
+  hash32(str) {
+    let h = 5381;
+    for (let i = 0; i < str.length; i++) {
+      h = ((h << 5) + h + str.charCodeAt(i)) | 0;
+    }
+    return (h >>> 0).toString(16);
   }
 }));

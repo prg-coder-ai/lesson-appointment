@@ -13,6 +13,7 @@ import com.reservation.common.RoleConst;
 import com.reservation.common.GuardVerdict;
 import com.reservation.entity.User;
 import com.reservation.service.LoginGuardService;
+import com.reservation.service.LoginChallengeService;
 import com.reservation.service.UserService;
 import com.reservation.service.RefreshTokenService;
 import com.reservation.service.UserSessionService;
@@ -83,6 +84,8 @@ public class authController {
     private WeChatService weChatService;
     @Autowired
     private LoginGuardService loginGuardService;
+    @Autowired
+    private LoginChallengeService loginChallengeService;
       @PostMapping("/login")
     @Audit(action = AuditAction.USER_LOGIN, resourceType = "user")
     @ResponseBody
@@ -94,14 +97,36 @@ public class authController {
              String role = userdto.getRole();
              Long tenantId;
 
-            // ================= 登录频率闸（2026-10-22 P0） =================
-            // 放在最前面，连"租户编码是否存在"的查询都不做——这本身就是一次 DB 往返，
-            // 被批量打时先省掉它。超限返回 code=1002（HTTP 200，不进 400/404/409/500 映射表），
-            // 前端按 body.code 分支提示"请稍后再试"，不会触发 401 刷新/踢登录链路。
-            // 两端（Web auth.js:34 / 小程序 login.js:131）共用本端点，所以这是唯一控制点。
-            GuardVerdict guard = loginGuardService.evaluate(request, account, tenantCode);
+            // ================= 登录风控：频率闸 + 风险评分 + 人机挑战（P0/P1） =================
+            // 放在最前面，连"租户编码是否存在"的查询都不做——那本身就是一次 DB 往返，
+            // 被批量打时先省掉它。
+            //
+            // 三态处理：
+            //   ① 判定通过 → 正常登录
+            //   ② 判定要挑战，且本次带了有效挑战答案 → 视为通过（人已证明自己是人），继续登录
+            //   ③ 判定要挑战，未带或答案无效 → 下发题目，返回 code=1002（HTTP 200）
+            // 超限绝不用 403：两端拦截器都把 403 当"权限不足"，历史上踩过 403 触发刷新无限循环。
+            GuardVerdict guard = loginGuardService.evaluate(request, account, tenantCode,
+                    userdto.getDeviceId(), Boolean.TRUE.equals(userdto.getEmuFlag()));
             if (guard.blocked()) {
-                return Result.fail(Result.CODE_NEED_CHALLENGE, "操作过于频繁，请稍后再试");
+                boolean challengePassed = false;
+                if (userdto.getChallengeId() != null && !userdto.getChallengeId().isBlank()) {
+                    challengePassed = loginChallengeService.verify(
+                            userdto.getChallengeId(),
+                            loginGuardService.subjectOf(account),
+                            userdto.getMoveX(), userdto.getTrackPoints(), userdto.getCostMs());
+                }
+                if (!challengePassed) {
+                    HashMap<String, Object> challengeData =
+                            buildChallengeData(loginGuardService.subjectOf(account));
+                    if (challengeData == null) {
+                        // ★ 出题失败（图片生成/落库异常）→ 降级放行。
+                        // 要求验证却给不出题目，等于把用户永久挡在门外，比"少验一次"严重得多。
+                        log.warn("登录风控要求挑战但出题失败，本次降级放行, guard={}", guard.reason());
+                    } else {
+                        return Result.fail(Result.CODE_NEED_CHALLENGE, "请完成安全验证", challengeData);
+                    }
+                }
             }
 
             // 平台管理员登录：tenantCode 传固定值 "platform"，角色用 RoleConst.PLATFORM_ADMIN
@@ -137,6 +162,36 @@ public class authController {
         SecurityContextHolder.getContext().setAuthentication(authentication); 
         // 4. 返回登录成功结果（包含token）
         return rst;//Result.success(resultMap, "登录成功");
+    }
+
+    /**
+     * 出题并打包成前端可直接渲染的 data（2026-10-22 P1）。
+     *
+     * <p>这里刻意**不新增 {@code /auth/challenge} 出题端点**：题目直接内嵌在
+     * {@code code=1002} 的 data 里返回。
+     * 少一个免登录端点 = 少一个攻击面，也少一处"四处白名单同步"（SecurityConfig /
+     * JwtAuthenticationFilter / TenantInterceptor / check-authz），后者漏一处就是线上 401。
+     *
+     * @return 出题成功返回可下发的 data；失败返回 {@code null}，调用方必须降级放行
+     */
+    private HashMap<String, Object> buildChallengeData(String subject) {
+        com.reservation.dto.ChallengeVO vo = loginChallengeService.issueOrNull(subject, "login");
+        if (vo == null) {
+            return null;
+        }
+        HashMap<String, Object> data = new HashMap<>();
+        data.put("challengeId", vo.getChallengeId());
+        data.put("scene", vo.getScene());
+        data.put("bgImage", vo.getBgImage());
+        data.put("pieceImage", vo.getPieceImage());
+        // ★ 只给 Y：横坐标留在服务端票据里，下发就等于把答案抄给前端
+        data.put("pieceY", vo.getPieceY());
+        data.put("pieceSize", vo.getPieceSize());
+        data.put("bgWidth", vo.getBgWidth());
+        data.put("bgHeight", vo.getBgHeight());
+        data.put("expireIn", vo.getExpireIn());
+        data.put("tolerance", vo.getTolerance());
+        return data;
     }
  /**
      * 无感刷新AccessToken核心接口

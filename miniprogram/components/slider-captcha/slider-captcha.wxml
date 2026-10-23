@@ -1,0 +1,25 @@
+<!-- 登录人机验证·滑块（2026-10-22 P1）
+     与服务端 ChallengeVO 一一对应；targetX 不在下发字段里（答案只存服务端）。 -->
+<view class="sc-mask" wx:if="{{show}}" catchtouchmove="noop">
+  <view class="sc-card">
+    <view class="sc-title">安全验证</view>
+    <view class="sc-hint">拖动下方滑块，把拼图块对齐到图中缺口</view>
+
+    <view class="sc-stage" style="width:{{bgWidth}}px;height:{{bgHeight}}px">
+      <image class="sc-bg" src="{{bgImage}}" mode="scaleToFill"
+             style="width:{{bgWidth}}px;height:{{bgHeight}}px" />
+      <image class="sc-piece" src="{{pieceImage}}" mode="scaleToFill"
+             style="top:{{pieceY}}px;left:{{left}}px;width:{{pieceSize}}px;height:{{pieceSize}}px" />
+    </view>
+
+    <view class="sc-track" style="width:{{bgWidth}}px"
+          bindtouchstart="onStart" bindtouchmove="onMove" bindtouchend="onEnd" bindtouchcancel="onEnd">
+      <view class="sc-fill" style="width:{{left}}px"></view>
+      <view class="sc-thumb {{dragging ? 'sc-thumb-active' : ''}}" style="left:{{thumbLeft}}px">→</view>
+      <view class="sc-text" wx:if="{{!dragging}}">按住滑块拖动</view>
+    </view>
+
+    <view class="sc-err">{{errTip}}</view>
+    <view class="sc-cancel" bindtap="onCancel">取消</view>
+  </view>
+</view>

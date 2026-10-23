@@ -160,10 +160,14 @@
 
   async function authenticateUser(account, pwd, extraInfo) {
 
-    const loginInfo = { account: account, password: pwd ,
-      tenantCode: extraInfo && extraInfo.tenantCode,
-      role:       extraInfo && extraInfo.role
-    };
+    // 2026-10-22 P1：登录风控字段（deviceId / emuFlag / challengeId / moveX / trackPoints / costMs）
+    // 必须原样透传。这里刻意用 Object.assign 而不是逐字段白名单——
+    // 白名单在下次加风控字段时会静默丢字段（服务端收不到 → 评分恒低 → 挑战永不触发，
+    // 且两端都"看起来正常"，是最难发现的一类失效）。
+    const loginInfo = Object.assign({}, extraInfo || {}, {
+      account: account,
+      password: pwd
+    });
     try {
       const res = await login(loginInfo);
       // 后端业务失败（账号不存在 / 密码错误 / 账号冻结 / 未审核等）时，userService.login 仍用
@@ -176,7 +180,8 @@
       //console .log("authenticateUser",res);
       return saveCurrentUserSession(res);
     } catch (err) {
-      // 登录 404（账号不存在 / 密码错误）统一显示固定文案，防止账号枚举；
+      // 登录失败统一显示固定文案，防止账号枚举（P0.5 起后端已把两种失败合并成同一句，
+      // 这里的 404 分支只是给旧后端兜底，保留不会有害）。
       // 其余错误（500 等）仍透传真实原因。err 是 axios error，status 在 err.response.status。
       if (err && err.response && err.response.status === 404) {
         throw '账号或密码不正确';
@@ -185,6 +190,14 @@
         typeof err === 'string'
           ? err
           : err.bodyMsg || err.message || err.msg || '账号或密码错误，请重试';
+      // ★ 2026-10-22 P1：业务错误对象必须原样抛给上层，不能先压成字符串。
+      // 原因：code=1002（需要人机验证）不是"错误"，LoginGuard 要据此弹滑块；
+      // 一旦在这里被 String 化，code 就丢了，滑块永远不会出现，
+      // 用户只会看到一句"请完成安全验证"却无从完成。
+      if (err && typeof err === 'object') {
+        if (!err.bodyMsg) err.bodyMsg = msg;
+        throw err;
+      }
       throw msg;
     }
   }

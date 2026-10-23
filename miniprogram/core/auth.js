@@ -10,8 +10,20 @@ import { homePageForRole } from '../shared/constants.js';
 const BOUND_TENANT_KEY = 'boundTenantCode';
 
 // 登录：tCode 与小程序持久绑定（登录成功后写入 boundTenantCode）
-export async function login({ tenantCode, account, password, role }) {
-  const res = await request({ url: ENDPOINTS.AUTH_LOGIN, method: 'POST', data: { tenantCode, account, password, role } });
+//
+// 2026-10-22 P1：入参接受 rest 透传登录风控字段（deviceId / emuFlag / challengeId / moveX /
+// trackPoints / costMs）。刻意不用白名单——白名单在下次加风控字段时会静默丢字段，
+// 表现为"服务端评分恒低、挑战永不触发"，两端都看起来正常，是最难查的一类失效。
+// customErrorMsg 置 false：业务错误（含 code=1002 需人机验证）由登录页统一处理，
+// 否则会在滑块弹出前先弹一个"请完成安全验证"的 toast，用户看不懂。
+export async function login({ tenantCode, account, password, role, ...rest }) {
+  const data = Object.assign({ tenantCode, account, password, role }, rest);
+  const res = await request({
+    url: ENDPOINTS.AUTH_LOGIN,
+    method: 'POST',
+    data,
+    customErrorMsg: false
+  });
   if (!res || !res.token) throw new Error((res && (res.message || res.msg)) || '登录失败');
   setSession(res);
   if (tenantCode) storage.set(BOUND_TENANT_KEY, tenantCode);

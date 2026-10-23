@@ -543,9 +543,11 @@ window.sanitizeTenantCode = function (raw) {
   <script src="js/public/documentTitle.js"></script>
   <script src="js/public/qrcode.min.js"></script>
   <script src="js/public/api.js"></script>
-  <script src="js/public/utility_request.js"></script>
-  <script src="js/public/auth.js"></script>
-  <script src="js/public/promo.js"></script>
+<script src="js/public/utility_request.js"></script>
+<script src="js/public/auth.js"></script>
+<!-- 登录人机验证（P1）：识别 code=1002 → 弹滑块 → 带答案重试。依赖 utility_request/auth 已加载 -->
+<script src="js/public/login-guard.js"></script>
+<script src="js/public/promo.js"></script>
 <!-- 核心逻辑 -->
   <script> 
     // DOM元素获取（登录相关）
@@ -1073,12 +1075,33 @@ window.sanitizeTenantCode = function (raw) {
       const loginTenantCode = document.getElementById('login-tenant-code').value.trim();
 
       try {
-        const user = await authenticateUser(
-          username.value.trim(),
-          password.value.trim(),
-          { tenantCode: loginRole === 'platform_admin' ? 'platform' : loginTenantCode,
-            role: loginRole }
-          )  ;
+        // 登录风控（2026-10-22 P1）：采集设备标识 + 环境异常标记，随登录请求上报。
+        // 采集失败一律按"无设备标识"处理（服务端 +10 分），绝不因为它失败而阻断登录。
+        const dev = (window.LoginGuard && typeof window.LoginGuard.collectDevice === 'function')
+          ? window.LoginGuard.collectDevice()
+          : { deviceId: '', emuFlag: false };
+
+        const doLogin = function (extra) {
+          return authenticateUser(
+            username.value.trim(),
+            password.value.trim(),
+            {
+              tenantCode: loginRole === 'platform_admin' ? 'platform' : loginTenantCode,
+              role: loginRole,
+              deviceId: dev.deviceId,
+              emuFlag: dev.emuFlag,
+              challengeId: extra.challengeId,
+              moveX: extra.moveX,
+              trackPoints: extra.trackPoints,
+              costMs: extra.costMs
+            }
+          );
+        };
+
+        // 无 LoginGuard（脚本未加载/老浏览器）时退化为直接登录，不影响可用性
+        const user = (window.LoginGuard && typeof window.LoginGuard.wrap === 'function')
+          ? await window.LoginGuard.wrap(doLogin)
+          : await doLogin({});
         //save
       const currentUser = {
           userId:  user.userId,
@@ -1117,7 +1140,9 @@ window.sanitizeTenantCode = function (raw) {
         loginError.style.display = 'block';
         loginError.style.color = 'red';
         loginError.textContent =
-          typeof error === 'string' ? error : (error.message || '账号或密码错误，请重试');
+          typeof error === 'string'
+            ? error
+            : (error.bodyMsg || error.message || '账号或密码错误，请重试');
 
         loginBtn.disabled = false;
         btnText.innerHTML = '登录系统';

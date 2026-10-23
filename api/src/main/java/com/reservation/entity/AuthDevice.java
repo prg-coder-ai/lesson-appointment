@@ -36,7 +36,16 @@ public class AuthDevice implements Serializable {
     /** 该设备首次出现的身份（账号 HMAC 或 openid）。 */
     private String firstSubject;
 
-    /** 该设备累计出现过的不同身份数 —— 真机农场的核心信号。 */
+    /**
+     * 该设备最近一次登录的身份。
+     *
+     * <p>它的作用是让 {@code identity_cnt} 有确定语义：只有"这次的身份与上次不同"时 +1。
+     * 只看 {@code first_subject} 会漏掉 A→B→A 这种来回切的情况，
+     * 而每登录一次就 +1 又会让计数退化成"登录次数"、彻底失去"换身份"的含义。
+     */
+    private String lastSubject;
+
+    /** 该设备上发生过几次"换身份"—— 真机农场的核心信号（一台设备反复换号登录）。 */
     private Integer identityCnt;
 
     /** 最近一次来源 IP（审计用，不做相等性强制：NAT/移动网络下同一设备出口 IP 会变）。 */
