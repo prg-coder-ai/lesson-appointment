@@ -195,7 +195,8 @@ public class UserController {
     @PostMapping("/updateStatus")
     @Audit(action = AuditAction.USER_APPROVE, resourceType = "user", resourceId = "user.userId")
     @ResponseBody
-    public Result<Object> updateStatus(@RequestBody User user) {
+    public Result<Object> updateStatus(@RequestBody User user,
+                                       @RequestHeader("Authorization") String token) {
         // 不加 @Validated：修改状态只需 userId + status，不应触发实体上的
         // @NotBlank(account) / @AtLeastOneNotBlank(phone,email) 等注册专用校验
         if (user.getUserId() == null || user.getUserId().trim().isEmpty()) {
@@ -205,7 +206,11 @@ public class UserController {
             return Result.fail(400, "状态不能为空");
         }
 
-        int ret = userService.updateStatus(user);
+        // 操作者身份取自 Token，与请求体里的 userId（被改谁）严格区分：
+        // Service 侧据此拦「管理员把自己停用」的自锁（见 UserService.assertNoAdminSelfLock）。
+        int ret = userService.updateStatus(user,
+                permissionCheck.getUserIdFromToken(token),
+                permissionCheck.getRoleFromToken(token));
      //   log.debug("ret " + ret);
         // 推广漏斗：审批通过 → 该用户的转化记录 registered → approved，推广者业绩 +1。
         // 只对"改为 active"生效（frozen/inactive 等不是审批动作）。
@@ -251,11 +256,15 @@ public class UserController {
     @PostMapping("/updateInfo")
     @Audit(action = AuditAction.USER_UPDATE, resourceType = "user", resourceId = "user.userId")
     @ResponseBody
-    public Result<Object> updateInfo(@RequestBody User user) {
+    public Result<Object> updateInfo(@RequestBody User user,
+                                     @RequestHeader("Authorization") String token) {
         if (user == null || user.getUserId() == null || user.getUserId().trim().isEmpty()) {
             return Result.fail(400, "用户Id不能为空");
         }
-        int ret = userService.updateUserInfo(user);
+        // 与本类 updateStatus 同口径：身份取自 Token，Service 侧拦管理员自锁
+        int ret = userService.updateUserInfo(user,
+                permissionCheck.getUserIdFromToken(token),
+                permissionCheck.getRoleFromToken(token));
         if (ret <= 0) {
             return Result.fail(404, "用户不存在或不属于当前租户");
         }

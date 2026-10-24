@@ -1,12 +1,15 @@
-// 租户管理端 · 用户管理（教师 / 学生，对应 admin.html 的"教师管理"/"学生管理"）
-// 通过 ?role=teacher|student 区分；列表来自 /user/page（自动按当前租户隔离）。
+// 租户管理端 · 用户管理（教师 / 学生 / 管理员，对应 admin.html 的同名三个菜单）
+// 通过 ?role=teacher|student|admin 区分；列表来自 /user/page（自动按当前租户隔离）。
 //
 // 本页在只读列表之上补三类操作（对齐 Web 端管理页的按钮）：
 //   · 禁用 / 启用：POST /user/updateStatus { userId, status }
-//       禁用 = frozen（**不是** pending）：登录校验只在登录时查状态，
-//       且 UserService.login 只对 frozen（"账号已冻结，请联系管理员"）与 inactive 拦登录，
-//       pending 照常放行 —— 用 pending 当"禁用"等于按钮点了没生效。
-//       同时**必须**追加 DELETE /auth/kick/{userId}，否则已签发的 token 在有效期内仍可继续操作。
+//       禁用 = frozen（**不是** pending）。frozen 是"管理员主动禁用"的唯一状态值，
+//       pending 语义是"注册后待审核"——两者混用会让列表里分不出谁待审、谁被禁；
+//       且 CascadeRules 恢复租户只解 frozen、不动 pending，混用会让被禁账号无法随租户恢复自动解禁。
+//       （2026-10-24 起 login/wechatLogin 均拦 frozen 与 pending，状态值本身已决定能否登录；
+//         Web 端 admin-user.js 的"禁用"按钮原先错写 pending，已同步改为 frozen。）
+//       同时**必须**追加 DELETE /auth/kick/{userId}，否则已签发的 token 在有效期内仍可继续操作 ——
+//       JwtAuthenticationFilter 只验签、不查 user.status，token 一发出去就与状态解耦了。
 //   · 重置密码：POST /user/account/changePassword?userId=&password=
 //       管理员代管免原密码（Service 侧校验同租户），重置为固定默认密码。
 //       刻意不用 /auth/password/reset —— 那个端点硬编码 "12345678"，与两端页面显示的口径不一致。
@@ -66,8 +69,12 @@ Page(withTerms({
   onLoad(options) {
     const u = requireAuth();
     if (!u) return;
-    const role = (options && options.role) === 'student' ? 'student' : 'teacher';
-    const roleText = role === 'student' ? '学生' : '教师';
+    // 角色白名单与 Web 端菜单一一对应：teacher / student / admin。
+    // 认不出的一律回落 teacher（历史上角色只传 teacher|student，保持兼容）。
+    const reqRole = options && options.role;
+    const role = reqRole === 'student' ? 'student' : (reqRole === 'admin' ? 'admin' : 'teacher');
+    // 管理员是职能角色，不进行业词表，用字面量；教师/学生随行业切换。
+    const roleText = role === 'student' ? '学生' : (role === 'admin' ? '管理员' : '教师');
     this.setData({ role, roleText, selfId: u.userId || '' });
     wx.setNavigationBarTitle({ title: roleText + '管理' });
     this.load(true);

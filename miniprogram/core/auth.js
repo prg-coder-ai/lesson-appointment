@@ -137,7 +137,10 @@ export async function bindWechat() {
 }
 
 // 微信直接注册（场景 C）：扫码带 tenantCode 进来、该微信又没绑定过 → 免填写直接建号。
-// 与 wechatSilentLogin 同样静默降级：失败返回 null，由登录页继续走密码登录。
+// 返回值三态（2026-10-24 起）：
+//   · null            → 失败，登录页继续显示密码表单（静默降级）
+//   · { pending:true } → 号已建好但待管理员审核，**未登录**，登录页须提示等待、不得 goHome
+//   · 正常会话对象     → 免审场景直接登录成功
 export async function wechatRegister({ tenantCode, role } = {}) {
   try {
     if (!tenantCode) return null;
@@ -149,7 +152,21 @@ export async function wechatRegister({ tenantCode, role } = {}) {
       tokenOnly: true,
       customErrorMsg: false
     });
-    if (!res || !res.token) return null;
+    if (!res) return null;
+    // ★ 2026-10-24：后端对 pending 注册不再下发 token（原先"发 token + setSession"等于注册即登录，
+    //   把审核整个绕过；而下次静默登录走 wechatLogin 又会被 pending 拦下，同一用户首次能进、二次不能进）。
+    //   缺 token 说明账号已建好但待审核 → 不落会话，返回 pending 标记交给登录页提示。
+    //   这里刻意**不**沿用"返回 null 静默降级到密码登录"：auto_register 账号的密码是随机 UUID，
+    //   用户根本没有密码可输，静默降级只会把人晾在登录页干瞪眼。
+    if (!res.token) {
+      return {
+        pending: true,
+        userId: res.userId,
+        role: res.role,
+        tenantCode: res.tenantCode,
+        status: res.status || 'pending'
+      };
+    }
     setSession(res);
     try {
       await loadTermMap();

@@ -21,9 +21,12 @@ shared-sync/authz/cascade/ddl-align/tz/global-collide/scheduler/actuator/tenant-
 - 改 shared/apiPaths.js 或 shared/domain/*.js：sync-miniprogram-shared → check-shared-sync → gen-shared-bridge → frontend/build.js 四步；桥接 window.*Domain 是手工白名单（check:bridge-exports 钉住）。
 - 消息中心：展示映射唯一权威源 shared/domain/message.js；msg_* 三表 tenant_id=**发送方**租户；收件箱隔离只按 userId；代查边界 `self || platform_admin`；已读真相源 msg_inbox.is_read。
 - dist 是 terser 压缩产物：核验 grep 字符串字面量/DOM id，别 grep 函数名。
+- **`node frontend/build.js` 在本机会挂**：先 rmSync(dist)（93 文件 >50 阈值）→ safe-delete 闸抛 SAFE_DELETE_BULK_CONFIRM_REQUIRED，dist 不坏但构建不动。改 src 后按 build.js 同参（terser compress+mangle/module:false；html-minifier collapseWhitespace+removeComments+minifyCSS+minifyJS:false+caseSensitive+keepClosingSlash）**定向重生**受影响的 dist 文件即可（dist 被 frontend/.gitignore 忽略）。
 
 ## 业务要点
 - 授权兜底 denyAll()；course /list|/page 用 checkAnyLogin（勿替代 checkTeacherOrAdmin）；课次 appointment=UTC 唯一真相源，转换只经 ScheduleGenerator；删除级联登记 CascadeRules；名称查不到留空、不回退 id。
+- **★用户状态口径（2026-10-24 起）= 只有 active 能登录**：login（白名单失败关闭）/wechatLogin/wechatRegister 三处一致；pending=注册待审核、frozen=管理员禁用、inactive=停用，全部拒登。**注册口也不发券**：`doRegister` 非 active 不下发 token，`wechatRegister` 同；前端 login.html 只在拿到 token 时写会话。禁用只准用 frozen（web admin-user.js 曾错写 pending）；JwtAuthenticationFilter 不查 status，token 与状态解耦，禁用后必须补 `/auth/kick`。
+- **★管理员 bootstrap（勿改）**：`applyRoleAdmission` 判"是否已有管理员"**只计数 role、不看 status**（admin 按 tenant_id、platform_admin 全局）。别"优化"成只数 active——否则被禁用者会被自助注册抢座。配套 `assertNoAdminSelfLock`：updateStatus/updateInfo 两个入口均传 (callerId,callerRole from Token)，禁止管理员把自己改成非 active。
 - 待拍板：CourseService.deleteById/deleteByTemplateId 缺 @Transactional。
 - **推广（2026-10-13 二期 b0b08e7b + 三期双码）**：promo 三表（IGNORE_TABLES 无 tenant_id 列）；路径1 自助建租户（8位码去 0/O/1/I/l，保留字 platform/default，14天试用）+ 路径2 加入租户（pending）；防刷三闸（IP/手机 HMAC/试用租户上限按 referred_by 计）；点击只计数；钩子 updateStatus→onApproved、changePackage→onPaid；code-by-account 查「账号所属租户」。**三期**：我的推广双码（平台码 path1 + 租户码 path2，target 服务端从令牌派生、DTO 不接受客户端值，P0）；两级统计 GET /promo/achievement/tenant（TENANT_ADMIN_ONLY，租户从令牌派生）/platform（PLATFORM_ONLY，合计+Top20+最近转化）；租户/平台统计页挂 admin.html/platform_admin.html；平台端亦有「我的推广」菜单。
 - **★数据清理铁律**：删测试产物必须按条件 DELETE（promo_conversion 曾整表删误伤用户手动验证数据）。**租户16(fbKxQRAd)/promoter 0dc6977b 是用户手动验证产物，勿清**。

@@ -120,6 +120,12 @@
           <i class="fa fa-user-graduate" data-page-node-id="N40w2uk339VwpjE0pphlRj"></i>
           <span data-page-node-id="WKbr9AlALDAPEotLdPB3zm"><span data-term="student" data-page-node-id="ENdzBhLCPmTeB1KWKXcRKj">学生</span>管理</span>
         </div>
+        <!-- 管理员：本租户内 role=admin 的账号。文案不用 data-term 锚点——
+             管理员是职能角色，各行业叫法一致，不属于行业词表范畴。 -->
+        <div class="menu-item" key="admin">
+          <i class="fa fa-user-shield"></i>
+          <span>管理员管理</span>
+        </div>
       </div>
 
       <div class="menu-group" data-page-node-id="Xh8tiYp9QVG0wHLRDaVt9X">
@@ -333,6 +339,12 @@
           break;
         case "student":
           renderTeacherCards("student");//admin-user.js
+          break;
+        // 管理员管理：与教师/学生共用同一列表实现，只是 role=admin。
+        // 数据范围仍由租户插件兜住（user 表 tenant_id 由 TenantLineInnerInterceptor 拼条件），
+        // 因此这里看到的是【本租户】的管理员，不会串到别的租户。
+        case "admin":
+          renderTeacherCards("admin");//admin-user.js
           break;
         case "course_list":
           renderCourseCards();//admin-course.js

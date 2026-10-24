@@ -246,10 +246,12 @@ public final class AuthzRules {
         r.add(new Rule(HttpMethod.GET, "/api/v1/user/teacher/list", PLATFORM_OR_TENANT_ADMIN, "新增：教师列表（管理面）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/user/statistical/byMonth", PLATFORM_OR_TENANT_ADMIN, "新增：注册统计（管理面）"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/user/add", PLATFORM_OR_TENANT_ADMIN, "第1批：仅管理员可建号（可建角色由方法体裁定）"));
-        // 审批/改状态：pending 用户能登录（第1批实测：登录只拦 frozen/inactive），
-        // 本端点原本零检查 —— 自注册 pending 的 admin 可自行改 active 绕过审批（提权链）。
+        // 审批/改状态：本端点原本零检查 —— 自注册的账号可自行把 status 改 active 绕过审批（提权链）。
         // 声明式授权在此直接断链。
-        r.add(new Rule(HttpMethod.POST, "/api/v1/user/updateStatus", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，pending 用户可自审通过"));
+        // 注：2026-10-24 前 pending 用户能登录（登录只拦 frozen/inactive），这条提权链是活的；
+        //     现在 login/wechatLogin 都拦 pending，攻击面已收窄，但本端点的授权**不能因此放开**：
+        //     状态可被任何已登录用户改写就等于审批失效，declare 规则是永久性防线而非补丁。
+        r.add(new Rule(HttpMethod.POST, "/api/v1/user/updateStatus", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，任何登录用户可自审通过"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/user/updateInfo", PLATFORM_OR_TENANT_ADMIN, "新增：改他人资料属管理面（改自己资料走 account/* ）"));
 
         r.add(new Rule(HttpMethod.GET, "/api/v1/audit-logs", PLATFORM_OR_TENANT_ADMIN, "新增：审计日志（管理面）"));

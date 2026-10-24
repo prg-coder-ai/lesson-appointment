@@ -70,6 +70,16 @@ Page(withTerms({
       if (wxRes) { goHome(); return; }
       if (tcode) {
         const regRes = await wechatRegister({ tenantCode: tcode });
+        // 2026-10-24：注册成功 ≠ 可登录。pending 账号后端不再发 token，此处必须停下来提示等待审核，
+        // 不能 goHome（没有会话会立刻被 requireAuth 弹回来，表现为"闪一下又回登录页"）。
+        if (regRes && regRes.pending) {
+          wx.showModal({
+            title: '注册成功',
+            content: '账号已提交，等待管理员审核通过后即可使用微信登录。',
+            showCancel: false
+          });
+          return;
+        }
         if (regRes) { recordLegalAccept(); goHome(); return; }
       }
     } catch (e) { /* 静默降级 */ }

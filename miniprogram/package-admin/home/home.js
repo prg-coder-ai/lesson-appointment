@@ -30,7 +30,9 @@ const TENANT_GROUPS = [
   ] },
   { title: '用户管理', items: [
     { text: { t: 'teacher', s: '管理' }, page: '/package-admin/user-list/user-list?role=teacher' },
-    { text: { t: 'student', s: '管理' }, page: '/package-admin/user-list/user-list?role=student' }
+    { text: { t: 'student', s: '管理' }, page: '/package-admin/user-list/user-list?role=student' },
+    // 管理员：职能角色，各行业叫法一致，不进行业词表（与 Web 端 admin.html 菜单同口径）
+    { text: '管理员管理', page: '/package-admin/user-list/user-list?role=admin' }
   ] },
   { title: '消息中心', items: [
     { text: '消息中心', page: '/package-message/inbox/inbox' },

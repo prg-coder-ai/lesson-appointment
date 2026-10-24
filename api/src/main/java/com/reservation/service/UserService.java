@@ -252,6 +252,14 @@ public class UserService {
      * countByRoleGlobalForUpdate} 的 FOR UPDATE 锁定读提供，与本方法的 INSERT 同处一个事务，
      * 因此"判定为 0 → 激活"不会被并发请求同时成立。
      *
+     * <p><b>计数只看 role、不看 status（2026-10-24 明确保留，勿"优化"成只数 active）</b>：
+     * 两条判据的 SQL 都没有 status 条件，被冻结/待审的管理员同样算"已有管理员"。这是有意的 ——
+     * 若只数 active，一个被禁用的管理员会让"尚无管理员"重新成立，任何拿到租户码的人
+     * 都能自助注册把它的位置顶掉，"禁用"就变成了"可抢座"。
+     * 代价是某租户/平台的管理员被全部禁用后，自助注册永远只能产出 pending、只剩改库一条救路；
+     * 因此配套在写入侧加了 {@link #assertNoAdminSelfLock}：**管理员不得修改自己的状态**，
+     * 把"最后一个可用管理员自锁"这条路径封死。两者必须成对存在，删任一半都会留下缺口。
+     *
      * @param approvedByAdmin 由已鉴权管理员创建时为 true：跳过 bootstrap，角色合法即 active。
      *        管理员的创建动作本身即审批，若此处也套用"非首账号 pending"，
      *        会让平台后台刚建好的管理员账号当场无法使用（可用性事故）。
@@ -332,14 +340,25 @@ public class UserService {
          resultMap.put("userId", user.getUserId());
          // account 不再加密，直接返回入库的明文值
          resultMap.put("account", user.getAccount());
-         //计算token（租户归属已在插入前确定）
-         String token = jwtUtil.generateToken(regTenantId, user.getUserId(), user.getRole());
-         resultMap.put("token", token);
+         // ★ 2026-10-24：非 active 账号**不下发 token**。
+         //   原实现无条件签发 token，等于在注册口开了个侧门：自助注册得到 pending，
+         //   响应里却带着可用 token（web 注册页还会把它写进 localStorage），
+         //   pending 用户拿它直接调业务接口，把"待审核"绕得一干二净。
+         //   因此"禁止 pending 登录"必须同时在**发券的地方**收口，只堵 login 是不够的。
+         //   前端据 status/token 是否为空判断"注册成功但要等审核"，见 login.html 注册分支。
+         resultMap.put("status", user.getStatus());
+         boolean accountUsable = "active".equals(user.getStatus());
+         if (accountUsable) {
+             //计算token（租户归属已在插入前确定）
+             String token = jwtUtil.generateToken(regTenantId, user.getUserId(), user.getRole());
+             resultMap.put("token", token);
+         }
          resultMap.put("role", user.getRole());
          //?? tenantCode 也返回给前端，便于后续登录时传入
          resultMap.put("tenantCode", user.getTenantCode());
          //data,message
-         Result< Object> rslt = Result.success(resultMap   ,"注册成功，请登录等待验证");
+         Result< Object> rslt = Result.success(resultMap   ,
+                 accountUsable ? "注册成功，请登录" : "注册成功，请等待管理员审核");
          log.debug("output rslt：" + rslt);
         return rslt;
     }
@@ -409,13 +428,33 @@ public class UserService {
             //       被判为登录失败，从而无法被任何真实租户冒领。
             bindUserToTenant(user, tenantId);
         }
-        // 校验账号状态（冻结/未审核） && "teacher".equals(user.getRole())
-        if ("frozen".equals(user.getStatus())) {
-             return Result.fail(400, "账号已冻结，请联系管理员");
+        // 校验账号状态：**只有 active 能登录**（frozen 禁用 / pending 待审核 / inactive 停用 一律拦）。
+        //
+        // ★ 2026-10-24 变更：pending 由「放行」改为「拦截」，与 wechatLogin 的 `!"active"` 口径统一。
+        //   变更前"只拦 frozen/inactive、pending 放行"造成三个问题：
+        //   ① 审核形同装饰 —— JwtAuthenticationFilter 只验签、业务接口也不查 status，
+        //      pending 用户拿到 token 后建课程、改排期、看学生名单全都畅通；
+        //   ② 与 wechatLogin 口径相反 —— 同一个 pending 用户密码能进、微信进不去；
+        //   ③ 与前端文案冲突 —— promo.js 承诺"审批通过后即可登录"、login.html 注释写着"注册需审核"。
+        //
+        //   写成白名单（失败关闭）而不是"显式列出拦截值"：已核库确认 user 表状态取值只有
+        //   active/frozen/pending（0 条空值），不存在"白名单会误锁存量空状态账号"的顾虑；
+        //   白名单同时兜住将来新增的未知状态值 —— 未知状态默认不可登录，方向才是安全的。
+        //   文案仍按状态区分，不合并成一句：用户被冻结和待审核的下一步动作完全不同。
+        String accountStatus = user.getStatus();
+        if (!"active".equals(accountStatus)) {
+            String statusMsg;
+            if ("frozen".equals(accountStatus)) {
+                statusMsg = "账号已冻结，请联系管理员";
+            } else if ("pending".equals(accountStatus)) {
+                statusMsg = "账号待管理员审核，审核通过后即可登录";
+            } else {
+                statusMsg = "账号未审核或已停用，请联系管理员";
+            }
+            log.warn("登录被拒(状态不可用), accountHmac={}, tenantId={}, status={}",
+                    accountHmacForLog(account), tenantId, accountStatus);
+            return Result.fail(400, statusMsg);
         }
-        if ("inactive".equals(user.getStatus()) ) {
-             return Result.fail(400, "账号未审核，请等待管理员审核");
-        }//其它情况--进入相应的页面，若为pendding则等待审核。其他情况，显示正常项目内容。
         // 生成Token（tenantId 由 controller 根据租户编码解析后传入）
         String token = jwtUtil.generateToken(tenantId, user.getUserId(), user.getRole());
         // 组装返回数据（对应设计2.2.1 登录返回数据）
@@ -506,6 +545,12 @@ public class UserService {
         }
         if ("frozen".equals(user.getStatus())) {
             return Result.fail(400, "账号已冻结，请联系管理员");
+        }
+        // pending 单独给文案：它与"未审核(inactive)"是同一个业务结论（不许登录），
+        // 但处罚来源不同——pending 是注册后等审批，inactive 是被停用。
+        // 2026-10-24 与 login() 的拦截口径对齐：两者都拦，文案各自准确。
+        if ("pending".equals(user.getStatus())) {
+            return Result.fail(400, "账号待管理员审核，审核通过后即可登录");
         }
         if (!"active".equals(user.getStatus())) {
             return Result.fail(400, "账号未审核，请等待管理员审核");
@@ -648,19 +693,19 @@ public class UserService {
             userMapper.insert(user);
             wxUseridService.bind(openid, unionid, userId, tenantId, "auto_register");
 
-            String token = jwtUtil.generateToken(tenantId, userId, resolvedRole);
-            String refreshToken = jwtUtil.generateRefreshToken(tenantId, userId);
+            // ★ 2026-10-24：pending 账号**不签发 token、不落 refreshToken**。
+            //   原实现这里直接发 token，而小程序 auth.js 拿到 token 就 setSession 进首页 ——
+            //   相当于"注册即登录"，审核被完全绕过；且下次静默登录走 wechatLogin 又被 pending 拦下，
+            //   同一用户表现为"第一次能进、第二次被告知未审核"。现在统一为"注册成功但不可登录"，
+            //   前端据缺省的 token 判定待审核态（提示等待，不落会话），见 miniprogram/core/auth.js。
             HashMap<String, Object> resultMap = new HashMap<>();
             resultMap.put("userId", userId);
             resultMap.put("account", openid);
             resultMap.put("name", null);
             resultMap.put("role", resolvedRole);
-            resultMap.put("token", token);
             resultMap.put("tenantCode", tenant.getTenantCode());
-            resultMap.put("refreshToken", refreshToken);
             resultMap.put("status", "pending");
             resultMap.put("code", 200);
-            refreshTokenService.saveNewToken(userId, refreshToken, jwtUtil.getRefreshExpireTime());
             return Result.success(resultMap, "注册成功，请等待管理员审核");
         } finally {
             TenantContext.clear();
@@ -896,12 +941,65 @@ public User selectById(String userId) {
         return ret;
     }
     
-    //更新状态
-     public int updateStatus(User user)
+    /**
+     * 更新用户状态。
+     *
+     * <p>★ 2026-10-24：新增入参 callerId / callerRole（由控制器从 Token 解析后传入），
+     * 用于在写库前拦住「管理员把自己停用」的自锁动作，见 {@link #assertNoAdminSelfLock}。
+     * 判定必须放在 Service 且与 updateUserInfo 共用，否则两个改状态的入口各判一次必然漂移。
+     */
+     public int updateStatus(User user, String callerId, String callerRole)
     {     String useid = user.getUserId();
           String status= user.getStatus();
+          assertNoAdminSelfLock(callerId, callerRole, useid, status);
            return  userMapper.updateStatus(useid,status);
        
+    }
+
+    /**
+     * 管理员自锁防护：禁止管理员把**自己**的状态改成非 active。
+     *
+     * <p><b>为什么必须有这条</b>：管理员/平台管理员的"是否已有管理员"判据
+     * （{@link #applyRoleAdmission} 里的 countByTenantAndRoleForUpdate 与
+     * countByRoleGlobalForUpdate）**只计数、不看状态**，这是刻意选择 —— 若只数 active，
+     * 一个被禁用的管理员会让"已有管理员"不成立，任何知道租户码的人都能自助注册顶替他的位置。
+     * 代价是：某租户/平台的 admin 一旦全部被禁用，自助注册通道就永远只能产出 pending，
+     * 系统只剩改库一条救路。也就是"最后一个可用管理员把自己锁死"。
+     * 因此在这条写入路径上补反向约束：**自己只能保持 active**。
+     *
+     * <p><b>为什么按"非 active"拦，而不是只拦 pending/frozen 两个字面值</b>：
+     * status 还有 inactive（历史上当"未审核"用）。只拦两个字面值的话，
+     * 把自锁改写成 status=inactive 照样能绕过；而这几个值对本人而言语义完全一样 ——
+     * 改完就登不进去（登录侧已是"只有 active 能登"）。
+     *
+     * <p><b>不拦"改别人"</b>：管理员冻结同租户另一个管理员是正常运维，
+     * 此时操作者自己仍是 active，不会出现零可用管理员。
+     *
+     * <p>操作者身份一律取自 Token（由控制器解析后传入），不看请求体 —— 请求体里的
+     * userId 是"被改谁"，两者混淆就等于把绕过口留在参数里。
+     *
+     * @param callerId     操作者 userId（来自 Token）
+     * @param callerRole   操作者角色（来自 Token）
+     * @param targetUserId 被修改状态的 userId
+     * @param targetStatus 目标状态；null/空表示本次不改状态，直接放行
+     */
+    private void assertNoAdminSelfLock(String callerId, String callerRole,
+                                       String targetUserId, String targetStatus) {
+        if (targetStatus == null || targetStatus.trim().isEmpty()) {
+            return;
+        }
+        if (callerId == null || targetUserId == null || !callerId.equals(targetUserId.trim())) {
+            return; // 改的不是自己，放行
+        }
+        if (!RoleConst.ADMIN.equals(callerRole) && !RoleConst.PLATFORM_ADMIN.equals(callerRole)) {
+            return; // 非管理员（理论上到不了这里，授权层已限定）不做额外限制
+        }
+        if ("active".equals(targetStatus.trim())) {
+            return;
+        }
+        log.warn("管理员自锁已被拒绝: userId={}, role={}, targetStatus={}", callerId, callerRole, targetStatus);
+        throw new BusinessException("不能停用自己的账号状态。管理员一旦把自己置为非启用，"
+                + "本租户（或平台）将没有可用管理员审批，只能由数据库修复，请交由其他管理员操作。");
     }
 
     /**
@@ -919,10 +1017,12 @@ public User selectById(String userId) {
      *    否则"只改姓名"这种合法请求会被误拒。
      *
      * @param user 含 userId，以及待更新的 name/phone/email/status（null 表示不更新）
+     * @param callerId   操作者 userId（来自 Token，用于管理员自锁防护）
+     * @param callerRole 操作者角色（来自 Token）
      * @return 影响行数；0 表示用户不存在或不属于当前租户（租户插件会自动追加 tenant_id 条件）
      */
     @Transactional
-    public int updateUserInfo(User user) {
+    public int updateUserInfo(User user, String callerId, String callerRole) {
         if (user == null || user.getUserId() == null || user.getUserId().trim().isEmpty()) {
             throw new BusinessException("用户Id不能为空");
         }
@@ -946,6 +1046,10 @@ public User selectById(String userId) {
 
         String status = (user.getStatus() == null || user.getStatus().trim().isEmpty())
                 ? null : user.getStatus().trim();
+
+        // 本接口同样能写 status（前端编辑弹窗的下拉就走这里），
+        // 自锁防护必须与 updateStatus 同口径，否则"改资料"就是绕过口。
+        assertNoAdminSelfLock(callerId, callerRole, userId, status);
 
         // encryptWithIndex(null) 返回 null，Mapper 的 <if> 会跳过对应字段
         return userMapper.updateUserInfo(

@@ -948,6 +948,8 @@ window.sanitizeTenantCode = function (raw) {
         registerError.style.display = 'none';
         registerSuccess.style.display = 'block';
         // 场景 B：注册即视为同意，记录对当前生效版协议/政策的签署（fire-and-forget）
+        // 2026-10-24：待审核注册（无 token）签不了这个接口（/legal/accept 是登录态接口），
+        // 此处降级跳过——审核通过后首次登录会再记一次（见下方登录成功分支），留痕不丢。
         if (resultData && resultData.token) recordLegalAccept(resultData.token);
         // request 拦截器 code=200 时只返回 res.data（Map：{userId,account,token,role}）
         // 所以 message 需从 localStorage 暂存或用默认文案；此处给用户友好提示
@@ -955,6 +957,11 @@ window.sanitizeTenantCode = function (raw) {
 
         // 5. 保存登录态：currentUser（完整用户信息） + token/refreshToken
         //    后端 Register 接口返回不含 refreshToken（只有 token），这里与登录返回对齐
+        //
+        // ★ 2026-10-24：**只有拿到 token 才写会话**。
+        //   后端已改为「非 active 账号不下发 token」（pending 注册不再发券），
+        //   本处若照旧写 currentUser，pending 用户浏览器里会留下一条带 userId/role 的登录态，
+        //   guardEntryPage 见到它就放行 admin.html/角色页，审核再次被绕过 —— 注册口和登录口必须同时收。
         const currentUser = {
           userId:  resultData.userId,
           account: resultData.account,
@@ -963,21 +970,32 @@ window.sanitizeTenantCode = function (raw) {
           name:    registerInfo.name || '',
           tenantCode: registerInfo.tenantCode || '' // 新增：租户编码
         };
-        localStorage.setItem('currentUser', JSON.stringify(currentUser));
-        // token 单独保存：utility_request.js 请求拦截器从 localStorage.getItem('token') 取
         if (resultData.token) {
+          localStorage.setItem('currentUser', JSON.stringify(currentUser));
+          // token 单独保存：utility_request.js 请求拦截器从 localStorage.getItem('token') 取
           localStorage.setItem('token', resultData.token);
+          // 注册接口暂未返回 refreshToken，留空避免刷新逻辑误判
+          localStorage.removeItem('refreshToken');
+        } else {
+          // 待审核注册：不落任何会话，并清掉注册前可能残留的旧态，避免拿旧 token 混进系统
+          localStorage.removeItem('currentUser');
+          localStorage.removeItem('token');
+          localStorage.removeItem('refreshToken');
         }
-        // 注册接口暂未返回 refreshToken，留空避免刷新逻辑误判
-        localStorage.removeItem('refreshToken');
 
         // 6. 写入 Cookie（2小时），保持当前逻辑
-        try {
-          const d = new Date();
-          d.setTime(d.getTime() + (2 * 60 * 60 * 1000));
-          document.cookie = `currentUser=${encodeURIComponent(JSON.stringify(currentUser))};expires=${d.toUTCString()};path=/`;
-        } catch (e) {
-          console.warn('写入cookie失败（不影响核心流程）：', e);
+        if (resultData.token) {
+          try {
+            const d = new Date();
+            d.setTime(d.getTime() + (2 * 60 * 60 * 1000));
+            document.cookie = `currentUser=${encodeURIComponent(JSON.stringify(currentUser))};expires=${d.toUTCString()};path=/`;
+          } catch (e) {
+            console.warn('写入cookie失败（不影响核心流程）：', e);
+          }
+        } else {
+          try {
+            document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+          } catch (e) { /* 清 cookie 失败不影响主流程 */ }
         }
 
         // 7. 2秒后关闭弹窗，并【重定向到登录界面】

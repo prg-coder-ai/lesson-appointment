@@ -1,9 +1,33 @@
- // 用户列表 管理。通过role筛选用户 教师和学生
+ // 用户列表 管理。通过 role 筛选用户：教师 / 学生 / 管理员（同角色各自一份列表，实现复用）
    // 引入分页组件js
    document.write('<script src="/js/public/pagefoot.js"></script>');
    
    window.renderTeacherCards = renderTeacherCards;
    let currentUserRole ="";
+
+   // ===== 角色显示词（教师/学生/管理员三个列表共用一套渲染） =====
+   // 教师、学生走行业词表（termText），同一套代码在不同行业显示不同称谓；
+   // 管理员是职能角色，各行业叫法一致，不进词表，直接用字面量。
+   // 挂在 window 上而不是顶层 function/const：本文件未包 IIFE，顶层声明会进全局作用域，
+   // 与 admin.html 其余脚本存在同名碰撞风险（历史上就因此整份脚本 SyntaxError，
+   // 见 tools/check-global-collide.mjs 的注释）。属性赋值不产生词法绑定，安全。
+   window.adminUserRoleText = function (role) {
+     if (role === 'admin') return '管理员';
+     if (role === 'teacher') return (typeof termText === 'function') ? termText('teacher') : '教师';
+     if (role === 'student') return (typeof termText === 'function') ? termText('student') : '学生';
+     return role || '用户';
+   };
+   // 列表标题里的角色词：教师/学生保留 data-term 锚点，让 applyTerms 能整词替换
+   window.adminUserRoleLabelHtml = function (role) {
+     if (role === 'teacher') return '<span data-term="teacher">教师</span>';
+     if (role === 'student') return '<span data-term="student">学生</span>';
+     return '管理员';
+   };
+   window.adminUserRoleIcon = function (role) {
+     if (role === 'teacher') return 'fa-chalkboard-teacher';
+     if (role === 'student') return 'fa-user-graduate';
+     return 'fa-user-shield';
+   };
 
    // 当前页用户的「原始」数据缓存（userId -> user）。
    // 必须缓存原始值：表格里展示的手机号/邮箱是 maskPhone/maskEmail 脱敏后的结果
@@ -36,15 +60,15 @@
 
    async function renderTeacherCards(role) {
            currentUserRole     = role;
-           // 同一函数同时服务「教师列表」与「学生列表」两个菜单，
-           // 仅靠函数名无法区分，需显式给出列表标识，避免两者的页码互相串味。
+           // 同一函数同时服务「教师列表」「学生列表」「管理员列表」三个菜单，
+           // 仅靠函数名无法区分，需显式给出列表标识，避免几者的页码互相串味。
            assignLoadobjectListFunction( loadAndRenderUserList, 'userList:' + role);
 
                let html = `
                 <div class="card">
                   <div class="card-header">
-                    <div class="card-title"><i class="fa fa-chalkboard-teacher"></i> ${role=="teacher"?'<span data-term="teacher">教师</span>':'<span data-term="student">学生</span>'} 列表</div>
-                    <button class="btn btn-primary" onclick="openAddUserModal()"><i class="fa fa-plus"></i> 添加用户</button>
+                    <div class="card-title"><i class="fa ${window.adminUserRoleIcon(role)}"></i> ${window.adminUserRoleLabelHtml(role)} 列表</div>
+                    <button class="btn btn-primary" onclick="openAddUserModal()"><i class="fa fa-plus"></i> 添加${window.adminUserRoleText(role)}</button>
                   </div>
                   <div class="teacher-list-cards" style="margin:6px 0;display:flex;flex-direction:column;gap:16px;">
                
@@ -78,8 +102,8 @@
                   <select id="user-status-select">
                     <option value="">用户状态</option>
                     <option value="active">正常</option>
-                    <option value="pending">待审核/未生效</option>
-                    <option value="frozen">已删除</option>                    
+                    <option value="pending">待审核（暂不可登录）</option>
+                    <option value="frozen">已禁用</option>                    
                   </select>
                 </div> 
                 <button class="btn btn-default" onclick="localsearchUsers()">
@@ -206,21 +230,31 @@
             }
              let  html  = ` `;
             var index=(Pagination.pageNum-1)*Pagination.pageSize;//记录序号
-            
+
+            // 管理员列表专用：识别「当前登录账号」。
+            // 理由：管理员把自己冻结/删除后，本租户就再没有能审批账号的人（只能找平台管理员救场），
+            // 属于一键自锁事故，因此对自己这一行不渲染「禁用/删除」。
+            var currentLoginUserId = "";
+            try {
+              var cu = JSON.parse(localStorage.getItem("currentUser") || "null");
+              currentLoginUserId = cu && cu.userId ? String(cu.userId) : "";
+            } catch (e) { currentLoginUserId = ""; }
+
             userList.forEach(tea => {
               index ++;
+              var isSelf = role === "admin" && currentLoginUserId && String(tea.userId) === currentLoginUserId;
               html += `
                     <tr>
                      <td> ${index} </td>
                      <td style="display:none;">${tea.userId || ""}</td>
                     <td ${role=="teacher"? ` class="js-teacher-name"style="cursor:pointer;" onclick="teacherInfoBoard('${escAttr(tea.userId)}')"` : ""}>${tea.name || ""}</td>
-                    <td>${tea.account || ""}</td>
+                    <td>${tea.account || ""}${isSelf ? '<span style="color:#1677ff;font-size:12px;margin-left:4px;">（当前账号）</span>' : ''}</td>
                      <td>${maskEmail(tea.email || "")}</td>
                      <td>${maskPhone(tea.phone || "")}</td>
                     <td>
                       ${ tea.status === "pending" ? '<span style="color:#faad14;">待审核</span>' :
                         tea.status === "active" ? '<span style="color:#52c41a;">正常</span>' :                        
-                        tea.status === "frozen" ? '<span style="color:#f5222d;">已删除</span>' :                       
+                        tea.status === "frozen" ? '<span style="color:#f5222d;">已禁用</span>' :                       
                         `<span>${tea.status||"未知"}</span>`
                       }
                       </td>
@@ -228,8 +262,8 @@
                   <td>
                     <button class="btn btn-primary" onclick="openEditUserModal('${tea.userId}')"><i class="fa fa-edit"></i> 编辑</button>
                     ${tea.status === "pending" ? `<button class="btn btn-success"  onclick="confirmTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-check"></i> 启用</button>` :'' }
-                    ${tea.status === "active" ? `<button class="btn btn-warning" onclick="disableTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-ban"></i> 禁用</button>` :'' }
-                    ${tea.status === "pending" ? `<button class="btn btn-danger" onclick="deleteTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-trash"></i> 删除</button>` :'' }
+                    ${tea.status === "active" && !isSelf ? `<button class="btn btn-warning" onclick="disableTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-ban"></i> 禁用</button>` :'' }
+                    ${tea.status === "pending" && !isSelf ? `<button class="btn btn-danger" onclick="deleteTeacher('${tea.userId}', '${tea.role}')"><i class="fa fa-trash"></i> 删除</button>` :'' }
                     <button class="btn btn-warning" onclick="resetUserPasswd('${tea.userId}')"><i class="fa fa-trash"></i> 重置密码</button>
                     <button class="btn btn-info" data-compose-uid="${escAttr(tea.userId)}" data-compose-role="${escAttr(tea.role)}" data-compose-name="${escAttr(tea.name || '')}" data-compose-account="${escAttr(tea.account || '')}"><i class="fa fa-comment"></i> 发消息</button>
                      
@@ -247,20 +281,18 @@
       changePasswordAPI(userId,"123456");
     }
     
-    // ===================== 添加用户（区分角色：教师/学生） =====================
+    // ===================== 添加用户（区分角色：教师/学生/管理员） =====================
     function openAddUserModal() {
       let modal = document.getElementById('addUserModal');
       if (!modal) modal = createAddUserModal();
       modal.style.display = 'flex';
-      const isTeacher = currentUserRole === 'teacher';
       // 角色显示词取「纯文本」：input 的 value 是属性上下文，塞不了 HTML 标签。
       // 原写法把 '<span data-term="teacher">教师</span>' 直接放进 value="..."，
       // 标签里的内层双引号会提前截断属性，浏览器把标签当成值渲染 → 只读框里显示一串 XML。
       // 又：弹窗挂在 document.body，列表处那次 applyTerms 覆盖不到它，
-      // 故这里与 applyTerms 同源同优先级的 termText() 取词，标题与输入框才不会各说各话。
-      const roleText = (typeof termText === 'function')
-        ? (isTeacher ? termText('teacher') : termText('student'))
-        : (isTeacher ? '教师' : '学生');
+      // 故这里与 applyTerms 同源同优先级的取词，标题与输入框才不会各说各话。
+      // 教师/学生走行业词表，管理员固定为字面量（见 window.adminUserRoleText）。
+      const roleText = window.adminUserRoleText(currentUserRole);
       document.getElementById('addUserModalTitle').textContent = '添加' + roleText;
       const fc = document.getElementById('addUserModalFormContainer');
     
@@ -333,8 +365,8 @@
     // 改动会让用户登不上，也会破坏租户内唯一性约束。
     const EDITABLE_STATUS = [
       { value: 'active',  text: '正常' },
-      { value: 'pending', text: '待审核/未生效' },
-      { value: 'frozen',  text: '已删除' }
+      { value: 'pending', text: '待审核（暂不可登录）' },
+      { value: 'frozen',  text: '已禁用' }
     ];
 
     function openEditUserModal(userId) {
@@ -344,17 +376,15 @@
       if (!user) { alert('未找到该用户的数据，请刷新列表后重试'); return; }
 
       // 角色从缓存用户对象带入（user.role 优先，回退当前列表角色），
-      // 否则 isTeacher 未声明会抛 ReferenceError，导致整个编辑弹窗打不开。
-      const isTeacher = (user.role || currentUserRole) === 'teacher';
+      // 否则 roleText 会退化成"学生"，导致编辑管理员的弹窗标题写错角色。
+      const editRole = user.role || currentUserRole;
 
       let modal = document.getElementById('editUserModal');
       if (!modal) modal = createEditUserModal();
       modal.style.display = 'flex';
-      // 与添加弹窗一致：动态文案走 termText() 取纯文本（弹窗在 body 上，
-      // applyTerms 覆盖不到），避免标题与输入框显示不一致。
-      const roleText = (typeof termText === 'function')
-        ? (isTeacher ? termText('teacher') : termText('student'))
-        : (isTeacher ? '教师' : '学生');
+      // 与添加弹窗一致：动态文案取纯文本（弹窗在 body 上，applyTerms 覆盖不到），
+      // 避免标题与输入框显示不一致。教师/学生走行业词表，管理员为字面量。
+      const roleText = window.adminUserRoleText(editRole);
       document.getElementById('editUserModalTitle').textContent =
         '编辑' + roleText + '信息';
 
@@ -422,9 +452,16 @@
                   window.location.href = href;
                 }
                //禁用
+               // ★ 2026-10-24：这里原来写的是 status="pending"，是错的，已改为 frozen。
+               //   两个原因：
+               //   ① 语义污染 —— pending 是"注册后等审核"，禁用后与刚注册的账号在列表里长得一模一样，
+               //      管理员无法区分谁是待审核、谁是被自己禁掉的；
+               //   ② 曾经"看起来没生效" —— login 当时放行 pending，点了禁用用户照旧能登录。
+               //   现在 pending 也拦了，但状态仍必须分开：CascadeRules 恢复租户只解 frozen、不动 pending，
+               //   被禁用的账号在恢复租户后能自动复活，被误判成待审核的则不能。
+               //   （小程序端与平台端一直用 frozen，本条是对齐它们的口径。）
                 async  function disableTeacher(userId,role) {
-                          // 调用 update(User) 把 status 设置为 inactive
-                          const user = {userId: userId, status: "pending" };
+                          const user = {userId: userId, status: "frozen" };
                           request({
                             url: `${API_BASE_URL}/user/updateStatus`,
                             method: 'POST',
