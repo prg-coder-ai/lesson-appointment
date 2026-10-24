@@ -33,7 +33,14 @@
     tenantView: 'live',
     tenant: { pageNum: 1, pageSize: 8, total: 0, totalPages: 0, keyword: '', status: '' },
     user: { pageNum: 1, pageSize: 10, total: 0, totalPages: 0, account: '', status: '', role: '' },
-    pkg: { pageNum: 1, pageSize: 8, total: 0, totalPages: 0 }
+    pkg: { pageNum: 1, pageSize: 8, total: 0, totalPages: 0 },
+    // 推广：三个子视图各自独立分页（推广码 / 转化记录 / 推广业绩）
+    promo: {
+      view: 'referral',
+      referral: { pageNum: 1, pageSize: 10, total: 0, totalPages: 0, code: '', pathType: '', status: '' },
+      conversion: { pageNum: 1, pageSize: 10, total: 0, totalPages: 0, stage: '', promoterUserId: '', tenantCode: '' },
+      achievement: { pageNum: 1, pageSize: 10, total: 0, totalPages: 0 }
+    }
   };
 
   /** 租户 id → 机构名（用户/套餐 Tab 要显示"属于哪个租户"） */
@@ -160,6 +167,7 @@
       + '    <button class="pdm-tab active" id="pdm-tab-tenant" onclick="pdmSelectTab(\'tenant\')"><i class="fa fa-building"></i> 租户</button>'
       + '    <button class="pdm-tab" id="pdm-tab-user" onclick="pdmSelectTab(\'user\')"><i class="fa fa-users"></i> 用户</button>'
       + '    <button class="pdm-tab" id="pdm-tab-pkg" onclick="pdmSelectTab(\'pkg\')"><i class="fa fa-th-large"></i> 租户套餐</button>'
+      + '    <button class="pdm-tab" id="pdm-tab-promo" onclick="pdmSelectTab(\'promo\')"><i class="fa fa-bullhorn"></i> 推广</button>'
       + '  </div>'
       + '  <div id="pdm-panel"></div>'
       + '</div>';
@@ -169,13 +177,14 @@
   function renderPanel() {
     var panel = $('pdm-panel');
     if (!panel) return;
-    ['tenant', 'user', 'pkg'].forEach(function (t) {
+    ['tenant', 'user', 'pkg', 'promo'].forEach(function (t) {
       var b = $('pdm-tab-' + t);
       if (b) b.classList.toggle('active', t === state.tab);
     });
     if (state.tab === 'tenant') renderTenantPanel(panel);
     else if (state.tab === 'user') renderUserPanel(panel);
-    else renderPkgPanel(panel);
+    else if (state.tab === 'pkg') renderPkgPanel(panel);
+    else renderPromoPanel(panel);
   }
 
   // ────────────────────────────────────────────────────────────────
@@ -450,9 +459,221 @@
   }
 
   // ────────────────────────────────────────────────────────────────
+  // 推广 Tab（推广码 / 转化记录 / 推广业绩，2026-10-24）
+  //
+  // 三张表都没有"软删状态"，所以同样是「能删、没有回收站」——
+  // 与租户套餐 Tab 的处理一致：清空按钮置灰并写明原因，不假装能做。
+  // 三者删除语义不同，UI 上分别提示：
+  //   referral   删码不动转化（转化是历史事实，code 只是字符串引用）
+  //   conversion 删记录 + 同事务重算该推广者业绩（否则业绩虚高）
+  //   achievement 删这一行 = 把该推广者业绩清零，下次点击/注册会重新建档
+  // ────────────────────────────────────────────────────────────────
+  var PROMO_VIEW_TEXT = { referral: '推广码', conversion: '转化记录', achievement: '推广业绩' };
+  var STAGE_TEXT = { registered: '已注册', approved: '已通过', paid: '已付费' };
+  var REWARD_TEXT = { pending: '待发放', paid: '已发放', none: '无奖励' };
+
+  function pathTypeText(v) {
+    if (v === 1) return '自助建租户';
+    if (v === 2) return '加入租户';
+    return '-';
+  }
+
+  function shortId(id) {
+    if (!id) return '-';
+    var s = String(id);
+    return s.length > 10 ? (s.slice(0, 8) + '…') : s;
+  }
+
+  function renderPromoPanel(panel) {
+    var view = state.promo.view;
+    var sub = state.promo[view];
+    var btn = ['referral', 'conversion', 'achievement'].map(function (v) {
+      return '<button class="pdm-tab' + (v === view ? ' active' : '') + '" style="padding:6px 14px;font-size:13px;"'
+        + ' onclick="pdmPromoView(\'' + v + '\')">' + PROMO_VIEW_TEXT[v] + '</button>';
+    }).join('');
+
+    // 每个子视图的筛选条各自不同（字段差异大），这里只拼共用外壳
+    var filters = '';
+    if (view === 'referral') {
+      filters = ''
+        + '<input id="pdm-promo-code" type="text" placeholder="推广码" value="' + escapeHtml(sub.code) + '"'
+        + '       onkeydown="if(event.key===\'Enter\'){pdmSearch(\'promo\')}"/>'
+        + '<select id="pdm-promo-pathtype" onchange="pdmSearch(\'promo\')">'
+        + '  <option value="">全部类型</option>'
+        + '  <option value="1"' + (String(sub.pathType) === '1' ? ' selected' : '') + '>自助建租户</option>'
+        + '  <option value="2"' + (String(sub.pathType) === '2' ? ' selected' : '') + '>加入租户</option>'
+        + '</select>'
+        + '<select id="pdm-promo-status" onchange="pdmSearch(\'promo\')">'
+        + '  <option value="">全部状态</option>'
+        + '  <option value="active"' + (sub.status === 'active' ? ' selected' : '') + '>有效</option>'
+        + '  <option value="disabled"' + (sub.status === 'disabled' ? ' selected' : '') + '>停用</option>'
+        + '</select>';
+    } else if (view === 'conversion') {
+      filters = ''
+        + '<input id="pdm-promo-promoter" type="text" placeholder="推广人 userId" value="' + escapeHtml(sub.promoterUserId) + '"'
+        + '       onkeydown="if(event.key===\'Enter\'){pdmSearch(\'promo\')}"/>'
+        + '<input id="pdm-promo-tenantcode" type="text" placeholder="租户编码（模糊）" value="' + escapeHtml(sub.tenantCode) + '"'
+        + '       onkeydown="if(event.key===\'Enter\'){pdmSearch(\'promo\')}"/>'
+        + '<select id="pdm-promo-stage" onchange="pdmSearch(\'promo\')">'
+        + '  <option value="">全部阶段</option>'
+        + '  <option value="registered"' + (sub.stage === 'registered' ? ' selected' : '') + '>已注册</option>'
+        + '  <option value="approved"' + (sub.stage === 'approved' ? ' selected' : '') + '>已通过</option>'
+        + '  <option value="paid"' + (sub.stage === 'paid' ? ' selected' : '') + '>已付费</option>'
+        + '</select>';
+    }
+
+    panel.innerHTML = ''
+      + '<div class="pdm-bar" style="padding-bottom:0;border-bottom:none;">' + btn + '</div>'
+      + '<div class="pdm-bar">'
+      + filters
+      + (view === 'achievement' ? '' : '<button class="btn btn-primary btn-sm" onclick="pdmSearch(\'promo\')"><i class="fa fa-search"></i> 查询</button>')
+      + '<button class="btn btn-default btn-sm" onclick="pdmReset(\'promo\')"><i class="fa fa-redo"></i> 重置</button>'
+      + '<div class="pdm-right">'
+      + '<button class="btn btn-warning btn-sm" disabled title="推广三张表都没有软删状态，删除即物理删除，不存在回收站"><i class="fa fa-eraser"></i> 清空回收站（不适用）</button>'
+      + '<button class="btn btn-default btn-sm" onclick="pdmLoad(\'promo\')"><i class="fa fa-sync"></i> 刷新</button>'
+      + '</div>'
+      + '</div>'
+      + '<div class="pdm-box" id="pdm-promo-box"><div class="pdm-empty">加载中…</div></div>'
+      + '<div class="pdm-foot"><span class="pdm-info" id="pdm-promo-info"></span>'
+      + '  <span id="pdm-promo-pager"></span></div>'
+      + '<div class="pdm-note" id="pdm-promo-note"></div>';
+    setPromoNote();
+    loadPromo();
+  }
+
+  function setPromoNote() {
+    var el = $('pdm-promo-note');
+    if (!el) return;
+    var view = state.promo.view;
+    if (view === 'referral') {
+      el.innerHTML = '推广码删除后<b>不影响已发生的转化记录</b>：转化表里存的是推广码字符串，不是外键，'
+        + '已注册/已付费是历史事实，不该因为码被清理而消失。';
+    } else if (view === 'conversion') {
+      el.innerHTML = '删除转化记录会<b>同一事务内重算</b>该推广者的业绩（注册/通过/付费三个计数 + 最近转化时间）。'
+        + '点击量、建租户数、微信注册数、奖励金额这四项没有可靠的重算来源，<b>刻意不回退</b>；'
+        + '要恢复某个推广者的业绩，只能靠「推广业绩」里的重算/重置语义另行处理。';
+    } else {
+      el.innerHTML = '删除业绩行 = <b>把该推广者的业绩清零</b>（下一次点击或注册会被重新建档）。'
+        + '这是一条聚合数据，删它不会动转化记录。';
+    }
+  }
+
+  function loadPromo() {
+    var box = $('pdm-promo-box');
+    if (!box) return;
+    box.innerHTML = '<div class="pdm-empty">加载中…</div>';
+    var view = state.promo.view;
+    var sub = state.promo[view];
+    var qs = new URLSearchParams();
+    qs.set('pageNum', sub.pageNum);
+    qs.set('pageSize', sub.pageSize);
+    var url;
+    if (view === 'referral') {
+      if (sub.code) qs.set('code', sub.code);
+      if (sub.pathType) qs.set('pathType', sub.pathType);
+      if (sub.status) qs.set('status', sub.status);
+      url = '/promo/platform/referrals?' + qs.toString();
+    } else if (view === 'conversion') {
+      if (sub.stage) qs.set('stage', sub.stage);
+      if (sub.promoterUserId) qs.set('promoterUserId', sub.promoterUserId);
+      if (sub.tenantCode) qs.set('tenantCode', sub.tenantCode);
+      url = '/promo/platform/conversions?' + qs.toString();
+    } else {
+      url = '/promo/achievement/overview?' + qs.toString();
+    }
+    // 推广码要显示"目标租户"机构名，需要租户映射（懒加载，只查一次）
+    var p = (view === 'referral')
+      ? Promise.all([request({ url: url }), ensureTenantMap()]).then(function (a) { return a[0]; })
+      : request({ url: url });
+    p.then(function (res) {
+        var page = unwrap(res) || {};
+        sub.total = page.total || 0;
+        sub.totalPages = page.totalPages || 0;
+        renderPromoRows(view, page.rows || []);
+        renderFooter('promo');
+      })
+      .catch(function (e) {
+        box.innerHTML = '<div class="pdm-err">加载失败：' + escapeHtml(errText(e)) + '</div>';
+      });
+  }
+
+  function renderPromoRows(view, rows) {
+    var box = $('pdm-promo-box');
+    if (!box) return;
+    if (!rows.length) {
+      box.innerHTML = '<div class="pdm-empty">暂无数据</div>';
+      return;
+    }
+    if (view === 'referral') {
+      var h1 = '<tr><th style="width:52px;">序号</th><th>推广码</th><th>推广人</th><th>类型</th>'
+        + '<th>目标租户</th><th>状态</th><th>创建时间</th><th style="width:90px;">操作</th></tr>';
+      var b1 = rows.map(function (r, i) {
+        return '<tr>'
+          + '<td>' + (i + 1) + '</td>'
+          + '<td><code>' + escapeHtml(r.referralCode || '') + '</code></td>'
+          + '<td title="' + escapeHtml(r.promoterUserId || '') + '">' + escapeHtml(shortId(r.promoterUserId)) + '</td>'
+          + '<td>' + escapeHtml(pathTypeText(r.pathType)) + '</td>'
+          + '<td>' + escapeHtml(r.targetTenantId ? tenantNameOf(r.targetTenantId) : '-') + '</td>'
+          + '<td>' + escapeHtml(r.status || '-') + '</td>'
+          + '<td>' + escapeHtml(fmtTime(r.createTime)) + '</td>'
+          + '<td><button class="btn btn-danger btn-sm" onclick="pdmPromoDelete(\'referral\',' + r.id + ')">删除</button></td>'
+          + '</tr>';
+      }).join('');
+      box.innerHTML = '<table class="pdm-table"><thead>' + h1 + '</thead><tbody>' + b1 + '</tbody></table>';
+      return;
+    }
+    if (view === 'conversion') {
+      var h2 = '<tr><th style="width:52px;">序号</th><th>推广码</th><th>推广人</th><th>被邀请人</th>'
+        + '<th>类型</th><th>租户编码</th><th>阶段</th><th>注册时间</th><th>付费时间</th>'
+        + '<th style="width:90px;">操作</th></tr>';
+      var b2 = rows.map(function (r, i) {
+        return '<tr>'
+          + '<td>' + (i + 1) + '</td>'
+          + '<td><code>' + escapeHtml(r.referralCode || '') + '</code></td>'
+          + '<td title="' + escapeHtml(r.promoterUserId || '') + '">' + escapeHtml(shortId(r.promoterUserId)) + '</td>'
+          + '<td title="' + escapeHtml(r.inviteeUserId || '') + '">' + escapeHtml(shortId(r.inviteeUserId)) + '</td>'
+          + '<td>' + escapeHtml(pathTypeText(r.pathType)) + '</td>'
+          + '<td>' + escapeHtml(r.tenantCode || '-') + '</td>'
+          + '<td>' + tag(STAGE_TEXT[r.stage] || r.stage || '-',
+              r.stage === 'paid' ? 'pdm-tag-ok' : (r.stage === 'approved' ? 'pdm-tag-wait' : '')) + '</td>'
+          + '<td>' + escapeHtml(fmtTime(r.registeredAt)) + '</td>'
+          + '<td>' + escapeHtml(fmtTime(r.paidAt)) + '</td>'
+          + '<td><button class="btn btn-danger btn-sm" onclick="pdmPromoDelete(\'conversion\',' + r.id + ')">删除</button></td>'
+          + '</tr>';
+      }).join('');
+      box.innerHTML = '<table class="pdm-table"><thead>' + h2 + '</thead><tbody>' + b2 + '</tbody></table>';
+      return;
+    }
+    var h3 = '<tr><th style="width:52px;">序号</th><th>推广人</th><th>点击</th><th>注册</th><th>通过</th>'
+      + '<th>付费</th><th>建租户</th><th>微信注册</th><th>奖励金额</th><th>最近转化</th>'
+      + '<th style="width:110px;">操作</th></tr>';
+    var b3 = rows.map(function (r, i) {
+      return '<tr>'
+        + '<td>' + (i + 1) + '</td>'
+        + '<td title="' + escapeHtml(r.promoterUserId || '') + '">' + escapeHtml(shortId(r.promoterUserId)) + '</td>'
+        + '<td>' + num(r.totalClicks) + '</td>'
+        + '<td>' + num(r.totalRegistered) + '</td>'
+        + '<td>' + num(r.totalApproved) + '</td>'
+        + '<td>' + num(r.totalPaid) + '</td>'
+        + '<td>' + num(r.totalTenantsCreated) + '</td>'
+        + '<td>' + num(r.totalWxRegistered) + '</td>'
+        + '<td>' + escapeHtml(String(r.totalRewardAmount == null ? 0 : r.totalRewardAmount)) + '</td>'
+        + '<td>' + escapeHtml(fmtTime(r.lastConversionAt)) + '</td>'
+        + '<td><button class="btn btn-danger btn-sm" onclick="pdmPromoDelete(\'achievement\',' + r.id + ')">清零</button></td>'
+        + '</tr>';
+    }).join('');
+    box.innerHTML = '<table class="pdm-table"><thead>' + h3 + '</thead><tbody>' + b3 + '</tbody></table>';
+  }
+
+  function num(v) { return (v === null || v === undefined) ? '0' : String(v); }
+
+  // ────────────────────────────────────────────────────────────────
   // 公共：分页条 / 错误文案 / 租户名映射
   // ────────────────────────────────────────────────────────────────
-  function stateOf(tab) { return tab === 'user' ? state.user : (tab === 'pkg' ? state.pkg : state.tenant); }
+  function stateOf(tab) {
+    if (tab === 'promo') return state.promo[state.promo.view];
+    return tab === 'user' ? state.user : (tab === 'pkg' ? state.pkg : state.tenant);
+  }
 
   function renderFooter(tab) {
     var p = stateOf(tab);
@@ -490,6 +711,7 @@
   function reload(tab) {
     if (tab === 'user') loadUser();
     else if (tab === 'pkg') loadPkg();
+    else if (tab === 'promo') loadPromo();
     else loadTenant();
   }
 
@@ -513,9 +735,34 @@
   window.renderPlatformDataMaintainPage = renderPage;
 
   window.pdmSelectTab = function (tab) {
-    if (tab !== 'tenant' && tab !== 'user' && tab !== 'pkg') return;
+    if (tab !== 'tenant' && tab !== 'user' && tab !== 'pkg' && tab !== 'promo') return;
     state.tab = tab;
     renderPanel();
+  };
+
+  /** 推广 Tab 内的子视图切换（推广码 / 转化记录 / 推广业绩） */
+  window.pdmPromoView = function (view) {
+    if (!state.promo[view] || view === 'view') return;
+    state.promo.view = view;
+    renderPromoPanel($('pdm-panel'));
+  };
+
+  /** 删除一条推广数据：type = referral / conversion / achievement */
+  window.pdmPromoDelete = function (type, id) {
+    var msg = {
+      referral: '删除该推广码？\n已发生的转化记录不会受影响（转化表存的是推广码字符串，不是外键）。',
+      conversion: '删除该转化记录？\n将同时按剩余转化重算该推广者的注册/通过/付费计数与最近转化时间。\n'
+        + '点击量、建租户数、微信注册数、奖励金额不回退。此操作不可恢复。',
+      achievement: '把该推广者的业绩清零？\n这只删聚合行，不动任何转化记录；他下次点击/注册会重新建档。'
+    }[type];
+    if (!msg) return;
+    if (!confirm(msg)) return;
+    request({
+      url: '/data-maintain/platform/purge/promo?type=' + encodeURIComponent(type) + '&id=' + encodeURIComponent(id),
+      method: 'POST'
+    })
+      .then(function () { loadPromo(); })
+      .catch(function (e) { alert('删除失败：' + errText(e)); });
   };
 
   window.pdmChangeTenantView = function () {
@@ -534,6 +781,17 @@
       p.account = (($('pdm-user-kw') || {}).value || '').trim();
       p.status = ($('pdm-user-status') || {}).value || '';
       p.role = ($('pdm-user-role') || {}).value || '';
+    } else if (tab === 'promo') {
+      var view = state.promo.view;
+      if (view === 'referral') {
+        p.code = (($('pdm-promo-code') || {}).value || '').trim();
+        p.pathType = ($('pdm-promo-pathtype') || {}).value || '';
+        p.status = ($('pdm-promo-status') || {}).value || '';
+      } else if (view === 'conversion') {
+        p.promoterUserId = (($('pdm-promo-promoter') || {}).value || '').trim();
+        p.tenantCode = (($('pdm-promo-tenantcode') || {}).value || '').trim();
+        p.stage = ($('pdm-promo-stage') || {}).value || '';
+      }
     }
     reload(tab);
   };
@@ -552,6 +810,13 @@
       p.status = '';
       p.role = '';
       renderUserPanel($('pdm-panel'));
+      return;
+    }
+    if (tab === 'promo') {
+      var view = state.promo.view;
+      if (view === 'referral') { p.code = ''; p.pathType = ''; p.status = ''; }
+      else if (view === 'conversion') { p.promoterUserId = ''; p.tenantCode = ''; p.stage = ''; }
+      renderPromoPanel($('pdm-panel'));
       return;
     }
     renderPkgPanel($('pdm-panel'));

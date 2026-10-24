@@ -203,6 +203,44 @@ public class PromoController {
     }
 
     /**
+     * 平台数据维护：全平台推广码分页（2026-10-24）。
+     *
+     * <p>注意与 {@link #myCodes} 的区别 —— 那个只返回"我的码"，这个是全平台运营视角。
+     * 两者都叫"推广码"，但数据范围差了一个量级，混用会造成越权看到他人推广码。
+     */
+    @GetMapping("/platform/referrals")
+    public Result<PageResult<PromoReferral>> platformReferrals(
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "20") int pageSize,
+            @RequestParam(required = false) String code,
+            @RequestParam(required = false) Integer pathType,
+            @RequestParam(required = false) String status,
+            @RequestHeader("Authorization") String token) {
+        permissionCheck.checkPlatformAdmin(token);
+        return Result.success(promoService.platformReferralPage(pageNum, pageSize, code, pathType, status),
+                "查询成功");
+    }
+
+    /**
+     * 平台数据维护：全平台转化记录分页（2026-10-24）。
+     *
+     * <p>与 {@link #conversions}（只返回自己的转化）区分：本端点供平台运营排查/清理。
+     */
+    @GetMapping("/platform/conversions")
+    public Result<PageResult<PromoConversion>> platformConversions(
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "20") int pageSize,
+            @RequestParam(required = false) String stage,
+            @RequestParam(required = false) String promoterUserId,
+            @RequestParam(required = false) String tenantCode,
+            @RequestHeader("Authorization") String token) {
+        permissionCheck.checkPlatformAdmin(token);
+        return Result.success(
+                promoService.platformConversionPage(pageNum, pageSize, stage, promoterUserId, tenantCode),
+                "查询成功");
+    }
+
+    /**
      * 租户推广统计（租户管理员）：本租户「租户码」的加入漏斗 + 推广人明细。
      *
      * <p>租户从令牌派生，只能看自己租户；平台管理员（tenantId=0）没有归属租户，

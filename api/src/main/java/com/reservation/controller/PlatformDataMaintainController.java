@@ -16,11 +16,14 @@ import com.reservation.mapper.BookingMapper;
 import com.reservation.mapper.CourseMapper;
 import com.reservation.mapper.CourseScheduleMapper;
 import com.reservation.mapper.CourseTemplateMapper;
+import com.reservation.mapper.PromoAchievementMapper;
+import com.reservation.mapper.PromoReferralMapper;
 import com.reservation.mapper.RefreshTokenMapper;
 import com.reservation.mapper.TenantMapper;
 import com.reservation.mapper.TenantPackageMapper;
 import com.reservation.mapper.UserMapper;
 import com.reservation.mapper.UserSessionMapper;
+import com.reservation.service.PromoService;
 import com.reservation.utils.PermissionCheck;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -107,6 +110,12 @@ public class PlatformDataMaintainController {
     private BookingMapper bookingMapper;
     @Autowired
     private AppointmentMapper appointmentMapper;
+    @Autowired
+    private PromoReferralMapper promoReferralMapper;
+    @Autowired
+    private PromoAchievementMapper promoAchievementMapper;
+    @Autowired
+    private PromoService promoService;
     @Autowired
     private PermissionCheck permissionCheck;
 
@@ -254,5 +263,64 @@ public class PlatformDataMaintainController {
         log.info("平台数据维护·清空冻结用户完成, 账号数={}, 影响行数={}, 调用者={}",
                 dead.size(), rows, callerId);
         return Result.success(rows, "成功清理 " + dead.size() + " 个账号，共 " + rows + " 行");
+    }
+
+    /**
+     * 删除一条**推广**数据（2026-10-24）：推广码 / 转化记录 / 推广业绩。
+     *
+     * <h3>为什么用 type + id 而不是三个端点</h3>
+     * <p>三类数据的删除语义完全不同（见下），但"入口权限 + 参数校验"是同一套。
+     * 拆成三个端点会让 AuthzRules 多两条、前端多两个分支，而收益只是 URL 好看一点。
+     * 用 {@code type} 派发，校验和鉴权只有一处，语义差异写在各自的 case 里。
+     *
+     * <h3>三类删除的语义差异</h3>
+     * <ul>
+     *   <li><b>referral（推广码）</b>：直接物理删。{@code promo_conversion} 里存的是
+     *       {@code referral_code} <b>字符串</b>而不是外键，删码不影响已经发生的转化——
+     *       转化是历史事实，不该因为推广码被清理而消失。</li>
+     *   <li><b>conversion（转化记录）</b>：必须走 {@code PromoService}，删完<b>同事务重算</b>
+     *       该推广者的业绩。业绩是增量累加的（bumpApproved/bumpPaid 直接 +1），
+     *       删记录不减数就会虚高。</li>
+     *   <li><b>achievement（业绩）</b>：删掉这行等于"把这个推广者的业绩清零"，
+     *       他下次点击/注册会被 upsert 重新建档。这是重置的语义，不是删数据。</li>
+     * </ul>
+     *
+     * <h3>为什么必须带 id（不支持整表清空）</h3>
+     * <p>推广数据没有"软删状态"，整表清空的破坏面等于"把推广体系的历史抹掉"，
+     * 而业绩又与租户付费挂钩。逐条删除能让操作者明确知道自己动的是哪一条。
+     *
+     * @param type referral / conversion / achievement
+     * @param id   目标行主键
+     * @return 影响行数（0 = 记录不存在）
+     */
+    @PostMapping("/purge/promo")
+    @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
+    public Result<Integer> purgePromo(@RequestHeader("Authorization") String token,
+                                      @RequestParam("type") String type,
+                                      @RequestParam("id") Long id) {
+        permissionCheck.checkPlatformAdmin(token);
+        if (type == null || type.isBlank() || id == null) {
+            return Result.fail(400, "参数不完整：需要 type(referral/conversion/achievement) 与 id");
+        }
+        String t = type.trim();
+        switch (t) {
+            case "referral": {
+                // cascade: none 推广码无下游：conversion 存的是 code 字符串而非外键
+                int rows = promoReferralMapper.deleteById(id);
+                return Result.success(rows, rows > 0 ? "已删除推广码" : "记录不存在");
+            }
+            case "conversion": {
+                // 走 Service：删完必须按剩余转化重算该推广者业绩，否则数字虚高
+                int rows = promoService.deleteConversionAndRecalc(id);
+                return Result.success(rows, rows > 0 ? "已删除转化记录，并按剩余转化重算该推广者业绩" : "记录不存在");
+            }
+            case "achievement": {
+                // cascade: none 业绩是聚合叶子表；删后该推广者下次点击/注册会重新 upsert 建档
+                int rows = promoAchievementMapper.deleteById(id);
+                return Result.success(rows, rows > 0 ? "已重置该推广者的业绩记录" : "记录不存在");
+            }
+            default:
+                return Result.fail(400, "不支持的推广数据类型：" + type);
+        }
     }
 }

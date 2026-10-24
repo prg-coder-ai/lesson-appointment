@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -750,6 +751,70 @@ public class PromoService {
     }
 
     /** 全部推广者排行（platform_admin）。 */
+    /**
+     * 平台数据维护：全平台推广码分页（2026-10-24）。
+     *
+     * <p>与 {@link #myCodes} 的区别：那个按 promoter 过滤、不分页，只给"我的推广"页用；
+     * 这个是平台运营视角的全量列表，带关键字/路径类型/状态筛选。
+     */
+    public PageResult<PromoReferral> platformReferralPage(int pageNum, int pageSize,
+                                                          String code, Integer pathType, String status) {
+        Page<PromoReferral> page = new Page<>(Math.max(1, pageNum), Math.max(1, pageSize));
+        LambdaQueryWrapper<PromoReferral> w = new LambdaQueryWrapper<>();
+        w.like(StringUtils.hasText(code), PromoReferral::getReferralCode, code == null ? null : code.trim());
+        w.eq(pathType != null, PromoReferral::getPathType, pathType);
+        w.eq(StringUtils.hasText(status), PromoReferral::getStatus, status == null ? null : status.trim());
+        w.orderByDesc(PromoReferral::getCreateTime).orderByDesc(PromoReferral::getId);
+        return PageResult.of(promoReferralMapper.selectPage(page, w));
+    }
+
+    /**
+     * 平台数据维护：全平台转化记录分页（2026-10-24）。
+     *
+     * <p>与 {@link #myConversions} 的区别同上：那个按 promoterUserId 过滤，只给"我的推广"页用。
+     */
+    public PageResult<PromoConversion> platformConversionPage(int pageNum, int pageSize,
+                                                              String stage, String promoterUserId,
+                                                              String tenantCode) {
+        Page<PromoConversion> page = new Page<>(Math.max(1, pageNum), Math.max(1, pageSize));
+        LambdaQueryWrapper<PromoConversion> w = new LambdaQueryWrapper<>();
+        w.eq(StringUtils.hasText(stage), PromoConversion::getStage, stage == null ? null : stage.trim());
+        w.eq(StringUtils.hasText(promoterUserId), PromoConversion::getPromoterUserId,
+                promoterUserId == null ? null : promoterUserId.trim());
+        w.like(StringUtils.hasText(tenantCode), PromoConversion::getTenantCode,
+                tenantCode == null ? null : tenantCode.trim());
+        w.orderByDesc(PromoConversion::getRegisteredAt).orderByDesc(PromoConversion::getId);
+        return PageResult.of(promoConversionMapper.selectPage(page, w));
+    }
+
+    /**
+     * 平台数据维护：删除一条转化记录，并<b>同事务</b>按剩余转化重算该推广者的业绩。
+     *
+     * <p>重算是必须的，不是"顺手优化"：业绩是累加计数，删记录不减数就会虚高
+     * （见 {@link com.reservation.mapper.PromoAchievementMapper#recalcFromConversion}）。
+     *
+     * @return 实际删除行数（0 = 记录不存在）
+     */
+    @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
+    public int deleteConversionAndRecalc(Long id) {
+        if (id == null) {
+            return 0;
+        }
+        PromoConversion c = promoConversionMapper.selectById(id);
+        if (c == null) {
+            return 0;
+        }
+        // cascade: none 转化记录是推广链的叶子：
+        // 下游只有 promo_achievement 的累加计数，不是靠外键而是靠本方法下面的 recalc 重算；
+        // 其余表（sys_tenant/user）引用的是被邀请人本身，与这条归因记录无关。
+        int rows = promoConversionMapper.deleteById(id);
+        if (rows > 0 && StringUtils.hasText(c.getPromoterUserId())) {
+            promoAchievementMapper.recalcFromConversion(c.getPromoterUserId());
+            log.info("删除推广转化记录并重算业绩, conversionId={}, promoter={}", id, c.getPromoterUserId());
+        }
+        return rows;
+    }
+
     public PageResult<PromoAchievement> overview(int pageNum, int pageSize) {
         LambdaQueryWrapper<PromoAchievement> qw = new LambdaQueryWrapper<>();
         qw.orderByDesc(PromoAchievement::getTotalRegistered)

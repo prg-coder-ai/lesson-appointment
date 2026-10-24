@@ -79,4 +79,31 @@ public interface PromoAchievementMapper extends BaseMapper<PromoAchievement> {
     /** 推广者排行榜 Top N（按注册人数降序，同数按 userId 升序保证确定性）。 */
     @Select("SELECT * FROM promo_achievement ORDER BY total_registered DESC, promoter_user_id ASC LIMIT #{limit}")
     List<PromoAchievement> listTopByRegistered(@Param("limit") int limit);
+
+    /**
+     * 按 promo_conversion 重算某推广者的三个计数（2026-10-24，平台数据维护删除转化记录后调用）。
+     *
+     * <p><b>为什么必须重算</b>：achievement 是<b>增量累加</b>的（{@link #bumpRegistered} /
+     * {@link #bumpApproved} / {@link #bumpPaid} 都是 +1），删掉一条转化记录不会自动扣减，
+     * 不重算就会留下"转化记录没了、业绩数字还挂在上面"的虚高。
+     *
+     * <p><b>只回填有可靠来源的四项</b>：total_registered / total_approved / total_paid /
+     * last_conversion_at。其余四项（total_clicks 来自推广码点击、total_tenants_created 与
+     * total_wx_registered 在注册时一次性累加、total_reward_amount 来自付费单）在转化表里
+     * 没有可用来源，<b>刻意不动</b>——宁可少算也不错算。
+     *
+     * <p>stage 是状态推进而非流水：一条转化只会停在 registered / approved / paid 之一，
+     * 所以"累计注册"取三者之和，"累计通过"取 approved + paid。
+     */
+    @Update("UPDATE promo_achievement SET "
+            + "total_registered = (SELECT COUNT(*) FROM promo_conversion c "
+            + "  WHERE c.promoter_user_id = #{promoterUserId} AND c.stage IN ('registered','approved','paid')), "
+            + "total_approved = (SELECT COUNT(*) FROM promo_conversion c "
+            + "  WHERE c.promoter_user_id = #{promoterUserId} AND c.stage IN ('approved','paid')), "
+            + "total_paid = (SELECT COUNT(*) FROM promo_conversion c "
+            + "  WHERE c.promoter_user_id = #{promoterUserId} AND c.stage = 'paid'), "
+            + "last_conversion_at = (SELECT MAX(c.registered_at) FROM promo_conversion c "
+            + "  WHERE c.promoter_user_id = #{promoterUserId}) "
+            + "WHERE promoter_user_id = #{promoterUserId}")
+    int recalcFromConversion(@Param("promoterUserId") String promoterUserId);
 }
