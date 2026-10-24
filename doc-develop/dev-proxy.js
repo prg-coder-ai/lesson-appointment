@@ -9,7 +9,13 @@
  *   本引擎把 /api/v1 普通请求转发到 booking，把消息/SSE/用户类转发到 message-service。
  *   对浏览器而言是同源，天然无 CORS 问题。
  *
- * 仅依赖 Node 内置模块（http/fs/path/net），无需 npm install。
+ * 仅依赖 Node 内置模块（http/https/fs/path/net），无需 npm install。
+ *
+ * 上游支持两种形态（2026-10-24 起）：
+ *   明文 http（本地 127.0.0.1:8081 / 裸 IP:80）—— 默认
+ *   https + 域名（云托管）—— 传 { apiProtocol:'https', apiHost:'api-xxx.tcloudbase.com',
+ *                             bookingPort:443, apiHostHeader:'api-xxx.tcloudbase.com' }
+ *   或直接用入口脚本的环境变量 API_URL=https://api-xxx.tcloudbase.com（见 dev-frontend-remote.js）
  *
  * API：
  *   const { startProxy } = require('./dev-proxy');
@@ -17,6 +23,7 @@
  */
 'use strict';
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const net = require('net');
@@ -70,9 +77,33 @@ function probe(host, port, timeout = 1500) {
   });
 }
 
-function proxy(req, res, targetHost, targetPort, label) {
+/**
+ * 归一化上游目标。**协议差异只允许出现在这里**，分流规则（toMessageService）永远只有一份。
+ *
+ * 背景（2026-10-24）：本地后端是明文 http://127.0.0.1:8081，云托管是
+ * https://api-xxx.tcloudbase.com（TLS + 域名 + SNI）。若再写一个"远程版代理"文件，
+ * 分流规则立刻变成两份，必然漂移 —— 本项目已经在 nginx/dev-proxy/部署手册之间对齐过一次了。
+ *
+ * @param {{protocol?:string, host:string, port?:number|string, hostHeader?:string}} t
+ * @returns {{protocol:'http'|'https', host:string, port:number, hostHeader:string}}
+ */
+function normalizeTarget(t) {
+  const protocol = String((t && t.protocol) || 'http').toLowerCase() === 'https' ? 'https' : 'http';
+  const host = t.host;
+  const port = Number(t.port || (protocol === 'https' ? 443 : 80));
+  // Host 头：显式给了就用给的；否则 80/443 省略端口（云托管网关对带端口的 Host 会挑剔）
+  const raw = t.hostHeader == null ? '' : String(t.hostHeader).trim();
+  const hostHeader = raw || (port === 80 || port === 443 ? host : host + ':' + port);
+  return { protocol, host, port, hostHeader };
+}
+
+function proxy(req, res, targetRaw, label) {
+  const target = normalizeTarget(targetRaw);
+  const targetHost = target.host;
+  const targetPort = target.port;
+  const mod = target.protocol === 'https' ? https : http;
   const headers = { ...req.headers };
-  headers.host = `${targetHost}:${targetPort}`;
+  headers.host = target.hostHeader;
 
   // 与生产 Nginx 保持一致：补 X-Forwarded-* / X-Real-IP
   // 否则后端永远走「直连」分支，本地无法复现反代链路（后台信息页的 viaProxy 会一直是 false）
@@ -89,7 +120,14 @@ function proxy(req, res, targetHost, targetPort, label) {
     path: req.url,
     headers,
   };
-  const p = http.request(options, (pres) => {
+  if (target.protocol === 'https') {
+    // SNI 必须带：云托管按 servername 选证书，缺了会握手失败或拿到默认站点的证书。
+    // 用 hostHeader 去掉端口作为 servername（它就是原域名）。
+    options.servername = target.hostHeader.replace(/:\d+$/, '');
+    // 校验证书链。本地调试若遇自签/代理 MITM 才临时改成 false，别默认关掉。
+    options.rejectUnauthorized = true;
+  }
+  const p = mod.request(options, (pres) => {
     const outHeaders = { ...pres.headers };
     const ct = pres.headers['content-type'] || '';
     // SSE 不缓冲，保证实时推送
@@ -175,18 +213,33 @@ function serveStatic(req, res, root, urlPath) {
  * @param {number} o.bookingPort  booking 端口
  * @param {string} o.msgHost      message-service 主机
  * @param {number} o.msgPort      message-service 端口
+ * @param {string} [o.apiProtocol] 上游协议 'http'|'https'（默认 http；云托管传 https）
+ * @param {string} [o.msgProtocol] 消息服务协议，缺省跟随 apiProtocol
+ * @param {string} [o.apiHostHeader] 覆盖 Host 头（https + 域名场景传原域名，省略 :443）
+ * @param {string} [o.msgHostHeader] 覆盖消息服务的 Host 头，缺省跟随 apiHostHeader
  * @param {boolean} [o.probe]     启动前是否探活（默认 true）
  * @returns {Promise<http.Server>}
  */
 function startProxy(o) {
   const root = path.resolve(o.root);
+  // 上游目标：默认 http（本地/裸 IP），传 apiProtocol:'https' 即支持云托管
+  const apiTarget = normalizeTarget({
+    protocol: o.apiProtocol,
+    host: o.apiHost,
+    port: o.bookingPort,
+    hostHeader: o.apiHostHeader,
+  });
+  const msgTarget = normalizeTarget({
+    protocol: o.msgProtocol || o.apiProtocol,
+    host: o.msgHost,
+    port: o.msgPort,
+    hostHeader: o.msgHostHeader || o.apiHostHeader,
+  });
   const server = http.createServer((req, res) => {
     const urlPath = (req.url || '/').split('?')[0];
     if (urlPath.startsWith('/api/v1')) {
       const isMsg = toMessageService(urlPath);
-      const host = isMsg ? o.msgHost : o.apiHost;
-      const port = isMsg ? o.msgPort : o.bookingPort;
-      return proxy(req, res, host, port, isMsg ? 'message-service' : 'booking');
+      return proxy(req, res, isMsg ? msgTarget : apiTarget, isMsg ? 'message-service' : 'booking');
     }
     return serveStatic(req, res, root, urlPath);
   });
@@ -210,8 +263,10 @@ function startProxy(o) {
       console.log(`   资源模式   :  ${isDist ? 'dist 构建产物（需先 npm run build / maven prepare-package）'
         : '源码目录，未打包 —— 改完 js/html 直接刷新浏览器即生效'}`);
       console.log('   ' + '-'.repeat(58));
-      console.log(`   普通 API   :  /api/v1/*                    ->  http://${o.apiHost}:${o.bookingPort}`);
-      console.log(`   消息/SSE   :  /api/v1/{message,sse,users/*} ->  http://${o.msgHost}:${o.msgPort}`);
+      const fmt = (t) => `${t.protocol}://${t.host}${(t.port === 80 || t.port === 443) ? '' : ':' + t.port}`;
+      console.log(`   普通 API   :  /api/v1/*                    ->  ${fmt(apiTarget)}`);
+      console.log(`   消息/SSE   :  /api/v1/{message,sse,users/*} ->  ${fmt(msgTarget)}`);
+      console.log(`   上游 Host  :  ${apiTarget.hostHeader}${msgTarget.hostHeader !== apiTarget.hostHeader ? '  /  ' + msgTarget.hostHeader : ''}`);
       console.log(line);
       if (o.probe !== false) {
         Promise.all([
