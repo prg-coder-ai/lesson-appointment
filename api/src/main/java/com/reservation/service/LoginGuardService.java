@@ -119,23 +119,10 @@ public class LoginGuardService {
         try {
             String ip = ClientIpResolver.resolve(request);
             String accountHmac = (account == null || account.isBlank()) ? null : hmac(account);
-            List<GuardVerdict> hits = new ArrayList<>();
 
-            hits.add(hit(DIM_IP, ip, ipLimit));
-            hits.add(hit(DIM_ACCOUNT, accountHmac, accountLimit));
-            if (tenantCode != null && !tenantCode.isBlank()) {
-                hits.add(hit(DIM_TENANT, tenantCode.trim(), tenantLimit));
-            }
-
-            // ★ 所有维度都先计数完再判：若第一个维度超限就提前 return，
-            //   攻击者被 IP 闸拦住之后账号维度的计数就停止增长，
-            //   换 IP 继续打时会发现账号维度"很干净"——等于自己关掉一层防线。
-            for (GuardVerdict v : hits) {
-                if (v != null && v.needChallenge()) {
-                    log.warn("登录频率闸触发, dim={}, count={}, limit={}, ip={}, accountHmac={}",
-                            v.dim(), v.count(), v.limit(), ip, accountHmac);
-                    return v;
-                }
+            GuardVerdict rateHit = firstRateHit(ip, accountHmac, tenantCode);
+            if (rateHit != null) {
+                return rateHit;
             }
 
             // P1：风险评分（只在挑战功能开启时参与判定）
@@ -154,6 +141,70 @@ public class LoginGuardService {
             log.warn("登录频率闸异常，降级放行（本次不做限流）", e);
             return GuardVerdict.pass("rate:degraded");
         }
+    }
+
+    /**
+     * 纯频率闸（2026-10-24，微信免登录端点 Phase A）。
+     *
+     * <p><b>为什么微信端点不用 {@link #evaluate} 而单独开一个入口</b>：
+     * {@code evaluate} 含 P1 风险评分，评分命中会**要求人机挑战**。
+     * 而小程序端只有 {@code /auth/login} 接了滑块（登录页），
+     * {@code /auth/wechat-login} 与 {@code /auth/wechat-register} 都是**静默调用**：
+     * 它们在 {@code core/auth.js} 里以 {@code customErrorMsg:false} + try/catch 包装，
+     * 任何失败都返回 null 并降级到密码表单。此时下发 challenge 没人能答，
+     * 等于把"微信静默登录/注册"整条链路打断 —— 比不防还糟。
+     *
+     * <p>所以这里**只做限流、只返回 pass/challenge 两种语义的判定**，由调用方决定怎么拒；
+     * 且判定结果里的 {@code challenge} 在此仅表示"超限"，不表示"要出题"。
+     *
+     * <p>subject 用 openid 的 HMAC（微信登录/注册都已拿到 openid，无需额外采集设备信息）。
+     * 微信 openid 按用户唯一，所以 account 维度是"同一个微信一小时最多试 N 次"，
+     * 真正起作用的是 IP 维度（批量注册/登录都是同出口）。
+     *
+     * @param subject    身份值（openid），内部转 HMAC 后计数，不落明文
+     * @param tenantCode 租户编码（可空）
+     * @return 永不为 null；{@code needChallenge()==true} 表示已超限
+     */
+    public GuardVerdict evaluateRateOnly(HttpServletRequest request, String subject, String tenantCode) {
+        try {
+            String ip = ClientIpResolver.resolve(request);
+            String subjectHmac = (subject == null || subject.isBlank()) ? null : hmac(subject);
+            GuardVerdict rateHit = firstRateHit(ip, subjectHmac, tenantCode);
+            return rateHit != null ? rateHit : GuardVerdict.pass("rate:ok");
+        } catch (Exception e) {
+            // 同 evaluate：风控故障一律放行，不让限流组件拖死微信登录
+            log.warn("微信端点频率闸异常，降级放行（本次不做限流）", e);
+            return GuardVerdict.pass("rate:degraded");
+        }
+    }
+
+    /**
+     * 三个维度（IP / 身份 / 租户）依次计数，返回第一个超限的判定；全未超限返回 null。
+     *
+     * <p>★ <b>必须全部计数完再判</b>：若第一个维度超限就提前 return，
+     * 攻击者被 IP 闸拦住之后身份维度的计数就停止增长，换 IP 继续打时
+     * 会发现身份维度"很干净"——等于自己关掉一层防线。
+     *
+     * <p>抽成独立方法是为了让 {@link #evaluate}（登录：限流+评分）与
+     * {@link #evaluateRateOnly}（微信：仅限流）**共用同一份维度口径**，
+     * 避免两处各写一遍后阈值/维度漂移。
+     */
+    private GuardVerdict firstRateHit(String ip, String subjectHmac, String tenantCode) {
+        List<GuardVerdict> hits = new ArrayList<>();
+        hits.add(hit(DIM_IP, ip, ipLimit));
+        hits.add(hit(DIM_ACCOUNT, subjectHmac, accountLimit));
+        if (tenantCode != null && !tenantCode.isBlank()) {
+            hits.add(hit(DIM_TENANT, tenantCode.trim(), tenantLimit));
+        }
+
+        for (GuardVerdict v : hits) {
+            if (v != null && v.needChallenge()) {
+                log.warn("登录频率闸触发, dim={}, count={}, limit={}, ip={}, subjectHmac={}",
+                        v.dim(), v.count(), v.limit(), ip, subjectHmac);
+                return v;
+            }
+        }
+        return null;
     }
 
     /**

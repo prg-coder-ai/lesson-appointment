@@ -5,9 +5,11 @@
 - 改动已有校验先摆事实与选项让用户拍板；用户库内数据只诊断不清理（自己的测试产物除外，测后清理）。
 - 输出首行标时间【YYYY-MM-DD HH:mm】，末尾 🔔🔔🔔。
 
-## 守卫（16 道；core.hooksPath=tools/git-hooks 激活，新克隆跑 npm run hooks:install）
-shared-sync/authz/cascade/ddl-align/tz/global-collide/scheduler/actuator/tenant-xt/secret-env/result-contract/date-contract/status-contract/itest-sut/bridge-exports/endpoints。`npm run check:<name>`，逃生 `SKIP_<大写>`。
-- 反向测试须证真会红（tests/check_*_guard.js，`npm run test:<name>-guard`）；**pre-commit 不跑反向测试，腐烂无人发现**。模式：禁 spawnSync（本机 EBUSY）→ 同进程 import(url+'?t=rand')+拦 process.exit；变异先断言真改动、结束逐字节校验。
+## 守卫（17 道；core.hooksPath=tools/git-hooks 激活，新克隆跑 npm run hooks:install）
+shared-sync/authz/cascade/ddl-align/tz/global-collide/scheduler/actuator/tenant-xt/secret-env/result-contract/date-contract/status-contract/itest-sut/bridge-exports/endpoints/**admin-self-lock**。`npm run check:<name>`，逃生 `SKIP_<大写>`。
+- 反向测试须证真会红（tests/check_*_guard.js，`npm run test:<name>-guard`）；**pre-commit 不跑反向测试，腐烂无人发现**。模式：禁 spawnSync（本机 EBUSY）→ 同进程 import(url+'?t=rand')+拦 process.exit；变异先断言真改动、结束逐字节校验。**反向测试结尾必须 `process.exit(failed?1:0)`** —— 漏了就是"失败也返回 0"的假绿（actuator 那支曾如此，⑤⑥ 烂了很久没人发现）。
+- **★CRLF 毒害（第二次踩）**：`mutate()` 里 `txt.includes(oldStr)` 必须先把 `\r\n` 归一到 `\n`，否则多行锚点静默失配、报"未找到锚点"；`backup` 存原始 Buffer、按字节还原。
+- **★JwtFilter.WHITELIST_PATHS 区块内注释不得出现 ASCII 右括号**：`check-actuator-guard` 用懒匹配 `Set\.of\(([\s\S]*?)\)` 到**第一个** `)`，注释里一个 `)` 就把捕获截断在 `/actuator/health` 之前 → 守卫恒红。
 - **★免登录白名单有四处，缺一即整体失效**：SecurityConfig permitAll / JwtFilter.WHITELIST_PATHS / check-authz 的 PERMIT_ALL / **WebMvcConfig.EXCLUDE_PATTERNS**。漏第四处 → TenantInterceptor 无 token 裸 401，只在运行时暴露；守卫已自动核对（双路径形态）。
 - 端点避开 `/api/v1/message` 前缀（守卫跳过授权校验）；新增 `/api/v1/user/*` 必须在 AuthzRules 登记。
 
@@ -26,8 +28,11 @@ shared-sync/authz/cascade/ddl-align/tz/global-collide/scheduler/actuator/tenant-
 ## 业务要点
 - 授权兜底 denyAll()；course /list|/page 用 checkAnyLogin（勿替代 checkTeacherOrAdmin）；课次 appointment=UTC 唯一真相源，转换只经 ScheduleGenerator；删除级联登记 CascadeRules；名称查不到留空、不回退 id。
 - **★用户状态口径（2026-10-24 起）= 只有 active 能登录**：login（白名单失败关闭）/wechatLogin/wechatRegister 三处一致；pending=注册待审核、frozen=管理员禁用、inactive=停用，全部拒登。**注册口也不发券**：`doRegister` 非 active 不下发 token，`wechatRegister` 同；前端 login.html 只在拿到 token 时写会话。禁用只准用 frozen（web admin-user.js 曾错写 pending）；JwtAuthenticationFilter 不查 status，token 与状态解耦，禁用后必须补 `/auth/kick`。
-- **★管理员 bootstrap（勿改）**：`applyRoleAdmission` 判"是否已有管理员"**只计数 role、不看 status**（admin 按 tenant_id、platform_admin 全局）。别"优化"成只数 active——否则被禁用者会被自助注册抢座。配套 `assertNoAdminSelfLock`：updateStatus/updateInfo 两个入口均传 (callerId,callerRole from Token)，禁止管理员把自己改成非 active。
+- **★管理员 bootstrap（勿改）**：`applyRoleAdmission` 判"是否已有管理员"**只计数 role、不看 status**（admin 按 tenant_id、platform_admin 全局）。别"优化"成只数 active——否则被禁用者会被自助注册抢座。配套 `assertNoAdminSelfLock`：updateStatus/updateInfo 两个入口均传 (callerId,callerRole from Token)，禁止管理员把自己改成非 active。守卫 `check:admin-self-lock` 钉住这五组（含两条计数 SQL 不得出现 status）。前端两边编辑弹窗对自己那一行**置灰可见**（拍板），提交前再兜一道。
+- **★取客户端 IP 只准走 `ClientIpResolver.resolve(request)`**：直连无视 XFF；来自可信代理则从右往左取第一个不可信地址。**禁止再手写 `xff.split(",")[0]`**（首段是客户端自己写的那一跳，可任意伪造，风控与审计同时失效）。已统一 AuditAspect / LegalDocController / WeChatPcController / UserService / PromoController；`ServiceInfoService.buildConnection` **有意豁免**（诊断页要原样回显 XFF 全串）。
 - 待拍板：CourseService.deleteById/deleteByTemplateId 缺 @Transactional。
+- **★待完成（微信 Phase B）**：`wechatLogin` / `wechatRegister` 目前只接 `LoginGuardService.evaluateRateOnly`（纯限流、无滑块、超限返 1001 让小程序静默降级）。要上滑块须同时改 `miniprogram/core/auth.js` 与 `pages/login/login.js` 处理 code=1002 并回传 challengeId/moveX/trackPoints/costMs；UX 有感知，上线前评估。
+- 待处理 P1：① 保留字 `platform` 在注册链路未拦（role=admin+tenantCode=platform 会解析到真库租户 11，只靠"无 sys_tenant_package → 403"碰巧挡住）；② 平台管理员冻结某租户唯一 admin 后，该租户无自助恢复入口。
 - **推广（2026-10-13 二期 b0b08e7b + 三期双码）**：promo 三表（IGNORE_TABLES 无 tenant_id 列）；路径1 自助建租户（8位码去 0/O/1/I/l，保留字 platform/default，14天试用）+ 路径2 加入租户（pending）；防刷三闸（IP/手机 HMAC/试用租户上限按 referred_by 计）；点击只计数；钩子 updateStatus→onApproved、changePackage→onPaid；code-by-account 查「账号所属租户」。**三期**：我的推广双码（平台码 path1 + 租户码 path2，target 服务端从令牌派生、DTO 不接受客户端值，P0）；两级统计 GET /promo/achievement/tenant（TENANT_ADMIN_ONLY，租户从令牌派生）/platform（PLATFORM_ONLY，合计+Top20+最近转化）；租户/平台统计页挂 admin.html/platform_admin.html；平台端亦有「我的推广」菜单。
 - **★数据清理铁律**：删测试产物必须按条件 DELETE（promo_conversion 曾整表删误伤用户手动验证数据）。**租户16(fbKxQRAd)/promoter 0dc6977b 是用户手动验证产物，勿清**。
 - **★user.name 入库加密、服务级解密（无 TypeHandler）**：任何 IgnoreTenant 裸查回显姓名前必须 cryptoUtil.decrypt（PromoService.loadUsersForStats 模式），否则前端见 hex:base64 密文。

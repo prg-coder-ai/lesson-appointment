@@ -191,8 +191,18 @@ public class UserService {
         if (RoleConst.PLATFORM_ADMIN.equals(regRole)) {
             // 方案A：平台管理员租户编码固定为 "platform"，与登录分支 authController 一致解析为 tenantId=0。
             // 注册时显式对齐，避免注册落库的 tenant_id 与登录解析的 tenant_id 不一致导致登录 404。
-            // 注意：sys_tenant 中没有 "platform" 这条记录，resolveTenantByCode 会返回 null 而误报 403，
-            // 因此平台管理员必须走此分支，不能走下面的真实租户解析。
+            // 注意（2026-10-24 按真库校正）：sys_tenant 里**确实存在** tenant_code='platform' 的记录
+            // （本机实测 id=11、status=1），它是平台自身的展示行（PlatformService/前端靠它取机构名）。
+            // 所以「resolveTenantByCode 会返回 null」这个旧说法是错的 —— 它**能**解析到 tenantId=11。
+            // 而 platform_admin 的 tenant_id 语义是 0L（租户插件在 0 时不拼 tenant_id 条件），
+            // 若落到 11，平台管理员会被当成"租户 11 的管理员"：既看不到全平台数据，
+            // 又会在 quota acquire 时因租户 11 无 sys_tenant_package 直接 403。
+            // 因此平台管理员必须走本分支硬置 0L，不能进下面的真实租户解析。
+            //
+            // ⚠️ 已知缺口（P1，尚未修）：role=admin + tenantCode=platform 的自助注册会走 **else 分支**
+            // 解析到租户 11，并因该租户当前无 admin 被判为首管理员直接 active。
+            // 现状只是**碰巧**被"租户 11 没有 sys_tenant_package → quota acquire 失败 403"挡住，
+            // 属运气而非校验。正解是在 Register 里对齐 TenantCodeGenerator.RESERVED 拦保留字。
             regTenantId = 0L;
         } else if (regTenantId == null || regTenantId <= 0) {
             Tenant tenant = resolveTenantByCode(user.getTenantCode());

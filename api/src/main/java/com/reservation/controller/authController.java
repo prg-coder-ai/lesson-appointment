@@ -314,7 +314,25 @@ UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthent
      */
     @PostMapping("/wechat-login")
     @ResponseBody
-    public Result<HashMap<String, Object>> wechatLogin(@Validated @RequestBody WeChatCodeDTO dto) {
+    public Result<HashMap<String, Object>> wechatLogin(@Validated @RequestBody WeChatCodeDTO dto,
+                                                       jakarta.servlet.http.HttpServletRequest request) {
+        // ============ 频率闸（2026-10-24 Phase A：只限流，不出题） ============
+        // ★ 位置必须在 code2Session 之前：那是一次**对外 HTTPS 调用**（打到微信服务器），
+        //   是全链路里最贵的一步。批量请求若先换 openid 再限流，攻击者已经消耗掉了服务端资源。
+        // ★ subject 传 null（只用 IP 维度），原因：openid 要 code2Session 之后才知道，
+        //   而这里恰恰是为了"在换 openid 之前"拦住。openid 维度的边际价值也很低 ——
+        //   机器人会轮流用不同微信，真正卡住批量的是 IP 与租户维度。
+        // ★ 只做限流、不做评分、不下发 challenge：本端点由小程序静默调用
+        //   （core/auth.js 用 customErrorMsg:false + try/catch），没有任何 UI 能承载滑块。
+        //   若这里返回 code=1002，小程序只会当成失败并降级到密码表单，等于把静默登录打断。
+        //   滑块方案见 Phase B（待办：需同时改 core/auth.js 与 pages/login/login.js）。
+        GuardVerdict wxGuard = loginGuardService.evaluateRateOnly(request, null, null);
+        if (wxGuard.needChallenge()) {
+            // 用 1001 而非 400/403：1001 是本端点既有的"微信侧不可用，请静默降级"语义，
+            // 小程序据此继续显示密码登录表单；403 会被两端拦截器当权限不足处理（历史踩过刷新死循环）。
+            return Result.fail(1001, "微信登录请求过于频繁，请稍后再试或使用账号密码登录");
+        }
+
         WeChatSession session = weChatService.code2Session(dto.getCode());
         if (session.getOpenid() == null) {
             // 用 1001（而非 401）返回：避免触发小程序 request.js 的 onAuthFail 重定向把用户踢回登录页；
@@ -357,7 +375,18 @@ UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthent
      */
     @PostMapping("/wechat-register")
     @ResponseBody
-    public Result<HashMap<String, Object>> wechatRegister(@Validated @RequestBody WeChatRegisterDTO dto) {
+    public Result<HashMap<String, Object>> wechatRegister(@Validated @RequestBody WeChatRegisterDTO dto,
+                                                          jakarta.servlet.http.HttpServletRequest request) {
+        // ============ 频率闸（2026-10-24 Phase A：只限流，不出题） ============
+        // 同为写操作 + 对外调微信接口，闸门放在 code2Session 之前，理由见 wechatLogin。
+        // 带 tenantCode 维度：扫码注册必须携带租户码，多一个维度就多一层批量建号的门槛。
+        // （tenantCode 由客户端提供、可轮换，因此它不是可靠维度，IP 维度才是主力；
+        //   同一微信重复注册已在 UserService.wechatRegister 用 findByIdentity 判 409 挡住。）
+        GuardVerdict regGuard = loginGuardService.evaluateRateOnly(request, null, dto.getTenantCode());
+        if (regGuard.needChallenge()) {
+            return Result.fail(1001, "注册请求过于频繁，请稍后再试");
+        }
+
         WeChatSession session = weChatService.code2Session(dto.getCode());
         if (session.getOpenid() == null) {
             // 同 /wechat-login：用 1001 而非 401，让前端静默降级而不是被踢回登录页

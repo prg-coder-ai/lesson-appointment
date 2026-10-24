@@ -29,6 +29,19 @@
      return 'fa-user-shield';
    };
 
+   // ===== 当前登录账号 =====
+   // 提到 window 上供「列表渲染」与「编辑弹窗」共用：两处若各自从 localStorage 解析一遍，
+   // 取值口径迟早分叉（一处取 token 里的 sub、一处取 currentUser.userId）。
+   // 自锁防护的 UI 侧判定全靠它（服务端权威判定在 UserService.assertNoAdminSelfLock）。
+   window.adminUserLoginId = function () {
+     try {
+       const cu = JSON.parse(localStorage.getItem('currentUser') || 'null');
+       return cu && cu.userId ? String(cu.userId) : '';
+     } catch (e) {
+       return '';
+     }
+   };
+
    // 当前页用户的「原始」数据缓存（userId -> user）。
    // 必须缓存原始值：表格里展示的手机号/邮箱是 maskPhone/maskEmail 脱敏后的结果
    //（如 138****1234、t***@qq.com），编辑弹窗若直接读 DOM 回填，
@@ -234,11 +247,7 @@
             // 管理员列表专用：识别「当前登录账号」。
             // 理由：管理员把自己冻结/删除后，本租户就再没有能审批账号的人（只能找平台管理员救场），
             // 属于一键自锁事故，因此对自己这一行不渲染「禁用/删除」。
-            var currentLoginUserId = "";
-            try {
-              var cu = JSON.parse(localStorage.getItem("currentUser") || "null");
-              currentLoginUserId = cu && cu.userId ? String(cu.userId) : "";
-            } catch (e) { currentLoginUserId = ""; }
+            var currentLoginUserId = window.adminUserLoginId();
 
             userList.forEach(tea => {
               index ++;
@@ -389,6 +398,30 @@
         '编辑' + roleText + '信息';
 
       const status = user.status || 'pending';
+
+      // ===== 自锁防护（UI 侧）=====
+      // 管理员把自己改成非 active，本租户就再没有能审批账号的人，只能改库才能恢复。
+      // 服务端已在 UserService.assertNoAdminSelfLock 权威拦截（返回 400），
+      // 这里把下拉置灰是「别让用户点了才知道」——刻意选置灰可见而非整行隐藏：
+      // 用户能看到这个功能存在、也看得到为什么不能改，比凭空少一个控件更好理解。
+      // ★ 必须同时判角色：只有管理员/平台管理员会被服务端拦，
+      //   教师/学生列表里"自己"那一行（如果当前登录的恰好是教师）不受影响。
+      const lockSelf = (editRole === 'admin' || editRole === 'platform_admin')
+        && !!window.adminUserLoginId()
+        && String(user.userId) === window.adminUserLoginId();
+
+      const statusControl = lockSelf
+        ? `<select name="status" disabled title="当前登录账号不可修改自身状态">
+             <option value="active" selected>正常</option>
+           </select>
+           <div class="form-tip" style="color:#faad14;margin-top:4px;">
+             当前登录账号不可修改自身状态：管理员一旦把自己置为非启用，
+             本租户（或平台）将没有可用管理员审批，只能由数据库修复。请交由其他管理员操作。
+           </div>`
+        : `<select name="status">
+             ${EDITABLE_STATUS.map(s => `<option value="${s.value}"${s.value === status ? ' selected' : ''}>${s.text}</option>`).join('')}
+           </select>`;
+
       document.getElementById('editUserModalFormContainer').innerHTML = `
         <form id="editUserForm" class="form-item">
           <input type="hidden" name="userId" value="${escapeAttr(user.userId)}">
@@ -397,9 +430,7 @@
           <div class="form-line"><label>姓名</label><input name="name" value="${escapeAttr(user.name)}" placeholder="用户姓名"></div>
           <div class="form-line"><label>手机号</label><input name="phone" value="${escapeAttr(user.phone)}" placeholder="手机号（与邮箱至少填一项）"></div>
           <div class="form-line"><label>电子邮箱</label><input name="email" value="${escapeAttr(user.email)}" placeholder="电子邮箱（与手机号至少填一项）"></div>
-          <div class="form-line"><label>状态</label><select name="status">
-            ${EDITABLE_STATUS.map(s => `<option value="${s.value}"${s.value === status ? ' selected' : ''}>${s.text}</option>`).join('')}
-          </select></div>
+          <div class="form-line"><label>状态</label>${statusControl}</div>
           <div class="form-tip">账号为登录标识，不可修改；手机号与电子邮箱至少保留一项。</div>
           <div class="form-error" id="editUserFormErr"></div>
           <div class="btn-group">
@@ -428,6 +459,20 @@
         email:  email,
         status: f.elements.status.value
       };
+
+      // 自锁兜底（UI 第二道）：状态下拉置灰 + 上面那道提示只是"别让用户点了才知道"，
+      // 浏览器控制台改 DOM、或者干脆直接打 /user/updateInfo 都绕得过去；
+      // 真正的权威拦截在服务端 UserService.assertNoAdminSelfLock（返回 400）。
+      // 这里再判一次，是为了把"点了保存才吃 400"变成当场一句人话。
+      const cached = userRowCache.get(String(userId));
+      const targetRole = (cached && cached.role) || currentUserRole;
+      const loginId = window.adminUserLoginId();
+      if ((targetRole === 'admin' || targetRole === 'platform_admin')
+          && loginId && String(userId) === loginId
+          && data.status !== 'active') {
+        err.innerText = '不能停用自己的账号状态，请交由其他管理员操作';
+        return;
+      }
 
       request({
         url: `${API_BASE_URL}/user/updateInfo`,

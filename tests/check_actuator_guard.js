@@ -95,20 +95,32 @@ async function runGuardSkipEnv() {
 
 /** 备份并返回还原函数（还原后再逐字节比对） */
 function backup(file) {
-  const orig = fs.readFileSync(file, 'utf8');
+  // ★ 2026-10-24：改为备份原始 Buffer、按字节还原。
+  //   原先按 'utf8' 字符串备份/还原，在 CRLF 工作区里"还原"会把行尾统一成 LF，
+  //   于是逐字节比对必然失败（或反过来掩盖真实污染）。
+  const buf = fs.readFileSync(file);
   return {
     file,
-    orig,
+    buf,
+    orig: buf.toString('utf8'),
     restore() {
-      fs.writeFileSync(file, orig, 'utf8');
-      return fs.readFileSync(file, 'utf8') === orig;
+      fs.writeFileSync(file, buf);
+      return Buffer.compare(fs.readFileSync(file), buf) === 0;
     },
   };
 }
 
-/** 变异：把 oldStr 换成 newStr；未命中锚点返回 false（不写文件） */
+/**
+ * 变异：把 oldStr 换成 newStr；未命中锚点返回 false（不写文件）。
+ *
+ * ★ 2026-10-24：比对前必须把 CRLF 归一成 LF。
+ *   本仓 core.autocrlf=true —— 索引是 LF、工作区是 CRLF，而锚点字符串是按 \n 写的，
+ *   于是 `txt.includes(oldStr)` 对**多行锚点静默失配**（只回报"未找到锚点"，不报错）。
+ *   实测后果：本文件 ⑤⑥ 两项长期是假失败（编号 ⑤ 去掉 permitAll、⑥ 通配放行），
+ *   而它们恰恰是"探针 401"这条最危险退化唯一的反向验证 —— 守卫本体其实是对的。
+ */
 function mutate(bak, oldStr, newStr) {
-  const txt = fs.readFileSync(bak.file, 'utf8');
+  const txt = fs.readFileSync(bak.file, 'utf8').replace(/\r\n/g, '\n');
   if (!txt.includes(oldStr)) return false;
   fs.writeFileSync(bak.file, txt.split(oldStr).join(newStr), 'utf8');
   return true;
@@ -293,4 +305,9 @@ const passed = results.filter((x) => x.ok).length;
 const failed = results.length - passed;
 console.log('='.repeat(56));
 console.log(`反向测试：${passed}/${results.length} 通过` + (failed ? `，${failed} 项失败` : ''));
+// ★ 2026-10-24：必须用失败数决定退出码。
+//   原先这里没有 process.exit —— 即使有断言失败也返回 0，
+//   于是 ⑤⑥ 两项因 CRLF 锚点失配长期失败却"绿灯"，反向测试等于没有。
+//   反向测试的价值全在"失败真的会红"，退出码漏了就等于把它变成装饰。
+process.exit(failed ? 1 : 0);
 })();

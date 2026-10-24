@@ -6,6 +6,7 @@ import com.reservation.entity.WxLoginState;
 import com.reservation.service.UserService;
 import com.reservation.service.WeChatService;
 import com.reservation.service.WxLoginStateService;
+import com.reservation.utils.ClientIpResolver;
 import com.reservation.utils.JwtUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
@@ -188,15 +189,14 @@ public class WeChatPcController {
     }
 
     /** 取客户端 IP（兼容 X-Forwarded-For / X-Real-IP / getRemoteAddr）。 */
+    /**
+     * 取客户端真实 IP，统一委托 {@link ClientIpResolver}（2026-10-24）。
+     *
+     * <p>原实现直接 {@code xff.split(",")[0]} 取首段：XFF 是"客户端 → 各级代理"依次**追加**的，
+     * 首段恰是客户端自己写的那一段，伪造一个假头即可让扫码登录的 IP 留痕失真。
+     * 现由 resolver 按"直连无视 XFF / 可信代理从右往左取第一个不可信地址"解析。
+     */
     private String clientIp(HttpServletRequest request) {
-        String xff = request.getHeader("X-Forwarded-For");
-        if (xff != null && !xff.isBlank()) {
-            return xff.split(",")[0].trim();
-        }
-        String realIp = request.getHeader("X-Real-IP");
-        if (realIp != null && !realIp.isBlank()) {
-            return realIp.trim();
-        }
-        return request.getRemoteAddr();
+        return ClientIpResolver.resolve(request);
     }
 }

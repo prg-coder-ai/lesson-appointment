@@ -263,6 +263,23 @@ function openPlatformEditUser(userId) {
   modal.style.display = 'flex';
   document.getElementById('platformUserModalTitle').innerText = '编辑用户';
   const fc = document.getElementById('platformUserModalForm');
+  // ===== 自锁防护（UI 侧）=====
+  // 平台管理员把自己改成非 active → 全平台再没有能审批/配置的账号，只能改库恢复。
+  // 服务端在 UserService.assertNoAdminSelfLock 权威拦截（返回 400），
+  // 这里置灰可见而非隐藏：用户看得到功能存在、也知道为什么不能改。
+  const lockSelf = !!__selfId && String(userId) === String(__selfId);
+  const statusControl = lockSelf
+    ? `<select id="puEditStatus" disabled title="当前登录账号不可修改自身状态">
+         <option value="active" selected>正常</option>
+       </select>
+       <div class="form-tip" style="color:#faad14;">当前登录账号不可修改自身状态；管理员一旦把自己置为非启用，
+         本平台将没有可用管理员审批，只能由数据库修复。请交由其他管理员操作。</div>`
+    : `<select id="puEditStatus">
+        <option value="active" ${user.status === 'active' ? 'selected' : ''}>正常</option>
+        <option value="frozen" ${user.status === 'frozen' ? 'selected' : ''}>已冻结</option>
+        <option value="pending" ${user.status === 'pending' ? 'selected' : ''}>待审核</option>
+        <option value="inactive" ${user.status === 'inactive' ? 'selected' : ''}>停用</option>
+      </select>`;
   fc.innerHTML = `
     <form id="platformUserForm" class="form-item">
       <input type="hidden" id="puEditUserId" value="${escapeAttr(user.userId)}">
@@ -274,12 +291,7 @@ function openPlatformEditUser(userId) {
       <div class="form-line"><label>姓名</label><input id="puEditName" value="${escapeAttr(user.name)}"></div>
       <div class="form-line"><label>手机号</label><input id="puEditPhone" value="${escapeAttr(user.phone)}"></div>
       <div class="form-line"><label>电子邮箱</label><input id="puEditEmail" value="${escapeAttr(user.email)}"></div>
-      <div class="form-line"><label>状态</label><select id="puEditStatus">
-        <option value="active" ${user.status === 'active' ? 'selected' : ''}>正常</option>
-        <option value="frozen" ${user.status === 'frozen' ? 'selected' : ''}>已冻结</option>
-        <option value="pending" ${user.status === 'pending' ? 'selected' : ''}>待审核</option>
-        <option value="inactive" ${user.status === 'inactive' ? 'selected' : ''}>停用</option>
-      </select></div>
+      <div class="form-line"><label>状态</label>${statusControl}</div>
       <div class="form-tip">账号不可修改；公司名称改动会同步到所属${user.role === 'platform_admin' ? '平台' : '租户'}。</div>
       <div class="form-error" id="puEditErr"></div>
       <div class="btn-group">
@@ -298,6 +310,12 @@ function submitPlatformEditUser() {
   const err = document.getElementById('puEditErr');
   if (!userId) { err.innerText = '用户Id缺失，请刷新后重试'; return; }
   if (!phone && !email) { err.innerText = '手机号和电子邮箱至少填写一项'; return; }
+  // 自锁兜底（UI 第二道）：置灰 + 提示挡不住改 DOM / 直接打接口，
+  // 真正拦截在服务端 assertNoAdminSelfLock；这里只负责给一句人话。
+  if (__selfId && userId === String(__selfId) && status !== 'active') {
+    err.innerText = '不能停用自己的账号状态，请交由其他管理员操作';
+    return;
+  }
   // 基本信息
   request({ url: '/user/updateInfo', method: 'POST', data: { userId: userId, name: name, phone: phone, email: email, status: status } })
     .then(() => {

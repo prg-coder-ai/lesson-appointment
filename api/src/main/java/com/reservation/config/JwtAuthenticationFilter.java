@@ -41,9 +41,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/booking",
             "/booking.html",
              "/login", "/auth/login", "/api/v1/auth/login", "/auth/refreshToken", "/api/v1/auth/refreshToken",
-            "/user/teacher/register", "/api/v1/user/teacher/register",
-            "/user/student/register", "/api/v1/user/student/register",
-             "/user/admin/register", "/api/v1/user/admin/register",
+            // 自助注册：UserController 实际映射是 /user/register，见其 @PostMapping 注解。
+            // 此处原本放着 /user/{admin|teacher|student}/register 三条**服务端并不存在**的路径，
+            // 幽灵条目既挡不住任何真实请求，又会让本清单看起来"已覆盖注册"，
+            // 与 SecurityConfig:164 / WebMvcConfig:40 / 守卫 PERMIT_ALL 的口径分叉。
+            // 2026-10-24 按真实路径补正，四处至此一致。
+            // ⚠️ 本注释刻意不出现 ASCII 右括号：tools/check-actuator-guard.mjs 用一条
+            //    懒匹配正则从 Set.of 起点扫到**第一个**右括号，注释里只要出现一个，
+            //    捕获就被截断在它之前，/actuator/health 的检查会恒红（已实测踩中一次）。
+            "/user/register", "/api/v1/user/register",
             "/user/account/exist", "/api/v1/user/account/exist",
             "/api/v1/auth/wechat-login", "/auth/wechat-login",
             // 微信直接注册（场景 C）同样免认证：一期只加了 SecurityConfig 与守卫两处，

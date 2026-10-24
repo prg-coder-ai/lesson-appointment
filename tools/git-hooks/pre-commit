@@ -177,3 +177,20 @@ if [ "$SKIP_ENDPOINTS" != "1" ]; then
 else
   echo "[endpoints] SKIP_ENDPOINTS=1，跳过端点常量引用守卫"
 fi
+
+# 18) admin-self-lock：管理员自锁防护守卫（2026-10-24 新增）。
+#     必要性：applyRoleAdmission 的角色准入**刻意只计数 role、不看 status**
+#     （若只数 active，被禁用的管理员会让"尚无管理员"重新成立，拿到租户码就能自助顶替，
+#     "禁用"变成"可抢座"）。代价是"最后一个管理员被全部禁用"会变成单向死路，
+#     因此配套了 UserService.assertNoAdminSelfLock：管理员不得修改自己的状态。
+#     两者必须成对存在，删任一半都会留下缺口 —— 而这些退化**都不编译失败、不运行报错**：
+#     SQL 加个 status 条件只是语义漂移；防护被摘掉只表现为"某个按钮点了返回 400 或没生效"。
+#     守卫钉住：防护方法本体在位 / 两个改状态入口（updateStatus + updateUserInfo）都调用它 /
+#     控制器身份取自 Token 而非请求体 / 两条计数 SQL 不含 status / 角色准入的两条判据仍在。
+#     配套反向测试 tests/check_admin_self_lock_guard.js（8 种变异必须全红）。
+#     紧急跳过：SKIP_ADMIN_SELF_LOCK=1 git commit ...
+if [ "$SKIP_ADMIN_SELF_LOCK" != "1" ]; then
+  node tools/check-admin-self-lock.mjs || exit 1
+else
+  echo "[admin-self-lock] SKIP_ADMIN_SELF_LOCK=1，跳过管理员自锁防护守卫"
+fi

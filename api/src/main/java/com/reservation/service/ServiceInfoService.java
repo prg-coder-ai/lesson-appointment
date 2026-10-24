@@ -142,6 +142,13 @@ public class ServiceInfoService {
      *       + {@code clientIp} / {@code forwardedFor}（反代写入的真实客户端）；</li>
      *   <li><b>服务侧</b>：{@code listenAddress:listenPort}（本进程实际监听，0.0.0.0 表示监听全部网卡）。</li>
      * </ol>
+     *
+     * <p><b>为什么这里不统一走 {@code ClientIpResolver}</b>（2026-10-24 明确豁免）：
+     * 本方法服务于「系统监视」诊断页，用途是**原样展示**客户端送来的转发头
+     * （{@code forwardedFor} 字段直接回显 XFF 全串，供运维判断链路配置是否正确），
+     * 而不是为风控/限流取一个可信 IP。走 resolver 会把多跳链路折叠成单个判定结果，
+     * 恰好抹掉排障时需要看的信息。真正用于风控取 IP 的地方一律用
+     * {@code com.reservation.utils.ClientIpResolver#resolve}。
      */
     private ServiceInfo.ConnectionInfo buildConnection(HttpServletRequest request, Integer port) {
         ServiceInfo.ConnectionInfo c = new ServiceInfo.ConnectionInfo();

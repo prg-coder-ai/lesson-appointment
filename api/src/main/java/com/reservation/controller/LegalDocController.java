@@ -5,6 +5,7 @@ import com.reservation.entity.LegalDoc;
 import com.reservation.entity.Tenant;
 import com.reservation.service.LegalDocService;
 import com.reservation.service.TenantService;
+import com.reservation.utils.ClientIpResolver;
 import com.reservation.utils.PermissionCheck;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -117,18 +118,17 @@ public class LegalDocController {
         return Result.success(null, "已记录签署（版本 " + doc.getVersion() + "）");
     }
 
-    /** 取客户端真实 IP（兼容反向代理 X-Forwarded-For / X-Real-IP） */
+    /**
+     * 取客户端真实 IP，统一委托 {@link ClientIpResolver}（2026-10-24）。
+     *
+     * <p>原实现手写 XFF → X-Real-IP → remoteAddr，并额外 {@code split(",")[0]} 取首段 ——
+     * 首段由客户端自己追加，可取任意伪造值；签署留痕的 IP 因此不可作为证据。
+     * 现由 resolver 按"直连无视 XFF / 可信代理从右往左取第一个不可信地址"解析。
+     *
+     * <p>保留 {@code ""} 兜底：本值是落库字段（legal_accept.ip），不接受 null。
+     */
     private String getClientIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip == null || ip.isBlank() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("X-Real-IP");
-        }
-        if (ip == null || ip.isBlank() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getRemoteAddr();
-        }
-        if (ip != null && ip.contains(",")) {
-            ip = ip.split(",")[0].trim();
-        }
+        String ip = ClientIpResolver.resolve(request);
         return ip == null ? "" : ip;
     }
 }
