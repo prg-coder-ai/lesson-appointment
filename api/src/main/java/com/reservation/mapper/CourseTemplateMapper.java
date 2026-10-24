@@ -92,4 +92,19 @@ public interface CourseTemplateMapper {
      * @return 影响行数
      */
     int purgeDeleted();
+
+    /**
+     * 物理删除某租户的全部课程模板（平台数据维护·清空租户回收站调用，2026-10-24）。
+     *
+     * <p>本 Mapper 未继承 BaseMapper（历史原因，全是手写 @Insert/@Update），
+     * 因此拿不到通用 delete(Wrapper)，只能补这一个按租户批删的方法。
+     *
+     * <p>租户插件会在 DELETE 上再追加一次 tenant_id 条件；平台视角 tenantId=0 时
+     * 插件对该表返回忽略，所以这里显式写 tenant_id 是唯一生效的条件。
+     *
+     * @param tenantId 租户 ID
+     * @return 影响行数
+     */
+    @org.apache.ibatis.annotations.Delete("DELETE FROM course_template WHERE tenant_id = #{tenantId}")
+    int deleteByTenantId(@Param("tenantId") Long tenantId);
 }

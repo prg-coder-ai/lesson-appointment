@@ -265,6 +265,12 @@ public final class AuthzRules {
         r.add(new Rule(HttpMethod.POST, "/api/v1/data-maintain/purge/booking", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，物理删除"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/data-maintain/purge/appointment", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，物理删除"));
 
+        // 平台级回收站清理（2026-10-24）：租户 / 用户是**平台对象**，
+        // 租户管理员无权物理删除另一个租户，也无权删别家账号，故必须是 PLATFORM_ONLY。
+        // 注意与上面五个 purge 的区别：那五个是租户内业务数据（PLATFORM_OR_TENANT_ADMIN）。
+        r.add(new Rule(HttpMethod.POST, "/api/v1/data-maintain/platform/purge/tenant", PLATFORM_ONLY, "新增·关键：物理删除整租户及其名下数据"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/data-maintain/platform/purge/user", PLATFORM_ONLY, "新增·关键：物理删除冻结账号及其登录凭证"));
+
         // 服务器日志读取：含 SQL/路径/异常栈，属敏感运维面
         r.add(new Rule(HttpMethod.GET, "/api/v1/logs/tail", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，可读服务器日志"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/logs/date", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，可读归档日志"));

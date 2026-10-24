@@ -113,6 +113,10 @@
           <i class="fa fa-bullhorn"></i>
           <span>我的推广</span>
         </div>
+        <div class="menu-item" key="data_maintain">
+          <i class="fa fa-cogs"></i>
+          <span>数据维护</span>
+        </div>
       </div>
     </aside>
 
@@ -221,6 +225,15 @@
           renderBackendInfoPage(dynamicContentCenter);
         }
         break;
+      // 数据维护（2026-10-24）：平台级对象的回收站清理 —— 租户 / 用户 / 租户套餐。
+      // 与租户端「数据维护」不同：那个维护租户内业务数据（课程/排期/…），本页维护平台对象。
+      case "data_maintain":
+        if (typeof window.renderPlatformDataMaintainPage === 'function') {
+          window.renderPlatformDataMaintainPage();
+        } else if (dynamicContentCenter) {
+          dynamicContentCenter.innerHTML = '<div class="card"><div class="card-body">数据维护模块未加载（platform-admin-dataMaintain.js）。</div></div>';
+        }
+        break;
       default:
         if (typeof renderPlatformOverview === 'function') renderPlatformOverview();
     }
@@ -322,6 +335,7 @@
   <script src="js/platform-admin-config-industry.js"></script>
   <script src="js/platform-admin-config-term.js"></script>
   <script src="js/platform-admin-backend-info.js"></script>
+  <script src="js/platform-admin-dataMaintain.js"></script>
   <script src="js/messages-inbox.js"></script>
   <script src="js/sensitiveWords.js"></script>
   <script src="js/admin-messageCategory.js"></script>
