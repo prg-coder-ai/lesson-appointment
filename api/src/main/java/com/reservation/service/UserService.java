@@ -17,6 +17,7 @@ import com.reservation.mapper.BookingMapper;
 import com.reservation.utils.JwtUtil;
 import com.reservation.utils.TenantContext;
 import com.reservation.utils.ClientIpResolver;
+import com.reservation.utils.TenantCodeGenerator;
 import lombok.extern.slf4j.Slf4j;
 import com.reservation.utils.CryptoUtil;
 
@@ -171,6 +172,31 @@ public class UserService {
         return tenant;
     }
 
+    /** 保留字租户编码被用于注册时的统一文案（与登录分支 authController 的措辞保持一致）。 */
+    private static final String RESERVED_TENANT_CODE_MESSAGE =
+            "该租户编码为系统保留，不能用于注册或登录，请使用管理员提供的注册链接";
+
+    /**
+     * 保留字租户编码校验（方案 B 收口①，2026-10-24）。
+     *
+     * <p><b>为什么必须在 resolveTenantByCode 之前拦</b>：{@code sys_tenant} 里**确实存在**
+     * {@code tenant_code='platform'} 那一行（平台自身的展示行，{@code fillOrgName} 靠它回显机构名），
+     * 所以 {@code resolveTenantByCode("platform")} 是**能成功解析**的。若不在查库之前拦，
+     * "保留"就会退化成"查得到但故意不用"，任何绕过该判断的调用点都会立刻恢复那条提权链：
+     * {@code role=admin} + {@code tenantCode=platform} → 该"租户"无 admin → 命中
+     * {@link #applyRoleAdmission} 的首管理员 bootstrap → 直接 active。
+     *
+     * <p><b>为什么这两个码安全无害却不能放开</b>：{@code platform} 是全系统唯一**可猜到**的租户码，
+     * 其余都是 29^8 量级的随机码。放开它等于给"平台自身"开一个公开可抢的管理员席位；
+     * 而首管理员判定只计数 role、不看 status（有意保留的语义，见 applyRoleAdmission 注释），
+     * 抢到即永久占位，只能改库或由平台管理员清掉。
+     *
+     * @return true 表示该编码为系统保留，调用方应直接拒绝注册
+     */
+    private boolean isReservedTenantCode(String tenantCode) {
+        return TenantCodeGenerator.isReserved(tenantCode == null ? null : tenantCode.trim());
+    }
+
     // 学生注册（对应设计2.2.1 学生注册接口）
     // 注册（对应设计2.2.1 注册接口）
     //
@@ -199,12 +225,20 @@ public class UserService {
             // 又会在 quota acquire 时因租户 11 无 sys_tenant_package 直接 403。
             // 因此平台管理员必须走本分支硬置 0L，不能进下面的真实租户解析。
             //
-            // ⚠️ 已知缺口（P1，尚未修）：role=admin + tenantCode=platform 的自助注册会走 **else 分支**
-            // 解析到租户 11，并因该租户当前无 admin 被判为首管理员直接 active。
-            // 现状只是**碰巧**被"租户 11 没有 sys_tenant_package → quota acquire 失败 403"挡住，
-            // 属运气而非校验。正解是在 Register 里对齐 TenantCodeGenerator.RESERVED 拦保留字。
+            // ★ 已收口（2026-10-24，方案 B 收口①）：role=admin + tenantCode=platform 的自助注册
+            //   现在会在下面的 else 分支入口被 isReservedTenantCode 显式拒绝，
+            //   不再依赖"该租户没有 sys_tenant_package → quota acquire 403"这种碰巧的偶然拦截。
+            //   设计取舍见 doc-develop/技术方案-保留字platform的租户语义.md
             regTenantId = 0L;
         } else if (regTenantId == null || regTenantId <= 0) {
+            // 保留字（platform / default）一律拒绝：这两个码是系统自用，
+            // 一旦允许自助注册就会被"猜码 → 抢首管理员 → 永久占位"（详见 isReservedTenantCode 注释）。
+            // 必须放在 resolveTenantByCode 之前 —— 那一行是能解析成功的。
+            if (isReservedTenantCode(user.getTenantCode())) {
+                log.warn("注册被拒(租户编码为系统保留), 编码={}, 角色={}",
+                        user.getTenantCode(), user.getRole());
+                return Result.fail(403, RESERVED_TENANT_CODE_MESSAGE);
+            }
             Tenant tenant = resolveTenantByCode(user.getTenantCode());
             log.debug("UserService Register：" + tenant);
             if (tenant == null) {
@@ -675,6 +709,14 @@ public class UserService {
     public Result<HashMap<String, Object>> wechatRegister(String openid, String unionid, String tenantCode, String role) {
         if (wxUseridService.findByIdentity(openid, unionid) != null) {
             return Result.fail(409, "该微信已注册，请直接登录");
+        }
+        // 方案 B 收口①：保留字同样挡在解析之前。
+        // 本方法的角色白名单只允许 student/teacher，造不出管理员，所以没有"抢首管理员"的路径；
+        // 但平台自身的展示行不该成为扫码注册的落脚点 —— 否则平台内部会出现一批
+        // 混在"平台"名下的学生/教师账号，既不属于任何经营租户，也没有套餐与行业。
+        if (isReservedTenantCode(tenantCode)) {
+            log.warn("微信注册被拒(租户编码为系统保留), 编码={}", tenantCode);
+            return Result.fail(403, RESERVED_TENANT_CODE_MESSAGE);
         }
         Tenant tenant = tenantService.getByCode(tenantCode);
         if (tenant == null || !Integer.valueOf(1).equals(tenant.getStatus())) {

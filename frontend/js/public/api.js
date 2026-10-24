@@ -803,7 +803,22 @@ function maskEmail(email) {
   window.resolveTenantCode = resolveTenantCode;
   window.pageUrl = pageUrl;
 
-  /** 校验「角色 ↔ 租户编码」是否匹配 */
+  /**
+   * 校验「角色 ↔ 租户编码」是否匹配
+   *
+   * ★ 这不是可删的冗余，是「方案 B」的纵深防线（2026-10-24 明确定案）：
+   *   platform 只作登录标识词与展示锚点，**永不作为经营租户**。
+   *   后端已在两处硬拦（UserService.isReservedTenantCode 挡注册、
+   *   authController 挡"platform + 非 platform_admin"的登录），
+   *   这里再守一次的价值是：即便 token 已经泄漏/旧 token 尚未过期，
+   *   带着 tenantCode=platform 的租户角色也进不了 admin.html。
+   *
+   * ⚠️ 禁止为了"让 platform 当租户、进 admin.html 管自己人"而放开这个判断。
+   *   那条路要同时拆掉：本函数 + 小程序 core/auth.js 的同名实现 + 两个页面的
+   *   guardEntryPage，并且会让 tenantId=0 的"查全量"语义漏进租户控制台。
+   *   完整取舍见 doc-develop/技术方案-保留字platform的租户语义.md
+   *   平台若需要租户态功能，正解是另开一个普通随机码的"内部机构"租户。
+   */
   function isRoleTenantCodeMatch(role, tenantCode) {
     if (role === 'platform_admin') {
       return tenantCode === 'platform';

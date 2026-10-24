@@ -74,6 +74,11 @@ export function requireAuth() {
 }
 
 // 角色与租户一致性校验（对齐 api.js isRoleTenantCodeMatch）
+// ★ 与 web 端同一份口径，不得单边放开（2026-10-24 定案方案 B）：
+//   platform 只作登录标识词，永不作经营租户。后端另有 UserService.isReservedTenantCode
+//   （注册）与 authController（登录）两道硬拦，这里是小程序侧的纵深。
+//   平台若需要租户态功能（课程/排期），应另开一个普通随机码的"内部机构"租户，
+//   而不是把 platform 变成租户；取舍见 doc-develop/技术方案-保留字platform的租户语义.md
 export function isRoleTenantCodeMatch(role, tenantCode) {
   if (role === 'platform_admin') return tenantCode === 'platform';
   return !!tenantCode && tenantCode !== 'platform';
