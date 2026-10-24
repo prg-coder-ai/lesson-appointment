@@ -2,6 +2,7 @@ package com.reservation.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.reservation.common.Result;
+import com.reservation.common.RoleConst;
 import com.reservation.entity.Appointment;
 import com.reservation.entity.Booking;
 import com.reservation.entity.Course;
@@ -186,7 +187,13 @@ public class PlatformDataMaintainController {
     }
 
     /**
-     * 清空「用户回收站」：物理删除所有 {@code status='frozen'} 的账号。
+     * 清空「用户回收站」：物理删除所有 {@code status='frozen'} 的**管理账号**。
+     *
+     * <p><b>为什么限定 role ∈ (admin, platform_admin)</b>：本页（平台端「数据维护-用户」）
+     * 只维护管理账号，教师与学生属于租户业务数据，由租户管理员在租户端管理。
+     * 若「清空回收站」按 {@code status='frozen'} 全量删，就会把页面上**根本看不到**的
+     * 教师/学生冻结账号一起物理删掉——这是典型的"看不见的破坏"，比漏删危险得多。
+     * 展示口径与删除口径必须一致。
      *
      * <p><b>顺手清掉登录凭证</b>：{@code user_refresh_token} 与 {@code sys_user_session}
      * 都按 {@code user_id} 指向账号。只删账号行会让这两张表留下指向不存在用户的凭据，
@@ -199,6 +206,7 @@ public class PlatformDataMaintainController {
      * 跟着账号一起删等于给后门（谁删的、何时删的都查不到）。它的 {@code user_id}
      * 留作历史引用，不影响任何业务查询。
      *
+     * @param userId 可空；传了只清这一个账号（行内按钮），不传则清空整个回收站
      * @return 受影响总行数（账号 + 凭证）
      */
     @PostMapping("/purge/user")
@@ -208,7 +216,14 @@ public class PlatformDataMaintainController {
         permissionCheck.checkPlatformAdmin(token);
         String callerId = permissionCheck.getUserIdFromToken(token);
 
-        QueryWrapper<User> deadWrapper = new QueryWrapper<User>().eq("status", USER_DEAD_STATUS);
+        QueryWrapper<User> deadWrapper = new QueryWrapper<User>()
+                .eq("status", USER_DEAD_STATUS)
+                // ★ 只管"管理账号"，不碰租户的教师与学生（2026-10-24）：
+                //   本页面（平台端「数据维护-用户」）的展示口径就是 admin + platform_admin，
+                //   「清空回收站」必须与之严格同口径 —— 否则会把页面上根本看不到的
+                //   教师/学生冻结账号一起物理删掉，属于"看不见的破坏"。
+                //   教师与学生的删除/清理属于租户内业务数据，由租户管理员在租户端处理。
+                .in("role", RoleConst.ADMIN, RoleConst.PLATFORM_ADMIN);
         if (callerId != null && !callerId.isBlank()) {
             // 绝不允许把自己清掉：清空回收站是"全量"动作，很容易在测试环境里顺手点掉
             deadWrapper.ne("user_id", callerId);

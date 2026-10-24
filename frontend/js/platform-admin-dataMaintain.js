@@ -32,7 +32,7 @@
     // 租户 Tab 的视图：live=在用（deleted=0） / trash=回收站（deleted=1）
     tenantView: 'live',
     tenant: { pageNum: 1, pageSize: 8, total: 0, totalPages: 0, keyword: '', status: '' },
-    user: { pageNum: 1, pageSize: 10, total: 0, totalPages: 0, account: '', status: '' },
+    user: { pageNum: 1, pageSize: 10, total: 0, totalPages: 0, account: '', status: '', role: '' },
     pkg: { pageNum: 1, pageSize: 8, total: 0, totalPages: 0 }
   };
 
@@ -119,8 +119,6 @@
     return '<span class="pdm-tag ' + cls + '">' + escapeHtml(text) + '</span>';
   }
 
-  function roleText(r) { return ROLE_TEXT[r] || (r || '-'); }
-
   function userStatusTag(s) {
     var cls = s === 'active' ? 'pdm-tag-ok' : (s === 'frozen' ? 'pdm-tag-dead' : 'pdm-tag-wait');
     return tag(USER_STATUS_TEXT[s] || s || '-', cls);
@@ -129,6 +127,23 @@
   function tenantNameOf(id) {
     if (id === 0 || id === null || id === undefined) return '平台';
     return tenantNameMap[id] || ('租户#' + id);
+  }
+
+  /**
+   * 「所属公司」文案：平台页已有 platformOrgText（platform-admin-user.js），
+   * 能正确区分"平台自身"与各租户机构名。这里优先复用它，避免两处口径漂移；
+   * 未加载时退回本地兜底。
+   */
+  function orgTextOf(u) {
+    if (typeof window.platformOrgText === 'function') return window.platformOrgText(u);
+    if (u && u.orgName) return u.orgName;
+    return (u && u.role === 'platform_admin') ? '平台自身' : '-';
+  }
+
+  /** 角色文案同理复用 platformRoleText（平台管理员 / 租户管理员）。 */
+  function roleTextOf(role) {
+    if (typeof window.platformRoleText === 'function') return window.platformRoleText(role);
+    return ROLE_TEXT[role] || role || '-';
   }
 
   // ────────────────────────────────────────────────────────────────
@@ -266,10 +281,19 @@
       return '<option value="' + o.v + '"' + (p.status === o.v ? ' selected' : '') + '>' + o.t + '</option>';
     }).join('');
 
+    var roleOpts = [
+      { v: '', t: '全部管理账号' },
+      { v: 'admin', t: '租户管理员' },
+      { v: 'platform_admin', t: '平台管理员' }
+    ].map(function (o) {
+      return '<option value="' + o.v + '"' + (p.role === o.v ? ' selected' : '') + '>' + o.t + '</option>';
+    }).join('');
+
     panel.innerHTML = ''
       + '<div class="pdm-bar">'
-      + '  <input id="pdm-user-kw" type="text" placeholder="账号 / 模糊搜索" value="' + escapeHtml(p.account) + '"'
+      + '  <input id="pdm-user-kw" type="text" placeholder="账号 模糊搜索" value="' + escapeHtml(p.account) + '"'
       + '         onkeydown="if(event.key===\'Enter\'){pdmSearch(\'user\')}"/>'
+      + '  <select id="pdm-user-role" onchange="pdmSearch(\'user\')">' + roleOpts + '</select>'
       + '  <select id="pdm-user-status" onchange="pdmSearch(\'user\')">' + opts + '</select>'
       + '  <button class="btn btn-primary btn-sm" onclick="pdmSearch(\'user\')"><i class="fa fa-search"></i> 查询</button>'
       + '  <button class="btn btn-default btn-sm" onclick="pdmReset(\'user\')"><i class="fa fa-redo"></i> 重置</button>'
@@ -282,8 +306,11 @@
       + '<div class="pdm-box" id="pdm-user-box"><div class="pdm-empty">加载中…</div></div>'
       + '<div class="pdm-foot"><span class="pdm-info" id="pdm-user-info"></span>'
       + '  <span id="pdm-user-pager"></span></div>'
-      + '<div class="pdm-note">「删除」= 把状态置为 frozen（与教师管理的「禁用」同值，可恢复）；'
-      + '「彻底删除」= 物理删除账号连同其刷新令牌与会话，不可恢复；审计日志刻意保留（审计链要能追溯）。</div>';
+      + '<div class="pdm-note">本页<b>只维护管理账号</b>：各租户的管理员（admin）与平台管理员（platform_admin）。'
+      + '教师、学生属于租户业务数据，由各租户管理员在租户端维护，平台端不提供其删除 / 清理入口'
+      + '（「清空回收站」同样只作用于这两类角色，不会连带删掉教师的学生的冻结账号）。<br>'
+      + '「删除」= 把状态置为 frozen（与教师管理的「禁用」同值，可恢复）；'
+      + '「彻底删除」= 物理删除账号连同其刷新令牌与会话，不可恢复；审计日志刻意保留。</div>';
     loadUser();
   }
 
@@ -292,23 +319,27 @@
     if (!box) return;
     box.innerHTML = '<div class="pdm-empty">加载中…</div>';
     var p = state.user;
+    // ★ 走 /user/platformPage 而不是 /user/page（2026-10-24 收口）：
+    //   数据维护页只负责"管理账号"，教师与学生由租户管理员在租户端维护。
+    //   platformPage 在服务端就只返回 admin / platform_admin 两类角色，并自带 orgName，
+    //   前端不需要再拉 /tenant/list 做反查，也不会因为拉全量用户而误伤业务账号。
     var qs = new URLSearchParams();
     qs.set('pageNum', p.pageNum);
     qs.set('pageSize', p.pageSize);
     if (p.status) qs.set('status', p.status);
     if (p.account) qs.set('account', p.account);
-    Promise.all([
-      request({ url: '/user/page?' + qs.toString() }),
-      ensureTenantMap()
-    ]).then(function (arr) {
-      var page = unwrap(arr[0]) || {};
-      p.total = page.total || 0;
-      p.totalPages = page.totalPages || 0;
-      renderUserRows(page.rows || []);
-      renderFooter('user');
-    }).catch(function (e) {
-      box.innerHTML = '<div class="pdm-err">加载失败：' + escapeHtml(errText(e)) + '</div>';
-    });
+    if (p.role) qs.set('role', p.role);
+    request({ url: '/user/platformPage?' + qs.toString() })
+      .then(function (res) {
+        var page = unwrap(res) || {};
+        p.total = page.total || 0;
+        p.totalPages = page.totalPages || 0;
+        renderUserRows(page.rows || []);
+        renderFooter('user');
+      })
+      .catch(function (e) {
+        box.innerHTML = '<div class="pdm-err">加载失败：' + escapeHtml(errText(e)) + '</div>';
+      });
   }
 
   function renderUserRows(rows) {
@@ -319,7 +350,7 @@
       return;
     }
     var head = '<tr><th style="width:52px;">序号</th><th>账号</th><th>姓名</th><th>角色</th>'
-      + '<th>所属租户</th><th>状态</th><th style="width:220px;">操作</th>'
+      + '<th>所属公司</th><th>状态</th><th style="width:220px;">操作</th>'
       + '<th style="width:46px;text-align:center;"><input type="checkbox" onclick="pdmInvert(this,\'user\')" title="反转本页勾选"></th></tr>';
     var body = rows.map(function (u, i) {
       var id = escapeHtml(u.userId || '');
@@ -334,8 +365,8 @@
         + '<td>' + (i + 1) + '</td>'
         + '<td>' + escapeHtml(u.account || '') + '</td>'
         + '<td>' + escapeHtml(u.name || '') + '</td>'
-        + '<td>' + escapeHtml(roleText(u.role)) + '</td>'
-        + '<td>' + escapeHtml(tenantNameOf(u.tenantId)) + '</td>'
+        + '<td>' + escapeHtml(roleTextOf(u.role)) + '</td>'
+        + '<td>' + escapeHtml(orgTextOf(u)) + '</td>'
         + '<td>' + userStatusTag(u.status) + '</td>'
         + '<td>' + obs + '</td>'
         + '<td style="text-align:center;"><input type="checkbox" class="pdm-check-user" value="' + id + '"></td>'
@@ -502,6 +533,7 @@
     } else if (tab === 'user') {
       p.account = (($('pdm-user-kw') || {}).value || '').trim();
       p.status = ($('pdm-user-status') || {}).value || '';
+      p.role = ($('pdm-user-role') || {}).value || '';
     }
     reload(tab);
   };
@@ -518,6 +550,7 @@
     if (tab === 'user') {
       p.account = '';
       p.status = '';
+      p.role = '';
       renderUserPanel($('pdm-panel'));
       return;
     }
@@ -586,7 +619,7 @@
         .catch(function (e) { alert('清理失败：' + errText(e)); });
       return;
     }
-    if (!confirm('清空用户回收站？\n将物理删除**所有**「已删除(冻结)」的账号及其登录凭证，操作不可恢复。')) return;
+    if (!confirm('清空用户回收站？\n将物理删除**所有**「已删除(冻结)」的管理账号（租户管理员 / 平台管理员）及其登录凭证，操作不可恢复。\n\n教师与学生的账号不在此范围内（由各租户管理员维护），不会被清掉。')) return;
     request({ url: '/data-maintain/platform/purge/user', method: 'POST' })
       .then(function (res) {
         var n = (typeof res === 'number') ? res : (unwrap(res) || 0);
@@ -600,7 +633,7 @@
   window.pdmBatchDelete = function (tab) {
     var ids = checkedIds(tab);
     if (!ids.length) { alert('请先勾选要删除的行'); return; }
-    var label = tab === 'tenant' ? '租户' : (tab === 'user' ? '账号' : '租户套餐');
+    var label = tab === 'tenant' ? '租户' : (tab === 'user' ? '管理账号' : '租户套餐');
     if (!confirm('确定删除选中的 ' + ids.length + ' 个' + label + '？\n（租户与账号是软删除，可在回收站恢复；套餐是物理删除，不可恢复）')) return;
 
     var seq = Promise.resolve();
