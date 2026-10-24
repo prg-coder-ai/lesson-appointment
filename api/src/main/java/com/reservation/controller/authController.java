@@ -19,7 +19,8 @@ import com.reservation.service.RefreshTokenService;
 import com.reservation.service.UserSessionService;
 import com.reservation.service.WeChatService;
 
- import com.reservation.utils.JwtUtil;
+ import com.reservation.utils.ClientIpResolver;
+import com.reservation.utils.JwtUtil;
 import com.reservation.utils.PermissionCheck;
 import com.reservation.audit.Audit;
 import com.reservation.audit.AuditAction;
@@ -63,8 +64,14 @@ public class authController {
 
     /**
      * 平台管理员登录时使用的固定租户编码。
-     * 注意：它是登录分支的标识，不是真实租户的 tenant_code
-     *（sys_tenant 中没有该编码的记录，解析结果为 tenantId = 0）
+     *
+     * <p><b>它是登录标识词，不是真实租户的 tenant_code</b>（2026-10-24 按真库校正）：
+     * {@code sys_tenant} 里**确实存在** {@code tenant_code='platform'} 那一行 ——
+     * 但它是平台自身的**展示行**（{@code UserService.fillOrgName} 靠它给平台账号回显"所属公司"），
+     * 不是经营租户。两者同名不同义，混用就会让"平台"变成一行可被注册、可被停用、
+     * 可被抢首管理员的数据。故本常量只参与"角色配对判定 + 强制 tenantId=0"，
+     * 绝不用它去 {@code tenantService.getByCode} 解析租户（见下方 else 分支的显式拒绝）。
+     * 设计取舍见 doc-develop/技术方案-保留字platform的租户语义.md
      */
     private static final String PLATFORM_TENANT_CODE = "platform";
 
@@ -108,30 +115,68 @@ public class authController {
             // 超限绝不用 403：两端拦截器都把 403 当"权限不足"，历史上踩过 403 触发刷新无限循环。
             GuardVerdict guard = loginGuardService.evaluate(request, account, tenantCode,
                     userdto.getDeviceId(), Boolean.TRUE.equals(userdto.getEmuFlag()));
-            if (guard.blocked()) {
-                boolean challengePassed = false;
-                if (userdto.getChallengeId() != null && !userdto.getChallengeId().isBlank()) {
-                    challengePassed = loginChallengeService.verify(
-                            userdto.getChallengeId(),
-                            loginGuardService.subjectOf(account),
-                            userdto.getMoveX(), userdto.getTrackPoints(), userdto.getCostMs());
-                }
-                if (!challengePassed) {
-                    HashMap<String, Object> challengeData =
+
+            // ★ 挑战票据「无条件先验」（2026-10-24 方案 A）
+            //
+            // 改前这一整段套在 if (guard.blocked()) 里面：只要守卫在这一跳没命中，答案就根本不看。
+            // 而守卫在"带答案的那一跳"天然容易不命中——旧版评分顺手刷了设备档案
+            // （见 LoginGuardService#scoreOnly 的说明），于是"滑块拖歪 → 重试 → 守卫放过 → 直接登录"，
+            // 挑战形同装饰。库里 10 张票据 used=0 且 fail_count=0（校验一次都没跑过）就是这个形状。
+            //
+            // 现在的判据改为「请求带了票据就必须验过」：票据是上一次 code=1002 下发的一次性凭证，
+            // 客户端只在收到 1002 后才会带它，所以对正常登录零影响。
+            // 顺序也刻意是"先验票据、再看守卫"：票据是确定的事实，守卫是推断。
+            boolean challengeOk = false;
+            boolean hasTicket = userdto.getChallengeId() != null && !userdto.getChallengeId().isBlank();
+            if (hasTicket) {
+                challengeOk = loginChallengeService.verify(
+                        userdto.getChallengeId(),
+                        loginGuardService.subjectOf(account),
+                        userdto.getMoveX(), userdto.getTrackPoints(), userdto.getCostMs());
+                if (!challengeOk) {
+                    HashMap<String, Object> reissued =
                             buildChallengeData(loginGuardService.subjectOf(account));
-                    if (challengeData == null) {
-                        // ★ 出题失败（图片生成/落库异常）→ 降级放行。
-                        // 要求验证却给不出题目，等于把用户永久挡在门外，比"少验一次"严重得多。
-                        log.warn("登录风控要求挑战但出题失败，本次降级放行, guard={}", guard.reason());
+                    if (reissued == null) {
+                        // 可用性优先：票据验不过又给不出新题，只能放行——
+                        // 否则用户会因为"验证组件自己坏了"被永久挡在门外。
+                        log.warn("挑战校验未通过但出题失败，本次降级放行, guard={}", guard.reason());
+                        challengeOk = true;
                     } else {
-                        return Result.fail(Result.CODE_NEED_CHALLENGE, "请完成安全验证", challengeData);
+                        return Result.fail(Result.CODE_NEED_CHALLENGE,
+                                "验证未通过，请重新完成安全验证", reissued);
                     }
                 }
             }
 
+            // 守卫命中且本次没有通过挑战 → 出题
+            if (guard.blocked() && !challengeOk) {
+                HashMap<String, Object> challengeData =
+                        buildChallengeData(loginGuardService.subjectOf(account));
+                if (challengeData == null) {
+                    // ★ 出题失败（图片生成/落库异常）→ 降级放行。
+                    // 要求验证却给不出题目，等于把用户永久挡在门外，比"少验一次"严重得多。
+                    log.warn("登录风控要求挑战但出题失败，本次降级放行, guard={}", guard.reason());
+                } else {
+                    return Result.fail(Result.CODE_NEED_CHALLENGE, "请完成安全验证", challengeData);
+                }
+            }
+
             // 平台管理员登录：tenantCode 传固定值 "platform"，角色用 RoleConst.PLATFORM_ADMIN
-        if (PLATFORM_TENANT_CODE.equals(tenantCode) && RoleConst.PLATFORM_ADMIN.equals(role)) {
-            tenantId = 0L;
+        if (PLATFORM_TENANT_CODE.equals(tenantCode)) {
+            if (RoleConst.PLATFORM_ADMIN.equals(role)) {
+                tenantId = 0L;
+            } else {
+                // ★ 方案 B 收口②（2026-10-24）：platform 是保留字，只能与 platform_admin 配对。
+                //   改前这里会静默落到 else 分支，用 tenantService.getByCode("platform") 解析到
+                //   平台自身的展示行，再拿那个 id 去 login：只要库里有账号能匹配上，
+                //   token 就签出来了；但前端 guardEntryPage → isRoleTenantCodeMatch 会因
+                //   "非 platform_admin 的 tCode 不得为 platform" 把人踢回登录页 ——
+                //   形成"能拿到 token、任何页面都进不去"的幽灵态，比直接报错难排查得多。
+                //   措辞不复用"账号或密码不正确"：此处拒绝的是**租户编码本身**，
+                //   与账号是否存在无关，不存在账号枚举风险。
+                log.warn("登录被拒(保留字租户编码配了非平台角色), 编码={}, 角色={}", tenantCode, role);
+                return Result.fail(403, "该租户编码为系统保留，仅平台管理员可用");
+            }
         } else {
             // 租户端登录：先校验租户状态。
             // 必须同时校验软删除与停用，否则已删除的租户仍能登录；
@@ -160,6 +205,19 @@ public class authController {
 
         // 将认证信息存入安全上下文（自动维护会话，无需手动管理）
         SecurityContextHolder.getContext().setAuthentication(authentication); 
+        // ★ 设备档案只在登录成功后落痕（2026-10-24 方案 C）
+        //   ① 评分链路保持只读，重放请求才会拿到同样的风险分、挑战才会真的被执行；
+        //   ② 密码错误的请求不再污染档案（改前用错密码也会把 last_subject 刷成被尝试的账号，
+        //      等于替攻击者抹掉"这台设备换过身份"的痕迹）。
+        //   本方法内部整段吞异常：此时登录已经成功，档案写失败最多让下次多弹一次滑块，
+        //   绝不能反过来把成功改成失败。
+        if (rst != null && rst.getCode() == 200) {
+            loginGuardService.recordDeviceAfterLogin(
+                    loginGuardService.subjectOf(account),
+                    userdto.getDeviceId(),
+                    ClientIpResolver.resolve(request),
+                    Boolean.TRUE.equals(userdto.getEmuFlag()));
+        }
         // 4. 返回登录成功结果（包含token）
         return rst;//Result.success(resultMap, "登录成功");
     }
