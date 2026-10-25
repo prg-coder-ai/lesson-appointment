@@ -106,3 +106,6 @@ cloudBased/api/booking-api-2.2.0.jar
 cloudBased/message-service/message-service-1.1.0.jar
 cloudBased/web.zip
 cloudBased/env
+cloudBased/api.zip
+cloudBased/api/target/booking-api-2.2.0.jar
+cloudBased/message-service.zip

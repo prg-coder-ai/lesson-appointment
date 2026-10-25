@@ -1,5 +1,7 @@
-# Maven 构建产物
-target/
+# Maven 构建中间产物（保留 *.jar 供 Dockerfile COPY target/*.jar 使用）
+# 注意：不能整目录忽略 target/，否则 Dockerfile 的 COPY target/booking-api-2.2.0.jar 会失败
+target/*
+!target/*.jar
 
 # Git
 .git/
