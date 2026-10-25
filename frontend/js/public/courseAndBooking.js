@@ -343,9 +343,12 @@ function toScheduleCreateDto(formData) {
         availableSites: formData.availableSites || 1,
         status: formData.status || '',
         name: formData.name || '',
-        // 教学语言 / 课时长度（2026-10-25）：空串 → 后端回落"课程 → 默认"。
+        // 课程/咨询类型 · 授课语言 · 课时长度（2026-10-25）：空串 → 后端回落"课程 → 默认"。
+        // 两者语义不同：languageType 是 classType 的 code（同一 code 在 legal 行业显示「劳动」），
+        // workLanguage 才是「用哪种语言上课」（取自 sys_work_language，固定枚举、不随行业变）。
         // classDuration 必须是数字或 null：传 "" 会让 Jackson 解析 Integer 直接 400
         languageType: formData.languageType || '',
+        workLanguage: formData.workLanguage || '',
         classDuration: (function(){
             const v = formData.classDuration;
             if (v === null || v === undefined || v === '') return null;

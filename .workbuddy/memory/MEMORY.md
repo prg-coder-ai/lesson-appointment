@@ -25,6 +25,7 @@ shared-sync/authz/cascade/ddl-align/tz/global-collide/scheduler/actuator/tenant-
 - dist 是 terser 压缩产物：核验 grep 字符串字面量/DOM id，别 grep 函数名。
 - **`node frontend/build.js` 在本机会挂**：先 rmSync(dist)（93 文件 >50 阈值）→ safe-delete 闸抛 SAFE_DELETE_BULK_CONFIRM_REQUIRED，dist 不坏但构建不动。改 src 后按 build.js 同参（terser compress+mangle/module:false；html-minifier collapseWhitespace+removeComments+minifyCSS+minifyJS:false+caseSensitive+keepClosingSlash）**定向重生**受影响的 dist 文件即可（dist 被 frontend/.gitignore 忽略）。
 - **★`node frontend/build.js` 有逃生口**：默认先 `rmSync(dist)`（>50 文件）会被 safe-delete 闸拦（`SAFE_DELETE_BULK_CONFIRM_REQUIRED`，dist 不坏但构建不动）。加环境变量即可全量重建：`CODEBUDDY_SAFE_DELETE_ENABLED=0 node frontend/build.js`（2026-10-24 实测可用，14 个 html 全部重建）。**优先用这个，别手工定向重生**——手工重生难保证 build-info 注入与 terser 参数逐字一致。
+- **★dist 重建完整命令（2026-10-25 起）**：`NODE_OPTIONS=--max-old-space-size=4096 CODEBUDDY_SAFE_DELETE_ENABLED=0 node frontend/build.js`。默认堆会在 terser 压缩大文件时 **`Fatal process out of memory: Zone`** 崩掉，而此时 dist 已被 rmSync 清空 → 既无产物也无线索（单文件 terser 只要 300ms，别去怀疑某个文件有语法问题）。
 
 ## 业务要点
 - **★教学语言/课时长度三级口径（2026-10-25）**：`course_template`(定义) → `course`(**服务端强制继承**，不接受前端传值，因模板唯一键含 language_type) → `course_schedule`(带入但可覆盖)。排期表单空值=跟随课程，`CreateDtoToObject` **禁止兜底 60**（会把 90 分钟静默改回 60），兜底只在 SQL `COALESCE(#{classDuration},60)`。冲突检查按各自 `class_duration` 判重叠（原 `plusHours(1)` 已删）；返回 0 比硬编码 1 小时更糟。取排期默认值走 `GET /course/teachingProps`（SQL 内三级回落，Map 别名必须驼峰）。

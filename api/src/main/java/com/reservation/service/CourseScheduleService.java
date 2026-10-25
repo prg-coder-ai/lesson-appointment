@@ -67,6 +67,16 @@ public class CourseScheduleService {
     @Resource
     private BookingSeatService bookingSeatService;
 
+    /**
+     * 授课语言枚举校验（2026-10-25）。
+     *
+     * <p>排期上的 workLanguage 可以覆盖课程，所以它是**前端可直接传值**的入口，
+     * 必须校验落在 {@code sys_work_language} 的可见清单内（空=跟随课程，放行）。
+     * 不注入 CourseService 的原因同上面 courseMapper 的注释：会形成循环依赖。
+     */
+    @Resource
+    private WorkLanguageService workLanguageService;
+
 // 3. 冲突检测：先展开重复规则，检查每个实例是否冲突--TBD：课程+room是否冲突
 // 参数excludeSchid 在修改已存在的排期时，带
 /*  约定：排期使用dto带入的时区
@@ -240,27 +250,34 @@ public class CourseScheduleService {
     }
 
     /**
-     * 把「教学语言 / 课时长度」从课程带入排期（仅在排期侧未显式给出时）。
+     * 把「课程/咨询类型 · 授课语言 · 课时长度」从课程带入排期（仅在排期侧未显式给出时）。
      *
-     * <p>只填空值、不覆盖已有值：排期上单独改过的语言/时长必须能保住，
+     * <p>只填空值、不覆盖已有值：排期上单独改过的值必须能保住，
      * 否则每次编辑排期都会被打回课程的口径，"排期可修改"就成了摆设。
+     *
+     * <p>授课语言的典型用法：同一门法语课，外教班排期填 french、中教班填 chinese，
+     * 课程上留空即跟随，课程填了也只是默认值。
      */
     private void inheritTeachingPropsFromCourse(ScheduleCreateDTO dto) {
         if (dto == null || dto.getCourseId() == null || dto.getCourseId().trim().isEmpty()) return;
         boolean needLang = dto.getLanguageType() == null || dto.getLanguageType().trim().isEmpty();
+        boolean needWork = dto.getWorkLanguage() == null || dto.getWorkLanguage().trim().isEmpty();
         boolean needDur = dto.getClassDuration() == null || dto.getClassDuration() <= 0;
-        if (!needLang && !needDur) return;
+        if (!needLang && !needWork && !needDur) return;
         try {
             Course course = courseMapper.selectById(dto.getCourseId());
             if (course == null) return;
             if (needLang && course.getLanguageType() != null) {
                 dto.setLanguageType(course.getLanguageType());
             }
+            if (needWork && course.getWorkLanguage() != null) {
+                dto.setWorkLanguage(course.getWorkLanguage());
+            }
             if (needDur && course.getClassDuration() != null && course.getClassDuration() > 0) {
                 dto.setClassDuration(course.getClassDuration());
             }
         } catch (Exception e) {
-            log.debug("从课程继承教学语言/课时长度失败，沿用默认值：courseId={}, err={}",
+            log.debug("从课程继承课程类型/授课语言/课时长度失败，沿用默认值：courseId={}, err={}",
                     dto.getCourseId(), e.getMessage());
         }
     }
@@ -279,6 +296,9 @@ public class CourseScheduleService {
         // 若也去继承，等于每次保存都把排期上单独改过的值打回课程口径。
         inheritTeachingPropsFromCourse(dto);
         validateClassDuration(dto.getClassDuration());
+        // 授课语言校验放在继承之后：继承来的值已由模板侧把关，这里再兜一道，
+        // 拦住"前端直接 POST 一个没收录的 code"（空串=跟随课程，放行）。
+        workLanguageService.assertVisibleCode(TenantContext.getTenantId(), dto.getWorkLanguage(), "授课语言");
         CourseSchedule schedule = CreateDtoToObject(dto); 
      //    System.out .println("create : " +dto+"-->"+ schedule); 
         String  Id = UUID.randomUUID().toString().replace("-", ""); // 移除UUID分隔符
@@ -317,6 +337,9 @@ public class CourseScheduleService {
           // 就会把容量整体改写成那个默认值；显式改小时则要求不低于已占位数，否则改完立即超卖。
           CourseSchedule current = bookingSeatService.lockScheduleAndAssertExists(dto.getScheduleId());
           validateClassDuration(dto.getClassDuration());
+          // 编辑时排期可单独改授课语言（外教班/中教班），因此同样要校验 code 合法；
+          // null=本次不改、空串=改回"跟随课程"，两种都放行。
+          workLanguageService.assertVisibleCode(TenantContext.getTenantId(), dto.getWorkLanguage(), "授课语言");
           Integer newSites = dto.getAvailableSites();
           if (newSites != null && newSites != current.getAvailableSites()) {
               bookingSeatService.assertSitesNotBelowOccupied(dto.getScheduleId(), newSites);
@@ -538,6 +561,7 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
     // 兜底会把「编辑时没传」误判成「改成 60」，把库里 90 分钟的课静默改掉；
     // 新增路径的兜底由 insertSchedule 的 COALESCE(#{classDuration},60) 负责。
     cs.setLanguageType(dto.getLanguageType());
+    cs.setWorkLanguage(dto.getWorkLanguage());
     cs.setClassDuration(dto.getClassDuration());
     return cs;
 }

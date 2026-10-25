@@ -15,7 +15,19 @@ public class CourseTemplate implements Serializable{
     private Long tenantId;
     private String templateId;  // 唯一标识
     @NotBlank(message = "语言类型不能为空")
-    private String languageType;  // 枚举值（对应教师注册languageType）
+    private String languageType;  // classType 的 code（教育=法语/英语，法律=劳动/行政…），显示词由 sys_term 按行业渲染
+
+    /**
+     * 授课语言 —— 用哪种语言上课（english/french/chinese/german/spanish/turkish…）。
+     *
+     * <p>代码取自 {@code sys_work_language.lang_code}，与 {@link #languageType}
+     * （课程/咨询类型）是两件事。模板上它是"默认课堂用语"，课程与排期均可再覆盖。
+     *
+     * <p><b>为什么唯一键里没有它</b>：同一租户下绝大多数模板的授课语言相同，
+     * 若把它加进 uk_tenant_lang_level，同难度的第二个模板会直接撞唯一键。
+     * 授课语言的差异请在下沉到 course / course_schedule 时覆盖。
+     */
+    private String workLanguage;
     @NotBlank(message = "难度等级不能为空")
     private String difficultyLevel;  // 枚举值：1入门/2进阶/3中级/4高级
     @NotNull(message = "课时费不能为空")

@@ -139,6 +139,12 @@ const ENDPOINTS = {
   TRACK_ATTRIBUTION: '/api/v1/user/attribution',
   ACCOUNT_EXIST: (acc) => `/user/account/exist?account=${encodeURIComponent(acc)}`,
   TERM_MAP: (lang) => `/api/v1/term/map?lang=${encodeURIComponent(lang || 'zh')}`,
+  // 授课语言枚举（2026-10-25）：平台内置六项（英语/法语/汉语/德语/西班牙语/土耳其语）+ 租户自定义。
+  // 语义是「用哪种语言上课」，与 classType（课程/咨询类型，显示词走 sys_term 按行业渲染）是两回事，
+  // 列表**不经过 term**——否则法律租户的授课语言会显示成「劳动」。
+  WORK_LANGUAGE_LIST: '/work-language/list',
+  WORK_LANGUAGE_SAVE: '/work-language/save',
+  WORK_LANGUAGE_DELETE: (id) => `/work-language/delete/${id}`,
   TENANT_INDUSTRY: (tCode) => `/api/v1/tenant/industry${tCode ? '?tenantCode=' + encodeURIComponent(tCode) : ''}`,
   TENANT_NAME: (tCode) => `/api/v1/tenant/name?tenantCode=${encodeURIComponent(tCode)}`,
   // 租户只读信息（各角色可用）：GET 当前登录者所属租户（含 tenantCode / expireTime 租期 / packageId / status）

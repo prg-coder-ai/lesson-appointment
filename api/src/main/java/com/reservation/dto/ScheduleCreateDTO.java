@@ -24,9 +24,17 @@ public class ScheduleCreateDTO {
     //private String ClassroomId;
 
     /**
-     * 教学语言（可空）。为空时由服务端从课程带入；排期上可单独覆盖。
+     * 课程/咨询类型（classType 的 code，可空）。为空时由服务端从课程带入；排期上可单独覆盖。
      */
     private String languageType;
+
+    /**
+     * 授课语言（可空）。用哪种语言上课，代码取自 sys_work_language.lang_code。
+     *
+     * <p>为空时由服务端从课程带入；排期上可单独覆盖（外教班 / 中教班）。
+     * 空串表示"跟随课程"，不要与 languageType（课程/咨询类型）混用。
+     */
+    private String workLanguage;
 
     /**
      * 课时长度（分钟，可空）。为空时由服务端从课程带入（课程也为空则 60）。

@@ -297,7 +297,7 @@ async function renderScheduleCards() {
                     <input type="text" id="course-name-input"  placeholder="输入名称" >
                 </div>
                 <div>
-                    <label><span data-term="classType">语言类型</span>：</label>
+                    <label><span data-term="classType">课程/咨询类型</span>：</label>
                     <select id="languageType-select" >
                         <option value="">全部</option>
                         ${courseTypeOptionsHtml('', { empty: '全部' })}
@@ -369,10 +369,13 @@ async function renderScheduleCards() {
         <button class="btn btn-default" onclick="schedOpenBatchSlots()" title="一次填多行（星期 + 时间 + 员额），串行创建"><i class="fa fa-table"></i> 批量时段</button>
         <button class="btn btn-danger" onclick="deleteScheduleByFrozen()"><i class="fa fa-trash"></i> 删除</button>
         <button class="btn btn-success" onclick="refreshData()"><i class="fa fa-sync-alt"></i> 刷新</button>
-        <!-- 用户时间预览开关：置于"刷新"右侧，右对齐 -->
-        <label for="toggleUserTimeZone" style="margin-left:auto;width:auto;text-align:left;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;cursor:pointer;font-weight:500;">
-            <input type="checkbox" id="toggleUserTimeZone" style="width:auto;min-width:0;height:auto;padding:0;margin:0;cursor:pointer;" onchange="document.getElementById('userTimeZoneRow').style.display=this.checked?'':'none';document.getElementById('testTimeZoneForm').style.display=this.checked?'':'none';getTestDatetime();getTestEndDatetime();">
-            用户时间预览
+        <!-- 跨时区时间校验开关：置于"刷新"右侧，右对齐。
+             2026-10-25：默认勾选（checked）。原先默认不勾 → 右侧校验区整片空白，
+             被当成"功能没了"；现在默认展开，只想专心填本时区时间的人可以把它关掉。 -->
+        <label for="toggleUserTimeZone" title="展开/收起右侧「用户时区」校验列：把左边填的日期时间换算到对方城市的墙上时间"
+               style="margin-left:auto;width:auto;text-align:left;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;cursor:pointer;font-weight:500;">
+            <input type="checkbox" id="toggleUserTimeZone" checked style="width:auto;min-width:0;height:auto;padding:0;margin:0;cursor:pointer;" onchange="document.getElementById('userTimeZoneRow').style.display=this.checked?'':'none';document.getElementById('testTimeZoneForm').style.display=this.checked?'':'none';getTestDatetime();getTestEndDatetime();">
+            跨时区时间校验
         </label>
     </div>
   </div> <!-- 常驻：课程检索 / 选择排期 card 结束 -->
@@ -397,13 +400,15 @@ async function renderScheduleCards() {
                 <label>剩余员额：</label>
                 <input type="text" id="now_availableSites" value="1" readonly>
             </div>
-            <!-- 教学语言 / 课时长度：默认由课程带入（课程又来自模板），
-                 这里可以按本条排期覆盖——同一门课中外教分班、试听 25 分钟都是真实场景 -->
+            <!-- 授课语言 / 课时长度：默认由课程带入（课程又来自模板），
+                 这里可以按本条排期覆盖——同一门课的外教班/中教班、试听 25 分钟都是真实场景。
+                 注意：授课语言（work_language）是「用哪种语言上课」，固定枚举、不随行业变，
+                 也**不经过 sys_term**；它不同于上面筛选里的「课程/咨询类型」（classType，
+                 那个 code 在 legal 行业会显示成「劳动」）。 -->
             <div class="sched-form-line">
-                <label>教学语言：</label>
-                <select id="schedLanguageType">
-                    <option value="">跟随课程</option>
-                    ${courseTypeOptionsHtml('')}
+                <label>授课语言：</label>
+                <select id="schedWorkLanguage">
+                    ${workLanguageOptionsHtml('', { empty: '跟随课程' })}
                 </select>
             </div>
             <div class="sched-form-line">
@@ -412,26 +417,33 @@ async function renderScheduleCards() {
                 <span style="color:#8c8c8c;font-size:12px;">分钟</span>
             </div>
         </div>
+        <!-- L1：先勾上课星期 → 开始日期自动跳到「下一个该星期几」，并自动勾进重复星期。
+              这样排「周一三五 19:00」时不用对着日历数日子，也不用在 7 个复选框里手动挑。
+              2026-10-25：本行从左侧栏移到整行（跨两栏），否则右侧「用户时区」下方的
+              开始日期/上课时间/结束日期会整体错位一行，读起来像对错了行。 -->
+        <div class="sched-form-line">
+            <label>上课星期：</label>
+            <div id="quickWeekday" class="sched-weekdays" style="display:inline-flex;flex-wrap:wrap;gap:4px;margin:0;">
+                <label><input type="checkbox" value="1" onchange="schedQuickWeekdayChange(this)">周一</label>
+                <label><input type="checkbox" value="2" onchange="schedQuickWeekdayChange(this)">周二</label>
+                <label><input type="checkbox" value="3" onchange="schedQuickWeekdayChange(this)">周三</label>
+                <label><input type="checkbox" value="4" onchange="schedQuickWeekdayChange(this)">周四</label>
+                <label><input type="checkbox" value="5" onchange="schedQuickWeekdayChange(this)">周五</label>
+                <label><input type="checkbox" value="6" onchange="schedQuickWeekdayChange(this)">周六</label>
+                <label><input type="checkbox" value="7" onchange="schedQuickWeekdayChange(this)">周日</label>
+            </div>
+            <!-- 跨时区校验状态：两侧时区取不到时在这里显式报出来，避免右侧"空白"被当成加载中 -->
+            <span id="schedTzHint" style="margin-left:auto;color:#8c8c8c;font-size:12px;"></span>
+        </div>
+
         <div style="display: flex; flex-wrap: wrap; gap: 40px;">
-           <!-- 左侧：当前逻辑 -->
+           <!-- 左侧：排期自身的墙上时间（落库按此换算成 UTC） -->
            <div style="flex: 1; min-width: 400px;">
              <div class="sched-form-line">
                 <label>排期时区：</label>
-                <input type="text" id="timeZone" value="${userTimeZone}" readonly>
-             </div>
-             <!-- L1：先勾上课星期 → 开始日期自动跳到「下一个该星期几」，并自动勾进重复星期。
-                  这样排「周一三五 19:00」时不用对着日历数日子，也不用在 7 个复选框里手动挑。 -->
-             <div class="sched-form-line">
-                <label>上课星期：</label>
-                <div id="quickWeekday" class="sched-weekdays" style="display:inline-flex;flex-wrap:wrap;gap:4px;margin:0;">
-                    <label><input type="checkbox" value="1" onchange="schedQuickWeekdayChange(this)">周一</label>
-                    <label><input type="checkbox" value="2" onchange="schedQuickWeekdayChange(this)">周二</label>
-                    <label><input type="checkbox" value="3" onchange="schedQuickWeekdayChange(this)">周三</label>
-                    <label><input type="checkbox" value="4" onchange="schedQuickWeekdayChange(this)">周四</label>
-                    <label><input type="checkbox" value="5" onchange="schedQuickWeekdayChange(this)">周五</label>
-                    <label><input type="checkbox" value="6" onchange="schedQuickWeekdayChange(this)">周六</label>
-                    <label><input type="checkbox" value="7" onchange="schedQuickWeekdayChange(this)">周日</label>
-                </div>
+                <input type="text" id="timeZone" value="${userTimeZone}" readonly
+                       title="排期时区＝创建者浏览器时区（只读）。下方填的日期与时间都按此时区理解，服务端据此换算成 UTC 存 appointment。">
+                <span id="timeZoneOffset" style="color:#8c8c8c;font-size:12px;white-space:nowrap;"></span>
              </div>
              <div class="sched-form-line">
                   <label>开始日期：</label>
@@ -451,10 +463,13 @@ async function renderScheduleCards() {
                 <input type="text" id="endDate_weekday" readonly style="width:52px;min-width:52px;text-align:center;padding:8px 2px;">
             </div>
            </div>
-           <!-- 右侧：用户时间预览列，与左列逐行对齐 -->
+           <!-- 右侧：同一时刻在「用户时区」下的墙上时间（跨时区校验）
+                2026-10-25：默认可见。原先两块都是 display:none，只有工具栏勾上
+                「用户时间预览」才出现，于是右侧栏长期是一片空白，跨时区排课时
+                没有任何地方能核对自己填的时间在对方城市是几点。 -->
            <div style="flex: 1; min-width: 400px;">
                 <!-- 第1行：用户时区（与左侧"排期时区"行对齐，开关在上方"刷新"右侧） -->
-                <div class="sched-form-line" id="userTimeZoneRow" style="display:none;">
+                <div class="sched-form-line" id="userTimeZoneRow">
                     <label>用户时区：</label>
                     <select id="testTimeZone">
                         <option value="Europe/London">伦敦 (Europe/London)</option>
@@ -471,9 +486,10 @@ async function renderScheduleCards() {
                         <option value="America/Vancouver">温哥华 (America/Vancouver)</option>
                         <option value="America/Edmonton">卡尔加里 (America/Edmonton)</option>
                     </select>
+                    <span id="testTimeZoneOffset" style="color:#8c8c8c;font-size:12px;white-space:nowrap;"></span>
                 </div>
                 <!-- 第2~4行：日期/时间/结束日期（与左侧"开始日期/上课时间/结束日期"逐行对齐） -->
-                <div id="testTimeZoneForm" style="display:none;">
+                <div id="testTimeZoneForm">
                     <div class="sched-form-line">
                         <label>开始日期：</label>
                         <input type="date" id="displayStartDate" readonly>
@@ -636,6 +652,11 @@ async function renderScheduleCards() {
      
     // 关联 testTimeZone 下拉菜单与 handleTestTimeZoneChange 处理
      handleTestTimeZoneChange();
+     // 「用户时区」默认选本机时区（否则默认落在伦敦，换算结果看着像算错了）
+     schedInitUserTimeZoneSelect();
+     // 开关默认勾选、右侧校验区默认展开，但 change 事件不会在初始化时触发，
+     // 不主动刷一次的话首次进入页面右侧是空的（看起来像没生效）
+     refreshUserTzPreview();
      // 课程列表与学生列表并行加载；深链需等两者都完成后再处理
      await Promise.all([loadAndRenderCourses(), addStudentList()]);
 
@@ -824,6 +845,89 @@ function safeSetInputValue(id, value) {
     try { const el = document.getElementById(id); if (el) el.value = value == null ? '' : value; } catch (_) {}
 }
 
+/* ========== 时区偏移显示 + 校验提示（2026-10-25） ==========
+ * 光有"换算后的时间"不够用：19:00 变成 12:00 时，人得知道两边差几个小时、
+ * 以及夏令时有没有生效，否则没法判断这是不是自己要的那一格。
+ * 这里用 Intl 现算偏移（不查表：夏令时规则随年份变，硬编码表迟早过期）。 */
+function schedTzOffsetLabel(tz) {
+    const zone = (tz === null || tz === undefined) ? '' : String(tz).trim();
+    if (!zone) return '';
+    try {
+        const parts = new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'longOffset' })
+            .formatToParts(new Date());
+        const name = (parts.find(function (p) { return p.type === 'timeZoneName'; }) || {}).value || '';
+        if (!name) return '';
+        // longOffset 对零时区给的是裸 "GMT"，补成 UTC+00:00 免得看着像"没有偏移"
+        const t = name.replace(/^GMT/, 'UTC');
+        return (t === 'UTC') ? 'UTC+00:00' : t;
+    } catch (e) {
+        return ''; // 非法时区名 → 调用方据此报错，不要伪造一个偏移上去
+    }
+}
+
+/**
+ * 「用户时区」下拉默认选中本机时区。
+ *
+ * <p>不这么做的后果：下拉的第一项是伦敦，一旦默认展开校验区，所有人第一眼看到的
+ * 都是"上海 19:00 → 伦敦 12:00"，会误以为排期时区算错了。本机时区不在预置列表里
+ * （如 Asia/Chongqing）时临时插一项，而不是硬选伦敦。
+ */
+function schedInitUserTimeZoneSelect() {
+    const sel = document.getElementById('testTimeZone');
+    if (!sel) return;
+    const my = (typeof userTimeZone !== 'undefined' && userTimeZone) ? String(userTimeZone).trim() : '';
+    if (!my) return;
+    let exists = false;
+    for (let i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].value === my) { exists = true; break; }
+    }
+    if (!exists) {
+        const opt = document.createElement('option');
+        opt.value = my;
+        opt.textContent = my + '（本机）';
+        sel.insertBefore(opt, sel.firstChild);
+    }
+    sel.value = my;
+}
+
+/** 刷新两侧时区偏移文本 + 校验提示。任何一次时间/时区变化都会经过这里。 */
+function schedRefreshTzOffsets() {
+    const tzEl = document.getElementById('timeZone');
+    const userTzEl = document.getElementById('testTimeZone');
+    const fromTz = tzEl ? String(tzEl.value || '').trim() : '';
+    const toTz = userTzEl ? String(userTzEl.value || '').trim() : '';
+    const fromOff = schedTzOffsetLabel(fromTz);
+    const toOff = schedTzOffsetLabel(toTz);
+
+    const a = document.getElementById('timeZoneOffset');
+    if (a) a.textContent = fromOff ? '(' + fromOff + ')' : '';
+    const b = document.getElementById('testTimeZoneOffset');
+    if (b) b.textContent = toOff ? '(' + toOff + ')' : '';
+
+    const hint = document.getElementById('schedTzHint');
+    if (!hint) return;
+    const red = '#C0392B';
+    const toggle = document.getElementById('toggleUserTimeZone');
+    if (toggle && !toggle.checked) {
+        hint.textContent = '跨时区校验已关闭（右侧不显示换算结果）';
+        hint.style.color = '#8c8c8c';
+        return;
+    }
+    if (!fromTz || !fromOff) {
+        hint.textContent = '排期时区未取到（浏览器未提供有效时区），右侧无法换算';
+        hint.style.color = red;
+    } else if (!toTz || !toOff) {
+        hint.textContent = '用户时区「' + (toTz || '空') + '」无效，右侧无法换算';
+        hint.style.color = red;
+    } else if (fromTz === toTz) {
+        hint.textContent = '两侧时区相同（' + fromTz + '），右侧与左侧一致';
+        hint.style.color = '#8c8c8c';
+    } else {
+        hint.textContent = '右侧＝左侧所填时间在「用户时区」下的墙上时间（' + fromOff + ' → ' + toOff + '）';
+        hint.style.color = '#8c8c8c';
+    }
+}
+
 // 按照左侧 的时间和日期，同步修改右侧指定时区的显示
 async function getTestDatetime() {
     const toggle = document.getElementById('toggleUserTimeZone');
@@ -832,6 +936,9 @@ async function getTestDatetime() {
     const displayTzInput = document.getElementById('testTimeZone');
     const timeZoneInput = document.getElementById('timeZone');
     if (!displayTzInput || !startDateInput || !startTimeInput) return;
+
+    // 偏移与校验提示先刷（这一函数是所有变更的公共出口，放最前面保证早退分支也更新）
+    schedRefreshTzOffsets();
 
     const startDate = startDateInput.value || "";
     const startTime = startTimeInput.value || "";
@@ -1086,6 +1193,12 @@ async function getCourseFormByCourseId(cid) {
 //更新scheduleObject相关内容 --待细化 --TBD page display
 async function renderSchedule() {
      if (!scheduleObject) return;
+     // 授课语言清单（内置六项 + 本租户自定义）：表单与批量面板都要用它出下拉。
+     // 只在此处等一次——之后同步渲染（含 editSchedule / 批量新增行）都能直接用缓存；
+     // 失败时 workLanguage.js 退回内置六项，不阻塞页面。
+     if (window.WorkLanguageDomain) {
+         try { await window.WorkLanguageDomain.load(); } catch (e) { /* 已内部兜底 */ }
+     }
      //更新已预约人数
 const totalBooked = await getBookingCountByScheduleId(scheduleObject.scheduleId);
 
@@ -1134,9 +1247,9 @@ const totalBooked = await getBookingCountByScheduleId(scheduleObject.scheduleId)
         document.getElementById('status').value = "active";
     }
 
-     // 教学语言 / 课时长度回填：空字符串表示"跟随课程"，不要写成 "null"/"undefined"
-     const langEl = document.getElementById('schedLanguageType');
-     if (langEl) langEl.value = scheduleObject.languageType || '';
+     // 授课语言 / 课时长度回填：空字符串表示"跟随课程"，不要写成 "null"/"undefined"
+     const langEl = document.getElementById('schedWorkLanguage');
+     if (langEl) langEl.value = scheduleObject.workLanguage || '';
      const durEl = document.getElementById('schedClassDuration');
      if (durEl) durEl.value = (scheduleObject.classDuration != null && scheduleObject.classDuration !== '')
          ? scheduleObject.classDuration : '';
@@ -1216,7 +1329,7 @@ const totalBooked = await getBookingCountByScheduleId(scheduleObject.scheduleId)
     // 名称回到"自动建议"状态
     const nameEl = document.getElementById('scheduleName');
     if (nameEl) nameEl.setAttribute('data-auto','1');
-    // 教学语言 / 课时长度：现查课程（课程又来自模板）
+    // 授课语言 / 课时长度：现查课程（课程又来自模板）
     await schedLoadTeachingProps(activeCourseId);
     schedSuggestName();
     const summary = document.getElementById('schedPreviewSummary');
@@ -1250,8 +1363,10 @@ const totalBooked = await getBookingCountByScheduleId(scheduleObject.scheduleId)
     userTimeZone:userTimeZone ,
      availableSites : (getDefaultAvailableSites() || 1),
      now_availableSites :  (getDefaultAvailableSites() || 1),
-     // 教学语言 / 课时长度留空 = 跟随课程；resetSchedule() 之后会现查课程接口填上
-     languageType: "",
+     // 授课语言 / 课时长度留空 = 跟随课程；resetSchedule() 之后会现查课程接口填上。
+     // 注意这里不再给 languageType 赋值：课程/咨询类型是课程属性，排期上不提供入口，
+     // 新建时由后端 inheritTeachingPropsFromCourse 从课程带入即可。
+     workLanguage: "",
      classDuration: null
 
 };
@@ -1450,11 +1565,12 @@ return ;
        return (isNaN(n) || n <= 0) ? null : n;
    }
 
-   /** 拉取课程的教学语言 / 课时长度 / 课程形式，填入排期表单。
+   /** 拉取课程的授课语言 / 课时长度 / 课程形式，填入排期表单。
     *  为什么不从课程下拉的 data 属性取：下拉可能来自几分钟前的检索结果，
-    *  课时长度一旦是旧值，保存排期就会把冲突检查用的时长写错。这里按 courseId 现查。 */
+    *  课时长度一旦是旧值，保存排期就会把冲突检查用的时长写错。这里按 courseId 现查。
+    *  注意取的是 workLanguage（用哪种语言上课），不是 languageType（课程/咨询类型）。 */
    async function schedLoadTeachingProps(cid){
-       const langEl = document.getElementById('schedLanguageType');
+       const langEl = document.getElementById('schedWorkLanguage');
        const durEl  = document.getElementById('schedClassDuration');
        if (!langEl && !durEl) return;
        if (!cid) {
@@ -1464,7 +1580,7 @@ return ;
        }
        try {
            const props = await request({ url: `/course/teachingProps?courseId=${encodeURIComponent(cid)}` });
-           if (langEl) langEl.value = (props && props.languageType) ? props.languageType : '';
+           if (langEl) langEl.value = (props && props.workLanguage) ? props.workLanguage : '';
            if (durEl)  durEl.value  = (props && props.classDuration) ? props.classDuration : '';
        } catch (e) {
            if (langEl) langEl.value = '';
@@ -1513,7 +1629,7 @@ return ;
            availableSites: src.availableSites || 1,
            status: src.status || 'active',
            name: src.name || '',
-           languageType: src.languageType || '',
+           workLanguage: src.workLanguage || '',
            classDuration: src.classDuration || null
        };
    }
@@ -1630,7 +1746,7 @@ return ;
              + '    <span class="modal-close" onclick="schedCloseBatchSlots()"><i class="fa fa-times"></i></span>'
              + '  </div>'
              + '  <div class="modal-body">'
-             + '    <div style="color:#8c8c8c;font-size:12px;margin-bottom:10px;">每行生成一条「每周重复」的排期：星期由行内选择，开始日期自动取「当前开始日期之后最近的该星期」。教学语言 / 课时长度沿用上方表单。</div>'
+             + '    <div style="color:#8c8c8c;font-size:12px;margin-bottom:10px;">每行生成一条「每周重复」的排期：星期由行内选择，开始日期自动取「当前开始日期之后最近的该星期」。授课语言 / 课时长度沿用上方表单。</div>'
              + '    <div id="schedBatchRows"></div>'
              + '    <button class="btn btn-default" onclick="schedAddBatchRow()" style="margin-top:6px;"><i class="fa fa-plus"></i> 再加一行</button>'
              + '  </div>'
@@ -1679,7 +1795,7 @@ return ;
        const today = schedLocalToday();
        const startDate = ((document.getElementById('startDate') || {}).value) || today;
        const formEnd   = ((document.getElementById('endDate') || {}).value) || '';
-       const lang = ((document.getElementById('schedLanguageType') || {}).value) || '';
+       const lang = ((document.getElementById('schedWorkLanguage') || {}).value) || '';
        const dur  = schedReadDuration();
        const status = ((document.getElementById('status') || {}).value) || 'active';
        const tz = ((document.getElementById('timeZone') || {}).value) || userTimeZone;
@@ -1718,7 +1834,7 @@ return ;
                availableSites: line.sites,
                status: status,
                name: (courseName ? (courseName + ' · ') : '') + SCHED_WEEK_NAME[line.w] + ' ' + line.t,
-               languageType: lang,
+               workLanguage: lang,
                classDuration: dur
            };
            if (await schedPersistOne(dto, SCHED_WEEK_NAME[line.w] + ' ' + line.t)) ok++; else fail++;
@@ -1822,10 +1938,12 @@ function refreshUserTzPreview() {
         status:  document.getElementById('status').value,
         timeZone: document.getElementById('timeZone').value, //保持原始时区---排期的时区
         userTimeZone:userTimeZone, //输出时间的时区
-        // 教学语言 / 课时长度：空值一律给空串/null，让后端回落"课程 → 默认"，
-        // 不要在这里填 60，否则"跟随课程"这个语义就没了
-        languageType: (function(){
-            const el = document.getElementById('schedLanguageType');
+        // 授课语言 / 课时长度：空值一律给空串/null，让后端回落"课程 → 默认"，
+        // 不要在这里填 60，否则"跟随课程"这个语义就没了。
+        // 这里刻意**不传** languageType：排期表单不再暴露「课程/咨询类型」，
+        // 新建时由后端从课程继承，编辑时不传则 updateById 跳过该列、保持原值。
+        workLanguage: (function(){
+            const el = document.getElementById('schedWorkLanguage');
             return el ? String(el.value || '').trim() : '';
         })(),
         classDuration: schedReadDuration(),

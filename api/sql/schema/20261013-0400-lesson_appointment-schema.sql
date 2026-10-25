@@ -215,7 +215,8 @@ CREATE TABLE `course` (
   `course_id` varchar(36) NOT NULL COMMENT '课程唯一标识（UUID）',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（0=平台/历史单租户数据）',
   `template_id` varchar(36) NOT NULL COMMENT '关联的课程模板ID',
-  `language_type` varchar(20) NOT NULL DEFAULT '' COMMENT '教学语言（创建课程时从模板导入，可在排期上覆盖）',
+  `language_type` varchar(20) NOT NULL DEFAULT '' COMMENT '课程/咨询类型（classType 的 code；创建课程时从模板继承）',
+  `work_language` varchar(20) NOT NULL DEFAULT '' COMMENT '授课语言（创建课程时从模板继承；空=未指定）',
   `class_duration` int NOT NULL DEFAULT '60' COMMENT '课时长度（分钟，创建课程时从模板导入）',
   `course_name` varchar(50) NOT NULL COMMENT '课程名称（2-50字）',
   `content` varchar(1000) NOT NULL COMMENT '教学内容（0-1000字）',
@@ -388,7 +389,8 @@ CREATE TABLE `course_schedule` (
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（0=平台/历史单租户数据）',
   `name` varchar(56) NOT NULL DEFAULT 'noname' COMMENT '排期名称',
   `course_id` varchar(36) NOT NULL COMMENT '关联的教师课程ID',
-  `language_type` varchar(20) NOT NULL DEFAULT '' COMMENT '教学语言（默认取自课程，可在本条排期覆盖）',
+  `language_type` varchar(20) NOT NULL DEFAULT '' COMMENT '课程/咨询类型（classType 的 code；默认取自课程，可在本条排期覆盖）',
+  `work_language` varchar(20) NOT NULL DEFAULT '' COMMENT '授课语言（默认取自课程，可在本条排期覆盖；空=跟随课程）',
   `class_duration` int NOT NULL DEFAULT '60' COMMENT '课时长度（分钟，默认取自课程，可在本条排期覆盖）',
   `time_zone` varchar(36) NOT NULL COMMENT '排期所用的时区',
   `start_time` datetime NOT NULL COMMENT '排期开始时间（格式：YYYY-MM-DD HH:mm:ss，包含起始日期）',
@@ -421,7 +423,8 @@ DROP TABLE IF EXISTS `course_template`;
 CREATE TABLE `course_template` (
   `template_id` varchar(36) NOT NULL COMMENT '模板唯一标识（UUID）',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（0=平台/历史单租户数据）',
-  `language_type` varchar(20) NOT NULL COMMENT '语言类型（枚举：英语/日语/韩语/法语/德语/西班牙语）',
+  `language_type` varchar(20) NOT NULL COMMENT '课程/咨询类型（classType 的 code，显示词由 sys_term 按行业渲染：教育=法语/英语，法律=婚姻/劳动…）',
+  `work_language` varchar(20) NOT NULL DEFAULT '' COMMENT '授课语言（用哪种语言上课；代码取自 sys_work_language.lang_code；空=未指定）',
   `difficulty_level` varchar(20) NOT NULL COMMENT '难度等级（枚举：入门/进阶/中级/高级）',
   `class_fee` decimal(10,2) NOT NULL COMMENT '课时费（≥0，保留2位小数）',
   `class_duration` int NOT NULL COMMENT '课程时长（≥15，15的倍数，单位：分钟）',
@@ -815,6 +818,29 @@ CREATE TABLE `sys_user_session` (
   KEY `idx_last_active` (`last_active`),
   KEY `idx_user` (`user_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=196 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户会话表（在线统计）';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sys_work_language`
+--
+
+DROP TABLE IF EXISTS `sys_work_language`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sys_work_language` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '作用域：0=平台内置项，>0=租户自定义项',
+  `lang_code` varchar(20) NOT NULL COMMENT '授课语言代码（小写，如 english/french/chinese/german/spanish/turkish）',
+  `name_zh` varchar(64) NOT NULL COMMENT '中文显示名',
+  `name_en` varchar(64) NOT NULL DEFAULT '' COMMENT '英文显示名',
+  `name_fr` varchar(64) NOT NULL DEFAULT '' COMMENT '法文显示名',
+  `sort_order` int NOT NULL DEFAULT '0' COMMENT '同级排序（小者在前）',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_tenant_code` (`tenant_id`,`lang_code`),
+  KEY `idx_tenant` (`tenant_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='授课语言枚举（work_language）：平台内置项 tenant_id=0，租户可追加自定义项';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --

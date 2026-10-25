@@ -220,7 +220,10 @@ window.loadMaintainTableData = async function(type){
   var columns = {
     template: [
       {key: "templateId", label: "编号"},
-      {key: "languageType", label: "语言类型", fmt: function (v) { return courseTypeCellHtml(v); }, term: {key: "classType", anchor: "语言类型"}},
+      {key: "languageType", label: "课程/咨询类型", fmt: function (v) { return courseTypeCellHtml(v); }, term: {key: "classType", anchor: "语言类型"}},
+      // 授课语言（work_language）：用哪种语言上课，固定枚举+租户自定义，不随行业变。
+      // 与上面 languageType（classType 的 code，legal 行业下会显示「劳动」）是两回事。
+      {key: "workLanguage", label: "授课语言", fmt: function (v) { return workLanguageCellHtml(v); }},
       {key: "difficultyLevel", label: "难度等级", fmt: function (v) { return enumTermCellHtml('classLevel', v); }, term: {key: "classLevel", anchor: "难度等级"}},
       {key: "classForm", label: "课程形式", fmt: function (v) { return enumTermCellHtml('classForm', v); }, term: {key: "course", anchor: "课程", suffix: "形式"}},
       {key: "classFee", label: "课时费(元)", term: {key: "lessonFee", anchor: "课时费", suffix: "(元)"}},
@@ -232,6 +235,7 @@ window.loadMaintainTableData = async function(type){
       {key: "content", label: "内容"},
       {key: "feature", label: "特色"},
       {key: "tempInfo", label: "模板"},
+      {key: "workLanguage", label: "授课语言", fmt: function (v) { return workLanguageCellHtml(v); }},
       {key: "teacherInfo", label: "教师", term: {key: "teacher", anchor: "教师"}},
       {key: "status", label: "状态"}
     ],
@@ -241,6 +245,7 @@ window.loadMaintainTableData = async function(type){
       {key: "startDate", label: "开始日期"},
       {key: "startTime", label: "上课时间", term: {key: "lessonTime", anchor: "上课时间"}},
       {key: "timeZone", label: "时区"},
+      {key: "workLanguage", label: "授课语言", fmt: function (v) { return workLanguageCellHtml(v); }},
       {key: "status", label: "状态"}
     ],
     booking: [

@@ -109,6 +109,7 @@ public interface CourseMapper extends BaseMapper<Course> {
      * 别名必须与前端期望的字段名逐字一致。
      */
     @Select("SELECT COALESCE(NULLIF(c.language_type, ''), t.language_type, '') AS languageType, "
+          + "       COALESCE(NULLIF(c.work_language, ''), t.work_language, '') AS workLanguage, "
           + "       COALESCE(NULLIF(c.class_duration, 0), t.class_duration, 60) AS classDuration, "
           + "       COALESCE(t.class_form, '') AS classForm "
           + "  FROM course c "

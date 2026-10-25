@@ -97,14 +97,27 @@ function validateForm() {
     <input type="hidden" name="templateId" value="${defaultTemplate.templateId}">
     
     <div class="form-item">
-      <!-- 2026-10-25：文案对齐为「教学语言」——这个值会被导入到课程、再带到排期，
-           叫"语言类型"容易让人以为只是筛选标签 -->
-      <label><span data-term="classType">教学语言</span> <span style="color:red">*</span></label>
+      <!-- 2026-10-25 语义修正：这一项是「课程/咨询类型」（classType 的 code），
+           显示词由 sys_term 按行业渲染——教育行业 english 显示「英语」，
+           法律行业同一个 code 显示「劳动」，健身行业显示「力量训练」。
+           它回答"这是哪一类课程/咨询"，**不是**课堂用语。
+           之前把它标成「教学语言」是错的，真正的授课语言见下一项。 -->
+      <label><span data-term="classType">课程/咨询类型</span> <span style="color:red">*</span></label>
       <select name="languageType" class="form-select" required>
         <option value="">请选择</option>
         ${courseTypeOptionsHtml(defaultTemplate.languageType)}
       </select>
       <div class="form-error" id="languageTypeError"></div>
+    </div>
+
+    <div class="form-item">
+      <!-- 授课语言（work_language）：用哪种语言上课。固定枚举＋租户自定义，不随行业变化，
+           也不走 sys_term。留空表示未指定，课程与排期可再覆盖。 -->
+      <label>授课语言</label>
+      <select name="workLanguage" class="form-select">
+        ${workLanguageOptionsHtml(defaultTemplate.workLanguage, { empty: '未指定' })}
+      </select>
+      <div class="form-error" id="workLanguageError"></div>
     </div>
 
     <div class="form-item">
@@ -204,6 +217,8 @@ async function submitTemplateForm() {
     const formData = {
         templateId:     formEl.templateId.value,
         languageType:   formEl.languageType.value,
+        // 授课语言（用哪种语言上课）：空串=未指定，后端放行；非空必须是 sys_work_language 里的 code
+        workLanguage:   formEl.workLanguage ? formEl.workLanguage.value : '',
         difficultyLevel:formEl.difficultyLevel.value,
         classForm:      formEl.classForm.value,
         classDuration:  formEl.classDuration.value,
@@ -259,6 +274,12 @@ async function submitTemplateForm() {
 async function renderTemplateCards() {
     assignLoadobjectListFunction( loadAndRenderTemplateCards);// assign
 
+    // 授课语言清单（内置六项 + 租户自定义）：列表与表单都要用它出显示名。
+    // 失败不阻塞页面——workLanguage.js 会退回内置六项。
+    if (window.WorkLanguageDomain) {
+        try { await window.WorkLanguageDomain.load(); } catch (e) { /* 已内部兜底 */ }
+    }
+
     const dynamicContentCenter = document.getElementById('dynamic-content-center');
     //console .log("renderTemplateCards:",dynamicContentCenter);
     if (!dynamicContentCenter) return; 
@@ -274,7 +295,7 @@ async function renderTemplateCards() {
      <div class="teacher-list-cards" style="margin:6px 0;display:flex;flex-direction:column;gap:16px;">
       <div class="filter-bar">        
                  <div class="filter-item">
-                    <label><span data-term="classType">语言类型</span>：</label>
+                    <label><span data-term="classType">课程/咨询类型</span>：</label>
                     <select id="languageType-select" >
                         <option value="">全部</option>
                         ${courseTypeOptionsHtml('', { empty: '全部' })}
@@ -300,6 +321,9 @@ async function renderTemplateCards() {
                 <button class="btn btn-default" onclick="resetFilterTemplate()"> 
                 <i class="fa fa-redo"></i>重置
                 </button>
+                <button class="btn" onclick="openWorkLanguageManager()">
+                <i class="fa fa-language"></i>授课语言
+                </button>
               </div>        
            `;
              // 列表表头
@@ -309,7 +333,8 @@ async function renderTemplateCards() {
                 <thead>
                 <tr> 
                     <th>序号</th>  
-                    <th><span data-term="classType">语言类型</span></th>  
+                    <th><span data-term="classType">课程/咨询类型</span></th>  
+                    <th>授课语言</th>
                     <th><span data-term="classLevel">难度等级</span></th> 
                     <th><span data-term="classForm">课程形式</span></th> 
                     <th><span data-term="lessonUnit">课时</span>(分钟)</th> 
@@ -397,6 +422,7 @@ async function loadAndRenderTemplateCards() {
               <tr> 
                  <td  >${index  }</td> 
                   <td>${courseTypeCellHtml(template.languageType)}</td>
+                  <td>${workLanguageCellHtml(template.workLanguage)}</td>
                   <td>${enumTermCellHtml('classLevel', template.difficultyLevel)}</td>
                   <td>${enumTermCellHtml('classForm', template.classForm)}</td>
                   <td  >${template.classDuration || ''}</td>
@@ -483,3 +509,128 @@ async function  operateTemplateStatus(templateId,newStatus){
   // 关闭弹窗只能通过「取消」「提交」按钮或右上角 × —— 点击遮罩不关闭，
   // 避免表单填了一半时误触遮罩导致输入丢失。
   document.getElementById('templateCloseBtn').addEventListener('click', closeTemplateModal);
+
+/* =============================================================
+ * 授课语言管理（work_language）2026-10-25
+ * -------------------------------------------------------------
+ * 为什么放在模板页：授课语言是模板的属性，入口离它最近。
+ * 规则：平台内置六项（tenantId=0）所有租户共用且只读；租户只能增删自己的自定义项。
+ * 已被模板/课程/排期引用的自定义项不能删——后端会拦，提示先改引用。
+ * ============================================================= */
+
+/** 本地转义（避免和页面其它 esc 命名冲突） */
+function wlEsc(s) {
+    return String(s === null || s === undefined ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function openWorkLanguageManager() {
+    let box = document.getElementById('wlManagerModal');
+    if (!box) {
+        box = document.createElement('div');
+        box.id = 'wlManagerModal';
+        box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:9999;';
+        box.innerHTML = '<div style="background:#fff;border-radius:8px;width:min(780px,92vw);max-height:86vh;overflow:auto;padding:18px;box-shadow:0 8px 28px rgba(0,0,0,.18);">'
+            + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">'
+            +   '<b style="font-size:15px;">授课语言管理</b>'
+            +   '<button class="btn btn-default" onclick="closeWorkLanguageManager()">关闭</button>'
+            + '</div>'
+            + '<div style="color:#8c8c8c;font-size:12px;line-height:1.8;margin-bottom:12px;background:#fafafa;border:1px solid #f0f0f0;border-radius:6px;padding:10px;">'
+            +   '授课语言 = <b>用哪种语言上课</b>（英语/法语/汉语…），与「课程/咨询类型」是两回事：'
+            +   '后者是课程分类，显示词会随行业变化（法律行业里 english 显示为「劳动」）。<br>'
+            +   '平台内置六项所有机构共用、不可修改；下面可以追加本机构自己的语言。'
+            +   '已被模板、课程或排期引用的项不能删除，请先把那些记录改成别的语言。'
+            + '</div>'
+            + '<div id="wlManagerBody">加载中…</div>'
+            + '</div>';
+        document.body.appendChild(box);
+    }
+    box.style.display = 'flex';
+    renderWorkLanguageManager();
+}
+
+function closeWorkLanguageManager() {
+    const box = document.getElementById('wlManagerModal');
+    if (box) box.style.display = 'none';
+}
+
+function renderWorkLanguageManager() {
+    const host = document.getElementById('wlManagerBody');
+    if (!host) return;
+    const D = window.WorkLanguageDomain;
+    if (!D) { host.innerHTML = '授课语言模块未加载（js/public/workLanguage.js）'; return; }
+
+    const list = D.items();
+    let rows = '';
+    list.forEach(function (it) {
+        const builtin = D.isBuiltin(it);
+        rows += '<tr style="border-bottom:1px solid #f5f5f5;">'
+            + '<td style="padding:6px 8px;font-family:monospace;">' + wlEsc(it.langCode) + '</td>'
+            + '<td style="padding:6px 8px;">' + wlEsc(it.nameZh) + '</td>'
+            + '<td style="padding:6px 8px;">' + wlEsc(it.nameEn) + '</td>'
+            + '<td style="padding:6px 8px;">' + wlEsc(it.nameFr) + '</td>'
+            + '<td style="padding:6px 8px;color:' + (builtin ? '#8c8c8c' : '#0958d9') + ';">'
+            +   (builtin ? '平台内置' : '本机构') + '</td>'
+            + '<td style="padding:6px 8px;text-align:right;">'
+            +   (builtin
+                    ? '<span style="color:#d9d9d9;">—</span>'
+                    : '<button class="btn btn-danger" onclick="deleteWorkLanguage(' + it.id + ',\'' + wlEsc(it.langCode) + '\')">删除</button>')
+            + '</td></tr>';
+    });
+    if (!rows) rows = '<tr><td colspan="6" style="padding:10px;color:#8c8c8c;">暂无</td></tr>';
+
+    host.innerHTML =
+        '<table style="width:100%;border-collapse:collapse;font-size:13px;">'
+        + '<thead><tr style="background:#fafafa;text-align:left;">'
+        +   '<th style="padding:8px;">代码</th><th style="padding:8px;">中文名</th>'
+        +   '<th style="padding:8px;">英文名</th><th style="padding:8px;">法文名</th>'
+        +   '<th style="padding:8px;">来源</th><th style="padding:8px;"></th>'
+        + '</tr></thead><tbody>' + rows + '</tbody></table>'
+        + '<div style="margin-top:14px;border-top:1px solid #f0f0f0;padding-top:12px;">'
+        +   '<div style="font-size:13px;margin-bottom:8px;">追加一门授课语言</div>'
+        +   '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'
+        +     '<input id="wlCode" placeholder="代码 如 italian" style="width:150px;padding:6px;border:1px solid #d9d9d9;border-radius:4px;">'
+        +     '<input id="wlZh" placeholder="中文名 如 意大利语" style="width:150px;padding:6px;border:1px solid #d9d9d9;border-radius:4px;">'
+        +     '<input id="wlEn" placeholder="英文名（可空）" style="width:130px;padding:6px;border:1px solid #d9d9d9;border-radius:4px;">'
+        +     '<input id="wlFr" placeholder="法文名（可空）" style="width:130px;padding:6px;border:1px solid #d9d9d9;border-radius:4px;">'
+        +     '<button class="btn btn-primary" onclick="saveWorkLanguage()">保存</button>'
+        +   '</div>'
+        +   '<div style="color:#bfbfbf;font-size:12px;margin-top:6px;">代码只能小写字母开头，可含数字、下划线、连字符；与内置项重复会被拒绝。</div>'
+        + '</div>';
+}
+
+async function saveWorkLanguage() {
+    const D = window.WorkLanguageDomain;
+    if (!D) { alert('授课语言模块未加载'); return; }
+    const codeEl = document.getElementById('wlCode');
+    const zhEl = document.getElementById('wlZh');
+    const code = codeEl ? codeEl.value.trim() : '';
+    const zh = zhEl ? zhEl.value.trim() : '';
+    if (!code || !zh) { alert('请填写代码与中文名'); return; }
+    try {
+        await D.save({
+            langCode: code,
+            nameZh: zh,
+            nameEn: (document.getElementById('wlEn') || {}).value || '',
+            nameFr: (document.getElementById('wlFr') || {}).value || ''
+        });
+        await D.load(true);
+        renderWorkLanguageManager();
+        alert('已保存：' + zh);
+    } catch (e) {
+        alert('保存失败：' + (e && e.message ? e.message : e));
+    }
+}
+
+async function deleteWorkLanguage(id, code) {
+    const D = window.WorkLanguageDomain;
+    if (!D) { alert('授课语言模块未加载'); return; }
+    if (!confirm('删除授课语言「' + code + '」？\n已被模板/课程/排期引用时会失败。')) return;
+    try {
+        await D.remove(id);
+        await D.load(true);
+        renderWorkLanguageManager();
+    } catch (e) {
+        alert('删除失败：' + (e && e.message ? e.message : e));
+    }
+}

@@ -301,7 +301,13 @@ public final class AuthzRules {
         r.add(new Rule(HttpMethod.GET, "/api/v1/course/page", ALL_ROLES, "≡checkAnyLogin（2026-10-10 方法级统一）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/course/{courseid}", ALL_ROLES, "≡checkAnyLogin（2026-10-10 方法级统一）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/course/classform", TEACHER_OR_ADMIN, "新增：班级表单（建课辅助）"));
-        r.add(new Rule(HttpMethod.GET, "/api/v1/course/teachingProps", TEACHER_OR_ADMIN, "新增：排期表单取教学语言/课时长度/课程形式（2026-10-25）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/course/teachingProps", TEACHER_OR_ADMIN, "新增：排期表单取课程类型/授课语言/课时长度/课程形式（2026-10-25）"));
+
+        // 授课语言枚举（2026-10-25）：与 sys_term 的行业词无关，是「用哪种语言上课」的固定清单。
+        // 平台内置六项对所有租户可见（只读）；租户只能增删自己的自定义项，tenantId 由令牌派生。
+        r.add(new Rule(HttpMethod.GET, "/api/v1/work-language/list", ALL_ROLES, "新增：授课语言清单（内置+本租户自定义，各处下拉用）"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/work-language/save", TENANT_ADMIN_ONLY, "新增：租户自定义授课语言（内置项重复则拒绝）"));
+        r.add(new Rule(HttpMethod.DELETE, "/api/v1/work-language/delete/{id}", TENANT_ADMIN_ONLY, "新增：删除自定义授课语言（内置项与被引用项拒绝）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/course/statistical/byMonth", TEACHER_OR_ADMIN, "新增：课程统计（管理面）"));
 
         r.add(new Rule(HttpMethod.POST, "/api/v1/schedule/create", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin"));

@@ -227,10 +227,14 @@ public class CourseController {
   }
 
   /**
-   * 取排期表单需要的「教学语言 / 课时长度 / 课程形式」（2026-10-25）。
+   * 取排期表单需要的「课程/咨询类型 · 授课语言 · 课时长度 · 课程形式」（2026-10-25）。
    *
    * <p>前端调用: GET /course/teachingProps?courseId=xxx
-   * <p>返回: {"languageType":"英语","classDuration":90,"classForm":"1p1"}
+   * <p>返回: {"languageType":"english","workLanguage":"french","classDuration":90,"classForm":"1p1"}
+   *
+   * <p>{@code languageType} 是 classType 的 code（显示词需经 sys_term 按行业渲染）；
+   * {@code workLanguage} 才是「用哪种语言上课」的 code（取自 sys_work_language，不经 term）。
+   * 两者语义不同，前端不要把 languageType 当教学语言显示。
    *
    * <p>为什么要一个专门的端点，而不是让前端从课程列表里取：排期页的课程下拉可能
    * 来自不同时间点的缓存（检索后未刷新），课时长度一旦是旧值，保存排期就会把

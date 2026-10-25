@@ -250,7 +250,19 @@ async function renderStudentBookingCards() {
                 const meta = document.createElement('div');
                 meta.style.cssText = 'font-size:12px;color:#888;margin-top:4px;';
                 const tags = [];
-                if (item.languageType) tags.push(`语言:${item.languageType}`);
+                // 展示顺序：课程/咨询类型（显示词随行业变）→ 授课语言（用哪种语言上课）。
+                // 原先这里只打 languageType 并标注「语言:」，在 legal 行业会显示成
+                // 「语言:劳动」，语义是错的——那是课程分类，不是语言。
+                if (item.languageType && typeof courseTypeText === 'function') {
+                    const typeText = courseTypeText(item.languageType);
+                    if (typeText) tags.push(`类型:${typeText}`);
+                }
+                if (item.workLanguage) {
+                    const wl = (typeof workLanguageText === 'function')
+                        ? workLanguageText(item.workLanguage)
+                        : item.workLanguage;
+                    if (wl) tags.push(`授课语言:${wl}`);
+                }
                 if (item.difficultyLevel) tags.push(`难度:${item.difficultyLevel}`);
                 if (item.__hasPublishedSchedule === false) {
                     // 该课程暂未发布任何排期：隐藏「点击查看排期」，改为「待排期，可联系管理员」按钮。

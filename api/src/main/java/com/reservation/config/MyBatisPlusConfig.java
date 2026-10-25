@@ -56,6 +56,11 @@ public class MyBatisPlusConfig {
             // 「作用域维度」（0=平台级，>0=租户覆盖级），隔离由业务层显式按 tenant_id 过滤，
             // 不能走租户插件；否则会被拼 `tenant_id = ?` 误伤（与 sys_term 同因）。
             "sys_legal_doc", "sys_legal_accept",
+            // 授课语言枚举（2026-10-25）：tenant_id 是**作用域维度**（0=平台内置六项，
+            // >0=租户自定义追加项），不是隔离维度 —— 租户端必须能读到内置项。
+            // 若走租户插件会被拼 `tenant_id = ?` 而查空（下拉里只剩自己的项），
+            // 与 sys_term / sys_legal_doc 同因。代价：所有读写 SQL 必须显式带 tenant_id 条件。
+            "sys_work_language",
             // 微信 PC 扫码登录/绑定的一次性 state（2026-10-14 P2）：表结构无 tenant_id 列，
             // 生命周期只有 5 分钟（生成→确认/失败/过期即消费删除）。
             // 不排除则插件的 `tenant_id = ?` 直接撞 Unknown column（与 sys_industry 同因）。

@@ -32,7 +32,7 @@ public interface CourseTemplateMapper {
      *   VALUES (#{templateId}, #{languageType}, #{difficultyLevel}, #{templateName}, #{description}, NOW(), NOW())
      * </insert>
      */
-     @org.apache.ibatis.annotations.Insert( "INSERT INTO course_template (template_id, language_type, difficulty_level, class_duration,class_form,class_fee, description, create_time, update_time)     VALUES (#{templateId}, #{languageType}, #{difficultyLevel},#{classDuration},#{classForm},#{classFee}, COALESCE(#{description},''), NOW(), NOW())")
+     @org.apache.ibatis.annotations.Insert( "INSERT INTO course_template (template_id, language_type, work_language, difficulty_level, class_duration,class_form,class_fee, description, create_time, update_time)     VALUES (#{templateId}, #{languageType}, COALESCE(#{workLanguage},''), #{difficultyLevel},#{classDuration},#{classForm},#{classFee}, COALESCE(#{description},''), NOW(), NOW())")
     int insertTemplate(CourseTemplate template);
 
     /**
@@ -67,7 +67,10 @@ public interface CourseTemplateMapper {
     CourseTemplate selectTemplateById(@Param("templateId") String templateId);
 
    // INSERT_YOUR_CODE
-   @org.apache.ibatis.annotations.Update("UPDATE course_template SET language_type = #{courseTemplate.languageType}, difficulty_level = #{courseTemplate.difficultyLevel}, class_duration = #{courseTemplate.classDuration}, class_form = #{courseTemplate.classForm}, class_fee = #{courseTemplate.classFee}, description = COALESCE(#{courseTemplate.description},''), update_time = NOW() WHERE template_id = #{courseTemplate.templateId}")
+   // work_language 用 COALESCE(#{...}, work_language)：null（前端没传该字段）= 保持原值，
+   // 空串（用户主动清空，表示"未指定"）= 真的清空。若写成 COALESCE(...,'')，
+   // 一次不带该字段的编辑就会把模板上设好的授课语言静默抹掉。
+   @org.apache.ibatis.annotations.Update("UPDATE course_template SET language_type = #{courseTemplate.languageType}, work_language = COALESCE(#{courseTemplate.workLanguage}, work_language), difficulty_level = #{courseTemplate.difficultyLevel}, class_duration = #{courseTemplate.classDuration}, class_form = #{courseTemplate.classForm}, class_fee = #{courseTemplate.classFee}, description = COALESCE(#{courseTemplate.description},''), update_time = NOW() WHERE template_id = #{courseTemplate.templateId}")
    int updateTemplate(@Param("courseTemplate") CourseTemplate courseTemplate);
 
    @org.apache.ibatis.annotations.Update("UPDATE course_template SET status = #{action} WHERE template_id = #{templateId}") 

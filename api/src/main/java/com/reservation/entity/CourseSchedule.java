@@ -25,12 +25,22 @@ public class CourseSchedule implements Serializable {
     private String courseId; 
 
     /**
-     * 教学语言（本条排期实际使用的语言）。
+     * 课程/咨询类型（classType 的 code）。默认取自课程，可在本条排期覆盖。
+     *
+     * <p><b>它不是课堂用语</b>——法律行业下 code=english 显示的是「劳动」。
+     * 「用哪种语言上课」见 {@link #workLanguage}。
+     */
+    private String languageType;
+
+    /**
+     * 授课语言（本条排期实际使用的课堂用语：english/french/chinese/…）。
      *
      * <p>创建排期时由服务端从课程带入，之后可在排期上单独改——同一门课在不同排期
      * 用不同语言授课是真实业务（外教班 / 中教班），锁死在课程上就表达不了。
+     *
+     * <p>空串 = 跟随课程。代码取自 {@code sys_work_language.lang_code}。
      */
-    private String languageType;
+    private String workLanguage;
 
     /**
      * 课时长度（分钟）。
