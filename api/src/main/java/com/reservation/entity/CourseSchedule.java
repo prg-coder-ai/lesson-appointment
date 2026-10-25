@@ -23,7 +23,27 @@ public class CourseSchedule implements Serializable {
     private String scheduleId;
     @NotBlank(message = "课程ID不能为空")
     private String courseId; 
-      
+
+    /**
+     * 教学语言（本条排期实际使用的语言）。
+     *
+     * <p>创建排期时由服务端从课程带入，之后可在排期上单独改——同一门课在不同排期
+     * 用不同语言授课是真实业务（外教班 / 中教班），锁死在课程上就表达不了。
+     */
+    private String languageType;
+
+    /**
+     * 课时长度（分钟）。
+     *
+     * <p>此前排期表没有这个字段，冲突检查只能硬编码「每节课 1 小时」
+     * （{@code CourseScheduleService#checkScheduleOwnerConflict} 的 plusHours(1)），
+     * 90 分钟的课与 20:00 的课被判为不冲突。落列后按各自时长判重叠。
+     *
+     * <p>用 Integer：编辑排期时未传该字段应为 null，让 MyBatis-Plus 的
+     * NOT_NULL 更新策略跳过它，而不是把库里的 90 分钟静默改回 60。
+     */
+    private Integer classDuration;
+
     @NotBlank(message = "开始时间不能为空")
     private String startTime;  // 格式YYYY-MM-DD HH:mm:ss-（对应通用校验规则-时间）-暗含起始日期 
     @NotBlank(message = "结束时间不能为空")

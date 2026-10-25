@@ -23,6 +23,17 @@ public class ScheduleCreateDTO {
     //private String teacherId;
     //private String ClassroomId;
 
+    /**
+     * 教学语言（可空）。为空时由服务端从课程带入；排期上可单独覆盖。
+     */
+    private String languageType;
+
+    /**
+     * 课时长度（分钟，可空）。为空时由服务端从课程带入（课程也为空则 60）。
+     * 冲突检查按此值判重叠，不再硬编码 1 小时。
+     */
+    private Integer classDuration;
+
     private LocalDate startDate;
     private LocalTime startTime;
     private LocalDate endDate;

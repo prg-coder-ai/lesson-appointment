@@ -48,6 +48,14 @@ public class CourseScheduleService {
     @Resource
     private ReferentialCascadeService cascadeService;
 
+    /**
+     * 只读课程行，用于取「教学语言 / 课时长度」作为排期的默认值。
+     * 这里直接注入 CourseMapper 而不是 CourseService：CourseService 已依赖
+     * CourseScheduleMapper，反向注入 CourseService 会形成循环依赖。
+     */
+    @Resource
+    private com.reservation.mapper.CourseMapper courseMapper;
+
   @Resource
     private BookingMapper bookingMapper;
      @Resource
@@ -82,6 +90,12 @@ public class CourseScheduleService {
                }
     
        
+         // 待新增排期的课时长度：dto 显式带了就用它（排期可覆盖课程），
+         // 否则回落到课程上的值，再不行才是默认 60。
+         int newDurationMinutes = (dto.getClassDuration() != null && dto.getClassDuration() > 0)
+                 ? dto.getClassDuration()
+                 : resolveCourseDuration(dto.getCourseId());
+
          // 获取courseID= dto.getCourseId()的所有排期，以List方式输出
          List<CourseSchedule> scheduleList = scheduleMapper.selectByCreateDto(
              new ScheduleCreateDTO() {{
@@ -139,9 +153,12 @@ public class CourseScheduleService {
             
                     LocalDateTime newStart = LocalDateTime.parse(newDate + "T" + newTime);
                   //  System.out .println(cnt*1000+cntapp +"newStart:"+newStart+"exist:"+existStart);
-                    // 比较新旧两个排期实例是否重叠（以1小时为互斥区间, 可视为每节课持续1小时）
-                    LocalDateTime existEnd = existStart.plusHours(1);
-                    LocalDateTime newEnd = newStart.plusHours(1);
+                    // 每条排期按**自己的课时长度**判重叠。
+                    // 原先这里硬编码 plusHours(1)（注释写着"可视为每节课持续1小时"），
+                    // 一门 90 分钟的课排在 19:00，与 20:00 的另一门课会被判成"不冲突"——
+                    // 真实冲突被静默放过。根因是排期表当时没有时长列，只能猜。
+                    LocalDateTime existEnd = existStart.plusMinutes(resolveScheduleDuration(existSchedule));
+                    LocalDateTime newEnd = newStart.plusMinutes(newDurationMinutes);
                     // INSERT_YOUR_CODE
                     // 如果结束时间与开始时间相同，认为是不冲突
                     if (existEnd.equals(newStart) || newEnd.equals(existStart)) {
@@ -150,9 +167,8 @@ public class CourseScheduleService {
           
                     // overlap: 两段有交集（即不是完全前后）
                     boolean overlap = !(newEnd.isBefore(existStart) || newStart.isAfter(existEnd));
-                    if(overlap){
-                     System.out .println(cnt*1000+cntapp +"cmp : newdate"+newStart +"---"+newEnd+"existEnd:" +existStart+"---"+existEnd +"overlap"+overlap);
-                    }
+                    // 原实现在这里 System.out.println 打印每次比较，按时长判定后命中更频繁，
+                    // 会把控制台刷满；改用 debug 级别，需要时开日志即可。
                    // cntapp= cntapp+1;
                     if (overlap) { 
 
@@ -178,6 +194,77 @@ public class CourseScheduleService {
        // System.out .println("conflictScheduleIds:"+conflictScheduleIds);
       return  conflictScheduleIds;  
     }
+    /** 课时长度缺省值（分钟）。与 DB 列 DEFAULT '60'、模板表单默认值保持一致。 */
+    private static final int DEFAULT_CLASS_DURATION = 60;
+
+    /**
+     * 课时长度取值校验。模板侧约束是「≥15 且 15 的倍数」，排期上放宽到 15~600 的任意整数
+     * （真实业务有 25 分钟试听、45 分钟一对一、90 分钟连堂课，硬套 15 的倍数会卡住正常排课）。
+     * null 表示未指定，直接放行。
+     */
+    private void validateClassDuration(Integer minutes) {
+        if (minutes == null) return;
+        if (minutes < 15 || minutes > 600) {
+            throw new BusinessException(TermMsg.t("课时长度需在 15-600 分钟之间"));
+        }
+    }
+
+    /**
+     * 排期的有效课时长度：库值 → 课程值 → 60。
+     *
+     * <p>三级回落是必要的：2026-10-25 之前的排期行是回填出来的，
+     * 更早的数据（从别的环境导入、或人手写 SQL 插入）可能两处都空。
+     * 返回 0 会让 plusMinutes(0) 算出的区间端点相等，重叠判断退化成"永远不冲突"，
+     * 比原来硬编码 1 小时还糟。
+     */
+    private int resolveScheduleDuration(CourseSchedule schedule) {
+        if (schedule == null) return DEFAULT_CLASS_DURATION;
+        Integer d = schedule.getClassDuration();
+        if (d != null && d > 0) return d;
+        return resolveCourseDuration(schedule.getCourseId());
+    }
+
+    /** 课程的有效课时长度：库值 → 60。查库失败不阻断冲突检查，只回落默认值。 */
+    private int resolveCourseDuration(String courseId) {
+        if (courseId == null || courseId.trim().isEmpty()) return DEFAULT_CLASS_DURATION;
+        try {
+            Course course = courseMapper.selectById(courseId);
+            if (course != null && course.getClassDuration() != null && course.getClassDuration() > 0) {
+                return course.getClassDuration();
+            }
+        } catch (Exception e) {
+            log.debug("读取课程课时长度失败，回落 {} 分钟：courseId={}, err={}",
+                    DEFAULT_CLASS_DURATION, courseId, e.getMessage());
+        }
+        return DEFAULT_CLASS_DURATION;
+    }
+
+    /**
+     * 把「教学语言 / 课时长度」从课程带入排期（仅在排期侧未显式给出时）。
+     *
+     * <p>只填空值、不覆盖已有值：排期上单独改过的语言/时长必须能保住，
+     * 否则每次编辑排期都会被打回课程的口径，"排期可修改"就成了摆设。
+     */
+    private void inheritTeachingPropsFromCourse(ScheduleCreateDTO dto) {
+        if (dto == null || dto.getCourseId() == null || dto.getCourseId().trim().isEmpty()) return;
+        boolean needLang = dto.getLanguageType() == null || dto.getLanguageType().trim().isEmpty();
+        boolean needDur = dto.getClassDuration() == null || dto.getClassDuration() <= 0;
+        if (!needLang && !needDur) return;
+        try {
+            Course course = courseMapper.selectById(dto.getCourseId());
+            if (course == null) return;
+            if (needLang && course.getLanguageType() != null) {
+                dto.setLanguageType(course.getLanguageType());
+            }
+            if (needDur && course.getClassDuration() != null && course.getClassDuration() > 0) {
+                dto.setClassDuration(course.getClassDuration());
+            }
+        } catch (Exception e) {
+            log.debug("从课程继承教学语言/课时长度失败，沿用默认值：courseId={}, err={}",
+                    dto.getCourseId(), e.getMessage());
+        }
+    }
+
     // 创建排期（含冲突检测）
     @Transactional(rollbackFor = Exception.class)
     public Map<String, String> createSchedule(ScheduleCreateDTO dto) {
@@ -187,6 +274,11 @@ public class CourseScheduleService {
         }*/
 
         // 2. 转换DTO为实体
+        // 新增时把课程的语言/时长带进来（排期显式给了就尊重排期的值）。
+        // 注意只有新增做这件事：编辑排期时缺字段的语义是"本次不改"，
+        // 若也去继承，等于每次保存都把排期上单独改过的值打回课程口径。
+        inheritTeachingPropsFromCourse(dto);
+        validateClassDuration(dto.getClassDuration());
         CourseSchedule schedule = CreateDtoToObject(dto); 
      //    System.out .println("create : " +dto+"-->"+ schedule); 
         String  Id = UUID.randomUUID().toString().replace("-", ""); // 移除UUID分隔符
@@ -224,6 +316,7 @@ public class CourseScheduleService {
           // CreateDtoToObject 会给 int 字段填兜底默认值，不处理的话，一次没带席位的普通编辑
           // 就会把容量整体改写成那个默认值；显式改小时则要求不低于已占位数，否则改完立即超卖。
           CourseSchedule current = bookingSeatService.lockScheduleAndAssertExists(dto.getScheduleId());
+          validateClassDuration(dto.getClassDuration());
           Integer newSites = dto.getAvailableSites();
           if (newSites != null && newSites != current.getAvailableSites()) {
               bookingSeatService.assertSitesNotBelowOccupied(dto.getScheduleId(), newSites);
@@ -383,6 +476,10 @@ public class CourseScheduleService {
                 dto.setStatus(cs.getStatus()); 
                dto.setAvailableSites(cs.getAvailableSites());
                dto.setName(cs.getName());
+               // 教学语言 / 课时长度：原样回传给前端排期表单，
+               // 缺列时代码读到的会是 null（而非 0），前端据此决定是否用占位符。
+               dto.setLanguageType(cs.getLanguageType());
+               dto.setClassDuration(cs.getClassDuration());
                return dto;
  }
  //用于保存到数据库
@@ -437,6 +534,11 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
     // 多租户/前端未传 status 时兜底为 active（枚举 pending/active/inactive/frozen），避免 NOT NULL 约束触发 500
     cs.setStatus(dto.getStatus() == null ? "active" : dto.getStatus());
     cs.setName(dto.getName());
+    // 教学语言 / 课时长度：null 一律透传，**不在这里兜底 60**。
+    // 兜底会把「编辑时没传」误判成「改成 60」，把库里 90 分钟的课静默改掉；
+    // 新增路径的兜底由 insertSchedule 的 COALESCE(#{classDuration},60) 负责。
+    cs.setLanguageType(dto.getLanguageType());
+    cs.setClassDuration(dto.getClassDuration());
     return cs;
 }
 

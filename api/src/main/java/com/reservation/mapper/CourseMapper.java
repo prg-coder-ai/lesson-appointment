@@ -96,4 +96,23 @@ public interface CourseMapper extends BaseMapper<Course> {
      * @return 课程形式
    */
     String getClassFormByCourseId(@Param("courseId") String courseId);
+
+    /**
+     * 取排期表单需要的「教学语言 / 课时长度 / 课程形式」三联值（2026-10-25）。
+     *
+     * <p>为什么不直接用 {@code selectById}：课时长度与语言在库里可能还是空/0
+     * （老数据、或其他环境导入的行），此时必须回落到模板值，否则排期表单会拿到空值、
+     * 用户一保存就把课时写成默认 60。SQL 里用 COALESCE + NULLIF 一次性兜住，
+     * 免得同样的回落规则在 Java 侧再抄一遍。
+     *
+     * <p>别名刻意写成驼峰：返回类型是 Map，MyBatis 不会对 Map 的 key 做下划线换驼峰，
+     * 别名必须与前端期望的字段名逐字一致。
+     */
+    @Select("SELECT COALESCE(NULLIF(c.language_type, ''), t.language_type, '') AS languageType, "
+          + "       COALESCE(NULLIF(c.class_duration, 0), t.class_duration, 60) AS classDuration, "
+          + "       COALESCE(t.class_form, '') AS classForm "
+          + "  FROM course c "
+          + "  LEFT JOIN course_template t ON c.template_id = t.template_id "
+          + " WHERE c.course_id = #{courseId}")
+    java.util.Map<String, Object> selectTeachingProps(@Param("courseId") String courseId);
 }

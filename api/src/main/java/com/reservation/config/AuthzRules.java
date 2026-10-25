@@ -301,6 +301,7 @@ public final class AuthzRules {
         r.add(new Rule(HttpMethod.GET, "/api/v1/course/page", ALL_ROLES, "≡checkAnyLogin（2026-10-10 方法级统一）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/course/{courseid}", ALL_ROLES, "≡checkAnyLogin（2026-10-10 方法级统一）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/course/classform", TEACHER_OR_ADMIN, "新增：班级表单（建课辅助）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/course/teachingProps", TEACHER_OR_ADMIN, "新增：排期表单取教学语言/课时长度/课程形式（2026-10-25）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/course/statistical/byMonth", TEACHER_OR_ADMIN, "新增：课程统计（管理面）"));
 
         r.add(new Rule(HttpMethod.POST, "/api/v1/schedule/create", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin"));

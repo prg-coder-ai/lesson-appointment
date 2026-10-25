@@ -97,7 +97,9 @@ function validateForm() {
     <input type="hidden" name="templateId" value="${defaultTemplate.templateId}">
     
     <div class="form-item">
-      <label><span data-term="classType">语言类型</span> <span style="color:red">*</span></label>
+      <!-- 2026-10-25：文案对齐为「教学语言」——这个值会被导入到课程、再带到排期，
+           叫"语言类型"容易让人以为只是筛选标签 -->
+      <label><span data-term="classType">教学语言</span> <span style="color:red">*</span></label>
       <select name="languageType" class="form-select" required>
         <option value="">请选择</option>
         ${courseTypeOptionsHtml(defaultTemplate.languageType)}
@@ -130,8 +132,10 @@ function validateForm() {
     </div>
 
     <div class="form-item">
-      <label><span data-term="lessonUnit">课时</span>（分钟） <span style="color:red">*</span></label>
-      <input type="number" name="classDuration" value="${defaultTemplate.classDuration}" required>
+      <!-- 2026-10-25：这个值会导入课程、再带到排期，并作为排期冲突检查的课时长度。
+           改名「课时长度」是为了和排期页的叫法一致，避免以为是"课时费"或"课时数" -->
+      <label><span data-term="lessonUnit">课时长度</span>（分钟） <span style="color:red">*</span></label>
+      <input type="number" name="classDuration" min="15" step="5" placeholder="如 45 / 60 / 90" value="${defaultTemplate.classDuration}" required>
       <div class="form-error" id="classDurationError"></div>
     </div>
 

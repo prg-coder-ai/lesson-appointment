@@ -342,7 +342,16 @@ function toScheduleCreateDto(formData) {
         timeZone: formData.timeZone || (typeof userTimeZone !== 'undefined' ? userTimeZone : '') || '',
         availableSites: formData.availableSites || 1,
         status: formData.status || '',
-        name: formData.name || ''
+        name: formData.name || '',
+        // 教学语言 / 课时长度（2026-10-25）：空串 → 后端回落"课程 → 默认"。
+        // classDuration 必须是数字或 null：传 "" 会让 Jackson 解析 Integer 直接 400
+        languageType: formData.languageType || '',
+        classDuration: (function(){
+            const v = formData.classDuration;
+            if (v === null || v === undefined || v === '') return null;
+            const n = Number(v);
+            return (isNaN(n) || n <= 0) ? null : n;
+        })()
     };
 }
 
