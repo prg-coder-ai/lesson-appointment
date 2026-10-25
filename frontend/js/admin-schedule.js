@@ -815,17 +815,20 @@ function localsearchCourse_sch() {
         * 若失败则友好提示。
         */    
  
-/* ========== 防重复 addEventListener：仅首次注册；后续调用直接跳过 ========== */
-window.__adminSchedule_tzListenersAttached = window.__adminSchedule_tzListenersAttached || false;
-
-// 处理下拉菜单"testTimeZone"的变更，读取表单的timeZone、startDate、startTime及新选择的时区，调用后端获取转换后的时间和日期
+/* ========== 时区联动的事件绑定 ==========
+ * 2026-10-25 修复：原实现用一个 **window 级** 标志 window.__adminSchedule_tzListenersAttached
+ * 做"只绑一次"，但本卡片的 DOM 是 admin.html 菜单路由里 `renderScheduleCards()`
+ * → `dynamicContentCenter.innerHTML = html` 整体重建的：每进一次「课程排期」都是全新的
+ * select/input 节点，旧节点连同监听一起被丢掉，而 window 标志还是 true → 第二次起
+ * 所有监听都绑不上。
+ * 症状：改「用户时区」下拉，右侧日期时间纹丝不动（首次进页面正常，切走再回来就失效）。
+ * 现在改成 **按元素** 去重（el.__tzBound）：新节点重新绑、同一节点不重复绑。 */
 function handleTestTimeZoneChange() {
-    if (window.__adminSchedule_tzListenersAttached) return; // 幂等：已注册直接返回
-    window.__adminSchedule_tzListenersAttached = true;
-
     const attachOnce = function (id, handler) {
         const el = document.getElementById(id);
         if (!el) return;
+        if (el.__tzBound) return;   // 同一节点只绑一次（防止同一次渲染内被调用两遍）
+        el.__tzBound = true;        // 挂在元素上：重渲染拿到新节点后自然重新绑定
         el.addEventListener('change', handler);
     };
 
@@ -937,8 +940,9 @@ async function getTestDatetime() {
     const timeZoneInput = document.getElementById('timeZone');
     if (!displayTzInput || !startDateInput || !startTimeInput) return;
 
-    // 偏移与校验提示先刷（这一函数是所有变更的公共出口，放最前面保证早退分支也更新）
-    schedRefreshTzOffsets();
+    // 偏移与校验提示先刷（这一函数是所有变更的公共出口，放最前面保证早退分支也更新）。
+    // 必须包 try：它只负责显示，绝不能因为一个取不到的 DOM 节点把下面的时区换算整段打断。
+    try { schedRefreshTzOffsets(); } catch (e) { console.error('[schedRefreshTzOffsets]', e); }
 
     const startDate = startDateInput.value || "";
     const startTime = startTimeInput.value || "";
