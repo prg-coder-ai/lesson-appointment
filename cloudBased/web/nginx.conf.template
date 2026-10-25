@@ -1,12 +1,32 @@
 # ==============================================================================
-# Nginx 反代配置模板（前端静态 + /api 反代）
-# 使用 envsubst 替换 ${API_UPSTREAM}，部署前执行：
+# Nginx 反代配置模板（前端静态 + 双后端反代）
 #
+# ★ 2026-10-25 修订：后端已拆成**两个独立云托管实例**，本模板从「单上游」改为「双上游」
+#    ① booking-api      容器端口 8081
+#    ② message-service  容器端口 8090
+#
+# 使用 envsubst 替换两个占位符，构建前必须都给出（Dockerfile 里有非空校验）：
+#
+#   # 推荐：内网地址（免公网流量、延迟低、且 XFF 会被后端采信）
 #   export API_UPSTREAM=http://api.<envid>.svc.cluster.local:8081
-#   # 或公网地址：export API_UPSTREAM=https://api-<envid>.sh.run.tcloudbase.com
-#   envsubst '$API_UPSTREAM' < nginx.conf.template > nginx.conf
+#   export MSG_UPSTREAM=http://message-service.<envid>.svc.cluster.local:8090
 #
-# 然后再 docker build（或让 Dockerfile 里的 RUN 步骤自动做）
+#   # 或公网域名（注意 message-**service**，不是 message-）：
+#   export API_UPSTREAM=https://api-329614-8-1475810246.sh.run.tcloudbase.com
+#   export MSG_UPSTREAM=https://message-service-329614-8-1475810246.sh.run.tcloudbase.com
+#
+#   envsubst '$API_UPSTREAM $MSG_UPSTREAM' < nginx.conf.template > nginx.conf
+#
+# ⚠ 为什么 Host 头不再写 $host：
+#   公网域名场景下上游是云托管，它靠 Host/SNI 路由。$host 是**前端自己的域名**，
+#   发过去会被判成 INVALID_HOST 或落到别的服务上（表现为 404 而非连接失败，
+#   比连不上更难查）。这里**故意不写** proxy_set_header Host —— 由 nginx 自动用
+#   proxy_pass 里的主机名（$proxy_host）作为 Host 与 SNI，天然正确。
+#
+# ⚠ 为什么不用 upstream 块做 keepalive：
+#   占位符里带协议（http:// 或 https://），upstream 的 server 指令不接受。
+#   要用 keepalive 就得再拆出"只含 host:port"的变量。内网地址下每请求新建 TCP
+#   的代价可以接受，先不引入这套复杂度；确实需要时另说。
 # ==============================================================================
 
 server {
@@ -14,7 +34,108 @@ server {
     server_name  _;
 
     root   /usr/share/nginx/html;
-    index  index.html;
+    index  index.html;                    # dist/index.html = 统一登录入口页
+
+    charset utf-8;
+    client_max_body_size 20m;
+    server_tokens off;
+
+    # ---------- 通用代理参数（对所有后端起效）----------
+    proxy_http_version 1.1;
+    proxy_set_header   X-Real-IP         $remote_addr;
+    proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header   X-Forwarded-Proto $scheme;
+    proxy_set_header   X-Forwarded-Host  $host;
+
+    # 上游是 https 时才生效（公网域名场景）。指向 http 内网地址时这几行是空操作。
+    proxy_ssl_server_name on;
+    proxy_ssl_protocols   TLSv1.2 TLSv1.3;
+
+    proxy_connect_timeout 10s;
+    proxy_read_timeout    120s;
+    proxy_send_timeout    120s;
+
+    # ==========================================================================
+    # 一、走 message-service 的 4 条（前缀必须与 dev-proxy.js 完全一致）
+    #   /api/v1/message*   → messages / message-templates / message-categories（复数）
+    #   /api/v1/sensitive* → 敏感词
+    #   /api/v1/sse*       → SSE 实时推送
+    #   /api/v1/users/*    → 收件箱台账（★ 复数；业务后台是单数 /api/v1/user/*）
+    # ==========================================================================
+
+    # SSE：三条必配（buffer off / cache off / 长超时）。少一条 → 连接建立但收不到消息，
+    # 前端 EventSource 每秒重连一次。原有 120s 的 read_timeout 会每 2 分钟掐断一次。
+    location /api/v1/sse {
+        proxy_pass ${MSG_UPSTREAM};
+
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        proxy_set_header Connection '';   # 不发送 Connection: close
+        chunked_transfer_encoding on;
+
+        # 云托管私有协议网关的小程序 Header 透传（小程序端 SSE 也走这里）
+        proxy_set_header X-WX-OPENID  $http_x_wx_openid;
+        proxy_set_header X-WX-UNIONID $http_x_wx_unionid;
+        proxy_set_header X-WX-APPID   $http_x_wx_appid;
+        proxy_set_header X-WX-ENV     $http_x_wx_env;
+    }
+
+    location /api/v1/message {
+        proxy_pass ${MSG_UPSTREAM};
+        proxy_set_header Connection '';
+        proxy_set_header X-WX-OPENID  $http_x_wx_openid;
+        proxy_set_header X-WX-UNIONID $http_x_wx_unionid;
+        proxy_set_header X-WX-APPID   $http_x_wx_appid;
+        proxy_set_header X-WX-ENV     $http_x_wx_env;
+    }
+
+    location /api/v1/sensitive {
+        proxy_pass ${MSG_UPSTREAM};
+        proxy_set_header Connection '';
+        proxy_set_header X-WX-OPENID  $http_x_wx_openid;
+        proxy_set_header X-WX-UNIONID $http_x_wx_unionid;
+        proxy_set_header X-WX-APPID   $http_x_wx_appid;
+        proxy_set_header X-WX-ENV     $http_x_wx_env;
+    }
+
+    location /api/v1/users/ {
+        proxy_pass ${MSG_UPSTREAM};
+        proxy_set_header Connection '';
+        proxy_set_header X-WX-OPENID  $http_x_wx_openid;
+        proxy_set_header X-WX-UNIONID $http_x_wx_unionid;
+        proxy_set_header X-WX-APPID   $http_x_wx_appid;
+        proxy_set_header X-WX-ENV     $http_x_wx_env;
+    }
+
+    # ==========================================================================
+    # 二、走 booking 的其余 /api/v1/*
+    # ⚠ proxy_pass 后面**不能带 URI**（不能写成 ${API_UPSTREAM}/api/），
+    #   否则 /api/v1/ 前缀会被替换掉，后端全部 404。
+    # ==========================================================================
+    location /api/v1/ {
+        proxy_pass ${API_UPSTREAM};
+        proxy_set_header Connection '';
+        proxy_cache off;                  # 登录/注册有频率闸，响应一律不缓存
+
+        proxy_set_header X-WX-OPENID  $http_x_wx_openid;
+        proxy_set_header X-WX-UNIONID $http_x_wx_unionid;
+        proxy_set_header X-WX-APPID   $http_x_wx_appid;
+        proxy_set_header X-WX-ENV     $http_x_wx_env;
+    }
+
+    # ---------- /actuator 只暴露 health,info（booking）----------
+    location /actuator/ {
+        proxy_pass ${API_UPSTREAM};
+        access_log off;
+    }
+
+    # ---------- 消息服务探活（对应 message-service 白名单 /api/v1/system/info）----------
+    location = /msg-health {
+        proxy_pass ${MSG_UPSTREAM}/api/v1/system/info;
+        access_log off;
+    }
 
     # ---------- 静态资源缓存 ----------
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?|ttf|eot|otf|mp4|webp)$ {
@@ -23,47 +144,26 @@ server {
         try_files $uri =404;
     }
 
-    # ---------- SPA fallback：除了 /api 和静态资源，全部回 index.html ----------
+    # ---------- HTML 与构建信息：每次回源校验 ----------
+    # 本项目是**多页应用**（login/admin/teacher/student/platform_admin…），不做 SPA 的
+    # index.html 回退：路径不对就该 404，否则错链会被"静默"成首页，排查时极难发现。
     location / {
-        try_files $uri $uri/ /index.html;
+        try_files $uri $uri/ =404;
     }
 
-    # ---------- /api 反代到后端 ----------
-    # ${API_UPSTREAM} 由 envsubst 填充
-    location /api/ {
-        proxy_pass         ${API_UPSTREAM}/api/;
-        proxy_http_version 1.1;
-        proxy_set_header   Host              $host;
-        proxy_set_header   X-Real-IP         $remote_addr;
-        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header   X-Forwarded-Proto $scheme;
-        proxy_set_header   X-Forwarded-Host  $host;
-
-        # 关键：云托管私有协议网关的小程序 Header 透传
-        proxy_set_header   X-WX-OPENID    $http_x_wx_openid;
-        proxy_set_header   X-WX-UNIONID    $http_x_wx_unionid;
-        proxy_set_header   X-WX-APPID      $http_x_wx_appid;
-        proxy_set_header   X-WX-ENV        $http_x_wx_env;
-
-        # 超时
-        proxy_connect_timeout 10s;
-        proxy_read_timeout    120s;
-        proxy_send_timeout    120s;
+    location ~* \.html$ {
+        add_header Cache-Control "no-cache, must-revalidate" always;
     }
 
-    # ---------- /actuator 只暴露 health,info ----------
-    location /actuator/ {
-        proxy_pass              ${API_UPSTREAM}/actuator/;
-        proxy_http_version      1.1;
-        proxy_set_header        Host              $host;
-        proxy_set_header        X-Real-IP         $remote_addr;
-        proxy_set_header        X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header        X-Forwarded-Proto $scheme;
+    location = /build-info.json {
+        add_header Cache-Control "no-cache, must-revalidate" always;
     }
 
     # ---------- Gzip ----------
+    # 不要压缩 text/event-stream（会引入缓冲，SSE 立刻变"卡"）
     gzip on;
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
     gzip_min_length 1024;
     gzip_comp_level 6;
+    gzip_vary on;
 }

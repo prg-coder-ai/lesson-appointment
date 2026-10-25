@@ -78,6 +78,52 @@ function probe(host, port, timeout = 1500) {
 }
 
 /**
+ * 服务自述：**端口通 ≠ 走对了服务**。
+ *
+ * 背景（2026-10-25）：云托管里 booking 与 message-service 是两个独立实例、两个域名，
+ * 但都监听在各自的 443 上。把 MSG_HOST 误指向 booking 域名（或者写成不存在的
+ * message-329614-… 之类）时，TCP 探活照样 ✅（连的是同一个网关），
+ * 只有看 /api/v1/system/info 返回的 service 字段才能确认到底打到了谁。
+ * 两个服务都实现了这个匿名端点（白名单里），所以拿它当身份牌最稳。
+ *
+ * @returns {Promise<string|null>} 如 'booking_api' / 'message-service'；失败为 null
+ */
+function identify(targetRaw, timeout = 4000) {
+  const target = normalizeTarget(targetRaw);
+  const mod = target.protocol === 'https' ? https : http;
+  const opt = {
+    host: target.host,
+    port: target.port,
+    path: '/api/v1/system/info',
+    method: 'GET',
+    headers: { Host: target.hostHeader, Accept: 'application/json' },
+  };
+  if (target.protocol === 'https') {
+    opt.servername = target.hostHeader.replace(/:\d+$/, '');
+    opt.rejectUnauthorized = true;
+  }
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (v) => { if (!done) { done = true; resolve(v); } };
+    const req = mod.request(opt, (res) => {
+      let buf = '';
+      res.setEncoding('utf8');
+      res.on('data', (d) => { buf += d; if (buf.length > 8192) req.destroy(); });
+      res.on('end', () => {
+        try {
+          const j = JSON.parse(buf);
+          finish((j && j.data && j.data.service) || null);
+        } catch (e) { finish(null); }
+      });
+    });
+    req.setTimeout(timeout, () => { req.destroy(); finish(null); });
+    req.on('error', () => finish(null));
+    req.end();
+  });
+}
+
+
+/**
  * 归一化上游目标。**协议差异只允许出现在这里**，分流规则（toMessageService）永远只有一份。
  *
  * 背景（2026-10-24）：本地后端是明文 http://127.0.0.1:8081，云托管是
@@ -275,8 +321,27 @@ function startProxy(o) {
         ]).then(([okBooking, okMsg]) => {
           console.log(`   连通性检查 :  booking ${okBooking ? '✅ 可达' : '❌ 不可达'}    message-service ${okMsg ? '✅ 可达' : '❌ 不可达'}`);
           if (o.onProbe) o.onProbe({ okBooking, okMsg });
-          console.log(line);
-          console.log(' 按 Ctrl+C 停止');
+          // 端口通不等于走对了服务：再看两个上游的「自述身份」（/api/v1/system/info 的 service 字段）
+          if (!okBooking && !okMsg) { console.log(line); console.log(' 按 Ctrl+C 停止'); return; }
+          return Promise.all([identify(apiTarget), identify(msgTarget)]).then(([idApi, idMsg]) => {
+            const show = (v) => (v || '（未返回身份）');
+            console.log(`   服务自述   :  booking → ${show(idApi)}    message-service → ${show(idMsg)}`);
+            const isMsg = (v) => /message/i.test(v || '');
+            if (isMsg(idApi)) {
+              console.warn('   ⚠ apiHost 指向的其实是消息服务？两个上游写反了。');
+            }
+            if (idMsg && !isMsg(idMsg)) {
+              console.warn(`   ⚠ msgHost 指向的不是消息服务（自述为 ${idMsg}）——`);
+              console.warn('     多半是 MSG_URL 没给 / 指到了 booking 域名 / 域名拼错（如 message- 少了 -service-）。');
+              console.warn('     症状：页面能开、登录正常，但消息中心一直转圈、SSE 每秒重连。');
+            }
+            if (!idMsg) {
+              console.warn('   ⚠ 消息服务没有返回身份（可能域名不存在、或返回的不是 JSON）。');
+              console.warn('     云托管写错域名会返回 {"code":"INVALID_HOST"} 的 404，TCP 照样连得上。');
+            }
+            console.log(line);
+            console.log(' 按 Ctrl+C 停止');
+          });
         });
       } else {
         console.log(' 按 Ctrl+C 停止');

@@ -121,12 +121,13 @@ if (-not $SkipDocker) {
     if ($LASTEXITCODE -ne 0) { Fail "message-service docker build 失败" }
     Ok "booking-message-service:1.1.0"
 
-    # 3c. web（需要先填 envParams.API_UPSTREAM，这里用占位让用户手动替换 / 或传 EnvId）
+    # 3c. web —— 两个上游：api（8081）与 message-service（8090），是两个独立云托管服务
     $apiInternalHost = if ($EnvId) { "http://api.$EnvId.svc.cluster.local:8081" } else { "http://REPLACE_WITH_API_INTERNAL_HOST:8081" }
-    Write-Host "  🐳 booking-web:latest  (API_UPSTREAM=$apiInternalHost) ..." -ForegroundColor Gray
+    $msgInternalHost = if ($EnvId) { "http://message-service.$EnvId.svc.cluster.local:8090" } else { "http://REPLACE_WITH_MESSAGE_INTERNAL_HOST:8090" }
+    Write-Host "  🐳 booking-web:latest  (API_UPSTREAM=$apiInternalHost  MSG_UPSTREAM=$msgInternalHost) ..." -ForegroundColor Gray
     Push-Location $CLOUD_WEB
     try {
-        docker build --build-arg "API_UPSTREAM=$apiInternalHost" -t "booking-web:latest" .
+        docker build --build-arg "API_UPSTREAM=$apiInternalHost" --build-arg "MSG_UPSTREAM=$msgInternalHost" -t "booking-web:latest" .
     } finally { Pop-Location }
     if ($LASTEXITCODE -ne 0) { Fail "web docker build 失败" }
     Ok "booking-web:latest"

@@ -33,9 +33,14 @@
  *
  *   ── 写法 A：云托管域名（https，推荐，2026-10-24 新增）─────────────────────
  *     API_URL=https://api-329614-8-1475810246.sh.run.tcloudbase.com \
+ *     MSG_URL=https://message-service-329614-8-1475810246.sh.run.tcloudbase.com \
  *       node dev-frontend-remote.js
  *     协议/端口/Host 头全部从 URL 推导（https → 443，Host 头 = 域名），无需再传下面几项。
- *     MSG_URL 可单独指定消息服务；不传则跟随 API_URL（同一密钥域，务必保持这个默认）。
+ *     ★ 云托管里 api 与 message-service 是**两个独立服务、两个域名**，
+ *       必须分别给 API_URL 与 MSG_URL。只给 API_URL 时消息类请求会打到 booking 域名上，
+ *       云托管会回 404/INVALID_HOST（脚本启动时会打一条醒目提示）。
+ *       注意是 message-**service**-…，不是 message-…（后者域名不存在）。
+ *     MSG_URL 缺省仍跟随 API_URL，以便兼容「单入口同源部署」（远程 Nginx 自建分流）的老拓扑。
  *
  *   ── 写法 B：裸 IP 老部署（明文 http）──────────────────────────────────────
  *     API_HOST=152.136.254.127 BOOKING_PORT=80 node dev-frontend-remote.js
@@ -97,6 +102,22 @@ const MSG_HOST = msgFromUrl ? msgFromUrl.host : (process.env.MSG_HOST || API_HOS
 const MSG_PROTOCOL = msgFromUrl ? msgFromUrl.protocol : (process.env.MSG_PROTOCOL || API_PROTOCOL);
 const MSG_PORT = msgFromUrl ? msgFromUrl.port : parseInt(process.env.MSG_PORT || String(BOOKING_PORT), 10);
 const MSG_HOST_HEADER = msgFromUrl ? msgFromUrl.hostHeader : (process.env.MSG_HOST_HEADER || API_HOST_HEADER);
+
+// 云托管「两个独立服务」守卫（2026-10-25）：
+//   云托管里 api 与 message-service 各自一个域名。只给 API_URL 时 MSG_URL 会跟随它，
+//   于是 /api/v1/{message,sse,users/} 被打到 booking 域名 → 云托管返回 404 / INVALID_HOST，
+//   现象是「页面能开、登录正常、消息中心一直转圈 / SSE 一直重连」，非常像前端 bug。
+//   这里提前喊出来，并把推测的地址一并给出（不自动猜着用，避免"猜错了更难查"）。
+if (!process.env.MSG_URL && msgFromUrl === null && /^api-/.test(API_HOST) && /tcloudbase\.com$/.test(API_HOST)) {
+  console.warn('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+  console.warn('!! 检测到云托管 api 域名，但没有给 MSG_URL                         ');
+  console.warn('!! 云托管里 message-service 是独立服务、独立域名，不会跟随 api 域名。');
+  console.warn(`!! 现在消息类请求会打到 ${MSG_HOST}:${MSG_PORT}（booking），必然 404。`);
+  console.warn(`!! 建议加上：MSG_URL=${API_PROTOCOL}://${API_HOST.replace(/^api-/, 'message-service-')}`);
+  console.warn('!! （域名形如 message-service-<envid>.sh.run.tcloudbase.com，注意中间的 -service）');
+  console.warn('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+}
+
 
 // 混合拓扑守卫：远程 booking + 本地 message-service（或反向）必然 401
 const isLoopback = (h) => h === '127.0.0.1' || h === 'localhost' || h === '::1' || h === '0.0.0.0';

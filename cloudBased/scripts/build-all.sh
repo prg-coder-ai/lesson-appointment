@@ -96,10 +96,18 @@ if [ $SKIP_DOCKER -eq 0 ]; then
     (cd "$CLOUD_MSG" && docker build -t "booking-message-service:1.1.0" .) || fail "message-service docker build 失败"
     ok "booking-message-service:1.1.0"
 
+    # 两个上游：api（8081）与 message-service（8090）是**两个独立的云托管服务**
     API_UPSTREAM="http://REPLACE_WITH_API_INTERNAL_HOST:8081"
-    if [ -n "$ENV_ID" ]; then API_UPSTREAM="http://api.$ENV_ID.svc.cluster.local:8081"; fi
-    echo "  🐳 booking-web:latest  (API_UPSTREAM=$API_UPSTREAM) ..."
-    (cd "$CLOUD_WEB" && docker build --build-arg "API_UPSTREAM=$API_UPSTREAM" -t "booking-web:latest" .) || fail "web docker build 失败"
+    MSG_UPSTREAM="http://REPLACE_WITH_MESSAGE_INTERNAL_HOST:8090"
+    if [ -n "$ENV_ID" ]; then
+        API_UPSTREAM="http://api.$ENV_ID.svc.cluster.local:8081"
+        MSG_UPSTREAM="http://message-service.$ENV_ID.svc.cluster.local:8090"
+    fi
+    echo "  🐳 booking-web:latest  (API_UPSTREAM=$API_UPSTREAM  MSG_UPSTREAM=$MSG_UPSTREAM) ..."
+    (cd "$CLOUD_WEB" && docker build \
+        --build-arg "API_UPSTREAM=$API_UPSTREAM" \
+        --build-arg "MSG_UPSTREAM=$MSG_UPSTREAM" \
+        -t "booking-web:latest" .) || fail "web docker build 失败"
     ok "booking-web:latest"
 
     if [ $DOCKER_PUSH -eq 1 ]; then
