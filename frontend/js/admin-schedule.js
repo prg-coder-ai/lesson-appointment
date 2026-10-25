@@ -466,7 +466,10 @@ async function renderScheduleCards() {
            <!-- 右侧：同一时刻在「用户时区」下的墙上时间（跨时区校验）
                 2026-10-25：默认可见。原先两块都是 display:none，只有工具栏勾上
                 「用户时间预览」才出现，于是右侧栏长期是一片空白，跨时区排课时
-                没有任何地方能核对自己填的时间在对方城市是几点。 -->
+                没有任何地方能核对自己填的时间在对方城市是几点。
+                2026-10-25 二次修订：右侧三格改为可编辑，与左侧**双向**联动。
+                联动是异步的（换算走后端 /tz/switch），必须有防循环机制，
+                见下方 schedApplyUserTzToSchedule 上方的三道闸说明。 -->
            <div style="flex: 1; min-width: 400px;">
                 <!-- 第1行：用户时区（与左侧"排期时区"行对齐，开关在上方"刷新"右侧） -->
                 <div class="sched-form-line" id="userTimeZoneRow">
@@ -488,20 +491,26 @@ async function renderScheduleCards() {
                     </select>
                     <span id="testTimeZoneOffset" style="color:#8c8c8c;font-size:12px;white-space:nowrap;"></span>
                 </div>
-                <!-- 第2~4行：日期/时间/结束日期（与左侧"开始日期/上课时间/结束日期"逐行对齐） -->
+                <!-- 第2~4行：日期/时间/结束日期（与左侧"开始日期/上课时间/结束日期"逐行对齐）
+                     2026-10-25：三格改为可编辑 —— 用户在对方城市的钟点上报课（"伦敦时间周三 12:00"）
+                     比先换算成自己时区再填更自然。改任一格都会按「排期时区」反算回左侧。
+                     星期那两格仍是只读：它是日期派生出来的，不承载任何用户意图。 -->
                 <div id="testTimeZoneForm">
                     <div class="sched-form-line">
                         <label>开始日期：</label>
-                        <input type="date" id="displayStartDate" readonly>
+                        <input type="date" id="displayStartDate"
+                               title="可直接修改。改后会按「排期时区」反算，左侧的开始日期与上课时间会同步变化。">
                         <input type="text" id="displayStartDate_weekday" readonly style="width:52px;min-width:52px;text-align:center;padding:8px 2px;">
                     </div>
                     <div class="sched-form-line">
                         <label><span data-term="lessonTime">上课时间</span>：</label>
-                        <input type="time" id="displayStartTime" readonly>
+                        <input type="time" id="displayStartTime"
+                               title="可直接修改。改后会按「排期时区」反算，左侧的上课时间会同步变化。">
                     </div>
                     <div class="sched-form-line">
                         <label>结束日期：</label>
-                        <input type="date" id="displayEndDate" readonly>
+                        <input type="date" id="displayEndDate"
+                               title="可直接修改。改后只反算左侧的结束日期（结束时间沿用开始时间，与正算规则一致）。">
                         <input type="text" id="displayEndDate_weekday" readonly style="width:52px;min-width:52px;text-align:center;padding:8px 2px;">
                     </div>
                 </div>
@@ -838,14 +847,118 @@ function handleTestTimeZoneChange() {
     attachOnce('startDate',          function () { getTestDatetime(); });
     attachOnce('startTime',          function () { getTestDatetime(); });
     attachOnce('endDate',            function () { getTestEndDatetime(); });
+
+    // 反向：右侧（用户时区）三格可编辑 → 反算回左侧。
+    // 用匿名包装而非直接绑 schedApplyUserTzToSchedule 本身，是为了先过一遍闸①和闸②：
+    // 程序性写入触发的 change 与"值没变"的回声事件都在这里被丢掉，
+    // 否则反算会接在自己的写入后面再次启动，形成回路。
+    const attachReverse = function (id, kind) {
+        attachOnce(id, function (ev) {
+            if (schedTzIsSuppressed()) return;                                   // 闸①
+            const el = ev && ev.target;
+            if (el && schedTzIsEcho(id, el.value)) return;                        // 闸②
+            // 记下这笔反算的 promise：用户在右侧改完立刻点保存时，保存逻辑要先等它写完左侧
+            schedTzTrackPending(schedApplyUserTzToSchedule(kind));
+        });
+    };
+    attachReverse('displayStartDate', 'start');
+    attachReverse('displayStartTime', 'start');
+    attachReverse('displayEndDate',   'end');
 }
 
-/* ========== 异步竞态防护：getTestDatetime / getTestEndDatetime 各自维护 reqId 计数器 ========== */
+/* ========== 双向联动的防循环闸门（2026-10-25） ==========
+ * 右侧三格可编辑后，「左侧改 → 正算写右侧」与「右侧改 → 反算写左侧」互为镜像，
+ * 天然构成一个可以无限打转的环。这里用三道闸把它限制在"一跳"内：
+ *
+ *  ① suppressDepth：程序性写入期间置 > 0，**所有换算入口**（正算、反算）直接返回。
+ *     直接给 el.value 赋值本身不触发 change，但只要有补 dispatchEvent、或者在
+ *     onchange 里调用换算的老写法（本文件里 toggleUserTimeZone 就是内联 onchange），
+ *     没有这道闸就会一路打转。
+ *  ② lastWrite[id]：记下每个字段最近一次"我们自己写进去的值"，事件值与它完全一致
+ *     时视为回声丢弃。防的是浏览器/输入法/扩展补发 change —— 那种事件无法靠 ① 拦住。
+ *  ③ 请求序号（正算 start/end、反算 revStart/revEnd 各一套）：换算走后端是异步的，
+ *     后发请求的结果可能先到；序号不匹配就丢弃，避免慢请求把新值覆盖回去。
+ *
+ * 另外结构上还断了一条路：**反算写完左侧后不调用 getTestDatetime()**。
+ * 否则刚换算过去的左值又会被正算回来，表现成两格数字来回跳（用户看到的是"抖"）。 */
+window.__schedTz = window.__schedTz || { suppressDepth: 0, lastWrite: Object.create(null) };
 window.__adminSchedule_tzReqSeq = window.__adminSchedule_tzReqSeq || { start: 0, end: 0 };
+window.__adminSchedule_tzReqSeq.revStart = window.__adminSchedule_tzReqSeq.revStart || 0;
+window.__adminSchedule_tzReqSeq.revEnd = window.__adminSchedule_tzReqSeq.revEnd || 0;
 
-// 安全写值：DOM 元素不存在 / 只读报错时都不会打断流程
+/** 闸①：当前是否处于"程序性写入"区间（期间任何换算都不得启动）。 */
+function schedTzIsSuppressed() {
+    return !!(window.__schedTz && window.__schedTz.suppressDepth > 0);
+}
+
+/** 闸①：在抑制区间内执行 fn。用 try/finally 保证异常也不会把深度漏成 >0
+ *  （一旦漏了，之后所有换算都会永久静默失效，这类 bug 极难查）。 */
+function schedTzSuppressed(fn) {
+    const st = window.__schedTz;
+    st.suppressDepth++;
+    try {
+        return fn();
+    } finally {
+        st.suppressDepth--;
+    }
+}
+
+/** 闸②：记录"我们刚写进去的值"。 */
+function schedTzMarkWrite(id, value) {
+    if (!window.__schedTz || !id) return;
+    window.__schedTz.lastWrite[id] = {
+        value: (value === null || value === undefined) ? '' : String(value),
+        at: Date.now()
+    };
+}
+
+/** 闸②：本次事件的字段值是否就是刚才写进去的那个值（是 → 回声，不处理）。 */
+function schedTzIsEcho(id, value) {
+    if (!window.__schedTz || !id) return false;
+    const rec = window.__schedTz.lastWrite[id];
+    if (!rec) return false;
+    const v = (value === null || value === undefined) ? '' : String(value);
+    return rec.value === v;
+}
+
+/** 安全写值：DOM 元素不存在 / 只读报错时都不会打断流程。
+ *  所有程序性写入统一经过这里 —— 顺带打上"这是我们写的"标记并进入抑制区间，
+ *  这样调用方不需要各自记得加闸。 */
 function safeSetInputValue(id, value) {
-    try { const el = document.getElementById(id); if (el) el.value = value == null ? '' : value; } catch (_) {}
+    const v = (value === null || value === undefined) ? '' : String(value);
+    try {
+        schedTzMarkWrite(id, v);
+        schedTzSuppressed(function () {
+            const el = document.getElementById(id);
+            if (el) el.value = v;
+        });
+    } catch (_) {}
+}
+
+/** 写校验提示。schedTzHint 是唯一的提示出口，避免多处 textContent 抢写。 */
+function schedTzSetHint(text, isError) {
+    const hint = document.getElementById('schedTzHint');
+    if (!hint) return;
+    hint.textContent = text || '';
+    hint.style.color = isError ? '#C0392B' : '#8c8c8c';
+}
+
+/** 记下最近一次反算的 promise，供保存前"等它落地"用。
+ *  为什么必须等：反算要走一次 /tz/switch，用户在右侧改完时间立刻点保存时，
+ *  左侧那两个 input 还是旧值，提交出去的排期就落到了错误的时刻上。
+ *  这类竞态只在网络慢的时候复现，最难排查，所以按规则处理而不是靠"应该来不及"。 */
+function schedTzTrackPending(p) {
+    if (!window.__schedTz) return;
+    window.__schedTz.pending = Promise.resolve(p).catch(function (e) {
+        console.error('[schedTzTrackPending]', e);
+    });
+}
+
+/** 保存前调用：等最后一笔反算写完左侧（没有在飞的就立即返回）。 */
+async function schedTzFlushPending() {
+    const p = window.__schedTz && window.__schedTz.pending;
+    if (!p) return;
+    try { await p; } catch (_) {}
 }
 
 /* ========== 时区偏移显示 + 校验提示（2026-10-25） ==========
@@ -909,30 +1022,29 @@ function schedRefreshTzOffsets() {
 
     const hint = document.getElementById('schedTzHint');
     if (!hint) return;
-    const red = '#C0392B';
     const toggle = document.getElementById('toggleUserTimeZone');
     if (toggle && !toggle.checked) {
-        hint.textContent = '跨时区校验已关闭（右侧不显示换算结果）';
-        hint.style.color = '#8c8c8c';
+        schedTzSetHint('跨时区时间校验已关闭（右侧不显示换算结果）', false);
         return;
     }
     if (!fromTz || !fromOff) {
-        hint.textContent = '排期时区未取到（浏览器未提供有效时区），右侧无法换算';
-        hint.style.color = red;
+        schedTzSetHint('排期时区未取到（浏览器未提供有效时区），右侧无法换算', true);
     } else if (!toTz || !toOff) {
-        hint.textContent = '用户时区「' + (toTz || '空') + '」无效，右侧无法换算';
-        hint.style.color = red;
+        schedTzSetHint('用户时区「' + (toTz || '空') + '」无效，右侧无法换算', true);
     } else if (fromTz === toTz) {
-        hint.textContent = '两侧时区相同（' + fromTz + '），右侧与左侧一致';
-        hint.style.color = '#8c8c8c';
+        schedTzSetHint('两侧时区相同（' + fromTz + '），右侧与左侧一致', false);
     } else {
-        hint.textContent = '右侧＝左侧所填时间在「用户时区」下的墙上时间（' + fromOff + ' → ' + toOff + '）';
-        hint.style.color = '#8c8c8c';
+        // 双向：说明清楚"谁影响谁"，否则用户改右侧发现左侧跟着变会以为是串值
+        schedTzSetHint('双向联动：左侧改动 → 右侧按「用户时区」换算；右侧也可直接改 → 按「排期时区」反算回左侧（'
+            + fromOff + ' ⇄ ' + toOff + '）', false);
     }
 }
 
 // 按照左侧 的时间和日期，同步修改右侧指定时区的显示
 async function getTestDatetime() {
+    // 闸①：正处于程序性写入（多半是反算刚写完左侧）时不要启动正算，
+    // 否则「反算写左 → 正算写右 → 反算又启动」会自己转起来
+    if (schedTzIsSuppressed()) return;
     const toggle = document.getElementById('toggleUserTimeZone');
     const startDateInput = document.getElementById('startDate');
     const startTimeInput = document.getElementById('startTime');
@@ -978,7 +1090,10 @@ async function getTestDatetime() {
 
         const newDateTime = (newTzDateTime && newTzDateTime.dateTime) ? newTzDateTime.dateTime : "";
         if (typeof newDateTime === "string" && newDateTime.trim() !== "" && newDateTime.includes(" ")) {
-            const [newDate, newTime] = newDateTime.split(" ");
+            const [newDate, newTimeRaw] = newDateTime.split(" ");
+            // 只写 HH:mm：input[type=time] 里塞 "12:00:00" 虽然能显示，
+            // 但与左栏的 HH:mm 口径不一致，回声比对（闸②）和反算的入参都会多一层转换
+            const newTime = String(newTimeRaw || "").slice(0, 5);
             safeSetInputValue('displayStartDate', newDate);
             safeSetInputValue('displayStartTime', newTime);
             safeSetInputValue('displayStartDate_weekday', newDate ? getWeekdayFromDateTime(newDate) : "");
@@ -995,6 +1110,7 @@ async function getTestDatetime() {
 }
 
 async function getTestEndDatetime() {
+    if (schedTzIsSuppressed()) return;   // 闸①，同 getTestDatetime
     const toggle = document.getElementById('toggleUserTimeZone');
     const endDateInput = document.getElementById('endDate');
     const startTimeInput = document.getElementById('startTime');
@@ -1044,6 +1160,122 @@ async function getTestEndDatetime() {
         }
     }
 } 
+
+/* ========== 反向换算：右侧（用户时区）改动 → 写回左侧（排期时区） ==========
+ * kind = 'start' | 'end'
+ *   start：右侧开始日期/上课时间 → 左侧 startDate + startTime（两个都写，跨午夜会同时挪日期）
+ *   end  ：右侧结束日期 → 左侧 endDate（只取日期：左侧本来就只有"结束日期"这一格，
+ *          结束时间沿用开始时间，与正算 getTestEndDatetime 的口径完全一致）
+ *
+ * 反算复用后端同一个 /tz/switch，只是把 from/to 对调：源是"用户时区的墙钟时间"，
+ * 目标是「排期时区」。不在前端自己算偏移——夏令时规则逐年变，两端各算一次必然
+ * 出现"半年对不上"的经典 bug；让同一个服务端实现对算两次才能保证可逆。
+ *
+ * 循环防护见上方三道闸；本函数还额外做了一件事：**写完左侧不回头正算开始时间**，
+ * 否则刚换过去的左值会被立刻换算回右侧，表现为两个格子来回跳。 */
+async function schedApplyUserTzToSchedule(kind) {
+    if (schedTzIsSuppressed()) return;                 // 闸①：程序性写入期间不启动
+
+    const toggle      = document.getElementById('toggleUserTimeZone');
+    const userTzEl    = document.getElementById('testTimeZone');
+    const schedTzEl   = document.getElementById('timeZone');
+    const startDateEl = document.getElementById('displayStartDate');
+    const startTimeEl = document.getElementById('displayStartTime');
+    const endDateEl   = document.getElementById('displayEndDate');
+    if (!userTzEl || !schedTzEl) return;
+
+    const isStart = (kind !== 'end');
+    const userTz  = String(userTzEl.value  || '').trim();
+    const schedTz = String(schedTzEl.value || '').trim();
+
+    if (toggle && !toggle.checked) {
+        schedTzSetHint('跨时区时间校验已关闭：右侧不参与反算；需要按对方时区填写请先勾选', true);
+        return;
+    }
+    if (!userTz || !schedTz) { schedRefreshTzOffsets(); return; }
+
+    const dateVal = ((isStart ? startDateEl : endDateEl) || {}).value || '';
+    // 改结束日期也要用"时间"定位：只知道日期无法判断它在对方时区落成哪一天。
+    // 时间基准与正算一致，都取开始时间。
+    const timeVal = (startTimeEl || {}).value || '';
+
+    // 空值（用户清空了某一格）不做反算，直接按左侧重新算回来——
+    // 报红再让用户自己去修，是最容易被当成"页面坏了"的交互。
+    if (!dateVal || !timeVal) {
+        schedTzSetHint('右侧时间不能留空：已按左侧重新换算', false);
+        try {
+            if (isStart) { await getTestDatetime(); }
+            else { await getTestEndDatetime(); }
+        } catch (_) {}
+        return;
+    }
+
+    const wallClock = dateVal + ' ' + (timeVal.length === 5 ? timeVal + ':00' : timeVal);
+
+    const seqKey = isStart ? 'revStart' : 'revEnd';
+    const mySeq  = ++window.__adminSchedule_tzReqSeq[seqKey];
+
+    let res = null;
+    try {
+        res = await tzSwitchTo(userTz, wallClock, schedTz);   // from/to 与正算相反
+    } catch (e) {
+        console.error('[schedApplyUserTzToSchedule] 换算失败:', e);
+        res = null;
+    }
+    if (mySeq !== window.__adminSchedule_tzReqSeq[seqKey]) return;  // 闸③：已有更新的反算请求
+    if (schedTzIsSuppressed()) return;                              // 期间被程序性写入打断，本次作废
+
+    const converted = (res && res.dateTime) ? String(res.dateTime) : '';
+    if (!converted || converted.indexOf(' ') < 0) {
+        schedTzSetHint('换算失败：' + userTz + ' → ' + schedTz + ' 未返回结果，左侧未改动', true);
+        return;
+    }
+    const seg     = converted.split(' ');
+    const newDate = seg[0] || '';
+    const newTime = seg[1] || '';
+
+    if (isStart) {
+        if (!newDate || !newTime) return;
+        const hhmm    = newTime.slice(0, 5);
+        const curDate = (document.getElementById('startDate') || {}).value || '';
+        const curTime = (document.getElementById('startTime') || {}).value || '';
+        // 左侧已经是同一时刻 → 不写（省掉星期/名称/结束日期的一轮重算与闪烁）
+        if (curDate === newDate && curTime === hhmm) { schedRefreshTzOffsets(); return; }
+
+        schedTzSuppressed(function () {
+            safeSetInputValue('startDate', newDate);
+            safeSetInputValue('startTime', hhmm);
+            // 左侧那几个 input 的内联 onchange 不会被程序赋值触发，这里显式补做同样的事，
+            // 否则改完右侧，左侧的星期、名称建议、每周重复勾选全是旧的
+            try { if (typeof schedSyncWeekdayFromStartDate === 'function') schedSyncWeekdayFromStartDate(); } catch (_) {}
+            try { if (typeof schedEnsureEndDate === 'function') schedEnsureEndDate(); } catch (_) {}
+            try { if (typeof schedSuggestName === 'function') schedSuggestName(); } catch (_) {}
+        });
+
+        // 左侧开始时间变了 → 右侧"结束日期"必须按新时间重算（它只写右侧，不会再回写左侧）
+        try { await getTestEndDatetime(); } catch (_) {}
+        try { schedRefreshTzOffsets(); } catch (_) {}
+        return;
+    }
+
+    if (!newDate) return;
+    const curEnd = (document.getElementById('endDate') || {}).value || '';
+    if (curEnd === newDate) { schedRefreshTzOffsets(); return; }
+
+    schedTzSuppressed(function () {
+        safeSetInputValue('endDate', newDate);
+        safeSetInputValue('endDate_weekday', getWeekdayFromDateTime(newDate) || '');
+    });
+
+    // 只把日期写回左侧；右侧保持用户填的那个值，不再正算覆盖
+    // （正算会用"结束日期 + 开始时间"重画，等于把用户输入弹回去，体验上像没生效）
+    const sd = (document.getElementById('startDate') || {}).value || '';
+    if (sd && newDate < sd) {
+        schedTzSetHint('结束日期（' + newDate + '）早于开始日期（' + sd + '），保存前请修正', true);
+    } else {
+        schedRefreshTzOffsets();
+    }
+}
 
  // 1. 加载、显示课程列表
    async function loadAndRenderCourses() { 
@@ -1793,6 +2025,8 @@ return ;
    }
 
    async function schedSubmitBatch(){
+       // 批量行共用「开始日期/结束日期」，同样要先等右侧反算落地
+       await schedTzFlushPending();
        if (!activeCourseId) { toast('请先选择课程', false); return; }
        const rows = document.querySelectorAll('#schedBatchRows .sched-batch-row');
        if (!rows.length) { toast('请至少填一行', false); return; }
@@ -2070,6 +2304,9 @@ function renderResult() {
   // 保存 update or insert 
   //判断是否需要:assignStudentToTheSchedule
   async function saveScheduleToDB() {
+    // 右侧（用户时区）刚改过就点保存时，左侧的反算可能还在路上 —— 先等它落地，
+    // 否则校验和提交用的都是旧日期/时间，排期会落到错误的时刻（网络慢才复现）
+    await schedTzFlushPending();
     if(! checkCourseAndSchedule(false,true))//排期在新建时不判断
         return ;
     //TBD :判断排期是否已经存在---
