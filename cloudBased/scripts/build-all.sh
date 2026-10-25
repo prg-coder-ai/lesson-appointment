@@ -25,6 +25,10 @@ FE_DIR="$PROJECT_ROOT/frontend"
 CLOUD_API="$PROJECT_ROOT/cloudBased/api"
 CLOUD_MSG="$PROJECT_ROOT/cloudBased/message-service"
 CLOUD_WEB="$PROJECT_ROOT/cloudBased/web"
+# web 的「源文件」在 deploy 下受版本控制；cloudBased/web 是纯暂存目录（.gitignore 已忽略），
+# 构建前由本脚本把源码拷进去。理由：cloudBased/web 里还堆着 dist/、jar、web.zip 等产物，
+# 整目录入库只会制造 diff 噪声与"源码/产物混在一起"的误判。
+WEB_SRC="$PROJECT_ROOT/deploy/nginx/cloudbase-web"
 
 SKIP_FE=0; SKIP_BE=0; SKIP_DOCKER=0; DOCKER_PUSH=0; ENV_ID=""
 for a in "$@"; do
@@ -103,6 +107,14 @@ if [ $SKIP_DOCKER -eq 0 ]; then
         API_UPSTREAM="http://api.$ENV_ID.svc.cluster.local:8081"
         MSG_UPSTREAM="http://message-service.$ENV_ID.svc.cluster.local:8090"
     fi
+
+    # web 源文件：deploy/nginx/cloudbase-web → 暂存目录 cloudBased/web（构建上下文必须是这里，
+    # Dockerfile 里的 COPY dist/ 依赖它）。缺文件就在这一步炸，别等到 docker build 报 Dockerfile not found。
+    [ -f "$WEB_SRC/Dockerfile" ]           || fail "缺少 $WEB_SRC/Dockerfile"
+    [ -f "$WEB_SRC/nginx.conf.template" ]  || fail "缺少 $WEB_SRC/nginx.conf.template"
+    cp -f "$WEB_SRC/Dockerfile" "$WEB_SRC/nginx.conf.template" "$CLOUD_WEB/"
+    ok "web 源文件已拷入暂存目录（deploy/nginx/cloudbase-web → cloudBased/web）"
+
     echo "  🐳 booking-web:latest  (API_UPSTREAM=$API_UPSTREAM  MSG_UPSTREAM=$MSG_UPSTREAM) ..."
     (cd "$CLOUD_WEB" && docker build \
         --build-arg "API_UPSTREAM=$API_UPSTREAM" \

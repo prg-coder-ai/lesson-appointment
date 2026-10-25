@@ -2,10 +2,14 @@
 # 微信云托管 · web 前端服务（方式 B：Nginx 容器）
 # 手册 8.1 推荐方式：自建 web 服务反向代理，与现有 nginx 反代思路一致
 #
+# ★ 本文件与同目录的 nginx.conf.template 是**源文件**，受版本控制。
+#   构建前由 cloudBased/scripts/build-all.* 拷进暂存目录 cloudBased/web（构建上下文），
+#   手工构建也必须先拷 —— 见同目录 README.md。
+#
 # 构建前准备：
 #   1. 本地构建前端：cd <项目根>/frontend && node build.js
 #   2. 构建产物在 <项目根>/frontend/dist/
-#   3. 把 dist/ 整个目录拷贝到 cloudBased/web/dist/（或修改下方 COPY 源路径）
+#   3. 把 dist/ 整个目录拷贝到 cloudBased/web/dist/（脚本会自动做）
 #
 # ★ 2026-10-25 修订：后端已拆成两个独立云托管实例，需传两个上游
 #   docker build \

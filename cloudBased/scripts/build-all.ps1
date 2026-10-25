@@ -1,6 +1,8 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 # ==============================================================================
 # build-all.ps1 —— 微信云托管 · 本地预打包一键脚本
+# ★ 必须保存为 UTF-8 **带 BOM**：PowerShell 5.1 会把无 BOM 的 UTF-8 当 ANSI 读，
+#   中文与 emoji 会让解析直接失败（典型报错：字符串缺少终止符）。改动后别用会丢 BOM 的编辑器保存。
 # 用法：
 #   1. PowerShell 5 / 7：在项目根目录执行
 #      Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass   # 首次可能需要
@@ -39,6 +41,9 @@ $FE_DIR       = Join-Path $PROJECT_ROOT "frontend"
 $CLOUD_API    = Join-Path $PROJECT_ROOT "cloudBased\api"
 $CLOUD_MSG    = Join-Path $PROJECT_ROOT "cloudBased\message-service"
 $CLOUD_WEB    = Join-Path $PROJECT_ROOT "cloudBased\web"
+# web 的「源文件」在 deploy 下受版本控制；cloudBased/web 是纯暂存目录（.gitignore 已忽略），
+# 构建前由本脚本把源码拷进去。
+$WEB_SRC      = Join-Path $PROJECT_ROOT "deploy\nginx\cloudbase-web"
 
 # ---------- 颜色输出 ----------
 function Step($msg) { Write-Host "`n▶ $msg" -ForegroundColor Cyan }
@@ -124,6 +129,14 @@ if (-not $SkipDocker) {
     # 3c. web —— 两个上游：api（8081）与 message-service（8090），是两个独立云托管服务
     $apiInternalHost = if ($EnvId) { "http://api.$EnvId.svc.cluster.local:8081" } else { "http://REPLACE_WITH_API_INTERNAL_HOST:8081" }
     $msgInternalHost = if ($EnvId) { "http://message-service.$EnvId.svc.cluster.local:8090" } else { "http://REPLACE_WITH_MESSAGE_INTERNAL_HOST:8090" }
+
+    # web 源文件：deploy/nginx/cloudbase-web → 暂存目录 cloudBased/web（构建上下文必须是这里）
+    foreach ($f in @("Dockerfile", "nginx.conf.template")) {
+        if (-not (Test-Path "$WEB_SRC\$f")) { Fail "缺少 $WEB_SRC\$f" }
+        Copy-Item "$WEB_SRC\$f" "$CLOUD_WEB\" -Force
+    }
+    Ok "web 源文件已拷入暂存目录（deploy\nginx\cloudbase-web → cloudBased\web）"
+
     Write-Host "  🐳 booking-web:latest  (API_UPSTREAM=$apiInternalHost  MSG_UPSTREAM=$msgInternalHost) ..." -ForegroundColor Gray
     Push-Location $CLOUD_WEB
     try {

@@ -101,8 +101,17 @@ tests/miniprogram-itest/_sut*
 # 内含数据库明文密码，绝不入库（模板见 .healthcheck.local.env.example）。
 .healthcheck.local.env
 .workbuddy/healthcheck-local.log
+# cloudBased/web 是纯暂存目录：dist/、构建时拷进来的 Dockerfile 与 nginx.conf.template、
+# 以及 web.zip 都堆在这里。源文件已迁到 deploy/nginx/cloudbase-web/ 受版本控制，
+# 由 cloudBased/scripts/build-all.* 在 docker build 前拷入（别再往这里放需要入库的东西）。
 cloudBased/web
 cloudBased/api/booking-api-2.2.0.jar
 cloudBased/message-service/message-service-1.1.0.jar
 cloudBased/web.zip
+# cloudBased/env 下的 .env*.example 与 README.txt 曾入库，已全部 untrack（本地文件保留）。
+# 变量清单与取值格式见部署手册（应用/云托管环境变量一节）。
 cloudBased/env
+
+# SQL 语义映射的中间产物：由 gen_upsert_sys_term.py 生成，内容是 GBK/UTF-8 混淆的乱码，
+# 且全仓无任何脚本读取它 → 不入库（需要时本地重新生成）。
+api/sql/schema/_semmap.tsv
