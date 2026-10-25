@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>时约 · 拍板事项审查</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+:root {
+  --brand: #0052D9;
+  --brand-soft: #E8F0FE;
+  --brand-deep: #003A99;
+  --ink: #1F2329;
+  --ink-2: #4E5969;
+  --ink-3: #86909C;
+  --line: #E5E6EB;
+  --bg: #F7F8FA;
+  --surface: #FFFFFF;
+  --warn: #FF7D00;
+  --warn-soft: #FFF7E8;
+  --ok: #00B42A;
+  --ok-soft: #E8FFEA;
+  --danger: #F53F3F;
+  --danger-soft: #FFECE8;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 32px 20px;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+.container { max-width: 880px; margin: 0 auto; }
+.banner {
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-deep) 100%);
+  color: #fff;
+  padding: 28px 32px;
+  border-radius: 16px 16px 0 0;
+  position: relative;
+  overflow: hidden;
+}
+.banner::after {
+  content: "";
+  position: absolute;
+  right: -40px; top: -40px;
+  width: 200px; height: 200px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 50%;
+}
+.banner .brand-tag {
+  font-size: 13px;
+  color: rgba(255,255,255,0.85);
+  margin: 0 0 10px 0;
+  letter-spacing: 0.3px;
+  position: relative;
+  z-index: 1;
+}
+.banner .brand-tag .sep { margin: 0 6px; opacity: 0.6; }
+.banner .title {
+  font-size: 24px; font-weight: 600;
+  margin: 0 0 4px 0;
+}
+.banner .subtitle {
+  font-size: 14px; opacity: 0.9; margin: 0;
+}
+.banner .meta {
+  margin-top: 14px; font-size: 13px;
+  opacity: 0.85;
+  display: flex; gap: 20px; flex-wrap: wrap;
+}
+.banner .meta span {
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.banner .meta i.bi { font-size: 14px; opacity: 0.9; }
+.body {
+  background: var(--surface);
+  padding: 28px 32px 8px;
+  border-radius: 0 0 16px 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+section { margin-bottom: 28px; }
+section:last-child { margin-bottom: 0; }
+h2.section-title {
+  font-size: 17px; font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 14px 0;
+  line-height: 1.35;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+h2.section-title .idx {
+  color: var(--brand);
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.5px;
+}
+.lead {
+  font-size: 13.5px;
+  color: var(--ink-2);
+  line-height: 1.7;
+  margin: 0 0 14px 0;
+  padding: 12px 14px;
+  background: #FAFBFC;
+  border-radius: 6px;
+}
+.lead strong { color: var(--ink); font-weight: 600; }
+table.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+table.data-table th {
+  background: #FAFBFC;
+  color: var(--ink-2);
+  font-weight: 500;
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 2px solid var(--line);
+  font-size: 13px;
+}
+table.data-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+  color: var(--ink);
+}
+table.data-table tr:last-child td { border-bottom: none; }
+table.data-table tr:hover td { background: #FAFBFC; }
+table.data-table td.kv-key {
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.pill-ok { background: var(--ok-soft); color: var(--ok); }
+.pill-warn { background: var(--warn-soft); color: var(--warn); }
+.pill-danger { background: var(--danger-soft); color: var(--danger); }
+.pill-brand { background: var(--brand-soft); color: var(--brand); }
+.pill-recommend { background: var(--brand); color: #fff; }
+.callout {
+  padding: 12px 16px;
+  border-radius: 8px;
+  border-left: 3px solid var(--brand);
+  font-size: 13.5px;
+  line-height: 1.7;
+  background: var(--brand-soft);
+  color: var(--ink);
+  margin-top: 14px;
+}
+.callout strong.title {
+  color: var(--brand-deep);
+  font-weight: 600;
+  margin-right: 4px;
+}
+.callout-warn { border-color: var(--warn); background: var(--warn-soft); color: #1F2329; }
+.callout-warn strong.title { color: #7A4300; }
+ul.plain-list {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13.5px;
+  color: var(--ink-2);
+  line-height: 1.85;
+}
+ul.plain-list li { margin: 4px 0; padding-left: 2px; }
+ul.plain-list li strong { color: var(--ink); font-weight: 600; }
+ul.plain-list li strong:first-child { margin-right: 4px; }
+.tag-ok, .tag-warn, .tag-bad {
+  font-weight: 600;
+  margin-right: 4px;
+}
+.tag-ok { color: var(--ok); }
+.tag-warn { color: var(--warn); }
+.tag-bad { color: var(--danger); }
+.disclaimer {
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  margin-top: 20px;
+  padding: 14px 0;
+}
+@media print {
+  body { padding: 0; background: #fff; }
+  .banner { border-radius: 0; }
+  .body { border-radius: 0; box-shadow: none; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="banner">
+    <p class="brand-tag">营销通<span class="sep">·</span>内容变现顾问</p>
+    <h1 class="title">时约 · 拍板事项审查</h1>
+    <p class="subtitle">面向对象：定价决策包 ｜ 审查维度：报价合理性 / 内部一致性 / 风险护栏</p>
+    <div class="meta">
+      <span><i class="bi bi-calendar3"></i>2026-10-12</span>
+      <span><i class="bi bi-flag"></i>拍板前置审查</span>
+      <span><i class="bi bi-hourglass-split"></i>4 大待决项</span>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <section>
+      <h2 class="section-title"><span class="idx">01</span>总体裁决</h2>
+      <p class="lead">整体可进入拍板，但①的锚定逻辑不自洽需先澄清；②通过待补两条、④通过待补两条、③需调整。</p>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width:170px;">待决项</th>
+            <th style="width:90px;">裁决</th>
+            <th>一句话理由</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>① 最终报价拍板</strong></td>
+            <td><span class="pill pill-warn">调整</span></td>
+            <td>锚定公式与 M1 区间对不上，签了会留内部比价隐患，需先澄清基数。</td>
+          </tr>
+          <tr>
+            <td><strong>② 免费试用门槛</strong></td>
+            <td><span class="pill pill-ok">通过</span></td>
+            <td>14 天不绑卡符合自助转化做法，补两条边界即可签字。</td>
+          </tr>
+          <tr>
+            <td><strong>③ 私有部署 vs D 轴框架</strong></td>
+            <td><span class="pill pill-warn">调整</span></td>
+            <td>C 层与 M1 价格区间重叠（15–30k），且缺销售区分指引。</td>
+          </tr>
+          <tr>
+            <td><strong>④ M2/M6 双签特批</strong></td>
+            <td><span class="pill pill-ok">通过</span></td>
+            <td>双签 + 源码托管方向正确，补否决机制与最低出价红线即可。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2 class="section-title"><span class="idx">02</span>报价锚定不自洽</h2>
+      <p class="lead">这是最该先改的一条：公式与区间对不上，签了会在客户比价时自己打自己。</p>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width:200px;">测算口径</th>
+            <th>锚定基数（SaaS 年费 × 3 年）</th>
+            <th>上浮 30–60% 后</th>
+            <th>原建议 M1 区间</th>
+            <th style="width:90px;">校验</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>个体 / 标准版</td>
+            <td>¥299 × 3 = ¥897</td>
+            <td>¥1,166–1,435</td>
+            <td rowspan="4">¥15,000–40,000</td>
+            <td><span class="pill pill-warn">远超</span></td>
+          </tr>
+          <tr>
+            <td>团队版（¥999/年）</td>
+            <td>¥999 × 3 = ¥2,997</td>
+            <td>¥3,896–4,795</td>
+            <td><span class="pill pill-warn">远超</span></td>
+          </tr>
+          <tr>
+            <td>团队版（¥199/月·10 席）</td>
+            <td>¥2,388 × 3 = ¥7,164</td>
+            <td>¥9,313–11,462</td>
+            <td><span class="pill pill-warn">仍偏低</span></td>
+          </tr>
+          <tr>
+            <td>多席机构（¥199×50 席）</td>
+            <td>¥119,280 × 3 ≈ ¥357,840</td>
+            <td>¥464k–572k</td>
+            <td><span class="pill pill-warn">过低</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <ul class="plain-list">
+        <li><strong>根因：</strong>锚定规则写的是"对应 SaaS 年费 × N 年"，但没定义"按谁的 SaaS 价"——个体价、团队价、机构坐席价算出来差出两个数量级，公式与区间无法互校。</li>
+        <li><strong>连带风险：</strong>同一份拍板表把 C 层（¥8k–30k）和 M1（¥15k–40k）并列，却没标注两者交付形态差异，签字时极易混淆成"两个差不多的私有部署价"。</li>
+      </ul>
+      <div class="callout">
+        <strong class="title">建议：</strong>二选一——要么把锚定基数明确定义为"该客户按团队版测算的 3 年订阅总价"，据区间回填校验；要么干脆放弃锚定公式，改为"按坐席阶梯直接定价"（M1 起价随坐席数走），更稳、更好向客户解释。两种都行，但不能留现在的模糊写法。
+      </div>
+    </section>
+
+    <section>
+      <h2 class="section-title"><span class="idx">03</span>免费试用门槛</h2>
+      <p class="lead">基本通过，补两条边界即可签字。</p>
+      <ul class="plain-list">
+        <li><strong>试用 14 天全功能不绑卡：</strong><span class="tag-ok">通过</span>符合主流自助转化（行业称 PLG，即产品本身驱动增长）做法，注册摩擦最小，利于 A 层漏斗基数。</li>
+        <li><strong>体验版永久免费限 1 页 1 人：</strong><span class="tag-ok">通过</span>但需 A 层转化文案配合，避免"永久免费"被当成主卖点，稀释付费意愿。</li>
+        <li><strong>到期自动降级不催不封：</strong><span class="tag-ok">通过</span>但"不封数据"的保留期没写明，客户问起来答不上来。</li>
+        <li><strong>到期前 3 天提醒：</strong><span class="tag-ok">通过</span>与 A 层 D0–D14 自动时间线一致。</li>
+      </ul>
+      <div class="callout">
+        <strong class="title">建议补两条再签：</strong>① 降级后数据保留期（建议"永久保留"或"至少 90 天"，写进回执）；② 体验版除"1 页 1 人"外，是否限制提醒方式（建议仅微信通知），防止免费版功能无限膨胀。
+      </div>
+    </section>
+
+    <section>
+      <h2 class="section-title"><span class="idx">04</span>私有部署与 D 轴框架</h2>
+      <p class="lead">价格重叠且缺销售区分，需调整后再签。</p>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width:130px;">维度</th>
+            <th>C 层 · 私有/内网部署</th>
+            <th>D 轴 · M1 私有化授权</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="kv-key">谁掌控</td>
+            <td>时约交付并运维（托管云）</td>
+            <td>客户自运维（买部署权，不交源码）</td>
+          </tr>
+          <tr>
+            <td class="kv-key">建议价</td>
+            <td>¥8,000–30,000 + 年服 ¥3,000–10,000</td>
+            <td>¥15,000–40,000 + 年维护 15–20%</td>
+          </tr>
+          <tr>
+            <td class="kv-key">重叠区间</td>
+            <td colspan="2" style="text-align:center;color:var(--warn);font-weight:600;">15,000–30,000 完全重合</td>
+          </tr>
+        </tbody>
+      </table>
+      <ul class="plain-list">
+        <li><strong>价格重叠：</strong>C 层与 M1 在 15–30k 段重合，客户比价时很难分清"我们运维"和"客户自运维"的差价在哪。</li>
+        <li><strong>销售区分缺位：</strong>前端和代理推哪个没有指引，可能同一客户身上既报 C 又报 M1，内部打架、客户 confusion。</li>
+      </ul>
+      <div class="callout">
+        <strong class="title">建议：</strong>① 把 M1 起价上调到与 C 层明显错位（如 M1 ¥20k 起、C 层 ¥8k 起），或明文定义"托管云=我们运维、私有授权=客户自运维"的推售边界；② 在销售手册补一页"何时推 C、何时推 M1"，和①一并处理。
+      </div>
+    </section>
+
+    <section>
+      <h2 class="section-title"><span class="idx">05</span>M2/M6 双签机制</h2>
+      <p class="lead">双签与源码托管方向正确，补两项机制即可签字。</p>
+      <ul class="plain-list">
+        <li><strong>创始人 + 卞现双签：</strong><span class="tag-ok">通过</span>源码买断与平台特许属高危，必须双人把关，方向无误。</li>
+        <li><strong>源码托管（escrow）交割前置：</strong><span class="tag-ok">通过</span>款项条件满足才释放源码，防钱货两空。</li>
+        <li><strong>双签否决权归属：</strong><span class="tag-warn">待补</span>若双方意见不一致，规则没说谁拍板——建议明确"任一方否决即不推进"。</li>
+        <li><strong>M2/M6 最低出价红线：</strong><span class="tag-warn">待补</span>"覆盖机会成本"未量化，容易情绪化报价——建议设硬下限（M2 ≥ ¥60k、M6 ≥ ¥80k），低于不接。</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2 class="section-title"><span class="idx">06</span>下一步建议</h2>
+      <ul class="plain-list">
+        <li><strong>先改①：</strong>把锚定基数定义清楚（或改坐席阶梯定价），重发拍板价表再签，否则后续所有 D 轴报价都站不住。</li>
+        <li><strong>③④并案：</strong>一起处理价格重叠 + 补"何时推 C、何时推 M1"一页纸，避免内部比价。</li>
+        <li><strong>②④补强：</strong>把降级数据保留期、体验版功能边界、双签否决权、最低出价红线四项写进回执表备注栏。</li>
+        <li><strong>合规语气：</strong>对外表述（"数据本地""辅助管理"等）归赵写（内容风格教练）把关，不在本审查范围，拍板时一并转交。</li>
+      </ul>
+    </section>
+
+  </div>
+
+  <div class="disclaimer">—— 营销通 · 卞现 出品｜本审查基于提供的定价决策包，实际报价请结合成本结构与市场反馈判断，不承诺收益数字。</div>
+
+</div>
+</body>
+</html>

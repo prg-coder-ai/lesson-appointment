@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="sysLayerTop">
+<head data-page-node-id="sysLayerHead">
+<meta charset="UTF-8" data-page-node-id="sysLayerMeta1">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="sysLayerMeta2">
+<title>时约 · 系统售卖层（卖软件系统）可执行方案</title>
+<style>
+  :root{
+    --ink:#1f2430; --sub:#5b6472; --line:#e8ebf0; --bg:#f5f7fa;
+    --brand:#2b6cb0; --brand2:#1a4f86; --accent:#0f9d8a; --warn:#c0392b;
+    --chip:#eef4fb; --chip2:#e9f7f3; --gold:#b8860b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);line-height:1.7;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:960px;margin:0 auto;padding:18px}
+  .banner{background:linear-gradient(120deg,#3a2a6a,var(--brand));border-radius:16px 16px 0 0;padding:18px 24px 20px;color:#fff}
+  .brand-tag{color:#fff;opacity:.85;font-size:12px;letter-spacing:1px;margin-bottom:10px}
+  .banner h1{font-size:21px;font-weight:700;letter-spacing:.5px}
+  .banner .meta{font-size:13px;opacity:.88;margin-top:6px}
+  .card{background:#fff;border:1px solid var(--line);border-top:none;padding:22px 24px}
+  .card:last-of-type{border-radius:0 0 16px 16px}
+  .sec{margin-bottom:24px}
+  .sec:last-child{margin-bottom:0}
+  .sec-h{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .sec-no{background:var(--brand);color:#fff;width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex:none}
+  .sec-h h2{font-size:16.5px;font-weight:700}
+  .lead{font-size:14.5px}
+  ul.li{list-style:none}
+  ul.li li{position:relative;padding-left:20px;margin-bottom:8px;font-size:13.5px}
+  ul.li li::before{content:"";position:absolute;left:4px;top:9px;width:7px;height:7px;border-radius:2px;background:var(--accent)}
+  b{color:var(--brand2)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:720px){.grid{grid-template-columns:1fr}}
+  .box{background:var(--chip);border-radius:10px;padding:12px 14px;font-size:13px}
+  .box.g{background:var(--chip2)}
+  .box .t{font-weight:700;color:var(--brand2);margin-bottom:4px}
+  .stage{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+  .stage .hd{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+  .stage .nm{font-weight:700;color:var(--brand2);font-size:15px}
+  .stage .own{font-size:11.5px;color:#fff;background:var(--accent);padding:2px 9px;border-radius:20px;font-weight:600}
+  .stage .own.b{background:var(--brand)}
+  .stage .own.g{background:var(--gold)}
+  .chk{list-style:none;margin:6px 0}
+  .chk li{position:relative;padding-left:26px;font-size:13px;margin-bottom:5px;color:var(--ink)}
+  .chk li::before{content:"☐";position:absolute;left:4px;top:0;color:var(--brand);font-weight:700}
+  .tmpl{border-left:3px solid var(--gold);background:#fdfaf0;padding:10px 14px;margin:8px 0;border-radius:0 8px 8px 0}
+  .tmpl .tt{font-weight:700;color:var(--ink);font-size:13px;margin-bottom:3px}
+  .tmpl .tb{font-size:12.5px;color:var(--sub)}
+  .tmpl .tb b{color:var(--gold)}
+  .flow{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin:6px 0}
+  .step{background:var(--chip);border-radius:8px;padding:6px 11px;font-size:12.5px}
+  .step.b{background:var(--chip2);color:var(--brand2);font-weight:600}
+  .arrow{color:var(--sub);font-size:12px}
+  .kpi{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+  .kpi .k{background:var(--chip);border-radius:10px;padding:10px 12px;font-size:12.5px}
+  .kpi .k .n{font-weight:700;color:var(--brand2)}
+  .kpi .k .v{color:var(--accent);font-weight:700}
+  table.t{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px}
+  table.t th,table.t td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  table.t th{background:var(--chip);color:var(--brand2);font-weight:700}
+  .warn{background:#fdecea;border:1px solid #f5c6c0;border-radius:10px;padding:12px 14px;font-size:13px;color:#7a241c}
+  .warn b{color:var(--warn)}
+  .ref{background:#f3f6fb;border-radius:10px;padding:12px 14px;font-size:13px}
+  .ref div{margin-bottom:6px}
+  .ref div:last-child{margin-bottom:0}
+  .ref .name{color:var(--brand2);font-weight:700}
+  .note{background:#fff8e6;border:1px solid #f3e2b3;border-radius:10px;padding:10px 14px;font-size:12.5px;color:#7a5b00;margin-bottom:16px}
+  .tag{display:inline-block;background:var(--chip);color:var(--brand2);font-size:11px;padding:2px 8px;border-radius:20px;margin:2px 3px 2px 0;font-weight:600}
+  .cal{font-size:12px}
+  .cal tr:nth-child(odd) td{background:#fafcfe}
+  .foot{text-align:center;color:var(--sub);font-size:12px;padding:16px}
+  .pill{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:700;margin-left:6px}
+  .pill.l{background:#e9f7f3;color:var(--accent)}
+  .pill.m{background:#eef4fb;color:var(--brand)}
+  .pill.h{background:#fdecea;color:var(--warn)}
+</style>
+</head>
+<body data-page-node-id="sysLayerBody">
+<div class="wrap" data-page-node-id="sysLayerWrap">
+
+  <div class="banner" data-page-node-id="sysLayerBanner">
+    <p class="brand-tag" data-page-node-id="sysLayerTag">时约 · 商业化第四维度（内容变现顾问 卞现 × 首席内容策略官 梗王）</p>
+    <h1 data-page-node-id="sysLayerTitle">系统售卖层：把源码优势变成可卖的"系统 / 授权 / 品牌 / 渠道权"</h1>
+    <div class="meta" data-page-node-id="sysLayerMeta">对象：想拥有/运营同类系统的机构、代理商、行业组织者、SaaS 创业者 ｜ 维度：D 轴（与 A/B/C 用户分层正交）｜ 2026-09-15</div>
+  </div>
+
+  <div class="card" data-page-node-id="sysLayerCard">
+
+    <div class="note" data-page-node-id="sysLayerNote">本方案是 A/B/C 三层（按"用户规模"卖<b>使用</b>）之外的<b>独立第四维度</b>：你<b>拥有源码</b>，所以可以不再只卖订阅，而能卖<b>系统本身、授权、白标、渠道权</b>。它和 A/B/C 不冲突——代理商/白标方带来末端服务业者，最终落回 A/B/C 的 SaaS 订阅，形成"源头扩渠道、末端吃订阅"的双层收益。价格与条款为建议初稿，最终报价与授权协议由<b>卞现</b>终审，合规语气由<b>赵写</b>把关。</div>
+
+    <!-- ① 总论 -->
+    <div class="sec" data-page-node-id="s1">
+      <div class="sec-h" data-page-node-id="s1h"><div class="sec-no" data-page-node-id="s1n">①</div><h2 data-page-node-id="s1t">为什么源码自有能打开这条线</h2></div>
+      <p class="lead" data-page-node-id="s1p1">SaaS 订阅的天花板是"每个末端用户都只付一点点、且随时可走"。而<b>拥有源码</b>让你多了一种资产型收入：把已经做好的系统，以"授权 / 买断 / 贴牌 / 代理"的方式一次性或周期性变现，且每一次成交都自带渠道杠杆。</p>
+      <div class="grid" style="margin-top:12px" data-page-node-id="s1g">
+        <div class="box" data-page-node-id="s1g1"><div class="t" data-page-node-id="s1g1t">与 A/B/C 的关系</div>不是替代，是<b>上游</b>。代理商（M4）在当地卖 A/B 订阅、白标方（M3）把系统贴自己牌子去圈行业用户——这些末端用户最终都是 A/B/C 的 SaaS 收入。</div>
+        <div class="box g" data-page-node-id="s1g2"><div class="t" data-page-node-id="s1g2t">收益结构升级</div>从"按人头月费"升级为"前置授权 + 年维护 + 渠道分润 + 可能的流水分成"，现金更前置，且不受末端流失只影响订阅那一层。</div>
+        <div class="box" data-page-node-id="s1g3"><div class="t" data-page-node-id="s1g3t">核心能力已具备</div>多租户架构、私有部署能力、行业术语切换——这些本来就是系统能力，只是之前只自用，现在可<b>产品化为对外授权</b>。</div>
+        <div class="box g" data-page-node-id="s1g4"><div class="t" data-page-node-id="s1g4t">最稳的起步</div>从<b>低风险、高确定</b>的私有化授权与代理经销做起，源码买断与平台特许留作高价值个案，避免一上来就失去控制权和后续收入。</div>
+      </div>
+    </div>
+
+    <!-- ② 六种模式对照 -->
+    <div class="sec" data-page-node-id="s2">
+      <div class="sec-h" data-page-node-id="s2h"><div class="sec-no" data-page-node-id="s2n">②</div><h2 data-page-node-id="s2t">六种可卖模式一览</h2></div>
+      <table class="t" data-page-node-id="s2tbl">
+        <tr data-page-node-id="s2hrow"><th data-page-node-id="s2c1">模式</th><th data-page-node-id="s2c2">买家想干嘛</th><th data-page-node-id="s2c3">交付物</th><th data-page-node-id="s2c4">收入结构</th><th data-page-node-id="s2c5">风险<span class="pill l">低</span><span class="pill m">中</span><span class="pill h">高</span></th></tr>
+        <tr data-page-node-id="s2r1"><td data-page-node-id="s2r1a"><b>M1 私有化授权</b><br>买断部署权</td><td data-page-node-id="s2r1b">自己掌控系统/数据，但不想自己造</td><td data-page-node-id="s2r1c">部署包 + 授权 Key + 安装文档</td><td data-page-node-id="s2r1d">一次性授权费 + 年维护 15–20%</td><td data-page-node-id="s2r1e"><span class="pill l">低</span></td></tr>
+        <tr data-page-node-id="s2r2"><td data-page-node-id="s2r2a"><b>M2 源码授权</b><br>买断源码</td><td data-page-node-id="s2r2b">完全拥有、自行迭代/转售</td><td data-page-node-id="s2r2c">全量源码 + 交割 + 有限支持</td><td data-page-node-id="s2r2d">高溢价一次性（可不含后续）</td><td data-page-node-id="s2r2e"><span class="pill h">高</span></td></tr>
+        <tr data-page-node-id="s2r3"><td data-page-node-id="s2r3a"><b>M3 白标/OEM</b><br>贴自己牌</td><td data-page-node-id="s2r3b">有客群无技术，想以自己品牌提供</td><td data-page-node-id="s2r3c">白标系统 + 代运维/或交付自运维</td><td data-page-node-id="s2r3d">白标年费 + 实例/坐席抽成</td><td data-page-node-id="s2r3e"><span class="pill m">中</span></td></tr>
+        <tr data-page-node-id="s2r4"><td data-page-node-id="s2r4a"><b>M4 代理经销</b><br>当地卖赚差</td><td data-page-node-id="s2r4b">有本地/行业客情，想转售赚差价</td><td data-page-node-id="s2r4c">代理价 + 培训 + 统一物料</td><td data-page-node-id="s2r4d">代理进货折扣 + 阶梯返点</td><td data-page-node-id="s2r4e"><span class="pill l">低</span></td></tr>
+        <tr data-page-node-id="s2r5"><td data-page-node-id="s2r5a"><b>M5 联合运营</b><br>不投钱分流水</td><td data-page-node-id="s2r5b">有流量/入口但不想买系统</td><td data-page-node-id="s2r5c">系统+账号体系+分账后台</td><td data-page-node-id="s2r5d">低前置 + 流水分成 15–30%</td><td data-page-node-id="s2r5e"><span class="pill m">中</span></td></tr>
+        <tr data-page-node-id="s2r6"><td data-page-node-id="s2r6a"><b>M6 平台特许</b><br>做行业平台</td><td data-page-node-id="s2r6b">想在某一行业做"平台运营方"</td><td data-page-node-id="s2r6c">多租户平台 + 运营权 + 品牌</td><td data-page-node-id="s2r6d">授权费 + 坐席/流水分成</td><td data-page-node-id="s2r6e"><span class="pill h">高</span></td></tr>
+      </table>
+      <div class="warn" style="margin-top:12px" data-page-node-id="s2w"><b>一句话取舍：</b>想"自己拥有并控制"→ M1/M2；想"贴自己牌子去卖"→ M3；想"在当地转售赚差价"→ M4；想"不投钱、靠流量分钱"→ M5；想"做一个行业的平台"→ M6。M2/M6 一旦成交即大幅让渡控制权，只接高价值、强信任个案。</div>
+    </div>
+
+    <!-- ③ 模式详解 -->
+    <div class="sec" data-page-node-id="s3">
+      <div class="sec-h" data-page-node-id="s3h"><div class="sec-no" data-page-node-id="s3n">③</div><h2 data-page-node-id="s3t">六种模式落地细则</h2></div>
+
+      <!-- M1 -->
+      <div class="stage" data-page-node-id="m1">
+        <div class="hd" data-page-node-id="m1h"><span class="nm" data-page-node-id="m1n">M1 私有化授权（买断部署权）</span><span class="own" data-page-node-id="m1o">启动首选</span></div>
+        <ul class="li" data-page-node-id="m1l">
+          <li><b>卖给谁：</b>想自己掌控数据/系统、但不想自研的中大型单机构——连锁健身、区域律所联盟、私立心理诊所集团、行业协会自用的内部预约。</li>
+          <li><b>交付物：</b>部署包（含多租户/私有模式）+ 授权 Key + 安装与运维手册 + 首年 2 次远程支持。</li>
+          <li><b>定价（建议，待卞现终审）：</b>一次性授权费 <b>¥15,000–40,000</b>（按坐席规模阶梯）；年维护费 = 授权费的 <b>15–20%</b>（¥2,500–8,000/年）；可选实施费 ¥3,000–10,000（部署+培训）。</li>
+          <li><b>定价锚定：</b>取"该客户若用 SaaS 三年总费用"作基准上浮 30–60%——既体现"一次买断"的价值，又不至于贵到不如继续订阅。</li>
+          <li><b>周期：</b>2–5 周（资格→报价→合同→部署→验收）。</li>
+          <li><b>风险与护栏：</b>源码只给"编译部署包 + 配置"，<b>不交源代码</b>；合同写明禁止反编译、禁止二次分发、审计权；维护范围外的工作按人天计费。</li>
+        </ul>
+      </div>
+
+      <!-- M2 -->
+      <div class="stage" data-page-node-id="m2">
+        <div class="hd" data-page-node-id="m2h"><span class="nm" data-page-node-id="m2n">M2 源码授权（买断源码）</span><span class="own g" data-page-node-id="m2o">高价值个案</span></div>
+        <ul class="li" data-page-node-id="m2l">
+          <li><b>卖给谁：</b>想完全拥有、自行迭代甚至转售的买家——其他 SaaS 创业者、大企业 IT 部门、想做竞品的资本方。<b>慎用：这等于放弃所有后续收入与品牌控制。</b></li>
+          <li><b>交付物：</b>全量源码 + 数据库脚本 + 第三方密钥交接 + 源码托管（escrow）交割 + 可选 90 天有限支持。</li>
+          <li><b>定价（建议）：</b>高溢价一次性 <b>¥60,000–200,000+</b>，通常<b>不含</b>后续支持；若含支持另计年费。</li>
+          <li><b>护栏：</b>必须走<b>源码托管交割</b>（满足付款条件才释放）；明确 IP 完全转移后的"不竞争/不诋毁"约束（在法律允许范围内）；绝不把核心密钥硬编码进交付包。</li>
+          <li><b>决策红线：</b>仅当买家出价足以覆盖"永久失去该资产"的机会成本时才做；创始人/卞现亲自拍板，不授权销售自定。</li>
+        </ul>
+      </div>
+
+      <!-- M3 -->
+      <div class="stage" data-page-node-id="m3">
+        <div class="hd" data-page-node-id="m3h"><span class="nm" data-page-node-id="m3n">M3 白标 / OEM（贴自己牌子卖）</span><span class="own b" data-page-node-id="m3o">战略合作</span></div>
+        <ul class="li" data-page-node-id="m3l">
+          <li><b>卖给谁：</b>有行业客群但无技术的品牌方——律师协会、行业媒体、大 V/MCN、SaaS 聚合平台。他们用自己品牌去圈用户，你提供白标系统。</li>
+          <li><b>交付物：</b>可换 Logo/域名/配色的白标系统 + 代运维（或交付自运维）+ 管理后台。</li>
+          <li><b>定价（双轨，建议）：</b>白标年费 <b>¥20,000–50,000</b> + 每部署实例/坐席 <b>¥X</b>，<b>或</b>纯年费 + 末端流水分成 10–20%。</li>
+          <li><b>周期：</b>4–8 周（定制品牌 + 合同 + 上线）。</li>
+          <li><b>护栏：</b>白标方<b>自行承担其行业合规责任</b>（尤其心理/法律"辅助管理+数据本地"口径）；约定最低年费保底；品牌使用边界写清，防止对方冒用"时约"主品牌。</li>
+        </ul>
+      </div>
+
+      <!-- M4 -->
+      <div class="stage" data-page-node-id="m4">
+        <div class="hd" data-page-node-id="m4h"><span class="nm" data-page-node-id="m4n">M4 代理经销（当地卖赚差价）</span><span class="own" data-page-node-id="m4o">渠道杠杆</span></div>
+        <ul class="li" data-page-node-id="m4l">
+          <li><b>卖给谁：</b>有本地客情或行业资源的个人/小公司——城市代理、行业 KOL、老客户中的活跃推荐者。</li>
+          <li><b>交付物：</b>代理进货价（标准零售价 4–6 折）+ 销售培训 + 统一物料 + 线索分发/后台。</li>
+          <li><b>分级（建议）：</b>铜（拿货 6 折，无返点）→ 银（5 折，季度达标返 3%）→ 金（4 折，返 5–8% + 区域保护）。</li>
+          <li><b>周期：</b>招商到首单 2–4 周；之后代理自运转。</li>
+          <li><b>护栏：</b>给<b>区域/行业独家保护</b>避免内耗；代理只卖 A/B/C 订阅（末端落 SaaS），不碰 M1/M2 授权以免乱价；统一价格体系，禁止代理私自挂远低于直营的标价。</li>
+        </ul>
+      </div>
+
+      <!-- M5 -->
+      <div class="stage" data-page-node-id="m5">
+        <div class="hd" data-page-node-id="m5h"><span class="nm" data-page-node-id="m5n">M5 联合运营（不投钱分流水）</span><span class="own b" data-page-node-id="m5o">轻资产扩张</span></div>
+        <ul class="li" data-page-node-id="m5l">
+          <li><b>卖给谁：</b>有稳定流量或行业入口、但不愿付前置费用的玩家——大型协会、平台、MCN、有私域的头部机构。</li>
+          <li><b>交付物：</b>系统 + 账号体系 + <b>分账后台</b>（自动按约定比例结算）。</li>
+          <li><b>定价（建议）：</b>前置 0 或低（¥5,000–20,000 接入费）+ 引入付费客户流水分成 <b>15–30%</b>。</li>
+          <li><b>周期：</b>3–6 周（对接 + 分账配置）。</li>
+          <li><b>护栏：</b><b>分账后台必须自动、可追溯</b>，避免手工对账扯皮；约定最低合作期与退出机制；品牌展示权写清，防止渠道方喧宾夺主。</li>
+        </ul>
+      </div>
+
+      <!-- M6 -->
+      <div class="stage" data-page-node-id="m6">
+        <div class="hd" data-page-node-id="m6h"><span class="nm" data-page-node-id="m6n">M6 平台特许（做行业平台）</span><span class="own g" data-page-node-id="m6o">顶级个案</span></div>
+        <ul class="li" data-page-node-id="m6l">
+          <li><b>卖给谁：</b>想在某一行业做"平台运营方"的机构——如某省律师协会要给全省律所提供预约平台、某连锁品牌想给加盟商统一系统。</li>
+          <li><b>交付物：</b>整套多租户平台 + 运营权 + 品牌授权 + 持续版本更新。</li>
+          <li><b>定价（建议）：</b>平台授权费 <b>¥80,000–200,000</b> + 每坐席/流水分成；或纯分成模式。</li>
+          <li><b>周期：</b>8–12 周（深度定制 + 移交 + 运营陪跑）。</li>
+          <li><b>护栏：</b>这是最大一单也最考验控制力；用<b>MEDDPICC 资格认定</b>（见⑤）严格筛买家；合同锁定数据归属、品牌边界、版本更新与违约责任。</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ④ 定价框架与防蚕食 -->
+    <div class="sec" data-page-node-id="s4">
+      <div class="sec-h" data-page-node-id="s4h"><div class="sec-no" data-page-node-id="s4n">④</div><h2 data-page-node-id="s4t">定价框架与"防自我蚕食"规则</h2></div>
+      <p class="lead" data-page-node-id="s4p">系统售卖层和 SaaS 订阅<b>必须共用一套换算逻辑</b>，否则会出现"买断比订阅还便宜"或"代理价冲击直营价"的崩盘。</p>
+      <ul class="li" data-page-node-id="s4l">
+        <li><b>锚定基准：</b>任何一次性授权费，以"该客户对应 SaaS 年费 × N 年"为基准（N 通常取 3），再按模式加溢价。</li>
+        <li><b>维护费是底线收入：</b>私有化/白标/平台都收 15–20% 年维护——这是续命的经常性收入，不要为成交而免掉。</li>
+        <li><b>渠道价隔离：</b>代理进货价（4–6 折）只用于代理自售，<b>不得</b>对末端公开挂价；直营 SaaS 标准价（¥29）不受渠道影响。</li>
+        <li><b>授权客户不享订阅价：</b>买 M1/M2 的客户，其末端用户若走 SaaS，按正常零售价，不叠加授权折扣，避免"一次买断养一池免费用户"。</li>
+        <li><b>价格审批权集中：</b>标准折扣框架由卞现定；任何突破框架的特批（M2/M6 个案）必须创始人 + 卞现双签。</li>
+      </ul>
+    </div>
+
+    <!-- ⑤ 销售方法论 -->
+    <div class="sec" data-page-node-id="s5">
+      <div class="sec-h" data-page-node-id="s5h"><div class="sec-no" data-page-node-id="s5n">⑤</div><h2 data-page-node-id="s5t">销售方法论：从"卖订阅"切到"卖资产"</h2></div>
+      <div class="grid" data-page-node-id="s5g">
+        <div class="box" data-page-node-id="s5g1"><div class="t" data-page-node-id="s5g1t">买家画像（ICP）</div>M1 单机构 IT/老板；M3 行业品牌方负责人；M4 本地有客情者；M5 平台/协会运营；M6 行业运营方决策层。共性是"<b>有客群或有控制欲、但自己造不起/不值得造</b>"。</div>
+        <div class="box g" data-page-node-id="s5g2"><div class="t" data-page-node-id="s5g2t">获客途径</div>行业展会/协会宣讲、技术社区案例文、竞品替换（"比自研省 9 成"）、老客户升级（A/B 大客户→M1）、招商会/线上宣讲。</div>
+      </div>
+      <div class="sec-h" style="margin-top:14px" data-page-node-id="s5h2"><div class="sec-no" data-page-node-id="s5n2" style="background:var(--accent)">流</div><h2 data-page-node-id="s5t2">标准销售流程（5 步）</h2></div>
+      <div class="flow" data-page-node-id="s5flow">
+        <span class="step" data-page-node-id="s5s1">资格认定<br>（简化 MEDDPICC）</span><span class="arrow" data-page-node-id="s5a1">→</span>
+        <span class="step b" data-page-node-id="s5s2">方案/报价<br>（按模式出）</span><span class="arrow" data-page-node-id="s5a2">→</span>
+        <span class="step" data-page-node-id="s5s3">法务<br>（授权协议）</span><span class="arrow" data-page-node-id="s5a3">→</span>
+        <span class="step b" data-page-node-id="s5s4">交付<br>（部署包/源码交割）</span><span class="arrow" data-page-node-id="s5a4">→</span>
+        <span class="step" data-page-node-id="s5s5">运维/续费<br>（年维护）</span>
+      </div>
+      <div class="tmpl" data-page-node-id="s5tmpl">
+        <div class="tt" data-page-node-id="s5tt">资格认定清单（每单必填，缺项养着不进报价）</div>
+        <div class="tb" data-page-node-id="s5tb">
+          ① <b>经济买家</b>：谁拍板、谁出钱？ ② <b>预算信号</b>：有无明确采购预算/周期？ ③ <b>痛点真不真</b>：是自研太贵，还是合规/控制诉求？ ④ <b>控制诉求</b>：要源码/私有/白标哪一档？ ⑤ <b>决策速度</b>：能否 4–8 周内定？ ⑥ <b>渠道冲突</b>：是否和现有直营/代理区域重叠？ ⑦ <b>合规责任</b>：心理/法律类能否自行承担合规？ ⑧ <b>后续粘性</b>：是否能带来末端 SaaS 用户（M4/M5/M6）？<br>
+          <b>纪律：</b>缺"经济买家"或"预算信号"→ 不进 POC/报价，养着定期触达。
+        </div>
+      </div>
+      <p class="lead" style="margin-top:10px" data-page-node-id="s5p2"><b>和卖订阅的关键差异：</b>这层卖的是<b>资产与权利</b>，决策人是老板/CTO/协会负责人，周期中长，<b>重合同与 IP 甚于重转化漏斗</b>。异议也从"太贵"变成"源码给我吗 / 数据归谁 / 能改吗"——话术要围绕"控制与归属"而非"性价比"。</p>
+    </div>
+
+    <!-- ⑥ 法务/IP/合规护栏 -->
+    <div class="sec" data-page-node-id="s6">
+      <div class="sec-h" data-page-node-id="s6h"><div class="sec-no" data-page-node-id="s6n">⑥</div><h2 data-page-node-id="s6t">法务 / IP / 合规护栏（稳妥的前提）</h2></div>
+      <ul class="li" data-page-node-id="s6l">
+        <li><b>源码托管（escrow）：</b>M2/M6 必须约定——款项/条件满足才由第三方释放源码，防止"钱货两空"。</li>
+        <li><b>禁止反向工程条款：</b>M1/M3 合同明确禁止反编译、二次分发、转授权；保留审计权。</li>
+        <li><b>数据责任随部署转移：</b>私有化/白标场景下，<b>数据合规责任由部署方承担</b>；心理/法律只写"辅助管理 + 数据本地"，"数据不出公共云"必须靠部署真做到，不能口头承诺。</li>
+        <li><b>品牌边界：</b>白标方不得冒用"时约"主品牌；平台特许明确品牌展示层级。</li>
+        <li><b>支持 SLA 分级：</b>维护费对应明确的响应时效与范围，超范围按人天计费，避免"买断后无限售后"。</li>
+        <li><b>退出与违约：</b>联合运营/平台特许写清最低合作期、退出时的数据迁移与系统下线责任。</li>
+      </ul>
+    </div>
+
+    <!-- ⑦ 落地路线图 -->
+    <div class="sec" data-page-node-id="s7">
+      <div class="sec-h" data-page-node-id="s7h"><div class="sec-no" data-page-node-id="s7n">⑦</div><h2 data-page-node-id="s7t">分阶段落地路线图（先稳后高）</h2></div>
+      <table class="t" data-page-node-id="s7tbl">
+        <tr data-page-node-id="s7hr"><th data-page-node-id="s7c1">阶段</th><th data-page-node-id="s7c2">时间</th><th data-page-node-id="s7c3">主攻模式</th><th data-page-node-id="s7c4">动作</th><th data-page-node-id="s7c5">目标</th></tr>
+        <tr data-page-node-id="s7r1"><td data-page-node-id="s7r1a">一·立基线</td><td data-page-node-id="s7r1b">第 1–4 周</td><td data-page-node-id="s7r1c">M1 + M4</td><td data-page-node-id="s7r1d">出授权协议模板、部署包标准化、招首批 2–3 个代理</td><td data-page-node-id="s7r1e">跑通 1 单 M1 + 1 个代理首单</td></tr>
+        <tr data-page-node-id="s7r2"><td data-page-node-id="s7r2a">二·建渠道</td><td data-page-node-id="s7r2b">第 2–3 月</td><td data-page-node-id="s7r2c">M4 + M5</td><td data-page-node-id="s7r2d">代理分级运营、谈 1–2 个联合运营（协会/平台）</td><td data-page-node-id="s7r2e">代理带来末端 SaaS 占新签 20%+</td></tr>
+        <tr data-page-node-id="s7r3"><td data-page-node-id="s7r3a">三·做深合作</td><td data-page-node-id="s7r3b">第 4–6 月</td><td data-page-node-id="s7r3c">M3</td><td data-page-node-id="s7r3d">选 1 个强信任行业品牌方做白标试点</td><td data-page-node-id="s7r3e">白标年费 + 末端抽成跑通</td></tr>
+        <tr data-page-node-id="s7r4"><td data-page-node-id="s7r4a">四·顶级个案</td><td data-page-node-id="s7r4b">第 6 月+</td><td data-page-node-id="s7r4c">M2 / M6</td><td data-page-node-id="s7r4d">仅接高价值、强信任个案，创始人亲谈</td><td data-page-node-id="s7r4e">每单 ¥8 万+，严控控制权让渡</td></tr>
+      </table>
+      <div class="warn" data-page-node-id="s7w"><b>顺序不能乱：</b>先 M1/M4 把"交付能力 + 合同 + 渠道"跑顺，再上 M3/M5，最后才碰 M2/M6。一上来卖源码或平台特许，最容易丢掉控制权和后续收入。</div>
+    </div>
+
+    <!-- ⑧ 指标与负责人 -->
+    <div class="sec" data-page-node-id="s8">
+      <div class="sec-h" data-page-node-id="s8h"><div class="sec-no" data-page-node-id="s8n">⑧</div><h2 data-page-node-id="s8t">指标体系与负责人</h2></div>
+      <div class="kpi" data-page-node-id="s8kpi">
+        <div class="k" data-page-node-id="s8k1"><div class="n" data-page-node-id="s8k1n">授权收入占比</div>系统售卖层收入 ÷ 总收入的<span class="v" data-page-node-id="s8k1v">目标 15–25%</span></div>
+        <div class="k" data-page-node-id="s8k2"><div class="n" data-page-node-id="s8k2n">授权成交周期</div>M1 平均 <span class="v" data-page-node-id="s8k2v">≤5 周</span></div>
+        <div class="k" data-page-node-id="s8k3"><div class="n" data-page-node-id="s8k3n">年维护续约率</div>目标 <span class="v" data-page-node-id="s8k3v">≥85%</span></div>
+        <div class="k" data-page-node-id="s8k4"><div class="n" data-page-node-id="s8k4n">代理带单占比</div>末端 SaaS 新签中代理贡献 <span class="v" data-page-node-id="s8k4v">20%+</span></div>
+      </div>
+      <table class="t" style="margin-top:10px" data-page-node-id="s8tbl2">
+        <tr data-page-node-id="s8hr2"><th data-page-node-id="s8c1">环节</th><th data-page-node-id="s8c2">负责人</th><th data-page-node-id="s8c3">说明</th></tr>
+        <tr data-page-node-id="s8r1"><td data-page-node-id="s8r1a">定价/折扣框架/特批</td><td data-page-node-id="s8r1b">卞现（+ 创始人双签 M2/M6）</td><td data-page-node-id="s8r1c">价格审批权集中，防止渠道乱价</td></tr>
+        <tr data-page-node-id="s8r2"><td data-page-node-id="s8r2a">授权协议/合规语气</td><td data-page-node-id="s8r2b">赵写 + 法务</td><td data-page-node-id="s8r2c">心理/法律口径、品牌边界</td></tr>
+        <tr data-page-node-id="s8r3"><td data-page-node-id="s8r3a">部署包/交付/运维</td><td data-page-node-id="s8r3b">产品/技术</td><td data-page-node-id="s8r3c">标准化部署包是 M1 起的命门</td></tr>
+        <tr data-page-node-id="s8r4"><td data-page-node-id="s8r4a">招商/代理运营</td><td data-page-node-id="s8r4b">卞现/销售</td><td data-page-node-id="s8r4c">代理分级、培训、线索分发</td></tr>
+      </table>
+    </div>
+
+    <!-- ⑨ 风险与红线 -->
+    <div class="sec" data-page-node-id="s9">
+      <div class="sec-h" data-page-node-id="s9h"><div class="sec-no" data-page-node-id="s9n">⑨</div><h2 data-page-node-id="s9t">主要风险与红线</h2></div>
+      <ul class="li" data-page-node-id="s9l">
+        <li><b>自我蚕食：</b>授权价低于 3 年订阅、或代理公开挂低价 → 直营 SaaS 被掏空。用④的换算与隔离规则锁死。</li>
+        <li><b>源码泄露：</b>M1 只交部署包、M2 走 escrow；任何交付包<b>不含核心密钥</b>。</li>
+        <li><b>渠道冲突：</b>代理区域/行业重叠引发内耗 → 招商时签保护条款，冲突由卞现仲裁。</li>
+        <li><b>售后无底洞：</b>买断后无限售后 → 维护费对应明确 SLA，超范围人天计费。</li>
+        <li><b>合规甩锅：</b>白标/私有场景下对方违规，牵连主品牌 → 合同写清合规责任归属 + 品牌边界。</li>
+        <li><b>控制权失控：</b>M2/M6 让渡过多 → 仅接高价值个案、双签拍板、留审计与违约责任。</li>
+      </ul>
+    </div>
+
+    <!-- ⑩ 决策树 -->
+    <div class="sec" data-page-node-id="s10">
+      <div class="sec-h" data-page-node-id="s10h"><div class="sec-no" data-page-node-id="s10n">⑩</div><h2 data-page-node-id="s10t">给你的买家一句话决策树</h2></div>
+      <div class="flow" data-page-node-id="s10flow">
+        <span class="step" data-page-node-id="s10s0">对方想要什么？</span><span class="arrow" data-page-node-id="s10a0">→</span>
+        <span class="step b" data-page-node-id="s10s1">自己拥有并控制</span><span class="arrow" data-page-node-id="s10a1">→</span>
+        <span class="step" data-page-node-id="s10s2">要部署权=M1 / 要源码=M2</span>
+      </div>
+      <div class="flow" data-page-node-id="s10flow2">
+        <span class="step" data-page-node-id="s10s0b">对方想要什么？</span><span class="arrow" data-page-node-id="s10a0b">→</span>
+        <span class="step b" data-page-node-id="s10s1b">贴自己牌子去卖</span><span class="arrow" data-page-node-id="s10a1b">→</span>
+        <span class="step" data-page-node-id="s10s2b">有技术自运维=M3 / 不投钱分流水=M5</span>
+      </div>
+      <div class="flow" data-page-node-id="s10flow3">
+        <span class="step" data-page-node-id="s10s0c">对方想要什么？</span><span class="arrow" data-page-node-id="s10a0c">→</span>
+        <span class="step b" data-page-node-id="s10s1c">在当地转售赚差价</span><span class="arrow" data-page-node-id="s10a1c">→</span>
+        <span class="step" data-page-node-id="s10s2c">个人/小公司=M4 / 做行业平台=M6</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="foot" data-page-node-id="sysLayerFoot">时约 · 系统售卖层方案 ｜ 与 A/B/C 用户分层正交的第四维度 ｜ 价格与条款均为建议初稿，最终由卞现终审、赵写合规把关</div>
+</div>
+</body>
+</html>
