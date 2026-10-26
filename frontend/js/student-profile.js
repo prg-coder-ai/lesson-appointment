@@ -67,6 +67,12 @@
         '</div>' +
       '</div>' +
       '<div class="card">' +
+        '<h3>我的统计</h3>' +
+        '<div class="sp-stat-row" id="sp-stats">' +
+          '<div class="empty-tip">加载中…</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="card">' +
         '<h3>账号设置</h3>' +
         '<div style="margin-top:15px;padding:0 4px 8px;">' +
           '<button class="btn btn-gray" id="sp-chgpwd" type="button" ' +
@@ -112,6 +118,40 @@
     if (mbBtn) mbBtn.onclick = function () {
       if (typeof loadAdminPageContent === 'function') loadAdminPageContent('my_booking');
     };
+
+    // S10 个人统计卡：基于学生本人预订数据（POST course/booking/page 已按会话 userId 隔离）
+    var statsEl = document.getElementById('sp-stats');
+    if (statsEl) loadStudentStats(statsEl);
+  }
+
+  // S10：拉取本人全部预订并统计各状态数量（不引服务端新字段，复用既有分页接口）
+  function loadStudentStats(cardsEl) {
+    if (!cardsEl || typeof getBookingListPage !== 'function') return;
+    var u = (typeof getCurrentUserInfo === 'function') ? getCurrentUserInfo() : null;
+    if (!u) { cardsEl.innerHTML = '<div class="empty-tip">未登录</div>'; return; }
+    getBookingListPage({ pageNum: 1, pageSize: 9999, userId: u.userId, userRole: u.role })
+      .then(function (page) {
+        var rows = (page && Array.isArray(page.rows)) ? page.rows : [];
+        var total = rows.length, pending = 0, confirmed = 0, completed = 0, canceled = 0;
+        rows.forEach(function (b) {
+          var s = (b.status || '').toLowerCase();
+          if (s === 'booking' || s === 'canceling' || s === 'cancelling') pending++;
+          else if (s === 'booked') confirmed++;
+          else if (s === 'completed') completed++;
+          else canceled++; // canceled / cancelled / rej-booking / waiting / frozen 等
+        });
+        cardsEl.innerHTML = statTile('总预订', total) + statTile('待确认', pending) +
+          statTile('已确认', confirmed) + statTile('已完成', completed) + statTile('已取消', canceled);
+      })
+      .catch(function () {
+        cardsEl.innerHTML = '<div class="empty-tip">统计加载失败</div>';
+      });
+  }
+
+  function statTile(label, val) {
+    return '<div class="sp-stat-tile">' +
+      '<div class="sp-stat-val">' + esc(String(val)) + '</div>' +
+      '<div class="sp-stat-label">' + esc(label) + '</div></div>';
   }
 
   window.renderStudentProfile = renderStudentProfile;

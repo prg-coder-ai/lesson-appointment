@@ -169,9 +169,35 @@
 
   .card h3 {
     margin-bottom: 15px;
-    font-size: 16px;
-    font-weight: 600;
+    font-size: 16px;    font-weight: 600;
     color: #333;
+  }
+
+  /* 个人中心-我的统计卡（S10） */
+  .sp-stat-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .sp-stat-tile {
+    flex: 1 1 90px;
+    min-width: 90px;
+    background: #f7f8fa;
+    border: 1px solid var(--border-color, #eee);
+    border-radius: 8px;
+    padding: 14px 10px;
+    text-align: center;
+  }
+  .sp-stat-val {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--primary-color, #722ed1);
+    line-height: 1.2;
+  }
+  .sp-stat-label {
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--text-light-color, #888);
   }
 
   /* 课程卡片样式 */
@@ -238,30 +264,6 @@
     border-color: var(--primary-color);
   }
 
-  /* 评价相关样式 */
-  .star-rating {
-    font-size: 24px;
-    margin-bottom: 15px;
-  }
-
-  .star-rating .star {
-    cursor: pointer;
-    color: #ccc;
-  }
-
-  .star-rating .star.active {
-    color: var(--orange-color);
-  }
-
-  .evaluation-textarea {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    resize: vertical;
-    min-height: 100px;
-    margin-bottom: 15px;
-  }
   .nofocus {
       pointer-events: none;    /* 禁止鼠标交互，包括点击、选中、聚焦 */
       user-select: none;       /* 禁止选中内容 */
@@ -337,6 +339,37 @@
 .calendar-day.marked {
   background: #d1e7ff;
   font-weight: bold;
+}
+/* 日历月份切换导航（S7） */
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+.calendar-nav-title {
+  font-size: 15px;
+  font-weight: 600;
+  min-width: 110px;
+  text-align: center;
+}
+.calendar-nav-btn {
+  padding: 4px 12px;
+  font-size: 13px;
+}
+/* 当月日期高亮 / 非当月灰显 / 今天边框（S7） */
+.calendar-day.current-month {
+  font-weight: 600;
+  color: var(--text-color);
+}
+.calendar-day:not(.current-month) {
+  color: #bbb;
+}
+.calendar-day.today {
+  border: 1px solid var(--primary-color);
+  color: var(--primary-color);
+  font-weight: 700;
 }
 #weekDays {
   display: flex;

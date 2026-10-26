@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-term-title="{lessonSystem} - 教师列表">语言教学预约系统 - 教师列表</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="js/public/vendor/font-awesome/css/all.min.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #f0f2f5; font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; color: #222; }
+    .tl-topbar { height: 52px; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.06); display: flex; align-items: center; padding: 0 16px; position: sticky; top: 0; z-index: 10; gap: 12px; }
+    .tl-topbar .brand { color: #722ed1; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .tl-topbar .back { margin-left: auto; padding: 6px 14px; border: 1px solid #d9d9d9; border-radius: 4px; background: #fff; cursor: pointer; font-size: 13px; color: #333; text-decoration: none; }
+    .tl-topbar .back:hover { border-color: #722ed1; color: #722ed1; }
+    .tl-wrap { max-width: 1080px; margin: 20px auto; padding: 0 16px; }
+    .tl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+    .tl-card { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); overflow: hidden; cursor: pointer; transition: box-shadow .15s, transform .15s; }
+    .tl-card:hover { box-shadow: 0 6px 18px rgba(0,0,0,.14); transform: translateY(-2px); }
+    .tl-cover { height: 120px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 40px; }
+    .tl-body { padding: 14px; }
+    .tl-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+    .tl-title { font-size: 13px; color: #722ed1; margin-bottom: 8px; }
+    .tl-summary { font-size: 12px; color: #888; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .tl-foot { margin-top: 10px; font-size: 13px; color: #722ed1; }
+    .tl-empty { text-align: center; color: #999; padding: 50px 0; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="tl-topbar">
+    <span class="brand"><i class="fa fa-users"></i> <span data-term="teacher">教师</span>列表</span>
+    <a class="back" id="tl-back" href="javascript:void(0)"><i class="fa fa-arrow-left"></i> 返回</a>
+  </div>
+  <div class="tl-wrap">
+    <div class="tl-grid" id="tl-grid"><div class="tl-empty">加载中…</div></div>
+  </div>
+
+  <script src="js/public/vendor/axios.min.js"></script>
+  <script src="js/public/shared-domain-bridge.js"></script>
+  <script src="js/public/termsFunction.js"></script>
+  <script src="js/public/documentTitle.js"></script>
+  <script src="js/public/enumTerms.js"></script>
+  <script src="js/public/workLanguage.js"></script>
+  <script src="js/public/utility_request.js"></script>
+  <script src="js/public/pagefoot.js"></script>
+  <script src="js/public/auth.js"></script>
+  <script src="js/public/api.js"></script>
+  <script src="js/public/ui-kit.js"></script>
+  <script src="js/public/dataFunctions.js"></script>
+  <script src="js/teacher-list.js"></script>
+</body>
+</html>

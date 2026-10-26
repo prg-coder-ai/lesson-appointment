@@ -485,73 +485,21 @@
           })();
           return;
         case 'student_review':
+          // T5：原「最新评价」为硬编码 mock（S4 课程评价本轮否决，无真实接口），删除假数据。
           dynamicContent.innerHTML = `
             <div class="card">
               <h3 style="padding: 16px 20px; margin: 0; border-bottom: 1px solid var(--border-color);">最新评价</h3>
               <div style="margin-top: 15px; padding: 0 20px 20px;">
-                <div style="padding: 15px; border-bottom: 1px solid var(--border-color);">
-                  <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span style="font-weight: 600;">张三</span>
-                    <span style="color: #fa8c16;">★★★★★</span>
-                  </div>
-                  <p style="font-size: 14px; color: var(--text-color);">李老师讲课非常细致，口语发音纠正很到位，收获很大！</p>
-                  <p style="font-size: 12px; color: var(--text-light-color); margin-top: 8px;">2026-03-18</p>
-                </div>
-                <div style="padding: 15px; border-bottom: 1px solid var(--border-color);">
-                  <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span style="font-weight: 600;">李四</span>
-                    <span style="color: #fa8c16;">★★★★☆</span>
-                  </div>
-                  <p style="font-size: 14px; color: var(--text-color);">写作技巧讲解很实用，希望能多增加一些范文分析。</p>
-                  <p style="font-size: 12px; color: var(--text-light-color); margin-top: 8px;">2026-03-15</p>
-                </div>
+                <div class="empty-tip">课程评价功能暂未开放。</div>
               </div>
             </div>
           `;
           break;
         case 'profile':
-          dynamicContent.innerHTML = `
-            <div class="card">
-              <h3 style="padding: 16px 20px; margin: 0; border-bottom: 1px solid var(--border-color);">个人信息</h3>
-              <div style="margin-top: 15px; padding: 0 20px 20px; display: flex; gap: 20px;">
-                <div style="width: 80px; height: 80px; border-radius: 50%; background-color: var(--primary-color); color: #fff; text-align: center; line-height: 80px; font-size: 32px;">李</div>
-                <div style="flex: 1;">
-                  <div style="margin-bottom: 10px;">
-                    <span style="color: var(--text-light-color); width: 80px; display: inline-block;">姓名：</span>
-                    <span>李华</span>
-                  </div>
-                  <div style="margin-bottom: 10px;">
-                    <span style="color: var(--text-light-color); width: 80px; display: inline-block;">教龄：</span>
-                    <span>5年</span>
-                  </div>
-                  <div style="margin-bottom: 10px;">
-                    <span style="color: var(--text-light-color); width: 80px; display: inline-block;">擅长：</span>
-                    <span>英语口语、写作</span>
-                  </div>
-                  <div style="margin-bottom: 10px;">
-                    <span style="color: var(--text-light-color); width: 80px; display: inline-block;">评分：</span>
-                    <span style="color: #fa8c16;">4.9分</span>
-                  </div>
-                  <button class="btn btn-primary" style="margin-top: 10px;">编辑信息</button>
-                </div>
-              </div>
-            </div>
-            <div class="card">
-              <h3 style="padding: 16px 20px; margin: 0; border-bottom: 1px solid var(--border-color);">账号设置</h3>
-              <div style="margin-top: 15px; padding: 0 20px 20px;">
-                <div style="margin-bottom: 15px;">
-                  <button class="btn btn-gray" style="width: 100%; text-align: left; padding: 10px 15px;">
-                    <i class="fa fa-lock"></i> 修改密码
-                  </button>
-                </div>
-                <div>
-                  <button class="btn btn-gray" style="width: 100%; text-align: left; padding: 10px 15px;">
-                    <i class="fa fa-bell"></i> 消息通知设置
-                  </button>
-                </div>
-              </div>
-            </div>
-          `;
+          // T5：删除原 mock（李华/5年/英语口语…），改为真实会话渲染（见 teacher-profile.js）
+          if (typeof window.renderTeacherProfile === 'function') {
+            window.renderTeacherProfile(dynamicContent);
+          }
           break;
       }
     }
@@ -582,6 +530,7 @@
    <!-- script src="js/teacher-course-booking-appointment.js"></script -->// 预订及日期
    <script src="js/admin-AppointmentNotes.js"></script>
    <script src="js/messages-inbox.js"></script>
+   <script src="js/teacher-profile.js"></script>
    <script> 
    </script>
 </body>

@@ -277,7 +277,9 @@ async function loadAndRenderBooking_student(){
     // 解决“找不到函数”问题：确保相关函数在 window 作用域下暴露（onclick 字符串里调用的都是全局函数）
   window.viewMyReservationDetail   = viewMyReservationDetail  ;
 
-  window.renderCalendar    = renderCalendar ; 
+  window.renderCalendar    = renderCalendar ;
+  window.shiftCalendarMonth = shiftCalendarMonth;
+  window.resetCalendarView  = resetCalendarView;
   //window.displaySchedule   = displaySchedule ;  
   window.actionForButton   = actionForButton ; 
   window.loadAndRenderBooking_student       = loadAndRenderBooking_student  ; 
@@ -434,57 +436,114 @@ function renderResult(dateTimeList) {
         }
   }
 
- // 渲染日历
+ // 日历视图状态（模块级，支持月份切换而不重新拉取数据）
+ let calendarView = null;          // { year, month } 当前显示的月份（month: 0-11）
+ let calendarDateSet = new Set();  // 已排期日期集合（'yyyy-MM-dd'）
+
+ // 渲染日历（入口：传入排期数据，初始化月份并绘制）
  function renderCalendar(dateTimeList) {
         const cal = document.getElementById('calendar');
         // 判空兜底：同 renderResult —— 今日课程等上下文无 #calendar 容器，静默跳过
         if (!cal) return;
+        if (Array.isArray(dateTimeList)) {
+            calendarDateSet = new Set(dateTimeList.map(i => i.date));
+            // 新数据到达时重新锚定到数据所在月份（切换预订卡片即重置视图）
+            calendarView = null;
+        }
+        // 初始化视图月份：取第一个排期日期所在月份，无数据则用今天
+        if (!calendarView) {
+            let anchor;
+            if (calendarDateSet.size > 0) {
+                const [y, m] = Array.from(calendarDateSet)[0].split('-');
+                anchor = new Date(Number(y), Number(m) - 1, 1);
+            } else {
+                const t = new Date();
+                anchor = new Date(t.getFullYear(), t.getMonth(), 1);
+            }
+            calendarView = { year: anchor.getFullYear(), month: anchor.getMonth() };
+        }
+        renderCalendarGrid();
+    }
+
+ // 按当前 calendarView 重绘 35 天网格（S7：保留 35 天布局 + 月份切换 + 当月高亮）
+ function renderCalendarGrid() {
+        const cal = document.getElementById('calendar');
+        if (!cal) return;
+        const panel = cal.parentElement;
+        if (!panel) return;
+
+        // 移除旧导航头（若存在），避免重复堆叠
+        const oldNav = panel.querySelector('.calendar-nav');
+        if (oldNav) oldNav.remove();
+
+        const { year, month } = calendarView;
+
+        // 构建月份切换导航头
+        const nav = document.createElement('div');
+        nav.className = 'calendar-nav';
+        const prevBtn = document.createElement('button');
+        prevBtn.type = 'button';
+        prevBtn.className = 'btn btn-default calendar-nav-btn';
+        prevBtn.textContent = '‹ 上月';
+        prevBtn.addEventListener('click', function () { shiftCalendarMonth(-1); });
+        const title = document.createElement('span');
+        title.className = 'calendar-nav-title';
+        title.textContent = `${year}年${month + 1}月`;
+        const nextBtn = document.createElement('button');
+        nextBtn.type = 'button';
+        nextBtn.className = 'btn btn-default calendar-nav-btn';
+        nextBtn.textContent = '下月 ›';
+        nextBtn.addEventListener('click', function () { shiftCalendarMonth(1); });
+        nav.appendChild(prevBtn);
+        nav.appendChild(title);
+        nav.appendChild(nextBtn);
+        panel.insertBefore(nav, cal);
+
+        // 从当月 1 号所在周的周一开始排 35 天（保持原 35 天布局）
         cal.innerHTML = '';
-        if(scheduleResult == null )
-            return;
-
-        const dateSet = new Set(dateTimeList.map(i => i.date));
-            // 将dateSet的第一项（若存在）转为日期变量
-        let firstDateVar = null;
-        if (dateSet.size > 0) {
-            const firstDateStr = Array.from(dateSet)[0];
-            // 假设格式为'yyyy-MM-dd'
-            const [year, month, day] = firstDateStr.split('-');
-            firstDateVar = new Date(Number(year), Number(month) - 1, Number(day));
-        }
-
-        // startDate设置为dateSet第一项表示的日期（如果有），否则用今天
-        let startDate;
-        if (firstDateVar) {
-            startDate = new Date(firstDateVar); // 已在本地，0点时间
-        } else {
-            startDate = new Date();
-        }
-        
-        const dayOfWeek = startDate.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+        const firstOfMonth = new Date(year, month, 1);
+        const dayOfWeek = firstOfMonth.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
         const diffToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
-        startDate.setDate(startDate.getDate() + diffToMonday);
+        const start = new Date(firstOfMonth);
+        start.setDate(firstOfMonth.getDate() + diffToMonday);
+        start.setHours(0, 0, 0, 0);
 
-        // 显示35天，横向排列，每行7天
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
         const daysToShow = 35;
-
-        const today = new Date(startDate);
-        today.setHours(0, 0, 0, 0); // 本地0点
-        for (let i = 0; i <= daysToShow; i++) {
-            const d = new Date(today);
-            d.setDate(today.getDate() + i);
-            // 保证是本地时区的年月日
-            const year = d.getFullYear();
-            const month = String(d.getMonth() + 1).padStart(2, '0');
+        for (let i = 0; i < daysToShow; i++) {
+            const d = new Date(start);
+            d.setDate(start.getDate() + i);
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
             const day = String(d.getDate()).padStart(2, '0');
-            const dateStr = `${year}-${month}-${day}`;
+            const dateStr = `${y}-${m}-${day}`;
             const div = document.createElement('div');
             div.className = 'calendar-day';
-            if (dateSet.has(dateStr)) div.classList.add('marked');//TBD: 取消cancelled、cancelling
+            if (calendarDateSet.has(dateStr)) div.classList.add('marked');// 已排期日
+            if (d.getMonth() === month) div.classList.add('current-month'); // 当月高亮
+            if (d.getTime() === today.getTime()) div.classList.add('today'); // 今天边框
             div.innerText = d.getDate();
             cal.appendChild(div);
         }
-    }   
+    }
+
+ // 月份切换（delta: -1 上月 / +1 下月），数据已缓存无需重新拉取
+ function shiftCalendarMonth(delta) {
+        if (!calendarView) return;
+        let { year, month } = calendarView;
+        month += delta;
+        if (month < 0) { month = 11; year -= 1; }
+        else if (month > 11) { month = 0; year += 1; }
+        calendarView = { year, month };
+        renderCalendarGrid();
+    }
+
+ // 重置日历视图月份（切换预订卡片前调用，避免沿用上一张卡片的月份）
+ function resetCalendarView() {
+        calendarView = null;
+    } 
  
   //判断预约状态，如果是booking则可直接取消，如果是booked,则设置为canceling，等待确认
   async function actionForButton(bookingid,newStatus) { 

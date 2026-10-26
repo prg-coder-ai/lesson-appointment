@@ -68,10 +68,6 @@
         <i class="fa fa-bullhorn"></i>
         <span>我的推广</span>
       </div>
-      <!-- <div class="menu-item" key="course_review">
-        <i class="fa fa-star-half-o"></i>
-        <span><span data-term="course">课程</span>评价</span>
-      </div> -->
       <div class="menu-item" key="profile">
         <i class="fa fa-user"></i>
         <span>个人中心</span>
@@ -225,8 +221,12 @@
           <div class="card-title"><i class="fa fa-book"></i> <span data-term="course">课程</span>选择</div>
           <div class="filter-form" style="display:flex; gap:12px; margin:10px 0 12px; flex-wrap:wrap; align-items:center;">
             <input type="text" id="course-name-input" placeholder="搜索课程名称" style="padding:6px 10px; border:1px solid #d9d9d9; border-radius:4px; min-width:220px;">
+            <select id="course-workLanguage-select" class="course-local-filter" style="padding:6px 10px; border:1px solid #d9d9d9; border-radius:4px;"><option value="">授课语言：全部</option></select>
+            <select id="course-difficulty-select" class="course-local-filter" style="padding:6px 10px; border:1px solid #d9d9d9; border-radius:4px;"><option value="">难度：全部</option></select>
+            <select id="course-classForm-select" class="course-local-filter" style="padding:6px 10px; border:1px solid #d9d9d9; border-radius:4px;"><option value="">授课形式：全部</option></select>
             <button type="button" class="btn" id="btn-search-course"><i class="fa fa-search"></i> 搜索</button>
             <button type="button" class="btn btn-default" id="btn-reset-course"><i class="fa fa-redo"></i> 重置</button>
+            <span id="course-filter-count" style="font-size:12px;color:#888;"></span>
           </div>
           <div id="courseCardList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin:8px 0 14px;"></div>
           <div id="coursePagebar"></div>
@@ -372,35 +372,6 @@
   </div>
  
 
-  <!-- 评价弹窗（默认隐藏） -->
-  <div id="evaluation-modal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>评价<span data-term="course">课程</span></h3>
-        <span class="modal-close" onclick="closeEvaluationModal()">×</span>
-      </div>
-      
-      <div class="evaluation-form">
-        <p style="margin-bottom: 10px; font-size: 14px;">请为<span data-term="course">课程</span>评分：</p>
-        <div class="star-rating" id="star-rating">
-          <span class="star active" onclick="selectStar(1)">★</span>
-          <span class="star active" onclick="selectStar(2)">★</span>
-          <span class="star active" onclick="selectStar(3)">★</span>
-          <span class="star active" onclick="selectStar(4)">★</span>
-          <span class="star active" onclick="selectStar(5)">★</span>
-        </div>
-        
-        <p style="margin-bottom: 10px; font-size: 14px;">评价内容：</p>
-        <textarea class="evaluation-textarea" placeholder="请输入您对该课程的评价（不少于10个字）"></textarea>
-        
-        <div style="display: flex; justify-content: flex-end; gap: 10px;">
-          <button class="btn btn-gray" onclick="closeEvaluationModal()">取消</button>
-          <button class="btn btn-primary" onclick="submitEvaluation()">提交评价</button>
-        </div>
-      </div>
-    </div>
-  </div> 
- 
   <script> 
     // 核心变量定义
     const menuItems = document.querySelectorAll('.menu-item');
@@ -564,38 +535,6 @@
           }
           break;
           
-        case 'course_review':
-          dynamicContentCenter.innerHTML = `
-            <div class="card" id="evaluation-card">
-              <h3><i class="fa fa-star-half-o"></i> 我的<span data-term="course">课程</span>评价0待完成</h3>
-              <div id="my-evaluations">
-                <div class="course-card">
-                  <div class="course-info">
-                    <h4>英语初级口语 - <span data-term="classForm1p1">一对一</span></h4>
-                    <p>授课教师：李老师 | 上课时间：2026-03-15 10:00</p>
-                    <p>评分：★★★★★ | 评价时间：2026-03-15 11:00</p>
-                    <p style="margin-top: 5px;">评价内容：李老师讲课非常细致，口语发音纠正很到位，收获很大！</p>
-                  </div>
-                  <div class="course-actions">
-                    <button class="btn btn-gray" onclick="editEvaluation(this)">编辑评价</button>
-                  </div>
-                </div>
-                <div class="course-card">
-                  <div class="course-info">
-                    <h4>日语入门</h4>
-                    <p>授课教师：王老师 | 上课时间：2026-03-10 09:00</p>
-                    <p>评分：★★★★☆ | 评价时间：2026-03-10 10:00</p>
-                    <p style="margin-top: 5px;">评价内容：王老师的日语入门课很易懂，语法讲解清晰，推荐！</p>
-                  </div>
-                  <div class="course-actions">
-                    <button class="btn btn-gray" onclick="editEvaluation(this)">编辑评价</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          `;
-          break;
-          
         case 'profile':
           if (typeof window.renderStudentProfile === 'function') {
             window.renderStudentProfile(dynamicContentCenter);
@@ -603,51 +542,6 @@
           break;
       }
     }
-     // 评价弹窗相关函数（保留原有功能）
-    let selectedStarCount = 5; // 默认5星
-    function evaluateCourse(el) {
-      document.getElementById('evaluation-modal').style.display = 'flex';
-      // 重置评分
-      selectedStarCount = 5;
-      updateStarRating();
-      // 清空文本框
-      document.querySelector('.evaluation-textarea').value = '';
-    }
-
-    function closeEvaluationModal() {
-      document.getElementById('evaluation-modal').style.display = 'none';
-    }
-
-    function selectStar(count) {
-      selectedStarCount = count;
-      updateStarRating();
-    }
-
-    function updateStarRating() {
-      const stars = document.querySelectorAll('#star-rating .star');
-      stars.forEach((star, index) => {
-        if (index < selectedStarCount) {
-          star.style.color = 'var(--orange-color)';
-          star.classList.add('active');
-        } else {
-          star.style.color = '#ccc';
-          star.classList.remove('active');
-        }
-      });
-    }
-
-    function submitEvaluation() {
-      const evaluationContent = document.querySelector('.evaluation-textarea').value;
-      if (evaluationContent.length < 10) {
-        alert('评价内容不少于10个字！');
-        return;
-      }
-      
-      alert(`评价提交成功！\n评分：${selectedStarCount}星\n评价内容：${evaluationContent}`);
-      closeEvaluationModal();
-      // 可在此处调用API提交评价数据
-    }
-
     // 我的预约相关函数（保留原有功能）
     function cancelReservation(el) {
       if (confirm('确定要取消该预约吗？取消后将无法恢复！')) {
@@ -666,10 +560,6 @@
       const courseName = courseCard.querySelector('h4').textContent;
       const courseInfo = courseCard.querySelector('.course-info p').textContent;
       alert(`预约详情：\n课程名称：${courseName}\n${courseInfo}\n备注：请提前10分钟进入课堂`);
-    }
-
-    function editEvaluation(el) {
-      evaluateCourse(el); // 复用评价弹窗
     }
   </script>
   

@@ -90,6 +90,72 @@ function uiConfirm(message) {
 }
 
 /* ============================================================================
+ * S9 课程列表本地筛选（授课语言 / 难度 / 授课形式）
+ *
+ * 降级方案：不引入任何服务端查询字段，完全在已加载的当前页 courseList 上做客户端过滤。
+ * - 卡片渲染时把 workLanguage / difficultyLevel / classForm 写入 data-* 属性；
+ * - 三个下拉框的选项在每次服务端加载后，从当前卡片去重聚合（避免硬编码枚举）；
+ * - 切换筛选即隐藏不匹配卡片，并更新「筛选后 N 门」计数；不改变服务端分页口径。
+ * ========================================================================== */
+const COURSE_FILTER_DEFS = [
+    { id: 'course-workLanguage-select', field: 'workLanguage', all: '授课语言：全部' },
+    { id: 'course-difficulty-select', field: 'difficultyLevel', all: '难度：全部' },
+    { id: 'course-classForm-select', field: 'classForm', all: '授课形式：全部' }
+];
+
+function _escHtml(s) {
+    if (s == null) return '';
+    if (typeof escapeHtml === 'function') return escapeHtml(s);
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// 从当前已渲染卡片聚合去重值，刷新三个下拉框选项（尽量保留已选值）
+function syncCourseFilterOptions() {
+    COURSE_FILTER_DEFS.forEach(function (d) {
+        var sel = document.getElementById(d.id);
+        if (!sel) return;
+        var prev = sel.value;
+        var vals = {};
+        document.querySelectorAll('#courseCardList .course-card').forEach(function (card) {
+            var v = card.dataset[d.field] || '';
+            if (v) vals[v] = true;
+        });
+        var opts = ['<option value="">' + _escHtml(d.all) + '</option>'];
+        Object.keys(vals).sort().forEach(function (v) {
+            opts.push('<option value="' + _escHtml(v) + '">' + _escHtml(v) + '</option>');
+        });
+        sel.innerHTML = opts.join('');
+        sel.value = (prev && vals[prev]) ? prev : '';
+    });
+}
+
+// 按当前下拉选择隐藏不匹配卡片，并刷新计数
+function applyCourseLocalFilter() {
+    var want = {};
+    COURSE_FILTER_DEFS.forEach(function (d) {
+        var sel = document.getElementById(d.id);
+        want[d.field] = sel ? (sel.value || '') : '';
+    });
+    var visible = 0;
+    document.querySelectorAll('#courseCardList .course-card').forEach(function (card) {
+        var ok = true;
+        COURSE_FILTER_DEFS.forEach(function (d) {
+            var w = want[d.field];
+            if (w) {
+                var have = card.dataset[d.field] || '';
+                if (have !== w) ok = false;
+            }
+        });
+        card.style.display = ok ? '' : 'none';
+        if (ok) visible++;
+    });
+    var tip = document.getElementById('course-filter-count');
+    if (tip) tip.textContent = '（筛选后 ' + visible + ' 门）';
+}
+window.syncCourseFilterOptions = syncCourseFilterOptions;
+window.applyCourseLocalFilter = applyCourseLocalFilter;
+
+/* ============================================================================
  * S11 骨架屏 / 空状态（优先用共享 UI 基建 window.mfSkeletonCard / window.mfEmptyState，
  * 降级用同源内联实现，保证未加载 ui-kit 的环境——如单测沙箱——也能正常渲染不报错）。
  * ========================================================================== */
@@ -331,6 +397,9 @@ async function renderStudentBookingCards() {
             }
 
             renderCourseCards();
+            // S9：服务端加载完成后，聚合本地筛选选项并应用当前筛选
+            syncCourseFilterOptions();
+            applyCourseLocalFilter();
         }
 
         // 把 courseList 渲染为课程卡片网格（替代原下拉框）；点击卡片即选课
@@ -356,6 +425,10 @@ async function renderStudentBookingCards() {
                 const card = document.createElement('div');
                 card.className = 'course-card';
                 card.setAttribute('data-course-id', item.courseId);
+                // S9：把筛选维度写入 data-*，供本地筛选隐藏/计数
+                card.dataset.workLanguage = item.workLanguage || '';
+                card.dataset.difficultyLevel = item.difficultyLevel || '';
+                card.dataset.classForm = item.classForm || '';
                 card.style.cssText = 'border:1px solid #e6e6e6;border-radius:8px;padding:12px 14px;cursor:pointer;background:#fff;transition:box-shadow .15s,border-color .15s;';
                 card.onmouseenter = () => { if (!card.classList.contains('selected')) card.style.boxShadow = '0 2px 8px rgba(0,0,0,.12)'; };
                 card.onmouseleave = () => { if (!card.classList.contains('selected')) card.style.boxShadow = 'none'; };
@@ -452,6 +525,19 @@ async function renderStudentBookingCards() {
                     propLine.textContent = props.join('  ·  ');
                     card.appendChild(propLine);
                 }
+
+                // S3：课程卡片增加"详情"入口（stopPropagation，不干扰卡片点击的选课逻辑）
+                const detailBtn = document.createElement('button');
+                detailBtn.type = 'button';
+                detailBtn.className = 'btn btn-default btn-sm';
+                detailBtn.style.cssText = 'margin-top:10px;';
+                detailBtn.textContent = '查看详情';
+                detailBtn.onclick = function (e) {
+                    e.stopPropagation();
+                    const base = (typeof window.pageUrl === 'function') ? window.pageUrl('course-detail.html') : 'course-detail.html';
+                    window.location.href = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'courseId=' + encodeURIComponent(item.courseId);
+                };
+                card.appendChild(detailBtn);
 
                 if (String(item.courseId) === String(currentCourseId)) {
                     card.classList.add('selected');
@@ -814,6 +900,11 @@ async function renderStudentBookingCards() {
             on($('btn-search-course'), 'click', localsearchCourse);
 
             on($('btn-reset-course'), 'click', resetCourseFilter);
+
+            // S9：本地筛选下拉（语言/难度/授课形式）切换即隐藏不匹配卡片
+            COURSE_FILTER_DEFS.forEach(function (d) {
+                on($(d.id), 'change', applyCourseLocalFilter);
+            });
 
             on($('scheduleSelect'), 'change', displaySchedule);
 
@@ -1558,6 +1649,11 @@ function localsearchCourse() {
 function resetCourseFilter() {
     const nameInput = document.getElementById('course-name-input');
     if (nameInput) nameInput.value = '';
+    // S9：重置本地筛选下拉
+    COURSE_FILTER_DEFS.forEach(function (d) {
+        const sel = document.getElementById(d.id);
+        if (sel) sel.value = '';
+    });
     Pagination.pageNum = 1;
     // loadAndRenderCourse_student 是块级函数声明，模块作用域不可见，统一走 window 引用
     if (typeof window.loadAndRenderCourse_student === 'function') {
