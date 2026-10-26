@@ -482,16 +482,16 @@ const userStr = STORE.getItem('currentUser');
     if (oldPwd === null) return;
     const newPwd = window.prompt('请输入新密码:');
     if (!newPwd) return;
-    if (oldPwd === newPwd) { alert('新密码不能与原密码相同'); return; }
+    if (oldPwd === newPwd) { toastMsg('新密码不能与原密码相同', 'error'); return; }
 
     changePasswordAPI(userId, newPwd, oldPwd)
       .then((data) => {
-        alert(data.message || '密码修改成功');
+        toastMsg((data && data.message) || '密码修改成功', 'success');
         // 可选：修改密码成功后自动登出
         // handleLogout();
       })
       .catch((err) => {
-        alert(typeof err === 'string' ? err : (err.message || '密码修改失败'));
+        toastMsg((err && (err.bodyMsg || err.message)) || '密码修改失败', 'error');
       });
   }
 
@@ -515,7 +515,7 @@ const userStr = STORE.getItem('currentUser');
       await request({ url: '/auth/unbind-wechat', method: 'post' });
       return { ok: true, msg: '' };
     } catch (e) {
-      return { ok: false, msg: (e && e.message) || '解绑失败' };
+      return { ok: false, msg: (e && (e.bodyMsg || e.message)) || '解绑失败' };
     }
   }
 
@@ -549,10 +549,9 @@ const userStr = STORE.getItem('currentUser');
         const r = await doUnbindWechat();
         if (r.ok) {
           document.body.removeChild(box);
-          if (typeof window.showToast === 'function') window.showToast('已解绑');
-          else alert('已解绑');
+          toastMsg('已解绑', 'success');
         } else {
-          alert(r.msg, '解绑失败');
+          toastMsg(r.msg || '解绑失败', 'error');
         }
       }
     });
@@ -675,6 +674,15 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+/** 统一轻提示：优先项目 ui-kit 的 mfToast，其次 student 端 uiToast，最后降级原生 alert。
+ *  用于把 S2b/S2c 等对话框的 alert 收敛到 S8 建立的 toast 基建，避免重复弹窗样式。 */
+function toastMsg(msg, type) {
+  if (typeof window.mfToast === 'function') { window.mfToast(msg, type); return; }
+  if (typeof window.uiToast === 'function') { window.uiToast(msg, type); return; }
+  if (type === 'error' || type === 'danger') { console.warn('[toastMsg]', msg); }
+  alert(msg);
 }
 
 /** 属性值转义（用于 input value="..." / href="..." 等） */

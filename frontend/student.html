@@ -71,11 +71,11 @@
       <!-- <div class="menu-item" key="course_review">
         <i class="fa fa-star-half-o"></i>
         <span><span data-term="course">课程</span>评价</span>
-      </div>
+      </div> -->
       <div class="menu-item" key="profile">
         <i class="fa fa-user"></i>
         <span>个人中心</span>
-      </div> -->
+      </div>
       <div class="menu-item" key="legal_view">
         <i class="fa fa-file-contract"></i>
         <span>协议与政策</span>
@@ -597,48 +597,9 @@
           break;
           
         case 'profile':
-          dynamicContentCenter.innerHTML = `
-            <div class="card">
-              <h3>个人信息 待完成</h3>
-              <div style="margin-top: 15px; display: flex; gap: 20px;">
-                <div style="width: 80px; height: 80px; border-radius: 50%; background-color: var(--primary-color); color: #fff; text-align: center; line-height: 80px; font-size: 32px;">张</div>
-                <div style="flex: 1;">
-                  <div style="margin-bottom: 10px;">
-                    <span style="color: var(--text-light-color); width: 80px; display: inline-block;">姓名：</span>
-                    <span>张三</span>
-                  </div>
-                  <div style="margin-bottom: 10px;">
-                    <span style="color: var(--text-light-color); width: 80px; display: inline-block;">学号：</span>
-                    <span>2026001</span>
-                  </div>
-                  <div style="margin-bottom: 10px;">
-                    <span style="color: var(--text-light-color); width: 80px; display: inline-block;">电话：</span>
-                    <span>13800138000</span>
-                  </div>
-                  <div style="margin-bottom: 10px;">
-                    <span style="color: var(--text-light-color); width: 80px; display: inline-block;">已预约<span data-term="course">课程</span>：</span>
-                    <span>8节</span>
-                  </div>
-                  <button class="btn btn-primary" style="margin-top: 10px;">编辑信息</button>
-                </div>
-              </div>
-            </div>
-            <div class="card">
-              <h3>账号设置</h3>
-              <div style="margin-top: 15px; padding: 0 20px 20px;">
-                <div style="margin-bottom: 15px;">
-                  <button class="btn btn-gray" style="width: 100%; text-align: left; padding: 10px 15px;">
-                    <i class="fa fa-lock"></i> 修改密码
-                  </button>
-                </div>
-                <div>
-                  <button class="btn btn-gray" style="width: 100%; text-align: left; padding: 10px 15px;">
-                    <i class="fa fa-bell"></i> 消息通知设置
-                  </button>
-                </div>
-              </div>
-            </div>
-          `;
+          if (typeof window.renderStudentProfile === 'function') {
+            window.renderStudentProfile(dynamicContentCenter);
+          }
           break;
       }
     }
@@ -733,6 +694,7 @@
   
   <script src="js/student-bookingCards.js"></script>
   <script src="js/student-bookingBrowserCards.js"></script>
+  <script src="js/student-profile.js"></script>
   <script src="js/admin-AppointmentNotes.js"></script>
   <script src="js/messages-inbox.js"></script>
 <script> 
