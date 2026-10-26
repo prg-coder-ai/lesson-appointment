@@ -168,7 +168,10 @@ async function deleteCourseById(id) {
         // 批量删除已在 batchDeleteMaintain 统一确认一次（含“此操作不可恢复”），此处不再二次确认
         try {
             // 该预订存在预约时，先级联删除其下的全部预约，避免外键/约束冲突
-            if (checkAppointmentExistsBookingId(id)) {
+            // await 不可省：checkAppointmentExistsBookingId 是 async，不 await 拿到的是 Promise
+            // 对象，恒为真 → 无论有没有课次都会去调一次级联删除（admin 环境下这正是
+            // 「删预定必崩」的入口）。该函数内部出错时也返回 true，保守级联。
+            if (await checkAppointmentExistsBookingId(id)) {
               await deleteAppointmentsByBookingId(id); // appointmentNotes.js
             }
             const res = await request({
