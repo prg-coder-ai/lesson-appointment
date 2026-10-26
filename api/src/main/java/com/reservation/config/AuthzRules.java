@@ -270,6 +270,8 @@ public final class AuthzRules {
         r.add(new Rule(HttpMethod.POST, "/api/v1/data-maintain/purge/schedule", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，物理删除"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/data-maintain/purge/booking", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，物理删除"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/data-maintain/purge/appointment", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，物理删除"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/data-maintain/purge/user", PLATFORM_OR_TENANT_ADMIN, "新增·关键：物理清理已软删账号（status='delete'）及其名下数据"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/data-maintain/user/relation-counts", PLATFORM_OR_TENANT_ADMIN, "新增：删除前的关联数据量统计（只读，供确认框展示影响面）"));
 
         // 平台级回收站清理（2026-10-24）：租户 / 用户是**平台对象**，
         // 租户管理员无权物理删除另一个租户，也无权删别家账号，故必须是 PLATFORM_ONLY。

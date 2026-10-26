@@ -413,17 +413,22 @@ async function deleteCourseById(id) {
 // 数据维护页「清理已删」：按类型物理删除 status IN ('frozen','delete') 的软删记录
 // 后端 DataMaintainController 提供固定端点 /data-maintain/purge/{type}，租户插件自动注入 tenant_id
 async function purgeDeletedMaintain(type) {
-  const LABEL = { template: '模板', course: '课程', schedule: '排期', booking: '预定', appointment: '预约' };
+  const LABEL = { template: '模板', course: '课程', schedule: '排期', booking: '预定', appointment: '预约', user: '用户' };
   const urlMap = {
     template: '/data-maintain/purge/template',
     course: '/data-maintain/purge/course',
     schedule: '/data-maintain/purge/schedule',
     booking: '/data-maintain/purge/booking',
-    appointment: '/data-maintain/purge/appointment'
+    appointment: '/data-maintain/purge/appointment',
+    user: '/data-maintain/purge/user'
   };
   const url = urlMap[type];
   if (!url) { alert('该类型暂不支持清理'); return; }
-  if (!confirm('将永久清除「' + (LABEL[type] || type) + '」中所有已标记删除（frozen）的记录，此操作不可恢复。\n确定继续吗？')) return;
+  // 用户表的可清理状态是 delete（frozen 是"管理员禁用"，可逆，必须留着）——
+  // 与后端 DataMaintainController.purgeUser 的 USER_PURGEABLE 口径一致。
+  const purgeStatus = (type === 'user') ? 'delete' : 'frozen';
+  if (!confirm('将永久清除「' + (LABEL[type] || type) + '」中所有已标为 ' + purgeStatus
+      + ' 的记录，此操作不可恢复。\n确定继续吗？')) return;
   try {
     const rows = await request({ url: url, method: 'POST' });
     // request 成功时返回 res.data（业务对象本身）；后端 Result.success(整数行数) → rows 为 number
@@ -436,6 +441,89 @@ async function purgeDeletedMaintain(type) {
     else if (err && err.message) msg = err.message;
     else if (err && typeof err === 'object') msg = JSON.stringify(err);
     alert('清理失败：' + msg);
+  }
+}
+
+/* ==================== 数据维护页「用户」Tab 支撑 ====================
+ * 教师 / 学生 / 管理员三个角色共用一个 Tab，靠角色下拉切换：
+ *   - 普通角色：GET /user/page（role 精准 + name 模糊，两者后端都已支持）
+ *   - 平台管理员：GET /user/platformPage（仅 platform_admin 可调，内部固定 role IN (admin, platform_admin)）
+ *
+ * 删除一律是**软删**：把 status 置为 'delete'。
+ * 为什么是 delete 而不是 inactive：inactive 的语义是"停用"（管理员可逆的运维动作），
+ * 而 'delete' 才是数据维护语义上的"已删除、等待清理"——正好与后端
+ * DataMaintainController.purgeUser 的清理口径（只认 status='delete'）对齐，
+ * 也避免把"只是被停用"的账号连同清掉。
+ */
+
+/** 当前登录用户 id（会话 currentUser.userId）；用于把自己的那一行标成不可删 */
+function maintainCurrentUserId() {
+  try { return (JSON.parse(localStorage.getItem('currentUser') || '{}').userId) || ''; }
+  catch (e) { return ''; }
+}
+
+/** 当前登录角色是否为平台管理员（决定要不要给出「平台管理员」这个角色选项） */
+function maintainIsPlatformAdmin() {
+  try { return (JSON.parse(localStorage.getItem('currentUser') || '{}').role) === 'platform_admin'; }
+  catch (e) { return false; }
+}
+
+/** 用户分页：role 为空=全部角色；role=platform_admin 走平台端专用分页 */
+async function fetchUserListPageForMaintain(query) {
+  const q = query || {};
+  const isPlatform = (q.role === 'platform_admin');
+  const params = { pageNum: q.pageNum, pageSize: q.pageSize };
+  if (isPlatform) {
+    // platformPage 内部已固定 admin + platform_admin 两类，不认 role；搜索键用 account
+    if (q.name) params.account = q.name;
+  } else {
+    if (q.role) params.role = q.role;
+    if (q.name) params.name = q.name;
+  }
+  const url = isPlatform ? `${API_BASE_URL}/user/platformPage` : `${API_BASE_URL}/user/page`;
+  try {
+    const res = await request({ url: url, method: 'get', params: params });
+    if (!res || !Array.isArray(res.rows)) {
+      return { rows: [], total: 0, totalPages: 0 };
+    }
+    return res;
+  } catch (e) {
+    console.error('加载用户列表失败:', e);
+    return { rows: [], total: 0, totalPages: 0 };
+  }
+}
+
+/**
+ * 软删除单个用户（status → 'delete'）。
+ * 「不能删自己」由后端 UserService.assertNoAdminSelfLock 权威拦截（返回 400 + 明确文案），
+ * 前端只是把这行置灰，避免用户点了才被告知。
+ * 形参只有一个 userId——数据维护的批量删除统一按单主键调用（见 batchDeleteMaintain）。
+ */
+async function maintainSoftDeleteUser(userId) {
+  if (!userId) throw new Error('用户 id 无效');
+  return await request({
+    url: `${API_BASE_URL}/user/updateStatus`,
+    method: 'post',
+    data: { userId: userId, status: 'delete' }
+  });
+}
+
+/**
+ * 删除影响面统计：GET /data-maintain/user/relation-counts
+ * 返回 { userId: { courses, bookings, appointments } }；失败返回 null（UI 显示"影响面未知"，不阻断删除）。
+ */
+async function maintainUserRelationCounts(ids) {
+  if (!ids || !ids.length) return null;
+  try {
+    const res = await request({
+      url: `${API_BASE_URL}/data-maintain/user/relation-counts`,
+      method: 'get',
+      params: { userIds: ids.join(',') }
+    });
+    return (res && typeof res === 'object') ? res : null;
+  } catch (e) {
+    console.error('关联数据量统计失败（不阻断删除）:', e);
+    return null;
   }
 }
   

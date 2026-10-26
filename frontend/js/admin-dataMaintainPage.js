@@ -28,6 +28,11 @@ document.write('<script src="/js/public/datamaintain_delete.js"></script>');
     .dm-filter-bar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; padding: 16px 20px; border-bottom: 1px solid #f0f0f0; }
     .dm-filter-bar input { padding: 8px 12px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 14px; min-width: 220px; box-sizing: border-box; }
     .dm-filter-bar input:focus { outline: none; border-color: #722ed1; box-shadow: 0 0 0 2px rgba(114,46,209,.12); }
+    .dm-filter-bar select { padding: 8px 12px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 14px; min-width: 140px; background: #fff; color: #555; box-sizing: border-box; }
+    .dm-filter-bar select:focus { outline: none; border-color: #722ed1; box-shadow: 0 0 0 2px rgba(114,46,209,.12); }
+    /* 当前登录账号那一行：淡绿底 + 「本人」标记，复选框禁用 */
+    tr.dm-row-self td { background: #f6ffed; }
+    .dm-self-tag { color: #389e0d; font-size: 12px; margin-left: 6px; }
     /* 刷新按钮：推到筛选条最右侧，与查询/重置区分 */
     .dm-filter-bar .filter-purge { margin-left: auto; }
     /* 分区标题：紫色 + 图标 */
@@ -77,6 +82,7 @@ function dataMaintainPage() {
         <button class="dm-tab-btn" id="tab-schedule-maintain" onclick="selectMaintainTab('schedule')"><i class="fa fa-calendar-alt"></i> 排期</button>
         <button class="dm-tab-btn" id="tab-booking-maintain" onclick="selectMaintainTab('booking')"><i class="fa fa-calendar-check"></i> 预定</button>
         <button class="dm-tab-btn" id="tab-appointment-maintain" onclick="selectMaintainTab('appointment')"><i class="fa fa-clock"></i> 预约</button>
+        <button class="dm-tab-btn" id="tab-user-maintain" onclick="selectMaintainTab('user')"><i class="fa fa-users"></i> 用户</button>
         <button class="dm-tab-btn" id="tab-backend-maintain" onclick="selectMaintainTab('backend')"><i class="fa fa-server"></i> 后台信息</button>
       </div>
       <div id="maintain-content"></div>
@@ -95,13 +101,14 @@ var MAINTAIN_ICONS = {
   schedule: 'fa-calendar-alt',
   booking: 'fa-calendar-check',
   appointment: 'fa-clock',
+  user: 'fa-users',
   backend: 'fa-server'
 };
 
 // Tab 切换高亮 & 内容渲染
 function selectMaintainTab(tab) {
   objectType = tab;
-  ['template','course','schedule','booking','appointment','backend'].forEach(function(type) {
+  ['template','course','schedule','booking','appointment','user','backend'].forEach(function(type) {
     var btn = document.getElementById('tab-'+type+'-maintain');
     if(btn) btn.classList.remove('active');
   });
@@ -127,16 +134,35 @@ function renderMaintainTable(type) {
     course:      { title: "课程列表" },
     schedule:    { title: "排期列表" },
     booking:     { title: "预定列表" },
-    appointment: { title: "预约列表" }
+    appointment: { title: "预约列表" },
+    user:        { title: "用户列表" }
   };
   var cfg = tableConfigs[type];
   if(!cfg) { maintainContent.innerHTML='<div class="dm-empty">未配置表格</div>'; return; }
   var icon = MAINTAIN_ICONS[type] || 'fa-list';
 
   // 筛选条（舒展布局 + 紫色 focus）
+  // 「用户」Tab 额外提供角色下拉：教师 / 学生 / 管理员。
+  // 「平台管理员」选项只在调用方本人是 platform_admin 时才给——否则普通租户管理员点了只会 401/无权。
+  var roleSelect = '';
+  if (type === 'user') {
+    var roleOpts = [
+      { v: '', t: '全部角色' },
+      { v: 'teacher', t: curTerm('teacher', '教师') },
+      { v: 'student', t: curTerm('student', '学生') },
+      { v: 'admin', t: '管理员' }
+    ];
+    if (typeof maintainIsPlatformAdmin === 'function' && maintainIsPlatformAdmin()) {
+      roleOpts.push({ v: 'platform_admin', t: '平台管理员' });
+    }
+    roleSelect = `<select id='maintain-user-role' class='dm-role-select' onchange="Pagination.pageNum=1;loadMaintainTableData('user')">` +
+      roleOpts.map(function (o) { return `<option value="${o.v}">${o.t}</option>`; }).join('') + `</select>`;
+  }
+
   var filterHtml = `
     <div class="dm-filter-bar">
-      <input id='maintain-filter-keyword' type='text' placeholder='输入名称关键词' onkeydown="if(event.key==='Enter'){Pagination.pageNum=1;loadMaintainTableData('${type}');}"/>
+      ${roleSelect}
+      <input id='maintain-filter-keyword' type='text' placeholder='${type === 'user' ? '输入姓名/账号关键词' : '输入名称关键词'}' onkeydown="if(event.key==='Enter'){Pagination.pageNum=1;loadMaintainTableData('${type}');}"/>
       <button class='btn btn-primary btn-sm' onclick="Pagination.pageNum=1;loadMaintainTableData('${type}')"><i class='fa fa-search'></i> 查询</button>
       <button class="btn btn-default btn-sm" onclick="resetFilter()"><i class="fa fa-redo"></i> 重置</button>
       <button class="btn btn-warning btn-sm filter-purge" onclick="purgeDeletedMaintain('${type}')"><i class="fa fa-eraser"></i> 清理已删</button>
@@ -212,13 +238,37 @@ async function maintainDeleteAppointment(appId) {
 }
 
 // 批量删除：弹出警告确认后，删除所有勾选行
-function batchDeleteMaintain(type) {
+// 删除前置钩子：{ type: async (ids) => string }，返回要追加进确认框的提示文案。
+// 目前只有「用户」用它——删账号前把牵涉的业务数据摆出来，避免"点完才知道删掉了什么"。
+// 统计失败返回空串：拿不到影响面不该反过来阻断删除。
+var PRE_DELETE_HOOKS = {
+  user: async function (ids) {
+    const stat = await maintainUserRelationCounts(ids);
+    if (!stat) return '\n（未能统计这批账号的关联数据量，影响面未知）';
+    let c = 0, b = 0, a = 0;
+    ids.forEach(function (id) {
+      const s = stat[id] || {};
+      c += Number(s.courses) || 0;
+      b += Number(s.bookings) || 0;
+      a += Number(s.appointments) || 0;
+    });
+    if (c + b + a === 0) return '\n这批账号名下没有课程 / 预定 / 课次，删除不影响业务数据。';
+    return '\n合计影响：' + c + ' 门课程、' + b + ' 条预定、' + a + ' 节课。'
+         + '\n（软删只是停用账号，这些数据仍在；要彻底清除请点「清理已删」）';
+  }
+};
+
+async function batchDeleteMaintain(type) {
   var delFuncMap = {
     template: 'deleteTemplate',
     course: 'deleteCourseById',
     schedule: 'deleteScheduleById',
     booking: 'deleteBooking',
-    appointment: 'maintainDeleteAppointment'
+    appointment: 'maintainDeleteAppointment',
+    // 用户是**软删**（status → 'delete'），不是物理删除：
+    // 物理清理要另行点「清理已删」，走 /data-maintain/purge/user。
+    // 「不能删自己」由后端 UserService.assertNoAdminSelfLock 权威拦截（返回 400）。
+    user: 'maintainSoftDeleteUser'
   };
   var fnName = delFuncMap[type];
   if (!fnName) { alert('该类型暂不支持批量删除'); return; }
@@ -245,6 +295,14 @@ function batchDeleteMaintain(type) {
   }
   var tip = '确定要删除选中的 ' + ids.length + ' 条数据吗？此操作不可恢复！';
   if (emptyCount > 0) tip += '\n（另有 ' + emptyCount + ' 行未取到主键，将被跳过）';
+  // 类型专属前置提示（目前是用户的影响面统计）；失败不影响删除本身
+  if (PRE_DELETE_HOOKS[type]) {
+    try {
+      tip += (await PRE_DELETE_HOOKS[type](ids)) || '';
+    } catch (e) {
+      console.error('删除前置钩子失败（已忽略）:', e);
+    }
+  }
   if (!confirm(tip)) {
     return;
   }
@@ -255,9 +313,35 @@ function batchDeleteMaintain(type) {
     loadMaintainTableData(type);
   }).catch(function (err) {
     console.error('批量删除失败:', err);
-    alert('部分数据删除失败，请刷新后查看');
+    // 带上真实原因：后端自锁（不能删自己）等关键拦截的文案必须让用户看见，
+    // 只说"删除失败"会让人反复重试。
+    var reason = (err && err.message) ? ('\n\n原因：' + err.message) : '';
+    alert('部分数据删除失败，请刷新后查看' + reason);
     loadMaintainTableData(type);
   });
+}
+
+/** 角色枚举 → 展示文案（student/teacher 走行业词；两类管理员固定） */
+function userRoleLabel(role) {
+  var map = {
+    student: curTerm('student', '学生'),
+    teacher: curTerm('teacher', '教师'),
+    admin: '管理员',
+    platform_admin: '平台管理员'
+  };
+  return map[role] || role || '';
+}
+
+/** 账号状态枚举 → 展示文案（口径：只有 active 能登录；delete 是数据维护写的软删标记） */
+function userStatusLabel(status) {
+  var map = {
+    active: '启用',
+    pending: '待审核',
+    frozen: '已禁用',
+    inactive: '已停用',
+    delete: '已删除'
+  };
+  return map[status] || status || '';
 }
 
 // 动态加载数据并渲染表格
@@ -269,7 +353,9 @@ window.loadMaintainTableData = async function(type){
     booking:     { api: fetchBookingListPage,                                          delFunc: "deleteBooking",      idKey: "bookingId" },
     // 注意 delFunc 与 batchDeleteMaintain.delFuncMap 必须同名，且全部只接受单个主键形参：
     // 预约原用 appointmentNotes 的 deleteAppointmentsById(bookingId, appId)，两位形参导致主键错位。
-    appointment: { api: datamaintain_fetchAppointmentListPage,                         delFunc: "maintainDeleteAppointment", idKey: "id" }
+    appointment: { api: datamaintain_fetchAppointmentListPage,                         delFunc: "maintainDeleteAppointment", idKey: "id" },
+    // 用户复用已存在的分页接口（role 精准 + name 模糊），idKey 是 String 型的 userId
+    user:        { api: fetchUserListPageForMaintain,                                  delFunc: "maintainSoftDeleteUser",   idKey: "userId" }
   }[type];
 
   var columns = {
@@ -320,6 +406,15 @@ window.loadMaintainTableData = async function(type){
       {key: "classIndex", label: "序号"},
       {key: "appointmentTime", label: "时间"},
       {key: "appointmentStatus", label: "状态"}
+    ],
+    user: [
+      {key: "account", label: "账号"},
+      {key: "name", label: "姓名"},
+      {key: "role", label: "角色", fmt: function (v) { return userRoleLabel(v); }},
+      {key: "phone", label: "手机"},
+      {key: "email", label: "邮箱"},
+      {key: "status", label: "状态", fmt: function (v) { return userStatusLabel(v); }},
+      {key: "orgName", label: "机构"}
     ]
   }[type];
 
@@ -343,7 +438,9 @@ window.loadMaintainTableData = async function(type){
     course: 'courseName',
     schedule: 'scheduleName',
     booking: 'courseName',
-    appointment: null
+    // 用户：后端 UserQueryPage.name 支持模糊匹配（加密字段由内存解密后 contains 过滤）
+    appointment: null,
+    user: 'name'
   };
   var nameField = nameFieldByType[type];
 
@@ -352,6 +449,12 @@ window.loadMaintainTableData = async function(type){
     pageNum:  Pagination.pageNum
   };
   if (kw && nameField) conditionJson[nameField] = kw;
+
+  // 用户 Tab：角色下拉的值额外带上（空=全部角色；platform_admin 会切到平台专用分页）
+  if (type === 'user') {
+    var roleEl = document.getElementById('maintain-user-role');
+    if (roleEl && roleEl.value) conditionJson.role = roleEl.value;
+  }
 
   try {
     const REQUEST_TIMEOUT = 30000;
@@ -388,7 +491,14 @@ window.loadMaintainTableData = async function(type){
       list.forEach(item => {
         index++;
         var firstKey = item[cfg.idKey || columns[0].key] ?? '';
-        html += '<tr>';
+        // 用户 Tab：当前登录账号不可勾选。后端 UserService.assertNoAdminSelfLock 会再拦一道，
+        // 这里只是让用户一眼看出"这行删不了"，而不是点了才被 400 拒绝。
+        var selfRow = false;
+        if (type === 'user') {
+          var loginId = (typeof maintainCurrentUserId === 'function') ? maintainCurrentUserId() : '';
+          selfRow = !!loginId && String(firstKey) === String(loginId);
+        }
+        html += '<tr' + (selfRow ? ' class="dm-row-self"' : '') + '>';
         html += `<td>${index}</td>`;
         columns.forEach(col => {
           // 支持列级格式化：枚举字段（语言类型/难度等级/课程形式）经 enumTerms.js 转成行业词
@@ -397,7 +507,8 @@ window.loadMaintainTableData = async function(type){
           html += `<td>${(val === null || val === undefined) ? '' : val}</td>`;
         });
         html += `<td style="text-align:center;">
-          <input type="checkbox" class="dm-row-check" value="${firstKey}" />
+          <input type="checkbox" class="dm-row-check" value="${firstKey}"${selfRow ? ' disabled title="当前登录账号，不能删除自己"' : ''} />
+          ${selfRow ? '<span class="dm-self-tag">本人</span>' : ''}
         </td>`;
         html += '</tr>';
       });
