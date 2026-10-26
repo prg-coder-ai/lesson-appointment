@@ -199,6 +199,17 @@
     font-size: 13px;
     color: var(--text-light-color, #888);
   }
+  .sp-stat-sub {
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--text-light-color, #aaa);
+    line-height: 1.4;
+  }
+  .sp-stat-unknown {
+    flex-basis: 100%;
+    text-align: center;
+    margin-top: 2px;
+  }
 
   /* 课程卡片样式 */
   .course-card {

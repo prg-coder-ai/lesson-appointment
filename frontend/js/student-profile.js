@@ -124,7 +124,42 @@
     if (statsEl) loadStudentStats(statsEl);
   }
 
-  // S10：拉取本人全部预订并统计各状态数量（不引服务端新字段，复用既有分页接口）
+  // S10：拉取本人全部预订并统计各状态数量（不引服务端新字段，复用既有分页接口）。
+  // 状态→大类映射以 api 端 BookingStatus.java 的常量值为单一事实来源，避免散落硬编码。
+  // 大类：pending 待确认 / confirmed 已确认 / completed 已完成 / canceled 已取消。
+  // 细分标签（方案 A：保持 5 大类 tile，tile 下方浅色小字标注构成）：
+  //   booking→新预订  waiting→候补  canceling/cancelling→取消待确认
+  //   booked/bookProved→已确认  rej-cancelling→拒绝取消
+  //   completed→已完成
+  //   cancelled/canceled→已取消  rej-booking→拒绝预订  frozen→删除
+  // 未知状态不再兜底进「已取消」（历史上 else canceled++ 会把候补/被拒/删除/新增状态全误算成已取消），
+  // 而是单独计入 unknown，UI 底部浅色提示，绝不污染四大类。
+  //
+  // ── 方案 B（暂未采用，仅作展开指引，保留于注释）──
+  // 若将来要把细分拆成独立 tile（而非大类下的小字），只需以 STAT_CATEGORY 的每个 sub 为独立 tile 渲染，示例：
+  //   var html = '';
+  //   var seen = {};
+  //   Object.keys(STAT_CATEGORY).forEach(function (k) {
+  //     var m = STAT_CATEGORY[k];
+  //     if (!seen[m.sub]) { seen[m.sub] = true; html += statTile(m.sub, counts[k] || 0); }
+  //   });
+  // 届时需把 counts 的 key 从大类改为每个 status 原值（booking/waiting/...），
+  // 并移除 5 大类 tile 或改为「合计」行。此扩展不影响数据源与接口。
+  var STAT_CATEGORY = {
+    booking:          { cat: 'pending',   sub: '新预订' },
+    waiting:          { cat: 'pending',   sub: '候补' },
+    canceling:        { cat: 'pending',   sub: '取消待确认' },
+    cancelling:       { cat: 'pending',   sub: '取消待确认' },
+    booked:           { cat: 'confirmed', sub: '已确认' },
+    bookproved:       { cat: 'confirmed', sub: '已确认' },
+    'rej-cancelling': { cat: 'confirmed', sub: '拒绝取消' },
+    completed:        { cat: 'completed', sub: '已完成' },
+    cancelled:        { cat: 'canceled',  sub: '已取消' },
+    canceled:         { cat: 'canceled',  sub: '已取消' },
+    'rej-booking':    { cat: 'canceled',  sub: '拒绝预订' },
+    frozen:           { cat: 'canceled',  sub: '删除' }
+  };
+
   function loadStudentStats(cardsEl) {
     if (!cardsEl || typeof getBookingListPage !== 'function') return;
     var u = (typeof getCurrentUserInfo === 'function') ? getCurrentUserInfo() : null;
@@ -132,26 +167,44 @@
     getBookingListPage({ pageNum: 1, pageSize: 9999, userId: u.userId, userRole: u.role })
       .then(function (page) {
         var rows = (page && Array.isArray(page.rows)) ? page.rows : [];
-        var total = rows.length, pending = 0, confirmed = 0, completed = 0, canceled = 0;
+        var counts = { pending: 0, confirmed: 0, completed: 0, canceled: 0 };
+        var subs = { pending: {}, confirmed: {}, completed: {}, canceled: {} };
+        var unknown = 0;
         rows.forEach(function (b) {
           var s = (b.status || '').toLowerCase();
-          if (s === 'booking' || s === 'canceling' || s === 'cancelling') pending++;
-          else if (s === 'booked') confirmed++;
-          else if (s === 'completed') completed++;
-          else canceled++; // canceled / cancelled / rej-booking / waiting / frozen 等
+          var m = STAT_CATEGORY[s];
+          if (!m) { unknown++; return; }
+          counts[m.cat]++;
+          subs[m.cat][m.sub] = (subs[m.cat][m.sub] || 0) + 1;
         });
-        cardsEl.innerHTML = statTile('总预订', total) + statTile('待确认', pending) +
-          statTile('已确认', confirmed) + statTile('已完成', completed) + statTile('已取消', canceled);
+        var html = statTile('总预订', rows.length) +
+          statTile('待确认', counts.pending, subs.pending) +
+          statTile('已确认', counts.confirmed, subs.confirmed) +
+          statTile('已完成', counts.completed, subs.completed) +
+          statTile('已取消', counts.canceled, subs.canceled);
+        if (unknown > 0) {
+          html += '<div class="sp-stat-sub sp-stat-unknown">其它（未识别状态）' + unknown + '</div>';
+        }
+        cardsEl.innerHTML = html;
       })
       .catch(function () {
         cardsEl.innerHTML = '<div class="empty-tip">统计加载失败</div>';
       });
   }
 
-  function statTile(label, val) {
+  function statTile(label, val, subs) {
+    var subHtml = '';
+    if (subs) {
+      var keys = Object.keys(subs).filter(function (k) { return subs[k] > 0; });
+      if (keys.length) {
+        subHtml = '<div class="sp-stat-sub">' +
+          keys.map(function (k) { return esc(k) + ' ' + subs[k]; }).join(' · ') +
+          '</div>';
+      }
+    }
     return '<div class="sp-stat-tile">' +
       '<div class="sp-stat-val">' + esc(String(val)) + '</div>' +
-      '<div class="sp-stat-label">' + esc(label) + '</div></div>';
+      '<div class="sp-stat-label">' + esc(label) + '</div>' + subHtml + '</div>';
   }
 
   window.renderStudentProfile = renderStudentProfile;

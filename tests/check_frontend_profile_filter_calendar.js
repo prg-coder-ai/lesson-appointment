@@ -74,8 +74,10 @@ function loadFile(sb, rel) {
   sb.getWechatBindStatus = () => { wxStatusCalls++; return Promise.resolve({ bound: true }); };
   sb.loadAdminPageContent = (key) => { if (key === 'my_booking') myBookingCalls++; };
   sb.getBookingListPage = () => Promise.resolve({ rows: [
-    { status: 'booking' }, { status: 'booked' }, { status: 'completed' },
-    { status: 'canceled' }, { status: 'rej-booking' }, { status: 'cancelling' },
+    { status: 'booking' }, { status: 'waiting' }, { status: 'cancelling' },
+    { status: 'booked' }, { status: 'bookProved' }, { status: 'rej-cancelling' },
+    { status: 'completed' }, { status: 'canceled' }, { status: 'rej-booking' },
+    { status: 'frozen' }, { status: 'weird-unknown' },
   ] });
 
   loadFile(sb, 'js/student-profile.js');
@@ -117,11 +119,21 @@ function loadFile(sb, rel) {
     }
     return null;
   };
-  assert('总预订 = 6', valOf('总预订') === 6, valOf('总预订'));
-  assert('待确认 = 2（booking+cancelling）', valOf('待确认') === 2, valOf('待确认'));
-  assert('已确认 = 1（booked）', valOf('已确认') === 1, valOf('已确认'));
+  assert('总预订 = 11（含 1 个未知状态）', valOf('总预订') === 11, valOf('总预订'));
+  assert('待确认 = 3（booking+waiting+cancelling）', valOf('待确认') === 3, valOf('待确认'));
+  assert('已确认 = 3（booked+bookProved+rej-cancelling）', valOf('已确认') === 3, valOf('已确认'));
   assert('已完成 = 1（completed）', valOf('已完成') === 1, valOf('已完成'));
-  assert('已取消 = 2（canceled+rej-booking）', valOf('已取消') === 2, valOf('已取消'));
+  assert('已取消 = 3（canceled+rej-booking+frozen）', valOf('已取消') === 3, valOf('已取消'));
+  // 方案 A 细分小字：大类 tile 下浅色标注构成
+  var pendingTile = Array.from(tiles).find(function (t) { return t.querySelector('.sp-stat-label').textContent === '待确认'; });
+  var canceledTile = Array.from(tiles).find(function (t) { return t.querySelector('.sp-stat-label').textContent === '已取消'; });
+  assert('待确认细分含「候补」', /候补/.test(pendingTile.textContent));
+  assert('待确认细分含「取消待确认」', /取消待确认/.test(pendingTile.textContent));
+  assert('已取消细分含「拒绝预订」', /拒绝预订/.test(canceledTile.textContent));
+  assert('已取消细分含「删除」', /删除/.test(canceledTile.textContent));
+  // 反向：未知状态不兜底进「已取消」（历史上 else canceled++ 会把未知状态误算成已取消）
+  assert('未知状态 weird-unknown 未污染「已取消」', valOf('已取消') === 3, valOf('已取消'));
+  assert('未知状态单独计入「其它」提示', /其它（未识别状态）1/.test(stats.textContent));
 
   console.log('\n--- S2a 反向：未登录 → 不抛错，显示未登录提示 ---');
   const c2 = doc.createElement('div');
