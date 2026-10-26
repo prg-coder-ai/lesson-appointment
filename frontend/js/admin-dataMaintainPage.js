@@ -174,6 +174,43 @@ function invertAllMaintainRows(master) {
   master.checked = false;
 }
 
+/**
+ * 数据维护页专用：按主键删除「预约」（课次）。
+ *
+ * 为什么不能直接复用 appointmentNotes.js 的 deleteAppointmentsById(bookingId, appId)：
+ *   ① 它是**两位形参**——第一位 bookingId 只用于删后刷新学生端「预订详情」卡片，
+ *      第二位 appId 才是真正拼进删除 URL 的主键。
+ *      而 batchDeleteMaintain 对所有类型统一以 fn(id) 单参调用 → id 落到了第一位，
+ *      appId 恒为 undefined，请求打向 /course/appointment/delete/undefined（本 bug 的根因）。
+ *   ② 它删完会调 viewMyReservationDetail(bookingid)，该函数定义在
+ *      student-bookingBrowserCards.js，admin.html 并未加载——即便补齐参数，
+ *      删除成功后仍会 ReferenceError 落进 catch 返回 false，界面表现为"删了却报失败"。
+ *
+ * 这里按后端契约直连（AppointmentController.delete）：
+ *   DELETE {API_BASE_URL}/course/appointment/delete/{id}
+ */
+async function maintainDeleteAppointment(appId) {
+  if (appId === undefined || appId === null || appId === '') {
+    throw new Error('预约 id 无效（未取到主键）');
+  }
+  var http = (typeof window.request !== 'undefined') ? window.request
+           : (typeof window.axios !== 'undefined') ? window.axios : null;
+  if (!http) throw new Error('请求工具未加载（缺少 request / axios）');
+  var base = window.API_BASE_URL || '';
+  var res = await http({
+    url: base + '/course/appointment/delete/' + encodeURIComponent(appId),
+    method: 'delete',
+    timeout: 15000
+  });
+  // window.request 的拦截器在 code=200 时已解包出 data 本体；裸 axios 则是 { data: {...} }
+  var payload = res;
+  if (res && res.data !== undefined && res.code === undefined) payload = res.data;
+  if (payload && payload.code !== undefined && payload.code !== 200) {
+    throw new Error(payload.message || payload.msg || ('接口返回 code=' + payload.code));
+  }
+  return true;
+}
+
 // 批量删除：弹出警告确认后，删除所有勾选行
 function batchDeleteMaintain(type) {
   var delFuncMap = {
@@ -181,7 +218,7 @@ function batchDeleteMaintain(type) {
     course: 'deleteCourseById',
     schedule: 'deleteScheduleById',
     booking: 'deleteBooking',
-    appointment: 'deleteAppointmentsById'
+    appointment: 'maintainDeleteAppointment'
   };
   var fnName = delFuncMap[type];
   if (!fnName) { alert('该类型暂不支持批量删除'); return; }
@@ -190,11 +227,27 @@ function batchDeleteMaintain(type) {
     alert('请先勾选要删除的行');
     return;
   }
-  if (!confirm('确定要删除选中的 ' + checks.length + ' 条数据吗？此操作不可恢复！')) {
+  // 逐行取主键：这里必须显式过滤空值——早前「预约」每行都拼出 undefined 的删除 URL，
+  // 却因为后端按路径变量吞了异常而毫无提示，界面看起来"点了删除没反应"。
+  var ids = [];
+  var emptyCount = 0;
+  for (var i = 0; i < checks.length; i++) {
+    var v = checks[i].value;
+    if (v === '' || v === 'undefined' || v === 'null' || v === null || v === undefined) {
+      emptyCount++;
+      continue;
+    }
+    ids.push(v);
+  }
+  if (ids.length === 0) {
+    alert('未能取到有效的数据 id（' + emptyCount + ' 行缺少主键），本次未执行删除。请刷新列表后重试。');
     return;
   }
-  var ids = [];
-  for (var i = 0; i < checks.length; i++) { ids.push(checks[i].value); }
+  var tip = '确定要删除选中的 ' + ids.length + ' 条数据吗？此操作不可恢复！';
+  if (emptyCount > 0) tip += '\n（另有 ' + emptyCount + ' 行未取到主键，将被跳过）';
+  if (!confirm(tip)) {
+    return;
+  }
   var fn = (typeof window[fnName] === 'function') ? window[fnName] : null;
   if (!fn) { alert('删除函数未找到：' + fnName); return; }
   var tasks = ids.map(function (id) { return Promise.resolve(fn(id)); });
@@ -214,7 +267,9 @@ window.loadMaintainTableData = async function(type){
     course:      { api: fetchCourseListPage || (async () => ({rows: [], total: 0, totalPages: 0})), delFunc: "deleteCourseById", idKey: "courseId" },
     schedule:    { api: fetchScheduleListPage,                                         delFunc: "deleteScheduleById", idKey: "scheduleId" },
     booking:     { api: fetchBookingListPage,                                          delFunc: "deleteBooking",      idKey: "bookingId" },
-    appointment: { api: datamaintain_fetchAppointmentListPage,                         delFunc: "deleteAppointmentsById", idKey: "id" }
+    // 注意 delFunc 与 batchDeleteMaintain.delFuncMap 必须同名，且全部只接受单个主键形参：
+    // 预约原用 appointmentNotes 的 deleteAppointmentsById(bookingId, appId)，两位形参导致主键错位。
+    appointment: { api: datamaintain_fetchAppointmentListPage,                         delFunc: "maintainDeleteAppointment", idKey: "id" }
   }[type];
 
   var columns = {

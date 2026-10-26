@@ -343,6 +343,12 @@ async function deleteCourseById(id) {
       return userCache.get(id);
     };
 
+    // 浏览器的时区：必须在 map 之前定义。
+    // 早前它写在 try 块的 const 里，而下面的 catch 恢复分支也要用它格式化时间 ——
+    // catch 访问不到 try 的块级 const，会二次抛 ReferenceError，
+    // 把「单行关联查询失败」升级成 Promise.all 整体 reject → 整张预约表显示"加载失败"。
+    const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
     await Promise.all(listObj.rows.map(async (item) => {
       try {
         // 【层 A】第一步：appointment → booking（唯一入口，必须先拿到 booking 才能继续）
@@ -358,9 +364,7 @@ async function deleteCourseById(id) {
           item.teacherName = '';
           item.courseName = ''; 
         }
-         // 获取浏览器的时区
-        const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        item.appointmentTime = renderLessonTime(item.appointmentDatetime, browserTimeZone, true);
+         // item.appointmentTime = renderLessonTime(item.appointmentDatetime, browserTimeZone, true);
         // 【层 B】booking 拿到后，三个互不依赖的请求并行：
         //   - fetchSchedule(bookedObject.scheduleId)
         //   - getUserNameById(bookedObject.studentId)
