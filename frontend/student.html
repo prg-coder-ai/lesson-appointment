@@ -328,6 +328,13 @@
               <label>剩余员额：</label>
               <input type="text" id="now_availableSites" value="" data-remaining="" readonly class="readonly" style="width:80px">
             </div>
+            <div class="sched-form-line mf-quota-line">
+              <label>名额占用：</label>
+              <div class="mf-quota-bar" id="quotaBar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                <div class="mf-quota-fill" id="quotaFill"></div>
+              </div>
+              <span class="mf-quota-text" id="quotaText"></span>
+            </div>
           </div>
           <div class="btn-group">
             <button type="button" class="btn-primary" id="previewBtn">预览排期</button>

@@ -64,6 +64,117 @@ window.formatRemainingSites = formatRemainingSites;
 window.applyRemainingSitesDisplay = applyRemainingSitesDisplay;
 window.readRemainingSitesFromDom = readRemainingSitesFromDom;
 
+/* ============================================================================
+ * S8 通用通知/确认封装（替代散落的 alert/confirm）
+ *
+ * - uiToast：优先用共享 UI 基建 window.mfToast（#mf-toast，不抢既有私有 toast 的 #msg-toast）；
+ *   降级用原生 alert（仅在 ui-kit 未加载时，如纯单测沙箱）。
+ * - uiConfirm：优先 window.mfConfirm（返回 Promise）；降级用原生 confirm。
+ * 之所以把原生 alert/confirm 捕获到 _native*，是为了「全局把 uiToast( 改成 uiToast(」批量替换时，
+ * 不会把封装体自身的降级分支也改掉（否则会无限递归）。
+ * ========================================================================== */
+const _nativeAlert = (typeof alert === 'function') ? alert : function () {};
+const _nativeConfirm = (typeof confirm === 'function') ? confirm : function () { return true; };
+
+function uiToast(message, type) {
+    if (typeof window !== 'undefined' && typeof window.mfToast === 'function') {
+        return window.mfToast(message, type);
+    }
+    _nativeAlert(message);
+}
+function uiConfirm(message) {
+    if (typeof window !== 'undefined' && typeof window.mfConfirm === 'function') {
+        return window.mfConfirm({ title: '请确认', message: message });
+    }
+    return _nativeConfirm(message);
+}
+
+/* ============================================================================
+ * S11 骨架屏 / 空状态（优先用共享 UI 基建 window.mfSkeletonCard / window.mfEmptyState，
+ * 降级用同源内联实现，保证未加载 ui-kit 的环境——如单测沙箱——也能正常渲染不报错）。
+ * ========================================================================== */
+function mfSkeletonCardHtml() {
+    if (typeof window !== 'undefined' && typeof window.mfSkeletonCard === 'function') {
+        return window.mfSkeletonCard();
+    }
+    return '<div class="mf-skeleton-card">' +
+        '<div class="mf-skeleton-line" style="width:60%"></div>' +
+        '<div class="mf-skeleton-line" style="width:90%"></div>' +
+        '<div class="mf-skeleton-line" style="width:80%"></div>' +
+        '<div class="mf-skeleton-line" style="width:40%"></div>' +
+        '</div>';
+}
+function mfEmptyStateEl(opts) {
+    opts = opts || {};
+    if (typeof window !== 'undefined' && typeof window.mfEmptyState === 'function') {
+        return window.mfEmptyState(opts);
+    }
+    const wrap = document.createElement('div');
+    wrap.className = 'mf-empty-state';
+    const t = document.createElement('div');
+    t.className = 'mf-empty-title';
+    t.textContent = opts.title || '暂无数据';
+    wrap.appendChild(t);
+    if (opts.desc) {
+        const d = document.createElement('div');
+        d.className = 'mf-empty-desc';
+        d.textContent = opts.desc;
+        wrap.appendChild(d);
+    }
+    return wrap;
+}
+
+/** S11：列表加载中先铺骨架屏（避免空白等待体感），由 renderCourseCards 落库后替换 */
+function renderCourseListSkeleton() {
+    const container = document.getElementById('courseCardList');
+    if (!container) return;
+    const n = (typeof Pagination !== 'undefined' && Pagination.pageSize)
+        ? Math.min(Pagination.pageSize, 6) : 6;
+    let sk = '';
+    for (let i = 0; i < n; i++) {
+        sk += '<div class="course-card" style="border:1px solid #e6e6e6;border-radius:8px;'
+            + 'padding:12px 14px;background:#fff;">' + mfSkeletonCardHtml() + '</div>';
+    }
+    container.innerHTML = sk;
+}
+
+/** S6：名额占用进度条。total 非有限数 → 视为「未知」；remaining<=0 → 满额转红 */
+function updateQuotaBar(booked, total, remaining) {
+    const bar = document.getElementById('quotaBar');
+    const fill = document.getElementById('quotaFill');
+    const text = document.getElementById('quotaText');
+    if (!bar || !fill || !text) return;
+    const totalNum = Number(total);
+    const bookedNum = Number(booked) || 0;
+    const remNum = (remaining === null || remaining === undefined || remaining === '')
+        ? null : Number(remaining);
+    bar.classList.remove('mf-quota-full', 'mf-quota-unknown');
+    if (!Number.isFinite(totalNum) || totalNum <= 0) {
+        // 无总席位（未选排期/异常数据）：进度条归零、标记未知
+        fill.style.width = '0%';
+        bar.setAttribute('aria-valuenow', '0');
+        text.textContent = '名额未知';
+        bar.classList.add('mf-quota-unknown');
+        return;
+    }
+    const pct = Math.max(0, Math.min(100, Math.round(bookedNum / totalNum * 100)));
+    fill.style.width = pct + '%';
+    bar.setAttribute('aria-valuenow', String(pct));
+    const isFull = (remNum !== null && remNum <= 0);
+    bar.classList.toggle('mf-quota-full', isFull);
+    const remShown = (remNum !== null) ? remNum : (totalNum - bookedNum);
+    text.textContent = '已订 ' + bookedNum + ' / 总 ' + totalNum
+        + (isFull ? '（已满）' : ('（剩 ' + remShown + '）'));
+}
+
+window.uiToast = uiToast;
+window.uiConfirm = uiConfirm;
+window.updateQuotaBar = updateQuotaBar;
+window.renderCourseListSkeleton = renderCourseListSkeleton;
+window.mfSkeletonCardHtml = mfSkeletonCardHtml;
+window.mfEmptyStateEl = mfEmptyStateEl;
+
+
 /**
  * 渲染课程预订管理页面
  * 对于学生，仅显示已发布的课程（status=active）
@@ -170,6 +281,8 @@ async function renderStudentBookingCards() {
 
         // 检索课程（仅 status=active 的已发布课程），按课程名称搜索
         async function loadAndRenderCourse_student() {
+            // S11：先铺骨架屏，网络返回后再被 renderCourseCards 替换（避免空白等待体感）
+            renderCourseListSkeleton();
             const nameInput = document.getElementById('course-name-input');
             const params = new URLSearchParams({
                 pageNum: Pagination.pageNum,
@@ -226,7 +339,13 @@ async function renderStudentBookingCards() {
             if (!container) return;
             container.innerHTML = '';
             if (!Array.isArray(courseList) || courseList.length === 0) {
-                container.innerHTML = '<div style="padding:16px;color:#999;">暂无可选课程</div>';
+                // S11：空状态组件替代「暂无数据」四字
+                const empty = mfEmptyStateEl({
+                    icon: '📭',
+                    title: '暂无可选课程',
+                    desc: '试试更换关键词，或稍后再来查看'
+                });
+                if (empty) container.appendChild(empty);
                 renderPagination(Pagination);
                 return;
             }
@@ -384,12 +503,12 @@ async function renderStudentBookingCards() {
             if (dl.scdid) {
                 const schedule = await fetchSchedule(dl.scdid);
                 if (!schedule) {
-                    alert('排期不存在或已结束');
+                    uiToast('排期不存在或已结束');
                     return;
                 }
                 const courseId = schedule.courseId;
                 if (!courseId) {
-                    alert('排期数据异常：缺少课程ID');
+                    uiToast('排期数据异常：缺少课程ID');
                     return;
                 }
 
@@ -399,7 +518,7 @@ async function renderStudentBookingCards() {
                     course = await request({ url: `/course/${courseId}` });
                 } catch (e) { /* ignore */ }
                 if (!course) {
-                    alert('课程不存在或已下架');
+                    uiToast('课程不存在或已下架');
                     return;
                 }
                 if (!Array.isArray(courseList)) courseList = [];
@@ -430,7 +549,7 @@ async function renderStudentBookingCards() {
                     const schedSection = document.querySelector('.section');
                     if (schedSection) schedSection.scrollIntoView({ behavior: 'smooth' });
                 } else {
-                    alert('该排期当前不可预约（可能已下架或已满）');
+                    uiToast('该排期当前不可预约（可能已下架或已满）');
                 }
             } else if (dl.tid) {
                 // 列出该教师的所有有效排期对应的课程
@@ -449,10 +568,10 @@ async function renderStudentBookingCards() {
                         Pagination.totalPages = result.totalPages;
                         renderCourseCards();
                     } else {
-                        alert('该教师暂无可预约的课程');
+                        uiToast('该教师暂无可预约的课程');
                     }
                 } catch (e) {
-                    alert('加载教师课程失败');
+                    uiToast('加载教师课程失败');
                 }
             }
         }
@@ -489,6 +608,9 @@ async function renderStudentBookingCards() {
             // 展示口径：剩余员额 <= 0 显示「满额」，其余显示数字。
             // 数值同时写入 data-remaining（见文件顶部说明），供「是否已满」判定回读。
             applyRemainingSitesDisplay(now_availableSites, remainingSites);
+
+            // S6：名额占用进度条（booked/total/remaining 同源，避免各自推导）
+            updateQuotaBar(totalBooked, totalSites, remainingSites);
 
             // 记录剩余席位，供按钮组合（预定 / 候补预订）判定“名额是否已满”
             currentRemainingSites = Number(remainingSites) || 0;
@@ -628,7 +750,7 @@ async function renderStudentBookingCards() {
                     console.error("tzSwitchTo 返回的 newDateTime 不是有效的字符串，值为：", newDateTime);
                 }
             } catch (err) {
-                alert("调用时区转换接口失败");
+                uiToast("调用时区转换接口失败");
                 console.error(err);
             }
         }
@@ -660,7 +782,7 @@ async function renderStudentBookingCards() {
                     document.getElementById('displayEndDate_weekday').value = newDateTime.weekday;
                 }
             } catch (err) {
-                alert("调用时区转换接口失败");
+                uiToast("调用时区转换接口失败");
                 console.error(err);
             }
         }
@@ -760,6 +882,16 @@ async function renderStudentBookingCards() {
             // 否则残留上一排期的 data-remaining，isScheduleFull() 在 currentRemainingSites
             // 为 null 时会读到旧值，误弹候补按钮
             applyRemainingSitesDisplay(document.getElementById('now_availableSites'), null);
+
+            // S6：名额进度条一并复位（避免残留上一排期的占用比例）
+            {
+                const qb = document.getElementById('quotaBar');
+                const qf = document.getElementById('quotaFill');
+                const qt = document.getElementById('quotaText');
+                if (qb) qb.classList.remove('mf-quota-full', 'mf-quota-unknown');
+                if (qf) qf.style.width = '0%';
+                if (qt) qt.textContent = '';
+            }
 
             // 5) 预订状态回到“无预订”，按钮组合回到初始（否则会残留上一排期的取消/删除按钮）
             setVal('bookingId');
@@ -1146,8 +1278,18 @@ async function renderStudentBookingCards() {
         // 渲染日历：在日历上标记所有排期日期（已排期日期用背景色块表示）
         function renderCalendar() {
             const cal = document.getElementById('calendar');
+            if (!cal) return;
             cal.innerHTML = '';
-            if (scheduleResult == null) return;
+            if (scheduleResult == null) {
+                // S11：未预览排期时给空状态，而不是一片空白
+                const empty = mfEmptyStateEl({
+                    icon: '📅',
+                    title: '暂无排期数据',
+                    desc: '点击「预览排期」后将在此展示日期分布'
+                });
+                if (empty) cal.appendChild(empty);
+                return;
+            }
 
             const dateSet = new Set(scheduleResult.map(i => i.date));
             // 将 dateSet 的第一项（若存在）转为日期变量，格式假定 yyyy-MM-dd
@@ -1206,29 +1348,29 @@ async function renderStudentBookingCards() {
         // 管理员确认名额释放后把 status 改为 booked 即转正式预订。
         async function submitBooking(status) {
             if (!checkCourseAndSchedule(true, true)) {
-                alert("请选择课程和排期");
+                uiToast("请选择课程和排期");
                 return;
             }
             // 预定：名额已满则只提示改走候补；候补：尚有余位则引导直接预定
             if (status === 'booking') {
                 if (isScheduleFull()) {
-                    alert(WAITLIST_TIP);
+                    uiToast(WAITLIST_TIP);
                     return;
                 }
             } else if (status === 'waiting') {
                 if (!isScheduleFull()) {
-                    alert("该排期尚有余位，请直接点「预定排期」");
+                    uiToast("该排期尚有余位，请直接点「预定排期」");
                     return;
                 }
                 // 已存在有效预订（含已候补）时不重复提交
                 const curStatus = currentBookingObj ? currentBookingObj.status : null;
                 if (curStatus === 'waiting') {
-                    alert("您已候补该排期，请勿重复提交");
+                    uiToast("您已候补该排期，请勿重复提交");
                     return;
                 }
                 if (curStatus === 'booking' || curStatus === 'booked'
                     || curStatus === 'canceling' || curStatus === 'cancelling') {
-                    alert("您已有该排期的预订，无需候补");
+                    uiToast("您已有该排期的预订，无需候补");
                     return;
                 }
             }
@@ -1249,18 +1391,18 @@ async function renderStudentBookingCards() {
             const retId = await createOrUpdateBookingObj(bookingid, dto);
             if (retId != null) {
                 if (status === 'booking') {
-                    alert(bookingid !== "" ? '修改成功' : '预定成功，请等待管理员确认');
+                    uiToast(bookingid !== "" ? '修改成功' : '预定成功，请等待管理员确认');
                 } else {
-                    alert(bookingid !== "" ? '已改为候补，请等待名额释放' : '候补成功，请等待管理员确认');
+                    uiToast(bookingid !== "" ? '已改为候补，请等待名额释放' : '候补成功，请等待管理员确认');
                 }
             } else {
                 if (status === 'booking') {
                     // 服务端会做名额校验（满员直接拒绝），失败原因已由请求拦截器弹出；
                     // 这里补一句可行动的提示，避免用户只看到“失败”不知道下一步。
-                    alert((bookingid !== "" ? '修改失败' : '预定失败')
+                    uiToast((bookingid !== "" ? '修改失败' : '预定失败')
                         + '：若名额已满，请改用「候补预订」排队；也可刷新页面后重试。');
                 } else {
-                    alert('重试：' + (bookingid !== "" ? '候补修改失败' : '候补失败'));
+                    uiToast('重试：' + (bookingid !== "" ? '候补修改失败' : '候补失败'));
                 }
             }
             await reloadBooking_student();
@@ -1277,28 +1419,28 @@ async function renderStudentBookingCards() {
         // 管理员确认取消后，可删除该预订及对应的预订时间列表
         async function deleteBooking_student() {
             if (!checkCourseAndSchedule(true, true)){
-                alert("请选择课程和排期");
+                uiToast("请选择课程和排期");
                 return; // 判断选择有效性   
             }
-            if (!confirm("确认删除预订吗？")) return;
+            if (!(await uiConfirm("确认删除预订吗？"))) return;
             const formData = getBookFormData();
             if ((formData.status == "booking") || (formData.status == "canceled")) {
                 await operateBookingStatus(formData.bookingid, "delete");
                 reloadBooking_student();
             } else {
-                alert("请联系老师，确认后才能删除");
+                uiToast("请联系老师，确认后才能删除");
             }
         }
 
         // 取消预订：booking 可直接取消；booked 需置为 canceling 等待确认
         async function cancelBooking_student() {
             if (!checkCourseAndSchedule(true, true)){
-                alert("请选择课程和排期");
+                uiToast("请选择课程和排期");
                 return; // 判断选择有效性   
             }
             const formData = getBookFormData();
             if (formData.status == "booked"){
-                if (!confirm("确认取消预订吗？")) return;
+                if (!(await uiConfirm("确认取消预订吗？"))) return;
             }
             await operateBookingStatus(formData.bookingid, formData.status != "booked" ? "canceled" : "canceling");
             reloadBooking_student();
@@ -1345,7 +1487,7 @@ async function renderStudentBookingCards() {
                 } catch (e) {
                     // 关键：失败时保持页面原样（旧数据仍可用），不清空、不重置选中
                     console.error('刷新排期数据失败:', e);
-                    alert('刷新失败，请稍后重试');
+                    uiToast('刷新失败，请稍后重试');
                     return;
                 }
                 scheduleList = Array.isArray(list) ? list : [];
@@ -1433,7 +1575,7 @@ function resetCourseFilter() {
  */
 function contactAdminForSchedule(courseId, courseName) {
     if (typeof window.openComposeMessage !== 'function') {
-        alert('消息中心尚未加载，无法发送站内信，请稍后重试或联系管理员');
+        uiToast('消息中心尚未加载，无法发送站内信，请稍后重试或联系管理员');
         return;
     }
     // 打开发送弹窗（同步插入 DOM，#msg-compose-root 即挂载点）

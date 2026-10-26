@@ -105,3 +105,18 @@ body { margin: 0; }
 .mf-empty-icon { font-size: 40px; line-height: 1; margin-bottom: 12px; opacity: .6; }
 .mf-empty-title { font-size: 15px; font-weight: 600; color: #666; margin-bottom: 6px; }
 .mf-empty-desc { font-size: 13px; color: #999; max-width: 320px; line-height: 1.6; }
+
+/* ============ S6 名额占用进度条 ============ */
+.mf-quota-line { align-items: center; }
+.mf-quota-bar {
+  position: relative; width: 160px; height: 10px; border-radius: 6px;
+  background: #f0f0f0; overflow: hidden; display: inline-block; vertical-align: middle;
+}
+.mf-quota-fill {
+  height: 100%; width: 0%; background: #722ed1; border-radius: 6px;
+  transition: width .25s ease, background .25s ease;
+}
+.mf-quota-bar.mf-quota-full .mf-quota-fill { background: #f5222d; }
+.mf-quota-bar.mf-quota-unknown .mf-quota-fill { background: #d9d9d9; }
+.mf-quota-text { margin-left: 8px; font-size: 12px; color: #888; vertical-align: middle; }
+.mf-quota-bar.mf-quota-full + .mf-quota-text { color: #f5222d; font-weight: 600; }
