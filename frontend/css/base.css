@@ -84,3 +84,24 @@ body { margin: 0; }
 .data-table { width: 100%; border-collapse: collapse; }
 .data-table th, .data-table td { padding: 12px 15px; border-bottom: 1px solid var(--border-color); text-align: left; }
 .data-table th { background: #f8f9fa; font-weight: 600; }
+
+/* ============ UI-kit 共享组件样式（UI-3 骨架屏 / UI-4 空状态） ============ */
+.mf-skeleton-card { padding: 12px 14px; border: 1px solid #e6e6e6; border-radius: 8px; background: #fff; }
+.mf-skeleton-line {
+  height: 12px; border-radius: 6px; margin: 8px 0;
+  background: linear-gradient(90deg, #eee 25%, #f5f5f5 37%, #eee 63%);
+  background-size: 400% 100%;
+  animation: mf-skeleton-loading 1.4s ease infinite;
+}
+@keyframes mf-skeleton-loading {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+.mf-empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 40px 16px; text-align: center; color: #999;
+}
+.mf-empty-icon { font-size: 40px; line-height: 1; margin-bottom: 12px; opacity: .6; }
+.mf-empty-title { font-size: 15px; font-weight: 600; color: #666; margin-bottom: 6px; }
+.mf-empty-desc { font-size: 13px; color: #999; max-width: 320px; line-height: 1.6; }

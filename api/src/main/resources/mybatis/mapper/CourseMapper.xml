@@ -32,7 +32,7 @@
 
    
    <select id="selectCourseListByPage" parameterType="com.reservation.query.CourseQueryPage" resultType="com.reservation.entity.Course">
-      SELECT c.*
+      SELECT c.*, t.class_fee AS classFee, t.class_form AS classForm
       FROM course c
       LEFT JOIN course_template t ON c.template_id = t.template_id
       <where>

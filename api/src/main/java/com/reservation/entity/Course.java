@@ -9,7 +9,7 @@ import lombok.Data;
 import jakarta.validation.constraints.Size;
 import java.io.Serializable;
 //import jakarta.validation.constraints.NotNull;
-//import java.math.BigDecimal;
+import java.math.BigDecimal;
 //import java.util.Date;
 
 // 教师课程实体（对应设计2.2.2 教师课程相关接口）
@@ -77,6 +77,20 @@ public class Course implements Serializable {
 
      @NotBlank(message = "课程状态默认为pending")   
      private String status = "pending"; 
+
+    /**
+     * 课程费用（元）。课程实体本身不含该列，由 /course/page 的模板左连接
+     * （t.class_fee AS classFee）带出，仅在列表/卡片展示用，不参与课程的增改校验。
+     * ddl-align: ignore 列表/卡片展示用虚拟字段，由 /course/page 的 t.class_fee AS classFee 模板左连接带出，不从 course 表读写
+     */
+    private BigDecimal classFee;
+
+    /**
+     * 授课形式（一对一 / 小班课 / 大班课 的枚举 code）。同上，由
+     * /course/page 的 t.class_form AS classForm 带出，仅展示用。
+     * ddl-align: ignore 列表/卡片展示用虚拟字段，由 /course/page 的 t.class_form AS classForm 模板左连接带出，不从 course 表读写
+     */
+    private String classForm;
 
      private String createTime; 
 }

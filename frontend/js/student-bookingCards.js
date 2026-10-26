@@ -247,6 +247,16 @@ async function renderStudentBookingCards() {
                 name.innerText = `${index}. ${item.courseName || '(未命名课程)'}`;
                 card.appendChild(name);
 
+                // S1：教学内容（截断 2 行 + 省略号）；字段缺失/为空时不渲染。
+                // 用 textContent 而非 innerHTML，避免课程简介里的尖括号被当标签解析。
+                if (item.content) {
+                    const desc = document.createElement('div');
+                    desc.style.cssText = 'font-size:12px;color:#666;margin:4px 0 8px;line-height:1.5;'
+                        + 'display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;';
+                    desc.textContent = item.content;
+                    card.appendChild(desc);
+                }
+
                 const meta = document.createElement('div');
                 meta.style.cssText = 'font-size:12px;color:#888;margin-top:4px;';
                 const tags = [];
@@ -286,6 +296,43 @@ async function renderStudentBookingCards() {
                     meta.innerText = tags.join('  ·  ') || '点击查看排期';
                 }
                 card.appendChild(meta);
+
+                // S1：课程特色（chip 标签；多值按中英文逗号/分号拆分）。
+                if (item.feature) {
+                    const featWrap = document.createElement('div');
+                    featWrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;';
+                    String(item.feature).split(/[,;，；]/).map(function (s) { return s.trim(); })
+                        .filter(Boolean).forEach(function (f) {
+                            const chip = document.createElement('span');
+                            chip.style.cssText = 'font-size:11px;color:#722ed1;background:#f3eaff;'
+                                + 'border:1px solid #e3d2ff;border-radius:10px;padding:1px 8px;';
+                            chip.textContent = f;
+                            featWrap.appendChild(chip);
+                        });
+                    card.appendChild(featWrap);
+                }
+
+                // S1：课时 / 形式 / 费用 三联（仅当字段存在且有意义时展示，缺失不显示 undefined）。
+                const props = [];
+                if (item.classDuration && Number(item.classDuration) > 0) {
+                    props.push('课时:' + Number(item.classDuration) + '分钟');
+                }
+                if (item.classForm) {
+                    const formText = (typeof enumTermText === 'function')
+                        ? enumTermText('classForm', item.classForm)
+                        : item.classForm;
+                    if (formText) props.push('形式:' + formText);
+                }
+                if (item.classFee != null && item.classFee !== '') {
+                    const fee = Number(item.classFee);
+                    props.push('费用:¥' + (Number.isFinite(fee) ? fee : item.classFee));
+                }
+                if (props.length) {
+                    const propLine = document.createElement('div');
+                    propLine.style.cssText = 'font-size:12px;color:#888;margin-top:6px;';
+                    propLine.textContent = props.join('  ·  ');
+                    card.appendChild(propLine);
+                }
 
                 if (String(item.courseId) === String(currentCourseId)) {
                     card.classList.add('selected');
