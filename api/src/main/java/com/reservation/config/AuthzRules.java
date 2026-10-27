@@ -260,6 +260,12 @@ public final class AuthzRules {
         r.add(new Rule(HttpMethod.POST, "/api/v1/user/updateStatus", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，任何登录用户可自审通过"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/user/updateInfo", PLATFORM_OR_TENANT_ADMIN, "新增：改他人资料属管理面（改自己资料走 account/* ）"));
 
+        // 本人自助改资料（2026-10-27）：与 updateInfo（管理面改他人）严格区分——
+        // 这两个端点只改"自己"，userId 取自 Token，请求体里的 userId/status/role/password 一律忽略。
+        // 任何已登录角色都可用（学生/教师改自己资料、管理员也可改自己）。
+        r.add(new Rule(HttpMethod.GET, "/api/v1/user/self", ALL_ROLES, "新增：本人资料只读（返回解密字段，password 不下发）"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/user/self/info", ALL_ROLES, "新增：本人自助改资料（userId 取自 Token，忽略请求体 userId/status/role/password）"));
+
         r.add(new Rule(HttpMethod.GET, "/api/v1/audit-logs", PLATFORM_OR_TENANT_ADMIN, "新增：审计日志（管理面）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/audit-logs/{logId}", PLATFORM_OR_TENANT_ADMIN, "新增：审计日志详情"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/audit-logs/actions", PLATFORM_OR_TENANT_ADMIN, "新增：审计动作枚举（渲染筛选项）"));

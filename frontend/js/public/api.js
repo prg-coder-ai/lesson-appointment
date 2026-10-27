@@ -886,10 +886,153 @@ function maskEmail(email) {
     return true;
   }
 
+  // ============================================================
+  // 本人自助修改资料（2026-10-27）：POST /user/self/info 改自己，GET /user/self 拉解密资料预填。
+  // 硬锁：userId/tenantId/status/role/password 由后端按 Token 派生或忽略，前端只发可编辑字段。
+  // ============================================================
+
+  /** 拉取本人资料（解密后），用于「修改个人信息」对话框预填。返回含 account/name/phone/email/学员·教师专属字段，无 password。 */
+  async function getSelfProfileAPI() {
+    try {
+      const res = await request({ url: '/user/self', method: 'get' });
+      return res || null;
+    } catch (e) {
+      console.error('getSelfProfileAPI:', e);
+      throw e;
+    }
+  }
+
+  /** 本人自助修改资料：account/name/phone/email + 学员·教师专属字段。后端按 Token 取 userId，请求体的 userId/status/role/password 一律忽略。 */
+  async function updateSelfInfoAPI(payload) {
+    try {
+      const res = await request({ url: '/user/self/info', method: 'post', data: payload });
+      return res;
+    } catch (e) {
+      console.error('updateSelfInfoAPI:', e);
+      throw e;
+    }
+  }
+
+  /**
+   * 弹出「修改个人信息」对话框（学生/教师共用，后端 /user/self/info）。
+   * 硬锁：userId/tenantId/status/role/password 由后端按 Token 派生或忽略，前端只发可编辑字段。
+   * @param {Function} [onSaved] 保存成功后回调（用于重渲染当前页个人中心）
+   */
+  async function showEditProfileDialog(onSaved) {
+    const u = (typeof getCurrentUserInfo === 'function') ? getCurrentUserInfo() : null;
+    if (!u || !u.userId) { toastMsg('未登录，请重新登录', 'error'); return; }
+    const role = u.role;
+
+    let profile;
+    try {
+      profile = await getSelfProfileAPI();
+    } catch (e) {
+      toastMsg((e && (e.bodyMsg || e.message)) || '获取资料失败', 'error');
+      return;
+    }
+    if (!profile) { toastMsg('未获取到资料', 'error'); return; }
+
+    const escFn = (typeof escapeHtml === 'function') ? escapeHtml : function (s) { return s == null ? '' : String(s); };
+    const val = function (s) { return s == null ? '' : String(s); };
+    const inCss = 'width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:14px;';
+    const rowCss = 'margin-bottom:12px;';
+    const lblCss = 'display:block;font-size:13px;color:#555;margin-bottom:4px;';
+
+    // 角色相关字段
+    let extraHtml = '';
+    if (role === 'student') {
+      const lvOpts = ['入门', '进阶', '中级', '高级', '精通'].map(function (o) {
+        return '<option value="' + o + '"' + (profile.languageLevel === o ? ' selected' : '') + '>' + o + '</option>';
+      }).join('');
+      extraHtml =
+        '<div style="' + rowCss + '"><label style="' + lblCss + '">学习目标</label>' +
+        '<textarea id="ep-learnGoal" rows="2" style="' + inCss + '">' + escFn(val(profile.learnGoal)) + '</textarea></div>' +
+        '<div style="' + rowCss + '"><label style="' + lblCss + '">语言水平</label>' +
+        '<select id="ep-languageLevel" style="' + inCss + '">' + lvOpts + '</select></div>';
+    } else if (role === 'teacher') {
+      const ltOpts = ['英语', '日语', '韩语', '法语', '德语', '西班牙语'].map(function (o) {
+        return '<option value="' + o + '"' + (profile.languageType === o ? ' selected' : '') + '>' + o + '</option>';
+      }).join('');
+      extraHtml =
+        '<div style="' + rowCss + '"><label style="' + lblCss + '">授课语言</label>' +
+        '<select id="ep-languageType" style="' + inCss + '">' + ltOpts + '</select></div>' +
+        '<div style="' + rowCss + '"><label style="' + lblCss + '">资质图片（Base64）</label>' +
+        '<textarea id="ep-qualification" rows="3" style="' + inCss + '">' + escFn(val(profile.qualification)) + '</textarea></div>';
+    }
+
+    const box = document.createElement('div');
+    box.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,.35);z-index:2000;display:flex;align-items:center;justify-content:center;';
+    const card = document.createElement('div');
+    card.style.cssText = 'background:#fff;border-radius:8px;padding:20px;width:440px;max-width:92vw;max-height:88vh;overflow:auto;';
+    card.innerHTML =
+      '<h3 style="margin:0 0 6px;font-size:16px;">修改个人信息</h3>' +
+      '<div style="font-size:12px;color:#e67e22;line-height:1.5;margin-bottom:14px;">账号为登录名，修改后请牢记新账号（下次登录使用）。' +
+      'userId / 租户 / 状态 / 角色 / 密码不可修改。</div>' +
+      '<div style="' + rowCss + '"><label style="' + lblCss + '">账号</label><input id="ep-account" value="' + escFn(val(profile.account)) + '" style="' + inCss + '"/></div>' +
+      '<div style="' + rowCss + '"><label style="' + lblCss + '">姓名</label><input id="ep-name" value="' + escFn(val(profile.name)) + '" style="' + inCss + '"/></div>' +
+      '<div style="' + rowCss + '"><label style="' + lblCss + '">手机号</label><input id="ep-phone" value="' + escFn(val(profile.phone)) + '" style="' + inCss + '"/></div>' +
+      '<div style="' + rowCss + '"><label style="' + lblCss + '">邮箱</label><input id="ep-email" value="' + escFn(val(profile.email)) + '" style="' + inCss + '"/></div>' +
+      extraHtml +
+      '<div style="margin-top:18px;text-align:right;">' +
+      '<button class="btn btn-gray" data-act="ep-cancel" style="margin-right:8px;">取消</button>' +
+      '<button class="btn btn-primary" data-act="ep-save">保存</button>' +
+      '</div>';
+    box.appendChild(card);
+    document.body.appendChild(box);
+
+    box.addEventListener('click', async function (e) {
+      const act = e.target && e.target.getAttribute && e.target.getAttribute('data-act');
+      if (act === 'ep-cancel' || e.target === box) { document.body.removeChild(box); return; }
+      if (act === 'ep-save') {
+        const payload = {
+          account: document.getElementById('ep-account').value.trim(),
+          name: document.getElementById('ep-name').value.trim(),
+          phone: document.getElementById('ep-phone').value.trim(),
+          email: document.getElementById('ep-email').value.trim()
+        };
+        if (role === 'student') {
+          payload.learnGoal = document.getElementById('ep-learnGoal').value;
+          payload.languageLevel = document.getElementById('ep-languageLevel').value;
+        } else if (role === 'teacher') {
+          payload.languageType = document.getElementById('ep-languageType').value;
+          payload.qualification = document.getElementById('ep-qualification').value;
+        }
+        if (!payload.account) { toastMsg('账号不能为空', 'error'); return; }
+        if (!payload.phone && !payload.email) { toastMsg('手机号和邮箱至少填写一项', 'error'); return; }
+
+        const saveBtn = e.target;
+        saveBtn.disabled = true;
+        try {
+          await updateSelfInfoAPI(payload);
+          // 写回本地会话（不含 password/status/role 等不可变字段）
+          const cur = (typeof getCurrentUserInfo === 'function') ? getCurrentUserInfo() : {};
+          cur.account = payload.account;
+          cur.name = payload.name;
+          cur.phone = payload.phone;
+          cur.email = payload.email;
+          if (role === 'student') { cur.learnGoal = payload.learnGoal; cur.languageLevel = payload.languageLevel; }
+          if (role === 'teacher') { cur.languageType = payload.languageType; cur.qualification = payload.qualification; }
+          if (typeof STORE !== 'undefined' && STORE.setItem) {
+            STORE.setItem('currentUser', JSON.stringify(cur));
+          }
+          document.body.removeChild(box);
+          toastMsg('修改成功', 'success');
+          if (typeof onSaved === 'function') onSaved();
+        } catch (err) {
+          saveBtn.disabled = false;
+          toastMsg((err && (err.bodyMsg || err.message)) || '修改失败', 'error');
+        }
+      }
+    });
+  }
+
   // 在页面全局导出
   window.guardEntryPage = guardEntryPage;
   window.getUrlParam = getUrlParam;
   window.changePasswordAPI = changePasswordAPI;
   window.showChangePasswordDialog = showChangePasswordDialog;
+  window.getSelfProfileAPI = getSelfProfileAPI;
+  window.updateSelfInfoAPI = updateSelfInfoAPI;
+  window.showEditProfileDialog = showEditProfileDialog;
   window.addChangePasswordButton = addChangePasswordButton;
   window.redirectToUserPage = redirectToUserPage;

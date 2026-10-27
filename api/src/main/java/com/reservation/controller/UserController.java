@@ -270,7 +270,52 @@ public class UserController {
         }
         return Result.success(ret, "修改成功");
     }
-  
+
+    /**
+     * 本人自助修改资料（account / name / phone / email + 学员·教师专属字段）。
+     *
+     * <p>与 {@code /user/updateInfo}（管理面，PLATFORM_OR_TENANT_ADMIN，改"他人"）严格区分：
+     * 本端点只改<b>自己</b>。userId / tenantId / status / role / password 一律<b>不取请求体</b>，
+     * 全部由 Service 按 Token 派生或硬忽略，杜绝"用别人 userId 改别人资料 / 改自己角色提权"等越权。
+     *
+     * <p>开放字段依据（2026-10-27 与用户对齐）：排除 userId/tenantId/status/role/password；
+     * account 保持按 userId 修改（同租户内不可撞、跨租户可重名，约束由
+     * {@code uk_user_account_tenant} 与 Service 双重校验）；phone/email 不再全局唯一
+     * （多租户模型允许同人跨租户注册、同租户多用户共用同一手机/邮箱）。
+     */
+    @PostMapping("/self/info")
+    @Audit(action = AuditAction.USER_UPDATE, resourceType = "user", resourceId = "user.userId")
+    @ResponseBody
+    public Result<Object> updateSelfInfo(@RequestBody User user,
+                                        @RequestHeader("Authorization") String token) {
+        if (user == null) {
+            return Result.fail(400, "请求体不能为空");
+        }
+        // 身份一律取自 Token，与 updateInfo 同口径
+        String callerId = permissionCheck.getUserIdFromToken(token);
+        String callerRole = permissionCheck.getRoleFromToken(token);
+        int ret = userService.updateSelfInfo(user, callerId, callerRole);
+        if (ret <= 0) {
+            return Result.fail(404, "用户不存在或更新失败");
+        }
+        return Result.success(ret, "修改成功");
+    }
+
+    /**
+     * 拉取本人资料（解密后的 name/phone/email + 学员·教师专属字段）。
+     * 供前端"修改个人信息"对话框预填使用；仅返回 Token 持有者本人，password 永不下发。
+     */
+    @GetMapping("/self")
+    @ResponseBody
+    public Result<User> getSelf(@RequestHeader("Authorization") String token) {
+        String callerId = permissionCheck.getUserIdFromToken(token);
+        User u = userService.getSelfProfile(callerId);
+        if (u == null) {
+            return Result.fail(404, "用户不存在");
+        }
+        return Result.success(u, "查询成功");
+    }
+
 
 //按角色查询用户列表---may be deleted ,replaced by listByGet、listByPage
     @GetMapping("/student/list")

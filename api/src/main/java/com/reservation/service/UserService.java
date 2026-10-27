@@ -1111,6 +1111,83 @@ public User selectById(String userId) {
                 cryptoUtil.encryptWithIndex(email),
                 status);
     }
+
+    /**
+     * 拉取本人资料（解密后），password 置空避免下发。
+     * 仅按 Token 的 userId 查询，与租户插件自动拼接的 tenant_id 协同，不存在越权读取他人。
+     */
+    public User getSelfProfile(String callerId) {
+        if (callerId == null || callerId.trim().isEmpty()) return null;
+        User u = userMapper.selectById(callerId.trim());
+        if (u == null) return null;
+        decryptUserFields(u);
+        // password 是哈希值，绝不随资料下发（前端也无权改密码，走独立改密端点）
+        u.setPassword(null);
+        return u;
+    }
+
+    /**
+     * 本人自助修改资料：account / name / phone / email + 学员·教师专属字段。
+     *
+     * <p>★ 安全边界：userId 取自 Token（callerId），<b>绝不取请求体</b>；status / role /
+     * password / tenantId 一律忽略（不在 Mapper 写入列中），从根本上杜绝"改别人资料 /
+     * 改自己角色提权 / 改自己状态绕过审批"等越权。
+     *
+     * <p>开放字段依据（2026-10-27 与用户对齐）：排除 userId/tenantId/status/role/password。
+     * account 保持按 userId 修改——同租户内不可撞（{@code uk_user_account_tenant}），跨租户可重名；
+     * phone/email 不再全局唯一（多租户模型允许同人跨租户注册、同租户多用户共用同一手机/邮箱），
+     * 故本方法<b>不</b>对 phone/email 做唯一性校验，仅保留"至少填一项"的业务约束。
+     */
+    @Transactional
+    public int updateSelfInfo(User user, String callerId, String callerRole) {
+        if (user == null || callerId == null || callerId.trim().isEmpty()) {
+            throw new BusinessException("用户未登录或请求无效");
+        }
+        String userId = callerId.trim();
+        User exist = userMapper.selectById(userId);
+        if (exist == null) {
+            return 0;
+        }
+        decryptUserFields(exist);
+
+        String account = (user.getAccount() != null) ? user.getAccount().trim() : exist.getAccount();
+        String name  = (user.getName()  != null) ? user.getName().trim()  : exist.getName();
+        String phone = (user.getPhone() != null) ? user.getPhone().trim() : exist.getPhone();
+        String email = (user.getEmail() != null) ? user.getEmail().trim() : exist.getEmail();
+
+        // 手机/邮箱至少一项（与注册、管理面 updateInfo 同约束；合并后再校验，避免"只改姓名"被误拒）
+        if ((phone == null || phone.isEmpty()) && (email == null || email.isEmpty())) {
+            throw new BusinessException("手机号和电子邮箱至少填写一项");
+        }
+
+        // 账号：同值视为未改，跳过；异值须同租户内（排除自己）不重复。
+        // account 是明文存储，uk_user_account_tenant(account,tenant_id) 仅按租户唯一；
+        // 此处再做一次"排除自己"的二次校验防并发重复，DB 唯一索引作最后兜底。
+        Long tenantId = exist.getTenantId();
+        if (!account.equalsIgnoreCase(exist.getAccount())) {
+            User clash = userMapper.getUserByAccount(account, tenantId);
+            if (clash != null && !clash.getUserId().equals(userId)) {
+                throw new BusinessException("该账号已被同租户其他用户占用");
+            }
+        }
+
+        // 学员/教师专属字段：未传则保留原值（role/status/password/tenantId 不在此处处理）
+        String learnGoal     = (user.getLearnGoal()     != null) ? user.getLearnGoal()     : exist.getLearnGoal();
+        String languageLevel = (user.getLanguageLevel() != null) ? user.getLanguageLevel() : exist.getLanguageLevel();
+        String qualification = (user.getQualification() != null) ? user.getQualification() : exist.getQualification();
+        String languageType  = (user.getLanguageType()  != null) ? user.getLanguageType()  : exist.getLanguageType();
+
+        return userMapper.updateSelfInfo(
+                userId,
+                account,
+                cryptoUtil.encryptWithIndex(name),
+                cryptoUtil.encryptWithIndex(phone),
+                cryptoUtil.encryptWithIndex(email),
+                learnGoal,
+                languageLevel,
+                qualification,
+                languageType);
+    }
    //TBD: test
     public List<User>   listByCondition(Map<String, Object> condition)
     {

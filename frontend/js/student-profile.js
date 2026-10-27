@@ -75,6 +75,9 @@
       '<div class="card">' +
         '<h3>账号设置</h3>' +
         '<div style="margin-top:15px;padding:0 4px 8px;">' +
+          '<button class="btn btn-gray" id="sp-editinfo" type="button" ' +
+          'style="width:100%;text-align:left;padding:10px 15px;margin-bottom:12px;">' +
+          '<i class="fa fa-edit"></i> 修改个人信息</button>' +
           '<button class="btn btn-gray" id="sp-chgpwd" type="button" ' +
           'style="width:100%;text-align:left;padding:10px 15px;margin-bottom:12px;">' +
           '<i class="fa fa-lock"></i> 修改密码</button>' +
@@ -97,6 +100,13 @@
     var chgBtn = document.getElementById('sp-chgpwd');
     if (chgBtn) chgBtn.onclick = function () {
       if (typeof showChangePasswordDialog === 'function') showChangePasswordDialog();
+    };
+
+    var editBtn = document.getElementById('sp-editinfo');
+    if (editBtn) editBtn.onclick = function () {
+      if (typeof showEditProfileDialog === 'function') {
+        showEditProfileDialog(function () { renderStudentProfile(container); });
+      }
     };
 
     var wxBtn = document.getElementById('sp-wx');
