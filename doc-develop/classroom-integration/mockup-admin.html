@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理员课堂监控 - 页面原型</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif; background:#f0f2f5; color:#333; }
+/* 顶栏 */
+.topbar { background:#001529; color:#fff; height:56px; display:flex; align-items:center; padding:0 24px; justify-content:space-between; }
+.topbar h1 { font-size:18px; font-weight:600; }
+.topbar .user { font-size:13px; opacity:.8; }
+/* 导航 */
+.nav { background:#fff; height:48px; display:flex; align-items:center; padding:0 24px; gap:8px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+.nav a { padding:0 16px; height:36px; line-height:36px; font-size:14px; color:#666; text-decoration:none; border-radius:4px; }
+.nav a:hover { background:#f0f2f5; }
+.nav a.active { background:#1890ff; color:#fff; }
+/* 主体 */
+.container { max-width:1400px; margin:20px auto; padding:0 24px; }
+/* 统计卡片 */
+.stats { display:flex; gap:16px; margin-bottom:20px; }
+.stat-card { background:#fff; border-radius:8px; padding:20px 24px; flex:1; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+.stat-card .label { font-size:13px; color:#999; margin-bottom:8px; }
+.stat-card .value { font-size:28px; font-weight:700; }
+.stat-card .value.live { color:#52c41a; }
+.stat-card .value.wait { color:#faad14; }
+.stat-card .value.done { color:#1890ff; }
+.stat-card .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
+/* 工具栏 */
+.toolbar { background:#fff; border-radius:8px 8px 0 0; padding:12px 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f0f0f0; }
+.toolbar .filters { display:flex; gap:12px; align-items:center; }
+.toolbar input, .toolbar select { padding:6px 12px; border:1px solid #d9d9d9; border-radius:4px; font-size:13px; }
+.toolbar .btn { padding:6px 16px; border:none; border-radius:4px; cursor:pointer; font-size:13px; }
+.toolbar .btn-primary { background:#1890ff; color:#fff; }
+/* 表格 */
+.table-wrap { background:#fff; border-radius:0 0 8px 8px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+table { width:100%; border-collapse:collapse; }
+th { background:#fafafa; padding:12px 20px; text-align:left; font-size:13px; color:#999; font-weight:500; }
+td { padding:12px 20px; border-top:1px solid #f0f0f0; font-size:14px; }
+.status-badge { padding:2px 10px; border-radius:10px; font-size:12px; font-weight:500; }
+.status-live { background:#f6ffed; color:#52c41a; border:1px solid #b7eb8f; }
+.status-ready { background:#fff7e6; color:#faad14; border:1px solid #ffd591; }
+.status-scheduled { background:#f0f5ff; color:#2f54eb; border:1px solid #adc6ff; }
+.status-closed { background:#f5f5f5; color:#999; border:1px solid #d9d9d9; }
+.btn-link { color:#1890ff; cursor:pointer; margin-right:12px; font-size:13px; }
+.btn-link.danger { color:#ff4d4f; }
+/* 详情面板 */
+.detail-panel { background:#fff; border-radius:8px; margin-top:20px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+.detail-header { padding:16px 20px; border-bottom:1px solid #f0f0f0; font-size:15px; font-weight:600; }
+.detail-body { display:flex; gap:24px; padding:20px; }
+.detail-section { flex:1; }
+.detail-section h3 { font-size:14px; color:#666; margin-bottom:12px; }
+.member-item { display:flex; align-items:center; gap:8px; padding:6px 0; font-size:13px; }
+.member-item .avatar { width:28px; height:28px; border-radius:50%; background:#1890ff; color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; }
+.member-item .online { width:8px; height:8px; border-radius:50%; background:#52c41a; }
+.member-item .offline { width:8px; height:8px; border-radius:50%; background:#ccc; }
+/* 分页 */
+.pagination { padding:16px 20px; display:flex; justify-content:flex-end; gap:8px; align-items:center; }
+.pagination a { padding:4px 10px; border:1px solid #d9d9d9; border-radius:4px; font-size:13px; cursor:pointer; }
+.pagination a.current { background:#1890ff; color:#fff; border-color:#1890ff; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>📋 预约管理系统 · 管理员后台</h1>
+  <div class="user">管理员 · admin@school.com</div>
+</div>
+<div class="nav">
+  <a href="#">用户管理</a>
+  <a href="#">课程管理</a>
+  <a href="#">排期管理</a>
+  <a href="#">预约管理</a>
+  <a href="#">消息管理</a>
+  <a href="#" class="active">课堂监控</a>
+  <a href="#">数据统计</a>
+  <a href="#">系统设置</a>
+</div>
+<div class="container">
+  <div class="stats">
+    <div class="stat-card">
+      <div class="label"><span class="dot" style="background:#52c41a"></span>直播中</div>
+      <div class="value live">12</div>
+    </div>
+    <div class="stat-card">
+      <div class="label"><span class="dot" style="background:#faad14"></span>待开课</div>
+      <div class="value wait">8</div>
+    </div>
+    <div class="stat-card">
+      <div class="label"><span class="dot" style="background:#1890ff"></span>今日已结束</div>
+      <div class="value done">45</div>
+    </div>
+    <div class="stat-card">
+      <div class="label"><span class="dot" style="background:#ff4d4f"></span>异常告警</div>
+      <div class="value" style="color:#ff4d4f">2</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="filters">
+      <span>状态：</span>
+      <select><option>全部</option><option>直播中</option><option>待开课</option><option>已结束</option></select>
+      <span>日期：</span>
+      <input type="date" value="2026-10-27">
+      <span>搜索：</span>
+      <input type="text" placeholder="课程名称 / 教师" style="width:200px">
+      <button class="btn btn-primary">查询</button>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>课程名称</th>
+          <th>教师</th>
+          <th>开始时间</th>
+          <th>状态</th>
+          <th>在线人数</th>
+          <th>签到率</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>英语口语入门</td>
+          <td>王老师</td>
+          <td>10:00-11:00</td>
+          <td><span class="status-badge status-live">● 直播中</span></td>
+          <td>15/20</td>
+          <td>90%</td>
+          <td><span class="btn-link">详情</span><span class="btn-link danger">远程结束</span></td>
+        </tr>
+        <tr>
+          <td>数学辅导精品课</td>
+          <td>李老师</td>
+          <td>10:30-12:00</td>
+          <td><span class="status-badge status-live">● 直播中</span></td>
+          <td>8/10</td>
+          <td>80%</td>
+          <td><span class="btn-link">详情</span><span class="btn-link danger">远程结束</span></td>
+        </tr>
+        <tr>
+          <td>物理竞赛冲刺</td>
+          <td>张老师</td>
+          <td>14:00-15:30</td>
+          <td><span class="status-badge status-ready">● 待开课</span></td>
+          <td>0/15</td>
+          <td>-</td>
+          <td><span class="btn-link">详情</span></td>
+        </tr>
+        <tr>
+          <td>化学实验课</td>
+          <td>陈老师</td>
+          <td>14:00-16:00</td>
+          <td><span class="status-badge status-scheduled">排期中</span></td>
+          <td>0/12</td>
+          <td>-</td>
+          <td><span class="btn-link">详情</span></td>
+        </tr>
+        <tr>
+          <td>语文阅读理解</td>
+          <td>刘老师</td>
+          <td>09:00-10:00</td>
+          <td><span class="status-badge status-closed">已结束</span></td>
+          <td>-</td>
+          <td>95%</td>
+          <td><span class="btn-link">详情</span><span class="btn-link">回放</span></td>
+        </tr>
+        <tr>
+          <td>英语写作训练</td>
+          <td>王老师</td>
+          <td>08:00-09:00</td>
+          <td><span class="status-badge status-closed">已结束</span></td>
+          <td>-</td>
+          <td>100%</td>
+          <td><span class="btn-link">详情</span><span class="btn-link">回放</span></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="pagination">
+      <span style="color:#999;font-size:13px;">共 65 条</span>
+      <a>‹</a>
+      <a class="current">1</a>
+      <a>2</a>
+      <a>3</a>
+      <a>›</a>
+    </div>
+  </div>
+
+  <div class="detail-panel">
+    <div class="detail-header">课堂详情：英语口语入门 · 王老师（10:00-11:00）</div>
+    <div class="detail-body">
+      <div class="detail-section">
+        <h3>成员列表（20人）</h3>
+        <div class="member-item"><div class="avatar">张</div>张三 <span class)></span><span class="online"></span> 在线 · 10:01签到</div>
+        <div class="member-item"><div class="avatar">李</div>李四 <span class="online"></span> 在线 · 10:00签到</div>
+        <div class="member-item"><div class="avatar">王</div>王五 <span class="online"></span> 在线 · 10:02签到</div>
+        <div class="member-item"><div class="avatar">赵</div>赵六 <span class="offline"></span> 离线 · 10:15退出</div>
+        <div class="member-item"><div class="avatar">孙</div>孙七 <span class="online"></span> 在线 · 10:05签到(迟到)</div>
+        <div class="member-item"><div class="avatar">周</div>周八 <span class="offline"></span> 未到</div>
+      </div>
+      <div class="detail-section">
+        <h3>出勤统计</h3>
+        <div style="font-size:14px;line-height:2;">
+          签到人数：<b style="color:#52c41a">18</b> / 20<br>
+          迟到人数：<b style="color:#faad14">2</b><br>
+          未到人数：<b style="color:#ff4d4f">2</b><br>
+          平均有效时长：<b>52 分钟</b><br>
+          <hr style="border:none;border-top:1px solid #f0f0f0;margin:8px 0;">
+          录制状态：<span class="status-badge status-live">录制中</span><br>
+          讲稿数量：3 份<br>
+          作品提交：12 份
+        </div>
+      </div>
+      <div class="detail-section">
+        <h3>课堂事件</h3>
+        <div style="font-size:13px;line-height:2.2;color:#666;">
+          10:00 教师开课<br>
+          10:01 张三进入课堂<br>
+          10:02 教师上传讲稿「Unit3.pdf」<br>
+          10:05 孙七签到（迟到）<br>
+          10:10 教师发起点名 → 张三<br>
+          10:15 赵六离开课堂<br>
+          10:20 教师翻页至第 3 页
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

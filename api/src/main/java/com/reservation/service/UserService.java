@@ -72,6 +72,9 @@ public class UserService {
     // 微信 openid 关联（wx_userid 表）。user 表零改动：不再走「ALTER TABLE user 加 wx_openid 列」的老路。
     @Autowired
     private WxUseridService wxUseridService;
+    // eclassroom 课堂配置：登录响应携带课堂开关与服务地址，前端据此显隐课堂 UI
+    @Autowired
+    private EclassroomService eclassroomService;
 
     /**
      * 登录失败统一文案（2026-10-22 P0.5）。
@@ -522,6 +525,18 @@ public class UserService {
         // 4. 记录登录会话（在线统计数据来源）
         userSessionService.onLogin(token, tenantId, user.getUserId(), user.getRole(),
                 currentRequestIp(), currentRequestUserAgent());
+
+        // 5. 携带 eclassroom 课堂配置（特性开关 + 服务地址），前端登录后据此显隐课堂 UI
+        //    不放入 JWT（避免 token 膨胀），仅放登录响应体；课堂配置变更频率极低，token 刷新不重取
+        Map<String, Object> eclassroomConfig = eclassroomService.getTenantClassroomConfig(tenantId);
+        if (eclassroomConfig == null) {
+            eclassroomConfig = new HashMap<>();
+            eclassroomConfig.put("enabled", false);
+            eclassroomConfig.put("apiBaseUrl", null);
+            eclassroomConfig.put("wsBaseUrl", null);
+            eclassroomConfig.put("config", null);
+        }
+        resultMap.put("eclassroom", eclassroomConfig);
 
       // log.debug("login ok with account：" +user.getAccount()); 
         return Result.success(resultMap   ,"登陆成功");

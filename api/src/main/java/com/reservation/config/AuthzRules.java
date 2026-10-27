@@ -398,6 +398,19 @@ public final class AuthzRules {
         // —— 其他 ——
         r.add(new Rule(HttpMethod.POST, "/api/v1/tz/switch", ALL_ROLES, "新增：时区换算纯计算（各端表单都要用）"));
 
+        // ==================== 六、eclassroom 课堂模块（2026-10-27 阶段1）====================
+        // /config 各角色可查本租户课堂配置（前端据此显隐课堂 UI）；
+        // 其余端点为平台管理员管理课堂实例与租户绑定。
+        r.add(new Rule(HttpMethod.GET, "/api/v1/eclassroom/config", ALL_ROLES, "新增：本租户课堂配置（各角色显隐 UI）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/eclassroom/instances", PLATFORM_ONLY, "新增：实例列表"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/eclassroom/instances", PLATFORM_ONLY, "新增：新建实例"));
+        r.add(new Rule(HttpMethod.PUT, "/api/v1/eclassroom/instances/{id}", PLATFORM_ONLY, "新增：修改实例"));
+        r.add(new Rule(HttpMethod.DELETE, "/api/v1/eclassroom/instances/{id}", PLATFORM_ONLY, "新增：删除实例（软删）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/eclassroom/tenant/{tenantId}", PLATFORM_ONLY, "新增：查看租户课堂绑定"));
+        r.add(new Rule(HttpMethod.PUT, "/api/v1/eclassroom/tenant/{tenantId}/bind", PLATFORM_ONLY, "新增：为租户绑定实例"));
+        r.add(new Rule(HttpMethod.PUT, "/api/v1/eclassroom/tenant/{tenantId}/disable", PLATFORM_ONLY, "新增：禁用租户课堂"));
+        r.add(new Rule(HttpMethod.PUT, "/api/v1/eclassroom/tenant/{tenantId}/unbind", PLATFORM_ONLY, "新增：解绑租户课堂"));
+
         return List.copyOf(r);
     }
 }

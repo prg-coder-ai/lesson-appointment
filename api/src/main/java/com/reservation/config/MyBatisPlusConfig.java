@@ -65,7 +65,13 @@ public class MyBatisPlusConfig {
             // 此时 TenantContext 为空，插件会兜底拼 `tenant_id = -1`，不排除即 Unknown column。
             // 这个坑的特殊性：只在免登录路径复现，本地带 token 测全绿、线上首登 500，
             // 报错信息完全不像权限问题。
-            "auth_rate_counter", "auth_device", "auth_challenge"
+            "auth_rate_counter", "auth_device", "auth_challenge",
+            // eclassroom 课堂实例注册表 + 租户课堂关系表（2026-10-27 阶段1）：
+            // 两表均为平台级管理表（无 tenant_id 列），由平台管理员维护。
+            // sys_eclassroom_instance = 课堂服务实例注册（地址/端口/状态）；
+            // sys_tenant_eclassroom = 租户-实例关联（tenant_id 是业务列而非隔离列，由业务层显式查询）。
+            // 不排除则插件的 `tenant_id = ?` 会撞 Unknown column（与 sys_industry 同因）。
+            "sys_eclassroom_instance", "sys_tenant_eclassroom"
     );
 
     @Bean
