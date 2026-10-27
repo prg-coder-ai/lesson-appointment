@@ -93,6 +93,17 @@
             <version>${mybatis-plus.version}</version>
         </dependency>
 
+        <!-- Caffeine 本地缓存（阶段3：课堂开关守卫缓存 TTL 5min） -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+            <version>3.1.8</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
+
         <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
