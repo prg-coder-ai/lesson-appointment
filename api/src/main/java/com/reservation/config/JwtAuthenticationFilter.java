@@ -96,7 +96,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/actuator/health",
             // 教师已上传图片公开伺服：GET /api/v1/teacher/professional/file/** 免登录访问，
             // 与 SecurityConfig permitAll / WebMvcConfig EXCLUDE_PATTERNS / 守卫 PERMIT_ALL 四处同步。
-            "/api/v1/teacher/professional/file"
+            "/api/v1/teacher/professional/file",
+            // classroom-service 回调端点前缀（HMAC 签名鉴权，不走 JWT）
+            // 四处白名单同步：SecurityConfig / JwtFilter / WebMvcConfig / authz PERMIT_ALL
+            "/api/v1/classrooms/"
     );
 
     /** 静态资源前缀 */

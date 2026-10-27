@@ -59,6 +59,10 @@ public class CourseScheduleService {
     @Resource
     private BookingSeatService bookingSeatService;
 
+    /** 课堂事件推送（排期变更后通知 classroom-service） */
+    @Resource
+    private ClassroomEventPushService classroomEventPushService;
+
 // 3. 冲突检测：先展开重复规则，检查每个实例是否冲突--TBD：课程+room是否冲突
 // 参数excludeSchid 在修改已存在的排期时，带
 /*  约定：排期使用dto带入的时区
@@ -198,7 +202,10 @@ public class CourseScheduleService {
         tenantQuotaService.acquire(tenantId, TenantQuotaService.SCHEDULE);
         // 4. 插入排期
         scheduleMapper.insertSchedule(schedule);
-       
+
+        // 5. 推送课堂事件（事务提交后异步执行，租户未启用课堂时静默跳过）
+        classroomEventPushService.pushAfterCommit(tenantId, Id, "created");
+
         return  Collections.singletonMap("Id", Id);
     }
 
@@ -234,6 +241,11 @@ public class CourseScheduleService {
               schedule.setAvailableSites(current.getAvailableSites());
           }
           scheduleMapper.updateById (schedule);
+
+        // 排期更新后推送课堂事件（事务提交后执行）
+        Long tenantId = TenantContext.getTenantId();
+        classroomEventPushService.pushAfterCommit(tenantId, dto.getScheduleId(), "updated");
+
         return Collections.singletonMap("Id", dto.getScheduleId());
     }
 
@@ -261,6 +273,10 @@ public class CourseScheduleService {
          //System.out .println("updateStatus called with scheduleId: " + data);
          scheduleMapper.updateStatus(data);
         cascadeOnScheduleStatusChange(data.getScheduleId(), data.getStatus());
+        // 排期状态变更后推送课堂事件（取消时通知 classroom-service）
+        if ("cancelled".equalsIgnoreCase(data.getStatus()) || "inactive".equalsIgnoreCase(data.getStatus())) {
+            classroomEventPushService.pushAfterCommit(TenantContext.getTenantId(), data.getScheduleId(), "cancelled");
+        }
         return  data.getScheduleId();
     }
 
@@ -617,6 +633,8 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
             // 释放租户排期额度
             if (deleted > 0) {
                 tenantQuotaService.release(TenantContext.getTenantId(), TenantQuotaService.SCHEDULE);
+                // 排期删除后推送课堂取消事件（事务提交后执行）
+                classroomEventPushService.pushAfterCommit(TenantContext.getTenantId(), id, "cancelled");
             }
             // 返回实际删除条数：原先无条件 return 1，排期不存在时也报"删除成功"
             // （配合 FK CASCADE，删除 0 行时子表却已被连带删掉，调用方无从察觉）。

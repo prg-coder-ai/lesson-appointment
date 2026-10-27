@@ -211,6 +211,12 @@ const PERMIT_ALL = [
   // 教师已上传图片公开伺服（2026-10-15）：匿名读取教师头像/证书，供发布页/编辑页展示。
   // 四处白名单双形态已同步：SecurityConfig / JwtFilter / WebMvcConfig / 本清单（GET /file/**）。
   '/api/v1/teacher/professional/file/**',
+  // classroom-service 回调端点（HMAC 签名鉴权，不走 JWT）
+  // 四处白名单同步：SecurityConfig / JwtFilter / WebMvcConfig / authz PERMIT_ALL
+  '/api/v1/classrooms/attendance',
+  '/api/v1/classrooms/events',
+  '/api/v1/classrooms/alerts',
+  '/api/v1/classrooms/reconcile',
 ];
 const isPermitAll = (p) => PERMIT_ALL.includes(p);
 

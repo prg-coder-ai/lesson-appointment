@@ -176,6 +176,15 @@ public class SecurityConfig {
                     // 协议/隐私政策公开阅读端点（免登录，与 JwtFilter.WHITELIST_PATHS/守卫 PERMIT_ALL 同步）
                     auth.requestMatchers("/api/v1/legal/doc").permitAll();
 
+                    // classroom-service 回调端点（HMAC 签名鉴权，不走 JWT）
+                    // 四处白名单同步：SecurityConfig / JwtFilter / WebMvcConfig / authz PERMIT_ALL
+                    auth.requestMatchers(
+                            "/api/v1/classrooms/attendance",
+                            "/api/v1/classrooms/events",
+                            "/api/v1/classrooms/alerts",
+                            "/api/v1/classrooms/reconcile"
+                    ).permitAll();
+
                     // 教师已上传图片公开伺服（免登录，匿名学生浏览发布页也要看得到）。
                     // 与 JwtFilter.WHITELIST_PREFIXES / WebMvcConfig.EXCLUDE_PATTERNS /
                     // 守卫 PERMIT_ALL 四处同步；双路径形态（/api/v1 前缀 + 裸路径）。
