@@ -54,4 +54,25 @@ public interface LessonAttendanceMapper extends BaseMapper<LessonAttendance> {
     @InterceptorIgnore(tenantLine = "true")
     @Select("SELECT * FROM lesson_attendance WHERE schedule_id = #{scheduleId} ORDER BY user_id")
     List<LessonAttendance> listByScheduleIgnoreTenant(@Param("scheduleId") String scheduleId);
+
+    /**
+     * 回写结算结果（S3）：{@code appointment_id} 是锚点，
+     * {@code consumed_lessons / consumption_state} 是账务结论，{@code settled_at} 是生效时间。
+     *
+     * <p>这些列与 {@code student_lesson_flow} 分工明确：本表记「这一课次扣了多少」，
+     * 流水记「账上动了几笔」。改判时两边都要改，对账靠流水唯一键。
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @org.apache.ibatis.annotations.Update("UPDATE lesson_attendance SET"
+            + " appointment_id = #{appointmentId}, class_index = #{classIndex},"
+            + " consumed_lessons = #{consumedLessons}, consumption_state = #{consumptionState},"
+            + " settled_at = #{settledAt}, updated_at = NOW()"
+            + " WHERE schedule_id = #{scheduleId} AND user_id = #{userId}")
+    int updateSettlementIgnoreTenant(@Param("scheduleId") String scheduleId,
+                                     @Param("userId") String userId,
+                                     @Param("appointmentId") Integer appointmentId,
+                                     @Param("classIndex") Integer classIndex,
+                                     @Param("consumedLessons") java.math.BigDecimal consumedLessons,
+                                     @Param("consumptionState") String consumptionState,
+                                     @Param("settledAt") java.time.LocalDateTime settledAt);
 }

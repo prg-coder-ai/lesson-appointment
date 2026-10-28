@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Set;
 
@@ -87,6 +88,40 @@ public class CallbackService {
     public void sendReconcileReport(ReconcileReportReq payload) {
         String url = bookingApiBaseUrl + "/api/v1/classroom-callback/reconcile";
         sendWithRetry(url, payload, "对账报告");
+    }
+
+    /**
+     * 课堂事件回流（2026-10-28 S3）：目前只用于「学生进入课堂」。
+     *
+     * <p>为什么要单独发一条：预约侧的 {@code appointment.status} 想在学生签到时立刻变成
+     * {@code checked-in}，就不能等到课堂收尾的出勤回流——那时课都上完了。
+     *
+     * <p>载荷字段与预约侧 {@code ClassroomEventCallbackReq} 对齐；
+     * {@code eventType} 用 {@code join}（与其 DTO 注释里的取值一致）。
+     * 投递失败只留 warn：签到标记是展示态，丢一条不影响出勤与课时核算（收尾时还会按
+     * {@code checkInAt} 重新判定 attended）。
+     */
+    @Async("callbackExecutor")
+    public void sendJoinEvent(String scheduleId, String userId, LocalDateTime eventTime) {
+        Map<String, Object> payload = new java.util.LinkedHashMap<>();
+        payload.put("eventId", "evt-join-" + scheduleId + "-" + userId + "-" + System.currentTimeMillis());
+        payload.put("scheduleId", scheduleId);
+        payload.put("eventType", "join");
+        payload.put("userId", userId);
+        payload.put("eventTime", eventTime == null ? LocalDateTime.now() : eventTime);
+        String url = bookingApiBaseUrl + "/api/v1/classroom-callback/events";
+        // 事件是一次性事实，重试 3 次仍失败也无补发价值（人已经进课堂了），故只投一次
+        try {
+            String json = objectMapper.writeValueAsString(payload);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("X-Hmac-Signature", hmacSigner.sign(json));
+            restTemplate.postForEntity(url, new HttpEntity<>(json, headers), String.class);
+            log.info("签到事件已回流: scheduleId={}, userId={}", scheduleId, userId);
+        } catch (Exception e) {
+            log.warn("签到事件回流失败(已忽略): scheduleId={}, userId={}, err={}",
+                    scheduleId, userId, e.getMessage());
+        }
     }
 
     private void sendWithRetry(String url, Object payload, String label) {

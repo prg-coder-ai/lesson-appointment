@@ -7,6 +7,7 @@ import com.reservation.dto.AttendanceCallbackReq;
 import com.reservation.dto.ClassroomEventCallbackReq;
 import com.reservation.dto.ReconcileCallbackReq;
 import com.reservation.service.LessonAttendanceService;
+import com.reservation.service.LessonSettlementService;
 import com.reservation.utils.HmacVerifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,13 +49,16 @@ public class ClassroomCallbackController {
     private final HmacVerifier hmacVerifier;
     private final ObjectMapper objectMapper;
     private final LessonAttendanceService lessonAttendanceService;
+    private final LessonSettlementService settlementService;
 
     public ClassroomCallbackController(HmacVerifier hmacVerifier,
                                        ObjectMapper objectMapper,
-                                       LessonAttendanceService lessonAttendanceService) {
+                                       LessonAttendanceService lessonAttendanceService,
+                                       LessonSettlementService settlementService) {
         this.hmacVerifier = hmacVerifier;
         this.objectMapper = objectMapper;
         this.lessonAttendanceService = lessonAttendanceService;
+        this.settlementService = settlementService;
     }
 
     /**
@@ -83,6 +87,10 @@ public class ClassroomCallbackController {
             return Result.fail(404, e.getMessage());
         }
 
+        // 落库之后紧接着结算：扣课时 + 推进课次状态（completed/absent）。
+        // 顺序不能反：状态一旦落终态就再也不会被兜底任务扫到，先改状态后扣减一旦扣失败就是永久漏扣。
+        SettlementTally tally = settleAll(req);
+
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("received", true);
         data.put("scheduleId", req.getScheduleId());
@@ -91,9 +99,62 @@ public class ClassroomCallbackController {
         data.put("updated", result.updated);
         data.put("stale", result.stale);
         data.put("invalid", result.invalid);
-        log.info("出勤回流已接收: scheduleId={}, 学生数={}, 落库={}",
-                req.getScheduleId(), req.getItems() == null ? 0 : req.getItems().size(), result.affected());
+        data.put("deducted", tally.deducted);
+        data.put("exempt", tally.exempt);
+        data.put("duplicate", tally.duplicate);
+        data.put("skipped", tally.skipped);
+        log.info("出勤回流已接收: scheduleId={}, 学生数={}, 落库={}, 扣减={}, 免扣={}, 幂等={}, 跳过={}",
+                req.getScheduleId(), req.getItems() == null ? 0 : req.getItems().size(), result.affected(),
+                tally.deducted, tally.exempt, tally.duplicate, tally.skipped);
         return Result.success(data, "出勤回流已接收");
+    }
+
+    /**
+     * 逐条结算，并汇总结果供响应体与日志。
+     *
+     * <p>单条失败不阻断其余学生：一个学生归户失败（预订被删）不该让整堂课的扣减全丢，
+     * 失败的那条由兜底任务下次补上，其余照常落账。
+     */
+    private SettlementTally settleAll(AttendanceCallbackReq req) {
+        SettlementTally tally = new SettlementTally();
+        if (req.getItems() == null || req.getItems().isEmpty()) {
+            return tally;
+        }
+        for (AttendanceCallbackReq.AttendanceItem item : req.getItems()) {
+            if (item == null || item.getUserId() == null || item.getUserId().trim().isEmpty()) {
+                tally.skipped++;
+                continue;
+            }
+            try {
+                // 出席判定：进过课堂即有 checkInAt。**这只是状态判据，不影响扣多少**
+                // （扣减只判请假与否，见 AppointmentStatus#isLessonExempt）。
+                boolean attended = item.getCheckInAt() != null;
+                LessonSettlementService.Outcome out = settlementService.settle(
+                        req.getScheduleId(), item.getUserId().trim(), null, attended, "classroom");
+                if (out.skipped()) {
+                    tally.skipped++;
+                } else if (out.exempt) {
+                    tally.exempt++;
+                } else if (out.duplicate) {
+                    tally.duplicate++;
+                } else if (out.deducted) {
+                    tally.deducted++;
+                }
+            } catch (Exception e) {
+                tally.skipped++;
+                log.warn("课次结算失败(该学生待兜底任务补算): scheduleId={}, userId={}, err={}",
+                        req.getScheduleId(), item.getUserId(), e.getMessage());
+            }
+        }
+        return tally;
+    }
+
+    /** 结算汇总计数 */
+    private static class SettlementTally {
+        int deducted;
+        int exempt;
+        int duplicate;
+        int skipped;
     }
 
     /**
@@ -115,6 +176,23 @@ public class ClassroomCallbackController {
         }
         log.info("收到课堂事件: eventId={}, scheduleId={}, type={}, userId={}",
                 req.getEventId(), req.getScheduleId(), req.getEventType(), req.getUserId());
+
+        // 签到事件：把课次置为 checked-in（**只记出席现状，不产生任何费用动作**）。
+        // 其余事件（leave/late/kick/rollcall）仍只留痕——它们是过程事实，落库口径未定，
+        // 且终态由课堂收尾的出勤回流统一裁定，中途写状态会互相打架。
+        if ("join".equalsIgnoreCase(req.getEventType())
+                && req.getScheduleId() != null && req.getUserId() != null) {
+            try {
+                boolean changed = settlementService.markCheckedIn(req.getScheduleId(), req.getUserId());
+                if (changed) {
+                    log.info("课次已置为已签到: scheduleId={}, userId={}", req.getScheduleId(), req.getUserId());
+                }
+            } catch (Exception e) {
+                // 签到标记失败不影响课堂侧事件上报（对方会重试，且这只是展示态）
+                log.warn("签到状态标记失败(已忽略): scheduleId={}, userId={}, err={}",
+                        req.getScheduleId(), req.getUserId(), e.getMessage());
+            }
+        }
         return Result.success();
     }
 

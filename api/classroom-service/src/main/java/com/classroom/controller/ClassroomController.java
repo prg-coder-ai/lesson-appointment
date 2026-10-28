@@ -6,6 +6,7 @@ import com.classroom.entity.Classroom;
 import com.classroom.security.AuthContext;
 import com.classroom.security.ClassroomAccessGuard;
 import com.classroom.service.AttendanceService;
+import com.classroom.service.CallbackService;
 import com.classroom.service.ClassroomService;
 import com.classroom.service.MembershipService;
 import org.springframework.web.bind.annotation.*;
@@ -24,15 +25,18 @@ public class ClassroomController {
     private final MembershipService membershipService;
     private final AttendanceService attendanceService;
     private final ClassroomAccessGuard accessGuard;
+    private final CallbackService callbackService;
 
     public ClassroomController(ClassroomService classroomService,
                                MembershipService membershipService,
                                AttendanceService attendanceService,
-                               ClassroomAccessGuard accessGuard) {
+                               ClassroomAccessGuard accessGuard,
+                               CallbackService callbackService) {
         this.classroomService = classroomService;
         this.membershipService = membershipService;
         this.attendanceService = attendanceService;
         this.accessGuard = accessGuard;
+        this.callbackService = callbackService;
     }
 
     @GetMapping("/status")
@@ -50,6 +54,9 @@ public class ClassroomController {
         membershipService.join(scheduleId, userId, role, displayName);
         if ("student".equals(role)) {
             attendanceService.checkIn(scheduleId, userId, c.getStartTime());
+            // 签到事件回流预约侧，让 appointment.status 立刻显示「已签到」。
+            // 异步且失败忽略：签到标记是展示态，真正的出勤结论由课后收尾的回流裁定。
+            callbackService.sendJoinEvent(scheduleId, userId, java.time.LocalDateTime.now());
         }
         return Result.success();
     }

@@ -6,6 +6,7 @@ import com.reservation.common.Result;
 import com.reservation.dto.AlertCallbackReq;
 import com.reservation.dto.AttendanceCallbackReq;
 import com.reservation.service.LessonAttendanceService;
+import com.reservation.service.LessonSettlementService;
 import com.reservation.utils.HmacVerifier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -21,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -39,6 +41,7 @@ class ClassroomCallbackControllerTest {
     private HmacVerifier hmacVerifier;
     private ObjectMapper objectMapper;
     private LessonAttendanceService lessonAttendanceService;
+    private LessonSettlementService settlementService;
     private final String testKeyBase64 = "Ip0fg8W0iUXc9Iuw/rcsL+DQ3UkJklcATNqjAtwZmMA=";
 
     @BeforeEach
@@ -47,8 +50,13 @@ class ClassroomCallbackControllerTest {
         objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
         lessonAttendanceService = mock(LessonAttendanceService.class);
+        settlementService = mock(LessonSettlementService.class);
+        // 结算编排在 S3 接入：这里只要不返回 null，控制器就会把它汇总进响应；
+        // 扣减与状态推进的真实行为由 LessonDeductionServiceTest / 端到端冒烟覆盖。
+        when(settlementService.settle(any(), any(), any(), anyBoolean(), any()))
+                .thenAnswer(inv -> new LessonSettlementService.Outcome());
 
-        controller = new ClassroomCallbackController(hmacVerifier, objectMapper, lessonAttendanceService);
+        controller = new ClassroomCallbackController(hmacVerifier, objectMapper, lessonAttendanceService, settlementService);
 
         Field keyField = HmacVerifier.class.getDeclaredField("hmacKey");
         keyField.setAccessible(true);
