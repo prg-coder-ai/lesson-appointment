@@ -95,7 +95,7 @@ function parseSchema(sql) {
   let cur = null;
   for (const raw of lines) {
     const line = raw.trim();
-    const open = line.match(/^CREATE TABLE `([^`]+)`/i);
+    const open = line.match(/^CREATE TABLE (?:IF NOT EXISTS )?`([^`]+)`/i);
     if (open) {
       cur = {
         name: open[1],
@@ -515,7 +515,7 @@ if (tableExempt.length) {
   for (const f of schemaFiles) {
     const sql = fs.readFileSync(path.join(schemaDirAbs, f), 'utf8');
     // FK 都在表体内，逐表扫描：先定位表名，再在该表段落内找 FOREIGN KEY
-    const re = /CREATE TABLE `([^`]+)` \(/g;
+    const re = /CREATE TABLE (?:IF NOT EXISTS )?`([^`]+)` \(/g;
     let tm;
     while ((tm = re.exec(sql)) !== null) {
       const tname = tm[1];
