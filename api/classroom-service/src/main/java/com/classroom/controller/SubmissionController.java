@@ -4,6 +4,7 @@ import com.classroom.common.Result;
 import com.classroom.dto.SubmissionReq;
 import com.classroom.entity.Submission;
 import com.classroom.security.AuthContext;
+import com.classroom.security.ClassroomAccessGuard;
 import com.classroom.service.SubmissionService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
@@ -19,14 +20,17 @@ import java.util.List;
 public class SubmissionController {
 
     private final SubmissionService submissionService;
+    private final ClassroomAccessGuard accessGuard;
 
-    public SubmissionController(SubmissionService submissionService) {
+    public SubmissionController(SubmissionService submissionService, ClassroomAccessGuard accessGuard) {
         this.submissionService = submissionService;
+        this.accessGuard = accessGuard;
     }
 
     @PostMapping
     public Result<Submission> submit(@PathVariable String scheduleId, @Valid @RequestBody SubmissionReq req) {
         String userId = AuthContext.currentUserId();
+        accessGuard.assertAccess(scheduleId, userId, AuthContext.currentRole());
         Submission s = submissionService.submit(scheduleId, userId, req.getSubmissionType(),
                 req.getContent(), req.getOssKey(), req.getDurationSec());
         return Result.ok(s);
@@ -34,6 +38,7 @@ public class SubmissionController {
 
     @GetMapping
     public Result<List<Submission>> list(@PathVariable String scheduleId) {
+        accessGuard.assertAccess(scheduleId, AuthContext.currentUserId(), AuthContext.currentRole());
         return Result.ok(submissionService.listBySchedule(scheduleId));
     }
 
@@ -45,6 +50,7 @@ public class SubmissionController {
         if (!AuthContext.isTeacher() && !AuthContext.isManager()) {
             return Result.fail(403, "仅教师可批阅作品");
         }
+        accessGuard.assertAccess(scheduleId, AuthContext.currentUserId(), AuthContext.currentRole());
         submissionService.review(submissionId, comment, score);
         return Result.success();
     }

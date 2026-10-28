@@ -54,7 +54,9 @@
       if (typeof window.hasClassroom === 'function' && window.hasClassroom()) { cb(); return; }
       var token = localStorage.getItem('token');
       if (!token || typeof window.request !== 'function') { cb(); return; }
-      window.request({ url: '/api/v1/eclassroom/config', method: 'get' })
+      var EP = (window.ApiPaths && window.ApiPaths.ENDPOINTS) || {};
+      if (!EP.ECLASSROOM_CONFIG) { cb(); return; }
+      window.request({ url: EP.ECLASSROOM_CONFIG, method: 'get' })
         .then(function (data) {
           if (data && typeof window.setEclassroomConfig === 'function') window.setEclassroomConfig(data);
         })

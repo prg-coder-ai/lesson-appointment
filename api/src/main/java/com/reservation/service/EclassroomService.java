@@ -150,8 +150,12 @@ public class EclassroomService {
         if (instance.getStatus() == null) instance.setStatus(1);
         if (instance.getDeleted() == null) instance.setDeleted(0);
         if (instance.getApiPort() == null) instance.setApiPort(8092);
-        if (instance.getApiBasePath() == null) instance.setApiBasePath("/api/v1/classroom");
-        if (instance.getWsBasePath() == null) instance.setWsBasePath("/ws");
+        if (instance.getApiBasePath() == null || instance.getApiBasePath().isBlank()) {
+            instance.setApiBasePath(DEFAULT_API_BASE_PATH);
+        }
+        if (instance.getWsBasePath() == null) {
+            instance.setWsBasePath(DEFAULT_WS_BASE_PATH);
+        }
         instanceMapper.insert(instance);
         log.info("创建课堂实例: code={}, name={}", instance.getInstanceCode(), instance.getInstanceName());
         return instance;
@@ -172,13 +176,54 @@ public class EclassroomService {
 
     // ==================== 内部工具 ====================
 
+    /**
+     * api_base_path 的语义是「classroom-service 的 API 根」，**必须含版本前缀**，
+     * 但不含业务路径段。拼接方（ClassroomEventPushService / 前端 ClassroomAPI）
+     * 一律以它为根再拼 /schedules/events、/classrooms/{sid}/enter 等。
+     *
+     * <p>历史坑：旧默认值写的是 {@code /api/v1/classroom}（多了单数 classroom 段），
+     * 拼出了 {@code /api/v1/classroom/schedules/events} 这种服务端根本不存在的路径，
+     * 推送 404 被 best-effort 吞掉、前端课堂页整页 404。改默认值时务必保持
+     * {@code /api/v1}，不要为了「好看」再加业务段。
+     */
+    public static final String DEFAULT_API_BASE_PATH = "/api/v1";
+
+    /**
+     * ws_base_path 的语义是「classroom-service 的 WebSocket 根」，**不含 /ws/classrooms 业务段**。
+     * 拼接方（前端 classroom-ws.js）会补 {@code /ws/classrooms/{sid}/{whiteboard|heartbeat|signal}}。
+     *
+     * <p>旧默认值 {@code /ws} 会让前端拼出 {@code /ws/ws/classrooms/...}，故统一置空：
+     * 空串表示「就是 host:port 根」，{@link #buildWsUrl} 不再追加任何路径。
+     */
+    public static final String DEFAULT_WS_BASE_PATH = "";
+
     private String buildApiUrl(EclassroomInstance instance) {
         String host = instance.getApiHost();
         if (host == null) return null;
         Integer port = instance.getApiPort();
         String basePath = instance.getApiBasePath();
-        if (basePath == null) basePath = "/api/v1/classroom";
-        return buildUrl(host, port, basePath);
+        if (basePath == null || basePath.isBlank()) basePath = DEFAULT_API_BASE_PATH;
+        return buildUrl(host, port, normalizeApiBasePath(basePath, instance));
+    }
+
+    /**
+     * 归一 api 根路径，并兼容存量脏数据。
+     *
+     * <p>存量库可能还是建表脚本的旧默认值 {@code /api/v1/classroom}（多的那一段单数
+     * classroom 在 classroom-service 中不存在，其控制器全部映射在 {@code /api/v1/classrooms}、
+     * {@code /api/v1/schedules}、{@code /api/v1/recordings}、{@code /api/v1/admin/classrooms}）。
+     * 直接用它拼接必然 404，而 push 是 best-effort、前端报错也不指向配置——排查成本极高。
+     * 因此这里做一次显式回退并 WARN，等运维执行 patch 脚本后告警自然消失。
+     */
+    private String normalizeApiBasePath(String basePath, EclassroomInstance instance) {
+        String p = normalizeBasePath(basePath);
+        if (p.endsWith("/classroom")) {
+            log.warn("课堂实例 api_base_path={} 为历史错误值（classroom-service 无该路径前缀），"
+                    + "已按 {} 处理。请执行 sql/patch/20261028-1700-classroom-integration-fix.sql 修正存量数据。"
+                    + " instanceId={}", basePath, DEFAULT_API_BASE_PATH, instance.getId());
+            return DEFAULT_API_BASE_PATH;
+        }
+        return p;
     }
 
     private String buildWsUrl(EclassroomInstance instance) {
@@ -186,8 +231,21 @@ public class EclassroomService {
         if (host == null) return null;
         Integer port = instance.getWsPort() != null ? instance.getWsPort() : instance.getApiPort();
         String basePath = instance.getWsBasePath();
-        if (basePath == null) basePath = "/ws";
-        return "ws" + buildUrl(host, port, basePath).substring(4);
+        if (basePath == null) basePath = DEFAULT_WS_BASE_PATH;
+        return "ws" + buildUrl(host, port, normalizeBasePath(basePath)).substring(4);
+    }
+
+    /**
+     * 归一化根路径：去掉末尾斜杠（避免拼出 {@code //classrooms}），
+     * 空串/仅空白/仅斜杠一律归为 ""（表示根）。
+     */
+    private String normalizeBasePath(String basePath) {
+        if (basePath == null) return "";
+        String p = basePath.trim();
+        if (p.isEmpty() || "/".equals(p)) return "";
+        if (!p.startsWith("/")) p = "/" + p;
+        while (p.endsWith("/")) p = p.substring(0, p.length() - 1);
+        return p;
     }
 
     private String buildUrl(String host, Integer port, String basePath) {

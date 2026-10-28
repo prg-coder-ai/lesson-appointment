@@ -178,11 +178,13 @@ public class SecurityConfig {
 
                     // classroom-service 回调端点（HMAC 签名鉴权，不走 JWT）
                     // 四处白名单同步：SecurityConfig / JwtFilter / WebMvcConfig / authz PERMIT_ALL
+                    // 路径刻意避开前端课堂路由 /api/v1/classrooms/**（nginx 转发到 8092），
+                    // 否则经域名访问回调会被打到课堂服务并 404。
                     auth.requestMatchers(
-                            "/api/v1/classrooms/attendance",
-                            "/api/v1/classrooms/events",
-                            "/api/v1/classrooms/alerts",
-                            "/api/v1/classrooms/reconcile"
+                            "/api/v1/classroom-callback/attendance",
+                            "/api/v1/classroom-callback/events",
+                            "/api/v1/classroom-callback/alerts",
+                            "/api/v1/classroom-callback/reconcile"
                     ).permitAll();
 
                     // 教师已上传图片公开伺服（免登录，匿名学生浏览发布页也要看得到）。

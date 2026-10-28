@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Base64;
 
 /**
@@ -37,8 +38,17 @@ public class HmacSigner {
         }
     }
 
+    /**
+     * 校验签名。使用恒定时间比较（{@link MessageDigest#isEqual}）防时序侧信道，
+     * 且空签名一律判失败——不要依赖调用方先判空。
+     */
     public boolean verify(String payload, String signature) {
+        if (payload == null || signature == null || signature.isEmpty()) {
+            return false;
+        }
         String expected = sign(payload);
-        return expected.equals(signature);
+        return MessageDigest.isEqual(
+                expected.getBytes(StandardCharsets.UTF_8),
+                signature.getBytes(StandardCharsets.UTF_8));
     }
 }

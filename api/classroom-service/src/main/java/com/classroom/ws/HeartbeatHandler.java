@@ -12,12 +12,25 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 心跳/在线状态处理器（F3-02~04）。
+ *
+ * <p><b>修的两个 bug</b>：
+ * <ol>
+ *   <li>scheduleId 解析错位：修复前取 {@code parts[4]}，对
+ *       {@code /ws/classrooms/{sid}/heartbeat} 来说第 4 段是通道名 {@code heartbeat}，
+ *       于是所有课堂的心跳都写进同一个 {@code online:heartbeat:{userId}} key，
+ *       在线状态彻底失真。现统一从握手拦截器写入的 session 属性取。</li>
+ *   <li>userId 从报文里用字符串截取（{@code indexOf("\"userId\"")}）解析：
+ *       报文字段顺序一变就取错，且不校验「报文里的 userId 是不是本人」——
+ *       任何人可以替别人刷心跳把离线的人刷成在线。现优先用已鉴权的
+ *       {@link WsHandshakeAuthInterceptor#ATTR_USER_ID}，报文里的 userId 仅作兜底。</li>
+ * </ol>
  */
 @Slf4j
 @Component
 public class HeartbeatHandler extends TextWebSocketHandler {
 
     private final OnlineStateManager onlineStateManager;
+    /** sessionId -> userId（关闭时用于置离线） */
     private final Map<String, String> sessionUsers = new ConcurrentHashMap<>();
 
     public HeartbeatHandler(OnlineStateManager onlineStateManager) {
@@ -25,43 +38,44 @@ public class HeartbeatHandler extends TextWebSocketHandler {
     }
 
     @Override
-    protected void handleTextMessage(WebSocketSession session, TextMessage message) {
-        String payload = message.getPayload();
-        log.debug("心跳收到: sessionId={}, payload={}", session.getId(), payload);
-        String scheduleId = extractPathVariable(session);
-        String userId = extractUserId(payload);
-        if (userId != null) {
-            onlineStateManager.refresh(scheduleId, userId);
-            sessionUsers.put(session.getId(), userId);
+    public void afterConnectionEstablished(WebSocketSession session) {
+        String userId = attr(session, WsHandshakeAuthInterceptor.ATTR_USER_ID);
+        String scheduleId = attr(session, WsHandshakeAuthInterceptor.ATTR_SCHEDULE_ID);
+        if (userId == null || scheduleId == null) {
+            log.warn("心跳连接缺少身份/房间，强制关闭: sessionId={}", session.getId());
+            try {
+                session.close(CloseStatus.NOT_ACCEPTABLE);
+            } catch (Exception ignore) {
+                // ignore
+            }
+            return;
         }
+        sessionUsers.put(session.getId(), userId);
+        onlineStateManager.refresh(scheduleId, userId);
+        log.debug("心跳连接建立: scheduleId={}, userId={}", scheduleId, userId);
+    }
+
+    @Override
+    protected void handleTextMessage(WebSocketSession session, TextMessage message) {
+        String scheduleId = attr(session, WsHandshakeAuthInterceptor.ATTR_SCHEDULE_ID);
+        String userId = attr(session, WsHandshakeAuthInterceptor.ATTR_USER_ID);
+        if (scheduleId == null || userId == null) return;
+        // 报文内容不参与身份判定：身份以握手鉴权结果为准，避免「替他人刷心跳」
+        onlineStateManager.refresh(scheduleId, userId);
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         String userId = sessionUsers.remove(session.getId());
-        String scheduleId = extractPathVariable(session);
-        if (userId != null) {
+        String scheduleId = attr(session, WsHandshakeAuthInterceptor.ATTR_SCHEDULE_ID);
+        if (userId != null && scheduleId != null) {
             onlineStateManager.setOffline(scheduleId, userId);
         }
-        log.info("心跳连接关闭: sessionId={}, userId={}", session.getId(), userId);
+        log.info("心跳连接关闭: scheduleId={}, userId={}, status={}", scheduleId, userId, status);
     }
 
-    private String extractPathVariable(WebSocketSession session) {
-        String path = session.getUri().getPath();
-        String[] parts = path.split("/");
-        return parts.length > 4 ? parts[4] : "unknown";
-    }
-
-    private String extractUserId(String payload) {
-        if (payload.contains("\"userId\"")) {
-            int start = payload.indexOf("\"userId\"") + 9;
-            int colon = payload.indexOf(":", start);
-            int quote1 = payload.indexOf("\"", colon);
-            int quote2 = payload.indexOf("\"", quote1 + 1);
-            if (quote1 > 0 && quote2 > 0) {
-                return payload.substring(quote1 + 1, quote2);
-            }
-        }
-        return null;
+    private String attr(WebSocketSession session, String key) {
+        Object v = session.getAttributes().get(key);
+        return v == null ? null : v.toString();
     }
 }

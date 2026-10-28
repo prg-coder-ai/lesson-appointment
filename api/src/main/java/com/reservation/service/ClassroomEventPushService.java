@@ -50,7 +50,6 @@ public class ClassroomEventPushService {
     private static final Logger log = LoggerFactory.getLogger(ClassroomEventPushService.class);
     private static final String SYSTEM_PRINCIPAL = "system";
     private static final DateTimeFormatter DT_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-
     @Resource
     private EclassroomService eclassroomService;
     @Resource
@@ -63,6 +62,10 @@ public class ClassroomEventPushService {
     private UserMapper userMapper;
     @Resource
     private BookingMapper bookingMapper;
+    @Resource
+    private com.reservation.utils.HmacVerifier hmacVerifier;
+    @Resource
+    private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @Value("${classroom.service.base-url:http://localhost:8092}")
     private String defaultBaseUrl;
@@ -118,10 +121,17 @@ public class ClassroomEventPushService {
             }
 
             String token = jwtUtil.generateToken(tenantId, SYSTEM_PRINCIPAL, SYSTEM_PRINCIPAL);
+            // 序列化只做一次：签名与发送必须用同一个字符串。
+            // 若签名用 A 串、发送时 RestTemplate 再序列化出 B 串，对端按原文验签会恒失败。
+            String json = objectMapper.writeValueAsString(payload);
+
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setBearerAuth(token);
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
+            // 服务间调用鉴权（需求 4.4-3 / 9.4-3）：classroom-service 的 /schedules/events 不走 JWT，
+            // 改为校验 HMAC —— 不签名就没法推事件，也挡住了「任意人伪造排期事件建课堂」。
+            headers.set("X-Hmac-Signature", hmacVerifier.sign(json));
+            HttpEntity<String> entity = new HttpEntity<>(json, headers);
 
             String eventUrl = apiBaseUrl + "/schedules/events";
             ResponseEntity<Map> resp = restTemplate.postForEntity(eventUrl, entity, Map.class);
@@ -190,9 +200,62 @@ public class ClassroomEventPushService {
         payload.put("courseName", courseName);
         payload.put("teacher", teacher);
         payload.put("students", students);
-        payload.put("startTime", schedule.getStartTime());
-        payload.put("endTime", schedule.getEndTime());
-        payload.put("version", 1);
+        // 必须发 ISO-8601（带 T）：classroom-service 的 ScheduleEventReq 用 LocalDateTime 接收，
+        // Jackson 默认只认 "yyyy-MM-dd'T'HH:mm:ss"。直接发库里的 "yyyy-MM-dd HH:mm:ss"
+        // 会在对端解析失败 → 400 请求体格式错误（实测踩过：推送"成功返回非2xx"且课堂状态不动）。
+        payload.put("startTime", toIsoDateTime(schedule.getStartTime()));
+        payload.put("endTime", toIsoDateTime(schedule.getEndTime()));
+        // duration 之前漏发，对端只能回落默认 60 分钟，导致 30 分钟的课被按 60 分钟封顶核算
+        payload.put("duration", resolveDurationMinutes(schedule.getStartTime(), schedule.getEndTime()));
+        // version 之前硬编码 1：对端的「按 version 丢弃旧事件」永远不生效（乱序必被覆盖）。
+        // 用 epoch 秒作单调版本号（INT 列上限 2.1e9，1.79e9 安全），同秒内并发改期视为同版本。
+        payload.put("version", (int) (System.currentTimeMillis() / 1000L));
         return payload;
+    }
+
+    /**
+     * 把库里的 {@code yyyy-MM-dd HH:mm:ss} 归一为 {@code yyyy-MM-dd'T'HH:mm:ss}（ISO-8601）。
+     * 已含 T 或带时区偏移的原样返回；null/空返回 null（由对端 @NotNull 校验报错，而不是这里静默造值）。
+     */
+    private String toIsoDateTime(String raw) {
+        if (raw == null) return null;
+        String s = raw.trim();
+        if (s.isEmpty()) return null;
+        if (s.indexOf('T') > 0 || s.endsWith("Z") || s.matches(".*[+-]\\d{2}:?\\d{2}$")) return s;
+        s = s.replace(' ', 'T');
+        // 只到分钟时补秒，保证两端格式一致
+        if (s.length() == 16) s = s + ":00";
+        return s;
+    }
+
+    /**
+     * 课时时长（分钟）：优先由起止时间算，算不出来回落 60。
+     * 不用 course_schedule.class_duration 是因为实体未映射该列（读不到），
+     * 与其加字段不如按时间差推——排期的起止时间本来就是课时长度的真相。
+     */
+    private Integer resolveDurationMinutes(String start, String end) {
+        try {
+            if (start == null || end == null) return 60;
+            LocalDateTime s = parseFlexible(start);
+            LocalDateTime e = parseFlexible(end);
+            if (s == null || e == null) return 60;
+            long minutes = java.time.Duration.between(s, e).toMinutes();
+            return minutes > 0 ? (int) minutes : 60;
+        } catch (Exception ex) {
+            return 60;
+        }
+    }
+
+    private LocalDateTime parseFlexible(String raw) {
+        String s = raw.trim();
+        try {
+            return LocalDateTime.parse(s.replace(' ', 'T'));
+        } catch (Exception ignore) {
+            try {
+                return LocalDateTime.parse(s, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            } catch (Exception e2) {
+                return null;
+            }
+        }
     }
 }

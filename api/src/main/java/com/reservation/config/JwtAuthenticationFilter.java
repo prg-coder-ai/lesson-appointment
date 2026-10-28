@@ -99,7 +99,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/api/v1/teacher/professional/file",
             // classroom-service 回调端点前缀（HMAC 签名鉴权，不走 JWT）
             // 四处白名单同步：SecurityConfig / JwtFilter / WebMvcConfig / authz PERMIT_ALL
-            "/api/v1/classrooms/"
+            // 注意是 classroom-callback（回调专用），不能写成 classrooms——后者是前端课堂路由，
+            // nginx 会把 /api/v1/classrooms/** 整体转发到 8092。
+            "/api/v1/classroom-callback/"
     );
 
     /** 静态资源前缀 */

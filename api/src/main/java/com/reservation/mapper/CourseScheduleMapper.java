@@ -81,4 +81,18 @@ public interface CourseScheduleMapper extends BaseMapper<CourseSchedule> {
             + "AND cs.status = 'active' "
             + "ORDER BY cs.start_time ASC")
     List<CourseSchedule> selectActiveSchedulesByTeacherIdManageIgnoreTenant(@Param("teacherId") String teacherId);
+
+    /**
+     * 按排期 id 取排期，**忽略租户隔离**——仅供 classroom-service 的 HMAC 回调线程使用。
+     *
+     * <p>回调是免登录路径（白名单放行、无 Bearer），线程里没有 {@code TenantContext}，
+     * 租户插件会兜底拼 {@code tenant_id = -1} 导致 selectById 恒返回 null，
+     * 后续「出勤回流落库」就会因拿不到 tenantId 而静默丢弃。
+     *
+     * <p>调用方是可信内部服务（HMAC 已验签），且这里只读取租户归属用于**写库时显式赋值**，
+     * 不用于任何越权判断。管理端/客户端读排期请继续走带租户的常规方法。
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT * FROM course_schedule WHERE schedule_id = #{scheduleId} LIMIT 1")
+    CourseSchedule selectByIdIgnoreTenant(@Param("scheduleId") String scheduleId);
 }

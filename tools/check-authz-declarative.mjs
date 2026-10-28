@@ -213,10 +213,11 @@ const PERMIT_ALL = [
   '/api/v1/teacher/professional/file/**',
   // classroom-service 回调端点（HMAC 签名鉴权，不走 JWT）
   // 四处白名单同步：SecurityConfig / JwtFilter / WebMvcConfig / authz PERMIT_ALL
-  '/api/v1/classrooms/attendance',
-  '/api/v1/classrooms/events',
-  '/api/v1/classrooms/alerts',
-  '/api/v1/classrooms/reconcile',
+  // 前缀 classroom-callback 刻意避开前端课堂路由 /api/v1/classrooms/**（nginx → 8092）
+  '/api/v1/classroom-callback/attendance',
+  '/api/v1/classroom-callback/events',
+  '/api/v1/classroom-callback/alerts',
+  '/api/v1/classroom-callback/reconcile',
 ];
 const isPermitAll = (p) => PERMIT_ALL.includes(p);
 

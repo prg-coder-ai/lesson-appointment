@@ -3,6 +3,7 @@ package com.classroom.controller;
 import com.classroom.common.Result;
 import com.classroom.entity.Attendance;
 import com.classroom.security.AuthContext;
+import com.classroom.security.ClassroomAccessGuard;
 import com.classroom.service.AttendanceService;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,13 +17,17 @@ import java.util.List;
 public class AttendanceController {
 
     private final AttendanceService attendanceService;
+    private final ClassroomAccessGuard accessGuard;
 
-    public AttendanceController(AttendanceService attendanceService) {
+    public AttendanceController(AttendanceService attendanceService,
+                                ClassroomAccessGuard accessGuard) {
         this.attendanceService = attendanceService;
+        this.accessGuard = accessGuard;
     }
 
     @GetMapping
     public Result<List<Attendance>> list(@PathVariable String scheduleId) {
+        accessGuard.assertAccess(scheduleId, AuthContext.currentUserId(), AuthContext.currentRole());
         return Result.ok(attendanceService.listBySchedule(scheduleId));
     }
 
@@ -33,6 +38,7 @@ public class AttendanceController {
         if (!AuthContext.isTeacher() && !AuthContext.isManager()) {
             return Result.fail(403, "仅教师可手动补签");
         }
+        accessGuard.assertAccess(scheduleId, AuthContext.currentUserId(), AuthContext.currentRole());
         attendanceService.manualAdjust(scheduleId, userId, reason);
         return Result.success();
     }

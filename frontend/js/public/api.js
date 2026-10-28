@@ -299,13 +299,16 @@ const userStr = STORE.getItem('currentUser');
   }
 
   if (STORE.getItem('token') && !STORE.getItem('eclassroomConfig')) {
-    request({ url: '/api/v1/eclassroom/config', method: 'get' })
+    var _EP = (window.ApiPaths && window.ApiPaths.ENDPOINTS) || {};
+    if (_EP.ECLASSROOM_CONFIG) {
+      request({ url: _EP.ECLASSROOM_CONFIG, method: 'get' })
       .then(function (data) {
         if (data && typeof window.setEclassroomConfig === 'function') {
           window.setEclassroomConfig(data);
         }
       })
       .catch(function (e) { /* ignore - non-critical */ });
+    }
   }
 
   return userInfo;
