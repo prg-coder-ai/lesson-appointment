@@ -41,6 +41,14 @@ public class AppointmentService extends ServiceImpl<AppointmentMapper, Appointme
     private RefundRuleService refundRuleService;
 
     /**
+     * 课时扣减（2026-10-28 S6）。只用于「请假被驳回」这一条路径的补扣：
+     * 口径是「有请假申请即免扣」，驳回后状态退回 active 就必须补上那 1 课时，
+     * 否则「先申请、被拒、照上」等于白上一节课。
+     */
+    @Resource
+    private LessonDeductionService lessonDeductionService;
+
+    /**
      * 写路径时间态闸的受控状态：申请请假/改期（cancelling / t-cancelling）与撤回（active）。
      * 课次一旦开始（now ≥ appointment_datetime，UTC），这三类变更一律 409 拒绝；
      * 管理员确认类状态（cancelled/reject/t-cancelled 等）不拦——管理员保留「课后补处理」特权。
@@ -293,9 +301,13 @@ log.debug(userId + role + startTime + endTime + pageNum + pageSize + status);
     // 调用 AppointmentMapper 的 updateStatusByBookingId 方法
     // 时间态闸（2026-10-11 方案 B1）：受控状态（申请/撤回）下，任一课次已开始即整批 409，
     // 避免逐条半成功。管理员确认类状态不拦（课后补处理特权）。
+    //
+    // 2026-10-28 S6：这里顺便把「改之前的课次」留一份，供驳回补扣判定用。
+    // 必须在 UPDATE 之前取——批量更新后再查只能看到新状态，无法区分「原本在请假中」，
+    // 于是会把每一次正常状态变更都当成驳回，进而误扣课时。
+    List<Appointment> beforeList = lambdaQuery().eq(Appointment::getBookingId, bookingId).list();
     if (isTimeGateStatus(status)) {
-        List<Appointment> appts = lambdaQuery().eq(Appointment::getBookingId, bookingId).list();
-        for (Appointment a : appts) {
+        for (Appointment a : beforeList) {
             if (a != null && TimePhaseService.hasStarted(a.getAppointmentDatetime(),
                     ScheduleGenerator.nowUtc())) {
                 throw new ConflictException(TermMsg.t("课程已开始，无法批量变更{lesson}状态"));
@@ -306,6 +318,11 @@ log.debug(userId + role + startTime + endTime + pageNum + pageSize + status);
     if (updated <= 0) {
         // 同 updateStatusById：0 行更新显式 404，杜绝 Result.success(false) 假成功（2026-10-11）
         throw new ResourceNotFoundException(TermMsg.t("{lesson}不存在或无权操作"));
+    }
+    // 整单驳回（rej-cancelling / booking → 课次还原 active）同样要补扣：
+    // 只对「改之前处于请假中」的课次补，逐条复用与单条路径完全一致的判定。
+    for (Appointment before : beforeList) {
+        chargeIfLeaveRejected(before, status);
     }
     return updated > 0;
     }
@@ -343,7 +360,61 @@ log.debug(userId + role + startTime + endTime + pageNum + pageSize + status);
             log.warn("退费档位快照落库失败, appointmentId={}, 原因={}", id, e.getMessage());
         }
     }
+    // 请假被驳回：状态从 cancelling 族退回非免扣态（通常是 active），必须补扣课时。
+    // 见 chargeIfLeaveRejected 注释——这是「申假即免扣」口径下唯一的漏扣口子。
+    chargeIfLeaveRejected(current, status);
     return updated > 0;
+    }
+
+    /**
+     * 请假被驳回时的补扣（2026-10-28 S6）。
+     *
+     * <h3>补的是什么漏洞</h3>
+     * 扣减规则是「只要有请假申请就不扣」（用户 2026-10-28 拍板，申请即算），
+     * 于是「先申请 → 不扣 → 事后被管理员驳回 → 课还是上了」就白嫖了一节课。
+     * 驳回会把状态退回 {@code active}，但此时课次已经不在「免扣」之列，
+     * 却没有第二次扣减的触发点——流水里永远不会有这一笔。
+     *
+     * <h3>为什么这里不会重复扣</h3>
+     * 走的是同一个 {@code classroom:{appointmentId}} 幂等键：
+     * 若该课次此前已被结算（例如先 completed 后又被改成 cancelling 再驳回），
+     * 插入流水会撞唯一键，按「已结算」直接返回。
+     *
+     * <h3>为什么失败只 warn</h3>
+     * 补扣是账务动作，不能让「修改课次状态」这个业务操作失败——状态已经改成功了，
+     * 抛异常只会让前端看到报错而实际已生效。留 WARN 供对账发现，缺口由兜底任务补。
+     */
+    void chargeIfLeaveRejected(Appointment before, String newStatus) {
+        if (before == null || before.getId() == null) {
+            return;
+        }
+        String oldStatus = before.getStatus();
+        // 只处理「原来在请假中」的场景：原本就是 active 的课次不会因这次改状态而产生新欠费
+        if (!com.reservation.common.AppointmentStatus.isCancelling(oldStatus)) {
+            return;
+        }
+        // 新状态仍属免扣（改成 cancelled / t-cancelled / changed 等）→ 不需要补扣
+        if (com.reservation.common.AppointmentStatus.isLessonExempt(newStatus)) {
+            return;
+        }
+        if (com.reservation.common.AppointmentStatus.CHECKED_IN.equalsIgnoreCase(newStatus)
+                || com.reservation.common.AppointmentStatus.ACTIVE.equalsIgnoreCase(newStatus)
+                || com.reservation.common.AppointmentStatus.NOTED1.equalsIgnoreCase(newStatus)
+                || com.reservation.common.AppointmentStatus.NOTED2.equalsIgnoreCase(newStatus)) {
+            try {
+                // 重新取一次：拿到已落库的最新状态，避免用调用方传进来的旧对象判免扣
+                Appointment fresh = baseMapper.selectById(before.getId());
+                if (fresh == null) {
+                    return;
+                }
+                lessonDeductionService.settleByAppointment(fresh);
+                log.info("请假被驳回，已补扣课时: appointmentId={}, {} → {}",
+                        before.getId(), oldStatus, newStatus);
+            } catch (Exception e) {
+                log.warn("请假驳回补扣失败(需对账兜底): appointmentId={}, {} → {}, 原因={}",
+                        before.getId(), oldStatus, newStatus, e.getMessage());
+            }
+        }
     }
 
 public boolean removeById(Integer appId){
