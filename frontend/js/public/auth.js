@@ -178,7 +178,11 @@
         throw new Error(bizMsg);
       }
       //console .log("authenticateUser",res);
-      return saveCurrentUserSession(res);
+      var session = saveCurrentUserSession(res);
+      if (res.eclassroom && typeof window.setEclassroomConfig === 'function') {
+        window.setEclassroomConfig(res.eclassroom);
+      }
+      return session;
     } catch (err) {
       // 登录失败统一显示固定文案，防止账号枚举（P0.5 起后端已把两种失败合并成同一句，
       // 这里的 404 分支只是给旧后端兜底，保留不会有害）。

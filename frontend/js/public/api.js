@@ -297,8 +297,19 @@ const userStr = STORE.getItem('currentUser');
     document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
     return;
   }
+
+  if (STORE.getItem('token') && !STORE.getItem('eclassroomConfig')) {
+    request({ url: '/api/v1/eclassroom/config', method: 'get' })
+      .then(function (data) {
+        if (data && typeof window.setEclassroomConfig === 'function') {
+          window.setEclassroomConfig(data);
+        }
+      })
+      .catch(function (e) { /* ignore - non-critical */ });
+  }
+
   return userInfo;
-}
+ }
 
  function autoLoginCheck1() {
   // 读取本地 STORE 保存的用户信息
@@ -885,3 +896,97 @@ function maskEmail(email) {
   window.showChangePasswordDialog = showChangePasswordDialog;
   window.addChangePasswordButton = addChangePasswordButton;
   window.redirectToUserPage = redirectToUserPage;
+  // ============================================================
+  // ClassroomAPI — classroom-service 接口封装
+  //
+  // 调用约定：首参 apiBaseUrl 可为 null/'' （同源走 nginx 代理）
+  //   或绝对地址（直连 classroom-service，如 'https://classroom.example.com'）
+  //   apiBaseUrl 来自 getClassroomApiBaseUrl()（登录时存入 localStorage）
+  // ============================================================
+
+  function _classroomUrl(apiBaseUrl, path) {
+    return (apiBaseUrl || '') + path;
+  }
+
+  const ClassroomAPI = {
+    // ---- 课堂接入 ----
+    enterClassroom: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/enter'), method: 'post' });
+    },
+    leaveClassroom: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/leave'), method: 'post' });
+    },
+    getClassroomStatus: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/status'), method: 'get' });
+    },
+    startClass: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/start'), method: 'post' });
+    },
+    endClass: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/end'), method: 'post' });
+    },
+
+    // ---- 成员管理 ----
+    kickMember: function (apiBaseUrl, scheduleId, userId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/members/' + encodeURIComponent(userId) + '/kick'), method: 'post' });
+    },
+
+    // ---- 签到/出勤 ----
+    getAttendance: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/attendance'), method: 'get' });
+    },
+    manualAdjust: function (apiBaseUrl, scheduleId, userId, reason) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/attendance/manual-adjust'), method: 'post', data: { userId: userId, reason: reason } });
+    },
+
+    // ---- 讲稿 ----
+    uploadMaterial: function (apiBaseUrl, scheduleId, formData) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/materials'), method: 'post', data: formData });
+    },
+    getMaterials: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/materials'), method: 'get' });
+    },
+    turnPage: function (apiBaseUrl, scheduleId, materialId, page) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/materials/' + encodeURIComponent(materialId) + '/page'), method: 'put', data: { page: page } });
+    },
+
+    // ---- 点名 ----
+    initiateRollCall: function (apiBaseUrl, scheduleId, targetUserId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/rollcall'), method: 'post', data: { targetUserId: targetUserId } });
+    },
+    answerRollCall: function (apiBaseUrl, scheduleId, rollcallId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/rollcall/' + encodeURIComponent(rollcallId) + '/answer'), method: 'post' });
+    },
+    getRollCallList: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/rollcall'), method: 'get' });
+    },
+
+    // ---- 学生作品 ----
+    submitWork: function (apiBaseUrl, scheduleId, data) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/submissions'), method: 'post', data: data });
+    },
+    getSubmissions: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/submissions'), method: 'get' });
+    },
+    reviewSubmission: function (apiBaseUrl, scheduleId, submissionId, comment, score) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/submissions/' + encodeURIComponent(submissionId) + '/review'), method: 'put', data: { comment: comment, score: score } });
+    },
+
+    // ---- 录制回放 ----
+    getRecordings: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/recordings/' + encodeURIComponent(scheduleId)), method: 'get' });
+    },
+    getPlaybackUrl: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/recordings/' + encodeURIComponent(scheduleId) + '/playback'), method: 'get' });
+    },
+
+    // ---- 运营后台 ----
+    monitorClassrooms: function (apiBaseUrl, status) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/admin/classrooms/monitor'), method: 'get', data: { status: status } });
+    },
+    remoteEndClass: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/admin/classrooms/' + encodeURIComponent(scheduleId) + '/end'), method: 'post' });
+    }
+  };
+
+  window.ClassroomAPI = ClassroomAPI;
