@@ -61,7 +61,9 @@ const STATUS_OPTIONS = [
   { v: '', t: '全部' },
   { v: 'active', t: '生效' },
   { v: 'noted1', t: '已通知' },
+  { v: 'checked-in', t: '已签到' },
   { v: 'completed', t: '已完成' },
+  { v: 'absent', t: '缺席' },
   { v: 't-cancelling', t: '取消中' },
   { v: 'cancelled', t: '已取消' },
   { v: 't-reject', t: '已拒绝' },
@@ -255,7 +257,7 @@ Page(withTerms({
       let tone = 'ok';
       if (stList.some(s => s === 'cancelled' || s === 't-cancelled' || s === 't-reject')) tone = 'bad';
       else if (pending) tone = 'warn';
-      else if (stList.some(s => s === 'completed')) tone = 'done';
+      else if (stList.some(s => s === 'completed' || s === 'absent')) tone = 'done';
 
       return {
         key: k,

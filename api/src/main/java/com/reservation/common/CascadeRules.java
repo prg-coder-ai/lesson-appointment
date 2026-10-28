@@ -223,7 +223,7 @@ public final class CascadeRules {
             new Rule("booking", "booking_id", "appointment", "booking_id",
                     Action.FREEZE, AppointmentStatus.FROZEN,
                     "排期/预订被冻结 → 课次一并冻结，避免继续对已冻结的安排发上课通知；"
-                            + "completed/changed 是真实上过的课，不覆写")
+                            + "completed/changed/absent 是真实上过的课（缺席也算上过），不覆写")
     );
 
     /**

@@ -229,7 +229,7 @@ public class ReferentialCascadeService {
             return AppointmentStatus.CLOSED;
         }
         if ("booking".equals(table)) {
-            // 课次侧的 CLOSED 已含 frozen/cancelled/completed/changed；
+            // 课次侧的 CLOSED 已含 frozen/cancelled/completed/changed/absent（缺席是真实历史，不可抹）；
             // 预订侧只需跳过 completed（真实上完的单）——cancelled/frozen 是软删的正常目标。
             return List.of("completed", "changed");
         }

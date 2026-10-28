@@ -283,7 +283,18 @@ export const ENDPOINTS = {
   // 同上端点的**裸路径**（不带 query）：供 Web 端「用 axios params 传 tenantCode」的写法复用，
   // 既保持"一个端点只有一份字符串"，又不改变该调用点的请求形态（query 由 axios 拼）。
   TEACHER_PUBLIC_LIST_PATH: '/api/v1/teacher/published/public-list',
-  TEACHER_PUBLIC_GET: (id) => `/api/v1/teacher/published/public-get?id=${encodeURIComponent(id || '')}`
+  TEACHER_PUBLIC_GET: (id) => `/api/v1/teacher/published/public-get?id=${encodeURIComponent(id || '')}`,
+  // —— eclassroom 课堂模块（2026-10-27 阶段1：多租户特性开关）——
+  // /config：各角色查本租户课堂配置（前端登录后据此显隐课堂 UI）；其余为平台管理员管理端点。
+  // 课堂 API 实际请求地址用登录响应里 eclassroom.apiBaseUrl 拼接，不走 apiBase(8081)。
+  ECLASSROOM_CONFIG: '/api/v1/eclassroom/config',
+  ECLASSROOM_INSTANCES: '/api/v1/eclassroom/instances',
+  ECLASSROOM_INSTANCE_BY_ID: (id) => `/api/v1/eclassroom/instances/${encodeURIComponent(id || '')}`,
+  ECLASSROOM_TENANT_BINDING: (tenantId) => `/api/v1/eclassroom/tenant/${encodeURIComponent(tenantId || '')}`,
+  ECLASSROOM_TENANT_BIND: (tenantId, instanceId) =>
+    `/api/v1/eclassroom/tenant/${encodeURIComponent(tenantId || '')}/bind?instanceId=${encodeURIComponent(instanceId || '')}`,
+  ECLASSROOM_TENANT_DISABLE: (tenantId) => `/api/v1/eclassroom/tenant/${encodeURIComponent(tenantId || '')}/disable`,
+  ECLASSROOM_TENANT_UNBIND: (tenantId) => `/api/v1/eclassroom/tenant/${encodeURIComponent(tenantId || '')}/unbind`
 };
 
 // ── 后端程序探测目标（「数据维护 → 后台信息」Tab 与平台端「后端信息」页共用）──

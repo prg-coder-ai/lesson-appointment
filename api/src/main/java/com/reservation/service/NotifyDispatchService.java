@@ -88,9 +88,13 @@ public class NotifyDispatchService {
      * <p>重点是 {@code cancelling / s-cancelling / t-cancelling} 这几个请假申请中/已通过的状态：
      * 学生已经明确表示这次不来，再给他推「30 分钟后上课」只会骚扰。
      * （驳回请假会把状态改回 active，届时提醒照常恢复。）
+     *
+     * <p>2026-10-28 补 {@code checked-in}（人已经在课堂里，不用再提醒「该上课了」）
+     * 与 {@code absent}（缺席是终态，推送无意义）。
      */
     private static final List<String> DEAD_APPOINTMENT_STATUS = List.of(
-            "completed", "cancelled", "canceled", "changed", "frozen",
+            "completed", "absent", "cancelled", "canceled", "changed", "frozen",
+            "checked-in",
             "cancelling", "canceling", "s-cancelling", "t-cancelling",
             "rej-booking", "rej-cancelling", "delete");
 

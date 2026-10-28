@@ -498,7 +498,7 @@ async function datamaintain_fetchAppointmenPage(query) {
     * 这里只决定按钮显不显示，真正能不能发由服务端说了算（已过上课时间会被拒绝）。
     */
    function isNotifyActionable(status) {
-     const dead = ['completed', 'cancelled', 'canceled', 'changed', 'frozen',
+     const dead = ['completed', 'absent', 'checked-in', 'cancelled', 'canceled', 'changed', 'frozen',
                    'cancelling', 'canceling', 's-cancelling', 't-cancelling',
                    'rej-booking', 'rej-cancelling', 'delete', 'deleted'];
      return !dead.includes(String(status === null || status === undefined ? '' : status).trim());

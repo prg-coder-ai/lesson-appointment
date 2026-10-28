@@ -378,7 +378,18 @@ const ENDPOINTS = {
   // 同上端点的**裸路径**（不带 query）：供 Web 端「用 axios params 传 tenantCode」的写法复用，
   // 既保持"一个端点只有一份字符串"，又不改变该调用点的请求形态（query 由 axios 拼）。
   TEACHER_PUBLIC_LIST_PATH: '/api/v1/teacher/published/public-list',
-  TEACHER_PUBLIC_GET: (id) => `/api/v1/teacher/published/public-get?id=${encodeURIComponent(id || '')}`
+  TEACHER_PUBLIC_GET: (id) => `/api/v1/teacher/published/public-get?id=${encodeURIComponent(id || '')}`,
+  // —— eclassroom 课堂模块（2026-10-27 阶段1：多租户特性开关）——
+  // /config：各角色查本租户课堂配置（前端登录后据此显隐课堂 UI）；其余为平台管理员管理端点。
+  // 课堂 API 实际请求地址用登录响应里 eclassroom.apiBaseUrl 拼接，不走 apiBase(8081)。
+  ECLASSROOM_CONFIG: '/api/v1/eclassroom/config',
+  ECLASSROOM_INSTANCES: '/api/v1/eclassroom/instances',
+  ECLASSROOM_INSTANCE_BY_ID: (id) => `/api/v1/eclassroom/instances/${encodeURIComponent(id || '')}`,
+  ECLASSROOM_TENANT_BINDING: (tenantId) => `/api/v1/eclassroom/tenant/${encodeURIComponent(tenantId || '')}`,
+  ECLASSROOM_TENANT_BIND: (tenantId, instanceId) =>
+    `/api/v1/eclassroom/tenant/${encodeURIComponent(tenantId || '')}/bind?instanceId=${encodeURIComponent(instanceId || '')}`,
+  ECLASSROOM_TENANT_DISABLE: (tenantId) => `/api/v1/eclassroom/tenant/${encodeURIComponent(tenantId || '')}/disable`,
+  ECLASSROOM_TENANT_UNBIND: (tenantId) => `/api/v1/eclassroom/tenant/${encodeURIComponent(tenantId || '')}/unbind`
 };
 
 // ── 后端程序探测目标（「数据维护 → 后台信息」Tab 与平台端「后端信息」页共用）──
@@ -1039,8 +1050,10 @@ function isSiteFull(remainingSites) {
 // 里的课次状态 → 文案映射收口为唯一权威源；Web 端「今日课程」(today_course) 后续可对齐复用，
 // 消除两端各写一套 switch 的漂移风险。
 //
-// 【与后端同步】对齐后端 Appointment 状态枚举（active/noted1/noted2/completed/cancelled/
-// s-cancelling/t-cancelling/t-cancelled/t-reject/changed）。
+// 【与后端同步】对齐后端 Appointment 状态枚举（active/noted1/noted2/checked-in/completed/absent/
+// cancelled/s-cancelling/t-cancelling/t-cancelled/t-reject/changed）。
+// 2026-10-28 新增 checked-in（已签到，纯出席事实）与 absent（缺席，终态）。
+// 费用口径另见后端 AppointmentStatus#isLessonExempt：**扣减只看有没有请假，与是否签到无关**。
 //
 // 消费方式：
 //   - 小程序端：import { appointmentStatusText } from '../../shared/domain/appointmentState.js'
@@ -1053,7 +1066,9 @@ const APPOINTMENT_STATUS = Object.freeze({
   ACTIVE: 'active',
   NOTED1: 'noted1',
   NOTED2: 'noted2',
+  CHECKED_IN: 'checked-in',       // 已签到（学生已进入课堂，纯出席事实，不含费用语义）
   COMPLETED: 'completed',
+  ABSENT: 'absent',               // 缺席（课次结束仍未进入课堂；终态，但照扣课时）
   CANCELLED: 'cancelled',
   S_CANCELLING: 's-cancelling',   // 学生取消待确认
   T_CANCELLING: 't-cancelling',   // 教师取消中
@@ -1063,8 +1078,9 @@ const APPOINTMENT_STATUS = Object.freeze({
 });
 
 // 终态集合（课次已结束，不再可操作）。
+// checked-in 刻意不在其中：签到是过程态，后面还要转 completed。
 const APPOINTMENT_CLOSED_STATUSES = Object.freeze([
-  'completed', 'cancelled', 't-cancelled', 'changed'
+  'completed', 'absent', 'cancelled', 't-cancelled', 'changed'
 ]);
 
 /* -------------------------------------------------- 状态 → 展示文案（单一来源） */
@@ -1091,7 +1107,9 @@ function appointmentStatusText(status, opts) {
     case 'active': return '生效';
     case 'noted1':
     case 'noted2': return '已通知';
+    case 'checked-in': return '已签到';
     case 'completed': return '已完成';
+    case 'absent': return '缺席';
     case 'cancelling':
     case 'canceling':
     case 's-cancelling': return '取消待确认';

@@ -39,6 +39,25 @@ public final class AppointmentStatus {
     public static final String NOTED2 = "noted2";
     /** 已完成 */
     public static final String COMPLETED = "completed";
+
+    /**
+     * 已签到：学生已进入课堂（2026-10-28 新增）。
+     *
+     * <p><b>纯出席事实，不带任何费用语义</b>。写它不触发扣减/退费，
+     * 唯一作用是让师生在预约列表上立刻看到「已签到」。
+     * 课时扣减只判「有没有请假」，与是否签到无关（见课时扣减方案 v2 第三节）。
+     */
+    public static final String CHECKED_IN = "checked-in";
+
+    /**
+     * 缺席：课次结束仍未进入过课堂（2026-10-28 新增）。
+     *
+     * <p><b>是终态</b>：必须进 {@link #CLOSED}，否则 {@link #occupiesTime} 会把缺席的
+     * 历史课次当成仍占位——排期冲突检测会认为该时段被占用，新预约永远排不进去。
+     *
+     * <p>与费用的关系：缺席**不等于免扣**。只要学生没走请假流程，缺席照扣 1 课时。
+     */
+    public static final String ABSENT = "absent";
     /** 已改期 */
     public static final String CHANGED = "changed";
 
@@ -79,12 +98,31 @@ public final class AppointmentStatus {
     /**
      * 终态集合：课次已结束，不再可操作。
      *
-     * <p>与前端 {@code APPOINTMENT_CLOSED_STATUSES} 保持一致
+    * <p>与前端 {@code APPOINTMENT_CLOSED_STATUSES} 保持一致
      * （completed/cancelled/t-cancelled/changed），另补 {@link #FROZEN}——
-     * frozen 在前端被单独判为「已删除」而不在 closed 列表里，但同样不可再操作。
+     * frozen 在前端被单独判为「已删除」而不在 closed 列表里，但同样不可再操作；
+     * 以及 {@link #ABSENT}（2026-10-28 新增，缺席同样已结束）。
+     *
+     * <p><b>absent 必须在这里</b>：{@link #occupiesTime} 靠 {@link #isClosed} 判非占位，
+     * 漏登记的后果是「已缺席的历史课次仍被算作占用时段」，排期冲突检测会把新预约挡在门外。
+     * 而 {@link #CHECKED_IN} <b>不在此列</b>——签到是过程态，后面还要转 completed。
      */
     public static final List<String> CLOSED =
-            List.of(COMPLETED, CANCELLED, CANCELED, T_CANCELLED, CHANGED, FROZEN);
+            List.of(COMPLETED, ABSENT, CANCELLED, CANCELED, T_CANCELLED, CHANGED, FROZEN);
+
+    /**
+     * 计入「课时数／预约数」统计的状态集合（2026-10-28 新增）。
+     *
+     * <p>口径：<b>没有请假、实际占用课时的课次</b>都算——包含还没上的（active/noted）
+     * 与已经上完的（checked-in/completed），也包含缺席（absent 照扣课时）。
+     * <b>不含</b>各类取消/改期/冻结（免扣，见 {@link #isLessonExempt}）。
+     *
+     * <p>为什么收敛到常量：原先 {@code AppointmentController} 两处统计各写一遍
+     * {@code Arrays.asList("active","completed")}，新增状态时必然漏改一处，
+     * 导致「本月课时数」少算。单一来源优先于就地写字面量。
+     */
+    public static final List<String> COUNTED_AS_LESSON =
+            List.of(ACTIVE, NOTED1, NOTED2, CHECKED_IN, COMPLETED, ABSENT);
 
     /** 该状态是否已是终态（不可再被联动改写） */
     public static boolean isClosed(String status) {
@@ -124,5 +162,38 @@ public final class AppointmentStatus {
             return false;
         }
         return !isClosed(status) && !isCancelling(status);
+    }
+
+    /**
+     * 该课次是否<b>免扣课时</b>（2026-10-28 新增，课时扣减的唯一判据）。
+     *
+     * <p><b>扣减只看请假，不看上了多久</b>（用户 2026-10-28 拍板）：
+     * <ul>
+     *   <li>学生请假（含申请中）：{@code cancelling}/{@code canceling}/{@code s-cancelling}/
+     *       {@code cancelled}/{@code canceled} → 免扣；</li>
+     *   <li>教师取消：{@code t-cancelling}/{@code t-cancelled} → 免扣（非学生责任）；</li>
+     *   <li>改期：{@code changed} → 本次免扣（改到的新课次另行计扣）；</li>
+     *   <li>冻结：{@code frozen}（预订被删）→ 免扣。</li>
+     * </ul>
+     *
+     * <p>其余状态（{@code active}/{@code noted1}/{@code noted2}/{@code checked-in}/
+     * {@code completed}/{@code absent}）<b>一律扣 1 课时</b>——
+     * 包括「全程没来」和「来了 3 分钟就走」，因为费用与出席时长无关。
+     *
+     * <p>实现要点：本方法必须与实际写库的判据同源。任何调用方都<b>不要自己拼字符串比较</b>，
+     * 否则新增状态时这里改了、别处没改，就会出现「某状态下重复扣费」这种最难对账的错。
+     *
+     * @param status 课次状态
+     * @return true = 免扣；false = 扣 1 课时
+     */
+    public static boolean isLessonExempt(String status) {
+        if (status == null || status.trim().isEmpty()) {
+            return false;
+        }
+        String s = status.trim().toLowerCase();
+        return CANCELLING.equals(s) || CANCELING.equals(s) || S_CANCELLING.equals(s)
+                || CANCELLED.equals(s) || CANCELED.equals(s)
+                || T_CANCELLING.equals(s) || T_CANCELLED.equals(s)
+                || CHANGED.equals(s) || FROZEN.equals(s);
     }
 }
