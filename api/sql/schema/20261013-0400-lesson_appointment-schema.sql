@@ -393,6 +393,10 @@ CREATE TABLE `course_schedule` (
   `repeat_interval` tinyint(1) DEFAULT '1' COMMENT '重复间隔（如每2周一次=2）',
   `repeat_days` varchar(255) DEFAULT NULL COMMENT '重复的星期几：1=周一，2=周二...7=周日，逗号分隔（仅repeat_type=2时有效），type=3时为1-31,当月的那几天',
   `available_sites` tinyint(1) NOT NULL DEFAULT '1' COMMENT '可预约席位总数（非剩余席位；剩余 = 该值 - 占位预订数）',
+  -- 2026-10-28 补：单课时长（分钟）。重复排期的 end_time 承载的是「重复结束日期」，
+  --   当天时刻差算不出单课有多长；没有这一列时课堂侧只能按 60 分钟封顶核算，
+  --   30/45 分钟的课会被多算。存量环境执行 sql/patch/20261028-2100-course-schedule-class-duration.sql。
+  `class_duration` int NOT NULL DEFAULT '60' COMMENT '单课时长（分钟；重复排期的 end_time 是重复结束日期，不能用于推算单课时长）',
   `status` varchar(20) NOT NULL DEFAULT 'pending' COMMENT '排期状态（pending/active/inactive/frozen/overtime：已结束（自动更新））',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',

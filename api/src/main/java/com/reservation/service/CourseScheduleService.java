@@ -453,6 +453,15 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
     // 多租户/前端未传 status 时兜底为 active（枚举 pending/active/inactive/frozen），避免 NOT NULL 约束触发 500
     cs.setStatus(dto.getStatus() == null ? "active" : dto.getStatus());
     cs.setName(dto.getName());
+    // 单课时长（分钟）：此前不写这一列，全靠 DB DEFAULT 60 —— 30/45 分钟的课会被
+    // 课堂侧按 60 分钟封顶核算（有效时长、课时消耗都跟着错）。这里按「结束时刻 − 开始时刻」补上。
+    // 跨零点（结束早于开始）算不出正数时留空，仍由 DB 默认值兜底，不猜。
+    if (dto.getStartTime() != null && dto.getEndTime() != null) {
+        long minutes = java.time.Duration.between(dto.getStartTime(), dto.getEndTime()).toMinutes();
+        if (minutes > 0) {
+            cs.setClassDuration((int) minutes);
+        }
+    }
     return cs;
 }
 
@@ -682,6 +691,7 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
             log.info("按课程ID删除排期开始, courseId={}", courseId);
              // 同 deleteById：先按排期逐条做程序级联，再批量删排期。
              // 顺序不能颠倒——booking 一旦先被删掉，就再也定位不到它的课次。
+             List<String> deletedScheduleIds = new ArrayList<>();
              List<CourseSchedule> schedules = scheduleMapper.selectList(
                      Wrappers.<CourseSchedule>lambdaQuery().eq(CourseSchedule::getCourseId, courseId));
              if (schedules != null && !schedules.isEmpty()) {
@@ -689,6 +699,9 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
                          .map(CourseSchedule::getScheduleId)
                          .filter(s -> s != null && !s.trim().isEmpty())
                          .collect(Collectors.toList());
+                 // 排期 id 必须留到删除之后用：取消课堂的事件在事务提交后才发，那时排期行已经没了，
+                 // 只能靠这里先记下来的 id（推送侧对「行已删」有最小载荷兜底，见 ClassroomEventPushService）。
+                 deletedScheduleIds.addAll(scheduleIds);
                  cascadeDeleteSchedules(scheduleIds);
              }
              int rows=            scheduleMapper.deleteByCourseId(courseId);
@@ -696,6 +709,11 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
             // 释放租户排期额度（按删除的排期条数）
             if (rows > 0) {
                 tenantQuotaService.release(TenantContext.getTenantId(), TenantQuotaService.SCHEDULE, rows);
+                // 整批删除同样要取消课堂：否则「删课程 → 删掉它下面所有排期」之后，
+                // 课堂侧的课堂一个都不会被取消，永久挂成孤儿。
+                for (String sid : deletedScheduleIds) {
+                    classroomEventPushService.pushAfterCommit(TenantContext.getTenantId(), sid, "cancelled");
+                }
             }
             return rows;
       }

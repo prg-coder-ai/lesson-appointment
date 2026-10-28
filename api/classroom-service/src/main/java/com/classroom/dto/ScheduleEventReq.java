@@ -1,5 +1,6 @@
 package com.classroom.dto;
 
+import jakarta.validation.groups.Default;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -14,13 +15,28 @@ import java.util.List;
 @Data
 public class ScheduleEventReq {
 
-    @NotBlank
+    /**
+     * 「整排期取消」专用校验组（2026-10-28）。
+     *
+     * <p>预约系统删排期是<b>先删行、再推取消事件</b>（{@code CourseScheduleService#deleteById}
+     * 在 {@code deleteById} 之后才 {@code pushAfterCommit(...,"cancelled")}）。等事件发出时
+     * 排期行已经没了，课程、教师、起止时间一概查不到。若取消事件也要求这些必填，
+     * 删除排期就永远推不出取消事件——课堂会<b>永久残留</b>在监控列表里，
+     * 而「删掉排期」恰恰是最需要取消课堂的场景。
+     *
+     * <p>因此取消只校验 eventId / eventType / scheduleId（取消语义只需要这三个），
+     * created / updated 仍走 {@link Default} 组，课程与教师时间照旧必填。
+     */
+    public interface CancelGroup {
+    }
+
+    @NotBlank(groups = {Default.class, CancelGroup.class})
     private String eventId;
 
-    @NotBlank
+    @NotBlank(groups = {Default.class, CancelGroup.class})
     private String eventType;
 
-    @NotBlank
+    @NotBlank(groups = {Default.class, CancelGroup.class})
     private String scheduleId;
 
     /**
@@ -36,6 +52,17 @@ public class ScheduleEventReq {
     private Integer classIndex;
 
     /**
+     * 该排期的课次总数（2026-10-28 多课次推送）。
+     *
+     * <p>只在 {@code updated} 事件里有意义：排期规则改短（10 周 → 5 周）后，
+     * 本侧已建的第 6..10 课次课堂不会被任何事件覆盖，必须由这个总数反推出
+     * 「超出范围的课次」并主动取消，否则孤儿课堂会永远挂在监控列表里。
+     *
+     * <p>{@code null} 表示推送方未告知（旧版推送方），此时不做任何清理。
+     */
+    private Integer classCount;
+
+    /**
      * 租户 id（排期归属）。
      *
      * <p>修复前本字段不存在、消费端写死 {@code tenantId=0L}，后果是租户管理员
@@ -44,21 +71,21 @@ public class ScheduleEventReq {
      */
     private Long tenantId;
 
-    @NotBlank
+    @NotBlank(groups = Default.class)
     private String courseId;
 
-    @NotBlank
+    @NotBlank(groups = Default.class)
     private String courseName;
 
-    @NotNull
+    @NotNull(groups = Default.class)
     private TeacherInfo teacher;
 
     private List<StudentInfo> students;
 
-    @NotNull
+    @NotNull(groups = Default.class)
     private LocalDateTime startTime;
 
-    @NotNull
+    @NotNull(groups = Default.class)
     private LocalDateTime endTime;
 
     private Integer duration;

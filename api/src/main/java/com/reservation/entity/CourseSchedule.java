@@ -37,6 +37,14 @@ public class CourseSchedule implements Serializable {
     private String status;  // 枚举值：pending/active/inactive/frozen
     private String timeZone;//排期计划的时区
      private String name;//排期名称
+    /**
+     * 单次课时长（分钟，库里 NOT NULL）。
+     *
+     * <p>2026-10-28 补映射：此前实体没映射该列，推送课堂事件时只能拿
+     * {@code start_time ~ end_time} 的差当课时长——而重复排期的 end_time 是**重复结束日期**，
+     * 算出来是「整段排期的分钟数」（如 10 周 = 10 万分钟），课堂侧按此封顶核算必然失真。
+     */
+    private Integer classDuration;
     /** 是否满额（瞬时字段，不入库）：availableSites <= 占用席位数 时为 true。供编辑/发布界面向客户标注。 */
     @TableField(exist = false)
     private Boolean full;

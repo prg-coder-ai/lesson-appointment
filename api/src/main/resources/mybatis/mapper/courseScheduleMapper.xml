@@ -4,9 +4,9 @@
      
     <insert id="insertSchedule" parameterType="com.reservation.entity.CourseSchedule" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO course_schedule
-        (schedule_id, name,course_id,  time_zone, start_time, end_time, repeat_type, repeat_interval, repeat_days, status, available_sites)
+        (schedule_id, name,course_id,  time_zone, start_time, end_time, repeat_type, repeat_interval, repeat_days, status, available_sites, class_duration)
         VALUES
-        (#{scheduleId}, #{name}, #{courseId} ,  #{timeZone}, #{startTime}, #{endTime}, #{repeatType}, #{repeatInterval}, #{repeatDays}, #{status}, #{availableSites})
+        (#{scheduleId}, #{name}, #{courseId} ,  #{timeZone}, #{startTime}, #{endTime}, #{repeatType}, #{repeatInterval}, #{repeatDays}, #{status}, #{availableSites}, COALESCE(#{classDuration}, 60))
     </insert> 
     <select id="selectByCreateDto" parameterType="com.reservation.dto.ScheduleCreateDTO" resultType="com.reservation.entity.CourseSchedule">
         SELECT *     FROM course_schedule         

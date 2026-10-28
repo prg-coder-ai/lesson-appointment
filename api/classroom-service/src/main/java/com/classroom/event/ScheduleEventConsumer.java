@@ -153,6 +153,8 @@ public class ScheduleEventConsumer {
         // 名单可能变化：补入新增学生（含出勤行 ABSENT）。
         // 只增不删——被移出名单的学生若已有出勤/课时记录，删掉等于销毁账务证据。
         syncRoster(event);
+        // 课次数可能变少：清理超出新范围的课堂
+        cancelOrphanInstances(event);
         log.info("课堂更新完成: scheduleId={}, version={}", event.getScheduleId(), event.getVersion());
     }
 
@@ -203,7 +205,53 @@ public class ScheduleEventConsumer {
     }
 
     private void handleCancelled(ScheduleEventReq event) {
-        classroomService.cancel(ClassroomKey.of(event.getScheduleId(), event.getClassIndex()));
-        log.info("课堂取消完成: scheduleId={}", event.getScheduleId());
+        // 带 classIndex = 只取消这一个课次（旧版推送方/单课次排期）
+        if (event.getClassIndex() != null) {
+            classroomService.cancel(ClassroomKey.of(event.getScheduleId(), event.getClassIndex()));
+            log.info("课堂取消完成: scheduleId={}", event.getScheduleId());
+            return;
+        }
+        // 不带 classIndex = 「该排期所有课次一并取消」（2026-10-28 多课次推送）。
+        // 为什么不让推送方逐课次发：那需要「推送方算出的课次数 == 本侧已建课次数」，
+        // 排期规则改短后两者必然不等，多出来的课堂就永远取消不掉。
+        List<Classroom> all = classroomMapper.listByScheduleGroup(event.getScheduleId());
+        if (all.isEmpty()) {
+            log.info("无课堂可取消（排期未建课堂或已清理）: scheduleId={}", event.getScheduleId());
+            return;
+        }
+        int cancelled = 0;
+        for (Classroom c : all) {
+            // 已结束的课堂不动：里面已有出勤与课时消耗，改状态等于抹账务证据
+            if ("CANCELLED".equals(c.getStatus()) || "CLOSED".equals(c.getStatus())) continue;
+            // 直播中不可直接取消（与 ClassroomService#cancel 同一口径），留给人处理
+            if ("LIVE".equals(c.getStatus())) {
+                log.warn("直播中的课堂不随排期取消: classroomId={}", c.getScheduleId());
+                continue;
+            }
+            cancelled += classroomMapper.updateStatus(c.getScheduleId(), c.getStatus(), "CANCELLED");
+        }
+        log.info("整排期取消完成: scheduleId={}, 课次={}, 已取消={}", event.getScheduleId(), all.size(), cancelled);
+    }
+
+    /**
+     * 课次数变少后清理多余课堂（{@code updated} 事件带 {@code classCount} 时）。
+     *
+     * <p>典型场景：原本每周 10 次的排期改成 5 次。第 6..10 课次的课堂不会被任何
+     * {@code updated} 事件命中（那些事件只带 1..5），没有这一步就会永久遗留。
+     */
+    private void cancelOrphanInstances(ScheduleEventReq event) {
+        Integer count = event.getClassCount();
+        if (count == null || count <= 0) return;
+        List<Classroom> all = classroomMapper.listByScheduleGroup(event.getScheduleId());
+        int cancelled = 0;
+        for (Classroom c : all) {
+            if (ClassroomKey.classIndexOf(c.getScheduleId()) <= count) continue;
+            if ("CANCELLED".equals(c.getStatus()) || "CLOSED".equals(c.getStatus()) || "LIVE".equals(c.getStatus())) continue;
+            cancelled += classroomMapper.updateStatus(c.getScheduleId(), c.getStatus(), "CANCELLED");
+        }
+        if (cancelled > 0) {
+            log.info("排期课次数由多变少，已取消多余课堂: scheduleId={}, classCount={}, 取消={}",
+                    event.getScheduleId(), count, cancelled);
+        }
     }
 }

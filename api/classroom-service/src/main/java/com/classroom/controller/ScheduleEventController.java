@@ -80,8 +80,13 @@ public class ScheduleEventController {
             return Result.fail(400, "请求体格式错误");
         }
 
-        // @Valid 在「手工反序列化」路径上不会自动触发，需显式校验，否则必填缺失会一路带到业务层
-        Set<ConstraintViolation<ScheduleEventReq>> violations = validator.validate(req);
+        // @Valid 在「手工反序列化」路径上不会自动触发，需显式校验，否则必填缺失会一路带到业务层。
+        // 取消事件走 CancelGroup：删排期时行已不在，课程/教师/时间拿不到（见 ScheduleEventReq#CancelGroup），
+        // 若按 created/updated 的全量必填报 400，删除排期就永远取消不掉课堂。
+        boolean cancelEvent = "cancelled".equals(req.getEventType());
+        Set<ConstraintViolation<ScheduleEventReq>> violations = cancelEvent
+                ? validator.validate(req, ScheduleEventReq.CancelGroup.class)
+                : validator.validate(req);
         if (!violations.isEmpty()) {
             String msg = violations.stream()
                     .map(v -> v.getPropertyPath() + " " + v.getMessage())
