@@ -537,6 +537,7 @@ async function renderScheduleCards() {
         <div id="calendar" class="calendar"></div>
         </div>
     </div>
+    <div id="enter-classroom-btn" style="text-align:right;margin-top:12px;"></div>
    </div><!-- tab-result 结束 -->
    <div class="tab-panel" id="tab-advanced">
      <!-- 候补队列 / 递补（从排期设置卡片移出，独立为高级 Tab） -->
@@ -1375,6 +1376,13 @@ function renderResult() {
         body.appendChild(tr);
     });
         }
+    // 进入课堂按钮（排期详情卡片底部）
+    const enterBtnContainer = document.getElementById('enter-classroom-btn');
+    if (enterBtnContainer && window.hasClassroom && window.hasClassroom() && currentScheduleId) {
+      enterBtnContainer.innerHTML = `<button class="btn btn-primary" style="background:#28a745;border-color:#28a745;" onclick="enterClassroom('${currentScheduleId}')"><i class="fas fa-video"></i> 进入课堂</button>`;
+    } else if (enterBtnContainer) {
+      enterBtnContainer.innerHTML = '';
+    }
   }
  // 渲染日历
  function renderCalendar() {
@@ -1709,5 +1717,13 @@ async function hasBookingForScheduleId(scheduleId) {
  * 3. 用页面外定位：如 style="position:absolute; left:-9999px;"，视觉上不可见但依然在 DOM，也可聚焦/访问内容。
  * 4. 用 aria-hidden="true" 属性 —— 仅影响无障碍，不影响 JS 获取内容。
  * 5. 用 CSS 类控制显示：通过添加/删除特定类名来控制元素的显示状态。
- * 结论：只要元素还在DOM树中，display:none不会影响JS用value/innerText等API访问或修改其内容。
- * */
+  * 结论：只要元素还在DOM树中，display:none不会影响JS用value/innerText等API访问或修改其内容。
+  * */
+
+// 进入课堂：跳转到课堂页面
+function enterClassroom(scheduleId) {
+  if (!scheduleId) { alert('缺少排期信息'); return; }
+  window.location.href = (typeof window.pageUrl === 'function')
+    ? window.pageUrl('classroom.html') + '&scheduleId=' + encodeURIComponent(scheduleId)
+    : './classroom.html?scheduleId=' + encodeURIComponent(scheduleId);
+}

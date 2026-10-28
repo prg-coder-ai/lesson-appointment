@@ -186,14 +186,24 @@ function  AddScheduleforTheCourse(courseId){
          item.status === "inactive" ? '<td>已收回</td>' :
          item.status === "frozen" ? '<td>已删除</td>' :
            `<td>${item.status||"未知"}</td>` ;
-     const tdBtn = document.createElement('td');
-     const applyAddSchBtn = document.createElement('button');
-     applyAddSchBtn.className = 'btn btn-success'; 
-     applyAddSchBtn.textContent = '查看详情'; 
-     applyAddSchBtn.onclick = (function(it){ return function(){ showScheduleCard(it); }; })(item);
-     tdBtn.appendChild(applyAddSchBtn);
-     tr.appendChild(tdBtn);   
-     body.appendChild(tr);
+      const tdBtn = document.createElement('td');
+      const applyAddSchBtn = document.createElement('button');
+      applyAddSchBtn.className = 'btn btn-success';  
+      applyAddSchBtn.textContent = '查看详情'; 
+      applyAddSchBtn.onclick = (function(it){ return function(){ showScheduleCard(it); }; })(item);
+      tdBtn.appendChild(applyAddSchBtn);
+      if (window.hasClassroom && window.hasClassroom()) {
+        const enterBtn = document.createElement('button');
+        enterBtn.className = 'btn btn-success';
+        enterBtn.style.marginLeft = '6px';
+        enterBtn.style.background = '#28a745';
+        enterBtn.style.borderColor = '#28a745';
+        enterBtn.textContent = '进入课堂';
+        enterBtn.onclick = (function(it){ return function(){ enterClassroom(it.scheduleId); }; })(item);
+        tdBtn.appendChild(enterBtn);
+      }
+      tr.appendChild(tdBtn);   
+      body.appendChild(tr);
    }
    renderSchPagination();
  }
@@ -443,3 +453,10 @@ async function getMyEndDatetime() {
   } 
 }
 //TBD :增加排期、删除排期--参照admin的排期页面
+// 进入课堂：跳转到课堂页面
+function enterClassroom(scheduleId) {
+  if (!scheduleId) { alert('缺少排期信息'); return; }
+  window.location.href = (typeof window.pageUrl === 'function')
+    ? window.pageUrl('classroom.html') + '&scheduleId=' + encodeURIComponent(scheduleId)
+    : './classroom.html?scheduleId=' + encodeURIComponent(scheduleId);
+}

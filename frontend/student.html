@@ -58,7 +58,10 @@
       <div class="menu-item" key="messages">
         <i class="fa fa-bell"></i>
         <span>消息中心</span>
-        <span class="msg-badge" id="msg-unread-badge" style="display:none;"></span>
+      </div>
+      <div class="menu-item" key="my_classroom" data-module="classroom">
+        <i class="fas fa-video"></i>
+        <span>我的课堂</span>
       </div>
       <div class="menu-item" key="teacher_showcase">
         <i class="fa fa-chalkboard-teacher"></i>
@@ -436,13 +439,18 @@
       const nameid=document.getElementById("user-name");
        if(nameid) nameid.innerHTML= userInfo && userInfo.name;
 
-       // 设置头像为用户名首字母
-       const avatarElem = document.getElementById("avatar");
-       if (avatarElem && userInfo && userInfo.name && userInfo.name.length > 0) {
-         avatarElem.textContent = userInfo.name.charAt(0);
-       }
+        // 设置头像为用户名首字母
+        const avatarElem = document.getElementById("avatar");
+        if (avatarElem && userInfo && userInfo.name && userInfo.name.length > 0) {
+          avatarElem.textContent = userInfo.name.charAt(0);
+        }
 
-      // ====== 深链参数解析 ======
+        // 应用模块开关：隐藏未启用模块的菜单项
+        if (typeof window.applyMenuVisibility === 'function') {
+          window.applyMenuVisibility();
+        }
+
+        // ====== 深链参数解析 ======
       // URL 形如 student.html?scdid=12355&tid=xxx&sid=xxx
       // scdid=排期ID, tid=教师ID, sid=学生ID
       var dlParams = new URLSearchParams(window.location.search);

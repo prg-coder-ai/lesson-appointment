@@ -105,6 +105,10 @@
           <i class="fa fa-calendar-alt" data-page-node-id="koYbCJbAoVKqnrTHfFDnJD"></i>
           <span data-page-node-id="v5bwUOH48epBnWUuSJn71J">预订审核</span>
         </div>
+        <div class="menu-item" key="classroom_monitor" data-module="classroom">
+          <i class="fas fa-chalkboard"></i>
+          <span>课堂监控</span>
+        </div>
         <div class="menu-group-title" data-page-node-id="ZvKXmth7hqNQXWU4ROrLK1">预约检视</div>
         <div class="menu-item" key="lesson_notice" data-page-node-id="DulTHi934i9s28ERRHc4h6">
           <i class="fa fa-calendar-alt" data-page-node-id="y6ECFklu3lWWPQGQONFIQb"></i>
@@ -523,8 +527,13 @@
         document.getElementById('user-name').innerHTML  = user.name  ;
       }
  
-     menuItems = document.querySelectorAll('.menu-item');
-     pageTitle = document.querySelector('.page-title');
+      // 应用模块开关：隐藏未启用模块的菜单项
+      if (typeof window.applyMenuVisibility === 'function') {
+        window.applyMenuVisibility();
+      }
+
+      menuItems = document.querySelectorAll('.menu-item');
+      pageTitle = document.querySelector('.page-title');
       dynamicContentCenter = document.getElementById('dynamic-content-center');
     // 菜单已在 HTML 中以 menu-item(key=...) 静态声明，无需 loadSideMenu 动态渲染
     menuItems.forEach(item => {

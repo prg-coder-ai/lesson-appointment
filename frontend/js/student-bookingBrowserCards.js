@@ -207,32 +207,36 @@ async function loadAndRenderBooking_student(){
                      }</p>
                 
                  </div>
-                 <div class="course-actions">
-                     ${
-                        userRole === 'student' && cardInfo.status === 'booking'
-                          ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','none')">撤销</button>`
-                          : userRole === 'student' && cardInfo.status === 'waiting'
-                          // 候补：学生只能撤销候补（置为已取消）。候补转正由管理员在预订列表点「确认候补」，
-                          // 学生侧不提供"直接确认"入口，避免绕过名额校验。
-                          ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','cancelled')">撤销候补</button>`
-                          : userRole === 'student' && cardInfo.status === 'booked'
-                          ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','cancelling')">取消预订</button>`
-                          : userRole === 'student' && (cardInfo.status === 'canceling' || cardInfo.status === 'cancelling')
-                          ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','booked')">撤销</button>`
-                          : userRole === 'student' && (cardInfo.status === 'canceled' ||  cardInfo.status === 'cancelled' )
-                          ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','booking')">重新申请</button>`
-                          : ''
-                     }
+                  <div class="course-actions">
+                      ${
+                         userRole === 'student' && cardInfo.status === 'booking'
+                           ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','none')">撤销</button>`
+                           : userRole === 'student' && cardInfo.status === 'waiting'
+                           // 候补：学生只能撤销候补（置为已取消）。候补转正由管理员在预订列表点「确认候补」，
+                           // 学生侧不提供"直接确认"入口，避免绕过名额校验。
+                           ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','cancelled')">撤销候补</button>`
+                           : userRole === 'student' && cardInfo.status === 'booked'
+                           ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','cancelling')">取消预订</button>`
+                           : userRole === 'student' && (cardInfo.status === 'canceling' || cardInfo.status === 'cancelling')
+                           ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','booked')">撤销</button>`
+                           : userRole === 'student' && (cardInfo.status === 'canceled' ||  cardInfo.status === 'cancelled' )
+                           ? `<button class="btn btn-gray" onclick="actionForButton('${cardInfo.bookingId}','booking')">重新申请</button>`
+                           : ''
+                      }
 
-                 ${ //正在预约或者已经取消：显示计算的排期列表，否则显示排期表中的数据
-                     // 候补（waiting）也列入"不显示详情"：它还没有 appointment 行，
-                     // 点详情必然是空表 —— 空面板比没有按钮更让人困惑。
-                     ( cardInfo.status === 'booking' || cardInfo.status === 'waiting' || cardInfo.status === 'canceled' ||  cardInfo.status === 'cancelled' )
-                          ? `<label> </label>`
-                          : `<button class="btn btn-gray" onclick="viewMyReservationDetail('${cardInfo.bookingId}','${cardInfo.origTz}')">预订详情</button>`
-                     }
-                     
-                 </div>
+                      ${ //正在预约或者已经取消：显示计算的排期列表，否则显示排期表中的数据
+                      // 候补（waiting）也列入"不显示详情"：它还没有 appointment 行，
+                      // 点详情必然是空表 —— 空面板比没有按钮更让人困惑。
+                      ( cardInfo.status === 'booking' || cardInfo.status === 'waiting' || cardInfo.status === 'canceled' ||  cardInfo.status === 'cancelled' )
+                           ? `<label> </label>`
+                           : `<button class="btn btn-gray" onclick="viewMyReservationDetail('${cardInfo.bookingId}','${cardInfo.origTz}')">预订详情</button>`
+                      }
+
+                      ${window.hasClassroom && window.hasClassroom() && cardInfo.status === 'booked'
+                        ? `<button class="btn btn-success" style="background:#28a745;border-color:#28a745;" onclick="enterClassroom('${cardInfo.scheduleId}')"><i class="fas fa-video"></i> 进入课堂</button>`
+                        : ''
+                      }
+                  </div>
              </div>
          `;
          return info;
@@ -280,10 +284,11 @@ async function loadAndRenderBooking_student(){
   window.renderCalendar    = renderCalendar ; 
   //window.displaySchedule   = displaySchedule ;  
   window.actionForButton   = actionForButton ; 
-  window.loadAndRenderBooking_student       = loadAndRenderBooking_student  ; 
-  window.formACourseCard   = formACourseCard  ; 
+  window.loadAndRenderBooking_student       = loadAndRenderBooking_student  ;
+  window.formACourseCard   = formACourseCard  ;
   window.getAppointmentsByBookingId   = getAppointmentsByBookingId;// defined in dataFunction.js 
   window.switchResultTab   = switchResultTab;
+  window.enterClassroom = enterClassroom;
 
   // teacher「查看排期」排期结果卡片：对单个日期整次课次批量「申请改期 / 取消改期」，成功后就地刷新预览卡片
    
@@ -506,23 +511,31 @@ function localsearchAppoint_student() {
    loadAndRenderBooking_student(); 
 }
 
-// 排期结果 / 日历视图：card 内 tab 切换（同一份数据的两种展现，二选一不重复占竖向空间）
-function switchResultTab(tab) {
+  // 排期结果 / 日历视图：card 内 tab 切换（同一份数据的两种展现，二选一不重复占竖向空间）
+  function switchResultTab(tab) {
     const tabs = document.querySelectorAll('.result-tab');
     tabs.forEach(t => {
-        if (t.getAttribute('data-tab') === tab) t.classList.add('active');
-        else t.classList.remove('active');
+      if (t.getAttribute('data-tab') === tab) t.classList.add('active');
+      else t.classList.remove('active');
     });
     const listPanel = document.getElementById('resultPanelList');
     const calPanel = document.getElementById('resultPanelCalendar');
     if (tab === 'list') {
-        listPanel.style.display = '';
-        calPanel.style.display = 'none';
+      listPanel.style.display = '';
+      calPanel.style.display = 'none';
     } else {
-        listPanel.style.display = 'none';
-        calPanel.style.display = '';
+      listPanel.style.display = 'none';
+      calPanel.style.display = '';
     }
-}
+  }
+
+  // 进入课堂：跳转到课堂页面
+  function enterClassroom(scheduleId) {
+    if (!scheduleId) { alert('缺少排期信息'); return; }
+    window.location.href = (typeof window.pageUrl === 'function')
+      ? window.pageUrl('classroom.html') + '&scheduleId=' + encodeURIComponent(scheduleId)
+      : './classroom.html?scheduleId=' + encodeURIComponent(scheduleId);
+  }
  
 
 

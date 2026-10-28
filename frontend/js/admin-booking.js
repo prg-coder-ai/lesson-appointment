@@ -9,6 +9,7 @@ window.renderBookingCards  = renderBookingCards ;
 window.cancelBooking   = cancelBooking ; 
 window.validBooking   = validBooking ; 
 window.deleteBookingByFrozen = deleteBookingByFrozen;
+window.enterClassroom = enterClassroom;
 
  async function renderBookingCards(){
      assignLoadobjectListFunction( getBookingListByPage);//
@@ -230,21 +231,25 @@ async function getBookingListByPage(){
                            `
                         : ''
                      }
-                     ${
-                       /* 「查询递补」入口：只要这条记录当前**不再占用席位**，就说明它所属的排期
-                        * 可能已经空出了位子（管理员确认取消、删除预订、拒绝预订等操作之后），
-                        * 管理员需要能顺着这一行去排期页查看候补队列并递补。
-                        *
-                        * 为什么按「是否占席位」判断，而不是再列一遍状态名：
-                        *   1) 席位规则只有一个来源（前端 bookingOccupiesSeat / 后端 BookingStatus.NON_OCCUPYING），
-                        *      枚举状态名必然漏——rej-booking、frozen 就是这么漏掉的；
-                        *   2) 以后新增「会腾出席位」的状态，这里自动生效，不用回来改。
-                        * waiting 行自己已经带了该按钮（候补本人可自助查看队列），此处排除以免重复。
-                        */
-                       cardInfo.status !== 'waiting' && !bookingOccupiesSeat(cardInfo.status)
-                        ? ` <button class="btn btn-primary" onclick="gotoScheduleForWaitlist('${cardInfo.scheduleId}')"><i class="fa fa-search"></i> 查询递补</button>`
+                      ${
+                        /* 「查询递补」入口：只要这条记录当前**不再占用席位**，就说明它所属的排期
+                         * 可能已经空出了位子（管理员确认取消、删除预订、拒绝预订等操作之后），
+                         * 管理员需要能顺着这一行去排期页查看候补队列并递补。
+                         *
+                         * 为什么按「是否占席位」判断，而不是再列一遍状态名：
+                         *   1) 席位规则只有一个来源（前端 bookingOccupiesSeat / 后端 BookingStatus.NON_OCCUPYING），
+                         *      枚举状态名必然漏——rej-booking、frozen 就是这么漏掉的；
+                         *   2) 以后新增「会腾出席位」的状态，这里自动生效，不用回来改。
+                         * waiting 行自己已经带了该按钮（候补本人可自助查看队列），此处排除以免重复。
+                         */
+                        cardInfo.status !== 'waiting' && !bookingOccupiesSeat(cardInfo.status)
+                         ? ` <button class="btn btn-primary" onclick="gotoScheduleForWaitlist('${cardInfo.scheduleId}')"><i class="fa fa-search"></i> 查询递补</button>`
+                         : ''
+                      }
+                      ${window.hasClassroom && window.hasClassroom() && cardInfo.status === 'booked'
+                        ? ` <button class="btn btn-success" style="background:#28a745;border-color:#28a745;" onclick="enterClassroom('${cardInfo.scheduleId}')"><i class="fas fa-video"></i> 进入课堂</button>`
                         : ''
-                     }
+                      }
                     </td>
             </tr>
    `;
@@ -367,8 +372,17 @@ async function validCancelBooking(bookingid){
       // 重置筛选条件
       function resetFilterBooking() {
 
-          document.getElementById('course-name-input').value = ''; 
-          document.getElementById('booking-status-select').value = '';
-          Pagination.pageNum = 1;
-          getBookingListByPage();
+        document.getElementById('course-name-input').value.trim(''); 
+        document.getElementById('booking-status-select').value = '';
+        Pagination.pageNum = 1;
+        getBookingListByPage();
+      }
+
+      // 进入课堂：跳转到课堂页面
+      function enterClassroom(scheduleId) {
+        if (!scheduleId) { alert('缺少排期信息'); return; }
+        var baseUrl = (typeof window.getClassroomApiBaseUrl === 'function') ? window.getClassroomApiBaseUrl() : '';
+        window.location.href = (typeof window.pageUrl === 'function')
+          ? window.pageUrl('classroom.html') + '&scheduleId=' + encodeURIComponent(scheduleId)
+          : './classroom.html?scheduleId=' + encodeURIComponent(scheduleId);
       }
