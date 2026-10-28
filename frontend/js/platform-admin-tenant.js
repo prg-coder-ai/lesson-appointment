@@ -78,6 +78,7 @@ function renderTenantRows(rows) {
         <button class="btn btn-warning" onclick="toggleTenantStatus(${t.id},${t.status})">${t.status === 1 ? '停用' : '启用'}</button>
         <button class="btn btn-default" onclick="renewTenant(${t.id})">续期</button>
         <button class="btn btn-default" onclick="assignTenantPackage(${t.id})">分配套餐</button>
+        <button class="btn btn-default" onclick="editTenantClassroom(${t.id})">课堂配置</button>
         <button class="btn btn-danger" onclick="deleteTenant(${t.id})">删除</button>
       </td>
     </tr>`;

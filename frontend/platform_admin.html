@@ -51,6 +51,10 @@
           <i class="fa fa-building"></i>
           <span>租户管理</span>
         </div>
+        <div class="menu-item" key="eclassroom_instances">
+          <i class="fa fa-chalkboard"></i>
+          <span>课堂实例</span>
+        </div>
         <div class="menu-item" key="user">
           <i class="fa fa-users-cog"></i>
           <span>用户管理</span>
@@ -158,6 +162,14 @@
         break;
       case "tenant":
         if (typeof renderTenantCards === 'function') renderTenantCards();
+        break;
+      // 课堂服务实例管理（2026-10-28 阶段7）：平台管理员维护 classroom-service 实例 + 为租户绑定
+      case "eclassroom_instances":
+        if (typeof window.renderEclassroomInstancesPage === 'function') {
+          window.renderEclassroomInstancesPage();
+        } else if (dynamicContentCenter) {
+          dynamicContentCenter.innerHTML = '<div class="card"><div class="card-body">课堂实例模块未加载（platform-admin-eclassroom.js）。</div></div>';
+        }
         break;
       case "user":
         if (typeof renderPlatformUserPage === 'function') renderPlatformUserPage();
@@ -328,6 +340,7 @@
 
   <!-- 平台管理员功能页（租户 / 用户 / 套餐 / 运营统计 / 系统设置 / 后台信息） -->
    <script src="js/platform-admin-tenant.js"></script>
+  <script src="js/platform-admin-eclassroom.js"></script>
   <script src="js/platform-admin-user.js"></script>
   <script src="js/platform-admin-package.js"></script>
   <script src="js/platform-admin-dashboard.js"></script>
