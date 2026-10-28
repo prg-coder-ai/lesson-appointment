@@ -21,9 +21,11 @@ set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 API_DIR="$PROJECT_ROOT/api"
 MSG_DIR="$API_DIR/message-service"
+CLS_DIR="$API_DIR/classroom-service"
 FE_DIR="$PROJECT_ROOT/frontend"
 CLOUD_API="$PROJECT_ROOT/cloudBased/api"
 CLOUD_MSG="$PROJECT_ROOT/cloudBased/message-service"
+CLOUD_CLS="$PROJECT_ROOT/cloudBased/classroom-service"
 CLOUD_WEB="$PROJECT_ROOT/cloudBased/web"
 
 SKIP_FE=0; SKIP_BE=0; SKIP_DOCKER=0; DOCKER_PUSH=0; ENV_ID=""
@@ -55,9 +57,13 @@ if [ $SKIP_BE -eq 0 ]; then
     echo "  📦 message-service (message-service-1.1.0.jar) ..."
     (cd "$MSG_DIR" && mvn clean package -DskipTests -q) || fail "message-service Maven 构建失败"
 
-    mkdir -p "$CLOUD_API/target" "$CLOUD_MSG/target"
+    echo "  📦 classroom-service (classroom-service-1.0.0.jar) ..."
+    (cd "$CLS_DIR" && mvn clean package -DskipTests -q) || fail "classroom-service Maven 构建失败"
+
+    mkdir -p "$CLOUD_API/target" "$CLOUD_MSG/target" "$CLOUD_CLS/target"
     cp "$API_DIR/target/booking-api-2.2.0.jar"     "$CLOUD_API/target/"
     cp "$MSG_DIR/target/message-service-1.1.0.jar" "$CLOUD_MSG/target/"
+    cp "$CLS_DIR/target/classroom-service-1.0.0.jar" "$CLOUD_CLS/target/"
 
     ok "后端打包完成"
 else
@@ -96,10 +102,18 @@ if [ $SKIP_DOCKER -eq 0 ]; then
     (cd "$CLOUD_MSG" && docker build -t "booking-message-service:1.1.0" .) || fail "message-service docker build 失败"
     ok "booking-message-service:1.1.0"
 
+    echo "  🐳 classroom-service:1.0.0 ..."
+    (cd "$CLOUD_CLS" && docker build -t "classroom-service:1.0.0" .) || fail "classroom-service docker build 失败"
+    ok "classroom-service:1.0.0"
+
     API_UPSTREAM="http://REPLACE_WITH_API_INTERNAL_HOST:8081"
-    if [ -n "$ENV_ID" ]; then API_UPSTREAM="http://api.$ENV_ID.svc.cluster.local:8081"; fi
-    echo "  🐳 booking-web:latest  (API_UPSTREAM=$API_UPSTREAM) ..."
-    (cd "$CLOUD_WEB" && docker build --build-arg "API_UPSTREAM=$API_UPSTREAM" -t "booking-web:latest" .) || fail "web docker build 失败"
+    CLASSROOM_UPSTREAM="http://REPLACE_WITH_CLASSROOM_INTERNAL_HOST:8092"
+    if [ -n "$ENV_ID" ]; then
+        API_UPSTREAM="http://api.$ENV_ID.svc.cluster.local:8081"
+        CLASSROOM_UPSTREAM="http://classroom.$ENV_ID.svc.cluster.local:8092"
+    fi
+    echo "  🐳 booking-web:latest  (API_UPSTREAM=$API_UPSTREAM, CLASSROOM_UPSTREAM=$CLASSROOM_UPSTREAM) ..."
+    (cd "$CLOUD_WEB" && docker build --build-arg "API_UPSTREAM=$API_UPSTREAM" --build-arg "CLASSROOM_UPSTREAM=$CLASSROOM_UPSTREAM" -t "booking-web:latest" .) || fail "web docker build 失败"
     ok "booking-web:latest"
 
     if [ $DOCKER_PUSH -eq 1 ]; then
@@ -109,10 +123,12 @@ if [ $SKIP_DOCKER -eq 0 ]; then
         REGISTRY="ccr.ccs.tencentyun.com/cb-$ENV_ID"
         docker tag "booking-api:2.2.0"              "$REGISTRY/api:2.2.0"
         docker tag "booking-message-service:1.1.0"  "$REGISTRY/message-service:1.1.0"
+        docker tag "classroom-service:1.0.0"        "$REGISTRY/classroom-service:1.0.0"
         docker tag "booking-web:latest"             "$REGISTRY/web:latest"
 
         docker push "$REGISTRY/api:2.2.0"            || fail "api push 失败"
         docker push "$REGISTRY/message-service:1.1.0"|| fail "message-service push 失败"
+        docker push "$REGISTRY/classroom-service:1.0.0" || fail "classroom-service push 失败"
         docker push "$REGISTRY/web:latest"           || fail "web push 失败"
         ok "镜像已推送到 $REGISTRY"
     fi
@@ -126,6 +142,7 @@ fi
 step "构建产物清单"
 echo "  后端 jar：cloudBased/api/target/booking-api-2.2.0.jar"
 echo "            cloudBased/message-service/target/message-service-1.1.0.jar"
+echo "            cloudBased/classroom-service/target/classroom-service-1.0.0.jar"
 echo "  前端 dist：cloudBased/web/dist/"
 echo ""
 echo "  下一步："

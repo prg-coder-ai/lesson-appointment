@@ -35,9 +35,11 @@ $ErrorActionPreference = "Stop"
 $PROJECT_ROOT = Split-Path -Parent $PSScriptRoot
 $API_DIR      = Join-Path $PROJECT_ROOT "api"
 $MSG_DIR      = Join-Path $API_DIR "message-service"
+$CLS_DIR      = Join-Path $API_DIR "classroom-service"
 $FE_DIR       = Join-Path $PROJECT_ROOT "frontend"
 $CLOUD_API    = Join-Path $PROJECT_ROOT "cloudBased\api"
 $CLOUD_MSG    = Join-Path $PROJECT_ROOT "cloudBased\message-service"
+$CLOUD_CLS    = Join-Path $PROJECT_ROOT "cloudBased\classroom-service"
 $CLOUD_WEB    = Join-Path $PROJECT_ROOT "cloudBased\web"
 
 # ---------- 颜色输出 ----------
@@ -68,10 +70,19 @@ if (-not $SkipBackend) {
         if ($LASTEXITCODE -ne 0) { Fail "message-service Maven 构建失败" }
     } finally { Pop-Location }
 
-    # 1c. 拷贝到 cloudBased 对应目录
-    New-Item -ItemType Directory -Force -Path "$CLOUD_API\target", "$CLOUD_MSG\target" | Out-Null
+    # 1c. classroom-service
+    Write-Host "  📦 classroom-service (classroom-service-1.0.0.jar) ..." -ForegroundColor Gray
+    Push-Location $CLS_DIR
+    try {
+        mvn clean package -DskipTests -q 2>&1 | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+        if ($LASTEXITCODE -ne 0) { Fail "classroom-service Maven 构建失败" }
+    } finally { Pop-Location }
+
+    # 1d. 拷贝到 cloudBased 对应目录
+    New-Item -ItemType Directory -Force -Path "$CLOUD_API\target", "$CLOUD_MSG\target", "$CLOUD_CLS\target" | Out-Null
     Copy-Item "$API_DIR\target\booking-api-2.2.0.jar"          "$CLOUD_API\target\"          -Force
     Copy-Item "$MSG_DIR\target\message-service-1.1.0.jar"      "$CLOUD_MSG\target\"          -Force
+    Copy-Item "$CLS_DIR\target\classroom-service-1.0.0.jar"    "$CLOUD_CLS\target\"          -Force
 
     Ok "后端打包完成，jar 已就位"
 } else {
@@ -121,12 +132,20 @@ if (-not $SkipDocker) {
     if ($LASTEXITCODE -ne 0) { Fail "message-service docker build 失败" }
     Ok "booking-message-service:1.1.0"
 
-    # 3c. web（需要先填 envParams.API_UPSTREAM，这里用占位让用户手动替换 / 或传 EnvId）
+    # 3b-2. classroom-service
+    Write-Host "  🐳 classroom-service:1.0.0 ..." -ForegroundColor Gray
+    Push-Location $CLOUD_CLS
+    try { docker build -t "classroom-service:1.0.0" . } finally { Pop-Location }
+    if ($LASTEXITCODE -ne 0) { Fail "classroom-service docker build 失败" }
+    Ok "classroom-service:1.0.0"
+
+    # 3c. web（需要先填 envParams.API_UPSTREAM / CLASSROOM_UPSTREAM，这里用占位让用户手动替换 / 或传 EnvId）
     $apiInternalHost = if ($EnvId) { "http://api.$EnvId.svc.cluster.local:8081" } else { "http://REPLACE_WITH_API_INTERNAL_HOST:8081" }
-    Write-Host "  🐳 booking-web:latest  (API_UPSTREAM=$apiInternalHost) ..." -ForegroundColor Gray
+    $classroomInternalHost = if ($EnvId) { "http://classroom.$EnvId.svc.cluster.local:8092" } else { "http://REPLACE_WITH_CLASSROOM_INTERNAL_HOST:8092" }
+    Write-Host "  🐳 booking-web:latest  (API_UPSTREAM=$apiInternalHost, CLASSROOM_UPSTREAM=$classroomInternalHost) ..." -ForegroundColor Gray
     Push-Location $CLOUD_WEB
     try {
-        docker build --build-arg "API_UPSTREAM=$apiInternalHost" -t "booking-web:latest" .
+        docker build --build-arg "API_UPSTREAM=$apiInternalHost" --build-arg "CLASSROOM_UPSTREAM=$classroomInternalHost" -t "booking-web:latest" .
     } finally { Pop-Location }
     if ($LASTEXITCODE -ne 0) { Fail "web docker build 失败" }
     Ok "booking-web:latest"
@@ -139,12 +158,14 @@ if (-not $SkipDocker) {
         $registryPrefix = "ccr.ccs.tencentyun.com/cb-$EnvId"
         docker tag "booking-api:2.2.0"              "$registryPrefix/api:2.2.0"
         docker tag "booking-message-service:1.1.0"  "$registryPrefix/message-service:1.1.0"
+        docker tag "classroom-service:1.0.0"        "$registryPrefix/classroom-service:1.0.0"
         docker tag "booking-web:latest"             "$registryPrefix/web:latest"
 
         docker push "$registryPrefix/api:2.2.0"            ; if ($LASTEXITCODE -ne 0) { Fail "api push 失败" }
         docker push "$registryPrefix/message-service:1.1.0"; if ($LASTEXITCODE -ne 0) { Fail "message-service push 失败" }
+        docker push "$registryPrefix/classroom-service:1.0.0"; if ($LASTEXITCODE -ne 0) { Fail "classroom-service push 失败" }
         docker push "$registryPrefix/web:latest"           ; if ($LASTEXITCODE -ne 0) { Fail "web push 失败" }
-        Ok "3 个镜像已推送到 $registryPrefix"
+        Ok "4 个镜像已推送到 $registryPrefix"
     }
 } else {
     Warn "跳过 Docker 构建 (-SkipDocker) — 产物已就绪，可直接在云托管控制台「上传代码包」部署"
@@ -158,6 +179,7 @@ Write-Host ""
 Write-Host "  后端 jar：" -NoNewline -ForegroundColor White
 Write-Host "  cloudBased/api/target/booking-api-2.2.0.jar" -ForegroundColor Gray
 Write-Host "              cloudBased/message-service/target/message-service-1.1.0.jar" -ForegroundColor Gray
+Write-Host "              cloudBased/classroom-service/target/classroom-service-1.0.0.jar" -ForegroundColor Gray
 Write-Host "  前端 dist：" -NoNewline -ForegroundColor White
 Write-Host "  cloudBased/web/dist/" -ForegroundColor Gray
 Write-Host ""

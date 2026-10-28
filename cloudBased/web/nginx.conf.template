@@ -1,10 +1,11 @@
 # ==============================================================================
 # Nginx 反代配置模板（前端静态 + /api 反代）
-# 使用 envsubst 替换 ${API_UPSTREAM}，部署前执行：
+# 使用 envsubst 替换 ${API_UPSTREAM} / ${CLASSROOM_UPSTREAM}，部署前执行：
 #
 #   export API_UPSTREAM=http://api.<envid>.svc.cluster.local:8081
+#   export CLASSROOM_UPSTREAM=http://classroom.<envid>.svc.cluster.local:8092
 #   # 或公网地址：export API_UPSTREAM=https://api-<envid>.sh.run.tcloudbase.com
-#   envsubst '$API_UPSTREAM' < nginx.conf.template > nginx.conf
+#   envsubst '$API_UPSTREAM $CLASSROOM_UPSTREAM' < nginx.conf.template > nginx.conf
 #
 # 然后再 docker build（或让 Dockerfile 里的 RUN 步骤自动做）
 # ==============================================================================
@@ -21,6 +22,46 @@ server {
         expires 7d;
         add_header Cache-Control "public, immutable";
         try_files $uri =404;
+    }
+
+    # ---------- 在线课堂 classroom-service 反代 ----------
+    # 必须在通用 /api/ 之前（含更长的前缀由 nginx 最长匹配优先，位置顺序仅为可读）
+    location /api/v1/classrooms/ {
+        proxy_pass         ${CLASSROOM_UPSTREAM};
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_read_timeout 120s;
+    }
+    location /api/v1/recordings/ {
+        proxy_pass         ${CLASSROOM_UPSTREAM};
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+    }
+    location /api/v1/admin/classrooms/ {
+        proxy_pass         ${CLASSROOM_UPSTREAM};
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+    }
+    # 课堂 WebSocket：白板/心跳/信令三通道，需 Upgrade 头 + 长连接
+    location /ws/classrooms/ {
+        proxy_pass         ${CLASSROOM_UPSTREAM};
+        proxy_http_version 1.1;
+        proxy_set_header   Upgrade           $http_upgrade;
+        proxy_set_header   Connection        "upgrade";
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
     }
 
     # ---------- SPA fallback：除了 /api 和静态资源，全部回 index.html ----------
