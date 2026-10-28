@@ -12,6 +12,7 @@ import com.reservation.common.Result;
 import com.reservation.common.RoleConst;
 import com.reservation.common.GuardVerdict;
 import com.reservation.entity.User;
+import com.reservation.mapper.UserMapper;
 import com.reservation.service.LoginGuardService;
 import com.reservation.service.LoginChallengeService;
 import com.reservation.service.UserService;
@@ -79,6 +80,8 @@ public class authController {
     private TenantService tenantService;
     @Autowired
     private UserService userService;
+    @Autowired
+    private UserMapper userMapper;   // ← 新增：refreshToken 查 role 时用（忽略租户插件）
      @Autowired
      private RefreshTokenService refreshTokenService;
      @Autowired
@@ -253,73 +256,98 @@ public class authController {
     }
  /**
      * 无感刷新AccessToken核心接口
-     * TBD: refreshDTO中添加login的输出参数
+     *
+     * 【2026-10-28 安全加固】修了三个 P0 问题：
+     *
+     *   ① NPE：原来 tenantId = jwtUtil.getCurrentTenantId() 从 SecurityContext 取，
+     *          但 refreshToken 在白名单里不走 Spring Security 拦截 → SecurityContext 空 → NPE。
+     *          修复：直接从 refresh token 的 JWT claims 里解 tenantId。
+     *
+     *   ② 提权漏洞：原来 role 来自前端 RefreshDTO.role，攻击者传 platform_admin 就直接拿到
+     *          平台管理员 access token。修复：**完全忽略前端传的 account/role**，
+     *          role 从 user 表按 userId 实时查（用户被提权/降级/冻结即时生效）。
+     *
+     *   ③ token 类型混淆：原来不校验传入的 token 是不是真 refresh token。修复：
+     *          JWT claims 里加 type: refresh，refreshToken 接口校验 type === "refresh"，
+     *          access token 即使在 DB 表里碰巧有记录也会被拒。
      */
     @PostMapping("/refreshToken")
     public Result<TokenDTO> refreshToken(@RequestBody RefreshDTO refreshDTO) {
-        log.debug("refreshToken refreshDTO:"+refreshDTO);
         String oldRefreshToken = refreshDTO.getRefreshToken();
-        String account = refreshDTO.getAccount();
-        String role = refreshDTO.getRole();
+        if (oldRefreshToken == null || oldRefreshToken.isBlank()) {
+            return Result.fail(401, "刷新凭证为空");
+        }
 
-        // 1. 校验数据库中凭证是否存在、未过期
-        // 凭证失效场景说明：
-        //   后端返回 HTTP 200 + body.code=401（Result 是普通 POJO，Spring 默认 HTTP 200）
-        //   前端 axios 拿到 HTTP 200 不会自动 reject，进入 if(refreshRes.data.code===200) 判断：
-        //     - 不通过 → 手动 throw new Error(refreshRes.data.message) → 进 catch
-        //     - catch 中从 refreshErr.message 取后端 message 提示用户
-        //   所以这里用 Result.fail(401, ...) 和 Result.unauthorized(...) 行为完全等价，
-        //   选 fail 是因为语义更直观（一看就知道业务码是 401）
+        // ── ③ 校验 JWT type claim = "refresh" ──────────────────────────────────
+        if (!jwtUtil.isTokenOfType(oldRefreshToken, "refresh")) {
+            log.warn("[refreshToken] 传入的 token type 不是 refresh（可能是 access token 或伪造）");
+            return Result.fail(401, "刷新凭证无效");
+        }
+
+        // ── ① 从 refresh token 自己解 userId + tenantId ────────────────────────
+        String userId;
+        Long tenantId;
+        try {
+            userId = jwtUtil.getUserIdFromToken(oldRefreshToken);
+            tenantId = jwtUtil.getTenantId(oldRefreshToken);
+        } catch (Exception e) {
+            log.warn("[refreshToken] refresh token 解析失败: {}", e.getMessage());
+            return Result.fail(401, "刷新凭证无效，请重新登录");
+        }
+
+        // ── 校验 DB 里凭证确实存在、未过期 ──────────────────────────────────────
         RefreshTokenPO tokenPo = refreshTokenService.checkValidToken(oldRefreshToken);
         if (tokenPo == null) {
+            log.info("[refreshToken] DB 中找不到有效 refresh token, userId={}", userId);
             return Result.fail(401, "刷新凭证已失效，请重新登录");
         }
-        String userId = tokenPo.getUserId();
-        Long tenantId =  jwtUtil.getCurrentTenantId();//.TBD 
-        // 2. 生成新双Token
-        String newAccess = jwtUtil.generateToken(tenantId,userId,role);
-        String newRefresh = jwtUtil.generateRefreshToken(tenantId,userId);
 
-        // 3. 删除旧刷新Token，存入新凭证（旧凭证立即失效）
+        // 二次一致性校验：JWT 里解出来的 userId 必须和 DB 存的对得上
+        if (!userId.equals(tokenPo.getUserId())) {
+            log.warn("[refreshToken] JWT userId 与 DB 不一致，可能被篡改");
+            return Result.fail(401, "刷新凭证无效");
+        }
+
+        // ── ② 从 user 表实时查 role，完全忽略前端传的 role/account ──────────────
+        String role;
+        try {
+            // 必须用 mapper 的 NoTenant 版本——selectById 会被租户插件拼 tenant_id 条件
+            User u = userMapper.getByUserIdNoTenant(userId);
+            if (u == null) {
+                log.warn("[refreshToken] userId={} 在 user 表已不存在", userId);
+                return Result.fail(401, "账号已被删除，请重新注册");
+            }
+            if ("frozen".equals(u.getStatus())) {
+                log.info("[refreshToken] userId={} 已冻结，拒绝刷新", userId);
+                return Result.fail(401, "账号已被冻结，请联系管理员");
+            }
+            role = u.getRole();
+        } catch (Exception e) {
+            log.error("[refreshToken] 查询用户 role 失败, userId={}", userId, e);
+            return Result.fail(500, "服务异常，请稍后重试");
+        }
+
+        // ── 生成新双 Token ───────────────────────────────────────────────────────
+        String newAccess = jwtUtil.generateToken(tenantId, userId, role);
+        String newRefresh = jwtUtil.generateRefreshToken(tenantId, userId);
+
+        // ── 轮换：删旧、存新（旧 refresh token 立即失效） ──────────────────────
         refreshTokenService.removeOldToken(oldRefreshToken);
-       // TenantContext.setTenantId(tenantId);
         refreshTokenService.saveNewToken(userId, newRefresh, jwtUtil.getRefreshExpireTime());
 
-//
-UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                account, // 用户名（可用邮箱/手机号）
-                null, // 密码（可传null，不影响验证）
-                Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role)) // 角色（必须加ROLE_前缀）
-        ); 
-        // 将认证信息存入安全上下文（自动维护会话，无需手动管理）
+        // ── 写入 Spring Security 上下文（给本次请求链路其他组件用） ──────────────
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                userId,
+                null,
+                Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role))
+        );
         SecurityContextHolder.getContext().setAuthentication(authentication);
-        /*
-         * 下面几行代码的原理说明：
-         * 
-         * UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-         *         account,
-         *         null,
-         *         Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role))
-         * );
-         * 这行代码的作用是根据当前用户的账号（account）、其角色（role），
-         * 封装一个Spring Security的认证对象（UsernamePasswordAuthenticationToken），
-         * 其中密码可以为null不影响后续验证，角色需要加"ROLE_"前缀以便Spring Security识别。
-         *
-         * SecurityContextHolder.getContext().setAuthentication(authentication);
-         * 这行代码将上述生成的认证对象security token存入Spring Security的全局上下文中，
-         * 使得后续请求能够感知到当前用户的身份，实现token机制下无session情况下的安全身份管理。
-         *
-         * 这样做的好处是：即使没有传统的session和cookie认证，后续接口可以直接通过
-         * SecurityContextHolder获取到当前用户的角色、账号等认证信息，支持基于注解
-         * 或Spring Security统一权限拦截。
-         */
-  
 
         TokenDTO dto = new TokenDTO();
-        dto.setToken(newAccess);//userid role
-        dto.setRefreshToken(newRefresh);//userid
-      //  log.debug("controller refreshToken:"+dto);
-        return Result.success(dto,"refreshToken ok");
+        dto.setToken(newAccess);
+        dto.setRefreshToken(newRefresh);
+        log.info("[refreshToken] 刷新成功, userId={}, tenantId={}, role={}", userId, tenantId, role);
+        return Result.success(dto, "刷新成功");
     } 
 
   /**

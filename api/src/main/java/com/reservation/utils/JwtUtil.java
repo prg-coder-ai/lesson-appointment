@@ -59,7 +59,8 @@ public class JwtUtil {
 
 
 
-    // 生成短期访问 Token（对应设计2.2.1 登录、学生注册返回Token）  
+    // 生成短期访问 Token（对应设计2.2.1 登录、学生注册返回Token）
+    // 【P1 安全加固 2026-10-28】新增 "type": "access" claim，防止 access token 被当成 refresh token 使用
     public String generateToken(Long tenantId, String userId, String role) {
         Date now = new Date();
         Date expireDate = new Date(now.getTime() + expiration);
@@ -67,18 +68,21 @@ public class JwtUtil {
                 .setSubject(userId)
                 .claim("role", role)
                 .claim("tenantId", tenantId) // 添加租户ID到claims
+                .claim("type", "access")     // ← 新增：区分 access / refresh
                 .setIssuedAt(now)
                 .setExpiration(expireDate)  
                 .signWith(signingKey, SignatureAlgorithm.HS512)
                 .compact();
     } 
 
-    // 生成长期刷新 Token  
+    // 生成长期刷新 Token
+    // 【P1 安全加固 2026-10-28】新增 "type": "refresh" claim；不再存 role（角色变更时查 user 表实时取）
     public String generateRefreshToken(Long tenantId, String userId) {
         Date expire = new Date(System.currentTimeMillis() + REFRESH_EXPIRE);
         return Jwts.builder()
                 .setSubject(userId)
-                .claim("tenantId", tenantId) // 添加租户ID到claims
+                .claim("tenantId", tenantId)
+                .claim("type", "refresh")    // ← 新增：区分 access / refresh
                 .setExpiration(expire)
                 .signWith(signingKey, SignatureAlgorithm.HS256)
                 .compact();
@@ -113,6 +117,46 @@ public class JwtUtil {
                 .parseClaimsJws(stripBearerPrefix(token))
                 .getBody();
         return Long.valueOf(claims.get("tenantId").toString());
+    }
+
+    // 【P1 安全加固 2026-10-28】从 token 读取 type claim
+    // access / refresh 两种，用于 refreshToken 接口校验传入的确实是 refresh token 而非 access token
+    public String getTokenType(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(signingKey)
+                .build()
+                .parseClaimsJws(stripBearerPrefix(token))
+                .getBody();
+        return (String) claims.get("type");
+    }
+
+    /**
+     * 【P1 安全加固 2026-10-28】校验给定 token 是否是指定类型。
+     *
+     * <p><b>兼容性设计</b>：type claim 是本次加固新增的。v1 老 refresh token 没有
+     * type 字段。此时 type 不存在 → 返回 true（放行），让 DB 层 checkValidToken 兜底
+     * （DB 表里只存 refresh token，access token 进不来）。
+     * 同时 refreshToken 接口里 DB 校验后还有一轮 JWT userId 与 DB userId 的二次比对，
+     * 所以老 token 链路依然安全。
+     *
+     * <p>对于新签发的 token，type 必须严格匹配。
+     *
+     * @param token JWT 字符串（可带 Bearer 前缀）
+     * @param expectedType "access" 或 "refresh"
+     * @return true=签名合法+未过期+(type 缺失 或 type 匹配)
+     */
+    public boolean isTokenOfType(String token, String expectedType) {
+        try {
+            String actual = getTokenType(token);
+            // type 不存在 → 兼容老 token，放行（DB 层兜底）
+            if (actual == null) {
+                return true;
+            }
+            return expectedType.equals(actual);
+        } catch (Exception e) {
+            // 签名错误 / 过期 / 格式坏 → 都返回 false
+            return false;
+        }
     }
 
     // 获取刷新 Token 过期时间（存入数据库）
