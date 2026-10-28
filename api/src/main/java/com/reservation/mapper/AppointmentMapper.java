@@ -59,6 +59,21 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
                               @org.apache.ibatis.annotations.Param("fromStatus") String fromStatus,
                               @org.apache.ibatis.annotations.Param("toStatus") String toStatus);
 
+    /**
+     * 待结算课次（兜底任务用）：时间已过 {@code deadline}（UTC）但仍处于非终态。
+     *
+     * <p>为什么要扫 {@code checked-in}：学生签到了但课堂回调丢了（未开通课堂、
+     * 网络中断、课堂服务重启），这类课次会永远停在已签到——不结算就等于白送一节课。
+     *
+     * <p>跨租户全量扫描，故 IgnoreTenant；租户不参与判定（扣减按课次行自带 tenant_id）。
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT * FROM appointment WHERE status IN ('active','noted1','noted2','checked-in')"
+            + " AND appointment_datetime IS NOT NULL AND appointment_datetime < #{deadline}"
+            + " ORDER BY appointment_datetime LIMIT #{limit}")
+    java.util.List<Appointment> selectPendingSettlement(@org.apache.ibatis.annotations.Param("deadline") java.time.LocalDateTime deadline,
+                                                        @org.apache.ibatis.annotations.Param("limit") int limit);
+
    /* int getCountBetweenTimeByPage(
             String userId, String role,
              java.sql.Timestamp startTime, java.sql.Timestamp endTime,   
