@@ -988,18 +988,25 @@ function getScheduleInfo(scheduleObject,withName=true) {
     if (withName && scheduleObject.name)          info += scheduleObject.name;
 
   // 起始日期、结束日期和上课时间组成一句简洁文字
+  // 【优化】结束日期等于开始日期 → 不显示 "~ 结束日期"，只显示一次日期
   if (scheduleObject.startTime || scheduleObject.endTime ) {
       let dateStr = '';
-      if (scheduleObject.startTime && scheduleObject.endTime && scheduleObject.startTime !== scheduleObject.endTime) {
-          // 截取日期部分（假设startTime/endTime为"yyyy-MM-dd HH:mm:ss"格式，仅取日期部分）
-          const startDate = scheduleObject.startTime ? scheduleObject.startTime.split(" ")[0] : "";
+      if (scheduleObject.startTime) {
+          // startTime/endTime 是 "yyyy-MM-dd HH:mm:ss" 格式，split 出日期部分和时间部分
+          const startDate = scheduleObject.startTime.split(" ")[0] || "";
+          const startTime = scheduleObject.startTime.split(" ")[1] || "";
           const endDate   = scheduleObject.endTime   ? scheduleObject.endTime.split(" ")[0] : "";
-          const startTime = scheduleObject.startTime ? scheduleObject.startTime.split(" ")[1] : "";
-          dateStr = `${startDate} ~ ${endDate} ${startTime}`;
-  
-      } else if (scheduleObject.startTime) {
-          dateStr = scheduleObject.startTime;
-      } 
+          const endTime   = scheduleObject.endTime   ? scheduleObject.endTime.split(" ")[1] : "";
+
+          if (endDate && startDate !== endDate) {
+              // 不同日期：显示 "开始日期 ~ 结束日期 开始时间"
+              dateStr = `${startDate} ~ ${endDate} ${startTime}`;
+          } else {
+              // 相同日期（或 endDate 为空）：只显示 "开始日期 开始时间"
+              // 用户可在时间部分看到 09:00 ~ 10:00 的时段差
+              dateStr = `${startDate} ${startTime}`;
+          }
+      }
       
       info += dateStr ? ` ${dateStr}` : '';
   }
@@ -1019,13 +1026,21 @@ function getScheduleInfoByDTO(scheduleObject) {
     if (scheduleObject.name)          info += scheduleObject.name;
 
   // 起始日期、结束日期和上课时间组成一句简洁文字
+  // 【优化】结束日期等于开始日期 → 不显示 "~ 结束日期"
   if (scheduleObject.startDate || scheduleObject.endDate ) {
-      let dateStr = ''; 
-          // 截取日期部分（假设startTime/endTime为"yyyy-MM-dd HH:mm:ss"格式，仅取日期部分）
-          const startDate = scheduleObject.startDate  ;
-          const endDate   = scheduleObject.endDate   ;
-          const startTime = scheduleObject.startTime  ;
+      let dateStr = '';
+      const startDate = scheduleObject.startDate || "";
+      const endDate   = scheduleObject.endDate   || "";
+      const startTime = scheduleObject.startTime || "";
+
+      if (endDate && startDate && startDate !== endDate) {
+          // 不同日期：显示 "开始日期 ~ 结束日期 开始时间"
           dateStr = `${startDate} ~ ${endDate} ${startTime}`;
+      } else {
+          // 相同日期（或 endDate 为空 / startDate 为空）：只显示一次日期
+          const displayDate = startDate || endDate || "";
+          dateStr = displayDate + (startTime ? ` ${startTime}` : "");
+      }
    
       info += dateStr ? ` ${dateStr}` : '';
   }

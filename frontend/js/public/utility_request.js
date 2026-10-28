@@ -279,6 +279,21 @@ function isLoginPage() {
   service.interceptors.request.use(
     (config) => {
       config.url = normalizeUrl(config.url);
+
+      // ╔══════════════════════════════════════════════════════════╗
+      // ║ 【FormData 特殊处理】                                     ║
+      // ║ axios 默认全局 headers 设了 'Content-Type: application/json'， ║
+      // ║ 导致 FormData 上传时 axios 不自动改写成 multipart/form-data  ║
+      // ║ (因为 headers 已存在 Content-Type)，后端收到 Content-Type     ║
+      // ║ 仍是 application/json → Spring 抛 MultipartException：          ║
+      // ║   Current request is not a multipart request                 ║
+      // ║ 解决：检测到 FormData 就删掉 Content-Type，让 axios 自动带 boundary ║
+      // ╚══════════════════════════════════════════════════════════╝
+      if (config.data instanceof FormData) {
+        delete config.headers['Content-Type'];
+        delete config.headers['content-type'];
+      }
+
       const token = localStorage.getItem('token');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;

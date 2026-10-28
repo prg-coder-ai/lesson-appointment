@@ -91,17 +91,60 @@ function fillEditForm(data, isAdd) {
   appendAvailableTimes(data.availableTimes);
 }
 
-/** 把可预约时间段添加到时间行中 */
+/**
+ * 把可预约时间段添加到时间行中。
+ *
+ * 【去重逻辑】编辑模式进入时，页面已预渲染 data.availableTimes（来自 DB 快照）；
+ * 之后点「读取排期」或 enrichTimeRowsWithFull 再调 /schedule/listByTeacher，
+ * 会拿到同一条排期记录——如果无脑 append 就会出现重复行。
+ *
+ * 去重键：scheduleId。优先检查 DOM 上已渲染行的 data-extra-scheduleid（即后端排期的 schedule_id）。
+ * 如果 scheduleId 为空（新增时还没关联后端排期的手动行），则退化为比对
+ * startDate + startTime + endTime 三元组。
+ */
 function appendAvailableTimes(availableTimes) {
   const timeRows = document.getElementById('time-rows');
-  if (timeRows) {
-    if (availableTimes && availableTimes.length) {
-      availableTimes.forEach(t => {
-        const div = document.createElement('div');
-        div.innerHTML = renderTimeRow(t);
-        timeRows.appendChild(div.firstElementChild);
-      });
+  if (!timeRows || !availableTimes || !availableTimes.length) return;
+
+  // 先收集已渲染行的 scheduleId 和三元组，用于去重
+  const existingScheduleIds = new Set();
+  const existingTriples = new Set();
+  timeRows.querySelectorAll('.sub-item-row').forEach(row => {
+    const sidEl = row.querySelector('.cert-optioned');
+    const sid = sidEl ? (sidEl.getAttribute('data-extra-scheduleid') || '') : '';
+    if (sid) existingScheduleIds.add(sid);
+
+    const sd = (row.querySelector('.time-startDate') || {}).value || '';
+    const st = (row.querySelector('.time-startTime') || {}).value || '';
+    const et = (row.querySelector('.time-endTime') || {}).value || '';
+    if (sd && st) existingTriples.add(`${sd}|${st}|${et}`);
+  });
+
+  let skipCount = 0;
+  availableTimes.forEach(t => {
+    // 1) 有 scheduleId → 按 scheduleId 去重（最可靠）
+    if (t.scheduleId && existingScheduleIds.has(t.scheduleId)) {
+      skipCount++;
+      return;
     }
+    // 2) 没有 scheduleId → 按 startDate + startTime + endTime 三元组去重
+    const triple = `${t.startDate || ''}|${t.startTime || ''}|${t.endTime || ''}`;
+    if (triple !== '||' && existingTriples.has(triple)) {
+      skipCount++;
+      return;
+    }
+
+    const div = document.createElement('div');
+    div.innerHTML = renderTimeRow(t);
+    timeRows.appendChild(div.firstElementChild);
+
+    // 新行也加入去重集，防止本次入参内部自身重复（SQL 返回同一排期两次）
+    if (t.scheduleId) existingScheduleIds.add(t.scheduleId);
+    if (triple !== '||') existingTriples.add(triple);
+  });
+
+  if (skipCount > 0) {
+    console.log(`[appendAvailableTimes] 跳过 ${skipCount} 条已存在的排期（去重）`);
   }
 }
 
@@ -175,6 +218,26 @@ function renderTimeRow(t) {
   const unitStyle = (t.repeatType || 'none') === 'none' ? 'display:none;' : '';
 
   const unit = { none: '', day: '天', week: '周', month: '月' }[t.repeatType || 'none'] || '';
+
+  // ╔══════════════════════════════════════════════════════════╗
+  // ║ 【优化显示】结束日期/时间与开始相等时的隐藏逻辑           ║
+  // ║ 用 visibility:hidden 而非 display:none：                   ║
+  // ║   - display:none 会让元素完全消失 → 后面的"时间"标签        ║
+  // ║     被"拉"到日期那一块，排版错位                            ║
+  // ║   - visibility:hidden 只不可见但仍占位 → 布局保持整齐        ║
+  // ║ 逻辑：                                                     ║
+  // ║   · startDate === endDate（或 endDate 为空）               ║
+  // ║     → 隐藏日期之间的"至" + endDate 输入框（仍占位）         ║
+  // ║   · startTime === endTime（或 endTime 为空）               ║
+  // ║     → 隐藏时间之间的"至" + endTime 输入框（仍占位）         ║
+  // ╚══════════════════════════════════════════════════════════╝
+  const sd = t.startDate || '';
+  const ed = t.endDate || '';
+  const st = (t.startTime || '09:00').substring(0, 5);
+  const et = (t.endTime || '09:45').substring(0, 5);
+  const hideEndDate = (ed === '' || ed === sd) ? 'visibility:hidden;' : '';
+  const hideEndTime = (et === '' || et === st) ? 'visibility:hidden;' : '';
+
   // 优先推荐复选框：勾选后，该行的 scheduleId 会成为对外发布页的直达预约链接
   const optionedHtml = `<label><input type="checkbox" class="cert-optioned" data-extra-scheduleid="${escapeAttr(t.scheduleId || '')}" ${t.optioned ? 'checked' : ''}>
         优先推荐</label>`;
@@ -183,13 +246,13 @@ function renderTimeRow(t) {
     <div class="sub-item-row" style="flex-wrap:wrap;gap:8px;">
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
         <span style="color:#666;font-size:12px;">日期</span>
-        <input type="date" class="time-startDate" value="${escapeAttr(t.startDate || '')}">
-        <span style="color:#666;font-size:12px;">至</span>
-        <input type="date" class="time-endDate" value="${escapeAttr(t.endDate || '')}">
+        <input type="date" class="time-startDate" value="${escapeAttr(sd)}">
+        <span style="color:#666;font-size:12px;${hideEndDate}">至</span>
+        <input type="date" class="time-endDate" value="${escapeAttr(ed)}" style="${hideEndDate}">
             <span style="color:#666;font-size:12px;">时间</span>
-        <input type="time" class="time-startTime" value="${escapeAttr((t.startTime || '09:00').substring(0, 5))}">
-        <span style="color:#666;font-size:12px;">至</span>
-        <input type="time" class="time-endTime" value="${escapeAttr((t.endTime || '09:45').substring(0, 5))}">
+        <input type="time" class="time-startTime" value="${escapeAttr(st)}">
+        <span style="color:#666;font-size:12px;${hideEndTime}">至</span>
+        <input type="time" class="time-endTime" value="${escapeAttr(et)}" style="${hideEndTime}">
       </div>
       <div style="display:flex;align-items:center;gap:6px;">
         <select class="time-repeatType" onchange="onTimeRepeatTypeChange(this)">${repeatTypeOptions}</select>
