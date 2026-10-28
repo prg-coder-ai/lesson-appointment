@@ -3,6 +3,7 @@ package com.reservation.entity;
 
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
@@ -81,15 +82,21 @@ public class Course implements Serializable {
     /**
      * 课程费用（元）。课程实体本身不含该列，由 /course/page 的模板左连接
      * （t.class_fee AS classFee）带出，仅在列表/卡片展示用，不参与课程的增改校验。
-     * ddl-align: ignore 列表/卡片展示用虚拟字段，由 /course/page 的 t.class_fee AS classFee 模板左连接带出，不从 course 表读写
+     *
+     * 加 {@code @TableField(exist = false)}：告诉 MyBatis-Plus 这不是 course 表的列，
+     * BaseMapper 自动生成的 SELECT / INSERT / UPDATE 都不带它，否则会出现
+     * "Unknown column 'class_fee' in 'field list'" 线上报错。
      */
+    @TableField(exist = false)
     private BigDecimal classFee;
 
     /**
      * 授课形式（一对一 / 小班课 / 大班课 的枚举 code）。同上，由
      * /course/page 的 t.class_form AS classForm 带出，仅展示用。
-     * ddl-align: ignore 列表/卡片展示用虚拟字段，由 /course/page 的 t.class_form AS classForm 模板左连接带出，不从 course 表读写
+     *
+     * 同样必须加 {@code @TableField(exist = false)}，防止 MyBatis-Plus 拼 SQL。
      */
+    @TableField(exist = false)
     private String classForm;
 
      private String createTime; 
