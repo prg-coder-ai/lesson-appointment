@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" data-page-node-id="cl-head-meta">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="cl-head-viewport">
+  <title>在线课堂</title>
+  <link rel="stylesheet" href="js/public/vendor/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="css/classroom.css">
+</head>
+<body>
+  <div id="classroom-container">
+    <!-- 顶部栏（极简） -->
+    <header id="classroom-header">
+      <button id="btn-back" class="cl-btn cl-btn-ghost" title="返回">
+        <i class="fas fa-arrow-left"></i> 返回
+      </button>
+      <div id="classroom-title">在线课堂</div>
+      <div id="classroom-status" class="cl-status cl-status-connecting">
+        <span class="cl-dot"></span><span id="classroom-status-text">连接中...</span>
+      </div>
+    </header>
+
+    <!-- 主体三栏 -->
+    <main id="classroom-main">
+      <!-- 参与者列表 -->
+      <aside id="participant-panel">
+        <div class="panel-title">
+          <i class="fas fa-users"></i> 参与者
+          <span id="participant-count">0</span>
+        </div>
+        <ul id="participant-list"></ul>
+      </aside>
+
+      <!-- 主视频区 / 白板区 -->
+      <section id="video-whiteboard-area">
+        <div id="video-grid"></div>
+        <div id="whiteboard-area" class="hidden">
+          <div id="whiteboard-toolbar">
+            <button class="wb-tool active" data-tool="pen" title="画笔"><i class="fas fa-pen"></i></button>
+            <button class="wb-tool" data-tool="eraser" title="橡皮"><i class="fas fa-eraser"></i></button>
+            <input type="color" id="wb-color" value="#2f80ed" title="颜色">
+            <input type="range" id="wb-size" min="1" max="20" value="3" title="粗细">
+            <button id="wb-clear" class="wb-tool" title="清空"><i class="fas fa-trash"></i></button>
+            <span class="wb-hint" id="wb-readonly-hint" style="display:none;">只读</span>
+          </div>
+          <canvas id="whiteboard-canvas"></canvas>
+        </div>
+        <div id="main-placeholder">
+          <i class="fas fa-chalkboard-teacher"></i>
+          <p id="placeholder-text">正在进入课堂...</p>
+        </div>
+      </section>
+
+      <!-- 聊天面板 -->
+      <aside id="chat-panel">
+        <div class="panel-title"><i class="fas fa-comments"></i> 聊天</div>
+        <ul id="chat-messages"></ul>
+        <div id="chat-input-row">
+          <input id="chat-input" type="text" placeholder="输入消息..." autocomplete="off">
+          <button id="chat-send" title="发送"><i class="fas fa-paper-plane"></i></button>
+        </div>
+      </aside>
+    </main>
+
+    <!-- 底部控制栏 -->
+    <footer id="classroom-controls"></footer>
+  </div>
+
+  <!-- 公共工具（顺序不可调整） -->
+  <script src="js/public/vendor/axios.min.js"></script>
+  <script src="js/public/utility_request.js"></script>
+  <script src="js/public/api.js"></script>
+  <script src="js/public/feature-flags.js"></script>
+  <!-- 课堂模块 -->
+  <script src="js/classroom/classroom-rtc.js"></script>
+  <script src="js/classroom/classroom-whiteboard.js"></script>
+  <script src="js/classroom/classroom-chat.js"></script>
+  <script src="js/classroom/classroom-controls.js"></script>
+  <script src="js/classroom/classroom-teacher.js"></script>
+  <script src="js/classroom/classroom-student.js"></script>
+  <script src="js/classroom/classroom-admin.js"></script>
+  <!-- 主逻辑（必须最后） -->
+  <script src="js/classroom/classroom-main.js"></script>
+</body>
+</html>

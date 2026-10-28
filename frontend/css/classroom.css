@@ -1,0 +1,410 @@
+/* ==========================================================================
+   在线课堂页面样式（独立，不依赖 base/admin/teacher/student.css）
+   全屏布局：header / main(三栏) / footer
+   ========================================================================== */
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: #1b1f24;
+  color: #e8eaed;
+}
+
+#classroom-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* ---------------- 顶部栏 ---------------- */
+#classroom-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 52px;
+  padding: 0 16px;
+  background: #22272e;
+  border-bottom: 1px solid #30363d;
+  flex: 0 0 auto;
+}
+
+#classroom-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #e8eaed;
+  flex: 1 1 auto;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cl-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: #2b3239;
+  flex: 0 0 auto;
+}
+.cl-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #888;
+  display: inline-block;
+}
+.cl-status-live .cl-dot { background: #3fb950; box-shadow: 0 0 6px #3fb950; }
+.cl-status-idle .cl-dot { background: #d29922; }
+.cl-status-ended .cl-dot { background: #f85149; }
+.cl-status-connecting .cl-dot { background: #888; }
+
+/* ---------------- 主体三栏 ---------------- */
+#classroom-main {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: 220px 1fr 300px;
+  min-height: 0;
+}
+
+#participant-panel,
+#chat-panel {
+  background: #22272e;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+#participant-panel { border-right: 1px solid #30363d; }
+#chat-panel { border-left: 1px solid #30363d; }
+
+.panel-title {
+  padding: 12px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #9da7b3;
+  border-bottom: 1px solid #30363d;
+  flex: 0 0 auto;
+}
+.panel-title i { margin-right: 6px; }
+#participant-count {
+  float: right;
+  background: #30363d;
+  border-radius: 10px;
+  padding: 1px 8px;
+  font-size: 12px;
+}
+
+/* 参与者列表 */
+#participant-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+#participant-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #c9d1d9;
+}
+#participant-list li:hover { background: #2b3239; }
+.pt-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #3a424b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #e8eaed;
+  flex: 0 0 auto;
+}
+.pt-role-tag {
+  margin-left: auto;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: #30363d;
+  color: #9da7b3;
+}
+.pt-role-teacher { background: #1f6feb; color: #fff; }
+.pt-role-admin { background: #8957e5; color: #fff; }
+.pt-left { color: #6e7681; text-decoration: line-through; }
+
+/* ---------------- 视频/白板区 ---------------- */
+#video-whiteboard-area {
+  position: relative;
+  background: #14171b;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+#video-grid {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+  padding: 8px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.video-tile {
+  position: relative;
+  background: #0d1117;
+  border-radius: 8px;
+  overflow: hidden;
+  min-height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.video-tile video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+}
+.video-tile .vt-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #3a424b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  color: #e8eaed;
+}
+.video-tile .vt-label {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  background: rgba(0,0,0,.55);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  color: #fff;
+  max-width: 80%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.video-tile .vt-muted {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  color: #f85149;
+  font-size: 12px;
+}
+.video-tile.is-local { outline: 2px solid #1f6feb; }
+.video-tile.is-speaking .vt-label { background: rgba(63,185,80,.75); }
+
+/* 白板 */
+#whiteboard-area {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  min-height: 0;
+}
+#whiteboard-area.hidden { display: none; }
+#whiteboard-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #22272e;
+  border-bottom: 1px solid #30363d;
+  flex: 0 0 auto;
+}
+.wb-tool {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #30363d;
+  background: #2b3239;
+  color: #c9d1d9;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.wb-tool.active { background: #1f6feb; color: #fff; border-color: #1f6feb; }
+.wb-hint { color: #d29922; font-size: 12px; margin-left: 8px; }
+#whiteboard-canvas {
+  flex: 1 1 auto;
+  width: 100%;
+  cursor: crosshair;
+  touch-action: none;
+  min-height: 0;
+}
+
+/* 占位 */
+#main-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #6e7681;
+  gap: 12px;
+  pointer-events: none;
+}
+#main-placeholder i { font-size: 48px; }
+#main-placeholder.hidden { display: none; }
+
+/* ---------------- 聊天面板 ---------------- */
+#chat-messages {
+  list-style: none;
+  margin: 0;
+  padding: 10px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+#chat-messages li {
+  margin-bottom: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.chat-name { color: #58a6ff; font-weight: 600; margin-right: 6px; }
+.chat-name.is-me { color: #3fb950; }
+.chat-time { color: #6e7681; font-size: 11px; margin-left: 6px; }
+.chat-text { color: #c9d1d9; word-break: break-word; }
+.chat-system { color: #8b949e; font-style: italic; }
+
+#chat-input-row {
+  display: flex;
+  gap: 6px;
+  padding: 10px;
+  border-top: 1px solid #30363d;
+  flex: 0 0 auto;
+}
+#chat-input {
+  flex: 1 1 auto;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  color: #e8eaed;
+  padding: 8px 10px;
+  font-size: 13px;
+  outline: none;
+}
+#chat-input:focus { border-color: #1f6feb; }
+#chat-send {
+  width: 38px;
+  border: none;
+  background: #1f6feb;
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* ---------------- 底部控制栏 ---------------- */
+#classroom-controls {
+  flex: 0 0 auto;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: #22272e;
+  border-top: 1px solid #30363d;
+  padding: 0 16px;
+}
+.cl-ctrl {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 60px;
+  height: 48px;
+  padding: 0 10px;
+  border: 1px solid #30363d;
+  background: #2b3239;
+  color: #c9d1d9;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 11px;
+}
+.cl-ctrl i { font-size: 16px; }
+.cl-ctrl:hover { background: #353d45; }
+.cl-ctrl.active { background: #1f6feb; color: #fff; border-color: #1f6feb; }
+.cl-ctrl.danger { background: #da3633; color: #fff; border-color: #da3633; }
+.cl-ctrl.danger:hover { background: #f85149; }
+.cl-ctrl:disabled { opacity: .4; cursor: not-allowed; }
+
+/* 通用按钮（顶部栏返回按钮） */
+.cl-btn {
+  border: 1px solid #30363d;
+  background: #2b3239;
+  color: #c9d1d9;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.cl-btn:hover { background: #353d45; }
+.cl-btn-ghost { background: transparent; }
+
+/* 管理员巡课浮层 */
+#admin-monitor-panel {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 260px;
+  max-height: 60%;
+  overflow-y: auto;
+  background: rgba(34,39,46,.96);
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 12px;
+  color: #c9d1d9;
+  z-index: 50;
+}
+#admin-monitor-panel.hidden { display: none; }
+#admin-monitor-panel .amp-title { font-weight: 600; margin-bottom: 8px; }
+#admin-monitor-panel .amp-row { padding: 4px 0; border-bottom: 1px solid #30363d; }
+
+/* toast */
+#cl-toast {
+  position: fixed;
+  left: 50%;
+  top: 70px;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,.8);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  z-index: 9999;
+  display: none;
+}
+
+.hidden { display: none !important; }
+
+/* 响应式：窄屏收起右侧栏 */
+@media (max-width: 900px) {
+  #classroom-main { grid-template-columns: 160px 1fr; }
+  #chat-panel { display: none; }
+}
+@media (max-width: 640px) {
+  #classroom-main { grid-template-columns: 1fr; }
+  #participant-panel { display: none; }
+}

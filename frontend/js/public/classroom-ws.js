@@ -15,9 +15,19 @@
 (function () {
   const HEARTBEAT_INTERVAL = 15000;
 
+  function wsOrigin() {
+    var cfg = (typeof window.getClassroomWsBaseUrl === 'function') ? window.getClassroomWsBaseUrl() : '';
+    if (cfg) {
+      if (cfg.indexOf('://') === -1) {
+        cfg = (location.protocol === 'https:' ? 'https://' : 'http://') + cfg;
+      }
+      return cfg.replace(/^http/, 'ws').replace(/\/+$/, '');
+    }
+    return (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host;
+  }
+
   function buildBase(scheduleId) {
-    var proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    return proto + '://' + location.host + '/ws/classrooms/' + encodeURIComponent(scheduleId);
+    return wsOrigin() + '/ws/classrooms/' + encodeURIComponent(scheduleId);
   }
 
   function safeParse(data) {
