@@ -129,8 +129,11 @@ public class ClassroomCallbackController {
                 // 出席判定：进过课堂即有 checkInAt。**这只是状态判据，不影响扣多少**
                 // （扣减只判请假与否，见 AppointmentStatus#isLessonExempt）。
                 boolean attended = item.getCheckInAt() != null;
+                // 课次序号从课堂标识里解出来（第 1 课次为裸 id → 1），
+                // 一个排期展开多个课次时必须落到具体那一课次，否则永远结算第一条。
+                Integer classIndex = com.reservation.common.ClassroomKey.classIndexOf(req.getScheduleId());
                 LessonSettlementService.Outcome out = settlementService.settle(
-                        req.getScheduleId(), item.getUserId().trim(), null, attended, "classroom");
+                        req.getScheduleId(), item.getUserId().trim(), classIndex, attended, "classroom");
                 if (out.skipped()) {
                     tally.skipped++;
                 } else if (out.exempt) {

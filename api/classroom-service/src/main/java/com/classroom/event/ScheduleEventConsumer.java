@@ -1,5 +1,6 @@
 package com.classroom.event;
 
+import com.classroom.common.ClassroomKey;
 import com.classroom.common.ErrorCodes;
 import com.classroom.dto.ScheduleEventReq;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -74,13 +75,16 @@ public class ScheduleEventConsumer {
     }
 
     private void handleCreated(ScheduleEventReq event) {
-        Classroom existing = classroomMapper.selectById(event.getScheduleId());
+        // 课堂标识按课次级编码：一个排期展开 N 个课次，各建各的课堂。
+        // 第 1 课次沿用裸 scheduleId（兼容历史数据），第 2 次起为 scheduleId~N。
+        String classroomId = ClassroomKey.of(event.getScheduleId(), event.getClassIndex());
+        Classroom existing = classroomMapper.selectById(classroomId);
         if (existing != null) {
             log.info("课堂已存在，跳过创建: scheduleId={}", event.getScheduleId());
             return;
         }
         Classroom c = new Classroom();
-        c.setScheduleId(event.getScheduleId());
+        c.setScheduleId(classroomId);
         c.setCourseId(event.getCourseId());
         c.setCourseName(event.getCourseName());
         c.setTeacherId(event.getTeacher().getUserId());
@@ -102,7 +106,7 @@ public class ScheduleEventConsumer {
         if (event.getStudents() != null) {
             for (ScheduleEventReq.StudentInfo s : event.getStudents()) {
                 Membership m = new Membership();
-                m.setScheduleId(event.getScheduleId());
+                m.setScheduleId(classroomId);
                 m.setUserId(s.getUserId());
                 m.setRole("student");
                 m.setDisplayName(s.getName());
@@ -112,7 +116,7 @@ public class ScheduleEventConsumer {
             }
         }
         Membership teacher = new Membership();
-        teacher.setScheduleId(event.getScheduleId());
+        teacher.setScheduleId(classroomId);
         teacher.setUserId(event.getTeacher().getUserId());
         teacher.setRole("teacher");
         teacher.setDisplayName(event.getTeacher().getName());
@@ -122,7 +126,7 @@ public class ScheduleEventConsumer {
 
         // 出勤名单初始化：先全员 ABSENT，enter 时才升级为 PRESENT/LATE。
         // 不预置就统计不出「一次都没进课堂」的缺席学生。
-        attendanceService.initRoster(event.getScheduleId(), studentIds(event.getStudents()));
+        attendanceService.initRoster(classroomId, studentIds(event.getStudents()));
 
         log.info("课堂创建完成: scheduleId={}, tenantId={}, students={}", event.getScheduleId(),
                 c.getTenantId(),
@@ -130,7 +134,7 @@ public class ScheduleEventConsumer {
     }
 
     private void handleUpdated(ScheduleEventReq event) {
-        Classroom c = classroomMapper.selectById(event.getScheduleId());
+        Classroom c = classroomMapper.selectById(ClassroomKey.of(event.getScheduleId(), event.getClassIndex()));
         if (c == null) {
             handleCreated(event);
             return;
@@ -158,12 +162,14 @@ public class ScheduleEventConsumer {
      */
     private void syncRoster(ScheduleEventReq event) {
         if (event.getStudents() == null || event.getStudents().isEmpty()) return;
+        // 课次级标识：名单属于「这一课次」的课堂，不能落到排期级
+        String classroomId = ClassroomKey.of(event.getScheduleId(), event.getClassIndex());
         List<String> added = new ArrayList<>();
         for (ScheduleEventReq.StudentInfo s : event.getStudents()) {
             if (s == null || s.getUserId() == null || s.getUserId().isBlank()) continue;
-            if (membershipExists(event.getScheduleId(), s.getUserId())) continue;
+            if (membershipExists(classroomId, s.getUserId())) continue;
             Membership m = new Membership();
-            m.setScheduleId(event.getScheduleId());
+            m.setScheduleId(classroomId);
             m.setUserId(s.getUserId());
             m.setRole("student");
             m.setDisplayName(s.getName());
@@ -173,8 +179,8 @@ public class ScheduleEventConsumer {
             added.add(s.getUserId());
         }
         if (!added.isEmpty()) {
-            attendanceService.initRoster(event.getScheduleId(), added);
-            log.info("名单增量同步: scheduleId={}, 新增学生={}", event.getScheduleId(), added.size());
+            attendanceService.initRoster(classroomId, added);
+            log.info("名单增量同步: classroomId={}, 新增学生={}", classroomId, added.size());
         }
     }
 
@@ -197,7 +203,7 @@ public class ScheduleEventConsumer {
     }
 
     private void handleCancelled(ScheduleEventReq event) {
-        classroomService.cancel(event.getScheduleId());
+        classroomService.cancel(ClassroomKey.of(event.getScheduleId(), event.getClassIndex()));
         log.info("课堂取消完成: scheduleId={}", event.getScheduleId());
     }
 }

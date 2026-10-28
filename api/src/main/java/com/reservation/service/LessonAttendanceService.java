@@ -63,7 +63,10 @@ public class LessonAttendanceService {
         }
         String scheduleId = req.getScheduleId().trim();
 
-        CourseSchedule schedule = scheduleMapper.selectByIdIgnoreTenant(scheduleId);
+        // 回调里的 scheduleId 是课次级编码（sid 或 sid~N），排期表用的是裸 id，必须先解码。
+        // 不解码不会报错，只会「查不到排期 → 404」，属于最难查的一类静默失败。
+        CourseSchedule schedule = scheduleMapper.selectByIdIgnoreTenant(
+                com.reservation.common.ClassroomKey.scheduleIdOf(scheduleId));
         if (schedule == null) {
             // 排期不存在：可能是排期删除后才到达的回调，重试无意义但需可见，交给调用方按 404 处理
             throw new IllegalArgumentException("排期不存在，无法归户: scheduleId=" + scheduleId);

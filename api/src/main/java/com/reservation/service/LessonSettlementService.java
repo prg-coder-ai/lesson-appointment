@@ -75,7 +75,10 @@ public class LessonSettlementService {
         out.scheduleId = scheduleId;
         out.studentId = studentId;
 
-        Booking booking = bookingMapper.selectByScheduleAndStudentIgnoreTenant(scheduleId, studentId);
+        // 排期 id 要解掉课次后缀才能命中 booking（booking.schedule_id 存裸 id）；
+        // 而写 lesson_attendance / 更新结算列时仍用原始编码 id，与课堂侧保持一致。
+        String realScheduleId = com.reservation.common.ClassroomKey.scheduleIdOf(scheduleId);
+        Booking booking = bookingMapper.selectByScheduleAndStudentIgnoreTenant(realScheduleId, studentId);
         if (booking == null) {
             out.reason = "预订不存在，无法归户";
             log.warn("课次结算跳过({}): scheduleId={}, studentId={}, 原因={}", source, scheduleId, studentId, out.reason);
@@ -126,7 +129,8 @@ public class LessonSettlementService {
      * 仅签到（不扣费、不改终态）。课堂 enter 时调用。
      */
     public boolean markCheckedIn(String scheduleId, String studentId) {
-        Booking booking = bookingMapper.selectByScheduleAndStudentIgnoreTenant(scheduleId, studentId);
+        String realScheduleId = com.reservation.common.ClassroomKey.scheduleIdOf(scheduleId);
+        Booking booking = bookingMapper.selectByScheduleAndStudentIgnoreTenant(realScheduleId, studentId);
         if (booking == null) return false;
         Appointment appointment = appointmentMapper.selectFirstByBooking(booking.getBookingId());
         if (appointment == null) return false;
