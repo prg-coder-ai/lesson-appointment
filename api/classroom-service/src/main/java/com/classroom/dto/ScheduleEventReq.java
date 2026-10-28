@@ -23,6 +23,15 @@ public class ScheduleEventReq {
     @NotBlank
     private String scheduleId;
 
+    /**
+     * 租户 id（排期归属）。
+     *
+     * <p>修复前本字段不存在、消费端写死 {@code tenantId=0L}，后果是租户管理员
+     * 按租户查课堂监控列表恒空。这里不设 {@code @NotNull}：
+     * 平台级/未绑定租户的排期可以没有租户，用 0 兜底。
+     */
+    private Long tenantId;
+
     @NotBlank
     private String courseId;
 

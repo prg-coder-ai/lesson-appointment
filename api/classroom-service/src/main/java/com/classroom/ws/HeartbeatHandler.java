@@ -1,6 +1,7 @@
 package com.classroom.ws;
 
 import lombok.extern.slf4j.Slf4j;
+import com.classroom.service.AttendanceService;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -30,11 +31,13 @@ import java.util.concurrent.ConcurrentHashMap;
 public class HeartbeatHandler extends TextWebSocketHandler {
 
     private final OnlineStateManager onlineStateManager;
+    private final AttendanceService attendanceService;
     /** sessionId -> userId（关闭时用于置离线） */
     private final Map<String, String> sessionUsers = new ConcurrentHashMap<>();
 
-    public HeartbeatHandler(OnlineStateManager onlineStateManager) {
+    public HeartbeatHandler(OnlineStateManager onlineStateManager, AttendanceService attendanceService) {
         this.onlineStateManager = onlineStateManager;
+        this.attendanceService = attendanceService;
     }
 
     @Override
@@ -70,6 +73,14 @@ public class HeartbeatHandler extends TextWebSocketHandler {
         String scheduleId = attr(session, WsHandshakeAuthInterceptor.ATTR_SCHEDULE_ID);
         if (userId != null && scheduleId != null) {
             onlineStateManager.setOffline(scheduleId, userId);
+            // 闭合在线区间：只有断开才有时长可算。60 秒内重连由有效时长的抖动合并吃掉，
+            // 不会把一次切网算成离线；真的走了则这段间隙不计入课时。
+            try {
+                attendanceService.onDisconnect(scheduleId, userId);
+            } catch (Exception e) {
+                // 断连清理失败不能影响连接关闭流程（否则 session 泄漏）
+                log.warn("掉线区间闭合失败: scheduleId={}, userId={}, err={}", scheduleId, userId, e.getMessage());
+            }
         }
         log.info("心跳连接关闭: scheduleId={}, userId={}, status={}", scheduleId, userId, status);
     }

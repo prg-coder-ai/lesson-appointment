@@ -196,6 +196,9 @@ public class ClassroomEventPushService {
         payload.put("eventId", eventId);
         payload.put("eventType", eventType);
         payload.put("scheduleId", scheduleId);
+        // 租户必须随事件下发：修复前课堂侧写死 tenantId=0，租户管理员按租户查监控列表恒空，
+        // 且课堂归属校验没有依据（A 租户 token 可读 B 租户课堂）。租户以排期行反查的为准。
+        payload.put("tenantId", schedule.getTenantId() != null ? schedule.getTenantId() : tenantId);
         payload.put("courseId", schedule.getCourseId());
         payload.put("courseName", courseName);
         payload.put("teacher", teacher);

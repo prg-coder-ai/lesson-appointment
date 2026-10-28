@@ -33,7 +33,7 @@ public class MembershipService {
             existing.setOnlineState("ONLINE");
             existing.setLeaveTime(null);
             existing.setLeaveReason(null);
-            membershipMapper.updateById(existing);
+            membershipMapper.updateByKey(existing);
             log.info("成员重新加入: scheduleId={}, userId={}", scheduleId, userId);
             return;
         }
@@ -55,7 +55,7 @@ public class MembershipService {
         m.setOnlineState("OFFLINE");
         m.setLeaveTime(LocalDateTime.now());
         m.setLeaveReason(reason);
-        membershipMapper.updateById(m);
+        membershipMapper.updateByKey(m);
         log.info("成员离开: scheduleId={}, userId={}, reason={}", scheduleId, userId, reason);
     }
 
@@ -66,8 +66,31 @@ public class MembershipService {
         m.setOnlineState("OFFLINE");
         m.setLeaveTime(LocalDateTime.now());
         m.setLeaveReason("kicked");
-        membershipMapper.updateById(m);
+        membershipMapper.updateByKey(m);
         log.info("成员被移出: scheduleId={}, userId={}", scheduleId, userId);
+    }
+
+    /**
+     * 下课收尾：把所有仍在线（或状态残留 ONLINE）的成员置为 OFFLINE。
+     *
+     * <p>不做这一步，课堂 CLOSED 后监控台仍会显示「X 人在线」，
+     * 且下次同 scheduleId 复用时 {@code join} 会以为人还在，跳过 joinTime 更新。
+     *
+     * @return 被置离线的成员数
+     */
+    public int closeAllOnline(String scheduleId) {
+        LambdaQueryWrapper<Membership> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Membership::getScheduleId, scheduleId)
+               .ne(Membership::getOnlineState, "OFFLINE");
+        List<Membership> online = membershipMapper.selectList(wrapper);
+        LocalDateTime now = LocalDateTime.now();
+        for (Membership m : online) {
+            m.setOnlineState("OFFLINE");
+            m.setLeaveTime(now);
+            m.setLeaveReason("closed");
+            membershipMapper.updateByKey(m);
+        }
+        return online.size();
     }
 
     public Membership getOne(String scheduleId, String userId) {

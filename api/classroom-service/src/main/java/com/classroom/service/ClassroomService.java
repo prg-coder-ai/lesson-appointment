@@ -14,15 +14,22 @@ import java.util.List;
 /**
  * 课堂生命周期管理（状态机）。
  * 状态流转：SCHEDULED → READY → LIVE → CLOSED / CANCELLED
+ *
+ * <p>「下课」不只是改状态：{@link #endClass} 会委托
+ * {@link ClassroomClosingService} 做出勤收尾与课时回流——收尾链路挂在这里，
+ * 自动下课（定时器）与教师手动下课走的是同一个入口，不会出现两条口径。
  */
 @Slf4j
 @Service
 public class ClassroomService {
 
     private final ClassroomMapper classroomMapper;
+    private final ClassroomClosingService closingService;
 
-    public ClassroomService(ClassroomMapper classroomMapper) {
+    public ClassroomService(ClassroomMapper classroomMapper,
+                            ClassroomClosingService closingService) {
         this.classroomMapper = classroomMapper;
+        this.closingService = closingService;
     }
 
     public Classroom getById(String scheduleId) {
@@ -81,11 +88,14 @@ public class ClassroomService {
             throw new ClassroomBizException(ErrorCodes.CLASSROOM_STATUS_CONFLICT,
                     "当前状态不可下课：" + c.getStatus());
         }
+        LocalDateTime closeAt = LocalDateTime.now();
         transitionStatus(scheduleId, c.getStatus(), "CLOSED");
         Classroom update = new Classroom();
         update.setScheduleId(scheduleId);
-        update.setActualEnd(LocalDateTime.now());
+        update.setActualEnd(closeAt);
         classroomMapper.updateById(update);
+        // 出勤收尾 + 课时回流：失败只记 ERROR 不回滚（状态已 CLOSED、人已离开），可人工补跑
+        closingService.closeAfterEnd(scheduleId, closeAt);
     }
 
     public List<Classroom> listByStatus(String status, Long tenantId) {

@@ -20,6 +20,7 @@ CREATE TABLE `classroom` (
                   COMMENT 'SCHEDULED/READY/LIVE/CLOSED/CANCELLED',
   `auto_start`     TINYINT(1)   NOT NULL DEFAULT 1 COMMENT '到点自动开课',
   `version`        INT          NOT NULL DEFAULT 1 COMMENT '排期数据版本号',
+  `consumption_version` INT     NOT NULL DEFAULT 0 COMMENT '课时消耗版本号(每次下课收尾+1)',
   `actual_start`   DATETIME     NULL COMMENT '实际开课时间',
   `actual_end`     DATETIME     NULL COMMENT '实际下课时间',
   `tenant_id`      BIGINT       NOT NULL DEFAULT 0 COMMENT '租户id',
@@ -59,6 +60,22 @@ CREATE TABLE `classroom_attendance` (
   `adjust_reason`     VARCHAR(255) NULL COMMENT '补签原因',
   PRIMARY KEY (`schedule_id`, `user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='签到记录';
+
+-- 在线区间（有效时长核算依据）
+-- 每进一次课堂记一段，离开时闭合；有效时长 = 合并间隙≤60s 的相邻段后各段秒数之和，封顶课时时长。
+-- 需求 F2-03：多次进出累计、扣除 60 秒内抖动重连、封顶。
+CREATE TABLE `classroom_presence_segment` (
+  `id`           BIGINT      NOT NULL AUTO_INCREMENT,
+  `schedule_id`  VARCHAR(64) NOT NULL COMMENT '排期id=课堂id',
+  `user_id`      VARCHAR(64) NOT NULL COMMENT '用户id',
+  `join_at`      DATETIME    NOT NULL COMMENT '进入时间',
+  `leave_at`     DATETIME    NULL     COMMENT '离开时间(NULL=尚未闭合)',
+  `leave_reason` VARCHAR(20) NULL     COMMENT 'active/disconnect/kicked/closed',
+  `created_at`   DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_ps_schedule_user` (`schedule_id`, `user_id`, `join_at`),
+  KEY `idx_ps_open` (`schedule_id`, `user_id`, `leave_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='课堂在线区间(有效时长核算依据)';
 
 -- 教学记录（课堂运行档案）
 CREATE TABLE `classroom_session_record` (

@@ -22,6 +22,8 @@ public class Classroom {
     private String status;
     private Boolean autoStart;
     private Integer version;
+    /** 课时消耗版本号：每次下课收尾 +1，随出勤回调下发，供预约侧丢弃过期报文 */
+    private Integer consumptionVersion;
     private LocalDateTime actualStart;
     private LocalDateTime actualEnd;
     private Long tenantId;

@@ -42,8 +42,13 @@ shared-sync/authz/cascade/ddl-align/tz/global-collide/scheduler/actuator/tenant-
 - **★风控判定函数必须只读（2026-10-24 修掉的登录滑块绕过）**：`LoginGuardService#scoreOnly` 只算分不写库，`insert/incrIdentity/touch` 全挪到 `recordDeviceAfterLogin`（**登录成功后**才调）。改前评分顺手刷 `last_subject`/建档 → 「出题→带答案重放」第二跳分数自愈 → `authController` 里包在 `if(guard.blocked())` 内的 `verify()` 永不执行，「滑块拖歪也能登录」（库里 10 张票据 used=0 且 fail_count=0 即铁证）。铁律：**挑战校验不得嵌在守卫命中分支里**——票据只由 code=1002 下发，请求带了就必须验（hasTicket → verify），与 guard 判定解耦。配套 `auth_rate_counter.dim="newdev"`（同 IP 窗口新建设备数 ≥10 → +30 分）堵「每次换 deviceId 恒 20 分、滑块永不弹」。详见 `doc-develop/技术方案-两端登录防刷统筹.md` 第十五节。
 - 应用会被会话边界回收（后台任务终止即杀进程树）；重启前先 netstat 探活。四步链无 npm 脚本：`node tools/sync-miniprogram-shared.js` → `npm run check:shared-sync` → `node frontend/tools/gen-shared-bridge.js` → `node frontend/build.js`。
 - **微信（一期 8dc3e994）**：wx_userid 独立表 uk 全局唯一；wechat-login/register 免登录；secret 占位→1001 静默降级是设计姿态；auto_register 禁解绑。
+- **★电子课堂有效时长口径（需求 F2-03，勿改回单段差）**：`classroom_presence_segment` 每进一次一段；有效时长 = 合并「间隙 ≤ `classroom.jitter-grace-seconds`(60s)」的相邻段后求和，再 `Math.min(总分钟, classroom.duration)`；未闭合段按参考时刻闭合。旧算法（首签→末签单段差取 max）会把离线时长算进去（10:00 进/10:20 掉/11:00 回/11:30 退 → 90，应为 50）。**`duration` 必须由事件带对，否则封顶失效**。
+- 课堂收尾唯一入口 `ClassroomClosingService.closeAfterEnd`（五步：闭合区间/重算时长/归一 ABSENT·PRESENT·LATE/置离线/回流），`endClass` 委托它；**回执必须在事务提交后发**（事务内发=回滚后对端已落脏数据）。`consumption_version` 每次收尾 +1，预约侧按版本丢弃旧报文。
+- **待拍板：课时扣减**。`lesson_attendance` 已落库含有效时长，但**有意不**改 `appointment.status`、不扣 `student_balance.lesson_remaining`——须与请假/退费档位（`refund_snapshot`）统一口径后再接，否则「课堂扣一次、退费又退一次」。
+- 课堂开关 `TenantEclassroomService` 有 **5 分钟内存缓存**：给租户开通课堂后要等 5 分钟或重启 classroom-service 才生效；联调时若 403「课堂未启用」，先查 `sys_tenant_eclassroom` 再想缓存。
 
 ## 技术栈/排障
+- **★复合主键实体没有 `updateById`**：`classroom_attendance`/`classroom_membership`（以及一切 `(a,b)` 双主键表）实体无 `@TableId` 时，MP **不生成** `updateById`，运行期抛 `Invalid bound statement (not found)`。`insert`/`selectOne` 正常，只有更新炸 → 表现为「接口 200、状态变了、明细没落库」的半失败。已加显式 `updateByKey(@Update 全字段)`；新建双主键表一律照此办，别用 `updateById`。附带好处：显式全字段能写 NULL（MP 默认忽略 null → `leave_time` 清不掉）。
 - 编译：unset CLASSPATH + 直调 Maven launcher JAR（系统 mvn 坏，GBK 输出过 iconv）；smoke 起 8083；**杀后台 java 用 PowerShell Stop-Process（Git Bash kill 对 JVM 无效）**。
 - **★CRLF 毒害测试**：core.autocrlf=true → 工作区 CRLF/索引 LF；按 `\n` 写锚点的匹配静默失败（`.` 不匹配 `\r`）；判行尾用 Node 计数；反向测试变异前归一 LF、还原走原始 Buffer。
 - 跨库 JOIN 须显式 COLLATE utf8mb4_general_ci；mysqldump 必须 --result-file=，本机 mysql root/123456，改结构后重 dump 落 api/sql/schema/。
