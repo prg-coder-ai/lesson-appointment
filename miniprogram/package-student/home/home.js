@@ -43,6 +43,7 @@ Page(withTerms({
   onTabChange(e) { wx.redirectTo({ url: e.detail.page }); },
   goBooking() { wx.navigateTo({ url: '/package-student/booking/booking' }); },
   goMyBooking() { wx.navigateTo({ url: '/package-student/my-booking/my-booking' }); },
+  goMyLesson() { wx.navigateTo({ url: '/package-student/my-lesson/my-lesson' }); },
   goAppointment() { wx.navigateTo({ url: '/package-student/appointment/appointment' }); },
   goTeacherList() { wx.navigateTo({ url: '/package-student/teacher-list/teacher-list' }); },
   goMessage() { wx.navigateTo({ url: '/package-message/inbox/inbox' }); },

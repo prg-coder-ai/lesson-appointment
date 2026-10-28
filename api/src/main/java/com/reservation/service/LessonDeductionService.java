@@ -117,7 +117,7 @@ public class LessonDeductionService {
 
         try {
             BigDecimal remainingAfter = transactionTemplate.execute(status ->
-                    doDeductInTx(appointment, tenantId, studentId, booking.getBookingId(), delta, bizKey));
+                    doDeductInTx(appointment, tenantId, studentId, booking, delta, bizKey));
             log.info("课时已扣减: appointmentId={}, studentId={}, tenantId={}, 扣减={}, 余量={}",
                     appointment.getId(), studentId, tenantId, delta, remainingAfter);
             return DeductResult.deducted(appointment.getId(), delta, remainingAfter);
@@ -134,7 +134,7 @@ public class LessonDeductionService {
      * @return 变动后的剩余课时
      */
     private BigDecimal doDeductInTx(Appointment appointment, Long tenantId, String studentId,
-                                    String bookingId, BigDecimal delta, String bizKey) {
+                                    Booking booking, BigDecimal delta, String bizKey) {
         // 账户不存在则先建（total=0，允许负余额=欠课时）
         balanceMapper.insertIfAbsent(tenantId, studentId);
         StudentLessonBalance balance = balanceMapper.selectForUpdate(tenantId, studentId);
@@ -155,8 +155,10 @@ public class LessonDeductionService {
         flow.setTenantId(tenantId);
         flow.setFlowId(UUID.randomUUID().toString().replace("-", ""));
         flow.setStudentId(studentId);
-        flow.setBookingId(bookingId);
-        flow.setScheduleId(null);
+        flow.setBookingId(booking.getBookingId());
+        // scheduleId 取预订上的值，而不是留 null：流水是「我的课时」页面的唯一数据源，
+        // 没有 schedule_id 就无法反查课程名，学生看到的就是一串「课次 #3 扣 1 课时」。
+        flow.setScheduleId(booking.getScheduleId());
         flow.setClassIndex(appointment.getClassIndex());
         flow.setAppointmentId(appointment.getId());
         flow.setChangeLessons(delta.negate());

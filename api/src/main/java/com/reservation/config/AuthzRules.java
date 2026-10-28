@@ -411,6 +411,14 @@ public final class AuthzRules {
         r.add(new Rule(HttpMethod.PUT, "/api/v1/eclassroom/tenant/{tenantId}/disable", PLATFORM_ONLY, "新增：禁用租户课堂"));
         r.add(new Rule(HttpMethod.PUT, "/api/v1/eclassroom/tenant/{tenantId}/unbind", PLATFORM_ONLY, "新增：解绑租户课堂"));
 
+        // ==================== 七、课时账本（2026-10-28）====================
+        // 只读查询。「我的课时」是学生自助页，ALL_ROLES 因为教师/管理员同样有课时账本；
+        // 查指定学生需要教师/管理员（学生只能看自己，走 /balance）。
+        // 写路径（充值、改判）本轮未开放端点，避免在规则未定前暴露加课时口子。
+        r.add(new Rule(HttpMethod.GET, "/api/v1/lesson/balance", ALL_ROLES, "新增：我的课时账户"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/lesson/flows", ALL_ROLES, "新增：我的课时流水（分页）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/lesson/students/{studentId}/balance", TEACHER_OR_ADMIN, "新增：查指定学生课时账户与最近流水"));
+
         return List.copyOf(r);
     }
 }

@@ -1,0 +1,48 @@
+<view class="page">
+
+  <!-- 课时账户：三个数字 + 后端给的提示语（欠课时/用完/剩余） -->
+  <view class="acct">
+    <view class="acct-main">
+      <view class="acct-label">剩余课时</view>
+      <view class="acct-value {{toneClass}}">{{balance.remaining}}</view>
+    </view>
+    <view class="acct-sub">
+      <view class="acct-item">
+        <view class="acct-item-value">{{balance.total}}</view>
+        <view class="acct-item-label">累计课时</view>
+      </view>
+      <view class="acct-item">
+        <view class="acct-item-value">{{balance.used}}</view>
+        <view class="acct-item-label">已消耗</view>
+      </view>
+    </view>
+    <view wx:if="{{tip}}" class="acct-tip {{toneClass}}">{{tip}}</view>
+  </view>
+
+  <view class="note">课时按「是否请假」结算：未请假的课次扣 1 课时，请假申请中的课次不扣。</view>
+
+  <!-- 流水列表 -->
+  <view wx:if="{{rows.length > 0}}" class="card">
+    <view class="card-title">课时明细</view>
+    <view wx:for="{{rows}}" wx:key="id" class="flow">
+      <view class="flow-top">
+        <view class="flow-title">{{item.title}}</view>
+        <view class="flow-change {{item.positive ? 'plus' : 'minus'}}">{{item.change}}</view>
+      </view>
+      <view class="flow-meta">
+        <text class="flow-time">{{item.time}}</text>
+        <text class="flow-source">{{item.source}}</text>
+        <text class="flow-after">结余 {{item.after}}</text>
+      </view>
+      <view wx:if="{{item.reason}}" class="flow-reason">{{item.reason}}</view>
+    </view>
+    <view wx:if="{{loading}}" class="loading">加载中…</view>
+    <view wx:elif="{{pageNum >= totalPages && total > 0}}" class="loading">共 {{total}} 条，已全部加载</view>
+  </view>
+
+  <view wx:elif="{{loaded}}" class="empty">
+    还没有课时流水{{'\n'}}首次上课并完成课堂结算后，这里会自动出现记录
+  </view>
+  <view wx:else class="loading">加载中…</view>
+
+</view>

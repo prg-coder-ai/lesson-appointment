@@ -50,4 +50,41 @@ public interface StudentLessonFlowMapper extends BaseMapper<StudentLessonFlow> {
     @InterceptorIgnore(tenantLine = "true")
     @Select("SELECT * FROM student_lesson_flow WHERE appointment_id = #{appointmentId} ORDER BY id")
     List<StudentLessonFlow> listByAppointment(@Param("appointmentId") Integer appointmentId);
+
+    // ==================== 我的课时（2026-10-28 展示层） ====================
+
+    /**
+     * 学生流水分页（含课程名）。
+     *
+     * <p>课程名要经 {@code booking → course_schedule} 反查：流水表只存了 booking_id，
+     * 而学生认识的是课程名，不是 id。
+     *
+     * <p>显式 {@code @InterceptorIgnore} + 显式 {@code f.tenant_id} 过滤：
+     * 本语句带 LEFT JOIN，交给插件自动拼租户列容易拼错表别名（会拼到 booking 上而不是 f 上），
+     * 反而查不到或串数据。
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT f.id AS id,"
+            + "       f.change_lessons AS changeLessons,"
+            + "       f.remaining_after AS remainingAfter,"
+            + "       f.source AS source,"
+            + "       f.reason AS reason,"
+            + "       f.class_index AS classIndex,"
+            + "       cs.name AS courseName,"
+            + "       f.create_time AS createTime"
+            + "  FROM student_lesson_flow f"
+            + "  LEFT JOIN booking b ON b.booking_id = f.booking_id"
+            + "  LEFT JOIN course_schedule cs ON cs.schedule_id = b.schedule_id"
+            + " WHERE f.tenant_id = #{tenantId} AND f.student_id = #{studentId}"
+            + " ORDER BY f.id DESC"
+            + " LIMIT #{offset}, #{limit}")
+    List<com.reservation.vo.LessonFlowVO> pageByStudent(@Param("tenantId") Long tenantId,
+                                                        @Param("studentId") String studentId,
+                                                        @Param("offset") int offset,
+                                                        @Param("limit") int limit);
+
+    /** 学生流水总数（与 {@link #pageByStudent} 同口径，勿改成查 balance） */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT COUNT(1) FROM student_lesson_flow WHERE tenant_id = #{tenantId} AND student_id = #{studentId}")
+    long countByStudent(@Param("tenantId") Long tenantId, @Param("studentId") String studentId);
 }

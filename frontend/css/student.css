@@ -536,3 +536,50 @@
 .result-panel { margin-top: 4px; }
   
 
+
+/* ===== 我的课时（2026-10-28）===== */
+/* 三个数字卡：剩余 / 累计 / 已消耗。flex 而非 grid，窄屏自动折行。 */
+.ml-hint {
+  font-size: 12px;
+  color: var(--text-light-color);
+  margin-top: 6px;
+  line-height: 1.6;
+}
+.ml-stat-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 10px 0 4px;
+}
+.ml-stat {
+  flex: 1 1 160px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: #fafbfc;
+}
+.ml-stat-label {
+  font-size: 12px;
+  color: var(--text-light-color);
+  margin-bottom: 8px;
+}
+.ml-stat-value {
+  font-size: 26px;
+  font-weight: 700;
+  color: #333;
+  line-height: 1.1;
+}
+.ml-tip {
+  font-size: 13px;
+  color: var(--text-light-color);
+  margin: 10px 0 4px;
+}
+.ml-pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--text-light-color);
+}

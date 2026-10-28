@@ -294,7 +294,13 @@ export const ENDPOINTS = {
   ECLASSROOM_TENANT_BIND: (tenantId, instanceId) =>
     `/api/v1/eclassroom/tenant/${encodeURIComponent(tenantId || '')}/bind?instanceId=${encodeURIComponent(instanceId || '')}`,
   ECLASSROOM_TENANT_DISABLE: (tenantId) => `/api/v1/eclassroom/tenant/${encodeURIComponent(tenantId || '')}/disable`,
-  ECLASSROOM_TENANT_UNBIND: (tenantId) => `/api/v1/eclassroom/tenant/${encodeURIComponent(tenantId || '')}/unbind`
+  ECLASSROOM_TENANT_UNBIND: (tenantId) => `/api/v1/eclassroom/tenant/${encodeURIComponent(tenantId || '')}/unbind`,
+  // —— 课时账本（2026-10-28：「我的课时」页）——
+  // 只读。写路径（充值/改判）本轮未开放端点。
+  LESSON_BALANCE: '/api/v1/lesson/balance',
+  LESSON_FLOWS: '/api/v1/lesson/flows',
+  LESSON_STUDENT_BALANCE: (studentId) =>
+    `/api/v1/lesson/students/${encodeURIComponent(studentId || '')}/balance`
 };
 
 // ── 后端程序探测目标（「数据维护 → 后台信息」Tab 与平台端「后端信息」页共用）──
