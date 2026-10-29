@@ -24,6 +24,9 @@ set -uo pipefail
 # ---- 配置（按实际环境改）----
 API_URL="${API_URL:-http://127.0.0.1:8081}"
 MSG_URL="${MSG_URL:-http://127.0.0.1:8090}"
+# 在线课堂（8092）。课堂故障很隐蔽：进程活着、HTTP 通，但 DB 或 Redis 断了之后
+# 学生进不去课堂、点名无响应，只有主动探 readiness 才发现
+CLASSROOM_URL="${CLASSROOM_URL:-http://127.0.0.1:8092}"
 DISK_WARN="${DISK_WARN:-85}"            # 磁盘使用率告警阈值（%）
 LOG_DIR_WARN_MB="${LOG_DIR_WARN_MB:-20480}"  # /var/log/lesson 体积告警（MB）
 NOTIFY_LOOKBACK_MIN="${NOTIFY_LOOKBACK_MIN:-30}"
@@ -198,12 +201,13 @@ check_probe() {
 
 # ============================================================ 主流程
 check_disk
-check_probe "booking"         "$API_URL"
-check_probe "message-service" "$MSG_URL"
+check_probe "booking"           "$API_URL"
+check_probe "message-service"   "$MSG_URL"
+check_probe "classroom-service" "$CLASSROOM_URL"
 check_notify
 
 if [ "$ALERTS" -eq 0 ]; then
-  say "巡检通过：磁盘正常、两个服务探针 200、通知流水无异常。"
+  say "巡检通过：磁盘正常、三个服务探针 200、通知流水无异常。"
   exit 0
 fi
 say "巡检完成，共 $ALERTS 条告警。"
