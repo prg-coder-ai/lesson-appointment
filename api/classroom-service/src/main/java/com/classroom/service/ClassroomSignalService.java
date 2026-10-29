@@ -1,5 +1,6 @@
 package com.classroom.service;
 
+import com.classroom.metrics.BizMetrics;
 import com.classroom.ws.WsRoomRegistry;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,16 +29,20 @@ import java.util.Map;
 public class ClassroomSignalService {
 
     private final WsRoomRegistry registry;
+    /** 业务指标（按 type 分桶，用于看"哪类信令异常多"） */
+    private final BizMetrics metrics;
     private final ClassroomLiveState liveState;
     private final TeachingSessionService teachingSession;
     private final ObjectMapper objectMapper;
 
     public ClassroomSignalService(WsRoomRegistry registry, ClassroomLiveState liveState,
-                                 TeachingSessionService teachingSession, ObjectMapper objectMapper) {
+                                 TeachingSessionService teachingSession, ObjectMapper objectMapper,
+                                BizMetrics metrics) {
         this.registry = registry;
         this.liveState = liveState;
         this.teachingSession = teachingSession;
         this.objectMapper = objectMapper;
+        this.metrics = metrics;
     }
 
     /** 判断该 payload 是否本服务已知业务类型（避免无差别转发已知类型造成双发） */
@@ -60,6 +65,7 @@ public class ClassroomSignalService {
             JsonNode node = objectMapper.readTree(payload);
             String type = node.path("type").asText(null);
             if (type == null) return;
+            metrics.signal(type);
             switch (type) {
                 case "hand" -> handleHand(scheduleId, userId, node);
                 case "hand:approve" -> handleHandApprove(scheduleId, role, node);

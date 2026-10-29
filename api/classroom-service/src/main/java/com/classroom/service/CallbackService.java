@@ -16,6 +16,8 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import com.classroom.metrics.BizMetrics;
+import com.classroom.web.TraceContext;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Instant;
@@ -54,6 +56,7 @@ public class CallbackService {
     private final HmacSigner hmacSigner;
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate;
+    private final BizMetrics metrics;
     private final TaskScheduler retryScheduler;
 
     @Value("${booking.api.base-url:http://localhost:8081}")
@@ -61,10 +64,12 @@ public class CallbackService {
 
     public CallbackService(HmacSigner hmacSigner,
                            ObjectMapper objectMapper,
-                           @Qualifier("callbackRetryScheduler") TaskScheduler retryScheduler) {
+                           @Qualifier("callbackRetryScheduler") TaskScheduler retryScheduler,
+                           BizMetrics metrics) {
         this.hmacSigner = hmacSigner;
         this.objectMapper = objectMapper;
         this.retryScheduler = retryScheduler;
+        this.metrics = metrics;
         // 连接/读取超时必设：默认无超时会挂住线程，回调线程池只有 8 个，很容易被拖死
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(3000);
@@ -116,6 +121,8 @@ public class CallbackService {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.set("X-Hmac-Signature", hmacSigner.sign(json));
+            // 透传链路 id：预约侧据此能把「它收到这条回流」与「课堂侧发出」对齐成一条链路
+            headers.set(TraceContext.HEADER, TraceContext.currentOrNew());
             restTemplate.postForEntity(url, new HttpEntity<>(json, headers), String.class);
             log.info("签到事件已回流: scheduleId={}, userId={}", scheduleId, userId);
         } catch (Exception e) {
@@ -153,10 +160,12 @@ public class CallbackService {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.set("X-Hmac-Signature", hmacSigner.sign(json));
+            headers.set(TraceContext.HEADER, TraceContext.currentOrNew());
             ResponseEntity<String> resp = restTemplate.postForEntity(url, new HttpEntity<>(json, headers), String.class);
 
             Integer code = extractCode(resp.getBody());
             if (code != null && PERMANENT_FAIL_CODES.contains(code)) {
+                metrics.callback("permanent_fail");
                 log.error("[DLQ] {}被对端拒绝(code={})，重试无意义，直接转死信: url={}, 响应={}",
                         label, code, url, resp.getBody());
                 return;
@@ -164,6 +173,7 @@ public class CallbackService {
             if (code != null && code != 200) {
                 throw new IllegalStateException("对端返回业务失败 code=" + code + ", body=" + resp.getBody());
             }
+            metrics.callback("ok");
             if (retryIndex == 0) {
                 log.info("{}投递成功: url={}", label, url);
             } else {
@@ -171,10 +181,12 @@ public class CallbackService {
             }
         } catch (Exception e) {
             if (retryIndex >= BACKOFF_MINUTES.length) {
+                metrics.callback("failed");
                 log.error("[DLQ] {}重试 {} 次仍失败，转死信待人工重放: url={}, 报文={}",
                         label, BACKOFF_MINUTES.length, url, json, e);
                 return;
             }
+            metrics.callback("retry");
             int delayMinutes = BACKOFF_MINUTES[retryIndex];
             int nextRetry = retryIndex + 1;
             log.warn("{}投递失败，{} 分钟后第 {} 次重试: url={}, err={}",

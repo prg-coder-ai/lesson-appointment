@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   classroom-service 日志配置
-  与 message-service 同模式：文件名 classroom-service.log，保留 60 天，总量上限 3GB。
+  文件名 classroom-service.log；保留 90 天（合规要求：教学事故追溯窗口 = 一个完整学期），
+  总量上限 10GB。超过上限按「最旧优先」滚动删除，宁可删旧日志也不让磁盘打满。
 -->
 <configuration>
     <property name="LOG_CHARSET" value="UTF-8"/>
     <property name="LOG_DIR"     value="${LOG_PATH:-./logs}"/>
     <property name="LOG_PATTERN"
-              value="%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}  %-5level [%thread] %logger{36} : %msg%n"/>
+              value="%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}  %-5level [%thread] [%X{traceId:--}] %logger{36} : %msg%n"/>
 
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder charset="${LOG_CHARSET}">
@@ -23,8 +24,8 @@
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
             <fileNamePattern>${LOG_DIR}/archived/classroom-service.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
             <maxFileSize>50MB</maxFileSize>
-            <maxHistory>60</maxHistory>
-            <totalSizeCap>3GB</totalSizeCap>
+            <maxHistory>90</maxHistory>
+            <totalSizeCap>10GB</totalSizeCap>
             <cleanHistoryOnStart>true</cleanHistoryOnStart>
         </rollingPolicy>
     </appender>

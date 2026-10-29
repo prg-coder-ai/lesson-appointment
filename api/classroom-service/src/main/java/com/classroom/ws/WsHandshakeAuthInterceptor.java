@@ -2,6 +2,7 @@ package com.classroom.ws;
 
 import com.classroom.security.ClassroomAccessGuard;
 import com.classroom.util.JwtUtil;
+import com.classroom.web.TraceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.server.ServerHttpRequest;
@@ -43,6 +44,8 @@ public class WsHandshakeAuthInterceptor implements HandshakeInterceptor {
     public static final String ATTR_SCHEDULE_ID = "scheduleId";
     public static final String ATTR_USER_ID = "userId";
     public static final String ATTR_ROLE = "role";
+    /** 链路 id：握手时确定，之后每条消息都复用它写日志（WS 无 HTTP 过滤器链可用） */
+    public static final String ATTR_TRACE_ID = "traceId";
 
     private final JwtUtil jwtUtil;
     private final ClassroomAccessGuard accessGuard;
@@ -84,8 +87,12 @@ public class WsHandshakeAuthInterceptor implements HandshakeInterceptor {
         attributes.put(ATTR_SCHEDULE_ID, scheduleId);
         attributes.put(ATTR_USER_ID, userId);
         attributes.put(ATTR_ROLE, role);
-        log.debug("WS 握手通过: scheduleId={}, userId={}, role={}, channel={}",
-                scheduleId, userId, role, request.getURI().getPath());
+        // WebSocket 不走 servlet 过滤器链，traceId 只能在此自建并随 session 传递；
+        // 前端可带 ?traceId= 沿用 REST 调用那一段链路（进课堂 → 连 WS 是同一次用户动作）
+        String traceId = TraceContext.normalize(resolveTraceId(request));
+        attributes.put(ATTR_TRACE_ID, traceId);
+        TraceContext.runWith(traceId, () -> log.debug("WS 握手通过: scheduleId={}, userId={}, role={}, channel={}",
+                scheduleId, userId, role, request.getURI().getPath()));
         return true;
     }
 
@@ -109,6 +116,18 @@ public class WsHandshakeAuthInterceptor implements HandshakeInterceptor {
         String auth = request.getHeaders().getFirst("Authorization");
         if (auth != null && auth.startsWith("Bearer ")) return auth.substring(7).trim();
         return null;
+    }
+
+    /**
+     * traceId 取值：query {@code traceId}（浏览器 WebSocket 不能自定义头）
+     * → {@code X-Trace-Id} 头（测试工具/服务端客户端）。
+     */
+    private String resolveTraceId(ServerHttpRequest request) {
+        if (request instanceof ServletServerHttpRequest servlet) {
+            String q = servlet.getServletRequest().getParameter("traceId");
+            if (q != null && !q.isBlank()) return q.trim();
+        }
+        return request.getHeaders().getFirst(TraceContext.HEADER);
     }
 
     /**

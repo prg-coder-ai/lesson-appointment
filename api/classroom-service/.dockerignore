@@ -1,0 +1,9 @@
+# 构建上下文瘦身：target 里有几十 MB class 与 jar，拷进去既慢又会让
+# 每层缓存失效（源码没改也会重建）。日志与本地对象存储同理。
+target/
+logs/
+data/
+*.log
+.idea/
+*.iml
+.git/

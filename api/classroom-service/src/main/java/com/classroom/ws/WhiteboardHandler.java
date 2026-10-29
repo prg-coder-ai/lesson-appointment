@@ -1,7 +1,9 @@
 package com.classroom.ws;
 
 import com.classroom.service.ClassroomLiveState;
+import com.classroom.metrics.BizMetrics;
 import com.classroom.service.TeachingSessionService;
+import com.classroom.web.TraceContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +41,7 @@ public class WhiteboardHandler extends TextWebSocketHandler {
     private final ClassroomLiveState liveState;
     private final TeachingSessionService teachingSession;
     private final ObjectMapper objectMapper;
+    private final BizMetrics metrics;
 
     /** scheduleId -> 白板操作序列（JSON 字符串列表，用于重连下发与落盘） */
     private final Map<String, List<String>> wbOps = new ConcurrentHashMap<>();
@@ -50,11 +53,13 @@ public class WhiteboardHandler extends TextWebSocketHandler {
     private static final long FLUSH_INTERVAL_MS = 2000;
 
     public WhiteboardHandler(WsRoomRegistry registry, ClassroomLiveState liveState,
-                            TeachingSessionService teachingSession, ObjectMapper objectMapper) {
+                            TeachingSessionService teachingSession, ObjectMapper objectMapper,
+                            BizMetrics metrics) {
         this.registry = registry;
         this.liveState = liveState;
         this.teachingSession = teachingSession;
         this.objectMapper = objectMapper;
+        this.metrics = metrics;
     }
 
     @Override
@@ -65,6 +70,7 @@ public class WhiteboardHandler extends TextWebSocketHandler {
             return;
         }
         registry.registerWhiteboard(scheduleId, session);
+        metrics.wsConnect("whiteboard");
         ensureLoaded(scheduleId);
         // 重连下发当前白板
         List<String> ops = wbOps.get(scheduleId);
@@ -83,7 +89,13 @@ public class WhiteboardHandler extends TextWebSocketHandler {
         String userId = attr(session, WsHandshakeAuthInterceptor.ATTR_USER_ID);
         String role = attr(session, WsHandshakeAuthInterceptor.ATTR_ROLE);
         String payload = message.getPayload();
+        // 落盘/授权判定都在这一段里，日志必须能按 traceId 串起来（WS 无过滤器链）
+        TraceContext.runWith(attr(session, WsHandshakeAuthInterceptor.ATTR_TRACE_ID),
+                () -> handlePayload(session, scheduleId, userId, role, payload));
+    }
 
+    private void handlePayload(WebSocketSession session, String scheduleId,
+                              String userId, String role, String payload) {
         JsonNode node;
         try {
             node = objectMapper.readTree(payload);
@@ -102,6 +114,7 @@ public class WhiteboardHandler extends TextWebSocketHandler {
         boolean modifies = "draw".equals(op) || "stroke".equals(op) || "erase".equals(op) || "clear".equals(op);
         if (modifies) {
             if (!liveState.canEditWhiteboard(scheduleId, userId, isTeacherOrManager(role))) {
+                metrics.whiteboardDenied();
                 send(session, "{\"type\":\"wb:denied\"}");
                 return;
             }

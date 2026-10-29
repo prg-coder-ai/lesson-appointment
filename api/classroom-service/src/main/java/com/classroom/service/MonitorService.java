@@ -10,6 +10,7 @@ import com.classroom.recording.RecordingBackendRegistry;
 import com.classroom.reconcile.ReconcileDiffHandler;
 import com.classroom.rtc.RtcProviderRegistry;
 import com.classroom.storage.StorageService;
+import com.classroom.metrics.BizMetrics;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -41,6 +42,8 @@ public class MonitorService {
     private final RtcProviderRegistry rtcProviderRegistry;
     private final RecordingBackendRegistry recordingRegistry;
     private final StorageService storageService;
+    /** 指标回写：概览接口本来就要算这几个数，顺手写进 Gauge，零额外扫描 */
+    private final BizMetrics metrics;
 
     public MonitorService(ClassroomMapper classroomMapper,
                           MembershipMapper membershipMapper,
@@ -48,7 +51,8 @@ public class MonitorService {
                           MediaService mediaService,
                           RtcProviderRegistry rtcProviderRegistry,
                           RecordingBackendRegistry recordingRegistry,
-                          StorageService storageService) {
+                          StorageService storageService,
+                          BizMetrics metrics) {
         this.classroomMapper = classroomMapper;
         this.membershipMapper = membershipMapper;
         this.diffHandler = diffHandler;
@@ -56,6 +60,7 @@ public class MonitorService {
         this.rtcProviderRegistry = rtcProviderRegistry;
         this.recordingRegistry = recordingRegistry;
         this.storageService = storageService;
+        this.metrics = metrics;
     }
 
     /** 实时概览：并发课堂、在线人数、今日课程水位、异常堆积 */
@@ -100,6 +105,11 @@ public class MonitorService {
             item.put("actualStart", c.getActualStart());
             activeClasses.add(item);
         }
+
+        // 顺带回写 Gauge：Prometheus 抓取时不希望再打一次 DB（抓取是周期性的，
+        // 15s 一次的全表统计在生产上会成为显著负载）
+        metrics.setLiveClassrooms(live);
+        metrics.setOnlineUsers(onlineTotal);
 
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("serverTime", LocalDateTime.now());

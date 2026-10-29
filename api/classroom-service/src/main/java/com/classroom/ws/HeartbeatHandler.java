@@ -1,6 +1,7 @@
 package com.classroom.ws;
 
 import lombok.extern.slf4j.Slf4j;
+import com.classroom.metrics.BizMetrics;
 import com.classroom.service.AttendanceService;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
@@ -32,12 +33,15 @@ public class HeartbeatHandler extends TextWebSocketHandler {
 
     private final OnlineStateManager onlineStateManager;
     private final AttendanceService attendanceService;
+    private final BizMetrics metrics;
     /** sessionId -> userId（关闭时用于置离线） */
     private final Map<String, String> sessionUsers = new ConcurrentHashMap<>();
 
-    public HeartbeatHandler(OnlineStateManager onlineStateManager, AttendanceService attendanceService) {
+    public HeartbeatHandler(OnlineStateManager onlineStateManager, AttendanceService attendanceService,
+                            BizMetrics metrics) {
         this.onlineStateManager = onlineStateManager;
         this.attendanceService = attendanceService;
+        this.metrics = metrics;
     }
 
     @Override
@@ -54,6 +58,7 @@ public class HeartbeatHandler extends TextWebSocketHandler {
             return;
         }
         sessionUsers.put(session.getId(), userId);
+        metrics.wsConnect("heartbeat");
         onlineStateManager.refresh(scheduleId, userId);
         log.debug("心跳连接建立: scheduleId={}, userId={}", scheduleId, userId);
     }

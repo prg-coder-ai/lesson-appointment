@@ -1,12 +1,15 @@
 package com.classroom.config;
 
+import org.slf4j.MDC;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.TaskDecorator;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
+import java.util.Map;
 import java.util.concurrent.Executor;
 
 /**
@@ -15,6 +18,37 @@ import java.util.concurrent.Executor;
 @Configuration
 public class AsyncConfig implements AsyncConfigurer {
 
+    /**
+     * 把提交线程的 MDC（traceId）搬到执行线程。
+     *
+     * <p><b>为什么必须做</b>：{@code @Async} 的回流投递与退避重试才是排查的主力——
+     * 真正出问题的往往是异步那段，而它恰好没有 traceId。不做传播的话，
+     * HTTP 入口那段日志有 traceId、异步那段没有，等于把最需要串起来的地方断开了。
+     *
+     * <p>子线程结束时**必须清空**：线程池复用线程，残留的 traceId 会把下一次任务
+     * 的日志错绑到上一个请求上，比没有更误导。
+     */
+    private static final TaskDecorator MDC_DECORATOR = runnable -> {
+        Map<String, String> captured = MDC.getCopyOfContextMap();
+        return () -> {
+            Map<String, String> prev = MDC.getCopyOfContextMap();
+            try {
+                if (captured == null) {
+                    MDC.clear();
+                } else {
+                    MDC.setContextMap(captured);
+                }
+                runnable.run();
+            } finally {
+                if (prev == null) {
+                    MDC.clear();
+                } else {
+                    MDC.setContextMap(prev);
+                }
+            }
+        };
+    };
+
     @Bean("callbackExecutor")
     public Executor callbackExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
@@ -22,6 +56,7 @@ public class AsyncConfig implements AsyncConfigurer {
         executor.setMaxPoolSize(8);
         executor.setQueueCapacity(200);
         executor.setThreadNamePrefix("callback-");
+        executor.setTaskDecorator(MDC_DECORATOR);
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setAwaitTerminationSeconds(30);
         executor.initialize();
@@ -35,6 +70,7 @@ public class AsyncConfig implements AsyncConfigurer {
         executor.setMaxPoolSize(2);
         executor.setQueueCapacity(50);
         executor.setThreadNamePrefix("reconcile-");
+        executor.setTaskDecorator(MDC_DECORATOR);
         executor.initialize();
         return executor;
     }

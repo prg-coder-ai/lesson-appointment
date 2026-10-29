@@ -1,6 +1,7 @@
 package com.classroom.ws;
 
 import com.classroom.service.ClassroomSignalService;
+import com.classroom.web.TraceContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
@@ -57,13 +58,17 @@ public class ClassroomSignalHandler extends TextWebSocketHandler {
         String role = attr(session, WsHandshakeAuthInterceptor.ATTR_ROLE);
         String payload = message.getPayload();
 
-        // 已知业务类型 → 服务端路由（状态变更 + 权威广播 + 事件落库）
-        if (signalService.isKnownType(payload)) {
-            signalService.handleIncoming(scheduleId, userId, role, payload, session.getId());
-            return;
-        }
-        // 未知类型 → 房间内透明转发（向后兼容）
-        registry.broadcastSignalExcept(scheduleId, payload, session.getId());
+        // 整条消息处理（含 service 内部的广播与落库日志）都挂同一条 traceId：
+        // WS 线程没有过滤器链，不主动绑就会与其他课堂的消息混在日志里无从区分
+        TraceContext.runWith(traceIdOf(session), () -> {
+            // 已知业务类型 → 服务端路由（状态变更 + 权威广播 + 事件落库）
+            if (signalService.isKnownType(payload)) {
+                signalService.handleIncoming(scheduleId, userId, role, payload, session.getId());
+                return;
+            }
+            // 未知类型 → 房间内透明转发（向后兼容）
+            registry.broadcastSignalExcept(scheduleId, payload, session.getId());
+        });
     }
 
     @Override
@@ -83,6 +88,11 @@ public class ClassroomSignalHandler extends TextWebSocketHandler {
     private String attr(WebSocketSession session, String key) {
         Object v = session.getAttributes().get(key);
         return v == null ? null : v.toString();
+    }
+
+    /** 握手时确定的链路 id；缺失时返回 null（runWith 会保持当前 MDC 原样） */
+    private String traceIdOf(WebSocketSession session) {
+        return attr(session, WsHandshakeAuthInterceptor.ATTR_TRACE_ID);
     }
 
     private void closeQuietly(WebSocketSession session) {

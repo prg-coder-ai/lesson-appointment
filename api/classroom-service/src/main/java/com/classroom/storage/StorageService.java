@@ -2,6 +2,7 @@ package com.classroom.storage;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Data;
+import com.classroom.metrics.BizMetrics;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -44,15 +45,18 @@ public class StorageService {
     private final StorageProperties props;
     private final ObjectMapper objectMapper;
     private final String hmacSecret;
+    private final BizMetrics metrics;
 
     public StorageService(ObjectStorage storage,
                           StorageProperties props,
                           ObjectMapper objectMapper,
-                          @Value("${crypto.hmac-key}") String hmacSecret) {
+                          @Value("${crypto.hmac-key}") String hmacSecret,
+                          BizMetrics metrics) {
         this.storage = storage;
         this.props = props;
         this.objectMapper = objectMapper;
         this.hmacSecret = hmacSecret;
+        this.metrics = metrics;
         log.info("对象存储: type={}, 单文件上限={}MB, 分片={}MB, 签名有效期={}s",
                 storage.type(), props.getMaxFileSizeBytes() / 1024 / 1024,
                 props.getPartSizeBytes() / 1024 / 1024, props.getSignedUrlTtlSeconds());
@@ -209,6 +213,9 @@ public class StorageService {
         s.setStatus("COMPLETED");
         saveSession(s);
         cleanupPartFiles(uploadId);
+        // 按用途分桶统计字节数：存储成本按 MATERIAL/SUBMISSION/RECORDING 差一个量级，
+        // 混成一个总数看不出"是录制在涨还是作业在涨"
+        metrics.upload(s.getPurpose(), actual);
         log.info("上传完成: uploadId={}, key={}, size={}", uploadId, s.getKey(), actual);
         return s.getKey();
     }

@@ -30,6 +30,24 @@
     return wsOrigin() + '/ws/classrooms/' + encodeURIComponent(scheduleId);
   }
 
+  /**
+   * 生成前端链路 id。
+   *
+   * 三条通道（signal/whiteboard/heartbeat）是同一个用户同一次进房的三个连接，
+   * 服务端若不共用同一个 traceId，一次"白板没同步"的排查要在三份日志里各找一遍。
+   * 这里生成一次、三条 URL 共用，服务端 WsHandshakeAuthInterceptor 会原样沿用。
+   *
+   * 只做 8-64 位 [A-Za-z0-9._-]，与服务端校验规则一致——不合法会被丢弃重生成，
+   * 让前端的"链路"和服务端的"链路"变成两条，比不传更糟。
+   */
+  function newTraceId() {
+    var s = '';
+    for (var i = 0; i < 32; i++) {
+      s += Math.floor(Math.random() * 16).toString(16);
+    }
+    return s;
+  }
+
   function safeParse(data) {
     try {
       return JSON.parse(data);
@@ -44,7 +62,10 @@
     connect: function (scheduleId, token, handlers) {
       handlers = handlers || {};
       var base = buildBase(scheduleId);
-      var tokenQuery = '?access_token=' + encodeURIComponent(token || '');
+      // 三条通道共用同一条链路 id（握手阶段服务端按它绑定 MDC）
+      var traceId = (handlers && handlers.traceId) || newTraceId();
+      var tokenQuery = '?access_token=' + encodeURIComponent(token || '')
+        + '&traceId=' + encodeURIComponent(traceId);
       var self = this;
 
       var heartbeat = new WebSocket(base + '/heartbeat' + tokenQuery);
