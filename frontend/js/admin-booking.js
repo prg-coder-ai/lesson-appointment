@@ -381,8 +381,7 @@ async function validCancelBooking(bookingid){
       // 进入课堂：跳转到课堂页面
       function enterClassroom(scheduleId) {
         if (!scheduleId) { alert('缺少排期信息'); return; }
-        var baseUrl = (typeof window.getClassroomApiBaseUrl === 'function') ? window.getClassroomApiBaseUrl() : '';
         window.location.href = (typeof window.pageUrl === 'function')
-          ? window.pageUrl('classroom.html') + '&scheduleId=' + encodeURIComponent(scheduleId)
+          ? window.pageUrl('classroom.html', { scheduleId: scheduleId })
           : './classroom.html?scheduleId=' + encodeURIComponent(scheduleId);
       }

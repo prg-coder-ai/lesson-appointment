@@ -533,7 +533,7 @@ function localsearchAppoint_student() {
   function enterClassroom(scheduleId) {
     if (!scheduleId) { alert('缺少排期信息'); return; }
     window.location.href = (typeof window.pageUrl === 'function')
-      ? window.pageUrl('classroom.html') + '&scheduleId=' + encodeURIComponent(scheduleId)
+      ? window.pageUrl('classroom.html', { scheduleId: scheduleId })
       : './classroom.html?scheduleId=' + encodeURIComponent(scheduleId);
   }
  
