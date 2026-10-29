@@ -35,6 +35,9 @@ scp "$ROOT/api/beforeRun/message.env.template"    "$SERVER:/opt/lesson/message.e
 echo "==> 5/7 Nginx 配置 + 备份脚本 + logrotate"
 scp "$ROOT/deploy/nginx/booking.conf"     "$SERVER:/etc/nginx/sites-available/booking"
 scp "$ROOT/deploy/nginx/booking-ip.conf"  "$SERVER:/etc/nginx/sites-available/booking-ip"
+# 等保 P0-3：限流 zone 定义（limit_req_zone 必须在 http{} 上下文，放不进 sites-available，
+# 单独走 conf.d）。漏传这个文件 → nginx -t 报 unknown limit_req_zone → 整站起不来。
+scp "$ROOT/deploy/nginx/conf.d/00-limit-req-zone.conf" "$SERVER:/etc/nginx/conf.d/00-limit-req-zone.conf"
 scp "$ROOT/deploy/backup.sh"              "$SERVER:/opt/lesson/backup.sh"
 scp "$ROOT/deploy/logrotate/lesson"       "$SERVER:/etc/logrotate.d/lesson"
 scp "$ROOT/deploy/healthcheck.sh"         "$SERVER:/opt/lesson/healthcheck.sh"

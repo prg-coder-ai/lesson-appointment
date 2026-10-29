@@ -19,10 +19,11 @@
 -- Table structure for table `appointment`
 --
 
-DROP TABLE IF EXISTS `appointment`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `appointment`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `appointment` (
+CREATE TABLE IF NOT EXISTS `appointment` (
   `id` int NOT NULL AUTO_INCREMENT COMMENT '唯一编号',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（0=平台/历史单租户数据）',
   `booking_id` varchar(36) DEFAULT NULL COMMENT '预约id',
@@ -43,10 +44,11 @@ CREATE TABLE `appointment` (
 -- Table structure for table `audit_log`
 --
 
-DROP TABLE IF EXISTS `audit_log`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `audit_log`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `audit_log` (
+CREATE TABLE IF NOT EXISTS `audit_log` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '自增主键',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（0=平台/历史单租户数据）',
   `log_id` varchar(36) NOT NULL COMMENT '日志唯一标识（UUID）',
@@ -81,10 +83,11 @@ CREATE TABLE `audit_log` (
 -- Table structure for table `bak_appointment_20261008`
 --
 
-DROP TABLE IF EXISTS `bak_appointment_20261008`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `bak_appointment_20261008`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `bak_appointment_20261008` (
+CREATE TABLE IF NOT EXISTS `bak_appointment_20261008` (
   `id` int NOT NULL AUTO_INCREMENT COMMENT '唯一编号',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（0=平台/历史单租户数据）',
   `booking_id` varchar(36) DEFAULT NULL COMMENT '预约id',
@@ -102,10 +105,11 @@ CREATE TABLE `bak_appointment_20261008` (
 -- Table structure for table `bak_booking_20261008`
 --
 
-DROP TABLE IF EXISTS `bak_booking_20261008`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `bak_booking_20261008`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `bak_booking_20261008` (
+CREATE TABLE IF NOT EXISTS `bak_booking_20261008` (
   `booking_id` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '预约唯一标识（UUID）',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（0=平台/历史单租户数据）',
   `schedule_id` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '关联的课程排期ID',
@@ -121,10 +125,11 @@ CREATE TABLE `bak_booking_20261008` (
 -- Table structure for table `bak_notif_log_20261008`
 --
 
-DROP TABLE IF EXISTS `bak_notif_log_20261008`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `bak_notif_log_20261008`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `bak_notif_log_20261008` (
+CREATE TABLE IF NOT EXISTS `bak_notif_log_20261008` (
   `id` bigint NOT NULL DEFAULT '0' COMMENT '自增主键',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（冗余，便于按租户审计）',
   `appointment_id` int NOT NULL COMMENT '课次ID appointment.id',
@@ -149,10 +154,11 @@ CREATE TABLE `bak_notif_log_20261008` (
 -- Table structure for table `bak_notification_dispatch_log_20261008`
 --
 
-DROP TABLE IF EXISTS `bak_notification_dispatch_log_20261008`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `bak_notification_dispatch_log_20261008`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `bak_notification_dispatch_log_20261008` (
+CREATE TABLE IF NOT EXISTS `bak_notification_dispatch_log_20261008` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '自增主键',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（冗余，便于按租户审计）',
   `appointment_id` int NOT NULL COMMENT '课次ID appointment.id',
@@ -181,10 +187,11 @@ CREATE TABLE `bak_notification_dispatch_log_20261008` (
 -- Table structure for table `booking`
 --
 
-DROP TABLE IF EXISTS `booking`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `booking`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `booking` (
+CREATE TABLE IF NOT EXISTS `booking` (
   `booking_id` varchar(36) NOT NULL COMMENT '预约唯一标识（UUID）',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（0=平台/历史单租户数据）',
   `schedule_id` varchar(36) NOT NULL COMMENT '关联的课程排期ID',
@@ -208,10 +215,11 @@ CREATE TABLE `booking` (
 -- Table structure for table `course`
 --
 
-DROP TABLE IF EXISTS `course`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `course`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `course` (
+CREATE TABLE IF NOT EXISTS `course` (
   `course_id` varchar(36) NOT NULL COMMENT '课程唯一标识（UUID）',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（0=平台/历史单租户数据）',
   `template_id` varchar(36) NOT NULL COMMENT '关联的课程模板ID',
@@ -238,10 +246,11 @@ CREATE TABLE `course` (
 -- Table structure for table `course_check_in`
 --
 
-DROP TABLE IF EXISTS `course_check_in`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `course_check_in`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `course_check_in` (
+CREATE TABLE IF NOT EXISTS `course_check_in` (
   `check_in_id` varchar(36) NOT NULL COMMENT '签到唯一标识（UUID）',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（0=平台/历史单租户数据）',
   `booking_id` varchar(36) NOT NULL COMMENT '关联的预约ID',
@@ -257,10 +266,11 @@ CREATE TABLE `course_check_in` (
 -- Table structure for table `course_evaluation`
 --
 
-DROP TABLE IF EXISTS `course_evaluation`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `course_evaluation`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `course_evaluation` (
+CREATE TABLE IF NOT EXISTS `course_evaluation` (
   `evaluation_id` varchar(36) NOT NULL COMMENT '评价唯一标识（UUID）',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（0=平台/历史单租户数据）',
   `course_id` varchar(36) NOT NULL COMMENT '关联的课程ID',
@@ -283,10 +293,11 @@ CREATE TABLE `course_evaluation` (
 -- Table structure for table `course_feedback`
 --
 
-DROP TABLE IF EXISTS `course_feedback`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `course_feedback`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `course_feedback` (
+CREATE TABLE IF NOT EXISTS `course_feedback` (
   `feedback_id` varchar(36) NOT NULL COMMENT '反馈唯一标识（UUID）',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（0=平台/历史单租户数据）',
   `course_id` varchar(36) NOT NULL COMMENT '关联的课程ID',
@@ -310,10 +321,11 @@ CREATE TABLE `course_feedback` (
 -- Table structure for table `course_notify_rule`
 --
 
-DROP TABLE IF EXISTS `course_notify_rule`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `course_notify_rule`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `course_notify_rule` (
+CREATE TABLE IF NOT EXISTS `course_notify_rule` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '自增主键',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（0=平台/历史单租户数据）',
   `course_id` varchar(36) NOT NULL DEFAULT '' COMMENT '课程ID；空串=本租户默认规则',
@@ -331,10 +343,11 @@ CREATE TABLE `course_notify_rule` (
 -- Table structure for table `course_notify_rule_point`
 --
 
-DROP TABLE IF EXISTS `course_notify_rule_point`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `course_notify_rule_point`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `course_notify_rule_point` (
+CREATE TABLE IF NOT EXISTS `course_notify_rule_point` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '自增主键',
   `rule_id` bigint NOT NULL COMMENT '规则头ID course_notify_rule.id',
   `seq` tinyint NOT NULL COMMENT '档位序号 1..N，越大离上课越近；要求 offset_minutes 随 seq 严格递减',
@@ -355,10 +368,11 @@ CREATE TABLE `course_notify_rule_point` (
 -- Table structure for table `course_refund_rule`
 --
 
-DROP TABLE IF EXISTS `course_refund_rule`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `course_refund_rule`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `course_refund_rule` (
+CREATE TABLE IF NOT EXISTS `course_refund_rule` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '自增主键',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（0=平台/历史单租户数据）',
   `course_id` varchar(36) NOT NULL DEFAULT '' COMMENT '课程ID；空串=本租户默认规则',
@@ -381,10 +395,11 @@ CREATE TABLE `course_refund_rule` (
 -- Table structure for table `course_schedule`
 --
 
-DROP TABLE IF EXISTS `course_schedule`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `course_schedule`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `course_schedule` (
+CREATE TABLE IF NOT EXISTS `course_schedule` (
   `schedule_id` varchar(36) NOT NULL COMMENT '排期唯一标识（UUID）',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（0=平台/历史单租户数据）',
   `name` varchar(56) NOT NULL DEFAULT 'noname' COMMENT '排期名称',
@@ -417,10 +432,11 @@ CREATE TABLE `course_schedule` (
 -- Table structure for table `course_template`
 --
 
-DROP TABLE IF EXISTS `course_template`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `course_template`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `course_template` (
+CREATE TABLE IF NOT EXISTS `course_template` (
   `template_id` varchar(36) NOT NULL COMMENT '模板唯一标识（UUID）',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（0=平台/历史单租户数据）',
   `language_type` varchar(20) NOT NULL COMMENT '课程/咨询类型（classType 的 code，显示词由 sys_term 按行业渲染：教育=法语/英语，法律=婚姻/劳动…）',
@@ -443,10 +459,11 @@ CREATE TABLE `course_template` (
 -- Table structure for table `notification_dispatch_log`
 --
 
-DROP TABLE IF EXISTS `notification_dispatch_log`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `notification_dispatch_log`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `notification_dispatch_log` (
+CREATE TABLE IF NOT EXISTS `notification_dispatch_log` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '自增主键',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（冗余，便于按租户审计）',
   `appointment_id` int NOT NULL COMMENT '课次ID appointment.id',
@@ -475,10 +492,11 @@ CREATE TABLE `notification_dispatch_log` (
 -- Table structure for table `promo_achievement`
 --
 
-DROP TABLE IF EXISTS `promo_achievement`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `promo_achievement`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `promo_achievement` (
+CREATE TABLE IF NOT EXISTS `promo_achievement` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `promoter_user_id` varchar(36) NOT NULL,
   `promoter_tenant_id` bigint NOT NULL,
@@ -500,10 +518,11 @@ CREATE TABLE `promo_achievement` (
 -- Table structure for table `promo_conversion`
 --
 
-DROP TABLE IF EXISTS `promo_conversion`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `promo_conversion`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `promo_conversion` (
+CREATE TABLE IF NOT EXISTS `promo_conversion` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `referral_code` varchar(32) NOT NULL COMMENT '使用的推广码',
   `promoter_user_id` varchar(36) NOT NULL COMMENT '推广者',
@@ -532,10 +551,11 @@ CREATE TABLE `promo_conversion` (
 -- Table structure for table `promo_referral`
 --
 
-DROP TABLE IF EXISTS `promo_referral`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `promo_referral`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `promo_referral` (
+CREATE TABLE IF NOT EXISTS `promo_referral` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `referral_code` varchar(32) NOT NULL COMMENT '推广码（全局唯一）',
   `promoter_user_id` varchar(36) NOT NULL COMMENT '推广者 user_id',
@@ -558,10 +578,11 @@ CREATE TABLE `promo_referral` (
 -- Table structure for table `sys_industry`
 --
 
-DROP TABLE IF EXISTS `sys_industry`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `sys_industry`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `sys_industry` (
+CREATE TABLE IF NOT EXISTS `sys_industry` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '自增主键',
   `code` varchar(50) NOT NULL COMMENT '行业编码（唯一，如 edu/it/medical）',
   `name` varchar(100) NOT NULL COMMENT '行业名称（页面展示）',
@@ -578,10 +599,11 @@ CREATE TABLE `sys_industry` (
 -- Table structure for table `sys_metric_hourly`
 --
 
-DROP TABLE IF EXISTS `sys_metric_hourly`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `sys_metric_hourly`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `sys_metric_hourly` (
+CREATE TABLE IF NOT EXISTS `sys_metric_hourly` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `hour_time` datetime NOT NULL COMMENT '整点时间',
   `cpu_system_avg` decimal(5,2) DEFAULT NULL,
@@ -604,10 +626,11 @@ CREATE TABLE `sys_metric_hourly` (
 -- Table structure for table `sys_metric_sample`
 --
 
-DROP TABLE IF EXISTS `sys_metric_sample`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `sys_metric_sample`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `sys_metric_sample` (
+CREATE TABLE IF NOT EXISTS `sys_metric_sample` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `sample_time` datetime NOT NULL COMMENT '采样时间',
   `cpu_system` decimal(5,2) DEFAULT NULL COMMENT '系统CPU使用率(%)',
@@ -633,10 +656,11 @@ CREATE TABLE `sys_metric_sample` (
 -- Table structure for table `sys_package_template`
 --
 
-DROP TABLE IF EXISTS `sys_package_template`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `sys_package_template`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `sys_package_template` (
+CREATE TABLE IF NOT EXISTS `sys_package_template` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '自增主键',
   `template_name` varchar(100) NOT NULL COMMENT '套餐模板名称',
   `template_code` varchar(50) DEFAULT NULL COMMENT '套餐模板编码（可填，便于接口引用）',
@@ -660,10 +684,11 @@ CREATE TABLE `sys_package_template` (
 -- Table structure for table `sys_system_config`
 --
 
-DROP TABLE IF EXISTS `sys_system_config`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `sys_system_config`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `sys_system_config` (
+CREATE TABLE IF NOT EXISTS `sys_system_config` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '自增主键',
   `config_key` varchar(100) NOT NULL COMMENT '配置键（英文，唯一）',
   `config_value` varchar(500) DEFAULT NULL COMMENT '配置值（字符串存储，按 value_type 解析）',
@@ -685,10 +710,11 @@ CREATE TABLE `sys_system_config` (
 -- Table structure for table `sys_tenant`
 --
 
-DROP TABLE IF EXISTS `sys_tenant`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `sys_tenant`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `sys_tenant` (
+CREATE TABLE IF NOT EXISTS `sys_tenant` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '自增主键',
   `tenant_code` varchar(56) NOT NULL COMMENT '唯一标识（UUID）',
   `org_name` varchar(255) DEFAULT NULL COMMENT '机构名称',
@@ -719,10 +745,11 @@ CREATE TABLE `sys_tenant` (
 -- Table structure for table `sys_tenant_package`
 --
 
-DROP TABLE IF EXISTS `sys_tenant_package`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `sys_tenant_package`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `sys_tenant_package` (
+CREATE TABLE IF NOT EXISTS `sys_tenant_package` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '自增主键',
   `tenant_id` bigint NOT NULL COMMENT '租户ID（唯一，对应sys_tenant.id）',
   `course_limit` int NOT NULL DEFAULT '0' COMMENT '课程数量限额（0=不限）',
@@ -748,10 +775,11 @@ CREATE TABLE `sys_tenant_package` (
 -- Table structure for table `sys_tenant_stats_monthly`
 --
 
-DROP TABLE IF EXISTS `sys_tenant_stats_monthly`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `sys_tenant_stats_monthly`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `sys_tenant_stats_monthly` (
+CREATE TABLE IF NOT EXISTS `sys_tenant_stats_monthly` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `tenant_id` bigint NOT NULL COMMENT '租户ID',
   `stat_month` char(7) NOT NULL COMMENT '统计月份（yyyy-MM）',
@@ -771,10 +799,11 @@ CREATE TABLE `sys_tenant_stats_monthly` (
 -- Table structure for table `sys_term`
 --
 
-DROP TABLE IF EXISTS `sys_term`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `sys_term`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `sys_term` (
+CREATE TABLE IF NOT EXISTS `sys_term` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
   `term_key` varchar(64) NOT NULL COMMENT '词条编码（业务标识，如 course/teacher/student）',
   `term_name` varchar(64) NOT NULL COMMENT '显示词（该作用域下的词汇值）',
@@ -798,10 +827,11 @@ CREATE TABLE `sys_term` (
 -- Table structure for table `sys_user_session`
 --
 
-DROP TABLE IF EXISTS `sys_user_session`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `sys_user_session`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `sys_user_session` (
+CREATE TABLE IF NOT EXISTS `sys_user_session` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `session_id` varchar(64) NOT NULL COMMENT '会话ID（JWT签名前缀UUID）',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（0=平台管理员）',
@@ -824,33 +854,37 @@ CREATE TABLE `sys_user_session` (
 -- Table structure for table `sys_work_language`
 --
 
-DROP TABLE IF EXISTS `sys_work_language`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `sys_work_language` (
-  `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
-  `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '作用域：0=平台内置项，>0=租户自定义项',
-  `lang_code` varchar(20) NOT NULL COMMENT '授课语言代码（小写，如 english/french/chinese/german/spanish/turkish）',
-  `name_zh` varchar(64) NOT NULL COMMENT '中文显示名',
-  `name_en` varchar(64) NOT NULL DEFAULT '' COMMENT '英文显示名',
-  `name_fr` varchar(64) NOT NULL DEFAULT '' COMMENT '法文显示名',
-  `sort_order` int NOT NULL DEFAULT '0' COMMENT '同级排序（小者在前）',
-  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_tenant_code` (`tenant_id`,`lang_code`),
-  KEY `idx_tenant` (`tenant_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='授课语言枚举（work_language）：平台内置项 tenant_id=0，租户可追加自定义项';
-/*!40101 SET character_set_client = @saved_cs_client */;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `sys_work_language`;
+--
+-- 本表定义与 20261025-1700-work-language.sql 完全重复（该文件是 work_language
+-- 特性的手写权威定义，含幂等种子数据）。两份 CREATE 并存会触发 ddl-align 守卫的
+-- "DDL 基线冲突"判红，故本段整段注释停用；本 dump 中无任何 INSERT/FK 依赖本表。
+-- 如需查看原始列结构，见 20261025-1700-work-language.sql 第 55-68 行。
+-- CREATE TABLE IF NOT EXISTS `sys_work_language` (
+--   `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
+--   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '作用域：0=平台内置项，>0=租户自定义项',
+--   `lang_code` varchar(20) NOT NULL COMMENT '授课语言代码（小写，如 english/french/chinese/german/spanish/turkish）',
+--   `name_zh` varchar(64) NOT NULL COMMENT '中文显示名',
+--   `name_en` varchar(64) NOT NULL DEFAULT '' COMMENT '英文显示名',
+--   `name_fr` varchar(64) NOT NULL DEFAULT '' COMMENT '法文显示名',
+--   `sort_order` int NOT NULL DEFAULT '0' COMMENT '同级排序（小者在前）',
+--   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+--   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+--   PRIMARY KEY (`id`),
+--   UNIQUE KEY `uk_tenant_code` (`tenant_id`,`lang_code`),
+--   KEY `idx_tenant` (`tenant_id`)
+-- ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='授课语言枚举（work_language）：平台内置项 tenant_id=0，租户可追加自定义项';
 
 --
 -- Table structure for table `teacher_available_time`
 --
 
-DROP TABLE IF EXISTS `teacher_available_time`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `teacher_available_time`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `teacher_available_time` (
+CREATE TABLE IF NOT EXISTS `teacher_available_time` (
   `available_id` varchar(36) NOT NULL COMMENT '主键UUID',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（0=平台/历史单租户数据）',
   `teacher_id` varchar(36) NOT NULL COMMENT '关联教师user_id',
@@ -877,10 +911,11 @@ CREATE TABLE `teacher_available_time` (
 -- Table structure for table `teacher_certificate`
 --
 
-DROP TABLE IF EXISTS `teacher_certificate`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `teacher_certificate`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `teacher_certificate` (
+CREATE TABLE IF NOT EXISTS `teacher_certificate` (
   `certificate_id` varchar(36) NOT NULL COMMENT '主键UUID',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（0=平台/历史单租户数据）',
   `teacher_id` varchar(36) NOT NULL COMMENT '关联教师user_id',
@@ -900,10 +935,11 @@ CREATE TABLE `teacher_certificate` (
 -- Table structure for table `teacher_professional`
 --
 
-DROP TABLE IF EXISTS `teacher_professional`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `teacher_professional`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `teacher_professional` (
+CREATE TABLE IF NOT EXISTS `teacher_professional` (
   `teacher_professional_id` varchar(36) NOT NULL COMMENT '主键UUID',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（0=平台/历史单租户数据）',
   `teacher_id` varchar(36) NOT NULL COMMENT '关联user表user_id（仅限role=teacher）',
@@ -934,10 +970,11 @@ CREATE TABLE `teacher_professional` (
 -- Table structure for table `teacher_published_profile`
 --
 
-DROP TABLE IF EXISTS `teacher_published_profile`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `teacher_published_profile`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `teacher_published_profile` (
+CREATE TABLE IF NOT EXISTS `teacher_published_profile` (
   `published_profile_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '主键UUID',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（0=平台/历史单租户数据）',
   `teacher_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '关联user表user_id(role=teacher)',
@@ -964,10 +1001,11 @@ CREATE TABLE `teacher_published_profile` (
 -- Table structure for table `user`
 --
 
-DROP TABLE IF EXISTS `user`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `user`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `user` (
+CREATE TABLE IF NOT EXISTS `user` (
   `user_id` varchar(36) NOT NULL COMMENT '用户唯一标识（UUID）',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户ID（0=平台/历史单租户数据）',
   `account` varchar(255) NOT NULL,
@@ -999,10 +1037,11 @@ CREATE TABLE `user` (
 -- Table structure for table `user_refresh_token`
 --
 
-DROP TABLE IF EXISTS `user_refresh_token`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `user_refresh_token`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `user_refresh_token` (
+CREATE TABLE IF NOT EXISTS `user_refresh_token` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
   `user_id` varchar(36) NOT NULL COMMENT '登录用户ID',
   `refresh_token` varchar(512) NOT NULL COMMENT '刷新令牌',
@@ -1019,10 +1058,11 @@ CREATE TABLE `user_refresh_token` (
 -- Table structure for table `wx_login_state`
 --
 
-DROP TABLE IF EXISTS `wx_login_state`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `wx_login_state`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `wx_login_state` (
+CREATE TABLE IF NOT EXISTS `wx_login_state` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '自增主键',
   `state` varchar(64) NOT NULL COMMENT '一次性 state（UUID 无横线），二维码 URL 携带',
   `purpose` varchar(16) NOT NULL DEFAULT 'login' COMMENT 'login=扫码登录 / bind=已登录账号绑微信',
@@ -1044,10 +1084,11 @@ CREATE TABLE `wx_login_state` (
 -- Table structure for table `wx_userid`
 --
 
-DROP TABLE IF EXISTS `wx_userid`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `wx_userid`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `wx_userid` (
+CREATE TABLE IF NOT EXISTS `wx_userid` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '自增主键',
   `wx_openid` varchar(64) NOT NULL COMMENT '微信 openid（全局唯一，不随租户隔离）',
   `wx_unionid` varchar(64) DEFAULT NULL COMMENT '跨端统一身份（开放平台 unionid，缺失回退 openid）',

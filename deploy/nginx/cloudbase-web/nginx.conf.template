@@ -5,6 +5,8 @@
 #    ① booking-api      容器端口 8081
 #    ② message-service  容器端口 8090
 #
+# ★ 2026-10-29 等保 P0-2/P0-3：新增 6 大安全响应头 + HSTS + 接口限流 zone
+#
 # 使用 envsubst 替换两个占位符，构建前必须都给出（Dockerfile 里有非空校验）：
 #
 #   # 推荐：内网地址（免公网流量、延迟低、且 XFF 会被后端采信）
@@ -29,6 +31,15 @@
 #   的代价可以接受，先不引入这套复杂度；确实需要时另说。
 # ==============================================================================
 
+# ═══════════════════════════════════════════════════════
+# 等保 P0-3：接口限流 zone 定义
+# key=客户端 IP；rate=每秒请求数；burst=允许的突发队列（超过 rate 的排队，超 burst 直接 429）
+# ═══════════════════════════════════════════════════════
+limit_req_zone $binary_remote_addr zone=login_zone:10m   rate=5r/s;
+limit_req_zone $binary_remote_addr zone=sms_zone:10m     rate=1r/m;
+limit_req_zone $binary_remote_addr zone=public_zone:10m  rate=50r/s;
+limit_req_zone $binary_remote_addr zone=api_zone:20m    rate=100r/s;
+
 server {
     listen       80;
     server_name  _;
@@ -39,6 +50,16 @@ server {
     charset utf-8;
     client_max_body_size 20m;
     server_tokens off;
+
+    # ═══════════════════════════════════════════════════════
+    # 等保 P0-2：6 大安全响应头 + HSTS（对所有 location 生效）
+    # ═══════════════════════════════════════════════════════
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
 
     # ---------- 通用代理参数（对所有后端起效）----------
     proxy_http_version 1.1;
@@ -80,6 +101,9 @@ server {
         proxy_set_header X-WX-UNIONID $http_x_wx_unionid;
         proxy_set_header X-WX-APPID   $http_x_wx_appid;
         proxy_set_header X-WX-ENV     $http_x_wx_env;
+
+        limit_req zone=api_zone burst=50 nodelay;
+        limit_req_status 429;
     }
 
     location /api/v1/message {
@@ -89,6 +113,8 @@ server {
         proxy_set_header X-WX-UNIONID $http_x_wx_unionid;
         proxy_set_header X-WX-APPID   $http_x_wx_appid;
         proxy_set_header X-WX-ENV     $http_x_wx_env;
+        limit_req zone=api_zone burst=50 nodelay;
+        limit_req_status 429;
     }
 
     location /api/v1/sensitive {
@@ -98,6 +124,8 @@ server {
         proxy_set_header X-WX-UNIONID $http_x_wx_unionid;
         proxy_set_header X-WX-APPID   $http_x_wx_appid;
         proxy_set_header X-WX-ENV     $http_x_wx_env;
+        limit_req zone=api_zone burst=50 nodelay;
+        limit_req_status 429;
     }
 
     location /api/v1/users/ {
@@ -107,6 +135,8 @@ server {
         proxy_set_header X-WX-UNIONID $http_x_wx_unionid;
         proxy_set_header X-WX-APPID   $http_x_wx_appid;
         proxy_set_header X-WX-ENV     $http_x_wx_env;
+        limit_req zone=api_zone burst=50 nodelay;
+        limit_req_status 429;
     }
 
     # ==========================================================================
@@ -114,6 +144,30 @@ server {
     # ⚠ proxy_pass 后面**不能带 URI**（不能写成 ${API_UPSTREAM}/api/），
     #   否则 /api/v1/ 前缀会被替换掉，后端全部 404。
     # ==========================================================================
+
+    # 🔐 登录/注册 —— 5 r/s（防暴力破解）
+    location ~* ^/api/v1/(auth/login|auth/refreshToken|auth/logout|auth/wechat-login|auth/wechat-register|auth/wechat/qr|auth/wechat/pc-callback|user/register|promo/register-tenant|promo/register-user|promo/referral/validate)$ {
+        proxy_pass ${API_UPSTREAM};
+        limit_req zone=login_zone burst=10 nodelay;
+        limit_req_status 429;
+        proxy_set_header X-WX-OPENID  $http_x_wx_openid;
+        proxy_set_header X-WX-UNIONID $http_x_wx_unionid;
+        proxy_set_header X-WX-APPID   $http_x_wx_appid;
+        proxy_set_header X-WX-ENV     $http_x_wx_env;
+    }
+
+    # 📖 公开 GET 接口 —— 50 r/s（teacherPublishedProfile / 小程序入口页）
+    location ~* ^/api/v1/(teacher/published|course/public|tenant/public|industry/options|apiInfo|system/info|tenant/name|legal/doc|term/map|interfaces) {
+        proxy_pass ${API_UPSTREAM};
+        limit_req zone=public_zone burst=30 nodelay;
+        limit_req_status 429;
+        proxy_set_header X-WX-OPENID  $http_x_wx_openid;
+        proxy_set_header X-WX-UNIONID $http_x_wx_unionid;
+        proxy_set_header X-WX-APPID   $http_x_wx_appid;
+        proxy_set_header X-WX-ENV     $http_x_wx_env;
+    }
+
+    # 🔒 其余 /api/v1/ —— 100 r/s（正常业务）
     location /api/v1/ {
         proxy_pass ${API_UPSTREAM};
         proxy_set_header Connection '';
@@ -123,12 +177,19 @@ server {
         proxy_set_header X-WX-UNIONID $http_x_wx_unionid;
         proxy_set_header X-WX-APPID   $http_x_wx_appid;
         proxy_set_header X-WX-ENV     $http_x_wx_env;
+
+        limit_req zone=api_zone burst=50 nodelay;
+        limit_req_status 429;
     }
 
     # ---------- /actuator 只暴露 health,info（booking）----------
+    # health 匿名放行（Nginx 探活用）；info/env/beans 等由 Spring Security httpBasic 保护，
+    # 此处 Nginx 直接反代即可。
     location /actuator/ {
         proxy_pass ${API_UPSTREAM};
         access_log off;
+        limit_req zone=public_zone burst=10 nodelay;
+        limit_req_status 429;
     }
 
     # ---------- 消息服务探活（对应 message-service 白名单 /api/v1/system/info）----------
@@ -138,9 +199,12 @@ server {
     }
 
     # ---------- 静态资源缓存 ----------
+    # ⚠ nginx 的 add_header 是**覆盖式继承**：只要 location 里出现任意一条 add_header，
+    #   上面 server 级那 6 条安全响应头就全部**不再下发**到这个 location 的响应上。
+    #   所以下面这几处缓存控制一律改用 expires（它不参与 add_header 继承），
+    #   安全头才能真正出现在**每一个**响应里（html/js/css 恰恰是审计最常查的）。
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?|ttf|eot|otf|mp4|webp)$ {
-        expires 7d;
-        add_header Cache-Control "public, immutable";
+        expires 7d;                       # → Cache-Control: max-age=604800
         try_files $uri =404;
     }
 
@@ -151,12 +215,13 @@ server {
         try_files $uri $uri/ =404;
     }
 
+    # expires -1 → Cache-Control: no-cache（强制回源校验），且不影响安全头下发
     location ~* \.html$ {
-        add_header Cache-Control "no-cache, must-revalidate" always;
+        expires -1;
     }
 
     location = /build-info.json {
-        add_header Cache-Control "no-cache, must-revalidate" always;
+        expires -1;
     }
 
     # ---------- Gzip ----------

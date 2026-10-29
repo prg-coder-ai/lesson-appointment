@@ -1,4 +1,4 @@
--- MySQL dump 10.13  Distrib 8.4.11, for Win64 (x86_64)
+﻿-- MySQL dump 10.13  Distrib 8.4.11, for Win64 (x86_64)
 --
 -- Host: 127.0.0.1    Database: message_center
 -- ------------------------------------------------------
@@ -19,10 +19,11 @@
 -- Table structure for table `msg_batch_task`
 --
 
-DROP TABLE IF EXISTS `msg_batch_task`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `msg_batch_task`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `msg_batch_task` (
+CREATE TABLE IF NOT EXISTS `msg_batch_task` (
   `task_id` bigint NOT NULL COMMENT '涓婚敭(闆?姳)',
   `tenant_id` bigint NOT NULL DEFAULT '0',
   `task_name` varchar(200) COLLATE utf8mb4_general_ci DEFAULT NULL,
@@ -46,10 +47,11 @@ CREATE TABLE `msg_batch_task` (
 -- Table structure for table `msg_category`
 --
 
-DROP TABLE IF EXISTS `msg_category`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `msg_category`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `msg_category` (
+CREATE TABLE IF NOT EXISTS `msg_category` (
   `category_id` bigint NOT NULL COMMENT '涓婚敭(闆?姳)',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '绉熸埛id; 0=骞冲彴棰勭疆(鍏ㄥ眬鍙?敤)',
   `category_code` varchar(64) COLLATE utf8mb4_general_ci NOT NULL COMMENT '鍒嗙被缂栫爜(绉熸埛鍐呭敮涓?',
@@ -70,10 +72,11 @@ CREATE TABLE `msg_category` (
 -- Table structure for table `msg_delivery`
 --
 
-DROP TABLE IF EXISTS `msg_delivery`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `msg_delivery`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `msg_delivery` (
+CREATE TABLE IF NOT EXISTS `msg_delivery` (
   `delivery_id` bigint NOT NULL COMMENT '涓婚敭(闆?姳)',
   `tenant_id` bigint NOT NULL DEFAULT '0',
   `message_id` bigint NOT NULL,
@@ -94,10 +97,11 @@ CREATE TABLE `msg_delivery` (
 -- Table structure for table `msg_inbox`
 --
 
-DROP TABLE IF EXISTS `msg_inbox`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `msg_inbox`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `msg_inbox` (
+CREATE TABLE IF NOT EXISTS `msg_inbox` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '鑷??涓婚敭(鐗╃悊瀛樺偍)',
   `tenant_id` bigint NOT NULL DEFAULT '0',
   `user_id` varchar(64) COLLATE utf8mb4_general_ci NOT NULL COMMENT '鎺ユ敹鐢ㄦ埛id',
@@ -119,10 +123,11 @@ CREATE TABLE `msg_inbox` (
 -- Table structure for table `msg_message`
 --
 
-DROP TABLE IF EXISTS `msg_message`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `msg_message`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `msg_message` (
+CREATE TABLE IF NOT EXISTS `msg_message` (
   `message_id` bigint NOT NULL COMMENT '涓婚敭(闆?姳)',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '绉熸埛id',
   `sender_id` varchar(64) COLLATE utf8mb4_general_ci NOT NULL COMMENT '鍙戦?鏂圭敤鎴穒d(鎴杝ystem)',
@@ -148,10 +153,11 @@ CREATE TABLE `msg_message` (
 -- Table structure for table `msg_sensitive_group`
 --
 
-DROP TABLE IF EXISTS `msg_sensitive_group`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `msg_sensitive_group`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `msg_sensitive_group` (
+CREATE TABLE IF NOT EXISTS `msg_sensitive_group` (
   `group_id` bigint NOT NULL COMMENT '主键(雪花)',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户id; 0=平台(全平台共享)',
   `group_name` varchar(128) COLLATE utf8mb4_general_ci NOT NULL COMMENT '分组名称',
@@ -169,10 +175,11 @@ CREATE TABLE `msg_sensitive_group` (
 -- Table structure for table `msg_sensitive_word`
 --
 
-DROP TABLE IF EXISTS `msg_sensitive_word`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `msg_sensitive_word`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `msg_sensitive_word` (
+CREATE TABLE IF NOT EXISTS `msg_sensitive_word` (
   `word_id` bigint NOT NULL COMMENT '主键(雪花)',
   `group_id` bigint NOT NULL COMMENT '所属分组',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户id(同分组)',
@@ -191,10 +198,11 @@ CREATE TABLE `msg_sensitive_word` (
 -- Table structure for table `msg_template`
 --
 
-DROP TABLE IF EXISTS `msg_template`;
+-- 等保 P0-4：已禁用 DROP（生产库重跑会删表），改用 CREATE TABLE IF NOT EXISTS
+-- DROP TABLE IF EXISTS `msg_template`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `msg_template` (
+CREATE TABLE IF NOT EXISTS `msg_template` (
   `template_id` bigint NOT NULL COMMENT '涓婚敭(闆?姳)',
   `tenant_id` bigint NOT NULL DEFAULT '0',
   `template_code` varchar(64) COLLATE utf8mb4_general_ci NOT NULL COMMENT '妯℃澘缂栫爜(绉熸埛鍐呭敮涓?',

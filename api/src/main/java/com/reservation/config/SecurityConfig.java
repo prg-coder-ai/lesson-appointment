@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
@@ -12,6 +13,11 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -41,6 +47,11 @@ public class SecurityConfig {
         http
                 // ===== CORS 集成到 Spring Security 链 =====
                 .cors(Customizer.withDefaults())
+
+                // ===== 等保 P1-4：HTTP Basic —— 为 Actuator info/env/beans 等端点加凭证保护 =====
+                // 浏览器访问 /actuator/info 会弹 Basic Auth 对话框；curl -u actuator:xxx 可查。
+                // /actuator/health 仍匿名放行（给 Nginx/LB 探活用）。
+                .httpBasic(Customizer.withDefaults())
 
                 // ===== 禁用 CSRF（前后端分离 + JWT 无需 CSRF）=====
                 .csrf(AbstractHttpConfigurer::disable)
@@ -190,13 +201,18 @@ public class SecurityConfig {
                     //   · 这里没放行但过滤器跳了            → 落到兜底 anyRequest().authenticated() → 401
                     // 已同步加入 JwtAuthenticationFilter.WHITELIST_PATHS，改一处必须改另一处。
                     //
-                    // 只放行 health（liveness/readiness）。**不放行 /actuator/info**：
-                    // 它含构建时间与版本，虽不敏感但对匿名无价值，多暴露一个端点多一份风险。
+                    // 只放行 health（liveness/readiness）—— 给 Nginx/LB 探活用。
+                    // **不放行 /actuator/info**：它含构建时间与版本，虽不敏感但对匿名无价值，
+                    // 多暴露一个端点多一份风险。
                     // 也不放行 /actuator/** 通配 —— 那等于把 env/beans/loggers 一并放开。
+                    //
+                    // 等保 P1-4：除 health 外，其余 /actuator/** 要求 HTTP Basic 认证
+                    //   （由 httpBasic + InMemoryUserDetailsManager 处理，见下方 Bean）。
                     auth.requestMatchers(
                             "/actuator/health",
                             "/actuator/health/**"
                     ).permitAll();
+                    auth.requestMatchers("/actuator/**").authenticated();
 
                     // 静态资源
                     auth.requestMatchers(
@@ -247,6 +263,42 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    /**
+     * Actuator Basic Auth 用户（等保 P1-4）。
+     *
+     * <p>账号固定 {@code actuator}；密码优先级：
+     * <ol>
+     *   <li>{@code ACTUATOR_PASSWORD} 环境变量（生产必须显式注入）</li>
+     *   <li>{@code app.actuator.password} 配置项（application.properties 可覆盖）</li>
+     *   <li>默认 {@code "actuator-change-me"}（仅用于本机联调占位，明显提示要换）</li>
+     * </ol>
+     *
+     * <p>若 {@code app.security.strict-mode=true}（cloud/prod 档）且密码仍是默认占位值，
+     * 启动时会抛 {@link IllegalStateException} 阻断 —— 防止"忘了换密码、生产暴露 env/beans"。
+     */
+    @Bean
+    public UserDetailsService actuatorUserDetailsService(BCryptPasswordEncoder passwordEncoder,
+                                                         Environment env) {
+        String pwd = System.getenv("ACTUATOR_PASSWORD");
+        if (pwd == null || pwd.isBlank()) {
+            pwd = env.getProperty("app.actuator.password", "actuator-change-me");
+        }
+        String[] activeProfiles = env.getActiveProfiles();
+        boolean strict = java.util.Arrays.asList(activeProfiles).contains("cloud")
+                || Boolean.TRUE.equals(env.getProperty("app.security.strict-mode", Boolean.class));
+        if (strict && "actuator-change-me".equals(pwd)) {
+            throw new IllegalStateException(
+                    "❌ 启动失败（strict-mode=true）：/actuator Basic Auth 使用了默认占位密码！"
+                  + " 生产必须通过 ACTUATOR_PASSWORD 环境变量注入独立密码。");
+        }
+        UserDetails user = User.builder()
+                .username("actuator")
+                .password(passwordEncoder.encode(pwd))
+                .roles("ACTUATOR")
+                .build();
+        return new InMemoryUserDetailsManager(user);
     }
 
     /**

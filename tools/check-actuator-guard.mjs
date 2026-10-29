@@ -19,7 +19,8 @@
  * 因此本守卫校验四件事：
  *   A. exposure.include 严格等于 health,info（不多不少）
  *   B. env/beans/configprops/loggers/threaddump/heapdump 等端点被显式禁用
- *   C. SecurityConfig 放行了 /actuator/health（且**没有**放行 /actuator/** 通配）
+ *   C. SecurityConfig 放行了 /actuator/health（且**没有**对 /actuator/** 通配做 permitAll；
+ *      P1-4 起允许 .authenticated() 形态，由 HTTP Basic 保护）
  *   D. JwtAuthenticationFilter 的白名单里有 /actuator/health，且前缀匹配校验了分隔符
  *
  * 跳过：SKIP_ACTUATOR=1
@@ -170,8 +171,9 @@ const SEC_CFG = 'api/src/main/java/com/reservation/config/SecurityConfig.java';
       notes.push(`${SEC_CFG}：已放行 /actuator/health ✓`);
     }
 
-    // 通配放行 = 把 env/beans/loggers 一并放开
-    const wildcard = /requestMatchers\(\s*"\/actuator\/\*\*"\s*\)/.test(src);
+    // 通配 + permitAll 才判红：等保 P1-4 引入的 requestMatchers("/actuator/**").authenticated()
+    // 是给 env/beans/loggers 加 HTTP Basic 保护（InMemoryUserDetailsManager），属允许形态。
+    const wildcard = /requestMatchers\(\s*"\/actuator\/\*\*"\s*\)\s*\.permitAll\(\)/.test(src);
     if (wildcard) {
       problems.push(
         `${SEC_CFG}：放行了 "/actuator/**" 通配。\n` +

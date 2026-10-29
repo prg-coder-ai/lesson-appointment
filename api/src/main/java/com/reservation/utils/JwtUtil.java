@@ -37,9 +37,37 @@ public class JwtUtil {
     @Value("${jwt.expiration}")
     private Long expiration;
 
+    /** 等保 P0-1：严格安全模式（application.properties app.security.strict-mode）
+     *  strict-mode=true 时，JWT 密钥与仓库内示例默认值一致将阻断启动，
+     *  要求运维通过环境变量 JWT_SECRET 注入独立密钥。
+     *  strict-mode=false（默认，dev/test）允许用仓库默认密钥快速跑通。*/
+    @Value("${app.security.strict-mode:false}")
+    private boolean strictMode;
+
+    /** 仓库内 JWT 示例默认值（严格档下禁止使用；dev/test 档允许） */
+    private static final String JWT_SECRET_DEMO =
+            "cOzEE8g98aLfgrNzUYuokWQbHcRn8Nu5kBlHayOhmsB8usgeKUYuIoU4WrsrSymEE8ZJK6zZu8pBMwIGTu2751"
+          + "AFTVNFvncZIbzfq0OxHMtkilWzEg5bzNjAayCgzTA2bJDiusRHexo3hrcLJo671QvXGIhi3oSsMIkfH1cXYhrRENxuagv"
+          + "47ZuAxYXPTe9lMnRFGUWRRqQGE3JTXYpRDGF3V1k13GePa3x6ghYa7hnkYXqrORcpkG0p5hKxCAUmLVnpdog9ct2F7urSdy1"
+          + "LVtsjSrpbdAcaEwUn4iyAXTTn2N5DJdn84MWGAXhCtnPi8vKAZwKPdSd4TQwPKKwv2yhi971QmnT8bstOOfRPLqFpnHro9U"
+          + "9wKbMSHRXt8ltmlKxzTfCgkSTJdtE0pTTbi31JzqFMVGV45vcP3yScAEPLXUJL1ma3VLlzME9wkuad2OzxeUJKPDABUBNHMt1"
+          + "1PLhnsdZT9tWnC0ATMEpANMl7i9nH0INZYipXBABNXWq4kgGCPit1a23DvxIcKempCYlsLF6Sk3ctStKO4H6pM6rB7UOQ6zx"
+          + "JUPBGehAsY1j5yg1wOV5pC1nEwFqPLPPSJjfeUt9f9zpLrkw2wvg98acaT1UrDuw06ZsJj2t9lJX1gKL7nuw9MROHMcoi5lQ"
+          + "zXj3581gTlvwMCEbSpDyooegzRnTc9r7FMFEOQpWZtAaxrK4midk3sQncV4TwOsKpLbMN1jUelKMolW9Te8ji2j4Wq2nbpt5vT"
+          + "ECWssIG4KZrRDBBJMaiQoa9Fn3Ed9LSzkQShEF1qNl2xR2MFqdneBB2bXzRENiSiB4wqFt4vYGBy4eH7mpw9AZMsbJKYnvfrM"
+          + "Cot0vK1jWIlU1PxAUmnRJ62KXCaK";
+
     private SecretKey signingKey; 
     @PostConstruct
     private void initSigningKey() {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("❌ 启动失败：jwt.secret 未注入！必须通过 JWT_SECRET 环境变量设置。");
+        }
+        if (strictMode && JWT_SECRET_DEMO.equals(secret)) {
+            throw new IllegalStateException(
+                    "❌ 启动失败（strict-mode=true）：jwt.secret 使用了仓库内示例默认值！"
+                  + " 生产必须通过 JWT_SECRET 环境变量注入独立密钥。本机联调可临时 APP_SECURITY_STRICT_MODE=false 关闭严格档。");
+        }
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
         if (keyBytes.length < 64) {
             throw new IllegalStateException("jwt.secret 长度不足，HS512 至少需要 64 字节");

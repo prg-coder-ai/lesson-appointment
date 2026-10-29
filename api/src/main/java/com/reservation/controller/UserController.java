@@ -38,6 +38,9 @@ public class UserController {
     private PromoService promoService;
     @Autowired
     private LoginGuardService loginGuardService;
+    /** 等保 P1-1：注册/建号密码强度校验（按 strict-mode 分级） */
+    @Autowired
+    private com.reservation.security.PasswordPolicy passwordPolicy;
 
     //TBD条件：role,所属机构 
     /**
@@ -147,6 +150,14 @@ public class UserController {
      @Audit(action = AuditAction.USER_REGISTER, resourceType = "user")
       @ResponseBody
     public Result<Object> register_a_User(@Validated @RequestBody User user ) {
+        // 等保 P1-1：密码强度校验（按 strict-mode 分级）。
+        // 非空校验由 User.password 的 @NotBlank 已覆盖（如果有的话），这里只负责复杂度。
+        if (user.getPassword() != null) {
+            String pwErr = passwordPolicy.validate(user.getPassword());
+            if (pwErr != null) {
+                return Result.fail(400, pwErr);
+            }
+        }
         // 角色白名单与初始状态（active/pending）全部由 UserService.applyRoleAdmission 判定，
         // 控制器不再自行决定 —— 此前这里对 admin/platform_admin 无条件 setStatus("active")
         // （旁注 //TBD:check if exists a admin before 就是这套 bootstrap 的作者自述），
