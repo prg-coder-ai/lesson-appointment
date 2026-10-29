@@ -20,7 +20,11 @@ public class ReconcileReportReq {
     public static class ReconcileItem {
         private String scheduleId;
         private String classroomStatus;
-        String bookingStatus;
+        /**
+         * 预约侧状态。未知时留空——不要猜：猜错会让对账本身变成新的差异源。
+         * 注意这里必须是 private：包级字段 Jackson 看不到，序列化时会被静默丢掉。
+         */
+        private String bookingStatus;
         private String diff;
     }
 }

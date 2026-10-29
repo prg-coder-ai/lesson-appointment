@@ -56,4 +56,24 @@ public interface ClassroomMapper extends BaseMapper<Classroom> {
             + "AND end_time <= DATE_SUB(NOW(), INTERVAL #{grace} MINUTE) "
             + "ORDER BY end_time")
     List<Classroom> listOverdueLive(@Param("grace") int graceMinutes);
+
+    /**
+     * 日终对账：按实际下课时间取一段窗口内已 CLOSED 的课堂（F7-05）。
+     *
+     * <p>用 {@code actual_end} 而不是 {@code end_time}：对账要对的是「这节课实际发生了什么」，
+     * 计划时间被改期过的课堂会错配。
+     */
+    @Select("SELECT * FROM classroom WHERE status = 'CLOSED' "
+            + "AND actual_end IS NOT NULL AND actual_end >= #{from} AND actual_end < #{to} "
+            + "ORDER BY actual_end")
+    List<Classroom> listClosedBetween(@Param("from") java.time.LocalDateTime from,
+                                      @Param("to") java.time.LocalDateTime to);
+
+    /**
+     * 日终对账：已过计划结束时间仍在 LIVE 的课堂（自动下课没生效的信号）。
+     */
+    @Select("SELECT * FROM classroom WHERE status = 'LIVE' "
+            + "AND end_time IS NOT NULL AND end_time < #{before} "
+            + "ORDER BY end_time")
+    List<Classroom> listStaleLive(@Param("before") java.time.LocalDateTime before);
 }
