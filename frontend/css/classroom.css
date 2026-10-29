@@ -547,6 +547,38 @@ html, body {
 .review-form input { padding: 6px; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: #e8eaed; font-size: 12px; box-sizing: border-box; }
 .review-form .rv-submit { flex: 0 0 auto; width: auto; margin-top: 0; padding: 6px 14px; }
 .review-empty, .review-loading { text-align: center; color: #6e7681; padding: 16px; }
+/* 作品附件预览（包3·P2：签名 URL 落地后可试听/看图） */
+.rv-audio { width: 100%; height: 34px; margin-top: 4px; }
+.rv-thumb { max-width: 120px; max-height: 90px; border-radius: 6px; margin-top: 4px; border: 1px solid #30363d; }
+.rv-file { color: #58a6ff; font-size: 12px; }
+
+/* 讲稿容器（F4-04~06：教师上传/翻页，学生跟随） */
+#material-stage {
+  position: fixed; top: 56px; left: 8%; right: 8%; bottom: 84px; z-index: 60;
+  display: flex; flex-direction: column; overflow: hidden;
+  background: #0d1117; border: 1px solid #30363d; border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .6);
+}
+#material-stage.hidden { display: none; }
+.ms-head { display: flex; align-items: center; gap: 12px; height: 42px; padding: 0 14px; background: #161b22; border-bottom: 1px solid #30363d; }
+.ms-title { font-size: 14px; font-weight: 600; }
+.ms-page { font-size: 12px; color: #9da7b3; }
+.ms-hint { font-size: 12px; color: #d29922; }
+.ms-hint.hidden { display: none; }
+.ms-close { margin-left: auto; border: none; background: transparent; color: #9da7b3; font-size: 20px; cursor: pointer; line-height: 1; }
+.ms-body { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; overflow: auto; background: #000; }
+.ms-frame { width: 100%; height: 100%; border: 0; }
+.ms-frame.hidden, .ms-image.hidden, .ms-empty.hidden { display: none; }
+.ms-image { max-width: 100%; max-height: 100%; }
+.ms-empty { color: #6e7681; font-size: 13px; }
+.ms-empty a { color: #58a6ff; }
+.ms-bar { display: flex; gap: 8px; justify-content: center; padding: 8px; background: #161b22; border-top: 1px solid #30363d; }
+.ms-btn { padding: 6px 14px; border: 1px solid #30363d; border-radius: 6px; background: #21262d; color: #e8eaed; font-size: 13px; cursor: pointer; }
+.ms-btn:hover { background: #30363d; }
+/* 学生只读：上传与翻页按钮不出现（服务端同样会拒绝非教师翻页） */
+.ms-bar:not(.is-teacher) #ms-upload,
+.ms-bar:not(.is-teacher) #ms-prev,
+.ms-bar:not(.is-teacher) #ms-next { display: none; }
 
 /* 响应式：窄屏收起右侧栏 */
 @media (max-width: 900px) {

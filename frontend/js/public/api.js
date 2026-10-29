@@ -961,6 +961,10 @@ function maskEmail(email) {
     getMaterials: function (apiBaseUrl, scheduleId) {
       return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/materials'), method: 'get' });
     },
+    // 包3·P2：当前生效讲稿（含签名 URL 与当前页码），学生进房/刷新定位用
+    getCurrentMaterial: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/materials/current'), method: 'get' });
+    },
     turnPage: function (apiBaseUrl, scheduleId, materialId, page) {
       return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/materials/' + encodeURIComponent(materialId) + '/page'), method: 'put', data: { page: page } });
     },

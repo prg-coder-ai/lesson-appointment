@@ -1,6 +1,7 @@
 package com.classroom.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -23,4 +24,8 @@ public class Submission {
     private String teacherComment;
     private BigDecimal score;
     private LocalDateTime createdAt;
+
+    /** 签名访问地址（不入库）：语音/图片/文件类作品可点开试听/预览 */
+    @TableField(exist = false)
+    private String url;
 }

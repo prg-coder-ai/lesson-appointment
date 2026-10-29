@@ -21,12 +21,15 @@
     },
 
     render: function (role) {
+      // 兜底：RTC 初始化完成后会无参重渲染一次，不能因为 role=undefined 把按钮清空
+      role = role || (this.ctx && this.ctx.role) || 'student';
       var html = '';
       if (role === 'teacher' || role === 'student') {
         html += this._btn('ctrl-mic', 'fas fa-microphone', '麦克风', true);
         html += this._btn('ctrl-cam', 'fas fa-video', '摄像头', true);
       }
       html += this._btn('ctrl-whiteboard', 'fas fa-chalkboard', '白板', false);
+      html += this._btn('ctrl-material', 'fas fa-file-lines', '讲稿', false);
       if (role === 'student') {
         html += this._btn('ctrl-hand', 'fas fa-hand-paper', '举手', false);
         html += this._btn('ctrl-upload', 'fas fa-upload', '上传作业', false);
@@ -88,8 +91,15 @@
         wb.classList.toggle('active', active);
       });
 
-      var hand = $('ctrl-hand');
-      if (hand && window.ClassroomStudent) {
+      // 讲稿容器（F4-04~06）：教师点开可上传/翻页，学生点开只跟随
+      var mat = $('ctrl-material');
+      if (mat) mat.addEventListener('click', function () {
+        if (!window.ClassroomMaterial) return;
+        var on = window.ClassroomMaterial.toggle();
+        mat.classList.toggle('active', on);
+      });
+
+      var hand = $('ctrl-hand');      if (hand && window.ClassroomStudent) {
         hand.addEventListener('click', function () {
           var raised = window.ClassroomStudent.toggleHand();
           hand.classList.toggle('active', raised);

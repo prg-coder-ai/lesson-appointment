@@ -132,10 +132,23 @@
           if (!rows || !rows.length) { list.innerHTML = '<li class="review-empty">暂无学生作品</li>'; return; }
           list.innerHTML = rows.map(function (r) {
             var typeMap = { AUDIO: '语音', TEXT: '文字', IMAGE: '图片', FILE: '文件' };
-            var content = r.content ? self._escape(r.content) : (r.ossKey ? '<span class="rv-file">文件</span>' : '');
+            var content = r.content ? self._escape(r.content) : '';
+            // 包3·P2：作品有签名 URL 后可直接试听/预览，不再只显示一个「文件」字样
+            var media = '';
+            if (r.url) {
+              var u = self._escape(r.url);
+              if (r.submissionType === 'AUDIO') {
+                media = '<audio class="rv-audio" controls preload="none" src="' + u + '"></audio>';
+              } else if (r.submissionType === 'IMAGE') {
+                media = '<a href="' + u + '" target="_blank" rel="noopener">' +
+                  '<img class="rv-thumb" src="' + u + '" alt="作品"></a>';
+              } else if (r.submissionType !== 'TEXT') {
+                media = '<a class="rv-file" href="' + u + '" target="_blank" rel="noopener">查看附件</a>';
+              }
+            }
             return '<li class="review-item" data-id="' + r.submissionId + '">' +
               '<div class="rv-head">学员：' + self._escape(r.userId) + ' · ' + (typeMap[r.submissionType] || r.submissionType) + '</div>' +
-              '<div class="rv-content">' + content + '</div>' +
+              '<div class="rv-content">' + content + media + '</div>' +
               '<div class="rv-form">' +
               '<input class="rv-comment" placeholder="评语" value="' + self._escape(r.teacherComment || '') + '">' +
               '<input class="rv-score" type="number" step="0.01" placeholder="评分" value="' + (r.score != null ? r.score : '') + '">' +

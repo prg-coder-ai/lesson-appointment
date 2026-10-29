@@ -113,11 +113,14 @@
       <select id="upload-type" class="rc-select">
         <option value="TEXT">文字</option>
         <option value="AUDIO">语音</option>
+        <option value="IMAGE">图片</option>
         <option value="FILE">文件</option>
       </select>
       <textarea id="upload-content" class="rc-textarea" placeholder="文字内容（文字类型必填）"></textarea>
-      <input id="upload-osskey" class="rc-input" placeholder="文件 ossKey（语音/文件类型填占位，OSS 接入后必填）">
+      <input id="upload-file" class="rc-input" type="file"
+             accept="audio/*,image/*,.pdf,.zip,.doc,.docx,.txt" style="display:none">
       <input id="upload-duration" class="rc-input" type="number" placeholder="时长(秒，语音类型)">
+      <div id="upload-progress" class="rc-tip hidden"></div>
       <button id="upload-submit" class="rc-answer" type="button">提交</button>
     </div>
   </div>
@@ -129,6 +132,27 @@
       <div class="rc-title">作业点评 <button id="review-close" class="rc-close" type="button">×</button></div>
       <ul id="review-list" class="review-list"></ul>
     </div>
+  </div>
+
+  <!-- 讲稿容器（F4-04~06：教师上传/翻页，学生跟随） -->
+  <div id="material-stage" class="hidden">
+    <div class="ms-head">
+      <span class="ms-title"><i class="fas fa-file-lines"></i> 讲稿</span>
+      <span id="ms-page" class="ms-page">第 1 页</span>
+      <span id="ms-hint" class="ms-hint hidden">上传中…</span>
+      <button id="ms-close" class="ms-close" type="button">×</button>
+    </div>
+    <div class="ms-body">
+      <iframe id="ms-frame" class="ms-frame hidden" title="讲稿"></iframe>
+      <img id="ms-image" class="ms-image hidden" alt="讲稿">
+      <div id="ms-empty" class="ms-empty">暂无讲稿</div>
+    </div>
+    <div id="ms-bar" class="ms-bar">
+      <button id="ms-upload" class="ms-btn" type="button"><i class="fas fa-upload"></i> 上传讲稿</button>
+      <button id="ms-prev" class="ms-btn" type="button"><i class="fas fa-chevron-left"></i> 上一页</button>
+      <button id="ms-next" class="ms-btn" type="button">下一页 <i class="fas fa-chevron-right"></i></button>
+    </div>
+    <input id="ms-file-input" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.ppt,.pptx" style="display:none">
   </div>
 
   <!-- 公共工具（顺序不可调整） -->
@@ -143,6 +167,7 @@
   <script src="js/classroom/rtc/engine-sdk.js"></script>
   <script src="js/classroom/classroom-rtc.js"></script>
   <script src="js/classroom/classroom-whiteboard.js"></script>
+  <script src="js/classroom/classroom-material.js"></script>
   <script src="js/classroom/classroom-chat.js"></script>
   <script src="js/classroom/classroom-controls.js"></script>
   <script src="js/classroom/classroom-teacher.js"></script>

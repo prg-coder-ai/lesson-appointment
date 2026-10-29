@@ -20,7 +20,10 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .excludePathPatterns(
                         "/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html",
                         "/api/v1/system/info", "/api/v1/apiInfo",
-                        "/api/v1/schedules/events"
+                        "/api/v1/schedules/events",
+                        // 签名 URL 文件访问：<video>/<iframe>/<img> 带不了 Authorization 头，
+                        // 改由 URL 自带的 exp + HMAC 签名校验（见 FileAccessController）
+                        "/api/v1/files/**"
                 );
     }
 

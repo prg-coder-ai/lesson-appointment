@@ -129,6 +129,7 @@
     _initModules: function (ctx) {
       if (window.ClassroomRTC) window.ClassroomRTC.init(ctx);
       if (window.ClassroomWhiteboard) window.ClassroomWhiteboard.init(ctx);
+      if (window.ClassroomMaterial) window.ClassroomMaterial.init(ctx);
       if (window.ClassroomChat) window.ClassroomChat.init(ctx);
       if (window.ClassroomTeacher) window.ClassroomTeacher.init(ctx);
       if (window.ClassroomStudent) window.ClassroomStudent.init(ctx);
@@ -160,7 +161,7 @@
     _dispatchSignal: function (msg) {
       if (!msg || !msg.type) return;
       // 转发给各角色模块（它们各自处理自身的权威消息）
-      var MODULES = ['ClassroomRTC', 'ClassroomChat', 'ClassroomStudent', 'ClassroomTeacher', 'ClassroomWhiteboard'];
+      var MODULES = ['ClassroomRTC', 'ClassroomChat', 'ClassroomStudent', 'ClassroomTeacher', 'ClassroomWhiteboard', 'ClassroomMaterial'];
       var self = this;
       MODULES.forEach(function (mod) {
         if (window[mod] && typeof window[mod].onSignal === 'function') window[mod].onSignal(msg);
@@ -397,36 +398,91 @@
         .catch(function (e) { window.clToast((e && e.message) || '补签失败'); });
     },
 
-    // F4-15：学生上传作业弹窗初始化
+    // F4-15 / F5-01：学生上传作业（文字走 JSON，语音/图片/文件走真上传 ≤100MB）
     _initUploadModal: function (ctx) {
       var self = this;
       var modal = document.getElementById('upload-modal');
       var closeBtn = document.getElementById('upload-close');
       var submitBtn = document.getElementById('upload-submit');
+      var typeEl = document.getElementById('upload-type');
+      var fileEl = document.getElementById('upload-file');
+      var progressEl = document.getElementById('upload-progress');
+
+      // 文字类型不需要文件，切换时收放文件选择器减少误解
+      if (typeEl && fileEl) typeEl.addEventListener('change', function () {
+        var isText = String(typeEl.value).toUpperCase() === 'TEXT';
+        fileEl.style.display = isText ? 'none' : '';
+      });
+
       if (closeBtn) closeBtn.addEventListener('click', function () {
         if (modal) modal.classList.add('hidden');
       });
+
       if (submitBtn) submitBtn.addEventListener('click', function () {
-        var type = document.getElementById('upload-type');
-        var content = document.getElementById('upload-content');
-        var ossKey = document.getElementById('upload-osskey');
-        var duration = document.getElementById('upload-duration');
-        var data = {
-          submissionType: type ? type.value : 'TEXT',
-          content: content ? content.value : '',
-          ossKey: ossKey ? ossKey.value : '',
-          durationSec: duration && duration.value ? Number(duration.value) : null
-        };
-        if (!window.ClassroomAPI || typeof window.ClassroomAPI.submitWork !== 'function') {
-          self.toast('上传接口未就绪'); return;
-        }
-        window.ClassroomAPI.submitWork(ctx.apiBaseUrl, ctx.scheduleId, data)
-          .then(function () {
-            self.toast('作业已提交');
-            if (modal) modal.classList.add('hidden');
+        var type = typeEl ? String(typeEl.value).toUpperCase() : 'TEXT';
+        var contentEl = document.getElementById('upload-content');
+        var durationEl = document.getElementById('upload-duration');
+        var content = contentEl ? contentEl.value : '';
+        var durationSec = durationEl && durationEl.value ? Number(durationEl.value) : null;
+        var file = fileEl && fileEl.files ? fileEl.files[0] : null;
+
+        if (type === 'TEXT') {
+          if (!content || !content.trim()) { self.toast('请填写文字内容'); return; }
+          if (!window.ClassroomAPI || typeof window.ClassroomAPI.submitWork !== 'function') {
+            self.toast('提交接口未就绪'); return;
+          }
+          window.ClassroomAPI.submitWork(ctx.apiBaseUrl, ctx.scheduleId, {
+            submissionType: 'TEXT', content: content, durationSec: durationSec
           })
-          .catch(function (e) { self.toast((e && e.message) || '提交失败'); });
+            .then(function () {
+              self.toast('作业已提交');
+              if (modal) modal.classList.add('hidden');
+            })
+            .catch(function (e) { self.toast((e && e.message) || '提交失败'); });
+          return;
+        }
+
+        if (!file) { self.toast('请选择要上传的文件'); return; }
+        if (file.size > 100 * 1024 * 1024) { self.toast('文件超过 100MB 上限'); return; }
+        self._uploadSubmission(ctx, file, type, content, durationSec, progressEl, modal);
       });
+    },
+
+    /** 真上传：XHR（要进度）+ multipart；上传成功后服务端落对象存储并返回签名 URL */
+    _uploadSubmission: function (ctx, file, type, content, durationSec, progressEl, modal) {
+      var self = this;
+      var url = (ctx.apiBaseUrl || '') + '/api/v1/classrooms/' +
+        encodeURIComponent(ctx.scheduleId) + '/submissions/file';
+      var form = new FormData();
+      form.append('file', file);
+      form.append('submissionType', type);
+      if (content) form.append('content', content);
+      if (durationSec) form.append('durationSec', String(durationSec));
+
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', url, true);
+      if (ctx.token) xhr.setRequestHeader('Authorization', 'Bearer ' + ctx.token);
+      xhr.upload.onprogress = function (e) {
+        if (!progressEl) return;
+        progressEl.classList.remove('hidden');
+        progressEl.textContent = e.lengthComputable
+          ? '上传中 ' + Math.round(e.loaded * 100 / e.total) + '%'
+          : '上传中…';
+      };
+      xhr.onload = function () {
+        if (progressEl) progressEl.classList.add('hidden');
+        if (xhr.status >= 200 && xhr.status < 300) {
+          self.toast('作业已提交');
+          if (modal) modal.classList.add('hidden');
+        } else {
+          self.toast('提交失败（' + xhr.status + '）');
+        }
+      };
+      xhr.onerror = function () {
+        if (progressEl) progressEl.classList.add('hidden');
+        self.toast('上传失败，请检查网络');
+      };
+      xhr.send(form);
     },
 
     // F2-07：学生端「我的出勤」入口初始化
