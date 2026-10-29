@@ -8,6 +8,10 @@ document.write('<script src="/js/public/pagefoot.js"></script>');
 // 避免对同一课程反复请求排期列表（fetchScheduleList 是网络请求，N 门课程时尤其明显）。
 const _courseSchedulePublishCache = new Map();
 
+// 【2026-10-29 历史排期切换】默认只显示 endDate >= 今天的排期。
+// true = 显示全部（含已结束的历史排期），false = 只显示未结束的。
+let _showHistorySchedules = false;
+
 /* ============================================================================
  * 「剩余员额」的显示口径与判定口径（2026-09-28）
  *
@@ -583,8 +587,8 @@ async function renderStudentBookingCards() {
         }
 
         // ====== 学生端深链处理 ======
-        // dl: { scdid, tid }，来自 /booking 入口的 URL 参数
-        // 优先级：scdid > tid（两者同时存在时只处理 scdid）
+        // dl: { scdid, cid, tid }，来自 /booking 入口的 URL 参数
+        // 优先级：scdid > cid > tid（三者同时存在时只处理 scdid）
         async function handleStudentDeepLink(dl) {
             if (dl.scdid) {
                 const schedule = await fetchSchedule(dl.scdid);
@@ -637,6 +641,18 @@ async function renderStudentBookingCards() {
                 } else {
                     uiToast('该排期当前不可预约（可能已下架或已满）');
                 }
+            } else if (dl.cid) {
+                // 课程级深链：只选中课程，排期让用户自己选
+                let course = null;
+                try { course = await request({ url: `/course/${dl.cid}` }); } catch (e) { /* ignore */ }
+                if (!course) { uiToast('课程不存在或已下架'); return; }
+                if (!Array.isArray(courseList)) courseList = [];
+                const inList = courseList.some(c => String(c.courseId) === String(dl.cid));
+                if (!inList) { courseList.push(course); renderCourseCards(); }
+                document.getElementById('courseId').value = dl.cid;
+                await selectCourse(dl.cid, false);
+                const schedSection = document.querySelector('.section');
+                if (schedSection) schedSection.scrollIntoView({ behavior: 'smooth' });
             } else if (dl.tid) {
                 // 列出该教师的所有有效排期对应的课程
                 const params = new URLSearchParams({
@@ -920,6 +936,30 @@ async function renderStudentBookingCards() {
 
             on($('refreshBtn'), 'click', refreshData_student);
 
+            // 【2026-10-29 历史排期切换】默认不显示已结束排期，点按钮切换显示
+            const btnToggleHistory = document.getElementById('btn-toggle-history');
+            if (btnToggleHistory) {
+                on(btnToggleHistory, 'click', function () {
+                    _showHistorySchedules = !_showHistorySchedules;
+                    // 更新按钮视觉状态：高亮表示"当前包含历史"
+                    btnToggleHistory.style.background = _showHistorySchedules ? '#e6f4ff' : '#fff';
+                    btnToggleHistory.style.borderColor = _showHistorySchedules ? '#1677ff' : '#d9d9d9';
+                    btnToggleHistory.textContent = _showHistorySchedules ? '🕓 含历史 ✓' : '🕓 含历史';
+
+                    // 重新用现有 scheduleList 渲染下拉；选中值如果被过滤掉了则丢失（正常）
+                    if (typeof scheduleList !== 'undefined' && Array.isArray(scheduleList)) {
+                        // 当前选中的排期如果还在新过滤结果里就保留，否则清空
+                        const keepId = document.getElementById('scheduleSelect').value || '';
+                        fillScheduleSelect(scheduleList, keepId || null);
+                        // 选中项变了就触发一次 displaySchedule 刷新排期详情
+                        if (keepId && document.getElementById('scheduleSelect').value !== keepId) {
+                            selectedScheuleId = null;
+                            resetScheduleInfoPanel();
+                        }
+                    }
+                });
+            }
+
             document.querySelectorAll('.result-tab').forEach(function (tab) {
 
                 on(tab, 'click', function () { switchResultTab(tab.dataset.tab); });
@@ -1091,26 +1131,46 @@ async function renderStudentBookingCards() {
             const scheduleSelect = document.getElementById('scheduleSelect');
             if (!scheduleSelect) return 0;
 
+            // 【2026-10-29 历史排期切换】默认过滤 endDate < 今天；点按钮后全部显示
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+
             let cnt = 0;
+            let hiddenCnt = 0;
             (Array.isArray(list) ? list : []).forEach(schedule => {
-                if (schedule.status == 'active') { // TBD: 过滤在后端完成
-                    cnt++;
-                    const opt = document.createElement('option');
-                    opt.value = schedule.scheduleId;
-                    let displayText = `排期: ${schedule.name}`;
-                    if (schedule.startDate && schedule.startTime) {
-                        displayText += ` / ${schedule.startDate} ${schedule.startTime}`;
-                    } else if (schedule.startDate) {
-                        displayText += ` / ${schedule.startDate}`;
-                    }
-                    opt.innerText = displayText;
-                    scheduleSelect.appendChild(opt);
+                if (schedule.status != 'active') return;
+
+                // ── 历史排期过滤 ────────────────────────────────────────────
+                if (!_showHistorySchedules && schedule.endDate) {
+                    const endDt = new Date(schedule.endDate + 'T00:00:00');
+                    if (endDt < todayStart) { hiddenCnt++; return; }
                 }
+
+                cnt++;
+                const opt = document.createElement('option');
+                opt.value = schedule.scheduleId;
+                let displayText = `排期: ${schedule.name}`;
+                if (schedule.startDate && schedule.startTime) {
+                    displayText += ` / ${schedule.startDate} ${schedule.startTime}`;
+                } else if (schedule.startDate) {
+                    displayText += ` / ${schedule.startDate}`;
+                }
+                // 含历史模式下，已结束排期加 "（已结束）" 后缀
+                if (_showHistorySchedules && schedule.endDate) {
+                    const eDt = new Date(schedule.endDate + 'T00:00:00');
+                    if (eDt < todayStart) displayText += '（已结束）';
+                }
+                opt.innerText = displayText;
+                scheduleSelect.appendChild(opt);
             });
 
             if (cnt === 0) {
-                // 该课程没有有效排期：给明确提示（空白下拉会被误读成“还在加载”）
-                scheduleSelect.innerHTML = '<option value="">暂时该<span data-term="course">课程</span>没有排期</option>';
+                let hint = _showHistorySchedules
+                    ? '暂时该<span data-term="course">课程</span>没有排期'
+                    : (hiddenCnt > 0
+                        ? `暂无可预订排期（${hiddenCnt} 个历史排期被隐藏，点 🕓 含历史 查看）`
+                        : '暂时该<span data-term="course">课程</span>没有排期');
+                scheduleSelect.innerHTML = `<option value="">${hint}</option>`;
             } else if (keepScheduleId) {
                 const exists = Array.prototype.some.call(
                     scheduleSelect.options, o => String(o.value) === String(keepScheduleId));

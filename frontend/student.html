@@ -228,16 +228,22 @@
             <button type="button" class="btn btn-default" id="btn-reset-course"><i class="fa fa-redo"></i> 重置</button>
             <span id="course-filter-count" style="font-size:12px;color:#888;"></span>
           </div>
-          <div id="courseCardList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin:8px 0 14px;"></div>
+          <div id="courseCardList" style="display:flex;flex-direction:column;gap:10px;margin:8px 0 14px;"></div>
           <div id="coursePagebar"></div>
         </div>
         <hr>
         <div>
-          <div class="form-line" style="display:flex;padding-top:10px;">
+          <div class="form-line" style="display:flex;padding-top:10px;align-items:center;gap:8px;">
             <label>选择排期：</label>
             <select id="scheduleSelect">
               <option value="">请选择排期</option>
             </select>
+            <!-- 2026-10-29：默认只显示 endDate >= 今天的排期；点此切换显示全部（含已结束） -->
+            <button type="button" id="btn-toggle-history"
+                    title="切换是否显示已结束的历史排期"
+                    style="padding:2px 10px;font-size:12px;border:1px solid #d9d9d9;border-radius:4px;background:#fff;cursor:pointer;">
+              🕓 含历史
+            </button>
           </div>
           <div class="section">
             <div class="section-title">排期信息</div>
@@ -421,14 +427,16 @@
        }
 
       // ====== 深链参数解析 ======
-      // URL 形如 student.html?scdid=12355&tid=xxx&sid=xxx
-      // scdid=排期ID, tid=教师ID, sid=学生ID
+      // URL 形如 student.html?scdid=12355&cid=xxx&tid=xxx&sid=xxx
+      // scdid=排期ID, cid=课程ID, tid=教师ID, sid=学生ID
+      // 优先级：scdid > cid > tid（三者同时存在时只处理 scdid）
       var dlParams = new URLSearchParams(window.location.search);
       var dlScdid = dlParams.get('scdid') || '';
+      var dlCid   = dlParams.get('cid')   || '';
       var dlTid   = dlParams.get('tid')   || '';
       var dlSid   = dlParams.get('sid')   || '';
-      if (dlScdid || dlTid) {
-        window.pendingDeepLink = { scdid: dlScdid, tid: dlTid, sid: dlSid };
+      if (dlScdid || dlCid || dlTid) {
+        window.pendingDeepLink = { scdid: dlScdid, cid: dlCid, tid: dlTid, sid: dlSid };
         // 直接跳到"课程预订"菜单，不走默认的"今日课程"
         currentMenuitem = 'booking';
         pageTitle.innerHTML = '<span data-term="course">课程</span>预订';

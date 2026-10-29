@@ -69,7 +69,8 @@
     var bookBtn = document.getElementById('cd-book');
     if (bookBtn) bookBtn.onclick = function () {
       var target = (typeof window.pageUrl === 'function') ? window.pageUrl('student.html') : 'student.html';
-      window.location.href = target;
+      // 课程级深链：student.html 入口识别 ?cid= 自动选中课程
+      window.location.href = target + (target.indexOf('?') >= 0 ? '&' : '?') + 'cid=' + encodeURIComponent(course.courseId);
     };
   }
 
@@ -80,14 +81,20 @@
     }
     var bookTarget = (typeof window.pageUrl === 'function') ? window.pageUrl('student.html') : 'student.html';
     mount.innerHTML = list.map(function (s) {
-      var d = esc(s.date || '');
-      var tm = esc(s.time || '');
+      // 后端 ScheduleCreateDTO 字段：startDate / startTime / endDate / endTime / name / status
+      var d = esc(s.startDate || '');
+      var tm = esc(s.startTime || '');
+      if (s.endDate && s.endDate !== s.startDate) d += ' → ' + esc(s.endDate);
+      if (s.endTime && s.endTime !== s.startTime) tm += ' - ' + esc(s.endTime);
+      if (s.name) d = esc(s.name) + '  ·  ' + d;
       var status = (s.status || '').toLowerCase();
       var actionable = (status === 'active' || status === '');
+      // 排期级深链：student.html 入口识别 ?scdid= 自动定位课程+排期
+      var bookHref = bookTarget + (bookTarget.indexOf('?') >= 0 ? '&' : '?') + 'scdid=' + encodeURIComponent(s.scheduleId || '');
       return '<div class="cd-sched">' +
-        '<div class="when"><span class="d">' + d + '</span><span class="t">' + tm + '</span></div>' +
+        '<div class="when"><span class="d">' + d + '</span>' + (tm ? '<span class="t">' + tm + '</span>' : '') + '</div>' +
         (actionable
-          ? '<a class="cd-btn" href="' + bookTarget + '">预约</a>'
+          ? '<a class="cd-btn" href="' + bookHref + '">预约</a>'
           : '<span style="color:#bbb;font-size:13px;">' + esc(status) + '</span>') +
         '</div>';
     }).join('');
