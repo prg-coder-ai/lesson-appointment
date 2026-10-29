@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>课堂回放</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; height: 100%; background: #0d1117; color: #e8eaed;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    #rp-header {
+      display: flex; align-items: center; gap: 12px; height: 52px; padding: 0 16px;
+      background: #161b22; border-bottom: 1px solid #30363d;
+    }
+    #rp-header h1 { font-size: 15px; margin: 0; font-weight: 600; }
+    #rp-header .spacer { flex: 1; }
+    #rp-schedule {
+      width: 320px; padding: 6px 10px; border-radius: 6px; font-size: 13px;
+      border: 1px solid #30363d; background: #0d1117; color: #e8eaed;
+    }
+    #rp-load {
+      padding: 6px 14px; border: 1px solid #30363d; border-radius: 6px; cursor: pointer;
+      background: #1f6feb; color: #fff; font-size: 13px;
+    }
+    #rp-main { display: grid; grid-template-columns: 300px 1fr; height: calc(100% - 52px); }
+    #rp-list-panel { border-right: 1px solid #30363d; overflow-y: auto; background: #11161c; }
+    .rp-item {
+      padding: 10px 14px; border-bottom: 1px solid #21262d; cursor: pointer; font-size: 13px;
+    }
+    .rp-item:hover { background: #1b222b; }
+    .rp-item.active { background: #1f6feb22; border-left: 3px solid #1f6feb; }
+    .rp-item .rp-time { color: #c9d1d9; }
+    .rp-item .rp-meta { color: #6e7681; font-size: 12px; margin-top: 3px; }
+    .rp-badge { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 11px; margin-left: 6px; }
+    .rp-badge.ready { background: #1a7f37; color: #fff; }
+    .rp-badge.recording { background: #9e6a03; color: #fff; }
+    .rp-badge.failed { background: #8b2c26; color: #fff; }
+    #rp-player { display: flex; align-items: center; justify-content: center; background: #000; position: relative; }
+    #rp-video { width: 100%; height: 100%; background: #000; display: none; }
+    #rp-empty { color: #6e7681; font-size: 14px; padding: 24px; text-align: center; line-height: 1.8; }
+    #rp-hint { position: absolute; bottom: 12px; left: 16px; color: #6e7681; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header id="rp-header">
+    <h1>课堂回放</h1>
+    <input id="rp-schedule" placeholder="课次 ID（scheduleId）" autocomplete="off">
+    <button id="rp-load" type="button">查询</button>
+    <span class="spacer"></span>
+    <span id="rp-user" style="font-size:12px;color:#6e7681;"></span>
+  </header>
+
+  <main id="rp-main">
+    <aside id="rp-list-panel">
+      <div id="rp-list-empty" style="padding:16px;color:#6e7681;font-size:13px;">尚未查询</div>
+      <div id="rp-list"></div>
+    </aside>
+    <section id="rp-player">
+      <video id="rp-video" controls playsinline preload="metadata"></video>
+      <div id="rp-empty">在左侧选择一条录制开始观看<br>支持拖动进度条与倍速播放</div>
+      <div id="rp-hint">录制文件保留 90 天，签名地址有效期 2 小时</div>
+    </section>
+  </main>
+
+  <script src="js/public/vendor/axios.min.js"></script>
+  <script src="js/public/utility_request.js"></script>
+  <script src="js/public/api.js"></script>
+  <script src="js/classroom/replay.js"></script>
+</body>
+</html>

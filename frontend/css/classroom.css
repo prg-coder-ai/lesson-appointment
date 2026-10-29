@@ -508,6 +508,13 @@ html, body {
   font-size: 13px; font-weight: 600; letter-spacing: .5px;
 }
 
+/* 录制提示条（F6 合规：学员端可见「本节课正在录制」） */
+.cl-record { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.cl-record.hidden { display: none; }
+.rec-dot { width: 8px; height: 8px; border-radius: 50%; background: #da3633; animation: rec-blink 1.2s infinite; }
+.rec-timer { font-variant-numeric: tabular-nums; color: #ffd7d5; }
+@keyframes rec-blink { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+
 /* 点名/上传/点评 弹窗（F4-11/12/15/16） */
 #rollcall-modal, #teacher-rollcall-modal, #upload-modal, #teacher-review-modal {
   position: fixed; inset: 0; z-index: 9000;

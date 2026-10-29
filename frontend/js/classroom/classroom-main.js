@@ -94,6 +94,7 @@
           self._refreshMembers(apiBaseUrl, scheduleId);
           if (ctx.role === 'student') self._initMyAttendance(ctx);
           self._initUploadModal(ctx);
+          self._initReplayEntry(ctx);
           self._connectWS(ctx);
           self._bindBackButton();
           self._hidePlaceholder();
@@ -128,6 +129,7 @@
 
     _initModules: function (ctx) {
       if (window.ClassroomRTC) window.ClassroomRTC.init(ctx);
+      if (window.ClassroomRecord) window.ClassroomRecord.init(ctx);
       if (window.ClassroomWhiteboard) window.ClassroomWhiteboard.init(ctx);
       if (window.ClassroomMaterial) window.ClassroomMaterial.init(ctx);
       if (window.ClassroomChat) window.ClassroomChat.init(ctx);
@@ -186,6 +188,9 @@
         case 'wb:grant:state':
           this._markWbGrant(msg.userId, msg.grant);
           break;
+        case 'record:state':
+          this._setRecording(!!msg.on);
+          break;
         case 'rtc-peer-join':
           this._addParticipant(msg.from, msg.name, msg.role);
           break;
@@ -243,6 +248,28 @@
     _markWbGrant: function (userId, grant) {
       this.wbGrants[userId] = !!grant;
       this._renderParticipants();
+    },
+
+    /**
+     * F6 合规：录制中提示。
+     * 学员端必须能明确看到「本节课正在录制」——这是合规底线，不能悄悄录。
+     */
+    _setRecording: function (on) {
+      var banner = document.getElementById('record-banner');
+      var text = document.getElementById('record-text');
+      if (!banner) return;
+      if (on) {
+        banner.classList.remove('hidden');
+        if (text) {
+          text.textContent = this.ctx && this.ctx.role === 'student'
+            ? '老师正在录制本堂课'
+            : '录制中';
+        }
+      } else {
+        banner.classList.add('hidden');
+        var timer = document.getElementById('record-timer');
+        if (timer) timer.textContent = '';
+      }
     },
 
     toast: function (msg) {
@@ -483,6 +510,15 @@
         self.toast('上传失败，请检查网络');
       };
       xhr.send(form);
+    },
+
+    // F6-03：课堂回放入口（新窗口打开，避免回放打断正在进行的课堂）
+    _initReplayEntry: function (ctx) {
+      var btn = document.getElementById('btn-replay');
+      if (!btn) return;
+      btn.addEventListener('click', function () {
+        window.open('replay.html?scheduleId=' + encodeURIComponent(ctx.scheduleId), '_blank');
+      });
     },
 
     // F2-07：学生端「我的出勤」入口初始化

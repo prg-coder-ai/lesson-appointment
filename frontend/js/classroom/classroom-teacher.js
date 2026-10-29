@@ -171,17 +171,13 @@
         .catch(function (e) { list.innerHTML = '<li class="review-empty">加载失败：' + self._escape((e && e.message) || '') + '</li>'; });
     },
 
-    // 录制为占位实现：广播录制开始/停止，真实录制需后端媒体服务支持
-    _recording: false,
+    // 录制（F6-01/02）：委托录制模块做真实录制 + 分片上传，这里只保留入口
     toggleRecord: function () {
-      this._recording = !this._recording;
-      if (window.ClassroomWS) {
-        window.ClassroomWS.sendSignal(this.ctx.scheduleId, {
-          type: 'record', on: this._recording, from: this.ctx.userId
-        });
+      if (!window.ClassroomRecord) {
+        this.toast('录制模块未加载');
+        return false;
       }
-      this.toast(this._recording ? '录制已开始（占位）' : '录制已停止');
-      return this._recording;
+      return window.ClassroomRecord.toggle();
     },
 
     kickMember: function (userId) {

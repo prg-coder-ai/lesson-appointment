@@ -998,6 +998,16 @@ function maskEmail(email) {
     getPlaybackUrl: function (apiBaseUrl, scheduleId) {
       return request({ url: _classroomUrl(apiBaseUrl, '/recordings/' + encodeURIComponent(scheduleId) + '/playback'), method: 'get' });
     },
+    // 包3·P2：开始/停止录制（教师）、查询录制状态
+    startRecording: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/recording/start'), method: 'post' });
+    },
+    stopRecording: function (apiBaseUrl, scheduleId, recordingId, ossKey) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/recording/' + encodeURIComponent(recordingId) + '/stop'), method: 'post', data: { ossKey: ossKey } });
+    },
+    getRecordingState: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/recording/state'), method: 'get' });
+    },
 
     // ---- 运营后台 ----
     monitorClassrooms: function (apiBaseUrl, status) {

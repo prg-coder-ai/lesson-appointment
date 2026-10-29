@@ -42,17 +42,20 @@ public class ClassroomClosingService {
     private final AttendanceService attendanceService;
     private final MembershipService membershipService;
     private final CallbackService callbackService;
+    private final RecordingService recordingService;
     private final TransactionTemplate transactionTemplate;
 
     public ClassroomClosingService(ClassroomMapper classroomMapper,
                                    AttendanceService attendanceService,
                                    MembershipService membershipService,
                                    CallbackService callbackService,
+                                   RecordingService recordingService,
                                    PlatformTransactionManager transactionManager) {
         this.classroomMapper = classroomMapper;
         this.attendanceService = attendanceService;
         this.membershipService = membershipService;
         this.callbackService = callbackService;
+        this.recordingService = recordingService;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
@@ -91,6 +94,10 @@ public class ClassroomClosingService {
 
         // 4. 成员在线状态全部置离线
         int offline = membershipService.closeAllOnline(scheduleId);
+
+        // 4.5 仍在 RECORDING 的录制标 FAILED：教师直接关页面/断网时不会有人来调 stop，
+        //     不处理就会留下一条永远「录制中」的幽灵记录，回放页一直转圈。
+        recordingService.markOrphansFailed(scheduleId);
 
         // 5. 课时消耗版本号 +1（幂等重跑会得到更大的版本，预约侧按版本丢弃旧报文）
         int nextVersion = (c.getConsumptionVersion() == null ? 0 : c.getConsumptionVersion()) + 1;

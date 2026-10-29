@@ -18,10 +18,20 @@
       <div id="classroom-status" class="cl-status cl-status-connecting">
         <span class="cl-dot"></span><span id="classroom-status-text">连接中...</span>
       </div>
+      <!-- 课堂回放入口（F6-03：本课堂成员可看历史录制） -->
+      <button id="btn-replay" class="cl-btn cl-btn-ghost" title="课堂回放">
+        <i class="fas fa-history"></i> 回放
+      </button>
     </header>
 
     <!-- 服务端强控横幅（F4-17 全员禁言 / F4-03 摄像头状态） -->
     <div id="server-banner" class="cl-banner hidden"></div>
+    <!-- 录制提示（合规：学员端必须能看到本节课正在录制） -->
+    <div id="record-banner" class="cl-banner cl-record hidden">
+      <span class="rec-dot"></span>
+      <span id="record-text">本节课堂正在录制</span>
+      <span id="record-timer" class="rec-timer"></span>
+    </div>
 
     <!-- 主体三栏 -->
     <main id="classroom-main">
@@ -166,6 +176,7 @@
   <script src="js/classroom/rtc/engine-mesh.js"></script>
   <script src="js/classroom/rtc/engine-sdk.js"></script>
   <script src="js/classroom/classroom-rtc.js"></script>
+  <script src="js/classroom/classroom-record.js"></script>
   <script src="js/classroom/classroom-whiteboard.js"></script>
   <script src="js/classroom/classroom-material.js"></script>
   <script src="js/classroom/classroom-chat.js"></script>

@@ -264,6 +264,10 @@ public class StorageService {
         return storage.size(key);
     }
 
+    public boolean exists(String key) {
+        return key != null && !key.isBlank() && storage.exists(key);
+    }
+
     public String localPath(String key) {
         return storage.localPath(key);
     }

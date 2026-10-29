@@ -1,6 +1,7 @@
 package com.classroom.service;
 
 import com.classroom.common.RoleConst;
+import com.classroom.recording.RecordingBackendRegistry;
 import com.classroom.rtc.RtcJoinContext;
 import com.classroom.rtc.RtcJoinInfo;
 import com.classroom.rtc.RtcProperties;
@@ -24,10 +25,14 @@ public class MediaService {
 
     private final RtcProviderRegistry registry;
     private final RtcProperties rtcProperties;
+    private final RecordingBackendRegistry recordingRegistry;
 
-    public MediaService(RtcProviderRegistry registry, RtcProperties rtcProperties) {
+    public MediaService(RtcProviderRegistry registry,
+                        RtcProperties rtcProperties,
+                        RecordingBackendRegistry recordingRegistry) {
         this.registry = registry;
         this.rtcProperties = rtcProperties;
+        this.recordingRegistry = recordingRegistry;
     }
 
     /** 幂等建房（开课时调；provider 内部可能什么都不做，如 mesh） */
@@ -58,6 +63,8 @@ public class MediaService {
         boolean canPublishVideo = managerLike || rtcProperties.isStudentPublishVideo();
         RtcJoinInfo info = registry.join(
                 new RtcJoinContext(scheduleId, userId, role, displayName, true, canPublishVideo));
+        // 录制模式以录制后端的真实选型为准（provider 给的只是「该拓扑通常能做什么」）
+        info.setRecordingMode(recordingRegistry.activeMode());
         log.info("进房配置签发: scheduleId={}, userId={}, role={}, provider={}, topology={}, publishVideo={}",
                 scheduleId, userId, role, info.getProvider(), info.getTopology(), info.getCanPublishVideo());
         return info;

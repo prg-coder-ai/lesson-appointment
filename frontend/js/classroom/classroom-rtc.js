@@ -150,6 +150,13 @@
       return role !== 'teacher' && role !== 'admin' && role !== 'platform_admin';
     },
 
+    /** 本地采集流（录制模块取用；SDK 模式下从已渲染的本地 video 兜底） */
+    getLocalStream: function () {
+      if (this.engine && this.engine.localStream) return this.engine.localStream;
+      var v = document.getElementById('vt-local-video');
+      return (v && v.srcObject) ? v.srcObject : null;
+    },
+
     updateLocalTile: function () {
       if (window.RtcTiles) window.RtcTiles.showVideo('local', !!(this.engine && this.engine.mediaOk));
     },

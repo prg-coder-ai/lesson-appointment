@@ -6,13 +6,13 @@ import com.classroom.entity.Membership;
 import com.classroom.entity.RollCallRecord;
 import com.classroom.mapper.PresenceSegmentMapper;
 import com.classroom.mapper.ReconcileLogMapper;
-import com.classroom.mapper.RecordingMapper;
 import com.classroom.mapper.RollCallRecordMapper;
 import com.classroom.mapper.SessionRecordMapper;
 import com.classroom.mapper.SubmissionMapper;
 import com.classroom.service.CallbackService;
 import com.classroom.service.ClassroomService;
 import com.classroom.service.MembershipService;
+import com.classroom.service.RecordingService;
 import com.classroom.ws.OnlineStateManager;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -57,7 +57,7 @@ public class ClassroomScheduler {
     private final RollCallRecordMapper rollCallRecordMapper;
     private final PresenceSegmentMapper presenceSegmentMapper;
     private final ReconcileLogMapper reconcileLogMapper;
-    private final RecordingMapper recordingMapper;
+    private final RecordingService recordingService;
     private final SessionRecordMapper sessionRecordMapper;
     private final SubmissionMapper submissionMapper;
     private final CallbackService callbackService;
@@ -91,7 +91,7 @@ public class ClassroomScheduler {
                               RollCallRecordMapper rollCallRecordMapper,
                               PresenceSegmentMapper presenceSegmentMapper,
                               ReconcileLogMapper reconcileLogMapper,
-                              RecordingMapper recordingMapper,
+                              RecordingService recordingService,
                               SessionRecordMapper sessionRecordMapper,
                               SubmissionMapper submissionMapper,
                               CallbackService callbackService) {
@@ -101,7 +101,7 @@ public class ClassroomScheduler {
         this.rollCallRecordMapper = rollCallRecordMapper;
         this.presenceSegmentMapper = presenceSegmentMapper;
         this.reconcileLogMapper = reconcileLogMapper;
-        this.recordingMapper = recordingMapper;
+        this.recordingService = recordingService;
         this.sessionRecordMapper = sessionRecordMapper;
         this.submissionMapper = submissionMapper;
         this.callbackService = callbackService;
@@ -292,7 +292,8 @@ public class ClassroomScheduler {
             int reconcile = reconcileLogMapper.deleteByReceivedAtBefore(now.minusDays(reconcileRetentionDays));
             int session = sessionRecordMapper.deleteByEndTimeBefore(now.minusDays(sessionRetentionDays));
             int submission = submissionMapper.deleteByCreatedAtBefore(now.minusDays(submissionRetentionDays));
-            int recording = recordingMapper.deleteByCreatedAtBefore(now.minusDays(recordingRetentionDays));
+            // 录制清理必须"先删对象再删记录"，由 service 保证顺序（只删记录会漏掉磁盘上的文件）
+            int recording = recordingService.purgeExpired();
             log.info("[过期清理] presence={}, rollcall={}, reconcile={}, session={}, submission={}, recording={}",
                     presence, rollcall, reconcile, session, submission, recording);
         } catch (Exception e) {

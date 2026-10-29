@@ -1,6 +1,7 @@
 package com.classroom.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -20,4 +21,8 @@ public class Recording {
     private Integer retentionDays;
     private LocalDateTime expireAt;
     private LocalDateTime createdAt;
+
+    /** 签名回放地址（不入库）：READY 状态才有值，2h 有效 */
+    @TableField(exist = false)
+    private String url;
 }
