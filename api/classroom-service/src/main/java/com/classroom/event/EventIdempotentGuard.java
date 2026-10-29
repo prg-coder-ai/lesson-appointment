@@ -34,4 +34,22 @@ public class EventIdempotentGuard {
             return true;
         }
     }
+
+    /**
+     * 释放幂等占位（运维重放用，F8-05）。
+     *
+     * <p>没有它，重放一个曾处理失败的事件会被自己的幂等键挡在门外——
+     * 「重放」按钮点下去什么都不会发生，还看不出来为什么。
+     *
+     * <p>注意 DB 侧 {@code classroom_reconcile_log.event_id} 是主键，重放后
+     * {@code logEvent} 撞键会被静默忽略（保留首次结论）。这是有意的：
+     * 审计保留第一次的事实，重放结果另记一条 diff。
+     */
+    public void release(String eventId) {
+        try {
+            redisTemplate.delete("idem:" + eventId);
+        } catch (Exception e) {
+            log.warn("释放幂等键失败: eventId={}", eventId, e);
+        }
+    }
 }

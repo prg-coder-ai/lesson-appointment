@@ -1,13 +1,16 @@
 package com.classroom.controller;
 
+import com.classroom.common.ErrorCodes;
 import com.classroom.common.Result;
 import com.classroom.dto.ReviewReq;
 import com.classroom.dto.SubmissionReq;
 import com.classroom.entity.Submission;
+import com.classroom.guard.RateLimitService;
 import com.classroom.security.AuthContext;
 import com.classroom.security.ClassroomAccessGuard;
 import com.classroom.service.SubmissionService;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -24,16 +27,27 @@ public class SubmissionController {
 
     private final SubmissionService submissionService;
     private final ClassroomAccessGuard accessGuard;
+    private final RateLimitService rateLimit;
 
-    public SubmissionController(SubmissionService submissionService, ClassroomAccessGuard accessGuard) {
+    /** 提交作业限流：每用户每分钟上限（防止脚本刷作品把存储打满） */
+    @Value("${classroom.rate-limit.submit-per-minute:20}")
+    private int submitPerMinute;
+
+    public SubmissionController(SubmissionService submissionService,
+                                ClassroomAccessGuard accessGuard,
+                                RateLimitService rateLimit) {
         this.submissionService = submissionService;
         this.accessGuard = accessGuard;
+        this.rateLimit = rateLimit;
     }
 
     @PostMapping
     public Result<Submission> submit(@PathVariable String scheduleId, @Valid @RequestBody SubmissionReq req) {
         String userId = AuthContext.currentUserId();
         accessGuard.assertAccess(scheduleId, userId, AuthContext.currentRole());
+        if (!rateLimit.tryAcquire("submit", userId, submitPerMinute, 60)) {
+            return Result.fail(ErrorCodes.RATE_LIMITED, "提交过于频繁，请稍后再试");
+        }
         Submission s = submissionService.submit(scheduleId, userId, req.getSubmissionType(),
                 req.getContent(), req.getOssKey(), req.getDurationSec());
         return Result.ok(s);
@@ -54,6 +68,9 @@ public class SubmissionController {
             throws IOException {
         String userId = AuthContext.currentUserId();
         accessGuard.assertAccess(scheduleId, userId, AuthContext.currentRole());
+        if (!rateLimit.tryAcquire("submit", userId, submitPerMinute, 60)) {
+            return Result.fail(ErrorCodes.RATE_LIMITED, "提交过于频繁，请稍后再试");
+        }
         if (file == null || file.isEmpty()) {
             return Result.fail(400, "文件为空");
         }

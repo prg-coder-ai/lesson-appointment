@@ -23,4 +23,6 @@ public final class ErrorCodes {
     public static final int CALLBACK_FAILED = 50001;
     public static final int OSS_UPLOAD_FAILED = 50002;
     public static final int REDIS_UNAVAILABLE = 50003;
+    /** 用户维度限流命中（包4B）：前端据此提示「操作太频繁」，不要当成鉴权失败 */
+    public static final int RATE_LIMITED = 42901;
 }

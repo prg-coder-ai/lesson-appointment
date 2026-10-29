@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>课堂运营台</title>
+  <link rel="stylesheet" href="js/public/vendor/font-awesome/css/all.min.css">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: #f5f6f8; color: #1f2328;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 13px;
+    }
+    .ops-header {
+      display: flex; align-items: center; gap: 12px; padding: 12px 20px;
+      background: #fff; border-bottom: 1px solid #e3e6ea; position: sticky; top: 0; z-index: 20;
+    }
+    .ops-header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+    .ops-header .spacer { flex: 1; }
+    .ops-header .who { color: #6b7280; font-size: 12px; }
+    .btn {
+      padding: 6px 14px; border-radius: 6px; border: 1px solid #d0d5dd; background: #fff;
+      color: #1f2328; font-size: 13px; cursor: pointer;
+    }
+    .btn:hover { background: #f2f4f7; }
+    .btn.primary { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+    .btn.primary:hover { background: #388bfd; }
+    .btn.danger { border-color: #f5c2c0; color: #b42318; }
+    .btn.small { padding: 3px 9px; font-size: 12px; }
+    .ops-tabs {
+      display: flex; gap: 4px; padding: 10px 20px 0; background: #fff; border-bottom: 1px solid #e3e6ea;
+    }
+    .ops-tabs button {
+      padding: 8px 16px; border: none; background: transparent; cursor: pointer; font-size: 13px;
+      color: #6b7280; border-bottom: 2px solid transparent;
+    }
+    .ops-tabs button.active { color: #1f6feb; border-bottom-color: #1f6feb; font-weight: 600; }
+    main { padding: 16px 20px 40px; }
+    .tab { display: none; }
+    .tab.active { display: block; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 14px; }
+    .card { background: #fff; border: 1px solid #e3e6ea; border-radius: 8px; padding: 12px 14px; }
+    .card .k { color: #6b7280; font-size: 12px; }
+    .card .v { font-size: 22px; font-weight: 600; margin-top: 4px; }
+    .card .v.warn { color: #b54708; }
+    .panel { background: #fff; border: 1px solid #e3e6ea; border-radius: 8px; margin-bottom: 14px; }
+    .panel-head {
+      display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid #eef0f3;
+      font-weight: 600;
+    }
+    .panel-head .spacer { flex: 1; }
+    .panel-body { padding: 12px 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid #eef0f3; vertical-align: top; }
+    th { color: #6b7280; font-weight: 600; background: #fafbfc; position: sticky; top: 0; }
+    tr:hover td { background: #fafbfc; }
+    .table-wrap { max-height: 460px; overflow: auto; }
+    .tag { display: inline-block; padding: 1px 7px; border-radius: 4px; font-size: 11px; }
+    .tag.ok { background: #e7f6ec; color: #1a7f37; }
+    .tag.warn { background: #fff4e5; color: #b54708; }
+    .tag.err { background: #feeceb; color: #b42318; }
+    .tag.mute { background: #f2f4f7; color: #6b7280; }
+    .field { display: inline-flex; align-items: center; gap: 6px; margin-right: 12px; }
+    .field input, .field select {
+      padding: 5px 8px; border: 1px solid #d0d5dd; border-radius: 6px; font-size: 12.5px; background: #fff;
+    }
+    .field input[type=date] { width: 140px; }
+    .field input[type=text] { width: 260px; }
+    textarea {
+      width: 100%; min-height: 90px; padding: 8px; border: 1px solid #d0d5dd; border-radius: 6px;
+      font-family: ui-monospace, Consolas, monospace; font-size: 12px;
+    }
+    .empty { color: #98a2b3; padding: 18px; text-align: center; }
+    .kv { display: grid; grid-template-columns: 140px 1fr; gap: 6px 12px; font-size: 12.5px; }
+    .kv .k { color: #6b7280; }
+    .muted { color: #6b7280; }
+    .toast {
+      position: fixed; right: 20px; bottom: 20px; background: #1f2328; color: #fff; padding: 10px 16px;
+      border-radius: 6px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 99;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <header class="ops-header">
+    <h1><i class="fas fa-chart-line"></i> 课堂运营台</h1>
+    <span class="who" id="ops-user"></span>
+    <span class="spacer"></span>
+    <button class="btn" id="ops-refresh"><i class="fas fa-sync"></i> 刷新当前页</button>
+  </header>
+
+  <nav class="ops-tabs">
+    <button data-tab="monitor" class="active">实时监控</button>
+    <button data-tab="report">学情报表</button>
+    <button data-tab="reconcile">对账差异</button>
+    <button data-tab="audit">内容审核</button>
+    <button data-tab="contract">契约联调</button>
+  </nav>
+
+  <main>
+    <!-- 实时监控 -->
+    <section id="tab-monitor" class="tab active">
+      <div class="cards" id="monitor-cards"></div>
+      <div class="panel">
+        <div class="panel-head">活跃课堂<span class="spacer"></span>
+          <span class="muted" id="monitor-time"></span></div>
+        <div class="table-wrap"><table id="monitor-table"></table></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">告警</div>
+        <div class="panel-body" id="monitor-alerts"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">部署健康（RTC / 录制 / 存储实际选型）</div>
+        <div class="panel-body" id="monitor-metrics"></div>
+      </div>
+    </section>
+
+    <!-- 学情报表 -->
+    <section id="tab-report" class="tab">
+      <div class="panel">
+        <div class="panel-head">
+          <span class="field">从 <input type="date" id="rep-from"></span>
+          <span class="field">到 <input type="date" id="rep-to"></span>
+          <button class="btn primary" id="rep-query">查询</button>
+          <span class="spacer"></span>
+          <button class="btn" id="rep-export-attendance">导出出勤明细</button>
+          <button class="btn" id="rep-export-recordings">导出录制清单</button>
+        </div>
+      </div>
+      <div class="cards" id="rep-cards"></div>
+      <div class="panel">
+        <div class="panel-head">按课堂</div>
+        <div class="table-wrap"><table id="rep-class-table"></table></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">按学生（缺勤多的在前）</div>
+        <div class="table-wrap"><table id="rep-student-table"></table></div>
+      </div>
+    </section>
+
+    <!-- 对账差异 -->
+    <section id="tab-reconcile" class="tab">
+      <div class="panel">
+        <div class="panel-head">
+          <span class="field">状态
+            <select id="rc-status">
+              <option value="OPEN">未处置</option>
+              <option value="RESOLVED">已处置</option>
+              <option value="IGNORED">已忽略</option>
+              <option value="">全部</option>
+            </select>
+          </span>
+          <span class="field">近 <input type="number" id="rc-days" value="7" style="width:64px"> 天</span>
+          <button class="btn primary" id="rc-query">查询</button>
+          <span class="spacer"></span>
+          <button class="btn" id="rc-run">立即跑一次日终对账</button>
+        </div>
+        <div class="table-wrap"><table id="rc-table"></table></div>
+      </div>
+    </section>
+
+    <!-- 内容审核 -->
+    <section id="tab-audit" class="tab">
+      <div class="panel">
+        <div class="panel-head">
+          <span class="field">课次 <input type="text" id="au-schedule" placeholder="留空=全部"></span>
+          <span class="field">状态
+            <select id="au-status">
+              <option value="">全部</option>
+              <option value="SUBMITTED">待审</option>
+              <option value="REVIEWED">已点评</option>
+              <option value="FLAGGED">已标记违规</option>
+            </select>
+          </span>
+          <button class="btn primary" id="au-query">抽查</button>
+          <span class="spacer"></span>
+          <button class="btn" id="au-chat-view">记录一次聊天查阅</button>
+        </div>
+        <div class="table-wrap"><table id="au-table"></table></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">审核 / 查阅留痕（近 7 天）</div>
+        <div class="table-wrap"><table id="au-log-table"></table></div>
+      </div>
+    </section>
+
+    <!-- 契约联调 -->
+    <section id="tab-contract" class="tab">
+      <div class="panel">
+        <div class="panel-head">
+          <span class="field">课次 <input type="text" id="ct-schedule" placeholder="留空=全部"></span>
+          <span class="field">结果
+            <select id="ct-result">
+              <option value="">全部</option>
+              <option value="SUCCESS">SUCCESS</option>
+              <option value="SKIPPED">SKIPPED</option>
+              <option value="FAILED">FAILED</option>
+            </select>
+          </span>
+          <span class="field">近 <input type="number" id="ct-days" value="7" style="width:64px"> 天</span>
+          <button class="btn primary" id="ct-query">查询事件</button>
+        </div>
+        <div class="table-wrap"><table id="ct-table"></table></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">重放排期事件（粘贴预约侧原始报文）</div>
+        <div class="panel-body">
+          <textarea id="ct-payload" placeholder='{"eventId":"...","eventType":"created","scheduleId":"...","courseId":"...","teacherId":"...","startTime":"2026-10-30T10:00:00","endTime":"2026-10-30T11:00:00"}'></textarea>
+          <div style="margin-top:8px"><button class="btn primary" id="ct-replay">重放</button>
+            <span class="muted">重放会先清掉该 eventId 的幂等键，再走正常消费链路</span></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">批量对表（每行一个 scheduleId）</div>
+        <div class="panel-body">
+          <textarea id="ct-ids" placeholder="scheduleId-1&#10;scheduleId-2"></textarea>
+          <div style="margin-top:8px"><button class="btn primary" id="ct-resync">对表</button></div>
+          <div class="table-wrap" style="margin-top:10px"><table id="ct-resync-table"></table></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="ops-toast"></div>
+
+  <script src="js/public/vendor/axios.min.js"></script>
+  <script src="js/public/utility_request.js"></script>
+  <script src="js/public/api.js"></script>
+  <script src="js/classroom/ops.js"></script>
+</body>
+</html>

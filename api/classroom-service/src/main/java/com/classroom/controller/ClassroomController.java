@@ -1,15 +1,18 @@
 package com.classroom.controller;
 
+import com.classroom.common.ErrorCodes;
 import com.classroom.common.Result;
 import com.classroom.dto.EnterClassroomReq;
 import com.classroom.entity.Classroom;
 import com.classroom.entity.Membership;
+import com.classroom.guard.RateLimitService;
 import com.classroom.security.AuthContext;
 import com.classroom.security.ClassroomAccessGuard;
 import com.classroom.service.AttendanceService;
 import com.classroom.service.CallbackService;
 import com.classroom.service.ClassroomService;
 import com.classroom.service.MembershipService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -29,17 +32,24 @@ public class ClassroomController {
     private final AttendanceService attendanceService;
     private final ClassroomAccessGuard accessGuard;
     private final CallbackService callbackService;
+    private final RateLimitService rateLimit;
+
+    /** 进课堂限流：同一用户每分钟最多进几次（刷新/重连会打到这里，阈值不能太小） */
+    @Value("${classroom.rate-limit.enter-per-minute:30}")
+    private int enterPerMinute;
 
     public ClassroomController(ClassroomService classroomService,
                                MembershipService membershipService,
                                AttendanceService attendanceService,
                                ClassroomAccessGuard accessGuard,
-                               CallbackService callbackService) {
+                               CallbackService callbackService,
+                               RateLimitService rateLimit) {
         this.classroomService = classroomService;
         this.membershipService = membershipService;
         this.attendanceService = attendanceService;
         this.accessGuard = accessGuard;
         this.callbackService = callbackService;
+        this.rateLimit = rateLimit;
     }
 
     @GetMapping("/status")
@@ -51,6 +61,10 @@ public class ClassroomController {
     public Result<Void> enter(@PathVariable String scheduleId, @RequestBody(required = false) EnterClassroomReq req) {
         String userId = AuthContext.currentUserId();
         String role = AuthContext.currentRole();
+        // 用户维度限流（包4B）：刷新/重连正常，但脚本刷 enter 会污染在线态与出勤区间
+        if (!rateLimit.tryAcquire("enter", userId, enterPerMinute, 60)) {
+            return Result.fail(ErrorCodes.RATE_LIMITED, "进入课堂过于频繁，请稍后再试");
+        }
         // 名单校验在 guard 内完成：非名单成员直接 40301，不会走到 join 去新建 membership 行
         Classroom c = accessGuard.assertAccess(scheduleId, userId, role);
         String displayName = (req != null && req.getDisplayName() != null) ? req.getDisplayName() : userId;

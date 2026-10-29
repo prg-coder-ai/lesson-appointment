@@ -1,13 +1,16 @@
 package com.classroom.controller;
 
+import com.classroom.common.ErrorCodes;
 import com.classroom.common.Result;
 import com.classroom.dto.RollCallReq;
+import com.classroom.guard.RateLimitService;
 import com.classroom.entity.RollCallRecord;
 import com.classroom.security.AuthContext;
 import com.classroom.security.ClassroomAccessGuard;
 import com.classroom.service.RollCallService;
 import com.classroom.service.TeachingSessionService;
 import com.classroom.ws.WsRoomRegistry;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,13 +31,20 @@ public class RollCallController {
     private final ClassroomAccessGuard accessGuard;
     private final WsRoomRegistry registry;
     private final TeachingSessionService teachingSession;
+    private final RateLimitService rateLimit;
+
+    /** 发起点名限流：每用户每分钟上限（教师手抖连点会刷出一串 PENDING 点名） */
+    @Value("${classroom.rate-limit.rollcall-per-minute:10}")
+    private int rollcallPerMinute;
 
     public RollCallController(RollCallService rollCallService, ClassroomAccessGuard accessGuard,
-                             WsRoomRegistry registry, TeachingSessionService teachingSession) {
+                             WsRoomRegistry registry, TeachingSessionService teachingSession,
+                             RateLimitService rateLimit) {
         this.rollCallService = rollCallService;
         this.accessGuard = accessGuard;
         this.registry = registry;
         this.teachingSession = teachingSession;
+        this.rateLimit = rateLimit;
     }
 
     @PostMapping
@@ -43,6 +53,9 @@ public class RollCallController {
             return Result.fail(403, "仅教师可发起点名");
         }
         accessGuard.assertAccess(scheduleId, AuthContext.currentUserId(), AuthContext.currentRole());
+        if (!rateLimit.tryAcquire("rollcall", AuthContext.currentUserId(), rollcallPerMinute, 60)) {
+            return Result.fail(ErrorCodes.RATE_LIMITED, "点名过于频繁，请稍后再试");
+        }
         String target = req != null ? req.getTargetUserId() : null;
         RollCallRecord record = rollCallService.initiate(scheduleId, target);
         String msg = "{\"type\":\"rollcall:start\",\"rollcallId\":" + record.getRollcallId()

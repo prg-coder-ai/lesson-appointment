@@ -1,12 +1,15 @@
 package com.classroom.controller;
 
+import com.classroom.common.ErrorCodes;
 import com.classroom.common.Result;
 import com.classroom.dto.UploadInitReq;
+import com.classroom.guard.RateLimitService;
 import com.classroom.security.AuthContext;
 import com.classroom.security.ClassroomAccessGuard;
 import com.classroom.storage.StorageService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.LinkedHashMap;
@@ -30,16 +33,28 @@ public class UploadController {
 
     private final StorageService storageService;
     private final ClassroomAccessGuard accessGuard;
+    private final RateLimitService rateLimit;
 
-    public UploadController(StorageService storageService, ClassroomAccessGuard accessGuard) {
+    /** 上传会话创建限流：每用户每分钟上限（每次上传 1 次 init，30 足够正常使用） */
+    @Value("${classroom.rate-limit.upload-per-minute:30}")
+    private int uploadPerMinute;
+
+    public UploadController(StorageService storageService,
+                            ClassroomAccessGuard accessGuard,
+                            RateLimitService rateLimit) {
         this.storageService = storageService;
         this.accessGuard = accessGuard;
+        this.rateLimit = rateLimit;
     }
 
     @PostMapping("/init")
     public Result<Map<String, Object>> init(@Valid @RequestBody UploadInitReq req) {
         String userId = AuthContext.currentUserId();
         accessGuard.assertAccess(req.getScheduleId(), userId, AuthContext.currentRole());
+        // 限流放在鉴权之后：只有合法的课堂成员才值得计数，未授权请求不该占用配额
+        if (!rateLimit.tryAcquire("upload", userId, uploadPerMinute, 60)) {
+            return Result.fail(ErrorCodes.RATE_LIMITED, "上传过于频繁，请稍后再试");
+        }
         if ("RECORDING".equalsIgnoreCase(req.getPurpose())
                 && !AuthContext.isTeacher() && !AuthContext.isManager()) {
             return Result.fail(403, "仅教师可上传录制文件");

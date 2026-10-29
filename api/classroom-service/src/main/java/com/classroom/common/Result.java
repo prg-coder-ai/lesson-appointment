@@ -57,7 +57,8 @@ public class Result<T> {
                     ErrorCodes.EVENT_STALE_VERSION,       // 40907
                     ErrorCodes.CALLBACK_FAILED,      // 50001
                     ErrorCodes.OSS_UPLOAD_FAILED,    // 50002
-                    ErrorCodes.REDIS_UNAVAILABLE    // 50003
+                    ErrorCodes.REDIS_UNAVAILABLE,    // 50003
+                    ErrorCodes.RATE_LIMITED          // 42901
             )));
 
     public static boolean isAllowedCode(int code) {
