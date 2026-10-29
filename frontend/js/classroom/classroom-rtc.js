@@ -21,6 +21,7 @@
     mediaOk: false,
     micEnabled: true,
     camEnabled: true,
+    serverMuted: false,   // F4-17：服务端全员禁言态（学生不可自解）
 
     init: function (ctx) {
       this.ctx = ctx || {};
@@ -123,7 +124,25 @@
       }
       var tile = document.getElementById('vt-local');
       if (tile) tile.classList.toggle('cam-off', !on);
+      // F4-03：广播摄像头状态（教师关摄像头，学生端显式感知，刷新/重连者也能收到）
+      if (window.ClassroomWS && this.ctx && this.ctx.scheduleId) {
+        window.ClassroomWS.sendSignal(this.ctx.scheduleId, { type: 'cam-state', on: on, userId: this.ctx.userId });
+      }
       return this.camEnabled;
+    },
+
+    // F4-17：服务端全员禁言态（学生被强制静音且不可自解；教师/管理员豁免）
+    setServerMuted: function (b) {
+      this.serverMuted = !!b;
+      if (b && this.ctx && this.ctx.role !== 'teacher' && this.ctx.role !== 'admin') {
+        this.setMicEnabled(false);
+      }
+    },
+
+    // F4-14：教师批准开麦 → 学生解除静音并开麦（覆盖服务端禁言态）
+    grantMic: function () {
+      this.serverMuted = false;
+      this.setMicEnabled(true);
     },
 
     // ---- WebRTC 协商 ----

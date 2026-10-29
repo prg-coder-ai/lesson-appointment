@@ -487,6 +487,67 @@ html, body {
   padding: 16px;
 }
 
+/* 参与者态标记（F4-14 举手 / F4-03 摄像头关闭） */
+#participant-list li.pt-hand { box-shadow: inset 3px 0 0 #d29922; }
+#participant-list li.pt-hand::after {
+  content: "✋"; margin-left: 4px; font-size: 12px;
+}
+#participant-list li.pt-cam-off .pt-avatar { box-shadow: 0 0 0 2px #f85149; }
+.pt-approve, .pt-wbgrant {
+  border: 1px solid #30363d; background: #2b3239; color: #9da7b3;
+  border-radius: 6px; font-size: 11px; padding: 2px 8px; cursor: pointer; flex: 0 0 auto;
+  margin-left: 4px;
+}
+.pt-approve:hover { background: #1f6feb; color: #fff; }
+.pt-wbgrant:hover { background: #1f6feb; color: #fff; }
+.pt-wbgrant.active { background: #238636; color: #fff; border-color: #238636; }
+
+/* 服务端强控横幅（F4-17 全员禁言 / F4-03 摄像头） */
+.cl-banner {
+  background: #4d2a2a; color: #ffb4ab; text-align: center; padding: 6px 12px;
+  font-size: 13px; font-weight: 600; letter-spacing: .5px;
+}
+
+/* 点名/上传/点评 弹窗（F4-11/12/15/16） */
+#rollcall-modal, #teacher-rollcall-modal, #upload-modal, #teacher-review-modal {
+  position: fixed; inset: 0; z-index: 9000;
+  display: flex; align-items: center; justify-content: center;
+}
+.rc-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.55); }
+.rc-box {
+  position: relative; width: 360px; max-width: 92vw; background: #22272e;
+  border: 1px solid #30363d; border-radius: 10px; padding: 18px; color: #e8eaed;
+}
+.rc-box-wide { width: 520px; }
+.rc-title { display: flex; align-items: center; justify-content: space-between; font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+.rc-tip { font-size: 12px; color: #9da7b3; margin: 8px 0; }
+.rc-select, .rc-input, .rc-textarea {
+  width: 100%; box-sizing: border-box; margin: 6px 0; padding: 8px; border-radius: 6px;
+  border: 1px solid #30363d; background: #0d1117; color: #e8eaed; font-size: 13px;
+}
+.rc-textarea { min-height: 80px; resize: vertical; }
+.rc-answer, .rv-submit {
+  margin-top: 10px; width: 100%; padding: 9px; border: none; border-radius: 6px;
+  background: #1f6feb; color: #fff; font-size: 14px; cursor: pointer; font-weight: 600;
+}
+.rc-answer:hover, .rv-submit:hover { background: #388bfd; }
+.rc-close { position: absolute; top: 12px; right: 14px; border: none; background: transparent; color: #9da7b3; font-size: 18px; cursor: pointer; line-height: 1; }
+.rc-status { color: #d29922; font-weight: 600; }
+.rc-status.rc-answered { color: #3fb950; }
+.rc-status-area { margin-top: 10px; font-size: 13px; }
+
+/* 作业点评列表（F4-16） */
+.review-list { list-style: none; margin: 0; padding: 0; max-height: 60vh; overflow-y: auto; }
+.review-item { padding: 10px 4px; border-bottom: 1px solid #2b3239; }
+.review-head { font-size: 13px; color: #c9d1d9; margin-bottom: 4px; }
+.review-content { font-size: 12px; color: #9da7b3; margin-bottom: 6px; word-break: break-all; }
+.review-form { display: flex; gap: 6px; flex-wrap: wrap; }
+.review-form .rv-comment { flex: 1 1 140px; }
+.review-form .rv-score { flex: 0 0 70px; }
+.review-form input { padding: 6px; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: #e8eaed; font-size: 12px; box-sizing: border-box; }
+.review-form .rv-submit { flex: 0 0 auto; width: auto; margin-top: 0; padding: 6px 14px; }
+.review-empty, .review-loading { text-align: center; color: #6e7681; padding: 16px; }
+
 /* 响应式：窄屏收起右侧栏 */
 @media (max-width: 900px) {
   #classroom-main { grid-template-columns: 160px 1fr; }

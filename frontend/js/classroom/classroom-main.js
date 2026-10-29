@@ -21,6 +21,9 @@
   var ClassroomMain = {
     ctx: null,
     participants: {},
+    hands: {},          // userId -> 是否举手（F4-14 教师批准开麦 UI 用）
+    wbGrants: {},       // userId -> 是否被授权编辑白板（F4-08）
+    serverMuted: false, // 服务端全员禁言态（F4-17）
     leaving: false,
 
     run: function () {
@@ -90,6 +93,7 @@
           self._initModules(ctx);
           self._refreshMembers(apiBaseUrl, scheduleId);
           if (ctx.role === 'student') self._initMyAttendance(ctx);
+          self._initUploadModal(ctx);
           self._connectWS(ctx);
           self._bindBackButton();
           self._hidePlaceholder();
@@ -155,21 +159,38 @@
 
     _dispatchSignal: function (msg) {
       if (!msg || !msg.type) return;
-      if (window.ClassroomRTC) window.ClassroomRTC.onSignal(msg);
-      if (window.ClassroomChat) window.ClassroomChat.onSignal(msg);
-      if (window.ClassroomStudent) window.ClassroomStudent.onSignal(msg);
-
+      // 转发给各角色模块（它们各自处理自身的权威消息）
+      var MODULES = ['ClassroomRTC', 'ClassroomChat', 'ClassroomStudent', 'ClassroomTeacher', 'ClassroomWhiteboard'];
       var self = this;
+      MODULES.forEach(function (mod) {
+        if (window[mod] && typeof window[mod].onSignal === 'function') window[mod].onSignal(msg);
+      });
+
       switch (msg.type) {
+        case 'hand:state':
+          this._markHand(msg.userId, msg.raised);
+          break;
+        case 'cam:state':
+          this._markCamera(msg.userId, msg.on);
+          break;
+        case 'mute:state':
+          this._setServerMute(msg.muted);
+          break;
+        case 'mic:grant':
+          if (msg.userId === this.ctx.userId && window.ClassroomRTC) {
+            window.ClassroomRTC.grantMic();
+            window.clToast('教师已允许你发言，麦克风已开启');
+          }
+          break;
+        case 'wb:grant:state':
+          this._markWbGrant(msg.userId, msg.grant);
+          break;
         case 'rtc-peer-join':
           this._addParticipant(msg.from, msg.name, msg.role);
           break;
         case 'rtc-peer-leave':
         case 'member-kicked':
           this._removeParticipant(msg.to || msg.from);
-          break;
-        case 'hand':
-          this._markHand(msg.from, msg.raised);
           break;
         case 'class-start':
           this._setStatus('live', '进行中');
@@ -183,6 +204,49 @@
         default:
           break;
       }
+    },
+
+    // F4-14：服务端权威举手态 + 教师「批准开麦」入口
+    _markHand: function (userId, raised) {
+      this.hands[userId] = !!raised;
+      var li = document.querySelector('#participant-list li[data-uid="' + this._cssEscape(userId) + '"]');
+      if (li) li.classList.toggle('pt-hand', !!raised);
+      this._renderParticipants();
+    },
+
+    // F4-03：服务端权威摄像头态（重连/迟到者也能收到）
+    _markCamera: function (userId, on) {
+      var li = document.querySelector('#participant-list li[data-uid="' + this._cssEscape(userId) + '"]');
+      if (li) li.classList.toggle('pt-cam-off', !on);
+      var name = (this.participants[userId] && this.participants[userId].name) || userId;
+      this.toast(name + ' 摄像头已' + (on ? '开启' : '关闭'));
+    },
+
+    // F4-17：服务端权威全员禁言态（刷新/重连均生效，学生不可自解）
+    _setServerMute: function (muted) {
+      this.serverMuted = !!muted;
+      var banner = document.getElementById('server-banner');
+      if (banner) {
+        if (muted) {
+          banner.textContent = '全员禁言中';
+          banner.classList.remove('hidden');
+        } else {
+          banner.classList.add('hidden');
+        }
+      }
+      if (window.ClassroomRTC) window.ClassroomRTC.setServerMuted(!!muted);
+      this.toast(muted ? '教师已开启全员静言' : '已解除全员静言');
+    },
+
+    // F4-08：白板协作授权态（教师授予学生编辑权）
+    _markWbGrant: function (userId, grant) {
+      this.wbGrants[userId] = !!grant;
+      this._renderParticipants();
+    },
+
+    toast: function (msg) {
+      if (typeof window.clToast === 'function') window.clToast(msg);
+      else console.log('[Main]', msg);
     },
 
     _bindBackButton: function () {
@@ -235,11 +299,6 @@
       this._renderCount();
     },
 
-    _markHand: function (userId, raised) {
-      var li = document.querySelector('#participant-list li[data-uid="' + this._cssEscape(userId) + '"]');
-      if (li) li.classList.toggle('pt-hand', !!raised);
-    },
-
     _renderParticipants: function () {
       var list = document.getElementById('participant-list');
       if (!list) return;
@@ -250,14 +309,21 @@
         var p = self.participants[id];
         var roleLabel = p.role === 'teacher' ? '教师' : (p.role === 'admin' ? '管理员' : '学生');
         var roleCls = p.role === 'teacher' ? 'pt-role-teacher' : (p.role === 'admin' ? 'pt-role-admin' : '');
-        // F2-04：教师/管理员对学生可补签（此前后端有接口但前端无入口）
+        // F2-04：教师/管理员对学生可补签
         var adjustBtn = (isTeacher && p.role === 'student')
           ? '<button class="pt-adjust" data-uid="' + self._cssEscape(id) + '">补签</button>' : '';
+        // F4-14：学生举手后，教师可「批准开麦」
+        var approveBtn = (isTeacher && p.role === 'student' && self.hands[id])
+          ? '<button class="pt-approve" data-uid="' + self._cssEscape(id) + '">批准开麦</button>' : '';
+        // F4-08：教师可授予/收回学生白板编辑权
+        var grantBtn = (isTeacher && p.role === 'student')
+          ? '<button class="pt-wbgrant' + (self.wbGrants[id] ? ' active' : '') + '" data-uid="' + self._cssEscape(id) + '">'
+            + (self.wbGrants[id] ? '收回白板' : '授权白板') + '</button>' : '';
         return '<li data-uid="' + self._cssEscape(id) + '">' +
           '<span class="pt-avatar">' + self._initial(p.name) + '</span>' +
           '<span>' + self._escape(p.name) + '</span>' +
           '<span class="pt-role-tag ' + roleCls + '">' + roleLabel + '</span>' +
-          adjustBtn +
+          adjustBtn + approveBtn + grantBtn +
           '</li>';
       }).join('');
       Array.prototype.forEach.call(list.querySelectorAll('.pt-adjust'), function (btn) {
@@ -266,6 +332,26 @@
           var reason = window.prompt('请输入补签原因：');
           if (reason === null) return;
           self._doManualAdjust(self.ctx.apiBaseUrl, self.ctx.scheduleId, uid, reason);
+        });
+      });
+      // F4-14：教师「批准开麦」→ 广播 mic:grant（学生端自动开麦）
+      Array.prototype.forEach.call(list.querySelectorAll('.pt-approve'), function (btn) {
+        btn.addEventListener('click', function () {
+          var uid = btn.getAttribute('data-uid');
+          if (window.ClassroomWS) {
+            window.ClassroomWS.sendSignal(self.ctx.scheduleId, { type: 'hand:approve', userId: uid });
+          }
+          self.toast('已批准 ' + (self.participants[uid] ? self.participants[uid].name : uid) + ' 发言');
+        });
+      });
+      // F4-08：教师授予/收回白板编辑权 → 广播 wb:grant:state
+      Array.prototype.forEach.call(list.querySelectorAll('.pt-wbgrant'), function (btn) {
+        btn.addEventListener('click', function () {
+          var uid = btn.getAttribute('data-uid');
+          var grant = !self.wbGrants[uid];
+          if (window.ClassroomWS) {
+            window.ClassroomWS.sendSignal(self.ctx.scheduleId, { type: 'wb:grant', userId: uid, grant: grant });
+          }
         });
       });
     },
@@ -309,6 +395,38 @@
           window.clToast('已补签：' + (self.participants[userId] ? self.participants[userId].name : userId));
         })
         .catch(function (e) { window.clToast((e && e.message) || '补签失败'); });
+    },
+
+    // F4-15：学生上传作业弹窗初始化
+    _initUploadModal: function (ctx) {
+      var self = this;
+      var modal = document.getElementById('upload-modal');
+      var closeBtn = document.getElementById('upload-close');
+      var submitBtn = document.getElementById('upload-submit');
+      if (closeBtn) closeBtn.addEventListener('click', function () {
+        if (modal) modal.classList.add('hidden');
+      });
+      if (submitBtn) submitBtn.addEventListener('click', function () {
+        var type = document.getElementById('upload-type');
+        var content = document.getElementById('upload-content');
+        var ossKey = document.getElementById('upload-osskey');
+        var duration = document.getElementById('upload-duration');
+        var data = {
+          submissionType: type ? type.value : 'TEXT',
+          content: content ? content.value : '',
+          ossKey: ossKey ? ossKey.value : '',
+          durationSec: duration && duration.value ? Number(duration.value) : null
+        };
+        if (!window.ClassroomAPI || typeof window.ClassroomAPI.submitWork !== 'function') {
+          self.toast('上传接口未就绪'); return;
+        }
+        window.ClassroomAPI.submitWork(ctx.apiBaseUrl, ctx.scheduleId, data)
+          .then(function () {
+            self.toast('作业已提交');
+            if (modal) modal.classList.add('hidden');
+          })
+          .catch(function (e) { self.toast((e && e.message) || '提交失败'); });
+      });
     },
 
     // F2-07：学生端「我的出勤」入口初始化

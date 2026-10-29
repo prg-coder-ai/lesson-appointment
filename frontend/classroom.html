@@ -20,6 +20,9 @@
       </div>
     </header>
 
+    <!-- 服务端强控横幅（F4-17 全员禁言 / F4-03 摄像头状态） -->
+    <div id="server-banner" class="cl-banner hidden"></div>
+
     <!-- 主体三栏 -->
     <main id="classroom-main">
       <!-- 参与者列表 -->
@@ -75,6 +78,56 @@
     <div class="mam-box">
       <div class="mam-title">我的出勤记录 <button id="mam-close" class="mam-close" type="button">×</button></div>
       <ul id="mam-list" class="mam-list"></ul>
+    </div>
+  </div>
+
+  <!-- 学生被点名强提示（F4-12） -->
+  <div id="rollcall-modal" class="hidden">
+    <div class="rc-backdrop"></div>
+    <div class="rc-box">
+      <div class="rc-title"><i class="fas fa-bullhorn"></i> 老师点名了你！</div>
+      <div class="rc-tip">请点击下方按钮应答</div>
+      <button id="rollcall-answer" class="rc-answer" type="button">我已到</button>
+      <button id="rollcall-close" class="rc-close" type="button">稍后</button>
+    </div>
+  </div>
+
+  <!-- 教师点名弹窗（F4-11） -->
+  <div id="teacher-rollcall-modal" class="hidden">
+    <div class="rc-backdrop"></div>
+    <div class="rc-box">
+      <div class="rc-title">发起点名 <button id="rollcall-modal-close" class="rc-close" type="button">×</button></div>
+      <div class="rc-tip">选择学生（留空为随机）：</div>
+      <select id="rollcall-student-select" class="rc-select"></select>
+      <button id="rollcall-initiate" class="rc-answer" type="button">发起点名</button>
+      <div id="rollcall-status-area" class="rc-status-area"></div>
+    </div>
+  </div>
+
+  <!-- 学生上传作业（F4-15） -->
+  <div id="upload-modal" class="hidden">
+    <div class="rc-backdrop"></div>
+    <div class="rc-box">
+      <div class="rc-title">提交作业 <button id="upload-close" class="rc-close" type="button">×</button></div>
+      <div class="rc-tip">类型：</div>
+      <select id="upload-type" class="rc-select">
+        <option value="TEXT">文字</option>
+        <option value="AUDIO">语音</option>
+        <option value="FILE">文件</option>
+      </select>
+      <textarea id="upload-content" class="rc-textarea" placeholder="文字内容（文字类型必填）"></textarea>
+      <input id="upload-osskey" class="rc-input" placeholder="文件 ossKey（语音/文件类型填占位，OSS 接入后必填）">
+      <input id="upload-duration" class="rc-input" type="number" placeholder="时长(秒，语音类型)">
+      <button id="upload-submit" class="rc-answer" type="button">提交</button>
+    </div>
+  </div>
+
+  <!-- 教师作业点评（F4-16） -->
+  <div id="teacher-review-modal" class="hidden">
+    <div class="rc-backdrop"></div>
+    <div class="rc-box rc-box-wide">
+      <div class="rc-title">作业点评 <button id="review-close" class="rc-close" type="button">×</button></div>
+      <ul id="review-list" class="review-list"></ul>
     </div>
   </div>
 

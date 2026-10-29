@@ -34,16 +34,14 @@
       if (!this.inputEl) return;
       var text = (this.inputEl.value || '').trim();
       if (!text) return;
+      // F4-17：聊天经服务端强控（全员禁言时服务端拦截并回 chat:rejected）；
+      // 不再本地即时渲染，统一等服务端 chat:msg 回显，保证禁言前后一致
       var msg = {
         type: 'chat',
-        from: this.ctx.userId,
-        name: this.ctx.userName,
-        role: this.ctx.role,
         text: text,
-        ts: Date.now()
+        displayName: this.ctx.userName
       };
       this.send(msg);
-      this.append(msg, true);
       this.inputEl.value = '';
     },
 
@@ -55,9 +53,15 @@
 
     // 远端消息入口：由 main.js 的 WS onSignal 调用
     onSignal: function (msg) {
-      if (!msg || msg.type !== 'chat') return;
-      if (msg.from === this.ctx.userId) return; // 本地已即时渲染，避免重复
-      this.append(msg, false);
+      if (!msg || !msg.type) return;
+      if (msg.type === 'chat:msg') {
+        this.append(msg, false);
+        return;
+      }
+      if (msg.type === 'chat:rejected') {
+        this.appendSystem('全员禁言中，消息未发送');
+        return;
+      }
     },
 
     append: function (msg, isMe) {

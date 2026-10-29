@@ -6,12 +6,19 @@ import com.classroom.entity.RollCallRecord;
 import com.classroom.security.AuthContext;
 import com.classroom.security.ClassroomAccessGuard;
 import com.classroom.service.RollCallService;
+import com.classroom.service.TeachingSessionService;
+import com.classroom.ws.WsRoomRegistry;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
- * 客户端接口：点名（F4-11~14）。
+ * 客户端接口：点名（F4-11~12）。
+ *
+ * <p>P1 改造：发起后向房间 WS 广播 {@code rollcall:start}（含 rollcallId / targetUserId），
+ * 命中学生端弹出强提示 + 响铃（F4-12）；学生应答后广播 {@code rollcall:answered}。
+ * 每次点名/应答同时写入教学环节流水（F4-18）。</p>
  */
 @RestController
 @RequestMapping("/api/v1/classrooms/{scheduleId}/rollcall")
@@ -19,10 +26,15 @@ public class RollCallController {
 
     private final RollCallService rollCallService;
     private final ClassroomAccessGuard accessGuard;
+    private final WsRoomRegistry registry;
+    private final TeachingSessionService teachingSession;
 
-    public RollCallController(RollCallService rollCallService, ClassroomAccessGuard accessGuard) {
+    public RollCallController(RollCallService rollCallService, ClassroomAccessGuard accessGuard,
+                             WsRoomRegistry registry, TeachingSessionService teachingSession) {
         this.rollCallService = rollCallService;
         this.accessGuard = accessGuard;
+        this.registry = registry;
+        this.teachingSession = teachingSession;
     }
 
     @PostMapping
@@ -32,7 +44,12 @@ public class RollCallController {
         }
         accessGuard.assertAccess(scheduleId, AuthContext.currentUserId(), AuthContext.currentRole());
         String target = req != null ? req.getTargetUserId() : null;
-        return Result.ok(rollCallService.initiate(scheduleId, target));
+        RollCallRecord record = rollCallService.initiate(scheduleId, target);
+        String msg = "{\"type\":\"rollcall:start\",\"rollcallId\":" + record.getRollcallId()
+                + ",\"targetUserId\":" + q(record.getTargetUserId()) + "}";
+        registry.broadcastSignal(scheduleId, msg);
+        teachingSession.appendEvent(scheduleId, "rollcall", Map.of("rollcallId", record.getRollcallId(), "target", record.getTargetUserId()));
+        return Result.ok(record);
     }
 
     @GetMapping
@@ -44,7 +61,16 @@ public class RollCallController {
     @PostMapping("/{rollcallId}/answer")
     public Result<Void> answer(@PathVariable String scheduleId, @PathVariable Long rollcallId) {
         accessGuard.assertAccess(scheduleId, AuthContext.currentUserId(), AuthContext.currentRole());
+        String userId = AuthContext.currentUserId();
         rollCallService.answer(scheduleId, rollcallId);
+        String msg = "{\"type\":\"rollcall:answered\",\"rollcallId\":" + rollcallId
+                + ",\"userId\":" + q(userId) + "}";
+        registry.broadcastSignal(scheduleId, msg);
+        teachingSession.appendEvent(scheduleId, "rollcall_answer", Map.of("rollcallId", rollcallId, "userId", userId));
         return Result.success();
+    }
+
+    private String q(String s) {
+        return s == null ? "null" : "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
     }
 }

@@ -29,7 +29,7 @@
       return this.handRaised;
     },
 
-    // 收到教师端的提示（如被移出、被静音）
+    // 收到服务端权威提示
     onSignal: function (msg) {
       if (!msg || !msg.type) return;
       if (msg.type === 'member-kicked' && msg.to === this.ctx.userId) {
@@ -38,9 +38,28 @@
           window.ClassroomMain.leave();
         }
       }
-      if (msg.type === 'mute-all' && msg.from !== this.ctx.userId) {
-        if (window.ClassroomRTC) window.ClassroomRTC.setMicEnabled(false);
-        this.toast('教师已开启全员静音');
+      // F4-12：被点名 → 强提示 + 应答
+      if (msg.type === 'rollcall:start' && msg.targetUserId === this.ctx.userId) {
+        this._showRollCallPrompt(msg.rollcallId);
+      }
+    },
+
+    // F4-12：学生被点名强提示弹窗（高亮 + 应答按钮）
+    _showRollCallPrompt: function (rollcallId) {
+      var modal = document.getElementById('rollcall-modal');
+      if (!modal) return;
+      modal.classList.remove('hidden');
+      var self = this;
+      var btn = document.getElementById('rollcall-answer');
+      var closeBtn = document.getElementById('rollcall-close');
+      if (closeBtn) closeBtn.onclick = function () { modal.classList.add('hidden'); };
+      if (btn) {
+        btn.onclick = function () {
+          if (!window.ClassroomAPI || typeof window.ClassroomAPI.answerRollCall !== 'function') return;
+          window.ClassroomAPI.answerRollCall(self.ctx.apiBaseUrl, self.ctx.scheduleId, rollcallId)
+            .then(function () { self.toast('已应答点名'); modal.classList.add('hidden'); })
+            .catch(function (e) { self.toast((e && e.message) || '应答失败'); });
+        };
       }
     },
 

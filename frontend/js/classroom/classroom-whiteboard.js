@@ -16,6 +16,7 @@
     color: '#2f80ed',
     size: 3,
     readOnly: false,
+    granted: false,    // F4-08：被教师授予编辑权（学生）
     active: false,
 
     init: function (ctx) {
@@ -96,13 +97,13 @@
     },
 
     _start: function (e) {
-      if (this.readOnly) return;
+      if (this.readOnly && !this.granted) return;
       this.drawing = true;
       this.last = this._norm(e);
     },
 
     _move: function (e) {
-      if (!this.drawing || this.readOnly) return;
+      if (!this.drawing || (this.readOnly && !this.granted)) return;
       var p = this._norm(e);
       var seg = {
         type: 'whiteboard', op: 'draw',
@@ -137,6 +138,32 @@
     // 远端消息入口：由 main.js 的 WS onWhiteboard 调用
     onMessage: function (msg) {
       if (!msg) return;
+      // F4-07：重连/迟到者恢复白板——服务器下发操作序列，本地重放
+      if (msg.type === 'wb:init' && msg.ops) {
+        var self = this;
+        (msg.ops || []).forEach(function (opStr) {
+          try {
+            var op = (typeof opStr === 'string') ? JSON.parse(opStr) : opStr;
+            if (op.op === 'clear') self._clearLocal();
+            else if (op.op === 'draw') self._drawSeg(op);
+          } catch (e) {}
+        });
+        return;
+      }
+      // F4-08：教师授予/收回编辑权
+      if (msg.type === 'wb:grant:state') {
+        this.granted = !!msg.grant;
+        if (this.granted) {
+          this.toast('教师已授权你编辑白板');
+        } else if (this.readOnly) {
+          this.toast('教师已收回白板编辑权');
+        }
+        return;
+      }
+      if (msg.type === 'wb:snapshot:saved') {
+        this.toast('白板已保存');
+        return;
+      }
       if (msg.op === 'clear') { this._clearLocal(); return; }
       if (msg.op === 'draw') { this._drawSeg(msg); }
     },

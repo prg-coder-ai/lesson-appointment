@@ -111,6 +111,20 @@ public class MembershipService {
         return membershipMapper.listByScheduleAndOnline(scheduleId, "ONLINE");
     }
 
+    /** 取某课堂下处于给定在线态集合的成员（ONLINE/IDLE）——IDLE 宽限扫描用 */
+    public List<Membership> listByStates(String scheduleId, List<String> states) {
+        return membershipMapper.listByScheduleAndStates(scheduleId, states);
+    }
+
+    /** 仅更新在线态（ONLINE/IDLE），不触碰 leaveTime/leaveReason——IDLE 过渡态用 */
+    public void setState(String scheduleId, String userId, String state) {
+        Membership m = getOne(scheduleId, userId);
+        if (m == null) return;
+        if (state.equals(m.getOnlineState())) return;
+        m.setOnlineState(state);
+        membershipMapper.updateByKey(m);
+    }
+
     /** 取某课堂的教师成员——教师掉线结课扫描用 */
     public Membership getTeacher(String scheduleId) {
         return membershipMapper.selectTeacher(scheduleId);

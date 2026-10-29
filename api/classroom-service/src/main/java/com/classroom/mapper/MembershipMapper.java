@@ -40,6 +40,13 @@ public interface MembershipMapper extends BaseMapper<Membership> {
         return selectList(w);
     }
 
+    /** 取某课堂下处于给定在线态集合的成员（ONLINE/IDLE）——IDLE 宽限扫描用 */
+    default List<Membership> listByScheduleAndStates(String scheduleId, List<String> states) {
+        LambdaQueryWrapper<Membership> w = new LambdaQueryWrapper<>();
+        w.eq(Membership::getScheduleId, scheduleId).in(Membership::getOnlineState, states);
+        return selectList(w);
+    }
+
     /** 取某课堂的教师成员（掉线结课扫描用；教师唯一） */
     default Membership selectTeacher(String scheduleId) {
         LambdaQueryWrapper<Membership> w = new LambdaQueryWrapper<>();

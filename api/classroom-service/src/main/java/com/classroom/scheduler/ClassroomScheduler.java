@@ -182,21 +182,31 @@ public class ClassroomScheduler {
 
     // ============ 4. 学生掉线判定（每 20 秒） ============
     /**
-     * 对所有 LIVE 课堂，把「DB 仍 ONLINE 但 Redis 心跳 key 已消失」的成员判为掉线（OFFLINE）。
-     * Redis key 的 TTL 由 {@code classroom.offline-timeout-seconds} 控制，是判断在线的唯一真相源；
-     * 本扫描器是「WS 断连事件丢失」（JVM 崩溃 / 网络分区未触发 disconnect）时的安全兜底。
+     * 对所有 LIVE 课堂，按「距最后心跳的 elapsed」分级：ONLINE / IDLE / OFFLINE（F3-03/04）。
+     * 这是「WS 断连事件丢失」（JVM 崩溃 / 网络分区未触发 disconnect）时的安全兜底。
+     * IDLE 期间不离开课堂，给 15-60s 闪断/切网留重连续课缓冲；超过 offline-timeout 才判 OFFLINE + leave。
      */
     @Scheduled(cron = "0/20 * * * * ?")
     public void scanStudentDrop() {
+        int grace = onlineStateManager.getReconnectGraceSeconds();
+        int offlineTimeout = onlineStateManager.getOfflineTimeoutSeconds();
         try {
             List<Classroom> live = classroomService.listByStatus("LIVE", null);
             for (Classroom c : live) {
                 try {
-                    List<Membership> online = membershipService.listOnline(c.getScheduleId());
-                    for (Membership m : online) {
-                        if (!onlineStateManager.isOnline(c.getScheduleId(), m.getUserId())) {
+                    List<Membership> members = membershipService.listByStates(c.getScheduleId(),
+                            java.util.List.of("ONLINE", "IDLE"));
+                    for (Membership m : members) {
+                        Long elapsed = onlineStateManager.lastSeenElapsed(c.getScheduleId(), m.getUserId());
+                        if (elapsed == null || elapsed > offlineTimeout) {
+                            // 心跳 key 已消失且超过 offlineTimeout → 真正掉线
                             membershipService.leave(c.getScheduleId(), m.getUserId(), "timeout");
+                            onlineStateManager.setOffline(c.getScheduleId(), m.getUserId());
                             log.info("[学生掉线] scheduleId={}, userId={}", c.getScheduleId(), m.getUserId());
+                        } else if (elapsed > grace) {
+                            membershipService.setState(c.getScheduleId(), m.getUserId(), "IDLE");
+                        } else {
+                            membershipService.setState(c.getScheduleId(), m.getUserId(), "ONLINE");
                         }
                     }
                 } catch (Exception e) {

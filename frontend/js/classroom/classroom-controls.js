@@ -29,10 +29,16 @@
       html += this._btn('ctrl-whiteboard', 'fas fa-chalkboard', '白板', false);
       if (role === 'student') {
         html += this._btn('ctrl-hand', 'fas fa-hand-paper', '举手', false);
+        html += this._btn('ctrl-upload', 'fas fa-upload', '上传作业', false);
       }
       if (role === 'teacher' || role === 'admin') {
         html += this._btn('ctrl-mute-all', 'fas fa-microphone-slash', '全员静音', false);
         html += this._btn('ctrl-record', 'fas fa-circle', '录制', false);
+      }
+      if (role === 'teacher') {
+        html += this._btn('ctrl-rollcall', 'fas fa-bullhorn', '点名', false);
+        html += this._btn('ctrl-wb-save', 'fas fa-save', '保存板书', false);
+        html += this._btn('ctrl-review', 'fas fa-tasks', '作业点评', false);
       }
       if (role === 'admin') {
         html += this._btn('ctrl-monitor', 'fas fa-eye', '巡课', false);
@@ -59,6 +65,10 @@
       if (mic) mic.addEventListener('click', function () {
         if (!window.ClassroomRTC || !window.ClassroomRTC.mediaOk) { self.toast('无可用麦克风'); return; }
         var on = window.ClassroomRTC.micEnabled;
+        // F4-17：服务端全员禁言 → 学生不可自解麦克风
+        if (!on && window.ClassroomRTC.serverMuted && self.ctx && self.ctx.role === 'student') {
+          self.toast('全员禁言中，无法开启麦克风'); return;
+        }
         var now = window.ClassroomRTC.setMicEnabled(!on);
         mic.classList.toggle('active', now);
       });
@@ -89,6 +99,32 @@
       var muteAll = $('ctrl-mute-all');
       if (muteAll && window.ClassroomTeacher) {
         muteAll.addEventListener('click', function () { window.ClassroomTeacher.muteAll(); });
+      }
+
+      var rollcall = $('ctrl-rollcall');
+      if (rollcall && window.ClassroomTeacher) {
+        rollcall.addEventListener('click', function () { window.ClassroomTeacher.initiateRollCall(); });
+      }
+
+      var wbSave = $('ctrl-wb-save');
+      if (wbSave) {
+        wbSave.addEventListener('click', function () {
+          if (!window.ClassroomWS || !self.ctx) return;
+          window.ClassroomWS.sendWhiteboard(self.ctx.scheduleId, { op: 'wb:save' });
+        });
+      }
+
+      var upload = $('ctrl-upload');
+      if (upload) {
+        upload.addEventListener('click', function () {
+          var modal = document.getElementById('upload-modal');
+          if (modal) modal.classList.remove('hidden');
+        });
+      }
+
+      var review = $('ctrl-review');
+      if (review && window.ClassroomTeacher) {
+        review.addEventListener('click', function () { window.ClassroomTeacher.openReview(); });
       }
 
       var rec = $('ctrl-record');
