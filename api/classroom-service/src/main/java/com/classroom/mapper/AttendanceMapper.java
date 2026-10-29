@@ -1,10 +1,14 @@
 package com.classroom.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.classroom.dto.AttendanceHistoryVO;
 import com.classroom.entity.Attendance;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
+
+import java.util.List;
 
 /**
  * 签到记录 Mapper。
@@ -29,7 +33,22 @@ public interface AttendanceMapper extends BaseMapper<Attendance> {
             + "effective_minutes = #{a.effectiveMinutes}, "
             + "late = #{a.late}, "
             + "manual_adjust = #{a.manualAdjust}, "
-            + "adjust_reason = #{a.adjustReason} "
+            + "adjust_reason = #{a.adjustReason}, "
+            + "adjust_by = #{a.adjustBy} "
             + "WHERE schedule_id = #{a.scheduleId} AND user_id = #{a.userId}")
     int updateByKey(@Param("a") Attendance a);
+
+    /**
+     * 学生维度历史出勤查询（F2-07）：跨课堂聚合该用户全部出勤记录，
+     * 关联 {@code classroom} 取课程名与上课时间，按发生时间倒序。
+     * SQL 显式别名 AS 驼峰，与 {@link AttendanceHistoryVO} 字段精确匹配。
+     */
+    @Select("SELECT a.schedule_id AS scheduleId, c.course_name AS courseName, c.start_time AS startTime, "
+            + "c.end_time AS endTime, a.attendance_status AS attendanceStatus, "
+            + "a.check_in_at AS checkInAt, a.check_out_at AS checkOutAt, "
+            + "a.effective_minutes AS effectiveMinutes, a.late AS late "
+            + "FROM classroom_attendance a LEFT JOIN classroom c ON a.schedule_id = c.schedule_id "
+            + "WHERE a.user_id = #{userId} "
+            + "ORDER BY COALESCE(a.check_in_at, a.check_out_at) DESC")
+    List<AttendanceHistoryVO> selectHistoryByUserId(@Param("userId") String userId);
 }

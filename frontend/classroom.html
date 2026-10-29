@@ -29,6 +29,9 @@
           <span id="participant-count">0</span>
         </div>
         <ul id="participant-list"></ul>
+        <div id="participant-actions">
+          <button id="btn-my-attendance" class="cl-btn cl-btn-ghost hidden">我的出勤</button>
+        </div>
       </aside>
 
       <!-- 主视频区 / 白板区 -->
@@ -64,6 +67,15 @@
 
     <!-- 底部控制栏 -->
     <footer id="classroom-controls"></footer>
+  </div>
+
+  <!-- 我的出勤弹窗（F2-07） -->
+  <div id="my-attendance-modal" class="hidden">
+    <div class="mam-backdrop"></div>
+    <div class="mam-box">
+      <div class="mam-title">我的出勤记录 <button id="mam-close" class="mam-close" type="button">×</button></div>
+      <ul id="mam-list" class="mam-list"></ul>
+    </div>
   </div>
 
   <!-- 公共工具（顺序不可调整） -->

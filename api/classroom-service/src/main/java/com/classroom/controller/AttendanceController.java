@@ -1,6 +1,7 @@
 package com.classroom.controller;
 
 import com.classroom.common.Result;
+import com.classroom.dto.ManualAdjustReq;
 import com.classroom.entity.Attendance;
 import com.classroom.security.AuthContext;
 import com.classroom.security.ClassroomAccessGuard;
@@ -33,13 +34,12 @@ public class AttendanceController {
 
     @PostMapping("/manual-adjust")
     public Result<Void> manualAdjust(@PathVariable String scheduleId,
-                                      @RequestParam String userId,
-                                      @RequestParam String reason) {
+                                      @RequestBody ManualAdjustReq req) {
         if (!AuthContext.isTeacher() && !AuthContext.isManager()) {
             return Result.fail(403, "仅教师可手动补签");
         }
         accessGuard.assertAccess(scheduleId, AuthContext.currentUserId(), AuthContext.currentRole());
-        attendanceService.manualAdjust(scheduleId, userId, reason);
+        attendanceService.manualAdjust(scheduleId, req.getUserId(), req.getReason());
         return Result.success();
     }
 }

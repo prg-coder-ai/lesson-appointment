@@ -139,6 +139,13 @@ public class ScheduleEventConsumer {
             handleCreated(event);
             return;
         }
+        // F1-05 / P3：已在进行或已结束的课堂不接受改期。
+        // 正在上课(LIVE)改时间既无意义也会打乱进行中的课堂；已结束(CLOSED/CANCELLED)改时间
+        // 等于篡改历史出勤/课时账务证据。与 handleCancelled 对 LIVE 的处理口径一致（直播中不随排期取消）。
+        if ("LIVE".equals(c.getStatus()) || "CLOSED".equals(c.getStatus()) || "CANCELLED".equals(c.getStatus())) {
+            log.warn("课堂已在进行或已结束，忽略改期事件: classroomId={}, status={}", c.getScheduleId(), c.getStatus());
+            return;
+        }
         if (event.getVersion() != null && c.getVersion() != null && event.getVersion() < c.getVersion()) {
             throw new ClassroomBizException(ErrorCodes.EVENT_STALE_VERSION,
                     "旧版本事件已忽略: received=" + event.getVersion() + ", current=" + c.getVersion());

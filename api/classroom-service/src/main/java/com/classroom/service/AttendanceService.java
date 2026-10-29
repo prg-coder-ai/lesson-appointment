@@ -1,12 +1,14 @@
 package com.classroom.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.classroom.dto.AttendanceHistoryVO;
 import com.classroom.entity.Attendance;
 import com.classroom.entity.Classroom;
 import com.classroom.entity.PresenceSegment;
 import com.classroom.mapper.AttendanceMapper;
 import com.classroom.mapper.ClassroomMapper;
 import com.classroom.mapper.PresenceSegmentMapper;
+import com.classroom.security.AuthContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -135,6 +137,8 @@ public class AttendanceService {
      * 教师手动补签/修正（F2-04，P1）：留原因与 manual_adjust 标记。
      */
     public void manualAdjust(String scheduleId, String userId, String reason) {
+        // F2-04：记录操作人（补签教师），落实审计主体——此前只有原因没有"谁签的"。
+        String operator = AuthContext.currentUserId();
         Attendance a = getOne(scheduleId, userId);
         if (a == null) {
             a = new Attendance();
@@ -145,10 +149,12 @@ public class AttendanceService {
             a.setLate(false);
             a.setManualAdjust(true);
             a.setAdjustReason(reason);
+            a.setAdjustBy(operator);
             attendanceMapper.insert(a);
         } else {
             a.setManualAdjust(true);
             a.setAdjustReason(reason);
+            a.setAdjustBy(operator);
             a.setAttendanceStatus("PRESENT");
             attendanceMapper.updateByKey(a);
         }
@@ -328,6 +334,14 @@ public class AttendanceService {
         wrapper.eq(Attendance::getScheduleId, scheduleId)
                .orderByAsc(Attendance::getUserId);
         return attendanceMapper.selectList(wrapper);
+    }
+
+    /**
+     * 学生维度历史出勤查询（F2-07）：返回该用户在所有课堂的出勤记录，
+     * 关联课堂取课程名与上课时间，供学生端「我的出勤」展示。
+     */
+    public List<AttendanceHistoryVO> listByUser(String userId) {
+        return attendanceMapper.selectHistoryByUserId(userId);
     }
 
     /**

@@ -58,6 +58,7 @@ CREATE TABLE `classroom_attendance` (
   `late`              TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '迟到标记',
   `manual_adjust`     TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '教师手动补签',
   `adjust_reason`     VARCHAR(255) NULL COMMENT '补签原因',
+  `adjust_by`         VARCHAR(64)  NULL COMMENT '补签操作人(教师 userId)',
   PRIMARY KEY (`schedule_id`, `user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='签到记录';
 

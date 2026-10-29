@@ -933,6 +933,10 @@ function maskEmail(email) {
     kickMember: function (apiBaseUrl, scheduleId, userId) {
       return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/members/' + encodeURIComponent(userId) + '/kick'), method: 'post' });
     },
+    // F1-06 同学名单：返回课堂全部成员，供参与者面板渲染（含未进课堂的成员）
+    getMembers: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/members'), method: 'get' });
+    },
 
     // ---- 签到/出勤 ----
     getAttendance: function (apiBaseUrl, scheduleId) {
@@ -940,6 +944,10 @@ function maskEmail(email) {
     },
     manualAdjust: function (apiBaseUrl, scheduleId, userId, reason) {
       return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/attendance/manual-adjust'), method: 'post', data: { userId: userId, reason: reason } });
+    },
+    // F2-07 学生历史出勤：按当前登录用户跨课堂聚合（path 不带 /api/v1，由 normalizeUrl 补前缀）
+    getMyAttendanceHistory: function (apiBaseUrl) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/attendance/history'), method: 'get' });
     },
 
     // ---- 讲稿 ----

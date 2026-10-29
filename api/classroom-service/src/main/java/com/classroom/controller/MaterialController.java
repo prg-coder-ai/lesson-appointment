@@ -2,6 +2,7 @@ package com.classroom.controller;
 
 import com.classroom.common.Result;
 import com.classroom.dto.MaterialUploadReq;
+import com.classroom.dto.TurnPageReq;
 import com.classroom.entity.Material;
 import com.classroom.security.AuthContext;
 import com.classroom.security.ClassroomAccessGuard;
@@ -48,12 +49,12 @@ public class MaterialController {
     @PutMapping("/{materialId}/page")
     public Result<Void> turnPage(@PathVariable String scheduleId,
                                  @PathVariable Long materialId,
-                                 @RequestParam int page) {
+                                 @RequestBody TurnPageReq req) {
         if (!AuthContext.isTeacher() && !AuthContext.isManager()) {
             return Result.fail(403, "仅教师可翻页");
         }
         accessGuard.assertAccess(scheduleId, AuthContext.currentUserId(), AuthContext.currentRole());
-        materialService.turnPage(scheduleId, materialId, page);
+        materialService.turnPage(scheduleId, materialId, req.getPage() != null ? req.getPage() : 1);
         return Result.success();
     }
 }

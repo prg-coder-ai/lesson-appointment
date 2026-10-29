@@ -88,7 +88,8 @@
         .then(function (classroom) {
           self._renderHeader(classroom, ctx);
           self._initModules(ctx);
-          self._addParticipant(ctx.userId, ctx.userName, ctx.role);
+          self._refreshMembers(apiBaseUrl, scheduleId);
+          if (ctx.role === 'student') self._initMyAttendance(ctx);
           self._connectWS(ctx);
           self._bindBackButton();
           self._hidePlaceholder();
@@ -244,21 +245,112 @@
       if (!list) return;
       var self = this;
       var ids = Object.keys(this.participants);
+      var isTeacher = self.ctx && (self.ctx.role === 'teacher' || self.ctx.role === 'admin');
       list.innerHTML = ids.map(function (id) {
         var p = self.participants[id];
         var roleLabel = p.role === 'teacher' ? '教师' : (p.role === 'admin' ? '管理员' : '学生');
         var roleCls = p.role === 'teacher' ? 'pt-role-teacher' : (p.role === 'admin' ? 'pt-role-admin' : '');
+        // F2-04：教师/管理员对学生可补签（此前后端有接口但前端无入口）
+        var adjustBtn = (isTeacher && p.role === 'student')
+          ? '<button class="pt-adjust" data-uid="' + self._cssEscape(id) + '">补签</button>' : '';
         return '<li data-uid="' + self._cssEscape(id) + '">' +
           '<span class="pt-avatar">' + self._initial(p.name) + '</span>' +
           '<span>' + self._escape(p.name) + '</span>' +
           '<span class="pt-role-tag ' + roleCls + '">' + roleLabel + '</span>' +
+          adjustBtn +
           '</li>';
       }).join('');
+      Array.prototype.forEach.call(list.querySelectorAll('.pt-adjust'), function (btn) {
+        btn.addEventListener('click', function () {
+          var uid = btn.getAttribute('data-uid');
+          var reason = window.prompt('请输入补签原因：');
+          if (reason === null) return;
+          self._doManualAdjust(self.ctx.apiBaseUrl, self.ctx.scheduleId, uid, reason);
+        });
+      });
     },
 
     _renderCount: function () {
       var n = document.getElementById('participant-count');
       if (n) n.textContent = Object.keys(this.participants).length;
+    },
+
+    // F1-06：进入课堂后加载全名单渲染参与者面板（修复此前只显示自己、看不到同学的问题）
+    _refreshMembers: function (apiBaseUrl, scheduleId) {
+      var self = this;
+      if (!window.ClassroomAPI || typeof window.ClassroomAPI.getMembers !== 'function') {
+        self._addParticipant(self.ctx.userId, self.ctx.userName, self.ctx.role);
+        return;
+      }
+      window.ClassroomAPI.getMembers(apiBaseUrl, scheduleId)
+        .then(function (list) {
+          self.participants = {};
+          (list || []).forEach(function (m) {
+            self.participants[m.userId] = {
+              userId: m.userId,
+              name: m.displayName || m.userId,
+              role: m.role
+            };
+          });
+          self._renderParticipants();
+          self._renderCount();
+        })
+        .catch(function () {
+          self._addParticipant(self.ctx.userId, self.ctx.userName, self.ctx.role);
+        });
+    },
+
+    // F2-04：教师补签（原因由 prompt 录入，操作人由后端从 token 取）
+    _doManualAdjust: function (apiBaseUrl, scheduleId, userId, reason) {
+      var self = this;
+      if (!window.ClassroomAPI || typeof window.ClassroomAPI.manualAdjust !== 'function') return;
+      window.ClassroomAPI.manualAdjust(apiBaseUrl, scheduleId, userId, reason)
+        .then(function () {
+          window.clToast('已补签：' + (self.participants[userId] ? self.participants[userId].name : userId));
+        })
+        .catch(function (e) { window.clToast((e && e.message) || '补签失败'); });
+    },
+
+    // F2-07：学生端「我的出勤」入口初始化
+    _initMyAttendance: function (ctx) {
+      var self = this;
+      var btn = document.getElementById('btn-my-attendance');
+      var modal = document.getElementById('my-attendance-modal');
+      var closeBtn = document.getElementById('mam-close');
+      if (btn) btn.classList.remove('hidden');
+      if (closeBtn) closeBtn.addEventListener('click', function () {
+        if (modal) modal.classList.add('hidden');
+      });
+      if (btn) btn.addEventListener('click', function () { self._showMyAttendance(ctx); });
+    },
+
+    _showMyAttendance: function (ctx) {
+      var self = this;
+      var modal = document.getElementById('my-attendance-modal');
+      var listEl = document.getElementById('mam-list');
+      if (!modal || !listEl) return;
+      modal.classList.remove('hidden');
+      listEl.innerHTML = '<li class="mam-loading">加载中...</li>';
+      if (!window.ClassroomAPI || typeof window.ClassroomAPI.getMyAttendanceHistory !== 'function') {
+        listEl.innerHTML = '<li>出勤接口未就绪</li>'; return;
+      }
+      window.ClassroomAPI.getMyAttendanceHistory(ctx.apiBaseUrl)
+        .then(function (rows) {
+          if (!rows || !rows.length) { listEl.innerHTML = '<li class="mam-empty">暂无出勤记录</li>'; return; }
+          var statusMap = { ABSENT: '缺席', PRESENT: '出勤', LATE: '迟到', LEFT: '离开', REJOINED: '重连' };
+          listEl.innerHTML = rows.map(function (r) {
+            var status = statusMap[r.attendanceStatus] || r.attendanceStatus || '-';
+            var time = r.checkInAt ? String(r.checkInAt).replace('T', ' ') : '-';
+            var mins = (r.effectiveMinutes != null) ? (r.effectiveMinutes + ' 分钟') : '-';
+            return '<li><span>' + self._escape(r.courseName || r.scheduleId) + '</span>' +
+              '<span>' + self._escape(time) + '</span>' +
+              '<span>' + self._escape(status) + '</span>' +
+              '<span>' + self._escape(mins) + '</span></li>';
+          }).join('');
+        })
+        .catch(function (e) {
+          listEl.innerHTML = '<li class="mam-empty">加载失败：' + self._escape((e && e.message) || '') + '</li>';
+        });
     },
 
     _setStatus: function (kind, text) {

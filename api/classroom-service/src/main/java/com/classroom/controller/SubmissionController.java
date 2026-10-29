@@ -1,6 +1,7 @@
 package com.classroom.controller;
 
 import com.classroom.common.Result;
+import com.classroom.dto.ReviewReq;
 import com.classroom.dto.SubmissionReq;
 import com.classroom.entity.Submission;
 import com.classroom.security.AuthContext;
@@ -45,13 +46,12 @@ public class SubmissionController {
     @PutMapping("/{submissionId}/review")
     public Result<Void> review(@PathVariable String scheduleId,
                                @PathVariable Long submissionId,
-                               @RequestParam(required = false) String comment,
-                               @RequestParam(required = false) BigDecimal score) {
+                               @RequestBody ReviewReq req) {
         if (!AuthContext.isTeacher() && !AuthContext.isManager()) {
             return Result.fail(403, "仅教师可批阅作品");
         }
         accessGuard.assertAccess(scheduleId, AuthContext.currentUserId(), AuthContext.currentRole());
-        submissionService.review(submissionId, comment, score);
+        submissionService.review(submissionId, req.getComment(), req.getScore());
         return Result.success();
     }
 }

@@ -3,6 +3,7 @@ package com.classroom.controller;
 import com.classroom.common.Result;
 import com.classroom.dto.EnterClassroomReq;
 import com.classroom.entity.Classroom;
+import com.classroom.entity.Membership;
 import com.classroom.security.AuthContext;
 import com.classroom.security.ClassroomAccessGuard;
 import com.classroom.service.AttendanceService;
@@ -10,6 +11,8 @@ import com.classroom.service.CallbackService;
 import com.classroom.service.ClassroomService;
 import com.classroom.service.MembershipService;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * 客户端接口：课堂接入/控制（F1, F3）。
@@ -98,5 +101,11 @@ public class ClassroomController {
         accessGuard.assertAccess(scheduleId, AuthContext.currentUserId(), AuthContext.currentRole());
         membershipService.kick(scheduleId, userId);
         return Result.success();
+    }
+
+    @GetMapping("/members")
+    public Result<List<Membership>> members(@PathVariable String scheduleId) {
+        accessGuard.assertAccess(scheduleId, AuthContext.currentUserId(), AuthContext.currentRole());
+        return Result.ok(membershipService.listBySchedule(scheduleId));
     }
 }

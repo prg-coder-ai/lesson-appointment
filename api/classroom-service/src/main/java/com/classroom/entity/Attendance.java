@@ -17,4 +17,5 @@ public class Attendance {
     private Boolean late;
     private Boolean manualAdjust;
     private String adjustReason;
+    private String adjustBy;
 }
