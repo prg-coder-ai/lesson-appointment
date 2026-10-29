@@ -58,6 +58,43 @@ function toMessageService(urlPath) {
   );
 }
 
+/**
+ * 是否属于 classroom-service（8092 在线课堂）。
+ *
+ * <p>前缀清单必须与 deploy/nginx/booking.conf 保持一致 —— 两边不同步会出现
+ * 「本地能跑、上线 404」或反过来，而这类偏差在单机联调时完全不报错，最难查。
+ *
+ * <p>两个易错点：
+ * <ul>
+ *   <li>{@code /api/v1/schedules/}（复数）是课堂的排期事件接收；主服务是
+ *       <b>单数</b> {@code /api/v1/schedule}，前端全部走单数，两者不冲突；</li>
+ *   <li>{@code /api/v1/admin/*} 不能整片划给课堂 —— 主服务也有 admin 语义接口，
+ *       必须逐个精确前缀，与 nginx 同一策略。</li>
+ * </ul>
+ */
+function toClassroomService(urlPath) {
+  const PREFIXES = [
+    '/api/v1/classrooms/',
+    '/api/v1/attendance/',
+    '/api/v1/recordings/',
+    '/api/v1/uploads/',
+    '/api/v1/files/',
+    '/api/v1/schedules/',
+    '/api/v1/rtc/',
+    '/api/v1/admin/classrooms/',
+    '/api/v1/admin/monitor/',
+    '/api/v1/admin/reports/',
+    '/api/v1/admin/reconcile/',
+    '/api/v1/admin/audit/',
+    '/api/v1/admin/contract/',
+    '/api/v1/admin/exports/',
+  ];
+  for (const p of PREFIXES) {
+    if (urlPath.startsWith(p)) return true;
+  }
+  return false;
+}
+
 /** TCP 探活：目标端口是否可连（1.5s 超时） */
 function probe(host, port, timeout = 1500) {
   return new Promise((resolve) => {
@@ -235,14 +272,60 @@ function startProxy(o) {
     port: o.msgPort,
     hostHeader: o.msgHostHeader || o.apiHostHeader,
   });
+  // 课堂服务是可选的：不传 classroomPort 时行为与改造前完全一致（不启用任何课堂路由）
+  const classroomTarget = o.classroomPort
+    ? normalizeTarget({
+      protocol: o.classroomProtocol || o.apiProtocol,
+      host: o.classroomHost || o.apiHost,
+      port: o.classroomPort,
+      hostHeader: o.classroomHostHeader || o.apiHostHeader,
+    })
+    : null;
   const server = http.createServer((req, res) => {
     const urlPath = (req.url || '/').split('?')[0];
     if (urlPath.startsWith('/api/v1')) {
-      const isMsg = toMessageService(urlPath);
-      return proxy(req, res, isMsg ? msgTarget : apiTarget, isMsg ? 'message-service' : 'booking');
+      if (toMessageService(urlPath)) {
+        return proxy(req, res, msgTarget, 'message-service');
+      }
+      // 课堂前缀优先于 booking 兜底：否则课堂接口会被送到 8081 变成 401/404
+      if (classroomTarget && toClassroomService(urlPath)) {
+        return proxy(req, res, classroomTarget, 'classroom');
+      }
+      return proxy(req, res, apiTarget, 'booking');
     }
     return serveStatic(req, res, root, urlPath);
   });
+
+  // WebSocket 转发：课堂的信令/白板/心跳三条通道
+  //
+  // 为什么不走 http.request：WS 升级成功后连接变成裸 TCP，http 模块的回调模型
+  // 无法双向透传帧。这里用 net.connect 拿到底层 socket，把「原始 HTTP 升级请求」
+  // 手写过去，然后双向 pipe —— 升级后的一切字节（含 ping/pong）原样过。
+  if (classroomTarget && classroomTarget.protocol === 'http') {
+    server.on('upgrade', (req, socket, head) => {
+      const urlPath = (req.url || '/').split('?')[0];
+      if (!urlPath.startsWith('/ws/')) {
+        // 非课堂 WS 一律拒绝：不静默回退到其他上游，避免把连接挂死
+        socket.destroy();
+        return;
+      }
+      const upstream = net.connect(classroomTarget.port, classroomTarget.host, () => {
+        const headers = { ...req.headers, host: classroomTarget.hostHeader };
+        let raw = `GET ${req.url} HTTP/1.1\r\n`;
+        for (const [k, v] of Object.entries(headers)) {
+          if (v === undefined || v === null) continue;
+          raw += `${k}: ${Array.isArray(v) ? v.join(', ') : v}\r\n`;
+        }
+        raw += '\r\n';
+        upstream.write(raw);
+        if (head && head.length) upstream.write(head);
+        upstream.pipe(socket);
+        socket.pipe(upstream);
+      });
+      upstream.on('error', () => socket.destroy());
+      socket.on('error', () => upstream.destroy());
+    });
+  }
 
   return new Promise((resolve, reject) => {
     server.once('error', (e) => {
@@ -266,15 +349,21 @@ function startProxy(o) {
       const fmt = (t) => `${t.protocol}://${t.host}${(t.port === 80 || t.port === 443) ? '' : ':' + t.port}`;
       console.log(`   普通 API   :  /api/v1/*                    ->  ${fmt(apiTarget)}`);
       console.log(`   消息/SSE   :  /api/v1/{message,sse,users/*} ->  ${fmt(msgTarget)}`);
+      if (classroomTarget) {
+        console.log(`   在线课堂   :  /api/v1/{classrooms,uploads,files,recordings,...} + /ws/* ->  ${fmt(classroomTarget)}`);
+      }
       console.log(`   上游 Host  :  ${apiTarget.hostHeader}${msgTarget.hostHeader !== apiTarget.hostHeader ? '  /  ' + msgTarget.hostHeader : ''}`);
       console.log(line);
       if (o.probe !== false) {
         Promise.all([
           probe(o.apiHost, o.bookingPort),
           probe(o.msgHost, o.msgPort),
-        ]).then(([okBooking, okMsg]) => {
-          console.log(`   连通性检查 :  booking ${okBooking ? '✅ 可达' : '❌ 不可达'}    message-service ${okMsg ? '✅ 可达' : '❌ 不可达'}`);
-          if (o.onProbe) o.onProbe({ okBooking, okMsg });
+          classroomTarget ? probe(classroomTarget.host, classroomTarget.port) : Promise.resolve(null),
+        ]).then(([okBooking, okMsg, okClassroom]) => {
+          console.log(`   连通性检查 :  booking ${okBooking ? '✅ 可达' : '❌ 不可达'}`
+            + `    message-service ${okMsg ? '✅ 可达' : '❌ 不可达'}`
+            + (classroomTarget ? `    课堂 ${okClassroom ? '✅ 可达' : '❌ 不可达'}` : ''));
+          if (o.onProbe) o.onProbe({ okBooking, okMsg, okClassroom });
           console.log(line);
           console.log(' 按 Ctrl+C 停止');
         });
@@ -286,4 +375,4 @@ function startProxy(o) {
   });
 }
 
-module.exports = { startProxy, toMessageService, probe };
+module.exports = { startProxy, toMessageService, toClassroomService, probe };
