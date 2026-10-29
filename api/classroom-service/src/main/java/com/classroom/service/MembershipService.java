@@ -105,4 +105,14 @@ public class MembershipService {
         wrapper.eq(Membership::getScheduleId, scheduleId);
         return membershipMapper.selectList(wrapper);
     }
+
+    /** 取某课堂下所有仍在线（onlineState=ONLINE）的成员——掉线判定扫描用 */
+    public List<Membership> listOnline(String scheduleId) {
+        return membershipMapper.listByScheduleAndOnline(scheduleId, "ONLINE");
+    }
+
+    /** 取某课堂的教师成员——教师掉线结课扫描用 */
+    public Membership getTeacher(String scheduleId) {
+        return membershipMapper.selectTeacher(scheduleId);
+    }
 }

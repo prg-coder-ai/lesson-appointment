@@ -1,10 +1,13 @@
 package com.classroom.mapper;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.classroom.entity.Membership;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Update;
+
+import java.util.List;
 
 /**
  * 课堂成员 Mapper。
@@ -29,4 +32,18 @@ public interface MembershipMapper extends BaseMapper<Membership> {
             + "kicked = #{m.kicked} "
             + "WHERE schedule_id = #{m.scheduleId} AND user_id = #{m.userId}")
     int updateByKey(@Param("m") Membership m);
+
+    /** 取某课堂下处于指定在线状态的成员（掉线判定扫描用） */
+    default List<Membership> listByScheduleAndOnline(String scheduleId, String onlineState) {
+        LambdaQueryWrapper<Membership> w = new LambdaQueryWrapper<>();
+        w.eq(Membership::getScheduleId, scheduleId).eq(Membership::getOnlineState, onlineState);
+        return selectList(w);
+    }
+
+    /** 取某课堂的教师成员（掉线结课扫描用；教师唯一） */
+    default Membership selectTeacher(String scheduleId) {
+        LambdaQueryWrapper<Membership> w = new LambdaQueryWrapper<>();
+        w.eq(Membership::getScheduleId, scheduleId).eq(Membership::getRole, "teacher");
+        return selectOne(w);
+    }
 }

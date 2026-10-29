@@ -69,6 +69,40 @@ public class ClassroomService {
         log.info("课堂状态流转: {} {} → {}", scheduleId, fromStatus, toStatus);
     }
 
+    /**
+     * 就绪提醒扫描调用：把仍停留在 SCHEDULED 的课堂翻成 READY（学生可进入、自动开课可接管）。
+     *
+     * <p>非 SCHEDULED（已被人工/自动开课动过的）返回 {@code false} 不重复翻、不报错，
+     * 让扫描器每轮都能幂等重跑；仅在真正翻成功时返回 {@code true}（扫描器据此决定要不要发提醒）。
+     */
+    public boolean markReady(String scheduleId) {
+        Classroom c = classroomMapper.selectById(scheduleId);
+        if (c == null || !"SCHEDULED".equals(c.getStatus())) {
+            return false;
+        }
+        int affected = classroomMapper.updateStatus(scheduleId, "SCHEDULED", "READY");
+        if (affected > 0) {
+            log.info("课堂就绪: scheduleId={}", scheduleId);
+            return true;
+        }
+        return false;
+    }
+
+    /** 就绪提醒扫描：SCHEDULED 且上课时间落在「现在 ~ 现在+minutes」窗口内的课堂 */
+    public List<Classroom> findReadyToRemind(int minutes) {
+        return classroomMapper.listReadyToRemind(minutes);
+    }
+
+    /** 自动开课扫描：SCHEDULED/READY、已到开课时间、且未过结束时间的课堂 */
+    public List<Classroom> findDueToStart() {
+        return classroomMapper.listDueToStart();
+    }
+
+    /** 自动下课扫描：仍 LIVE、且计划结束时间已过去 grace 分钟的课堂 */
+    public List<Classroom> findOverdueLive(int graceMinutes) {
+        return classroomMapper.listOverdueLive(graceMinutes);
+    }
+
     public void startClass(String scheduleId) {
         Classroom c = getById(scheduleId);
         if (!"READY".equals(c.getStatus()) && !"SCHEDULED".equals(c.getStatus())) {

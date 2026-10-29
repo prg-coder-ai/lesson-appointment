@@ -311,6 +311,18 @@ public class AttendanceService {
         return attendanceMapper.selectOne(wrapper);
     }
 
+    /**
+     * 该用户在此课堂是否仍有「未闭合在线区间」。
+     *
+     * <p>掉线判定扫描只处理「有未闭合区间」的成员：真正掉线的人区间开着、心跳 key 消失，
+     * 才有「闭合区间 + 标记离线」的必要性；无区间者（已签退/未进入）即便 DB 仍 ONLINE 也只是
+     * 状态残留，等课堂收尾 {@code closeAllOnline} 统一纠正，不必即时动它。
+     * 这也能把「Redis 抖动/短暂不可达」造成的大面积误判收敛到真正在计时的那批人。
+     */
+    public boolean hasOpenSegment(String scheduleId, String userId) {
+        return !segmentMapper.listOpen(scheduleId, userId).isEmpty();
+    }
+
     public List<Attendance> listBySchedule(String scheduleId) {
         LambdaQueryWrapper<Attendance> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Attendance::getScheduleId, scheduleId)

@@ -44,12 +44,14 @@ shared-sync/authz/cascade/ddl-align/tz/global-collide/scheduler/actuator/tenant-
 - **微信（一期 8dc3e994）**：wx_userid 独立表 uk 全局唯一；wechat-login/register 免登录；secret 占位→1001 静默降级是设计姿态；auto_register 禁解绑。
 - **★电子课堂有效时长口径（需求 F2-03，勿改回单段差）**：`classroom_presence_segment` 每进一次一段；有效时长 = 合并「间隙 ≤ `classroom.jitter-grace-seconds`(60s)」的相邻段后求和，再 `Math.min(总分钟, classroom.duration)`；未闭合段按参考时刻闭合。旧算法（首签→末签单段差取 max）会把离线时长算进去（10:00 进/10:20 掉/11:00 回/11:30 退 → 90，应为 50）。**`duration` 必须由事件带对，否则封顶失效**。
 - 课堂收尾唯一入口 `ClassroomClosingService.closeAfterEnd`（五步：闭合区间/重算时长/归一 ABSENT·PRESENT·LATE/置离线/回流），`endClass` 委托它；**回执必须在事务提交后发**（事务内发=回滚后对端已落脏数据）。`consumption_version` 每次收尾 +1，预约侧按版本丢弃旧报文。
+- **★多课次事件推送（三期 e92b5550）**：排期事件逐课次发（classIndex + 该课次起止 + duration + classCount），`eventId` 必须加 `-cN` 后缀，否则对端幂等守卫把第 2..N 条当重复事件丢掉；`cancelled` 只发 1 条不带 classIndex = 整排期取消，课堂侧 `listByScheduleGroup`（`= sid OR LIKE 'sid~%'`，**第 1 课次是裸 id，只 LIKE 会漏**）批量取消、跳过 CLOSED/CANCELLED/LIVE。**删排期是先删行再推取消**，故取消事件不得依赖排期行（走 `ScheduleEventReq.CancelGroup` 校验组 + 推送侧最小载荷）。`sys_eclassroom_instance`/`sys_tenant_eclassroom` 当前是空表——租户未绑定课堂时推送静默跳过，e2e 要自己插夹具。
+- 守卫现状：`check:cascade`（`EclassroomService:123/172` 未声明级联 + 缺 `api/beforeRun/referential-integrity-20261008.sql`）、`check:secret-env`（缺 `booking/message.env.template`）**在 da4db6f8 上就已红**，提交需 `SKIP_CASCADE=1 SKIP_SECRET_ENV=1`。
 - **待拍板：课时扣减**。`lesson_attendance` 已落库含有效时长，但**有意不**改 `appointment.status`、不扣 `student_balance.lesson_remaining`——须与请假/退费档位（`refund_snapshot`）统一口径后再接，否则「课堂扣一次、退费又退一次」。
 - 课堂开关 `TenantEclassroomService` 有 **5 分钟内存缓存**：给租户开通课堂后要等 5 分钟或重启 classroom-service 才生效；联调时若 403「课堂未启用」，先查 `sys_tenant_eclassroom` 再想缓存。
 
 ## 技术栈/排障
 - **★复合主键实体没有 `updateById`**：`classroom_attendance`/`classroom_membership`（以及一切 `(a,b)` 双主键表）实体无 `@TableId` 时，MP **不生成** `updateById`，运行期抛 `Invalid bound statement (not found)`。`insert`/`selectOne` 正常，只有更新炸 → 表现为「接口 200、状态变了、明细没落库」的半失败。已加显式 `updateByKey(@Update 全字段)`；新建双主键表一律照此办，别用 `updateById`。附带好处：显式全字段能写 NULL（MP 默认忽略 null → `leave_time` 清不掉）。
-- 编译：unset CLASSPATH + 直调 Maven launcher JAR（系统 mvn 坏，GBK 输出过 iconv）；smoke 起 8083；**杀后台 java 用 PowerShell Stop-Process（Git Bash kill 对 JVM 无效）**。
+- 编译：**java 不在 PATH** —— JDK21 在 `C:\Program Files\Eclipse Adoptium\jdk-21.0.8.9-hotspot\bin`（不是 `C:\Program Files\Java`，那里只有 jdk1.8）。直调 Maven launcher JAR 前先 `export PATH="/c/Program Files/Eclipse Adoptium/jdk-21.0.8.9-hotspot/bin:$PATH"`；MySQL 客户端在 `D:\program\mysql84\bin\mysql.exe`（也不在 PATH），`-e` 只收**单行** SQL，`-N -B` 每行带 `\r` 需剔除再比字符串。unset CLASSPATH + 直调 Maven launcher JAR（系统 mvn 坏，GBK 输出过 iconv）；smoke 起 8083；**杀后台 java 用 PowerShell Stop-Process（Git Bash kill 对 JVM 无效）**。
 - **★CRLF 毒害测试**：core.autocrlf=true → 工作区 CRLF/索引 LF；按 `\n` 写锚点的匹配静默失败（`.` 不匹配 `\r`）；判行尾用 Node 计数；反向测试变异前归一 LF、还原走原始 Buffer。
 - 跨库 JOIN 须显式 COLLATE utf8mb4_general_ci；mysqldump 必须 --result-file=，本机 mysql root/123456，改结构后重 dump 落 api/sql/schema/。
 - 前端伺服 `node doc-develop/dev-frontend-local.js`（8080 同源代理，DIST=1 伺服 dist）；临时测试脚本放仓库根、测完即删。

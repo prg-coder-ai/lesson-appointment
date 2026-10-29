@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.classroom.entity.PresenceSegment;
 import org.apache.ibatis.annotations.Mapper;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Mapper
@@ -36,5 +37,12 @@ public interface PresenceSegmentMapper extends BaseMapper<PresenceSegment> {
         w.eq(PresenceSegment::getScheduleId, scheduleId)
                 .isNull(PresenceSegment::getLeaveAt);
         return selectList(w);
+    }
+
+    /** 过期清理：删除 created_at 早于 before 的在线区间（课堂已结课、出勤已核算，仅留审计价值） */
+    default int deleteBefore(LocalDateTime before) {
+        LambdaQueryWrapper<PresenceSegment> w = new LambdaQueryWrapper<>();
+        w.le(PresenceSegment::getCreatedAt, before);
+        return delete(w);
     }
 }
