@@ -23,8 +23,8 @@
 
   function roleText(role) {
     switch (role) {
-      case 'student': return '学生';
-      case 'teacher': return '教师';
+      case 'student': return '<span data-term="student">学生</span>';
+      case 'teacher': return '<span data-term="teacher">教师</span>';
       case 'admin': return '管理员';
       case 'platform_admin': return '平台管理员';
       default: return role || '未知';
@@ -32,16 +32,19 @@
   }
 
   function row(label, valHtml) {
+    // label 允许直接传 HTML（data-term 行业词会用 span），不 esc；
+    // valHtml 调用方自己组装，也可能含 data-term。
     return '<div class="tp-info-row">' +
-      '<span class="tp-info-label">' + esc(label) + '</span>' +
+      '<span class="tp-info-label">' + label + '</span>' +
       '<span class="tp-info-value">' + valHtml + '</span></div>';
   }
 
   function statTile(label, val, subText) {
+    // label / subText 同为硬编码模板字符串，可能带 <span data-term=…>，不 esc
     return '<div class="tp-stat-tile">' +
       '<div class="tp-stat-val">' + esc(String(val == null ? '—' : val)) + '</div>' +
-      '<div class="tp-stat-label">' + esc(label) + '</div>' +
-      (subText ? '<div class="tp-stat-sub">' + esc(subText) + '</div>' : '') +
+      '<div class="tp-stat-label">' + label + '</div>' +
+      (subText ? '<div class="tp-stat-sub">' + subText + '</div>' : '') +
       '</div>';
   }
 
@@ -71,8 +74,8 @@
           '<div class="tp-profile-body">' +
             row('姓名：', '<span id="tp-name">' + esc(name || '—') + '</span>') +
             row('账号：', esc(account)) +
-            row('角色：', esc(role)) +
-            row('租户编码：', esc(tenant)) +
+            row('角色：', role) +
+            row('公司名称：', '<span id="tp-org">' + esc(tenant) + '</span>') +
             row('手机号：', '<span id="tp-phone">—</span>') +
             row('邮箱：', '<span id="tp-email">—</span>') +
           '</div>' +
@@ -90,8 +93,28 @@
         '</div>' +
       '</div>';
 
+    // 行业词（data-term 标签）随当前行业自动替换。
+    // api.js 的 MutationObserver 理论上能捕获 innerHTML 变化，
+    // 再手动调一次 applyTerms 是项目内普遍采用的双保险（见 teacher-courseAndScheduleBrowserCards.js 等）。
+    if (typeof applyTerms === 'function') {
+      try { applyTerms(container); } catch (e) {}
+    }
+
     // 概览统计（失败不影响下面的资料展示）
     loadTeacherStats(document.getElementById('tp-stats'));
+
+    // 公司名称：GET /tenant/current 返回含 orgName 的当前租户
+    if (typeof request === 'function') {
+      request({ url: '/tenant/current', method: 'get' })
+        .then(function (t) {
+          if (!t) return;
+          var el = document.getElementById('tp-org');
+          if (el) {
+            el.textContent = t.orgName || t.tenantCode || '—';
+          }
+        })
+        .catch(function () {});
+    }
 
     // 手机号/邮箱：/user/self 返回解密后的本人资料
     if (typeof getSelfProfileAPI === 'function') {
@@ -168,10 +191,13 @@
         var d = data || {};
         var monthLabel = d.month ? d.month + ' 月' : '本月';
         statsEl.innerHTML =
-          statTile('课程数量', d.courseCount, '我创建的课程') +
-          statTile('排期数量', d.scheduleCount, '我名下的排期') +
-          statTile('预订排期人数', d.bookedStudentCount, '已预订的学生') +
-          statTile('本月完成课次', d.monthCompletedCount, monthLabel + '已完成');
+          statTile('<span data-term="course">课程</span>数量', d.courseCount, '我创建的<span data-term="course">课程</span>') +
+          statTile('<span data-term="schedule">排期</span>数量', d.scheduleCount, '我名下的<span data-term="schedule">排期</span>') +
+          statTile('预订<span data-term="schedule">排期</span>人数', d.bookedStudentCount, '已预订的<span data-term="student">学生</span>') +
+          statTile('本月完成<span data-term="lesson">上课</span>', d.monthCompletedCount, monthLabel + '已完成');
+        if (typeof applyTerms === 'function') {
+          try { applyTerms(statsEl); } catch (e) {}
+        }
       })
       .catch(function () {
         statsEl.innerHTML = '<div class="empty-tip">统计加载失败，请稍后重试</div>';

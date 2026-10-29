@@ -21,8 +21,8 @@
 
   function roleText(role) {
     switch (role) {
-      case 'student': return '学生';
-      case 'teacher': return '教师';
+      case 'student': return '<span data-term="student">学生</span>';
+      case 'teacher': return '<span data-term="teacher">教师</span>';
       case 'admin': return '管理员';
       case 'platform_admin': return '平台管理员';
       default: return role || '未知';
@@ -30,9 +30,10 @@
   }
 
   function row(label, valHtml) {
+    // label 允许直接传 HTML（data-term 行业词会用 span），不 esc
     return '<div style="margin-bottom:10px;">' +
       '<span style="color:var(--text-light-color);width:84px;display:inline-block;">' +
-      esc(label) + '</span><span>' + valHtml + '</span></div>';
+      label + '</span><span>' + valHtml + '</span></div>';
   }
 
   function renderStudentProfile(container) {
@@ -58,12 +59,12 @@
           '<div style="flex:1;">' +
             row('姓名：', '<span id="sp-name">' + esc(name || '—') + '</span>') +
             row('账号：', esc(account)) +
-            row('角色：', esc(role)) +
-            row('租户编码：', esc(tenant)) +
+            row('角色：', role) +
+            row('公司名称：', '<span id="sp-org">' + esc(tenant) + '</span>') +
           '</div>' +
         '</div>' +
         '<div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">' +
-          '<button class="btn btn-primary" id="sp-mybooking" type="button">我的预订</button>' +
+          '<button class="btn btn-primary" id="sp-mybooking" type="button">我的<span data-term="course">课程</span><span data-term="leave">取消课次</span></button>' +
         '</div>' +
       '</div>' +
       '<div class="card">' +
@@ -86,6 +87,23 @@
           '<i class="fa fa-weixin"></i> <span id="sp-wx-label">微信绑定</span></button>' +
         '</div>' +
       '</div>';
+
+    if (typeof applyTerms === 'function') {
+      try { applyTerms(container); } catch (e) {}
+    }
+
+    // 公司名称：GET /tenant/current 返回含 orgName 的当前租户
+    if (typeof request === 'function') {
+      request({ url: '/tenant/current', method: 'get' })
+        .then(function (t) {
+          if (!t) return;
+          var el = document.getElementById('sp-org');
+          if (el) {
+            el.textContent = t.orgName || t.tenantCode || '—';
+          }
+        })
+        .catch(function () {});
+    }
 
     // S2a：经 /user/name/{userId} 取权威姓名（会话里的 name 可能滞后）
     if (typeof getUserNameById === 'function' && u.userId) {
@@ -196,6 +214,9 @@
           html += '<div class="sp-stat-sub sp-stat-unknown">其它（未识别状态）' + unknown + '</div>';
         }
         cardsEl.innerHTML = html;
+        if (typeof applyTerms === 'function') {
+          try { applyTerms(cardsEl); } catch (e) {}
+        }
       })
       .catch(function () {
         cardsEl.innerHTML = '<div class="empty-tip">统计加载失败</div>';
@@ -203,6 +224,8 @@
   }
 
   function statTile(label, val, subs) {
+    // label 允许直接传 HTML（data-term 行业词），不 esc；
+    // subs 为硬编码字典值，esc 保持不变。
     var subHtml = '';
     if (subs) {
       var keys = Object.keys(subs).filter(function (k) { return subs[k] > 0; });
@@ -214,7 +237,7 @@
     }
     return '<div class="sp-stat-tile">' +
       '<div class="sp-stat-val">' + esc(String(val)) + '</div>' +
-      '<div class="sp-stat-label">' + esc(label) + '</div>' + subHtml + '</div>';
+      '<div class="sp-stat-label">' + label + '</div>' + subHtml + '</div>';
   }
 
   window.renderStudentProfile = renderStudentProfile;
