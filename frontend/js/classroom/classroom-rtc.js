@@ -1,132 +1,126 @@
 /**
- * classroom-rtc.js —— WebRTC 音视频模块
+ * classroom-rtc.js —— 音视频门面（对外唯一入口）
  *
- * 说明：后端 classroom-service 仅提供 WS 广播转发（/ws/classrooms/{sid}/signal），
- * 不返回 rtcConfig，也无独立信令服务器。因此本模块采用「WS signal 通道 + 浏览器原生
- * RTCPeerConnection」实现 Mesh 音视频协商：
- *   - 本地：getUserMedia 采集，渲染本地 tile（镜像）
- *   - 协商：新成员加入广播 rtc-peer-join；按 userId 字典序决定 offer 发起方，避免双发冲突
- *   - 交换：rtc-offer / rtc-answer / rtc-ice
- *   - 降级：无摄像头/无权限/不支持时显示头像占位，不阻断其他功能
+ * 拆解后的分工：
+ *   - 后端 com.classroom.rtc.* 决定「用哪家、怎么签凭证」，下发一份统一 config；
+ *   - js/classroom/rtc/rtc-engine.js  选引擎（mesh / livekit / agora / trtc）；
+ *   - js/classroom/rtc/engine-mesh.js 原生 WebRTC 全互联（默认 + 兜底）；
+ *   - js/classroom/rtc/engine-sdk.js  商用/自建 SFU 适配。
+ *
+ * 本文件只做三件事：拉 config → 建引擎 → 把页面对 ClassroomRTC 的调用翻译给引擎。
+ * 对外 API 与拆分前完全一致（controls / teacher / main 三个模块无需改动）。
  */
 (function () {
-  var config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-
   var ClassroomRTC = {
     ctx: null,
-    localStream: null,
-    peers: {},          // userId -> RTCPeerConnection
-    remoteStreams: {},  // userId -> MediaStream
-    grid: null,
+    engine: null,
+    config: null,
+    provider: 'native-mesh',
+    topology: 'MESH',
     mediaOk: false,
     micEnabled: true,
     camEnabled: true,
-    serverMuted: false,   // F4-17：服务端全员禁言态（学生不可自解）
+    serverMuted: false,
 
     init: function (ctx) {
+      var self = this;
       this.ctx = ctx || {};
-      this.grid = document.getElementById('video-grid');
-      this.renderLocalTile();
-      this.startLocalMedia();
+      // 引擎自降级回调：SDK 挂了就换 mesh，课堂不能没声音
+      this.ctx.onFallback = function (reason) { self._fallbackToMesh(reason); };
+      this._fetchConfig()
+        .then(function (cfg) { self._applyConfig(cfg); })
+        .catch(function (e) {
+          console.warn('[RTC] 拉取媒体配置失败，使用原生 mesh', e);
+          self._applyConfig(null);
+        });
       return this;
     },
 
-    // 信令分发入口：由 classroom-main.js 的 WS onSignal 统一调用
-    onSignal: function (msg) {
-      if (!msg || !msg.type) return;
-      switch (msg.type) {
-        case 'rtc-peer-join': this.onPeerJoin(msg); break;
-        case 'rtc-peer-leave': this.onPeerLeave(msg); break;
-        case 'rtc-offer': this.onOffer(msg); break;
-        case 'rtc-answer': this.onAnswer(msg); break;
-        case 'rtc-ice': this.onIce(msg); break;
-        default: break;
+    _fetchConfig: function () {
+      if (!this.ctx.scheduleId || !window.ClassroomAPI
+          || typeof window.ClassroomAPI.getRtcConfig !== 'function') {
+        return Promise.reject(new Error('课堂接口未就绪'));
       }
+      return window.ClassroomAPI.getRtcConfig(this.ctx.apiBaseUrl, this.ctx.scheduleId);
     },
 
-    startLocalMedia: function () {
+    _applyConfig: function (cfg) {
+      this.config = cfg || null;
+      if (cfg) {
+        this.provider = cfg.provider || 'native-mesh';
+        this.topology = String(cfg.topology || 'MESH').toUpperCase();
+      } else {
+        this.provider = 'native-mesh';
+        this.topology = 'MESH';
+      }
+      this._buildEngine(cfg);
+    },
+
+    _buildEngine: function (cfg) {
       var self = this;
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        this.mediaOk = false;
-        this.updateLocalTile();
-        this.toast('当前浏览器不支持音视频采集，已切换为仅观看');
+      if (!window.ClassroomRtcEngine) {
+        this.toast('音视频模块未加载');
         return;
       }
-      navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-        .then(function (stream) {
-          self.localStream = stream;
-          self.mediaOk = true;
-          self.updateLocalTile();
-          self._broadcastJoin();
-        })
-        .catch(function (err) {
-          self.mediaOk = false;
-          self.updateLocalTile();
-          self.toast('无法访问摄像头/麦克风：' + (err && err.name ? err.name : '未知错误'));
-        });
-    },
-
-    _broadcastJoin: function () {
-      if (window.ClassroomWS && this.ctx.scheduleId) {
-        window.ClassroomWS.sendSignal(this.ctx.scheduleId, {
-          type: 'rtc-peer-join',
-          from: this.ctx.userId,
-          name: this.ctx.userName,
-          role: this.ctx.role
-        });
+      if (this.engine) {
+        try { this.engine.leave(); } catch (e) { /* 旧引擎清理失败不影响重建 */ }
       }
-    },
+      this.engine = window.ClassroomRtcEngine.create(this.ctx, cfg);
+      this.provider = this.engine.name;
+      this.topology = this.engine.topology;
+      var grid = document.getElementById('video-grid');
+      if (grid) grid.setAttribute('data-topology', this.topology);
 
-    renderLocalTile: function () {
-      if (!this.grid) return;
-      var tile = document.createElement('div');
-      tile.className = 'video-tile is-local';
-      tile.id = 'vt-local';
-      tile.innerHTML =
-        '<div class="vt-avatar">' + this._initial(this.ctx.userName) + '</div>' +
-        '<video id="vt-local-video" autoplay playsinline muted></video>' +
-        '<span class="vt-label">' + this._escape(this.ctx.userName || '我') + '（我）</span>' +
-        '<span class="vt-muted" id="vt-local-muted" style="display:none;"><i class="fas fa-microphone-slash"></i></span>';
-      this.grid.appendChild(tile);
-    },
-
-    updateLocalTile: function () {
-      var video = document.getElementById('vt-local-video');
-      var tile = document.getElementById('vt-local');
-      if (!tile) return;
-      var avatar = tile.querySelector('.vt-avatar');
-      if (this.mediaOk && this.localStream) {
-        if (video && video.srcObject !== this.localStream) {
-          video.srcObject = this.localStream;
+      this.engine.join().then(function () {
+        self.mediaOk = !!self.engine.mediaOk;
+        self.micEnabled = true;
+        self.camEnabled = !(cfg && cfg.canPublishVideo === false);
+        // 采集结果会改变控制栏按钮的可用态，重渲染一次
+        if (window.ClassroomControls && typeof window.ClassroomControls.render === 'function') {
+          try { window.ClassroomControls.render(); } catch (e) { /* console only */ }
         }
-        if (avatar) avatar.style.display = 'none';
-        if (video) video.style.display = '';
-      } else {
-        if (avatar) avatar.style.display = 'flex';
-        if (video) video.style.display = 'none';
+      });
+    },
+
+    /** SDK 引擎失败兜底：强制换回 mesh（保留后端下发的 ICE/maxPeers，别把 TURN 丢了） */
+    _fallbackToMesh: function (reason) {
+      var meshCfg = {
+        provider: 'native-mesh',
+        topology: 'MESH',
+        sdkType: 'native',
+        maxPeers: (this.config && this.config.maxPeers) || 6,
+        iceServers: (this.config && this.config.iceServers) || null
+      };
+      this.toast('已切换为原生音视频（' + (reason || '服务不可用') + '）');
+      this._buildEngine(meshCfg);
+    },
+
+    // 信令分发：只有 mesh 引擎关心 SDP/ICE
+    onSignal: function (msg) {
+      if (this.engine && typeof this.engine.onSignal === 'function') {
+        this.engine.onSignal(msg);
       }
     },
 
     setMicEnabled: function (on) {
-      this.micEnabled = !!on;
-      if (this.localStream) {
-        this.localStream.getAudioTracks().forEach(function (t) { t.enabled = on; });
+      on = !!on;
+      // 服务端全员禁言：学生不可自解（教师/管理员豁免）
+      if (on && this.serverMuted && this._isStudent()) {
+        this.toast('老师已全员禁言，暂不能开麦');
+        return false;
       }
-      var m = document.getElementById('vt-local-muted');
-      if (m) m.style.display = on ? 'none' : '';
+      this.micEnabled = this.engine ? this.engine.setMicEnabled(on) : on;
       return this.micEnabled;
     },
 
     setCamEnabled: function (on) {
-      this.camEnabled = !!on;
-      if (this.localStream) {
-        this.localStream.getVideoTracks().forEach(function (t) { t.enabled = on; });
-      }
-      var tile = document.getElementById('vt-local');
-      if (tile) tile.classList.toggle('cam-off', !on);
+      on = !!on;
+      this.camEnabled = this.engine ? this.engine.setCamEnabled(on) : on;
       // F4-03：广播摄像头状态（教师关摄像头，学生端显式感知，刷新/重连者也能收到）
       if (window.ClassroomWS && this.ctx && this.ctx.scheduleId) {
-        window.ClassroomWS.sendSignal(this.ctx.scheduleId, { type: 'cam-state', on: on, userId: this.ctx.userId });
+        window.ClassroomWS.sendSignal(this.ctx.scheduleId, {
+          type: 'cam-state', on: on, userId: this.ctx.userId
+        });
       }
       return this.camEnabled;
     },
@@ -134,154 +128,38 @@
     // F4-17：服务端全员禁言态（学生被强制静音且不可自解；教师/管理员豁免）
     setServerMuted: function (b) {
       this.serverMuted = !!b;
-      if (b && this.ctx && this.ctx.role !== 'teacher' && this.ctx.role !== 'admin') {
-        this.setMicEnabled(false);
+      if (b && this._isStudent()) {
+        this.setMicEnabledDirect(false);
       }
     },
 
-    // F4-14：教师批准开麦 → 学生解除静音并开麦（覆盖服务端禁言态）
+    // F4-14：教师批准开麦 → 解除禁言并开麦
     grantMic: function () {
       this.serverMuted = false;
-      this.setMicEnabled(true);
+      this.setMicEnabledDirect(true);
     },
 
-    // ---- WebRTC 协商 ----
-    onPeerJoin: function (msg) {
-      var peerId = msg.from;
-      if (!peerId || peerId === this.ctx.userId) return;
-      this.renderRemoteTile(peerId, msg.name, msg.role);
-      // 字典序较大的一方发起 offer，避免双方同时发起
-      if ((this.ctx.userId || '') > peerId) {
-        this.createOffer(peerId);
-      }
+    /** 绕过禁言闸门的底层开关（供 setServerMuted/grantMic 内部调用） */
+    setMicEnabledDirect: function (on) {
+      this.micEnabled = this.engine ? this.engine.setMicEnabled(!!on) : !!on;
+      return this.micEnabled;
     },
 
-    onPeerLeave: function (msg) {
-      var peerId = msg.from;
-      if (!peerId) return;
-      this.closePeer(peerId);
-      var tile = document.getElementById('vt-' + peerId);
-      if (tile && tile.parentNode) tile.parentNode.removeChild(tile);
+    _isStudent: function () {
+      var role = (this.ctx && this.ctx.role) || '';
+      return role !== 'teacher' && role !== 'admin' && role !== 'platform_admin';
     },
 
-    _peer: function (peerId) {
-      if (this.peers[peerId]) return this.peers[peerId];
-      if (!window.RTCPeerConnection) return null;
-      var self = this;
-      var pc = new RTCPeerConnection(config);
-      this.peers[peerId] = pc;
-      if (this.localStream) {
-        this.localStream.getTracks().forEach(function (t) { pc.addTrack(t, self.localStream); });
-      }
-      pc.onicecandidate = function (e) {
-        if (e.candidate && window.ClassroomWS) {
-          window.ClassroomWS.sendSignal(self.ctx.scheduleId, {
-            type: 'rtc-ice', from: self.ctx.userId, to: peerId, candidate: e.candidate
-          });
-        }
-      };
-      pc.ontrack = function (e) {
-        var stream = (e.streams && e.streams[0]) ? e.streams[0] : null;
-        if (stream) {
-          self.remoteStreams[peerId] = stream;
-          var video = document.getElementById('vt-video-' + peerId);
-          if (video) { video.srcObject = stream; video.style.display = ''; }
-          var avatar = document.querySelector('#vt-' + peerId + ' .vt-avatar');
-          if (avatar) avatar.style.display = 'none';
-        }
-      };
-      return pc;
-    },
-
-    createOffer: function (peerId) {
-      var self = this;
-      var pc = this._peer(peerId);
-      if (!pc) return;
-      pc.createOffer()
-        .then(function (offer) { return pc.setLocalDescription(offer); })
-        .then(function () {
-          window.ClassroomWS.sendSignal(self.ctx.scheduleId, {
-            type: 'rtc-offer', from: self.ctx.userId, to: peerId, sdp: pc.localDescription
-          });
-        })
-        .catch(function (e) { console.warn('[RTC] createOffer failed', e); });
-    },
-
-    onOffer: function (msg) {
-      var self = this;
-      var peerId = msg.from;
-      var pc = this._peer(peerId);
-      if (!pc) return;
-      this.renderRemoteTile(peerId);
-      pc.setRemoteDescription(new RTCSessionDescription(msg.sdp))
-        .then(function () { return pc.createAnswer(); })
-        .then(function (answer) { return pc.setLocalDescription(answer); })
-        .then(function () {
-          window.ClassroomWS.sendSignal(self.ctx.scheduleId, {
-            type: 'rtc-answer', from: self.ctx.userId, to: peerId, sdp: pc.localDescription
-          });
-        })
-        .catch(function (e) { console.warn('[RTC] onOffer failed', e); });
-    },
-
-    onAnswer: function (msg) {
-      var pc = this.peers[msg.from];
-      if (pc && pc.signalingState !== 'stable') {
-        pc.setRemoteDescription(new RTCSessionDescription(msg.sdp))
-          .catch(function (e) { console.warn('[RTC] onAnswer failed', e); });
-      }
-    },
-
-    onIce: function (msg) {
-      if (msg.to && msg.to !== this.ctx.userId) return;
-      var pc = this.peers[msg.from];
-      if (pc && msg.candidate) {
-        pc.addIceCandidate(new RTCIceCandidate(msg.candidate))
-          .catch(function (e) { /* 候选到达早于远端描述时忽略 */ });
-      }
-    },
-
-    closePeer: function (peerId) {
-      var pc = this.peers[peerId];
-      if (pc) { try { pc.close(); } catch (e) {} }
-      delete this.peers[peerId];
-      delete this.remoteStreams[peerId];
-    },
-
-    renderRemoteTile: function (peerId, name, role) {
-      if (!this.grid || document.getElementById('vt-' + peerId)) return;
-      var tile = document.createElement('div');
-      tile.className = 'video-tile';
-      tile.id = 'vt-' + peerId;
-      tile.innerHTML =
-        '<div class="vt-avatar">' + this._initial(name) + '</div>' +
-        '<video id="vt-video-' + peerId + '" autoplay playsinline style="display:none;"></video>' +
-        '<span class="vt-label">' + this._escape(name || peerId) + (role ? '（' + this._escape(role) + '）' : '') + '</span>';
-      this.grid.appendChild(tile);
+    updateLocalTile: function () {
+      if (window.RtcTiles) window.RtcTiles.showVideo('local', !!(this.engine && this.engine.mediaOk));
     },
 
     leave: function () {
-      var self = this;
-      if (window.ClassroomWS && this.ctx.scheduleId) {
-        window.ClassroomWS.sendSignal(this.ctx.scheduleId, { type: 'rtc-peer-leave', from: this.ctx.userId });
+      if (this.engine) {
+        try { this.engine.leave(); } catch (e) { console.warn('[RTC] leave failed', e); }
+        this.engine = null;
       }
-      Object.keys(this.peers).forEach(function (pid) { self.closePeer(pid); });
-      if (this.localStream) {
-        this.localStream.getTracks().forEach(function (t) { t.stop(); });
-        this.localStream = null;
-      }
-    },
-
-    _initial: function (name) {
-      if (!name) return '?';
-      return String(name).charAt(0).toUpperCase();
-    },
-
-    _escape: function (s) {
-      if (s == null) return '';
-      return String(s).replace(/[&<>"]/g, function (c) {
-        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
-      });
+      this.mediaOk = false;
     },
 
     toast: function (msg) {

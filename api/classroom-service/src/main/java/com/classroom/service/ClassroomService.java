@@ -25,11 +25,14 @@ public class ClassroomService {
 
     private final ClassroomMapper classroomMapper;
     private final ClassroomClosingService closingService;
+    private final MediaService mediaService;
 
     public ClassroomService(ClassroomMapper classroomMapper,
-                            ClassroomClosingService closingService) {
+                            ClassroomClosingService closingService,
+                            MediaService mediaService) {
         this.classroomMapper = classroomMapper;
         this.closingService = closingService;
+        this.mediaService = mediaService;
     }
 
     public Classroom getById(String scheduleId) {
@@ -114,6 +117,13 @@ public class ClassroomService {
         update.setScheduleId(scheduleId);
         update.setActualStart(LocalDateTime.now());
         classroomMapper.updateById(update);
+        // 媒体房间随开课就绪：SFU 下这是真正建房，mesh 下只是把房间号算出来给前端。
+        // 失败不影响开课（课堂能进、只是走降级链路），故只记日志。
+        try {
+            mediaService.createRoom(scheduleId);
+        } catch (Exception e) {
+            log.error("开课时媒体房间创建失败（不影响开课）: scheduleId={}", scheduleId, e);
+        }
     }
 
     public void endClass(String scheduleId) {
@@ -128,6 +138,9 @@ public class ClassroomService {
         update.setScheduleId(scheduleId);
         update.setActualEnd(closeAt);
         classroomMapper.updateById(update);
+        // 先释放媒体房间再收尾：房间资源（SFU 扇出、云录制）是按时间计费的，
+        // 不能等出勤收尾那串 DB 操作跑完才放。
+        mediaService.destroyRoom(scheduleId);
         // 出勤收尾 + 课时回流：失败只记 ERROR 不回滚（状态已 CLOSED、人已离开），可人工补跑
         closingService.closeAfterEnd(scheduleId, closeAt);
     }

@@ -922,6 +922,10 @@ function maskEmail(email) {
     getClassroomStatus: function (apiBaseUrl, scheduleId) {
       return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/status'), method: 'get' });
     },
+    // 包3·P2：媒体进房配置（provider/topology/token/iceServers 由服务端派生，客户端不改写）
+    getRtcConfig: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/rtc/config'), method: 'get' });
+    },
     startClass: function (apiBaseUrl, scheduleId) {
       return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/start'), method: 'post' });
     },
