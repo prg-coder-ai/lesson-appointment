@@ -473,11 +473,7 @@ async function renderStudentBookingCards() {
                 if (item.__hasPublishedSchedule === false) {
                     // 该课程暂未发布任何排期：隐藏「点击查看排期」，改为「待排期，可联系管理员」按钮。
                     // 学生点此打开站内信发送页（默认接收范围=本租户管理员），可编辑诉求后发送。
-                    if (tags.length) {
-                        const tagLine = document.createElement('div');
-                        tagLine.innerText = tags.join('  ·  ');
-                        meta.appendChild(tagLine);
-                    }
+                    if (tags.length) meta.innerText = tags.join('  ·  ');
                     const contactBtn = document.createElement('button');
                     contactBtn.type = 'button';
                     contactBtn.className = 'btn btn-default btn-sm';
@@ -496,19 +492,20 @@ async function renderStudentBookingCards() {
                 // S1：课程特色（chip 标签；多值按中英文逗号/分号拆分）。
                 if (item.feature) {
                     const featWrap = document.createElement('div');
-                    featWrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;';
+                    // 纵向堆叠：每个 chip 独占一行（分组 6 独占）
+                    featWrap.style.cssText = 'display:flex;flex-direction:column;gap:4px;margin-top:6px;';
                     String(item.feature).split(/[,;，；]/).map(function (s) { return s.trim(); })
                         .filter(Boolean).forEach(function (f) {
                             const chip = document.createElement('span');
                             chip.style.cssText = 'font-size:11px;color:#722ed1;background:#f3eaff;'
-                                + 'border:1px solid #e3d2ff;border-radius:10px;padding:1px 8px;';
+                                + 'border:1px solid #e3d2ff;border-radius:10px;padding:1px 8px;display:inline-block;align-self:flex-start;';
                             chip.textContent = f;
                             featWrap.appendChild(chip);
                         });
                     card.appendChild(featWrap);
                 }
 
-                // S1：课时 / 形式 / 费用 三联（仅当字段存在且有意义时展示，缺失不显示 undefined）。
+                // S1：课时 / 形式 / 费用 三联 —— 合并一行（分组 7+8+9）
                 const props = [];
                 if (item.classDuration && Number(item.classDuration) > 0) {
                     props.push('课时:' + Number(item.classDuration) + '分钟');

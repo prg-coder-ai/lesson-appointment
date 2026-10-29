@@ -353,6 +353,10 @@ public final class AuthzRules {
         // 教师图片上传（头像/证书）：本人或管理员可上传，返回可访问 URL；需登录
         r.add(new Rule(HttpMethod.POST, "/api/v1/teacher/professional/upload", TEACHER_OR_ADMIN, "新增：教师图片上传（返回 URL，需登录）"));
 
+        // 教师端「个人中心」概览统计（课程数/排期数/预订人数/本月完成课次）。
+        // 统计对象恒为 Token 中的 userId（教师只能看自己，归属在方法体），此处按教师/管理员放行。
+        r.add(new Rule(HttpMethod.GET, "/api/v1/teacher/stats/summary", TEACHER_OR_ADMIN, "新增：教师个人中心统计（本人，归属在方法体）"));
+
         // ==================== 五、全部已登录角色 ====================
         // 业务读接口或"改自己的数据"接口：任何登录角色都可用。
 
