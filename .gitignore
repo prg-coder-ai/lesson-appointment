@@ -115,3 +115,7 @@ cloudBased/env
 # SQL 语义映射的中间产物：由 gen_upsert_sys_term.py 生成，内容是 GBK/UTF-8 混淆的乱码，
 # 且全仓无任何脚本读取它 → 不入库（需要时本地重新生成）。
 api/sql/schema/_semmap.tsv
+api/classroom-service/target
+cloudBased/*.zip
+cloudBased/api/target/*.jar
+cloudBased/message-service/target/message-service-1.1.0.jar
