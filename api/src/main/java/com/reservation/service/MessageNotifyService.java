@@ -1,15 +1,20 @@
 package com.reservation.service;
 
 import com.reservation.common.RoleConst;
+import com.reservation.common.ScheduleGenerator;
+import com.reservation.entity.Appointment;
 import com.reservation.entity.Booking;
+import com.reservation.entity.CourseSchedule;
 import com.reservation.entity.User;
 import com.reservation.mapper.BookingMapper;
+import com.reservation.mapper.CourseScheduleMapper;
 import com.reservation.utils.JwtUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -17,9 +22,12 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.Resource;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -34,12 +42,150 @@ import java.util.Map;
 @Service
 public class MessageNotifyService {
 
+    /**
+     * 通知正文里课次时间的格式：分钟精度足够（课次本身以分钟为单位），
+     * 且秒数对「几点上课」这个信息没有意义，还会让人多扫一眼。
+     */
+    private static final DateTimeFormatter FIRST_LESSON_FMT =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
     @Value("${message.service.base-url:http://localhost:8090}")
     private String baseUrl;
 
     private final JwtUtil jwtUtil;
     private final UserService userService;
     private final BookingMapper bookingMapper;
+
+    /** 递补通知要带首节课时间，故读取课次表 */
+    @Resource
+    private AppointmentService appointmentService;
+
+    /** 课次时间是 UTC，通知正文要按排期时区渲染成人能对上的墙上时间，
+     *  故须由 booking.schedule_id 取排期时区（见 firstAppointmentText）。 */
+    @Resource
+    private CourseScheduleMapper courseScheduleMapper;
+
+    /** 通知正文要按租户行业词渲染（法律咨询租户应看到「咨询话题/预约时间/咨询」而不是「课程/上课时间/上课」） */
+    @Resource
+    private TermService termService;
+
+    /* ==================================================================
+     * 通知文案模板（集中在此，便于一眼看清"哪些词是行业相关的"）
+     *
+     * {key} 是**术语占位符**，发送时按「租户词 > 行业词 > 平台词」逐级取词渲染
+     * （见 {@link TermService#renderTemplate}）。三条写作规矩：
+     *
+     *   ① 凡行业相关名词一律写 {key}，**绝不写死「课程/上课/学生/排期/教师」**——
+     *      写死等于把教育行业的话术原样发给律所、心理咨询、健身房租户。
+     *   ② 只有模板里**显式写出**的 {key} 才取词；动态数据（课次时间、人名）不走占位符，
+     *      否则数据里恰好含锚点词（排期名就叫「课程A」）会被误改。
+     *   ③ 所有作用域都查不到的 key **原样保留 {key}**，拼错在测试期即暴露
+     *      （e2e 第 15 组静态护栏会直接红），不静默清空。
+     *
+     * 可用 key 清单见 frontend/js/public/terms.js 的 TERM_KEYS；新增 key 需同步
+     * 平台词(industry_id=0,tenant_id=0)，否则行业租户会回退到平台词或裸露 {key}。
+     *
+     * 之所以不在发送后由前端替换：消息正文落库即静态文本，且 message-service 的库
+     * （message_center）根本没有 sys_term 表，只有业务端取得到词。
+     * 代价是词表后续调整不会回溯改写历史消息——通知作为"当时发生了什么"的凭证，
+     * 保持不可变更合理。
+     * ================================================================== */
+
+    /** 学生预订 → 教师 + 管理员 */
+    private static final String BOOKING_CREATED_TITLE = "新的{course}预约";
+    private static final String BOOKING_CREATED_BODY = "您有一笔新的{course}预约待处理。";
+
+    /** 学生候补（名额已满）→ 教师 + 管理员。标题与预订不同，用于在同一分类下区分两类待处理项 */
+    private static final String WAITLIST_CREATED_TITLE = "新的候补申请";
+    private static final String WAITLIST_CREATED_BODY =
+            "有名额已满的{schedule}收到候补申请，请留意名额释放后的补位处理。";
+
+    /** 学生请假（法律/心理咨询行业词为「改期」）→ 教师 + 管理员 */
+    private static final String LEAVE_CREATED_TITLE = "{student}{leave}申请";
+    private static final String LEAVE_CREATED_BODY = "{student}提交了{leave}申请，请及时处理。";
+
+    /** 管理员确认通知的标题（预订与请假共用） */
+    private static final String STUDENT_CONFIRMED_TITLE = "预约已确认";
+    /** 管理员确认预订 → 学生 */
+    private static final String STUDENT_CONFIRMED_BOOKING_BODY = "您的{course}预约已被管理员确认。";
+    /** 管理员确认请假（法律/心理咨询行业词为「改期」）→ 学生 */
+    private static final String STUDENT_CONFIRMED_LEAVE_BODY = "您的{leave}已被管理员确认。";
+
+    /**
+     * 「确认了什么」的动作码，由 Controller 传入。
+     *
+     * <p>刻意不传中文短语：文案常量全部留在本类，控制层只表达语义，
+     * 否则「课程预约」这类行业相关词就会散落到 Controller 里——
+     * 写死一处漏一处，静态护栏（e2e 第 15 组）也扫不到。
+     */
+    public static final String ACTION_BOOKING = "BOOKING";
+    public static final String ACTION_LEAVE = "LEAVE";
+
+    /**
+     * 递补成功通知正文，分三段拼装（首节课那句在查不到课次时整段省略）。
+     *
+     * <p>与上面几条的区别：正文含动态数据（首节课时间），故术语词与数据合并成
+     * 一个 Map 一次渲染（详见 {@link TermService#renderTemplate(String, Map)}）。
+     */
+    private static final String WAITLIST_PROMOTED_HEAD =
+            "恭喜！你申请的候补已递补成功，正式获得该{course}名额，系统已为你生成时间表。";
+    private static final String WAITLIST_PROMOTED_FIRST =
+            "首次{lessonTime}：{firstLesson}。";
+    private static final String WAITLIST_PROMOTED_TAIL =
+            "请在「今日{course}」中查看并按时{lesson}。";
+
+    /* ==================================================================
+     * 上课提醒（档位文案）
+     *
+     * 时间点由「系统配置 → 通知规则」配置（表 course_notify_rule / course_notify_rule_point），
+     * 由 NotifyTask 定时触发；管理员也可在课次上手动发送一次
+     * （手动发送的 dedup_key 取 MANUAL#时间戳，不受自动幂等约束，但仍入库可审计）。
+     *
+     * 口吻按档位递进：首次预告「温馨提醒」→ 再次预告「再次提醒」
+     * → 课前预告「请准时」→ 最后提示「请立即准备」，
+     * 让收到的人一眼看出紧迫程度，而不是四条一模一样的消息。
+     *
+     * 动态数据一律用 **非术语 key** 的占位符（{lessonAt} / {offsetText}）：
+     * {lessonTime} 本身是术语 key（取值「上课时间」），若拿它当动态数据的占位符，
+     * 插进词表 Map 时会把术语词覆盖掉——参考 WAITLIST_PROMOTED_FIRST 用 {firstLesson} 的同款规避。
+     *
+     * <p><b>{lessonAt} 自带括号</b>（形如「（2026-10-09 21:00，中国标准时间）」），
+     * 取不到排期时区时传空串——若把括号写死在模板里，空值会留下一个孤零零的「（）」。
+     * ================================================================== */
+
+    private static final String REMIND_FIRST_TITLE = "{courseName}{lesson}预告";
+    private static final String REMIND_FIRST_BODY =
+            "温馨提醒：本节{course}将在{offsetText}后开始{lessonAt}，请提前安排时间。";
+
+    private static final String REMIND_AGAIN_TITLE = "{courseName}{lesson}预告";
+    private static final String REMIND_AGAIN_BODY =
+            "再次提醒：本节{course}将在{offsetText}后开始{lessonAt}，请留意时间安排。";
+
+    private static final String REMIND_SOON_TITLE = "{courseName}{lesson}即将开始";
+    private static final String REMIND_SOON_BODY =
+            "本节{course}将在{offsetText}后开始{lessonAt}，请准时{lesson}。";
+
+    private static final String REMIND_FINAL_TITLE = "{courseName}{lesson}即将开始（最后提示）";
+    private static final String REMIND_FINAL_BODY =
+            "最后提示：本节{course}将在{offsetText}后开始{lessonAt}，请立即准备。";
+
+    /**
+     * 上课提醒的消息分类编码。
+     *
+     * <p>取平台预置的 {@code SYSTEM_SCHEDULE}（父级「系统通知」）而不是 {@code CLASS_NOTICE}：
+     * 后者父级是「教师/管理员消息」，而上课提醒同时发给学生与教师，学生收到一条挂在
+     * 「教师/管理员消息」下的通知会让人困惑。分类是预置数据，编码写错 message-service 会
+     * 返回 code!=200 且 HTTP 仍是 200——本类已按 body.code 判定，不会静默记成功。
+     */
+    private static final String CATEGORY_CLASS_NOTICE = "SYSTEM_SCHEDULE";
+
+    /** 以 system 身份发送时的 JWT 主体（message-service 的 RoleConst.SYSTEM 已放行系统通知端点） */
+    private static final String SYSTEM_PRINCIPAL = "system";
+
+    private static final String STAGE_PRE_FIRST = "PRE_FIRST";
+    private static final String STAGE_PRE_SOON = "PRE_SOON";
+    private static final String STAGE_FINAL_CALL = "FINAL_CALL";
+
     private RestTemplate restTemplate;
 
     public MessageNotifyService(JwtUtil jwtUtil, UserService userService, BookingMapper bookingMapper) {
@@ -58,32 +204,152 @@ public class MessageNotifyService {
 
     // ============ 业务钩子入口 ============
 
-    /** 学生预订课程 → 通知教师 + 本租户管理员（发送者=学生） */
+    /** 学生预订课程 → 通知教师 + 本租户管理员（发送者=学生）。文案按该租户的行业词渲染 */
     public void notifyBookingCreated(String bookingId) {
         Booking b = bookingMapper.selectByIdIgnoreTenant(bookingId);
         if (b == null || b.getStudentId() == null || b.getTeacherId() == null) return;
-        notifyTeacherAndAdmin(b.getStudentId(), b.getTeacherId(), b.getTenantId(),
-                "新的课程预约", "您有一笔新的课程预约待处理。", "BOOKING_CREATED");
+        Long tenantId = b.getTenantId();
+        notifyTeacherAndAdmin(b.getStudentId(), b.getTeacherId(), tenantId,
+                render(tenantId, BOOKING_CREATED_TITLE), render(tenantId, BOOKING_CREATED_BODY),
+                "BOOKING_CREATED");
     }
 
-    /** 学生请假（appointment）→ 通知教师 + 本租户管理员（发送者=学生） */
+    /** 学生候补预订（排期名额已满）→ 通知教师 + 本租户管理员（发送者=学生）
+     *  分类与正常预订同为 BOOKING_CREATED：管理员在同一分类下看到预约与候补两类待处理项，
+     *  靠「新的候补申请」这一标题区分，不额外增加分类维度。 */
+    public void notifyWaitlistCreated(String bookingId) {
+        Booking b = bookingMapper.selectByIdIgnoreTenant(bookingId);
+        if (b == null || b.getStudentId() == null || b.getTeacherId() == null) return;
+        Long tenantId = b.getTenantId();
+        notifyTeacherAndAdmin(b.getStudentId(), b.getTeacherId(), tenantId,
+                render(tenantId, WAITLIST_CREATED_TITLE), render(tenantId, WAITLIST_CREATED_BODY),
+                "BOOKING_CREATED");
+    }
+
+    /** 学生请假（appointment）→ 通知教师 + 本租户管理员（发送者=学生）。
+     *  教育行业话术是「学生请假申请」，法律/心理咨询行业词取「客户改期申请」，
+     *  故标题与正文的「学生」「请假」都必须走术语占位符。 */
     public void notifyLeaveCreated(String bookingId) {
         if (bookingId == null) return;
         Booking b = bookingMapper.selectByIdIgnoreTenant(bookingId);
         if (b == null || b.getStudentId() == null || b.getTeacherId() == null) return;
-        notifyTeacherAndAdmin(b.getStudentId(), b.getTeacherId(), b.getTenantId(),
-                "学生请假申请", "学生提交了请假申请，请及时处理。", "LEAVE_CREATED");
+        Long tenantId = b.getTenantId();
+        notifyTeacherAndAdmin(b.getStudentId(), b.getTeacherId(), tenantId,
+                render(tenantId, LEAVE_CREATED_TITLE), render(tenantId, LEAVE_CREATED_BODY),
+                "LEAVE_CREATED");
     }
 
-    /** 管理员确认预订/请假 → 通知学生（发送者=当前登录管理员） */
-    public void notifyStudentConfirmed(String bookingId, String actionLabel) {
+    /**
+     * 管理员确认预订/请假 → 通知学生（发送者=当前登录管理员）。
+     *
+     * @param actionCode 确认了什么：{@link #ACTION_BOOKING} 或 {@link #ACTION_LEAVE}；
+     *                   其余值一律按「确认预订」处理（与旧的默认行为一致）。
+     */
+    public void notifyStudentConfirmed(String bookingId, String actionCode) {
         Booking b = bookingMapper.selectByIdIgnoreTenant(bookingId);
         if (b == null || b.getStudentId() == null) return;
         AuthInfo ai = currentAuthFromRequest();
         if (ai == null) return;
+        String tpl = ACTION_LEAVE.equals(actionCode)
+                ? STUDENT_CONFIRMED_LEAVE_BODY : STUDENT_CONFIRMED_BOOKING_BODY;
         send(ai.userId, ai.role, ai.tenantId, Collections.singletonList(b.getStudentId()),
-                "预约已确认", "您的" + (actionLabel == null ? "预约" : actionLabel) + "已被管理员确认。",
+                STUDENT_CONFIRMED_TITLE, render(b.getTenantId(), tpl),
                 "MEDIUM", "BOOKING_CONFIRMED");
+    }
+
+    /**
+     * 管理员把候补递补为正式预订（waiting → booked）→ 通知该学生（发送者=当前登录管理员）。
+     *
+     * <p>与「预约已确认」用不同标题/正文，因为学生此时在候补队列里等过，
+     * 需要的是一条明确的"你被选上了"的消息，而不是通用确认话术。
+     * 正文带上首节课时间（递补时课次已生成），让消息本身可行动。
+     *
+     * <p>正文按**该租户的行业词**渲染（见 WAITLIST_PROMOTED_* 模板）：
+     * 法律咨询租户的学生收到的是「正式获得该咨询话题名额…首次预约时间…按时咨询」，
+     * 而不是教育行业的「课程/上课时间/上课」。
+     */
+    public void notifyWaitlistPromoted(String bookingId) {
+        Booking b = bookingMapper.selectByIdIgnoreTenant(bookingId);
+        if (b == null || b.getStudentId() == null) return;
+        AuthInfo ai = currentAuthFromRequest();
+        if (ai == null) return;
+
+        // 取词用 booking 所属租户（兜底用当前操作者的租户）：两者正常一致，
+        // 但 booking 上的 tenant_id 才是这条消息真正归属的租户，语义更准确。
+        Long tenantId = b.getTenantId() != null ? b.getTenantId() : ai.tenantId;
+
+        // 术语词与动态数据合并成一张 Map 一次性渲染：
+        // 数据值里即使含 {xxx} 也不会被二次展开，且不会与术语 key 冲突。
+        Map<String, String> vars = new LinkedHashMap<>(termService.getTermMap(tenantId, null));
+        String firstLesson = firstAppointmentText(bookingId);
+        if (firstLesson != null) {
+            vars.put("firstLesson", firstLesson);
+        }
+
+        StringBuilder content = new StringBuilder();
+        content.append(termService.renderTemplate(WAITLIST_PROMOTED_HEAD, vars));
+        if (firstLesson != null) {           // 查不到课次时整句省略，避免出现"首次上课时间：。"
+            content.append(termService.renderTemplate(WAITLIST_PROMOTED_FIRST, vars));
+        }
+        content.append(termService.renderTemplate(WAITLIST_PROMOTED_TAIL, vars));
+
+        send(ai.userId, ai.role, ai.tenantId, Collections.singletonList(b.getStudentId()),
+                "候补递补成功", content.toString(), "MEDIUM", "BOOKING_CONFIRMED");
+    }
+
+    /**
+     * 取该 booking 最早一次课的时间文案，用于通知正文；查不到返回 null（不影响消息发送）。
+     *
+     * <p><b>时区口径</b>：课次 {@code appointment_datetime} 自 2026-10-08 起是 UTC，
+     * 直接 {@code toString()} 会把 "13:00" 之类的 UTC 数字甩给用户，与本地差 6~7 小时。
+     * 故按「booking → schedule → course_schedule.time_zone」取排期时区再转成墙上时间，
+     * 并由 {@link ScheduleGenerator#utcToZonedText} 附上时区标注。
+     *
+     * <p><b>为什么用排期时区而不是"阅读者时区"</b>：通知是异步派发的，线程里拿不到
+     * "谁在读这条消息"（根因是 {@code user} 表没有 time_zone 列）。
+     * 排期时区是通知产生那一刻唯一确定的时区；页面展示则由前端按各自本地时区渲染——
+     * 两者语义不同，是刻意取舍。
+     *
+     * <p><b>取不到时区就整句省略</b>（返回 null），而不是降级成 UTC：
+     * 正文是一个裸数字，读者无从判断它是哪个时区的时间，误读的代价（按错时间出门）
+     * 远大于少一句时间提示。
+     */
+    private String firstAppointmentText(String bookingId) {
+        try {
+            String zone = resolveScheduleZone(bookingId);
+            if (zone == null) {
+                return null;   // 排期已被删/ 时区为空 → 宁可不说时间，也不说一个错时区的时间
+            }
+            List<Appointment> list = appointmentService.getByBookingId(bookingId);
+            if (list == null || list.isEmpty()) return null;
+            for (Appointment a : list) {
+                if (a != null && a.getAppointmentDatetime() != null) {
+                    // getByBookingId 已按 appointment_datetime 升序，首个非空即最早一次课
+                    return ScheduleGenerator.utcToZonedText(a.getAppointmentDatetime(), zone, FIRST_LESSON_FMT);
+                }
+            }
+            return null;
+        } catch (Exception e) {
+            log.debug("取首节课时间失败（忽略）: bookingId={}, {}", bookingId, e.getMessage());
+            return null;
+        }
+    }
+
+    /** 由 bookingId 反查排期时区；查不到返回 null（由调用方按 UTC 降级，不抛异常）。 */
+    private String resolveScheduleZone(String bookingId) {
+        try {
+            Booking b = bookingMapper.selectOne(
+                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Booking>()
+                            .eq(Booking::getBookingId, bookingId));
+            if (b == null || b.getScheduleId() == null || b.getScheduleId().trim().isEmpty()) {
+                return null;
+            }
+            CourseSchedule cs = courseScheduleMapper.selectById(b.getScheduleId());
+            return cs == null ? null : cs.getTimeZone();
+        } catch (Exception e) {
+            log.debug("反查排期时区失败（按 UTC 降级）: bookingId={}, {}", bookingId, e.getMessage());
+            return null;
+        }
     }
 
     /** 平台管理员修改租户套餐配额 → 通知该租户管理员（发送者=当前平台管理员） */
@@ -100,7 +366,72 @@ public class MessageNotifyService {
                 "MEDIUM", "TENANT_PACKAGE_CHANGED");
     }
 
+    /**
+     * 上课提醒 → 指定收件人（发送者身份 = system，故不依赖登录上下文，定时任务可直接调用）。
+     *
+     * <p><b>为什么走 /system 而不是 /send</b>：/send 的发送者取自请求头 JWT，而定时任务没有 HTTP 请求；
+     * 若退而求其次拿某个管理员或学生当发送者，消息的「发件人」就会随机化且不稳定。
+     * message-service 的 {@code RoleConst.SYSTEM} 正是为「业务系统触发」预留的。
+     *
+     * <p>本方法只负责「渲染 + 投递」，不管幂等也不管收件人筛选：
+     * 幂等由调用方先在 {@code notification_dispatch_log} 抢到那一行来保证（插入成功才轮到推送），
+     * 收件人由调用方按 {@code audience} 从订单上取学生/教师。
+     *
+     * @param tenantId       目标租户（消息归属与词表都按它取）
+     * @param recipientIds   收件人用户ID
+     * @param stage          档位码，决定用哪套文案
+     * @param courseName     课程名（放进标题，让管理端消息列表一眼看出是哪门课）
+     * @param offsetText     提前量文案，如「3 天」「30 分钟」
+     * @param lessonAtClause 上课时间短语，**自带括号**，如「（2026-10-09 21:00，中国标准时间）」；
+     *                       取不到排期时区时传空串（整句省略，别留一个空括号）
+     * @return true = 已成功投递给 message-service；false = 失败（调用方据此把流水标 FAILED）
+     */
+    public boolean notifyLessonReminder(Long tenantId, List<String> recipientIds, String stage,
+                                        String courseName, String offsetText, String lessonAtClause) {
+        if (recipientIds == null || recipientIds.isEmpty()) {
+            return false;
+        }
+        String titleTpl;
+        String bodyTpl;
+        String s = stage == null ? "" : stage.trim().toUpperCase();
+        if (STAGE_PRE_FIRST.equals(s)) {
+            titleTpl = REMIND_FIRST_TITLE;
+            bodyTpl = REMIND_FIRST_BODY;
+        } else if (STAGE_PRE_SOON.equals(s)) {
+            titleTpl = REMIND_SOON_TITLE;
+            bodyTpl = REMIND_SOON_BODY;
+        } else if (STAGE_FINAL_CALL.equals(s)) {
+            titleTpl = REMIND_FINAL_TITLE;
+            bodyTpl = REMIND_FINAL_BODY;
+        } else {
+            titleTpl = REMIND_AGAIN_TITLE;
+            bodyTpl = REMIND_AGAIN_BODY;
+        }
+
+        // 术语词与动态数据合并成一张 Map 一次性渲染：
+        // 数据值里即使含 {xxx} 也不会被二次展开（renderTemplate 单遍扫描），
+        // 故课程名恰好叫「{course}」也不会把消息内容改坏。
+        Map<String, String> vars = new LinkedHashMap<>(termService.getTermMap(tenantId, null));
+        vars.put("courseName", courseName == null || courseName.isEmpty() ? "" : courseName);
+        vars.put("offsetText", offsetText == null ? "" : offsetText);
+        vars.put("lessonAt", lessonAtClause == null ? "" : lessonAtClause);
+
+        String title = termService.renderTemplate(titleTpl, vars);
+        String content = termService.renderTemplate(bodyTpl, vars);
+        return sendAsSystem(tenantId, recipientIds, title, content, CATEGORY_CLASS_NOTICE);
+    }
+
     // ============ 内部工具 ============
+    /**
+     * 按目标租户的词表渲染通知文案（{@code {course}} / {@code {lesson}} / {@code {student}}
+     * / {@code {leave}} / {@code {schedule}} 等占位符，租户词 &gt; 行业词 &gt; 平台词）。
+     *
+     * <p>tenantId 为 null/0 时只用平台词——这是刻意的兜底：宁可给出教育行业的通用说法，
+     * 也不让消息内容变成空的或裸露的占位符。
+     */
+    private String render(Long tenantId, String template) {
+        return termService.renderTemplate(template, tenantId, null);
+    }
 
     /** 学生 → 教师 + 本租户管理员（合并为一条群发） */
     private void notifyTeacherAndAdmin(String studentId, String teacherId, Long tenantId,
@@ -135,7 +466,7 @@ public class MessageNotifyService {
         }
     }
 
-    /** 生成发送者令牌并调用 message-service /send（best-effort） */
+    /** 生成发送者令牌并调用 message-service /api/v1/messages/send（best-effort） */
     private void send(String senderUserId, String senderRole, Long senderTenantId, List<String> recipientIds,
                       String title, String content, String priority, String categoryCode) {
         if (recipientIds == null || recipientIds.isEmpty() || senderUserId == null) return;
@@ -152,10 +483,69 @@ public class MessageNotifyService {
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setBearerAuth(token);
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
-            restTemplate.postForEntity(baseUrl + "/api/v1/messages/send", entity, Object.class);
+            ResponseEntity<Map> resp = restTemplate.postForEntity(baseUrl + "/api/v1/messages/send", entity, Map.class);
+            // message-service 业务失败时 HTTP 状态仍是 200，真实结果只在 body.code 里。
+            // 早期只看「HTTP 没抛异常」就记成功，导致 msg_category 缺编码时静默失败很久无人察觉。
+            Map<?, ?> rb = resp.getBody();
+            Object code = rb == null ? null : rb.get("code");
+            if (code != null && !"200".equals(String.valueOf(code))) {
+                log.warn("消息自动发送被拒 -> code={}, message={} | 接收人={}, 场景={}",
+                        code, rb.get("message"), recipientIds, categoryCode);
+                return;
+            }
             log.info("消息自动发送成功 -> 接收人{}, 场景{}", recipientIds, categoryCode);
         } catch (Exception e) {
             log.warn("消息自动发送失败(已忽略): {} | 接收人={}, 场景={}", e.getMessage(), recipientIds, categoryCode);
+        }
+    }
+
+    /**
+     * 以 system 身份调用 message-service 的 {@code /api/v1/messages/system}。
+     *
+     * <p>与 {@link #send} 的差别只有两点：端点不同（系统通知端点，服务端会把 senderRole 落成 system）、
+     * 发送者不是某个真实用户而是 {@code system}。其余（现签令牌、body.code 判定、best-effort）完全一致。
+     *
+     * <p><b>返回值是本次新增的语义</b>：{@link #send} 历来是 void（业务钩子的失败不影响主流程），
+     * 但上课提醒的失败必须让调用方知道，好在流水表里把该行标成 FAILED——
+     * 否则「已发送」的记录会掩盖「其实没发出去」，事后无从追查。
+     */
+    private boolean sendAsSystem(Long tenantId, List<String> recipientIds,
+                                 String title, String content, String categoryCode) {
+        if (recipientIds == null || recipientIds.isEmpty()) {
+            return false;
+        }
+        try {
+            Long tenant = tenantId == null ? 0L : tenantId;
+            String token = jwtUtil.generateToken(tenant, SYSTEM_PRINCIPAL, SYSTEM_PRINCIPAL);
+            Map<String, Object> body = new HashMap<>();
+            body.put("title", title);
+            body.put("content", content == null ? "" : content);
+            body.put("priority", "MEDIUM");
+            if (categoryCode != null) {
+                body.put("categoryCode", categoryCode);
+            }
+            body.put("recipientUserIds", recipientIds);
+            body.put("broadcast", Boolean.FALSE);
+            // 显式带上目标租户：system 身份下 message-service 优先取本字段决定消息归属
+            body.put("targetTenantId", tenant);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(token);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+            ResponseEntity<Map> resp = restTemplate.postForEntity(
+                    baseUrl + "/api/v1/messages/system", entity, Map.class);
+            Map<?, ?> rb = resp.getBody();
+            Object code = rb == null ? null : rb.get("code");
+            if (code != null && !"200".equals(String.valueOf(code))) {
+                log.warn("上课提醒发送被拒 -> code={}, message={} | 接收人={}, 租户={}",
+                        code, rb.get("message"), recipientIds, tenant);
+                return false;
+            }
+            log.info("上课提醒已发送 -> 租户{}, 接收人{}, 标题={}", tenant, recipientIds, title);
+            return true;
+        } catch (Exception e) {
+            log.warn("上课提醒发送失败: {} | 接收人={}, 租户={}", e.getMessage(), recipientIds, tenantId);
+            return false;
         }
     }
 

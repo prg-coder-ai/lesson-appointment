@@ -1,0 +1,23 @@
+<view class="page" wx:if="{{profile.publishedProfileId || profile.id}}">
+  <view class="hero">
+    <view class="hero-title">{{profile.title || '我的职业简介'}}</view>
+    <view class="hero-sub">{{profile.headline || ''}}</view>
+  </view>
+
+  <view class="card">
+    <view class="card-title">简介</view>
+    <view class="card-text">{{profile.intro || profile.bio || '尚未填写'}}</view>
+  </view>
+
+  <view class="card" wx:if="{{profile.highlights}}">
+    <view class="card-title">亮点</view>
+    <view class="card-text">{{profile.highlights}}</view>
+  </view>
+
+  <role-tabbar active="profile" bind:change="onTabChange" />
+</view>
+
+<view class="page" wx:else>
+  <view class="empty">尚未发布职业简介</view>
+  <role-tabbar active="profile" bind:change="onTabChange" />
+</view>

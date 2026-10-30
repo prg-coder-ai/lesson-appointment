@@ -1,0 +1,88 @@
+<view class="page">
+  <!-- 已发详情（投递状态，sender 视角）；from=manage（消息管理）/ from=ledger（接收台账）同走 delivery 视图 -->
+  <block wx:if="{{from === 'sent' || from === 'manage' || from === 'ledger'}}">
+    <view wx:if="{{loading}}" class="tip">加载中…</view>
+    <block wx:elif="{{delivery}}">
+      <view class="card">
+        <view class="title">{{delivery.title}}</view>
+        <view class="meta">
+          <text class="tag">接收 {{delivery.recipientCount}} 人</text>
+          <text class="tag warn">已读 {{delivery.readCount}} 人</text>
+          <text wx:if="{{from === 'ledger'}}" class="tag">{{delivery.statusText}}</text>
+          <text wx:if="{{from === 'ledger'}}" class="time">{{delivery.time}}</text>
+        </view>
+        <!-- 接收台账：平台方发来的消息，发送者另列一行（接收方视角更关心"谁发的"） -->
+        <view wx:if="{{from === 'ledger'}}" class="sender">
+          <view>发送者：{{delivery.senderLabel}}</view>
+        </view>
+      </view>
+      <view class="card body">
+        <text class="content">{{delivery.content || '（无正文内容）'}}</text>
+      </view>
+      <!-- 接收人明细（分页，触底加载更多）：谁收到 / 谁已读 / 何时读。
+           状态文案与样式类由 detail.js 的 toRecRow 算好（WXML 绑定禁止函数调用）。 -->
+      <view class="card">
+        <view class="rec-head">接收人（{{recTotal}}）
+          <text class="rec-tip">未读优先</text>
+          <!-- 接收台账：只看未读（台账最关心"谁还没看"），点击按钮切换后回第一页重取 -->
+          <text wx:if="{{from === 'ledger'}}" class="rec-toggle" bindtap="onToggleLedgerRead">{{ledgerOnlyUnread ? '显示全部' : '只看未读'}}</text>
+        </view>
+        <view wx:if="{{!recipients.length}}" class="rec-empty">{{recLoading ? '加载中…' : '暂无接收人记录'}}</view>
+        <block wx:else>
+          <view class="rec-row" wx:for="{{recipients}}" wx:key="userId">
+            <view class="rec-name">{{item.name}}<text wx:if="{{item.account}}" class="rec-acct">（{{item.account}}）</text></view>
+            <text wx:if="{{item.orgName}}" class="rec-org">{{item.orgName}}</text>
+            <text class="rec-state rec-{{item.stateCls}}">{{item.stateText}}</text>
+            <text class="rec-time">{{item.time}}</text>
+          </view>
+          <view wx:if="{{recLoading}}" class="rec-more">加载中…</view>
+          <view wx:elif="{{recipients.length < recTotal}}" class="rec-more">上拉加载更多（{{recipients.length}}/{{recTotal}}）</view>
+        </block>
+      </view>
+      <view wx:if="{{from === 'manage'}}" class="actions">
+        <button class="btn btn-del" bindtap="onManageDelete">彻底删除（永久）</button>
+      </view>
+      <view wx:elif="{{from === 'ledger'}}" class="hint">接收台账为只读视图；撤回 / 删除由发送方（平台）操作。</view>
+      <view wx:else class="hint">撤回 / 彻底删除请在「已发」列表页操作。</view>
+    </block>
+    <view wx:else class="tip">消息不存在或已删除</view>
+  </block>
+
+  <!-- 收件箱 / 收藏 / 回收站 详情 -->
+  <block wx:else>
+    <view wx:if="{{loading}}" class="tip">加载中…</view>
+    <block wx:elif="{{msg}}">
+      <view class="card">
+        <view class="title">{{msg.title}}</view>
+        <view class="meta">
+          <text wx:if="{{msg.category}}" class="tag">{{msg.category}}</text>
+          <text wx:if="{{msg.priority}}" class="tag pri-{{msg.priorityCode}}">{{msg.priority}}</text>
+          <text class="time">{{msg.time}}</text>
+        </view>
+        <view class="sender">
+          <view>发件人：{{msg.senderLabel}}</view>
+          <view wx:if="{{msg.senderAccount}}" class="sender-acc">账号：{{msg.senderAccount}}</view>
+          <!-- 发送方租户：仅平台管理员且 company 名解析出来才显示（见 detail.js loadSenderTenant，无兜底文案） -->
+          <view wx:if="{{msg.senderTenantText}}" class="sender-acc">发送方租户：{{msg.senderTenantText}}</view>
+        </view>
+      </view>
+
+      <view class="card body">
+        <text class="content">{{msg.content || '（无正文内容）'}}</text>
+      </view>
+
+      <view class="actions">
+        <block wx:if="{{from === 'trash'}}">
+          <button class="btn btn-restore" bindtap="onRestore">恢复</button>
+          <button class="btn btn-del" bindtap="onPurge">彻底删除</button>
+        </block>
+        <block wx:else>
+          <button class="btn {{unread ? '' : 'btn-ghost'}}" bindtap="onToggleRead">{{unread ? '标为已读' : '标为未读'}}</button>
+          <button class="btn {{starred ? 'btn-star' : ''}}" bindtap="onToggleStar">{{starred ? '★ 已收藏' : '☆ 收藏'}}</button>
+          <button class="btn btn-del" bindtap="onDelete">删除</button>
+        </block>
+      </view>
+    </block>
+    <view wx:else class="tip">消息不存在或已删除</view>
+  </block>
+</view>

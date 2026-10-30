@@ -12,6 +12,7 @@ import com.reservation.entity.ScheduleGenerateDTO;*/
 import com.reservation.service.CourseScheduleService; 
 import  com.reservation.common.ScheduleGenerator; 
 import com.reservation.utils.PermissionCheck;
+import com.reservation.utils.TermMsg;
 import com.reservation.audit.Audit;
 import com.reservation.audit.AuditAction;
 
@@ -123,7 +124,9 @@ public class ScheduleController {
              return Result.success(rs,"ok");
             } catch (RuntimeException e) {
                  // log.debug("filterList fail: " + e.getMessage());
-             return Result.fail(0,e.getMessage());
+             // 按异常语义给码（Business→400 / NoPermission→403 / 未找到→404 / 其余 500），
+             // 与 GlobalExceptionHandler 的映射表一致，避免两条路径 code 分叉。
+             return ErrorCodes.fail(e);
         } 
     }
 
@@ -263,10 +266,14 @@ public Result<Integer> deleteById(@PathVariable("id") String id, @RequestHeader(
     try {
         // 权限校验，只允许老师和管理员删除排期
         permissionCheck.checkTeacherOrAdmin(token);
+        // cascade: none 本层不处置——CourseScheduleService#deleteById 内已先清
+        // 该排期的课次与预订（SCHEDULE_DELETE / BOOKING_DELETE 场景）
         int rows = scheduleService.deleteById(id);
         return Result.success(rows, "删除成功");
     } catch (Exception e) {
-        return Result.fail(0, "删除失败: " + e.getMessage());
+        // 按异常语义给码（Business→400 / NoPermission→403 / 未找到→404 / 其余 500），
+        // 与 GlobalExceptionHandler 的映射表一致，避免两条路径 code 分叉。
+        return ErrorCodes.fail(e, "删除失败: " + e.getMessage());
     }
 }
 /**
@@ -284,7 +291,9 @@ public Result<Integer> deleteByCourseId(@PathVariable("courseId") String courseI
         int deletedCount = scheduleService.deleteByCourseId(courseId);
         return Result.success(deletedCount, "删除成功");
     } catch (Exception e) {
-        return Result.fail(0, "删除排期失败: " + e.getMessage());
+        // 按异常语义给码（Business→400 / NoPermission→403 / 未找到→404 / 其余 500），
+        // 与 GlobalExceptionHandler 的映射表一致，避免两条路径 code 分叉。
+        return ErrorCodes.fail(e, TermMsg.t("删除{schedule}失败: ") + e.getMessage());
     }
     }
 
@@ -293,6 +302,16 @@ public Result<Integer> deleteByCourseId(@PathVariable("courseId") String courseI
     @ResponseBody
     public Result<List<CourseSchedule>> getAvailableSchedule(@RequestParam String teacherId) {
         List<CourseSchedule> schedules = scheduleService.getAvailableSchedule(teacherId);
+        return Result.success(schedules, "ok");
+    }
+
+    // 查询指定教师的全部活跃排期（含已约满）——职业信息编辑界面「读取排期」专用。
+    // 与 getAvailableSchedule 的区别：不过滤余位，返回该教师所有 active 排期，
+    // 便于编辑/发布时配置对外链接与优选标记。置于登录鉴权之下（不进公开白名单）。
+    @GetMapping("/listByTeacher")
+    @ResponseBody
+    public Result<List<CourseSchedule>> listByTeacher(@RequestParam String teacherId) {
+        List<CourseSchedule> schedules = scheduleService.getSchedulesByTeacher(teacherId);
         return Result.success(schedules, "ok");
     }
 }

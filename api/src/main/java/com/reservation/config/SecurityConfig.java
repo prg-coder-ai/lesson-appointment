@@ -2,20 +2,29 @@ package com.reservation.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import java.util.HashMap;
 import java.util.Map;
 
+@Slf4j
 @Configuration
 public class SecurityConfig {
 
@@ -27,11 +36,22 @@ public class SecurityConfig {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * 免认证路径（permitAll）。与 {@link com.reservation.config.JwtAuthenticationFilter} 的
+     * WHITELIST_PATHS 保持一致 —— 两处分处两地是本批之前的既有隐患：
+     * 这里放行、过滤器却解析 token 失败会清空 SecurityContext，反之过滤器跳过、
+     * 这里不放行则会 401。改一处必须同步另一处。
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 // ===== CORS 集成到 Spring Security 链 =====
                 .cors(Customizer.withDefaults())
+
+                // ===== 等保 P1-4：HTTP Basic —— 为 Actuator info/env/beans 等端点加凭证保护 =====
+                // 浏览器访问 /actuator/info 会弹 Basic Auth 对话框；curl -u actuator:xxx 可查。
+                // /actuator/health 仍匿名放行（给 Nginx/LB 探活用）。
+                .httpBasic(Customizer.withDefaults())
 
                 // ===== 禁用 CSRF（前后端分离 + JWT 无需 CSRF）=====
                 .csrf(AbstractHttpConfigurer::disable)
@@ -42,73 +62,176 @@ public class SecurityConfig {
                 )
 
                 // ===== 授权规则 =====
-                .authorizeHttpRequests(auth -> auth
-                        // 所有 OPTIONS 预检请求放行
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                // 用**块体** lambda（`auth -> { ... }`）而非表达式体：需要在链中间插入
+                // applyDeclarativeAuthz(auth) 这个独立语句。表达式体（`auth -> auth.x().y()`）
+                // 一旦被分号截断就语法断裂，且报错位置指向更早的无关行（曾误判为括号不配平）。
+                .authorizeHttpRequests(auth -> {
+                    // 所有 OPTIONS 预检请求放行
+                    auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
 
-                        // 页面与首页
-                        .requestMatchers(
-                                "/",
-                                "/index",
-                                "/index.html",
-                                "/admin.html",
-                                "/platform_admin.html",
-                                "/student.html",
-                                "/teacher.html",
-                                "/teacherInfo.html",
-                                "/teacherPublishedProfile.html",
-                                "/logBrowser.html",
-                                "/auditLog.html"
-                                
-                        ).permitAll()
+                    // 页面与首页
+                    auth.requestMatchers(
+                            "/",
+                            "/index",
+                            "/index.html",
+                            "/admin.html",
+                            "/platform_admin.html",
+                            "/student.html",
+                            "/teacher.html",
+                            "/teacherInfo.html",
+                            "/teacherPublishedProfile.html",
+                            "/logBrowser.html",
+                            "/auditLog.html"
+                    ).permitAll();
 
-                        // 教师发布信息公开接口（teacherPublishedProfile.html 调用，无需登录）
-                        // L1 迁移后接口统一在 /api/v1 下，白名单须同时放裸路径与 /api/v1 前缀
-                        .requestMatchers(
-                                "/booking",
-                                "/booking.html",
-                                "/api/v1/booking",
-                                "/teacher/published/latest-public",
-                                "/api/v1/teacher/published/latest-public",
-                                "/teacher/published/public-get",
-                                "/api/v1/teacher/published/public-get",
-                                "/schedule/getAvailableSchedule",
-                                "/api/v1/schedule/getAvailableSchedule"
-                        ).permitAll()
+                    // 教师发布信息公开接口（teacherPublishedProfile.html 调用，无需登录）
+                    // L1 迁移后接口统一在 /api/v1 下，白名单须同时放裸路径与 /api/v1 前缀
+                    auth.requestMatchers(
+                            "/booking",
+                            "/booking.html",
+                            "/api/v1/booking",
+                            "/teacher/published/latest-public",
+                            "/api/v1/teacher/published/latest-public",
+                            "/teacher/published/public-get",
+                            "/api/v1/teacher/published/public-get",
+                            "/teacher/published/public-list",
+                            "/api/v1/teacher/published/public-list",
+                            "/schedule/getAvailableSchedule",
+                            "/api/v1/schedule/getAvailableSchedule"
+                    ).permitAll();
 
-                        // 登录/鉴权相关
-                        .requestMatchers(
-                                "/login",
-                                "/auth/login",
-                                "/api/v1/auth/login",
-                                "/auth/refreshToken",
-                                "/api/v1/auth/refreshToken",
-                                "/auth/logout",
-                                "/api/v1/auth/logout"
-                        ).permitAll()
+                    // 登录/鉴权相关
+                    auth.requestMatchers(
+                            "/login",
+                            "/auth/login",
+                            "/api/v1/auth/login",
+                            "/auth/refreshToken",
+                            "/api/v1/auth/refreshToken",
+                            "/auth/logout",
+                            "/api/v1/auth/logout"
+                    ).permitAll();
 
-                        // 注册相关（匿名用户必须能访问）
-                        // 注意：/user/register 才是 UserController 实际映射（@PostMapping("/register")），
-                        // 此前只放了不存在的 /user/admin/register，导致自助注册被 401 拦截；
-                        // 此处与 WebMvcConfig/JwtFilter 的白名单保持一致
-                        .requestMatchers(
-                                "/user/register", 
-                                "/api/v1/user/register",
-                                "/user/account/exist",
-                                "/api/v1/user/account/exist"
-                        ).permitAll()
+                    // 微信静默登录（免登录，不带 token）+ 术语词表（登录页渲染用，公开）
+                    // L1 迁移后接口统一在 /api/v1 下，白名单须同时放裸路径与 /api/v1 前缀
+                    auth.requestMatchers(
+                            "/api/v1/auth/wechat-login",
+                            "/auth/wechat-login",
+                            // 微信直接注册（场景 C）：扫码即注册，免登录。与 wechat-login 同组，
+                            // 白名单须同时放裸路径与 /api/v1 前缀
+                            "/api/v1/auth/wechat-register",
+                            "/auth/wechat-register",
+                            "/term/map",
+                            "/api/v1/term/map"
+                    ).permitAll();
 
-                        // 其他公共接口
-                        .requestMatchers("/interfaces", "/api/v1/interfaces", "/tenant/name", "/api/v1/tenant/name").permitAll()
+                    // 微信 PC 扫码登录/绑定（P2，网站应用 snsapi_login）：
+                    //   · qr         生成一次性 state + 二维码 URL（bind 场景在方法体内校验 Bearer，
+                    //                userId 由服务端从令牌解析，不信客户端参数）
+                    //   · qr/status  轮询结果（state 本身即一次性秘密：不可猜、一次性、5 分钟过期）
+                    //   · pc-callback 微信 302 目标，不可能带 Bearer
+                    // 三处均免登录，裸路径与 /api/v1 前缀双写；另需同步 JwtFilter /
+                    // WebMvcConfig / check-authz-declarative 的 PERMIT_ALL（共四处）。
+                    auth.requestMatchers(
+                            "/api/v1/auth/wechat/qr",
+                            "/auth/wechat/qr",
+                            "/api/v1/auth/wechat/qr/status",
+                            "/auth/wechat/qr/status",
+                            "/api/v1/auth/wechat/pc-callback",
+                            "/auth/wechat/pc-callback"
+                    ).permitAll();
 
-                        // 静态资源
-                        .requestMatchers(
-                                "/js/**", "/css/**", "/images/**", "/favicon.ico"
-                        ).permitAll()
+                    // 推广公开端点（免登录，不带 token）：
+                    //   · referral/validate   登录页首访校验推广码，touch=1 时点击计数
+                    //   · register-tenant     路径1：自助建租户 + 首管理员（免费试用）
+                    //   · register-user       路径2：加入指定租户（待审批）
+                    //   · tenant/validate-code 路径2 表单渲染前校验租户编码
+                    // 防刷（IP/手机号限频、试用名额上限）在 PromoService.checkRegisterAbuse 内，
+                    // 不依赖登录态。裸路径与 /api/v1 前缀双写，与上文同惯例。
+                    auth.requestMatchers(
+                            "/api/v1/promo/referral/validate",
+                            "/promo/referral/validate",
+                            "/api/v1/promo/register-tenant",
+                            "/promo/register-tenant",
+                            "/api/v1/promo/register-user",
+                            "/promo/register-user",
+                            "/api/v1/tenant/validate-code",
+                            "/tenant/validate-code"
+                    ).permitAll();
 
-                        // 其余所有请求需认证
-                        .anyRequest().authenticated()
-                )
+                    // 行业字典选项（免登录）：推广落地页「免费体验注册」的所属行业下拉数据源。
+                    // 与需平台管理员登录的 /industry/list 分开——落地页访客没有任何身份。
+                    // 裸路径与 /api/v1 前缀双写；另需同步 JwtFilter / WebMvcConfig /
+                    // check-authz-declarative 的 PERMIT_ALL（共四处，缺一即公开端点失效）。
+                    auth.requestMatchers(
+                            "/api/v1/industry/options",
+                            "/industry/options"
+                    ).permitAll();
+
+                    // 注册相关（匿名用户必须能访问）
+                    // 注意：/user/register 才是 UserController 实际映射（@PostMapping("/register")），
+                    // 此前只放了不存在的 /user/admin/register，导致自助注册被 401 拦截；
+                    // 此处与 WebMvcConfig/JwtFilter 的白名单保持一致
+                    auth.requestMatchers(
+                            "/user/register",
+                            "/api/v1/user/register",
+                            "/user/account/exist",
+                            "/api/v1/user/account/exist"
+                    ).permitAll();
+
+                    // 其他公共接口
+                    auth.requestMatchers("/interfaces", "/api/v1/interfaces", "/tenant/name", "/api/v1/tenant/name").permitAll();
+
+                    // 服务运行信息（缺省页同款字段，健康检查/环境自检用，匿名可访问）
+                    auth.requestMatchers("/system/info", "/api/v1/system/info", "/apiInfo", "/api/v1/apiInfo").permitAll();
+
+                    // 协议/隐私政策公开阅读端点（免登录，与 JwtFilter.WHITELIST_PATHS/守卫 PERMIT_ALL 同步）
+                    auth.requestMatchers("/api/v1/legal/doc").permitAll();
+
+                    // 教师已上传图片公开伺服（免登录，匿名学生浏览发布页也要看得到）。
+                    // 与 JwtFilter.WHITELIST_PREFIXES / WebMvcConfig.EXCLUDE_PATTERNS /
+                    // 守卫 PERMIT_ALL 四处同步；双路径形态（/api/v1 前缀 + 裸路径）。
+                    auth.requestMatchers(
+                            "/api/v1/teacher/professional/file/**",
+                            "/teacher/professional/file/**"
+                    ).permitAll();
+
+                    // ===== Actuator 探针（2026-10-09 接入，匿名可访问）=====
+                    // ⚠️ 两处必须同步改，漏一处症状不同但都探针不通：
+                    //   · 这里 permitAll 但 JwtAuthenticationFilter 没跳→过滤器清空 SecurityContext → 401
+                    //   · 这里没放行但过滤器跳了            → 落到兜底 anyRequest().authenticated() → 401
+                    // 已同步加入 JwtAuthenticationFilter.WHITELIST_PATHS，改一处必须改另一处。
+                    //
+                    // 只放行 health（liveness/readiness）—— 给 Nginx/LB 探活用。
+                    // **不放行 /actuator/info**：它含构建时间与版本，虽不敏感但对匿名无价值，
+                    // 多暴露一个端点多一份风险。
+                    // 也不放行 /actuator/** 通配 —— 那等于把 env/beans/loggers 一并放开。
+                    //
+                    // 等保 P1-4：除 health 外，其余 /actuator/** 要求 HTTP Basic 认证
+                    //   （由 httpBasic + InMemoryUserDetailsManager 处理，见下方 Bean）。
+                    auth.requestMatchers(
+                            "/actuator/health",
+                            "/actuator/health/**"
+                    ).permitAll();
+                    auth.requestMatchers("/actuator/**").authenticated();
+
+                    // 静态资源
+                    auth.requestMatchers(
+                            "/js/**", "/css/**", "/images/**", "/favicon.ico"
+                    ).permitAll();
+
+                    // ===== 声明式授权（第 2 批：根治根因 A）=====
+                    // 此前本文件到 anyRequest() 之间是空白：任何已登录用户都能调用任何接口，
+                    // 具体权限靠每个 Controller 方法体手写 permissionCheck.checkXxx(token)。
+                    // 这里把 AuthzRules.RULES 的每条声明展开为 hasRole/hasAnyRole。
+                    applyDeclarativeAuthz(auth);
+
+                    // 兜底：denyAll()（2026-10-10 切换，两步策略第二步落地）。
+                    // 第一步 authenticated() 阶段"漏声明 = 静默放行"（已登录即全通），
+                    // 是根因 A 的隐性残留；authz 守卫实测 182 个端点已全部声明授权角色后，
+                    // 切为 denyAll() 让"漏声明 = 403"真正生效——新增端点忘了在 AuthzRules
+                    // 声明时，运行期立刻炸而不是静默放行（构建期仍由 check:authz 拦截）。
+                    auth.anyRequest().denyAll();
+                })
 
                 // ===== 异常处理 =====
                 .exceptionHandling(eh -> eh
@@ -140,5 +263,73 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    /**
+     * Actuator Basic Auth 用户（等保 P1-4）。
+     *
+     * <p>账号固定 {@code actuator}；密码优先级：
+     * <ol>
+     *   <li>{@code ACTUATOR_PASSWORD} 环境变量（生产必须显式注入）</li>
+     *   <li>{@code app.actuator.password} 配置项（application.properties 可覆盖）</li>
+     *   <li>默认 {@code "actuator-change-me"}（仅用于本机联调占位，明显提示要换）</li>
+     * </ol>
+     *
+     * <p>若 {@code app.security.strict-mode=true}（cloud/prod 档）且密码仍是默认占位值，
+     * 启动时会抛 {@link IllegalStateException} 阻断 —— 防止"忘了换密码、生产暴露 env/beans"。
+     */
+    @Bean
+    public UserDetailsService actuatorUserDetailsService(BCryptPasswordEncoder passwordEncoder,
+                                                         Environment env) {
+        String pwd = System.getenv("ACTUATOR_PASSWORD");
+        if (pwd == null || pwd.isBlank()) {
+            pwd = env.getProperty("app.actuator.password", "actuator-change-me");
+        }
+        String[] activeProfiles = env.getActiveProfiles();
+        boolean strict = java.util.Arrays.asList(activeProfiles).contains("cloud")
+                || Boolean.TRUE.equals(env.getProperty("app.security.strict-mode", Boolean.class));
+        if (strict && "actuator-change-me".equals(pwd)) {
+            throw new IllegalStateException(
+                    "❌ 启动失败（strict-mode=true）：/actuator Basic Auth 使用了默认占位密码！"
+                  + " 生产必须通过 ACTUATOR_PASSWORD 环境变量注入独立密码。");
+        }
+        UserDetails user = User.builder()
+                .username("actuator")
+                .password(passwordEncoder.encode(pwd))
+                .roles("ACTUATOR")
+                .build();
+        return new InMemoryUserDetailsManager(user);
+    }
+
+    /**
+     * 把 {@link AuthzRules#RULES} 的声明逐条展开为 Spring Security 的授权规则。
+     *
+     * <p>角色到 Authority 的对应关系：{@code JwtAuthenticationFilter} 写入的是
+     * {@code "ROLE_" + role}（见该类第 130 行），因此这里用 {@code hasRole}/{@code hasAnyRole}，
+     * Spring 会自动补 {@code ROLE_} 前缀 —— 传 {@code hasRole("admin")} 即匹配
+     * {@code ROLE_admin}。若这里改用 {@code hasAuthority}，必须写全前缀，否则全部不匹配。
+     *
+     * <p>顺序：{@code AuthzRules.RULES} 已按"具体路径在前、通配在后"排好，
+     * Spring Security 采用首个命中即生效，故直接按列表顺序注册即可。
+     */
+    private void applyDeclarativeAuthz(
+            AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+
+        for (AuthzRules.Rule rule : AuthzRules.RULES) {
+            if (rule.roles() == null || rule.roles().length == 0) {
+                throw new IllegalStateException(
+                        "授权规则缺少角色声明（会导致该路径无人可访问）：" + rule.method() + " " + rule.path());
+            }
+            if (rule.roles().length == 1) {
+                auth.requestMatchers(rule.method(), rule.path()).hasRole(rule.roles()[0]);
+            } else {
+                auth.requestMatchers(rule.method(), rule.path()).hasAnyRole(rule.roles());
+            }
+        }
+
+        if (log.isInfoEnabled()) {
+            log.info("[Authz] 已装载声明式授权规则 {} 条（兜底=authenticated；下一批改 denyAll）",
+                    AuthzRules.RULES.size());
+        }
     }
 }

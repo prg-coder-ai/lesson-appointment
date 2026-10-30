@@ -1,0 +1,54 @@
+{
+  "name": "lesson-appointment",
+  "version": "1.0.0",
+  "description": "lesson-appointment/  # 项目根目录\r ├── index.html             # 入口HTML（登录页）\r ├── package.json           # 项目依赖+脚本配置\r ├── vite.config.js         # Vite核心配置文件\r ├── .env                   # 环境变量配置\r ├── .gitignore             # Git忽略文件\r ├── public/                # 静态资源（不参与打包）\r │   ├── favicon.ico        # 网站图标\r │   └── assets/            # 图片/字体等静态资源\r └── src/                   # 源代码目录\r     ├── styles/            # 样式文件\r     │   ├── common.css     # 公共样式\r     │   ├── admin.css      # 管理端样式\r     │   ├── teacher.css    # 教师端样式\r     │   └── student.css    # 学生端样式\r     ├── pages/             # 页面文件\r     │   ├── admin.html     # 管理端页面\r     │   ├── teacher.html   # 教师端页面\r     │   └── student.html   # 学生端页面\r     └── scripts/           # 脚本文件\r         ├── login.js       # 登录页逻辑\r         ├── admin.js       # 管理端逻辑\r         ├── teacher.js     # 教师端逻辑\r         └── student.js     # 学生端逻辑\r # 核心配置文件\r         package.json（项目依赖 + 运行 / 打包脚本\r # vite.config.js（Vite 打包 / 运行配置）\r 自定义 Vite 的构建规则，比如打包输出目录、静态资源处理、端口等\r # .env（环境变量配置）\r # 使用步骤（打包 + 运行）\r ## 1. 初始化项目（首次使用）\r # 1. 进入项目根目录\r cd language-teaching-system",
+  "main": "index.js",
+  "directories": {
+    "doc": "doc"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "hooks:install": "git config core.hooksPath tools/git-hooks && git config --get core.hooksPath",
+    "check:shared-sync": "node tools/check-miniprogram-shared-sync.js",
+    "check:bridge-exports": "node tools/check-shared-bridge-exports.mjs",
+    "test:bridge-exports-guard": "node tests/check_shared_bridge_exports_guard.js",
+    "check:endpoints": "node tools/check-endpoints-refs.mjs",
+    "test:endpoints-guard": "node tests/check_endpoints_guard.js",
+    "check:authz": "node tools/check-authz-declarative.mjs",
+    "test:authz-guard": "node tests/check_authz_declarative_guard.js",
+    "check:cascade": "node tools/check-cascade-rules.mjs",
+    "test:cascade-guard": "node --experimental-vm-modules tests/check_cascade_rules_guard.js",
+    "check:tz": "node tools/check-tz-guard.mjs",
+    "test:tz-guard": "node --experimental-vm-modules tests/check_tz_guard.js",
+    "check:global-collide": "node tools/check-global-collide.mjs",
+    "check:scheduler": "node tools/check-scheduler-guard.mjs",
+    "test:scheduler-guard": "node tests/check_scheduler_guard.js",
+    "check:actuator": "node tools/check-actuator-guard.mjs",
+    "test:actuator-guard": "node tests/check_actuator_guard.js",
+    "check:admin-self-lock": "node tools/check-admin-self-lock.mjs",
+    "test:admin-self-lock-guard": "node tests/check_admin_self_lock_guard.js",
+    "check:tenant-xt": "node tools/check-tenant-cross-thread.mjs",
+    "test:tenant-xt-guard": "node tests/check_tenant_cross_thread_guard.js",
+    "check:secret-env": "node tools/check-secret-env-guard.mjs",
+    "check:result-contract": "node tools/check-result-contract-guard.mjs",
+ "test:result-contract-guard": "node tests/check_result_contract_guard.js",
+    "check:date-contract": "node tools/check-date-contract-guard.mjs",
+    "check:status-contract": "node tools/check-status-contract-guard.mjs",
+    "check:itest-sut": "node tools/check-itest-sut-sync.mjs",
+    "test:itest-sut-guard": "node tests/check_itest_sut_sync_guard.js",
+    "check:ddl-align": "node tools/check-ddl-entity-align.mjs",
+    "test:ddl-align-guard": "node --experimental-vm-modules tests/check_ddl_entity_align_guard.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/prg-coder-ai/lesson-appointment.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/prg-coder-ai/lesson-appointment/issues"
+  },
+  "homepage": "https://github.com/prg-coder-ai/lesson-appointment#readme"
+}

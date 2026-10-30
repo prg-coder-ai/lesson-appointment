@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-term-title="{lessonSystem} - 平台管理端">语言教学预约系统 - 平台管理端</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+  <!-- 引入管理端全局样式 -->
+    <link rel="stylesheet" href="css/theme.css">
+    <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/admin.css">
+  <!-- 引入图标库 -->
+  <link rel="stylesheet" href="js/public/vendor/font-awesome/css/all.min.css">
+
+  <style>
+    /* 平台管理端布局与 admin.html 保持一致 */
+  </style>
+<script src="js/shared-domain-bridge.js"></script>
+</head>
+<body>
+  <!-- 头部区域 -->
+  <header class="header">
+    <div class="logo">
+      <img src="/images/admin_icon.jpg" alt="平台管理端logo">
+      <span class="logo-text">时约预约系统（平台管理端）</span>
+    </div>
+    <!-- 头部操作区 - 退出按钮 -->
+    <div class="header-actions">
+      <div class="user-info" id="user_info">
+        <div class="avatar" id="avatar">P</div>
+        <span class="user-name" id="user-name">Platform</span>
+      </div>
+      <button class="btn btn-default" style="padding: 6px 12px;" onclick="handleLogout()">
+        <i class="fa fa-sign-out-alt"></i> 退出
+      </button>
+    </div>
+  </header>
+
+  <!-- 布局容器 -->
+  <div class="layout-container">
+    <!-- 侧边栏（菜单由 loadSideMenu 按平台管理员角色渲染） -->
+    <aside class="sidebar">
+      <div class="menu-group">
+        <div class="menu-group-title">平台运营</div>
+        <div class="menu-item" key="overview">
+          <i class="fa fa-tachometer-alt"></i>
+          <span>平台总览</span>
+        </div>
+        <div class="menu-item" key="tenant">
+          <i class="fa fa-building"></i>
+          <span>租户管理</span>
+        </div>
+        <div class="menu-item" key="user">
+          <i class="fa fa-users-cog"></i>
+          <span>用户管理</span>
+        </div>
+        <div class="menu-item" key="package">
+          <i class="fa fa-th-large"></i>
+          <span>套餐管理</span>
+        </div>
+        <div class="menu-item" key="statistics">
+          <i class="fa fa-chart-line"></i>
+          <span>运营统计</span>
+        </div>
+        <div class="menu-item" key="messages">
+          <i class="fa fa-bell"></i>
+          <span>消息中心</span>
+          <span class="msg-badge" id="msg-unread-badge" style="display:none;"></span>
+        </div>
+        <div class="menu-item" key="msg_manage">
+          <i class="fa fa-envelope-open-text"></i>
+          <span>消息管理</span>
+        </div>
+       
+      </div>
+
+      <div class="menu-group">
+        <div class="menu-group-title">系统配置</div>
+        <div class="menu-item" key="msg_category">
+          <i class="fa fa-tags"></i>
+          <span>消息分类管理</span>
+        </div>
+         <div class="menu-item" key="sensitive_words">
+          <i class="fa fa-shield-alt"></i>
+          <span>敏感词管理</span>
+        </div>
+        <div class="menu-item" key="config">
+          <i class="fa fa-cog"></i>
+          <span>系统设置</span>
+        </div>
+      </div>
+
+      <div class="menu-group">
+        <div class="menu-group-title">系统维护</div>
+        <div class="menu-item" key="sys_log">
+          <i class="fa fa-file-alt"></i>
+          <span>系统日志</span>
+        </div>
+        <div class="menu-item" key="audit_log">
+          <i class="fa fa-file-alt"></i>
+          <span>审计日志</span>
+        </div>
+        <div class="menu-item" key="backend_info">
+          <i class="fa fa-server"></i>
+          <span>后台信息</span>
+        </div>
+        <div class="menu-item" key="promo_stats">
+          <i class="fa fa-chart-pie"></i>
+          <span>推广统计</span>
+        </div>
+        <div class="menu-item" key="my_promo">
+          <i class="fa fa-bullhorn"></i>
+          <span>我的推广</span>
+        </div>
+        <div class="menu-item" key="data_maintain">
+          <i class="fa fa-cogs"></i>
+          <span>数据维护</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 主内容容器（包含标题和中央动态区域） -->
+    <div class="content-wrapper">
+      <!-- 页面标题 -->
+      <div class="content-header">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <h1 class="page-title" style="margin: 0;">平台总览</h1>
+          <button class="btn btn-primary" onclick='refreshRightPage()'><i class="fa fa-refresh"></i> 刷新</button>
+        </div>
+      </div>
+
+      <!-- 动态内容中央区域 -->
+      <div id="dynamic-content-center" class="dynamic-content-center">
+      </div>
+  </div>
+
+  <!-- JavaScript交互逻辑 -->
+  <script>
+  /**
+   * 平台管理端菜单：固定为平台管理员视角（本页仅平台管理员可进入）
+   * 菜单项已在 HTML 中以 menu-item(key=...) 静态声明，无需 loadSideMenu 动态渲染
+   */
+  function switchMenu(key) {
+    loadAdminPageContent(key);
+  }
+
+  // 平台管理端页面内容加载逻辑（仅平台功能，按 menu-item 的 key 分支）
+  function loadAdminPageContent(key) {
+    const dynamicContentCenter = document.getElementById('dynamic-content-center');
+    if (dynamicContentCenter) dynamicContentCenter.innerHTML = '';
+    if (typeof key === 'undefined' || key === null || (typeof key === 'string' && key.trim() === '')) {
+      key = 'overview';
+    }
+    switch(key) {
+      case "overview":
+        if (typeof renderPlatformOverview === 'function') renderPlatformOverview();
+        break;
+      case "tenant":
+        if (typeof renderTenantCards === 'function') renderTenantCards();
+        break;
+      case "user":
+        if (typeof renderPlatformUserPage === 'function') renderPlatformUserPage();
+        break;
+      case "package":
+        if (typeof renderPackageCards === 'function') renderPackageCards();
+        break;
+      case "statistics":
+        if (typeof renderStatisticsPage === 'function') renderStatisticsPage();
+        break;
+      // 平台推广统计（2026-10-13 双码）：全平台推广漏斗 + 推广者排行 + 最近转化
+      case "promo_stats":
+        if (typeof window.renderPlatformPromoStatsPage === 'function') {
+          window.renderPlatformPromoStatsPage();
+        } else if (dynamicContentCenter) {
+          dynamicContentCenter.innerHTML = '<div class="card"><div class="card-body">平台推广统计模块未加载（platform-promo-stats.js）。</div></div>';
+        }
+        break;
+      // 我的推广（2026-10-13 双码）：每个已登录用户（含平台管理员）都有自己的推广页，
+      // 跳转独立业绩页 promo.html（平台码/租户码双卡 + 个人业绩）
+      case "my_promo":
+        window.location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('promo.html') : 'promo.html';
+        break;
+      case "config":
+        if (typeof renderConfigPage === 'function') renderConfigPage();
+        break;
+      case "messages":
+        if (typeof window.renderMessagesPage === 'function') {
+          window.renderMessagesPage(dynamicContentCenter);
+        }
+        break;
+      case "msg_manage":
+        if (typeof window.renderMessageManagePage === 'function') {
+          window.renderMessageManagePage();
+        } else {
+          dynamicContentCenter.innerHTML = '<div class="card"><div class="card-body">消息管理模块未加载（admin-messageManage.js）。</div></div>';
+        }
+        break;
+      case "sensitive_words":
+        if (typeof window.renderSensitiveWordsPage === 'function') {
+          window.renderSensitiveWordsPage(dynamicContentCenter);
+        } else {
+          dynamicContentCenter.innerHTML = '<div class="card"><div class="card-body">敏感词模块未加载（sensitiveWords.js）。</div></div>';
+        }
+        break;
+      // 系统配置：消息分类管理（发送时仅可下拉选择，由管理员在此维护）
+      case "msg_category":
+        if (typeof renderMessageCategoryPage === 'function') {
+          renderMessageCategoryPage();
+        } else if (dynamicContentCenter) {
+          dynamicContentCenter.innerHTML = '<div class="card"><div class="card-body">消息分类模块未加载（admin-messageCategory.js）。</div></div>';
+        }
+        break;
+      // 系统日志 / 审计日志：与 admin.html 一致，跳转到独立页面浏览。
+      // 带 from 参数，使日志页的「返回」按钮能回到平台管理端而不是 admin.html。
+      case "sys_log":
+        window.location.href = ((typeof window.pageUrl === 'function') ? window.pageUrl('logBrowser.html', { from: 'platform_admin.html' }) : './logBrowser.html?from=platform_admin.html');
+        break;
+      case "audit_log":
+        window.location.href = ((typeof window.pageUrl === 'function') ? window.pageUrl('auditLog.html', { from: 'platform_admin.html' }) : './auditLog.html?from=platform_admin.html');
+        break;
+      // 后台信息：展示 booking_api / message-service 的运行信息（getApiInfo 全字段）
+      case "backend_info":
+        if (typeof renderBackendInfoPage === 'function') {
+          renderBackendInfoPage(dynamicContentCenter);
+        }
+        break;
+      // 数据维护（2026-10-24）：平台级对象的回收站清理 —— 租户 / 用户 / 租户套餐。
+      // 与租户端「数据维护」不同：那个维护租户内业务数据（课程/排期/…），本页维护平台对象。
+      case "data_maintain":
+        if (typeof window.renderPlatformDataMaintainPage === 'function') {
+          window.renderPlatformDataMaintainPage();
+        } else if (dynamicContentCenter) {
+          dynamicContentCenter.innerHTML = '<div class="card"><div class="card-body">数据维护模块未加载（platform-admin-dataMaintain.js）。</div></div>';
+        }
+        break;
+      default:
+        if (typeof renderPlatformOverview === 'function') renderPlatformOverview();
+    }
+  }
+
+  let menuItems = [];
+  let pageTitle = "";
+  let dynamicContentCenter = null;
+
+  // 页面加载时验证登录状态
+  window.onload = function() {
+    // 从 cookie 读回 currentUser，避免刷新丢失状态
+    function getCookie(name) {
+      const matches = document.cookie.match(
+        new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()[\]\\/+^])/g, '\\$1') + '=([^;]*)')
+      );
+      return matches ? decodeURIComponent(matches[1]) : undefined;
+    }
+    const cookieUser = getCookie('currentUser');
+    if (cookieUser && !localStorage.getItem('currentUser')) {
+      localStorage.setItem('currentUser', cookieUser);
+    }
+
+    // ====== 入口登录态守卫：platform_admin 页要求角色为 platform_admin 且 tenantCode=platform ======
+    if (typeof window.guardEntryPage === 'function' && !window.guardEntryPage('platform_admin')) {
+      return; // 守卫已触发强制跳转
+    }
+
+    const currentUser = localStorage.getItem('currentUser');
+    let user = null;
+    try { user = currentUser ? JSON.parse(currentUser) : null; } catch(_) { user = null; }
+
+    // 未登录或登录信息不完整 → 保存来源页后跳登录页
+    if (!user || !user.userId || !user.role) {
+      if (typeof window.saveLoginRedirect === 'function') {
+        window.saveLoginRedirect('noauth');
+      }
+      location.href = ((typeof window.pageUrl === 'function') ? window.pageUrl('login.html') : './login.html');
+      return;
+    }
+
+    // 平台管理端仅允许平台管理员进入，其它角色回退到各自首页
+    if (user.role !== 'platform_admin') {
+      if (typeof window.redirectToUserPage === 'function') {
+        window.redirectToUserPage(user);
+      } else {
+        location.href = ((typeof window.pageUrl === 'function') ? window.pageUrl('login.html') : './login.html');
+      }
+      return;
+    }
+
+    if (user.name) {
+      document.getElementById('avatar').innerHTML = user.name.length > 0 ? user.name[0] : 'P';
+      document.getElementById('user-name').innerHTML = user.name;
+    }
+
+    menuItems = document.querySelectorAll('.menu-item');
+    pageTitle = document.querySelector('.page-title');
+    dynamicContentCenter = document.getElementById('dynamic-content-center');
+    menuItems.forEach(item => {
+      item.addEventListener('click', function() {
+        menuItems.forEach(menu => menu.classList.remove('active'));
+        this.classList.add('active');
+        const titleText = this.querySelector('span').textContent;
+        pageTitle.textContent = titleText;
+        loadAdminPageContent(this.getAttribute('key'));
+      });
+    });
+
+    // 默认加载第一个菜单（平台总览）
+    if (menuItems.length) {
+      menuItems[0].classList.add('active');
+      loadAdminPageContent(menuItems[0].getAttribute('key'));
+    } else {
+      loadAdminPageContent('overview');
+    }
+    addChangePasswordButton();
+    if (typeof window.initMessageBadge === 'function') window.initMessageBadge();
+  };
+  </script>
+
+  <!-- 公共脚本（提供 request / token / 术语归一化 / 退出等全局能力） -->
+  <script src="js/public/vendor/axios.min.js"></script>
+  <script src="js/public/termsFunction.js"></script>
+  <script src="js/public/documentTitle.js"></script>
+  <script src="js/public/utility_request.js"></script>
+  <script src="js/public/auth.js"></script>
+  <script src="js/public/api.js"></script>
+  <script src="js/public/dataFunctions.js"></script>
+  <script src="js/public/courseAndBooking.js"></script>
+  <script src="js/public/appointmentNotes.js"></script>
+
+  <!-- 平台管理员功能页（租户 / 用户 / 套餐 / 运营统计 / 系统设置 / 后台信息） -->
+   <script src="js/platform-admin-tenant.js"></script>
+  <script src="js/platform-admin-user.js"></script>
+  <script src="js/platform-admin-package.js"></script>
+  <script src="js/platform-admin-dashboard.js"></script>
+  <script src="js/platform-admin-config.js"></script>
+  <script src="js/platform-admin-config-industry.js"></script>
+  <script src="js/platform-admin-config-term.js"></script>
+  <script src="js/platform-admin-backend-info.js"></script>
+  <script src="js/platform-admin-dataMaintain.js"></script>
+  <script src="js/messages-inbox.js"></script>
+  <script src="js/sensitiveWords.js"></script>
+  <script src="js/admin-messageCategory.js"></script>
+  <script src="js/admin-messageManage.js"></script>
+  <script src="js/platform-promo-stats.js"></script>
+ 
+  <script>
+  </script>
+
+  <!-- ===================== A′ 改造：页面骨架模板（2026-09-28） ===================== -->
+  <!-- 结构原住在各 platform-admin-*.js 的 innerHTML 字符串里，现搬进此处；JS 改为取模板 -> clone -> 绑事件。 -->
+  <!-- 含插值的占位：term-search-lang 仅留"全部语言"、backend-info 的 endpoint-bar/tab-bar 留空由 JS 填、package 两个 tab 按钮留默认 class 由 JS 按 pkgTab 设高亮。 -->
+
+  <template id="tpl-config-page">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa fa-cog"></i> 系统设置</div>
+        <div class="tab-bar">
+          <button class="btn btn-default" id="tab-industry">行业管理</button>
+          <button class="btn btn-default" id="tab-term">行业词汇</button>
+          <button class="btn btn-default" id="tab-system">系统参数</button>
+          <button class="btn btn-default" id="tab-legal">协议与政策</button>
+        </div>
+        <button class="btn btn-primary" id="config-refresh-btn"><i class="fa fa-refresh"></i> 刷新</button>
+      </div>
+      <div id="config-tab-body"></div>
+    </div>
+  </template>
+
+  <template id="tpl-config-system">
+    <div class="table-container">
+      <table class="data-table"><thead><tr>
+        <th>名称</th><th>键</th><th>值</th><th>分组</th><th>类型</th><th>语言</th><th>可编辑</th><th>操作</th>
+      </tr></thead><tbody id="cfg-body"></tbody></table>
+    </div>
+    <div id="cfg-pagebar"></div>
+  </template>
+
+  <template id="tpl-config-legal">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa fa-file-contract"></i> 协议与政策</div>
+        <div class="tab-bar" style="margin-left:16px;">
+          <select id="legal-doc-type">
+            <optgroup label="正式版（用户实际阅读）">
+              <option value="user_agreement">用户协议 · 场景 A（平台对租户）</option>
+              <option value="privacy_policy">隐私政策 · 场景 A（平台对租户）</option>
+            </optgroup>
+            <optgroup label="租户参考模板（租户采纳后作为场景 B 生效）">
+              <option value="user_agreement_template">用户协议 · 租户对用户模板</option>
+              <option value="privacy_policy_template">隐私政策 · 租户对用户模板</option>
+            </optgroup>
+          </select>
+          <select id="legal-doc-lang">
+            <option value="zh">中文</option>
+            <option value="en">English</option>
+            <option value="fr">Français</option>
+          </select>
+          <button class="btn btn-primary" id="legal-load-btn"><i class="fa fa-refresh"></i> 读取</button>
+          <button class="btn btn-primary" id="legal-save-btn"><i class="fa fa-save"></i> 保存为新版本</button>
+        </div>
+      </div>
+      <div class="form-item" style="margin:16px 0 8px;">
+        <label>标题</label>
+        <input type="text" id="legal-title" placeholder="文档标题，如：用户服务协议 / 隐私政策">
+      </div>
+      <div class="form-item" style="margin-bottom:8px;">
+        <label>正文（支持 HTML，平台统一版本）</label>
+        <textarea id="legal-content" rows="18" style="width:100%;font-family:monospace;padding:10px;border:1px solid #ddd;border-radius:4px;box-sizing:border-box;"></textarea>
+      </div>
+      <div id="legal-hint" style="color:#6b7587;font-size:12px;margin-bottom:8px;"></div>
+    </div>
+  </template>
+
+  <template id="tpl-industry-page">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa fa-industry"></i> 行业管理</div>
+        <button class="btn btn-primary" id="industry-add-btn"><i class="fa fa-plus"></i> 新增行业</button>
+      </div>
+      <div class="table-container">
+        <table class="data-table"><thead><tr>
+          <th>ID</th><th>编码</th><th>名称</th><th>状态</th><th>备注</th><th>操作</th>
+        </tr></thead><tbody id="industry-body"></tbody></table>
+      </div>
+      <div id="industry-pagebar"></div>
+    </div>
+  </template>
+
+  <template id="tpl-term-page">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa fa-book"></i> 行业词汇</div>
+        <div class="tab-bar" style="margin-left:16px;">
+          <select id="term-scope-select">
+            <option value="0">平台词（全系统默认）</option>
+            <option value="-1">-- 按行业过滤 --</option>
+          </select>
+        </div>
+        <button class="btn btn-default" id="term-copy-btn"><i class="fa fa-copy"></i> 行业词复制</button>
+        <button class="btn btn-primary" id="term-add-btn"><i class="fa fa-plus"></i> 新增词条</button>
+      </div>
+      <div style="margin-bottom:10px;padding:8px 12px;border-radius:6px;background:rgba(59,130,246,.08);color:#3b82f6;font-size:12px;line-height:1.7;">
+        编码命名规范：标签/菜单/按钮/提示词用语义名（如 <code>courseType</code>）；<b>下拉选项词 = 标签词 + "." + 选项编码</b>（如 <code>courseType.oneOnOne</code>），词表优先、缺词回退页面默认文案
+      </div>
+      <div class="filter-bar">
+        <input id="term-search-key" placeholder="编码（模糊）" style="width:130px;">
+        <input id="term-search-name" placeholder="显示词（模糊）" style="width:130px;">
+        <input id="term-search-remark" placeholder="备注（模糊）" style="width:150px;">
+        <select id="term-search-lang">
+          <option value="">全部语言</option>
+        </select>
+        <select id="term-search-type">
+          <option value="">全部类型</option>
+          <option value="label">label</option>
+          <option value="menu">menu</option>
+          <option value="button">button</option>
+          <option value="tip">tip</option>
+        </select>
+        <button class="btn btn-primary" id="term-search-btn"><i class="fa fa-search"></i> 搜索</button>
+        <button class="btn btn-default" id="term-reset-btn">重置</button>
+      </div>
+      <div class="table-container">
+        <table class="data-table"><thead><tr>
+          <th>编码</th><th>显示词</th><th>语言</th><th>类型</th><th>排序</th><th>状态</th><th>备注</th><th>操作</th>
+        </tr></thead><tbody id="term-body"></tbody></table>
+      </div>
+      <div id="term-pagebar"></div>
+    </div>
+  </template>
+
+  <template id="tpl-backend-info">
+    <div class="bi-card">
+      <div class="bi-card-header">
+        <div class="bi-card-title"><i class="fa fa-server"></i> 后台信息</div>
+        <button class="btn btn-default btn-sm" id="bi-refresh-btn"><i class="fa fa-refresh"></i> 刷新</button>
+      </div>
+      <div class="bi-endpoint-bar" id="bi-endpoint-bar"></div>
+      <div class="bi-frontend-build" id="bi-frontend-build"></div>
+      <div class="bi-tab-bar" id="bi-tab-bar"></div>
+      <div class="bi-body" id="bi-body"></div>
+    </div>
+  </template>
+
+  <template id="tpl-platform-overview">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa fa-tachometer-alt"></i> 平台总览</div>
+        <button class="btn btn-primary" id="overview-refresh-btn"><i class="fa fa-refresh"></i> 刷新</button>
+      </div>
+      <div id="pf-ov" class="stats-panel"></div>
+      <h3 style="margin:16px 0 8px;">租户趋势</h3>
+      <div id="pf-trend" class="trend-chart"></div>
+      <h3 style="margin:16px 0 8px;">各租户在线</h3>
+      <div id="pf-online" class="online-list"></div>
+    </div>
+  </template>
+
+  <template id="tpl-statistics-page">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa fa-chart-line"></i> 运营统计</div>
+        <button class="btn btn-primary" id="statistics-refresh-btn"><i class="fa fa-refresh"></i> 刷新</button>
+      </div>
+      <h3 style="margin:12px 0 8px;">平台汇总</h3>
+      <div id="st-ov" class="stats-panel"></div>
+      <h3 style="margin:16px 0 8px;">租户用量</h3>
+      <div class="filter-bar">
+        <div class="filter-item"><input type="text" id="usage-kw" placeholder="机构名/编码"></div>
+        <button class="btn" id="usage-search-btn"><i class="fa fa-search"></i> 搜索</button>
+      </div>
+      <div class="table-container">
+        <table class="data-table"><thead><tr>
+          <th>机构</th><th>编码</th><th>套餐等级</th><th><span data-term="course">课程</span></th><th><span data-term="schedule">排期</span></th><th>用户</th><th><span data-term="teacher">教师</span></th><th><span data-term="student">学生</span></th>
+        </tr></thead><tbody id="usage-body"></tbody></table>
+      </div>
+      <div id="usage-pagebar"></div>
+      <h3 style="margin:16px 0 8px;">到期预警</h3>
+      <div class="table-container">
+        <table class="data-table"><thead><tr>
+          <th>机构</th><th>联系人</th><th>电话</th><th>到期时间</th>
+        </tr></thead><tbody id="expire-body"></tbody></table>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-tenant-cards">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa fa-building"></i> 租户管理</div>
+        <button class="btn btn-primary" id="tenant-add-btn"><i class="fa fa-plus"></i> 新增租户</button>
+      </div>
+      <div class="filter-bar">
+        <div class="filter-item"><input type="text" id="tenant-kw" placeholder="机构名/编码/联系人"></div>
+        <div class="filter-item"><select id="tenant-status">
+          <option value="">全部状态</option>
+          <option value="1">正常</option>
+          <option value="2">停用</option>
+          <option value="3">退租</option>
+        </select></div>
+        <button class="btn" id="tenant-search-btn"><i class="fa fa-search"></i> 搜索</button>
+        <button class="btn btn-default" id="tenant-reset-btn">重置</button>
+      </div>
+      <div class="table-container">
+        <table class="data-table">
+          <thead><tr>
+            <th>序号</th><th>机构名称</th><th>编码</th><th>联系人</th><th>电话</th><th>行业</th><th>状态</th><th>到期时间</th><th>操作</th>
+          </tr></thead>
+          <tbody id="tenant-body"></tbody>
+        </table>
+      </div>
+      <div id="tenant-pagebar"></div>
+    </div>
+  </template>
+
+  <template id="tpl-platform-user-page">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa fa-users-cog"></i> 用户管理</div>
+        <button class="btn btn-primary" id="pu-add-btn"><i class="fa fa-plus"></i> 新增用户</button>
+      </div>
+      <div class="filter-bar">
+        <div class="filter-item"><input type="text" id="pu-account" placeholder="账号"></div>
+        <div class="filter-item"><input type="text" id="pu-name" placeholder="姓名"></div>
+        <div class="filter-item">
+          <select id="pu-role">
+            <option value="">全部角色</option>
+            <option value="platform_admin">平台管理员</option>
+            <option value="admin">租户管理员</option>
+          </select>
+        </div>
+        <div class="filter-item">
+          <select id="pu-status">
+            <option value="">全部状态</option>
+            <option value="active">正常</option>
+            <option value="frozen">已冻结</option>
+            <option value="pending">待审核</option>
+            <option value="inactive">停用</option>
+          </select>
+        </div>
+        <button class="btn" id="pu-search-btn"><i class="fa fa-search"></i> 搜索</button>
+        <button class="btn btn-default" id="pu-reset-btn">重置</button>
+      </div>
+      <div class="table-container">
+        <table class="data-table">
+          <thead><tr>
+            <th>序号</th><th>公司名称</th><th>角色</th><th>账号</th><th>姓名</th><th>电话</th><th>邮箱</th><th>状态</th><th>操作</th>
+          </tr></thead>
+          <tbody id="pu-body"></tbody>
+        </table>
+      </div>
+      <div id="pu-pagebar"></div>
+    </div>
+  </template>
+
+  <template id="tpl-package-cards">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa fa-th-large"></i> 套餐管理</div>
+      </div>
+      <div class="filter-bar">
+        <button class="btn btn-default" id="pkg-tab-template">套餐模板</button>
+        <button class="btn btn-default" id="pkg-tab-tenant">租户套餐</button>
+        <button class="btn btn-primary" style="margin-left:auto;" id="pkg-add-tpl-btn">新增模板</button>
+      </div>
+      <div id="pkg-body-area"></div>
+    </div>
+  </template>
+
+  <template id="tpl-pkg-tpl-table">
+    <div class="table-container">
+      <table class="data-table"><thead><tr>
+        <th>序号</th><th>模板名称</th><th>编码</th><th><span data-term="course">课程</span>上限</th><th><span data-term="schedule">排期</span>上限</th><th>用户上限</th><th><span data-term="teacher">教师</span>上限</th><th><span data-term="student">学生</span>上限</th><th>状态</th><th>操作</th>
+      </tr></thead><tbody id="pkgtpl-body"></tbody></table>
+    </div><div id="pkgtpl-pagebar"></div>
+  </template>
+
+  <template id="tpl-tenant-pkg-table">
+    <div class="table-container">
+      <table class="data-table"><thead><tr>
+        <th>序号</th><th>租户</th><th><span data-term="course">课程</span>(用/限)</th><th><span data-term="schedule">排期</span>(用/限)</th><th>用户(用/限)</th><th><span data-term="teacher">教师</span>(用/限)</th><th><span data-term="student">学生</span>(用/限)</th><th>操作</th>
+      </tr></thead><tbody id="tpkg-body"></tbody></table>
+    </div><div id="tpkg-pagebar"></div>
+    <div style="margin-top:12px;">
+      <button class="btn btn-primary" id="tpkg-create-btn">从模板为租户创建套餐</button>
+    </div>
+  </template>
+
+</body>
+</html>

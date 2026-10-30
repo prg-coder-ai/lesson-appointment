@@ -72,7 +72,7 @@ public class TenantPackageController {
         if (rows > 0) {
             return Result.success(true, "套餐删除成功");
         }
-        return Result.success(false, "套餐删除失败，记录不存在");
+        return Result.fail(404, "套餐删除失败，记录不存在");
     }
 
     /**

@@ -1,0 +1,40 @@
+<view class="page">
+  <view class="topbar">
+    <view class="tb-title">我的排期</view>
+    <view class="tb-add" bindtap="goAdd">＋ 新增</view>
+  </view>
+
+  <!-- 从「我的课程」点进来时按课程筛选：明确提示当前口径，并提供一键回到全部 -->
+  <view wx:if="{{courseId}}" class="filter-bar">
+    <text class="fb-text">仅显示：{{courseName || '所选课程'}}</text>
+    <text class="fb-clear" bindtap="clearFilter">查看全部</text>
+  </view>
+
+  <view wx:if="{{loading}}" class="tip">加载中…</view>
+  <view wx:elif="{{list.length === 0}}" class="empty">
+    <view class="empty-glyph">🗓️</view>
+    <view>还没有排期，点击右上角新增</view>
+  </view>
+
+  <view wx:else class="list">
+    <view wx:for="{{list}}" wx:key="id" class="item">
+      <view class="item-top">
+        <text class="it-title">{{item.title}}</text>
+        <text class="it-status s-{{item.status}}">{{item.statusText}}</text>
+      </view>
+      <view class="it-range">🕒 {{item.range}}</view>
+      <view class="it-meta">
+        <text class="tag">{{item.repeat}}</text>
+        <!-- available_sites 是名额总量（更新时与已占位数比较，而不是递减后的余量），
+             真库可验证：某排期 available_sites=10 且有 2 条 booked 仍为 10。故不写「余位」。 -->
+        <text class="tag">名额 {{item.sites}}</text>
+        <text wx:if="{{item.full}}" class="tag full">约满</text>
+      </view>
+      <view class="item-actions">
+        <text class="act" data-id="{{item.id}}" data-status="{{item.status}}" bindtap="onToggleStatus">{{item.status === 'active' ? '冻结' : '发布'}}</text>
+        <text class="act" data-id="{{item.id}}" bindtap="goEdit">编辑</text>
+        <text class="act danger" data-id="{{item.id}}" bindtap="onDelete">删除</text>
+      </view>
+    </view>
+  </view>
+</view>

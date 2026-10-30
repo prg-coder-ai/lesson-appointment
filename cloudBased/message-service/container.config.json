@@ -1,0 +1,15 @@
+{
+  "_comment": "message-service 服务 container.config.json —— containerPort 必须与 Dockerfile EXPOSE 和 application.properties server.port 三者一致（8090）",
+  "containerPort": 8090,
+  "dockerfilePath": "Dockerfile",
+  "buildDir": "",
+  "minNum": 1,
+  "maxNum": 10,
+  "cpu": 0.3,
+  "mem": 1,
+  "policyType": "cpu",
+  "policyThreshold": 60,
+  "envParams": {},
+  "customLogs": "stdout",
+  "initialDelaySeconds": 10
+}

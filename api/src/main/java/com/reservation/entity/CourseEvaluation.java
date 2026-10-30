@@ -9,6 +9,15 @@ import lombok.Data;
 import java.io.Serializable;
 /**
  * 课程评价实体类，对应设计2.4 后续流程-课程评价功能
+ *
+ * ddl-align: ignore-table 已决定保留表、功能未启用，两处不一致属已知待补项
+ * ✅ 已决定保留 course_evaluation 表与本实体（2026-10-08 用户拍板，功能将来启用），**不要删**。
+ *    当前状态：无 Mapper/Service/Controller 引用，表实测 0 行，属"表与实体先备好、功能未启用"。
+ *    启用前必须先解决两处表/实体不一致：
+ *      ① 实体多出 teacherId，但表里没有对应列（表只到 student_id）→ 需补列或删字段；
+ *      ② 表有 booking_id NOT NULL 无默认值，而实体无该字段 → 需补字段，否则 insert 必失败。
+ *    ⚠️ 本表两个 FK（fk_evaluation_course / fk_evaluation_student）均为 ON DELETE CASCADE，
+ *    按项目铁律级联须由程序显式做（见 CascadeRules），不能靠 FK 盲删。
  */
 @Data
 public class CourseEvaluation implements Serializable {

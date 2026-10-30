@@ -3,6 +3,7 @@ package com.reservation.audit;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.reservation.entity.AuditLog;
 import com.reservation.mapper.AuditLogMapper;
+import com.reservation.utils.ClientIpResolver;
 import com.reservation.utils.JwtUtil;
 import com.reservation.utils.TenantContext;
 import jakarta.servlet.http.HttpServletRequest;
@@ -152,14 +153,11 @@ public class AuditAspect {
     }
 
     private String extractIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip == null || ip.isEmpty()) {
-            ip = request.getHeader("X-Real-IP");
-        }
-        if (ip == null || ip.isEmpty()) {
-            ip = request.getRemoteAddr();
-        }
-        return ip;
+        // 统一走 ClientIpResolver（2026-10-24）：原来这里手写 XFF → X-Real-IP → remoteAddr
+        // 且直接返回 XFF **首段** —— 首段是客户端自己写的那一跳，可任意伪造，
+        // 导致审计日志里的 IP 与按 IP 的风控口径都能被绕过。
+        // resolver 的取法是"直连无视 XFF；来自可信代理则从右往左取第一个不可信地址"。
+        return ClientIpResolver.resolve(request);
     }
 
     private String serializeArgs(ProceedingJoinPoint joinPoint, MethodSignature sig) {

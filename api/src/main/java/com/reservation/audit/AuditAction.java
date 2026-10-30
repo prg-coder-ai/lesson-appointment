@@ -50,7 +50,15 @@ public enum AuditAction {
 
     // 系统管理
     ADMIN_FORCE_LOGOUT("强制踢出用户"),
-    SYSTEM_CONFIG_UPDATE("修改系统配置");
+    SYSTEM_CONFIG_UPDATE("修改系统配置"),
+
+    // 退改规则（课程免责/部分退费/不退费时间点）
+    REFUND_RULE_UPDATE("修改退改规则"),
+    REFUND_RULE_DELETE("删除退改规则"),
+
+    // 通知规则（上课通知的时间点配置）
+    NOTIFY_RULE_UPDATE("修改通知规则"),
+    NOTIFY_RULE_DELETE("删除通知规则");
 
     private final String label;
     AuditAction(String label) { this.label = label; }

@@ -9,54 +9,125 @@ import com.reservation.service.BookingService;
 import com.reservation.audit.Audit;
 import com.reservation.audit.AuditAction;
 import com.reservation.service.MessageNotifyService;
+import com.reservation.utils.PermissionCheck;
+import com.reservation.utils.TermMsg;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequestMapping("/api/v1/course/booking")
 @RequiredArgsConstructor
 @Slf4j
-public class BookingController { 
+public class BookingController {
     private final BookingService bookingService;
     private final MessageNotifyService messageNotifyService;
+    private final PermissionCheck permissionCheck;
 //create/update/updateStatus：返回id
     @PostMapping("/create")
     @Audit(action = AuditAction.BOOKING_CREATE, resourceType = "booking")
-    public Result<String> create(@RequestBody Booking booking) {
+    public Result<String> create(@RequestBody Booking booking,
+                                 @RequestHeader("Authorization") String token) {
+        // 方法级兜底（2026-10-10 P1-4）：对齐 AuthzRules 声明 ALL_ROLES
+        permissionCheck.checkAnyLogin(token);
         try {
             String id = bookingService.create(booking);
             // 系统自动通知：学生预订课程 → 对应教师 + 本租户管理员
-            messageNotifyService.notifyBookingCreated(id);
+            // status='waiting' 为候补预订（排期名额已满时的候补申请），用候补文案单独通知
+            if ("waiting".equalsIgnoreCase(booking.getStatus())) {
+                messageNotifyService.notifyWaitlistCreated(id);
+            } else {
+                messageNotifyService.notifyBookingCreated(id);
+            }
             return Result.success(id,"ok");
         } catch (IllegalArgumentException e) {
-            return Result.fail(null,e.getMessage());
+            // 契约：失败必须给出可判定的错误码。历史写为 fail(null,...)，
+            // 叠加 non_null 序列化会让 code 字段整个消失，客户端只能读到 message。
+            return Result.fail(400, e.getMessage());
         }
     }
 
     @PostMapping("/update/{id}")
-    public Result<String> update(@PathVariable String id, @RequestBody Booking booking) {
+    public Result<String> update(@PathVariable String id, @RequestBody Booking booking,
+                                 @RequestHeader("Authorization") String token) {
+        // 方法级兜底：对齐 AuthzRules 声明 PLATFORM_OR_TENANT_ADMIN
+        permissionCheck.checkAdmin(token);
         try {
             return Result.success(bookingService.update(id, booking),"ok");
         } catch (RuntimeException e) {
-            return Result.fail(null,e.getMessage());
+            // 按异常语义给码（Business→400 / NoPermission→403 / 未找到→404 / 其余 500），
+            // 与 GlobalExceptionHandler 的映射表一致，避免两条路径 code 分叉。
+            return ErrorCodes.fail(e);
         }
     }
 //@PathVariable String id, 
     @PostMapping("/updateStatus")
-    public Result<String> updateStatus(@RequestBody(required = true) BookingDTO dto) {
+    public Result<String> updateStatus(@RequestBody(required = true) BookingDTO dto,
+                                       @RequestHeader("Authorization") String token) {
+        // 方法级兜底：对齐 AuthzRules 声明 ALL_ROLES（≡checkAnyLogin）。
+        // 本端点是复用端点：学生自助操作（撤销/撤销候补/取消预约/撤回取消/重新申请，
+        // student-bookingBrowserCards.js 的 5 种 actionForButton 全走它）与管理员确认/驳回预订共用。
+        // 2026-10-10 P1 曾按"确认/驳回"的管理语义收紧为 checkAdmin，误伤学生 → 取消预约 403
+        // （同款教训见 /course/list，AuthzRules 同日登记）。现统一 checkAnyLogin 恢复学生自助；
+        // 数据级归属校验（学生只能改自己的预订）沿用 /booking/{id} 的既有挂账，待服务层补。
+        permissionCheck.checkAnyLogin(token);
         try {
             String rs = bookingService.updateStatus(dto);
             // 系统自动通知：管理员确认预订 → 该学生（仅"确认"状态触发）
-            if ("bookProved".equals(dto.getStatus())) {
-                messageNotifyService.notifyStudentConfirmed(dto.getId(), "课程预约");
+            // 注意：若本次是「候补 → booked」，Service 内部会转到递补逻辑（需校验名额并生成课次），
+            //      此时同样给该学生发一条确认消息，保证两条入口的通知行为一致。
+            if ("bookProved".equals(dto.getStatus()) || "booked".equals(dto.getStatus())) {
+                // 只传语义动作码；「{course}预约」这类含行业词的文案由 MessageNotifyService 持有并按租户渲染
+                messageNotifyService.notifyStudentConfirmed(dto.getId(), MessageNotifyService.ACTION_BOOKING);
             }
             return Result.success(rs,"ok");
         } catch (RuntimeException e) {
-            return Result.fail(null,e.getMessage());
+            return Result.fail(500, e.getMessage());
+        }
+    }
+
+    /**
+     * 查询某排期的候补队列，按申请时间升序——次序即递补次序（先来先得）。
+     *
+     * <p>课程排期页用它渲染「候补队列」；学生端「今日课程」提示条也用它计算排队位置。
+     * 只返回 status='waiting' 的记录，不占席位。
+     */
+    @GetMapping("/waitlist/{scheduleId}")
+    @ResponseBody
+    public Result<List<Booking>> getWaitlistQueue(@PathVariable("scheduleId") String scheduleId,
+                                                  @RequestHeader("Authorization") String token) {
+        // 方法级兜底：对齐 AuthzRules 声明 ALL_ROLES
+        permissionCheck.checkAnyLogin(token);
+        try {
+            return Result.success(bookingService.getWaitlistQueue(scheduleId), "ok");
+        } catch (RuntimeException e) {
+            return Result.fail(500, e.getMessage());
+        }
+    }
+
+    /**
+     * 递补：把一条候补（waiting）晋升为正式预订（booked），并生成该学生的课次时间列表。
+     *
+     * <p>服务端保证：名额校验（候补不占位，空位可能已被订走）、CAS 防并发重复递补、
+     * 课次生成幂等。成功后自动发消息通知该学生。
+     */
+    @PostMapping("/waitlist/promote")
+    @Audit(action = AuditAction.BOOKING_CONFIRM, resourceType = "booking")
+    public Result<Map<String, Object>> promoteWaitlist(@RequestBody BookingDTO dto,
+                                                       @RequestHeader("Authorization") String token) {
+        // 方法级兜底：对齐 AuthzRules 声明 PLATFORM_OR_TENANT_ADMIN（递补占名额）
+        permissionCheck.checkAdmin(token);
+        try {
+            Map<String, Object> data = bookingService.promoteWaitlist(dto.getId());
+            // 系统自动通知：递补成功 → 该学生（发送者=当前登录管理员）
+            messageNotifyService.notifyWaitlistPromoted(dto.getId());
+            return Result.success(data, TermMsg.t("递补成功，已生成{lessonNumber}并通知{student}"));
+        } catch (RuntimeException e) {
+            return Result.fail(500, e.getMessage());
         }
     }
 
@@ -67,8 +138,10 @@ public class BookingController {
      */
     @GetMapping("/ListByScheduleId/{scheduleId}")
     @ResponseBody
-    public Result<List<Booking>> getBookingListBySchedule(@PathVariable("scheduleId") String scheduleId) {
-      
+    public Result<List<Booking>> getBookingListBySchedule(@PathVariable("scheduleId") String scheduleId,
+                                                          @RequestHeader("Authorization") String token) {
+        // 方法级兜底：对齐 AuthzRules 声明 ALL_ROLES
+        permissionCheck.checkAnyLogin(token);
         BookingQueryParaDTO dto= new BookingQueryParaDTO();
       dto.setScheduleId(scheduleId);
 
@@ -76,13 +149,18 @@ public class BookingController {
             List<Booking> bookings = bookingService.selectList(dto);
             return Result.success(bookings, "ok");
         } catch (RuntimeException e) {
-            return Result.fail(null, e.getMessage());
+            // 按异常语义给码（Business→400 / NoPermission→403 / 未找到→404 / 其余 500），
+            // 与 GlobalExceptionHandler 的映射表一致，避免两条路径 code 分叉。
+            return ErrorCodes.fail(e);
         }
     }
 
      @GetMapping("/countByScheduleId/{scheduleId}")
     @ResponseBody
-    public Result<Integer> getBookingCountBySchedule(@PathVariable("scheduleId") String scheduleId) {
+    public Result<Integer> getBookingCountBySchedule(@PathVariable("scheduleId") String scheduleId,
+                                                     @RequestHeader("Authorization") String token) {
+        // 方法级兜底：对齐 AuthzRules 声明 ALL_ROLES
+        permissionCheck.checkAnyLogin(token);
       BookingQueryParaDTO dto= new BookingQueryParaDTO();
       dto.setScheduleId(scheduleId);
 
@@ -90,14 +168,19 @@ public class BookingController {
             Integer count = bookingService.getBookingCountByScheduleId(scheduleId);
             return Result.success(count, "ok");
         } catch (RuntimeException e) {
-            return Result.fail(null, e.getMessage());
+            // 按异常语义给码（Business→400 / NoPermission→403 / 未找到→404 / 其余 500），
+            // 与 GlobalExceptionHandler 的映射表一致，避免两条路径 code 分叉。
+            return ErrorCodes.fail(e);
         }
     }
 
     @PostMapping("/list")
     @ResponseBody
-    public Result<List<Booking>> filterList(@RequestBody BookingQueryParaDTO dto) {
-        //  log.debug("booking list input dto: " + dto); 
+    public Result<List<Booking>> filterList(@RequestBody BookingQueryParaDTO dto,
+                                            @RequestHeader("Authorization") String token) {
+        // 方法级兜底：对齐 AuthzRules 声明 ALL_ROLES
+        permissionCheck.checkAnyLogin(token);
+        //  log.debug("booking list input dto: " + dto);
          try {
            List<Booking> rs = bookingService.selectList(dto);
           
@@ -105,27 +188,37 @@ public class BookingController {
              return Result.success(rs,"ok");
             } catch (RuntimeException e) {
                  // log.debug("filterList fail: " + e.getMessage());
-             return Result.fail(0,e.getMessage());
+             // 按异常语义给码（Business→400 / NoPermission→403 / 未找到→404 / 其余 500），
+             // 与 GlobalExceptionHandler 的映射表一致，避免两条路径 code 分叉。
+             return ErrorCodes.fail(e);
         } 
     }
 
     @PostMapping("/page")
     @ResponseBody
-    public Result<PageResult<Booking>> filterListPage(@RequestBody BookingQueryPage dto) {
-        //  log.debug("booking list input dto: " + dto); 
+    public Result<PageResult<Booking>> filterListPage(@RequestBody BookingQueryPage dto,
+                                                      @RequestHeader("Authorization") String token) {
+        // 方法级兜底：对齐 AuthzRules 声明 ALL_ROLES
+        permissionCheck.checkAnyLogin(token);
+        //  log.debug("booking list input dto: " + dto);
          try {
            PageResult <Booking> rs = bookingService.selectListPage(dto);
            
              return Result.success(rs,"ok");
             } catch (RuntimeException e) {
                  // log.debug("filterList fail: " + e.getMessage());
-             return Result.fail(0,e.getMessage());
+             // 按异常语义给码（Business→400 / NoPermission→403 / 未找到→404 / 其余 500），
+             // 与 GlobalExceptionHandler 的映射表一致，避免两条路径 code 分叉。
+             return ErrorCodes.fail(e);
         } 
     }
 
 
     @GetMapping("/{id}")
-    public Result<Booking> getById(@PathVariable String id) {
+    public Result<Booking> getById(@PathVariable String id,
+                                   @RequestHeader("Authorization") String token) {
+        // 方法级兜底：对齐 AuthzRules 声明 ALL_ROLES（数据级归属校验留待服务层补）
+        permissionCheck.checkAnyLogin(token);
         Booking bk = bookingService.selectById(id);
         return  Result.success(bk,"ok");
     }
@@ -140,8 +233,11 @@ public class BookingController {
     @ResponseBody
     public Result<java.util.Map<String, Integer>> getBookingStatisticalByMonth(
             @RequestParam("year") int year,
-            @RequestParam("month") int month
+            @RequestParam("month") int month,
+            @RequestHeader("Authorization") String token
     ) {
+        // 方法级兜底：对齐 AuthzRules 声明 PLATFORM_OR_TENANT_ADMIN（管理面统计）
+        permissionCheck.checkAdmin(token);
         // 获取月初和月末的具体时间
         java.time.LocalDate monthStart = java.time.LocalDate.of(year, month, 1);
         java.time.LocalDate monthEnd = monthStart.with(java.time.temporal.TemporalAdjusters.lastDayOfMonth());
@@ -176,16 +272,24 @@ public class BookingController {
 
     @DeleteMapping("/delete/{id}")
     @Audit(action = AuditAction.BOOKING_CANCEL, resourceType = "booking", resourceId = "id")
-    public Result<Integer> delete(@PathVariable String id) {
+    public Result<Integer> delete(@PathVariable String id,
+                                  @RequestHeader("Authorization") String token) {
+        // 方法级兜底：对齐 AuthzRules 声明 PLATFORM_OR_TENANT_ADMIN
+        permissionCheck.checkAdmin(token);
         try {
            int rows= bookingService.delete(id);
             return Result.success(rows,"delete");
         } catch (RuntimeException e) {
-            return Result.fail(0,e.getMessage());
+            // 按异常语义给码（Business→400 / NoPermission→403 / 未找到→404 / 其余 500），
+            // 与 GlobalExceptionHandler 的映射表一致，避免两条路径 code 分叉。
+            return ErrorCodes.fail(e);
         }
     }
     @DeleteMapping("/deleteByScheduleId/{id}")
-    public Result<Integer> deleteByScheduleId(@PathVariable String id) {
+    public Result<Integer> deleteByScheduleId(@PathVariable String id,
+                                              @RequestHeader("Authorization") String token) {
+        // 方法级兜底：对齐 AuthzRules 声明 PLATFORM_OR_TENANT_ADMIN（级联删预订）
+        permissionCheck.checkAdmin(token);
         return Result.success(bookingService.deleteByScheduleId(id),"ok");
     }
 }

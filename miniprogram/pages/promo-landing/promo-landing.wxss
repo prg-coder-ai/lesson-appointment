@@ -1,0 +1,15 @@
+.page { min-height: 100vh; padding: 32rpx; box-sizing: border-box; background: #f5f7fa; }
+.hero { display: flex; flex-direction: column; align-items: center; padding: 80rpx 24rpx 48rpx; }
+.hero-icon { font-size: 96rpx; }
+.hero-title { font-size: 36rpx; font-weight: 700; color: #1f2a44; margin-top: 24rpx; text-align: center; }
+.hero-sub { font-size: 26rpx; color: #8a93a6; margin-top: 16rpx; text-align: center; line-height: 1.7; }
+.card { margin-top: 24rpx; background: #fff; border-radius: 20rpx; padding: 8rpx 28rpx; box-shadow: 0 8rpx 30rpx rgba(31,42,68,0.05); }
+.row { display: flex; align-items: center; justify-content: space-between; padding: 26rpx 0; border-bottom: 1rpx solid #f0f2f5; }
+.row:last-child { border-bottom: none; }
+.rk { font-size: 28rpx; color: #5a6478; }
+.rv { font-size: 28rpx; color: #1f2a44; }
+.rv.code { font-family: Consolas, Menlo, monospace; font-weight: 600; color: #1677ff; letter-spacing: 2rpx; }
+.tip { font-size: 26rpx; color: #d4380d; padding: 24rpx 0; line-height: 1.6; }
+.cta { margin: 48rpx 32rpx 0; height: 92rpx; line-height: 92rpx; text-align: center; background: #1677ff; color: #fff; font-size: 32rpx; font-weight: 600; border-radius: 16rpx; }
+.cta-hover { background: #0e5fd8; }
+.foot { text-align: center; font-size: 22rpx; color: #aab2c2; margin-top: 24rpx; }

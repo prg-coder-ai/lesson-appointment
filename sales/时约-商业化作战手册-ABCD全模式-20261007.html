@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>时约 · 商业化作战手册（A/B/C/D 全模式）</title>
+<style>
+  :root{
+    --ink:#1f2430; --sub:#5b6472; --line:#e8ebf0; --bg:#f5f7fa;
+    --brand:#2b6cb0; --brand2:#1a4f86; --accent:#0f9d8a; --warn:#c0392b;
+    --chip:#eef4fb; --chip2:#e9f7f3; --gold:#b8860b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);line-height:1.72;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:980px;margin:0 auto;padding:18px}
+  .banner{background:linear-gradient(120deg,var(--brand2),var(--brand));border-radius:16px 16px 0 0;padding:20px 26px 22px;color:#fff}
+  .brand-tag{color:#fff;opacity:.85;font-size:12px;letter-spacing:1px;margin-bottom:10px}
+  .banner h1{font-size:23px;font-weight:700;letter-spacing:.5px}
+  .banner .meta{font-size:13px;opacity:.88;margin-top:7px}
+  .nav{background:#fff;border:1px solid var(--line);border-top:none;padding:12px 26px;display:flex;flex-wrap:wrap;gap:8px;font-size:12.5px}
+  .nav a{color:var(--brand2);text-decoration:none;background:var(--chip);padding:3px 11px;border-radius:20px;font-weight:600}
+  .nav a:hover{background:var(--chip2)}
+  .card{background:#fff;border:1px solid var(--line);border-top:none;padding:22px 26px}
+  .card:last-of-type{border-radius:0 0 16px 16px}
+  .sec{margin-bottom:26px}
+  .sec:last-child{margin-bottom:0}
+  .sec-h{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .sec-no{background:var(--brand);color:#fff;width:27px;height:27px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex:none}
+  .sec-h h2{font-size:17px;font-weight:700}
+  ul.li{list-style:none}
+  ul.li li{position:relative;padding-left:20px;margin-bottom:8px;font-size:13.8px}
+  ul.li li::before{content:"";position:absolute;left:4px;top:9px;width:7px;height:7px;border-radius:2px;background:var(--accent)}
+  b{color:var(--brand2)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  @media(max-width:760px){.grid,.grid3{grid-template-columns:1fr}}
+  .box{background:var(--chip);border-radius:10px;padding:12px 14px;font-size:13px}
+  .box.g{background:var(--chip2)}
+  .box .t{font-weight:700;color:var(--brand2);margin-bottom:4px}
+  table.t{width:100%;border-collapse:collapse;font-size:12.8px;margin-top:4px}
+  table.t th,table.t td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  table.t th{background:var(--chip);color:var(--brand2);font-weight:700}
+  table.t td.pos{color:var(--accent);font-weight:600}
+  table.t td.pric{color:var(--warn);font-weight:700}
+  .tier{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+  .tier .name{font-weight:700;color:var(--brand2);font-size:14.5px;display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px}
+  .tier .price{color:var(--warn);font-weight:700;font-size:14px}
+  .tier .who{font-size:12.3px;color:var(--sub);margin:6px 0 8px}
+  .tier ul{list-style:none}
+  .tier ul li{position:relative;padding-left:16px;font-size:12.8px;margin-bottom:5px;color:var(--ink)}
+  .tier ul li::before{content:"·";position:absolute;left:4px;color:var(--accent);font-weight:700}
+  .script{border-left:3px solid var(--gold);background:#fdfaf0;padding:10px 14px;margin-bottom:10px;border-radius:0 8px 8px 0}
+  .script .st{font-weight:700;color:var(--ink);font-size:13px;margin-bottom:2px}
+  .script .sb{font-size:12.8px;color:var(--sub)}
+  .script .sb b{color:var(--gold)}
+  .kpi{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+  .kpi .k{background:var(--chip);border-radius:10px;padding:10px 12px;font-size:12.5px}
+  .kpi .k .n{font-weight:700;color:var(--brand2)}
+  .kpi .k .v{color:var(--accent);font-weight:700}
+  .flow{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin:8px 0}
+  .step{background:var(--chip);border-radius:8px;padding:6px 11px;font-size:12.3px}
+  .step.b{background:var(--chip2);color:var(--brand2);font-weight:600}
+  .arrow{color:var(--sub);font-size:12px}
+  .warn{background:#fdecea;border:1px solid #f5c6c0;border-radius:10px;padding:12px 14px;font-size:13px;color:#7a241c}
+  .warn b{color:var(--warn)}
+  .ref{background:#f3f6fb;border-radius:10px;padding:12px 14px;font-size:13px}
+  .ref div{margin-bottom:6px}
+  .ref div:last-child{margin-bottom:0}
+  .ref .name{color:var(--brand2);font-weight:700}
+  .note{background:#fff8e6;border:1px solid #f3e2b3;border-radius:10px;padding:10px 14px;font-size:12.5px;color:#7a5b00;margin-bottom:16px}
+  .ktag{display:inline-block;background:var(--chip);color:var(--brand2);font-size:11.5px;padding:2px 9px;border-radius:20px;margin:2px 4px 8px 0;font-weight:600}
+  .roadmap{font-size:12.8px}
+  .roadmap tr:nth-child(odd) td{background:#fafcfe}
+  .foot{text-align:center;color:var(--sub);font-size:12px;padding:16px}
+  .rel{display:grid;grid-template-columns:1.3fr 1fr;gap:14px;align-items:center}
+  @media(max-width:760px){.rel{grid-template-columns:1fr}}
+  .rel .left{background:var(--chip);border-radius:12px;padding:16px}
+  .rel .left .t{font-weight:700;color:var(--brand2);margin-bottom:8px}
+  .rel .right{font-size:12.5px;color:var(--sub)}
+  .up{background:var(--chip2);border:1px solid #cfe9e2;border-radius:10px;padding:10px 12px;font-size:12.5px;margin-bottom:8px}
+  .up .t{font-weight:700;color:var(--accent);margin-bottom:3px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="banner">
+    <p class="brand-tag">时约 · 商业化作战手册（内容变现顾问 卞现 × 首席内容策略官 梗王 × Sales Coach）</p>
+    <h1>分规模定价 · 营销策略 · 路线全景图（A / B / C / D 四层全模式）</h1>
+    <div class="meta">整合自：定价总表(09-02) · A 层SOP(09-03) · B/C 层SOP 与 系统售卖层(09-15) ｜ 对象：教培/律师/心理/健身服务业 SaaS（源码自有）｜ 2026-10-07</div>
+  </div>
+
+  <div class="nav">
+    <a href="#m0">模型总览</a>
+    <a href="#m1">① 分层模型</a>
+    <a href="#m2">② 完整定价</a>
+    <a href="#m3">③ 营销策略</a>
+    <a href="#m4">④ 话术精华</a>
+    <a href="#m5">⑤ 指标与红线</a>
+    <a href="#m6">⑥ 统一路线图</a>
+    <a href="#m7">⑦ 风险红线</a>
+    <a href="#m8">⑧ 待拍板/指路</a>
+  </div>
+
+  <div class="card">
+
+    <div class="note">本手册把四套方案并成一份可执行的"总图"。定价与话术均为<b>建议初稿</b>，上线前请 <b>卞现</b> 做最终报价拍板、<b>赵写</b> 过合规与语气。心理/法律行业一律落到"辅助管理 + 数据本地"，禁写"帮你获客/合规"。</div>
+
+    <!-- 模型总览 -->
+    <div class="sec" id="m0">
+      <div class="sec-h"><div class="sec-no">图</div><h2>四层模型怎么摆（先看懂这个再往下）</h2></div>
+      <div class="rel">
+        <div class="left">
+          <div class="t">一个系统，两条收益线</div>
+          <div class="up"><div class="t">A/B/C 层｜卖"使用"（SaaS 订阅）</div>按用户规模收费：个体 ¥29/月 → 团队 ¥99 起 → 私有部署项目制。靠内容获客 + 自助/轻销售转化，是<b>持续经常性收入</b>。</div>
+          <div class="up"><div class="t">D 轴｜卖"系统本身"（授权/白标/代理）</div>因为<b>源码自有</b>，能一次性或周期性变现系统、授权、品牌、渠道权。是<b>前置资产型收入</b>，且自带渠道杠杆。</div>
+          <p style="font-size:12.5px;color:var(--sub);margin-top:6px">D 轴在 A/B/C 的<b>上游</b>：代理商（M4）在当地卖 A/B 订阅、白标方（M3）圈行业用户——这些末端最终都落回 A/B/C 的 SaaS 收入，"源头扩渠道、末端吃订阅"。</p>
+        </div>
+        <div class="right">
+          <b>A 层</b> 个体/自由职业者<br>→ PLG 自助，¥0 体验 / ¥29 标准<br><br>
+          <b>B 层</b> 小团队/小微机构<br>→ 轻销售 1v1，¥99 团队版起<br><br>
+          <b>C 层</b> 成长型/连锁/强隐私<br>→ 高 touch BD，私有部署项目制<br><br>
+          <b>D 轴</b> 系统买家（机构/代理/品牌方）<br>→ 授权/白标/代理/联合运营
+        </div>
+      </div>
+    </div>
+
+    <!-- ① 分层模型 -->
+    <div class="sec" id="m1">
+      <div class="sec-h"><div class="sec-no">①</div><h2>分层模型（卖给谁 · 用什么交付形态）</h2></div>
+      <div class="grid3">
+        <div class="tier" style="margin-bottom:0">
+          <div class="name">A 层 · 个体</div>
+          <div class="who">独立咨询师、私教、自由老师、律师个人工作室</div>
+          <ul>
+            <li>1 人经营，自己秒级决策</li>
+            <li>痛点：排期乱、爽约、手动提醒累</li>
+            <li>付费意愿低，认"一杯咖啡钱"</li>
+            <li>交付：SaaS（数据敏感度一般）</li>
+          </ul>
+        </div>
+        <div class="tier" style="margin-bottom:0">
+          <div class="name">B 层 · 小团队</div>
+          <div class="who">教培小机构、律所小团队、健身工作室、心理诊所</div>
+          <ul>
+            <li>2–10 名服务者，负责人拍板</li>
+            <li>痛点：多人排班冲突、客户分组、续费</li>
+            <li>付费意愿中，认"按席位摊薄"</li>
+            <li>交付：SaaS 团队版</li>
+          </ul>
+        </div>
+        <div class="tier" style="margin-bottom:0">
+          <div class="name">C 层 · 大客户</div>
+          <div class="who">连锁健身、多校区教培、律所分所、心理机构</div>
+          <ul>
+            <li>多门店/有 IT 或合规要求</li>
+            <li>痛点：数据归属、合规、统一管控</li>
+            <li>付费意愿高，认项目制 + 年服</li>
+            <li>交付：私有/内网部署</li>
+          </ul>
+        </div>
+      </div>
+      <div class="tier" style="margin-top:12px">
+        <div class="name">D 轴 · 系统买家</div>
+        <div class="who">想拥有/运营同类系统的机构、代理商、行业组织者、SaaS 创业者</div>
+        <ul>
+          <li>有客群或有控制欲、但自己造不起/不值得造</li>
+          <li>买的是"系统 / 授权 / 品牌 / 渠道权"，非末端订阅</li>
+          <li>交付：授权包 / 源码 / 白标 / 代理政策 / 联合运营 / 平台特许</li>
+          <li>与 A/B/C 正交：既服务末端，也服务"卖系统的人"</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ② 完整定价 -->
+    <div class="sec" id="m2">
+      <div class="sec-h"><div class="sec-no">②</div><h2>完整定价体系</h2></div>
+
+      <p style="font-size:13px;color:var(--sub);margin-bottom:8px"><b>A/B/C 层 · SaaS 订阅与私有部署</b></p>
+      <div class="grid3">
+        <div class="tier" style="margin-bottom:0">
+          <div class="name">体验版</div><div class="price">¥0 / 永久</div>
+          <div class="who">A 层试水入口</div>
+          <ul><li>1 服务者、1 预约页、品牌页脚</li><li>每月 50 条提醒额度</li><li>定位：零门槛"建页→被约"爽感</li></ul>
+        </div>
+        <div class="tier" style="margin-bottom:0">
+          <div class="name">标准版</div><div class="price">¥29/月 · 年付 ¥299</div>
+          <div class="who">A 层主力付费</div>
+          <ul><li>去页脚、无限预约/提醒</li><li>课程/师资页、续费提醒</li><li>锚定"一节体验课零头"</li></ul>
+        </div>
+        <div class="tier" style="margin-bottom:0">
+          <div class="name">团队版</div><div class="price">¥99 起 / 月 · 年付 ¥999 起</div>
+          <div class="who">B 层</div>
+          <ul><li>含 3 席位，+¥19/席</li><li>多人排班、分组、看板</li><li>加人就加钱（自然扩张）</li></ul>
+        </div>
+      </div>
+      <div class="tier" style="margin-top:12px">
+        <div class="name">私有 / 内网部署版</div><div class="price">一次性 ¥8,000 起 + 年服 ¥3,000 起</div>
+        <div class="who">C 层 · 项目制报价，创始人直谈</div>
+        <ul>
+          <li>私有部署：¥8,000–30,000（按规模/定制）+ 年服 ¥3,000–10,000</li>
+          <li>内网部署：¥15,000 起 + 年服，适心理/法律</li>
+          <li>含部署交付、培训、升级、工单支持</li>
+          <li>不公开标价，按项目单谈</li>
+        </ul>
+      </div>
+
+      <p style="font-size:13px;color:var(--sub);margin:16px 0 8px"><b>D 轴 · 六种卖系统模式定价（建议初稿，待卞现终审）</b></p>
+      <table class="t">
+        <tr><th>模式</th><th>买家意图</th><th>收入结构</th><th>风险</th></tr>
+        <tr><td><b>M1 私有化授权</b><br>买断部署权</td><td>自己掌控系统/数据，但不想自研</td><td class="pric">一次性 ¥15k–40k + 年维护 15–20%</td><td>低</td></tr>
+        <tr><td><b>M2 源码授权</b><br>买断源码</td><td>完全拥有、自行迭代/转售</td><td class="pric">¥60k–200k+（多不含后续）</td><td>高</td></tr>
+        <tr><td><b>M3 白标/OEM</b><br>贴自己牌</td><td>有客群无技术，想以自己品牌提供</td><td class="pric">白标年费 ¥20k–50k + 坐席/流水分成</td><td>中</td></tr>
+        <tr><td><b>M4 代理经销</b><br>当地卖赚差</td><td>有本地/行业客情，转售赚差价</td><td class="pric">进货 4–6 折 + 阶梯返点</td><td>低</td></tr>
+        <tr><td><b>M5 联合运营</b><br>不投钱分流水</td><td>有流量/入口但不想买系统</td><td class="pric">低前置 ¥5k–20k + 流水分成 15–30%</td><td>中</td></tr>
+        <tr><td><b>M6 平台特许</b><br>做行业平台</td><td>想在某一行业做"平台运营方"</td><td class="pric">授权 ¥80k–200k + 坐席/流水分成</td><td>高</td></tr>
+      </table>
+
+      <div class="box g" style="margin-top:12px">
+        <div class="t">定价纪律（防自我蚕食 · 四条锁死）</div>
+        ① <b>锚定基准</b>：一次性授权费 = 对应 SaaS 年费 × 3 年，再按模式加溢价；② <b>年维护是底线收入</b>：私有/白标/平台一律收 15–20%，不为成交免掉；③ <b>渠道价隔离</b>：代理进货价只用于代理自售，不公开挂价，直营 ¥29 不受渠道影响；④ <b>授权客户不享订阅折扣</b>，避免"一次买断养一池免费末端用户"。价格审批权集中：标准框架卞现定，M2/M6 特批须创始人+卞现双签。
+      </div>
+    </div>
+
+    <!-- ③ 营销策略 -->
+    <div class="sec" id="m3">
+      <div class="sec-h"><div class="sec-no">③</div><h2>营销策略（各层获客 + 销售 + 内容主线）</h2></div>
+
+      <div class="grid">
+        <div class="box"><div class="t">A 层 · PLG 自助（零人工）</div>小红书/搜索 → 落地页 → 免费注册 → 产品内 5 分钟建页激活 → 自然转 ¥29。靠内容 + 体验 + 站内提醒，<b>不投流、不打电话</b>。</div>
+        <div class="box g"><div class="t">B 层 · 轻销售 1v1</div>内容/搜索 → 注册 → 团队功能试用 → 埋点识别"多人信号"72h 入池 → 24h 内企业微信轻触达 + 15min demo → 团队版付费。</div>
+        <div class="box"><div class="t">C 层 · 高 touch BD</div>定向 BD/转介绍/行业活动 → 需求沟通 + MEDDPICC 资格认定 → 安全合规方案 + POC（共同评估计划）→ 报价签约 → 部署。</div>
+        <div class="box g"><div class="t">D 轴 · 系统售卖（卖资产）</div>行业展会/协会宣讲/老客户升级/招商会 → 简化 MEDDPICC 资格认定 → 方案报价 → 法务授权协议 → 交付（部署包/源码交割）→ 运维续费。</div>
+      </div>
+
+      <div class="up" style="margin-top:14px">
+        <div class="t">内容营销主线（首席内容策略官视角 · 由梗王负责）</div>
+        <b>主平台：小红书企业号</b>（起号期唯一主阵地，不投薯条、不追日更）。<b>内容配比（周 3–4 篇）</b>：痛点共鸣 50%（拉新）/ 产品演示 30%（促转化）/ 主创人设 15%（立信任）/ 用户答疑 5%（养关系），每篇带注册钩子。<b>节奏</b>：冷启动走"个人号 → 企业号认证(600/年) → 外链组件"，稳定更新大于爆发。<b>主指标</b>：小红书带来的免费试用<b>注册数（按邀请码来源归因）</b>，曝光/赞藏仅作参考。官网 SEO 吃"心理咨询预约/私教排期/教培约课/律师预约"等搜索词，微信生态做私域沉淀与转介绍。
+      </div>
+
+      <table class="t" style="margin-top:12px">
+        <tr><th>渠道</th><th>主承接层</th><th>作用</th><th>来源归因</th></tr>
+        <tr><td><b>小红书企业号</b></td><td>A / B</td><td>痛点共鸣 + 录屏种草，引免费试用</td><td class="pos">专属邀请码</td></tr>
+        <tr><td><b>官网 + SEO</b></td><td>A/B/C</td><td>吃行业搜索词</td><td class="pos">UTM + 落地页</td></tr>
+        <tr><td><b>微信生态</b></td><td>A/B</td><td>公众号 + 预约 H5 + 私域转介绍</td><td>渠道参数</td></tr>
+        <tr><td><b>垂直社群/论坛</b></td><td>A/B</td><td>行业群价值输出</td><td>邀请码</td></tr>
+        <tr><td><b>转介绍/口碑</b></td><td>A→B, B→C</td><td>推荐 1 人得 1 月免费</td><td class="pos">推荐码</td></tr>
+        <tr><td><b>定向 BD</b></td><td>C / D 轴</td><td>协会/沙龙/拜访律所·心理·连锁</td><td>商机来源登记</td></tr>
+      </table>
+    </div>
+
+    <!-- ④ 话术精华 -->
+    <div class="sec" id="m4">
+      <div class="sec-h"><div class="sec-no">④</div><h2>话术精华（各层钩子 / 价值 / 异议，可直接改稿）</h2></div>
+
+      <p class="ktag">A 层 · 个体</p>
+      <div class="script"><div class="st">开场钩子</div><div class="sb">"排课靠表格、约时间靠微信来回、续费靠一个个私信——这三件事，系统能替你接了。"</div></div>
+      <div class="script"><div class="st">价值主张</div><div class="sb">"时约把你可服务的时间一次性设好，学员自己挑、系统自动提醒。免费就能建第一个预约页。"</div></div>
+      <div class="script"><div class="st">异议·价格</div><div class="sb">"标准版一个月 29，大概一节体验课零头。省下每周几小时排课，值不值你算。"</div></div>
+
+      <p class="ktag">B 层 · 小团队</p>
+      <div class="script"><div class="st">开场钩子</div><div class="sb">"你们几个教练/老师的排期，现在群里对还是表格对？冲突了谁兜底？"</div></div>
+      <div class="script"><div class="st">价值主张</div><div class="sb">"团队版把所有人排班放一页，会员自助约、系统按人提醒；你后台看谁快到期、该跟进续费。加一个老师就加一个席位，按人摊。"</div></div>
+      <div class="script"><div class="st">异议·怕麻烦</div><div class="sb">"不用迁数据，先把现有排期录进去就能用。我 15 分钟带你过一遍多人视图。"</div></div>
+
+      <p class="ktag">C 层 · 私有部署</p>
+      <div class="script"><div class="st">开场钩子</div><div class="sb">"咱们数据留在自己服务器，还是放公共云？这一条往往决定了能不能用。"</div></div>
+      <div class="script"><div class="st">价值主张</div><div class="sb">"时约支持私有/内网部署：功能跟 SaaS 一样，数据留你自己的环境。多门店统一管控、员工按角色权限，升级运维我们包年服。"</div></div>
+      <div class="script"><div class="st">异议·部署难</div><div class="sb">"前置就两样：自有服务器 + 基础网络。我们出部署指引，交付时培训+工单。先做个 POC 再报价，不先开天价。"</div></div>
+
+      <p class="ktag">D 轴 · 卖系统（异议变了）</p>
+      <div class="script"><div class="st">核心转向</div><div class="sb">这层卖的是<b>资产与权利</b>，异议从"太贵"变成"源码给我吗 / 数据归谁 / 能改吗"——话术围绕<b>控制与归属</b>而非性价比。缺"经济买家"或"预算信号"→ 养着不报价。</div></div>
+    </div>
+
+    <!-- ⑤ 指标与红线 -->
+    <div class="sec" id="m5">
+      <div class="sec-h"><div class="sec-no">⑤</div><h2>核心指标与红线（四层 KPI 汇总）</h2></div>
+      <table class="t">
+        <tr><th>层</th><th>主指标（硬）</th><th>过程指标</th><th>红线阈值（跌破先修这个）</th></tr>
+        <tr><td><b>A 个体</b></td><td>小红书免费试用注册数</td><td>激活率、付费转化率</td><td class="pos">激活率&lt;25%→修 onboarding；付费转化&lt;5%→查价格/价值</td></tr>
+        <tr><td><b>B 小团队</b></td><td>团队版付费数 + NRR</td><td>信号→触达率、团队版转化</td><td class="pos">多人信号漏检&gt;30%→查埋点；触达率&lt;70%→查同步</td></tr>
+        <tr><td><b>C 大客户</b></td><td>签约客单价 + POC→签约</td><td>商机→POC、交付周期</td><td class="pos">无 Economic Buyer 不进 POC；POC 无成功标准不做</td></tr>
+        <tr><td><b>D 系统</b></td><td>授权收入占比（目标 15–25%）</td><td>成交周期、年维护续约、代理带单</td><td class="pos">M1 周期&gt;5 周预警；年维护续约&lt;85%预警；代理带单目标 20%+</td></tr>
+      </table>
+      <div class="kpi">
+        <div class="k"><div class="n">A 激活率</div>建页÷注册，<span class="v">目标 ≥40%</span></div>
+        <div class="k"><div class="n">A 付费转化</div>付费÷试用，<span class="v">目标 8–12%</span></div>
+        <div class="k"><div class="n">B 团队转化</div>信号线索→付费，<span class="v">目标 25–35%</span></div>
+        <div class="k"><div class="n">B 净收入留存 NRR</div>含加席扩张，<span class="v">目标 ≥110%</span></div>
+        <div class="k"><div class="n">C 商机→POC</div><span class="v">目标 ≥40%</span></div>
+        <div class="k"><div class="n">C POC→签约</div><span class="v">目标 ≥50%</span></div>
+        <div class="k"><div class="n">C 客单价</div>私有 ¥15k–30k / 内网 ¥25k+</div>
+        <div class="k"><div class="n">D 年维护续约</div><span class="v">目标 ≥85%</span></div>
+      </div>
+    </div>
+
+    <!-- ⑥ 统一路线图 -->
+    <div class="sec" id="m6">
+      <div class="sec-h"><div class="sec-no">⑥</div><h2>统一路线图（0–12 月，A/B/C 启动 × D 轴四阶段融合）</h2></div>
+      <table class="t roadmap">
+        <tr><th>阶段</th><th>时间</th><th>主攻</th><th>关键动作</th><th>阶段目标</th></tr>
+        <tr><td><b>一·立基线</b></td><td>第 0–4 周</td><td>A 层 PLG<br>+ D 轴 M1/M4</td><td>企业号认证+外链、落地页+不绑卡 14 天试用上线；出授权协议模板、部署包标准化、招首批 2–3 代理</td><td>A 周注册起量；跑通 1 单 M1 + 首批代理首单</td></tr>
+        <tr><td><b>二·建渠道</b></td><td>第 1–3 月</td><td>B 层轻销售<br>+ D 轴 M4 扩张</td><td>上线埋点信号识别（72h 入池、24h 触达）；代理分级运营；A 层内容稳定周更；谈 1–2 个联合运营（M5）</td><td>信号→团队版转化跑通；代理带单占新签 20%+</td></tr>
+        <tr><td><b>三·做深合作</b></td><td>第 3–6 月</td><td>C 层 BD<br>+ D 轴 M3 试点</td><td>C 层正式 BD（MEDDPICC + POC 共同评估计划）；选 1 个强信任行业品牌方做白标试点；联合运营上线</td><td>首单私有部署签约；白标年费 + 末端抽成跑通</td></tr>
+        <tr><td><b>四·顶级个案</b></td><td>第 6–12 月</td><td>D 轴 M2/M6<br>+ 规模化</td><td>仅接高价值、强信任 M2/M6 个案（创始人+卞现双签）；渠道规模化、内容矩阵扩行业</td><td>授权收入占比 15–25%；每单 ¥8 万+ 严控控制权</td></tr>
+      </table>
+      <div class="warn" style="margin-top:12px"><b>顺序铁律：</b>先 A+M1/M4 把"获客能力 + 交付 + 合同 + 渠道"跑顺，再上 B/C 与 M3/M5，最后才碰 M2/M6。一上来卖源码或平台特许，最容易丢掉控制权和后续收入。<b>内容节奏不可逆</b>：A 层内容没起量前不投 BD 预算，避免线索进来接不住。</div>
+    </div>
+
+    <!-- ⑦ 风险红线 -->
+    <div class="sec" id="m7">
+      <div class="sec-h"><div class="sec-no">⑦</div><h2>风险与合规红线</h2></div>
+      <div class="warn">
+        <b>合规（发布即死线）：</b>禁绝对化用语（最/第一/唯一）与效果保证（保证不爽约/保证涨客）。心理、法律一律写"辅助管理工具 + 数据本地"，不写"帮你获客/合规"。违规 = 限流或删帖，单主创更耗不起。<br><br>
+        <b>定价不自相矛盾：</b>体验版要真能长期免费（否则"免费"变噱头伤信任）；标准版与团队版边界清晰，别让个体误买团队版、别让团队功能出现在免费版。<br><br>
+        <b>私有部署不夸大：</b>说清前置（服务器/网络），别让人以为点一下就行；报价按项目单谈，对外不挂统一标价，避免被拿来做比价锚点。<br><br>
+        <b>D 轴四防：</b>① 自我蚕食（授权价低于 3 年订阅/代理公开低价）→ 用定价纪律锁死；② 源码泄露（M1 只交部署包、M2 走 escrow，交付包不含核心密钥）；③ 渠道冲突（招商签区域/行业保护，冲突卞现仲裁）；④ 售后无底洞（维护费对应明确 SLA，超范围人天计费）。<br><br>
+        <b>控制权失控：</b>M2/M6 让渡过多 → 仅接高价值个案、双签拍板、留审计与违约责任。心理/法律场景下"数据不出公共云"必须靠部署真做到，不口头承诺。
+      </div>
+    </div>
+
+    <!-- ⑧ 待拍板与指路 -->
+    <div class="sec" id="m8">
+      <div class="sec-h"><div class="sec-no">⑧</div><h2>待拍板与接下来找谁</h2></div>
+      <div class="ref">
+        <div><span class="name">卞现（内容变现顾问）</span>：最终报价拍板、免费试用门槛、私有部署与 D 轴价格框架、M2/M6 双签特批</div>
+        <div><span class="name">赵写（内容风格教练）</span>：话术去 AI 味、品牌语气统一、合规过审（尤其心理/法律口径）</div>
+        <div><span class="name">梗王（首席内容策略官）</span>：小红书内容主线、来源归因设计、内容→注册转化复盘</div>
+        <div><span class="name">启号（起号规划师）</span>：企业号认证、外链组件、落地页路线图、B 层信号埋点需求</div>
+        <div><span class="name">包火（爆款分析师）</span>：高转化笔记模板提炼、投放 Brief（如需放大 A 层获客）</div>
+        <div><span class="name">郝选题（选题助手）</span>：每周/每月选题日历、热点跟法</div>
+      </div>
+      <p style="font-size:12.5px;color:var(--sub);margin-top:10px">本手册为战略总图，各层详细执行步骤请回看对应 SOP：<b>时约-A层SOP</b>（09-03）、<b>时约-B层SOP / C层SOP / 系统售卖层方案</b>（09-15）。价格与条款均为建议初稿，以卞现终审、赵写合规把关为准。</p>
+    </div>
+
+  </div>
+
+  <div class="foot">时约 · 商业化作战手册（A/B/C/D 全模式）｜ 整合自四套方案 ｜ 2026-10-07 ｜ 报价与成稿以对应专家终审为准</div>
+
+</div>
+</body>
+</html>

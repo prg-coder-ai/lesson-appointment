@@ -3,20 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>语言教学预约系统 - 学生端</title>
+  <title data-term-title="{lessonSystem} - 学生端">语言教学预约系统 - 学生端</title>
   <link rel="icon" href="/favicon.ico" type="image/x-icon">
   <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
   <!-- 引入图标库
-  <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="js/public/vendor/font-awesome/css/all.min.css">
    -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="js/public/vendor/font-awesome/css/all.min.css">
      <!-- FullCalendar CSS -->
-     <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css">
+
   <link rel="stylesheet" href="css/scheduleTable.css">
+    <link rel="stylesheet" href="css/theme.css">
+    <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/student.css">  
   <style>
     
   </style>
+<script src="js/shared-domain-bridge.js"></script>
 </head>
 <body>
   <!-- 头部区域 - 新增退出按钮 -->
@@ -57,14 +60,22 @@
         <span>消息中心</span>
         <span class="msg-badge" id="msg-unread-badge" style="display:none;"></span>
       </div>
-      <!-- <div class="menu-item" key="course_review">
-        <i class="fa fa-star-half-o"></i>
-        <span><span data-term="course">课程</span>评价</span>
+      <div class="menu-item" key="teacher_showcase">
+        <i class="fa fa-chalkboard-teacher"></i>
+        <span>浏览师资</span>
+      </div>
+      <div class="menu-item" key="my_promo">
+        <i class="fa fa-bullhorn"></i>
+        <span>我的推广</span>
       </div>
       <div class="menu-item" key="profile">
         <i class="fa fa-user"></i>
         <span>个人中心</span>
-      </div> -->
+      </div>
+      <div class="menu-item" key="legal_view">
+        <i class="fa fa-file-contract"></i>
+        <span>协议与政策</span>
+      </div>
     </aside>
 
     <!-- 主内容包装器 -->
@@ -81,39 +92,292 @@
       <div class="dynamic-content-center" id="dynamic-content-center">
         <!-- 初始内容由JS加载 -->
       </div>
+      <!-- 我的预定页结构模板（2026-09-28 template+clone 改造）：JS 只负责取数/填值/绑事件 -->
+      <template id="tpl-student-booking-browser">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title"><i class="fa fa-calendar-alt"></i>预订列表</div>
+              <div class="filter-bar">
+                <div class="filter-item">
+                  <label><span data-term="course">课程</span>名称：</label>
+                  <input type="text" id="course-name-input" placeholder="课程名称">
+                </div>
+                <div class="filter-item">
+                  <label>状态：</label>
+                  <select id="booking-status-select">
+                    <option value="">全部</option>
+                    <option value="booking">预定待确认</option>
+                    <option value="waiting">候补</option>
+                    <option value="cancelling">取消待确认</option>
+                    <option value="booked">预定已确认</option>
+                    <option value="cancelled">已取消</option>
+                    <option value="delete">已删除</option>
+                  </select>
+                </div>
+                <button type="button" class="btn btn-default" id="btn-search-booking"><i class="fa fa-search"></i> 搜索</button>
+                <button type="button" class="btn btn-default" id="btn-reset-booking"><i class="fa fa-redo"></i> 重置</button>
+              </div>
+            </div>
+          </div>
+          <div id="my-bookings"></div>
+          <div id="browser-pagebar"></div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="margin-bottom:8px;"><i class="fa fa-calendar-alt"></i> 排期结果</div>
+          <div class="result-tabs">
+            <button type="button" class="result-tab active" data-tab="list">日期列表</button>
+            <button type="button" class="result-tab" data-tab="calendar">日历视图</button>
+          </div>
+          <div class="result-panel" id="resultPanelList">
+            <table>
+              <thead>
+                <tr>
+                  <th>课次</th>
+                  <th>日期</th>
+                  <th>时间</th>
+                  <th>状态</th>
+                  <th><span data-term="leave">取消课次</span></th>
+                </tr>
+              </thead>
+              <tbody id="resultBody"></tbody>
+            </table>
+          </div>
+          <div class="result-panel" id="resultPanelCalendar" style="display:none;">
+            <div id="calendar" class="calendar"></div>
+          </div>
+        </div>
+      </template>
+      <!-- 今日课程（上课通知）页结构模板（2026-09-28 template+clone 改造）：JS 只负责取数/填值/绑事件 -->
+      <template id="tpl-appointment-notes">
+        <div class="card">
+          <!-- 「今日课程」候补提示条：仅学生、且存在 status=waiting 的候补申请时显示。内容由 renderWaitlistBanner() 填充 -->
+          <div id="waitlist-banner" style="display:none;align-items:center;gap:12px;flex-wrap:wrap;background:#fff8e6;border:1px solid #ffe0a3;color:#8a5a00;padding:10px 14px;border-radius:6px;margin-bottom:12px;font-size:13px;"></div>
+          <div class="filter-bar">
+            <div class="filter-item" style="display:none;">
+              <label style="display:none;"><span data-term="course">课程</span>：</label>
+              <input type="text" id="course-name-input" style="display:none;" placeholder="课程名称">
+            </div>
+            <div class="filter-item">
+              <label>天数：</label>
+              <select id="appoint-days-select">
+                <option value=-1>全部</option>
+                <option value=1 selected>未来1天</option>
+                <option value=3>未来3天</option>
+                <option value=7>未来7天</option>
+              </select>
+            </div>
+            <div class="filter-item">
+              <label>状态：</label>
+              <select id="appoint-status-select">
+                <option value="">全部</option>
+                <option value="active">正常</option>
+                <option value="noted1">（历史）</option>
+                <option value="noted2">（历史）</option>
+                <option value="completed">已完成</option>
+                <option value="cancelling">取消待确认</option>
+                <option value="cancelled">已取消</option>
+                <option value="reject">已拒绝</option>
+                <option value="delete">已删除</option>
+                <option value="booked">预约已确认</option>
+                <option value="t-cancelling">申请取消（<span data-term="teacher">教师</span>）已取消</option>
+                <option value="t-cancelled">已取消（<span data-term="teacher">教师</span>）</option>
+                <option value="t-reject">已拒绝(T)</option>
+              </select>
+            </div>
+            <button type="button" class="btn btn-default" id="btn-search-appoint"><i class="fa fa-search"></i> 搜索</button>
+            <button type="button" class="btn btn-default" id="btn-reset-appoint"><i class="fa fa-redo"></i> 重置</button>
+          </div>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>序号</th>
+                  <th style="display:none;">预约ID</th>
+                  <th><span data-term="course">课程</span>名称</th>
+                  <th><span data-term="student">学生</span>姓名</th>
+                  <th><span data-term="teacher">教师</span>姓名</th>
+                  <th><span data-term="lessonTime">上课时间</span></th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="days-appointment-admin"></tbody>
+            </table>
+          </div>
+          <div id="appoint-pagebar"></div>
+        </div>
+      </template>
+      <template id="tpl-waitlist-banner">
+        <i class="fa fa-clock-o" style="font-size:16px;"></i>
+        <span>候补排队中：你有 <b id="wl-count">0</b> 条候补申请<span id="wl-detail"></span></span>
+        <span style="color:#a06a00;font-size:12px;">有名额释放后由管理员按排队次序递补，递补成功会发消息通知你</span>
+        <button class="btn btn-default" id="wl-view-btn" type="button">查看我的预订</button>
+      </template>
+
+      <!-- 课程预订页结构模板（2026-09-28 template+clone 改造）：JS 只负责取数/填值/绑事件 -->
+      <template id="tpl-student-booking">
+        <div class="card">
+          <div class="card-title"><i class="fa fa-book"></i> <span data-term="course">课程</span>选择</div>
+          <div class="filter-form" style="display:flex; gap:12px; margin:10px 0 12px; flex-wrap:wrap; align-items:center;">
+            <input type="text" id="course-name-input" placeholder="搜索课程名称" style="padding:6px 10px; border:1px solid #d9d9d9; border-radius:4px; min-width:220px;">
+            <select id="course-workLanguage-select" class="course-local-filter" style="padding:6px 10px; border:1px solid #d9d9d9; border-radius:4px;"><option value="">授课语言：全部</option></select>
+            <select id="course-difficulty-select" class="course-local-filter" style="padding:6px 10px; border:1px solid #d9d9d9; border-radius:4px;"><option value="">难度：全部</option></select>
+            <select id="course-classForm-select" class="course-local-filter" style="padding:6px 10px; border:1px solid #d9d9d9; border-radius:4px;"><option value="">授课形式：全部</option></select>
+            <button type="button" class="btn" id="btn-search-course"><i class="fa fa-search"></i> 搜索</button>
+            <button type="button" class="btn btn-default" id="btn-reset-course"><i class="fa fa-redo"></i> 重置</button>
+            <span id="course-filter-count" style="font-size:12px;color:#888;"></span>
+          </div>
+          <div id="courseCardList" style="display:flex;flex-direction:column;gap:10px;margin:8px 0 14px;"></div>
+          <div id="coursePagebar"></div>
+        </div>
+        <hr>
+        <div>
+          <div class="form-line" style="display:flex;padding-top:10px;align-items:center;gap:8px;">
+            <label>选择排期：</label>
+            <select id="scheduleSelect">
+              <option value="">请选择排期</option>
+            </select>
+            <!-- 2026-10-29：默认只显示 endDate >= 今天的排期；点此切换显示全部（含已结束） -->
+            <button type="button" id="btn-toggle-history"
+                    title="切换是否显示已结束的历史排期"
+                    style="padding:2px 10px;font-size:12px;border:1px solid #d9d9d9;border-radius:4px;background:#fff;cursor:pointer;">
+              🕓 含历史
+            </button>
+          </div>
+          <div class="section">
+            <div class="section-title">排期信息</div>
+            <div class="form-line" style="display:none;">
+              <label>Id</label>
+              <input type="label" id="scheduleId">
+            </div>
+            <div class="form-line" style="display:none;">
+              <label>cId</label>
+              <input type="label" id="courseId">
+              <input type="label" id="teacherIdForCourse" style="display:none;">
+            </div>
+            <div class="form-line nofocus" style="display:flex;">
+              <label><span data-term="teacher">教师</span></label>
+              <input type="label" id="teacherNameForCourse" value="" class="readonly" style="display:flex;" readonly>
+            </div>
+            <div class="schedule-container" style="display:flex;">
+              <div class="schedule-column">
+                <div class="form-line">
+                  <label>排期时区：</label>
+                  <input type="text" id="originalTimeZone" readonly class="readonly">
+                </div>
+                <div class="form-line">
+                  <label>开始日期：</label>
+                  <input type="date" id="startDate" class="readonly" readonly>
+                  <input type="text" id="startDate_weekday" class="readonly" style="width:52px" placeholder="星期" readonly>
+                </div>
+                <div class="form-line" style="display:flex;" >
+                  <label><span data-term="lessonTime">上课时间</span>：</label>
+                  <input type="time" id="startTime" class="readonly" readonly>
+                </div>
+                <div class="form-line">
+                  <label>结束日期：</label>
+                  <input type="date" id="endDate" class="readonly" readonly>
+                </div>
+              </div>
+              <div class="schedule-column" id="rightBlock" style="display:none;">
+                <div class="form-line">
+                  <label>我的时区：</label>
+                  <input type="text" id="timeZone" class="readonly" readonly>
+                </div>
+                <div class="form-line">
+                  <label>开始日期：</label>
+                  <input type="date" id="displayStartDate" readonly class="readonly">
+                  <input type="text" id="displayStartDate_weekday" class="readonly" style="width:52px" readonly>
+                </div>
+                <div class="form-line">
+                  <label><span data-term="lessonTime">上课时间</span>：</label>
+                  <input type="time" id="displayStartTime" class="readonly" readonly>
+                </div>
+                <div class="form-line">
+                  <label>结束日期：</label>
+                  <input type="date" id="displayEndDate" readonly class="readonly">
+                  <input type="text" id="displayEndDate_weekday" class="readonly" style="width:52px" readonly>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="form-line" style="display:flex;">
+            <label>重复类型：</label>
+            <input type="text" id="repeatTypeDisplay" class="readonly" readonly>
+          </div>
+          <div class="form-line" style="display:flex;">
+            <label>重复周期：</label>
+            <input type="text" id="repeatCycleDisplay" class="readonly" readonly>
+          </div>
+          <div class="form-line">
+            <label><input type="label" id="bookingId" value="" style="display:none;"></label>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 24px;">
+            <div class="form-line nofocus">
+              <label>预订状态：</label>
+              <select id="bookingStatus">
+                <option value="none">无预订</option>
+                <option value="booking">已预订,待确认</option>
+                <option value="waiting">候补</option>
+                <option value="booked">预订成功</option>
+                <option value="canceling">取消待确认</option>
+                <option value="canceled">已取消</option>
+                <option value="completed">已完成</option>
+              </select>
+            </div>
+            <div class="sched-form-line">
+              <label>员额：</label>
+              <input type="number" id="availableSites" value="1" min="1" readonly class="readonly" style="width:80px">
+            </div>
+            <div class="sched-form-line">
+              <label>剩余员额：</label>
+              <input type="text" id="now_availableSites" value="" data-remaining="" readonly class="readonly" style="width:80px">
+            </div>
+            <div class="sched-form-line mf-quota-line">
+              <label>名额占用：</label>
+              <div class="mf-quota-bar" id="quotaBar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                <div class="mf-quota-fill" id="quotaFill"></div>
+              </div>
+              <span class="mf-quota-text" id="quotaText"></span>
+            </div>
+          </div>
+          <div class="btn-group">
+            <button type="button" class="btn-primary" id="previewBtn">预览排期</button>
+            <button type="button" class="btn-primary" id="bookBtn">预定<span data-term="course">排期</span></button>
+            <button type="button" class="btn-warning" id="waitBtn" style="display:none;">候补预订</button>
+            <button type="button" class="btn-danger" id="cancelBtn">取消预约</button>
+            <button type="button" class="btn-danger" id="deleteBtn">删除预定</button>
+            <button type="button" class="btn-success" id="refreshBtn">刷新</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="margin-bottom:8px;"><i class="fa fa-calendar-alt"></i> 排期结果</div>
+          <div class="result-tabs">
+            <button type="button" class="result-tab active" data-tab="list">日期列表</button>
+            <button type="button" class="result-tab" data-tab="calendar">日历视图</button>
+          </div>
+          <div class="result-panel" id="resultPanelList">
+            <table>
+              <thead>
+                <tr>
+                  <th>课次</th>
+                  <th>日期</th>
+                  <th>时间</th>
+                </tr>
+              </thead>
+              <tbody id="resultBody"></tbody>
+            </table>
+          </div>
+          <div class="result-panel" id="resultPanelCalendar" style="display:none;">
+            <div id="calendar" class="calendar"></div>
+          </div>
+        </div>
+      </template>
     </div>
   </div>
  
 
-  <!-- 评价弹窗（默认隐藏） -->
-  <div id="evaluation-modal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>评价<span data-term="course">课程</span></h3>
-        <span class="modal-close" onclick="closeEvaluationModal()">×</span>
-      </div>
-      
-      <div class="evaluation-form">
-        <p style="margin-bottom: 10px; font-size: 14px;">请为<span data-term="course">课程</span>评分：</p>
-        <div class="star-rating" id="star-rating">
-          <span class="star active" onclick="selectStar(1)">★</span>
-          <span class="star active" onclick="selectStar(2)">★</span>
-          <span class="star active" onclick="selectStar(3)">★</span>
-          <span class="star active" onclick="selectStar(4)">★</span>
-          <span class="star active" onclick="selectStar(5)">★</span>
-        </div>
-        
-        <p style="margin-bottom: 10px; font-size: 14px;">评价内容：</p>
-        <textarea class="evaluation-textarea" placeholder="请输入您对该课程的评价（不少于10个字）"></textarea>
-        
-        <div style="display: flex; justify-content: flex-end; gap: 10px;">
-          <button class="btn btn-gray" onclick="closeEvaluationModal()">取消</button>
-          <button class="btn btn-primary" onclick="submitEvaluation()">提交评价</button>
-        </div>
-      </div>
-    </div>
-  </div> 
- 
   <script> 
     // 核心变量定义
     const menuItems = document.querySelectorAll('.menu-item');
@@ -141,7 +405,7 @@
         if (typeof window.saveLoginRedirect === 'function') {
           window.saveLoginRedirect('noauth');
         }
-        location.href = './index.html';
+        location.href = ((typeof window.pageUrl === 'function') ? window.pageUrl('login.html') : './login.html');
         return;
       }
 
@@ -163,14 +427,16 @@
        }
 
       // ====== 深链参数解析 ======
-      // URL 形如 student.html?scdid=12355&tid=xxx&sid=xxx
-      // scdid=排期ID, tid=教师ID, sid=学生ID
+      // URL 形如 student.html?scdid=12355&cid=xxx&tid=xxx&sid=xxx
+      // scdid=排期ID, cid=课程ID, tid=教师ID, sid=学生ID
+      // 优先级：scdid > cid > tid（三者同时存在时只处理 scdid）
       var dlParams = new URLSearchParams(window.location.search);
       var dlScdid = dlParams.get('scdid') || '';
+      var dlCid   = dlParams.get('cid')   || '';
       var dlTid   = dlParams.get('tid')   || '';
       var dlSid   = dlParams.get('sid')   || '';
-      if (dlScdid || dlTid) {
-        window.pendingDeepLink = { scdid: dlScdid, tid: dlTid, sid: dlSid };
+      if (dlScdid || dlCid || dlTid) {
+        window.pendingDeepLink = { scdid: dlScdid, cid: dlCid, tid: dlTid, sid: dlSid };
         // 直接跳到"课程预订"菜单，不走默认的"今日课程"
         currentMenuitem = 'booking';
         pageTitle.innerHTML = '<span data-term="course">课程</span>预订';
@@ -211,6 +477,29 @@
       currentMenuitem = key;
       // 根据菜单 key 加载对应内容
       switch(key) {
+        case 'teacher_showcase':
+          // 进入师资展示页（student-landing.html 同时支持登录/未登录态）
+          // 追加 from=workbench 来源标记，便于落地页显示「返回」按钮跳回工作台
+          var _landingHref = (typeof window.pageUrl === 'function') ? window.pageUrl('student-landing.html') : 'student-landing.html';
+          _landingHref += (_landingHref.indexOf('?') >= 0 ? '&' : '?') + 'from=workbench';
+          window.location.href = _landingHref;
+          return;
+        case 'my_promo':
+          // 推广业绩页（2026-10-13 二期）：我的推广码 / 业绩汇总 / 转化明细
+          window.location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('promo.html') : 'promo.html';
+          return;
+        // ===== 协议与政策（场景 B）：展示本租户生效版，用户可在其中切换协议 / 隐私政策 =====
+        case 'legal_view':
+          (function () {
+            var _cu = null;
+            try { _cu = JSON.parse(localStorage.getItem('currentUser') || 'null'); } catch (e) {}
+            var _tc = (_cu && _cu.tenantCode) || '';
+            var _base = (typeof window.pageUrl === 'function') ? window.pageUrl('legal.html') : 'legal.html';
+            var _sep = _base.indexOf('?') >= 0 ? '&' : '?';
+            var _url = _base + _sep + 'type=user_agreement' + (_tc ? '&tenant=' + encodeURIComponent(_tc) : '');
+            window.open(_url, '_blank', 'noopener');
+          })();
+          return;
         case 'today_course':
            refreshAppointmentNotes( );//TBD "admin"
       /*
@@ -254,129 +543,13 @@
           }
           break;
           
-        case 'course_review':
-          dynamicContentCenter.innerHTML = `
-            <div class="card" id="evaluation-card">
-              <h3><i class="fa fa-star-half-o"></i> 我的<span data-term="course">课程</span>评价0待完成</h3>
-              <div id="my-evaluations">
-                <div class="course-card">
-                  <div class="course-info">
-                    <h4>英语初级口语 - <span data-term="classForm1p1">一对一</span></h4>
-                    <p>授课教师：李老师 | 上课时间：2026-03-15 10:00</p>
-                    <p>评分：★★★★★ | 评价时间：2026-03-15 11:00</p>
-                    <p style="margin-top: 5px;">评价内容：李老师讲课非常细致，口语发音纠正很到位，收获很大！</p>
-                  </div>
-                  <div class="course-actions">
-                    <button class="btn btn-gray" onclick="editEvaluation(this)">编辑评价</button>
-                  </div>
-                </div>
-                <div class="course-card">
-                  <div class="course-info">
-                    <h4>日语入门</h4>
-                    <p>授课教师：王老师 | 上课时间：2026-03-10 09:00</p>
-                    <p>评分：★★★★☆ | 评价时间：2026-03-10 10:00</p>
-                    <p style="margin-top: 5px;">评价内容：王老师的日语入门课很易懂，语法讲解清晰，推荐！</p>
-                  </div>
-                  <div class="course-actions">
-                    <button class="btn btn-gray" onclick="editEvaluation(this)">编辑评价</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          `;
-          break;
-          
         case 'profile':
-          dynamicContentCenter.innerHTML = `
-            <div class="card">
-              <h3>个人信息 待完成</h3>
-              <div style="margin-top: 15px; display: flex; gap: 20px;">
-                <div style="width: 80px; height: 80px; border-radius: 50%; background-color: var(--primary-color); color: #fff; text-align: center; line-height: 80px; font-size: 32px;">张</div>
-                <div style="flex: 1;">
-                  <div style="margin-bottom: 10px;">
-                    <span style="color: var(--text-light-color); width: 80px; display: inline-block;">姓名：</span>
-                    <span>张三</span>
-                  </div>
-                  <div style="margin-bottom: 10px;">
-                    <span style="color: var(--text-light-color); width: 80px; display: inline-block;">学号：</span>
-                    <span>2026001</span>
-                  </div>
-                  <div style="margin-bottom: 10px;">
-                    <span style="color: var(--text-light-color); width: 80px; display: inline-block;">电话：</span>
-                    <span>13800138000</span>
-                  </div>
-                  <div style="margin-bottom: 10px;">
-                    <span style="color: var(--text-light-color); width: 80px; display: inline-block;">已预约<span data-term="course">课程</span>：</span>
-                    <span>8节</span>
-                  </div>
-                  <button class="btn btn-primary" style="margin-top: 10px;">编辑信息</button>
-                </div>
-              </div>
-            </div>
-            <div class="card">
-              <h3>账号设置</h3>
-              <div style="margin-top: 15px; padding: 0 20px 20px;">
-                <div style="margin-bottom: 15px;">
-                  <button class="btn btn-gray" style="width: 100%; text-align: left; padding: 10px 15px;">
-                    <i class="fa fa-lock"></i> 修改密码
-                  </button>
-                </div>
-                <div>
-                  <button class="btn btn-gray" style="width: 100%; text-align: left; padding: 10px 15px;">
-                    <i class="fa fa-bell"></i> 消息通知设置
-                  </button>
-                </div>
-              </div>
-            </div>
-          `;
+          if (typeof window.renderStudentProfile === 'function') {
+            window.renderStudentProfile(dynamicContentCenter);
+          }
           break;
       }
     }
-     // 评价弹窗相关函数（保留原有功能）
-    let selectedStarCount = 5; // 默认5星
-    function evaluateCourse(el) {
-      document.getElementById('evaluation-modal').style.display = 'flex';
-      // 重置评分
-      selectedStarCount = 5;
-      updateStarRating();
-      // 清空文本框
-      document.querySelector('.evaluation-textarea').value = '';
-    }
-
-    function closeEvaluationModal() {
-      document.getElementById('evaluation-modal').style.display = 'none';
-    }
-
-    function selectStar(count) {
-      selectedStarCount = count;
-      updateStarRating();
-    }
-
-    function updateStarRating() {
-      const stars = document.querySelectorAll('#star-rating .star');
-      stars.forEach((star, index) => {
-        if (index < selectedStarCount) {
-          star.style.color = 'var(--orange-color)';
-          star.classList.add('active');
-        } else {
-          star.style.color = '#ccc';
-          star.classList.remove('active');
-        }
-      });
-    }
-
-    function submitEvaluation() {
-      const evaluationContent = document.querySelector('.evaluation-textarea').value;
-      if (evaluationContent.length < 10) {
-        alert('评价内容不少于10个字！');
-        return;
-      }
-      
-      alert(`评价提交成功！\n评分：${selectedStarCount}星\n评价内容：${evaluationContent}`);
-      closeEvaluationModal();
-      // 可在此处调用API提交评价数据
-    }
-
     // 我的预约相关函数（保留原有功能）
     function cancelReservation(el) {
       if (confirm('确定要取消该预约吗？取消后将无法恢复！')) {
@@ -396,30 +569,30 @@
       const courseInfo = courseCard.querySelector('.course-info p').textContent;
       alert(`预约详情：\n课程名称：${courseName}\n${courseInfo}\n备注：请提前10分钟进入课堂`);
     }
-
-    function editEvaluation(el) {
-      evaluateCourse(el); // 复用评价弹窗
-    }
   </script>
   
 
-  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>  
-  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>  
+  <script src="js/public/vendor/fullcalendar.min.js"></script>  
+  <script src="js/public/vendor/axios.min.js"></script>  
   
-  <script src="js/public/terms.js"></script>
   <script src="js/public/termsFunction.js"></script>
+  <script src="js/public/documentTitle.js"></script>
+   <script src="js/public/enumTerms.js"></script>
+   <script src="js/public/workLanguage.js"></script>
   <script src="js/public/utility_request.js"></script>
   <!-- 分页组件：提供 Pagination / getPagebar() / renderPagination() / assignLoadobjectListFunction()。
        被 student-bookingCards、student-bookingBrowserCards、admin-AppointmentNotes 依赖，必须先加载。 -->
   <script src="js/public/pagefoot.js"></script>
   <script src="js/public/auth.js"></script>
   <script src="js/public/api.js"></script>
+  <script src="js/public/ui-kit.js"></script>
   <script src="js/public/dataFunctions.js"></script>
   <script src="js/public/courseAndBooking.js"></script>
   <script src="js/public/appointmentNotes.js"></script> 
   
   <script src="js/student-bookingCards.js"></script>
   <script src="js/student-bookingBrowserCards.js"></script>
+  <script src="js/student-profile.js"></script>
   <script src="js/admin-AppointmentNotes.js"></script>
   <script src="js/messages-inbox.js"></script>
 <script> 

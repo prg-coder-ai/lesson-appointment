@@ -24,10 +24,11 @@ public class SseController {
     /** 建立 SSE 连接（鉴权通过 access_token 或 Authorization 头） */
     @GetMapping(value = "/connect", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter connect() {
-        Long tenant = MessageAuthContext.currentTenantId();
+        // 会话 key 只按 userId（2026-10-12 修正）：此处原先取「当前令牌租户」，而推送侧取的是
+        // 「消息的发送方租户」（msg.getTenantId()），平台方发出（tenant_id=0）的消息算出的 key
+        // 与租户用户注册的 key 不同 → 推送静默丢失。userId 全局唯一，租户不参与路由。
         String uid = MessageAuthContext.currentUserId();
-        if (tenant == null) tenant = 0L;
-        SseEmitter em = ssePushService.connect(tenant, uid);
+        SseEmitter em = ssePushService.connect(uid);
         // 连接即发送一条 ready 心跳
         try {
             em.send(SseEmitter.event().name("ready").data(Map.of("online", ssePushService.onlineCount())));

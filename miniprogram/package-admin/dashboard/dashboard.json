@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "运营概览",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "role-tabbar": "/components/role-tabbar/index"
+  }
+}

@@ -1,0 +1,13 @@
+# 门禁 hook 必须锁定 LF。
+#
+# 原因：CRLF 的 sh 脚本会被 bash 以 "\r: command not found" 直接崩掉，
+# 而本机 core.autocrlf=true（Windows 默认），不显式锁定的话，hook 入库后
+# 在别人机器上检出就变成 CRLF —— 表现是「提交时门禁静默失效或报怪错」。
+#
+# 背景（2026-10-12）：pre-commit 由 core.hooksPath 指向 tools/git-hooks/（版本化、随仓库分发），
+# 不再是 .git/hooks/pre-commit 这个未跟踪的本地副本。新克隆后执行一次：
+#     npm run hooks:install
+#
+# 注：只锁 tools/git-hooks/，不扩散到仓库里已有的 8 个 .sh（部署/启动脚本）——
+#     那属于「全仓库行尾统一」的独立决策，会改动它们的检出行为，不在此处顺手做。
+tools/git-hooks/* text eol=lf

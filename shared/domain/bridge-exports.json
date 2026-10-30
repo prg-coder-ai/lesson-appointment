@@ -1,0 +1,40 @@
+{
+  "_comment": [
+    "桥接导出登记表（2026-10-12 新增，配合 tools/check-shared-bridge-exports.mjs）。",
+    "",
+    "背景：frontend/js/shared-domain-bridge.js 由 frontend/tools/gen-shared-bridge.js 生成，",
+    "而产物里的 window.*Domain = { ... } 是**手工白名单**——它不会自动跟随 shared/domain/*.js 的导出。",
+    "于是「给 shared/domain 加了导出、忘了往白名单补一行」会静默漂移：",
+    "Web 端读到 undefined → 落进各自的回退分支（典型后果=界面漏出裸英文/编码），",
+    "不报错、不告警、构建与启动全绿。2026-10-12 的 messageStatusText 就是这么漏的。",
+    "",
+    "本文件是唯一权威映射，守卫据此逐项核对「源文件导出集合」与「实际挂到 window 的键集合」。",
+    "注意：本文件是 .json，不在 tools/sync-miniprogram-shared.js 的镜像范围内（该脚本只镜像 .js）。"
+  ],
+
+  "domains": [
+    { "file": "term.js", "global": "TermDomain" },
+    { "file": "refundRule.js", "global": "RefundRuleDomain" },
+    { "file": "bookingState.js", "global": "BookingStateDomain" },
+    { "file": "appointmentState.js", "global": "AppointmentStateDomain" },
+    { "file": "mask.js", "global": "MaskDomain" },
+    { "file": "datetime.js", "global": "DatetimeDomain" },
+    { "file": "errorCode.js", "global": "ErrorCodeDomain" },
+    { "file": "message.js", "global": "MessageDomain" }
+  ],
+
+  "_notExposed_note": [
+    "源文件里有导出、但**刻意不挂 Web window** 的项，必须在此登记理由（reason ≥ 20 字）。",
+    "未登记的遗漏 = 漂移 = 拦截。理由要能被复核：说清「谁在消费它 / 为什么 Web 不需要」。",
+    "反向约束同样成立：登记的项若后来又挂上 window、或源里已删掉该导出，守卫会判为「死登记」并要求清理——",
+    "避免这张表随时间腐化成装饰品。"
+  ],
+
+  "notExposed": [
+    {
+      "file": "term.js",
+      "name": "INDUSTRY_NAMES",
+      "reason": "仅小程序端消费：miniprogram/pages/mine/mine.js 经 miniprogram/shared/terms.js 导入，用于「我的」页显示行业名称。Web 端全仓零消费点（已 grep 核验），且 Web 的行业名走 TermDomain 的其它接口，故无需暴露。属「未被 Web 消费的导出」，不是遗漏。"
+    }
+  ]
+}

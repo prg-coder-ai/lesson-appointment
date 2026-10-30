@@ -220,6 +220,8 @@ public class MonitorService {
         }
         LambdaQueryWrapper<MetricSample> wrapper = new LambdaQueryWrapper<>();
         wrapper.lt(MetricSample::getSampleTime, LocalDateTime.now().minusDays(days));
+        // cascade: none sys_metric_sample 是指标采样叶子表，无表引用它；
+        // 按保留期清理过期采样是设计意图，不涉及父子关系
         int rows = metricSampleMapper.delete(wrapper);
         if (rows > 0) {
             log.info("清理指标明细, 保留{}天, 删除{}条", days, rows);
@@ -237,6 +239,7 @@ public class MonitorService {
         }
         LambdaQueryWrapper<MetricHourly> wrapper = new LambdaQueryWrapper<>();
         wrapper.lt(MetricHourly::getHourTime, LocalDateTime.now().minusDays(days));
+        // cascade: none sys_metric_hourly 同上，聚合叶子表，无表引用它
         int rows = metricHourlyMapper.delete(wrapper);
         if (rows > 0) {
             log.info("清理指标小时聚合, 保留{}天, 删除{}条", days, rows);

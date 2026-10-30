@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>时约 · 销售区分页：何时推 C / 何时推 M1</title>
+<style>
+  :root{
+    --ink:#1f2430; --sub:#5b6472; --line:#e8ebf0; --bg:#f5f7fa;
+    --brand:#2b6cb0; --brand2:#1a4f86; --accent:#0f9d8a; --warn:#c0392b;
+    --chip:#eef4fb; --chip2:#e9f7f3; --gold:#b8860b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);line-height:1.7;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:980px;margin:0 auto;padding:18px}
+  .banner{background:linear-gradient(120deg,#3a2a6a,var(--brand));border-radius:16px 16px 0 0;padding:18px 24px 20px;color:#fff}
+  .brand-tag{color:#fff;opacity:.85;font-size:12px;letter-spacing:1px;margin-bottom:10px}
+  .banner h1{font-size:21px;font-weight:700;letter-spacing:.5px}
+  .banner .meta{font-size:13px;opacity:.88;margin-top:6px}
+  .card{background:#fff;border:1px solid var(--line);border-top:none;padding:22px 24px}
+  .card:last-of-type{border-radius:0 0 16px 16px}
+  .sec{margin-bottom:26px}
+  .sec:last-child{margin-bottom:0}
+  .sec-h{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .sec-no{background:var(--brand);color:#fff;width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex:none}
+  .sec-h h2{font-size:16.5px;font-weight:700}
+  .lead{font-size:14.5px;margin-bottom:8px}
+  b{color:var(--brand2)}
+  table.t{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px}
+  table.t th,table.t td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  table.t th{background:var(--chip);color:var(--brand2);font-weight:700}
+  table.t tr:nth-child(even) td{background:#fafcfe}
+  .box{background:var(--chip);border-radius:10px;padding:12px 14px;font-size:13px;margin-top:8px}
+  .box.g{background:var(--chip2)}
+  .box .t{font-weight:700;color:var(--brand2);margin-bottom:4px}
+  .warn{background:#fdecea;border:1px solid #f5c6c0;border-radius:10px;padding:12px 14px;font-size:13px;color:#7a241c;margin-top:10px}
+  .warn b{color:var(--warn)}
+  .pill{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:700;margin-left:6px}
+  .pill.c{background:var(--chip);color:var(--brand)}
+  .pill.m{background:#fdf0e6;color:var(--gold)}
+  .flow{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin:8px 0}
+  .step{background:var(--chip);border-radius:8px;padding:6px 11px;font-size:12.5px}
+  .step.b{background:var(--chip2);color:var(--brand2);font-weight:600}
+  .step.c{background:#eaf1fb;color:var(--brand);font-weight:600}
+  .arrow{color:var(--sub);font-size:12px}
+  .chk{list-style:none;margin:8px 0}
+  .chk li{position:relative;padding-left:26px;font-size:13px;margin-bottom:7px;color:var(--ink)}
+  .chk li::before{content:"☐";position:absolute;left:4px;top:0;color:var(--brand);font-weight:700;font-size:15px}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
+  @media(max-width:720px){.split{grid-template-columns:1fr}}
+  .panel{border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .panel.c{border-top:4px solid var(--brand)}
+  .panel.m{border-top:4px solid var(--gold)}
+  .panel .nm{font-weight:700;font-size:15px;color:var(--brand2);margin-bottom:6px}
+  .panel .pr{font-size:12.5px;color:var(--sub);margin-bottom:8px}
+  .panel ul{list-style:none;font-size:13px}
+  .panel ul li{position:relative;padding-left:18px;margin-bottom:6px}
+  .panel ul li::before{content:"";position:absolute;left:4px;top:8px;width:6px;height:6px;border-radius:2px;background:var(--accent)}
+  .foot{text-align:center;color:var(--sub);font-size:12px;padding:16px}
+  .note{background:#fff8e6;border:1px solid #f3e2b3;border-radius:10px;padding:10px 14px;font-size:12.5px;color:#7a5b00;margin-bottom:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="banner">
+    <p class="brand-tag">时约 · 商业化销售区分页 ｜ 营销通·内容变现顾问 卞现 出品</p>
+    <h1>何时推 C 层（私有/内网部署）｜ 何时推 M1（私有化授权）</h1>
+    <div class="meta">配套文件：卞现拍板事项清单（2026-10-07）· 系统售卖层方案（2026-09-15）｜ 适用：销售 / BD / 代理培训 ｜ 2026-10-12</div>
+  </div>
+
+  <div class="card">
+
+    <div class="note">两份"私有"产品最容易让客户和内部都搞混：<b>C 层是"我们帮你运维的私有部署"</b>，<b>M1 是"你把部署权买回去自己运维"</b>。本页给一线一个<b>先问谁运维、再定档报价</b>的判断标准，避免同一客户既报 C 又报 M1 的内部打架。价格已按拍板清单口径错开：<b>C 层 ¥8k 起、M1 ¥20k 起</b>。</div>
+
+    <!-- ① 核心区分 -->
+    <div class="sec">
+      <div class="sec-h"><div class="sec-no">①</div><h2>核心区分表（一眼分清两档）</h2></div>
+      <table class="t">
+        <tr><th>维度</th><th>C 层 · 私有/内网部署</th><th>M1 私有化授权</th></tr>
+        <tr><td><b>谁掌控 / 运维</b></td><td>时约交付并<b>托管/代运维</b>（重信任）</td><td>客户<b>自运维</b>（买部署权，不交源码）</td></tr>
+        <tr><td><b>建议价</b></td><td>一次性 <b>¥8k–30k</b> + 年服 ¥3k–10k</td><td>一次性 <b>¥20k–40k</b>（按坐席阶梯）+ 年维护 15–20%</td></tr>
+        <tr><td><b>交付物</b></td><td>部署 + 运维 + 升级包年（含在我们人力内）</td><td>部署包 + 授权 Key + 安装文档（不含持续运维）</td></tr>
+        <tr><td><b>客户最适合</b></td><td>单店/小团队、无 IT、要省心快速上线</td><td>多门店/集团、有 IT、要数据主权与自有资产</td></tr>
+        <tr><td><b>合规责任</b></td><td>数据在客户环境，运维责任由我们承担一部分</td><td>数据合规责任完全随部署转移给客户</td></tr>
+        <tr><td><b>我们的成本</b></td><td>持续人力（运维/响应），靠年服回血</td><td>一次性交付，无持续人力（维护另计）</td></tr>
+      </table>
+      <div class="box"><div class="t">为什么 M1 起价比 C 层高却仍合理</div>C 层的¥8k里含了我们的<b>持续运维人力</b>，是"服务价"；M1 的¥20k 是<b>资产授权费</b>——客户买走部署权与自主权、自己养团队，我们不再背运维。客户拿到的是"控制权"，不是"托管省心"。两档卖的不是同一个东西，<b>错位在起价（8k vs 20k），重叠只在 20–30k 的中段，靠下方"谁运维"判断分流</b>。</div>
+    </div>
+
+    <!-- ② 分流标准 -->
+    <div class="sec">
+      <div class="sec-h"><div class="sec-no">②</div><h2>分流判断标准（先问一句话，再定档）</h2></div>
+      <div class="flow">
+        <span class="step">客户说"想用私有/不挂公网"</span><span class="arrow">→</span>
+        <span class="step b">先问：系统的运维、备份、升级，你们自己有人管，还是希望我们托管？</span><span class="arrow">→</span>
+        <span class="step c">按回答定档</span>
+      </div>
+      <div class="split">
+        <div class="panel c">
+          <div class="nm">推 C 层 ｜ 我们运维</div>
+          <div class="pr">触发信号（命中任一条即优先推 C）</div>
+          <ul>
+            <li>客户明确"你们帮我托管/我们没 IT 人员"</li>
+            <li>单店或 ≤10 服务者、预算有限、要 1–2 周快速上线</li>
+            <li>心理/法律类要求"数据本地"但<b>不愿自建运维</b></li>
+            <li>怕麻烦、要"出事找你们"的省心型老板</li>
+            <li>运维成本我们吃得下（单店/轻量私有）</li>
+          </ul>
+        </div>
+        <div class="panel m">
+          <div class="nm">推 M1 ｜ 客户自运维</div>
+          <div class="pr">触发信号（命中任一条即优先推 M1）</div>
+          <ul>
+            <li>客户有 IT 团队、要"系统归我们、自己掌控"</li>
+            <li>多门店/连锁/集团、体量较大、想沉淀为自有资产</li>
+            <li>合规要求"数据完全自主、不能依赖外部"</li>
+            <li>不愿被年服绑定、接受一次性买断部署权</li>
+            <li>我们运维成本过高（重私有/多门店）→ 主动转 M1</li>
+          </ul>
+        </div>
+      </div>
+      <div class="warn"><b>红线：</b>① 同一客户<b>不双报</b> C 与 M1，先定档再报价；② 不凭"感觉"报价，先问"谁运维"；③ 我们运维成本算不过账的重私有，<b>主动转 M1</b>，不硬接 C；④ M1 只交部署包<b>不交源码</b>（沿用系统售卖层护栏）。</div>
+    </div>
+
+    <!-- ③ 对外话术边界 -->
+    <div class="sec">
+      <div class="sec-h"><div class="sec-no">③</div><h2>对外话术边界（怎么说不让客户混）</h2></div>
+      <div class="box"><div class="t">推 C 层时这样讲</div>"这是部署在您自己环境里的私有版本，<b>运维、备份、升级都由我们托管</b>，您只要用就行，出事找我们。适合想数据本地、但不想自己养技术团队的您。"——卖点是<b>省心 + 数据本地</b>。</div>
+      <div class="box g"><div class="t">推 M1 时这样讲</div>"这是一次买断的<b>私有化授权</b>，系统部署权归您，<b>您自己掌控数据和运维</b>，我们给部署包、授权 Key 和安装文档，年维护另算。适合有 IT 团队、想把系统沉淀成自有资产的您。"——卖点是<b>控制权 + 资产归属</b>。</div>
+      <div class="box"><div class="t">合规口径（心理/法律类）</div>"辅助管理 + 数据本地"等对外表述归<b>赵写（内容风格教练）</b>把关，本页不代拟。M1 场景须明确"数据合规责任随部署转移给客户"，不在话术里替客户承诺"数据不出公共云"。</div>
+    </div>
+
+    <!-- ④ 动作与负责人 -->
+    <div class="sec">
+      <div class="sec-h"><div class="sec-no">④</div><h2>一线动作与负责人</h2></div>
+      <table class="t">
+        <tr><th>环节</th><th>动作</th><th>负责人</th></tr>
+        <tr><td>资格初筛</td><td>先问"谁运维"，按②分流，不双报</td><td>销售 / BD</td></tr>
+        <tr><td>报价</td><td>按 C 层 ¥8k 起 / M1 ¥20k 起（坐席阶梯）出价</td><td>销售 / BD（价表由卞现终审）</td></tr>
+        <tr><td>合同与合规话术</td><td>确认"谁承担运维/合规责任"写进合同</td><td>赵写 + 法务</td></tr>
+        <tr><td>交付与运维</td><td>C 层代运维 / M1 交付部署包（不交源码）</td><td>产品 / 技术</td></tr>
+        <tr><td>争议仲裁</td><td>同一客户 C/M1 判断冲突由卞现拍板</td><td>卞现</td></tr>
+      </table>
+    </div>
+
+  </div>
+
+  <div class="foot">时约 · 销售区分页（C vs M1）｜ 本页为拍板清单③的销售落地补件，价格以拍板清单签字版为准</div>
+</div>
+</body>
+</html>

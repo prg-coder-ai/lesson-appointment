@@ -39,7 +39,38 @@ public class MyBatisPlusConfig {
             // 行业字典是平台级共享数据，表结构也无 tenant_id 列；
             // 租户端需据其解析所属行业编码（/tenant/industry -> switchIndustry），
             // 若不排除，插件会拼出 `tenant_id = ?` 导致 Unknown column 报错
-            "sys_industry"
+            "sys_industry",
+            // 通知规则的「时间点明细」表刻意没有 tenant_id 列（规则头才有），
+            // 隔离靠 rule_id 关联的规则头间接保证（规则头走插件过滤）。
+            // 同样必须排除，否则插件的 `tenant_id = ?` 会直接撞 Unknown column
+            "course_notify_rule_point",
+            // 微信 openid 关联表：虽然有 tenant_id 列，但语义是冗余统计，
+            // 隔离语义是「一个微信全局只绑一个账号」（uk_wx_openid 全局唯一）。
+            // 若走租户插件，平台管理员视角会被拼 tenant_id = 当前租户 → 查不到绑定、静默失败。
+            "wx_userid",
+            // 推广三表：平台级数据，表结构也无 tenant_id 列。
+            // 若不排除，租户插件会拼出 `tenant_id = ?` → Unknown column 全线报错
+            // （与 sys_industry / course_notify_rule_point 同一原因）
+            "promo_referral", "promo_conversion", "promo_achievement",
+            // 协议/隐私政策：平台级共享数据。sys_legal_doc 虽含 tenant_id 列，但该列是
+            // 「作用域维度」（0=平台级，>0=租户覆盖级），隔离由业务层显式按 tenant_id 过滤，
+            // 不能走租户插件；否则会被拼 `tenant_id = ?` 误伤（与 sys_term 同因）。
+            "sys_legal_doc", "sys_legal_accept",
+            // 授课语言枚举（2026-10-25）：tenant_id 是**作用域维度**（0=平台内置六项，
+            // >0=租户自定义追加项），不是隔离维度 —— 租户端必须能读到内置项。
+            // 若走租户插件会被拼 `tenant_id = ?` 而查空（下拉里只剩自己的项），
+            // 与 sys_term / sys_legal_doc 同因。代价：所有读写 SQL 必须显式带 tenant_id 条件。
+            "sys_work_language",
+            // 微信 PC 扫码登录/绑定的一次性 state（2026-10-14 P2）：表结构无 tenant_id 列，
+            // 生命周期只有 5 分钟（生成→确认/失败/过期即消费删除）。
+            // 不排除则插件的 `tenant_id = ?` 直接撞 Unknown column（与 sys_industry 同因）。
+            "wx_login_state",
+            // 登录风控三表（2026-10-22 P0）：无 tenant_id 列，且全部读写发生在**免登录端点**
+            // （/auth/login、/auth/wechat-login、/user/account/exist）——
+            // 此时 TenantContext 为空，插件会兜底拼 `tenant_id = -1`，不排除即 Unknown column。
+            // 这个坑的特殊性：只在免登录路径复现，本地带 token 测全绿、线上首登 500，
+            // 报错信息完全不像权限问题。
+            "auth_rate_counter", "auth_device", "auth_challenge"
     );
 
     @Bean

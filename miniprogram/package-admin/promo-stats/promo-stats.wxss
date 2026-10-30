@@ -1,0 +1,35 @@
+.page { min-height: 100vh; padding: 32rpx 32rpx 140rpx; box-sizing: border-box; background: #f5f7fa; }
+.card { margin-top: 24rpx; background: #fff; border-radius: 20rpx; padding: 8rpx 28rpx; box-shadow: 0 8rpx 30rpx rgba(31,42,68,0.05); }
+.card-title { font-size: 30rpx; font-weight: 600; color: #1f2a44; padding: 24rpx 0 12rpx; }
+.desc { font-size: 22rpx; color: #8a93a6; line-height: 1.7; }
+.org-line { font-size: 24rpx; color: #5a6478; line-height: 1.7; margin: 12rpx 0 4rpx; }
+.org-name { font-weight: 600; color: #1f2a44; }
+
+/* —— 统计网格 —— */
+.stat-grid { display: flex; flex-wrap: wrap; gap: 16rpx; padding: 12rpx 0 20rpx; }
+.stat-box { width: calc((100% - 48rpx) / 4); background: #f7f8fc; border-radius: 12rpx; padding: 18rpx 6rpx; text-align: center; box-sizing: border-box; }
+.stat-box .num { font-size: 32rpx; font-weight: 700; color: #1f2a44; }
+.stat-box .lbl { font-size: 20rpx; color: #8a93a6; margin-top: 6rpx; }
+.stat-box.hot .num { color: #d4380d; }
+
+/* —— 排行 / 推广人明细 —— */
+.rank-list { padding-bottom: 12rpx; }
+.rank-item { display: flex; align-items: center; gap: 16rpx; padding: 20rpx 0; border-bottom: 1rpx solid #f0f2f5; }
+.rank-item:last-child { border-bottom: none; }
+.rank-no { width: 44rpx; height: 44rpx; line-height: 44rpx; text-align: center; border-radius: 50%; background: #f0f2f5; color: #5a6478; font-size: 24rpx; font-weight: 600; flex-shrink: 0; }
+.rank-no.top { background: #fff2e8; color: #d4380d; }
+.rank-main { flex: 1; min-width: 0; }
+.rank-name { font-size: 26rpx; font-weight: 600; color: #1f2a44; }
+.rank-sub { font-size: 22rpx; color: #8a93a6; margin-top: 4rpx; }
+.rank-nums { font-size: 20rpx; color: #5a6478; line-height: 1.6; text-align: right; flex-shrink: 0; max-width: 260rpx; }
+
+/* —— 最近转化 —— */
+.conv-list { padding-bottom: 16rpx; }
+.conv-item { padding: 20rpx 0; border-bottom: 1rpx solid #f0f2f5; }
+.conv-item:last-child { border-bottom: none; }
+.conv-main { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
+.conv-code { font-size: 26rpx; font-weight: 600; color: #1f2a44; }
+.conv-stage { font-size: 22rpx; color: #1677ff; background: #eef4ff; border-radius: 6rpx; padding: 4rpx 12rpx; white-space: nowrap; }
+.conv-sub { font-size: 22rpx; color: #8a93a6; margin-top: 8rpx; }
+.conv-time { font-size: 22rpx; color: #aab2c2; margin-top: 4rpx; }
+.empty { text-align: center; color: #8a93a6; font-size: 24rpx; padding: 32rpx 0; line-height: 1.6; }

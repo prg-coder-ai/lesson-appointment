@@ -32,7 +32,7 @@ public interface CourseTemplateMapper {
      *   VALUES (#{templateId}, #{languageType}, #{difficultyLevel}, #{templateName}, #{description}, NOW(), NOW())
      * </insert>
      */
-     @org.apache.ibatis.annotations.Insert( "INSERT INTO course_template (template_id, language_type, difficulty_level, class_duration,class_form,class_fee, description, create_time, update_time)     VALUES (#{templateId}, #{languageType}, #{difficultyLevel},#{classDuration},#{classForm},#{classFee}, COALESCE(#{description},''), NOW(), NOW())")
+     @org.apache.ibatis.annotations.Insert( "INSERT INTO course_template (template_id, language_type, work_language, difficulty_level, class_duration,class_form,class_fee, description, create_time, update_time)     VALUES (#{templateId}, #{languageType}, COALESCE(#{workLanguage},''), #{difficultyLevel},#{classDuration},#{classForm},#{classFee}, COALESCE(#{description},''), NOW(), NOW())")
     int insertTemplate(CourseTemplate template);
 
     /**
@@ -67,7 +67,10 @@ public interface CourseTemplateMapper {
     CourseTemplate selectTemplateById(@Param("templateId") String templateId);
 
    // INSERT_YOUR_CODE
-   @org.apache.ibatis.annotations.Update("UPDATE course_template SET language_type = #{courseTemplate.languageType}, difficulty_level = #{courseTemplate.difficultyLevel}, class_duration = #{courseTemplate.classDuration}, class_form = #{courseTemplate.classForm}, class_fee = #{courseTemplate.classFee}, description = COALESCE(#{courseTemplate.description},''), update_time = NOW() WHERE template_id = #{courseTemplate.templateId}")
+   // work_language 用 COALESCE(#{...}, work_language)：null（前端没传该字段）= 保持原值，
+   // 空串（用户主动清空，表示"未指定"）= 真的清空。若写成 COALESCE(...,'')，
+   // 一次不带该字段的编辑就会把模板上设好的授课语言静默抹掉。
+   @org.apache.ibatis.annotations.Update("UPDATE course_template SET language_type = #{courseTemplate.languageType}, work_language = COALESCE(#{courseTemplate.workLanguage}, work_language), difficulty_level = #{courseTemplate.difficultyLevel}, class_duration = #{courseTemplate.classDuration}, class_form = #{courseTemplate.classForm}, class_fee = #{courseTemplate.classFee}, description = COALESCE(#{courseTemplate.description},''), update_time = NOW() WHERE template_id = #{courseTemplate.templateId}")
    int updateTemplate(@Param("courseTemplate") CourseTemplate courseTemplate);
 
    @org.apache.ibatis.annotations.Update("UPDATE course_template SET status = #{action} WHERE template_id = #{templateId}") 
@@ -85,4 +88,26 @@ public interface CourseTemplateMapper {
      */
     @org.apache.ibatis.annotations.Delete("DELETE FROM course_template WHERE template_id = #{templateId}")
     int deleteTemplate(@Param("templateId") String templateId);
+
+    /**
+     * 物理删除被软删除（status=frozen/delete）的模板记录
+     * 租户插件会自动在此 DELETE 上追加 tenant_id 条件
+     * @return 影响行数
+     */
+    int purgeDeleted();
+
+    /**
+     * 物理删除某租户的全部课程模板（平台数据维护·清空租户回收站调用，2026-10-24）。
+     *
+     * <p>本 Mapper 未继承 BaseMapper（历史原因，全是手写 @Insert/@Update），
+     * 因此拿不到通用 delete(Wrapper)，只能补这一个按租户批删的方法。
+     *
+     * <p>租户插件会在 DELETE 上再追加一次 tenant_id 条件；平台视角 tenantId=0 时
+     * 插件对该表返回忽略，所以这里显式写 tenant_id 是唯一生效的条件。
+     *
+     * @param tenantId 租户 ID
+     * @return 影响行数
+     */
+    @org.apache.ibatis.annotations.Delete("DELETE FROM course_template WHERE tenant_id = #{tenantId}")
+    int deleteByTenantId(@Param("tenantId") Long tenantId);
 }

@@ -1,0 +1,1531 @@
+<!DOCTYPE html>
+<html lang="zh-CN" , xmlns:th="http://www.thymeleaf.org" data-page-node-id="xsNz8yrHYDmt5PopdWRKhg">
+<head data-page-node-id="f7XuuoCU9AkXoIAcI9Ep7R">
+  <meta charset="UTF-8" data-page-node-id="S55SCg97ITADBTMmcFOgq8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="EEoRfg9VJaBh4MnPRZlpMm">
+  <title data-term-title="{lessonSystem} - 统一登录入口">语言教学预约系统 - 统一登录入口</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" data-page-node-id="s3PsOF8Yj4lA2xMqcM9ItE">
+  <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" data-page-node-id="cIeS1DZw6RHJdNn3hRu9XJ">
+  <!-- 引入公共样式 -->
+  <!--- link rel="stylesheet" href="/css/common.css" -->
+  <!-- 引入图标库 -->
+  <link rel="stylesheet" href="js/public/vendor/font-awesome/css/all.min.css" data-page-node-id="EgDem3ilIMy1oYyltOXxDI">
+  <style>
+    /* 新增注册弹窗样式（可整合到common.css） */
+    .login-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 90%;
+      max-width: 400px;
+      background: #fff;
+      border-radius: 8px;
+      padding: 24px; 
+      box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+    }
+    .modal-mask {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      display: none;
+    }
+    .modal-content {
+      width: 90%;
+      max-width: 400px;
+      background: #fff;
+      border-radius: 8px;
+      padding: 24px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 8px;
+    }
+    .modal-close {
+      cursor: pointer;
+      font-size: 18px;
+      color: #999;
+    }
+    .modal-close:hover {
+      color: #333;
+    }
+    /* 登录页「关闭」按钮（未注册/未登录态使用） */
+    .login-close {
+      position: absolute;
+      top: 10px;
+      right: 14px;
+      font-size: 22px;
+      line-height: 1;
+      color: #999;
+      cursor: pointer;
+      z-index: 5;
+    }
+    .login-close:hover {
+      color: #333;
+    }
+    .register-btn {
+      margin-top: 12px;
+      text-align: center;
+    }
+    .register-btn a {
+      color: #409eff;
+      text-decoration: none;
+      font-size: 14px;
+    }
+    .register-btn a:hover {
+      text-decoration: underline;
+    }
+    .form-item {
+      margin-bottom: 16px;
+    }
+    .form-item label {
+      display: block;
+      margin-bottom: 4px;
+      font-weight: 500;
+    }
+    .form-item input, .form-item select {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    .error-tip {
+      color: #f56c6c;
+      font-size: 12px;
+      margin-top: 4px;
+      display: none;
+    }
+    .success-tip {
+      color: #67c23a;
+      font-size: 14px;
+      text-align: center;
+      margin-top: 12px;
+      display: none;
+    }
+    .btn {
+      width: 100%;
+      padding: 10px;
+      background: #409eff;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .btn:disabled {
+      background: #a0cfff;
+      cursor: not-allowed;
+    }
+    .btn-cancel {
+      background: #909399;
+      margin-top: 8px;
+    }
+    /* 登录 / 注册协议勾选（合规：场景 B 租户↔用户需签署用户协议+隐私政策） */
+    .agreement {
+      margin-bottom: 14px;
+    }
+    .agree-label {
+      display: flex;
+      align-items: flex-start;
+      font-size: 12px;
+      color: #6b7587;
+      line-height: 1.5;
+      cursor: pointer;
+      font-weight: 400;
+    }
+    .agree-label input[type="checkbox"] {
+      width: auto;
+      margin: 2px 6px 0 0;
+      flex: 0 0 auto;
+    }
+    .agree-label a {
+      color: #722ed1;
+      text-decoration: none;
+      padding: 0 2px;
+    }
+    .agree-label a:hover {
+      text-decoration: underline;
+    }
+    /* 微信扫码登录（P2：PC 网站应用二维码；手机微信扫码即登录） */
+    .wechat-login-entry {
+      margin-top: 12px;
+      text-align: center;
+    }
+    .wechat-login-entry .wx-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: #07c160;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 4px 10px;
+    }
+    .wechat-login-entry .wx-link:hover {
+      text-decoration: underline;
+    }
+    .wx-qr-mask {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1300;
+    }
+    .wx-qr-mask.show { display: flex; }
+    .wx-qr-modal {
+      background: #fff;
+      border-radius: 12px;
+      width: 300px;
+      max-width: 88vw;
+      padding: 20px 20px 16px;
+      text-align: center;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+    }
+    .wx-qr-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .wx-qr-head .wx-qr-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #1f2937;
+    }
+    .wx-qr-close {
+      cursor: pointer;
+      color: #9ca3af;
+      font-size: 20px;
+      line-height: 1;
+    }
+    .wx-qr-box {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 220px;
+    }
+    .wx-qr-tip {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #6b7587;
+      line-height: 1.6;
+      min-height: 32px;
+    }
+    .wx-qr-tip.ok { color: #2f855a; }
+    .wx-qr-tip.err { color: #c05656; }
+    .wx-qr-refresh {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #722ed1;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 4px;
+    }
+</style>
+<script>
+window.sanitizeTenantCode = function (raw) {
+  if (!raw) return '';
+  raw = String(raw).trim();
+  if (raw.indexOf('=') >= 0) raw = raw.substring(raw.lastIndexOf('=') + 1);
+  raw = raw.replace(/[?&]/g, '').trim();
+  return raw;
+};
+</script>
+<script src="js/shared-domain-bridge.js"></script>
+</head>
+<body data-page-node-id="b81NbYRwJeCAHLXhsyCYJF">
+  <div class="login-container" data-page-node-id="QILFkj1AXtCYAbI4entGok">
+    <span class="login-close" id="login-close" title="关闭" onclick="closeLoginPage()">×</span>
+    <div class="login-header" data-page-node-id="rVDStF4LEwuDUg16HU4DKz">
+      <div class="title" data-page-node-id="hwSU6wtYwHr7N1WlUW43w3"><span id="brand-title" data-page-node-id="rkBhirHjPaqdem4Z3ftgF1">语言教学预约系统</span></div>
+      <div class="logo" data-page-node-id="a490sTqybnaarKCvmbEs9K"><i class="fa fa-file-signature" data-page-node-id="uttLklCGCxCHcek7k3EhyN"></i></div>
+      
+      <div class="subtitle" data-page-node-id="TtbFjUZTNGmXDBu3Boqvhg">请登录</div>
+    </div>
+
+    <!--class="modal-content"  登录表单 -->
+    <form class="modal-content"  id="login-form" data-page-node-id="osIuIBNrz5xs49cO684ssS">
+
+      <div class="form-item" data-page-node-id="httb4h5RPTQxjfimXrnZlT">
+        <label for="username" data-page-node-id="V4icdxP0Wpm0cSl7GBcQxY">账号</label>
+        <input type="text" id="username" placeholder="请输入账号" required data-page-node-id="dhsju9DJ4WRIjL2rjzPZ5L">
+        <div class="error-tip" id="username-error" data-page-node-id="mSbCIFy15s0uwECv9kGfyo">请输入账号</div>
+      </div>
+
+      <div class="form-item" data-page-node-id="HQz3GEm88eaGbylCBzLxPb">
+        <label for="password" data-page-node-id="20gkvhIJhxlX54mHGtXfKE">密码</label>
+        <input type="password" id="password" placeholder="请输入密码" required data-page-node-id="hEDXv3QlH3AXEPS7SyoZF0">
+        <div class="error-tip" id="password-error" data-page-node-id="apvnagkVnsCLPdR9PAwMgn">请输入密码</div>
+      </div>
+      <div class="form-item" data-page-node-id="PsunMOF7tEmjNfVrKcel4Q">
+        <label for="login-role" data-page-node-id="JLJFA8BnAKQ26Uh9hvIFaC">登录身份</label>
+        <select id="login-role" required onchange="applyLoginTenantRule()" data-page-node-id="WLEYjs1TFnJXY5jybexxzC">
+          <option value="" data-page-node-id="PK73P3dzr10JyECc0NlM99">请选择身份</option>
+          <option value="platform_admin" data-page-node-id="YvdYPy5Nryp6ndDridrjwC">平台管理员</option>
+          <option value="tenant" data-page-node-id="UoyViQr54IrksdRHr96djd">租户端</option>
+        </select>
+        <div class="error-tip" id="login-role-error" data-page-node-id="Ob3ZwZofwZmiUA10ZOAFEX">请选择登录身份</div>
+      </div>
+
+      <div class="form-item" data-page-node-id="8510rGFftRs9QUN5cS09Df">
+        <label for="login-tenant-code" data-page-node-id="v64ketBKg4OxYFcM9Kbrm0">租户编码</label>
+        <input type="text" id="login-tenant-code" required placeholder="平台管理员自动锁定为 platform；租户端可手动填写或由专属链接带入" data-page-node-id="R7g6WrwIHgBsJi8HffmgBC">
+        <div class="error-tip" id="login-tenant-code-error" data-page-node-id="TFLn5gHCeS6QpB1HCjBDZf">请填写租户编码</div>
+      </div>
+
+      <div class="form-item agreement" data-page-node-id="lg-agree" style="display:none">
+        <label class="agree-label" data-page-node-id="lg-agree-l">
+          <input type="checkbox" id="agree-legal" data-page-node-id="lg-agree-cb" value="true">
+          <span>我已阅读并同意
+            <a href="legal.html?type=user_agreement" target="_blank" rel="noopener">《用户协议》</a>
+            <a href="legal.html?type=privacy_policy" target="_blank" rel="noopener">《隐私政策》</a>
+          </span>
+        </label>
+        <div class="error-tip" id="agree-error" data-page-node-id="lg-agree-err">请先阅读并勾选同意协议</div>
+      </div>
+
+      <button type="submit" class="btn" id="login-btn" data-page-node-id="sAEYdHnUfMmt608Jw3x4qb">
+        <span id="btn-text" data-page-node-id="fIR4fRQNXvXKL2LGBG0Okx">登录系统</span>
+      </button>
+      <!-- 【修改】新增 display: none 隐藏初始错误提示 -->
+      <div class="error-tip" id="login-error" style="text-align: center; margin-top: 16px; display: none;" data-page-node-id="DC2J2ceE67CQXPMJjlTmRd">账号或密码错误，请重试</div>
+      <div class="error-tip" id="api-error-tip" data-page-node-id="eJ0Q4AuOKKZOaUP8yjlCKW" style="display:none"></div>
+      <!-- 新增注册按钮 -->
+      <div class="register-btn" data-page-node-id="ar1H2D9nbrR31xkw2xUSFB">
+        <a href="javascript:;" id="show-register" data-page-node-id="obqEQe1in7OrhLBr8eGbiU">还没有账号？点击注册</a>
+      </div>
+      <!-- 新增：未登录师资展示落地页入口（学生页未登录时也可先浏览教师职业信息） -->
+      <!-- 经 pageUrl 携带当前 tCode（租户编码），保证落地页能按机构拉取真实师资列表 -->
+      <div class="register-btn" style="margin-top:10px;">
+        <a href="javascript:void(0)" onclick="window.location.href=(typeof window.pageUrl==='function'?window.pageUrl('student-landing.html'):'student-landing.html')" style="color:#4e6ef2;">先浏览师资 ›</a>
+      </div>
+      <!-- 微信扫码登录（旧入口，暂保留但隐藏） -->
+      <div class="wechat-login-entry" style="display:none;">
+        <button type="button" class="wx-link" id="wechat-login-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="#07c160" aria-hidden="true"><path d="M8.7 4C4.9 4 1.8 6.6 1.8 9.8c0 1.8 1 3.4 2.6 4.5l-.6 2 2.3-1.2c.8.2 1.7.4 2.6.4h.5c-.3-.8-.5-1.7-.5-2.6 0-3.4 3.2-6.1 7.2-6.1h.4C15.6 5.6 12.4 4 8.7 4zm-2.4 4.6a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8zm4.8 0a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8zM15.9 10c-3.6 0-6.5 2.3-6.5 5.1s2.9 5.1 6.5 5.1c.8 0 1.5-.1 2.2-.4l2.1 1.1-.5-1.8c1.4-.9 2.3-2.3 2.3-3.9 0-2.8-2.9-5.1-6.5-5.1zm-2.1 3.3a.8.8 0 1 1 0 1.6.8.8 0 0 1 0-1.6zm4.2 0a.8.8 0 1 1 0 1.6.8.8 0 0 1 0-1.6z"/></svg>
+          微信扫码登录
+        </button>
+      </div>
+      <!-- 扫码登录移动端（二维码内容为当前页面 URL，手机扫码直接打开） -->
+      <div class="wechat-login-entry">
+        <button type="button" class="wx-link" id="mobile-login-btn" style="color:#4e6ef2;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>
+          扫码登录移动端
+        </button>
+      </div>
+      
+    </form>
+  </div>
+  <!-- 新增注册弹窗 -->
+  <div class="modal-mask" id="register-modal" data-page-node-id="ECC1PRPyKj1DnYgl40MD0I">
+    <div class="modal-content" data-page-node-id="zXKPv7wVbRxodtPF9ayoW0">
+      <div class="modal-header" data-page-node-id="6QjmbfK6UpSt5d87T3bdZ0">
+        <h3 data-page-node-id="j5hyir8xBIb2pBc86zEsDQ">用户注册</h3>
+        <span class="modal-close" id="close-modal" data-page-node-id="AHG6wnYE8sANEOW46PfdGq"><i class="fa fa-times" data-page-node-id="rqE45RRTlmBWFvCbobz2KT"></i></span>
+      </div>
+      <form id="register-form" data-page-node-id="AsFaamWmsyVyw56dIFVC9k">
+        <div class="form-item" data-page-node-id="UcEZONdeWWzBFaTLEkqnfN">
+          <label for="register-role" data-page-node-id="EXLOM7LuMF9VmtiOGfUFfa">注册身份</label>
+          <select id="register-role" required onchange="applyTenantCodeRule()" data-page-node-id="zAfcgKkdKOLzb1qkw606GN">
+            <option value="" data-page-node-id="gNFeTYp9EETj4ETtXnoSnE">请选择身份</option>
+            <!-- 角色值必须与后端 RoleConst 一致：platform_admin 用下划线，
+                 写成 platform-admin 会导致注册出的平台管理员登录与鉴权都失败 -->
+            <option value="platform_admin" data-page-node-id="zt5F3hxFb1s1bd3ltIfTXH">平台管理员</option>
+             <option value="admin" data-page-node-id="bI4sWACctEZr0KuXZnwo3J">系统管理员</option>
+            <option value="teacher" data-page-node-id="kKHNL4d1pCFTq5zCYsE2T1"><span data-term="teacher" data-page-node-id="adY9wH9OaaYrD89qgxoQMX">教师</span></option>
+            <option value="student" data-page-node-id="eg4tcCZhzeiy7KQ9daQYOG"><span data-term="student" data-page-node-id="6J5BtsCZspJq9BYVOGYZC0">学生</span></option>
+          </select>
+          <div class="error-tip" id="register-role-error" data-page-node-id="uaskIXAoNWEaxrmJkyvOoc">请选择注册身份</div>
+        </div>
+        <div class="form-item" data-page-node-id="MiDWR7BcTA7A6cwCPdvVuv">
+          <label for="register-username" data-page-node-id="Nad8I4oAn3iYGWE1bKJQUG">账号(邮箱或电话号码)</label>
+          <input type="text" id="register-username" placeholder="请设置账号（字母/数字）" required data-page-node-id="43cmwpxKDw8HH0WHzWIy2J">
+          <div class="error-tip" id="register-username-error" data-page-node-id="MIJ5QKvmTtwBaLSFT4a1jE">请输入账号</div>
+        </div>
+        <div class="form-item" data-page-node-id="dwSDc3JxKsgEhmK34ElKU6">
+          <label for="register-name" data-page-node-id="dLgWoR1BswqonRtRemUPws">姓名</label>
+          <input type="text" id="register-name" placeholder="请输入姓名" required data-page-node-id="9rYYQFjjlTCzAvybpEml35">
+          <div class="error-tip" id="register-name-error" data-page-node-id="pRx8Aa1TGXCr6UlKmfDcPe">请输入真实姓名</div>
+        </div>
+        
+        <div class="form-item" data-page-node-id="mPzatbgOG2w2A1ORwAaRzc">
+          <label for="register-password" data-page-node-id="koFXm4sgMlsoa11ETGzQDm">密码</label>
+          <input type="password" id="register-password" placeholder="请设置密码" required data-page-node-id="XGlqguFSFL21Mjqp8eYshK">
+          <div class="error-tip" id="register-password-error" data-page-node-id="XoiQq5B7Qa5yDdC269Gz2U">请输入密码</div>
+        </div>
+        <div class="form-item" data-page-node-id="Roiwo1HEX0SPuoQXWp3kNG">
+          <label for="register-confirm-pwd" data-page-node-id="W0YCUCukyanR2PMnnRlDcf">确认密码</label>
+          <input type="password" id="register-confirm-pwd" placeholder="请再次输入密码" required data-page-node-id="eOZqof0JjnfJoolkBN7Qmq">
+          <div class="error-tip" id="register-confirm-error" data-page-node-id="ybJEE6qT6yoAai6GYMvDC0">两次密码不一致</div>
+        </div>
+        <div class="form-item" data-page-node-id="aHJIgJCkubDbGGQzSqcSPu">
+          <label data-page-node-id="QW44ssqA7NfSx45pdrLuer"><i class="fa fa-building" data-page-node-id="Qn6oEbJV7XPAKFOy3yxmoy"></i> 租户编码</label>
+          <input type="text" id="tenant-code" placeholder="请输入租户编码" data-page-node-id="AL2b95WXUEFyzDDz03ZV0z">
+          <div class="error-tip" id="tenant-error" data-page-node-id="BZfGA2BfEKb0ucLQU5UrAx"></div>
+      </div>
+
+        <div class="form-item agreement" data-page-node-id="reg-agree" >
+          <label class="agree-label" data-page-node-id="reg-agree-l">
+            <input type="checkbox" id="register-agree-legal" data-page-node-id="reg-agree-cb">
+            <span>我已阅读并同意
+              <a id="reg-agree-user-link" href="legal.html?type=user_agreement" target="_blank" rel="noopener">《用户协议》</a>
+              <a id="reg-agree-privacy-link" href="legal.html?type=privacy_policy" target="_blank" rel="noopener">《隐私政策》</a>
+            </span>
+          </label>
+          <div class="error-tip" id="register-agree-error" data-page-node-id="reg-agree-err">请先阅读并勾选同意协议</div>
+        </div>
+
+        <button type="submit" class="btn" id="register-btn" data-page-node-id="lx0YSdTEGfPT3Q0Vyt3JqZ">提交注册</button>
+        <button type="button" class="btn btn-cancel" id="cancel-register" data-page-node-id="nim8KMPwXBvgnLCbeFN0xJ">取消</button>
+        <div class="success-tip" id="register-success" data-page-node-id="h7lYRD8t3uDl0MTQrPHxGD">注册申请提交成功！请等待管理员审核</div>
+        <div class="error-tip" id="register-error" style="text-align: center;" data-page-node-id="JJGUKzT7NPAGcAd43wlmSn">账号已存在，请更换账号</div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 扫码弹层：复用同一 mask，标题随入口动态切换 -->
+  <div class="wx-qr-mask" id="wx-qr-mask">
+    <div class="wx-qr-modal">
+      <div class="wx-qr-head">
+        <span class="wx-qr-title" id="wx-qr-title">微信扫码登录</span>
+        <span class="wx-qr-close" id="wx-qr-close">&times;</span>
+      </div>
+      <div class="wx-qr-box" id="wx-qr-box"></div>
+      <div class="wx-qr-tip" id="wx-qr-tip">打开手机微信「扫一扫」，扫描二维码即可登录</div>
+      <button type="button" class="wx-qr-refresh" id="wx-qr-refresh" style="display:none;">二维码已过期，点击刷新</button>
+    </div>
+  </div>
+
+  <!-- 推广落地：无效推广码提示（不阻塞常规登录） -->
+  <div class="modal-mask" id="promo-invalid-mask" style="display:none; position:fixed; z-index:1200;">
+    <div class="modal-content" style="max-width:420px;">
+      <div class="modal-header">
+        <h3>推广链接提示</h3>
+        <span class="modal-close" id="promo-invalid-close"><i class="fa fa-times"></i></span>
+      </div>
+      <div style="padding:18px 22px;">
+        <div class="error-tip" id="promo-invalid-tip" style="display:none; text-align:left;"></div>
+        <p style="margin:8px 0 0; color:#666;">您仍可使用账号密码登录，或点击「还没有账号？点击注册」常规注册。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 推广路径1：免费体验注册（自助建租户 + 首管理员） -->
+  <div class="modal-mask" id="promo-tenant-modal" style="display:none;">
+    <div class="modal-content" style="max-width:460px;">
+      <div class="modal-header">
+        <h3>免费体验注册</h3>
+        <span class="modal-close" id="promo-tenant-close"><i class="fa fa-times"></i></span>
+      </div>
+      <form id="promo-tenant-form" onsubmit="return false;">
+        <p style="margin:0 0 12px; color:#4e6ef2;">通过好友推广注册，可免费体验 <b id="promo-trial-days">14</b> 天，您将成为新机构的管理员。</p>
+        <div class="form-item">
+          <label>机构名称</label>
+          <input type="text" id="promo-org-name" placeholder="请输入机构/工作室名称">
+        </div>
+        <div class="form-item">
+          <label>管理员账号(邮箱或电话号码)</label>
+          <input type="text" id="promo-admin-account" placeholder="将作为本机构的管理员登录账号">
+        </div>
+        <div class="form-item">
+          <label>联系人姓名</label>
+          <input type="text" id="promo-admin-name" placeholder="请输入真实姓名">
+        </div>
+        <div class="form-item">
+          <label>联系电话</label>
+          <input type="text" id="promo-admin-phone" placeholder="请输入联系电话（选填）">
+        </div>
+        <div class="form-item">
+          <label>密码</label>
+          <input type="password" id="promo-admin-password" placeholder="请设置登录密码">
+        </div>
+        <div class="form-item">
+          <label>确认密码</label>
+          <input type="password" id="promo-admin-password2" placeholder="请再次输入密码">
+        </div>
+        <div class="form-item">
+          <label for="promo-industry">所属行业</label>
+          <!-- 2026-10-13 修订：推广路径1 注册时选定所属行业（默认「教育培训」）。
+               选项由 GET /industry/options（免登录）填充；选定值随注册提交，
+               服务端对缺省/无效值有兜底（教育培训）与校验。 -->
+          <select id="promo-industry">
+            <option value="">加载中...</option>
+          </select>
+        </div>
+        <p style="margin:0 0 10px; color:#888; font-size:12px;">所属行业决定术语体系（如"学生/咨询者"），注册后仍可在「租户信息」页修改。</p>
+        <!-- 协议勾选（合规：自助建租户需同意平台协议+隐私政策） -->
+        <!-- 隐藏：场景 A（租户自注册，平台对租户的协议）采用隐式签署——注册即视为同意，
+             不再让前端展示勾选项；注册成功后由 promo.js 自动调 /legal/accept 完成合规留痕。 -->
+        <div class="form-item agreement" style="margin-bottom:10px; display:none;">
+          <label class="agree-label">
+            <input type="checkbox" id="promo-tenant-agree-legal" checked>
+            <span>我已阅读并同意
+              <a href="legal.html?type=user_agreement" target="_blank" rel="noopener">《用户协议》</a>
+              <a href="legal.html?type=privacy_policy" target="_blank" rel="noopener">《隐私政策》</a>
+            </span>
+          </label>
+          <div class="error-tip" id="promo-tenant-agree-error" style="display:none;">请先阅读并勾选同意协议</div>
+        </div>
+        <button type="submit" class="btn" id="promo-tenant-btn" onclick="window.PromoLanding.submitTenantForm()">立即创建</button>
+        <button type="button" class="btn btn-cancel" id="promo-tenant-cancel">取消</button>
+        <div class="success-tip" id="promo-tenant-success" style="text-align:center;"></div>
+        <div class="error-tip" id="promo-tenant-error" style="text-align:center;"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 推广路径2：加入指定租户（student/teacher，待审批） -->
+  <div class="modal-mask" id="promo-user-modal" style="display:none;">
+    <div class="modal-content" style="max-width:460px;">
+      <div class="modal-header">
+        <h3>加入 <span id="promo-user-org"></span></h3>
+        <span class="modal-close" id="promo-user-close"><i class="fa fa-times"></i></span>
+      </div>
+      <form id="promo-user-form" onsubmit="return false;">
+        <div class="form-item">
+          <label>租户编码</label>
+          <input type="text" id="promo-user-tcode" readonly>
+        </div>
+        <div class="form-item">
+          <label>注册身份</label>
+          <select id="promo-user-role">
+            <option value="student"><span data-term="student">学生</span></option>
+            <option value="teacher"><span data-term="teacher">教师</span></option>
+          </select>
+        </div>
+        <div class="form-item">
+          <label>账号(邮箱或电话号码)</label>
+          <input type="text" id="promo-user-account" placeholder="请设置账号">
+        </div>
+        <div class="form-item">
+          <label>真实姓名</label>
+          <input type="text" id="promo-user-name" placeholder="请输入真实姓名">
+        </div>
+        <div class="form-item">
+          <label>联系电话</label>
+          <input type="text" id="promo-user-phone" placeholder="请输入联系电话（选填）">
+        </div>
+        <div class="form-item">
+          <label>密码</label>
+          <input type="password" id="promo-user-password" placeholder="请设置登录密码">
+        </div>
+        <div class="form-item">
+          <label>确认密码</label>
+          <input type="password" id="promo-user-password2" placeholder="请再次输入密码">
+        </div>
+        <button type="submit" class="btn" id="promo-user-btn" onclick="window.PromoLanding.submitUserForm()">提交注册</button>
+        <button type="button" class="btn btn-cancel" id="promo-user-cancel">取消</button>
+        <div class="success-tip" id="promo-user-success" style="text-align:center;"></div>
+        <div class="error-tip" id="promo-user-error" style="text-align:center;"></div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/public/vendor/axios.min.js"></script>
+  <script src="js/public/termsFunction.js"></script>
+  <script src="js/public/documentTitle.js"></script>
+  <script src="js/public/qrcode.min.js"></script>
+  <script src="js/public/api.js"></script>
+<script src="js/public/utility_request.js"></script>
+<script src="js/public/auth.js"></script>
+<!-- 登录人机验证（P1）：识别 code=1002 → 弹滑块 → 带答案重试。依赖 utility_request/auth 已加载 -->
+<script src="js/public/login-guard.js"></script>
+<script src="js/public/promo.js"></script>
+<!-- 核心逻辑 -->
+  <script> 
+    // DOM元素获取（登录相关）
+    const loginForm = document.getElementById('login-form');
+    //const userRole = document.getElementById('user-role');
+    const username = document.getElementById('username');
+    const password = document.getElementById('password');
+    const loginBtn = document.getElementById('login-btn');
+    const btnText = document.getElementById('btn-text');
+    
+    // 错误提示元素（登录）
+   // const roleError = document.getElementById('role-error');
+    const usernameError = document.getElementById('username-error');
+    const passwordError = document.getElementById('password-error');
+    const loginError = document.getElementById('login-error');
+
+    // 新增：注册相关DOM元素
+    const registerModal = document.getElementById('register-modal');
+    const showRegister = document.getElementById('show-register');
+    const closeModal = document.getElementById('close-modal');
+    const cancelRegister = document.getElementById('cancel-register');
+    const registerForm = document.getElementById('register-form');
+    const registerRole = document.getElementById('register-role');
+    const registerUsername = document.getElementById('register-username');
+    const registerName = document.getElementById('register-name');
+
+     var   registerEmail ="";// document.getElementById('register-email');
+     var   registerPhone =""; //document.getElementById('register-phone');
+      var registerAccount="";
+    const registerPassword = document.getElementById('register-password');
+    const registerConfirmPwd = document.getElementById('register-confirm-pwd');
+    const registerBtn = document.getElementById('register-btn');
+    
+    // 注册错误/成功提示
+    const registerRoleError = document.getElementById('register-role-error');
+    const registerUsernameError = document.getElementById('register-username-error');
+    const registerNameError = document.getElementById('register-name-error');
+     const registerPasswordError = document.getElementById('register-password-error');
+    const registerConfirmError = document.getElementById('register-confirm-error');
+    const registerAgreeError = document.getElementById('register-agree-error');
+    const registerSuccess = document.getElementById('register-success');
+    const registerError = document.getElementById('register-error');
+   
+
+    // 场景 B：登录/注册成功后，将当前生效版本的用户协议 + 隐私政策签署留痕（幂等，fire-and-forget）
+    function recordLegalAccept(token) {
+      if (!token) return;
+      ['user_agreement', 'privacy_policy'].forEach(function (dt) {
+        // 裸路径交由 request() 的 normalizeUrl 统一补 /api/v1；noAuthRedirect 避免 401 跳登录
+        request({
+          url: '/legal/accept',
+          method: 'POST',
+          noAuthRedirect: true,
+          data: { docType: dt, channel: 'web' }
+        }).catch(function () { /* 签署留痕失败不影响主流程 */ });
+      });
+    }
+
+    // ===== 微信扫码登录（P2：PC 网站应用二维码）=====
+    // 流程：/auth/wechat/qr 生成一次性 state + 二维码 URL → qrcode.min.js 渲染 →
+    // 2s 轮询 /auth/wechat/qr/status → confirmed 存 token 跳首页 / expired 刷新 / failed 展示原因。
+    // state 一次性消费（confirmed 读取后行即删），轮询到终态必须停表，避免无限请求。
+    var wxQrPollTimer = null;
+
+    function stopWxQrPoll() {
+      if (wxQrPollTimer) {
+        clearInterval(wxQrPollTimer);
+        wxQrPollTimer = null;
+      }
+    }
+
+    function closeWechatQr() {
+      stopWxQrPoll();
+      var mask = document.getElementById('wx-qr-mask');
+      if (mask) mask.classList.remove('show');
+    }
+
+    function setWxQrTip(text, cls) {
+      var tip = document.getElementById('wx-qr-tip');
+      if (!tip) return;
+      tip.className = 'wx-qr-tip' + (cls ? ' ' + cls : '');
+      tip.textContent = text;
+    }
+
+    function loadWechatQr() {
+      var box = document.getElementById('wx-qr-box');
+      var refresh = document.getElementById('wx-qr-refresh');
+      if (!box) return;
+      // 切换到微信扫码模式
+      var title = document.getElementById('wx-qr-title');
+      if (title) title.textContent = '微信扫码登录';
+      stopWxQrPoll();
+      box.innerHTML = '';
+      if (refresh) refresh.style.display = 'none';
+      setWxQrTip('二维码生成中...');
+      request({ url: '/auth/wechat/qr', method: 'get', params: { purpose: 'login' }, noAuthRedirect: true })
+        .then(function (data) {
+          if (!data || !data.qrUrl) {
+            setWxQrTip('二维码生成失败，请重试', 'err');
+            return;
+          }
+          renderWxQr(data.qrUrl, data.state);
+        })
+        .catch(function (err) {
+          setWxQrTip((err && err.message) ? err.message : '二维码生成失败，请稍后重试', 'err');
+        });
+    }
+
+    // ===== 扫码登录移动端（纯前端：二维码 = 当前页面 URL，手机扫码即打开）=====
+    function openMobileQr() {
+      var title = document.getElementById('wx-qr-title');
+      var box = document.getElementById('wx-qr-box');
+      var refresh = document.getElementById('wx-qr-refresh');
+      if (title) title.textContent = '扫码登录移动端';
+      if (refresh) refresh.style.display = 'none';
+      stopWxQrPoll();
+      if (!box) return;
+      box.innerHTML = '';
+      try {
+        if (typeof window.QRCode !== 'function') throw new Error('组件未加载');
+        new window.QRCode(box, {
+          text: window.location.href,
+          width: 200, height: 200,
+          colorDark: '#1f2937', colorLight: '#ffffff',
+          correctLevel: window.QRCode.CorrectLevel.M
+        });
+      } catch (e) {
+        box.innerHTML = '<div style="padding:24px;color:#c05656;font-size:13px;">二维码组件加载失败，请刷新页面</div>';
+        return;
+      }
+      setWxQrTip('用手机浏览器扫描二维码，在手机上打开登录页面');
+      document.getElementById('wx-qr-mask').classList.add('show');
+    }
+
+    function renderWxQr(qrUrl, state) {
+      var box = document.getElementById('wx-qr-box');
+      if (!box) return;
+      box.innerHTML = ''; // qrcodejs 对同容器重复 makeCode 会叠加画布，先清空
+      try {
+        if (typeof window.QRCode !== 'function') throw new Error('组件未加载');
+        new window.QRCode(box, {
+          text: qrUrl,
+          width: 200,
+          height: 200,
+          colorDark: '#1f2937',
+          colorLight: '#ffffff',
+          correctLevel: window.QRCode.CorrectLevel.M
+        });
+      } catch (e) {
+        box.innerHTML = '<div style="padding:24px;color:#c05656;font-size:13px;">二维码组件加载失败，请刷新页面</div>';
+        return;
+      }
+      setWxQrTip('打开手机微信「扫一扫」，扫描二维码即可登录');
+      startWxQrPoll(state);
+    }
+
+    function startWxQrPoll(state) {
+      stopWxQrPoll();
+      wxQrPollTimer = setInterval(function () {
+        request({ url: '/auth/wechat/qr/status', method: 'get', params: { state: state }, noAuthRedirect: true })
+          .then(function (res) {
+            var status = res && res.status;
+            if (status === 'pending') return;
+            stopWxQrPoll();
+            if (status === 'confirmed') {
+              setWxQrTip('登录成功，正在跳转...', 'ok');
+              onWechatLoginSuccess(res);
+            } else if (status === 'expired') {
+              setWxQrTip('二维码已过期', 'err');
+              var refresh = document.getElementById('wx-qr-refresh');
+              if (refresh) refresh.style.display = 'inline-block';
+            } else if (status === 'failed') {
+              setWxQrTip(res.message || '登录未完成，请重试', 'err');
+              var rf = document.getElementById('wx-qr-refresh');
+              if (rf) rf.style.display = 'inline-block';
+            }
+          })
+          .catch(function () { /* 轮询失败不打扰用户，下一轮再试 */ });
+      }, 2000);
+    }
+
+    // 扫码登录成功：与密码登录同一套会话落地（currentUser/token/refreshToken + 协议留痕 + 跳转）
+    function onWechatLoginSuccess(res) {
+      var currentUser = {
+        userId: res.userId,
+        account: res.account,
+        role: res.role,
+        token: res.token,
+        name: res.name || '',
+        tenantCode: res.tenantCode || ''
+      };
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
+      if (res.token) {
+        localStorage.setItem('token', res.token);
+        recordLegalAccept(res.token);
+      }
+      localStorage.setItem('refreshToken', res.refreshToken || '');
+      setTimeout(function () {
+        closeWechatQr();
+        redirectToUserPage(currentUser);
+      }, 600);
+    }
+
+    document.getElementById('wechat-login-btn').addEventListener('click', function () {
+      document.getElementById('wx-qr-mask').classList.add('show');
+      loadWechatQr();
+    });
+    document.getElementById('mobile-login-btn').addEventListener('click', openMobileQr);
+    document.getElementById('wx-qr-close').addEventListener('click', closeWechatQr);
+    document.getElementById('wx-qr-refresh').addEventListener('click', loadWechatQr);
+    document.getElementById('wx-qr-mask').addEventListener('click', function (e) {
+      if (e.target === this) closeWechatQr();
+    });
+
+    // 表单验证函数（登录）
+    function validateForm() {
+      let isValid = true;
+      
+      // 重置所有错误提示
+      //roleError.style.display = 'none';
+      usernameError.style.display = 'none';
+      passwordError.style.display = 'none';
+      loginError.style.display = 'none';
+
+      // 验证身份选择
+    //  if (!userRole.value) {
+    //    roleError.style.display = 'block';
+    //    isValid = false;
+     // }
+
+      // 验证账号
+      if (!username.value.trim()) {
+        usernameError.style.display = 'block';
+        isValid = false;
+      }
+   
+      // 验证密码
+      if (!password.value.trim()) {
+        passwordError.style.display = 'block';
+        isValid = false;
+      }
+
+      return isValid;
+    }
+
+    // 新增：注册表单验证函数
+    async function validateRegisterForm() {
+      let isValid = true;
+      
+      // 重置所有提示
+      registerRoleError.style.display = 'none';
+      registerUsernameError.style.display = 'none';
+      registerNameError.style.display = 'none';
+      registerPasswordError.style.display = 'none';
+      registerConfirmError.style.display = 'none';
+      tenantError.style.display = 'none';
+      registerSuccess.style.display = 'none';
+      registerError.style.display = 'none';
+      if (registerAgreeError) registerAgreeError.style.display = 'none';
+
+      // 验证身份
+      if (!registerRole.value) {
+        registerRoleError.style.display = 'block';
+        isValid = false;
+      }
+
+      // 验证租户编码：后端要求注册时携带，缺失会返回 403
+      if (!tenantCodeInput.value.trim()) {
+        tenantError.textContent = '请输入租户编码';
+        tenantError.style.display = 'block';
+        isValid = false;
+      }
+
+      // 验证账号
+      if (!registerUsername.value.trim()) {
+        registerUsernameError.style.display = 'block';
+        isValid = false;
+      } else {
+        // 账号格式校验（邮箱或电话号码）
+        // 【修改】新增：根据输入内容判断是邮箱还是电话号码，并进行相应格式校验
+        // 账号包含"@"符号，判断为邮箱，否则判断为电话号码 
+        if (registerUsername.value.includes("@")) {
+           //判断为邮箱，检查是否合规
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailPattern.test(registerUsername.value.trim())) {
+          registerUsernameError.textContent = '请输入有效的邮箱地址';
+          registerUsernameError.style.display = 'block';
+          isValid = false;
+      }else {
+          registerEmail = registerUsername.value.trim();
+          registerAccount = registerEmail;
+          registerPhone = "";
+        }
+    }else{
+        registerEmail="";
+        const phonePattern = /^[\d-]{1,30}$/;
+        if (!phonePattern.test(registerUsername.value.trim())) {
+          registerUsernameError.textContent = '请输入有效的电话号码（最多30位，仅限数字和“-”分隔符）';
+          registerUsernameError.style.display = 'block';
+          isValid = false;
+        } else {
+          registerPhone = registerUsername.value.trim();
+          registerAccount = registerPhone;
+        }
+      }
+      if(isValid)
+       { // 检查账号是否已存在  
+        const isExist = await toCheckAccountExists(registerAccount);
+        if (isExist) { 
+          isValid = false; 
+          registerUsernameError.textContent = '账号已存在';
+          registerUsernameError.style.display = 'block';
+        }
+      }
+    } 
+
+      // 验证真实姓名
+      if (!registerName.value.trim()) {
+        registerNameError.style.display = 'block';
+        isValid = false;
+      }
+            
+
+      // 验证密码
+      if (!registerPassword.value.trim()) {
+        registerPasswordError.style.display = 'block';
+        isValid = false;
+      }
+
+      // 验证确认密码
+      if (registerConfirmPwd.value.trim() !== registerPassword.value.trim()) {
+        registerConfirmError.style.display = 'block';
+        isValid = false;
+      }
+
+      // 协议勾选校验（场景 B 合规：未同意不得注册）
+      if (!document.getElementById('register-agree-legal').checked) {
+        if (registerAgreeError) registerAgreeError.style.display = 'block';
+        isValid = false;
+      }
+
+      return isValid;
+    }
+
+   // 利用后端 "/account/exist" 检查账号是否已经存在
+   // 该函数会对输入账号发起GET请求，返回Promise<boolean>
+   async function toCheckAccountExists(registerAccount) {
+     if (!registerAccount) return false;
+     try {
+       // 调用后端接口 GET /user/account/exist?account=xxx
+       // request 拦截器在 code=200 时直接返回 res.data，此处即 Boolean
+       const existed = await request({
+         url: '/user/account/exist',
+         method: 'GET',
+         params: { account: registerAccount.trim() },
+         customErrorMsg: false // 异常由本函数自行提示，不弹窗
+       });
+       return !!existed;
+     } catch (e) {
+       // 后端不可达时保守视为"未占用"，避免阻塞注册；控制台记录便于排查
+       console.warn('账号存在性校验失败，视为未占用：', e);
+       return false;
+     }
+   }
+    // 新增：提交注册申请（直接使用 request 封装，无伪异步）
+    async function submitRegister() {
+      // 1. 先跑表单校验（含账号存在性、密码等）；失败直接返回
+      const valid = await validateRegisterForm();
+      if (!valid) return Promise.resolve(false);
+
+      // 2. 构造注册信息 —— 后端 @RequestBody User 实体字段严格对齐
+      const role = registerRole.value.trim();
+      const account = (registerAccount || '').trim();
+      const tenantCode = document.getElementById('tenant-code').value.trim();
+      const registerInfo = {
+        role: role,
+        account: account,
+        email: (registerEmail || '').trim() || null,   // null 不进库时不会触发唯一键
+        phone: (registerPhone || '').trim() || null,
+        name: registerName.value.trim() || null,        // 学生注册时 name 可空
+        password: registerPassword.value.trim(),
+        status: 'pending'   ,                           // 修正拼写：原 pendding(3d) -> pending(2d)，与后端一致
+        tenantCode: tenantCode // 新增：租户编码
+      };
+        
+      
+      try {
+        // 3. 使用 request 发起 POST：URL 已通过拦截器 baseURL 自动拼接
+        //    后端路径：POST /user/{student|teacher}/register
+        const resultData = await request({
+          url: `/user/register`,
+          method: 'POST',
+          data: registerInfo,
+          customErrorMsg: false // 我们自己统一处理错误信息（400/网络/异常），避免重复弹窗
+        });
+
+        // 4. 注册成功：显示后端返回的 message（若有）
+        registerError.style.display = 'none';
+        registerSuccess.style.display = 'block';
+        // 场景 B：注册即视为同意，记录对当前生效版协议/政策的签署（fire-and-forget）
+        // 2026-10-24：待审核注册（无 token）签不了这个接口（/legal/accept 是登录态接口），
+        // 此处降级跳过——审核通过后首次登录会再记一次（见下方登录成功分支），留痕不丢。
+        if (resultData && resultData.token) recordLegalAccept(resultData.token);
+        // request 拦截器 code=200 时只返回 res.data（Map：{userId,account,token,role}）
+        // 所以 message 需从 localStorage 暂存或用默认文案；此处给用户友好提示
+        registerSuccess.textContent = '注册成功，请等待管理员审核，即将跳转登录页...';
+
+        // 5. 保存登录态：currentUser（完整用户信息） + token/refreshToken
+        //    后端 Register 接口返回不含 refreshToken（只有 token），这里与登录返回对齐
+        //
+        // ★ 2026-10-24：**只有拿到 token 才写会话**。
+        //   后端已改为「非 active 账号不下发 token」（pending 注册不再发券），
+        //   本处若照旧写 currentUser，pending 用户浏览器里会留下一条带 userId/role 的登录态，
+        //   guardEntryPage 见到它就放行 admin.html/角色页，审核再次被绕过 —— 注册口和登录口必须同时收。
+        const currentUser = {
+          userId:  resultData.userId,
+          account: resultData.account,
+          role:    resultData.role,
+          token:   resultData.token,
+          name:    registerInfo.name || '',
+          tenantCode: registerInfo.tenantCode || '' // 新增：租户编码
+        };
+        if (resultData.token) {
+          localStorage.setItem('currentUser', JSON.stringify(currentUser));
+          // token 单独保存：utility_request.js 请求拦截器从 localStorage.getItem('token') 取
+          localStorage.setItem('token', resultData.token);
+          // 注册接口暂未返回 refreshToken，留空避免刷新逻辑误判
+          localStorage.removeItem('refreshToken');
+        } else {
+          // 待审核注册：不落任何会话，并清掉注册前可能残留的旧态，避免拿旧 token 混进系统
+          localStorage.removeItem('currentUser');
+          localStorage.removeItem('token');
+          localStorage.removeItem('refreshToken');
+        }
+
+        // 6. 写入 Cookie（2小时），保持当前逻辑
+        if (resultData.token) {
+          try {
+            const d = new Date();
+            d.setTime(d.getTime() + (2 * 60 * 60 * 1000));
+            document.cookie = `currentUser=${encodeURIComponent(JSON.stringify(currentUser))};expires=${d.toUTCString()};path=/`;
+          } catch (e) {
+            console.warn('写入cookie失败（不影响核心流程）：', e);
+          }
+        } else {
+          try {
+            document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+          } catch (e) { /* 清 cookie 失败不影响主流程 */ }
+        }
+
+        // 7. 2秒后关闭弹窗，并【重定向到登录界面】
+        //    —— 注册账号需管理员审核（status=pending），故跳转登录页而非直接进入角色首页；
+        //    —— 跳转 URL 必须带上 tCode=注册时的租户编码，使登录页自动隐藏/锁定到该租户入口
+        //       （applyTcodeToLogin / applyTenantCodeRule 均按此参数生效）；
+        //    —— 同时把注册租户编码持久化到 localStorage，便于后续访问 index 时回显与复用。
+        setTimeout(() => {
+          registerModal.style.display = 'none';
+          resetRegisterForm();
+          // 【修订】保存注册时的租户编码
+          const regTenantCode = (registerInfo.tenantCode || '').trim() || 'default';
+          try {
+            localStorage.setItem('lastRegisterTenantCode', regTenantCode);
+          } catch (e) {
+            console.warn('保存注册租户编码失败（不影响跳转）：', e);
+          }
+          // 重定向到登录界面，URL 地址栏包含 tCode=注册时的租户编码（参数名与 getTenantCodeFromUrl 约定一致）
+          // registered=1：告知登录页「本次是注册后的跳转」，须停留在登录表单，
+          //              不要被「已登录自动跳工作台」逻辑立刻弹走（否则想看登录框却被弹到角色首页）。
+          const loginUrl = './login.html?tCode=' + encodeURIComponent(regTenantCode) + '&registered=1';
+          window.location.assign(loginUrl);
+        }, 2000);
+
+        return true;
+      } catch (error) {
+        // ---- 8. 错误分支：分场景给出精确提示 ----
+        console.error('注册请求出错：', error);
+        registerSuccess.style.display = 'none';
+        registerError.style.display = 'block';
+
+        // request 拦截器对非200：return Promise.reject(res)，res 结构为 {code,message,data}
+        const code = error && error.code;
+        const msg  = error && (error.message || error.msg);
+
+        if (code === 400) {
+          // 后端 existAccount -> "该账号已注册，请登录或重置密码"
+          registerError.textContent = msg || '该账号已存在，请更换账号或登录';
+           } else if (code === 401  ) {
+          registerError.textContent = ' 请先登录'; 
+        } else if ( code === 403) {
+          registerError.textContent = '无权访问，请联系管理员';
+        } else if (code === 500) {
+          registerError.textContent = '服务器内部错误，请稍后重试';
+        } else if (typeof error === 'string' && error.includes('超时')) {
+          registerError.textContent = error;
+        } else if (typeof error === 'string' && error.includes('网络连接失败')) {
+          registerError.textContent = '网络连接失败，请检查后端服务是否启动（端口8081）';
+        } else if (msg) {
+          registerError.textContent = msg;
+        } else {
+          registerError.textContent = '注册失败，请检查网络或稍后重试';
+        }
+        return false;
+      }
+    }
+
+   
+    // 重置登录表单
+    function resetLoginForm() {
+      loginForm.reset();
+      loginBtn.disabled = false;
+      btnText.innerHTML = '登录系统';
+    }
+
+    // 新增：重置注册表单
+    function resetRegisterForm() {
+      registerForm.reset();
+      registerBtn.disabled = false;
+      registerSuccess.style.display = 'none';
+      registerError.style.display = 'none';
+      // 重置后重新套用租户编码规则（恢复 URL 参数或平台默认值）
+      applyTenantCodeRule();
+    }
+
+    
+    // 登录表单提交事件
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault(); // 阻止表单默认提交
+
+      // 表单验证
+      if (!validateForm()) {
+        return;
+      }
+      // 协议勾选校验（场景 B 合规：未同意不得登录）
+    /*  if (!document.getElementById('agree-legal').checked) {
+        document.getElementById('agree-error').style.display = 'block';
+        return;
+      }*/
+
+      // 显示加载状态
+      loginBtn.disabled = true;
+      btnText.innerHTML = '<span class="loading"></span> 登录中...';
+       const loginRole = document.getElementById('login-role').value.trim();
+      const loginTenantCode = document.getElementById('login-tenant-code').value.trim();
+
+      try {
+        // 登录风控（2026-10-22 P1）：采集设备标识 + 环境异常标记，随登录请求上报。
+        // 采集失败一律按"无设备标识"处理（服务端 +10 分），绝不因为它失败而阻断登录。
+        const dev = (window.LoginGuard && typeof window.LoginGuard.collectDevice === 'function')
+          ? window.LoginGuard.collectDevice()
+          : { deviceId: '', emuFlag: false };
+
+        const doLogin = function (extra) {
+          return authenticateUser(
+            username.value.trim(),
+            password.value.trim(),
+            {
+              tenantCode: loginRole === 'platform_admin' ? 'platform' : loginTenantCode,
+              role: loginRole,
+              deviceId: dev.deviceId,
+              emuFlag: dev.emuFlag,
+              challengeId: extra.challengeId,
+              moveX: extra.moveX,
+              trackPoints: extra.trackPoints,
+              costMs: extra.costMs
+            }
+          );
+        };
+
+        // 无 LoginGuard（脚本未加载/老浏览器）时退化为直接登录，不影响可用性
+        const user = (window.LoginGuard && typeof window.LoginGuard.wrap === 'function')
+          ? await window.LoginGuard.wrap(doLogin)
+          : await doLogin({});
+        //save
+      const currentUser = {
+          userId:  user.userId,
+          account: user.account,
+          role:    user.role,
+          token:   user.token,
+          name:    user.name || '',
+          // 修正：后端登录响应不含 tenantCode，必须用【登录时确定的租户编码】保存，
+          // 否则恒为 ''，导致入口守卫的角色/租户一致性校验对所有租户角色失效。
+          tenantCode: (loginRole === 'platform_admin' ? 'platform' : loginTenantCode)
+        };
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+        // token 单独保存：utility_request.js 请求拦截器从 localStorage.getItem('token') 取
+        if (user.token) {
+          localStorage.setItem('token', user.token);
+          // 场景 B：登录成功即记录对当前生效版协议/政策的签署（fire-and-forget）
+          recordLegalAccept(user.token);
+        }
+        // 注册接口暂未返回 refreshToken，留空避免刷新逻辑误判
+        localStorage.setItem('refreshToken', user.refreshToken || '');
+
+        loginError.style.display = 'block';
+        loginError.style.color = 'green';
+        loginError.textContent = '登录成功，正在跳转...';
+        setTimeout(() => {
+          // redirect（如有）优先：来自教师公开页点「排期」的回跳，登录后直达该排期
+          const redirectTarget = getUrlRedirectTarget();
+          if (redirectTarget) {
+            window.location.href = redirectTarget;
+            return;
+          }
+          redirectToUserPage(currentUser);
+        }, 800);
+      } catch (error) {
+        console.error('登录请求出错:', error);
+        loginError.style.display = 'block';
+        loginError.style.color = 'red';
+        loginError.textContent =
+          typeof error === 'string'
+            ? error
+            : (error.bodyMsg || error.message || '账号或密码错误，请重试');
+
+        loginBtn.disabled = false;
+        btnText.innerHTML = '登录系统';
+        password.value = '';
+      }
+    });
+
+    // 新增：注册弹窗显示/隐藏
+    showRegister.addEventListener('click', () => {
+      // 每次打开都重新套用规则，避免上次选择残留
+      applyTenantCodeRule();
+      registerModal.style.display = 'flex';
+    });
+
+    closeModal.addEventListener('click', () => {
+      registerModal.style.display = 'none';
+      resetRegisterForm();
+    });
+
+    cancelRegister.addEventListener('click', () => {
+      registerModal.style.display = 'none';
+      resetRegisterForm();
+    });
+
+    // 【修改】租户编码规则（注册时归属哪个租户）
+    //   1) 选择「平台管理员」→ 自动填 platform 并锁定输入框
+    //   2) 页面 URL 带 ?tcode=xx → 采用该值并锁定（租户专属注册链接）
+    //   3) 其余情况 → 由用户手动填写
+    const tenantCodeInput = document.getElementById('tenant-code');
+    const tenantError = document.getElementById('tenant-error');
+    // 必须与后端 RoleConst.PLATFORM_ADMIN 一致（下划线）
+    const PLATFORM_ROLE = 'platform_admin';
+    const DEFAULT_TENANT_CODE = 'default';
+    const PLATFORM_TENANT_CODE = 'platform';
+
+    /** 读取 URL 参数 ?tcode=xx */
+    function getTenantCodeFromUrl() {
+      // 兼容「?tCode =tenant_A」（参数名带空格）：手动按 '&' 解析，再复用清洗逻辑
+      var raw = '';
+      var pairs = (window.location.search || '').replace(/^\?/, '').split('&');
+      for (var i = 0; i < pairs.length; i++) {
+        if (!pairs[i]) continue;
+        var eq = pairs[i].indexOf('=');
+        var k = eq === -1 ? pairs[i] : pairs[i].slice(0, eq);
+        var v = eq === -1 ? '' : pairs[i].slice(eq + 1);
+        if (decodeURIComponent(k).trim().toLowerCase() === 'tcode') { raw = decodeURIComponent(v); break; }
+      }
+      // 复用与早期脚本一致的清洗逻辑，防止嵌套 tCode（?tCode=tCode=XXX）污染注册/登录表单
+      return (typeof window.sanitizeTenantCode === 'function') ? window.sanitizeTenantCode(raw) : (raw && raw.trim() ? raw.trim() : '');
+    }
+
+    /**
+     * 「上次到访的租户编码」本地缓存键（与 teacherPublishedProfile.html 同名约定）。
+     * 教师公开页会把 URL 上的 tCode 记到此键：分享链接本身刻意不带 tCode，
+     * 访客若曾从落地页（带 tCode）进过任一公开页，再来登录时就能自动预填，
+     * 免去「家长不知道租户编码」的卡点；仍保持可编辑，换租户不受影响。
+     */
+    const REMEMBERED_TENANT_CODE_KEY = 'lastTenantCode';
+
+    /** 读本地记住的租户编码（platform 是跨租户账号标识，不作为租户预填值） */
+    function getRememberedTenantCode() {
+      try {
+        var v = String(window.localStorage.getItem(REMEMBERED_TENANT_CODE_KEY) || '').trim();
+        return (v && v !== PLATFORM_TENANT_CODE) ? v : '';
+      } catch (e) { return ''; }
+    }
+
+    /** 按角色与 URL 参数决定租户编码及其可编辑状态 */
+    function applyTenantCodeRule() {
+      const urlCode = getTenantCodeFromUrl();
+      const tcFormItem = tenantCodeInput.closest('.form-item');
+      if (urlCode) {        tenantCodeInput.value = urlCode;
+        tenantCodeInput.readOnly = true;
+        if (urlCode === PLATFORM_TENANT_CODE) {
+          registerRole.value = PLATFORM_ROLE;
+          // platform 专属链接：租户编码仍展示并锁定为 platform
+          tcFormItem.style.display = '';
+        } else {
+          // tcode 非 platform：隐藏「租户编码」标签与编辑框（已由专属链接代入，无需用户填写）
+          tcFormItem.style.display = 'none';
+          // 租户专属链接下平台管理员选项不可见
+          // 注意：HTMLSelectElement.options 是 HTMLOptionsCollection，既没有 Array 的 findIndex，
+          // 其自身也没有 remove 方法（remove 定义在 <select> 元素上）。故用 select.remove(index)。
+          const roleSelect = document.getElementById('register-role');
+          const roleOptions = roleSelect.options;
+          let platformRoleIndex = -1;
+          for (let i = 0; i < roleOptions.length; i++) {
+            if (roleOptions[i].value === PLATFORM_ROLE) {
+              platformRoleIndex = i;
+              break;
+            }
+          }
+          if (platformRoleIndex !== -1) {
+            roleSelect.remove(platformRoleIndex);
+          }
+        }
+        return;
+      }
+
+      // 无 tcode：恢复可见可编辑
+      tcFormItem.style.display = '';
+      if (registerRole.value === PLATFORM_ROLE) {
+        tenantCodeInput.value = PLATFORM_TENANT_CODE;
+        tenantCodeInput.readOnly = true;
+        return;
+      }
+      // 其他情况：由用户手动填写；若本浏览器曾到访过某租户的公开页，先预填该编码省一次输入
+      tenantCodeInput.value = getRememberedTenantCode() || DEFAULT_TENANT_CODE;
+      tenantCodeInput.readOnly = false;
+    }
+
+    /**
+     * 登录身份联动（镜像注册页 applyTenantCodeRule 的逻辑）
+     * - 平台管理员：tenantCode 锁定为 platform（与后端 PLATFORM_TENANT_CODE 一致）
+     * - 租户端：优先取 URL ?tcode=，否则由用户手动填写
+     */
+    function applyLoginTenantRule() {
+      const roleSel = document.getElementById('login-role');
+      const tcInput = document.getElementById('login-tenant-code');
+      const urlCode = getTenantCodeFromUrl();
+      if (roleSel.value === PLATFORM_ROLE) {
+        tcInput.value = PLATFORM_TENANT_CODE;
+        tcInput.readOnly = true;
+      } else if (urlCode) {
+        tcInput.value = urlCode;
+        tcInput.readOnly = true;
+      } else {
+        tcInput.value = '';
+        tcInput.readOnly = false;
+      }
+    }
+
+    /**
+     * 登录界面 tcode 专属链接处理：
+     * URL 带 ?tcode=xx 时，隐藏「登录身份」与「租户编码」两项（标签+控件），
+     * 并将隐藏字段锁定为 tcode 对应的值——platform 锁定为平台管理员，其余锁定为租户端；
+     * 租户编码字段锁定为 tcode 本身（即"固定该下拉菜单的选择为 tcode 所代入的参数"）。
+     * 无 tcode 时恢复两项默认可见、可填。
+     */
+    function applyTcodeToLogin() {
+      const urlCode = getTenantCodeFromUrl();
+      const roleSel = document.getElementById('login-role');
+      const tcInput = document.getElementById('login-tenant-code');
+      const roleItem = roleSel.closest('.form-item');
+      const tcItem = tcInput.closest('.form-item');
+      if (urlCode) {
+        roleItem.style.display = 'none';
+        tcItem.style.display = 'none';
+        roleSel.value = (urlCode === PLATFORM_TENANT_CODE) ? PLATFORM_ROLE : 'tenant';
+        tcInput.value = urlCode;
+        tcInput.readOnly = true;
+      } else {
+        roleItem.style.display = '';
+        tcItem.style.display = '';
+        roleSel.value = '';
+        // 无 tcode：本浏览器若到访过某租户的公开页，预填该租户编码（可改），
+        // 免去家长从分享链接进来时「不知道租户编码怎么写」的卡点
+        tcInput.value = getRememberedTenantCode();
+        tcInput.readOnly = false;
+      }
+    }
+
+    // 切换注册身份时重新套用规则
+    registerRole.addEventListener('change', applyTenantCodeRule);
+
+    /**
+     * 注册弹窗协议链接：根据租户编码动态切换到租户版本。
+     * - tenant-code 有值（且不是 platform）→ legal.html?type=xxx&tenant=tCode
+     * - tenant-code 为空或 platform → legal.html?type=xxx（平台兜底）
+     */
+    function syncRegisterLegalLinks() {
+      var tc = (tenantCodeInput && tenantCodeInput.value || '').trim();
+      var userLink = document.getElementById('reg-agree-user-link');
+      var privacyLink = document.getElementById('reg-agree-privacy-link');
+      if (!userLink || !privacyLink) return;
+      var sep;
+      if (tc && tc !== PLATFORM_TENANT_CODE) {
+        sep = '&tenant=' + encodeURIComponent(tc);
+      } else {
+        sep = '';
+      }
+      userLink.href = 'legal.html?type=user_agreement' + sep;
+      privacyLink.href = 'legal.html?type=privacy_policy' + sep;
+    }
+    // 在以下时机触发同步：初始加载 / tenant-code 输入变化 / 角色切换触发的 applyTenantCodeRule
+    if (tenantCodeInput) tenantCodeInput.addEventListener('keyup', syncRegisterLegalLinks);
+    if (tenantCodeInput) tenantCodeInput.addEventListener('change', syncRegisterLegalLinks);
+    syncRegisterLegalLinks();
+    // 也挂到 applyTenantCodeRule 里（角色切换时 tenant-code 会被赋值 / 清空）
+    var _origApply = applyTenantCodeRule;
+    applyTenantCodeRule = function () { _origApply(); syncRegisterLegalLinks(); };
+
+    // 【修改】已移除「点击遮罩层关闭弹窗」逻辑。
+    // 原因：填写过程中有两类操作会让 click 事件落到遮罩层上，导致弹窗被误关闭：
+    //   1) 展开「注册身份」原生下拉框后点选选项；
+    //   2) 在输入框中按住拖选文本、鼠标在弹窗外释放（mousedown 在内、mouseup 在外）。
+    // 现在关闭入口只剩三个明确的用户操作：提交注册成功、点击「取消」、点击右上角关闭。
+
+    // 新增：注册表单提交事件
+    registerForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      // 禁用提交按钮，防止重复提交
+      registerBtn.disabled = true;
+
+      try {
+        // 校验 + 提交 + 成功提示 + 定时跳转，全部由 submitRegister 内部完成；
+        // 原先这里又单独跑了一遍 validateRegisterForm（导致账号存在性接口被请求两次），
+        // 且不检查 submitRegister 的返回值就弹「注册成功」，会出现「注册失败却提示成功」的自相矛盾。
+        const ok = await submitRegister();
+        if (!ok) {
+          // 校验未通过 / 提交失败：submitRegister 已给出具体错误提示，这里只恢复按钮
+          registerBtn.disabled = false;
+          return;
+        }
+        // 跳转交由 submitRegister 内部统一处理（按角色落到对应首页，
+        // 平台管理员 → platform_admin.html，租户端/教师/学生 → 各自首页），
+        // 此处不再重复 redirect，避免与 submitRegister 的跳转互相覆盖
+      } catch (error) {
+        console.error('注册提交失败:', error);
+        alert('注册申请提交失败，请稍后重试');
+        registerBtn.disabled = false;
+      }
+    })
+    
+    /**
+   * 优化的全局API错误提示
+   * @param {string} msg 要提示的内容
+   */
+  function showApiError(msg) {
+    const tip = document.getElementById('api-error-tip');
+    if (!tip) return alert(msg);
+    tip.textContent = msg || '服务异常，请稍后再试';
+    tip.style.display = 'block';
+    clearTimeout(window.__apiErrorTimer);
+    window.__apiErrorTimer = setTimeout(() => {
+      tip.style.display = 'none';
+      // 恢复按钮状态
+        loginBtn.disabled = false;
+        btnText.innerHTML = '登录系统';
+    }, 2500);
+  };
+  //TBD：添加“自动登录”勾选功能，可以提供自动跳转登录状态
+
+  /**
+   * 关闭登录页（未注册/未登录态的「关闭」按钮）
+   * - 若本页是由 window.open 打开的弹窗：window.close() 直接关闭；
+   * - 顶层页浏览器禁止脚本关闭，先尝试 window.close()，若未关闭则回退到上一页；
+   * - 无任何可返回历史时，提示用户手动关闭标签页。
+   */
+  function closeLoginPage() {
+    if (window.opener) {
+      window.close();
+      return;
+    }
+    window.close();
+    setTimeout(function () {
+      if (!window.closed) {
+        if (window.history.length > 1) {
+          window.history.back();
+        } else {
+          alert('当前页面无法由脚本关闭，请手动关闭标签页。');
+        }
+      }
+    }, 100);
+  }
+
+  /**
+   * 读取并校验 URL 上的 redirect 参数：登录成功后要回到的页内地址。
+   *
+   * 用途（2026-09-28）：未登录访客在教师公开页（teacherPublishedProfile.html）点「排期/预约」时，
+   * 由该页跳来本页并带上 redirect=booking.html?scdid=xxx；登录成功后直达该排期，
+   * 而不是把人扔进角色工作台让他自己再找一遍。
+   *
+   * 安全（防开放重定向）：只接受同源地址 —— 'booking.html?x=1' / './booking.html' /
+   * '/booking.html' / 同源绝对地址；拒绝 '//evil.com'、其它域名、以及 javascript:/data: 等伪协议。
+   */
+  function getUrlRedirectTarget() {
+    var raw = '';
+    try {
+      raw = new URLSearchParams(window.location.search).get('redirect') || '';
+    } catch (e) {
+      return '';
+    }
+    raw = String(raw).trim();
+    if (!raw) return '';
+    // 伪协议（javascript:/data:/vbscript:）直接拒绝；http(s) 交给下一步同源校验
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(raw) && !/^https?:/i.test(raw)) return '';
+    var a = document.createElement('a');
+    a.href = raw;
+    if (a.origin !== window.location.origin) return '';   // 跨域一律拒绝
+    var target = (a.pathname || '') + (a.search || '') + (a.hash || '');
+    // 兜底：解析结果必须落在某个页面文件上，避免 redirect= 空值/目录造成异常跳转
+    if (!/\.html(\?|#|$)/i.test(target)) return '';
+    return target;
+  }
+
+  window.onload = function() {
+      // ?registered=1：由注册成功后的跳转带来。此时必须停留在登录表单，
+      // 否则下面的「已登录自动跳转」会立刻把用户弹到角色首页，注册后的登录提示形同虚设。
+      var justRegistered = false;
+      try {
+        justRegistered = new URLSearchParams(window.location.search).get('registered') === '1';
+      } catch (e) {}
+      // redirect 优先于「按角色进工作台」：公开页点「排期」→ 去登录 → 回该排期。
+      //
+      // 但回跳必须加【已登录】前提（2026-09-28 修）：
+      //   未登录时若立即回跳 redirect，目标页（如 booking.html）的入口守卫
+      //   guardEntryPage → forceEntryLogin 会把人再弹回 login.html，而那条路径
+      //   只带 tCode、不带 redirect（api.js 里消费 auth_redirect_info 的分支也已被注释），
+      //   于是「登录后回到原排期」的意图在中转途中被吞掉，用户最终落在工作台。
+      //   正确顺序：未登录 → 停在登录表单（租户编码已按 tCode 锁定）→ 登录成功后再回跳。
+      var urlRedirect = getUrlRedirectTarget();
+      var __hasToken = false;
+      try { __hasToken = !!localStorage.getItem('token'); } catch (e) {}
+      if (!justRegistered && urlRedirect && __hasToken) {
+        window.location.href = urlRedirect;
+        return;
+      }
+      // 已登录用户直接进入对应角色工作台，避免停留在登录框（登录页自身不是 401 兜底环的一环）
+      if (!justRegistered && __hasToken) {
+        try {
+          var __cu = JSON.parse(localStorage.getItem('currentUser') || 'null');
+          if (__cu && __cu.role) { redirectToUserPage(__cu); return; }
+        } catch (e) {}
+      }
+      // 页面加载时套用租户编码规则：URL 带 ?tcode=xx 时自动填充并锁定
+      applyTenantCodeRule();
+      // 登录界面 tcode 专属链接：隐藏身份与租户编码并锁定为 tcode 对应值
+      applyTcodeToLogin();
+      // 注册后跳回：给一条绿色成功提示，引导用户用刚注册的账号登录
+      if (justRegistered) {
+        var el = document.getElementById('login-error');
+        if (el) {
+          el.style.display = 'block';
+          el.style.color = 'green';
+          el.textContent = '注册成功，请使用刚注册的账号登录（账号需管理员审核后方可正常使用）';
+        }
+      }
+      // ====== 推广落地（2026-10-13 二期）======
+      // URL 带 ref 时：校验推广码（首次访问 touch=1 计数，storage 去重）→ 按 pathType
+      // 打开「免费体验注册 / 加入租户」弹窗。无 ref 时本调用直接返回，不影响常规登录页。
+      // 注意：上面的「已登录自动跳转」对 logged-in 访客优先——老用户点推广链接会直接进工作台，
+      // 注册弹窗只面向未登录的新用户（符合推广语义）。
+      if (typeof window.PromoLanding === 'object' && window.PromoLanding.init) {
+        window.PromoLanding.init();
+      }
+      // 推广弹窗的关闭/取消按钮（无效码提示Mask + 两个注册弹窗）
+      (function bindPromoClosers() {
+        var pairs = [
+          ['promo-invalid-close', 'promo-invalid-mask'],
+          ['promo-tenant-close', 'promo-tenant-modal'],
+          ['promo-tenant-cancel', 'promo-tenant-modal'],
+          ['promo-user-close', 'promo-user-modal'],
+          ['promo-user-cancel', 'promo-user-modal']
+        ];
+        pairs.forEach(function (p) {
+          var btn = document.getElementById(p[0]);
+          var mask = document.getElementById(p[1]);
+          if (btn && mask) {
+            btn.addEventListener('click', function () { mask.style.display = 'none'; });
+          }
+        });
+      })();
+  };
+  </script>
+</body>
+</html>

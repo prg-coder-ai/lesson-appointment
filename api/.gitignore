@@ -1,8 +1,0 @@
-# frontend-maven-plugin 下载的 Node/npm 运行时（installDirectory=target）
-target/node/
-target/npm/
-# npm 依赖与锁文件（构建期生成）
-node_modules/
-package-lock.json
-# run.sh 生成的依赖 classpath dump（非源码，勿入库）
-cp-api.txt

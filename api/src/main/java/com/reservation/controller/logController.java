@@ -1,6 +1,8 @@
 package com.reservation.controller; 
 
 import com.reservation.common.Result;
+import com.reservation.utils.PermissionCheck;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.*;
@@ -16,14 +18,20 @@ import lombok.extern.slf4j.Slf4j;
 @RequestMapping("/api/v1/logs")
 @Slf4j
 public class logController {
- 
+
     private static final String LOG_DIR = "./logs";
     private static final String CURRENT_LOG = LOG_DIR + "/spring-boot-app.log";
     private static final String ARCHIVED_DIR = LOG_DIR + "/archived";
 
+    @Autowired
+    private PermissionCheck permissionCheck;
+
     // 1. 读取当前日志尾部（tail）
     @GetMapping("/tail")
-    public Result<List<String>> tail(@RequestParam(defaultValue = "200") int lines) {
+    public Result<List<String>> tail(@RequestParam(defaultValue = "200") int lines,
+                                     @RequestHeader("Authorization") String token) {
+        // 方法级兜底（2026-10-10 P1-4）：对齐 AuthzRules 声明 PLATFORM_OR_TENANT_ADMIN——日志可读服务器内部信息
+        permissionCheck.checkAdmin(token);
         try {
             List<String> all = Files.readAllLines(Path.of(CURRENT_LOG));
             int start = Math.max(0, all.size() - lines);
@@ -39,7 +47,9 @@ public class logController {
     @GetMapping("/date")
     public Result<List<String>> byDate(
             @RequestParam String date,           // yyyy-MM-dd
-            @RequestParam(defaultValue = "500") int maxLines) {
+            @RequestParam(defaultValue = "500") int maxLines,
+            @RequestHeader("Authorization") String token) {
+        permissionCheck.checkAdmin(token);
         // 查找匹配的归档文件（可能有多个 %i 分片）
         File dir = new File(ARCHIVED_DIR);
         File[] matched = dir.listFiles((d, name) ->
@@ -71,12 +81,15 @@ public class logController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String level,   // INFO/WARN/ERROR
             @RequestParam(required = false) String date,    // 可选：限定某天
-            @RequestParam(defaultValue = "500") int maxResults) {
+            @RequestParam(defaultValue = "500") int maxResults,
+            @RequestHeader("Authorization") String token) {
+
+        permissionCheck.checkAdmin(token);
 
         List<String> sourceLines = new ArrayList<>();
         // 读取当前日志或归档日志
         if (date != null && !date.isEmpty()) {
-            Result<List<String>> r = byDate(date, Integer.MAX_VALUE);
+            Result<List<String>> r = byDate(date, Integer.MAX_VALUE, token);
             sourceLines.addAll(r.getData() != null ? r.getData() : Collections.emptyList());
         } else {
             try {
@@ -99,10 +112,8 @@ public class logController {
 
       // 4. 列出可用的归档日期
     @GetMapping("/dates")
-    public Result<List<String>> availableDates() {
-           /* if (!checkRole("admin")) {
-            return Result.fail(403, "无权限访问日志");
-            }*/
+    public Result<List<String>> availableDates(@RequestHeader("Authorization") String token) {
+        permissionCheck.checkAdmin(token);
         File dir = new File(ARCHIVED_DIR);
         File[] files = dir.listFiles((d, name) -> name.endsWith(".log.gz"));
         if (files == null) return Result.success(Collections.emptyList(),"no archived log found");

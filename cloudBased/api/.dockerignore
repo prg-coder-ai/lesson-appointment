@@ -1,0 +1,25 @@
+# Maven 构建产物
+target/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# 本地数据与转储
+*.sql
+dump/
+
+# 日志
+logs/
+*.log
+
+# 临时文件
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db

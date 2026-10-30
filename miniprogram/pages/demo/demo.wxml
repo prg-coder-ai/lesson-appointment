@@ -1,0 +1,12 @@
+<view class="container">
+  <view class="card">
+    <view class="row"><text class="label">teacher</text><text>{{teacher}}</text></view>
+    <view class="row"><text class="label">course</text><text>{{course}}</text></view>
+    <view class="row"><text class="label">student</text><text>{{student}}</text></view>
+    <view class="row"><text class="label">lesson</text><text>{{lesson}}</text></view>
+    <view class="row"><text class="label">courseType french</text><text>{{french}}</text></view>
+    <view class="row"><text class="label">courseType english</text><text>{{english}}</text></view>
+    <view class="row"><text class="label">classLevel B2</text><text>{{level}}</text></view>
+  </view>
+  <view class="tip">以上文案由 shared/terms.js 经 wx 适配层渲染，切换行业/语言时与 Web 端同源一致。</view>
+</view>

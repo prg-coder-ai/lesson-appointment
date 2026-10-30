@@ -1,0 +1,123 @@
+/* 登录人机验证·滑块（2026-10-22 P1）
+   尺寸全部用 px：服务端按 px 生成图片并比对像素，若这里改成 rpx，
+   真机上会出现"看起来对齐、服务端却判偏差"的坐标换算问题。 */
+.sc-mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sc-card {
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  box-shadow: 0 12rpx 40rpx rgba(0, 0, 0, 0.25);
+  max-width: 90vw;
+  box-sizing: border-box;
+}
+
+.sc-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1f2329;
+  margin-bottom: 8rpx;
+}
+
+.sc-hint {
+  font-size: 24rpx;
+  color: #8a8f99;
+  line-height: 1.5;
+  margin-bottom: 20rpx;
+}
+
+.sc-stage {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12rpx;
+  background: #f2f3f5;
+}
+
+.sc-bg {
+  display: block;
+}
+
+.sc-piece {
+  position: absolute;
+  border-radius: 4rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.sc-track {
+  position: relative;
+  height: 40px;
+  margin-top: 24rpx;
+  background: #f2f3f5;
+  border: 1px solid #e5e6eb;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.sc-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: #e8f0ff;
+}
+
+.sc-thumb {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 44px;
+  height: 40px;
+  background: #ffffff;
+  border: 1px solid #d0d3d9;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #4e6ef2;
+  font-size: 32rpx;
+  box-shadow: 0 4rpx 10rpx rgba(0, 0, 0, 0.12);
+}
+
+.sc-thumb-active {
+  background: #f7f9ff;
+}
+
+.sc-text {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  color: #a8adb5;
+  pointer-events: none;
+}
+
+.sc-err {
+  font-size: 24rpx;
+  color: #f54a45;
+  min-height: 32rpx;
+  margin-top: 16rpx;
+}
+
+.sc-cancel {
+  text-align: center;
+  font-size: 26rpx;
+  color: #8a8f99;
+  padding: 12rpx 0 4rpx;
+}

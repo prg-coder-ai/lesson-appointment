@@ -17,9 +17,13 @@ import java.util.List;
 public interface TeacherCertificateMapper extends BaseMapper<TeacherCertificate> {
 
     /**
-     * 按教师ID查询全部证书（按 sort_no 排序）
+     * 按教师ID查询全部证书（按 sort_no 排序）。
+     * 显式带上 cert_base64：证书图需随详情回显（前端渲染依赖）。
+     * 本方法仅在单条详情查询 queryTeacherProfessionalInfo 调用，单教师证书数有限，
+     * 不会像列表查询那样把大字段摊到多行；列表页仍走 TeacherProfessionalMapper.xml 的子查询（只取 cert_url）。
      */
-    @Select("SELECT * FROM teacher_certificate WHERE teacher_id = #{teacherId} ORDER BY sort_no ASC, create_time ASC")
+    @Select("SELECT certificate_id, tenant_id, teacher_id, cert_name, cert_url, cert_base64, sort_no, create_time " +
+            "FROM teacher_certificate WHERE teacher_id = #{teacherId} ORDER BY sort_no ASC, create_time ASC")
     List<TeacherCertificate> listByTeacherId(@Param("teacherId") String teacherId);
 
     /**

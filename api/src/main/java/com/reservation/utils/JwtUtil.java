@@ -37,9 +37,37 @@ public class JwtUtil {
     @Value("${jwt.expiration}")
     private Long expiration;
 
+    /** 等保 P0-1：严格安全模式（application.properties app.security.strict-mode）
+     *  strict-mode=true 时，JWT 密钥与仓库内示例默认值一致将阻断启动，
+     *  要求运维通过环境变量 JWT_SECRET 注入独立密钥。
+     *  strict-mode=false（默认，dev/test）允许用仓库默认密钥快速跑通。*/
+    @Value("${app.security.strict-mode:false}")
+    private boolean strictMode;
+
+    /** 仓库内 JWT 示例默认值（严格档下禁止使用；dev/test 档允许） */
+    private static final String JWT_SECRET_DEMO =
+            "cOzEE8g98aLfgrNzUYuokWQbHcRn8Nu5kBlHayOhmsB8usgeKUYuIoU4WrsrSymEE8ZJK6zZu8pBMwIGTu2751"
+          + "AFTVNFvncZIbzfq0OxHMtkilWzEg5bzNjAayCgzTA2bJDiusRHexo3hrcLJo671QvXGIhi3oSsMIkfH1cXYhrRENxuagv"
+          + "47ZuAxYXPTe9lMnRFGUWRRqQGE3JTXYpRDGF3V1k13GePa3x6ghYa7hnkYXqrORcpkG0p5hKxCAUmLVnpdog9ct2F7urSdy1"
+          + "LVtsjSrpbdAcaEwUn4iyAXTTn2N5DJdn84MWGAXhCtnPi8vKAZwKPdSd4TQwPKKwv2yhi971QmnT8bstOOfRPLqFpnHro9U"
+          + "9wKbMSHRXt8ltmlKxzTfCgkSTJdtE0pTTbi31JzqFMVGV45vcP3yScAEPLXUJL1ma3VLlzME9wkuad2OzxeUJKPDABUBNHMt1"
+          + "1PLhnsdZT9tWnC0ATMEpANMl7i9nH0INZYipXBABNXWq4kgGCPit1a23DvxIcKempCYlsLF6Sk3ctStKO4H6pM6rB7UOQ6zx"
+          + "JUPBGehAsY1j5yg1wOV5pC1nEwFqPLPPSJjfeUt9f9zpLrkw2wvg98acaT1UrDuw06ZsJj2t9lJX1gKL7nuw9MROHMcoi5lQ"
+          + "zXj3581gTlvwMCEbSpDyooegzRnTc9r7FMFEOQpWZtAaxrK4midk3sQncV4TwOsKpLbMN1jUelKMolW9Te8ji2j4Wq2nbpt5vT"
+          + "ECWssIG4KZrRDBBJMaiQoa9Fn3Ed9LSzkQShEF1qNl2xR2MFqdneBB2bXzRENiSiB4wqFt4vYGBy4eH7mpw9AZMsbJKYnvfrM"
+          + "Cot0vK1jWIlU1PxAUmnRJ62KXCaK";
+
     private SecretKey signingKey; 
     @PostConstruct
     private void initSigningKey() {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("❌ 启动失败：jwt.secret 未注入！必须通过 JWT_SECRET 环境变量设置。");
+        }
+        if (strictMode && JWT_SECRET_DEMO.equals(secret)) {
+            throw new IllegalStateException(
+                    "❌ 启动失败（strict-mode=true）：jwt.secret 使用了仓库内示例默认值！"
+                  + " 生产必须通过 JWT_SECRET 环境变量注入独立密钥。本机联调可临时 APP_SECURITY_STRICT_MODE=false 关闭严格档。");
+        }
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
         if (keyBytes.length < 64) {
             throw new IllegalStateException("jwt.secret 长度不足，HS512 至少需要 64 字节");
@@ -59,7 +87,8 @@ public class JwtUtil {
 
 
 
-    // 生成短期访问 Token（对应设计2.2.1 登录、学生注册返回Token）  
+    // 生成短期访问 Token（对应设计2.2.1 登录、学生注册返回Token）
+    // 【P1 安全加固 2026-10-28】新增 "type": "access" claim，防止 access token 被当成 refresh token 使用
     public String generateToken(Long tenantId, String userId, String role) {
         Date now = new Date();
         Date expireDate = new Date(now.getTime() + expiration);
@@ -67,18 +96,21 @@ public class JwtUtil {
                 .setSubject(userId)
                 .claim("role", role)
                 .claim("tenantId", tenantId) // 添加租户ID到claims
+                .claim("type", "access")     // ← 新增：区分 access / refresh
                 .setIssuedAt(now)
                 .setExpiration(expireDate)  
                 .signWith(signingKey, SignatureAlgorithm.HS512)
                 .compact();
     } 
 
-    // 生成长期刷新 Token  
+    // 生成长期刷新 Token
+    // 【P1 安全加固 2026-10-28】新增 "type": "refresh" claim；不再存 role（角色变更时查 user 表实时取）
     public String generateRefreshToken(Long tenantId, String userId) {
         Date expire = new Date(System.currentTimeMillis() + REFRESH_EXPIRE);
         return Jwts.builder()
                 .setSubject(userId)
-                .claim("tenantId", tenantId) // 添加租户ID到claims
+                .claim("tenantId", tenantId)
+                .claim("type", "refresh")    // ← 新增：区分 access / refresh
                 .setExpiration(expire)
                 .signWith(signingKey, SignatureAlgorithm.HS256)
                 .compact();
@@ -113,6 +145,46 @@ public class JwtUtil {
                 .parseClaimsJws(stripBearerPrefix(token))
                 .getBody();
         return Long.valueOf(claims.get("tenantId").toString());
+    }
+
+    // 【P1 安全加固 2026-10-28】从 token 读取 type claim
+    // access / refresh 两种，用于 refreshToken 接口校验传入的确实是 refresh token 而非 access token
+    public String getTokenType(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(signingKey)
+                .build()
+                .parseClaimsJws(stripBearerPrefix(token))
+                .getBody();
+        return (String) claims.get("type");
+    }
+
+    /**
+     * 【P1 安全加固 2026-10-28】校验给定 token 是否是指定类型。
+     *
+     * <p><b>兼容性设计</b>：type claim 是本次加固新增的。v1 老 refresh token 没有
+     * type 字段。此时 type 不存在 → 返回 true（放行），让 DB 层 checkValidToken 兜底
+     * （DB 表里只存 refresh token，access token 进不来）。
+     * 同时 refreshToken 接口里 DB 校验后还有一轮 JWT userId 与 DB userId 的二次比对，
+     * 所以老 token 链路依然安全。
+     *
+     * <p>对于新签发的 token，type 必须严格匹配。
+     *
+     * @param token JWT 字符串（可带 Bearer 前缀）
+     * @param expectedType "access" 或 "refresh"
+     * @return true=签名合法+未过期+(type 缺失 或 type 匹配)
+     */
+    public boolean isTokenOfType(String token, String expectedType) {
+        try {
+            String actual = getTokenType(token);
+            // type 不存在 → 兼容老 token，放行（DB 层兜底）
+            if (actual == null) {
+                return true;
+            }
+            return expectedType.equals(actual);
+        } catch (Exception e) {
+            // 签名错误 / 过期 / 格式坏 → 都返回 false
+            return false;
+        }
     }
 
     // 获取刷新 Token 过期时间（存入数据库）

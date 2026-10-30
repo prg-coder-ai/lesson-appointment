@@ -144,7 +144,8 @@ async function operateTemplate(templateId, action) {
        });
        return res;//return id
    } catch (err) {
-       alert('网络异常，操作失败');
+       // /course/update 失败返回 HTTP 400，拦截器抛出带后端真实文案的 Error，优先展示
+       alert(err && err.message ? err.message : '网络异常，操作失败');
        console.error(err);
        return null;
    }
@@ -341,7 +342,19 @@ function toScheduleCreateDto(formData) {
         timeZone: formData.timeZone || (typeof userTimeZone !== 'undefined' ? userTimeZone : '') || '',
         availableSites: formData.availableSites || 1,
         status: formData.status || '',
-        name: formData.name || ''
+        name: formData.name || '',
+        // 课程/咨询类型 · 授课语言 · 课时长度（2026-10-25）：空串 → 后端回落"课程 → 默认"。
+        // 两者语义不同：languageType 是 classType 的 code（同一 code 在 legal 行业显示「劳动」），
+        // workLanguage 才是「用哪种语言上课」（取自 sys_work_language，固定枚举、不随行业变）。
+        // classDuration 必须是数字或 null：传 "" 会让 Jackson 解析 Integer 直接 400
+        languageType: formData.languageType || '',
+        workLanguage: formData.workLanguage || '',
+        classDuration: (function(){
+            const v = formData.classDuration;
+            if (v === null || v === undefined || v === '') return null;
+            const n = Number(v);
+            return (isNaN(n) || n <= 0) ? null : n;
+        })()
     };
 }
 
@@ -479,6 +492,53 @@ async function createOrUpdateBookingObj(bookingid,bookingCreateDTO ){
    
     } ;
     
+/**
+ * 查询某排期的候补队列，按申请时间升序——次序即递补次序（先来先得）。
+ * 后端只返回 status='waiting' 的记录（候补不占席位），并保证同一秒提交的记录次序稳定。
+ *
+ * @param {string} scheduleId 排期ID
+ * @returns {Promise<Array>} 候补记录数组；出错时返回空数组（调用方据此隐藏面板）
+ */
+async function fetchWaitlistQueue(scheduleId) {
+    if (!scheduleId) return [];
+    try {
+        const res = await request({
+            url: `${API_BASE_URL}/course/booking/waitlist/${encodeURIComponent(scheduleId)}`,
+            method: 'GET'
+        });
+        return Array.isArray(res) ? res : [];
+    } catch (err) {
+        console.error('fetchWaitlistQueue 失败', err);
+        return [];
+    }
+}
+
+/**
+ * 递补：把一条候补（waiting）晋升为正式预订（booked），并生成该学生的课次时间列表。
+ *
+ * 名额校验、CAS 防重复递补、课次幂等都在服务端完成；成功后服务端会自动发消息给该学生。
+ * 失败时（名额已满 / 已被他人递补 / 学生已撤销）request 拦截器会弹出后端给出的原因，
+ * 这里返回 null，调用方负责刷新队列。
+ *
+ * @param {string} bookingId 候补记录ID
+ * @returns {Promise<Object|null>} 成功返回递补结果快照，失败返回 null
+ */
+async function promoteWaitlist(bookingId) {
+    if (!bookingId) return null;
+    try {
+        const res = await request({
+            url: `${API_BASE_URL}/course/booking/waitlist/promote`,
+            method: 'POST',
+            data: { id: bookingId }
+        });
+        return res;
+    } catch (err) {
+        // 拦截器已展示后端 message（如“该排期名额已满…”“该候补已被处理…”）
+        console.error('promoteWaitlist 失败', err);
+        return null;
+    }
+}
+    
     
 async function getBookingListPage(params){
   const url = `course/booking/page` ; 
@@ -493,10 +553,56 @@ async function getBookingListPage(params){
 return [];
 }     
 
+ /**
+  * 该 booking 状态是否占用一个排期席位。
+  *
+  * 【与后端同步】单一事实来源是 api/.../common/BookingStatus.java 的 NON_OCCUPYING，
+  * 这里必须与它保持一致；后端改了名单，这里要一起改。
+  *
+  * 不占席位：waiting(候补) / cancelled|canceled(已取消) / rej-booking(预订被拒) / frozen(已删除)。
+  * 占席位：booking / booked / cancelling|canceling（取消申请在管理员确认前，原预订仍有效）。
+  * null / 空 视为占位（DB 列 NOT NULL DEFAULT 'booked'）。
+  *
+  * 用途：凡是「这条记录不再占席位 ⇒ 排期可能已空出位子」的地方，都据此判断。
+  * 典型是预订管理页的「查询递补」入口——不占席位才需要去排期页看候补队列。
+  */
+// 委托到共享领域层 window.BookingStateDomain.bookingOccupiesSeat（P0-Web 桥接，单一权威源）。
+// 相比下方降级快照，共享域额外把 'deleted' 也归为非占位态。注意这**不是**「与后端完全对齐」：
+// 后端 BookingStatus.NON_OCCUPYING = [waiting, cancelled, canceled, rej-booking, frozen] **不含** deleted，
+// （后端 BookingStatus.DELETE='delete' 是 updateStatus 的动作值、走 deleteById 不落库；落库的删除态由 frozen 承载）。
+// 共享域把 deleted 一并列为非占位是**防御性**选择：万一将来真有 'deleted' 落库，判成占位会让席位被永久吃掉。
+// 权威说明见 shared/domain/bookingState.js 的 NON_OCCUPYING_STATUSES 注释。
+// 无桥接环境（如纯单测沙箱未加载 shared-domain-bridge.js）保留原实现兜底，保证零回归。
+function bookingOccupiesSeat(status) {
+  if (typeof window !== 'undefined' && window.BookingStateDomain
+      && typeof window.BookingStateDomain.bookingOccupiesSeat === 'function') {
+    return window.BookingStateDomain.bookingOccupiesSeat(status);
+  }
+  const NON_OCCUPYING = ['waiting', 'cancelled', 'canceled', 'rej-booking', 'frozen'];
+  if (status === null || status === undefined) return true;
+  const s = String(status).trim();
+  if (s === '') return true;
+  return NON_OCCUPYING.indexOf(s) === -1;
+}
+
  //检查status，只有待确认的booking、cancelling才显示待确认，并显示相应的按钮
  function checkStatus_booking(status) {
+  // 委托到共享领域层 window.BookingStateDomain.bookingStatusText（单一权威源）。
+  // profile:'web' 用于保留 Web 口径的「预定」用字（2026-10-06 拍板：Web/API 维持「预定」不动）；
+  // 小程序侧不传 profile 走 default 档案——两端共用同一份状态语义，各自渲染各自文案。
+  // 顺带修一处既有缺陷：本函数原先没有 completed 分支，「已完成」会被原样输出成英文 'completed'。
+  // 下方 if 链是**降级快照**（不是第二权威源）：仅供未加载 shared-domain-bridge.js 的纯 Node vm
+  // 单测沙箱使用（见 tests/check_remaining_sites_display.js 的加载方式）。
+  // 状态语义有变更时请改 shared/domain/bookingState.js，不要在这里加分支。
+  if (typeof window !== 'undefined' && window.BookingStateDomain
+      && typeof window.BookingStateDomain.bookingStatusText === 'function') {
+    return window.BookingStateDomain.bookingStatusText(status, { profile: 'web' });
+  }
   if (status === 'booking' ) {
     return '预定待确认';
+  } else if (status === 'waiting' ) {
+    // 候补预订（名额已满时的候补申请，不占用席位）
+    return '候补';
   } else   if   (status === 'cancelling' || status === 'canceling') {
     return '取消待确认';
   } else if (status === 'booked') {
@@ -680,6 +786,44 @@ return [];
         endDate:  
     }; */
 // 分析：可能由于日期时区或构造Date的方式导致了前端和后端实际天数偏差。例如直接用new Date('yyyy-MM-dd')会因时区差别导致日期减少1天。可以尝试使用new Date(year, month, day)规避。
+// 归一化 generateScheduleListFromServer 的输入参数，统一成 ScheduleGenerator 认识的格式：
+// ① repeatType：兼容 DB 数字枚举(0=不重复/1=每天/2=每周/3=每月) 与 字符串(none/day/week/month)；
+//    空/未知 → 兜底 'none'（保证满足后端格式要求，避免未知类型落入 default 分支造成死循环超时）。
+// ② repeatDays：兼容字符串 "1,3,5" 与数组，统一转成数字数组；其他 → []。
+// 放在接口入口层，所有调用方（student-bookingCards.js / admin-schedule.js / bookingBrowserCards.js）自动受益。
+function normalizeScheduleGenerateForm(form) {
+    if (!form || typeof form !== 'object') return form;
+    const out = Object.assign({}, form);
+    const rt = form.repeatType;
+    if (rt === null || rt === undefined || rt === '') {
+        out.repeatType = 'none';
+    } else if (typeof rt === 'number') {
+        out.repeatType = ({ 0: 'none', 1: 'day', 2: 'week', 3: 'month' })[rt] || 'none';
+    } else {
+        const s = String(rt).trim().toLowerCase();
+        out.repeatType = (/^\d+$/.test(s))
+            ? (({ '0': 'none', '1': 'day', '2': 'week', '3': 'month' })[s] || 'none')
+            : (s === 'none' || s === 'day' || s === 'week' || s === 'month' ? s : 'none');
+    }
+    const rd = form.repeatDays;
+    if (Array.isArray(rd)) {
+        out.repeatDays = rd.map(Number).filter(n => !isNaN(n));
+    } else if (typeof rd === 'string' && rd.trim()) {
+        out.repeatDays = rd.split(',').map(x => Number(x.trim())).filter(n => !isNaN(n));
+    } else {
+        out.repeatDays = [];
+    }
+    return out;
+}
+
+// ★ 全站唯一实现：学生端卡片（student-bookingCards.js）、管理端排期（admin-schedule.js）、
+//   绑定页（getScheduleListByScheduleObject）都调用这一个入口。
+//   本文件历史上存在第二份同名 async function（旧第 1090 行），而本文件顶层没有 IIFE 包裹，
+//   函数声明后写者静默覆盖前者 → 此处所有修正形同注释。已删除重复定义，禁止再新增同名函数。
+//   返回契约：成功 → 数组 [{date,time}]；失败 → []（不是 undefined）。
+//   为什么是 []：调用方 renderResult/renderCalendar 只判 null/undefined 就提前返回，
+//   返回 undefined 会把「上一次预览的残留行/日期」留在页面上，看不出是失败；[] 能清干净，
+//   也避免调用方直接 .map/.forEach 抛 TypeError。
 async function generateScheduleListFromServer(formData) { 
   const url = `schedule/generate` ;
  // const token = getToken();
@@ -687,7 +831,7 @@ async function generateScheduleListFromServer(formData) {
   try { 
        const result = await  request({url:`${API_BASE_URL}/${url}`, 
                               method: 'POST', 
-                              data:    formData//controller: @RequestBody ScheduleGenerateDTO dto
+                              data:    normalizeScheduleGenerateForm(formData)//controller: @RequestBody ScheduleGenerateDTO dto
                                         });
       // 修正后端返回的日期数组，确保日期不因本地解析减少1天
       // 尝试将日期转为本地日期字符串再渲染 
@@ -781,7 +925,10 @@ async function operateAppointmentStatus(aid, action) {
        alert("更新预约时间"+(msg || '操作失败'));
      }
    } catch (e) {
-     alert("网络错误或数据解析异常，操作失败");
+     // 409 等业务拒绝（如 B1 时间态闸「该课次已开始或已结束，无法提交改期申请」）的真实文案
+     // 已由拦截器挂到 error.bodyMsg（utility_request.js）——优先透出，避免误导性"网络错误"
+     // 盖过正确 toast，让用户误以为提交成功只是"没变化"（2026-10-11）。
+     alert((e && e.bodyMsg) ? e.bodyMsg : "网络错误或数据解析异常，操作失败");
      console.error(e);
    }
  
@@ -841,24 +988,31 @@ function getScheduleInfo(scheduleObject,withName=true) {
     if (withName && scheduleObject.name)          info += scheduleObject.name;
 
   // 起始日期、结束日期和上课时间组成一句简洁文字
+  // 【优化】结束日期等于开始日期 → 不显示 "~ 结束日期"，只显示一次日期
   if (scheduleObject.startTime || scheduleObject.endTime ) {
       let dateStr = '';
-      if (scheduleObject.startTime && scheduleObject.endTime && scheduleObject.startTime !== scheduleObject.endTime) {
-          // 截取日期部分（假设startTime/endTime为"yyyy-MM-dd HH:mm:ss"格式，仅取日期部分）
-          const startDate = scheduleObject.startTime ? scheduleObject.startTime.split(" ")[0] : "";
+      if (scheduleObject.startTime) {
+          // startTime/endTime 是 "yyyy-MM-dd HH:mm:ss" 格式，split 出日期部分和时间部分
+          const startDate = scheduleObject.startTime.split(" ")[0] || "";
+          const startTime = scheduleObject.startTime.split(" ")[1] || "";
           const endDate   = scheduleObject.endTime   ? scheduleObject.endTime.split(" ")[0] : "";
-          const startTime = scheduleObject.startTime ? scheduleObject.startTime.split(" ")[1] : "";
-          dateStr = `${startDate} ~ ${endDate} ${startTime}`;
-  
-      } else if (scheduleObject.startTime) {
-          dateStr = scheduleObject.startTime;
-      } 
+          const endTime   = scheduleObject.endTime   ? scheduleObject.endTime.split(" ")[1] : "";
+
+          if (endDate && startDate !== endDate) {
+              // 不同日期：显示 "开始日期 ~ 结束日期 开始时间"
+              dateStr = `${startDate} ~ ${endDate} ${startTime}`;
+          } else {
+              // 相同日期（或 endDate 为空）：只显示 "开始日期 开始时间"
+              // 用户可在时间部分看到 09:00 ~ 10:00 的时段差
+              dateStr = `${startDate} ${startTime}`;
+          }
+      }
       
       info += dateStr ? ` ${dateStr}` : '';
   }
 
   // 刷新重复类型 
-  info += getRepeatDescription(scheduleObject.repeatType, scheduleObject.interval,scheduleObject.repeatDays);
+  info += getRepeatDescription(scheduleObject.repeatType, (scheduleObject.repeatInterval != null ? scheduleObject.repeatInterval : scheduleObject.interval), scheduleObject.repeatDays);
  //TBD:每x周 xx/xx/xx 或者每x月 xx/xx/xx/ 
       return info;
 }
@@ -872,19 +1026,27 @@ function getScheduleInfoByDTO(scheduleObject) {
     if (scheduleObject.name)          info += scheduleObject.name;
 
   // 起始日期、结束日期和上课时间组成一句简洁文字
+  // 【优化】结束日期等于开始日期 → 不显示 "~ 结束日期"
   if (scheduleObject.startDate || scheduleObject.endDate ) {
-      let dateStr = ''; 
-          // 截取日期部分（假设startTime/endTime为"yyyy-MM-dd HH:mm:ss"格式，仅取日期部分）
-          const startDate = scheduleObject.startDate  ;
-          const endDate   = scheduleObject.endDate   ;
-          const startTime = scheduleObject.startTime  ;
+      let dateStr = '';
+      const startDate = scheduleObject.startDate || "";
+      const endDate   = scheduleObject.endDate   || "";
+      const startTime = scheduleObject.startTime || "";
+
+      if (endDate && startDate && startDate !== endDate) {
+          // 不同日期：显示 "开始日期 ~ 结束日期 开始时间"
           dateStr = `${startDate} ~ ${endDate} ${startTime}`;
+      } else {
+          // 相同日期（或 endDate 为空 / startDate 为空）：只显示一次日期
+          const displayDate = startDate || endDate || "";
+          dateStr = displayDate + (startTime ? ` ${startTime}` : "");
+      }
    
       info += dateStr ? ` ${dateStr}` : '';
   }
 
   // 刷新重复类型 
-  info += getRepeatDescription(scheduleObject.repeatType, scheduleObject.interval,scheduleObject.repeatDays);
+  info += getRepeatDescription(scheduleObject.repeatType, (scheduleObject.repeatInterval != null ? scheduleObject.repeatInterval : scheduleObject.interval), scheduleObject.repeatDays);
  //每x周 xx/xx/xx 或者每x月 xx/xx/xx/ 
       return info;
 }
@@ -948,32 +1110,6 @@ function getRepeatDescription(repeatType, interval,repeatDays) {
  
 
        
-// 分析：可能由于日期时区或构造Date的方式导致了前端和后端实际天数偏差。例如直接用new Date('yyyy-MM-dd')会因时区差别导致日期减少1天。可以尝试使用new Date(year, month, day)规避。
-//用request方法改写
-//controller: @RequestBody ScheduleGenerateDTO dto
-async function generateScheduleListFromServer(formData) { 
-  const url = `schedule/generate` ; 
-  try {
-      // 用 request 方法改写
-      const result = await request({
-          url: `${API_BASE_URL}/${url}`,
-          method: 'POST',
-          data: formData
-      });
-
-      // 修正后端返回的日期数组，确保日期不因本地解析减少1天
-      // 尝试将日期转为本地日期字符串再渲染 
-          // result.data: [{date:'2024-06-01',time:'09:00'}, ...]
-          // 兼容性修正：如后端返回的date为'yyyy-MM-dd'字符串，前端用new Date(date)在不同时区下解析会出现日期偏移。
-          // 方案：把date字符串分解为年月日，用new Date(year, month-1, day)组成本地时间，或渲染时直接使用原字符串。
-          // 这里只返回数据，渲染时renderCalendar里（下方）再修正用法
-          return result ;
-      
-  } catch (err) {
-      alert('获取排期失败');
-      console.error(err);  
-  }
-} 
 //CourseScheduleCreateDTO
 async function checkScheduleConflict(cto){
 // INSERT_YOUR_CODE
@@ -994,12 +1130,15 @@ async function checkScheduleConflict(cto){
     } 
 }
 //检查是否选择了课程或排期---
-function checkCourseAndSchedule(scheduleCheck,courseCheck){    
+function checkCourseAndSchedule(scheduleCheck,courseCheck){
   if(courseCheck) {
-      const cid = document.getElementById('courseSelect') ; 
-      if (!cid.value) { 
+      // 优先用全局 currentCourseId（学生端卡片点选走这里）；回退到 courseSelect 下拉（管理端/教师端）。
+      let cid = (typeof currentCourseId !== 'undefined' && currentCourseId) ? currentCourseId : '';
+      const sel = document.getElementById('courseSelect');
+      if (!cid && sel) cid = sel.value;
+      if (!cid) {
           alert("请选择课程");
-          return false; } //alart
+          return false; }
       }
       if(scheduleCheck == true) {
           const scheduleSelect = document.getElementById('scheduleSelect');

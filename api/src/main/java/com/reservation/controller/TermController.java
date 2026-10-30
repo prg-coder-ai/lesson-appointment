@@ -38,14 +38,26 @@ public class TermController {
 
     /**
      * 当前租户合并词表（key -&gt; term_name）
-     * 合并规则：平台词 → 行业词 → 租户词，逐级覆盖
+     * 合并规则：作用域优先级 租户词 &gt; 行业词 &gt; 平台词
      * 多语言：lang 参数指定语言（ISO 639-1，缺省 zh）；
-     *         指定语言缺失时回退 zh，再缺失取该 key 任意语言
+     *         **目标语言优先于作用域**——先在三级里找该语言的词，都没有才退回"任意语言"。
+     *         否则行业层的其它语言会顶掉平台层的目标语言（健身行业只登记了 schedule 的
+     *         en/fr，中文界面就会渲染出英文 "Schedule"）。
      */
     @GetMapping("/map")
     public Result<Map<String, String>> map(@RequestParam(required = false) String lang,
-                                           @RequestHeader("Authorization") String token) {
-        Long tenantId = permissionCheck.getTenantIdFromToken(token);
+                                           @RequestHeader(value = "Authorization", required = false) String token) {
+        // 公开接口：登录页 / 小程序未带 token 也能取词表（渲染用）。
+        // 带有效 token 时按租户取词；token 缺失或非法则退回平台级词表（tenantId=null）。
+        // sys_term 已在 MyBatisPlusConfig.IGNORE_TABLES，不受租户插件 tenant_id=-1 影响。
+        Long tenantId = null;
+        if (token != null && token.startsWith("Bearer ")) {
+            try {
+                tenantId = permissionCheck.getTenantIdFromToken(token);
+            } catch (Exception e) {
+                tenantId = null;
+            }
+        }
         return Result.success(termService.getTermMap(tenantId, lang), "查询成功");
     }
 
@@ -205,6 +217,8 @@ public class TermController {
                 return Result.fail(403, "您只能删除本租户的词条");
             }
         }
+        // cascade: none sys_term 是词表叶子表（实测全库无任何表引用 term_id），
+        // 删词条不产生悬空引用
         int rows = termMapper.deleteById(id);
         return rows > 0 ? Result.success(true, "删除成功") : Result.fail(404, "记录不存在");
     }

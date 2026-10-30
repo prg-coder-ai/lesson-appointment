@@ -1,0 +1,54 @@
+<view class="page">
+  <!-- 检索栏：课程名（客户端过滤）+ 天数 + 状态（服务端过滤）+ 搜索/重置 -->
+  <view class="filter">
+    <view class="f-row">
+      <input class="f-input" placeholder="{{terms.course}}名称" value="{{keyword}}"
+        confirm-type="search" bindinput="onKeywordInput" bindconfirm="onSearch" />
+      <button class="f-btn" size="mini" bindtap="onSearch">搜索</button>
+      <button class="f-btn ghost" size="mini" bindtap="onReset">重置</button>
+    </view>
+    <view class="f-row">
+      <picker class="f-pick" mode="selector" range="{{dayLabels}}" value="{{dayIndex}}" bindchange="onDayChange">
+        <view class="f-picker">{{dayLabels[dayIndex]}}</view>
+      </picker>
+      <picker class="f-pick" mode="selector" range="{{statusOptions}}" range-key="t" value="{{statusIndex}}" bindchange="onStatusChange">
+        <view class="f-picker">{{statusOptions[statusIndex].t}}</view>
+      </picker>
+    </view>
+    <view class="f-hint">已加载 {{shown}} / {{total}} 条；{{terms.course}}名筛选作用于已加载数据</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="center">加载中…</view>
+  <view wx:elif="{{list.length === 0}}" class="center">暂无{{terms.lessonNumber}}记录</view>
+  <view wx:else class="list">
+    <view wx:for="{{list}}" wx:key="id" class="item">
+      <view class="row1">
+        <text class="name">{{item.title}}</text>
+        <text class="status {{item.tone}}">{{item.statusText}}</text>
+      </view>
+      <view class="row2">
+        <text class="meta">{{terms.student}} {{item.studentName}}</text>
+        <text class="meta">{{terms.teacher}} {{item.teacherName}}</text>
+      </view>
+      <view class="row2"><text class="meta">{{terms.lessonTime}} {{item.time || '-'}}</text></view>
+
+      <view class="actions">
+        <button wx:if="{{item.canNotify}}" class="btn ok" size="mini"
+          data-id="{{item.id}}" bindtap="onNotify">发送提醒</button>
+
+        <block wx:if="{{item.isStudentCancel}}">
+          <button class="btn ok" size="mini" data-id="{{item.id}}" data-action="cancelled" data-kind="student" bindtap="onReschedule">确认改期</button>
+          <button class="btn no" size="mini" data-id="{{item.id}}" data-action="reject" data-kind="student" bindtap="onReschedule">拒绝改期</button>
+        </block>
+
+        <block wx:if="{{item.isTeacherCancel}}">
+          <button class="btn ok" size="mini" data-id="{{item.id}}" data-action="t-cancelled" data-kind="teacher" bindtap="onReschedule">确认改期</button>
+          <button class="btn no" size="mini" data-id="{{item.id}}" data-action="t-reject" data-kind="teacher" bindtap="onReschedule">拒绝改期</button>
+        </block>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{loadingMore}}" class="more">加载更多…</view>
+  <view wx:elif="{{list.length > 0 && !hasMore}}" class="more">没有更多了</view>
+</view>

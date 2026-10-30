@@ -1,0 +1,7 @@
+<view class="page">
+  <view class="empty">
+    <view class="empty-icon">🛠️</view>
+    <view class="empty-title">数据维护</view>
+    <view class="empty-desc">批量创建测试数据、数据清理等维护能力正在建设中，后续版本开放。</view>
+  </view>
+</view>

@@ -1,0 +1,47 @@
+<view class="page">
+  <view class="page-head">
+    <view class="page-title">租户信息</view>
+    <view class="page-sub">本租户基本信息与套餐额度（只读）</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading">加载中…</view>
+
+  <block wx:else>
+    <!-- 基本信息 -->
+    <view class="section-title">基本信息</view>
+    <view class="card">
+      <view class="row"><text class="rk">租户编码</text><text class="rv">{{tenant.tenantCode}}</text></view>
+      <view class="row"><text class="rk">机构名称</text><text class="rv">{{tenant.orgName}}</text></view>
+      <view class="row"><text class="rk">状态</text><text class="rv">{{tenant.statusText}}</text></view>
+      <view class="row"><text class="rk">租期（到期）</text><text class="rv">{{tenant.expireTime}}</text></view>
+      <view class="row"><text class="rk">联系人</text><text class="rv">{{tenant.contact}}</text></view>
+      <view class="row"><text class="rk">联系电话</text><text class="rv">{{tenant.phone}}</text></view>
+    </view>
+
+    <!-- 套餐 -->
+    <view class="section-title">套餐</view>
+    <view class="card">
+      <view class="row"><text class="rk">当前套餐</text><text class="rv">{{packageName}}</text></view>
+      <view class="row" wx:if="{{packageCode}}"><text class="rk">套餐编码</text><text class="rv">{{packageCode}}</text></view>
+      <view class="row" wx:if="{{!hasPackage}}"><text class="rk">说明</text><text class="rv">未配置套餐，资源不限额</text></view>
+    </view>
+
+    <!-- 资源额度与余量 -->
+    <view class="section-title">资源额度与余量</view>
+    <view class="card quota">
+      <view class="qhead">
+        <text class="qcol q-name">资源</text>
+        <text class="qcol q-num">已用</text>
+        <text class="qcol q-num">限额</text>
+        <text class="qcol q-num">余量</text>
+      </view>
+      <view class="qrow" wx:for="{{quotaRows}}" wx:key="key">
+        <text class="qcol q-name">{{item.label}}</text>
+        <text class="qcol q-num">{{item.current}}</text>
+        <text class="qcol q-num">{{item.unlimited ? '不限' : item.limit}}</text>
+        <text class="qcol q-num {{item.unlimited ? 'unlimited' : ''}}">{{item.unlimited ? '不限' : item.remain}}</text>
+      </view>
+      <view wx:if="{{!quotaRows.length}}" class="empty">未配置套餐，暂无额度数据</view>
+    </view>
+  </block>
+</view>

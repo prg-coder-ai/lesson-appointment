@@ -1,6 +1,7 @@
 package com.reservation.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -32,7 +33,11 @@ public class TeacherProfessional implements Serializable {
     /** 个人照片URL（静态文件路径，优先） */
     private String personalPhotoUrl;
 
-    /** 个人照片Base64（与URL二选一，兼容老qualification方式） */
+    /** 个人照片Base64（与URL二选一，兼容老qualification方式）
+     * mediumtext 字段理论最大 16MB。原设计曾加 select=false 避免大字段被列表查询拉爆，
+     * 但副作用是详情/编辑回填也读不到 → 图片"保存后看不到"。
+     * 现改为可回读：列表查询走 TeacherProfessionalMapper.xml 显式列清单（不含本列），
+     * 仅单条详情 selectById / 编辑回填会带上本列，单条数据量可控，不会拖垮列表。 */
     private String personalPhotoBase64;
 
     /** 文字说明（教师简介） */

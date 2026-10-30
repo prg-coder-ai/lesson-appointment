@@ -1,0 +1,422 @@
+package com.reservation.config;
+
+import com.reservation.common.RoleConst;
+import org.springframework.http.HttpMethod;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 声明式授权规则表 —— 根因 A（授权模型缺失）的单一权威源。
+ *
+ * <h3>为什么存在</h3>
+ * 修复前 {@code SecurityConfig} 的授权策略是 {@code .anyRequest().authenticated()}，
+ * 只回答"你有没有登录"，从不回答"你能不能做这件事"；具体权限靠每个 Controller 方法体里
+ * 手写 {@code permissionCheck.checkXxx(token)}。全仓 120 处调用、分布不均，遗漏即放行
+ * （实测 7 个 Controller 共 40+ 端点零检查，含 {@code /user/updateStatus}、
+ * {@code /data-maintain/purge/*}、{@code /logs/*}）。
+ *
+ * <h3>本类解决什么、不解决什么</h3>
+ * <ul>
+ *   <li><b>解决</b>：把"某类接口需要什么角色"从方法体里的散落代码，上移为**集中的、可审阅的、
+ *       可被工具校验的声明**。新增接口若不声明角色，会被守卫脚本判红（见
+ *       {@code tools/check-authz-declarative.mjs}），而不是静默放行。</li>
+ *   <li><b>不解决</b>：数据级/所有权级授权（"只能改自己的课次"）。那需要查库比对归属，
+ *       SpEL 表达不了，仍由 {@code PermissionCheck} 承担。<b>两层并存，不是替换关系。</b></li>
+ * </ul>
+ *
+ * <h3>关键取舍：分两步切到 denyAll 默认拒绝（已两步走完）</h3>
+ * 171 个生效端点里，学生端与教师端共用的读接口（如 {@code /course/booking/page}、
+ * {@code /schedule/selectByCourseId/*}）真实存在，但角色归属只能从前端调用链反推；
+ * 一旦有一处推断错误，{@code denyAll} 会立刻把它变成线上 403 故障。
+ * 因此策略是<b>分两步</b>：
+ * <ol>
+ *   <li><b>第一批</b>：把已核实的端点全部显式声明（{@link #RULES}），
+ *       兜底暂为 {@code authenticated()}。规则表已完整，规则外的路径数量为 0。</li>
+ *   <li><b>第二批（2026-10-10 落地）</b>：守卫实测 182 个端点全部声明、无陈旧规则后，
+ *       SecurityConfig 兜底已切为 {@code denyAll()}——"漏声明 = 403"真正生效；
+ *       构建期仍由 check:authz 守卫先行拦截。</li>
+ * </ol>
+ * 规则表与兜底的关系由守卫脚本强制：{@link #RULES} 未覆盖的 {@code /api/v1/**} 端点会被判红。
+ *
+ * <h3>角色语义（与 {@link RoleConst} 一致）</h3>
+ * <ul>
+ *   <li>{@code platform_admin}：平台管理员，全局唯一，可跨租户。</li>
+ *   <li>{@code admin}：租户管理员，只能管理本租户数据（跨租户隔离由 MyBatis-Plus
+ *       TenantLineInnerInterceptor 保证，本类只管"能不能进这个接口"）。</li>
+ *   <li>{@code teacher} / {@code student}：普通业务角色。</li>
+ * </ul>
+ *
+ * <h3>路径匹配说明</h3>
+ * Spring Security 的 {@code requestMatchers(String)} 使用 {@code MvcRequestMatcher}，
+ * 支持 {@code {name}} 占位符与 {@code *}/{@code **} 通配。本表的 {@link #path} 一律用
+ * {@code /api/v1/...} 完整路径（不含尾斜杠），占位符段写 {@code {id}} 形式。
+ * 同时刻意<b>不</b>配置裸路径（无 {@code /api/v1} 前缀）——WebMvcConfig 已统一加前缀，
+ * 旧裸路径只在 permitAll 白名单里保留兼容。
+ */
+public final class AuthzRules {
+
+    private AuthzRules() {
+    }
+
+    /** 规则条目：HTTP 方法 + 路径模式 + 允许的角色。 */
+    public record Rule(HttpMethod method, String path, String[] roles, String note) {
+    }
+
+    // —— 角色组合常量：避免每条规则重复拼数组，语义也更清楚 ——
+    public static final String[] PLATFORM_ONLY = {RoleConst.PLATFORM_ADMIN};
+    public static final String[] PLATFORM_OR_TENANT_ADMIN = {RoleConst.PLATFORM_ADMIN, RoleConst.ADMIN};
+    public static final String[] TENANT_ADMIN_ONLY = {RoleConst.ADMIN};
+    public static final String[] TEACHER_OR_ADMIN = {RoleConst.TEACHER, RoleConst.ADMIN, RoleConst.PLATFORM_ADMIN};
+    public static final String[] ALL_ROLES = {RoleConst.STUDENT, RoleConst.TEACHER, RoleConst.ADMIN, RoleConst.PLATFORM_ADMIN};
+
+    /**
+     * 全部授权规则。顺序即匹配优先级，Spring Security 采用"首个命中即生效"。
+     *
+     * <p>角色来源标注：
+     * <ul>
+     *   <li>{@code ≡checkXxx} —— 该端点方法体里已有对应 {@code PermissionCheck} 调用，
+     *       本规则只是把既有隐式约束<b>上移显式化</b>，不放宽也不收紧。</li>
+     *   <li>{@code 新增} —— 原本零检查，本批新增声明，依据是端点业务语义 + 前端真实调用角色。</li>
+     * </ul>
+     */
+    public static final List<Rule> RULES = buildRules();
+
+    private static List<Rule> buildRules() {
+        List<Rule> r = new ArrayList<>();
+
+        // ==================== 一、免认证（permitAll）====================
+        // 说明：permitAll 不写进本表，集中在 SecurityConfig 的 PUBLIC_RULES 里。
+        // 本表只管"已认证用户之间的角色划分"。
+
+        // ==================== 二、平台级（platform_admin）====================
+        // 依据：这些端点方法体里已有 checkPlatformAdmin / isPlatformAdmin 调用（≡）。
+        r.add(new Rule(HttpMethod.GET, "/api/v1/dashboard/overview", PLATFORM_ONLY, "≡checkPlatformAdmin 运营总览"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/dashboard/tenant/trend", PLATFORM_ONLY, "≡checkPlatformAdmin 租户趋势"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/dashboard/online", PLATFORM_ONLY, "≡checkPlatformAdmin 在线统计"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/dashboard/expire-warning", PLATFORM_ONLY, "≡checkPlatformAdmin 租期预警"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/dashboard/tenant/usage/page", PLATFORM_ONLY, "≡isPlatformAdmin 套餐用量分页"));
+        // dashboard/tenant/{tenantId}/usage 是 checkTenantRead：平台管理员可看任意租户，
+        // 租户管理员只看本租户 —— 路径层无法表达"按 tenantId 逐个比对"，故按全角色放行，
+        // 归属校验仍由 PermissionCheck.checkTenantRead 承担（此处不构成绕过）。
+        r.add(new Rule(HttpMethod.GET, "/api/v1/dashboard/tenant/{tenantId}/usage", ALL_ROLES, "≡checkTenantRead（归属在方法体）"));
+
+        r.add(new Rule(HttpMethod.GET, "/api/v1/industry/list", PLATFORM_ONLY, "≡checkPlatformAdmin 行业列表"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/industry/insert", PLATFORM_ONLY, "≡checkPlatformAdmin 新增行业"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/industry/update", PLATFORM_ONLY, "≡checkPlatformAdmin 改行业"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/industry/{id}/status", PLATFORM_ONLY, "≡checkPlatformAdmin 行业启停"));
+        r.add(new Rule(HttpMethod.DELETE, "/api/v1/industry/{id}", PLATFORM_ONLY, "≡checkPlatformAdmin 删行业"));
+
+        r.add(new Rule(HttpMethod.GET, "/api/v1/monitor/overview", PLATFORM_ONLY, "≡checkPlatformAdmin"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/monitor/trend", PLATFORM_ONLY, "≡checkPlatformAdmin"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/monitor/hourly", PLATFORM_ONLY, "≡checkPlatformAdmin"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/monitor/api-health", PLATFORM_ONLY, "≡checkPlatformAdmin"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/monitor/sample", PLATFORM_ONLY, "≡checkPlatformAdmin 采样"));
+
+        r.add(new Rule(HttpMethod.POST, "/api/v1/sys/config/update", PLATFORM_ONLY, "≡checkPlatformAdmin 改配置"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/sys/config/{key}/reset", PLATFORM_ONLY, "≡checkPlatformAdmin 重置配置"));
+
+        r.add(new Rule(HttpMethod.GET, "/api/v1/tenant/list", PLATFORM_ONLY, "≡checkPlatformAdmin 租户列表"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/tenant/page", PLATFORM_ONLY, "≡isPlatformAdmin 租户分页"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/tenant/industry", ALL_ROLES, "≡isPlatformAdmin 租户行业（平台可查任意租户）"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/tenant/insert", PLATFORM_ONLY, "≡checkPlatformAdmin 开租户"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/tenant/update", PLATFORM_ONLY, "≡checkPlatformAdmin 改租户"));
+        r.add(new Rule(HttpMethod.DELETE, "/api/v1/tenant/{id}", PLATFORM_ONLY, "≡checkPlatformAdmin 删租户"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/tenant/{id}/restore", PLATFORM_ONLY, "≡checkPlatformAdmin 恢复租户"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/tenant/{id}/status", PLATFORM_ONLY, "≡checkPlatformAdmin 租户启停"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/tenant/{id}/renew", PLATFORM_ONLY, "≡checkPlatformAdmin 租期续费"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/tenant/{id}/package", PLATFORM_ONLY, "≡checkPlatformAdmin 配套餐"));
+        // GET /api/v1/tenant/{id} 是 checkTenantRead，同上按全角色放行 + 归属在方法体
+        r.add(new Rule(HttpMethod.GET, "/api/v1/tenant/{id}", ALL_ROLES, "≡checkTenantRead（归属在方法体）"));
+
+        r.add(new Rule(HttpMethod.POST, "/api/v1/tenant/package/insert", PLATFORM_ONLY, "≡checkPlatformAdmin"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/tenant/package/update", PLATFORM_ONLY, "≡checkPlatformAdmin"));
+        r.add(new Rule(HttpMethod.DELETE, "/api/v1/tenant/package/{id}", PLATFORM_ONLY, "≡checkPlatformAdmin"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/tenant/package/create-from-template", PLATFORM_ONLY, "≡checkPlatformAdmin"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/tenant/package/{tenantId}/switch-template", PLATFORM_ONLY, "≡checkPlatformAdmin"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/tenant/package/reconcile/{tenantId}", PLATFORM_ONLY, "≡checkPlatformAdmin 对账"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/tenant/package/reconcile-all", PLATFORM_ONLY, "≡checkPlatformAdmin 全量对账"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/tenant/package/list", PLATFORM_ONLY, "≡checkPlatformAdmin"));
+        // 用账号反查租户编码（忘记租户编码时用）：本人或管理员。
+        // 路径层无法表达"token 账号 == 请求账号"，故按 ALL_ROLES 放行、
+        // 归属校验在 TenantController#codeByAccount 方法体（与 checkTenantRead 同模式）。
+        r.add(new Rule(HttpMethod.GET, "/api/v1/tenant/code-by-account", ALL_ROLES, "新增：本人或管理员（归属在方法体）"));
+
+        r.add(new Rule(HttpMethod.POST, "/api/v1/package/template/insert", PLATFORM_ONLY, "≡checkPlatformAdmin"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/package/template/update", PLATFORM_ONLY, "≡checkPlatformAdmin"));
+        r.add(new Rule(HttpMethod.DELETE, "/api/v1/package/template/{id}", PLATFORM_ONLY, "≡checkPlatformAdmin"));
+
+        r.add(new Rule(HttpMethod.GET, "/api/v1/term/list", PLATFORM_ONLY, "≡checkPlatformAdmin 全量词表"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/term/update", PLATFORM_ONLY, "≡isPlatformAdmin"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/term/{id}/status", PLATFORM_ONLY, "≡isPlatformAdmin"));
+        r.add(new Rule(HttpMethod.DELETE, "/api/v1/term/{id}", PLATFORM_ONLY, "≡isPlatformAdmin"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/term/copy", PLATFORM_ONLY, "≡checkPlatformAdmin 词表复制"));
+
+        r.add(new Rule(HttpMethod.GET, "/api/v1/user/platformPage", PLATFORM_ONLY, "≡isPlatformAdmin 跨租户用户分页"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/user/updateCompany", PLATFORM_ONLY, "≡isPlatformAdmin"));
+
+        // ==================== 三、平台或租户管理员 ====================
+        // 依据：方法体已有 checkAdmin（≡）——注意 checkAdmin 本身就同时放行 admin 与
+        // platform_admin（见 PermissionCheck#checkAdmin），所以这里是"上移"而非"收紧"。
+
+        r.add(new Rule(HttpMethod.GET, "/api/v1/notify-rule/list", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin 上课通知规则"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/notify-rule/detail", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/notify-rule/save", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/notify-rule/delete", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/notify-rule/course-options", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/notify-rule/options", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/notify-rule/preview", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/notify-rule/manual-send", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/notify-rule/dispatch-log", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
+
+        // 接收台账（平台方消息 → 本租户用户，接收方视角）：管理端「消息管理 → 接收台账」。
+        // 数据跨 schema 只读聚合，租户作用域在 MessageLedgerService 内强制：
+        // 租户管理员恒为本租户（入参 tenantId 被忽略），平台管理员可指定租户或看全平台。
+        r.add(new Rule(HttpMethod.GET, "/api/v1/msg-ledger/inbound", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin 接收台账列表"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/msg-ledger/inbound/{messageId}/recipients", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin 接收人明细"));
+
+        r.add(new Rule(HttpMethod.GET, "/api/v1/package/template/{id}", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/package/template/page", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/package/template/list", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/package/template/list-enabled", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
+
+        r.add(new Rule(HttpMethod.GET, "/api/v1/refund-rule/list", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin 退改规则"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/refund-rule/course-options", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/refund-rule/save", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/refund-rule/delete", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/refund-rule/preview", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
+        // GET /api/v1/refund-rule/hint 原本零检查：它是"按课程+时间算可退金额"的只读提示，
+        // 学生端下单前要用来看退改条件，不属于管理面 —— 故对全部已登录角色开放。
+        r.add(new Rule(HttpMethod.GET, "/api/v1/refund-rule/hint", ALL_ROLES, "新增：退改提示只读，学生端下单前需用"));
+
+        r.add(new Rule(HttpMethod.GET, "/api/v1/sys/config/list", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/sys/config/group/{group}", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/sys/config/{key}", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
+
+        // ==================== 协议 / 隐私政策（2026-10-14）====================
+        // 平台管理员维护平台级（tenantId=0），租户管理员维护本租户覆盖级；
+        // 作用域由方法体从令牌派生（防篡改），越权面在方法体 checkTenantAdmin 兜底。
+        r.add(new Rule(HttpMethod.GET, "/api/v1/sys/legal-doc", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin/checkTenantAdmin 读取协议文档"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/sys/legal-doc/template", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin/checkTenantAdmin 读取平台提供的租户参考模板"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/sys/legal-doc/update", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin/checkTenantAdmin 保存协议文档版本"));
+        // 用户/租户登录或注册成功后落签署留痕：任何已登录身份均可，版本号以服务端 resolve 为准（防篡改）
+        r.add(new Rule(HttpMethod.POST, "/api/v1/legal/accept", ALL_ROLES, "≡checkAnyLogin 签署协议/隐私政策留痕"));
+
+        r.add(new Rule(HttpMethod.GET, "/api/v1/teacher/published/list", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin 教师发布列表"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/teacher/published/get", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/teacher/published/update", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/teacher/published/delete", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin"));
+
+        r.add(new Rule(HttpMethod.DELETE, "/api/v1/course/template/{id}", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin 删课程模板"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/term/tenant/list", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin 本租户词表"));
+        // POST /term/insert 同时有 isPlatformAdmin + checkAdmin 分支，两者都放行这两类角色
+        r.add(new Rule(HttpMethod.POST, "/api/v1/term/insert", PLATFORM_OR_TENANT_ADMIN, "≡isPlatformAdmin+checkAdmin 新增词条"));
+
+        r.add(new Rule(HttpMethod.POST, "/api/v1/auth/password/reset", PLATFORM_OR_TENANT_ADMIN, "第1批：仅管理员可重置密码"));
+        r.add(new Rule(HttpMethod.DELETE, "/api/v1/auth/kick/{userId}", PLATFORM_OR_TENANT_ADMIN, "新增：踢下线属管理动作"));
+        // 微信端点已于 2026-10-13 解除屏蔽（改查独立的 wx_userid 表，user 表零改动）：
+        //   · wechat-login / wechat-register 是 permitAll（免认证），不在此声明，
+        //     见 SecurityConfig 白名单与本守卫的 PERMIT_ALL。
+        //   · bind / unbind 需登录，且操作的是「自己的绑定」，故 ALL_ROLES 放行 ——
+        //     越权面在方法体内由 token 里的 userId 兜住（只能绑/解绑当前会话账号）。
+        r.add(new Rule(HttpMethod.POST, "/api/v1/auth/bind-wechat", ALL_ROLES, "≡需登录 绑定微信（仅当前会话账号）"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/auth/unbind-wechat", ALL_ROLES, "≡需登录 解绑微信（仅当前会话账号）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/auth/wechat-status", ALL_ROLES, "≡需登录 查询自己的微信绑定状态"));
+
+        // ==================== 3.5、推广体系（2026-10-13 二期）====================
+        // 推广者不新增角色：任何已登录用户都能生成自己的码、看自己的业绩。
+        // permitAll 的三个端点（referral/validate、register-tenant、register-user）
+        // 走 SecurityConfig 白名单 + 本守卫 PERMIT_ALL，不在此表。
+        r.add(new Rule(HttpMethod.POST, "/api/v1/promo/referral/code", ALL_ROLES, "新增：生成/获取我的推广码"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/promo/referral/my-codes", ALL_ROLES, "新增：我的推广码列表"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/promo/achievement", ALL_ROLES, "新增：我的推广业绩"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/promo/conversions", ALL_ROLES, "新增：我的转化明细"));
+        // 全平台排行属运营面，仅平台管理员
+        r.add(new Rule(HttpMethod.GET, "/api/v1/promo/achievement/overview", PLATFORM_ONLY, "新增：全部推广者排行（运营面）"));
+        // 双码 + 两级统计（2026-10-13）：租户管理员看本租户加入漏斗，平台管理员看全平台
+        r.add(new Rule(HttpMethod.GET, "/api/v1/promo/achievement/tenant", TENANT_ADMIN_ONLY, "新增：本租户推广统计（加入漏斗+推广人明细）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/promo/achievement/platform", PLATFORM_ONLY, "新增：全平台推广统计（合计+排行+最近转化）"));
+        // 平台数据维护（2026-10-24）：推广码/转化记录的全平台列表与删除。
+        // 与上面 /promo/conversions（ALL_ROLES，只返回自己的转化）严格区分：
+        // 这两个是跨推广者的运营视角，必须 PLATFORM_ONLY，否则任何登录用户都能翻别人的转化。
+        r.add(new Rule(HttpMethod.GET, "/api/v1/promo/platform/referrals", PLATFORM_ONLY, "新增：平台侧全平台推广码分页"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/promo/platform/conversions", PLATFORM_ONLY, "新增：平台侧全平台转化记录分页"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/data-maintain/platform/purge/promo", PLATFORM_ONLY, "新增·关键：物理删除推广码/转化/业绩"));
+        // 归因上报：三种登录方式（密码/静默/微信注册）setSession 成功后各调一次，
+        // 重复上报由 uk_conversion_invitee 去重；越权面由方法体按 token 取 userId 兜住。
+        r.add(new Rule(HttpMethod.POST, "/api/v1/user/attribution", ALL_ROLES, "新增：推广归因上报（仅当前会话账号）"));
+
+        r.add(new Rule(HttpMethod.GET, "/api/v1/user/list", PLATFORM_OR_TENANT_ADMIN, "新增：用户列表（管理面）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/user/page", PLATFORM_OR_TENANT_ADMIN, "新增：用户分页（管理面）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/user/student/list", PLATFORM_OR_TENANT_ADMIN, "新增：学生列表（管理面）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/user/teacher/list", PLATFORM_OR_TENANT_ADMIN, "新增：教师列表（管理面）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/user/statistical/byMonth", PLATFORM_OR_TENANT_ADMIN, "新增：注册统计（管理面）"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/user/add", PLATFORM_OR_TENANT_ADMIN, "第1批：仅管理员可建号（可建角色由方法体裁定）"));
+        // 审批/改状态：本端点原本零检查 —— 自注册的账号可自行把 status 改 active 绕过审批（提权链）。
+        // 声明式授权在此直接断链。
+        // 注：2026-10-24 前 pending 用户能登录（登录只拦 frozen/inactive），这条提权链是活的；
+        //     现在 login/wechatLogin 都拦 pending，攻击面已收窄，但本端点的授权**不能因此放开**：
+        //     状态可被任何已登录用户改写就等于审批失效，declare 规则是永久性防线而非补丁。
+        r.add(new Rule(HttpMethod.POST, "/api/v1/user/updateStatus", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，任何登录用户可自审通过"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/user/updateInfo", PLATFORM_OR_TENANT_ADMIN, "新增：改他人资料属管理面（改自己资料走 account/* ）"));
+
+        // 本人自助改资料（2026-10-27）：与 updateInfo（管理面改他人）严格区分——
+        // 这两个端点只改"自己"，userId 取自 Token，请求体里的 userId/status/role/password 一律忽略。
+        // 任何已登录角色都可用（学生/教师改自己资料、管理员也可改自己）。
+        r.add(new Rule(HttpMethod.GET, "/api/v1/user/self", ALL_ROLES, "新增：本人资料只读（返回解密字段，password 不下发）"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/user/self/info", ALL_ROLES, "新增：本人自助改资料（userId 取自 Token，忽略请求体 userId/status/role/password）"));
+
+        r.add(new Rule(HttpMethod.GET, "/api/v1/audit-logs", PLATFORM_OR_TENANT_ADMIN, "新增：审计日志（管理面）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/audit-logs/{logId}", PLATFORM_OR_TENANT_ADMIN, "新增：审计日志详情"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/audit-logs/actions", PLATFORM_OR_TENANT_ADMIN, "新增：审计动作枚举（渲染筛选项）"));
+
+        // 物理清理：原零检查，任何登录用户（含学生）都能触发不可逆删除
+        r.add(new Rule(HttpMethod.POST, "/api/v1/data-maintain/purge/template", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，物理删除"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/data-maintain/purge/course", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，物理删除"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/data-maintain/purge/schedule", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，物理删除"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/data-maintain/purge/booking", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，物理删除"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/data-maintain/purge/appointment", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，物理删除"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/data-maintain/purge/user", PLATFORM_OR_TENANT_ADMIN, "新增·关键：物理清理已软删账号（status='delete'）及其名下数据"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/data-maintain/user/relation-counts", PLATFORM_OR_TENANT_ADMIN, "新增：删除前的关联数据量统计（只读，供确认框展示影响面）"));
+
+        // 平台级回收站清理（2026-10-24）：租户 / 用户是**平台对象**，
+        // 租户管理员无权物理删除另一个租户，也无权删别家账号，故必须是 PLATFORM_ONLY。
+        // 注意与上面五个 purge 的区别：那五个是租户内业务数据（PLATFORM_OR_TENANT_ADMIN）。
+        r.add(new Rule(HttpMethod.POST, "/api/v1/data-maintain/platform/purge/tenant", PLATFORM_ONLY, "新增·关键：物理删除整租户及其名下数据"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/data-maintain/platform/purge/user", PLATFORM_ONLY, "新增·关键：物理删除冻结账号及其登录凭证"));
+
+        // 服务器日志读取：含 SQL/路径/异常栈，属敏感运维面
+        r.add(new Rule(HttpMethod.GET, "/api/v1/logs/tail", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，可读服务器日志"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/logs/date", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，可读归档日志"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/logs/search", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，可全文搜日志"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/logs/dates", PLATFORM_OR_TENANT_ADMIN, "新增：日志日期枚举"));
+
+        // ==================== 四、教师或管理员 ====================
+        // 依据：方法体已有 checkTeacherOrAdmin（≡）。
+
+        r.add(new Rule(HttpMethod.POST, "/api/v1/course/insert", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/course/update", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/course/updateStatus", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/course/updateStatusByLastId/{id}", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin"));
+        r.add(new Rule(HttpMethod.DELETE, "/api/v1/course/deleteById/{id}", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin"));
+        r.add(new Rule(HttpMethod.DELETE, "/api/v1/course/deleteByTemplateId/{id}", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin"));
+        // GET /course/list、/page、/{id} 三端已于 2026-10-10（P1-4）方法级统一：
+        //   · /list 原 checkTeacherOrAdmin 会把学生挡成 403（既存缺陷，实测
+        //     student token → {"code":403}，而 student-bookingBrowserCards.js 走它）；
+        //   · 三端现统一 permissionCheck.checkAnyLogin(token)——对齐作者注释本意
+        //     （"教师或管理员、学生均可操作"）与本处 ALL_ROLES 声明。
+        r.add(new Rule(HttpMethod.GET, "/api/v1/course/list", ALL_ROLES, "≡checkAnyLogin（2026-10-10 方法级统一）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/course/page", ALL_ROLES, "≡checkAnyLogin（2026-10-10 方法级统一）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/course/{courseid}", ALL_ROLES, "≡checkAnyLogin（2026-10-10 方法级统一）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/course/classform", TEACHER_OR_ADMIN, "新增：班级表单（建课辅助）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/course/teachingProps", TEACHER_OR_ADMIN, "新增：排期表单取课程类型/授课语言/课时长度/课程形式（2026-10-25）"));
+
+        // 授课语言枚举（2026-10-25）：与 sys_term 的行业词无关，是「用哪种语言上课」的固定清单。
+        // 平台内置六项对所有租户可见（只读）；租户只能增删自己的自定义项，tenantId 由令牌派生。
+        r.add(new Rule(HttpMethod.GET, "/api/v1/work-language/list", ALL_ROLES, "新增：授课语言清单（内置+本租户自定义，各处下拉用）"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/work-language/save", TENANT_ADMIN_ONLY, "新增：租户自定义授课语言（内置项重复则拒绝）"));
+        r.add(new Rule(HttpMethod.DELETE, "/api/v1/work-language/delete/{id}", TENANT_ADMIN_ONLY, "新增：删除自定义授课语言（内置项与被引用项拒绝）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/course/statistical/byMonth", TEACHER_OR_ADMIN, "新增：课程统计（管理面）"));
+
+        r.add(new Rule(HttpMethod.POST, "/api/v1/schedule/create", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/schedule/update", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin ×7"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/schedule/incSite", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin"));
+        r.add(new Rule(HttpMethod.DELETE, "/api/v1/schedule/delete/{id}", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin"));
+        r.add(new Rule(HttpMethod.DELETE, "/api/v1/schedule/deleteByCourseId/{courseId}", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin"));
+        // updateStatus 方法体无 check（已被注释掉的 generate 同理），但改排期状态=改课次，
+        // 属管理/教师动作
+        r.add(new Rule(HttpMethod.POST, "/api/v1/schedule/updateStatus", TEACHER_OR_ADMIN, "新增：改排期状态（课次连带变更）"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/schedule/generate", ALL_ROLES, "新增·关键：批量生成排期，获取排期课次时间，校验被注释"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/schedule/checkConflict", TEACHER_OR_ADMIN, "新增：排期冲突检测"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/schedule/assign-student", TEACHER_OR_ADMIN, "新增·关键：指派学生到排期，校验被注释"));
+
+        r.add(new Rule(HttpMethod.GET, "/api/v1/schedule/detail/{id}", ALL_ROLES, "新增：排期详情（学生选排期时读）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/schedule/list", ALL_ROLES, "新增：排期列表（学生/教师/管理端共用）"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/schedule/page", ALL_ROLES, "新增：排期分页（三端共用）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/schedule/selectByCourseId/{courseId}", ALL_ROLES, "新增：按课程查排期（学生约课链路）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/schedule/listByTeacher", ALL_ROLES, "新增：按教师查排期（学生浏览教师）"));
+
+        r.add(new Rule(HttpMethod.POST, "/api/v1/course/template/insert", TEACHER_OR_ADMIN, "新增：建课程模板"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/course/template/update", TEACHER_OR_ADMIN, "新增：改课程模板"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/course/template/updateStatus", TEACHER_OR_ADMIN, "新增：模板启停"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/course/template/list", ALL_ROLES, "新增：模板列表（学生浏览课程需读）"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/course/template/page", ALL_ROLES, "新增：模板分页（学生浏览课程需读）"));
+
+        r.add(new Rule(HttpMethod.POST, "/api/v1/teacher/published/save", TEACHER_OR_ADMIN, "≡checkTeacherSelfOrAdmin（归属在方法体）"));
+
+        // 教师职业信息：本人可维护自己的，管理员可看全部；归属校验待方法级补（见第3批）
+        r.add(new Rule(HttpMethod.POST, "/api/v1/teacher/professional/addTeacherProfessionalInfo", TEACHER_OR_ADMIN, "新增：教师职业信息（教师本人/管理员）"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/teacher/professional/updateTeacherProfessionalInfo", TEACHER_OR_ADMIN, "新增：同上"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/teacher/professional/deleteTeacherProfessionalInfo", TEACHER_OR_ADMIN, "新增：同上"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/teacher/professional/queryTeacherProfessionalInfo", ALL_ROLES, "新增：只读（学生浏览教师资料）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/teacher/professional/listByPage", ALL_ROLES, "新增：只读（学生浏览教师资料）"));
+        // 教师图片上传（头像/证书）：本人或管理员可上传，返回可访问 URL；需登录
+        r.add(new Rule(HttpMethod.POST, "/api/v1/teacher/professional/upload", TEACHER_OR_ADMIN, "新增：教师图片上传（返回 URL，需登录）"));
+
+        // 教师端「个人中心」概览统计（课程数/排期数/预订人数/本月完成课次）。
+        // 统计对象恒为 Token 中的 userId（教师只能看自己，归属在方法体），此处按教师/管理员放行。
+        r.add(new Rule(HttpMethod.GET, "/api/v1/teacher/stats/summary", TEACHER_OR_ADMIN, "新增：教师个人中心统计（本人，归属在方法体）"));
+
+        // ==================== 五、全部已登录角色 ====================
+        // 业务读接口或"改自己的数据"接口：任何登录角色都可用。
+
+        // —— 预订（booking）——
+        // create/page/list/waitlist 等是学生约课链路，必须对 student 开放。
+        r.add(new Rule(HttpMethod.POST, "/api/v1/course/booking/create", ALL_ROLES, "新增：学生约课/候补入口"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/course/booking/list", ALL_ROLES, "新增：预订列表"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/course/booking/page", ALL_ROLES, "新增：预订分页"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/course/booking/{id}", ALL_ROLES, "新增：预订详情（归属待方法级补）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/course/booking/waitlist/{scheduleId}", ALL_ROLES, "新增：候补队列（学生看自己排队位次）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/course/booking/ListByScheduleId/{scheduleId}", ALL_ROLES, "新增：按排期查预订"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/course/booking/countByScheduleId/{scheduleId}", ALL_ROLES, "新增：按排期计数"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/course/booking/statistical/byMonth", PLATFORM_OR_TENANT_ADMIN, "新增：预订统计（管理面）"));
+        // 改状态端点是复用端点：管理员确认/驳回预订 + 学生自助操作（撤销 booking→none、
+        // 撤销候补 waiting→cancelled、取消预约 booked→cancelling、撤回取消 cancelling→booked、
+        // 重新申请 cancelled→booking，student-bookingBrowserCards.js 的 actionForButton 全走它）。
+        // 2026-10-10 P1 曾按"确认/驳回"管理语义收紧为 PLATFORM_OR_TENANT_ADMIN + checkAdmin，
+        // 实测学生点「取消预约」→ {"code":403} 功能全断（同 /course/list 的教训）。
+        // 现统一 ALL_ROLES ≡checkAnyLogin 恢复学生自助；P1 前此端点为零检查（匿名可改），
+        // 收紧到"须登录"仍是净增益；数据级归属校验（学生仅能改自己的预订）沿用 /booking/{id} 挂账。
+        r.add(new Rule(HttpMethod.POST, "/api/v1/course/booking/updateStatus", ALL_ROLES, "≡checkAnyLogin（复用端点：管理员确认驳回+学生5种自助转移，2026-10-10 修 P1 误伤）"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/course/booking/waitlist/promote", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，候补递补（占名额）"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/course/booking/update/{id}", PLATFORM_OR_TENANT_ADMIN, "新增：改预订（管理面）"));
+        r.add(new Rule(HttpMethod.DELETE, "/api/v1/course/booking/delete/{id}", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，删预订"));
+        r.add(new Rule(HttpMethod.DELETE, "/api/v1/course/booking/deleteByScheduleId/{id}", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，级联删预订"));
+
+        // —— 课次（appointment）——
+        r.add(new Rule(HttpMethod.GET, "/api/v1/course/appointment/list", ALL_ROLES, "新增：课次列表（学生看自己的课次）"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/course/appointment/listByPage", ALL_ROLES, "新增：课次分页"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/course/appointment/get/{id}", ALL_ROLES, "新增：课次详情"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/course/appointment/getByBookingId", ALL_ROLES, "新增：按预订查课次（学生看自己的）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/course/appointment/getByStatus", ALL_ROLES, "新增：按状态查课次"));
+        // 学生端"延期/请假"走这里（课次级动作）—— 必须对 student 开放，
+        // 归属（只能改自己的课次）由方法体 operatorId 逻辑 + 后续方法级补齐。
+        r.add(new Rule(HttpMethod.PUT, "/api/v1/course/appointment/updateStatusById", ALL_ROLES, "新增：课次级请假/取消延期（学生本人链路）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/course/appointment/statistical/byMonth", PLATFORM_OR_TENANT_ADMIN, "新增：课次统计（管理面）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/course/appointment/statistical/listByDays", PLATFORM_OR_TENANT_ADMIN, "新增：课次统计（管理面）"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/course/appointment/statistical/listByDaysByPage", ALL_ROLES, "新增：课次统计列表"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/course/appointment/statistical/onDays", PLATFORM_OR_TENANT_ADMIN, "新增：课次统计（管理面）"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/course/appointment/add", TEACHER_OR_ADMIN, "新增：加课次（管理/教师）"));
+        r.add(new Rule(HttpMethod.PUT, "/api/v1/course/appointment/update", TEACHER_OR_ADMIN, "新增：改课次（管理/教师）"));
+        r.add(new Rule(HttpMethod.PUT, "/api/v1/course/appointment/updateStatusByBookingId", PLATFORM_OR_TENANT_ADMIN, "新增·关键：按预订批量改课次状态（级联影响）"));
+        r.add(new Rule(HttpMethod.DELETE, "/api/v1/course/appointment/delete/{id}", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，删课次"));
+        r.add(new Rule(HttpMethod.DELETE, "/api/v1/course/appointment/deleteByBookingId", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，级联删课次"));
+
+        // —— 租户只读（各角色都要看自己的租户信息）——
+        r.add(new Rule(HttpMethod.GET, "/api/v1/tenant/current", ALL_ROLES, "新增：当前租户只读信息"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/tenant/package/tenant/{tenantId}", ALL_ROLES, "新增：租户套餐只读（各角色展示限额）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/tenant/package/{id}", ALL_ROLES, "新增：套餐详情只读"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/tenant/package/page", ALL_ROLES, "新增：套餐分页只读"));
+
+        // —— 用户只读 / 自身数据 ——
+        r.add(new Rule(HttpMethod.GET, "/api/v1/user/name/{userId}", ALL_ROLES, "新增：查用户名（「今日课程」渲染人名用）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/user/briefs", ALL_ROLES, "新增：批量用户摘要（消息中心接收人列表按 id 反查姓名，账号仅管理员下发由服务端裁定）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/user/message-recipients", ALL_ROLES, "新增：站内信收件人候选（各角色发消息用）"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/user/account/changePassword", ALL_ROLES, "第1批：本人改密需原密码，管理员代管免原密码"));
+
+        // —— 其他 ——
+        r.add(new Rule(HttpMethod.POST, "/api/v1/tz/switch", ALL_ROLES, "新增：时区换算纯计算（各端表单都要用）"));
+
+        return List.copyOf(r);
+    }
+}

@@ -2,37 +2,25 @@
 /**
  * 删除模板
  */
-async function deleteTemplate(templateId) {     
-     
-        let bConfirmed = false ;
-        // 执行前检查模板是否关联课程，如有关联则不允许删除
+async function deleteTemplate(templateId) {
+    // 数据维护页批量删除已在 batchDeleteMaintain 统一确认一次（含“此操作不可恢复”），此处不再二次确认。
+    // 若模板关联课程，静默级联删除其下全部课程，避免外键/约束冲突。
+    try {
         const hasCourses = await checkTemplateHasCourses(templateId);
-        if (hasCourses) { 
-          const userChoice = confirm('该模板存在课程，是否继续删除？继续将删除该项目下的全部课程。点击“确定”继续，点击“取消”放弃删除。');
-          if (!userChoice) {
-              return;
-                    }
-         bConfirmed = true;
-        //DEL all courses By templateId
-         let rows=  deleteTemplateNextLavel( templateId);
+        if (hasCourses) {
+            deleteTemplateNextLavel(templateId);
         }
-
-        if(! bConfirmed) //提示1次
-          if (!confirm('确定要删除该模板吗？')) return;
-
-        try {
-            const res = await request({
-                url: `${API_BASE_URL}/course/template/${templateId}`,
-                method: 'DELETE'
-            });
-            if (res >0) {
-                alert('模板删除成功,rows'+ res);             
-            } 
-        } catch (err) {
-            alert('网络异常，模板删除失败');
-            console.error(err);
+        const res = await request({
+            url: `${API_BASE_URL}/course/template/${templateId}`,
+            method: 'DELETE'
+        });
+        if (!res) {
+            alert('模板删除失败');
         }
-    ; 
+    } catch (err) {
+        alert('网络异常，模板删除失败');
+        console.error(err);
+    }
 }
 
 function deleteTemplateNextLavel(templateId){
@@ -47,7 +35,8 @@ function deleteTemplateNextLavel(templateId){
             });
                return res;//
         } catch (err) {
-            alert('网络异常，模板批量删除失败');
+            // /course/deleteByTemplateId 失败返回 HTTP 400，拦截器抛出带后端真实文案的 Error，优先展示
+            alert(err && err.message ? err.message : '网络异常，模板批量删除失败');
             console.error(err);
         }
     })();    
@@ -97,7 +86,7 @@ window.fetchCourseListPage = fetchCourseListPage;
           const templateObj = templateList ? templateList.find(t => t.templateId === Course.templateId) : null;
           const teacherObj = teacherList ? teacherList.find(t => t.userId === Course.teacherId) : null;
 
-          let tempInfo = templateObj ? templateObj.languageType + " " + templateObj.difficultyLevel + " " + templateObj.classFee : "n/a";
+          let tempInfo = templateObj ? courseTypeText(templateObj.languageType) + " " + enumTermText('classLevel', templateObj.difficultyLevel) + " " + templateObj.classFee : "n/a";
           let teacherInfo = teacherObj ? teacherObj.name : "n/a";
           // 这里只是补充处理，具体逻辑请根据实际业务调整，如可在Course对象上新增处理结果：
           Course.tempInfo = tempInfo;
@@ -111,58 +100,50 @@ window.fetchCourseListPage = fetchCourseListPage;
   }
    
 // 删除课程（操作后刷新当前页）
-async function deleteCourse(id) {  
+// 数据维护页批量删除专用：统一确认已在 batchDeleteMaintain 完成（含“此操作不可恢复”），不再二次确认、删除后也不弹“删除成功”。
+// 课程下若存在排期，静默级联删除其全部排期，避免外键/约束冲突。
+async function deleteCourseById(id) {
     try {
-      const scdList = fetchScheduleList(id,null);     
-    // 判断scdList是否为空数组
-      var bConfirmed =false;
-        if (scdList && Array.isArray(await scdList) && (await scdList).length > 0) {
-      //alert('该课程存在排期，不能删除！');
-          const userChoice = confirm('该课程存在排期，是否继续删除？继续将删除该项目下的全部排期。点击“确定”继续，点击“取消”放弃删除。');
-          if (!userChoice) {
-              return;
-                    }
-       bConfirmed = true;
-      //删除该课程的所有排期
-         try {
-        var rows= await request({ url: `/schedule/deleteByCourseId/${id}`, method: 'DELETE' });
-         } catch (err) {
-        console.error('删除课程排期失败:',id,err);
-        alert('删除课程排期时出错，请检查后端接口与数据。');
-        return;     
-      }
-    } // if
-    } 
-     catch(error){
-      console.error('查询排期失败：',id, error);
-     }
-         if(!bConfirmed) //提示1次
-           if (!confirm('确定要删除该课程吗？')) return;
-    try { 
-      const res = await request({url:`/course/deleteById/${id}`,  method: 'DELETE' });
-        
+        const scdList = await fetchScheduleList(id, null);
+        if (scdList && Array.isArray(scdList) && scdList.length > 0) {
+            try {
+                await request({ url: `/schedule/deleteByCourseId/${id}`, method: 'DELETE' });
+            } catch (err) {
+                console.error('删除课程排期失败:', id, err);
+                alert('删除课程排期时出错，请检查后端接口与数据。');
+                return;
+            }
+        }
+        const res = await request({ url: `/course/deleteById/${id}`, method: 'DELETE' });
+        if (!res) {
+            alert('课程删除失败');
+        }
     } catch (error) {
-      console.error('删除失败：', error);
+        console.error('删除失败：', error);
+        // /course/deleteById 失败返回 HTTP 400，拦截器抛出带后端真实文案的 Error，优先展示
+        alert(error && error.message ? error.message : '网络异常，课程删除失败');
     }
-  }
+}
   
 
-  async function deleteScheduleById(id){ 
-
-        if (!id) {
-            console.warn('排期ID不能为空');
-            return false;
+  async function deleteScheduleById(id) {
+    if (!id) {
+        console.warn('排期ID不能为空');
+        return false;
+    }
+    try {
+        // 该排期存在预约/预定时，先级联删除其下的全部预约/预定，避免外键/约束冲突
+        if (typeof deleteBookingsByScheduleId === 'function') {
+            await deleteBookingsByScheduleId(id);
         }
-        try {
-            // 调用后端接口删除指定id的排期
-            // 假设后端API为: /schedule/delete/{id}，使用DELETE请求
-            const result = await request({url: `/schedule/delete/${id}`, method: 'DELETE'});
-            return result;
-        } catch (error) {
-            console.error('删除排期时出错:', error);
-            return false;
-        }    
-     }
+        const result = await request({ url: `/schedule/delete/${id}`, method: 'DELETE' });
+        return result;
+    } catch (error) {
+        console.error('删除排期时出错:', error);
+        alert('网络异常，排期删除失败');
+        return false;
+    }
+}
 
       async function deleteBookingsByScheduleId(scheduleId){
         if (!scheduleId) {
@@ -183,40 +164,29 @@ async function deleteCourse(id) {
     
 
       async function deleteBooking(id){
-        // 调用后端删除预约接口（假定全局已定义 request 方法和 API_BASE_URL）
-        // 查询是否存在以此id为排期id的appointment（预约/子项），返回结果布尔型
-        let bConfirmed =false;
-         if (checkAppointmentExistsBookingId(id))
-         { 
-          const userChoice = confirm('该预订存在预约，是否继续删除？继续将删除该预订下的全部预约。点击“确定”继续，点击“取消”放弃删除。');
-          if (!userChoice) {
-            return;
-          }
-          bConfirmed = true;
-          //删除该预定的全部预约
-          await deleteAppointmentsByBookingId(id);//appointmentNotes.js
-         }
-         if(!bConfirmed) //提示1次
-           if (!confirm('确定要删除该预订吗？')) return;
+        // 调用后端删除预订接口（假定全局已定义 request 方法和 API_BASE_URL）
+        // 批量删除已在 batchDeleteMaintain 统一确认一次（含“此操作不可恢复”），此处不再二次确认
         try {
+            // 该预订存在预约时，先级联删除其下的全部预约，避免外键/约束冲突
+            // await 不可省：checkAppointmentExistsBookingId 是 async，不 await 拿到的是 Promise
+            // 对象，恒为真 → 无论有没有课次都会去调一次级联删除（admin 环境下这正是
+            // 「删预定必崩」的入口）。该函数内部出错时也返回 true，保守级联。
+            if (await checkAppointmentExistsBookingId(id)) {
+              await deleteAppointmentsByBookingId(id); // appointmentNotes.js
+            }
             const res = await request({
                 url: `${API_BASE_URL}/course/booking/delete/${id}`,
-                method: 'delete',
-              //  params: { id: id }
+                method: 'delete'
             });
-        
-            if (res ) {
-                // 删除成功，刷新列表
-                alert('删除成功');
-
-            } else {
-                alert('删除失败 ');
+            // 删除成功不再单独弹提示，由批量删除流程统一刷新列表
+            if (!res) {
+                alert('删除失败');
             }
+            return res;
         } catch (e) {
             alert('网络错误，删除失败');
             console.error(e);
         }
-        
         }  
  
         /**
@@ -308,7 +278,7 @@ async function deleteCourse(id) {
           case 'cancelling':
             return '已取消';
           case 't-cancelling':
-            return '已取消';
+            return '申请取消（' + termText('teacher') + '）';
           case 'booked':
             return '已预约';
           case 'cancelled':
@@ -376,6 +346,12 @@ async function deleteCourse(id) {
       return userCache.get(id);
     };
 
+    // 浏览器的时区：必须在 map 之前定义。
+    // 早前它写在 try 块的 const 里，而下面的 catch 恢复分支也要用它格式化时间 ——
+    // catch 访问不到 try 的块级 const，会二次抛 ReferenceError，
+    // 把「单行关联查询失败」升级成 Promise.all 整体 reject → 整张预约表显示"加载失败"。
+    const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
     await Promise.all(listObj.rows.map(async (item) => {
       try {
         // 【层 A】第一步：appointment → booking（唯一入口，必须先拿到 booking 才能继续）
@@ -391,7 +367,7 @@ async function deleteCourse(id) {
           item.teacherName = '';
           item.courseName = ''; 
         }
- item.appointmentTime = item.appointmentDatetime ? String(item.appointmentDatetime).replace('T', ' ') : '';
+         // item.appointmentTime = renderLessonTime(item.appointmentDatetime, browserTimeZone, true);
         // 【层 B】booking 拿到后，三个互不依赖的请求并行：
         //   - fetchSchedule(bookedObject.scheduleId)
         //   - getUserNameById(bookedObject.studentId)
@@ -416,10 +392,8 @@ async function deleteCourse(id) {
         item.courseName = courseObject ? (courseObject.courseName || courseObject.name || '') : '';
         item.courseId = scheduleObject ? scheduleObject.courseId : '';
 
-        // 预约时间格式化（去掉 ISO 的 T 分隔符）
-        item.appointmentTime = item.appointmentDatetime
-          ? String(item.appointmentDatetime).replace('T', ' ')
-          : '';
+        // 预约时间格式化（课次为 UTC，转用户时区显示；见 appointmentNotes.js 的 renderLessonTime）
+        item.appointmentTime = renderLessonTime(item.appointmentDatetime, browserTimeZone, true);
         item.appointmentStatus =  checkAppointmentStatus(item.status) || item.status || '';
       } catch (e) {
         // 单条失败不影响整体，保证列表仍能渲染
@@ -428,11 +402,128 @@ async function deleteCourse(id) {
         item.studentName = item.studentName || item.studentId || '';
         item.teacherName = item.teacherName || item.teacherId || '';
         item.courseName = item.courseName || item.courseId ||  '';
-        item.appointmentTime = item.appointmentDatetime ? String(item.appointmentDatetime).replace('T', ' ') : '';
+        item.appointmentTime = renderLessonTime(item.appointmentDatetime, browserTimeZone, true);
         item.appointmentStatus = item.appointmentStatus ||  item.status || '';
       }
     }));
 
  return listObj;
  }    
+
+// 数据维护页「清理已删」：按类型物理删除 status IN ('frozen','delete') 的软删记录
+// 后端 DataMaintainController 提供固定端点 /data-maintain/purge/{type}，租户插件自动注入 tenant_id
+async function purgeDeletedMaintain(type) {
+  const LABEL = { template: '模板', course: '课程', schedule: '排期', booking: '预定', appointment: '预约', user: '用户' };
+  const urlMap = {
+    template: '/data-maintain/purge/template',
+    course: '/data-maintain/purge/course',
+    schedule: '/data-maintain/purge/schedule',
+    booking: '/data-maintain/purge/booking',
+    appointment: '/data-maintain/purge/appointment',
+    user: '/data-maintain/purge/user'
+  };
+  const url = urlMap[type];
+  if (!url) { alert('该类型暂不支持清理'); return; }
+  // 用户表的可清理状态是 delete（frozen 是"管理员禁用"，可逆，必须留着）——
+  // 与后端 DataMaintainController.purgeUser 的 USER_PURGEABLE 口径一致。
+  const purgeStatus = (type === 'user') ? 'delete' : 'frozen';
+  if (!confirm('将永久清除「' + (LABEL[type] || type) + '」中所有已标为 ' + purgeStatus
+      + ' 的记录，此操作不可恢复。\n确定继续吗？')) return;
+  try {
+    const rows = await request({ url: url, method: 'POST' });
+    // request 成功时返回 res.data（业务对象本身）；后端 Result.success(整数行数) → rows 为 number
+    const n = (typeof rows === 'number') ? rows : (rows && rows.data != null ? rows.data : 0);
+    alert('清理完成，成功删除 ' + n + ' 行');
+    loadMaintainTableData(type);
+  } catch (err) {
+    let msg = '未知错误';
+    if (typeof err === 'string') msg = err;
+    else if (err && err.message) msg = err.message;
+    else if (err && typeof err === 'object') msg = JSON.stringify(err);
+    alert('清理失败：' + msg);
+  }
+}
+
+/* ==================== 数据维护页「用户」Tab 支撑 ====================
+ * 教师 / 学生 / 管理员三个角色共用一个 Tab，靠角色下拉切换：
+ *   - 普通角色：GET /user/page（role 精准 + name 模糊，两者后端都已支持）
+ *   - 平台管理员：GET /user/platformPage（仅 platform_admin 可调，内部固定 role IN (admin, platform_admin)）
+ *
+ * 删除一律是**软删**：把 status 置为 'delete'。
+ * 为什么是 delete 而不是 inactive：inactive 的语义是"停用"（管理员可逆的运维动作），
+ * 而 'delete' 才是数据维护语义上的"已删除、等待清理"——正好与后端
+ * DataMaintainController.purgeUser 的清理口径（只认 status='delete'）对齐，
+ * 也避免把"只是被停用"的账号连同清掉。
+ */
+
+/** 当前登录用户 id（会话 currentUser.userId）；用于把自己的那一行标成不可删 */
+function maintainCurrentUserId() {
+  try { return (JSON.parse(localStorage.getItem('currentUser') || '{}').userId) || ''; }
+  catch (e) { return ''; }
+}
+
+/** 当前登录角色是否为平台管理员（决定要不要给出「平台管理员」这个角色选项） */
+function maintainIsPlatformAdmin() {
+  try { return (JSON.parse(localStorage.getItem('currentUser') || '{}').role) === 'platform_admin'; }
+  catch (e) { return false; }
+}
+
+/** 用户分页：role 为空=全部角色；role=platform_admin 走平台端专用分页 */
+async function fetchUserListPageForMaintain(query) {
+  const q = query || {};
+  const isPlatform = (q.role === 'platform_admin');
+  const params = { pageNum: q.pageNum, pageSize: q.pageSize };
+  if (isPlatform) {
+    // platformPage 内部已固定 admin + platform_admin 两类，不认 role；搜索键用 account
+    if (q.name) params.account = q.name;
+  } else {
+    if (q.role) params.role = q.role;
+    if (q.name) params.name = q.name;
+  }
+  const url = isPlatform ? `${API_BASE_URL}/user/platformPage` : `${API_BASE_URL}/user/page`;
+  try {
+    const res = await request({ url: url, method: 'get', params: params });
+    if (!res || !Array.isArray(res.rows)) {
+      return { rows: [], total: 0, totalPages: 0 };
+    }
+    return res;
+  } catch (e) {
+    console.error('加载用户列表失败:', e);
+    return { rows: [], total: 0, totalPages: 0 };
+  }
+}
+
+/**
+ * 软删除单个用户（status → 'delete'）。
+ * 「不能删自己」由后端 UserService.assertNoAdminSelfLock 权威拦截（返回 400 + 明确文案），
+ * 前端只是把这行置灰，避免用户点了才被告知。
+ * 形参只有一个 userId——数据维护的批量删除统一按单主键调用（见 batchDeleteMaintain）。
+ */
+async function maintainSoftDeleteUser(userId) {
+  if (!userId) throw new Error('用户 id 无效');
+  return await request({
+    url: `${API_BASE_URL}/user/updateStatus`,
+    method: 'post',
+    data: { userId: userId, status: 'delete' }
+  });
+}
+
+/**
+ * 删除影响面统计：GET /data-maintain/user/relation-counts
+ * 返回 { userId: { courses, bookings, appointments } }；失败返回 null（UI 显示"影响面未知"，不阻断删除）。
+ */
+async function maintainUserRelationCounts(ids) {
+  if (!ids || !ids.length) return null;
+  try {
+    const res = await request({
+      url: `${API_BASE_URL}/data-maintain/user/relation-counts`,
+      method: 'get',
+      params: { userIds: ids.join(',') }
+    });
+    return (res && typeof res === 'object') ? res : null;
+  } catch (e) {
+    console.error('关联数据量统计失败（不阻断删除）:', e);
+    return null;
+  }
+}
   

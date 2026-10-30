@@ -1,0 +1,13 @@
+<view class="legal-page">
+  <view wx:if="{{loading}}" class="state">加载中…</view>
+  <view wx:elif="{{docs.length === 0}}" class="state">{{error || '暂无协议内容'}}</view>
+  <block wx:else>
+    <view wx:for="{{docs}}" wx:key="docType" class="doc-block">
+      <view class="doc-head">
+        <text class="doc-title">{{item.title}}</text>
+        <text class="doc-meta">v{{item.version}} · {{item.language}}</text>
+      </view>
+      <rich-text class="doc-content" nodes="{{item.content}}"></rich-text>
+    </view>
+  </block>
+</view>

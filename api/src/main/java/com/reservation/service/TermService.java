@@ -12,6 +12,8 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 行业专业词汇服务（sys_term）
@@ -55,10 +57,17 @@ public class TermService {
 
     /**
      * 当前租户合并词表（key -&gt; term_name），供前端渲染使用。
-     * 合并规则：平台词 → 行业词覆盖 → 租户词覆盖，逐级回退。
-     * 多语言取词：指定语言内按 租户→行业→平台 回退；
-     *             指定语言缺失时回退 zh，再缺失取该 key 任意语言。
+     * 合并规则：**目标语言优先于作用域**——先在 租户 → 行业 → 平台 里找该语言的词，
+     * 三级都没有该语言时，才退回"任意语言"（同样按上述作用域顺序）。
+     * 作用域优先级始终是 租户词 &gt; 行业词 &gt; 平台词。
      * 平台管理员（tenantId=0/null）仅返回平台词表。
+     *
+     * <p>为什么不按作用域逐级 pick、层内再回退语言（旧实现）：
+     * 那样行业层的**其它语言**会顶掉平台层的**目标语言**——
+     * 健身行业(7) 只登记了 schedule 的 en/fr，中文界面于是渲染出英文 "Schedule"；
+     * 法语租户更糟，会被行业层的中文顶掉，整句变中文。
+     * 语言一致性的优先级高于行业定制：词表缺该语言的词，宁可回退到上一级作用域的同语言词，
+     * 也不要给用户混进另一种语言。
      *
      * @param lang 语言代码（ISO 639-1），null/空按 zh 处理
      */
@@ -82,16 +91,20 @@ public class TermService {
             loadScope(industryId, tenantId, tenantScope);
         }
 
-        // 按 key 输出：语言内租户词优先，逐级回退
+        // 按 key 输出：语言优先于作用域（见方法注释）
         Map<String, String> out = new LinkedHashMap<>();
         java.util.Set<String> keys = new java.util.LinkedHashSet<>();
         keys.addAll(platform.keySet());
         keys.addAll(industry.keySet());
         keys.addAll(tenantScope.keySet());
         for (String key : keys) {
-            String name = pick(tenantScope.get(key), language);
-            if (name == null) name = pick(industry.get(key), language);
-            if (name == null) name = pick(platform.get(key), language);
+            String name = pickLang(tenantScope.get(key), language);
+            if (name == null) name = pickLang(industry.get(key), language);
+            if (name == null) name = pickLang(platform.get(key), language);
+            // 目标语言三级全缺 → 退回"任意语言"（仍然租户 > 行业 > 平台），好过整条词没有
+            if (name == null) name = anyLang(tenantScope.get(key));
+            if (name == null) name = anyLang(industry.get(key));
+            if (name == null) name = anyLang(platform.get(key));
             if (name != null) out.put(key, name);
         }
         return out;
@@ -101,6 +114,55 @@ public class TermService {
     public Map<String, String> getTermMap(Long tenantId) {
         return getTermMap(tenantId, "zh");
     }
+
+    /**
+     * 渲染含术语占位符的文案：把 {@code {key}} 替换为当前租户生效的行业词。
+     * 典型场景是**服务端生成的文案**（消息中心自动通知、导出的报表标题等）——
+     * 这类文案不经过前端 DOM，{@code data-term} 机制覆盖不到，必须在这里取词。
+     *
+     * <p><b>为什么用占位符，而不是把渲染完的整串做子串替换：</b>
+     * 文案里既有模板固定文字，也有动态数据（课次时间、课程名、人名…）。
+     * 若对整串做「锚点词 → 行业词」的子串替换，动态数据里恰好出现锚点词就会被误改
+     * （例如排期名就叫「课程A」，会被改成「咨询话题A」）。
+     * 前端 {@code termsFunction.js} 的 applyTerms 早已立下同样的规矩
+     * （只处理显式 data-term 标记，绝不做全局文本替换），此处与之保持一致：
+     * **只有模板里显式写出的 {key} 才参与取词，传入的数据值一律原样保留**。
+     *
+     * <p>回退链由 {@link #getTermMap} 保证（租户词 &gt; 行业词 &gt; 平台词）；
+     * 某个 key 在所有作用域都查不到时**原样保留 {@code {key}}**（不静默清空），
+     * 这样拼错 key 在开发/测试期一眼可见，不会被吞掉。
+     *
+     * @param template 文案模板，如 {@code "正式获得该{course}名额"}
+     * @param tenantId 目标租户（决定用哪套行业词与租户词）；null/0 时只用平台词
+     * @param lang     语言（ISO 639-1），null/空按 zh
+     */
+    public String renderTemplate(String template, Long tenantId, String lang) {
+        return renderTemplate(template, getTermMap(tenantId, lang));
+    }
+
+    /**
+     * 用给定词表渲染 {@code {key}} 占位符。
+     *
+     * <p>词表可以是「术语词 + 动态数据」的合并结果：合并后一次性替换，
+     * 既避免"先渲染术语、再插入数据"的两趟顺序陷阱（数据值里含 {@code {} } 不会被二次展开），
+     * 也避免同名冲突（Map 的 key 天然唯一）。
+     * 词表中没有的 key 原样保留。
+     */
+    public String renderTemplate(String template, Map<String, String> vars) {
+        if (template == null || template.isEmpty() || template.indexOf('{') < 0) return template;
+        Matcher m = PLACEHOLDER.matcher(template);
+        StringBuilder sb = new StringBuilder(template.length() + 32);
+        while (m.find()) {
+            String name = (vars == null) ? null : vars.get(m.group(1));
+            // 命中则取词；未命中保留原文（{key}），便于暴露拼写错误
+            m.appendReplacement(sb, Matcher.quoteReplacement(name != null ? name : m.group(0)));
+        }
+        m.appendTail(sb);
+        return sb.toString();
+    }
+
+    /** 占位符语法：{key}，key 以字母开头、只含字母数字下划线（避免误伤 JSON/正则里的花括号） */
+    private static final Pattern PLACEHOLDER = Pattern.compile("\\{([A-Za-z][A-Za-z0-9_]*)\\}");
 
     /**
      * 行业词批量复制（fromIndustryId → toIndustryId）。
@@ -179,13 +241,14 @@ public class TermService {
         }
     }
 
-    /** 从某个语言映射中取词：指定语言 → zh → 任意一条 */
-    private String pick(Map<String, String> langMap, String lang) {
+    /** 严格按语言取词，没有该语言就返回 null（**不回退到别的语言**，回退由调用方按作用域链处理） */
+    private String pickLang(Map<String, String> langMap, String lang) {
+        return (langMap == null) ? null : langMap.get(lang);
+    }
+
+    /** 任意语言取一条（兜底）：仅在目标语言在三级作用域里都缺失时使用 */
+    private String anyLang(Map<String, String> langMap) {
         if (langMap == null || langMap.isEmpty()) return null;
-        String v = langMap.get(lang);
-        if (v != null) return v;
-        v = langMap.get("zh");
-        if (v != null) return v;
         return langMap.entrySet().iterator().next().getValue();
     }
 

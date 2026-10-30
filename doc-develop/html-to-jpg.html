@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HTML 渲染为 JPG 工具</title>
+<!-- 依赖库：html2canvas 负责将 DOM 渲染为 canvas；FileSaver 负责触发本地下载 -->
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; background: #f5f6fa; color: #2d3436; padding: 24px; }
+  h1 { font-size: 20px; margin-bottom: 16px; }
+  .toolbar { margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  button {
+    padding: 10px 18px; border: none; border-radius: 8px; cursor: pointer;
+    font-size: 14px; font-weight: 600; transition: transform .1s, opacity .2s;
+  }
+  button:active { transform: scale(.97); }
+  .btn-primary { background: #0984e3; color: #fff; }
+  .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-ghost { background: #dfe6e9; color: #2d3436; }
+  label { font-size: 14px; display: inline-flex; align-items: center; gap: 6px; }
+  input[type="text"] { padding: 8px 10px; border: 1px solid #b2bec3; border-radius: 6px; font-size: 14px; }
+  input[type="range"] { width: 120px; }
+
+  /* 渲染目标区域 —— 会被截图成 JPG */
+  .capture-target {
+    background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+    color: #fff; padding: 40px; border-radius: 16px; max-width: 640px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.15);
+  }
+  .capture-target h2 { font-size: 28px; margin-bottom: 12px; }
+  .capture-target p { font-size: 15px; line-height: 1.7; opacity: .92; }
+  .capture-target .tags { margin-top: 18px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .capture-target .tags span { background: rgba(255,255,255,.2); padding: 4px 12px; border-radius: 999px; font-size: 13px; }
+
+  .preview-wrap { margin-top: 24px; }
+  .preview-wrap h3 { font-size: 15px; margin-bottom: 8px; color: #636e72; }
+  #preview { max-width: 100%; border: 1px solid #dfe6e9; border-radius: 8px; background: #fff; }
+  .status { margin-top: 8px; font-size: 13px; color: #636e72; min-height: 18px; }
+  .ok { color: #00b894; } .err { color: #d63031; }
+</style>
+</head>
+<body>
+  <h1>HTML 渲染为 JPG 工具</h1>
+
+  <div class="toolbar">
+    <button class="btn-primary" id="btnSave">渲染并保存为 JPG</button>
+    <button class="btn-ghost" id="btnPreview">仅预览（不下载）</button>
+    <label>文件名 <input type="text" id="filename" value="screenshot" style="width:140px"></label>
+    <label>质量 <input type="range" id="quality" min="0.5" max="1" step="0.05" value="0.92"></label>
+    <label>清晰度 <input type="range" id="scale" min="1" max="3" step="0.5" value="2"></label>
+  </div>
+
+  <!-- 这个区域就是被渲染为 JPG 的内容 -->
+  <div class="capture-target" id="capture">
+    <h2>示例卡片</h2>
+    <p>这是一段示例文本。点击上方按钮，本区域会被 html2canvas 渲染为 canvas，再转成 JPG 下载到本地。可以替换为任意 HTML 内容。</p>
+    <div class="tags">
+      <span>html2canvas</span><span>FileSaver</span><span>纯前端</span><span>无需后端</span>
+    </div>
+  </div>
+
+  <div class="preview-wrap">
+    <h3>预览（渲染后的图片）</h3>
+    <img id="preview" alt="预览图" hidden>
+    <div class="status" id="status"></div>
+  </div>
+
+<script>
+/**
+ * 将指定 HTML 元素渲染为 JPG 图片并保存到本地
+ * 依赖：html2canvas、FileSaver.js（已通过 CDN 引入）
+ *
+ * @param {HTMLElement|string} target  - 要渲染的 DOM 元素或 CSS 选择器
+ * @param {Object} [options]
+ * @param {string}  [options.filename='screenshot']  保存文件名（不含扩展名）
+ * @param {number}  [options.quality=0.92]           JPEG 质量 0~1
+ * @param {number}  [options.scale=2]                渲染缩放倍数，越大越清晰也越占内存
+ * @param {string}  [options.backgroundColor='#ffffff'] JPG 不支持透明，必须给背景色
+ * @param {boolean} [options.useCORS=true]           图片跨域时需服务器允许 CORS
+ * @param {boolean} [options.download=true]          是否触发下载；false 则只返回 blob
+ * @returns {Promise<Blob>} 生成的 JPG Blob
+ */
+async function htmlToJpg(target, options = {}) {
+  const {
+    filename = 'screenshot',
+    quality = 0.92,
+    scale = 2,
+    backgroundColor = '#ffffff',
+    useCORS = true,
+    download = true,
+  } = options;
+
+  // 1. 解析目标元素
+  const el = typeof target === 'string' ? document.querySelector(target) : target;
+  if (!el) throw new Error('htmlToJpg: 找不到目标元素 -> ' + target);
+
+  // 2. DOM -> canvas（scale 适配高清屏，避免模糊）
+  const canvas = await html2canvas(el, {
+    scale: scale * (window.devicePixelRatio || 1),
+    useCORS,                     // 跨域图片需服务器返回 CORS 头
+    backgroundColor,             // JPG 无 alpha，必须填充背景
+    logging: false,
+    windowWidth: document.documentElement.scrollWidth,
+    windowHeight: document.documentElement.scrollHeight,
+  });
+
+  // 3. canvas -> JPEG Blob
+  const blob = await new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error('canvas.toBlob 失败'))),
+      'image/jpeg',
+      quality
+    );
+  });
+
+  // 4. 保存到本地
+  if (download) saveAs(blob, `${filename}.jpg`);
+  return blob;
+}
+
+/* ---------- 通用工具：不依赖 FileSaver 的兜底下载方式 ---------- */
+function downloadBlobFallback(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/* ---------- 页面交互 ---------- */
+const $ = (id) => document.getElementById(id);
+const setStatus = (msg, type = '') => { const s = $('status'); s.textContent = msg; s.className = 'status ' + type; };
+
+async function run(download) {
+  const btn = $('btnSave'); btn.disabled = true;
+  setStatus('渲染中…');
+  try {
+    const blob = await htmlToJpg('#capture', {
+      filename: $('filename').value.trim() || 'screenshot',
+      quality: parseFloat($('quality').value),
+      scale: parseFloat($('scale').value),
+      download,
+    });
+    // 预览
+    const url = URL.createObjectURL(blob);
+    const img = $('preview'); img.src = url; img.hidden = false;
+    setStatus(download ? `已保存 ${blob.size} 字节` : '预览生成成功', 'ok');
+  } catch (e) {
+    setStatus('失败：' + e.message, 'err');
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+$('btnSave').addEventListener('click', () => run(true));
+$('btnPreview').addEventListener('click', () => run(false));
+</script>
+</body>
+</html>

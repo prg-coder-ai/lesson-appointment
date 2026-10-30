@@ -1,31 +1,121 @@
-# 构建产物
-target/
-build/
-*.class
-*.jar
-*.war
-
-# 内置 Node 运行时（含 node_modules，体积大且非源码）
+/docker/mysql8/data
+/api/bin
+/api/target
+/lesson-appointment-springboot/springboot-project/target
+/api/.idea
+/api/.idea
+/zktapi-master/.config
+/zktapi-master/.gradle
+zktapi-master/.idea/.name
+/zktapi-master/classes
+/zktapi-master/libs
+/zktapi-master
+/zktapi-master
+/zktapi-master
+/api/target
+/api/target
+*.lst
+*.lst
+/api/.idea/compiler.xml
+/api/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst
+/api/target
+/api/target/maven-status/
+/api/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst
+/api/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst
+/api/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst
+/api/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst
+/api/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst
+api/target
+api/logs/archived/spring-boot-app.2026-08-13.0.log.gz
+logs/spring-boot-app.log
+.vscode/settings.json
+api/logs/archived/spring-boot-app.2026-08-14.0.log.gz
+api/logs/spring-boot-app.log
+api/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst
+api/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst
+logs/spring-boot-app.log
+api/logs/archived/spring-boot-app.2026-08-16.0.log.gz
+api/logs/archived/spring-boot-app.2026-08-17.0.log.gz
+api/logs/archived/spring-boot-app.2026-08-18.0.log.gz
+api/logs/archived/spring-boot-app.2026-08-19.0.log.gz
+api/logs/archived/spring-boot-app.2026-08-20.0.log.gz
+api/logs/archived/spring-boot-app.2026-08-21.0.log.gz
+api/logs/spring-boot-app.log
+api/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst
+api/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst
+api/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst
+api/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst
+api/logs/spring-boot-app.log
+api/logs
+api/logs/spring-boot-app.log
+api/logs/spring-boot-app.log
+backup_static_format_20260825/student-bookingCards.js
+api/.arts/settings.json
+api/.merkle-snapshot.json
+api/logs/spring-boot-app.log
+api/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst
+api/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst
 api/.node/
-node_modules/
-
-# IDE
-.idea/
-*.iml
-*.iws
-*.ipr
-.vscode/
-
-# 日志（*.log 不匹配 .log.gz 归档，故整个 logs 目录一并排除）
-*.log
-api/logs/
-
-# 操作系统
-.DS_Store
-Thumbs.db
-
-# WorkBuddy 工作区状态（工具内部数据，非源码，会自行重新生成）
-.workbuddy/
-.merkle-snapshot.json
-
+api/lesson_appointment_backup.sql
+api/logs/spring-boot-app.log
+api/backup001.git/
+.workbuddy/tmp
 api/.npmrc
+api/api.log
+api/.workbuddy/cp.txt
+api/cp-api.txt
+api/message-service/ms.log
+api/message-service/target
+api/node_modules
+logs/spring-boot-app.log
+logs/spring-boot-app.log
+logs/spring-boot-app.log
+# beforeRun 只排除「构建产物与运行时配置」，不再排除整个目录。
+# 原为整目录排除（曾导致 lesson_appointment 完整 DDL 无法入库 = 报告根因 C：
+# 「DB 定义没有单一事实源」）。现权威脚本已集中到 api/sql/（见 api/sql/README.md），
+# 这里仍放行 beforeRun/sql/ 下的历史脚本以备追溯。
+api/beforeRun/*
+!api/beforeRun/sql/
+!api/beforeRun/sql/*.sql
+api/beforeRun/booking.evn.template
+api/beforeRun/message.evn.template
+
+# ========== 运行日志与临时输出（统一规则，2026-09-09 整理）==========
+# 说明：上面历史遗留的重复条目（如 logs/spring-boot-app.log、api/logs 等）保留不动，
+#       避免误伤；以下为统一兜底规则，覆盖所有模块产生的日志与构建输出。
+# 覆盖：Spring Boot 运行日志、Maven 构建日志、前端构建日志、JVM 崩溃转储。
+*.log
+*.log.gz
+*.log.*.gz
+logs/
+api/logs/
+api/message-service/logs/
+doc-develop/logs/
+hs_err_pid*.log
+replay_pid*.log
+# miniprogram-itest 的「被测系统」暂存目录：由 logic.mjs / login-flow.mjs 每次运行 cpSync 生成，
+# 不得入库（曾因 _sut_login 漏配而把 26 个生成文件提交进去，导致每次跑测试都产生 diff 噪声）。
+tests/miniprogram-itest/_sut*
+
+# 本机巡检凭据：deploy/healthcheck-local.sh 会自动 source它。
+# 内含数据库明文密码，绝不入库（模板见 .healthcheck.local.env.example）。
+.healthcheck.local.env
+.workbuddy/healthcheck-local.log
+# cloudBased/web 是纯暂存目录：dist/、构建时拷进来的 Dockerfile 与 nginx.conf.template、
+# 以及 web.zip 都堆在这里。源文件已迁到 deploy/nginx/cloudbase-web/ 受版本控制，
+# 由 cloudBased/scripts/build-all.* 在 docker build 前拷入（别再往这里放需要入库的东西）。
+cloudBased/web
+cloudBased/api/booking-api-2.2.0.jar
+cloudBased/message-service/message-service-1.1.0.jar
+cloudBased/web.zip
+# cloudBased/env 下的 .env*.example 与 README.txt 曾入库，已全部 untrack（本地文件保留）。
+# 变量清单与取值格式见部署手册（应用/云托管环境变量一节）。
+cloudBased/env
+
+# SQL 语义映射的中间产物：由 gen_upsert_sys_term.py 生成，内容是 GBK/UTF-8 混淆的乱码，
+# 且全仓无任何脚本读取它 → 不入库（需要时本地重新生成）。
+api/sql/schema/_semmap.tsv
+api/classroom-service/target
+cloudBased/*.zip
+cloudBased/api/target/*.jar
+cloudBased/message-service/target/message-service-1.1.0.jar

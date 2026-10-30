@@ -53,6 +53,22 @@ public class PermissionCheck {
     }
 
     /**
+     * 校验：仅租户管理员可操作（维护本租户覆盖级协议/隐私政策等）。
+     * 与 checkAdmin 的区别：checkAdmin 允许 admin 或 platform_admin；
+     * 此处仅允许 role=admin 且令牌带有效租户上下文（平台管理员 tenantId=0 走另一条分支）。
+     */
+    public void checkTenantAdmin(String token) {
+        String role = getRoleFromToken(token);
+        Long tenantId = getTenantIdFromToken(token);
+        if (!RoleConst.ADMIN.equals(role)) {
+            throw new NoPermissionException("您无租户管理员权限，无法执行该操作");
+        }
+        if (tenantId == null || tenantId <= 0) {
+            throw new NoPermissionException("租户上下文缺失，无法执行该操作");
+        }
+    }
+
+    /**
      * 校验：平台管理员可看全部租户，租户管理员/普通用户只能看自己所属租户（只读）
      */
     public void checkTenantRead(String token, Long tenantId) {
@@ -75,12 +91,12 @@ public class PermissionCheck {
         String userId = getUserIdFromToken(token);
         // 1. 校验角色为teacher
         if (!"teacher".equals(role)) {
-            throw new NoPermissionException("您无教师权限，无法执行该操作");
+            throw new NoPermissionException(TermMsg.t("您无{teacher}权限，无法执行该操作"));
         }
         // 2. 校验教师账号状态为active（对应设计2.2.1 教师注册审核逻辑）
         User teacher = userMapper.selectById(userId);
         if (teacher == null || !"active".equals(teacher.getStatus())) {
-            throw new NoPermissionException("教师账号未审核或已冻结，请联系管理员");
+            throw new NoPermissionException(TermMsg.t("{teacher}账号未审核或已冻结，请联系管理员"));
         }
     }
 
@@ -94,12 +110,12 @@ public class PermissionCheck {
         String userId = getUserIdFromToken(token);
         // 1. 校验角色为student
         if (!"student".equals(role)) {
-            throw new NoPermissionException("您无学生权限，无法执行该操作");
+            throw new NoPermissionException(TermMsg.t("您无{student}权限，无法执行该操作"));
         }
         // 2. 校验学生账号状态为active
         User student = userMapper.selectById(userId);
         if (student == null || !"active".equals(student.getStatus())) {
-            throw new NoPermissionException("学生账号未激活或已冻结，无法执行操作");
+            throw new NoPermissionException(TermMsg.t("{student}账号未激活或已冻结，无法执行操作"));
         }
     }
 
@@ -135,11 +151,11 @@ public class PermissionCheck {
         }
         if ("teacher".equals(role)) {
             if (!userId.equals(teacherId)) {
-                throw new NoPermissionException("教师只能操作本人的个人介绍");
+                throw new NoPermissionException(TermMsg.t("{teacher}只能操作本人的个人介绍"));
             }
             User teacher = userMapper.selectById(userId);
             if (teacher == null || !"active".equals(teacher.getStatus())) {
-                throw new NoPermissionException("教师账号未审核或已冻结，请联系管理员");
+                throw new NoPermissionException(TermMsg.t("{teacher}账号未审核或已冻结，请联系管理员"));
             }
             return;
         }
@@ -151,6 +167,27 @@ public class PermissionCheck {
      * @param token 请求头中的Authorization Token
      * @return 用户ID（userId）
      */
+    /**
+     * 校验：任意已登录且账号 active 的角色可操作（学生/教师/管理员/平台管理员）。
+     * 对齐 AuthzRules 中 ALL_ROLES 声明的方法级兜底，用于跨角色只读端点
+     * （课程浏览 /course/list|page|{id}、时区换算 /tz/switch 等）。
+     * 注意：不要为"省事"用本方法替代 checkTeacherOrAdmin——后者不允许学生通过。
+     */
+    public void checkAnyLogin(String token) {
+        String role = getRoleFromToken(token);
+        if (RoleConst.ADMIN.equals(role) || RoleConst.PLATFORM_ADMIN.equals(role)) {
+            return;
+        }
+        if (RoleConst.STUDENT.equals(role) || RoleConst.TEACHER.equals(role)) {
+            User u = userMapper.selectById(getUserIdFromToken(token));
+            if (u != null && "active".equals(u.getStatus())) {
+                return;
+            }
+            throw new NoPermissionException("账号未激活或已冻结，无法执行操作");
+        }
+        throw new NoPermissionException("您无权限执行该操作");
+    }
+
     public String getUserIdFromToken(String token) {
         try {
             return jwtUtil.getUserIdFromToken(token);
@@ -189,7 +226,7 @@ public class PermissionCheck {
         String currentTeacherId = getUserIdFromToken(token);
         // 校验课程/排期归属当前教师
         if (!currentTeacherId.equals(teacherId)) {
-            throw new NoPermissionException("您无权操作其他教师的课程/排期");
+            throw new NoPermissionException(TermMsg.t("您无权操作其他{teacher}的{course}/{schedule}"));
         }
     }
 

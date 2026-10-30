@@ -1,0 +1,48 @@
+<view class="page">
+  <view class="filter">
+    <view class="bar">
+      <text class="bar-title">{{roleText}}列表</text>
+      <text class="bar-count">共 {{total}} 人</text>
+    </view>
+    <view class="f-row">
+      <picker class="f-pick" mode="selector" range="{{statusOptions}}" range-key="t" value="{{statusIndex}}" bindchange="onStatusChange">
+        <view class="f-picker">状态：{{statusOptions[statusIndex].t}}</view>
+      </picker>
+      <button class="f-btn ghost" size="mini" bindtap="onReset">重置</button>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="center">加载中…</view>
+  <view wx:elif="{{list.length === 0}}" class="center">暂无{{roleText}}</view>
+  <view wx:else class="list">
+    <view wx:for="{{list}}" wx:key="id" class="item">
+      <view class="row1">
+        <text class="name">{{item.name}}</text>
+        <text class="status {{item.tone}}">{{item.statusText}}</text>
+      </view>
+      <view class="row2">
+        <text class="meta">账号 {{item.account || '-'}}</text>
+        <text class="meta">手机 {{item.phone || '-'}}</text>
+      </view>
+      <view wx:if="{{item.email}}" class="row2"><text class="meta">邮箱 {{item.email}}</text></view>
+
+      <view class="actions">
+        <button wx:if="{{!item.isSelf}}" class="btn {{item.isFrozen ? 'ok' : 'warn'}}" size="mini"
+          data-id="{{item.id}}" data-status="{{item.nextStatus}}" data-name="{{item.name}}"
+          bindtap="onToggleStatus">{{item.nextText}}</button>
+        <text wx:else class="self-tip">（当前登录）</text>
+
+        <button class="btn plain" size="mini"
+          data-id="{{item.id}}" data-name="{{item.name}}" data-account="{{item.account}}"
+          bindtap="onResetPwd">重置密码</button>
+
+        <button class="btn info" size="mini"
+          data-id="{{item.id}}" data-name="{{item.name}}" data-account="{{item.account}}"
+          bindtap="onSendMsg">发消息</button>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{loadingMore}}" class="more">加载更多…</view>
+  <view wx:elif="{{list.length > 0 && !hasMore}}" class="more">没有更多了</view>
+</view>
