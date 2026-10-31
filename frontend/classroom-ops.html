@@ -230,6 +230,10 @@
   <script src="js/public/vendor/axios.min.js"></script>
   <script src="js/public/utility_request.js"></script>
   <script src="js/public/api.js"></script>
+  <!-- shared/apiPaths.js 的浏览器镜像（生成产物，勿手改）。
+       必须早于 js/classroom/*.js：它们 IIFE 执行时即读取 window.ApiPaths.ENDPOINTS，
+       缺这份时端点会拼成 undefined，请求静默失败。2026-10-31 端点收口时补入。 -->
+  <script src="js/shared-domain-bridge.js"></script>
   <script src="js/classroom/ops.js"></script>
 </body>
 </html>

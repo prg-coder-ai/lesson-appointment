@@ -29,6 +29,25 @@
         <mainClass>com.messagecenter.MessageCenterApplication</mainClass>
     </properties>
 
+    <!-- 显式钉死 logback 版本，与 api/pom.xml、classroom-service 保持同一手法：
+         防止任何传递依赖把 logback-core 与 logback-classic 改成不同版本。两者错配会在运行期抛
+         NoClassDefFoundError: ch/qos/logback/classic/spi/ThrowableProxy 让日志线程直接崩，
+         编译期完全看不出来。1.5.11 就是 spring-boot 3.3.5 当前管理值，钉住不改变实际解析结果。 -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-classic</artifactId>
+                <version>1.5.11</version>
+            </dependency>
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-core</artifactId>
+                <version>1.5.11</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -85,18 +104,13 @@
             <version>${mybatis-plus.version}</version>
         </dependency>
 
+        <!-- Lombok：版本交给 spring-boot-starter-parent 统一管理（Boot 3.3.5 → 1.18.34）。
+             之前硬编码 1.18.30，等于把父 POM 的 JDK 兼容性修复挡在门外，升级 Boot 时还容易忘同步。 -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.30</version>
             <scope>provided</scope>
             <optional>true</optional>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springdoc</groupId>
-            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>2.6.0</version>
         </dependency>
 
         <dependency>
@@ -121,6 +135,12 @@
                 <configuration>
                     <release>17</release>
                     <encoding>UTF-8</encoding>
+
+                    <!-- JDK 21 的 javac 发现 classpath 上有注解处理器（Lombok）但未显式声明处理策略时，
+                         每次编译都会打"注解处理路径中发现一个或多个处理器…请使用 -proc:full"的提示。
+                         它不是警告也不是错误，但会淹没真正的编译告警，故显式声明为 full。 -->
+                    <proc>full</proc>
+
                     <compilerArgs>
                         <arg>-Xlint:-processing</arg>
                         <arg>-Xlint:-unchecked</arg>
@@ -149,4 +169,36 @@
             </plugin>
         </plugins>
     </build>
+
+    <!-- ================= Swagger UI 按 profile 隔离 =================
+         springdoc 只提供 /swagger-ui 与 /v3/api-docs 页面，本服务代码里没有任何
+         io.swagger / org.springdoc 的 import（纯运行期组件），因此可以整块从生产产物里摘掉：
+         少 9 个 jar，也少一个对外暴露的接口清单页——api-docs 会把全部端点、参数、模型结构
+         明文吐给任何能访问到它的人（本服务还挂着 SSE 与管理员接口，暴露面更敏感）。
+
+         默认（不写 -P）= 带 Swagger，开发/联调照旧；
+         mvn -Pprod package = 摘掉。原理：Maven 的 activeByDefault 会被同 pom 内任一 -P
+         激活的 profile 顶掉，所以 -Pprod 一激活，swagger 这个 profile 自动失效。
+         发布镜像见 cloudBased/message-service/Dockerfile 的构建命令。 -->
+    <profiles>
+        <profile>
+            <id>swagger</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>org.springdoc</groupId>
+                    <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                    <version>2.6.0</version>
+                </dependency>
+            </dependencies>
+        </profile>
+
+        <profile>
+            <!-- 空实现：唯一作用是顶掉 activeByDefault 的 swagger profile。
+                 Maven 没有"依赖级排除"，靠 profile 开关即可，别在这里塞 exclude。 -->
+            <id>prod</id>
+        </profile>
+    </profiles>
 </project>

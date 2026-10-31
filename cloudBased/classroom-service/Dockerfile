@@ -23,9 +23,9 @@ RUN groupadd -r app && useradd -r -g app -d /app -s /sbin/nologin app
 WORKDIR /app
 
 # ---------- 复制 jar ----------
-# 构建命令：
+# 构建命令（-Pprod 必带：顶掉 swagger profile，否则 springdoc/swagger-ui 会一起打进镜像）：
 #   cd <项目根>/api/classroom-service
-#   mvn clean package -DskipTests
+#   mvn clean package -DskipTests -Pprod
 COPY target/classroom-service-1.0.0.jar app.jar
 
 RUN mkdir -p /app/logs /app/data && chown -R app:app /app

@@ -22,27 +22,40 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const API_PROPS = path.join(ROOT, 'api/src/main/resources/application.properties');
 const MSG_PROPS = path.join(ROOT, 'api/message-service/src/main/resources/application.properties');
+const CLS_PROPS = path.join(ROOT, 'api/classroom-service/src/main/resources/application.properties');
 const TPL = [path.join(ROOT, 'api/beforeRun/booking.env.template'),
-             path.join(ROOT, 'api/beforeRun/message.env.template')];
+             path.join(ROOT, 'api/beforeRun/message.env.template'),
+             path.join(ROOT, 'api/beforeRun/classroom.env.template')];   // 2026-10-30 补：课堂模板
 
 /**
  * 必须走 env 注入的密钥：[键名, 说明, 适用的 env 模板下标集合]
- * 适用范围很重要：微信配置是 api 专属（message-service 里没有这些属性，见其 properties 与 Java 代码均无 wechat），
- * 不能要求 message.env.template 里也出现 WECHAT_* —— 那是"为满足守卫而加无用配置"。
+ * 适用范围很重要：微信配置是 api 专属（message / classroom 的 properties 与 Java 代码里都没有 wechat），
+ * 不能要求其它 env 模板里也出现 WECHAT_* —— 那是"为满足守卫而加无用配置"。
  *
- * ⚠️ 第三个字段是【已实测】的 Spring 行为，不是猜的：
- *   用 spring-core 6.1.14 跑对照实验（SystemEnvironmentPropertySource + StandardEnvironment）：
- *     环境变量 JWT_SECRET   → getProperty("jwt.secret")   = V1   ✅ 生效
- *     环境变量 AES_KEY      → getProperty("crypto.aes-key") = null ❌ 不生效
- *     环境变量 crypto.aes-key → getProperty("crypto.aes-key") = V4  ✅ 生效
- *   结论：**只有与属性名"词根一致"的环境变量名才会被命中**（jwt.secret ↔ JWT_SECRET 可以，
- *   因为 SystemEnvironmentPropertySource 会把 jwt.secret 规范化成 JWT_SECRET 去查）。
- *   crypto.aes-key 的词根是 crypto，前缀 AES_KEY 匹配不上 —— 用它就等于没注入，且不报错。
+ * ⚠️ 这里最容易踩的认知坑（2026-10-30 用 spring-core 6.1.14 重跑实验后修订）：
+ *
+ *   老注释曾断言「环境变量 AES_KEY 不生效，只有与属性名词根一致的名字才生效」。**那个结论是错的**，
+ *   它漏掉了 application.properties 这一层：真实链路是
+ *     (a) 先按**属性名**查 Environment → systemEnvironment 里的 `CRYPTO_AES_KEY`（属性名规范化：. 和 - 都变 _、转大写）能直接命中；
+ *     (b) 查不到才拿到 properties 里的值 `crypto.aes-key=${AES_KEY:内置默认值}`，再对该值做**占位符解析**，
+ *         逐字查环境变量 `AES_KEY`。
+ *   所以 `AES_KEY` 与 `CRYPTO_AES_KEY` 都能生效（后者优先级更高），
+ *   而 `CRYPTO_AESKEY`（手册旧写法，少了中间的下划线）**两路都不命中**，静默回落内置默认值。
+ *
+ *   复现实验（properties 定义 crypto.aes-key=${AES_KEY:BUILTIN_DEFAULT}，systemEnvironment 在前）：
+ *     · 不设变量              → BUILTIN_DEFAULT          ❌ 回落
+ *     · AES_KEY=V             → V                        ✅ 占位符路径
+ *     · CRYPTO_AESKEY=V       → BUILTIN_DEFAULT          ❌ 无效（历史 bug）
+ *     · CRYPTO_AES_KEY=V      → V                        ✅ 属性名规范化路径
+ *     · 两者都设              → CRYPTO_AES_KEY 的值      ← 属性名路径优先于占位符
+ *
+ *   故本守卫的判定口径不变（仍要求 properties 里的 `${ENV_NAME:}` 与模板**逐字相等**），
+ *   这条比对本身是对的 —— 它防的正是 `${}` 占位不做松散绑定这件事。
  */
 const SECRET_KEYS = [
-  ['jwt.secret',            'HS512 签名密钥，与 message-service 共享密钥域', [0, 1]],
-  ['crypto.aes-key',        'AES-256-GCM 字段加密密钥，两服务共用须互通', [0, 1]],
-  ['crypto.hmac-key',       'HMAC-SHA256 可搜索索引密钥', [0, 1]],
+  ['jwt.secret',            'HS512 签名密钥，与 message/classroom 共享密钥域', [0, 1, 2]],
+  ['crypto.aes-key',        'AES-256-GCM 字段加密密钥，三服务共用须互通',      [0, 1, 2]],
+  ['crypto.hmac-key',       'HMAC-SHA256 可搜索索引密钥',                     [0, 1, 2]],
   ['wechat.miniapp.appid',  '小程序 appid（api 专属）', [0]],
   ['wechat.miniapp.secret', '小程序 appsecret（api 专属）', [0]],
   // 开放平台网站应用（PC 扫码登录，2026-10-14 P2）：appid 非密钥但同样走 env；
@@ -76,7 +89,7 @@ function findProp(lines, key) {
 if (skipped) {
   console.log('⏭  check:secret-env 已跳过（SKIP_SECRET_ENV=1）');
 } else {
-  const propFiles = [API_PROPS, MSG_PROPS];
+  const propFiles = [API_PROPS, MSG_PROPS, CLS_PROPS];
   // ⚠️ 每个 env 模板**各自**建变量集，不能合并后再比。
   //   合并会让"booking 模板改名了、message 模板还是对的"这种漂移被后者掩盖 →
   //   守卫假绿（实测变异 2 就是这么溜过去的）。配对关系必须逐文件成立。
@@ -91,7 +104,9 @@ if (skipped) {
 
   let checked = 0;
   for (const pf of propFiles) {
-    const name = pf.includes('message-service') ? 'message-service' : 'api';
+    const name = pf.includes('message-service') ? 'message-service'
+               : pf.includes('classroom-service') ? 'classroom-service'
+               : 'api';
     const lines = readLines(pf);
     for (const [key, why, tplScope] of SECRET_KEYS) {
       const val = findProp(lines, key);

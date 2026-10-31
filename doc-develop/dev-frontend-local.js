@@ -13,8 +13,9 @@
  * 课堂服务未启动也能用（只是课堂页报错），不影响其他页面。
  *
  * 前提：本机已启动两个后端（密钥同为源码 application.properties 里的 jwt.secret）：
- *   java -jar api/target/booking_api-2.0.0.jar --server.port=8081
- *   java -jar api/message-service/target/message-service-1.0.0.jar --server.port=8090
+ *   java -jar api/target/booking-api-*.jar                     --server.port=8081
+ *   java -jar api/message-service/target/message-service-*.jar  --server.port=8090
+ *         ^ jar 名带版本号且会变，这里一律用通配（壳会展开成真实文件）
  *         ^ 必须显式带 --server.port=8090：沙箱环境变量 SERVER__PORT 会被 Spring Boot
  *           宽松绑定映射成 server.port，覆盖 jar 内配置，导致绑到别的端口。
  *
@@ -60,16 +61,17 @@ startProxy({
   onProbe({ okBooking, okMsg, okClassroom }) {
     if (!okBooking) {
       console.log('   ⚠ booking 未就绪，启动：');
-      console.log('     java -jar api/target/booking_api-2.0.0.jar --server.port=8081');
+      console.log('     java -jar api/target/booking-api-*.jar --server.port=8081');
     }
     if (!okMsg) {
       console.log('   ⚠ message-service 未就绪，启动：');
-      console.log('     java -jar api/message-service/target/message-service-1.0.0.jar --server.port=8090');
+      console.log('     java -jar api/message-service/target/message-service-*.jar --server.port=8090');
     }
     if (okClassroom === false) {
       console.log('   ⚠ classroom-service 未就绪（课堂页会报错，其他页面不受影响），启动：');
-      console.log('     cd api/classroom-service && mvn -o -q spring-boot:run');
+      console.log('     java -jar api/classroom-service/target/classroom-service-*.jar --server.port=8092');
       console.log('     或用 IDE 跑 com.classroom.ClassroomServiceApplication');
+      console.log('     前置：classroom 库 + Redis db2（没 Redis 课堂起不来，其它服务不受影响）');
     }
     if (!okBooking || !okMsg) {
       console.log('   提示：三端密钥同源（源码 application.properties 的 jwt.secret），可正常联调。');

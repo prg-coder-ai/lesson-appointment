@@ -5,6 +5,9 @@
  * 权限口径由后端定（仅管理员），前端只做展示——不拿前端判断当权限。
  */
 (function () {
+  // 端点常量统一取自 shared/apiPaths.js（经 js/shared-domain-bridge.js 挂到 window.ApiPaths）。
+  // classroom-ops.html 必须先加载 shared-domain-bridge.js，否则 EP 为空 → 请求打到 "undefined"。
+  var EP = (window.ApiPaths && window.ApiPaths.ENDPOINTS) || {};
   var Ops = {
     base: '',
     tab: 'monitor',
@@ -91,7 +94,7 @@
       on('rep-export-recordings', function () { self._export('recordings'); });
       on('rc-query', function () { self.loadReconcile(); });
       on('rc-run', function () {
-        self.api('/api/v1/admin/reconcile/run', 'post')
+        self.api(EP.CLASSROOM_ADMIN_RECONCILE_RUN, 'post')
           .then(function (data) {
             self.toast('对账完成：上报 ' + ((data && data.reported) || 0) + ' 条差异');
             self.loadReconcile();
@@ -102,7 +105,7 @@
       on('au-chat-view', function () {
         var sid = (document.getElementById('au-schedule') || {}).value;
         if (!sid) { self.toast('请先填写课次后再记录查阅'); return; }
-        self.api('/api/v1/admin/audit/chat/' + encodeURIComponent(sid) + '/view', 'post', { note: '运营台查阅' })
+        self.api(EP.CLASSROOM_ADMIN_AUDIT_CHAT_VIEW(sid), 'post', { note: '运营台查阅' })
           .then(function () { self.toast('已留痕'); self.loadAuditLogs(); })
           .catch(function (e) { self.toast((e && e.message) || '留痕失败'); });
       });
@@ -160,7 +163,7 @@
     // ---------------- 监控 ----------------
     loadMonitor: function () {
       var self = this;
-      this.api('/api/v1/admin/monitor/overview')
+      this.api(EP.CLASSROOM_ADMIN_MONITOR_OVERVIEW)
         .then(function (d) {
           var cards = document.getElementById('monitor-cards');
           if (cards) {
@@ -189,7 +192,7 @@
         })
         .catch(function (e) { self.toast((e && e.message) || '监控加载失败'); });
 
-      this.api('/api/v1/admin/monitor/alerts')
+      this.api(EP.CLASSROOM_ADMIN_MONITOR_ALERTS)
         .then(function (d) {
           var el = document.getElementById('monitor-alerts');
           if (!el) return;
@@ -217,7 +220,7 @@
         })
         .catch(function () { /* 告警失败不打扰 */ });
 
-      this.api('/api/v1/admin/monitor/metrics')
+      this.api(EP.CLASSROOM_ADMIN_MONITOR_METRICS)
         .then(function (d) {
           var el = document.getElementById('monitor-metrics');
           if (!el) return;
@@ -243,7 +246,7 @@
       var self = this;
       var from = (document.getElementById('rep-from') || {}).value;
       var to = (document.getElementById('rep-to') || {}).value;
-      this.api('/api/v1/admin/reports/learning', 'get', { from: from, to: to })
+      this.api(EP.CLASSROOM_ADMIN_REPORT_LEARNING, 'get', { from: from, to: to })
         .then(function (d) {
           self.report = d;
           var s = d.summary || {};
@@ -297,7 +300,7 @@
       var self = this;
       var from = (document.getElementById('rep-from') || {}).value;
       var to = (document.getElementById('rep-to') || {}).value;
-      var url = this.base + '/api/v1/admin/exports/' + type +
+      var url = this.base + EP.CLASSROOM_ADMIN_EXPORT(type) +
         '?from=' + encodeURIComponent(from || '') + '&to=' + encodeURIComponent(to || '');
       fetch(url, { headers: { Authorization: 'Bearer ' + (localStorage.getItem('token') || '') } })
         .then(function (r) {
@@ -322,7 +325,7 @@
       var self = this;
       var status = (document.getElementById('rc-status') || {}).value;
       var days = (document.getElementById('rc-days') || {}).value || 7;
-      this.api('/api/v1/admin/reconcile/diffs', 'get', { status: status, days: days })
+      this.api(EP.CLASSROOM_ADMIN_RECONCILE_DIFFS, 'get', { status: status, days: days })
         .then(function (rows) {
           var html = (rows || []).map(function (d) {
             var sev = d.severity === 'ERROR' ? '<span class="tag err">ERROR</span>'
@@ -350,7 +353,7 @@
               var id = btn.getAttribute('data-resolve');
               var ignore = btn.getAttribute('data-ignore') === '1';
               var note = window.prompt(ignore ? '忽略原因（可留空）：' : '处置说明（可留空）：', '') || '';
-              self.api('/api/v1/admin/reconcile/diffs/' + id + '/resolve', 'post',
+              self.api(EP.CLASSROOM_ADMIN_RECONCILE_RESOLVE(id), 'post',
                 { note: note, ignore: ignore })
                 .then(function () { self.toast('已处置'); self.loadReconcile(); })
                 .catch(function (e) { self.toast((e && e.message) || '处置失败'); });
@@ -365,7 +368,7 @@
       var self = this;
       var scheduleId = (document.getElementById('au-schedule') || {}).value || '';
       var status = (document.getElementById('au-status') || {}).value || '';
-      this.api('/api/v1/admin/audit/submissions', 'get',
+      this.api(EP.CLASSROOM_ADMIN_AUDIT_SUBMISSIONS, 'get',
         { scheduleId: scheduleId, status: status, limit: 50 })
         .then(function (rows) {
           var html = (rows || []).map(function (r) {
@@ -396,7 +399,7 @@
             btn.addEventListener('click', function () {
               var note = window.prompt('标记违规原因：', '');
               if (note === null) return;
-              self.api('/api/v1/admin/audit/submissions/' + btn.getAttribute('data-flag') + '/flag',
+              self.api(EP.CLASSROOM_ADMIN_AUDIT_SUBMISSION_FLAG(btn.getAttribute('data-flag')),
                 'post', { note: note })
                 .then(function () { self.toast('已标记'); self.loadAudit(); self.loadAuditLogs(); })
                 .catch(function (e) { self.toast((e && e.message) || '操作失败'); });
@@ -404,7 +407,7 @@
           });
           Array.prototype.forEach.call(document.querySelectorAll('#au-table [data-pass]'), function (btn) {
             btn.addEventListener('click', function () {
-              self.api('/api/v1/admin/audit/submissions/' + btn.getAttribute('data-pass') + '/pass',
+              self.api(EP.CLASSROOM_ADMIN_AUDIT_SUBMISSION_PASS(btn.getAttribute('data-pass')),
                 'post', { note: '运营抽查通过' })
                 .then(function () { self.toast('已通过'); self.loadAuditLogs(); })
                 .catch(function (e) { self.toast((e && e.message) || '操作失败'); });
@@ -416,7 +419,7 @@
 
     loadAuditLogs: function () {
       var self = this;
-      this.api('/api/v1/admin/audit/logs', 'get', { days: 7 })
+      this.api(EP.CLASSROOM_ADMIN_AUDIT_LOGS, 'get', { days: 7 })
         .then(function (rows) {
           var html = (rows || []).map(function (l) {
             return '<tr>' +
@@ -440,7 +443,7 @@
       var scheduleId = (document.getElementById('ct-schedule') || {}).value || '';
       var result = (document.getElementById('ct-result') || {}).value || '';
       var days = (document.getElementById('ct-days') || {}).value || 7;
-      this.api('/api/v1/admin/contract/events', 'get',
+      this.api(EP.CLASSROOM_ADMIN_CONTRACT_EVENTS, 'get',
         { scheduleId: scheduleId, result: result, days: days })
         .then(function (rows) {
           var html = (rows || []).map(function (r) {
@@ -467,7 +470,7 @@
       if (!raw) { this.toast('请先粘贴事件报文'); return; }
       var obj;
       try { obj = JSON.parse(raw); } catch (e) { this.toast('报文不是合法 JSON'); return; }
-      this.api('/api/v1/admin/contract/replay', 'post', obj)
+      this.api(EP.CLASSROOM_ADMIN_CONTRACT_REPLAY, 'post', obj)
         .then(function (d) {
           self.toast('已重放：' + (d && d.eventId ? d.eventId : ''));
           self.loadContract();
@@ -482,7 +485,7 @@
         .map(function (s) { return s.trim(); })
         .filter(function (s) { return !!s; });
       if (!ids.length) { this.toast('请先填写 scheduleId'); return; }
-      this.api('/api/v1/admin/contract/resync', 'post', { scheduleIds: ids })
+      this.api(EP.CLASSROOM_ADMIN_CONTRACT_RESYNC, 'post', { scheduleIds: ids })
         .then(function (rows) {
           var html = (rows || []).map(function (r) {
             return '<tr>' +

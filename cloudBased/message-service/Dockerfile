@@ -14,9 +14,9 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 WORKDIR /app
 
 # ---------- 复制 jar ----------
-# 构建命令：
+# 构建命令（-Pprod 必带：顶掉 swagger profile，否则 springdoc/swagger-ui 会一起打进镜像）：
 #   cd <项目根>/api/message-service
-#   mvn clean package -DskipTests
+#   mvn clean package -DskipTests -Pprod
 COPY target/message-service-1.1.0.jar app.jar
 
 # ---------- 端口（必须与 server.port=8090 一致） ----------

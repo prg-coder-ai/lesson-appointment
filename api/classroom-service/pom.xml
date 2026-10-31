@@ -28,6 +28,26 @@
         <mainClass>com.classroom.ClassroomServiceApplication</mainClass>
     </properties>
 
+    <!-- 显式钉死 logback 版本，与 api/pom.xml 保持同一手法：
+         防止任何传递依赖（spring-boot-starter-*、第三方 starter）把 logback-core 与
+         logback-classic 改成不同版本。两者错配会在运行期抛
+         NoClassDefFoundError: ch/qos/logback/classic/spi/ThrowableProxy 让日志线程直接崩，
+         而且编译期完全看不出来。1.5.11 就是 spring-boot 3.3.5 当前管理值，钉住不改变实际解析结果。 -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-classic</artifactId>
+                <version>1.5.11</version>
+            </dependency>
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-core</artifactId>
+                <version>1.5.11</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <!-- Web + WebSocket -->
         <dependency>
@@ -78,10 +98,12 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- MySQL -->
+        <!-- MySQL（新坐标 com.mysql:mysql-connector-j；旧坐标 mysql:mysql-connector-java 已被官方
+             relocated，每次构建都会打 WARNING。这里沿用 8.0.33 保持与升级前完全一致的驱动行为，
+             若要与父 POM 管理的版本（Boot 3.3.5 → 8.3.0）对齐，删掉 version 即可） -->
         <dependency>
-            <groupId>mysql</groupId>
-            <artifactId>mysql-connector-java</artifactId>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
             <version>8.0.33</version>
             <scope>runtime</scope>
         </dependency>
@@ -94,20 +116,14 @@
         </dependency>
 
 
-        <!-- Lombok -->
+        <!-- Lombok：版本交给 spring-boot-starter-parent 统一管理（Boot 3.3.5 → 1.18.34）。
+             之前硬编码 1.18.30 属于"看起来可控、实际把父 POM 的 JDK 兼容性修复挡在门外"，
+             升级 Boot 时要记着同步改这里，反而更容易忘。 -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.30</version>
             <scope>provided</scope>
             <optional>true</optional>
-        </dependency>
-
-        <!-- OpenAPI -->
-        <dependency>
-            <groupId>org.springdoc</groupId>
-            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>2.6.0</version>
         </dependency>
 
         <!-- Hutool -->
@@ -133,6 +149,11 @@
                 <configuration>
                     <release>17</release>
                     <encoding>UTF-8</encoding>
+
+                    <!-- JDK 21 的 javac 在 classpath 上发现注解处理器（Lombok）但未显式声明处理策略时，
+                         每次编译都会打一段"注解处理路径中发现一个或多个处理器…请使用 -proc:full"的提示。
+                         它不是警告也不是错误，但会淹没真正的编译告警，故显式声明为 full。 -->
+                    <proc>full</proc>
 
                     <compilerArgs>
                         <arg>-Xlint:-processing</arg>
@@ -161,4 +182,36 @@
             </plugin>
         </plugins>
     </build>
+
+    <!-- ================= Swagger UI 按 profile 隔离 =================
+         springdoc 只提供 /swagger-ui 与 /v3/api-docs 页面，本服务代码里没有任何
+         io.swagger / org.springdoc 的 import（纯运行期组件），因此可以整块从生产产物里摘掉：
+         少 10 个 jar，也少一个对外暴露的接口清单页——api-docs 会把全部端点、参数、模型结构
+         明文吐给任何能访问到它的人。
+
+         默认（不写 -P）= 带 Swagger，开发/联调照旧；
+         mvn -Pprod package = 摘掉。原理：Maven 的 activeByDefault 会被同 pom 内任一 -P
+         激活的 profile 顶掉，所以 -Pprod 一激活，swagger 这个 profile 自动失效。
+         生产镜像见 Dockerfile 里的 mvn -B -Pprod package。 -->
+    <profiles>
+        <profile>
+            <id>swagger</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>org.springdoc</groupId>
+                    <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                    <version>2.6.0</version>
+                </dependency>
+            </dependencies>
+        </profile>
+
+        <profile>
+            <!-- 空实现：唯一作用是顶掉 activeByDefault 的 swagger profile。
+                 Maven 没有"依赖级排除"，靠 profile 开关即可，别在这里塞 exclude。 -->
+            <id>prod</id>
+        </profile>
+    </profiles>
 </project>

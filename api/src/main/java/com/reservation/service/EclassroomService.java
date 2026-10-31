@@ -120,6 +120,7 @@ public class EclassroomService {
     public void unbindTenantClassroom(Long tenantId, String operator) {
         LambdaQueryWrapper<TenantEclassroom> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(TenantEclassroom::getTenantId, tenantId);
+        //cascade:none 测试
         tenantEclassroomMapper.delete(wrapper);
         log.info("租户{}解绑课堂, operator={}", tenantId, operator);
     }
@@ -169,6 +170,7 @@ public class EclassroomService {
     public void deleteInstance(Long instanceId) {
         EclassroomInstance instance = instanceMapper.selectById(instanceId);
         if (instance == null) return;
+        //cascade:none 测试
         instance.setDeleted(1);
         instanceMapper.updateById(instance);
         log.info("删除课堂实例: id={}, code={}", instanceId, instance.getInstanceCode());

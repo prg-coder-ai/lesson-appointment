@@ -5,13 +5,13 @@ import com.classroom.entity.Membership;
 import com.classroom.entity.RollCallRecord;
 import com.classroom.mapper.PresenceSegmentMapper;
 import com.classroom.mapper.ReconcileLogMapper;
-import com.classroom.mapper.RecordingMapper;
 import com.classroom.mapper.RollCallRecordMapper;
 import com.classroom.mapper.SessionRecordMapper;
 import com.classroom.mapper.SubmissionMapper;
 import com.classroom.service.CallbackService;
 import com.classroom.service.ClassroomService;
 import com.classroom.service.MembershipService;
+import com.classroom.service.RecordingService;
 import com.classroom.ws.OnlineStateManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -38,7 +38,7 @@ class ClassroomSchedulerTest {
     private RollCallRecordMapper rollCallRecordMapper;
     private PresenceSegmentMapper presenceSegmentMapper;
     private ReconcileLogMapper reconcileLogMapper;
-    private RecordingMapper recordingMapper;
+    private RecordingService recordingService;
     private SessionRecordMapper sessionRecordMapper;
     private SubmissionMapper submissionMapper;
     private CallbackService callbackService;
@@ -52,12 +52,12 @@ class ClassroomSchedulerTest {
         rollCallRecordMapper = mock(RollCallRecordMapper.class);
         presenceSegmentMapper = mock(PresenceSegmentMapper.class);
         reconcileLogMapper = mock(ReconcileLogMapper.class);
-        recordingMapper = mock(RecordingMapper.class);
+        recordingService = mock(RecordingService.class);
         sessionRecordMapper = mock(SessionRecordMapper.class);
         submissionMapper = mock(SubmissionMapper.class);
         callbackService = mock(CallbackService.class);
         scheduler = new ClassroomScheduler(classroomService, membershipService, onlineStateManager,
-                rollCallRecordMapper, presenceSegmentMapper, reconcileLogMapper, recordingMapper,
+                rollCallRecordMapper, presenceSegmentMapper, reconcileLogMapper, recordingService,
                 sessionRecordMapper, submissionMapper, callbackService);
     }
 
@@ -286,6 +286,6 @@ class ClassroomSchedulerTest {
         verify(reconcileLogMapper).deleteByReceivedAtBefore(any(LocalDateTime.class));
         verify(sessionRecordMapper).deleteByEndTimeBefore(any(LocalDateTime.class));
         verify(submissionMapper).deleteByCreatedAtBefore(any(LocalDateTime.class));
-        verify(recordingMapper).deleteByCreatedAtBefore(any(LocalDateTime.class));
+        verify(recordingService).purgeExpired();
     }
 }

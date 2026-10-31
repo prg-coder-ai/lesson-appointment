@@ -74,11 +74,20 @@ logs/spring-boot-app.log
 # 原为整目录排除（曾导致 lesson_appointment 完整 DDL 无法入库 = 报告根因 C：
 # 「DB 定义没有单一事实源」）。现权威脚本已集中到 api/sql/（见 api/sql/README.md），
 # 这里仍放行 beforeRun/sql/ 下的历史脚本以备追溯。
+#
+# ⚠️ 2026-10-30 修：下面原本只有 `!api/beforeRun/sql/...` 两条白名单，导致
+#    booking.env.template / message.env.template **从未进入 Git** ——
+#    干净克隆上 deploy/upload-to-server.sh 引用的模板全都不存在，
+#    于是大家只能去 doc-develop/ 复制那份旧副本，而那份副本用的是无效的
+#    CRYPTO_AESKEY 变量名（"以为配了其实没配"的根源）。
+#    现补放行"部署前置件"：env 模板 / systemd 单元 / 说明。
 api/beforeRun/*
+!api/beforeRun/*.env.template
+!api/beforeRun/*.service
+!api/beforeRun/README.md
+!api/beforeRun/*.sql
 !api/beforeRun/sql/
 !api/beforeRun/sql/*.sql
-api/beforeRun/booking.evn.template
-api/beforeRun/message.evn.template
 
 # ========== 运行日志与临时输出（统一规则，2026-09-09 整理）==========
 # 说明：上面历史遗留的重复条目（如 logs/spring-boot-app.log、api/logs 等）保留不动，

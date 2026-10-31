@@ -11,6 +11,8 @@
  * 学生端只读：翻页按钮对教师/管理员可见，学生点不动，且服务端也会拒绝非教师翻页。
  */
 (function () {
+  // 端点常量统一取自 shared/apiPaths.js（经 js/shared-domain-bridge.js 挂到 window.ApiPaths）
+  var EP = (window.ApiPaths && window.ApiPaths.ENDPOINTS) || {};
   var ClassroomMaterial = {
     ctx: null,
     state: null,       // { materialId, fileName, fileType, url, page }
@@ -155,8 +157,7 @@
       var max = 100 * 1024 * 1024;
       if (file.size > max) { this._toast('文件超过 100MB，请拆分或压缩后再传'); return; }
 
-      var url = (this.ctx.apiBaseUrl || '') + '/api/v1/classrooms/' +
-        encodeURIComponent(this.ctx.scheduleId) + '/materials/file';
+      var url = (this.ctx.apiBaseUrl || '') + EP.CLASSROOM_MATERIAL_FILE(this.ctx.scheduleId);
       var form = new FormData();
       form.append('file', file);
 

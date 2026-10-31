@@ -23,7 +23,8 @@ RUN mvn -B -q dependency:go-offline || true
 
 COPY src ./src
 # 跳过测试：单元测试在 CI 的 test 阶段跑，镜像构建只负责产出可运行产物
-RUN mvn -B -DskipTests package
+# -Pprod：顶掉 activeByDefault 的 swagger profile，把 springdoc / swagger-ui 摘出镜像产物
+RUN mvn -B -Pprod -DskipTests package
 
 # ---------- 阶段 2：运行 ----------
 FROM eclipse-temurin:17-jre-jammy

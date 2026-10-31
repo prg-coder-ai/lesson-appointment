@@ -11,6 +11,9 @@
  *   7) 建立 WS 三通道并集中分发消息
  */
 (function () {
+  // 端点常量统一取自 shared/apiPaths.js（经 js/shared-domain-bridge.js 挂到 window.ApiPaths）。
+  // classroom.html 必须先加载 shared-domain-bridge.js，否则 EP 为空 → URL 拼出 undefined。
+  var EP = (window.ApiPaths && window.ApiPaths.ENDPOINTS) || {};
   var ROLE_HOME = {
     admin: 'admin.html',
     teacher: 'teacher.html',
@@ -57,7 +60,6 @@
       if (typeof window.hasClassroom === 'function' && window.hasClassroom()) { cb(); return; }
       var token = localStorage.getItem('token');
       if (!token || typeof window.request !== 'function') { cb(); return; }
-      var EP = (window.ApiPaths && window.ApiPaths.ENDPOINTS) || {};
       if (!EP.ECLASSROOM_CONFIG) { cb(); return; }
       window.request({ url: EP.ECLASSROOM_CONFIG, method: 'get' })
         .then(function (data) {
@@ -478,8 +480,7 @@
     /** 真上传：XHR（要进度）+ multipart；上传成功后服务端落对象存储并返回签名 URL */
     _uploadSubmission: function (ctx, file, type, content, durationSec, progressEl, modal) {
       var self = this;
-      var url = (ctx.apiBaseUrl || '') + '/api/v1/classrooms/' +
-        encodeURIComponent(ctx.scheduleId) + '/submissions/file';
+      var url = (ctx.apiBaseUrl || '') + EP.CLASSROOM_SUBMISSION_FILE(ctx.scheduleId);
       var form = new FormData();
       form.append('file', file);
       form.append('submissionType', type);

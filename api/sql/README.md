@@ -84,6 +84,11 @@ SELECT COUNT(*) FROM information_schema.CHECK_CONSTRAINTS WHERE CONSTRAINT_SCHEM
 3. 旧文件不删（保留演进历史），但新文件必须反映**完整的当前状态**（mysqldump 全量导出，不是增量片段）
 4. 同步更新本 README 的「关键约束」表
 
-**不要**在别处留 DDL 片段。`api/beforeRun/sql/` 下的旧脚本已标注废弃（少 4 张表），
-`api/message-service/src/main/resources/sql/schema.sql` 与本目录 `message_center-schema.sql`
-内容重复，以本目录为准。
+**不要**在别处留 DDL 片段。历史上有过 `api/beforeRun/sql/` 副本，已在提交 `f0bf2fbd` 删除
+（内容与本目录重复且少 4 张表）；若旧文档仍引用它，按本目录 `schema/` 的同名快照执行即可。
+`api/message-service/src/main/resources/sql/schema.sql` 与本目录
+`schema/20261008-1527-message_center-schema.sql` 内容重复，**以本目录为准**。
+
+> 另注：`schema/` 下的脚本是 mysqldump 导出的**表结构**，不带 `CREATE DATABASE` / `USE`，
+> 导入前必须先建库并显式指定库名（`mysql <库名> < schema/xxx.sql`）。
+> 唯一例外是 `api/classroom-service/sql/classroom-schema.sql`（自带建库）。

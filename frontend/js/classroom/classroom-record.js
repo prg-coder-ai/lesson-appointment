@@ -12,6 +12,8 @@
  * 也扛不住一次失败重传，5MB/片 + 断点续传（服务端保留已传分片）才现实。
  */
 (function () {
+  // 端点常量统一取自 shared/apiPaths.js（经 js/shared-domain-bridge.js 挂到 window.ApiPaths）
+  var EP = (window.ApiPaths && window.ApiPaths.ENDPOINTS) || {};
   var ClassroomRecord = {
     ctx: null,
     recordingId: null,
@@ -120,7 +122,7 @@
       var base = this.ctx.apiBaseUrl || '';
       var fileName = 'recording-' + this.recordingId + '.webm';
 
-      return this._postJson(base + '/api/v1/uploads/init', {
+      return this._postJson(base + EP.UPLOAD_INIT, {
         purpose: 'RECORDING',
         scheduleId: this.ctx.scheduleId,
         fileName: fileName,
@@ -135,7 +137,7 @@
               var start = (n - 1) * partSize;
               var end = Math.min(start + partSize, blob.size);
               return self._putBinary(
-                base + '/api/v1/uploads/' + init.uploadId + '/parts/' + n,
+                base + EP.UPLOAD_PART(init.uploadId, n),
                 blob.slice(start, end)
               ).then(function () {
                 self.uploadProgress = Math.round(n * 100 / count);
@@ -145,7 +147,7 @@
           })(i);
         }
         return chain.then(function () {
-          return self._postJson(base + '/api/v1/uploads/' + init.uploadId + '/complete', {});
+          return self._postJson(base + EP.UPLOAD_COMPLETE(init.uploadId), {});
         });
       }).then(function (done) {
         return done.ossKey;
@@ -155,7 +157,7 @@
     // ---------------- HTTP ----------------
     _api: function (action, body) {
       var base = this.ctx.apiBaseUrl || '';
-      var root = base + '/api/v1/classrooms/' + encodeURIComponent(this.ctx.scheduleId) + '/recording';
+      var root = base + EP.CLASSROOM_RECORDING(this.ctx.scheduleId);
       if (action === 'start') {
         return this._postJson(root + '/start', {});
       }

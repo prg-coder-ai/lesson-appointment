@@ -395,7 +395,57 @@ const ENDPOINTS = {
   LESSON_BALANCE: '/api/v1/lesson/balance',
   LESSON_FLOWS: '/api/v1/lesson/flows',
   LESSON_STUDENT_BALANCE: (studentId) =>
-    `/api/v1/lesson/students/${encodeURIComponent(studentId || '')}/balance`
+    `/api/v1/lesson/students/${encodeURIComponent(studentId || '')}/balance`,
+
+  // —— 在线课堂服务（classroom-service :8092，2026-10-31 收口）——
+  // 背景：这批路径原先以字面量写死在 frontend/js/classroom/**（22 处），被
+  // `npm run check:endpoints` 的②「硬编码防回归」判红。课堂服务是独立进程，
+  // 但**端点字符串仍必须只有一份**——否则改路径时只能靠人记住去四个文件里同步。
+  //
+  // 调用约定（与其它端点不同，务必看清）：课堂上所有请求都是
+  //   `apiBaseUrl + EP.XXX`
+  // 而不是 `apiBase(8081) + EP.XXX`。apiBaseUrl 取自登录响应的
+  // `eclassroom.apiBaseUrl`（见 classroom-main.js 的 window.getClassroomApiBaseUrl），
+  // 前端站点按 /api/v1/{classrooms,uploads,...} 前缀把它分流到 8092。
+  //
+  // 因此在课堂页面里直接取裸路径（不带 host）才是对的；本文件只管路径本身。
+  CLASSROOM_SUBMISSION_FILE: (scheduleId) =>
+    `/api/v1/classrooms/${encodeURIComponent(scheduleId || '')}/submissions/file`,
+  CLASSROOM_MATERIAL_FILE: (scheduleId) =>
+    `/api/v1/classrooms/${encodeURIComponent(scheduleId || '')}/materials/file`,
+  // 录制接口的**根**：调用方在其后拼 `/start` 或 `/{recordingId}/stop`
+  // （见 classroom-record.js#_api，两种动作共用一个根，故这里只给根）。
+  CLASSROOM_RECORDING: (scheduleId) =>
+    `/api/v1/classrooms/${encodeURIComponent(scheduleId || '')}/recording`,
+  // 录制分片上传（三件套）：init → parts/{n} → complete
+  UPLOAD_INIT: '/api/v1/uploads/init',
+  UPLOAD_PART: (uploadId, partNumber) =>
+    `/api/v1/uploads/${encodeURIComponent(uploadId || '')}/parts/${encodeURIComponent(String(partNumber == null ? '' : partNumber))}`,
+  UPLOAD_COMPLETE: (uploadId) =>
+    `/api/v1/uploads/${encodeURIComponent(uploadId || '')}/complete`,
+  // 运营台（F8-01 监控 / F7-04 学情 / F7-05 对账 / F8-03 审核 / F8-05 联调），管理员专用
+  CLASSROOM_ADMIN_MONITOR_OVERVIEW: '/api/v1/admin/monitor/overview',
+  CLASSROOM_ADMIN_MONITOR_ALERTS: '/api/v1/admin/monitor/alerts',
+  CLASSROOM_ADMIN_MONITOR_METRICS: '/api/v1/admin/monitor/metrics',
+  CLASSROOM_ADMIN_REPORT_LEARNING: '/api/v1/admin/reports/learning',
+  // type: attendance | recordings，query（from/to）由调用方拼
+  CLASSROOM_ADMIN_EXPORT: (type) =>
+    `/api/v1/admin/exports/${encodeURIComponent(type || '')}`,
+  CLASSROOM_ADMIN_RECONCILE_RUN: '/api/v1/admin/reconcile/run',
+  CLASSROOM_ADMIN_RECONCILE_DIFFS: '/api/v1/admin/reconcile/diffs',
+  CLASSROOM_ADMIN_RECONCILE_RESOLVE: (diffId) =>
+    `/api/v1/admin/reconcile/diffs/${encodeURIComponent(diffId || '')}/resolve`,
+  CLASSROOM_ADMIN_AUDIT_SUBMISSIONS: '/api/v1/admin/audit/submissions',
+  CLASSROOM_ADMIN_AUDIT_SUBMISSION_FLAG: (submissionId) =>
+    `/api/v1/admin/audit/submissions/${encodeURIComponent(submissionId || '')}/flag`,
+  CLASSROOM_ADMIN_AUDIT_SUBMISSION_PASS: (submissionId) =>
+    `/api/v1/admin/audit/submissions/${encodeURIComponent(submissionId || '')}/pass`,
+  CLASSROOM_ADMIN_AUDIT_LOGS: '/api/v1/admin/audit/logs',
+  CLASSROOM_ADMIN_AUDIT_CHAT_VIEW: (scheduleId) =>
+    `/api/v1/admin/audit/chat/${encodeURIComponent(scheduleId || '')}/view`,
+  CLASSROOM_ADMIN_CONTRACT_EVENTS: '/api/v1/admin/contract/events',
+  CLASSROOM_ADMIN_CONTRACT_REPLAY: '/api/v1/admin/contract/replay',
+  CLASSROOM_ADMIN_CONTRACT_RESYNC: '/api/v1/admin/contract/resync'
 };
 
 // ── 后端程序探测目标（「数据维护 → 后台信息」Tab 与平台端「后端信息」页共用）──
