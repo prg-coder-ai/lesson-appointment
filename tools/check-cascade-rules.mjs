@@ -22,7 +22,7 @@
  *      - 同一场景内 (父表,父键列,子表,子键列) 不得重复。
  *   5. bookingId 生成口径统一：业务代码不得直接调 `UUID.randomUUID()` 生成
  *      bookingId（双生成器是悬空引用根因之一），必须走 BookingIdGenerator。
- *   6. 规则引用的表与列必须真实存在于 DDL 基线脚本中（拼错表名/列名会在运行时报
+ *   6. 规则引用的表必须真实存在于 DDL 基线目录 api/sql/schema/ 中（拼错表名会在运行时报
  *      SQL 错误，而级联是删除路径上的，报错时机太晚）。
  *
  * 用法：node tools/check-cascade-rules.mjs
@@ -35,7 +35,7 @@ import path from 'node:path';
 const ROOT = process.cwd();
 const JAVA_ROOT = path.join(ROOT, 'api/src/main/java/com/reservation');
 const RULES_FILE = path.join(JAVA_ROOT, 'common/CascadeRules.java');
-const DDL_FILE = path.join(ROOT, 'api/beforeRun/referential-integrity-20261008.sql');
+const DDL_DIR = path.join(ROOT, 'api/sql/schema');
 
 const problems = [];
 const notes = [];
@@ -240,25 +240,31 @@ for (const r of rules) {
   }
 }
 
-// ---------------------------------------------------------------- 检查 6：表列存在于 DDL 基线
-if (!fs.existsSync(DDL_FILE)) {
-  problems.push('找不到 DDL 基线脚本 ' + rel(DDL_FILE) + '（检查 6 需要它核对表列是否真实存在）');
+// ---------------------------------------------------------------- 检查 6：规则引用的表必须真实存在于 DDL 基线
+// 基线 = api/sql/schema/ 下的全部 *.sql（由 mysqldump 导出的权威建表快照，
+// 不是 api/beforeRun/ 下任何历史脚本——那些早已删除/废弃，且不含 CREATE TABLE）。
+if (!fs.existsSync(DDL_DIR) || !fs.statSync(DDL_DIR).isDirectory()) {
+  problems.push('找不到 DDL 基线目录 ' + rel(DDL_DIR) + '（检查 6 需要它核对表列是否真实存在）');
 } else {
-  const ddl = fs.readFileSync(DDL_FILE, 'utf8');
-  // 基线脚本里显式出现的表名（CREATE TABLE / ALTER TABLE / DELETE FROM / JOIN）
-  const tableSet = new Set();
-  const tRe = /\b(?:CREATE TABLE(?:\s+IF NOT EXISTS)?|ALTER TABLE|DELETE\s+\w+\s+FROM|FROM|INNER JOIN|LEFT JOIN)\s+`?(\w+)`?/gi;
-  let tm;
-  while ((tm = tRe.exec(ddl)) !== null) tableSet.add(tm[1].toLowerCase());
-  // 基线未包含全量建表语句时，退化为只检查"脚本里提到的表"是否存在（不足则仅提示）
-  if (tableSet.size < 5) {
-    notes.push('DDL 基线里识别到的表不足 5 张，检查 6 只能覆盖部分表（不影响其余检查）');
-  }
-  for (const r of rules) {
-    for (const t of [r.parentTable, r.childTable]) {
-      if (t.toLowerCase().startsWith('bak_')) continue; // 备份表不在基线里
-      if (tableSet.size >= 5 && !tableSet.has(t.toLowerCase())) {
-        notes.push(`规则引用了基线中未出现的表 ${t}（${r.parentTable}.${r.parentKey} -> ${r.childTable}.${r.childKey}），请确认拼写`);
+  const ddlFiles = fs.readdirSync(DDL_DIR).filter((f) => f.endsWith('.sql'));
+  if (ddlFiles.length === 0) {
+    problems.push('DDL 基线目录 ' + rel(DDL_DIR) + ' 没有任何 .sql 文件（检查 6 需要它核对表列是否真实存在）');
+  } else {
+    const ddl = ddlFiles.map((f) => fs.readFileSync(path.join(DDL_DIR, f), 'utf8')).join('\n');
+    // 基线脚本里显式出现的表名（CREATE TABLE / ALTER TABLE / DELETE FROM / JOIN）
+    const tableSet = new Set();
+    const tRe = /\b(?:CREATE TABLE(?:\s+IF NOT EXISTS)?|ALTER TABLE|DELETE\s+\w+\s+FROM|FROM|INNER JOIN|LEFT JOIN)\s+`?(\w+)`?/gi;
+    let tm;
+    while ((tm = tRe.exec(ddl)) !== null) tableSet.add(tm[1].toLowerCase());
+    if (tableSet.size < 5) {
+      notes.push('DDL 基线里识别到的表不足 5 张，检查 6 只能覆盖部分表（不影响其余检查）');
+    }
+    for (const r of rules) {
+      for (const t of [r.parentTable, r.childTable]) {
+        if (t.toLowerCase().startsWith('bak_')) continue; // 备份表不在基线里
+        if (tableSet.size >= 5 && !tableSet.has(t.toLowerCase())) {
+          notes.push(`规则引用了基线中未出现的表 ${t}（${r.parentTable}.${r.parentKey} -> ${r.childTable}.${r.childKey}），请确认拼写`);
+        }
       }
     }
   }

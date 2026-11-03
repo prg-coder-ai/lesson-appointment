@@ -191,7 +191,7 @@
         var d = data || {};
         var monthLabel = d.month ? d.month + ' 月' : '本月';
         statsEl.innerHTML =
-          statTile('<span data-term="course">课程</span>数量', d.courseCount, '我创建的<span data-term="course">课程</span>') +
+          statTile('<span data-term="course">课程</span>数量', d.courseCount, '我的<span data-term="course">课程</span>') +
           statTile('<span data-term="schedule">排期</span>数量', d.scheduleCount, '我名下的<span data-term="schedule">排期</span>') +
           statTile('预订<span data-term="schedule">排期</span>人数', d.bookedStudentCount, '已预订的<span data-term="student">学生</span>') +
           statTile('本月完成<span data-term="lesson">上课</span>', d.monthCompletedCount, monthLabel + '已完成');
