@@ -659,12 +659,13 @@ async function renderScheduleCards() {
           } ;
       
      
-    // 关联 testTimeZone 下拉菜单与 handleTestTimeZoneChange 处理
+     // 关联 testTimeZone 下拉菜单与 handleTestTimeZoneChange 处理
      handleTestTimeZoneChange();
      // 「用户时区」默认选本机时区（否则默认落在伦敦，换算结果看着像算错了）
      schedInitUserTimeZoneSelect();
-     // 开关默认勾选、右侧校验区默认展开，但 change 事件不会在初始化时触发，
-     // 不主动刷一次的话首次进入页面右侧是空的（看起来像没生效）
+     // 恢复上次保存的「跨时区时间校验」开关状态（localStorage；没存过则保持默认勾选），
+     // 再刷一次右侧校验区——勾选态变化后 change 事件不会在初始化时触发，须主动刷
+     schedApplyTzToggleState();
      refreshUserTzPreview();
      // 课程列表与学生列表并行加载；深链需等两者都完成后再处理
      await Promise.all([loadAndRenderCourses(), addStudentList()]);
@@ -841,7 +842,11 @@ function handleTestTimeZoneChange() {
         el.addEventListener('change', handler);
     };
 
-    attachOnce('toggleUserTimeZone', function () { getTestDatetime(); getTestEndDatetime(); }); // 勾选/取消开关本身也要立即刷新
+    attachOnce('toggleUserTimeZone', function (ev) {
+        const el = ev && ev.target;
+        if (el) schedTzToggleSave(el.checked);   // 本地记住开关状态：下次登录/进页面保持
+        getTestDatetime(); getTestEndDatetime(); // 勾选/取消开关本身也要立即刷新
+    });
     attachOnce('testTimeZone',       function () { getTestDatetime(); getTestEndDatetime(); });
     attachOnce('timeZone',           function () { getTestDatetime(); getTestEndDatetime(); }); // 原时区变化也要重算
     attachOnce('startDate',          function () { getTestDatetime(); });
@@ -1004,6 +1009,36 @@ function schedInitUserTimeZoneSelect() {
         sel.insertBefore(opt, sel.firstChild);
     }
     sel.value = my;
+}
+
+/* ========== 「跨时区时间校验」开关的本地记忆（2026-11-04） ==========
+ * 需求：开关状态存 localStorage，下次登录/进入「课程排期」时保持上次选择。
+ * 键：adminSchedule.tzCheck（'1'=勾选，'0'=取消；无记录=维持 HTML 默认勾选）。
+ * 读写都包 try：隐私模式/禁用存储时静默降级为默认行为，不影响排期功能。
+ * 时机：schedApplyTzToggleState() 在渲染初始化（schedInitUserTimeZoneSelect 之后）调用；
+ *       写入只发生在 handleTestTimeZoneChange() 绑定的 change 事件里。 */
+const SCHED_TZ_TOGGLE_KEY = 'adminSchedule.tzCheck';
+
+function schedTzToggleSave(on) {
+    try { localStorage.setItem(SCHED_TZ_TOGGLE_KEY, on ? '1' : '0'); } catch (e) { /* 存储不可用则忽略 */ }
+}
+
+function schedApplyTzToggleState() {
+    const toggle = document.getElementById('toggleUserTimeZone');
+    if (!toggle) return;
+    let saved = null;
+    try { saved = localStorage.getItem(SCHED_TZ_TOGGLE_KEY); } catch (e) { /* 忽略 */ }
+    if (saved === null) return;   // 没存过 → 保持 HTML 里的默认勾选，不做任何事
+    toggle.checked = (saved === '1');
+    // 与内联 onchange 同一套可见性逻辑：取消勾选时把右侧校验区一并收起
+    const show = toggle.checked ? '' : 'none';
+    const row  = document.getElementById('userTimeZoneRow');
+    const form = document.getElementById('testTimeZoneForm');
+    if (row)  row.style.display  = show;
+    if (form) form.style.display = show;
+    // 勾选态变化后右侧预览要跟上（未勾选时这两个函数内部走"已关闭"早退分支，安全）
+    getTestDatetime();
+    getTestEndDatetime();
 }
 
 /** 刷新两侧时区偏移文本 + 校验提示。任何一次时间/时区变化都会经过这里。 */
