@@ -95,26 +95,14 @@
 
   function getNewToken() {
     const refreshToken = localStorage.getItem('refreshToken');
-    // 修复：localStorage 存的是 JSON 字符串，必须先 JSON.parse 才能取字段
-    // 否则 cuser.account / cuser.role 都是 undefined，刷新接口拿不到账号 → 401 → 又触发刷新 → 死循环
-    let account = undefined;
-    let role = undefined;
-    try {
-      const cuserStr = localStorage.getItem('currentUser');
-      if (cuserStr) {
-        const cuser = JSON.parse(cuserStr);
-        account = cuser && cuser.account;
-        role = cuser && cuser.role;
-      }
-    } catch (e) {
-      console.warn('解析 currentUser 失败：', e);
-    }
+    // 【P2 修复 2026-11-04】不再向后端传 account/role：
+    //   后端 authController.refreshToken 注释明确"完全忽略前端传的 account/role"，
+    //   role 从 user 表实时查。account 可能是手机号/邮箱（敏感信息），多余传输。
+    //   原 getNewToken 解析 currentUser 取 account/role 的逻辑也随之删除。
     // 端点常量：权威源 shared/apiPaths.js 的 ENDPOINTS.AUTH_REFRESH（裸路径，
     // 由 refreshTokenAxios 的请求拦截器统一过 normalizeUrl 补 /api/v1 前缀）。
     return refreshTokenAxios.post(ENDPOINTS.AUTH_REFRESH || '/auth/refreshToken', {
-      refreshToken: refreshToken,
-      account: account,
-      role: role
+      refreshToken: refreshToken
     });
   }
 
@@ -472,8 +460,24 @@ function isLoginPage() {
           requestQueue = [];
           isRefreshing = false;
 
-          const isNetworkError = !refreshErr ||
-            (typeof refreshErr === 'object' && !refreshErr.response && !refreshErr.message?.includes('刷新'));
+          // P1 修复 2026-11-04：基于 axios 错误特征判断网络故障，不再靠 message 文本匹配。
+          //
+          // 原判据 !refreshErr.response && !refreshErr.message.includes('刷新') 有两个漏洞：
+          //   ① getNewToken 手动 throw new Error(message)（body.code != 200）产生的 Error
+          //     没有 .response 属性 → !response = true；若后端 message 不含"刷新"二字
+          //     （如"账号已被冻结""账号已被删除"）→ 被误判为网络故障 → 不清登录态、不跳
+          //     登录页，用户卡在"网络异常"提示永远进不了登录页。
+          //   ② 真正的网络故障（超时/断网）是 axios reject，refreshErr 有 .code（ECONNABORTED /
+          //     ERR_NETWORK），原判据没用到 .code，等于用排除法猜，不精确。
+          //
+          // 新判据：只有 axios reject 且无 response（超时/断网）才是网络故障。
+          //   - 手动 throw 的 Error：无 .response、无 .code → 凭证失效 ✅
+          //   - HTTP 4xx/5xx：有 .response → 凭证失效 ✅
+          //   - 超时：无 .response、.code=ECONNABORTED → 网络故障 ✅
+          //   - 断网：无 .response、.code=ERR_NETWORK → 网络故障 ✅
+          const isNetworkError = refreshErr && typeof refreshErr === 'object'
+            && !refreshErr.response
+            && (refreshErr.code === 'ECONNABORTED' || refreshErr.code === 'ERR_NETWORK');
 
           if (isNetworkError) {
             // 网络故障：不清登录态，不跳登录，让用户稍后重试

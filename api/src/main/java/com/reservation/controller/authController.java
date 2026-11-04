@@ -331,17 +331,16 @@ public class authController {
         String newAccess = jwtUtil.generateToken(tenantId, userId, role);
         String newRefresh = jwtUtil.generateRefreshToken(tenantId, userId);
 
-        // ── 轮换：删旧、存新（旧 refresh token 立即失效） ──────────────────────
-        refreshTokenService.removeOldToken(oldRefreshToken);
-        refreshTokenService.saveNewToken(userId, newRefresh, jwtUtil.getRefreshExpireTime());
+        // ── 轮换：只删旧 token + 存新 token（不触发 deleteByUserId，保留其他设备） ──
+        // 【P1 修复 2026-11-04】原调 removeOldToken + saveNewToken，而 saveNewToken 内部
+        // deleteByUserId 会删该用户全部 refresh token → 跨设备并发刷新时 PC 会把手机的
+        // refresh token 删掉，手机下次刷新被踢。现改用 rotateToken：只删本次旧 token。
+        refreshTokenService.rotateToken(oldRefreshToken, userId, newRefresh, jwtUtil.getRefreshExpireTime());
 
-        // ── 写入 Spring Security 上下文（给本次请求链路其他组件用） ──────────────
-        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                userId,
-                null,
-                Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role))
-        );
-        SecurityContextHolder.getContext().setAuthentication(authentication);
+        // 【P2 修复 2026-11-04】删除原 SecurityContext 写入：
+        //   /auth/refreshToken 在白名单（permitAll + JwtAuthenticationFilter.shouldNotFilter=true），
+        //   过滤器不跑；SecurityContext 是 thread-local，请求结束即清空。后续业务请求是新线程，
+        //   过滤器从 Bearer 重新解析。这段代码对系统行为零影响，只会误导维护者以为"走了鉴权链路"。
 
         TokenDTO dto = new TokenDTO();
         dto.setToken(newAccess);
@@ -368,17 +367,38 @@ public class authController {
     response.addCookie(cookie);*/
         refreshTokenService.logout(refreshDTO.getRefreshToken());
         // 结束登录会话（在线统计，会话ID由访问Token派生，非刷新Token）
-        userSessionService.onLogout(token);
+        // 【P2 修复 2026-11-04】token 为 null 时（被踢后 token 已被前端清空，
+        // 用户再点登出），onLogout 的 sessionIdOf 返回空 → 静默 return → 会话记录
+        // 仍为 online（幽灵会话）。此时从 refreshToken 解 userId 兜底清理。
+        if (token != null && !token.isBlank()) {
+            userSessionService.onLogout(token);
+        } else if (refreshDTO.getRefreshToken() != null && !refreshDTO.getRefreshToken().isBlank()) {
+            try {
+                String userId = jwtUtil.getUserIdFromToken(refreshDTO.getRefreshToken());
+                if (userId != null && !userId.isBlank()) {
+                    userSessionService.kickUser(userId);
+                }
+            } catch (Exception e) {
+                log.warn("[logout] 从 refreshToken 解 userId 失败，会话记录可能残留", e);
+            }
+        }
         return Result.success(true,"ok" );
     }
 
     /**
      * 后台管理：强制踢出指定用户（删除该用户全部刷新凭证）
      * 调用后该用户所有页面401自动跳转登录
+     *
+     * 【P3 修复 2026-11-04】新增显式 permissionCheck.checkAdmin：
+     *   原实现依赖 AuthzRules 路径规则（PLATFORM_OR_TENANT_ADMIN），控制器内无第二道防线。
+     *   同文件的 resetPassword 显式调 checkAdmin，kickUser 没有，防御深度不一致。
+     *   若 AuthzRules 配置被误改（如 ALL_ROLES），kickUser 没有兜底。
      */
     @DeleteMapping("/kick/{userId}")
     @Audit(action = AuditAction.ADMIN_FORCE_LOGOUT, resourceType = "user", resourceId = "userId")
-    public Result <Object> kickUser(@PathVariable String userId) {
+    public Result <Object> kickUser(@PathVariable String userId,
+                                    @RequestHeader("Authorization") String token) {
+        permissionCheck.checkAdmin(token);
         int count = refreshTokenService.kickUser(userId);
         // 3. 刷新页面提示
         log.debug("controller kick: "+count) ;

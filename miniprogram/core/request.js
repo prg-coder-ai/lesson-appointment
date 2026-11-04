@@ -9,7 +9,7 @@
 
 import { normalizeUrl, unwrapResult, ENDPOINTS } from '../shared/apiPaths.js';
 import { errorMessage, resolveResult } from '../shared/domain/errorCode.js';
-import { storage, getToken, clearSession, getSession } from './storage.js';
+import { storage, getToken, clearSession } from './storage.js';
 import { transport } from '../shared/adapters/net.js';
 
 function appGlobal() {
@@ -49,14 +49,14 @@ let isRedirecting = false;
 
 async function doRefresh() {
   const refreshToken = storage.get('refreshToken');
-  const cuser = getSession();
+  // 【P2 修复 2026-11-04】不再传 account/role：后端完全忽略，role 从 user 表实时查。
   const res = await wxRequest({
     // doRefresh 绕过 request() 直接走 wxRequest，不经过 normalizeUrl；
     // 而 ENDPOINTS.AUTH_REFRESH 是**裸路径**（/auth/refreshToken），故必须显式 normalizeUrl
     // 才能带上 /api/v1 前缀，否则请求落到 SPA/404 兜底、刷新恒失败。
     url: apiBase() + normalizeUrl(ENDPOINTS.AUTH_REFRESH),
     method: 'POST',
-    data: { refreshToken: refreshToken, account: cuser && cuser.account, role: cuser && cuser.role },
+    data: { refreshToken: refreshToken },
     _noAuth: true
   });
   if (res.statusCode === 200 && res.data && res.data.code === 200) {
