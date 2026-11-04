@@ -13,7 +13,8 @@
 --   · auth_challenge：挑战票据，2 分钟过期，一次性消费（used=1），过期行可扫删。
 --   · auth_device：设备档案，长期保留（"该设备出现过几个身份"是跨时间累积信号，不能删）。
 
-CREATE TABLE `auth_rate_counter` (
+-- 等保 P0-4 同款口径：不写 DROP，CREATE TABLE IF NOT EXISTS 保证可安全重跑
+CREATE TABLE IF NOT EXISTS `auth_rate_counter` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
   `dim` varchar(16) NOT NULL COMMENT '维度：ip / account / device / openid / global',
   `dim_key` varchar(128) NOT NULL COMMENT '维度值（IP 明文、账号与设备走 HMAC，不存明文）',
@@ -26,7 +27,7 @@ CREATE TABLE `auth_rate_counter` (
   KEY `idx_window` (`window_start`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='登录风控·频率窗口计数';
 
-CREATE TABLE `auth_challenge` (
+CREATE TABLE IF NOT EXISTS `auth_challenge` (
   `id` varchar(40) NOT NULL COMMENT 'challengeId（UUID 去横线，服务端下发）',
   `subject` varchar(128) NOT NULL COMMENT '绑定主体：Web 用 account 的 HMAC，小程序用 openid',
   `scene` varchar(32) NOT NULL COMMENT '场景：login / register / bind',
@@ -41,7 +42,7 @@ CREATE TABLE `auth_challenge` (
   KEY `idx_expire` (`expire_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='登录风控·人机挑战票据';
 
-CREATE TABLE `auth_device` (
+CREATE TABLE IF NOT EXISTS `auth_device` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
   `device_id` varchar(64) NOT NULL COMMENT '设备标识（端上派生上报，可被重置，只作降权信号）',
   `first_subject` varchar(128) NOT NULL DEFAULT '' COMMENT '该设备首次出现的身份（HMAC/openid）',

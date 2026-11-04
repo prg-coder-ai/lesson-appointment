@@ -6,7 +6,8 @@
 --   · sys_legal_accept 同理。
 -- 读取解析（复用 sys_term 三级优先级）：租户级(tenant_id=N) → 平台级(tenant_id=0)，同级取最大启用版本。
 
-CREATE TABLE `sys_legal_doc` (
+-- 等保 P0-4 同款口径：不写 DROP，CREATE TABLE IF NOT EXISTS 保证可安全重跑
+CREATE TABLE IF NOT EXISTS `sys_legal_doc` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
   `doc_type` varchar(32) NOT NULL COMMENT '文档类型：user_agreement / privacy_policy',
   `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '作用域：0=平台级；>0=租户覆盖级',
@@ -23,7 +24,7 @@ CREATE TABLE `sys_legal_doc` (
   UNIQUE KEY `uk_doc` (`doc_type`,`tenant_id`,`industry_id`,`language`,`version`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='法律文档（协议/隐私政策）';
 
-CREATE TABLE `sys_legal_accept` (
+CREATE TABLE IF NOT EXISTS `sys_legal_accept` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
   `subject_type` tinyint NOT NULL COMMENT '签署主体类型：1=租户(场景A) 2=用户(场景B)',
   `subject_id` bigint NOT NULL COMMENT '签署主体id：租户id 或 用户id',

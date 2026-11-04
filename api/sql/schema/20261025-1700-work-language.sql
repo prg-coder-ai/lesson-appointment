@@ -23,30 +23,22 @@
 -- 高度重复（比如都用法语授课），(tenant_id, work_language, difficulty_level)
 -- 会让「同难度的第二个模板」直接撞唯一键。要区分授课语言的差异，
 -- 请在下沉到 course / course_schedule 时覆盖，而不是复制模板。
+--
+-- ★ 段落顺序为什么是「建表+种子在前、ALTER 在后」（2026-11-04 调整）：
+--   DDL 基线 20261013-0400-lesson_appointment-schema.sql 刷新后**已含**
+--   三表的 work_language 列。本文件若把 ALTER 放最前，新库初始化时
+--   第一条 ALTER 就报 Duplicate column 且 mysql 默认遇错中止，
+--   后面的建表/种子永远执行不到 → 新库缺 sys_work_language，
+--   复现「授课语言清单 500 / 模板保存 500」。建表+种子前置后：
+--     · 老库（<2026-10-25）：建表 → 种子 → ALTER 加列，全部生效；
+--     · 新库（基线已含列）：建表 → 种子生效，末尾三条 ALTER 报
+--       Duplicate column 属**预期**，可安全忽略（此时所有必要对象已就位）。
 -- =============================================================
 
 USE `lesson_appointment`;
 
 -- ------------------------------------------------------------
--- 1. 三张业务表加授课语言列
--- ------------------------------------------------------------
-ALTER TABLE `course_template`
-  ADD COLUMN `work_language` varchar(20) NOT NULL DEFAULT ''
-  COMMENT '授课语言（用哪种语言上课；代码取自 sys_work_language.lang_code；空=未指定）'
-  AFTER `language_type`;
-
-ALTER TABLE `course`
-  ADD COLUMN `work_language` varchar(20) NOT NULL DEFAULT ''
-  COMMENT '授课语言（创建课程时从模板继承；空=未指定）'
-  AFTER `language_type`;
-
-ALTER TABLE `course_schedule`
-  ADD COLUMN `work_language` varchar(20) NOT NULL DEFAULT ''
-  COMMENT '授课语言（默认取自课程，可在本条排期覆盖；空=跟随课程）'
-  AFTER `language_type`;
-
--- ------------------------------------------------------------
--- 2. 授课语言枚举表
+-- 1. 授课语言枚举表（先于 ALTER：新库老库都必须建）
 --    作用域语义与 sys_term 一致：tenant_id=0 平台内置，>0 租户自定义。
 --    该表已登记进 MyBatisPlusConfig.IGNORE_TABLES —— 租户端必须能读到
 --    tenant_id=0 的内置项，走租户插件会被拼上 tenant_id=? 而查空。
@@ -68,7 +60,7 @@ CREATE TABLE IF NOT EXISTS `sys_work_language` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='授课语言枚举（work_language）：平台内置项 tenant_id=0，租户可追加自定义项';
 
 -- ------------------------------------------------------------
--- 3. 平台内置六项（幂等：重复执行不会产生重复行）
+-- 2. 平台内置六项（幂等：重复执行不会产生重复行）
 -- ------------------------------------------------------------
 INSERT INTO `sys_work_language` (`tenant_id`, `lang_code`, `name_zh`, `name_en`, `name_fr`, `sort_order`) VALUES
   (0, 'english',  '英语',     'English',  'Anglais',  10),
@@ -81,6 +73,24 @@ ON DUPLICATE KEY UPDATE
   `name_zh` = VALUES(`name_zh`),
   `name_en` = VALUES(`name_en`),
   `name_fr` = VALUES(`name_fr`);
+
+-- ------------------------------------------------------------
+-- 3. 三张业务表加授课语言列（老库执行；新库基线已含，报 Duplicate column 属预期）
+-- ------------------------------------------------------------
+ALTER TABLE `course_template`
+  ADD COLUMN `work_language` varchar(20) NOT NULL DEFAULT ''
+  COMMENT '授课语言（用哪种语言上课；代码取自 sys_work_language.lang_code；空=未指定）'
+  AFTER `language_type`;
+
+ALTER TABLE `course`
+  ADD COLUMN `work_language` varchar(20) NOT NULL DEFAULT ''
+  COMMENT '授课语言（创建课程时从模板继承；空=未指定）'
+  AFTER `language_type`;
+
+ALTER TABLE `course_schedule`
+  ADD COLUMN `work_language` varchar(20) NOT NULL DEFAULT ''
+  COMMENT '授课语言（默认取自课程，可在本条排期覆盖；空=跟随课程）'
+  AFTER `language_type`;
 
 -- ------------------------------------------------------------
 -- 4. 核对：三表新列就位、枚举项齐全、存量列值为空串（不迁移）

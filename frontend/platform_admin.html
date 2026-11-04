@@ -622,6 +622,30 @@
     <div style="margin-top:12px;">
       <button class="btn btn-primary" id="tpkg-create-btn">从模板为租户创建套餐</button>
     </div>
+    <!-- 选择卡片：点上面按钮后在此展开。用「租户名称」「套餐名称」选择，再点「指定套餐」建立关联。
+         原实现是两次 prompt（租户ID/模板ID），id 记不住、填错就把套餐建到别的租户头上。 -->
+    <div id="tpkg-picker" style="display:none;margin-top:12px;border:1px solid #e0e4ea;border-radius:10px;background:#fbfcfe;padding:14px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+        <span style="font-weight:600;">从模板为租户创建套餐</span>
+        <span style="color:#8a94a6;font-size:12px;">① 选租户 → ② 选套餐模板 → ③ 点「指定套餐」</span>
+      </div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;">
+        <div style="flex:1 1 300px;min-width:260px;">
+          <div style="font-size:13px;color:#5b6472;margin-bottom:6px;">① 租户</div>
+          <div id="tpkg-pick-tenants" style="max-height:260px;overflow:auto;background:#fff;border:1px solid #eceff5;border-radius:8px;padding:8px;"></div>
+        </div>
+        <div style="flex:1 1 300px;min-width:260px;">
+          <div style="font-size:13px;color:#5b6472;margin-bottom:6px;">② 套餐模板（仅启用）</div>
+          <div id="tpkg-pick-templates" style="max-height:260px;overflow:auto;background:#fff;border:1px solid #eceff5;border-radius:8px;padding:8px;"></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap;">
+        <span id="tpkg-pick-summary" style="color:#8a94a6;font-size:13px;">尚未选择</span>
+        <span style="flex:1;"></span>
+        <button class="btn btn-cancel" id="tpkg-pick-cancel">取消</button>
+        <button class="btn btn-primary" id="tpkg-pick-confirm" disabled>指定套餐</button>
+      </div>
+    </div>
   </template>
 
 </body>
