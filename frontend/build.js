@@ -263,4 +263,25 @@ function runSharedSyncCheck() {
   injectBuildInfoGlobal(info);
   injectSharedBridge();
   console.log('=== frontend build done ->', DIST, '===');
+
+  // 【2026-11-05】构建完成后把 dist 镜像到 deploy/dist/，让「上传/分发」有唯一取件点。
+  // 走 deploy/collect-artifacts.js 的同一份实现（后端打包脚本与 cloudBased/build-all.sh 也调它）。
+  // SKIP_DEPLOY_COPY=1 可跳过：只做本地源码联调、或 CI 自己安排收口时用。
+  if (process.env.SKIP_DEPLOY_COPY === '1') {
+    console.log('[collect] skipped (SKIP_DEPLOY_COPY=1)');
+  } else {
+    console.log('[collect] frontend/dist -> deploy/dist');
+    try {
+      const { collect } = require('../deploy/collect-artifacts.js');
+      const r = collect({ only: ['dist'] });
+      // 收口失败不覆盖已生成的 dist，但让命令以非 0 结束，CI / 手工都能看见
+      if (!r.ok || !r.dist) {
+        console.error('=== frontend build: 产物收口未完成（frontend/dist 仍可用，请检查 deploy/ 权限）===');
+        process.exitCode = 1;
+      }
+    } catch (e) {
+      console.error('=== frontend build: 产物收口异常（frontend/dist 仍可用）===', e && e.message ? e.message : e);
+      process.exitCode = 1;
+    }
+  }
 })();

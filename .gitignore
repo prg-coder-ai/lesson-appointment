@@ -120,3 +120,9 @@ api/classroom-service/target
 cloudBased/*.zip
 cloudBased/api/target/*.jar
 cloudBased/message-service/target/message-service-1.1.0.jar
+
+# 构建产物统一收口目录（deploy/collect-artifacts.js 生成）：
+#   deploy/dist/  = frontend/dist 的镜像，deploy/jars/ = 三个后端 jar 的最新版本
+# 与 frontend/dist、各 target/ 一样属于构建输出，绝不入库；上传用 deploy/upload-to-server.sh。
+deploy/dist/
+deploy/jars/
