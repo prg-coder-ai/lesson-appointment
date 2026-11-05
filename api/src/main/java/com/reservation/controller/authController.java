@@ -17,6 +17,7 @@ import com.reservation.service.LoginGuardService;
 import com.reservation.service.LoginChallengeService;
 import com.reservation.service.UserService;
 import com.reservation.service.RefreshTokenService;
+import com.reservation.service.RefreshTokenRotationCache;
 import com.reservation.service.UserSessionService;
 import com.reservation.service.WeChatService;
 
@@ -84,6 +85,9 @@ public class authController {
     private UserMapper userMapper;   // ← 新增：refreshToken 查 role 时用（忽略租户插件）
      @Autowired
      private RefreshTokenService refreshTokenService;
+     // 【2026-11-05 复核修复 #2】refreshToken 轮换幂等缓存（同源多标签页并发刷新不互踢）
+     @Autowired
+     private RefreshTokenRotationCache rotationCache;
      @Autowired
      private UserSessionService userSessionService;
     @Autowired
@@ -278,13 +282,13 @@ public class authController {
             return Result.fail(401, "刷新凭证为空");
         }
 
-        // ── ③ 校验 JWT type claim = "refresh" ──────────────────────────────────
+        // -- 校验 JWT type claim = "refresh" --
         if (!jwtUtil.isTokenOfType(oldRefreshToken, "refresh")) {
             log.warn("[refreshToken] 传入的 token type 不是 refresh（可能是 access token 或伪造）");
             return Result.fail(401, "刷新凭证无效");
         }
 
-        // ── ① 从 refresh token 自己解 userId + tenantId ────────────────────────
+        // -- 从 refresh token 自己解 userId + tenantId --
         String userId;
         Long tenantId;
         try {
@@ -295,23 +299,11 @@ public class authController {
             return Result.fail(401, "刷新凭证无效，请重新登录");
         }
 
-        // ── 校验 DB 里凭证确实存在、未过期 ──────────────────────────────────────
-        RefreshTokenPO tokenPo = refreshTokenService.checkValidToken(oldRefreshToken);
-        if (tokenPo == null) {
-            log.info("[refreshToken] DB 中找不到有效 refresh token, userId={}", userId);
-            return Result.fail(401, "刷新凭证已失效，请重新登录");
-        }
-
-        // 二次一致性校验：JWT 里解出来的 userId 必须和 DB 存的对得上
-        if (!userId.equals(tokenPo.getUserId())) {
-            log.warn("[refreshToken] JWT userId 与 DB 不一致，可能被篡改");
-            return Result.fail(401, "刷新凭证无效");
-        }
-
-        // ── ② 从 user 表实时查 role，完全忽略前端传的 role/account ──────────────
+        // -- 从 user 表实时查 role（完全忽略前端传的 role/account）--
+        // 【2026-11-05 #2】提前到缓存查询之前：并发复用缓存时同样必须校验账号未删除/未冻结。
+        // 必须用 mapper 的 NoTenant 版本——selectById 会被租户插件拼 tenant_id 条件。
         String role;
         try {
-            // 必须用 mapper 的 NoTenant 版本——selectById 会被租户插件拼 tenant_id 条件
             User u = userMapper.getByUserIdNoTenant(userId);
             if (u == null) {
                 log.warn("[refreshToken] userId={} 在 user 表已不存在", userId);
@@ -327,27 +319,51 @@ public class authController {
             return Result.fail(500, "服务异常，请稍后重试");
         }
 
-        // ── 生成新双 Token ───────────────────────────────────────────────────────
+        // -- 并发轮换兜底（#2）：同一旧凭证刚被别的标签页轮换过 → 复用同一对 token --
+        // 必须在 DB checkValidToken 之前：旧凭证此时可能已被 rotateToken 删掉，
+        // 直接查 DB 会返回 401，前端就会清登录态把用户踢下线。
+        TokenDTO cached = rotationCache.get(oldRefreshToken, userId);
+        if (cached != null) {
+            log.info("[refreshToken] 命中并发轮换缓存, userId={}", userId);
+            return Result.success(cached, "刷新成功");
+        }
+
+        // -- 校验 DB 里凭证确实存在、未过期 --
+        RefreshTokenPO tokenPo = refreshTokenService.checkValidToken(oldRefreshToken);
+        if (tokenPo == null) {
+            // 两个并发请求几乎同时到达时，缓存可能还没写入，再兜一次
+            cached = rotationCache.get(oldRefreshToken, userId);
+            if (cached != null) {
+                log.info("[refreshToken] DB 校验后命中并发轮换缓存, userId={}", userId);
+                return Result.success(cached, "刷新成功");
+            }
+            log.info("[refreshToken] DB 中找不到有效 refresh token, userId={}", userId);
+            return Result.fail(401, "刷新凭证已失效，请重新登录");
+        }
+
+        // 二次一致性校验：JWT 里解出来的 userId 必须和 DB 存的对得上
+        if (!userId.equals(tokenPo.getUserId())) {
+            log.warn("[refreshToken] JWT userId 与 DB 不一致，可能被篡改");
+            return Result.fail(401, "刷新凭证无效");
+        }
+
+        // -- 生成新双 Token --
         String newAccess = jwtUtil.generateToken(tenantId, userId, role);
         String newRefresh = jwtUtil.generateRefreshToken(tenantId, userId);
 
-        // ── 轮换：只删旧 token + 存新 token（不触发 deleteByUserId，保留其他设备） ──
-        // 【P1 修复 2026-11-04】原调 removeOldToken + saveNewToken，而 saveNewToken 内部
-        // deleteByUserId 会删该用户全部 refresh token → 跨设备并发刷新时 PC 会把手机的
-        // refresh token 删掉，手机下次刷新被踢。现改用 rotateToken：只删本次旧 token。
+        // -- 轮换：只删旧 token + 存新 token（不触发 deleteByUserId，保留其他设备）--
+        // 【P1 修复 2026-11-04】原来调 saveNewToken 会删该用户全部 refresh token → 跨设备互踢。
+        // 【P2 修复 2026-11-04】不再写 SecurityContext：本接口在白名单，过滤器不跑，写了也无效。
         refreshTokenService.rotateToken(oldRefreshToken, userId, newRefresh, jwtUtil.getRefreshExpireTime());
-
-        // 【P2 修复 2026-11-04】删除原 SecurityContext 写入：
-        //   /auth/refreshToken 在白名单（permitAll + JwtAuthenticationFilter.shouldNotFilter=true），
-        //   过滤器不跑；SecurityContext 是 thread-local，请求结束即清空。后续业务请求是新线程，
-        //   过滤器从 Bearer 重新解析。这段代码对系统行为零影响，只会误导维护者以为"走了鉴权链路"。
 
         TokenDTO dto = new TokenDTO();
         dto.setToken(newAccess);
         dto.setRefreshToken(newRefresh);
+        // 【2026-11-05 #2】缓存「旧凭证 → 本次双 token」，供同源其它标签页并发请求复用
+        rotationCache.put(oldRefreshToken, userId, dto);
         log.info("[refreshToken] 刷新成功, userId={}, tenantId={}, role={}", userId, tenantId, role);
         return Result.success(dto, "刷新成功");
-    } 
+    }
 
   /**
      * 用户主动登出，销毁当前刷新凭证
