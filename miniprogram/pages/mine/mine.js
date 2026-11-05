@@ -1,4 +1,4 @@
-import { requireAuth, logout, switchTenant, unbindWechat, getWechatStatus, bindWechat } from '../../core/auth.js';
+import { requireAuth, logout, switchTenant, unbindWechat, getWechatStatus, bindWechat, setWechatPassword } from '../../core/auth.js';
 import { roleLabel, ROLES } from '../../shared/constants.js';
 import { getCurrentTenant } from '../../core/tenant.js';
 import { INDUSTRY_NAMES } from '../../shared/terms.js';
@@ -25,7 +25,9 @@ Page(withTerms({
     user: {}, roleText: '', industryText: '', lang: 'zh', active: 'mine', unreadCount: 0, tenantName: '',
     showPwd: false, oldPwd: '', newPwd: '', confirmPwd: '', saving: false,
     // 微信绑定状态：默认按"未绑定"呈现，避免未查询前就误显「解绑」
-    wechatBound: false, wechatAuto: false, wechatStatusText: '绑定'
+    wechatBound: false, wechatAuto: false, wechatStatusText: '绑定',
+    // 2026-11-05：auto_register 账号「设置登录密码」面板（设置成功后才能解绑）
+    wxPwdOpen: false, wxNewPwd: '', wxConfirmPwd: '', settingWxPwd: false
   },
   onShow() {
     const u = requireAuth();
@@ -39,28 +41,33 @@ Page(withTerms({
     this.loadWechatStatus();
   },
   // 查询微信绑定状态并按状态推导展示文案（对齐 web 端 getWechatBindStatus）：
-  // 未绑定 →「绑定」（点击发起绑定）；已绑定 manual →「解绑」；auto_register →「已绑定」（禁止解绑）。
+  // 未绑定 →「绑定」；已绑定 manual →「解绑」；auto_register →「设置密码」（先解锁才能解绑）。
   loadWechatStatus() {
     getWechatStatus().then(({ bound, bindSource }) => {
       const auto = bindSource === 'auto_register';
       this.setData({
         wechatBound: bound,
         wechatAuto: auto,
-        wechatStatusText: bound ? (auto ? '已绑定' : '解绑') : '绑定'
+        wechatStatusText: bound ? (auto ? '设置密码' : '解绑') : '绑定'
       });
     }).catch(() => {
       this.setData({ wechatBound: false, wechatAuto: false, wechatStatusText: '绑定' });
     });
   },
-  // 微信绑定行点击：按状态分流 —— 未绑定则发起绑定，已绑定（manual）则解绑，
-  // auto_register 账号禁止解绑（该类账号 account=openid、password 随机，解绑即永久失联）。
+  // 微信绑定行点击：未绑定 → 发起绑定；manual → 解绑；
+  // auto_register → 引导设置登录密码（后端设置成功后把 bind_source 降级 manual，即可解绑）。
   async onWechatTap() {
     if (!this.data.wechatBound) {
       const ok = await this.doBindWechat();
       return ok;
     }
     if (this.data.wechatAuto) {
-      wx.showToast({ title: '该账号由微信直接注册，无法解绑', icon: 'none' });
+      wx.showModal({
+        title: '解绑微信',
+        content: '该账号由微信直接注册，需先设置登录密码才能解绑。是否现在设置？',
+        confirmText: '设置密码',
+        success: (r) => { if (r.confirm) this.setData({ wxPwdOpen: true }); }
+      });
       return;
     }
     this.onUnbindWechat();
@@ -75,6 +82,24 @@ Page(withTerms({
       wx.showToast({ title: '绑定失败，请稍后重试', icon: 'none' });
     }
     return ok;
+  },
+  // 首次设置登录密码（auto_register 账号）：成功后后端降级为 manual，状态行变「解绑」。
+  onWxNew(e) { this.setData({ wxNewPwd: e.detail.value }); },
+  onWxConfirm(e) { this.setData({ wxConfirmPwd: e.detail.value }); },
+  async submitWxPwd() {
+    const p = this.data.wxNewPwd || '';
+    if (p.length < 6) { wx.showToast({ title: '密码至少 6 位', icon: 'none' }); return; }
+    if (p !== this.data.wxConfirmPwd) { wx.showToast({ title: '两次输入不一致', icon: 'none' }); return; }
+    this.setData({ settingWxPwd: true });
+    try {
+      const r = await setWechatPassword(p);
+      if (!r.ok) { wx.showToast({ title: r.message || '设置失败', icon: 'none' }); return; }
+      wx.showToast({ title: '密码已设置', icon: 'success' });
+      this.setData({ wxPwdOpen: false, wxNewPwd: '', wxConfirmPwd: '' });
+      this.loadWechatStatus();
+    } finally {
+      this.setData({ settingWxPwd: false });
+    }
   },
   // 取当前租户的公司名称（orgName）替换顶部的租户编码展示；缺省回退 tenantCode
   loadTenantName(u) {
@@ -116,7 +141,7 @@ Page(withTerms({
   },
   goMessage() { wx.navigateTo({ url: '/package-message/inbox/inbox' }); },
   goPromo() { wx.navigateTo({ url: '/pages/promo/promo' }); },
-  // 解绑微信：auto_register（微信直接注册）的账号会被后端拒绝（400），
+  // 解绑微信：auto_register（未设置密码）账号会被后端拒绝（400），
   // 因为这类账号 account=openid、password 随机，解绑后就再也登不进来了。
   async onUnbindWechat() {
     const ok = await confirm('解绑后将无法用微信免输入登录，确定？', { title: '解绑微信' });

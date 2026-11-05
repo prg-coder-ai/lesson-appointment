@@ -6,6 +6,7 @@ import com.reservation.dto.RefreshTokenPO;
 import com.reservation.dto.TokenDTO;
 import com.reservation.dto.WeChatCodeDTO;
 import com.reservation.dto.WeChatRegisterDTO;
+import com.reservation.dto.WeChatSetPasswordDTO;
 import com.reservation.dto.WeChatSession;
 
 import com.reservation.common.Result;
@@ -553,6 +554,29 @@ public class authController {
             return Result.unauthorized("登录已过期，请重新登录");
         }
         return userService.unbindWechat(userId);
+    }
+
+    /**
+     * 微信直接注册（auto_register）账号首次设置登录密码（需登录）。
+     *
+     * <p>该账号 account=openid、原密码随机，走不了要原密码的修改密码接口。设置成功后
+     * 服务端把 wx_userid.bind_source 降级为 manual，之后 /auth/unbind-wechat 才放行。
+     * userId 一律从当前会话令牌解析，不接受客户端传入。
+     */
+    @PostMapping("/wechat/set-password")
+    @ResponseBody
+    public Result<Boolean> wechatSetPassword(@Validated @RequestBody WeChatSetPasswordDTO dto,
+                                             @RequestHeader(value = "Authorization", required = false) String token) {
+        if (token == null || !token.startsWith("Bearer ")) {
+            return Result.unauthorized("请先登录");
+        }
+        String userId;
+        try {
+            userId = jwtUtil.getUserIdFromToken(token);
+        } catch (Exception e) {
+            return Result.unauthorized("登录已过期，请重新登录");
+        }
+        return userService.setWechatLoginPassword(userId, dto.getPassword());
     }
 
     /**

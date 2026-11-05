@@ -33,6 +33,16 @@ function recordLegalAccept() {
   })();
 }
 
+// 微信链路拿到「确定的业务拒绝」时停下来提示，不再继续尝试注册。
+// 页面仍留在登录表单，用户可以用其它账号密码登录，不会被弹走。
+function showWechatBlocked(msg) {
+  wx.showModal({
+    title: '暂无法使用微信登录',
+    content: (msg || '该微信暂无法登录') + '\n\n如需使用其他账号，请直接输入账号密码。',
+    showCancel: false
+  });
+}
+
 Page(withTerms({
   data: {
     account: '',
@@ -76,9 +86,13 @@ Page(withTerms({
     // 两步都是静默降级 —— 失败/未绑定都只是继续显示密码登录表单，不报错、不打扰。
     try {
       const wxRes = await wechatSilentLogin();
+      // 2026-11-05：待审核/冻结/已停用等「确定结论」必须提示并停在这里，
+      // 否则会继续撞 wechatRegister 的 409，用户被无声地留在密码表单（auto_register 无密码可输）。
+      if (wxRes && wxRes.blocked) { showWechatBlocked(wxRes.blocked); return; }
       if (wxRes) { goHome(); return; }
       if (tcode) {
         const regRes = await wechatRegister({ tenantCode: tcode });
+        if (regRes && regRes.blocked) { showWechatBlocked(regRes.blocked); return; }
         // 2026-10-24：注册成功 ≠ 可登录。pending 账号后端不再发 token，此处必须停下来提示等待审核，
         // 不能 goHome（没有会话会立刻被 requireAuth 弹回来，表现为"闪一下又回登录页"）。
         if (regRes && regRes.pending) {
@@ -167,11 +181,18 @@ Page(withTerms({
         deviceId: dev.deviceId,
         emuFlag: dev.emuFlag
       });
-      wx.showToast({ title: '登录成功', icon: 'success' });
       // 勾选了「允许微信登录」→ 绑定当前微信，下次即可静默登录。
-      // 绑定失败不影响已成功的密码登录态（bindWechat 内部静默返回 false）。
+      // 2026-11-05：用户主动勾选过，就必须给一个明确结果；此前 bindWechat 静默返回 false
+      // 且调用方丢弃返回值，勾选了却没绑定成功时用户完全无感（还以为下次能免输入）。
+      // 绑定失败不影响已成功的密码登录态，到「我的 → 微信绑定」可重试。
       if (this.data.bindWechat) {
-        try { await bindWechat(); } catch (e) { /* 静默 */ }
+        const bound = await bindWechat();
+        wx.showToast({
+          title: bound ? '登录成功，已绑定微信' : '微信绑定未生效，可在「我的」中重试',
+          icon: bound ? 'success' : 'none'
+        });
+      } else {
+        wx.showToast({ title: '登录成功', icon: 'success' });
       }
       // 场景B：登录成功落用户级签署留痕（幂等，fire-and-forget）
       recordLegalAccept();

@@ -39,9 +39,11 @@
       <text class="link" catchtap="openAgreement">《用户协议》《隐私政策》</text>
     </view>
 
-    <!-- 微信登录勾选框（2026-10-13 恢复）：勾选后密码登录成功即绑定当前微信，
-         下次启动可免输入直接进入。后端未配置 appid/secret 时绑定静默失败，不影响登录。 -->
-    <view wx:if="{{false}}" class="agree" bindtap="toggleBindWechat">
+    <!-- 微信登录勾选框（2026-11-05 恢复显示）：勾选后密码登录成功即绑定当前微信，
+         下次启动可免输入直接进入。此前 wx:if="{{false}}" 自 2026-09-18 起把它永久隐藏，
+         10-13 只改了注释没去掉条件，导致 login.js 的「登录成功后绑定」分支永远不执行。
+         后端未配置 appid/secret 时绑定会失败，此时提示用户到「我的」重试，不影响登录态。 -->
+    <view class="agree" bindtap="toggleBindWechat">
       <view class="checkbox {{bindWechat ? 'checked' : ''}}"></view>
       <text class="agree-text">允许微信登录（下次本微信免输入直接进入）</text>
     </view>

@@ -131,6 +131,8 @@ const ENDPOINTS = {
   AUTH_WECHAT_REGISTER: '/auth/wechat-register',
   AUTH_UNBIND_WECHAT: '/auth/unbind-wechat',
   AUTH_WECHAT_STATUS: '/auth/wechat-status',
+  // 微信直接注册账号首次设置登录密码（成功后 bind_source 降级 manual，方可解绑）
+  AUTH_WECHAT_SET_PASSWORD: '/auth/wechat/set-password',
   // PC 扫码登录/绑定（2026-10-14 P2，网站应用 snsapi_login，均免登录）
   AUTH_WECHAT_QR: '/auth/wechat/qr',
   AUTH_WECHAT_QR_STATUS: '/auth/wechat/qr/status',
