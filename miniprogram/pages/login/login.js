@@ -6,11 +6,13 @@ import { confirm } from '../../core/ui.js';
 import { request } from '../../core/request.js';
 import { ENDPOINTS } from '../../shared/apiPaths.js';
 
+// 「选择入口」只暴露三个可见选项。平台管理员不单列入驻：
+// 租户编码填 platform 时自动选中「管理员」，登录请求里再把角色隐含提升为 platform_admin
+// （保留字口径：platform 只作登录标识词，且只对应平台管理员，见 isRoleTenantCodeMatch）。
 const ROLE_OPTIONS = [
   { role: ROLES.STUDENT, termKey: 'student', fallback: '学生' },
   { role: ROLES.TEACHER, termKey: 'teacher', fallback: '教师' },
-  { role: ROLES.ADMIN, termKey: null, fallback: '管理' },
-  { role: ROLES.PLATFORM_ADMIN, termKey: null, fallback: '平台' }
+  { role: ROLES.ADMIN, termKey: null, fallback: '管理员' }
 ];
 
 // 场景B 用户级签署留痕（Phase 2）：登录/微信注册成功后 fire-and-forget 调 /api/v1/legal/accept。
@@ -41,7 +43,9 @@ Page(withTerms({
     submitting: false,
     brandTitle: '',
     boundTenantCode: '',
-    isPlatformRole: false,
+    // platformImplicit：租户编码是保留字 platform → 入口自动选中「管理员」，
+    // 仅用于 UI 提示；真正提交的角色在 onLogin 里由 tenantCode + role 现算，避免状态不同步。
+    platformImplicit: false,
     agreed: false,
     bindWechat: false,
     // 登录人机验证（2026-10-22 P1）
@@ -58,11 +62,16 @@ Page(withTerms({
     const bound = getBoundTenantCode();
     // 扫码/分享链接带来的租户编码（推广路径2、微信直接注册都靠它）
     const tcode = (options && (options.tcode || options.tCode)) || '';
-    this.setData({
+    const initialTenant = bound || tcode;
+    const initPlatform = String(initialTenant || '').trim() === PLATFORM_TENANT_CODE;
+    const patch = {
       brandTitle: '预约系统',
       boundTenantCode: bound,
-      tenantCode: bound || tcode
-    });
+      tenantCode: initialTenant
+    };
+    // 绑定/扫码带 platform 时同样按「管理员 + 隐含平台管理员」初始化，避免首屏与手输行为不一致
+    if (initPlatform) { patch.role = ROLES.ADMIN; patch.platformImplicit = true; }
+    this.setData(patch);
     // 微信登录能力已就绪（2026-10-13）：先试静默登录，再按需走微信直接注册。
     // 两步都是静默降级 —— 失败/未绑定都只是继续显示密码登录表单，不报错、不打扰。
     try {
@@ -89,29 +98,26 @@ Page(withTerms({
   onPassword(e) { this.setData({ password: e.detail.value }); },
   onTenant(e) {
     const raw = e.detail.value || '';
-    const trimmed = raw.trim();
-    // 输入平台保留字 platform（区分大小写以对齐后端）自动切换为平台管理员入口，
-    // 直接命中"填 platform 登录失败"的现场 —— 无需额外选角色即可登录。
-    if (trimmed === PLATFORM_TENANT_CODE) {
-      this.setData({ tenantCode: PLATFORM_TENANT_CODE, role: ROLES.PLATFORM_ADMIN, isPlatformRole: true });
-      return;
-    }
-    const patch = { tenantCode: raw };
-    // 从平台标识改回普通租户编码时，自动退回默认角色，避免卡在平台管理员态
-    if (this.data.role === ROLES.PLATFORM_ADMIN) {
-      patch.role = ROLES.STUDENT;
-      patch.isPlatformRole = false;
-    }
+    // 输入平台保留字 platform（精确匹配，对齐后端）→ 入口自动切到「管理员」，
+    // 登录时再隐含提升为 platform_admin；不单列第四个可见入口。
+    const isPlatform = raw.trim() === PLATFORM_TENANT_CODE;
+    const patch = {
+      tenantCode: isPlatform ? PLATFORM_TENANT_CODE : raw,
+      platformImplicit: isPlatform
+    };
+    if (isPlatform) patch.role = ROLES.ADMIN;
     this.setData(patch);
   },
   onPickRole(e) {
     const role = e.currentTarget.dataset.role;
-    const patch = { role, isPlatformRole: role === ROLES.PLATFORM_ADMIN || role === ROLES.ADMIN };
-    // 平台管理员使用固定租户标识 platform，无需手填；切回其它角色时还原已绑定的租户编码
-    if (role === ROLES.PLATFORM_ADMIN) {
-      patch.tenantCode = PLATFORM_TENANT_CODE;
-    } else if (this.data.tenantCode === PLATFORM_TENANT_CODE) {
+    const patch = { role };
+    // platform 只对应平台管理员（保留字口径）：在该编码下改选学生/教师时，
+    // 退出平台入口并还原已绑定租户编码，避免用非管理员角色撞后端 403。
+    const wasPlatform = this.data.platformImplicit
+      || String(this.data.tenantCode || '').trim() === PLATFORM_TENANT_CODE;
+    if (wasPlatform && role !== ROLES.ADMIN) {
       patch.tenantCode = this.data.boundTenantCode || '';
+      patch.platformImplicit = false;
     }
     this.setData(patch);
   },
@@ -123,7 +129,8 @@ Page(withTerms({
       // 解绑：清登录态 + 清绑定
       clearSession();
       storage.remove('boundTenantCode');
-      this.setData({ boundTenantCode: '', tenantCode: '' });
+      // 解除平台标识绑定时一并退出隐含平台入口，否则提示会残留、入口仍停在管理员
+      this.setData({ boundTenantCode: '', tenantCode: '', platformImplicit: false, role: ROLES.STUDENT });
     });
   },
   toggleAgree() { this.setData({ agreed: !this.data.agreed }); },
@@ -134,10 +141,19 @@ Page(withTerms({
   async onLogin() {
     if (!this.data.agreed) { wx.showToast({ title: '请先阅读并同意用户协议', icon: 'none' }); return; }
     const { account, password, tenantCode, role } = this.data;
-    if (!tenantCode) { wx.showToast({ title: '请输入租户编码 tCode', icon: 'none' }); return; }
+    const code = String(tenantCode || '').trim();
+    if (!code) { wx.showToast({ title: '请输入租户编码', icon: 'none' }); return; }
     if (!account || !password) { wx.showToast({ title: '请输入账号和密码', icon: 'none' }); return; }
-    // 管理端：租户管理员需填真实 tCode；平台管理员固定 platform
-    const finalTenant = role === ROLES.PLATFORM_ADMIN ? 'platform' : tenantCode;
+    // 保留字 platform 只对应平台管理员：入口显示「管理员」，提交时把角色隐含提升为
+    // platform_admin。角色由 tenantCode + 当前入口现算，不依赖 platformImplicit 标记，
+    // 避免 UI 状态与提交值不同步；非管理员入口撞 platform 时先本地拦掉（后端亦会 403）。
+    if (code === PLATFORM_TENANT_CODE && role !== ROLES.ADMIN) {
+      wx.showToast({ title: '该编码请使用管理员入口', icon: 'none' });
+      return;
+    }
+    const isPlatformEntry = code === PLATFORM_TENANT_CODE && role === ROLES.ADMIN;
+    const finalRole = isPlatformEntry ? ROLES.PLATFORM_ADMIN : role;
+    const finalTenant = code;
     this.setData({ submitting: true });
     this._loginStarted = true;
     try {
@@ -147,7 +163,7 @@ Page(withTerms({
         tenantCode: finalTenant,
         account,
         password,
-        role,
+        role: finalRole,
         deviceId: dev.deviceId,
         emuFlag: dev.emuFlag
       });

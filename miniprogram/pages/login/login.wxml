@@ -10,8 +10,8 @@
   <view class="card">
     <view class="field">
       <text class="label">租户编码</text>
-      <input class="input" placeholder="如 TENANT_A 或 platform" value="{{tenantCode}}" bindinput="onTenant" disabled="{{role==='platform_admin'}}" />
-      <view wx:if="{{role==='platform_admin'}}" class="tenant-hint">平台管理员使用固定标识 platform，已自动填入，无需修改。</view>
+      <input class="input" placeholder="如 TENANT_A" value="{{tenantCode}}" bindinput="onTenant" />
+      <view wx:if="{{platformImplicit}}" class="tenant-hint">已识别为平台管理员入口</view>
     </view>
 
     <view class="field">
@@ -20,7 +20,7 @@
         <view wx:for="{{roleOptions}}" wx:key="role"
               class="role-item {{role===item.role ? 'active' : ''}}"
               data-role="{{item.role}}" bindtap="onPickRole">
-          {{terms[item.termKey] || item.fallback}}端
+          {{terms[item.termKey] || item.fallback}}
         </view>
       </view>
     </view>
@@ -49,7 +49,7 @@
     </view>
 
     <button class="btn-primary" loading="{{submitting}}" disabled="{{!agreed || submitting}}" bindtap="onLogin">
-      {{role==='platform_admin' ? '平台管理员登录' : (role==='admin' ? '管理员登录' : '登录')}}
+      {{role==='admin' ? '管理员登录' : '登录'}}
     </button>
   </view>
 
