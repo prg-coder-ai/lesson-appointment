@@ -4,24 +4,42 @@
 #  用法：
 #    SERVER=root@1.2.3.4 bash deploy/upload-to-server.sh
 #  说明：只传文件，不重启服务；传完按手册第 3 章手工执行重启。
+#  产物来源（2026-11-05）：优先 deploy/jars/ + deploy/dist/（由构建脚本自动收口），
+#  找不到才回退各模块 target/ 与 frontend/dist/。构建后若没自动收口，
+#  先跑 node deploy/collect-artifacts.js，避免上传旧版本。
 # ============================================================
 set -e
 SERVER=${SERVER:-root@1.2.3.4}
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
-# 版本号不写死：pom 里 <version> 会变，动态取 target 下最新的同名 jar（避免写死 1.0.0 而实际已是 1.0.1 导致传不上去）
-BOOKING_JAR="$(ls -1 "$ROOT"/api/target/booking-api-*.jar 2>/dev/null | head -1)"
+# 【2026-11-05】产物统一收口在 deploy/：优先取 deploy/jars、deploy/dist，
+# 找不到时回退原来的各模块 target/ 与 frontend/dist/（老流程仍可用）。
+# 版本号不写死：pom 里 <version> 会变，collect-artifacts.js 只保留最新版本 jar。
+BOOKING_JAR="$(ls -1 "$ROOT"/deploy/jars/booking-api-*.jar 2>/dev/null | head -1)"
+[ -z "$BOOKING_JAR" ] && BOOKING_JAR="$(ls -1 "$ROOT"/api/target/booking-api-*.jar 2>/dev/null | head -1)"
 [ -z "$BOOKING_JAR" ] && BOOKING_JAR="$(ls -1 "$ROOT"/api/beforeRun/booking-api-*.jar 2>/dev/null | head -1)"
-MSG_JAR="$(ls -1 "$ROOT"/api/message-service/target/message-service-*.jar 2>/dev/null | head -1)"
-[ -n "$BOOKING_JAR" ] || { echo "找不到 booking 产物，请先在 api/ 执行 mvn package"; exit 1; }
-[ -n "$MSG_JAR" ]     || { echo "找不到 message-service 产物，请先在 api/message-service/ 执行 mvn package"; exit 1; }
+MSG_JAR="$(ls -1 "$ROOT"/deploy/jars/message-service-*.jar 2>/dev/null | head -1)"
+[ -z "$MSG_JAR" ] && MSG_JAR="$(ls -1 "$ROOT"/api/message-service/target/message-service-*.jar 2>/dev/null | head -1)"
+[ -n "$BOOKING_JAR" ] || { echo "找不到 booking 产物，请先跑 bash deploy/build-backends.sh"; exit 1; }
+[ -n "$MSG_JAR" ]     || { echo "找不到 message-service 产物，请先跑 bash deploy/build-backends.sh"; exit 1; }
 
 echo "==> 1/7 两个 jar"
+echo "    booking  <- $BOOKING_JAR"
+echo "    message  <- $MSG_JAR"
 scp "$BOOKING_JAR"                                        "$SERVER:/opt/lesson/booking_api.jar.new"
 scp "$MSG_JAR"                                            "$SERVER:/opt/lesson/message-service.jar.new"
 
-echo "==> 2/7 前端 dist（内容，不含 dist 这一层）"
-rsync -av --delete "$ROOT/frontend/dist/" "$SERVER:/var/www/frontend/"
+DIST_DIR="$ROOT/frontend/dist"
+if [ -d "$ROOT/deploy/dist" ]; then
+  DIST_DIR="$ROOT/deploy/dist"
+  # deploy/dist 是收口快照；若源码侧又重新构建过而没收口，别静默上传旧页面
+  if [ -f "$ROOT/frontend/dist/build-info.json" ] && [ -f "$DIST_DIR/build-info.json" ] \
+     && [ "$ROOT/frontend/dist/build-info.json" -nt "$DIST_DIR/build-info.json" ]; then
+    echo "⚠ frontend/dist 比 deploy/dist 新，建议先跑：node deploy/collect-artifacts.js --only dist"
+  fi
+fi
+echo "==> 2/7 前端 dist（内容，不含 dist 这一层；来源 $DIST_DIR）"
+rsync -av --delete "$DIST_DIR/" "$SERVER:/var/www/frontend/"
 
 echo "==> 3/7 SQL 初始化脚本"
 rsync -av "$ROOT/api/beforeRun/sql/" "$SERVER:/opt/lesson/sql/"

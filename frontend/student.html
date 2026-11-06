@@ -489,6 +489,9 @@
           window.location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('promo.html') : 'promo.html';
           return;
         // ===== 协议与政策（场景 B）：展示本租户生效版，用户可在其中切换协议 / 隐私政策 =====
+        // 【2026-11-04 改版】原 window.open 新标签页：主页面内容区留白 + 多出一个标签页，
+        // legal.html 里的"关闭"按钮在浏览器里还常因脚本无法关闭非脚本打开的窗口而失效。
+        // 现改为 iframe 内嵌进右侧内容区（embed=1 隐藏其"关闭"按钮），切菜单即离开。
         case 'legal_view':
           (function () {
             var _cu = null;
@@ -496,8 +499,12 @@
             var _tc = (_cu && _cu.tenantCode) || '';
             var _base = (typeof window.pageUrl === 'function') ? window.pageUrl('legal.html') : 'legal.html';
             var _sep = _base.indexOf('?') >= 0 ? '&' : '?';
-            var _url = _base + _sep + 'type=user_agreement' + (_tc ? '&tenant=' + encodeURIComponent(_tc) : '');
-            window.open(_url, '_blank', 'noopener');
+            var _url = _base + _sep + 'type=user_agreement&embed=1' + (_tc ? '&tenant=' + encodeURIComponent(_tc) : '');
+            dynamicContentCenter.innerHTML =
+              '<div class="card" style="padding:0;overflow:hidden;">' +
+              '<iframe src="' + _url + '" title="协议与政策" ' +
+              'style="display:block;width:100%;height:calc(100vh - 150px);min-height:420px;border:0;background:#fff;">' +
+              '</iframe></div>';
           })();
           return;
         case 'today_course':

@@ -6,6 +6,7 @@ import com.reservation.dto.RefreshTokenPO;
 import com.reservation.dto.TokenDTO;
 import com.reservation.dto.WeChatCodeDTO;
 import com.reservation.dto.WeChatRegisterDTO;
+import com.reservation.dto.WeChatSetPasswordDTO;
 import com.reservation.dto.WeChatSession;
 
 import com.reservation.common.Result;
@@ -17,6 +18,7 @@ import com.reservation.service.LoginGuardService;
 import com.reservation.service.LoginChallengeService;
 import com.reservation.service.UserService;
 import com.reservation.service.RefreshTokenService;
+import com.reservation.service.RefreshTokenRotationCache;
 import com.reservation.service.UserSessionService;
 import com.reservation.service.WeChatService;
 
@@ -84,6 +86,9 @@ public class authController {
     private UserMapper userMapper;   // ← 新增：refreshToken 查 role 时用（忽略租户插件）
      @Autowired
      private RefreshTokenService refreshTokenService;
+     // 【2026-11-05 复核修复 #2】refreshToken 轮换幂等缓存（同源多标签页并发刷新不互踢）
+     @Autowired
+     private RefreshTokenRotationCache rotationCache;
      @Autowired
      private UserSessionService userSessionService;
     @Autowired
@@ -278,13 +283,13 @@ public class authController {
             return Result.fail(401, "刷新凭证为空");
         }
 
-        // ── ③ 校验 JWT type claim = "refresh" ──────────────────────────────────
+        // -- 校验 JWT type claim = "refresh" --
         if (!jwtUtil.isTokenOfType(oldRefreshToken, "refresh")) {
             log.warn("[refreshToken] 传入的 token type 不是 refresh（可能是 access token 或伪造）");
             return Result.fail(401, "刷新凭证无效");
         }
 
-        // ── ① 从 refresh token 自己解 userId + tenantId ────────────────────────
+        // -- 从 refresh token 自己解 userId + tenantId --
         String userId;
         Long tenantId;
         try {
@@ -295,23 +300,11 @@ public class authController {
             return Result.fail(401, "刷新凭证无效，请重新登录");
         }
 
-        // ── 校验 DB 里凭证确实存在、未过期 ──────────────────────────────────────
-        RefreshTokenPO tokenPo = refreshTokenService.checkValidToken(oldRefreshToken);
-        if (tokenPo == null) {
-            log.info("[refreshToken] DB 中找不到有效 refresh token, userId={}", userId);
-            return Result.fail(401, "刷新凭证已失效，请重新登录");
-        }
-
-        // 二次一致性校验：JWT 里解出来的 userId 必须和 DB 存的对得上
-        if (!userId.equals(tokenPo.getUserId())) {
-            log.warn("[refreshToken] JWT userId 与 DB 不一致，可能被篡改");
-            return Result.fail(401, "刷新凭证无效");
-        }
-
-        // ── ② 从 user 表实时查 role，完全忽略前端传的 role/account ──────────────
+        // -- 从 user 表实时查 role（完全忽略前端传的 role/account）--
+        // 【2026-11-05 #2】提前到缓存查询之前：并发复用缓存时同样必须校验账号未删除/未冻结。
+        // 必须用 mapper 的 NoTenant 版本——selectById 会被租户插件拼 tenant_id 条件。
         String role;
         try {
-            // 必须用 mapper 的 NoTenant 版本——selectById 会被租户插件拼 tenant_id 条件
             User u = userMapper.getByUserIdNoTenant(userId);
             if (u == null) {
                 log.warn("[refreshToken] userId={} 在 user 表已不存在", userId);
@@ -327,28 +320,51 @@ public class authController {
             return Result.fail(500, "服务异常，请稍后重试");
         }
 
-        // ── 生成新双 Token ───────────────────────────────────────────────────────
+        // -- 并发轮换兜底（#2）：同一旧凭证刚被别的标签页轮换过 → 复用同一对 token --
+        // 必须在 DB checkValidToken 之前：旧凭证此时可能已被 rotateToken 删掉，
+        // 直接查 DB 会返回 401，前端就会清登录态把用户踢下线。
+        TokenDTO cached = rotationCache.get(oldRefreshToken, userId);
+        if (cached != null) {
+            log.info("[refreshToken] 命中并发轮换缓存, userId={}", userId);
+            return Result.success(cached, "刷新成功");
+        }
+
+        // -- 校验 DB 里凭证确实存在、未过期 --
+        RefreshTokenPO tokenPo = refreshTokenService.checkValidToken(oldRefreshToken);
+        if (tokenPo == null) {
+            // 两个并发请求几乎同时到达时，缓存可能还没写入，再兜一次
+            cached = rotationCache.get(oldRefreshToken, userId);
+            if (cached != null) {
+                log.info("[refreshToken] DB 校验后命中并发轮换缓存, userId={}", userId);
+                return Result.success(cached, "刷新成功");
+            }
+            log.info("[refreshToken] DB 中找不到有效 refresh token, userId={}", userId);
+            return Result.fail(401, "刷新凭证已失效，请重新登录");
+        }
+
+        // 二次一致性校验：JWT 里解出来的 userId 必须和 DB 存的对得上
+        if (!userId.equals(tokenPo.getUserId())) {
+            log.warn("[refreshToken] JWT userId 与 DB 不一致，可能被篡改");
+            return Result.fail(401, "刷新凭证无效");
+        }
+
+        // -- 生成新双 Token --
         String newAccess = jwtUtil.generateToken(tenantId, userId, role);
         String newRefresh = jwtUtil.generateRefreshToken(tenantId, userId);
 
-        // ── 轮换：删旧、存新（旧 refresh token 立即失效） ──────────────────────
-        refreshTokenService.removeOldToken(oldRefreshToken);
-        refreshTokenService.saveNewToken(userId, newRefresh, jwtUtil.getRefreshExpireTime());
-
-        // ── 写入 Spring Security 上下文（给本次请求链路其他组件用） ──────────────
-        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                userId,
-                null,
-                Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role))
-        );
-        SecurityContextHolder.getContext().setAuthentication(authentication);
+        // -- 轮换：只删旧 token + 存新 token（不触发 deleteByUserId，保留其他设备）--
+        // 【P1 修复 2026-11-04】原来调 saveNewToken 会删该用户全部 refresh token → 跨设备互踢。
+        // 【P2 修复 2026-11-04】不再写 SecurityContext：本接口在白名单，过滤器不跑，写了也无效。
+        refreshTokenService.rotateToken(oldRefreshToken, userId, newRefresh, jwtUtil.getRefreshExpireTime());
 
         TokenDTO dto = new TokenDTO();
         dto.setToken(newAccess);
         dto.setRefreshToken(newRefresh);
+        // 【2026-11-05 #2】缓存「旧凭证 → 本次双 token」，供同源其它标签页并发请求复用
+        rotationCache.put(oldRefreshToken, userId, dto);
         log.info("[refreshToken] 刷新成功, userId={}, tenantId={}, role={}", userId, tenantId, role);
         return Result.success(dto, "刷新成功");
-    } 
+    }
 
   /**
      * 用户主动登出，销毁当前刷新凭证
@@ -368,17 +384,38 @@ public class authController {
     response.addCookie(cookie);*/
         refreshTokenService.logout(refreshDTO.getRefreshToken());
         // 结束登录会话（在线统计，会话ID由访问Token派生，非刷新Token）
-        userSessionService.onLogout(token);
+        // 【P2 修复 2026-11-04】token 为 null 时（被踢后 token 已被前端清空，
+        // 用户再点登出），onLogout 的 sessionIdOf 返回空 → 静默 return → 会话记录
+        // 仍为 online（幽灵会话）。此时从 refreshToken 解 userId 兜底清理。
+        if (token != null && !token.isBlank()) {
+            userSessionService.onLogout(token);
+        } else if (refreshDTO.getRefreshToken() != null && !refreshDTO.getRefreshToken().isBlank()) {
+            try {
+                String userId = jwtUtil.getUserIdFromToken(refreshDTO.getRefreshToken());
+                if (userId != null && !userId.isBlank()) {
+                    userSessionService.kickUser(userId);
+                }
+            } catch (Exception e) {
+                log.warn("[logout] 从 refreshToken 解 userId 失败，会话记录可能残留", e);
+            }
+        }
         return Result.success(true,"ok" );
     }
 
     /**
      * 后台管理：强制踢出指定用户（删除该用户全部刷新凭证）
      * 调用后该用户所有页面401自动跳转登录
+     *
+     * 【P3 修复 2026-11-04】新增显式 permissionCheck.checkAdmin：
+     *   原实现依赖 AuthzRules 路径规则（PLATFORM_OR_TENANT_ADMIN），控制器内无第二道防线。
+     *   同文件的 resetPassword 显式调 checkAdmin，kickUser 没有，防御深度不一致。
+     *   若 AuthzRules 配置被误改（如 ALL_ROLES），kickUser 没有兜底。
      */
     @DeleteMapping("/kick/{userId}")
     @Audit(action = AuditAction.ADMIN_FORCE_LOGOUT, resourceType = "user", resourceId = "userId")
-    public Result <Object> kickUser(@PathVariable String userId) {
+    public Result <Object> kickUser(@PathVariable String userId,
+                                    @RequestHeader("Authorization") String token) {
+        permissionCheck.checkAdmin(token);
         int count = refreshTokenService.kickUser(userId);
         // 3. 刷新页面提示
         log.debug("controller kick: "+count) ;
@@ -517,6 +554,29 @@ public class authController {
             return Result.unauthorized("登录已过期，请重新登录");
         }
         return userService.unbindWechat(userId);
+    }
+
+    /**
+     * 微信直接注册（auto_register）账号首次设置登录密码（需登录）。
+     *
+     * <p>该账号 account=openid、原密码随机，走不了要原密码的修改密码接口。设置成功后
+     * 服务端把 wx_userid.bind_source 降级为 manual，之后 /auth/unbind-wechat 才放行。
+     * userId 一律从当前会话令牌解析，不接受客户端传入。
+     */
+    @PostMapping("/wechat/set-password")
+    @ResponseBody
+    public Result<Boolean> wechatSetPassword(@Validated @RequestBody WeChatSetPasswordDTO dto,
+                                             @RequestHeader(value = "Authorization", required = false) String token) {
+        if (token == null || !token.startsWith("Bearer ")) {
+            return Result.unauthorized("请先登录");
+        }
+        String userId;
+        try {
+            userId = jwtUtil.getUserIdFromToken(token);
+        } catch (Exception e) {
+            return Result.unauthorized("登录已过期，请重新登录");
+        }
+        return userService.setWechatLoginPassword(userId, dto.getPassword());
     }
 
     /**

@@ -222,6 +222,8 @@ public final class AuthzRules {
         r.add(new Rule(HttpMethod.POST, "/api/v1/auth/bind-wechat", ALL_ROLES, "≡需登录 绑定微信（仅当前会话账号）"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/auth/unbind-wechat", ALL_ROLES, "≡需登录 解绑微信（仅当前会话账号）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/auth/wechat-status", ALL_ROLES, "≡需登录 查询自己的微信绑定状态"));
+        // 2026-11-05：auto_register 账号首次设置登录密码（解锁解绑）。同样只作用于当前会话账号。
+        r.add(new Rule(HttpMethod.POST, "/api/v1/auth/wechat/set-password", ALL_ROLES, "≡需登录 微信直接注册账号设置登录密码（解锁解绑）"));
 
         // ==================== 3.5、推广体系（2026-10-13 二期）====================
         // 推广者不新增角色：任何已登录用户都能生成自己的码、看自己的业绩。

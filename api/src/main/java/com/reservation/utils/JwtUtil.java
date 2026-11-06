@@ -222,13 +222,26 @@ public class JwtUtil {
     }
 
     // 校验 AccessToken（拦截器鉴权使用）
+    //
+    // 【P0 修复 2026-11-04】新增 type=access 校验：
+    //   原实现只 parseClaimsJws 验签 + 过期，不读 type claim。refresh token 与 access token
+    //   共用同一把 signingKey（HS256/HS512 都基于它），能通过签名验证。当时靠 refresh token
+    //   无 role claim → getRoleFromToken 返回 null → 过滤器不设 SecurityContext "碰巧"防住。
+    //   但这是副作用不是设计：一旦 refresh token 加了 role claim，防线立即失效，refresh token
+    //   就能当 access token 用 7 天。authController.refreshToken 已校验 type=refresh 防
+    //   "access 冒充 refresh"，此处补上对等的 "refresh 冒充 access" 防御。
+    //
+    //   兼容性：老 access token（P1 加固前签发、无 type claim）type=null → 放行，由 DB 层兜底。
     public boolean verifyAccessToken(String token) {
         try {
-            Jwts.parserBuilder()
+            Claims claims = Jwts.parserBuilder()
                     .setSigningKey(signingKey)
                     .build()
-                    .parseClaimsJws(stripBearerPrefix(token));
-            return true;
+                    .parseClaimsJws(stripBearerPrefix(token))
+                    .getBody();
+            String type = (String) claims.get("type");
+            // 老 token 无 type（兼容期放行）；新 token 必须是 access
+            return type == null || "access".equals(type);
         } catch (Exception e) {
             return false;
         }

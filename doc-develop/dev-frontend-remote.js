@@ -100,6 +100,9 @@ const API_HOST_HEADER = apiFromUrl ? apiFromUrl.hostHeader : (process.env.API_HO
 const msgFromUrl = parseApiUrl(process.env.MSG_URL);
 const MSG_HOST = msgFromUrl ? msgFromUrl.host : (process.env.MSG_HOST || API_HOST);
 const MSG_PROTOCOL = msgFromUrl ? msgFromUrl.protocol : (process.env.MSG_PROTOCOL || API_PROTOCOL);
+// MSG_PORT 缺省**跟随 BOOKING_PORT**（而不是写死 80）：默认 BOOKING_PORT=80 时两者都是 80，
+// 走 Nginx 单入口；老部署 `BOOKING_PORT=8081 MSG_PORT=8090` 时两端各自正确。
+// （2026-11-04：写死 '80' 会让 `BOOKING_PORT=8081` 变成 booking 8081 + msg 80 的错配。）
 const MSG_PORT = msgFromUrl ? msgFromUrl.port : parseInt(process.env.MSG_PORT || String(BOOKING_PORT), 10);
 const MSG_HOST_HEADER = msgFromUrl ? msgFromUrl.hostHeader : (process.env.MSG_HOST_HEADER || API_HOST_HEADER);
 

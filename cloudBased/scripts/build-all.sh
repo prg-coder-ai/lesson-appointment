@@ -85,6 +85,20 @@ else
 fi
 
 # ==============================================================================
+# Step 2.5 — 产物收口到 deploy/（前端 build.js 已自动收 dist，这里再统一兜一次）
+# ==============================================================================
+ONLY_PARTS=()
+# 注意：set -e 下不能写 `[ cond ] && arr+=(...)`，条件为假时整行返回 1 会直接退出脚本
+if [ $SKIP_BE -eq 0 ]; then ONLY_PARTS+=("jars"); fi
+if [ $SKIP_FE -eq 0 ]; then ONLY_PARTS+=("dist"); fi
+if [ ${#ONLY_PARTS[@]} -gt 0 ]; then
+    step "Step 2.5 — 产物收口到 deploy/"
+    ONLY_ARG="$(IFS=,; echo "${ONLY_PARTS[*]}")"
+    node "$PROJECT_ROOT/deploy/collect-artifacts.js" --only "$ONLY_ARG"
+    ok "deploy/dist/ 与 deploy/jars/ 已更新（不入库，供 upload-to-server.sh 取件）"
+fi
+
+# ==============================================================================
 # Step 3 — Docker 镜像
 # ==============================================================================
 if [ $SKIP_DOCKER -eq 0 ]; then
@@ -147,6 +161,8 @@ step "构建产物清单"
 echo "  后端 jar：cloudBased/api/target/booking-api-2.2.0.jar"
 echo "            cloudBased/message-service/target/message-service-1.1.0.jar"
 echo "  前端 dist：cloudBased/web/dist/"
+echo "  统一收口：deploy/jars/（三个 jar，取最新版本） + deploy/dist/（镜像 frontend/dist）"
+echo "            → deploy/upload-to-server.sh 优先从这里取件（两者均不入库）"
 echo ""
 echo "  下一步："
 echo "    方式 A — 控制台「上传代码包 / Dockerfile」"

@@ -83,18 +83,28 @@ function probe(host, port, timeout = 1500) {
  * 背景（2026-10-25）：云托管里 booking 与 message-service 是两个独立实例、两个域名，
  * 但都监听在各自的 443 上。把 MSG_HOST 误指向 booking 域名（或者写成不存在的
  * message-329614-… 之类）时，TCP 探活照样 ✅（连的是同一个网关），
- * 只有看 /api/v1/system/info 返回的 service 字段才能确认到底打到了谁。
- * 两个服务都实现了这个匿名端点（白名单里），所以拿它当身份牌最稳。
+ * 只有看匿名 identity 端点返回的 service 字段才能确认到底打到了谁。
+ * 两个服务都实现了这个匿名端点（各自白名单里），所以拿它当身份牌最稳。
  *
+ * ★ 为什么要按服务传不同 path（2026-11-04）：
+ *   服务器端口收紧后默认走 **80 单入口**，由 Nginx 按路径分流。
+ *   若两个上游都用 `/api/v1/system/info` 探身份，消息服务的请求也会被 Nginx 送到
+ *   booking，于是"服务自述"恒显示 booking_api，并弹出「msgHost 指向的不是消息服务」的
+ *   假警报——而实际 `/api/v1/message/*` 分流完全正常。
+ *   消息服务用 `/api/v1/message/system/info`（它自己的白名单端点）探，才能穿过 Nginx
+ *   验证分流是否真的生效；直连 8090 或云托管独立域名时同样有效。
+ *
+ * @param {{protocol?:string, host:string, port?:number|string, hostHeader?:string}} targetRaw
+ * @param {string} [path] 身份端点，默认 booking 的 `/api/v1/system/info`
  * @returns {Promise<string|null>} 如 'booking_api' / 'message-service'；失败为 null
  */
-function identify(targetRaw, timeout = 4000) {
+function identify(targetRaw, path, timeout = 4000) {
   const target = normalizeTarget(targetRaw);
   const mod = target.protocol === 'https' ? https : http;
   const opt = {
     host: target.host,
     port: target.port,
-    path: '/api/v1/system/info',
+    path: path || '/api/v1/system/info',
     method: 'GET',
     headers: { Host: target.hostHeader, Accept: 'application/json' },
   };
@@ -323,7 +333,10 @@ function startProxy(o) {
           if (o.onProbe) o.onProbe({ okBooking, okMsg });
           // 端口通不等于走对了服务：再看两个上游的「自述身份」（/api/v1/system/info 的 service 字段）
           if (!okBooking && !okMsg) { console.log(line); console.log(' 按 Ctrl+C 停止'); return; }
-          return Promise.all([identify(apiTarget), identify(msgTarget)]).then(([idApi, idMsg]) => {
+          return Promise.all([
+            identify(apiTarget, '/api/v1/system/info'),
+            identify(msgTarget, '/api/v1/message/system/info')
+          ]).then(([idApi, idMsg]) => {
             const show = (v) => (v || '（未返回身份）');
             console.log(`   服务自述   :  booking → ${show(idApi)}    message-service → ${show(idMsg)}`);
             const isMsg = (v) => /message/i.test(v || '');

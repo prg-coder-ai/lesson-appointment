@@ -95,27 +95,148 @@
 
   function getNewToken() {
     const refreshToken = localStorage.getItem('refreshToken');
-    // 修复：localStorage 存的是 JSON 字符串，必须先 JSON.parse 才能取字段
-    // 否则 cuser.account / cuser.role 都是 undefined，刷新接口拿不到账号 → 401 → 又触发刷新 → 死循环
-    let account = undefined;
-    let role = undefined;
-    try {
-      const cuserStr = localStorage.getItem('currentUser');
-      if (cuserStr) {
-        const cuser = JSON.parse(cuserStr);
-        account = cuser && cuser.account;
-        role = cuser && cuser.role;
-      }
-    } catch (e) {
-      console.warn('解析 currentUser 失败：', e);
-    }
+    // 【P2 修复 2026-11-04】不再向后端传 account/role：
+    //   后端 authController.refreshToken 注释明确"完全忽略前端传的 account/role"，
+    //   role 从 user 表实时查。account 可能是手机号/邮箱（敏感信息），多余传输。
+    //   原 getNewToken 解析 currentUser 取 account/role 的逻辑也随之删除。
     // 端点常量：权威源 shared/apiPaths.js 的 ENDPOINTS.AUTH_REFRESH（裸路径，
     // 由 refreshTokenAxios 的请求拦截器统一过 normalizeUrl 补 /api/v1 前缀）。
     return refreshTokenAxios.post(ENDPOINTS.AUTH_REFRESH || '/auth/refreshToken', {
-      refreshToken: refreshToken,
-      account: account,
-      role: role
+      refreshToken: refreshToken
     });
+  }
+
+  /**
+   * 【2026-11-05 复核修复】统一「清登录态 + 跳登录页」。
+   * #5：跳转执行后复位 isRedirecting，避免 RouterAdapter 拦截跳转后永久锁死。
+   */
+  function forceLogout(msg, config) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('currentUser');
+    showError(msg);
+    if (isRedirecting) return;
+    // 公开落地页 / 登录页：不跳登录页，否则与 index 的 tCode 重定向形成死循环
+    if (window.__PUBLIC_LANDING__ || config.noAuthRedirect || isLoginPage()) return;
+    isRedirecting = true;
+    saveLoginRedirect('401');
+    setTimeout(() => {
+      var _loginTarget = (typeof window.pageUrl === 'function') ? window.pageUrl('login.html') : './login.html';
+      if (window.RouterAdapter && typeof window.RouterAdapter.openUrl === 'function') {
+        window.RouterAdapter.openUrl(_loginTarget);
+      } else {
+        location.href = _loginTarget;
+      }
+      // 跳转未生效（被路由适配拦截 / iframe 内嵌）时释放锁，后续 401 仍可再试
+      isRedirecting = false;
+    }, 500);
+  }
+
+  function backendErrMsg(refreshErr, fallback) {
+    if (!refreshErr) return fallback;
+    if (typeof refreshErr === 'string') return refreshErr;
+    if (refreshErr.response && refreshErr.response.data) {
+      const d = refreshErr.response.data;
+      return (d && (d.message || d.msg)) || fallback;
+    }
+    return refreshErr.message || fallback;
+  }
+
+  /**
+   * 【2026-11-05 复核修复】统一「刷新 + 重放」入口：
+   * HTTP 401（过滤器层）与 HTTP 200 + body.code=401（业务层）都走这里（#3）。
+   * 同时收口：
+   *   #1 只有明确 401 才清登录态；5xx / 网关错误只提示重试（refreshToken 仍有效）
+   *   #4 isRefreshing / requestQueue 用 finally 复位，避免异常导致队列永久 pending
+   *   #6 登出进行中（window.__LOGGING_OUT__）不把新 token 写回本地
+   */
+  async function refreshAndReplay(originalRequest, config) {
+    // 公开落地页 / 登录页 / 调用方显式声明：401 属预期，不刷新、不跳登录页
+    if (window.__PUBLIC_LANDING__ || config.noAuthRedirect || isLoginPage()) {
+      return Promise.reject(new Error('unauthorized'));
+    }
+    // 已重试过仍 401：新 token 也不行，清态并跳登录页
+    if (originalRequest._retry) {
+      forceLogout('登录已过期，请重新登录', config);
+      return Promise.reject(new Error('unauthorized'));
+    }
+    originalRequest._retry = true;
+
+    // 同一页面内已有刷新在进行：排队等待，刷新完成后用新 token 重放
+    if (isRefreshing) {
+      return new Promise((resolve, reject) => {
+        requestQueue.push({
+          resolve, reject,
+          fn: (newToken) => {
+            originalRequest.headers = originalRequest.headers || {};
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            service(originalRequest).then(resolve).catch(reject);
+          }
+        });
+      });
+    }
+
+    isRefreshing = true;
+    try {
+      const refreshRes = await getNewToken();
+      if (!(refreshRes && refreshRes.status === 200 && refreshRes.data && refreshRes.data.code === 200)) {
+        const e = new Error(
+          (refreshRes && refreshRes.data && (refreshRes.data.message || refreshRes.data.msg)) || '刷新凭证失败'
+        );
+        // Result.fail(500) 是 HTTP 200，必须带业务码才能在 catch 里识别服务异常
+        e.bizCode = (refreshRes && refreshRes.data && refreshRes.data.code) || null;
+        throw e;
+      }
+      const data = refreshRes.data.data || {};
+      const newToken = data.token;
+      const newRefreshToken = data.refreshToken;
+      if (!newToken) throw new Error('刷新接口未返回 token');
+
+      // #6：登出已开始 → 不再写回，避免登出后残留有效凭证
+      if (!window.__LOGGING_OUT__) {
+        localStorage.setItem('token', newToken);
+        if (newRefreshToken) localStorage.setItem('refreshToken', newRefreshToken);
+      }
+      originalRequest.headers = originalRequest.headers || {};
+      originalRequest.headers.Authorization = `Bearer ${newToken}`;
+
+      const pending = requestQueue.slice();
+      requestQueue = [];
+      pending.forEach((item) => item.fn(newToken));
+      return service(originalRequest);
+    } catch (refreshErr) {
+      const pending = requestQueue.slice();
+      requestQueue = [];
+      pending.forEach((item) => item.reject(refreshErr));
+
+      // #1 分类：网络故障 / 服务异常都保留登录态，只有明确 401 才清
+      const isNetworkError = refreshErr && typeof refreshErr === 'object'
+        && !refreshErr.response
+        && (refreshErr.code === 'ECONNABORTED' || refreshErr.code === 'ERR_NETWORK');
+      const bizCode = refreshErr && refreshErr.bizCode;
+      const httpStatus = refreshErr && refreshErr.response && refreshErr.response.status;
+      const isServiceError = (typeof bizCode === 'number' && bizCode >= 500)
+        || (typeof httpStatus === 'number' && httpStatus >= 500);
+
+      if (isNetworkError || isServiceError) {
+        console.warn('[RefreshToken] 临时故障（未清登录态）：', isNetworkError ? '网络' : '服务', refreshErr);
+        if (config.customErrorMsg !== false) {
+          showError(isNetworkError
+            ? '网络异常，Token 刷新失败，请检查网络后重试'
+            : '服务暂时不可用，请稍后重试');
+        }
+        return Promise.reject(refreshErr);
+      }
+
+      const msg = backendErrMsg(refreshErr, '登录已过期，请重新登录');
+      console.warn('[RefreshToken] 凭证失效，最终提示用户：', msg, '原始 error=', refreshErr);
+      forceLogout(msg, config);
+      return Promise.reject(refreshErr);
+    } finally {
+      // #4：无论成功、失败还是 forEach 抛错，都必须复位
+      isRefreshing = false;
+      requestQueue = [];
+    }
   }
 
   /**
@@ -314,7 +435,7 @@ function isLoginPage() {
   );
 
   service.interceptors.response.use(
-    (response) => {
+    async (response) => {
        let errMsg ="";
 
       const config = response.config;
@@ -328,14 +449,11 @@ function isLoginPage() {
         return res.data;
       }
       
-      // 业务层 401：后端以 HTTP 200 + body.code=401 返回（token 失效）
-      // 不在这里跳转/刷新，统一交给 error 拦截器或调用方处理；这里仅 reject
+      // 业务层 401：后端以 HTTP 200 + body.code=401 返回（UnLoginException / JwtException 等）。
+      // 【2026-11-05 复核修复 #3】不再只弹提示，与 HTTP 401 统一走刷新 / 重放入口；
+      // 重放后仍 401 时由 refreshAndReplay 的 _retry 分支清态跳登录，不会无限循环。
       if (res.code === 401) {
-          errMsg = window.ErrorCodeDomain.resolveResult(res).message;
-        if (config.customErrorMsg !== false) {
-          showError(errMsg);
-        }
-        return Promise.reject(res);
+        return refreshAndReplay(config, config);
       }
 
       // 业务层 403：权限不足（与 HTTP 403 同义）—— 不刷新 token，不跳转登录页
@@ -381,153 +499,11 @@ function isLoginPage() {
       const status = error.response.status;
       const originalRequest = config;
 
-      // ====== 关键修复：只对 401 刷新 token，403 不刷新 ======
-      // 原因：403 表示"已登录但权限不足"，刷新 token 后用户角色/权限不变，
-      //       重试请求还是 403，又会触发刷新 → 无限循环
-      //       401 才表示"未登录或 token 失效"，需要刷新
-      //
-      // ====== 关键修复：originalRequest._retry 标记 ======
-      // 已重试过的请求若再次 401，不再刷新，避免嵌套循环
+      // ====== 【2026-11-05 复核修复】401 统一交给 refreshAndReplay ======
+      // HTTP 401（过滤器层）与业务层 code=401 已共用同一「刷新 → 重放 → 清态」入口，
+      // 分类与健壮性收口见本文件上方 refreshAndReplay / forceLogout（#1 #3 #4 #5 #6）。
       if (status === 401) {
-        // 公开页接口（如师资落地页的 public-list）401 属预期内（未登录），不刷新 token、不跳登录页，
-        // 直接 reject 交由调用方静默降级（展示空数据），避免与 index 的 tCode 未登录重定向
-        // 形成 index↔landing 死循环。noAuthRedirect 由调用方在 request 时显式声明。
-        // 登录页同理：401 时跳转目标就是本页，整页刷新只会丢失 URL 参数，直接短路。
-        // 注意：必须在此处（首次 401 进入刷新分支前）短路，否则会进入下方 refresh 失败分支触发跳转。
-        if (window.__PUBLIC_LANDING__ || config.noAuthRedirect || isLoginPage()) {
-          return Promise.reject(error);
-        }
-
-        if (!originalRequest._retry) {
-          originalRequest._retry = true; // 标记：本请求已尝试过刷新重试
-
-        // ②-a 已有刷新在进行：排队等待，刷新完成后用新 token 重发
-        if (isRefreshing) {
-          return new Promise((resolve, reject) => {
-            // 修复：队列项需同时保存 resolve 和 reject，
-            // 否则刷新失败时排队的 Promise 永远 pending
-            requestQueue.push({
-              resolve,
-              reject,
-              fn: (newToken) => {
-                originalRequest.headers = originalRequest.headers || {};
-                originalRequest.headers.Authorization = `Bearer ${newToken}`;
-                service(originalRequest).then(resolve).catch(reject);
-              }
-            });
-          });
-        }
-
-        // ②-b 没有刷新在进行：自己发起刷新
-        isRefreshing = true;
-        try {
-          const refreshRes = await getNewToken();
-          // 后端响应：HTTP 200 + body.code === 200 才算刷新成功
-          if (
-            refreshRes &&
-            refreshRes.status === 200 &&
-            refreshRes.data &&
-            refreshRes.data.code === 200
-          ) {
-            const result = refreshRes.data;
-            const newToken = result.data && result.data.token;
-            const newRefreshToken = result.data && result.data.refreshToken;
-            if (!newToken) {
-              throw new Error('刷新接口未返回 token');
-            }
-            localStorage.setItem('token', newToken);
-            if (newRefreshToken) {
-              localStorage.setItem('refreshToken', newRefreshToken);
-            }
-            originalRequest.headers = originalRequest.headers || {};
-            originalRequest.headers.Authorization = `Bearer ${newToken}`;
-
-            // 唤醒所有排队请求
-            requestQueue.forEach((item) => item.fn(newToken));
-            requestQueue = [];
-            isRefreshing = false;
-
-            // 重试原请求
-            return service(originalRequest);
-          }
-          // 刷新接口返回非 200 业务码：当作刷新失败
-          throw new Error(
-            (refreshRes && refreshRes.data && (refreshRes.data.message || refreshRes.data.msg)) ||
-            '刷新凭证失败'
-          );
-        } catch (refreshErr) {
-          // ③ 刷新失败：区分"凭证失效"和"网络故障"两种场景
-          //
-          // 凭证失效（refreshToken 过期/无效/被踢）：
-          //   - 后端返回 HTTP 200 + body.code=401 → 手动 throw Error(message)
-          //   - 后端返回 HTTP 4xx/5xx → axios 自动 reject，refreshErr.response 存在
-          //   → 清登录态、跳登录页
-          //
-          // 网络故障（超时/断网/服务不可达）：
-          //   - refreshErr.response 不存在，refreshErr.code === 'ECONNABORTED' 或无 response
-          //   → 不清登录态（refreshToken 可能还有效），不跳登录，只提示网络异常
-          //   → 用户网络恢复后可继续操作，下次 401 再触发刷新
-
-          requestQueue.forEach((item) => item.reject(refreshErr));
-          requestQueue = [];
-          isRefreshing = false;
-
-          const isNetworkError = !refreshErr ||
-            (typeof refreshErr === 'object' && !refreshErr.response && !refreshErr.message?.includes('刷新'));
-
-          if (isNetworkError) {
-            // 网络故障：不清登录态，不跳登录，让用户稍后重试
-            const netMsg = '网络异常，Token 刷新失败，请检查网络后重试';
-            console.warn('[RefreshToken] 网络故障导致刷新失败（未清登录态）：', refreshErr);
-            if (config.customErrorMsg !== false) {
-              showError(netMsg);
-            }
-            return Promise.reject(refreshErr);
-          }
-
-          // 凭证失效：提取后端 message
-          let backendMsg = '登录已过期，请重新登录';
-          if (refreshErr) {
-            if (typeof refreshErr === 'string') {
-              backendMsg = refreshErr;
-            } else if (refreshErr.response && refreshErr.response.data) {
-              const r = refreshErr.response.data;
-              backendMsg = (r && (r.message || r.msg)) || backendMsg;
-            } else if (refreshErr.message) {
-              backendMsg = refreshErr.message;
-            }
-          }
-          console.warn('[RefreshToken] 凭证失效，最终提示用户：', backendMsg, '原始 error=', refreshErr);
-
-          localStorage.removeItem('token');
-          localStorage.removeItem('refreshToken');
-          localStorage.removeItem('currentUser');
-          showError(backendMsg);
-
-          // 跳转保护：避免多个并发请求同时触发跳转
-          if (!isRedirecting) {
-            // 公开落地页（student-landing.html 设了 window.__PUBLIC_LANDING__）：任何 401 都不跳登录页，
-            // 否则会与 index 的 tCode 未登录重定向形成 index↔landing 死循环；交由调用方静默降级。
-            // 即便调用方已显式声明 noAuthRedirect 也走同一兜底。
-            if (window.__PUBLIC_LANDING__ || config.noAuthRedirect || isLoginPage()) {
-              isRedirecting = false;
-              return Promise.reject(refreshErr);
-            }
-            isRedirecting = true;
-            undefined;
-            saveLoginRedirect('401');
-            setTimeout(() => {
-              var _loginTarget = (typeof window.pageUrl === 'function') ? window.pageUrl('login.html') : './login.html';
-              if (window.RouterAdapter && typeof window.RouterAdapter.openUrl === 'function') {
-                window.RouterAdapter.openUrl(_loginTarget);
-              } else {
-                location.href = _loginTarget;
-              }
-            }, 500);
-          }
-          return Promise.reject(refreshErr);
-        }
-      }
+        return refreshAndReplay(originalRequest, config);
       }
 
       // ④ 非 401 / 已重试过的 401 / 403 等：按状态码提示，不再刷新。
@@ -541,32 +517,8 @@ function isLoginPage() {
       let errMsg = '';
       switch (status) {
         case 401:
-          // 已重试过仍 401（新 token 也不行）：清登录态并跳转
+          // 401 已在上方统一交给 refreshAndReplay（含清态 + 跳转），此处仅兜底提示
           errMsg = '登录已过期，请重新登录';
-          localStorage.removeItem('token');
-          localStorage.removeItem('refreshToken');
-          localStorage.removeItem('currentUser');
-          // 跳转保护：避免多个并发请求同时触发跳转
-          if (!isRedirecting) {
-            isRedirecting = true;
-            if (window.__PUBLIC_LANDING__ || config.noAuthRedirect || isLoginPage()) {
-              // 公开页（如师资落地页）的公开接口偶发 401：不跳登录页，否则会与 index 的
-              // tCode 未登录重定向形成 index↔landing 死循环；由调用方自行降级（展示空数据）。
-              // 仅释放跳转锁，不执行 saveLoginRedirect / 不跳转。
-              isRedirecting = false;
-            } else {
-              undefined;
-              saveLoginRedirect('401');
-              setTimeout(() => {
-                var _loginTarget = (typeof window.pageUrl === 'function') ? window.pageUrl('login.html') : './login.html';
-              if (window.RouterAdapter && typeof window.RouterAdapter.openUrl === 'function') {
-                window.RouterAdapter.openUrl(_loginTarget);
-              } else {
-                location.href = _loginTarget;
-              }
-              }, 500);
-            }
-          }
           break;
         case 403:
           // 权限不足：只提示，不刷新，不跳转（保留当前页面上下文）

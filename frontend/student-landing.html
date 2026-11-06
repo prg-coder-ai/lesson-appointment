@@ -117,15 +117,14 @@
           html += backBtnHtml;
         } else if (loggedIn) {
           html += '<a class="lp-btn lp-btn-ghost" href="' + wsHref + '">前往工作台</a>';
-        }
-        if (loggedIn) {
-          html += '<a class="lp-btn lp-btn-primary" href="javascript:;" onclick="window.__landingLogout()">退出登录</a>';
-        } else {
+             html += '<a class="lp-btn lp-btn-primary" href="javascript:;" onclick="window.__landingLogout()">退出登录</a>';
+        }  else {
           html += '<a class="lp-btn lp-btn-ghost" href="' + loginHref + '">登录</a>';
           html += '<a class="lp-btn lp-btn-primary" href="' + loginHref + '">注册</a>';
+     html += '<a class="lp-btn lp-btn-ghost" href="javascript:;" onclick="window.__closeLanding()">关闭</a>';
         }
         // 「关闭」按钮：关闭本页面（弹窗直接关；顶层页 window.close 被禁时 history.back 兜底）
-        html += '<a class="lp-btn lp-btn-ghost" href="javascript:;" onclick="window.__closeLanding()">关闭</a>';
+      
         actions.innerHTML = html;
       }
       // 退出登录：在落地页内直接清本地登录态 + 尽力调服务端登出，然后原地重载落地页（已登出态）。
