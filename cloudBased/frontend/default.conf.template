@@ -44,6 +44,15 @@ server {
     listen       8080;
     server_name  _;
 
+    # ═══════════════════════════════════════════════════════
+    # 上游地址：由 Dockerfile 构建阶段 envsubst 注入。
+    # 使用 nginx 变量 + proxy_pass $var，让域名解析推迟到运行时
+    # （配合 /docker-entrypoint.d/00-resolver.sh 生成的 resolver），
+    # 避免 nginx 启动时因后端 DNS 不可达而 crash-loop。
+    # ═══════════════════════════════════════════════════════
+    set $api_upstream "${API_UPSTREAM}";
+    set $msg_upstream "${MSG_UPSTREAM}";
+
     root   /var/www/frontend;             # dist 已复制到容器 /var/www/frontend
     index  index.html;                    # dist/index.html = 统一登录入口页
 
@@ -87,7 +96,7 @@ server {
     # SSE：三条必配（buffer off / cache off / 长超时）。少一条 → 连接建立但收不到消息，
     # 前端 EventSource 每秒重连一次。原有 120s 的 read_timeout 会每 2 分钟掐断一次。
     location /api/v1/sse {
-        proxy_pass ${MSG_UPSTREAM};
+        proxy_pass $msg_upstream;
 
         proxy_buffering off;
         proxy_cache off;
@@ -107,7 +116,7 @@ server {
     }
 
     location /api/v1/message {
-        proxy_pass ${MSG_UPSTREAM};
+        proxy_pass $msg_upstream;
         proxy_set_header Connection '';
         proxy_set_header X-WX-OPENID  $http_x_wx_openid;
         proxy_set_header X-WX-UNIONID $http_x_wx_unionid;
@@ -118,7 +127,7 @@ server {
     }
 
     location /api/v1/sensitive {
-        proxy_pass ${MSG_UPSTREAM};
+        proxy_pass $msg_upstream;
         proxy_set_header Connection '';
         proxy_set_header X-WX-OPENID  $http_x_wx_openid;
         proxy_set_header X-WX-UNIONID $http_x_wx_unionid;
@@ -129,7 +138,7 @@ server {
     }
 
     location /api/v1/users/ {
-        proxy_pass ${MSG_UPSTREAM};
+        proxy_pass $msg_upstream;
         proxy_set_header Connection '';
         proxy_set_header X-WX-OPENID  $http_x_wx_openid;
         proxy_set_header X-WX-UNIONID $http_x_wx_unionid;
@@ -141,13 +150,13 @@ server {
 
     # ==========================================================================
     # 二、走 booking 的其余 /api/v1/*
-    # ⚠ proxy_pass 后面**不能带 URI**（不能写成 ${API_UPSTREAM}/api/），
+    # ⚠ proxy_pass 后面**不能带 URI**（不能写成 $api_upstream/api/），
     #   否则 /api/v1/ 前缀会被替换掉，后端全部 404。
     # ==========================================================================
 
     # 🔐 登录/注册 —— 5 r/s（防暴力破解）
     location ~* ^/api/v1/(auth/login|auth/refreshToken|auth/logout|auth/wechat-login|auth/wechat-register|auth/wechat/qr|auth/wechat/pc-callback|user/register|promo/register-tenant|promo/register-user|promo/referral/validate)$ {
-        proxy_pass ${API_UPSTREAM};
+        proxy_pass $api_upstream;
         limit_req zone=login_zone burst=10 nodelay;
         limit_req_status 429;
         proxy_set_header X-WX-OPENID  $http_x_wx_openid;
@@ -158,7 +167,7 @@ server {
 
     # 📖 公开 GET 接口 —— 50 r/s（teacherPublishedProfile / 小程序入口页）
     location ~* ^/api/v1/(teacher/published|course/public|tenant/public|industry/options|apiInfo|system/info|tenant/name|legal/doc|term/map|interfaces) {
-        proxy_pass ${API_UPSTREAM};
+        proxy_pass $api_upstream;
         limit_req zone=public_zone burst=30 nodelay;
         limit_req_status 429;
         proxy_set_header X-WX-OPENID  $http_x_wx_openid;
@@ -169,7 +178,7 @@ server {
 
     # 🔒 其余 /api/v1/ —— 100 r/s（正常业务）
     location /api/v1/ {
-        proxy_pass ${API_UPSTREAM};
+        proxy_pass $api_upstream;
         proxy_set_header Connection '';
         proxy_cache off;                  # 登录/注册有频率闸，响应一律不缓存
 
@@ -186,7 +195,7 @@ server {
     # health 匿名放行（Nginx 探活用）；info/env/beans 等由 Spring Security httpBasic 保护，
     # 此处 Nginx 直接反代即可。
     location /actuator/ {
-        proxy_pass ${API_UPSTREAM};
+        proxy_pass $api_upstream;
         access_log off;
         limit_req zone=public_zone burst=10 nodelay;
         limit_req_status 429;
@@ -194,7 +203,7 @@ server {
 
     # ---------- 消息服务探活（对应 message-service 白名单 /api/v1/system/info）----------
     location = /msg-health {
-        proxy_pass ${MSG_UPSTREAM}/api/v1/system/info;
+        proxy_pass $msg_upstream/api/v1/system/info;
         access_log off;
     }
 
