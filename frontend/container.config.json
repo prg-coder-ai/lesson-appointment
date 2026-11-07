@@ -1,0 +1,16 @@
+{
+  "_comment": "frontend 服务部署规格。containerPort 必须与 Dockerfile EXPOSE、nginx/default.conf.template 的 listen 三者一致（8080，非 root 镜像不能监听 80）",
+  "_comment_env": "部署前必须在控制台补齐 API_UPSTREAM / MSG_UPSTREAM，否则容器启动阶段直接退出（40-render-nginx-conf.sh 的非空校验）",
+  "containerPort": 8080,
+  "dockerfilePath": "Dockerfile",
+  "buildDir": "",
+  "minNum": 1,
+  "maxNum": 10,
+  "cpu": 0.25,
+  "mem": 0.5,
+  "policyType": "cpu",
+  "policyThreshold": 60,
+  "envParams": {},
+  "customLogs": "stdout",
+  "initialDelaySeconds": 5
+}

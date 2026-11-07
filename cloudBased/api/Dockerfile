@@ -16,11 +16,12 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 RUN groupadd -r appuser \
  && useradd -r -g appuser -d /app -s /usr/sbin/nologin appuser
 
+RUN mkdir -p /app/logs && chown -R appuser:appuser /app/logs
 # ---------- 工作目录 ----------
 WORKDIR /app
 
 # ---------- 复制 jar 并赋权给 appuser ----------
-COPY --chown=appuser:appuser target/booking-api-2.2.0.jar app.jar
+COPY --chown=appuser:appuser  booking-api-2.2.0.jar app.jar
 
 # ---------- 切换到非 root 用户 ----------
 USER appuser
