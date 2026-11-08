@@ -40,10 +40,11 @@ $MSG_DIR      = Join-Path $API_DIR "message-service"
 $FE_DIR       = Join-Path $PROJECT_ROOT "frontend"
 $CLOUD_API    = Join-Path $PROJECT_ROOT "cloudBased\api"
 $CLOUD_MSG    = Join-Path $PROJECT_ROOT "cloudBased\message-service"
-$CLOUD_WEB    = Join-Path $PROJECT_ROOT "cloudBased\web"
-# web 的「源文件」在 deploy 下受版本控制；cloudBased/web 是纯暂存目录（.gitignore 已忽略），
-# 构建前由本脚本把源码拷进去。
-$WEB_SRC      = Join-Path $PROJECT_ROOT "deploy\nginx\cloudbase-web"
+$CLOUD_WEB    = Join-Path $PROJECT_ROOT "cloudBased\frontend"
+# web 的构建上下文就是 cloudBased\frontend 本身（Dockerfile + default.conf.template + dist
+# 都在这个目录里，COPY dist 依赖它）。原先「源文件放 deploy\nginx\cloudbase-web、再拷进
+# 暂存目录 cloudBased\web」那套已废弃：它是 listen 80 的老镜像，与云托管 containerPort
+# 8080 不一致，上线即全站 502，2026-11-08 连同源文件一并删除。
 
 # ---------- 颜色输出 ----------
 function Step($msg) { Write-Host "`n▶ $msg" -ForegroundColor Cyan }
@@ -126,24 +127,29 @@ if (-not $SkipDocker) {
     if ($LASTEXITCODE -ne 0) { Fail "message-service docker build 失败" }
     Ok "booking-message-service:1.1.0"
 
-    # 3c. web —— 两个上游：api（8081）与 message-service（8090），是两个独立云托管服务
-    $apiInternalHost = if ($EnvId) { "http://api.$EnvId.svc.cluster.local:8081" } else { "http://REPLACE_WITH_API_INTERNAL_HOST:8081" }
-    $msgInternalHost = if ($EnvId) { "http://message-service.$EnvId.svc.cluster.local:8090" } else { "http://REPLACE_WITH_MESSAGE_INTERNAL_HOST:8090" }
+    # 3c. web —— 上游地址**不再进镜像**：API_UPSTREAM / MSG_UPSTREAM 走运行时环境变量，
+    # 由容器的 00-resolver.sh 启动时渲染 nginx 配置。所以不传 --build-arg，
+    # 换环境/换内网域名只改控制台环境变量 + 重启实例，同一镜像可复用。
+    # ⚠ 部署前必须在 云托管控制台 → 服务设置 → 环境变量 配好这两个，否则容器启动即失败：
+    #   API_UPSTREAM = http://api-xxxxxxxx.<region>.internal-run.tcloudbase.com:8081
+    #   MSG_UPSTREAM = http://message-service-xxxxxxxx.<region>.internal-run.tcloudbase.com:8090
+    # ❌ 绝不可用 <服务名>.<envid>.svc.cluster.local —— 微信云托管无此 DNS 记录（实测 NXDOMAIN）
 
-    # web 源文件：deploy/nginx/cloudbase-web → 暂存目录 cloudBased/web（构建上下文必须是这里）
-    foreach ($f in @("Dockerfile", "nginx.conf.template")) {
-        if (-not (Test-Path "$WEB_SRC\$f")) { Fail "缺少 $WEB_SRC\$f" }
-        Copy-Item "$WEB_SRC\$f" "$CLOUD_WEB\" -Force
+    # 构建上下文 = cloudBased\frontend（Dockerfile 的 COPY dist 依赖同目录的 dist\）
+    foreach ($f in @("Dockerfile", "default.conf.template")) {
+        if (-not (Test-Path "$CLOUD_WEB\$f")) { Fail "缺少 $CLOUD_WEB\$f" }
     }
-    Ok "web 源文件已拷入暂存目录（deploy\nginx\cloudbase-web → cloudBased\web）"
+    if (-not (Test-Path "$CLOUD_WEB\dist")) { Fail "缺少 $CLOUD_WEB\dist（先跑前端构建，别加 -SkipFrontend）" }
+    Ok "web 构建上下文就绪：cloudBased\frontend"
 
-    Write-Host "  🐳 booking-web:latest  (API_UPSTREAM=$apiInternalHost  MSG_UPSTREAM=$msgInternalHost) ..." -ForegroundColor Gray
+    Write-Host "  🐳 booking-web:latest  (上游走运行时环境变量，构建不需 --build-arg) ..." -ForegroundColor Gray
     Push-Location $CLOUD_WEB
     try {
-        docker build --build-arg "API_UPSTREAM=$apiInternalHost" --build-arg "MSG_UPSTREAM=$msgInternalHost" -t "booking-web:latest" .
+        docker build -t "booking-web:latest" .
     } finally { Pop-Location }
     if ($LASTEXITCODE -ne 0) { Fail "web docker build 失败" }
     Ok "booking-web:latest"
+    Warn "别忘了在云托管控制台配 API_UPSTREAM / MSG_UPSTREAM 环境变量，缺失会导致容器启动失败"
 
     # 3d. 可选推送到云托管镜像仓库
     if ($DockerPush) {
