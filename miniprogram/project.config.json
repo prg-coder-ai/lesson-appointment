@@ -2,8 +2,14 @@
   "description": "预约系统微信小程序",
   "packOptions": {
     "ignore": [
-      { "type": "file", "value": "sync-shared.js" },
-      { "type": "folder", "value": "scripts" }
+      {
+        "value": "sync-shared.js",
+        "type": "file"
+      },
+      {
+        "value": "scripts",
+        "type": "folder"
+      }
     ],
     "include": []
   },

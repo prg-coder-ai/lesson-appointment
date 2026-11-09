@@ -215,7 +215,7 @@
 
 ## 附录：技术栈约束
 
-- 前端：纯静态 HTML + vanilla JS，无框架无打包器（`frontend/readme.md:10`）
+- 前端：纯静态 HTML + vanilla JS，无框架无打包器（`doc-develop/前端程序说明.md` 第 1 节）
 - 样式：`theme.css`（设计 Token）+ `base.css`（共享骨架）+ `student.css`/`teacher.css`，紫色主题 `#722ed1`
 - 响应式：768px/1024px 双断点
 - 后端：Spring Boot 3.3.5 + Java 17 + MyBatis Plus + Jakarta

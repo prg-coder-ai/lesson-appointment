@@ -104,6 +104,8 @@ function copyAssets() {
   // ★ 2026-11-08 补：部署资产（Dockerfile / nginx 模板 / container.config.json）与备份文件
   //   同样不是站点资源，一旦进 dist 就会被静态托管出去（上游地址模板、端口规格全部可下载）。
   //   注意大小写：本机文件名是 readme.md，而 Set 区分大小写，原先只写 'README.md' 等于没排除。
+  //   2026-11-09：这些源文件已从 frontend/ 删除（文档移到 doc-develop/），名单**故意保留**——
+  //   防回归：任何人把 Dockerfile / nginx 模板再放回 frontend/ 时，不会静默跟着 dist 发到公网。
   const SKIP_ROOT = new Set(['package.json', 'build.js', '.gitignore', 'README.md', 'readme.md',
     'pom.xml', 'package-lock.json', '.npmrc', 'Dockerfile', 'container.config.json']);
   // 根级「部署目录」：其下所有文件都不该进 dist。
