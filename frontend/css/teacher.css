@@ -231,4 +231,74 @@ user-select: none;
   .schedule-container { max-width: 100%; }
   .container { max-width: 960px; }
 }
+
+/* ===== 教师端「个人中心」 =====
+   该页面自带卡片容器（.tp-card），不依赖 .card 的全局定义——教师端样式表里
+   .card 只有响应式覆盖，没有底色/内边距，直接用会失去卡片观感。 */
+.tp-card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.tp-card-title {
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tp-card-title i { color: var(--primary-color, #722ed1); }
+
+/* 数据概览：四项指标平铺 */
+.tp-stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+.tp-stat-tile {
+  background: #f7f8fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 16px 12px;
+  text-align: center;
+}
+.tp-stat-val {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--primary-color, #722ed1);
+  line-height: 1.2;
+}
+.tp-stat-label { margin-top: 6px; font-size: 13px; color: #6b7587; }
+.tp-stat-sub { margin-top: 4px; font-size: 11px; color: #aab0bb; }
+
+/* 个人信息 */
+.tp-profile-head { display: flex; align-items: flex-start; gap: 20px; }
+.tp-avatar {
+  width: 72px;
+  height: 72px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--primary-color, #722ed1);
+  color: #fff;
+  text-align: center;
+  line-height: 72px;
+  font-size: 30px;
+}
+.tp-profile-body { flex: 1; min-width: 0; }
+.tp-info-row { display: flex; margin-bottom: 10px; font-size: 14px; }
+.tp-info-label { width: 86px; flex: 0 0 auto; color: #6b7587; }
+.tp-info-value { color: #333; word-break: break-all; }
+
+/* 账号设置 */
+.tp-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.tp-action-btn { padding: 10px 16px; }
+
+@media (max-width: 768px) {
+  .tp-stat-row { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .tp-profile-head { flex-direction: column; align-items: flex-start; }
+}
   

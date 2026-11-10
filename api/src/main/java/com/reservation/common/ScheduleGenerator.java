@@ -20,8 +20,9 @@ public class ScheduleGenerator {
 
     // 生成用户时区的排期---dto内包含tz及用户时区,输出
     public static List<ScheduleVO> generateUserZoneSchedule(ScheduleGenerateDTO dto) {
-        ZoneId fromZone = ZoneId.of(dto.getTimeZone().trim());   
-        ZoneId toZone =  ZoneId.of(dto.getUserTimeZone().trim()); 
+        // 时区用 safeZone 兜底：null/空/非法值（如 CST/GMT+8）降级 UTC，避免 NPE 让整页预览炸成空列表/502
+        ZoneId fromZone = safeZone(dto.getTimeZone());
+        ZoneId toZone = safeZone(dto.getUserTimeZone());
 
         LocalDate start = dto.getStartDate();
         if (start == null) start = LocalDate.now(); 
@@ -34,10 +35,30 @@ public class ScheduleGenerator {
             end = start.plusDays(30);
         }
         String type = dto.getRepeatType();
+        // ★ 防御：repeatType 必须归一为 none/day/week/month。前端 normalizeScheduleGenerateForm 已做这层转换，
+        //   但后端绝不能依赖调用方——历史上数字 "3"、脏值会命中下方 switch 的 default 分支，
+        //   而 nextDate 的 default 又是 return current（不推进），导致 while 死循环 → 线程池耗尽 → 代理 502。
+        if (type == null || type.trim().isEmpty()) {
+            type = "none";
+        } else {
+            String t = type.trim().toLowerCase();
+            if (t.matches("[0-3]")) {                       // 兼容 DB 数字枚举 0/1/2/3
+                t = new String[]{"none", "day", "week", "month"}[Integer.parseInt(t)];
+            }
+            if (!java.util.Set.of("none", "day", "week", "month").contains(t)) {
+                log.warn("未知 repeatType「{}」，降级为 none 以防死循环", type);
+                t = "none";
+            }
+            type = t;
+        }
         int interval = dto.getInterval() == null ? 1 : dto.getInterval();
+        // ★ 防御：interval<=0 会让 plusDays(0)/plusWeeks(0) 不推进 current → 死循环（实测 none 类型旧代码即此坑，
+        //   请求线程挂死直到 Tomcat 线程池耗尽，后续请求全 502）。统一兜底为 1。
+        if (interval < 1) interval = 1;
        // log.debug("interval:"+interval);
         List<Integer> repeatDays = dto.getRepeatDays() == null ? List.of() : dto.getRepeatDays();
-        LocalTime time = dto.getStartTime(); 
+        // 时间为空时兜底 00:00，避免 LocalDateTime.of(current, null) 抛 NPE
+        LocalTime time = dto.getStartTime() != null ? dto.getStartTime() : LocalTime.MIDNIGHT;
 
         List<LocalDateTime> userSchedule = new ArrayList<>();
         LocalDate current = start;
@@ -58,7 +79,15 @@ public class ScheduleGenerator {
                 userSchedule.add(ldt); 
             }
 
+            LocalDate prev = current;
             current = nextDate(current, type, interval,repeatDays);
+            // ★ 终极兜底：若 nextDate 未能推进 current（任何未预料的分支），立即跳出循环，
+            //   绝不让 while(!current.isAfter(end)) 永真。否则请求线程挂死会拖垮整个 Tomcat 线程池，
+            //   表现为代理层 502。这是对"502 死循环"类故障的二次加固。
+            if (!current.isAfter(prev)) {
+                log.warn("nextDate 未推进 current（repeatType={}），终止展开以防死循环", type);
+                break;
+            }
              // log.debug("current:"+current);
         }
             List<ScheduleVO> convertedSchedule = new ArrayList<ScheduleVO>();

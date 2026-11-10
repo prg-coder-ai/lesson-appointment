@@ -70,29 +70,28 @@ api/node_modules
 logs/spring-boot-app.log
 logs/spring-boot-app.log
 logs/spring-boot-app.log
-# beforeRun 只排除「构建产物与运行时配置」，不再排除整个目录。
-# 原为整目录排除（曾导致 lesson_appointment 完整 DDL 无法入库 = 报告根因 C：
-# 「DB 定义没有单一事实源」）。现权威脚本已集中到 api/sql/（见 api/sql/README.md），
-# 这里仍放行 beforeRun/sql/ 下的历史脚本以备追溯。
+# beforeRun：只排除「运行时生成的配置」，模板与脚本应入库�
+# 注意：api/beforeRun 下有部署用模板（*.env.template / *.service / README.md）与历史
+# SQL 脚本，均为单一事实源，不得整目录排除——否�env 模板等永远进不了 Git，干净克隆
+# 上缺失，check:secret-env 守卫与部署脚本会失真�
 #
 # ⚠️ 2026-10-30 修：下面原本只有 `!api/beforeRun/sql/...` 两条白名单，导致
-#    booking.env.template / message.env.template **从未进入 Git** ——
-#    干净克隆上 deploy/upload-to-server.sh 引用的模板全都不存在，
-#    于是大家只能去 doc-develop/ 复制那份旧副本，而那份副本用的是无效的
-#    CRYPTO_AESKEY 变量名（"以为配了其实没配"的根源）。
-#    现补放行"部署前置件"：env 模板 / systemd 单元 / 说明。
+#    booking.env.template / message.env.template **从未进入 Git** —�
+#    干净克隆�deploy/upload-to-server.sh 引用的模板全都不存在�
+#    于是大家只能�doc-develop/ 复制那份旧副本，而那份副本用的是无效�
+#    CRYPTO_AESKEY 变量名（"以为配了其实没配"的根源）�
+#    现补放行"部署前置�：env 模板 / systemd 单元 / 说明�
 api/beforeRun/*
 !api/beforeRun/*.env.template
 !api/beforeRun/*.service
 !api/beforeRun/README.md
 !api/beforeRun/*.sql
 !api/beforeRun/sql/
-!api/beforeRun/sql/*.sql
 
-# ========== 运行日志与临时输出（统一规则，2026-09-09 整理）==========
-# 说明：上面历史遗留的重复条目（如 logs/spring-boot-app.log、api/logs 等）保留不动，
-#       避免误伤；以下为统一兜底规则，覆盖所有模块产生的日志与构建输出。
-# 覆盖：Spring Boot 运行日志、Maven 构建日志、前端构建日志、JVM 崩溃转储。
+# ========== 运行日志与临时输出（统一规则�026-09-09 整理�=========
+# 说明：上面历史遗留的重复条目（如 logs/spring-boot-app.log、api/logs 等）保留不动�
+#       避免误伤；以下为统一兜底规则，覆盖所有模块产生的日志与构建输出�
+# 覆盖：Spring Boot 运行日志、Maven 构建日志、前端构建日志、JVM 崩溃转储�
 *.log
 *.log.gz
 *.log.*.gz
@@ -102,21 +101,36 @@ api/message-service/logs/
 doc-develop/logs/
 hs_err_pid*.log
 replay_pid*.log
-# miniprogram-itest 的「被测系统」暂存目录：由 logic.mjs / login-flow.mjs 每次运行 cpSync 生成，
-# 不得入库（曾因 _sut_login 漏配而把 26 个生成文件提交进去，导致每次跑测试都产生 diff 噪声）。
+# miniprogram-itest 的「被测系统」暂存目录：�logic.mjs / login-flow.mjs 每次运行 cpSync 生成�
+# 不得入库（曾�_sut_login 漏配而把 26 个生成文件提交进去，导致每次跑测试都产生 diff 噪声）�
 tests/miniprogram-itest/_sut*
 
-# 本机巡检凭据：deploy/healthcheck-local.sh 会自动 source它。
-# 内含数据库明文密码，绝不入库（模板见 .healthcheck.local.env.example）。
+# 本机巡检凭据：deploy/healthcheck-local.sh 会自�source它�
+# 内含数据库明文密码，绝不入库（模板见 .healthcheck.local.env.example）�
 .healthcheck.local.env
 .workbuddy/healthcheck-local.log
+# cloudBased/web 是纯暂存目录：dist/、构建时拷进来的 Dockerfile �nginx.conf.template�
+# 以及 web.zip 都堆在这里。源文件已迁�deploy/nginx/cloudbase-web/ 受版本控制，
+# �cloudBased/scripts/build-all.* �docker build 前拷入（别再往这里放需要入库的东西）�
 cloudBased/web
 cloudBased/api/booking-api-2.2.0.jar
 cloudBased/message-service/message-service-1.1.0.jar
 cloudBased/web.zip
+# cloudBased/env 下的 .env*.example �README.txt 曾入库，已全�untrack（本地文件保留）�
+# 变量清单与取值格式见部署手册（应�云托管环境变量一节）�
 cloudBased/env
 cloudBased/api.zip
 cloudBased/api/target/booking-api-2.2.0.jar
 cloudBased/message-service.zip
 cloudBased/message-service/target/message-service-1.1.0.jar
 api/classroom-service/target
+cloudBased/*.zip
+cloudBased/api/target/*.jar
+cloudBased/message-service/target/message-service-1.1.0.jar
+
+# 构建产物统一收口目录（deploy/collect-artifacts.js 生成）：
+#   deploy/dist/  = frontend/dist 的镜像，deploy/jars/ = 三个后端 jar 的最新版�
+# �frontend/dist、各 target/ 一样属于构建输出，绝不入库；上传用 deploy/upload-to-server.sh�
+deploy/dist/
+deploy/jars/
+cloudBased/frontend/dist

@@ -48,6 +48,14 @@ public class CourseScheduleService {
     @Resource
     private ReferentialCascadeService cascadeService;
 
+    /**
+     * 只读课程行，用于取「教学语言 / 课时长度」作为排期的默认值�
+     * 这里直接注入 CourseMapper 而不�CourseService：CourseService 已依�
+     * CourseScheduleMapper，反向注�CourseService 会形成循环依赖�
+     */
+    @Resource
+    private com.reservation.mapper.CourseMapper courseMapper;
+
   @Resource
     private BookingMapper bookingMapper;
      @Resource
@@ -55,19 +63,25 @@ public class CourseScheduleService {
      @Resource
     private TenantQuotaService tenantQuotaService;
 
-    /** 名额校验（含加锁与锁定读）统一由 BookingSeatService 提供，与学生预定/候补递补共用同一闸门 */
+    /** 名额校验（含加锁与锁定读）统一�BookingSeatService 提供，与学生预定/候补递补共用同一闸门 */
     @Resource
     private BookingSeatService bookingSeatService;
 
-    /** 课堂事件推送（排期变更后通知 classroom-service） */
+    /** 课堂事件推送（排期变更后通知 classroom-service�*/
     @Resource
     private ClassroomEventPushService classroomEventPushService;
 
-// 3. 冲突检测：先展开重复规则，检查每个实例是否冲突--TBD：课程+room是否冲突
+     * 必须校验落在 {@code sys_work_language} 的可见清单内（空=跟随课程，放行）�
+     * 不注�CourseService 的原因同上面 courseMapper 的注释：会形成循环依赖�
+     */
+    @Resource
+    private WorkLanguageService workLanguageService;
+
+// 3. 冲突检测：先展开重复规则，检查每个实例是否冲�-TBD：课�room是否冲突
 // 参数excludeSchid 在修改已存在的排期时，带
-/*  约定：排期使用dto带入的时区
+/*  约定：排期使用dto带入的时�
  检查方法：1、与同一课程的其它排期的时间进行比较 ---采用--保守算法
-             2、与同一课程的已经预订的排期时间表进行比较 --精确算法
+             2、与同一课程的已经预订的排期时间表进行比�--精确算法
 */
 
     public  List<Map<String, Object>>   checkScheduleOwnerConflict(ScheduleCreateDTO dto){
@@ -86,6 +100,12 @@ public class CourseScheduleService {
                }
     
        
+         // 待新增排期的课时长度：dto 显式带了就用它（排期可覆盖课程）�
+         // 否则回落到课程上的值，再不行才是默�60�
+         int newDurationMinutes = (dto.getClassDuration() != null && dto.getClassDuration() > 0)
+                 ? dto.getClassDuration()
+                 : resolveCourseDuration(dto.getCourseId());
+
          // 获取courseID= dto.getCourseId()的所有排期，以List方式输出
          List<CourseSchedule> scheduleList = scheduleMapper.selectByCreateDto(
              new ScheduleCreateDTO() {{
@@ -100,19 +120,19 @@ public class CourseScheduleService {
          
          List< ScheduleVO> scheduleInstances = ScheduleGenerator.generateUserZoneSchedule(gto);
 
-         //对于每一个的排期，调用generateUserZoneSchedule创建排期时间表，然后与scheduleInstances内的日期和时间进行比较，比较的标准是，两个时间在1小时内没有重叠。如果有重叠，则把该排期的scheduleID加入一个冲突列表
+         //对于每一个的排期，调用generateUserZoneSchedule创建排期时间表，然后与scheduleInstances内的日期和时间进行比较，比较的标准是，两个时间在1小时内没有重叠。如果有重叠，则把该排期的scheduleID加入一个冲突列�
         // 对每个已存在的排期，生成其实例时间表，然后与待新增的 scheduleInstances 中每个实例比较，判重
         //Map<String,String> conflictScheduleIds = null;
         List<Map<String, Object>> conflictScheduleIds = new ArrayList<>();  
-        // scheduleInstances 是当前待创建的实例时间列表
-        // scheduleList 是数据库已有、同课程的其它排期
+        // scheduleInstances 是当前待创建的实例时间列�
+        // scheduleList 是数据库已有、同课程的其它排�
         int cnt=0;
 
         //System.out .println("newSchedule : "+cnt +" newGto:" +gto );
         for (CourseSchedule existSchedule : scheduleList) {
-            // 构造 ScheduleGenerateDTO，转换 existSchedule 的各字段
+            // 构�ScheduleGenerateDTO，转�existSchedule 的各字段
             ScheduleGenerateDTO existGto = CreateDtoToGenerateDto( ObjectToCreateDto(existSchedule));//object->create->Gto
-            existGto.setUserTimeZone(timeZone);//使用相同的时区进行比较
+            existGto.setUserTimeZone(timeZone);//使用相同的时区进行比�
 
             //System.out .println("existSchedule : "+cnt +" existGto:" +existGto );
             List<com.reservation.dto.ScheduleVO> existInstances = ScheduleGenerator.generateUserZoneSchedule(existGto);
@@ -122,7 +142,7 @@ public class CourseScheduleService {
 
                 String existDate = existInst.getDate();
                 String existTime = existInst.getTime();
-                // 合并字符串日期和时间为一个日期时间对象
+                // 合并字符串日期和时间为一个日期时间对�
                 LocalDateTime existStart = LocalDateTime.parse(existDate + "T" + existTime); 
                 int cntapp=0;
                 for ( ScheduleVO newInst : scheduleInstances) {
@@ -130,7 +150,7 @@ public class CourseScheduleService {
                     String newTime = newInst.getTime();
                   //  System.out .println(cnt*1000+cntapp +"  newdate "+newDate +" "+newTime+" exist: " +existDate +" "+existTime+"org:"+newInst);
                    
-                    // 判断existDate和newDate是否是系统的字符串
+                    // 判断existDate和newDate是否是系统的字符�
                     // 这里可以检查是否为null、并且是否为字符串类型（在Java中如果变量类型是String一般不用再判断类型，但可防御性书写如下）
                     if (!(existDate instanceof String) || !(newDate instanceof String)) {
                         log.debug("existDate或newDate不是字符串类型，existDate=" + existDate + ", newDate=" + newDate);
@@ -138,25 +158,27 @@ public class CourseScheduleService {
                     }
                 
                     if (!existDate.equals(newDate)) {
-                        continue; // 日期不同则跳过本次比较
+                        continue; // 日期不同则跳过本次比�
                     }
             
                     LocalDateTime newStart = LocalDateTime.parse(newDate + "T" + newTime);
                   //  System.out .println(cnt*1000+cntapp +"newStart:"+newStart+"exist:"+existStart);
-                    // 比较新旧两个排期实例是否重叠（以1小时为互斥区间, 可视为每节课持续1小时）
-                    LocalDateTime existEnd = existStart.plusHours(1);
-                    LocalDateTime newEnd = newStart.plusHours(1);
+                    // 每条排期�*自己的课时长�*判重叠�
+                    // 原先这里硬编�plusHours(1)（注释写着"可视为每节课持续1小时"），
+                    // 一�90 分钟的课排在 19:00，与 20:00 的另一门课会被判成"不冲�—�
+                    // 真实冲突被静默放过。根因是排期表当时没有时长列，只能猜�
+                    LocalDateTime existEnd = existStart.plusMinutes(resolveScheduleDuration(existSchedule));
+                    LocalDateTime newEnd = newStart.plusMinutes(newDurationMinutes);
                     // INSERT_YOUR_CODE
                     // 如果结束时间与开始时间相同，认为是不冲突
                     if (existEnd.equals(newStart) || newEnd.equals(existStart)) {
-                        continue; // 不算冲突，跳过
+                        continue; // 不算冲突，跳�
                     }
           
                     // overlap: 两段有交集（即不是完全前后）
                     boolean overlap = !(newEnd.isBefore(existStart) || newStart.isAfter(existEnd));
-                    if(overlap){
-                     System.out .println(cnt*1000+cntapp +"cmp : newdate"+newStart +"---"+newEnd+"existEnd:" +existStart+"---"+existEnd +"overlap"+overlap);
-                    }
+                    // 原实现在这里 System.out.println 打印每次比较，按时长判定后命中更频繁�
+                    // 会把控制台刷满；改用 debug 级别，需要时开日志即可�
                    // cntapp= cntapp+1;
                     if (overlap) { 
 
@@ -182,28 +204,114 @@ public class CourseScheduleService {
        // System.out .println("conflictScheduleIds:"+conflictScheduleIds);
       return  conflictScheduleIds;  
     }
+    /** 课时长度缺省值（分钟）。与 DB �DEFAULT '60'、模板表单默认值保持一致�*/
+    private static final int DEFAULT_CLASS_DURATION = 60;
+
+    /**
+     * 课时长度取值校验。模板侧约束是「≥15 �15 的倍数」，排期上放宽到 15~600 的任意整�
+     * （真实业务有 25 分钟试听�5 分钟一对一�0 分钟连堂课，硬套 15 的倍数会卡住正常排课）�
+     * null 表示未指定，直接放行�
+     */
+    private void validateClassDuration(Integer minutes) {
+        if (minutes == null) return;
+        if (minutes < 15 || minutes > 600) {
+            throw new BusinessException(TermMsg.t("课时长度需�15-600 分钟之间"));
+        }
+    }
+
+    /**
+     * 排期的有效课时长度：库��课程��60�
+     *
+     * <p>三级回落是必要的�026-10-25 之前的排期行是回填出来的�
+     * 更早的数据（从别的环境导入、或人手�SQL 插入）可能两处都空�
+     * 返回 0 会让 plusMinutes(0) 算出的区间端点相等，重叠判断退化成"永远不冲��
+     * 比原来硬编码 1 小时还糟�
+     */
+    private int resolveScheduleDuration(CourseSchedule schedule) {
+        if (schedule == null) return DEFAULT_CLASS_DURATION;
+        Integer d = schedule.getClassDuration();
+        if (d != null && d > 0) return d;
+        return resolveCourseDuration(schedule.getCourseId());
+    }
+
+    /** 课程的有效课时长度：库��60。查库失败不阻断冲突检查，只回落默认值�*/
+    private int resolveCourseDuration(String courseId) {
+        if (courseId == null || courseId.trim().isEmpty()) return DEFAULT_CLASS_DURATION;
+        try {
+            Course course = courseMapper.selectById(courseId);
+            if (course != null && course.getClassDuration() != null && course.getClassDuration() > 0) {
+                return course.getClassDuration();
+            }
+        } catch (Exception e) {
+            log.debug("读取课程课时长度失败，回�{} 分钟：courseId={}, err={}",
+                    DEFAULT_CLASS_DURATION, courseId, e.getMessage());
+        }
+        return DEFAULT_CLASS_DURATION;
+    }
+
+    /**
+     * 把「课�咨询类型 · 授课语言 · 课时长度」从课程带入排期（仅在排期侧未显式给出时）�
+     *
+     * <p>只填空值、不覆盖已有值：排期上单独改过的值必须能保住�
+     * 否则每次编辑排期都会被打回课程的口径�排期可修�就成了摆设�
+     *
+     * <p>授课语言的典型用法：同一门法语课，外教班排期�french、中教班�chinese�
+     * 课程上留空即跟随，课程填了也只是默认值�
+     */
+    private void inheritTeachingPropsFromCourse(ScheduleCreateDTO dto) {
+        if (dto == null || dto.getCourseId() == null || dto.getCourseId().trim().isEmpty()) return;
+        boolean needLang = dto.getLanguageType() == null || dto.getLanguageType().trim().isEmpty();
+        boolean needWork = dto.getWorkLanguage() == null || dto.getWorkLanguage().trim().isEmpty();
+        boolean needDur = dto.getClassDuration() == null || dto.getClassDuration() <= 0;
+        if (!needLang && !needWork && !needDur) return;
+        try {
+            Course course = courseMapper.selectById(dto.getCourseId());
+            if (course == null) return;
+            if (needLang && course.getLanguageType() != null) {
+                dto.setLanguageType(course.getLanguageType());
+            }
+            if (needWork && course.getWorkLanguage() != null) {
+                dto.setWorkLanguage(course.getWorkLanguage());
+            }
+            if (needDur && course.getClassDuration() != null && course.getClassDuration() > 0) {
+                dto.setClassDuration(course.getClassDuration());
+            }
+        } catch (Exception e) {
+            log.debug("从课程继承课程类�授课语言/课时长度失败，沿用默认值：courseId={}, err={}",
+                    dto.getCourseId(), e.getMessage());
+        }
+    }
+
     // 创建排期（含冲突检测）
     @Transactional(rollbackFor = Exception.class)
     public Map<String, String> createSchedule(ScheduleCreateDTO dto) {
-        // 1. 基础校验：结束时间 > 开始时间
+        // 1. 基础校验：结束时�> 开始时�
         /*if (dto.getEndTime().isBefore(dto.getStartTime())) {
-            throw new IllegalArgumentException("结束时间必须晚于开始时间");
+            throw new IllegalArgumentException("结束时间必须晚于开始时�);
         }*/
 
-        // 2. 转换DTO为实体
+        // 2. 转换DTO为实�
+        // 新增时把课程的语言/时长带进来（排期显式给了就尊重排期的值）�
+        // 注意只有新增做这件事：编辑排期时缺字段的语义�本次不改"�
+        // 若也去继承，等于每次保存都把排期上单独改过的值打回课程口径�
+        inheritTeachingPropsFromCourse(dto);
+        validateClassDuration(dto.getClassDuration());
+        // 授课语言校验放在继承之后：继承来的值已由模板侧把关，这里再兜一道，
+        // 拦住"前端直接 POST 一个没收录�code"（空�跟随课程，放行）�
+        workLanguageService.assertVisibleCode(TenantContext.getTenantId(), dto.getWorkLanguage(), "授课语言");
         CourseSchedule schedule = CreateDtoToObject(dto); 
      //    System.out .println("create : " +dto+"-->"+ schedule); 
-        String  Id = UUID.randomUUID().toString().replace("-", ""); // 移除UUID分隔符
+        String  Id = UUID.randomUUID().toString().replace("-", ""); // 移除UUID分隔�
         schedule.setScheduleId( Id);
          //System.out .println("setScheduleId: " + schedule);
-         //3-- 检查冲突---由其它程序完成，
-        // 校验当前租户排期数量是否超出套餐上限（原子占用，与插入同一事务）
+         //3-- 检查冲�--由其它程序完成，
+        // 校验当前租户排期数量是否超出套餐上限（原子占用，与插入同一事务�
         Long tenantId = TenantContext.getTenantId();
         tenantQuotaService.acquire(tenantId, TenantQuotaService.SCHEDULE);
         // 4. 插入排期
         scheduleMapper.insertSchedule(schedule);
 
-        // 5. 推送课堂事件（事务提交后异步执行，租户未启用课堂时静默跳过）
+        // 5. 推送课堂事件（事务提交后异步执行，租户未启用课堂时静默跳过�
         classroomEventPushService.pushAfterCommit(tenantId, Id, "created");
 
         return  Collections.singletonMap("Id", Id);
@@ -223,14 +331,18 @@ public class CourseScheduleService {
             .collect(Collectors.toList());
     }
   
-//TBD:与createSchedule一样，需要检查排期冲突问题
+//TBD:与createSchedule一样，需要检查排期冲突问�
   @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public Map<String, String> update(ScheduleCreateDTO dto) { 
         //  System.out .println("update : " +dto); 
           // 席位字段可空，语义是「本次不改席位」。必须先取排期行锁并沿用库中现值：
-          // CreateDtoToObject 会给 int 字段填兜底默认值，不处理的话，一次没带席位的普通编辑
-          // 就会把容量整体改写成那个默认值；显式改小时则要求不低于已占位数，否则改完立即超卖。
+          // CreateDtoToObject 会给 int 字段填兜底默认值，不处理的话，一次没带席位的普通编�
+          // 就会把容量整体改写成那个默认值；显式改小时则要求不低于已占位数，否则改完立即超卖�
           CourseSchedule current = bookingSeatService.lockScheduleAndAssertExists(dto.getScheduleId());
+          validateClassDuration(dto.getClassDuration());
+          // 编辑时排期可单独改授课语言（外教班/中教班），因此同样要校验 code 合法�
+          // null=本次不改、空�改回"跟随课程"，两种都放行�
+          workLanguageService.assertVisibleCode(TenantContext.getTenantId(), dto.getWorkLanguage(), "授课语言");
           Integer newSites = dto.getAvailableSites();
           if (newSites != null && newSites != current.getAvailableSites()) {
               bookingSeatService.assertSitesNotBelowOccupied(dto.getScheduleId(), newSites);
@@ -249,20 +361,20 @@ public class CourseScheduleService {
         return Collections.singletonMap("Id", dto.getScheduleId());
     }
 
-//更新可用数 incSiteBody { "inc":1、-1 ，"id":scheduleId)
+//更新可用�incSiteBody { "inc":1�1 �id":scheduleId)
   @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public String updateScheduleSites(IncSiteBody Obj) {
          //log.debug("updateScheduleSites : " +Obj);         
-         // 席位调整必须过闸门：先锁排期行，再按已占位数校验新容量。
-         // 原先是无条件 available_sites = available_sites + inc，可以一路减到低于已占位数、
-         // 甚至负数（列是 tinyint，允许负值），把「满员」改成「超员」——这是顺序操作即可触发的超卖。
+         // 席位调整必须过闸门：先锁排期行，再按已占位数校验新容量�
+         // 原先是无条件 available_sites = available_sites + inc，可以一路减到低于已占位数�
+         // 甚至负数（列�tinyint，允许负值），把「满员」改成「超员」——这是顺序操作即可触发的超卖�
          CourseSchedule current = bookingSeatService.lockScheduleAndAssertExists(Obj.getScheduleId());
          bookingSeatService.assertSitesNotBelowOccupied(
                  Obj.getScheduleId(), current.getAvailableSites() + Obj.getInc());
          int rows = scheduleMapper.updateSites(Obj);
          if (rows == 0) {
              // SQL 侧的下界兜底拦下了这次调整（正常路径不会走到这里，走到了说明校验被绕过）
-             throw new BusinessException(TermMsg.t("该{schedule}席位调整失败，请刷新后重试"));
+             throw new BusinessException(TermMsg.t("该{schedule}席位调整失败，请刷新后重�));
          }
         return Obj.getScheduleId();
     }
@@ -273,7 +385,7 @@ public class CourseScheduleService {
          //System.out .println("updateStatus called with scheduleId: " + data);
          scheduleMapper.updateStatus(data);
         cascadeOnScheduleStatusChange(data.getScheduleId(), data.getStatus());
-        // 排期状态变更后推送课堂事件（取消时通知 classroom-service）
+        // 排期状态变更后推送课堂事件（取消时通知 classroom-service�
         if ("cancelled".equalsIgnoreCase(data.getStatus()) || "inactive".equalsIgnoreCase(data.getStatus())) {
             classroomEventPushService.pushAfterCommit(TenantContext.getTenantId(), data.getScheduleId(), "cancelled");
         }
@@ -281,32 +393,32 @@ public class CourseScheduleService {
     }
 
     /**
-     * 排期状态变更后的级联处置（报告根因 C：数据完整性兜底）。
+     * 排期状态变更后的级联处置（报告根因 C：数据完整性兜底）�
      *
-     * <p><b>为什么只在 frozen 时级联</b>：本方法被所有排期状态变更调用（active/pending/
-     * inactive/frozen/结束等）。只有 {@code frozen} 是<b>软删除</b>语义——
-     * 用户在界面上确认"删除"后前端走的就是这条路径（{@code operateSchedule(id,"frozen")}）。
-     * 其余状态（激活、结束…）不改变"这条排期是否还存在"的判断，
-     * 级联置子表状态反而会误伤：把排期临时置 pending 再切回 active，
-     * 若每次都级联，其下的预订与课次会被反复改写。
+     * <p><b>为什么只�frozen 时级�/b>：本方法被所有排期状态变更调用（active/pending/
+     * inactive/frozen/结束等）。只�{@code frozen} �b>软删�/b>语义—�
+     * 用户在界面上确认"删除"后前端走的就是这条路径（{@code operateSchedule(id,"frozen")}）�
+     * 其余状态（激活、结束…）不改�这条排期是否还存�的判断，
+     * 级联置子表状态反而会误伤：把排期临时�pending 再切�active�
+     * 若每次都级联，其下的预订与课次会被反复改写�
      *
      * <p><b>处置内容</b>（规则见 {@link CascadeRules#SCENARIO_SCHEDULE_FREEZE}）：
-     * 其下 booking 置 {@code frozen}、其下 appointment 置 {@code frozen}，全部<b>保留行</b>。
-     * 保留而非物理删，是因为"排期暂停"不等于"这些预订从未存在"，
-     * 排期恢复后这些预订应当原样可用；删掉就等于抹掉历史且不可恢复。
+     * 其下 booking �{@code frozen}、其�appointment �{@code frozen}，全�b>保留�/b>�
+     * 保留而非物理删，是因�排期暂停"不等�这些预订从未存在"�
+     * 排期恢复后这些预订应当原样可用；删掉就等于抹掉历史且不可恢复�
      *
-     * <p>原先这个级联由浏览器编排（{@code deleteScheduleByFrozen} 先 confirm
-     * 再逐个把预订置 frozen，最后才置排期），非原子、且只有 Web 端有；
-     * 小程序调同一条接口完全不会级联——这与根因 B 同源。
+     * <p>原先这个级联由浏览器编排（{@code deleteScheduleByFrozen} �confirm
+     * 再逐个把预订置 frozen，最后才置排期），非原子、且只有 Web 端有�
+     * 小程序调同一条接口完全不会级联——这与根�B 同源�
      */
     private void cascadeOnScheduleStatusChange(String scheduleId, String status) {
         if (scheduleId == null || status == null
                 || !BookingStatus.FROZEN.equalsIgnoreCase(status.trim())) {
             return;
         }
-        // 先把该排期下每条预订的课次置 frozen，再把预订置 frozen。
-        // 顺序与物理删除相反（软删是先把子置好、父最后），因为冻结全程保留行：
-        // booking 只要还在，就能按 booking_id 找到它的课次。
+        // 先把该排期下每条预订的课次置 frozen，再把预订置 frozen�
+        // 顺序与物理删除相反（软删是先把子置好、父最后），因为冻结全程保留行�
+        // booking 只要还在，就能按 booking_id 找到它的课次�
         List<Booking> bookings = bookingMapper.selectList(
                 Wrappers.<Booking>lambdaQuery().eq(Booking::getScheduleId, scheduleId));
         if (bookings != null && !bookings.isEmpty()) {
@@ -318,7 +430,7 @@ public class CourseScheduleService {
         }
         ReferentialCascadeService.CascadeReport report = cascadeService.run(
                 CascadeRules.SCENARIO_SCHEDULE_FREEZE, scheduleId);
-        log.info("排期冻结级联：scheduleId={}，预订 {} 条，{}", scheduleId,
+        log.info("排期冻结级联：scheduleId={}，预�{} 条，{}", scheduleId,
                 bookings == null ? 0 : bookings.size(), report.toMap());
     }
 
@@ -358,11 +470,11 @@ public class CourseScheduleService {
           
                 dto.setScheduleId(cs.getScheduleId());
                 dto.setCourseId(cs.getCourseId());
-               // CourseSchedule 里没有 teacherId / ClassroomId 字段, 若需要请补充
+               // CourseSchedule 里没�teacherId / ClassroomId 字段, 若需要请补充
               // dto.setTeacherId(null);--》courseObject
               // dto.setClassroomId(null);TBD
 
-               // startTime-->statDate,startTime, endTime 转换为 LocalDateTime
+               // startTime-->statDate,startTime, endTime 转换�LocalDateTime
                if (cs.getStartTime() != null && !cs.getStartTime().isEmpty()) {
                    try {
                        dto.setStartDate(java.time.LocalDate.parse(cs.getStartTime().substring(0, 10)));
@@ -399,6 +511,10 @@ public class CourseScheduleService {
                 dto.setStatus(cs.getStatus()); 
                dto.setAvailableSites(cs.getAvailableSites());
                dto.setName(cs.getName());
+               // 教学语言 / 课时长度：原样回传给前端排期表单�
+               // 缺列时代码读到的会是 null（而非 0），前端据此决定是否用占位符�
+               dto.setLanguageType(cs.getLanguageType());
+               dto.setClassDuration(cs.getClassDuration());
                return dto;
  }
  //用于保存到数据库
@@ -410,10 +526,10 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
     cs.setScheduleId(dto.getScheduleId());
     // cs.setClassroomId(dto.getClassroomId());
    //System.out .println("CreateDtoToObject : " +dto);         
-    // LocalDateTime 转 String（假定格式为 "yyyy-MM-dd HH:mm:ss"）
+    // LocalDateTime �String（假定格式为 "yyyy-MM-dd HH:mm:ss"�
     // 错误分析:
-    // 1. dto.getStartDate() 和 dto.getStartTime() 已分别是 LocalDate 和 LocalTime，无需再调用 toLocalDate()/toLocalTime()
-    // 2. LocalDateTime.of(LocalDate, LocalTime) 直接使用即可，否则会抛异常（因为 LocalDate 没有 toLocalDate 方法）
+    // 1. dto.getStartDate() �dto.getStartTime() 已分别是 LocalDate �LocalTime，无需再调�toLocalDate()/toLocalTime()
+    // 2. LocalDateTime.of(LocalDate, LocalTime) 直接使用即可，否则会抛异常（因为 LocalDate 没有 toLocalDate 方法�
     // 3. toString().replace('T', ' ') 得到"yyyy-MM-dd HH:mm:ss.nnn"，但 endTime 可能需要格式化去掉纳秒部分
 
     if (dto.getStartDate() != null && dto.getStartTime() != null) {
@@ -423,7 +539,7 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
         cs.setStartTime(strTime);
     }
 
-    // endDate和endTime组合为end_time（格式 yyyy-MM-dd HH:mm:ss）
+    // endDate和endTime组合为end_time（格�yyyy-MM-dd HH:mm:ss�
     if (dto.getEndDate() != null && dto.getEndTime() != null) {
         LocalDateTime endLdt = LocalDateTime.of(dto.getEndDate(), dto.getEndTime());
         cs.setEndTime(endLdt.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
@@ -437,12 +553,12 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
  
     cs.setRepeatType(dto.getRepeatType() == null ? 0 : dto.getRepeatType());
     cs.setRepeatInterval(dto.getRepeatInterval() == null ? 0 : dto.getRepeatInterval());
-    // 席位总数：dto 里是 Integer（可空），实体是 int（不可空）。
-    // 直接 setAvailableSites(dto.getAvailableSites()) 在当前端未传该字段时拆箱 NPE（500）。
-    // 缺省为 1 与实体注释、DB 列 DEFAULT '1' 保持一致。
-    // 注意：编辑排期时若 dto 未传，update() 会用库中现值覆盖这里，不会把容量重置成 1。
+    // 席位总数：dto 里是 Integer（可空），实体是 int（不可空）�
+    // 直接 setAvailableSites(dto.getAvailableSites()) 在当前端未传该字段时拆箱 NPE�00）�
+    // 缺省�1 与实体注释、DB �DEFAULT '1' 保持一致�
+    // 注意：编辑排期时�dto 未传，update() 会用库中现值覆盖这里，不会把容量重置成 1�
     cs.setAvailableSites(dto.getAvailableSites() == null ? 1 : dto.getAvailableSites());
-    // 将 List<Integer> repeatDays 转为字符串存储（如 "1,3,5"）
+    // �List<Integer> repeatDays 转为字符串存储（�"1,3,5"�
     if (dto.getRepeatDays() != null && !dto.getRepeatDays().isEmpty()) {
         cs.setRepeatDays(dto.getRepeatDays().stream().map(String::valueOf).collect(Collectors.joining(",")));
     } else {
@@ -450,25 +566,34 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
     }
  
     cs.setTimeZone(dto.getTimeZone());
-    // 多租户/前端未传 status 时兜底为 active（枚举 pending/active/inactive/frozen），避免 NOT NULL 约束触发 500
+    // 多租�前端未传 status 时兜底为 active（枚�pending/active/inactive/frozen），避免 NOT NULL 约束触发 500
     cs.setStatus(dto.getStatus() == null ? "active" : dto.getStatus());
     cs.setName(dto.getName());
-    // 单课时长（分钟）：此前不写这一列，全靠 DB DEFAULT 60 —— 30/45 分钟的课会被
-    // 课堂侧按 60 分钟封顶核算（有效时长、课时消耗都跟着错）。这里按「结束时刻 − 开始时刻」补上。
-    // 跨零点（结束早于开始）算不出正数时留空，仍由 DB 默认值兜底，不猜。
+    // 单课时长（分钟）：此前不写这一列，全靠 DB DEFAULT 60 —�30/45 分钟的课会被
+    // 课堂侧按 60 分钟封顶核算（有效时长、课时消耗都跟着错）。这里按「结束时��开始时刻」补上�
+    // 跨零点（结束早于开始）算不出正数时留空，仍�DB 默认值兜底，不猜�
     if (dto.getStartTime() != null && dto.getEndTime() != null) {
         long minutes = java.time.Duration.between(dto.getStartTime(), dto.getEndTime()).toMinutes();
         if (minutes > 0) {
             cs.setClassDuration((int) minutes);
+            
+            
         }
     }
+    
+     // 教学语言 / 课时长度：null 一律透传�*不在这里兜底 60**�
+    // 兜底会把「编辑时没传」误判成「改�60」，把库�90 分钟的课静默改掉�
+    // 新增路径的兜底由 insertSchedule �COALESCE(#{classDuration},60) 负责�
+    cs.setLanguageType(dto.getLanguageType());
+    cs.setWorkLanguage(dto.getWorkLanguage());
+   // cs.setClassDuration(dto.getClassDuration());
     return cs;
 }
 
   // 完成指定学生预约排期：创建booking，批量创建appointments，并入库
   // 1. 创建 booking 数据，状态为 booked
-  // 2. 基于排期 scheduleId 生成 appointment 列表，状态 active
-  // 3. 将 booking、appointment 插入到数据库，事务保障原子性
+  // 2. 基于排期 scheduleId 生成 appointment 列表，状�active
+  // 3. �booking、appointment 插入到数据库，事务保障原子�
   // 返回 true=成功, false=异常时抛出或返回false
 
   // 假设有以下依赖： BookingMapper bookingMapper; AppointmentMapper appointmentMapper;
@@ -507,13 +632,13 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
           throw new BusinessException(TermMsg.t("{schedule}ID与{student}ID不能为空"));
       }
 
-      // 1. 同一学生同一排期只应存在一条 booking。
+      // 1. 同一学生同一排期只应存在一�booking�
       //    原实现无条件 insert：候补转正后再点「指定学生」会多出一条记录，
-      //    同一学生同一排期出现两条 booked，席位被重复占用。
+      //    同一学生同一排期出现两条 booked，席位被重复占用�
       //
       //    查重必须落在排期行锁**之内**：排期锁把并发的「指定学生」串行化，后到的请求
       //    才能看到先到者刚插入的那一行；若像原先那样先普通读查重、再进闸门拿锁，
-      //    两个并发请求都会读到 null，各自走 insert 分支，锁完全覆盖不到这次判断。
+      //    两个并发请求都会读到 null，各自走 insert 分支，锁完全覆盖不到这次判断�
       bookingSeatService.lockScheduleAndAssertExists(scheduleId);
       Booking existing = bookingMapper.selectLatestByScheduleAndStudent(scheduleId, studentId);
       String bookingId;
@@ -525,21 +650,21 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
                       scheduleId, studentId, bookingId);
               return true;
           }
-          // 候补 / 已取消 / 待确认 → 复用该记录转正（校验名额时排除自身）
+          // 候补 / 已取�/ 待确��复用该记录转正（校验名额时排除自身）
           bookingSeatService.assertSeatsAvailable(
-                  scheduleId, bookingId, BookingStatus.BOOKED, "无法再指定学生");
+                  scheduleId, bookingId, BookingStatus.BOOKED, "无法再指定学�);
           bookingMapper.updateStatus(bookingId, BookingStatus.BOOKED);
-          log.info("指定学生：复用已有记录并转为正式预订。bookingId={}, 原状态={}",
+          log.info("指定学生：复用已有记录并转为正式预订。bookingId={}, 原状�{}",
                   bookingId, existing.getStatus());
       } else {
           bookingSeatService.assertSeatsAvailable(
-                  scheduleId, null, BookingStatus.BOOKED, "无法再指定学生");
+                  scheduleId, null, BookingStatus.BOOKED, "无法再指定学�);
           Booking booking = new Booking();
-          // bookingId 生成口径与 BookingService#create 统一（32 位无横线 hex）。
-          // 原先这里是 UUID.randomUUID().toString()（36 位带横线），而 BookingService
-          // 产出的是 replace("-","") 的 32 位——同一张表两种格式的 ID 并存，
-          // 是"悬空 booking_id"的根因之一：任何按 booking_id 的关联/排查都得同时对付
-          // 两种长度，写错一处（少个 replace）就查不到对上行。
+          // bookingId 生成口径�BookingService#create 统一�2 位无横线 hex）�
+          // 原先这里�UUID.randomUUID().toString()�6 位带横线），�BookingService
+          // 产出的是 replace("-","") �32 位——同一张表两种格式�ID 并存�
+          // �悬空 booking_id"的根因之一：任何按 booking_id 的关�排查都得同时对付
+          // 两种长度，写错一处（少个 replace）就查不到对上行�
           bookingId = BookingIdGenerator.next();
           booking.setBookingId(bookingId);
           booking.setScheduleId(scheduleId);
@@ -549,16 +674,16 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
           bookingMapper.insert(booking);
       }
 
-      // 2. 生成该 booking 的课次时间列表（幂等）
+      // 2. 生成�booking 的课次时间列表（幂等�
       generateAppointmentsForBooking(bookingId, scheduleId);
       return true;
   }
 
   /**
-   * 为指定 booking 生成课次（appointment）时间列表。
+   * 为指�booking 生成课次（appointment）时间列表�
    *
-   * <p>幂等：该 booking 已有课次则直接返回，重复调用不会产生双份时间表。
-   * 「指定学生」与「候补递补」共用这一份实现，避免两处各写一遍、日后走偏。
+   * <p>幂等：该 booking 已有课次则直接返回，重复调用不会产生双份时间表�
+   * 「指定学生」与「候补递补」共用这一份实现，避免两处各写一遍、日后走偏�
    */
   @Transactional(rollbackFor = Exception.class)
   public boolean generateAppointmentsForBooking(String bookingId, String scheduleId) {
@@ -567,37 +692,37 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
       }
       List<Appointment> existingAppointments = appointmentService.getByBookingId(bookingId);
       if (existingAppointments != null && !existingAppointments.isEmpty()) {
-          // 幂等返回，但**不能就此认为完好**：课次存在不等于还在生效。
-          // 典型场景 booked → cancelled（课次置 cancelled）→ 又被确认回 booked，
-          // 此时若直接 return，booking 是 booked 而课次全是 cancelled —— 上课时间表"凭空消失"。
-          // 故这里校验是否存在仍生效的课次；全是非生效态时补生成一份并显式核对条数。
+          // 幂等返回，但**不能就此认为完好**：课次存在不等于还在生效�
+          // 典型场景 booked �cancelled（课次置 cancelled）→ 又被确认�booked�
+          // 此时若直�return，booking �booked 而课次全�cancelled —�上课时间�凭空消失"�
+          // 故这里校验是否存在仍生效的课次；全是非生效态时补生成一份并显式核对条数�
           boolean anyActive = existingAppointments.stream()
                   .anyMatch(a -> AppointmentStatus.occupiesTime(a.getStatus()));
           if (anyActive) {
-              log.info("课次已存在且仍生效，跳过生成：bookingId={}, 已有{}条",
+              log.info("课次已存在且仍生效，跳过生成：bookingId={}, 已有{}�,
                       bookingId, existingAppointments.size());
               return true;
           }
-          // 走到这里说明课次存在但全部已取消/冻结：先物理清理再重新展开。
-          // 这是唯一允许物理删除课次的路径——重复生成会导致同一时段出现两条时间行。
-          log.info("课次存在但全部失效，重新生成：bookingId={}, 原{}条", bookingId, existingAppointments.size());
+          // 走到这里说明课次存在但全部已取消/冻结：先物理清理再重新展开�
+          // 这是唯一允许物理删除课次的路径——重复生成会导致同一时段出现两条时间行�
+          log.info("课次存在但全部失效，重新生成：bookingId={}, 原{}�, bookingId, existingAppointments.size());
           // cascade: none AppointmentService#removeByBookingId 内已先清
-          // notification_dispatch_log（APPOINTMENT_DELETE 场景）再删课次
+          // notification_dispatch_log（APPOINTMENT_DELETE 场景）再删课�
           appointmentService.removeByBookingId(bookingId);
       }
       CourseSchedule schedule = scheduleMapper.selectById(scheduleId);
       if (schedule == null) {
-          throw new BusinessException(TermMsg.t("{schedule}不存在"));
+          throw new BusinessException(TermMsg.t("{schedule}不存�));
       }
       // 由排期的重复规则展开实例日期+时间
       ScheduleCreateDTO crtDto = ObjectToCreateDto(schedule);
       ScheduleGenerateDTO genDto = CreateDtoToGenerateDto(crtDto);
       List<ScheduleVO> instanceList = ScheduleGenerator.generateUserZoneSchedule(genDto);
 
-      // 排期时区：从排期实体取，是本次换算的唯一依据。
+      // 排期时区：从排期实体取，是本次换算的唯一依据�
       // generateUserZoneSchedule 展开出的 date+time 是「排期本地墙钟时间」，
-      // 落库前必须转成 UTC，否则课次时间会随服务器时区/比较口径整体错位
-      // （见 doc-develop/课次时间UTC化改造方案.md 步骤 2）。
+      // 落库前必须转�UTC，否则课次时间会随服务器时区/比较口径整体错位
+      // （见 doc-develop/课次时间UTC化改造方�md 步骤 2）�
       String scheduleZone = schedule.getTimeZone();
 
       List<Appointment> appointmentList = new ArrayList<>();
@@ -609,7 +734,7 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
           String appointmentDateTime = vo.getDate() + " " + vo.getTime();
           LocalDateTime scheduleLocal = LocalDateTime.parse(
                   appointmentDateTime, java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-          // 排期本地时间 → UTC。写入 appointment 的唯一转换点，勿绕过。
+          // 排期本地时间 �UTC。写�appointment 的唯一转换点，勿绕过�
           LocalDateTime utc = ScheduleGenerator.scheduleLocalToUtc(scheduleLocal, scheduleZone);
           appt.setAppointmentDatetime(utc);
           appt.setLastDatetime(utc);
@@ -619,22 +744,22 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
       if (!appointmentList.isEmpty()) {
           appointmentService.insertAppointmentList(appointmentList);
       }
-      log.info("生成课次完成：bookingId={}, scheduleId={}, 共{}条", bookingId, scheduleId, appointmentList.size());
+      log.info("生成课次完成：bookingId={}, scheduleId={}, 共{}�, bookingId, scheduleId, appointmentList.size());
       return true;
   }
     /**
-     * 删除指定ID的排期
+     * 删除指定ID的排�
      * @param id 排期ID
-     * @return 删除的排期数量（通常为1，若未找到则为0）
+     * @return 删除的排期数量（通常�，若未找到则��
      */
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public int deleteById(String id) {
-        log.info("删除排期开始, scheduleId={}", id);
-            // 先由程序显式清理子表（课次 → 预订），再删排期本身。
-            // 原先这里只有一句 DELETE，排期的预订由数据库的 ON DELETE CASCADE 连带删掉——
-            // 而 appointment 没有指向 booking 的外键，于是那些课次全部变成悬空行
-            // （实测 149 行课次中 109 行 booking_id 指向不存在的预订）。
-            // 级联改由程序做，顺序与范围才可见、可审计（报告根因 C）。
+        log.info("删除排期开� scheduleId={}", id);
+            // 先由程序显式清理子表（课��预订），再删排期本身�
+            // 原先这里只有一�DELETE，排期的预订由数据库�ON DELETE CASCADE 连带删掉—�
+            // �appointment 没有指向 booking 的外键，于是那些课次全部变成悬空�
+            // （实�149 行课次中 109 �booking_id 指向不存在的预订）�
+            // 级联改由程序做，顺序与范围才可见、可审计（报告根�C）�
             cascadeDeleteSchedules(Collections.singletonList(id));
             // 删除排期
             int deleted = scheduleMapper.deleteById(id);
@@ -645,19 +770,19 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
                 // 排期删除后推送课堂取消事件（事务提交后执行）
                 classroomEventPushService.pushAfterCommit(TenantContext.getTenantId(), id, "cancelled");
             }
-            // 返回实际删除条数：原先无条件 return 1，排期不存在时也报"删除成功"
-            // （配合 FK CASCADE，删除 0 行时子表却已被连带删掉，调用方无从察觉）。
+            // 返回实际删除条数：原先无条件 return 1，排期不存在时也�删除成功"
+            // （配�FK CASCADE，删�0 行时子表却已被连带删掉，调用方无从察觉）�
             return deleted;
       }
 
     /**
-     * 删除一批排期的级联展开（课次 → 预订），<b>不删排期本身</b>。
+     * 删除一批排期的级联展开（课��预订），<b>不删排期本身</b>�
      *
      * <p><b>为什么逐层展开而不写在一条规则里</b>：appointment 没有 schedule_id 列，
-     * 只能经 {@code appointment.booking_id → booking.booking_id} 两跳抵达；
-     * 而 booking 一旦先被删掉，第二跳就断了。因此必须"先按排期取 booking_id 集合，
-     * 再逐条删课次，最后删预订"。这条跳数写在代码里而不是藏进规则表，
-     * 是为了让"为什么这里要查一次 booking"成为显式的一步。
+     * 只能�{@code appointment.booking_id �booking.booking_id} 两跳抵达�
+     * �booking 一旦先被删掉，第二跳就断了。因此必�先按排期�booking_id 集合�
+     * 再逐条删课次，最后删预订"。这条跳数写在代码里而不是藏进规则表�
+     * 是为了让"为什么这里要查一�booking"成为显式的一步�
      */
     private void cascadeDeleteSchedules(List<String> scheduleIds) {
         if (scheduleIds == null || scheduleIds.isEmpty()) {
@@ -674,23 +799,23 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
                         .map(Booking::getBookingId)
                         .filter(b -> b != null && !b.trim().isEmpty())
                         .collect(Collectors.toList());
-                // 第一跳：按 booking_id 删课次（课次的唯一父引用就是 booking_id）
+                // 第一跳：�booking_id 删课次（课次的唯一父引用就�booking_id�
                 cascadeService.run(CascadeRules.SCENARIO_BOOKING_DELETE, bookingIds);
             }
-            // 第二跳：删预订（规则里 course_schedule→appointment 是 SKIP 占位，说明跳数）
+            // 第二跳：删预订（规则�course_schedule→appointment �SKIP 占位，说明跳数）
             cascadeService.run(CascadeRules.SCENARIO_SCHEDULE_DELETE, scheduleId);
         }
     }
     /**
-     * 根据课程ID删除该课程下的所有排期
+     * 根据课程ID删除该课程下的所有排�
      * @param courseId 课程ID
-     * @return 删除的排期数量
+     * @return 删除的排期数�
      */
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public int deleteByCourseId(String courseId) {
-            log.info("按课程ID删除排期开始, courseId={}", courseId);
-             // 同 deleteById：先按排期逐条做程序级联，再批量删排期。
-             // 顺序不能颠倒——booking 一旦先被删掉，就再也定位不到它的课次。
+            log.info("按课程ID删除排期开� courseId={}", courseId);
+             // �deleteById：先按排期逐条做程序级联，再批量删排期�
+             // 顺序不能颠倒——booking 一旦先被删掉，就再也定位不到它的课次�
              List<String> deletedScheduleIds = new ArrayList<>();
              List<CourseSchedule> schedules = scheduleMapper.selectList(
                      Wrappers.<CourseSchedule>lambdaQuery().eq(CourseSchedule::getCourseId, courseId));
@@ -700,7 +825,7 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
                          .filter(s -> s != null && !s.trim().isEmpty())
                          .collect(Collectors.toList());
                  // 排期 id 必须留到删除之后用：取消课堂的事件在事务提交后才发，那时排期行已经没了，
-                 // 只能靠这里先记下来的 id（推送侧对「行已删」有最小载荷兜底，见 ClassroomEventPushService）。
+                 // 只能靠这里先记下来的 id（推送侧对「行已删」有最小载荷兜底，�ClassroomEventPushService）�
                  deletedScheduleIds.addAll(scheduleIds);
                  cascadeDeleteSchedules(scheduleIds);
              }
@@ -709,8 +834,8 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
             // 释放租户排期额度（按删除的排期条数）
             if (rows > 0) {
                 tenantQuotaService.release(TenantContext.getTenantId(), TenantQuotaService.SCHEDULE, rows);
-                // 整批删除同样要取消课堂：否则「删课程 → 删掉它下面所有排期」之后，
-                // 课堂侧的课堂一个都不会被取消，永久挂成孤儿。
+                // 整批删除同样要取消课堂：否则「删课程 �删掉它下面所有排期」之后，
+                // 课堂侧的课堂一个都不会被取消，永久挂成孤儿�
                 for (String sid : deletedScheduleIds) {
                     classroomEventPushService.pushAfterCommit(TenantContext.getTenantId(), sid, "cancelled");
                 }
@@ -729,18 +854,18 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
         return PageResult.of(page);
     }
 
-    // 查询指定教师的可预约排期（可用席位 > 已预约数量）
+    // 查询指定教师的可预约排期（可用席�> 已预约数量）
     public List<CourseSchedule> getAvailableSchedule(String teacherId) {
-        // 本方法是**免登录公开接口**（/schedule/getAvailableSchedule 在三处白名单里）的专用实现：
-        // 公开链接的访问者没有租户身份，TenantContext 为空，普通查询会被租户插件追加
-        // tenant_id = -1 而恒不命中（返回空列表），故这里统一走 *IgnoreTenant 版本。
-        // 详见 CourseScheduleMapper#selectActiveSchedulesByTeacherIdIgnoreTenant 的注释。
+        // 本方法是**免登录公开接口**�schedule/getAvailableSchedule 在三处白名单里）的专用实现：
+        // 公开链接的访问者没有租户身份，TenantContext 为空，普通查询会被租户插件追�
+        // tenant_id = -1 而恒不命中（返回空列表），故这里统一�*IgnoreTenant 版本�
+        // 详见 CourseScheduleMapper#selectActiveSchedulesByTeacherIdIgnoreTenant 的注释�
         List<CourseSchedule> schedules = scheduleMapper.selectActiveSchedulesByTeacherIdIgnoreTenant(teacherId);
 
         List<CourseSchedule> availableSchedules = new ArrayList<>();
         for (CourseSchedule schedule : schedules) {
-            // 剩余席位同样必须用忽略租户的计数，否则计数恒为 0，
-            // 会把「已约满」的排期也当成有空位返回给家长
+            // 剩余席位同样必须用忽略租户的计数，否则计数恒�0�
+            // 会把「已约满」的排期也当成有空位返回给家�
             int bookingCount = bookingMapper.countBookingByScheduleIdIgnoreTenant(
                     schedule.getScheduleId(), BookingStatus.NON_OCCUPYING);
             if (schedule.getAvailableSites() > bookingCount) {
@@ -750,18 +875,18 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
         return availableSchedules;
     }
 
-    // 查询指定教师的全部活跃排期（含已约满），供职业信息编辑界面「读取排期」使用。
-    // 与 getAvailableSchedule（公开预订页专用，仅返回有空位的排期）区分：编辑/发布场景
-    // 需要看到全部活跃排期，以便配置对外链接与优选标记。复用忽略租户的查询——
+    // 查询指定教师的全部活跃排期（含已约满），供职业信息编辑界面「读取排期」使用�
+    // �getAvailableSchedule（公开预订页专用，仅返回有空位的排期）区分：编�发布场景
+    // 需要看到全部活跃排期，以便配置对外链接与优选标记。复用忽略租户的查询—�
     // teacherId 取自已登录教师的职业信息（受信任），且本接口置于登录鉴权之下（不进公开
-    // 白名单），平台管理员跨租户查看时也正确返回该教师的排期。
+    // 白名单），平台管理员跨租户查看时也正确返回该教师的排期�
     public List<CourseSchedule> getSchedulesByTeacher(String teacherId) {
-        // 编辑/发布界面专用：放开 course 状态限制（仅要求排期本身 active），
-        // 这样课程处于 pending/draft/frozen 时其 active 排期仍可在「读取排期」中显示并配置优选/链接。
+        // 编辑/发布界面专用：放开 course 状态限制（仅要求排期本�active），
+        // 这样课程处于 pending/draft/frozen 时其 active 排期仍可在「读取排期」中显示并配置优�链接�
         List<CourseSchedule> schedules = scheduleMapper.selectActiveSchedulesByTeacherIdManageIgnoreTenant(teacherId);
         for (CourseSchedule schedule : schedules) {
-            // 与 getAvailableSchedule 相同的余位口径：占用席位 = 状态不在 NON_OCCUPYING 的预订数。
-            // full = 可用席位 <= 占用数（即没有空位）。前端据此向客户标注「满额」。
+            // �getAvailableSchedule 相同的余位口径：占用席位 = 状态不�NON_OCCUPYING 的预订数�
+            // full = 可用席位 <= 占用数（即没有空位）。前端据此向客户标注「满额」�
             int bookingCount = bookingMapper.countBookingByScheduleIdIgnoreTenant(
                     schedule.getScheduleId(), BookingStatus.NON_OCCUPYING);
             schedule.setFull(!(schedule.getAvailableSites() > bookingCount));

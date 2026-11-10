@@ -101,10 +101,23 @@ async function buildHtml() {
 
 function copyAssets() {
   // 根级构建元文件与测试目录不进入生产 dist
-  const SKIP_ROOT = new Set(['package.json', 'build.js', '.gitignore', 'README.md', 'pom.xml', 'package-lock.json', '.npmrc']);
+  // ★ 2026-11-08 补：部署资产（Dockerfile / nginx 模板 / container.config.json）与备份文件
+  //   同样不是站点资源，一旦进 dist 就会被静态托管出去（上游地址模板、端口规格全部可下载）。
+  //   注意大小写：本机文件名是 readme.md，而 Set 区分大小写，原先只写 'README.md' 等于没排除。
+  //   2026-11-09：这些源文件已从 frontend/ 删除（文档移到 doc-develop/），名单**故意保留**——
+  //   防回归：任何人把 Dockerfile / nginx 模板再放回 frontend/ 时，不会静默跟着 dist 发到公网。
+  const SKIP_ROOT = new Set(['package.json', 'build.js', '.gitignore', 'README.md', 'readme.md',
+    'pom.xml', 'package-lock.json', '.npmrc', 'Dockerfile', 'container.config.json']);
+  // 根级「部署目录」：其下所有文件都不该进 dist。
+  // （walk() 只产出文件条目，所以判断顶层目录名即可，不需要单独处理目录本身。）
+  const SKIP_ROOT_DIRS = new Set(['nginx', 'docker-entrypoint.d']);
   for (const f of walk(ROOT)) {
     const rel = path.relative(ROOT, f);
     if (/(^|\/)(node_modules|dist)(\/|$)/.test(rel)) continue;
+    // 顶层部署目录整体跳过（含 windows/posix 两种分隔符）
+    if (SKIP_ROOT_DIRS.has(rel.split(/[\\/]/)[0])) continue;
+    // 备份/临时文件（如 legal.html.orig）不发布
+    if (/\.orig$/i.test(rel)) continue;
     // vendor 下的第三方 css（如 font-awesome）位于 js/public/vendor/，buildCss 只扫 frontend/css/
     // 扫不到；这里原样复制（已压缩，且内部 url(../webfonts/) 相对引用不能被 CleanCSS 改写）。
     const isVendorCss = /(^|[\\/])js[\\/]public[\\/]vendor[\\/].+\.css$/i.test(rel);
@@ -263,4 +276,25 @@ function runSharedSyncCheck() {
   injectBuildInfoGlobal(info);
   injectSharedBridge();
   console.log('=== frontend build done ->', DIST, '===');
+
+  // 【2026-11-05】构建完成后把 dist 镜像到 deploy/dist/，让「上传/分发」有唯一取件点。
+  // 走 deploy/collect-artifacts.js 的同一份实现（后端打包脚本与 cloudBased/build-all.sh 也调它）。
+  // SKIP_DEPLOY_COPY=1 可跳过：只做本地源码联调、或 CI 自己安排收口时用。
+  if (process.env.SKIP_DEPLOY_COPY === '1') {
+    console.log('[collect] skipped (SKIP_DEPLOY_COPY=1)');
+  } else {
+    console.log('[collect] frontend/dist -> deploy/dist');
+    try {
+      const { collect } = require('../deploy/collect-artifacts.js');
+      const r = collect({ only: ['dist'] });
+      // 收口失败不覆盖已生成的 dist，但让命令以非 0 结束，CI / 手工都能看见
+      if (!r.ok || !r.dist) {
+        console.error('=== frontend build: 产物收口未完成（frontend/dist 仍可用，请检查 deploy/ 权限）===');
+        process.exitCode = 1;
+      }
+    } catch (e) {
+      console.error('=== frontend build: 产物收口异常（frontend/dist 仍可用）===', e && e.message ? e.message : e);
+      process.exitCode = 1;
+    }
+  }
 })();

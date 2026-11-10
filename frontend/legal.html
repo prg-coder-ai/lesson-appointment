@@ -70,9 +70,10 @@
 </head>
 <body>
   <div class="legal-header">
-    
+
     <span class="legal-title" id="brand">协议与政策</span>
     <button class="close-btn" id="close-btn">关闭</button>
+
     <div class="seg" id="type-seg">
       <button data-type="user_agreement">用户协议</button>
       <button data-type="privacy_policy">隐私政策</button>
@@ -83,8 +84,9 @@
       <button data-lang="en">English</button>
       <button data-lang="fr">Français</button>
     </div> 
-    -->
+    
     <button class="close-btn" id="close-btn" title="返回">← 返回</button>
+    -->
   </div>
 
   <main class="legal-main">
@@ -102,8 +104,18 @@
       var type = PARAMS.get('type') || 'user_agreement';
       var lang = 'zh'; // 暂不提供语言切换，强制默认中文
       var tenant = PARAMS.get('tenant') || '';
+      // embed=1：被主页面（student/teacher.html 的"协议与政策"菜单）内嵌到右侧内容区展示。
+      // 隐藏"关闭"按钮（用户点菜单切换即可离开本页），其余行为与独立页完全一致。
+      var EMBED = PARAMS.get('embed') === '1';
       // 统一 API 前缀：裸路径 + 前缀拼接，避免散落硬编码完整 /api/v1 端点（守卫约定）
       var API_BASE = '/api/v1';
+
+      // embed 模式：隐藏关闭按钮（DOM 一开始就存在，CSS class 控制显隐最稳，
+      // 比等 JS 起效少一帧闪现）
+      if (EMBED) {
+        var _closeBtn = document.getElementById('close-btn');
+        if (_closeBtn) _closeBtn.style.display = 'none';
+      }
 
       var TYPES = {
         user_agreement: '用户协议',
@@ -276,11 +288,13 @@
 
       // 关闭/返回：优先尝试关闭窗口（target=_blank 打开的新窗口），否则 history.back
       document.getElementById('close-btn').addEventListener('click', function () {
-        if (window.opener) {
+         window.close();
+        if (window.opener) 
+        {
           window.close();
-        } else if (history.length > 1) {
+        } /*else if (history.length > 1) {
           history.back();
-        } else {
+        } */else {
           location.href = 'login.html';
         }
       });

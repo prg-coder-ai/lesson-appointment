@@ -31,8 +31,11 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = process.cwd();
+// 以脚本自身位置为基准（tools/ 的上一级 = 仓库根），而不是 process.cwd()：
+// 从 api/ 等子目录调用时 cwd 会导致 api\api\... 路径重复，误报"找不到 AuthzRules.java"。
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CTRL_DIR = path.join(ROOT, 'api/src/main/java/com/reservation/controller');
 const RULES_FILE = path.join(ROOT, 'api/src/main/java/com/reservation/config/AuthzRules.java');
 

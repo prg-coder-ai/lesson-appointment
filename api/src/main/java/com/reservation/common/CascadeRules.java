@@ -182,6 +182,17 @@ public final class CascadeRules {
     public static final String SCENARIO_TENANT_RESTORE = "TENANT_RESTORE";
     /** 删除课次（物理）：其下通知发送流水一并清理（唯一键会挡住重新插入） */
     public static final String SCENARIO_APPOINTMENT_DELETE = "APPOINTMENT_DELETE";
+    /**
+     * 删除用户账号（物理）：{@code /data-maintain/purge/user} 清理「已软删（status='delete'）」的用户。
+     *
+     * <p><b>为什么必须单列一个场景</b>：用户是多条链的上游——
+     * 教师 → 课程 → 排期 → 预订 → 课次；学生 → 预订 → 课次。
+     * 数据库上这些表对 {@code user.user_id} 都是 {@code ON DELETE CASCADE}，
+     * 删用户行会静默连带删掉课程与预订，但 <b>appointment 对 booking 没有外键</b>
+     * （实测库里存在大量悬空课次），级联到这里就断了。所以必须像其它场景一样，
+     * 由调用方显式逐层展开，不能指望数据库。
+     */
+    public static final String SCENARIO_USER_DELETE = "USER_DELETE";
     /** 删除行业（物理）：其词条置 status=0 停用（sys_term 无外键，删父留子即孤儿词） */
     public static final String SCENARIO_INDUSTRY_DELETE = "INDUSTRY_DELETE";
     /** 删除租户套餐（物理）：其明细表无引用，随行删除 */
@@ -333,6 +344,24 @@ public final class CascadeRules {
                             + "留着流水会让该课次此后的通知永远发不出去（撞唯一键）")
     );
 
+    private static final List<Rule> USER_DELETE_RULES = List.of(
+            new Rule("user", "user_id", "appointment", "booking_id",
+                    Action.SKIP, null,
+                    "占位：appointment 没有 user_id 列，只能经 appointment.booking_id → booking.booking_id 两跳抵达；"
+                            + "调用方须先取该用户的 booking_id 集合，再逐条走 SCENARIO_BOOKING_DELETE"),
+            new Rule("user", "user_id", "booking", "student_id",
+                    Action.DELETE, null,
+                    "学生的预订随账号删除；删前必须按 booking_id 先展开其课次（见上面 appointment 规则的说明），"
+                            + "否则课次会因为 appointment 对 booking 无外键而留成孤儿"),
+            new Rule("user", "user_id", "course", "teacher_id",
+                    Action.DELETE, null,
+                    "教师被物理删除后，其名下课程失去负责人且大概率不再是有效商品；"
+                            + "删前须先对该课程走 SCENARIO_COURSE_DELETE 展开排期 → 预订 → 课次"),
+            new Rule("user", "user_id", "sys_user_session", "user_id",
+                    Action.DELETE, null,
+                    "会话属于被删账号本人，留着会变成指向已不存在用户的孤儿会话（换登录码后仍可能被撞中）")
+    );
+
     private static final Map<String, Scenario> SCENARIOS = build();
 
     private static Map<String, Scenario> build() {
@@ -367,6 +396,9 @@ public final class CascadeRules {
         list.add(new Scenario(SCENARIO_APPOINTMENT_DELETE,
                 "删除课次（物理）：先清通知发送流水，否则幂等键会挡住后续通知",
                 APPOINTMENT_DELETE_RULES));
+        list.add(new Scenario(SCENARIO_USER_DELETE,
+                "删除用户（物理）：先展开其课程链与预订链（含课次），最后删账号行",
+                USER_DELETE_RULES));
         list.add(new Scenario(SCENARIO_INDUSTRY_DELETE,
                 "删除行业（物理）：其词条先置 status=0 停用，避免留下孤儿词条",
                 INDUSTRY_DELETE_RULES));

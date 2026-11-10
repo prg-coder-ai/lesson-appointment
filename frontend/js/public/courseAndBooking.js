@@ -342,7 +342,19 @@ function toScheduleCreateDto(formData) {
         timeZone: formData.timeZone || (typeof userTimeZone !== 'undefined' ? userTimeZone : '') || '',
         availableSites: formData.availableSites || 1,
         status: formData.status || '',
-        name: formData.name || ''
+        name: formData.name || '',
+        // 课程/咨询类型 · 授课语言 · 课时长度（2026-10-25）：空串 → 后端回落"课程 → 默认"。
+        // 两者语义不同：languageType 是 classType 的 code（同一 code 在 legal 行业显示「劳动」），
+        // workLanguage 才是「用哪种语言上课」（取自 sys_work_language，固定枚举、不随行业变）。
+        // classDuration 必须是数字或 null：传 "" 会让 Jackson 解析 Integer 直接 400
+        languageType: formData.languageType || '',
+        workLanguage: formData.workLanguage || '',
+        classDuration: (function(){
+            const v = formData.classDuration;
+            if (v === null || v === undefined || v === '') return null;
+            const n = Number(v);
+            return (isNaN(n) || n <= 0) ? null : n;
+        })()
     };
 }
 
@@ -804,6 +816,14 @@ function normalizeScheduleGenerateForm(form) {
     return out;
 }
 
+// ★ 全站唯一实现：学生端卡片（student-bookingCards.js）、管理端排期（admin-schedule.js）、
+//   绑定页（getScheduleListByScheduleObject）都调用这一个入口。
+//   本文件历史上存在第二份同名 async function（旧第 1090 行），而本文件顶层没有 IIFE 包裹，
+//   函数声明后写者静默覆盖前者 → 此处所有修正形同注释。已删除重复定义，禁止再新增同名函数。
+//   返回契约：成功 → 数组 [{date,time}]；失败 → []（不是 undefined）。
+//   为什么是 []：调用方 renderResult/renderCalendar 只判 null/undefined 就提前返回，
+//   返回 undefined 会把「上一次预览的残留行/日期」留在页面上，看不出是失败；[] 能清干净，
+//   也避免调用方直接 .map/.forEach 抛 TypeError。
 async function generateScheduleListFromServer(formData) { 
   const url = `schedule/generate` ;
  // const token = getToken();
@@ -968,18 +988,25 @@ function getScheduleInfo(scheduleObject,withName=true) {
     if (withName && scheduleObject.name)          info += scheduleObject.name;
 
   // 起始日期、结束日期和上课时间组成一句简洁文字
+  // 【优化】结束日期等于开始日期 → 不显示 "~ 结束日期"，只显示一次日期
   if (scheduleObject.startTime || scheduleObject.endTime ) {
       let dateStr = '';
-      if (scheduleObject.startTime && scheduleObject.endTime && scheduleObject.startTime !== scheduleObject.endTime) {
-          // 截取日期部分（假设startTime/endTime为"yyyy-MM-dd HH:mm:ss"格式，仅取日期部分）
-          const startDate = scheduleObject.startTime ? scheduleObject.startTime.split(" ")[0] : "";
+      if (scheduleObject.startTime) {
+          // startTime/endTime 是 "yyyy-MM-dd HH:mm:ss" 格式，split 出日期部分和时间部分
+          const startDate = scheduleObject.startTime.split(" ")[0] || "";
+          const startTime = scheduleObject.startTime.split(" ")[1] || "";
           const endDate   = scheduleObject.endTime   ? scheduleObject.endTime.split(" ")[0] : "";
-          const startTime = scheduleObject.startTime ? scheduleObject.startTime.split(" ")[1] : "";
-          dateStr = `${startDate} ~ ${endDate} ${startTime}`;
-  
-      } else if (scheduleObject.startTime) {
-          dateStr = scheduleObject.startTime;
-      } 
+          const endTime   = scheduleObject.endTime   ? scheduleObject.endTime.split(" ")[1] : "";
+
+          if (endDate && startDate !== endDate) {
+              // 不同日期：显示 "开始日期 ~ 结束日期 开始时间"
+              dateStr = `${startDate} ~ ${endDate} ${startTime}`;
+          } else {
+              // 相同日期（或 endDate 为空）：只显示 "开始日期 开始时间"
+              // 用户可在时间部分看到 09:00 ~ 10:00 的时段差
+              dateStr = `${startDate} ${startTime}`;
+          }
+      }
       
       info += dateStr ? ` ${dateStr}` : '';
   }
@@ -999,13 +1026,21 @@ function getScheduleInfoByDTO(scheduleObject) {
     if (scheduleObject.name)          info += scheduleObject.name;
 
   // 起始日期、结束日期和上课时间组成一句简洁文字
+  // 【优化】结束日期等于开始日期 → 不显示 "~ 结束日期"
   if (scheduleObject.startDate || scheduleObject.endDate ) {
-      let dateStr = ''; 
-          // 截取日期部分（假设startTime/endTime为"yyyy-MM-dd HH:mm:ss"格式，仅取日期部分）
-          const startDate = scheduleObject.startDate  ;
-          const endDate   = scheduleObject.endDate   ;
-          const startTime = scheduleObject.startTime  ;
+      let dateStr = '';
+      const startDate = scheduleObject.startDate || "";
+      const endDate   = scheduleObject.endDate   || "";
+      const startTime = scheduleObject.startTime || "";
+
+      if (endDate && startDate && startDate !== endDate) {
+          // 不同日期：显示 "开始日期 ~ 结束日期 开始时间"
           dateStr = `${startDate} ~ ${endDate} ${startTime}`;
+      } else {
+          // 相同日期（或 endDate 为空 / startDate 为空）：只显示一次日期
+          const displayDate = startDate || endDate || "";
+          dateStr = displayDate + (startTime ? ` ${startTime}` : "");
+      }
    
       info += dateStr ? ` ${dateStr}` : '';
   }
@@ -1075,32 +1110,6 @@ function getRepeatDescription(repeatType, interval,repeatDays) {
  
 
        
-// 分析：可能由于日期时区或构造Date的方式导致了前端和后端实际天数偏差。例如直接用new Date('yyyy-MM-dd')会因时区差别导致日期减少1天。可以尝试使用new Date(year, month, day)规避。
-//用request方法改写
-//controller: @RequestBody ScheduleGenerateDTO dto
-async function generateScheduleListFromServer(formData) { 
-  const url = `schedule/generate` ; 
-  try {
-      // 用 request 方法改写
-      const result = await request({
-          url: `${API_BASE_URL}/${url}`,
-          method: 'POST',
-          data: normalizeScheduleGenerateForm(formData)
-      });
-
-      // 修正后端返回的日期数组，确保日期不因本地解析减少1天
-      // 尝试将日期转为本地日期字符串再渲染 
-          // result.data: [{date:'2024-06-01',time:'09:00'}, ...]
-          // 兼容性修正：如后端返回的date为'yyyy-MM-dd'字符串，前端用new Date(date)在不同时区下解析会出现日期偏移。
-          // 方案：把date字符串分解为年月日，用new Date(year, month-1, day)组成本地时间，或渲染时直接使用原字符串。
-          // 这里只返回数据，渲染时renderCalendar里（下方）再修正用法
-          return result ;
-      
-  } catch (err) {
-      alert('获取排期失败');
-      console.error(err);  
-  }
-} 
 //CourseScheduleCreateDTO
 async function checkScheduleConflict(cto){
 // INSERT_YOUR_CODE

@@ -60,6 +60,14 @@
     .audit-detail-code { max-height: 300px; overflow: auto; background: #1e1e1e; color: #d4d4d4; padding: 12px; border-radius: 6px; font-family: 'Cascadia Mono', monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all; }
 
     .empty-tip { text-align: center; color: #999; padding: 40px 0; }
+
+    /* 时区提示（2026-10-25）：库里存 UTC，页面按浏览器时区换算后显示，必须让用户看见口径 */
+    .tz-hint {
+      margin-left: 10px; font-size: 12px; font-weight: 400;
+      color: #6b7280; background: #f3f4f6;
+      border: 1px solid #e5e7eb; border-radius: 10px;
+      padding: 2px 8px; white-space: nowrap; cursor: help;
+    }
   </style>
 <script src="js/shared-domain-bridge.js"></script>
 </head>
@@ -83,7 +91,7 @@
     <!-- 审计日志卡片 -->
     <div class="card">
       <div class="card-header">
-        <div class="card-title"><i class="fa fa-history"></i> 操作审计日志</div>
+        <div class="card-title"><i class="fa fa-history"></i> 操作审计日志<span id="tz-hint" class="tz-hint"></span></div>
         <div class="header-btns">
           <button class="btn btn-default" onclick="resetFilter()"><i class="fa fa-undo"></i> 重置</button>
           <button class="btn btn-primary" onclick="loadAuditLogs(1)"><i class="fa fa-search"></i> 查询</button>
@@ -120,7 +128,7 @@
           <table class="audit-table">
             <thead>
               <tr>
-                <th>时间</th>
+                <th title="按当前浏览器时区显示的本地时间">时间</th>
                 <th>操作人</th>
                 <th>角色</th>
                 <th>操作</th>

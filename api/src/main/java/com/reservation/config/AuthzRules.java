@@ -222,6 +222,8 @@ public final class AuthzRules {
         r.add(new Rule(HttpMethod.POST, "/api/v1/auth/bind-wechat", ALL_ROLES, "≡需登录 绑定微信（仅当前会话账号）"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/auth/unbind-wechat", ALL_ROLES, "≡需登录 解绑微信（仅当前会话账号）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/auth/wechat-status", ALL_ROLES, "≡需登录 查询自己的微信绑定状态"));
+        // 2026-11-05：auto_register 账号首次设置登录密码（解锁解绑）。同样只作用于当前会话账号。
+        r.add(new Rule(HttpMethod.POST, "/api/v1/auth/wechat/set-password", ALL_ROLES, "≡需登录 微信直接注册账号设置登录密码（解锁解绑）"));
 
         // ==================== 3.5、推广体系（2026-10-13 二期）====================
         // 推广者不新增角色：任何已登录用户都能生成自己的码、看自己的业绩。
@@ -260,6 +262,12 @@ public final class AuthzRules {
         r.add(new Rule(HttpMethod.POST, "/api/v1/user/updateStatus", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，任何登录用户可自审通过"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/user/updateInfo", PLATFORM_OR_TENANT_ADMIN, "新增：改他人资料属管理面（改自己资料走 account/* ）"));
 
+        // 本人自助改资料（2026-10-27）：与 updateInfo（管理面改他人）严格区分——
+        // 这两个端点只改"自己"，userId 取自 Token，请求体里的 userId/status/role/password 一律忽略。
+        // 任何已登录角色都可用（学生/教师改自己资料、管理员也可改自己）。
+        r.add(new Rule(HttpMethod.GET, "/api/v1/user/self", ALL_ROLES, "新增：本人资料只读（返回解密字段，password 不下发）"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/user/self/info", ALL_ROLES, "新增：本人自助改资料（userId 取自 Token，忽略请求体 userId/status/role/password）"));
+
         r.add(new Rule(HttpMethod.GET, "/api/v1/audit-logs", PLATFORM_OR_TENANT_ADMIN, "新增：审计日志（管理面）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/audit-logs/{logId}", PLATFORM_OR_TENANT_ADMIN, "新增：审计日志详情"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/audit-logs/actions", PLATFORM_OR_TENANT_ADMIN, "新增：审计动作枚举（渲染筛选项）"));
@@ -270,6 +278,8 @@ public final class AuthzRules {
         r.add(new Rule(HttpMethod.POST, "/api/v1/data-maintain/purge/schedule", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，物理删除"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/data-maintain/purge/booking", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，物理删除"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/data-maintain/purge/appointment", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，物理删除"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/data-maintain/purge/user", PLATFORM_OR_TENANT_ADMIN, "新增·关键：物理清理已软删账号（status='delete'）及其名下数据"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/data-maintain/user/relation-counts", PLATFORM_OR_TENANT_ADMIN, "新增：删除前的关联数据量统计（只读，供确认框展示影响面）"));
 
         // 平台级回收站清理（2026-10-24）：租户 / 用户是**平台对象**，
         // 租户管理员无权物理删除另一个租户，也无权删别家账号，故必须是 PLATFORM_ONLY。
@@ -301,6 +311,13 @@ public final class AuthzRules {
         r.add(new Rule(HttpMethod.GET, "/api/v1/course/page", ALL_ROLES, "≡checkAnyLogin（2026-10-10 方法级统一）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/course/{courseid}", ALL_ROLES, "≡checkAnyLogin（2026-10-10 方法级统一）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/course/classform", TEACHER_OR_ADMIN, "新增：班级表单（建课辅助）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/course/teachingProps", TEACHER_OR_ADMIN, "新增：排期表单取课程类型/授课语言/课时长度/课程形式（2026-10-25）"));
+
+        // 授课语言枚举（2026-10-25）：与 sys_term 的行业词无关，是「用哪种语言上课」的固定清单。
+        // 平台内置六项对所有租户可见（只读）；租户只能增删自己的自定义项，tenantId 由令牌派生。
+        r.add(new Rule(HttpMethod.GET, "/api/v1/work-language/list", ALL_ROLES, "新增：授课语言清单（内置+本租户自定义，各处下拉用）"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/work-language/save", TENANT_ADMIN_ONLY, "新增：租户自定义授课语言（内置项重复则拒绝）"));
+        r.add(new Rule(HttpMethod.DELETE, "/api/v1/work-language/delete/{id}", TENANT_ADMIN_ONLY, "新增：删除自定义授课语言（内置项与被引用项拒绝）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/course/statistical/byMonth", TEACHER_OR_ADMIN, "新增：课程统计（管理面）"));
 
         r.add(new Rule(HttpMethod.POST, "/api/v1/schedule/create", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin"));
@@ -337,6 +354,10 @@ public final class AuthzRules {
         r.add(new Rule(HttpMethod.GET, "/api/v1/teacher/professional/listByPage", ALL_ROLES, "新增：只读（学生浏览教师资料）"));
         // 教师图片上传（头像/证书）：本人或管理员可上传，返回可访问 URL；需登录
         r.add(new Rule(HttpMethod.POST, "/api/v1/teacher/professional/upload", TEACHER_OR_ADMIN, "新增：教师图片上传（返回 URL，需登录）"));
+
+        // 教师端「个人中心」概览统计（课程数/排期数/预订人数/本月完成课次）。
+        // 统计对象恒为 Token 中的 userId（教师只能看自己，归属在方法体），此处按教师/管理员放行。
+        r.add(new Rule(HttpMethod.GET, "/api/v1/teacher/stats/summary", TEACHER_OR_ADMIN, "新增：教师个人中心统计（本人，归属在方法体）"));
 
         // ==================== 五、全部已登录角色 ====================
         // 业务读接口或"改自己的数据"接口：任何登录角色都可用。

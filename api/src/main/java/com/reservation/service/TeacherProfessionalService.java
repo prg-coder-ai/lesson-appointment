@@ -446,6 +446,18 @@ public class TeacherProfessionalService {
         if (!ALLOWED_EXT.contains(ext)) {
             return Result.fail(400, "仅支持图片格式：jpg / jpeg / png / gif / webp");
         }
+        // 等保 P1-2：MIME 类型二次校验 —— 防扩展名伪装攻击。
+        // 攻击者把 shell.php 改名为 shell.jpg，扩展名通过但 getContentType() 仍可能返回
+        // application/x-php；必须在此拦截。
+        String contentType = file.getContentType();
+        final java.util.Set<String> ALLOWED_MIME = java.util.Set.of(
+                "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp");
+        if (contentType == null || !contentType.toLowerCase().startsWith("image/")
+                || !ALLOWED_MIME.contains(contentType.toLowerCase())) {
+            log.warn("[TeacherProfessional] MIME 类型异常 original={}, content-type={}",
+                    original, contentType);
+            return Result.fail(400, "文件 MIME 类型非法（仅支持 image/jpeg / png / gif / webp）");
+        }
         try {
             Path base = Paths.get(uploadBaseDir).toAbsolutePath().normalize();
             Files.createDirectories(base);

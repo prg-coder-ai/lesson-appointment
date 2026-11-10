@@ -89,6 +89,9 @@ public class PromoService {
     private UserService userService;
     @Autowired
     private WxUseridService wxUseridService;
+    /** 等保 P1-1：注册密码强度校验（按 strict-mode 分级） */
+    @Autowired
+    private com.reservation.security.PasswordPolicy passwordPolicy;
     @Autowired
     private SysConfigService sysConfigService;
     @Autowired
@@ -466,6 +469,11 @@ public class PromoService {
         if (!StringUtils.hasText(orgName) || !StringUtils.hasText(account) || !StringUtils.hasText(password)) {
             throw new BusinessException("机构名称、管理员账号、密码不能为空");
         }
+        // 等保 P1-1：密码强度校验（按 strict-mode 分级）
+        String pwErr = passwordPolicy.validate(password);
+        if (pwErr != null) {
+            throw new BusinessException(pwErr);
+        }
         // 行业先解析后开租户：无效行业必须在此刻拒绝，不能落到 tenant.industry_id 上
         Long resolvedIndustryId = resolveIndustryId(industryId);
         checkRegisterAbuse(ip, phone, true);
@@ -627,6 +635,11 @@ public class PromoService {
                 ? role : RoleConst.STUDENT;
         if (!StringUtils.hasText(account) || !StringUtils.hasText(password)) {
             throw new BusinessException("账号、密码不能为空");
+        }
+        // 等保 P1-1：密码强度校验（按 strict-mode 分级）
+        String pwErr = passwordPolicy.validate(password);
+        if (pwErr != null) {
+            throw new BusinessException(pwErr);
         }
         checkRegisterAbuse(ip, phone, false);
 

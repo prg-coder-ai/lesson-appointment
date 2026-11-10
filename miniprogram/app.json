@@ -51,6 +51,13 @@
     "navigationBarTextStyle": "black",
     "backgroundColor": "#f5f7fa"
   },
+  "networkTimeout": {
+    "request": 20000,
+    "downloadFile": 30000,
+    "uploadFile": 30000,
+    "connectSocket": 20000
+  },
+  "lazyCodeLoading": "requiredComponents",
   "style": "v2",
   "sitemapLocation": "sitemap.json"
 }

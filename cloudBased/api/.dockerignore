@@ -1,7 +1,9 @@
-# Maven 构建中间产物（保留 *.jar 供 Dockerfile COPY target/*.jar 使用）
-# 注意：不能整目录忽略 target/，否则 Dockerfile 的 COPY target/booking-api-2.2.0.jar 会失败
+# Maven 构建中间产物
+# 上下文里的 jar 是**根目录**那份（Dockerfile: COPY booking-api-2.2.0.jar），
+# target/ 下的副本不必进上下文 —— 忽略整个 target/ 以减小上传体积。
+# 旧写法 target/* + !target/*.jar 是为「jar 拷到 target/ 再 COPY target/…」准备的，
+# 路径已统一到根目录，这里随之收敛。
 target/*
-!target/*.jar
 
 # Git
 .git/

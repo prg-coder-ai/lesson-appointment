@@ -60,6 +60,16 @@ public class CourseService   {
     private CourseNotifyRuleMapper courseNotifyRuleMapper;
     @Autowired
     private CourseNotifyRulePointMapper courseNotifyRulePointMapper;
+    /**
+     * 授课语言枚举校验（2026-10-25）。
+     *
+     * <p>模板/课程上的 workLanguage 必须落在 {@code sys_work_language} 的可见清单里
+     * （平台内置六项 或 本租户自定义），空值放行（未指定）。
+     * 这就是 language_type 当年被行业词污染的入口 —— 从前端随便写个字符串就能进库，
+     * 三个月后没人知道那串值是什么意思。
+     */
+    @Autowired
+    private WorkLanguageService workLanguageService;
 
 /**
      * 分页查询课程列表
@@ -94,6 +104,7 @@ public class CourseService   {
                 != null) {
             throw new BusinessException(TermMsg.t("该{classType}+{classLevel}的{course}模板已存在"));
         }
+        workLanguageService.assertVisibleCode(TenantContext.getTenantId(), template.getWorkLanguage(), "授课语言");
         String templateId = UUID.randomUUID().toString().replace("-", ""); // 移除UUID分隔符
         template.setTemplateId(templateId);
          
@@ -113,6 +124,7 @@ public class CourseService   {
         if (duplicate != null && !duplicate.getTemplateId().equals(template.getTemplateId())) {
             throw new BusinessException(TermMsg.t("该{classType}+{classLevel}的{course}模板已存在"));
         }
+        workLanguageService.assertVisibleCode(TenantContext.getTenantId(), template.getWorkLanguage(), "授课语言");
         // 更新模板信息
         courseTemplateMapper.updateTemplate(template);
         return Collections.singletonMap("templateId", template.getTemplateId());
@@ -192,6 +204,15 @@ public class CourseService   {
         tenantQuotaService.acquire(tenantId, TenantQuotaService.COURSE);
         String courseId = UUID.randomUUID().toString().replace("-", "");
         course.setCourseId(courseId);
+        // 课程类型 / 授课语言 / 课时长度一律以模板为准，覆盖前端传值。
+        // 模板的唯一键就是 (tenant_id, language_type, difficulty_level)，
+        // 允许课程另填类型只会产出"模板是英语、课程教日语"这种自相矛盾的数据，
+        // 而排期冲突检查、时长计算全都要读这几列，口径必须唯一。
+        // 授课语言（workLanguage）与课程类型是两件事：前者是"用哪种语言上课"，
+        // 取自 sys_work_language；后者是"哪一类课程/咨询"，由 sys_term 按行业渲染。
+        course.setLanguageType(template.getLanguageType());
+        course.setWorkLanguage(template.getWorkLanguage());
+        course.setClassDuration(template.getClassDuration() == null ? 60 : template.getClassDuration());
         courseMapper.insert(course);
         return Collections.singletonMap("courseId", courseId);
     }
@@ -255,6 +276,33 @@ public class CourseService   {
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public Map<String, String> update (Course obj) {
 
+        // 前端显式传了授课语言就必须是合法 code（null/空串放行，语义分别是"本次不改"与"未指定"）
+        workLanguageService.assertVisibleCode(TenantContext.getTenantId(), obj.getWorkLanguage(), "授课语言");
+
+        // 换了模板就必须跟着新模板的课程类型 / 授课语言 / 课时长度走。
+        // 只有同时满足「换了模板」且「本次没显式传这几个字段」才回填模板值：
+        // · 不判模板变更就回填 → 编辑课程名称会把人为调整过的时长悄悄改回模板值；
+        // · 判了变更却允许老值保留 → 出现"课程挂在英语模板下、语言列写着日语"。
+        if (obj.getTemplateId() != null && !obj.getTemplateId().trim().isEmpty()) {
+            Course exist = courseMapper.selectById(obj.getCourseId());
+            boolean templateChanged = exist == null
+                    || !obj.getTemplateId().trim().equals(String.valueOf(exist.getTemplateId()).trim());
+            if (templateChanged) {
+                CourseTemplate t = courseTemplateMapper.selectTemplateById(obj.getTemplateId());
+                if (t != null) {
+                    if (obj.getLanguageType() == null || obj.getLanguageType().trim().isEmpty()) {
+                        obj.setLanguageType(t.getLanguageType());
+                    }
+                    if (obj.getWorkLanguage() == null || obj.getWorkLanguage().trim().isEmpty()) {
+                        obj.setWorkLanguage(t.getWorkLanguage());
+                    }
+                    if (obj.getClassDuration() == null) {
+                        obj.setClassDuration(t.getClassDuration() == null ? 60 : t.getClassDuration());
+                    }
+                }
+            }
+        }
+
         courseMapper.updateById(obj);
         return Collections.singletonMap("courseId", obj.getCourseId());
     }
@@ -264,15 +312,27 @@ public class CourseService   {
      * 参数为语言、等级
      * CourseQueryParam
      */
-    public List<Course> getCourseList(CourseQueryParam  params) {
-        // 实现逻辑：调用Mapper查询，无结果返回空集合，避免空指针
+    public List<Course> getCourseList(CourseQueryParam  params) {        // 实现逻辑：调用Mapper查询，无结果返回空集合，避免空指针
          //log.debug("service:params: " + params);
         List<Course> courseList = courseMapper.selectCourseList(params); // 假设Mapper有该方法
         return Optional.ofNullable(courseList).orElse(Collections.emptyList());
     } 
 
-  public  Course getCourseById(String id) {
-        // 实现逻辑：调用Mapper查询，无结果返回空集合，避免空指针
+  /**
+   * 排期表单要用的「教学语言 / 课时长度 / 课程形式」。
+   *
+   * <p>回落顺序写在 SQL 里（见 {@code CourseMapper#selectTeachingProps}）：
+   * 课程列 → 模板列 → 默认值。这里是薄封装，只负责空入参的短路。
+   */
+  public Map<String, Object> getTeachingProps(String courseId) {
+      if (courseId == null || courseId.trim().isEmpty()) {
+          return Collections.emptyMap();
+      }
+      Map<String, Object> props = courseMapper.selectTeachingProps(courseId);
+      return props == null ? Collections.emptyMap() : props;
+  }
+
+  public  Course getCourseById(String id) {        // 实现逻辑：调用Mapper查询，无结果返回空集合，避免空指针
          //log.debug("service:params: " + params);
          Course  course = courseMapper.selectById(id); // 假设Mapper有该方法
         return Optional.ofNullable(course).orElse(null);

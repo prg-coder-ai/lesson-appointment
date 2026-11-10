@@ -1,6 +1,8 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 # ==============================================================================
 # build-all.ps1 —— 微信云托管 · 本地预打包一键脚本
+# ★ 必须保存为 UTF-8 **带 BOM**：PowerShell 5.1 会把无 BOM 的 UTF-8 当 ANSI 读，
+#   中文与 emoji 会让解析直接失败（典型报错：字符串缺少终止符）。改动后别用会丢 BOM 的编辑器保存。
 # 用法：
 #   1. PowerShell 5 / 7：在项目根目录执行
 #      Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass   # 首次可能需要
@@ -40,7 +42,11 @@ $FE_DIR       = Join-Path $PROJECT_ROOT "frontend"
 $CLOUD_API    = Join-Path $PROJECT_ROOT "cloudBased\api"
 $CLOUD_MSG    = Join-Path $PROJECT_ROOT "cloudBased\message-service"
 $CLOUD_CLS    = Join-Path $PROJECT_ROOT "cloudBased\classroom-service"
-$CLOUD_WEB    = Join-Path $PROJECT_ROOT "cloudBased\web"
+$CLOUD_WEB    = Join-Path $PROJECT_ROOT "cloudBased\frontend"
+# web 的构建上下文就是 cloudBased\frontend 本身（Dockerfile + default.conf.template + dist
+# 都在这个目录里，COPY dist 依赖它）。原先「源文件放 deploy\nginx\cloudbase-web、再拷进
+# 暂存目录 cloudBased\web」那套已废弃：它是 listen 80 的老镜像，与云托管 containerPort
+# 8080 不一致，上线即全站 502，2026-11-08 连同源文件一并删除。
 
 # ---------- 颜色输出 ----------
 function Step($msg) { Write-Host "`n▶ $msg" -ForegroundColor Cyan }
@@ -139,16 +145,30 @@ if (-not $SkipDocker) {
     if ($LASTEXITCODE -ne 0) { Fail "classroom-service docker build 失败" }
     Ok "classroom-service:1.0.0"
 
-    # 3c. web（需要先填 envParams.API_UPSTREAM / CLASSROOM_UPSTREAM，这里用占位让用户手动替换 / 或传 EnvId）
-    $apiInternalHost = if ($EnvId) { "http://api.$EnvId.svc.cluster.local:8081" } else { "http://REPLACE_WITH_API_INTERNAL_HOST:8081" }
-    $classroomInternalHost = if ($EnvId) { "http://classroom.$EnvId.svc.cluster.local:8092" } else { "http://REPLACE_WITH_CLASSROOM_INTERNAL_HOST:8092" }
-    Write-Host "  🐳 booking-web:latest  (API_UPSTREAM=$apiInternalHost, CLASSROOM_UPSTREAM=$classroomInternalHost) ..." -ForegroundColor Gray
+    # 3c. web —— 上游地址**不再进镜像**：API_UPSTREAM / MSG_UPSTREAM / CLASSROOM_UPSTREAM
+    # 走运行时环境变量，由容器的 00-resolver.sh 启动时渲染 nginx 配置。所以不传 --build-arg，
+    # 换环境/换内网域名只改控制台环境变量 + 重启实例，同一镜像可复用。
+    # ⚠ 部署前必须在 云托管控制台 → 服务设置 → 环境变量 配好这三个，否则容器启动即失败：
+    #   API_UPSTREAM       = http://api-xxxxxxxx.<region>.internal-run.tcloudbase.com:8081
+    #   MSG_UPSTREAM       = http://message-service-xxxxxxxx.<region>.internal-run.tcloudbase.com:8090
+    #   CLASSROOM_UPSTREAM = http://classroom-service-xxxxxxxx.<region>.internal-run.tcloudbase.com:8092
+    # ❌ 绝不可用 <服务名>.<envid>.svc.cluster.local —— 微信云托管无此 DNS 记录（实测 NXDOMAIN）
+
+    # 构建上下文 = cloudBased\frontend（Dockerfile 的 COPY dist 依赖同目录的 dist\）
+    foreach ($f in @("Dockerfile", "default.conf.template")) {
+        if (-not (Test-Path "$CLOUD_WEB\$f")) { Fail "缺少 $CLOUD_WEB\$f" }
+    }
+    if (-not (Test-Path "$CLOUD_WEB\dist")) { Fail "缺少 $CLOUD_WEB\dist（先跑前端构建，别加 -SkipFrontend）" }
+    Ok "web 构建上下文就绪：cloudBased\frontend"
+
+    Write-Host "  🐳 booking-web:latest  (上游走运行时环境变量，构建不需 --build-arg) ..." -ForegroundColor Gray
     Push-Location $CLOUD_WEB
     try {
-        docker build --build-arg "API_UPSTREAM=$apiInternalHost" --build-arg "CLASSROOM_UPSTREAM=$classroomInternalHost" -t "booking-web:latest" .
+        docker build -t "booking-web:latest" .
     } finally { Pop-Location }
     if ($LASTEXITCODE -ne 0) { Fail "web docker build 失败" }
     Ok "booking-web:latest"
+    Warn "别忘了在云托管控制台配 API_UPSTREAM / MSG_UPSTREAM / CLASSROOM_UPSTREAM 环境变量，缺失会导致容器启动失败"
 
     # 3d. 可选推送到云托管镜像仓库
     if ($DockerPush) {

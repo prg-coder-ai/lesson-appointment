@@ -314,8 +314,8 @@ async function presetSelected(env, scheduleId) {
       /fillScheduleSelect\(scheduleList, keepScheduleId\)/.test(fnBody('refreshData_student')));
     assert('refreshData_student 会重新渲染（displaySchedule）',
       /await displaySchedule\(\)/.test(fnBody('refreshData_student')));
-    assert('refreshData_student 有失败提示且不清空页面（alert + return 成对）',
-      /alert\('刷新失败，请稍后重试'\)[\s\S]{0,80}return;/.test(fnBody('refreshData_student')));
+    assert('refreshData_student 有失败提示且不清空页面（uiToast + return 成对，S8 已用 mfToast 替代原生 alert）',
+      /uiToast\('刷新失败，请稍后重试'\)[\s\S]{0,80}return;/.test(fnBody('refreshData_student')));
     assert('refreshData_student 不再整段重置面板（仅原排期失效时清空）',
       (fnBody('refreshData_student').match(/resetScheduleInfoPanel\(\)/g) || []).length === 1);
   }

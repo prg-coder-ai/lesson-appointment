@@ -123,36 +123,37 @@ function generateUserImportTemplate(role = "student") {
 // 使用范例：generateUserImportTemplate("student");
 // 可在管理员批量导入/新建页加“下载模板”按钮，绑定本方法
 /**
- * 批量创建10个CourseTemplate对象并通过后端接口添加到数据库
+ * 批量创建可配数量（默认5，上限不限）的 CourseTemplate 对象并通过后端接口添加到数据库
  * 需配合后端API /courseTemplate/add (POST) 使用
  * 可作为演示/初始化用途，只需管理员页面用一次即可
  */
 async function batchAddCourseTemplates() {
+  // 数量可配置：默认 5，上限不限（页面输入框 test-cnt-template）
+  const count = getBatchCount('test-cnt-template');
   // 可根据实际CourseTemplate字段扩展或调整
-  if(!confirm(`添加 10 个${curTerm('course', '课程')}模板`)){
+  if(!confirm(`添加 ${count} 个${curTerm('course', '课程')}模板`)){
     return;
   }
   // 按当前租户行业动态生成模板：languageType 取该行业 classType 实际存储值
   const langTypes = curLangTypes();
   const forms = ['1p1', '1pN', '1p2N'];
   const levels = ['B1', 'B2', 'B3', 'B4'];
-  const feeDur = [
-    { fee: 100, dur: 30 }, { fee: 120, dur: 45 }, { fee: 90, dur: 30 }, { fee: 150, dur: 60 },
-    { fee: 110, dur: 45 }, { fee: 180, dur: 60 }, { fee: 80, dur: 30 }, { fee: 130, dur: 45 },
-    { fee: 200, dur: 60 }, { fee: 260, dur: 90 }
-  ];
+  // 费用/时长各 10 组为一循环取值，保证数量不限时仍能均匀覆盖各种组合
+  const fees = [100, 120, 90, 150, 110, 180, 80, 130, 200, 260];
+  const durs = [30, 45, 30, 60, 45, 60, 30, 45, 60, 90];
   const templates = [];
-  for (let k = 0; k < 10; k++) {
+  for (let k = 0; k < count; k++) {
     const lt = langTypes[k % langTypes.length];
     const lv = levels[k % levels.length];
     const fm = forms[k % forms.length];
-    const s = feeDur[k];
+    const fee = fees[k % fees.length];
+    const dur = durs[k % durs.length];
     templates.push({
       templateId: "CT" + String(k + 1).padStart(3, '0'),
       languageType: lt,
       difficultyLevel: lv,
-      classFee: s.fee,
-      classDuration: s.dur,
+      classFee: fee,
+      classDuration: dur,
       classForm: fm,
       description: buildTemplateDesc(lt, lv, fm),
       status: "active"
@@ -182,17 +183,19 @@ async function batchAddCourseTemplates() {
       break;  
     }
   }
-  alert("共10个CourseTemplate初始化添加请求已完成，请刷新数据查看。");
+  alert(`共${count}个CourseTemplate初始化添加请求已完成，请刷新数据查看。`);
 }
 
 // 使用方法：管理员页面按钮绑定 batchAddCourseTemplates() 即可
 /**
  * 1. 首先获取所有教师ID列表
- * 2. 遍历每个CourseTemplate，为其创建10个Course对象，每个Course对象随机分配一个教师ID
+ * 2. 遍历每个CourseTemplate，为其创建可配数量（默认5，上限不限）的 Course 对象，每个Course对象随机分配一个教师ID
  * 3. 调用后端 /course/add 接口提交新Course对象
  */
 async function batchAddCoursesForTemplates() {
-  if(!confirm(`每个模板添加 10 个${curTerm('course', '课程')}`)){
+  // 每个模板生成多少课程：默认 5，上限不限（页面输入框 test-cnt-course）
+  const count = getBatchCount('test-cnt-course');
+  if(!confirm(`每个模板添加 ${count} 个${curTerm('course', '课程')}`)){
     return;
   }
   // 首先获取所有role=teacher的用户ID
@@ -218,7 +221,7 @@ async function batchAddCoursesForTemplates() {
 
   // 10个模板
   for (const tpl of templates) {
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < count; i++) {
       const teacherId = teacherIDs[Math.floor(Math.random() * teacherIDs.length)];
       // 构造Course对象
       const newCourse = {
@@ -251,13 +254,15 @@ async function batchAddCoursesForTemplates() {
   }
 }
 /**
- * 为每个课程批量创建10个排期，并添加到数据库（适用于演示/测试/初始化）
+ * 为每个课程批量创建可配数量（默认5，上限不限）的排期，并添加到数据库（适用于演示/测试/初始化）
  * 需配合后端saveScheduleToServer (POST)
- * 每次执行，所有课程各生成10条排期，自动分配上课时间
+ * 每次执行，所有课程各生成 count 条排期，自动分配上课时间
  * -------
  */
 async function batchAddCourseSchedulesPerCourse() {
-  if(!confirm(`每个${curTerm('course', '课程')}添加 10 个${curTerm('schedule', '排期')}`)){
+  // 每个课程生成多少排期：默认 5，上限不限（页面输入框 test-cnt-schedule）
+  const count = getBatchCount('test-cnt-schedule');
+  if(!confirm(`每个${curTerm('course', '课程')}添加 ${count} 个${curTerm('schedule', '排期')}`)){
     return;
   }
   try {
@@ -274,11 +279,11 @@ async function batchAddCourseSchedulesPerCourse() {
       return;
     }
 
-    // 2. 为每个课程生成10条排期对象
+    // 2. 为每个课程生成 count 条排期对象
     const schedules = [];
     const today = new Date();
     for (const course of coursesJson) {
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < count; i++) {
         // 自动分配上课时间: 从明天开始，每隔1天一条
         const classDate = new Date(today);
         classDate.setDate(today.getDate() + i + 1);
@@ -367,7 +372,9 @@ async function sleep(ms) {
 }
 // 2. 帮全部排期随机指定给1个学生 ----TBD：直接assign-student
 async function assignSchedulesRandomStudent() {
-  if(!confirm(`随机分配 10 个${curTerm('schedule', '排期')}给${curTerm('student', '学生')}`)){
+  // 生成多少条预定（从现有排期中取前 count 条）：默认 5，上限不限（页面输入框 test-cnt-booking）
+  const count = getBatchCount('test-cnt-booking');
+  if(!confirm(`随机分配 ${count} 个${curTerm('schedule', '排期')}给${curTerm('student', '学生')}`)){
     return;
   }
   const studentIds = await getAllStudentIds();
@@ -376,6 +383,8 @@ async function assignSchedulesRandomStudent() {
     return;
   }
   let schedulesList = await getScheduleList();
+  // 只取前 count 条：数量可配置，避免一次把全部排期占满
+  schedulesList = (Array.isArray(schedulesList) ? schedulesList : []).slice(0, count);
   let ok = 0, fail = 0;
   //console.error("schedules",schedulesIdList);
   let teacherId=null;
@@ -433,7 +442,9 @@ async function assignSchedulesRandomStudent() {
 // 然后判断在appointment数据表中如果不存在booking.id则把booking对象转为ScheduleGenerateDTO ，
 // 调用generateScheduleListFromServer创建预定对象的预约时间
 async function generateAppointmentListByBooking() {
-  if(!confirm(`为每个预定创建预约时间`)){
+  // 为多少个预定创建预约时间：默认 5，上限不限（页面输入框 test-cnt-appointment）
+  const count = getBatchCount('test-cnt-appointment');
+  if(!confirm(`为前 ${count} 个预定创建预约时间`)){
     return;
   }
   // 1. 获取已预约的booking对象列表
@@ -442,6 +453,8 @@ async function generateAppointmentListByBooking() {
     console.warn("getBookingList 未获取到数组数据，输出为:", bookingList);
     return;
   }
+  // 只取前 count 条：数量可配置
+  bookingList = bookingList.slice(0, count);
 
   // 2. 遍历booking对象，判断appointment表中是否已经存在，如果不存在则生成ScheduleGenerateDTO并生成预约
   let countInserted = 0, countSkipped = 0, errors = 0;
@@ -533,15 +546,34 @@ async  function checkAppointmentExistsByBookingId(booking_id){
   } 
 }
 
+/**
+ * 造数数量统一规则：默认 5 条，上限不限。
+ * 约定：输入留空 / 非数字 / 小于 1 时按默认值 5 处理；正整数即实际生成条数（不限上限）。
+ */
+const TEST_DEFAULT_COUNT = 5;
+
+/**
+ * 读取「测试-批量创建数据」页面上数量输入框的值。
+ * @param {string} inputId 输入框 id（见 makeTestPage）
+ * @returns {number} 生成条数（>=1）
+ */
+function getBatchCount(inputId) {
+  const el = document.getElementById(inputId);
+  const raw = el ? String(el.value).trim() : '';
+  const n = parseInt(raw, 10);
+  if (!raw || isNaN(n) || n < 1) return TEST_DEFAULT_COUNT;
+  return n;
+}
+
  function test_genUser_student() {
   
-  let number = 300;
+  let number = getBatchCount('test-cnt-user-student');
   let role = "student";
   test_genUser(number,role);
  }
 
  function test_genUser_teacher() {
-  let number = 100;
+  let number = getBatchCount('test-cnt-user-teacher');
   let role = "teacher";
   test_genUser(number,role);
  }
@@ -553,20 +585,41 @@ async  function checkAppointmentExistsByBookingId(booking_id){
         const schedule = curTerm('schedule', '排期');
         const student = curTerm('student', '学生');
         const teacher = curTerm('teacher', '教师');
-        let testHtml ="<div>";
-        let number = 300,role = "student";
-        testHtml += ` <div > <button class="btn btn-default" onclick="test_genUser_student()"> 添加${student}</button></div>`;
-        number = 100,role = "teacher";
-        testHtml += ` <div > <button class="btn" onclick="test_genUser_teacher()"> 添加${teacher}</button></div>`;
-      
-        testHtml += ` <div > <button class="btn" onclick="batchAddCourseTemplates()"> 添加${course}模板</button></div>`;
-        testHtml += ` <div > <button class="btn" onclick="batchAddCoursesForTemplates()"> 添加${course}</button></div>`;
 
-        testHtml += ` <div> <button class="btn" onclick="batchAddCourseSchedulesPerCourse()"> 添加${course}${schedule}</button></div>`;
+        // 每行的「数量」输入框：默认 TEST_DEFAULT_COUNT(5)，上限不限
+        const cntInput = (id, unit) =>
+          `<input type="number" id="${id}" min="1" value="${TEST_DEFAULT_COUNT}" ` +
+          `style="width:86px;padding:4px 8px;border:1px solid #d9d9d9;border-radius:4px;text-align:center;">` +
+          `<span style="color:#888;margin-left:4px;">${unit}</span>`;
+        // 一行：数量输入 + 操作按钮（+ 可选说明）
+        const row = (id, unit, btnHtml, tip) =>
+          `<div style="display:flex;align-items:center;gap:10px;margin:10px 0;flex-wrap:wrap;">` +
+            `<span style="color:#888;">数量</span>${cntInput(id, unit)}${btnHtml}` +
+            (tip ? `<span style="color:#aaa;font-size:12px;">${tip}</span>` : '') +
+          `</div>`;
 
-        testHtml += ` <div > <button class="btn" onclick="assignSchedulesRandomStudent()"> 添加${course}预定</button></div>`;
-        testHtml += ` <div > <button class="btn" onclick="generateAppointmentListByBooking()"> 添加预约时间</button></div>`;
+        let testHtml = '<div>';
+        testHtml += `<div style="padding:6px 0 12px;color:#999;font-size:13px;">`
+                  + `测试专用：数量为每张表的模拟生成条数，默认 ${TEST_DEFAULT_COUNT} 条，`
+                  + `上限不限（留空或非数字、小于 1 时按默认处理）。`
+                  + `</div>`;
 
+        testHtml += row('test-cnt-user-student', '人',
+          `<button class="btn btn-default" onclick="test_genUser_student()"> 添加${student}</button>`);
+        testHtml += row('test-cnt-user-teacher', '人',
+          `<button class="btn" onclick="test_genUser_teacher()"> 添加${teacher}</button>`);
+        testHtml += row('test-cnt-template', '个',
+          `<button class="btn" onclick="batchAddCourseTemplates()"> 添加${course}模板</button>`);
+        testHtml += row('test-cnt-course', '个/模板',
+          `<button class="btn" onclick="batchAddCoursesForTemplates()"> 添加${course}</button>`);
+        testHtml += row('test-cnt-schedule', '条/课程',
+          `<button class="btn" onclick="batchAddCourseSchedulesPerCourse()"> 添加${course}${schedule}</button>`);
+        testHtml += row('test-cnt-booking', '条',
+          `<button class="btn" onclick="assignSchedulesRandomStudent()"> 添加${course}预定</button>`,
+          `（从现有${schedule}中取前 N 条）`);
+        testHtml += row('test-cnt-appointment', '个预定',
+          `<button class="btn" onclick="generateAppointmentListByBooking()"> 添加预约时间</button>`,
+          `（为前 N 个已预定生成预约时间）`);
 
         testHtml += '</div>';
 
