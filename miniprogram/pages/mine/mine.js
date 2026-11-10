@@ -120,13 +120,23 @@ Page(withTerms({
   onOld(e) { this.setData({ oldPwd: e.detail.value }); },
   onNew(e) { this.setData({ newPwd: e.detail.value }); },
   onConfirm(e) { this.setData({ confirmPwd: e.detail.value }); },
+  // 本人改密：后端 UserController.changePassword 用 @RequestParam 接收
+  // userId / password（新密码）/ oldPassword（本人改密必填），参数走 query 而非 JSON body。
+  // P0-2 起 userId 必填：Service 用「调用者 == 目标 且原密码正确」放行本人改密，
+  // 缺 userId 会直接被拒（400 用户Id不能为空）。
   async savePwd() {
-    const { oldPwd, newPwd, confirmPwd } = this.data;
+    const { oldPwd, newPwd, confirmPwd, user } = this.data;
+    const userId = (user && user.userId) || ((requireAuth() || {}).userId) || '';
+    if (!userId) { wx.showToast({ title: '登录已失效，请重新登录', icon: 'none' }); return; }
     if (!oldPwd || !newPwd) { wx.showToast({ title: '请输入密码', icon: 'none' }); return; }
     if (newPwd !== confirmPwd) { wx.showToast({ title: '两次新密码不一致', icon: 'none' }); return; }
     this.setData({ saving: true });
     try {
-      await request({ url: ENDPOINTS.CHANGE_PWD, method: 'POST', data: { oldPassword: oldPwd, newPassword: newPwd } });
+      await request({
+        url: ENDPOINTS.CHANGE_PWD,
+        method: 'POST',
+        params: { userId, password: newPwd, oldPassword: oldPwd }
+      });
       wx.showToast({ title: '修改成功', icon: 'success' });
       this.setData({ showPwd: false, oldPwd: '', newPwd: '', confirmPwd: '' });
     } catch (e) {

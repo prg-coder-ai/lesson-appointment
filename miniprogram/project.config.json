@@ -2,8 +2,14 @@
   "description": "预约系统微信小程序",
   "packOptions": {
     "ignore": [
-      { "type": "file", "value": "sync-shared.js" },
-      { "type": "folder", "value": "scripts" }
+      {
+        "value": "sync-shared.js",
+        "type": "file"
+      },
+      {
+        "value": "scripts",
+        "type": "folder"
+      }
     ],
     "include": []
   },
@@ -34,7 +40,7 @@
   },
   "compileType": "miniprogram",
   "libVersion": "3.0.0",
-  "appid": "wxc4f96c9bd2351015",
+  "appid": "wx70918e7e9f2553b1",
   "projectname": "lesson-miniprogram",
   "condition": {},
   "simulatorPluginLibVersion": {},

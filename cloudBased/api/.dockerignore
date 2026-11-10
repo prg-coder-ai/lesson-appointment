@@ -1,5 +1,5 @@
 # Maven 构建产物
-target/
+target/*.jar
 
 # Git
 .git/
