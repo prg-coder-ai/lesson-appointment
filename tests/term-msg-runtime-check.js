@@ -21,8 +21,11 @@ const http = require('http');
 const crypto = require('crypto');
 const fs = require('fs');
 const { execFileSync } = require('child_process');
+// 仓库根：原先这里写死了另一个工作区（2026-08-30-17-19-24）的绝对路径，
+// 那份副本与当前仓库会逐渐分叉（properties 已不同），守卫会变成在验旧代码。
+const WS_ROOT = __dirname.replace(/[\\/]tests$/, '');
 
-const ROOT = 'C:/Users/Administrator/WorkBuddy/2026-08-30-17-19-24';
+const ROOT = WS_ROOT + '';
 const API = { host: '127.0.0.1', port: 8083 };
 const MYSQL = 'D:/program/mysql84/bin/mysql';
 const DB = 'lesson_appointment';
@@ -35,13 +38,22 @@ function ck(name, cond, detail) {
 }
 
 const props = fs.readFileSync(ROOT + '/api/src/main/resources/application.properties', 'utf8');
-const SECRET = /^jwt\.secret=(.+)$/m.exec(props)[1].trim();
+// 配置里现在是 `jwt.secret=${JWT_SECRET:<仓库默认值>}` 的占位形式（生产强制注入）。
+// 直接拿整串当签名密钥会与运行中的后端（它用冒号后的默认值）不一致 → 全部 401。
+// 这里剥掉 ${VAR:default} 外壳，取实际生效的默认值。
+const SECRET = (function () {
+    let raw = /^jwt\.secret=(.+)$/m.exec(props)[1].trim();
+    const m = /^\$\{[^:}]+:([\s\S]*)\}$/.exec(raw);
+    if (m) raw = m[1];
+    return raw;
+})();
 
 const b64u = (b) => Buffer.from(b).toString('base64url');
 /** 与后端同源密钥现签；tenantId 为 null 时不写该字段（模拟平台上下文） */
 function makeToken(sub, role, tenantId) {
     const now = Math.floor(Date.now() / 1000);
-    const payload = { sub, role, iat: now, exp: now + 3600 };
+    // 必须有 type='access'：JwtUtil.verifyAccessToken 会校验该 claim（2026-10-28 加固）。
+    const payload = { sub, role, type: 'access', iat: now, exp: now + 3600 };
     if (tenantId != null) payload.tenantId = tenantId;
     const si = b64u(JSON.stringify({ alg: 'HS512', typ: 'JWT' })) + '.' + b64u(JSON.stringify(payload));
     return si + '.' + b64u(crypto.createHmac('sha512', Buffer.from(SECRET, 'utf8')).update(si).digest());

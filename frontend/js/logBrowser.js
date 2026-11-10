@@ -3,10 +3,11 @@ let autoRefreshTimer = null;
 
 // 加载归档日期列表
 async function loadDates() {
-    // ★ 2026-11-08：必须带 /v1。后端映射是 @RequestMapping("/api/v1/logs")，
-    //   而 axios 对以 / 开头的 url 会忽略 baseURL（见 utility_request.js:27），
+    // 路径统一取 ENDPOINTS（shared/apiPaths.js LOGS_*）：
+    //   后端 LogController 的类级映射是 /api/v1/logs，必须带 /v1；
+    //   axios 对以 / 开头的 url 会忽略 baseURL（utility_request.js:27），
     //   写成 /api/logs/* 不会自动补前缀，只会落到 nginx 的 location / → try_files → 404。
-    const res = await request('/api/v1/logs/dates');
+    const res = await request(ENDPOINTS.LOGS_DATES);
     const select = document.getElementById('log-date');
     (res || []).forEach(d => {
         const opt = document.createElement('option');
@@ -20,10 +21,10 @@ async function loadLogs() {
     const date = document.getElementById('log-date').value;
     const level = document.getElementById('log-level').value;
     const keyword = document.getElementById('log-keyword').value.trim();
-    let url = date ? `/api/v1/logs/date?date=${date}&maxLines=1000`
-                   : `/api/v1/logs/tail?lines=200`;
+    let url = date ? ENDPOINTS.LOGS_BY_DATE(date, 1000)
+                   : ENDPOINTS.LOGS_TAIL(200);
     if (keyword || level) {
-        url = `/api/v1/logs/search?keyword=${encodeURIComponent(keyword)}&level=${level}&date=${date}&maxResults=500`;
+        url = ENDPOINTS.LOGS_SEARCH(keyword, level, date, 500);
     }
     const lines = await request(url) || [];
     const content = document.getElementById('log-content');

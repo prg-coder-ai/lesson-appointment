@@ -206,7 +206,7 @@ public class BookingService {
                       a != null && TimePhaseService.hasStarted(a.getAppointmentDatetime(),
                               ScheduleGenerator.nowUtc()));
               if (anyStarted) {
-                  throw new ConflictException(TermMsg.t("课程已开始，无法取消预订；单次{lesson}请使用{leave}"));
+                  throw new ConflictException(TermMsg.t("{course}已开始，无法取消预订；单次{lesson}请使用{leave}"));
               }
           }
 

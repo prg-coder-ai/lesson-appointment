@@ -115,7 +115,7 @@ public class NotifyRuleService {
     private void requireTenantContext() {
         Long tenantId = TenantContext.getTenantId();
         if (tenantId == null || tenantId == 0L) {
-            throw new BusinessException(TermMsg.t("上课通知规则按租户隔离，请以租户管理员身份操作"));
+            throw new BusinessException(TermMsg.t(TermMsg.t("通知规则按租户隔离，请以租户管理员身份操作")));
         }
     }
 
@@ -185,7 +185,7 @@ public class NotifyRuleService {
         }
         String courseId = dto.getCourseId() == null ? TENANT_DEFAULT_COURSE_ID : dto.getCourseId().trim();
         if (!courseId.isEmpty() && courseMapper.selectById(courseId) == null) {
-            throw new BusinessException(TermMsg.t("课程不存在或不属于当前租户，无法配置通知规则"));
+            throw new BusinessException(TermMsg.t(TermMsg.t("{course}不存在或不属于当前租户，无法配置通知规则")));
         }
         List<CourseNotifyRulePoint> parsed = parsePoints(dto.getPoints());
         if (parsed.isEmpty()) {

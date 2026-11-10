@@ -18,10 +18,17 @@
 const fs = require('fs');
 const vm = require('vm');
 const path = require('path');
+// 仓库根：原先这里写死了另一个工作区（2026-08-30-17-19-24）的绝对路径，
+// 那份副本与当前仓库会逐渐分叉（properties 已不同），守卫会变成在验旧代码。
+const WS_ROOT = __dirname.replace(/[\\/]tests$/, '');
 
-const ROOT = 'C:/Users/Administrator/WorkBuddy/2026-08-30-17-19-24';
+const ROOT = WS_ROOT + '';
 const HTML = fs.readFileSync(path.join(ROOT, 'frontend/teacherInfo.html'), 'utf8');
-const RESP_PATH = path.join(ROOT, '.workbuddy/tmp/resp.json');
+// 样例数据：优先用仓库内的夹具（可复现）；老环境里那份 .workbuddy/tmp/resp.json 是
+// 一次真实查询的临时落盘，不在版本库里，换机器就没了 → 已复制到 tests/fixtures/。
+const FIXTURE = path.join(ROOT, 'tests/fixtures/teacher-professional-detail.json');
+const LEGACY = path.join(ROOT, '.workbuddy/tmp/resp.json');
+const RESP_PATH = fs.existsSync(FIXTURE) ? FIXTURE : LEGACY;
 
 let pass = 0, fail = 0;
 const failures = [];
@@ -170,6 +177,14 @@ vm.runInContext(`
   }
   function termText(key){ return key === 'teacher' ? '教师' : key; }
   function applyTerms(){}
+  // getOptions 来自 frontend/js/shared-domain-bridge.js（teacherInfo.html 首个 <script> 引入）。
+  // 本用例只载 teacherInfo-*.js 四个文件，缺它会让 enterAddMode 抛「getOptions is not defined」，
+  // 新增模式三项断言全红。这里按桥接同名函数的语义补桩：无服务端词表时用 defaultText 兜底。
+  function getOptions(tagKey, fallbackOptions, ctx){
+    return (fallbackOptions || []).map(function(o){
+      return { value: o.value, text: (o.defaultText != null && o.defaultText !== '') ? o.defaultText : o.value };
+    });
+  }
   function getCurrentIndustry(){ return 'education'; }
   function getCurrentUserInfo(){ return { userId: 'admin1', role: 'admin', tenantId: 2 }; }
   function pageUrl(p){ return p; }

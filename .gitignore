@@ -151,3 +151,4 @@ cloudBased/frontend/dist
 
 # 合并工具产生的备份文件
 *.orig
+node_modules

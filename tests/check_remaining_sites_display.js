@@ -51,6 +51,12 @@ const css = fs.readFileSync(CSS, 'utf8');
 /** 建沙箱：jsdom 真 document + 自建 window/存储，加载真实脚本 */
 function loadModule() {
   const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', { url: 'http://127.0.0.1:8080/student.html' });
+  // student-bookingCards.js 开头有 document.write('/js/public/pagefoot.js')：jsdom 里执行它会
+  // 重写整篇文档，把 <body> 抹成 null，后面 makeField() 的 appendChild 直接 TypeError。
+  // 本用例只需要真实 DOM 行为，不需要 pagefoot，桩掉三个方法即可。
+  dom.window.document.write = function () {};
+  dom.window.document.open = function () { return dom.window.document; };
+  dom.window.document.close = function () {};
   const sb = {};
   sb.window = sb;
   sb.self = sb;

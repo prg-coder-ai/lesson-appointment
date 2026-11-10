@@ -219,7 +219,7 @@ public class CourseScheduleService {
     private void validateClassDuration(Integer minutes) {
         if (minutes == null) return;
         if (minutes < 15 || minutes > 600) {
-            throw new BusinessException(TermMsg.t("课时长度需在 15-600 分钟之间"));
+            throw new BusinessException(TermMsg.t("{lesson}时长需在 15-600 分钟之间"));
         }
     }
 

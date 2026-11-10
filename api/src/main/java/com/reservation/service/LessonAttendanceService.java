@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import com.reservation.utils.TermMsg;
 
 /**
  * 课堂出勤回流落库（classroom-service → booking-api）。
@@ -69,7 +70,7 @@ public class LessonAttendanceService {
                 com.reservation.common.ClassroomKey.scheduleIdOf(scheduleId));
         if (schedule == null) {
             // 排期不存在：可能是排期删除后才到达的回调，重试无意义但需可见，交给调用方按 404 处理
-            throw new IllegalArgumentException("排期不存在，无法归户: scheduleId=" + scheduleId);
+            throw new IllegalArgumentException(TermMsg.t("{schedule}不存在，无法归户: scheduleId=") + scheduleId);
         }
         Long tenantId = schedule.getTenantId() == null ? 0L : schedule.getTenantId();
         int version = req.getConsumptionVersion() == null ? 1 : req.getConsumptionVersion();

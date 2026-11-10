@@ -49,11 +49,24 @@ const DOM_HTML = '<!DOCTYPE html><html><body><div id="dynamic-content-center"></
   + extractBookingTemplate()
   + '</body></html>';
 
+/**
+ * 排期样本的日期必须是**未来**的。
+ *
+ * 2026-10-29 起 fillScheduleSelect 会默认过滤「endDate < 今天」的历史排期
+ * （_showHistorySchedules=false），原先写死的 2026-10-01 在 11 月之后就成了历史排期，
+ * 于是下拉只剩占位项、面板全空 —— 45 项里 22 项假红。这里改成「今天 +45 天」，
+ * 让用例与系统时钟解耦，不再随时间腐烂。
+ */
+const SCHED_DATE = (() => {
+  const d = new Date(Date.now() + 45 * 24 * 3600 * 1000);
+  return d.toISOString().slice(0, 10);
+})();
+
 /** 排期样本：availableSites 可在刷新前后不同（模拟管理员改席位/被预订） */
 const mkSchedule = (id, name, sites, extra) => Object.assign({
   scheduleId: id, courseId: 'C1', name: name, status: 'active',
-  availableSites: sites, startDate: '2026-10-01', startTime: '09:00',
-  endDate: '2026-10-01', timeZone: 'Asia/Shanghai',
+  availableSites: sites, startDate: SCHED_DATE, startTime: '09:00',
+  endDate: SCHED_DATE, timeZone: 'Asia/Shanghai',
   repeatType: 'none', repeatInterval: null, repeatDays: null,
 }, extra || {});
 
@@ -236,7 +249,7 @@ async function presetSelected(env, scheduleId) {
     assert('失败时 #scheduleId 保持 1001（未被清空）', env.id('scheduleId').value === '1001', env.id('scheduleId').value);
     assert('失败时剩余员额保持 3（旧数据仍可用）',
       env.id('now_availableSites').value === '3', env.id('now_availableSites').value);
-    assert('失败时排期日期字段保持原值', env.id('startDate').value === '2026-10-01', env.id('startDate').value);
+    assert('失败时排期日期字段保持原值', env.id('startDate').value === SCHED_DATE, env.id('startDate').value);
   }
 
   // =====================================================================
