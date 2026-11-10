@@ -310,7 +310,7 @@ log.debug(userId + role + startTime + endTime + pageNum + pageSize + status);
         for (Appointment a : beforeList) {
             if (a != null && TimePhaseService.hasStarted(a.getAppointmentDatetime(),
                     ScheduleGenerator.nowUtc())) {
-                throw new ConflictException(TermMsg.t("课程已开始，无法批量变更{lesson}状态"));
+                throw new ConflictException(TermMsg.t("{course}已开始，无法批量变更{lesson}状态"));
             }
         }
     }

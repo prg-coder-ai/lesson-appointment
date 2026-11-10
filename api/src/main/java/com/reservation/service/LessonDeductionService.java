@@ -19,6 +19,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import com.reservation.utils.TermMsg;
 
 /**
  * 课时扣减服务（2026-10-28，课时扣减方案 v2 第三节）。
@@ -83,7 +84,7 @@ public class LessonDeductionService {
      */
     public DeductResult settleByAppointment(Appointment appointment) {
         if (appointment == null || appointment.getId() == null) {
-            throw new IllegalArgumentException("课时结算缺少课次或课次ID");
+            throw new IllegalArgumentException(TermMsg.t("{lesson}结算缺少{lesson}或{lesson}ID"));
         }
         Long tenantId = appointment.getTenantId() == null ? 0L : appointment.getTenantId();
         String bizKey = classroomBizKey(appointment.getId());
@@ -106,11 +107,11 @@ public class LessonDeductionService {
         //    必须走 IgnoreTenant —— 回调线程没有 TenantContext，插件会拼 tenant_id=-1 查不到。
         Booking booking = bookingMapper.selectByIdIgnoreTenant(appointment.getBookingId());
         if (booking == null) {
-            throw new IllegalArgumentException("课次无法归户，预订不存在: bookingId=" + appointment.getBookingId());
+            throw new IllegalArgumentException(TermMsg.t("{lesson}无法归户，预订不存在: bookingId=") + appointment.getBookingId());
         }
         String studentId = booking.getStudentId();
         if (studentId == null || studentId.trim().isEmpty()) {
-            throw new IllegalArgumentException("预订缺少学生ID: bookingId=" + booking.getBookingId());
+            throw new IllegalArgumentException(TermMsg.t("预订缺少{student}ID: bookingId=") + booking.getBookingId());
         }
 
         BigDecimal delta = perClassLessons == null ? BigDecimal.ONE : perClassLessons;
@@ -140,12 +141,12 @@ public class LessonDeductionService {
         StudentLessonBalance balance = balanceMapper.selectForUpdate(tenantId, studentId);
         if (balance == null) {
             // insertIfAbsent 之后仍取不到，说明并发删/租户写错，不能静默跳过
-            throw new IllegalStateException("课时余额行不存在: tenantId=" + tenantId + ", studentId=" + studentId);
+            throw new IllegalStateException(TermMsg.t("{lesson}余额行不存在: tenantId=") + tenantId + ", studentId=" + studentId);
         }
 
         int affected = balanceMapper.applyUsedDelta(tenantId, studentId, delta);
         if (affected <= 0) {
-            throw new IllegalStateException("课时余额扣减失败(影响 0 行): studentId=" + studentId);
+            throw new IllegalStateException(TermMsg.t("{lesson}余额扣减失败(影响 0 行): studentId=") + studentId);
         }
 
         BigDecimal before = balance.getRemainingLessons() == null ? BigDecimal.ZERO : balance.getRemainingLessons();
@@ -196,7 +197,7 @@ public class LessonDeductionService {
     public DeductResult manualAdjust(Long tenantId, String studentId, BigDecimal delta,
                                      String reason, String operatorId, String bizKey) {
         if (delta == null || delta.compareTo(BigDecimal.ZERO) == 0) {
-            throw new IllegalArgumentException("调整课时不能为 0");
+            throw new IllegalArgumentException(TermMsg.t("调整{lesson}不能为 0"));
         }
         if (reason == null || reason.trim().isEmpty()) {
             throw new IllegalArgumentException("人工调整必须填写原因");
@@ -206,7 +207,7 @@ public class LessonDeductionService {
             BigDecimal after = transactionTemplate.execute(status -> {
                 balanceMapper.insertIfAbsent(tenantId, studentId);
                 StudentLessonBalance balance = balanceMapper.selectForUpdate(tenantId, studentId);
-                if (balance == null) throw new IllegalStateException("课时余额行不存在: " + studentId);
+                if (balance == null) throw new IllegalStateException(TermMsg.t("{lesson}余额行不存在: ") + studentId);
                 balanceMapper.applyTotalDelta(tenantId, studentId, delta);
 
                 BigDecimal before = balance.getRemainingLessons() == null ? BigDecimal.ZERO : balance.getRemainingLessons();

@@ -14,6 +14,9 @@
  */
 const fs = require('fs');
 const { execFileSync } = require('child_process');
+// 仓库根：原先这里写死了另一个工作区（2026-08-30-17-19-24）的绝对路径，
+// 那份副本与当前仓库会逐渐分叉（properties 已不同），守卫会变成在验旧代码。
+const WS_ROOT = __dirname.replace(/[\\/]tests$/, '');
 
 const MYSQL = 'D:/program/mysql84/bin/mysql';
 const DB = 'lesson_appointment';
@@ -74,7 +77,7 @@ function render(tpl, vars) {
 }
 
 /* 模板从服务端源码读取（唯一来源） */
-const SRC = 'C:/Users/Administrator/WorkBuddy/2026-08-30-17-19-24/api/src/main/java/'
+const SRC = WS_ROOT + '/api/src/main/java/'
     + 'com/reservation/service/MessageNotifyService.java';
 const src = fs.readFileSync(SRC, 'utf8');
 const T = {};

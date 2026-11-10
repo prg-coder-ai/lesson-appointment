@@ -136,8 +136,12 @@ assert('不存在「只有样式类、无 readonly 属性」的字段（pointer-
 
 // =====================================================================
 console.log('\n=== D 组 教师端排期展示字段写法统一 ===');
+// 2026-10-2x 之后教师端排期表单改成「静态 markup 在 teacher.html + JS 只按 id 取值」，
+// 原来只扫 teacher-courseAndScheduleBrowserCards.js 找不到任何 <input>，用例恒红。
+// 现在两处一起扫：HTML 提供真实标签，JS 保留扫描以防将来又走回字符串生成。
+const teacherHtml = fs.readFileSync(path.join(FRONTEND, 'teacher.html'), 'utf8');
 const teacherJs = fs.readFileSync(path.join(FRONTEND, 'js', 'teacher-courseAndScheduleBrowserCards.js'), 'utf8');
-const tInputs = inputStats(teacherJs);
+const tInputs = inputStats(teacherHtml).concat(inputStats(teacherJs));
 const tAttrOnly = tInputs.filter(x => x.isReadonlyAttr && !x.hasReadonlyClass);
 assert('教师端不存在「只带 readonly 属性、无统一样式类」的字段',
   tAttrOnly.length === 0, tAttrOnly.map(x => x.tag).join(' | '));

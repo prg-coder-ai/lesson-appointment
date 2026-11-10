@@ -10,6 +10,7 @@ import com.reservation.entity.NotificationDispatchLog;
 import com.reservation.service.NotifyDispatchService;
 import com.reservation.service.NotifyRuleService;
 import com.reservation.utils.PermissionCheck;
+import com.reservation.utils.TermMsg;
 import com.reservation.vo.NotifyPlanVO;
 import com.reservation.vo.NotifyRuleVO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -91,7 +92,7 @@ public class NotifyRuleController {
         String courseId = body == null ? null : body.get("courseId");
         int rows = notifyRuleService.deleteRule(courseId);
         return rows > 0
-                ? Result.success(true, "课程通知规则已删除，该课程将改用租户默认规则")
+                ? Result.success(true, TermMsg.t("{course}通知规则已删除，该{course}将改用租户默认规则"))
                 : Result.fail(400, "规则不存在或已被删除");
     }
 
@@ -164,7 +165,7 @@ public class NotifyRuleController {
             try {
                 appointmentId = Integer.valueOf(String.valueOf(body.get("appointmentId")).trim());
             } catch (NumberFormatException e) {
-                return Result.fail(400, "课次ID格式不正确");
+                return Result.fail(400, TermMsg.t("{lesson}ID格式不正确"));
             }
         }
         if (appointmentId == null) {

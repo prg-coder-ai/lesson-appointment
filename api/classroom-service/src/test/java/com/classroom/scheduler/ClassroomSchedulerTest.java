@@ -186,13 +186,36 @@ class ClassroomSchedulerTest {
     }
 
     // ============ 4. 学生掉线判定 ============
+    // 现行实现（宽限期版）：取 ONLINE+IDLE 成员 → 看 Redis 心跳 key 的存活秒数 elapsed
+    //   elapsed == null 或 > offlineTimeout → 真掉线，leave(...)
+    //   grace < elapsed <= offlineTimeout → 降为 IDLE（还在宽限期内，不判离场）
+    //   elapsed <= grace                  → 保持/恢复 ONLINE
+    // 旧版只判「key 在不在」，没有 IDLE 过渡，测试桩用的是 listOnline + isOnline，已不适用。
+    private void stubDropScan(Long elapsedSeconds, int grace, int offlineTimeout) {
+        when(classroomService.listByStatus(eq("LIVE"), isNull()))
+                .thenReturn(List.of(classroom("S1", "LIVE", null)));
+        when(membershipService.listByStates(eq("S1"), anyList()))
+                .thenReturn(List.of(membership("S1", "U1", "ONLINE")));
+        when(onlineStateManager.getReconnectGraceSeconds()).thenReturn(grace);
+        when(onlineStateManager.getOfflineTimeoutSeconds()).thenReturn(offlineTimeout);
+        when(onlineStateManager.lastSeenElapsed("S1", "U1")).thenReturn(elapsedSeconds);
+    }
+
     @Test
     @DisplayName("学生掉线：DB 在线但 Redis key 消失 → 判 OFFLINE")
     void scanStudentDrop_marksOfflineWhenRedisKeyGone() {
-        when(classroomService.listByStatus(eq("LIVE"), isNull()))
-                .thenReturn(List.of(classroom("S1", "LIVE", null)));
-        when(membershipService.listOnline("S1")).thenReturn(List.of(membership("S1", "U1", "ONLINE")));
-        when(onlineStateManager.isOnline("S1", "U1")).thenReturn(false);
+        stubDropScan(null, 30, 120);   // key 已消失 = elapsed 为 null
+
+        scheduler.scanStudentDrop();
+
+        verify(membershipService).leave("S1", "U1", "timeout");
+        verify(onlineStateManager).setOffline("S1", "U1");
+    }
+
+    @Test
+    @DisplayName("学生掉线：心跳超过 offlineTimeout → 判 OFFLINE")
+    void scanStudentDrop_marksOfflineWhenHeartbeatExpired() {
+        stubDropScan(300L, 30, 120);
 
         scheduler.scanStudentDrop();
 
@@ -200,12 +223,20 @@ class ClassroomSchedulerTest {
     }
 
     @Test
+    @DisplayName("学生掉线：超过宽限期但未超时 → 降为 IDLE，不判离场")
+    void scanStudentDrop_marksIdleWithinGrace() {
+        stubDropScan(60L, 30, 120);
+
+        scheduler.scanStudentDrop();
+
+        verify(membershipService).setState("S1", "U1", "IDLE");
+        verify(membershipService, never()).leave(anyString(), anyString(), anyString());
+    }
+
+    @Test
     @DisplayName("学生掉线：Redis key 仍在 → 不动")
     void scanStudentDrop_noActionWhenRedisKeyPresent() {
-        when(classroomService.listByStatus(eq("LIVE"), isNull()))
-                .thenReturn(List.of(classroom("S1", "LIVE", null)));
-        when(membershipService.listOnline("S1")).thenReturn(List.of(membership("S1", "U1", "ONLINE")));
-        when(onlineStateManager.isOnline("S1", "U1")).thenReturn(true);
+        stubDropScan(5L, 30, 120);   // 首帧刚心跳过
 
         scheduler.scanStudentDrop();
 

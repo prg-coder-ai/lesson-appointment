@@ -358,7 +358,24 @@ export const ENDPOINTS = {
     `/api/v1/admin/audit/chat/${encodeURIComponent(scheduleId || '')}/view`,
   CLASSROOM_ADMIN_CONTRACT_EVENTS: '/api/v1/admin/contract/events',
   CLASSROOM_ADMIN_CONTRACT_REPLAY: '/api/v1/admin/contract/replay',
-  CLASSROOM_ADMIN_CONTRACT_RESYNC: '/api/v1/admin/contract/resync'
+  CLASSROOM_ADMIN_CONTRACT_RESYNC: '/api/v1/admin/contract/resync',
+
+  // ── 运行日志浏览（logBrowser.html 专用）──────────────────────────────
+  // 后端 LogController 的类级映射是 @RequestMapping("/api/v1/logs")，路径**必须**带 /v1：
+  // axios 对以 / 开头的 url 会忽略 baseURL（utility_request.js），写成 /api/logs/*
+  // 不会被自动补前缀，只会落到 nginx 的 location / → try_files → 404。
+  LOGS_DATES: '/api/v1/logs/dates',
+  LOGS_BY_DATE: (date, maxLines) =>
+    `/api/v1/logs/date?date=${encodeURIComponent(date || '')}`
+    + `&maxLines=${encodeURIComponent(String(maxLines == null ? 1000 : maxLines))}`,
+  LOGS_TAIL: (lines) =>
+    `/api/v1/logs/tail?lines=${encodeURIComponent(String(lines == null ? 200 : lines))}`,
+  // level 允许空串（= 不过滤），keyword 允许空串；日期为空时后端按当天处理
+  LOGS_SEARCH: (keyword, level, date, maxResults) =>
+    `/api/v1/logs/search?keyword=${encodeURIComponent(keyword || '')}`
+    + `&level=${encodeURIComponent(level || '')}`
+    + `&date=${encodeURIComponent(date || '')}`
+    + `&maxResults=${encodeURIComponent(String(maxResults == null ? 500 : maxResults))}`
 };
 
 // ── 后端程序探测目标（「数据维护 → 后台信息」Tab 与平台端「后端信息」页共用）──

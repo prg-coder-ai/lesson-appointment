@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import com.reservation.utils.TermMsg;
 
 /**
  * 课时账本的**只读**查询服务（"我的课时"页面数据源）。
@@ -113,11 +114,11 @@ public class LessonLedgerService {
      */
     public void assertStudentVisible(String studentId) {
         if (studentId == null || studentId.trim().isEmpty()) {
-            throw new ResourceNotFoundException("学生不存在");
+            throw new ResourceNotFoundException(TermMsg.t("{student}不存在"));
         }
         User u = userMapper.selectById(studentId);
         if (u == null) {
-            throw new ResourceNotFoundException("学生不存在或不属于本机构");
+            throw new ResourceNotFoundException(TermMsg.t("{student}不存在或不属于本机构"));
         }
     }
 
