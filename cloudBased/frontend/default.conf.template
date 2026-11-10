@@ -267,6 +267,13 @@ server {
         expires -1;
     }
 
+    # ---------- 小程序远程配置 ----------
+    # 小程序 onLaunch 时拉取本文件获取上游地址（免重新发版）。
+    # 必须每次回源校验（expires -1），否则改了配置小程序拿到的还是旧值。
+    location = /app-config.json {
+        expires -1;
+    }
+
     # ---------- Gzip ----------
     # 不要压缩 text/event-stream（会引入缓冲，SSE 立刻变"卡"）
     gzip on;
