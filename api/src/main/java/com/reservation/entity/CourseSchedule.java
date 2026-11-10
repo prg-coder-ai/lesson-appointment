@@ -51,6 +51,13 @@ public class CourseSchedule implements Serializable {
      *
      * <p>用 Integer：编辑排期时未传该字段应为 null，让 MyBatis-Plus 的
      * NOT_NULL 更新策略跳过它，而不是把库里的 90 分钟静默改回 60。
+     *
+     * <p>2026-10-28 补映射：此前实体没映射该列，推送课堂事件时只能拿
+     * {@code start_time ~ end_time} 的差当课时长——而重复排期的 end_time 是**重复结束日期**，
+     * 算出来是「整段排期的分钟数」（如 10 周 = 10 万分钟），课堂侧按此封顶核算必然失真。
+     *
+     * <p>注：合并 eClassroom 时此字段两边各加了一次（第 55 行与第 77 行重复），
+     * 已合并为这一处，否则实体类直接编译不过。
      */
     private Integer classDuration;
 
@@ -67,14 +74,6 @@ public class CourseSchedule implements Serializable {
     private String status;  // 枚举值：pending/active/inactive/frozen
     private String timeZone;//排期计划的时区
      private String name;//排期名称
-    /**
-     * 单次课时长（分钟，库里 NOT NULL）。
-     *
-     * <p>2026-10-28 补映射：此前实体没映射该列，推送课堂事件时只能拿
-     * {@code start_time ~ end_time} 的差当课时长——而重复排期的 end_time 是**重复结束日期**，
-     * 算出来是「整段排期的分钟数」（如 10 周 = 10 万分钟），课堂侧按此封顶核算必然失真。
-     */
-    private Integer classDuration;
     /** 是否满额（瞬时字段，不入库）：availableSites <= 占用席位数 时为 true。供编辑/发布界面向客户标注。 */
     @TableField(exist = false)
     private Boolean full;
