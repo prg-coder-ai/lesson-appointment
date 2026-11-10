@@ -1,0 +1,55 @@
+不要提交git
+
+AES_KEY: 2HoDnIqU+2BfmHJjkvlvymzJxsSfzXlAi5TDG8McMGg=
+
+HMAC_KEY q55pdwGUMJAr+FA4THWfbi20R04pKqhPZ1pGaLD6qmY=
+
+
+JWT_SECRET: pHWegVJcHhgyI8RSRavrwv78s13fpK/S0+owKvT/xuKaj+Cd2K1Si9BKokX3i/rcRhcJ57d5kFk5nNAZWSooEw==
+DB_USERNAME : root
+DB_PASSWORD : timeapt@dB
+SPRING_DATASOURCE_URL jdbc:mysql://10.36.106.137:3306/lesson_appointment?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+ MYSQL_DB： lesson_appointment
+ APP_CORS_ORIGIN_PATTERNS： https://frontend-329614-8-1475810246.sh.run.tcloudbase.com
+
+ WECHAT_SECRET
+ WECHAT_APPID  wxc4f96c9bd2351015   timeapt:wx70918e7e9f2553b1
+
+
+message-service：
+AES_KEY
+HMAC_KEY
+JWT_SECRET
+SPRING_DATASOURCE_URL：jdbc:mysql://10.36.106.137:3306/message_center?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+WECHAT_APPID： wx70918e7e9f2553b1
+TZ：Asia/Shanghai
+ ACTUATOR_PASSWORD lPDCoxJcdipLZK1rqM3tasUB
+ TZ Asia/Shanghai   
+MYSQL_DB： message_center
+ MYSQL_HOST 10.36.106.137
+ MYSQL_PORT 3306
+ DB_USERNAME root
+DB_PASSWORD timeapt@dB
+
+
+
+JSON：
+{
+  "JWT_SECRET": "pHWegVJcHhgyI8RSRavrwv78s13fpK/S0+owKvT/xuKaj+Cd2K1Si9BKokX3i/rcRhcJ57d5kFk5nNAZWSooEw==",
+  "AES_KEY": "2HoDnIqU+2BfmHJjkvlvymzJxsSfzXlAi5TDG8McMGg=",
+  "HMAC_KEY": "q55pdwGUMJAr+FA4THWfbi20R04pKqhPZ1pGaLD6qmY=",
+  "DB_USERNAME": "root",
+  "DB_PASSWORD": "timeapt@dB",
+  "WECHAT_APPID": "wx70918e7e9f2553b1",
+  "WECHAT_OPEN_APPID": "XX1",
+  "WECHAT_OPEN_SECRET": "XX2",
+  "WECHAT_OPEN_REDIRECT_URI": "XX3",
+  "TZ": "Asia/Shanghai",
+  "MYSQL_HOST": "10.36.106.137",
+  "MYSQL_PORT": "3306",
+  "MYSQL_DB": "lesson_appointment",
+  "ACTUATOR_PASSWORD": "lPDCoxJcdipLZK1rqM3tasUB",
+  "APP_CORS_ORIGIN_PATTERNS": "https://frontend-329614-8-1475810246.sh.run.tcloudbase.com",
+  "JAVA_TOOL_OPTIONS": "-Djavax.net.debug=ssl:handshake"
+}
+
