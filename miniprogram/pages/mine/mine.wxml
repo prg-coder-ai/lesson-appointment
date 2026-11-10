@@ -48,6 +48,13 @@
 
   <view class="card">
     <view class="row link" bindtap="onWechatTap"><text class="rk">微信绑定</text><text class="rv">{{wechatStatusText}} ›</text></view>
+    <!-- auto_register 账号：设置登录密码后 bind_source 降级 manual，才允许解绑微信 -->
+    <block wx:if="{{wxPwdOpen}}">
+      <view class="pwd-note">该账号由微信直接注册，设置登录密码后即可解绑微信；登录账号见上方「账号」一栏。密码强度由服务器校验，生产环境要求 8 位以上且含大小写、数字、符号。</view>
+      <view class="pwd-field"><input class="pwd-input" placeholder="新密码" password value="{{wxNewPwd}}" bindinput="onWxNew" /></view>
+      <view class="pwd-field"><input class="pwd-input" placeholder="确认新密码" password value="{{wxConfirmPwd}}" bindinput="onWxConfirm" /></view>
+      <button class="btn-save" loading="{{settingWxPwd}}" bindtap="submitWxPwd">设置密码</button>
+    </block>
     <view class="row link" bindtap="onSwitch"><text class="rk">切换租户</text><text class="rv">解绑并重新登录 ›</text></view>
     <view class="row link danger" bindtap="onLogout"><text class="rk">退出登录</text><text class="rv">›</text></view>
   </view>

@@ -76,6 +76,10 @@ public class UserService {
     @Autowired
     private EclassroomService eclassroomService;
 
+    // 等保 P1-1：与注册链路共用同一套密码强度策略（strict-mode 分级）。
+    @Autowired
+    private com.reservation.security.PasswordPolicy passwordPolicy;
+
     /**
      * 登录失败统一文案（2026-10-22 P0.5）。
      *
@@ -614,8 +618,20 @@ public class UserService {
         if (!"active".equals(user.getStatus())) {
             return Result.fail(400, "账号未审核，请等待管理员审核");
         }
-        decryptUserFields(user);   // name 入库加密，返回前必须解密
+        // 【2026-11-05】与密码登录口径对齐：密码登录在 controller 解析 tenantCode 时就校验了
+        // 租户存在 / 未删除 / status=1；微信静默登录此前只查 user.status，租户停用后照样发 token。
+        // tenantId=0 是平台管理员（无经营租户），豁免。sys_tenant 已在 IGNORE_TABLES，
+        // 本接口 permitAll、无 TenantContext，getById 不会被租户插件拼错条件。
         Long tenantId = user.getTenantId() == null ? 0L : user.getTenantId();
+        if (tenantId != 0L) {
+            Tenant tenant = tenantService.getById(tenantId);
+            if (tenant == null
+                    || (tenant.getDeleted() != null && tenant.getDeleted() == 1)
+                    || !Integer.valueOf(1).equals(tenant.getStatus())) {
+                return Result.fail(403, "所属租户不存在或已停用，请联系管理员");
+            }
+        }
+        decryptUserFields(user);   // name 入库加密，返回前必须解密
         String token = jwtUtil.generateToken(tenantId, user.getUserId(), user.getRole());
         String refreshToken = jwtUtil.generateRefreshToken(tenantId, user.getUserId());
         HashMap<String, Object> resultMap = new HashMap<>();
@@ -782,9 +798,10 @@ public class UserService {
     /**
      * 解除微信绑定。
      *
-     * <p><b>{@code auto_register} 一律拒绝</b>：这类账号 account=openid、password=随机密文，
-     * 解绑后用户既没有密码也失去了微信入口 —— 账号<b>永久无法登录</b>，变成僵尸数据。
-     * 需要解绑的场景应先让用户设置登录密码，再放行。
+     * <p><b>未设置密码的 {@code auto_register} 一律拒绝</b>：这类账号 account=openid、
+     * password=随机密文，解绑后既没有密码也失去微信入口 —— 账号<b>永久无法登录</b>。
+     * 【2026-11-05】注释里承诺的解锁路径已补齐：先调 {@link #setWechatLoginPassword}
+     * 设置登录密码并把 bind_source 降级为 manual，本方法即自然放行（不再是永久禁令）。
      */
     /**
      * 查询当前账号的微信绑定状态（web 端「微信绑定」菜单用）。
@@ -810,6 +827,47 @@ public class UserService {
         }
         wxUseridService.unbind(userId);
         return Result.success(true, "已解绑");
+    }
+
+    /**
+     * 微信直接注册账号（{@code bind_source=auto_register}）首次设置登录密码，解锁解绑。
+     *
+     * <p><b>为什么需要独立入口</b>：这类账号 {@code account=openid}、密码是随机 UUID 密文
+     * （见 {@link #wechatRegister}），用户不知道原密码，无法走 {@link #changePassword}。
+     * 过去 {@link #unbindWechat} 的注释写着「先设置登录密码再放行」，但全仓没有可执行的
+     * 解锁路径 —— 等于永久禁止解绑。本方法补齐该路径：验密码强度 → 写密码 →
+     * {@code wxUseridService.markManual(userId)} 降级来源，之后的解绑校验自然放行。
+     *
+     * <p><b>安全边界</b>：只允许当前会话账号（userId 由控制器从令牌解析）；且必须是
+     * auto_register 绑定，已有密码的账号会被拒绝改用「修改密码」，避免令牌被窃取后
+     * 拿本接口绕过原密码直接改密。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public Result<Boolean> setWechatLoginPassword(String userId, String password) {
+        WxUserid binding = wxUseridService.findByUserId(userId);
+        if (binding == null) {
+            return Result.fail(404, "未绑定微信");
+        }
+        if (!"auto_register".equals(binding.getBindSource())) {
+            return Result.fail(400, "该账号已有登录密码，请使用「修改密码」");
+        }
+        String pwErr = passwordPolicy.validate(password);
+        if (pwErr != null) {
+            return Result.fail(400, pwErr);
+        }
+        // 用 NoTenant 版本查人（免登录链路无 TenantContext，selectById 会被拼 tenant_id）；
+        // 写密码走既有 updatePassword 自定义 SQL，只更新 password 列，不动加密的 name 等字段。
+        User user = userMapper.getByUserIdNoTenant(userId);
+        if (user == null) {
+            return Result.fail(404, "用户不存在");
+        }
+        User upd = new User();
+        upd.setUserId(userId);
+        upd.setPassword(passwordEncoder.encode(password));
+        updatePassword(upd);
+        wxUseridService.markManual(userId);
+        log.info("微信直接注册账号已设置登录密码并降级为 manual, userId={}", userId);
+        return Result.success(true, "登录密码已设置，现在可以解绑微信");
     }
 
 
@@ -1125,6 +1183,83 @@ public User selectById(String userId) {
                 cryptoUtil.encryptWithIndex(phone),
                 cryptoUtil.encryptWithIndex(email),
                 status);
+    }
+
+    /**
+     * 拉取本人资料（解密后），password 置空避免下发。
+     * 仅按 Token 的 userId 查询，与租户插件自动拼接的 tenant_id 协同，不存在越权读取他人。
+     */
+    public User getSelfProfile(String callerId) {
+        if (callerId == null || callerId.trim().isEmpty()) return null;
+        User u = userMapper.selectById(callerId.trim());
+        if (u == null) return null;
+        decryptUserFields(u);
+        // password 是哈希值，绝不随资料下发（前端也无权改密码，走独立改密端点）
+        u.setPassword(null);
+        return u;
+    }
+
+    /**
+     * 本人自助修改资料：account / name / phone / email + 学员·教师专属字段。
+     *
+     * <p>★ 安全边界：userId 取自 Token（callerId），<b>绝不取请求体</b>；status / role /
+     * password / tenantId 一律忽略（不在 Mapper 写入列中），从根本上杜绝"改别人资料 /
+     * 改自己角色提权 / 改自己状态绕过审批"等越权。
+     *
+     * <p>开放字段依据（2026-10-27 与用户对齐）：排除 userId/tenantId/status/role/password。
+     * account 保持按 userId 修改——同租户内不可撞（{@code uk_user_account_tenant}），跨租户可重名；
+     * phone/email 不再全局唯一（多租户模型允许同人跨租户注册、同租户多用户共用同一手机/邮箱），
+     * 故本方法<b>不</b>对 phone/email 做唯一性校验，仅保留"至少填一项"的业务约束。
+     */
+    @Transactional
+    public int updateSelfInfo(User user, String callerId, String callerRole) {
+        if (user == null || callerId == null || callerId.trim().isEmpty()) {
+            throw new BusinessException("用户未登录或请求无效");
+        }
+        String userId = callerId.trim();
+        User exist = userMapper.selectById(userId);
+        if (exist == null) {
+            return 0;
+        }
+        decryptUserFields(exist);
+
+        String account = (user.getAccount() != null) ? user.getAccount().trim() : exist.getAccount();
+        String name  = (user.getName()  != null) ? user.getName().trim()  : exist.getName();
+        String phone = (user.getPhone() != null) ? user.getPhone().trim() : exist.getPhone();
+        String email = (user.getEmail() != null) ? user.getEmail().trim() : exist.getEmail();
+
+        // 手机/邮箱至少一项（与注册、管理面 updateInfo 同约束；合并后再校验，避免"只改姓名"被误拒）
+        if ((phone == null || phone.isEmpty()) && (email == null || email.isEmpty())) {
+            throw new BusinessException("手机号和电子邮箱至少填写一项");
+        }
+
+        // 账号：同值视为未改，跳过；异值须同租户内（排除自己）不重复。
+        // account 是明文存储，uk_user_account_tenant(account,tenant_id) 仅按租户唯一；
+        // 此处再做一次"排除自己"的二次校验防并发重复，DB 唯一索引作最后兜底。
+        Long tenantId = exist.getTenantId();
+        if (!account.equalsIgnoreCase(exist.getAccount())) {
+            User clash = userMapper.getUserByAccount(account, tenantId);
+            if (clash != null && !clash.getUserId().equals(userId)) {
+                throw new BusinessException("该账号已被同租户其他用户占用");
+            }
+        }
+
+        // 学员/教师专属字段：未传则保留原值（role/status/password/tenantId 不在此处处理）
+        String learnGoal     = (user.getLearnGoal()     != null) ? user.getLearnGoal()     : exist.getLearnGoal();
+        String languageLevel = (user.getLanguageLevel() != null) ? user.getLanguageLevel() : exist.getLanguageLevel();
+        String qualification = (user.getQualification() != null) ? user.getQualification() : exist.getQualification();
+        String languageType  = (user.getLanguageType()  != null) ? user.getLanguageType()  : exist.getLanguageType();
+
+        return userMapper.updateSelfInfo(
+                userId,
+                account,
+                cryptoUtil.encryptWithIndex(name),
+                cryptoUtil.encryptWithIndex(phone),
+                cryptoUtil.encryptWithIndex(email),
+                learnGoal,
+                languageLevel,
+                qualification,
+                languageType);
     }
    //TBD: test
     public List<User>   listByCondition(Map<String, Object> condition)

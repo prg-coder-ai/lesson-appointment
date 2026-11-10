@@ -1,7 +1,7 @@
 <view class="page">
   <view class="page-head">
     <view class="page-title">数据总览</view>
-    <view class="page-sub">本公司运营概览（按月统计）</view>
+    <view class="page-sub">{{isPlatform ? '平台运营概览（按月统计）' : '本公司运营概览（按月统计）'}}</view>
   </view>
 
   <view wx:if="{{loading}}" class="loading">加载中…</view>
@@ -31,7 +31,20 @@
     </view>
 
     <view class="section-title">待审核</view>
-    <view class="card">
+    <!-- 平台管理员：只列「新自注册租户」及其管理员账号个数（2026-11-05 定案方案一）。
+         两行只读、不 bindtap —— 平台端暂无对应审批页，避免点了无反应；
+         租户管理员走 wx:else 的原 5 行与跳转，逻辑一字不动。 -->
+    <view wx:if="{{isPlatform}}" class="card">
+      <view class="row">
+        <text class="rk">新自注册租户</text>
+        <text class="rv">{{platformPending.newTenants}}</text>
+      </view>
+      <view class="row">
+        <text class="rk">其管理员账号</text>
+        <text class="rv">{{platformPending.admins}}</text>
+      </view>
+    </view>
+    <view wx:else class="card">
       <view class="row" bindtap="goAudit" data-status="booking">
         <text class="rk">预订</text>
         <text class="rv">{{pending.booking}}</text>

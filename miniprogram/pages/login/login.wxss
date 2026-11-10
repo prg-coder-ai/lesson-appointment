@@ -37,14 +37,20 @@
   padding: 36rpx 32rpx;
   box-shadow: 0 8rpx 30rpx rgba(31,42,68,0.06);
 }
-.field { margin-bottom: 28rpx; }
+/* app.wxss 全局把 .field 定义成 flex 行布局（label 左 / 控件右），
+   登录页沿用这个布局；允许换行是为了让「平台管理员」提示能独占一行，不挤压右侧控件 */
+.field { margin-bottom: 28rpx; flex-wrap: wrap; }
 .label {
   display: block;
+  flex-shrink: 0;
   font-size: 26rpx;
   color: #5a6478;
   margin-bottom: 12rpx;
 }
 .input {
+  /* 与 .role-seg 同为 flex:1，两者占满 label 右侧同一份剩余宽度 */
+  flex: 1;
+  min-width: 0;
   height: 84rpx;
   background: #f5f7fa;
   border-radius: 12rpx;
@@ -53,6 +59,7 @@
   color: #1f2a44;
 }
 .tenant-hint {
+  flex: 0 0 100%;
   margin-top: 12rpx;
   font-size: 22rpx;
   color: #1677ff;
@@ -61,17 +68,29 @@
   padding: 10rpx 16rpx;
 }
 .role-seg {
+  /* 全局 .field 是 flex 行：必须显式 flex:1 才占满 label 右侧剩余宽度、与 .input 等宽。
+     不写的话 width:auto 在 flex 项上退化成"内容宽"，三个 flex:1 1 0 子项会把整条压到最窄 */
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
   display: flex;
+  align-items: center;
   background: #f0f2f5;
   border-radius: 12rpx;
   padding: 6rpx;
 }
 .role-item {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
+  box-sizing: border-box;
   text-align: center;
-  height: 72rpx;
-  line-height: 72rpx;
+  /* 单行显示 + 行高撑满：原实现上下各 10rpx padding 配固定 72rpx 行高，
+     行业词表替换成长词时会换行，第二行被固定高度裁掉（表现为"显示不完整"） */
+  white-space: nowrap;
+  height: 88rpx;
+  line-height: 88rpx;
   font-size: 28rpx;
+  padding: 0 6rpx;
   color: #5a6478;
   border-radius: 8rpx;
 }

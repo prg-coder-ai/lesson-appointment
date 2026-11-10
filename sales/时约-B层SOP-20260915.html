@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>时约 · B 层（小团队/小微机构）轻销售 SOP</title>
+<style>
+  :root{
+    --ink:#1f2430; --sub:#5b6472; --line:#e8ebf0; --bg:#f5f7fa;
+    --brand:#2b6cb0; --brand2:#1a4f86; --accent:#0f9d8a; --warn:#c0392b;
+    --chip:#eef4fb; --chip2:#e9f7f3; --gold:#b8860b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);line-height:1.7;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:940px;margin:0 auto;padding:18px}
+  .banner{background:linear-gradient(120deg,var(--brand2),var(--brand));border-radius:16px 16px 0 0;padding:18px 24px 20px;color:#fff}
+  .brand-tag{color:#fff;opacity:.85;font-size:12px;letter-spacing:1px;margin-bottom:10px}
+  .banner h1{font-size:21px;font-weight:700;letter-spacing:.5px}
+  .banner .meta{font-size:13px;opacity:.88;margin-top:6px}
+  .card{background:#fff;border:1px solid var(--line);border-top:none;padding:22px 24px}
+  .card:last-of-type{border-radius:0 0 16px 16px}
+  .sec{margin-bottom:24px}
+  .sec:last-child{margin-bottom:0}
+  .sec-h{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .sec-no{background:var(--brand);color:#fff;width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex:none}
+  .sec-h h2{font-size:16.5px;font-weight:700}
+  .lead{font-size:14.5px}
+  ul.li{list-style:none}
+  ul.li li{position:relative;padding-left:20px;margin-bottom:8px;font-size:13.5px}
+  ul.li li::before{content:"";position:absolute;left:4px;top:9px;width:7px;height:7px;border-radius:2px;background:var(--accent)}
+  b{color:var(--brand2)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:720px){.grid{grid-template-columns:1fr}}
+  .box{background:var(--chip);border-radius:10px;padding:12px 14px;font-size:13px}
+  .box.g{background:var(--chip2)}
+  .box .t{font-weight:700;color:var(--brand2);margin-bottom:4px}
+  .stage{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+  .stage .hd{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+  .stage .nm{font-weight:700;color:var(--brand2);font-size:15px}
+  .stage .own{font-size:11.5px;color:#fff;background:var(--accent);padding:2px 9px;border-radius:20px;font-weight:600}
+  .stage .own.b{background:var(--brand)}
+  .stage .own.g{background:var(--gold)}
+  .chk{list-style:none;margin:6px 0}
+  .chk li{position:relative;padding-left:26px;font-size:13px;margin-bottom:5px;color:var(--ink)}
+  .chk li::before{content:"☐";position:absolute;left:4px;top:0;color:var(--brand);font-weight:700}
+  .tmpl{border-left:3px solid var(--gold);background:#fdfaf0;padding:10px 14px;margin:8px 0;border-radius:0 8px 8px 0}
+  .tmpl .tt{font-weight:700;color:var(--ink);font-size:13px;margin-bottom:3px}
+  .tmpl .tb{font-size:12.5px;color:var(--sub)}
+  .tmpl .tb b{color:var(--gold)}
+  .flow{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin:6px 0}
+  .step{background:var(--chip);border-radius:8px;padding:6px 11px;font-size:12.5px}
+  .step.b{background:var(--chip2);color:var(--brand2);font-weight:600}
+  .arrow{color:var(--sub);font-size:12px}
+  .kpi{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+  .kpi .k{background:var(--chip);border-radius:10px;padding:10px 12px;font-size:12.5px}
+  .kpi .k .n{font-weight:700;color:var(--brand2)}
+  .kpi .k .v{color:var(--accent);font-weight:700}
+  table.t{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px}
+  table.t th,table.t td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  table.t th{background:var(--chip);color:var(--brand2);font-weight:700}
+  .warn{background:#fdecea;border:1px solid #f5c6c0;border-radius:10px;padding:12px 14px;font-size:13px;color:#7a241c}
+  .warn b{color:var(--warn)}
+  .ref{background:#f3f6fb;border-radius:10px;padding:12px 14px;font-size:13px}
+  .ref div{margin-bottom:6px}
+  .ref div:last-child{margin-bottom:0}
+  .ref .name{color:var(--brand2);font-weight:700}
+  .note{background:#fff8e6;border:1px solid #f3e2b3;border-radius:10px;padding:10px 14px;font-size:12.5px;color:#7a5b00;margin-bottom:16px}
+  .tag{display:inline-block;background:var(--chip);color:var(--brand2);font-size:11px;padding:2px 8px;border-radius:20px;margin:2px 3px 2px 0;font-weight:600}
+  .cal{font-size:12px}
+  .cal tr:nth-child(odd) td{background:#fafcfe}
+  .foot{text-align:center;color:var(--sub);font-size:12px;padding:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="banner">
+    <p class="brand-tag">时约 · B 层商业化 SOP（单必成 · Sales Coach 视角 × 卞现/梗王）</p>
+    <h1>B 层（小团队 / 小微机构）轻销售 SOP</h1>
+    <div class="meta">对象：教培小机构 / 律所小团队 / 健身工作室 / 心理诊所（2–10 服务者）｜ 模式：信号触发的 1v1 轻销售 ｜ 套餐：团队版 ¥99 起 ｜ 2026-09-15</div>
+  </div>
+
+  <div class="card">
+
+    <div class="note">B 层的核心是"<b>让多人用的信号自己浮出来，再用一次轻触达把它变成团队版付费</b>"。不做广撒网式销售——只对出现"多人/多席位"行为的账号出手。本 SOP 在 A 层 PLG 基础上叠加轻量销售动作，并引入 Sales Coach 的<b>资格认定</b>与<b>线索复盘</b>方法。报价与话术为建议初稿，由卞现拍板、赵写过合规。</div>
+
+    <!-- ① 总览 -->
+    <div class="sec">
+      <div class="sec-h"><div class="sec-no">①</div><h2>SOP 总览</h2></div>
+      <div class="flow">
+        <span class="step">注册 / 多人信号</span><span class="arrow">→</span>
+        <span class="step b">1v1 触达</span><span class="arrow">→</span>
+        <span class="step">15min 轻 demo</span><span class="arrow">→</span>
+        <span class="step b">转团队版</span><span class="arrow">→</span>
+        <span class="step">加席扩张 / 续费</span><span class="arrow">→</span>
+        <span class="step b">周月复盘</span>
+      </div>
+      <div class="grid" style="margin-top:12px">
+        <div class="box"><div class="t">一句话目标</div>靠产品埋点识别"多人使用"信号，用一次 15 分钟轻触达转化为团队版付费，并随客户加人持续扩张收入。</div>
+        <div class="box g"><div class="t">硬指标</div>团队版付费数 + <b>席位扩张率（NRR）</b>。信号识别准确率决定销售效率。</div>
+      </div>
+      <div class="kpi">
+        <div class="k"><div class="n">信号→触达率</div>识别到的线索实际触达，<span class="v">目标 ≥70%</span></div>
+        <div class="k"><div class="n">团队版转化率</div>信号线索→付费，<span class="v">目标 25–35%</span></div>
+        <div class="k"><div class="n">净收入留存 NRR</div>含加席扩张，<span class="v">目标 ≥110%</span></div>
+        <div class="k"><div class="n">红线·漏检</div>多人却不触达 &gt; <span class="v">30%</span> 查埋点</div>
+      </div>
+    </div>
+
+    <!-- ② 职责地图 -->
+    <div class="sec">
+      <div class="sec-h"><div class="sec-no">②</div><h2>六阶段职责地图</h2></div>
+      <table class="t">
+        <tr><th>阶段</th><th>核心动作</th><th>负责人</th><th>主指标</th></tr>
+        <tr><td>1 信号识别</td><td>产品埋点识别多人使用行为</td><td>产品/启号</td><td>信号准确率</td></tr>
+        <tr><td>2 触达</td><td>企业微信/邮件 1v1 轻触达</td><td>销售/创始人</td><td>触达率</td></tr>
+        <tr><td>3 轻 demo</td><td>15 分钟多人视图演示+答疑</td><td>销售/创始人</td><td>demo→付费</td></tr>
+        <tr><td>4 转化</td><td>团队版报价+自然加席</td><td>卞现/产品</td><td>团队转化率</td></tr>
+        <tr><td>5 扩张/续费</td><td>席位监测+续费提醒</td><td>产品/卞现</td><td>NRR</td></tr>
+        <tr><td>6 复盘</td><td>线索池周看板+月淘汰</td><td>梗王/卞现</td><td>信号准确率</td></tr>
+      </table>
+    </div>
+
+    <!-- ③ 阶段1 信号识别 -->
+    <div class="sec">
+      <div class="sec-h"><div class="sec-no">③</div><h2>阶段 1 · 信号识别（PQL）</h2></div>
+      <div class="stage">
+        <div class="hd"><div class="nm">1.1 触发信号清单（任一即入线索池）</div><span class="own">产品</span></div>
+        <ul class="chk">
+          <li>注册后创建第 2 个及以上服务者账号（教练/老师/咨询师）。</li>
+          <li>使用了"多人排班 / 排班冲突"类功能。</li>
+          <li>在设置里查看过"团队 / 席位 / 成员"页面。</li>
+          <li>试用账号服务者数 ≥ 2。</li>
+          <li>来源为 B 渠道（SEO 团队词 / 垂直社群 / 转介绍）。</li>
+        </ul>
+        <div class="tmpl"><div class="tt">信号打分（优先级）</div><div class="tb">单信号 → 常规轻触达；<b>多信号叠加或来自转介绍</b> → 优先 24h 内触达。记录到"轻销售线索池"表：账号 / 信号 / 来源 / 触达状态 / 结果。</div></div>
+      </div>
+      <div class="stage">
+        <div class="hd"><div class="nm">1.2 识别时效与数据来源</div><span class="own">产品</span></div>
+        <ul class="chk">
+          <li>注册后 <b>72h 内</b>出现任一多人信号即自动入池，不等人肉翻后台。</li>
+          <li>数据来源：产品埋点事件 + CRM/表格登记，每日同步一次。</li>
+          <li>红线：多人信号却 30% 以上未触达 → 先修埋点/同步，再谈话术。</li>
+        </ul>
+      </div>
+      <div class="stage">
+        <div class="hd"><div class="nm">1.3 轻量资格认定（Sales Coach 透镜）</div><span class="own g">销售</span></div>
+        <div class="grid">
+          <div class="box"><div class="t">先问三件事</div>① 真有多个服务者吗（非一人多号）？<br>② 谁拍板（老板/负责人）？<br>③ 决策快不快（小团队通常快）？</div>
+          <div class="box g"><div class="t">判定</div>三件都"是" → 进 demo；任一"否" → 养着，等信号变强再触。</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ④ 阶段2 触达 -->
+    <div class="sec">
+      <div class="sec-h"><div class="sec-no">④</div><h2>阶段 2 · 1v1 触达</h2></div>
+      <div class="stage">
+        <div class="hd"><div class="nm">2.1 触达方式与时机</div><span class="own">销售</span></div>
+        <ul class="chk">
+          <li>渠道优先级：企业微信（已在私域）&gt; 邮件 &gt; 站内信。<b>不打电话</b>（个体/小团队反感）。</li>
+          <li>时机：信号出现后 <b>24h 内</b>首触；避开周末早、晚 9 点后。</li>
+          <li>语气：同行聊痛点，不装销售，不群发感。</li>
+        </ul>
+      </div>
+      <div class="stage">
+        <div class="hd"><div class="nm">2.2 触达话术（沿用 B 层话术库，精简）</div><span class="own b">赵写</span></div>
+        <div class="tmpl"><div class="tt">开场钩子</div><div class="tb">"看你们好几个教练/老师在用，排期现在是群里对、还是表格对？冲突了谁兜底？"</div></div>
+        <div class="tmpl"><div class="tt">价值主张</div><div class="tb">"团队版把所有人排班放一页，会员自助约、系统按人提醒；你后台看谁快到期、该跟进续费。加一个老师就加一个席位，按人摊。"</div></div>
+        <div class="tmpl"><div class="tt">收口（要承诺，不要"考虑下"）</div><div class="tb">"我 15 分钟带你过一遍多人视图，你感受下冲突高亮和按人提醒，不耽误事——今天下午或明早哪个方便？"</div></div>
+      </div>
+    </div>
+
+    <!-- ⑤ 阶段3 轻 demo -->
+    <div class="sec">
+      <div class="sec-h"><div class="sec-no">⑤</div><h2>阶段 3 · 15 分钟轻 demo / 答疑</h2></div>
+      <div class="stage">
+        <div class="hd"><div class="nm">3.1 demo 五步脚本</div><span class="own">销售</span></div>
+        <ul class="chk">
+          <li><b>1 导入排期：</b>演示批量录入 / 周模板，强调"不用迁历史数据"。</li>
+          <li><b>2 多人排班视图：</b>冲突自动高亮——这是小团队最痛的点。</li>
+          <li><b>3 客户分组 + 续费提醒：</b>谁快到期、该系统提醒。</li>
+          <li><b>4 数据看板：</b>老板视角看团队整体预约与续费健康。</li>
+          <li><b>5 生成团队预约页：</b>多服务者可切换，会员自助约。</li>
+        </ul>
+      </div>
+      <div class="stage">
+        <div class="hd"><div class="nm">3.2 常见异议处理</div><span class="own b">赵写</span></div>
+        <div class="tmpl"><div class="tt">怕麻烦</div><div class="tb">"不用迁数据，先把现有排期录进去就能用。我带你过一遍，你感受下多人视图。"</div></div>
+        <div class="tmpl"><div class="tt">觉得贵</div><div class="tb">"99/月起含 3 个席位，年付 999；加人加席，一个老师才 19/月，比排班冲突漏一单划算。"</div></div>
+        <div class="tmpl"><div class="tt">我们人少</div><div class="tb">"2 个人也值得——排班冲突最头疼的就是两个人撞。先开 14 天全功能试用，顺手就搬上来。"</div></div>
+      </div>
+    </div>
+
+    <!-- ⑥ 阶段4 转化 -->
+    <div class="sec">
+      <div class="sec-h"><div class="sec-no">⑥</div><h2>阶段 4 · 转化（团队版付费）</h2></div>
+      <div class="stage">
+        <div class="hd"><div class="nm">4.1 报价口径（不公开比价）</div><span class="own g">卞现</span></div>
+        <ul class="chk">
+          <li>¥99/月起含 3 席，每加 1 席 +¥19/月；年付 8 折（¥999 起）。</li>
+          <li>自然扩张：客户加教练/老师即加席 → 收入随客户成长而成长（这是 B 层最值钱的设计）。</li>
+          <li>转化触发：试用剩 2 天提醒，指向"团队版全功能"，同 A 层时间线。</li>
+        </ul>
+      </div>
+      <div class="stage">
+        <div class="hd"><div class="nm">4.2 边界纪律</div><span class="own g">卞现</span></div>
+        <ul class="chk">
+          <li>用"席位需求"区分个体与团队：单人误买团队版是浪费，团队用标准版会功能不够。</li>
+          <li>不做捆绑强推；demo 体验到位，付费是顺手动作。</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ⑦ 阶段5 扩张/续费 -->
+    <div class="sec">
+      <div class="sec-h"><div class="sec-no">⑦</div><h2>阶段 5 · 扩张与续费（NRR）</h2></div>
+      <div class="stage">
+        <div class="hd"><div class="nm">5.1 席位扩张监测</div><span class="own">产品</span></div>
+        <ul class="chk">
+          <li>后台监测服务者数增长，接近当前套餐上限时自动提示"该升舱了"。</li>
+          <li>升舱不重新签约，按差额平滑过渡（体验无断点）。</li>
+        </ul>
+      </div>
+      <div class="stage">
+        <div class="hd"><div class="nm">5.2 续费与防流失</div><span class="own">产品/卞现</span></div>
+        <ul class="chk">
+          <li>到期前 14 / 7 / 3 天提醒（企业微信 + 邮件）。</li>
+          <li>防流失：多服务者降舱会丢功能，温和说明"留着更省心"，不强行扣费。</li>
+          <li>转介绍：B 层客户推荐同行 → 双方各得 1 月标准版（A→B、B→C 的种子）。</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ⑧ 阶段6 复盘 -->
+    <div class="sec">
+      <div class="sec-h"><div class="sec-no">⑧</div><h2>阶段 6 · 复盘（周/月）</h2></div>
+      <div class="stage">
+        <div class="hd"><div class="nm">8.1 周看板（15 分钟）</div><span class="own b">梗王</span></div>
+        <ul class="chk">
+          <li>轻销售线索池数量、触达率、demo 数、团队版转化数。</li>
+          <li>线索池标红黄绿：红=超 72h 未触、黄=触达未 demo、绿=已转化。</li>
+        </ul>
+      </div>
+      <div class="stage">
+        <div class="hd"><div class="nm">8.2 月复盘（30 分钟）</div><span class="own b">梗王/卞现</span></div>
+        <ul class="chk">
+          <li>席位扩张率、NRR、信号识别准确率；淘汰无效信号（误报多的埋点）。</li>
+          <li>红线：信号→触达 &lt;70% 查流程；团队转化 &lt;20% 查话术/demo。</li>
+        </ul>
+        <div class="tmpl"><div class="tt">Sales Coach 复盘提问</div><div class="tb">"这月转化低的线索，我们触达的是<b>对的人</b>吗？还是信号本身就把单人账号误判成了团队？"——先纠信号，再纠话术。</div></div>
+      </div>
+    </div>
+
+    <!-- ⑨ 角色 -->
+    <div class="sec">
+      <div class="sec-h"><div class="sec-no">⑨</div><h2>角色分工与对接</h2></div>
+      <div class="ref">
+        <div><span class="name">产品/启号</span>：信号埋点、席位监测、续费提醒、降舱逻辑</div>
+        <div><span class="name">卞现（变现顾问）</span>：报价口径、转化提醒、边界纪律</div>
+        <div><span class="name">赵写（内容教练）</span>：触达/异议话术合规与语气</div>
+        <div><span class="name">梗王（策略官）</span>：B 渠道内容、来源归因、周月复盘</div>
+        <div><span class="name">销售 / 创始人</span>：1v1 触达、轻 demo、资格认定</div>
+      </div>
+    </div>
+
+    <!-- ⑩ 风险 -->
+    <div class="sec">
+      <div class="sec-h"><div class="sec-no">⑩</div><h2>风险与边界</h2></div>
+      <div class="warn">
+        <b>不打扰个体：</b>只对"多人信号"触达，绝不对纯个体账号做销售动作，否则伤 A 层口碑。<br><br>
+        <b>套餐边界：</b>标准版与团队版功能/价格边界必须清晰，避免误买或功能缺口。<br><br>
+        <b>合规：</b>话术禁绝对化用语与效果保证；心理/法律写"辅助管理 + 数据本地"。<br><br>
+        <b>信号准确：</b>埋点误报会浪费销售精力，漏检会丢单——两者都靠周看板的红黄绿暴露。
+      </div>
+    </div>
+
+    <!-- ⑪ 日历 -->
+    <div class="sec">
+      <div class="sec-h"><div class="sec-no">⑪</div><h2>附 · 30 天执行日历（样例）</h2></div>
+      <table class="t cal">
+        <tr><th>周</th><th>重点</th><th>具体动作</th><th>产出</th></tr>
+        <tr><td>W1</td><td>埋点就位</td><td>上线多人信号埋点；建轻销售线索池表；定义触发阈值</td><td>信号自动入池</td></tr>
+        <tr><td>W2</td><td>首轮触达</td><td>对积压线索 24h 内触达；跑 5–10 场轻 demo</td><td>首批团队版转化</td></tr>
+        <tr><td>W3</td><td>优化话术</td><td>看 demo→付费漏斗，迭代异议处理；调触发阈值</td><td>话术 v2</td></tr>
+        <tr><td>W4</td><td>复盘扩量</td><td>月复盘；铺 B 渠道内容承接；设席位扩张监测</td><td>下月计划</td></tr>
+      </table>
+    </div>
+
+  </div>
+
+  <div class="foot">本 SOP 由 单必成（Sales Coach）× 卞现/梗王 联合设计 ｜ 报价与文案以对应专家终审为准 ｜ 2026-09-15</div>
+
+</div>
+</body>
+</html>

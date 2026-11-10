@@ -297,7 +297,7 @@ async function renderScheduleCards() {
                     <input type="text" id="course-name-input"  placeholder="输入名称" >
                 </div>
                 <div>
-                    <label><span data-term="classType">语言类型</span>：</label>
+                    <label><span data-term="classType">课程/咨询类型</span>：</label>
                     <select id="languageType-select" >
                         <option value="">全部</option>
                         ${courseTypeOptionsHtml('', { empty: '全部' })}
@@ -361,14 +361,21 @@ async function renderScheduleCards() {
             <option value="">请选择排期</option>
         </select>
         <button class="btn btn-default" onclick="resetSchedule()"><i class="fa fa-plus"></i> 新建</button>
-       
-        <button class="btn btn-default" onclick="checkSchedule()"><i class="fa fa-exclamation-triangle"></i> 检查冲突</button>
+        <!-- L2：复制 / 批量。三个入口都只读写既有接口，不引入新后端端点。
+             原「检查冲突」按钮已删除：saveScheduleToDB() 保存前自动查一次并内联提示，
+             那个按钮是同一件事的第二个入口，且两处拼提示文案的分隔符还不一样。 -->
+        <button class="btn btn-default" onclick="schedCopyCurrentSchedule()" title="复制当前选中的排期，起止日期各顺延 7 天"><i class="fa fa-copy"></i> 复制此排期</button>
+        <button class="btn btn-default" onclick="schedCopyFromLastWeek()" title="把该课程上周起排的排期各顺延 7 天批量新建；目标起始日已存在则跳过"><i class="fa fa-calendar-plus"></i> 从上周复制</button>
+        <button class="btn btn-default" onclick="schedOpenBatchSlots()" title="一次填多行（星期 + 时间 + 员额），串行创建"><i class="fa fa-table"></i> 批量时段</button>
         <button class="btn btn-danger" onclick="deleteScheduleByFrozen()"><i class="fa fa-trash"></i> 删除</button>
         <button class="btn btn-success" onclick="refreshData()"><i class="fa fa-sync-alt"></i> 刷新</button>
-        <!-- 用户时间预览开关：置于"刷新"右侧，右对齐 -->
-        <label for="toggleUserTimeZone" style="margin-left:auto;width:auto;text-align:left;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;cursor:pointer;font-weight:500;">
-            <input type="checkbox" id="toggleUserTimeZone" style="width:auto;min-width:0;height:auto;padding:0;margin:0;cursor:pointer;" onchange="document.getElementById('userTimeZoneRow').style.display=this.checked?'':'none';document.getElementById('testTimeZoneForm').style.display=this.checked?'':'none';getTestDatetime();getTestEndDatetime();">
-            用户时间预览
+        <!-- 跨时区时间校验开关：置于"刷新"右侧，右对齐。
+             2026-10-25：默认勾选（checked）。原先默认不勾 → 右侧校验区整片空白，
+             被当成"功能没了"；现在默认展开，只想专心填本时区时间的人可以把它关掉。 -->
+        <label for="toggleUserTimeZone" title="展开/收起右侧「用户时区」校验列：把左边填的日期时间换算到对方城市的墙上时间"
+               style="margin-left:auto;width:auto;text-align:left;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;cursor:pointer;font-weight:500;">
+            <input type="checkbox" id="toggleUserTimeZone" checked style="width:auto;min-width:0;height:auto;padding:0;margin:0;cursor:pointer;" onchange="document.getElementById('userTimeZoneRow').style.display=this.checked?'':'none';document.getElementById('testTimeZoneForm').style.display=this.checked?'':'none';getTestDatetime();getTestEndDatetime();">
+            跨时区时间校验
         </label>
     </div>
   </div> <!-- 常驻：课程检索 / 选择排期 card 结束 -->
@@ -382,7 +389,8 @@ async function renderScheduleCards() {
         <div style="display: flex; flex-wrap: wrap; gap: 24px;">
             <div class="sched-form-line">
                 <label>排期名称：</label>
-                <input type="text" id="scheduleName">
+                <!-- data-auto="1" 表示名称还是系统建议值：用户一旦手改就置 0，之后不再自动覆盖 -->
+                <input type="text" id="scheduleName" data-auto="1" placeholder="自动生成，如：英语·周三 19:00" oninput="schedMarkNameManual()">
             </div>
             <div class="sched-form-line">
                 <label>员额：</label>
@@ -392,22 +400,62 @@ async function renderScheduleCards() {
                 <label>剩余员额：</label>
                 <input type="text" id="now_availableSites" value="1" readonly>
             </div>
+            <!-- 授课语言 / 课时长度：默认由课程带入（课程又来自模板），
+                 这里可以按本条排期覆盖——同一门课的外教班/中教班、试听 25 分钟都是真实场景。
+                 注意：授课语言（work_language）是「用哪种语言上课」，固定枚举、不随行业变，
+                 也**不经过 sys_term**；它不同于上面筛选里的「课程/咨询类型」（classType，
+                 那个 code 在 legal 行业会显示成「劳动」）。 -->
+            <div class="sched-form-line">
+                <label>授课语言：</label>
+                <select id="schedWorkLanguage">
+                    ${workLanguageOptionsHtml('', { empty: '跟随课程' })}
+                </select>
+            </div>
+            <div class="sched-form-line">
+                <label>课时长度：</label>
+                <input type="number" id="schedClassDuration" min="15" max="600" step="5" placeholder="跟随课程" style="width:92px;">
+                <span style="color:#8c8c8c;font-size:12px;">分钟</span>
+            </div>
         </div>
+        <!-- L1：先勾上课星期 → 开始日期自动跳到「下一个该星期几」，并自动勾进重复星期。
+              这样排「周一三五 19:00」时不用对着日历数日子，也不用在 7 个复选框里手动挑。
+              2026-10-25：本行从左侧栏移到整行（跨两栏），否则右侧「用户时区」下方的
+              开始日期/上课时间/结束日期会整体错位一行，读起来像对错了行。 -->
+        <div class="sched-form-line">
+            <label>上课星期：</label>
+            <div id="quickWeekday" class="sched-weekdays" style="display:inline-flex;flex-wrap:wrap;gap:4px;margin:0;">
+                <label><input type="checkbox" value="1" onchange="schedQuickWeekdayChange(this)">周一</label>
+                <label><input type="checkbox" value="2" onchange="schedQuickWeekdayChange(this)">周二</label>
+                <label><input type="checkbox" value="3" onchange="schedQuickWeekdayChange(this)">周三</label>
+                <label><input type="checkbox" value="4" onchange="schedQuickWeekdayChange(this)">周四</label>
+                <label><input type="checkbox" value="5" onchange="schedQuickWeekdayChange(this)">周五</label>
+                <label><input type="checkbox" value="6" onchange="schedQuickWeekdayChange(this)">周六</label>
+                <label><input type="checkbox" value="7" onchange="schedQuickWeekdayChange(this)">周日</label>
+            </div>
+            <!-- 跨时区校验状态：两侧时区取不到时在这里显式报出来，避免右侧"空白"被当成加载中 -->
+            <span id="schedTzHint" style="margin-left:auto;color:#8c8c8c;font-size:12px;"></span>
+        </div>
+
         <div style="display: flex; flex-wrap: wrap; gap: 40px;">
-           <!-- 左侧：当前逻辑 -->
+           <!-- 左侧：排期自身的墙上时间（落库按此换算成 UTC） -->
            <div style="flex: 1; min-width: 400px;">
              <div class="sched-form-line">
                 <label>排期时区：</label>
-                <input type="text" id="timeZone" value="${userTimeZone}" readonly>
+                <input type="text" id="timeZone" value="${userTimeZone}" readonly
+                       title="排期时区＝创建者浏览器时区（只读）。下方填的日期与时间都按此时区理解，服务端据此换算成 UTC 存 appointment。">
+                <span id="timeZoneOffset" style="color:#8c8c8c;font-size:12px;white-space:nowrap;"></span>
              </div>
              <div class="sched-form-line">
                   <label>开始日期：</label>
-                  <input type="date" id="startDate" value="${(new Date()).toISOString().split('T')[0]}">
+                  <!-- 默认值必须走 schedLocalToday()：原先写 (new Date()).toISOString()，
+                       那是 UTC —— 东八区本地 00:00~07:59 打开页面，默认日期是"昨天" -->
+                  <input type="date" id="startDate" value="${schedLocalToday()}" onchange="schedSyncWeekdayFromStartDate();schedSuggestName();">
                   <input type="text" id="startDate_weekday" readonly style="width:52px;min-width:52px;text-align:center;padding:8px 2px;">
              </div>
               <div class="sched-form-line">
                   <label><span data-term="lessonTime">上课时间</span>：</label>
-                  <input type="time" id="startTime" value="${(function(){ let d = new Date(); return d.toTimeString().slice(0,5); })()}">
+                  <!-- 默认"下一个整点"，而不是当前分钟：排课几乎总是整点/半点开始 -->
+                  <input type="time" id="startTime" value="${schedNextHour()}" onchange="schedSuggestName()">
               </div>
                <div class="sched-form-line">
                 <label>结束日期：</label>
@@ -415,10 +463,16 @@ async function renderScheduleCards() {
                 <input type="text" id="endDate_weekday" readonly style="width:52px;min-width:52px;text-align:center;padding:8px 2px;">
             </div>
            </div>
-           <!-- 右侧：用户时间预览列，与左列逐行对齐 -->
+           <!-- 右侧：同一时刻在「用户时区」下的墙上时间（跨时区校验）
+                2026-10-25：默认可见。原先两块都是 display:none，只有工具栏勾上
+                「用户时间预览」才出现，于是右侧栏长期是一片空白，跨时区排课时
+                没有任何地方能核对自己填的时间在对方城市是几点。
+                2026-10-25 二次修订：右侧三格改为可编辑，与左侧**双向**联动。
+                联动是异步的（换算走后端 /tz/switch），必须有防循环机制，
+                见下方 schedApplyUserTzToSchedule 上方的三道闸说明。 -->
            <div style="flex: 1; min-width: 400px;">
                 <!-- 第1行：用户时区（与左侧"排期时区"行对齐，开关在上方"刷新"右侧） -->
-                <div class="sched-form-line" id="userTimeZoneRow" style="display:none;">
+                <div class="sched-form-line" id="userTimeZoneRow">
                     <label>用户时区：</label>
                     <select id="testTimeZone">
                         <option value="Europe/London">伦敦 (Europe/London)</option>
@@ -435,21 +489,28 @@ async function renderScheduleCards() {
                         <option value="America/Vancouver">温哥华 (America/Vancouver)</option>
                         <option value="America/Edmonton">卡尔加里 (America/Edmonton)</option>
                     </select>
+                    <span id="testTimeZoneOffset" style="color:#8c8c8c;font-size:12px;white-space:nowrap;"></span>
                 </div>
-                <!-- 第2~4行：日期/时间/结束日期（与左侧"开始日期/上课时间/结束日期"逐行对齐） -->
-                <div id="testTimeZoneForm" style="display:none;">
+                <!-- 第2~4行：日期/时间/结束日期（与左侧"开始日期/上课时间/结束日期"逐行对齐）
+                     2026-10-25：三格改为可编辑 —— 用户在对方城市的钟点上报课（"伦敦时间周三 12:00"）
+                     比先换算成自己时区再填更自然。改任一格都会按「排期时区」反算回左侧。
+                     星期那两格仍是只读：它是日期派生出来的，不承载任何用户意图。 -->
+                <div id="testTimeZoneForm">
                     <div class="sched-form-line">
                         <label>开始日期：</label>
-                        <input type="date" id="displayStartDate" readonly>
+                        <input type="date" id="displayStartDate"
+                               title="可直接修改。改后会按「排期时区」反算，左侧的开始日期与上课时间会同步变化。">
                         <input type="text" id="displayStartDate_weekday" readonly style="width:52px;min-width:52px;text-align:center;padding:8px 2px;">
                     </div>
                     <div class="sched-form-line">
                         <label><span data-term="lessonTime">上课时间</span>：</label>
-                        <input type="time" id="displayStartTime" readonly>
+                        <input type="time" id="displayStartTime"
+                               title="可直接修改。改后会按「排期时区」反算，左侧的上课时间会同步变化。">
                     </div>
                     <div class="sched-form-line">
                         <label>结束日期：</label>
-                        <input type="date" id="displayEndDate" readonly>
+                        <input type="date" id="displayEndDate"
+                               title="可直接修改。改后只反算左侧的结束日期（结束时间沿用开始时间，与正算规则一致）。">
                         <input type="text" id="displayEndDate_weekday" readonly style="width:52px;min-width:52px;text-align:center;padding:8px 2px;">
                     </div>
                 </div>
@@ -495,19 +556,23 @@ async function renderScheduleCards() {
        <div class="sched-form-line">
             <label>状态：</label>
            <select id="status">
+                <option value="active">已发布</option>
                 <option value="pending">待发布</option>
                 <option value="inactive">已收回</option>
-                <option value="active">已发布</option>
                 <option value="frozen">已删除</option>
             </select>
             <div id="conflictMessage" style="color:#f5222d;"></div>
         </div>
     </div>
 
+    <!-- L1：预览结果内联在这里，不再强制跳「排期结果」Tab 让人切回来 -->
+    <div id="schedPreviewSummary" style="display:none;margin:0 0 12px 0;padding:10px 14px;border-radius:6px;background:#f6ffed;border:1px solid #b7eb8f;color:#237804;font-size:13px;line-height:1.7;"></div>
+
     <!-- 操作按钮 -->
     <div class="sched-btn-row">
       <button class="btn btn-default" onclick="previewSchedule()"><i class="fa fa-eye"></i> 预览排期</button>
-       <button class="btn btn-primary" onclick="saveScheduleToDB()"><i class="fa fa-save"></i> 保存</button>
+       <button class="btn btn-primary" onclick="saveScheduleToDB()"><i class="fa fa-save"></i> 保存并发布</button>
+       <button class="btn btn-default" onclick="switchTab('tab-result')" title="查看课次列表与日历"><i class="fa fa-list-alt"></i> 看完整结果</button>
     </div>
 
    </div> <!-- tab-set panel 结束 -->
@@ -595,8 +660,14 @@ async function renderScheduleCards() {
           } ;
       
      
-    // 关联 testTimeZone 下拉菜单与 handleTestTimeZoneChange 处理
+     // 关联 testTimeZone 下拉菜单与 handleTestTimeZoneChange 处理
      handleTestTimeZoneChange();
+     // 「用户时区」默认选本机时区（否则默认落在伦敦，换算结果看着像算错了）
+     schedInitUserTimeZoneSelect();
+     // 恢复上次保存的「跨时区时间校验」开关状态（localStorage；没存过则保持默认勾选），
+     // 再刷一次右侧校验区——勾选态变化后 change 事件不会在初始化时触发，须主动刷
+     schedApplyTzToggleState();
+     refreshUserTzPreview();
      // 课程列表与学生列表并行加载；深链需等两者都完成后再处理
      await Promise.all([loadAndRenderCourses(), addStudentList()]);
 
@@ -755,44 +826,271 @@ function localsearchCourse_sch() {
         * 若失败则友好提示。
         */    
  
-/* ========== 防重复 addEventListener：仅首次注册；后续调用直接跳过 ========== */
-window.__adminSchedule_tzListenersAttached = window.__adminSchedule_tzListenersAttached || false;
-
-// 处理下拉菜单"testTimeZone"的变更，读取表单的timeZone、startDate、startTime及新选择的时区，调用后端获取转换后的时间和日期
+/* ========== 时区联动的事件绑定 ==========
+ * 2026-10-25 修复：原实现用一个 **window 级** 标志 window.__adminSchedule_tzListenersAttached
+ * 做"只绑一次"，但本卡片的 DOM 是 admin.html 菜单路由里 `renderScheduleCards()`
+ * → `dynamicContentCenter.innerHTML = html` 整体重建的：每进一次「课程排期」都是全新的
+ * select/input 节点，旧节点连同监听一起被丢掉，而 window 标志还是 true → 第二次起
+ * 所有监听都绑不上。
+ * 症状：改「用户时区」下拉，右侧日期时间纹丝不动（首次进页面正常，切走再回来就失效）。
+ * 现在改成 **按元素** 去重（el.__tzBound）：新节点重新绑、同一节点不重复绑。 */
 function handleTestTimeZoneChange() {
-    if (window.__adminSchedule_tzListenersAttached) return; // 幂等：已注册直接返回
-    window.__adminSchedule_tzListenersAttached = true;
-
     const attachOnce = function (id, handler) {
         const el = document.getElementById(id);
         if (!el) return;
+        if (el.__tzBound) return;   // 同一节点只绑一次（防止同一次渲染内被调用两遍）
+        el.__tzBound = true;        // 挂在元素上：重渲染拿到新节点后自然重新绑定
         el.addEventListener('change', handler);
     };
 
-    attachOnce('toggleUserTimeZone', function () { getTestDatetime(); getTestEndDatetime(); }); // 勾选/取消开关本身也要立即刷新
+    attachOnce('toggleUserTimeZone', function (ev) {
+        const el = ev && ev.target;
+        if (el) schedTzToggleSave(el.checked);   // 本地记住开关状态：下次登录/进页面保持
+        getTestDatetime(); getTestEndDatetime(); // 勾选/取消开关本身也要立即刷新
+    });
     attachOnce('testTimeZone',       function () { getTestDatetime(); getTestEndDatetime(); });
     attachOnce('timeZone',           function () { getTestDatetime(); getTestEndDatetime(); }); // 原时区变化也要重算
     attachOnce('startDate',          function () { getTestDatetime(); });
     attachOnce('startTime',          function () { getTestDatetime(); });
     attachOnce('endDate',            function () { getTestEndDatetime(); });
+
+    // 反向：右侧（用户时区）三格可编辑 → 反算回左侧。
+    // 用匿名包装而非直接绑 schedApplyUserTzToSchedule 本身，是为了先过一遍闸①和闸②：
+    // 程序性写入触发的 change 与"值没变"的回声事件都在这里被丢掉，
+    // 否则反算会接在自己的写入后面再次启动，形成回路。
+    const attachReverse = function (id, kind) {
+        attachOnce(id, function (ev) {
+            if (schedTzIsSuppressed()) return;                                   // 闸①
+            const el = ev && ev.target;
+            if (el && schedTzIsEcho(id, el.value)) return;                        // 闸②
+            // 记下这笔反算的 promise：用户在右侧改完立刻点保存时，保存逻辑要先等它写完左侧
+            schedTzTrackPending(schedApplyUserTzToSchedule(kind));
+        });
+    };
+    attachReverse('displayStartDate', 'start');
+    attachReverse('displayStartTime', 'start');
+    attachReverse('displayEndDate',   'end');
 }
 
-/* ========== 异步竞态防护：getTestDatetime / getTestEndDatetime 各自维护 reqId 计数器 ========== */
+/* ========== 双向联动的防循环闸门（2026-10-25） ==========
+ * 右侧三格可编辑后，「左侧改 → 正算写右侧」与「右侧改 → 反算写左侧」互为镜像，
+ * 天然构成一个可以无限打转的环。这里用三道闸把它限制在"一跳"内：
+ *
+ *  ① suppressDepth：程序性写入期间置 > 0，**所有换算入口**（正算、反算）直接返回。
+ *     直接给 el.value 赋值本身不触发 change，但只要有补 dispatchEvent、或者在
+ *     onchange 里调用换算的老写法（本文件里 toggleUserTimeZone 就是内联 onchange），
+ *     没有这道闸就会一路打转。
+ *  ② lastWrite[id]：记下每个字段最近一次"我们自己写进去的值"，事件值与它完全一致
+ *     时视为回声丢弃。防的是浏览器/输入法/扩展补发 change —— 那种事件无法靠 ① 拦住。
+ *  ③ 请求序号（正算 start/end、反算 revStart/revEnd 各一套）：换算走后端是异步的，
+ *     后发请求的结果可能先到；序号不匹配就丢弃，避免慢请求把新值覆盖回去。
+ *
+ * 另外结构上还断了一条路：**反算写完左侧后不调用 getTestDatetime()**。
+ * 否则刚换算过去的左值又会被正算回来，表现成两格数字来回跳（用户看到的是"抖"）。 */
+window.__schedTz = window.__schedTz || { suppressDepth: 0, lastWrite: Object.create(null) };
 window.__adminSchedule_tzReqSeq = window.__adminSchedule_tzReqSeq || { start: 0, end: 0 };
+window.__adminSchedule_tzReqSeq.revStart = window.__adminSchedule_tzReqSeq.revStart || 0;
+window.__adminSchedule_tzReqSeq.revEnd = window.__adminSchedule_tzReqSeq.revEnd || 0;
 
-// 安全写值：DOM 元素不存在 / 只读报错时都不会打断流程
+/** 闸①：当前是否处于"程序性写入"区间（期间任何换算都不得启动）。 */
+function schedTzIsSuppressed() {
+    return !!(window.__schedTz && window.__schedTz.suppressDepth > 0);
+}
+
+/** 闸①：在抑制区间内执行 fn。用 try/finally 保证异常也不会把深度漏成 >0
+ *  （一旦漏了，之后所有换算都会永久静默失效，这类 bug 极难查）。 */
+function schedTzSuppressed(fn) {
+    const st = window.__schedTz;
+    st.suppressDepth++;
+    try {
+        return fn();
+    } finally {
+        st.suppressDepth--;
+    }
+}
+
+/** 闸②：记录"我们刚写进去的值"。 */
+function schedTzMarkWrite(id, value) {
+    if (!window.__schedTz || !id) return;
+    window.__schedTz.lastWrite[id] = {
+        value: (value === null || value === undefined) ? '' : String(value),
+        at: Date.now()
+    };
+}
+
+/** 闸②：本次事件的字段值是否就是刚才写进去的那个值（是 → 回声，不处理）。 */
+function schedTzIsEcho(id, value) {
+    if (!window.__schedTz || !id) return false;
+    const rec = window.__schedTz.lastWrite[id];
+    if (!rec) return false;
+    const v = (value === null || value === undefined) ? '' : String(value);
+    return rec.value === v;
+}
+
+/** 安全写值：DOM 元素不存在 / 只读报错时都不会打断流程。
+ *  所有程序性写入统一经过这里 —— 顺带打上"这是我们写的"标记并进入抑制区间，
+ *  这样调用方不需要各自记得加闸。 */
 function safeSetInputValue(id, value) {
-    try { const el = document.getElementById(id); if (el) el.value = value == null ? '' : value; } catch (_) {}
+    const v = (value === null || value === undefined) ? '' : String(value);
+    try {
+        schedTzMarkWrite(id, v);
+        schedTzSuppressed(function () {
+            const el = document.getElementById(id);
+            if (el) el.value = v;
+        });
+    } catch (_) {}
+}
+
+/** 写校验提示。schedTzHint 是唯一的提示出口，避免多处 textContent 抢写。 */
+function schedTzSetHint(text, isError) {
+    const hint = document.getElementById('schedTzHint');
+    if (!hint) return;
+    hint.textContent = text || '';
+    hint.style.color = isError ? '#C0392B' : '#8c8c8c';
+}
+
+/** 记下最近一次反算的 promise，供保存前"等它落地"用。
+ *  为什么必须等：反算要走一次 /tz/switch，用户在右侧改完时间立刻点保存时，
+ *  左侧那两个 input 还是旧值，提交出去的排期就落到了错误的时刻上。
+ *  这类竞态只在网络慢的时候复现，最难排查，所以按规则处理而不是靠"应该来不及"。 */
+function schedTzTrackPending(p) {
+    if (!window.__schedTz) return;
+    window.__schedTz.pending = Promise.resolve(p).catch(function (e) {
+        console.error('[schedTzTrackPending]', e);
+    });
+}
+
+/** 保存前调用：等最后一笔反算写完左侧（没有在飞的就立即返回）。 */
+async function schedTzFlushPending() {
+    const p = window.__schedTz && window.__schedTz.pending;
+    if (!p) return;
+    try { await p; } catch (_) {}
+}
+
+/* ========== 时区偏移显示 + 校验提示（2026-10-25） ==========
+ * 光有"换算后的时间"不够用：19:00 变成 12:00 时，人得知道两边差几个小时、
+ * 以及夏令时有没有生效，否则没法判断这是不是自己要的那一格。
+ * 这里用 Intl 现算偏移（不查表：夏令时规则随年份变，硬编码表迟早过期）。 */
+function schedTzOffsetLabel(tz) {
+    const zone = (tz === null || tz === undefined) ? '' : String(tz).trim();
+    if (!zone) return '';
+    try {
+        const parts = new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'longOffset' })
+            .formatToParts(new Date());
+        const name = (parts.find(function (p) { return p.type === 'timeZoneName'; }) || {}).value || '';
+        if (!name) return '';
+        // longOffset 对零时区给的是裸 "GMT"，补成 UTC+00:00 免得看着像"没有偏移"
+        const t = name.replace(/^GMT/, 'UTC');
+        return (t === 'UTC') ? 'UTC+00:00' : t;
+    } catch (e) {
+        return ''; // 非法时区名 → 调用方据此报错，不要伪造一个偏移上去
+    }
+}
+
+/**
+ * 「用户时区」下拉默认选中本机时区。
+ *
+ * <p>不这么做的后果：下拉的第一项是伦敦，一旦默认展开校验区，所有人第一眼看到的
+ * 都是"上海 19:00 → 伦敦 12:00"，会误以为排期时区算错了。本机时区不在预置列表里
+ * （如 Asia/Chongqing）时临时插一项，而不是硬选伦敦。
+ */
+function schedInitUserTimeZoneSelect() {
+    const sel = document.getElementById('testTimeZone');
+    if (!sel) return;
+    const my = (typeof userTimeZone !== 'undefined' && userTimeZone) ? String(userTimeZone).trim() : '';
+    if (!my) return;
+    let exists = false;
+    for (let i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].value === my) { exists = true; break; }
+    }
+    if (!exists) {
+        const opt = document.createElement('option');
+        opt.value = my;
+        opt.textContent = my + '（本机）';
+        sel.insertBefore(opt, sel.firstChild);
+    }
+    sel.value = my;
+}
+
+/* ========== 「跨时区时间校验」开关的本地记忆（2026-11-04） ==========
+ * 需求：开关状态存 localStorage，下次登录/进入「课程排期」时保持上次选择。
+ * 键：adminSchedule.tzCheck（'1'=勾选，'0'=取消；无记录=维持 HTML 默认勾选）。
+ * 读写都包 try：隐私模式/禁用存储时静默降级为默认行为，不影响排期功能。
+ * 时机：schedApplyTzToggleState() 在渲染初始化（schedInitUserTimeZoneSelect 之后）调用；
+ *       写入只发生在 handleTestTimeZoneChange() 绑定的 change 事件里。 */
+const SCHED_TZ_TOGGLE_KEY = 'adminSchedule.tzCheck';
+
+function schedTzToggleSave(on) {
+    try { localStorage.setItem(SCHED_TZ_TOGGLE_KEY, on ? '1' : '0'); } catch (e) { /* 存储不可用则忽略 */ }
+}
+
+function schedApplyTzToggleState() {
+    const toggle = document.getElementById('toggleUserTimeZone');
+    if (!toggle) return;
+    let saved = null;
+    try { saved = localStorage.getItem(SCHED_TZ_TOGGLE_KEY); } catch (e) { /* 忽略 */ }
+    if (saved === null) return;   // 没存过 → 保持 HTML 里的默认勾选，不做任何事
+    toggle.checked = (saved === '1');
+    // 与内联 onchange 同一套可见性逻辑：取消勾选时把右侧校验区一并收起
+    const show = toggle.checked ? '' : 'none';
+    const row  = document.getElementById('userTimeZoneRow');
+    const form = document.getElementById('testTimeZoneForm');
+    if (row)  row.style.display  = show;
+    if (form) form.style.display = show;
+    // 勾选态变化后右侧预览要跟上（未勾选时这两个函数内部走"已关闭"早退分支，安全）
+    getTestDatetime();
+    getTestEndDatetime();
+}
+
+/** 刷新两侧时区偏移文本 + 校验提示。任何一次时间/时区变化都会经过这里。 */
+function schedRefreshTzOffsets() {
+    const tzEl = document.getElementById('timeZone');
+    const userTzEl = document.getElementById('testTimeZone');
+    const fromTz = tzEl ? String(tzEl.value || '').trim() : '';
+    const toTz = userTzEl ? String(userTzEl.value || '').trim() : '';
+    const fromOff = schedTzOffsetLabel(fromTz);
+    const toOff = schedTzOffsetLabel(toTz);
+
+    const a = document.getElementById('timeZoneOffset');
+    if (a) a.textContent = fromOff ? '(' + fromOff + ')' : '';
+    const b = document.getElementById('testTimeZoneOffset');
+    if (b) b.textContent = toOff ? '(' + toOff + ')' : '';
+
+    const hint = document.getElementById('schedTzHint');
+    if (!hint) return;
+    const toggle = document.getElementById('toggleUserTimeZone');
+    if (toggle && !toggle.checked) {
+        schedTzSetHint('跨时区时间校验已关闭（右侧不显示换算结果）', false);
+        return;
+    }
+    if (!fromTz || !fromOff) {
+        schedTzSetHint('排期时区未取到（浏览器未提供有效时区），右侧无法换算', true);
+    } else if (!toTz || !toOff) {
+        schedTzSetHint('用户时区「' + (toTz || '空') + '」无效，右侧无法换算', true);
+    } else if (fromTz === toTz) {
+        schedTzSetHint('两侧时区相同（' + fromTz + '），右侧与左侧一致', false);
+    } else {
+        // 双向：说明清楚"谁影响谁"，否则用户改右侧发现左侧跟着变会以为是串值
+        schedTzSetHint('双向联动：左侧改动 → 右侧按「用户时区」换算；右侧也可直接改 → 按「排期时区」反算回左侧（'
+            + fromOff + ' ⇄ ' + toOff + '）', false);
+    }
 }
 
 // 按照左侧 的时间和日期，同步修改右侧指定时区的显示
 async function getTestDatetime() {
+    // 闸①：正处于程序性写入（多半是反算刚写完左侧）时不要启动正算，
+    // 否则「反算写左 → 正算写右 → 反算又启动」会自己转起来
+    if (schedTzIsSuppressed()) return;
     const toggle = document.getElementById('toggleUserTimeZone');
     const startDateInput = document.getElementById('startDate');
     const startTimeInput = document.getElementById('startTime');
     const displayTzInput = document.getElementById('testTimeZone');
     const timeZoneInput = document.getElementById('timeZone');
     if (!displayTzInput || !startDateInput || !startTimeInput) return;
+
+    // 偏移与校验提示先刷（这一函数是所有变更的公共出口，放最前面保证早退分支也更新）。
+    // 必须包 try：它只负责显示，绝不能因为一个取不到的 DOM 节点把下面的时区换算整段打断。
+    try { schedRefreshTzOffsets(); } catch (e) { console.error('[schedRefreshTzOffsets]', e); }
 
     const startDate = startDateInput.value || "";
     const startTime = startTimeInput.value || "";
@@ -828,7 +1126,10 @@ async function getTestDatetime() {
 
         const newDateTime = (newTzDateTime && newTzDateTime.dateTime) ? newTzDateTime.dateTime : "";
         if (typeof newDateTime === "string" && newDateTime.trim() !== "" && newDateTime.includes(" ")) {
-            const [newDate, newTime] = newDateTime.split(" ");
+            const [newDate, newTimeRaw] = newDateTime.split(" ");
+            // 只写 HH:mm：input[type=time] 里塞 "12:00:00" 虽然能显示，
+            // 但与左栏的 HH:mm 口径不一致，回声比对（闸②）和反算的入参都会多一层转换
+            const newTime = String(newTimeRaw || "").slice(0, 5);
             safeSetInputValue('displayStartDate', newDate);
             safeSetInputValue('displayStartTime', newTime);
             safeSetInputValue('displayStartDate_weekday', newDate ? getWeekdayFromDateTime(newDate) : "");
@@ -845,6 +1146,7 @@ async function getTestDatetime() {
 }
 
 async function getTestEndDatetime() {
+    if (schedTzIsSuppressed()) return;   // 闸①，同 getTestDatetime
     const toggle = document.getElementById('toggleUserTimeZone');
     const endDateInput = document.getElementById('endDate');
     const startTimeInput = document.getElementById('startTime');
@@ -894,6 +1196,122 @@ async function getTestEndDatetime() {
         }
     }
 } 
+
+/* ========== 反向换算：右侧（用户时区）改动 → 写回左侧（排期时区） ==========
+ * kind = 'start' | 'end'
+ *   start：右侧开始日期/上课时间 → 左侧 startDate + startTime（两个都写，跨午夜会同时挪日期）
+ *   end  ：右侧结束日期 → 左侧 endDate（只取日期：左侧本来就只有"结束日期"这一格，
+ *          结束时间沿用开始时间，与正算 getTestEndDatetime 的口径完全一致）
+ *
+ * 反算复用后端同一个 /tz/switch，只是把 from/to 对调：源是"用户时区的墙钟时间"，
+ * 目标是「排期时区」。不在前端自己算偏移——夏令时规则逐年变，两端各算一次必然
+ * 出现"半年对不上"的经典 bug；让同一个服务端实现对算两次才能保证可逆。
+ *
+ * 循环防护见上方三道闸；本函数还额外做了一件事：**写完左侧不回头正算开始时间**，
+ * 否则刚换过去的左值会被立刻换算回右侧，表现为两个格子来回跳。 */
+async function schedApplyUserTzToSchedule(kind) {
+    if (schedTzIsSuppressed()) return;                 // 闸①：程序性写入期间不启动
+
+    const toggle      = document.getElementById('toggleUserTimeZone');
+    const userTzEl    = document.getElementById('testTimeZone');
+    const schedTzEl   = document.getElementById('timeZone');
+    const startDateEl = document.getElementById('displayStartDate');
+    const startTimeEl = document.getElementById('displayStartTime');
+    const endDateEl   = document.getElementById('displayEndDate');
+    if (!userTzEl || !schedTzEl) return;
+
+    const isStart = (kind !== 'end');
+    const userTz  = String(userTzEl.value  || '').trim();
+    const schedTz = String(schedTzEl.value || '').trim();
+
+    if (toggle && !toggle.checked) {
+        schedTzSetHint('跨时区时间校验已关闭：右侧不参与反算；需要按对方时区填写请先勾选', true);
+        return;
+    }
+    if (!userTz || !schedTz) { schedRefreshTzOffsets(); return; }
+
+    const dateVal = ((isStart ? startDateEl : endDateEl) || {}).value || '';
+    // 改结束日期也要用"时间"定位：只知道日期无法判断它在对方时区落成哪一天。
+    // 时间基准与正算一致，都取开始时间。
+    const timeVal = (startTimeEl || {}).value || '';
+
+    // 空值（用户清空了某一格）不做反算，直接按左侧重新算回来——
+    // 报红再让用户自己去修，是最容易被当成"页面坏了"的交互。
+    if (!dateVal || !timeVal) {
+        schedTzSetHint('右侧时间不能留空：已按左侧重新换算', false);
+        try {
+            if (isStart) { await getTestDatetime(); }
+            else { await getTestEndDatetime(); }
+        } catch (_) {}
+        return;
+    }
+
+    const wallClock = dateVal + ' ' + (timeVal.length === 5 ? timeVal + ':00' : timeVal);
+
+    const seqKey = isStart ? 'revStart' : 'revEnd';
+    const mySeq  = ++window.__adminSchedule_tzReqSeq[seqKey];
+
+    let res = null;
+    try {
+        res = await tzSwitchTo(userTz, wallClock, schedTz);   // from/to 与正算相反
+    } catch (e) {
+        console.error('[schedApplyUserTzToSchedule] 换算失败:', e);
+        res = null;
+    }
+    if (mySeq !== window.__adminSchedule_tzReqSeq[seqKey]) return;  // 闸③：已有更新的反算请求
+    if (schedTzIsSuppressed()) return;                              // 期间被程序性写入打断，本次作废
+
+    const converted = (res && res.dateTime) ? String(res.dateTime) : '';
+    if (!converted || converted.indexOf(' ') < 0) {
+        schedTzSetHint('换算失败：' + userTz + ' → ' + schedTz + ' 未返回结果，左侧未改动', true);
+        return;
+    }
+    const seg     = converted.split(' ');
+    const newDate = seg[0] || '';
+    const newTime = seg[1] || '';
+
+    if (isStart) {
+        if (!newDate || !newTime) return;
+        const hhmm    = newTime.slice(0, 5);
+        const curDate = (document.getElementById('startDate') || {}).value || '';
+        const curTime = (document.getElementById('startTime') || {}).value || '';
+        // 左侧已经是同一时刻 → 不写（省掉星期/名称/结束日期的一轮重算与闪烁）
+        if (curDate === newDate && curTime === hhmm) { schedRefreshTzOffsets(); return; }
+
+        schedTzSuppressed(function () {
+            safeSetInputValue('startDate', newDate);
+            safeSetInputValue('startTime', hhmm);
+            // 左侧那几个 input 的内联 onchange 不会被程序赋值触发，这里显式补做同样的事，
+            // 否则改完右侧，左侧的星期、名称建议、每周重复勾选全是旧的
+            try { if (typeof schedSyncWeekdayFromStartDate === 'function') schedSyncWeekdayFromStartDate(); } catch (_) {}
+            try { if (typeof schedEnsureEndDate === 'function') schedEnsureEndDate(); } catch (_) {}
+            try { if (typeof schedSuggestName === 'function') schedSuggestName(); } catch (_) {}
+        });
+
+        // 左侧开始时间变了 → 右侧"结束日期"必须按新时间重算（它只写右侧，不会再回写左侧）
+        try { await getTestEndDatetime(); } catch (_) {}
+        try { schedRefreshTzOffsets(); } catch (_) {}
+        return;
+    }
+
+    if (!newDate) return;
+    const curEnd = (document.getElementById('endDate') || {}).value || '';
+    if (curEnd === newDate) { schedRefreshTzOffsets(); return; }
+
+    schedTzSuppressed(function () {
+        safeSetInputValue('endDate', newDate);
+        safeSetInputValue('endDate_weekday', getWeekdayFromDateTime(newDate) || '');
+    });
+
+    // 只把日期写回左侧；右侧保持用户填的那个值，不再正算覆盖
+    // （正算会用"结束日期 + 开始时间"重画，等于把用户输入弹回去，体验上像没生效）
+    const sd = (document.getElementById('startDate') || {}).value || '';
+    if (sd && newDate < sd) {
+        schedTzSetHint('结束日期（' + newDate + '）早于开始日期（' + sd + '），保存前请修正', true);
+    } else {
+        schedRefreshTzOffsets();
+    }
+}
 
  // 1. 加载、显示课程列表
    async function loadAndRenderCourses() { 
@@ -981,6 +1399,16 @@ function renderCourseToList(clist) {
           classForm.selectedIndex = 1;//1p1
         }
 
+       // 切课程后：语言/时长跟着换，员额跟着班级形式换，名称建议也重算。
+       // 这一串原先要用户手动改，现在换课程就自动对齐。
+       await schedLoadTeachingProps(cid);
+       const sitesEl = document.getElementById('availableSites');
+       if (sitesEl) {
+           const dft = getDefaultAvailableSites();
+           if (dft) sitesEl.value = dft;
+       }
+       schedSuggestName();
+
       try {
         scheduleList = await fetchScheduleList(cid);
             // 补全默认状态
@@ -1037,6 +1465,12 @@ async function getCourseFormByCourseId(cid) {
 //更新scheduleObject相关内容 --待细化 --TBD page display
 async function renderSchedule() {
      if (!scheduleObject) return;
+     // 授课语言清单（内置六项 + 本租户自定义）：表单与批量面板都要用它出下拉。
+     // 只在此处等一次——之后同步渲染（含 editSchedule / 批量新增行）都能直接用缓存；
+     // 失败时 workLanguage.js 退回内置六项，不阻塞页面。
+     if (window.WorkLanguageDomain) {
+         try { await window.WorkLanguageDomain.load(); } catch (e) { /* 已内部兜底 */ }
+     }
      //更新已预约人数
 const totalBooked = await getBookingCountByScheduleId(scheduleObject.scheduleId);
 
@@ -1082,8 +1516,19 @@ const totalBooked = await getBookingCountByScheduleId(scheduleObject.scheduleId)
      if (scheduleObject.status) {
         document.getElementById('status').value = scheduleObject.status;
     } else {
-        document.getElementById('status').value = "pending";
+        document.getElementById('status').value = "active";
     }
+
+     // 授课语言 / 课时长度回填：空字符串表示"跟随课程"，不要写成 "null"/"undefined"
+     const langEl = document.getElementById('schedWorkLanguage');
+     if (langEl) langEl.value = scheduleObject.workLanguage || '';
+     const durEl = document.getElementById('schedClassDuration');
+     if (durEl) durEl.value = (scheduleObject.classDuration != null && scheduleObject.classDuration !== '')
+         ? scheduleObject.classDuration : '';
+
+     // 名称是排期已有数据，标记为"非自动"，避免被建议值覆盖
+     const nameEl = document.getElementById('scheduleName');
+     if (nameEl && scheduleObject.name) nameEl.setAttribute('data-auto','0');
 
      // 刷新结束日期
      if (scheduleObject.endDate) {
@@ -1111,6 +1556,10 @@ const totalBooked = await getBookingCountByScheduleId(scheduleObject.scheduleId)
 
      onRepeatTypeChange();
 
+     // 快捷「上课星期」与真实重复星期对齐（打开已有排期时两者必须一致，
+     // 否则用户看到快捷区没勾、以为数据丢了）
+     schedSyncQuickFromWeekDays();
+
      // ===== P0 关键修复：renderSchedule 回填完成后，立即兜底重算时区（不依赖 change 事件）=====
      try {
          if (typeof getTestDatetime === 'function') getTestDatetime();
@@ -1131,29 +1580,39 @@ const totalBooked = await getBookingCountByScheduleId(scheduleObject.scheduleId)
       if (intervalBox) intervalBox.style.display = ( type === 'none') ? 'none' : 'flex';
   } 
    //将当前排期数值为初始值，方便修改
-   function resetSchedule(){
+   async function resetSchedule(){
     resetScheduleObject();
-    renderSchedule();
+    // 必须 await：renderSchedule 里要先查已预订数（网络请求），
+    // 不 await 就去填"跟随课程"的语言/时长，会被它随后写回的空值覆盖 —— 竞态。
+    await renderSchedule();
     // 新建：把「选择排期」下拉复位到默认第一项（请选择课程排期，value=""）
     const scheduleSelect = document.getElementById('scheduleSelect');
     if (scheduleSelect) {
         scheduleSelect.value = "";
     }
     currentScheduleIndex = -1;
-    // 新建时：结束日期默认设置为当前日期 + 30 天
+    // 新建时：结束日期默认设置为当前日期 + 30 天（本地口径）
     const endDateInput = document.getElementById("endDate");
     if (endDateInput) {
-        const d = new Date();
-        d.setDate(d.getDate() + 30);
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const dd = String(d.getDate()).padStart(2, '0');
-        endDateInput.value = `${y}-${m}-${dd}`;
+        endDateInput.value = schedShiftDate(schedLocalToday(), 30);
     }
+    // 快捷「上课星期」清空：新排期不该带着上一条的星期
+    document.querySelectorAll('#quickWeekday input[type="checkbox"]').forEach(function(b){ b.checked = false; });
+    // 名称回到"自动建议"状态
+    const nameEl = document.getElementById('scheduleName');
+    if (nameEl) nameEl.setAttribute('data-auto','1');
+    // 授课语言 / 课时长度：现查课程（课程又来自模板）
+    await schedLoadTeachingProps(activeCourseId);
+    schedSuggestName();
+    const summary = document.getElementById('schedPreviewSummary');
+    if (summary) summary.style.display = 'none';
    }
    
    function resetScheduleObject(){
   // 清理scheduleObject的各个字段
+  // 日期/时间一律走 sched* 系列（本地口径 + 下一个整点）：
+  // 原先这里是本地分量、而页面初始值用 toISOString()（UTC），两套口径并存早晚出事。
+  const _today = schedLocalToday();
   scheduleObject = {
     scheduleId: "",
     name:"",
@@ -1161,48 +1620,28 @@ const totalBooked = await getBookingCountByScheduleId(scheduleObject.scheduleId)
     courseName: "",
     //teacherId: "",
     teacherName: "",
-    startDate: (function() {
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    })(),
-
-    endDate: (function() {
-        // repeatEndDate = startDate + 30 days
-        let startDate = new Date();
-        startDate.setDate(startDate.getDate() + 30);
-        // 格式化为YYYY-MM-DD
-        let month = String(startDate.getMonth() + 1).padStart(2, '0');
-        let day = String(startDate.getDate()).padStart(2, '0');
-        return `${startDate.getFullYear()}-${month}-${day}`;
-    })(),
-
-    startTime: (function() {
-        const now = new Date();
-        const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        return `${hours}:${minutes}`;
-    })(),
-    endTime: (function() {
-        const now = new Date();
-        now.setHours(now.getHours() + 1);
-        const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        return `${hours}:${minutes}`;
-    })(),
+    startDate: _today,
+    endDate: schedShiftDate(_today, 30),
+    startTime: schedNextHour(),
+    endTime: schedNextHour(),
 
     repeatType: 0,
     interval: 1,
     repeatDays: [],
-    status: "pending", 
+    // 默认"已发布"：排期建出来就是要让学生能约的，
+    // 原先默认 pending，用户必须再改一次状态、再存一次才生效。
+    status: "active",
     timeZone:userTimeZone,
-    userTimeZone:userTimeZone ,    
-     availableSites : getDefaultAvailableSites(), 
-     now_availableSites :  getDefaultAvailableSites()
+    userTimeZone:userTimeZone ,
+     availableSites : (getDefaultAvailableSites() || 1),
+     now_availableSites :  (getDefaultAvailableSites() || 1),
+     // 授课语言 / 课时长度留空 = 跟随课程；resetSchedule() 之后会现查课程接口填上。
+     // 注意这里不再给 languageType 赋值：课程/咨询类型是课程属性，排期上不提供入口，
+     // 新建时由后端 inheritTeachingPropsFromCourse 从课程带入即可。
+     workLanguage: "",
+     classDuration: null
 
-};  
+};
 return ;
    }
    //根据班级类型，默认可用座位数
@@ -1218,6 +1657,465 @@ return ;
     }
      const availableSites = sites[selectindex];
      return availableSites;     
+   }
+
+   // ==================== L1/L2 排期操作简化（2026-10-25） ====================
+   // 所有新增函数统一 sched 前缀：本文件是全局脚本（未包 IIFE），
+   // 与其它页面脚本同名会被 JS 静默覆盖，命名空间是最好的防线。
+
+   /** 本地时区的今天（yyyy-MM-dd）。**禁止用 toISOString()**：那是 UTC，
+    *  东八区本地 00:00~07:59 会得到"昨天"，而本文件另有一处用本地分量取值，两份口径必然打架。 */
+   function schedLocalToday(){ return schedLocalDateStr(new Date()); }
+
+   function schedLocalDateStr(d){
+       const y = d.getFullYear();
+       const m = String(d.getMonth()+1).padStart(2,'0');
+       const day = String(d.getDate()).padStart(2,'0');
+       return y + '-' + m + '-' + day;
+   }
+
+   /** 下一个整点（HH:mm）。排课几乎总是整点/半点开始，取当前分钟只会让人每次手动改。 */
+   function schedNextHour(){
+       const d = new Date();
+       d.setHours(d.getHours()+1, 0, 0, 0);
+       return String(d.getHours()).padStart(2,'0') + ':00';
+   }
+
+   const SCHED_WEEK_NAME = {1:'周一',2:'周二',3:'周三',4:'周四',5:'周五',6:'周六',7:'周日'};
+
+   /** 读 yyyy-MM-dd 的星期几（1=周一 … 7=周日）。
+    *  必须按年月日分量构造：new Date('2026-10-24') 会按 UTC 解析，正好错反方向。 */
+   function schedWeekdayOf(dateStr){
+       if (!dateStr || String(dateStr).length < 10) return 0;
+       const p = String(dateStr).split('-');
+       const d = new Date(Number(p[0]), Number(p[1])-1, Number(p[2]));
+       if (isNaN(d.getTime())) return 0;
+       const jsDay = d.getDay();
+       return jsDay === 0 ? 7 : jsDay;
+   }
+
+   /** 从 fromDateStr 起（含当天）往后找最近的星期 target，返回 yyyy-MM-dd。 */
+   function schedNextWeekdayDate(fromDateStr, target){
+       const p = String(fromDateStr || schedLocalToday()).split('-');
+       let d = new Date(Number(p[0]), Number(p[1])-1, Number(p[2]));
+       if (isNaN(d.getTime())) d = new Date();
+       for (let i=0;i<7;i++){
+           const jsDay = d.getDay();
+           const w = (jsDay === 0) ? 7 : jsDay;
+           if (w === Number(target)) return schedLocalDateStr(d);
+           d = new Date(d.getFullYear(), d.getMonth(), d.getDate()+1);
+       }
+       return schedLocalDateStr(d);
+   }
+
+   /** 日期加减天数（本地口径）。 */
+   function schedShiftDate(dateStr, days){
+       if (!dateStr || String(dateStr).length < 10) return '';
+       const p = String(dateStr).split('-');
+       const d = new Date(Number(p[0]), Number(p[1])-1, Number(p[2]));
+       if (isNaN(d.getTime())) return '';
+       d.setDate(d.getDate() + Number(days||0));
+       return schedLocalDateStr(d);
+   }
+
+   /** 快捷区「上课星期」当前勾了哪几天。 */
+   function schedPickedWeekdays(){
+       const out = [];
+       document.querySelectorAll('#quickWeekday input[type="checkbox"]').forEach(function(cb){
+           if (cb.checked) out.push(Number(cb.value));
+       });
+       return out;
+   }
+
+   /** 「上课星期」快捷区 → 驱动重复类型 / 开始日期 / 重复星期。
+    *  这是 L1 里最省事的一步：先想"周几上课"，日期交给系统算。 */
+   function schedQuickWeekdayChange(cb){
+       const typeEl = document.getElementById('repeatType');
+       if (typeEl && typeEl.value !== 'week') {
+           typeEl.value = 'week';
+           if (typeof onRepeatTypeChange === 'function') onRepeatTypeChange();
+       }
+       const picked = schedPickedWeekdays();
+       const sd = document.getElementById('startDate');
+       if (picked.length > 0 && sd) {
+           // 开始日期取「今天（或已填的较晚日期）之后最近的被选星期」
+           const today = schedLocalToday();
+           const base = (sd.value && sd.value > today) ? sd.value : today;
+           let best = '';
+           picked.forEach(function(w){
+               const cand = schedNextWeekdayDate(base, w);
+               if (!best || cand < best) best = cand;
+           });
+           if (best) sd.value = best;
+           // 真正提交的是下面那组复选框，必须同步
+           document.querySelectorAll('#weekDays input[type="checkbox"]').forEach(function(b){
+               b.checked = picked.indexOf(Number(b.value)) >= 0;
+           });
+       }
+       schedSyncWeekdayFromStartDate();
+       schedEnsureEndDate();
+       schedSuggestName();
+   }
+
+   /** 开始日期变化 → 补星期显示；每周重复时自动勾上开始日期那天。
+    *  原先不自动勾，用户设了"每周"却没勾星期，预览出来是空表，还找不到原因。 */
+   function schedSyncWeekdayFromStartDate(){
+       const sd = document.getElementById('startDate');
+       const w = schedWeekdayOf(sd && sd.value);
+       const label = document.getElementById('startDate_weekday');
+       if (label) label.value = w ? SCHED_WEEK_NAME[w] : '';
+
+       const typeEl = document.getElementById('repeatType');
+       if (!typeEl || typeEl.value !== 'week' || !w) return;
+       const boxes = document.querySelectorAll('#weekDays input[type="checkbox"]');
+       let anyChecked = false;
+       boxes.forEach(function(b){ if (b.checked) anyChecked = true; });
+       // 只在"一个都没勾"时补，避免把用户已经勾好的多天覆盖成单天
+       if (!anyChecked) {
+           boxes.forEach(function(b){ b.checked = (Number(b.value) === w); });
+       }
+       schedSyncQuickFromWeekDays();
+   }
+
+   /** 重复星期 → 回填到快捷区（打开已有排期时让快捷区状态与真实数据一致）。 */
+   function schedSyncQuickFromWeekDays(){
+       const picked = [];
+       document.querySelectorAll('#weekDays input[type="checkbox"]').forEach(function(b){
+           if (b.checked) picked.push(Number(b.value));
+       });
+       document.querySelectorAll('#quickWeekday input[type="checkbox"]').forEach(function(b){
+           b.checked = picked.indexOf(Number(b.value)) >= 0;
+       });
+   }
+
+   /** 结束日期为空或早于开始日期时，补成开始日期 + 30 天。 */
+   function schedEnsureEndDate(){
+       const sd = document.getElementById('startDate');
+       const ed = document.getElementById('endDate');
+       if (!sd || !ed || !sd.value) return;
+       if (!ed.value || ed.value < sd.value) {
+           ed.value = schedShiftDate(sd.value, 30);
+       }
+       const label = document.getElementById('endDate_weekday');
+       if (label) {
+           const w = schedWeekdayOf(ed.value);
+           label.value = w ? SCHED_WEEK_NAME[w] : '';
+       }
+   }
+
+   /** 用户手改过名称就停掉自动建议，别把人家起的名字改回去。 */
+   function schedMarkNameManual(){
+       const el = document.getElementById('scheduleName');
+       if (el) el.setAttribute('data-auto','0');
+   }
+
+   /** 建议排期名称：课程名 · 周三 19:00。仅在名称仍是自动值时覆盖。 */
+   function schedSuggestName(){
+       const el = document.getElementById('scheduleName');
+       if (!el || el.getAttribute('data-auto') !== '1') return;
+       const sd = document.getElementById('startDate');
+       const st = document.getElementById('startTime');
+       const w = schedWeekdayOf(sd && sd.value);
+       const sel = document.getElementById('courseSelect');
+       let courseName = '';
+       if (sel && sel.value) {
+           const opt = sel.options[sel.selectedIndex];
+           courseName = opt ? String(opt.innerText || '').trim() : '';
+       }
+       const parts = [];
+       if (courseName) parts.push(courseName);
+       if (w) parts.push(SCHED_WEEK_NAME[w]);
+       if (st && st.value) parts.push(st.value);
+       el.value = parts.join(' · ');
+   }
+
+   /** 读课时长度输入框：空 → null（表示跟随课程）。 */
+   function schedReadDuration(){
+       const el = document.getElementById('schedClassDuration');
+       if (!el || el.value === '') return null;
+       const n = Number(el.value);
+       return (isNaN(n) || n <= 0) ? null : n;
+   }
+
+   /** 拉取课程的授课语言 / 课时长度 / 课程形式，填入排期表单。
+    *  为什么不从课程下拉的 data 属性取：下拉可能来自几分钟前的检索结果，
+    *  课时长度一旦是旧值，保存排期就会把冲突检查用的时长写错。这里按 courseId 现查。
+    *  注意取的是 workLanguage（用哪种语言上课），不是 languageType（课程/咨询类型）。 */
+   async function schedLoadTeachingProps(cid){
+       const langEl = document.getElementById('schedWorkLanguage');
+       const durEl  = document.getElementById('schedClassDuration');
+       if (!langEl && !durEl) return;
+       if (!cid) {
+           if (langEl) langEl.value = '';
+           if (durEl)  durEl.value  = '';
+           return;
+       }
+       try {
+           const props = await request({ url: `/course/teachingProps?courseId=${encodeURIComponent(cid)}` });
+           if (langEl) langEl.value = (props && props.workLanguage) ? props.workLanguage : '';
+           if (durEl)  durEl.value  = (props && props.classDuration) ? props.classDuration : '';
+       } catch (e) {
+           if (langEl) langEl.value = '';
+           if (durEl)  durEl.value  = '';
+       }
+   }
+
+   /** 内联预览摘要（替代"预览后自动跳 Tab"）。 */
+   function schedRenderPreviewSummary(){
+       const box = document.getElementById('schedPreviewSummary');
+       if (!box) return;
+       const list = Array.isArray(scheduleResult) ? scheduleResult : [];
+       box.style.display = 'block';
+       if (list.length === 0) {
+           box.style.background = '#fff1f0';
+           box.style.borderColor = '#ffa39e';
+           box.style.color = '#cf1322';
+           box.innerHTML = '<i class="fa fa-exclamation-circle"></i> 按当前设置展开后没有任何课次，请检查开始/结束日期与重复星期。';
+           return;
+       }
+       const head = list.slice(0, 3).map(function(x){ return x.date + ' ' + x.time; }).join('　');
+       const more = list.length > 3 ? ('　… 共 ' + list.length + ' 个课次') : '';
+       box.style.background = '#f6ffed';
+       box.style.borderColor = '#b7eb8f';
+       box.style.color = '#237804';
+       box.innerHTML = '<i class="fa fa-check-circle"></i> 已生成 <b>' + list.length + '</b> 个课次：' + head + more;
+   }
+
+   // ---------------- L2：复制 / 批量 ----------------
+
+   /** 用一条已有排期拼出「新建」用的 DTO（scheduleId 清空 = 走 create）。 */
+   function schedBuildDtoFromSchedule(src, overrides){
+       const o = overrides || {};
+       const rt = (typeof src.repeatType === 'number') ? src.repeatType : Number(src.repeatType || 0);
+       return {
+           scheduleId: '',
+           courseId: src.courseId || activeCourseId || '',
+           startDate: o.startDate || src.startDate || '',
+           startTime: src.startTime || '',
+           endDate: o.endDate || src.endDate || '',
+           endTime: src.endTime || src.startTime || '',
+           repeatType: isNaN(rt) ? 0 : rt,
+           repeatInterval: src.repeatInterval || src.interval || 1,
+           repeatDays: Array.isArray(src.repeatDays) ? src.repeatDays.slice() : [],
+           timeZone: src.timeZone || userTimeZone,
+           availableSites: src.availableSites || 1,
+           status: src.status || 'active',
+           name: src.name || '',
+           workLanguage: src.workLanguage || '',
+           classDuration: src.classDuration || null
+       };
+   }
+
+   /** 单条落库：先查冲突，再创建。返回 true/false，供批量循环汇总。 */
+   async function schedPersistOne(dto, label){
+       try {
+           const conflicts = await checkScheduleConflict(dto);
+           if (Array.isArray(conflicts) && conflicts.length > 0) {
+               const names = conflicts.map(function(x){
+                   return (x && typeof x === 'object' && x.name) ? x.name : String(x);
+               }).join('，');
+               toast(label + ' 时间冲突，已跳过（与：' + names + '）', false);
+               return false;
+           }
+           const res = await saveScheduleToServer(false, dto);
+           if (res && (res.Id || res.id)) {
+               toast(label + ' 创建成功', true);
+               return true;
+           }
+           toast(label + ' 创建失败', false);
+           return false;
+       } catch (e) {
+           toast(label + ' 创建异常：' + (e && e.message ? e.message : e), false);
+           return false;
+       }
+   }
+
+   /** 复制当前选中的排期，起止日期各 +7 天。 */
+   async function schedCopyCurrentSchedule(){
+       if (!scheduleObject || !scheduleObject.scheduleId) {
+           toast('请先在下拉里选中一条排期，再点复制', false);
+           return;
+       }
+       if (!activeCourseId) { toast('请先选择课程', false); return; }
+       const src = scheduleObject;
+       if (!src.startDate) { toast('该排期没有开始日期，无法复制', false); return; }
+       const newStart = schedShiftDate(String(src.startDate), 7);
+       const newEnd = src.endDate ? schedShiftDate(String(src.endDate), 7) : newStart;
+       const msg = '将复制排期「' + (src.name || '(未命名)') + '」为新的排期：\n\n'
+                 + '开始：' + src.startDate + ' → ' + newStart + '\n'
+                 + '结束：' + (src.endDate || '—') + ' → ' + newEnd + '\n\n确定继续？';
+       if (!confirm(msg)) return;
+       const dto = schedBuildDtoFromSchedule(src, { startDate: newStart, endDate: newEnd });
+       if (await schedPersistOne(dto, '复制 → ' + newStart)) {
+           await loadSchedule();
+       }
+   }
+
+   /** 把该课程「上周（今天-7 ~ 今天-1）起排」的排期各顺延 7 天，批量新建。 */
+   async function schedCopyFromLastWeek(){
+       if (!activeCourseId) { toast('请先选择课程', false); return; }
+       if (!Array.isArray(scheduleList) || scheduleList.length === 0) {
+           toast('该课程还没有任何排期，无法"从上周复制"', false);
+           return;
+       }
+       const today = schedLocalToday();
+       const from = schedShiftDate(today, -7);
+       const to   = schedShiftDate(today, -1);
+       const existStarts = {};
+       scheduleList.forEach(function(s){ if (s && s.startDate) existStarts[String(s.startDate)] = true; });
+
+       const candidates = scheduleList.filter(function(s){
+           const sd = String((s && s.startDate) || '');
+           if (!sd || sd < from || sd > to) return false;
+           // 已删除（frozen）的排期不参与复制：用户明确删过的东西不该被复制回来
+           if (String((s && s.status) || '') === 'frozen') return false;
+           return true;
+       });
+       if (candidates.length === 0) {
+           toast('上周（' + from + ' ~ ' + to + '）没有可复制的排期', false);
+           return;
+       }
+       // 目标起始日已有排期的跳过：这个按钮点两次不该造出一堆重复排期
+       const toCreate = candidates.filter(function(s){
+           const target = schedShiftDate(String(s.startDate), 7);
+           return !existStarts[target];
+       });
+       const skipped = candidates.length - toCreate.length;
+       if (toCreate.length === 0) {
+           toast('上周 ' + candidates.length + ' 条排期的下一周都已有排期，无需复制', false);
+           return;
+       }
+       const msg = '将上周（' + from + ' ~ ' + to + '）的 ' + toCreate.length + ' 条排期各顺延 7 天新建'
+                 + (skipped ? ('（另有 ' + skipped + ' 条因目标日期已有排期而跳过）') : '')
+                 + '。\n\n注意：若某条排期本身是"一条规则重复多周"，复制的是这条规则（日期+7），不是拆开的课次。\n\n确定继续？';
+       if (!confirm(msg)) return;
+
+       let ok = 0, fail = 0;
+       for (let i = 0; i < toCreate.length; i++) {
+           const src = toCreate[i];
+           const dto = schedBuildDtoFromSchedule(src, {
+               startDate: schedShiftDate(String(src.startDate), 7),
+               endDate: src.endDate ? schedShiftDate(String(src.endDate), 7) : ''
+           });
+           if (await schedPersistOne(dto, '顺延 ' + dto.startDate)) ok++; else fail++;
+       }
+       toast('复制完成：成功 ' + ok + ' 条' + (fail ? ('，失败/跳过 ' + fail + ' 条') : ''), ok > 0);
+       await loadSchedule();
+   }
+
+   /** 批量时段弹窗：一次填多行（星期 + 时间 + 员额），串行创建。 */
+   function schedOpenBatchSlots(){
+       if (!activeCourseId) { toast('请先选择课程', false); return; }
+       let mask = document.getElementById('schedBatchMask');
+       if (!mask) {
+           mask = document.createElement('div');
+           mask.id = 'schedBatchMask';
+           mask.className = 'modal-mask';
+           mask.style.display = 'flex';
+           mask.innerHTML =
+               '<div class="modal-box" style="max-width:720px;">'
+             + '  <div class="modal-title">批量时段'
+             + '    <span class="modal-close" onclick="schedCloseBatchSlots()"><i class="fa fa-times"></i></span>'
+             + '  </div>'
+             + '  <div class="modal-body">'
+             + '    <div style="color:#8c8c8c;font-size:12px;margin-bottom:10px;">每行生成一条「每周重复」的排期：星期由行内选择，开始日期自动取「当前开始日期之后最近的该星期」。授课语言 / 课时长度沿用上方表单。</div>'
+             + '    <div id="schedBatchRows"></div>'
+             + '    <button class="btn btn-default" onclick="schedAddBatchRow()" style="margin-top:6px;"><i class="fa fa-plus"></i> 再加一行</button>'
+             + '  </div>'
+             + '  <div class="modal-foot">'
+             + '    <button class="btn" onclick="schedCloseBatchSlots()">取消</button>'
+             + '    <button class="btn btn-primary" onclick="schedSubmitBatch()"><i class="fa fa-save"></i> 批量创建</button>'
+             + '  </div>'
+             + '</div>';
+           document.body.appendChild(mask);
+       }
+       mask.style.display = 'flex';
+       const body = document.getElementById('schedBatchRows');
+       if (body && body.children.length === 0) {
+           schedAddBatchRow(); schedAddBatchRow(); schedAddBatchRow();
+       }
+   }
+
+   function schedCloseBatchSlots(){
+       const mask = document.getElementById('schedBatchMask');
+       if (mask) mask.style.display = 'none';
+   }
+
+   function schedAddBatchRow(){
+       const body = document.getElementById('schedBatchRows');
+       if (!body) return;
+       const row = document.createElement('div');
+       row.className = 'sched-batch-row';
+       row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px;';
+       const opts = Object.keys(SCHED_WEEK_NAME).map(function(k){
+           return '<option value="' + k + '">' + SCHED_WEEK_NAME[k] + '</option>';
+       }).join('');
+       const st = (document.getElementById('startTime') || {}).value || '19:00';
+       const sites = (document.getElementById('availableSites') || {}).value || 1;
+       row.innerHTML =
+           '<select class="batch-weekday" style="flex:0 0 110px;">' + opts + '</select>'
+         + '<input type="time" class="batch-time" value="' + st + '" style="flex:0 0 130px;">'
+         + '<input type="number" class="batch-sites" min="1" value="' + sites + '" style="flex:0 0 90px;" title="员额">'
+         + '<button class="btn btn-default" onclick="this.parentNode.remove()"><i class="fa fa-times"></i></button>';
+       body.appendChild(row);
+   }
+
+   async function schedSubmitBatch(){
+       // 批量行共用「开始日期/结束日期」，同样要先等右侧反算落地
+       await schedTzFlushPending();
+       if (!activeCourseId) { toast('请先选择课程', false); return; }
+       const rows = document.querySelectorAll('#schedBatchRows .sched-batch-row');
+       if (!rows.length) { toast('请至少填一行', false); return; }
+       const today = schedLocalToday();
+       const startDate = ((document.getElementById('startDate') || {}).value) || today;
+       const formEnd   = ((document.getElementById('endDate') || {}).value) || '';
+       const lang = ((document.getElementById('schedWorkLanguage') || {}).value) || '';
+       const dur  = schedReadDuration();
+       const status = ((document.getElementById('status') || {}).value) || 'active';
+       const tz = ((document.getElementById('timeZone') || {}).value) || userTimeZone;
+       const sel = document.getElementById('courseSelect');
+       let courseName = '';
+       if (sel && sel.value) {
+           const opt = sel.options[sel.selectedIndex];
+           courseName = opt ? String(opt.innerText || '').trim() : '';
+       }
+
+       const lines = [];
+       rows.forEach(function(r){
+           const w = Number((r.querySelector('.batch-weekday') || {}).value || 0);
+           const t = (r.querySelector('.batch-time') || {}).value || '';
+           const sites = Number((r.querySelector('.batch-sites') || {}).value || 1);
+           if (w && t) lines.push({ w: w, t: t, sites: sites });
+       });
+       if (!lines.length) { toast('没有有效行（需星期 + 时间）', false); return; }
+       if (!confirm('将创建 ' + lines.length + ' 条排期，确定继续？')) return;
+
+       let ok = 0, fail = 0;
+       for (let i = 0; i < lines.length; i++) {
+           const line = lines[i];
+           const sd = schedNextWeekdayDate(startDate, line.w);
+           const dto = {
+               scheduleId: '',
+               courseId: activeCourseId,
+               startDate: sd,
+               startTime: line.t,
+               endDate: (formEnd && formEnd >= sd) ? formEnd : schedShiftDate(sd, 90),
+               endTime: line.t,
+               repeatType: 2,          // 2 = 每周
+               repeatInterval: 1,
+               repeatDays: [line.w],
+               timeZone: tz,
+               availableSites: line.sites,
+               status: status,
+               name: (courseName ? (courseName + ' · ') : '') + SCHED_WEEK_NAME[line.w] + ' ' + line.t,
+               workLanguage: lang,
+               classDuration: dur
+           };
+           if (await schedPersistOne(dto, SCHED_WEEK_NAME[line.w] + ' ' + line.t)) ok++; else fail++;
+       }
+       toast('批量创建完成：成功 ' + ok + ' 条' + (fail ? ('，失败/跳过 ' + fail + ' 条') : ''), ok > 0);
+       schedCloseBatchSlots();
+       await loadSchedule();
    }
 
    // 可用席位数显示：满额(<=0)时显示“约满”，并在 data-value 保留原始数值供逻辑读取
@@ -1314,6 +2212,15 @@ function refreshUserTzPreview() {
         status:  document.getElementById('status').value,
         timeZone: document.getElementById('timeZone').value, //保持原始时区---排期的时区
         userTimeZone:userTimeZone, //输出时间的时区
+        // 授课语言 / 课时长度：空值一律给空串/null，让后端回落"课程 → 默认"，
+        // 不要在这里填 60，否则"跟随课程"这个语义就没了。
+        // 这里刻意**不传** languageType：排期表单不再暴露「课程/咨询类型」，
+        // 新建时由后端从课程继承，编辑时不传则 updateById 跳过该列、保持原值。
+        workLanguage: (function(){
+            const el = document.getElementById('schedWorkLanguage');
+            return el ? String(el.value || '').trim() : '';
+        })(),
+        classDuration: schedReadDuration(),
         // 根据选择获取repeatDays的数组
         repeatDays: (() => {
             // 仅当repeatType为week/month时读取，其他情况为空数组
@@ -1358,8 +2265,9 @@ function refreshUserTzPreview() {
        }
     renderResult();
     renderCalendar();
-    switchTab('tab-result'); // 预览结果落在「排期结果」面板，自动切过去让结果可见
-    //toast("预览成功");
+    // L1：不再自动切到「排期结果」Tab。来回切 Tab 是整条流程里最影响手感的一步，
+    // 摘要内联在表单下方，要看完整列表点「看完整结果」。
+    schedRenderPreviewSummary();
 }
 
  
@@ -1439,6 +2347,9 @@ function renderResult() {
   // 保存 update or insert 
   //判断是否需要:assignStudentToTheSchedule
   async function saveScheduleToDB() {
+    // 右侧（用户时区）刚改过就点保存时，左侧的反算可能还在路上 —— 先等它落地，
+    // 否则校验和提交用的都是旧日期/时间，排期会落到错误的时刻（网络慢才复现）
+    await schedTzFlushPending();
     if(! checkCourseAndSchedule(false,true))//排期在新建时不判断
         return ;
     //TBD :判断排期是否已经存在---

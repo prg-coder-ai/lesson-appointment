@@ -226,6 +226,29 @@ public class CourseController {
     return Result.success(classForm, "查询成功");
   }
 
+  /**
+   * 取排期表单需要的「课程/咨询类型 · 授课语言 · 课时长度 · 课程形式」（2026-10-25）。
+   *
+   * <p>前端调用: GET /course/teachingProps?courseId=xxx
+   * <p>返回: {"languageType":"english","workLanguage":"french","classDuration":90,"classForm":"1p1"}
+   *
+   * <p>{@code languageType} 是 classType 的 code（显示词需经 sys_term 按行业渲染）；
+   * {@code workLanguage} 才是「用哪种语言上课」的 code（取自 sys_work_language，不经 term）。
+   * 两者语义不同，前端不要把 languageType 当教学语言显示。
+   *
+   * <p>为什么要一个专门的端点，而不是让前端从课程列表里取：排期页的课程下拉可能
+   * 来自不同时间点的缓存（检索后未刷新），课时长度一旦是旧值，保存排期就会把
+   * 冲突检查用的时长写错；这里每次都按 courseId 现查，且带模板回落。
+   */
+  @GetMapping("/teachingProps")
+  @ResponseBody
+  public Result<Map<String, Object>> getTeachingProps(
+          @RequestParam("courseId") String courseId,
+          @RequestHeader("Authorization") String token) {
+    permissionCheck.checkTeacherOrAdmin(token);
+    return Result.success(courseService.getTeachingProps(courseId), "查询成功");
+  }
+
     /**
      * 按月统计已发布课程数
      * 前端调用: GET /course/statistical/byMonth?year=2024&month=6

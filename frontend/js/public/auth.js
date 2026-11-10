@@ -56,6 +56,10 @@
   }
 
   async function handleLogout() {
+    // 【2026-11-05 复核修复 #6】先置「登出中」标志：若此时有并发的 token 刷新请求
+    // 比登出接口更晚返回，utility_request.js 的刷新成功回调会检查该标志、不再把新
+    // token 写回 localStorage，避免「已登出却残留有效凭证」。
+    window.__LOGGING_OUT__ = true;
     // 注意：退出登录不应保留「返回点」。若在此处 saveLoginRedirect，会把退出前所在页
     // （落地页/工作台）存为下次登录后的跳转目标，导致重新登录反而跳回落地页而非角色工作台。
     const refreshToken = STORE.getItem('refreshToken');

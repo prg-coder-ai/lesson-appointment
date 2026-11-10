@@ -133,6 +133,36 @@ public interface UserMapper extends BaseMapper<User> {
                        @Param("phone") String phone,
                        @Param("email") String email,
                        @Param("status") String status);
+
+    /**
+     * 本人自助修改资料：account / name / phone / email + 学员·教师专属字段。
+     * 不写 status / role / password / tenant_id（由 Service 硬锁，杜绝越权）。
+     * 各字段 <if> 仅在非 null 时更新，null 表示"未传，保留原值"。
+     */
+    @Update("<script>"
+          + "UPDATE user "
+          + "<set>"
+          + "  <if test='account != null'>account = #{account},</if>"
+          + "  <if test='name != null'>name = #{name},</if>"
+          + "  <if test='phone != null'>phone = #{phone},</if>"
+          + "  <if test='email != null'>email = #{email},</if>"
+          + "  <if test='learnGoal != null'>learn_goal = #{learnGoal},</if>"
+          + "  <if test='languageLevel != null'>language_level = #{languageLevel},</if>"
+          + "  <if test='qualification != null'>qualification = #{qualification},</if>"
+          + "  <if test='languageType != null'>language_type = #{languageType},</if>"
+          + "  update_time = NOW()"
+          + "</set>"
+          + "WHERE user_id = #{userId}"
+          + "</script>")
+    int updateSelfInfo(@Param("userId") String userId,
+                       @Param("account") String account,
+                       @Param("name") String name,
+                       @Param("phone") String phone,
+                       @Param("email") String email,
+                       @Param("learnGoal") String learnGoal,
+                       @Param("languageLevel") String languageLevel,
+                       @Param("qualification") String qualification,
+                       @Param("languageType") String languageType);
     /**
      * 统计截至某一天指定角色的用户数量
      * @param role 用户角色（如 "teacher", "student"）

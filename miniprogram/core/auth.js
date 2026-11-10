@@ -100,6 +100,19 @@ function wxLoginCode() {
   });
 }
 
+// 【2026-11-05】把「微信不可用」与「账号被明确拒绝」分开：
+// 1001（未绑定 / appsecret 占位 / 微信接口故障）是设计中的静默降级；
+// 400/403/409 是确定的业务结论（待审核、冻结、停用、已注册），必须由登录页提示并停止后续动作。
+// 若一律吞成 null，登录页会继续尝试 wechatRegister 撞 409，最终停在密码表单 ——
+// 而 auto_register 账号的密码是随机 UUID，用户无密码可输也没有任何提示，形成死局。
+function wxBlockedReason(e) {
+  if (!e) return '';
+  const code = e.code || (e.raw && e.raw.code);
+  if (code !== 400 && code !== 403 && code !== 409) return '';
+  return (e.bodyMsg || e.message || (e.raw && (e.raw.message || e.raw.msg)) || '').trim()
+    || '该微信暂无法登录，请联系管理员';
+}
+
 // 静默登录：启动/进登录页时，若无本地会话则尝试用微信 code 免密进系统。
 // 后端未实现 / 该微信未绑定 / 任意异常 → 一律静默返回 null，绝不影响现有密码登录流程。
 export async function wechatSilentLogin() {
@@ -120,7 +133,8 @@ export async function wechatSilentLogin() {
     } catch (e) { /* 术语加载失败不阻断免登录，首页会重新拉取 */ }
     return res;
   } catch (e) {
-    return null;
+    const blocked = wxBlockedReason(e);
+    return blocked ? { blocked } : null;
   }
 }
 
@@ -179,7 +193,14 @@ export async function wechatRegister({ tenantCode, role } = {}) {
     } catch (e) { /* 术语加载失败不阻断，首页会重新拉取 */ }
     return res;
   } catch (e) {
-    return null;
+    // 409「该微信已注册」是确定的结论，不能再静默降级：用户会一直停在密码表单，
+    // 而 auto_register 账号没有密码。给登录页一个可提示的 blocked 态。
+    const code = e && (e.code || (e.raw && e.raw.code));
+    if (code === 409) {
+      return { blocked: '该微信已注册，若账号仍在审核，请等待管理员通过后重试；也可用其他账号密码登录' };
+    }
+    const blocked = wxBlockedReason(e);
+    return blocked ? { blocked } : null;
   }
 }
 
@@ -206,5 +227,22 @@ export async function getWechatStatus() {
     return { bound: !!(res && res.bound), bindSource: (res && res.bindSource) || '' };
   } catch (e) {
     return { bound: false, bindSource: '' };
+  }
+}
+
+// 微信直接注册（auto_register）账号首次设置登录密码：成功后后端把 bind_source 降级为 manual，
+// /auth/unbind-wechat 才放行。这类账号 account=openid、原密码随机，走不了需要原密码的改密接口。
+// 失败时把后端文案透出去（密码强度等），由页面自己决定提示方式。
+export async function setWechatPassword(password) {
+  try {
+    await request({
+      url: ENDPOINTS.AUTH_WECHAT_SET_PASSWORD,
+      method: 'POST',
+      data: { password },
+      customErrorMsg: false
+    });
+    return { ok: true, message: '' };
+  } catch (e) {
+    return { ok: false, message: (e && (e.bodyMsg || e.message)) || '设置失败，请稍后重试' };
   }
 }

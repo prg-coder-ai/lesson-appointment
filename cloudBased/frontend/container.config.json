@@ -1,0 +1,20 @@
+{
+  "_comment": "frontend 服务部署规格。containerPort 必须与 Dockerfile EXPOSE、default.conf.template 的 listen 三者一致（8080，非 root 镜像不能监听 80）",
+  "_comment_env": "★ 部署前必须在 云托管控制台 → 服务设置 → 环境变量 配好下面两项，否则容器启动即失败（00-resolver.sh 非空校验，日志里有中文报错）。内网域名从「服务设置 → 内网访问」复制，必须带端口且端口=该服务发布时填的容器端口；公网兜底则用 https 不带端口。绝不可用 <服务名>.<envid>.svc.cluster.local（微信云托管无此 DNS 记录，实测 NXDOMAIN）。",
+  "_required_env": {
+    "API_UPSTREAM": "http://api-xxxxxxxx.<region>.internal-run.tcloudbase.com:8081",
+    "MSG_UPSTREAM": "http://message-service-xxxxxxxx.<region>.internal-run.tcloudbase.com:8090"
+  },
+  "containerPort": 8080,
+  "dockerfilePath": "Dockerfile",
+  "buildDir": "",
+  "minNum": 1,
+  "maxNum": 10,
+  "cpu": 0.25,
+  "mem": 0.5,
+  "policyType": "cpu",
+  "policyThreshold": 60,
+  "envParams": {},
+  "customLogs": "stdout",
+  "initialDelaySeconds": 5
+}

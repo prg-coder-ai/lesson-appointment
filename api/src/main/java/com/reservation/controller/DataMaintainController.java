@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.reservation.common.CascadeRules;
 import com.reservation.common.Result;
 import com.reservation.entity.Appointment;
+import com.reservation.entity.User;
 import com.reservation.entity.Booking;
 import com.reservation.entity.Course;
 import com.reservation.entity.CourseSchedule;
@@ -12,18 +13,22 @@ import com.reservation.mapper.AppointmentMapper;
 import com.reservation.mapper.BookingMapper;
 import com.reservation.mapper.CourseScheduleMapper;
 import com.reservation.mapper.CourseTemplateMapper;
+import com.reservation.mapper.UserMapper;
 import com.reservation.service.ReferentialCascadeService;
 import com.reservation.utils.PermissionCheck;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -66,6 +71,8 @@ public class DataMaintainController {
     private AppointmentMapper appointmentMapper;
     @Autowired
     private CourseTemplateMapper courseTemplateMapper;
+    @Autowired
+    private UserMapper userMapper;
     @Autowired
     private ReferentialCascadeService cascadeService;
     @Autowired
@@ -187,6 +194,164 @@ public class DataMaintainController {
         return Result.success(rows, "成功清理 " + rows + " 行");
     }
 
+    /**
+     * 清理「已软删」的用户：把 status='delete' 的账号<b>物理删除</b>。
+     *
+     * <p>与其余 purge 端点同一套双闸写法（AuthzRules 声明 + 方法级 {@code checkAdmin}）。
+     *
+     * <p><b>为什么用户只用 'delete'，不纳入 'frozen'</b>：user.status 的 frozen 语义是
+     * "管理员禁用"（可随时改回 active，{@code applyRoleAdmission} 计数也不看 status，
+     * 改回来就是完整的管理员）。把它一起 purge 等于把"临时禁用"悄悄变成"永久消失"。
+     * 只有数据维护页「删除」写下的 delete 才是"用户点过删除、等待清理"。
+     *
+     * <p><b>为什么必须先显式展开下游</b>：见 {@link CascadeRules#SCENARIO_USER_DELETE} 的说明——
+     * 数据库外键只保证课程/预订被 CASCADE 连带删掉，appointment 断在这一层。
+     */
+    @PostMapping("/purge/user")
+    @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
+    public Result<Integer> purgeUser(@RequestHeader("Authorization") String token) {
+        permissionCheck.checkAdmin(token);
+        List<User> dead = userMapper.selectList(
+                new QueryWrapper<User>().in("status", USER_PURGEABLE));
+        if (dead != null && !dead.isEmpty()) {
+            for (User u : dead) {
+                String uid = u.getUserId();
+                if (uid != null && !uid.trim().isEmpty()) {
+                    cascadeDeleteUserChains(uid);
+                }
+            }
+        }
+        int rows = userMapper.delete(new QueryWrapper<User>().in("status", USER_PURGEABLE));
+        return Result.success(rows, "成功清理 " + rows + " 行");
+    }
+
+    /**
+     * 展开某账号的全部下游链：教师角色走「课程 → 排期 → 预订 → 课次」，学生角色走「预订 → 课次」。
+     * 由调用方（而非数据库）完成，是因为 appointment 对 booking 没有外键，CASCADE 到不了课次。
+     */
+    private void cascadeDeleteUserChains(String userId) {
+        List<Course> courses = courseMapper.selectList(
+                new QueryWrapper<Course>().eq("teacher_id", userId));
+        if (courses != null) {
+            for (Course c : courses) {
+                if (c.getCourseId() != null) {
+                    cascadeService.run(CascadeRules.SCENARIO_COURSE_DELETE, c.getCourseId());
+                }
+            }
+        }
+        List<Booking> bookings = bookingMapper.selectList(
+                new QueryWrapper<Booking>().eq("student_id", userId));
+        if (bookings != null) {
+            for (Booking b : bookings) {
+                if (b.getBookingId() != null) {
+                    cascadeService.run(CascadeRules.SCENARIO_BOOKING_DELETE, b.getBookingId());
+                }
+            }
+        }
+    }
+
+    /**
+     * 批量统计「删除某批用户会牵连多少业务数据」，供数据维护页在删除确认框里展示影响面。
+     *
+     * <p>返回 {@code { userId: { courses, bookings, appointments } }}：
+     * courses=作为教师名下的课程数、bookings=作为学生的预订数、
+     * appointments=这些预订下的课次数（appointment 经 booking 两跳统计，见上面链路说明）。
+     *
+     * <p>只读端点，不做任何写操作；租户条件由租户插件自动追加。
+     */
+    @GetMapping("/user/relation-counts")
+    public Result<Map<String, Map<String, Long>>> userRelationCounts(
+            @RequestParam("userIds") String userIds,
+            @RequestHeader("Authorization") String token) {
+        permissionCheck.checkAdmin(token);
+
+        List<String> ids = Arrays.stream(String.valueOf(userIds).split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .distinct()
+                .limit(200)
+                .collect(Collectors.toList());
+
+        Map<String, Map<String, Long>> stat = new java.util.HashMap<>();
+        for (String id : ids) {
+            Map<String, Long> one = new java.util.HashMap<>();
+            one.put("courses", 0L);
+            one.put("bookings", 0L);
+            one.put("appointments", 0L);
+            stat.put(id, one);
+        }
+        if (ids.isEmpty()) {
+            return Result.success(stat, "查询成功");
+        }
+
+        // ① 教师：名下课程数
+        List<Map<String, Object>> courseRows = courseMapper.selectMaps(
+                new QueryWrapper<Course>().select("teacher_id", "COUNT(*) AS cnt")
+                        .in("teacher_id", ids).groupBy("teacher_id"));
+        if (courseRows != null) {
+            for (Map<String, Object> row : courseRows) {
+                mergeCount(stat, row.get("teacher_id"), row.get("cnt"), "courses");
+            }
+        }
+
+        // ② 学生：预订数
+        List<Map<String, Object>> bookingRows = bookingMapper.selectMaps(
+                new QueryWrapper<Booking>().select("student_id", "COUNT(*) AS cnt")
+                        .in("student_id", ids).groupBy("student_id"));
+        if (bookingRows != null) {
+            for (Map<String, Object> row : bookingRows) {
+                mergeCount(stat, row.get("student_id"), row.get("cnt"), "bookings");
+            }
+        }
+
+        // ③ 课次数：appointment 无 user_id 列，先取这批用户的 booking_id，再按 booking_id 归并回用户
+        List<Booking> myBookings = bookingMapper.selectList(
+                new QueryWrapper<Booking>().select("booking_id", "student_id").in("student_id", ids));
+        Map<String, String> bookingToUser = new java.util.HashMap<>();
+        List<String> bookingIds = new java.util.ArrayList<>();
+        if (myBookings != null) {
+            for (Booking b : myBookings) {
+                if (b.getBookingId() == null) {
+                    continue;
+                }
+                bookingIds.add(b.getBookingId());
+                bookingToUser.put(b.getBookingId(), b.getStudentId());
+            }
+        }
+        if (!bookingIds.isEmpty()) {
+            List<Map<String, Object>> apptRows = appointmentMapper.selectMaps(
+                    new QueryWrapper<Appointment>().select("booking_id", "COUNT(*) AS cnt")
+                            .in("booking_id", bookingIds).groupBy("booking_id"));
+            if (apptRows != null) {
+                for (Map<String, Object> row : apptRows) {
+                    Object cnt = row.get("cnt");
+                    Map<String, Long> one = stat.get(bookingToUser.get(String.valueOf(row.get("booking_id"))));
+                    if (one != null && cnt instanceof Number) {
+                        one.put("appointments", one.get("appointments") + ((Number) cnt).longValue());
+                    }
+                }
+            }
+        }
+        return Result.success(stat, "查询成功");
+    }
+
+    /** 把分组计数结果写回统计表：用户不在本次名单内或计数为空时静默跳过 */
+    private static void mergeCount(Map<String, Map<String, Long>> stat, Object keyObj, Object cntObj, String field) {
+        if (keyObj == null || !(cntObj instanceof Number)) {
+            return;
+        }
+        Map<String, Long> one = stat.get(String.valueOf(keyObj));
+        if (one != null) {
+            one.put(field, ((Number) cntObj).longValue());
+        }
+    }
+
     /** 视为「已软删、可被物理清理」的状态集合 */
     private static final List<String> SOFT_DELETED = Arrays.asList("frozen", "delete");
+
+    /**
+     * 用户表的可清理状态：只认 delete。
+     * frozen=管理员禁用（可逆的运维动作），不在此集合内——见 {@code purgeUser} 的说明。
+     */
+    private static final List<String> USER_PURGEABLE = Arrays.asList("delete");
 }

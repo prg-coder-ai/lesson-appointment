@@ -36,11 +36,37 @@ public class CryptoUtil {
     @Value("${crypto.hmac-key}")
     private String hmacKeyBase64;
 
+    /** 等保 P0-1：严格安全模式（与 JwtUtil 共用同一开关，见 application.properties） */
+    @Value("${app.security.strict-mode:false}")
+    private boolean strictMode;
+
+    /** 仓库内示例默认值（严格档下禁止使用；dev/test 档允许） */
+    private static final String AES_KEY_DEMO = "HVwcdqAh5A6nScL+0CRJYhKPLCI8y1FP9blj3BL9L4g=";
+    private static final String HMAC_KEY_DEMO = "Ip0fg8W0iUXc9Iuw/rcsL+DQ3UkJklcATNqjAtwZmMA=";
+
     private SecretKeySpec aesKey;
     private SecretKeySpec hmacKey;
 
     @PostConstruct
     public void init() {
+        if (aesKeyBase64 == null || aesKeyBase64.isBlank()) {
+            throw new IllegalStateException("❌ 启动失败：crypto.aes-key 未注入！必须通过 AES_KEY 环境变量设置。");
+        }
+        if (hmacKeyBase64 == null || hmacKeyBase64.isBlank()) {
+            throw new IllegalStateException("❌ 启动失败：crypto.hmac-key 未注入！必须通过 HMAC_KEY 环境变量设置。");
+        }
+        if (strictMode) {
+            if (AES_KEY_DEMO.equals(aesKeyBase64)) {
+                throw new IllegalStateException(
+                        "❌ 启动失败（strict-mode=true）：crypto.aes-key 使用了仓库内示例默认值！"
+                      + " 生产必须通过 AES_KEY 环境变量注入独立密钥。");
+            }
+            if (HMAC_KEY_DEMO.equals(hmacKeyBase64)) {
+                throw new IllegalStateException(
+                        "❌ 启动失败（strict-mode=true）：crypto.hmac-key 使用了仓库内示例默认值！"
+                      + " 生产必须通过 HMAC_KEY 环境变量注入独立密钥。");
+            }
+        }
         byte[] aesBytes = Base64.getDecoder().decode(aesKeyBase64);
         if (aesBytes.length != 32) {
             throw new IllegalArgumentException("crypto.aes-key 解码后必须为 32 字节（AES-256）");

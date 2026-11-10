@@ -75,14 +75,10 @@
         <i class="fa fa-bullhorn"></i>
         <span>我的推广</span>
       </div>
-      <!-- <div class="menu-item" key="course_review">
-        <i class="fa fa-star-half-o"></i>
-        <span><span data-term="course">课程</span>评价</span>
-      </div>
       <div class="menu-item" key="profile">
         <i class="fa fa-user"></i>
         <span>个人中心</span>
-      </div> -->
+      </div>
       <div class="menu-item" key="legal_view">
         <i class="fa fa-file-contract"></i>
         <span>协议与政策</span>
@@ -265,19 +261,29 @@
           <div class="card-title"><i class="fa fa-book"></i> <span data-term="course">课程</span>选择</div>
           <div class="filter-form" style="display:flex; gap:12px; margin:10px 0 12px; flex-wrap:wrap; align-items:center;">
             <input type="text" id="course-name-input" placeholder="搜索课程名称" style="padding:6px 10px; border:1px solid #d9d9d9; border-radius:4px; min-width:220px;">
+            <select id="course-workLanguage-select" class="course-local-filter" style="padding:6px 10px; border:1px solid #d9d9d9; border-radius:4px;"><option value="">授课语言：全部</option></select>
+            <select id="course-difficulty-select" class="course-local-filter" style="padding:6px 10px; border:1px solid #d9d9d9; border-radius:4px;"><option value="">难度：全部</option></select>
+            <select id="course-classForm-select" class="course-local-filter" style="padding:6px 10px; border:1px solid #d9d9d9; border-radius:4px;"><option value="">授课形式：全部</option></select>
             <button type="button" class="btn" id="btn-search-course"><i class="fa fa-search"></i> 搜索</button>
             <button type="button" class="btn btn-default" id="btn-reset-course"><i class="fa fa-redo"></i> 重置</button>
+            <span id="course-filter-count" style="font-size:12px;color:#888;"></span>
           </div>
-          <div id="courseCardList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin:8px 0 14px;"></div>
+          <div id="courseCardList" style="display:flex;flex-direction:column;gap:10px;margin:8px 0 14px;"></div>
           <div id="coursePagebar"></div>
         </div>
         <hr>
         <div>
-          <div class="form-line" style="display:flex;padding-top:10px;">
+          <div class="form-line" style="display:flex;padding-top:10px;align-items:center;gap:8px;">
             <label>选择排期：</label>
             <select id="scheduleSelect">
               <option value="">请选择排期</option>
             </select>
+            <!-- 2026-10-29：默认只显示 endDate >= 今天的排期；点此切换显示全部（含已结束） -->
+            <button type="button" id="btn-toggle-history"
+                    title="切换是否显示已结束的历史排期"
+                    style="padding:2px 10px;font-size:12px;border:1px solid #d9d9d9;border-radius:4px;background:#fff;cursor:pointer;">
+              🕓 含历史
+            </button>
           </div>
           <div class="section">
             <div class="section-title">排期信息</div>
@@ -368,6 +374,13 @@
               <label>剩余员额：</label>
               <input type="text" id="now_availableSites" value="" data-remaining="" readonly class="readonly" style="width:80px">
             </div>
+            <div class="sched-form-line mf-quota-line">
+              <label>名额占用：</label>
+              <div class="mf-quota-bar" id="quotaBar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                <div class="mf-quota-fill" id="quotaFill"></div>
+              </div>
+              <span class="mf-quota-text" id="quotaText"></span>
+            </div>
           </div>
           <div class="btn-group">
             <button type="button" class="btn-primary" id="previewBtn">预览排期</button>
@@ -405,35 +418,6 @@
   </div>
  
 
-  <!-- 评价弹窗（默认隐藏） -->
-  <div id="evaluation-modal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>评价<span data-term="course">课程</span></h3>
-        <span class="modal-close" onclick="closeEvaluationModal()">×</span>
-      </div>
-      
-      <div class="evaluation-form">
-        <p style="margin-bottom: 10px; font-size: 14px;">请为<span data-term="course">课程</span>评分：</p>
-        <div class="star-rating" id="star-rating">
-          <span class="star active" onclick="selectStar(1)">★</span>
-          <span class="star active" onclick="selectStar(2)">★</span>
-          <span class="star active" onclick="selectStar(3)">★</span>
-          <span class="star active" onclick="selectStar(4)">★</span>
-          <span class="star active" onclick="selectStar(5)">★</span>
-        </div>
-        
-        <p style="margin-bottom: 10px; font-size: 14px;">评价内容：</p>
-        <textarea class="evaluation-textarea" placeholder="请输入您对该课程的评价（不少于10个字）"></textarea>
-        
-        <div style="display: flex; justify-content: flex-end; gap: 10px;">
-          <button class="btn btn-gray" onclick="closeEvaluationModal()">取消</button>
-          <button class="btn btn-primary" onclick="submitEvaluation()">提交评价</button>
-        </div>
-      </div>
-    </div>
-  </div> 
- 
   <script> 
     // 核心变量定义
     const menuItems = document.querySelectorAll('.menu-item');
@@ -487,15 +471,17 @@
           window.applyMenuVisibility();
         }
 
-        // ====== 深链参数解析 ======
-      // URL 形如 student.html?scdid=12355&tid=xxx&sid=xxx
-      // scdid=排期ID, tid=教师ID, sid=学生ID
+      // ====== 深链参数解析 ======
+      // URL 形如 student.html?scdid=12355&cid=xxx&tid=xxx&sid=xxx
+      // scdid=排期ID, cid=课程ID, tid=教师ID, sid=学生ID
+      // 优先级：scdid > cid > tid（三者同时存在时只处理 scdid）
       var dlParams = new URLSearchParams(window.location.search);
       var dlScdid = dlParams.get('scdid') || '';
+      var dlCid   = dlParams.get('cid')   || '';
       var dlTid   = dlParams.get('tid')   || '';
       var dlSid   = dlParams.get('sid')   || '';
-      if (dlScdid || dlTid) {
-        window.pendingDeepLink = { scdid: dlScdid, tid: dlTid, sid: dlSid };
+      if (dlScdid || dlCid || dlTid) {
+        window.pendingDeepLink = { scdid: dlScdid, cid: dlCid, tid: dlTid, sid: dlSid };
         // 直接跳到"课程预订"菜单，不走默认的"今日课程"
         currentMenuitem = 'booking';
         pageTitle.innerHTML = '<span data-term="course">课程</span>预订';
@@ -548,6 +534,9 @@
           window.location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('promo.html') : 'promo.html';
           return;
         // ===== 协议与政策（场景 B）：展示本租户生效版，用户可在其中切换协议 / 隐私政策 =====
+        // 【2026-11-04 改版】原 window.open 新标签页：主页面内容区留白 + 多出一个标签页，
+        // legal.html 里的"关闭"按钮在浏览器里还常因脚本无法关闭非脚本打开的窗口而失效。
+        // 现改为 iframe 内嵌进右侧内容区（embed=1 隐藏其"关闭"按钮），切菜单即离开。
         case 'legal_view':
           (function () {
             var _cu = null;
@@ -555,8 +544,12 @@
             var _tc = (_cu && _cu.tenantCode) || '';
             var _base = (typeof window.pageUrl === 'function') ? window.pageUrl('legal.html') : 'legal.html';
             var _sep = _base.indexOf('?') >= 0 ? '&' : '?';
-            var _url = _base + _sep + 'type=user_agreement' + (_tc ? '&tenant=' + encodeURIComponent(_tc) : '');
-            window.open(_url, '_blank', 'noopener');
+            var _url = _base + _sep + 'type=user_agreement&embed=1' + (_tc ? '&tenant=' + encodeURIComponent(_tc) : '');
+            dynamicContentCenter.innerHTML =
+              '<div class="card" style="padding:0;overflow:hidden;">' +
+              '<iframe src="' + _url + '" title="协议与政策" ' +
+              'style="display:block;width:100%;height:calc(100vh - 150px);min-height:420px;border:0;background:#fff;">' +
+              '</iframe></div>';
           })();
           return;
         case 'today_course':
@@ -611,129 +604,13 @@
           }
           break;
           
-        case 'course_review':
-          dynamicContentCenter.innerHTML = `
-            <div class="card" id="evaluation-card">
-              <h3><i class="fa fa-star-half-o"></i> 我的<span data-term="course">课程</span>评价0待完成</h3>
-              <div id="my-evaluations">
-                <div class="course-card">
-                  <div class="course-info">
-                    <h4>英语初级口语 - <span data-term="classForm1p1">一对一</span></h4>
-                    <p>授课教师：李老师 | 上课时间：2026-03-15 10:00</p>
-                    <p>评分：★★★★★ | 评价时间：2026-03-15 11:00</p>
-                    <p style="margin-top: 5px;">评价内容：李老师讲课非常细致，口语发音纠正很到位，收获很大！</p>
-                  </div>
-                  <div class="course-actions">
-                    <button class="btn btn-gray" onclick="editEvaluation(this)">编辑评价</button>
-                  </div>
-                </div>
-                <div class="course-card">
-                  <div class="course-info">
-                    <h4>日语入门</h4>
-                    <p>授课教师：王老师 | 上课时间：2026-03-10 09:00</p>
-                    <p>评分：★★★★☆ | 评价时间：2026-03-10 10:00</p>
-                    <p style="margin-top: 5px;">评价内容：王老师的日语入门课很易懂，语法讲解清晰，推荐！</p>
-                  </div>
-                  <div class="course-actions">
-                    <button class="btn btn-gray" onclick="editEvaluation(this)">编辑评价</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          `;
-          break;
-          
         case 'profile':
-          dynamicContentCenter.innerHTML = `
-            <div class="card">
-              <h3>个人信息 待完成</h3>
-              <div style="margin-top: 15px; display: flex; gap: 20px;">
-                <div style="width: 80px; height: 80px; border-radius: 50%; background-color: var(--primary-color); color: #fff; text-align: center; line-height: 80px; font-size: 32px;">张</div>
-                <div style="flex: 1;">
-                  <div style="margin-bottom: 10px;">
-                    <span style="color: var(--text-light-color); width: 80px; display: inline-block;">姓名：</span>
-                    <span>张三</span>
-                  </div>
-                  <div style="margin-bottom: 10px;">
-                    <span style="color: var(--text-light-color); width: 80px; display: inline-block;">学号：</span>
-                    <span>2026001</span>
-                  </div>
-                  <div style="margin-bottom: 10px;">
-                    <span style="color: var(--text-light-color); width: 80px; display: inline-block;">电话：</span>
-                    <span>13800138000</span>
-                  </div>
-                  <div style="margin-bottom: 10px;">
-                    <span style="color: var(--text-light-color); width: 80px; display: inline-block;">已预约<span data-term="course">课程</span>：</span>
-                    <span>8节</span>
-                  </div>
-                  <button class="btn btn-primary" style="margin-top: 10px;">编辑信息</button>
-                </div>
-              </div>
-            </div>
-            <div class="card">
-              <h3>账号设置</h3>
-              <div style="margin-top: 15px; padding: 0 20px 20px;">
-                <div style="margin-bottom: 15px;">
-                  <button class="btn btn-gray" style="width: 100%; text-align: left; padding: 10px 15px;">
-                    <i class="fa fa-lock"></i> 修改密码
-                  </button>
-                </div>
-                <div>
-                  <button class="btn btn-gray" style="width: 100%; text-align: left; padding: 10px 15px;">
-                    <i class="fa fa-bell"></i> 消息通知设置
-                  </button>
-                </div>
-              </div>
-            </div>
-          `;
+          if (typeof window.renderStudentProfile === 'function') {
+            window.renderStudentProfile(dynamicContentCenter);
+          }
           break;
       }
     }
-     // 评价弹窗相关函数（保留原有功能）
-    let selectedStarCount = 5; // 默认5星
-    function evaluateCourse(el) {
-      document.getElementById('evaluation-modal').style.display = 'flex';
-      // 重置评分
-      selectedStarCount = 5;
-      updateStarRating();
-      // 清空文本框
-      document.querySelector('.evaluation-textarea').value = '';
-    }
-
-    function closeEvaluationModal() {
-      document.getElementById('evaluation-modal').style.display = 'none';
-    }
-
-    function selectStar(count) {
-      selectedStarCount = count;
-      updateStarRating();
-    }
-
-    function updateStarRating() {
-      const stars = document.querySelectorAll('#star-rating .star');
-      stars.forEach((star, index) => {
-        if (index < selectedStarCount) {
-          star.style.color = 'var(--orange-color)';
-          star.classList.add('active');
-        } else {
-          star.style.color = '#ccc';
-          star.classList.remove('active');
-        }
-      });
-    }
-
-    function submitEvaluation() {
-      const evaluationContent = document.querySelector('.evaluation-textarea').value;
-      if (evaluationContent.length < 10) {
-        alert('评价内容不少于10个字！');
-        return;
-      }
-      
-      alert(`评价提交成功！\n评分：${selectedStarCount}星\n评价内容：${evaluationContent}`);
-      closeEvaluationModal();
-      // 可在此处调用API提交评价数据
-    }
-
     // 我的预约相关函数（保留原有功能）
     function cancelReservation(el) {
       if (confirm('确定要取消该预约吗？取消后将无法恢复！')) {
@@ -753,10 +630,6 @@
       const courseInfo = courseCard.querySelector('.course-info p').textContent;
       alert(`预约详情：\n课程名称：${courseName}\n${courseInfo}\n备注：请提前10分钟进入课堂`);
     }
-
-    function editEvaluation(el) {
-      evaluateCourse(el); // 复用评价弹窗
-    }
   </script>
   
 
@@ -766,12 +639,14 @@
   <script src="js/public/termsFunction.js"></script>
   <script src="js/public/documentTitle.js"></script>
    <script src="js/public/enumTerms.js"></script>
+   <script src="js/public/workLanguage.js"></script>
   <script src="js/public/utility_request.js"></script>
   <!-- 分页组件：提供 Pagination / getPagebar() / renderPagination() / assignLoadobjectListFunction()。
        被 student-bookingCards、student-bookingBrowserCards、admin-AppointmentNotes 依赖，必须先加载。 -->
   <script src="js/public/pagefoot.js"></script>
   <script src="js/public/auth.js"></script>
   <script src="js/public/api.js"></script>
+  <script src="js/public/ui-kit.js"></script>
   <script src="js/public/dataFunctions.js"></script>
   <script src="js/public/courseAndBooking.js"></script>
   <script src="js/public/appointmentNotes.js"></script> 
@@ -779,6 +654,7 @@
   <script src="js/student-bookingCards.js"></script>
   <script src="js/student-bookingBrowserCards.js"></script>
   <script src="js/student-lessonBalance.js"></script>
+  <script src="js/student-profile.js"></script>
   <script src="js/admin-AppointmentNotes.js"></script>
   <script src="js/messages-inbox.js"></script>
 <script> 

@@ -48,7 +48,7 @@
       <div class="menu-item" key="today_course">
         <i class="fa fa-home"></i>
         <span>今日<span data-term="course">课程</span></span>
-      </div>  
+      </div>   
 
       <div class="menu-group-title"><span data-term="course">课程</span>管理</div>
       <div class="menu-item" key="my_course">
@@ -60,6 +60,8 @@
         <i class="fa fa-calendar"></i>
         <span>预订管理</span>
       </div>
+
+      <div class="menu-group-title">个人中心</div>
       <div class="menu-item" key="messages">
         <i class="fa fa-bell"></i>
         <span>消息中心</span>
@@ -68,30 +70,19 @@
         <i class="fas fa-video"></i>
         <span>我的课堂</span>
       </div>
-      <div class="menu-item" key="my_promo">
-        <i class="fa fa-bullhorn"></i>
-        <span>我的推广</span>
+      
+      <div class="menu-item" key="profile">
+        <i class="fa fa-user"></i>
+        <span>个人信息</span>
       </div>
       <div class="menu-item" key="legal_view">
         <i class="fa fa-file-contract"></i>
         <span>协议与政策</span>
       </div>
-      <!-- div class="menu-item">
-        <i class="fa fa-calendar-alt"></i>
-        <span><span data-term="course">课程</span>通知</span>
-      </div -->
-      
-      <!--
-      <div class="menu-item">
-        <i class="fa fa-star"></i>
-        <span><span data-term="student">学生</span>评价</span>
-      </div>
-      
-      <div class="menu-item">
-        <i class="fa fa-user"></i>
-        <span>个人中心</span>
-      </div>
-       -->
+      <div class="menu-item" key="my_promo">
+        <i class="fa fa-bullhorn"></i>
+        <span>我的推广</span>
+      </div> 
     </aside>
 
     <!-- 主内容区域 -->
@@ -480,6 +471,7 @@
           window.location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('promo.html') : 'promo.html';
           return;
         // ===== 协议与政策（场景 B）：展示本租户生效版 =====
+        // 【2026-11-04 改版】同 student.html：window.open 新标签页 → iframe 内嵌右侧内容区。
         case 'legal_view':
           (function () {
             var _cu = null;
@@ -487,78 +479,30 @@
             var _tc = (_cu && _cu.tenantCode) || '';
             var _base = (typeof window.pageUrl === 'function') ? window.pageUrl('legal.html') : 'legal.html';
             var _sep = _base.indexOf('?') >= 0 ? '&' : '?';
-            var _url = _base + _sep + 'type=user_agreement' + (_tc ? '&tenant=' + encodeURIComponent(_tc) : '');
-            window.open(_url, '_blank', 'noopener');
+            var _url = _base + _sep + 'type=user_agreement&embed=1' + (_tc ? '&tenant=' + encodeURIComponent(_tc) : '');
+            dynamicContent.innerHTML =
+              '<div class="card" style="padding:0;overflow:hidden;">' +
+              '<iframe src="' + _url + '" title="协议与政策" ' +
+              'style="display:block;width:100%;height:calc(100vh - 150px);min-height:420px;border:0;background:#fff;">' +
+              '</iframe></div>';
           })();
           return;
         case 'student_review':
+          // T5：原「最新评价」为硬编码 mock（S4 课程评价本轮否决，无真实接口），删除假数据。
           dynamicContent.innerHTML = `
             <div class="card">
               <h3 style="padding: 16px 20px; margin: 0; border-bottom: 1px solid var(--border-color);">最新评价</h3>
               <div style="margin-top: 15px; padding: 0 20px 20px;">
-                <div style="padding: 15px; border-bottom: 1px solid var(--border-color);">
-                  <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span style="font-weight: 600;">张三</span>
-                    <span style="color: #fa8c16;">★★★★★</span>
-                  </div>
-                  <p style="font-size: 14px; color: var(--text-color);">李老师讲课非常细致，口语发音纠正很到位，收获很大！</p>
-                  <p style="font-size: 12px; color: var(--text-light-color); margin-top: 8px;">2026-03-18</p>
-                </div>
-                <div style="padding: 15px; border-bottom: 1px solid var(--border-color);">
-                  <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span style="font-weight: 600;">李四</span>
-                    <span style="color: #fa8c16;">★★★★☆</span>
-                  </div>
-                  <p style="font-size: 14px; color: var(--text-color);">写作技巧讲解很实用，希望能多增加一些范文分析。</p>
-                  <p style="font-size: 12px; color: var(--text-light-color); margin-top: 8px;">2026-03-15</p>
-                </div>
+                <div class="empty-tip">课程评价功能暂未开放。</div>
               </div>
             </div>
           `;
           break;
         case 'profile':
-          dynamicContent.innerHTML = `
-            <div class="card">
-              <h3 style="padding: 16px 20px; margin: 0; border-bottom: 1px solid var(--border-color);">个人信息</h3>
-              <div style="margin-top: 15px; padding: 0 20px 20px; display: flex; gap: 20px;">
-                <div style="width: 80px; height: 80px; border-radius: 50%; background-color: var(--primary-color); color: #fff; text-align: center; line-height: 80px; font-size: 32px;">李</div>
-                <div style="flex: 1;">
-                  <div style="margin-bottom: 10px;">
-                    <span style="color: var(--text-light-color); width: 80px; display: inline-block;">姓名：</span>
-                    <span>李华</span>
-                  </div>
-                  <div style="margin-bottom: 10px;">
-                    <span style="color: var(--text-light-color); width: 80px; display: inline-block;">教龄：</span>
-                    <span>5年</span>
-                  </div>
-                  <div style="margin-bottom: 10px;">
-                    <span style="color: var(--text-light-color); width: 80px; display: inline-block;">擅长：</span>
-                    <span>英语口语、写作</span>
-                  </div>
-                  <div style="margin-bottom: 10px;">
-                    <span style="color: var(--text-light-color); width: 80px; display: inline-block;">评分：</span>
-                    <span style="color: #fa8c16;">4.9分</span>
-                  </div>
-                  <button class="btn btn-primary" style="margin-top: 10px;">编辑信息</button>
-                </div>
-              </div>
-            </div>
-            <div class="card">
-              <h3 style="padding: 16px 20px; margin: 0; border-bottom: 1px solid var(--border-color);">账号设置</h3>
-              <div style="margin-top: 15px; padding: 0 20px 20px;">
-                <div style="margin-bottom: 15px;">
-                  <button class="btn btn-gray" style="width: 100%; text-align: left; padding: 10px 15px;">
-                    <i class="fa fa-lock"></i> 修改密码
-                  </button>
-                </div>
-                <div>
-                  <button class="btn btn-gray" style="width: 100%; text-align: left; padding: 10px 15px;">
-                    <i class="fa fa-bell"></i> 消息通知设置
-                  </button>
-                </div>
-              </div>
-            </div>
-          `;
+          // T5：删除原 mock，改为真实会话渲染（见 teacher-profile.js）
+          if (typeof window.renderTeacherProfile === 'function') {
+            window.renderTeacherProfile(dynamicContent);
+          }
           break;
       }
     }
@@ -570,6 +514,7 @@
    <script src="js/public/termsFunction.js"></script>
    <script src="js/public/documentTitle.js"></script>
    <script src="js/public/enumTerms.js"></script>
+   <script src="js/public/workLanguage.js"></script>
    <!-- 分页组件：提供 Pagination / getPagebar() / renderPagination() / assignLoadobjectListFunction()。
         被 teacher-courseAndScheduleBrowserCards、student-bookingCards、student-bookingBrowserCards、
         admin-AppointmentNotes 依赖，必须先加载。 -->
@@ -577,6 +522,7 @@
    
    <script src="js/public/auth.js"></script> 
    <script src="js/public/api.js"></script> 
+   <script src="js/public/ui-kit.js"></script>
    <script src="js/public/dataFunctions.js"></script> 
    <script src="js/public/courseAndBooking.js"></script>  
    <script src="js/public/appointmentNotes.js"></script>  
@@ -587,6 +533,7 @@
    <!-- script src="js/teacher-course-booking-appointment.js"></script -->// 预订及日期
    <script src="js/admin-AppointmentNotes.js"></script>
    <script src="js/messages-inbox.js"></script>
+   <script src="js/teacher-profile.js"></script>
    <script> 
    </script>
 </body>

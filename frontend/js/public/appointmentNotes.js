@@ -1066,6 +1066,36 @@ async function saveAppointment( appointdata) {
       return   false;
   }
 }
+/**
+ * 安全调用「预订详情」刷新 —— 统一替身，禁止在删/改函数里再出现裸露的
+ * `viewMyReservationDetail(...)` 调用。
+ *
+ * 背景：viewMyReservationDetail 定义在 student-bookingBrowserCards.js（另有 student.html
+ * 的内联同名版本），**只有学生系列页面加载它**；admin.html / 数据维护页没有加载。
+ * 于是「删除/改状态」这类被多处复用的函数一旦执行到这里就抛
+ * ReferenceError: viewMyReservationDetail is not defined，把**已经成功的服务端删除**
+ * 误报成「删除失败」（数据维护删「预定」正是在这里崩的，且崩后连 booking 本体都没删）。
+ *
+ * 契约：这里只做「尽力刷新 UI」，失败一律静默——它绝不参与删除/改状态的结果判定。
+ */
+async function safeRefreshReservationDetail(bookingId) {
+  if (!bookingId) return false;
+  var fn = null;
+  try {
+    if (typeof viewMyReservationDetail === 'function') fn = viewMyReservationDetail;
+    else if (typeof window !== 'undefined' && typeof window.viewMyReservationDetail === 'function') fn = window.viewMyReservationDetail;
+  } catch (e) { fn = null; }
+  if (!fn) return false;                      // 当前页面没有这个 UI 能力，直接跳过
+  try {
+    await fn(bookingId);
+    return true;
+  } catch (e) {
+    // 详情容器可能不在当前页面，或已在改造中失效：刷新失败不影响业务结果
+    console.warn('safeRefreshReservationDetail: 详情刷新失败（已忽略）：', (e && e.message) ? e.message : e);
+    return false;
+  }
+}
+
 async function setApointmentStatusAndReload(bookingId,appointmentId,status){
   if(operateAppointmentStatus==null){
     console.error("operateAppointmentStatus is null, please check if courseAndBooking.js is loaded");
@@ -1079,7 +1109,7 @@ async function setApointmentStatusAndReload(bookingId,appointmentId,status){
    // 直接调 viewMyReservationDetail 会在今日课程上下文里渲染到 null 容器崩溃
    //（2026-09-28 template+clone 改造回归：getElementById('resultBody') 为 null）。
    if (document.getElementById('resultBody')) {
-       viewMyReservationDetail(bookingId);
+       await safeRefreshReservationDetail(bookingId);
        //("resultBody rt2:",bookingId);
    } else if (typeof loadAndShowAppointmentPage === 'function') {
        loadAndShowAppointmentPage();
@@ -1160,7 +1190,7 @@ async function updateAppointmentsStatusByBookingId( bookingId,status) {
           }
       ); 
     //  console.info("appointments:", res );  
-     viewMyReservationDetail(bookingId);
+     await safeRefreshReservationDetail(bookingId);
           return res  ;  
   } catch (e) {        
       console.error(e);
@@ -1179,7 +1209,7 @@ async function deleteAppointmentsByBookingId(bookingId) {
       method: "delete",
       params: { bookingId: bookingId } // 参数名称需与后端一致
     });
-     viewMyReservationDetail(bookingId);
+     await safeRefreshReservationDetail(bookingId);
     return res;
   } catch (e) {
     console.error(e);
@@ -1193,7 +1223,7 @@ async function deleteAppointmentsById(bookingid, appId) {
       const res  = await request({url:`${API_BASE_URL}/course/appointment/delete/${appId}`,
            method:"delete"
       });
- viewMyReservationDetail(bookingid);
+     await safeRefreshReservationDetail(bookingid);
         return res ; 
   } catch (e) {
       //alert("网络错误，获取课程列表失败");

@@ -10,30 +10,46 @@
 
 | 子目录 | 用途 | 是否幂等 | 何时执行 |
 |---|---|---|---|
-| `schema/` | 建库建表（含索引、外键、CHECK 约束） | 是（`DROP TABLE IF EXISTS` + `CREATE`） | 新环境初始化，第1 步 |
-| `seed/` | 系统必需的基础数据（字典、术语、分类） | 否（纯 INSERT，重复执行会主键冲突） | 新环境初始化，第 2 步 |
+| `schema/` | 建库建表（含索引、外键、CHECK 约束） | 是（等保 P0-4：DROP 已注释禁用，`CREATE TABLE IF NOT EXISTS`；仅 10-25 两个补丁里的 `ALTER` 不可重跑，见下） | 新环境初始化，第 1 步 |
+| `seed/` | 系统必需的基础数据（字典、术语、分类、法律文档） | 否（纯 INSERT，重复执行会主键冲突） | 新环境初始化，第 2 步 |
 | `patch/` | 历史增量补丁，**已并入当前 schema** | 各不相同 | 仅供追溯"某约束何时加的"，**新环境不需要执行** |
 
 ## 新环境初始化顺序
+
+> 表数量口径（2026-11-04 核对）：`lesson_appointment` **40 张** =
+> 基线 dump 34 张 + 手写文件 6 张（协议与政策 2 + 登录风控 3 + 授课语言 1）。
+> `message_center` 8 张。**基线 dump 已含 2026-10-25 的三列**
+> （course_template/course/course_schedule 的 language_type + work_language + class_duration），
+> 但 `sys_work_language` 表只在 1700 补丁里定义——所以手写文件一个都不能少。
 
 ```bash
 # 0. 前置：确认密码（勿把密码写进脚本）
 export MYSQL_PWD='<你的密码>'
 
-# 1. 建库建表（主库 + 消息中心，两库独立，可任意顺序）
-mysql -uroot -h127.0.0.1 < sql/schema/20261008-1526-lesson_appointment-schema.sql
-mysql -uroot -h127.0.0.1 < sql/schema/20261008-1527-message_center-schema.sql
+# 1. 建库建表（主库基线 + 消息中心，两库独立，可任意顺序）
+mysql -uroot -h127.0.0.1 < api/sql/schema/20261013-0400-lesson_appointment-schema.sql
+mysql -uroot -h127.0.0.1 < api/sql/schema/20261008-1527-message_center-schema.sql
 
-# 2. 基础数据（术语/行业/套餐/系统配置；消息分类/敏感词/模板）
-mysql -uroot -h127.0.0.1 lesson_appointment < sql/seed/20261008-1527-lesson_appointment-seed-dict-config.sql
-mysql -uroot -h127.0.0.1 message_center   < sql/seed/20261008-1528-message_center-seed-sys.sql
+# 2. 基线之外的 6 张手写表（缺一组，对应功能整组 500）
+mysql -uroot -h127.0.0.1 < api/sql/schema/20261014-legal-doc.sql        # 协议与政策 2 表
+mysql -uroot -h127.0.0.1 < api/sql/schema/20261022-1700-auth-guard.sql  # 登录风控 3 表
+mysql -uroot -h127.0.0.1 < api/sql/schema/20261025-1700-work-language.sql # 授课语言 1 表 + 内置六项种子
+#    ★ 20261025-1500-teaching-lang-duration.sql 新库【跳过】：基线已含目标列，
+#      再跑报 Duplicate column（该文件只服务 2026-10-25 之前的老库升级）。
+#    ★ 1700-work-language.sql 在新库上末尾三条 ALTER 报 Duplicate column 属预期：
+#      建表+种子在文件前部已生效；老库（<2026-10-25）则全量生效。
+
+# 3. 基础数据（术语/行业/套餐/系统配置；消息分类/敏感词/模板；法律文档）
+mysql -uroot -h127.0.0.1 lesson_appointment < api/sql/seed/20261008-1527-lesson_appointment-seed-dict-config.sql
+mysql -uroot -h127.0.0.1 message_center     < api/sql/seed/20261008-1528-message_center-seed-sys.sql
+mysql -uroot -h127.0.0.1 lesson_appointment < api/sql/seed/20261015-legal-doc-seed.sql
 ```
 
 执行完后应满足：
 
-- `lesson_appointment` **29 张表**
-- `message_center` **8 张表**
-- `sys_term` 317 行、`msg_category` 14 行（含 `BOOKING_CREATED` / `BOOKING_CONFIRMED` / `LEAVE_CREATED` 三个业务分类编码，缺了消息一律被拒收）
+- `lesson_appointment` **40 张表**、`message_center` **8 张表**
+- `sys_term` 317 行、`sys_work_language` 内置 6 行（tenant_id=0）、
+  `msg_category` 14 行（含 `BOOKING_CREATED` / `BOOKING_CONFIRMED` / `LEAVE_CREATED` 三个业务分类编码，缺了消息一律被拒收）
 
 验证：
 
@@ -74,6 +90,14 @@ SELECT COUNT(*) FROM information_schema.CHECK_CONSTRAINTS WHERE CONSTRAINT_SCHEM
 | `20260918-0000-course-refund-rule-schema.sql` | 退改规则表 | 是 |
 | `20260920-0000-message_center-sensitive-words-seed.sql` | 敏感词种子 | 是 |
 | `20261008-0000-referential-integrity-cleanup.sql` | 清理悬空课次/流水 + 补课次索引 | 是 |
+| `20261008-2130-appointment-utc.sql` | 预约/课次时间 UTC 化迁移（⚠ 含清空 appointment/booking 的 DELETE，只许在迁移窗口跑） | 是 |
+| `20261011-0100-appointment-refund-snapshot.sql` | 课次退款快照列 | 是 |
+| `20261013-0200/0300-wx-userid/promo-create.sql` | 微信关联表 + 推广三表 | 是 |
+| `20261014-1935/2000-wx-*.sql` | wx_userid 补 unionid、微信登录状态表 | 是 |
+| `20261104-2330-align-course-teaching-cols.sql` | **幂等补列**：按 information_schema 判断后补 `course`/`course_schedule` 的 language_type / class_duration / work_language（10-25 那两份裸 ALTER 撞 Duplicate 就中止，会"只补一半"；老库/半补库用本文件收敛） | 是 |
+
+> 另有 `schema/` 内三个「手写表 + 一个升级补丁」不走 patch/ 目录（它们的表**不在**基线 dump 里）：
+> `20261014-legal-doc.sql`、`20261022-1700-auth-guard.sql`、`20261025-1500/1700-*.sql`，见上文初始化顺序。
 
 ## 规范：约束变更必须回到这里
 

@@ -132,4 +132,20 @@ public class WxUseridService {
                 .eq(WxUserid::getUserId, userId));
         log.info("微信解绑成功, userId={}", userId);
     }
+
+    /**
+     * 把「微信直接注册」的绑定来源降级为 {@code manual}。
+     *
+     * <p>调用前提（由 {@code UserService#setWechatLoginPassword} 保证）：账号已设置可自行使用的
+     * 登录密码。降级后 {@code UserService#unbindWechat} 才会放行 —— 解绑微信不再等于永久失联。
+     * 本表已登记 IGNORE_TABLES，updateById 不会被租户条件误伤。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void markManual(String userId) {
+        WxUserid binding = findByUserId(userId);
+        if (binding == null || "manual".equals(binding.getBindSource())) return;
+        binding.setBindSource("manual");
+        wxUseridMapper.updateById(binding);
+        log.info("微信绑定来源降级为 manual, userId={}", userId);
+    }
 }

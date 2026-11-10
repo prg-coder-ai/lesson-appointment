@@ -64,7 +64,7 @@ async function openEditCourseDialog(CourseJsonStr )
 
     <div class="form-item">
       <label>模板ID <span style="color:red">*</span></label>
-      <select name="templateId" class="form-select" required>
+      <select name="templateId" class="form-select" required onchange="courseSyncTeachingPropsHint()">
       <option value="">请选择模板</option> 
        `;
        //显示，每个模板的内容
@@ -76,6 +76,9 @@ async function openEditCourseDialog(CourseJsonStr )
     }
       formHtml += `</select>
       <div class="form-error" id="templateIdError"></div>
+      <!-- 课程类型 / 授课语言 / 课时长度：由模板决定，创建课程时服务端强制从模板导入（不接受前端另填）。
+           这里只做只读展示，避免用户以为课程上还要再填一遍、或以为可以填成别的值。 -->
+      <div id="courseTeachingPropsHint" style="margin-top:6px;font-size:12px;color:#8c8c8c;"></div>
        </div>
 
     <div class="form-item">
@@ -135,6 +138,39 @@ async function openEditCourseDialog(CourseJsonStr )
   applyTerms(formContainer);
   // 6. 保存表单元素引用
   localParamter.formEl = document.getElementById('CourseForm');
+  // 7. 课程类型 / 授课语言 / 课时长度提示：随模板回显（只读，真正入库由服务端从模板导入）
+  courseSyncTeachingPropsHint();
+}
+
+/**
+ * 课程表单里「课程/咨询类型 · 授课语言 · 课时长度」的只读提示（2026-10-25）。
+ *
+ * <p>为什么不放开成可编辑：模板的唯一键就是 (租户, 类型, 难度)，让课程另填类型
+ * 会产出"模板是英语、课程教日语"这种自相矛盾的数据；而这三个值还要被排期继承、
+ * 被冲突检查读取，口径必须唯一。真正可覆盖的地方是排期（排期表单里可以改）。
+ *
+ * <p><b>两个语言字段必须分开显示</b>：languageType 是 classType 的 code
+ * （课程/咨询类型，显示词随行业变：教育=英语课，法律=劳动咨询）；
+ * workLanguage 才是「用哪种语言上课」（固定枚举，不随行业变）。
+ * 只显示前者会让人以为"法律行业的模板为什么写着劳动"。
+ */
+function courseSyncTeachingPropsHint(){
+  const box = document.getElementById('courseTeachingPropsHint');
+  const sel = localParamter.formEl ? localParamter.formEl.templateId : null;
+  if (!box || !sel) return;
+  const tpl = (Array.isArray(templateList))
+      ? templateList.find(function(t){ return String(t.templateId) === String(sel.value); })
+      : null;
+  if (!tpl) {
+    box.textContent = '课程类型 / 授课语言 / 课时长度：选择模板后自动带入';
+    return;
+  }
+  const typeName = (typeof courseTypeText === 'function') ? courseTypeText(tpl.languageType) : (tpl.languageType || '—');
+  const workName = (!tpl.workLanguage) ? '未指定'
+      : (typeof workLanguageText === 'function' ? workLanguageText(tpl.workLanguage) : tpl.workLanguage);
+  const dur = (tpl.classDuration != null) ? tpl.classDuration : '—';
+  box.textContent = '课程类型：' + typeName + '　授课语言：' + workName + '　课时长度：' + dur
+      + ' 分钟　（随模板自动带入；授课语言与课时可在排期上覆盖）';
 }
 
 // 新增：关闭弹窗函数
@@ -251,7 +287,7 @@ html = `
           <input type="text" id="course-name-input" placeholder="请输入名称">
         </div>
         <div class="filter-item">
-          <label><span data-term="classType">语言类型</span>：</label>
+          <label><span data-term="classType">课程/咨询类型</span>：</label>
           <select id="language-select">
             <option value="">全部</option>
             ${courseTypeOptionsHtml('', { empty: '全部' })}
