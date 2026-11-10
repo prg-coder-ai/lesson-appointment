@@ -9,10 +9,18 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManagerFactory;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.KeyStore;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateFactory;
 import java.time.Duration;
 
 /**
@@ -46,9 +54,89 @@ public class WeChatService {
     private static final String OAUTH_ACCESS_TOKEN_URL = "https://api.weixin.qq.com/sns/oauth2/access_token";
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final HttpClient httpClient = HttpClient.newBuilder()
+
+    /** 微信云托管「云调用」在容器内挂载的自签证书路径（官方文档约定值）。 */
+    private static final String CLOUD_RUN_CERT_PATH = "/app/cert/certificate.crt";
+
+    /**
+     * 默认客户端：直连公网（本地开发 / 非云托管环境走这条）。
+     * 云托管下会在 {@link #initHttpClient()} 里替换成信任平台证书的版本。
+     */
+    private HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
+
+    /**
+     * 云托管「云调用」链路适配（2026-11-10）。
+     *
+     * <p>故障背景：微信绑定接口报
+     * {@code PKIX path building failed: unable to find valid certification path}。
+     * 排查发现容器里 {@code api.weixin.qq.com} 被解析到 {@code 169.254.10.1}，
+     * 拿到的证书 {@code subject}/{@code issuer} 都是 {@code CN=api.weixin.qq.com} ——
+     * 即**平台自签**，不是微信真实的 DigiCert 证书。
+     *
+     * <p>原因（微信云托管官方说明）：为了让容器内的后端能以 HTTPS 访问微信开放接口，
+     * 云调用会在容器内安装一张 api.weixin.qq.com 的自签证书，仅容器内有效；
+     * 系统层面靠 {@code update-ca-certificates} 生效，但 <b>JVM 用的是自己的 truststore，
+     * 不会读系统信任库</b>，所以 curl 能通、Java 不通。官方要求 Java 侧手动导入
+     * {@code /app/cert/certificate.crt}。
+     *
+     * <p>为什么不按官方那条 {@code keytool -importcert} 来：
+     * <ol>
+     *   <li>运行镜像是 JRE，<b>没有 keytool</b>（那是 JDK 的工具）；</li>
+     *   <li>证书是**容器启动时**才挂进来的，构建期导入根本拿不到这个文件。</li>
+     * </ol>
+     * 所以改为启动时在内存里合并：「现有 truststore + 平台证书」→ 专用 SSLContext。
+     *
+     * <p>作用域刻意收窄到本服务的 HttpClient：不做全局放行、不改 JVM 默认 SSLContext，
+     * 其他出网请求（短信、支付等）仍然走正常公网证书校验。
+     */
+    @PostConstruct
+    public void initHttpClient() {
+        Path certFile = Path.of(CLOUD_RUN_CERT_PATH);
+        if (!Files.isReadable(certFile)) {
+            // 本地开发、或该环境没走云调用链路 —— 保持默认客户端即可，不报错
+            return;
+        }
+        try {
+            char[] pwd = "changeit".toCharArray();
+            // 基底必须是镜像里那份合成库（JDK 自带 + 系统 CA），
+            // 路径优先级：启动参数 javax.net.ssl.trustStore → JDK 默认 cacerts
+            KeyStore ks;
+            String tsProp = System.getProperty("javax.net.ssl.trustStore");
+            if (tsProp != null && Files.isReadable(Path.of(tsProp))) {
+                ks = KeyStore.getInstance(Path.of(tsProp).toFile(), pwd);
+            } else {
+                ks = KeyStore.getInstance(
+                        Path.of(System.getProperty("java.home"), "lib", "security", "cacerts").toFile(), pwd);
+            }
+
+            CertificateFactory cf = CertificateFactory.getInstance("X.509");
+            int added = 0;
+            try (InputStream in = Files.newInputStream(certFile)) {
+                for (Certificate c : cf.generateCertificates(in)) {
+                    ks.setCertificateEntry("wechat-cloudrun-" + (added++), c);
+                }
+            }
+            if (added == 0) {
+                log.warn("云托管证书文件 {} 里没有解析出证书，微信接口可能仍然 PKIX 失败", certFile);
+                return;
+            }
+
+            TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            tmf.init(ks);
+            SSLContext ctx = SSLContext.getInstance("TLS");
+            ctx.init(null, tmf.getTrustManagers(), null);
+            this.httpClient = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(5))
+                    .sslContext(ctx)
+                    .build();
+            log.info("已加载云托管自签证书 {} 张（{}），微信接口改走平台网关信任链", added, certFile);
+        } catch (Exception e) {
+            // 绝不因为加载失败把服务启不起来：保持默认客户端，让微信链路自己报错
+            log.warn("加载云托管自签证书失败（{}）：{}", certFile, e.getMessage());
+        }
+    }
 
     /**
      * 启动自检：secret 仍是占位符时大声 WARN。

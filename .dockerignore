@@ -1,0 +1,43 @@
+# ==============================================================================
+# 构建上下文裁剪（以仓库根为上下文的镜像：frontend/Dockerfile）
+#
+# 目标：上传给云托管的源码包尽量小。被排除的目录本镜像都不会 COPY，
+#       排除只是省上传与传输时间，不改变镜像内容。
+#       （api 服务的上下文是 cloudBased/api，不读本文件，互不影响）
+# ==============================================================================
+
+# ---------- 依赖与产物（容器内重新构建）----------
+**/node_modules
+**/dist
+**/target
+**/*.jar
+**/*.zip
+
+# ---------- 版本控制 / IDE ----------
+.git
+.gitignore
+.idea
+.vscode
+*.iml
+
+# ---------- 与本镜像无关的大目录 ----------
+# api 单独部署（上下文 cloudBased/api），这里的源码和 40MB+ 的 jar 不必上传
+api
+cloudBased
+deploy
+doc-api
+doc-develop
+sales
+elearning-service
+tests
+
+# ---------- 文档与杂项 ----------
+# build.js 的 copyAssets() 会把 frontend/ 下的一切复制进 dist，
+# 这些文件不该出现在生产静态站点里
+*.md
+*.orig
+*.py
+*.sql
+*.log
+.DS_Store
+Thumbs.db

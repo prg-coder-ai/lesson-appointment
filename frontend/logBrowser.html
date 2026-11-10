@@ -130,7 +130,9 @@
         return;
       }
       // 租户管理员(admin) 与平台管理员(platform_admin) 均可查看系统日志。
-      // 注：后端 /api/logs/* 只要求认证、不做角色鉴权，此处仅为前端入口守卫。
+      // 后端口径（2026-11-08 核对）：AuthzRules 已把 /api/v1/logs/{tail,date,search,dates}
+      // 登记为 PLATFORM_OR_TENANT_ADMIN，非管理员请求会被授权层拒绝（403），
+      // 此处前端守卫只是提前拦截、少一次无效请求。
       if (user.role !== 'admin' && user.role !== 'platform_admin') {
         document.querySelector('.container').innerHTML =
           '<div class="card"><div class="card-body empty-tip">仅管理员可访问本页面</div></div>';

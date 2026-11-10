@@ -126,3 +126,4 @@ cloudBased/message-service/target/message-service-1.1.0.jar
 # 与 frontend/dist、各 target/ 一样属于构建输出，绝不入库；上传用 deploy/upload-to-server.sh。
 deploy/dist/
 deploy/jars/
+cloudBased/frontend/dist

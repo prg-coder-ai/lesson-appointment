@@ -24,11 +24,11 @@ MSG_DIR="$API_DIR/message-service"
 FE_DIR="$PROJECT_ROOT/frontend"
 CLOUD_API="$PROJECT_ROOT/cloudBased/api"
 CLOUD_MSG="$PROJECT_ROOT/cloudBased/message-service"
-CLOUD_WEB="$PROJECT_ROOT/cloudBased/web"
-# web 的「源文件」在 deploy 下受版本控制；cloudBased/web 是纯暂存目录（.gitignore 已忽略），
-# 构建前由本脚本把源码拷进去。理由：cloudBased/web 里还堆着 dist/、jar、web.zip 等产物，
-# 整目录入库只会制造 diff 噪声与"源码/产物混在一起"的误判。
-WEB_SRC="$PROJECT_ROOT/deploy/nginx/cloudbase-web"
+CLOUD_WEB="$PROJECT_ROOT/cloudBased/frontend"
+# web 的构建上下文就是 cloudBased/frontend 本身（Dockerfile + default.conf.template + dist
+# 都在这个目录里，COPY dist 依赖它）。原先那套「源文件放 deploy/nginx/cloudbase-web、
+# 再拷进暂存目录 cloudBased/web」已废弃 —— 那套是 listen 80 的老镜像（与云托管
+# containerPort 8080 不一致，上线即全站 502），2026-11-08 连同源文件一起删除。
 
 SKIP_FE=0; SKIP_BE=0; SKIP_DOCKER=0; DOCKER_PUSH=0; ENV_ID=""
 for a in "$@"; do
@@ -59,8 +59,13 @@ if [ $SKIP_BE -eq 0 ]; then
     echo "  📦 message-service (message-service-1.1.0.jar) ..."
     (cd "$MSG_DIR" && mvn clean package -DskipTests -q) || fail "message-service Maven 构建失败"
 
-    mkdir -p "$CLOUD_API/target" "$CLOUD_MSG/target"
-    cp "$API_DIR/target/booking-api-2.2.0.jar"     "$CLOUD_API/target/"
+    # ★ 两个服务的落点**故意不同**，别"统一"成同一个路径：
+    #   api/Dockerfile            → COPY booking-api-2.2.0.jar         （构建上下文根目录）
+    #   message-service/Dockerfile → COPY target/message-service-1.1.0.jar
+    # 之前 api 也往 target/ 拷，而 Dockerfile 读的是根目录那份，导致镜像里装的是
+    # 仓库里遗留的旧 jar（改了代码却不生效，排查时极易误判成"代码没编译进去"）。
+    mkdir -p "$CLOUD_API" "$CLOUD_MSG/target"
+    cp "$API_DIR/target/booking-api-2.2.0.jar"     "$CLOUD_API/"
     cp "$MSG_DIR/target/message-service-1.1.0.jar" "$CLOUD_MSG/target/"
 
     ok "后端打包完成"
@@ -114,27 +119,27 @@ if [ $SKIP_DOCKER -eq 0 ]; then
     (cd "$CLOUD_MSG" && docker build -t "booking-message-service:1.1.0" .) || fail "message-service docker build 失败"
     ok "booking-message-service:1.1.0"
 
-    # 两个上游：api（8081）与 message-service（8090）是**两个独立的云托管服务**
-    API_UPSTREAM="http://REPLACE_WITH_API_INTERNAL_HOST:8081"
-    MSG_UPSTREAM="http://REPLACE_WITH_MESSAGE_INTERNAL_HOST:8090"
-    if [ -n "$ENV_ID" ]; then
-        API_UPSTREAM="http://api.$ENV_ID.svc.cluster.local:8081"
-        MSG_UPSTREAM="http://message-service.$ENV_ID.svc.cluster.local:8090"
-    fi
+    # web 的上游地址**不再进镜像**：API_UPSTREAM / MSG_UPSTREAM 走**运行时环境变量**，
+    # 由容器的 00-resolver.sh 在启动时渲染 nginx 配置。所以这里不传 --build-arg，
+    # 换环境/换内网域名只要改控制台环境变量 + 重启实例，同一个镜像可复用。
+    #
+    # ⚠ 部署前必须在 云托管控制台 → 服务设置 → 环境变量 配好这两个，否则容器启动即失败：
+    #   API_UPSTREAM = http://api-xxxxxxxx.<region>.internal-run.tcloudbase.com:8081
+    #   MSG_UPSTREAM = http://message-service-xxxxxxxx.<region>.internal-run.tcloudbase.com:8090
+    #   （内网域名从「内网访问」复制，带端口 8081/8090；公网兜底则 https 不带端口）
+    # ❌ 绝不可用 <服务名>.<envid>.svc.cluster.local —— 微信云托管无此 DNS 记录（实测 NXDOMAIN）
 
-    # web 源文件：deploy/nginx/cloudbase-web → 暂存目录 cloudBased/web（构建上下文必须是这里，
-    # Dockerfile 里的 COPY dist/ 依赖它）。缺文件就在这一步炸，别等到 docker build 报 Dockerfile not found。
-    [ -f "$WEB_SRC/Dockerfile" ]           || fail "缺少 $WEB_SRC/Dockerfile"
-    [ -f "$WEB_SRC/nginx.conf.template" ]  || fail "缺少 $WEB_SRC/nginx.conf.template"
-    cp -f "$WEB_SRC/Dockerfile" "$WEB_SRC/nginx.conf.template" "$CLOUD_WEB/"
-    ok "web 源文件已拷入暂存目录（deploy/nginx/cloudbase-web → cloudBased/web）"
+    # 构建上下文 = cloudBased/frontend（Dockerfile 里的 COPY dist 依赖同目录的 dist/）。
+    # 缺文件就在这一步炸，别等到 docker build 报 Dockerfile not found。
+    [ -f "$CLOUD_WEB/Dockerfile" ]            || fail "缺少 $CLOUD_WEB/Dockerfile"
+    [ -f "$CLOUD_WEB/default.conf.template" ] || fail "缺少 $CLOUD_WEB/default.conf.template"
+    [ -d "$CLOUD_WEB/dist" ]                  || fail "缺少 $CLOUD_WEB/dist（先跑前端构建，别加 --skip-frontend）"
+    ok "web 构建上下文就绪：cloudBased/frontend"
 
-    echo "  🐳 booking-web:latest  (API_UPSTREAM=$API_UPSTREAM  MSG_UPSTREAM=$MSG_UPSTREAM) ..."
-    (cd "$CLOUD_WEB" && docker build \
-        --build-arg "API_UPSTREAM=$API_UPSTREAM" \
-        --build-arg "MSG_UPSTREAM=$MSG_UPSTREAM" \
-        -t "booking-web:latest" .) || fail "web docker build 失败"
+    echo "  🐳 booking-web:latest  (上游走运行时环境变量，构建不需 --build-arg) ..."
+    (cd "$CLOUD_WEB" && docker build -t "booking-web:latest" .) || fail "web docker build 失败"
     ok "booking-web:latest"
+    warn "别忘了在云托管控制台配 API_UPSTREAM / MSG_UPSTREAM 环境变量，缺失会导致容器启动失败"
 
     if [ $DOCKER_PUSH -eq 1 ]; then
         step "Step 3d — 推送镜像到云托管"

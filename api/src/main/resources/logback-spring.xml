@@ -1,23 +1,45 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  api（booking）日志配置
+
+  ★ 2026-11-08 恢复文件日志：`7ab34fa0`（"云部署报错-调整，无效"）把 FILE appender 整段删掉，
+    只留 CONSOLE，导致 logs/spring-boot-app.log 不再生成 —— 依赖它的
+    `/api/v1/logs/{tail,date,search,dates}`（logController）与前端 logBrowser.html 全部失效。
+    本文件按 `a4515e79` 基线原样恢复，不改语义。
+
+  为什么不能只靠 stdout：
+    · 云托管 `customLogs=stdout` 只收 stdout，**文件日志不会进日志面板**；
+      反过来，容器内文件也**不持久**（重启/扩缩容即还原），所以文件日志的用途是：
+      ① 本地 / 服务器部署（systemd）时按日期归档、可按日期回查；
+      ② logBrowser.html 在**同一实例内**读当前日志与归档（跨实例读不到，属已知边界）。
+
+  ⚠️ 路径约定（改之前先看 logController）：
+    logController 里 `LOG_DIR = "./logs"` 是**硬编码**，读的是进程工作目录下的 logs/。
+    所以：不设 LOG_PATH 时（云托管默认，WORKDIR=/app）两边都是 /app/logs，一致；
+    若在服务器上设了 LOG_PATH=/var/log/lesson/api，logback 会写到那里，而 logController
+    仍读 ./logs → 页面读不到（这是既存不一致，未在本轮改动范围内）。
+
+  ⚠️ 为什么文件名必须是 spring-boot-app.log：
+    logController.CURRENT_LOG 与归档匹配规则（`spring-boot-app.<yyyy-MM-dd>.*.log.gz`）
+    都写死了这个名字。改名 = 日志页直接空。
+-->
 <configuration>
-    <!-- ======================== 日志乱码最终防线 ========================
-         即使 Windows 老控制台（conhost/PS5）因代码页 936 显示为乱码，
-         落盘到 logs/ 下的文件仍为标准 UTF-8 中文，便于 notepad++ / VSCode / IDEA 打开查阅。
-         终端显示乱码（鎵嬫満/瀵嗙爜...）不影响 HTTP JSON 响应与落盘日志的正确性。 -->
-    <property name="LOG_CHARSET"  value="UTF-8"/>
-    <property name="LOG_DIR"      value="${LOG_PATH:-./logs}"/>
+    <!-- 落盘必须是标准 UTF-8：终端可能是乱码（Windows 代码页 936），文件不能乱 -->
+    <property name="LOG_CHARSET" value="UTF-8"/>
+    <!-- 认环境变量 LOG_PATH，不认 spring 的 logging.file.name（logback 先于 Spring 初始化） -->
+    <property name="LOG_DIR"     value="${LOG_PATH:-./logs}"/>
+    <!-- [%X{tenantId}] 由 TenantInterceptor 的 MDC.put 填充；非租户上下文时为 [] -->
     <property name="LOG_PATTERN"
               value="%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}  [%X{tenantId}] %-5level %logger{36} : %msg%n"/>
 
-    <!-- 1) 控制台 -->
+    <!-- 1) 控制台（云托管日志面板 / systemd journal 从这里收） -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder charset="${LOG_CHARSET}">
             <pattern>${LOG_PATTERN}</pattern>
-            
         </encoder>
     </appender>
 
-    <!-- 2) 滚动文件（按日期轮转 + 单文件超过 50MB 再按 %i 索引切分；UTF-8 BOM-less 纯文本，保留 30 天） -->
+    <!-- 2) 滚动文件：按日期轮转 + 单文件超 50MB 再按 %i 切分，gzip 归档，保留 30 天 / 总量 5GB -->
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_DIR}/spring-boot-app.log</file>
         <encoder charset="${LOG_CHARSET}">
@@ -32,8 +54,14 @@
         </rollingPolicy>
     </appender>
 
+    <!-- root 挂两个 appender：控制台 + 文件。两处输出内容一致，文件名由上面 logController 约定决定 -->
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="FILE"/>
     </root>
+
+    <!-- SQL 与参数含手机号/邮箱，属个人信息，属合规线不放开。
+         （application.properties 的 logging.level.* 也会被 Spring Boot 应用到 logback，这里是第二道） -->
+    <logger name="com.reservation.mapper" level="ERROR"/>
+    <logger name="org.apache.ibatis" level="ERROR"/>
 </configuration>
