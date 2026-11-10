@@ -17,7 +17,7 @@ App({
     // TODO: 消息服务是**独立云托管服务**，域名与 api 不同，需按实际服务详情页填写：
     //   https://message-service-<envid>.sh.run.tcloudbase.com   （同样不能带 :8090）
     //   未配置时消息中心不可用，但不影响登录。
-    msgBase: 'https://api-329614-8-1475810246.sh.run.tcloudbase.com:8090',
+    msgBase: 'https://message-service-<envid>.sh.run.tcloudbase.com',
 
     // TODO: 前端站点域名（promo 页二维码用），部署 web 服务后填 https 域名
     webBase: 'https://api-329614-8-1475810246.sh.run.tcloudbase.com',
