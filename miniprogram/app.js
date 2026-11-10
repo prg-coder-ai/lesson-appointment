@@ -3,28 +3,21 @@
 import './shared/index.js';
 import './utils/index.js';
 import { setRuntimeConfig } from './shared/constants.js';
+import { resolveEnv } from './config/env.js';
 
 App({
+  // 上游地址不再在此硬编码：onLaunch 时按 envVersion 从 config/env.js 注入。
+  // 此处仅保留结构与非地址类字段（见 config/env.js 顶部注释了解域名约束）。
   globalData: {
-    // ★ 云托管公网入口只能走 443，**不能带 :8081**。
-    //   8081 是容器内端口（Dockerfile EXPOSE / container.config.json containerPort），
-    //   云托管网关不对外映射它 —— 带上会得到 net::ERR_CONNECTION_TIMED_OUT：
-    //   网关直接丢弃目标端口不是 443 的 SYN，所以表现是"一直转圈到超时"，而不是立刻 refused。
-    // ★ 微信小程序只接受 https；request 合法域名不能带端口，去掉 :8081 才能加进白名单。
-    //   旧值（云托管之前直连 ECS）：'http://152.136.254.127:8081'
-    apiBase: 'https://api-329614-8-1475810246.sh.run.tcloudbase.com',
-
-    // TODO: 消息服务是**独立云托管服务**，域名与 api 不同，需按实际服务详情页填写：
-    //   https://message-service-<envid>.sh.run.tcloudbase.com   （同样不能带 :8090）
-    //   未配置时消息中心不可用，但不影响登录。
-    msgBase: 'https://message-service-<envid>.sh.run.tcloudbase.com',
-
-    // TODO: 前端站点域名（promo 页二维码用），部署 web 服务后填 https 域名
-    webBase: 'https://api-329614-8-1475810246.sh.run.tcloudbase.com',
+    apiBase: '',
+    msgBase: '',
+    webBase: '',
     // 登录失效回调：由页面层注入（如跳回登录页）
     onAuthFail: null
   },
   onLaunch() {
-    setRuntimeConfig({ apiBase: this.globalData.apiBase, msgBase: this.globalData.msgBase });
+    const cfg = resolveEnv();
+    Object.assign(this.globalData, cfg);
+    setRuntimeConfig({ apiBase: cfg.apiBase, msgBase: cfg.msgBase });
   }
 });
