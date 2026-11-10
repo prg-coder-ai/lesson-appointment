@@ -59,8 +59,13 @@ if [ $SKIP_BE -eq 0 ]; then
     echo "  📦 message-service (message-service-1.1.0.jar) ..."
     (cd "$MSG_DIR" && mvn clean package -DskipTests -q) || fail "message-service Maven 构建失败"
 
-    mkdir -p "$CLOUD_API/target" "$CLOUD_MSG/target"
-    cp "$API_DIR/target/booking-api-2.2.0.jar"     "$CLOUD_API/target/"
+    # ★ 两个服务的落点**故意不同**，别"统一"成同一个路径：
+    #   api/Dockerfile            → COPY booking-api-2.2.0.jar         （构建上下文根目录）
+    #   message-service/Dockerfile → COPY target/message-service-1.1.0.jar
+    # 之前 api 也往 target/ 拷，而 Dockerfile 读的是根目录那份，导致镜像里装的是
+    # 仓库里遗留的旧 jar（改了代码却不生效，排查时极易误判成"代码没编译进去"）。
+    mkdir -p "$CLOUD_API" "$CLOUD_MSG/target"
+    cp "$API_DIR/target/booking-api-2.2.0.jar"     "$CLOUD_API/"
     cp "$MSG_DIR/target/message-service-1.1.0.jar" "$CLOUD_MSG/target/"
 
     ok "后端打包完成"
