@@ -24,6 +24,26 @@ public final class ClassroomKey {
     private ClassroomKey() {
     }
 
+    /**
+     * 生成课次标识（2026-11-13 补，与课堂侧 {@code ClassroomKey.of} 逐字同规则）。
+     *
+     * <p>预约侧原先只需要解码，所以这里没有编码方法。但「我的课堂」要把课次标识
+     * 交给前端去进课堂/拉讲稿，前端不该自己拼这个串——拼错（如第 1 课次写成
+     * {@code sid~1}）会让课堂服务把它当成另一堂课：进不去，且报「课堂不存在」。
+     *
+     * @param scheduleId 排期 id
+     * @param classIndex 课次序号；null 或 ≤1 返回裸 id（兼容历史数据）
+     */
+    public static String of(String scheduleId, Integer classIndex) {
+        if (scheduleId == null) {
+            return null;
+        }
+        if (classIndex == null || classIndex <= 1) {
+            return scheduleId;
+        }
+        return scheduleId + SEPARATOR + classIndex;
+    }
+
     /** 取排期 id（裸 id 原样返回，带后缀的截掉后缀） */
     public static String scheduleIdOf(String key) {
         if (key == null) {

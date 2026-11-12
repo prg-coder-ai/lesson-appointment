@@ -337,6 +337,9 @@ public final class AuthzRules {
         r.add(new Rule(HttpMethod.POST, "/api/v1/schedule/page", ALL_ROLES, "新增：排期分页（三端共用）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/schedule/selectByCourseId/{courseId}", ALL_ROLES, "新增：按课程查排期（学生约课链路）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/schedule/listByTeacher", ALL_ROLES, "新增：按教师查排期（学生浏览教师）"));
+        // 我的课堂（2026-11-13）：排期 → 课次实例；课次时间不是敏感信息，课堂内容仍由课堂服务逐课次校验
+        r.add(new Rule(HttpMethod.GET, "/api/v1/schedule/class-instances/{scheduleId}", ALL_ROLES, "≡checkAnyLogin 课次实例列表（教师/学生我的课堂）"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/schedule/class-instances/{scheduleId}/sync", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin 补推课堂事件（课堂缺失时同步）"));
 
         r.add(new Rule(HttpMethod.POST, "/api/v1/course/template/insert", TEACHER_OR_ADMIN, "新增：建课程模板"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/course/template/update", TEACHER_OR_ADMIN, "新增：改课程模板"));

@@ -348,6 +348,12 @@ const ENDPOINTS = {
   SCHEDULE_UPDATE_STATUS: '/api/v1/schedule/updateStatus',
   SCHEDULE_INC_SITE: '/api/v1/schedule/incSite',
   SCHEDULE_GENERATE: '/api/v1/schedule/generate',
+  // —— 我的课堂：排期 → 课次实例（2026-11-13）——
+  // 课次展开必须由服务端做（ScheduleInstances 是唯一权威实现），前端只渲染。
+  // 返回项含 classroomKey（第 1 课次为裸 id、第 2 起 `sid~N`），前端拿它进课堂/拉讲稿/查回放。
+  SCHEDULE_CLASS_INSTANCES: (sid) => `/api/v1/schedule/class-instances/${encodeURIComponent(sid || '')}`,
+  // 补推课堂事件：排期在课堂服务里还没有课堂时（如排期建于开通课堂之前）由教师/管理员触发同步
+  SCHEDULE_CLASS_SYNC: (sid) => `/api/v1/schedule/class-instances/${encodeURIComponent(sid || '')}/sync`,
   // —— 课次 / 上课通知（业务端，学生/教师）——
   // 近 N 天课次列表（Web refreshAppointmentNotes 同源）；userId+role 限定当前用户
   APPOINTMENT_LIST_BY_DAYS: (days, userId, role) => {

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>课程准备</title>
+  <link rel="stylesheet" href="js/public/vendor/font-awesome/css/all.min.css">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: #f5f6f8; color: #1f2328; font-size: 13px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    .prep-header {
+      display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: #fff;
+      border-bottom: 1px solid #e3e6ea; position: sticky; top: 0; z-index: 10;
+    }
+    .prep-header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+    .prep-header .spacer { flex: 1; }
+    .prep-header .meta { color: #6b7280; font-size: 12px; }
+    .btn {
+      padding: 6px 14px; border-radius: 6px; border: 1px solid #d0d5dd; background: #fff;
+      color: #1f2328; font-size: 13px; cursor: pointer;
+    }
+    .btn:hover { background: #f2f4f7; }
+    .btn.primary { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+    .btn.primary:hover { background: #388bfd; }
+    .btn.success { background: #28a745; border-color: #28a745; color: #fff; }
+    .btn.success:hover { background: #34c759; }
+    main { padding: 16px 20px 40px; display: grid; grid-template-columns: 1fr 340px; gap: 14px; align-items: start; }
+    @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+    .card { background: #fff; border: 1px solid #e3e6ea; border-radius: 8px; }
+    .card-head {
+      display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+      border-bottom: 1px solid #eef0f3; font-weight: 600;
+    }
+    .card-head .spacer { flex: 1; }
+    .card-body { padding: 12px 14px; }
+    .hint {
+      display: none; margin: 0 0 10px; padding: 10px 14px; border-radius: 6px;
+      background: #fff8e6; border: 1px solid #ffe0a3; color: #8a5a00; font-size: 12.5px;
+    }
+    .kv { display: grid; grid-template-columns: 84px 1fr; gap: 6px 10px; font-size: 12.5px; }
+    .kv .k { color: #6b7280; }
+    .member { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid #f2f4f7; }
+    .member:first-child { border-top: none; }
+    .member .avatar {
+      width: 24px; height: 24px; border-radius: 50%; background: #eef2f7; color: #475569;
+      display: flex; align-items: center; justify-content: center; font-size: 11px;
+    }
+    .member .role { color: #6b7280; font-size: 11px; margin-left: auto; }
+    .tag { display: inline-block; padding: 1px 7px; border-radius: 4px; font-size: 11px; }
+    .tag.upcoming { background: #eaf2ff; color: #1f6feb; }
+    .tag.live { background: #e7f6ec; color: #1a7f37; }
+    .tag.past { background: #f2f4f7; color: #6b7280; }
+  </style>
+</head>
+<body>
+  <header class="prep-header">
+    <button id="btn-back" class="btn"><i class="fas fa-arrow-left"></i> 返回</button>
+    <h1><i class="fas fa-clipboard-list"></i> 课程准备</h1>
+    <span class="meta" id="prep-title">—</span>
+    <span class="spacer"></span>
+    <span class="tag" id="prep-phase" style="display:none;"></span>
+    <button id="btn-sync" class="btn" title="把课次推送到课堂服务（课堂缺失时用）">
+      <i class="fas fa-sync-alt"></i> 同步课堂
+    </button>
+    <button id="btn-enter" class="btn success"><i class="fas fa-video"></i> 进入课堂</button>
+  </header>
+
+  <main>
+    <section class="card">
+      <div class="card-head">
+        <span><i class="fas fa-file-alt"></i> 教学资料</span>
+        <span class="spacer"></span>
+        <span class="meta" id="mat-count" style="color:#6b7280;font-size:12px;"></span>
+      </div>
+      <div class="card-body">
+        <div class="hint" id="prep-hint"></div>
+        <div id="material-host"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><span><i class="fas fa-users"></i> 课堂信息</span></div>
+      <div class="card-body">
+        <div class="kv">
+          <span class="k">课次标识</span><span id="kv-key" style="word-break:break-all;">—</span>
+          <span class="k">上课时间</span><span id="kv-time">—</span>
+          <span class="k">课堂状态</span><span id="kv-status">—</span>
+        </div>
+        <div style="margin-top:12px;font-weight:600;font-size:12.5px;">成员名单</div>
+        <div id="member-host" style="margin-top:4px;color:#999;font-size:12px;">加载中…</div>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/public/vendor/axios.min.js"></script>
+  <script src="js/public/utility_request.js"></script>
+  <script src="js/shared-domain-bridge.js"></script>
+  <script src="js/public/api.js"></script>
+  <script src="js/public/feature-flags.js"></script>
+  <script src="js/public/my-classroom-core.js"></script>
+  <script src="js/classroom/classroom-prep.js"></script>
+</body>
+</html>
