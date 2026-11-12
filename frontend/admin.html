@@ -394,6 +394,15 @@
         case "audit_log":
           window.location.href = ((typeof window.pageUrl === 'function') ? window.pageUrl('auditLog.html') : './auditLog.html');
           break;
+        // ===== 课堂监控（2026-11-13 补）：跳课堂运营台。
+        // 此前本 switch 无该分支，点「课堂监控」只清空内容区 → 右侧空白。
+        // 运营台 classroom-ops.html 已含监控/告警/学情/对账/审核/联调全部页签，
+        // 无需在这里重做一套；它自带登录态与管理员鉴权。
+        case "classroom_monitor":
+          window.location.href = (typeof window.pageUrl === 'function')
+            ? window.pageUrl('classroom-ops.html')
+            : './classroom-ops.html';
+          return;
         // ===== 系统配置：退改规则（免责 / 部分退费 / 不退费的时间点） =====
         case "refund_rule":
           if (typeof renderRefundRulePage === 'function') renderRefundRulePage();//admin-refund-rule.js
@@ -594,6 +603,9 @@
         admin-AppointmentNotes、admin-dataMaintainPage 共同依赖，必须先于它们加载。 -->
    <script src="js/public/pagefoot.js"></script>
    <script src="js/public/auth.js"></script>
+   <!-- 课堂特性开关（2026-11-13 补引）：onload:531 的 applyMenuVisibility() 依赖它，
+        缺这行时 typeof 守卫静默跳过，「课堂监控」菜单不管租户是否开通都照常显示 -->
+   <script src="js/public/feature-flags.js"></script>
    <script src="js/public/api.js"></script>
    <script src="js/public/dataFunctions.js"></script> 
    <script src="js/public/courseAndBooking.js"></script>  

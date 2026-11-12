@@ -761,6 +761,11 @@ async function datamaintain_fetchAppointmenPage(query) {
             // 课次时间：后端若已按 userTimeZone 转好则直接格式化；
             // 未传时区时后端原样返回 UTC，这里用 utcToZoned 兜底按浏览器时区渲染。TBD
             appointmentTime: renderLessonTime(appointment.appointmentDatetime, userTimeZone),
+            // 课堂入口按钮要自己判「未开始/进行中/已结束」——必须拿**原始 UTC 串**，
+            // 不能用上面的格式化串（那是带时区偏移的用户本地时间，再解析会二次偏移）
+            rawDatetime:   appointment.appointmentDatetime,
+            // 单课时长：判定"是否已结束"要 start+课时，缺失时按 60 分钟（与排期默认一致）
+            classDuration: scheduleObject.classDuration,
             status:        appointment.status
         };
     }
@@ -864,8 +869,45 @@ async function datamaintain_fetchAppointmenPage(query) {
     }
     return status;
    }
+   /* ============================================================
+    * 今日课程行内的课堂入口按钮（2026-11-13）
+    * ------------------------------------------------------------
+    * 按课次阶段给不同动作：
+    *   未开始 → 学生「进入课程」/ 教师「课程准备 + 进入课程」
+    *   进行中 → 双方「进入课程」
+    *   已结束 → 双方「课程回看」
+    * 阶段由 **原始 UTC 时间 + 课时** 判定（见 MyClassroomCore.classroomPhase）。
+    * 不用 appointment.status 判"已结束"：那个状态要靠课堂下课回调回流，
+    * 课堂服务没跑起来时永远是 active，会出现「课上完了还显示进入课程」。
+    * 已取消/拒绝/删除的预约不给入口 —— 课堂服务那边也没这堂课。
+    * ============================================================ */
+   function classroomButtonsFor(cardInfo, role) {
+      var C = window.MyClassroomCore;
+      if (!C || typeof C.buildEntryButtons !== 'function' || !cardInfo) return '';
+      if (role !== 'student' && role !== 'teacher') return '';
+      var key = C.classroomKeyOf(cardInfo.scheduleId, cardInfo.classIndex);
+      var phase = C.classroomPhase(cardInfo.rawDatetime, cardInfo.classDuration);
+      return C.buildEntryButtons({
+        classroomKey: key,
+        role: role,
+        phase: phase,
+        status: cardInfo.status
+      });
+   }
+
+   /** 教师聚合行：组内学生状态可能不同（有人取消有人正常），取第一个仍有效的课次做入口目标 */
+   function pickEntryItem(items) {
+      if (!Array.isArray(items) || !items.length) return null;
+      var C = window.MyClassroomCore;
+      if (C && typeof C.isClassroomEligible === 'function') {
+        for (var i = 0; i < items.length; i++) {
+          if (C.isClassroomEligible(items[i].status)) return items[i];
+        }
+      }
+      return items[0];
+   }
+
    function formAppointmentTr(cardInfo) {
-    
      const info = `
           <tr>
               <td>   ${cardInfo.index}</td>
@@ -924,6 +966,7 @@ async function datamaintain_fetchAppointmenPage(query) {
                   `
                : ` `
            }
+             ${classroomButtonsFor(cardInfo, userRole)}
               </td>
               </tr>
      `; 
@@ -984,6 +1027,12 @@ async function datamaintain_fetchAppointmenPage(query) {
               <td>    ${statusStr}</td>
               <td class="course-info">
                 ${rescheduleBtn}
+                ${(function () {
+                    // 聚合行代表「同一排期 + 同一天」的全部课次；课堂入口按其中一个有效课次给
+                    // （教师视角：未开始给「课程准备」，已结束给「课程回看」）
+                    var target = pickEntryItem(items);
+                    return target ? classroomButtonsFor(target, 'teacher') : '';
+                })()}
                              </td>
               </tr>
        `;

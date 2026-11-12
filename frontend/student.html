@@ -609,6 +609,26 @@
             window.renderStudentProfile(dynamicContentCenter);
           }
           break;
+
+        // ===== 我的课堂（2026-11-13 补）=====
+        // 此前本 switch 无该分支：点击菜单先清空内容区，再静默落到末尾 → 右侧一片空白。
+        // 实现见 js/student-myClassroom.js：我的预约 → 课次 → 资料 / 进入课堂 / 回放。
+        case 'my_classroom':
+          if (typeof window.renderStudentClassroomPage === 'function') {
+            window.renderStudentClassroomPage();
+          } else {
+            dynamicContentCenter.innerHTML = '<div class="card"><div class="empty-tip">'
+              + '课堂页面脚本未加载（js/student-myClassroom.js），请刷新页面重试。</div></div>';
+          }
+          break;
+
+        // 兜底：未实现的菜单不再静默空白
+        default:
+          dynamicContentCenter.innerHTML = '<div class="card"><div class="empty-tip">'
+            + '「' + (document.querySelector('.menu-item.active span')
+              ? document.querySelector('.menu-item.active span').textContent : key)
+            + '」功能暂未开放。</div></div>';
+          break;
       }
     }
     // 我的预约相关函数（保留原有功能）
@@ -644,6 +664,9 @@
   <!-- 分页组件：提供 Pagination / getPagebar() / renderPagination() / assignLoadobjectListFunction()。
        被 student-bookingCards、student-bookingBrowserCards、admin-AppointmentNotes 依赖，必须先加载。 -->
   <script src="js/public/pagefoot.js"></script>
+  <!-- 课堂特性开关（2026-11-13 补引）：onload 里的 applyMenuVisibility() 依赖它，
+       缺这行时 typeof 守卫会静默跳过，「我的课堂」菜单不看租户开关一律显示 -->
+  <script src="js/public/feature-flags.js"></script>
   <script src="js/public/auth.js"></script>
   <script src="js/public/api.js"></script>
   <script src="js/public/ui-kit.js"></script>
@@ -653,6 +676,8 @@
   
   <script src="js/student-bookingCards.js"></script>
   <script src="js/student-bookingBrowserCards.js"></script>
+  <script src="js/public/my-classroom-core.js"></script>
+  <script src="js/student-myClassroom.js"></script>
   <script src="js/student-lessonBalance.js"></script>
   <script src="js/student-profile.js"></script>
   <script src="js/admin-AppointmentNotes.js"></script>
