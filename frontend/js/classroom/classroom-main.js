@@ -14,6 +14,12 @@
   // 端点常量统一取自 shared/apiPaths.js（经 js/shared-domain-bridge.js 挂到 window.ApiPaths）。
   // classroom.html 必须先加载 shared-domain-bridge.js，否则 EP 为空 → URL 拼出 undefined。
   var EP = (window.ApiPaths && window.ApiPaths.ENDPOINTS) || {};
+  // 课堂 URL 统一经 api.js 的 window.classroomUrl 归一化：apiBaseUrl 已含 /api/v1，
+  // 而 EP 常量也自带 /api/v1，直接相加会拼出 /api/v1/api/v1/... → 404。
+  var urlOf = function (base, path) {
+    return typeof window.classroomUrl === 'function'
+      ? window.classroomUrl(base, path) : (base || '') + path;
+  };
   var ROLE_HOME = {
     admin: 'admin.html',
     teacher: 'teacher.html',
@@ -480,7 +486,7 @@
     /** 真上传：XHR（要进度）+ multipart；上传成功后服务端落对象存储并返回签名 URL */
     _uploadSubmission: function (ctx, file, type, content, durationSec, progressEl, modal) {
       var self = this;
-      var url = (ctx.apiBaseUrl || '') + EP.CLASSROOM_SUBMISSION_FILE(ctx.scheduleId);
+      var url = urlOf(ctx.apiBaseUrl, EP.CLASSROOM_SUBMISSION_FILE(ctx.scheduleId));
       var form = new FormData();
       form.append('file', file);
       form.append('submissionType', type);

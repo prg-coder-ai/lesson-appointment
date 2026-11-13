@@ -13,6 +13,11 @@
 (function () {
   // 端点常量统一取自 shared/apiPaths.js（经 js/shared-domain-bridge.js 挂到 window.ApiPaths）
   var EP = (window.ApiPaths && window.ApiPaths.ENDPOINTS) || {};
+  // 见 api.js#window.classroomUrl：避免 apiBaseUrl(/api/v1) + EP(/api/v1/...) 双前缀 404
+  var urlOf = function (base, path) {
+    return typeof window.classroomUrl === 'function'
+      ? window.classroomUrl(base, path) : (base || '') + path;
+  };
   var ClassroomMaterial = {
     ctx: null,
     state: null,       // { materialId, fileName, fileType, url, page }
@@ -157,7 +162,7 @@
       var max = 100 * 1024 * 1024;
       if (file.size > max) { this._toast('文件超过 100MB，请拆分或压缩后再传'); return; }
 
-      var url = (this.ctx.apiBaseUrl || '') + EP.CLASSROOM_MATERIAL_FILE(this.ctx.scheduleId);
+      var url = urlOf(this.ctx.apiBaseUrl, EP.CLASSROOM_MATERIAL_FILE(this.ctx.scheduleId));
       var form = new FormData();
       form.append('file', file);
 

@@ -8,6 +8,11 @@
   // 端点常量统一取自 shared/apiPaths.js（经 js/shared-domain-bridge.js 挂到 window.ApiPaths）。
   // classroom-ops.html 必须先加载 shared-domain-bridge.js，否则 EP 为空 → 请求打到 "undefined"。
   var EP = (window.ApiPaths && window.ApiPaths.ENDPOINTS) || {};
+  // 见 api.js#window.classroomUrl：避免 apiBaseUrl(/api/v1) + EP(/api/v1/...) 双前缀 404
+  var urlOf = function (base, path) {
+    return typeof window.classroomUrl === 'function'
+      ? window.classroomUrl(base, path) : (base || '') + path;
+  };
   var Ops = {
     base: '',
     tab: 'monitor',
@@ -29,7 +34,7 @@
 
     // ---------------- 基础设施 ----------------
     api: function (path, method, data) {
-      return window.request({ url: this.base + path, method: method || 'get', data: data });
+      return window.request({ url: urlOf(this.base, path), method: method || 'get', data: data });
     },
 
     toast: function (msg) {
@@ -300,7 +305,7 @@
       var self = this;
       var from = (document.getElementById('rep-from') || {}).value;
       var to = (document.getElementById('rep-to') || {}).value;
-      var url = this.base + EP.CLASSROOM_ADMIN_EXPORT(type) +
+      var url = urlOf(this.base, EP.CLASSROOM_ADMIN_EXPORT(type)) +
         '?from=' + encodeURIComponent(from || '') + '&to=' + encodeURIComponent(to || '');
       fetch(url, { headers: { Authorization: 'Bearer ' + (localStorage.getItem('token') || '') } })
         .then(function (r) {
