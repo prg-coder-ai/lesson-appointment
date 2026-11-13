@@ -276,11 +276,11 @@ html, body {
 #wb-size::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #1f6feb; border: 2px solid #c9d1d9; }
 
 #whiteboard-canvas {
-  flex: 1 1 auto;
-  width: 100%;
+  display: block;
+  margin: auto;             /* 与 JS 配合：在白板区内 letterbox 居中（保持固定纵横比） */
   cursor: crosshair;
   touch-action: none;
-  min-height: 0;
+  background: #fff;
 }
 
 /* 占位 */
