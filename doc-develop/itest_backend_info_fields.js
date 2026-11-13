@@ -21,9 +21,11 @@
 'use strict';
 const fs = require('fs');
 const vm = require('vm');
+const path = require('path');
 
 const BASE = process.env.ITEST_BASE || 'http://127.0.0.1:8080';
-const DIST = 'C:/Users/Administrator/WorkBuddy/2026-08-30-17-19-24/frontend/dist';
+// 仓库自定位：本脚本在 doc-develop/，frontend/dist 是仓库根的兄弟目录（迁盘后无需改）
+const DIST = path.resolve(__dirname, '..', 'frontend', 'dist');
 
 let pass = 0, fail = 0;
 const failures = [];

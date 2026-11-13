@@ -1,6 +1,8 @@
 const fs = require('fs');
 const vm = require('vm');
-const root = 'C:/Users/Administrator/WorkBuddy/2026-08-30-17-19-24/api/beforeRun/dist/';
+const path = require('path');
+// 仓库自定位：本脚本在仓库根，api/beforeRun/dist 相对它解析（迁盘后无需改）
+const root = path.resolve(__dirname, 'api/beforeRun/dist') + path.sep;
 const idx = fs.readFileSync(root + 'index.html', 'utf8');
 const landing = fs.readFileSync(root + 'student-landing.html', 'utf8');
 const login = fs.readFileSync(root + 'login.html', 'utf8');

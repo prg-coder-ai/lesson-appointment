@@ -13,7 +13,11 @@
 # ============================================================================
 set -e
 
-API="C:/Users/Administrator/WorkBuddy/2026-08-30-17-19-24/api"
+# 项目路径自定位：取脚本自身所在目录（=api/），不写死盘符。
+# 2026-11-13 仓库从 C:/Users/Administrator/WorkBuddy 迁到 G:/WorkBuddy，
+# 原先硬编码的 API="C:/Users/..." 会让脚本在旧路径不存在时静默失败。
+# 用 pwd -W 拿 Windows 风格路径（Git Bash 下 POSIX /g/... 传给 Maven 会被错转）。
+API="$(cd "$(dirname "${BASH_SOURCE[0]}")" && { pwd -W 2>/dev/null || pwd; })"
 TMP="C:/Temp"
 JAVA="C:/Program Files/Eclipse Adoptium/jdk-21.0.8.9-hotspot/bin/java"
 BOOT="C:/Program Files/apache-maven-3.9.11/boot/plexus-classworlds-2.9.0.jar"

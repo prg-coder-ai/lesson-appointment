@@ -13,8 +13,10 @@
 'use strict';
 const fs = require('fs');
 const vm = require('vm');
+const path = require('path');
 
-const SRC = 'C:/Users/Administrator/WorkBuddy/2026-08-30-17-19-24/frontend';
+// 仓库自定位：本脚本在 doc-develop/，frontend 是仓库根的兄弟目录（迁盘后无需改）
+const SRC = path.resolve(__dirname, '..', 'frontend');
 const TCODE = 'TNT-8848';
 const TCODE_ENC = encodeURIComponent(TCODE);
 const API_JS = SRC + '/js/public/api.js';

@@ -2,8 +2,10 @@
 // 加载真实 frontend/js/messages-inbox.js，stub EventSource 抓取 SSE URL，验证不再直连 :8090
 const { JSDOM } = require('C:/Users/Administrator/.workbuddy/binaries/node/workspace/node_modules/jsdom');
 const fs = require('fs');
+const path = require('path');
 
-const SRC = fs.readFileSync('C:/Users/Administrator/WorkBuddy/2026-08-30-17-19-24/frontend/js/messages-inbox.js', 'utf8');
+// 仓库自定位：本脚本在 doc-develop/，frontend 是仓库根的兄弟目录（迁盘后无需改）
+const SRC = fs.readFileSync(path.resolve(__dirname, '..', 'frontend', 'js', 'messages-inbox.js'), 'utf8');
 
 const log = [];
 let pass = 0, fail = 0;

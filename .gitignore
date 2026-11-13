@@ -152,6 +152,8 @@ cloudBased/frontend/dist
 # 合并工具产生的备份文件
 *.orig
 node_modules
+__pycache__/
+*.pyc
 deploy/deploy-keys.txt
 # 部署密钥文件（含 AES_KEY/HMAC_KEY/JWT_SECRET），任何目录下都不得入库
 # 原规则只写了 deploy/ 前缀，cloudBased/deploy-keys.txt 一直裸奔在未跟踪列表里

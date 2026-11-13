@@ -1,6 +1,7 @@
-import re, hmac, hashlib, base64, json, time, urllib.request, urllib.error
+import re, hmac, hashlib, base64, json, time, os, urllib.request, urllib.error
 
-PROPS = r"C:/Users/Administrator/WorkBuddy/2026-08-30-17-19-24/api/src/main/resources/application.properties"
+# 仓库自定位：本脚本在 doc-develop/，api/src/main/resources 在仓库根（迁盘后无需改）
+PROPS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "api", "src", "main", "resources", "application.properties")
 props = open(PROPS, encoding="utf-8").read()
 secret = re.search(r"^\s*jwt\.secret=(\S+)", props, re.MULTILINE).group(1)
 print("secret len =", len(secret))

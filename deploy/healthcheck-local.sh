@@ -63,8 +63,11 @@ fi
 # ------------------------------------------------------------
 #  打开 PowerShell（管理员）执行一次即可，之后开机自启、关机/重启都不丢：
 #
-#    schtasks /Create /TN "lesson-healthcheck" /TR "C:\Program Files\Git\bin\bash.exe C:\Users\Administrator\WorkBuddy\2026-08-30-17-19-24\deploy\healthcheck-local.sh" ^
+#    schtasks /Create /TN "lesson-healthcheck" /TR "C:\Program Files\Git\bin\bash.exe G:\WorkBuddy\2026-08-30-17-19-24\deploy\healthcheck-local.sh" ^
 #             /SC MINUTE /MO 5 /F
+#
+#  注意：脚本路径随仓库所在盘变化（2026-11-13 由 C:\Users\Administrator\WorkBuddy 迁到 G:\WorkBuddy）。
+#        已注册过计划任务的话需用 /Delete 后重新 /Create，否则仍指向旧路径。
 #
 #  手动立即跑一次：
 #    schtasks /Run /TN "lesson-healthcheck"

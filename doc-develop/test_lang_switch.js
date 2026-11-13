@@ -11,7 +11,8 @@ const fs = require('fs');
 const path = require('path');
 const { JSDOM } = require('C:/Users/Administrator/.workbuddy/binaries/node/workspace/node_modules/jsdom');
 
-const FRONTEND = 'C:/Users/Administrator/WorkBuddy/2026-08-30-17-19-24/frontend/js/public';
+// 仓库自定位：本脚本在 doc-develop/，frontend/js/public 在仓库根（迁盘后无需改）
+const FRONTEND = path.resolve(__dirname, '..', 'frontend', 'js', 'public');
 const termsJs = fs.readFileSync(path.join(FRONTEND, 'terms.js'), 'utf8');
 const termsFnJs = fs.readFileSync(path.join(FRONTEND, 'termsFunction.js'), 'utf8');
 
