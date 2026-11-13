@@ -1,9 +1,12 @@
 // 回归测试：①发送弹窗改为可左键拖动的浮动卡片；②「发消息」链接在姓名含特殊字符时不再中断
 const { JSDOM } = require('C:/Users/Administrator/.workbuddy/binaries/node/workspace/node_modules/jsdom');
 const fs = require('fs');
+const path = require('path');
 
-const INBOX_SRC = fs.readFileSync('C:/Users/Administrator/WorkBuddy/2026-08-30-17-19-24/frontend/js/messages-inbox.js', 'utf8');
-const ADMIN_SRC = fs.readFileSync('C:/Users/Administrator/WorkBuddy/2026-08-30-17-19-24/frontend/js/admin-user.js', 'utf8');
+// 仓库自定位：本脚本在 doc-develop/，frontend 是仓库根的兄弟目录（迁盘后无需改）
+const FE = path.resolve(__dirname, '..', 'frontend', 'js');
+const INBOX_SRC = fs.readFileSync(path.join(FE, 'messages-inbox.js'), 'utf8');
+const ADMIN_SRC = fs.readFileSync(path.join(FE, 'admin-user.js'), 'utf8');
 
 const log = [];
 let pass = 0, fail = 0;

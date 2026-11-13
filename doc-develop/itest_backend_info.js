@@ -5,15 +5,17 @@
  *   1) platform-admin-backend-info.js  —— 平台管理端「系统维护 / 后台信息」TAB 全字段页
  *   2) admin-dataMaintainPage.js       —— admin「数据维护 / 后台信息」Tab（名称/版本/构建时间）
  *
- * 运行： node C:/Users/Administrator/WorkBuddy/2026-08-30-17-19-24/doc-develop/itest_backend_info.js
+ * 运行： node doc-develop/itest_backend_info.js   （在仓库根执行，路径自定位，任意盘符均可）
  * 前置： 本地 dev 代理 :8080 已启动（dev-frontend-local.js），booking :8081 / message-service :8090 在线
  */
 'use strict';
 const fs = require('fs');
 const vm = require('vm');
+const path = require('path');
 
 const BASE = process.env.ITEST_BASE || 'http://127.0.0.1:8080';
-const DIST = 'C:/Users/Administrator/WorkBuddy/2026-08-30-17-19-24/frontend/dist';
+// 仓库自定位：本脚本在 doc-develop/，frontend/dist 是仓库根的兄弟目录（迁盘后无需改）
+const DIST = path.resolve(__dirname, '..', 'frontend', 'dist');
 
 let pass = 0, fail = 0;
 function check(name, cond, extra) {

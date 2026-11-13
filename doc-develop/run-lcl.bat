@@ -1,1 +1,3 @@
-node C:\Users\Administrator\WorkBuddy\2026-08-30-17-19-24\doc-develop\dev-frontend-local.js
+@echo off
+REM %~dp0 = 本 bat 所在目录(doc-develop\)，仓库迁盘后无需改这里
+node "%~dp0dev-frontend-local.js" %*

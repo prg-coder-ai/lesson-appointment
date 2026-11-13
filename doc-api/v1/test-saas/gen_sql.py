@@ -1,7 +1,10 @@
 import subprocess, os, datetime
 
 DB = "lesson_appointment"
-OUT_DIR = r"C:/Users/Administrator/WorkBuddy/2026-09-02-12-40-49/test-saas"
+# 输出目录：默认落到本脚本所在目录。
+# 原先写死 2026-09-02-12-40-49/test-saas（另一个会话目录），仓库迁到 G 盘后该路径语义已变，
+# 且迁盘/清理旧会话目录时会直接写失败。要还原旧行为可用 OUT_DIR=<目录> 覆盖。
+OUT_DIR = os.environ.get("OUT_DIR") or os.path.dirname(os.path.abspath(__file__))
 
 def mysql_val(sql):
     r = subprocess.run(

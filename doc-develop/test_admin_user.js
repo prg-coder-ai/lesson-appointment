@@ -8,9 +8,11 @@
  * 导致编辑弹窗打不开、角色信息无法带入；现已按 user.role 带入并改用 innerHTML 渲染标题。
  */
 const fs = require('fs');
+const path = require('path');
 const { JSDOM } = require('C:/Users/Administrator/.workbuddy/binaries/node/workspace/node_modules/jsdom');
 
-const SRC = 'C:/Users/Administrator/WorkBuddy/2026-08-30-17-19-24/frontend/js/admin-user.js';
+// 仓库自定位：本脚本在 doc-develop/，frontend 是仓库根的兄弟目录（迁盘后无需改）
+const SRC = path.resolve(__dirname, '..', 'frontend', 'js', 'admin-user.js');
 const code = fs.readFileSync(SRC, 'utf8');
 
 const RUNNER = [
