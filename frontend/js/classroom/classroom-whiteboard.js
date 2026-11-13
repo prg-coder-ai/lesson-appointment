@@ -202,17 +202,23 @@
 
     _resize: function () {
       if (!this.canvas) return;
+      // ⚠ canvas 的显示尺寸由 CSS 控制（#whiteboard-canvas { width:100%; flex:1 1 auto }），
+      // 这里**绝不能**写 canvas.style.width/height 去钉死像素：
+      //   · 白板区默认 class="hidden"（display:none），init 时 getBoundingClientRect 返回 0 → 会被钉成 1px；
+      //     内联 1px 会永久压过 CSS 的 width:100%，之后 show(true) 再测量读到的也是这 1px，
+      //     _w/_h 永远回不到真实尺寸 → 画布宽度卡在 1px、线条塌缩（这就是「宽度计算有误」）。
+      //   · 钉死像素还会让画布失去响应式，窗口缩放后不再跟随容器。
+      // 正确做法：只根据 CSS 实测尺寸设置 backing store（物理像素），显示尺寸交给 CSS。
       var rect = this.canvas.getBoundingClientRect();
       var dpr = window.devicePixelRatio || 1;
-      var w = Math.max(1, Math.round(rect.width));
-      var h = Math.max(1, Math.round(rect.height));
-      // 仅在尺寸变化时重置
-      if (this.canvas.width !== w * dpr || this.canvas.height !== h * dpr) {
-        this.canvas.width = w * dpr;
-        this.canvas.height = h * dpr;
-        this.canvas.style.width = w + 'px';
-        this.canvas.style.height = h + 'px';
-        this._w = w; this._h = h; this._dpr = dpr;
+      var cssW = rect.width, cssH = rect.height;            // 逻辑尺寸 = CSS 显示尺寸
+      var pw = Math.max(1, Math.round(cssW * dpr));         // 物理像素（backing store）
+      var ph = Math.max(1, Math.round(cssH * dpr));
+      // 仅在物理尺寸变化时重置（用整数 backing 比较，避免 dpr 乘积非整数时每次都触发）
+      if (this.canvas.width !== pw || this.canvas.height !== ph) {
+        this.canvas.width = pw;          // 赋值会清空像素并重置变换，下方重设
+        this.canvas.height = ph;
+        this._w = cssW; this._h = cssH; this._dpr = dpr;
         if (this.ctx2d) { this.ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0); }
         this._redrawAll();   // 重置 canvas.width 会清空像素，按缓存重绘板书，避免 resize 后板书消失
       }
