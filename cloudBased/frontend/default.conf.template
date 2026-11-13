@@ -10,11 +10,16 @@
 # 两个占位符由 /docker-entrypoint.d/00-resolver.sh 在**容器启动时**用 envsubst 白名单渲染，
 # 值来自**运行时环境变量**（云托管控制台 → 服务设置 → 环境变量）：
 #
-#   API_UPSTREAM  = http://api-xxxxxxxx.ap-shanghai.internal-run.tcloudbase.com:8081
-#   MSG_UPSTREAM  = http://message-service-xxxxxxxx.ap-shanghai.internal-run.tcloudbase.com:8090
+#   API_UPSTREAM       = http://api-xxxxxxxx.ap-shanghai.internal-run.tcloudbase.com:8081
+#   MSG_UPSTREAM       = http://message-service-xxxxxxxx.ap-shanghai.internal-run.tcloudbase.com:8090
+#   CLASSROOM_UPSTREAM = http://classroom-xxxxxxxx.ap-shanghai.internal-run.tcloudbase.com:8092
+#
+#   ⚠ CLASSROOM_UPSTREAM 缺少 → 上面所有 /api/v1/{classrooms,files,uploads,attendance,
+#     schedules,rtc,recordings,admin/*} 与 /ws/classrooms 的 proxy_pass 指向空，上线即 502/404。
+#     上线前务必在控制台把三个上游都配齐（端口 = 各服务发布时填的容器端口）。
 #
 #   · 内网域名从控制台「服务设置 → 内网访问」复制（开启内网访问会触发一次发布才分配），
-#     必须带端口，端口只能等于该服务发布时填的容器端口（8081 / 8090），内网是 http。
+#     必须带端口，端口只能等于该服务发布时填的容器端口（api=8081 / message=8090 / classroom=8092），内网是 http。
 #   · 公网兜底则相反：https + 不带端口，如
 #       https://api-329614-8-1475810246.sh.run.tcloudbase.com
 #       https://message-service-329614-8-1475810246.sh.run.tcloudbase.com
@@ -185,11 +190,66 @@ server {
 
     # ==========================================================================
     # 一·补、走 classroom-service 的在线课堂接口（2026-11-10 由 eClassroom 分支合并而来）
-    # 独立上游 CLASSROOM_UPSTREAM；这些前缀与 booking 的 /api/v1/* 不重叠，
-    # nginx 按最长前缀匹配自然分流，声明的先后只影响可读性。
-    # 原实现在 cloudBased/web/nginx.conf.template（该目录已废弃删除），逻辑原样搬过来，
-    # 仅把 ${CLASSROOM_UPSTREAM} 的静态 proxy_pass 改成变量形式，与其它上游保持一致。
+    # 独立上游 CLASSROOM_UPSTREAM；前缀清单必须与 doc-develop/dev-proxy.js 的
+    # toClassroomService() PREFIXES 保持逐字一致（见该文件顶部警告：
+    # 「两边不同步会出现本地能跑、上线 404」）。nginx 按最长前缀匹配自然分流，
+    # 声明的先后只影响可读性。
+    #
+    # ★ 2026-11-13 补齐：原模板漏了 /files /uploads /attendance /schedules /rtc
+    #   以及 /admin/{monitor,reports,reconcile,audit,contract,exports} 共 10 个前缀
+    #   （已 grep 确认 booking 主服务不暴露其中任何一个，无抢路由风险）。
+    #   这些接口本地 dev-proxy 是走 classroom 的，上线若落到 booking 8081 → 404。
     # ==========================================================================
+
+    # 📎 课堂签名文件（讲稿 PDF / 回放录制）—— 必须可内联 iframe 显示
+    # ⚠ 此 location 必须显式重发 P0-2 的 6 个安全头：nginx add_header 是覆盖式继承，
+    #   一旦本 location 出现任意 add_header，server 级那 5 条会随 X-Frame-Options 一起消失
+    #   （等保审计会报缺头）。这里把 X-Frame-Options 从 DENY 降到 SAMEORIGIN ——
+    #   iframe 同源（前端域名）内联，不削弱等保口径；其余 5 头原样下发。
+    location /api/v1/files/ {
+        proxy_pass $classroom_upstream;
+        proxy_read_timeout 120s;
+        limit_req zone=api_zone burst=50 nodelay;
+        limit_req_status 429;
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-XSS-Protection "1; mode=block" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+    }
+
+    # 📤 分片上传（讲稿/作业大文件 init/part/complete）
+    location /api/v1/uploads/ {
+        proxy_pass $classroom_upstream;
+        proxy_read_timeout 120s;
+        limit_req zone=api_zone burst=50 nodelay;
+        limit_req_status 429;
+    }
+
+    # 📊 考勤（用户侧历史 + 课堂内点名）
+    location /api/v1/attendance/ {
+        proxy_pass $classroom_upstream;
+        proxy_read_timeout 120s;
+        limit_req zone=api_zone burst=50 nodelay;
+        limit_req_status 429;
+    }
+
+    # 🗓 排期事件接收（复数 schedules 属于课堂；单数 /api/v1/schedule 仍归 booking）
+    location /api/v1/schedules/ {
+        proxy_pass $classroom_upstream;
+        proxy_read_timeout 120s;
+        limit_req zone=api_zone burst=50 nodelay;
+        limit_req_status 429;
+    }
+
+    # 📡 RTC 配置 / 供应商
+    location /api/v1/rtc/ {
+        proxy_pass $classroom_upstream;
+        proxy_read_timeout 120s;
+        limit_req zone=api_zone burst=50 nodelay;
+        limit_req_status 429;
+    }
 
     location /api/v1/classrooms/ {
         proxy_pass $classroom_upstream;
@@ -205,7 +265,47 @@ server {
         limit_req_status 429;
     }
 
+    # 🛡 运营台 - 课堂管理
     location /api/v1/admin/classrooms/ {
+        proxy_pass $classroom_upstream;
+        proxy_read_timeout 120s;
+        limit_req zone=api_zone burst=50 nodelay;
+        limit_req_status 429;
+    }
+
+    # 🛡 运营台 - 监控 / 报表 / 对账 / 审计 / 合同 / 导出
+    # （逐前缀精确，不抢 booking 的 admin 接口；grep 确认这些前缀仅 classroom-service 拥有）
+    location /api/v1/admin/monitor/ {
+        proxy_pass $classroom_upstream;
+        proxy_read_timeout 120s;
+        limit_req zone=api_zone burst=50 nodelay;
+        limit_req_status 429;
+    }
+    location /api/v1/admin/reports/ {
+        proxy_pass $classroom_upstream;
+        proxy_read_timeout 120s;
+        limit_req zone=api_zone burst=50 nodelay;
+        limit_req_status 429;
+    }
+    location /api/v1/admin/reconcile/ {
+        proxy_pass $classroom_upstream;
+        proxy_read_timeout 120s;
+        limit_req zone=api_zone burst=50 nodelay;
+        limit_req_status 429;
+    }
+    location /api/v1/admin/audit/ {
+        proxy_pass $classroom_upstream;
+        proxy_read_timeout 120s;
+        limit_req zone=api_zone burst=50 nodelay;
+        limit_req_status 429;
+    }
+    location /api/v1/admin/contract/ {
+        proxy_pass $classroom_upstream;
+        proxy_read_timeout 120s;
+        limit_req zone=api_zone burst=50 nodelay;
+        limit_req_status 429;
+    }
+    location /api/v1/admin/exports/ {
         proxy_pass $classroom_upstream;
         proxy_read_timeout 120s;
         limit_req zone=api_zone burst=50 nodelay;
