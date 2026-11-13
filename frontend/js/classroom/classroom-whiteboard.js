@@ -18,6 +18,8 @@
     readOnly: false,
     granted: false,    // F4-08：被教师授予编辑权（学生）
     active: false,
+    _ops: [],                          // 当前白板操作缓存，供 resize 重绘与重连恢复
+    _w: 0, _h: 0, _dpr: 1,             // 逻辑尺寸缓存（去掉 dpr 缩放，绘制坐标用逻辑像素）
 
     init: function (ctx) {
       this.ctx = ctx || {};
@@ -113,6 +115,7 @@
         tool: this.tool
       };
       this._drawSeg(seg);
+      this._ops.push(seg);
       this.last = p;
       if (window.ClassroomWS && this.ctx.scheduleId) {
         window.ClassroomWS.sendWhiteboard(this.ctx.scheduleId, seg);
@@ -123,9 +126,23 @@
 
     _drawSeg: function (seg) {
       if (!this.ctx2d) return;
-      var w = this.canvas.width, h = this.canvas.height;
+      // 关键修复：ctx2d 已 setTransform(dpr,...)，坐标单位必须是「逻辑像素」，
+      // 不能用 canvas.width（物理像素），否则归一化坐标被再乘一次 dpr → 线条飞出画布。
+      var w = this._w || (this.canvas.width / (this._dpr || window.devicePixelRatio || 1));
+      var h = this._h || (this.canvas.height / (this._dpr || window.devicePixelRatio || 1));
       var c2 = this.ctx2d;
-      c2.strokeStyle = seg.color || '#2f80ed';
+      var isErase = seg.tool === 'eraser';
+      // 用 save/restore 隔离合成模式，避免污染后续绘制
+      c2.save();
+      if (isErase) {
+        // 真擦除：destination-out 把画布像素变透明（背景走 CSS #fff），重放时同样生效；
+        // 旧实现是 source-over 画白线，透明层上画白=没擦，且 ops 回放会把白线重新画出来。
+        c2.globalCompositeOperation = 'destination-out';
+        c2.strokeStyle = 'rgba(0,0,0,1)';   // destination-out 只看 alpha，颜色无所谓
+      } else {
+        c2.globalCompositeOperation = 'source-over';
+        c2.strokeStyle = seg.color || '#2f80ed';
+      }
       c2.lineWidth = (seg.size || 3);
       c2.lineCap = 'round';
       c2.lineJoin = 'round';
@@ -133,6 +150,7 @@
       c2.moveTo(seg.x0 * w, seg.y0 * h);
       c2.lineTo(seg.x1 * w, seg.y1 * h);
       c2.stroke();
+      c2.restore();
     },
 
     // 远端消息入口：由 main.js 的 WS onWhiteboard 调用
@@ -140,12 +158,13 @@
       if (!msg) return;
       // F4-07：重连/迟到者恢复白板——服务器下发操作序列，本地重放
       if (msg.type === 'wb:init' && msg.ops) {
+        this._ops = [];
         var self = this;
         (msg.ops || []).forEach(function (opStr) {
           try {
             var op = (typeof opStr === 'string') ? JSON.parse(opStr) : opStr;
-            if (op.op === 'clear') self._clearLocal();
-            else if (op.op === 'draw') self._drawSeg(op);
+            if (op.op === 'clear') { self._ops = []; self._clearLocal(); }
+            else if (op.op === 'draw') { self._ops.push(op); self._drawSeg(op); }
           } catch (e) {}
         });
         return;
@@ -164,12 +183,13 @@
         this.toast('白板已保存');
         return;
       }
-      if (msg.op === 'clear') { this._clearLocal(); return; }
-      if (msg.op === 'draw') { this._drawSeg(msg); }
+      if (msg.op === 'clear') { this._clearLocal(); this._ops = []; return; }
+      if (msg.op === 'draw') { this._ops.push(msg); this._drawSeg(msg); }
     },
 
     clear: function (broadcast) {
       this._clearLocal();
+      this._ops = [];
       if (broadcast && window.ClassroomWS && this.ctx.scheduleId) {
         window.ClassroomWS.sendWhiteboard(this.ctx.scheduleId, { op: 'clear' });
       }
@@ -186,15 +206,24 @@
       var dpr = window.devicePixelRatio || 1;
       var w = Math.max(1, Math.round(rect.width));
       var h = Math.max(1, Math.round(rect.height));
-      // 仅在尺寸变化时重置，避免清空已有绘制
+      // 仅在尺寸变化时重置
       if (this.canvas.width !== w * dpr || this.canvas.height !== h * dpr) {
         this.canvas.width = w * dpr;
         this.canvas.height = h * dpr;
         this.canvas.style.width = w + 'px';
         this.canvas.style.height = h + 'px';
+        this._w = w; this._h = h; this._dpr = dpr;
         if (this.ctx2d) { this.ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0); }
+        this._redrawAll();   // 重置 canvas.width 会清空像素，按缓存重绘板书，避免 resize 后板书消失
       }
-    }
+    },
+
+    // 重置尺寸后按 _ops 缓存重绘（修复：resize 清空画布导致板书消失）
+    _redrawAll: function () {
+      if (!this.ctx2d) return;
+      var self = this;
+      (this._ops || []).forEach(function (op) { self._drawSeg(op); });
+    },
   };
 
   window.ClassroomWhiteboard = ClassroomWhiteboard;
