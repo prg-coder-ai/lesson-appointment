@@ -18,6 +18,12 @@
 (function () {
   'use strict';
 
+  // 见 api.js#window.classroomUrl：避免 apiBaseUrl(/api/v1) + EP(/api/v1/...) 双前缀 404
+  var urlOf = function (base, path) {
+    return typeof window.classroomUrl === 'function'
+      ? window.classroomUrl(base, path) : (base || '') + path;
+  };
+
   // ---------- 小工具 ----------
 
   // 端点别名（守卫 check:endpoints 按此形态识别「本文件的端点来源」，勿改成函数返回）
@@ -139,7 +145,7 @@
     var form = new FormData();
     form.append('file', file);
     try {
-      var res = await window.request({ url: (apiBase() || '') + path, method: 'POST', data: form });
+      var res = await window.request({ url: urlOf(apiBase(), path), method: 'POST', data: form });
       return { ok: true, data: res };
     } catch (e) {
       return { ok: false, msg: errText(e) };

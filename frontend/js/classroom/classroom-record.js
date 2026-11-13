@@ -14,6 +14,11 @@
 (function () {
   // 端点常量统一取自 shared/apiPaths.js（经 js/shared-domain-bridge.js 挂到 window.ApiPaths）
   var EP = (window.ApiPaths && window.ApiPaths.ENDPOINTS) || {};
+  // 见 api.js#window.classroomUrl：避免 apiBaseUrl(/api/v1) + EP(/api/v1/...) 双前缀 404
+  var urlOf = function (base, path) {
+    return typeof window.classroomUrl === 'function'
+      ? window.classroomUrl(base, path) : (base || '') + path;
+  };
   var ClassroomRecord = {
     ctx: null,
     recordingId: null,
@@ -122,7 +127,7 @@
       var base = this.ctx.apiBaseUrl || '';
       var fileName = 'recording-' + this.recordingId + '.webm';
 
-      return this._postJson(base + EP.UPLOAD_INIT, {
+      return this._postJson(urlOf(base, EP.UPLOAD_INIT), {
         purpose: 'RECORDING',
         scheduleId: this.ctx.scheduleId,
         fileName: fileName,
@@ -137,7 +142,7 @@
               var start = (n - 1) * partSize;
               var end = Math.min(start + partSize, blob.size);
               return self._putBinary(
-                base + EP.UPLOAD_PART(init.uploadId, n),
+                urlOf(base, EP.UPLOAD_PART(init.uploadId, n)),
                 blob.slice(start, end)
               ).then(function () {
                 self.uploadProgress = Math.round(n * 100 / count);
@@ -147,7 +152,7 @@
           })(i);
         }
         return chain.then(function () {
-          return self._postJson(base + EP.UPLOAD_COMPLETE(init.uploadId), {});
+          return self._postJson(urlOf(base, EP.UPLOAD_COMPLETE(init.uploadId)), {});
         });
       }).then(function (done) {
         return done.ossKey;
@@ -157,7 +162,7 @@
     // ---------------- HTTP ----------------
     _api: function (action, body) {
       var base = this.ctx.apiBaseUrl || '';
-      var root = base + EP.CLASSROOM_RECORDING(this.ctx.scheduleId);
+      var root = urlOf(base, EP.CLASSROOM_RECORDING(this.ctx.scheduleId));
       if (action === 'start') {
         return this._postJson(root + '/start', {});
       }

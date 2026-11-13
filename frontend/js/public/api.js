@@ -89,8 +89,17 @@ var STORE = _storageBackend
     }
     if (needApply) {
       mo.disconnect();               // 防递归：替换文本本身也触发 mutation
-      applyTerms();
-      observe();                     // 处理完重新挂上
+      try {
+        // 行业术语替换是**可选增强**：classroom.html / classroom-prep.html 等页面
+        // 不引 js/public/termsFunction.js，裸调 applyTerms() 会 ReferenceError；
+        // 更糟的是异常会跳过 observe()，让这个 MutationObserver 永久停摆。
+        // 其余调用方（course-detail.js 的 applyTermsSafe 等）也都是同样的 typeof 守卫。
+        if (typeof window.applyTerms === 'function') window.applyTerms();
+      } catch (e) {
+        console.warn('[api] applyTerms 执行失败，已忽略', e);
+      } finally {
+        observe();                   // 无论术语库在不在、抛不抛错，都要重新挂上
+      }
     }
   });
 
@@ -1067,8 +1076,32 @@ function maskEmail(email) {
   //   apiBaseUrl 来自 getClassroomApiBaseUrl()（登录时存入 localStorage）
   // ============================================================
 
+  /**
+   * 课堂请求 URL 拼接的**唯一入口**（2026-11-13 修「作业上传 404」）。
+   *
+   * 两套路径约定在这里汇合，直接相加必然出错：
+   *  - base = eclassroom config 的 apiBaseUrl，语义是 classroom-service 的 API 根，
+   *          形如 {@code http://host:8092/api/v1}（**已经含版本前缀**）；
+   *          也可能是空串（同源代理，此时路径必须自带 /api/v1）。
+   *  - path = apiPaths.js 的端点常量，按全项目约定自带 {@code /api/v1}；
+   *          但 ClassroomAPI 内部用的是裸路径 {@code /classrooms/...}。
+   *
+   * 所以 base 以 /api/v1 结尾、path 又以 /api/v1 开头时要去掉后者那段前缀，
+   * 否则会拼出 {@code .../api/v1/api/v1/classrooms/.../submissions/file} → 404。
+   * 其它组合（空 base + 带前缀 path、绝对 base + 裸 path）保持原样。
+   */
+  window.classroomUrl = function (base, path) {
+    var b = String(base || '');
+    var p = String(path || '');
+    while (b.length > 1 && b.charAt(b.length - 1) === '/') b = b.slice(0, -1);
+    if (/\/api\/v1$/.test(b) && p.indexOf('/api/v1') === 0) {
+      p = p.slice('/api/v1'.length);
+    }
+    return b + p;
+  };
+
   function _classroomUrl(apiBaseUrl, path) {
-    return (apiBaseUrl || '') + path;
+    return window.classroomUrl(apiBaseUrl, path);
   }
 
   const ClassroomAPI = {
