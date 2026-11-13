@@ -20,6 +20,7 @@
     active: false,
     _ops: [],                          // 当前白板操作缓存，供 resize 重绘与重连恢复
     _w: 0, _h: 0, _dpr: 1,             // 逻辑尺寸缓存（去掉 dpr 缩放，绘制坐标用逻辑像素）
+    aspect: 16 / 9,                     // 白板内容固定纵横比（宽/高）。保持后同一幅归一化画在任意屏比例下形状一致；改这里即可换比例（如 4/3）
 
     init: function (ctx) {
       this.ctx = ctx || {};
@@ -202,23 +203,53 @@
 
     _resize: function () {
       if (!this.canvas) return;
-      // ⚠ canvas 的显示尺寸由 CSS 控制（#whiteboard-canvas { width:100%; flex:1 1 auto }），
-      // 这里**绝不能**写 canvas.style.width/height 去钉死像素：
-      //   · 白板区默认 class="hidden"（display:none），init 时 getBoundingClientRect 返回 0 → 会被钉成 1px；
-      //     内联 1px 会永久压过 CSS 的 width:100%，之后 show(true) 再测量读到的也是这 1px，
-      //     _w/_h 永远回不到真实尺寸 → 画布宽度卡在 1px、线条塌缩（这就是「宽度计算有误」）。
-      //   · 钉死像素还会让画布失去响应式，窗口缩放后不再跟随容器。
-      // 正确做法：只根据 CSS 实测尺寸设置 backing store（物理像素），显示尺寸交给 CSS。
-      var rect = this.canvas.getBoundingClientRect();
+      // 保持纵横比：白板内容按固定 aspect（宽/高）渲染，不再拉伸填满容器。
+      // 做法——在【可用区域】内以 contain 方式放入一个固定纵横比的矩形（letterbox 居中），
+      // 这样同一幅归一化画在任意屏比例下形状一致，不被拉扁。
+      //
+      // 可用区域取自【父容器 whiteboard-area】的实测尺寸（减去工具栏高度），
+      // 而不是 canvas 自身：
+      //   · 父容器尺寸由外层布局决定，与 canvas 自身 style 无关 → 测出来稳定，无反馈死循环；
+      //   · 若测 canvas 自身，之前已被钉死的 style 会污染下一次测量（就是「宽度计算有误」的根源）。
+      var availW = 0, availH = 0;
+      var area = document.getElementById('whiteboard-area');
+      if (area) {
+        var areaRect = area.getBoundingClientRect();
+        var toolbar = document.getElementById('whiteboard-toolbar');
+        var barH = toolbar ? toolbar.offsetHeight : 0;
+        availW = areaRect.width;
+        availH = areaRect.height - barH;     // 工具栏占掉的高度不能再画
+      } else {
+        var r = this.canvas.getBoundingClientRect();
+        availW = r.width; availH = r.height;
+      }
       var dpr = window.devicePixelRatio || 1;
-      var cssW = rect.width, cssH = rect.height;            // 逻辑尺寸 = CSS 显示尺寸
-      var pw = Math.max(1, Math.round(cssW * dpr));         // 物理像素（backing store）
-      var ph = Math.max(1, Math.round(cssH * dpr));
+      var A = this.aspect || (16 / 9);
+      var drawW, drawH;
+      // contain：取能放进 (availW, availH) 的最大固定纵横比矩形
+      if (availW / Math.max(1, availH) > A) {
+        drawH = Math.max(1, availH);
+        drawW = drawH * A;
+      } else {
+        drawW = Math.max(1, availW);
+        drawH = drawW / A;
+      }
+      drawW = Math.round(drawW);
+      drawH = Math.round(drawH);
+      // 让 canvas 以固定纵横比居中（letterbox），不再 flex 拉伸填满——这样 _w/_h 永远保持 aspect。
+      // 注意：这里写 style 是「按父容器算出来的目标尺寸」，不是「测自身再钉回自身」，所以安全。
+      this.canvas.style.flex = '0 0 auto';
+      this.canvas.style.margin = 'auto';
+      this.canvas.style.width = drawW + 'px';
+      this.canvas.style.height = drawH + 'px';
+      // backing store 按 dpr 放大，绘制坐标用逻辑像素（_w/_h）
+      var pw = Math.max(1, Math.round(drawW * dpr));
+      var ph = Math.max(1, Math.round(drawH * dpr));
       // 仅在物理尺寸变化时重置（用整数 backing 比较，避免 dpr 乘积非整数时每次都触发）
       if (this.canvas.width !== pw || this.canvas.height !== ph) {
         this.canvas.width = pw;          // 赋值会清空像素并重置变换，下方重设
         this.canvas.height = ph;
-        this._w = cssW; this._h = cssH; this._dpr = dpr;
+        this._w = drawW; this._h = drawH; this._dpr = dpr;
         if (this.ctx2d) { this.ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0); }
         this._redrawAll();   // 重置 canvas.width 会清空像素，按缓存重绘板书，避免 resize 后板书消失
       }
