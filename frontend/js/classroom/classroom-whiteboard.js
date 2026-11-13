@@ -2,8 +2,9 @@
  * classroom-whiteboard.js —— 白板协作模块
  *
  * 基于 canvas + WS whiteboard 通道。坐标为 0~1 归一化比例，跨屏尺寸一致。
- * 消息：{ type:'whiteboard', op:'draw', x0,y0,x1,y1,color,size,tool } / { op:'clear' }
+ * 消息：{ type:'whiteboard', op:'draw', x0,y0,x1,y1,color,size,tool } / { op:'shape', shape:'rect'|'circle'|'square' } / { op:'clear' }
  * 权限：admin 默认只读；学生是否可写由 ctx.canWrite 控制（默认 true）。
+ * 形状工具（rect/circle/square）：按下记录起点，拖动时橡皮筋预览，抬笔提交为一条 shape 操作并广播。
  */
 (function () {
   var ClassroomWhiteboard = {
@@ -21,6 +22,8 @@
     _ops: [],                          // 当前白板操作缓存，供 resize 重绘与重连恢复
     _w: 0, _h: 0, _dpr: 1,             // 逻辑尺寸缓存（去掉 dpr 缩放，绘制坐标用逻辑像素）
     aspect: 16 / 9,                     // 白板内容固定纵横比（宽/高）。保持后同一幅归一化画在任意屏比例下形状一致；改这里即可换比例（如 4/3）
+    _shapeStart: null,                  // 形状工具：按下时的归一化起点
+    _pendingShape: null,                // 形状工具：拖动中暂存的预览 shape（抬笔才提交进 _ops）
 
     init: function (ctx) {
       this.ctx = ctx || {};
@@ -102,12 +105,27 @@
     _start: function (e) {
       if (this.readOnly && !this.granted) return;
       this.drawing = true;
-      this.last = this._norm(e);
+      this._shapeStart = this._norm(e);   // 形状工具记录起点；画笔工具同用作上一动点
+      this.last = this._shapeStart;
     },
 
     _move: function (e) {
       if (!this.drawing || (this.readOnly && !this.granted)) return;
       var p = this._norm(e);
+      var isShape = (this.tool === 'rect' || this.tool === 'circle' || this.tool === 'square');
+      if (isShape) {
+        // 形状工具：实时橡皮筋预览——清屏 + 重绘已落笔画 + 当前预览，但不写进 _ops
+        var s0 = this._shapeStart || this.last;
+        var seg = {
+          op: 'shape', shape: this.tool,
+          x0: s0.x, y0: s0.y, x1: p.x, y1: p.y,
+          color: this.color, size: this.size
+        };
+        this._render(seg);                 // 清屏 + 重绘 _ops + 预览
+        this._pendingShape = seg;          // 暂存，抬笔时提交
+        return;
+      }
+      // 画笔/橡皮：增量落笔（每段独立成 op，便于远端增量同步）
       var seg = {
         type: 'whiteboard', op: 'draw',
         x0: this.last.x, y0: this.last.y, x1: p.x, y1: p.y,
@@ -123,7 +141,21 @@
       }
     },
 
-    _end: function () { this.drawing = false; this.last = null; },
+    _end: function () {
+      if (!this.drawing) { this.last = null; this._shapeStart = null; return; }
+      if (this._pendingShape) {
+        // 抬笔提交形状：写进 _ops 并广播，再按 _ops 正式重绘（含刚提交的形状）
+        this._ops.push(this._pendingShape);
+        if (window.ClassroomWS && this.ctx.scheduleId) {
+          window.ClassroomWS.sendWhiteboard(this.ctx.scheduleId, this._pendingShape);
+        }
+        this._pendingShape = null;
+        this._redrawAll();
+      }
+      this.drawing = false;
+      this.last = null;
+      this._shapeStart = null;
+    },
 
     _drawSeg: function (seg) {
       if (!this.ctx2d) return;
@@ -132,7 +164,8 @@
       var w = this._w || (this.canvas.width / (this._dpr || window.devicePixelRatio || 1));
       var h = this._h || (this.canvas.height / (this._dpr || window.devicePixelRatio || 1));
       var c2 = this.ctx2d;
-      var isErase = seg.tool === 'eraser';
+      // 橡皮只用于画笔工具（shape 用当前颜色描边，不做擦除）
+      var isErase = (seg.tool === 'eraser');
       // 用 save/restore 隔离合成模式，避免污染后续绘制
       c2.save();
       if (isErase) {
@@ -147,11 +180,45 @@
       c2.lineWidth = (seg.size || 3);
       c2.lineCap = 'round';
       c2.lineJoin = 'round';
-      c2.beginPath();
-      c2.moveTo(seg.x0 * w, seg.y0 * h);
-      c2.lineTo(seg.x1 * w, seg.y1 * h);
-      c2.stroke();
+      if (seg.op === 'shape') {
+        this._strokeShape(c2, seg, w, h);   // 矩形 / 圆 / 正方形
+      } else {
+        c2.beginPath();
+        c2.moveTo(seg.x0 * w, seg.y0 * h);
+        c2.lineTo(seg.x1 * w, seg.y1 * h);
+        c2.stroke();
+      }
       c2.restore();
+    },
+
+    // 把一条 shape 操作渲染成对应几何图形（归一化坐标 → 逻辑像素）
+    _strokeShape: function (c2, seg, w, h) {
+      var x0 = seg.x0 * w, y0 = seg.y0 * h, x1 = seg.x1 * w, y1 = seg.y1 * h;
+      if (seg.shape === 'rect') {
+        c2.strokeRect(x0, y0, x1 - x0, y1 - y0);
+      } else if (seg.shape === 'square') {
+        // 正方形：取拖动两个方向里的较大者作为边长，方向与拖动一致
+        var dx = x1 - x0, dy = y1 - y0;
+        var side = Math.max(Math.abs(dx), Math.abs(dy));
+        var sx = dx < 0 ? -side : side;
+        var sy = dy < 0 ? -side : side;
+        c2.strokeRect(x0, y0, sx, sy);
+      } else if (seg.shape === 'circle') {
+        // 圆：以拖动框的较大边为直径，保证是「圆」而不是椭圆（与白板固定纵横比配合，圆永远是圆）
+        var cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+        var r = Math.max(Math.abs(x1 - x0) / 2, Math.abs(y1 - y0) / 2);
+        c2.beginPath();
+        c2.ellipse(cx, cy, r, r, 0, 0, Math.PI * 2);
+        c2.stroke();
+      }
+    },
+
+    // 形状预览：清屏 → 重绘所有已落笔画(_ops) → 叠加当前预览 shape。不修改 _ops。
+    _render: function (previewSeg) {
+      if (!this.ctx2d) return;
+      this._clearLocal();
+      this._redrawAll();
+      if (previewSeg) this._drawSeg(previewSeg);
     },
 
     // 远端消息入口：由 main.js 的 WS onWhiteboard 调用
@@ -165,7 +232,7 @@
           try {
             var op = (typeof opStr === 'string') ? JSON.parse(opStr) : opStr;
             if (op.op === 'clear') { self._ops = []; self._clearLocal(); }
-            else if (op.op === 'draw') { self._ops.push(op); self._drawSeg(op); }
+            else if (op.op === 'draw' || op.op === 'shape') { self._ops.push(op); self._drawSeg(op); }
           } catch (e) {}
         });
         return;
@@ -185,7 +252,7 @@
         return;
       }
       if (msg.op === 'clear') { this._clearLocal(); this._ops = []; return; }
-      if (msg.op === 'draw') { this._ops.push(msg); this._drawSeg(msg); }
+      if (msg.op === 'draw' || msg.op === 'shape') { this._ops.push(msg); this._drawSeg(msg); }
     },
 
     clear: function (broadcast) {
@@ -198,7 +265,11 @@
 
     _clearLocal: function () {
       if (!this.ctx2d) return;
-      this.ctx2d.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      // 用逻辑尺寸（_w/_h）清屏：ctx2d 已 setTransform(dpr)，clearRect 参数为逻辑像素，
+      // 用 canvas.width（物理）会过度清除；用 _w/_h 恰好清整块画布。
+      var w = this._w || (this.canvas.width / (this._dpr || window.devicePixelRatio || 1));
+      var h = this._h || (this.canvas.height / (this._dpr || window.devicePixelRatio || 1));
+      this.ctx2d.clearRect(0, 0, w, h);
     },
 
     _resize: function () {
@@ -236,20 +307,26 @@
       }
       drawW = Math.round(drawW);
       drawH = Math.round(drawH);
-      // 让 canvas 以固定纵横比居中（letterbox），不再 flex 拉伸填满——这样 _w/_h 永远保持 aspect。
+      // 让 canvas 以固定纵横比居中（letterbox），不再 flex 拉伸填满——这样显示尺寸永远保持 aspect。
       // 注意：这里写 style 是「按父容器算出来的目标尺寸」，不是「测自身再钉回自身」，所以安全。
       this.canvas.style.flex = '0 0 auto';
       this.canvas.style.margin = 'auto';
       this.canvas.style.width = drawW + 'px';
       this.canvas.style.height = drawH + 'px';
+      // ★ 读回真实渲染尺寸：让 _w/_h 与显示像素严格一致。
+      //   这样「输入归一化(_norm 用 canvas 真实 getBoundingClientRect)」与「输出绘制(_w/_h)」用的是
+      //   同一份尺寸——无论布局/时序如何，画圆永远是圆，缩放时不会因为测量错位而把比例拉偏。
+      var real = this.canvas.getBoundingClientRect();
+      var rw = real.width || drawW;
+      var rh = real.height || drawH;
       // backing store 按 dpr 放大，绘制坐标用逻辑像素（_w/_h）
-      var pw = Math.max(1, Math.round(drawW * dpr));
-      var ph = Math.max(1, Math.round(drawH * dpr));
+      var pw = Math.max(1, Math.round(rw * dpr));
+      var ph = Math.max(1, Math.round(rh * dpr));
       // 仅在物理尺寸变化时重置（用整数 backing 比较，避免 dpr 乘积非整数时每次都触发）
       if (this.canvas.width !== pw || this.canvas.height !== ph) {
         this.canvas.width = pw;          // 赋值会清空像素并重置变换，下方重设
         this.canvas.height = ph;
-        this._w = drawW; this._h = drawH; this._dpr = dpr;
+        this._w = rw; this._h = rh; this._dpr = dpr;
         if (this.ctx2d) { this.ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0); }
         this._redrawAll();   // 重置 canvas.width 会清空像素，按缓存重绘板书，避免 resize 后板书消失
       }
