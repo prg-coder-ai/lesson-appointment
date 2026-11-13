@@ -119,55 +119,89 @@
     var modal = document.getElementById('eclassroomInstanceModal');
     if (!modal) modal = createEclassroomInstanceModal();
     modal.style.display = 'flex';
-    document.getElementById('eclassroomInstanceModalTitle').innerText = inst ? '编辑课堂实例' : '新建课堂实例';
+    document.getElementById('eclassroomInstanceModalTitle').textContent = inst ? '编辑课堂实例' : '新建课堂实例';
     document.getElementById('eclassroomInstanceFormContainer').innerHTML = buildInstanceForm(inst);
+    // 页脚错误提示现在留在滚动区外、不会随表单重建，打开时手动清一次
+    var err = document.getElementById('eclassroomInstanceFormErr');
+    if (err) err.textContent = '';
   }
 
   function createEclassroomInstanceModal() {
     var m = document.createElement('div');
-    m.className = 'modal-mask';
+    // --instance：仅本弹窗启用「限高 + 内容区滚动 + 固定页脚」，不影响页面里其它 modal
+    m.className = 'modal-mask modal-mask--instance';
     m.id = 'eclassroomInstanceModal';
     m.style.display = 'none';
     m.innerHTML =
-      '<div class="modal-content">' +
+      '<div class="modal-content modal-content--instance">' +
         '<div class="modal-header">' +
           '<div id="eclassroomInstanceModalTitle" style="font-weight:600;font-size:16px;"></div>' +
           '<span class="modal-close" id="eclassroomInstanceCloseBtn">&times;</span>' +
         '</div>' +
-        '<div id="eclassroomInstanceFormContainer"></div>' +
+        // 表单主体单独滚动；页脚（错误提示 + 保存/取消）留在滚动区外，永远可见可点
+        '<div id="eclassroomInstanceFormContainer" class="modal-body--instance"></div>' +
+        '<div class="modal-footer--instance">' +
+          '<div class="form-error" id="eclassroomInstanceFormErr"></div>' +
+          '<div class="btn-group">' +
+            '<button type="button" class="btn btn-primary" onclick="submitEclassroomInstance()">保存</button>' +
+            '<button type="button" class="btn btn-cancel" onclick="closeEclassroomInstanceModal()">取消</button>' +
+          '</div>' +
+        '</div>' +
       '</div>';
     document.body.appendChild(m);
     document.getElementById('eclassroomInstanceCloseBtn').addEventListener('click', closeEclassroomInstanceModal);
     return m;
   }
 
+  /**
+   * 表单按「基本信息 / API 服务 / WebSocket 服务」三段分组，每段双列网格。
+   * 原来 12 个 form-line 一竖列排下来超过视口高度，且弹窗没有滚动容器，
+   * 底部按钮被 mask 居中裁掉。字段名（name=）保持原样，submitEclassroomInstance 不动。
+   */
   function buildInstanceForm(inst) {
     var isEdit = !!(inst && inst.id);
     function v(f) { return isEdit && inst[f] != null ? esc(inst[f]) : ''; }
+    var statusSel = '<select name="status">' +
+      '<option value="1"' + (isEdit && inst.status === 1 ? ' selected' : '') + '>正常</option>' +
+      '<option value="0"' + (isEdit && inst.status === 0 ? ' selected' : '') + '>停用</option>' +
+      '<option value="2"' + (isEdit && inst.status === 2 ? ' selected' : '') + '>维护中</option>' +
+      '</select>';
+
+    function section(title, lines) {
+      return '<div class="ec-form-section">' +
+        '<div class="ec-form-section-title">' + title + '</div>' +
+        '<div class="ec-form-grid">' + lines + '</div>' +
+        '</div>';
+    }
+    function line(label, control, full) {
+      return '<div class="form-line' + (full ? ' form-line--full' : '') + '">' +
+        '<label>' + label + '</label>' + control + '</div>';
+    }
+    function text(name, val, ph, type) {
+      return '<input name="' + name + '"' + (type ? ' type="' + type + '"' : '') +
+        ' value="' + val + '"' + (ph ? ' placeholder="' + ph + '"' : '') + '>';
+    }
+
     return '' +
-      '<form id="eclassroomInstanceForm" class="form-item">' +
+      '<form id="eclassroomInstanceForm" class="form-item eclassroom-instance-form">' +
         '<input type="hidden" name="id" value="' + (isEdit ? inst.id : '') + '">' +
-        '<div class="form-line"><label>实例编码</label><input name="instanceCode" value="' + v('instanceCode') + '" required placeholder="如 classroom-svc-1"></div>' +
-        '<div class="form-line"><label>实例名称</label><input name="instanceName" value="' + v('instanceName') + '" placeholder="如 华东课堂服务-1"></div>' +
-        '<div class="form-line"><label>API 地址</label><input name="apiHost" value="' + v('apiHost') + '" placeholder="如 127.0.0.1"></div>' +
-        '<div class="form-line"><label>API 端口</label><input name="apiPort" type="number" value="' + (isEdit && inst.apiPort != null ? inst.apiPort : 8092) + '"></div>' +
-        '<div class="form-line"><label>API 路径</label><input name="apiBasePath" value="' + (isEdit ? v('apiBasePath') : '/api/v1') + '" placeholder="/api/v1"></div>' +
-        '<div class="form-line"><label>WS 地址</label><input name="wsHost" value="' + v('wsHost') + '" placeholder="如 127.0.0.1"></div>' +
-        '<div class="form-line"><label>WS 端口</label><input name="wsPort" type="number" value="' + (isEdit && inst.wsPort != null ? inst.wsPort : 8092) + '"></div>' +
-        '<div class="form-line"><label>WS 路径</label><input name="wsBasePath" value="' + v('wsBasePath') + '" placeholder="/ws"></div>' +
-        '<div class="form-line"><label>区域</label><input name="region" value="' + v('region') + '" placeholder="如 cn-east-1"></div>' +
-        '<div class="form-line"><label>最大容量</label><input name="maxCapacity" type="number" value="' + (isEdit && inst.maxCapacity != null ? inst.maxCapacity : 100) + '"></div>' +
-        '<div class="form-line"><label>状态</label><select name="status">' +
-          '<option value="1"' + (isEdit && inst.status === 1 ? ' selected' : '') + '>正常</option>' +
-          '<option value="0"' + (isEdit && inst.status === 0 ? ' selected' : '') + '>停用</option>' +
-          '<option value="2"' + (isEdit && inst.status === 2 ? ' selected' : '') + '>维护中</option>' +
-        '</select></div>' +
-        '<div class="form-line"><label>备注</label><textarea name="remark">' + (isEdit ? esc(inst.remark || '') : '') + '</textarea></div>' +
-        '<div class="form-error" id="eclassroomInstanceFormErr"></div>' +
-        '<div class="btn-group">' +
-          '<button type="button" class="btn btn-primary" onclick="submitEclassroomInstance()">保存</button>' +
-          '<button type="button" class="btn btn-cancel" onclick="closeEclassroomInstanceModal()">取消</button>' +
-        '</div>' +
+        section('基本信息',
+          line('实例编码', '<input name="instanceCode" value="' + v('instanceCode') + '" required placeholder="如 classroom-svc-1">') +
+          line('实例名称', text('instanceName', v('instanceName'), '如 华东课堂服务-1')) +
+          line('区域', text('region', v('region'), '如 cn-east-1')) +
+          line('最大容量', text('maxCapacity', (isEdit && inst.maxCapacity != null ? inst.maxCapacity : 100), '', 'number')) +
+          line('状态', statusSel) +
+          line('备注', '<textarea name="remark">' + (isEdit ? esc(inst.remark || '') : '') + '</textarea>', true)) +
+        section('API 服务',
+          line('API 地址', text('apiHost', v('apiHost'), '如 127.0.0.1')) +
+          line('API 端口', text('apiPort', (isEdit && inst.apiPort != null ? inst.apiPort : 8092), '', 'number')) +
+          line('API 路径', text('apiBasePath', (isEdit ? v('apiBasePath') : '/api/v1'), '/api/v1'))) +
+        section('WebSocket 服务',
+          line('WS 地址', text('wsHost', v('wsHost'), '如 127.0.0.1')) +
+          line('WS 端口', text('wsPort', (isEdit && inst.wsPort != null ? inst.wsPort : 8092), '', 'number')) +
+          // 该字段是 WS 根路径，前端 classroom-ws.js 自己补 /ws/classrooms/...；
+          // 旧 placeholder 写 /ws 会把人带进 /ws/ws/classrooms 的坑。
+          line('WS 路径', text('wsBasePath', v('wsBasePath'), '留空即可（前端自动补 /ws/classrooms）'))) +
       '</form>';
   }
 
@@ -195,7 +229,7 @@
       remark: f.remark.value
     };
     if (!data.instanceCode) {
-      document.getElementById('eclassroomInstanceFormErr').innerText = '实例编码必填';
+      document.getElementById('eclassroomInstanceFormErr').textContent = '实例编码必填';
       return;
     }
     if (id) data.id = id;
@@ -208,7 +242,7 @@
       .catch(function (e) {
         console.warn('[eclassroom] 保存实例失败', e);
         var err = document.getElementById('eclassroomInstanceFormErr');
-        if (err) err.innerText = (e && e.message) || '保存失败';
+        if (err) err.textContent = (e && e.message) || '保存失败';
       });
   }
 

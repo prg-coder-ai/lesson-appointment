@@ -50,6 +50,7 @@ shared-sync / authz / cascade / ddl-align / tz / global-collide / scheduler / ac
 - P0-D 七扫描器 ClassroomScheduler（就绪提�自动开�自动下课/学生掉线/点名超时/教师掉线结课/每日清理，池 8）；状态流转复�markReady/startClass/endClass；每扫描器自包含 try/catch；掉线以 Redis 在线 key 为唯一真相源；自动开课双闸（全局 classroom.auto-start + 单课 auto_start）；markReady 返回 boolean�
 - 前端课堂入口：ClassroomController �{scheduleId} �*课次级复合键** ClassroomKey.of(sid,classIndex)（首课次�id、第 2 �sid~N）；前端三端传裸 id，多课次精确路由未做；window.ApiPaths �js/shared-domain-bridge.js 提供。sys_eclassroom_instance ��getConfig enabled=false �无入口；已补幂等种子 api/sql/patch/20261029-1300-eclassroom-default-instance.sql�
 - TenantEclassroomService 课堂开关有 5 分钟内存缓存�03「课堂未启用」先查表再想缓存）�
+- **★「我的课堂」菜单消失先查数据再查前端**：显隐唯一判据是 /api/v1/eclassroom/config 的 enabled，来自 sys_tenant_eclassroom（0 行=未开通→Controller 兜 enabled:false→applyMenuVisibility 直接 display:none）。平台端「解绑」是物理 delete，一次清空就全租户一起没入口；诊断技巧：information_schema.tables 的 auto_increment 与 table_rows 对不上=曾被删。前端缓存不自愈（api.js 只在无缓存时补拉、ensureConfig cur!==null 直接返回）→只修库不清缓存等于没修；已改为 sessionStorage eclassroomConfigVerified + 登录清 eclassroomConfig。ws_base_path 是 WS 根不含 /ws/classrooms，留 /ws 会拼出 /ws/ws/classrooms/...
 - 待拍板：课时扣减（lesson_attendance 有有效时长，但有意不�appointment.status、不�lesson_remaining，须与请�退费口径统一）�
 
 ## 排障/技术栈
