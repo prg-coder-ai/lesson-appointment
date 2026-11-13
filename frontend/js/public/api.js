@@ -298,7 +298,16 @@ const userStr = STORE.getItem('currentUser');
     return;
   }
 
-  if (STORE.getItem('token') && !STORE.getItem('eclassroomConfig')) {
+  // 课堂配置兜底补拉：仅在「没有缓存」且「本标签页还没跟后端核对过」时发一次。
+  // 已核对过的情况由 feature-flags.js 的 applyMenuVisibility() 负责
+  // （它会在核对前先显示入口，避免同步竞态把菜单永久隐藏），这里不再重复请求。
+  var _cfgVerified = false;
+  try {
+    _cfgVerified = typeof window.hasClassroomConfigVerified === 'function'
+      && window.hasClassroomConfigVerified();
+  } catch (e) { /* ignore */ }
+
+  if (STORE.getItem('token') && !STORE.getItem('eclassroomConfig') && !_cfgVerified) {
     var _EP = (window.ApiPaths && window.ApiPaths.ENDPOINTS) || {};
     if (_EP.ECLASSROOM_CONFIG) {
       request({ url: _EP.ECLASSROOM_CONFIG, method: 'get' })

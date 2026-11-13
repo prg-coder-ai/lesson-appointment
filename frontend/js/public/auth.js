@@ -119,6 +119,13 @@
     }
     if (tCode) currentUser.tenantCode = tCode;
     STORE.setItem('currentUser', JSON.stringify(currentUser));
+    // 课堂配置是「按租户」下发的（enabled / apiBaseUrl 都取自当前租户的绑定记录），
+    // 换账号或换租户登录后上一次会话的快照必然失效。这里连「已核对」标记一起清掉，
+    // 让目标页面进站后重新向 /api/v1/eclassroom/config 核对一次（feature-flags.js 负责）。
+    try {
+      STORE.removeItem('eclassroomConfig');
+      sessionStorage.removeItem('eclassroomConfigVerified');
+    } catch (e) { /* ignore */ }
     try {
       const d = new Date();
       d.setTime(d.getTime() + 20 * 60 * 60 * 1000);
