@@ -2,7 +2,7 @@
 rem ============================================================================
 rem build-all.bat - 微信云托管 · 本地预打包一键脚本（Windows cmd）
 rem
-rem 与同目录 build-all.sh 行为一致，参数相同：
+rem Windows cmd 版唯一入口；与 cloudBased\scripts\build-all.sh / .ps1 参数一致：
 rem   build-all.bat                                   完整构建（后端 + 前端 + 镜像）
 rem   build-all.bat --skip-frontend --skip-docker     只改了 Java 时用
 rem   build-all.bat --env-id myenv01 --docker-push    构建并推送到云托管仓库
@@ -61,8 +61,8 @@ exit /b 1
 
 rem ---------------------------------------------------------------- 路径推导
 rem %~dp0 是脚本所在目录（带尾反斜杠），上一级即项目根，deploy\ 与 api\ 是兄弟目录
-rem 注意：cloudBased\scripts\build-all.bat 是同源副本，它在两层深处用 ..\.. 才对；
-rem       本文件在 deploy\ 只有一层，用 .. 即可，别从那份直接覆盖回来。
+rem 注意：本文件在 deploy\ 只有一层，项目根用 ..；早期同源副本曾放在
+rem       cloudBased\scripts\（两层深，用 ..\..），已删除，勿再从该处拷贝覆盖。
 pushd "%~dp0.." >nul 2>nul
 if errorlevel 1 (
     set "ERRMSG=无法进入项目根目录（%~dp0..）"
