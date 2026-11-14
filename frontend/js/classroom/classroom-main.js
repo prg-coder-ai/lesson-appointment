@@ -91,7 +91,7 @@
       this._setStatus('connecting', '进入中...');
 
       var enterP = (window.ClassroomAPI && typeof window.ClassroomAPI.enterClassroom === 'function')
-        ? window.ClassroomAPI.enterClassroom(apiBaseUrl, scheduleId)
+        ? window.ClassroomAPI.enterClassroom(apiBaseUrl, scheduleId, ctx.userName)
         : Promise.reject(new Error('ClassroomAPI 未加载'));
 
       enterP
@@ -200,7 +200,7 @@
           this._setRecording(!!msg.on);
           break;
         case 'rtc-peer-join':
-          this._addParticipant(msg.from, msg.name, msg.role);
+          this._addParticipant(msg.from, msg.displayName || msg.name, msg.role);
           break;
         case 'rtc-peer-leave':
         case 'member-kicked':

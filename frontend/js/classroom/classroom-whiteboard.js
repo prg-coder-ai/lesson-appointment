@@ -2,9 +2,21 @@
  * classroom-whiteboard.js —— 白板协作模块
  *
  * 基于 canvas + WS whiteboard 通道。坐标为 0~1 归一化比例，跨屏尺寸一致。
- * 消息：{ type:'whiteboard', op:'draw', x0,y0,x1,y1,color,size,tool } / { op:'shape', shape:'rect'|'circle'|'square' } / { op:'clear' }
+ * 消息：{ type:'whiteboard', op:'draw', x0,y0,x1,y1,color,size,tool } / { op:'shape', shape:'rect'|'circle'|'square' } / { op:'text', x,y,text,font,fontSize,baseH,color } / { op:'clear' } / { op:'undo', opId, by }
  * 权限：admin 默认只读；学生是否可写由 ctx.canWrite 控制（默认 true）。
  * 形状工具（rect/circle/square）：按下记录起点，拖动时橡皮筋预览，抬笔提交为一条 shape 操作并广播。
+ * 文字工具（text）：点击画布弹出输入浮层，确定后提交一条 text 操作并广播；
+ *   字体/字号由工具栏选择，颜色复用「当前颜色」。字号随白板高度等比缩放（baseH 基准），
+ *   保证 contain 布局下跨屏/缩放时文字与板书比例一致。
+ *
+ * 撤回（最近 5 步，仅撤自己的）：
+ *  - 「一次落笔」= 从按下到抬笔的一条完整笔画（含多个 draw 小线段）或一个 shape，
+ *    每次落笔分配唯一 opId，该次落笔产生的所有 op 都带 opId / by(作者 userId)。
+ *  - 本地 _undoStack 只保留自己最近提交的 5 个 opId；点撤回或 Ctrl+Z 弹一条，
+ *    按 opId 从 _ops 批量移除并重绘，再广播 { op:'undo', opId, by }。
+ *  - 服务端 WhiteboardHandler 校验 by === 当前 WS 用户后，从 wbOps 移除该 opId 的全部条目、
+ *    广播给全房间并强制落盘快照 —— 因此刷新/重连（wb:init）不会把撤掉的笔迹复活。
+ *  - clear 不计入撤回栈，且会清空撤回栈（清空是破坏性操作，不提供撤销）。
  */
 (function () {
   var ClassroomWhiteboard = {
@@ -24,6 +36,23 @@
     aspect: 16 / 9,                     // 白板内容固定纵横比（宽/高）。保持后同一幅归一化画在任意屏比例下形状一致；改这里即可换比例（如 4/3）
     _shapeStart: null,                  // 形状工具：按下时的归一化起点
     _pendingShape: null,                // 形状工具：拖动中暂存的预览 shape（抬笔才提交进 _ops）
+    _undoStack: [],                     // 自己最近提交的 opId（最多 MAX_UNDO 步），撤回时从栈顶弹
+    _curOpId: null,                     // 当前这次落笔的唯一 id（一次按下→抬笔共享）
+    _curOpCommitted: false,             // 当前落笔是否已产生至少一条 op（避免空点击入栈）
+    _opSeq: 0,                          // opId 自增序号
+    MAX_UNDO: 5,                        // 可撤回步数上限
+    font: 'sans',                       // 文字字体 key（映射到 CSS font-family，见 FONT_FAMILIES）
+    fontSize: 24,                       // 文字字号（逻辑像素，基准高度 baseH）
+    _textAnchor: null,                  // 文字输入浮层的归一化锚点 { x, y }
+
+    // 字体 key → CSS font-family。用 key 而非直接存字体串，避免不同端字体串不一致导致的回放错位
+    FONT_FAMILIES: {
+      sans: '"PingFang SC","Microsoft YaHei",Arial,sans-serif',
+      hei: '"SimHei","Microsoft YaHei",sans-serif',
+      song: '"SimSun","Songti SC",serif',
+      kai: '"KaiTi","STKaiti",serif',
+      mono: 'Consolas,"Courier New",monospace'
+    },
 
     init: function (ctx) {
       this.ctx = ctx || {};
@@ -39,6 +68,7 @@
         var hint = document.getElementById('wb-readonly-hint');
         if (hint) hint.style.display = '';
       }
+      this._syncUndoBtn();
       return this;
     },
 
@@ -49,6 +79,7 @@
       this.active = !!on;
       area.classList.toggle('hidden', !on);
       if (grid) grid.classList.toggle('hidden', on);
+      if (!on) this._hideTextEditor();    // 浮层是 area 子元素，隐藏时一并清状态避免残留
       if (on) this._resize();
     },
 
@@ -77,14 +108,32 @@
           tools.forEach(function (b) { b.classList.remove('active'); });
           btn.classList.add('active');
           self.tool = btn.getAttribute('data-tool');
+          if (self.tool !== 'text') self._hideTextEditor();   // 切走文字工具时丢弃未提交的输入
         });
       });
       var colorEl = document.getElementById('wb-color');
-      if (colorEl) colorEl.addEventListener('input', function () { self.color = colorEl.value; });
+      if (colorEl) colorEl.addEventListener('input', function () { self.color = colorEl.value; self._syncTextPreviewColor(); });
       var sizeEl = document.getElementById('wb-size');
       if (sizeEl) sizeEl.addEventListener('input', function () { self.size = Number(sizeEl.value) || 3; });
+      var fontEl = document.getElementById('wb-font');
+      if (fontEl) fontEl.addEventListener('change', function () { self.font = fontEl.value || 'sans'; });
+      var fontSizeEl = document.getElementById('wb-font-size');
+      if (fontSizeEl) fontSizeEl.addEventListener('change', function () { self.fontSize = Number(fontSizeEl.value) || 24; });
+      this._bindTextEditor();
       var clearEl = document.getElementById('wb-clear');
       if (clearEl) clearEl.addEventListener('click', function () { self.clear(true); });
+      var undoEl = document.getElementById('wb-undo');
+      if (undoEl) undoEl.addEventListener('click', function () { self.undo(); });
+      // Ctrl/Cmd + Z 撤回（输入框聚焦时不拦截，避免影响文本编辑）
+      window.addEventListener('keydown', function (e) {
+        var isZ = (e.key === 'z' || e.key === 'Z');
+        if (!(e.ctrlKey || e.metaKey) || !isZ || e.shiftKey) return;
+        var t = e.target || {};
+        var tag = (t.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || t.isContentEditable) return;
+        e.preventDefault();
+        self.undo();
+      });
     },
 
     _touch: function (e) {
@@ -104,9 +153,19 @@
 
     _start: function (e) {
       if (this.readOnly && !this.granted) return;
+      if (this.tool === 'text') {
+        // 文字工具：只记录锚点 + 弹输入浮层，不进入绘制状态（_move/_end 全程不触发）
+        this._textAnchor = this._norm(e);
+        this._showTextEditor(e);
+        return;
+      }
       this.drawing = true;
       this._shapeStart = this._norm(e);   // 形状工具记录起点；画笔工具同用作上一动点
       this.last = this._shapeStart;
+      // 每次落笔分配唯一 opId：本次按下→抬笔产生的所有 op 共享，撤回时按它整条移除
+      this._opSeq += 1;
+      this._curOpId = (this.ctx.userId || 'u') + '-' + Date.now() + '-' + this._opSeq;
+      this._curOpCommitted = false;
     },
 
     _move: function (e) {
@@ -119,7 +178,8 @@
         var seg = {
           op: 'shape', shape: this.tool,
           x0: s0.x, y0: s0.y, x1: p.x, y1: p.y,
-          color: this.color, size: this.size
+          color: this.color, size: this.size,
+          opId: this._curOpId, by: this.ctx.userId
         };
         this._render(seg);                 // 清屏 + 重绘 _ops + 预览
         this._pendingShape = seg;          // 暂存，抬笔时提交
@@ -131,10 +191,12 @@
         x0: this.last.x, y0: this.last.y, x1: p.x, y1: p.y,
         color: this.tool === 'eraser' ? '#ffffff' : this.color,
         size: this.tool === 'eraser' ? this.size * 3 : this.size,
-        tool: this.tool
+        tool: this.tool,
+        opId: this._curOpId, by: this.ctx.userId
       };
       this._drawSeg(seg);
       this._ops.push(seg);
+      this._curOpCommitted = true;
       this.last = p;
       if (window.ClassroomWS && this.ctx.scheduleId) {
         window.ClassroomWS.sendWhiteboard(this.ctx.scheduleId, seg);
@@ -146,12 +208,17 @@
       if (this._pendingShape) {
         // 抬笔提交形状：写进 _ops 并广播，再按 _ops 正式重绘（含刚提交的形状）
         this._ops.push(this._pendingShape);
+        this._curOpCommitted = true;
         if (window.ClassroomWS && this.ctx.scheduleId) {
           window.ClassroomWS.sendWhiteboard(this.ctx.scheduleId, this._pendingShape);
         }
         this._pendingShape = null;
         this._redrawAll();
       }
+      // 本次落笔确实产生了 op → 作为一个撤回步压栈（画笔多段/形状一条都只算 1 步）
+      if (this._curOpCommitted && this._curOpId) this._pushUndo(this._curOpId);
+      this._curOpCommitted = false;
+      this._curOpId = null;
       this.drawing = false;
       this.last = null;
       this._shapeStart = null;
@@ -180,7 +247,21 @@
       c2.lineWidth = (seg.size || 3);
       c2.lineCap = 'round';
       c2.lineJoin = 'round';
-      if (seg.op === 'shape') {
+      if (seg.op === 'text') {
+        // 文字：字号按当前白板高度相对提交时的基准高度等比缩放，
+        // 保证 contain 布局下窗口缩放时文字与板书比例一致（坐标本身已是归一化）。
+        var baseH = seg.baseH || 720;
+        var fs = Math.max(8, (seg.fontSize || 24) * (h / baseH));
+        var family = this.FONT_FAMILIES[seg.font] || this.FONT_FAMILIES.sans;
+        c2.fillStyle = seg.color || '#2f80ed';
+        c2.font = fs + 'px ' + family;
+        c2.textBaseline = 'top';
+        var lines = String(seg.text == null ? '' : seg.text).split('\n');
+        var lineH = fs * 1.35;
+        for (var li = 0; li < lines.length; li++) {
+          c2.fillText(lines[li], seg.x * w, seg.y * h + li * lineH);
+        }
+      } else if (seg.op === 'shape') {
         this._strokeShape(c2, seg, w, h);   // 矩形 / 圆 / 正方形
       } else {
         c2.beginPath();
@@ -227,19 +308,33 @@
       // F4-07：重连/迟到者恢复白板——服务器下发操作序列，本地重放
       if (msg.type === 'wb:init' && msg.ops) {
         this._ops = [];
+        this._undoStack = [];
         var self = this;
+        var me = this.ctx && this.ctx.userId;
         (msg.ops || []).forEach(function (opStr) {
           try {
             var op = (typeof opStr === 'string') ? JSON.parse(opStr) : opStr;
-            if (op.op === 'clear') { self._ops = []; self._clearLocal(); }
-            else if (op.op === 'draw' || op.op === 'shape') { self._ops.push(op); self._drawSeg(op); }
+            if (op.op === 'clear') { self._ops = []; self._undoStack = []; self._clearLocal(); }
+            else if (op.op === 'draw' || op.op === 'shape' || op.op === 'text') {
+              self._ops.push(op); self._drawSeg(op);
+              // 刷新/重连后按作者重建自己的撤回栈：只认带 opId 且 by===自己的 op
+              // 用 String 归一：服务端注入的 by 来自 JWT sub（字符串），本地 ctx.userId 可能是数字
+              if (op.opId && me != null && String(op.by) === String(me)) self._pushUndo(op.opId, true);
+            }
           } catch (e) {}
         });
+        this._syncUndoBtn();
+        return;
+      }
+      // 撤回广播（含自己发出的回显）：按 opId 幂等移除并重绘
+      if (msg.op === 'undo') {
+        if (msg.opId) this._applyUndo(msg.opId);
         return;
       }
       // F4-08：教师授予/收回编辑权
       if (msg.type === 'wb:grant:state') {
         this.granted = !!msg.grant;
+        this._syncUndoBtn();
         if (this.granted) {
           this.toast('教师已授权你编辑白板');
         } else if (this.readOnly) {
@@ -251,16 +346,170 @@
         this.toast('白板已保存');
         return;
       }
-      if (msg.op === 'clear') { this._clearLocal(); this._ops = []; return; }
-      if (msg.op === 'draw' || msg.op === 'shape') { this._ops.push(msg); this._drawSeg(msg); }
+      if (msg.type === 'wb:denied') {
+        this.toast('没有白板编辑权限');
+        return;
+      }
+      if (msg.op === 'clear') { this._clearLocal(); this._ops = []; this._undoStack = []; this._syncUndoBtn(); return; }
+      if (msg.op === 'draw' || msg.op === 'shape' || msg.op === 'text') { this._ops.push(msg); this._drawSeg(msg); }
+    },
+
+    // ------------------------------------------------------------------
+    // 文字输入
+    // ------------------------------------------------------------------
+
+    _bindTextEditor: function () {
+      var self = this;
+      var ok = document.getElementById('wb-text-ok');
+      var cancel = document.getElementById('wb-text-cancel');
+      var input = document.getElementById('wb-text-input');
+      if (ok) ok.addEventListener('click', function () { self._commitText(); });
+      if (cancel) cancel.addEventListener('click', function () { self._hideTextEditor(); });
+      if (input) {
+        input.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape') { e.preventDefault(); self._hideTextEditor(); return; }
+          // Ctrl/Cmd + Enter 提交；Enter 本身允许换行
+          if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); self._commitText(); }
+        });
+      }
+    },
+
+    _showTextEditor: function (e) {
+      var box = document.getElementById('wb-text-editor');
+      var input = document.getElementById('wb-text-input');
+      if (!box || !input) return;
+      // 用点击的视口坐标定位（fixed），并做边界收敛，避免浮层溢出屏幕
+      var cx = (e && e.clientX != null) ? e.clientX : (window.innerWidth / 2);
+      var cy = (e && e.clientY != null) ? e.clientY : (window.innerHeight / 2);
+      var left = Math.max(4, Math.min(cx, window.innerWidth - 260));
+      var top = Math.max(4, Math.min(cy, window.innerHeight - 150));
+      box.style.left = left + 'px';
+      box.style.top = top + 'px';
+      box.style.display = 'block';
+      input.value = '';
+      var self = this;
+      window.setTimeout(function () { try { input.focus(); } catch (err) {} self._syncTextPreviewColor(); }, 0);
+    },
+
+    _hideTextEditor: function () {
+      var box = document.getElementById('wb-text-editor');
+      if (box) box.style.display = 'none';
+      this._textAnchor = null;
+    },
+
+    // 输入浮层里用「当前颜色」实时预览，方便对齐白板上的呈现
+    _syncTextPreviewColor: function () {
+      var input = document.getElementById('wb-text-input');
+      if (input) input.style.color = this.color;
+    },
+
+    _commitText: function () {
+      var input = document.getElementById('wb-text-input');
+      var anchor = this._textAnchor;
+      if (!input || !anchor) { this._hideTextEditor(); return; }
+      var text = String(input.value || '').replace(/\s+$/, '');
+      this._hideTextEditor();
+      if (!text || (this.readOnly && !this.granted)) return;
+      // 一条文字 = 一次操作 = 一个撤回步
+      this._opSeq += 1;
+      var opId = (this.ctx.userId || 'u') + '-' + Date.now() + '-' + this._opSeq;
+      var seg = {
+        op: 'text',
+        x: anchor.x, y: anchor.y,
+        text: text,
+        font: this.font || 'sans',
+        fontSize: this.fontSize || 24,
+        baseH: this._h || 720,           // 提交时的白板逻辑高度，供各端等比缩放；兜底 720 防 _h 未就绪
+        color: this.color,
+        opId: opId, by: this.ctx.userId
+      };
+      this._ops.push(seg);
+      this._drawSeg(seg);
+      this._pushUndo(opId);
+      if (window.ClassroomWS && this.ctx.scheduleId) {
+        window.ClassroomWS.sendWhiteboard(this.ctx.scheduleId, seg);
+      }
     },
 
     clear: function (broadcast) {
+      this._hideTextEditor();
       this._clearLocal();
       this._ops = [];
+      this._undoStack = [];               // 清空是破坏性操作，撤回栈一并作废
+      this._syncUndoBtn();
       if (broadcast && window.ClassroomWS && this.ctx.scheduleId) {
         window.ClassroomWS.sendWhiteboard(this.ctx.scheduleId, { op: 'clear' });
       }
+    },
+
+    // ------------------------------------------------------------------
+    // 撤回（最近 5 步，仅撤自己的）
+    // ------------------------------------------------------------------
+
+    // 压入一个撤回步；超过 MAX_UNDO 时丢掉最旧的一步
+    _pushUndo: function (opId, silent) {
+      if (!opId) return;
+      var i = this._undoStack.indexOf(opId);
+      if (i >= 0) this._undoStack.splice(i, 1);   // 去重（重连回放里同一 opId 有多段）
+      this._undoStack.push(opId);
+      while (this._undoStack.length > this.MAX_UNDO) this._undoStack.shift();
+      if (!silent) this._syncUndoBtn();
+    },
+
+    // 撤回一步：弹栈 → 广播 → 本地立即生效（不等服务端回显）
+    undo: function () {
+      if (this.readOnly && !this.granted) return false;
+      if (!this._undoStack.length) return false;
+      var opId = this._undoStack.pop();
+      this._applyUndo(opId);
+      if (window.ClassroomWS && this.ctx.scheduleId) {
+        window.ClassroomWS.sendWhiteboard(this.ctx.scheduleId, {
+          op: 'undo', opId: opId, by: this.ctx.userId
+        });
+      }
+      return true;
+    },
+
+    // 按 opId 移除该次落笔的全部 op（一条笔画含多个 draw 小段）+ 重绘。幂等，回显重复执行无害
+    _applyUndo: function (opId) {
+      if (!opId) return;
+      var i = this._undoStack.indexOf(opId);
+      if (i >= 0) this._undoStack.splice(i, 1);
+      this._ops = (this._ops || []).filter(function (op) { return op.opId !== opId; });
+      this._render();                     // 清屏 + 按剩余 _ops 重绘
+      this._syncUndoBtn();
+    },
+
+    // 按钮状态：只读且未授权 → 禁用；显示剩余可撤步数
+    _syncUndoBtn: function () {
+      var btn = document.getElementById('wb-undo');
+      if (!btn) return;
+      var n = this._undoStack.length;
+      var canUndo = n > 0 && !(this.readOnly && !this.granted);
+      btn.disabled = !canUndo;
+      btn.title = canUndo ? ('撤回最近一条操作（还可撤 ' + n + ' 条）') : '暂无可撤回的操作';
+      var badge = document.getElementById('wb-undo-count');
+      if (badge) badge.textContent = n ? String(n) : '';
+    },
+
+    // 轻量提示兜底：本模块原先 onMessage 就调用 this.toast，但对象内未定义会抛 TypeError
+    toast: function (text) {
+      try {
+        if (window.ClassroomMain && typeof window.ClassroomMain.toast === 'function') {
+          window.ClassroomMain.toast(text);
+          return;
+        }
+      } catch (e) {}
+      var old = document.getElementById('wb-toast');
+      if (old) old.parentNode.removeChild(old);
+      var el = document.createElement('div');
+      el.id = 'wb-toast';
+      el.textContent = text;
+      el.style.cssText = 'position:fixed;left:50%;top:16%;transform:translateX(-50%);z-index:9999;' +
+        'background:#22272e;color:#fff;padding:8px 16px;border-radius:6px;font-size:13px;' +
+        'box-shadow:0 2px 10px rgba(0,0,0,.35);pointer-events:none;';
+      document.body.appendChild(el);
+      window.setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 1800);
     },
 
     _clearLocal: function () {
