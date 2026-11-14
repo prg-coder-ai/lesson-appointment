@@ -61,10 +61,13 @@
 
   MeshRtcEngine.prototype._broadcastJoin = function () {
     if (window.ClassroomWS && this.ctx.scheduleId) {
+      // 规范化：以 displayName 为权威字段（与 enter/rest/getMembers 一致）；
+      // 同时保留 name 以兼容旧接收端（后端对 rtc-peer-join 是透传，原样转发）。
       window.ClassroomWS.sendSignal(this.ctx.scheduleId, {
         type: 'rtc-peer-join',
         from: this.ctx.userId,
         name: this.ctx.userName,
+        displayName: this.ctx.userName,
         role: this.ctx.role
       });
     }
@@ -117,10 +120,11 @@
   MeshRtcEngine.prototype._onPeerJoin = function (msg) {
     var peerId = msg.from;
     if (!peerId || peerId === this.ctx.userId) return;
-    window.RtcTiles.remote(peerId, msg.name, msg.role);
+    var peerName = msg.displayName || msg.name;
+    window.RtcTiles.remote(peerId, peerName, msg.role);
     // 字典序较大的一方发起 offer，避免双方同时发起
     if ((this.ctx.userId || '') > peerId) {
-      this._createOffer(peerId, msg.name, msg.role);
+      this._createOffer(peerId, peerName, msg.role);
     }
   };
 
@@ -148,9 +152,10 @@
   MeshRtcEngine.prototype._onOffer = function (msg) {
     var self = this;
     var peerId = msg.from;
-    var pc = this._peer(peerId, msg.name, msg.role);
+    var peerName = msg.displayName || msg.name;
+    var pc = this._peer(peerId, peerName, msg.role);
     if (!pc) return;
-    window.RtcTiles.remote(peerId, msg.name, msg.role);
+    window.RtcTiles.remote(peerId, peerName, msg.role);
     pc.setRemoteDescription(new RTCSessionDescription(msg.sdp))
       .then(function () { return pc.createAnswer(); })
       .then(function (answer) { return pc.setLocalDescription(answer); })

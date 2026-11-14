@@ -6,6 +6,7 @@ import com.classroom.service.TeachingSessionService;
 import com.classroom.web.TraceContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
@@ -31,7 +32,14 @@ import java.util.concurrent.ConcurrentHashMap;
  *       未授权者直接丢弃并回 {@code wb:denied}；</li>
  *   <li><b>持久化 + 节流</b>：操作序列写入内存，并按 ≤2s 节流落盘 {@code classroom_session_record.whiteboard_snapshot}
  *       （{@link TeachingSessionService#saveWhiteboardSnapshot}），教师也可发 {@code wb:save} 立即落盘。</li>
+ *   <li><b>撤回（最近 5 步，仅撤自己的）</b>：每条 op 带 {@code opId}（一次落笔唯一）与 {@code by}（作者）。
+ *       收到 {@code op:'undo'} 时校验作者归属，按 opId 从内存序列移除整次落笔并<b>强制落盘</b>，
+ *       再广播给全房间；否则刷新 / 重连的 {@code wb:init} 会把已撤回的笔迹重新复活。</li>
  * </ol>
+ *
+ * <p><b>为什么 shape / text 必须纳入 modifies</b>：修复前形状笔迹（{@code op:'shape'}）只广播不落盘，
+ * 重连回放必丢，且无法撤回。撤回功能依赖 opId 随 op 持久化，故 shape 与新增的文字
+ * （{@code op:'text'}，含 text/font/fontSize/baseH/color）一并补齐落盘。
  */
 @Slf4j
 @Component
@@ -111,7 +119,50 @@ public class WhiteboardHandler extends TextWebSocketHandler {
             return;
         }
 
-        boolean modifies = "draw".equals(op) || "stroke".equals(op) || "erase".equals(op) || "clear".equals(op);
+        boolean modifies = "draw".equals(op) || "stroke".equals(op) || "erase".equals(op)
+                || "shape".equals(op) || "text".equals(op) || "clear".equals(op);
+
+        // 撤回：仅撤自己的。归属以 WS 握手身份为准，逐条比对持久化序列里的 by（由 withAuthor 注入），
+        // 任一条不属于本人即拒绝；防止越权删他人板书。
+        if ("undo".equals(op)) {
+            if (!liveState.canEditWhiteboard(scheduleId, userId, isTeacherOrManager(role))) {
+                metrics.whiteboardDenied();
+                send(session, "{\"type\":\"wb:denied\"}");
+                return;
+            }
+            String undoOpId = node.path("opId").asText(null);
+            // 归属完全以 WS 握手身份（JWT sub）为准，客户端报文里的 by 一律不参与判定：
+            //   ① 不可信（可伪造）；② 前端 ctx.userId 可能是数字而 JWT sub 是字符串，强比会误拒。
+            // op 的 by 已由 withAuthor() 在落盘时注入为握手身份，故此处比对是权威的。
+            if (undoOpId == null || undoOpId.isEmpty() || userId == null) {
+                metrics.whiteboardDenied();
+                send(session, "{\"type\":\"wb:denied\"}");
+                return;
+            }
+            List<String> seq = wbOps.get(scheduleId);
+            boolean owned = true;
+            if (seq != null) {
+                for (String p : seq) {
+                    if (undoOpId.equals(jsonField(p, "opId"))
+                            && !userId.equals(String.valueOf(jsonField(p, "by")))) {
+                        owned = false;
+                        break;
+                    }
+                }
+            }
+            if (!owned) {
+                metrics.whiteboardDenied();
+                send(session, "{\"type\":\"wb:denied\"}");
+                return;
+            }
+            if (seq != null) seq.removeIf(p -> undoOpId.equals(jsonField(p, "opId")));
+            // 广播给全房间（含发起者，客户端按 opId 幂等），并强制落盘避免节流窗口内重连复活
+            registry.broadcastWhiteboard(scheduleId, payload);
+            flush(scheduleId, true);
+            return;
+        }
+
+        String outbound = payload;
         if (modifies) {
             if (!liveState.canEditWhiteboard(scheduleId, userId, isTeacherOrManager(role))) {
                 metrics.whiteboardDenied();
@@ -121,11 +172,13 @@ public class WhiteboardHandler extends TextWebSocketHandler {
             if ("clear".equals(op)) {
                 wbOps.computeIfAbsent(scheduleId, k -> new java.util.concurrent.CopyOnWriteArrayList<>()).clear();
             } else {
-                wbOps.computeIfAbsent(scheduleId, k -> new java.util.concurrent.CopyOnWriteArrayList<>()).add(payload);
+                // 作者身份以 WS 握手（JWT sub）为准，覆盖客户端自报的 by —— 撤回归属校验的根基
+                outbound = withAuthor(node, userId, payload);
+                wbOps.computeIfAbsent(scheduleId, k -> new java.util.concurrent.CopyOnWriteArrayList<>()).add(outbound);
             }
         }
         // 广播给本房间其他白板通道 session（含 modify/cursor 等非 modify 操作）
-        registry.broadcastWhiteboard(scheduleId, payload);
+        registry.broadcastWhiteboard(scheduleId, outbound);
         if (modifies) maybeFlush(scheduleId);
     }
 
@@ -200,6 +253,33 @@ public class WhiteboardHandler extends TextWebSocketHandler {
         }
         sb.append("]");
         return sb.toString();
+    }
+
+    /**
+     * 用 WS 握手身份（JWT sub）覆盖 op 的 by 字段后再落盘 / 广播。
+     * 客户端自报的 by 不可信：若不覆盖，伪造 by 即可绕过「仅撤自己的」归属校验。
+     * 非对象 JSON 或序列化异常时退回原报文，不阻断绘制。
+     */
+    private String withAuthor(JsonNode node, String userId, String raw) {
+        if (node instanceof ObjectNode && userId != null) {
+            try {
+                ((ObjectNode) node).put("by", userId);
+                return objectMapper.writeValueAsString(node);
+            } catch (Exception e) {
+                log.debug("白板 op 作者注入失败，使用原报文: {}", e.getMessage());
+            }
+        }
+        return raw;
+    }
+
+    /** 从已持久化的 op payload 里读字段（撤回归属校验用）；非 JSON / 异常一律返回 null，不抛给调用方 */
+    private String jsonField(String payload, String field) {
+        if (payload == null) return null;
+        try {
+            return objectMapper.readTree(payload).path(field).asText(null);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private boolean isTeacherOrManager(String role) {

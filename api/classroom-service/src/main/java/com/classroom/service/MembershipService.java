@@ -30,6 +30,13 @@ public class MembershipService {
             if (Boolean.TRUE.equals(existing.getKicked())) {
                 throw new ClassroomBizException(ErrorCodes.MEMBER_KICKED, "已被移出课堂，不可重入");
             }
+            // 自愈：进课堂时若带上了真实展示名（非兜底 userId），覆盖历史上被污染成 userId 的 displayName，
+            // 否则旧成员重进课堂后参与者面板/视频 tile 仍显示 userId。
+            if (displayName != null && !displayName.isBlank()
+                    && !displayName.equals(userId)
+                    && !displayName.equals(existing.getDisplayName())) {
+                existing.setDisplayName(displayName);
+            }
             existing.setOnlineState("ONLINE");
             existing.setLeaveTime(null);
             existing.setLeaveReason(null);

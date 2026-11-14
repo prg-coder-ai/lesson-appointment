@@ -1106,8 +1106,12 @@ function maskEmail(email) {
 
   const ClassroomAPI = {
     // ---- 课堂接入 ----
-    enterClassroom: function (apiBaseUrl, scheduleId) {
-      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/enter'), method: 'post' });
+    enterClassroom: function (apiBaseUrl, scheduleId, displayName) {
+      // 修复「参与者/视频 tile 显示 userId 而非真名」：进课堂时把展示名带给后端，
+      // 后端 EnterClassroomReq.displayName 已有该字段，membership.display_name 不再被兜底成 userId。
+      var body = {};
+      if (displayName != null && displayName !== '') body.displayName = displayName;
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/enter'), method: 'post', data: body });
     },
     leaveClassroom: function (apiBaseUrl, scheduleId) {
       return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/leave'), method: 'post' });

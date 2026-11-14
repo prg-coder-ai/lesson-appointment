@@ -57,12 +57,37 @@
             <button class="wb-tool" data-tool="rect" title="矩形"><i class="fas fa-vector-square"></i></button>
             <button class="wb-tool" data-tool="circle" title="圆"><i class="fas fa-circle"></i></button>
             <button class="wb-tool" data-tool="square" title="正方形"><i class="fas fa-square"></i></button>
-            <input type="color" id="wb-color" value="#2f80ed" title="颜色">
+            <button class="wb-tool" data-tool="text" title="文字（点击画布输入）"><i class="fas fa-font"></i></button>
+            <input type="color" id="wb-color" value="#2f80ed" title="颜色（画笔/形状/文字共用）">
             <input type="range" id="wb-size" min="1" max="20" value="3" title="粗细">
+            <select id="wb-font" title="文字字体">
+              <option value="sans">默认无衬线</option>
+              <option value="hei">黑体</option>
+              <option value="song">宋体</option>
+              <option value="kai">楷体</option>
+              <option value="mono">等宽</option>
+            </select>
+            <select id="wb-font-size" title="文字大小">
+              <option value="14">14</option>
+              <option value="18">18</option>
+              <option value="24" selected>24</option>
+              <option value="32">32</option>
+              <option value="40">40</option>
+              <option value="48">48</option>
+            </select>
+            <button id="wb-undo" class="wb-tool" title="撤回最近一条操作" disabled><i class="fas fa-undo"></i><span id="wb-undo-count" class="wb-undo-count"></span></button>
             <button id="wb-clear" class="wb-tool" title="清空"><i class="fas fa-trash"></i></button>
             <span class="wb-hint" id="wb-readonly-hint" style="display:none;">只读</span>
           </div>
           <canvas id="whiteboard-canvas"></canvas>
+          <!-- 文字输入浮层：position:fixed 贴在点击点，避免 letterbox 居中带来的坐标换算 -->
+          <div id="wb-text-editor" style="display:none;">
+            <textarea id="wb-text-input" rows="2" maxlength="200" placeholder="输入文字，Ctrl+Enter 确认"></textarea>
+            <div class="wb-text-actions">
+              <button type="button" id="wb-text-ok">确定</button>
+              <button type="button" id="wb-text-cancel">取消</button>
+            </div>
+          </div>
         </div>
         <div id="main-placeholder">
           <i class="fas fa-chalkboard-teacher"></i>

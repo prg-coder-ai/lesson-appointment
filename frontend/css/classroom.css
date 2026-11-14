@@ -243,6 +243,11 @@ html, body {
   cursor: pointer;
 }
 .wb-tool.active { background: #1f6feb; color: #fff; border-color: #1f6feb; }
+/* 撤回按钮：带剩余可撤条数徽标；禁用时置灰不可点 */
+#wb-undo { display: inline-flex; align-items: center; justify-content: center; gap: 3px; }
+#wb-undo:disabled { opacity: .42; cursor: not-allowed; }
+.wb-undo-count { font-size: 10px; line-height: 1; font-weight: 600; }
+#wb-undo:disabled .wb-undo-count { display: none; }
 .wb-hint { color: #d29922; font-size: 12px; margin-left: 8px; }
 /* 颜色 / 粗细控件：深色工具栏上必须可见且可操作（旧版完全没有样式，控件"消失"） */
 #wb-color {
@@ -274,6 +279,60 @@ html, body {
   border-radius: 50%; background: #1f6feb; border: 2px solid #c9d1d9;
 }
 #wb-size::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #1f6feb; border: 2px solid #c9d1d9; }
+
+/* 文字工具：字体 / 字号下拉（深色工具栏配色，与 color/size 控件一致） */
+#wb-font, #wb-font-size {
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  background: #2b3239;
+  color: #c9d1d9;
+  font-size: 12px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+#wb-font { max-width: 116px; }
+#wb-font-size { width: 62px; }
+#wb-font option, #wb-font-size option { background: #2b3239; color: #c9d1d9; }
+
+/* 文字输入浮层：fixed 贴在点击点，z-index 高于视频网格与工具栏 */
+#wb-text-editor {
+  position: fixed;
+  z-index: 10000;
+  width: 240px;
+  padding: 8px;
+  background: #22272e;
+  border: 1px solid #444c56;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .45);
+}
+#wb-text-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 54px;
+  resize: vertical;
+  padding: 6px 8px;
+  border: 1px solid #444c56;
+  border-radius: 5px;
+  background: #fff;
+  color: #1f2328;
+  font-size: 13px;
+  line-height: 1.4;
+}
+#wb-text-input:focus { outline: 2px solid #1f6feb; outline-offset: -1px; }
+.wb-text-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 6px; }
+.wb-text-actions button {
+  padding: 4px 12px;
+  border: 1px solid #444c56;
+  border-radius: 5px;
+  background: #2b3239;
+  color: #c9d1d9;
+  font-size: 12px;
+  cursor: pointer;
+}
+.wb-text-actions button:hover { border-color: #1f6feb; }
+#wb-text-ok { background: #1f6feb !important; border-color: #1f6feb !important; color: #fff !important; }
 
 #whiteboard-canvas {
   display: block;
