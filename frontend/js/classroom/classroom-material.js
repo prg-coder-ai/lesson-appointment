@@ -4,15 +4,15 @@
  * 教师上传讲稿 → 服务端落对象存储并广播 page:state → 学生端跟随翻页。
  *
  * 渲染策略按文件类型分流：
- *   PDF   → <iframe src="...pdf#page=N&toolbar=0">，翻页就是改 hash（不重新下载整份文件）
+ *   PDF   → PDF.js 解析 + <canvas> 自渲染（离屏双缓冲翻页，根治 iframe 换页黑闪/延迟，并解锁滚动同步）
  *   IMAGE → <img>，页码无意义（单图）
  *   OTHER → 给下载入口（PPT 等浏览器不能内联渲染）
  *
  * 学生端只读：翻页按钮对教师/管理员可见，学生点不动，且服务端也会拒绝非教师翻页。
  *
  * 滚动同步（2026-11-15）：教师滚动讲稿面板 → 节流广播 page:scroll → 学生跟随滚动。
- *   仅 IMAGE 类型可真实同步——PDF 走原生 iframe 查看器，滚动位置在跨文档内部，
- *   前端读不到也设不了；要同步 PDF 滚动必须把 PDF 改用 PDF.js 自行渲染（见文档/方案）。
+ *   IMAGE 与 PDF 都可同步——PDF 用 PDF.js 渲染到父文档 <canvas>，.ms-body 是真实可滚动容器；
+ *   滚动广播只由教师发出，学生端只接收。PDF 翻页/换稿时离屏渲染完成后复位到顶并广播。
  */
 (function () {
   // 端点常量统一取自 shared/apiPaths.js（经 js/shared-domain-bridge.js 挂到 window.ApiPaths）
@@ -101,22 +101,31 @@
       if (!stage) return;
 
       empty.classList.add('hidden');
-      var isPdf = String(state.fileType || '').toUpperCase() === 'PDF';
-      var isImage = String(state.fileType || '').toUpperCase() === 'IMAGE';
+      var ft = String(state.fileType || '').toUpperCase();
+      var isPdf = ft === 'PDF';
+      var isImage = ft === 'IMAGE';
       var page = state.page && state.page > 0 ? state.page : 1;
+      var cv = document.getElementById('ms-pdf-canvas');
+
+      // 切到非 PDF（或无可渲染 URL）时取消在途 PDF 渲染，避免后台解码占内存 / 旧页残留
+      if ((!isPdf || !state.url) && (this._pdfDoc || this._pdfTask)) this._cancelPdf();
+      if (cv && (!isPdf || !state.url)) cv.classList.add('hidden');
 
       if (isPdf && state.url) {
-        frame.classList.remove('hidden');
+        // PDF.js 自渲染：旧页保留在 canvas 上直到新页画完（离屏双缓冲），无空白帧 → 不黑闪
+        frame.classList.add('hidden');
         img.classList.add('hidden');
-        // 改 hash 而不是重设 src：避免每次翻页都重新拉整份 PDF
-        frame.src = state.url + '#page=' + page + '&toolbar=0&navpanes=0';
+        if (cv) cv.classList.remove('hidden');
+        this._renderPdf(state.url, page);
       } else if (isImage && state.url) {
         frame.classList.add('hidden');
         img.classList.remove('hidden');
+        if (cv) cv.classList.add('hidden');
         img.src = state.url;
       } else {
         frame.classList.add('hidden');
         img.classList.add('hidden');
+        if (cv) cv.classList.add('hidden');
         empty.classList.remove('hidden');
         empty.innerHTML = state.url
           ? '该格式（' + this._escape(state.fileType || '未知') + '）不支持内联预览，' +
@@ -146,7 +155,102 @@
       }
     },
 
-    /** 学生端应用教师广播的滚动位置（仅 IMAGE 真实生效；PDF 走 iframe 不可控） */
+    /**
+     * PDF.js 渲染指定页到可见 canvas。
+     * 黑闪根治：新页先画在「离屏 canvas」，画完再一次性贴到可见 canvas，
+     * 旧页一直保留到新页就绪，中间没有空白帧 → 不再露底、不再黑闪。
+     */
+    _renderPdf: function (url, page) {
+      var self = this;
+      if (!window.pdfjsLib) { this._toast('讲稿渲染组件未加载'); return; }
+
+      // workerSrc 只设一次；必须与主库同版本（3.11.174）。
+      // classroom.html 在站点根、worker 在 js/public/vendor/，相对路径成立；
+      // 云托管若挂在子目录，改为按 location 推导的绝对前缀。
+      if (!window.pdfjsLib.GlobalWorkerOptions.workerSrc) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'js/public/vendor/pdf.worker.min.js';
+      }
+
+      var seq = (this._pdfSeq || 0) + 1;
+      this._pdfSeq = seq; // 竞态令牌：只认最后一次渲染
+
+      // 同一 URL 复用文档，避免重复下载/解析；换 URL 时先销毁旧 document
+      var docReady = (this._pdfDoc && this._pdfDocUrl === url)
+        ? Promise.resolve(this._pdfDoc)
+        : window.pdfjsLib.getDocument({ url: url, withCredentials: false }).promise
+            .then(function (doc) {
+              if (self._pdfDoc && self._pdfDoc.destroy) { try { self._pdfDoc.destroy(); } catch (e) {} }
+              self._pdfDoc = doc;
+              self._pdfDocUrl = url;
+              return doc;
+            });
+
+      docReady.then(function (doc) {
+        if (seq !== self._pdfSeq) return; // 期间又翻页/换稿 → 丢弃
+        var p = Math.min(Math.max(1, page), doc.numPages);
+        return doc.getPage(p).then(function (pdfPage) {
+          if (seq !== self._pdfSeq) return;
+
+          // 取消上一次未完成的渲染，防止旧页后完成覆盖新页
+          if (self._pdfTask) { try { self._pdfTask.cancel(); } catch (e) {} }
+
+          var canvas = document.getElementById('ms-pdf-canvas');
+          if (!canvas) return;
+          var host = canvas.parentNode;
+          var dpr = window.devicePixelRatio || 1;
+          var availW = Math.max(240, (host.clientWidth || 800) - 16);
+          var base = pdfPage.getViewport({ scale: 1 });
+          var scale = Math.min(availW / base.width, 2.0) * dpr; // 限宽 + 限最大倍率，控内存
+          var vp = pdfPage.getViewport({ scale: scale });
+
+          // ★ 离屏渲染：先画到临时 canvas，旧页仍留在可见 canvas 上
+          var off = document.createElement('canvas');
+          off.width = Math.floor(vp.width);
+          off.height = Math.floor(vp.height);
+          var task = pdfPage.render({ canvasContext: off.getContext('2d'), viewport: vp });
+          self._pdfTask = task;
+
+          return task.promise.then(function () {
+            if (seq !== self._pdfSeq) return; // 渲染期间又翻页 → 丢弃
+            // ★ 画完再贴到可见 canvas：中间无空白帧，旧页留到此刻才被替换
+            canvas.width = off.width;
+            canvas.height = off.height;
+            canvas.style.width = Math.round(vp.width / dpr) + 'px';
+            canvas.style.height = Math.round(vp.height / dpr) + 'px';
+            canvas.getContext('2d').drawImage(off, 0, 0);
+            canvas.classList.remove('hidden');
+            self._pdfTask = null;
+
+            // 新页从顶部看（与翻页复位一致）。教师端复位已在 _apply 的 pageChanged 广播，
+            // 渲染完成这里再兜一次，避免离屏渲染异步期间滚动位置漂移。
+            var body = document.getElementById('ms-body');
+            if (body && body.scrollTop !== 0) body.scrollTop = 0;
+          }).catch(function (e) {
+            if (e && e.name === 'RenderingCancelledException') return; // 正常取消，不算错误
+            throw e;
+          });
+        });
+      }).catch(function (e) {
+        if (seq === self._pdfSeq) {
+          self._toast('讲稿加载失败：' + (e && e.message ? e.message : '未知错误'));
+        }
+      });
+    },
+
+    /** 关闭讲稿 / 换课 / 换稿时取消渲染并释放文档 */
+    _cancelPdf: function () {
+      this._pdfSeq = (this._pdfSeq || 0) + 1; // 令牌 +1，令在途渲染全部作废
+      if (this._pdfTask) { try { this._pdfTask.cancel(); } catch (e) {} this._pdfTask = null; }
+      if (this._pdfDoc) { try { this._pdfDoc.destroy(); } catch (e) {} this._pdfDoc = null; }
+      this._pdfDocUrl = null;
+      var canvas = document.getElementById('ms-pdf-canvas');
+      if (canvas) canvas.classList.add('hidden');
+    },
+
+    /**
+     * 学生端应用教师广播的滚动位置（IMAGE / PDF 均真实生效）。
+     * PDF 渲染到父文档 canvas 后，.ms-body 成为真实可滚动容器，scrollTop 可读可写。
+     */
     _applyScroll: function (scrollTop) {
       var body = document.getElementById('ms-body');
       if (!body) return;
@@ -160,6 +264,7 @@
       var close = $('ms-close');
       if (close) close.addEventListener('click', function () {
         self.visible = false;
+        self._cancelPdf(); // 关讲稿即停 PDF 解码，避免后台占内存
         var stage = $('material-stage');
         if (stage) stage.classList.add('hidden');
         var btn = $('ctrl-material');
@@ -182,7 +287,8 @@
       });
 
       // 滚动同步源（仅教师）：节流广播 ms-body 的滚动位置。
-      // 学生端只接收，不发送；PDF 走 iframe 原生查看器，跨文档读不到滚动，这里跳过。
+      // 学生端只接收，不发送。IMAGE 与 PDF 都可同步——PDF 经 PDF.js 渲染到父文档 canvas，
+      // .ms-body 是可滚动容器，scrollTop 可读可写（不再受 iframe 跨文档限制）。
       var body = $('ms-body');
       if (body && !body._materialScrollBound) {
         body._materialScrollBound = true;
@@ -191,7 +297,7 @@
           if (!self._isTeacher()) return;           // 只有教师是滚动源
           if (!self.state) return;
           var ft = String(self.state.fileType || '').toUpperCase();
-          if (ft !== 'IMAGE') return;               // 仅 IMAGE 可同步滚动
+          if (ft !== 'IMAGE' && ft !== 'PDF') return; // IMAGE / PDF 都同步滚动
           if (scrollTimer) return;                  // 节流 60ms，避免高频信令
           scrollTimer = setTimeout(function () {
             scrollTimer = null;
@@ -205,6 +311,17 @@
           }, 60);
         }, { passive: true });
       }
+
+      // PDF canvas 按容器宽度算 scale，窗口变化后需防抖重绘，否则模糊或错位
+      var resizeTimer = null;
+      window.addEventListener('resize', function () {
+        if (!self.state || String(self.state.fileType || '').toUpperCase() !== 'PDF') return;
+        if (!self.state.url) return;
+        if (resizeTimer) clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function () {
+          if (self.state && self.state.url) self._renderPdf(self.state.url, self.state.page || 1);
+        }, 200);
+      });
     },
 
     _pickFile: function () {

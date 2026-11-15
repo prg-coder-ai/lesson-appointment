@@ -36,8 +36,12 @@ function walk(dir) {
 
 function ensureDir(p) { fs.mkdirSync(path.dirname(p), { recursive: true }); }
 
+// PDF.js v3.11.174 主库/worker 已是官方压缩产物，跳过 terser 二次压缩（worker 被再压会静默挂死），
+// 改由 copyAssets() 原样复制到 dist（见下方 isPdfVendorJs）。
+const isPdfVendorJs = p => /(^|[\\/])js[\\/]public[\\/]vendor[\\/]pdf(\.worker)?\.min\.js$/i.test(p);
+
 async function buildJs() {
-  const files = walk(path.join(ROOT, 'js')).filter(f => f.endsWith('.js'));
+  const files = walk(path.join(ROOT, 'js')).filter(f => f.endsWith('.js') && !isPdfVendorJs(f));
   for (const f of files) {
     const rel = path.relative(ROOT, f);
     const code = fs.readFileSync(f, 'utf8');
@@ -121,7 +125,8 @@ function copyAssets() {
     // vendor 下的第三方 css（如 font-awesome）位于 js/public/vendor/，buildCss 只扫 frontend/css/
     // 扫不到；这里原样复制（已压缩，且内部 url(../webfonts/) 相对引用不能被 CleanCSS 改写）。
     const isVendorCss = /(^|[\\/])js[\\/]public[\\/]vendor[\\/].+\.css$/i.test(rel);
-    if (/\.(js|css|html)$/i.test(rel) && !isVendorCss) continue;
+    // PDF.js 主库/worker 原样复制：已在 buildJs 里跳过 terser，这里放行 .js 后缀
+    if (/\.(js|css|html)$/i.test(rel) && !isVendorCss && !isPdfVendorJs(rel)) continue;
     if (/(^|\/)js\/test(\/|$)/.test(rel)) continue;
     const base = path.basename(rel);
     if (path.dirname(rel) === '.' && SKIP_ROOT.has(base)) continue;
