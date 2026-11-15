@@ -140,9 +140,11 @@ public class ScheduleEventConsumer {
             return;
         }
         // F1-05 / P3：已在进行或已结束的课堂不接受改期。
-        // 正在上课(LIVE)改时间既无意义也会打乱进行中的课堂；已结束(CLOSED/CANCELLED)改时间
-        // 等于篡改历史出勤/课时账务证据。与 handleCancelled 对 LIVE 的处理口径一致（直播中不随排期取消）。
-        if ("LIVE".equals(c.getStatus()) || "CLOSED".equals(c.getStatus()) || "CANCELLED".equals(c.getStatus())) {
+        // 正在上课(LIVE)改时间既无意义也会打乱进行中的课堂；PAUSED 只是暂时停播，课已经开了，
+        // 同样不能改期；已结束(CLOSED/CANCELLED)改时间等于篡改历史出勤/课时账务证据。
+        // 与 handleCancelled 对 LIVE/PAUSED 的处理口径一致。
+        if ("LIVE".equals(c.getStatus()) || "PAUSED".equals(c.getStatus())
+                || "CLOSED".equals(c.getStatus()) || "CANCELLED".equals(c.getStatus())) {
             log.warn("课堂已在进行或已结束，忽略改期事件: classroomId={}, status={}", c.getScheduleId(), c.getStatus());
             return;
         }
@@ -230,9 +232,11 @@ public class ScheduleEventConsumer {
         for (Classroom c : all) {
             // 已结束的课堂不动：里面已有出勤与课时消耗，改状态等于抹账务证据
             if ("CANCELLED".equals(c.getStatus()) || "CLOSED".equals(c.getStatus())) continue;
-            // 直播中不可直接取消（与 ClassroomService#cancel 同一口径），留给人处理
-            if ("LIVE".equals(c.getStatus())) {
-                log.warn("直播中的课堂不随排期取消: classroomId={}", c.getScheduleId());
+            // 直播中/暂停中的课堂不可直接取消（与 ClassroomService#cancel 同一口径）：
+            // PAUSED 也是「课已开起来」的状态，直接翻 CANCELLED 会抹掉已产生的出勤与课时证据，留给人处理
+            if ("LIVE".equals(c.getStatus()) || "PAUSED".equals(c.getStatus())) {
+                log.warn("进行中/已暂停的课堂不随排期取消: classroomId={}, status={}",
+                        c.getScheduleId(), c.getStatus());
                 continue;
             }
             cancelled += classroomMapper.updateStatus(c.getScheduleId(), c.getStatus(), "CANCELLED");
@@ -253,7 +257,9 @@ public class ScheduleEventConsumer {
         int cancelled = 0;
         for (Classroom c : all) {
             if (ClassroomKey.classIndexOf(c.getScheduleId()) <= count) continue;
-            if ("CANCELLED".equals(c.getStatus()) || "CLOSED".equals(c.getStatus()) || "LIVE".equals(c.getStatus())) continue;
+            // LIVE / PAUSED 都已开课，不能当作「多余课次」顺手取消（会丢账务证据），交人工处理
+            if ("CANCELLED".equals(c.getStatus()) || "CLOSED".equals(c.getStatus())
+                    || "LIVE".equals(c.getStatus()) || "PAUSED".equals(c.getStatus())) continue;
             cancelled += classroomMapper.updateStatus(c.getScheduleId(), c.getStatus(), "CANCELLED");
         }
         if (cancelled > 0) {

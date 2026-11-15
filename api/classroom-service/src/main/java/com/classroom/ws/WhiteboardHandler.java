@@ -1,6 +1,7 @@
 package com.classroom.ws;
 
 import com.classroom.service.ClassroomLiveState;
+import com.classroom.service.ClassroomPublishGuard;
 import com.classroom.metrics.BizMetrics;
 import com.classroom.service.TeachingSessionService;
 import com.classroom.web.TraceContext;
@@ -50,6 +51,7 @@ public class WhiteboardHandler extends TextWebSocketHandler {
     private final TeachingSessionService teachingSession;
     private final ObjectMapper objectMapper;
     private final BizMetrics metrics;
+    private final ClassroomPublishGuard publishGuard;
 
     /** scheduleId -> 白板操作序列（JSON 字符串列表，用于重连下发与落盘） */
     private final Map<String, List<String>> wbOps = new ConcurrentHashMap<>();
@@ -62,12 +64,13 @@ public class WhiteboardHandler extends TextWebSocketHandler {
 
     public WhiteboardHandler(WsRoomRegistry registry, ClassroomLiveState liveState,
                             TeachingSessionService teachingSession, ObjectMapper objectMapper,
-                            BizMetrics metrics) {
+                            BizMetrics metrics, ClassroomPublishGuard publishGuard) {
         this.registry = registry;
         this.liveState = liveState;
         this.teachingSession = teachingSession;
         this.objectMapper = objectMapper;
         this.metrics = metrics;
+        this.publishGuard = publishGuard;
     }
 
     @Override
@@ -112,6 +115,17 @@ public class WhiteboardHandler extends TextWebSocketHandler {
             return;
         }
         String op = node.path("op").asText(null);
+
+        // 课堂发布门禁（服务端权威）：非「进行中」时学生不得画；PAUSED 时教师也不得画。
+        // 白板是独立 WS 通道，signal 通道的拦截覆盖不到，必须在这里同样前置拦一次。
+        // wb:save 属控制类（教师保存板书），由 guard 例外放行。
+        if (!publishGuard.allows(scheduleId, role, op)) {
+            String st = publishGuard.statusOf(scheduleId);
+            send(session, "{\"type\":\"wb:rejected\",\"reason\":\"CLASS_NOT_PUBLISHABLE\","
+                    + "\"status\":\"" + (st == null ? "" : st) + "\"}");
+            metrics.whiteboardDenied();
+            return;
+        }
 
         if ("wb:save".equals(op) && isTeacherOrManager(role)) {
             flush(scheduleId, true);

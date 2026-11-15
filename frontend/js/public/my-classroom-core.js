@@ -185,6 +185,28 @@
     window.location.href = pageUrl('classroom-prep.html', { scheduleId: key });
   }
 
+  /**
+   * 学生「课前准备」页：复用教师课程准备页，带 mode=student 只显示
+   * 「设备检测与选择」+「课堂信息」两个栏目（不显示教学资料）。
+   *
+   * 课次时间/状态随 URL 一起带过去：课前课堂服务里很可能还没有 classroom 行
+   * （GET /classrooms/{key}/status 返回 40401），不能指望用课堂服务回显课堂信息。
+   * 这些都是展示元数据，不参与鉴权，故走 query 即可，无需新增接口。
+   */
+  function openStudentPrep(key, ins) {
+    if (!key) { toast('缺少课次标识'); return; }
+    var o = ins || {};
+    window.location.href = pageUrl('classroom-prep.html', {
+      scheduleId: key,
+      mode: 'student',
+      start: o.startTime || '',
+      end: o.endTime || '',
+      state: o.state || '',
+      idx: o.classIndex || '',
+      total: o.classCount || ''
+    });
+  }
+
   // ---------- 课次键 / 阶段判定 ----------
 
   /**
@@ -262,9 +284,13 @@
    *
    * | 阶段 | 学生 | 教师 |
    * |---|---|---|
-   * | 未开始 upcoming | 进入课程 | 课程准备 + 进入课程 |
+   * | 未开始 upcoming | 课前准备 + 进入课程 | 课程准备 + 进入课程 |
    * | 进行中 live     | 进入课程 | 进入课程 |
    * | 已结束 past     | 课程回看 | 课程回看 |
+   *
+   * 学生「课前准备」与课次列表操作栏同名同页（mode=student），由 opts 里的
+   * rawDatetime / classDuration 把上课时间编码进按钮参数，供准备页「课堂信息」展示
+   * （课前课堂服务常无 classroom 行，不能等 /status 回显）。
    *
    * 按钮用 onclick 调 window.ClassroomEntry.*（不在本文件声明同名全局函数，
    * 避免与页面内联脚本的同名函数互相覆盖）。
@@ -282,9 +308,13 @@
     var enabled = (typeof window.hasClassroom === 'function') ? window.hasClassroom() : true;
     if (!enabled && !o.ignoreSwitch) return '';
 
-    var btn = function (label, icon, action, extraStyle) {
+    // meta 为 encodeURIComponent(JSON) 串，供「课前准备」按钮携带课次时间等展示元数据；
+    // 编码后不含双引号，可安全放进 onclick 的双引号属性里。
+    var btn = function (label, icon, action, extraStyle, meta) {
+      var args = "'" + String(key).replace(/'/g, "\\'") + "'";
+      if (meta) args += ",'" + String(meta).replace(/'/g, '%27') + "'";
       return '<button type="button" class="btn btn-success" style="margin-left:6px;' + (extraStyle || '')
-        + '" onclick="window.ClassroomEntry.' + action + "('" + String(key).replace(/'/g, "\\'") + "')\">"
+        + '" onclick="window.ClassroomEntry.' + action + '(' + args + ')">'
         + (icon ? '<i class="' + icon + '"></i> ' : '') + label + '</button>';
     };
 
@@ -296,6 +326,17 @@
     } else if (phase === 'upcoming') {
       if (role === 'teacher') {
         out += btn('课程准备', 'fa fa-clipboard-list', 'prep', 'background:#1f6feb;border-color:#1f6feb;color:#fff;');
+      } else {
+        // 学生：与课次列表操作栏同名的「课前准备」入口（学生版只做设备检测 + 看课堂信息）
+        var st = parseUtcLoose(o.rawDatetime);
+        var dur = Number(o.classDuration) > 0 ? Number(o.classDuration) : 60;
+        var endTime = isNaN(st) ? '' : new Date(st + dur * 60000).toISOString().slice(0, 16).replace('T', ' ');
+        var meta = encodeURIComponent(JSON.stringify({
+          startTime: o.rawDatetime || '', endTime: endTime, state: 'upcoming',
+          classIndex: o.classIndex || '', classCount: ''
+        }));
+        out += btn('课前准备', 'fa fa-sliders-h', 'prepStudent',
+          'background:#1f6feb;border-color:#1f6feb;color:#fff;', meta);
       }
       out += btn('进入课程', 'fa fa-video-camera', 'enter');
     }
@@ -381,6 +422,19 @@
       tdOps.style.textAlign = 'center';
 
       var isPast = ins.state === 'finished';
+      // 学生端「课前准备」：只在课前（未开始 / 状态未知）给，进入中或已结束的课次不给。
+      // 复用教师课程准备页（mode=student 只留设备检测 + 课堂信息），入口与教师「课程准备」视觉一致。
+      var canStudentPrep = !isTeacher && !isPast && ins.state !== 'ongoing';
+      if (canStudentPrep) {
+        var prepBtn = document.createElement('button');
+        prepBtn.type = 'button';
+        prepBtn.className = 'btn btn-default';
+        prepBtn.style.cssText = 'padding:3px 11px;font-size:12px;margin-right:6px;'
+          + 'background:#1f6feb;border-color:#1f6feb;color:#fff;';
+        prepBtn.textContent = '课前准备';
+        prepBtn.addEventListener('click', function () { openStudentPrep(ins.classroomKey, ins); });
+        tdOps.appendChild(prepBtn);
+      }
       if (!isPast || isTeacher) {
         var enterBtn = document.createElement('button');
         enterBtn.type = 'button';
@@ -556,6 +610,7 @@
     enterClassroom: enterClassroom,
     openReplay: openReplay,
     openPrep: openPrep,
+    openStudentPrep: openStudentPrep,
     classroomKeyOf: classroomKeyOf,
     parseUtcLoose: parseUtcLoose,
     classroomPhase: classroomPhase,
@@ -570,6 +625,14 @@
   window.ClassroomEntry = {
     enter: function (key) { enterClassroom(key); },
     replay: function (key) { openReplay(key); },
-    prep: function (key) { openPrep(key); }
+    prep: function (key) { openPrep(key); },
+    /** 今日课程行的学生「课前准备」：meta 是 encodeURIComponent(JSON) 的课次展示元数据 */
+    prepStudent: function (key, meta) {
+      var ins = {};
+      if (meta) {
+        try { ins = JSON.parse(decodeURIComponent(meta)) || {}; } catch (e) { ins = {}; }
+      }
+      openStudentPrep(key, ins);
+    }
   };
 })();

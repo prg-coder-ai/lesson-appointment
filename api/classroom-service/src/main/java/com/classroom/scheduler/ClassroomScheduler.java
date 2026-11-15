@@ -14,6 +14,7 @@ import com.classroom.service.ClassroomService;
 import com.classroom.service.MembershipService;
 import com.classroom.service.RecordingService;
 import com.classroom.ws.OnlineStateManager;
+import com.classroom.ws.WsRoomRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -34,6 +35,8 @@ import java.util.List;
  *   <li>选行查询下推到 SQL（{@code ClassroomMapper.list*} 与 Mapper default 方法），扫描器只做动作。</li>
  *   <li>掉线/结课类以 <b>Redis 在线 key 是否还在</b> 为在线真相源（{@link OnlineStateManager}），
  *       DB 的 {@code online_state} 只是展示态，靠扫描器把两者对齐。</li>
+ *   <li>状态流转成功后一律广播 {@code class:state}（见 {@link #broadcastState}）：修复前调度器
+ *       只改库不广播，自动开课后前端仍以为课堂是 SCHEDULED/READY，会误禁学生发布、徽标显示「待开课」。</li>
  * </ol>
  *
  * <p><b>七个扫描器</b>
@@ -61,6 +64,7 @@ public class ClassroomScheduler {
     private final SessionRecordMapper sessionRecordMapper;
     private final SubmissionMapper submissionMapper;
     private final CallbackService callbackService;
+    private final WsRoomRegistry wsRegistry;
 
     @Value("${classroom.ready-before-start-minutes:10}")
     private int readyBeforeStartMinutes;
@@ -94,7 +98,8 @@ public class ClassroomScheduler {
                               RecordingService recordingService,
                               SessionRecordMapper sessionRecordMapper,
                               SubmissionMapper submissionMapper,
-                              CallbackService callbackService) {
+                              CallbackService callbackService,
+                              WsRoomRegistry wsRegistry) {
         this.classroomService = classroomService;
         this.membershipService = membershipService;
         this.onlineStateManager = onlineStateManager;
@@ -105,6 +110,7 @@ public class ClassroomScheduler {
         this.sessionRecordMapper = sessionRecordMapper;
         this.submissionMapper = submissionMapper;
         this.callbackService = callbackService;
+        this.wsRegistry = wsRegistry;
     }
 
     // ============ 1. 就绪提醒（每 30 秒） ============
@@ -119,6 +125,7 @@ public class ClassroomScheduler {
             for (Classroom c : due) {
                 try {
                     if (classroomService.markReady(c.getScheduleId())) {
+                        broadcastState(c.getScheduleId(), "READY");
                         sendReadyAlert(c);
                     }
                 } catch (Exception e) {
@@ -148,6 +155,7 @@ public class ClassroomScheduler {
                         continue;
                     }
                     classroomService.startClass(c.getScheduleId());
+                    broadcastState(c.getScheduleId(), "LIVE");   // 与 Controller /start 同口径，前端立即解禁发布
                     log.info("[自动开课] scheduleId={}", c.getScheduleId());
                 } catch (Exception e) {
                     log.error("[自动开课] 处理失败 scheduleId={}, err={}", c.getScheduleId(), e.getMessage());
@@ -170,6 +178,7 @@ public class ClassroomScheduler {
             for (Classroom c : overdue) {
                 try {
                     classroomService.endClass(c.getScheduleId());
+                    broadcastState(c.getScheduleId(), "CLOSED");
                     log.info("[自动下课] scheduleId={}", c.getScheduleId());
                 } catch (Exception e) {
                     log.error("[自动下课] 处理失败 scheduleId={}, err={}", c.getScheduleId(), e.getMessage());
@@ -266,6 +275,7 @@ public class ClassroomScheduler {
                         long goneSec = Duration.between(teacher.getLeaveTime(), LocalDateTime.now()).getSeconds();
                         if (goneSec >= teacherDropGraceSeconds) {
                             classroomService.endClass(c.getScheduleId());
+                            broadcastState(c.getScheduleId(), "CLOSED");
                             log.warn("[教师掉线结课] 教师掉线 {}s，自动结课: scheduleId={}", goneSec, c.getScheduleId());
                         }
                     }
@@ -302,6 +312,27 @@ public class ClassroomScheduler {
     }
 
     // ==================== 私有辅助 ====================
+
+    /**
+     * 状态流转后向房间广播服务端权威态 {@code class:state}（与 Controller 的 /start|pause|resume|end
+     * 后广播同一格式，前端 ClassroomMain.setClassStatus 统一消费）。
+     *
+     * <p><b>为什么调度器也要广播</b>：自动开课/自动下课/教师掉线结课/就绪提醒都直接改库，
+     * 修复前不广播，前端 classStatus 会一直停留在进页时 /status 的旧值。最典型的后果是
+     * 自动开课后学生端仍按 SCHEDULED 判定「不可发布」，明明服务端已放行却发不出音视频/白板/聊天，
+     * 状态徽标也一直显示「待开课」。
+     *
+     * <p>广播失败只记 WARN：WS 不可用不能影响已落库的状态流转，更不能打断下课收尾
+     * （destroyRoom + closeAfterEnd）。各扫描器的自包含 try/catch 仍然生效，此处再兜一层。
+     */
+    private void broadcastState(String scheduleId, String status) {
+        try {
+            wsRegistry.broadcastSignal(scheduleId,
+                    "{\"type\":\"class:state\",\"status\":\"" + status + "\"}");
+        } catch (Exception e) {
+            log.warn("[状态广播] 失败 scheduleId={}, status={}, err={}", scheduleId, status, e.getMessage());
+        }
+    }
 
     private void sendReadyAlert(Classroom c) {
         try {

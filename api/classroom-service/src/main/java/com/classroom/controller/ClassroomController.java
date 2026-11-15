@@ -10,8 +10,10 @@ import com.classroom.security.AuthContext;
 import com.classroom.security.ClassroomAccessGuard;
 import com.classroom.service.AttendanceService;
 import com.classroom.service.CallbackService;
+import com.classroom.service.ClassroomPublishGuard;
 import com.classroom.service.ClassroomService;
 import com.classroom.service.MembershipService;
+import com.classroom.ws.WsRoomRegistry;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
@@ -33,6 +35,8 @@ public class ClassroomController {
     private final ClassroomAccessGuard accessGuard;
     private final CallbackService callbackService;
     private final RateLimitService rateLimit;
+    private final WsRoomRegistry wsRegistry;
+    private final ClassroomPublishGuard publishGuard;
 
     /** 进课堂限流：同一用户每分钟最多进几次（刷新/重连会打到这里，阈值不能太小） */
     @Value("${classroom.rate-limit.enter-per-minute:30}")
@@ -43,13 +47,17 @@ public class ClassroomController {
                                AttendanceService attendanceService,
                                ClassroomAccessGuard accessGuard,
                                CallbackService callbackService,
-                               RateLimitService rateLimit) {
+                               RateLimitService rateLimit,
+                               WsRoomRegistry wsRegistry,
+                               ClassroomPublishGuard publishGuard) {
         this.classroomService = classroomService;
         this.membershipService = membershipService;
         this.attendanceService = attendanceService;
         this.accessGuard = accessGuard;
         this.callbackService = callbackService;
         this.rateLimit = rateLimit;
+        this.wsRegistry = wsRegistry;
+        this.publishGuard = publishGuard;
     }
 
     @GetMapping("/status")
@@ -94,6 +102,34 @@ public class ClassroomController {
         }
         accessGuard.assertAccess(scheduleId, AuthContext.currentUserId(), AuthContext.currentRole());
         classroomService.startClass(scheduleId);
+        broadcastState(scheduleId, "LIVE");
+        return Result.success();
+    }
+
+    /**
+     * 暂停：LIVE → PAUSED。期间教师端与学生端都不允许发布音视频/白板/聊天
+     * （{@link ClassroomPublishGuard} 在 WS 入口权威拦截）。
+     */
+    @PostMapping("/pause")
+    public Result<Void> pause(@PathVariable String scheduleId) {
+        if (!AuthContext.isTeacher() && !AuthContext.isManager()) {
+            return Result.fail(403, "仅教师可暂停课堂");
+        }
+        accessGuard.assertAccess(scheduleId, AuthContext.currentUserId(), AuthContext.currentRole());
+        classroomService.pauseClass(scheduleId);
+        broadcastState(scheduleId, "PAUSED");
+        return Result.success();
+    }
+
+    /** 恢复：PAUSED → LIVE（不重建媒体房间、不重写 actualStart） */
+    @PostMapping("/resume")
+    public Result<Void> resume(@PathVariable String scheduleId) {
+        if (!AuthContext.isTeacher() && !AuthContext.isManager()) {
+            return Result.fail(403, "仅教师可恢复课堂");
+        }
+        accessGuard.assertAccess(scheduleId, AuthContext.currentUserId(), AuthContext.currentRole());
+        classroomService.resumeClass(scheduleId);
+        broadcastState(scheduleId, "LIVE");
         return Result.success();
     }
 
@@ -104,7 +140,15 @@ public class ClassroomController {
         }
         accessGuard.assertAccess(scheduleId, AuthContext.currentUserId(), AuthContext.currentRole());
         classroomService.endClass(scheduleId);
+        broadcastState(scheduleId, "CLOSED");
         return Result.success();
+    }
+
+    /** 状态流转后广播权威状态，前端据此同步状态徽标与发布门禁（控制类消息，门禁放行） */
+    private void broadcastState(String scheduleId, String status) {
+        publishGuard.invalidate(scheduleId);
+        wsRegistry.broadcastSignal(scheduleId,
+                "{\"type\":\"class:state\",\"status\":\"" + status + "\"}");
     }
 
     @PostMapping("/members/{userId}/kick")

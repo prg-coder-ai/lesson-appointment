@@ -1,8 +1,10 @@
 /**
  * classroom-teacher.js —— 教师专属功能
- * 开课/下课、全员静音、录制控制、移出成员。
- * 后端接口：/classrooms/{sid}/start|end、/members/{userId}/kick（见 ClassroomController）。
+ * 开课/暂停/恢复/下课、全员静音、录制控制、移出成员。
+ * 后端接口：/classrooms/{sid}/start|pause|resume|end、/members/{userId}/kick（见 ClassroomController）。
+ * goLive() 按当前状态自动选 start（未开课）或 resume（已暂停）；后端 start 不接受 PAUSED。
  * 全员静音/录制无后端强控接口，通过 WS signal 广播约定消息，客户端自行响应。
+ * 状态变更后服务端会广播权威 class:state，前端 class-start/pause/resume/end 广播仅作兼容兜底。
  */
 (function () {
   var ClassroomTeacher = {
@@ -18,6 +20,64 @@
       return this._api('startClass', '已开课', function () {
         if (window.ClassroomWS) {
           window.ClassroomWS.sendSignal(self.ctx.scheduleId, { type: 'class-start', from: self.ctx.userId });
+        }
+      });
+    },
+
+    /**
+     * 「进行中」按钮：先实时取服务端真状态再分派，不能只信前端缓存。
+     *
+     * 原因：自动开课扫描（ClassroomScheduler.scanAutoStart）直接改库翻 LIVE，且不广播
+     * class:state；教师进课堂页时 /status 拿到的可能还是 SCHEDULED/READY，30 秒后课堂已 LIVE。
+     * 若按缓存状态调 /start，后端会以「当前状态不可开课：LIVE」拒绝（按钮报错）。暂停/恢复
+     * 后缓存同样可能滞后。点击是低频操作，实时拉一次 /status 最可靠。
+     *
+     * | 服务端状态 | 动作 |
+     * |---|---|
+     * | PAUSED | resume（后端 start 不接受 PAUSED） |
+     * | LIVE | 幂等，不重复开课，只同步 UI |
+     * | CLOSED / CANCELLED | 明确提示，不发请求 |
+     * | SCHEDULED / READY / 取不到状态 | start |
+     */
+    goLive: function () {
+      var self = this;
+      var CAPI = window.ClassroomAPI;
+      var fresh = (CAPI && typeof CAPI.getClassroomStatus === 'function')
+        ? CAPI.getClassroomStatus(this.ctx.apiBaseUrl, this.ctx.scheduleId)
+            .catch(function () { return null; })
+        : Promise.resolve(null);
+      return fresh.then(function (c) {
+        var st = (c && c.status) ? String(c.status).toUpperCase()
+          : ((window.ClassroomMain && typeof window.ClassroomMain.getStatus === 'function')
+              ? String(window.ClassroomMain.getStatus() || '').toUpperCase() : '');
+        // 同步状态徽标与发布门禁（幂等；状态未变时 setClassStatus 直接返回）
+        if (st && window.ClassroomMain && typeof window.ClassroomMain.setClassStatus === 'function') {
+          window.ClassroomMain.setClassStatus(st);
+        }
+        if (st === 'PAUSED') return self.resumeClass();
+        if (st === 'LIVE') { self.toast('课堂已在进行中，无需重复开课'); return null; }
+        if (st === 'CLOSED' || st === 'CANCELLED') {
+          self.toast('课堂已结束/已取消，无法重新开课');
+          return null;
+        }
+        return self.startClass();
+      });
+    },
+
+    pauseClass: function () {
+      var self = this;
+      return this._api('pauseClass', '课堂已暂停', function () {
+        if (window.ClassroomWS) {
+          window.ClassroomWS.sendSignal(self.ctx.scheduleId, { type: 'class-pause', from: self.ctx.userId });
+        }
+      });
+    },
+
+    resumeClass: function () {
+      var self = this;
+      return this._api('resumeClass', '课堂已恢复', function () {
+        if (window.ClassroomWS) {
+          window.ClassroomWS.sendSignal(self.ctx.scheduleId, { type: 'class-resume', from: self.ctx.userId });
         }
       });
     },

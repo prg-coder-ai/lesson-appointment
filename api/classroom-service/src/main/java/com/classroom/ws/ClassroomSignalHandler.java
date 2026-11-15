@@ -1,7 +1,10 @@
 package com.classroom.ws;
 
+import com.classroom.service.ClassroomPublishGuard;
 import com.classroom.service.ClassroomSignalService;
 import com.classroom.web.TraceContext;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
@@ -29,10 +32,15 @@ public class ClassroomSignalHandler extends TextWebSocketHandler {
 
     private final WsRoomRegistry registry;
     private final ClassroomSignalService signalService;
+    private final ClassroomPublishGuard publishGuard;
+    private final ObjectMapper objectMapper;
 
-    public ClassroomSignalHandler(WsRoomRegistry registry, ClassroomSignalService signalService) {
+    public ClassroomSignalHandler(WsRoomRegistry registry, ClassroomSignalService signalService,
+                                  ClassroomPublishGuard publishGuard, ObjectMapper objectMapper) {
         this.registry = registry;
         this.signalService = signalService;
+        this.publishGuard = publishGuard;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -61,6 +69,14 @@ public class ClassroomSignalHandler extends TextWebSocketHandler {
         // 整条消息处理（含 service 内部的广播与落库日志）都挂同一条 traceId：
         // WS 线程没有过滤器链，不主动绑就会与其他课堂的消息混在日志里无从区分
         TraceContext.runWith(traceIdOf(session), () -> {
+            // 课堂发布门禁（服务端权威）：非「进行中」时学生不得发布；PAUSED 时师生都不得发布。
+            // 必须在已知类型路由与透明转发之前拦，否则聊天 / RTC offer / 举手等会漏出去。
+            // 控制类消息（开课/暂停/恢复/下课等）由 guard 例外放行，教师暂停后才能恢复课堂。
+            String type = typeOf(payload);
+            if (!publishGuard.allows(scheduleId, role, type)) {
+                sendRejected(session, scheduleId);
+                return;
+            }
             // 已知业务类型 → 服务端路由（状态变更 + 权威广播 + 事件落库）
             if (signalService.isKnownType(payload)) {
                 signalService.handleIncoming(scheduleId, userId, role, payload, session.getId());
@@ -88,6 +104,28 @@ public class ClassroomSignalHandler extends TextWebSocketHandler {
     private String attr(WebSocketSession session, String key) {
         Object v = session.getAttributes().get(key);
         return v == null ? null : v.toString();
+    }
+
+    /** 取消息 type；非 JSON / 缺失按普通内容消息处理（不做控制类例外） */
+    private String typeOf(String payload) {
+        try {
+            JsonNode node = objectMapper.readTree(payload);
+            return node.path("type").asText("");
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    /** 门禁拒绝回执：只发给发送者，不向房间广播任何内容 */
+    private void sendRejected(WebSocketSession session, String scheduleId) {
+        String status = publishGuard.statusOf(scheduleId);
+        String json = "{\"type\":\"publish:rejected\",\"reason\":\"CLASS_NOT_PUBLISHABLE\","
+                + "\"status\":\"" + (status == null ? "" : status) + "\"}";
+        try {
+            session.sendMessage(new TextMessage(json));
+        } catch (Exception e) {
+            log.debug("发布门禁回执发送失败: {}", e.getMessage());
+        }
     }
 
     /** 握手时确定的链路 id；缺失时返回 null（runWith 会保持当前 MDC 原样） */

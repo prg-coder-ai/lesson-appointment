@@ -18,7 +18,9 @@
     this.cfg = cfg || {};
     this.degraded = false;
     this.joined = false;
-    this.mediaOk = false;
+    this.mediaOk = false;     // 兼容旧调用方
+    this.audioOk = false;     // 拆分状态（SFU 下由 SDK 采集结果回填）
+    this.videoOk = false;
     this.micOn = true;
     this.camOn = true;
 
@@ -41,7 +43,11 @@
       })
       .then(function () {
         self.joined = true;
-        self.mediaOk = true;
+        // SFU 下由 SDK 自行采集：音频默认可用，视频取决于是否允许发布
+        self.audioOk = true;
+        self.videoOk = self.cfg.canPublishVideo !== false;
+        self.mediaOk = self.audioOk || self.videoOk;
+        self._applyDevicePrefs();
       })
       .catch(function (e) {
         // 已知的「SDK 还没被加载进来 / 凭证无效」都走降级，不让用户看到白屏
@@ -97,6 +103,73 @@
     try { return (JSON.parse(metadata) || {}).role || ''; } catch (e) { return ''; }
   };
 
+  /** 读取课前准备页保存的设备偏好（模块未加载时返回空偏好 = 系统默认设备） */
+  SdkRtcEngine.prototype._devicePrefs = function () {
+    var MD = window.ClassroomMediaDevices;
+    if (!MD) return { audioInputId: '', videoInputId: '' };
+    var p = MD.readPrefs();
+    return { audioInputId: p.audioInputId || '', videoInputId: p.videoInputId || '' };
+  };
+
+  /**
+   * 进房后应用设备偏好（LiveKit / TRTC 用 SDK 的切换 API 追补；Agora 已在创建轨道时传入）。
+   * 各家 API 不同且 SFU 未在本环境启用，故全部 try/catch 兜底：失败只记日志，不影响上课。
+   */
+  SdkRtcEngine.prototype._applyDevicePrefs = function () {
+    var p = this._devicePrefs();
+    if (!p.audioInputId && !p.videoInputId) return;
+    var type = String(this.cfg.sdkType || '').toLowerCase();
+    try {
+      if (type === 'livekit' && this._room && this._room.switchActiveDevice) {
+        if (p.audioInputId) this._room.switchActiveDevice('audioinput', p.audioInputId);
+        if (p.videoInputId) this._room.switchActiveDevice('videoinput', p.videoInputId);
+      } else if (type === 'trtc' && this._trtc) {
+        if (p.audioInputId && this._trtc.updateLocalAudio) {
+          this._trtc.updateLocalAudio({ option: { microphoneId: p.audioInputId } });
+        }
+        if (p.videoInputId && this._trtc.updateLocalVideo) {
+          this._trtc.updateLocalVideo({ option: { cameraId: p.videoInputId } });
+        }
+      }
+    } catch (e) {
+      console.warn('[RTC] 应用设备偏好失败，继续使用默认设备', e);
+    }
+  };
+
+  /** 运行中切换设备：保存偏好 + 调各家 setDevice / switchActiveDevice；不支持时提示重进课堂 */
+  SdkRtcEngine.prototype.switchDevice = function (kind, deviceId) {
+    var MD = window.ClassroomMediaDevices;
+    if (!MD) return Promise.resolve(false);
+    var isAudio = (kind === 'audio' || kind === 'audioinput');
+    var p = MD.readPrefs();
+    if (isAudio) { p.audioInputId = deviceId || ''; p.audioLabel = ''; }
+    else { p.videoInputId = deviceId || ''; p.videoLabel = ''; }
+    MD.writePrefs(p);
+
+    var type = String(this.cfg.sdkType || '').toLowerCase();
+    try {
+      if (type === 'livekit' && this._room && this._room.switchActiveDevice) {
+        return Promise.resolve(this._room.switchActiveDevice(
+          isAudio ? 'audioinput' : 'videoinput', deviceId)).then(function () { return true; }, function () { return false; });
+      }
+      if (type === 'agora') {
+        var track = isAudio ? this._localTracks.audio : this._localTracks.video;
+        if (track && track.setDevice && deviceId) {
+          return Promise.resolve(track.setDevice(deviceId)).then(function () { return true; }, function () { return false; });
+        }
+      }
+      if (type === 'trtc' && this._trtc) {
+        if (isAudio && this._trtc.updateLocalAudio) this._trtc.updateLocalAudio({ option: { microphoneId: deviceId } });
+        if (!isAudio && this._trtc.updateLocalVideo) this._trtc.updateLocalVideo({ option: { cameraId: deviceId } });
+        return Promise.resolve(true);
+      }
+    } catch (e) {
+      console.warn('[RTC] switchDevice failed', e);
+    }
+    if (typeof window.clToast === 'function') window.clToast('当前音视频模式不支持即时切换，已保存选择，重新进入课堂后生效');
+    return Promise.resolve(false);
+  };
+
   // ---------------- Agora ----------------
   SdkRtcEngine.prototype._joinAgora = function () {
     var self = this;
@@ -123,15 +196,18 @@
       window.RtcTiles.remove(String(user.uid));
     });
 
+    var prefs = this._devicePrefs();
     return client.join(this.cfg.serverUrl, this.cfg.roomId, this.cfg.token || null, this.cfg.userId)
       .then(function () {
-        return AgoraRTC.createMicrophoneAudioTrack();
+        // 创建轨道时直接指定设备（比事后 setDevice 可靠）
+        return AgoraRTC.createMicrophoneAudioTrack(prefs.audioInputId ? { microphoneId: prefs.audioInputId } : {});
       })
       .then(function (micTrack) {
         self._localTracks.audio = micTrack;
         var jobs = [micTrack];
         if (self.cfg.canPublishVideo !== false) {
-          return AgoraRTC.createCameraVideoTrack().then(function (camTrack) {
+          var camCfg = prefs.videoInputId ? { cameraId: prefs.videoInputId } : {};
+          return AgoraRTC.createCameraVideoTrack(camCfg).then(function (camTrack) {
             self._localTracks.video = camTrack;
             var el = document.getElementById('vt-local-video');
             if (el) camTrack.play(el);
@@ -259,6 +335,8 @@
     this._localTracks = {};
     this.joined = false;
     this.mediaOk = false;
+    this.audioOk = false;
+    this.videoOk = false;
   };
 
   /** SDK 任何环节失败 → 交回门面重建 mesh 引擎（课堂上宁可降级也不能没声音） */

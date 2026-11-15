@@ -1129,6 +1129,13 @@ function maskEmail(email) {
     endClass: function (apiBaseUrl, scheduleId) {
       return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/end'), method: 'post' });
     },
+    // 课堂状态切换（LIVE ⇄ PAUSED）：暂停期间师生均不可发布音视频/白板/聊天
+    pauseClass: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/pause'), method: 'post' });
+    },
+    resumeClass: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/resume'), method: 'post' });
+    },
 
     // ---- 成员管理 ----
     kickMember: function (apiBaseUrl, scheduleId, userId) {

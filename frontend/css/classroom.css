@@ -407,14 +407,17 @@ html, body {
 /* ---------------- 底部控制栏 ---------------- */
 #classroom-controls {
   flex: 0 0 auto;
-  height: 64px;
+  /* 教师端新增「进行中 / 暂停」后按钮达 12 个，窄屏需允许换行，否则会挤出可视区 */
+  min-height: 64px;
+  height: auto;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 8px 12px;
   background: #22272e;
   border-top: 1px solid #30363d;
-  padding: 0 16px;
+  padding: 8px 16px;
 }
 .cl-ctrl {
   display: inline-flex;
@@ -663,7 +666,8 @@ html, body {
 .ms-hint { font-size: 12px; color: #d29922; }
 .ms-hint.hidden { display: none; }
 .ms-close { margin-left: auto; border: none; background: transparent; color: #9da7b3; font-size: 20px; cursor: pointer; line-height: 1; }
-.ms-body { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; overflow: auto; background: #000; }
+/* 2026-11-15 P0：黑底(#000)改纸色——PDF 翻页重渲染空隙露白，与白纸页面同色，消除黑闪 */
+.ms-body { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; overflow: auto; background: #fff; }
 .ms-frame { width: 100%; height: 100%; border: 0; }
 .ms-frame.hidden, .ms-image.hidden, .ms-empty.hidden { display: none; }
 .ms-image { max-width: 100%; max-height: 100%; }
