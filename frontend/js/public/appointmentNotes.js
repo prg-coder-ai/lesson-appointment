@@ -927,6 +927,13 @@ async function datamaintain_fetchAppointmenPage(query) {
                   `   <button class="btn btn-success" onclick='openLessonNotifyDialog("${cardInfo.appointmentId}")'><i class="fa fa-bell"></i> 发送提醒</button> `
                   : ` `
               }
+              ${ (userRole == "admin" && window.hasClassroom && window.hasClassroom()
+                    && isNotifyActionable(cardInfo.status) && cardInfo.scheduleId) ?
+                  // 进入课堂（2026-11-15）：与「预定审核」同一入口语义——管理端按 scheduleId 跳课堂页。
+                  // 开学开关未开通（window.hasClassroom()=false）或终态课次不显示，避免点进去是没有课堂的空页。
+                  `   <button class="btn btn-success" onclick="window.enterClassroom('${cardInfo.scheduleId}')"><i class="fas fa-video"></i> 进入课堂</button> `
+                  : ` `
+              }
               ${ (userRole == "admin" && cardInfo.status=="cancelling")?
                  // adminConfirmCancelWithRule(bookingId, appointmentId)——原误传顺序错位 + false 后多一个 }
                  // 学生发起的改期/请假申请：确认（cancelled，按提交时退费快照）与拒绝（reject）
