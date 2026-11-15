@@ -165,16 +165,25 @@
         (warn ? ' warn' : '') + '">' + v + '</div></div>';
     },
 
+    /** 进入课堂：与预定审核 enterClassroom 同一跳转语义，pageUrl 存在时带上 base */
+    _enterClassroom: function (scheduleId) {
+      if (!scheduleId) { this.toast('缺少排期信息'); return; }
+      window.location.href = (typeof window.pageUrl === 'function')
+        ? window.pageUrl('classroom.html', { scheduleId: scheduleId })
+        : './classroom.html?scheduleId=' + encodeURIComponent(scheduleId);
+    },
+
     // ---------------- 监控 ----------------
     /**
-     * 批量把 teacherId 反查成可展示的 {name, account}。
-     * 背景：预约侧推排期事件时把 user.name 原文（入库即密文）塞进 classroom.teacher_name，
-     * 课堂侧没有 AES_KEY 解不开，前端直接显示就是一串十六进制、看起来像 id。
+     * 批量把 userId 反查成可展示的 {name, account}（教师/学员/操作人通用）。
+     * 背景：① 预约侧推排期事件时把 user.name 原文（入库即密文）塞进 classroom.teacher_name，
+     * 课堂侧没有 AES_KEY 解不开，前端直接显示就是一串十六进制、看起来像 id；
+     * ② 学情/审核报表按 userId 聚合，不带姓名（见 StudentLearningStatVO 注释）。
      * 权威解在主服务 /api/v1/user/briefs（服务端 decryptUserFields 后回明 name，
      * account 仅管理员下发），同源走 api(8081)，带 token、自动解包 data。
-     * 失败一律吞掉回退空 map，不影响监控主流程。
+     * 失败一律吞掉回退空 map，不影响各 tab 主流程。
      */
-    teacherBriefs: function (ids) {
+    userBriefs: function (ids) {
       var uniq = [];
       (ids || []).forEach(function (id) {
         if (id && uniq.indexOf(id) < 0) uniq.push(id);
@@ -187,6 +196,18 @@
           return map;
         })
         .catch(function () { return {}; });
+    },
+
+    /** brief → 可展示名（账号唯一可辨识优先，其次姓名，最后回退传入的原始值/id） */
+    personLabel: function (b, raw) {
+      if (b && (b.account || b.name)) return b.account || b.name;
+      return (raw == null || raw === '') ? '-' : String(raw);
+    },
+
+    /** eventId 截断：只显示前 8 个字符 + 省略号，完整值放 title 备查 */
+    shortId: function (id) {
+      var s = (id == null) ? '' : String(id);
+      return s.length > 8 ? s.slice(0, 8) + '…' : s;
     },
 
     loadMonitor: function () {
@@ -205,26 +226,37 @@
           if (t) t.textContent = '更新于 ' + self.fmtTime(d.serverTime);
 
           var active = d.activeClasses || [];
-          // 教师名反查：拿明文 name/account 覆盖库里的密文 teacher_name（见 teacherBriefs 注释）
-          return self.teacherBriefs(active.map(function (c) { return c.teacherId; }))
+          // 教师名反查：拿明文 name/account 覆盖库里的密文 teacher_name（见 userBriefs 注释）
+          return self.userBriefs(active.map(function (c) { return c.teacherId; }))
             .then(function (briefs) {
               var rows = active.map(function (c) {
                 var b = briefs[c.teacherId] || {};
                 // 优先账号（唯一可辨识），其次姓名，最后才回退库里的 teacher_name / teacher_id
-                var label = b.account || b.name || c.teacherName || c.teacherId || '-';
+                var label = self.personLabel(b, c.teacherName || c.teacherId);
                 var title = b.name ? (b.name + (b.account ? ' / ' + b.account : '')) : (b.account || c.teacherId || '');
                 var tag = c.status === 'LIVE' ? '<span class="tag ok">LIVE</span>'
                   : '<span class="tag mute">' + self.esc(c.status) + '</span>';
                 var ratio = c.memberCount ? (c.onlineCount + '/' + c.memberCount) : (c.onlineCount + '/-');
+                // 进入课堂（2026-11-15）：活跃课堂均有对应 scheduleId，管理端可直接旁听。
+                // 本页未加载全局 enterClassroom，故走 data-enter 事件委托（同对账表 data-resolve 模式）。
+                var enter = c.scheduleId
+                  ? '<button class="btn small" data-enter="' + self.esc(c.scheduleId) + '">进入课堂</button>'
+                  : '-';
                 return '<tr>' +
                   '<td>' + self.esc(c.courseName || '-') + '</td>' +
                   '<td title="' + self.esc(title) + '">' + self.esc(label) + '</td>' +
                   '<td>' + self.fmtTime(c.startTime) + '</td>' +
                   '<td>' + tag + '</td>' +
                   '<td>' + ratio + '</td>' +
+                  '<td>' + enter + '</td>' +
                   '</tr>';
               });
-              self.table('monitor-table', ['课程', '教师', '开始时间', '状态', '在线/成员'], rows);
+              self.table('monitor-table', ['课程', '教师', '开始时间', '状态', '在线/成员', '操作'], rows);
+              Array.prototype.forEach.call(document.querySelectorAll('#monitor-table [data-enter]'), function (btn) {
+                btn.addEventListener('click', function () {
+                  self._enterClassroom(btn.getAttribute('data-enter'));
+                });
+              });
             });
         })
         .catch(function (e) { self.toast((e && e.message) || '监控加载失败'); });
@@ -297,37 +329,48 @@
               self.card('互动次数', (s.interactions || 0)) +
               self.card('课堂数', s.classCount || 0);
           }
-          var rows = (d.byClass || []).map(function (c) {
-            var rate = c.total ? (c.present / c.total) : 0;
-            return '<tr>' +
-              '<td>' + self.esc(c.courseName || '-') + '</td>' +
-              '<td>' + self.esc(c.teacherName || '-') + '</td>' +
-              '<td>' + self.fmtTime(c.startTime) + '</td>' +
-              '<td>' + (c.total || 0) + '</td>' +
-              '<td>' + (c.present || 0) + '</td>' +
-              '<td>' + (c.late || 0) + '</td>' +
-              '<td>' + (c.absent || 0) + '</td>' +
-              '<td>' + self.pct(rate) + '</td>' +
-              '<td>' + (c.rollcallAnswered || 0) + '</td>' +
-              '<td>' + (c.submissions || 0) + '</td>' +
-              '</tr>';
-          });
-          self.table('rep-class-table',
-            ['课程', '教师', '上课时间', '应到', '实到', '迟到', '缺勤', '出勤率', '点名应答', '作品'],
-            rows);
+          // 教师/学员名统一反查（教师列是密文、学员列是裸 userId，见 userBriefs 注释）
+          var byClass = d.byClass || [];
+          var byStudent = d.byStudent || [];
+          var ids = byClass.map(function (c) { return c.teacherId; })
+            .concat(byStudent.map(function (x) { return x.userId; }));
+          return self.userBriefs(ids).then(function (briefs) {
+            var rows = byClass.map(function (c) {
+              var b = briefs[c.teacherId] || {};
+              var tname = self.personLabel(b, c.teacherName || c.teacherId);
+              var rate = c.total ? (c.present / c.total) : 0;
+              return '<tr>' +
+                '<td>' + self.esc(c.courseName || '-') + '</td>' +
+                '<td title="' + self.esc(tname) + '">' + self.esc(tname) + '</td>' +
+                '<td>' + self.fmtTime(c.startTime) + '</td>' +
+                '<td>' + (c.total || 0) + '</td>' +
+                '<td>' + (c.present || 0) + '</td>' +
+                '<td>' + (c.late || 0) + '</td>' +
+                '<td>' + (c.absent || 0) + '</td>' +
+                '<td>' + self.pct(rate) + '</td>' +
+                '<td>' + (c.rollcallAnswered || 0) + '</td>' +
+                '<td>' + (c.submissions || 0) + '</td>' +
+                '</tr>';
+            });
+            self.table('rep-class-table',
+              ['课程', '教师', '上课时间', '应到', '实到', '迟到', '缺勤', '出勤率', '点名应答', '作品'],
+              rows);
 
-          var srows = (d.byStudent || []).map(function (x) {
-            return '<tr>' +
-              '<td>' + self.esc(x.userId) + '</td>' +
-              '<td>' + (x.total || 0) + '</td>' +
-              '<td>' + (x.present || 0) + '</td>' +
-              '<td>' + (x.absent || 0) + '</td>' +
-              '<td>' + (x.late || 0) + '</td>' +
-              '<td>' + self.pct(x.attendanceRate) + '</td>' +
-              '<td>' + (x.avgMinutes == null ? '-' : x.avgMinutes) + '</td>' +
-              '</tr>';
+            var srows = byStudent.map(function (x) {
+              var b = briefs[x.userId] || {};
+              var sname = self.personLabel(b, x.userId);
+              return '<tr>' +
+                '<td title="' + self.esc(sname) + '">' + self.esc(sname) + '</td>' +
+                '<td>' + (x.total || 0) + '</td>' +
+                '<td>' + (x.present || 0) + '</td>' +
+                '<td>' + (x.absent || 0) + '</td>' +
+                '<td>' + (x.late || 0) + '</td>' +
+                '<td>' + self.pct(x.attendanceRate) + '</td>' +
+                '<td>' + (x.avgMinutes == null ? '-' : x.avgMinutes) + '</td>' +
+                '</tr>';
+            });
+            self.table('rep-student-table', ['学员', '应到', '实到', '缺勤', '迟到', '出勤率', '平均时长'], srows);
           });
-          self.table('rep-student-table', ['学员ID', '应到', '实到', '缺勤', '迟到', '出勤率', '平均时长'], srows);
         })
         .catch(function (e) { self.toast((e && e.message) || '报表加载失败'); });
     },
@@ -408,48 +451,54 @@
       this.api(EP.CLASSROOM_ADMIN_AUDIT_SUBMISSIONS, 'get',
         { scheduleId: scheduleId, status: status, limit: 50 })
         .then(function (rows) {
-          var html = (rows || []).map(function (r) {
-            var media = '';
-            if (r.url) {
-              var u = self.esc(r.url);
-              if (r.submissionType === 'AUDIO') media = '<audio controls preload="none" src="' + u + '"></audio>';
-              else if (r.submissionType === 'IMAGE') media = '<a href="' + u + '" target="_blank" rel="noopener">查看图片</a>';
-              else if (r.submissionType !== 'TEXT') media = '<a href="' + u + '" target="_blank" rel="noopener">下载附件</a>';
-            }
-            var st = r.status === 'FLAGGED' ? '<span class="tag err">违规</span>'
-              : (r.status === 'REVIEWED' ? '<span class="tag ok">已点评</span>' : '<span class="tag mute">待审</span>');
-            var ops = '<button class="btn small" data-pass="' + r.submissionId + '">通过</button> ' +
-              '<button class="btn small danger" data-flag="' + r.submissionId + '">标记违规</button>';
-            return '<tr>' +
-              '<td>' + self.esc(r.scheduleId) + '</td>' +
-              '<td>' + self.esc(r.userId) + '</td>' +
-              '<td>' + self.esc(r.submissionType) + '</td>' +
-              '<td>' + self.esc(r.content || '') + '<div>' + media + '</div></td>' +
-              '<td>' + st + '</td>' +
-              '<td>' + self.fmtTime(r.createdAt) + '</td>' +
-              '<td>' + ops + '</td>' +
-              '</tr>';
-          });
-          self.table('au-table', ['课次', '学员', '类型', '内容/附件', '状态', '提交时间', '操作'], html);
+          rows = rows || [];
+          // 学员名反查：userId → 明文（见 userBriefs 注释）
+          return self.userBriefs(rows.map(function (r) { return r.userId; }))
+            .then(function (briefs) {
+              var html = rows.map(function (r) {
+                var media = '';
+                if (r.url) {
+                  var u = self.esc(r.url);
+                  if (r.submissionType === 'AUDIO') media = '<audio controls preload="none" src="' + u + '"></audio>';
+                  else if (r.submissionType === 'IMAGE') media = '<a href="' + u + '" target="_blank" rel="noopener">查看图片</a>';
+                  else if (r.submissionType !== 'TEXT') media = '<a href="' + u + '" target="_blank" rel="noopener">下载附件</a>';
+                }
+                var st = r.status === 'FLAGGED' ? '<span class="tag err">违规</span>'
+                  : (r.status === 'REVIEWED' ? '<span class="tag ok">已点评</span>' : '<span class="tag mute">待审</span>');
+                var ops = '<button class="btn small" data-pass="' + r.submissionId + '">通过</button> ' +
+                  '<button class="btn small danger" data-flag="' + r.submissionId + '">标记违规</button>';
+                var sname = self.personLabel(briefs[r.userId], r.userId);
+                return '<tr>' +
+                  '<td>' + self.esc(r.scheduleId) + '</td>' +
+                  '<td title="' + self.esc(sname) + '">' + self.esc(sname) + '</td>' +
+                  '<td>' + self.esc(r.submissionType) + '</td>' +
+                  '<td>' + self.esc(r.content || '') + '<div>' + media + '</div></td>' +
+                  '<td>' + st + '</td>' +
+                  '<td>' + self.fmtTime(r.createdAt) + '</td>' +
+                  '<td>' + ops + '</td>' +
+                  '</tr>';
+              });
+              self.table('au-table', ['课次', '学员', '类型', '内容/附件', '状态', '提交时间', '操作'], html);
 
-          Array.prototype.forEach.call(document.querySelectorAll('#au-table [data-flag]'), function (btn) {
-            btn.addEventListener('click', function () {
-              var note = window.prompt('标记违规原因：', '');
-              if (note === null) return;
-              self.api(EP.CLASSROOM_ADMIN_AUDIT_SUBMISSION_FLAG(btn.getAttribute('data-flag')),
-                'post', { note: note })
-                .then(function () { self.toast('已标记'); self.loadAudit(); self.loadAuditLogs(); })
-                .catch(function (e) { self.toast((e && e.message) || '操作失败'); });
+              Array.prototype.forEach.call(document.querySelectorAll('#au-table [data-flag]'), function (btn) {
+                btn.addEventListener('click', function () {
+                  var note = window.prompt('标记违规原因：', '');
+                  if (note === null) return;
+                  self.api(EP.CLASSROOM_ADMIN_AUDIT_SUBMISSION_FLAG(btn.getAttribute('data-flag')),
+                    'post', { note: note })
+                    .then(function () { self.toast('已标记'); self.loadAudit(); self.loadAuditLogs(); })
+                    .catch(function (e) { self.toast((e && e.message) || '操作失败'); });
+                });
+              });
+              Array.prototype.forEach.call(document.querySelectorAll('#au-table [data-pass]'), function (btn) {
+                btn.addEventListener('click', function () {
+                  self.api(EP.CLASSROOM_ADMIN_AUDIT_SUBMISSION_PASS(btn.getAttribute('data-pass')),
+                    'post', { note: '运营抽查通过' })
+                    .then(function () { self.toast('已通过'); self.loadAuditLogs(); })
+                    .catch(function (e) { self.toast((e && e.message) || '操作失败'); });
+                });
+              });
             });
-          });
-          Array.prototype.forEach.call(document.querySelectorAll('#au-table [data-pass]'), function (btn) {
-            btn.addEventListener('click', function () {
-              self.api(EP.CLASSROOM_ADMIN_AUDIT_SUBMISSION_PASS(btn.getAttribute('data-pass')),
-                'post', { note: '运营抽查通过' })
-                .then(function () { self.toast('已通过'); self.loadAuditLogs(); })
-                .catch(function (e) { self.toast((e && e.message) || '操作失败'); });
-            });
-          });
         })
         .catch(function (e) { self.toast((e && e.message) || '抽查失败'); });
     },
@@ -458,18 +507,24 @@
       var self = this;
       this.api(EP.CLASSROOM_ADMIN_AUDIT_LOGS, 'get', { days: 7 })
         .then(function (rows) {
-          var html = (rows || []).map(function (l) {
-            return '<tr>' +
-              '<td>' + self.fmtTime(l.createdAt) + '</td>' +
-              '<td>' + self.esc(l.operatorId) + '</td>' +
-              '<td>' + self.esc(l.targetType) + '</td>' +
-              '<td>' + self.esc(l.targetId || '-') + '</td>' +
-              '<td>' + self.esc(l.scheduleId || '-') + '</td>' +
-              '<td>' + self.esc(l.action) + '</td>' +
-              '<td>' + self.esc(l.note || '') + '</td>' +
-              '</tr>';
-          });
-          self.table('au-log-table', ['时间', '操作人', '对象类型', '对象', '课次', '动作', '备注'], html);
+          rows = rows || [];
+          // 操作人反查：operatorId → 明文（见 userBriefs 注释）
+          return self.userBriefs(rows.map(function (l) { return l.operatorId; }))
+            .then(function (briefs) {
+              var html = rows.map(function (l) {
+                var oper = self.personLabel(briefs[l.operatorId], l.operatorId);
+                return '<tr>' +
+                  '<td>' + self.fmtTime(l.createdAt) + '</td>' +
+                  '<td title="' + self.esc(oper) + '">' + self.esc(oper) + '</td>' +
+                  '<td>' + self.esc(l.targetType) + '</td>' +
+                  '<td>' + self.esc(l.targetId || '-') + '</td>' +
+                  '<td>' + self.esc(l.scheduleId || '-') + '</td>' +
+                  '<td>' + self.esc(l.action) + '</td>' +
+                  '<td>' + self.esc(l.note || '') + '</td>' +
+                  '</tr>';
+              });
+              self.table('au-log-table', ['时间', '操作人', '对象类型', '对象', '课次', '动作', '备注'], html);
+            });
         })
         .catch(function () { /* 留痕失败不打扰主流程 */ });
     },
@@ -488,7 +543,8 @@
               : (r.result === 'FAILED' ? '<span class="tag err">FAILED</span>' : '<span class="tag mute">SKIPPED</span>');
             return '<tr>' +
               '<td>' + self.fmtTime(r.receivedAt) + '</td>' +
-              '<td>' + self.esc(r.eventId) + '</td>' +
+              // eventId 只显示前 8 字符 + 省略号，完整值留 title 备查（2026-11-15）
+              '<td title="' + self.esc(r.eventId) + '">' + self.esc(self.shortId(r.eventId)) + '</td>' +
               '<td>' + self.esc(r.eventType) + '</td>' +
               '<td>' + self.esc(r.scheduleId) + '</td>' +
               '<td>' + tag + '</td>' +

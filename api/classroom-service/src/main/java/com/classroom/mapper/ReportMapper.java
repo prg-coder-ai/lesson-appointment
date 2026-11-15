@@ -28,6 +28,7 @@ public interface ReportMapper {
      */
     @Select("<script>"
             + "SELECT c.schedule_id AS scheduleId, c.course_name AS courseName, c.teacher_name AS teacherName, "
+            + "  c.teacher_id AS teacherId, "
             + "  c.start_time AS startTime, c.status AS status, c.tenant_id AS tenantId, "
             + "  (SELECT COUNT(*) FROM classroom_attendance a WHERE a.schedule_id = c.schedule_id) AS total, "
             + "  (SELECT COUNT(*) FROM classroom_attendance a WHERE a.schedule_id = c.schedule_id "

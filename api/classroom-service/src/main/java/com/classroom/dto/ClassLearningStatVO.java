@@ -17,6 +17,8 @@ public class ClassLearningStatVO {
     private String scheduleId;
     private String courseName;
     private String teacherName;
+    /** 教师 userId：teacher_name 是主库密文不可直接展示，前端据此反查明文姓名（与活跃课堂同口径） */
+    private String teacherId;
     private LocalDateTime startTime;
     private String status;
     private Long tenantId;
