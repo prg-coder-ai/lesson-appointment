@@ -183,6 +183,8 @@
     <div class="ms-body">
       <iframe id="ms-frame" class="ms-frame hidden" title="讲稿"></iframe>
       <img id="ms-image" class="ms-image hidden" alt="讲稿">
+      <!-- PDF.js 自渲染画布（默认隐藏）：PDF 翻页走离屏双缓冲，根治 iframe 换页黑闪 + 解锁滚动同步 -->
+      <canvas id="ms-pdf-canvas" class="ms-pdf-canvas hidden"></canvas>
       <div id="ms-empty" class="ms-empty">暂无讲稿</div>
     </div>
     <div id="ms-bar" class="ms-bar">
@@ -195,6 +197,9 @@
 
   <!-- 公共工具（顺序不可调整） -->
   <script src="js/public/vendor/axios.min.js"></script>
+  <!-- PDF.js v3.11.174 主库（UMD，挂 window.pdfjsLib）：讲稿 PDF 自渲染，必须早于 classroom-material.js。
+       worker 不走 script，由 _renderPdf 设置 GlobalWorkerOptions.workerSrc 动态加载。 -->
+  <script src="js/public/vendor/pdf.min.js"></script>
   <script src="js/public/utility_request.js"></script>
   <script src="js/public/api.js"></script>
   <!-- shared/apiPaths.js 的浏览器镜像（生成产物，勿手改）。

@@ -669,8 +669,10 @@ html, body {
 /* 2026-11-15 P0：黑底(#000)改纸色——PDF 翻页重渲染空隙露白，与白纸页面同色，消除黑闪 */
 .ms-body { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; overflow: auto; background: #fff; }
 .ms-frame { width: 100%; height: 100%; border: 0; }
-.ms-frame.hidden, .ms-image.hidden, .ms-empty.hidden { display: none; }
+.ms-frame.hidden, .ms-image.hidden, .ms-empty.hidden, .ms-pdf-canvas.hidden { display: none; }
 .ms-image { max-width: 100%; max-height: 100%; }
+/* PDF.js 自渲染画布：限宽居中，白页与 .ms-body 纸色一致；翻页用离屏双缓冲避免黑闪 */
+.ms-pdf-canvas { display: block; max-width: 100%; box-shadow: 0 2px 12px rgba(0,0,0,.18); }
 .ms-empty { color: #6e7681; font-size: 13px; }
 .ms-empty a { color: #58a6ff; }
 .ms-bar { display: flex; gap: 8px; justify-content: center; padding: 8px; background: #161b22; border-top: 1px solid #30363d; }
