@@ -49,9 +49,13 @@ public interface ClassroomMapper extends BaseMapper<Classroom> {
     List<Classroom> listDueToStart();
 
     /**
-     * 自动下课扫描：仍 LIVE、且计划结束时间已过去 grace 分钟的课堂。
+     * 自动下课扫描：仍 LIVE 或 PAUSED、且计划结束时间已过去 grace 分钟的课堂。
+     *
+     * <p><b>PAUSED 必须一起扫</b>：暂停态不算「进行中」，若只扫 LIVE，教师暂停后
+     * 忘了恢复就会留下一堂永不结算、永不释放媒体房间的僵尸课。
+     * 对应 endClass 已允许 PAUSED → CLOSED。
      */
-    @Select("SELECT * FROM classroom WHERE status = 'LIVE' "
+    @Select("SELECT * FROM classroom WHERE status IN ('LIVE','PAUSED') "
             + "AND end_time IS NOT NULL "
             + "AND end_time <= DATE_SUB(NOW(), INTERVAL #{grace} MINUTE) "
             + "ORDER BY end_time")

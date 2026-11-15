@@ -2,7 +2,11 @@
  * classroom-controls.js —— 底部控制栏
  *
  * 按钮按角色动态生成：
- *   - 教师：麦克风/摄像头/白板/全员静音/录制/下课
+ *   - 教师：麦克风/摄像头/白板/全员静音/录制/进行中/暂停/下课
+ *
+ * 发布门禁（2026-11-14）：课堂非 LIVE 时学生不可发布；PAUSED 时师生都不可发布。
+ * 控制栏按 ClassroomMain.applyGate 下发的 allowed 禁用「发布类」按钮；
+ * 「进行中 / 暂停 / 下课」是状态控制类，始终可用（否则暂停后无法恢复）。
  *   - 学生：麦克风/摄像头/白板/举手/离开
  *   - 管理员：白板(只读)/全员静音/录制/巡课/强制结束
  * 点击动作委托到各功能模块（ClassroomRTC / ClassroomWhiteboard / ClassroomTeacher...）。
@@ -47,17 +51,56 @@
         html += this._btn('ctrl-monitor', 'fas fa-eye', '巡课', false);
       }
       if (role === 'teacher') {
+        html += this._btn('ctrl-live', 'fas fa-play', '进行中', false);
+        html += this._btn('ctrl-pause', 'fas fa-pause', '暂停', false);
         html += this._btn('ctrl-end', 'fas fa-phone-slash', '下课', false, 'danger');
       } else {
         html += this._btn('ctrl-leave', 'fas fa-phone-slash', '离开', false, 'danger');
       }
       this.root.innerHTML = html;
       this._bind(role);
+      this._applyCurrentGate();   // 重渲染（RTC 初始化后会再 render 一次）不能丢门禁
     },
 
     _btn: function (id, icon, label, active, cls) {
       return '<button id="' + id + '" class="cl-ctrl' + (active ? ' active' : '') + (cls ? ' ' + cls : '') + '">' +
         '<i class="' + icon + '"></i><span>' + label + '</span></button>';
+    },
+
+    /** 由 ClassroomMain._applyGate 下发：禁用发布类控件，并标示当前状态按钮 */
+    applyGate: function (allowed, status) {
+      this.gateAllowed = !!allowed;
+      var tip = (status === 'PAUSED') ? '课堂已暂停，暂不能发布' : '课堂未开始/已结束，暂不能发布';
+      ['ctrl-mic', 'ctrl-cam', 'ctrl-hand', 'ctrl-upload'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.disabled = !allowed;
+        el.style.opacity = allowed ? '' : '0.45';
+        el.style.cursor = allowed ? '' : 'not-allowed';
+        el.title = allowed ? '' : tip;
+      });
+      var liveEl = document.getElementById('ctrl-live');
+      var pauseEl = document.getElementById('ctrl-pause');
+      if (liveEl) liveEl.classList.toggle('active', status === 'LIVE');
+      if (pauseEl) pauseEl.classList.toggle('active', status === 'PAUSED');
+    },
+
+    _applyCurrentGate: function () {
+      if (window.ClassroomMain && typeof window.ClassroomMain.canPublish === 'function') {
+        this.applyGate(window.ClassroomMain.canPublish(), window.ClassroomMain.getStatus());
+      }
+    },
+
+    /** 按钮点击兜底：即使 gate 尚未刷新，也不允许绕过前端发出内容 */
+    _gateAllowed: function () {
+      if (window.ClassroomMain && typeof window.ClassroomMain.canPublish === 'function'
+          && !window.ClassroomMain.canPublish()) {
+        this.toast(window.ClassroomMain.getStatus() === 'PAUSED'
+          ? '课堂已暂停，暂停期间不能发送音视频、白板与聊天'
+          : '课堂未开始/已结束，暂不能发送音视频、白板与聊天');
+        return false;
+      }
+      return true;
     },
 
     _bind: function (role) {
@@ -66,7 +109,12 @@
 
       var mic = $('ctrl-mic');
       if (mic) mic.addEventListener('click', function () {
-        if (!window.ClassroomRTC || !window.ClassroomRTC.mediaOk) { self.toast('无可用麦克风'); return; }
+        if (!self._gateAllowed()) return;
+        // 拆分状态：麦克风只看 audioOk，摄像头不可用不再连累麦克风
+        if (!window.ClassroomRTC || !window.ClassroomRTC.audioOk) {
+          self.toast('麦克风不可用，请到「课程准备」页检查设备与浏览器权限');
+          return;
+        }
         var on = window.ClassroomRTC.micEnabled;
         // F4-17：服务端全员禁言 → 学生不可自解麦克风
         if (!on && window.ClassroomRTC.serverMuted && self.ctx && self.ctx.role === 'student') {
@@ -78,7 +126,11 @@
 
       var cam = $('ctrl-cam');
       if (cam) cam.addEventListener('click', function () {
-        if (!window.ClassroomRTC || !window.ClassroomRTC.mediaOk) { self.toast('无可用摄像头'); return; }
+        if (!self._gateAllowed()) return;
+        if (!window.ClassroomRTC || !window.ClassroomRTC.videoOk) {
+          self.toast('摄像头不可用，请到「课程准备」页检查设备与浏览器权限');
+          return;
+        }
         var on = window.ClassroomRTC.camEnabled;
         var now = window.ClassroomRTC.setCamEnabled(!on);
         cam.classList.toggle('active', now);
@@ -101,6 +153,7 @@
 
       var hand = $('ctrl-hand');      if (hand && window.ClassroomStudent) {
         hand.addEventListener('click', function () {
+          if (!self._gateAllowed()) return;
           var raised = window.ClassroomStudent.toggleHand();
           hand.classList.toggle('active', raised);
         });
@@ -127,6 +180,7 @@
       var upload = $('ctrl-upload');
       if (upload) {
         upload.addEventListener('click', function () {
+          if (!self._gateAllowed()) return;
           var modal = document.getElementById('upload-modal');
           if (modal) modal.classList.remove('hidden');
         });
@@ -150,6 +204,20 @@
         monitor.addEventListener('click', function () {
           var on = window.ClassroomAdmin.toggleMonitor();
           monitor.classList.toggle('active', on);
+        });
+      }
+
+      // 教师状态切换：控制类操作，不受发布门禁限制（暂停后仍须能恢复/下课）
+      var live = $('ctrl-live');
+      if (live && window.ClassroomTeacher) {
+        live.addEventListener('click', function () { window.ClassroomTeacher.goLive(); });
+      }
+      var pause = $('ctrl-pause');
+      if (pause && window.ClassroomTeacher) {
+        pause.addEventListener('click', function () {
+          if (window.confirm('确定暂停课堂吗？暂停期间教师端和学生端都不能发送音视频、白板与聊天。')) {
+            window.ClassroomTeacher.pauseClass();
+          }
         });
       }
 

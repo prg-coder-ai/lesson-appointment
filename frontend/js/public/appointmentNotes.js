@@ -891,7 +891,12 @@ async function datamaintain_fetchAppointmenPage(query) {
         classroomKey: key,
         role: role,
         phase: phase,
-        status: cardInfo.status
+        status: cardInfo.status,
+        // 学生「课前准备」按钮要把上课时间带到准备页（课前课堂服务常未创建，
+        // 无法靠 /classrooms/{key}/status 回显课堂信息）
+        rawDatetime: cardInfo.rawDatetime,
+        classDuration: cardInfo.classDuration,
+        classIndex: cardInfo.classIndex
       });
    }
 

@@ -1,5 +1,5 @@
 /**
- * classroom-material.js —— 讲稿容器（F4-04 / F4-05 / F4-06）
+ * classroom-material.js —— 讲稿容器（F4-04 / F4-05 / F4-06 / 滚动同步）
  *
  * 教师上传讲稿 → 服务端落对象存储并广播 page:state → 学生端跟随翻页。
  *
@@ -9,6 +9,10 @@
  *   OTHER → 给下载入口（PPT 等浏览器不能内联渲染）
  *
  * 学生端只读：翻页按钮对教师/管理员可见，学生点不动，且服务端也会拒绝非教师翻页。
+ *
+ * 滚动同步（2026-11-15）：教师滚动讲稿面板 → 节流广播 page:scroll → 学生跟随滚动。
+ *   仅 IMAGE 类型可真实同步——PDF 走原生 iframe 查看器，滚动位置在跨文档内部，
+ *   前端读不到也设不了；要同步 PDF 滚动必须把 PDF 改用 PDF.js 自行渲染（见文档/方案）。
  */
 (function () {
   // 端点常量统一取自 shared/apiPaths.js（经 js/shared-domain-bridge.js 挂到 window.ApiPaths）
@@ -46,8 +50,16 @@
     },
 
     onSignal: function (msg) {
-      if (!msg || msg.type !== 'page:state') return;
-      this._apply(msg, true);
+      if (!msg || !msg.type) return;
+      if (msg.type === 'page:state') {
+        this._apply(msg, true);
+        return;
+      }
+      // 滚动同步：仅学生/非教师跟随；教师端不响应（自己是滚动源）
+      if (msg.type === 'page:scroll') {
+        if (this._isTeacher()) return;
+        this._applyScroll(msg.scrollTop || 0);
+      }
     },
 
     toggle: function () {
@@ -77,6 +89,8 @@
     },
 
     _apply: function (state, reveal) {
+      var prevPage = this.state ? (this.state.page || 0) : 0;
+      var prevUrl = this.state ? (this.state.url || '') : '';
       this.state = state;
       var stage = document.getElementById('material-stage');
       var frame = document.getElementById('ms-frame');
@@ -110,6 +124,19 @@
           : '暂无讲稿';
       }
 
+      // 翻页（或换讲稿）时滚动复位到顶部：学生跟随翻页的同时也要跟随滚动复位，
+      // 否则旧滚动量套在新页上会错位。教师端也复位，并广播给所有人。
+      var pageChanged = (page !== prevPage) || (state.url && state.url !== prevUrl);
+      var body = document.getElementById('ms-body');
+      if (body && pageChanged) {
+        if (body.scrollTop !== 0) body.scrollTop = 0;
+        if (this._isTeacher() && window.ClassroomWS && this.ctx.scheduleId) {
+          window.ClassroomWS.sendSignal(this.ctx.scheduleId, {
+            type: 'page:scroll', scrollTop: 0, by: this.ctx.userId
+          });
+        }
+      }
+
       if (pageLabel) pageLabel.textContent = '第 ' + page + ' 页';
       if (bar) bar.classList.toggle('is-teacher', this._isTeacher());
 
@@ -117,6 +144,13 @@
         this.visible = true;
         stage.classList.remove('hidden');
       }
+    },
+
+    /** 学生端应用教师广播的滚动位置（仅 IMAGE 真实生效；PDF 走 iframe 不可控） */
+    _applyScroll: function (scrollTop) {
+      var body = document.getElementById('ms-body');
+      if (!body) return;
+      if (body.scrollTop !== scrollTop) body.scrollTop = scrollTop;
     },
 
     _bind: function () {
@@ -146,6 +180,31 @@
         if (f) self._upload(f);
         input.value = '';
       });
+
+      // 滚动同步源（仅教师）：节流广播 ms-body 的滚动位置。
+      // 学生端只接收，不发送；PDF 走 iframe 原生查看器，跨文档读不到滚动，这里跳过。
+      var body = $('ms-body');
+      if (body && !body._materialScrollBound) {
+        body._materialScrollBound = true;
+        var scrollTimer = null;
+        body.addEventListener('scroll', function () {
+          if (!self._isTeacher()) return;           // 只有教师是滚动源
+          if (!self.state) return;
+          var ft = String(self.state.fileType || '').toUpperCase();
+          if (ft !== 'IMAGE') return;               // 仅 IMAGE 可同步滚动
+          if (scrollTimer) return;                  // 节流 60ms，避免高频信令
+          scrollTimer = setTimeout(function () {
+            scrollTimer = null;
+            if (window.ClassroomWS && self.ctx.scheduleId) {
+              window.ClassroomWS.sendSignal(self.ctx.scheduleId, {
+                type: 'page:scroll',
+                scrollTop: body.scrollTop,
+                by: self.ctx.userId
+              });
+            }
+          }, 60);
+        }, { passive: true });
+      }
     },
 
     _pickFile: function () {

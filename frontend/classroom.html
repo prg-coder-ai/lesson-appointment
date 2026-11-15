@@ -207,6 +207,8 @@
        走「信令未就绪」分支，聊天、举手、白板、点名、讲稿翻页广播、RTC 信令全部不可用。 -->
   <script src="js/public/classroom-ws.js"></script>
   <!-- 课堂模块 -->
+  <!-- 设备枚举/偏好/错误分类：必须早于所有 RTC 引擎（课堂页读取课前准备页保存的选择） -->
+  <script src="js/classroom/media-devices.js"></script>
   <!-- RTC 抽象层：先引擎（rtc-engine + 具体实现），再门面 classroom-rtc.js -->
   <script src="js/classroom/rtc/rtc-engine.js"></script>
   <script src="js/classroom/rtc/engine-mesh.js"></script>

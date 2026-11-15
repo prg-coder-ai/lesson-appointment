@@ -166,6 +166,29 @@
     },
 
     // ---------------- 监控 ----------------
+    /**
+     * 批量把 teacherId 反查成可展示的 {name, account}。
+     * 背景：预约侧推排期事件时把 user.name 原文（入库即密文）塞进 classroom.teacher_name，
+     * 课堂侧没有 AES_KEY 解不开，前端直接显示就是一串十六进制、看起来像 id。
+     * 权威解在主服务 /api/v1/user/briefs（服务端 decryptUserFields 后回明 name，
+     * account 仅管理员下发），同源走 api(8081)，带 token、自动解包 data。
+     * 失败一律吞掉回退空 map，不影响监控主流程。
+     */
+    teacherBriefs: function (ids) {
+      var uniq = [];
+      (ids || []).forEach(function (id) {
+        if (id && uniq.indexOf(id) < 0) uniq.push(id);
+      });
+      if (!uniq.length || !EP.USER_BRIEFS || !window.request) return Promise.resolve({});
+      return window.request({ url: EP.USER_BRIEFS(uniq), method: 'get', customErrorMsg: false })
+        .then(function (list) {
+          var map = {};
+          (list || []).forEach(function (b) { if (b && b.userId) map[b.userId] = b; });
+          return map;
+        })
+        .catch(function () { return {}; });
+    },
+
     loadMonitor: function () {
       var self = this;
       this.api(EP.CLASSROOM_ADMIN_MONITOR_OVERVIEW)
@@ -181,19 +204,28 @@
           var t = document.getElementById('monitor-time');
           if (t) t.textContent = '更新于 ' + self.fmtTime(d.serverTime);
 
-          var rows = (d.activeClasses || []).map(function (c) {
-            var tag = c.status === 'LIVE' ? '<span class="tag ok">LIVE</span>'
-              : '<span class="tag mute">' + self.esc(c.status) + '</span>';
-            var ratio = c.memberCount ? (c.onlineCount + '/' + c.memberCount) : (c.onlineCount + '/-');
-            return '<tr>' +
-              '<td>' + self.esc(c.courseName || '-') + '</td>' +
-              '<td>' + self.esc(c.teacherName || c.teacherId || '-') + '</td>' +
-              '<td>' + self.fmtTime(c.startTime) + '</td>' +
-              '<td>' + tag + '</td>' +
-              '<td>' + ratio + '</td>' +
-              '</tr>';
-          });
-          self.table('monitor-table', ['课程', '教师', '开始时间', '状态', '在线/成员'], rows);
+          var active = d.activeClasses || [];
+          // 教师名反查：拿明文 name/account 覆盖库里的密文 teacher_name（见 teacherBriefs 注释）
+          return self.teacherBriefs(active.map(function (c) { return c.teacherId; }))
+            .then(function (briefs) {
+              var rows = active.map(function (c) {
+                var b = briefs[c.teacherId] || {};
+                // 优先账号（唯一可辨识），其次姓名，最后才回退库里的 teacher_name / teacher_id
+                var label = b.account || b.name || c.teacherName || c.teacherId || '-';
+                var title = b.name ? (b.name + (b.account ? ' / ' + b.account : '')) : (b.account || c.teacherId || '');
+                var tag = c.status === 'LIVE' ? '<span class="tag ok">LIVE</span>'
+                  : '<span class="tag mute">' + self.esc(c.status) + '</span>';
+                var ratio = c.memberCount ? (c.onlineCount + '/' + c.memberCount) : (c.onlineCount + '/-');
+                return '<tr>' +
+                  '<td>' + self.esc(c.courseName || '-') + '</td>' +
+                  '<td title="' + self.esc(title) + '">' + self.esc(label) + '</td>' +
+                  '<td>' + self.fmtTime(c.startTime) + '</td>' +
+                  '<td>' + tag + '</td>' +
+                  '<td>' + ratio + '</td>' +
+                  '</tr>';
+              });
+              self.table('monitor-table', ['课程', '教师', '开始时间', '状态', '在线/成员'], rows);
+            });
         })
         .catch(function (e) { self.toast((e && e.message) || '监控加载失败'); });
 

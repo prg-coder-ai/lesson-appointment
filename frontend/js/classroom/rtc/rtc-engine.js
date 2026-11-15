@@ -11,6 +11,8 @@
  *   engine.onSignal(msg)          WS 信令（仅 mesh 需要）
  *   engine.setMicEnabled(bool)    开/关麦（返回生效后的布尔）
  *   engine.setCamEnabled(bool)    开/关摄像头
+ *   engine.switchDevice(kind,id)  运行中切换麦克风/摄像头（mesh 用 replaceTrack 不重协商）
+ *   engine.audioOk / videoOk      分别标记麦克风/摄像头是否可用（mediaOk 仅作兼容）
  *   engine.isJoined()             是否已在房间
  *
  * 换服务商 = 后端换 provider，这里选到 sdkType=livekit/agora/trtc 就走商用 SDK，

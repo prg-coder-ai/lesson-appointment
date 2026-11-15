@@ -153,6 +153,7 @@
 
     _start: function (e) {
       if (this.readOnly && !this.granted) return;
+      if (this._blocked()) { this._gateToast(); return; }
       if (this.tool === 'text') {
         // 文字工具：只记录锚点 + 弹输入浮层，不进入绘制状态（_move/_end 全程不触发）
         this._textAnchor = this._norm(e);
@@ -199,21 +200,28 @@
       this._curOpCommitted = true;
       this.last = p;
       if (window.ClassroomWS && this.ctx.scheduleId) {
-        window.ClassroomWS.sendWhiteboard(this.ctx.scheduleId, seg);
+        this._send(seg);
       }
     },
 
     _end: function () {
       if (!this.drawing) { this.last = null; this._shapeStart = null; return; }
       if (this._pendingShape) {
-        // 抬笔提交形状：写进 _ops 并广播，再按 _ops 正式重绘（含刚提交的形状）
-        this._ops.push(this._pendingShape);
-        this._curOpCommitted = true;
-        if (window.ClassroomWS && this.ctx.scheduleId) {
-          window.ClassroomWS.sendWhiteboard(this.ctx.scheduleId, this._pendingShape);
+        // 绘制途中课堂被暂停/未开始：丢弃这次形状，避免「本地画了却没广播」的各端不一致
+        if (this._blocked()) {
+          this._pendingShape = null;
+          this._curOpCommitted = false;
+          this._redrawAll();
+        } else {
+          // 抬笔提交形状：写进 _ops 并广播，再按 _ops 正式重绘（含刚提交的形状）
+          this._ops.push(this._pendingShape);
+          this._curOpCommitted = true;
+          if (window.ClassroomWS && this.ctx.scheduleId) {
+            this._send(this._pendingShape);
+          }
+          this._pendingShape = null;
+          this._redrawAll();
         }
-        this._pendingShape = null;
-        this._redrawAll();
       }
       // 本次落笔确实产生了 op → 作为一个撤回步压栈（画笔多段/形状一条都只算 1 步）
       if (this._curOpCommitted && this._curOpId) this._pushUndo(this._curOpId);
@@ -305,6 +313,12 @@
     // 远端消息入口：由 main.js 的 WS onWhiteboard 调用
     onMessage: function (msg) {
       if (!msg) return;
+      // 服务端发布门禁拒绝（课堂未开始 / 已暂停）：给可读提示，避免用户以为画上了
+      if (msg.type === 'wb:rejected') {
+        this.toast(msg.status === 'PAUSED'
+          ? '课堂已暂停，白板操作未发送' : '课堂未开始/已结束，白板操作未发送');
+        return;
+      }
       // F4-07：重连/迟到者恢复白板——服务器下发操作序列，本地重放
       if (msg.type === 'wb:init' && msg.ops) {
         this._ops = [];
@@ -404,6 +418,7 @@
     },
 
     _commitText: function () {
+      if (this._blocked()) { this._hideTextEditor(); this._gateToast(); return; }
       var input = document.getElementById('wb-text-input');
       var anchor = this._textAnchor;
       if (!input || !anchor) { this._hideTextEditor(); return; }
@@ -427,18 +442,19 @@
       this._drawSeg(seg);
       this._pushUndo(opId);
       if (window.ClassroomWS && this.ctx.scheduleId) {
-        window.ClassroomWS.sendWhiteboard(this.ctx.scheduleId, seg);
+        this._send(seg);
       }
     },
 
     clear: function (broadcast) {
+      if (this._blocked()) { this._gateToast(); return; }
       this._hideTextEditor();
       this._clearLocal();
       this._ops = [];
       this._undoStack = [];               // 清空是破坏性操作，撤回栈一并作废
       this._syncUndoBtn();
       if (broadcast && window.ClassroomWS && this.ctx.scheduleId) {
-        window.ClassroomWS.sendWhiteboard(this.ctx.scheduleId, { op: 'clear' });
+        this._send({ op: 'clear' });
       }
     },
 
@@ -459,11 +475,12 @@
     // 撤回一步：弹栈 → 广播 → 本地立即生效（不等服务端回显）
     undo: function () {
       if (this.readOnly && !this.granted) return false;
+      if (this._blocked()) { this._gateToast(); return false; }
       if (!this._undoStack.length) return false;
       var opId = this._undoStack.pop();
       this._applyUndo(opId);
       if (window.ClassroomWS && this.ctx.scheduleId) {
-        window.ClassroomWS.sendWhiteboard(this.ctx.scheduleId, {
+        this._send({
           op: 'undo', opId: opId, by: this.ctx.userId
         });
       }
@@ -485,11 +502,42 @@
       var btn = document.getElementById('wb-undo');
       if (!btn) return;
       var n = this._undoStack.length;
-      var canUndo = n > 0 && !(this.readOnly && !this.granted);
+      var canUndo = n > 0 && !(this.readOnly && !this.granted) && !this._blocked();
       btn.disabled = !canUndo;
       btn.title = canUndo ? ('撤回最近一条操作（还可撤 ' + n + ' 条）') : '暂无可撤回的操作';
       var badge = document.getElementById('wb-undo-count');
       if (badge) badge.textContent = n ? String(n) : '';
+    },
+
+    // ------------------------------------------------------------------
+    // 课堂发布门禁（口径与服务端 ClassroomPublishGuard 一致）
+    // 白板是独立 WS 通道，signal 通道的拦截覆盖不到，所有 op 出站统一走 _send
+    // ------------------------------------------------------------------
+    applyGate: function (allowed, status) {
+      this.gateBlocked = !allowed;
+      this.gateStatus = status || '';
+      if (!allowed) this._hideTextEditor();   // 暂停时收起未提交的文字浮层
+      this._syncUndoBtn();
+    },
+
+    _blocked: function () {
+      if (this.gateBlocked) return true;
+      if (window.ClassroomMain && typeof window.ClassroomMain.canPublish === 'function'
+          && !window.ClassroomMain.canPublish()) return true;
+      return false;
+    },
+
+    _gateToast: function () {
+      this.toast(this.gateStatus === 'PAUSED'
+        ? '课堂已暂停，暂不能编辑白板' : '课堂未开始/已结束，暂不能编辑白板');
+    },
+
+    /** 白板统一出站：draw / shape / text / clear / undo 全部过门禁 */
+    _send: function (op) {
+      if (this._blocked()) return;
+      if (window.ClassroomWS && this.ctx.scheduleId) {
+        window.ClassroomWS.sendWhiteboard(this.ctx.scheduleId, op);
+      }
     },
 
     // 轻量提示兜底：本模块原先 onMessage 就调用 this.toast，但对象内未定义会抛 TypeError

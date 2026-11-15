@@ -30,8 +30,32 @@
       }
     },
 
+    /** 由 ClassroomMain._applyGate 下发：暂停/未开始时禁用输入（服务端亦会权威拦截） */
+    applyGate: function (allowed, status) {
+      this.gateAllowed = !!allowed;
+      if (this.inputEl) {
+        this.inputEl.disabled = !allowed;
+        this.inputEl.placeholder = allowed ? '' :
+          (status === 'PAUSED' ? '课堂已暂停，暂不能发言' : '课堂未开始，暂不能发言');
+      }
+      var send = document.getElementById('chat-send');
+      if (send) {
+        send.disabled = !allowed;
+        send.style.opacity = allowed ? '' : '0.45';
+      }
+    },
+
     sendFromInput: function () {
       if (!this.inputEl) return;
+      // 兜底：即使 applyGate 未刷新，也不绕过前端发出聊天
+      if (window.ClassroomMain && typeof window.ClassroomMain.canPublish === 'function'
+          && !window.ClassroomMain.canPublish()) {
+        if (typeof window.clToast === 'function') {
+          window.clToast(window.ClassroomMain.getStatus() === 'PAUSED'
+            ? '课堂已暂停，暂不能发言' : '课堂未开始/已结束，暂不能发言');
+        }
+        return;
+      }
       var text = (this.inputEl.value || '').trim();
       if (!text) return;
       // F4-17：聊天经服务端强控（全员禁言时服务端拦截并回 chat:rejected）；
@@ -46,6 +70,10 @@
     },
 
     send: function (msg) {
+      // 所有聊天出站统一过门禁（含其它模块复用本方法发送的场景）
+      if (msg && msg.type === 'chat' && window.ClassroomMain
+          && typeof window.ClassroomMain.canPublish === 'function'
+          && !window.ClassroomMain.canPublish()) return;
       if (window.ClassroomWS && this.ctx.scheduleId) {
         window.ClassroomWS.sendSignal(this.ctx.scheduleId, msg);
       }

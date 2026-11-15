@@ -33,6 +33,7 @@
     hands: {},          // userId -> 是否举手（F4-14 教师批准开麦 UI 用）
     wbGrants: {},       // userId -> 是否被授权编辑白板（F4-08）
     serverMuted: false, // 服务端全员禁言态（F4-17）
+    classStatus: 'SCHEDULED', // 课堂真实状态（来自 /status 与服务端 class:state 广播），发布门禁的唯一前端依据
     leaving: false,
 
     run: function () {
@@ -97,6 +98,9 @@
       enterP
         .then(function () { return self._loadStatus(apiBaseUrl, scheduleId); })
         .then(function (classroom) {
+          // 课堂真实状态（此前写死 '进行中'，导致课前/暂停时前端仍以为能发布）
+          self.classStatus = (classroom && classroom.status)
+            ? String(classroom.status).toUpperCase() : 'SCHEDULED';
           self._renderHeader(classroom, ctx);
           self._initModules(ctx);
           self._refreshMembers(apiBaseUrl, scheduleId);
@@ -106,7 +110,7 @@
           self._connectWS(ctx);
           self._bindBackButton();
           self._hidePlaceholder();
-          self._setStatus('live', '进行中');
+          self._applyGate();          // 按真实状态渲染徽标 + 下发各模块发布门禁
         })
         .catch(function (e) {
           console.error('[ClassroomMain] 进入课堂失败', e);
@@ -121,6 +125,62 @@
       }
       return window.ClassroomAPI.getClassroomStatus(apiBaseUrl, scheduleId)
         .catch(function (e) { console.warn('[ClassroomMain] getStatus failed', e); return null; });
+    },
+
+    // ------------------------------------------------------------------
+    // 课堂状态 / 发布门禁（口径与服务端 ClassroomPublishGuard 一致）
+    // 前端只负责体验与本地拦截；真正的权威拦截在 signal / whiteboard 两个 WS 入口。
+    // ------------------------------------------------------------------
+    getStatus: function () { return this.classStatus; },
+
+    isStaff: function () {
+      var r = this.ctx && this.ctx.role;
+      return r === 'teacher' || r === 'admin' || r === 'platform_admin';
+    },
+
+    /** 是否允许本端对外发布内容（音视频 / 白板 / 聊天）。状态控制类按钮不受此限 */
+    canPublish: function () {
+      if (this.classStatus === 'PAUSED') return false;   // 暂停：教师和学生都不发
+      if (this.classStatus === 'LIVE') return true;      // 进行中：全员可发
+      return this.isStaff();                             // 其余状态：仅教师/管理员可发
+    },
+
+    setClassStatus: function (status) {
+      if (!status) return;
+      var s = String(status).toUpperCase();
+      if (s === this.classStatus) return;
+      var wasAllowed = this.canPublish();
+      this.classStatus = s;
+      this._applyGate();
+      // 学生课前/暂停期间发出的 peer-join、offer 都被服务端门禁丢弃，
+      // 恢复为 LIVE 后必须重建媒体会话，否则一直看不到/听不到对方。
+      if (!wasAllowed && this.canPublish() && this.ctx && this.ctx.role === 'student'
+          && window.ClassroomRTC && typeof window.ClassroomRTC.rejoin === 'function') {
+        window.ClassroomRTC.rejoin();
+      }
+    },
+
+    /** 状态变化后重渲染徽标，并把门禁下发给各模块（模块各自实现 applyGate） */
+    _applyGate: function () {
+      var allowed = this.canPublish();
+      var status = this.classStatus;
+      ['ClassroomControls', 'ClassroomChat', 'ClassroomWhiteboard', 'ClassroomRTC'].forEach(function (mod) {
+        if (window[mod] && typeof window[mod].applyGate === 'function') {
+          try { window[mod].applyGate(allowed, status); }
+          catch (e) { console.warn('[ClassroomMain] applyGate ' + mod, e); }
+        }
+      });
+      this._renderStatusBadge();
+    },
+
+    _renderStatusBadge: function () {
+      var map = {
+        LIVE: ['live', '进行中'], PAUSED: ['idle', '已暂停'],
+        READY: ['idle', '待开课'], SCHEDULED: ['idle', '待开课'],
+        CLOSED: ['ended', '已结束'], CANCELLED: ['ended', '已取消']
+      };
+      var v = map[this.classStatus] || ['idle', this.classStatus];
+      this._setStatus(v[0], v[1]);
     },
 
     _renderHeader: function (classroom, ctx) {
@@ -207,12 +267,26 @@
           this._removeParticipant(msg.to || msg.from);
           break;
         case 'class-start':
-          this._setStatus('live', '进行中');
-          window.clToast('课堂已开始');
+        case 'class-resume':
+          this.setClassStatus('LIVE');
+          window.clToast(msg.type === 'class-resume' ? '课堂已恢复，可以开始互动' : '课堂已开始');
+          break;
+        case 'class-pause':
+          this.setClassStatus('PAUSED');
+          window.clToast('课堂已暂停：暂停期间全员都不能发送音视频、白板与聊天');
+          break;
+        case 'class:state':
+          // 服务端权威状态广播（/start | /pause | /resume | /end 成功后推送）
+          this.setClassStatus(msg.status);
+          break;
+        case 'publish:rejected':
+          window.clToast(msg.status === 'PAUSED'
+            ? '课堂已暂停，暂不能发布音视频、白板与聊天'
+            : '课堂未开始/已结束，暂不能发布音视频、白板与聊天');
           break;
         case 'class-end':
+          this.setClassStatus('CLOSED');
           window.clToast('课堂已结束');
-          this._setStatus('ended', '已结束');
           setTimeout(function () { self.leave(); }, 1200);
           break;
         default:

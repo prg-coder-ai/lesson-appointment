@@ -13,7 +13,11 @@ import java.util.List;
 
 /**
  * 课堂生命周期管理（状态机）。
- * 状态流转：SCHEDULED → READY → LIVE → CLOSED / CANCELLED
+ * 状态流转：SCHEDULED → READY → LIVE ⇄ PAUSED → CLOSED / CANCELLED
+ *
+ * <p><b>PAUSED（2026-11-14）</b>：教师手动暂停的课堂仍占着媒体房间，但不算「进行中」，
+ * 期间教师端与学生端都不得对外发布音视频/白板/聊天（由 {@link ClassroomPublishGuard} 在
+ * WS 入口权威拦截）。暂停不重建房间、不重写 actualStart，恢复（resume）只翻状态。
  *
  * <p>「下课」不只是改状态：{@link #endClass} 会委托
  * {@link ClassroomClosingService} 做出勤收尾与课时回流——收尾链路挂在这里，
@@ -26,13 +30,16 @@ public class ClassroomService {
     private final ClassroomMapper classroomMapper;
     private final ClassroomClosingService closingService;
     private final MediaService mediaService;
+    private final ClassroomPublishGuard publishGuard;
 
     public ClassroomService(ClassroomMapper classroomMapper,
                             ClassroomClosingService closingService,
-                            MediaService mediaService) {
+                            MediaService mediaService,
+                            ClassroomPublishGuard publishGuard) {
         this.classroomMapper = classroomMapper;
         this.closingService = closingService;
         this.mediaService = mediaService;
+        this.publishGuard = publishGuard;
     }
 
     public Classroom getById(String scheduleId) {
@@ -55,9 +62,10 @@ public class ClassroomService {
 
     public void cancel(String scheduleId) {
         Classroom c = getById(scheduleId);
-        if ("LIVE".equals(c.getStatus())) {
+        // PAUSED 也是「课已开起来」的状态，取消会丢掉已发生的出勤/课时证据
+        if ("LIVE".equals(c.getStatus()) || "PAUSED".equals(c.getStatus())) {
             throw new ClassroomBizException(ErrorCodes.CLASSROOM_STATUS_CONFLICT,
-                    "直播中的课堂不可取消");
+                    "直播中/已暂停的课堂不可取消");
         }
         transitionStatus(scheduleId, c.getStatus(), "CANCELLED");
         log.info("课堂取消: scheduleId={}", scheduleId);
@@ -69,6 +77,7 @@ public class ClassroomService {
             throw new ClassroomBizException(ErrorCodes.CLASSROOM_STATUS_CONFLICT,
                     "状态冲突：当前状态非 " + fromStatus);
         }
+        publishGuard.invalidate(scheduleId);   // 发布门禁按状态判定，状态一变立即失效缓存
         log.info("课堂状态流转: {} {} → {}", scheduleId, fromStatus, toStatus);
     }
 
@@ -85,6 +94,7 @@ public class ClassroomService {
         }
         int affected = classroomMapper.updateStatus(scheduleId, "SCHEDULED", "READY");
         if (affected > 0) {
+            publishGuard.invalidate(scheduleId);
             log.info("课堂就绪: scheduleId={}", scheduleId);
             return true;
         }
@@ -126,9 +136,35 @@ public class ClassroomService {
         }
     }
 
-    public void endClass(String scheduleId) {
+    /**
+     * 暂停：LIVE → PAUSED。媒体房间保留（恢复时不重建），不做出勤收尾。
+     * 暂停期间 {@link ClassroomPublishGuard} 会拦下教师与学生的全部内容发布。
+     */
+    public void pauseClass(String scheduleId) {
         Classroom c = getById(scheduleId);
         if (!"LIVE".equals(c.getStatus())) {
+            throw new ClassroomBizException(ErrorCodes.CLASSROOM_STATUS_CONFLICT,
+                    "当前状态不可暂停：" + c.getStatus());
+        }
+        transitionStatus(scheduleId, "LIVE", "PAUSED");
+        log.info("课堂暂停: scheduleId={}", scheduleId);
+    }
+
+    /** 恢复：PAUSED → LIVE。不重写 actualStart、不重建媒体房间（暂停期间房间一直在） */
+    public void resumeClass(String scheduleId) {
+        Classroom c = getById(scheduleId);
+        if (!"PAUSED".equals(c.getStatus())) {
+            throw new ClassroomBizException(ErrorCodes.CLASSROOM_STATUS_CONFLICT,
+                    "当前状态不可恢复：" + c.getStatus());
+        }
+        transitionStatus(scheduleId, "PAUSED", "LIVE");
+        log.info("课堂恢复: scheduleId={}", scheduleId);
+    }
+
+    public void endClass(String scheduleId) {
+        Classroom c = getById(scheduleId);
+        // PAUSED 也必须能下课，否则教师暂停后无法结束课堂，会留下一堂永不结算的课
+        if (!"LIVE".equals(c.getStatus()) && !"PAUSED".equals(c.getStatus())) {
             throw new ClassroomBizException(ErrorCodes.CLASSROOM_STATUS_CONFLICT,
                     "当前状态不可下课：" + c.getStatus());
         }

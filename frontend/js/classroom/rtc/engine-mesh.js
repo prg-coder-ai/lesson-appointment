@@ -19,7 +19,9 @@
     this.localStream = null;
     this.peers = {};          // userId -> RTCPeerConnection
     this.remoteStreams = {};  // userId -> MediaStream
-    this.mediaOk = false;
+    this.mediaOk = false;     // 兼容旧调用方：任一可用即 true
+    this.audioOk = false;     // 拆分状态：麦克风是否可用
+    this.videoOk = false;     // 拆分状态：摄像头是否可用
     this.joined = false;
     this.maxPeers = (cfg && cfg.maxPeers) ? cfg.maxPeers : 6;
     this.iceServers = (cfg && cfg.iceServers && cfg.iceServers.length)
@@ -36,27 +38,110 @@
     });
   };
 
+  /**
+   * 采集本地音视频。
+   * 与旧版差别：
+   *  1. 音视频【分离】请求，任一设备缺失/被占用不再连累另一路（旧版一个 Promise 全废）；
+   *  2. 应用课前准备页保存的设备偏好（deviceId exact，失效自动回退默认）；
+   *  3. 错误按 NotAllowedError / NotFoundError / NotReadableError 等翻成中文自救提示；
+   *  4. audioOk / videoOk 拆分，mediaOk 仅作兼容。
+   */
   MeshRtcEngine.prototype._startLocalMedia = function () {
     var self = this;
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      this.mediaOk = false;
+    var MD = window.ClassroomMediaDevices;
+    if (!MD || !MD.supported()) {
+      this.audioOk = false; this.videoOk = false; this.mediaOk = false;
       window.RtcTiles.showVideo('local', false);
-      this._toast('当前浏览器不支持音视频采集，已切换为仅观看');
+      this._toast(MD && !MD.isSecure()
+        ? '当前页面不是 HTTPS/localhost，无法采集音视频'
+        : '当前浏览器不支持音视频采集，已切换为仅观看');
       return Promise.resolve();
     }
-    return navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      .then(function (stream) {
-        self.localStream = stream;
-        self.mediaOk = true;
-        var video = document.getElementById('vt-local-video');
-        if (video && video.srcObject !== stream) video.srcObject = stream;
-        window.RtcTiles.showVideo('local', true);
-      })
-      .catch(function (err) {
-        self.mediaOk = false;
-        window.RtcTiles.showVideo('local', false);
-        self._toast('无法访问摄像头/麦克风：' + (err && err.name ? err.name : '未知错误'));
+
+    var prefs = MD.readPrefs();
+    return MD.capture(prefs, { audio: true, video: true })
+      .then(function (r) {
+        self.localStream = r.stream;
+        self.audioOk = r.audioOk;
+        self.videoOk = r.videoOk;
+        self.mediaOk = r.audioOk || r.videoOk;
+        self._bindLocalVideo();
+        window.RtcTiles.showVideo('local', r.videoOk);
+        (r.errors || []).forEach(function (e) { self._toast(e.message); });
+        if (!self.mediaOk) self._toast('未检测到可用的麦克风或摄像头，已切换为仅观看');
       });
+  };
+
+  /** 把合并后的本地流挂到预览 video（切换设备后 srcObject 不变，无需重挂） */
+  MeshRtcEngine.prototype._bindLocalVideo = function () {
+    var video = document.getElementById('vt-local-video');
+    if (video && this.localStream && video.srcObject !== this.localStream) {
+      video.srcObject = this.localStream;
+    }
+  };
+
+  /**
+   * 运行中切换指定设备：重新采集单路 + 对所有 RTCPeerConnection 做 replaceTrack，
+   * 不触发 SDP 重协商（对端无感）。本地流对象保持不变，录制模块取到的 srcObject 也不断。
+   */
+  MeshRtcEngine.prototype.switchDevice = function (kind, deviceId) {
+    var self = this;
+    var MD = window.ClassroomMediaDevices;
+    if (!MD || !MD.supported() || !this.localStream) return Promise.resolve(false);
+    var isAudio = (kind === 'audio' || kind === 'audioinput');
+    var labelKey = isAudio ? 'audioLabel' : 'videoLabel';
+    var idKey = isAudio ? 'audioInputId' : 'videoInputId';
+
+    var p = MD.readPrefs();
+    p[idKey] = deviceId || '';
+    p[labelKey] = '';
+    return MD.enumerate().then(function (dev) {
+      var list = isAudio ? (dev.audioinput || []) : (dev.videoinput || []);
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].deviceId === deviceId) { p[labelKey] = list[i].label || ''; break; }
+      }
+      MD.writePrefs(p);
+      var one = {};
+      if (isAudio) one.audioInputId = deviceId || '';
+      else one.videoInputId = deviceId || '';
+      return MD.capture(one, isAudio ? { audio: true, video: false } : { audio: false, video: true });
+    }).then(function (r) {
+      var tracks = isAudio ? r.stream.getAudioTracks() : r.stream.getVideoTracks();
+      if (!tracks.length) {
+        (r.errors || []).forEach(function (e) { self._toast(e.message); });
+        return false;
+      }
+      var oldTracks = isAudio ? self.localStream.getAudioTracks() : self.localStream.getVideoTracks();
+      // 继承原轨道的 enabled 状态：用户已关麦/关摄像头时切换设备不应把它们重新打开
+      var wasEnabled = oldTracks.length ? oldTracks[0].enabled : true;
+      oldTracks.forEach(function (t) { self.localStream.removeTrack(t); try { t.stop(); } catch (e) {} });
+      tracks.forEach(function (t) { t.enabled = wasEnabled; self.localStream.addTrack(t); });
+
+      // 逐个 peer 找到对应 kind 的 sender 并 replaceTrack（不重协商）
+      Object.keys(self.peers || {}).forEach(function (pid) {
+        var pc = self.peers[pid];
+        if (!pc || !pc.getSenders) return;
+        (pc.getSenders() || []).forEach(function (sender) {
+          var t = sender.track;
+          if (!t) return;
+          var same = isAudio ? (t.kind === 'audio') : (t.kind === 'video');
+          if (same && sender.replaceTrack) {
+            try { sender.replaceTrack(tracks[0]); } catch (e) { console.warn('[RTC] replaceTrack failed', e); }
+          }
+        });
+      });
+
+      if (isAudio) self.audioOk = true; else self.videoOk = true;
+      self.mediaOk = self.audioOk || self.videoOk;
+      if (!isAudio) {
+        self._bindLocalVideo();
+        window.RtcTiles.showVideo('local', true);
+      }
+      return true;
+    }).catch(function (e) {
+      self._toast('切换设备失败：' + ((e && e.message) || e));
+      return false;
+    });
   };
 
   MeshRtcEngine.prototype._broadcastJoin = function () {
@@ -227,6 +312,8 @@
     }
     this.joined = false;
     this.mediaOk = false;
+    this.audioOk = false;
+    this.videoOk = false;
   };
 
   MeshRtcEngine.prototype._toast = function (msg) {
