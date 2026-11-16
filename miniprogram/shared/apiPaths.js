@@ -343,6 +343,10 @@ export const ENDPOINTS = {
   UPLOAD_COMPLETE: (uploadId) =>
     `/api/v1/uploads/${encodeURIComponent(uploadId || '')}/complete`,
   // 运营台（F8-01 监控 / F7-04 学情 / F7-05 对账 / F8-03 审核 / F8-05 联调），管理员专用
+  // 按状态列课堂（运营台补课程名用）：schedule_id 是「排期~课次」复合键，审核/联调/
+  // 对账各表只存这个键，展示层要靠它翻成「课程名 · 第N课次」，否则只能看到一串 UUID。
+  // status 必填（后端 eq 精确匹配），可传 LIVE/PAUSED/READY/SCHEDULED/CLOSED。
+  CLASSROOM_ADMIN_CLASSROOMS: '/api/v1/admin/classrooms/monitor',
   CLASSROOM_ADMIN_MONITOR_OVERVIEW: '/api/v1/admin/monitor/overview',
   CLASSROOM_ADMIN_MONITOR_ALERTS: '/api/v1/admin/monitor/alerts',
   CLASSROOM_ADMIN_MONITOR_METRICS: '/api/v1/admin/monitor/metrics',

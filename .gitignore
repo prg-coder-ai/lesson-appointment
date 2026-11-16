@@ -159,3 +159,4 @@ deploy/deploy-keys.txt
 # 原规则只写了 deploy/ 前缀，cloudBased/deploy-keys.txt 一直裸奔在未跟踪列表里
 **/deploy-keys.txt
 data/oss/material
+data/oss/

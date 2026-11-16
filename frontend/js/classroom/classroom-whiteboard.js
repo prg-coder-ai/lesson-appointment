@@ -78,7 +78,15 @@
       if (!area) return;
       this.active = !!on;
       area.classList.toggle('hidden', !on);
-      if (grid) grid.classList.toggle('hidden', on);
+      // 视频面板的显隐（2026-11-16 面板可移动化后）：
+      //  - 视频还在布局里（占中栏）→ 保持原互斥：白板打开就藏视频，否则两者挤在一起谁都看不清；
+      //  - 视频已被拖成浮动小窗（.cl-panel-free）→ 不藏，白板独占中栏、视频小窗叠在上层 = 画中画。
+      // 隐藏整个 #video-panel 而不是只藏 #video-grid：后者会留下一条孤零零的「视频」标题条。
+      var videoPanel = document.getElementById('video-panel') || grid;
+      if (videoPanel) {
+        var floating = videoPanel.classList.contains('cl-panel-free');
+        videoPanel.classList.toggle('hidden', on && !floating);
+      }
       if (!on) this._hideTextEditor();    // 浮层是 area 子元素，隐藏时一并清状态避免残留
       if (on) this._resize();
     },
