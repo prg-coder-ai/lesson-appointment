@@ -36,6 +36,9 @@
  *   API_HOST / BOOKING_PORT   默认 127.0.0.1 / 8081
  *   MSG_HOST  / MSG_PORT      默认 127.0.0.1 / 8090
  *   CLASSROOM_HOST / CLASSROOM_PORT   默认 127.0.0.1 / 8092；=0 关闭课堂路由
+ *   DEV_TLS        默认 HTTPS（用 certs/dev.crt|dev.key）；设 0 才退回 HTTP。
+ *                  局域网另一台电脑要用摄像头必须用 HTTPS（getUserMedia 仅安全上下文放行）；
+ *                  给 tests/ 里硬编码 http://localhost:8080 的脚本用：DEV_TLS=0。
  *   NO_PROBE=1     跳过启动前连通性检查
  *
  * 变更记录：
@@ -73,6 +76,10 @@ const MSG_PORT = parseInt(process.env.MSG_PORT || '8090', 10);
 // 课堂：默认 8092；设 CLASSROOM_PORT=0 可彻底关闭课堂路由（只调预约/消息时用）
 const CLASSROOM_HOST = process.env.CLASSROOM_HOST || API_HOST;
 const CLASSROOM_PORT = parseInt(process.env.CLASSROOM_PORT || '8092', 10);
+// 2026-11-16 起默认走 HTTPS（局域网另一台电脑用摄像头必须有它：getUserMedia 只在
+// 安全上下文（https / localhost）放行，http://192.168.x.x 会被浏览器禁掉）。
+// 逃生口：DEV_TLS=0（或 false）退回 HTTP —— 供 tests/ 里硬编码 http://localhost:8080 的脚本用。
+const DEV_TLS = process.env.DEV_TLS !== '0' && process.env.DEV_TLS !== 'false';
 
 // 混合拓扑守卫：一端本地一端远程会因 JWT 密钥域不同导致 401
 if (API_HOST !== MSG_HOST && API_HOST !== '127.0.0.1' && MSG_HOST !== '127.0.0.1') {
@@ -92,6 +99,7 @@ startProxy({
   // 0 表示显式关闭：dev-proxy 引擎在不传 classroomPort 时，行为与两服务版完全一致
   classroomHost: CLASSROOM_HOST,
   classroomPort: CLASSROOM_PORT > 0 ? CLASSROOM_PORT : undefined,
+  tls: DEV_TLS,
   probe: process.env.NO_PROBE !== '1',
   onProbe({ okBooking, okMsg, okClassroom }) {
     const classroomDown = CLASSROOM_PORT > 0 && !okClassroom;

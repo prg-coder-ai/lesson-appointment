@@ -29,6 +29,11 @@
  *   MSG_HOST       默认 127.0.0.1
  *   MSG_PORT       默认 8090
  *   CLASSROOM_PORT 默认 8092；设为 0 可关闭课堂路由（只联调预约/消息时用）
+ *   DEV_TLS        默认 HTTPS（用 certs/dev.crt|dev.key）；设 0 才退回 HTTP。
+ *                  ★ 默认 HTTPS 是因为局域网另一台电脑要用摄像头/麦克风：浏览器只在安全上下文
+ *                    （https 或 localhost）里放行 getUserMedia，http://192.168.x.x 会被直接禁掉。
+ *                  给 tests/ 里硬编码 http://localhost:8080 的脚本用：DEV_TLS=0。
+ *                  缺证书时启动直接报错并打印生成命令（不静默退回 http）。
  *   NO_PROBE=1     跳过启动前连通性检查
  */
 'use strict';
@@ -46,6 +51,9 @@ const BOOKING_PORT = parseInt(process.env.BOOKING_PORT || '8081', 10);
 const MSG_HOST = process.env.MSG_HOST || '127.0.0.1';
 const MSG_PORT = parseInt(process.env.MSG_PORT || '8090', 10);
 const CLASSROOM_PORT = parseInt(process.env.CLASSROOM_PORT || '8092', 10);
+// 2026-11-16 起默认走 HTTPS（局域网 RTC 的 getUserMedia 只在安全上下文放行）。
+// 逃生口：DEV_TLS=0（或 false）退回 HTTP —— 供 tests/ 里硬编码 http://localhost:8080 的脚本用。
+const DEV_TLS = process.env.DEV_TLS !== '0' && process.env.DEV_TLS !== 'false';
 
 startProxy({
   label: '本地 API（booking :8081 + message-service :8090 + classroom :8092）',
@@ -57,6 +65,7 @@ startProxy({
   msgPort: MSG_PORT,
   // 0 表示显式关闭课堂路由（不传 classroomPort 时引擎行为与改造前一致）
   classroomPort: CLASSROOM_PORT > 0 ? CLASSROOM_PORT : undefined,
+  tls: DEV_TLS,
   probe: process.env.NO_PROBE !== '1',
   onProbe({ okBooking, okMsg, okClassroom }) {
     if (!okBooking) {
