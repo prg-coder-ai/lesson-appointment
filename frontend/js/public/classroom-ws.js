@@ -139,11 +139,19 @@
       }
     },
 
+    /**
+     * 发送信令，返回是否真的发出（WS 未 OPEN 时返回 false）。
+     * 返回值只给需要「没发出就补发」的调用方用——典型是 rtc-peer-join：
+     * 进房时媒体采集可能早于 WS 握手完成，静默丢弃会让对方永远收不到 join，
+     * 双方都不发 offer，P2P 就建不起来（学生端看不到教师画面）。
+     */
     sendSignal: function (scheduleId, data) {
       var s = this._sessions[scheduleId];
       if (s && s.signal.readyState === WebSocket.OPEN) {
         s.signal.send(JSON.stringify(data));
+        return true;
       }
+      return false;
     }
   };
 

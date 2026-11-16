@@ -102,12 +102,15 @@
           self.classStatus = (classroom && classroom.status)
             ? String(classroom.status).toUpperCase() : 'SCHEDULED';
           self._renderHeader(classroom, ctx);
+          // 先连 WS 再初始化模块（2026-11-16 C）：RTC 采集完成后要广播 rtc-peer-join，
+          // 若 WS 尚未握手完成，sendSignal 会静默丢弃 → 对方不知道我存在 → 没人发 offer。
+          // 提前建连 + onOpen 补发（见 _connectWS），两头兜住这条 join。
+          self._connectWS(ctx);
           self._initModules(ctx);
           self._refreshMembers(apiBaseUrl, scheduleId);
           if (ctx.role === 'student') self._initMyAttendance(ctx);
           self._initUploadModal(ctx);
           self._initReplayEntry(ctx);
-          self._connectWS(ctx);
           self._bindBackButton();
           self._hidePlaceholder();
           self._applyGate();          // 按真实状态渲染徽标 + 下发各模块发布门禁
@@ -149,11 +152,36 @@
       if (!status) return;
       var s = String(status).toUpperCase();
       if (s === this.classStatus) return;
+      var prev = this.classStatus;
       var wasAllowed = this.canPublish();
       this.classStatus = s;
       this._applyGate();
-      // 学生课前/暂停期间发出的 peer-join、offer 都被服务端门禁丢弃，
-      // 恢复为 LIVE 后必须重建媒体会话，否则一直看不到/听不到对方。
+
+      // 进入 LIVE 时【双方】都要重发 rtc-peer-join（2026-11-16 A）。
+      // 为什么必须按「状态变化」而不是「能否发布」判断：教师是 staff，课前 canPublish()
+      // 就已经是 true，旧的 `!wasAllowed` 条件对教师永远不成立 → 教师从课到课从不重发 join。
+      // 而 offer 只由「收到对方 join 且 userId 字典序更大」的一方发起，教师恰好字典序较小时
+      // 双方都不发 offer，P2P 永远建不起来 —— 学生端就看不到教师画面。
+      var nowLive = (s === 'LIVE' && prev !== 'LIVE');
+      if (nowLive) {
+        if (this.ctx && this.ctx.role === 'student') {
+          // 学生：课前的 join/offer 被服务端门禁丢弃、轨道也被门禁关过，重建媒体会话最干净
+          if (window.ClassroomRTC && typeof window.ClassroomRTC.rejoin === 'function') {
+            window.ClassroomRTC.rejoin();
+          }
+        } else if (window.ClassroomRTC) {
+          // 教师/管理员：只补发 join，不重建引擎——重建会重新采集、打断正在播的本地画面。
+          // 引擎还没进房（返回 false）时退回 rejoin 兜底。
+          var sent = (typeof window.ClassroomRTC.broadcastJoin === 'function')
+            ? window.ClassroomRTC.broadcastJoin() : false;
+          if (sent === false && typeof window.ClassroomRTC.rejoin === 'function') {
+            window.ClassroomRTC.rejoin();
+          }
+        }
+        return;
+      }
+
+      // 其它「从不可发布恢复为可发布」的路径（如 PAUSED 恢复）仍按学生重建处理
       if (!wasAllowed && this.canPublish() && this.ctx && this.ctx.role === 'student'
           && window.ClassroomRTC && typeof window.ClassroomRTC.rejoin === 'function') {
         window.ClassroomRTC.rejoin();
@@ -213,7 +241,14 @@
       try {
         window.ClassroomWS.connect(ctx.scheduleId, ctx.token, {
           userId: ctx.userId,
-          onOpen: function () { window.clToast('已连接课堂'); },
+          onOpen: function () {
+            window.clToast('已连接课堂');
+            // 三通道都 OPEN 了，补发 rtc-peer-join（2026-11-16 C）：
+            // 采集若早于握手完成，先前那条 join 已被 sendSignal 丢弃，这里补一次保证必达。
+            if (window.ClassroomRTC && typeof window.ClassroomRTC.broadcastJoin === 'function') {
+              window.ClassroomRTC.broadcastJoin();
+            }
+          },
           onClose: function (ch) { console.warn('[ClassroomMain] WS 关闭', ch); },
           onError: function (ch) { console.warn('[ClassroomMain] WS 错误', ch); },
           onHeartbeat: function () { /* 心跳保活 */ },
