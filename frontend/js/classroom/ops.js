@@ -47,10 +47,22 @@
     },
 
     _renderUser: function () {
+      var self = this;
       try {
         var u = JSON.parse(localStorage.getItem('currentUser') || 'null');
         var el = document.getElementById('ops-user');
-        if (el && u) el.textContent = (u.name || u.account || u.userId || '') + ' · ' + (u.role || '');
+        if (!el || !u) return;
+        // currentUser.name 可能沿用了未解密的密文，先给不含乱码的兜底，再按 userId 反查真名
+        var nm = u.name || u.account || u.userId || '';
+        el.textContent = (self.looksEncrypted(nm) ? (u.account || '管理员') : nm) + ' · ' + (u.role || '');
+        if (u.userId) {
+          self.userBriefs([u.userId]).then(function (map) {
+            var b = map[u.userId];
+            if (b && (b.account || b.name)) {
+              el.textContent = (b.account || b.name) + ' · ' + (u.role || '');
+            }
+          });
+        }
       } catch (e) { /* 展示失败无所谓 */ }
     },
 
@@ -198,10 +210,77 @@
         .catch(function () { return {}; });
     },
 
-    /** brief → 可展示名（账号唯一可辨识优先，其次姓名，最后回退传入的原始值/id） */
+    /**
+     * 库里的姓名是不是密文（主库 user.name 入库即加密，形如 "ivHex:cipherBase64"）。
+     * 反查失败时绝不能把密文直接摆到界面上——它看着像 id，用户根本认不出是谁。
+     */
+    looksEncrypted: function (s) {
+      var v = (s == null) ? '' : String(s);
+      if (v.length <= 24) return false;
+      if (!/[\u4e00-\u9fa5\s]/.test(v) && v.indexOf(':') > 8) return true;
+      // 纯十六进制串（无冒号）也当密文：真实姓名不会是 40 位以上纯 hex
+      return /^[0-9a-f]{32,}$/i.test(v);
+    },
+
+    /** brief → 可展示名（账号唯一可辨识优先，其次姓名，最后回退原始值；密文一律不原样展示） */
     personLabel: function (b, raw) {
       if (b && (b.account || b.name)) return b.account || b.name;
-      return (raw == null || raw === '') ? '-' : String(raw);
+      var s = (raw == null) ? '' : String(raw);
+      if (!s) return '-';
+      if (this.looksEncrypted(s)) return '未知用户';
+      return s;
+    },
+
+    /**
+     * scheduleId 是「排期~课次」的复合键（见后端 ClassroomKey）：
+     *   第 1 课次 = 裸排期 id；第 2 课次起 = "<排期id>~<N>"。
+     * 直接摆出来就是一串 UUID，这里取课次序号。
+     */
+    classIndexOf: function (key) {
+      var s = (key == null) ? '' : String(key);
+      var i = s.indexOf('~');
+      if (i < 0 || i === s.length - 1) return 1;
+      var v = parseInt(s.slice(i + 1), 10);
+      return (v > 0) ? v : 1;
+    },
+
+    /** 课程名字典：scheduleId → courseName（由课堂列表接口顺手填充） */
+    _classNameMap: {},
+
+    cacheClassNames: function (list) {
+      var m = this._classNameMap;
+      (list || []).forEach(function (c) {
+        if (c && c.scheduleId && c.courseName) m[c.scheduleId] = c.courseName;
+      });
+    },
+
+    /**
+     * 建「课堂字典」：审核/联调/对账各表只存 schedule_id，展示要「课程名 · 第N课次」。
+     * 后端没有按 id 批量查的接口，但有按状态列全量的 /admin/classrooms/monitor，
+     * 故并行走几个状态一次性建好字典（只拉一次，之后 tab 切换零请求）。
+     * 失败静默——最差退化成只显示「第N课次」，也比 UUID 可读。
+     */
+    primeClassNames: function () {
+      var self = this;
+      if (!EP.CLASSROOM_ADMIN_CLASSROOMS) return Promise.resolve();
+      if (self._classNamesPriming) return self._classNamesPriming;
+      var statuses = ['LIVE', 'PAUSED', 'READY', 'SCHEDULED', 'CLOSED'];
+      self._classNamesPriming = Promise.all(statuses.map(function (st) {
+        return self.api(EP.CLASSROOM_ADMIN_CLASSROOMS, 'get', { status: st })
+          .then(function (list) { self.cacheClassNames(list); })
+          .catch(function () { /* 单个状态失败不影响其它 */ });
+      }));
+      return self._classNamesPriming;
+    },
+
+    /** 课次可读化：「课程名 · 第N课次」；课程名缺失时至少给出课次序号 */
+    classLabel: function (key) {
+      var s = (key == null) ? '' : String(key);
+      if (!s) return '-';
+      var name = this._classNameMap[s] || '';
+      var idx = this.classIndexOf(s);
+      var tail = '第' + idx + '课次';
+      return name ? (name + ' · ' + tail) : tail;
     },
 
     /** eventId 截断：只显示前 8 个字符 + 省略号，完整值放 title 备查 */
@@ -226,6 +305,8 @@
           if (t) t.textContent = '更新于 ' + self.fmtTime(d.serverTime);
 
           var active = d.activeClasses || [];
+          // 顺手把「scheduleId → 课程名」灌进字典，供审核/联调/对账把课次翻成可读文字
+          self.cacheClassNames(active);
           // 教师名反查：拿明文 name/account 覆盖库里的密文 teacher_name（见 userBriefs 注释）
           return self.userBriefs(active.map(function (c) { return c.teacherId; }))
             .then(function (briefs) {
@@ -270,8 +351,8 @@
             html += '<div style="margin-bottom:8px;color:#b42318;font-weight:600">卡在 LIVE 未下课的课堂 '
               + d.staleLiveCount + ' 节</div><ul style="margin:0 0 12px 18px;padding:0">';
             (d.staleLive || []).forEach(function (c) {
-              html += '<li>' + self.esc(c.courseName || c.scheduleId) + '（' + self.esc(c.scheduleId) +
-                '）计划结束 ' + self.fmtTime(c.endTime) + '</li>';
+              html += '<li>' + self.esc(c.courseName || self.classLabel(c.scheduleId)) +
+                ' 计划结束 ' + self.fmtTime(c.endTime) + '</li>';
             });
             html += '</ul>';
           }
@@ -279,7 +360,7 @@
             html += '<div style="color:#b54708;font-weight:600">未处置对账差异 ' + d.openDiffCount + ' 条</div>';
             html += '<ul style="margin:6px 0 0 18px;padding:0">';
             (d.diffs || []).slice(0, 8).forEach(function (x) {
-              html += '<li>' + self.esc(x.diffType) + ' · ' + self.esc(x.scheduleId) +
+              html += '<li>' + self.esc(x.diffType) + ' · ' + self.esc(self.classLabel(x.scheduleId)) +
                 ' · ' + self.esc(x.detail || '') + '</li>';
             });
             html += '</ul>';
@@ -332,6 +413,8 @@
           // 教师/学员名统一反查（教师列是密文、学员列是裸 userId，见 userBriefs 注释）
           var byClass = d.byClass || [];
           var byStudent = d.byStudent || [];
+          // 学情按课堂维度返回了 courseName，正好喂给课次字典（其它 tab 复用）
+          self.cacheClassNames(byClass);
           var ids = byClass.map(function (c) { return c.teacherId; })
             .concat(byStudent.map(function (x) { return x.userId; }));
           return self.userBriefs(ids).then(function (briefs) {
@@ -407,7 +490,11 @@
       var days = (document.getElementById('rc-days') || {}).value || 7;
       this.api(EP.CLASSROOM_ADMIN_RECONCILE_DIFFS, 'get', { status: status, days: days })
         .then(function (rows) {
-          var html = (rows || []).map(function (d) {
+          // 课次列要「课程名 · 第N课次」，先确保课堂字典就绪
+          return self.primeClassNames().then(function () { return rows || []; });
+        })
+        .then(function (rows) {
+          var html = rows.map(function (d) {
             var sev = d.severity === 'ERROR' ? '<span class="tag err">ERROR</span>'
               : '<span class="tag warn">WARN</span>';
             var st = d.status === 'OPEN' ? '<span class="tag warn">未处置</span>'
@@ -416,8 +503,9 @@
               ? '<button class="btn small" data-resolve="' + d.diffId + '" data-ignore="0">处置</button> ' +
                 '<button class="btn small danger" data-resolve="' + d.diffId + '" data-ignore="1">忽略</button>'
               : (d.resolveNote ? self.esc(d.resolveNote) : '');
+            var clabel = self.classLabel(d.scheduleId);
             return '<tr>' +
-              '<td>' + self.esc(d.scheduleId) + '</td>' +
+              '<td title="' + self.esc(d.scheduleId) + '">' + self.esc(clabel) + '</td>' +
               '<td>' + self.esc(d.diffType) + '</td>' +
               '<td>' + sev + '</td>' +
               '<td>' + self.esc(d.detail || '') + '</td>' +
@@ -452,9 +540,12 @@
         { scheduleId: scheduleId, status: status, limit: 50 })
         .then(function (rows) {
           rows = rows || [];
-          // 学员名反查：userId → 明文（见 userBriefs 注释）
-          return self.userBriefs(rows.map(function (r) { return r.userId; }))
-            .then(function (briefs) {
+          // 学员名反查 + 课次字典并行：等齐再渲染，否则会先画「第N课次」再刷成「课程名 · 第N课次」
+          return Promise.all([
+            self.userBriefs(rows.map(function (r) { return r.userId; })),
+            self.primeClassNames()
+          ]).then(function (res) {
+              var briefs = res[0] || {};
               var html = rows.map(function (r) {
                 var media = '';
                 if (r.url) {
@@ -468,8 +559,10 @@
                 var ops = '<button class="btn small" data-pass="' + r.submissionId + '">通过</button> ' +
                   '<button class="btn small danger" data-flag="' + r.submissionId + '">标记违规</button>';
                 var sname = self.personLabel(briefs[r.userId], r.userId);
+                // 课次列：schedule_id 是「排期~课次」复合键，翻成「课程名 · 第N课次」，原值留 title
+                var clabel = self.classLabel(r.scheduleId);
                 return '<tr>' +
-                  '<td>' + self.esc(r.scheduleId) + '</td>' +
+                  '<td title="' + self.esc(r.scheduleId) + '">' + self.esc(clabel) + '</td>' +
                   '<td title="' + self.esc(sname) + '">' + self.esc(sname) + '</td>' +
                   '<td>' + self.esc(r.submissionType) + '</td>' +
                   '<td>' + self.esc(r.content || '') + '<div>' + media + '</div></td>' +
@@ -508,17 +601,21 @@
       this.api(EP.CLASSROOM_ADMIN_AUDIT_LOGS, 'get', { days: 7 })
         .then(function (rows) {
           rows = rows || [];
-          // 操作人反查：operatorId → 明文（见 userBriefs 注释）
-          return self.userBriefs(rows.map(function (l) { return l.operatorId; }))
-            .then(function (briefs) {
+          // 操作人反查 + 课次字典并行
+          return Promise.all([
+            self.userBriefs(rows.map(function (l) { return l.operatorId; })),
+            self.primeClassNames()
+          ]).then(function (res) {
+              var briefs = res[0] || {};
               var html = rows.map(function (l) {
                 var oper = self.personLabel(briefs[l.operatorId], l.operatorId);
+                var clabel = self.classLabel(l.scheduleId);
                 return '<tr>' +
                   '<td>' + self.fmtTime(l.createdAt) + '</td>' +
                   '<td title="' + self.esc(oper) + '">' + self.esc(oper) + '</td>' +
                   '<td>' + self.esc(l.targetType) + '</td>' +
                   '<td>' + self.esc(l.targetId || '-') + '</td>' +
-                  '<td>' + self.esc(l.scheduleId || '-') + '</td>' +
+                  '<td title="' + self.esc(l.scheduleId || '') + '">' + self.esc(clabel) + '</td>' +
                   '<td>' + self.esc(l.action) + '</td>' +
                   '<td>' + self.esc(l.note || '') + '</td>' +
                   '</tr>';
@@ -538,15 +635,20 @@
       this.api(EP.CLASSROOM_ADMIN_CONTRACT_EVENTS, 'get',
         { scheduleId: scheduleId, result: result, days: days })
         .then(function (rows) {
-          var html = (rows || []).map(function (r) {
+          // 课次列要「课程名 · 第N课次」，先确保课堂字典就绪（首次并发拉，之后走缓存）
+          return self.primeClassNames().then(function () { return rows || []; });
+        })
+        .then(function (rows) {
+          var html = rows.map(function (r) {
             var tag = r.result === 'SUCCESS' ? '<span class="tag ok">SUCCESS</span>'
               : (r.result === 'FAILED' ? '<span class="tag err">FAILED</span>' : '<span class="tag mute">SKIPPED</span>');
+            var clabel = self.classLabel(r.scheduleId);
             return '<tr>' +
               '<td>' + self.fmtTime(r.receivedAt) + '</td>' +
               // eventId 只显示前 8 字符 + 省略号，完整值留 title 备查（2026-11-15）
               '<td title="' + self.esc(r.eventId) + '">' + self.esc(self.shortId(r.eventId)) + '</td>' +
               '<td>' + self.esc(r.eventType) + '</td>' +
-              '<td>' + self.esc(r.scheduleId) + '</td>' +
+              '<td title="' + self.esc(r.scheduleId) + '">' + self.esc(clabel) + '</td>' +
               '<td>' + tag + '</td>' +
               '<td>' + self.esc(r.skipReason || r.failReason || '') + '</td>' +
               '</tr>';

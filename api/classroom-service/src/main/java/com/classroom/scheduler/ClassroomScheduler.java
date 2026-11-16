@@ -15,6 +15,7 @@ import com.classroom.service.MembershipService;
 import com.classroom.service.RecordingService;
 import com.classroom.ws.OnlineStateManager;
 import com.classroom.ws.WsRoomRegistry;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -23,6 +24,8 @@ import org.springframework.stereotype.Component;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 课堂生命周期定时扫描器（P0-D 七个）。
@@ -41,14 +44,22 @@ import java.util.List;
  *
  * <p><b>七个扫描器</b>
  * <ol>
- *   <li>就绪提醒：SCHEDULED → READY + 推提醒</li>
- *   <li>自动开课：到点 SCHEDULED/READY → LIVE</li>
- *   <li>自动下课：LIVE 超计划结束 + 宽限 → CLOSED</li>
- *   <li>学生掉线判定：DB 在线但 Redis key 消失 → OFFLINE</li>
- *   <li>点名超时：PENDING 超时被发起时长 → TIMEOUT</li>
- *   <li>教师掉线结课：教师离线超宽限 → 自动结课</li>
- *   <li>过期数据清理：每日清理历史表</li>
+ *   <li>就绪提醒：SCHEDULED → READY + 推提醒（手动模式下只推提醒、不改状态）</li>
+ *   <li>自动开课：到点 SCHEDULED/READY → LIVE（手动模式下整轮跳过）</li>
+ *   <li>自动下课：LIVE 超计划结束 + 宽限 → CLOSED（手动模式下整轮跳过）</li>
+ *   <li>学生掉线判定：DB 在线但 Redis key 消失 → OFFLINE（不改课堂状态，始终运行）</li>
+ *   <li>点名超时：PENDING 超时被发起时长 → TIMEOUT（不涉及课堂状态，始终运行）</li>
+ *   <li>教师掉线结课：教师离线超宽限 → 自动结课（手动模式下整轮跳过）</li>
+ *   <li>过期数据清理：每日清理历史表（不涉及课堂状态，始终运行）</li>
  * </ol>
+ *
+ * <p><b>★课堂状态显式修改（{@code classroom.state-manual-only=true}，2026-11-16 起默认）</b>
+ * <p>课堂状态 {@code SCHEDULED/READY/LIVE/PAUSED/CLOSED} 只允许由显式接口变更：
+ * 教师 {@code /classrooms/{sid}/start|pause|resume|end}、管理员 {@code /admin/classrooms/{sid}/end}。
+ * 因此扫描器 2/3/6 整轮跳过、扫描器 1 只提醒不改状态——不会再出现「时间到了课自己开始/自己结束」。
+ * 想恢复自动流转，把 {@code classroom.state-manual-only} 置 false 即可，无需改代码。
+ * <p>代价（有意接受）：手动模式下一堂课结束后<b>必须有人点「下课」</b>，否则它会一直停在 LIVE，
+ * 既不结算课时也不释放媒体房间；运营台「活跃课堂」里能看到这类忘记下课的课堂。
  */
 @Slf4j
 @Component
@@ -66,6 +77,17 @@ public class ClassroomScheduler {
     private final CallbackService callbackService;
     private final WsRoomRegistry wsRegistry;
 
+    /**
+     * 手动模式下「就绪提醒已推送」的 scheduleId 集合。
+     *
+     * <p>手动模式不改状态，{@code listReadyToRemind} 的选行条件（status='SCHEDULED'）永远成立，
+     * 每 30 秒都会命中同一批课堂 —— 靠这个集合做进程内去重，否则会刷屏推送。
+     * 进程重启后每堂课最多再推一次（提醒消息，不是状态，可接受）；每日过期清理时一并清空。
+     */
+    private final Set<String> readyReminded = ConcurrentHashMap.newKeySet();
+
+    @Value("${classroom.state-manual-only:true}")
+    private boolean manualStateOnly;
     @Value("${classroom.ready-before-start-minutes:10}")
     private int readyBeforeStartMinutes;
     @Value("${classroom.auto-start:true}")
@@ -113,10 +135,34 @@ public class ClassroomScheduler {
         this.wsRegistry = wsRegistry;
     }
 
+    /**
+     * 启动时把当前生命周期模式打出来。
+     *
+     * <p>这几个开关的行为差异很大（状态是自己走还是要人点），排查「课怎么自己结束了 / 怎么一直不结束」
+     * 时第一件事就是确认模式——从启动日志一眼可辨，不用去翻配置文件或问人。
+     */
+    @PostConstruct
+    void logLifecycleMode() {
+        if (manualStateOnly) {
+            log.info("[课堂生命周期] 显式修改模式（classroom.state-manual-only=true）："
+                    + "课堂状态只由 start/pause/resume/end 显式接口变更；"
+                    + "就绪提醒只推提醒不改状态，自动开课/自动下课/教师掉线结课均已停用");
+        } else {
+            log.warn("[课堂生命周期] 自动流转模式（classroom.state-manual-only=false）："
+                    + "自动开课={}, 自动下课宽限={}min, 教师掉线结课宽限={}s",
+                    autoStartEnabled, autoEndGraceMinutes, teacherDropGraceSeconds);
+        }
+    }
+
     // ============ 1. 就绪提醒（每 30 秒） ============
     /**
-     * 把「上课前 N 分钟内（含已开始但卡在 SCHEDULED 的）」课堂翻成 READY 并推提醒。
-     * 幂等：{@code markReady} 只在真翻成功时返回 true，扫描器据此发提醒——翻失败（已被开课）不重复发。
+     * 把「上课前 N 分钟内（含已开始但卡在 SCHEDULED 的）」课堂推提醒。
+     *
+     * <p>手动模式（{@code classroom.state-manual-only=true}）：<b>只推提醒、不改状态</b>。
+     * 状态是显式概念，课什么时候变 READY/LIVE 由人决定；提醒本身仍有价值（让教师知道快上课了），
+     * 只是改由 {@link #readyReminded} 做进程内去重（选行条件是 status='SCHEDULED'，不去重会每 30 秒推一次）。
+     *
+     * <p>自动模式：{@code markReady} 只在真翻成功时返回 true，扫描器据此发提醒——翻失败（已被开课）不重复发。
      */
     @Scheduled(cron = "0/30 * * * * ?")
     public void scanReadyReminder() {
@@ -124,6 +170,12 @@ public class ClassroomScheduler {
             List<Classroom> due = classroomService.findReadyToRemind(readyBeforeStartMinutes);
             for (Classroom c : due) {
                 try {
+                    if (manualStateOnly) {
+                        if (readyReminded.add(c.getScheduleId())) {
+                            sendReadyAlert(c);
+                        }
+                        continue;
+                    }
                     if (classroomService.markReady(c.getScheduleId())) {
                         broadcastState(c.getScheduleId(), "READY");
                         sendReadyAlert(c);
@@ -140,11 +192,13 @@ public class ClassroomScheduler {
     // ============ 2. 自动开课（每 30 秒） ============
     /**
      * 到点且状态 SCHEDULED/READY、未过结束时间的课堂自动开课。
-     * 全局开关 {@code classroom.auto-start=false} 时整轮跳过；单课堂 {@code auto_start=false} 时跳过该课堂。
+     *
+     * <p>手动模式整轮跳过（开课必须由教师点「进行中」或管理员显式开课）；
+     * 自动模式下仍受全局开关 {@code classroom.auto-start} 与单课堂 {@code auto_start} 双重约束。
      */
     @Scheduled(cron = "0/30 * * * * ?")
     public void scanAutoStart() {
-        if (!autoStartEnabled) {
+        if (manualStateOnly || !autoStartEnabled) {
             return;
         }
         try {
@@ -168,11 +222,19 @@ public class ClassroomScheduler {
 
     // ============ 3. 自动下课（每 30 秒） ============
     /**
-     * 仍 LIVE 且计划结束时间已过去 {@code auto-end-grace-minutes} 分钟的课堂自动下课。
-     * 复用 {@code endClass}：下课收尾（出勤核算 + 课时回流）与人工下课同口径。
+     * 仍 LIVE/PAUSED 且计划结束时间已过去 {@code auto-end-grace-minutes} 分钟的课堂自动下课。
+     *
+     * <p><b>手动模式整轮跳过</b>：下课是显式动作（教师「下课」按钮 / 管理员强制结束），
+     * 时间到了不再替人做决定。留下的 LIVE 课堂会出现在运营台「活跃课堂」与对账告警里，
+     * 由人判断是拖堂还是忘了下课。
+     *
+     * <p>自动模式复用 {@code endClass}：下课收尾（出勤核算 + 课时回流）与人工下课同口径。
      */
     @Scheduled(cron = "0/30 * * * * ?")
     public void scanAutoEnd() {
+        if (manualStateOnly) {
+            return;
+        }
         try {
             List<Classroom> overdue = classroomService.findOverdueLive(autoEndGraceMinutes);
             for (Classroom c : overdue) {
@@ -199,6 +261,13 @@ public class ClassroomScheduler {
     public void scanStudentDrop() {
         int grace = onlineStateManager.getReconnectGraceSeconds();
         int offlineTimeout = onlineStateManager.getOfflineTimeoutSeconds();
+        // Redis 是「谁还在线」的唯一真相源。它不可用时 lastSeenElapsed 一律返回 null（没法区分
+        // 「真的没心跳」和「读不到 Redis」），照旧判定会把整堂课成员 leave 出去、毁掉出勤。
+        // 没有真相源就不做判断：整轮跳过，等 Redis 恢复。
+        if (!onlineStateManager.isAvailable()) {
+            log.warn("[学生掉线] Redis 不可用，本轮跳过全部离场判定（在线态保持现状）");
+            return;
+        }
         try {
             List<Classroom> live = classroomService.listByStatus("LIVE", null);
             for (Classroom c : live) {
@@ -259,10 +328,16 @@ public class ClassroomScheduler {
     /**
      * 对所有 LIVE 课堂检查教师：教师已 OFFLINE 且离开时间距现已超过 {@code teacher-drop-grace-seconds}
      * → 自动结课（给教师重连留足时间，避免误杀）。
-     * 教师 OFFLINE + leaveTime 由扫描器 4（或 WS 断连处理器）写入，本扫描器只消费该结论。
+     *
+     * <p><b>手动模式整轮跳过</b>：教师掉线不替人结课，课堂保持 LIVE 等教师重连或管理员显式结束。
+     * 扫描器 4 仍会把教师置 OFFLINE 并写入 leaveTime，运营台「活跃课堂」据此可见「教师已离线」，
+     * 由人决定是否强制下课。
      */
     @Scheduled(cron = "0/40 * * * * ?")
     public void scanTeacherDrop() {
+        if (manualStateOnly) {
+            return;
+        }
         try {
             List<Classroom> live = classroomService.listByStatus("LIVE", null);
             for (Classroom c : live) {
@@ -304,6 +379,8 @@ public class ClassroomScheduler {
             int submission = submissionMapper.deleteByCreatedAtBefore(now.minusDays(submissionRetentionDays));
             // 录制清理必须"先删对象再删记录"，由 service 保证顺序（只删记录会漏掉磁盘上的文件）
             int recording = recordingService.purgeExpired();
+            // 就绪提醒去重集合每日重置一次：课堂只会往前走，昨天的 scheduleId 不会再用到
+            readyReminded.clear();
             log.info("[过期清理] presence={}, rollcall={}, reconcile={}, session={}, submission={}, recording={}",
                     presence, rollcall, reconcile, session, submission, recording);
         } catch (Exception e) {

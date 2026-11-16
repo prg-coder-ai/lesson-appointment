@@ -13,6 +13,7 @@ import com.classroom.service.ClassroomService;
 import com.classroom.service.MembershipService;
 import com.classroom.service.RecordingService;
 import com.classroom.ws.OnlineStateManager;
+import com.classroom.ws.WsRoomRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -42,6 +43,7 @@ class ClassroomSchedulerTest {
     private SessionRecordMapper sessionRecordMapper;
     private SubmissionMapper submissionMapper;
     private CallbackService callbackService;
+    private WsRoomRegistry wsRegistry;
     private ClassroomScheduler scheduler;
 
     @BeforeEach
@@ -56,9 +58,12 @@ class ClassroomSchedulerTest {
         sessionRecordMapper = mock(SessionRecordMapper.class);
         submissionMapper = mock(SubmissionMapper.class);
         callbackService = mock(CallbackService.class);
+        wsRegistry = mock(WsRoomRegistry.class);
+        // Redis 可用性探测默认「通」：否则 scanStudentDrop 会整轮跳过（那是 Redis 真挂时的保护）
+        when(onlineStateManager.isAvailable()).thenReturn(true);
         scheduler = new ClassroomScheduler(classroomService, membershipService, onlineStateManager,
                 rollCallRecordMapper, presenceSegmentMapper, reconcileLogMapper, recordingService,
-                sessionRecordMapper, submissionMapper, callbackService);
+                sessionRecordMapper, submissionMapper, callbackService, wsRegistry);
     }
 
     private Classroom classroom(String scheduleId, String status, Boolean autoStart) {

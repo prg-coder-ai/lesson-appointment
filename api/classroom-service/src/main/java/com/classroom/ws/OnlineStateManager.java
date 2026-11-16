@@ -50,6 +50,25 @@ public class OnlineStateManager {
         }
     }
 
+    /**
+     * Redis 是否可用（PING 探测）。
+     *
+     * <p><b>掉线扫描必须先探这个</b>：Redis 挂掉时 {@link #lastSeenElapsed} 内部异常被吞、一律返回 null，
+     * 扫描器无法区分「某人 60 秒没心跳」和「整个 Redis 读不到」，会把一整堂课的成员全判掉线并 leave，
+     * 出勤与媒体房间一起被毁。没有真相源就不该做判断 —— 探测失败时让调用方整轮跳过。
+     *
+     * @return true 表示能连上 Redis；false 表示本轮不应做任何离场判定
+     */
+    public boolean isAvailable() {
+        try {
+            Object pong = redisTemplate.execute(
+                    (org.springframework.data.redis.core.RedisCallback<Object>) conn -> conn.ping());
+            return pong != null;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     /** 距最后心跳的毫秒数；key 不存在返回 null（视为已超 offlineTimeout） */
     public Long lastSeenElapsed(String scheduleId, String userId) {
         try {

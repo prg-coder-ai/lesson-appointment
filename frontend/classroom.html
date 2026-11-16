@@ -47,11 +47,22 @@
         </div>
       </aside>
 
-      <!-- 主视频区 / 白板区 -->
+      <!-- 主视频区 / 白板区（两块都可拖动缩放，见 classroom-panels.js） -->
       <section id="video-whiteboard-area">
-        <div id="video-grid"></div>
-        <div id="whiteboard-area" class="hidden">
-          <div id="whiteboard-toolbar">
+        <!-- 视频面板：外层包一层是为了给「拖动条 + 复位」一个落脚点，
+             网格本身仍由 #video-grid 渲染，tile 布局不受影响 -->
+        <div id="video-panel" class="cl-panel" data-cl-panel="video">
+          <div class="cl-panel-bar" data-cl-drag>
+            <span class="cl-panel-drag" title="拖动移动；双击恢复默认位置"><i class="fas fa-up-down-left-right"></i></span>
+            <span class="cl-panel-name">视频</span>
+            <button class="cl-panel-reset" data-cl-reset type="button" title="恢复默认位置与大小"><i class="fas fa-rotate-left"></i></button>
+          </div>
+          <div id="video-grid"></div>
+          <span class="cl-panel-resize" data-cl-resize title="拖动缩放"></span>
+        </div>
+        <div id="whiteboard-area" class="cl-panel hidden" data-cl-panel="whiteboard">
+          <div id="whiteboard-toolbar" data-cl-drag>
+            <span class="cl-panel-drag" title="拖动移动；双击恢复默认位置"><i class="fas fa-up-down-left-right"></i></span>
             <button class="wb-tool active" data-tool="pen" title="画笔"><i class="fas fa-pen"></i></button>
             <button class="wb-tool" data-tool="eraser" title="橡皮"><i class="fas fa-eraser"></i></button>
             <button class="wb-tool" data-tool="rect" title="矩形"><i class="fas fa-vector-square"></i></button>
@@ -78,6 +89,7 @@
             <button id="wb-undo" class="wb-tool" title="撤回最近一条操作" disabled><i class="fas fa-undo"></i><span id="wb-undo-count" class="wb-undo-count"></span></button>
             <button id="wb-clear" class="wb-tool" title="清空"><i class="fas fa-trash"></i></button>
             <span class="wb-hint" id="wb-readonly-hint" style="display:none;">只读</span>
+            <button class="wb-tool cl-panel-reset-inline" data-cl-reset type="button" title="恢复默认位置与大小"><i class="fas fa-rotate-left"></i></button>
           </div>
           <canvas id="whiteboard-canvas"></canvas>
           <!-- 文字输入浮层：position:fixed 贴在点击点，避免 letterbox 居中带来的坐标换算 -->
@@ -88,6 +100,7 @@
               <button type="button" id="wb-text-cancel">取消</button>
             </div>
           </div>
+          <span class="cl-panel-resize" data-cl-resize title="拖动缩放"></span>
         </div>
         <div id="main-placeholder">
           <i class="fas fa-chalkboard-teacher"></i>
@@ -172,12 +185,14 @@
     </div>
   </div>
 
-  <!-- 讲稿容器（F4-04~06：教师上传/翻页，学生跟随） -->
-  <div id="material-stage" class="hidden">
-    <div class="ms-head">
+  <!-- 讲稿容器（F4-04~06：教师上传/翻页，学生跟随）；同样支持拖动缩放 -->
+  <div id="material-stage" class="cl-panel hidden" data-cl-panel="material">
+    <div class="ms-head" data-cl-drag>
+      <span class="cl-panel-drag" title="拖动移动；双击恢复默认位置"><i class="fas fa-up-down-left-right"></i></span>
       <span class="ms-title"><i class="fas fa-file-lines"></i> 讲稿</span>
       <span id="ms-page" class="ms-page">第 1 页</span>
       <span id="ms-hint" class="ms-hint hidden">上传中…</span>
+      <button class="cl-panel-reset" data-cl-reset type="button" title="恢复默认位置与大小"><i class="fas fa-rotate-left"></i></button>
       <button id="ms-close" class="ms-close" type="button">×</button>
     </div>
     <div class="ms-body">
@@ -193,6 +208,7 @@
       <button id="ms-next" class="ms-btn" type="button">下一页 <i class="fas fa-chevron-right"></i></button>
     </div>
     <input id="ms-file-input" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.ppt,.pptx" style="display:none">
+    <span class="cl-panel-resize" data-cl-resize title="拖动缩放"></span>
   </div>
 
   <!-- 公共工具（顺序不可调整） -->
@@ -222,6 +238,8 @@
   <script src="js/classroom/classroom-record.js"></script>
   <script src="js/classroom/classroom-whiteboard.js"></script>
   <script src="js/classroom/classroom-material.js"></script>
+  <!-- 面板布局（拖动/缩放/本地记忆/复位）：只操作位置尺寸层级，须早于 classroom-main.js 的 init 调用 -->
+  <script src="js/classroom/classroom-panels.js"></script>
   <script src="js/classroom/classroom-chat.js"></script>
   <script src="js/classroom/classroom-controls.js"></script>
   <script src="js/classroom/classroom-teacher.js"></script>

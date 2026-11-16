@@ -114,6 +114,7 @@
           self._bindBackButton();
           self._hidePlaceholder();
           self._applyGate();          // 按真实状态渲染徽标 + 下发各模块发布门禁
+          self._hintManualStart(ctx);
         })
         .catch(function (e) {
           console.error('[ClassroomMain] 进入课堂失败', e);
@@ -128,6 +129,20 @@
       }
       return window.ClassroomAPI.getClassroomStatus(apiBaseUrl, scheduleId)
         .catch(function (e) { console.warn('[ClassroomMain] getStatus failed', e); return null; });
+    },
+
+    /**
+     * 课堂状态改为显式修改后（2026-11-16）：服务端不再自动开课、也不自动下课，
+     * 教师/管理员进页面时课堂通常还是 SCHEDULED，必须由人点底部「进行中」才会开课。
+     * 没有这句提示，最容易的误判是「课堂坏了 / 学生进不来」，所以进入即给一句明确指引。
+     */
+    _hintManualStart: function (ctx) {
+      if (!ctx || (ctx.role !== 'teacher' && ctx.role !== 'admin')) return;
+      var st = String(this.classStatus || '').toUpperCase();
+      if (st === 'LIVE' || st === 'CLOSED' || st === 'CANCELLED') return;
+      window.clToast(st === 'PAUSED'
+        ? '课堂已暂停，点底部「进行中」可继续'
+        : '课堂未开始，点底部「进行中」即可开课（下课也需手动点「下课」）');
     },
 
     // ------------------------------------------------------------------
@@ -213,14 +228,67 @@
 
     _renderHeader: function (classroom, ctx) {
       var title = document.getElementById('classroom-title');
-      if (title) {
-        if (classroom) {
-          title.textContent = (classroom.courseName || '在线课堂') +
-            (classroom.teacherName ? ' - ' + classroom.teacherName : '');
-        } else {
-          title.textContent = '在线课堂';
-        }
+      if (!title) return;
+      if (!classroom) { title.textContent = '在线课堂'; return; }
+
+      // 课次：scheduleId 是「排期~课次」复合键（第 1 课次为裸排期 id，第 2 课次起 "<id>~N"），
+      // 与后端 ClassroomKey 同口径。不翻译的话标题里只剩一串 UUID。
+      var sid = classroom.scheduleId || (ctx && ctx.scheduleId) || '';
+      var idx = this._classIndexOf(sid);
+      var base = (classroom.courseName || '在线课堂') + (idx > 1 ? ' · 第' + idx + '课次' : '');
+      title.textContent = base;
+      // classroom.teacherName 是主库密文（预约侧推事件时 user.name 未解密就落库了），
+      // 直接拼进标题就是用户看到的那串乱码。先只渲染课程名，反查到明文再补" - 姓名"。
+      if (classroom.teacherId) {
+        this._briefs([classroom.teacherId]).then(function (map) {
+          var b = map[classroom.teacherId];
+          var who = (b && (b.account || b.name)) || '';
+          if (who) title.textContent = base + ' - ' + who;
+        });
       }
+    },
+
+    /** userId → {name, account} 缓存（库里的 display_name 可能是密文或被写成裸 userId） */
+    _briefCache: {},
+
+    /**
+     * 批量反查用户明文（account 唯一可辨识优先，其次 name）。
+     * 权威解在主服务 /api/v1/user/briefs（服务端解密后回明 name，account 仅管理员下发），
+     * 与运营台 userBriefs 同源同口径；失败一律吞掉返回已有缓存，不影响主流程。
+     */
+    _briefs: function (ids) {
+      var self = this;
+      var uniq = [];
+      (ids || []).forEach(function (id) {
+        if (id && !self._briefCache[id] && uniq.indexOf(id) < 0) uniq.push(id);
+      });
+      if (!uniq.length || !EP.USER_BRIEFS || !window.request) return Promise.resolve(this._briefCache);
+      return window.request({ url: EP.USER_BRIEFS(uniq), method: 'get', customErrorMsg: false })
+        .then(function (list) {
+          (list || []).forEach(function (b) { if (b && b.userId) self._briefCache[b.userId] = b; });
+          return self._briefCache;
+        })
+        .catch(function () { return self._briefCache; });
+    },
+
+    /** 参与者面板名字统一换成反查到的明文（历史 display_name 已被污染） */
+    _resolveNames: function () {
+      var self = this;
+      // 只对还没有缓存的 userId 发请求；全部命中缓存时直接返回，避免每次 join 都白重渲染一次
+      var todo = Object.keys(this.participants).filter(function (id) {
+        return id && !self._briefCache[id];
+      });
+      if (!todo.length) return;
+      this._briefs(todo).then(function () { self._renderParticipants(); });
+    },
+
+    /** scheduleId 复合键取课次序号（与后端 ClassroomKey.classIndexOf 同口径，容错回落 1） */
+    _classIndexOf: function (key) {
+      var s = (key == null) ? '' : String(key);
+      var i = s.indexOf('~');
+      if (i < 0 || i === s.length - 1) return 1;
+      var v = parseInt(s.slice(i + 1), 10);
+      return (v > 0) ? v : 1;
     },
 
     _initModules: function (ctx) {
@@ -228,6 +296,9 @@
       if (window.ClassroomRecord) window.ClassroomRecord.init(ctx);
       if (window.ClassroomWhiteboard) window.ClassroomWhiteboard.init(ctx);
       if (window.ClassroomMaterial) window.ClassroomMaterial.init(ctx);
+      // 面板布局放在白板/讲稿之后：它会读取已存布局并直接写内联定位，
+      // 白板 init 里的首次 _resize 已按默认尺寸算过，随后 notifyResize 会再校正一次。
+      if (window.ClassroomPanels) window.ClassroomPanels.init();
       if (window.ClassroomChat) window.ClassroomChat.init(ctx);
       if (window.ClassroomTeacher) window.ClassroomTeacher.init(ctx);
       if (window.ClassroomStudent) window.ClassroomStudent.init(ctx);
@@ -341,7 +412,9 @@
     _markCamera: function (userId, on) {
       var li = document.querySelector('#participant-list li[data-uid="' + this._cssEscape(userId) + '"]');
       if (li) li.classList.toggle('pt-cam-off', !on);
-      var name = (this.participants[userId] && this.participants[userId].name) || userId;
+      var b = this._briefCache[userId];
+      var name = (b && (b.account || b.name))
+        || (this.participants[userId] && this.participants[userId].name) || userId;
       this.toast(name + ' 摄像头已' + (on ? '开启' : '关闭'));
     },
 
@@ -435,6 +508,9 @@
       this.participants[userId] = { userId: userId, name: name || userId, role: role || '' };
       this._renderParticipants();
       this._renderCount();
+      // 信令里带的名字也可能是密文/裸 userId（display_name 沿用了被污染的 currentUser.name），
+      // 按 userId 反查权威明文后重渲染
+      this._resolveNames();
     },
 
     _removeParticipant: function (userId) {
@@ -452,6 +528,9 @@
       var isTeacher = self.ctx && (self.ctx.role === 'teacher' || self.ctx.role === 'admin');
       list.innerHTML = ids.map(function (id) {
         var p = self.participants[id];
+        // 名字以反查到的明文为准（display_name 可能是密文或裸 userId）
+        var b = self._briefCache[id];
+        var pname = (b && (b.account || b.name)) || p.name;
         var roleLabel = p.role === 'teacher' ? '教师' : (p.role === 'admin' ? '管理员' : '学生');
         var roleCls = p.role === 'teacher' ? 'pt-role-teacher' : (p.role === 'admin' ? 'pt-role-admin' : '');
         // F2-04：教师/管理员对学生可补签
@@ -465,8 +544,8 @@
           ? '<button class="pt-wbgrant' + (self.wbGrants[id] ? ' active' : '') + '" data-uid="' + self._cssEscape(id) + '">'
             + (self.wbGrants[id] ? '收回白板' : '授权白板') + '</button>' : '';
         return '<li data-uid="' + self._cssEscape(id) + '">' +
-          '<span class="pt-avatar">' + self._initial(p.name) + '</span>' +
-          '<span>' + self._escape(p.name) + '</span>' +
+          '<span class="pt-avatar">' + self._initial(pname) + '</span>' +
+          '<span>' + self._escape(pname) + '</span>' +
           '<span class="pt-role-tag ' + roleCls + '">' + roleLabel + '</span>' +
           adjustBtn + approveBtn + grantBtn +
           '</li>';
@@ -525,6 +604,8 @@
           });
           self._renderParticipants();
           self._renderCount();
+          // 名单里的 displayName 可能是密文/裸 userId，反查权威明文后重渲染
+          self._resolveNames();
         })
         .catch(function () {
           self._addParticipant(self.ctx.userId, self.ctx.userName, self.ctx.role);

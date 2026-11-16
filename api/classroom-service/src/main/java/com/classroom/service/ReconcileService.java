@@ -47,6 +47,15 @@ public class ReconcileService {
     @Value("${classroom.auto-end-grace-minutes:5}")
     private int autoEndGraceMinutes;
 
+    /**
+     * 课堂状态显式修改模式（与 {@code ClassroomScheduler} 同一开关）。
+     *
+     * <p>该模式下不存在「自动下课」，「超计划结束仍是 LIVE」是正常态（拖堂 / 忘了点下课都靠人处理），
+     * 规则 3 必须跳过，否则每堂课上完都会固定刷一条 ERROR 假告警。
+     */
+    @Value("${classroom.state-manual-only:true}")
+    private boolean manualStateOnly;
+
     public ReconcileService(ReconcileLogMapper reconcileLogMapper,
                             ClassroomMapper classroomMapper,
                             ReconcileDiffHandler diffHandler,
@@ -147,14 +156,19 @@ public class ReconcileService {
             }
         }
 
-        // 规则 3：卡在 LIVE 下不来的课堂（自动下课扫描器 2 倍宽限后仍未处理 = 有问题）
-        LocalDateTime staleBefore = LocalDateTime.now().minusMinutes(autoEndGraceMinutes * 2L);
-        for (Classroom c : classroomMapper.listStaleLive(staleBefore)) {
-            staleLive++;
-            statuses.putIfAbsent(c.getScheduleId(), c.getStatus());
-            diffs.putIfAbsent(c.getScheduleId(), ReconcileDiffHandler.TYPE_STATUS_MISMATCH);
-            diffHandler.handleDiff(c.getScheduleId(), ReconcileDiffHandler.TYPE_STATUS_MISMATCH,
-                    "课堂仍为 LIVE，计划结束时间 " + c.getEndTime() + " 已过宽限仍未下课", "ERROR");
+        // 规则 3：卡在 LIVE 下不来的课堂（自动下课扫描器 2 倍宽限后仍未处理 = 有问题）。
+        // ★课堂状态显式修改模式（classroom.state-manual-only=true）下这条判据失效：没有自动下课，
+        //   「超计划结束仍 LIVE」就是正常拖堂/忘记下课，仍报 ERROR 会让每堂课都刷假告警。
+        //   该模式下这类课堂在运营台「活跃课堂」里可见，由人决定何时下课，因此整条规则跳过。
+        if (!manualStateOnly) {
+            LocalDateTime staleBefore = LocalDateTime.now().minusMinutes(autoEndGraceMinutes * 2L);
+            for (Classroom c : classroomMapper.listStaleLive(staleBefore)) {
+                staleLive++;
+                statuses.putIfAbsent(c.getScheduleId(), c.getStatus());
+                diffs.putIfAbsent(c.getScheduleId(), ReconcileDiffHandler.TYPE_STATUS_MISMATCH);
+                diffHandler.handleDiff(c.getScheduleId(), ReconcileDiffHandler.TYPE_STATUS_MISMATCH,
+                        "课堂仍为 LIVE，计划结束时间 " + c.getEndTime() + " 已过宽限仍未下课", "ERROR");
+            }
         }
 
         // 规则 4：近 3 日事件消费失败（这些课堂的数据本身就是不可信的）
