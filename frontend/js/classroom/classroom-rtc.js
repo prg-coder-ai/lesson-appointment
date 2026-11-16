@@ -58,14 +58,20 @@
       this._buildEngine(cfg);
     },
 
-    _buildEngine: function (cfg) {
+    /**
+     * @param {object} cfg RTC 配置
+     * @param {boolean} [isRejoin] 媒体会话重建（LIVE 恢复 / SDK 回落）：
+     *        旧引擎静默离房（不广播 peer-leave），新引擎的 join 带 rejoin 标记，
+     *        由对端据标记无条件重建连接。
+     */
+    _buildEngine: function (cfg, isRejoin) {
       var self = this;
       if (!window.ClassroomRtcEngine) {
         this.toast('音视频模块未加载');
         return;
       }
       if (this.engine) {
-        try { this.engine.leave(); } catch (e) { /* 旧引擎清理失败不影响重建 */ }
+        try { this.engine.leave(!!isRejoin); } catch (e) { /* 旧引擎清理失败不影响重建 */ }
       }
       this.engine = window.ClassroomRtcEngine.create(this.ctx, cfg);
       this.provider = this.engine.name;
@@ -73,7 +79,7 @@
       var grid = document.getElementById('video-grid');
       if (grid) grid.setAttribute('data-topology', this.topology);
 
-      this.engine.join().then(function () {
+      this.engine.join(!!isRejoin).then(function () {
         // 拆分状态：优先读引擎的 audioOk/videoOk，老引擎无此字段时回退到 mediaOk
         self.audioOk = (self.engine.audioOk != null) ? !!self.engine.audioOk : !!self.engine.mediaOk;
         self.videoOk = (self.engine.videoOk != null) ? !!self.engine.videoOk : !!self.engine.mediaOk;
@@ -125,7 +131,13 @@
     /** 课堂从非 LIVE 变为 LIVE 时重建媒体会话：课前发的 peer-join/offer 已被服务端门禁丢弃 */
     rejoin: function () {
       if (!window.ClassroomRtcEngine) return;
-      this._buildEngine(this.config);
+      // 引擎还没建起来（init 的 _fetchConfig 仍在途）：不要用可能为 null 的 config 抢建一个，
+      // 那次 init 完成后会用真实配置 join 一次，且此时课堂已 LIVE、join 能过门禁。
+      if (!this.engine) return;
+      // 采集/进房仍在途中（joined=false）：此刻还没有任何 PC，等它自己 join 完广播即可，
+      // 重复重建只会触发第二轮 getUserMedia。
+      if (typeof this.engine.isJoined === 'function' && !this.engine.isJoined()) return;
+      this._buildEngine(this.config, true);
     },
 
     /** SDK 引擎失败兜底：强制换回 mesh（保留后端下发的 ICE/maxPeers，别把 TURN 丢了） */
@@ -138,7 +150,8 @@
         iceServers: (this.config && this.config.iceServers) || null
       };
       this.toast('已切换为原生音视频（' + (reason || '服务不可用') + '）');
-      this._buildEngine(meshCfg);
+      // 换引擎＝换了一套媒体会话，对端必须跟着重建（join 带 rejoin 标记）
+      this._buildEngine(meshCfg, true);
     },
 
     // 信令分发：只有 mesh 引擎关心 SDP/ICE
@@ -146,6 +159,18 @@
       if (this.engine && typeof this.engine.onSignal === 'function') {
         this.engine.onSignal(msg);
       }
+    },
+
+    /**
+     * 补发 rtc-peer-join（2026-11-16 C）。
+     * 进房时序里采集/广播可能早于 WS 握手完成，join 被静默丢弃 → 对方不知道我存在 → 没人发 offer。
+     * main 在 WS 三通道 onOpen 时调这里补一次。
+     */
+    broadcastJoin: function () {
+      if (this.engine && typeof this.engine.broadcastJoin === 'function') {
+        return this.engine.broadcastJoin();
+      }
+      return false;   // 引擎未就绪/未进房，调用方按需退回 rejoin
     },
 
     setMicEnabled: function (on) {

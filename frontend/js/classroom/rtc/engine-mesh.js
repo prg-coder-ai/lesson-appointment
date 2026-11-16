@@ -29,12 +29,16 @@
       : [{ urls: ['stun:stun.l.google.com:19302'] }];
   }
 
-  MeshRtcEngine.prototype.join = function () {
+  /**
+   * @param {boolean} [isRejoin] 由门面重建引擎（LIVE 恢复/引擎回落）发起，
+   *        广播的 join 会带 rejoin 标记，让对端无条件重建连接（旧的已随旧引擎作废）。
+   */
+  MeshRtcEngine.prototype.join = function (isRejoin) {
     var self = this;
     window.RtcTiles.local(this.ctx.userName);
     return this._startLocalMedia().then(function () {
       self.joined = true;
-      self._broadcastJoin();
+      self._broadcastJoin(false, isRejoin);
     });
   };
 
@@ -144,18 +148,36 @@
     });
   };
 
-  MeshRtcEngine.prototype._broadcastJoin = function () {
-    if (window.ClassroomWS && this.ctx.scheduleId) {
-      // 规范化：以 displayName 为权威字段（与 enter/rest/getMembers 一致）；
-      // 同时保留 name 以兼容旧接收端（后端对 rtc-peer-join 是透传，原样转发）。
-      window.ClassroomWS.sendSignal(this.ctx.scheduleId, {
-        type: 'rtc-peer-join',
-        from: this.ctx.userId,
-        name: this.ctx.userName,
-        displayName: this.ctx.userName,
-        role: this.ctx.role
-      });
-    }
+  MeshRtcEngine.prototype._broadcastJoin = function (reply, rejoin) {
+    if (!window.ClassroomWS || !this.ctx.scheduleId) return false;
+    // 重建标记要「跨补发」保留：若这条 join 因 WS 未就绪被丢弃，onOpen 补发时必须
+    // 仍然带上 rejoin，否则对端会以为我没事、继续用旧 PC，等于重建白做。
+    if (rejoin) this._rejoinMark = true;
+    // 规范化：以 displayName 为权威字段（与 enter/rest/getMembers 一致）；
+    // 同时保留 name 以兼容旧接收端（后端对 rtc-peer-join 是透传，原样转发）。
+    // 返回值告诉调用方「这条 join 有没有真的发出去」，false 表示 WS 未就绪、已被丢弃，
+    // 需要由 broadcastJoin() 在 onOpen 后补发。
+    var sent = window.ClassroomWS.sendSignal(this.ctx.scheduleId, {
+      type: 'rtc-peer-join',
+      from: this.ctx.userId,
+      name: this.ctx.userName,
+      displayName: this.ctx.userName,
+      role: this.ctx.role,
+      reply: !!reply,                    // true = 对别人 join 的应答，收到后不再回，防无限回环
+      rejoin: !!this._rejoinMark         // true = 我重建了媒体会话，我的旧连接已作废，请无条件重建
+    });
+    if (sent) this._rejoinMark = false;  // 真发出去了才清，否则留给补发
+    return sent;
+  };
+
+  /**
+   * WS 信令就绪后补发 join（2026-11-16 C）。
+   * 采集/进房可能早于 WS 握手完成，此时 join 被静默丢弃 → 对方不知道我存在 → 没人发 offer。
+   * 门面在 WS 三通道 onOpen 时调用这里补一次，保证握手后必达。
+   */
+  MeshRtcEngine.prototype.broadcastJoin = function () {
+    if (!this.joined) return false;   // 采集还没完，join() 完成时会自行广播（那时 WS 已通）
+    return this._broadcastJoin();
   };
 
   MeshRtcEngine.prototype.onSignal = function (msg) {
@@ -207,9 +229,35 @@
     if (!peerId || peerId === this.ctx.userId) return;
     var peerName = msg.displayName || msg.name;
     window.RtcTiles.remote(peerId, peerName, msg.role);
-    // 字典序较大的一方发起 offer，避免双方同时发起
+    // 补发机制（broadcastJoin / reply join）会让同一对端发来多条 join，这里必须幂等：
+    //  - msg.rejoin：对端重建了媒体会话，它的旧 PC 已作废 → 我这边无条件拆掉重建；
+    //  - 连接健康（new/connecting/connected 且已有协商动作）→ 直接返回，别打断在途 offer；
+    //  - 死连接（failed/closed/disconnected）→ 清掉重建；
+    //  - 空转态（PC 建了但没发出 offer：new + stable）→ 也清掉重建，
+    //    否则一次 createOffer 失败会让这对端永久卡死、再也不会重试。
+    var existing = this.peers[peerId];
+    if (existing) {
+      var connSt = existing.connectionState || existing.iceConnectionState;
+      var sigSt = existing.signalingState;
+      var dead = (connSt === 'failed' || connSt === 'closed' || connSt === 'disconnected');
+      // idle：PC 建好但 offer 还没落定（new + stable）。正在 createOffer 途中时它也是这个
+      // 状态，所以要排除 negotiating，否则重复 join 会把在途协商拆掉。
+      var negotiating = !!(this._offering && this._offering[peerId]);
+      var idle = (connSt === 'new' && sigSt === 'stable' && !negotiating);
+      if (msg.rejoin || dead || idle) {
+        this._closePeer(peerId);   // 对端已重建 / 死连接 / 空转 → 拆掉重来
+      } else {
+        return;                    // 健康或在途协商 → 忽略重复 join
+      }
+    }
     if ((this.ctx.userId || '') > peerId) {
+      // 字典序较大的一方发起 offer，避免双方同时发起
       this._createOffer(peerId, peerName, msg.role);
+    } else if (!msg.reply) {
+      // 我是字典序较小的一方：按规则不发 offer，但对方可能并不知道我存在
+      // （他先进房，我课前那条 join 已被服务端门禁丢弃）。回一条 join 告诉他我在，
+      // 由他发 offer 完成协商。带 reply 标记，对方收到后不会再回，不会无限回环。
+      this._broadcastJoin(true);
     }
   };
 
@@ -222,8 +270,14 @@
 
   MeshRtcEngine.prototype._createOffer = function (peerId, name, role) {
     var self = this;
+    // 补发/回执可能在同一时刻再触发一次：已有本地 offer 或正在协商时直接跳过，
+    // 否则重复 createOffer 会抛 InvalidStateError 并把在途协商搅乱。
+    if (this._offering && this._offering[peerId]) return;
     var pc = this._peer(peerId, name, role);
     if (!pc) return;
+    if (pc.signalingState !== 'stable') return;   // 已在协商中（have-local-offer 等）
+    this._offering = this._offering || {};
+    this._offering[peerId] = true;
     pc.createOffer()
       .then(function (offer) { return pc.setLocalDescription(offer); })
       .then(function () {
@@ -231,7 +285,8 @@
           type: 'rtc-offer', from: self.ctx.userId, to: peerId, sdp: pc.localDescription
         });
       })
-      .catch(function (e) { console.warn('[RTC] createOffer failed', e); });
+      .catch(function (e) { console.warn('[RTC] createOffer failed', e); })
+      .then(function () { delete self._offering[peerId]; });
   };
 
   MeshRtcEngine.prototype._onOffer = function (msg) {
@@ -274,6 +329,8 @@
     if (pc) { try { pc.close(); } catch (e) { /* 已关闭 */ } }
     delete this.peers[peerId];
     delete this.remoteStreams[peerId];
+    // 协商中途被关闭时要清掉在途标记，否则该对端后续所有 _createOffer 都会被挡掉
+    if (this._offering) delete this._offering[peerId];
   };
 
   MeshRtcEngine.prototype.setMicEnabled = function (on) {
@@ -298,9 +355,14 @@
     return this.joined;
   };
 
-  MeshRtcEngine.prototype.leave = function () {
+  /**
+   * @param {boolean} [silent] 重建引擎（rejoin）时用：不要广播 rtc-peer-leave。
+   *        否则这条 leave 可能晚于新引擎的 join 到达对端，把刚重建好的连接又拆掉。
+   *        新引擎的 join 带 rejoin 标记，对端会据此主动重建，无需 leave 参与。
+   */
+  MeshRtcEngine.prototype.leave = function (silent) {
     var self = this;
-    if (window.ClassroomWS && this.ctx.scheduleId) {
+    if (!silent && window.ClassroomWS && this.ctx.scheduleId) {
       window.ClassroomWS.sendSignal(this.ctx.scheduleId, {
         type: 'rtc-peer-leave', from: this.ctx.userId
       });
