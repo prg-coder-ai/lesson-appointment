@@ -297,6 +297,51 @@ function serveStatic(req, res, root, urlPath) {
 }
 
 /**
+ * 解析本地监听用的 TLS 证书（DEV_TLS=1 时由入口脚本传入 tls:true）。
+ *
+ * <p><b>为什么缺证书要抛错而不是退回 http</b>：本地监听改 HTTPS 的实际动机多半是
+ * 「局域网另一台电脑要用摄像头/麦克风」—— getUserMedia 只在安全上下文可用。
+ * 若证书缺失却静默退回 http，现象是「页面能开、但摄像头还是被禁」，排查成本极高。
+ * 宁可启动失败并打印生成命令。
+ *
+ * @param {boolean|Object} opt  true=用默认 certs 目录；{certPath,keyPath} 可覆盖
+ * @returns {{key:Buffer, cert:Buffer}|null}
+ */
+function resolveTls(opt) {
+  if (!opt) return null;
+  const defDir = path.resolve(__dirname, 'certs');
+  const certPath = path.resolve(typeof opt === 'object' && opt.certPath
+    ? opt.certPath : path.join(defDir, 'dev.crt'));
+  const keyPath = path.resolve(typeof opt === 'object' && opt.keyPath
+    ? opt.keyPath : path.join(defDir, 'dev.key'));
+  if (!fs.existsSync(certPath) || !fs.existsSync(keyPath)) {
+    throw new Error(
+      'DEV_TLS=1 但缺少证书：' + certPath + ' 或 ' + keyPath + '\n' +
+      '   在 doc-develop 目录下执行（IP 换成你本机局域网地址）：\n' +
+      '     openssl req -x509 -newkey rsa:2048 -nodes -keyout certs/ca.key -out certs/ca.crt -days 3650 -subj "/CN=WorkBuddy Dev CA"\n' +
+      '     openssl req -newkey rsa:2048 -nodes -keyout certs/dev.key -out certs/dev.csr -subj "/CN=localhost"\n' +
+      '     printf "subjectAltName=DNS:localhost,IP:127.0.0.1,IP:<本机IP>\\n" > certs/san.ext\n' +
+      '     openssl x509 -req -in certs/dev.csr -CA certs/ca.crt -CAkey certs/ca.key -CAcreateserial -out certs/dev.crt -days 825 -extfile certs/san.ext\n' +
+      '   注意：SAN 里没有的 IP，浏览器会直接拒绝连接（不是警告，是连不上）。'
+    );
+  }
+  return { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) };
+}
+
+/** 本机所有非回环 IPv4（打印局域网访问地址用；含虚拟网卡，因为没法可靠区分） */
+function lanAddresses() {
+  const os = require('os');
+  const out = [];
+  const ifaces = os.networkInterfaces();
+  Object.keys(ifaces).forEach((name) => {
+    (ifaces[name] || []).forEach((it) => {
+      if (it.family === 'IPv4' && !it.internal) out.push(it.address);
+    });
+  });
+  return out;
+}
+
+/**
  * 启动代理服务
  * @param {Object} o
  * @param {string} o.label        模式名（打印用），如 "本地 API"
@@ -311,6 +356,9 @@ function serveStatic(req, res, root, urlPath) {
  * @param {string} [o.apiHostHeader] 覆盖 Host 头（https + 域名场景传原域名，省略 :443）
  * @param {string} [o.msgHostHeader] 覆盖消息服务的 Host 头，缺省跟随 apiHostHeader
  * @param {boolean} [o.probe]     启动前是否探活（默认 true）
+ * @param {boolean|Object} [o.tls] 本地监听走 HTTPS：true=用 doc-develop/certs/{dev.crt,dev.key}，
+ *                                 {certPath,keyPath} 可覆盖路径；缺省/ false = HTTP（默认）。
+ *                                 局域网另一台电脑要用摄像头/麦克风时必须开（安全上下文要求）。
  * @returns {Promise<http.Server>}
  */
 function startProxy(o) {
@@ -337,7 +385,10 @@ function startProxy(o) {
       hostHeader: o.classroomHostHeader || o.apiHostHeader,
     })
     : null;
-  const server = http.createServer((req, res) => {
+  // 本地监听协议：DEV_TLS 开启且证书可用时走 HTTPS，否则保持 HTTP（默认，零回归）
+  const tls = resolveTls(o.tls);
+  const scheme = tls ? 'https' : 'http';
+  const handler = (req, res) => {
     const urlPath = (req.url || '/').split('?')[0];
     if (urlPath.startsWith('/api/v1')) {
       if (toMessageService(urlPath)) {
@@ -350,7 +401,10 @@ function startProxy(o) {
       return proxy(req, res, apiTarget, 'booking');
     }
     return serveStatic(req, res, root, urlPath);
-  });
+  };
+  // HTTPS 只换「监听侧」：上游后端仍是内网 http，无需任何改动。
+  // WS 升级由 Node 的 TLS 层处理后，upgrade 事件的 req/socket 与 http 下完全一致。
+  const server = tls ? https.createServer(tls, handler) : http.createServer(handler);
 
   // WebSocket 转发：课堂的信令/白板/心跳三条通道
   //
@@ -396,7 +450,18 @@ function startProxy(o) {
       console.log(line);
       console.log(` 前端开发代理已启动 —— 模式：${o.label}`);
       console.log(line);
-      console.log(`   浏览器访问 :  http://localhost:${o.listenPort}`);
+      console.log(`   浏览器访问 :  ${scheme}://localhost:${o.listenPort}`);
+      if (tls) {
+        // 局域网地址逐个打出来：证书 SAN 里没有的 IP 浏览器会"连不上"而不是弹警告，
+        // 与其让人自己猜，不如启动时就把可用地址摆出来。
+        const lan = lanAddresses();
+        if (lan.length) {
+          lan.forEach((ip) => console.log(`   局域网访问 :  ${scheme}://${ip}:${o.listenPort}`));
+        }
+        console.log('   HTTPS 证书 :  doc-develop/certs/dev.crt（自签 CA 签发，含 SAN：localhost/127.0.0.1/本机 IP）');
+        console.log('                 其他电脑首次访问点「高级 → 继续前往」即可用；');
+        console.log('                 想免警告：把 doc-develop/certs/ca.crt 导入「受信任的根证书颁发机构」。');
+      }
       const isDist = /(^|[\\/])dist$/.test(root);
       console.log(`   静态根目录 :  ${root}`);
       console.log(`   资源模式   :  ${isDist ? 'dist 构建产物（需先 npm run build / maven prepare-package）'
