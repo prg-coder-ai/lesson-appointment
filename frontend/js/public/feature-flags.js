@@ -103,14 +103,35 @@
     return _ensurePromise;
   }
 
+  /**
+   * 回环地址判定（2026-11-16）：配置里的 apiBaseUrl / wsBaseUrl 若为
+   * 127.0.0.1 / localhost / ::1，对浏览器一律归一为「同源空串」。
+   *
+   * 背景：sys_eclassroom_instance.default-local 的 api_host=127.0.0.1，
+   * 后端据此下发 http://127.0.0.1:8092/api/v1。本机打开 localhost:8080 时恰好能用
+   * （127.0.0.1 就是本机），但局域网另一台电脑用 https://192.168.1.7:8080 打开时，
+   * 浏览器里的 127.0.0.1 指向的是**访问者自己那台电脑**——连不上，或连错机器。
+   * 回环地址只在「服务端自调用」时有意义（课堂事件推送仍用后端原值，不受此处影响）；
+   * 对浏览器，正确做法是走同源反向代理（dev-proxy / nginx 已把 /api/v1 分流到 8092，
+   * /ws/classrooms 也已转发），这样地址永远跟着页面地址走，换网络零改动。
+   *
+   * 正则要求 host 后紧跟 : / 或结束，避免把 127.0.0.10 误判成回环。
+   */
+  function isLoopbackBase(base) {
+    if (!base) return false;
+    return /(^|\/\/)(127\.0\.0\.1|localhost|\[::1\])([:/]|$)/i.test(String(base));
+  }
+
   function getClassroomApiBaseUrl() {
     var config = getConfig();
-    return config ? (config.apiBaseUrl || '') : '';
+    var base = config ? (config.apiBaseUrl || '') : '';
+    return isLoopbackBase(base) ? '' : base;
   }
 
   function getClassroomWsBaseUrl() {
     var config = getConfig();
-    return config ? (config.wsBaseUrl || '') : '';
+    var base = config ? (config.wsBaseUrl || '') : '';
+    return isLoopbackBase(base) ? '' : base;
   }
 
   /**
