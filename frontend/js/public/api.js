@@ -1097,6 +1097,13 @@ function maskEmail(email) {
     if (/\/api\/v1$/.test(b) && p.indexOf('/api/v1') === 0) {
       p = p.slice('/api/v1'.length);
     }
+    // 2026-11-16：base 为同源空串时（回环地址被归一化 / 未配置），
+    // ClassroomAPI 内部传的是裸路径 /classrooms/...，而 dev 代理与 nginx 只按
+    // /api/v1 前缀分流到 classroom-service；不补前缀会落到静态站 404。
+    // 端点常量（apiPaths.js）自带 /api/v1，已带则不重复补。
+    if (b === '' && p.charAt(0) === '/' && p.indexOf('/api/v1') !== 0) {
+      p = '/api/v1' + p;
+    }
     return b + p;
   };
 
