@@ -3,7 +3,9 @@
  *
  * 基于 canvas + WS whiteboard 通道。坐标为 0~1 归一化比例，跨屏尺寸一致。
  * 消息：{ type:'whiteboard', op:'draw', x0,y0,x1,y1,color,size,tool } / { op:'shape', shape:'rect'|'circle'|'square' } / { op:'text', x,y,text,font,fontSize,baseH,color } / { op:'clear' } / { op:'undo', opId, by }
- * 权限：admin 默认只读；学生是否可写由 ctx.canWrite 控制（默认 true）。
+ * 权限（2026-11-17 与服务端对齐）：教师/管理员默认可写；学生默认只读，须由教师
+ *   通过 wb:grant 授权后才可写（服务端 ClassroomLiveState.canEditWhiteboard 同口径）。
+ *   ctx.canWrite 显式 false 或 admin 角色强制只读；granted=true 可覆盖学生的只读。
  * 形状工具（rect/circle/square）：按下记录起点，拖动时橡皮筋预览，抬笔提交为一条 shape 操作并广播。
  * 文字工具（text）：点击画布弹出输入浮层，确定后提交一条 text 操作并广播；
  *   字体/字号由工具栏选择，颜色复用「当前颜色」。字号随白板高度等比缩放（baseH 基准），
@@ -59,7 +61,12 @@
       this.canvas = document.getElementById('whiteboard-canvas');
       if (!this.canvas) return this;
       this.ctx2d = this.canvas.getContext('2d');
-      this.readOnly = (this.ctx.role === 'admin') || (this.ctx.canWrite === false);
+      // 与服务端 canEditWhiteboard 对齐：教师可写，学生默认只读（等 wb:grant 授权）。
+      // role 判定与服务端 isTeacherOrManager 一致（teacher/manager/admin）；
+      // 注意 admin 在此前版本是默认只读（巡课端），这里保留——admin 若要板书需显式 grant。
+      var role = String(this.ctx.role || '').toLowerCase();
+      var isTeacher = (role === 'teacher' || role === 'manager');
+      this.readOnly = !isTeacher || (this.ctx.canWrite === false);
       this._bindEvents();
       this._resize();
       var self = this;
@@ -353,8 +360,12 @@
         if (msg.opId) this._applyUndo(msg.opId);
         return;
       }
-      // F4-08：教师授予/收回编辑权
+      // F4-08：教师授予/收回编辑权。
+      // 服务端是「全房间广播且带目标 userId」，必须只认发给自己的那条——
+      // 否则教师授权 A 学生时，B 学生也会在本地解锁（写入仍会被服务端 deny，但体验成「能画却画不上」）。
       if (msg.type === 'wb:grant:state') {
+        var me = this.ctx && this.ctx.userId;
+        if (msg.userId != null && me != null && String(msg.userId) !== String(me)) return;
         this.granted = !!msg.grant;
         this._syncUndoBtn();
         if (this.granted) {
