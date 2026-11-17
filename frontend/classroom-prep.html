@@ -27,8 +27,11 @@
     .btn.primary:hover { background: #388bfd; }
     .btn.success { background: #28a745; border-color: #28a745; color: #fff; }
     .btn.success:hover { background: #34c759; }
-    main { padding: 16px 20px 40px; display: grid; grid-template-columns: 1fr 340px; gap: 14px; align-items: start; }
-    @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+    /* 版式（2026-11-17）：左列「教学资料 + 设备检测」上下排列，右列「课堂信息」通栏；
+       窄屏时 main 收成单列，DOM 顺序天然变成 教学资料 → 设备检测 → 课堂信息。 */
+    main { padding: 16px 20px 40px; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 14px; align-items: start; }
+    .prep-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+    @media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); } }
     .card { background: #fff; border: 1px solid #e3e6ea; border-radius: 8px; }
     .card-head {
       display: flex; align-items: center; gap: 10px; padding: 10px 14px;
@@ -77,14 +80,6 @@
     html.prep-student #card-materials,
     html.prep-student #member-block,
     html.prep-student #btn-sync { display: none !important; }
-    html.prep-student main { grid-template-columns: minmax(0, 1fr) 340px; }
-    html.prep-student #card-devices { grid-column: 1; grid-row: 1; }
-    html.prep-student #card-info { grid-column: 2; grid-row: 1; }
-    @media (max-width: 900px) {
-      html.prep-student main { grid-template-columns: 1fr; }
-      html.prep-student #card-devices,
-      html.prep-student #card-info { grid-column: 1; grid-row: auto; }
-    }
   </style>
   <script>
     (function () {
@@ -113,59 +108,63 @@
   <div class="hint" id="prep-hint" style="margin:14px 20px 0;"></div>
 
   <main>
-    <section class="card" id="card-materials">
-      <div class="card-head">
-        <span><i class="fas fa-file-alt"></i> 教学资料</span>
-        <span class="spacer"></span>
-        <span class="meta" id="mat-count" style="color:#6b7280;font-size:12px;"></span>
-      </div>
-      <div class="card-body">
-        <div id="material-host"></div>
-      </div>
-    </section>
+    <div class="prep-col prep-col-main">
+      <section class="card" id="card-materials">
+        <div class="card-head">
+          <span><i class="fas fa-file-alt"></i> 教学资料</span>
+          <span class="spacer"></span>
+          <span class="meta" id="mat-count" style="color:#6b7280;font-size:12px;"></span>
+        </div>
+        <div class="card-body">
+          <div id="material-host"></div>
+        </div>
+      </section>
 
-    <section class="card" id="card-info">
-      <div class="card-head"><span><i class="fas fa-users"></i> 课堂信息</span></div>
-      <div class="card-body">
-        <div class="kv">
-          <span class="k">课次标识</span><span id="kv-key" style="word-break:break-all;">—</span>
-          <span class="k">上课时间</span><span id="kv-time">—</span>
-          <span class="k">课堂状态</span><span id="kv-status">—</span>
+      <section class="card" id="card-devices">
+        <div class="card-head">
+          <span><i class="fas fa-microphone"></i> 设备检测与选择</span>
+          <span class="spacer"></span>
+          <span class="dev-state" id="dev-overall">未检测</span>
         </div>
-        <div id="member-block">
-          <div style="margin-top:12px;font-weight:600;font-size:12.5px;">成员名单</div>
-          <div id="member-host" style="margin-top:4px;color:#999;font-size:12px;">加载中…</div>
+        <div class="card-body">
+          <video id="dev-preview" autoplay playsinline muted></video>
+          <div class="dev-row">
+            <label for="dev-audio">麦克风</label>
+            <select id="dev-audio"><option value="">系统默认</option></select>
+            <span class="dev-state" id="dev-audio-state">—</span>
+          </div>
+          <div id="dev-level-wrap" title="对着麦克风说话，绿色条会跳动">
+            <div id="dev-level"></div>
+          </div>
+          <div class="dev-row" style="margin-top:10px;">
+            <label for="dev-video">摄像头</label>
+            <select id="dev-video"><option value="">系统默认</option></select>
+            <span class="dev-state" id="dev-video-state">—</span>
+          </div>
+          <div id="dev-msg">选择设备后会自动预览，选择结果将被记住，进入课堂时直接生效。</div>
+          <div class="dev-actions">
+            <button id="dev-recheck" class="btn"><i class="fas fa-sync-alt"></i> 重新检测</button>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
 
-    <section class="card" id="card-devices">
-      <div class="card-head">
-        <span><i class="fas fa-microphone"></i> 设备检测与选择</span>
-        <span class="spacer"></span>
-        <span class="dev-state" id="dev-overall">未检测</span>
-      </div>
-      <div class="card-body">
-        <video id="dev-preview" autoplay playsinline muted></video>
-        <div class="dev-row">
-          <label for="dev-audio">麦克风</label>
-          <select id="dev-audio"><option value="">系统默认</option></select>
-          <span class="dev-state" id="dev-audio-state">—</span>
+    <div class="prep-col prep-col-side">
+      <section class="card" id="card-info">
+        <div class="card-head"><span><i class="fas fa-users"></i> 课堂信息</span></div>
+        <div class="card-body">
+          <div class="kv">
+            <span class="k">课次标识</span><span id="kv-key" style="word-break:break-all;">—</span>
+            <span class="k">上课时间</span><span id="kv-time">—</span>
+            <span class="k">课堂状态</span><span id="kv-status">—</span>
+          </div>
+          <div id="member-block">
+            <div style="margin-top:12px;font-weight:600;font-size:12.5px;">成员名单</div>
+            <div id="member-host" style="margin-top:4px;color:#999;font-size:12px;">加载中…</div>
+          </div>
         </div>
-        <div id="dev-level-wrap" title="对着麦克风说话，绿色条会跳动">
-          <div id="dev-level"></div>
-        </div>
-        <div class="dev-row" style="margin-top:10px;">
-          <label for="dev-video">摄像头</label>
-          <select id="dev-video"><option value="">系统默认</option></select>
-          <span class="dev-state" id="dev-video-state">—</span>
-        </div>
-        <div id="dev-msg">选择设备后会自动预览，选择结果将被记住，进入课堂时直接生效。</div>
-        <div class="dev-actions">
-          <button id="dev-recheck" class="btn"><i class="fas fa-sync-alt"></i> 重新检测</button>
-        </div>
-      </div>
-    </section>
+      </section>
+    </div>
   </main>
 
   <script src="js/public/vendor/axios.min.js"></script>

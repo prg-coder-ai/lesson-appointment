@@ -83,6 +83,31 @@
     return s.length >= 16 ? s.slice(0, 16) : s;
   }
 
+  /** scheduleId 复合键取课次序号（与后端 ClassroomKey / classroom-main.js 同口径，容错回落 1） */
+  function classIndexOf(key) {
+    var s = (key == null) ? '' : String(key);
+    var i = s.indexOf('~');
+    if (i < 0 || i === s.length - 1) return 1;
+    var v = parseInt(s.slice(i + 1), 10);
+    return (v > 0) ? v : 1;
+  }
+
+  /**
+   * 「课次标识」可读化（2026-11-17）：与在线课堂标题同一口径——
+   *   有课程名 → 「课程名 · 第N课次」（第 1 课次只给课程名，与 _renderHeader 一致）；
+   *   无课程名 → 至少给「第N课次」，绝不留一长串 UUID。
+   * 原始 key 放 title，排障/复制仍取得到。
+   */
+  function renderClassKey(key, courseName) {
+    var el = document.getElementById('kv-key');
+    if (!el) return;
+    var idx = classIndexOf(key);
+    el.textContent = courseName
+      ? (String(courseName) + (idx > 1 ? ' · 第' + idx + '课次' : ''))
+      : ('第' + idx + '课次');
+    el.title = String(key || '');
+  }
+
   function phaseLabel(phase) {
     return phase === 'live' ? '进行中' : (phase === 'past' ? '已结束' : (phase === 'upcoming' ? '未开始' : '—'));
   }
@@ -107,7 +132,8 @@
       // 课次标识里 ~ 前面就是裸排期 id（第 1 课次本身不带 ~）
       this.sid = this.key.split('~')[0];
 
-      setText('kv-key', this.key);
+      // 先按课次序号渲染（此刻还没有课程名）；/status 回来后再刷成「课程名 · 第N课次」
+      renderClassKey(this.key, '');
       if (this.student) this.applyStudentMode();
       this.bind();
       this.loadStatus();
@@ -360,6 +386,8 @@
           }
           if (res.courseName) {
             setText('prep-title', self.student ? (res.courseName + ' · 课前设备准备') : res.courseName);
+            // 课次标识与在线课堂标题同口径：课程名 + 课次序号，不再显示 UUID
+            renderClassKey(self.key, res.courseName);
           }
         })
         .catch(function (e) {
