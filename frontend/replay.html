@@ -19,6 +19,9 @@
     #rp-class { font-size: 12.5px; color: #9da7b3; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #rp-class:empty { display: none; }
     #rp-header .spacer { flex: 1; }
+    /* 手工查询入口：从课堂/我的课堂跳转进来时已带课次参数，此时整组隐藏，避免暴露编码 */
+    #rp-manual { display: flex; align-items: center; gap: 8px; }
+    #rp-manual.hidden { display: none; }
     #rp-schedule {
       width: 320px; padding: 6px 10px; border-radius: 6px; font-size: 13px;
       border: 1px solid #30363d; background: #0d1117; color: #e8eaed;
@@ -65,8 +68,10 @@
   <header id="rp-header">
     <h1>课堂回放</h1>
     <span id="rp-class"></span>
-    <input id="rp-schedule" placeholder="课次 ID（scheduleId）" autocomplete="off">
-    <button id="rp-load" type="button">查询</button>
+    <span id="rp-manual">
+      <input id="rp-schedule" placeholder="粘贴课次链接或标识（手工查询用）" autocomplete="off">
+      <button id="rp-load" type="button">查询</button>
+    </span>
     <span class="spacer"></span>
     <span id="rp-user" style="font-size:12px;color:#6e7681;"></span>
   </header>
