@@ -28,6 +28,7 @@
     rows: [],
     current: null,      // 当前播放的录制记录
     _seekReady: false,  // 本次播放是否已在 loadedmetadata 后处理过续播
+    _courseName: '',    // 课程名（取自课堂状态接口，用于课次可读化）
 
     run: function () {
       this.apiBaseUrl = (typeof window.getClassroomApiBaseUrl === 'function')
@@ -210,6 +211,10 @@
       if (listEmpty) listEmpty.style.display = 'none';
       if (list) list.innerHTML = '<div class="rp-item">加载中…</div>';
 
+      // 先把课次序号渲染出来（此刻还没有课程名），再异步补课程名
+      this._renderClassLabel(scheduleId, '');
+      this._loadClassName(scheduleId);
+
       if (!window.ClassroomAPI || typeof window.ClassroomAPI.getRecordings !== 'function') {
         this._empty('回放接口未就绪');
         return;
@@ -224,6 +229,42 @@
           if (list) list.innerHTML = '';
           self._empty(msg + '（若确认是本课堂成员，请检查登录是否过期）');
         });
+    },
+
+    /**
+     * 课次可读化（2026-11-17）：与课堂准备页、在线课堂标题同口径——
+     * 有课程名 → 「课程名 · 第N课次」（第 1 课次只给课程名）；无课程名 → 「第N课次」。
+     * 原始 scheduleId 放 title，排障仍可复制。
+     */
+    _renderClassLabel: function (sid, courseName) {
+      this._courseName = courseName || this._courseName || '';
+      var el = document.getElementById('rp-class');
+      if (!el) return;
+      var idx = this._classIndexOf(sid || this.scheduleId);
+      el.textContent = this._courseName
+        ? (String(this._courseName) + (idx > 1 ? ' · 第' + idx + '课次' : ''))
+        : ('第' + idx + '课次');
+      el.title = String(sid || this.scheduleId || '');
+    },
+
+    /** 课程名来自课堂状态接口；课堂未创建/无权限时静默失败，保留「第N课次」 */
+    _loadClassName: function (sid) {
+      var self = this;
+      if (!window.ClassroomAPI || typeof window.ClassroomAPI.getClassroomStatus !== 'function') return;
+      window.ClassroomAPI.getClassroomStatus(this.apiBaseUrl, sid)
+        .then(function (res) {
+          if (res && res.courseName) self._renderClassLabel(sid, res.courseName);
+        })
+        .catch(function () { /* 无课程名不影响回放播放 */ });
+    },
+
+    /** scheduleId 复合键取课次序号（与后端 ClassroomKey / classroom-main.js 同口径，容错回落 1） */
+    _classIndexOf: function (key) {
+      var s = (key == null) ? '' : String(key);
+      var i = s.indexOf('~');
+      if (i < 0 || i === s.length - 1) return 1;
+      var v = parseInt(s.slice(i + 1), 10);
+      return (v > 0) ? v : 1;
     },
 
     _renderList: function () {
@@ -244,8 +285,7 @@
           '<div class="rp-time">' + start + badge + '</div>' +
           '<div class="rp-meta">' + (duration ? '时长 ' + duration : '时长未知') +
           ' · ' + self._statusText(r.status) + ' · ' + mode + '</div>' +
-          '</div>';
-      }).join('');
+          '</div>';      }).join('');
 
       Array.prototype.forEach.call(list.querySelectorAll('.rp-item'), function (el) {
         el.addEventListener('click', function () {
