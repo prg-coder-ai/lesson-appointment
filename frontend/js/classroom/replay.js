@@ -160,7 +160,8 @@
       box._rpKeysBound = true;
       box.addEventListener('keydown', function (e) {
         var video = document.getElementById('rp-video');
-        if (!video || video.style.display === 'none') return;
+        // 只在播放器真正可见时响应快捷键（_play 里会显式设 display:block）
+        if (!video || video.style.display !== 'block') return;
         var tag = (e.target && e.target.tagName || '').toLowerCase();
         if (tag === 'input' || tag === 'textarea') return;
         var handled = true;
@@ -325,7 +326,9 @@
         return;
       }
       if (empty) empty.style.display = 'none';
-      video.style.display = '';
+      // ★ 必须显式设 'block'：样式表里 #rp-video 是 display:none，设空串只会清掉内联样式，
+      //   计算值仍回落到 none —— 于是播放有声音、画面永远不出来（2026-11-17 实测确认）
+      video.style.display = 'block';
       this.current = r;                 // 进度记忆的键
       if (extra) extra.style.display = 'flex';
       var hint = document.getElementById('rp-hint');
