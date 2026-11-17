@@ -299,6 +299,9 @@
       // 面板布局放在白板/讲稿之后：它会读取已存布局并直接写内联定位，
       // 白板 init 里的首次 _resize 已按默认尺寸算过，随后 notifyResize 会再校正一次。
       if (window.ClassroomPanels) window.ClassroomPanels.init();
+      // 视频焦点放大（点画面放大、其余缩到一列）：只作用于 #video-grid 内部，
+      // 与上面的面板拖动/缩放各管一层，互不干扰。
+      if (window.ClassroomVideoFocus) window.ClassroomVideoFocus.init();
       if (window.ClassroomChat) window.ClassroomChat.init(ctx);
       if (window.ClassroomTeacher) window.ClassroomTeacher.init(ctx);
       if (window.ClassroomStudent) window.ClassroomStudent.init(ctx);

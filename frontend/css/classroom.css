@@ -215,6 +215,56 @@ html, body {
 .video-tile.is-local { outline: 2px solid #1f6feb; }
 .video-tile.is-speaking .vt-label { background: rgba(63,185,80,.75); }
 
+/* ---------- 视频焦点放大（2026-11-17，classroom-video-focus.js） ----------
+   点击某画面 → 它占主区、其余缩到右列；移除 .has-spotlight 即恢复上面的均分网格。
+   注意：这里只改 #video-grid 内部布局，外层 #video-panel 的 .cl-panel-free
+   定位/缩放（classroom-panels.js）完全不受影响——面板整体缩放时，焦点布局按比例自适应。 */
+#video-grid[data-focus-ready] .video-tile { cursor: pointer; }
+#video-grid.has-spotlight {
+  grid-template-columns: minmax(0, 1fr) clamp(120px, 20%, 200px);
+  grid-template-rows: minmax(0, 1fr);
+  grid-auto-rows: 96px;          /* 右列缩略格高度 */
+  grid-auto-flow: row;
+  align-content: start;
+  overflow-y: auto;
+}
+#video-grid.has-spotlight .video-tile.is-spotlight {
+  grid-column: 1;
+  grid-row: 1 / -1;              /* 跨满所有行 = 主区整块 */
+  min-height: 0;
+  outline: 2px solid #58a6ff;
+}
+#video-grid.has-spotlight .video-tile:not(.is-spotlight) {
+  grid-column: 2;                /* 全部塞进右列，自动排成一列 */
+  min-height: 0;
+  height: 90px;
+  border-radius: 6px;
+}
+#video-grid.has-spotlight .video-tile:not(.is-spotlight) .vt-label {
+  font-size: 10px;
+  left: 4px; bottom: 4px;
+  max-width: 92%;
+}
+#video-grid.has-spotlight .video-tile:not(.is-spotlight) .vt-avatar {
+  width: 36px; height: 36px; font-size: 15px;
+}
+.vt-spotlight-close {
+  position: absolute;
+  top: 6px; right: 6px;
+  width: 26px; height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0,0,0,.55);
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+}
+.vt-spotlight-close:hover { background: rgba(248,81,73,.85); }
+
 /* 白板 */
 #whiteboard-area {
   flex: 1 1 auto;
