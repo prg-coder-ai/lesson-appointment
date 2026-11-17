@@ -133,15 +133,47 @@ public class ClassroomController {
         return Result.success();
     }
 
+    /**
+     * 教师端「下课」。
+     *
+     * <p><b>提前下课转暂停（2026-11-17）</b>：若当前时间早于计划上课时间 {@code start_time}，
+     * 「下课」不结束课堂（不触发出勤收尾与课时回流），而是转为暂停——常见场景是教师提前进课堂
+     * 调试设备后想离开，此时下课会把一堂没真实发生的课结算掉。暂停不重建房间、不重写
+     * {@code actualStart}，教师稍后回来点「进行中」即可恢复。
+     *
+     * <p>判断放在 Controller 这层（教师端入口），<b>不动</b> {@link ClassroomService#endClass}：
+     * 管理端强制结束（AdminConsoleController）、自动下课、教师掉线结课仍走原入口，保持
+     * 「管理员能无条件关掉任意课堂」的运维能力。
+     *
+     * <p>返回值带 {@code action} 字段：{@code paused_early}=已转暂停，前端据此改提示文案、
+     * 且不执行「离开课堂」；缺省（正常下课）前端按原流程处理。
+     */
     @PostMapping("/end")
-    public Result<Void> end(@PathVariable String scheduleId) {
+    public Result<java.util.Map<String, Object>> end(@PathVariable String scheduleId) {
         if (!AuthContext.isTeacher() && !AuthContext.isManager()) {
             return Result.fail(403, "仅教师可下课");
         }
-        accessGuard.assertAccess(scheduleId, AuthContext.currentUserId(), AuthContext.currentRole());
+        Classroom c = accessGuard.assertAccess(scheduleId, AuthContext.currentUserId(), AuthContext.currentRole());
+        java.util.Map<String, Object> resp = new java.util.LinkedHashMap<>();
+        String status = c.getStatus();
+
+        // 尚未到计划上课时间：下课改成暂停（已暂停则幂等，不重复流转）
+        if (c.getStartTime() != null && java.time.LocalDateTime.now().isBefore(c.getStartTime())
+                && ("LIVE".equals(status) || "PAUSED".equals(status))) {
+            if ("LIVE".equals(status)) {
+                classroomService.pauseClass(scheduleId);
+            }
+            broadcastState(scheduleId, "PAUSED");
+            resp.put("action", "paused_early");
+            resp.put("status", "PAUSED");
+            return Result.ok(resp);
+        }
+
         classroomService.endClass(scheduleId);
         broadcastState(scheduleId, "CLOSED");
-        return Result.success();
+        resp.put("action", "closed");
+        resp.put("status", "CLOSED");
+        return Result.ok(resp);
     }
 
     /** 状态流转后广播权威状态，前端据此同步状态徽标与发布门禁（控制类消息，门禁放行） */

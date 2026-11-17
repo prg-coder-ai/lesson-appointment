@@ -85,16 +85,43 @@
       });
     },
 
+    /**
+     * 「下课」按钮。
+     *
+     * 后端可能把「提前下课」转成暂停（未到计划 start_time，见 ClassroomController#end 的
+     * paused_early）：此时课堂还在、人还没走，**绝不能**执行正常的「下课成功」动作——
+     * 否则会广播 class-end、调用 ClassroomMain.leave() 让学生端以为课结束了。
+     * 因此这里不用通用 _api（它固定 toast + afterOk），直接读返回的 action 分流。
+     * 服务端已广播权威 class:state，前端状态徽标会自动同步，只需处理信号兼容与提示。
+     */
     endClass: function () {
       var self = this;
-      return this._api('endClass', '已下课', function () {
-        if (window.ClassroomWS) {
-          window.ClassroomWS.sendSignal(self.ctx.scheduleId, { type: 'class-end', from: self.ctx.userId });
-        }
-        if (window.ClassroomMain && typeof window.ClassroomMain.leave === 'function') {
-          window.ClassroomMain.leave();
-        }
-      });
+      var CAPI = window.ClassroomAPI;
+      if (!CAPI || typeof CAPI.endClass !== 'function') return Promise.reject(new Error('ClassroomAPI 未加载'));
+      return CAPI.endClass(this.ctx.apiBaseUrl, this.ctx.scheduleId)
+        .then(function (data) {
+          var early = data && (data.action === 'paused_early' || data.status === 'PAUSED');
+          if (early) {
+            // 提前下课 → 服务端已转暂停。服务端已广播权威 class:state=PAUSED，
+            // 所有端状态自动同步，这里不再发 class-pause 兼容信号（会重复 toast），
+            // 更不 leave / 不发 class-end（那会让全员以为课结束了）。
+            self.toast('尚未到上课时间，课堂已暂停（稍后可点「进行中」恢复）');
+          } else {
+            if (window.ClassroomWS) {
+              window.ClassroomWS.sendSignal(self.ctx.scheduleId, { type: 'class-end', from: self.ctx.userId });
+            }
+            if (window.ClassroomMain && typeof window.ClassroomMain.leave === 'function') {
+              window.ClassroomMain.leave();
+            }
+            self.toast('已下课');
+          }
+          return data;
+        })
+        .catch(function (e) {
+          console.warn('[Teacher] endClass failed', e);
+          self.toast((e && e.bodyMsg) || (e && e.message) || '下课失败');
+          throw e;
+        });
     },
 
     muteAll: function () {
