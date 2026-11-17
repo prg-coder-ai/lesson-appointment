@@ -152,6 +152,19 @@
     }
   }
 
+  /** 删除讲稿（教师/管理员）：后端同步清对象存储文件 */
+  async function deleteMaterial(key, materialId) {
+    if (!window.ClassroomAPI || typeof window.ClassroomAPI.deleteMaterial !== 'function') {
+      return { ok: false, msg: '课堂接口未加载' };
+    }
+    try {
+      await window.ClassroomAPI.deleteMaterial(apiBase(), key, materialId);
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, msg: errText(e) };
+    }
+  }
+
   /** 回放地址（往期课次）；无录制/失败返回 {ok:false} */
   async function getPlayback(key) {
     if (!window.ClassroomAPI || typeof window.ClassroomAPI.getPlaybackUrl !== 'function') {
@@ -526,7 +539,8 @@
    * 面板自带「课堂未同步」引导——资料接口失败多见于课堂尚未创建（40401）。
    */
   function renderMaterialPanel(host, key, role, scheduleRef) {
-    var isTeacher = role === 'teacher';
+    // 教师/管理员可上传、删除；学生只读（ classroom 侧另有更强的服务端门禁）
+    var isTeacher = role === 'teacher' || role === 'admin' || role === 'platform_admin';
     host.innerHTML = '<div style="padding:10px 0 4px;font-size:12.5px;color:#6b7280;">资料加载中…</div>';
 
     listMaterials(key).then(function (r) {
@@ -560,6 +574,13 @@
           html += '<td style="padding:5px 8px;width:70px;text-align:right;">'
             + (url ? '<a href="' + esc(url) + '" target="_blank" rel="noopener">查看</a>' : '<span style="color:#bbb;">无链接</span>')
             + '</td>';
+          if (isTeacher) {
+            html += '<td style="padding:5px 8px;width:46px;text-align:right;">'
+              + '<button type="button" data-mc="del" data-id="' + esc(m.materialId) + '" data-name="' + esc(m.fileName || '') + '"'
+              + ' title="删除该资料（文件一并删除，不可恢复）" style="padding:2px 7px;font-size:12px;color:#b42318;background:#fff;'
+              + 'border:1px solid #f0c2c2;border-radius:4px;cursor:pointer;">删除</button>'
+              + '</td>';
+          }
           html += '</tr>';
         });
         html += '</tbody></table>';
@@ -589,6 +610,29 @@
           }
         });
       }
+
+      // 删除按钮：确认后调后端（同步删文件），成功后整表重绘；学生模式不渲染这些按钮
+      Array.prototype.forEach.call(host.querySelectorAll('[data-mc="del"]'), function (btn) {
+        btn.addEventListener('click', async function () {
+          var id = btn.getAttribute('data-id');
+          var name = btn.getAttribute('data-name') || '这份资料';
+          if (!window.confirm('确认删除「' + name + '」？文件将一并删除且不可恢复。')) return;
+          btn.disabled = true;
+          hint.style.display = 'block';
+          hint.style.color = '#6b7280';
+          hint.textContent = '删除中：' + name;
+          var del = await deleteMaterial(key, id);
+          if (del.ok) {
+            hint.style.color = '#1a7f37';
+            hint.textContent = '已删除：' + name;
+            renderMaterialPanel(host, key, role, scheduleRef);
+          } else {
+            btn.disabled = false;
+            hint.style.color = '#b42318';
+            hint.textContent = '删除失败：' + del.msg;
+          }
+        });
+      });
     });
   }
 
