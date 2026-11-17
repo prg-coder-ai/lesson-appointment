@@ -9,10 +9,25 @@
  * 越权访问会返回 40402/40301，这里如实提示，不做兜底猜测。
  */
 (function () {
+  // 回放偏好：进度按 recordingId 存，音量/倍速全局共享。localStorage 不可用时静默降级。
+  var LS = {
+    get: function (k) {
+      try { return localStorage.getItem(k); } catch (e) { return null; }
+    },
+    set: function (k, v) {
+      try { localStorage.setItem(k, v); } catch (e) { /* 隐私模式/超额：不影响播放 */ }
+    }
+  };
+  var PROGRESS_KEY = 'classroom.replay.progress.v1.';
+  var VOLUME_KEY = 'classroom.replay.volume.v1';
+  var RATE_KEY = 'classroom.replay.rate.v1';
+
   var Replay = {
     apiBaseUrl: '',
     scheduleId: '',
     rows: [],
+    current: null,      // 当前播放的录制记录
+    _seekReady: false,  // 本次播放是否已在 loadedmetadata 后处理过续播
 
     run: function () {
       this.apiBaseUrl = (typeof window.getClassroomApiBaseUrl === 'function')
@@ -45,6 +60,146 @@
       if (input) input.addEventListener('keydown', function (e) {
         if (e.key === 'Enter' && btn) btn.click();
       });
+
+      // 倍速按钮：设 playbackRate 并记忆；原生菜单仍可用，这里是快捷入口
+      Array.prototype.forEach.call(document.querySelectorAll('.rp-rate'), function (b) {
+        b.addEventListener('click', function () {
+          var rate = parseFloat(b.getAttribute('data-rate')) || 1;
+          var video = document.getElementById('rp-video');
+          if (video) video.playbackRate = rate;
+          LS.set(RATE_KEY, String(rate));
+          self._syncRateUi(rate);
+        });
+      });
+
+      this._bindVideo();
+      this._bindKeys();
+    },
+
+    /** 视频事件：进度/音量记忆、续播提示、连播。原生 controls 负责交互，这里只加增强。 */
+    _bindVideo: function () {
+      var self = this;
+      var video = document.getElementById('rp-video');
+      if (!video || video._rpBound) return;
+      video._rpBound = true;
+
+      video.addEventListener('loadedmetadata', function () {
+        self._seekReady = false;
+        // 恢复全局音量/静音
+        var vol = parseFloat(LS.get(VOLUME_KEY));
+        if (!isNaN(vol) && vol >= 0 && vol <= 1) video.volume = vol;
+        var savedRate = parseFloat(LS.get(RATE_KEY));
+        if (!isNaN(savedRate) && savedRate > 0) {
+          video.playbackRate = savedRate;
+          self._syncRateUi(savedRate);
+        }
+        // 进度续播：超过 5 秒且未看完才提示，避免"刚开始"打扰
+        var pos = self._savedProgress();
+        var resume = document.getElementById('rp-resume');
+        if (pos > 5 && pos < (video.duration || 0) - 5 && resume) {
+          resume.textContent = '从 ' + self._mmss(pos) + ' 继续播放';
+          resume.style.display = 'block';
+        } else if (resume) {
+          resume.style.display = 'none';
+        }
+      });
+
+      video.addEventListener('timeupdate', function () {
+        if (!self.current || !video.duration) return;
+        // 看完（剩 ≤3s）就清进度，下次从头播
+        if (video.currentTime >= video.duration - 3) {
+          LS.set(PROGRESS_KEY + self.current.recordingId, '0');
+        } else {
+          LS.set(PROGRESS_KEY + self.current.recordingId, String(Math.floor(video.currentTime)));
+        }
+      });
+
+      video.addEventListener('volumechange', function () {
+        LS.set(VOLUME_KEY, String(video.volume));
+      });
+
+      video.addEventListener('ended', function () {
+        self._playNext();
+      });
+
+      var resume = document.getElementById('rp-resume');
+      if (resume) resume.addEventListener('click', function () {
+        var pos = self._savedProgress();
+        if (pos > 0) video.currentTime = pos;
+        resume.style.display = 'none';
+        self._safePlay(video);
+      });
+    },
+
+    /** play() 在老浏览器/测试桩里返回 undefined，统一处理自动播放拦截 */
+    _safePlay: function (video) {
+      try {
+        var pp = video.play();
+        if (pp && typeof pp.catch === 'function') pp.catch(function () {});
+      } catch (e) { /* 播放失败不打扰 */ }
+    },
+
+    /** 回放快捷键：绑在 player 容器，输入框聚焦时不响应 */
+    _bindKeys: function () {
+      var self = this;
+      var box = document.getElementById('rp-player');
+      if (!box || box._rpKeysBound) return;
+      box._rpKeysBound = true;
+      box.addEventListener('keydown', function (e) {
+        var video = document.getElementById('rp-video');
+        if (!video || video.style.display === 'none') return;
+        var tag = (e.target && e.target.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea') return;
+        var handled = true;
+        switch (e.key) {
+          case ' ': case 'Spacebar':
+            if (video.paused) self._safePlay(video); else video.pause();
+            break;
+          case 'ArrowLeft': video.currentTime = Math.max(0, video.currentTime - 5); break;
+          case 'ArrowRight': video.currentTime = Math.min(video.duration || 0, video.currentTime + 5); break;
+          case 'ArrowUp': video.volume = Math.min(1, Math.round((video.volume + 0.1) * 10) / 10); break;
+          case 'ArrowDown': video.volume = Math.max(0, Math.round((video.volume - 0.1) * 10) / 10); break;
+          default: handled = false;
+        }
+        if (handled) e.preventDefault();
+      });
+    },
+
+    _syncRateUi: function (rate) {
+      Array.prototype.forEach.call(document.querySelectorAll('.rp-rate'), function (b) {
+        b.classList.toggle('active', Math.abs((parseFloat(b.getAttribute('data-rate')) || 0) - rate) < 0.01);
+      });
+    },
+
+    _savedProgress: function () {
+      if (!this.current) return 0;
+      var v = parseInt(LS.get(PROGRESS_KEY + this.current.recordingId), 10);
+      return (isNaN(v) || v < 0) ? 0 : v;
+    },
+
+    _mmss: function (sec) {
+      var m = Math.floor(sec / 60), s = sec % 60;
+      return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+    },
+
+    /** 播完自动高亮下一条并提示（不强制自动播，避免连续输出打扰） */
+    _playNext: function () {
+      var self = this;
+      var idx = this.rows.findIndex(function (r) { return self.current && r.recordingId === self.current.recordingId; });
+      if (idx < 0 || idx >= this.rows.length - 1) return;
+      var nextEl = document.querySelector('.rp-item[data-idx="' + (idx + 1) + '"]');
+      if (!nextEl) return;
+      Array.prototype.forEach.call(document.querySelectorAll('.rp-item'), function (x) { x.classList.remove('active'); });
+      nextEl.classList.add('active');
+      this._toastHint('本条已播完，已选中下一条（点击即可播放）');
+    },
+
+    _toastHint: function (msg) {
+      var hint = document.getElementById('rp-hint');
+      if (!hint) return;
+      var old = hint.textContent;
+      hint.textContent = msg;
+      setTimeout(function () { hint.textContent = old; }, 4000);
     },
 
     load: function (scheduleId) {
@@ -105,7 +260,12 @@
     _play: function (r) {
       var video = document.getElementById('rp-video');
       var empty = document.getElementById('rp-empty');
+      var extra = document.getElementById('rp-extra');
+      var resume = document.getElementById('rp-resume');
       if (!video) return;
+      this.current = null;
+      if (extra) extra.style.display = 'none';
+      if (resume) resume.style.display = 'none';
       if (!r || !r.url) {
         this._empty(r && r.status === 'RECORDING'
           ? '该录制仍在进行中，结束后才能观看'
@@ -114,8 +274,11 @@
       }
       if (empty) empty.style.display = 'none';
       video.style.display = '';
-      video.src = r.url;
-      video.play().catch(function () { /* 自动播放被拦截时用户手动点播放即可 */ });
+      this.current = r;                 // 进度记忆的键
+      if (extra) extra.style.display = 'flex';
+      if (video.src !== r.url) video.src = r.url;
+      video.load();                      // 确保 loadedmetadata 重新触发，恢复音量/倍速/续播提示
+      this._safePlay(video);
     },
 
     _badge: function (status) {
@@ -155,6 +318,11 @@
     _empty: function (msg) {
       var video = document.getElementById('rp-video');
       var empty = document.getElementById('rp-empty');
+      var extra = document.getElementById('rp-extra');
+      var resume = document.getElementById('rp-resume');
+      this.current = null;
+      if (extra) extra.style.display = 'none';
+      if (resume) resume.style.display = 'none';
       if (video) { video.style.display = 'none'; video.removeAttribute('src'); }
       if (empty) {
         empty.style.display = '';
