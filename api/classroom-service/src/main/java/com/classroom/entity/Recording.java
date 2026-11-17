@@ -18,6 +18,8 @@ public class Recording {
     private LocalDateTime endTime;
     private String ossKey;
     private String status;
+    /** 录制模式：video=人像录制 / screen=教学区域录制（2026-11-17 P2） */
+    private String recordMode;
     private Integer retentionDays;
     private LocalDateTime expireAt;
     private LocalDateTime createdAt;
