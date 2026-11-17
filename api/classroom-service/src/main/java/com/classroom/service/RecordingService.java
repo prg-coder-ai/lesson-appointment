@@ -54,6 +54,11 @@ public class RecordingService {
      * 两条都无法完成的「幽灵录制」。
      */
     public Recording start(String scheduleId, String operatorId) {
+        return start(scheduleId, operatorId, "video");
+    }
+
+    /** captureMode：video=人像 / screen=教学区域；缺省 video 兼容老调用 */
+    public Recording start(String scheduleId, String operatorId, String captureMode) {
         Recording running = findRunning(scheduleId);
         if (running != null) {
             log.info("录制已在进行中，复用记录: scheduleId={}, recordingId={}", scheduleId, running.getRecordingId());
@@ -63,6 +68,7 @@ public class RecordingService {
         r.setScheduleId(scheduleId);
         r.setStartTime(LocalDateTime.now());
         r.setStatus("RECORDING");
+        r.setRecordMode("screen".equals(captureMode) ? "screen" : "video");
         r.setRetentionDays(props.getRetentionDays());
         recordingMapper.insert(r);
 

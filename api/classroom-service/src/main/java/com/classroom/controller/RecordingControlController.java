@@ -64,7 +64,7 @@ public class RecordingControlController {
         // captureMode 是「录什么」（video=人像 / screen=教学区域），与后端 client/cloud 的 mode 无关
         String captureMode = (req != null && "screen".equals(req.getCaptureMode())) ? "screen" : "video";
 
-        Recording r = recordingService.start(scheduleId, userId);
+        Recording r = recordingService.start(scheduleId, userId, captureMode);
         broadcast(scheduleId, true, r.getRecordingId(), captureMode);
         teachingSession.appendEvent(scheduleId, "record:start",
                 Map.of("recordingId", r.getRecordingId(), "mode", backendRegistry.activeMode(),

@@ -149,6 +149,7 @@ CREATE TABLE `classroom_recording` (
   `end_time`      DATETIME     NULL,
   `oss_key`       VARCHAR(512) NULL COMMENT '录制文件key',
   `status`        VARCHAR(20)  NOT NULL DEFAULT 'RECORDING' COMMENT 'RECORDING/READY/FAILED',
+  `record_mode`   VARCHAR(16)  NOT NULL DEFAULT 'video' COMMENT '录制模式：video=人像 / screen=教学区域',
   `retention_days` INT         NOT NULL DEFAULT 90 COMMENT '保留天数',
   `expire_at`     DATETIME     NULL COMMENT '过期时间',
   `created_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -239,10 +239,11 @@
         var badge = self._badge(r.status);
         var duration = self._duration(r.startTime, r.endTime);
         var start = self._fmt(r.startTime);
+        var mode = self._modeLabel(r.recordMode);
         return '<div class="rp-item" data-idx="' + idx + '">' +
           '<div class="rp-time">' + start + badge + '</div>' +
           '<div class="rp-meta">' + (duration ? '时长 ' + duration : '时长未知') +
-          ' · ' + self._statusText(r.status) + '</div>' +
+          ' · ' + self._statusText(r.status) + ' · ' + mode + '</div>' +
           '</div>';
       }).join('');
 
@@ -276,6 +277,9 @@
       video.style.display = '';
       this.current = r;                 // 进度记忆的键
       if (extra) extra.style.display = 'flex';
+      var hint = document.getElementById('rp-hint');
+      if (hint) hint.textContent = '当前：' + this._modeLabel(r.recordMode)
+        + ' · 空格 播放/暂停 · ←→ 快退/快进 5 秒 · ↑↓ 音量 · 文件保留 90 天';
       if (video.src !== r.url) video.src = r.url;
       video.load();                      // 确保 loadedmetadata 重新触发，恢复音量/倍速/续播提示
       this._safePlay(video);
@@ -284,6 +288,11 @@
     _badge: function (status) {
       var cls = String(status || '').toLowerCase();
       return '<span class="rp-badge ' + cls + '">' + this._statusText(status) + '</span>';
+    },
+
+    /** 录制模式标注（P2）：区分人像录制 / 教学区域录制；老记录默认人像 */
+    _modeLabel: function (mode) {
+      return 'screen' === mode ? '教学区域录制' : '人像录制';
     },
 
     _statusText: function (status) {
