@@ -42,9 +42,10 @@
       this._bind();
 
       var sid = this._param('scheduleId');
-      var input = document.getElementById('rp-schedule');
-      if (sid && input) {
-        input.value = sid;
+      var manual = document.getElementById('rp-manual');
+      if (sid) {
+        // 已从课堂/我的课堂带参进来：界面只显示「课程名 · 第N课次」，不再露出课次编码
+        if (manual) manual.classList.add('hidden');
         this.load(sid);
       }
     },
@@ -54,8 +55,8 @@
       var btn = document.getElementById('rp-load');
       var input = document.getElementById('rp-schedule');
       if (btn) btn.addEventListener('click', function () {
-        var sid = input ? input.value.trim() : '';
-        if (!sid) { self._empty('请输入课次 ID'); return; }
+        var sid = self._extractScheduleId(input ? input.value : '');
+        if (!sid) { self._empty('请粘贴课次链接或标识'); return; }
         self.load(sid);
       });
       if (input) input.addEventListener('keydown', function (e) {
@@ -75,6 +76,17 @@
 
       this._bindVideo();
       this._bindKeys();
+    },
+
+    /** 手工入口宽容解析：允许粘贴完整链接（?scheduleId=xxx）或裸课次标识 */
+    _extractScheduleId: function (raw) {
+      var s = (raw == null) ? '' : String(raw).trim();
+      if (!s) return '';
+      var m = s.match(/[?&]scheduleId=([^&#]+)/i);
+      if (m && m[1]) {
+        try { return decodeURIComponent(m[1]).trim(); } catch (e) { return m[1].trim(); }
+      }
+      return s;
     },
 
     /** 视频事件：进度/音量记忆、续播提示、连播。原生 controls 负责交互，这里只加增强。 */
@@ -234,7 +246,7 @@
     /**
      * 课次可读化（2026-11-17）：与课堂准备页、在线课堂标题同口径——
      * 有课程名 → 「课程名 · 第N课次」（第 1 课次只给课程名）；无课程名 → 「第N课次」。
-     * 原始 scheduleId 放 title，排障仍可复制。
+     * 界面上不再出现课次编码（含 title 悬停提示也不带），排障请看浏览器地址栏参数。
      */
     _renderClassLabel: function (sid, courseName) {
       this._courseName = courseName || this._courseName || '';
@@ -244,7 +256,6 @@
       el.textContent = this._courseName
         ? (String(this._courseName) + (idx > 1 ? ' · 第' + idx + '课次' : ''))
         : ('第' + idx + '课次');
-      el.title = String(sid || this.scheduleId || '');
     },
 
     /** 课程名来自课堂状态接口；课堂未创建/无权限时静默失败，保留「第N课次」 */
@@ -383,7 +394,8 @@
       try {
         var u = JSON.parse(localStorage.getItem('currentUser') || 'null');
         var el = document.getElementById('rp-user');
-        if (el && u) el.textContent = (u.name || u.account || u.userId || '') + ' · ' + (u.role || '');
+        // 只显示姓名/账号，缺省时留空——不拿 userId 兜底，避免界面出现一串编码
+        if (el && u) el.textContent = (u.name || u.account || '') + (u.role ? ' · ' + u.role : '');
       } catch (e) { /* 展示失败无所谓 */ }
     },
 
