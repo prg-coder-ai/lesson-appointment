@@ -732,10 +732,16 @@ html, body {
 .ms-bar { display: flex; gap: 8px; justify-content: center; padding: 8px; background: #161b22; border-top: 1px solid #30363d; }
 .ms-btn { padding: 6px 14px; border: 1px solid #30363d; border-radius: 6px; background: #21262d; color: #e8eaed; font-size: 13px; cursor: pointer; }
 .ms-btn:hover { background: #30363d; }
-/* 学生只读：上传与翻页按钮不出现（服务端同样会拒绝非教师翻页） */
+/* 课堂内资料选择（2026-11-17）：教师/管理员可在多份资料中切换展示，学生只读隐藏 */
+.ms-picker {
+  max-width: 220px; padding: 6px 8px; border: 1px solid #30363d; border-radius: 6px;
+  background: #21262d; color: #e8eaed; font-size: 12px; cursor: pointer;
+}
+/* 学生只读：上传、翻页、资料选择均不出现（服务端同样会拒绝非教师写操作） */
 .ms-bar:not(.is-teacher) #ms-upload,
 .ms-bar:not(.is-teacher) #ms-prev,
-.ms-bar:not(.is-teacher) #ms-next { display: none; }
+.ms-bar:not(.is-teacher) #ms-next,
+.ms-bar:not(.is-teacher) #ms-material-picker { display: none; }
 
 /* ---------------- 可移动 / 可缩放面板（2026-11-16） ----------------
    默认态一律保持原布局：视频填满中栏、白板切显、讲稿居中浮层。

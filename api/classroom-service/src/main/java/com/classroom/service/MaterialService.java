@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * 讲稿存储与分发（F4-04 / F4-05 / F4-06）。
@@ -23,10 +24,13 @@ public class MaterialService {
 
     private final MaterialMapper materialMapper;
     private final StorageService storageService;
+    private final TeachingSessionService teachingSession;
 
-    public MaterialService(MaterialMapper materialMapper, StorageService storageService) {
+    public MaterialService(MaterialMapper materialMapper, StorageService storageService,
+                           TeachingSessionService teachingSession) {
         this.materialMapper = materialMapper;
         this.storageService = storageService;
+        this.teachingSession = teachingSession;
     }
 
     public Material upload(String scheduleId, String fileName, String fileType, Long fileSize, String ossKey) {
@@ -39,6 +43,9 @@ public class MaterialService {
         m.setStatus("READY");
         m.setCurrentPage(0);
         materialMapper.insert(m);
+        // 新上传的讲稿即为当前展示稿：同步写 material:current，
+        // 否则切过稿后再上传，current() 仍指向旧稿（在线广播了新稿、刷新却回旧稿）
+        teachingSession.appendEvent(scheduleId, "material:current", Map.of("materialId", m.getMaterialId()));
         log.info("讲稿登记: scheduleId={}, materialId={}, fileName={}, size={}",
                 scheduleId, m.getMaterialId(), fileName, fileSize);
         return withUrl(m);
@@ -65,14 +72,66 @@ public class MaterialService {
         return list;
     }
 
-    /** 当前生效讲稿（最近一份 READY），学生进房时据此直接定位画面 */
+    /**
+     * 当前生效讲稿：优先取教师课堂内指定的那一份（事件流 material:current），
+     * 否则回退到最近一份 READY。写事件而非改表，避免 DDL 变更；刷新/迟到者也能定位到同一份。
+     */
     public Material current(String scheduleId) {
+        Map<String, Object> chosen = teachingSession.lastEventData(scheduleId, "material:current");
+        if (chosen != null && chosen.get("materialId") != null) {
+            try {
+                Long id = Long.valueOf(String.valueOf(chosen.get("materialId")));
+                Material picked = materialMapper.selectById(id);
+                if (picked != null && scheduleId.equals(picked.getScheduleId())
+                        && "READY".equals(picked.getStatus())) {
+                    return withUrl(picked);
+                }
+            } catch (NumberFormatException ignore) {
+                // 脏事件：忽略并回退默认口径
+            }
+        }
         LambdaQueryWrapper<Material> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Material::getScheduleId, scheduleId)
                .eq(Material::getStatus, "READY")
                .orderByDesc(Material::getCreatedAt)
                .last("LIMIT 1");
         return withUrl(materialMapper.selectOne(wrapper));
+    }
+
+    /** 教师指定当前展示的讲稿：写事件流（刷新/迟到者据此定位），返回讲稿供广播 */
+    public Material setCurrent(String scheduleId, Long materialId) {
+        Material m = materialMapper.selectById(materialId);
+        if (m == null || !scheduleId.equals(m.getScheduleId()) || !"READY".equals(m.getStatus())) return null;
+        teachingSession.appendEvent(scheduleId, "material:current", Map.of("materialId", materialId));
+        log.info("讲稿切换: scheduleId={}, materialId={}, fileName={}", scheduleId, materialId, m.getFileName());
+        return withUrl(m);
+    }
+
+    /**
+     * 删除讲稿：同步删对象存储文件 + 数据库行。若删的正是当前展示稿，
+     * 覆写 material:current 事件为 0（无效 id），让 current() 自动回退到下一份。
+     * @return 被删的讲稿（供控制器决定是否需要广播切换），不存在或非本课次返回 null
+     */
+    public Material delete(String scheduleId, Long materialId) {
+        Material m = materialMapper.selectById(materialId);
+        if (m == null || !scheduleId.equals(m.getScheduleId())) return null;
+        Map<String, Object> chosen = teachingSession.lastEventData(scheduleId, "material:current");
+        boolean wasCurrent = chosen != null && String.valueOf(materialId).equals(String.valueOf(chosen.get("materialId")));
+
+        if (m.getOssKey() != null && !m.getOssKey().isBlank()) {
+            try {
+                storageService.delete(m.getOssKey());
+            } catch (Exception e) {
+                // 文件删不掉也要删库记录，否则列表永远挂着一份打不开的资料
+                log.warn("讲稿文件删除失败: scheduleId={}, ossKey={}", scheduleId, m.getOssKey(), e);
+            }
+        }
+        materialMapper.deleteById(materialId);
+        if (wasCurrent) {
+            teachingSession.appendEvent(scheduleId, "material:current", Map.of("materialId", 0L));
+        }
+        log.info("讲稿删除: scheduleId={}, materialId={}, fileName={}", scheduleId, materialId, m.getFileName());
+        return m;
     }
 
     public Material getById(String scheduleId, Long materialId) {

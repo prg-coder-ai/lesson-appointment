@@ -118,7 +118,50 @@ public class MaterialController {
         return Result.success();
     }
 
-    /** 广播当前讲稿与页码：在线学生实时跟页；含 url 便于刚进来的人直接渲染 */
+    /** 教师/管理员删除讲稿（对象存储 + 数据库同步清理）；删的是当前稿则广播切换 */
+    @DeleteMapping("/{materialId}")
+    public Result<Void> delete(@PathVariable String scheduleId, @PathVariable Long materialId) {
+        if (!AuthContext.isTeacher() && !AuthContext.isManager()) {
+            return Result.fail(403, "仅教师可删除讲稿");
+        }
+        accessGuard.assertAccess(scheduleId, AuthContext.currentUserId(), AuthContext.currentRole());
+        Material before = materialService.current(scheduleId);
+        boolean wasCurrent = before != null && materialId.equals(before.getMaterialId());
+        Material removed = materialService.delete(scheduleId, materialId);
+        if (removed == null) {
+            return Result.fail(404, "讲稿不存在");
+        }
+        teachingSession.appendEvent(scheduleId, "material:delete",
+                Map.of("materialId", materialId,
+                        "fileName", removed.getFileName() == null ? "" : removed.getFileName()));
+        if (wasCurrent) {
+            Material now = materialService.current(scheduleId);
+            if (now != null) {
+                broadcastState(scheduleId, now, now.getCurrentPage() == null ? 1 : now.getCurrentPage());
+            } else {
+                broadcastCleared(scheduleId);
+            }
+        }
+        return Result.success();
+    }
+
+    /** 教师/管理员指定课堂内展示的讲稿：落事件 + 广播，全员切换 */
+    @PutMapping("/{materialId}/current")
+    public Result<Void> selectCurrent(@PathVariable String scheduleId, @PathVariable Long materialId) {
+        if (!AuthContext.isTeacher() && !AuthContext.isManager()) {
+            return Result.fail(403, "仅教师可切换讲稿");
+        }
+        accessGuard.assertAccess(scheduleId, AuthContext.currentUserId(), AuthContext.currentRole());
+        Material m = materialService.setCurrent(scheduleId, materialId);
+        if (m == null) {
+            return Result.fail(404, "讲稿不存在");
+        }
+        broadcastState(scheduleId, m, m.getCurrentPage() == null ? 1 : m.getCurrentPage());
+        teachingSession.appendEvent(scheduleId, "material:select", Map.of("materialId", materialId));
+        return Result.success();
+    }
+
+    /** 广播讲稿状态：在线学生实时跟页；含 url 便于刚进来的人直接渲染 */
     private void broadcastState(String scheduleId, Material m, int page) {
         if (m == null || m.getOssKey() == null) return;
         try {
@@ -134,6 +177,23 @@ public class MaterialController {
         } catch (Exception e) {
             // 广播失败不影响落库（下一帧翻页/刷新会纠正）
             log.warn("讲稿状态广播失败: scheduleId={}", scheduleId, e);
+        }
+    }
+
+    /** 当前讲稿被删且无替代稿：广播空态，前端显示「暂无讲稿」，不留残影 */
+    private void broadcastCleared(String scheduleId) {
+        try {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("type", "page:state");
+            payload.put("materialId", 0);
+            payload.put("fileName", "");
+            payload.put("fileType", "");
+            payload.put("url", "");
+            payload.put("page", 1);
+            payload.put("by", AuthContext.currentUserId());
+            registry.broadcastSignal(scheduleId, objectMapper.writeValueAsString(payload));
+        } catch (Exception e) {
+            log.warn("讲稿空态广播失败: scheduleId={}", scheduleId, e);
         }
     }
 }

@@ -1179,6 +1179,13 @@ function maskEmail(email) {
     turnPage: function (apiBaseUrl, scheduleId, materialId, page) {
       return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/materials/' + encodeURIComponent(materialId) + '/page'), method: 'put', data: { page: page } });
     },
+    // 2026-11-17：删除资料（教师/管理员）+ 指定课堂内展示哪一份
+    deleteMaterial: function (apiBaseUrl, scheduleId, materialId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/materials/' + encodeURIComponent(materialId)), method: 'delete' });
+    },
+    selectCurrentMaterial: function (apiBaseUrl, scheduleId, materialId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/materials/' + encodeURIComponent(materialId) + '/current'), method: 'put' });
+    },
 
     // ---- 点名 ----
     initiateRollCall: function (apiBaseUrl, scheduleId, targetUserId) {

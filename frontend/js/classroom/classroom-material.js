@@ -30,6 +30,8 @@
     init: function (ctx) {
       this.ctx = ctx || {};
       this._bind();
+      // 教师/管理员：拉资料列表填「选择展示」下拉（学生只看当前稿，不给选择器）
+      if (this._isTeacher()) this._loadMaterialList();
       // 进房先定位当前讲稿（迟到/刷新的人也能看到老师正在讲的那一页）
       var self = this;
       if (window.ClassroomAPI && typeof window.ClassroomAPI.getCurrentMaterial === 'function') {
@@ -52,7 +54,10 @@
     onSignal: function (msg) {
       if (!msg || !msg.type) return;
       if (msg.type === 'page:state') {
+        var changed = !this.state || this.state.materialId !== msg.materialId;
         this._apply(msg, true);
+        // 换稿/上传都带新 materialId：教师端顺手刷新下拉，让列表与画面一致
+        if (changed && this._isTeacher()) this._loadMaterialList(msg.materialId);
         return;
       }
       // 滚动同步：仅学生/非教师跟随；教师端不响应（自己是滚动源）
@@ -127,10 +132,17 @@
         img.classList.add('hidden');
         if (cv) cv.classList.add('hidden');
         empty.classList.remove('hidden');
-        empty.innerHTML = state.url
-          ? '该格式（' + this._escape(state.fileType || '未知') + '）不支持内联预览，' +
-            '<a href="' + this._escape(state.url) + '" target="_blank" rel="noopener">点此下载</a>'
-          : '暂无讲稿';
+        if (!state.url) {
+          empty.textContent = '暂无讲稿';
+        } else {
+          // 不支持内联的文件（PPT/Word 等）：下载名必须带原始扩展名，
+          // 否则浏览器按签名 URL 的 Base64 token 串存盘，本地系统认不出格式打不开。
+          // download 属性同源生效；跨域时由后端 download=1 的 Content-Disposition 兜底。
+          var dlName = this._downloadName(state);
+          var dlUrl = state.url + (state.url.indexOf('?') >= 0 ? '&' : '?') + 'download=1';
+          empty.innerHTML = '该格式（' + this._escape(state.fileType || '未知') + '）不支持内联预览，'
+            + '<a href="' + this._escape(dlUrl) + '" download="' + this._escape(dlName) + '" rel="noopener">点此下载</a>';
+        }
       }
 
       // 翻页（或换讲稿）时滚动复位到顶部：学生跟随翻页的同时也要跟随滚动复位，
@@ -279,6 +291,12 @@
       var up = $('ms-upload');
       if (up) up.addEventListener('click', function () { self._pickFile(); });
 
+      // 选择多份资料中的一份展示（教师/管理员；学生端选择器被 CSS 隐藏）
+      var picker = $('ms-material-picker');
+      if (picker) picker.addEventListener('change', function () {
+        self._selectMaterial(picker.value);
+      });
+
       var input = $('ms-file-input');
       if (input) input.addEventListener('change', function () {
         var f = input.files && input.files[0];
@@ -322,6 +340,39 @@
           if (self.state && self.state.url) self._renderPdf(self.state.url, self.state.page || 1);
         }, 200);
       });
+    },
+
+    /**
+     * 加载资料列表填「选择展示」下拉（2026-11-17）。
+     * @param preferredId 期望选中的 materialId（换稿广播时传入）；缺省沿用当前 state
+     */
+    _loadMaterialList: function (preferredId) {
+      var self = this;
+      if (!window.ClassroomAPI || typeof window.ClassroomAPI.getMaterials !== 'function') return;
+      window.ClassroomAPI.getMaterials(this.ctx.apiBaseUrl, this.ctx.scheduleId)
+        .then(function (list) {
+          var sel = document.getElementById('ms-material-picker');
+          if (!sel) return;
+          var arr = Array.isArray(list) ? list : [];
+          var want = String(preferredId || (self.state && self.state.materialId) || '');
+          var html = '<option value="">选择资料…</option>';
+          arr.forEach(function (m) {
+            var id = String(m.materialId || '');
+            html += '<option value="' + self._escape(id) + '"' + (id === want ? ' selected' : '') + '>'
+              + self._escape(m.fileName || '未命名') + '</option>';
+          });
+          sel.innerHTML = html;
+        })
+        .catch(function () { /* 列表拉取失败不打扰上课，保留原下拉 */ });
+    },
+
+    /** 切换展示资料：只发请求，画面等后端 page:state 广播回来再更新（单一真相源） */
+    _selectMaterial: function (materialId) {
+      if (!this._isTeacher() || !materialId) return;
+      if (window.ClassroomAPI && typeof window.ClassroomAPI.selectCurrentMaterial === 'function') {
+        window.ClassroomAPI.selectCurrentMaterial(this.ctx.apiBaseUrl, this.ctx.scheduleId, materialId)
+          .catch(function () { /* 广播会纠正，失败不额外弹窗 */ });
+      }
     },
 
     _pickFile: function () {
@@ -372,6 +423,19 @@
     _isTeacher: function () {
       var r = (this.ctx && this.ctx.role) || '';
       return r === 'teacher' || r === 'admin' || r === 'platform_admin';
+    },
+
+    /**
+     * 下载文件名（2026-11-17）：保证带原始扩展名，本地系统才能识别并打开。
+     * fileName 来自上传时的原始文件名（含扩展名）；若缺失则从 fileType 兜底推断。
+     */
+    _downloadName: function (state) {
+      var name = String((state && state.fileName) || '').trim() || '讲稿';
+      // 已带扩展名（末段 .xxx，且不是点开头的隐藏文件）直接返回
+      if (/\.[A-Za-z0-9]{1,10}$/.test(name) && name.lastIndexOf('.') > 0) return name;
+      var extByType = { PDF: 'pdf', PPT: 'pptx', IMAGE: 'png', VIDEO: 'mp4', AUDIO: 'mp3' };
+      var ext = extByType[String((state && state.fileType) || '').toUpperCase()] || 'bin';
+      return name + '.' + ext;
     },
 
     _escape: function (s) {

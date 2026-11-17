@@ -36,7 +36,8 @@ public class FileAccessController {
     public ResponseEntity<StreamingResponseBody> get(@PathVariable String token,
                                                      @RequestParam long exp,
                                                      @RequestParam String sig,
-                                                     @RequestHeader(value = "Range", required = false) String range) {
+                                                     @RequestHeader(value = "Range", required = false) String range,
+                                                     @RequestParam(value = "download", required = false, defaultValue = "0") String download) {
         String key = storageService.keyFromToken(token);
         if (key == null || !storageService.verify(key, exp, sig)) {
             log.warn("文件访问签名无效: key={}, exp={}", key, exp);
@@ -107,7 +108,19 @@ public class FileAccessController {
         if (partial) {
             builder.header("Content-Range", "bytes " + from + "-" + end + "/" + total);
         }
+        // download=1：浏览器按签名 URL 的 Base64 token 存盘会丢扩展名，本地系统打不开。
+        // 显式回 Content-Disposition，文件名取存储 key 的末段（含原始扩展名）。
+        if ("1".equals(download)) {
+            builder.header("Content-Disposition", "attachment; filename=\"" + safeDownloadName(key) + "\"");
+        }
         return builder.body(body);
+    }
+
+    /** 取 key 末段做下载文件名，清洗掉路径分隔符与引号，避免注入响应头 */
+    private String safeDownloadName(String key) {
+        String name = key == null ? "" : key.substring(key.lastIndexOf('/') + 1);
+        name = name.replaceAll("[\\r\\n\";\\\\/]", "_").trim();
+        return name.isEmpty() ? "download" : name;
     }
 
     private String contentTypeOf(String key) {
