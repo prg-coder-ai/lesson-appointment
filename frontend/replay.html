@@ -15,6 +15,9 @@
       background: #161b22; border-bottom: 1px solid #30363d;
     }
     #rp-header h1 { font-size: 15px; margin: 0; font-weight: 600; }
+    /* 课次可读标识（2026-11-17）：课程名 · 第N课次，替代直接暴露 UUID */
+    #rp-class { font-size: 12.5px; color: #9da7b3; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #rp-class:empty { display: none; }
     #rp-header .spacer { flex: 1; }
     #rp-schedule {
       width: 320px; padding: 6px 10px; border-radius: 6px; font-size: 13px;
@@ -61,6 +64,7 @@
 <body>
   <header id="rp-header">
     <h1>课堂回放</h1>
+    <span id="rp-class"></span>
     <input id="rp-schedule" placeholder="课次 ID（scheduleId）" autocomplete="off">
     <button id="rp-load" type="button">查询</button>
     <span class="spacer"></span>
