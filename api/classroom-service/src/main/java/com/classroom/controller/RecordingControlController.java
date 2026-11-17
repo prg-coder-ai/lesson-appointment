@@ -54,26 +54,31 @@ public class RecordingControlController {
     }
 
     @PostMapping("/start")
-    public Result<Map<String, Object>> start(@PathVariable String scheduleId) {
+    public Result<Map<String, Object>> start(@PathVariable String scheduleId,
+                                             @RequestBody(required = false) StartReq req) {
         if (!canRecord()) {
             return Result.fail(403, "仅教师可开始录制");
         }
         String userId = AuthContext.currentUserId();
         accessGuard.assertAccess(scheduleId, userId, AuthContext.currentRole());
+        // captureMode 是「录什么」（video=人像 / screen=教学区域），与后端 client/cloud 的 mode 无关
+        String captureMode = (req != null && "screen".equals(req.getCaptureMode())) ? "screen" : "video";
 
         Recording r = recordingService.start(scheduleId, userId);
-        broadcast(scheduleId, true, r.getRecordingId());
+        broadcast(scheduleId, true, r.getRecordingId(), captureMode);
         teachingSession.appendEvent(scheduleId, "record:start",
-                Map.of("recordingId", r.getRecordingId(), "mode", backendRegistry.activeMode()));
+                Map.of("recordingId", r.getRecordingId(), "mode", backendRegistry.activeMode(),
+                        "captureMode", captureMode));
 
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("recordingId", r.getRecordingId());
         m.put("mode", backendRegistry.activeMode());
+        m.put("captureMode", captureMode);
         m.put("startTime", r.getStartTime());
         m.put("maxUploadBytes", recordingProperties.getMaxUploadBytes());
-        m.put("notice", "CLIENT".equals(backendRegistry.activeMode())
-                ? "本地录制：只录教师画面与声音，学生画面不进入录制文件"
-                : "云端录制：由媒体服务器合流");
+        m.put("notice", "screen".equals(captureMode)
+                ? "教学区域录制：录教师共享的屏幕/窗口与系统声音（麦克风需另行开启）"
+                : "人像录制：只录教师画面与声音，学生画面不进入录制文件");
         return Result.ok(m);
     }
 
@@ -92,7 +97,7 @@ public class RecordingControlController {
         } catch (IllegalArgumentException e) {
             return Result.fail(400, e.getMessage());
         }
-        broadcast(scheduleId, false, recordingId);
+        broadcast(scheduleId, false, recordingId, null);
         teachingSession.appendEvent(scheduleId, "record:stop",
                 Map.of("recordingId", recordingId, "ossKey", ossKey == null ? "" : ossKey));
         return Result.ok(r);
@@ -113,13 +118,20 @@ public class RecordingControlController {
         return AuthContext.isTeacher() || AuthContext.isManager();
     }
 
-    private void broadcast(String scheduleId, boolean on, Long recordingId) {
+    /** start 请求体：captureMode=video/screen，缺省 video（老客户端零改动） */
+    @Data
+    public static class StartReq {
+        private String captureMode;
+    }
+
+    private void broadcast(String scheduleId, boolean on, Long recordingId, String captureMode) {
         try {
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("type", "record:state");
             payload.put("on", on);
             payload.put("recordingId", recordingId);
             payload.put("mode", backendRegistry.activeMode());
+            if (captureMode != null) payload.put("captureMode", captureMode);
             payload.put("by", AuthContext.currentUserId());
             registry.broadcastSignal(scheduleId, objectMapper.writeValueAsString(payload));
         } catch (Exception e) {

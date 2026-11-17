@@ -473,6 +473,12 @@ html, body {
   border-top: 1px solid #30363d;
   padding: 8px 16px;
 }
+/* 录制模式选择（P1）：与按钮同高的下拉，明确"人像/教学区域"二选一 */
+.cl-record-mode {
+  height: 38px; padding: 0 8px; border-radius: 6px; cursor: pointer;
+  border: 1px solid #3d444d; background: #2d333b; color: #e8eaed; font-size: 12px;
+}
+.cl-record-mode:disabled { opacity: .45; cursor: not-allowed; }
 .cl-ctrl {
   display: inline-flex;
   flex-direction: column;

@@ -40,6 +40,11 @@
       }
       if (role === 'teacher' || role === 'admin') {
         html += this._btn('ctrl-mute-all', 'fas fa-microphone-slash', '全员静音', false);
+        // 录制模式选择（2026-11-17 P1）：人像录制 / 教学区域录制，默认保持现状
+        html += '<select id="ctrl-record-mode" class="cl-ctrl cl-record-mode" title="选择录制模式">'
+          + '<option value="video">人像录制</option>'
+          + '<option value="screen">教学区域</option>'
+          + '</select>';
         html += this._btn('ctrl-record', 'fas fa-circle', '录制', false);
       }
       if (role === 'teacher') {

@@ -42,19 +42,54 @@
         this.stop();
         return false;
       }
-      this.start();
+      // 开录前读模式下拉（P1）：screen=教学区域（共享屏幕），video=仅人像（默认）
+      var sel = document.getElementById('ctrl-record-mode');
+      var mode = sel ? sel.value : 'video';
+      this.start(mode);
       return true;
     },
 
     // ---------------- 开始 ----------------
-    start: function () {
+    start: function (mode) {
       var self = this;
-      var stream = this._pickStream();
+      mode = (mode === 'screen') ? 'screen' : 'video';
+      this.mode = mode;
+      var stream = this._pickStream(mode);
+      // screen 模式 getDisplayMedia 返回 Promise：等用户授权后再开录
+      if (stream && typeof stream.then === 'function') {
+        stream.then(function (s) { self._doStart(s, mode); })
+              .catch(function (e) {
+                var msg = (e && e.name === 'NotAllowedError') ? '已取消共享，未开始录制' : ('无法共享教学区域：' + ((e && e.message) || e));
+                self._toast(msg);
+              });
+        return;
+      }
       if (!stream) {
         this._toast('没有可录制的内容（摄像头/麦克风未就绪）');
         return;
       }
-      this._api('start').then(function (resp) {
+      this._doStart(stream, mode);
+    },
+
+    /** 拿到录制流后的实际开录流程（mode 与 start 共用） */
+    _doStart: function (stream, mode) {
+      var self = this;
+      if (!stream || !stream.getTracks || !stream.getTracks().length) {
+        this._toast('没有可录制的内容（流为空）');
+        return;
+      }
+      // 共享屏幕被浏览器/用户停止时自动收尾，不让记录悬在 RECORDING 状态
+      if (mode === 'screen' && stream.getVideoTracks && stream.getVideoTracks().length) {
+        var track = stream.getVideoTracks()[0];
+        if (track && typeof track.addEventListener === 'function') {
+          track.addEventListener('ended', function () {
+            if (self.isRecording()) self.stop();
+          });
+        }
+      }
+      var capturedStream = stream;   // screen 模式是独占的共享流，失败时需主动释放
+      this._lastStream = stream;
+      this._api('start', mode).then(function (resp) {
         self.recordingId = resp.recordingId;
         self.chunks = [];
         self.startedAt = Date.now();
@@ -69,6 +104,7 @@
         } catch (e) {
           self._toast('当前浏览器不支持录制：' + (e && e.message ? e.message : ''));
           self.recordingId = null;
+          self._releaseStream(capturedStream, mode);
           return;
         }
         self.recorder.ondataavailable = function (ev) {
@@ -77,11 +113,21 @@
         self.recorder.onstop = function () { self._onRecorderStop(); };
         self.recorder.start(1000); // 每秒切一块，避免长时间内存里攒一个巨大 blob
         self._tick();
-        self._toast((resp.notice || '录制已开始') + '（学员端会看到录制提示）');
+        var hint = (mode === 'screen')
+          ? '教学区域录制已开始（共享画面 + 系统声音，若需人声请开麦克风）'
+          : (resp.notice || '人像录制已开始');
+        self._toast(hint + '（学员端会看到录制提示）');
         self._updateUi(true);
       }).catch(function (e) {
+        self._releaseStream(capturedStream, mode);
         self._toast('开始录制失败：' + ((e && e.message) || ''));
       });
+    },
+
+    /** screen 模式独占流，开录失败/录制结束时要 stop，否则浏览器共享指示器一直亮 */
+    _releaseStream: function (stream, mode) {
+      if (mode !== 'screen' || !stream || !stream.getTracks) return;
+      stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
     },
 
     // ---------------- 停止 ----------------
@@ -99,6 +145,8 @@
       var self = this;
       var blob = new Blob(this.chunks, { type: 'video/webm' });
       this.chunks = [];
+      this._releaseStream(this._lastStream, this.mode);
+      this._lastStream = null;
       this.recorder = null;
       this._updateUi(false);
 
@@ -160,13 +208,14 @@
     },
 
     // ---------------- HTTP ----------------
-    _api: function (action, body) {
+    _api: function (action, arg) {
       var base = this.ctx.apiBaseUrl || '';
       var root = urlOf(base, EP.CLASSROOM_RECORDING(this.ctx.scheduleId));
       if (action === 'start') {
-        return this._postJson(root + '/start', {});
+        // captureMode 是「录什么」（video/screen），与后端 client/cloud 的 mode 不是一回事
+        return this._postJson(root + '/start', { captureMode: arg || 'video' });
       }
-      return this._postJson(root + '/' + encodeURIComponent(this.recordingId) + '/stop', body || {});
+      return this._postJson(root + '/' + encodeURIComponent(this.recordingId) + '/stop', arg || {});
     },
 
     _postJson: function (url, body) {
@@ -200,8 +249,22 @@
     },
 
     // ---------------- 本地流选择 ----------------
-    /** 优先用已渲染的本地画面流（mesh/SDK 都把本地轨道 attach 到了该 video） */
-    _pickStream: function () {
+    /**
+     * 按模式取录制流：
+     *  - video（默认）：本地摄像头+麦克风（原逻辑）
+     *  - screen：getDisplayMedia 共享的屏幕/窗口（教学区域），返回 Promise
+     */
+    _pickStream: function (mode) {
+      if (mode === 'screen') {
+        if (!navigator.mediaDevices || typeof navigator.mediaDevices.getDisplayMedia !== 'function') {
+          this._toast('当前浏览器不支持共享屏幕录制（需 Chrome/Edge 且为 HTTPS）');
+          return null;
+        }
+        return navigator.mediaDevices.getDisplayMedia({
+          video: { frameRate: 15 },
+          audio: true   // Chrome 共享标签页可带系统音频；整屏通常无声，UI 提示教师开麦
+        });
+      }
       var v = document.getElementById('vt-local-video');
       if (v && v.srcObject && v.srcObject.getTracks && v.srcObject.getTracks().length) {
         return v.srcObject;
