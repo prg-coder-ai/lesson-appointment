@@ -29,8 +29,10 @@
       role = role || (this.ctx && this.ctx.role) || 'student';
       var html = '';
       if (role === 'teacher' || role === 'student') {
-        html += this._btn('ctrl-mic', 'fas fa-microphone', '麦克风', true);
-        html += this._btn('ctrl-cam', 'fas fa-video', '摄像头', true);
+        // 初始高亮跟随 RTC 真实开关：进课堂默认关闭麦克风与摄像头，图标不能一上来就亮
+        var rtc = window.ClassroomRTC;
+        html += this._btn('ctrl-mic', 'fas fa-microphone', '麦克风', !!(rtc && rtc.micEnabled));
+        html += this._btn('ctrl-cam', 'fas fa-video', '摄像头', !!(rtc && rtc.camEnabled));
       }
       html += this._btn('ctrl-whiteboard', 'fas fa-chalkboard', '白板', false);
       html += this._btn('ctrl-material', 'fas fa-file-lines', '讲稿', false);
@@ -120,11 +122,20 @@
           self.toast('麦克风不可用，请到「课程准备」页检查设备与浏览器权限');
           return;
         }
+        // 学生「发言中」关麦 = 放下手：统一走学生模块，同时撤销举手与授权。
+        // 只调 setMicEnabled(false) 的话，教师端会一直显示「已批准」，下次举手变成"自动通过"。
+        if (self.ctx && self.ctx.role === 'student' && window.ClassroomStudent
+            && typeof window.ClassroomStudent.state === 'function'
+            && window.ClassroomStudent.state() === 'speaking' && window.ClassroomRTC.micEnabled) {
+          window.ClassroomStudent.cancelSpeaking('mic_off');
+          return;
+        }
         var on = window.ClassroomRTC.micEnabled;
         // F4-17：服务端全员禁言 → 学生不可自解麦克风
         if (!on && window.ClassroomRTC.serverMuted && self.ctx && self.ctx.role === 'student') {
           self.toast('全员禁言中，无法开启麦克风'); return;
         }
+        // 学生未获批准时开麦会被 RTC 门禁拦下并给提示（不会真的打开）
         window.ClassroomRTC.setMicEnabled(!on);
         window.ClassroomRTC.syncMicUI();
       });
@@ -156,10 +167,12 @@
         mat.classList.toggle('active', on);
       });
 
-      var hand = $('ctrl-hand');      if (hand && window.ClassroomStudent) {
+      // 举手 / 等待批准 / 发言中：三态与文案由 student 模块统一渲染，这里不再重复切 class
+      var hand = $('ctrl-hand');
+      if (hand && window.ClassroomStudent) {
         hand.addEventListener('click', function () {
           if (!self._gateAllowed()) return;
-          var raised = window.ClassroomStudent.toggleHand();
+          window.ClassroomStudent.toggleHand();
         });
       }
 

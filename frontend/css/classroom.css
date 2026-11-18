@@ -502,6 +502,15 @@ html, body {
 .cl-ctrl.danger:hover { background: #f85149; }
 .cl-ctrl:disabled { opacity: .4; cursor: not-allowed; }
 
+/* 举手三态（2026-11-18）：待批准黄色 / 发言中红色，与名单里的批准按钮同色系 */
+.cl-ctrl.waiting { background: #d29922; color: #1f1f1f; border-color: #d29922; font-weight: 600; }
+.cl-ctrl.waiting:hover { background: #e3aa2b; }
+.cl-ctrl.speaking {
+  background: #da3633; color: #fff; border-color: #da3633; font-weight: 600;
+  box-shadow: 0 0 0 2px rgba(218, 54, 51, .35);
+}
+.cl-ctrl.speaking:hover { background: #f85149; }
+
 /* 通用按钮（顶部栏返回按钮） */
 .cl-btn {
   border: 1px solid #30363d;
@@ -655,6 +664,8 @@ html, body {
 /* 举手待批准：黄色高亮，与名单行的 ✋ 标记同色；已批准：绿色 */
 .pt-approve.active { background: #d29922; color: #1f1f1f; border-color: #d29922; font-weight: 600; }
 .pt-approve.granted { background: #238636; color: #fff; border-color: #238636; }
+/* 已批准仍是可点按钮：hover 变红提示「再点即收回发言权」 */
+.pt-approve.granted:hover { background: #b62324; border-color: #b62324; }
 .pt-wbgrant:hover { background: #1f6feb; color: #fff; }
 .pt-wbgrant.active { background: #238636; color: #fff; border-color: #238636; }
 

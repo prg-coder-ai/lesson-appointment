@@ -31,15 +31,18 @@ public class ClassroomService {
     private final ClassroomClosingService closingService;
     private final MediaService mediaService;
     private final ClassroomPublishGuard publishGuard;
+    private final ClassroomLiveState liveState;
 
     public ClassroomService(ClassroomMapper classroomMapper,
                             ClassroomClosingService closingService,
                             MediaService mediaService,
-                            ClassroomPublishGuard publishGuard) {
+                            ClassroomPublishGuard publishGuard,
+                            ClassroomLiveState liveState) {
         this.classroomMapper = classroomMapper;
         this.closingService = closingService;
         this.mediaService = mediaService;
         this.publishGuard = publishGuard;
+        this.liveState = liveState;
     }
 
     public Classroom getById(String scheduleId) {
@@ -179,6 +182,9 @@ public class ClassroomService {
         mediaService.destroyRoom(scheduleId);
         // 出勤收尾 + 课时回流：失败只记 ERROR 不回滚（状态已 CLOSED、人已离开），可人工补跑
         closingService.closeAfterEnd(scheduleId, closeAt);
+        // 释放该课次的内存态（举手/开麦授权/白板授权/白板快照/禁言缓存）。
+        // 不清会随课次累积，且课次复用（补课、重开）时把上一节的授权串过来。
+        liveState.clearSession(scheduleId);
     }
 
     public List<Classroom> listByStatus(String status, Long tenantId) {

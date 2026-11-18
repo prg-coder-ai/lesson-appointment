@@ -120,6 +120,17 @@ public class ClassroomLiveState {
         return m;
     }
 
+    /**
+     * 撤销本课次全部开麦授权（全员静音 / 结束课用），返回被撤销的 userId 列表。
+     *
+     * <p>调用方需按返回值逐个广播 {@code mic:grant{granted:false}}——只清内存不广播，
+     * 各端图标会停在「发言中」而不自知。</p>
+     */
+    public java.util.List<String> revokeAllMicGrants(String scheduleId) {
+        Set<String> s = micGranted.remove(scheduleId);
+        return (s == null || s.isEmpty()) ? Collections.emptyList() : new java.util.ArrayList<>(s);
+    }
+
     // ------------------------------------------------------------------
     // 摄像头
     // ------------------------------------------------------------------
@@ -166,5 +177,27 @@ public class ClassroomLiveState {
 
     public void setWhiteboardSnapshot(String scheduleId, String snapshot) {
         wbSnapshot.put(scheduleId, snapshot);
+    }
+
+    // ------------------------------------------------------------------
+    // 课次收尾
+    // ------------------------------------------------------------------
+
+    /**
+     * 清空某个课次的全部内存态（下课/关课时调用）。
+     *
+     * <p>不清会导致两类问题：① 同一 scheduleId 长跑内存只增不减；② 课次复用（重开/补课）
+     * 时把上一节的举手、授权、白板授权串过来。全员禁言随 DB 走，这里一并移除，
+     * 下次 {@link #ensureMuteLoaded} 会从 {@code classroom_runtime_state} 重新读回。</p>
+     */
+    public void clearSession(String scheduleId) {
+        if (scheduleId == null) return;
+        muteAll.remove(scheduleId);
+        handRaised.remove(scheduleId);
+        micGranted.remove(scheduleId);
+        cameraOff.remove(scheduleId);
+        wbGrants.remove(scheduleId);
+        wbSnapshot.remove(scheduleId);
+        log.debug("课堂实时态已清空: scheduleId={}", scheduleId);
     }
 }

@@ -349,18 +349,23 @@
 
       switch (msg.type) {
         case 'hand:state':
+          // 举手被撤销（学生放下手 / 教师撤回）时同步清掉授权，防丢包导致下次"自动批准"
+          if (!msg.raised) delete this.micGrants[msg.userId];
           this._markHand(msg.userId, msg.raised);
           break;
         case 'cam:state':
-          this._markCamera(msg.userId, msg.on);
+          this._markCamera(msg.userId, msg.on, msg.silent);
           break;
         case 'mute:state':
           this._setServerMute(msg.muted);
           break;
         case 'mic:grant':
-          // 服务端权威开麦授权：举手期间有效，放下手会广播 granted=false
+          // 服务端权威开麦授权：举手期间有效，放下手/教师撤回/全员静音都会广播 granted=false
           var granted = msg.granted !== false;
-          this.micGrants[msg.userId] = granted;
+          if (granted) this.micGrants[msg.userId] = true;
+          else delete this.micGrants[msg.userId];
+          // 教师撤回：举手一并清零，教师端该行按钮整体隐藏，需学生重新举手
+          if (!granted && msg.reason === 'teacher_revoke') delete this.hands[msg.userId];
           this._renderParticipants();
           if (msg.userId === this.ctx.userId && window.ClassroomRTC) {
             if (granted) {
@@ -368,7 +373,18 @@
               if (!msg.silent) window.clToast('教师已允许你发言，麦克风已开启');
             } else {
               window.ClassroomRTC.revokeMic();
-              if (!msg.silent) window.clToast('已放下手，麦克风已关闭');
+              if (msg.reason === 'teacher_revoke' && window.ClassroomStudent) {
+                // 教师撤回 = 回到完全未举手的默认态（不是"待批准"）
+                window.ClassroomStudent.setHandRaised(false);
+                if (!msg.silent) window.clToast('老师已收回你的发言权，麦克风已关闭');
+              } else if (msg.reason === 'mute_all') {
+                if (!msg.silent) window.clToast('老师已开启全员静音，麦克风已关闭');
+              }
+              // hand_down：学生自己放下手，student 模块已给过提示，这里不再重复弹
+            }
+            // RTC 授权态已更新，重绘学生按钮三态（举手/等待批准/发言中）
+            if (window.ClassroomStudent && typeof window.ClassroomStudent.refreshUI === 'function') {
+              window.ClassroomStudent.refreshUI();
             }
           }
           break;
@@ -422,9 +438,11 @@
     },
 
     // F4-03：服务端权威摄像头态（重连/迟到者也能收到）
-    _markCamera: function (userId, on) {
+    _markCamera: function (userId, on, silent) {
       var li = document.querySelector('#participant-list li[data-uid="' + this._cssEscape(userId) + '"]');
       if (li) li.classList.toggle('pt-cam-off', !on);
+      // silent：进房默认关闭摄像头这种批量场景，只更新标记不弹提示（否则每进一个人全班都弹一条）
+      if (silent) return;
       var b = this._briefCache[userId];
       var name = (b && (b.account || b.name))
         || (this.participants[userId] && this.participants[userId].name) || userId;
@@ -549,10 +567,11 @@
         // F2-04：教师/管理员对学生可补签
         var adjustBtn = (isTeacher && p.role === 'student')
           ? '<button class="pt-adjust" data-uid="' + self._cssEscape(id) + '">补签</button>' : '';
-        // F4-14：学生举手后，教师端「批准开麦」高亮；已批准显示绿色「已批准」
+        // F4-14：学生举手后，教师端「批准开麦」高亮；已批准显示绿色「已批准」，再点即收回
         var approved = !!self.micGrants[id];
         var approveBtn = (isTeacher && p.role === 'student' && self.hands[id])
-          ? '<button class="pt-approve ' + (approved ? 'granted' : 'active') + '" data-uid="' + self._cssEscape(id) + '">'
+          ? '<button class="pt-approve ' + (approved ? 'granted' : 'active') + '" data-uid="' + self._cssEscape(id)
+            + '" title="' + (approved ? '点击收回该生发言权并取消其举手' : '批准该生发言') + '">'
             + (approved ? '已批准' : '批准开麦') + '</button>' : '';
         // F4-08：教师可授予/收回学生白板编辑权
         var grantBtn = (isTeacher && p.role === 'student')
@@ -573,14 +592,18 @@
           self._doManualAdjust(self.ctx.apiBaseUrl, self.ctx.scheduleId, uid, reason);
         });
       });
-      // F4-14：教师「批准开麦」→ 广播 mic:grant（学生端自动开麦）
+      // F4-14：教师点「批准开麦」→ 广播 granted:true；已批准态再点 → granted:false 收回发言权
       Array.prototype.forEach.call(list.querySelectorAll('.pt-approve'), function (btn) {
         btn.addEventListener('click', function () {
           var uid = btn.getAttribute('data-uid');
+          var approved = !!self.micGrants[uid];
           if (window.ClassroomWS) {
-            window.ClassroomWS.sendSignal(self.ctx.scheduleId, { type: 'hand:approve', userId: uid });
+            window.ClassroomWS.sendSignal(self.ctx.scheduleId, {
+              type: 'hand:approve', userId: uid, granted: !approved
+            });
           }
-          self.toast('已批准 ' + (self.participants[uid] ? self.participants[uid].name : uid) + ' 发言');
+          var who = (self.participants[uid] && self.participants[uid].name) || uid;
+          self.toast(approved ? ('已收回 ' + who + ' 的发言权') : ('已批准 ' + who + ' 发言'));
         });
       });
       // F4-08：教师授予/收回白板编辑权 → 广播 wb:grant:state
