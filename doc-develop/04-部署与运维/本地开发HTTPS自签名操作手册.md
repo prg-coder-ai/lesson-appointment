@@ -21,7 +21,7 @@
 |---|---|---|
 | 公网服务器 `deploy/nginx/booking.conf` | **本来就是 HTTPS**：80 → 301 跳 https、certbot 证书、HSTS + 6 个安全响应头 | 不需要 |
 | 微信云托管 `cloudBased/frontend` | **对外就是 HTTPS**：云托管分发的 `*.sh.run.tcloudbase.com` 自带证书；容器内 nginx 反代内网 http 属于正常设计 | 不需要 |
-| 本地 `doc-develop/90-工具与脚本/dev-proxy.js` | 已切 HTTPS（`https.createServer` 监听 8080，自签证书） | **本手册处理的就是这个** |
+| 本地 `doc-develop/90-tools/dev-proxy.js` | 已切 HTTPS（`https.createServer` 监听 8080，自签证书） | **本手册处理的就是这个** |
 
 ---
 
@@ -132,7 +132,7 @@ rm -f certs/dev.csr certs/san.ext certs/ca.srl
 
 `.gitignore` 已加 `doc-develop/certs/`（第 166 行），整个目录不入库——私钥一旦进 git 历史就等于永久泄露。
 
-### 3.2 代理支持 HTTPS（`doc-develop/90-工具与脚本/dev-proxy.js`）
+### 3.2 代理支持 HTTPS（`doc-develop/90-tools/dev-proxy.js`）
 
 改造点三处：
 
@@ -165,14 +165,14 @@ startProxy({ ..., tls: DEV_TLS, ... });
 
 ```bash
 # 停掉当前 8080 上的旧代理，然后（默认即 HTTPS，无需加开关）：
-node doc-develop/90-工具与脚本/dev-frontend-local.js                   # dist 产物模式
-node doc-develop/90-工具与脚本/dev-frontend-local-src.js               # 源码直出模式
+node doc-develop/90-tools/dev-frontend-local.js                   # dist 产物模式
+node doc-develop/90-tools/dev-frontend-local-src.js               # 源码直出模式
 
 # 换端口（多个环境并行时）
-DEV_PORT=8443 node doc-develop/90-工具与脚本/dev-frontend-local-src.js
+DEV_PORT=8443 node doc-develop/90-tools/dev-frontend-local-src.js
 
 # 跑 tests/ 或 deploy/run-all.bat 前需退回 HTTP：
-DEV_TLS=0 node doc-develop/90-工具与脚本/dev-frontend-local.js
+DEV_TLS=0 node doc-develop/90-tools/dev-frontend-local.js
 ```
 
 访问地址：
@@ -197,7 +197,7 @@ DEV_TLS=0 node doc-develop/90-工具与脚本/dev-frontend-local.js
 
 ```bash
 # 1) 端口起没起、证书加载成功（横幅会打印 https:// 地址）
-DEV_PORT=8443 NO_PROBE=1 node doc-develop/90-工具与脚本/dev-frontend-local-src.js
+DEV_PORT=8443 NO_PROBE=1 node doc-develop/90-tools/dev-frontend-local-src.js
 
 # 2) TLS 能握手、静态页可访问（-k 跳过校验）
 curl -k -s -o /dev/null -w "%{http_code}\n" https://127.0.0.1:8443/          # 期望 200
@@ -249,7 +249,7 @@ curl -k -i -s -m 5 -H "Connection: Upgrade" -H "Upgrade: websocket" \
 ```bash
 bash doc-develop/04-部署与运维/gen-dev-cert.sh   # 自动把新 IP 写进 SAN，复用 CA
 # 然后重启代理（默认即 HTTPS）
-node doc-develop/90-工具与脚本/dev-frontend-local.js
+node doc-develop/90-tools/dev-frontend-local.js
 ```
 
 其他电脑不需要重新导入 `ca.crt`（CA 没变）；只是访问地址要换成新 IP。

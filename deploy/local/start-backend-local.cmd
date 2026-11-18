@@ -17,7 +17,7 @@ REM    booking_api       -> 127.0.0.1:8081
 REM    message-service   -> 127.0.0.1:8090
 REM    classroom-service -> 127.0.0.1:8092（可选）
 REM  停掉：关闭对应窗口，或 taskkill /F /IM java.exe
-REM  前端代理另开窗口：node doc-develop\90-工具与脚本\dev-frontend-local-src.js
+REM  前端代理另开窗口：node doc-develop\90-tools\dev-frontend-local-src.js
 REM  一条命令起全套：deploy\local\run-all.cmd
 REM
 REM  产物来源（2026-11-05）：优先 deploy\jars（构建脚本统一收口），回退各模块 target；
@@ -102,6 +102,6 @@ echo 后端正在启动，请等待约 20 秒后验证：
 echo   curl http://127.0.0.1:8081/
 echo   curl http://127.0.0.1:8090/
 echo   curl http://127.0.0.1:8092/api/v1/rtc/providers
-echo 然后另开窗口启动前端：node doc-develop\90-工具与脚本\dev-frontend-local-src.js
+echo 然后另开窗口启动前端：node doc-develop\90-tools\dev-frontend-local-src.js
 echo （或直接用 run-all.cmd，后端 + 前端一条命令）
 pause

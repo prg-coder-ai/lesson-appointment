@@ -20,11 +20,11 @@
  * normalizeTarget()，这里不需要、也不应该再关心。
  *
  * ── 用法 ────────────────────────────────────────────────────────────────────
- *   node doc-develop/90-工具与脚本/dev-frontend-remote-tcb.js                    # 默认即云托管两个地址
- *   DIST=1 node doc-develop/90-工具与脚本/dev-frontend-remote-tcb.js             # 伺服 frontend/dist
- *   API_URL=https://其它域名 MSG_URL=https://其它域名 node doc-develop/90-工具与脚本/dev-frontend-remote-tcb.js
- *   NO_PROBE=1 node doc-develop/90-工具与脚本/dev-frontend-remote-tcb.js         # 跳过启动探活
- *   DEV_PORT=8099 node doc-develop/90-工具与脚本/dev-frontend-remote-tcb.js      # 换监听端口
+ *   node doc-develop/90-tools/dev-frontend-remote-tcb.js                    # 默认即云托管两个地址
+ *   DIST=1 node doc-develop/90-tools/dev-frontend-remote-tcb.js             # 伺服 frontend/dist
+ *   API_URL=https://其它域名 MSG_URL=https://其它域名 node doc-develop/90-tools/dev-frontend-remote-tcb.js
+ *   NO_PROBE=1 node doc-develop/90-tools/dev-frontend-remote-tcb.js         # 跳过启动探活
+ *   DEV_PORT=8099 node doc-develop/90-tools/dev-frontend-remote-tcb.js      # 换监听端口
  *
  * 启动后：浏览器打开 http://localhost:8080 ，前端请求 /api/v1/* 会被同源转发到云端。
  *

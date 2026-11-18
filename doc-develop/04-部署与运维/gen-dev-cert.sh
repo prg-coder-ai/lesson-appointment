@@ -83,7 +83,7 @@ echo "证书 SAN："
 openssl x509 -in "$DEV_CRT" -noout -ext subjectAltName | tail -n +2 | sed 's/^ */  /'
 echo
 echo "启动 HTTPS 代理："
-echo "  DEV_TLS=1 node doc-develop/90-工具与脚本/dev-frontend-local.js      # 或 dev-frontend-local-src.js"
+echo "  DEV_TLS=1 node doc-develop/90-tools/dev-frontend-local.js      # 或 dev-frontend-local-src.js"
 echo
 echo "其他电脑访问时若不想看到警告，把下面这个文件导入「受信任的根证书颁发机构」："
 echo "  $(pwd)/$CA_CRT"

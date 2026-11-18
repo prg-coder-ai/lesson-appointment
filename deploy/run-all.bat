@@ -4,7 +4,7 @@ rem run-all.bat - start the local dev stack in four separate terminals
 rem   booking 8081 / message-service 8090 / classroom 8092 / dev proxy 8080
 rem
 rem The four launchers (run-api / run-msg / run-clas / run-lcl) live in
-rem doc-develop\90-工具与脚本\ (moved there on 2026-11-18). Paths are resolved
+rem doc-develop\90-tools\ (moved there on 2026-11-18). Paths are resolved
 rem relative to this script, so moving the repository no longer breaks them.
 rem Each window is kept open so errors stay visible if a service exits.
 rem
@@ -31,7 +31,7 @@ rem Resolve the repository root from this script's own location (deploy\..).
 pushd "%~dp0.." >nul 2>nul
 set "PRJ=%CD%"
 popd >nul 2>nul
-set "LAUNCH=%PRJ%\doc-develop\90-工具与脚本\"
+set "LAUNCH=%PRJ%\doc-develop\90-tools\"
 set "BACKEND_PORTS=8081 8090 8092"
 if not defined WAIT_TIMEOUT set "WAIT_TIMEOUT=180"
 if not defined POLL_SECONDS set "POLL_SECONDS=2"

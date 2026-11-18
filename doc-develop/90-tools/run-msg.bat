@@ -1,5 +1,5 @@
 @echo off
-REM %~dp0 = 本 bat 所在目录(doc-develop\90-工具与脚本\)
+REM %~dp0 = 本 bat 所在目录(doc-develop\90-tools\)
 REM 2026-11-18 修复：原文件内容被一段微信云代码覆盖，message-service 根本起不来。
 setlocal
 set "JAR="

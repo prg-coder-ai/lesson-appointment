@@ -18,7 +18,7 @@
 #    1) 调 start-backend-local.sh 起后端（那个脚本自带"端口已占用就跳过"，可重复执行）
 #    2) 轮询探活 8081 / 8090（课堂在监听时探 8092），就绪才继续 —— 避免前端代理
 #       启动时的连通性检查全是 ❌，让人误以为后端没起来
-#    3) 前台跑 node doc-develop/90-工具与脚本/dev-frontend-local-src.js（Ctrl+C 停前端；后端留在后台）
+#    3) 前台跑 node doc-develop/90-tools/dev-frontend-local-src.js（Ctrl+C 停前端；后端留在后台）
 #
 #  为什么不重复写一遍启动逻辑：jar 通配、端口占用判断、课堂可选这些规则只应有一份，
 #  复制到 run-all 里迟早会与 start-backend-local 走偏（2026-10-30 的 jar 名写死事故
@@ -103,16 +103,16 @@ do_start() {
   fi
 
   if [ "${BACKEND_ONLY:-0}" = "1" ]; then
-    echo "BACKEND_ONLY=1：只起后端。前端另开：node doc-develop/90-工具与脚本/dev-frontend-local-src.js"
+    echo "BACKEND_ONLY=1：只起后端。前端另开：node doc-develop/90-tools/dev-frontend-local-src.js"
     exit 0
   fi
 
   local front_js
   if [ "${DIST:-0}" = "1" ]; then
-    front_js="$DEV_DIR/90-工具与脚本/dev-frontend-local.js"
+    front_js="$DEV_DIR/90-tools/dev-frontend-local.js"
     echo "模式：伺服 frontend/dist 构建产物（DIST=1）"
   else
-    front_js="$DEV_DIR/90-工具与脚本/dev-frontend-local-src.js"
+    front_js="$DEV_DIR/90-tools/dev-frontend-local-src.js"
     echo "模式：源码直出（改完 js/html/css 刷新浏览器即生效，无需 build）"
   fi
   [ -f "$front_js" ] || { echo "[X] 找不到 $front_js"; exit 1; }
