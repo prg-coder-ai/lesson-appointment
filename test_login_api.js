@@ -8,7 +8,7 @@
  *   ④ 登录后角色跳转映射（redirectToUserPage 的页面映射表）
  *
  * 运行： node test_login_api.js
- * 前置： 本地 dev 代理 :8080（doc-develop/90-工具与脚本/dev-frontend-local-src.js）+ booking :8081
+ * 前置： 本地 dev 代理 :8080（doc-develop/90-tools/dev-frontend-local-src.js）+ booking :8081
  */
 'use strict';
 

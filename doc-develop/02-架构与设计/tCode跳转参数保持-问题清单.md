@@ -1,7 +1,7 @@
 # tCode 跳转保持 —— 问题清单
 
 > 排查日期：2026-09-10
-> 环境：本地前端源码直出 `:8080`（`BOOKING_PORT=80 MSG_PORT=80 node doc-develop/90-工具与脚本/dev-frontend-remote.js`）→ 远程 Nginx 统一入口 → 远程 booking/message-service
+> 环境：本地前端源码直出 `:8080`（`BOOKING_PORT=80 MSG_PORT=80 node doc-develop/90-tools/dev-frontend-remote.js`）→ 远程 Nginx 统一入口 → 远程 booking/message-service
 > 方法：`node doc-develop/06-测试与验收/itest_tcode_propagation.js`（Node `vm` 加载**真实源码** + 模拟浏览器，真实执行跳转函数后断言 `location.href`）
 > 判定口径：URL 携带 `?tCode=xxx` 时，任何跳转产生的目标 URL 必须继续携带同一个 `tCode`（`platform_admin` 例外，恒为 `tCode=platform`）
 

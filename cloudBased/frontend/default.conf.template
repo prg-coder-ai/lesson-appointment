@@ -190,7 +190,7 @@ server {
 
     # ==========================================================================
     # 一·补、走 classroom-service 的在线课堂接口（2026-11-10 由 eClassroom 分支合并而来）
-    # 独立上游 CLASSROOM_UPSTREAM；前缀清单必须与 doc-develop/90-工具与脚本/dev-proxy.js 的
+    # 独立上游 CLASSROOM_UPSTREAM；前缀清单必须与 doc-develop/90-tools/dev-proxy.js 的
     # toClassroomService() PREFIXES 保持逐字一致（见该文件顶部警告：
     # 「两边不同步会出现本地能跑、上线 404」）。nginx 按最长前缀匹配自然分流，
     # 声明的先后只影响可读性。

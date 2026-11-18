@@ -11,7 +11,7 @@
 #    bash deploy/local/start-backend-local.sh stop               # 全停
 #
 #  本脚本只负责后端。前端代理要另开窗口：
-#    node doc-develop/90-工具与脚本/dev-frontend-local-src.js
+#    node doc-develop/90-tools/dev-frontend-local-src.js
 #  想一条命令起全套（后端 + 前端）：bash deploy/local/run-all.sh
 #
 #  产物来源：优先 deploy/jars/（构建脚本统一收口），回退各模块 target/。
@@ -95,4 +95,4 @@ echo "等约 20 秒后验证："
 echo "  curl -s -o /dev/null -w '8081 %{http_code}\\n' http://127.0.0.1:8081/"
 echo "  curl -s -o /dev/null -w '8090 %{http_code}\\n' http://127.0.0.1:8090/"
 echo "  curl -s http://127.0.0.1:8092/api/v1/rtc/providers    # 课堂媒体选型"
-echo "然后另开窗口起前端：node doc-develop/90-工具与脚本/dev-frontend-local-src.js"
+echo "然后另开窗口起前端：node doc-develop/90-tools/dev-frontend-local-src.js"

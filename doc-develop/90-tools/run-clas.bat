@@ -1,5 +1,5 @@
 @echo off
-REM %~dp0 = 本 bat 所在目录(doc-develop\90-工具与脚本\)
+REM %~dp0 = 本 bat 所在目录(doc-develop\90-tools\)
 setlocal
 set "JAR="
 for /f "delims=" %%F in ('dir /b /o-d "%~dp0..\..\deploy\jars\classroom-service-*.jar" 2^>nul') do if not defined JAR set "JAR=%~dp0..\..\deploy\jars\%%F"

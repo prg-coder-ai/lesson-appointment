@@ -5,7 +5,7 @@
 # 用途：本地同时拉起 message-service(:8090) 与 dev 代理(:8080)
 #        - message-service 走本地 127.0.0.1
 #        - booking 仍走远程 API_HOST(默认 152.136.254.127:8081)
-# 使用：bash doc-develop/90-工具与脚本/start-local-msg.sh
+# 使用：bash doc-develop/90-tools/start-local-msg.sh
 #
 # 重要坑位：本沙箱/部分环境存在 SERVER__PORT 环境变量(=55058)，会被 Spring Boot
 #           宽松绑定覆盖 server.port，导致 message-service 去绑 55058 撞 IDE 而退出。
