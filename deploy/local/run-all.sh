@@ -109,10 +109,10 @@ do_start() {
 
   local front_js
   if [ "${DIST:-0}" = "1" ]; then
-    front_js="$DEV_DIR/dev-frontend-local.js"
+    front_js="$DEV_DIR/90-工具与脚本/dev-frontend-local.js"
     echo "模式：伺服 frontend/dist 构建产物（DIST=1）"
   else
-    front_js="$DEV_DIR/dev-frontend-local-src.js"
+    front_js="$DEV_DIR/90-工具与脚本/dev-frontend-local-src.js"
     echo "模式：源码直出（改完 js/html/css 刷新浏览器即生效，无需 build）"
   fi
   [ -f "$front_js" ] || { echo "[X] 找不到 $front_js"; exit 1; }

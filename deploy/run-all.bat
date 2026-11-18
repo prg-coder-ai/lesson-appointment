@@ -3,8 +3,9 @@ rem ============================================================================
 rem run-all.bat - start the local dev stack in four separate terminals
 rem   booking 8081 / message-service 8090 / classroom 8092 / dev proxy 8080
 rem
-rem The four launchers (run-api / run-msg / run-clas / run-lcl) live at G:\ root.
-rem This file is in deploy\, so it calls them by absolute path.
+rem The four launchers (run-api / run-msg / run-clas / run-lcl) live in
+rem doc-develop\90-工具与脚本\ (moved there on 2026-11-18). Paths are resolved
+rem relative to this script, so moving the repository no longer breaks them.
 rem Each window is kept open so errors stay visible if a service exits.
 rem
 rem STARTUP GATE (2026-11-15): run-lcl.bat is started only after all three
@@ -26,8 +27,11 @@ rem     FORCE_START (1 = always open every window, even if a port is taken).
 rem ============================================================================
 setlocal EnableDelayedExpansion
 
-set "PRJ=G:\WorkBuddy\2026-08-30-17-19-24"
-set "LAUNCH=G:\"
+rem Resolve the repository root from this script's own location (deploy\..).
+pushd "%~dp0.." >nul 2>nul
+set "PRJ=%CD%"
+popd >nul 2>nul
+set "LAUNCH=%PRJ%\doc-develop\90-工具与脚本\"
 set "BACKEND_PORTS=8081 8090 8092"
 if not defined WAIT_TIMEOUT set "WAIT_TIMEOUT=180"
 if not defined POLL_SECONDS set "POLL_SECONDS=2"
@@ -50,13 +54,13 @@ if not exist "%PRJ%\api\target\booking-api-2.2.0.jar" (
     echo   [WARN] api\target\booking-api-2.2.0.jar not found - build first if booking fails
 )
 
-rem /D sets cwd so java -jar writes ./logs into the project, not G:\ or deploy\.
+rem /D sets cwd so java -jar writes ./logs into the project, not the launcher dir.
 rem RC=1 means "open this window": the port is free, or FORCE_START=1.
 call :portListening 8081
 if errorlevel 1 (set "RC=1") else (set "RC=0")
 if "%FORCE_START%"=="1" set "RC=1"
 if "%RC%"=="1" (
-    start "booking 8081" /D "%PRJ%" cmd /k call %LAUNCH%run-api.bat
+    start "booking 8081" /D "%PRJ%" cmd /k call "%LAUNCH%run-api.bat"
     set "STARTED=!STARTED! booking:8081"
 ) else (
     echo   [skip] :8081 already LISTENING - booking window not started.
@@ -67,7 +71,7 @@ call :portListening 8090
 if errorlevel 1 (set "RC=1") else (set "RC=0")
 if "%FORCE_START%"=="1" set "RC=1"
 if "%RC%"=="1" (
-    start "message 8090" /D "%PRJ%" cmd /k call %LAUNCH%run-msg.bat
+    start "message 8090" /D "%PRJ%" cmd /k call "%LAUNCH%run-msg.bat"
     set "STARTED=!STARTED! message:8090"
 ) else (
     echo   [skip] :8090 already LISTENING - message window not started.
@@ -78,7 +82,7 @@ call :portListening 8092
 if errorlevel 1 (set "RC=1") else (set "RC=0")
 if "%FORCE_START%"=="1" set "RC=1"
 if "%RC%"=="1" (
-    start "classroom 8092" /D "%PRJ%" cmd /k call %LAUNCH%run-clas.bat
+    start "classroom 8092" /D "%PRJ%" cmd /k call "%LAUNCH%run-clas.bat"
     set "STARTED=!STARTED! classroom:8092"
 ) else (
     echo   [skip] :8092 already LISTENING - classroom window not started.
@@ -137,7 +141,7 @@ call :portListening 8080
 if errorlevel 1 (set "RC=1") else (set "RC=0")
 if "%FORCE_START%"=="1" set "RC=1"
 if "%RC%"=="1" (
-    start "frontend 8080" /D "%PRJ%" cmd /k call %LAUNCH%run-lcl.bat
+    start "frontend 8080" /D "%PRJ%" cmd /k call "%LAUNCH%run-lcl.bat"
     set "STARTED=!STARTED! frontend:8080"
 ) else (
     echo   [skip] :8080 already LISTENING - frontend proxy window not started.

@@ -90,8 +90,8 @@ if "%BACKEND_ONLY%"=="1" (
   exit /b 0
 )
 
-set FRONT_JS=%DEV_DIR%\dev-frontend-local-src.js
-if "%DIST%"=="1" set FRONT_JS=%DEV_DIR%\dev-frontend-local.js
+set FRONT_JS=%DEV_DIR%\90-工具与脚本\dev-frontend-local-src.js
+if "%DIST%"=="1" set FRONT_JS=%DEV_DIR%\90-工具与脚本\dev-frontend-local.js
 if not exist "%FRONT_JS%" (
   echo [X] 找不到 %FRONT_JS%
   exit /b 1
