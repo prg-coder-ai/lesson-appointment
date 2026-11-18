@@ -28,7 +28,11 @@
   // Segment 本身是未知长度（0x01FF..），后续 Cluster 靠相对偏移定位，整体后移 7 字节不影响解析。
   // 任何解析异常都返回 null，由调用方降级为原样上传——绝不能因为修复失败丢掉录制文件。
   var EBML_HEADER = 0x1A45DFA3, EBML_SEGMENT = 0x18538067,
-      EBML_INFO = 0x1549A966, EBML_TIMECODE_SCALE = 0x2AD7B1, EBML_DURATION = 0x4489;
+      EBML_INFO = 0x1549A966, EBML_TIMECODE_SCALE = 0x2AD7B1, EBML_DURATION = 0x4489,
+      EBML_TRACKS = 0x1654AE6B, EBML_TRACKENTRY = 0xAE,
+      EBML_TRACKNUMBER = 0xD7, EBML_TRACKTYPE = 0x83,
+      EBML_CLUSTER = 0x1F43B675, EBML_TIMECODE = 0xE7,
+      EBML_CUES = 0x1C53BB6B;
 
   /** 读 EBML 变长整数；keepMarker=true 用于元素 ID（marker 位属于 ID 本身） */
   function _ebmlReadVint(buf, pos, keepMarker) {
@@ -41,11 +45,15 @@
       len++;
       if (len > 8 || pos + len > buf.length) return null;
     }
-    var value = keepMarker ? first : (first & (mask - 1));
-    var allOnes = true;
-    for (var k = 0; k < len; k++) {
+    var dataBits = mask - 1;
+    var value = keepMarker ? first : (first & dataBits);
+    // unknown size 的判定只看「数据位」是否全 1：Chrome 写 8 字节 01 FF..FF，
+    // 首字节含 marker 的 1，不能拿它跟 0xFF 比。
+    var allOnes = ((first & dataBits) === dataBits);
+    for (var k = 1; k < len; k++) {
       if (buf[pos + k] !== 0xFF) allOnes = false;
-      if (k > 0) value = (value << 8) | buf[pos + k];
+      // 8 字节 vint 会超出 32 位，位运算会溢出成负数，必须用乘法累加
+      value = value * 256 + buf[pos + k];
     }
     return { value: value, length: len, unknown: !keepMarker && allOnes };
   }
@@ -171,6 +179,168 @@
       off += parts[q].length;
     }
     return merged;
+  }
+
+  /** 把若干 Uint8Array 拼成一个新的 Uint8Array */
+  function _ebmlJoin(parts) {
+    var total = 0;
+    for (var i = 0; i < parts.length; i++) total += parts[i].length;
+    var out = new Uint8Array(total), off = 0;
+    for (var j = 0; j < parts.length; j++) {
+      out.set(parts[j], off);
+      off += parts[j].length;
+    }
+    return out;
+  }
+
+  /** 无符号整数转 EBML 大端最短字节（uint 元素用） */
+  function _ebmlUInt(value) {
+    var v = Math.floor(value);
+    if (!(v > 0)) return new Uint8Array([0]);
+    var out = [];
+    while (v > 0) { out.unshift(v & 0xFF); v = Math.floor(v / 256); }
+    return new Uint8Array(out);
+  }
+
+  /** 长度转 EBML size vint（marker 位保留，不带 marker 的数值部分） */
+  function _ebmlSize(len) {
+    if (len <= 126) return new Uint8Array([0x80 | len]);
+    if (len <= 16382) return new Uint8Array([0x40 | (len >> 8), len & 0xFF]);
+    if (len <= 2097150) return new Uint8Array([0x20 | (len >> 16), (len >> 8) & 0xFF, len & 0xFF]);
+    if (len <= 268435454) return new Uint8Array([0x10 | (len >> 24), (len >> 16) & 0xFF, (len >> 8) & 0xFF, len & 0xFF]);
+    return null;
+  }
+
+  /** 造一个 EBML 元素：ID 原样 + size vint + 负载 */
+  function _ebmlMake(idBytes, payload) {
+    var sz = _ebmlSize(payload.length);
+    if (!sz) return null;
+    return _ebmlJoin([idBytes, sz, payload]);
+  }
+
+  /** 找视频轨的 TrackNumber（TrackType=1）；Cues 的 CueTrack 要用它 */
+  function _ebmlVideoTrack(buf) {
+    var header = _ebmlElement(buf, 0);
+    if (!header) return 0;
+    var seg = _ebmlElement(buf, header.dataEnd);
+    if (!seg || seg.id !== EBML_SEGMENT) return 0;
+    var pos = seg.dataStart, end = Math.min(buf.length, seg.dataEnd);
+    while (pos + 12 <= end) {
+      var el = _ebmlElement(buf, pos);
+      if (!el || el.dataEnd <= pos || el.dataEnd > end) break;
+      if (el.id === EBML_TRACKS) {
+        var p2 = el.dataStart;
+        while (p2 + 8 <= el.dataEnd) {
+          var entry = _ebmlElement(buf, p2);
+          if (!entry || entry.id !== EBML_TRACKENTRY || entry.dataEnd > el.dataEnd || entry.dataEnd <= p2) break;
+          var num = 0, type = 0;
+          var p3 = entry.dataStart;
+          while (p3 + 6 <= entry.dataEnd) {
+            var c = _ebmlElement(buf, p3);
+            if (!c || c.dataEnd > entry.dataEnd || c.dataEnd <= p3) break;
+            var val = 0;
+            for (var k = c.dataStart; k < c.dataEnd; k++) val = val * 256 + buf[k];
+            if (c.id === EBML_TRACKNUMBER) num = val;
+            if (c.id === EBML_TRACKTYPE) type = val;
+            p3 = c.dataEnd;
+          }
+          if (type === 1 && num > 0) return num;
+          p2 = entry.dataEnd;
+        }
+      }
+      if (el.sizeUnknown) break;
+      pos = el.dataEnd;
+    }
+    return 0;
+  }
+
+  /**
+   * 扫描全部 Cluster，返回 {abs, pos, time}：
+   *  - abs  = 文件绝对偏移
+   *  - pos  = 相对 Segment 数据起点的偏移（CueClusterPosition 要这个值）
+   *  - time = Cluster Timecode（CueTime）
+   * Chrome 的 Cluster 长度是 unknown，不能靠 size 跳；改为按 ID 字节模式线性扫，
+   * 并要求 ID 后紧跟合法 size vint + Timecode 元素，避免媒体数据里的偶然命中。
+   */
+  function _ebmlClusters(buf, seg) {
+    var pat = [0x1F, 0x43, 0xB6, 0x75];
+    var list = [];
+    var end = Math.min(buf.length, seg.dataEnd);
+    for (var p = seg.dataStart; p + 16 < end; p++) {
+      if (buf[p] !== pat[0] || buf[p + 1] !== pat[1] || buf[p + 2] !== pat[2] || buf[p + 3] !== pat[3]) continue;
+      var sz = _ebmlReadVint(buf, p + 4, false);
+      if (!sz || p + 4 + sz.length + 2 >= end) continue;
+      var q = p + 4 + sz.length;
+      if (buf[q] !== EBML_TIMECODE) continue;
+      var tsz = _ebmlReadVint(buf, q + 1, false);
+      if (!tsz || tsz.value < 1 || tsz.value > 8) continue;
+      var d0 = q + 1 + tsz.length;
+      if (d0 + tsz.value > end) continue;
+      var tc = 0;
+      for (var i = d0; i < d0 + tsz.value; i++) tc = tc * 256 + buf[i];
+      list.push({ abs: p, pos: p - seg.dataStart, time: tc });
+      p = q; // 从 Timecode 处继续，Cluster 内数据不再误判
+    }
+    return list;
+  }
+
+  /**
+   * 检测文件末尾是否已有 Cues。不能用「顺序遍历 Segment 子元素」——
+   * Cluster 是未知长度，遍历到第一个 Cluster 就断了，永远走不到末尾的 Cues。
+   * 这里只在尾部 64KB 找 Cues ID，并要求其声明尺寸恰好覆盖到文件末尾。
+   */
+  function _ebmlHasCues(buf) {
+    var pat = [0x1C, 0x53, 0xBB, 0x6B];
+    var from = Math.max(0, buf.length - 65536);
+    for (var p = from; p + 8 <= buf.length; p++) {
+      if (buf[p] !== pat[0] || buf[p + 1] !== pat[1] || buf[p + 2] !== pat[2] || buf[p + 3] !== pat[3]) continue;
+      var sz = _ebmlReadVint(buf, p + 4, false);
+      if (!sz || sz.unknown) continue;
+      if (p + 4 + sz.length + sz.value === buf.length) return true;
+    }
+    return false;
+  }
+
+  /**
+   * 在文件末尾追加 Cues（Segment 是未知长度，末尾仍在 Segment 内，无需移动既有字节）。
+   * 每个视频帧簇一个 CuePoint，播放器据此直接跳到目标秒对应的 Cluster。
+   * 已有 Cues 时原样返回（幂等）。
+   */
+  function _ebmlAppendCues(buf) {
+    if (_ebmlHasCues(buf)) return buf;
+    var header = _ebmlElement(buf, 0);
+    if (!header) return null;
+    var seg = _ebmlElement(buf, header.dataEnd);
+    if (!seg || seg.id !== EBML_SEGMENT) return null;
+    var track = _ebmlVideoTrack(buf);
+    if (!track) return null;
+    var clusters = _ebmlClusters(buf, seg);
+    if (!clusters.length) return null;
+
+    var points = [];
+    for (var i = 0; i < clusters.length; i++) {
+      var c = clusters[i];
+      var cueTime = _ebmlMake(new Uint8Array([0xB3]), _ebmlUInt(c.time));
+      var cueTrack = _ebmlMake(new Uint8Array([0xF7]), _ebmlUInt(track));
+      var cuePos = _ebmlMake(new Uint8Array([0xF1]), _ebmlUInt(c.pos));
+      var positions = _ebmlMake(new Uint8Array([0xB7]), _ebmlJoin([cueTrack, cuePos]));
+      var point = _ebmlMake(new Uint8Array([0xBB]), _ebmlJoin([cueTime, positions]));
+      if (!cueTime || !cueTrack || !cuePos || !positions || !point) return null;
+      points.push(point);
+    }
+    var cues = _ebmlMake(new Uint8Array([0x1C, 0x53, 0xBB, 0x6B]), _ebmlJoin(points));
+    return cues ? _ebmlJoin([buf, cues]) : null;
+  }
+
+  /** 先补 Duration（Cluster 会整体后移 7 字节），再按最终偏移追加 Cues */
+  function _ebmlPatchWebm(buf, durationMs) {
+    var withDuration = _ebmlPatchDuration(buf, durationMs);
+    if (!withDuration) return null;
+    try {
+      return _ebmlAppendCues(withDuration) || withDuration;
+    } catch (e) {
+      return withDuration;  // Cues 失败至少保住 Duration
+    }
   }
 
   var ClassroomRecord = {
@@ -313,8 +483,8 @@
         this._toast('录制记录丢失，文件未上传');
         return;
       }
-      // 补 Duration 后再上传：Chrome 原生 webm 没有该字段，回放进度条会显示 ∞ 且拖不动。
-      // 修补失败一律降级为原文件，不能因为增强功能丢掉整堂录制。
+      // 补 Duration + Cues 后再上传：Chrome 原生 webm 两样都没有，
+      // 回放进度条显示 ∞ 且拖不动。修补失败一律降级为原文件，不能丢录制。
       this._withDuration(blob, elapsedMs).then(function (fixed) {
         self._toast('录制文件 ' + self._size(fixed.size) + '，开始上传…');
         return self._upload(fixed);
@@ -328,14 +498,14 @@
       });
     },
 
-    /** 补 webm Duration；任何异常都原样返回 blob，保证上传链路不受影响 */
+    /** 补 webm Duration + Cues；任何异常都原样返回 blob，保证上传链路不受影响 */
     _withDuration: function (blob, elapsedMs) {
       if (!(elapsedMs > 1000) || typeof blob.arrayBuffer !== 'function') {
         return Promise.resolve(blob);
       }
       return blob.arrayBuffer().then(function (ab) {
         try {
-          var fixed = _ebmlPatchDuration(new Uint8Array(ab), elapsedMs);
+          var fixed = _ebmlPatchWebm(new Uint8Array(ab), elapsedMs);
           return fixed ? new Blob([fixed], { type: 'video/webm' }) : blob;
         } catch (e) {
           return blob;
