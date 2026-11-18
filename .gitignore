@@ -127,3 +127,4 @@ cloudBased/message-service/target/message-service-1.1.0.jar
 deploy/dist/
 deploy/jars/
 cloudBased/frontend/dist
+node_modules/
