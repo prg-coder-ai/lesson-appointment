@@ -23,9 +23,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const API_PROPS = path.join(ROOT, 'api/src/main/resources/application.properties');
 const MSG_PROPS = path.join(ROOT, 'api/message-service/src/main/resources/application.properties');
 const CLS_PROPS = path.join(ROOT, 'api/classroom-service/src/main/resources/application.properties');
-const TPL = [path.join(ROOT, 'api/beforeRun/booking.env.template'),
-             path.join(ROOT, 'api/beforeRun/message.env.template'),
-             path.join(ROOT, 'api/beforeRun/classroom.env.template')];   // 2026-10-30 补：课堂模板
+const TPL = [path.join(ROOT, 'deploy/booking.env.template'),
+             path.join(ROOT, 'deploy/message.env.template'),
+             path.join(ROOT, 'deploy/classroom.env.template')];   // 2026-10-30 补：课堂模板
 
 /**
  * 必须走 env 注入的密钥：[键名, 说明, 适用的 env 模板下标集合]

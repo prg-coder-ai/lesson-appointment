@@ -21,7 +21,6 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # 版本号不写死：pom 里 <version> 会变，collect-artifacts.js 只保留最新版本 jar。
 BOOKING_JAR="$(ls -1 "$ROOT"/deploy/jars/booking-api-*.jar 2>/dev/null | head -1)"
 [ -z "$BOOKING_JAR" ] && BOOKING_JAR="$(ls -1 "$ROOT"/api/target/booking-api-*.jar 2>/dev/null | head -1)"
-[ -z "$BOOKING_JAR" ] && BOOKING_JAR="$(ls -1 "$ROOT"/api/beforeRun/booking-api-*.jar 2>/dev/null | head -1)"
 MSG_JAR="$(ls -1 "$ROOT"/deploy/jars/message-service-*.jar 2>/dev/null | head -1)"
 [ -z "$MSG_JAR" ] && MSG_JAR="$(ls -1 "$ROOT"/api/message-service/target/message-service-*.jar 2>/dev/null | head -1)"
 # 课堂产物是**可选**的（2026-10-30 起新增）：没构建就跳过并告警，不阻断预约/消息的上线流程
@@ -55,14 +54,14 @@ fi
 echo "==> 2/8 前端 dist（内容，不含 dist 这一层；来源 $DIST_DIR）"
 rsync -av --delete "$DIST_DIR/" "$SERVER:/var/www/frontend/"
 
-echo "==> 3/8 SQL 初始化脚本（三库；源目录是 api/sql/{schema,seed,patch}，不是 api/beforeRun/sql）"
-# ⚠️ 历史坑：旧版脚本与旧手册都写 api/beforeRun/sql/，而**该目录并不存在** ——
-#    rsync 源缺失会让 set -e 直接终止整个上传流程。这里统一指向真实位置，
+echo "==> 3/8 SQL 初始化脚本（三库；源目录是 deploy/sql/{schema,seed,patch}）"
+# 2026-11-18 目录整合：DDL 从 api/sql/ 迁入 deploy/sql/。旧脚本里的 api/beforeRun/sql/
+#    早已不存在，`set -e` 下 rsync 源缺失会中断整个上传流程。这里统一指向 deploy/sql/，
 #    并用 [ -d ] 保护，缺目录只告警不中断。
 # 目标子目录要先建：rsync 只能创建最后一层，父目录不存在会失败。
 ssh "$SERVER" 'sudo mkdir -p /opt/lesson/sql/schema /opt/lesson/sql/seed /opt/lesson/sql/patch /opt/lesson/sql/classroom' \
   || echo "   ⚠ 远程建目录失败，后续 rsync 可能报错"
-for d in api/sql/schema api/sql/seed api/sql/patch; do
+for d in deploy/sql/schema deploy/sql/seed deploy/sql/patch; do
   if [ -d "$ROOT/$d" ]; then
     rsync -av "$ROOT/$d/" "$SERVER:/opt/lesson/sql/$(basename "$d")/"
   else
@@ -77,12 +76,12 @@ else
 fi
 
 echo "==> 4/8 systemd 单元 + env 模板（三个服务）"
-scp "$ROOT/api/beforeRun/booking.service"         "$SERVER:/etc/systemd/system/booking.service"
-scp "$ROOT/api/beforeRun/message-service.service" "$SERVER:/etc/systemd/system/message-service.service"
-scp "$ROOT/api/beforeRun/classroom.service"       "$SERVER:/etc/systemd/system/classroom-service.service"
-scp "$ROOT/api/beforeRun/booking.env.template"    "$SERVER:/opt/lesson/booking.env.template"
-scp "$ROOT/api/beforeRun/message.env.template"    "$SERVER:/opt/lesson/message.env.template"
-scp "$ROOT/api/beforeRun/classroom.env.template"  "$SERVER:/opt/lesson/classroom.env.template"
+scp "$ROOT/deploy/booking.service"         "$SERVER:/etc/systemd/system/booking.service"
+scp "$ROOT/deploy/message-service.service" "$SERVER:/etc/systemd/system/message-service.service"
+scp "$ROOT/deploy/classroom.service"       "$SERVER:/etc/systemd/system/classroom-service.service"
+scp "$ROOT/deploy/booking.env.template"    "$SERVER:/opt/lesson/booking.env.template"
+scp "$ROOT/deploy/message.env.template"    "$SERVER:/opt/lesson/message.env.template"
+scp "$ROOT/deploy/classroom.env.template"  "$SERVER:/opt/lesson/classroom.env.template"
 
 echo "==> 5/8 Nginx 配置 + 备份脚本 + logrotate"
 scp "$ROOT/deploy/nginx/booking.conf"     "$SERVER:/etc/nginx/sites-available/booking"

@@ -188,7 +188,7 @@ CREATE TABLE `classroom_reconcile_diff` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='对账差异（F7-05）';
 
 -- 内容审核与查阅留痕（F8-03，包4B）
--- 与 api/sql/patch/20261029-2010-classroom-audit-log.sql 保持一致；
+-- 与 deploy/sql/patch/20261029-2010-classroom-audit-log.sql 保持一致；
 -- 二者都保留的原因：新建库跑本文件即可自洽，存量库只跑 patch。
 CREATE TABLE IF NOT EXISTS `classroom_audit_log` (
   `audit_id`    BIGINT       NOT NULL AUTO_INCREMENT,

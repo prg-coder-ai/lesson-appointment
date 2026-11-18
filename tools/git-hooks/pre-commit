@@ -17,7 +17,7 @@
 #    于是"新增一个 delete 方法却忘了处置子表"就成了唯一入口——守卫是它的发现手段。
 #    紧急跳过：SKIP_CASCADE=1 git commit ...
 #
-# 4) ddl-align：DDL 漂移守卫（方案 B · 静态）。实体字段与 api/sql/schema 基线不一致时拒绝提交。
+# 4) ddl-align：DDL 漂移守卫（方案 B · 静态）。实体字段与 deploy/sql/schema 基线不一致时拒绝提交。
 #    必要性：实体加字段忘 ALTER、表加 NOT NULL 无默认列而实体没有——这类漂移
 #    **不编译失败、不启动失败**，只在真实读写那一刻炸，报错还指向 SQL 而不指向"你改了实体没改表"。
 #    静态方案（不连库）才能挂在 pre-commit；连库比对留作 CI 补充（能覆盖 mapper XML）。

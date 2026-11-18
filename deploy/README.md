@@ -1,7 +1,10 @@
-# api/beforeRun —— 部署前置件清单
+# deploy —— 部署资产单一事实源
 
-本目录放"**服务器上要用的、但不属于 jar 的东西**"。命名沿用历史（beforeRun = 起服务之前要落位的文件），
-`deploy/upload-to-server.sh` 会把这些文件按约定传到服务器。
+本目录放"**服务器上要用的、但不属于 jar 的东西**"：部署模板、systemd 单元、构建/上传脚本，以及
+`sql/` 下的三库 DDL。`deploy/upload-to-server.sh` 会把这些文件按约定传到服务器。
+
+> 2026-11-18 目录整合：原 `api/beforeRun/`（env/systemd 模板）与 `api/sql/`（schema/seed/patch）
+> 已分别合并到 `deploy/` 与 `deploy/sql/`，旧目录删除。历史文档与守卫里的旧路径已同步更新。
 
 ## 一、目录内容
 
@@ -16,25 +19,23 @@
 | `referential-integrity-20261008.sql` | 留档，按需执行 | 外键/引用完整性的一次性脚本，见 `tools/check-cascade-rules.mjs` |
 | `MVN跨平台…md` / `Maven…md` | 不上传 | 开发机参考资料 |
 
-## 二、SQL 脚本在哪（**注意：不是本目录下的 sql/**）
+## 二、SQL 脚本在哪
 
-历史手册里出现过 `api/beforeRun/sql/*.sql` 这个路径 —— **该目录已在提交 `f0bf2fbd` 删除**（此前确实存在过，
-内容与 `api/sql/schema/` 重复且少 4 张表，属废弃副本）。
-照着敲 `rsync api/beforeRun/sql/ ...` 会因源缺失直接失败（`set -e` 下整条上传流程终止）。
-SQL 的真实位置如下（`deploy/upload-to-server.sh` 已按此传，目标是 `/opt/lesson/sql/`）：
+DDL 的权威位置是**本目录下的 `sql/`**（`deploy/sql/{schema,seed,patch}/`），由 `deploy/upload-to-server.sh`
+上传到服务器的 `/opt/lesson/sql/`；课堂库自带的 `CREATE DATABASE` 脚本仍在 `api/classroom-service/sql/`。
 
 | 目的 | 仓库真实文件 | 服务器落点 |
 |------|--------------|-----------|
-| 业务库结构 `lesson_appointment` | `api/sql/schema/20261013-0400-lesson_appointment-schema.sql` | `/opt/lesson/sql/schema/` |
-| 业务库种子（行业/套餐/系统配置/**术语 317 行**） | `api/sql/seed/20261008-1527-lesson_appointment-seed-dict-config.sql` | `/opt/lesson/sql/seed/` |
-| 消息库结构 `message_center` | `api/sql/schema/20261008-1527-message_center-schema.sql` | `/opt/lesson/sql/schema/` |
-| 消息库种子（分类/模板/敏感词） | `api/sql/seed/20261008-1528-message_center-seed-sys.sql` | `/opt/lesson/sql/seed/` |
+| 业务库结构 `lesson_appointment` | `deploy/sql/schema/20261013-0400-lesson_appointment-schema.sql` | `/opt/lesson/sql/schema/` |
+| 业务库种子（行业/套餐/系统配置/**术语 317 行**） | `deploy/sql/seed/20261008-1527-lesson_appointment-seed-dict-config.sql` | `/opt/lesson/sql/seed/` |
+| 消息库结构 `message_center` | `deploy/sql/schema/20261008-1527-message_center-schema.sql` | `/opt/lesson/sql/schema/` |
+| 消息库种子（分类/模板/敏感词） | `deploy/sql/seed/20261008-1528-message_center-seed-sys.sql` | `/opt/lesson/sql/seed/` |
 | 课堂库结构 `classroom` | `api/classroom-service/sql/classroom-schema.sql` | `/opt/lesson/sql/classroom/` |
-| 增量补丁 | `api/sql/patch/*.sql`、`api/classroom-service/sql/patch/*.sql` | `/opt/lesson/sql/patch/`、`…/classroom/patch/` |
+| 增量补丁 | `deploy/sql/patch/*.sql`、`api/classroom-service/sql/patch/*.sql` | `/opt/lesson/sql/patch/`、`…/classroom/patch/` |
 
 ⚠️ **两个与旧手册不同的关键点**：
 
-1. `api/sql/schema/*.sql` 是**从现有库 dump 出来的表结构，不带 `CREATE DATABASE` / `USE`**。
+1. `deploy/sql/schema/*.sql` 是**从现有库 dump 出来的表结构，不带 `CREATE DATABASE` / `USE`**。
    必须先建库再 `mysql <库名> < 文件`：
    ```bash
    mysql -uroot -p -e "CREATE DATABASE IF NOT EXISTS lesson_appointment DEFAULT CHARACTER SET utf8mb4;"

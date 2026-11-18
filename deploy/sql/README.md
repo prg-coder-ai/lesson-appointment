@@ -27,22 +27,22 @@
 export MYSQL_PWD='<你的密码>'
 
 # 1. 建库建表（主库基线 + 消息中心，两库独立，可任意顺序）
-mysql -uroot -h127.0.0.1 < api/sql/schema/20261013-0400-lesson_appointment-schema.sql
-mysql -uroot -h127.0.0.1 < api/sql/schema/20261008-1527-message_center-schema.sql
+mysql -uroot -h127.0.0.1 < deploy/sql/schema/20261013-0400-lesson_appointment-schema.sql
+mysql -uroot -h127.0.0.1 < deploy/sql/schema/20261008-1527-message_center-schema.sql
 
 # 2. 基线之外的 6 张手写表（缺一组，对应功能整组 500）
-mysql -uroot -h127.0.0.1 < api/sql/schema/20261014-legal-doc.sql        # 协议与政策 2 表
-mysql -uroot -h127.0.0.1 < api/sql/schema/20261022-1700-auth-guard.sql  # 登录风控 3 表
-mysql -uroot -h127.0.0.1 < api/sql/schema/20261025-1700-work-language.sql # 授课语言 1 表 + 内置六项种子
+mysql -uroot -h127.0.0.1 < deploy/sql/schema/20261014-legal-doc.sql        # 协议与政策 2 表
+mysql -uroot -h127.0.0.1 < deploy/sql/schema/20261022-1700-auth-guard.sql  # 登录风控 3 表
+mysql -uroot -h127.0.0.1 < deploy/sql/schema/20261025-1700-work-language.sql # 授课语言 1 表 + 内置六项种子
 #    ★ 20261025-1500-teaching-lang-duration.sql 新库【跳过】：基线已含目标列，
 #      再跑报 Duplicate column（该文件只服务 2026-10-25 之前的老库升级）。
 #    ★ 1700-work-language.sql 在新库上末尾三条 ALTER 报 Duplicate column 属预期：
 #      建表+种子在文件前部已生效；老库（<2026-10-25）则全量生效。
 
 # 3. 基础数据（术语/行业/套餐/系统配置；消息分类/敏感词/模板；法律文档）
-mysql -uroot -h127.0.0.1 lesson_appointment < api/sql/seed/20261008-1527-lesson_appointment-seed-dict-config.sql
-mysql -uroot -h127.0.0.1 message_center     < api/sql/seed/20261008-1528-message_center-seed-sys.sql
-mysql -uroot -h127.0.0.1 lesson_appointment < api/sql/seed/20261015-legal-doc-seed.sql
+mysql -uroot -h127.0.0.1 lesson_appointment < deploy/sql/seed/20261008-1527-lesson_appointment-seed-dict-config.sql
+mysql -uroot -h127.0.0.1 message_center     < deploy/sql/seed/20261008-1528-message_center-seed-sys.sql
+mysql -uroot -h127.0.0.1 lesson_appointment < deploy/sql/seed/20261015-legal-doc-seed.sql
 ```
 
 执行完后应满足：
@@ -108,8 +108,9 @@ SELECT COUNT(*) FROM information_schema.CHECK_CONSTRAINTS WHERE CONSTRAINT_SCHEM
 3. 旧文件不删（保留演进历史），但新文件必须反映**完整的当前状态**（mysqldump 全量导出，不是增量片段）
 4. 同步更新本 README 的「关键约束」表
 
-**不要**在别处留 DDL 片段。历史上有过 `api/beforeRun/sql/` 副本，已在提交 `f0bf2fbd` 删除
-（内容与本目录重复且少 4 张表）；若旧文档仍引用它，按本目录 `schema/` 的同名快照执行即可。
+**不要**在别处留 DDL 片段。历史上这个目录曾叫 `api/sql/`，更早的 `api/beforeRun/sql/` 废弃副本
+已在提交 `f0bf2fbd` 删除；2026-11-18 起权威目录就是本 `deploy/sql/`。
+若旧文档仍引用旧路径，按本目录 `schema/` 的同名快照执行即可。
 `api/message-service/src/main/resources/sql/schema.sql` 与本目录
 `schema/20261008-1527-message_center-schema.sql` 内容重复，**以本目录为准**。
 
