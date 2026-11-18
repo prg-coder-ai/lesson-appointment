@@ -20,8 +20,10 @@
     mediaOk: false,          // 兼容旧调用方：任一可用即 true
     audioOk: false,          // 麦克风是否可用（与 videoOk 拆分，避免一个设备缺失禁用全部按钮）
     videoOk: false,          // 摄像头是否可用
-    micEnabled: true,
-    camEnabled: true,
+    // 进入课堂默认关闭（2026-11-18）：先采集不被外发，由使用者主动打开。
+    micEnabled: false,
+    camEnabled: false,
+    micGranted: false,       // 服务端是否已批准本学生发言（举手批准闭环的唯一判据）
     serverMuted: false,
 
     init: function (ctx) {
@@ -84,8 +86,19 @@
         self.audioOk = (self.engine.audioOk != null) ? !!self.engine.audioOk : !!self.engine.mediaOk;
         self.videoOk = (self.engine.videoOk != null) ? !!self.engine.videoOk : !!self.engine.mediaOk;
         self.mediaOk = self.audioOk || self.videoOk;
-        self.micEnabled = true;
-        self.camEnabled = !(cfg && cfg.canPublishVideo === false);
+        if (isRejoin) {
+          // 媒体会话重建（切引擎 / 网络恢复）：沿用重建前的开关。
+          // 若在这里重置为关，用户刚打开的麦会莫名熄灭；重置为开则会绕过静音与授权。
+          self.setMicEnabledDirect(!!self.micEnabled);
+          self.setCamEnabled(!!self.camEnabled);
+        } else {
+          // 首次进房：麦克风与摄像头默认关闭，避免一进来就把画面声音推给全班。
+          // 静默广播 cam-state，其他人只更新名单标记、不弹「XX 摄像头已关闭」提示。
+          self.micEnabled = false;
+          self.camEnabled = false;
+          self.setMicEnabledDirect(false);
+          self.setCamEnabled(false, true);
+        }
         // 采集结果会改变控制栏按钮的可用态，重渲染一次
         if (window.ClassroomControls && typeof window.ClassroomControls.render === 'function') {
           try { window.ClassroomControls.render(); } catch (e) { /* console only */ }
@@ -115,11 +128,14 @@
       } else if (this._preGate) {
         var p = this._preGate;
         this._preGate = null;
+        // 学生的麦克风只有在仍有教师授权时才恢复：暂停期间被撤回批准（或全员静音）的，
+        // 恢复课堂后不能因为"暂停前是开着的"又自动开麦。
+        var micRestore = !!p.mic && (!this._isStudent() || this.micGranted);
         if (this.engine) {
-          try { this.engine.setMicEnabled(p.mic); } catch (e) { /* engine 未就绪 */ }
+          try { this.engine.setMicEnabled(micRestore); } catch (e) { /* engine 未就绪 */ }
           try { this.engine.setCamEnabled(p.cam); } catch (e) { /* engine 未就绪 */ }
         }
-        this.micEnabled = p.mic;
+        this.micEnabled = micRestore;
         this.camEnabled = p.cam;
       }
       var cam = document.getElementById('ctrl-cam');
@@ -174,22 +190,32 @@
 
     setMicEnabled: function (on) {
       on = !!on;
-      // 服务端全员禁言：学生不可自解（教师/管理员豁免）
-      if (on && this.serverMuted && this._isStudent()) {
-        this.toast('老师已全员禁言，暂不能开麦');
-        return false;
+      // 学生开麦双闸：全员禁言 > 教师授权。授权态由服务端权威下发（mic:grant）。
+      if (on && this._isStudent()) {
+        if (this.serverMuted) {
+          this.toast('老师已全员禁言，暂不能开麦');
+          return false;
+        }
+        if (!this.micGranted) {
+          this.toast('请先举手，等待老师批准后发言');
+          return false;
+        }
       }
       this.micEnabled = this.engine ? this.engine.setMicEnabled(on) : on;
       return this.micEnabled;
     },
 
-    setCamEnabled: function (on) {
+    /**
+     * @param {boolean} on 开/关
+     * @param {boolean} [silent] 不弹「XX 摄像头已关闭」提示（进房默认关闭这类批量场景用）
+     */
+    setCamEnabled: function (on, silent) {
       on = !!on;
       this.camEnabled = this.engine ? this.engine.setCamEnabled(on) : on;
       // F4-03：广播摄像头状态（教师关摄像头，学生端显式感知，刷新/重连者也能收到）
       if (window.ClassroomWS && this.ctx && this.ctx.scheduleId) {
         window.ClassroomWS.sendSignal(this.ctx.scheduleId, {
-          type: 'cam-state', on: on, userId: this.ctx.userId
+          type: 'cam-state', on: on, userId: this.ctx.userId, silent: !!silent
         });
       }
       return this.camEnabled;
@@ -199,20 +225,23 @@
     setServerMuted: function (b) {
       this.serverMuted = !!b;
       if (b && this._isStudent()) {
+        // 全员静音 = 收回发言权：授权一并清零，否则解除静音时学生会「自动恢复发言」
+        this.micGranted = false;
         this.setMicEnabledDirect(false);
       }
       this.syncMicUI();
     },
 
-    // F4-14：教师批准开麦 → 解除禁言并开麦（图标同步由 syncMicUI 负责）
+    // F4-14：教师批准开麦 → 开麦并点亮图标（不解除全员禁言，禁言仍以服务端为准）
     grantMic: function () {
-      this.serverMuted = false;
+      this.micGranted = true;
       this.setMicEnabledDirect(true);
       this.syncMicUI();
     },
 
-    // F4-14：学生放下手 → 自动关麦；serverMuted 保持不变（全员静言仍由服务端说了算）
+    // F4-14：撤销发言权（学生放下手 / 教师撤回 / 全员静音）→ 关麦熄灭图标
     revokeMic: function () {
+      this.micGranted = false;
       this.setMicEnabledDirect(false);
       this.syncMicUI();
     },
@@ -269,6 +298,9 @@
       this.mediaOk = false;
       this.audioOk = false;
       this.videoOk = false;
+      this.micGranted = false;
+      this.micEnabled = false;
+      this.camEnabled = false;
     },
 
     toast: function (msg) {

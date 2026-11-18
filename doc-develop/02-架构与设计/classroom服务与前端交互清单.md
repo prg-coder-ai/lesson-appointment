@@ -114,7 +114,7 @@
 | `#btn-replay` | click | 新窗口打开 `replay.html?scheduleId=` | [main.js:518](frontend/js/classroom/classroom-main.js#L518) |
 | `#btn-my-attendance` | click | `_showMyAttendance` → GET `/attendance/history` | [main.js:528](frontend/js/classroom/classroom-main.js#L528)、[:538](frontend/js/classroom/classroom-main.js#L538) |
 | `#participant-list .pt-adjust`（动态） | click | prompt 原因 → `manualAdjust` | [main.js:359](frontend/js/classroom/classroom-main.js#L359) |
-| `.pt-approve`（动态） | click | WS `hand:approve` | [main.js:368](frontend/js/classroom/classroom-main.js#L368) |
+| `.pt-approve`（动态） | click | WS `hand:approve{userId, granted}`：未批准→`true`，已批准→`false`（收回并取消该生举手） | [main.js:368](frontend/js/classroom/classroom-main.js#L368) |
 | `.pt-wbgrant`（动态） | click | WS `wb:grant` | [main.js:378](frontend/js/classroom/classroom-main.js#L378) |
 | `#upload-type` | change | TEXT 时隐藏 `#upload-file` | [main.js:441](frontend/js/classroom/classroom-main.js#L441) |
 | `#upload-submit` | click | TEXT→`submitWork`；文件→XHR 上传带进度 | [main.js:450](frontend/js/classroom/classroom-main.js#L450)、[:481](frontend/js/classroom/classroom-main.js#L481) |
@@ -198,11 +198,25 @@
 | `record:state` / `page:state` | [main.js:193](frontend/js/classroom/classroom-main.js#L193)、[material.js:43](frontend/js/classroom/classroom-material.js#L43) |
 | `rtc-peer-join` / `-leave` / `member-kicked` / `rtc-offer/-answer/-ice` | [main.js:196-202](frontend/js/classroom/classroom-main.js#L196)、[engine-mesh.js:76-80](frontend/js/classroom/rtc/engine-mesh.js#L76) |
 | `class-start` / `class-end` | [main.js:203](frontend/js/classroom/classroom-main.js#L203)（end 后 1.2s 自动 leave） |
-
-> **举手—批准—关麦闭环（2026-11-18）**：`hand:approve` → 服务端写 `ClassroomLiveState.micGranted` 并广播 `mic:grant{granted:true}`（教师端按钮由黄色「批准开麦」转绿色「已批准」，学生端 `grantMic()` 点亮图标）。学生放下手（`hand{raised:false}`）→ 服务端 `revokeMic` 并广播 `mic:grant{granted:false}` + 事件 `mic_revoke`，学生端 `revokeMic()` 关麦熄灭图标。`pushInitialState()` 会静默下发 `mic:grant`，刷新后恢复批准态。
 | `rollcall:start` / `rollcall:answered` | [teacher.js:89](frontend/js/classroom/classroom-teacher.js#L89)、[student.js:42](frontend/js/classroom/classroom-student.js#L42) |
 | `chat:msg` / `chat:rejected` | [chat.js:57](frontend/js/classroom/classroom-chat.js#L57) |
 | 白板 `wb:init` / `wb:snapshot:saved` / 笔迹广播 | [whiteboard.js:139](frontend/js/classroom/classroom-whiteboard.js#L139) |
+
+> **举手—批准—发言—撤回闭环（2026-11-18 v2）**
+>
+> 服务端只有两个权威布尔 `handRaised` / `micGranted`，学生端按钮三态由二者派生：`idle`（举手）/ `waiting`（等待批准，黄）/ `speaking`（发言中，红）。
+>
+> | 动作 | 信令 | 服务端 | 广播 |
+> |---|---|---|---|
+> | 学生举手 | `hand{raised:true}` | 写 hand | `hand:state{raised:true}` |
+> | 学生放下手 / 关麦 | `hand{raised:false}` | 清 hand + 撤 grant | `hand:state` + `mic:grant{granted:false,reason:"hand_down"}` |
+> | 教师批准 | `hand:approve{userId,granted:true}`（**校验仍在举手**，否则忽略） | 写 grant | `mic:grant{granted:true,reason:"teacher_approve"}` |
+> | **教师撤回** | `hand:approve{userId,granted:false}` | **撤 grant + 清 hand（回到 idle）** | `mic:grant{granted:false,reason:"teacher_revoke"}` + `hand:state{raised:false}` |
+> | 全员静音 | `mute-all{muted:true}` | 撤**全部** grant（hand 保留） | 每人一条 `mic:grant{granted:false,reason:"mute_all"}` |
+>
+> 不变式：**grant 蕴含 hand**。`pushInitialState()` 下发前会剔除"有授权无举手"的孤儿 grant。
+> 前端唯一判据：`ClassroomRTC.micGranted`（`grantMic/revokeMic/setServerMuted` 维护），学生按钮文字由 `ClassroomStudent._updateHandUI` 渲染。
+
 
 ---
 
