@@ -652,6 +652,9 @@ html, body {
   margin-left: 4px;
 }
 .pt-approve:hover { background: #1f6feb; color: #fff; }
+/* 举手待批准：黄色高亮，与名单行的 ✋ 标记同色；已批准：绿色 */
+.pt-approve.active { background: #d29922; color: #1f1f1f; border-color: #d29922; font-weight: 600; }
+.pt-approve.granted { background: #238636; color: #fff; border-color: #238636; }
 .pt-wbgrant:hover { background: #1f6feb; color: #fff; }
 .pt-wbgrant.active { background: #238636; color: #fff; border-color: #238636; }
 

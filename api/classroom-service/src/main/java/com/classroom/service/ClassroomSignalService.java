@@ -91,12 +91,20 @@ public class ClassroomSignalService {
         String msg = json("hand:state", scheduleId, userId, name, "raised", raised);
         registry.broadcastSignal(scheduleId, msg);
         teachingSession.appendEvent(scheduleId, "hand", Map.of("userId", userId, "raised", raised));
+        // 放下手 = 撤销开麦批准：服务端权威态 + 广播，确保所有端图标一致
+        if (!raised && liveState.isMicGranted(scheduleId, userId)) {
+            liveState.revokeMic(scheduleId, userId);
+            registry.broadcastSignal(scheduleId,
+                    "{\"type\":\"mic:grant\",\"userId\":" + q(userId) + ",\"granted\":false}");
+            teachingSession.appendEvent(scheduleId, "mic_revoke", Map.of("userId", userId, "reason", "hand_down"));
+        }
     }
 
     private void handleHandApprove(String scheduleId, String role, JsonNode node) {
         if (!isTeacherOrManager(role)) return;
         String target = node.path("userId").asText(null);
         if (target == null) return;
+        liveState.grantMic(scheduleId, target);
         String msg = json("mic:grant", scheduleId, target, null, "granted", true);
         registry.broadcastSignal(scheduleId, msg);
         teachingSession.appendEvent(scheduleId, "hand_approve", Map.of("userId", target));
@@ -182,6 +190,10 @@ public class ClassroomSignalService {
                 registry.sendSignalToUser(scheduleId, userId, "{\"type\":\"cam:state\",\"userId\":" + q(u) + ",\"on\":" + !off + "}"));
         liveState.hands(scheduleId).forEach((u, raised) ->
                 registry.sendSignalToUser(scheduleId, userId, "{\"type\":\"hand:state\",\"userId\":" + q(u) + ",\"raised\":" + raised + "}"));
+        // 重连/刷新恢复「已批准开麦」：静默下发，避免刷新后弹 toast
+        liveState.micGrants(scheduleId).forEach((u, granted) ->
+                registry.sendSignalToUser(scheduleId, userId, "{\"type\":\"mic:grant\",\"userId\":" + q(u)
+                        + ",\"granted\":" + granted + ",\"silent\":true}"));
         boolean granted = liveState.isWhiteboardGranted(scheduleId, userId);
         if (granted) {
             registry.sendSignalToUser(scheduleId, userId, "{\"type\":\"wb:grant:state\",\"userId\":" + q(userId) + ",\"grant\":true}");

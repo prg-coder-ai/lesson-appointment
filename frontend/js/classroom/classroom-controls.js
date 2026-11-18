@@ -125,8 +125,8 @@
         if (!on && window.ClassroomRTC.serverMuted && self.ctx && self.ctx.role === 'student') {
           self.toast('全员禁言中，无法开启麦克风'); return;
         }
-        var now = window.ClassroomRTC.setMicEnabled(!on);
-        mic.classList.toggle('active', now);
+        window.ClassroomRTC.setMicEnabled(!on);
+        window.ClassroomRTC.syncMicUI();
       });
 
       var cam = $('ctrl-cam');
@@ -160,7 +160,6 @@
         hand.addEventListener('click', function () {
           if (!self._gateAllowed()) return;
           var raised = window.ClassroomStudent.toggleHand();
-          hand.classList.toggle('active', raised);
         });
       }
 

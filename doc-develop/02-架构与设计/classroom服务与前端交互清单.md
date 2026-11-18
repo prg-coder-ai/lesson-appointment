@@ -198,6 +198,8 @@
 | `record:state` / `page:state` | [main.js:193](frontend/js/classroom/classroom-main.js#L193)、[material.js:43](frontend/js/classroom/classroom-material.js#L43) |
 | `rtc-peer-join` / `-leave` / `member-kicked` / `rtc-offer/-answer/-ice` | [main.js:196-202](frontend/js/classroom/classroom-main.js#L196)、[engine-mesh.js:76-80](frontend/js/classroom/rtc/engine-mesh.js#L76) |
 | `class-start` / `class-end` | [main.js:203](frontend/js/classroom/classroom-main.js#L203)（end 后 1.2s 自动 leave） |
+
+> **举手—批准—关麦闭环（2026-11-18）**：`hand:approve` → 服务端写 `ClassroomLiveState.micGranted` 并广播 `mic:grant{granted:true}`（教师端按钮由黄色「批准开麦」转绿色「已批准」，学生端 `grantMic()` 点亮图标）。学生放下手（`hand{raised:false}`）→ 服务端 `revokeMic` 并广播 `mic:grant{granted:false}` + 事件 `mic_revoke`，学生端 `revokeMic()` 关麦熄灭图标。`pushInitialState()` 会静默下发 `mic:grant`，刷新后恢复批准态。
 | `rollcall:start` / `rollcall:answered` | [teacher.js:89](frontend/js/classroom/classroom-teacher.js#L89)、[student.js:42](frontend/js/classroom/classroom-student.js#L42) |
 | `chat:msg` / `chat:rejected` | [chat.js:57](frontend/js/classroom/classroom-chat.js#L57) |
 | 白板 `wb:init` / `wb:snapshot:saved` / 笔迹广播 | [whiteboard.js:139](frontend/js/classroom/classroom-whiteboard.js#L139) |
