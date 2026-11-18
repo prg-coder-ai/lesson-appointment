@@ -19,6 +19,160 @@
     return typeof window.classroomUrl === 'function'
       ? window.classroomUrl(base, path) : (base || '') + path;
   };
+
+  // ---------------- EBML Duration 修复（2026-11-18）----------------
+  // Chrome 的 MediaRecorder 产出 webm 时**不写** Duration 元素，播放器读到的是 ∞，
+  // 进度条因此拖不动（回放页实测）。录制收尾时把真实时长补进 Segment > Info：
+  //   - 已有 Duration（部分浏览器写占位值）→ 原地覆写为 float32
+  //   - 没有（Chrome）→ 插入 7 字节 `44 89 84 <float32>`，Info 的 size vint 同步 +7
+  // Segment 本身是未知长度（0x01FF..），后续 Cluster 靠相对偏移定位，整体后移 7 字节不影响解析。
+  // 任何解析异常都返回 null，由调用方降级为原样上传——绝不能因为修复失败丢掉录制文件。
+  var EBML_HEADER = 0x1A45DFA3, EBML_SEGMENT = 0x18538067,
+      EBML_INFO = 0x1549A966, EBML_TIMECODE_SCALE = 0x2AD7B1, EBML_DURATION = 0x4489;
+
+  /** 读 EBML 变长整数；keepMarker=true 用于元素 ID（marker 位属于 ID 本身） */
+  function _ebmlReadVint(buf, pos, keepMarker) {
+    if (pos == null || pos < 0 || pos >= buf.length) return null;
+    var first = buf[pos];
+    if (!first) return null;
+    var len = 1, mask = 0x80;
+    while (!(first & mask)) {
+      mask >>= 1;
+      len++;
+      if (len > 8 || pos + len > buf.length) return null;
+    }
+    var value = keepMarker ? first : (first & (mask - 1));
+    var allOnes = true;
+    for (var k = 0; k < len; k++) {
+      if (buf[pos + k] !== 0xFF) allOnes = false;
+      if (k > 0) value = (value << 8) | buf[pos + k];
+    }
+    return { value: value, length: len, unknown: !keepMarker && allOnes };
+  }
+
+  function _ebmlWriteVint(value, len) {
+    var out = new Uint8Array(len);
+    var marker = Math.pow(2, 7 * len);
+    var v = marker + value;
+    for (var i = len - 1; i >= 0; i--) {
+      out[i] = v % 256;
+      v = Math.floor(v / 256);
+    }
+    return out;
+  }
+
+  function _ebmlVintLen(value) {
+    if (value <= 126) return 1;
+    if (value <= 16382) return 2;
+    if (value <= 2097150) return 3;
+    return 4;
+  }
+
+  function _ebmlElement(buf, pos) {
+    var id = _ebmlReadVint(buf, pos, true);
+    if (!id) return null;
+    var size = _ebmlReadVint(buf, pos + id.length, false);
+    if (!size) return null;
+    var dataStart = pos + id.length + size.length;
+    return {
+      id: id.value,
+      idEnd: pos + id.length,
+      size: size.value,
+      sizeUnknown: size.unknown,
+      dataStart: dataStart,
+      dataEnd: size.unknown ? buf.length : Math.min(dataStart + size.value, buf.length)
+    };
+  }
+
+  /** 定位 Segment > Info；Segment 长度未知时从 dataStart 顺序扫到文件尾 */
+  function _ebmlFindInfo(buf) {
+    var header = _ebmlElement(buf, 0);
+    if (!header || header.id !== EBML_HEADER) return null;
+    var seg = _ebmlElement(buf, header.dataEnd);
+    if (!seg || seg.id !== EBML_SEGMENT) return null;
+    var pos = seg.dataStart;
+    while (pos + 12 <= buf.length) {
+      var el = _ebmlElement(buf, pos);
+      if (!el || el.dataEnd <= pos) return null;
+      if (el.id === EBML_INFO) return el;
+      if (el.sizeUnknown) return null;   // 未知长度的 Cluster 无法跳过
+      pos = el.dataEnd;
+    }
+    return null;
+  }
+
+  function _ebmlChild(buf, parent, wantedId) {
+    var pos = parent.dataStart;
+    while (pos + 6 <= parent.dataEnd) {
+      var el = _ebmlElement(buf, pos);
+      if (!el || el.dataEnd > parent.dataEnd || el.dataEnd <= pos) return null;
+      if (el.id === wantedId) return el;
+      pos = el.dataEnd;
+    }
+    return null;
+  }
+
+  function _ebmlFloat32(value) {
+    var out = new Uint8Array(4);
+    new DataView(out.buffer).setFloat32(0, value, false); // EBML 约定 big-endian
+    return out;
+  }
+
+  /**
+   * 给 webm 补 Duration。
+   * @param {Uint8Array} buf 原始文件字节
+   * @param {number} durationMs 真实录制时长（毫秒）
+   * @returns {Uint8Array|null} 修补后的完整字节；无法安全修补时返回 null
+   */
+  function _ebmlPatchDuration(buf, durationMs) {
+    if (!(durationMs > 0) || !buf || buf.length < 64) return null;
+    var info = _ebmlFindInfo(buf);
+    if (!info || info.sizeUnknown) return null;
+
+    // Duration 的单位是 TimecodeScale（纳秒）。Chrome 默认 1000000ns=1ms，
+    // 这里按实际值换算，避免将来改了 scale 后时长差 1000000 倍。
+    var scale = 1000000;
+    var ts = _ebmlChild(buf, info, EBML_TIMECODE_SCALE);
+    if (ts) {
+      var s = 0;
+      for (var i = ts.dataStart; i < ts.dataEnd; i++) s = s * 256 + buf[i];
+      if (s > 0) scale = s;
+    }
+    var dur = durationMs * 1000000 / scale;
+    var f = _ebmlFloat32(dur);
+
+    var existing = _ebmlChild(buf, info, EBML_DURATION);
+    if (existing) {
+      if (existing.size < 4) return null;
+      var out = new Uint8Array(buf);
+      for (var j = 0; j < 4; j++) out[existing.dataStart + j] = f[j];
+      return out;
+    }
+
+    // Chrome 路径：Info 内插入 Duration 元素（2B ID + 1B size + 4B float = 7B）
+    var durEl = new Uint8Array(7);
+    durEl[0] = 0x44; durEl[1] = 0x89; durEl[2] = 0x84;
+    durEl.set(f, 3);
+    var newSize = info.size + durEl.length;
+    var sizeBytes = _ebmlWriteVint(newSize, _ebmlVintLen(newSize));
+    var parts = [
+      buf.subarray(0, info.idEnd),          // EBML ID 原样
+      sizeBytes,                             // 新的 Info size
+      buf.subarray(info.dataStart, info.dataEnd),
+      durEl,
+      buf.subarray(info.dataEnd)             // Tracks / Cluster / ...
+    ];
+    var total = 0;
+    for (var p = 0; p < parts.length; p++) total += parts[p].length;
+    var merged = new Uint8Array(total);
+    var off = 0;
+    for (var q = 0; q < parts.length; q++) {
+      merged.set(parts[q], off);
+      off += parts[q].length;
+    }
+    return merged;
+  }
+
   var ClassroomRecord = {
     ctx: null,
     recordingId: null,
@@ -144,6 +298,7 @@
     _onRecorderStop: function () {
       var self = this;
       var blob = new Blob(this.chunks, { type: 'video/webm' });
+      var elapsedMs = this.startedAt ? (Date.now() - this.startedAt) : 0;
       this.chunks = [];
       this._releaseStream(this._lastStream, this.mode);
       this._lastStream = null;
@@ -158,8 +313,12 @@
         this._toast('录制记录丢失，文件未上传');
         return;
       }
-      this._toast('录制文件 ' + this._size(blob.size) + '，开始上传…');
-      this._upload(blob).then(function (ossKey) {
+      // 补 Duration 后再上传：Chrome 原生 webm 没有该字段，回放进度条会显示 ∞ 且拖不动。
+      // 修补失败一律降级为原文件，不能因为增强功能丢掉整堂录制。
+      this._withDuration(blob, elapsedMs).then(function (fixed) {
+        self._toast('录制文件 ' + self._size(fixed.size) + '，开始上传…');
+        return self._upload(fixed);
+      }).then(function (ossKey) {
         return self._api('stop', { ossKey: ossKey });
       }).then(function () {
         self._toast('录制已保存，可在回放页观看');
@@ -167,6 +326,21 @@
       }).catch(function (e) {
         self._toast('录制上传失败：' + ((e && e.message) || ''));
       });
+    },
+
+    /** 补 webm Duration；任何异常都原样返回 blob，保证上传链路不受影响 */
+    _withDuration: function (blob, elapsedMs) {
+      if (!(elapsedMs > 1000) || typeof blob.arrayBuffer !== 'function') {
+        return Promise.resolve(blob);
+      }
+      return blob.arrayBuffer().then(function (ab) {
+        try {
+          var fixed = _ebmlPatchDuration(new Uint8Array(ab), elapsedMs);
+          return fixed ? new Blob([fixed], { type: 'video/webm' }) : blob;
+        } catch (e) {
+          return blob;
+        }
+      }).catch(function () { return blob; });
     },
 
     // ---------------- 分片上传 ----------------
