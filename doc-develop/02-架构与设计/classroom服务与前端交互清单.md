@@ -217,6 +217,15 @@
 > 不变式：**grant 蕴含 hand**。`pushInitialState()` 下发前会剔除"有授权无举手"的孤儿 grant。
 > 前端唯一判据：`ClassroomRTC.micGranted`（`grantMic/revokeMic/setServerMuted` 维护），学生按钮文字由 `ClassroomStudent._updateHandUI` 渲染。
 
+> **★白板消息分两条通道，前端两个入口都要接（2026-11-18 修复）**
+>
+> | 消息 | 服务端广播 | 前端入口 |
+> |---|---|---|
+> | 笔迹 / clear / undo / `wb:init` | `broadcastWhiteboard` | `ClassroomWhiteboard.onMessage`（由 `main` 的 WS `onWhiteboard` 调） |
+> | **`wb:grant:state` / `wb:denied`** | **`broadcastSignal`** | **`ClassroomWhiteboard.onSignal`**（由 `_dispatchSignal` 转发） |
+>
+> 之前白板模块只实现 `onMessage`，而授权用 `broadcastSignal` 发 → 学生的 `granted` 永远是 `false`，表现为「教师点了授权，学生端仍显示只读、画不上」。白板模块现已补 `onSignal` 转投 `onMessage`；`#wb-readonly-hint` 也改为由 `_syncReadonlyHint()` 统一控制（授权后收起、收回后复现）。
+
 
 ---
 

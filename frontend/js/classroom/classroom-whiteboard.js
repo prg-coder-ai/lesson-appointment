@@ -71,10 +71,7 @@
       this._resize();
       var self = this;
       window.addEventListener('resize', function () { self._resize(); });
-      if (this.readOnly) {
-        var hint = document.getElementById('wb-readonly-hint');
-        if (hint) hint.style.display = '';
-      }
+      this._syncReadonlyHint();
       this._syncUndoBtn();
       return this;
     },
@@ -325,6 +322,20 @@
       if (previewSeg) this._drawSeg(previewSeg);
     },
 
+    /**
+     * 信令通道入口：main._dispatchSignal 会把每条信令转发给所有模块的 onSignal。
+     *
+     * <p>白板相关消息分两条通道，必须都接：
+     * 笔迹/清空/撤回/wb:init 走白板通道（服务端 broadcastWhiteboard）→ onMessage；
+     * <b>wb:grant:state 走信令通道</b>（服务端 ClassroomSignalService 用 broadcastSignal）→ 只能从 onSignal 进。
+     * 此前没有 onSignal，教师的「授权白板」广播到这里就断了，
+     * 学生 granted 永远为 false → 一直显示只读、画不上。</p>
+     */
+    onSignal: function (msg) {
+      if (!msg || !msg.type) return;
+      if (msg.type === 'wb:grant:state') this.onMessage(msg);
+    },
+
     // 远端消息入口：由 main.js 的 WS onWhiteboard 调用
     onMessage: function (msg) {
       if (!msg) return;
@@ -368,6 +379,7 @@
         if (msg.userId != null && me != null && String(msg.userId) !== String(me)) return;
         this.granted = !!msg.grant;
         this._syncUndoBtn();
+        this._syncReadonlyHint();   // 授权后必须把「只读」角标收掉，否则看着像没生效
         if (this.granted) {
           this.toast('教师已授权你编辑白板');
         } else if (this.readOnly) {
@@ -526,6 +538,17 @@
       btn.title = canUndo ? ('撤回最近一条操作（还可撤 ' + n + ' 条）') : '暂无可撤回的操作';
       var badge = document.getElementById('wb-undo-count');
       if (badge) badge.textContent = n ? String(n) : '';
+    },
+
+    /**
+     * 「只读」角标只在真正不能写时显示：教师可写；学生获得授权后也算可写。
+     * 单独抽出来是因为这个角标在 init 时显示后就再没人关过——
+     * 授权成功但角标还挂着，用户会以为授权没生效。
+     */
+    _syncReadonlyHint: function () {
+      var hint = document.getElementById('wb-readonly-hint');
+      if (!hint) return;
+      hint.style.display = (this.readOnly && !this.granted) ? '' : 'none';
     },
 
     // ------------------------------------------------------------------
