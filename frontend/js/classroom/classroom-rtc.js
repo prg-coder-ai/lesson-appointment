@@ -122,9 +122,8 @@
         this.micEnabled = p.mic;
         this.camEnabled = p.cam;
       }
-      var mic = document.getElementById('ctrl-mic');
       var cam = document.getElementById('ctrl-cam');
-      if (mic) mic.classList.toggle('active', this.micEnabled);
+      this.syncMicUI();
       if (cam) cam.classList.toggle('active', this.camEnabled);
     },
 
@@ -202,12 +201,26 @@
       if (b && this._isStudent()) {
         this.setMicEnabledDirect(false);
       }
+      this.syncMicUI();
     },
 
-    // F4-14：教师批准开麦 → 解除禁言并开麦
+    // F4-14：教师批准开麦 → 解除禁言并开麦（图标同步由 syncMicUI 负责）
     grantMic: function () {
       this.serverMuted = false;
       this.setMicEnabledDirect(true);
+      this.syncMicUI();
+    },
+
+    // F4-14：学生放下手 → 自动关麦；serverMuted 保持不变（全员静言仍由服务端说了算）
+    revokeMic: function () {
+      this.setMicEnabledDirect(false);
+      this.syncMicUI();
+    },
+
+    /** 麦克风图标的唯一同步点：任何改 micEnabled 的路径都应调用 */
+    syncMicUI: function () {
+      var mic = document.getElementById('ctrl-mic');
+      if (mic) mic.classList.toggle('active', !!this.micEnabled);
     },
 
     /** 绕过禁言闸门的底层开关（供 setServerMuted/grantMic 内部调用） */

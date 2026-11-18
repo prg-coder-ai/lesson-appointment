@@ -31,6 +31,7 @@
     ctx: null,
     participants: {},
     hands: {},          // userId -> 是否举手（F4-14 教师批准开麦 UI 用）
+    micGrants: {},      // userId -> 教师是否已批准开麦（F4-14，放下手自动撤销）
     wbGrants: {},       // userId -> 是否被授权编辑白板（F4-08）
     serverMuted: false, // 服务端全员禁言态（F4-17）
     classStatus: 'SCHEDULED', // 课堂真实状态（来自 /status 与服务端 class:state 广播），发布门禁的唯一前端依据
@@ -357,9 +358,18 @@
           this._setServerMute(msg.muted);
           break;
         case 'mic:grant':
+          // 服务端权威开麦授权：举手期间有效，放下手会广播 granted=false
+          var granted = msg.granted !== false;
+          this.micGrants[msg.userId] = granted;
+          this._renderParticipants();
           if (msg.userId === this.ctx.userId && window.ClassroomRTC) {
-            window.ClassroomRTC.grantMic();
-            window.clToast('教师已允许你发言，麦克风已开启');
+            if (granted) {
+              window.ClassroomRTC.grantMic();
+              if (!msg.silent) window.clToast('教师已允许你发言，麦克风已开启');
+            } else {
+              window.ClassroomRTC.revokeMic();
+              if (!msg.silent) window.clToast('已放下手，麦克风已关闭');
+            }
           }
           break;
         case 'wb:grant:state':
@@ -539,9 +549,11 @@
         // F2-04：教师/管理员对学生可补签
         var adjustBtn = (isTeacher && p.role === 'student')
           ? '<button class="pt-adjust" data-uid="' + self._cssEscape(id) + '">补签</button>' : '';
-        // F4-14：学生举手后，教师可「批准开麦」
+        // F4-14：学生举手后，教师端「批准开麦」高亮；已批准显示绿色「已批准」
+        var approved = !!self.micGrants[id];
         var approveBtn = (isTeacher && p.role === 'student' && self.hands[id])
-          ? '<button class="pt-approve" data-uid="' + self._cssEscape(id) + '">批准开麦</button>' : '';
+          ? '<button class="pt-approve ' + (approved ? 'granted' : 'active') + '" data-uid="' + self._cssEscape(id) + '">'
+            + (approved ? '已批准' : '批准开麦') + '</button>' : '';
         // F4-08：教师可授予/收回学生白板编辑权
         var grantBtn = (isTeacher && p.role === 'student')
           ? '<button class="pt-wbgrant' + (self.wbGrants[id] ? ' active' : '') + '" data-uid="' + self._cssEscape(id) + '">'

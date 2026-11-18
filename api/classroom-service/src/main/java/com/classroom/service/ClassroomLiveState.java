@@ -31,6 +31,8 @@ public class ClassroomLiveState {
     private final Map<String, Boolean> muteAll = new ConcurrentHashMap<>();
     /** scheduleId -> (userId -> 是否举手) */
     private final Map<String, Map<String, Boolean>> handRaised = new ConcurrentHashMap<>();
+    /** scheduleId -> 已被教师批准开麦的学生 userId 集合（F4-14，放下手自动撤销） */
+    private final Map<String, Set<String>> micGranted = new ConcurrentHashMap<>();
     /** scheduleId -> (userId -> 摄像头是否关闭) */
     private final Map<String, Map<String, Boolean>> cameraOff = new ConcurrentHashMap<>();
     /** scheduleId -> 被授权编辑白板的学生 userId 集合 */
@@ -93,6 +95,29 @@ public class ClassroomLiveState {
 
     public Map<String, Boolean> hands(String scheduleId) {
         return handRaised.getOrDefault(scheduleId, Collections.emptyMap());
+    }
+
+    // ------------------------------------------------------------------
+    // 批准开麦（举手期间有效，放下手自动撤销）
+    // ------------------------------------------------------------------
+
+    public void grantMic(String scheduleId, String userId) {
+        micGranted.computeIfAbsent(scheduleId, k -> ConcurrentHashMap.newKeySet()).add(userId);
+    }
+
+    public void revokeMic(String scheduleId, String userId) {
+        Set<String> s = micGranted.get(scheduleId);
+        if (s != null) s.remove(userId);
+    }
+
+    public boolean isMicGranted(String scheduleId, String userId) {
+        return micGranted.getOrDefault(scheduleId, Collections.emptySet()).contains(userId);
+    }
+
+    public Map<String, Boolean> micGrants(String scheduleId) {
+        Map<String, Boolean> m = new ConcurrentHashMap<>();
+        micGranted.getOrDefault(scheduleId, Collections.emptySet()).forEach(u -> m.put(u, true));
+        return m;
     }
 
     // ------------------------------------------------------------------

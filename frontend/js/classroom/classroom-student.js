@@ -15,7 +15,7 @@
     },
 
     toggleHand: function () {
-      this.handRaised = !this.handRaised;
+      this.setHandRaised(!this.handRaised);
       if (window.ClassroomWS) {
         window.ClassroomWS.sendSignal(this.ctx.scheduleId, {
           type: 'hand',
@@ -24,14 +24,27 @@
           raised: this.handRaised
         });
       }
-      this._updateHandUI();
-      this.toast(this.handRaised ? '已举手' : '已放下手');
+      // 放下手立即关麦；服务端也会广播 mic:grant(granted=false) 让所有端保持一致
+      if (!this.handRaised && window.ClassroomRTC && typeof window.ClassroomRTC.revokeMic === 'function') {
+        window.ClassroomRTC.revokeMic();
+      }
+      this.toast(this.handRaised ? '已举手' : '已放下手，麦克风已关闭');
       return this.handRaised;
+    },
+
+    /** 更新本地举手态与按钮；服务端权威下发时调用，不再回发信令 */
+    setHandRaised: function (raised) {
+      this.handRaised = !!raised;
+      this._updateHandUI();
     },
 
     // 收到服务端权威提示
     onSignal: function (msg) {
       if (!msg || !msg.type) return;
+      // 服务端权威举手态（含进房/刷新时的初始下发），同步自己的按钮文字与高亮
+      if (msg.type === 'hand:state' && msg.userId === this.ctx.userId) {
+        this.setHandRaised(msg.raised);
+      }
       if (msg.type === 'member-kicked' && msg.to === this.ctx.userId) {
         this.toast('你已被移出课堂');
         if (window.ClassroomMain && typeof window.ClassroomMain.leave === 'function') {
@@ -65,7 +78,11 @@
 
     _updateHandUI: function () {
       var btn = document.getElementById('ctrl-hand');
-      if (btn) btn.classList.toggle('active', this.handRaised);
+      if (btn) {
+        btn.classList.toggle('active', this.handRaised);
+        var label = btn.querySelector('span');
+        if (label) label.textContent = this.handRaised ? '已放下手' : '举手';
+      }
     },
 
     toast: function (msg) {
