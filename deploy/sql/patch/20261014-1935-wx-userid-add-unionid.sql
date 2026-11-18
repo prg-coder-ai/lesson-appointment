@@ -12,7 +12,7 @@
 -- 注意：
 --   · uk_wx_unionid 允许 NULL 多行是 MySQL 唯一索引的正常语义，存量无 unionid 行不受影响；
 --   · 存量行的 unionid 不做批量回填，而是在下次登录/绑定时按同账号幂等路径自动补齐；
---   · 本 patch 执行后需同步刷新 api/sql/schema 基线（ddl-align 守卫按行首 CREATE TABLE 解析基线）。
+--   · 本 patch 执行后需同步刷新 deploy/sql/schema 基线（ddl-align 守卫按行首 CREATE TABLE 解析基线）。
 
 ALTER TABLE `wx_userid`
   ADD COLUMN `wx_unionid` varchar(64) NULL COMMENT '跨端统一身份（开放平台 unionid，缺失回退 openid）' AFTER `wx_openid`,

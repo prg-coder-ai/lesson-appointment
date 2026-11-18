@@ -70,28 +70,13 @@ api/node_modules
 logs/spring-boot-app.log
 logs/spring-boot-app.log
 logs/spring-boot-app.log
-# beforeRun 只排除「构建产物与运行时配置」，不再排除整个目录。
-# 原为整目录排除（曾导致 lesson_appointment 完整 DDL 无法入库 = 报告根因 C：
-# 「DB 定义没有单一事实源」）。现权威脚本已集中到 api/sql/（见 api/sql/README.md），
-# 这里仍放行 beforeRun/sql/ 下的历史脚本以备追溯。
-#
-# ⚠️ 2026-10-30 修：下面原本只有 `!api/beforeRun/sql/...` 两条白名单，导致
-#    booking.env.template / message.env.template **从未进入 Git** ——
-#    干净克隆上 deploy/upload-to-server.sh 引用的模板全都不存在，
-#    于是大家只能去 doc-develop/ 复制那份旧副本，而那份副本用的是无效的
-#    CRYPTO_AESKEY 变量名（"以为配了其实没配"的根源）。
-#    现补放行"部署前置件"：env 模板 / systemd 单元 / 说明。
-# beforeRun：只排除「运行时生成的配置」，模板与脚本应入库。
-# 注意：api/beforeRun 下有部署用模板（*.env.template / *.service / README.md）与历史
-# SQL 脚本，均为单一事实源，不得整目录排除——否则 env 模板等永远进不了 Git，干净克隆
-# 上缺失，check:secret-env 守卫与部署脚本会失真。
-api/beforeRun/*
-!api/beforeRun/*.env.template
-!api/beforeRun/*.service
-!api/beforeRun/README.md
-!api/beforeRun/*.sql
-!api/beforeRun/sql/
-!api/beforeRun/sql/*.sql
+# ========== deploy/（部署资产单一事实源，2026-11-18 目录整合）==========
+# 历史上部署模板放在 api/beforeRun/、DDL 放在 api/sql/，两者已分别合并到
+#   deploy/          （env 模板 / systemd 单元 / 部署说明）
+#   deploy/sql/      （schema / seed / patch，见 deploy/sql/README.md）
+# 旧目录已删除，禁止整目录排除 deploy/ —— env 模板等必须入库，否则
+# check:secret-env 守卫与 deploy/upload-to-server.sh 在干净克隆上全部失真。
+# 仅构建产物（deploy/dist/、deploy/jars/）与含密钥的 deploy-keys.txt 在下面单独排除。
 
 # ========== 运行日志与临时输出（统一规则，2026-09-09 整理）==========
 # 说明：上面历史遗留的重复条目（如 logs/spring-boot-app.log、api/logs 等）保留不动，
@@ -131,7 +116,7 @@ cloudBased/message-service/target/message-service-1.1.0.jar
 api/classroom-service/target
 # SQL 语义映射的中间产物：由 gen_upsert_sys_term.py 生成，内容是 GBK/UTF-8 混淆的乱码，
 # 且全仓无任何脚本读取它 → 不入库（需要时本地重新生成）。
-api/sql/schema/_semmap.tsv
+deploy/sql/schema/_semmap.tsv
 cloudBased/*.zip
 cloudBased/api/target/*.jar
 cloudBased/message-service/target/message-service-1.1.0.jar

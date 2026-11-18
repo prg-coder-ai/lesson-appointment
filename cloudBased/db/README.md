@@ -42,9 +42,9 @@
 所有 schema 脚本**都已在项目根目录**，迁移时直接拿过来执行，**cloudBased 不重复维护**，避免两份：
 
 ```
-api/sql/schema/20261014-legal-doc.sql          ← 协议/隐私政策两张表
-api/sql/seed/20261015-legal-doc-seed.sql        ← 4 条初始文档（平台正式版 + 平台模板各 2 条）
-api/sql/dump/lesson_appointment.sql            ← 主业务库 dump（如有）
+deploy/sql/schema/20261014-legal-doc.sql          ← 协议/隐私政策两张表
+deploy/sql/seed/20261015-legal-doc-seed.sql        ← 4 条初始文档（平台正式版 + 平台模板各 2 条）
+deploy/sql/dump/lesson_appointment.sql            ← 主业务库 dump（如有）
 api/message-service/sql/dump/message_center.sql← 消息库 dump（如有）
 ```
 

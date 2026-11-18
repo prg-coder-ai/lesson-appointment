@@ -22,7 +22,7 @@
  *      - 同一场景内 (父表,父键列,子表,子键列) 不得重复。
  *   5. bookingId 生成口径统一：业务代码不得直接调 `UUID.randomUUID()` 生成
  *      bookingId（双生成器是悬空引用根因之一），必须走 BookingIdGenerator。
- *   6. 规则引用的表必须真实存在于 DDL 基线目录 api/sql/schema/ 中（拼错表名会在运行时报
+ *   6. 规则引用的表必须真实存在于 DDL 基线目录 deploy/sql/schema/ 中（拼错表名会在运行时报
  *      SQL 错误，而级联是删除路径上的，报错时机太晚）。
  *
  * 用法：node tools/check-cascade-rules.mjs
@@ -35,7 +35,7 @@ import path from 'node:path';
 const ROOT = process.cwd();
 const JAVA_ROOT = path.join(ROOT, 'api/src/main/java/com/reservation');
 const RULES_FILE = path.join(JAVA_ROOT, 'common/CascadeRules.java');
-const DDL_DIR = path.join(ROOT, 'api/sql/schema');
+const DDL_DIR = path.join(ROOT, 'deploy/sql/schema');
 
 const problems = [];
 const notes = [];
@@ -241,8 +241,8 @@ for (const r of rules) {
 }
 
 // ---------------------------------------------------------------- 检查 6：规则引用的表必须真实存在于 DDL 基线
-// 基线 = api/sql/schema/ 下的全部 *.sql（由 mysqldump 导出的权威建表快照，
-// 不是 api/beforeRun/ 下任何历史脚本——那些早已删除/废弃，且不含 CREATE TABLE）。
+// 基线 = deploy/sql/schema/ 下的全部 *.sql（由 mysqldump 导出的权威建表快照，
+// 不是 deploy/ 下任何历史脚本——那些早已删除/废弃，且不含 CREATE TABLE）。
 if (!fs.existsSync(DDL_DIR) || !fs.statSync(DDL_DIR).isDirectory()) {
   problems.push('找不到 DDL 基线目录 ' + rel(DDL_DIR) + '（检查 6 需要它核对表列是否真实存在）');
 } else {

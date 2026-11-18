@@ -11,7 +11,7 @@
  * 为什么是静态比对（方案 B）而不是连库比对（方案 A）：
  *   - 不依赖数据库可达性 → 能挂进 pre-commit（连库方案在 CI/本地无库时形同虚设，
  *     且拿"库里的表"当真相会把"忘了 ALTER"变成合法状态，守卫反而失去意义）；
- *   - 真相源固定为 api/sql/schema/*.sql，即已归档的权威建库脚本；
+ *   - 真相源固定为 deploy/sql/schema/*.sql，即已归档的权威建库脚本；
  *   - 代价是覆盖不到 mapper XML 里的显式列清单（实测静态解析 69 个候选里约 44 个
  *     误报，不可靠），因此本守卫**只保证实体层**，XML 层留给 CI 上的方案 A 兜底。
  *
@@ -52,8 +52,8 @@ const ENTITY_ROOTS = [
   'api/src/main/java/com/reservation/entity',
   'api/message-service/src/main/java/com/messagecenter/entity',
 ];
-// DDL 基线（权威建库脚本，归档于 api/sql/schema）
-const SCHEMA_DIR = 'api/sql/schema';
+// DDL 基线（权威建库脚本，归档于 deploy/sql/schema）
+const SCHEMA_DIR = 'deploy/sql/schema';
 
 const problems = [];
 const notes = [];
