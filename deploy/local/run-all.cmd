@@ -86,7 +86,7 @@ exit /b 0
 
 :frontend
 if "%BACKEND_ONLY%"=="1" (
-  echo BACKEND_ONLY=1：只起后端。前端另开：node doc-develop\dev-frontend-local-src.js
+  echo BACKEND_ONLY=1：只起后端。前端另开：node doc-develop\90-工具与脚本\dev-frontend-local-src.js
   exit /b 0
 )
 

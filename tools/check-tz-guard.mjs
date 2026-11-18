@@ -2,7 +2,7 @@
 /**
  * 课次 UTC 守卫（2026-10-08 课次时间 UTC 化改造配套）
  *
- * 背景见 doc-develop/课次时间UTC化改造方案.md。时间口径铁律：
+ * 背景见 doc-develop/02-架构与设计/课次时间UTC化改造方案.md。时间口径铁律：
  *   排期层 course_schedule = 本地墙钟时间 + time_zone（保持现状不动）
  *   课次层 appointment 起   = UTC（唯一真相源）
  *   展示                   = 用户时区
@@ -239,7 +239,7 @@ if (genSrc) {
     if (!new RegExp(`public static LocalDateTime ${m}\\s*\\(`).test(genSrc)) {
       problems.push(
         `ScheduleGenerator 缺少 public static LocalDateTime ${m}() —— 课次 UTC 化的三个入口之一。\n` +
-        `    → 详见 doc-develop/课次时间UTC化改造方案.md 步骤 1`);
+        `    → 详见 doc-develop/02-架构与设计/课次时间UTC化改造方案.md 步骤 1`);
     }
   }
   // 死代码提醒：toUtc 若始终无人调用，说明转换没真正接线（v1.0 曾出现过）

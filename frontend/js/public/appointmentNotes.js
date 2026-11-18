@@ -1,7 +1,7 @@
 // functoions for appointmentNotes display and data load
 
 /* ============================================================
- * 课次时间渲染（2026-10-08 课次 UTC 化，见 doc-develop/课次时间UTC化改造方案.md）
+ * 课次时间渲染（2026-10-08 课次 UTC 化，见 doc-develop/02-架构与设计/课次时间UTC化改造方案.md）
  * ------------------------------------------------------------
  * 课次 appointment_datetime 后端一律存 UTC。展示要走两级：
  *   ① 首选后端转好——请求时带 userTimeZone，后端按用户时区返回墙上时间；

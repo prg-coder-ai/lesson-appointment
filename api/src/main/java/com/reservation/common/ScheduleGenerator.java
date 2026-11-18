@@ -208,7 +208,7 @@ public class ScheduleGenerator {
     }
 
     // ==================== 时区转换工具 ======================
-    // ⚠️ 时间口径铁律（2026-10-08 课次 UTC 化改造，见 doc-develop/课次时间UTC化改造方案.md）：
+    // ⚠️ 时间口径铁律（2026-10-08 课次 UTC 化改造，见 doc-develop/02-架构与设计/课次时间UTC化改造方案.md）：
     //   排期层（course_schedule）存「排期本地墙钟时间」，必须结合 course_schedule.time_zone 解读；
     //   课次层（appointment）起一律存 UTC，是唯一真相源。
     //   转换只发生在「生成课次那一刻」，此后一切时间比较都在 UTC 空间做。

@@ -55,5 +55,5 @@ DDL 的权威位置是**本目录下的 `sql/`**（`deploy/sql/{schema,seed,patc
   否则消息/课堂 401、跨服务解密失败。
 - 模板里只写 `CHANGE_ME`，**不要**写真实密钥（守卫会拦）。
 
-> 另注：`doc-develop/booking.env.template`、`doc-develop/message.env.template` 是历史遗留的**同步副本**，
+> 另注：`doc-develop/04-部署与运维/booking.env.template`、`doc-develop/04-部署与运维/message.env.template` 是历史遗留的**同步副本**，
 > 正本在本目录。改密钥相关的东西请改这里的正本（守卫只校验正本），两份副本记得一起改。

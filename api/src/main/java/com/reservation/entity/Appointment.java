@@ -76,7 +76,7 @@ import java.time.LocalDateTime;
 //      ① 旧草稿里的 `private String timeZone`（预约时间所在时区）**已作废**：
 //         课次自 2026-10-08 起一律存 UTC，appointment 表**没有也不该有** time_zone 列。
 //         需要"课次按哪个时区排"请走既有链路 appointment → booking → schedule → course_schedule.time_zone。
-//         （见 doc-develop/课次时间UTC化改造方案.md v1.1 的修订说明）
+//         （见 doc-develop/02-架构与设计/课次时间UTC化改造方案.md v1.1 的修订说明）
 //      ② 旧草稿的字段名带下划线（appointmemnt_datetime / last_datetime，且前者还拼错了），
 //         生效实体用的是驼峰 appointmentDatetime / lastDatetime。
 /*
