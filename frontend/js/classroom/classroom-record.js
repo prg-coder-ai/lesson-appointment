@@ -126,6 +126,12 @@
     return out;
   }
 
+  function _ebmlFloat64(value) {
+    var out = new Uint8Array(8);
+    new DataView(out.buffer).setFloat64(0, value, false);
+    return out;
+  }
+
   /**
    * 给 webm 补 Duration。
    * @param {Uint8Array} buf 原始文件字节
@@ -147,17 +153,20 @@
       if (s > 0) scale = s;
     }
     var dur = durationMs * 1000000 / scale;
-    var f = _ebmlFloat32(dur);
 
     var existing = _ebmlChild(buf, info, EBML_DURATION);
     if (existing) {
-      if (existing.size < 4) return null;
+      // EBML Duration 是 float，宽度可为 4 或 8 字节。必须按原宽度覆写：
+      // 只写前 4 字节会把 float64 的后半截留成旧值，得到一个谁也不认的怪数。
+      if (existing.size !== 4 && existing.size !== 8) return null;
+      var fWide = (existing.size === 8) ? _ebmlFloat64(dur) : _ebmlFloat32(dur);
       var out = new Uint8Array(buf);
-      for (var j = 0; j < 4; j++) out[existing.dataStart + j] = f[j];
+      for (var j = 0; j < fWide.length; j++) out[existing.dataStart + j] = fWide[j];
       return out;
     }
 
     // Chrome 路径：Info 内插入 Duration 元素（2B ID + 1B size + 4B float = 7B）
+    var f = _ebmlFloat32(dur);
     var durEl = new Uint8Array(7);
     durEl[0] = 0x44; durEl[1] = 0x89; durEl[2] = 0x84;
     durEl.set(f, 3);
@@ -286,17 +295,22 @@
 
   /**
    * 检测文件末尾是否已有 Cues。不能用「顺序遍历 Segment 子元素」——
-   * Cluster 是未知长度，遍历到第一个 Cluster 就断了，永远走不到末尾的 Cues。
-   * 这里只在尾部 64KB 找 Cues ID，并要求其声明尺寸恰好覆盖到文件末尾。
+   * Cluster 是未知长度，顺序遍历到第一个 Cluster 就断了，不能靠层级遍历。
+   * 全文件按字节模式找 Cues ID，要求后跟合法 size vint 且首个子元素是 CuePoint(0xBB)，
+   * 避免媒体数据里的偶然 4 字节命中。不再限定尾部——标准 muxer 会把 Cues 写在中段。
    */
   function _ebmlHasCues(buf) {
-    var pat = [0x1C, 0x53, 0xBB, 0x6B];
-    var from = Math.max(0, buf.length - 65536);
-    for (var p = from; p + 8 <= buf.length; p++) {
-      if (buf[p] !== pat[0] || buf[p + 1] !== pat[1] || buf[p + 2] !== pat[2] || buf[p + 3] !== pat[3]) continue;
+    var from = 0, p;
+    while ((p = buf.indexOf(0x1C, from)) >= 0) {
+      from = p + 1;
+      if (p + 12 > buf.length) break;
+      if (buf[p + 1] !== 0x53 || buf[p + 2] !== 0xBB || buf[p + 3] !== 0x6B) continue;
       var sz = _ebmlReadVint(buf, p + 4, false);
-      if (!sz || sz.unknown) continue;
-      if (p + 4 + sz.length + sz.value === buf.length) return true;
+      if (!sz || sz.unknown || sz.value < 8) continue;
+      var body = p + 4 + sz.length;
+      if (body + sz.value > buf.length) continue;
+      if (buf[body] !== 0xBB) continue;   // Cues 的第一个子元素必须是 CuePoint
+      return true;
     }
     return false;
   }
@@ -378,6 +392,7 @@
       var self = this;
       mode = (mode === 'screen') ? 'screen' : 'video';
       this.mode = mode;
+      this.recordExt = '.webm';   // 默认；_doStart 拿到 recorder.mimeType 后按实际容器覆盖
       var stream = this._pickStream(mode);
       // screen 模式 getDisplayMedia 返回 Promise：等用户授权后再开录
       if (stream && typeof stream.then === 'function') {
@@ -425,6 +440,10 @@
         }
         try {
           self.recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+          // 实际容器由浏览器决定：Chrome/Firefox 是 webm，Safari 18.3- 只会是 mp4。
+          // 用 recorder.mimeType（而不是我们请求的 mime）定扩展名，后端按 key 推断
+          // Content-Type 才不会把 MP4 当成 video/webm 发出去。
+          self.recordExt = (/mp4/i.test(self.recorder.mimeType || '')) ? '.mp4' : '.webm';
         } catch (e) {
           self._toast('当前浏览器不支持录制：' + (e && e.message ? e.message : ''));
           self.recordingId = null;
@@ -500,6 +519,8 @@
 
     /** 补 webm Duration + Cues；任何异常都原样返回 blob，保证上传链路不受影响 */
     _withDuration: function (blob, elapsedMs) {
+      // MP4 自带 moov 里的时长和采样表，不需要也不该按 EBML 解析
+      if (this.recordExt === '.mp4') return Promise.resolve(blob);
       if (!(elapsedMs > 1000) || typeof blob.arrayBuffer !== 'function') {
         return Promise.resolve(blob);
       }
@@ -517,7 +538,9 @@
     _upload: function (blob) {
       var self = this;
       var base = this.ctx.apiBaseUrl || '';
-      var fileName = 'recording-' + this.recordingId + '.webm';
+      // 扩展名跟随实际容器（见 _doStart 的 recordExt）；ext 进 oss_key 后，
+      // FileAccessController.contentTypeOf() 自然返回 video/mp4 或 video/webm
+      var fileName = 'recording-' + this.recordingId + (this.recordExt || '.webm');
 
       return this._postJson(urlOf(base, EP.UPLOAD_INIT), {
         purpose: 'RECORDING',
