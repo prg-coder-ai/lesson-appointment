@@ -235,7 +235,7 @@ public class UserService {
             // ★ 已收口（2026-10-24，方案 B 收口①）：role=admin + tenantCode=platform 的自助注册
             //   现在会在下面的 else 分支入口被 isReservedTenantCode 显式拒绝，
             //   不再依赖"该租户没有 sys_tenant_package → quota acquire 403"这种碰巧的偶然拦截。
-            //   设计取舍见 doc-develop/技术方案-保留字platform的租户语义.md
+            //   设计取舍见 doc-develop/02-架构与设计/技术方案-保留字platform的租户语义.md
             regTenantId = 0L;
         } else if (regTenantId == null || regTenantId <= 0) {
             // 保留字（platform / default）一律拒绝：这两个码是系统自用，

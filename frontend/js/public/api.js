@@ -856,7 +856,7 @@ function maskEmail(email) {
    * ⚠️ 禁止为了"让 platform 当租户、进 admin.html 管自己人"而放开这个判断。
    *   那条路要同时拆掉：本函数 + 小程序 core/auth.js 的同名实现 + 两个页面的
    *   guardEntryPage，并且会让 tenantId=0 的"查全量"语义漏进租户控制台。
-   *   完整取舍见 doc-develop/技术方案-保留字platform的租户语义.md
+   *   完整取舍见 doc-develop/02-架构与设计/技术方案-保留字platform的租户语义.md
    *   平台若需要租户态功能，正解是另开一个普通随机码的"内部机构"租户。
    */
   function isRoleTenantCodeMatch(role, tenantCode) {

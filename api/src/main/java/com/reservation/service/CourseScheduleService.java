@@ -723,7 +723,7 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
       // 排期时区：从排期实体取，是本次换算的唯一依据。
       // generateUserZoneSchedule 展开出的 date+time 是「排期本地墙钟时间」，
       // 落库前必须转成 UTC，否则课次时间会随服务器时区/比较口径整体错位
-      // （见 doc-develop/课次时间UTC化改造方案.md 步骤 2）。
+      // （见 doc-develop/02-架构与设计/课次时间UTC化改造方案.md 步骤 2）。
       String scheduleZone = schedule.getTimeZone();
 
       List<Appointment> appointmentList = new ArrayList<>();
