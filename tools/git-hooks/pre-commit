@@ -194,3 +194,19 @@ if [ "$SKIP_ADMIN_SELF_LOCK" != "1" ]; then
 else
   echo "[admin-self-lock] SKIP_ADMIN_SELF_LOCK=1，跳过管理员自锁防护守卫"
 fi
+
+# 19) proxy-routes：反向代理分流守卫（2026-11-19 新增）。
+#     必要性：前端某个课堂接口没被分流规则覆盖时，请求会被兜底送到 booking(8081)，
+#     主服务没有该映射且 SecurityConfig 兜底是 denyAll() → **403**，前端只显示
+#     「无权限访问该资源」。看起来像权限问题，实际是分流漏了一条，本地联调时最难查。
+#     真实事故：POST /api/v1/admin/classrooms（创建临时课堂）没有子路径，而清单写的是
+#     '/api/v1/admin/classrooms/' 用 startsWith 匹配 → 永远命中不了 → 建课按钮直接 403。
+#     守卫钉住：① 前端每个 CLASSROOM_* 端点都能被判到课堂服务；② nginx 两个 conf 的
+#     课堂 location 与 dev 代理清单一一对应；③ 每个端点在 nginx 里都匹配得到
+#     （没子路径的靠 `location = ...`）。清单本身从 dev-proxy.js 读，不复制第二份。
+#     紧急跳过：SKIP_PROXY=1 git commit ...
+if [ "$SKIP_PROXY" != "1" ]; then
+  node tools/check-proxy-routes.mjs || exit 1
+else
+  echo "[proxy-routes] SKIP_PROXY=1，跳过分流守卫"
+fi
