@@ -347,6 +347,11 @@
       }
       // F4-07：重连/迟到者恢复白板——服务器下发操作序列，本地重放
       if (msg.type === 'wb:init' && msg.ops) {
+        // 全量重放前必须先清空画布：断线自动重连时页面并没有重建，
+        // 画布上还留着断线前的笔迹，直接重放会和已有内容叠在一起（线条越来越粗、重影）。
+        this._clearLocal();
+        this._hideTextEditor();
+        this._pendingShape = null;
         this._ops = [];
         this._undoStack = [];
         var self = this;

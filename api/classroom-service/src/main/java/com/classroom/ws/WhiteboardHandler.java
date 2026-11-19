@@ -255,6 +255,28 @@ public class WhiteboardHandler extends TextWebSocketHandler {
         }
     }
 
+    /**
+     * 课堂结束时释放该课次的白板运行态（由 {@code ClassroomService.endClass} 调用）。
+     *
+     * <p>三张表原先只写不清，随课次无限累积：一节 45 分钟的板书序列常在几百 KB 量级，
+     * 进程长跑后就是持续增长的内存占用；课次复用（补课、重开同一 scheduleId）时
+     * 新连接还会收到上一节的板书。清之前必须先强制落盘一次——最后一笔通常还在
+     * 2 秒节流窗口内，直接丢内存等于丢板书。</p>
+     */
+    public void closeSession(String scheduleId) {
+        if (scheduleId == null) return;
+        try {
+            flush(scheduleId, true);
+        } catch (Exception e) {
+            log.warn("课堂结束前的白板快照落盘失败: scheduleId={}", scheduleId);
+        }
+        List<String> removed = wbOps.remove(scheduleId);
+        loaded.remove(scheduleId);
+        lastFlush.remove(scheduleId);
+        log.info("白板运行态已释放: scheduleId={}, 丢弃笔迹操作={}", scheduleId,
+                removed == null ? 0 : removed.size());
+    }
+
     // ------------------------------------------------------------------
     // 工具
     // ------------------------------------------------------------------

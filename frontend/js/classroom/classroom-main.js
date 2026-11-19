@@ -324,7 +324,26 @@
               window.ClassroomRTC.broadcastJoin();
             }
           },
-          onClose: function (ch) { console.warn('[ClassroomMain] WS 关闭', ch); },
+          // 断线由 classroom-ws 内部按通道指数退避重连；这里只负责把"正在重连"告诉用户。
+          // 之前只 console.warn，学生网络抖一下以后页面看着还在课堂，实际板书/信令全断，
+          // 自己画的发不出去也看不到别人新画的，而且永远不会自愈，只能手动刷新。
+          onDisconnect: function (ch, delay, attempt) {
+            console.warn('[ClassroomMain] WS 断开，将重连', ch, '第', attempt, '次，', delay, 'ms 后');
+            if (attempt === 1) {
+              self._setStatus('connecting', '连接中断，正在重连…');
+              window.clToast('网络中断，正在自动重连…');
+            }
+          },
+          onReconnect: function () {
+            // 重连成功后不需要主动拉状态：白板通道会收到 wb:init 全量板书，
+            // 信令通道会收到 pushInitialState（禁言/举手/授权），由服务端补发。
+            self._renderStatusBadge();
+            window.clToast('已重新连接课堂');
+            // 补发一次 rtc-peer-join：断开期间对端可能已重建连接，需要重新握手
+            if (window.ClassroomRTC && typeof window.ClassroomRTC.broadcastJoin === 'function') {
+              window.ClassroomRTC.broadcastJoin();
+            }
+          },
           onError: function (ch) { console.warn('[ClassroomMain] WS 错误', ch); },
           onHeartbeat: function () { /* 心跳保活 */ },
           onSignal: function (msg) { self._dispatchSignal(msg); },
