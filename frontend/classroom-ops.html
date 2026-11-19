@@ -102,6 +102,50 @@
     <!-- 实时监控 -->
     <section id="tab-monitor" class="tab active">
       <div class="cards" id="monitor-cards"></div>
+
+      <!-- 应急：临时建课（B1，2026-11-19）
+           课堂实例只能由排期事件产生，预约侧没有对应排期时，用它直接造一节。
+           注意：不结算课时、不进学情报表、也不出现在学生「我的课堂」里，只能靠链接分发。 -->
+      <div class="panel">
+        <div class="panel-head">临时建课（应急）<span class="spacer"></span>
+          <span class="muted">不计课时 · 不进「我的课堂」· 靠链接分发</span></div>
+        <div class="panel-body">
+          <div>
+            <span class="field">课程名 <input type="text" id="tmp-name" placeholder="临时课堂" style="width:200px"></span>
+            <span class="field">教师 userId <input type="text" id="tmp-teacher" placeholder="必填（教师登录账号 userId）" style="width:260px"></span>
+            <span class="field">开始 <input type="datetime-local" id="tmp-start" style="width:190px"></span>
+            <span class="field">结束 <input type="datetime-local" id="tmp-end" style="width:190px"></span>
+            <span class="field">时长 <input type="number" id="tmp-duration" value="60" min="5" style="width:70px"> 分</span>
+          </div>
+          <div style="margin-top:8px">
+            <div class="muted" style="margin-bottom:4px">学生 userId（逗号或换行分隔，可留空后加）</div>
+            <textarea id="tmp-students" style="min-height:56px" placeholder="stu-aaa, stu-bbb"></textarea>
+          </div>
+          <div style="margin-top:8px">
+            <button class="btn primary" id="tmp-create">创建临时课堂</button>
+            <span class="muted">建完是「待开课」，需教师点「进行中」；管理员可用带 &amp;role=teacher 的链接代开课</span>
+          </div>
+          <div id="tmp-result"></div>
+        </div>
+      </div>
+
+      <!-- 应急：临场加学员（B2）——临时课堂没有排期，走不了「指定学生」；
+           已开课时 updated 事件也会被忽略，只能用它直接写名单 + 出勤行。 -->
+      <div class="panel">
+        <div class="panel-head">给指定课堂加学员</div>
+        <div class="panel-body">
+          <div>
+            <span class="field">课堂号 <input type="text" id="mem-schedule" placeholder="scheduleId（多课次形如 排期id~2）" style="width:300px"></span>
+            <span class="field">学生 userId <input type="text" id="mem-students" placeholder="逗号分隔，可多个" style="width:280px"></span>
+            <span class="field">原因 <input type="text" id="mem-note" placeholder="留痕说明（可空）" style="width:200px"></span>
+            <button class="btn primary" id="mem-add">加入</button>
+          </div>
+          <div class="muted" style="margin-top:6px">
+            已在本课堂的人会被跳过；加入后对方刷新课堂页即可进入，「参与者」面板需各自刷新才看到新同学。
+          </div>
+        </div>
+      </div>
+
       <div class="panel">
         <div class="panel-head">活跃课堂<span class="spacer"></span>
           <span class="muted" id="monitor-time"></span></div>

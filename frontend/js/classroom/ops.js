@@ -29,6 +29,7 @@
       this._bindTabs();
       this._bindActions();
       this._defaultDates();
+      this._defaultTempTime();
       this.load('monitor');
     },
 
@@ -129,6 +130,9 @@
       on('ct-query', function () { self.loadContract(); });
       on('ct-replay', function () { self._replay(); });
       on('ct-resync', function () { self._resync(); });
+      // 应急建课 / 加学员（B1/B2，2026-11-19）
+      on('tmp-create', function () { self._createTemp(); });
+      on('mem-add', function () { self._addMembers(); });
     },
 
     load: function (tab) {
@@ -183,6 +187,181 @@
       window.location.href = (typeof window.pageUrl === 'function')
         ? window.pageUrl('classroom.html', { scheduleId: scheduleId })
         : './classroom.html?scheduleId=' + encodeURIComponent(scheduleId);
+    },
+
+    // ---------------- 应急建课 / 加学员 / 强制结束（B1~B3，2026-11-19） ----------------
+
+    /** 默认时间：现在 ~ +60 分钟（datetime-local 需要 yyyy-MM-ddThh:mm） */
+    _defaultTempTime: function () {
+      var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+      var fmt = function (d) {
+        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+          + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+      };
+      var s = document.getElementById('tmp-start');
+      var e = document.getElementById('tmp-end');
+      var now = new Date();
+      if (s && !s.value) s.value = fmt(now);
+      if (e && !e.value) e.value = fmt(new Date(now.getTime() + 60 * 60000));
+    },
+
+    /** 拼课堂页绝对链接；经 pageUrl 走同一套规则（会自动带 tCode，多租户下登录页才不会锁错机构） */
+    _classroomLink: function (scheduleId, extra) {
+      var params = { scheduleId: scheduleId };
+      if (extra) {
+        Object.keys(extra).forEach(function (k) { params[k] = extra[k]; });
+      }
+      var rel = (typeof window.pageUrl === 'function')
+        ? window.pageUrl('classroom.html', params)
+        : ('./classroom.html?scheduleId=' + encodeURIComponent(scheduleId));
+      try {
+        return new URL(rel, window.location.href).href;
+      } catch (err) {
+        return rel;
+      }
+    },
+
+    /** 复制到剪贴板：clipboard API 不可用（非 HTTPS / 老浏览器）时退回 execCommand */
+    _copyText: function (text, okMsg) {
+      var self = this;
+      var done = function () { self.toast(okMsg || '已复制'); };
+      var fallback = function () {
+        try {
+          var ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          done();
+        } catch (err) {
+          self.toast('复制失败，请手动选中链接');
+        }
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(fallback);
+      } else {
+        fallback();
+      }
+    },
+
+    /** 「,」「，」「空格」「;」都能当分隔符——管理员多半是从聊天里粘一串 id 过来 */
+    _splitIds: function (raw) {
+      return String(raw || '')
+        .split(/[,，;；\s]+/)
+        .map(function (s) { return s.trim(); })
+        .filter(function (s) { return !!s; });
+    },
+
+    _createTemp: function () {
+      var self = this;
+      var teacherId = ((document.getElementById('tmp-teacher') || {}).value || '').trim();
+      if (!teacherId) { self.toast('请填写教师 userId'); return; }
+      var name = ((document.getElementById('tmp-name') || {}).value || '').trim();
+      var startVal = ((document.getElementById('tmp-start') || {}).value || '').trim();
+      var endVal = ((document.getElementById('tmp-end') || {}).value || '').trim();
+      var duration = Number((document.getElementById('tmp-duration') || {}).value || 60) || 60;
+      var students = self._splitIds((document.getElementById('tmp-students') || {}).value)
+        .map(function (id) { return { userId: id, name: id }; });
+
+      var body = {
+        courseName: name || '临时课堂',
+        teacherId: teacherId,
+        teacherName: teacherId,
+        students: students,
+        duration: duration
+      };
+      // datetime-local 可能给到分钟（yyyy-MM-ddThh:mm），也可能是秒；后端两种都收，
+      // 但**绝不能带 Z**（LocalDateTime 不接偏移，带了直接 400）
+      if (startVal) body.startTime = startVal.length === 16 ? startVal + ':00' : startVal;
+      if (endVal) body.endTime = endVal.length === 16 ? endVal + ':00' : endVal;
+
+      var btn = document.getElementById('tmp-create');
+      if (btn) { btn.disabled = true; btn.textContent = '创建中…'; }
+      var restore = function () {
+        if (btn) { btn.disabled = false; btn.textContent = '创建临时课堂'; }
+      };
+      self.api(EP.CLASSROOM_ADMIN_CREATE, 'post', body)
+        .then(function (d) {
+          self.toast('临时课堂已创建');
+          self._renderTempResult(d || {});
+          self.loadMonitor();
+        })
+        .catch(function (e) { self.toast((e && e.message) || '创建失败'); })
+        .then(restore);
+    },
+
+    _renderTempResult: function (d) {
+      var el = document.getElementById('tmp-result');
+      if (!el) return;
+      var sid = d.scheduleId || '';
+      if (!sid) { el.innerHTML = ''; return; }
+      var studentLink = this._classroomLink(sid);
+      var teacherLink = this._classroomLink(sid, { role: 'teacher' });
+      el.innerHTML = '<div style="margin-top:10px;padding:10px 12px;background:#f6f8fa;border:1px solid #e5e7eb;border-radius:6px;font-size:13px">'
+        + '<div><b>课堂号</b>：<code>' + this.esc(sid) + '</code>'
+        + ' <b>状态</b>：' + this.esc(d.status || '-')
+        + (d.studentCount ? ' <b>学生</b>：' + d.studentCount + ' 人' : '') + '</div>'
+        + '<div style="margin-top:4px"><b>时间</b>：' + this.fmtTime(d.startTime) + ' ~ ' + this.fmtTime(d.endTime) + '</div>'
+        + '<div style="margin-top:8px"><b>学生链接</b>：'
+        + '<input type="text" readonly value="' + this.esc(studentLink) + '" style="width:66%"> '
+        + '<button class="btn small" data-tmp-copy="' + this.esc(studentLink) + '">复制</button></div>'
+        + '<div style="margin-top:4px"><b>管理员代开课</b>：'
+        + '<input type="text" readonly value="' + this.esc(teacherLink) + '" style="width:66%"> '
+        + '<button class="btn small" data-tmp-copy="' + this.esc(teacherLink) + '">复制</button></div>'
+        + '<div class="muted" style="margin-top:6px">'
+        + '① 建出来是「待开课」，需点「进行中」才开课；② 学生需先登录——未登录会被带到登录页，登录后自动回课堂；'
+        + '③ 不计课时、不进学情报表，也不在学生「我的课堂」里。</div>'
+        + '</div>';
+      var self = this;
+      Array.prototype.forEach.call(el.querySelectorAll('[data-tmp-copy]'), function (btn) {
+        btn.addEventListener('click', function () {
+          self._copyText(btn.getAttribute('data-tmp-copy'), '链接已复制，发给学生即可');
+        });
+      });
+    },
+
+    _addMembers: function () {
+      var self = this;
+      var sid = ((document.getElementById('mem-schedule') || {}).value || '').trim();
+      if (!sid) { self.toast('请填写课堂号'); return; }
+      var ids = self._splitIds((document.getElementById('mem-students') || {}).value);
+      if (!ids.length) { self.toast('请填写学生 userId'); return; }
+      var note = ((document.getElementById('mem-note') || {}).value || '').trim();
+      var students = ids.map(function (id) { return { userId: id, name: id }; });
+      self.api(EP.CLASSROOM_ADMIN_ADD_MEMBERS(sid), 'post', { students: students, note: note })
+        .then(function (d) {
+          var msg = '已加入 ' + ((d && d.addedCount) || 0) + ' 人';
+          if (d && d.skippedCount) msg += '，跳过 ' + d.skippedCount + ' 人（已在课堂）';
+          self.toast(msg);
+          var stu = document.getElementById('mem-students');
+          if (stu) stu.value = '';
+          self.loadMonitor();
+        })
+        .catch(function (e) { self.toast((e && e.message) || '加入失败'); });
+    },
+
+    /** 点表格里的「加学员」：把课堂号填进表单并滚过去，避免管理员手抄 32 位 id */
+    _fillMemberForm: function (scheduleId) {
+      var input = document.getElementById('mem-schedule');
+      if (!input) return;
+      input.value = scheduleId || '';
+      input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      var stu = document.getElementById('mem-students');
+      if (stu) setTimeout(function () { stu.focus(); }, 200);
+      this.toast('已填入课堂号，填学生 userId 后点「加入」');
+    },
+
+    _endClassroom: function (scheduleId) {
+      if (!scheduleId) { this.toast('缺少课堂号'); return; }
+      if (!window.confirm('确定强制结束课堂 ' + this.shortId(scheduleId) + ' 吗？\n'
+        + '结束后状态变为 CLOSED：出勤与课时按当前记录归一，不可重开。')) return;
+      var self = this;
+      self.api(EP.CLASSROOM_ADMIN_END(scheduleId), 'post')
+        .then(function () { self.toast('已结束课堂'); self.loadMonitor(); })
+        .catch(function (e) { self.toast((e && e.message) || '结束失败'); });
     },
 
     // ---------------- 监控 ----------------
@@ -320,22 +499,47 @@
                 var ratio = c.memberCount ? (c.onlineCount + '/' + c.memberCount) : (c.onlineCount + '/-');
                 // 进入课堂（2026-11-15）：活跃课堂均有对应 scheduleId，管理端可直接旁听。
                 // 本页未加载全局 enterClassroom，故走 data-enter 事件委托（同对账表 data-resolve 模式）。
-                var enter = c.scheduleId
-                  ? '<button class="btn small" data-enter="' + self.esc(c.scheduleId) + '">进入课堂</button>'
-                  : '-';
+                // 操作列（2026-11-19 扩）：进入课堂 / 复制学生链接 / 加学员 / 强制结束。
+                // 链接由 _classroomLink 统一拼（带 tCode），避免手抄或漏参数进不去。
+                var sid = c.scheduleId ? self.esc(c.scheduleId) : '';
+                var ops = '-';
+                if (sid) {
+                  ops = '<button class="btn small" data-enter="' + sid + '">进入课堂</button>'
+                    + ' <button class="btn small" data-copy="' + sid + '">复制学生链接</button>'
+                    + ' <button class="btn small" data-mem="' + sid + '">加学员</button>';
+                  if (c.status === 'LIVE' || c.status === 'PAUSED') {
+                    ops += ' <button class="btn small danger" data-end="' + sid + '">结束</button>';
+                  }
+                }
                 return '<tr>' +
                   '<td>' + self.esc(c.courseName || '-') + '</td>' +
                   '<td title="' + self.esc(title) + '">' + self.esc(label) + '</td>' +
                   '<td>' + self.fmtTime(c.startTime) + '</td>' +
                   '<td>' + tag + '</td>' +
                   '<td>' + ratio + '</td>' +
-                  '<td>' + enter + '</td>' +
+                  '<td>' + ops + '</td>' +
                   '</tr>';
               });
               self.table('monitor-table', ['课程', '教师', '开始时间', '状态', '在线/成员', '操作'], rows);
               Array.prototype.forEach.call(document.querySelectorAll('#monitor-table [data-enter]'), function (btn) {
                 btn.addEventListener('click', function () {
                   self._enterClassroom(btn.getAttribute('data-enter'));
+                });
+              });
+              Array.prototype.forEach.call(document.querySelectorAll('#monitor-table [data-copy]'), function (btn) {
+                btn.addEventListener('click', function () {
+                  var id = btn.getAttribute('data-copy');
+                  self._copyText(self._classroomLink(id), '学生链接已复制');
+                });
+              });
+              Array.prototype.forEach.call(document.querySelectorAll('#monitor-table [data-mem]'), function (btn) {
+                btn.addEventListener('click', function () {
+                  self._fillMemberForm(btn.getAttribute('data-mem'));
+                });
+              });
+              Array.prototype.forEach.call(document.querySelectorAll('#monitor-table [data-end]'), function (btn) {
+                btn.addEventListener('click', function () {
+                  self._endClassroom(btn.getAttribute('data-end'));
                 });
               });
             });

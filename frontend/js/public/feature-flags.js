@@ -166,27 +166,43 @@
   }
 
   function guardClassroom() {
-    if (!hasClassroom()) {
-      var role = '';
-      try {
-        var user = JSON.parse(localStorage.getItem('currentUser') || '{}');
-        role = user.role || '';
-      } catch (e) { /* ignore */ }
-      var pageMap = {
-        admin: 'admin.html',
-        teacher: 'teacher.html',
-        student: 'student.html',
-        platform_admin: 'platform_admin.html'
-      };
-      var target = pageMap[role] || 'login.html';
-      if (typeof window.pageUrl === 'function') {
-        window.location.href = window.pageUrl(target);
-      } else {
-        window.location.href = './' + target;
-      }
-      return false;
+    if (hasClassroom()) return true;
+    var role = '';
+    try {
+      var user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+      role = user.role || '';
+    } catch (e) { /* ignore */ }
+    var pageMap = {
+      admin: 'admin.html',
+      teacher: 'teacher.html',
+      student: 'student.html',
+      platform_admin: 'platform_admin.html'
+    };
+    var target = pageMap[role] || 'login.html';
+    /**
+     * 未登录（拿不到角色）时把「当前页」塞进 redirect：登录成功后 login.html 会按它回跳，
+     * 直接落回这间课堂。
+     *
+     * <p>为什么必须有：课堂链接是管理员临时发给学生的（尤其应急建的临时课堂，学生端
+     * 「我的课堂」根本没有这条记录）。没有 redirect 时，学生点链接 → 登录页 → 登录成功
+     * 被丢进学生工作台，得再点一次链接才进得去，实际就是「链接发了但进不来」。
+     *
+     * <p>已登录但租户未开通课堂时**不带** redirect：那不是登录问题，带上只会变成
+     * 「登录 → 被踢回首页 → 再点链接 → 再登录」的死循环。
+     */
+    var back = '';
+    try {
+      back = (window.location.pathname || '').split('/').pop() + (window.location.search || '');
+    } catch (e) { /* file:// 等异常场景忽略 */ }
+    var extra = (target === 'login.html' && /\.html(\?|#|$)/i.test(back)) ? { redirect: back } : null;
+    if (typeof window.pageUrl === 'function') {
+      window.location.href = extra ? window.pageUrl(target, extra) : window.pageUrl(target);
+    } else {
+      window.location.href = extra
+        ? './' + target + '?redirect=' + encodeURIComponent(back)
+        : './' + target;
     }
-    return true;
+    return false;
   }
 
   window.hasClassroom = hasClassroom;
