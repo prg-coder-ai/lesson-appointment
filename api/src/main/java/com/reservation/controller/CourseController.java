@@ -98,11 +98,16 @@ public class CourseController {
             @RequestHeader("Authorization") String token) {
         // 权限校验： 
         permissionCheck.checkTeacherOrAdmin(token);
-        // 校验课程归属
-       // String courseId = req.getCourseId();
-        //String teacherId = permissionCheck.getUserIdFromToken(token);
-        //courseService.checkCourseOwner(courseId, teacherId); 
          try{
+        // 课程归属校验（2026-11-19 H-2 恢复）：原先这两行被注释掉，
+        // 任何教师都能改任意课程（含把别人课程的 teacherId 改到自己名下）。
+        // 管理员/平台管理员不做归属校验（可跨教师维护），口径与 checkTeacherOrAdmin 一致。
+        assertCourseOwnedByTeacher(token, req.getCourseId());
+        // 教师改自己的课：teacherId 钉回本人，避免请求体把课程改挂到别的教师名下
+        // （改完就再也找不回来，且接管者能删排期、看名单）。管理员保持请求体值（用于转交课程）。
+        if (RoleConst.TEACHER.equals(permissionCheck.getRoleFromToken(token))) {
+            req.setTeacherId(permissionCheck.getUserIdFromToken(token));
+        }
         // 执行对应操作
         courseService.update(req); 
         return Result.success(true, TermMsg.t("{course}修改成功"));
@@ -120,6 +125,9 @@ public class CourseController {
        // 校验权限：只能教师或管理员有权限删除.教师只删除自己的课程
         permissionCheck.checkTeacherOrAdmin(token);
      try {
+        // 课程归属校验（H-2 恢复）：原先只判角色，教师能删任意课程，
+        // 而 deleteById 会连带删掉该课程的排期→预订→课次，是不可逆的整链删除。
+        assertCourseOwnedByTeacher(token, id);
         // 实际删除操作（级联在 CourseService#deleteById 内：排期 → 预订 → 课次）
         // cascade: none 本层不处置，Controller 只是薄转发
           int result = courseService.deleteById(id);
@@ -136,6 +144,8 @@ public class CourseController {
        // 校验权限：只能教师或管理员有权限删除.教师只删除自己的课程
         permissionCheck.checkTeacherOrAdmin(token);
        try{
+        // 模板归属校验（H-2）：模板可能被多名教师共用，教师只能删「整批都属于自己」的模板
+        assertTemplateOwnedByTeacher(token, id);
         // 实际删除操作
          int result = courseService.deleteByTemplateId(id);
          return Result.success(result, TermMsg.t("{course}删除成功"));
@@ -144,6 +154,31 @@ public class CourseController {
            return Result.fail(400, TermMsg.t("{course}删除失败: ") + e.getMessage());
        }
    }
+
+    /**
+     * 教师只能改/删<b>自己名下</b>的课程；管理员与平台管理员放行。
+     *
+     * <p>只对 teacher 生效——管理员跨教师维护是产品既有能力（转交课程、修数据），
+     * 平台管理员还要跨租户，统一收口会把运维动作挡死。
+     *
+     * @param courseId 课程ID（不存在时 checkCourseOwner 抛「课程不存在」）
+     */
+    private void assertCourseOwnedByTeacher(String token, String courseId) {
+        if (!RoleConst.TEACHER.equals(permissionCheck.getRoleFromToken(token))) {
+            return;
+        }
+        courseService.checkCourseOwner(courseId, permissionCheck.getUserIdFromToken(token));
+    }
+
+    /**
+     * 教师调用按模板删除时的归属校验（模板下存在他人课程则拒绝，见 CourseService#checkTemplateOwner）。
+     */
+    private void assertTemplateOwnedByTeacher(String token, String templateId) {
+        if (!RoleConst.TEACHER.equals(permissionCheck.getRoleFromToken(token))) {
+            return;
+        }
+        courseService.checkTemplateOwner(templateId, permissionCheck.getUserIdFromToken(token));
+    }
 
     /**
      * 查询课程列表，对应设计2.2.2 接口：/api/v1/course/list（教师、管理员权限）

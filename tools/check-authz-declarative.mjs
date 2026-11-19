@@ -323,5 +323,30 @@ if (rules.length < 50) {
 }
 
 console.log('\n✓ 全部端点均已声明授权角色，无陈旧规则。');
-console.log('  下一步可把 SecurityConfig 的 anyRequest() 从 authenticated() 改为 denyAll()。');
+
+// 兜底档位复核（2026-11-19）：这条提示原先固定写「下一步可改为 denyAll()」，
+// 但 SecurityConfig 早已是 denyAll()，提示成了过期文案，容易让人误判成"还没收紧"。
+// 改为读实际源码判断，只在仍是 authenticated() 时才提示。
+// 注意 ①：必须**跳过注释行**——文件里注释恰好写了「兜底 anyRequest().authenticated()」的历史说明，
+// 直接全文正则会把那句历史注记当成实况（本复查第一版就这么误判了）。
+// 注意 ②：去注释用 /\/\/.*/ 而**不能**写成 /\/\/.*$/——仓库工作区是 CRLF，`.` 不匹配 \r，
+// 而 `$` 在没有 m 标志时只认「输入结尾」，于是 `.*$` 在行尾 \r 前匹配失败、整行原样保留，
+// 注释行会被当成代码。（同类坑见 tools/git-hooks 的 CRLF 归一化。）
+const SEC_FILE = path.join(ROOT, 'api/src/main/java/com/reservation/config/SecurityConfig.java');
+let fallback = 'unknown';
+if (fs.existsSync(SEC_FILE)) {
+  const lines = fs.readFileSync(SEC_FILE, 'utf8').split('\n');
+  for (const line of lines) {
+    const code = line.replace(/\/\/.*/, '');          // 去掉行注释（含 CRLF 行尾）
+    const m = code.match(/\banyRequest\s*\(\s*\)\s*\.\s*(\w+)/);
+    if (m) { fallback = m[1]; break; }
+  }
+}
+if (fallback === 'denyAll') {
+  console.log('  兜底规则：anyRequest().denyAll()（漏声明即 403，已生效）。');
+} else if (fallback === 'authenticated') {
+  console.log('  兜底规则：anyRequest().authenticated() —— 漏声明会被静默放行给任何登录用户，建议改为 denyAll()。');
+} else {
+  console.log('  兜底规则：未识别（%s），请人工确认 SecurityConfig 的 anyRequest() 档位。', fallback);
+}
 process.exit(0);

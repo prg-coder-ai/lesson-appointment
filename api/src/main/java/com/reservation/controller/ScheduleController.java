@@ -10,7 +10,10 @@ import com.reservation.entity.ScheduleVO;
 import com.reservation.entity.ScheduleGenerateDTO;*/
 
 import com.reservation.service.CourseScheduleService; 
+import com.reservation.service.CourseService;
 import  com.reservation.common.ScheduleGenerator; 
+import com.reservation.exception.BusinessException;
+import com.reservation.exception.NoPermissionException;
 import com.reservation.service.ClassroomEventPushService;
 import com.reservation.utils.PermissionCheck;
 import com.reservation.utils.TenantContext;
@@ -40,6 +43,9 @@ public class ScheduleController {
     private CourseScheduleService scheduleService;
     @Autowired
     private PermissionCheck permissionCheck;
+    /** 排期归属校验用（schedule → course → teacherId，见 resolveAssignTeacher） */
+    @Autowired
+    private CourseService courseService;
     /** 排期事件推送（我的课堂「同步课堂」用：把缺失的课次课堂补建出来） */
     @Autowired
     private ClassroomEventPushService classroomEventPushService;
@@ -197,7 +203,10 @@ public class ScheduleController {
   @ResponseBody
   public Result<List<ScheduleVO>> generateList(@RequestBody ScheduleGenerateDTO dto, @RequestHeader("Authorization") String token) {
       // 1. 校验身份（老师/管理员权限）
-     // permissionCheck.checkTeacherOrAdmin(token);
+      // 2026-11-19 H-2：原校验被注释，而 AuthzRules 又声明 ALL_ROLES —— 学生也能调本端点。
+      // 本端点只算「本地时区排期预览」，不落库，但它是创建/修改排期表单的必经一步，
+      // 学生没有任何入口需要它；收窄为教师/管理员，规则与方法体同时改。
+      permissionCheck.checkTeacherOrAdmin(token);
 
       // 2. 根据表单内容与时区配置，生成对应的排期
       List<ScheduleVO> userZoneList = ScheduleGenerator.generateUserZoneSchedule(dto);
@@ -213,7 +222,9 @@ public class ScheduleController {
      @PostMapping("/checkConflict")
     @ResponseBody
   public Result< List<Map<String, Object>> > checkConflict(@RequestBody ScheduleCreateDTO cto, @RequestHeader("Authorization") String token) {
-     
+       // 方法级兜底（2026-11-19 H-2）：AuthzRules 声明 TEACHER_OR_ADMIN 但方法体零校验，
+       // 未登录/学生调用会直接进 service 查排期冲突（会把别的教师的排期名回显出来）。
+       permissionCheck.checkTeacherOrAdmin(token);
        List<Map<String, Object>> confictScds = scheduleService.checkScheduleOwnerConflict(cto);
  
       //   返回统一数据结构（包含 code/message/data 字段）
@@ -229,11 +240,10 @@ public class ScheduleController {
 @Audit(action = AuditAction.SCHEDULE_ASSIGN, resourceType = "schedule")
 @ResponseBody
 public Result<Boolean> assignStudentToSchedule(@RequestBody Map<String, Object> params, @RequestHeader("Authorization") String token) {
-     
+     // 权限校验（2026-11-19 H-2 恢复）：原先整段注释掉，任何登录用户都能给任意排期塞任意学生，
+     // 而 teacherId 也直接取自请求体——可以把他人的预订记到别人名下。
+     permissionCheck.checkTeacherOrAdmin(token);
     try {
-        // 校验权限（可选，根据需要开启）
-        // permissionCheck.checkTeacherOrAdmin(token);
-
         Object schIdObj = params.get("scheduleId");
         Object stuIdObj = params.get("studentId");
         Object tecIdObj = params.get("teacherId");
@@ -246,6 +256,9 @@ public Result<Boolean> assignStudentToSchedule(@RequestBody Map<String, Object> 
         String studentId = stuIdObj.toString();
          String teacherId = tecIdObj.toString();
 
+        // 排期归属校验：教师只能操作自己课下的排期，teacherId 同时钉回本人（见方法注释）
+        teacherId = resolveAssignTeacher(token, scheduleId, teacherId);
+
         // 调用service执行原子操作
         boolean ok = scheduleService.asgn_student(scheduleId, studentId,teacherId);
         if (ok) {
@@ -253,10 +266,36 @@ public Result<Boolean> assignStudentToSchedule(@RequestBody Map<String, Object> 
         } else { 
           return Result.fail( 500,"分配失败，请检查参数与数据库。");
         }
+    } catch (NoPermissionException e) {
+        // 权限失败给 403，别混进下面的 500（前端对 403 会提示「无权限」，对 500 只显示失败）
+        return Result.fail(403, e.getMessage());
     } catch (Exception e) {
          
          return Result.fail(500,   "error:" + e.getMessage()); 
     } 
+}
+
+/**
+ * 解析并校验「指派学生」时的 teacherId（2026-11-19 H-2）。
+ *
+ * <p>教师调用：排期必须在其本人课下（schedule → course → teacherId 两跳），
+ * 返回值强制为本人 userId——即使请求体传了别人，也不会把预订记到他人名下。
+ * 管理员/平台管理员：保留请求体的 teacherId（可代教师指派），只校验排期存在。
+ *
+ * @return 最终写入预订的 teacherId
+ */
+private String resolveAssignTeacher(String token, String scheduleId, String bodyTeacherId) {
+    CourseSchedule sch = scheduleService.selectById(scheduleId);
+    if (sch == null) {
+        throw new BusinessException(TermMsg.t("{schedule}不存在"));
+    }
+    if (!RoleConst.TEACHER.equals(permissionCheck.getRoleFromToken(token))) {
+        return bodyTeacherId;   // 管理员：保持请求体（代指派）
+    }
+    String callerId = permissionCheck.getUserIdFromToken(token);
+    // 课程不存在或不属于本人 → checkCourseOwner 抛 BusinessException / ResourceNotFoundException
+    courseService.checkCourseOwner(sch.getCourseId(), callerId);
+    return callerId;
 }
 /**
  * 删除指定ID的排期
