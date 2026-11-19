@@ -50,6 +50,45 @@
         });
       };
 
+  /**
+   * 跳转地址白名单（payload.url 的唯一校验入口）。
+   *
+   * 只放行两类：
+   *   ① http/https 绝对地址；② 本站的 .html 相对页（可带 query/hash，如 classroom.html?scheduleId=x）。
+   * javascript:/data:/vbscript: 等一律返回空串 —— payload 虽然由服务端下发，但内容来自
+   * 发送方填写的字段，按不可信输入处理，不能直接塞进 href。
+   */
+  function safeJumpUrl(raw) {
+    if (raw == null) return '';
+    const s = String(raw).trim();
+    if (!s) return '';
+    if (/^[a-z][a-z0-9+.-]*:/i.test(s)) {
+      return /^https?:\/\//i.test(s) ? s : '';
+    }
+    // 相对路径：必须落在某个 .html 上，禁止 ..（避免越过站点根）
+    if (s.indexOf('..') >= 0) return '';
+    return /^\.?\/?[A-Za-z0-9_\-]+\.html(\?[^#\s]*)?(#\S*)?$/.test(s) ? s : '';
+  }
+
+  /**
+   * 把 payload.url 渲染成「一键进入」按钮（C4，2026-11-19）。
+   *
+   * 为什么需要：正文在详情里走 esc() 转义，链接只是纯文本，学生得长按复制再粘到浏览器；
+   * 临时课堂又只有这一条入口，实际就是「通知发了但进不去」。现在管理员群发时把跳转地址
+   * 放进 payload，前端在这里渲染按钮。
+   * payload 为字符串（服务端 JSON 解析失败时的兜底）或没有 url 时返回空串，走原来的纯文本展示。
+   */
+  function payloadJumpHtml(payload) {
+    if (!payload || typeof payload !== 'object') return '';
+    const url = safeJumpUrl(payload.url || payload.link || payload.jumpUrl);
+    if (!url) return '';
+    const label = payload.type === 'classroom_join' ? '进入课堂' : '查看详情';
+    return '<div style="margin-top:10px;">'
+      + '<a class="btn btn-primary" href="' + esc(url) + '" rel="noopener" '
+      + 'style="display:inline-block;text-decoration:none;">' + esc(label) + '</a></div>';
+  }
+
+
   // ---- message-service(8090) 独立 axios 实例 ----
   const mreq = axios.create({ baseURL: MSG_BASE, timeout: 15000, headers: { 'Content-Type': 'application/json;charset=utf-8' } });
   mreq.interceptors.request.use(function (config) {
@@ -556,6 +595,13 @@
     const root = container.querySelector('#msg-modal-root');
     const content = d.content ? esc(d.content) : '(无正文)';
     const payload = d.payload ? esc(JSON.stringify(d.payload)) : '';
+    // payload.url → 可点按钮（C4）：临时课堂的学生只有这一条入口，纯文本链接等于没发
+    const jumpHtml = payloadJumpHtml(d.payload);
+    const payloadBlock = (jumpHtml || payload)
+      ? '<div class="row" style="margin-top:10px;">' + jumpHtml
+        + (payload ? '<div style="color:#6b7280;font-size:12px;">附加信息：' + payload + '</div>' : '')
+        + '</div>'
+      : '';
     // 发送者：详情接口只回 senderId + senderType（**不回 senderName**），姓名与账号要按角色另取（见 fillSenderInfo）；
     // 未取到之前先落「类型文案」兜底，不留空白。
     const senderTypeCls = mText.senderType(d.senderType) || '系统';
@@ -574,7 +620,7 @@
           '<div class="row" id="msg-detail-tenant-row" style="display:none;">发送方租户：<span id="msg-detail-tenant"></span></div>' +
           '<div class="row">发送时间：' + esc(d.sendTime || '') + '</div>' +
           '<div class="body">' + content + '</div>' +
-          (payload ? '<div class="row" style="margin-top:10px;">附加信息：' + payload + '</div>' : '') +
+          payloadBlock +
           '<div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">' +
             '<button class="btn btn-gray" id="msg-detail-close">关闭</button>' +
             '<button class="btn btn-primary" id="msg-detail-read">' + (d.isRead ? '标为未读' : '标记已读') + '</button>' +

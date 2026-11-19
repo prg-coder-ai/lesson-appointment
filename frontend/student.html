@@ -67,6 +67,12 @@
         <i class="fas fa-video"></i>
         <span>我的课堂</span>
       </div>
+      <!-- 加入课堂（C3，2026-11-19）：临时课堂没有排期/预约，「我的课堂」列不出来，
+           学生只能靠管理员发的链接进。这里给一个粘贴口：粘贴链接或课堂号 → 校验名单 → 进课堂。 -->
+      <div class="menu-item" key="join_classroom" data-module="classroom">
+        <i class="fas fa-door-open"></i>
+        <span>加入课堂</span>
+      </div>
       <div class="menu-item" key="teacher_showcase">
         <i class="fa fa-chalkboard-teacher"></i>
         <span>浏览师资</span>
@@ -622,6 +628,18 @@
           }
           break;
 
+        // ===== 加入课堂（C3，2026-11-19）=====
+        // 与「我的课堂」互补：我的课堂是排期驱动（booking → scheduleId），临时课堂没有排期，
+        // 学生拿着链接也只能自己拼 URL。本页负责「粘贴 → 校验 → 进课堂」，见 js/student-joinClassroom.js
+        case 'join_classroom':
+          if (typeof window.renderStudentJoinClassroomPage === 'function') {
+            window.renderStudentJoinClassroomPage(dynamicContentCenter);
+          } else {
+            dynamicContentCenter.innerHTML = '<div class="card"><div class="empty-tip">'
+              + '加入课堂脚本未加载（js/student-joinClassroom.js），请刷新页面重试。</div></div>';
+          }
+          break;
+
         // 兜底：未实现的菜单不再静默空白
         default:
           dynamicContentCenter.innerHTML = '<div class="card"><div class="empty-tip">'
@@ -678,6 +696,8 @@
   <script src="js/student-bookingBrowserCards.js"></script>
   <script src="js/public/my-classroom-core.js"></script>
   <script src="js/student-myClassroom.js"></script>
+  <!-- 加入课堂（C3，2026-11-19）：必须在 api.js 之后，它用 window.ClassroomAPI.getClassroomStatus -->
+  <script src="js/student-joinClassroom.js"></script>
   <script src="js/student-lessonBalance.js"></script>
   <script src="js/student-profile.js"></script>
   <script src="js/admin-AppointmentNotes.js"></script>

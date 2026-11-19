@@ -133,6 +133,8 @@
       // 应急建课 / 加学员（B1/B2，2026-11-19）
       on('tmp-create', function () { self._createTemp(); });
       on('mem-add', function () { self._addMembers(); });
+      // 发上课通知（C4，2026-11-19）
+      on('ntc-send', function () { self._sendNotice(); });
     },
 
     load: function (tab) {
@@ -364,6 +366,143 @@
         .catch(function (e) { self.toast((e && e.message) || '结束失败'); });
     },
 
+    // ---------------- 上课通知（C4，2026-11-19） ----------------
+    /*
+     * 为什么需要它：应急建的临时课堂不进学生「我的课堂」（列表是排期驱动的），
+     * 学生手上没有任何入口，管理员只能一对一贴链接。这里把「名单 → 群发站内信 → 消息里一键进课堂」
+     * 串起来，一次点完。
+     *
+     * 名单从课堂服务取（GET /classrooms/{sid}/members，管理员放行），只挑 role=student 且未 kicked 的人。
+     * 消息走主服务的 /api/v1/messages/send（网关按前缀分流到 message-service:8090），
+     * payload.url 由收件箱渲染成「进入课堂」按钮 —— 纯正文里的链接是被转义的，点了没用。
+     */
+
+    /** 点表格里的「发通知」：把课堂号填进表单 */
+    _fillNoticeForm: function (scheduleId) {
+      var input = document.getElementById('ntc-schedule');
+      if (!input) return;
+      input.value = scheduleId || '';
+      var box = document.getElementById('ntc-result');
+      if (box) box.innerHTML = '';
+      input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      this.toast('已填入课堂号，点「发送通知」即可');
+    },
+
+    /** 取课堂信息 + 学生名单（两个接口都过 ClassroomAccessGuard，管理员可读） */
+    _noticeTargets: function (scheduleId) {
+      var api = window.ClassroomAPI;
+      var base = this.base;
+      if (!api || typeof api.getClassroomStatus !== 'function' || typeof api.getMembers !== 'function') {
+        return Promise.reject({ message: '课堂接口未加载（js/public/api.js），请刷新页面' });
+      }
+      return Promise.all([
+        api.getClassroomStatus(base, scheduleId),
+        api.getMembers(base, scheduleId)
+      ]).then(function (res) {
+        var c = res[0] || {};
+        var list = res[1] || [];
+        var students = list.filter(function (m) {
+          return m && m.userId && m.role === 'student' && !m.kicked;
+        });
+        return { classroom: c, students: students };
+      });
+    },
+
+    _sendNotice: function () {
+      var self = this;
+      var sid = ((document.getElementById('ntc-schedule') || {}).value || '').trim();
+      if (!sid) { self.toast('请先填写课堂号'); return; }
+      var btn = document.getElementById('ntc-send');
+      var restore = function () { if (btn) { btn.disabled = false; btn.textContent = '发送通知'; } };
+      if (btn) { btn.disabled = true; btn.textContent = '发送中…'; }
+      var box = document.getElementById('ntc-result');
+
+      self._noticeTargets(sid).then(function (info) {
+        var students = info.students || [];
+        if (!students.length) {
+          // 空名单是最常见的一次性困惑：通知发出去了但没人收到，得先说清楚原因
+          throw { message: '这间课堂的名单里还没有学生：先用上面的「给指定课堂加学员」把人加进来，再发通知' };
+        }
+        var c = info.classroom || {};
+        var courseName = c.courseName || ('课堂 ' + self.shortId(sid));
+        var whenText = c.startTime
+          ? (self.fmtTime(c.startTime) + (c.endTime ? ' ~ ' + self.fmtTime(c.endTime) : ''))
+          : '按老师通知的时间';
+        var titleEl = document.getElementById('ntc-title');
+        var contentEl = document.getElementById('ntc-content');
+        var title = ((titleEl || {}).value || '').trim() || ('上课通知：' + courseName);
+        var content = ((contentEl || {}).value || '').trim()
+          || (courseName + ' 将于 ' + whenText + ' 开课。\n'
+            + '课堂号：' + sid + '\n'
+            + '进入方式：直接点本消息里的「进入课堂」按钮；也可以到「加入课堂」页粘贴课堂号。\n'
+            + '请提前几分钟进入，确认麦克风与摄像头可用。');
+        var withLink = !!(document.getElementById('ntc-with-link') || {}).checked;
+        var high = !!(document.getElementById('ntc-high') || {}).checked;
+
+        var body = {
+          title: title,
+          content: content,
+          recipientUserIds: students.map(function (m) { return m.userId; }),
+          // 上课通知是要马上看的，默认中优先级；管理员可显式提为 HIGH
+          priority: high ? 'HIGH' : 'MEDIUM'
+        };
+        if (withLink) {
+          body.payload = {
+            type: 'classroom_join',
+            scheduleId: sid,
+            url: self._classroomLink(sid)
+          };
+        }
+        // 平台管理员代别家租户发通知：不带 targetTenantId 会落成平台租户(0)，
+        // 学生收件箱虽然按 userId 命中，但消息归属租户会错，后续按租户检索就丢这条。
+        try {
+          var u = JSON.parse(localStorage.getItem('currentUser') || 'null');
+          if (u && u.role === 'platform_admin' && c.tenantId) body.targetTenantId = c.tenantId;
+        } catch (e) { /* 取不到就当普通租户 */ }
+
+        if (!EP.MSG_SEND) throw { message: '缺少消息发送端点（shared/apiPaths.js 未同步）' };
+        return window.request({ url: EP.MSG_SEND, method: 'post', data: body })
+          .then(function (d) {
+            self._renderNoticeResult(sid, students, d || {}, withLink);
+            self.toast('已发送给 ' + students.length + ' 人');
+          });
+      }).catch(function (e) {
+        var msg = (e && (e.message || e.bodyMsg)) || '发送失败';
+        if (box) {
+          box.innerHTML = '<div style="margin-top:10px;padding:8px 12px;border-radius:6px;'
+            + 'background:#fff1f0;border:1px solid #ffccc7;color:#a8071a;font-size:12.5px;">'
+            + self.esc(msg) + '</div>';
+        }
+        self.toast(msg);
+      }).then(restore);
+    },
+
+    _renderNoticeResult: function (sid, students, d, withLink) {
+      var box = document.getElementById('ntc-result');
+      if (!box) return;
+      var link = this._classroomLink(sid);
+      var names = students.map(function (m) {
+        return m.displayName || m.userId;
+      }).slice(0, 12).join('、') + (students.length > 12 ? ' 等 ' + students.length + ' 人' : '');
+      box.innerHTML = '<div style="margin-top:10px;padding:10px 12px;background:#f6f8fa;'
+        + 'border:1px solid #e5e7eb;border-radius:6px;font-size:13px;">'
+        + '<div><b>已发送</b>：' + students.length + ' 人（messageId ' + this.esc(d.messageId || '-') + '）</div>'
+        + '<div style="margin-top:4px;color:#6b7280;">收件人：' + this.esc(names) + '</div>'
+        + '<div style="margin-top:6px;"><b>课堂链接</b>：'
+        + '<input type="text" readonly value="' + this.esc(link) + '" style="width:66%"> '
+        + '<button class="btn small" data-ntc-copy="' + this.esc(link) + '">复制</button></div>'
+        + '<div class="muted" style="margin-top:6px;">'
+        + (withLink
+          ? '学生在「消息中心」打开这条通知，正文下方有「进入课堂」按钮，点一下即可（无需复制链接）。'
+          : '本次未附带按钮：学生只能看到链接文本，需要自己复制到浏览器打开。')
+        + '</div></div>';
+      var self = this;
+      Array.prototype.forEach.call(box.querySelectorAll('[data-ntc-copy]'), function (btn) {
+        btn.addEventListener('click', function () {
+          self._copyText(btn.getAttribute('data-ntc-copy'), '链接已复制');
+        });
+      });
+    },
     // ---------------- 监控 ----------------
     /**
      * 批量把 userId 反查成可展示的 {name, account}（教师/学员/操作人通用）。
@@ -506,7 +645,8 @@
                 if (sid) {
                   ops = '<button class="btn small" data-enter="' + sid + '">进入课堂</button>'
                     + ' <button class="btn small" data-copy="' + sid + '">复制学生链接</button>'
-                    + ' <button class="btn small" data-mem="' + sid + '">加学员</button>';
+                    + ' <button class="btn small" data-mem="' + sid + '">加学员</button>'
+                    + ' <button class="btn small" data-notice="' + sid + '">发通知</button>';
                   if (c.status === 'LIVE' || c.status === 'PAUSED') {
                     ops += ' <button class="btn small danger" data-end="' + sid + '">结束</button>';
                   }
@@ -535,6 +675,11 @@
               Array.prototype.forEach.call(document.querySelectorAll('#monitor-table [data-mem]'), function (btn) {
                 btn.addEventListener('click', function () {
                   self._fillMemberForm(btn.getAttribute('data-mem'));
+                });
+              });
+              Array.prototype.forEach.call(document.querySelectorAll('#monitor-table [data-notice]'), function (btn) {
+                btn.addEventListener('click', function () {
+                  self._fillNoticeForm(btn.getAttribute('data-notice'));
                 });
               });
               Array.prototype.forEach.call(document.querySelectorAll('#monitor-table [data-end]'), function (btn) {

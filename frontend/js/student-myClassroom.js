@@ -65,7 +65,15 @@
       '<div class="card">' +
       '  <div class="card-title" style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">' +
       '    <span><i class="fas fa-video"></i> 我的课堂</span>' +
-      '    <button class="btn btn-default" type="button" id="stu-classroom-refresh"><i class="fa fa-refresh"></i> 刷新</button>' +
+      // 「加入课堂」（C3，2026-11-19）：临时课堂没有排期/预约，本表永远列不出来
+      // （见下方 emptyRow 文案），入口只能另给一个。这里只负责跳过去，
+      // 解析链接/课堂号与名单校验都在 js/student-joinClassroom.js。
+      '    <span>' +
+      '      <button class="btn btn-default" type="button" id="stu-classroom-join" style="margin-right:6px;">' +
+      '        <i class="fas fa-door-open"></i> 加入课堂</button>' +
+      '      <button class="btn btn-default" type="button" id="stu-classroom-refresh">' +
+      '        <i class="fa fa-refresh"></i> 刷新</button>' +
+      '    </span>' +
       '  </div>' +
       '  <div id="stu-classroom-hint" style="display:none;margin:0 0 10px;padding:10px 14px;border-radius:6px;' +
       '       background:#fff8e6;border:1px solid #ffe0a3;color:#8a5a00;font-size:13px;"></div>' +
@@ -250,6 +258,20 @@
       refreshBtn.addEventListener('click', function () {
         instancesCache = {};
         loadAll();
+      });
+    }
+
+    // 跳「加入课堂」：走侧边栏菜单点击，而不是直接渲染——这样菜单高亮、页面标题、
+    // currentMenuitem 都跟手动点击一致，不会出现「内容换了但侧边栏还停在『我的课堂』」。
+    var joinBtn = document.getElementById('stu-classroom-join');
+    if (joinBtn) {
+      joinBtn.addEventListener('click', function () {
+        var item = document.querySelector('.menu-item[key="join_classroom"]');
+        if (item) { item.click(); return; }
+        // 侧边栏没这个菜单项（老页面/被裁剪）时直接渲染，至少功能可用
+        if (typeof window.renderStudentJoinClassroomPage === 'function') {
+          window.renderStudentJoinClassroomPage(document.getElementById('dynamic-content-center'));
+        }
       });
     }
 
