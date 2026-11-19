@@ -28,9 +28,184 @@
       this._renderUser();
       this._bindTabs();
       this._bindActions();
+      this._initPickers();
       this._defaultDates();
       this._defaultTempTime();
       this.load('monitor');
+    },
+
+    // ---------------- 候选数据源（可搜索选择器，2026-11-19） ----------------
+    /*
+     * 三处原来是「手抄 userId」：临时建课的教师、建课/加学员的学生、发通知的课堂号。
+     * 现在都改成从下拉里点选，但候选从哪来必须说清楚：
+     *
+     *   · 教师/学生 → 主服务 GET /api/v1/user/page?role=teacher|student（管理面端点，
+     *     AuthzRules 只给平台/租户管理员）。注意 **不能**用 /user/teacher/list：
+     *     那个返回值没有分页、也没有关键字过滤，平台管理员跨租户时会一次拉全平台。
+     *     这里按 role 拉第一页 500 条做本地过滤——单租户的师生数量级远小于 500，
+     *     平台态超了就在下拉底部提示「仅显示前 N 人」，避免让人以为查不到就是没有。
+     *   · 课堂 → 课堂服务 /api/v1/admin/classrooms/monitor?status=X，**必须逐状态查**
+     *     （不传 status 时后端默认 LIVE，拿不到待开课的那些）。合并 SCHEDULED/READY/
+     *     LIVE/PAUSED 四态；不含 CLOSED——已结束的课堂发上课通知没有意义。
+     *     ⚠️ 候选来自 classroom 表而不是 course_schedule：临时建课没有排期，
+     *     按排期查就正好漏掉最需要发通知的那批。
+     */
+
+    /** role='teacher'|'student' 的候选缓存 {list:[{value,label,sub}], total} */
+    _userCache: {},
+    _userPromise: {},
+
+    _userStatusText: function (st) {
+      var map = { active: '正常', pending: '待审批', frozen: '已冻结', inactive: '未激活', rejected: '已拒绝' };
+      return map[String(st || '')] || (st || '');
+    },
+
+    _loadUserCandidates: function (role) {
+      var self = this;
+      if (this._userCache[role]) return Promise.resolve(this._userCache[role]);
+      if (this._userPromise[role]) return this._userPromise[role];
+
+      var p = window.request({
+        url: EP.USER_PAGE,
+        method: 'get',
+        params: { role: role, pageNum: 1, pageSize: 500 },
+        customLoading: false,
+        customErrorMsg: false
+      }).then(function (page) {
+        var rows = (page && (page.rows || page.records)) || [];
+        var list = [];
+        rows.forEach(function (u) {
+          if (!u || !u.userId) return;
+          var nm = u.name || '';
+          var acc = u.account || '';
+          // 姓名可能还没解密出（老数据）→ 退回账号；两者都没有才显示 id
+          var label = nm || acc || u.userId;
+          var bits = [];
+          if (acc && acc !== label) bits.push(acc);
+          bits.push(self._userStatusText(u.status));
+          list.push({ value: u.userId, label: label, sub: bits.filter(Boolean).join(' · ') });
+        });
+        self._userCache[role] = { list: list, total: (page && page.total) || list.length };
+        return self._userCache[role];
+      }).catch(function () {
+        // 查不到不让页面卡住：给空列表 + 明确文案，用户能判断是「没匹配」还是「没权限」
+        self._userCache[role] = { list: [], total: 0, failed: true };
+        return self._userCache[role];
+      }).then(function (v) {
+        delete self._userPromise[role];
+        return v;
+      });
+      this._userPromise[role] = p;
+      return p;
+    },
+
+    /** 本地过滤：姓名 / 账号 / userId 三处命中任意一处即可 */
+    _userOptions: function (role, keyword) {
+      var kw = String(keyword || '').trim().toLowerCase();
+      return this._loadUserCandidates(role).then(function (cache) {
+        var list = (cache && cache.list) || [];
+        if (kw) {
+          list = list.filter(function (o) {
+            return String(o.label).toLowerCase().indexOf(kw) >= 0
+              || String(o.sub || '').toLowerCase().indexOf(kw) >= 0
+              || String(o.value).toLowerCase().indexOf(kw) >= 0;
+          });
+        }
+        return list;
+      });
+    },
+
+    /** 课堂候选缓存：[{value(=scheduleId), label(课程名), sub(时间·状态)}] */
+    _classroomCache: null,
+
+    _loadClassrooms: function () {
+      var self = this;
+      if (this._classroomCache) return Promise.resolve(this._classroomCache);
+      var statuses = ['LIVE', 'SCHEDULED', 'READY', 'PAUSED'];
+      var reqs = statuses.map(function (st) {
+        // 绕开 this.api()：它默认带全局 loading，四个状态并发会闪四次；候选加载不该打断操作
+        return window.request({
+          url: urlOf(self.base, EP.CLASSROOM_ADMIN_CLASSROOMS + '?status=' + encodeURIComponent(st)),
+          method: 'get',
+          customLoading: false,
+          customErrorMsg: false
+        }).catch(function () { return []; });
+      });
+      return Promise.all(reqs).then(function (groups) {
+        var seen = {};
+        var list = [];
+        groups.forEach(function (rows) {
+          (rows || []).forEach(function (c) {
+            if (!c || !c.scheduleId || seen[c.scheduleId]) return;
+            seen[c.scheduleId] = 1;
+            var name = c.courseName || '（未命名课堂）';
+            var bits = [];
+            if (c.startTime) bits.push(self.fmtTime(c.startTime));
+            bits.push(c.status || '');
+            bits.push(self.shortId(c.scheduleId));
+            list.push({ value: c.scheduleId, label: name, sub: bits.filter(Boolean).join(' · '), status: c.status || '' });
+          });
+        });
+        // 进行中的排最前，其余按状态优先级（最近建的课堂在上，应急时最好找）
+        var rank = { LIVE: 0, PAUSED: 1, READY: 2, SCHEDULED: 3 };
+        list.sort(function (a, b) {
+          var ra = rank[a.status] === undefined ? 9 : rank[a.status];
+          var rb = rank[b.status] === undefined ? 9 : rank[b.status];
+          return ra - rb;
+        });
+        self._classroomCache = list;
+        return list;
+      });
+    },
+
+    _classroomOptions: function (keyword) {
+      var kw = String(keyword || '').trim().toLowerCase();
+      return this._loadClassrooms().then(function (list) {
+        if (!kw) return list;
+        return list.filter(function (o) {
+          return String(o.label).toLowerCase().indexOf(kw) >= 0
+            || String(o.sub || '').toLowerCase().indexOf(kw) >= 0
+            || String(o.value).toLowerCase().indexOf(kw) >= 0;
+        });
+      });
+    },
+
+    /** 创建四个选择器实例（DOM 已就绪）。缺 picker.js 时降级：不抛错，按钮点了会提示重选 */
+    _initPickers: function () {
+      var self = this;
+      this.pickers = {};
+      if (!window.ClassroomPicker) {
+        console.error('[ops] picker.js 未加载，教师/学生/课堂将无法选择');
+        return;
+      }
+      var make = function (id, cfg) {
+        var el = document.getElementById(id);
+        if (!el) return null;
+        try { return window.ClassroomPicker.create(el, cfg); } catch (e) { console.error(e); return null; }
+      };
+
+      this.pickers.tmpTeacher = make('tmp-teacher-pick', {
+        placeholder: '搜索教师姓名或账号',
+        emptyText: '没有匹配的教师（候选只含 teacher 角色）',
+        fetch: function (kw) { return self._userOptions('teacher', kw); }
+      });
+      this.pickers.tmpStudents = make('tmp-students-pick', {
+        multiple: true,
+        placeholder: '搜索学生姓名或账号，可多选',
+        emptyText: '没有匹配的学生（候选只含 student 角色）',
+        fetch: function (kw) { return self._userOptions('student', kw); }
+      });
+      this.pickers.memStudents = make('mem-students-pick', {
+        multiple: true,
+        placeholder: '搜索学生姓名或账号，可多选',
+        emptyText: '没有匹配的学生（候选只含 student 角色）',
+        fetch: function (kw) { return self._userOptions('student', kw); }
+      });
+      this.pickers.noticeClassroom = make('ntc-schedule-pick', {
+        placeholder: '搜索课程名或课堂号',
+        emptyText: '没有匹配的课堂（含临时建课；已结束的课堂不在此列）',
+        fetch: function (kw) { return self._classroomOptions(kw); }
+      });
     },
 
     // ---------------- 基础设施 ----------------
@@ -249,29 +424,27 @@
       }
     },
 
-    /** 「,」「，」「空格」「;」都能当分隔符——管理员多半是从聊天里粘一串 id 过来 */
-    _splitIds: function (raw) {
-      return String(raw || '')
-        .split(/[,，;；\s]+/)
-        .map(function (s) { return s.trim(); })
-        .filter(function (s) { return !!s; });
-    },
-
     _createTemp: function () {
       var self = this;
-      var teacherId = ((document.getElementById('tmp-teacher') || {}).value || '').trim();
-      if (!teacherId) { self.toast('请填写教师 userId'); return; }
+      // 教师/学生改为从下拉选（2026-11-19）：手抄 userId 错一位，教师就进不去自己的课堂
+      var pk = this.pickers || {};
+      var teacherId = pk.tmpTeacher ? pk.tmpTeacher.getValue() : '';
+      if (!teacherId) { self.toast('请从下拉列表选择教师'); return; }
+      var teacherName = (pk.tmpTeacher.getLabel && pk.tmpTeacher.getLabel()) || teacherId;
       var name = ((document.getElementById('tmp-name') || {}).value || '').trim();
       var startVal = ((document.getElementById('tmp-start') || {}).value || '').trim();
       var endVal = ((document.getElementById('tmp-end') || {}).value || '').trim();
       var duration = Number((document.getElementById('tmp-duration') || {}).value || 60) || 60;
-      var students = self._splitIds((document.getElementById('tmp-students') || {}).value)
-        .map(function (id) { return { userId: id, name: id }; });
+      // 学生的 name 一并带上：课堂「参与者」面板显示的是 membership.display_name，
+      // 只传 id 的话名单里全是短码，教师点名时分不清谁是谁
+      var students = (pk.tmpStudents ? pk.tmpStudents.getItems() : []).map(function (it) {
+        return { userId: it.value, name: it.label || it.value };
+      });
 
       var body = {
         courseName: name || '临时课堂',
         teacherId: teacherId,
-        teacherName: teacherId,
+        teacherName: teacherName,
         students: students,
         duration: duration
       };
@@ -289,6 +462,8 @@
         .then(function (d) {
           self.toast('临时课堂已创建');
           self._renderTempResult(d || {});
+          // 课堂候选缓存作废：刚建的这节课必须立刻能在「发上课通知」里选到
+          self._classroomCache = null;
           self.loadMonitor();
         })
         .catch(function (e) { self.toast((e && e.message) || '创建失败'); })
@@ -313,6 +488,10 @@
         + '<div style="margin-top:4px"><b>管理员代开课</b>：'
         + '<input type="text" readonly value="' + this.esc(teacherLink) + '" style="width:66%"> '
         + '<button class="btn small" data-tmp-copy="' + this.esc(teacherLink) + '">复制</button></div>'
+        // 建完课最常见的下一步就是「把链接发给学生」，这里直接把人送到发通知面板，省一次翻找
+        + '<div style="margin-top:8px">'
+        + '<button class="btn small" data-tmp-notice="' + this.esc(sid) + '" '
+        + 'data-tmp-label="' + this.esc(d.courseName || '') + '">给这堂课发上课通知</button></div>'
         + '<div class="muted" style="margin-top:6px">'
         + '① 建出来是「待开课」，需点「进行中」才开课；② 学生需先登录——未登录会被带到登录页，登录后自动回课堂；'
         + '③ 不计课时、不进学情报表，也不在学生「我的课堂」里。</div>'
@@ -323,37 +502,42 @@
           self._copyText(btn.getAttribute('data-tmp-copy'), '链接已复制，发给学生即可');
         });
       });
+      Array.prototype.forEach.call(el.querySelectorAll('[data-tmp-notice]'), function (btn) {
+        btn.addEventListener('click', function () {
+          self._fillNoticeForm(btn.getAttribute('data-tmp-notice'), btn.getAttribute('data-tmp-label'));
+        });
+      });
     },
 
     _addMembers: function () {
       var self = this;
       var sid = ((document.getElementById('mem-schedule') || {}).value || '').trim();
       if (!sid) { self.toast('请填写课堂号'); return; }
-      var ids = self._splitIds((document.getElementById('mem-students') || {}).value);
-      if (!ids.length) { self.toast('请填写学生 userId'); return; }
+      var pk = this.pickers || {};
+      var items = pk.memStudents ? pk.memStudents.getItems() : [];
+      if (!items.length) { self.toast('请从下拉列表选择学生'); return; }
       var note = ((document.getElementById('mem-note') || {}).value || '').trim();
-      var students = ids.map(function (id) { return { userId: id, name: id }; });
+      var students = items.map(function (it) { return { userId: it.value, name: it.label || it.value }; });
       self.api(EP.CLASSROOM_ADMIN_ADD_MEMBERS(sid), 'post', { students: students, note: note })
         .then(function (d) {
           var msg = '已加入 ' + ((d && d.addedCount) || 0) + ' 人';
           if (d && d.skippedCount) msg += '，跳过 ' + d.skippedCount + ' 人（已在课堂）';
           self.toast(msg);
-          var stu = document.getElementById('mem-students');
-          if (stu) stu.value = '';
+          if (pk.memStudents) pk.memStudents.clear();
           self.loadMonitor();
         })
         .catch(function (e) { self.toast((e && e.message) || '加入失败'); });
     },
 
-    /** 点表格里的「加学员」：把课堂号填进表单并滚过去，避免管理员手抄 32 位 id */
+    /** 点表格里的「加学员」：把课堂号填进表单并把焦点送到学生选择器 */
     _fillMemberForm: function (scheduleId) {
       var input = document.getElementById('mem-schedule');
       if (!input) return;
       input.value = scheduleId || '';
       input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      var stu = document.getElementById('mem-students');
-      if (stu) setTimeout(function () { stu.focus(); }, 200);
-      this.toast('已填入课堂号，填学生 userId 后点「加入」');
+      var pickEl = document.querySelector('#mem-students-pick .pk-input');
+      if (pickEl) setTimeout(function () { pickEl.focus(); }, 200);
+      this.toast('已填入课堂号，从下拉选学生后点「加入」');
     },
 
     _endClassroom: function (scheduleId) {
@@ -377,15 +561,23 @@
      * payload.url 由收件箱渲染成「进入课堂」按钮 —— 纯正文里的链接是被转义的，点了没用。
      */
 
-    /** 点表格里的「发通知」：把课堂号填进表单 */
-    _fillNoticeForm: function (scheduleId) {
-      var input = document.getElementById('ntc-schedule');
-      if (!input) return;
-      input.value = scheduleId || '';
+    /** 点表格里的「发通知」/ 建课结果区的按钮：把课堂回填进选择器（label 优先用课程名） */
+    _fillNoticeForm: function (scheduleId, label) {
+      var pk = this.pickers && this.pickers.noticeClassroom;
+      if (!pk) { this.toast('发通知选择器未就绪，请刷新页面'); return; }
+      var text = label || this.shortId(scheduleId);
+      if (!label) {
+        var cache = this._classroomCache || [];
+        for (var i = 0; i < cache.length; i++) {
+          if (cache[i].value === scheduleId) { text = cache[i].label; break; }
+        }
+      }
+      pk.setValue(scheduleId, text);
       var box = document.getElementById('ntc-result');
       if (box) box.innerHTML = '';
-      input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      this.toast('已填入课堂号，点「发送通知」即可');
+      var el = document.getElementById('ntc-schedule-pick');
+      if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      this.toast('已选中「' + text + '」，点「发送通知」即可');
     },
 
     /** 取课堂信息 + 学生名单（两个接口都过 ClassroomAccessGuard，管理员可读） */
@@ -410,8 +602,10 @@
 
     _sendNotice: function () {
       var self = this;
-      var sid = ((document.getElementById('ntc-schedule') || {}).value || '').trim();
-      if (!sid) { self.toast('请先填写课堂号'); return; }
+      var pk = this.pickers || {};
+      // 课堂号改成下拉选（2026-11-19）：候选是课堂实例（含临时建课），按课程名/时间挑
+      var sid = pk.noticeClassroom ? pk.noticeClassroom.getValue() : '';
+      if (!sid) { self.toast('请从下拉列表选择课堂'); return; }
       var btn = document.getElementById('ntc-send');
       var restore = function () { if (btn) { btn.disabled = false; btn.textContent = '发送通知'; } };
       if (btn) { btn.disabled = true; btn.textContent = '发送中…'; }

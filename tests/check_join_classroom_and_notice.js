@@ -120,9 +120,9 @@ async function testJoinClassroom() {
     /已结束/.test(resultText()) && !doc.getElementById('stu-join-enter'), resultText());
 }
 
-/* ==================== C4-a：运营台群发上课通知 ==================== */
-async function testSendNotice() {
-  console.log('C4 运营台「发上课通知」');
+/* ==================== C4-a：运营台选择器 + 群发上课通知 ==================== */
+async function testOpsPickersAndNotice() {
+  console.log('C4 运营台选择器与「发上课通知」');
   const dom = new JSDOM(read('classroom-ops.html'), {
     url: 'https://demo.test/classroom-ops.html',
     runScripts: 'outside-only'
@@ -137,7 +137,15 @@ async function testSendNotice() {
     return './' + name + qs;
   };
   win.getClassroomApiBaseUrl = () => '';
-  win.ApiPaths = { ENDPOINTS: { MSG_SEND: '/api/v1/messages/send' } };
+  win.ApiPaths = {
+    ENDPOINTS: {
+      MSG_SEND: '/api/v1/messages/send',
+      USER_PAGE: '/api/v1/user/page',
+      CLASSROOM_ADMIN_CLASSROOMS: '/api/v1/admin/classrooms/monitor',
+      CLASSROOM_ADMIN_CREATE: '/api/v1/admin/classrooms',
+      CLASSROOM_ADMIN_ADD_MEMBERS: (sid) => '/api/v1/admin/classrooms/' + sid + '/members'
+    }
+  };
   win.classroomUrl = (b, p) => (b || '') + p;
   win.ClassroomAPI = {
     getClassroomStatus: () => Promise.resolve({
@@ -151,19 +159,124 @@ async function testSendNotice() {
       { userId: 'stu-3', role: 'student', displayName: '被移出', kicked: true }
     ])
   };
+
   const sent = [];
   win.request = (cfg) => {
     sent.push(cfg);
-    if (cfg.url === '/api/v1/messages/send') return Promise.resolve({ messageId: 9527, recipientCount: 2 });
+    const u = cfg.url || '';
+    if (u === '/api/v1/messages/send') return Promise.resolve({ messageId: 9527, recipientCount: 2 });
+    if (u === '/api/v1/user/page') {
+      const role = cfg.params && cfg.params.role;
+      if (role === 'teacher') {
+        return Promise.resolve({
+          rows: [{ userId: 'tea-1', name: '王老师', account: 'wang@demo.test', status: 'active' }],
+          total: 1
+        });
+      }
+      return Promise.resolve({
+        rows: [
+          { userId: 'stu-1', name: '张三', account: '13800000001', status: 'active' },
+          { userId: 'stu-2', name: '李四', account: '13800000002', status: 'active' },
+          { userId: 'stu-3', name: '王五', account: '13800000003', status: 'frozen' }
+        ],
+        total: 3
+      });
+    }
+    if (u.indexOf('/api/v1/admin/classrooms/monitor') === 0) {
+      const st = /status=([A-Z]+)/.exec(u)[1];
+      // 故意把 SCHEDULED 放前面返回：排序必须由前端把 LIVE 顶上来
+      if (st === 'SCHEDULED') {
+        return Promise.resolve([{ scheduleId: 'sch-1', courseName: '待开课的课', status: 'SCHEDULED', startTime: '2026-11-19T21:00:00' }]);
+      }
+      if (st === 'LIVE') {
+        return Promise.resolve([{ scheduleId: 'live-1', courseName: '进行中的课', status: 'LIVE', startTime: '2026-11-19T20:00:00' }]);
+      }
+      return Promise.resolve([]);
+    }
+    if (u === '/api/v1/admin/classrooms') {
+      return Promise.resolve({ scheduleId: 'new-1', status: 'SCHEDULED', startTime: '2026-11-19T20:00:00' });
+    }
     return Promise.resolve({ activeClasses: [], serverTime: '2026-11-19T16:00:00' });
   };
-  win.eval(read('js/classroom/ops.js'));
 
-  // Ops.run() 会在 DOMContentLoaded 时跑一次监控加载，等它落地再开始计数
-  await wait(80);
-  sent.length = 0;
-  win.document.getElementById('ntc-schedule').value = 'abc123def4567890abc123def4567890';
+  win.eval(read('js/classroom/picker.js'));
+  win.eval(read('js/classroom/ops.js'));
+  await wait(80);  // 等 Ops.run() 与 DOMContentLoaded 那轮监控加载落地
   win.ClassroomOps.base = '';
+
+  /* --- ① 教师候选：从 /user/page?role=teacher 加载并可搜索 --- */
+  const tIn = win.document.querySelector('#tmp-teacher-pick .pk-input');
+  check('教师是选择器而不是手填输入框', !!tIn);
+  tIn.dispatchEvent(new win.Event('focus'));
+  await wait(60);
+  const tItems = win.document.querySelectorAll('#tmp-teacher-pick .pk-item');
+  check('教师候选来自 /user/page?role=teacher',
+    tItems.length === 1 && /王老师/.test(tItems[0].textContent), tItems.length + ' items');
+  check('候选副标题带账号与状态', /wang@demo\.test/.test(tItems[0].textContent) && /正常/.test(tItems[0].textContent),
+    tItems[0] ? tItems[0].textContent : '');
+  tItems[0].dispatchEvent(new win.MouseEvent('mousedown', { bubbles: true }));
+  check('点击候选后 getValue 拿到 userId',
+    win.ClassroomOps.pickers.tmpTeacher.getValue() === 'tea-1',
+    win.ClassroomOps.pickers.tmpTeacher.getValue());
+
+  /* --- ② 学生多选 --- */
+  const sIn = win.document.querySelector('#tmp-students-pick .pk-input');
+  sIn.dispatchEvent(new win.Event('focus'));
+  await wait(60);
+  let sItems = win.document.querySelectorAll('#tmp-students-pick .pk-item');
+  check('学生候选来自 /user/page?role=student', sItems.length === 3, sItems.length + ' items');
+  sItems[0].dispatchEvent(new win.MouseEvent('mousedown', { bubbles: true }));
+  sItems = win.document.querySelectorAll('#tmp-students-pick .pk-item');
+  sItems[1].dispatchEvent(new win.MouseEvent('mousedown', { bubbles: true }));
+  check('多选得到两个 userId',
+    JSON.stringify(win.ClassroomOps.pickers.tmpStudents.getValues()) === JSON.stringify(['stu-1', 'stu-2']),
+    JSON.stringify(win.ClassroomOps.pickers.tmpStudents.getValues()));
+  check('已选学生显示为 chip（可点 × 移除）',
+    win.document.querySelectorAll('#tmp-students-pick .pk-chip').length === 2);
+
+  /* --- ③ 本地过滤：搜姓名命中、搜不存在的词为空 --- */
+  const byName = await win.ClassroomOps._userOptions('student', '李四');
+  check('按姓名过滤候选', byName.length === 1 && byName[0].value === 'stu-2', JSON.stringify(byName));
+  const byNone = await win.ClassroomOps._userOptions('student', '查无此人');
+  check('无匹配时返回空列表', byNone.length === 0);
+
+  /* --- ④ 临时建课：请求体带 userId + 真名 --- */
+  win.document.getElementById('tmp-name').value = '应急小班';
+  sent.length = 0;
+  win.ClassroomOps._createTemp();
+  await wait(80);
+  const createCall = sent.find((c) => c.url === '/api/v1/admin/classrooms');
+  check('建课请求已发出', !!createCall, JSON.stringify(sent.map((c) => c.url)));
+  if (createCall) {
+    const b = createCall.data;
+    check('teacherId 取自选择器', b.teacherId === 'tea-1', b.teacherId);
+    check('teacherName 用真名而不是 id', b.teacherName === '王老师', b.teacherName);
+    check('students 带 userId + 真名',
+      b.students.length === 2 && b.students[0].userId === 'stu-1' && b.students[0].name === '张三',
+      JSON.stringify(b.students));
+  }
+
+  /* --- ⑤ 课堂候选：四态合并、LIVE 排前、不含 CLOSED --- */
+  win.ClassroomOps._classroomCache = null;
+  const cls = await win.ClassroomOps._classroomOptions('');
+  check('课堂候选合并多个状态', cls.length === 2, JSON.stringify(cls));
+  check('进行中的课堂排在最前', cls[0] && cls[0].value === 'live-1', JSON.stringify(cls.map((c) => c.value)));
+  check('候选副标题带状态与短 id', /进行中|LIVE/.test(cls[0].sub) && cls[0].sub.length > 0, cls[0].sub);
+  const filtered = await win.ClassroomOps._classroomOptions('待开课');
+  check('课堂候选可按课程名过滤', filtered.length === 1 && filtered[0].value === 'sch-1', JSON.stringify(filtered));
+
+  /* --- ⑥ 发上课通知：所选课堂进入请求体 --- */
+  const cIn = win.document.querySelector('#ntc-schedule-pick .pk-input');
+  cIn.dispatchEvent(new win.Event('focus'));
+  await wait(60);
+  const cItems = win.document.querySelectorAll('#ntc-schedule-pick .pk-item');
+  check('课堂选择器有候选', cItems.length === 2, cItems.length + ' items');
+  cItems[0].dispatchEvent(new win.MouseEvent('mousedown', { bubbles: true }));
+  check('选中课堂后 getValue 是 scheduleId',
+    win.ClassroomOps.pickers.noticeClassroom.getValue() === 'live-1',
+    win.ClassroomOps.pickers.noticeClassroom.getValue());
+
+  sent.length = 0;
   win.ClassroomOps._sendNotice();
   await wait(80);
 
@@ -175,16 +288,16 @@ async function testSendNotice() {
       JSON.stringify(d.recipientUserIds) === JSON.stringify(['stu-1', 'stu-2']), JSON.stringify(d.recipientUserIds));
     check('标题自动生成带课程名', /上课通知：应急小班/.test(d.title), d.title);
     check('正文含课堂号与进入方式',
-      /abc123def4567890/.test(d.content) && /进入方式/.test(d.content), d.content);
+      /live-1/.test(d.content) && /进入方式/.test(d.content), d.content);
     check('payload 带 classroom_join 与带 scheduleId 的链接',
       !!d.payload && d.payload.type === 'classroom_join'
-      && /scheduleId=abc123def4567890/.test(d.payload.url), JSON.stringify(d.payload));
+      && /scheduleId=live-1/.test(d.payload.url), JSON.stringify(d.payload));
     check('平台管理员代发时带上课堂所属租户', d.targetTenantId === 5, String(d.targetTenantId));
   }
   const box = win.document.getElementById('ntc-result').textContent;
   check('结果区展示发送人数与 messageId', /已发送/.test(box) && /9527/.test(box), box);
 
-  // 空名单：不发空通知
+  /* --- ⑦ 空名单：不发空通知 --- */
   win.ClassroomAPI.getMembers = () => Promise.resolve([{ userId: 'tea-1', role: 'teacher' }]);
   sent.length = 0;
   win.ClassroomOps._sendNotice();
@@ -234,7 +347,7 @@ function testPayloadJump() {
 
 (async () => {
   await testJoinClassroom();
-  await testSendNotice();
+  await testOpsPickersAndNotice();
   testPayloadJump();
   console.log('\n共 ' + total + ' 项，失败 ' + failed + ' 项');
   process.exit(failed ? 1 : 0);

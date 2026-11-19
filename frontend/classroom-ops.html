@@ -80,6 +80,43 @@
       border-radius: 6px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 99;
     }
     .toast.show { opacity: 1; }
+
+    /* ===== 可搜索选择器（js/classroom/picker.js，2026-11-19） =====
+       运营台是零构建静态页，不引第三方下拉库；这套类名只在本页使用。 */
+    .field-pick { display: inline-block; vertical-align: middle; }
+    .pk {
+      position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+      width: 100%; min-height: 32px; padding: 3px 6px;
+      border: 1px solid #d0d5dd; border-radius: 6px; background: #fff;
+    }
+    .pk:focus-within { border-color: #1f6feb; box-shadow: 0 0 0 2px rgba(31, 111, 235, .12); }
+    .pk-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+    .pk-chip {
+      display: inline-flex; align-items: center; gap: 4px; max-width: 220px;
+      padding: 1px 6px; border-radius: 4px; background: #eef4ff; color: #1f4fbf; font-size: 12px;
+    }
+    .pk-chip b { cursor: pointer; font-weight: 400; color: #6b7280; }
+    .pk-chip b:hover { color: #b42318; }
+    .pk-input {
+      flex: 1; min-width: 90px; padding: 3px 2px; border: 0; outline: 0;
+      background: transparent; font-size: 12.5px;
+    }
+    .pk-menu {
+      position: absolute; left: 0; right: 0; top: calc(100% + 2px); z-index: 60;
+      background: #fff; border: 1px solid #d0d5dd; border-radius: 6px;
+      box-shadow: 0 6px 18px rgba(16, 24, 40, .12); overflow: hidden;
+    }
+    .pk-list { max-height: 220px; overflow: auto; }
+    .pk-item { padding: 6px 10px; cursor: pointer; border-bottom: 1px solid #f3f4f6; }
+    .pk-item:last-child { border-bottom: 0; }
+    .pk-item.active, .pk-item:hover { background: #f2f6ff; }
+    .pk-item.picked { color: #1f6feb; }
+    .pk-main { font-size: 12.5px; }
+    .pk-sub { margin-top: 1px; color: #98a2b3; font-size: 11.5px; }
+    .pk-tick { color: #1a7f37; }
+    .pk-empty { padding: 10px; color: #98a2b3; font-size: 12.5px; text-align: center; }
+    .pk-foot { padding: 5px 10px; border-top: 1px solid #f3f4f6; background: #fafbfc; color: #98a2b3; font-size: 11.5px; }
+    .pk-foot:empty { display: none; }
   </style>
 </head>
 <body>
@@ -111,15 +148,17 @@
           <span class="muted">不计课时 · 不进「我的课堂」· 靠链接分发</span></div>
         <div class="panel-body">
           <div>
-            <span class="field">课程名 <input type="text" id="tmp-name" placeholder="临时课堂" style="width:200px"></span>
-            <span class="field">教师 userId <input type="text" id="tmp-teacher" placeholder="必填（教师登录账号 userId）" style="width:260px"></span>
-            <span class="field">开始 <input type="datetime-local" id="tmp-start" style="width:190px"></span>
-            <span class="field">结束 <input type="datetime-local" id="tmp-end" style="width:190px"></span>
-            <span class="field">时长 <input type="number" id="tmp-duration" value="60" min="5" style="width:70px"> 分</span>
+            <span class="field">课程名 <input type="text" id="tmp-name" placeholder="临时课堂" style="width:180px"></span>
+            <!-- 教师/学生都改成可搜索选择（2026-11-19）：userId 是系统短码，手抄错一位
+                 就变成「建了课但教师进不去」（准入按 teacherId 本人判定）。 -->
+            <span class="field">教师 <span id="tmp-teacher-pick" class="field-pick" style="width:240px"></span></span>
+            <span class="field">开始 <input type="datetime-local" id="tmp-start" style="width:180px"></span>
+            <span class="field">结束 <input type="datetime-local" id="tmp-end" style="width:180px"></span>
+            <span class="field">时长 <input type="number" id="tmp-duration" value="60" min="5" style="width:64px"> 分</span>
           </div>
           <div style="margin-top:8px">
-            <div class="muted" style="margin-bottom:4px">学生 userId（逗号或换行分隔，可留空后加）</div>
-            <textarea id="tmp-students" style="min-height:56px" placeholder="stu-aaa, stu-bbb"></textarea>
+            <div class="muted" style="margin-bottom:4px">学生（可多选，可留空后加）</div>
+            <div id="tmp-students-pick"></div>
           </div>
           <div style="margin-top:8px">
             <button class="btn primary" id="tmp-create">创建临时课堂</button>
@@ -135,9 +174,10 @@
         <div class="panel-head">给指定课堂加学员</div>
         <div class="panel-body">
           <div>
-            <span class="field">课堂号 <input type="text" id="mem-schedule" placeholder="scheduleId（多课次形如 排期id~2）" style="width:300px"></span>
-            <span class="field">学生 userId <input type="text" id="mem-students" placeholder="逗号分隔，可多个" style="width:280px"></span>
-            <span class="field">原因 <input type="text" id="mem-note" placeholder="留痕说明（可空）" style="width:200px"></span>
+            <span class="field">课堂号 <input type="text" id="mem-schedule" placeholder="scheduleId（多课次形如 排期id~2）" style="width:280px"></span>
+            <!-- 学生改成可搜索多选（2026-11-19） -->
+            <span class="field">学生 <span id="mem-students-pick" class="field-pick" style="width:260px"></span></span>
+            <span class="field">原因 <input type="text" id="mem-note" placeholder="留痕说明（可空）" style="width:190px"></span>
             <button class="btn primary" id="mem-add">加入</button>
           </div>
           <div class="muted" style="margin-top:6px">
@@ -154,8 +194,10 @@
           <span class="muted">发给本课堂名单里的学生 · 带一键进入链接</span></div>
         <div class="panel-body">
           <div>
-            <span class="field">课堂号 <input type="text" id="ntc-schedule" placeholder="scheduleId" style="width:300px"></span>
-            <span class="field">标题 <input type="text" id="ntc-title" placeholder="留空自动生成" style="width:240px"></span>
+            <!-- 课堂号改成按「课程名 / 时间」下拉选（2026-11-19）：32 位 id 抄不动，
+                 也分不清哪节课是哪节。候选来自课堂实例（含临时建课），不是排期表。 -->
+            <span class="field">课堂 <span id="ntc-schedule-pick" class="field-pick" style="width:340px"></span></span>
+            <span class="field">标题 <input type="text" id="ntc-title" placeholder="留空自动生成" style="width:220px"></span>
           </div>
           <div style="margin-top:8px">
             <div class="muted" style="margin-bottom:4px">正文（留空自动生成；课程名/时间/课堂号会自动填入）</div>
@@ -308,6 +350,8 @@
        必须早于 js/classroom/*.js：它们 IIFE 执行时即读取 window.ApiPaths.ENDPOINTS，
        缺这份时端点会拼成 undefined，请求静默失败。2026-10-31 端点收口时补入。 -->
   <script src="js/shared-domain-bridge.js"></script>
+  <!-- 可搜索选择器（2026-11-19）：必须早于 ops.js，后者在 run() 里创建三个 picker 实例 -->
+  <script src="js/classroom/picker.js"></script>
   <script src="js/classroom/ops.js"></script>
 </body>
 </html>
