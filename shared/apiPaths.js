@@ -347,6 +347,15 @@ export const ENDPOINTS = {
   // 对账各表只存这个键，展示层要靠它翻成「课程名 · 第N课次」，否则只能看到一串 UUID。
   // status 必填（后端 eq 精确匹配），可传 LIVE/PAUSED/READY/SCHEDULED/CLOSED。
   CLASSROOM_ADMIN_CLASSROOMS: '/api/v1/admin/classrooms/monitor',
+  // 临时建课（B1）：POST 同路径，body = {courseName, teacherId, teacherName, students[], startTime, endTime, duration, tenantId}
+  // 建出来是 SCHEDULED，必须有人点「进行中」才开课；不结算课时、不进学生「我的课堂」。
+  CLASSROOM_ADMIN_CREATE: '/api/v1/admin/classrooms',
+  // 临场加学员（B2）：直接写 membership + 出勤行（ABSENT），幂等跳过已存在的人。
+  CLASSROOM_ADMIN_ADD_MEMBERS: (scheduleId) =>
+    `/api/v1/admin/classrooms/${encodeURIComponent(scheduleId || '')}/members`,
+  // 强制结束课堂：后端一直有，运营台 2026-11-19 才接线。
+  CLASSROOM_ADMIN_END: (scheduleId) =>
+    `/api/v1/admin/classrooms/${encodeURIComponent(scheduleId || '')}/end`,
   CLASSROOM_ADMIN_MONITOR_OVERVIEW: '/api/v1/admin/monitor/overview',
   CLASSROOM_ADMIN_MONITOR_ALERTS: '/api/v1/admin/monitor/alerts',
   CLASSROOM_ADMIN_MONITOR_METRICS: '/api/v1/admin/monitor/metrics',

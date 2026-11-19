@@ -77,6 +77,32 @@ public class AuditService {
         log.info("管理员查阅课堂聊天: scheduleId={}, operator={}", scheduleId, operatorId);
     }
 
+    /**
+     * 管理员应急建课留痕（B4）。
+     *
+     * <p>为什么必须记：临时课堂走的是「合成排期事件」路径，预约侧 {@code audit_log} 里
+     * 不会有 {@code SCHEDULE_CREATE} 记录；不留痕就成了「凭空多出一节课，查不出谁建的」。
+     */
+    public void logClassroomCreate(String scheduleId, String operatorId, String note) {
+        write("CLASSROOM", scheduleId, scheduleId, "CREATE", operatorId, note);
+        log.warn("管理员应急建课留痕: scheduleId={}, operator={}", scheduleId, operatorId);
+    }
+
+    /**
+     * 管理员为课堂加学员留痕（B4）：一人一条，便于追溯"某人是谁加进来的"。
+     * {@code targetId} 记被加的 userId，{@code scheduleId} 记课堂。
+     */
+    public void logMemberAdd(String scheduleId, String targetUserId, String operatorId, String note) {
+        write("CLASSROOM", targetUserId, scheduleId, "ADD_MEMBER", operatorId, note);
+        log.warn("管理员加学员留痕: scheduleId={}, userId={}, operator={}", scheduleId, targetUserId, operatorId);
+    }
+
+    /** 管理员远程强制结束课堂留痕（B4）。 */
+    public void logClassroomEnd(String scheduleId, String operatorId, String note) {
+        write("CLASSROOM", scheduleId, scheduleId, "END", operatorId, note);
+        log.warn("管理员强制结束课堂留痕: scheduleId={}, operator={}", scheduleId, operatorId);
+    }
+
     public List<AuditLog> listLogs(int days, String scheduleId) {
         LambdaQueryWrapper<AuditLog> w = new LambdaQueryWrapper<>();
         w.ge(AuditLog::getCreatedAt, LocalDateTime.now().minusDays(Math.max(1, days)));
