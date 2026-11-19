@@ -90,7 +90,13 @@ function toClassroomService(urlPath) {
     '/api/v1/admin/exports/',
   ];
   for (const p of PREFIXES) {
-    if (urlPath.startsWith(p)) return true;
+    // 【2026-11-19 修】只 startsWith 会漏掉「前缀本身就是完整路径」的端点：
+    // POST /api/v1/admin/classrooms（创建临时课堂）没有子路径，请求路径恰好等于
+    // '/api/v1/admin/classrooms'，永远匹配不到 '/api/v1/admin/classrooms/'，
+    // 于是被兜底送到 8081 booking —— 主服务没有这个映射，被 SecurityConfig 判 403，
+    // 前端只看到「无权限访问该资源」，看起来像权限问题，实际是分流漏了。
+    // 判等时去掉前缀末尾的斜杠，nginx 侧对应 `location = /api/v1/admin/classrooms`。
+    if (urlPath === p.replace(/\/$/, '') || urlPath.startsWith(p)) return true;
   }
   return false;
 }
