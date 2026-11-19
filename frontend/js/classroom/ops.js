@@ -353,6 +353,20 @@
       return (Number(v) * 100).toFixed(1) + '%';
     },
 
+    /**
+     * 分钟数 → 「2 小时 15 分」。
+     * 告警里要说明「超期多久」：只给一个绝对时间点（计划结束 18:00），管理员还得自己算；
+     * 早上开班时看到「已超期 14 小时」和「已超期 5 分钟」的处置优先级完全不同。
+     */
+    fmtSpan: function (minutes) {
+      var m = Math.max(0, Math.floor(Number(minutes) || 0));
+      if (m < 60) return m + ' 分钟';
+      var h = Math.floor(m / 60);
+      var rest = m % 60;
+      if (h < 24) return h + ' 小时' + (rest ? ' ' + rest + ' 分' : '');
+      return Math.floor(h / 24) + ' 天 ' + (h % 24) + ' 小时';
+    },
+
     card: function (k, v, warn) {
       return '<div class="card"><div class="k">' + k + '</div><div class="v' +
         (warn ? ' warn' : '') + '">' + v + '</div></div>';
@@ -540,14 +554,35 @@
       this.toast('已填入课堂号，从下拉选学生后点「加入」');
     },
 
+    /**
+     * 强制结束课堂（活跃课堂行的「结束」、告警区的「强制下课」共用）。
+     *
+     * 语义要先说清，免得管理员以为这是"作废"：服务端走 ClassroomService.endClass ——
+     * 状态置 **CLOSED（正常结束）**、actualEnd 记当前时刻，随后 closeAfterEnd 归一出勤、
+     * 回流课时、释放媒体房间与内存态。"强制"只表示不必等教师点下课，结算口径与正常下课一致。
+     */
     _endClassroom: function (scheduleId) {
       if (!scheduleId) { this.toast('缺少课堂号'); return; }
-      if (!window.confirm('确定强制结束课堂 ' + this.shortId(scheduleId) + ' 吗？\n'
-        + '结束后状态变为 CLOSED：出勤与课时按当前记录归一，不可重开。')) return;
+      if (!window.confirm('确定结束课堂 ' + this.shortId(scheduleId) + ' 吗？\n'
+        + '状态将置为 CLOSED（正常结束，不是作废）：出勤按已有记录归一、课时照常结算，结束后不可重开。')) return;
       var self = this;
       self.api(EP.CLASSROOM_ADMIN_END(scheduleId), 'post')
-        .then(function () { self.toast('已结束课堂'); self.loadMonitor(); })
-        .catch(function (e) { self.toast((e && e.message) || '结束失败'); });
+        .then(function () {
+          self.toast('已结束课堂（CLOSED）');
+          // 状态变了，发通知的课堂候选缓存作废
+          self._classroomCache = null;
+          self.loadMonitor();
+        })
+        .catch(function (e) {
+          // 40901 = 当前状态不可下课（已 CLOSED，或还没开课）：
+          // 这不是失败，多半是别人刚结束过 —— 刷新一次让列表与告警对齐就行
+          if (e && e.code === 40901) {
+            self.toast('这堂课已不在进行中（可能已被结束），列表已刷新');
+            self.loadMonitor();
+            return;
+          }
+          self.toast((e && e.message) || '结束失败');
+        });
     },
 
     // ---------------- 上课通知（C4，2026-11-19） ----------------
@@ -893,9 +928,25 @@
           if (d.staleLiveCount > 0) {
             html += '<div style="margin-bottom:8px;color:#b42318;font-weight:600">卡在 LIVE 未下课的课堂 '
               + d.staleLiveCount + ' 节</div><ul style="margin:0 0 12px 18px;padding:0">';
+            // 2026-11-19：这里补「强制下课」（需求）。告警原本只是"看一眼"，处置还得回上面的
+            // 活跃课堂表里找同一节课——僵尸课往往已经不在 LIVE 列表的显眼位置。
+            //
+            // 走的是管理员结束端点 /admin/classrooms/{sid}/end → ClassroomService.endClass：
+            // 状态置 **CLOSED（正常结束，不是作废）**，actualEnd 落当前时间，然后
+            // closeAfterEnd 归一出勤、回流课时、释放媒体房间与内存态。也就是说「强制」
+            // 只体现在"不用等教师点下课"，业务口径与正常下课完全一致，不会漏结算。
             (d.staleLive || []).forEach(function (c) {
-              html += '<li>' + self.esc(c.courseName || self.classLabel(c.scheduleId)) +
-                ' 计划结束 ' + self.fmtTime(c.endTime) + '</li>';
+              var over = '';
+              if (c.endTime) {
+                var mins = Math.floor((Date.now() - new Date(c.endTime).getTime()) / 60000);
+                if (mins > 0) over = ' · <span style="color:#b42318">已超期 ' + self.fmtSpan(mins) + '</span>';
+              }
+              html += '<li style="margin:4px 0;">'
+                + self.esc(c.courseName || self.classLabel(c.scheduleId))
+                + ' 计划结束 ' + self.fmtTime(c.endTime) + over
+                + ' <button class="btn small danger" type="button" data-alert-end="'
+                + self.esc(c.scheduleId) + '">强制下课</button>'
+                + '</li>';
             });
             html += '</ul>';
           }
@@ -910,6 +961,11 @@
           }
           if (!html) html = '<div class="muted">当前无告警</div>';
           el.innerHTML = html;
+          Array.prototype.forEach.call(el.querySelectorAll('[data-alert-end]'), function (btn) {
+            btn.addEventListener('click', function () {
+              self._endClassroom(btn.getAttribute('data-alert-end'));
+            });
+          });
         })
         .catch(function () { /* 告警失败不打扰 */ });
 
