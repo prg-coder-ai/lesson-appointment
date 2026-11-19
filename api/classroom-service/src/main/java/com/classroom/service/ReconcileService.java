@@ -107,8 +107,10 @@ public class ReconcileService {
     }
 
     public List<ReconcileLog> listRecent(int days) {
+        // 窗口钳制（2026-11-19）：调用方传的是前端输入，不钳制就等于允许 days=3650 全表扫 + 内存过滤
+        int window = Math.min(90, Math.max(1, days));
         LambdaQueryWrapper<ReconcileLog> wrapper = new LambdaQueryWrapper<>();
-        wrapper.ge(ReconcileLog::getReceivedAt, LocalDateTime.now().minusDays(days))
+        wrapper.ge(ReconcileLog::getReceivedAt, LocalDateTime.now().minusDays(window))
                .orderByDesc(ReconcileLog::getReceivedAt);
         return reconcileLogMapper.selectList(wrapper);
     }

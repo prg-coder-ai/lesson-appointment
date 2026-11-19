@@ -63,8 +63,9 @@ public class ClassroomClosingService {
      * 课堂已流转为 CLOSED 后执行收尾并回流。
      *
      * @param closeAt 下课时间（与 classroom.actual_end 一致）
+     * @return 本次回流携带的 {@code consumption_version}；未发生回流（课堂不存在 / 收尾异常）返回 {@code null}
      */
-    public void closeAfterEnd(String scheduleId, LocalDateTime closeAt) {
+    public Integer closeAfterEnd(String scheduleId, LocalDateTime closeAt) {
         AttendanceCallbackReq payload;
         try {
             payload = transactionTemplate.execute(status -> doClose(scheduleId, closeAt));
@@ -72,14 +73,76 @@ public class ClassroomClosingService {
             // 收尾失败不能让「下课」这个动作回滚：状态已是 CLOSED，人已经走了。
             // 留 ERROR 供人工补跑（重放走同一入口即可，幂等：区间已闭合、名单按结论覆盖）。
             log.error("下课收尾失败，需人工补跑: scheduleId={}", scheduleId, e);
-            return;
+            return null;
         }
-        if (payload == null) return;
+        if (payload == null) return null;
         // 事务已提交，此时回流才有意义
         callbackService.sendAttendanceCallback(scheduleId, payload);
         log.info("下课收尾完成并已发起出勤回流: scheduleId={}, version={}, 明细={}",
                 scheduleId, payload.getConsumptionVersion(),
                 payload.getItems() == null ? 0 : payload.getItems().size());
+        return payload.getConsumptionVersion();
+    }
+
+    /**
+     * 补发课时回流（运营台「契约联调 → 补发回流」，2026-11-19）。
+     *
+     * <p><b>为什么不直接重跑 {@link #closeAfterEnd}</b>：那条路会再走一次
+     * {@code finalizeSchedule}，按在线区间<b>重算</b>有效时长与出勤结论——而
+     * {@code classroom_attendance} 上有 {@code adjust_by}（人工调整过出勤/时长）时，
+     * 重算等于把人工结论悄悄冲掉。补发要做到的只是「把库里现在的结论再报一次」。
+     *
+     * <p><b>为什么要 +1 版本</b>：预约侧按 {@code consumption_version} 丢弃旧报文，
+     * 原样重发会被当成重复投递丢掉（表现就是「点了补发，对面没反应」）。
+     * 每次补发 +1，预约侧按「同课次取最大版本」覆盖，不会累计扣课时。
+     *
+     * <p>顺带修 {@code actual_end}：{@code CLOSED} 但 {@code actual_end} 为空是收尾异常留下的
+     * 半截账（维护说明里原本让人「重放排期事件」，而排期事件根本不经过回流链路，那条建议不成立）。
+     * 这种情况用当前时刻补上并落库，再发报文。
+     *
+     * @return 新版本号；课堂不存在或未 CLOSED 返回 {@code null}（状态判定以调用方为准，这里只是兜底）
+     */
+    public Integer resendConsumption(String scheduleId) {
+        Classroom c = classroomMapper.selectById(scheduleId);
+        if (c == null || !"CLOSED".equals(c.getStatus())) {
+            return null;
+        }
+        LocalDateTime closeAt = c.getActualEnd();
+        boolean patchedEnd = false;
+        if (closeAt == null) {
+            closeAt = LocalDateTime.now();
+            patchedEnd = true;
+        }
+        int nextVersion = (c.getConsumptionVersion() == null ? 0 : c.getConsumptionVersion()) + 1;
+
+        Classroom patch = new Classroom();
+        patch.setScheduleId(scheduleId);
+        patch.setConsumptionVersion(nextVersion);
+        if (patchedEnd) patch.setActualEnd(closeAt);
+        classroomMapper.updateById(patch);
+
+        AttendanceCallbackReq req = buildCallback(c, attendanceService.listBySchedule(scheduleId), closeAt, nextVersion);
+        callbackService.sendAttendanceCallback(scheduleId, req);
+        log.warn("补发课时回流: scheduleId={}, version={}, 明细={}, 补actualEnd={}",
+                scheduleId, nextVersion, req.getItems() == null ? 0 : req.getItems().size(), patchedEnd);
+        return nextVersion;
+    }
+
+    /**
+     * 组装出勤回流报文。收尾（{@link #doClose}）与补发（{@link #resendConsumption}）共用，
+     * 保证两条路发出去的字段结构永远一致——否则会出现「补齐的和正常下课的不一样」。
+     */
+    private AttendanceCallbackReq buildCallback(Classroom c, List<Attendance> roster,
+                                                LocalDateTime closeAt, int consumptionVersion) {
+        AttendanceCallbackReq req = new AttendanceCallbackReq();
+        req.setScheduleId(c.getScheduleId());
+        req.setCourseId(c.getCourseId());
+        req.setClassroomStatus("CLOSED");
+        req.setActualStart(c.getActualStart());
+        req.setActualEnd(closeAt);
+        req.setConsumptionVersion(consumptionVersion);
+        req.setItems(buildItems(c.getScheduleId(), roster));
+        return req;
     }
 
     private AttendanceCallbackReq doClose(String scheduleId, LocalDateTime closeAt) {
@@ -107,14 +170,7 @@ public class ClassroomClosingService {
         versionUpdate.setActualEnd(closeAt);
         classroomMapper.updateById(versionUpdate);
 
-        AttendanceCallbackReq req = new AttendanceCallbackReq();
-        req.setScheduleId(scheduleId);
-        req.setCourseId(c.getCourseId());
-        req.setClassroomStatus("CLOSED");
-        req.setActualStart(c.getActualStart());
-        req.setActualEnd(closeAt);
-        req.setConsumptionVersion(nextVersion);
-        req.setItems(buildItems(scheduleId, roster));
+        AttendanceCallbackReq req = buildCallback(c, roster, closeAt, nextVersion);
 
         log.info("下课收尾: scheduleId={}, 出勤明细={}, 置离线成员={}, version={}",
                 scheduleId, req.getItems().size(), offline, nextVersion);

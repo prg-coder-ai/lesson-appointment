@@ -103,9 +103,20 @@ public class AuditService {
         log.warn("管理员强制结束课堂留痕: scheduleId={}, operator={}", scheduleId, operatorId);
     }
 
+    /**
+     * 管理员补发课时回流留痕（2026-11-19）。
+     *
+     * <p>补发会让预约侧的结算版本前进一格，属于「动账」操作，必须能查出谁在什么时候补的、
+     * 补到了第几版——否则配额对不上时无从追溯。
+     */
+    public void logConsumptionResend(String scheduleId, String operatorId, String note) {
+        write("CLASSROOM", scheduleId, scheduleId, "RESEND_CONSUMPTION", operatorId, note);
+        log.warn("管理员补发课时回流留痕: scheduleId={}, operator={}, note={}", scheduleId, operatorId, note);
+    }
+
     public List<AuditLog> listLogs(int days, String scheduleId) {
         LambdaQueryWrapper<AuditLog> w = new LambdaQueryWrapper<>();
-        w.ge(AuditLog::getCreatedAt, LocalDateTime.now().minusDays(Math.max(1, days)));
+        w.ge(AuditLog::getCreatedAt, LocalDateTime.now().minusDays(Math.min(90, Math.max(1, days))));
         if (scheduleId != null && !scheduleId.isBlank()) {
             w.eq(AuditLog::getScheduleId, scheduleId);
         }

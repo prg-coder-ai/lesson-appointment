@@ -451,6 +451,10 @@ const ENDPOINTS = {
   // 强制结束课堂：后端一直有，运营台 2026-11-19 才接线。
   CLASSROOM_ADMIN_END: (scheduleId) =>
     `/api/v1/admin/classrooms/${encodeURIComponent(scheduleId || '')}/end`,
+  // 补发课时回流（2026-11-19）：只重发报文 + 版本 +1，不重算出勤（重算会覆盖人工调整）。
+  // 用于「已 CLOSED 但 consumption_version=0 / actual_end 为空」这类收尾半截账。
+  CLASSROOM_ADMIN_RESEND_CONSUMPTION: (scheduleId) =>
+    `/api/v1/admin/classrooms/${encodeURIComponent(scheduleId || '')}/resend-consumption`,
   CLASSROOM_ADMIN_MONITOR_OVERVIEW: '/api/v1/admin/monitor/overview',
   CLASSROOM_ADMIN_MONITOR_ALERTS: '/api/v1/admin/monitor/alerts',
   CLASSROOM_ADMIN_MONITOR_METRICS: '/api/v1/admin/monitor/metrics',
