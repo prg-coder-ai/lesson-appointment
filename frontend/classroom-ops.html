@@ -146,6 +146,36 @@
         </div>
       </div>
 
+      <!-- 应急：发上课通知（C4，2026-11-19）——临时课堂不进学生「我的课堂」，
+           名单又只有管理员看得见，只能主动推。走消息中心 /api/v1/messages/send（8090），
+           payload.url 会被收件箱渲染成「进入课堂」按钮（见 messages-inbox.js）。 -->
+      <div class="panel">
+        <div class="panel-head">发上课通知<span class="spacer"></span>
+          <span class="muted">发给本课堂名单里的学生 · 带一键进入链接</span></div>
+        <div class="panel-body">
+          <div>
+            <span class="field">课堂号 <input type="text" id="ntc-schedule" placeholder="scheduleId" style="width:300px"></span>
+            <span class="field">标题 <input type="text" id="ntc-title" placeholder="留空自动生成" style="width:240px"></span>
+          </div>
+          <div style="margin-top:8px">
+            <div class="muted" style="margin-bottom:4px">正文（留空自动生成；课程名/时间/课堂号会自动填入）</div>
+            <textarea id="ntc-content" style="min-height:72px"
+              placeholder="留空则自动生成「课程名 将于 时间 开课，点『进入课堂』即可加入」"></textarea>
+          </div>
+          <div style="margin-top:8px">
+            <label class="field" style="margin-right:16px;">
+              <input type="checkbox" id="ntc-with-link" checked> 附带「进入课堂」按钮（消息里可点）
+            </label>
+            <label class="field" style="margin-right:16px;">
+              <input type="checkbox" id="ntc-high"> 高优先级
+            </label>
+            <button class="btn primary" id="ntc-send">发送通知</button>
+            <span class="muted" style="margin-left:8px">只发给名单里 role=student 且未被移出的人</span>
+          </div>
+          <div id="ntc-result"></div>
+        </div>
+      </div>
+
       <div class="panel">
         <div class="panel-head">活跃课堂<span class="spacer"></span>
           <span class="muted" id="monitor-time"></span></div>
