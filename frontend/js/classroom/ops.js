@@ -117,13 +117,22 @@
 
     /** 课堂候选缓存：[{value(=scheduleId), label(课程名), sub(时间·状态)}] */
     _classroomCache: null,
+    /**
+     * 含「已结束」的课堂候选缓存。
+     *
+     * <p>补发课时回流恰恰要选 **CLOSED** 的课堂，而发通知/加学员那两份候选刻意不含已结束的
+     * （给结束了的课发通知没有意义）。两份缓存分开，避免一边为了另一边放开 CLOSED。
+     */
+    _classroomClosedCache: null,
 
-    _loadClassrooms: function () {
+    _loadClassrooms: function (withClosed) {
       var self = this;
-      if (this._classroomCache) return Promise.resolve(this._classroomCache);
+      var cache = withClosed ? this._classroomClosedCache : this._classroomCache;
+      if (cache) return Promise.resolve(cache);
       var statuses = ['LIVE', 'SCHEDULED', 'READY', 'PAUSED'];
+      if (withClosed) statuses.push('CLOSED');
       var reqs = statuses.map(function (st) {
-        // 绕开 this.api()：它默认带全局 loading，四个状态并发会闪四次；候选加载不该打断操作
+        // 绕开 this.api()：它默认带全局 loading，并发会闪多次；候选加载不该打断操作
         return window.request({
           url: urlOf(self.base, EP.CLASSROOM_ADMIN_CLASSROOMS + '?status=' + encodeURIComponent(st)),
           method: 'get',
@@ -146,21 +155,25 @@
             list.push({ value: c.scheduleId, label: name, sub: bits.filter(Boolean).join(' · '), status: c.status || '' });
           });
         });
-        // 进行中的排最前，其余按状态优先级（最近建的课堂在上，应急时最好找）
-        var rank = { LIVE: 0, PAUSED: 1, READY: 2, SCHEDULED: 3 };
+        // 进行中的排最前，其余按状态优先级（最近建的课堂在上，应急时最好找）；已结束的垫底
+        var rank = { LIVE: 0, PAUSED: 1, READY: 2, SCHEDULED: 3, CLOSED: 4 };
         list.sort(function (a, b) {
           var ra = rank[a.status] === undefined ? 9 : rank[a.status];
           var rb = rank[b.status] === undefined ? 9 : rank[b.status];
           return ra - rb;
         });
-        self._classroomCache = list;
+        if (withClosed) {
+          self._classroomClosedCache = list;
+        } else {
+          self._classroomCache = list;
+        }
         return list;
       });
     },
 
-    _classroomOptions: function (keyword) {
+    _classroomOptions: function (keyword, withClosed) {
       var kw = String(keyword || '').trim().toLowerCase();
-      return this._loadClassrooms().then(function (list) {
+      return this._loadClassrooms(!!withClosed).then(function (list) {
         if (!kw) return list;
         return list.filter(function (o) {
           return String(o.label).toLowerCase().indexOf(kw) >= 0
@@ -205,6 +218,11 @@
         placeholder: '搜索课程名或课堂号',
         emptyText: '没有匹配的课堂（含临时建课；已结束的课堂不在此列）',
         fetch: function (kw) { return self._classroomOptions(kw); }
+      });
+      this.pickers.resendClassroom = make('rcs-schedule-pick', {
+        placeholder: '搜索课程名或课堂号（含已结束）',
+        emptyText: '没有匹配的课堂（补发只针对已结束的课堂）',
+        fetch: function (kw) { return self._classroomOptions(kw, true); }
       });
     },
 
@@ -305,6 +323,7 @@
       on('ct-query', function () { self.loadContract(); });
       on('ct-replay', function () { self._replay(); });
       on('ct-resync', function () { self._resync(); });
+      on('ct-resend', function () { self._resendConsumption(); });
       // 应急建课 / 加学员（B1/B2，2026-11-19）
       on('tmp-create', function () { self._createTemp(); });
       on('mem-add', function () { self._addMembers(); });
@@ -1282,9 +1301,13 @@
       this.api(EP.CLASSROOM_ADMIN_CONTRACT_RESYNC, 'post', { scheduleIds: ids })
         .then(function (rows) {
           var html = (rows || []).map(function (r) {
+            // denied = 课堂存在但属于别的租户（后端只回「不是你的」，不回状态与时间）
+            var flag = r.denied
+              ? '<span class="tag warn" title="该课次属于其他租户，平台管理员才可查看">非本租户</span>'
+              : (r.exists ? '<span class="tag ok">存在</span>' : '<span class="tag err">缺失</span>');
             return '<tr>' +
               '<td>' + self.esc(r.scheduleId) + '</td>' +
-              '<td>' + (r.exists ? '<span class="tag ok">存在</span>' : '<span class="tag err">缺失</span>') + '</td>' +
+              '<td>' + flag + '</td>' +
               '<td>' + self.esc(r.status || '-') + '</td>' +
               '<td>' + (r.version == null ? '-' : r.version) + '</td>' +
               '<td>' + (r.consumptionVersion == null ? '-' : r.consumptionVersion) + '</td>' +
@@ -1294,6 +1317,45 @@
           self.table('ct-resync-table', ['课次', '课堂侧', '状态', '版本', '消耗版本', '实际下课'], html);
         })
         .catch(function (e) { self.toast((e && e.message) || '对表失败'); });
+    },
+
+    /**
+     * 补发课时回流（2026-11-19）——运营台里唯一会「动账」的按钮，所以先确认再发。
+     *
+     * <p>为什么必须选已结束的课堂：没下课就补发等于凭空造一份出勤账；
+     * 后端也会挡（40901），这里提前拦是为了不让用户白点。
+     */
+    _resendConsumption: function () {
+      var self = this;
+      var pk = this.pickers && this.pickers.resendClassroom;
+      var sid = pk ? pk.getValue() : '';
+      if (!sid) { this.toast('请先选择课堂（只能选已结束的课堂）'); return; }
+      if (!window.confirm('确定给「' + this.classLabel(sid) + '」补发课时回流吗？\n\n'
+        + '· 只重发报文，不重算出勤（人工调整过的结论不受影响）\n'
+        + '· 版本号会 +1，预约侧按版本覆盖，不会重复扣课时\n'
+        + '· 未下课的课堂不允许补发')) return;
+      var box = document.getElementById('ct-resend-result');
+      if (box) box.innerHTML = '<div class="muted" style="margin-top:8px">补发中…</div>';
+      this.api(EP.CLASSROOM_ADMIN_RESEND_CONSUMPTION(sid), 'post')
+        .then(function (d) {
+          var v = d && d.consumptionVersion;
+          if (box) {
+            box.innerHTML = '<div style="margin-top:8px" class="tag ok">已补发</div>'
+              + '<div class="muted" style="margin-top:6px">' + self.esc(self.classLabel(sid))
+              + ' · 消耗版本 → ' + self.esc(String(v == null ? '-' : v))
+              + '（预约侧收到后按此版本覆盖旧报文）</div>';
+          }
+          self.toast('已补发回流 v' + v);
+        })
+        .catch(function (e) {
+          var msg = (e && e.message) || '补发失败';
+          // 40901 = 没下课 / 状态不对，指导用户先结束课堂，别让他反复重试同一个按钮
+          if (box) {
+            box.innerHTML = '<div style="margin-top:8px" class="tag err">补发失败</div>'
+              + '<div class="muted" style="margin-top:6px">' + self.esc(msg) + '</div>';
+          }
+          self.toast(msg);
+        });
     }
   };
 

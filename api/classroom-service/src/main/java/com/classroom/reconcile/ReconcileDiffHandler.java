@@ -96,7 +96,7 @@ public class ReconcileDiffHandler {
         if (status != null && !status.isBlank()) {
             w.eq(ReconcileDiff::getStatus, status.toUpperCase());
         }
-        w.ge(ReconcileDiff::getCreatedAt, LocalDateTime.now().minusDays(Math.max(1, days)));
+        w.ge(ReconcileDiff::getCreatedAt, LocalDateTime.now().minusDays(Math.min(90, Math.max(1, days))));
         w.orderByDesc(ReconcileDiff::getCreatedAt);
         return diffMapper.selectList(w);
     }

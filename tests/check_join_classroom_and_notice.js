@@ -145,6 +145,8 @@ async function testOpsPickersAndNotice() {
       CLASSROOM_ADMIN_CREATE: '/api/v1/admin/classrooms',
       CLASSROOM_ADMIN_ADD_MEMBERS: (sid) => '/api/v1/admin/classrooms/' + sid + '/members',
       CLASSROOM_ADMIN_END: (sid) => '/api/v1/admin/classrooms/' + sid + '/end',
+      CLASSROOM_ADMIN_RESEND_CONSUMPTION: (sid) => '/api/v1/admin/classrooms/' + sid + '/resend-consumption',
+      CLASSROOM_ADMIN_CONTRACT_RESYNC: '/api/v1/admin/contract/resync',
       CLASSROOM_ADMIN_MONITOR_ALERTS: '/api/v1/admin/monitor/alerts'
     }
   };
@@ -209,7 +211,19 @@ async function testOpsPickersAndNotice() {
       if (st === 'LIVE') {
         return Promise.resolve([{ scheduleId: 'live-1', courseName: '进行中的课', status: 'LIVE', startTime: '2026-11-19T20:00:00' }]);
       }
+      if (st === 'CLOSED') {
+        return Promise.resolve([{ scheduleId: 'closed-1', courseName: '已结束的课', status: 'CLOSED', startTime: '2026-11-19T10:00:00' }]);
+      }
       return Promise.resolve([]);
+    }
+    if (/\/api\/v1\/admin\/classrooms\/[^/]+\/resend-consumption$/.test(u)) {
+      return Promise.resolve({ scheduleId: 'closed-1', consumptionVersion: 3, resent: true });
+    }
+    if (u === '/api/v1/admin/contract/resync') {
+      return Promise.resolve([
+        { scheduleId: 'live-1', exists: true, status: 'LIVE', version: 2, consumptionVersion: 0, actualEnd: null },
+        { scheduleId: 'other-1', exists: false, denied: true }
+      ]);
     }
     if (u === '/api/v1/admin/classrooms') {
       return Promise.resolve({ scheduleId: 'new-1', status: 'SCHEDULED', startTime: '2026-11-19T20:00:00' });
@@ -354,6 +368,53 @@ async function testOpsPickersAndNotice() {
     }
     endReject = null;
   }
+
+  /* --- ⑨ 补发课时回流：候选含已结束课堂、请求打到 resend-consumption --- */
+  win.ClassroomOps._classroomClosedCache = null;
+  const withClosed = await win.ClassroomOps._classroomOptions('', true);
+  check('补发候选包含已结束（CLOSED）的课堂',
+    withClosed.some((c) => c.value === 'closed-1'), JSON.stringify(withClosed.map((c) => c.value)));
+  check('进行中的仍排最前、已结束的垫底',
+    withClosed[0].value === 'live-1' && withClosed[withClosed.length - 1].value === 'closed-1',
+    JSON.stringify(withClosed.map((c) => c.value)));
+  check('补发候选与发通知候选是两份缓存（发通知不含 CLOSED）',
+    (win.ClassroomOps._classroomCache || []).every((c) => c.status !== 'CLOSED'),
+    JSON.stringify((win.ClassroomOps._classroomCache || []).map((c) => c.status)));
+
+  const rIn = win.document.querySelector('#rcs-schedule-pick .pk-input');
+  check('补发面板是选择器而不是手填课堂号', !!rIn);
+  rIn.dispatchEvent(new win.Event('focus'));
+  await wait(60);
+  const rItems = Array.prototype.slice.call(win.document.querySelectorAll('#rcs-schedule-pick .pk-item'));
+  const closedItem = rItems.filter((el) => /已结束的课/.test(el.textContent))[0];
+  check('补发候选里能选中已结束的课堂', !!closedItem, rItems.map((el) => el.textContent).join(' | '));
+  if (closedItem) {
+    closedItem.dispatchEvent(new win.MouseEvent('mousedown', { bubbles: true }));
+    check('选中后 getValue 是该课堂的 scheduleId',
+      win.ClassroomOps.pickers.resendClassroom.getValue() === 'closed-1',
+      win.ClassroomOps.pickers.resendClassroom.getValue());
+
+    sent.length = 0;
+    win.ClassroomOps._resendConsumption();
+    await wait(80);
+    const rc = sent.find((c) => /\/api\/v1\/admin\/classrooms\/closed-1\/resend-consumption$/.test(c.url || ''));
+    check('补发调用的是 resend-consumption 端点（不是重放、不是结束）',
+      !!rc, JSON.stringify(sent.map((c) => c.url)));
+    const rbox = win.document.getElementById('ct-resend-result').textContent;
+    check('结果区显示补发成功与新版本号',
+      /已补发/.test(rbox) && /3/.test(rbox), rbox);
+  }
+
+  /* --- ⑩ 批量对表：别的租户的课显示「非本租户」，且不泄露状态 --- */
+  win.document.getElementById('ct-ids').value = 'live-1\nother-1';
+  sent.length = 0;
+  win.ClassroomOps._resync();
+  await wait(80);
+  const rt = win.document.getElementById('ct-resync-table').textContent;
+  check('对表把本租户的课标成「存在」', /存在/.test(rt), rt);
+  check('对表把别家租户的课标成「非本租户」而不是「缺失」',
+    /非本租户/.test(rt), rt);
+  check('对表结果里不出现别家课堂的状态', !/other-1[^]*?LIVE/.test(rt), rt);
 }
 
 /* ==================== C4-b：payload.url 白名单与按钮 ==================== */

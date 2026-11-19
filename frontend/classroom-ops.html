@@ -268,7 +268,7 @@
               <option value="">全部</option>
             </select>
           </span>
-          <span class="field">近 <input type="number" id="rc-days" value="7" style="width:64px"> 天</span>
+          <span class="field">近 <input type="number" id="rc-days" value="7" min="1" max="90" style="width:64px"> 天</span>
           <button class="btn primary" id="rc-query">查询</button>
           <span class="spacer"></span>
           <button class="btn" id="rc-run">立即跑一次日终对账</button>
@@ -315,7 +315,7 @@
               <option value="FAILED">FAILED</option>
             </select>
           </span>
-          <span class="field">近 <input type="number" id="ct-days" value="7" style="width:64px"> 天</span>
+          <span class="field">近 <input type="number" id="ct-days" value="7" min="1" max="90" style="width:64px"> 天</span>
           <button class="btn primary" id="ct-query">查询事件</button>
         </div>
         <div class="table-wrap"><table id="ct-table"></table></div>
@@ -336,6 +336,24 @@
           <textarea id="ct-ids" placeholder="scheduleId-1&#10;scheduleId-2"></textarea>
           <div style="margin-top:8px"><button class="btn primary" id="ct-resync">对表</button></div>
           <div class="table-wrap" style="margin-top:10px"><table id="ct-resync-table"></table></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">补发课时回流（只重发、不重算）</div>
+        <div class="panel-body">
+          <div>
+            <!-- 课堂按课程名/时间下拉选：32 位 id 手抄不现实，且补发是动账操作，选错课次影响结算 -->
+            <span class="field">课堂 <span id="rcs-schedule-pick" class="field-pick" style="width:340px"></span></span>
+            <button class="btn primary" id="ct-resend">补发回流</button>
+          </div>
+          <div class="muted" style="margin-top:6px;line-height:1.7">
+            用于「已结束但课时没回流」（<code>consumption_version=0</code> 或 <code>actual_end</code> 为空）。<br>
+            按库里现有出勤结论重发报文，并把版本号 +1（预约侧按版本覆盖，不会重复扣课时）；
+            <b>不会重算出勤</b>，所以人工调整过的结论不会被冲掉。<br>
+            没下课的课堂不能补发——先「结束」再补发，否则等于凭空造一份出勤账。
+          </div>
+          <div id="ct-resend-result"></div>
         </div>
       </div>
     </section>

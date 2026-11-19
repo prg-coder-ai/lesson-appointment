@@ -1,5 +1,6 @@
 package com.classroom.controller;
 
+import com.classroom.common.ErrorCodes;
 import com.classroom.common.Result;
 import com.classroom.dto.AddMembersReq;
 import com.classroom.dto.CreateTempClassroomReq;
@@ -7,11 +8,13 @@ import com.classroom.entity.Classroom;
 import com.classroom.security.AuthContext;
 import com.classroom.service.AuditService;
 import com.classroom.service.ClassroomAdminOpsService;
+import com.classroom.service.ClassroomClosingService;
 import com.classroom.service.ClassroomPublishGuard;
 import com.classroom.service.ClassroomService;
 import com.classroom.ws.WsRoomRegistry;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -28,17 +31,20 @@ public class AdminConsoleController {
 
     private final ClassroomService classroomService;
     private final ClassroomAdminOpsService adminOpsService;
+    private final ClassroomClosingService closingService;
     private final AuditService auditService;
     private final ClassroomPublishGuard publishGuard;
     private final WsRoomRegistry wsRegistry;
 
     public AdminConsoleController(ClassroomService classroomService,
                                   ClassroomAdminOpsService adminOpsService,
+                                  ClassroomClosingService closingService,
                                   AuditService auditService,
                                   ClassroomPublishGuard publishGuard,
                                   WsRoomRegistry wsRegistry) {
         this.classroomService = classroomService;
         this.adminOpsService = adminOpsService;
+        this.closingService = closingService;
         this.auditService = auditService;
         this.publishGuard = publishGuard;
         this.wsRegistry = wsRegistry;
@@ -128,5 +134,55 @@ public class AdminConsoleController {
             // 课堂已 CLOSED，留痕失败不该把它变成"结束失败"
         }
         return Result.success();
+    }
+
+    /**
+     * 补发课时回流（2026-11-19，运营台「契约联调 → 补发回流」）。
+     *
+     * <p><b>为什么需要它</b>：{@code CLOSED} 但 {@code consumption_version=0} 是收尾异常留下的
+     * 半截账（回流没发出去）。维护说明原本让人「在契约联调重放」，但重放只跑
+     * created/updated/cancelled 三个排期事件，**根本不经过回流链路**；课堂一旦 CLOSED，
+     * {@code endClass} 又会被 40901 挡住不能重跑 —— 那条建议当时没有可执行路径。
+     *
+     * <p><b>为什么只重发不重算</b>：重跑收尾会按在线区间重算有效时长与出勤结论，
+     * 而 attendance 上有 {@code adjust_by}（人工调整），重算等于把人工结论冲掉。
+     * 这里按库里现有结论组装报文，只把 {@code consumption_version} +1（预约侧按版本覆盖，
+     * 不会重复扣课时）。
+     */
+    @PostMapping("/{scheduleId}/resend-consumption")
+    public Result<Map<String, Object>> resendConsumption(@PathVariable String scheduleId) {
+        if (!AuthContext.isManager()) {
+            return Result.fail(403, "仅管理员可补发课时回流");
+        }
+        Classroom c = classroomService.getById(scheduleId);
+        if (c == null) {
+            return Result.fail(ErrorCodes.CLASSROOM_NOT_FOUND, "课堂不存在");
+        }
+        if (!AuthContext.isPlatformAdmin()) {
+            Long tenantId = AuthContext.currentTenantId();
+            if (tenantId == null || !tenantId.equals(c.getTenantId())) {
+                return Result.fail(403, "该课堂不属于当前租户");
+            }
+        }
+        if (!"CLOSED".equals(c.getStatus())) {
+            // 没下课就补发等于凭空造一份出勤账，必须先正常下课（或强制下课）再补发
+            return Result.fail(ErrorCodes.CLASSROOM_STATUS_CONFLICT,
+                    "课堂当前状态为 " + c.getStatus() + "，只有已结束（CLOSED）的课堂才能补发回流");
+        }
+        Integer version = closingService.resendConsumption(scheduleId);
+        if (version == null) {
+            return Result.fail(ErrorCodes.CALLBACK_FAILED, "补发失败，详见服务端日志");
+        }
+        try {
+            auditService.logConsumptionResend(scheduleId, AuthContext.currentUserId(),
+                    "运营台补发回流，version=" + version);
+        } catch (Exception ignored) {
+            // 报文已发出，留痕失败不该把它变成"补发失败"
+        }
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("scheduleId", scheduleId);
+        data.put("consumptionVersion", version);
+        data.put("resent", true);
+        return Result.ok(data);
     }
 }
