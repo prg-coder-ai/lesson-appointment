@@ -7,7 +7,9 @@ import com.classroom.entity.Classroom;
 import com.classroom.security.AuthContext;
 import com.classroom.service.AuditService;
 import com.classroom.service.ClassroomAdminOpsService;
+import com.classroom.service.ClassroomPublishGuard;
 import com.classroom.service.ClassroomService;
+import com.classroom.ws.WsRoomRegistry;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,13 +29,19 @@ public class AdminConsoleController {
     private final ClassroomService classroomService;
     private final ClassroomAdminOpsService adminOpsService;
     private final AuditService auditService;
+    private final ClassroomPublishGuard publishGuard;
+    private final WsRoomRegistry wsRegistry;
 
     public AdminConsoleController(ClassroomService classroomService,
                                   ClassroomAdminOpsService adminOpsService,
-                                  AuditService auditService) {
+                                  AuditService auditService,
+                                  ClassroomPublishGuard publishGuard,
+                                  WsRoomRegistry wsRegistry) {
         this.classroomService = classroomService;
         this.adminOpsService = adminOpsService;
         this.auditService = auditService;
+        this.publishGuard = publishGuard;
+        this.wsRegistry = wsRegistry;
     }
 
     @GetMapping("/monitor")
@@ -94,12 +102,26 @@ public class AdminConsoleController {
         return Result.ok(data);
     }
 
+    /**
+     * 管理员强制结束课堂（运营台「活跃课堂」行内「结束」、告警区「强制下课」共用）。
+     *
+     * <p>状态口径：走 {@link ClassroomService#endClass} —— 置 <b>CLOSED（正常结束，不是作废）</b>、
+     * {@code actualEnd} 记当前时刻，随后 {@code closeAfterEnd} 归一出勤、回流课时、释放媒体房间
+     * 与内存态。"强制"只表示不用等教师点下课，结算与正常下课完全一致。
+     *
+     * <p><b>2026-11-19 补广播</b>：此前这里只改库、不通知前端。后果是管理员在运营台结束课堂后，
+     * 教室里的教师/学生页面仍显示「进行中」，而且 {@link ClassroomPublishGuard} 的发布门禁
+     * 还认为这间课可以发消息——人能在已关闭的课堂里继续说话，直到刷新页面。
+     * 现与教师端入口（{@code ClassroomController#end}）对齐：先让门禁缓存失效，再广播权威状态。
+     */
     @PostMapping("/{scheduleId}/end")
     public Result<Void> remoteEnd(@PathVariable String scheduleId) {
         if (!AuthContext.isManager()) {
             return Result.fail(403, "仅管理员可远程结束课堂");
         }
         classroomService.endClass(scheduleId);
+        publishGuard.invalidate(scheduleId);
+        wsRegistry.broadcastSignal(scheduleId, "{\"type\":\"class:state\",\"status\":\"CLOSED\"}");
         try {
             auditService.logClassroomEnd(scheduleId, AuthContext.currentUserId(), "运营台强制结束");
         } catch (Exception ignored) {

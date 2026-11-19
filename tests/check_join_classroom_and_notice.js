@@ -143,7 +143,9 @@ async function testOpsPickersAndNotice() {
       USER_PAGE: '/api/v1/user/page',
       CLASSROOM_ADMIN_CLASSROOMS: '/api/v1/admin/classrooms/monitor',
       CLASSROOM_ADMIN_CREATE: '/api/v1/admin/classrooms',
-      CLASSROOM_ADMIN_ADD_MEMBERS: (sid) => '/api/v1/admin/classrooms/' + sid + '/members'
+      CLASSROOM_ADMIN_ADD_MEMBERS: (sid) => '/api/v1/admin/classrooms/' + sid + '/members',
+      CLASSROOM_ADMIN_END: (sid) => '/api/v1/admin/classrooms/' + sid + '/end',
+      CLASSROOM_ADMIN_MONITOR_ALERTS: '/api/v1/admin/monitor/alerts'
     }
   };
   win.classroomUrl = (b, p) => (b || '') + p;
@@ -161,10 +163,26 @@ async function testOpsPickersAndNotice() {
   };
 
   const sent = [];
+  let endReject = null;
+  win.confirm = () => true;   // 「强制下课」有二次确认，测试里直接放行
   win.request = (cfg) => {
     sent.push(cfg);
     const u = cfg.url || '';
     if (u === '/api/v1/messages/send') return Promise.resolve({ messageId: 9527, recipientCount: 2 });
+    if (u === '/api/v1/admin/monitor/alerts') {
+      return Promise.resolve({
+        openDiffCount: 0,
+        diffs: [],
+        staleLiveCount: 1,
+        staleLive: [{
+          scheduleId: 'live-1', courseName: '挂了一晚上的课',
+          teacherName: '王老师', endTime: '2026-11-19T18:00:00', status: 'LIVE'
+        }]
+      });
+    }
+    if (/\/api\/v1\/admin\/classrooms\/[^/]+\/end$/.test(u)) {
+      return endReject ? Promise.reject(endReject) : Promise.resolve(true);
+    }
     if (u === '/api/v1/user/page') {
       const role = cfg.params && cfg.params.role;
       if (role === 'teacher') {
@@ -305,6 +323,37 @@ async function testOpsPickersAndNotice() {
   const box2 = win.document.getElementById('ntc-result').textContent;
   check('空名单不发通知并提示先加学员',
     sent.filter((c) => c.url === '/api/v1/messages/send').length === 0 && /加学员/.test(box2), box2);
+
+  /* --- ⑧ 告警区：超期未下课的课堂可一键「强制下课」 --- */
+  win.ClassroomOps.loadMonitor();
+  await wait(80);
+  const alertArea = win.document.getElementById('monitor-alerts');
+  const endBtn = alertArea.querySelector('[data-alert-end]');
+  check('告警区为超期课堂渲染「强制下课」按钮', !!endBtn, alertArea.textContent);
+  check('告警项标出超期时长（不只给计划结束时间）',
+    /已超期/.test(alertArea.textContent), alertArea.textContent);
+
+  if (endBtn) {
+    sent.length = 0;
+    endBtn.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    await wait(80);
+    const endCall = sent.find((c) => /\/api\/v1\/admin\/classrooms\/live-1\/end$/.test(c.url || ''));
+    check('点击后调用管理员结束端点（走正常结束收尾，不是作废）',
+      !!endCall, JSON.stringify(sent.map((c) => c.url)));
+
+    // 40901（别人刚结束过）不该被当成失败：提示并刷新，不弹"结束失败"
+    endReject = { code: 40901, message: '当前状态不可下课：CLOSED' };
+    sent.length = 0;
+    const btn2 = win.document.getElementById('monitor-alerts').querySelector('[data-alert-end]');
+    if (btn2) {
+      btn2.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+      await wait(80);
+      const toastText = win.document.getElementById('ops-toast').textContent;
+      check('40901 提示「已被结束」而不是「结束失败」',
+        /已不在进行中|已被结束/.test(toastText) && !/失败/.test(toastText), toastText);
+    }
+    endReject = null;
+  }
 }
 
 /* ==================== C4-b：payload.url 白名单与按钮 ==================== */
