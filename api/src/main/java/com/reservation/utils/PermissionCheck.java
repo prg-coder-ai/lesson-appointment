@@ -1,6 +1,7 @@
 package com.reservation.utils;
 
 import com.reservation.common.RoleConst;
+import com.reservation.exception.BusinessException;
 import com.reservation.exception.NoPermissionException;
 import com.reservation.exception.UnLoginException;
 import com.reservation.mapper.UserMapper;
@@ -227,6 +228,60 @@ public class PermissionCheck {
         // 校验课程/排期归属当前教师
         if (!currentTeacherId.equals(teacherId)) {
             throw new NoPermissionException(TermMsg.t("您无权操作其他{teacher}的{course}/{schedule}"));
+        }
+    }
+
+    /**
+     * 当前调用者是否为<b>学生</b>。
+     *
+     * <p>用于「按角色分支收窄数据范围」的共用端点（{@code /course/booking/list}、{@code /page}
+     * 教师端与管理端也在用同一份实现），控制器据此决定是否强制注入本人 userId。
+     * 与 {@link #checkStudent(String)} 的区别：本方法只回答「是不是」，不做 active 校验，
+     * 调用方应已先走过 {@link #checkAnyLogin(String)}。
+     */
+    public boolean isStudent(String token) {
+        return RoleConst.STUDENT.equals(getRoleFromToken(token));
+    }
+
+    /**
+     * 归属校验：学生只能访问/操作<b>本人</b>的数据行（2026-11-19 H-1）。
+     *
+     * <p><b>只收学生维度</b>：teacher / admin / platform_admin 一律放行，保持既有行为不变。
+     * 教师维度（教师只能看自己课下的预订）需要 schedule→course→teacherId 两跳查询，
+     * 且会同时影响「今日课程」「排期名单」多个页面，另开一批做
+     * （见 doc-develop/09-合规与合同/安全分析参考.md 的待做清单）。
+     *
+     * <p>为什么 owner 为 null 也拒：数据行没有 student_id 时无法判定归属，
+     * 「判不了」必须按「不许」处理，否则一次脏数据就变成一次越权。
+     *
+     * @param ownerStudentId 数据行的 student_id
+     */
+    public void checkStudentSelf(String token, String ownerStudentId) {
+        if (!isStudent(token)) {
+            return;
+        }
+        String callerId = getUserIdFromToken(token);
+        if (ownerStudentId == null || !callerId.equals(ownerStudentId)) {
+            throw new NoPermissionException("您无权访问或操作他人的预订");
+        }
+    }
+
+    /**
+     * 校验目标账号是本租户内的真实用户（管理员代订/代操作时的「同租户」校验）。
+     *
+     * <p>实现上<b>借租户插件</b>而不另写 SQL：{@code user} 表未被排除在租户隔离之外，
+     * 插件会拼出 {@code tenant_id = 当前租户}，因此「查不到」就等于「不属于本租户」。
+     * 平台管理员（tenantId=0）时插件短路查全量，正好保留了平台管理员跨租户代订的语义。
+     *
+     * @param userId 目标账号 userId
+     * @param label  业务称谓（如「学生」），用于错误提示与术语渲染
+     */
+    public void assertSameTenantUser(String userId, String label) {
+        if (userId == null || userId.trim().isEmpty()) {
+            throw new BusinessException("请指定" + label);
+        }
+        if (userMapper.selectById(userId.trim()) == null) {
+            throw new BusinessException(label + "不存在，或不属于当前机构");
         }
     }
 

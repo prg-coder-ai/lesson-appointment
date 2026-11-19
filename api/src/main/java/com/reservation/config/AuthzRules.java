@@ -297,11 +297,11 @@ public final class AuthzRules {
         // 依据：方法体已有 checkTeacherOrAdmin（≡）。
 
         r.add(new Rule(HttpMethod.POST, "/api/v1/course/insert", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin"));
-        r.add(new Rule(HttpMethod.POST, "/api/v1/course/update", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/course/update", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin + 课程归属（2026-11-19 H-2 恢复 checkCourseOwner）"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/course/updateStatus", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/course/updateStatusByLastId/{id}", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin"));
-        r.add(new Rule(HttpMethod.DELETE, "/api/v1/course/deleteById/{id}", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin"));
-        r.add(new Rule(HttpMethod.DELETE, "/api/v1/course/deleteByTemplateId/{id}", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin"));
+        r.add(new Rule(HttpMethod.DELETE, "/api/v1/course/deleteById/{id}", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin + 课程归属（2026-11-19 H-2）"));
+        r.add(new Rule(HttpMethod.DELETE, "/api/v1/course/deleteByTemplateId/{id}", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin + 模板归属（2026-11-19 H-2，模板下混有他人课程则拒绝）"));
         // GET /course/list、/page、/{id} 三端已于 2026-10-10（P1-4）方法级统一：
         //   · /list 原 checkTeacherOrAdmin 会把学生挡成 403（既存缺陷，实测
         //     student token → {"code":403}，而 student-bookingBrowserCards.js 走它）；
@@ -328,9 +328,9 @@ public final class AuthzRules {
         // updateStatus 方法体无 check（已被注释掉的 generate 同理），但改排期状态=改课次，
         // 属管理/教师动作
         r.add(new Rule(HttpMethod.POST, "/api/v1/schedule/updateStatus", TEACHER_OR_ADMIN, "新增：改排期状态（课次连带变更）"));
-        r.add(new Rule(HttpMethod.POST, "/api/v1/schedule/generate", ALL_ROLES, "新增·关键：批量生成排期，获取排期课次时间，校验被注释"));
-        r.add(new Rule(HttpMethod.POST, "/api/v1/schedule/checkConflict", TEACHER_OR_ADMIN, "新增：排期冲突检测"));
-        r.add(new Rule(HttpMethod.POST, "/api/v1/schedule/assign-student", TEACHER_OR_ADMIN, "新增·关键：指派学生到排期，校验被注释"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/schedule/generate", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin（2026-11-19 H-2：原 ALL_ROLES 且方法体校验被注释，学生亦可调用）"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/schedule/checkConflict", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin（2026-11-19 补方法体，原声明为教师但方法体零校验）"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/schedule/assign-student", TEACHER_OR_ADMIN, "≡checkTeacherOrAdmin + 排期归属（2026-11-19 H-2：原校验被注释，三个 id 全由请求体传入）"));
 
         r.add(new Rule(HttpMethod.GET, "/api/v1/schedule/detail/{id}", ALL_ROLES, "新增：排期详情（学生选排期时读）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/schedule/list", ALL_ROLES, "新增：排期列表（学生/教师/管理端共用）"));
@@ -367,10 +367,14 @@ public final class AuthzRules {
 
         // —— 预订（booking）——
         // create/page/list/waitlist 等是学生约课链路，必须对 student 开放。
-        r.add(new Rule(HttpMethod.POST, "/api/v1/course/booking/create", ALL_ROLES, "新增：学生约课/候补入口"));
-        r.add(new Rule(HttpMethod.POST, "/api/v1/course/booking/list", ALL_ROLES, "新增：预订列表"));
-        r.add(new Rule(HttpMethod.POST, "/api/v1/course/booking/page", ALL_ROLES, "新增：预订分页"));
-        r.add(new Rule(HttpMethod.GET, "/api/v1/course/booking/{id}", ALL_ROLES, "新增：预订详情（归属待方法级补）"));
+        // 学生维度的归属/范围收窄在控制器层按角色分支完成（2026-11-19 H-1）：
+        //   · create 学生强制 studentId=令牌 userId，代订走同租户校验；
+        //   · list/page 学生强制 userId=本人（教师/管理员共用的两个端点不受影响）；
+        //   · {id} 与 updateStatus 学生只能操作自己的行。
+        r.add(new Rule(HttpMethod.POST, "/api/v1/course/booking/create", ALL_ROLES, "新增：学生约课/候补入口（2026-11-19 学生强制 studentId=令牌，H-1）"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/course/booking/list", ALL_ROLES, "新增：预订列表（2026-11-19 学生强制本人，H-1）"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/course/booking/page", ALL_ROLES, "新增：预订分页（2026-11-19 学生强制本人，H-1）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/course/booking/{id}", ALL_ROLES, "新增：预订详情（2026-11-19 学生归属校验，H-1）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/course/booking/waitlist/{scheduleId}", ALL_ROLES, "新增：候补队列（学生看自己排队位次）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/course/booking/ListByScheduleId/{scheduleId}", ALL_ROLES, "新增：按排期查预订"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/course/booking/countByScheduleId/{scheduleId}", ALL_ROLES, "新增：按排期计数"));
@@ -381,8 +385,9 @@ public final class AuthzRules {
         // 2026-10-10 P1 曾按"确认/驳回"管理语义收紧为 PLATFORM_OR_TENANT_ADMIN + checkAdmin，
         // 实测学生点「取消预约」→ {"code":403} 功能全断（同 /course/list 的教训）。
         // 现统一 ALL_ROLES ≡checkAnyLogin 恢复学生自助；P1 前此端点为零检查（匿名可改），
-        // 收紧到"须登录"仍是净增益；数据级归属校验（学生仅能改自己的预订）沿用 /booking/{id} 挂账。
-        r.add(new Rule(HttpMethod.POST, "/api/v1/course/booking/updateStatus", ALL_ROLES, "≡checkAnyLogin（复用端点：管理员确认驳回+学生5种自助转移，2026-10-10 修 P1 误伤）"));
+        // 收紧到"须登录"仍是净增益；数据级归属校验已于 2026-11-19 补在控制器
+        // （学生只能改自己的预订，管理员/教师路径不变，见 H-1）。
+        r.add(new Rule(HttpMethod.POST, "/api/v1/course/booking/updateStatus", ALL_ROLES, "≡checkAnyLogin + 学生归属（复用端点：管理员确认驳回+学生5种自助转移，2026-11-19 补 H-1）"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/course/booking/waitlist/promote", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，候补递补（占名额）"));
         r.add(new Rule(HttpMethod.POST, "/api/v1/course/booking/update/{id}", PLATFORM_OR_TENANT_ADMIN, "新增：改预订（管理面）"));
         r.add(new Rule(HttpMethod.DELETE, "/api/v1/course/booking/delete/{id}", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，删预订"));
