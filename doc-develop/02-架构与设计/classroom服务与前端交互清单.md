@@ -179,6 +179,29 @@
 
 连接入口 [classroom-main.js:148](frontend/js/classroom/classroom-main.js#L148)（`_connectWS`）。
 
+### 4.1 断线自愈（2026-11-19）
+
+三条通道各自指数退避重连：`800ms → 1.6s → 3.2s …` 上限 15s（`_scheduleRetry` / `backoff`），
+**一条断了只补这一条**，不拆另外两条。主动 `disconnect()` 置 `closedByUser=true`，不会再自动连。
+
+| 回调 | 触发时机 | main 里的动作 |
+|---|---|---|
+| `onOpen` | 三通道首次全部 OPEN | toast「已连接课堂」+ 补发 `rtc-peer-join` |
+| `onDisconnect(ch, delay, attempt)` | 任一通道断开 | 状态条转「连接中断，正在重连…」；只在 `attempt===1` 时 toast 一次 |
+| `onReconnect()` | 曾全开、断开后又全开 | 状态条恢复真实状态 + toast「已重新连接课堂」+ 补发 `rtc-peer-join` |
+
+重连成功后前端**不主动拉任何状态**，全部依赖服务端在连接建立时补发：
+
+| 通道 | 服务端补发 | 效果 |
+|---|---|---|
+| whiteboard | `wb:init{ops:[全量]}`（`WhiteboardHandler.afterConnectionEstablished`） | 板书恢复。前端重放前先 `_clearLocal()`，否则断线重连（页面未重建）会叠出重影 |
+| signal | `pushInitialState()`（禁言 / 举手 / 开麦授权 / 白板授权） | 面板与按钮状态对齐服务端 |
+| heartbeat | — | 重新开始 15s 心跳，掉线判定恢复 |
+
+> 掉线期间别人画的笔迹不会被"补发"——服务端保存的是**操作序列全量**，
+> 重连时一次性重放，所以不存在"缺了中间某一段"的问题。
+> 真正的边界是服务端重启：快照按 ≤2s 节流落库，最多丢最后 2 秒笔迹。
+
 **发送**（signal 通道除心跳外均为 `{type:...}`）：
 
 | type | 发送方锚点 |
@@ -243,7 +266,7 @@
 
 ## 六、已知缺口与风险（当前代码状态）
 
-1. **`classroom.html` 未引入 `js/public/classroom-ws.js`**（[classroom.html:169-192](frontend/classroom.html#L169) 脚本清单中确无此项，全仓仅该文件自身存在）→ `window.ClassroomWS` 为 undefined，[classroom-main.js:145](frontend/js/classroom/classroom-main.js#L145) 走「信令未就绪」分支：**聊天、举手、白板、点名、RTC 信令、录制状态推送在现有页面装载下全部不可用**。需在 `feature-flags.js` 之后补一行 `<script src="js/public/classroom-ws.js"></script>`。
+1. ~~**`classroom.html` 未引入 `js/public/classroom-ws.js`**~~ —— **已修**：[classroom.html:230](frontend/classroom.html#L230) 已引入，`window.ClassroomWS` 可用（此前缺这一行会让聊天/举手/白板/点名/RTC 信令全部不可用）。
 2. **菜单项无对应路由分支**：`teacher.html`（`my_classroom`，[teacher.html:69](frontend/teacher.html#L69)，switch 在 [:442](frontend/teacher.html#L442)）、`student.html`（[:66](frontend/student.html#L66) / [:516](frontend/student.html#L516)）、`admin.html`（`classroom_monitor`，[:108](frontend/admin.html#L108)）均无 case 分支，点击后内容区为空；实际入口是卡片上的「进入课堂」。
 3. **有封装无 UI 的接口**：`startClass`、`getAttendance`、`getMaterials`、`uploadMaterial`、`getRollCallList`、`getPlaybackUrl`、`startRecording`、`stopRecording`、`getRecordingState`、`kickMember`。其中录制/讲稿上传/作业上传走裸 XHR，未复用 `ClassroomAPI`。
 4. **角色来源**：课堂页优先取 URL `?role=`，其次登录态（[classroom-main.js:79](frontend/js/classroom/classroom-main.js#L79)）——可用于联调，但存在被手动篡改跳角色视图的风险（服务端仍按 JWT 鉴权，仅影响 UI）。
@@ -256,7 +279,7 @@
 | 文件 | 关键锚点 |
 |---|---|
 | [frontend/js/public/api.js](frontend/js/public/api.js#L1065) | `ClassroomAPI` 定义起点 1065，止于 1172 |
-| [frontend/js/public/classroom-ws.js](frontend/js/public/classroom-ws.js#L62) | `connect` 62；`disconnect` 118；`disconnectAll` 128 |
+| [frontend/js/public/classroom-ws.js](frontend/js/public/classroom-ws.js#L76) | `connect` 76；`_openChannel` 107；`_checkAllOpen` 150；`_scheduleRetry` 167；`disconnect` 183；`disconnectAll` 197；`sendWhiteboard` 211；`sendSignal` 227 |
 | [frontend/js/classroom/classroom-main.js](frontend/js/classroom/classroom-main.js#L41) | `guardClassroom` 41；`_ensureConfig` 59；`_boot` 87；`_connectWS` 148；`_dispatchSignal` 165；`leave` 284 |
 | [frontend/js/classroom/classroom-controls.js](frontend/js/classroom/classroom-controls.js#L23) | 渲染 23-56；`_bind` 63-169 |
 | [frontend/js/classroom/classroom-teacher.js](frontend/js/classroom/classroom-teacher.js#L18) | start 18；end 27；muteAll 37；rollcall 51；review 118 |

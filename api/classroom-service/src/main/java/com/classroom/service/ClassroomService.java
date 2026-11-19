@@ -32,17 +32,22 @@ public class ClassroomService {
     private final MediaService mediaService;
     private final ClassroomPublishGuard publishGuard;
     private final ClassroomLiveState liveState;
+    // 白板运行态（笔迹序列）挂在 WS 处理器里，课堂结束要一并释放。
+    // WhiteboardHandler 只依赖 registry/liveState/teachingSession 等，不反向依赖本类，无循环。
+    private final com.classroom.ws.WhiteboardHandler whiteboardHandler;
 
     public ClassroomService(ClassroomMapper classroomMapper,
                             ClassroomClosingService closingService,
                             MediaService mediaService,
                             ClassroomPublishGuard publishGuard,
-                            ClassroomLiveState liveState) {
+                            ClassroomLiveState liveState,
+                            com.classroom.ws.WhiteboardHandler whiteboardHandler) {
         this.classroomMapper = classroomMapper;
         this.closingService = closingService;
         this.mediaService = mediaService;
         this.publishGuard = publishGuard;
         this.liveState = liveState;
+        this.whiteboardHandler = whiteboardHandler;
     }
 
     public Classroom getById(String scheduleId) {
@@ -185,6 +190,9 @@ public class ClassroomService {
         // 释放该课次的内存态（举手/开麦授权/白板授权/白板快照/禁言缓存）。
         // 不清会随课次累积，且课次复用（补课、重开）时把上一节的授权串过来。
         liveState.clearSession(scheduleId);
+        // 白板笔迹序列也不归 liveState 管（它只存快照字符串），必须单独释放：
+        // 先强制落盘再丢内存，否则最后 2 秒节流窗口内的笔迹会丢。
+        whiteboardHandler.closeSession(scheduleId);
     }
 
     public List<Classroom> listByStatus(String status, Long tenantId) {

@@ -7,8 +7,10 @@
  * 协商规则：新成员广播 rtc-peer-join，userId 字典序较大的一方发 offer，
  * 避免双方同时 offer 造成 glare。ICE 候选走 WS 单播（to=对端 userId）。
  *
- * 人数上限：达到 maxPeers 后新成员的 rtc-peer-join 只登记在册、不再建连
- * （浏览器上行是 N-1 路，硬顶就这么多；硬撑只会让所有人一起卡）。
+ * 人数上限：达到 maxPeers 后，新对端仍建连但**不加入本地音视频轨道**——
+ * 即真正的「只收不发」：他看得到/听得到你，你看不到/听不到他。
+ * （浏览器上行是 N-1 路，硬顶就这么多；硬撑只会让所有人一起卡，
+ *  但完全不建连会让人在新课堂里"凭空消失"，比降级体验更差。）
  */
 (function () {
   function MeshRtcEngine(ctx, cfg) {
@@ -24,6 +26,11 @@
     this.videoOk = false;     // 拆分状态：摄像头是否可用
     this.joined = false;
     this.maxPeers = (cfg && cfg.maxPeers) ? cfg.maxPeers : 6;
+    // peerId -> true：该对端只收不发（超出上行上限，未加入本地轨道）。
+    // 不能只看 peers 数量：重建连接时会先 _closePeer 再 _peer，
+    // 数量瞬间少 1 就会误判为"不超限"从而把轨道加进去，导致发布状态来回抖。
+    this._recvOnly = {};
+    this._capNotified = false;
     this.iceServers = (cfg && cfg.iceServers && cfg.iceServers.length)
       ? cfg.iceServers
       : [{ urls: ['stun:stun.l.google.com:19302'] }];
@@ -192,17 +199,34 @@
     }
   };
 
+  /** 仍在「发布」（把本地音视频发出去）的对端数——超出 maxPeers 的那些不算 */
+  MeshRtcEngine.prototype._publishedCount = function () {
+    var self = this;
+    var n = 0;
+    Object.keys(this.peers).forEach(function (id) {
+      if (!self._recvOnly[id]) n++;
+    });
+    return n;
+  };
+
   MeshRtcEngine.prototype._peer = function (peerId, name, role) {
     if (this.peers[peerId]) return this.peers[peerId];
     if (!window.RTCPeerConnection) return null;
-    if (Object.keys(this.peers).length >= this.maxPeers) {
-      this._toast('当前课堂人数已达 P2P 上限（' + this.maxPeers + '），你将只收不发');
-      return null;
-    }
     var self = this;
+    // 上行熔断：超出 maxPeers 后不再加入本地轨道，但连接照建——
+    // 这样降级的是「我的声音/画面出不去」，不是我整个人从课堂里消失。
+    var overLimit = this._publishedCount() >= this.maxPeers;
     var pc = new RTCPeerConnection({ iceServers: this.iceServers });
     this.peers[peerId] = pc;
-    if (this.localStream) {
+    if (overLimit) {
+      this._recvOnly[peerId] = true;
+      if (!this._capNotified) {
+        this._capNotified = true;
+        this._toast('已在线上限（' + this.maxPeers + ' 路上行），你的麦克风与摄像头暂不外发；'
+          + '你仍能看到其他人的画面，有人离开后会自动恢复');
+      }
+      console.info('[RTC] 超过 P2P 上限，该对端按只收不发建立:', peerId);
+    } else if (this.localStream) {
       this.localStream.getTracks().forEach(function (t) { pc.addTrack(t, self.localStream); });
     }
     pc.onicecandidate = function (e) {
@@ -290,6 +314,10 @@
   };
 
   MeshRtcEngine.prototype._onOffer = function (msg) {
+    // 服务端对 rtc-* 是**房间广播**（ClassroomSignalHandler 对未知类型统一 broadcastSignalExcept），
+    // 不是按 to 单播。不收 to 过滤的话：3 人以上课堂里 A→B 的 offer C 也会接下并回 answer，
+    // A 可能把 C 的 answer 套到发给 C 的会话上 → SDP 错配、某人黑屏或反复重建。
+    if (msg.to && msg.to !== this.ctx.userId) return;
     var self = this;
     var peerId = msg.from;
     var peerName = msg.displayName || msg.name;
@@ -308,6 +336,9 @@
   };
 
   MeshRtcEngine.prototype._onAnswer = function (msg) {
+    // 同 _onOffer：answer 也是房间广播，必须只认发给自己的那条，
+    // 否则会把别人的 answer 塞进本地的 setRemoteDescription。
+    if (msg.to && msg.to !== this.ctx.userId) return;
     var pc = this.peers[msg.from];
     if (pc && pc.signalingState !== 'stable') {
       pc.setRemoteDescription(new RTCSessionDescription(msg.sdp))
@@ -329,8 +360,48 @@
     if (pc) { try { pc.close(); } catch (e) { /* 已关闭 */ } }
     delete this.peers[peerId];
     delete this.remoteStreams[peerId];
+    delete this._recvOnly[peerId];
     // 协商中途被关闭时要清掉在途标记，否则该对端后续所有 _createOffer 都会被挡掉
     if (this._offering) delete this._offering[peerId];
+    // 走了一个人 → 上行名额空出来了，把「只收不发」的对端升级回正常发布。
+    // 必须异步：当前可能正处于 _onPeerJoin 的重建流程里（先 close 再 _peer）。
+    var self = this;
+    setTimeout(function () { self._restorePublishing(); }, 0);
+  };
+
+  /**
+   * 把超出上限而降级为「只收不发」的对端升级回正常发布。
+   *
+   * <p>升级必须重新协商：轨道是 SDP 的一部分，仅 addTrack 不会让对方收到新轨。
+   * 发起方向仍遵守字典序（大的一方 createOffer），小的一方发一条 rejoin
+   * 让对方重建连接后再发 offer，避免两边同时 offer 造成 glare。</p>
+   */
+  MeshRtcEngine.prototype._restorePublishing = function () {
+    var self = this;
+    Object.keys(this._recvOnly).forEach(function (id) {
+      if (self._publishedCount() >= self.maxPeers) return;
+      var pc = self.peers[id];
+      delete self._recvOnly[id];
+      if (!pc || !self.localStream) return;
+      var hasTrack = false;
+      try {
+        hasTrack = pc.getSenders().some(function (s) { return !!s.track; });
+      } catch (e) { hasTrack = false; }
+      if (!hasTrack) {
+        self.localStream.getTracks().forEach(function (t) {
+          try { pc.addTrack(t, self.localStream); } catch (e) { /* 连接已关闭 */ }
+        });
+      }
+      if ((self.ctx.userId || '') > id) {
+        self._createOffer(id);
+      } else if (window.ClassroomWS) {
+        window.ClassroomWS.sendSignal(self.ctx.scheduleId, {
+          type: 'rtc-peer-join', from: self.ctx.userId,
+          displayName: self.ctx.userName, role: self.ctx.role, rejoin: true
+        });
+      }
+      self._toast('课堂人数已回落，你的麦克风与摄像头恢复对外发送');
+    });
   };
 
   MeshRtcEngine.prototype.setMicEnabled = function (on) {
