@@ -127,6 +127,47 @@ public class MonitorService {
         return m;
     }
 
+    /**
+     * 实例级汇总：只回答「这个实例现在几节课在跑、多少人在线、今天一共开了多少节」。
+     *
+     * <p>为什么另写一个而不复用 {@link #overview(Long)}：平台端「课堂监视」要按实例逐个拉，
+     * 一个平台可能挂多个实例。overview 会带回 {@code activeClasses} 全量明细、还会额外查
+     * 对账差异、RTC 选型与录制后端 —— 那是页面级详情才需要的东西，挂在 N 个实例的轮询上
+     * 纯属浪费带宽与 DB。
+     *
+     * <p><b>口径必须与 overview 逐字一致</b>（否则「课堂监视」和「运营台监控」两个页面的
+     * 数字会互相打脸）：今日 = start_time ∈ [今日 00:00, 明日 00:00)；并发 = 其中
+     * status=LIVE 的数量；在线 = LIVE 与 READY 课堂内 ONLINE/IDLE 且未踢出的人数之和。
+     *
+     * <p><b>刻意不按租户过滤</b>：这是实例级统计，跨租户合计才是要看的数。
+     */
+    public Map<String, Object> instanceSummary() {
+        LocalDateTime dayStart = LocalDate.now().atStartOfDay();
+        LambdaQueryWrapper<Classroom> wrapper = new LambdaQueryWrapper<>();
+        wrapper.ge(Classroom::getStartTime, dayStart)
+               .lt(Classroom::getStartTime, dayStart.plusDays(1));
+        List<Classroom> today = classroomMapper.selectList(wrapper);
+
+        int live = 0;
+        int ready = 0;
+        long onlineTotal = 0;
+        for (Classroom c : today) {
+            String s = c.getStatus();
+            if ("LIVE".equals(s)) live++;
+            else if ("READY".equals(s)) ready++;
+            else continue;
+            onlineTotal += countOnline(c.getScheduleId());
+        }
+
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("serverTime", LocalDateTime.now());
+        m.put("todayClasses", today.size());
+        m.put("liveClasses", live);
+        m.put("readyClasses", ready);
+        m.put("onlineUsers", onlineTotal);
+        return m;
+    }
+
     /** 告警聚合：未处置的对账差异 + 卡在 LIVE 下不来的课堂 */
     public Map<String, Object> alerts(Long tenantId) {
         List<ReconcileDiff> diffs = diffHandler.list("OPEN", 30);
