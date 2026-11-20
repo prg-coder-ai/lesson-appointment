@@ -210,3 +210,20 @@ if [ "$SKIP_PROXY" != "1" ]; then
 else
   echo "[proxy-routes] SKIP_PROXY=1，跳过分流守卫"
 fi
+
+# 20) props-value：配置值纯净守卫（2026-11-20 新增，真实事故驱动）。
+#     事故：编辑 application.properties 时 old_string 带行尾换行、new_string 没带，把
+#     下一段注释粘到了值后面 → `classroom.rollcall-timeout-minutes=2# 过期数据保留（天）`。
+#     properties 只认**行首**的 # 是注释，于是值变成 "2# 中文"。后果不是"配置不生效"，
+#     而是 8092 直接起不来：Failed to convert value of type 'java.lang.String' to int，
+#     报错指向 @Value 注入点、中文还是乱码，肉眼几乎反推不出来源。
+#     守卫钉住：① 值里不得出现引号外的 #（=注释被吞进值）；
+#     ② properties 的值里不得出现中文/全角标点（按 ISO-8859-1 读，中文值必是乱码，
+#        且中文出现在值里基本等于 swallow 了注释）；env 模板只查 ①（systemd 按 UTF-8 读）。
+#     配套反向测试 tests/check_props_value_guard.js（3 种变异必须全红）。
+#     紧急跳过：SKIP_PROPS=1 git commit ...
+if [ "$SKIP_PROPS" != "1" ]; then
+  node tools/check-properties-value.mjs || exit 1
+else
+  echo "[props-value] SKIP_PROPS=1，跳过配置值纯净守卫"
+fi
