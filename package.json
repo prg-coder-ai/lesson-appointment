@@ -38,7 +38,9 @@
     "test:itest-sut-guard": "node tests/check_itest_sut_sync_guard.js",
     "check:ddl-align": "node tools/check-ddl-entity-align.mjs",
     "test:ddl-align-guard": "node --experimental-vm-modules tests/check_ddl_entity_align_guard.js",
-    "check:proxy": "node tools/check-proxy-routes.mjs"
+    "check:proxy": "node tools/check-proxy-routes.mjs",
+    "check:props": "node tools/check-properties-value.mjs",
+    "test:props-guard": "node tests/check_props_value_guard.js"
   },
   "repository": {
     "type": "git",
