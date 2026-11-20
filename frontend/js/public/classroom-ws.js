@@ -107,6 +107,13 @@
     _openChannel: function (scheduleId, ch) {
       var s = this._sessions[scheduleId];
       if (!s || s.closedByUser) return;
+      // 2026-11-20 N10 C1：每次建链**现取** token，而不是复用 connect() 时的快照。
+      // 课堂里待满 access 有效期（1 小时）后，任何一次断线（网络抖动/切后台/锁屏）都会带
+      // 过期票握手被拒，退避重连再多次也连不回来 —— HTTP 那侧的自动刷新更新不到这里。
+      // 取不到（隐私模式、非浏览器环境）就沿用旧值，行为与改动前一致。
+      var freshToken = null;
+      try { freshToken = window.localStorage.getItem('token'); } catch (e) { /* ignore */ }
+      if (freshToken) s.token = freshToken;
       var url = s.base + '/' + ch
         + '?access_token=' + encodeURIComponent(s.token)
         + '&traceId=' + encodeURIComponent(s.traceId);
