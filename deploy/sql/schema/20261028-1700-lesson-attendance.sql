@@ -18,8 +18,11 @@
 --   · consumption_version 用于丢弃乱序到达的旧版本
 -- ============================================================
 
-DROP TABLE IF EXISTS `lesson_attendance`;
-CREATE TABLE `lesson_attendance` (
+-- 等保 P0-4（2026-11-20 修）：DROP 已注释禁用。
+-- 本文件现在位于「新环境初始化」清单里，重跑若删表会把出勤/有效时长记录一起清掉
+-- （课堂回流按 consumption_version 幂等写回，但历史记录删了就没了）。改为幂等建表。
+-- DROP TABLE IF EXISTS `lesson_attendance`;
+CREATE TABLE IF NOT EXISTS `lesson_attendance` (
   `id`                  bigint      NOT NULL AUTO_INCREMENT COMMENT '自增主键',
   `tenant_id`           bigint      NOT NULL DEFAULT '0' COMMENT '租户ID（由 schedule 反查，非客户端上报）',
   `schedule_id`         varchar(64) NOT NULL COMMENT '排期ID（=课堂ID）',

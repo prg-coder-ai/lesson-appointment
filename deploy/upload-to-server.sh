@@ -68,6 +68,13 @@ for d in deploy/sql/schema deploy/sql/seed deploy/sql/patch; do
     echo "   ⚠ 缺少目录 $d，跳过"
   fi
 done
+# 三库建库 + 应用账号脚本在 sql/ 根目录（不在 schema/seed/patch 任一子目录里，上面的 rsync 带不到）。
+# 漏传它的后果：新环境没有 CREATE DATABASE 语句可用，只能手敲，且 collation 极易抄错。
+if [ -f "$ROOT/deploy/sql/00-create-databases.sql" ]; then
+  scp "$ROOT/deploy/sql/00-create-databases.sql" "$SERVER:/opt/lesson/sql/00-create-databases.sql"
+else
+  echo "   ⚠ 缺少 deploy/sql/00-create-databases.sql（新环境建库/建账号要靠它）"
+fi
 # 课堂库结构自带 CREATE DATABASE classroom + USE，单独放 classroom/
 if [ -d "$ROOT/api/classroom-service/sql" ]; then
   rsync -av "$ROOT/api/classroom-service/sql/" "$SERVER:/opt/lesson/sql/classroom/"
@@ -89,6 +96,17 @@ scp "$ROOT/deploy/nginx/booking-ip.conf"  "$SERVER:/etc/nginx/sites-available/bo
 # 等保 P0-3：限流 zone 定义（limit_req_zone 必须在 http{} 上下文，放不进 sites-available，
 # 单独走 conf.d）。漏传这个文件 → nginx -t 报 unknown limit_req_zone → 整站起不来。
 scp "$ROOT/deploy/nginx/conf.d/00-limit-req-zone.conf" "$SERVER:/etc/nginx/conf.d/00-limit-req-zone.conf"
+# proxy_params：两份站点配置共 22 处 include /etc/nginx/proxy_params。
+# Debian/Ubuntu 的 nginx-common 自带；CentOS / Anolis / Rocky 没有 → nginx -t 直接失败，
+# 而报错只说 open() "/etc/nginx/proxy_params" failed，不告诉你缺的是哪个包。
+# 只在目标缺失时补，绝不覆盖发行版自带的那份（其他站点可能在用，内容未必相同）。
+if ssh "$SERVER" 'test -f /etc/nginx/proxy_params'; then
+  echo "    proxy_params 已存在（发行版自带），跳过覆盖"
+else
+  scp "$ROOT/deploy/nginx/proxy_params" "$SERVER:/tmp/proxy_params.lesson"
+  ssh "$SERVER" 'sudo mv /tmp/proxy_params.lesson /etc/nginx/proxy_params && sudo chmod 644 /etc/nginx/proxy_params'
+  echo "    proxy_params 缺失 → 已补（CentOS/Anolis 这类没有 nginx-common 的环境）"
+fi
 scp "$ROOT/deploy/backup.sh"              "$SERVER:/opt/lesson/backup.sh"
 scp "$ROOT/deploy/logrotate/lesson"       "$SERVER:/etc/logrotate.d/lesson"
 scp "$ROOT/deploy/healthcheck.sh"         "$SERVER:/opt/lesson/healthcheck.sh"
@@ -126,6 +144,22 @@ echo "  mysql_config_editor set --login-path=health --host=localhost --user=root
 echo "  # 之后编辑 healthcheck.sh 顶部：export MYSQL_LOGIN_PATH=health"
 echo "  (crontab -l 2>/dev/null; echo '*/5 * * * * /opt/lesson/healthcheck.sh >> /var/log/lesson/healthcheck.log 2>&1') | crontab -"
 echo "  /opt/lesson/healthcheck.sh   # 先手跑一次，确认巡检都绿"
+echo
+echo "每日备份（一次性配置；不装 = 出事那天没有可回滚的库）："
+echo "  mysql_config_editor set --login-path=backup --host=localhost --user=root --password"
+echo "  (crontab -l 2>/dev/null; echo '0 3 * * * /opt/lesson/backup.sh >> /var/log/lesson/backup.log 2>&1') | crontab -"
+echo "  /opt/lesson/backup.sh        # 先手跑一次，确认 /opt/backup 下出现当天的 .sql.gz"
+echo "  ⚠ backup.sh 目前只备 lesson_appointment + message_center 两个库。"
+echo "    课堂库 classroom 与文件目录 /opt/lesson/data/oss（讲稿/作品/录制）尚未纳入 ——"
+echo "    DB 里只存对象 key，只回库不回文件 = 记录都在、点开全 404。"
+echo "    课堂上线后请补：mysqldump classroom ＋ tar 该目录，见《电子课堂-系统维护说明》4.4。"
+echo
+echo "Redis（课堂强依赖；journal 里出现 Connection refused / 掉线判定异常先看这里）："
+echo "  sudo apt install -y redis-server      # CentOS/Anolis/Rocky: sudo yum install -y redis"
+echo "  redis-cli -n 2 ping                   # → PONG（课堂用 db 2，见 classroom.env 注释）"
+echo "  ⚠ 不要给 Redis 配 allkeys-lru：课堂「在线」的唯一真相源就是 Redis key，"
+echo "    key 被 LRU 逐出会把在课学生判成掉线（掉线扫描器据此提前结课）。"
+echo "    内存吃紧请扩容或缩短 TTL，别用会驱逐数据的策略。"
 echo
 echo "日志（首次部署或换机器时必查，已由 6/8 自动建目录+校验）："
 echo "  tail -f /var/log/lesson/booking.log                   # systemd 捕获（logrotate 管）"
