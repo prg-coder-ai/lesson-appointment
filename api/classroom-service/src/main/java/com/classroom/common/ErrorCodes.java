@@ -20,6 +20,14 @@ public final class ErrorCodes {
     public static final int RECORDING_NOT_READY = 40905;
     public static final int EVENT_DUPLICATE = 40906;
     public static final int EVENT_STALE_VERSION = 40907;
+    /**
+     * 课堂实例并发已达上限（2026-11-20 容量准入）。
+     *
+     * <p>刻意与 {@link #CLASSROOM_STATUS_CONFLICT} 分开：那个是「状态不允许这个动作」，
+     * 重试无用；这个是「实例现在满了」，等别人下课就恢复，前端提示语与处置完全不同
+     * （前者引导刷新状态，后者引导稍后重试或找平台扩容）。
+     */
+    public static final int CLASSROOM_CAPACITY_EXCEEDED = 40908;
     public static final int CALLBACK_FAILED = 50001;
     public static final int OSS_UPLOAD_FAILED = 50002;
     public static final int REDIS_UNAVAILABLE = 50003;

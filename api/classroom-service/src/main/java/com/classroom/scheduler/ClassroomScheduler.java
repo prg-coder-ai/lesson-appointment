@@ -211,6 +211,15 @@ public class ClassroomScheduler {
                     classroomService.startClass(c.getScheduleId());
                     broadcastState(c.getScheduleId(), "LIVE");   // 与 Controller /start 同口径，前端立即解禁发布
                     log.info("[自动开课] scheduleId={}", c.getScheduleId());
+                } catch (com.classroom.exception.ClassroomBizException e) {
+                    if (e.getCode() == com.classroom.common.ErrorCodes.CLASSROOM_CAPACITY_EXCEEDED) {
+                        // 实例并发满了：不是故障，这一轮跳过、下一轮(30s)自动重试，
+                        // 别人下课腾出位置后这节课就能开起来。用 warn 而不是 error，
+                        // 否则满载期间每 30 秒刷一批 error，把真故障淹没。
+                        log.warn("[自动开课] 实例并发已满，本轮跳过待重试 scheduleId={}", c.getScheduleId());
+                    } else {
+                        log.error("[自动开课] 处理失败 scheduleId={}, err={}", c.getScheduleId(), e.getMessage());
+                    }
                 } catch (Exception e) {
                     log.error("[自动开课] 处理失败 scheduleId={}, err={}", c.getScheduleId(), e.getMessage());
                 }

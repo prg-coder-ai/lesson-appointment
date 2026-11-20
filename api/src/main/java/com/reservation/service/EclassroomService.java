@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.reservation.entity.EclassroomInstance;
 import com.reservation.entity.Tenant;
 import com.reservation.entity.TenantEclassroom;
+import com.reservation.exception.BusinessException;
 import com.reservation.mapper.EclassroomInstanceMapper;
 import com.reservation.mapper.TenantEclassroomMapper;
 import com.reservation.mapper.TenantMapper;
@@ -157,7 +158,18 @@ public class EclassroomService {
     public void bindTenantClassroom(Long tenantId, Long instanceId, String operator) {
         EclassroomInstance instance = instanceMapper.selectById(instanceId);
         if (instance == null || instance.getDeleted() == 1) {
-            throw new IllegalArgumentException("课堂实例不存在或已删除");
+            throw new BusinessException("课堂实例不存在或已删除");
+        }
+        // 绑定前置校验（2026-11-20）：这两个洞都会让租户「绑上了但进不去」，
+        // 而且报错完全指不到真正原因（课堂入口全挂 / 502 / 拼出 http://:8092 这种地址）。
+        //   · api_host 为空串：buildApiUrl 只判 null，空串能通过，拼出 http://:8092/api/v1；
+        //   · status != 1（停用/维护中）：课堂侧 hasClassroomEnabled 直接判 false，403「课堂未启用」。
+        if (instance.getApiHost() == null || instance.getApiHost().isBlank()) {
+            throw new BusinessException("该实例未配置 API 地址，无法绑定（请先补全实例的 API 地址或改绑其他实例）");
+        }
+        if (!Integer.valueOf(1).equals(instance.getStatus())) {
+            throw new BusinessException("实例状态为「" + statusTextOf(instance.getStatus())
+                    + "」，仅「正常」状态的实例可绑定");
         }
         TenantEclassroom existing = getTenantEclassroom(tenantId);
         if (existing == null) {
@@ -231,6 +243,7 @@ public class EclassroomService {
     }
 
     public EclassroomInstance createInstance(EclassroomInstance instance) {
+        validateMaxCapacity(instance.getMaxCapacity());
         if (instance.getStatus() == null) instance.setStatus(1);
         if (instance.getDeleted() == null) instance.setDeleted(0);
         if (instance.getApiPort() == null) instance.setApiPort(8092);
@@ -246,8 +259,24 @@ public class EclassroomService {
     }
 
     public void updateInstance(EclassroomInstance instance) {
+        validateMaxCapacity(instance.getMaxCapacity());
         instanceMapper.updateById(instance);
         log.info("更新课堂实例: id={}", instance.getId());
+    }
+
+    /**
+     * 校验「最大容量」。
+     *
+     * <p>此前完全不校验，负数与 0 都能入库 —— 而 0 在准入判断里的含义是"不限制"
+     * （见 classroom-service {@code InstanceCapacityService.maxCapacity()}），
+     * 运营以为填 0 是"禁掉"，实际是"不设上限"。语义反了比不校验更危险，所以在入口拦死。
+     *
+     * @param maxCapacity 允许为 null（表示暂不限制），非 null 时必须为正整数
+     */
+    private void validateMaxCapacity(Integer maxCapacity) {
+        if (maxCapacity != null && maxCapacity <= 0) {
+            throw new BusinessException("最大容量必须为正整数（留空表示不限制）");
+        }
     }
 
     public void deleteInstance(Long instanceId) {
@@ -367,7 +396,7 @@ public class EclassroomService {
                 row.put("reachable", false);
                 row.put("error", skipReason);
             } else {
-                fetchInstanceStats(row, apiBaseUrl);
+                fetchInstanceStats(row, apiBaseUrl, inst.getId());
             }
             out.add(row);
         }
@@ -427,8 +456,12 @@ public class EclassroomService {
     /**
      * 拉取单个实例的统计并并入行。任何失败都只落在该行（{@code reachable=false}），
      * 不影响其它实例。
+     *
+     * <p>采集成功后顺手把 {@code current_load} 写回库：这个列此前**从未被写过任何值**
+     * （永远 0），导致平台端「当前负载」形同虚设。这里采用「读时回写」而不是加定时任务：
+     * 平台端每看一次监视页就刷新一次，没有额外线程与轮次，也不会在没人看的时候白发请求。
      */
-    private void fetchInstanceStats(Map<String, Object> row, String apiBaseUrl) {
+    private void fetchInstanceStats(Map<String, Object> row, String apiBaseUrl, Long instanceId) {
         String url = apiBaseUrl + "/system/eclassroom/instance-stats";
         try {
             // tenantId 传 0：实例级统计划不到任何单租户头上。
@@ -453,6 +486,7 @@ public class EclassroomService {
             row.put("readyClasses", stats.get("readyClasses"));
             row.put("onlineUsers", stats.get("onlineUsers"));
             row.put("collectedAt", stats.get("serverTime"));
+            persistCurrentLoad(instanceId, stats.get("liveClasses"));
         } catch (Exception e) {
             row.put("reachable", false);
             row.put("error", shortError(e));
@@ -462,6 +496,25 @@ public class EclassroomService {
 
     private static long asLong(Object v) {
         return v instanceof Number ? ((Number) v).longValue() : 0L;
+    }
+
+    /**
+     * 把实测并发数写回 {@code sys_eclassroom_instance.current_load}。
+     *
+     * <p>只更新这一列（updateById + 单字段对象），不会被平台端「编辑实例」的并发操作覆盖成别的值；
+     * 写失败只记 debug —— 它是展示性数据，不能因为它让监视页报错。
+     */
+    private void persistCurrentLoad(Long instanceId, Object live) {
+        if (instanceId == null || !(live instanceof Number)) return;
+        try {
+            EclassroomInstance patch = new EclassroomInstance();
+            patch.setId(instanceId);
+            patch.setCurrentLoad(((Number) live).intValue());
+            instanceMapper.updateById(patch);
+        } catch (Exception e) {
+            log.debug("[eclassroom] 回写 current_load 失败(不影响展示): instanceId={}, err={}",
+                    instanceId, e.getMessage());
+        }
     }
 
     private static String statusTextOf(Integer status) {
