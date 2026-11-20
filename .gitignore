@@ -151,4 +151,10 @@ data/oss/
 doc-develop/certs/
 
 api/classroom-service/data/oss/material
+
+# 课堂服务的 Maven 构建产物（2026-11-20）
+# 规则早就写了，但一直没生效 —— git 对**已跟踪**文件不应用 ignore。
+# 其中 classes/META-INF/build-info.properties 每次 mvn 编译都会重写 build.timestamp
+# 与 build.version，于是常年挂在 git status 里、被顺手提交进仓库。
+# 已 git rm --cached 把它移出索引（工作区文件保留，编译照常生成），本规则自此生效。
 api/classroom-service/target/
