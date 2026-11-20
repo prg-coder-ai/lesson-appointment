@@ -19,7 +19,7 @@
 | `sql/00-create-databases.sql` | `/opt/lesson/sql/` | 新环境**第 0 步**：建三库 + 建 `lesson` 账号并授权。三个库的 collation 与现网逐库对齐，别统一 |
 | `nginx/booking.conf` / `booking-ip.conf` | `/etc/nginx/sites-available/{booking,booking-ip}` | HTTPS 版 / 纯 IP 版；首次部署默认启用后者（无证书时启用前者会因证书缺失起不来） |
 | `nginx/conf.d/00-limit-req-zone.conf` | `/etc/nginx/conf.d/` | 限流 zone 必须放 `http{}` 上下文；漏传 → `nginx -t` 报 unknown limit_req_zone |
-| `nginx/proxy_params` | `/etc/nginx/proxy_params`（**仅当目标不存在时**） | 两份站点配置共 22 处 `include` 它；Debian 由 nginx-common 自带，CentOS/Anolis 没有 → 缺了 `nginx -t` 直接失败 |
+| `nginx/proxy_params` | `/etc/nginx/proxy_params`（**仅当目标不存在时**） | 两份站点配置各 23 处（共 46 处） `include` 它；Debian 由 nginx-common 自带，CentOS/Anolis 没有 → 缺了 `nginx -t` 直接失败 |
 | `logrotate/lesson` | `/etc/logrotate.d/lesson` | 接管 systemd `append:` 日志的滚动（含 classroom.log）；漏装则永不滚动，写满撑爆磁盘 |
 | `backup.sh` / `healthcheck.sh` | `/opt/lesson/` | 每日备份 / 5 分钟巡检；装完必须配 cron，条目见 `upload-to-server.sh` 末尾提示 |
 | `referential-integrity-20261008.sql` | 留档，按需执行 | 外键/引用完整性的一次性脚本，见 `tools/check-cascade-rules.mjs` |
