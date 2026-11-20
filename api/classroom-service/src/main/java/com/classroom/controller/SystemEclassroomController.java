@@ -3,13 +3,17 @@ package com.classroom.controller;
 import com.classroom.common.Result;
 import com.classroom.common.RoleConst;
 import com.classroom.security.AuthContext;
+import com.classroom.service.MonitorService;
 import com.classroom.service.TenantEclassroomService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 /**
  * 系统内部接口：课堂开关缓存维护（2026-11-20）。
@@ -36,8 +40,12 @@ public class SystemEclassroomController {
 
     private final TenantEclassroomService tenantEclassroomService;
 
-    public SystemEclassroomController(TenantEclassroomService tenantEclassroomService) {
+    private final MonitorService monitorService;
+
+    public SystemEclassroomController(TenantEclassroomService tenantEclassroomService,
+                                      MonitorService monitorService) {
         this.tenantEclassroomService = tenantEclassroomService;
+        this.monitorService = monitorService;
     }
 
     /**
@@ -59,5 +67,28 @@ public class SystemEclassroomController {
         tenantEclassroomService.evictCache(tenantId);
         log.info("[eclassroom] 已清除租户{}课堂开关缓存（调用方 role={}）", tenantId, role);
         return Result.success(true, "缓存已清");
+    }
+
+    /**
+     * 实例级实时统计：今日课程数 / 进行中课堂数 / 实时在线人数。
+     *
+     * <p>调用方是主系统（booking）的「平台端 → 在线课堂 → 课堂监视」：它按实例逐个拉，
+     * 再与本地的 {@code sys_tenant_eclassroom}（实例→租户归属）合并成一张表。
+     * 课堂服务是唯一知道"这个实例实际跑了多少课、多少人在线"的一方，
+     * 主系统不能靠查自己的库推出来 —— 课堂库在课堂服务这边。
+     *
+     * <p><b>鉴权</b>：只放 {@code system}（服务间短票）与 {@code platform_admin}。
+     * 刻意不复用 {@code /admin/monitor/overview}：那个走 {@code AuthContext.isManager()}
+     * （admin|platform_admin，不含 system），且会按调用者租户过滤 —— 实例级统计要跨租户合计。
+     */
+    @GetMapping("/instance-stats")
+    public Result<Map<String, Object>> instanceStats() {
+        String role = AuthContext.currentRole();
+        boolean allowed = RoleConst.SYSTEM.equals(role) || RoleConst.isPlatformAdmin(role);
+        if (!allowed) {
+            log.warn("[eclassroom] 拒绝非系统调用实例统计: role={}", role);
+            return Result.fail(403, "无权查看实例统计");
+        }
+        return Result.success(monitorService.instanceSummary(), "查询成功");
     }
 }

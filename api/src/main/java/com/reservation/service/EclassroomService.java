@@ -2,9 +2,11 @@ package com.reservation.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.reservation.entity.EclassroomInstance;
+import com.reservation.entity.Tenant;
 import com.reservation.entity.TenantEclassroom;
 import com.reservation.mapper.EclassroomInstanceMapper;
 import com.reservation.mapper.TenantEclassroomMapper;
+import com.reservation.mapper.TenantMapper;
 import com.reservation.utils.JwtUtil;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
@@ -12,12 +14,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -37,6 +42,8 @@ public class EclassroomService {
     @Autowired
     private TenantEclassroomMapper tenantEclassroomMapper;
     @Autowired
+    private TenantMapper tenantMapper;
+    @Autowired
     private JwtUtil jwtUtil;
 
     /** 服务间调用的主体标识（与 ClassroomEventPushService 同口径，role=system 会被课堂侧豁免开关校验）。 */
@@ -53,6 +60,22 @@ public class EclassroomService {
         f.setConnectTimeout(800);
         f.setReadTimeout(1500);
         this.evictClient = new RestTemplate(f);
+    }
+
+    /**
+     * 课堂监视用的拉取客户端。
+     *
+     * <p>超时比清缓存宽：对方要查「今日课堂 + 逐课在线数」，是几次 DB 查询；
+     * 但也不能太长 —— 平台端页面会等它，实例挂掉时必须快速返回 reachable=false。
+     */
+    private RestTemplate monitorClient;
+
+    @PostConstruct
+    private void initMonitorClient() {
+        SimpleClientHttpRequestFactory f = new SimpleClientHttpRequestFactory();
+        f.setConnectTimeout(1000);
+        f.setReadTimeout(2500);
+        this.monitorClient = new RestTemplate(f);
     }
 
     // ==================== 租户课堂配置查询 ====================
@@ -288,6 +311,170 @@ public class EclassroomService {
             log.warn("[eclassroom] 通知课堂服务清缓存失败(缓存最迟5分钟过期), tenantId={}, err={}",
                     tenantId, e.getMessage());
         }
+    }
+
+    // ==================== 课堂监视（平台端「在线课堂 → 课堂监视」） ====================
+
+    /**
+     * 每个课堂实例的：所属租户、实际课程数、实时在线数。
+     *
+     * <p>数据来自两处，缺一不可：
+     * <ul>
+     *   <li><b>实例 ↔ 租户归属</b>：本库 {@code sys_tenant_eclassroom}（「绑定」操作的唯一真相源，
+     *       课堂服务那边没有这张表）；</li>
+     *   <li><b>课程数 / 在线数</b>：<b>必须问实例自己</b>（{@code GET {apiBaseUrl}/system/eclassroom/instance-stats}）。
+     *       课堂库在课堂服务侧，主库查不到；也不能假设"所有实例共用一个库" ——
+     *       多实例部署时各自独立，只能逐个拉。</li>
+     * </ul>
+     *
+     * <p>采集失败的实例<b>不会让整张表打不出来</b>：返回 {@code reachable=false} + {@code error}
+     * 说明原因，前端照常渲染该行（运营最需要看到的恰恰是"这台挂了"）。
+     *
+     * <p>停用 / 维护中 / API 地址为空（含空串，历史脏数据）的实例<b>不发起调用</b>：
+     * 调了只会得到误导性的 0，让人误以为"这台空着，可以往上绑租户"。
+     */
+    public List<Map<String, Object>> instanceMonitor() {
+        List<EclassroomInstance> instances = listInstances();
+        Map<Long, List<Map<String, Object>>> tenantsByInstance = loadTenantsByInstance();
+
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (EclassroomInstance inst : instances) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", inst.getId());
+            row.put("instanceCode", inst.getInstanceCode());
+            row.put("instanceName", inst.getInstanceName());
+            row.put("region", inst.getRegion());
+            row.put("status", inst.getStatus());
+            row.put("maxCapacity", inst.getMaxCapacity());
+            String apiBaseUrl = buildApiUrl(inst);
+            row.put("apiBaseUrl", apiBaseUrl);
+
+            List<Map<String, Object>> tenants = tenantsByInstance.get(inst.getId());
+            if (tenants == null) tenants = new ArrayList<>();
+            row.put("tenantCount", tenants.size());
+            row.put("tenants", tenants);
+
+            String skipReason = null;
+            if (!Integer.valueOf(1).equals(inst.getStatus())) {
+                skipReason = "实例状态为「" + statusTextOf(inst.getStatus()) + "」，未采集";
+            } else if (inst.getApiHost() == null || inst.getApiHost().isBlank()) {
+                // 空串历史脏数据：buildApiUrl 只判 null，空串会拼出 http://:8092/api/v1
+                skipReason = "实例 API 地址未配置，未采集";
+            } else if (apiBaseUrl == null || apiBaseUrl.isBlank()) {
+                skipReason = "实例 API 地址无法解析，未采集";
+            }
+            if (skipReason != null) {
+                row.put("reachable", false);
+                row.put("error", skipReason);
+            } else {
+                fetchInstanceStats(row, apiBaseUrl);
+            }
+            out.add(row);
+        }
+        return out;
+    }
+
+    /**
+     * 实例 → 租户列表（一次查全，避免逐实例 N+1）。
+     *
+     * <p>{@code sys_tenant_eclassroom} 与 {@code sys_tenant} 都在租户插件的忽略表里（平台表），
+     * 这里可以裸查；{@code enabled=0} 的绑定也一并返回 —— 「绑定着但被禁用」本身就是要看的状态，
+     * 前端按 {@code enabled} 区分展示。
+     */
+    private Map<Long, List<Map<String, Object>>> loadTenantsByInstance() {
+        Map<Long, List<Map<String, Object>>> out = new HashMap<>();
+        List<TenantEclassroom> bindings = tenantEclassroomMapper.selectList(new LambdaQueryWrapper<>());
+        if (bindings == null || bindings.isEmpty()) return out;
+
+        List<Long> tenantIds = new ArrayList<>();
+        for (TenantEclassroom b : bindings) {
+            if (b.getTenantId() != null) tenantIds.add(b.getTenantId());
+        }
+        Map<Long, Tenant> tenantMap = new HashMap<>();
+        if (!tenantIds.isEmpty()) {
+            List<Tenant> tenants = tenantMapper.selectBatchIds(tenantIds);
+            if (tenants != null) {
+                for (Tenant t : tenants) {
+                    if (t != null && t.getId() != null) tenantMap.put(t.getId(), t);
+                }
+            }
+        }
+
+        for (TenantEclassroom b : bindings) {
+            if (b.getInstanceId() == null) continue;
+            List<Map<String, Object>> list = out.get(b.getInstanceId());
+            if (list == null) {
+                list = new ArrayList<>();
+                out.put(b.getInstanceId(), list);
+            }
+            Tenant t = b.getTenantId() == null ? null : tenantMap.get(b.getTenantId());
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("tenantId", b.getTenantId());
+            item.put("tenantCode", t == null ? null : t.getTenantCode());
+            // orgName 是租户的展示名（租户表里没有 name 字段，机构名即租户名）
+            item.put("orgName", t == null ? null : t.getOrgName());
+            item.put("enabled", b.getEnabled());
+            list.add(item);
+        }
+
+        // 按租户 ID 稳定排序：刷新前后行内顺序不该跳
+        for (List<Map<String, Object>> list : out.values()) {
+            list.sort((o1, o2) -> Long.compare(asLong(o1.get("tenantId")), asLong(o2.get("tenantId"))));
+        }
+        return out;
+    }
+
+    /**
+     * 拉取单个实例的统计并并入行。任何失败都只落在该行（{@code reachable=false}），
+     * 不影响其它实例。
+     */
+    private void fetchInstanceStats(Map<String, Object> row, String apiBaseUrl) {
+        String url = apiBaseUrl + "/system/eclassroom/instance-stats";
+        try {
+            // tenantId 传 0：实例级统计划不到任何单租户头上。
+            // system 角色在课堂侧豁免「租户是否开通课堂」校验，否则拿不到全局数。
+            String token = jwtUtil.generateToken(0L, SYSTEM_PRINCIPAL, SYSTEM_PRINCIPAL);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(token);
+            ResponseEntity<Map> resp = monitorClient.exchange(url, HttpMethod.GET,
+                    new HttpEntity<>(headers), Map.class);
+            Map<?, ?> body = resp.getBody();
+            Object data = body == null ? null : body.get("data");
+            if (!(data instanceof Map)) {
+                row.put("reachable", false);
+                row.put("error", "课堂服务未返回统计数据（code="
+                        + (body == null ? "-" : body.get("code")) + "）");
+                return;
+            }
+            Map<?, ?> stats = (Map<?, ?>) data;
+            row.put("reachable", true);
+            row.put("todayClasses", stats.get("todayClasses"));
+            row.put("liveClasses", stats.get("liveClasses"));
+            row.put("readyClasses", stats.get("readyClasses"));
+            row.put("onlineUsers", stats.get("onlineUsers"));
+            row.put("collectedAt", stats.get("serverTime"));
+        } catch (Exception e) {
+            row.put("reachable", false);
+            row.put("error", shortError(e));
+            log.warn("[eclassroom] 拉取实例统计失败, url={}, err={}", url, e.getMessage());
+        }
+    }
+
+    private static long asLong(Object v) {
+        return v instanceof Number ? ((Number) v).longValue() : 0L;
+    }
+
+    private static String statusTextOf(Integer status) {
+        if (Integer.valueOf(1).equals(status)) return "正常";
+        if (Integer.valueOf(0).equals(status)) return "停用";
+        if (Integer.valueOf(2).equals(status)) return "维护中";
+        return status == null ? "未知" : String.valueOf(status);
+    }
+
+    private static String shortError(Exception e) {
+        String m = e.getMessage();
+        if (m == null || m.isBlank()) return e.getClass().getSimpleName();
+        return m.length() > 160 ? m.substring(0, 160) + "…" : m;
     }
 
     // ==================== 内部工具 ====================

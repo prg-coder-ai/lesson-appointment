@@ -439,6 +439,9 @@ public final class AuthzRules {
         r.add(new Rule(HttpMethod.PUT, "/api/v1/eclassroom/tenant/{tenantId}/bind", PLATFORM_ONLY, "新增：为租户绑定实例"));
         r.add(new Rule(HttpMethod.PUT, "/api/v1/eclassroom/tenant/{tenantId}/disable", PLATFORM_ONLY, "新增：禁用租户课堂"));
         r.add(new Rule(HttpMethod.PUT, "/api/v1/eclassroom/tenant/{tenantId}/unbind", PLATFORM_ONLY, "新增：解绑租户课堂"));
+        // 课堂监视（2026-11-20）：平台端「在线课堂 → 课堂监视」按实例看租户归属 / 课程数 / 在线数。
+        // 刻意与 /instances/{id} 放在不同段落下，避免与变量路径产生匹配歧义。
+        r.add(new Rule(HttpMethod.GET, "/api/v1/eclassroom/monitor/instances", PLATFORM_ONLY, "新增：课堂监视（实例课程数/在线数/所属租户）"));
 
         // ==================== 七、课时账本（2026-10-28）====================
         // 只读查询。「我的课时」是学生自助页，ALL_ROLES 因为教师/管理员同样有课时账本；

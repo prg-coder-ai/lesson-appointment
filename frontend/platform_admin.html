@@ -51,10 +51,6 @@
           <i class="fa fa-building"></i>
           <span>租户管理</span>
         </div>
-        <div class="menu-item" key="eclassroom_instances">
-          <i class="fa fa-chalkboard"></i>
-          <span>课堂实例</span>
-        </div>
         <div class="menu-item" key="user">
           <i class="fa fa-users-cog"></i>
           <span>用户管理</span>
@@ -77,6 +73,20 @@
           <span>消息管理</span>
         </div>
        
+      </div>
+
+      <!-- 在线课堂（2026-11-20）：课堂实例从「平台运营」移入独立菜单组，
+           并新增「课堂监视」按实例看租户归属 / 课程数 / 实时在线数 -->
+      <div class="menu-group">
+        <div class="menu-group-title">在线课堂</div>
+        <div class="menu-item" key="eclassroom_instances">
+          <i class="fa fa-server"></i>
+          <span>课堂实例</span>
+        </div>
+        <div class="menu-item" key="eclassroom_monitor">
+          <i class="fa fa-desktop"></i>
+          <span>课堂监视</span>
+        </div>
       </div>
 
       <div class="menu-group">
@@ -169,6 +179,14 @@
           window.renderEclassroomInstancesPage();
         } else if (dynamicContentCenter) {
           dynamicContentCenter.innerHTML = '<div class="card"><div class="card-body">课堂实例模块未加载（platform-admin-eclassroom.js）。</div></div>';
+        }
+        break;
+      // 课堂监视（2026-11-20）：每个实例的租户归属 / 今日课程数 / 进行中 / 实时在线数
+      case "eclassroom_monitor":
+        if (typeof window.renderEclassroomMonitorPage === 'function') {
+          window.renderEclassroomMonitorPage();
+        } else if (dynamicContentCenter) {
+          dynamicContentCenter.innerHTML = '<div class="card"><div class="card-body">课堂监视模块未加载（platform-admin-eclassroom.js）。</div></div>';
         }
         break;
       case "user":

@@ -57,6 +57,19 @@ public class EclassroomController {
     }
 
     /**
+     * 课堂监视：每个实例的所属租户 + 今日课程数 + 进行中课堂数 + 实时在线人数。
+     *
+     * <p>路径刻意不用 {@code /instances/monitor}：{@code GET /instances/{id}} 已经存在，
+     * 虽然 Spring 的精确路径优先于变量路径、不会真的冲突，但 {@code AuthzRules} 的规则
+     * 是按模式逐条匹配的，多一层歧义只会让后面的人不敢改。放在独立段落下最省心。
+     */
+    @GetMapping("/monitor/instances")
+    public Result<List<Map<String, Object>>> monitorInstances(@RequestHeader("Authorization") String token) {
+        permissionCheck.checkPlatformAdmin(token);
+        return Result.success(eclassroomService.instanceMonitor(), "查询成功");
+    }
+
+    /**
      * 新建实例（平台管理员）
      */
     @PostMapping("/instances")

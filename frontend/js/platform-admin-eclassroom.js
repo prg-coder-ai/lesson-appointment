@@ -359,8 +359,143 @@
       .catch(function (e) { console.warn('[eclassroom] unbind failed', e); alert('解绑失败'); });
   }
 
+  // ===================== 课堂监视页（2026-11-20） =====================
+  //
+  // 数据来源是后端 GET /eclassroom/monitor/instances：
+  //   租户归属来自主库 sys_tenant_eclassroom；
+  //   课程数/在线数由后端**逐个问实例**（每个实例自己的课堂库）后合并。
+  // 所以页面不做聚合，只渲染；实例不可达时后端会带 reachable=false + error。
+
+  var monitorCache = [];
+  var monitorTimer = null;
+
+  function renderEclassroomMonitorPage() {
+    var c = document.getElementById('dynamic-content-center');
+    if (!c) return;
+    c.innerHTML =
+      '<div class="card">' +
+        '<div class="card-header">' +
+          '<div class="card-title"><i class="fa fa-desktop"></i> 课堂监视</div>' +
+          '<div style="display:flex;align-items:center;gap:12px;">' +
+            '<span id="eclassroom-monitor-tip" style="color:#888;font-size:12px;"></span>' +
+            '<button class="btn btn-primary" onclick="loadEclassroomMonitor(true)"><i class="fa fa-sync"></i> 刷新</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="table-container">' +
+          '<table class="data-table">' +
+            '<thead><tr>' +
+              '<th>序号</th><th>实例</th><th>区域</th><th>状态</th><th>所属租户</th>' +
+              '<th>今日课程</th><th>进行中</th><th>待开始</th><th>实时在线</th><th>容量</th>' +
+            '</tr></thead>' +
+            '<tbody id="eclassroom-monitor-body">' +
+              '<tr><td colspan="10" style="text-align:center;padding:20px;">加载中...</td></tr>' +
+            '</tbody>' +
+          '</table>' +
+        '</div>' +
+        '<div class="card-body" style="font-size:12px;color:#888;line-height:1.8;">' +
+          '口径：<b>今日课程</b> = 今日开课数（含已结束）；<b>进行中</b> = 当前 LIVE；' +
+          '<b>待开始</b> = 已就绪未开课（READY）；<b>实时在线</b> = 上述课堂内实测在线人数合计。' +
+          '数据由各实例自行统计后回传，实例不可达时对应格子显示「—」并给出原因；' +
+          '页面打开期间每 30 秒自动刷新，切走后自动停止。<br>' +
+          '注意：<b>容量</b>是实例登记的配置值，系统当前未据此做准入校验（见「课堂实例容量字段现状分析」）。' +
+        '</div>' +
+      '</div>';
+    loadEclassroomMonitor(false);
+    startMonitorAutoRefresh();
+  }
+
+  /** 每 30 秒自动刷新；DOM 一旦不在了（切到别的菜单）就自己停，避免定时器堆在后台。 */
+  function startMonitorAutoRefresh() {
+    stopMonitorAutoRefresh();
+    monitorTimer = setInterval(function () {
+      if (!document.getElementById('eclassroom-monitor-body')) {
+        stopMonitorAutoRefresh();
+        return;
+      }
+      loadEclassroomMonitor(false);
+    }, 30000);
+  }
+
+  function stopMonitorAutoRefresh() {
+    if (monitorTimer) {
+      clearInterval(monitorTimer);
+      monitorTimer = null;
+    }
+  }
+
+  function loadEclassroomMonitor(manual) {
+    var tip = document.getElementById('eclassroom-monitor-tip');
+    if (tip && manual) tip.textContent = '刷新中…';
+    return request({ url: '/eclassroom/monitor/instances', method: 'get' })
+      .then(function (list) {
+        monitorCache = Array.isArray(list) ? list : [];
+        renderEclassroomMonitorRows(monitorCache);
+        if (tip) {
+          var d = new Date();
+          var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+          tip.textContent = '数据时间 ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds())
+            + '，共 ' + monitorCache.length + ' 个实例';
+        }
+      })
+      .catch(function (e) {
+        console.warn('[eclassroom] 加载课堂监视失败', e);
+        var tb = document.getElementById('eclassroom-monitor-body');
+        if (tb) tb.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:#c00;">加载失败，请稍后重试</td></tr>';
+        if (tip) tip.textContent = '加载失败';
+      });
+  }
+
+  /** 统计格：实例不可达时统一显示「—」，避免把"没采集到"误读成"0 节课" */
+  function monitorNum(row, key) {
+    if (!row.reachable) return '<span style="color:#c0c0c0;">—</span>';
+    var v = row[key];
+    return (v == null) ? '-' : esc(String(v));
+  }
+
+  /** 租户格：数量 + 前两个名称，完整名单放 title；被禁用的绑定单独标注 */
+  function monitorTenantsCell(row) {
+    var list = Array.isArray(row.tenants) ? row.tenants : [];
+    if (!list.length) return '<span style="color:#aaa;">未绑定</span>';
+    var names = list.map(function (t) {
+      var n = t.orgName || t.tenantCode || ('租户#' + t.tenantId);
+      return (t.enabled === 0 || t.enabled === false) ? (n + '（已禁用）') : n;
+    });
+    var shown = names.slice(0, 2).join('、') + (names.length > 2 ? ' 等' : '');
+    return '<span title="' + esc(names.join('、')) + '">' + esc(shown) + '</span>' +
+      '<div style="font-size:12px;color:#888;">共 ' + names.length + ' 个</div>';
+  }
+
+  function renderEclassroomMonitorRows(rows) {
+    var tb = document.getElementById('eclassroom-monitor-body');
+    if (!tb) return;
+    if (!rows.length) {
+      tb.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;">暂无课堂实例</td></tr>';
+      return;
+    }
+    tb.innerHTML = rows.map(function (r, i) {
+      var title = esc(r.instanceName || r.instanceCode || ('#' + r.id));
+      var sub = r.instanceCode ? ('<div style="font-size:12px;color:#888;">' + esc(r.instanceCode) + '</div>') : '';
+      var err = r.reachable ? ''
+        : ('<div style="font-size:12px;color:#c00;">' + esc(r.error || '未采集') + '</div>');
+      return '<tr>' +
+        '<td>' + (i + 1) + '</td>' +
+        '<td>' + title + sub + err + '</td>' +
+        '<td>' + esc(r.region || '-') + '</td>' +
+        '<td>' + statusText(r.status) + '</td>' +
+        '<td>' + monitorTenantsCell(r) + '</td>' +
+        '<td>' + monitorNum(r, 'todayClasses') + '</td>' +
+        '<td>' + monitorNum(r, 'liveClasses') + '</td>' +
+        '<td>' + monitorNum(r, 'readyClasses') + '</td>' +
+        '<td>' + monitorNum(r, 'onlineUsers') + '</td>' +
+        '<td>' + (r.maxCapacity != null ? esc(String(r.maxCapacity)) : '-') + '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
   // 导出到 window（HTML onclick 调用）
   window.renderEclassroomInstancesPage = renderEclassroomInstancesPage;
+  window.renderEclassroomMonitorPage = renderEclassroomMonitorPage;
+  window.loadEclassroomMonitor = loadEclassroomMonitor;
   window.loadEclassroomInstances = loadEclassroomInstances;
   window.openEclassroomInstanceModal = openEclassroomInstanceModal;
   window.closeEclassroomInstanceModal = closeEclassroomInstanceModal;
