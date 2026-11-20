@@ -215,7 +215,9 @@
     };
     writeStorage('currentUser', JSON.stringify(user));
     if (data.token) writeStorage('token', data.token);
-    writeStorage('refreshToken', data.refreshToken || '');
+    // 只在后端真的下发了凭证时写。写成 '' 会把上一次有效会话的 refreshToken 覆盖掉，
+    // 结果与 login.html 那次事故同类：key 在、值为空、1 小时后刷新失败掉线。
+    if (data.refreshToken) writeStorage('refreshToken', data.refreshToken);
     return user;
   }
 
