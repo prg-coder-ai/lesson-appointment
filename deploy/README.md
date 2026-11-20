@@ -67,3 +67,65 @@ DDL 的权威位置是**本目录下的 `sql/`**（`deploy/sql/{schema,seed,patc
 
 > 另注：`doc-develop/04-部署与运维/booking.env.template`、`doc-develop/04-部署与运维/message.env.template` 是历史遗留的**同步副本**，
 > 正本在本目录。改密钥相关的东西请改这里的正本（守卫只校验正本），两份副本记得一起改。
+
+## 四、MySQL 安全基线（建库前必做）
+
+执行顺序：**账号层 → 监听层 → 网络层**，三层齐了才算「禁止 root 远程登录」。任缺一层，
+换机器 / 换镜像 / 后来临时加账号时都会静默失效。
+
+### 1. 账号层：root 只留 localhost
+
+`deploy/sql/00-create-databases.sql` 末尾已含这段（带硬断言），它会：
+
+- `DROP USER IF EXISTS 'root'@'%' / '0.0.0.0' / '::'` —— 只删**远程 host** 的 root；
+- `root@localhost` **一行都不碰**（保证本机永远还能用 root 进）；
+- 末尾断言 `root@localhost` 必须存在，缺失就让脚本以 `ERROR 1146` 中止，避免在最脆弱的
+  状态下继续跑 `schema/*.sql`（那条「表不存在」的报错是**故意设计的信号**，不是脚本 bug）。
+
+⚠️ **接管别人镜像/二手环境时，先看一眼再跑，别直接执行**：
+
+```bash
+mysql -uroot -p -e "SELECT user,host FROM mysql.user WHERE user='root'"
+```
+
+| 实际输出 | 处置 |
+|---|---|
+| 有 `root/localhost`（可能还挂着其他远程行） | 直接跑 `00-create-databases.sql`，远程行被删，localhost 保留 |
+| **只有** `root/'%'`，**没有** localhost | **先** `RENAME USER 'root'@'%' TO 'root'@'localhost';`（只改 host、密码原样保留）**再**跑脚本 —— 直接删会变成「一个 root 都不剩」，只能进 `--skip-grant-tables` 救援 |
+
+应用账号 `lesson` 必须**成对建两个 host**：`'lesson'@'127.0.0.1'`（三个服务的 JDBC 走 TCP）
++ `'lesson'@'localhost'`（运维手工 `mysql` 客户端走 socket）。只建一个的典型症状是
+「服务能连、`mysql -u lesson` 报 Access denied」。以后若要开 `skip_name_resolve=ON`，
+`localhost` 账号只对非 TCP 连接生效 —— 成对建的两个 host 正好覆盖两种情况，新加账号照此办理。
+
+### 2. 监听层：只监听回环
+
+`[mysqld]` 段（配置文件位置看服务的 `--defaults-file`，不一定是 `/etc/my.cnf`）：
+
+```ini
+bind-address = 127.0.0.1
+mysqlx-bind-address = 127.0.0.1   # X Protocol 33060 是独立监听，不写这条它仍对公网开着
+```
+
+`bind_address` 不是动态变量，**必须改文件 + 重启**（`SET PERSIST` 对它无效）。
+
+**不要用 `skip-networking`**：三个后端和 nginx 都在本机走 `jdbc:mysql://127.0.0.1:3306`，
+关掉 TCP 等于全站 500。
+
+### 3. 网络层
+
+安全组与服务器防火墙都**不放行** 3306 / 33060。需要外部连库时走 SSH 隧道：
+`ssh -L 3307:127.0.0.1:3306 user@server`。
+
+### 4. 验证（改完在服务器上跑）
+
+```bash
+mysql -uroot -p -e "SELECT user,host FROM mysql.user WHERE user='root';
+                    SELECT @@bind_address, @@mysqlx_bind_address;"
+ss -lntp | grep -E '3306|33060'          # 应只出现 127.0.0.1
+mysql -h<服务器IP> -uroot -p             # 从另一台机执行，预期失败（Host is not allowed / Connection refused）
+```
+
+> 数据库与应用**不同机**（例如接了 RDS）时，第 2 层的 `bind-address` 用不上，只能靠安全组
+> + 账号网段限定（`'lesson'@'10.0.%'`）；此时对 root 的远程限制**完全依赖网络层**，
+> 务必把 `root@'%'` 删干净。

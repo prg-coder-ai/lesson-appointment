@@ -10,7 +10,7 @@
 
 | 子目录 / 文件 | 用途 | 是否幂等 | 何时执行 |
 |---|---|---|---|
-| `00-create-databases.sql`（本目录根） | **建三库 + 应用账号授权**（三个库的字符集/排序规则与现网逐库对齐） | 是（`IF NOT EXISTS` 全程幂等） | 新环境初始化，**第 0 步** |
+| `00-create-databases.sql`（本目录根） | **建三库 + 应用账号授权 + root 远程登录收口**（三个库的字符集/排序规则与现网逐库对齐；末尾含 `root@localhost` 存在性硬断言） | 是（`IF NOT EXISTS` / `DROP USER IF EXISTS` 全程幂等） | 新环境初始化，**第 0 步** |
 | `schema/` | 建库建表（含索引、外键、CHECK 约束） | 是（等保 P0-4：DROP 已注释禁用，`CREATE TABLE IF NOT EXISTS`；仅 10-25 两个补丁里的 `ALTER` 不可重跑，见下） | 新环境初始化，第 1~2 步 |
 | `seed/` | 系统必需的基础数据（字典、术语、分类、法律文档） | 否（纯 INSERT，重复执行会主键冲突） | 新环境初始化，第 3 步 |
 | `patch/` | 历史增量补丁，**绝大多数已并入当前 schema** | 各不相同 | **仅 `20261029-1300` 与 `20261113-1200` 两条必须执行**（课堂实例种子 + ws_base_path 修正，见下文「课堂开关两条必跑」）；其余仅供追溯"某约束何时加的" |
@@ -33,6 +33,9 @@
 # 0. 建三库 + 应用账号（幂等；三条 CREATE DATABASE 的 collation 与现网逐库对齐，勿统一）
 mysql -uroot -p < deploy/sql/00-create-databases.sql
 #    ★ 执行前把文件里的 CHANGE_ME 换成真实密码；三份 /etc/lesson/*.env 的 DB_PASSWORD 必须一致
+#    ★ 文件末尾会删掉 root 的**远程 host**（保留 root@localhost）并断言它仍存在。
+#      若某镜像上 root 只有 'root'@'%'、没有 localhost，**先 RENAME 再跑**，否则会一个 root 都不剩
+#      —— 判定口径见 deploy/README.md 第四节「MySQL 安全基线」
 
 # 1. 基线表结构（两个库各自独立，可任意顺序。命令必须带库名 —— schema 文件里没有 USE）
 mysql -uroot -p lesson_appointment < deploy/sql/schema/20261013-0400-lesson_appointment-schema.sql
