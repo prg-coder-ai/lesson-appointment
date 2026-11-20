@@ -21,7 +21,7 @@
 | `nginx/conf.d/00-limit-req-zone.conf` | `/etc/nginx/conf.d/` | 限流 zone 必须放 `http{}` 上下文；漏传 → `nginx -t` 报 unknown limit_req_zone |
 | `nginx/proxy_params` | `/etc/nginx/proxy_params`（**仅当目标不存在时**） | 两份站点配置各 23 处（共 46 处） `include` 它；Debian 由 nginx-common 自带，CentOS/Anolis 没有 → 缺了 `nginx -t` 直接失败 |
 | `logrotate/lesson` | `/etc/logrotate.d/lesson` | 接管 systemd `append:` 日志的滚动（含 classroom.log）；漏装则永不滚动，写满撑爆磁盘 |
-| `backup.sh` / `healthcheck.sh` | `/opt/lesson/` | 每日备份 / 5 分钟巡检；装完必须配 cron，条目见 `upload-to-server.sh` 末尾提示 |
+| `backup.sh` / `healthcheck.sh` | `/opt/lesson/` | 每日备份（**三库 + 课堂文件目录**，库留 14 天 / oss 留 3 天）/ 5 分钟巡检；装完必须配 cron，条目见 `upload-to-server.sh` 末尾提示 |
 | `referential-integrity-20261008.sql` | 留档，按需执行 | 外键/引用完整性的一次性脚本，见 `tools/check-cascade-rules.mjs` |
 | `MVN跨平台…md` / `Maven…md` | 不上传 | 开发机参考资料 |
 
