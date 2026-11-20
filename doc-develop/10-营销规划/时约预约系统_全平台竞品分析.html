@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>时约预约系统 · 全平台竞品分析</title>
+<style>
+  :root{
+    --bg:#f5f7fa; --card:#ffffff; --ink:#1f2733; --sub:#5b6675; --line:#e6eaf0;
+    --brand:#2f6bff; --brand-soft:#eaf1ff; --ok:#1f9d6b; --warn:#e0820b; --bad:#d8453b;
+    --gray:#94a0b3; --accent:#7c5cff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.65;font-size:15px}
+  .wrap{max-width:1180px;margin:0 auto;padding:32px 24px 64px}
+  header.hero{background:linear-gradient(135deg,#2f6bff,#7c5cff);color:#fff;border-radius:18px;padding:34px 38px;margin-bottom:26px}
+  header.hero h1{margin:0 0 6px;font-size:28px;letter-spacing:.5px}
+  header.hero p{margin:0;opacity:.92;font-size:15px}
+  .tag{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);padding:3px 10px;border-radius:20px;font-size:12px;margin-right:8px;margin-top:10px}
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:26px 30px;margin-bottom:22px;box-shadow:0 1px 2px rgba(20,30,50,.04)}
+  h2{font-size:20px;margin:0 0 16px;padding-bottom:10px;border-bottom:2px solid var(--brand-soft);display:flex;align-items:center;gap:10px}
+  h2 .num{background:var(--brand);color:#fff;width:28px;height:28px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;flex:0 0 auto}
+  h3{font-size:16px;margin:20px 0 10px;color:var(--brand)}
+  p{margin:8px 0}
+  .muted{color:var(--sub);font-size:13.5px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:16px 0}
+  .kpi{background:var(--brand-soft);border:1px solid #d7e3ff;border-radius:12px;padding:16px}
+  .kpi .v{font-size:24px;font-weight:700;color:var(--brand)}
+  .kpi .l{font-size:12.5px;color:var(--sub);margin-top:2px}
+  table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px}
+  .scroll{overflow-x:auto}
+  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+  th{background:#f0f4fb;color:#2a3banchor;font-weight:600;white-space:nowrap}
+  tbody tr:nth-child(even){background:#fafbfd}
+  .yes{color:var(--ok);font-weight:600}
+  .no{color:var(--bad);font-weight:600}
+  .part{color:var(--warn);font-weight:600}
+  .pill{display:inline-block;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600}
+  .p-blue{background:#eaf1ff;color:#2f6bff}.p-green{background:#e7f7ef;color:#1f9d6b}
+  .p-orange{background:#fdefe0;color:#c46a08}.p-purple{background:#f1ecff;color:#7c5cff}.p-gray{background:#eef1f5;color:#667}
+  .bar{height:22px;background:#eef2f8;border-radius:6px;overflow:hidden;position:relative;min-width:120px}
+  .bar > span{display:block;height:100%;background:linear-gradient(90deg,#2f6bff,#7c5cff)}
+  .barlabel{font-size:12px;color:var(--sub);margin-top:4px}
+  .swot{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .swot > div{border-radius:12px;padding:16px;border:1px solid var(--line)}
+  .swot .s{background:#e7f7ef;border-color:#bfe9d4}
+  .swot .w{background:#fdefe0;border-color:#f4d6ad}
+  .swot .o{background:#eaf1ff;border-color:#cddcff}
+  .swot .t{background:#fdeaea;border-color:#f3c4c0}
+  .swot h4{margin:0 0 8px;font-size:15px}
+  ul.tight{margin:6px 0;padding-left:20px}
+  ul.tight li{margin:5px 0}
+  .note{background:#fff8e6;border-left:4px solid var(--warn);padding:12px 16px;border-radius:8px;font-size:13.5px;margin:14px 0}
+  .quote{font-style:italic;color:var(--sub);border-left:3px solid var(--brand);padding-left:12px;margin:10px 0}
+  footer{color:var(--gray);font-size:12.5px;text-align:center;margin-top:30px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:760px){.swot,.grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>时约预约系统 · 全平台竞品分析</h1>
+  <p>面向多行业预约 SaaS 赛道，覆盖国内综合平台 / 国际通用 SaaS / 垂直法律科技的横向与纵向对标</p>
+  <div>
+    <span class="tag">分析日期 2026-09-03</span>
+    <span class="tag">聚焦行业：律师咨询预约</span>
+    <span class="tag">数据来源：2025–2026 公开资料 + 产品现状</span>
+  </div>
+</header>
+
+<!-- 1. 执行摘要 -->
+<section>
+  <h2><span class="num">1</span>执行摘要</h2>
+  <p>预约 / 预订类软件已从"在线排期工具"演进为"服务业务运营平台"。2025 年全球在线预约软件市场规模约 <b>6.5 亿美元</b>，呈现高度碎片化：头部由通用 SaaS（Calendly、Acuity、Square Appointments）与垂直龙头（MINDBODY、Clio）分据，且巨头正通过并购整合（Squarespace 收购 Acuity、Block 收购 Square）。</p>
+  <p><b>对"时约"而言，最关键的结论是：国际头部产品在中国市场存在结构性本地化壁垒。</b>受微信小程序 ICP 备案与微信支付主体限制，Calendly / Acuity / Square / Setmore 等无法在境内提供小程序预约、微信支付与企微触达——这正是时约（微信原生 + 多租户多行业）的天然护城河。同时，用户当前聚焦的<b>律师咨询预约</b>赛道，国内几乎没有"微信原生 + 法律垂直"的成熟产品，Clio / LawTap / Lawmatics 等虽功能深但均未本地化。</p>
+  <div class="cards">
+    <div class="kpi"><div class="v">~6.5 亿$</div><div class="l">2025 全球在线预约软件市场规模</div></div>
+    <div class="kpi"><div class="v">38.4%</div><div class="l">SMB / 企业客户占比（最大细分）</div></div>
+    <div class="kpi"><div class="v">0</div><div class="l">国际头部产品在中国的"小程序+微信支付"可达性</div></div>
+    <div class="kpi"><div class="v">空白</div><div class="l">国内"微信原生法律预约"赛道竞争度</div></div>
+  </div>
+  <div class="note"><b>一句话策略：</b>时约应避开与国际通用 SaaS 在"标准化会议调度"上的正面竞争，以<b>微信生态原生能力 + 多租户多行业模板 + 律师咨询垂直深耕（利益冲突检查 / 案件关联 / 合规）</b>建立差异化，复制 Timerise「Own your booking（数据 / 源码自有）」的卖点对抗平台锁定。</div>
+</section>
+
+<!-- 2. 时约定位 -->
+<section>
+  <h2><span class="num">2</span>时约产品定位（分析锚点）</h2>
+  <p class="muted">以下基于时约当前产品现状（多租户 SaaS 架构）归纳，作为竞品分析的对照基准。</p>
+  <table>
+    <tr><th style="width:160px">维度</th><th>现状描述</th></tr>
+    <tr><td>产品形态</td><td>支持多行业的预约系统 SaaS，正从单租户迁移至<b>多租户（SaaS）架构</b></td></tr>
+    <tr><td>技术栈</td><td>Spring Boot 3.3.5 + MyBatis-Plus 3.5.7 + Java 17 + Tomcat 10（jakarta），多租户隔离采用 TenantLineInnerInterceptor</td></tr>
+    <tr><td>套餐模型</td><td>三层结构：<code>sys_package_template</code>（模板）→ <code>sys_tenant.package_id</code> → <code>sys_tenant_package</code>（每租户实例），支持灵活分级定价</td></tr>
+    <tr><td>多语言</td><td><code>sys_term</code> 新增 language 字段，术语作用域三级优先级：平台词 &lt; 行业词 &lt; 租户词</td></tr>
+    <tr><td>当前聚焦行业</td><td><b>律师咨询预约</b>（lawyer / consultant / consultation），含促销页、术语映射</td></tr>
+    <tr><td>平台覆盖</td><td>Web 后台 / H5 移动端 / 微信小程序（规划与落地中）/ 开放 API；微信支付与企微触达为原生能力</td></tr>
+    <tr><td>核心卖点</td><td>多行业可复制、微信生态原生、租户级数据隔离、源码 / 数据自有可控</td></tr>
+  </table>
+</section>
+
+<!-- 3. 市场概况 -->
+<section>
+  <h2><span class="num">3</span>市场概况：规模、细分与趋势</h2>
+  <h3>3.1 按终端用户的细分市场份额（2025）</h3>
+  <div class="grid2">
+    <div>
+      <table>
+        <tr><th>细分市场</th><th style="width:130px">规模 / 占比</th></tr>
+        <tr><td>企业 &amp; SMB（Corporate/SMEs）</td><td><div class="bar"><span style="width:100%"></span></div><div class="barlabel">$251.4M · 38.4%</div></td></tr>
+        <tr><td>医疗 &amp; 健康（Healthcare/Wellness）</td><td><div class="bar"><span style="width:72%"></span></div><div class="barlabel">$181.1M · 27.7%</div></td></tr>
+        <tr><td>教育（Education）</td><td><div class="bar"><span style="width:36%"></span></div><div class="barlabel">$91.8M · 14.0%</div></td></tr>
+        <tr><td>美业 &amp; 个护（Beauty/Personal Care）</td><td><div class="bar"><span style="width:31%"></span></div><div class="barlabel">$77.9M · 11.9%</div></td></tr>
+        <tr><td>其他（Others）</td><td><div class="bar"><span style="width:21%"></span></div><div class="barlabel">$52.8M · 8.1%</div></td></tr>
+      </table>
+    </div>
+    <div>
+      <p class="muted">数据说明：市场份额按终端用户（End User）价值口径，来源为 2025 年在线调度软件市场研究公开报告。中国市场的"本地生活 / 到店预约"通常归入 SMB/企业与企业&零售，未单列。</p>
+      <p><b>解读：</b></p>
+      <ul class="tight">
+        <li>SMB / 企业是最大基本盘，但标准化程度高、价格敏感，易被巨头与平台型产品挤压。</li>
+        <li>医疗健康（27.7%）与美业（11.9%）是垂直化最强的两大场景，对合规、排班、会员有深需求。</li>
+        <li><b>法律 / 专业服务</b>在通用统计中多并入 SMB 或 Healthcare，但其"预约 + 案件 + 合规"的特殊性未被通用产品满足——这是时约的切入点。</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>3.2 五大趋势</h3>
+  <ul class="tight">
+    <li><b>从预约工具 → 运营平台：</b>预约与支付、会员、营销、排班、库存打通，单点预约难以差异化。</li>
+    <li><b>AI 集成：</b>智能排期建议、客户偏好分析、自动提醒与跟进成为新标配。</li>
+    <li><b>垂直化深耕：</b>MINDBODY（健身美业）、Clio（法律）、Booksy（美业）以行业工作流建立壁垒。</li>
+    <li><b>巨头整合：</b>Squarespace 收购 Acuity、Block 收购 Square，生态绑定降低切换摩擦。</li>
+    <li><b>碎片化竞争 + 时间价值：</b>厂商靠"缩短上线周期（time-to-value）+ 预约/支付/运营闭环"维持优势（TIMIFY 2025 大版本即例证）。</li>
+  </ul>
+</section>
+
+<!-- 4. 竞品全景 -->
+<section>
+  <h2><span class="num">4</span>竞品全景地图</h2>
+  <p>按"是否中国可达 + 行业专注度"将竞品分为四类：</p>
+  <table>
+    <tr><th style="width:200px">类别</th><th>代表产品</th><th>共性</th><th>对时约的威胁度</th></tr>
+    <tr><td><span class="pill p-blue">国内综合 SaaS</span><br>（含预约模块）</td><td>微盟、有赞、美团、腾讯智慧零售、小鹅通、客如云、科脉、银豹</td><td>微信生态原生、全渠道获客、会员/营销/收银一体，但预约只是其庞大功能中的一环</td><td><span class="part">中高</span>（降维打击风险）</td></tr>
+    <tr><td><span class="pill p-purple">国际通用 SaaS</span></td><td>Calendly、Acuity、Square Appointments、Setmore、SimplyBook.me、Booksy、Appointy、Zoho Bookings、TIMIFY</td><td>产品成熟、集成丰富，但<b>中国不可达</b>（无小程序/微信支付）</td><td><span class="no">低（在中国）</span></td></tr>
+    <tr><td><span class="pill p-green">垂直法律科技</span></td><td>Clio、Lawmatics、MyCase、Lawcus、LawTap、Agiled、PracticePanther、Rocket Matter</td><td>法律工作流深（利益冲突检查、案件管理、合规），但<b>未本地化</b>、无微信</td><td><span class="part">中</span>（仅限出海/外所）</td></tr>
+    <tr><td><span class="pill p-orange">垂直其他</span></td><td>MINDBODY（健身美业）、Checkfront / FareHarbor / Peek Pro（旅游/活动/租赁）</td><td>行业模板深、资源/库存管理强</td><td><span class="no">低</span>（赛道不同）</td></tr>
+  </table>
+</section>
+
+<!-- 5. 核心竞品对比矩阵 -->
+<section>
+  <h2><span class="num">5</span>核心竞品对比矩阵</h2>
+
+  <h3>5.1 国内综合 SaaS（预约相关能力）</h3>
+  <div class="scroll">
+  <table>
+    <tr><th>产品</th><th>预约能力</th><th>平台覆盖</th><th>优势行业</th><th>与时约关系</th></tr>
+    <tr><td><b>微盟</b></td><td>智慧服务/预约锁客、电子次卡、智能排班、先约后付</td><td>Web/小程序/App/企微/POS</td><td>本地生活、美业、零售</td><td>同生态竞品，预约为其子集</td></tr>
+    <tr><td><b>有赞</b></td><td>门店预约+会员+卡券一体、到店/上门</td><td>Web/小程序/App</td><td>美业、健身、家政、零售</td><td>同生态竞品，连锁管理强</td></tr>
+    <tr><td><b>美团</b></td><td>到店预约+本地流量分发</td><td>App/小程序</td><td>全行业到店</td><td>流量型，数据/系统不归商家</td></tr>
+    <tr><td><b>腾讯智慧零售</b></td><td>预约+私域运营</td><td>小程序/企微</td><td>零售</td><td>腾讯背书，生态重叠</td></tr>
+    <tr><td><b>小鹅通</b></td><td>课程/直播预约</td><td>小程序/H5/App</td><td>教育、知识付费</td><td>知识场景竞品</td></tr>
+    <tr><td><b>客如云 / 科脉 / 银豹</b></td><td>收银+预约一体（门店）</td><td>POS/App/小程序</td><td>餐饮、零售、中小门店</td><td>硬件+收银型竞品</td></tr>
+  </table>
+  </div>
+
+  <h3>5.2 国际通用 SaaS（定价与平台）</h3>
+  <div class="scroll">
+  <table>
+    <tr><th>产品</th><th>定位</th><th>起步价（月）</th><th>平台</th><th>中国可达性</th></tr>
+    <tr><td><b>Calendly</b></td><td>会议/咨询调度，集成最广</td><td>Free / $12–20 / 席</td><td>Web/iOS/Android/API</td><td><span class="no">无小程序/微信支付</span></td></tr>
+    <tr><td><b>Acuity</b>（Squarespace）</td><td>服务预约，含收款/ Intake 表单</td><td>$20–61</td><td>Web/App/API</td><td><span class="no">同上</span></td></tr>
+    <tr><td><b>Square Appointments</b></td><td>预约 + POS 一体</td><td>Free / $29–69 / 门店</td><td>Web/App</td><td><span class="no">绑定 Square 支付</span></td></tr>
+    <tr><td><b>Setmore</b></td><td>通用预约，免费版慷慨</td><td>Free / $5–12 / 用户</td><td>Web/App/桌面</td><td><span class="no">同上</span></td></tr>
+    <tr><td><b>SimplyBook.me</b></td><td>高度可定制、白标、多支付</td><td>Free / $8.25–49.9</td><td>Web/App/API</td><td><span class="no">同上</span></td></tr>
+    <tr><td><b>Booksy</b></td><td>美业移动优先</td><td>$29.99+</td><td>App 为主</td><td><span class="no">同上</span></td></tr>
+    <tr><td><b>MINDBODY</b></td><td>健身/美业/健康一体</td><td>定制</td><td>App/Web</td><td><span class="no">同上</span></td></tr>
+    <tr><td><b>Zoho Bookings</b></td><td>Zoho 生态内预约</td><td>$6–9 / 员工</td><td>Web</td><td><span class="no">同上</span></td></tr>
+    <tr><td><b>TIMIFY</b></td><td>企业级资源预约</td><td>企业级</td><td>Web/App/API</td><td><span class="no">同上</span></td></tr>
+  </table>
+  </div>
+
+  <h3>5.3 垂直法律科技（律师咨询赛道）</h3>
+  <div class="scroll">
+  <table>
+    <tr><th>产品</th><th>预约能力</th><th>法律专属能力</th><th>定价</th><th>中国本地化</th></tr>
+    <tr><td><b>Clio</b></td><td>Clio Scheduler</td><td>案件管理、计时计费、冲突检查、客户门户</td><td>$49–188 / 用户</td><td><span class="no">无中文/无微信</span></td></tr>
+    <tr><td><b>Lawmatics</b></td><td>✓ Intake 驱动</td><td>法律 CRM、利益冲突检查、电子签</td><td>定制</td><td><span class="no">无</span></td></tr>
+    <tr><td><b>LawTap</b></td><td>✓ 法律专用</td><td>利益冲突自动检测、留存金收款</td><td>定制</td><td><span class="no">无</span></td></tr>
+    <tr><td><b>MyCase / Lawcus / Agiled</b></td><td>✓</td><td>案件/管道/自动化一体化</td><td>定制</td><td><span class="no">无</span></td></tr>
+    <tr><td><b>Koalendar</b></td><td>✓ 轻量</td><td>仅预约+表单，非法律 PM</td><td>Free / $6.99</td><td><span class="no">无</span></td></tr>
+    <tr><td><b>Calendly / Acuity</b></td><td>✓ 通用</td><td>仅 Intake 表单，无冲突检查</td><td>前述</td><td><span class="no">无</span></td></tr>
+  </table>
+  </div>
+  <div class="note">关键洞察：法律预约的核心差异化不在"能约时间"，而在<b>利益冲突检查（conflict-check）、案件（matter）关联、保密合规、留存金/电子签</b>。国际产品深但<b>全部未本地化</b>，国内"微信原生法律预约"几乎空白。</div>
+</section>
+
+<!-- 6. 全平台覆盖对比 -->
+<section>
+  <h2><span class="num">6</span>全平台覆盖能力对比（核心差异点）</h2>
+  <p>预约系统的"平台"不仅指 App，更指<b>客户触达渠道</b>。下表对比各阵营在中国市场真正可用的平台能力：</p>
+  <div class="scroll">
+  <table>
+    <tr><th>平台能力</th><th>时约（规划/现状）</th><th>微盟/有赞/美团</th><th>国际通用 SaaS</th><th>垂直法律 SaaS</th></tr>
+    <tr><td>Web 管理后台</td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td></tr>
+    <tr><td>客户 H5 移动端</td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td></tr>
+    <tr><td><b>微信小程序预约</b></td><td><span class="yes">✓（规划）</span></td><td><span class="yes">✓</span></td><td><span class="no">✗ 不可达</span></td><td><span class="no">✗</span></td></tr>
+    <tr><td><b>微信支付</b></td><td><span class="yes">✓ 原生</span></td><td><span class="yes">✓</span></td><td><span class="no">✗ 需境内主体</span></td><td><span class="no">✗</span></td></tr>
+    <tr><td><b>企微 / 公众号触达</b></td><td><span class="part">△ 可扩展</span></td><td><span class="yes">✓</span></td><td><span class="no">✗</span></td><td><span class="no">✗</span></td></tr>
+    <tr><td>iOS / Android 独立 App</td><td><span class="part">△ 可规划</span></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="yes">✓</span></td></tr>
+    <tr><td>开放 API / 集成</td><td><span class="part">△ 进行中</span></td><td><span class="yes">✓</span></td><td><span class="yes">✓ 丰富</span></td><td><span class="yes">✓</span></td></tr>
+    <tr><td>多租户 / 多行业</td><td><span class="yes">✓ 架构原生</span></td><td><span class="part">△ 偏单商家</span></td><td><span class="part">△ 多席位</span></td><td><span class="no">✗ 单律所</span></td></tr>
+    <tr><td>源码 / 数据自有</td><td><span class="yes">✓ 可控</span></td><td><span class="no">✗ 平台锁定</span></td><td><span class="no">✗ 订阅</span></td><td><span class="no">✗ 订阅</span></td></tr>
+  </table>
+  </div>
+  <p class="muted">✓ 具备 ｜ △ 部分/规划 ｜ ✗ 不具备或中国不可达。国际 SaaS 的"不可达"源于微信政策：境外主体小程序无法完成 ICP 备案、境内用户无法搜索；微信支付需境内企业主体与商户号。</p>
+</section>
+
+<!-- 7. 中国本地化壁垒 -->
+<section>
+  <h2><span class="num">7</span>中国市场本地化壁垒：时约的结构性护城河</h2>
+  <p>这是全平台分析中对时约最有利的结论。国际产品的技术能力很强，但落地中国受四道硬墙限制：</p>
+  <ul class="tight">
+    <li><b>① 小程序备案墙：</b>境外主体小程序无法完成工信部 ICP 备案，<b>境内用户无法通过搜索访问</b>；需分别注册大陆（境内主体+备案+认证）与港澳（境外主体）两套小程序。</li>
+    <li><b>② 支付墙：</b>微信支付需境内注册企业 + 商户号 + 类目资质审核，境外 99 美元注册的小程序<b>无法开通境内微信支付</b>。</li>
+    <li><b>③ 触达墙：</b>国内私域运营核心在企微 / 公众号 / 小程序订阅消息，国际产品无此通道，提醒与复购链路断裂。</li>
+    <li><b>④ 合规墙：</b>境内数据驻留、个人信息保护、行业监管（如法律利益冲突、医疗隐私）要求本土化部署与流程。</li>
+  </ul>
+  <div class="quote">"境外主体小程序仅适用于非大陆地区用户；建议通过境内实体公司注册小程序以实现大陆地区的完整功能。" —— 微信开放社区官方说明</div>
+  <p><b>时约的对应优势：</b>作为境内自研、微信原生、支持微信支付与（可扩展）企微触达、且多租户架构天然适配多商家——国际竞品在中国市场短期内难以逾越这四道墙。时约应把"微信原生 + 合规可达"作为首要营销语言。</p>
+</section>
+
+<!-- 8. 垂直聚焦：律师咨询 -->
+<section>
+  <h2><span class="num">8</span>垂直聚焦：律师咨询预约赛道</h2>
+  <p>用户当前聚焦 lawyer / consultant / consultation，该赛道有独特信号：</p>
+  <ul class="tight">
+    <li><b>需求刚性：</b>研究显示 82% 潜在客户在无法便捷预约咨询时会放弃；使用专用调度软件的律所爽约率降低 67%、咨询量提升 43%。</li>
+    <li><b>通用工具缺口：</b>Calendly / Acuity 能做预约，但<b>无利益冲突检查、无案件关联、无留存金/电子签</b>，律所仍需拼接多系统。</li>
+    <li><b>专业 PM 未本地化：</b>Clio / LawTap / Lawmatics 功能深但全为英文、无微信、无境内合规，国内中小律所与外所中国办公室用不了。</li>
+    <li><b>国内竞品空白：</b>法大大等侧重电子合同而非"预约+案件+合规"闭环；微盟/有赞的预约模板不含法律工作流。</li>
+  </ul>
+  <h3>时约的律师咨询差异化功能清单（建议优先级）</h3>
+  <table>
+    <tr><th style="width:200px">能力</th><th>优先级</th><th>说明</th></tr>
+    <tr><td>微信小程序咨询预约</td><td><span class="pill p-green">P0</span></td><td>客户免 App、微信内一键预约，对标国际产品最大短板</td></tr>
+    <tr><td>咨询 Intake 表单（按案件类型）</td><td><span class="pill p-green">P0</span></td><td>预约前采集案由/当事人信息，结构化落库</td></tr>
+    <tr><td>利益冲突检查（conflict-check）</td><td><span class="pill p-orange">P1</span></td><td>预约/建档时校验对方当事人冲突，法律核心合规</td></tr>
+    <tr><td>案件（matter）关联与留存金</td><td><span class="pill p-orange">P1</span></td><td>预约关联案件、微信支付收留存金/咨询费</td></tr>
+    <tr><td>电子签 + 保密合规</td><td><span class="pill p-purple">P2</span></td><td>委托协议线上签，可对接法大大等</td></tr>
+    <tr><td>多租户律所 / 律师分账</td><td><span class="pill p-blue">P1</span></td><td>一套系统服务多家律所，按坐席/套餐计费</td></tr>
+  </table>
+</section>
+
+<!-- 9. SWOT -->
+<section>
+  <h2><span class="num">9</span>时约 SWOT 分析</h2>
+  <div class="swot">
+    <div class="s"><h4>优势 Strengths</h4>
+      <ul class="tight">
+        <li>多租户架构原生支持多行业、多商家复制</li>
+        <li>微信生态原生：小程序/支付/（企微）触达</li>
+        <li>三层套餐模型，灵活分级定价</li>
+        <li>多语言术语体系（sys_term 三级作用域）</li>
+        <li>源码/数据自有可控，无平台锁定</li>
+        <li>律师咨询垂直已起步，可建立行业模板</li>
+      </ul>
+    </div>
+    <div class="w"><h4>劣势 Weaknesses</h4>
+      <ul class="tight">
+        <li>品牌新、市场认知低、案例稀缺</li>
+        <li>集成生态弱（支付/短信/日历/CRM 待补）</li>
+        <li>AI/自动化、营销工具尚未成型</li>
+        <li>无独立 App、无 POS/硬件能力</li>
+        <li>开放 API 与开发者生态尚在早期</li>
+      </ul>
+    </div>
+    <div class="o"><h4>机会 Opportunities</h4>
+      <ul class="tight">
+        <li>国际头部产品中国不可达（四道本地化墙）</li>
+        <li>国内"微信原生法律预约"空白</li>
+        <li>微信生态红利 + 私域运营刚需</li>
+        <li>多行业模板可快速复制到医美/健身/教育</li>
+        <li>中小商家"数据/源码自有"诉求上升（对标 Timerise）</li>
+      </ul>
+    </div>
+    <div class="t"><h4>威胁 Threats</h4>
+      <ul class="tight">
+        <li>微盟/有赞/美团降维打击（预约仅为其子集）</li>
+        <li>微信官方预约组件分流轻量需求</li>
+        <li>巨头并购整合、生态绑定降低切换率</li>
+        <li>获客成本与下沉市场教育成本</li>
+        <li>垂直法律 PM 若本地化将正面竞争</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 10. 策略建议 -->
+<section>
+  <h2><span class="num">10</span>差异化竞争策略建议</h2>
+  <ul class="tight">
+    <li><b>1. 锚定"微信原生 + 合规可达"为第一卖点。</b>在营销中直击国际产品四道墙，强调小程序预约、微信支付、企微提醒、境内数据合规一步到位。</li>
+    <li><b>2. 律师咨询做深做透再横向复制。</b>先把 P0/P1 法律能力（预约+Intake+冲突检查+留存金+多租户分账）打磨为行业模板，再抽象为多行业套餐（lawyer → consultant → 医美 → 健身 → 教育）。</li>
+    <li><b>3. 对抗平台锁定，主打"Own your booking"。</b>借鉴 Timerise 的"源码/数据自有、IP 归属客户"叙事，吸引不愿被微盟/有赞绑定的中大型商家与连锁。</li>
+    <li><b>4. 补齐集成短板而非全自研。</b>优先接入微信支付、短信、企业微信、主流日历（Google/Outlook 国内可用 Exchange）、法大大电子签；用开放 API 建生态。</li>
+    <li><b>5. 定价分层对齐市场。</b>参考国际 $6–60 / 月 / 席 与国内 SaaS 订阅+交易佣金混合模式，结合三层套餐（模板→租户→实例）做"基础版免费/按行业套餐/按坐席"组合。</li>
+    <li><b>6. 用多租户降本获客。</b>以"一套系统服务 N 家律所/门店"的 SaaS 模式，对比 Clio 单律所高客单价，切入中小律所与连锁服务商家。</li>
+  </ul>
+</section>
+
+<footer>
+  数据来源：2025–2026 年公开行业报告（在线调度软件市场研究、预约与会员管理系统中国市场研究）、各产品官网与第三方评测（Capterra / Trustpilot / Zapier 等）、微信开放社区官方政策说明。产品现状部分基于时约当前架构描述，定价为公开标价、以各官网为准。本报告供内部竞品研判使用，禁止外传。
+</footer>
+
+</div>
+</body>
+</html>

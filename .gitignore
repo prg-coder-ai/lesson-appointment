@@ -151,3 +151,4 @@ data/oss/
 doc-develop/certs/
 
 api/classroom-service/data/oss/material
+api/classroom-service/target/
