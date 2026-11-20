@@ -5,10 +5,17 @@ import com.reservation.entity.EclassroomInstance;
 import com.reservation.entity.TenantEclassroom;
 import com.reservation.mapper.EclassroomInstanceMapper;
 import com.reservation.mapper.TenantEclassroomMapper;
+import com.reservation.utils.JwtUtil;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
 import java.util.List;
@@ -29,6 +36,24 @@ public class EclassroomService {
     private EclassroomInstanceMapper instanceMapper;
     @Autowired
     private TenantEclassroomMapper tenantEclassroomMapper;
+    @Autowired
+    private JwtUtil jwtUtil;
+
+    /** 服务间调用的主体标识（与 ClassroomEventPushService 同口径，role=system 会被课堂侧豁免开关校验）。 */
+    private static final String SYSTEM_PRINCIPAL = "system";
+
+    /** 清缓存用的轻量客户端（懒建一次，不复用事件推送那个 5 秒读超时的实例）。 */
+    private RestTemplate evictClient;
+
+    @PostConstruct
+    private void initEvictClient() {
+        SimpleClientHttpRequestFactory f = new SimpleClientHttpRequestFactory();
+        // 平台管理员点「启用/禁用」不该被课堂服务的慢响应拖住：连不上就放弃，
+        // 由课堂侧的 5 分钟 TTL 自然过期兜底（见 classroom-service TenantEclassroomService.CACHE_TTL_MS）。
+        f.setConnectTimeout(800);
+        f.setReadTimeout(1500);
+        this.evictClient = new RestTemplate(f);
+    }
 
     // ==================== 租户课堂配置查询 ====================
 
@@ -61,6 +86,32 @@ public class EclassroomService {
         config.put("wsBaseUrl", buildWsUrl(instance));
         config.put("config", te.getConfig());
         return config;
+    }
+
+    /**
+     * 批量查询多租户的课堂开关状态（平台端租户列表展示用，2026-11-20）。
+     *
+     * <p>一次 IN 查询代替逐行调用，避免列表页 N+1。返回 tenantId → enabled
+     * （1=启用 / 0=禁用）；**不在 map 里的 tenantId = 从未绑定（未开通）**，
+     * 调用方据此把 null 与 0 区分开。
+     *
+     * <p>表 sys_tenant_eclassroom 没有进 IGNORE_TABLES，但平台管理员 tenantId=0 时
+     * 租户插件整体短路（见 MyBatisPlusConfig#ignoreTable），所以这里能查到全部租户。
+     */
+    public Map<Long, Integer> batchClassroomEnabled(List<Long> tenantIds) {
+        Map<Long, Integer> result = new HashMap<>();
+        if (tenantIds == null || tenantIds.isEmpty()) return result;
+        List<TenantEclassroom> rows = tenantEclassroomMapper.selectList(
+                new LambdaQueryWrapper<TenantEclassroom>()
+                        .select(TenantEclassroom::getTenantId, TenantEclassroom::getEnabled)
+                        .in(TenantEclassroom::getTenantId, tenantIds));
+        if (rows == null) return result;
+        for (TenantEclassroom te : rows) {
+            if (te != null && te.getTenantId() != null) {
+                result.put(te.getTenantId(), te.getEnabled());
+            }
+        }
+        return result;
     }
 
     /**
@@ -99,6 +150,8 @@ public class EclassroomService {
             tenantEclassroomMapper.updateById(existing);
         }
         log.info("租户{}绑定课堂实例{}, operator={}", tenantId, instanceId, operator);
+        // 刚启用：课堂侧可能还缓存着「未开通(false)」，不清就要等 5 分钟 TTL 才放行
+        evictRemoteCache(tenantId, resolveApiBaseUrlRaw(tenantId));
     }
 
     /**
@@ -112,17 +165,24 @@ public class EclassroomService {
         te.setEnabled(0);
         tenantEclassroomMapper.updateById(te);
         log.info("租户{}禁用课堂, operator={}", tenantId, operator);
+        // 禁用必须立刻生效：课堂侧缓存着 enabled=true 时，被停用/欠费的租户还能再进 5 分钟课堂。
+        // 这里取地址用的是 resolveApiBaseUrlRaw（不看 enabled），否则刚置 0 就取不到实例地址了。
+        evictRemoteCache(tenantId, resolveApiBaseUrlRaw(tenantId));
     }
 
     /**
      * 解绑租户课堂（删除关联记录）
      */
     public void unbindTenantClassroom(Long tenantId, String operator) {
+        // 必须在删行**之前**取地址：删完 getTenantEclassroom 就查不到了，
+        // 课堂侧那 5 分钟缓存也就没法主动清（解绑后它仍会认为"已开通"）。
+        String apiBaseUrl = resolveApiBaseUrlRaw(tenantId);
         LambdaQueryWrapper<TenantEclassroom> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(TenantEclassroom::getTenantId, tenantId);
         //cascade:none 测试
         tenantEclassroomMapper.delete(wrapper);
         log.info("租户{}解绑课堂, operator={}", tenantId, operator);
+        evictRemoteCache(tenantId, apiBaseUrl);
     }
 
     /**
@@ -174,6 +234,60 @@ public class EclassroomService {
         instance.setDeleted(1);
         instanceMapper.updateById(instance);
         log.info("删除课堂实例: id={}, code={}", instanceId, instance.getInstanceCode());
+    }
+
+    // ==================== 课堂开关缓存失效（跨服务，2026-11-20） ====================
+
+    /**
+     * 取租户绑定实例的 API 根 —— **不看 enabled**。
+     *
+     * <p>为什么需要它：{@link #getTenantClassroomApiBaseUrl} 在 enabled=0 时返回 null，
+     * 而「禁用 / 解绑」恰恰是刚把 enabled 置 0（或把行删掉）之后还要回调课堂服务的场景，
+     * 用原方法会取不到地址，缓存也就清不掉。
+     */
+    private String resolveApiBaseUrlRaw(Long tenantId) {
+        if (tenantId == null || tenantId == 0L) return null;
+        TenantEclassroom te = getTenantEclassroom(tenantId);
+        if (te == null || te.getInstanceId() == null) return null;
+        EclassroomInstance instance = instanceMapper.selectById(te.getInstanceId());
+        if (instance == null || Integer.valueOf(1).equals(instance.getDeleted())) return null;
+        return buildApiUrl(instance);
+    }
+
+    /**
+     * 通知 classroom-service 立刻丢掉该租户的课堂开关缓存。
+     *
+     * <p>背景：课堂侧 {@code hasClassroomEnabled} 有 5 分钟内存缓存，平台「禁用」之后
+     * 该租户最多还能进课堂 5 分钟 —— 对已停用/欠费的租户不好解释；「刚启用」同理，
+     * 明明开了却还要等 5 分钟才放行。改库之后主动打一次内部端点即可立刻生效。
+     *
+     * <p>三个刻意的选择：
+     * <ul>
+     *   <li>**整段吞异常**：平台侧开关已经落库成功，通知失败不能反过来把操作变成报错；
+     *       课堂侧最迟 5 分钟自然过期，等于退回改动前的行为。</li>
+     *   <li>超时压到 800ms/1500ms：这是平台管理员的点击路径，宁可放弃也不能卡住页面。</li>
+     *   <li>带 role=system 的短票：课堂侧 AuthInterceptor 对 system 角色豁免课堂开关校验，
+     *       否则"禁用后清缓存"这一步自己就会被 403 挡住。</li>
+     * </ul>
+     */
+    private void evictRemoteCache(Long tenantId, String apiBaseUrl) {
+        if (tenantId == null || tenantId == 0L) return;
+        if (apiBaseUrl == null || apiBaseUrl.isBlank()) return;
+        try {
+            String token = jwtUtil.generateToken(tenantId, SYSTEM_PRINCIPAL, SYSTEM_PRINCIPAL);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(token);
+            String url = apiBaseUrl + "/system/eclassroom/tenant/" + tenantId + "/evict";
+            ResponseEntity<Map> resp = evictClient.postForEntity(url, new HttpEntity<>(headers), Map.class);
+            if (resp.getStatusCode().is2xxSuccessful()) {
+                log.info("[eclassroom] 已通知课堂服务清租户{}开关缓存", tenantId);
+            } else {
+                log.warn("[eclassroom] 清缓存返回非2xx, tenantId={}, status={}", tenantId, resp.getStatusCode());
+            }
+        } catch (Exception e) {
+            log.warn("[eclassroom] 通知课堂服务清缓存失败(缓存最迟5分钟过期), tenantId={}, err={}",
+                    tenantId, e.getMessage());
+        }
     }
 
     // ==================== 内部工具 ====================

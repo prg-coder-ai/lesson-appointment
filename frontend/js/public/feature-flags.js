@@ -165,8 +165,11 @@
     });
   }
 
-  function guardClassroom() {
-    if (hasClassroom()) return true;
+  /**
+   * 课堂未开通时的统一出口：退回当前角色首页（未登录则回登录页，并带上 redirect 便于回跳）。
+   * 抽出来是因为 guardClassroom 现在有「同步退回」和「核对后退回」两条路径。
+   */
+  function redirectAwayFromClassroom() {
     var role = '';
     try {
       var user = JSON.parse(localStorage.getItem('currentUser') || '{}');
@@ -202,6 +205,36 @@
         ? './' + target + '?redirect=' + encodeURIComponent(back)
         : './' + target;
     }
+  }
+
+  /**
+   * 课堂页面守卫。
+   *
+   * 【2026-11-20 修正】原来「hasClassroom() 为假就立刻退回」有一个致命前提没成立：
+   * hasClassroom() 读的是 localStorage 快照，配置为 null（刚登录还没写、换租户、缓存被清）
+   * 时它同样是 false。于是「本标签页还没核对过」会被当成「未开通」，把刚开通租户的用户
+   * 直接踢出课堂 —— 与 applyMenuVisibility 早年「课堂菜单消失」是同一类误判。
+   *
+   * 现在分两种：
+   *   - 本标签页已核对过（isVerified）→ 直接按结果判，未开通立即退回（返回 false）；
+   *   - 还没核对过 → 先放行当前帧，异步核对一次；只有后端**明确**返回 enabled!==true 才退回。
+   *     拿不到配置（未登录 / 网络 / 接口异常）不在这里踢人，交给页面自身的登录守卫处理。
+   *
+   * @returns {boolean} true=当前可继续渲染；false=已决定退回（调用方应 return）
+   */
+  function guardClassroom() {
+    if (hasClassroom()) return true;
+
+    if (!isVerified()) {
+      ensureConfig(true).then(function (cfg) {
+        if (cfg === null) return;           // 未知，不据此踢人
+        if (cfg.enabled === true) return;   // 确实开通
+        redirectAwayFromClassroom();
+      });
+      return true;
+    }
+
+    redirectAwayFromClassroom();
     return false;
   }
 
