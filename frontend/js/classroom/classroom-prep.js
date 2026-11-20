@@ -121,7 +121,31 @@
     _devBusy: false,
     _probeDone: false,       // 是否已用默认设备取过一次权限（label 只有授权后才有）
 
+    /**
+     * 入口：先过课堂开关，再启动页面（2026-11-20）。
+     *
+     * 本页原来完全不看租户是否开通课堂 —— 未开通租户的教师/学生拿到历史链接、书签、
+     * 或消息里残留的链接，仍能打开设备检测页，点「进入课堂」才被 classroom-service 的
+     * AuthInterceptor 403 拦住（表现是"半路被踢"）。
+     *
+     * 顺序刻意是「先核对、再判」：localStorage 里的 eclassroomConfig 可能是上一次会话的快照
+     * （平台刚禁用 / 刚开通），直接按它判会闪一下再跳或漏拦。核对失败（未登录 / 网络）时
+     * guardClassroom 不会踢人，交给页面自身的登录守卫处理。
+     */
     run: function () {
+      var self = this;
+      var gate = function () {
+        if (typeof window.guardClassroom === 'function' && !window.guardClassroom()) return;
+        self.doRun();
+      };
+      if (typeof window.ensureClassroomConfig === 'function') {
+        window.ensureClassroomConfig(true).then(gate).catch(gate);
+        return;
+      }
+      gate();
+    },
+
+    doRun: function () {
       this.key = param('scheduleId');
       this.student = param('mode') === 'student';
       if (!this.key) {
