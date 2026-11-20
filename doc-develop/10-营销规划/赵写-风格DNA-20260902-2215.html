@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>赵写-风格DNA-20260902-2215</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+:root {
+  --brand: #0052D9;
+  --brand-soft: #E8F0FE;
+  --brand-deep: #003A99;
+  --ink: #1F2329;
+  --ink-2: #4E5969;
+  --ink-3: #86909C;
+  --line: #E5E6EB;
+  --bg: #F7F8FA;
+  --surface: #FFFFFF;
+  --warn: #FF7D00;
+  --warn-soft: #FFF7E8;
+  --ok: #00B42A;
+  --ok-soft: #E8FFEA;
+  --danger: #F53F3F;
+  --danger-soft: #FFECE8;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 32px 20px;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+.container { max-width: 880px; margin: 0 auto; }
+.banner {
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-deep) 100%);
+  color: #fff;
+  padding: 28px 32px;
+  border-radius: 16px 16px 0 0;
+  position: relative;
+  overflow: hidden;
+}
+.banner::after {
+  content: "";
+  position: absolute;
+  right: -40px; top: -40px;
+  width: 200px; height: 200px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 50%;
+}
+.banner .brand-tag {
+  font-size: 13px;
+  color: rgba(255,255,255,0.85);
+  margin: 0 0 10px 0;
+  letter-spacing: 0.3px;
+  position: relative;
+  z-index: 1;
+}
+.banner .brand-tag .sep { margin: 0 6px; opacity: 0.6; }
+.banner .title { font-size: 24px; font-weight: 600; margin: 0 0 4px 0; }
+.banner .subtitle { font-size: 14px; opacity: 0.9; margin: 0; }
+.banner .meta { margin-top: 14px; font-size: 13px; opacity: 0.85; display: flex; gap: 20px; flex-wrap: wrap; }
+.banner .meta span { display: inline-flex; align-items: center; gap: 6px; }
+.body { background: var(--surface); padding: 28px 32px 8px; border-radius: 0 0 16px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+section { margin-bottom: 28px; }
+section:last-child { margin-bottom: 0; }
+h2.section-title { font-size: 17px; font-weight: 600; color: var(--ink); margin: 0 0 14px 0; line-height: 1.35; display: flex; align-items: baseline; gap: 10px; }
+h2.section-title .idx { color: var(--brand); font-weight: 700; font-size: 18px; letter-spacing: 0.5px; }
+.lead { font-size: 13.5px; color: var(--ink-2); line-height: 1.7; margin: 0 0 14px 0; padding: 12px 14px; background: #FAFBFC; border-radius: 6px; }
+.lead strong { color: var(--ink); font-weight: 600; }
+table.data-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+table.data-table th { background: #FAFBFC; color: var(--ink-2); font-weight: 500; text-align: left; padding: 10px 12px; border-bottom: 2px solid var(--line); font-size: 13px; }
+table.data-table td { padding: 12px; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--ink); }
+table.data-table tr:last-child td { border-bottom: none; }
+table.data-table tr:hover td { background: #FAFBFC; }
+table.data-table td.kv-key { color: var(--ink-2); font-weight: 500; width: 130px; }
+.pill { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; line-height: 1.5; }
+.pill-ok { background: var(--ok-soft); color: var(--ok); }
+.pill-warn { background: var(--warn-soft); color: var(--warn); }
+.pill-danger { background: var(--danger-soft); color: var(--danger); }
+.pill-brand { background: var(--brand-soft); color: var(--brand); }
+.callout { padding: 12px 16px; border-radius: 8px; border-left: 3px solid var(--brand); font-size: 13.5px; line-height: 1.7; background: var(--brand-soft); color: var(--ink); margin-top: 14px; }
+.callout strong.title { color: var(--brand-deep); font-weight: 600; margin-right: 4px; }
+.callout-warn { border-color: var(--warn); background: var(--warn-soft); color: #1F2329; }
+.callout-warn strong.title { color: #7A4300; }
+ul.plain-list { margin: 0; padding-left: 20px; font-size: 13.5px; color: var(--ink-2); line-height: 1.85; }
+ul.plain-list li { margin: 4px 0; padding-left: 2px; }
+ul.plain-list li strong { color: var(--ink); font-weight: 600; }
+ul.plain-list li strong:first-child { margin-right: 4px; }
+.tag-ok, .tag-warn, .tag-bad { font-weight: 600; margin-right: 4px; }
+.tag-ok { color: var(--ok); }
+.tag-warn { color: var(--warn); }
+.tag-bad { color: var(--danger); }
+.disclaimer { text-align: center; font-size: 11.5px; color: var(--ink-3); margin-top: 20px; padding: 14px 0; }
+.quote { font-size: 14px; color: var(--ink); background: var(--brand-soft); border-left: 3px solid var(--brand); padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 6px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="banner">
+    <p class="brand-tag">营销通<span class="sep">·</span>内容风格教练</p>
+    <h1 class="title">时约官网首页 · 风格 DNA</h1>
+    <p class="subtitle">从两份 AI 起草稿里提炼出的首页当前声音</p>
+    <div class="meta">
+      <span><i class="bi bi-calendar3"></i>2026-09-02</span>
+      <span><i class="bi bi-flag"></i>官网首页 / 产品声音</span>
+      <span><i class="bi bi-hourglass-split"></i>confidence: low · 假设态</span>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <section>
+      <h2 class="section-title"><span class="idx">01</span>一句话风格概述</h2>
+      <div class="quote">你是做服务业预约工具的人，说话实在、不喊口号，习惯用"对方自己来弄、你只管上线"把复杂功能讲成一句人话。</div>
+    </section>
+
+    <section>
+      <h2 class="section-title"><span class="idx">02</span>风格画像（200 字）</h2>
+      <p class="lead">时约官网当前声音偏"实在派产品人"——开口不宏大、不堆词，先把"你是干啥的、能少掉哪些麻烦"讲明白。</p>
+      <p style="font-size:13.5px;color:var(--ink-2);line-height:1.8">论证靠真实场景（微信群接龙、Excel 排课、卷宗怕外泄）而非数据堆砌；句式上第二人称"你"对话，行业块用对称的口语小标题，且刻意回避"最/第一/保证"等绝对化与"赋能/闭环"等商务黑话。情绪克制温和，痛点有共情但不煽；对法律、心理强调隐私底线、只称"辅助管理"。最大辨识度是反复出现"你只管按时上线""卷宗不出内网"这类人话 tagline，以及"痛点→解法→截图"的三段式骨架。</p>
+    </section>
+
+    <section>
+      <h2 class="section-title"><span class="idx">03</span>12 维速览</h2>
+      <p class="lead">每条都带原文证据——这是画像，不是感觉。</p>
+      <table class="data-table">
+        <thead>
+          <tr><th style="width:130px;">维度</th><th>特征（附证据）</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="kv-key">身份与受众</td><td>服务业预约 SaaS；受众=教培/律师/心理/健身的个体执业者。证据：「把'被人约'这件事管明白」</td></tr>
+          <tr><td class="kv-key">语气</td><td>实在、不夸张、克制；刻意避绝对化与效果保证</td></tr>
+          <tr><td class="kv-key">高频动词</td><td>上架、自助、约、挑、排、搬、留、提醒、接住</td></tr>
+          <tr><td class="kv-key">高频形容词</td><td>自助、专属、自动、真实、公开、本地</td></tr>
+          <tr><td class="kv-key">口头禅</td><td>「你只管按时上线」「客户自己挑时间」「卷宗不出内网」「货不对板」</td></tr>
+          <tr><td class="kv-key">回避词</td><td>最/第一、保证不爽约、赋能/助力/闭环/抓手（商务黑话）</td></tr>
+          <tr><td class="kv-key">句式节奏</td><td>中短句、口语；痛点→解法→截图 三段式；第二人称"你"对话</td></tr>
+          <tr><td class="kv-key">论述结构</td><td>Hero→行业入口→核心能力→分行业场景→部署→FAQ</td></tr>
+          <tr><td class="kv-key">论证方式</td><td>靠具体场景痛点（微信群接龙/Excel排课），对比"自助 vs 手动"</td></tr>
+          <tr><td class="kv-key">情感基调</td><td>中性偏温和，痛点有共情但不煽；法律/心理强调隐私底线</td></tr>
+          <tr><td class="kv-key">视角立场</td><td>第二人称对话访客；自称"时约"；定位"辅助管理工具"</td></tr>
+          <tr><td class="kv-key">数据使用</td><td>极少具体数据，多模糊数（几小时/90%）；靠场景画面</td></tr>
+          <tr><td class="kv-key">独特标识</td><td>「你只管按时上线」tagline；「卷宗不出内网」行业梗；三段式骨架</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2 class="section-title"><span class="idx">04</span>代表句式 & 标志表达</h2>
+      <p class="lead">这几句一出现，就像"时约该说的话"。</p>
+      <ul class="plain-list">
+        <li><strong>招牌句式：</strong>「让客户自己挑时间，你只管按时上线」</li>
+        <li><strong>行业梗：</strong>「卷宗不出内网」「来访者自己约，你只管按时上线」</li>
+        <li><strong>痛点切法：</strong>「每周手动排课几小时，学员还在群里问还有没有位」</li>
+        <li><strong>标题模板：</strong>「排课不再靠 Excel，学员自己来约」「让当事人自己挑可约时段，卷宗不出内网」</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2 class="section-title"><span class="idx">05</span>样本来源与置信度</h2>
+      <div class="callout callout-warn"><strong class="title">关键提醒：</strong>本档案提炼自 2 份 AI（梗王）起草稿，体现的是"时约官网首页的预期调性"，不是你本人的自然语言习惯。样本为 AI 生成、且不足 3 篇，故 confidence=low、status=hypothesis。</div>
+      <ul class="plain-list">
+        <li><strong>待验证项：</strong>你本人的真实写作样本（朋友圈/笔记/产品说明 3–5 段）</li>
+        <li><strong>待验证项：</strong>主创故事与真实数据是否落地到首页（当前成稿缺这部分）</li>
+        <li><strong>下一步：</strong>把你写的文字发我，我把"产品调性"校准成"你的个人风格"</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2 class="section-title"><span class="idx">06</span>怎么用这份档案</h2>
+      <ul class="plain-list">
+        <li><strong>写官网/文案时：</strong>说"按时约首页的声音写 XX"，AI 会自动按这套语气写</li>
+        <li><strong>自检时：</strong>写完问"像不像时约该有的调性"——对照口头禅与三段式骨架</li>
+        <li><strong>换设备：</strong>把本文件另存带走，发给 AI 说"按它来写"</li>
+        <li><strong>更新：</strong>贴了本人真实文字后说"更新我的风格档案"即可</li>
+      </ul>
+    </section>
+
+  </div>
+
+  <div class="disclaimer">—— 营销通 · 赵写出品｜基于 AI 起草稿提炼，风格仍需你本人真实写作校准。</div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>时约 · 官网首页（去 AI 改写版）</title>
+<style>
+  :root{
+    --ink:#1f2430; --sub:#5b6472; --line:#e8ebf0; --bg:#f5f7fa;
+    --brand:#2b6cb0; --brand2:#1a4f86; --accent:#0f9d8a;
+    --chip:#eef4fb; --chip2:#e9f7f3;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);line-height:1.75;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:900px;margin:0 auto;padding:0 16px 40px}
+  .banner{background:linear-gradient(135deg,var(--brand2),var(--brand));color:#fff;padding:54px 28px 46px;text-align:center}
+  .banner .kicker{font-size:13px;opacity:.85;letter-spacing:2px;margin-bottom:14px}
+  .banner h1{font-size:30px;font-weight:700;letter-spacing:.5px;line-height:1.3}
+  .banner p.sub{font-size:15.5px;opacity:.92;margin:14px auto 0;max-width:600px}
+  .cta-row{margin-top:24px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .btn{display:inline-block;padding:11px 22px;border-radius:24px;font-size:14.5px;font-weight:600;text-decoration:none}
+  .btn-a{background:#fff;color:var(--brand2)}
+  .btn-b{background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.5)}
+  section.block{padding:40px 4px 8px}
+  .sec-h{font-size:20px;font-weight:700;margin-bottom:6px}
+  .sec-sub{color:var(--sub);font-size:14px;margin-bottom:20px}
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:640px){.cards{grid-template-columns:1fr}}
+  .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+  .card .ico{font-size:13px;color:var(--accent);font-weight:700;letter-spacing:.5px;margin-bottom:6px}
+  .card h3{font-size:16.5px;color:var(--brand2);margin-bottom:8px;line-height:1.4}
+  .card p{font-size:14px;color:var(--ink);margin-bottom:8px}
+  .card p:last-child{margin-bottom:0}
+  .muted{color:var(--sub);font-size:13px}
+  .tag{display:inline-block;background:var(--chip);color:var(--brand2);font-size:13px;padding:6px 12px;border-radius:20px;margin:4px 6px 4px 0}
+  .pill-a{display:inline-block;background:var(--accent);color:#fff;font-size:13px;padding:5px 14px;border-radius:20px;margin-top:6px;font-weight:600}
+  .shot{background:var(--chip2);border-radius:8px;padding:7px 12px;font-size:12.5px;color:var(--brand2);display:inline-block;margin-top:8px}
+  .note{background:#fff8e6;border:1px solid #f3e2b3;border-radius:10px;padding:12px 16px;font-size:13.5px;color:#7a5b00;margin-top:14px}
+  .trust{background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px 26px}
+  .trust h3{font-size:17px;color:var(--brand2);margin-bottom:10px}
+  .trust p{font-size:14px;color:var(--ink);margin-bottom:10px}
+  .ph{background:#fff3ec;border:1px dashed #e8a87c;border-radius:8px;padding:10px 14px;font-size:13px;color:#9a5a2b;margin:10px 0}
+  .faq{background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px 22px}
+  .faq dt{font-weight:700;font-size:14.5px;color:var(--ink);padding:14px 0 4px}
+  .faq dd{font-size:13.5px;color:var(--sub);padding-bottom:12px;border-bottom:1px solid var(--line);margin:0}
+  .faq dd:last-child{border-bottom:none}
+  .foot{text-align:center;color:var(--sub);font-size:12.5px;padding:26px 0 0}
+  .one-liner{font-size:15px;color:var(--brand2);font-weight:600;margin:10px 0}
+</style>
+</head>
+<body>
+
+  <!-- Hero -->
+  <div class="banner">
+    <div class="kicker">服务业预约经营工具</div>
+    <h1>让客户自己约时间，<br>你只管按时上线</h1>
+    <p class="sub">时约是给教培老师、咨询师、律师、健身教练做的预约经营工具——排期、预约、提醒，一个页面搞定，不用再在微信里来回确认"在吗、几点有空"。</p>
+    <div class="cta-row">
+      <a class="btn btn-a" href="#">免费试用</a>
+      <a class="btn btn-b" href="#scenes">看看适用场景</a>
+    </div>
+  </div>
+
+  <div class="wrap">
+
+    <!-- 适用行业入口 -->
+    <section class="block">
+      <div class="sec-h">你是哪一类？对号入座</div>
+      <div class="sec-sub">不同行业，麻烦不一样。点开看时约怎么帮你少掉那些麻烦。</div>
+      <div class="cards">
+        <div class="card"><span class="tag">教培 / 培训</span> 排课、约课、续费提醒</div>
+        <div class="card"><span class="tag">律师 / 工作室</span> 当事人自助约时间，卷宗不出内网</div>
+        <div class="card"><span class="tag">心理咨询</span> 来访者自行预约，记录留本地</div>
+        <div class="card"><span class="tag">健身 / 私教</span> 会员自己挑教练和时段</div>
+      </div>
+    </section>
+
+    <!-- 核心能力 -->
+    <section class="block">
+      <div class="sec-h">四件事，一次管完</div>
+      <div class="sec-sub">不用换好几个工具，时约把被人约这件事的链路走通。</div>
+      <div class="cards">
+        <div class="card">
+          <div class="ico">排期</div>
+          <h3>可服务时段，一次设好</h3>
+          <p>把能接的时间一次性排进去，之后基本不用每天重排。临时调一天也行。</p>
+        </div>
+        <div class="card">
+          <div class="ico">预约</div>
+          <h3>客户自己挑时段</h3>
+          <p>微信里"在吗、几点有空"这种来回确认的活，交给系统。对方看空闲、自己约。</p>
+        </div>
+        <div class="card">
+          <div class="ico">提醒</div>
+          <h3>到时自动提醒</h3>
+          <p>开课前自动提醒。少几个"忘了"，就少几单爽约——这是真金白银。</p>
+        </div>
+        <div class="card">
+          <div class="ico">展示</div>
+          <h3>课程和老师摆上页面</h3>
+          <p>把课程和师资展示在页面上，顺手还能当引流入口，不用另搭一个官网。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 分行业场景详解 -->
+    <section class="block" id="scenes">
+      <div class="sec-h">逐行拆给你看</div>
+      <div class="sec-sub">下面每个行业，都是"你现在的麻烦 → 时约怎么接 → 截图证据"。</div>
+
+      <!-- 教培 -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="ico">教培 / 培训老师</div>
+        <h3>排课还在用 Excel？学员已经等不及了</h3>
+        <p><strong>现在的麻烦：</strong>每周手动排课几小时，学员还在群里问"还有位吗""这节能调不"；续费全靠你一个个私信，漏一条就少一单。</p>
+        <p><strong>时约怎么接：</strong>课程上架到时约，学员打开就能看排期、自己约；开课前系统提醒，快到期了也提醒你跟进，不用你记。</p>
+        <span class="shot">截图建议：课程列表 + 学员预约视图 + 提醒记录</span>
+        <div><span class="pill-a">免费建一节课试试</span></div>
+      </div>
+
+      <!-- 律师 -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="ico">律师 / 个人工作室</div>
+        <h3>约个会见，微信上来回八条消息</h3>
+        <p><strong>现在的麻烦：</strong>约个时间要在微信上往来好几轮；案件资料放第三方平台，总归不踏实。</p>
+        <p><strong>时约怎么接：</strong>开个专属预约页，当事人自己看空闲时段约（页面只显示时段，不露案件细节）。在意数据归属，选私有 / 内网部署，资料留在你自己的服务器。</p>
+        <span class="shot">截图建议：预约页（仅时段）+ 部署方式说明</span>
+        <div><span class="pill-a">开个预约页</span></div>
+      </div>
+
+      <!-- 心理 -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="ico">心理咨询</div>
+        <h3>来访者改期、忘约，你一个个兜底</h3>
+        <p><strong>现在的麻烦：</strong>来访者临时改时间、忘了咨询，你还得逐个确认；隐私是底线，记录不能乱放。</p>
+        <p><strong>时约怎么接：</strong>来访者走专属页自己约，系统自动提醒降爽约；支持私有 / 内网部署，咨询记录留本地，不进公共云。</p>
+        <span class="shot">截图建议：预约页 + 提醒设置 + 部署选项</span>
+        <div><span class="pill-a">给来访者一个预约入口</span></div>
+      </div>
+
+      <!-- 健身 -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="ico">健身 / 私教</div>
+        <h3>私教排期撞车，会员约课靠喊</h3>
+        <p><strong>现在的麻烦：</strong>私教课排期冲突、会员约课靠微信、到店还得你催，空档和爽约都靠脑子记。</p>
+        <p><strong>时约怎么接：</strong>课程和教练秀在页面上，会员自己约；到课前自动提醒，爽约和空档都少一些。</p>
+        <span class="shot">截图建议：课程 / 教练展示页 + 会员预约视图</span>
+        <div><span class="pill-a">把排期搬上来</span></div>
+      </div>
+    </section>
+
+    <!-- 部署方式 -->
+    <section class="block">
+      <div class="sec-h">数据在谁手里，你说了算</div>
+      <div class="sec-sub">三种部署，越往后越"数据不出门"。</div>
+      <div class="cards">
+        <div class="card">
+          <div class="ico">SaaS 云部署</div>
+          <h3>注册即用</h3>
+          <p>想快上手就选它，轻量运营够用。</p>
+        </div>
+        <div class="card">
+          <div class="ico">私有部署</div>
+          <h3>部署到你自己的服务器</h3>
+          <p>数据归你管，适合在意归属的团队。</p>
+        </div>
+        <div class="card">
+          <div class="ico">内网部署</div>
+          <h3>完全跑在内网</h3>
+          <p>数据不出本地网络，法律、心理咨询这类最合适。</p>
+        </div>
+      </div>
+      <div class="note">说清楚：私有 / 内网要你自己备服务器和基础网络环境，不是点一下就完——这点我们不忽悠，详见开通指引。</div>
+    </section>
+
+    <!-- 为什么是我们（补真实感，占位待填） -->
+    <section class="block">
+      <div class="sec-h">为什么是我们</div>
+      <div class="trust">
+        <h3>一个单主创在做，没销售团队</h3>
+        <p>所以你能在这页直接看懂、直接试，不用先被销售绕一圈。下面这几句请你换成自己的真实情况——别编，越真越像你。</p>
+        <div class="ph">【真实占位 1】你做时约的起因：比如"我自己就被约课这事烦过" / "给身边做咨询的朋友搭的"——写一两句大白话。</div>
+        <div class="ph">【真实占位 2】真实进展：已服务几个行业 / 几位从业者 / 跑了多久。能给具体数就给，别写"很多"。</div>
+        <p class="one-liner">页面里所有场景都是真实产品状态，不用登录也能看。</p>
+        <p class="muted">单主创更靠"真"取胜——截图用真的，故事说真的，比什么都管用。</p>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="block">
+      <div class="sec-h">注册前先消三个顾虑</div>
+      <dl class="faq">
+        <dt>免费试用怎么算？</dt>
+        <dd>新账号先试用核心功能，额度和期限以注册页说明为准，不强制先付费。</dd>
+        <dt>数据安全吗？</dt>
+        <dd>SaaS 数据在平台托管环境；选私有 / 内网，数据留在你自己的服务器或内网，不出公共云。</dd>
+        <dt>怎么部署？</dt>
+        <dd>SaaS / 私有 / 内网三种，后两种需自备服务器环境，详见开通指引。</dd>
+        <dt>不注册能看演示吗？</dt>
+        <dd>能。本页所有场景都公开，注册前就能逛。</dd>
+        <dt>只做这 4 个行业？</dt>
+        <dd>当前主推教培、律师、心理、健身；其他"被预约"的服务业者也欢迎试。</dd>
+      </dl>
+    </section>
+
+    <div class="cta-row" style="margin-top:30px">
+      <a class="btn btn-a" href="#">免费试用</a>
+    </div>
+
+    <div class="foot">时约 · 官网首页（去 AI 改写版）｜ 成稿 赵写（内容风格教练）｜ 2026-09-02</div>
+
+  </div>
+</body>
+</html>
