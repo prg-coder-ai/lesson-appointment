@@ -291,7 +291,9 @@ const userStr = STORE.getItem('currentUser');
     return;
   }
 
-  const token = userInfo.token || STORE.getItem('token');
+  // 2026-11-20 N10 B1：取值顺序对调 —— 优先 localStorage.token（刷新会更新它），
+  // currentUser.token 只是登录那一刻的快照。原先反过来，导致刷新后这里仍读到旧值。
+  const token = STORE.getItem('token') || userInfo.token;
   if (!token || !userInfo.role) {
     STORE.removeItem('currentUser');
     STORE.removeItem('token');
@@ -299,13 +301,13 @@ const userStr = STORE.getItem('currentUser');
     return;
   } 
 
-  if (isJwtExpired(token)) {
-    STORE.removeItem('currentUser');
-    STORE.removeItem('token');
-    STORE.removeItem('refreshToken');
-    document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
-    return;
-  }
+  // 2026-11-20 N10 A1：token 过期不再在这里清态。
+  // 过期只代表 access 需要换票，不代表团话结束 —— 原先这个分支会把 refreshToken 一起清掉并
+  // 直接返回 null（调用方随即跳登录页），于是 refresh token 一次都没被用上，
+  // 表现为「发生过一次刷新之后，每次重载页面都要重新登录」。
+  // 现在照常返回 userInfo：首个接口请求拿到 401 → utility_request 的 refreshAndReplay
+  // 换票并重放；换票失败（refresh 也过期 / 被踢 / 被冻结）才由那里的 forceLogout 统一清态跳登录。
+  // 原则：登录态由服务端裁决，前端不凭本地 exp 单方面判定会话结束。
 
   // 课堂配置兜底补拉：仅在「没有缓存」且「本标签页还没跟后端核对过」时发一次。
   // 已核对过的情况由 feature-flags.js 的 applyMenuVisibility() 负责

@@ -143,6 +143,74 @@
   }
 
   /**
+   * 刷新成功后同步 currentUser 里的 token 快照（2026-11-20 N10 B1）。
+   *
+   * <p>登录时 auth.js 把 token 同时写进 localStorage.token 与 currentUser.token 两份；
+   * 刷新只更新前者就会分叉，而 autoLoginCheck 优先读 currentUser.token —— 读到旧值便判定
+   * 「登录已过期」并清掉 token/refreshToken/currentUser 跳登录页。于是只要发生过一次刷新，
+   * 此后任何页面重载都会掉线。
+   *
+   * <p>脏数据（currentUser 不可解析）直接清掉：留着只会让下一次进入继续读到坏值。
+   */
+  function syncCurrentUserToken(newToken) {
+    if (!newToken) return;
+    try {
+      const raw = localStorage.getItem('currentUser');
+      if (!raw) return;
+      const cur = JSON.parse(raw);
+      if (!cur || typeof cur !== 'object') return;
+      if (cur.token === newToken) return;
+      cur.token = newToken;
+      localStorage.setItem('currentUser', JSON.stringify(cur));
+    } catch (e) {
+      try { localStorage.removeItem('currentUser'); } catch (e2) { /* ignore */ }
+    }
+  }
+
+  /**
+   * 供「不走本拦截器」的模块复用一次刷新（2026-11-20 N10 A2）。
+   *
+   * <p>典型场景：消息中心 8090 用的是独立 axios 实例（baseURL 不同），它自己不接
+   * refreshAndReplay，401 时原先直接清态跳登录 —— 用户在页面停留超过 access 有效期（1 小时）
+   * 后点开消息中心就被登出，哪怕 refresh token 还有 6 天。
+   *
+   * <p>与 refreshAndReplay 的分工：这里只负责「换一张票」，不重放、不清态、不跳转；
+   * 失败时 throw，由调用方走自己的登出逻辑。
+   *
+   * <p>并发：与主链路共用 isRefreshing。若已有刷新在飞（主链路正在刷），等它落地后
+   * 直接返回本地新 token，避免同一时刻签发两对凭证。
+   */
+  async function refreshAccessTokenOnce() {
+    if (isRefreshing) {
+      // 等主链路刷新落地（最多约 5 秒），然后读它写回的新值
+      for (let i = 0; i < 50; i++) {
+        await new Promise((r) => setTimeout(r, 100));
+        if (!isRefreshing) break;
+      }
+      const t = localStorage.getItem('token');
+      if (!t) throw new Error('刷新未完成');
+      return t;
+    }
+    isRefreshing = true;
+    try {
+      const refreshRes = await getNewToken();
+      if (!(refreshRes && refreshRes.status === 200 && refreshRes.data && refreshRes.data.code === 200)) {
+        throw new Error((refreshRes && refreshRes.data && (refreshRes.data.message || refreshRes.data.msg)) || '刷新凭证失败');
+      }
+      const data = refreshRes.data.data || {};
+      if (!data.token) throw new Error('刷新接口未返回 token');
+      if (!window.__LOGGING_OUT__) {
+        localStorage.setItem('token', data.token);
+        if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
+        syncCurrentUserToken(data.token);
+      }
+      return data.token;
+    } finally {
+      isRefreshing = false;
+    }
+  }
+
+  /**
    * 【2026-11-05 复核修复】统一「刷新 + 重放」入口：
    * HTTP 401（过滤器层）与 HTTP 200 + body.code=401（业务层）都走这里（#3）。
    * 同时收口：
@@ -196,6 +264,10 @@
       if (!window.__LOGGING_OUT__) {
         localStorage.setItem('token', newToken);
         if (newRefreshToken) localStorage.setItem('refreshToken', newRefreshToken);
+        // 2026-11-20 N10 B1：currentUser 里还存着一份 token 快照（auth.js 登录时写入），
+        // 只更新 localStorage.token 会让两份值分叉 —— autoLoginCheck 优先读 currentUser.token，
+        // 读到过期值就把整份会话清掉，表现为「发生过一次刷新之后，按 F5 必掉线」。
+        syncCurrentUserToken(newToken);
       }
       originalRequest.headers = originalRequest.headers || {};
       originalRequest.headers.Authorization = `Bearer ${newToken}`;
@@ -545,6 +617,11 @@ function isLoginPage() {
   );
 
   window.request = service;
+  /**
+   * 对外暴露「换一次票」（2026-11-20 N10 A2）：供消息中心等独立 axios 实例复用，
+   * 避免它们在 401 时直接清态跳登录。调用约定见函数注释：成功返回新 access token，失败 throw。
+   */
+  window.refreshAccessTokenOnce = refreshAccessTokenOnce;
 })();
 
 /*

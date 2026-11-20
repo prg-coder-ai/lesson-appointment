@@ -917,6 +917,10 @@ public class UserService {
             // 加密新密码并更新--重置为固定码，用户自行更改
             user.setPassword(passwordEncoder.encode("12345678"));
             updatePassword(user);
+            // 2026-11-20 N10 D1：重置密码必须撤销该用户全部 refresh 凭证。
+            // 否则「密码泄露 → 管理员重置密码」这一步救不回账号：攻击者手里的 refresh token
+            // 仍可继续滑动续期（每次刷新重签 7 天），改密等于没改。
+            revokeRefreshTokensQuietly(user.getUserId());
             return Result.success(resultMap, "密码重置成功");
             // userMapper.updatePassword(user.getUserId(),user.getPassword());
         } else {
@@ -1000,9 +1004,35 @@ public class UserService {
         upd.setUserId(targetId);
         upd.setPassword(passwordEncoder.encode(password));
         updatePassword(upd);
+        // 2026-11-20 N10 D1：改密后撤销全部 refresh 凭证。
+        // 本人当前这张 access 仍会在剩余有效期内可用（最长 1 小时），
+        // 但下次换票必失败 → 被要求重新登录；其他设备同理。这是改密应有的语义。
+        revokeRefreshTokensQuietly(targetId);
         log.warn("密码已修改, 操作者={}, 目标用户={}, 是否本人={}", callerUserId, targetId, isSelf);
         return null;
-    } 
+    }
+
+    /**
+     * 改密 / 重置密码后撤销该用户全部 refresh 凭证（2026-11-20 N10 D1）。
+     *
+     * <p><b>为什么必须做</b>：refresh token 每次轮换都重签满 7 天（滑动续期、无绝对上限），
+     * 只要攻击者手里有那张票，密码怎么改都能一直换新票；密码失效通道与凭证失效通道是两回事。
+     *
+     * <p><b>为什么吞异常</b>：密码此时已经改成功了，清凭证失败不该把整个操作变成报错/回滚 ——
+     * 那会让用户遇到「密码没改成功也没提示」的更坏结果。残留凭证会在下次换票时被
+     * {@code checkValidToken} 正常拒掉（若清凭证确实没执行，则等到 7 天自然过期），属可接受降级。
+     */
+    private void revokeRefreshTokensQuietly(String userId) {
+        if (userId == null || userId.trim().isEmpty()) {
+            return;
+        }
+        try {
+            int removed = refreshTokenService.kickUser(userId);
+            log.warn("改密后已撤销刷新凭证: userId={}, 删除数={}", userId, removed);
+        } catch (Exception e) {
+            log.error("改密后撤销刷新凭证失败（密码已改成功，残留凭证最迟 7 天自然过期）: userId={}", userId, e);
+        }
+    }
     public List<User> selectByPhone(String phone) {
         List<User> users = userMapper.selectByPhone(cryptoUtil.searchIndex(phone), phone);
         if (users == null || users.isEmpty()) {

@@ -103,17 +103,10 @@
     if (typeof window.showApiError === 'function') window.showApiError(msg); else console.error(msg);
     return Promise.reject(res || new Error(msg));
   }, function (error) {
-    let msg = '网络异常，请稍后重试';
-    if (error.response) {
-      const st = error.response.status;
-      if (st === 401) { msg = '登录已过期，请重新登录'; cleanupAuth(); setTimeout(function () { location.href = ((typeof window.pageUrl === 'function') ? window.pageUrl('login.html') : './login.html'); }, 600); }
-      else if (st === 403) { msg = '无权限访问该资源'; }
-      else if (st === 404) { msg = '接口地址不存在'; }
-      else if (st === 500) { msg = '服务器内部错误'; }
-      else { msg = '请求错误：' + st; }
-    } else if (error.code === 'ECONNABORTED') { msg = '请求超时，请稍后重试'; }
-    if (typeof window.showApiError === 'function') window.showApiError(msg); else console.error(msg);
-    return Promise.reject(error);
+    // 401 先换票重试一次（2026-11-20 N10 A2），失败才清态跳登录
+    const retried = retryWithFreshToken(error, mreq);
+    if (retried) return retried.catch(function (e) { return rejectWithMessage(e || error, { silent: false }); });
+    return rejectWithMessage(error, { silent: false });
   });
 
   // ---- api(8081) 独立 axios 实例（解析接收人 scope）----
@@ -134,21 +127,66 @@
     }
     return Promise.reject(res || new Error(msg));
   }, function (error) {
-    let msg = '网络异常，请稍后重试';
-    if (error.response) {
-      const st = error.response.status;
-      if (st === 401) { msg = '登录已过期，请重新登录'; cleanupAuth(); setTimeout(function () { location.href = ((typeof window.pageUrl === 'function') ? window.pageUrl('login.html') : './login.html'); }, 600); }
-      else if (st === 403) { msg = '无权限访问该资源'; }
-      else { msg = '请求错误：' + st; }
-    }
-    if (!(error.config && error.config.__silent)) {
-      if (typeof window.showApiError === 'function') window.showApiError(msg); else console.error(msg);
-    }
-    return Promise.reject(error);
+    // 401 先换票重试一次（同步 N10 A2 口径）；__silent 请求失败仍不弹提示
+    const silent = !!(error.config && error.config.__silent);
+    const retried = retryWithFreshToken(error, areq);
+    if (retried) return retried.catch(function (e) { return rejectWithMessage(e || error, { silent: silent }); });
+    return rejectWithMessage(error, { silent: silent });
   });
 
   function cleanupAuth() {
     try { localStorage.removeItem('token'); localStorage.removeItem('refreshToken'); localStorage.removeItem('currentUser'); } catch (e) {}
+  }
+
+  /**
+   * 401 先换票、再重试一次（2026-11-20 N10 A2）。
+   *
+   * <p>本模块用的是独立 axios 实例（baseURL 分别指向 8090 / 8081），不经过
+   * utility_request 的刷新拦截器。原先 401 直接清态跳登录 —— 用户只要在本页停留超过
+   * access 有效期（1 小时），点开消息中心就会被登出，哪怕 refresh token 还有 6 天。
+   *
+   * <p>复用主链路的 window.refreshAccessTokenOnce（共用同一把 isRefreshing 闸，
+   * 不会和主链路并发刷两次），且**只重试一次**（__msgRetry 标记），换票失败或重试仍 401
+   * 才落到 rejectWithMessage 的清态逻辑。
+   *
+   * @returns {Promise|null} null 表示「不该由这里处理」（非 401 / 已重试 / 刷新函数不可用）
+   */
+  function retryWithFreshToken(error, instance) {
+    if (!error || !error.response || error.response.status !== 401) return null;
+    const cfg = error.config;
+    if (!cfg || cfg.__msgRetry) return null;
+    if (typeof window.refreshAccessTokenOnce !== 'function') return null;
+    return window.refreshAccessTokenOnce().then(function (t) {
+      if (!t) throw new Error('换票失败');
+      cfg.__msgRetry = true;
+      cfg.headers = cfg.headers || {};
+      cfg.headers.Authorization = 'Bearer ' + t;
+      // 重发走完整拦截器链：成功时会经过 response 的 success 分支解包成 data
+      return instance(cfg);
+    });
+  }
+
+  /**
+   * 按状态码给出文案与登出动作（换票失败后复用；逻辑与原两个实例内联版本一致，
+   * 只多了 404/500 的专门文案，两实例统一同一套口径）。
+   *
+   * @param {{silent?: boolean}} opts silent=true 时不弹提示（对应 __silent 请求）
+   */
+  function rejectWithMessage(error, opts) {
+    const silent = !!(opts && opts.silent);
+    let msg = '网络异常，请稍后重试';
+    if (error && error.response) {
+      const st = error.response.status;
+      if (st === 401) { msg = '登录已过期，请重新登录'; cleanupAuth(); setTimeout(function () { location.href = ((typeof window.pageUrl === 'function') ? window.pageUrl('login.html') : './login.html'); }, 600); }
+      else if (st === 403) { msg = '无权限访问该资源'; }
+      else if (st === 404) { msg = '接口地址不存在'; }
+      else if (st === 500) { msg = '服务器内部错误'; }
+      else { msg = '请求错误：' + st; }
+    } else if (error && error.code === 'ECONNABORTED') { msg = '请求超时，请稍后重试'; }
+    if (!silent) {
+      if (typeof window.showApiError === 'function') window.showApiError(msg); else console.error(msg);
+    }
+    return Promise.reject(error);
   }
 
   // ---- 模块级状态（单例）----
