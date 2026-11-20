@@ -1,0 +1,22 @@
+# 反向代理公共头（被 deploy/nginx/booking.conf 与 booking-ip.conf 共 22 处 include）
+#
+# 为什么仓库里要自带一份：
+#   Debian/Ubuntu 的 nginx-common 会提供 /etc/nginx/proxy_params，
+#   但 CentOS / RHEL / 阿里云 Linux(Anolis) / Rocky 都**没有**这个文件，
+#   而两份站点配置里写了 `include /etc/nginx/proxy_params;` ——
+#   缺它 `nginx -t` 直接报错，整站起不来（且报错信息只说 open() failed，不提缺文件）。
+#   deploy/upload-to-server.sh 只在该文件**不存在**时才上传本份，不会覆盖发行版自带的。
+#
+# 各头的作用：
+#   Host              透传原始 Host（生成绝对链接、微信回调域校验、多域名场景都要用）
+#   X-Real-IP         后端 ClientIpResolver 取客户端真实 IP 的第一优先来源
+#   X-Forwarded-For   追加链路；后端按 ClientIpResolver 统一解析，禁止各处手写 xff.split(",")[0]
+#   X-Forwarded-Proto 让 Spring（server.forward-headers-strategy=framework）知道原始协议是 https，
+#                     否则重定向/绝对链接会退回 http，被浏览器按混合内容拦掉
+#
+# 注意：不要在这里加 proxy_set_header Connection ''（那是 SSE location 单独要做的事），
+# 也不要加 proxy_pass —— include 的文件会被塞进各 location，写错会波及全部反代。
+proxy_set_header Host              $http_host;
+proxy_set_header X-Real-IP         $remote_addr;
+proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Proto $scheme;

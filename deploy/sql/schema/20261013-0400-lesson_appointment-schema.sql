@@ -313,7 +313,11 @@ CREATE TABLE IF NOT EXISTS `course_schedule` (
   -- 2026-10-28 补：单课时长（分钟）。重复排期的 end_time 承载的是「重复结束日期」，
   --   当天时刻差算不出单课有多长；没有这一列时课堂侧只能按 60 分钟封顶核算，
   --   30/45 分钟的课会被多算。存量环境执行 sql/patch/20261028-2100-course-schedule-class-duration.sql。
-  `class_duration` int NOT NULL DEFAULT '60' COMMENT '单课时长（分钟；重复排期的 end_time 是重复结束日期，不能用于推算单课时长）',
+  -- 2026-11-20 修：这里原先**重复定义**了 `class_duration`（合并 10-25 补列时插入了第二次），
+  -- 导致整条 CREATE TABLE 在新库导入时报 1060 Duplicate column、course_schedule 一张表都建不出来
+  -- （用 `mysql --force` 才继续往下走，于是"看起来导入成功、实际少表"）。
+  -- 现网该列的注释是上面那一句，本行只保留当时那段说明，不再重复定义列：
+  --   单课时长（分钟）；重复排期的 end_time 是重复结束日期，不能用于推算单课时长
   `status` varchar(20) NOT NULL DEFAULT 'pending' COMMENT '排期状态（pending/active/inactive/frozen/overtime：已结束（自动更新））',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',

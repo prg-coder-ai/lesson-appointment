@@ -7,8 +7,12 @@
 -- ------------------------------------------------------------
 -- 1. eclassroom 实例表（课堂服务实例注册）
 -- ------------------------------------------------------------
-DROP TABLE IF EXISTS `sys_eclassroom_instance`;
-CREATE TABLE `sys_eclassroom_instance` (
+-- 等保 P0-4（2026-11-20 修）：DROP 已注释禁用。
+-- 本文件现在位于「新环境初始化」清单里（课堂实例与租户开关 2 表不在基线 dump 中），
+-- 一旦被运维在**已有环境**重跑，未注释的 DROP 会连绑定关系一起清空 ——
+-- 表现为三端课堂入口全消失，且是"静默丢数据"。改由 CREATE TABLE IF NOT EXISTS 幂等。
+-- DROP TABLE IF EXISTS `sys_eclassroom_instance`;
+CREATE TABLE IF NOT EXISTS `sys_eclassroom_instance` (
   `id`              bigint       NOT NULL AUTO_INCREMENT COMMENT '主键',
   `instance_code`   varchar(64)  NOT NULL                COMMENT '实例编码（唯一标识，如 classroom-svc-1）',
   `instance_name`   varchar(128) NOT NULL                COMMENT '实例名称（展示用，如 华东课堂服务-1）',
@@ -36,8 +40,9 @@ CREATE TABLE `sys_eclassroom_instance` (
 -- ------------------------------------------------------------
 -- 2. 租户-eclassroom 关系表（租户课堂开关 + 实例绑定）
 -- ------------------------------------------------------------
-DROP TABLE IF EXISTS `sys_tenant_eclassroom`;
-CREATE TABLE `sys_tenant_eclassroom` (
+-- 等保 P0-4（2026-11-20 修）：同上，DROP 注释禁用。
+-- DROP TABLE IF EXISTS `sys_tenant_eclassroom`;
+CREATE TABLE IF NOT EXISTS `sys_tenant_eclassroom` (
   `id`              bigint       NOT NULL AUTO_INCREMENT COMMENT '主键',
   `tenant_id`       bigint       NOT NULL                COMMENT '租户ID（对应 sys_tenant.id）',
   `instance_id`     bigint       NOT NULL                COMMENT 'eclassroom实例ID（对应 sys_eclassroom_instance.id）',
