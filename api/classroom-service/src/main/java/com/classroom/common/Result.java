@@ -55,6 +55,7 @@ public class Result<T> {
                     ErrorCodes.RECORDING_NOT_READY,       // 40905
                     ErrorCodes.EVENT_DUPLICATE,           // 40906
                     ErrorCodes.EVENT_STALE_VERSION,       // 40907
+                    ErrorCodes.CLASSROOM_CAPACITY_EXCEEDED, // 40908
                     ErrorCodes.CALLBACK_FAILED,      // 50001
                     ErrorCodes.OSS_UPLOAD_FAILED,    // 50002
                     ErrorCodes.REDIS_UNAVAILABLE,    // 50003

@@ -46,6 +46,25 @@
     return (host || '-') + port + path;
   }
 
+  /**
+   * 实例是否可用于绑定。
+   *
+   * <p>与后端 EclassroomService.bindTenantClassroom 的前置校验同口径（2026-11-20）：
+   * 状态必须是「正常」，且 API 地址非空。空地址会让课堂入口拼出 http://:8092/... 这种
+   * 打不通的 URL；停用实例会让课堂侧直接 403「课堂未启用」——两种都表现为"绑了但进不去"。
+   */
+  function isInstanceUsable(inst) {
+    if (!inst) return false;
+    if (Number(inst.status) !== 1) return false;
+    return !!(inst.apiHost && String(inst.apiHost).trim());
+  }
+
+  function unusableReason(inst) {
+    if (!inst) return '实例不存在';
+    if (Number(inst.status) !== 1) return statusText(inst.status) + '，不可绑定';
+    return 'API 地址未配置，不可绑定';
+  }
+
   // ===================== 实例管理页 =====================
   function renderEclassroomInstancesPage() {
     var c = document.getElementById('dynamic-content-center');
@@ -60,10 +79,10 @@
           '<table class="data-table">' +
             '<thead><tr>' +
               '<th>序号</th><th>实例编码</th><th>实例名称</th><th>API 地址</th><th>WS 地址</th>' +
-              '<th>区域</th><th>容量</th><th>状态</th><th>操作</th>' +
+              '<th>区域</th><th>容量</th><th>当前负载</th><th>状态</th><th>操作</th>' +
             '</tr></thead>' +
             '<tbody id="eclassroom-instance-body">' +
-              '<tr><td colspan="9" style="text-align:center;padding:20px;">加载中...</td></tr>' +
+              '<tr><td colspan="10" style="text-align:center;padding:20px;">加载中...</td></tr>' +
             '</tbody>' +
           '</table>' +
         '</div>' +
@@ -80,7 +99,7 @@
       .catch(function (e) {
         console.warn('[eclassroom] 加载实例失败', e);
         var tb = document.getElementById('eclassroom-instance-body');
-        if (tb) tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:#c00;">加载失败</td></tr>';
+        if (tb) tb.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:#c00;">加载失败</td></tr>';
       });
   }
 
@@ -88,7 +107,7 @@
     var tb = document.getElementById('eclassroom-instance-body');
     if (!tb) return;
     if (!rows.length) {
-      tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;">暂无实例</td></tr>';
+      tb.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;">暂无实例</td></tr>';
       return;
     }
     tb.innerHTML = rows.map(function (inst, i) {
@@ -100,6 +119,8 @@
         '<td>' + esc(wsAddress(inst)) + '</td>' +
         '<td>' + esc(inst.region || '-') + '</td>' +
         '<td>' + (inst.maxCapacity != null ? inst.maxCapacity : '-') + '</td>' +
+        // 当前负载：由「课堂监视」采集时回写（此前该列永远是 0，见容量字段分析文档）
+        '<td>' + (inst.currentLoad != null ? inst.currentLoad : '-') + '</td>' +
         '<td>' + statusText(inst.status) + '</td>' +
         '<td>' +
           '<button class="btn btn-default" onclick="openEclassroomInstanceModal(' + inst.id + ')">编辑</button> ' +
@@ -177,9 +198,9 @@
       return '<div class="form-line' + (full ? ' form-line--full' : '') + '">' +
         '<label>' + label + '</label>' + control + '</div>';
     }
-    function text(name, val, ph, type) {
+    function text(name, val, ph, type, attrs) {
       return '<input name="' + name + '"' + (type ? ' type="' + type + '"' : '') +
-        ' value="' + val + '"' + (ph ? ' placeholder="' + ph + '"' : '') + '>';
+        ' value="' + val + '"' + (ph ? ' placeholder="' + ph + '"' : '') + (attrs || '') + '>';
     }
 
     return '' +
@@ -189,7 +210,7 @@
           line('实例编码', '<input name="instanceCode" value="' + v('instanceCode') + '" required placeholder="如 classroom-svc-1">') +
           line('实例名称', text('instanceName', v('instanceName'), '如 华东课堂服务-1')) +
           line('区域', text('region', v('region'), '如 cn-east-1')) +
-          line('最大容量', text('maxCapacity', (isEdit && inst.maxCapacity != null ? inst.maxCapacity : 100), '', 'number')) +
+          line('最大容量', text('maxCapacity', (isEdit && inst.maxCapacity != null ? inst.maxCapacity : 100), '留空=不限制', 'number', ' min="1" step="1"')) +
           line('状态', statusSel) +
           line('备注', '<textarea name="remark">' + (isEdit ? esc(inst.remark || '') : '') + '</textarea>', true)) +
         section('API 服务',
@@ -230,6 +251,13 @@
     };
     if (!data.instanceCode) {
       document.getElementById('eclassroomInstanceFormErr').textContent = '实例编码必填';
+      return;
+    }
+    // 最大容量：留空 = 不限制；填了必须是正整数。
+    // 0 在准入判断里等同"不限制"，运营若把它当"禁掉"填 0 会得到相反效果，故在此拦住。
+    if (data.maxCapacity != null
+        && (!isFinite(data.maxCapacity) || data.maxCapacity <= 0 || Math.floor(data.maxCapacity) !== data.maxCapacity)) {
+      document.getElementById('eclassroomInstanceFormErr').textContent = '最大容量必须为正整数（留空表示不限制）';
       return;
     }
     if (id) data.id = id;
@@ -281,9 +309,14 @@
 
     var options = instances.map(function (inst) {
       var sel = (Number(inst.id) === Number(boundInstanceId)) ? ' selected' : '';
-      return '<option value="' + inst.id + '"' + sel + '>' +
+      // 不可绑定的实例照样列出来但 disabled —— 直接过滤掉会让运营以为"实例没了"，
+      // 而真实原因是它停用或 API 地址没填（后端也会拦，这里是提前告知）。
+      var usable = isInstanceUsable(inst);
+      var suffix = usable ? '' : ('｜' + unusableReason(inst));
+      return '<option value="' + inst.id + '"' + sel + (usable ? '' : ' disabled') + '>' +
         esc(inst.instanceName || inst.instanceCode || inst.id) +
-        '（' + esc(apiAddress(inst)) + ' / ' + statusText(inst.status) + '）</option>';
+        '（' + esc(apiAddress(inst)) + ' / ' + statusText(inst.status) + '）' +
+        esc(suffix) + '</option>';
     }).join('');
 
     var body =

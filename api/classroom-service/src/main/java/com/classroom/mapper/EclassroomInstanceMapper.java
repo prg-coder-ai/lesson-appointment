@@ -21,4 +21,14 @@ public interface EclassroomInstanceMapper {
      */
     @Select("SELECT * FROM lesson_appointment.sys_eclassroom_instance WHERE id = #{id} AND deleted = 0 LIMIT 1")
     EclassroomInstance selectByIdNotDeleted(@Param("id") Long id);
+
+    /**
+     * 按实例编码查询（仅查未删除的）。
+     *
+     * <p>本服务靠 {@code classroom.instance-code}（env {@code INSTANCE_CODE}）认领"我是哪一台"，
+     * 再用它读出该实例的 {@code max_capacity} 做开课准入。用编码而不是 IP/端口：
+     * 同一台机器上换实例、容器化后 IP 漂移都不会让上限张冠李戴。
+     */
+    @Select("SELECT * FROM lesson_appointment.sys_eclassroom_instance WHERE instance_code = #{code} AND deleted = 0 LIMIT 1")
+    EclassroomInstance selectByInstanceCode(@Param("code") String code);
 }

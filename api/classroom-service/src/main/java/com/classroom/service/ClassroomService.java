@@ -35,19 +35,23 @@ public class ClassroomService {
     // 白板运行态（笔迹序列）挂在 WS 处理器里，课堂结束要一并释放。
     // WhiteboardHandler 只依赖 registry/liveState/teachingSession 等，不反向依赖本类，无循环。
     private final com.classroom.ws.WhiteboardHandler whiteboardHandler;
+    // 实例并发容量准入（2026-11-20）：开课前判 max_capacity，满了拒绝并让运营看得见原因。
+    private final InstanceCapacityService capacityService;
 
     public ClassroomService(ClassroomMapper classroomMapper,
                             ClassroomClosingService closingService,
                             MediaService mediaService,
                             ClassroomPublishGuard publishGuard,
                             ClassroomLiveState liveState,
-                            com.classroom.ws.WhiteboardHandler whiteboardHandler) {
+                            com.classroom.ws.WhiteboardHandler whiteboardHandler,
+                            InstanceCapacityService capacityService) {
         this.classroomMapper = classroomMapper;
         this.closingService = closingService;
         this.mediaService = mediaService;
         this.publishGuard = publishGuard;
         this.liveState = liveState;
         this.whiteboardHandler = whiteboardHandler;
+        this.capacityService = capacityService;
     }
 
     public Classroom getById(String scheduleId) {
@@ -129,6 +133,14 @@ public class ClassroomService {
         if (!"READY".equals(c.getStatus()) && !"SCHEDULED".equals(c.getStatus())) {
             throw new ClassroomBizException(ErrorCodes.CLASSROOM_STATUS_CONFLICT,
                     "当前状态不可开课：" + c.getStatus());
+        }
+        // 实例并发准入（2026-11-20）：只有真正进入 LIVE 才占并发，所以判在状态校验之后。
+        // 状态已不是 READY/SCHEDULED 的请求在上面就返回了，不会对同一节课重复计数。
+        // 拒绝用 40908 而不是 40901：这是「实例现在满了，等下课就恢复」，与「状态不允许」的处置不同。
+        if (capacityService.isFull()) {
+            String msg = capacityService.fullMessage();
+            log.warn("[capacity] 拒绝开课（实例并发已满）: scheduleId={}, {}", scheduleId, msg);
+            throw new ClassroomBizException(ErrorCodes.CLASSROOM_CAPACITY_EXCEEDED, msg);
         }
         transitionStatus(scheduleId, c.getStatus(), "LIVE");
         Classroom update = new Classroom();
