@@ -201,11 +201,76 @@ function testWsUsesFreshToken() {
   dom2.window.close();
 }
 
+/* ==================== ⑤ 登录成功分支：refreshToken 必须落盘且不被覆盖 ==================== */
+/**
+ * 2026-11-20 实测发现（N10 §3.1 6 号）：
+ * login.html 密码登录成功分支曾在 auth.js 写完 refreshToken 之后，紧跟一行
+ *   localStorage.setItem('refreshToken', user.refreshToken || '')
+ * 而 user 是 authenticateUser 返回的 currentUser 快照（不含 refreshToken）
+ * → 每次登录都把刚写好的凭证覆盖成空串，1 小时后刷新报「刷新凭证为空」直接掉线。
+ *
+ * 这里两条防线：
+ *   ① 源码级：登录/推广会话落地处不得再出现 `|| ''` 这种"没有就写空串"的写法；
+ *   ② 行为级：authenticateUser 走完一遍，localStorage.refreshToken 必须等于后端下发的值。
+ */
+function codeLines(src) {
+  return src.split(/\r?\n/).filter((line) => {
+    const t = line.trim();
+    return t && !t.startsWith('//') && !t.startsWith('*') && !t.startsWith('/*');
+  });
+}
+
+async function testLoginPersistsRefreshToken() {
+  console.log('⑤ 登录成功分支：refreshToken 落盘且不被覆盖');
+
+  // ① 源码级：扒掉注释后再匹配，避免把「反例说明」当成真代码
+  const emptyOverwrite = /setItem\(\s*['"]refreshToken['"]\s*,[^)]*\|\|\s*''\s*\)/;
+  const loginCode = codeLines(read('frontend/login.html')).filter((l) => emptyOverwrite.test(l));
+  check('login.html 无 `setItem(\'refreshToken\', x || \'\')` 覆盖写法',
+    loginCode.length === 0, JSON.stringify(loginCode));
+
+  const promoCode = codeLines(read('frontend/js/public/promo.js'))
+    .filter((l) => /writeStorage\(\s*['"]refreshToken['"]\s*,[^)]*\|\|\s*''\s*\)/.test(l));
+  check('promo.js 同样不写空串', promoCode.length === 0, JSON.stringify(promoCode));
+
+  // ② 行为级：authenticateUser 内部 saveCurrentUserSession 是唯一落盘点
+  const dom = makeDom('<!doctype html><html><body></body></html>', 'https://demo.test/login.html');
+  const w = dom.window;
+  const resp = {
+    userId: 'u-rt', account: 'acc', name: '名字', role: 'student',
+    tenantCode: 't-code', token: 'ACCESS-TOKEN', refreshToken: 'REFRESH-EYJ-VALUE'
+  };
+  // auth.js 顶层要求 window.request 存在；login() 就是 request({url:'/auth/login'})
+  w.request = () => Promise.resolve(resp);
+  w.eval(read('frontend/js/public/auth.js'));
+
+  let session = null;
+  try {
+    session = await w.authenticateUser('acc', 'pwd');
+  } catch (e) {
+    check('authenticateUser 登录不抛错', false, String(e));
+  }
+  check('localStorage.refreshToken = 后端下发值（不是空串）',
+    w.localStorage.getItem('refreshToken') === 'REFRESH-EYJ-VALUE',
+    JSON.stringify(w.localStorage.getItem('refreshToken')));
+  check('localStorage.token 同时落盘',
+    w.localStorage.getItem('token') === 'ACCESS-TOKEN',
+    JSON.stringify(w.localStorage.getItem('token')));
+  check('currentUser 快照仍然不带 refreshToken（不扩大 XSS 面）',
+    !!session && session.refreshToken === undefined, JSON.stringify(session));
+  check('落盘的 currentUser JSON 里也不含 refreshToken',
+    (w.localStorage.getItem('currentUser') || '').indexOf('REFRESH-EYJ-VALUE') < 0,
+    w.localStorage.getItem('currentUser'));
+
+  dom.window.close();
+}
+
 /* ==================== 主流程 ==================== */
 (async function main() {
   testAutoLoginCheck();
   await testRefreshSyncsCurrentUser();
   testWsUsesFreshToken();
+  await testLoginPersistsRefreshToken();
 
   console.log('\n共 ' + (pass + fail) + ' 项：' + pass + ' 通过，' + fail + ' 失败');
   process.exit(fail ? 1 : 0);
