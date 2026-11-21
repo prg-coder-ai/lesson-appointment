@@ -1,0 +1,8 @@
+# 构建上下文 = 本目录。Dockerfile 只 COPY dist/ 与 nginx/、entrypoint/ 下的具体文件，
+# 这里排除的是「不该进上下文的杂物」，主要是防止以后有人把 COPY . 加进来时
+# 把 tar 包、日志、本地笔记一起打进镜像。
+README.md
+*.log
+*.tar.gz
+.build-tag
+.DS_Store

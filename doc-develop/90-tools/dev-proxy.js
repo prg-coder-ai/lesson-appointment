@@ -417,7 +417,12 @@ function startProxy(o) {
   // 为什么不走 http.request：WS 升级成功后连接变成裸 TCP，http 模块的回调模型
   // 无法双向透传帧。这里用 net.connect 拿到底层 socket，把「原始 HTTP 升级请求」
   // 手写过去，然后双向 pipe —— 升级后的一切字节（含 ping/pong）原样过。
-  if (classroomTarget && classroomTarget.protocol === 'http') {
+  // ★ 上游协议不再限定 http（2026-11-21）：云托管里 classroom-service 是 https/wss。
+  //   原来只在 protocol === 'http' 时注册 upgrade，于是云托管模式下课堂的
+  //   信令 / 白板 / 心跳三条 WS 通道**一条都连不上** —— 表现为「课堂页一直重连中」
+  //   或在线人数恒为 0，而 HTTP 接口（进入课堂、成员列表）却完全正常，
+  //   极容易被判成「前端信令写错了」。
+  if (classroomTarget) {
     server.on('upgrade', (req, socket, head) => {
       const urlPath = (req.url || '/').split('?')[0];
       if (!urlPath.startsWith('/ws/')) {
@@ -425,7 +430,9 @@ function startProxy(o) {
         socket.destroy();
         return;
       }
-      const upstream = net.connect(classroomTarget.port, classroomTarget.host, () => {
+      // 连接建立后把「原始 HTTP 升级请求」手写过去，之后双向 pipe（升级后是裸 TCP，
+      // http 模块的回调模型透传不了帧，所以只能用底层 socket）。
+      const onConnect = () => {
         const headers = { ...req.headers, host: classroomTarget.hostHeader };
         let raw = `GET ${req.url} HTTP/1.1\r\n`;
         for (const [k, v] of Object.entries(headers)) {
@@ -437,9 +444,21 @@ function startProxy(o) {
         if (head && head.length) upstream.write(head);
         upstream.pipe(socket);
         socket.pipe(upstream);
-      });
+      };
+      // https 上游必须 tls.connect 且显式带 servername（SNI）：
+      // 云托管按 SNI 选证书，缺了会拿到默认证书 → 握手失败，
+      // 而 Node 的报错只有 ECONNRESET / socket hang up，看不出是 SNI 问题。
+      const upstream = classroomTarget.protocol === 'https'
+        ? require('tls').connect({
+          host: classroomTarget.host,
+          port: classroomTarget.port,
+          servername: classroomTarget.hostHeader || classroomTarget.host,
+        }, onConnect)
+        : net.connect(classroomTarget.port, classroomTarget.host, onConnect);
       upstream.on('error', () => socket.destroy());
       socket.on('error', () => upstream.destroy());
+      // 浏览器端断开时释放上游，否则每次切页都留一条半开连接（长连接场景会累积）
+      socket.on('close', () => upstream.destroy());
     });
   }
 
@@ -479,7 +498,16 @@ function startProxy(o) {
       if (classroomTarget) {
         console.log(`   在线课堂   :  /api/v1/{classrooms,uploads,files,recordings,...} + /ws/* ->  ${fmt(classroomTarget)}`);
       }
-      console.log(`   上游 Host  :  ${apiTarget.hostHeader}${msgTarget.hostHeader !== apiTarget.hostHeader ? '  /  ' + msgTarget.hostHeader : ''}`);
+      // Host 头是排查云托管 404 / 证书不匹配的第一手信息（云托管按 Host + SNI 路由），
+      // 三个上游 Host 不同时必须都打出来 —— 只打前两个会让人误以为课堂也走 api 域名。
+      const hostHeaders = [apiTarget.hostHeader];
+      if (msgTarget.hostHeader && msgTarget.hostHeader !== apiTarget.hostHeader) hostHeaders.push(msgTarget.hostHeader);
+      if (classroomTarget && classroomTarget.hostHeader
+        && classroomTarget.hostHeader !== apiTarget.hostHeader
+        && classroomTarget.hostHeader !== msgTarget.hostHeader) {
+        hostHeaders.push(classroomTarget.hostHeader);
+      }
+      console.log(`   上游 Host  :  ${hostHeaders.join('  /  ')}`);
       console.log(line);
       if (o.probe !== false) {
         Promise.all([
