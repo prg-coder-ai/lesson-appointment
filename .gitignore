@@ -137,3 +137,9 @@ api/classroom-service/data/oss/material
 # �build.version，于是常年挂�git status 里、被顺手提交进仓库�
 # �git rm --cached 把它移出索引（工作区文件保留，编译照常生成），本规则自此生效�
 api/classroom-service/target/
+
+# Frontend image build context: build.sh copies frontend/dist here (~5MB)
+# Trailing slash matters, otherwise the rule matches a plain file named dist
+deploy/docker/frontend/dist/
+deploy/docker/frontend/.build-tag
+cloudBased/classroom-service/classroom-service-1.0.0.jar

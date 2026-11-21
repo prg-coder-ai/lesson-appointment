@@ -94,7 +94,10 @@ echo "==> 5/8 Nginx 配置 + 备份脚本 + logrotate"
 scp "$ROOT/deploy/nginx/booking.conf"     "$SERVER:/etc/nginx/sites-available/booking"
 scp "$ROOT/deploy/nginx/booking-ip.conf"  "$SERVER:/etc/nginx/sites-available/booking-ip"
 # 等保 P0-3：限流 zone 定义（limit_req_zone 必须在 http{} 上下文，放不进 sites-available，
-# 单独走 conf.d）。漏传这个文件 → nginx -t 报 unknown limit_req_zone → 整站起不来。
+# 单独走 conf.d）。漏传这个文件 → nginx -t 失败，整站起不来。
+# 报错文本有两种，都指向「定义没生效」：
+#   zero size shared memory zone "api_zone"   ← 不带文件行号，最难查（2026-11-21 生产遇到）
+#   unknown limit_req_zone "api_zone"          ← 带文件行号
 scp "$ROOT/deploy/nginx/conf.d/00-limit-req-zone.conf" "$SERVER:/etc/nginx/conf.d/00-limit-req-zone.conf"
 # proxy_params：两份站点配置共 22 处 include /etc/nginx/proxy_params。
 # Debian/Ubuntu 的 nginx-common 自带；CentOS / Anolis / Rocky 没有 → nginx -t 直接失败，

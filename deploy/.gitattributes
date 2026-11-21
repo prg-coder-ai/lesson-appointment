@@ -8,10 +8,26 @@
 # Dockerfile：行尾 \r 会让 RUN 里的反斜杠续行失效，shell 报 "/bin/sh^M: bad interpreter"，
 # 报错指向构建脚本而不是换行符 —— 而 core.autocrlf=true 的 Windows 检出默认就是 CRLF
 docker/Dockerfile  text eol=lf
+# 前端镜像（deploy/docker/frontend/）的三个文件同样必须 LF：
+#   Dockerfile          CRLF 会让 RUN 的反斜杠续行失效，报 /bin/sh^M
+#   *.template          nginx 模板 CRLF 时指令末尾会带 \r，nginx -t 报
+#                       "unexpected \"\\r\""，而这个模板是容器启动时才渲染的，
+#                       所以构建期查不出来，只有容器起不来时才暴露
+#   nginx/proxy_params  无扩展名的 include 片段，同 *.conf 处理
+docker/frontend/Dockerfile            text eol=lf
+docker/frontend/nginx/proxy_params    text eol=lf
+*.template text eol=lf
 # .env 模板：cp 成 /opt/lesson/docker/.env 后，值尾部带 \r 会变成
 #   BOOKING_TAG=2.2.0-init\r → 拉不到镜像（报错只说 image not found）
 #   LESSON_UID=1000\r       → compose 报 invalid user format
 # 两者都不会提示"有个看不见的字符"
 docker/env.example text eol=lf
 # Windows 双击脚本保持 CRLF
+# .bat 必须是 CRLF：LF 结尾时 cmd 对 goto :label 的解析会失败（而且不报错，
+# 只是跳转后行为诡异）。git 的 text 转换只动行尾、不动其他字节，编码不受影响。
+# 编码约定（2026-11-21 起）：
+#   kill-all.bat          UTF-8 无 BOM + 第 2 行 chcp 65001（编辑器/Git 预览不乱码）
+#   build-all.bat / run-all.bat 仍是 GBK（中文 Windows 默认 936，双击可正常显示）；
+#   git 不做工作区编码转换，所以这三个文件各自的字节必须原样提交，别被编辑器存成别的编码。
 *.cmd  text eol=crlf
+*.bat  text eol=crlf
