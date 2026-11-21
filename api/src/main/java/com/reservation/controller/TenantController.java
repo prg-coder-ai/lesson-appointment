@@ -47,6 +47,8 @@ public class TenantController {
     private PromoService promoService;
     @Autowired
     private UserService userService;
+    @Autowired
+    private com.reservation.service.EclassroomService eclassroomService;
 
     /**
      * 分页查询租户列表
@@ -64,7 +66,39 @@ public class TenantController {
             query.setExpireEnd(null);
             query.setTenantIdFilter(tenantId);
         }
-        return Result.success(tenantService.getTenantListByPage(query), "查询成功");
+        PageResult<Tenant> page = tenantService.getTenantListByPage(query);
+        fillClassroomStatus(page);
+        return Result.success(page, "查询成功");
+    }
+
+    /**
+     * 给租户列表每行补上「课堂开关」状态（2026-11-20，平台端状态列用）。
+     *
+     * <p>classroomEnabled：null=从未绑定（未开通）/ 1=已启用 / 0=已禁用。
+     *
+     * <p>两点刻意的设计：
+     * <ul>
+     *   <li>走一次批量 IN 查询（{@link com.reservation.service.EclassroomService#batchClassroomEnabled}），
+     *       不在循环里逐条查 —— 列表一页 8~20 行，逐条会打 8~20 个往返。</li>
+     *   <li>整段吞异常：状态列只是运营辅助信息。课堂模块出问题时，宁可这一列空着，
+     *       也不能让平台端的租户列表整体打不开。</li>
+     * </ul>
+     */
+    private void fillClassroomStatus(PageResult<Tenant> page) {
+        if (page == null || page.getRows() == null || page.getRows().isEmpty()) return;
+        try {
+            List<Long> ids = page.getRows().stream()
+                    .filter(t -> t != null && t.getId() != null)
+                    .map(Tenant::getId)
+                    .toList();
+            if (ids.isEmpty()) return;
+            Map<Long, Integer> statusMap = eclassroomService.batchClassroomEnabled(ids);
+            for (Tenant t : page.getRows()) {
+                if (t != null) t.setClassroomEnabled(statusMap.get(t.getId()));
+            }
+        } catch (Exception e) {
+            log.warn("填充租户课堂状态失败（不影响租户列表返回）", e);
+        }
     }
 
     /**

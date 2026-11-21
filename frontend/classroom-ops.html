@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>课堂运营台</title>
+  <link rel="stylesheet" href="js/public/vendor/font-awesome/css/all.min.css">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: #f5f6f8; color: #1f2328;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 13px;
+    }
+    .ops-header {
+      display: flex; align-items: center; gap: 12px; padding: 12px 20px;
+      background: #fff; border-bottom: 1px solid #e3e6ea; position: sticky; top: 0; z-index: 20;
+    }
+    .ops-header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+    .ops-header .spacer { flex: 1; }
+    .ops-header .who { color: #6b7280; font-size: 12px; }
+    .btn {
+      padding: 6px 14px; border-radius: 6px; border: 1px solid #d0d5dd; background: #fff;
+      color: #1f2328; font-size: 13px; cursor: pointer;
+    }
+    .btn:hover { background: #f2f4f7; }
+    .btn.primary { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+    .btn.primary:hover { background: #388bfd; }
+    .btn.danger { border-color: #f5c2c0; color: #b42318; }
+    .btn.small { padding: 3px 9px; font-size: 12px; }
+    .ops-tabs {
+      display: flex; gap: 4px; padding: 10px 20px 0; background: #fff; border-bottom: 1px solid #e3e6ea;
+    }
+    .ops-tabs button {
+      padding: 8px 16px; border: none; background: transparent; cursor: pointer; font-size: 13px;
+      color: #6b7280; border-bottom: 2px solid transparent;
+    }
+    .ops-tabs button.active { color: #1f6feb; border-bottom-color: #1f6feb; font-weight: 600; }
+    main { padding: 16px 20px 40px; }
+    .tab { display: none; }
+    .tab.active { display: block; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 14px; }
+    .card { background: #fff; border: 1px solid #e3e6ea; border-radius: 8px; padding: 12px 14px; }
+    .card .k { color: #6b7280; font-size: 12px; }
+    .card .v { font-size: 22px; font-weight: 600; margin-top: 4px; }
+    .card .v.warn { color: #b54708; }
+    .panel { background: #fff; border: 1px solid #e3e6ea; border-radius: 8px; margin-bottom: 14px; }
+    .panel-head {
+      display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid #eef0f3;
+      font-weight: 600;
+    }
+    .panel-head .spacer { flex: 1; }
+    .panel-body { padding: 12px 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid #eef0f3; vertical-align: top; }
+    th { color: #6b7280; font-weight: 600; background: #fafbfc; position: sticky; top: 0; }
+    tr:hover td { background: #fafbfc; }
+    .table-wrap { max-height: 460px; overflow: auto; }
+    .tag { display: inline-block; padding: 1px 7px; border-radius: 4px; font-size: 11px; }
+    .tag.ok { background: #e7f6ec; color: #1a7f37; }
+    .tag.warn { background: #fff4e5; color: #b54708; }
+    .tag.err { background: #feeceb; color: #b42318; }
+    .tag.mute { background: #f2f4f7; color: #6b7280; }
+    .field { display: inline-flex; align-items: center; gap: 6px; margin-right: 12px; }
+    .field input, .field select {
+      padding: 5px 8px; border: 1px solid #d0d5dd; border-radius: 6px; font-size: 12.5px; background: #fff;
+    }
+    .field input[type=date] { width: 140px; }
+    .field input[type=text] { width: 260px; }
+    textarea {
+      width: 100%; min-height: 90px; padding: 8px; border: 1px solid #d0d5dd; border-radius: 6px;
+      font-family: ui-monospace, Consolas, monospace; font-size: 12px;
+    }
+    .empty { color: #98a2b3; padding: 18px; text-align: center; }
+    .kv { display: grid; grid-template-columns: 140px 1fr; gap: 6px 12px; font-size: 12.5px; }
+    .kv .k { color: #6b7280; }
+    .muted { color: #6b7280; }
+    .toast {
+      position: fixed; right: 20px; bottom: 20px; background: #1f2328; color: #fff; padding: 10px 16px;
+      border-radius: 6px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 99;
+    }
+    .toast.show { opacity: 1; }
+
+    /* ===== 可搜索选择器（js/classroom/picker.js，2026-11-19） =====
+       运营台是零构建静态页，不引第三方下拉库；这套类名只在本页使用。 */
+    .field-pick { display: inline-block; vertical-align: middle; }
+    .pk {
+      position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+      width: 100%; min-height: 32px; padding: 3px 6px;
+      border: 1px solid #d0d5dd; border-radius: 6px; background: #fff;
+    }
+    .pk:focus-within { border-color: #1f6feb; box-shadow: 0 0 0 2px rgba(31, 111, 235, .12); }
+    .pk-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+    .pk-chip {
+      display: inline-flex; align-items: center; gap: 4px; max-width: 220px;
+      padding: 1px 6px; border-radius: 4px; background: #eef4ff; color: #1f4fbf; font-size: 12px;
+    }
+    .pk-chip b { cursor: pointer; font-weight: 400; color: #6b7280; }
+    .pk-chip b:hover { color: #b42318; }
+    .pk-input {
+      flex: 1; min-width: 90px; padding: 3px 2px; border: 0; outline: 0;
+      background: transparent; font-size: 12.5px;
+    }
+    .pk-menu {
+      position: absolute; left: 0; right: 0; top: calc(100% + 2px); z-index: 60;
+      background: #fff; border: 1px solid #d0d5dd; border-radius: 6px;
+      box-shadow: 0 6px 18px rgba(16, 24, 40, .12); overflow: hidden;
+    }
+    .pk-list { max-height: 220px; overflow: auto; }
+    .pk-item { padding: 6px 10px; cursor: pointer; border-bottom: 1px solid #f3f4f6; }
+    .pk-item:last-child { border-bottom: 0; }
+    .pk-item.active, .pk-item:hover { background: #f2f6ff; }
+    .pk-item.picked { color: #1f6feb; }
+    .pk-main { font-size: 12.5px; }
+    .pk-sub { margin-top: 1px; color: #98a2b3; font-size: 11.5px; }
+    .pk-tick { color: #1a7f37; }
+    .pk-empty { padding: 10px; color: #98a2b3; font-size: 12.5px; text-align: center; }
+    .pk-foot { padding: 5px 10px; border-top: 1px solid #f3f4f6; background: #fafbfc; color: #98a2b3; font-size: 11.5px; }
+    .pk-foot:empty { display: none; }
+  </style>
+</head>
+<body>
+  <header class="ops-header">
+    <h1><i class="fas fa-chart-line"></i> 课堂运营台</h1>
+    <span class="who" id="ops-user"></span>
+    <span class="spacer"></span>
+    <button class="btn" id="ops-refresh"><i class="fas fa-sync"></i> 刷新当前页</button>
+  </header>
+
+  <nav class="ops-tabs">
+    <button data-tab="monitor" class="active">实时监控</button>
+    <button data-tab="report">学情报表</button>
+    <button data-tab="reconcile">对账差异</button>
+    <button data-tab="audit">内容审核</button>
+    <button data-tab="contract">契约联调</button>
+  </nav>
+
+  <main>
+    <!-- 实时监控 -->
+    <section id="tab-monitor" class="tab active">
+      <div class="cards" id="monitor-cards"></div>
+
+      <!-- 应急：临时建课（B1，2026-11-19）
+           课堂实例只能由排期事件产生，预约侧没有对应排期时，用它直接造一节。
+           注意：不结算课时、不进学情报表、也不出现在学生「我的课堂」里，只能靠链接分发。 -->
+      <div class="panel">
+        <div class="panel-head">临时建课（应急）<span class="spacer"></span>
+          <span class="muted">不计课时 · 不进「我的课堂」· 靠链接分发</span></div>
+        <div class="panel-body">
+          <div>
+            <span class="field">课程名 <input type="text" id="tmp-name" placeholder="临时课堂" style="width:180px"></span>
+            <!-- 教师/学生都改成可搜索选择（2026-11-19）：userId 是系统短码，手抄错一位
+                 就变成「建了课但教师进不去」（准入按 teacherId 本人判定）。 -->
+            <span class="field">教师 <span id="tmp-teacher-pick" class="field-pick" style="width:240px"></span></span>
+            <span class="field">开始 <input type="datetime-local" id="tmp-start" style="width:180px"></span>
+            <span class="field">结束 <input type="datetime-local" id="tmp-end" style="width:180px"></span>
+            <span class="field">时长 <input type="number" id="tmp-duration" value="60" min="5" style="width:64px"> 分</span>
+          </div>
+          <div style="margin-top:8px">
+            <div class="muted" style="margin-bottom:4px">学生（可多选，可留空后加）</div>
+            <div id="tmp-students-pick"></div>
+          </div>
+          <div style="margin-top:8px">
+            <button class="btn primary" id="tmp-create">创建临时课堂</button>
+            <span class="muted">建完是「待开课」，需教师点「进行中」；管理员可用带 &amp;role=teacher 的链接代开课</span>
+          </div>
+          <div id="tmp-result"></div>
+        </div>
+      </div>
+
+      <!-- 应急：临场加学员（B2）——临时课堂没有排期，走不了「指定学生」；
+           已开课时 updated 事件也会被忽略，只能用它直接写名单 + 出勤行。 -->
+      <div class="panel">
+        <div class="panel-head">给指定课堂加学员</div>
+        <div class="panel-body">
+          <div>
+            <span class="field">课堂号 <input type="text" id="mem-schedule" placeholder="scheduleId（多课次形如 排期id~2）" style="width:280px"></span>
+            <!-- 学生改成可搜索多选（2026-11-19） -->
+            <span class="field">学生 <span id="mem-students-pick" class="field-pick" style="width:260px"></span></span>
+            <span class="field">原因 <input type="text" id="mem-note" placeholder="留痕说明（可空）" style="width:190px"></span>
+            <button class="btn primary" id="mem-add">加入</button>
+          </div>
+          <div class="muted" style="margin-top:6px">
+            已在本课堂的人会被跳过；加入后对方刷新课堂页即可进入，「参与者」面板需各自刷新才看到新同学。
+          </div>
+        </div>
+      </div>
+
+      <!-- 应急：发上课通知（C4，2026-11-19）——临时课堂不进学生「我的课堂」，
+           名单又只有管理员看得见，只能主动推。走消息中心 /api/v1/messages/send（8090），
+           payload.url 会被收件箱渲染成「进入课堂」按钮（见 messages-inbox.js）。 -->
+      <div class="panel">
+        <div class="panel-head">发上课通知<span class="spacer"></span>
+          <span class="muted">发给本课堂名单里的学生 · 带一键进入链接</span></div>
+        <div class="panel-body">
+          <div>
+            <!-- 课堂号改成按「课程名 / 时间」下拉选（2026-11-19）：32 位 id 抄不动，
+                 也分不清哪节课是哪节。候选来自课堂实例（含临时建课），不是排期表。 -->
+            <span class="field">课堂 <span id="ntc-schedule-pick" class="field-pick" style="width:340px"></span></span>
+            <span class="field">标题 <input type="text" id="ntc-title" placeholder="留空自动生成" style="width:220px"></span>
+          </div>
+          <div style="margin-top:8px">
+            <div class="muted" style="margin-bottom:4px">正文（留空自动生成；课程名/时间/课堂号会自动填入）</div>
+            <textarea id="ntc-content" style="min-height:72px"
+              placeholder="留空则自动生成「课程名 将于 时间 开课，点『进入课堂』即可加入」"></textarea>
+          </div>
+          <div style="margin-top:8px">
+            <label class="field" style="margin-right:16px;">
+              <input type="checkbox" id="ntc-with-link" checked> 附带「进入课堂」按钮（消息里可点）
+            </label>
+            <label class="field" style="margin-right:16px;">
+              <input type="checkbox" id="ntc-high"> 高优先级
+            </label>
+            <button class="btn primary" id="ntc-send">发送通知</button>
+            <span class="muted" style="margin-left:8px">只发给名单里 role=student 且未被移出的人</span>
+          </div>
+          <div id="ntc-result"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">活跃课堂<span class="spacer"></span>
+          <span class="muted" id="monitor-time"></span></div>
+        <div class="table-wrap"><table id="monitor-table"></table></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">告警</div>
+        <div class="panel-body" id="monitor-alerts"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">部署健康（RTC / 录制 / 存储实际选型）</div>
+        <div class="panel-body" id="monitor-metrics"></div>
+      </div>
+    </section>
+
+    <!-- 学情报表 -->
+    <section id="tab-report" class="tab">
+      <div class="panel">
+        <div class="panel-head">
+          <span class="field">从 <input type="date" id="rep-from"></span>
+          <span class="field">到 <input type="date" id="rep-to"></span>
+          <button class="btn primary" id="rep-query">查询</button>
+          <span class="spacer"></span>
+          <button class="btn" id="rep-export-attendance">导出出勤明细</button>
+          <button class="btn" id="rep-export-recordings">导出录制清单</button>
+        </div>
+      </div>
+      <div class="cards" id="rep-cards"></div>
+      <div class="panel">
+        <div class="panel-head">按课堂</div>
+        <div class="table-wrap"><table id="rep-class-table"></table></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">按学生（缺勤多的在前）</div>
+        <div class="table-wrap"><table id="rep-student-table"></table></div>
+      </div>
+    </section>
+
+    <!-- 对账差异 -->
+    <section id="tab-reconcile" class="tab">
+      <div class="panel">
+        <div class="panel-head">
+          <span class="field">状态
+            <select id="rc-status">
+              <option value="OPEN">未处置</option>
+              <option value="RESOLVED">已处置</option>
+              <option value="IGNORED">已忽略</option>
+              <option value="">全部</option>
+            </select>
+          </span>
+          <span class="field">近 <input type="number" id="rc-days" value="7" min="1" max="90" style="width:64px"> 天</span>
+          <button class="btn primary" id="rc-query">查询</button>
+          <span class="spacer"></span>
+          <button class="btn" id="rc-run">立即跑一次日终对账</button>
+        </div>
+        <div class="table-wrap"><table id="rc-table"></table></div>
+      </div>
+    </section>
+
+    <!-- 内容审核 -->
+    <section id="tab-audit" class="tab">
+      <div class="panel">
+        <div class="panel-head">
+          <span class="field">课次 <input type="text" id="au-schedule" placeholder="留空=全部"></span>
+          <span class="field">状态
+            <select id="au-status">
+              <option value="">全部</option>
+              <option value="SUBMITTED">待审</option>
+              <option value="REVIEWED">已点评</option>
+              <option value="FLAGGED">已标记违规</option>
+            </select>
+          </span>
+          <button class="btn primary" id="au-query">抽查</button>
+          <span class="spacer"></span>
+          <button class="btn" id="au-chat-view">记录一次聊天查阅</button>
+        </div>
+        <div class="table-wrap"><table id="au-table"></table></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">审核 / 查阅留痕（近 7 天）</div>
+        <div class="table-wrap"><table id="au-log-table"></table></div>
+      </div>
+    </section>
+
+    <!-- 契约联调 -->
+    <section id="tab-contract" class="tab">
+      <div class="panel">
+        <div class="panel-head">
+          <span class="field">课次 <input type="text" id="ct-schedule" placeholder="留空=全部"></span>
+          <span class="field">结果
+            <select id="ct-result">
+              <option value="">全部</option>
+              <option value="SUCCESS">SUCCESS</option>
+              <option value="SKIPPED">SKIPPED</option>
+              <option value="FAILED">FAILED</option>
+            </select>
+          </span>
+          <span class="field">近 <input type="number" id="ct-days" value="7" min="1" max="90" style="width:64px"> 天</span>
+          <button class="btn primary" id="ct-query">查询事件</button>
+        </div>
+        <div class="table-wrap"><table id="ct-table"></table></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">重放排期事件（粘贴预约侧原始报文）</div>
+        <div class="panel-body">
+          <textarea id="ct-payload" placeholder='{"eventId":"...","eventType":"created","scheduleId":"...","courseId":"...","teacherId":"...","startTime":"2026-10-30T10:00:00","endTime":"2026-10-30T11:00:00"}'></textarea>
+          <div style="margin-top:8px"><button class="btn primary" id="ct-replay">重放</button>
+            <span class="muted">重放会先清掉该 eventId 的幂等键，再走正常消费链路</span></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">批量对表（每行一个 scheduleId）</div>
+        <div class="panel-body">
+          <textarea id="ct-ids" placeholder="scheduleId-1&#10;scheduleId-2"></textarea>
+          <div style="margin-top:8px"><button class="btn primary" id="ct-resync">对表</button></div>
+          <div class="table-wrap" style="margin-top:10px"><table id="ct-resync-table"></table></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">补发课时回流（只重发、不重算）</div>
+        <div class="panel-body">
+          <div>
+            <!-- 课堂按课程名/时间下拉选：32 位 id 手抄不现实，且补发是动账操作，选错课次影响结算 -->
+            <span class="field">课堂 <span id="rcs-schedule-pick" class="field-pick" style="width:340px"></span></span>
+            <button class="btn primary" id="ct-resend">补发回流</button>
+          </div>
+          <div class="muted" style="margin-top:6px;line-height:1.7">
+            用于「已结束但课时没回流」（<code>consumption_version=0</code> 或 <code>actual_end</code> 为空）。<br>
+            按库里现有出勤结论重发报文，并把版本号 +1（预约侧按版本覆盖，不会重复扣课时）；
+            <b>不会重算出勤</b>，所以人工调整过的结论不会被冲掉。<br>
+            没下课的课堂不能补发——先「结束」再补发，否则等于凭空造一份出勤账。
+          </div>
+          <div id="ct-resend-result"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="ops-toast"></div>
+
+  <script src="js/public/vendor/axios.min.js"></script>
+  <script src="js/public/utility_request.js"></script>
+  <script src="js/public/api.js"></script>
+  <!-- shared/apiPaths.js 的浏览器镜像（生成产物，勿手改）。
+       必须早于 js/classroom/*.js：它们 IIFE 执行时即读取 window.ApiPaths.ENDPOINTS，
+       缺这份时端点会拼成 undefined，请求静默失败。2026-10-31 端点收口时补入。 -->
+  <script src="js/shared-domain-bridge.js"></script>
+  <!-- 可搜索选择器（2026-11-19）：必须早于 ops.js，后者在 run() 里创建三个 picker 实例 -->
+  <script src="js/classroom/picker.js"></script>
+  <script src="js/classroom/ops.js"></script>
+</body>
+</html>

@@ -5,6 +5,7 @@ import com.reservation.common.Result;
 import com.reservation.dto.TeacherProfessionalDTO;
 import com.reservation.query.TeacherProfessionalQueryPage;
 import com.reservation.service.TeacherProfessionalService;
+import com.reservation.utils.ContactMask;
 import com.reservation.utils.PermissionCheck;
 import com.reservation.vo.TeacherProfessionalDetailVO;
 import com.reservation.vo.TeacherProfessionalListVO;
@@ -79,7 +80,21 @@ public class TeacherProfessionalController {
             @RequestHeader("Authorization") String token) {
         // 方法级兜底：对齐 AuthzRules 声明 ALL_ROLES（学生浏览教师资料）
         permissionCheck.checkAnyLogin(token);
-        return teacherProfessionalService.queryTeacherProfessionalInfo(teacherProfessionalId, teacherId);
+        Result<TeacherProfessionalDetailVO> rs =
+                teacherProfessionalService.queryTeacherProfessionalInfo(teacherProfessionalId, teacherId);
+        // 联系方式脱敏（2026-11-19 安全走读 M-2）：ALL_ROLES 不能收窄（学生要浏览资料），
+        // 但手机号/邮箱是解密后的明文，只对管理员与本人放行。
+        TeacherProfessionalDetailVO vo = rs == null ? null : rs.getData();
+        if (vo != null) {
+            String ownerTeacherId = vo.getProfessional() != null
+                    ? vo.getProfessional().getTeacherId() : null;
+            if (ContactMask.shouldMask(permissionCheck.getRoleFromToken(token),
+                    permissionCheck.getUserIdFromToken(token), ownerTeacherId)) {
+                vo.setPhone(ContactMask.phone(vo.getPhone()));
+                vo.setEmail(ContactMask.email(vo.getEmail()));
+            }
+        }
+        return rs;
     }
 
     // 5. 分页查询教师职业信息列表
@@ -88,8 +103,23 @@ public class TeacherProfessionalController {
     public Result<PageResult<TeacherProfessionalListVO>> listByPage(
             TeacherProfessionalQueryPage query,
             @RequestHeader("Authorization") String token) {
+        // 方法级兜底：对齐 AuthzRules 声明 ALL_ROLES（学生浏览教师资料）
         permissionCheck.checkAnyLogin(token);
-        return teacherProfessionalService.listByPage(query);
+        Result<PageResult<TeacherProfessionalListVO>> rs = teacherProfessionalService.listByPage(query);
+        // 逐行脱敏：本想"整页一致"，但列表可能同时含本人与其他教师，必须按行判归属
+        PageResult<TeacherProfessionalListVO> page = rs == null ? null : rs.getData();
+        if (page != null && page.getRows() != null) {
+            String role = permissionCheck.getRoleFromToken(token);
+            String callerId = permissionCheck.getUserIdFromToken(token);
+            for (TeacherProfessionalListVO row : page.getRows()) {
+                if (row == null) continue;
+                if (ContactMask.shouldMask(role, callerId, row.getTeacherId())) {
+                    row.setPhone(ContactMask.phone(row.getPhone()));
+                    row.setEmail(ContactMask.email(row.getEmail()));
+                }
+            }
+        }
+        return rs;
     }
 
     // 6. 上传教师图片（头像 photo / 证书 cert），返回可访问 URL（需登录 TEACHER_OR_ADMIN）

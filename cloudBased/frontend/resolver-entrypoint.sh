@@ -13,8 +13,10 @@
 #   一旦烧进镜像必然过期（这正是 2026-11-08 那次 502 的成因）。
 #
 # 环境变量（云托管控制台 → 服务设置 → 环境变量）：
-#   API_UPSTREAM  例：http://api-xxxxxxxx.ap-shanghai.internal-run.tcloudbase.com:8081
-#   MSG_UPSTREAM  例：http://message-service-xxxxxxxx.ap-shanghai.internal-run.tcloudbase.com:8090
+#   API_UPSTREAM       例：http://api-xxxxxxxx.ap-shanghai.internal-run.tcloudbase.com:8081
+#   MSG_UPSTREAM       例：http://message-service-xxxxxxxx.ap-shanghai.internal-run.tcloudbase.com:8090
+#   CLASSROOM_UPSTREAM 例：http://classroom-service-xxxxxxxx.ap-shanghai.internal-run.tcloudbase.com:8092
+#                      （2026-11-10 合并 eClassroom 分支后新增，在线课堂 + /ws/classrooms 反代）
 #
 #   ⚠ 内网域名必须带端口，且端口只能等于该服务**发布时填写的容器端口**
 #     （api=8081 / message-service=8090），其他端口不可用；内网是 http，不是 https。
@@ -38,6 +40,7 @@ RESOLVER_CONF=/etc/nginx/conf.d/00-resolver.conf
 # ------------------------------------------------------------------------------
 API_UPSTREAM="${API_UPSTREAM:-}"
 MSG_UPSTREAM="${MSG_UPSTREAM:-}"
+CLASSROOM_UPSTREAM="${CLASSROOM_UPSTREAM:-}"
 
 die() { echo "[nginx-boot] ERROR: $*" >&2; exit 1; }
 
@@ -49,10 +52,14 @@ die() { echo "[nginx-boot] ERROR: $*" >&2; exit 1; }
 [ -n "$MSG_UPSTREAM" ] || die "缺少环境变量 MSG_UPSTREAM
   例：http://message-service-xxxxxxxx.ap-shanghai.internal-run.tcloudbase.com:8090
   到 云托管控制台 → 服务设置 → 环境变量 里配置"
+[ -n "$CLASSROOM_UPSTREAM" ] || die "缺少环境变量 CLASSROOM_UPSTREAM
+  例：http://classroom-service-xxxxxxxx.ap-shanghai.internal-run.tcloudbase.com:8092
+  到 云托管控制台 → 服务设置 → 环境变量 里配置（内网域名从「内网访问」处复制，端口 8092）"
 
 # 去尾斜杠：proxy_pass 带尾斜杠会变成「前缀替换」，把 /api/v1/ 吃掉导致后端全 404
 API_UPSTREAM="${API_UPSTREAM%/}"
 MSG_UPSTREAM="${MSG_UPSTREAM%/}"
+CLASSROOM_UPSTREAM="${CLASSROOM_UPSTREAM%/}"
 
 # 硬拦已被实测证伪的写法（见文件头）
 case "$API_UPSTREAM" in
@@ -63,6 +70,10 @@ case "$MSG_UPSTREAM" in
     *svc.cluster.local*)
         die "MSG_UPSTREAM 用了 svc.cluster.local —— 同上，必 502：$MSG_UPSTREAM" ;;
 esac
+case "$CLASSROOM_UPSTREAM" in
+    *svc.cluster.local*)
+        die "CLASSROOM_UPSTREAM 用了 svc.cluster.local —— 同上，必 502：$CLASSROOM_UPSTREAM" ;;
+esac
 
 # 防呆：两个上游填反是最常见的配置事故，表现是「接口全 404」而不是连不上
 case "$API_UPSTREAM" in
@@ -72,19 +83,23 @@ case "$MSG_UPSTREAM" in
     *message*) ;;
     *) echo "[nginx-boot] WARN: MSG_UPSTREAM 看起来不像消息服务：$MSG_UPSTREAM" >&2 ;;
 esac
+case "$CLASSROOM_UPSTREAM" in
+    *classroom*) ;;
+    *) echo "[nginx-boot] WARN: CLASSROOM_UPSTREAM 看起来不像课堂服务：$CLASSROOM_UPSTREAM" >&2 ;;
+esac
 
-export API_UPSTREAM MSG_UPSTREAM
+export API_UPSTREAM MSG_UPSTREAM CLASSROOM_UPSTREAM
 
 # ------------------------------------------------------------------------------
 # ② 白名单渲染：只替换这两个变量，nginx 自己的 $host / $remote_addr 原样保留
 #    （不能用官方 /etc/nginx/templates 机制：20-envsubst-on-templates.sh 会替换**所有** $VAR，
 #      把 nginx 变量清成空串 —— 反代会丢真实 IP、Host 变空，排查成本极高）
 # ------------------------------------------------------------------------------
-envsubst '${API_UPSTREAM} ${MSG_UPSTREAM}' < "$TPL" > "$OUT"
+envsubst '${API_UPSTREAM} ${MSG_UPSTREAM} ${CLASSROOM_UPSTREAM}' < "$TPL" > "$OUT"
 
 grep -qF 'proxy_pass $api_upstream' "$OUT" \
     || die "渲染结果里找不到 proxy_pass \$api_upstream —— 模板或 envsubst 白名单有问题"
-if grep -q 'API_UPSTREAM}' "$OUT" || grep -q 'MSG_UPSTREAM}' "$OUT"; then
+if grep -q 'API_UPSTREAM}' "$OUT" || grep -q 'MSG_UPSTREAM}' "$OUT" || grep -q 'CLASSROOM_UPSTREAM}' "$OUT"; then
     die "渲染结果里仍有未替换的占位符（envsubst 没生效）"
 fi
 
@@ -115,8 +130,9 @@ echo "resolver ${SERVERS} valid=10s ipv6=off;" > "$RESOLVER_CONF"
 # ④ 自检 + 回显（云托管日志面板直接可见，排查 502 时第一眼看这几行）
 # ------------------------------------------------------------------------------
 echo "[nginx-boot] resolver   -> ${SERVERS}"
-echo "[nginx-boot] API_UPSTREAM = ${API_UPSTREAM}"
-echo "[nginx-boot] MSG_UPSTREAM = ${MSG_UPSTREAM}"
+echo "[nginx-boot] API_UPSTREAM       = ${API_UPSTREAM}"
+echo "[nginx-boot] MSG_UPSTREAM       = ${MSG_UPSTREAM}"
+echo "[nginx-boot] CLASSROOM_UPSTREAM = ${CLASSROOM_UPSTREAM}"
 echo "[nginx-boot] 生效的上游配置："
 grep -nE '_upstream "|proxy_pass' "$OUT" | sed 's/^/[nginx-boot]   /' || true
 echo "[nginx-boot] /etc/resolv.conf："

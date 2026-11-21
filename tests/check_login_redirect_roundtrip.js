@@ -202,6 +202,10 @@ function okJson(body) {
         pageUrl: makePageUrlStub(url),
         resetLoginForm: () => {},
         handleLogout: () => {},
+        // 登录成功后 login.html 会 fire-and-forget 记一次协议签署（recordLegalAccept → request()）。
+        // 页面沙箱不加载 utility_request.js，缺这个桩会在 setTimeout 之前抛 ReferenceError，
+        // 整段成功分支被 catch 吃掉 → 永远不跳转（曾经让 R5 假红）。
+        request: async () => ({ code: 200, data: null }),
         sanitizeTenantCode: (s) => String(s || '').trim(),
         applyLoginTenantRule: () => {},
       },

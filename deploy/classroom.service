@@ -1,0 +1,45 @@
+[Unit]
+Description=Lesson Classroom Service (在线课堂)
+After=network.target
+Wants=network.target
+# 课堂强依赖 MySQL 与 Redis。想让 systemd 顺带等它们起来，可把上面一行改成：
+#   After=network.target mysql.service redis-server.service
+# （Debian/Ubuntu 叫 mysql.service / redis-server.service，CentOS 是 mysqld.service / redis.service；
+#   写了不存在的 unit 不会阻止启动，只会在 journal 里留一条 "not found" 噪声，所以默认不写。）
+StartLimitIntervalSec=600
+StartLimitBurst=3
+
+[Service]
+Type=simple
+# 建议用非 root 用户运行（按需创建：sudo useradd -r -s /bin/false lesson）
+User=lesson
+Group=lesson
+WorkingDirectory=/opt/lesson
+EnvironmentFile=/etc/lesson/classroom.env
+# Java 路径按实际环境调整；JVM 参数放在 env 的 JAVA_OPTS 里，这里必须显式引用 $JAVA_OPTS
+# （EnvironmentFile 只是把变量放进进程环境，JVM 不会自己去读 JAVA_OPTS；
+#   漏写 $JAVA_OPTS → -Xmx 失效；若里面还塞了别的参数，甚至启动即崩、被判 StartLimit）
+# jar 复制到 /opt/lesson 时改名成固定名，升级时直接覆盖文件即可
+ExecStart=/usr/bin/java $JAVA_OPTS -jar /opt/lesson/classroom-service.jar
+# 进程异常退出（非 0）时自动拉起；若要"任何退出都重启"改为 Restart=always
+Restart=on-failure
+# 每次重启前等待 10 秒，避免崩溃雪崩
+RestartSec=10s
+
+# ---- stdout/stderr 去向 ----
+# ⚠️ `append:` 是 systemd 240+ 的语法，语义是"只追加，不滚动"：写满就撑爆磁盘。
+# 滚动由 deploy/logrotate/lesson 接管（daily + maxsize 100M + rotate 14 + copytruncate）。
+# **部署时必须装它**：sudo cp deploy/logrotate/lesson /etc/logrotate.d/lesson
+# （该文件已含 classroom.log 的规则；漏装则本文件退回"永不滚动"，且没有任何报错提示。）
+#
+# 应用自身的业务日志不在这里 —— 见 classroom.env 的 LOG_PATH=/var/log/lesson/classroom
+# （logback 管，有 50MB/30天/5GB 三重滚动）。两者刻意分目录，别混。
+StandardOutput=append:/var/log/lesson/classroom.log
+StandardError=append:/var/log/lesson/classroom.log
+
+# 目录不存在时 systemd 会因 append: 打开失败而**启动失败**（早失败好过静默丢日志）。
+# 首次部署需手动建目录：
+#   sudo mkdir -p /var/log/lesson /opt/lesson/data/oss
+#   sudo chown -R lesson:lesson /var/log/lesson /opt/lesson/data/oss
+[Install]
+WantedBy=multi-user.target

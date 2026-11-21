@@ -67,6 +67,10 @@ public class CourseScheduleService {
     @Resource
     private BookingSeatService bookingSeatService;
 
+    /** 课堂事件推送（排期变更后通知 classroom-service） */
+    @Resource
+    private ClassroomEventPushService classroomEventPushService;
+
     /**
      * 授课语言枚举校验（2026-10-25）。
      *
@@ -215,7 +219,7 @@ public class CourseScheduleService {
     private void validateClassDuration(Integer minutes) {
         if (minutes == null) return;
         if (minutes < 15 || minutes > 600) {
-            throw new BusinessException(TermMsg.t("课时长度需在 15-600 分钟之间"));
+            throw new BusinessException(TermMsg.t("{lesson}时长需在 15-600 分钟之间"));
         }
     }
 
@@ -310,7 +314,10 @@ public class CourseScheduleService {
         tenantQuotaService.acquire(tenantId, TenantQuotaService.SCHEDULE);
         // 4. 插入排期
         scheduleMapper.insertSchedule(schedule);
-       
+
+        // 5. 推送课堂事件（事务提交后异步执行，租户未启用课堂时静默跳过）
+        classroomEventPushService.pushAfterCommit(tenantId, Id, "created");
+
         return  Collections.singletonMap("Id", Id);
     }
 
@@ -350,6 +357,11 @@ public class CourseScheduleService {
               schedule.setAvailableSites(current.getAvailableSites());
           }
           scheduleMapper.updateById (schedule);
+
+        // 排期更新后推送课堂事件（事务提交后执行）
+        Long tenantId = TenantContext.getTenantId();
+        classroomEventPushService.pushAfterCommit(tenantId, dto.getScheduleId(), "updated");
+
         return Collections.singletonMap("Id", dto.getScheduleId());
     }
 
@@ -377,6 +389,10 @@ public class CourseScheduleService {
          //System.out .println("updateStatus called with scheduleId: " + data);
          scheduleMapper.updateStatus(data);
         cascadeOnScheduleStatusChange(data.getScheduleId(), data.getStatus());
+        // 排期状态变更后推送课堂事件（取消时通知 classroom-service）
+        if ("cancelled".equalsIgnoreCase(data.getStatus()) || "inactive".equalsIgnoreCase(data.getStatus())) {
+            classroomEventPushService.pushAfterCommit(TenantContext.getTenantId(), data.getScheduleId(), "cancelled");
+        }
         return  data.getScheduleId();
     }
 
@@ -557,12 +573,21 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
     // 多租户/前端未传 status 时兜底为 active（枚举 pending/active/inactive/frozen），避免 NOT NULL 约束触发 500
     cs.setStatus(dto.getStatus() == null ? "active" : dto.getStatus());
     cs.setName(dto.getName());
+    // 单课时长（分钟）：此前不写这一列，全靠 DB DEFAULT 60 —— 30/45 分钟的课会被
+    // 课堂侧按 60 分钟封顶核算（有效时长、课时消耗都跟着错）。这里按「结束时刻 − 开始时刻」补上。
+    // 跨零点（结束早于开始）算不出正数时留空，仍由 DB 默认值兜底，不猜。
+    if (dto.getStartTime() != null && dto.getEndTime() != null) {
+        long minutes = java.time.Duration.between(dto.getStartTime(), dto.getEndTime()).toMinutes();
+        if (minutes > 0) {
+            cs.setClassDuration((int) minutes);
+        }
+    }
     // 教学语言 / 课时长度：null 一律透传，**不在这里兜底 60**。
     // 兜底会把「编辑时没传」误判成「改成 60」，把库里 90 分钟的课静默改掉；
     // 新增路径的兜底由 insertSchedule 的 COALESCE(#{classDuration},60) 负责。
     cs.setLanguageType(dto.getLanguageType());
     cs.setWorkLanguage(dto.getWorkLanguage());
-    cs.setClassDuration(dto.getClassDuration());
+    // cs.setClassDuration(dto.getClassDuration());   // 改由上面的「结束-开始」推算：dto 传 null 时不能让 90 分钟的课静默变 60
     return cs;
 }
 
@@ -698,7 +723,7 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
       // 排期时区：从排期实体取，是本次换算的唯一依据。
       // generateUserZoneSchedule 展开出的 date+time 是「排期本地墙钟时间」，
       // 落库前必须转成 UTC，否则课次时间会随服务器时区/比较口径整体错位
-      // （见 doc-develop/课次时间UTC化改造方案.md 步骤 2）。
+      // （见 doc-develop/02-架构与设计/课次时间UTC化改造方案.md 步骤 2）。
       String scheduleZone = schedule.getTimeZone();
 
       List<Appointment> appointmentList = new ArrayList<>();
@@ -743,6 +768,8 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
             // 释放租户排期额度
             if (deleted > 0) {
                 tenantQuotaService.release(TenantContext.getTenantId(), TenantQuotaService.SCHEDULE);
+                // 排期删除后推送课堂取消事件（事务提交后执行）
+                classroomEventPushService.pushAfterCommit(TenantContext.getTenantId(), id, "cancelled");
             }
             // 返回实际删除条数：原先无条件 return 1，排期不存在时也报"删除成功"
             // （配合 FK CASCADE，删除 0 行时子表却已被连带删掉，调用方无从察觉）。
@@ -790,6 +817,7 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
             log.info("按课程ID删除排期开始, courseId={}", courseId);
              // 同 deleteById：先按排期逐条做程序级联，再批量删排期。
              // 顺序不能颠倒——booking 一旦先被删掉，就再也定位不到它的课次。
+             List<String> deletedScheduleIds = new ArrayList<>();
              List<CourseSchedule> schedules = scheduleMapper.selectList(
                      Wrappers.<CourseSchedule>lambdaQuery().eq(CourseSchedule::getCourseId, courseId));
              if (schedules != null && !schedules.isEmpty()) {
@@ -797,6 +825,9 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
                          .map(CourseSchedule::getScheduleId)
                          .filter(s -> s != null && !s.trim().isEmpty())
                          .collect(Collectors.toList());
+                 // 排期 id 必须留到删除之后用：取消课堂的事件在事务提交后才发，那时排期行已经没了，
+                 // 只能靠这里先记下来的 id（推送侧对「行已删」有最小载荷兜底，见 ClassroomEventPushService）。
+                 deletedScheduleIds.addAll(scheduleIds);
                  cascadeDeleteSchedules(scheduleIds);
              }
              int rows=            scheduleMapper.deleteByCourseId(courseId);
@@ -804,6 +835,11 @@ private CourseSchedule  CreateDtoToObject(ScheduleCreateDTO dto){
             // 释放租户排期额度（按删除的排期条数）
             if (rows > 0) {
                 tenantQuotaService.release(TenantContext.getTenantId(), TenantQuotaService.SCHEDULE, rows);
+                // 整批删除同样要取消课堂：否则「删课程 → 删掉它下面所有排期」之后，
+                // 课堂侧的课堂一个都不会被取消，永久挂成孤儿。
+                for (String sid : deletedScheduleIds) {
+                    classroomEventPushService.pushAfterCommit(TenantContext.getTenantId(), sid, "cancelled");
+                }
             }
             return rows;
       }

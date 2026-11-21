@@ -88,9 +88,13 @@ public class NotifyDispatchService {
      * <p>重点是 {@code cancelling / s-cancelling / t-cancelling} 这几个请假申请中/已通过的状态：
      * 学生已经明确表示这次不来，再给他推「30 分钟后上课」只会骚扰。
      * （驳回请假会把状态改回 active，届时提醒照常恢复。）
+     *
+     * <p>2026-10-28 补 {@code checked-in}（人已经在课堂里，不用再提醒「该上课了」）
+     * 与 {@code absent}（缺席是终态，推送无意义）。
      */
     private static final List<String> DEAD_APPOINTMENT_STATUS = List.of(
-            "completed", "cancelled", "canceled", "changed", "frozen",
+            "completed", "absent", "cancelled", "canceled", "changed", "frozen",
+            "checked-in",
             "cancelling", "canceling", "s-cancelling", "t-cancelling",
             "rej-booking", "rej-cancelling", "delete");
 
@@ -248,29 +252,29 @@ public class NotifyDispatchService {
      */
     public Map<String, Object> manualSend(Integer appointmentId, String operatorId) {
         if (appointmentId == null) {
-            throw new BusinessException(TermMsg.t("课次ID不能为空"));
+            throw new BusinessException(TermMsg.t("{lesson}ID不能为空"));
         }
         Appointment appointment = appointmentMapper.selectById(appointmentId);
         if (appointment == null) {
-            throw new BusinessException(TermMsg.t("课次不存在"));
+            throw new BusinessException(TermMsg.t("{lesson}不存在"));
         }
         LocalDateTime lesson = appointment.getAppointmentDatetime();
         if (lesson == null) {
-            throw new BusinessException(TermMsg.t("该课次没有上课时间，无法发送提醒"));
+            throw new BusinessException(TermMsg.t("该{lesson}缺少开始时间，无法发送提醒"));
         }
         LocalDateTime now = ScheduleGenerator.nowUtc();
         if (!lesson.isAfter(now)) {
-            throw new BusinessException(TermMsg.t("该课次的上课时间已过，不再发送提醒"));
+            throw new BusinessException(TermMsg.t("该{lesson}的开始时间已过，不再发送提醒"));
         }
         if (appointment.getBookingId() == null) {
-            throw new BusinessException(TermMsg.t("该课次没有关联订单，无法发送提醒"));
+            throw new BusinessException(TermMsg.t("该{lesson}没有关联订单，无法发送提醒"));
         }
         Booking booking = bookingMapper.selectById(appointment.getBookingId());
         if (booking == null) {
-            throw new BusinessException(TermMsg.t("课次对应的订单不存在"));
+            throw new BusinessException(TermMsg.t(TermMsg.t("{lesson}对应的订单不存在")));
         }
         if (!BookingStatus.isBooked(booking.getStatus())) {
-            throw new BusinessException(TermMsg.t("该订单当前状态不是已确认的正式预订，不发送上课提醒"));
+            throw new BusinessException(TermMsg.t(TermMsg.t("该预订当前状态不是已确认，不发送提醒")));
         }
 
         String courseId = resolveCourseId(booking.getScheduleId());
@@ -278,7 +282,7 @@ public class NotifyDispatchService {
         NotifyRuleService.Effective eff = notifyRuleService.resolve(courseId);
         CourseNotifyRulePoint point = pickCurrentPoint(eff.points, lesson, now);
         if (point == null) {
-            throw new BusinessException(TermMsg.t("该课程没有可用的通知时间点，请先在「系统配置 → 通知规则」里配置"));
+            throw new BusinessException(TermMsg.t(TermMsg.t("该{course}没有可用的通知时间点，请先在「系统配置 → 通知规则」里配置")));
         }
 
         int sent = pushToRecipients(appointment, booking, point, eff, courseName, true, operatorId);
@@ -478,14 +482,14 @@ public class NotifyDispatchService {
      */
     public NotifyPlanVO planByAppointment(Integer appointmentId) {
         if (appointmentId == null) {
-            throw new BusinessException(TermMsg.t("课次ID不能为空"));
+            throw new BusinessException(TermMsg.t("{lesson}ID不能为空"));
         }
         Appointment appointment = appointmentMapper.selectById(appointmentId);
         if (appointment == null) {
-            throw new BusinessException(TermMsg.t("课次不存在"));
+            throw new BusinessException(TermMsg.t("{lesson}不存在"));
         }
         if (appointment.getAppointmentDatetime() == null) {
-            throw new BusinessException(TermMsg.t("该课次没有上课时间，无法试算"));
+            throw new BusinessException(TermMsg.t("该{lesson}缺少开始时间，无法试算"));
         }
         Booking booking = appointment.getBookingId() == null
                 ? null : bookingMapper.selectById(appointment.getBookingId());

@@ -52,7 +52,8 @@ const DOMAIN_FILES = [
   'mask.js',
   'datetime.js',
   'errorCode.js',
-  'message.js'
+  'message.js',
+  'lessonLedger.js'
 ];
 
 const ADAPTER_FILES = [
@@ -193,6 +194,14 @@ window.MessageDomain = {
   setTenantDict: setTenantDict,
   getTenantDict: getTenantDict,
   tenantText: tenantText
+};
+window.LessonLedgerDomain = {
+  LESSON_FLOW_SOURCE_TEXT: LESSON_FLOW_SOURCE_TEXT,
+  lessonSourceText: lessonSourceText,
+  formatLessonAmount: formatLessonAmount,
+  lessonChangeText: lessonChangeText,
+  lessonRowTitle: lessonRowTitle,
+  lessonBalanceTone: lessonBalanceTone
 };
 
 /* ---- 平台适配层（shared/adapters/*，零 DOM，运行时自动探测 wx/Web） ---- */

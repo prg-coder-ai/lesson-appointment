@@ -7,9 +7,10 @@
 #  校验必须做的原因：logrotate 若没有 -d 跑过，配置里su/copytruncate 写错不会报错，
 #  等真正需要滚动那天才发现 —— 那正是磁盘已满的时候。
 # ------------------------------------------------------------
-#  ⚠️ 本文件**只管systemd 直接写的那两份**：
-#/var/log/lesson/booking.log     ← booking.service   StandardOutput=append:
-#     /var/log/lesson/message.log    ← message-service.service StandardOutput=append:
+#  ⚠️ 本文件**只管 systemd 直接写的那几份**（通配 /var/log/lesson/*.log，新增服务自动纳入）：
+#     /var/log/lesson/booking.log            ← booking.service            StandardOutput=append:
+#     /var/log/lesson/message.log            ← message-service.service    StandardOutput=append:
+#     /var/log/lesson/classroom.log          ← classroom-service.service  StandardOutput=append:  （2026-10-30 新增）
 #
 #  app 自己的业务日志（spring-boot-app.log 及其 archived/*.gz）**不在本文件管辖内**，
 #  由 logback-spring.xml 的 SizeAndTimeBasedRollingPolicy负责
@@ -18,8 +19,8 @@
 #  两者必须物理隔离成不同目录，否则**两套滚动引擎会互相踩**：
 #  logrotate 把文件转走而 logback 还持有 fd → logback 继续往已重命名的新 inode 写，
 #  于是"当前文件"永远空；反过来 logback 转走而 logrotate 按名字找不到 → 报no such file。
-#  env模板里 LOG_PATH 分别指向 /var/log/lesson/api 与 /var/log/lesson/message，
-#  就是为了和这里的 /var/log/lesson/*.log 错开一层。
+#  env模板里 LOG_PATH 分别指向 /var/log/lesson/api、/var/log/lesson/message
+#  与 /var/log/lesson/classroom，就是为了和这里的 /var/log/lesson/*.log 错开一层。
 # ============================================================
 
 /var/log/lesson/*.log {

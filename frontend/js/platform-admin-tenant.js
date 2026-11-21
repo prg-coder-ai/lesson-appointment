@@ -19,6 +19,20 @@ function industryName(id) {
   return industryNameMap[id] || ('行业#' + id);
 }
 
+/**
+ * 课堂开通状态文案（2026-11-20）。
+ *
+ * 后端 /tenant/page 每行带 classroomEnabled：null=从未绑定（未开通）/ 1=已启用 / 0=已禁用。
+ * **必须把 null 与 0 分开显示**：null 是"这个租户压根没配过课堂"，0 是"配过、被平台关掉了"，
+ * 两者的下一步动作完全不同（前者要"启用"，后者要"启用"或"解绑"）。
+ * undefined（老后端 / 字段没带）与 null 同义，一并按"未开通"处理。
+ */
+function classroomStatusText(v) {
+  if (v === 1) return '已启用';
+  if (v === 0) return '已禁用';
+  return '未开通';
+}
+
 function renderTenantCards() {
   const c = document.getElementById('dynamic-content-center');
   const tpl = document.getElementById('tpl-tenant-cards');
@@ -59,7 +73,7 @@ function loadTenantList() {
 function renderTenantRows(rows) {
   const tb = document.getElementById('tenant-body');
   if (!rows.length) {
-    tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;">暂无数据</td></tr>';
+    tb.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;">暂无数据</td></tr>';
     return;
   }
   tb.innerHTML = rows.map((t, i) => {
@@ -72,12 +86,14 @@ function renderTenantRows(rows) {
       <td>${maskPhone(t.phone || '')}</td>
       <td>${industryName(t.industryId)}</td>
       <td>${tenantStatusText(t.status)}</td>
+      <td>${classroomStatusText(t.classroomEnabled)}</td>
       <td>${t.expireTime ? (window.DatetimeDomain ? window.DatetimeDomain.formatDateTime(t.expireTime) : ('' + t.expireTime).replace('T', ' ')) : '-'}</td>
       <td>
         <button class="btn btn-default" onclick="openTenantModal(${e})">编辑</button>
         <button class="btn btn-warning" onclick="toggleTenantStatus(${t.id},${t.status})">${t.status === 1 ? '停用' : '启用'}</button>
         <button class="btn btn-default" onclick="renewTenant(${t.id})">续期</button>
         <button class="btn btn-default" onclick="assignTenantPackage(${t.id})">分配套餐</button>
+        <button class="btn btn-default" onclick="editTenantClassroom(${t.id})">课堂配置</button>
         <button class="btn btn-danger" onclick="deleteTenant(${t.id})">删除</button>
       </td>
     </tr>`;

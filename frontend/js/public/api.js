@@ -89,8 +89,17 @@ var STORE = _storageBackend
     }
     if (needApply) {
       mo.disconnect();               // 防递归：替换文本本身也触发 mutation
-      applyTerms();
-      observe();                     // 处理完重新挂上
+      try {
+        // 行业术语替换是**可选增强**：classroom.html / classroom-prep.html 等页面
+        // 不引 js/public/termsFunction.js，裸调 applyTerms() 会 ReferenceError；
+        // 更糟的是异常会跳过 observe()，让这个 MutationObserver 永久停摆。
+        // 其余调用方（course-detail.js 的 applyTermsSafe 等）也都是同样的 typeof 守卫。
+        if (typeof window.applyTerms === 'function') window.applyTerms();
+      } catch (e) {
+        console.warn('[api] applyTerms 执行失败，已忽略', e);
+      } finally {
+        observe();                   // 无论术语库在不在、抛不抛错，都要重新挂上
+      }
     }
   });
 
@@ -282,7 +291,9 @@ const userStr = STORE.getItem('currentUser');
     return;
   }
 
-  const token = userInfo.token || STORE.getItem('token');
+  // 2026-11-20 N10 B1：取值顺序对调 —— 优先 localStorage.token（刷新会更新它），
+  // currentUser.token 只是登录那一刻的快照。原先反过来，导致刷新后这里仍读到旧值。
+  const token = STORE.getItem('token') || userInfo.token;
   if (!token || !userInfo.role) {
     STORE.removeItem('currentUser');
     STORE.removeItem('token');
@@ -290,15 +301,38 @@ const userStr = STORE.getItem('currentUser');
     return;
   } 
 
-  if (isJwtExpired(token)) {
-    STORE.removeItem('currentUser');
-    STORE.removeItem('token');
-    STORE.removeItem('refreshToken');
-    document.cookie = 'currentUser=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
-    return;
+  // 2026-11-20 N10 A1：token 过期不再在这里清态。
+  // 过期只代表 access 需要换票，不代表团话结束 —— 原先这个分支会把 refreshToken 一起清掉并
+  // 直接返回 null（调用方随即跳登录页），于是 refresh token 一次都没被用上，
+  // 表现为「发生过一次刷新之后，每次重载页面都要重新登录」。
+  // 现在照常返回 userInfo：首个接口请求拿到 401 → utility_request 的 refreshAndReplay
+  // 换票并重放；换票失败（refresh 也过期 / 被踢 / 被冻结）才由那里的 forceLogout 统一清态跳登录。
+  // 原则：登录态由服务端裁决，前端不凭本地 exp 单方面判定会话结束。
+
+  // 课堂配置兜底补拉：仅在「没有缓存」且「本标签页还没跟后端核对过」时发一次。
+  // 已核对过的情况由 feature-flags.js 的 applyMenuVisibility() 负责
+  // （它会在核对前先显示入口，避免同步竞态把菜单永久隐藏），这里不再重复请求。
+  var _cfgVerified = false;
+  try {
+    _cfgVerified = typeof window.hasClassroomConfigVerified === 'function'
+      && window.hasClassroomConfigVerified();
+  } catch (e) { /* ignore */ }
+
+  if (STORE.getItem('token') && !STORE.getItem('eclassroomConfig') && !_cfgVerified) {
+    var _EP = (window.ApiPaths && window.ApiPaths.ENDPOINTS) || {};
+    if (_EP.ECLASSROOM_CONFIG) {
+      request({ url: _EP.ECLASSROOM_CONFIG, method: 'get' })
+      .then(function (data) {
+        if (data && typeof window.setEclassroomConfig === 'function') {
+          window.setEclassroomConfig(data);
+        }
+      })
+      .catch(function (e) { /* ignore - non-critical */ });
+    }
   }
+
   return userInfo;
-}
+ }
 
  function autoLoginCheck1() {
   // 读取本地 STORE 保存的用户信息
@@ -824,7 +858,7 @@ function maskEmail(email) {
    * ⚠️ 禁止为了"让 platform 当租户、进 admin.html 管自己人"而放开这个判断。
    *   那条路要同时拆掉：本函数 + 小程序 core/auth.js 的同名实现 + 两个页面的
    *   guardEntryPage，并且会让 tenantId=0 的"查全量"语义漏进租户控制台。
-   *   完整取舍见 doc-develop/技术方案-保留字platform的租户语义.md
+   *   完整取舍见 doc-develop/02-架构与设计/技术方案-保留字platform的租户语义.md
    *   平台若需要租户态功能，正解是另开一个普通随机码的"内部机构"租户。
    */
   function isRoleTenantCodeMatch(role, tenantCode) {
@@ -1036,3 +1070,172 @@ function maskEmail(email) {
   window.showEditProfileDialog = showEditProfileDialog;
   window.addChangePasswordButton = addChangePasswordButton;
   window.redirectToUserPage = redirectToUserPage;
+  // ============================================================
+  // ClassroomAPI — classroom-service 接口封装
+  //
+  // 调用约定：首参 apiBaseUrl 可为 null/'' （同源走 nginx 代理）
+  //   或绝对地址（直连 classroom-service，如 'https://classroom.example.com'）
+  //   apiBaseUrl 来自 getClassroomApiBaseUrl()（登录时存入 localStorage）
+  // ============================================================
+
+  /**
+   * 课堂请求 URL 拼接的**唯一入口**（2026-11-13 修「作业上传 404」）。
+   *
+   * 两套路径约定在这里汇合，直接相加必然出错：
+   *  - base = eclassroom config 的 apiBaseUrl，语义是 classroom-service 的 API 根，
+   *          形如 {@code http://host:8092/api/v1}（**已经含版本前缀**）；
+   *          也可能是空串（同源代理，此时路径必须自带 /api/v1）。
+   *  - path = apiPaths.js 的端点常量，按全项目约定自带 {@code /api/v1}；
+   *          但 ClassroomAPI 内部用的是裸路径 {@code /classrooms/...}。
+   *
+   * 所以 base 以 /api/v1 结尾、path 又以 /api/v1 开头时要去掉后者那段前缀，
+   * 否则会拼出 {@code .../api/v1/api/v1/classrooms/.../submissions/file} → 404。
+   * 其它组合（空 base + 带前缀 path、绝对 base + 裸 path）保持原样。
+   */
+  window.classroomUrl = function (base, path) {
+    var b = String(base || '');
+    var p = String(path || '');
+    while (b.length > 1 && b.charAt(b.length - 1) === '/') b = b.slice(0, -1);
+    if (/\/api\/v1$/.test(b) && p.indexOf('/api/v1') === 0) {
+      p = p.slice('/api/v1'.length);
+    }
+    // 2026-11-16：base 为同源空串时（回环地址被归一化 / 未配置），
+    // ClassroomAPI 内部传的是裸路径 /classrooms/...，而 dev 代理与 nginx 只按
+    // /api/v1 前缀分流到 classroom-service；不补前缀会落到静态站 404。
+    // 端点常量（apiPaths.js）自带 /api/v1，已带则不重复补。
+    if (b === '' && p.charAt(0) === '/' && p.indexOf('/api/v1') !== 0) {
+      p = '/api/v1' + p;
+    }
+    return b + p;
+  };
+
+  function _classroomUrl(apiBaseUrl, path) {
+    return window.classroomUrl(apiBaseUrl, path);
+  }
+
+  const ClassroomAPI = {
+    // ---- 课堂接入 ----
+    enterClassroom: function (apiBaseUrl, scheduleId, displayName) {
+      // 修复「参与者/视频 tile 显示 userId 而非真名」：进课堂时把展示名带给后端，
+      // 后端 EnterClassroomReq.displayName 已有该字段，membership.display_name 不再被兜底成 userId。
+      var body = {};
+      if (displayName != null && displayName !== '') body.displayName = displayName;
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/enter'), method: 'post', data: body });
+    },
+    leaveClassroom: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/leave'), method: 'post' });
+    },
+    getClassroomStatus: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/status'), method: 'get' });
+    },
+    // 包3·P2：媒体进房配置（provider/topology/token/iceServers 由服务端派生，客户端不改写）
+    getRtcConfig: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/rtc/config'), method: 'get' });
+    },
+    startClass: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/start'), method: 'post' });
+    },
+    endClass: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/end'), method: 'post' });
+    },
+    // 课堂状态切换（LIVE ⇄ PAUSED）：暂停期间师生均不可发布音视频/白板/聊天
+    pauseClass: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/pause'), method: 'post' });
+    },
+    resumeClass: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/resume'), method: 'post' });
+    },
+
+    // ---- 成员管理 ----
+    kickMember: function (apiBaseUrl, scheduleId, userId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/members/' + encodeURIComponent(userId) + '/kick'), method: 'post' });
+    },
+    // F1-06 同学名单：返回课堂全部成员，供参与者面板渲染（含未进课堂的成员）
+    getMembers: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/members'), method: 'get' });
+    },
+
+    // ---- 签到/出勤 ----
+    getAttendance: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/attendance'), method: 'get' });
+    },
+    manualAdjust: function (apiBaseUrl, scheduleId, userId, reason) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/attendance/manual-adjust'), method: 'post', data: { userId: userId, reason: reason } });
+    },
+    // F2-07 学生历史出勤：按当前登录用户跨课堂聚合（path 不带 /api/v1，由 normalizeUrl 补前缀）
+    getMyAttendanceHistory: function (apiBaseUrl) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/attendance/history'), method: 'get' });
+    },
+
+    // ---- 讲稿 ----
+    uploadMaterial: function (apiBaseUrl, scheduleId, formData) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/materials'), method: 'post', data: formData });
+    },
+    getMaterials: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/materials'), method: 'get' });
+    },
+    // 包3·P2：当前生效讲稿（含签名 URL 与当前页码），学生进房/刷新定位用
+    getCurrentMaterial: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/materials/current'), method: 'get' });
+    },
+    turnPage: function (apiBaseUrl, scheduleId, materialId, page) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/materials/' + encodeURIComponent(materialId) + '/page'), method: 'put', data: { page: page } });
+    },
+    // 2026-11-17：删除资料（教师/管理员）+ 指定课堂内展示哪一份
+    deleteMaterial: function (apiBaseUrl, scheduleId, materialId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/materials/' + encodeURIComponent(materialId)), method: 'delete' });
+    },
+    selectCurrentMaterial: function (apiBaseUrl, scheduleId, materialId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/materials/' + encodeURIComponent(materialId) + '/current'), method: 'put' });
+    },
+
+    // ---- 点名 ----
+    initiateRollCall: function (apiBaseUrl, scheduleId, targetUserId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/rollcall'), method: 'post', data: { targetUserId: targetUserId } });
+    },
+    answerRollCall: function (apiBaseUrl, scheduleId, rollcallId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/rollcall/' + encodeURIComponent(rollcallId) + '/answer'), method: 'post' });
+    },
+    getRollCallList: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/rollcall'), method: 'get' });
+    },
+
+    // ---- 学生作品 ----
+    submitWork: function (apiBaseUrl, scheduleId, data) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/submissions'), method: 'post', data: data });
+    },
+    getSubmissions: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/submissions'), method: 'get' });
+    },
+    reviewSubmission: function (apiBaseUrl, scheduleId, submissionId, comment, score) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/submissions/' + encodeURIComponent(submissionId) + '/review'), method: 'put', data: { comment: comment, score: score } });
+    },
+
+    // ---- 录制回放 ----
+    getRecordings: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/recordings/' + encodeURIComponent(scheduleId)), method: 'get' });
+    },
+    getPlaybackUrl: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/recordings/' + encodeURIComponent(scheduleId) + '/playback'), method: 'get' });
+    },
+    // 包3·P2：开始/停止录制（教师）、查询录制状态
+    startRecording: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/recording/start'), method: 'post' });
+    },
+    stopRecording: function (apiBaseUrl, scheduleId, recordingId, ossKey) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/recording/' + encodeURIComponent(recordingId) + '/stop'), method: 'post', data: { ossKey: ossKey } });
+    },
+    getRecordingState: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/classrooms/' + encodeURIComponent(scheduleId) + '/recording/state'), method: 'get' });
+    },
+
+    // ---- 运营后台 ----
+    monitorClassrooms: function (apiBaseUrl, status) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/admin/classrooms/monitor'), method: 'get', data: { status: status } });
+    },
+    remoteEndClass: function (apiBaseUrl, scheduleId) {
+      return request({ url: _classroomUrl(apiBaseUrl, '/admin/classrooms/' + encodeURIComponent(scheduleId) + '/end'), method: 'post' });
+    }
+  };
+
+  window.ClassroomAPI = ClassroomAPI;

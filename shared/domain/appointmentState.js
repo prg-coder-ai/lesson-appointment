@@ -6,8 +6,10 @@
 // 里的课次状态 → 文案映射收口为唯一权威源；Web 端「今日课程」(today_course) 后续可对齐复用，
 // 消除两端各写一套 switch 的漂移风险。
 //
-// 【与后端同步】对齐后端 Appointment 状态枚举（active/noted1/noted2/completed/cancelled/
-// s-cancelling/t-cancelling/t-cancelled/t-reject/changed）。
+// 【与后端同步】对齐后端 Appointment 状态枚举（active/noted1/noted2/checked-in/completed/absent/
+// cancelled/s-cancelling/t-cancelling/t-cancelled/t-reject/changed）。
+// 2026-10-28 新增 checked-in（已签到，纯出席事实）与 absent（缺席，终态）。
+// 费用口径另见后端 AppointmentStatus#isLessonExempt：**扣减只看有没有请假，与是否签到无关**。
 //
 // 消费方式：
 //   - 小程序端：import { appointmentStatusText } from '../../shared/domain/appointmentState.js'
@@ -20,7 +22,9 @@ export const APPOINTMENT_STATUS = Object.freeze({
   ACTIVE: 'active',
   NOTED1: 'noted1',
   NOTED2: 'noted2',
+  CHECKED_IN: 'checked-in',       // 已签到（学生已进入课堂，纯出席事实，不含费用语义）
   COMPLETED: 'completed',
+  ABSENT: 'absent',               // 缺席（课次结束仍未进入课堂；终态，但照扣课时）
   CANCELLED: 'cancelled',
   S_CANCELLING: 's-cancelling',   // 学生取消待确认
   T_CANCELLING: 't-cancelling',   // 教师取消中
@@ -30,8 +34,9 @@ export const APPOINTMENT_STATUS = Object.freeze({
 });
 
 // 终态集合（课次已结束，不再可操作）。
+// checked-in 刻意不在其中：签到是过程态，后面还要转 completed。
 export const APPOINTMENT_CLOSED_STATUSES = Object.freeze([
-  'completed', 'cancelled', 't-cancelled', 'changed'
+  'completed', 'absent', 'cancelled', 't-cancelled', 'changed'
 ]);
 
 /* -------------------------------------------------- 状态 → 展示文案（单一来源） */
@@ -58,7 +63,9 @@ export function appointmentStatusText(status, opts) {
     case 'active': return '生效';
     case 'noted1':
     case 'noted2': return '已通知';
+    case 'checked-in': return '已签到';
     case 'completed': return '已完成';
+    case 'absent': return '缺席';
     case 'cancelling':
     case 'canceling':
     case 's-cancelling': return '取消待确认';

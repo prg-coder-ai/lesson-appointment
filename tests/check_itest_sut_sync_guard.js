@@ -63,14 +63,21 @@ async function runGuard() {
   return { code, out: lines.join('\n') };
 }
 
+/**
+ * 备份必须存**原始字节**：.gitignore 的中文注释是 GBK（非合法 UTF-8，48 个坏序列），
+ * 读成 utf8 再写回会把它们替换成 U+FFFD，永久损坏文件且 ⑥ 的「逐字节比对」看不出问题
+ * （它当时比的是 decode 后的字符串）。2026-11-19 实测：一趟反向测试把 .gitignore
+ * 从 150/6670 字节写成 31 行合法化后的版本，check:itest-sut 之外的守卫也随之动摇。
+ */
 function backup(file) {
-  const orig = fs.readFileSync(file, 'utf8');
+  const buf = fs.readFileSync(file);
   return {
     file,
-    orig,
+    buf,
+    orig: buf.toString('utf8'),
     restore() {
-      fs.writeFileSync(file, orig, 'utf8');
-      return fs.readFileSync(file, 'utf8') === orig;
+      fs.writeFileSync(file, buf);
+      return fs.readFileSync(file).equals(buf);
     },
   };
 }
@@ -161,7 +168,7 @@ try {
 // ---------- ⑥ 还原校验 ----------
 {
   const r = await runGuard();
-  const polluted = touched.filter((b) => fs.readFileSync(b.file, 'utf8') !== b.orig);
+  const polluted = touched.filter((b) => !fs.readFileSync(b.file).equals(b.buf));
   expect('⑥ 还原后回到 exit 0', r.code === 0, r.out);
   expect('   ⑥ 源码零污染（逐字节比对）', polluted.length === 0, polluted.map((b) => b.file).join(', '));
 }

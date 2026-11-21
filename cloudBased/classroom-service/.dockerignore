@@ -1,0 +1,16 @@
+# Maven 构建中间产物（保留 *.jar 供 Dockerfile COPY target/*.jar 使用）
+target/*
+!target/*.jar
+.git/
+.gitignore
+.idea/
+.vscode/
+*.iml
+*.sql
+dump/
+logs/
+*.log
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db

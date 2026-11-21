@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>教师课堂管理 - 页面原型</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif; background:#f0f2f5; color:#333; overflow:hidden; }
+/* 顶栏 */
+.topbar { background:#001529; color:#fff; height:48px; display:flex; align-items:center; padding:0 20px; justify-content:space-between; }
+.topbar .title { font-size:16px; font-weight:600; }
+.topbar .actions { display:flex; gap:12px; align-items:center; }
+.topbar .status-tag { background:#52c41a; padding:2px 12px; border-radius:10px; font-size:12px; }
+.topbar .btn { padding:6px 16px; border:none; border-radius:4px; cursor:pointer; font-size:13px; }
+.topbar .btn-end { background:#ff4d4f; color:#fff; }
+.topbar .btn-leave { background:#666; color:#fff; }
+/* 主体布局 */
+.main { display:flex; height:calc(100vh - 48px); }
+/* 左侧工具栏 */
+.sidebar { width:72px; background:#001529; display:flex; flex-direction:column; align-items:center; padding-top:16px; gap:8px; }
+.sidebar .tool { width:48px; height:48px; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; color:#aaa; font-size:11px; gap:4px; }
+.sidebar .tool:hover { background:rgba(255,255,255,.1); color:#fff; }
+.sidebar .tool.active { background:#1890ff; color:#fff; }
+.sidebar .tool .icon { font-size:20px; }
+.sidebar .divider { width:32px; height:1px; background:rgba(255,255,255,.1); margin:8px 0; }
+/* 中央内容区 */
+.content { flex:1; display:flex; flex-direction:column; }
+/* 讲稿展示区 */
+.stage { flex:1; background:#fff; margin:12px; border-radius:8px; box-shadow:0 1px 4px rgba(0,0,0,.08); display:flex; flex-direction:column; overflow:hidden; }
+.stage-header { padding:10px 20px; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; align-items:center; }
+.stage-header .material-name { font-size:14px; font-weight:500; }
+.stage-body { flex:1; display:flex; align-items:center; justify-content:center; background:#fafafa; position:relative; }
+.slide-placeholder { text-align:center; color:#999; }
+.slide-placeholder .page-num { font-size:48px; font-weight:700; color:#e0e0e0; }
+.slide-placeholder .hint { font-size:14px; margin-top:8px; }
+.stage-footer { padding:10px 20px; border-top:1px solid #f0f0f0; display:flex; justify-content:center; align-items:center; gap:16px; }
+.stage-footer button { padding:6px 16px; border:1px solid #d9d9d9; background:#fff; border-radius:4px; cursor:pointer; font-size:13px; }
+.stage-footer button:hover { border-color:#1890ff; color:#1890ff; }
+.stage-footer .page-info { font-size:14px; color:#666; }
+/* 底部面板 */
+.panel { height:280px; background:#fff; margin:0 12px 12px; border-radius:8px; box-shadow:0 1px 4px rgba(0,0,0,.08); display:flex; flex-direction:column; overflow:hidden; }
+.panel-header { padding:10px 20px; border-bottom:1px solid #f0f0f0; display:flex; gap:24px; }
+.panel-header .tab { font-size:14px; color:#666; cursor:pointer; padding-bottom:8px; border-bottom:2px solid transparent; }
+.panel-header .tab.active { color:#1890ff; border-bottom-color:#1890ff; font-weight:500; }
+.panel-body { flex:1; padding:16px 20px; overflow-y:auto; }
+/* 成员列表 */
+.member-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
+.member-card { display:flex; align-items:center; gap:10px; padding:10px; background:#f9f9f9; border-radius:6px; }
+.member-card .avatar { width:36px; height:36px; border-radius:50%; background:#1890ff; color:#fff; display:flex; align-items:center; justify-content:center; font-size:14px; }
+.member-card .info { flex:1; }
+.member-card .name { font-size:14px; font-weight:500; }
+.member-card .status { font-size:12px; }
+.member-card .status.online { color:#52c41a; }
+.member-card .status.offline { color:#999; }
+.member-card .kick { color:#ff4d4f; cursor:pointer; font-size:12px; }
+/* 点名 */
+.rollcall-area { display:flex; gap:20px; }
+.rollcall-action { flex:1; }
+.rollcall-action button { width:100%; padding:12px; border:none; border-radius:6px; cursor:pointer; font-size:14px; margin-bottom:8px; }
+.rollcall-action .btn-random { background:#1890ff; color:#fff; }
+.rollcall-action .btn-specific { background:#fff; border:1px solid #d9d9d9; }
+.rollcall-list { flex:2; }
+.rollcall-item { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0; font-size:13px; }
+/* 作品列表 */
+.submission-item { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f0f0f0; }
+.submission-item .info { flex:1; }
+.submission-item .type-tag { padding:1px 8px; border-radius:4px; font-size:11px; margin-right:8px; }
+.type-text { background:#e6f7ff; color:#1890ff; }
+.type-audio { background:#f6ffed; color:#52c41a; }
+.type-image { background:#fff7e6; color:#faad14; }
+.submission-item .btn-review { color:#1890ff; cursor:pointer; font-size:13px; }
+/* 讲稿列表 */
+.material-item { display:flex; align-items:center; gap:12px; padding:10px; background:#f9f9f9; border-radius:6px; margin-bottom:8px; }
+.material-item .file-icon { font-size:24px; }
+.material-item .info { flex:1; }
+.material-item .name { font-size:14px; }
+.material-item .meta { font-size:12px; color:#999; }
+.material-item .btn-show { color:#1890ff; cursor:pointer; font-size:13px; }
+/* 录制 */
+.recording-status { display:flex; align-items:center; gap:16px; padding:16px; background:#f9f9f9; border-radius:6px; margin-bottom:16px; }
+.recording-dot { width:12px; height:12px; border-radius:50%; background:#ff4d4f; animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="title">📚 英语口语入门 · 王老师</div>
+  <div class="actions">
+    <span class="status-tag">● 直播中</span>
+    <span style="font-size:13px;opacity:.8">已开课 25 分钟</span>
+    <button class="btn btn-end">⏹ 下课</button>
+  </div>
+</div>
+<div class="main">
+  <div class="sidebar">
+    <div class="tool active"><div class="icon">👥</div>成员</div>
+    <div class="tool"><div class="icon">📄</div>讲稿</div>
+    <div class="tool"><div class="icon">🎤</div>点名</div>
+    <div class="tool"><div class="icon">📝</div>作品</div>
+    <div class="tool"><div class="icon">🎬</div>录制</div>
+    <div class="divider"></div>
+    <div class="tool"><div class="icon">✏️</div>白板</div>
+    <div class="tool"><div class="icon">💬</div>消息</div>
+  </div>
+  <div class="content">
+    <div class="stage">
+      <div class="stage-header">
+        <div class="material-name">📄 Unit3-Conversation.pdf</div>
+        <div style="font-size:13px;color:#999">已投屏 · 3/12 页</div>
+      </div>
+      <div class="stage-body">
+        <div class="slide-placeholder">
+          <div class="page-num">3</div>
+          <div class="hint">讲稿第 3 页：How was your weekend?</div>
+          <div style="margin-top:20px;font-size:13px;color:#bbb">（讲稿内容区域）</div>
+        </div>
+      </div>
+      <div class="stage-footer">
+        <button>◀ 上一页</button>
+        <span class="page-info">第 3 / 12 页</span>
+        <button>下一页 ▶</button>
+        <span style="color:#ddd">|</span>
+        <button>全屏</button>
+        <button>白板模式</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <div class="tab active">成员列表 (15/20 在线)</div>
+        <div class="tab">讲稿管理</div>
+        <div class="tab">点名记录</div>
+        <div class="tab">学生作品 (12)</div>
+        <div class="tab">录制</div>
+      </div>
+      <div class="panel-body">
+        <!-- 成员列表内容 -->
+        <div class="member-grid">
+          <div class="member-card">
+            <div class="avatar" style="background:#52c41a">王</div>
+            <div class="info"><div class="name">王老师</div><div class="status online">● 在线 · 教师</div></div>
+          </div>
+          <div class="member-card">
+            <div class="avatar">张</div>
+            <div class="info"><div class="name">张三</div><div class="status online">● 在线 · 10:01签到</div></div>
+            <div class="kick">移出</div>
+          </div>
+          <div class="member-card">
+            <div class="avatar">李</div>
+            <div class="info"><div class="name">李四</div><div class="status online">● 在线 · 10:00签到</div></div>
+            <div class="kick">移出</div>
+          </div>
+          <div class="member-card">
+            <div class="avatar">王</div>
+            <div class="info"><div class="name">王五</div><div class="status online">● 在线 · 10:02签到</div></div>
+            <div class="kick">移出</div>
+          </div>
+          <div class="member-card">
+            <div class="avatar">赵</div>
+            <div class="info"><div class="name">赵六</div><div class="status offline">○ 离线 · 10:15退出</div></div>
+          </div>
+          <div class="member-card">
+            <div class="avatar">孙</div>
+            <div class="info"><div class="name">孙七</div><div class="status online">● 在线 · 10:05签到(迟到)</div></div>
+            <div class="kick">移出</div>
+          </div>
+          <div class="member-card">
+            <div class="avatar">周</div>
+            <div class="info"><div class="name">周八</div><div class="status online">● 在线 · 10:08签到(迟到)</div></div>
+            <div class="kick">移出</div>
+          </div>
+          <div class="member-card">
+            <div class="avatar">吴</div>
+            <div class="info"><div class="name">吴九</div><div class="status offline">○ 未到</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

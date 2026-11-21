@@ -11,7 +11,7 @@
   "subPackages": [
     {
       "root": "package-student",
-      "pages": ["home/home", "booking/booking", "booking-detail/booking-detail", "my-booking/my-booking", "appointment/appointment", "teacher-list/teacher-list", "teacher-profile/teacher-profile"]
+      "pages": ["home/home", "booking/booking", "booking-detail/booking-detail", "my-booking/my-booking", "my-lesson/my-lesson", "appointment/appointment", "teacher-list/teacher-list", "teacher-profile/teacher-profile"]
     },
     {
       "root": "package-teacher",

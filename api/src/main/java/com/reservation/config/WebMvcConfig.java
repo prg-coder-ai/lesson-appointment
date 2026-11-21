@@ -66,6 +66,13 @@ public class WebMvcConfig implements WebMvcConfigurer {
             // 教师已上传图片公开伺服（免登录/无租户上下文，第四同步点：与 SecurityConfig/JwtFilter/PERMIT_ALL 同步，
             // 双路径形态；GET /api/v1/teacher/professional/file/** 与裸 /teacher/professional/file/**）
             "/api/v1/teacher/professional/file/**", "/teacher/professional/file/**",
+            // classroom-service 回调端点（HMAC 签名鉴权，不走 JWT/无租户上下文）
+            // 四处白名单同步：SecurityConfig / JwtFilter / WebMvcConfig / authz PERMIT_ALL
+            // 双路径形态；前缀 classroom-callback 刻意避开前端课堂路由 /api/v1/classrooms/**
+            "/api/v1/classroom-callback/attendance", "/classroom-callback/attendance",
+            "/api/v1/classroom-callback/events", "/classroom-callback/events",
+            "/api/v1/classroom-callback/alerts", "/classroom-callback/alerts",
+            "/api/v1/classroom-callback/reconcile", "/classroom-callback/reconcile",
             "/js/**", "/css/**", "/images/**", "/favicon.ico",
             "/error"
     };

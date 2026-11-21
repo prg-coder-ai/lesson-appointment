@@ -21,8 +21,11 @@ const vm = require('vm');
 const http = require('http');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
+// 仓库根：原先这里写死了另一个工作区（2026-08-30-17-19-24）的绝对路径，
+// 那份副本与当前仓库会逐渐分叉（properties 已不同），守卫会变成在验旧代码。
+const WS_ROOT = __dirname.replace(/[\\/]tests$/, '');
 
-const FE = 'C:/Users/Administrator/WorkBuddy/2026-08-30-17-19-24/frontend';
+const FE = WS_ROOT + '/frontend';
 const PORT = 8083;
 const MYSQL = 'D:/program/mysql84/bin/mysql';
 const DB = 'lesson_appointment';
@@ -48,8 +51,16 @@ function scalar(q) { const r = sql(q); return r.length ? r[0][0] : null; }
 
 /* ============ 二、JWT（读 jwt.secret 现签，与后端同源密钥） ============ */
 const props = fs.readFileSync(
-    'C:/Users/Administrator/WorkBuddy/2026-08-30-17-19-24/api/src/main/resources/application.properties', 'utf8');
-const SECRET = /^jwt\.secret=(.+)$/m.exec(props)[1].trim();
+    WS_ROOT + '/api/src/main/resources/application.properties', 'utf8');
+// 配置里现在是 `jwt.secret=${JWT_SECRET:<仓库默认值>}` 的占位形式（生产强制注入）。
+// 直接拿整串当签名密钥会与运行中的后端（它用冒号后的默认值）不一致 → 全部 401。
+// 这里剥掉 ${VAR:default} 外壳，取实际生效的默认值。
+const SECRET = (function () {
+    let raw = /^jwt\.secret=(.+)$/m.exec(props)[1].trim();
+    const m = /^\$\{[^:}]+:([\s\S]*)\}$/.exec(raw);
+    if (m) raw = m[1];
+    return raw;
+})();
 
 function b64u(x) {
     return Buffer.from(x).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -57,7 +68,7 @@ function b64u(x) {
 function makeToken(sub, role, tenantId) {
     const now = Math.floor(Date.now() / 1000);
     const si = b64u(JSON.stringify({ alg: 'HS512', typ: 'JWT' })) + '.'
-        + b64u(JSON.stringify({ sub, role, tenantId, iat: now, exp: now + 3600 }));
+        + b64u(JSON.stringify({ sub, role, tenantId, type: 'access', iat: now, exp: now + 3600 }));
     return si + '.' + b64u(crypto.createHmac('sha512', Buffer.from(SECRET, 'utf8')).update(si).digest());
 }
 
@@ -151,7 +162,17 @@ function makeDocument(ids) {
         addEventListener() {}, removeEventListener() {},
         write() {}, writeln() {},
         createTreeWalker() { return { currentNode: null, nextNode() { return null; } }; },
-        body: { tagName: 'BODY', nodeValue: '', textContent: '', dataset: {}, querySelectorAll: () => [] },
+        // body 也要能 appendChild：admin-schedule.js 的 toast() 会往 body 插提示节点，
+        // 桩里缺这个方法时 E 组（点「递补」）直接 TypeError 中断。
+        body: {
+            tagName: 'BODY', nodeValue: '', textContent: '', dataset: {},
+            querySelectorAll: () => [],
+            // toast() 创建的 #msg-toast 只在创建后才被赋 id，靠这里登记进注册表，
+            // 之后 getElementById('msg-toast') 才拿得到（E2.4 用它断言成功提示）。
+            appendChild(el) { if (el && el.id) doc._reg.set(el.id, el); return el; },
+            removeChild(el) { if (el && el.id) doc._reg.delete(el.id); return el; },
+            insertBefore() {},
+        },
         documentElement: { tagName: 'HTML', querySelectorAll: () => [] },
         head: { tagName: 'HEAD', appendChild() {}, querySelectorAll: () => [] },
         createTextNode(t) { return { nodeValue: t, textContent: t }; }
@@ -330,6 +351,7 @@ function pickFreshSchedule() {
         JOIN ${DB}.course c ON c.course_id = cs.course_id
         LEFT JOIN ${DB}.booking b ON b.schedule_id = cs.schedule_id
         WHERE cs.available_sites = 1 AND cs.tenant_id = ${TENANT} AND b.booking_id IS NULL
+          AND cs.start_time > NOW()   -- 已开始的排期服务端一律拒绝（409），不能当空位样本
         GROUP BY cs.schedule_id, cs.course_id, c.teacher_id
         ORDER BY cs.schedule_id LIMIT 60`);
     for (const r of rows) {
@@ -443,7 +465,7 @@ async function main() {
     // A12 前后端名单不得漂移：JS 的 bookingOccupiesSeat 必须与 Java 的 NON_OCCUPYING 逐项一致。
     // 这条是本次修订的护栏——两处名单今后任何一边改了另一边没跟上，测试直接红。
     const javaSrc = fs.readFileSync(
-        'C:/Users/Administrator/WorkBuddy/2026-08-30-17-19-24/api/src/main/java/com/reservation/common/BookingStatus.java', 'utf8');
+        WS_ROOT + '/api/src/main/java/com/reservation/common/BookingStatus.java', 'utf8');
     const constMap = {};
     let cm; const reConst = /public static final String (\w+)\s*=\s*"([^"]+)"/g;
     while ((cm = reConst.exec(javaSrc)) !== null) { constMap[cm[1]] = cm[2]; }
@@ -525,7 +547,10 @@ async function main() {
         'monthDays', 'assignStudentSelect', 'testTimeZone', 'testTimeZoneForm', 'toggleUserTimeZone',
         'userTimeZoneRow', 'conflictMessage', 'resultBody', 'calendar', 'dynamic-content-center'];
     const sbSched = makeSandbox({ token: adminTk, ids: SCHED_IDS });
-    loadScripts(sbSched, ['js/public/api.js', 'js/public/courseAndBooking.js', 'js/admin-schedule.js']);
+    // 候补面板已从 admin-schedule.js 拆到 admin-schedule-waitlist.js（define renderWaitlistPanel 并挂 window），
+    // 少载这一个文件时 renderWaitlistPanel 未定义 → C 组直接抛 ReferenceError（页面本身是两页都引的）。
+    loadScripts(sbSched, ['js/public/api.js', 'js/public/courseAndBooking.js',
+        'js/admin-schedule-waitlist.js', 'js/admin-schedule.js']);
 
     const bodyEl = () => sbSched.document.getElementById('waitlistBody');
     const sectEl = () => sbSched.document.getElementById('waitlistSection');
@@ -590,13 +615,21 @@ async function main() {
         'rows=' + ((after.match(/第 \d+ 位/g) || []).length) + ' 含B候补=' + (after.indexOf(wB2Id) >= 0));
 
     // D3 阴性对照：把序号守卫注释掉，同样的时序应显示成旧结果（证明 D2 真的在守这个机制）
-    const schedSrc = fs.readFileSync(FE + '/js/admin-schedule.js', 'utf8');
+    // 序号守卫随面板一起搬到了 admin-schedule-waitlist.js（admin-schedule.js 已不再包含它），
+    // 仍从旧文件替换会命中 0 次 → 阴性对照失效。这里按「哪个文件真的含守卫」来取。
+    const waitlistSrcPath = fs.existsSync(FE + '/js/admin-schedule-waitlist.js')
+        ? FE + '/js/admin-schedule-waitlist.js' : FE + '/js/admin-schedule.js';
+    const schedSrc = fs.readFileSync(waitlistSrcPath, 'utf8');
     const guardRe = /if \(seq !== waitlistRenderSeq\) return;[^\n]*\n/;
     const brokenSrc = schedSrc.replace(guardRe, '// 守卫被移除（阴性对照）\n');
     ck('D3 阴性对照改动确实命中源码', brokenSrc !== schedSrc, '未替换到守卫');
     if (brokenSrc !== schedSrc) {
         const sbBroken = makeSandbox({ token: adminTk, ids: SCHED_IDS });
-        loadScripts(sbBroken, ['js/public/api.js', 'js/public/courseAndBooking.js']);
+        // 注入的是「去掉守卫的那份源码」，所以另一份要单独载入补齐它的依赖：
+        // 守卫在 waitlist 文件里时仍需 admin-schedule.js 提供的 getNowAvailableSitesRaw 等全局。
+        const companion = waitlistSrcPath.indexOf('admin-schedule-waitlist.js') >= 0
+            ? 'js/admin-schedule.js' : 'js/admin-schedule-waitlist.js';
+        loadScripts(sbBroken, ['js/public/api.js', 'js/public/courseAndBooking.js', companion]);
         vm.runInContext(brokenSrc, sbBroken, { filename: 'admin-schedule.js(no-guard)' });
         sbBroken.document.getElementById('now_availableSites').value = '0';
         hooks.beforeRequest = async (m, url) => {
@@ -659,7 +692,12 @@ async function main() {
     ck('E2.3 确认文案说明了「生成课次 + 自动通知该学生」',
         sbSched.__confirms.length > 0 && /通知该学生/.test(sbSched.__confirms[0]),
         JSON.stringify(sbSched.__confirms.slice(-1)));
-    ck('E2.4 成功后给出明确反馈', sbSched.__alerts.some((m) => /递补成功/.test(m)), JSON.stringify(sbSched.__alerts));
+    // 成功反馈走的是 toast(#msg-toast)，不是 alert；两种都认，避免实现换形态就假红。
+    const toastEl = sbSched.document.getElementById('msg-toast');
+    const toastText = (toastEl && toastEl.textContent) || '';
+    ck('E2.4 成功后给出明确反馈',
+        sbSched.__alerts.some((m) => /递补成功/.test(m)) || /递补成功/.test(toastText),
+        'alerts=' + JSON.stringify(sbSched.__alerts) + ' toast=' + JSON.stringify(toastText));
     const msgAfter = Number(scalar(`SELECT COUNT(*) FROM ${MSG_DB}.msg_message WHERE category_code='BOOKING_CONFIRMED'`));
     ck('E2.5 要求 3：递补成功后系统确实给学生发了消息（消息表 +1）', msgAfter === msgBefore + 1,
         'before=' + msgBefore + ' after=' + msgAfter);
@@ -680,7 +718,8 @@ async function main() {
      * ============================================================ */
     console.log('\n--- F. 深链：{scdid,sid:null} 落地到排期页并锁定该排期 ---');
     const sbDeep = makeSandbox({ token: adminTk, ids: SCHED_IDS });
-    loadScripts(sbDeep, ['js/public/api.js', 'js/public/courseAndBooking.js', 'js/admin-schedule.js']);
+    loadScripts(sbDeep, ['js/public/api.js', 'js/public/courseAndBooking.js',
+        'js/admin-schedule-waitlist.js', 'js/admin-schedule.js']);
 
     // 课程下拉里放入该排期所属课程（真实值），模拟"课程列表已加载"
     const courseSelect = sbDeep.document.getElementById('courseSelect');
@@ -728,7 +767,12 @@ async function main() {
         ck('G2 前置：空位已腾出且有 1 条候补', statusOf(gAId) === 'cancelled' && statusOf(gWId) === 'waiting',
             'A=' + statusOf(gAId) + ' W=' + statusOf(gWId));
 
-        const srcG = fs.readFileSync(FE + '/js/admin-schedule.js', 'utf8');
+        // reselectScheduleOption 的调用随候补面板搬到了 admin-schedule-waitlist.js，
+        // 仍从 admin-schedule.js 替换会命中 0 次（阴性对照形同虚设）。
+        const gSrcPath = fs.readFileSync(FE + '/js/admin-schedule-waitlist.js', 'utf8')
+            .indexOf('reselectScheduleOption(keepScheduleId)') >= 0
+            ? FE + '/js/admin-schedule-waitlist.js' : FE + '/js/admin-schedule.js';
+        const srcG = fs.readFileSync(gSrcPath, 'utf8');
         const brokenG = srcG.replace(/^[ \t]*reselectScheduleOption\(keepScheduleId\);[^\n]*$/m,
             '// 重选被移除（阴性对照）');
         ck('G3 阴性对照改动确实命中源码', brokenG !== srcG, '未替换到 reselectScheduleOption 调用');
@@ -806,7 +850,7 @@ function cleanup() {
         //      且标题必须**先按租户词表渲染**再算 HMAC，否则法律租户下匹配不到（见 NOTIFY_TITLE_TPLS 注释）。
         // 下界用 runStartedAt（启动时刻）而非"最近 N 分钟"：长跑测试的早期产物会掉出滚动窗口而残留。
         const msgProps = fs.readFileSync(
-            'C:/Users/Administrator/WorkBuddy/2026-08-30-17-19-24/api/message-service/src/main/resources/application.properties', 'utf8');
+            WS_ROOT + '/api/message-service/src/main/resources/application.properties', 'utf8');
         const hmacKey = Buffer.from(/^crypto\.hmac-key=(.+)$/m.exec(msgProps)[1].trim(), 'base64');
         const idx = (t) => crypto.createHmac('sha256', hmacKey).update(t, 'utf8').digest('hex');
         const lowBound = runStartedAt || '1970-01-01 00:00:00';

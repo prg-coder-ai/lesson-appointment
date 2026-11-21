@@ -464,6 +464,28 @@ public class CourseService   {
     } 
 
     /**
+     * 校验模板归属权（2026-11-19 H-2）。
+     *
+     * <p>{@code deleteByTemplateId} 会把模板下的<b>所有</b>课程连同排期/预订/课次一起删掉。
+     * 一个模板下可能存在多个教师的课程（各自建课共用模板），所以教师调用时要求
+     * 「模板下不存在他人课程」才放行；只想删自己那一门应改用 {@code deleteById}。
+     *
+     * <p>模板下一门课都没有时不拦——那是空删，由 Service 正常返回 0。
+     */
+    public void checkTemplateOwner(String templateId, String teacherId) {
+        List<Course> courses = courseMapper.selectList(
+                Wrappers.<Course>lambdaQuery().eq(Course::getTemplateId, templateId));
+        if (courses == null || courses.isEmpty()) {
+            return;
+        }
+        for (Course c : courses) {
+            if (!teacherId.equals(c.getTeacherId())) {
+                throw new BusinessException(TermMsg.t("没有操作该{course}的权限：该模板下存在不属于您的{course}"));
+            }
+        }
+    }
+
+    /**
      * 统计截至指定时间点已发布的课程数（含指定时间）
      * @param dateTime 截止时间点
      * @return 已发布课程数

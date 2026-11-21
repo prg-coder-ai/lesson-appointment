@@ -1,5 +1,17 @@
 # 上传服务器前必须保持 LF（否则 bash 报 ^M: bad interpreter）
 *.sh   text eol=lf
 *.conf text eol=lf
+# docker/ 下的编排与模板：CRLF 会被 docker compose 当成值的一部分（如 command 里的
+# "900 1\r"），容器起不来但报错指向 redis 参数，排查方向全错
+*.yml  text eol=lf
+*.yaml text eol=lf
+# Dockerfile：行尾 \r 会让 RUN 里的反斜杠续行失效，shell 报 "/bin/sh^M: bad interpreter"，
+# 报错指向构建脚本而不是换行符 —— 而 core.autocrlf=true 的 Windows 检出默认就是 CRLF
+docker/Dockerfile  text eol=lf
+# .env 模板：cp 成 /opt/lesson/docker/.env 后，值尾部带 \r 会变成
+#   BOOKING_TAG=2.2.0-init\r → 拉不到镜像（报错只说 image not found）
+#   LESSON_UID=1000\r       → compose 报 invalid user format
+# 两者都不会提示"有个看不见的字符"
+docker/env.example text eol=lf
 # Windows 双击脚本保持 CRLF
 *.cmd  text eol=crlf

@@ -74,7 +74,7 @@ public class authController {
      * 不是经营租户。两者同名不同义，混用就会让"平台"变成一行可被注册、可被停用、
      * 可被抢首管理员的数据。故本常量只参与"角色配对判定 + 强制 tenantId=0"，
      * 绝不用它去 {@code tenantService.getByCode} 解析租户（见下方 else 分支的显式拒绝）。
-     * 设计取舍见 doc-develop/技术方案-保留字platform的租户语义.md
+     * 设计取舍见 doc-develop/02-架构与设计/技术方案-保留字platform的租户语义.md
      */
     private static final String PLATFORM_TENANT_CODE = "platform";
 
