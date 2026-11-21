@@ -11,8 +11,10 @@ const REMOTE_CONFIG_PATH = '/app-config.json';
 //   wx.setStorageSync('upstream_override', { apiBase: 'http://127.0.0.1:8081', msgBase: '...' })
 // 即可在不改动代码的情况下指向任意后端；删除 key（wx.removeStorageSync）即恢复。
 const OVERRIDE_KEY = 'upstream_override';
-// 只接受这三个键，远程/覆盖配置里的其它字段一律忽略（防配置文件夹带脏数据）
-const CONFIG_KEYS = ['apiBase', 'msgBase', 'webBase'];
+// 只接受这四个键，远程/覆盖配置里的其它字段一律忽略（防配置文件夹带脏数据）
+// classroomBase 自 2026-11-21 起加入：在线课堂（classroom-service :8092）没有同源反代，
+// 小程序必须直连，地址随环境走（见 config/env.js 与 core/classroom.js 的说明）。
+const CONFIG_KEYS = ['apiBase', 'msgBase', 'classroomBase', 'webBase'];
 
 App({
   // 上游地址不再在此硬编码：onLaunch 按三层优先级注入（见 config/env.js 顶部说明）。
@@ -20,6 +22,7 @@ App({
   globalData: {
     apiBase: '',
     msgBase: '',
+    classroomBase: '',
     webBase: '',
     // 登录失效回调：由页面层注入（如跳回登录页）
     onAuthFail: null
@@ -47,7 +50,11 @@ App({
         this.globalData[k] = cfg[k].trim();
       }
     });
-    setRuntimeConfig({ apiBase: this.globalData.apiBase, msgBase: this.globalData.msgBase });
+    setRuntimeConfig({
+      apiBase: this.globalData.apiBase,
+      msgBase: this.globalData.msgBase,
+      classroomBase: this.globalData.classroomBase
+    });
   },
 
   readOverride() {

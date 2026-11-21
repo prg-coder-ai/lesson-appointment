@@ -1,0 +1,85 @@
+<view class="page">
+
+  <view class="topbar">
+    <view class="tb-title">课堂监视</view>
+    <view class="tb-actions">
+      <text class="tb-btn" bindtap="onRefresh">刷新</text>
+      <text class="tb-btn primary" bindtap="goDistribute">发课堂链接</text>
+    </view>
+  </view>
+
+  <view wx:if="{{hasFatal}}" class="fatal">{{hasFatal}}</view>
+
+  <!-- 四个指标：与 Web 运营台「实时监控」同口径 -->
+  <view class="cards">
+    <view class="cc">
+      <view class="cc-value">{{cards.todayClasses}}</view>
+      <view class="cc-label">今日{{terms.course}}</view>
+    </view>
+    <view class="cc">
+      <view class="cc-value">{{cards.liveClasses}}</view>
+      <view class="cc-label">并发课堂</view>
+    </view>
+    <view class="cc">
+      <view class="cc-value">{{cards.onlineUsers}}</view>
+      <view class="cc-label">在线人数</view>
+    </view>
+    <view class="cc {{cards.openDiffs > 0 ? 'cc-warn' : ''}}">
+      <view class="cc-value">{{cards.openDiffs}}</view>
+      <view class="cc-label">未处置差异</view>
+    </view>
+  </view>
+  <view wx:if="{{serverTimeText}}" class="updated">更新于 {{serverTimeText}} · 下拉可刷新</view>
+
+  <!-- 告警：僵尸课堂 / 对账差异 -->
+  <view wx:if="{{staleLiveCount > 0 || openDiffCount > 0}}" class="card">
+    <block wx:if="{{staleLiveCount > 0}}">
+      <view class="alert-title">卡在 LIVE 未下课 {{staleLiveCount}} 节</view>
+      <view class="alert-item" wx:for="{{staleLive}}" wx:key="scheduleId">
+        <view class="ai-main">
+          <text class="ai-name">{{item.title}}</text>
+          <text class="ai-sub">计划结束 {{item.endText || '—'}}{{item.over ? ' · ' + item.over : ''}}</text>
+        </view>
+        <text class="ai-btn" data-sid="{{item.scheduleId}}" bindtap="onEnd">强制下课</text>
+      </view>
+    </block>
+
+    <block wx:if="{{openDiffCount > 0}}">
+      <view class="alert-title warn">未处置对账差异 {{openDiffCount}} 条</view>
+      <view class="diff-item" wx:for="{{diffs}}" wx:key="text">· {{item.text}}</view>
+      <view class="diff-note">差异明细与处置请在电脑端「课堂运营台 → 对账差异」处理。</view>
+    </block>
+  </view>
+
+  <!-- 活跃课堂 -->
+  <view class="section">
+    <text class="section-title">活跃课堂</text>
+    <text class="section-sub">{{rows.length}} 节</text>
+  </view>
+
+  <view wx:if="{{loading}}" class="tip">加载中…</view>
+  <view wx:elif="{{rows.length === 0}}" class="empty">
+    <view class="empty-glyph">🎬</view>
+    <view>当前没有进行中的课堂</view>
+  </view>
+  <view wx:else class="list">
+    <view class="row" wx:for="{{rows}}" wx:key="scheduleId">
+      <view class="row-head">
+        <text class="rh-name">{{item.courseName}}</text>
+        <text class="rh-state tone-{{item.tone}}">{{item.stateText}}</text>
+      </view>
+      <view class="row-line">{{terms.teacher}}：{{item.teacher}}</view>
+      <view class="row-line">开始 {{item.startText || '—'}} · 在线/成员 {{item.ratio}}</view>
+      <view class="row-ops">
+        <text class="op" data-sid="{{item.scheduleId}}" bindtap="onCopyLink">复制链接</text>
+        <text class="op primary" data-sid="{{item.scheduleId}}" bindtap="onNotice">发通知</text>
+        <text wx:if="{{item.canEnd}}" class="op danger" data-sid="{{item.scheduleId}}" bindtap="onEnd">结束</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="footnote">
+    小程序不承载课堂本体（音视频依赖浏览器的摄像头/麦克风能力），此处只做监视与链接分发；
+    需要旁听或代为开课时，请用「复制链接」在电脑浏览器打开。
+  </view>
+</view>

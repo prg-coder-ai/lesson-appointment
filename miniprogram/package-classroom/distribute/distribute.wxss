@@ -1,0 +1,139 @@
+/* 管理端「课堂链接分发」样式 */
+
+.page { padding-bottom: 40rpx; }
+
+.topbar {
+  display: flex;
+  align-items: center;
+  padding: 24rpx 28rpx 8rpx;
+}
+.tb-title { font-size: 34rpx; font-weight: 600; flex: 1; }
+.tb-btn {
+  font-size: 25rpx;
+  color: #1677ff;
+  background: #eaf3ff;
+  border-radius: 8rpx;
+  padding: 10rpx 22rpx;
+}
+
+.intro {
+  margin: 8rpx 24rpx 0;
+  padding: 18rpx 22rpx;
+  background: #f0f7ff;
+  border: 1rpx solid #d6e8ff;
+  border-radius: 10rpx;
+  font-size: 24rpx;
+  color: #33507a;
+  line-height: 1.7;
+}
+
+.card {
+  background: #fff;
+  border-radius: 12rpx;
+  padding: 8rpx 24rpx 24rpx;
+  margin: 20rpx 24rpx 0;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #f2f4f7;
+}
+.row.col { flex-direction: column; align-items: stretch; }
+.row:last-child { border-bottom: none; }
+.rk { width: 130rpx; flex-shrink: 0; font-size: 26rpx; color: #8a9099; }
+.row.col .rk { width: auto; margin-bottom: 12rpx; }
+.rv { flex: 1; font-size: 27rpx; color: #1f2329; word-break: break-all; }
+.rv.mono { font-size: 23rpx; color: #667085; }
+
+.rp { flex: 1; }
+.pick-value {
+  font-size: 27rpx;
+  color: #1f2329;
+  padding: 6rpx 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pick-empty { flex: 1; font-size: 26rpx; color: #9aa1a9; }
+
+.ri {
+  border: 1rpx solid #e4e7ec;
+  border-radius: 8rpx;
+  padding: 14rpx 18rpx;
+  font-size: 26rpx;
+  background: #fafbfc;
+}
+.rt {
+  border: 1rpx solid #e4e7ec;
+  border-radius: 8rpx;
+  padding: 16rpx 18rpx;
+  font-size: 26rpx;
+  background: #fafbfc;
+  min-height: 200rpx;
+  width: 100%;
+  box-sizing: border-box;
+  line-height: 1.7;
+}
+
+.switches { padding: 8rpx 0 4rpx; }
+.sw { display: flex; align-items: center; padding: 12rpx 0; }
+.sw-text { font-size: 25rpx; color: #475467; margin-left: 10rpx; line-height: 1.5; }
+
+.send {
+  margin-top: 18rpx;
+  background: #1677ff;
+  color: #fff;
+  border-radius: 10rpx;
+  font-size: 29rpx;
+  padding: 20rpx 0;
+}
+.send-disabled { background: #bae0ff; }
+
+.hint {
+  font-size: 22rpx;
+  color: #9aa1a9;
+  line-height: 1.7;
+  margin-top: 14rpx;
+}
+
+/* 结果 */
+.result { border: 1rpx solid #d6e8ff; }
+.res-title { font-size: 29rpx; font-weight: 600; color: #067647; padding-top: 18rpx; }
+.res-line { font-size: 24rpx; color: #667085; margin-top: 8rpx; word-break: break-all; }
+.res-link { margin-top: 16rpx; }
+.rl {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1rpx solid #e4e7ec;
+  border-radius: 8rpx;
+  padding: 14rpx 16rpx;
+  font-size: 22rpx;
+  color: #475467;
+  background: #fafbfc;
+  word-break: break-all;
+}
+.copy-btn {
+  margin-top: 12rpx;
+  background: #eaf3ff;
+  color: #1677ff;
+  border-radius: 8rpx;
+  font-size: 26rpx;
+  padding: 14rpx 0;
+}
+.res-note { font-size: 22rpx; color: #9aa1a9; line-height: 1.7; margin-top: 14rpx; }
+
+.tag { font-size: 22rpx; border-radius: 6rpx; padding: 4rpx 14rpx; }
+.tone-success { color: #067647; background: #ecfdf3; }
+.tone-warning { color: #b54708; background: #fff8e6; }
+.tone-muted { color: #667085; background: #f2f4f7; }
+.tone-neutral { color: #475467; background: #f4f6f8; }
+
+.footnote {
+  font-size: 22rpx;
+  color: #9aa1a9;
+  text-align: center;
+  padding: 28rpx 28rpx 0;
+}

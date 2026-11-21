@@ -53,7 +53,10 @@ const DOMAIN_FILES = [
   'datetime.js',
   'errorCode.js',
   'message.js',
-  'lessonLedger.js'
+  'lessonLedger.js',
+  // 2026-11-21：在线课堂（课次键 / 阶段 / 入口按钮 / 状态文案 / 课堂链接）。
+  // 放在最后：本身零依赖，且 Web 的 my-classroom-core.js 与小程序都要用它。
+  'classroom.js'
 ];
 
 const ADAPTER_FILES = [
@@ -193,7 +196,11 @@ window.MessageDomain = {
   recipientStateText: recipientStateText,
   setTenantDict: setTenantDict,
   getTenantDict: getTenantDict,
-  tenantText: tenantText
+  tenantText: tenantText,
+  // 2026-11-21：payload.url 白名单与跳转动作解析。Web 原本在 messages-inbox.js 里
+  // 自持一份 safeJumpUrl，小程序又要一份；收敛到域层，避免两套规则各自演化。
+  safeJumpUrl: safeJumpUrl,
+  messageJumpAction: messageJumpAction
 };
 window.LessonLedgerDomain = {
   LESSON_FLOW_SOURCE_TEXT: LESSON_FLOW_SOURCE_TEXT,
@@ -202,6 +209,25 @@ window.LessonLedgerDomain = {
   lessonChangeText: lessonChangeText,
   lessonRowTitle: lessonRowTitle,
   lessonBalanceTone: lessonBalanceTone
+};
+// 在线课堂领域层（2026-11-21）。Web 的 my-classroom-core.js 之前自己实现了一遍
+// classroomKeyOf / classroomPhase，小程序接入时若各写一份必然分叉（而且拼错不报错），
+// 故收进 shared/domain/classroom.js，由本桥暴露给 classic 脚本。
+window.ClassroomDomain = {
+  CLASSROOM_KEY_SEPARATOR: CLASSROOM_KEY_SEPARATOR,
+  CLASSROOM_PHASE: CLASSROOM_PHASE,
+  CLASSROOM_ACTION: CLASSROOM_ACTION,
+  NON_CLASSROOM_STATUS: NON_CLASSROOM_STATUS,
+  classroomKeyOf: classroomKeyOf,
+  classIndexOf: classIndexOf,
+  classroomLabel: classroomLabel,
+  parseUtcLoose: parseUtcLoose,
+  classroomPhaseOf: classroomPhaseOf,
+  isClassroomEligible: isClassroomEligible,
+  classroomEntryActions: classroomEntryActions,
+  classroomStateText: classroomStateText,
+  classroomStateTone: classroomStateTone,
+  classroomLink: classroomLink
 };
 
 /* ---- 平台适配层（shared/adapters/*，零 DOM，运行时自动探测 wx/Web） ---- */

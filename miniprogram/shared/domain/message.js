@@ -211,3 +211,55 @@ export function tenantText(id) {
   if (!isFinite(n) || n <= 0) return '';
   return TENANT_DICT[String(id)] || '';
 }
+
+// ---------------------------------------------------------------------------
+// 消息内跳转（payload.url）
+// ---------------------------------------------------------------------------
+
+/**
+ * 跳转地址白名单（payload.url 的唯一校验入口）。
+ *
+ * 只放行两类：
+ *   ① http/https 绝对地址；② 本站的 .html 相对页（可带 query/hash，如 classroom.html?scheduleId=x）。
+ * javascript:/data:/vbscript: 等一律返回空串 —— payload 虽由服务端下发，但内容源自发送方填写的字段，
+ * 必须按不可信输入处理，不能直接塞进 href / 用于跳转。
+ *
+ * 与 Web 端 frontend/js/messages-inbox.js#safeJumpUrl 逐字同口径（2026-11-21 收敛到本层）：
+ * 小程序没有 href，但同样要把这个串交给剪贴板/跳转，校验规则必须一致。
+ *
+ * @returns {string} 合法地址；不合法返回 ''
+ */
+export function safeJumpUrl(raw) {
+  if (raw == null) return '';
+  const s = String(raw).trim();
+  if (!s) return '';
+  if (/^[a-z][a-z0-9+.-]*:/i.test(s)) {
+    return /^https?:\/\//i.test(s) ? s : '';
+  }
+  // 相对路径：必须落在某个 .html 上，禁止 ..（避免越过站点根）
+  if (s.indexOf('..') >= 0) return '';
+  return /^\.?\/?[A-Za-z0-9_\-]+\.html(\?[^#\s]*)?(#\S*)?$/.test(s) ? s : '';
+}
+
+/**
+ * 从 payload 解析出「一键跳转」动作。
+ *
+ * payload 形态有两种（见 message-service MessageService#decryptPayload）：
+ *   · Map（正常情况，服务端把 JSON 解成了对象）；
+ *   · String（服务端 JSON 解析失败时的兜底）。字符串一律不处理 —— 里面是什么都可能，
+ *     不在这里做二次 JSON.parse（解析失败率高，且会掩盖服务端问题）。
+ *
+ * @param {Object|string} payload
+ * @returns {{url:string, label:string, type:string}|null}
+ */
+export function messageJumpAction(payload) {
+  if (!payload || typeof payload !== 'object') return null;
+  const url = safeJumpUrl(payload.url || payload.link || payload.jumpUrl);
+  if (!url) return null;
+  return {
+    url: url,
+    type: payload.type || '',
+    // 课堂类消息给「进入课堂」，其余给「查看详情」（与 Web payloadJumpHtml 同文案）
+    label: payload.type === 'classroom_join' ? '进入课堂' : '查看详情'
+  };
+}
