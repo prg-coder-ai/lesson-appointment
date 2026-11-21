@@ -38,11 +38,19 @@
     {
       "root": "package-message",
       "pages": ["inbox/inbox", "detail/detail", "compose/compose"]
+    },
+    {
+      "root": "package-classroom",
+      "pages": [
+        "my/my",
+        "monitor/monitor",
+        "distribute/distribute"
+      ]
     }
   ],
   "preloadRule": {
     "pages/login/login": { "network": "all", "packages": ["package-student", "package-teacher", "package-admin", "package-message"] },
-    "pages/mine/mine": { "network": "all", "packages": ["package-message"] },
+    "pages/mine/mine": { "network": "all", "packages": ["package-message", "package-classroom"] },
     "pages/demo/demo": { "network": "all", "packages": ["package-student"] }
   },
   "window": {

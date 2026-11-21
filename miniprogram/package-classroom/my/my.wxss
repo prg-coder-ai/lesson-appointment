@@ -1,0 +1,91 @@
+/* 我的课堂（学生/教师）样式 */
+
+.page { padding-bottom: 40rpx; }
+
+.topbar { padding: 24rpx 28rpx 4rpx; }
+.tb-title { font-size: 34rpx; font-weight: 600; }
+.tb-tip { display: block; font-size: 22rpx; color: #9aa1a9; margin-top: 6rpx; }
+
+.fatal {
+  margin: 16rpx 24rpx;
+  padding: 20rpx 24rpx;
+  background: #fff1f0;
+  border: 1rpx solid #ffccc7;
+  border-radius: 10rpx;
+  color: #a8071a;
+  font-size: 26rpx;
+  line-height: 1.6;
+}
+
+.group {
+  background: #fff;
+  border-radius: 12rpx;
+  margin: 20rpx 24rpx 0;
+  padding: 20rpx 24rpx 8rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+}
+.g-head {
+  display: flex;
+  align-items: baseline;
+  padding-bottom: 14rpx;
+  border-bottom: 1rpx solid #f2f4f7;
+}
+.g-name {
+  flex: 1;
+  font-size: 29rpx;
+  font-weight: 600;
+  color: #1f2329;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.g-sub { font-size: 22rpx; color: #9aa1a9; flex-shrink: 0; margin-left: 12rpx; }
+
+.ins { padding: 18rpx 0; border-bottom: 1rpx solid #f7f8fa; }
+.ins:last-child { border-bottom: none; }
+.ins-line { display: flex; align-items: center; }
+.ins-title { flex: 1; font-size: 27rpx; color: #1f2329; }
+.ins-state {
+  font-size: 22rpx;
+  border-radius: 6rpx;
+  padding: 4rpx 14rpx;
+  flex-shrink: 0;
+}
+.tone-success { color: #067647; background: #ecfdf3; }
+.tone-warning { color: #b54708; background: #fff8e6; }
+.tone-muted { color: #667085; background: #f2f4f7; }
+.tone-neutral { color: #475467; background: #f4f6f8; }
+
+.ins-time { font-size: 24rpx; color: #667085; margin-top: 6rpx; }
+
+.ins-ops {
+  display: flex;
+  justify-content: flex-end;
+  gap: 14rpx;
+  margin-top: 14rpx;
+}
+.op {
+  font-size: 24rpx;
+  color: #475467;
+  border: 1rpx solid #e4e7ec;
+  border-radius: 8rpx;
+  padding: 8rpx 20rpx;
+}
+.op.ghost { color: #6b7587; border-color: #eceff3; }
+.op.primary { color: #fff; background: #1677ff; border-color: #1677ff; }
+
+.tip, .empty {
+  text-align: center;
+  color: #9aa1a9;
+  font-size: 26rpx;
+  padding: 70rpx 40rpx;
+}
+.empty-glyph { font-size: 64rpx; margin-bottom: 12rpx; }
+.empty-sub { font-size: 22rpx; margin-top: 8rpx; }
+
+.footnote {
+  font-size: 22rpx;
+  color: #9aa1a9;
+  line-height: 1.7;
+  padding: 24rpx 28rpx 0;
+}
