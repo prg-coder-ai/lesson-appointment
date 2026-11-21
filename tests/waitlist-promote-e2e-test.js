@@ -15,6 +15,9 @@ const http = require('http');
 const crypto = require('crypto');
 const fs = require('fs');
 const { execFileSync } = require('child_process');
+// 仓库根：原先这里写死了另一个工作区（2026-08-30-17-19-24）的绝对路径，
+// 那份副本与当前仓库会逐渐分叉（properties 已不同），守卫会变成在验旧代码。
+const WS_ROOT = __dirname.replace(/[\\/]tests$/, '');
 
 const API = { host: '127.0.0.1', port: 8083 };
 const MYSQL = 'D:/program/mysql84/bin/mysql';
@@ -31,8 +34,16 @@ function ck(name, cond, detail) {
 
 /* ---------- JWT（用与后端相同的 jwt.secret 现签） ---------- */
 const props = fs.readFileSync(
-    'C:/Users/Administrator/WorkBuddy/2026-08-30-17-19-24/api/src/main/resources/application.properties', 'utf8');
-const SECRET = /^jwt\.secret=(.+)$/m.exec(props)[1].trim();
+    WS_ROOT + '/api/src/main/resources/application.properties', 'utf8');
+// 配置里现在是 `jwt.secret=${JWT_SECRET:<仓库默认值>}` 的占位形式（生产强制注入）。
+// 直接拿整串当签名密钥会与运行中的后端（它用冒号后的默认值）不一致 → 全部 401。
+// 这里剥掉 ${VAR:default} 外壳，取实际生效的默认值。
+const SECRET = (function () {
+    let raw = /^jwt\.secret=(.+)$/m.exec(props)[1].trim();
+    const m = /^\$\{[^:}]+:([\s\S]*)\}$/.exec(raw);
+    if (m) raw = m[1];
+    return raw;
+})();
 
 /* ---------- 消息字段加密：标题/正文在库里是 AES-256-GCM 密文 ----------
  * 存储格式 <hmac(64hex)>:<Base64(IV||密文||Tag)>，所以：
@@ -42,7 +53,7 @@ const SECRET = /^jwt\.secret=(.+)$/m.exec(props)[1].trim();
  *      而不是"有一条分类码对得上的消息"。
  * 密钥与 message-service 同源。 */
 const msgProps = fs.readFileSync(
-    'C:/Users/Administrator/WorkBuddy/2026-08-30-17-19-24/api/message-service/src/main/resources/application.properties', 'utf8');
+    WS_ROOT + '/api/message-service/src/main/resources/application.properties', 'utf8');
 const AES_KEY = Buffer.from(/^crypto\.aes-key=(.+)$/m.exec(msgProps)[1].trim(), 'base64');
 const HMAC_KEY = Buffer.from(/^crypto\.hmac-key=(.+)$/m.exec(msgProps)[1].trim(), 'base64');
 const IV_LEN = 12, TAG_LEN = 16;
@@ -70,7 +81,7 @@ function b64u(x) {
 function makeToken(sub, role, tenantId) {
     const now = Math.floor(Date.now() / 1000);
     const si = b64u(JSON.stringify({ alg: 'HS512', typ: 'JWT' })) + '.'
-        + b64u(JSON.stringify({ sub, role, tenantId, iat: now, exp: now + 3600 }));
+        + b64u(JSON.stringify({ sub, role, tenantId, type: 'access', iat: now, exp: now + 3600 }));
     return si + '.' + b64u(crypto.createHmac('sha512', Buffer.from(SECRET, 'utf8')).update(si).digest());
 }
 
@@ -122,6 +133,7 @@ function pickFreeSchedules(n) {
                 JOIN ${DB}.course c ON c.course_id = cs.course_id
                 LEFT JOIN ${DB}.booking b ON b.schedule_id = cs.schedule_id
                 WHERE cs.available_sites = 1 AND cs.tenant_id = ${TENANT} AND b.booking_id IS NULL
+                  AND cs.start_time > NOW()   -- 已开始的排期服务端一律拒绝（409 该排期已开始），不能拿来当空位样本
                 GROUP BY cs.schedule_id, cs.course_id, c.teacher_id
                 ORDER BY cs.schedule_id LIMIT ${n}`)
         .map((r) => ({ scheduleId: r[0], courseId: r[1], teacherId: r[2] }));
@@ -186,6 +198,7 @@ function pickFreshSchedule() {
         JOIN ${DB}.course c ON c.course_id = cs.course_id
         LEFT JOIN ${DB}.booking b ON b.schedule_id = cs.schedule_id
         WHERE cs.available_sites = 1 AND cs.tenant_id = ${TENANT} AND b.booking_id IS NULL
+          AND cs.start_time > NOW()   -- 同上：只挑还没开始的排期
         GROUP BY cs.schedule_id, cs.course_id, c.teacher_id
         ORDER BY cs.schedule_id LIMIT 40`);
     for (const r of rows) {
@@ -571,7 +584,7 @@ async function main() {
     // 只要有人图省事把 {course} 改回"课程"，这里立刻红——不必等到某个律所租户收到消息才发现。
     // 本轮从「只守递补通知」扩展为「守全部通知文案」。
     console.log('\n--- 15. 静态护栏：通知模板必须走术语占位符（禁止写死教育行业锚点词）---');
-    const API_SRC = 'C:/Users/Administrator/WorkBuddy/2026-08-30-17-19-24/api/src/main/java/com/reservation';
+    const API_SRC = WS_ROOT + '/api/src/main/java/com/reservation';
     /** 教育行业锚点词：出现在用户可见文案里就说明有人写死了行业词 */
     const ANCHORS = /(课程|上课|课次|课时|授课|学生|请假|排期|教师|老师|班级|难度等级|语言教学)/;
     /** 先把注释剥掉再扫：注释里的锚点词（例如"避免出现'首次上课时间：。'"）是给开发看的，不会发给用户 */

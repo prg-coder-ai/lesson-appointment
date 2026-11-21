@@ -133,5 +133,17 @@ public interface BookingMapper extends BaseMapper<Booking>{
     @Select("SELECT * FROM booking WHERE booking_id = #{id}")
     Booking selectByIdIgnoreTenant(@Param("id") String id);
 
+    /**
+     * 按 (schedule_id, student_id) 定位预订 —— 课堂出勤回调归户的唯一入口。
+     *
+     * <p>课堂回调只带 scheduleId + 学生 userId，要给「这个学生这一课次」结算课时，
+     * 必须先经 booking 找到 booking_id，再按 class_index 找到 appointment。
+     * 走 IgnoreTenant 回调线程无租户上下文，否则插件拼 tenant_id=-1 恒查不到。
+     */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT * FROM booking WHERE schedule_id = #{scheduleId} AND student_id = #{studentId} LIMIT 1")
+    Booking selectByScheduleAndStudentIgnoreTenant(@Param("scheduleId") String scheduleId,
+                                                   @Param("studentId") String studentId);
+
     // 以下可根据实际需要扩展
 } 

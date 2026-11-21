@@ -26,8 +26,11 @@
  */
 const fs = require('fs');
 const vm = require('vm');
+// 仓库根：原先这里写死了另一个工作区（2026-08-30-17-19-24）的绝对路径，
+// 那份副本与当前仓库会逐渐分叉（properties 已不同），守卫会变成在验旧代码。
+const WS_ROOT = __dirname.replace(/[\\/]tests$/, '');
 
-const ROOT = 'C:/Users/Administrator/WorkBuddy/2026-08-30-17-19-24';
+const ROOT = WS_ROOT + '';
 const SRC_PATH = ROOT + '/frontend/js/teacherInfo-publish.js';
 const COMMON_PATH = ROOT + '/frontend/js/teacherInfo-common.js';
 const EDIT_PATH = ROOT + '/frontend/js/teacherInfo-edit.js';
@@ -85,6 +88,11 @@ function loadModule(loc, extra) {
         escapeAttr: escapeHtmlImpl,
         currentTeacherId: 'T-9',
         originalData: null,
+        // subjectDisplay 定义在 teacherInfo.js（teacherInfo.html 里 publish.js 与 info.js 同页加载，
+        // 调用发生在用户点「发布」之后，所以生产环境不会 ReferenceError）。
+        // 本用例只载 publish.js + common.js，不载整个 teacherInfo.js（它带大量 DOM 监听），
+        // 故补一个同语义的桩：查不到对应选项时原样返回（与生产实现的跨行业兜底一致）。
+        subjectDisplay: (v) => (v == null || v === '' ? '-' : String(v)),
     }, extra || {});
     sb.window = sb;                       // 源码读 window.FRONTEND_ORIGIN，与 location 同域
     vm.createContext(sb);

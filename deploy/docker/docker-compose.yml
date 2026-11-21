@@ -1,0 +1,139 @@
+# ==============================================================================
+# lesson 三服务编排（自建云服务器 · 单机 Docker）
+#
+# 设计前提（看 README 第三节有完整理由）：
+#   1. 用 **network_mode: host**，不用端口映射。
+#      /etc/lesson/*.env 里的 DB/REDIS/BOOKING_API_URL 全是 127.0.0.1，
+#      SERVER_ADDRESS 也是 127.0.0.1；只有 host 网络能让这些值一字不改继续有效。
+#      端口映射（127.0.0.1:8081:8081）看似等价，但容器内 127.0.0.1 指向容器自己，
+#      env 里 6 个地址会同时失效，且 SERVER_ADDRESS=127.0.0.1 会让端口映射接不进来。
+#   2. MySQL 不容器化（继续用宿主机实例）。数据在容器外的运维习惯、备份、调参都成熟，
+#      容器化它只会让「备份脚本里 mysqldump 连哪」这件事变复杂。
+#   3. Redis 可选容器化（课堂依赖 db 2 + 在线态 key，不能开驱逐策略）。
+#   4. Nginx 与前端 dist 留在宿主机（证书 / 限流 / 安全头 / 白名单都在那边跑通过），
+#      后端容器只监听回环，nginx 配置一行不用改。
+#
+# 用法：
+#   cp env.example /opt/lesson/docker/.env   # 填 BUNDLE 版本
+#   docker compose --env-file .env up -d
+#   → 日常发布/回滚不要直接用它，走 deploy/docker/switch.sh（带健康检查与自动回滚）
+# ==============================================================================
+
+name: lesson
+
+# ---------- 三个后端的公共约定 ----------
+x-backend: &backend
+  restart: unless-stopped
+  network_mode: host
+  stop_grace_period: 30s
+  logging:
+    driver: json-file
+    options:
+      # 容器 stdout 是「第二份日志」，不清会写满盘（本项目的 logback 另有一份在 LOG_PATH）。
+      # 50m × 3 = 单服务 150MB 上限，滚动后旧文件由 docker 自己删，不需要 logrotate。
+      max-size: "50m"
+      max-file: "3"
+  security_opt:
+    - no-new-privileges:true
+  # 用宿主机的 lesson 账号 uid 跑容器，唯一目的：让挂载进来的日志/存储目录可写。
+  # 不写死 1000 —— 不同发行版/不同机器 useradd 出来的 uid 不一样，由 deploy 脚本
+  # 把 id -u lesson 写进 .env。镜像内默认 appuser(999) 只用于裸 docker run 调试。
+  user: "${LESSON_UID:-1000}:${LESSON_GID:-1000}"
+
+services:
+  # ---------------------------------------------------------------- 主服务 8081
+  booking:
+    <<: *backend
+    image: "lesson/booking-api:${BOOKING_TAG:?BOOKING_TAG-not-set}"
+    env_file:
+      - /etc/lesson/booking.env
+    environment:
+      # 容器内没有 home 目录（运行 uid 在容器 /etc/passwd 里查不到，user.home 会退化成 "?"），
+      # 而 teacher.upload.path 默认就是 ${user.home}/teacher-uploads。不显式指定，
+      # 教师头像/资料会写进镜像可写层：容器一重建就全丢，而且宿主机磁盘看不到。
+      TEACHER_UPLOAD_PATH: /app/data/teacher-uploads
+      HOME: /app
+    volumes:
+      # 路径与 env 里 LOG_PATH=/var/log/lesson/api 保持一致，env 不用改
+      - /var/log/lesson/api:/var/log/lesson/api
+      - ${TEACHER_UPLOAD_HOST:-/opt/lesson/data/teacher-uploads}:/app/data/teacher-uploads
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8081/actuator/health/readiness"]
+      interval: 15s
+      timeout: 3s
+      start_period: 90s      # JVM 冷启动 + Flyway/MyBatis 初始化；短了会把正常启动判成失败
+      retries: 4
+
+  # ---------------------------------------------------------------- 消息 8090
+  message:
+    <<: *backend
+    image: "lesson/message-service:${MESSAGE_TAG:?MESSAGE_TAG-not-set}"
+    env_file:
+      - /etc/lesson/message.env
+    environment:
+      HOME: /app
+    volumes:
+      - /var/log/lesson/message:/var/log/lesson/message
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8090/actuator/health/readiness"]
+      interval: 15s
+      timeout: 3s
+      start_period: 90s
+      retries: 4
+
+  # ---------------------------------------------------------------- 课堂 8092
+  classroom:
+    <<: *backend
+    image: "lesson/classroom-service:${CLASSROOM_TAG:?CLASSROOM_TAG-not-set}"
+    env_file:
+      - /etc/lesson/classroom.env
+    environment:
+      HOME: /app
+    volumes:
+      # 与 env 的 LOG_PATH=/var/log/lesson/classroom 一致
+      - /var/log/lesson/classroom:/var/log/lesson/classroom
+      # 与 env 的 STORAGE_LOCAL_ROOT=/opt/lesson/data/oss 一致（讲稿/作品/录制）
+      # ⚠ 备份必须库 + 这个目录一起做，只回库不回文件 = 记录都在、点开全 404
+      - /opt/lesson/data/oss:/opt/lesson/data/oss
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8092/actuator/health/readiness"]
+      interval: 15s
+      timeout: 3s
+      start_period: 120s     # 课堂启动最慢（调度器 + 媒体协商 + 缓存预热）
+      retries: 4
+
+  # ---------------------------------------------------------------- Redis（可选）
+  # 只有课堂会用到（在线态唯一真相源 + 限流计数，db 2）。
+  # 宿主机已经 apt 装过 redis-server 的话，**删掉这段**并在 .env 里不设即可 ——
+  # 两者都监听 6379 会直接抢端口起不来。二选一，不要同时开。
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    network_mode: host
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      # ★ 绝不能改成 allkeys-lru / allkeys-random。
+      #   课堂「谁还在线」的唯一真相源就是这里的 online:<scheduleId>:<userId> key，
+      #   被逐出会把在课学生判成掉线，掉线扫描器随后可能提前结课 —— 数据事故。
+      #   内存吃紧请扩容或缩短 TTL，不要用会驱逐数据的策略。
+      - --maxmemory-policy
+      - noeviction
+      - --save
+      - "900 1"
+    volumes:
+      - /opt/lesson/data/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-n", "2", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5

@@ -16,8 +16,11 @@
 const fs = require('fs');
 const vm = require('vm');
 const path = require('path');
+// 仓库根：原先这里写死了另一个工作区（2026-08-30-17-19-24）的绝对路径，
+// 那份副本与当前仓库会逐渐分叉（properties 已不同），守卫会变成在验旧代码。
+const WS_ROOT = __dirname.replace(/[\\/]tests$/, '');
 
-const SRC = path.join('C:/Users/Administrator/WorkBuddy/2026-08-30-17-19-24', 'frontend/js/messages-inbox.js');
+const SRC = path.join(WS_ROOT + '', 'frontend/js/messages-inbox.js');
 
 let pass = 0, fail = 0;
 const failures = [];
@@ -163,7 +166,15 @@ function buildCtx() {
     };
     const ctx = {
         mreq, esc: (x) => (x == null ? '' : String(x)),
-        window: win, document: doc, console, Promise, Array
+        window: win, document: doc, console, Promise, Array,
+        // messages-inbox.js 第 35 行 `const MD = window.MessageDomain || {}`，切片从更靠后的位置截取，
+        // 因此 MD 在 vm 里是自由变量，必须显式注入；否则 loadCategoryOptions 里
+        // `if (MD.setCategoryDict)` 抛 ReferenceError 被 catch 吞掉 → ul._items 被清成 []
+        // （G9 恒红，且看起来像"缓存没写进去"）。
+        MD: {
+            setCategoryDict: () => {},
+            categoryListFromTree: (list) => (Array.isArray(list) ? list : []),
+        },
     };
     ctx.window.escapeHtml = ctx.esc;
     // 生产形态：所有加载 messages-inbox.js 的页面（admin/platform_admin/student/teacher）

@@ -1,4 +1,7 @@
-target/
+# Maven 构建中间产物（保留 *.jar 供 Dockerfile COPY target/*.jar 使用）
+# 注意：不能整目录忽略 target/，否则 Dockerfile 的 COPY target/message-service-1.1.0.jar 会失败
+target/*
+!target/*.jar
 .git/
 .gitignore
 .idea/

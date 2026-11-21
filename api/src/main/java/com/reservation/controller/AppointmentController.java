@@ -227,7 +227,7 @@ public class AppointmentController {
         java.time.LocalDateTime monthEndTime = monthEnd.atTime(23, 59, 59);
 
         // 统计月初到月末预约数量 统计某年月的预约（Booking）数量 
-        int bookingMonth  = appointmentService.countByTimeAndStatuses(java.sql.Timestamp.valueOf(monthStartTime),java.sql.Timestamp.valueOf(monthEndTime), java.util.Arrays.asList("active", "completed"));
+        int bookingMonth  = appointmentService.countByTimeAndStatuses(java.sql.Timestamp.valueOf(monthStartTime),java.sql.Timestamp.valueOf(monthEndTime), com.reservation.common.AppointmentStatus.COUNTED_AS_LESSON);
 
         // 计算上一月的起始和结束时间
         java.time.LocalDate prevMonth = monthStart.minusMonths(1);
@@ -237,7 +237,7 @@ public class AppointmentController {
         java.time.LocalDateTime prevMonthEndTime = prevMonthEnd.atTime(23, 59, 59);
 
         // 上月统计月初到月末预约数量 统计某年月的预约（Booking）数量 
-        int bookingMonthLast  = appointmentService.countByTimeAndStatuses(java.sql.Timestamp.valueOf(prevMonthStartTime),java.sql.Timestamp.valueOf(prevMonthEndTime), java.util.Arrays.asList("active", "completed"));
+        int bookingMonthLast  = appointmentService.countByTimeAndStatuses(java.sql.Timestamp.valueOf(prevMonthStartTime),java.sql.Timestamp.valueOf(prevMonthEndTime), com.reservation.common.AppointmentStatus.COUNTED_AS_LESSON);
 
         java.util.Map<String, Integer> data = new java.util.HashMap<>();
         data.put("appMonth", bookingMonth);

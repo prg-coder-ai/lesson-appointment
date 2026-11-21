@@ -1,0 +1,67 @@
+.page { min-height: 100vh; padding: 24rpx 24rpx 60rpx; box-sizing: border-box; background: #f5f7fa; }
+
+/* 课时账户卡：剩余课时大字 + 两个次级数字 */
+.acct {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 30rpx 24rpx 24rpx;
+  box-shadow: 0 8rpx 30rpx rgba(31, 42, 68, 0.05);
+}
+.acct-main { text-align: center; }
+.acct-label { font-size: 25rpx; color: #97a1b2; }
+.acct-value { font-size: 76rpx; font-weight: 700; line-height: 1.15; color: #1f2a44; }
+/* 语义色：欠课时红、已用完橙、正常绿 */
+.acct-value.owed, .acct-tip.owed { color: #d9534f; }
+.acct-value.empty, .acct-tip.empty { color: #d48806; }
+.acct-value.normal { color: #0f9d58; }
+
+.acct-sub {
+  display: flex;
+  margin-top: 20rpx;
+  border-top: 1rpx solid #eef1f6;
+  padding-top: 20rpx;
+}
+.acct-item { flex: 1; text-align: center; }
+.acct-item-value { font-size: 34rpx; font-weight: 600; color: #2b3852; }
+.acct-item-label { font-size: 23rpx; color: #97a1b2; margin-top: 4rpx; }
+
+.acct-tip {
+  margin-top: 20rpx;
+  text-align: center;
+  font-size: 24rpx;
+  color: #6b7587;
+  line-height: 1.5;
+}
+
+.note {
+  margin: 18rpx 4rpx 20rpx;
+  font-size: 23rpx;
+  color: #97a1b2;
+  line-height: 1.6;
+}
+
+.card {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  box-shadow: 0 8rpx 30rpx rgba(31, 42, 68, 0.05);
+}
+.card-title { font-size: 29rpx; font-weight: 600; color: #1f2a44; margin-bottom: 8rpx; }
+
+.flow { padding: 20rpx 0; border-bottom: 1rpx dashed #e6ebf3; }
+.flow:last-child { border-bottom: none; padding-bottom: 4rpx; }
+.flow-top { display: flex; align-items: flex-start; justify-content: space-between; }
+.flow-title { flex: 1; min-width: 0; font-size: 28rpx; color: #1f2a44; font-weight: 600; line-height: 1.4; word-break: break-all; }
+.flow-change { flex: none; margin-left: 16rpx; font-size: 32rpx; font-weight: 700; }
+.flow-change.minus { color: #d9534f; }
+.flow-change.plus { color: #0f9d58; }
+
+.flow-meta { display: flex; align-items: center; flex-wrap: wrap; margin-top: 8rpx; font-size: 23rpx; color: #97a1b2; }
+.flow-time { margin-right: 16rpx; }
+.flow-source { margin-right: 16rpx; }
+.flow-after { color: #5c6a85; }
+
+.flow-reason { margin-top: 6rpx; font-size: 23rpx; color: #6b7587; line-height: 1.5; }
+
+.empty { text-align: center; color: #6b7587; font-size: 27rpx; padding: 100rpx 40rpx; line-height: 1.8; background: #fff; border-radius: 16rpx; }
+.loading { text-align: center; color: #97a1b2; font-size: 24rpx; padding: 28rpx 0 8rpx; }

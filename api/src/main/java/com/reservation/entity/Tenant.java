@@ -1,6 +1,7 @@
 package com.reservation.entity; 
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -37,6 +38,17 @@ public class Tenant {
     private String creatorAccount;
     /** 软删除标记：0正常 1已删除（保留可恢复） */
      private Integer deleted;
+
+    /**
+     * 课堂开通状态 —— **非表字段**，只在平台端租户列表里带出来（2026-11-20）。
+     *
+     * <p>取值：null=从未绑定（未开通），1=已启用，0=已禁用（保留绑定，临时关闭）。
+     * <p>来源是 {@code sys_tenant_eclassroom}（tenant_id 唯一键），由
+     * {@code EclassroomService#batchClassroomEnabled} 批量填充；
+     * 用 exist=false 而不是另建 VO，是为了不动 /tenant/page 既有响应结构。
+     */
+    @TableField(exist = false)
+    private Integer classroomEnabled;
 
     private LocalDateTime createTime;
     private LocalDateTime updateTime;

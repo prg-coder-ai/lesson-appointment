@@ -18,6 +18,9 @@ RUN groupadd -r appuser \
 WORKDIR /app
 
 # ---------- 复制 jar ----------
+# 构建命令（-Pprod 必带：顶掉 swagger profile，否则 springdoc/swagger-ui 会一起打进镜像）：
+#   cd <项目根>/api/message-service
+#   mvn clean package -DskipTests -Pprod
 COPY --chown=appuser:appuser target/message-service-1.1.0.jar app.jar
 
 # ---------- 切换到非 root 用户 ----------

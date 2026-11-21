@@ -1,0 +1,880 @@
+/* ==========================================================================
+   在线课堂页面样式（独立，不依赖 base/admin/teacher/student.css）
+   全屏布局：header / main(三栏) / footer
+   ========================================================================== */
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: #1b1f24;
+  color: #e8eaed;
+}
+
+#classroom-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* ---------------- 顶部栏 ---------------- */
+#classroom-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 52px;
+  padding: 0 16px;
+  background: #22272e;
+  border-bottom: 1px solid #30363d;
+  flex: 0 0 auto;
+}
+
+#classroom-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #e8eaed;
+  flex: 1 1 auto;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cl-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: #2b3239;
+  flex: 0 0 auto;
+}
+.cl-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #888;
+  display: inline-block;
+}
+.cl-status-live .cl-dot { background: #3fb950; box-shadow: 0 0 6px #3fb950; }
+.cl-status-idle .cl-dot { background: #d29922; }
+.cl-status-ended .cl-dot { background: #f85149; }
+.cl-status-connecting .cl-dot { background: #888; }
+
+/* ---------------- 主体三栏 ---------------- */
+#classroom-main {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: 220px 1fr 300px;
+  min-height: 0;
+}
+
+#participant-panel,
+#chat-panel {
+  background: #22272e;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+#participant-panel { border-right: 1px solid #30363d; }
+#chat-panel { border-left: 1px solid #30363d; }
+
+.panel-title {
+  padding: 12px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #9da7b3;
+  border-bottom: 1px solid #30363d;
+  flex: 0 0 auto;
+}
+.panel-title i { margin-right: 6px; }
+#participant-count {
+  float: right;
+  background: #30363d;
+  border-radius: 10px;
+  padding: 1px 8px;
+  font-size: 12px;
+}
+
+/* 参与者列表 */
+#participant-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+#participant-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #c9d1d9;
+}
+#participant-list li:hover { background: #2b3239; }
+.pt-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #3a424b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #e8eaed;
+  flex: 0 0 auto;
+}
+.pt-role-tag {
+  margin-left: auto;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: #30363d;
+  color: #9da7b3;
+}
+.pt-role-teacher { background: #1f6feb; color: #fff; }
+.pt-role-admin { background: #8957e5; color: #fff; }
+.pt-left { color: #6e7681; text-decoration: line-through; }
+
+/* ---------------- 视频/白板区 ---------------- */
+#video-whiteboard-area {
+  position: relative;
+  background: #14171b;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+#video-grid {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+  padding: 8px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.video-tile {
+  position: relative;
+  background: #0d1117;
+  border-radius: 8px;
+  overflow: hidden;
+  min-height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.video-tile video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+}
+.video-tile .vt-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #3a424b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  color: #e8eaed;
+}
+.video-tile .vt-label {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  background: rgba(0,0,0,.55);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  color: #fff;
+  max-width: 80%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.video-tile .vt-muted {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  color: #f85149;
+  font-size: 12px;
+}
+.video-tile.is-local { outline: 2px solid #1f6feb; }
+.video-tile.is-speaking .vt-label { background: rgba(63,185,80,.75); }
+
+/* ---------- 视频焦点放大（2026-11-17，classroom-video-focus.js） ----------
+   点击某画面 → 它占主区、其余缩到右列；移除 .has-spotlight 即恢复上面的均分网格。
+   注意：这里只改 #video-grid 内部布局，外层 #video-panel 的 .cl-panel-free
+   定位/缩放（classroom-panels.js）完全不受影响——面板整体缩放时，焦点布局按比例自适应。 */
+#video-grid[data-focus-ready] .video-tile { cursor: pointer; }
+#video-grid.has-spotlight {
+  grid-template-columns: minmax(0, 1fr) clamp(120px, 20%, 200px);
+  grid-template-rows: minmax(0, 1fr);
+  grid-auto-rows: 96px;          /* 右列缩略格高度 */
+  grid-auto-flow: row;
+  align-content: start;
+  overflow-y: auto;
+}
+#video-grid.has-spotlight .video-tile.is-spotlight {
+  grid-column: 1;
+  grid-row: 1 / -1;              /* 跨满所有行 = 主区整块 */
+  min-height: 0;
+  outline: 2px solid #58a6ff;
+}
+#video-grid.has-spotlight .video-tile:not(.is-spotlight) {
+  grid-column: 2;                /* 全部塞进右列，自动排成一列 */
+  min-height: 0;
+  height: 90px;
+  border-radius: 6px;
+}
+#video-grid.has-spotlight .video-tile:not(.is-spotlight) .vt-label {
+  font-size: 10px;
+  left: 4px; bottom: 4px;
+  max-width: 92%;
+}
+#video-grid.has-spotlight .video-tile:not(.is-spotlight) .vt-avatar {
+  width: 36px; height: 36px; font-size: 15px;
+}
+.vt-spotlight-close {
+  position: absolute;
+  top: 6px; right: 6px;
+  width: 26px; height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0,0,0,.55);
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+}
+.vt-spotlight-close:hover { background: rgba(248,81,73,.85); }
+
+/* 白板 */
+#whiteboard-area {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  min-height: 0;
+}
+#whiteboard-area.hidden { display: none; }
+#whiteboard-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #22272e;
+  border-bottom: 1px solid #30363d;
+  flex: 0 0 auto;
+  /* 工具本来就多（画笔…字号 13 个），加上拖动块与复位按钮后窄屏会溢出，
+     换行比让复位按钮被挤到看不见要好 */
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+.wb-tool {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #30363d;
+  background: #2b3239;
+  color: #c9d1d9;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.wb-tool.active { background: #1f6feb; color: #fff; border-color: #1f6feb; }
+/* 撤回按钮：带剩余可撤条数徽标；禁用时置灰不可点 */
+#wb-undo { display: inline-flex; align-items: center; justify-content: center; gap: 3px; }
+#wb-undo:disabled { opacity: .42; cursor: not-allowed; }
+.wb-undo-count { font-size: 10px; line-height: 1; font-weight: 600; }
+#wb-undo:disabled .wb-undo-count { display: none; }
+.wb-hint { color: #d29922; font-size: 12px; margin-left: 8px; }
+/* 颜色 / 粗细控件：深色工具栏上必须可见且可操作（旧版完全没有样式，控件"消失"） */
+#wb-color {
+  width: 28px;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  background: #2b3239;
+  cursor: pointer;
+  vertical-align: middle;
+}
+#wb-color::-webkit-color-swatch-wrapper { padding: 0; }
+#wb-color::-webkit-color-swatch { border: none; border-radius: 4px; }
+#wb-color::-moz-color-swatch { border: none; border-radius: 4px; }
+
+#wb-size {
+  width: 96px;
+  height: 22px;
+  cursor: pointer;
+  accent-color: #1f6feb;          /* 现代浏览器着色滑块轨道与拇指 */
+  vertical-align: middle;
+}
+#wb-size::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: #3a4149; }
+#wb-size::-moz-range-track { height: 4px; border-radius: 2px; background: #3a4149; }
+#wb-size::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px; margin-top: -5px;
+  border-radius: 50%; background: #1f6feb; border: 2px solid #c9d1d9;
+}
+#wb-size::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #1f6feb; border: 2px solid #c9d1d9; }
+
+/* 文字工具：字体 / 字号下拉（深色工具栏配色，与 color/size 控件一致） */
+#wb-font, #wb-font-size {
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  background: #2b3239;
+  color: #c9d1d9;
+  font-size: 12px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+#wb-font { max-width: 116px; }
+#wb-font-size { width: 62px; }
+#wb-font option, #wb-font-size option { background: #2b3239; color: #c9d1d9; }
+
+/* 文字输入浮层：fixed 贴在点击点，z-index 高于视频网格与工具栏 */
+#wb-text-editor {
+  position: fixed;
+  z-index: 10000;
+  width: 240px;
+  padding: 8px;
+  background: #22272e;
+  border: 1px solid #444c56;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .45);
+}
+#wb-text-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 54px;
+  resize: vertical;
+  padding: 6px 8px;
+  border: 1px solid #444c56;
+  border-radius: 5px;
+  background: #fff;
+  color: #1f2328;
+  font-size: 13px;
+  line-height: 1.4;
+}
+#wb-text-input:focus { outline: 2px solid #1f6feb; outline-offset: -1px; }
+.wb-text-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 6px; }
+.wb-text-actions button {
+  padding: 4px 12px;
+  border: 1px solid #444c56;
+  border-radius: 5px;
+  background: #2b3239;
+  color: #c9d1d9;
+  font-size: 12px;
+  cursor: pointer;
+}
+.wb-text-actions button:hover { border-color: #1f6feb; }
+#wb-text-ok { background: #1f6feb !important; border-color: #1f6feb !important; color: #fff !important; }
+
+#whiteboard-canvas {
+  display: block;
+  margin: auto;             /* 与 JS 配合：在白板区内 letterbox 居中（保持固定纵横比） */
+  cursor: crosshair;
+  touch-action: none;
+  background: #fff;
+}
+
+/* 占位 */
+#main-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #6e7681;
+  gap: 12px;
+  pointer-events: none;
+}
+#main-placeholder i { font-size: 48px; }
+#main-placeholder.hidden { display: none; }
+
+/* ---------------- 聊天面板 ---------------- */
+#chat-messages {
+  list-style: none;
+  margin: 0;
+  padding: 10px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+#chat-messages li {
+  margin-bottom: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.chat-name { color: #58a6ff; font-weight: 600; margin-right: 6px; }
+.chat-name.is-me { color: #3fb950; }
+.chat-time { color: #6e7681; font-size: 11px; margin-left: 6px; }
+.chat-text { color: #c9d1d9; word-break: break-word; }
+.chat-system { color: #8b949e; font-style: italic; }
+
+#chat-input-row {
+  display: flex;
+  gap: 6px;
+  padding: 10px;
+  border-top: 1px solid #30363d;
+  flex: 0 0 auto;
+}
+#chat-input {
+  flex: 1 1 auto;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  color: #e8eaed;
+  padding: 8px 10px;
+  font-size: 13px;
+  outline: none;
+}
+#chat-input:focus { border-color: #1f6feb; }
+#chat-send {
+  width: 38px;
+  border: none;
+  background: #1f6feb;
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* ---------------- 底部控制栏 ---------------- */
+#classroom-controls {
+  flex: 0 0 auto;
+  /* 教师端新增「进行中 / 暂停」后按钮达 12 个，窄屏需允许换行，否则会挤出可视区 */
+  min-height: 64px;
+  height: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 12px;
+  background: #22272e;
+  border-top: 1px solid #30363d;
+  padding: 8px 16px;
+}
+/* 录制模式选择（P1）：与按钮同高的下拉，明确"人像/教学区域"二选一 */
+.cl-record-mode {
+  height: 38px; padding: 0 8px; border-radius: 6px; cursor: pointer;
+  border: 1px solid #3d444d; background: #2d333b; color: #e8eaed; font-size: 12px;
+}
+.cl-record-mode:disabled { opacity: .45; cursor: not-allowed; }
+.cl-ctrl {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 60px;
+  height: 48px;
+  padding: 0 10px;
+  border: 1px solid #30363d;
+  background: #2b3239;
+  color: #c9d1d9;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 11px;
+}
+.cl-ctrl i { font-size: 16px; }
+.cl-ctrl:hover { background: #353d45; }
+.cl-ctrl.active { background: #1f6feb; color: #fff; border-color: #1f6feb; }
+.cl-ctrl.danger { background: #da3633; color: #fff; border-color: #da3633; }
+.cl-ctrl.danger:hover { background: #f85149; }
+.cl-ctrl:disabled { opacity: .4; cursor: not-allowed; }
+
+/* 举手三态（2026-11-18）：待批准黄色 / 发言中红色，与名单里的批准按钮同色系 */
+.cl-ctrl.waiting { background: #d29922; color: #1f1f1f; border-color: #d29922; font-weight: 600; }
+.cl-ctrl.waiting:hover { background: #e3aa2b; }
+.cl-ctrl.speaking {
+  background: #da3633; color: #fff; border-color: #da3633; font-weight: 600;
+  box-shadow: 0 0 0 2px rgba(218, 54, 51, .35);
+}
+.cl-ctrl.speaking:hover { background: #f85149; }
+
+/* 通用按钮（顶部栏返回按钮） */
+.cl-btn {
+  border: 1px solid #30363d;
+  background: #2b3239;
+  color: #c9d1d9;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.cl-btn:hover { background: #353d45; }
+.cl-btn-ghost { background: transparent; }
+
+/* 管理员巡课浮层 */
+#admin-monitor-panel {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 260px;
+  max-height: 60%;
+  overflow-y: auto;
+  background: rgba(34,39,46,.96);
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 12px;
+  color: #c9d1d9;
+  z-index: 50;
+}
+#admin-monitor-panel.hidden { display: none; }
+#admin-monitor-panel .amp-title { font-weight: 600; margin-bottom: 8px; }
+#admin-monitor-panel .amp-row { padding: 4px 0; border-bottom: 1px solid #30363d; }
+
+/* toast */
+#cl-toast {
+  position: fixed;
+  left: 50%;
+  top: 70px;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,.8);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  z-index: 9999;
+  display: none;
+}
+
+.hidden { display: none !important; }
+
+/* 参与者面板：教师补签按钮（F2-04 前端入口） */
+.pt-adjust {
+  margin-left: auto;
+  border: 1px solid #30363d;
+  background: #2b3239;
+  color: #9da7b3;
+  border-radius: 6px;
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.pt-adjust:hover { background: #1f6feb; color: #fff; border-color: #1f6feb; }
+#participant-actions {
+  padding: 10px 12px;
+  border-top: 1px solid #30363d;
+  flex: 0 0 auto;
+}
+#participant-actions .cl-btn { width: 100%; }
+
+/* 我的出勤弹窗（F2-07） */
+#my-attendance-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mam-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+}
+.mam-box {
+  position: relative;
+  width: 460px;
+  max-width: 92vw;
+  max-height: 80vh;
+  background: #22272e;
+  border: 1px solid #30363d;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.mam-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #e8eaed;
+  border-bottom: 1px solid #30363d;
+}
+.mam-close {
+  border: none;
+  background: transparent;
+  color: #9da7b3;
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+}
+.mam-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 12px;
+  overflow-y: auto;
+}
+.mam-list li {
+  display: grid;
+  grid-template-columns: 1fr 130px 60px 70px;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 6px;
+  border-bottom: 1px solid #2b3239;
+  font-size: 13px;
+  color: #c9d1d9;
+}
+.mam-list li.mam-empty,
+.mam-list li.mam-loading {
+  display: block;
+  text-align: center;
+  color: #6e7681;
+  padding: 16px;
+}
+
+/* 参与者态标记（F4-14 举手 / F4-03 摄像头关闭） */
+#participant-list li.pt-hand { box-shadow: inset 3px 0 0 #d29922; }
+#participant-list li.pt-hand::after {
+  content: "✋"; margin-left: 4px; font-size: 12px;
+}
+#participant-list li.pt-cam-off .pt-avatar { box-shadow: 0 0 0 2px #f85149; }
+.pt-approve, .pt-wbgrant {
+  border: 1px solid #30363d; background: #2b3239; color: #9da7b3;
+  border-radius: 6px; font-size: 11px; padding: 2px 8px; cursor: pointer; flex: 0 0 auto;
+  margin-left: 4px;
+}
+.pt-approve:hover { background: #1f6feb; color: #fff; }
+/* 举手待批准：黄色高亮，与名单行的 ✋ 标记同色；已批准：绿色 */
+.pt-approve.active { background: #d29922; color: #1f1f1f; border-color: #d29922; font-weight: 600; }
+.pt-approve.granted { background: #238636; color: #fff; border-color: #238636; }
+/* 已批准仍是可点按钮：hover 变红提示「再点即收回发言权」 */
+.pt-approve.granted:hover { background: #b62324; border-color: #b62324; }
+.pt-wbgrant:hover { background: #1f6feb; color: #fff; }
+.pt-wbgrant.active { background: #238636; color: #fff; border-color: #238636; }
+
+/* 服务端强控横幅（F4-17 全员禁言 / F4-03 摄像头） */
+.cl-banner {
+  background: #4d2a2a; color: #ffb4ab; text-align: center; padding: 6px 12px;
+  font-size: 13px; font-weight: 600; letter-spacing: .5px;
+}
+
+/* 录制提示条（F6 合规：学员端可见「本节课正在录制」） */
+.cl-record { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.cl-record.hidden { display: none; }
+.rec-dot { width: 8px; height: 8px; border-radius: 50%; background: #da3633; animation: rec-blink 1.2s infinite; }
+.rec-timer { font-variant-numeric: tabular-nums; color: #ffd7d5; }
+@keyframes rec-blink { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+
+/* 点名/上传/点评 弹窗（F4-11/12/15/16） */
+#rollcall-modal, #teacher-rollcall-modal, #upload-modal, #teacher-review-modal {
+  position: fixed; inset: 0; z-index: 9000;
+  display: flex; align-items: center; justify-content: center;
+}
+.rc-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.55); }
+.rc-box {
+  position: relative; width: 360px; max-width: 92vw; background: #22272e;
+  border: 1px solid #30363d; border-radius: 10px; padding: 18px; color: #e8eaed;
+}
+.rc-box-wide { width: 520px; }
+.rc-title { display: flex; align-items: center; justify-content: space-between; font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+.rc-tip { font-size: 12px; color: #9da7b3; margin: 8px 0; }
+.rc-select, .rc-input, .rc-textarea {
+  width: 100%; box-sizing: border-box; margin: 6px 0; padding: 8px; border-radius: 6px;
+  border: 1px solid #30363d; background: #0d1117; color: #e8eaed; font-size: 13px;
+}
+.rc-textarea { min-height: 80px; resize: vertical; }
+.rc-answer, .rv-submit {
+  margin-top: 10px; width: 100%; padding: 9px; border: none; border-radius: 6px;
+  background: #1f6feb; color: #fff; font-size: 14px; cursor: pointer; font-weight: 600;
+}
+.rc-answer:hover, .rv-submit:hover { background: #388bfd; }
+.rc-close { position: absolute; top: 12px; right: 14px; border: none; background: transparent; color: #9da7b3; font-size: 18px; cursor: pointer; line-height: 1; }
+.rc-status { color: #d29922; font-weight: 600; }
+.rc-status.rc-answered { color: #3fb950; }
+.rc-status-area { margin-top: 10px; font-size: 13px; }
+
+/* 作业点评列表（F4-16） */
+.review-list { list-style: none; margin: 0; padding: 0; max-height: 60vh; overflow-y: auto; }
+.review-item { padding: 10px 4px; border-bottom: 1px solid #2b3239; }
+.review-head { font-size: 13px; color: #c9d1d9; margin-bottom: 4px; }
+.review-content { font-size: 12px; color: #9da7b3; margin-bottom: 6px; word-break: break-all; }
+.review-form { display: flex; gap: 6px; flex-wrap: wrap; }
+.review-form .rv-comment { flex: 1 1 140px; }
+.review-form .rv-score { flex: 0 0 70px; }
+.review-form input { padding: 6px; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: #e8eaed; font-size: 12px; box-sizing: border-box; }
+.review-form .rv-submit { flex: 0 0 auto; width: auto; margin-top: 0; padding: 6px 14px; }
+.review-empty, .review-loading { text-align: center; color: #6e7681; padding: 16px; }
+/* 作品附件预览（包3·P2：签名 URL 落地后可试听/看图） */
+.rv-audio { width: 100%; height: 34px; margin-top: 4px; }
+.rv-thumb { max-width: 120px; max-height: 90px; border-radius: 6px; margin-top: 4px; border: 1px solid #30363d; }
+.rv-file { color: #58a6ff; font-size: 12px; }
+
+/* 讲稿容器（F4-04~06：教师上传/翻页，学生跟随） */
+#material-stage {
+  position: fixed; top: 56px; left: 8%; right: 8%; bottom: 84px; z-index: 60;
+  display: flex; flex-direction: column; overflow: hidden;
+  background: #0d1117; border: 1px solid #30363d; border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .6);
+}
+#material-stage.hidden { display: none; }
+.ms-head { display: flex; align-items: center; gap: 12px; height: 42px; padding: 0 14px; background: #161b22; border-bottom: 1px solid #30363d; }
+.ms-title { font-size: 14px; font-weight: 600; }
+.ms-page { font-size: 12px; color: #9da7b3; }
+.ms-hint { font-size: 12px; color: #d29922; }
+.ms-hint.hidden { display: none; }
+.ms-close { margin-left: auto; border: none; background: transparent; color: #9da7b3; font-size: 20px; cursor: pointer; line-height: 1; }
+/* 2026-11-15 P0：黑底(#000)改纸色——PDF 翻页重渲染空隙露白，与白纸页面同色，消除黑闪 */
+.ms-body { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; overflow: auto; background: #fff; }
+.ms-frame { width: 100%; height: 100%; border: 0; }
+.ms-frame.hidden, .ms-image.hidden, .ms-empty.hidden, .ms-pdf-canvas.hidden { display: none; }
+.ms-image { max-width: 100%; max-height: 100%; }
+/* PDF.js 自渲染画布：限宽居中，白页与 .ms-body 纸色一致；翻页用离屏双缓冲避免黑闪 */
+.ms-pdf-canvas { display: block; max-width: 100%; box-shadow: 0 2px 12px rgba(0,0,0,.18); }
+.ms-empty { color: #6e7681; font-size: 13px; }
+.ms-empty a { color: #58a6ff; }
+.ms-bar { display: flex; gap: 8px; justify-content: center; padding: 8px; background: #161b22; border-top: 1px solid #30363d; }
+.ms-btn { padding: 6px 14px; border: 1px solid #30363d; border-radius: 6px; background: #21262d; color: #e8eaed; font-size: 13px; cursor: pointer; }
+.ms-btn:hover { background: #30363d; }
+/* 课堂内资料选择（2026-11-17）：教师/管理员可在多份资料中切换展示，学生只读隐藏 */
+.ms-picker {
+  max-width: 220px; padding: 6px 8px; border: 1px solid #30363d; border-radius: 6px;
+  background: #21262d; color: #e8eaed; font-size: 12px; cursor: pointer;
+}
+/* 学生只读：上传、翻页、资料选择均不出现（服务端同样会拒绝非教师写操作） */
+.ms-bar:not(.is-teacher) #ms-upload,
+.ms-bar:not(.is-teacher) #ms-prev,
+.ms-bar:not(.is-teacher) #ms-next,
+.ms-bar:not(.is-teacher) #ms-material-picker { display: none; }
+
+/* ---------------- 可移动 / 可缩放面板（2026-11-16） ----------------
+   默认态一律保持原布局：视频填满中栏、白板切显、讲稿居中浮层。
+   只有用户真正动过某块面板（classroom-panels.js 加上 .cl-panel-free）才变自由定位，
+   因此下面这些样式对「没动过的面板」零影响。 */
+.cl-panel { position: relative; }
+
+/* 视频面板外壳：原 #video-grid 直接是 #video-whiteboard-area 的 flex 子项，
+   包一层后由外壳承担 flex，网格仍负责内部 auto-fit 排布 */
+#video-panel {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* 自由态统一外观：给它一点"浮起来"的质感，和未脱层的面板区分开 */
+.cl-panel-free {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .55);
+  border: 1px solid #30363d;
+  border-radius: 10px;
+  overflow: hidden;          /* 圆角裁切：canvas/视频不能溢出到圆角外 */
+  background: #14171b;
+}
+#whiteboard-area.cl-panel-free { background: #fff; }
+#material-stage.cl-panel-free { background: #0d1117; }
+
+/* 视频面板顶部拖动条 */
+.cl-panel-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 8px 0 4px;
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
+  flex: 0 0 auto;
+}
+.cl-panel-name { font-size: 12px; color: #9da7b3; }
+
+/* 拖动区整体可拖（含空白处），按钮自己保留 pointer 手势；移动端必须禁掉默认滚动 */
+[data-cl-drag] { cursor: move; touch-action: none; }
+/* cursor 是继承属性：工具栏里的取色/滑杆/下拉不该顶着 move 手势 */
+[data-cl-drag] input, [data-cl-drag] select, [data-cl-drag] textarea { cursor: auto; }
+
+/* 拖动抓手：三块面板统一用这个图标提示"这里能拖" */
+.cl-panel-drag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  color: #6e7681;
+  font-size: 12px;
+  cursor: move;
+  flex: 0 0 auto;
+  touch-action: none;
+}
+.cl-panel-drag:hover { background: #30363d; color: #e8eaed; }
+
+/* 复位按钮：视频条与讲稿头用；白板工具栏里复用 .wb-tool 外观（见 .cl-panel-reset-inline） */
+.cl-panel-reset {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: #9da7b3;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.cl-panel-reset:hover { background: #30363d; color: #e8eaed; }
+/* 白板工具栏里的复位按钮：沿用 .wb-tool 尺寸，只把它推到最右 */
+.cl-panel-reset-inline { margin-left: auto; }
+
+/* 缩放手柄（右下角） */
+.cl-panel-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 18px;
+  height: 18px;
+  cursor: nwse-resize;
+  z-index: 6;
+  touch-action: none;
+}
+.cl-panel-resize::after {
+  content: '';
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #6e7681;
+  border-bottom: 2px solid #6e7681;
+  opacity: .55;
+}
+.cl-panel-resize:hover::after { opacity: 1; border-color: #58a6ff; }
+/* 深色内容（视频/讲稿）用浅色手柄，白底白板用深色手柄 */
+/* 白板画布是白的，右下角手柄要够深才看得见 */
+#whiteboard-area .cl-panel-resize::after { border-color: #8b949e; }
+
+/* 拖动中：全局禁选，避免拖着拖着把标题文字选中 */
+body.cl-panel-dragging { user-select: none; -webkit-user-select: none; }
+
+/* 响应式：窄屏收起右侧栏 */
+@media (max-width: 900px) {
+  #classroom-main { grid-template-columns: 160px 1fr; }
+  #chat-panel { display: none; }
+}
+@media (max-width: 640px) {
+  #classroom-main { grid-template-columns: 1fr; }
+  #participant-panel { display: none; }
+}

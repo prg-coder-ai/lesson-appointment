@@ -744,7 +744,14 @@ window.sanitizeTenantCode = function (raw) {
         localStorage.setItem('token', res.token);
         recordLegalAccept(res.token);
       }
-      localStorage.setItem('refreshToken', res.refreshToken || '');
+      // 扫码登录的 res 是 /auth/wechat/qr/status 的 data，confirmed(login) 场景后端会带
+      // refreshToken（WxLoginStateService 一次性 payload）。只在真拿到时才写：
+      // 无条件写成 '' 会把已有会话的凭证抹掉，与密码登录分支那次覆盖是同一个坑。
+      if (res.refreshToken) {
+        localStorage.setItem('refreshToken', res.refreshToken);
+      } else {
+        console.warn('[login] 扫码登录响应未携带 refreshToken，本次会话只能维持到 access token 过期');
+      }
       setTimeout(function () {
         closeWechatQr();
         redirectToUserPage(currentUser);
@@ -1138,8 +1145,24 @@ window.sanitizeTenantCode = function (raw) {
           // 场景 B：登录成功即记录对当前生效版协议/政策的签署（fire-and-forget）
           recordLegalAccept(user.token);
         }
-        // 注册接口暂未返回 refreshToken，留空避免刷新逻辑误判
-        localStorage.setItem('refreshToken', user.refreshToken || '');
+        // ★ 2026-11-20 修复：此处绝对不能再写 refreshToken。
+        //
+        //   原来的写法是 localStorage.setItem('refreshToken', user.refreshToken || '')，
+        //   注释还写着「注册接口暂未返回 refreshToken」——但这行在**密码登录成功**分支里，
+        //   而 user 是 authenticateUser() 的返回值 = saveCurrentUserSession() 拼出来的
+        //   currentUser 快照，**刻意不含 refreshToken**（那份快照会整串塞进 localStorage，
+        //   多带一个长期凭证只会扩大 XSS 面）。于是：
+        //     ① auth.js 内部已经把真实 refreshToken 写进 localStorage；
+        //     ② 紧接着这一行用 undefined || '' 把它覆盖成空字符串。
+        //   现象就是开发者工具里 refreshToken 有 key、值为空；用户侧表现为
+        //   「登录约 1 小时后莫名掉线」——access 到期后 /auth/refreshToken 收到空串，
+        //   后端直接 Result.fail(401,"刷新凭证为空")，前端按 401 清登录态。
+        //
+        //   refreshToken 的唯一落盘点 = js/public/auth.js → saveCurrentUserSession()。
+        //   这里只做一次自检，不再回写。
+        if (!localStorage.getItem('refreshToken')) {
+          console.warn('[login] 登录响应未携带 refreshToken，本次会话只能维持到 access token 过期');
+        }
 
         loginError.style.display = 'block';
         loginError.style.color = 'green';

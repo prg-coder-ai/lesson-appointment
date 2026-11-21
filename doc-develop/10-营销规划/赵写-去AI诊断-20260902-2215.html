@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>赵写-去AI诊断-20260902-2215</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+:root {
+  --brand: #0052D9;
+  --brand-soft: #E8F0FE;
+  --brand-deep: #003A99;
+  --ink: #1F2329;
+  --ink-2: #4E5969;
+  --ink-3: #86909C;
+  --line: #E5E6EB;
+  --bg: #F7F8FA;
+  --surface: #FFFFFF;
+  --warn: #FF7D00;
+  --warn-soft: #FFF7E8;
+  --ok: #00B42A;
+  --ok-soft: #E8FFEA;
+  --danger: #F53F3F;
+  --danger-soft: #FFECE8;
+}
+* { box-sizing: border-box; }
+body { margin: 0; padding: 32px 20px; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif; background: var(--bg); color: var(--ink); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+.container { max-width: 880px; margin: 0 auto; }
+.banner { background: linear-gradient(135deg, var(--brand) 0%, var(--brand-deep) 100%); color: #fff; padding: 28px 32px; border-radius: 16px 16px 0 0; position: relative; overflow: hidden; }
+.banner::after { content: ""; position: absolute; right: -40px; top: -40px; width: 200px; height: 200px; background: rgba(255,255,255,0.06); border-radius: 50%; }
+.banner .brand-tag { font-size: 13px; color: rgba(255,255,255,0.85); margin: 0 0 10px 0; letter-spacing: 0.3px; position: relative; z-index: 1; }
+.banner .brand-tag .sep { margin: 0 6px; opacity: 0.6; }
+.banner .title { font-size: 24px; font-weight: 600; margin: 0 0 4px 0; }
+.banner .subtitle { font-size: 14px; opacity: 0.9; margin: 0; }
+.banner .meta { margin-top: 14px; font-size: 13px; opacity: 0.85; display: flex; gap: 20px; flex-wrap: wrap; }
+.banner .meta span { display: inline-flex; align-items: center; gap: 6px; }
+.body { background: var(--surface); padding: 28px 32px 8px; border-radius: 0 0 16px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+section { margin-bottom: 28px; } section:last-child { margin-bottom: 0; }
+h2.section-title { font-size: 17px; font-weight: 600; color: var(--ink); margin: 0 0 14px 0; line-height: 1.35; display: flex; align-items: baseline; gap: 10px; }
+h2.section-title .idx { color: var(--brand); font-weight: 700; font-size: 18px; letter-spacing: 0.5px; }
+.lead { font-size: 13.5px; color: var(--ink-2); line-height: 1.7; margin: 0 0 14px 0; padding: 12px 14px; background: #FAFBFC; border-radius: 6px; }
+.lead strong { color: var(--ink); font-weight: 600; }
+table.data-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+table.data-table th { background: #FAFBFC; color: var(--ink-2); font-weight: 500; text-align: left; padding: 10px 12px; border-bottom: 2px solid var(--line); font-size: 13px; }
+table.data-table td { padding: 12px; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--ink); }
+table.data-table tr:last-child td { border-bottom: none; }
+table.data-table td.kv-key { color: var(--ink-2); font-weight: 500; width: 92px; }
+.pill { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; line-height: 1.5; }
+.pill-ok { background: var(--ok-soft); color: var(--ok); }
+.pill-warn { background: var(--warn-soft); color: var(--warn); }
+.pill-danger { background: var(--danger-soft); color: var(--danger); }
+.pill-brand { background: var(--brand-soft); color: var(--brand); }
+.callout { padding: 12px 16px; border-radius: 8px; border-left: 3px solid var(--brand); font-size: 13.5px; line-height: 1.7; background: var(--brand-soft); color: var(--ink); margin-top: 14px; }
+.callout strong.title { color: var(--brand-deep); font-weight: 600; margin-right: 4px; }
+.callout-warn { border-color: var(--warn); background: var(--warn-soft); color: #1F2329; }
+.callout-warn strong.title { color: #7A4300; }
+ul.plain-list { margin: 0; padding-left: 20px; font-size: 13.5px; color: var(--ink-2); line-height: 1.85; }
+ul.plain-list li { margin: 4px 0; padding-left: 2px; }
+ul.plain-list li strong { color: var(--ink); font-weight: 600; }
+.tag-ok, .tag-warn, .tag-bad { font-weight: 600; margin-right: 4px; }
+.tag-ok { color: var(--ok); } .tag-warn { color: var(--warn); } .tag-bad { color: var(--danger); }
+.disclaimer { text-align: center; font-size: 11.5px; color: var(--ink-3); margin-top: 20px; padding: 14px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="banner">
+    <p class="brand-tag">营销通<span class="sep">·</span>内容风格教练</p>
+    <h1 class="title">时约首页文案 · 去 AI 味诊断</h1>
+    <p class="subtitle">基于「梗王-首页文案草稿」16 项扫描</p>
+    <div class="meta">
+      <span><i class="bi bi-calendar3"></i>2026-09-02</span>
+      <span><i class="bi bi-flag"></i>官网首页成稿</span>
+      <span><i class="bi bi-hourglass-split"></i>评级：中度</span>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <section>
+      <h2 class="section-title"><span class="idx">01</span>总体评级</h2>
+      <p class="lead">中度 AI 味：语言层面已经比一般 AI 干净（刻意避了黑话和绝对化），但结构偏模板、且缺"主创真实声音"——这是首页 AI 味的主因。</p>
+      <table class="data-table">
+        <thead><tr><th style="width:92px;">等级</th><th>判定</th><th>主要症结</th></tr></thead>
+        <tbody>
+          <tr><td><span class="pill pill-warn">中度</span></td><td>命中 4–8 项，D 类真实感命中 1 项关键</td><td>四行业块对称标题 + 全篇缺主创/真实数据（#14）</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2 class="section-title"><span class="idx">02</span>命中清单（重点项）</h2>
+      <p class="lead">逐类扫 16 项，下表只列命中与需修的项；未命中的（开场/结尾/黑话/emoji）是这版的优点，保留。</p>
+      <table class="data-table">
+        <thead><tr><th style="width:92px;">位置</th><th>命中项</th><th>原文片段</th><th>问题</th><th>改法</th></tr></thead>
+        <tbody>
+          <tr><td class="kv-key">分行业块标题</td><td>#6 对称小标题</td><td>「排课不再靠 Excel…」「让当事人自己挑…」「来访者自己约…」「会员自己挑…」</td><td>四块句式一模一样，像切好的模板</td><td>打破对称：换痛点反问式 / 场景白描，每块不同写法</td></tr>
+          <tr><td class="kv-key">分行业块</td><td>#9 段落整齐</td><td>每块都是"痛点段+解法段+截图+CTA"</td><td>豆腐块式，读感机械</td><td>插入一行短句、偶用问句，节奏有长有短</td></tr>
+          <tr><td class="kv-key">能力/解法句</td><td>#5 结构排比</td><td>「开课前自动提醒，到期续费也提前通知你跟进」</td><td>轻量并列，非修辞排比</td><td>保留一处重点即可，不必每句都对称</td></tr>
+          <tr><td class="kv-key">全篇</td><td>#14 无具体人称经历</td><td>纯产品视角，无"我/我们"、无真实数字</td><td>真实感缺失，AI 味源头</td><td>补主创声音与真实数据（需你提供，不编造）</td></tr>
+          <tr><td class="kv-key">痛点句</td><td>#15 模糊归因</td><td>「每周手动排课几小时」</td><td>模糊数，无具体</td><td>能给具体数就给（如"我早期每周排 4 小时"）</td></tr>
+          <tr><td class="kv-key">全篇</td><td>#16 完美叙述</td><td>只讲收益，无诚实摩擦</td><td>缺"我们也不是万能"的真实感</td><td>部署处诚实写前提（已部分做到，强化）</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2 class="section-title"><span class="idx">03</span>分级修复路线</h2>
+      <ul class="plain-list">
+        <li><strong>高（真实感，最关键）：</strong>补主创故事 + 真实数据 → 改写版已加"为什么是我们"区块，留【真实占位】，由你填，不代编</li>
+        <li><strong>中（结构）：</strong>四行业块标题去对称、段落打破整齐、加入短句与问句</li>
+        <li><strong>低（词汇）：</strong>已干净，仅微调模糊数、加一两处节奏点</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2 class="section-title"><span class="idx">04</span>与风格档案对照</h2>
+      <div class="callout"><strong class="title">说明：</strong>当前有"时约首页声音 DNA"（假设态）。改写版已对齐其中可落地的特征——第二人称"你"、去黑话、痛点→解法→截图三段式、口语 tagline；唯"主创真实声音"一项档案本身也还缺样本，需你补素材。</div>
+    </section>
+
+    <section>
+      <h2 class="section-title"><span class="idx">05</span>下一步</h2>
+      <ul class="plain-list">
+        <li><strong>你填：</strong>把【真实占位】换成你做时约的起因、真实用户数/行业数、跑了多久</li>
+        <li><strong>我接：</strong>贴 3–5 段自己写的文字，我把首页声音从"产品调性"校准成"你的个人风格"</li>
+        <li><strong>合规：</strong>若首页确由 AI 辅助生成，按公众号/视频号规范如实标识，去 AI 味不等于免标识</li>
+      </ul>
+    </section>
+
+  </div>
+
+  <div class="disclaimer">—— 营销通 · 赵写出品｜去 AI 味目标是"像时约该说的实话"，不承诺检测不出、不替代平台标识义务。</div>
+
+</div>
+</body>
+</html>

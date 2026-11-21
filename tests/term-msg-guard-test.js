@@ -23,8 +23,11 @@
  */
 const fs = require('fs');
 const { execFileSync } = require('child_process');
+// 仓库根：原先这里写死了另一个工作区（2026-08-30-17-19-24）的绝对路径，
+// 那份副本与当前仓库会逐渐分叉（properties 已不同），守卫会变成在验旧代码。
+const WS_ROOT = __dirname.replace(/[\\/]tests$/, '');
 
-const ROOT = 'C:/Users/Administrator/WorkBuddy/2026-08-30-17-19-24';
+const ROOT = WS_ROOT + '';
 const JAVA_ROOT = ROOT + '/api/src/main/java';
 const MYSQL = 'D:/program/mysql84/bin/mysql';
 const DB = 'lesson_appointment';

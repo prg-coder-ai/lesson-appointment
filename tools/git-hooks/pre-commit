@@ -17,7 +17,7 @@
 #    于是"新增一个 delete 方法却忘了处置子表"就成了唯一入口——守卫是它的发现手段。
 #    紧急跳过：SKIP_CASCADE=1 git commit ...
 #
-# 4) ddl-align：DDL 漂移守卫（方案 B · 静态）。实体字段与 api/sql/schema 基线不一致时拒绝提交。
+# 4) ddl-align：DDL 漂移守卫（方案 B · 静态）。实体字段与 deploy/sql/schema 基线不一致时拒绝提交。
 #    必要性：实体加字段忘 ALTER、表加 NOT NULL 无默认列而实体没有——这类漂移
 #    **不编译失败、不启动失败**，只在真实读写那一刻炸，报错还指向 SQL 而不指向"你改了实体没改表"。
 #    静态方案（不连库）才能挂在 pre-commit；连库比对留作 CI 补充（能覆盖 mapper XML）。
@@ -193,4 +193,37 @@ if [ "$SKIP_ADMIN_SELF_LOCK" != "1" ]; then
   node tools/check-admin-self-lock.mjs || exit 1
 else
   echo "[admin-self-lock] SKIP_ADMIN_SELF_LOCK=1，跳过管理员自锁防护守卫"
+fi
+
+# 19) proxy-routes：反向代理分流守卫（2026-11-19 新增）。
+#     必要性：前端某个课堂接口没被分流规则覆盖时，请求会被兜底送到 booking(8081)，
+#     主服务没有该映射且 SecurityConfig 兜底是 denyAll() → **403**，前端只显示
+#     「无权限访问该资源」。看起来像权限问题，实际是分流漏了一条，本地联调时最难查。
+#     真实事故：POST /api/v1/admin/classrooms（创建临时课堂）没有子路径，而清单写的是
+#     '/api/v1/admin/classrooms/' 用 startsWith 匹配 → 永远命中不了 → 建课按钮直接 403。
+#     守卫钉住：① 前端每个 CLASSROOM_* 端点都能被判到课堂服务；② nginx 两个 conf 的
+#     课堂 location 与 dev 代理清单一一对应；③ 每个端点在 nginx 里都匹配得到
+#     （没子路径的靠 `location = ...`）。清单本身从 dev-proxy.js 读，不复制第二份。
+#     紧急跳过：SKIP_PROXY=1 git commit ...
+if [ "$SKIP_PROXY" != "1" ]; then
+  node tools/check-proxy-routes.mjs || exit 1
+else
+  echo "[proxy-routes] SKIP_PROXY=1，跳过分流守卫"
+fi
+
+# 20) props-value：配置值纯净守卫（2026-11-20 新增，真实事故驱动）。
+#     事故：编辑 application.properties 时 old_string 带行尾换行、new_string 没带，把
+#     下一段注释粘到了值后面 → `classroom.rollcall-timeout-minutes=2# 过期数据保留（天）`。
+#     properties 只认**行首**的 # 是注释，于是值变成 "2# 中文"。后果不是"配置不生效"，
+#     而是 8092 直接起不来：Failed to convert value of type 'java.lang.String' to int，
+#     报错指向 @Value 注入点、中文还是乱码，肉眼几乎反推不出来源。
+#     守卫钉住：① 值里不得出现引号外的 #（=注释被吞进值）；
+#     ② properties 的值里不得出现中文/全角标点（按 ISO-8859-1 读，中文值必是乱码，
+#        且中文出现在值里基本等于 swallow 了注释）；env 模板只查 ①（systemd 按 UTF-8 读）。
+#     配套反向测试 tests/check_props_value_guard.js（3 种变异必须全红）。
+#     紧急跳过：SKIP_PROPS=1 git commit ...
+if [ "$SKIP_PROPS" != "1" ]; then
+  node tools/check-properties-value.mjs || exit 1
+else
+  echo "[props-value] SKIP_PROPS=1，跳过配置值纯净守卫"
 fi

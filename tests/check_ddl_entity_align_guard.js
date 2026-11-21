@@ -36,7 +36,7 @@ const MSG_ENTITY_DIR = path.join(ROOT, 'api/message-service/src/main/java/com/me
 const BOOKING = path.join(ENTITY_DIR, 'Booking.java');
 const TERM = path.join(ENTITY_DIR, 'Term.java');
 const SCHEDULE = path.join(ENTITY_DIR, 'CourseSchedule.java');
-const SCHEMA_DIR = path.join(ROOT, 'api/sql/schema');
+const SCHEMA_DIR = path.join(ROOT, 'deploy/sql/schema');
 
 class ExitSignal extends Error { }
 

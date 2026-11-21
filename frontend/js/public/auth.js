@@ -119,6 +119,13 @@
     }
     if (tCode) currentUser.tenantCode = tCode;
     STORE.setItem('currentUser', JSON.stringify(currentUser));
+    // 课堂配置是「按租户」下发的（enabled / apiBaseUrl 都取自当前租户的绑定记录），
+    // 换账号或换租户登录后上一次会话的快照必然失效。这里连「已核对」标记一起清掉，
+    // 让目标页面进站后重新向 /api/v1/eclassroom/config 核对一次（feature-flags.js 负责）。
+    try {
+      STORE.removeItem('eclassroomConfig');
+      sessionStorage.removeItem('eclassroomConfigVerified');
+    } catch (e) { /* ignore */ }
     try {
       const d = new Date();
       d.setTime(d.getTime() + 20 * 60 * 60 * 1000);
@@ -182,7 +189,11 @@
         throw new Error(bizMsg);
       }
       //console .log("authenticateUser",res);
-      return saveCurrentUserSession(res);
+      var session = saveCurrentUserSession(res);
+      if (res.eclassroom && typeof window.setEclassroomConfig === 'function') {
+        window.setEclassroomConfig(res.eclassroom);
+      }
+      return session;
     } catch (err) {
       // 登录失败统一显示固定文案，防止账号枚举（P0.5 起后端已把两种失败合并成同一句，
       // 这里的 404 分支只是给旧后端兜底，保留不会有害）。

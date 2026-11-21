@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" data-page-node-id="cl-head-meta">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="cl-head-viewport">
+  <title>在线课堂</title>
+  <link rel="stylesheet" href="js/public/vendor/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="css/classroom.css">
+</head>
+<body>
+  <div id="classroom-container">
+    <!-- 顶部栏（极简） -->
+    <header id="classroom-header">
+      <button id="btn-back" class="cl-btn cl-btn-ghost" title="返回">
+        <i class="fas fa-arrow-left"></i> 返回
+      </button>
+      <div id="classroom-title">在线课堂</div>
+      <div id="classroom-status" class="cl-status cl-status-connecting">
+        <span class="cl-dot"></span><span id="classroom-status-text">连接中...</span>
+      </div>
+      <!-- 课堂回放入口（F6-03：本课堂成员可看历史录制） -->
+      <button id="btn-replay" class="cl-btn cl-btn-ghost" title="课堂回放">
+        <i class="fas fa-history"></i> 回放
+      </button>
+    </header>
+
+    <!-- 服务端强控横幅（F4-17 全员禁言 / F4-03 摄像头状态） -->
+    <div id="server-banner" class="cl-banner hidden"></div>
+    <!-- 录制提示（合规：学员端必须能看到本节课正在录制） -->
+    <div id="record-banner" class="cl-banner cl-record hidden">
+      <span class="rec-dot"></span>
+      <span id="record-text">本节课堂正在录制</span>
+      <span id="record-timer" class="rec-timer"></span>
+    </div>
+
+    <!-- 主体三栏 -->
+    <main id="classroom-main">
+      <!-- 参与者列表 -->
+      <aside id="participant-panel">
+        <div class="panel-title">
+          <i class="fas fa-users"></i> 参与者
+          <span id="participant-count">0</span>
+        </div>
+        <ul id="participant-list"></ul>
+        <div id="participant-actions">
+          <button id="btn-my-attendance" class="cl-btn cl-btn-ghost hidden">我的出勤</button>
+        </div>
+      </aside>
+
+      <!-- 主视频区 / 白板区（两块都可拖动缩放，见 classroom-panels.js） -->
+      <section id="video-whiteboard-area">
+        <!-- 视频面板：外层包一层是为了给「拖动条 + 复位」一个落脚点，
+             网格本身仍由 #video-grid 渲染，tile 布局不受影响 -->
+        <div id="video-panel" class="cl-panel" data-cl-panel="video">
+          <div class="cl-panel-bar" data-cl-drag>
+            <span class="cl-panel-drag" title="拖动移动；双击恢复默认位置"><i class="fas fa-up-down-left-right"></i></span>
+            <span class="cl-panel-name">视频</span>
+            <button class="cl-panel-reset" data-cl-reset type="button" title="恢复默认位置与大小"><i class="fas fa-rotate-left"></i></button>
+          </div>
+          <div id="video-grid"></div>
+          <span class="cl-panel-resize" data-cl-resize title="拖动缩放"></span>
+        </div>
+        <div id="whiteboard-area" class="cl-panel hidden" data-cl-panel="whiteboard">
+          <div id="whiteboard-toolbar" data-cl-drag>
+            <span class="cl-panel-drag" title="拖动移动；双击恢复默认位置"><i class="fas fa-up-down-left-right"></i></span>
+            <button class="wb-tool active" data-tool="pen" title="画笔"><i class="fas fa-pen"></i></button>
+            <button class="wb-tool" data-tool="eraser" title="橡皮"><i class="fas fa-eraser"></i></button>
+            <button class="wb-tool" data-tool="rect" title="矩形"><i class="fas fa-vector-square"></i></button>
+            <button class="wb-tool" data-tool="circle" title="圆"><i class="fas fa-circle"></i></button>
+            <button class="wb-tool" data-tool="square" title="正方形"><i class="fas fa-square"></i></button>
+            <button class="wb-tool" data-tool="text" title="文字（点击画布输入）"><i class="fas fa-font"></i></button>
+            <input type="color" id="wb-color" value="#2f80ed" title="颜色（画笔/形状/文字共用）">
+            <input type="range" id="wb-size" min="1" max="20" value="3" title="粗细">
+            <select id="wb-font" title="文字字体">
+              <option value="sans">默认无衬线</option>
+              <option value="hei">黑体</option>
+              <option value="song">宋体</option>
+              <option value="kai">楷体</option>
+              <option value="mono">等宽</option>
+            </select>
+            <select id="wb-font-size" title="文字大小">
+              <option value="14">14</option>
+              <option value="18">18</option>
+              <option value="24" selected>24</option>
+              <option value="32">32</option>
+              <option value="40">40</option>
+              <option value="48">48</option>
+            </select>
+            <button id="wb-undo" class="wb-tool" title="撤回最近一条操作" disabled><i class="fas fa-undo"></i><span id="wb-undo-count" class="wb-undo-count"></span></button>
+            <button id="wb-clear" class="wb-tool" title="清空"><i class="fas fa-trash"></i></button>
+            <span class="wb-hint" id="wb-readonly-hint" style="display:none;">只读</span>
+            <button class="wb-tool cl-panel-reset-inline" data-cl-reset type="button" title="恢复默认位置与大小"><i class="fas fa-rotate-left"></i></button>
+          </div>
+          <canvas id="whiteboard-canvas"></canvas>
+          <!-- 文字输入浮层：position:fixed 贴在点击点，避免 letterbox 居中带来的坐标换算 -->
+          <div id="wb-text-editor" style="display:none;">
+            <textarea id="wb-text-input" rows="2" maxlength="200" placeholder="输入文字，Ctrl+Enter 确认"></textarea>
+            <div class="wb-text-actions">
+              <button type="button" id="wb-text-ok">确定</button>
+              <button type="button" id="wb-text-cancel">取消</button>
+            </div>
+          </div>
+          <span class="cl-panel-resize" data-cl-resize title="拖动缩放"></span>
+        </div>
+        <div id="main-placeholder">
+          <i class="fas fa-chalkboard-teacher"></i>
+          <p id="placeholder-text">正在进入课堂...</p>
+        </div>
+      </section>
+
+      <!-- 聊天面板 -->
+      <aside id="chat-panel">
+        <div class="panel-title"><i class="fas fa-comments"></i> 聊天</div>
+        <ul id="chat-messages"></ul>
+        <div id="chat-input-row">
+          <input id="chat-input" type="text" placeholder="输入消息..." autocomplete="off">
+          <button id="chat-send" title="发送"><i class="fas fa-paper-plane"></i></button>
+        </div>
+      </aside>
+    </main>
+
+    <!-- 底部控制栏 -->
+    <footer id="classroom-controls"></footer>
+  </div>
+
+  <!-- 我的出勤弹窗（F2-07） -->
+  <div id="my-attendance-modal" class="hidden">
+    <div class="mam-backdrop"></div>
+    <div class="mam-box">
+      <div class="mam-title">我的出勤记录 <button id="mam-close" class="mam-close" type="button">×</button></div>
+      <ul id="mam-list" class="mam-list"></ul>
+    </div>
+  </div>
+
+  <!-- 学生被点名强提示（F4-12） -->
+  <div id="rollcall-modal" class="hidden">
+    <div class="rc-backdrop"></div>
+    <div class="rc-box">
+      <div class="rc-title"><i class="fas fa-bullhorn"></i> 老师点名了你！</div>
+      <div class="rc-tip">请点击下方按钮应答</div>
+      <button id="rollcall-answer" class="rc-answer" type="button">我已到</button>
+      <button id="rollcall-close" class="rc-close" type="button">稍后</button>
+    </div>
+  </div>
+
+  <!-- 教师点名弹窗（F4-11） -->
+  <div id="teacher-rollcall-modal" class="hidden">
+    <div class="rc-backdrop"></div>
+    <div class="rc-box">
+      <div class="rc-title">发起点名 <button id="rollcall-modal-close" class="rc-close" type="button">×</button></div>
+      <div class="rc-tip">选择学生（留空为随机）：</div>
+      <select id="rollcall-student-select" class="rc-select"></select>
+      <button id="rollcall-initiate" class="rc-answer" type="button">发起点名</button>
+      <div id="rollcall-status-area" class="rc-status-area"></div>
+    </div>
+  </div>
+
+  <!-- 学生上传作业（F4-15） -->
+  <div id="upload-modal" class="hidden">
+    <div class="rc-backdrop"></div>
+    <div class="rc-box">
+      <div class="rc-title">提交作业 <button id="upload-close" class="rc-close" type="button">×</button></div>
+      <div class="rc-tip">类型：</div>
+      <select id="upload-type" class="rc-select">
+        <option value="TEXT">文字</option>
+        <option value="AUDIO">语音</option>
+        <option value="IMAGE">图片</option>
+        <option value="FILE">文件</option>
+      </select>
+      <textarea id="upload-content" class="rc-textarea" placeholder="文字内容（文字类型必填）"></textarea>
+      <input id="upload-file" class="rc-input" type="file"
+             accept="audio/*,image/*,.pdf,.zip,.doc,.docx,.txt" style="display:none">
+      <input id="upload-duration" class="rc-input" type="number" placeholder="时长(秒，语音类型)">
+      <div id="upload-progress" class="rc-tip hidden"></div>
+      <button id="upload-submit" class="rc-answer" type="button">提交</button>
+    </div>
+  </div>
+
+  <!-- 教师作业点评（F4-16） -->
+  <div id="teacher-review-modal" class="hidden">
+    <div class="rc-backdrop"></div>
+    <div class="rc-box rc-box-wide">
+      <div class="rc-title">作业点评 <button id="review-close" class="rc-close" type="button">×</button></div>
+      <ul id="review-list" class="review-list"></ul>
+    </div>
+  </div>
+
+  <!-- 讲稿容器（F4-04~06：教师上传/翻页，学生跟随）；同样支持拖动缩放 -->
+  <div id="material-stage" class="cl-panel hidden" data-cl-panel="material">
+    <div class="ms-head" data-cl-drag>
+      <span class="cl-panel-drag" title="拖动移动；双击恢复默认位置"><i class="fas fa-up-down-left-right"></i></span>
+      <span class="ms-title"><i class="fas fa-file-lines"></i> 讲稿</span>
+      <span id="ms-page" class="ms-page">第 1 页</span>
+      <span id="ms-hint" class="ms-hint hidden">上传中…</span>
+      <button class="cl-panel-reset" data-cl-reset type="button" title="恢复默认位置与大小"><i class="fas fa-rotate-left"></i></button>
+      <button id="ms-close" class="ms-close" type="button">×</button>
+    </div>
+    <div class="ms-body">
+      <iframe id="ms-frame" class="ms-frame hidden" title="讲稿"></iframe>
+      <img id="ms-image" class="ms-image hidden" alt="讲稿">
+      <!-- PDF.js 自渲染画布（默认隐藏）：PDF 翻页走离屏双缓冲，根治 iframe 换页黑闪 + 解锁滚动同步 -->
+      <canvas id="ms-pdf-canvas" class="ms-pdf-canvas hidden"></canvas>
+      <div id="ms-empty" class="ms-empty">暂无讲稿</div>
+    </div>
+    <div id="ms-bar" class="ms-bar">
+      <select id="ms-material-picker" class="ms-picker" title="选择要展示的资料（仅教师/管理员）"><option value="">资料加载中…</option></select>
+      <button id="ms-upload" class="ms-btn" type="button"><i class="fas fa-upload"></i> 上传讲稿</button>
+      <button id="ms-prev" class="ms-btn" type="button"><i class="fas fa-chevron-left"></i> 上一页</button>
+      <button id="ms-next" class="ms-btn" type="button">下一页 <i class="fas fa-chevron-right"></i></button>
+    </div>
+    <input id="ms-file-input" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.ppt,.pptx" style="display:none">
+    <span class="cl-panel-resize" data-cl-resize title="拖动缩放"></span>
+  </div>
+
+  <!-- 公共工具（顺序不可调整） -->
+  <script src="js/public/vendor/axios.min.js"></script>
+  <!-- PDF.js v3.11.174 主库（UMD，挂 window.pdfjsLib）：讲稿 PDF 自渲染，必须早于 classroom-material.js。
+       worker 不走 script，由 _renderPdf 设置 GlobalWorkerOptions.workerSrc 动态加载。 -->
+  <script src="js/public/vendor/pdf.min.js"></script>
+  <script src="js/public/utility_request.js"></script>
+  <script src="js/public/api.js"></script>
+  <!-- shared/apiPaths.js 的浏览器镜像（生成产物，勿手改）。
+       必须早于 js/classroom/*.js：它们 IIFE 执行时即读取 window.ApiPaths.ENDPOINTS，
+       缺这份时端点会拼成 undefined，请求静默失败。2026-10-31 端点收口时补入。 -->
+  <script src="js/shared-domain-bridge.js"></script>
+  <script src="js/public/feature-flags.js"></script>
+  <!-- WebSocket 封装（2026-11-13 补引）：白板/心跳/信令三条通道都在这里。
+       此前本页脚本清单缺这一行 → window.ClassroomWS 为 undefined，classroom-main.js
+       走「信令未就绪」分支，聊天、举手、白板、点名、讲稿翻页广播、RTC 信令全部不可用。 -->
+  <script src="js/public/classroom-ws.js"></script>
+  <!-- 课堂模块 -->
+  <!-- 设备枚举/偏好/错误分类：必须早于所有 RTC 引擎（课堂页读取课前准备页保存的选择） -->
+  <script src="js/classroom/media-devices.js"></script>
+  <!-- RTC 抽象层：先引擎（rtc-engine + 具体实现），再门面 classroom-rtc.js -->
+  <script src="js/classroom/rtc/rtc-engine.js"></script>
+  <script src="js/classroom/rtc/engine-mesh.js"></script>
+  <script src="js/classroom/rtc/engine-sdk.js"></script>
+  <script src="js/classroom/classroom-rtc.js"></script>
+  <script src="js/classroom/classroom-record.js"></script>
+  <script src="js/classroom/classroom-whiteboard.js"></script>
+  <script src="js/classroom/classroom-material.js"></script>
+  <!-- 面板布局（拖动/缩放/本地记忆/复位）：只操作位置尺寸层级，须早于 classroom-main.js 的 init 调用 -->
+  <script src="js/classroom/classroom-panels.js"></script>
+  <!-- 视频焦点放大：点击画面放大、其余缩到一列；只改 #video-grid 内部，不影响面板拖动缩放 -->
+  <script src="js/classroom/classroom-video-focus.js"></script>
+  <script src="js/classroom/classroom-chat.js"></script>
+  <script src="js/classroom/classroom-controls.js"></script>
+  <script src="js/classroom/classroom-teacher.js"></script>
+  <script src="js/classroom/classroom-student.js"></script>
+  <script src="js/classroom/classroom-admin.js"></script>
+  <!-- 主逻辑（必须最后） -->
+  <script src="js/classroom/classroom-main.js"></script>
+</body>
+</html>

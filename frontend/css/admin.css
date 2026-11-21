@@ -437,3 +437,103 @@ table th {
   outline-offset: 2px;
 }
 
+
+
+/* ============================================================
+   课堂实例「新建 / 编辑」弹窗布局（platform-admin-eclassroom.js）
+   背景：通用 .modal-content 没有 max-height / overflow，12 个 form-line 竖排
+   超过视口；.modal-mask 又用 height:100% + align-items:center 居中，
+   超出的部分上下同时被裁 → 底部「保存 / 取消」看不见也点不到。
+   这里只作用于带 --instance 的弹窗（选择器带双 class 提高优先级，
+   避免被后面 @media 里的 .modal-content 覆盖），不影响其它弹窗。
+   ============================================================ */
+.modal-mask.modal-mask--instance {
+  padding: 24px 12px;
+  box-sizing: border-box;
+}
+.modal-content.modal-content--instance {
+  width: 760px;
+  max-width: 100%;
+  max-height: calc(100vh - 48px);
+  padding: 20px 24px 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal-content.modal-content--instance > .modal-header {
+  flex: 0 0 auto;
+  margin-bottom: 12px;
+}
+.modal-content.modal-content--instance > .modal-body--instance {
+  flex: 1 1 auto;
+  min-height: 0;              /* flex 子项要能收缩，否则 overflow 不生效 */
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.modal-content.modal-content--instance > .modal-footer--instance {
+  flex: 0 0 auto;
+  border-top: 1px solid #eee;
+  padding: 12px 0 16px;
+  background: #fff;
+}
+.modal-content.modal-content--instance .btn-group {
+  margin: 0;
+  justify-content: flex-end;
+}
+.eclassroom-instance-form { margin-bottom: 0; }
+.ec-form-section { margin-bottom: 14px; }
+.ec-form-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7587;
+  letter-spacing: .5px;
+  margin: 0 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed #e8ebf0;
+}
+.ec-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px 20px;
+}
+.modal-content.modal-content--instance .ec-form-grid .form-line {
+  margin-left: 0;             /* 清掉通用 .form-line 的 120px 左缩进 */
+  margin-bottom: 10px;
+  gap: 8px;
+  flex-wrap: nowrap;
+  align-items: center;
+  min-width: 0;
+}
+.modal-content.modal-content--instance .ec-form-grid .form-line label {
+  width: 72px;
+  flex: 0 0 72px;
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+.modal-content.modal-content--instance .ec-form-grid .form-line > input,
+.modal-content.modal-content--instance .ec-form-grid .form-line > select,
+.modal-content.modal-content--instance .ec-form-grid .form-line > textarea {
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;                /* 覆盖通用 .form-item input 的 width:100% */
+  padding: 7px 10px;
+}
+.modal-content.modal-content--instance .ec-form-grid .form-line--full {
+  grid-column: 1 / -1;
+}
+.modal-content.modal-content--instance .ec-form-grid textarea {
+  resize: vertical;
+  min-height: 56px;
+}
+@media (max-width: 768px) {
+  .modal-mask.modal-mask--instance { padding: 10px; }
+  .modal-content.modal-content--instance {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100vh - 20px);
+    padding: 16px 16px 0;
+  }
+  .modal-content.modal-content--instance .ec-form-grid {
+    grid-template-columns: 1fr;
+  }
+}

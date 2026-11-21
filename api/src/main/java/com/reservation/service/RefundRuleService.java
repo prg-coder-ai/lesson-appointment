@@ -206,7 +206,7 @@ public class RefundRuleService {
         if (!courseId.isEmpty()) {
             Course course = courseMapper.selectById(courseId);
             if (course == null) {
-                throw new BusinessException("课程不存在或不属于当前租户，无法配置规则");
+                throw new BusinessException(TermMsg.t("{course}不存在或不属于当前租户，无法配置规则"));
             }
         }
 
@@ -313,7 +313,7 @@ public class RefundRuleService {
      */
     public RefundHintVO hintByAppointmentForReview(Integer appointmentId) {
         if (appointmentId == null) {
-            throw new BusinessException("课次ID不能为空");
+            throw new BusinessException(TermMsg.t("{lesson}ID不能为空"));
         }
         Appointment appointment = appointmentMapper.selectById(appointmentId);
         if (appointment != null && appointment.getRefundSnapshot() != null
@@ -341,7 +341,7 @@ public class RefundRuleService {
      */
     public RefundHintVO hintByAppointment(Integer appointmentId) {
         if (appointmentId == null) {
-            throw new BusinessException("课次ID不能为空");
+            throw new BusinessException(TermMsg.t("{lesson}ID不能为空"));
         }
         Appointment appointment = appointmentMapper.selectById(appointmentId);
         if (appointment == null) {

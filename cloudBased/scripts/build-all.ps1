@@ -37,9 +37,11 @@ $ErrorActionPreference = "Stop"
 $PROJECT_ROOT = Split-Path -Parent $PSScriptRoot
 $API_DIR      = Join-Path $PROJECT_ROOT "api"
 $MSG_DIR      = Join-Path $API_DIR "message-service"
+$CLS_DIR      = Join-Path $API_DIR "classroom-service"
 $FE_DIR       = Join-Path $PROJECT_ROOT "frontend"
 $CLOUD_API    = Join-Path $PROJECT_ROOT "cloudBased\api"
 $CLOUD_MSG    = Join-Path $PROJECT_ROOT "cloudBased\message-service"
+$CLOUD_CLS    = Join-Path $PROJECT_ROOT "cloudBased\classroom-service"
 $CLOUD_WEB    = Join-Path $PROJECT_ROOT "cloudBased\frontend"
 # web 的构建上下文就是 cloudBased\frontend 本身（Dockerfile + default.conf.template + dist
 # 都在这个目录里，COPY dist 依赖它）。原先「源文件放 deploy\nginx\cloudbase-web、再拷进
@@ -74,10 +76,19 @@ if (-not $SkipBackend) {
         if ($LASTEXITCODE -ne 0) { Fail "message-service Maven 构建失败" }
     } finally { Pop-Location }
 
-    # 1c. 拷贝到 cloudBased 对应目录
-    New-Item -ItemType Directory -Force -Path "$CLOUD_API\target", "$CLOUD_MSG\target" | Out-Null
+    # 1c. classroom-service
+    Write-Host "  📦 classroom-service (classroom-service-1.0.0.jar) ..." -ForegroundColor Gray
+    Push-Location $CLS_DIR
+    try {
+        mvn clean package -DskipTests -q 2>&1 | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+        if ($LASTEXITCODE -ne 0) { Fail "classroom-service Maven 构建失败" }
+    } finally { Pop-Location }
+
+    # 1d. 拷贝到 cloudBased 对应目录
+    New-Item -ItemType Directory -Force -Path "$CLOUD_API\target", "$CLOUD_MSG\target", "$CLOUD_CLS\target" | Out-Null
     Copy-Item "$API_DIR\target\booking-api-2.2.0.jar"          "$CLOUD_API\target\"          -Force
     Copy-Item "$MSG_DIR\target\message-service-1.1.0.jar"      "$CLOUD_MSG\target\"          -Force
+    Copy-Item "$CLS_DIR\target\classroom-service-1.0.0.jar"    "$CLOUD_CLS\target\"          -Force
 
     Ok "后端打包完成，jar 已就位"
 } else {
@@ -127,12 +138,20 @@ if (-not $SkipDocker) {
     if ($LASTEXITCODE -ne 0) { Fail "message-service docker build 失败" }
     Ok "booking-message-service:1.1.0"
 
-    # 3c. web —— 上游地址**不再进镜像**：API_UPSTREAM / MSG_UPSTREAM 走运行时环境变量，
-    # 由容器的 00-resolver.sh 启动时渲染 nginx 配置。所以不传 --build-arg，
+    # 3b-2. classroom-service
+    Write-Host "  🐳 classroom-service:1.0.0 ..." -ForegroundColor Gray
+    Push-Location $CLOUD_CLS
+    try { docker build -t "classroom-service:1.0.0" . } finally { Pop-Location }
+    if ($LASTEXITCODE -ne 0) { Fail "classroom-service docker build 失败" }
+    Ok "classroom-service:1.0.0"
+
+    # 3c. web —— 上游地址**不再进镜像**：API_UPSTREAM / MSG_UPSTREAM / CLASSROOM_UPSTREAM
+    # 走运行时环境变量，由容器的 00-resolver.sh 启动时渲染 nginx 配置。所以不传 --build-arg，
     # 换环境/换内网域名只改控制台环境变量 + 重启实例，同一镜像可复用。
-    # ⚠ 部署前必须在 云托管控制台 → 服务设置 → 环境变量 配好这两个，否则容器启动即失败：
-    #   API_UPSTREAM = http://api-xxxxxxxx.<region>.internal-run.tcloudbase.com:8081
-    #   MSG_UPSTREAM = http://message-service-xxxxxxxx.<region>.internal-run.tcloudbase.com:8090
+    # ⚠ 部署前必须在 云托管控制台 → 服务设置 → 环境变量 配好这三个，否则容器启动即失败：
+    #   API_UPSTREAM       = http://api-xxxxxxxx.<region>.internal-run.tcloudbase.com:8081
+    #   MSG_UPSTREAM       = http://message-service-xxxxxxxx.<region>.internal-run.tcloudbase.com:8090
+    #   CLASSROOM_UPSTREAM = http://classroom-service-xxxxxxxx.<region>.internal-run.tcloudbase.com:8092
     # ❌ 绝不可用 <服务名>.<envid>.svc.cluster.local —— 微信云托管无此 DNS 记录（实测 NXDOMAIN）
 
     # 构建上下文 = cloudBased\frontend（Dockerfile 的 COPY dist 依赖同目录的 dist\）
@@ -149,7 +168,7 @@ if (-not $SkipDocker) {
     } finally { Pop-Location }
     if ($LASTEXITCODE -ne 0) { Fail "web docker build 失败" }
     Ok "booking-web:latest"
-    Warn "别忘了在云托管控制台配 API_UPSTREAM / MSG_UPSTREAM 环境变量，缺失会导致容器启动失败"
+    Warn "别忘了在云托管控制台配 API_UPSTREAM / MSG_UPSTREAM / CLASSROOM_UPSTREAM 环境变量，缺失会导致容器启动失败"
 
     # 3d. 可选推送到云托管镜像仓库
     if ($DockerPush) {
@@ -159,12 +178,14 @@ if (-not $SkipDocker) {
         $registryPrefix = "ccr.ccs.tencentyun.com/cb-$EnvId"
         docker tag "booking-api:2.2.0"              "$registryPrefix/api:2.2.0"
         docker tag "booking-message-service:1.1.0"  "$registryPrefix/message-service:1.1.0"
+        docker tag "classroom-service:1.0.0"        "$registryPrefix/classroom-service:1.0.0"
         docker tag "booking-web:latest"             "$registryPrefix/web:latest"
 
         docker push "$registryPrefix/api:2.2.0"            ; if ($LASTEXITCODE -ne 0) { Fail "api push 失败" }
         docker push "$registryPrefix/message-service:1.1.0"; if ($LASTEXITCODE -ne 0) { Fail "message-service push 失败" }
+        docker push "$registryPrefix/classroom-service:1.0.0"; if ($LASTEXITCODE -ne 0) { Fail "classroom-service push 失败" }
         docker push "$registryPrefix/web:latest"           ; if ($LASTEXITCODE -ne 0) { Fail "web push 失败" }
-        Ok "3 个镜像已推送到 $registryPrefix"
+        Ok "4 个镜像已推送到 $registryPrefix"
     }
 } else {
     Warn "跳过 Docker 构建 (-SkipDocker) — 产物已就绪，可直接在云托管控制台「上传代码包」部署"
@@ -178,6 +199,7 @@ Write-Host ""
 Write-Host "  后端 jar：" -NoNewline -ForegroundColor White
 Write-Host "  cloudBased/api/target/booking-api-2.2.0.jar" -ForegroundColor Gray
 Write-Host "              cloudBased/message-service/target/message-service-1.1.0.jar" -ForegroundColor Gray
+Write-Host "              cloudBased/classroom-service/target/classroom-service-1.0.0.jar" -ForegroundColor Gray
 Write-Host "  前端 dist：" -NoNewline -ForegroundColor White
 Write-Host "  cloudBased/web/dist/" -ForegroundColor Gray
 Write-Host ""

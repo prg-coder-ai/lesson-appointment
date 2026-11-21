@@ -348,6 +348,12 @@ const ENDPOINTS = {
   SCHEDULE_UPDATE_STATUS: '/api/v1/schedule/updateStatus',
   SCHEDULE_INC_SITE: '/api/v1/schedule/incSite',
   SCHEDULE_GENERATE: '/api/v1/schedule/generate',
+  // —— 我的课堂：排期 → 课次实例（2026-11-13）——
+  // 课次展开必须由服务端做（ScheduleInstances 是唯一权威实现），前端只渲染。
+  // 返回项含 classroomKey（第 1 课次为裸 id、第 2 起 `sid~N`），前端拿它进课堂/拉讲稿/查回放。
+  SCHEDULE_CLASS_INSTANCES: (sid) => `/api/v1/schedule/class-instances/${encodeURIComponent(sid || '')}`,
+  // 补推课堂事件：排期在课堂服务里还没有课堂时（如排期建于开通课堂之前）由教师/管理员触发同步
+  SCHEDULE_CLASS_SYNC: (sid) => `/api/v1/schedule/class-instances/${encodeURIComponent(sid || '')}/sync`,
   // —— 课次 / 上课通知（业务端，学生/教师）——
   // 近 N 天课次列表（Web refreshAppointmentNotes 同源）；userId+role 限定当前用户
   APPOINTMENT_LIST_BY_DAYS: (days, userId, role) => {
@@ -386,7 +392,108 @@ const ENDPOINTS = {
   // 同上端点的**裸路径**（不带 query）：供 Web 端「用 axios params 传 tenantCode」的写法复用，
   // 既保持"一个端点只有一份字符串"，又不改变该调用点的请求形态（query 由 axios 拼）。
   TEACHER_PUBLIC_LIST_PATH: '/api/v1/teacher/published/public-list',
-  TEACHER_PUBLIC_GET: (id) => `/api/v1/teacher/published/public-get?id=${encodeURIComponent(id || '')}`
+  TEACHER_PUBLIC_GET: (id) => `/api/v1/teacher/published/public-get?id=${encodeURIComponent(id || '')}`,
+  // —— eclassroom 课堂模块（2026-10-27 阶段1：多租户特性开关）——
+  // /config：各角色查本租户课堂配置（前端登录后据此显隐课堂 UI）；其余为平台管理员管理端点。
+  // 课堂 API 实际请求地址用登录响应里 eclassroom.apiBaseUrl 拼接，不走 apiBase(8081)。
+  ECLASSROOM_CONFIG: '/api/v1/eclassroom/config',
+  ECLASSROOM_INSTANCES: '/api/v1/eclassroom/instances',
+  ECLASSROOM_INSTANCE_BY_ID: (id) => `/api/v1/eclassroom/instances/${encodeURIComponent(id || '')}`,
+  ECLASSROOM_TENANT_BINDING: (tenantId) => `/api/v1/eclassroom/tenant/${encodeURIComponent(tenantId || '')}`,
+  ECLASSROOM_TENANT_BIND: (tenantId, instanceId) =>
+    `/api/v1/eclassroom/tenant/${encodeURIComponent(tenantId || '')}/bind?instanceId=${encodeURIComponent(instanceId || '')}`,
+  ECLASSROOM_TENANT_DISABLE: (tenantId) => `/api/v1/eclassroom/tenant/${encodeURIComponent(tenantId || '')}/disable`,
+  ECLASSROOM_TENANT_UNBIND: (tenantId) => `/api/v1/eclassroom/tenant/${encodeURIComponent(tenantId || '')}/unbind`,
+  // —— 课时账本（2026-10-28：「我的课时」页）——
+  // 只读。写路径（充值/改判）本轮未开放端点。
+  LESSON_BALANCE: '/api/v1/lesson/balance',
+  LESSON_FLOWS: '/api/v1/lesson/flows',
+  LESSON_STUDENT_BALANCE: (studentId) =>
+    `/api/v1/lesson/students/${encodeURIComponent(studentId || '')}/balance`,
+
+  // —— 在线课堂服务（classroom-service :8092，2026-10-31 收口）——
+  // 背景：这批路径原先以字面量写死在 frontend/js/classroom/**（22 处），被
+  // `npm run check:endpoints` 的②「硬编码防回归」判红。课堂服务是独立进程，
+  // 但**端点字符串仍必须只有一份**——否则改路径时只能靠人记住去四个文件里同步。
+  //
+  // 调用约定（与其它端点不同，务必看清）：课堂上所有请求都是
+  //   `apiBaseUrl + EP.XXX`
+  // 而不是 `apiBase(8081) + EP.XXX`。apiBaseUrl 取自登录响应的
+  // `eclassroom.apiBaseUrl`（见 classroom-main.js 的 window.getClassroomApiBaseUrl），
+  // 前端站点按 /api/v1/{classrooms,uploads,...} 前缀把它分流到 8092。
+  //
+  // 因此在课堂页面里直接取裸路径（不带 host）才是对的；本文件只管路径本身。
+  CLASSROOM_SUBMISSION_FILE: (scheduleId) =>
+    `/api/v1/classrooms/${encodeURIComponent(scheduleId || '')}/submissions/file`,
+  CLASSROOM_MATERIAL_FILE: (scheduleId) =>
+    `/api/v1/classrooms/${encodeURIComponent(scheduleId || '')}/materials/file`,
+  // 录制接口的**根**：调用方在其后拼 `/start` 或 `/{recordingId}/stop`
+  // （见 classroom-record.js#_api，两种动作共用一个根，故这里只给根）。
+  CLASSROOM_RECORDING: (scheduleId) =>
+    `/api/v1/classrooms/${encodeURIComponent(scheduleId || '')}/recording`,
+  // 录制分片上传（三件套）：init → parts/{n} → complete
+  UPLOAD_INIT: '/api/v1/uploads/init',
+  UPLOAD_PART: (uploadId, partNumber) =>
+    `/api/v1/uploads/${encodeURIComponent(uploadId || '')}/parts/${encodeURIComponent(String(partNumber == null ? '' : partNumber))}`,
+  UPLOAD_COMPLETE: (uploadId) =>
+    `/api/v1/uploads/${encodeURIComponent(uploadId || '')}/complete`,
+  // 运营台（F8-01 监控 / F7-04 学情 / F7-05 对账 / F8-03 审核 / F8-05 联调），管理员专用
+  // 按状态列课堂（运营台补课程名用）：schedule_id 是「排期~课次」复合键，审核/联调/
+  // 对账各表只存这个键，展示层要靠它翻成「课程名 · 第N课次」，否则只能看到一串 UUID。
+  // status 必填（后端 eq 精确匹配），可传 LIVE/PAUSED/READY/SCHEDULED/CLOSED。
+  CLASSROOM_ADMIN_CLASSROOMS: '/api/v1/admin/classrooms/monitor',
+  // 临时建课（B1）：POST 同路径，body = {courseName, teacherId, teacherName, students[], startTime, endTime, duration, tenantId}
+  // 建出来是 SCHEDULED，必须有人点「进行中」才开课；不结算课时、不进学生「我的课堂」。
+  CLASSROOM_ADMIN_CREATE: '/api/v1/admin/classrooms',
+  // 临场加学员（B2）：直接写 membership + 出勤行（ABSENT），幂等跳过已存在的人。
+  CLASSROOM_ADMIN_ADD_MEMBERS: (scheduleId) =>
+    `/api/v1/admin/classrooms/${encodeURIComponent(scheduleId || '')}/members`,
+  // 强制结束课堂：后端一直有，运营台 2026-11-19 才接线。
+  CLASSROOM_ADMIN_END: (scheduleId) =>
+    `/api/v1/admin/classrooms/${encodeURIComponent(scheduleId || '')}/end`,
+  // 补发课时回流（2026-11-19）：只重发报文 + 版本 +1，不重算出勤（重算会覆盖人工调整）。
+  // 用于「已 CLOSED 但 consumption_version=0 / actual_end 为空」这类收尾半截账。
+  CLASSROOM_ADMIN_RESEND_CONSUMPTION: (scheduleId) =>
+    `/api/v1/admin/classrooms/${encodeURIComponent(scheduleId || '')}/resend-consumption`,
+  CLASSROOM_ADMIN_MONITOR_OVERVIEW: '/api/v1/admin/monitor/overview',
+  CLASSROOM_ADMIN_MONITOR_ALERTS: '/api/v1/admin/monitor/alerts',
+  CLASSROOM_ADMIN_MONITOR_METRICS: '/api/v1/admin/monitor/metrics',
+  CLASSROOM_ADMIN_REPORT_LEARNING: '/api/v1/admin/reports/learning',
+  // type: attendance | recordings，query（from/to）由调用方拼
+  CLASSROOM_ADMIN_EXPORT: (type) =>
+    `/api/v1/admin/exports/${encodeURIComponent(type || '')}`,
+  CLASSROOM_ADMIN_RECONCILE_RUN: '/api/v1/admin/reconcile/run',
+  CLASSROOM_ADMIN_RECONCILE_DIFFS: '/api/v1/admin/reconcile/diffs',
+  CLASSROOM_ADMIN_RECONCILE_RESOLVE: (diffId) =>
+    `/api/v1/admin/reconcile/diffs/${encodeURIComponent(diffId || '')}/resolve`,
+  CLASSROOM_ADMIN_AUDIT_SUBMISSIONS: '/api/v1/admin/audit/submissions',
+  CLASSROOM_ADMIN_AUDIT_SUBMISSION_FLAG: (submissionId) =>
+    `/api/v1/admin/audit/submissions/${encodeURIComponent(submissionId || '')}/flag`,
+  CLASSROOM_ADMIN_AUDIT_SUBMISSION_PASS: (submissionId) =>
+    `/api/v1/admin/audit/submissions/${encodeURIComponent(submissionId || '')}/pass`,
+  CLASSROOM_ADMIN_AUDIT_LOGS: '/api/v1/admin/audit/logs',
+  CLASSROOM_ADMIN_AUDIT_CHAT_VIEW: (scheduleId) =>
+    `/api/v1/admin/audit/chat/${encodeURIComponent(scheduleId || '')}/view`,
+  CLASSROOM_ADMIN_CONTRACT_EVENTS: '/api/v1/admin/contract/events',
+  CLASSROOM_ADMIN_CONTRACT_REPLAY: '/api/v1/admin/contract/replay',
+  CLASSROOM_ADMIN_CONTRACT_RESYNC: '/api/v1/admin/contract/resync',
+
+  // ── 运行日志浏览（logBrowser.html 专用）──────────────────────────────
+  // 后端 LogController 的类级映射是 @RequestMapping("/api/v1/logs")，路径**必须**带 /v1：
+  // axios 对以 / 开头的 url 会忽略 baseURL（utility_request.js），写成 /api/logs/*
+  // 不会被自动补前缀，只会落到 nginx 的 location / → try_files → 404。
+  LOGS_DATES: '/api/v1/logs/dates',
+  LOGS_BY_DATE: (date, maxLines) =>
+    `/api/v1/logs/date?date=${encodeURIComponent(date || '')}`
+    + `&maxLines=${encodeURIComponent(String(maxLines == null ? 1000 : maxLines))}`,
+  LOGS_TAIL: (lines) =>
+    `/api/v1/logs/tail?lines=${encodeURIComponent(String(lines == null ? 200 : lines))}`,
+  // level 允许空串（= 不过滤），keyword 允许空串；日期为空时后端按当天处理
+  LOGS_SEARCH: (keyword, level, date, maxResults) =>
+    `/api/v1/logs/search?keyword=${encodeURIComponent(keyword || '')}`
+    + `&level=${encodeURIComponent(level || '')}`
+    + `&date=${encodeURIComponent(date || '')}`
+    + `&maxResults=${encodeURIComponent(String(maxResults == null ? 500 : maxResults))}`
 };
 
 // ── 后端程序探测目标（「数据维护 → 后台信息」Tab 与平台端「后端信息」页共用）──
@@ -1047,8 +1154,10 @@ function isSiteFull(remainingSites) {
 // 里的课次状态 → 文案映射收口为唯一权威源；Web 端「今日课程」(today_course) 后续可对齐复用，
 // 消除两端各写一套 switch 的漂移风险。
 //
-// 【与后端同步】对齐后端 Appointment 状态枚举（active/noted1/noted2/completed/cancelled/
-// s-cancelling/t-cancelling/t-cancelled/t-reject/changed）。
+// 【与后端同步】对齐后端 Appointment 状态枚举（active/noted1/noted2/checked-in/completed/absent/
+// cancelled/s-cancelling/t-cancelling/t-cancelled/t-reject/changed）。
+// 2026-10-28 新增 checked-in（已签到，纯出席事实）与 absent（缺席，终态）。
+// 费用口径另见后端 AppointmentStatus#isLessonExempt：**扣减只看有没有请假，与是否签到无关**。
 //
 // 消费方式：
 //   - 小程序端：import { appointmentStatusText } from '../../shared/domain/appointmentState.js'
@@ -1061,7 +1170,9 @@ const APPOINTMENT_STATUS = Object.freeze({
   ACTIVE: 'active',
   NOTED1: 'noted1',
   NOTED2: 'noted2',
+  CHECKED_IN: 'checked-in',       // 已签到（学生已进入课堂，纯出席事实，不含费用语义）
   COMPLETED: 'completed',
+  ABSENT: 'absent',               // 缺席（课次结束仍未进入课堂；终态，但照扣课时）
   CANCELLED: 'cancelled',
   S_CANCELLING: 's-cancelling',   // 学生取消待确认
   T_CANCELLING: 't-cancelling',   // 教师取消中
@@ -1071,8 +1182,9 @@ const APPOINTMENT_STATUS = Object.freeze({
 });
 
 // 终态集合（课次已结束，不再可操作）。
+// checked-in 刻意不在其中：签到是过程态，后面还要转 completed。
 const APPOINTMENT_CLOSED_STATUSES = Object.freeze([
-  'completed', 'cancelled', 't-cancelled', 'changed'
+  'completed', 'absent', 'cancelled', 't-cancelled', 'changed'
 ]);
 
 /* -------------------------------------------------- 状态 → 展示文案（单一来源） */
@@ -1099,7 +1211,9 @@ function appointmentStatusText(status, opts) {
     case 'active': return '生效';
     case 'noted1':
     case 'noted2': return '已通知';
+    case 'checked-in': return '已签到';
     case 'completed': return '已完成';
+    case 'absent': return '缺席';
     case 'cancelling':
     case 'canceling':
     case 's-cancelling': return '取消待确认';
@@ -1240,7 +1354,7 @@ function toDateTimeLocalValue(date) {
 }
 
 // ============================================================
-// 课次时间 UTC 化（2026-10-08，见 doc-develop/课次时间UTC化改造方案.md）
+// 课次时间 UTC 化（2026-10-08，见 doc-develop/02-架构与设计/课次时间UTC化改造方案.md）
 //
 // 口径：后端 appointment 起一律返回 UTC。页面要显示"人能对上的墙上时间"，
 // 由前端按用户浏览器时区渲染。后端也可按 userTimeZone 直接转好，
@@ -1617,6 +1731,79 @@ function tenantText(id) {
   const n = Number(id);
   if (!isFinite(n) || n <= 0) return '';
   return TENANT_DICT[String(id)] || '';
+}
+
+// 课时账本展示映射（零 DOM、零小程序 API、纯函数）
+//
+// 背景（2026-10-28）：课时扣减落地后，账本里存的是**编码与原始数值**：
+//   · source：classroom / leave / manual / grant（英文枚举）
+//   · changeLessons：-1.00 / 2.00（BigDecimal 序列化，可能带多余小数位）
+//   · remainingLessons：允许负数（欠课时）
+// 界面上不允许出现 `classroom` 这类裸编码，也不适合直接显示 `-1.00`。
+// 两端（Web 学生端「我的课时」、小程序）共用本模块，避免各写一套映射必然漂移。
+
+/** 流水来源编码 → 文案 */
+const LESSON_FLOW_SOURCE_TEXT = {
+  classroom: '课堂扣减',
+  leave: '请假退回',
+  manual: '人工调整',
+  grant: '课时充值'
+};
+
+/** 来源文案（未知编码回退原值，便于发现后端新增了没登记的来源） */
+function lessonSourceText(source) {
+  if (!source) return '课时变动';
+  return LESSON_FLOW_SOURCE_TEXT[source] || String(source);
+}
+
+/**
+ * 课时数值格式化：去掉无意义的尾随 0（1.00 → 1、0.50 → 0.5），保留小数最多 2 位。
+ * 非数值一律返回 '0'——展示层不该因为一个脏值整页崩掉。
+ */
+function formatLessonAmount(value) {
+  const n = Number(value);
+  if (!isFinite(n)) return '0';
+  return String(parseFloat(n.toFixed(2)));
+}
+
+/**
+ * 变动课时的带符号文案：消耗为负数，所以 `-1` → '-1'、`2` → '+2'。
+ * 不用 Unicode 减号（−）：复制到 Excel/客服话术里会变成不可见字符。
+ */
+function lessonChangeText(value) {
+  const n = Number(value);
+  if (!isFinite(n) || n === 0) return '0';
+  const s = formatLessonAmount(Math.abs(n));
+  return n > 0 ? '+' + s : '-' + s;
+}
+
+/**
+ * 流水行标题：优先「课程名 · 第N课次」，缺课程名时退回来源文案。
+ *
+ * 为什么可能缺课程名：courseName 要经 booking → course_schedule 反查，
+ * 排期被删除或历史脏数据时 join 不到，此时不能显示 "undefined"。
+ */
+function lessonRowTitle(flow) {
+  const f = flow || {};
+  const name = f.courseName ? String(f.courseName) : '';
+  const idx = Number(f.classIndex);
+  const idxText = isFinite(idx) && idx > 0 ? '第' + idx + '课次' : '';
+  if (name && idxText) return name + ' · ' + idxText;
+  if (name) return name;
+  if (idxText) return idxText;
+  return lessonSourceText(f.source);
+}
+
+/**
+ * 课时账户色调：owed（欠课时）/ empty（已用完）/ normal（正常）。
+ * 只返回语义，颜色交给各端 CSS——Web 深色主题与小程序主题取值不同。
+ */
+function lessonBalanceTone(balance) {
+  const b = balance || {};
+  if (b.owed) return 'owed';
+  const n = Number(b.remainingLessons);
+  if (isFinite(n) && n === 0) return 'empty';
+  return 'normal';
 }
 
 // 网络适配层（单一权威源，零平台特定副作用）。
@@ -2010,6 +2197,14 @@ window.MessageDomain = {
   setTenantDict: setTenantDict,
   getTenantDict: getTenantDict,
   tenantText: tenantText
+};
+window.LessonLedgerDomain = {
+  LESSON_FLOW_SOURCE_TEXT: LESSON_FLOW_SOURCE_TEXT,
+  lessonSourceText: lessonSourceText,
+  formatLessonAmount: formatLessonAmount,
+  lessonChangeText: lessonChangeText,
+  lessonRowTitle: lessonRowTitle,
+  lessonBalanceTone: lessonBalanceTone
 };
 
 /* ---- 平台适配层（shared/adapters/*，零 DOM，运行时自动探测 wx/Web） ---- */

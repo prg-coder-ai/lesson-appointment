@@ -27,4 +27,4 @@ message-service/src/
 frontend/
 miniprogram/
 doc-develop/
-api/sql/
+deploy/sql/

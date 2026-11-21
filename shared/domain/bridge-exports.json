@@ -20,7 +20,8 @@
     { "file": "mask.js", "global": "MaskDomain" },
     { "file": "datetime.js", "global": "DatetimeDomain" },
     { "file": "errorCode.js", "global": "ErrorCodeDomain" },
-    { "file": "message.js", "global": "MessageDomain" }
+    { "file": "message.js", "global": "MessageDomain" },
+    { "file": "lessonLedger.js", "global": "LessonLedgerDomain" }
   ],
 
   "_notExposed_note": [

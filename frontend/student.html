@@ -55,10 +55,23 @@
         <i class="fa fa-list-alt"></i>
         <span>我的预订</span>
       </div>
+      <div class="menu-item" key="my_lesson">
+        <i class="fa fa-coins"></i>
+        <span>我的课时</span>
+      </div>
       <div class="menu-item" key="messages">
         <i class="fa fa-bell"></i>
         <span>消息中心</span>
-        <span class="msg-badge" id="msg-unread-badge" style="display:none;"></span>
+      </div>
+      <div class="menu-item" key="my_classroom" data-module="classroom">
+        <i class="fas fa-video"></i>
+        <span>我的课堂</span>
+      </div>
+      <!-- 加入课堂（C3，2026-11-19）：临时课堂没有排期/预约，「我的课堂」列不出来，
+           学生只能靠管理员发的链接进。这里给一个粘贴口：粘贴链接或课堂号 → 校验名单 → 进课堂。 -->
+      <div class="menu-item" key="join_classroom" data-module="classroom">
+        <i class="fas fa-door-open"></i>
+        <span>加入课堂</span>
       </div>
       <div class="menu-item" key="teacher_showcase">
         <i class="fa fa-chalkboard-teacher"></i>
@@ -92,6 +105,39 @@
       <div class="dynamic-content-center" id="dynamic-content-center">
         <!-- 初始内容由JS加载 -->
       </div>
+      <!-- 我的课时页结构模板（2026-10-28）：与预订页同款 template+clone，
+           JS（js/student-lessonBalance.js）只负责取数/填值 -->
+      <template id="tpl-my-lesson">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title"><i class="fa fa-coins"></i>我的课时</div>
+              <div class="ml-hint">课时按「是否请假」结算：未请假的课次扣 1 课时，请假申请中的课次不扣。</div>
+            </div>
+          </div>
+          <div id="ml-balance-body"></div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="margin-bottom:8px;"><i class="fa fa-list-ul"></i> 课时明细</div>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width:150px;">时间</th>
+                  <th><span data-term="course">课程</span> / 课次</th>
+                  <th style="width:110px;">来源</th>
+                  <th style="width:90px;text-align:right;">变动</th>
+                  <th style="width:90px;text-align:right;">结余</th>
+                  <th>说明</th>
+                </tr>
+              </thead>
+              <tbody id="ml-flow-body"></tbody>
+            </table>
+          </div>
+          <div id="ml-flow-empty" style="padding:16px;color:var(--text-light-color);">正在加载…</div>
+          <div class="ml-pager" id="ml-pager"></div>
+        </div>
+      </template>
       <!-- 我的预定页结构模板（2026-09-28 template+clone 改造）：JS 只负责取数/填值/绑事件 -->
       <template id="tpl-student-booking-browser">
         <div class="card">
@@ -420,11 +466,16 @@
       const nameid=document.getElementById("user-name");
        if(nameid) nameid.innerHTML= userInfo && userInfo.name;
 
-       // 设置头像为用户名首字母
-       const avatarElem = document.getElementById("avatar");
-       if (avatarElem && userInfo && userInfo.name && userInfo.name.length > 0) {
-         avatarElem.textContent = userInfo.name.charAt(0);
-       }
+        // 设置头像为用户名首字母
+        const avatarElem = document.getElementById("avatar");
+        if (avatarElem && userInfo && userInfo.name && userInfo.name.length > 0) {
+          avatarElem.textContent = userInfo.name.charAt(0);
+        }
+
+        // 应用模块开关：隐藏未启用模块的菜单项
+        if (typeof window.applyMenuVisibility === 'function') {
+          window.applyMenuVisibility();
+        }
 
       // ====== 深链参数解析 ======
       // URL 形如 student.html?scdid=12355&cid=xxx&tid=xxx&sid=xxx
@@ -543,6 +594,15 @@
             renderStudentBookingBrowserCards(); //StudentBookingBrowserCards
             
           break;
+
+        case 'my_lesson':
+            // 我的课时（2026-10-28）：账本只读，数据来自课堂收尾结算
+            if (typeof window.renderMyLessonPage === 'function') {
+              window.renderMyLessonPage(dynamicContentCenter);
+            } else {
+              dynamicContentCenter.innerHTML = '<div class="card"><p style="padding:12px 0;">课时模块脚本未加载。</p></div>';
+            }
+          break;
           
         case 'messages':
           if (typeof window.renderMessagesPage === 'function') {
@@ -554,6 +614,38 @@
           if (typeof window.renderStudentProfile === 'function') {
             window.renderStudentProfile(dynamicContentCenter);
           }
+          break;
+
+        // ===== 我的课堂（2026-11-13 补）=====
+        // 此前本 switch 无该分支：点击菜单先清空内容区，再静默落到末尾 → 右侧一片空白。
+        // 实现见 js/student-myClassroom.js：我的预约 → 课次 → 资料 / 进入课堂 / 回放。
+        case 'my_classroom':
+          if (typeof window.renderStudentClassroomPage === 'function') {
+            window.renderStudentClassroomPage();
+          } else {
+            dynamicContentCenter.innerHTML = '<div class="card"><div class="empty-tip">'
+              + '课堂页面脚本未加载（js/student-myClassroom.js），请刷新页面重试。</div></div>';
+          }
+          break;
+
+        // ===== 加入课堂（C3，2026-11-19）=====
+        // 与「我的课堂」互补：我的课堂是排期驱动（booking → scheduleId），临时课堂没有排期，
+        // 学生拿着链接也只能自己拼 URL。本页负责「粘贴 → 校验 → 进课堂」，见 js/student-joinClassroom.js
+        case 'join_classroom':
+          if (typeof window.renderStudentJoinClassroomPage === 'function') {
+            window.renderStudentJoinClassroomPage(dynamicContentCenter);
+          } else {
+            dynamicContentCenter.innerHTML = '<div class="card"><div class="empty-tip">'
+              + '加入课堂脚本未加载（js/student-joinClassroom.js），请刷新页面重试。</div></div>';
+          }
+          break;
+
+        // 兜底：未实现的菜单不再静默空白
+        default:
+          dynamicContentCenter.innerHTML = '<div class="card"><div class="empty-tip">'
+            + '「' + (document.querySelector('.menu-item.active span')
+              ? document.querySelector('.menu-item.active span').textContent : key)
+            + '」功能暂未开放。</div></div>';
           break;
       }
     }
@@ -590,6 +682,9 @@
   <!-- 分页组件：提供 Pagination / getPagebar() / renderPagination() / assignLoadobjectListFunction()。
        被 student-bookingCards、student-bookingBrowserCards、admin-AppointmentNotes 依赖，必须先加载。 -->
   <script src="js/public/pagefoot.js"></script>
+  <!-- 课堂特性开关（2026-11-13 补引）：onload 里的 applyMenuVisibility() 依赖它，
+       缺这行时 typeof 守卫会静默跳过，「我的课堂」菜单不看租户开关一律显示 -->
+  <script src="js/public/feature-flags.js"></script>
   <script src="js/public/auth.js"></script>
   <script src="js/public/api.js"></script>
   <script src="js/public/ui-kit.js"></script>
@@ -599,6 +694,11 @@
   
   <script src="js/student-bookingCards.js"></script>
   <script src="js/student-bookingBrowserCards.js"></script>
+  <script src="js/public/my-classroom-core.js"></script>
+  <script src="js/student-myClassroom.js"></script>
+  <!-- 加入课堂（C3，2026-11-19）：必须在 api.js 之后，它用 window.ClassroomAPI.getClassroomStatus -->
+  <script src="js/student-joinClassroom.js"></script>
+  <script src="js/student-lessonBalance.js"></script>
   <script src="js/student-profile.js"></script>
   <script src="js/admin-AppointmentNotes.js"></script>
   <script src="js/messages-inbox.js"></script>

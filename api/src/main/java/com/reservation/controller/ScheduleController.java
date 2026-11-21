@@ -10,8 +10,13 @@ import com.reservation.entity.ScheduleVO;
 import com.reservation.entity.ScheduleGenerateDTO;*/
 
 import com.reservation.service.CourseScheduleService; 
+import com.reservation.service.CourseService;
 import  com.reservation.common.ScheduleGenerator; 
+import com.reservation.exception.BusinessException;
+import com.reservation.exception.NoPermissionException;
+import com.reservation.service.ClassroomEventPushService;
 import com.reservation.utils.PermissionCheck;
+import com.reservation.utils.TenantContext;
 import com.reservation.utils.TermMsg;
 import com.reservation.audit.Audit;
 import com.reservation.audit.AuditAction;
@@ -38,6 +43,12 @@ public class ScheduleController {
     private CourseScheduleService scheduleService;
     @Autowired
     private PermissionCheck permissionCheck;
+    /** 排期归属校验用（schedule → course → teacherId，见 resolveAssignTeacher） */
+    @Autowired
+    private CourseService courseService;
+    /** 排期事件推送（我的课堂「同步课堂」用：把缺失的课次课堂补建出来） */
+    @Autowired
+    private ClassroomEventPushService classroomEventPushService;
     // 创建排期
     @PostMapping("/create")
     @Audit(action = AuditAction.SCHEDULE_CREATE, resourceType = "schedule")
@@ -192,7 +203,10 @@ public class ScheduleController {
   @ResponseBody
   public Result<List<ScheduleVO>> generateList(@RequestBody ScheduleGenerateDTO dto, @RequestHeader("Authorization") String token) {
       // 1. 校验身份（老师/管理员权限）
-     // permissionCheck.checkTeacherOrAdmin(token);
+      // 2026-11-19 H-2：原校验被注释，而 AuthzRules 又声明 ALL_ROLES —— 学生也能调本端点。
+      // 本端点只算「本地时区排期预览」，不落库，但它是创建/修改排期表单的必经一步，
+      // 学生没有任何入口需要它；收窄为教师/管理员，规则与方法体同时改。
+      permissionCheck.checkTeacherOrAdmin(token);
 
       // 2. 根据表单内容与时区配置，生成对应的排期
       List<ScheduleVO> userZoneList = ScheduleGenerator.generateUserZoneSchedule(dto);
@@ -208,7 +222,9 @@ public class ScheduleController {
      @PostMapping("/checkConflict")
     @ResponseBody
   public Result< List<Map<String, Object>> > checkConflict(@RequestBody ScheduleCreateDTO cto, @RequestHeader("Authorization") String token) {
-     
+       // 方法级兜底（2026-11-19 H-2）：AuthzRules 声明 TEACHER_OR_ADMIN 但方法体零校验，
+       // 未登录/学生调用会直接进 service 查排期冲突（会把别的教师的排期名回显出来）。
+       permissionCheck.checkTeacherOrAdmin(token);
        List<Map<String, Object>> confictScds = scheduleService.checkScheduleOwnerConflict(cto);
  
       //   返回统一数据结构（包含 code/message/data 字段）
@@ -224,11 +240,10 @@ public class ScheduleController {
 @Audit(action = AuditAction.SCHEDULE_ASSIGN, resourceType = "schedule")
 @ResponseBody
 public Result<Boolean> assignStudentToSchedule(@RequestBody Map<String, Object> params, @RequestHeader("Authorization") String token) {
-     
+     // 权限校验（2026-11-19 H-2 恢复）：原先整段注释掉，任何登录用户都能给任意排期塞任意学生，
+     // 而 teacherId 也直接取自请求体——可以把他人的预订记到别人名下。
+     permissionCheck.checkTeacherOrAdmin(token);
     try {
-        // 校验权限（可选，根据需要开启）
-        // permissionCheck.checkTeacherOrAdmin(token);
-
         Object schIdObj = params.get("scheduleId");
         Object stuIdObj = params.get("studentId");
         Object tecIdObj = params.get("teacherId");
@@ -241,6 +256,9 @@ public Result<Boolean> assignStudentToSchedule(@RequestBody Map<String, Object> 
         String studentId = stuIdObj.toString();
          String teacherId = tecIdObj.toString();
 
+        // 排期归属校验：教师只能操作自己课下的排期，teacherId 同时钉回本人（见方法注释）
+        teacherId = resolveAssignTeacher(token, scheduleId, teacherId);
+
         // 调用service执行原子操作
         boolean ok = scheduleService.asgn_student(scheduleId, studentId,teacherId);
         if (ok) {
@@ -248,10 +266,36 @@ public Result<Boolean> assignStudentToSchedule(@RequestBody Map<String, Object> 
         } else { 
           return Result.fail( 500,"分配失败，请检查参数与数据库。");
         }
+    } catch (NoPermissionException e) {
+        // 权限失败给 403，别混进下面的 500（前端对 403 会提示「无权限」，对 500 只显示失败）
+        return Result.fail(403, e.getMessage());
     } catch (Exception e) {
          
          return Result.fail(500,   "error:" + e.getMessage()); 
     } 
+}
+
+/**
+ * 解析并校验「指派学生」时的 teacherId（2026-11-19 H-2）。
+ *
+ * <p>教师调用：排期必须在其本人课下（schedule → course → teacherId 两跳），
+ * 返回值强制为本人 userId——即使请求体传了别人，也不会把预订记到他人名下。
+ * 管理员/平台管理员：保留请求体的 teacherId（可代教师指派），只校验排期存在。
+ *
+ * @return 最终写入预订的 teacherId
+ */
+private String resolveAssignTeacher(String token, String scheduleId, String bodyTeacherId) {
+    CourseSchedule sch = scheduleService.selectById(scheduleId);
+    if (sch == null) {
+        throw new BusinessException(TermMsg.t("{schedule}不存在"));
+    }
+    if (!RoleConst.TEACHER.equals(permissionCheck.getRoleFromToken(token))) {
+        return bodyTeacherId;   // 管理员：保持请求体（代指派）
+    }
+    String callerId = permissionCheck.getUserIdFromToken(token);
+    // 课程不存在或不属于本人 → checkCourseOwner 抛 BusinessException / ResourceNotFoundException
+    courseService.checkCourseOwner(sch.getCourseId(), callerId);
+    return callerId;
 }
 /**
  * 删除指定ID的排期
@@ -313,6 +357,133 @@ public Result<Integer> deleteByCourseId(@PathVariable("courseId") String courseI
     public Result<List<CourseSchedule>> listByTeacher(@RequestParam String teacherId) {
         List<CourseSchedule> schedules = scheduleService.getSchedulesByTeacher(teacherId);
         return Result.success(schedules, "ok");
+    }
+
+    // ==================== 我的课堂：排期 → 课次实例（2026-11-13） ====================
+
+    /**
+     * 列出某排期按重复规则展开出的具体课次。
+     *
+     * <p><b>为什么必须放在服务端</b>：课次展开只有 {@code ScheduleInstances.expand} 一份权威实现
+     * （每 N 周 + 星期几集合、每月 + 日期集合、排期时区墙钟）。前端若自己算，一旦与后端
+     * 推送课堂时用的规则漂移，就会出现「列表上的第 3 次课、课堂里的第 3 次课不是同一节课」——
+     * 出勤和扣课时会算到别的课次上，这类问题几乎无法靠肉眼排查。
+     *
+     * <p>返回的 {@code classroomKey} 是课次级课堂标识（第 1 课次为裸 id，见 {@code ClassroomKey}），
+     * 前端用它进课堂、拉讲稿、查回放。
+     *
+     * <p>权限：ALL_ROLES（与 {@code /listByTeacher} 同口径）。排期时间本身不是敏感信息
+     * （对外订阅页也展示），课堂内容仍由课堂服务的 ClassroomAccessGuard 逐课次校验身份。
+     */
+    @GetMapping("/class-instances/{scheduleId}")
+    @ResponseBody
+    public Result<List<ClassInstanceVO>> getClassInstances(@PathVariable String scheduleId,
+                                                           @RequestHeader("Authorization") String token) {
+        try {
+            permissionCheck.checkAnyLogin(token);
+            CourseSchedule schedule = scheduleService.selectById(scheduleId);
+            if (schedule == null) {
+                return Result.fail(404, TermMsg.t("排期不存在"));
+            }
+            return Result.success(buildClassInstances(schedule), "ok");
+        } catch (Exception e) {
+            return ErrorCodes.fail(e, TermMsg.t("查询{schedule}课次失败: ") + e.getMessage());
+        }
+    }
+
+    /**
+     * 补推课堂事件（排期在课堂服务里还没有课堂时使用）。
+     *
+     * <p><b>解决什么</b>：课堂记录由排期事件（created/updated）推送到课堂服务后创建。
+     * 若排期是在「租户开通课堂」之前建的，课堂服务里根本没有这些课次，
+     * 于是教师课前想上传讲稿会拿到「课堂不存在」——知识管理就断在第一步。
+     * 本端点让教师/管理员主动重推一次 created 事件，把缺失的课次课堂补齐。
+     *
+     * <p>幂等性由课堂侧的 eventId 守卫保证：同一 eventId（含 {@code -cN} 后缀）重复投递
+     * 返回 received=false,duplicate=true，不会重复建课堂。
+     *
+     * <p>权限：教师或管理员（重推会写课堂服务数据，学生不可用）。
+     */
+    @PostMapping("/class-instances/{scheduleId}/sync")
+    @ResponseBody
+    public Result<Map<String, Object>> syncClassrooms(@PathVariable String scheduleId,
+                                                      @RequestHeader("Authorization") String token) {
+        try {
+            permissionCheck.checkTeacherOrAdmin(token);
+            CourseSchedule schedule = scheduleService.selectById(scheduleId);
+            if (schedule == null) {
+                return Result.fail(404, TermMsg.t("排期不存在"));
+            }
+            Long tenantId = TenantContext.getTenantId();
+            if (tenantId == null || tenantId == 0L) {
+                tenantId = schedule.getTenantId();
+            }
+            if (tenantId == null || tenantId == 0L) {
+                // 平台保留租户（0）没有课堂服务绑定，推也推不到；明确告知而不是静默成功
+                return Result.fail(400, TermMsg.t("当前租户未开通课堂，无法同步"));
+            }
+            // 无事务上下文时 pushAfterCommit 会同步执行（见该方法注释），此处正是该路径
+            classroomEventPushService.pushAfterCommit(tenantId, scheduleId, "created");
+            int classCount = ScheduleInstances.expand(schedule).size();
+            Map<String, Object> data = new java.util.LinkedHashMap<>();
+            data.put("scheduleId", scheduleId);
+            data.put("classCount", classCount);
+            data.put("pushed", true);
+            return Result.success(data, TermMsg.t("已发起课堂同步"));
+        } catch (Exception e) {
+            return ErrorCodes.fail(e, TermMsg.t("同步课堂失败: ") + e.getMessage());
+        }
+    }
+
+    /**
+     * 把排期展开成课次 VO 列表（含 classroomKey 与时间态）。
+     *
+     * <p>状态按**排期时区的当前墙钟**判断，与课次时间的口径保持一致；
+     * 时区非法时回落 Asia/Shanghai（与 {@code ScheduleInstances} 的兜底一致）。
+     */
+    private List<ClassInstanceVO> buildClassInstances(CourseSchedule schedule) {
+        List<ClassInstanceVO> out = new java.util.ArrayList<>();
+        List<ScheduleVO> instances = ScheduleInstances.expand(schedule);
+        int duration = ScheduleInstances.durationMinutes(schedule);
+        String zoneText = (schedule.getTimeZone() == null || schedule.getTimeZone().trim().isEmpty())
+                ? "Asia/Shanghai" : schedule.getTimeZone().trim();
+        java.time.ZoneId zone;
+        try {
+            zone = java.time.ZoneId.of(zoneText);
+        } catch (Exception ignore) {
+            zone = java.time.ZoneId.of("Asia/Shanghai");
+        }
+        java.time.LocalDateTime now = java.time.LocalDateTime.now(zone);
+        int total = instances.size();
+
+        for (int i = 0; i < total; i++) {
+            java.time.LocalDateTime startAt;
+            try {
+                startAt = ScheduleInstances.localDateTime(instances.get(i));
+            } catch (Exception e) {
+                // 单个课次时间非法只跳过这一条（与事件推送的容错口径一致）
+                log.warn("课次时间非法，已跳过: scheduleId={}, classIndex={}, err={}",
+                        schedule.getScheduleId(), i + 1, e.getMessage());
+                continue;
+            }
+            java.time.LocalDateTime endAt = startAt.plusMinutes(duration);
+
+            ClassInstanceVO vo = new ClassInstanceVO();
+            vo.setClassIndex(i + 1);
+            vo.setScheduleId(schedule.getScheduleId());
+            vo.setClassroomKey(ClassroomKey.of(schedule.getScheduleId(), i + 1));
+            vo.setStartTime(startAt.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+            vo.setEndTime(endAt.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+            vo.setDurationMinutes(duration);
+            vo.setClassCount(total);
+
+            boolean finished = !now.isBefore(endAt);
+            boolean ongoing = !finished && !now.isBefore(startAt);
+            vo.setState(finished ? "finished" : (ongoing ? "ongoing" : "upcoming"));
+            vo.setPast(finished);
+            out.add(vo);
+        }
+        return out;
     }
 }
 
