@@ -95,6 +95,25 @@ scp "$ROOT/deploy/keys.env.template"       "$SERVER:/opt/lesson/keys.env.templat
 echo "==> 5/8 Nginx 配置 + 备份脚本 + logrotate"
 scp "$ROOT/deploy/nginx/booking.conf"     "$SERVER:/etc/nginx/sites-available/booking"
 scp "$ROOT/deploy/nginx/booking-ip.conf"  "$SERVER:/etc/nginx/sites-available/booking-ip"
+# HTTPS 版（2026-11-22 新增）。**只上传、绝不自动 ln -s 启用**：
+# 它引用的证书路径在没签发证书前不存在，一旦被 enabled，nginx -t 直接失败 → 整站起不来。
+# 启用时机与步骤见维护手册 3.8（先 certbot 签证书，再替换域名占位，再启用本份并摘掉 booking-ip）。
+scp "$ROOT/deploy/nginx/booking-https.conf" "$SERVER:/etc/nginx/sites-available/booking-https"
+echo "    提示：booking-https 已上传但未启用；启用前必须先有证书，否则 nginx -t 会失败（见 3.8）"
+# 纯 IP 自签两种形态（2026-11-22 新增）：仅 HTTPS / HTTP+HTTPS 双栈。
+# 同样**只上传不启用** —— 证书没生成前 enabled 会 nginx -t 失败。
+# 落地清单见 doc-develop/04-部署与运维/纯IP环境HTTPS自签配置清单-*.md
+scp "$ROOT/deploy/nginx/booking-ip-https.conf" "$SERVER:/etc/nginx/sites-available/booking-ip-https"
+scp "$ROOT/deploy/nginx/booking-ip-dual.conf"  "$SERVER:/etc/nginx/sites-available/booking-ip-dual"
+# 自签证书生成脚本：拷到 /opt/lesson/nginx/ 便于在服务器上直接跑（需 root）
+ssh "$SERVER" 'mkdir -p /opt/lesson/nginx'
+scp "$ROOT/deploy/nginx/gen-selfsigned-cert.sh" "$SERVER:/opt/lesson/nginx/gen-selfsigned-cert.sh"
+ssh "$SERVER" 'chmod +x /opt/lesson/nginx/gen-selfsigned-cert.sh'
+# 形态切换脚本：五份站点只能启用一份，手工 ln -sfn 极易启错（2026-11-22 事故：
+# 错启域名版 booking-https，nginx -t 报 cannot load certificate .../your.domain.com/fullchain.pem）
+scp "$ROOT/deploy/nginx/switch-site.sh" "$SERVER:/opt/lesson/nginx/switch-site.sh"
+ssh "$SERVER" 'chmod +x /opt/lesson/nginx/switch-site.sh'
+echo "    提示：booking-ip-https / booking-ip-dual 已上传但未启用；先 sudo bash /opt/lesson/nginx/gen-selfsigned-cert.sh <公网IP>"
 # 等保 P0-3：限流 zone 定义（limit_req_zone 必须在 http{} 上下文，放不进 sites-available，
 # 单独走 conf.d）。漏传这个文件 → nginx -t 失败，整站起不来。
 # 报错文本有两种，都指向「定义没生效」：

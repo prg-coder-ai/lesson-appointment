@@ -13,7 +13,7 @@
 | `00-create-databases.sql`（本目录根） | **建三库 + 应用账号授权 + root 远程登录收口**（三个库的字符集/排序规则与现网逐库对齐；末尾含 `root@localhost` 存在性硬断言） | 是（`IF NOT EXISTS` / `DROP USER IF EXISTS` 全程幂等） | 新环境初始化，**第 0 步** |
 | `schema/` | 建库建表（含索引、外键、CHECK 约束） | 是（等保 P0-4：DROP 已注释禁用，`CREATE TABLE IF NOT EXISTS`；仅 10-25 两个补丁里的 `ALTER` 不可重跑，见下） | 新环境初始化，第 1~2 步 |
 | `seed/` | 系统必需的基础数据（字典、术语、分类、法律文档） | 否（纯 INSERT，重复执行会主键冲突） | 新环境初始化，第 3 步 |
-| `patch/` | 历史增量补丁，**绝大多数已并入当前 schema** | 各不相同 | **仅 `20261029-1300` 与 `20261113-1200` 两条必须执行**（课堂实例种子 + ws_base_path 修正，见下文「课堂开关两条必跑」）；其余仅供追溯"某约束何时加的" |
+| `patch/` | 历史增量补丁，**绝大多数已并入当前 schema** | 各不相同 | **仅 `20261029-1300` 与 `20261113-1200` 两条必须执行**（课堂实例种子 + ws_base_path 修正，见下文「课堂开关两条必跑」）；**若 `classroom` 库是后建的，再跑 `20261122-1430-classroom-db-grant.sql` 补授权**（漏了 = 课堂全 500 + 管理端全 403，见该文件头注释）；其余仅供追溯"某约束何时加的" |
 
 ## 新环境初始化顺序
 
@@ -72,6 +72,17 @@ mysql -uroot -p lesson_appointment < deploy/sql/patch/20261113-1200-eclassroom-e
 #    **课堂功能首次部署后完全不可用**（该 patch 头部注释有完整说明）。
 #    第二条把它种歪的 ws_base_path='/ws' 归一回 ''，否则前端会拼出
 #    ws://host:port/ws/ws/classrooms/... → 白板/心跳/信令全连不上。
+
+# 6. 授权自检（★ 漏跑第 0 步时，唯一能看见的症状就在这里 —— 2026-11-22 实战）
+#    classroom 库常常是后建的（课堂是第三个上线模块），第 0 步那三条 GRANT 就不会生效，
+#    lesson 账号能连前两个库、唯独没有 classroom 的权限。
+#    症状：平台端「课堂监视」每行 500 MyBatisSystemException（连接层，响应里没有任何 SQL 文案），
+#          管理端凡是课堂接口一律 403「课堂未启用」（开关判定的查询异常被 catch 降级成 false）。
+#    修：跑本目录 patch/20261122-1430-classroom-db-grant.sql（幂等，不建账号不改密码）
+mysql -uroot -p < deploy/sql/patch/20261122-1430-classroom-db-grant.sql
+# 必须用应用账号、按 JDBC 的方式（127.0.0.1 而非 localhost）真连一次：
+mysql -h127.0.0.1 -ulesson -p classroom -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='classroom';"
+#   期望 13。报 1044/1142 Access denied = 授权还没生效，先别去查业务代码。
 ```
 
 执行完后应满足：

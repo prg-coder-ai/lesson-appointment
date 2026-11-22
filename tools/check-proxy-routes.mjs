@@ -30,7 +30,11 @@ const require = createRequire(import.meta.url);
 const proxy = require(path.join(ROOT, 'doc-develop/90-tools/dev-proxy.js'));
 const toClassroomService = proxy.toClassroomService;
 
-const NGINX_FILES = ['deploy/nginx/booking.conf', 'deploy/nginx/booking-ip.conf'];
+const NGINX_FILES = ['deploy/nginx/booking.conf', 'deploy/nginx/booking-ip.conf',
+                     'deploy/nginx/booking-https.conf',
+                     'deploy/nginx/booking-ip-https.conf',   // 2026-11-22 补：纯 IP + 自签（仅 HTTPS）
+                     'deploy/nginx/booking-ip-dual.conf'];   // 2026-11-22 补：纯 IP + 自签（HTTP/HTTPS 双栈）
+// 五份同一时间只启用一份，但**分流清单必须逐条一致**，所以全部纳入校验。
 
 let failed = 0;
 function fail(msg) { failed++; console.log('  ✗ ' + msg); }
