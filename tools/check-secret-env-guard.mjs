@@ -41,7 +41,10 @@ const TPL = [path.join(ROOT, 'deploy/booking.env.template'),
  * 这两条缺一不可——只查前者会漏掉"残留覆盖"这个更阴的失效方式。
  */
 const KEYS_TPL = path.join(ROOT, 'deploy/keys.env.template');
-const SHARED_ENV_NAMES = new Set(['JWT_SECRET', 'AES_KEY', 'HMAC_KEY']);
+const SHARED_ENV_NAMES = new Set(['JWT_SECRET', 'AES_KEY', 'HMAC_KEY',
+                                    // 2026-11-22 补：DB 凭据三服务共用同一 MySQL 账号，
+                                    // 分散在三份 xxx.env 里正是「Access denied / 卡 30s」的成因
+                                    'DB_USERNAME', 'DB_PASSWORD']);
 
 /**
  * 必须走 env 注入的密钥：[键名, 说明, 适用的 env 模板下标集合]
@@ -78,6 +81,11 @@ const SECRET_KEYS = [
   // secret 是凭证级，与 miniapp.secret 同规格管理。
   ['wechat.open.appid',     '开放平台网站应用 appid（PC 扫码登录，api 专属）', [0]],
   ['wechat.open.secret',    '开放平台网站应用 appsecret（api 专属）', [0]],
+  // 2026-11-22 补：数据库凭据。三个服务连同一个 MySQL 实例、同一个账号，
+  // 属于「共用凭据」，口径与密钥完全一致 —— 唯一定义处是 keys.env.template，
+  // 三份 xxx.env 里必须没有。事故形态见 keys.env.template 的数据库凭据段。
+  ['spring.datasource.username', 'MySQL 账号（三服务共用，host 形态见 keys.env.template）', [0, 1, 2]],
+  ['spring.datasource.password', 'MySQL 密码（不一致即 Access denied 或卡 30s 池超时）',      [0, 1, 2]],
 ];
 
 const problems = [];
