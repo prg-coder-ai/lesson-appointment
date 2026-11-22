@@ -17,7 +17,9 @@
 | `message-service.service` | `/etc/systemd/system/message-service.service` | |
 | `classroom.service` | `/etc/systemd/system/classroom-service.service` | 注意**文件名不带 -service**，单元名是 `classroom-service`（新增 2026-10-30） |
 | `sql/00-create-databases.sql` | `/opt/lesson/sql/` | 新环境**第 0 步**：建三库 + 建 `lesson` 账号并授权。三个库的 collation 与现网逐库对齐，别统一 |
-| `nginx/booking.conf` / `booking-ip.conf` | `/etc/nginx/sites-available/{booking,booking-ip}` | HTTPS 版 / 纯 IP 版；首次部署默认启用后者（无证书时启用前者会因证书缺失起不来） |
+| `nginx/booking.conf` / `booking-ip.conf` / `booking-https.conf` / `booking-ip-https.conf` / `booking-ip-dual.conf` | `/etc/nginx/sites-available/{booking,booking-ip,booking-https,booking-ip-https,booking-ip-dual}` | 示例域名版 / 纯 IP 版 / **域名 HTTPS 版** / **纯 IP 自签仅 HTTPS** / **纯 IP 自签 HTTP+HTTPS 双栈**。五份**同一时间只启用一份**（`sites-available` 里可全留，只需摘 `sites-enabled` 的链接）；分流 location 逐字一致，`check:proxy` 五份一起校验；启用步骤见维护手册 **3.8** 与《纯IP环境HTTPS自签配置清单》 |
+| `nginx/gen-selfsigned-cert.sh` | `/opt/lesson/nginx/` | 纯 IP 环境的自签证书生成（两级 CA + 叶子证书，SAN 写 IP）。`sudo bash gen-selfsigned-cert.sh <公网IP>` |
+| `nginx/switch-site.sh` | `/opt/lesson/nginx/` | **安全的形态切换**：`http` / `https-ip` / `dual` / `https-domain`。切换前校验证书存在性与 SAN、拒绝带 `your.domain.com` 占位符的文件，`nginx -t` 失败自动回滚到切换前的状态 |
 | `nginx/conf.d/00-limit-req-zone.conf` | `/etc/nginx/conf.d/` | 限流 zone 必须放 `http{}` 上下文；漏传 → `nginx -t` 报 unknown limit_req_zone |
 | `nginx/proxy_params` | `/etc/nginx/proxy_params`（**仅当目标不存在时**） | 两份站点配置各 23 处（共 46 处） `include` 它；Debian 由 nginx-common 自带，CentOS/Anolis 没有 → 缺了 `nginx -t` 直接失败 |
 | `logrotate/lesson` | `/etc/logrotate.d/lesson` | 接管 systemd `append:` 日志的滚动（含 classroom.log）；漏装则永不滚动，写满撑爆磁盘 |

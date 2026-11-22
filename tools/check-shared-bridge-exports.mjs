@@ -21,6 +21,9 @@
  *      多余的键（挂载了源文件没有的名字，如跨域误挂）直接判红。
  *   C. 登记表有效性：notExposed 里的死条目（源已删该导出 / 实际已挂上 window）要求清理，
  *      防止这张表随时间腐化成装饰品。
+ *   D. 裸引扫描（2026-11-22 新增）：frontend/js 下若出现 `ENDPOINTS.xxx` 且该文件没有
+ *      自行 `const/let/var ENDPOINTS = window.ApiPaths...`，即判红 —— 产物顶层 const
+ *      是 IIFE 内部的文件级作用域，裸引必然 ReferenceError（logBrowser 已栽过两次）。
  *
  * 紧急跳过：SKIP_BRIDGE_EXPORTS=1 git commit ...
  * 单独运行：node tools/check-shared-bridge-exports.mjs
@@ -259,11 +262,58 @@ function main() {
     }
   }
 
+  // ---- 检查 D：桥接顶层常量不得被其它脚本裸引（2026-11-22 新增）----
+  //
+  // 产物全文包在 IIFE 里，其顶层 `const ENDPOINTS = {...}` 是**文件级作用域**：
+  // 既不挂 window，也不会被后续 classic 脚本看见，唯一出口是末尾的 window.ApiPaths。
+  // 但裸写 `ENDPOINTS.LOGS_DATES` 在编辑器里毫无异样、构建不失败、其它守卫也不管
+  // （global-collide 只扫顶层标识符，shared-sync 只比 md5），只有运行到那一行才
+  // ReferenceError —— 日志页整页空白，dist 里还只剩 `logBrowser.js:1:76` 这种线索。
+  // 2026-11-08（路径缺 /api/v1）与 2026-11-22（ENDPOINTS 未定义）是同一个页面栽的两次，故设此检查。
+  const FRONTEND_JS = path.join(ROOT, 'frontend/js');
+  const DECL_ENDPOINTS = /(?:^|[\s;{(])(?:const|let|var)\s+ENDPOINTS\s*=/m;
+  const BARE_ENDPOINTS = /(?:^|[^.\w$])ENDPOINTS\s*\./m;
+  const stripComment = (line) => line.replace(/(^|[^:\w])\/\/[^\n]*$/g, '$1');
+
+  const walkJs = (dir) => {
+    let out = [];
+    if (!fs.existsSync(dir)) return out;
+    for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, ent.name);
+      if (ent.isDirectory()) out = out.concat(walkJs(p));
+      else if (ent.name.endsWith('.js')) out.push(p);
+    }
+    return out;
+  };
+
+  let bareChecked = 0;
+  for (const abs of walkJs(FRONTEND_JS)) {
+    if (abs === BRIDGE) continue;                 // 产物自身就是定义方
+    const rel = path.relative(ROOT, abs).split(path.sep).join('/');
+    const raw = readFile(abs);
+    const codeOnly = raw
+      .replace(/\/\*[\s\S]*?\*\//g, '\n')
+      .split(/\r?\n/).map(stripComment).join('\n');
+    if (!BARE_ENDPOINTS.test(codeOnly)) continue;
+    if (DECL_ENDPOINTS.test(codeOnly)) continue;  // 文件内已自行取 window.ApiPaths.ENDPOINTS
+    bareChecked++;
+
+    const hits = [];
+    codeOnly.split('\n').forEach((ln, i) => {
+      if (BARE_ENDPOINTS.test(ln)) hits.push(`${i + 1}: ${ln.trim().slice(0, 110)}`);
+    });
+    add(`${rel} 裸用了 ENDPOINTS（桥接顶层常量不在全局作用域）`,
+      (hits.length ? hits.slice(0, 4).join('\n') + '\n' : '') +
+      '修复：文件内先取 const EP = (window.ApiPaths && window.ApiPaths.ENDPOINTS) || {}; 再用 EP.xxx。\n' +
+      '桥接产物全文包在 IIFE 里，顶层 const 不会出现在 window 上，唯一出口是 window.ApiPaths。');
+  }
+
   if (problems.length) return report();
 
   console.log(
     `[bridge-exports] OK: ${domains.length} 个域对象与源导出逐项对齐` +
-    `（豁免登记 ${notExposed.length} 项），产物与生成器输出一致`
+    `（豁免登记 ${notExposed.length} 项），产物与生成器输出一致` +
+    `，frontend/js 无裸引 ENDPOINTS（扫描 ${bareChecked || 0} 处违规）`
   );
 }
 
