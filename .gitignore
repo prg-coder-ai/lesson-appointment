@@ -143,3 +143,7 @@ api/classroom-service/target/
 deploy/docker/frontend/dist/
 deploy/docker/frontend/.build-tag
 cloudBased/classroom-service/classroom-service-1.0.0.jar
+
+# server-side key instance file: holds real JWT_SECRET / AES_KEY / HMAC_KEY.
+# never commit. copy deploy/keys.env.template instead.
+deploy/keys.env

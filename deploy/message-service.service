@@ -12,6 +12,12 @@ Type=simple
 User=lesson
 Group=lesson
 WorkingDirectory=/opt/lesson
+# ★ 共用密钥（JWT_SECRET / AES_KEY / HMAC_KEY）只在 /etc/lesson/keys.env 定义一份。
+#   顺序不可颠倒：systemd 后加载覆盖先加载，keys.env 必须在各自的 xxx.env 之前；
+#   xxx.env 里不得再出现这三个键，否则会静默覆盖本处。
+#   （2026-11-21 事故：三份 env 各写一份 JWT_SECRET，仅 message 那份不同，
+#    导致登录成功后立即被 401 踢回登录页，而 booking / classroom 完全正常）
+EnvironmentFile=/etc/lesson/keys.env
 EnvironmentFile=/etc/lesson/message.env
 # Java 路径按实际环境调整；可在此追加 JVM 参数，例如 -Xms256m -Xmx512m
 ExecStart=/usr/bin/java $JAVA_OPTS -jar /opt/lesson/message-service.jar
