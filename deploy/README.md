@@ -58,8 +58,12 @@ DDL 的权威位置是**本目录下的 `sql/`**（`deploy/sql/{schema,seed,patc
 - 密钥变量名必须是 `AES_KEY` / `HMAC_KEY`（不是 `CRYPTO_AESKEY`）。
   机理与对照实验见 `tools/check-secret-env-guard.mjs` 头部注释；
   改完跑 `npm run check:secret-env`（当前覆盖 3 个 properties + 3 个 env 模板）。
-- 三份 env 的 `JWT_SECRET` / `AES_KEY` / `HMAC_KEY` 必须**逐字符一致**，
-  否则消息/课堂 401、跨服务解密失败。
+- **`JWT_SECRET` / `AES_KEY` / `HMAC_KEY` 只在 `keys.env` 定义一份**（2026-11-21 起）。
+  三份 `xxx.env` 里这三个键已注释掉，**不要再打开**：systemd 的 `EnvironmentFile` 是
+  「后加载覆盖先加载」，而三个 unit 里 `keys.env` 排在各 `xxx.env` 之前，
+  任何一处残留都会静默覆盖它，重新变回「三处各自维护」——
+  那正是 2026-11-21 message-service 401 事故的形态（登录成功即被踢，booking 却正常）。
+- `keys.env`（真实值）**不入库**（`.gitignore` 已排除 `deploy/keys.env`）；入库的只有 `keys.env.template`。
 - 模板里只写 `CHANGE_ME`，**不要**写真实密钥（守卫会拦）。
 - 三份 env 都必须有 `SERVER_PORT`（与 jar 内 `server.port` 一致）与 `SERVER_ADDRESS=127.0.0.1`：
   前者挡住服务器上残留的 `SERVER_PORT` 环境变量把服务顶到别的端口（表现是 nginx 全站 502、

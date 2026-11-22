@@ -89,6 +89,8 @@ scp "$ROOT/deploy/classroom.service"       "$SERVER:/etc/systemd/system/classroo
 scp "$ROOT/deploy/booking.env.template"    "$SERVER:/opt/lesson/booking.env.template"
 scp "$ROOT/deploy/message.env.template"    "$SERVER:/opt/lesson/message.env.template"
 scp "$ROOT/deploy/classroom.env.template"  "$SERVER:/opt/lesson/classroom.env.template"
+# keys.env 是三个服务的共用密钥（2026-11-21 起）。只传模板，真实值在服务器上填。
+scp "$ROOT/deploy/keys.env.template"       "$SERVER:/opt/lesson/keys.env.template"
 
 echo "==> 5/8 Nginx 配置 + 备份脚本 + logrotate"
 scp "$ROOT/deploy/nginx/booking.conf"     "$SERVER:/etc/nginx/sites-available/booking"
@@ -132,7 +134,8 @@ ssh "$SERVER" 'for p in "api/v1/system/info:8081 主服务" "api/v1/message/syst
 echo
 echo "上传完成。接下来在服务器上执行："
 echo "  sudo chmod +x /opt/lesson/backup.sh /opt/lesson/healthcheck.sh"
-echo "  sudo cp /opt/lesson/booking.env.template   /etc/lesson/booking.env    # 再填真实密钥（AES_KEY / HMAC_KEY，不是 CRYPTO_AESKEY）"
+echo "  sudo cp /opt/lesson/keys.env.template      /etc/lesson/keys.env       # ★ 先填这个：三服务共用密钥（JWT_SECRET / AES_KEY / HMAC_KEY）"
+echo "  sudo cp /opt/lesson/booking.env.template   /etc/lesson/booking.env    # 只填 DB / LOG_PATH 等私有项（密钥已迁出到 keys.env）"
 echo "  sudo cp /opt/lesson/message.env.template   /etc/lesson/message.env"
 echo "  sudo cp /opt/lesson/classroom.env.template /etc/lesson/classroom.env  # 另需填 REDIS_* / STORAGE_LOCAL_ROOT"
 echo "  sudo chmod 600 /etc/lesson/*.env && sudo chown lesson:lesson /etc/lesson/*.env"
