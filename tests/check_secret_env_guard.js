@@ -10,6 +10,10 @@
  *   ② 三份 xxx.env.template 里**必须没有**（systemd 后加载覆盖先加载，残留即静默覆盖）。
  * 只查①会漏掉②——②才是线上 401 的真实成因，所以必须单独证红。
  *
+ * 2026-11-22 追加 DB_USERNAME / DB_PASSWORD 到共用键：
+ * 三服务连同一 MySQL 账号，分散在三份 xxx.env 正是「Access denied / 查库卡 30s」的成因。
+ * 对应新增三条变异（keys 模板缺 DB_PASSWORD、booking 残留、classroom 残留）。
+ *
  * 踩过的坑（沿用本仓库约定）：
  *   · 禁用 spawnSync：本机 node 子进程一律 EBUSY，改为同进程 import + 拦 process.exit；
  *   · 工作区是 CRLF、索引是 LF：变异前先把 \r\n 归一成 \n 再 includes/replace，
@@ -25,6 +29,7 @@ const GUARD = path.join(ROOT, 'tools/check-secret-env-guard.mjs');
 const KEYS_TPL = path.join(ROOT, 'deploy/keys.env.template');
 const BOOKING_TPL = path.join(ROOT, 'deploy/booking.env.template');
 const MSG_TPL = path.join(ROOT, 'deploy/message.env.template');
+const CLASSROOM_TPL = path.join(ROOT, 'deploy/classroom.env.template');
 
 let seq = 0;
 
@@ -80,10 +85,19 @@ const cases = [
     },
   },
   {
+    name: '① keys.env.template 注释掉 DB_PASSWORD= → 应红（2026-11-22 新增）',
+    expect: 1,
+    run: async () => {
+      const restore = mutate(KEYS_TPL, 'DB_PASSWORD=CHANGE_ME', '# DB_PASSWORD=CHANGE_ME');
+      try { return await runGuard(); } finally { restore(); }
+    },
+  },
+  {
     name: '② booking.env.template 残留 JWT_SECRET= → 应红（会覆盖 keys.env）',
     expect: 1,
     run: async () => {
-      const restore = mutate(BOOKING_TPL, 'DB_USERNAME=lesson', 'JWT_SECRET=CHANGE_ME\nDB_USERNAME=lesson');
+      const anchor = 'SPRING_DATASOURCE_URL=jdbc:mysql://127.0.0.1:3306/lesson_appointment';
+      const restore = mutate(BOOKING_TPL, anchor, 'JWT_SECRET=CHANGE_ME\n' + anchor);
       try { return await runGuard(); } finally { restore(); }
     },
   },
@@ -91,7 +105,26 @@ const cases = [
     name: '② message.env.template 残留 AES_KEY= → 应红',
     expect: 1,
     run: async () => {
-      const restore = mutate(MSG_TPL, 'DB_USERNAME=lesson', 'AES_KEY=CHANGE_ME\nDB_USERNAME=lesson');
+      const anchor = 'SPRING_DATASOURCE_URL=jdbc:mysql://127.0.0.1:3306/message_center';
+      const restore = mutate(MSG_TPL, anchor, 'AES_KEY=CHANGE_ME\n' + anchor);
+      try { return await runGuard(); } finally { restore(); }
+    },
+  },
+  {
+    name: '② booking.env.template 残留 DB_PASSWORD= → 应红（2026-11-22 新增）',
+    expect: 1,
+    run: async () => {
+      const anchor = 'SPRING_DATASOURCE_URL=jdbc:mysql://127.0.0.1:3306/lesson_appointment';
+      const restore = mutate(BOOKING_TPL, anchor, 'DB_PASSWORD=someOtherPwd\n' + anchor);
+      try { return await runGuard(); } finally { restore(); }
+    },
+  },
+  {
+    name: '② classroom.env.template 残留 DB_USERNAME= → 应红（2026-11-22 新增）',
+    expect: 1,
+    run: async () => {
+      const anchor = 'SPRING_DATASOURCE_URL=jdbc:mysql://127.0.0.1:3306/classroom';
+      const restore = mutate(CLASSROOM_TPL, anchor, 'DB_USERNAME=lesson\n' + anchor);
       try { return await runGuard(); } finally { restore(); }
     },
   },
@@ -100,6 +133,14 @@ const cases = [
     expect: 1,
     run: async () => {
       const restore = mutate(KEYS_TPL, 'AES_KEY=CHANGE_ME', 'AES_KEY=abcdefghijklmnopqrstuvwxyz012345');
+      try { return await runGuard(); } finally { restore(); }
+    },
+  },
+  {
+    name: '④ keys.env.template 写入真值 DB_PASSWORD → 应红（2026-11-22 新增）',
+    expect: 1,
+    run: async () => {
+      const restore = mutate(KEYS_TPL, 'DB_PASSWORD=CHANGE_ME', 'DB_PASSWORD=abcdefghijklmnopqrstuvwxyz012345');
       try { return await runGuard(); } finally { restore(); }
     },
   },

@@ -60,7 +60,7 @@ DDL 的权威位置是**本目录下的 `sql/`**（`deploy/sql/{schema,seed,patc
 - 密钥变量名必须是 `AES_KEY` / `HMAC_KEY`（不是 `CRYPTO_AESKEY`）。
   机理与对照实验见 `tools/check-secret-env-guard.mjs` 头部注释；
   改完跑 `npm run check:secret-env`（当前覆盖 3 个 properties + 3 个 env 模板）。
-- **`JWT_SECRET` / `AES_KEY` / `HMAC_KEY` 只在 `keys.env` 定义一份**（2026-11-21 起）。
+- **`JWT_SECRET` / `AES_KEY` / `HMAC_KEY` / `DB_USERNAME` / `DB_PASSWORD` 只在 `keys.env` 定义一份**（密钥 2026-11-21 起；数据库凭据 2026-11-22 起 —— 三服务连同一 MySQL 账号，分散写就是「查库卡 30s / Access denied」的成因，见维护手册 §6.7）。
   三份 `xxx.env` 里这三个键已注释掉，**不要再打开**：systemd 的 `EnvironmentFile` 是
   「后加载覆盖先加载」，而三个 unit 里 `keys.env` 排在各 `xxx.env` 之前，
   任何一处残留都会静默覆盖它，重新变回「三处各自维护」——
