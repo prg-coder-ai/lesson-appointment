@@ -112,13 +112,17 @@ chmod 600 "$CA_KEY" "$SRV_KEY"
 chmod 644 "$CA_CRT" "$SRV_CRT"
 chown root:root "$CA_KEY" "$CA_CRT" "$SRV_KEY" "$SRV_CRT" 2>/dev/null || true   # 非 root 环境（如本地验证）跳过
 
-# ---- 4. 公钥证书放一份到站点目录，方便客户端下载导入 ------------------------
+# ---- 4. 公钥证书放一份到站点目录，供客户端下载导入 --------------------------
+#  站点配置里有 location = /ca.crt 作为下载入口（deploy/nginx/*.conf 五份都有），
+#  所以文件名必须**正好是 ca.crt** 且放在**站点根**下，否则下载入口返回 404。
 WEBROOT="/var/www/frontend"
 if [ -d "$WEBROOT" ]; then
   install -m 644 "$CA_CRT" "$WEBROOT/ca.crt"
   echo "→ 已放置客户端导入用的根证书：$WEBROOT/ca.crt（仅公钥，安全；ca.key 仍只在 $SSL_DIR）"
 else
-  echo "→ 跳过站点目录副本（$WEBROOT 不存在）"
+  echo "⚠️ 站点根 $WEBROOT 不存在，已跳过下载副本 —— 但站点配置里有 location = /ca.crt，"
+  echo "   缺这个文件浏览器会拿到 404。若站点根不是 $WEBROOT，请改本脚本的 WEBROOT 后重跑，或用："
+  echo "     sudo install -m 644 $CA_CRT <实际站点根>/ca.crt"
 fi
 
 # ---- 5. 自检 ----------------------------------------------------------------
@@ -162,12 +166,18 @@ cat <<EOF
    openssl s_client -connect 127.0.0.1:443 -servername ${IPS[0]} </dev/null 2>/dev/null | grep -E "Verify return code|subject="
 
 4) 客户端免警告（可选，逐台做；不做也能用，只是每次要点"继续前往"）：
-   Windows : 双击 ca.crt → 安装证书 → 本地计算机 → 受信任的根证书颁发机构
-   macOS   : 双击 → 钥匙串"系统" → 始终信任
-   Linux   : sudo cp ca.crt /usr/local/share/ca-certificates/lesson-ca.crt && sudo update-ca-certificates
-   Android : 设置 → 安全 → 加密与凭据 → 安装证书 → CA 证书
-   iOS     : AirDrop/邮件安装描述文件 → 设置 → 通用 → 关于本机 → 证书信任设置 → 打开"完全信任"
-   浏览器可直接下载：https://${IPS[0]}/ca.crt （HTTP 双栈时 http://${IPS[0]}/ca.crt 也行）
+   先确认下载入口通了（应返回 200 且 content-type 为 application/x-x509-ca-cert）：
+     curl -skI https://${IPS[0]}/ca.crt | grep -iE "^HTTP|content-type"
+   再把 ca.crt 装进受信任根：
+     Windows : 双击 ca.crt → 安装证书 → 本地计算机 → 受信任的根证书颁发机构
+     macOS   : 双击 → 钥匙串"系统" → 始终信任
+     Linux   : sudo cp ca.crt /usr/local/share/ca-certificates/lesson-ca.crt && sudo update-ca-certificates
+     Android : 设置 → 安全 → 加密与凭据 → 安装证书 → CA 证书
+     iOS     : 用 Safari 下载 → 设置 → 已下载描述文件 → 安装 → 通用 → 关于本机 → 证书信任设置 → 打开"完全信任"
+   下载地址：https://${IPS[0]}/ca.crt
+     双栈形态下更推荐 http://${IPS[0]}/ca.crt —— 明文段无需先点"继续前往"就能下，
+     避免"为了拿到证书先绕过证书警告"这种鸡生蛋的别扭操作。
+     ⚠️ 微信内置浏览器既不能下载也不能导入 CA，手机端请用系统浏览器（Safari/Chrome）。
 
 ⚠️ 自签证书的边界（不是配置问题，是证书体系决定的）：
    · 微信内置浏览器没有"继续前往"入口 → 打不开；
