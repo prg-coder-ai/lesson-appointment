@@ -227,3 +227,24 @@ if [ "$SKIP_PROPS" != "1" ]; then
 else
   echo "[props-value] SKIP_PROPS=1，跳过配置值纯净守卫"
 fi
+
+# 21) headers：音视频权限响应头守卫（2026-11-23 新增，线上事故驱动）。
+#     事故：纯 IP 云服务器启用 HTTPS 后，「课前准备」页调不动摄像头/麦克风，localhost 调试却正常。
+#     根因不是证书（用户点过"继续前往"后 isSecureContext=true，getUserMedia 按 Chromium
+#     设计是放行的，见 crbug 40090684 官方回复），而是等保 P0-2 抄来的这一行：
+#       add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+#     空括号是**空 allowlist**，语义"任何来源都不许用"，**连页面自己**。它是文档级策略，
+#     优先级高于浏览器站点设置 —— 用户在设置里点了"允许"完全压不过它，
+#     现象就是"权限都给了、按钮还是没反应"，而 nginx -t 通过、服务日志干干净净。
+#     这行看着"更安全"所以没人怀疑，改回去也不报错，只能靠构建期守卫拦。
+#     守卫钉住：① camera/microphone 的 allowlist 非空且**含 self**（按 token 比对，
+#     不被 self.example.com 这类子串骗过）；② 同文件多处口径一致（nginx add_header 是
+#     覆盖式继承，server 级与 location 级打架会变成"有的页面能用有的不能"）；
+#     ③ 兼容外层单引号 + 内层 origin 双引号的合法写法（只认双引号会误报）。
+#     配套反向测试 tests/check_headers_guard.js（6 种退化必须全红、3 种合法形态不许误报）。
+#     紧急跳过：SKIP_HEADERS=1 git commit ...
+if [ "$SKIP_HEADERS" != "1" ]; then
+  node tools/check-headers.mjs || exit 1
+else
+  echo "[headers] SKIP_HEADERS=1，跳过音视频权限响应头守卫"
+fi
