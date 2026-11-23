@@ -202,7 +202,55 @@ if (skipped) {
     }
   }
 
-  console.log(`check:secret-env —— 检查 ${checked} 处密钥注入（${propFiles.length} 个 properties + ${TPL.length} 个服务 env + keys.env）`);
+  // ⑤ docker-compose.yml：容器侧的注入通道必须与 systemd 同构（2026-11-23 补）
+  //    真实事故：docker 方案原先只挂各自 xxx.env，容器里读不到后来收拢到 keys.env 的
+  //    JWT_SECRET / AES_KEY / HMAC_KEY / DB_* —— 要么启动即失败，要么静默用仓库公开默认密钥。
+  //    判据：三个服务的 env_file 都必须含 keys.env，且排在业务 env **之前**
+  //    （Compose 与 systemd 都是后加载覆盖先加载）。
+  const COMPOSE = path.join(ROOT, 'deploy/docker/docker-compose.yml');
+  if (fs.existsSync(COMPOSE)) {
+    const src = fs.readFileSync(COMPOSE, 'utf8');
+    const services = [
+      ['booking', '/etc/lesson/booking.env'],
+      ['message', '/etc/lesson/message.env'],
+      ['classroom', '/etc/lesson/classroom.env'],
+    ];
+    for (const [svc, ownEnv] of services) {
+      const start = src.search(new RegExp('^  ' + svc + ':\\s*$', 'm'));
+      if (start < 0) {
+        problems.push(`deploy/docker/docker-compose.yml：找不到服务 ${svc}，容器侧密钥通道无法核对`);
+        continue;
+      }
+      // 服务块 = 从本服务声明到下一个 2 空格缩进的服务名（4 空格的是服务内部键，不算）
+      const tail = src.slice(start + 1);
+      const nxt = tail.search(/^  [a-zA-Z][\w-]*:\s*$/m);
+      const block = nxt < 0 ? tail : tail.slice(0, nxt);
+      const ef = /env_file:\s*\n((?:\s+-\s+\S+[^\n]*\n?)+)/.exec(block);
+      if (!ef) {
+        problems.push(`deploy/docker/docker-compose.yml：服务 ${svc} 没有 env_file —— 容器读不到任何配置`);
+        continue;
+      }
+      const files = [...ef[1].matchAll(/-\s+(\S+)/g)].map((m) => m[1]);
+      if (!files.includes('/etc/lesson/keys.env')) {
+        problems.push(
+          `deploy/docker/docker-compose.yml：服务 ${svc} 的 env_file 没有 /etc/lesson/keys.env（当前：${files.join(', ') || '(空)'}）。\n` +
+          `      → keys.env 是共用密钥（JWT_SECRET / AES_KEY / HMAC_KEY / DB_*）的唯一来源；\n` +
+          `        漏了会启动失败，或静默沿用仓库公开默认密钥。`
+        );
+      } else if (files[0] !== '/etc/lesson/keys.env') {
+        problems.push(
+          `deploy/docker/docker-compose.yml：服务 ${svc} 的 keys.env 没排在业务 env 之前（当前顺序：${files.join(' → ')}）。\n` +
+          `      → Compose 与 systemd 都是「后加载覆盖先加载」；若 xxx.env 里残留共用键，\n` +
+          `        就会把 keys.env 的值冲掉，表现为登录成功后立刻 401。`
+        );
+      }
+      if (!files.includes(ownEnv)) {
+        problems.push(`deploy/docker/docker-compose.yml：服务 ${svc} 的 env_file 缺少 ${ownEnv}`);
+      }
+    }
+  }
+
+  console.log(`check:secret-env —— 检查 ${checked} 处密钥注入（${propFiles.length} 个 properties + ${TPL.length} 个服务 env + keys.env + docker compose 三服务）`);
   if (problems.length) {
     console.error(`❌ 密钥注入通道有 ${problems.length} 处问题：`);
     for (const p of problems) console.error(`   · ${p}`);

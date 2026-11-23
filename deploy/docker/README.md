@@ -179,6 +179,22 @@ ss -lntp | grep -E ':(8081|8090|8092)'     # 应为空
 # 2) MySQL / Redis 在跑
 mysqladmin -uroot -p ping
 redis-cli -n 2 ping                         # → PONG（课堂用 db 2）
+
+# 3) ★ 共用密钥文件必须在（2026-11-21 事故后的唯一密钥源）
+#    compose 里三个服务都加载它，缺了容器直接起不来；三份 xxx.env 里不得重复这三个键
+sudo ls -l /etc/lesson/keys.env
+for f in booking message classroom; do
+  sudo grep -nE '^(JWT_SECRET|AES_KEY|HMAC_KEY)=' /etc/lesson/$f.env && \
+    echo "✗ $f.env 里还有共用密钥！会把 keys.env 冲掉，必须删掉这三行"
+done
+
+# 3) ★ 共用密钥文件必须在（2026-11-21 事故后的唯一密钥源）
+#    compose 里三个服务都加载它，缺了容器直接起不来；三份 xxx.env 里不得重复这三个键
+sudo ls -l /etc/lesson/keys.env
+for f in booking message classroom; do
+  sudo grep -nE '^(JWT_SECRET|AES_KEY|HMAC_KEY)=' /etc/lesson/$f.env && \
+    echo "✗ $f.env 里还有共用密钥！会把 keys.env 冲掉，必须删掉这三行"
+done
 ```
 
 ### 4.2 建目录与授权
@@ -221,8 +237,11 @@ ls -ld /home/lesson/teacher-uploads 2>/dev/null && \
 
 # ② 课堂存储 /opt/lesson/data/oss 与日志目录：路径没变，无需搬（这就是挂载用同路径的原因）
 
-# ③ 三份 env 不用动：DB/Redis/BOOKING_API_URL 全是 127.0.0.1，host 网络下继续有效
-sudo ls -l /etc/lesson/*.env
+# ③ 四份 env 都不用改：DB/Redis/BOOKING_API_URL 全是 127.0.0.1，host 网络下继续有效。
+#    ★ compose 里 keys.env 排在前、xxx.env 排在后（与 systemd 的 EnvironmentFile 顺序一致，
+#    后加载覆盖先加载）。xxx.env 里绝不能再写 JWT_SECRET/AES_KEY/HMAC_KEY，
+#    否则共用密钥被冲掉 → 集群内 token 互验失败，表现为「登录成功后立刻 401」。
+sudo ls -l /etc/lesson/keys.env /etc/lesson/{booking,message,classroom}.env
 ```
 
 ### 4.5 拉镜像并启动
@@ -276,6 +295,22 @@ curl -s -o /dev/null -w '%{http_code}\n' localhost/api/v1/system/info   # 200，
 redis-cli -n 2 ping                                # PONG
 df -h /var/lib/docker /opt                          # 数据盘余量
 ```
+
+### 4.9 宿主机 nginx 侧：近日改动的同步清单
+
+容器方案把 TLS、安全响应头、限流 zone 都留在**宿主机 nginx**（见第一章分工表），
+所以改了 `deploy/nginx/` 下的站点配置，**容器这边也要同步并 reload 宿主机 nginx**，
+不能拿「容器没改」当理由跳过。以下几项是 2026-11-22~23 的实际改动，容器化部署同样必须生效：
+
+| 改动 | 为什么必须同步 | 验证命令 |
+|---|---|---|
+| `Permissions-Policy` 中 camera / microphone 从 `()` 改为 `(self)` | 空 allowlist 连自身页面都禁，课前准备页调不动设备；且它优先级高于浏览器站点设置，用户点「允许」也没用 | `curl -skI https://<IP>/login.html \| grep -i permissions-policy` |
+| 新增 `location = /ca.crt`（`default_type application/x-x509-ca-cert`） | 客户端导入自签根证书用；靠 `location /` 会兜底返回 login.html，看着像证书损坏 | `curl -skI https://<IP>/ca.crt \| grep -iE '^HTTP\|content-type'` |
+| 自签场景 HSTS 保持注释 | 打开后连「继续前往」都不给，站点在 max-age 期内彻底进不去 | `nginx -T \| grep -i strict-transport` 应为空 |
+| 证书 SAN 含访问用的公网 IP | 没有就报 `ERR_CERT_COMMON_NAME_INVALID`（连不上），而不是可点「继续」 | `openssl x509 -in /etc/nginx/ssl/selfsigned/server.crt -noout -ext subjectAltName` |
+
+完整操作与坑位见《纯IP环境HTTPS自签配置清单-20261122-1645.md》。
+改完先在仓库侧跑 `npm run check:headers` 校验五份站点配置的响应头口径，再传服务器 reload。
 
 ---
 

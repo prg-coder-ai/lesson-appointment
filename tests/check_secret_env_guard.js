@@ -30,6 +30,7 @@ const KEYS_TPL = path.join(ROOT, 'deploy/keys.env.template');
 const BOOKING_TPL = path.join(ROOT, 'deploy/booking.env.template');
 const MSG_TPL = path.join(ROOT, 'deploy/message.env.template');
 const CLASSROOM_TPL = path.join(ROOT, 'deploy/classroom.env.template');
+const COMPOSE = path.join(ROOT, 'deploy/docker/docker-compose.yml');
 
 let seq = 0;
 
@@ -141,6 +142,24 @@ const cases = [
     expect: 1,
     run: async () => {
       const restore = mutate(KEYS_TPL, 'DB_PASSWORD=CHANGE_ME', 'DB_PASSWORD=abcdefghijklmnopqrstuvwxyz012345');
+      try { return await runGuard(); } finally { restore(); }
+    },
+  },
+  {
+    name: '⑤ docker-compose 漏掉 keys.env → 应红（2026-11-23 新增）',
+    expect: 1,
+    run: async () => {
+      const restore = mutate(COMPOSE, '      - /etc/lesson/keys.env\n', '');
+      try { return await runGuard(); } finally { restore(); }
+    },
+  },
+  {
+    name: '⑤ docker-compose 把 keys.env 排在业务 env 之后 → 应红',
+    expect: 1,
+    run: async () => {
+      const from = '      - /etc/lesson/keys.env\n      - /etc/lesson/booking.env';
+      const to = '      - /etc/lesson/booking.env\n      - /etc/lesson/keys.env';
+      const restore = mutate(COMPOSE, from, to);
       try { return await runGuard(); } finally { restore(); }
     },
   },

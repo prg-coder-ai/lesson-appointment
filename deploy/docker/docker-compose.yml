@@ -45,7 +45,11 @@ services:
   booking:
     <<: *backend
     image: "lesson/booking-api:${BOOKING_TAG:?BOOKING_TAG-not-set}"
+    # ★ 顺序与 booking.service 的 EnvironmentFile 完全一致：keys.env 在前、业务 env 在后。
+    #   Compose 与 systemd 都是「后加载覆盖先加载」，所以 xxx.env 里不得再出现
+    #   JWT_SECRET / AES_KEY / HMAC_KEY —— 写了就会把共用密钥冲掉（2026-11-21 事故）。
     env_file:
+      - /etc/lesson/keys.env
       - /etc/lesson/booking.env
     environment:
       # 容器内没有 home 目录（运行 uid 在容器 /etc/passwd 里查不到，user.home 会退化成 "?"），
@@ -68,7 +72,9 @@ services:
   message:
     <<: *backend
     image: "lesson/message-service:${MESSAGE_TAG:?MESSAGE_TAG-not-set}"
+    # 同 booking：keys.env 必须在前（三服务共用同一套密钥）
     env_file:
+      - /etc/lesson/keys.env
       - /etc/lesson/message.env
     environment:
       HOME: /app
@@ -85,7 +91,9 @@ services:
   classroom:
     <<: *backend
     image: "lesson/classroom-service:${CLASSROOM_TAG:?CLASSROOM_TAG-not-set}"
+    # 同 booking：keys.env 必须在前（课堂还要用它校验跨服务 token）
     env_file:
+      - /etc/lesson/keys.env
       - /etc/lesson/classroom.env
     environment:
       HOME: /app
