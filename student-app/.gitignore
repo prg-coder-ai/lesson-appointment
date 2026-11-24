@@ -1,0 +1,16 @@
+# 构建产物（由 npm run build 生成）
+www/
+
+# Capacitor 原生工程（由 npx cap add 生成，体积大且不纳入源码管理）
+android/
+ios/
+
+# Capacitor 配置（由 build.js 从 environments.js 生成，环境相关）
+capacitor.config.json
+
+# 依赖
+node_modules/
+
+# 本地环境覆盖
+.env.local
+config/environments.local.js

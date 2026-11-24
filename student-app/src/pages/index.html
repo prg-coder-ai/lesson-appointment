@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#1f6feb">
+  <title>预约课堂 · 启动中</title>
+  <!-- 运行时配置 + 适配桥（顺序：配置 -> 桥） -->
+  <script src="app-config.js"></script>
+  <script src="app-bridge.js"></script>
+  <style>
+    html, body { margin: 0; height: 100%; background: #f5f7fa; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+    .boot { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #5b6472; gap: 14px; }
+    .boot .spin { width: 34px; height: 34px; border: 3px solid #dbe3ee; border-top-color: #1f6feb; border-radius: 50%; animation: r .8s linear infinite; }
+    .boot .tip { font-size: 14px; }
+    @keyframes r { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="boot">
+    <div class="spin"></div>
+    <div class="tip" id="boot-tip">正在进入预约课堂…</div>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+    var cfg = window.APP_CONFIG || {};
+    var tip = document.getElementById('boot-tip');
+
+    // 从 URL 读 tCode（租户专属链接），透传给登录页，避免租户参数在启动跳转中丢失
+    function tCode() {
+      var m = location.search.match(/[?&]tCode=([^&]*)/);
+      return m ? decodeURIComponent(m[1]) : '';
+    }
+    function withTCode(url) {
+      var code = tCode();
+      if (!code) return url;
+      return url + (url.indexOf('?') >= 0 ? '&' : '?') + 'tCode=' + encodeURIComponent(code);
+    }
+
+    var target;
+    if (cfg.frontendOrigin) {
+      // server 模式：WebView 加载线上前端的登录入口（同源，零改动复用全部业务逻辑）
+      target = cfg.frontendOrigin.replace(/\/+$/, '') + '/index.html';
+    } else {
+      // local 模式：加载随包打进来的静态登录页
+      target = './login.html';
+    }
+    target = withTCode(target);
+
+    // 若线上入口不可达，给出可诊断的提示，而不是白屏
+    if (cfg.frontendOrigin) {
+      var timer = setTimeout(function () {
+        tip.innerHTML = '连接服务器较慢，请检查网络。<br><small>' + cfg.frontendOrigin + '</small>';
+      }, 5000);
+      window.__APP_BOOT_TIMER__ = timer;
+    }
+
+    location.replace(target);
+  })();
+  </script>
+</body>
+</html>

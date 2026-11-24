@@ -1,0 +1,24 @@
+{
+  "name": "lesson-student-crossplatform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "学生端一码多端框架：一套 Web 代码，运行于浏览器 / iOS / Android（Capacitor 套壳）",
+  "scripts": {
+    "sync": "node scripts/sync.js",
+    "build": "node scripts/build.js",
+    "cap:add:android": "cap add android",
+    "cap:add:ios": "cap add ios",
+    "cap:sync": "cap sync",
+    "dev:web": "node scripts/serve.js"
+  },
+  "dependencies": {
+    "@capacitor/core": "^6.1.0",
+    "@capacitor/browser": "^6.0.0",
+    "@capacitor/app": "^6.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.0",
+    "@capacitor/android": "^6.1.0",
+    "@capacitor/ios": "^6.1.0"
+  }
+}
