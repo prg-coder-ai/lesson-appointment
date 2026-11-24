@@ -50,6 +50,37 @@ const PATCHES = [
     docRef: '方案 §6.3 / 附录A classroom.js:49, feature-flags.js:225',
     verify: '补丁后 www/classroom.html 应包含 app-entry-guard.js 引用'
   },
+  {
+    id: 'FP-007a',
+    title: '课堂页注入 App 权限引导',
+    target: 'classroom.html',
+    mode: 'inject',
+    priority: 'P1',
+    status: 'active',
+    marker: '<!-- FP-007a:app-permissions -->',
+    inject: '<script src="app-permissions.js"></script>',
+    position: 'beforeHeadClose',
+    reason:
+      '原 media-devices.js 权限提示是浏览器文案（点地址栏锁图标），App WebView 不适用。' +
+      '注入权限引导脚本：NotAllowedError 弹系统设置提示、getDisplayMedia 不可用降级。',
+    docRef: '方案 §6.1 / §6.4',
+    verify: '补丁后 www/classroom.html 应包含 app-permissions.js 引用'
+  },
+  {
+    id: 'FP-007b',
+    title: '课前检测页注入 App 权限引导',
+    target: 'classroom-prep.html',
+    mode: 'inject',
+    priority: 'P1',
+    status: 'active',
+    marker: '<!-- FP-007b:app-permissions -->',
+    inject: '<script src="app-permissions.js"></script>',
+    position: 'beforeHeadClose',
+    reason:
+      '课前检测页也会 getUserMedia 做设备预检，同样需要 App 场景的权限提示。',
+    docRef: '方案 §6.1 / §6.4',
+    verify: '补丁后 www/classroom-prep.html 应包含 app-permissions.js 引用'
+  },
 
   // ---------------- P0/P1：仅记录，待上游人工修改（不动原文件） ----------------
   {

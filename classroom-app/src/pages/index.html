@@ -31,12 +31,22 @@
       var err = document.getElementById('boot-err');
 
       function go() {
-        // 已登录 → 按角色跳对应工作台；未登录 → 登录页
         var info = window.RoleRouter ? window.RoleRouter.resolve() : { authenticated: false, target: 'login.html' };
-        // server 模式：线上同源，登录页就是站点login；local 模式：本地login.html
-        var target = info.authenticated ? info.target : 'login.html';
-        if (msg) msg.textContent = info.authenticated ? '已进入 ' + (info.displayName || '') : '正在打开登录…';
-        window.location.replace(target);
+        var p = (window.RoleRouter && window.RoleRouter.params) ? window.RoleRouter.params() : {};
+
+        // 深链透传：带 scheduleId 的通知/二维码 → 交统一入口页按 intent 分流
+        if (p.scheduleId) {
+          var qs = window.location.search || '';
+          window.location.replace('my-classroom.html' + qs);
+          return;
+        }
+        if (!info.authenticated) {
+          window.location.replace('login.html');
+          return;
+        }
+        // 已登录且无深链 → 统一入口页（再按角色进工作台，保证单一入口）
+        if (msg) msg.textContent = '已进入 ' + (info.displayName || '');
+        window.location.replace('my-classroom.html');
       }
 
       // 短延迟让桥接层的双基址覆盖先 install 完成

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>云课堂 · 代码自检面板</title>
+  <style>
+    :root { --ok:#15803d; --okbg:#f0fdf4; --bad:#b91c1c; --badbg:#fef2f2; --line:#e5e7eb; --ink:#1f2937; --sub:#6b7280; --brand:#1f6feb; }
+    * { box-sizing:border-box; }
+    body { margin:0; padding:20px 16px 60px; background:#f8fafc; color:var(--ink);
+      font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif; }
+    .wrap { max-width:920px; margin:0 auto; }
+    h1 { font-size:20px; margin:0 0 4px; }
+    .lead { color:var(--sub); font-size:13px; margin:0 0 18px; }
+    .summary { border-radius:12px; padding:16px 20px; margin-bottom:18px; color:#fff; }
+    .summary.allok { background:linear-gradient(135deg,#15803d,#22a06b); }
+    .summary.hasbad { background:linear-gradient(135deg,#b91c1c,#dc2626); }
+    .summary .big { font-size:30px; font-weight:700; line-height:1.2; }
+    .summary .big small { font-size:15px; font-weight:500; opacity:.9; }
+    .summary .sub { font-size:13px; opacity:.92; margin-top:2px; }
+    .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 20px; margin-bottom:16px; }
+    .card h2 { font-size:14px; margin:0 0 12px; color:var(--brand); }
+    .rows { display:flex; flex-direction:column; gap:1px; }
+    section { margin-bottom:16px; }
+    section h2 { font-size:13px; color:var(--sub); font-weight:600; margin:0 0 6px; text-transform:uppercase; letter-spacing:.04em; }
+    .row { display:flex; align-items:baseline; gap:10px; padding:6px 10px; border-radius:6px; }
+    .row.ok { background:var(--okbg); }
+    .row.bad { background:var(--badbg); }
+    .mark { font-weight:700; width:16px; flex:none; }
+    .row.ok .mark { color:var(--ok); }
+    .row.bad .mark { color:var(--bad); }
+    .name { font-weight:500; flex:none; min-width:250px; }
+    .detail { color:var(--sub); font-size:12px; word-break:break-all; }
+    .buttons { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+    button, .link { display:inline-block; border:1px solid var(--line); background:#fff; color:var(--ink);
+      padding:7px 14px; border-radius:8px; font-size:13px; cursor:pointer; text-decoration:none; }
+    button:hover, .link:hover { border-color:var(--brand); color:var(--brand); }
+    button[data-role="student"] { border-color:#93c5fd; }
+    button[data-role="teacher"] { border-color:#86efac; }
+    button[data-role="admin"] { border-color:#fcd34d; }
+    button[data-role="platform_admin"] { border-color:#c4b5fd; }
+    .kv { display:flex; justify-content:space-between; gap:12px; padding:5px 0; border-bottom:1px dashed var(--line); }
+    .kv:last-child { border-bottom:0; }
+    .kv span { color:var(--sub); }
+    .kv b { font-weight:600; word-break:break-all; text-align:right; }
+    .warn { display:none; background:#fffbeb; border:1px solid #fcd34d; color:#92400e;
+      padding:12px 16px; border-radius:8px; margin-bottom:16px; font-size:13px; }
+    code { background:#f1f5f9; padding:1px 5px; border-radius:4px; font-size:12px; }
+    .note { font-size:12px; color:var(--sub); margin-top:10px; }
+  </style>
+  <script src="app-config.js"></script>
+  <script src="app-bridge.js"></script>
+  <script src="role-router.js"></script>
+  <script src="app-permissions.js"></script>
+  <script src="verify.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <h1>课堂独立 App · 代码自检面板</h1>
+  <p class="lead">只读检查当前构建产物：桥接层、配置注入、补丁落位、深链逻辑、角色分流、资源可达。不修改任何文件。</p>
+
+  <div id="file-warn" class="warn">
+    ⚠ 检测到 <code>file://</code> 协议。浏览器会拦截本地 fetch，"补丁"与"资源"检查将误报失败。
+    请用预览服务器打开：<code>node classroom-app/scripts/serve.js 8098</code>，再访问 <code>http://localhost:8098/verify.html</code>。
+  </div>
+
+  <div id="summary" class="summary"><div class="big">检查中…</div></div>
+
+  <div class="card">
+    <h2>角色分流演示（写入本页 localStorage，仅影响本浏览器）</h2>
+    <div class="buttons">
+      <button data-role="student">模拟学生</button>
+      <button data-role="teacher">模拟教师</button>
+      <button data-role="admin">模拟管理员</button>
+      <button data-role="platform_admin">模拟平台管理员</button>
+      <button id="role-clear">清除登录态</button>
+    </div>
+    <div id="role-out"></div>
+    <div class="note">深链格式：<code>classroom.html?scheduleId=&lt;key&gt;</code>；第 2 课次起 key 为 <code>&lt;id&gt;~N</code>。</div>
+  </div>
+
+  <div class="card">
+    <h2>功能入口（真实验证请登录后使用）</h2>
+    <div class="buttons">
+      <a class="link" href="index.html">启动页</a>
+      <a class="link" href="my-classroom.html">统一「我的课堂」</a>
+      <a class="link" href="login.html">登录页</a>
+      <a class="link" href="classroom.html?scheduleId=demo">课堂页（演示 key）</a>
+      <a class="link" href="classroom-prep.html?scheduleId=demo&mode=student">课前检测（学生模式）</a>
+      <a class="link" href="student.html">学生工作台</a>
+      <a class="link" href="teacher.html">教师工作台</a>
+    </div>
+    <div class="note">未登录直接进课堂页会被入口守卫（FP-002）退回登录页——这是预期行为，不是缺陷。
+      登录态需后端签发真实 token；本面板的"角色模拟"只验证分流逻辑，不签发可用的后端会话。</div>
+  </div>
+
+  <div class="card">
+    <h2>检查结果</h2>
+    <div id="checks"></div>
+  </div>
+
+  <div class="card">
+    <h2>原前端零改动（需在命令行验证）</h2>
+    <div class="note">
+      网页自检无法读取构建目录之外的 <code>frontend/</code> 源文件。请在仓库根执行：<br>
+      <code>git diff --stat -- frontend/</code> — 输出为空即原前端零改动。<br>
+      补丁器锚点反向测试：<code>node classroom-app/scripts/patch.js --check</code>。
+    </div>
+  </div>
+</div>
+</body>
+</html>

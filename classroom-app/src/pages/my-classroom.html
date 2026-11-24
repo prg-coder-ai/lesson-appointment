@@ -16,8 +16,12 @@
     .mc-card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
     .mc-card h2{font-size:15px;margin:0 0 8px}
     .mc-card p{font-size:13px;color:#6b7280;line-height:1.7;margin:0 0 12px}
-    .mc-btn{display:inline-block;background:#1f6feb;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:14px;cursor:pointer;text-decoration:none}
+    .mc-btn{display:inline-block;background:#1f6feb;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:14px;cursor:pointer;text-decoration:none;margin:4px 6px 0 0}
+    .mc-btn.ghost{background:#fff;color:#1f6feb;border:1px solid #1f6feb}
     .mc-empty{text-align:center;color:#9ca3af;padding:40px 0;font-size:14px}
+    .mc-join{display:flex;gap:8px;margin-top:8px}
+    .mc-join input{flex:1;min-width:0;border:1px solid #d1d5db;border-radius:8px;padding:9px 10px;font-size:14px}
+    .mc-hint{font-size:12px;color:#9ca3af;margin-top:6px}
   </style>
 </head>
 <body>
@@ -35,50 +39,88 @@
     (function () {
       var box = document.getElementById('mc-list');
       var roleEl = document.getElementById('mc-role');
-      var info = window.RoleRouter ? window.RoleRouter.resolve() : { role: '', authenticated: false, target: 'login.html' };
+      var RR = window.RoleRouter;
+      var info = RR ? RR.resolve() : { role: '', authenticated: false, target: 'login.html' };
 
       if (!info.authenticated) {
         box.innerHTML = '<div class="mc-empty">登录状态已失效，<a href="login.html">请重新登录</a></div>';
+        window.location.replace('login.html?back=my-classroom.html');
+        return;
+      }
+      roleEl.textContent = info.roleLabel || info.role;
+
+      // ★ 深链：URL 带 scheduleId（来自通知/二维码/工作台）→ 按 intent 直达
+      //   ?scheduleId=<key>&intent=classroom  进课堂
+      //   ?scheduleId=<key>&intent=prep       课前检测
+      var p = RR.params();
+      if (p.scheduleId && RR) {
+        var dest = (p.intent === 'prep')
+          ? RR.prepDeepLink(p.scheduleId, info.role)
+          : RR.classroomDeepLink(p.scheduleId);
+        window.location.replace(dest);
         return;
       }
 
-      var ROLE_LABEL = { teacher: '教师', student: '学生', admin: '管理员', platform_admin: '平台管理员' };
-      roleEl.textContent = ROLE_LABEL[info.role] || info.role || '未知';
-
-      // 三角色对应的入口说明；真实列表由各工作台页面（student.html/teacher.html）渲染，
-      // 这里给出跳转入口，保持「一个课堂页、三种入口」的架构。
       var views = {
         student: {
           title: '我的预约与课堂',
-          desc: '查看已预约的课程，按时进入课堂；或输入课堂号直接加入。',
-          btn: '进入学生工作台', href: 'student.html'
+          desc: '查看已预约的课程，按时进入课堂；或输入课次号直接加入。',
+          target: 'student.html'
         },
         teacher: {
           title: '我的排期与开课',
-          desc: '查看今日排期，按课次发起上课；课前可用设备检测确认音视频环境。',
-          btn: '进入教师工作台', href: 'teacher.html'
+          desc: '查看今日排期，按课次发起上课；课前可先做设备检测。',
+          target: 'teacher.html'
         },
         platform_admin: {
           title: '课堂巡课与运维',
           desc: '查看进行中的课堂、强制结束异常课堂（后端权限兜底，前端不越权展示）。',
-          btn: '进入教师工作台', href: 'teacher.html'
+          target: 'teacher.html'
         },
         admin: {
           title: '课堂运营管理',
           desc: '临时建课、加学员、巡课、强制结课、发通知等轻运营能力。',
-          btn: '进入运营台', href: 'admin.html'
+          target: 'admin.html'
         }
       };
+      var v = views[info.role] || { title: '课堂', desc: '未识别的角色。', target: 'login.html' };
 
-      var v = views[info.role] || {
-        title: '课堂', desc: '未识别的角色，默认进入登录页。', btn: '返回登录', href: 'login.html'
-      };
-      box.innerHTML =
+      var html =
         '<div class="mc-card">' +
           '<h2>' + v.title + '</h2>' +
           '<p>' + v.desc + '</p>' +
-          '<a class="mc-btn" href="' + v.href + '">' + v.btn + '</a>' +
+          '<a class="mc-btn" href="' + v.target + '">进入工作台</a>' +
+        '</div>' +
+        '<div class="mc-card">' +
+          '<h2>按课次号进入</h2>' +
+          '<p>输入课堂号（第 1 课次为排期 ID，第 2 课次起为 <code>ID~N</code>）。</p>' +
+          '<div class="mc-join">' +
+            '<input id="mc-sid" type="text" placeholder="课次号 / scheduleId" autocomplete="off">' +
+            '<button class="mc-btn" id="mc-go" type="button">进入</button>' +
+          '</div>' +
+          '<div class="mc-hint">进入前可先做设备检测，避免课堂内调不通音视频。</div>' +
+          '<div style="margin-top:8px">' +
+            '<button class="mc-btn ghost" id="mc-prep" type="button">课前设备检测</button>' +
+          '</div>' +
         '</div>';
+      box.innerHTML = html;
+
+      var sidInput = document.getElementById('mc-sid');
+      function go(intent) {
+        var sid = (sidInput && sidInput.value || '').trim();
+        if (!sid) { if (sidInput) sidInput.focus(); return; }
+        var dest = (intent === 'prep')
+          ? RR.prepDeepLink(sid, info.role)
+          : RR.classroomDeepLink(sid);
+        window.location.href = dest;
+      }
+      var goBtn = document.getElementById('mc-go');
+      var prepBtn = document.getElementById('mc-prep');
+      if (goBtn) goBtn.addEventListener('click', function () { go('classroom'); });
+      if (prepBtn) prepBtn.addEventListener('click', function () { go('prep'); });
+      if (sidInput) sidInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') go('classroom');
+      });
     })();
   </script>
 </body>

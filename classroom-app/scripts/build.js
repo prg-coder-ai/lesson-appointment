@@ -64,7 +64,9 @@ console.log('\n[4/6] 复制适配层...');
 const copyMap = {
   'core/app-bridge.js': 'app-bridge.js',
   'core/app-entry-guard.js': 'app-entry-guard.js',
+  'core/app-permissions.js': 'app-permissions.js',
   'core/role-router.js': 'role-router.js',
+  'core/verify.js': 'verify.js',
   'styles/app.css': 'app.css'
 };
 Object.entries(copyMap).forEach(([from, to]) => {
@@ -89,12 +91,15 @@ const INJECT = MARKER + '\n'
 // 启动页用新工程自己的版本；课堂页的 app-entry-guard 由 patch.js 单独注入。
 const PAGES = ['login.html', 'student.html', 'teacher.html', 'classroom.html', 'classroom-prep.html'];
 
-// 启动页覆盖
-const idxSrc = path.join(SRC, 'pages', 'index.html');
-if (fs.existsSync(idxSrc)) {
-  fs.copyFileSync(idxSrc, path.join(WWW, 'index.html'));
-  console.log('  index.html: 使用课堂 App 启动页（已覆盖）');
-}
+// 启动页 + 统一入口页覆盖（新工程自有页面，不参与注入，避免重复引用）
+const OWN_PAGES = ['index.html', 'my-classroom.html', 'verify.html'];
+OWN_PAGES.forEach((page) => {
+  const src = path.join(SRC, 'pages', page);
+  if (fs.existsSync(src)) {
+    fs.copyFileSync(src, path.join(WWW, page));
+    console.log(`  ${page}: 使用课堂 App 自有页面（已覆盖）`);
+  }
+});
 
 PAGES.forEach((page) => {
   const p = path.join(WWW, page);

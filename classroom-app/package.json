@@ -10,7 +10,8 @@
     "cap:add:android": "cap add android",
     "cap:add:ios": "cap add ios",
     "cap:sync": "cap sync",
-    "dev:web": "node scripts/serve.js"
+    "dev:web": "node scripts/serve.js",
+    "verify:web": "node scripts/serve.js 8098"
   },
   "dependencies": {
     "@capacitor/core": "^6.1.0",

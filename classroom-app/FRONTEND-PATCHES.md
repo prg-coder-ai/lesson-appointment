@@ -32,6 +32,13 @@
 - **原因**：原课堂页只有 `guardClassroom()` 查租户开关，缺 token / 角色 / tCode 一致性校验。守卫脚本是新工程文件，此处只加一行引用。
 - **验证**：www/classroom.html 含 `app-entry-guard.js` 引用。
 
+### FP-007a/b · 课堂/课前页注入 App 权限引导 `P1` `active`
+
+- **目标**：`classroom.html`、`classroom-prep.html` 的 `</head>` 前（www 副本）
+- **注入**：`<script src="app-permissions.js"></script>`
+- **原因**：原 `media-devices.js` 权限提示是浏览器文案（"点地址栏锁图标"），在 App WebView 里不适用。注入的引导脚本包装 `getUserMedia` 捕获 `NotAllowedError` 弹系统设置提示，并在 iOS WebView 下给屏幕共享按钮打降级标记。
+- **验证**：补丁后两个页面均含 `app-permissions.js` 引用；app.css 含 `.app-no-display-capture` 降级样式。
+
 ### FP-003 · 课堂端点登记进 apiPaths.js `P1` `deferred`
 
 - **目标**：`shared/apiPaths.js`（**仅记录，不改**）

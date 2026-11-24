@@ -6,9 +6,14 @@
  *   student                  → 学生工作台（预约 / 课堂号 → 加入）
  *   admin                    → 运营台（巡课 / 强制结课）
  *
- * 本脚本只做「识别当前角色 + 暴露分流决策」，不改写业务页面。
- * 各工作台页面（student.html / teacher.html）由 auth.js 既有逻辑按 role 跳转；
- * role-router 为 App 自研的统一 my-classroom.html 提供数据。
+ * ★ P1 增强：深链构建
+ *   - classroomDeepLink(scheduleId)      → 统一进课堂（课堂页按登录态取 role）
+ *   - prepDeepLink(scheduleId, role)     → 课前检测（学生带 mode=student）
+ *   - params()                            → 解析 URL 参数，支持通知/二维码直达
+ *
+ * 课堂页 URL 契约（与 classroom.html / classroom-prep.html 一致）：
+ *   classroom.html?scheduleId=<key>           第1课次裸id，第2起 "<id>~N"
+ *   classroom-prep.html?scheduleId=<key>[&mode=student]
  */
 (function (global) {
   'use strict';
@@ -18,6 +23,9 @@
     platform_admin: 'teacher.html',
     student: 'student.html',
     admin: 'admin.html'
+  };
+  var ROLE_LABEL = {
+    teacher: '教师', platform_admin: '平台管理员', student: '学生', admin: '管理员'
   };
 
   function currentUser() {
@@ -39,16 +47,15 @@
     return u ? String(u.role || '').toLowerCase() : '';
   }
 
-  function targetFor(role) {
-    return ROLE_TARGET[role] || 'login.html';
-  }
+  function targetFor(role) { return ROLE_TARGET[role] || 'login.html'; }
+  function labelFor(role) { return ROLE_LABEL[role] || role || '未知'; }
 
-  // 供 my-classroom.html 调用：返回当前角色应展示的入口信息
   function resolve() {
     var u = currentUser();
     var role = u ? String(u.role || '').toLowerCase() : '';
     return {
       role: role,
+      roleLabel: labelFor(role),
       target: targetFor(role),
       displayName: (u && (u.name || u.account)) || '',
       tenantCode: (u && (u.tenantCode || u.tCode)) || '',
@@ -56,9 +63,45 @@
     };
   }
 
+  function enc(s) { return encodeURIComponent(String(s == null ? '' : s)); }
+
+  /** 统一进课堂：课堂页按登录态取 role，不信任 URL role（配合 FP-001） */
+  function classroomDeepLink(scheduleId) {
+    if (!scheduleId) return '';
+    return 'classroom.html?scheduleId=' + enc(scheduleId);
+  }
+
+  /** 课前检测：学生带 mode=student，教师/管理员用缺省教师模式 */
+  function prepDeepLink(scheduleId, role) {
+    if (!scheduleId) return '';
+    var r = role || currentRole();
+    var mode = (r === 'student') ? '&mode=student' : '';
+    return 'classroom-prep.html?scheduleId=' + enc(scheduleId) + mode;
+  }
+
+  /** 解析当前 URL 参数 */
+  function params() {
+    var out = {};
+    try {
+      var q = global.location.search.replace(/^\?/, '');
+      q.split('&').forEach(function (kv) {
+        if (!kv) return;
+        var i = kv.indexOf('=');
+        var k = i === -1 ? kv : kv.slice(0, i);
+        var v = i === -1 ? '' : kv.slice(i + 1);
+        try { out[decodeURIComponent(k)] = decodeURIComponent(v); } catch (e) { /* ignore */ }
+      });
+    } catch (e) { /* ignore */ }
+    return out;
+  }
+
   global.RoleRouter = {
     currentRole: currentRole,
     targetFor: targetFor,
-    resolve: resolve
+    labelFor: labelFor,
+    resolve: resolve,
+    classroomDeepLink: classroomDeepLink,
+    prepDeepLink: prepDeepLink,
+    params: params
   };
 })(typeof window !== 'undefined' ? window : this);

@@ -20,3 +20,10 @@ body.classroom-fullscreen { padding: 0; }
 
 /* 返回按钮在原生端的点击区域 */
 .app-back-hit { min-width: 44px; min-height: 44px; }
+
+/* 屏幕共享/录制能力降级：iOS WebView 无 getDisplayMedia 时隐藏相关按钮
+   （class 由 app-permissions.js 探测后打到 html 根元素） */
+html.app-no-display-capture [data-action="screen-share"],
+html.app-no-display-capture [data-action="record"],
+html.app-no-display-capture #btn-record,
+html.app-no-display-capture #btn-screen-share { display: none !important; }
