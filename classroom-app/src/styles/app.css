@@ -1,0 +1,22 @@
+/**
+ * 课堂 App 通用适配样式
+ * - 移动端安全区（iOS 刘海 / Android 手势条）
+ * - 平台标记 class（由 app-bridge.js 打到 body）
+ */
+html, body { margin: 0; padding: 0; }
+
+body {
+  padding-top: env(safe-area-inset-top, 0);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  padding-left: env(safe-area-inset-left, 0);
+  padding-right: env(safe-area-inset-right, 0);
+}
+
+/* iOS 内容不被圆角遮挡 */
+body.app-platform-ios { -webkit-overflow-scrolling: touch; }
+
+/* 课堂区全屏时移除内边距，避免安全区挤压画面 */
+body.classroom-fullscreen { padding: 0; }
+
+/* 返回按钮在原生端的点击区域 */
+.app-back-hit { min-width: 44px; min-height: 44px; }

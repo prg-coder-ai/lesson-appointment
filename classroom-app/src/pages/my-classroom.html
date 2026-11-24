@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>我的课堂</title>
+  <link rel="stylesheet" href="app.css">
+  <script src="app-config.js"></script>
+  <script src="app-bridge.js"></script>
+  <script src="role-router.js"></script>
+  <style>
+    .mc-wrap{max-width:560px;margin:0 auto;padding:24px 18px calc(24px + env(safe-area-inset-bottom))}
+    .mc-head{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+    .mc-head h1{font-size:20px;margin:0;font-weight:600}
+    .mc-role{font-size:12px;color:#fff;background:#1f6feb;border-radius:10px;padding:2px 10px}
+    .mc-card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+    .mc-card h2{font-size:15px;margin:0 0 8px}
+    .mc-card p{font-size:13px;color:#6b7280;line-height:1.7;margin:0 0 12px}
+    .mc-btn{display:inline-block;background:#1f6feb;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:14px;cursor:pointer;text-decoration:none}
+    .mc-empty{text-align:center;color:#9ca3af;padding:40px 0;font-size:14px}
+  </style>
+</head>
+<body>
+  <div class="mc-wrap">
+    <div class="mc-head">
+      <h1>我的课堂</h1>
+      <span class="mc-role" id="mc-role">—</span>
+    </div>
+    <div id="mc-list">
+      <div class="mc-empty">正在识别身份…</div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var box = document.getElementById('mc-list');
+      var roleEl = document.getElementById('mc-role');
+      var info = window.RoleRouter ? window.RoleRouter.resolve() : { role: '', authenticated: false, target: 'login.html' };
+
+      if (!info.authenticated) {
+        box.innerHTML = '<div class="mc-empty">登录状态已失效，<a href="login.html">请重新登录</a></div>';
+        return;
+      }
+
+      var ROLE_LABEL = { teacher: '教师', student: '学生', admin: '管理员', platform_admin: '平台管理员' };
+      roleEl.textContent = ROLE_LABEL[info.role] || info.role || '未知';
+
+      // 三角色对应的入口说明；真实列表由各工作台页面（student.html/teacher.html）渲染，
+      // 这里给出跳转入口，保持「一个课堂页、三种入口」的架构。
+      var views = {
+        student: {
+          title: '我的预约与课堂',
+          desc: '查看已预约的课程，按时进入课堂；或输入课堂号直接加入。',
+          btn: '进入学生工作台', href: 'student.html'
+        },
+        teacher: {
+          title: '我的排期与开课',
+          desc: '查看今日排期，按课次发起上课；课前可用设备检测确认音视频环境。',
+          btn: '进入教师工作台', href: 'teacher.html'
+        },
+        platform_admin: {
+          title: '课堂巡课与运维',
+          desc: '查看进行中的课堂、强制结束异常课堂（后端权限兜底，前端不越权展示）。',
+          btn: '进入教师工作台', href: 'teacher.html'
+        },
+        admin: {
+          title: '课堂运营管理',
+          desc: '临时建课、加学员、巡课、强制结课、发通知等轻运营能力。',
+          btn: '进入运营台', href: 'admin.html'
+        }
+      };
+
+      var v = views[info.role] || {
+        title: '课堂', desc: '未识别的角色，默认进入登录页。', btn: '返回登录', href: 'login.html'
+      };
+      box.innerHTML =
+        '<div class="mc-card">' +
+          '<h2>' + v.title + '</h2>' +
+          '<p>' + v.desc + '</p>' +
+          '<a class="mc-btn" href="' + v.href + '">' + v.btn + '</a>' +
+        '</div>';
+    })();
+  </script>
+</body>
+</html>
