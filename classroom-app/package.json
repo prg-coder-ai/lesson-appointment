@@ -11,7 +11,8 @@
     "cap:add:ios": "cap add ios",
     "cap:sync": "cap sync",
     "dev:web": "node scripts/serve.js",
-    "verify:web": "node scripts/serve.js 8098"
+    "verify:web": "node scripts/serve.js 8098",
+    "build:local": "APP_MODE=local node scripts/build.js"
   },
   "dependencies": {
     "@capacitor/core": "^6.1.0",

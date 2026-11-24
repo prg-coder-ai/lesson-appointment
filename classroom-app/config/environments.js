@@ -19,14 +19,23 @@
 
 const ENV = (process.env.APP_ENV || 'prod').toLowerCase();
 
+// 模式开关：APP_MODE=local 时强制走本地包（frontendOrigin 置空），
+// 并要求三套绝对地址齐全；缺省为 server 模式（WebView 加载线上同源前端）。
+// 也可用 FRONTEND_ORIGIN='' 显式留空来表达 local，二者等价。
+const MODE = (process.env.APP_MODE || 'server').toLowerCase();
+const IS_LOCAL = MODE === 'local' || process.env.FRONTEND_ORIGIN === '';
+
 const config = {
   env: ENV,
+  mode: IS_LOCAL ? 'local' : 'server',
 
   // ---- server 模式 ----
   // 线上前端站点根地址（结尾不带 /）。设为 '' 表示用 local 模式。
-  frontendOrigin: ENV === 'dev'
-    ? (process.env.FRONTEND_ORIGIN || 'http://192.168.1.10:8080')
-    : (process.env.FRONTEND_ORIGIN || 'https://your-domain.com'),
+  frontendOrigin: IS_LOCAL
+    ? ''
+    : (ENV === 'dev'
+      ? (process.env.FRONTEND_ORIGIN || 'http://192.168.1.10:8080')
+      : (process.env.FRONTEND_ORIGIN || 'https://your-domain.com')),
 
   // ---- local 模式：三套绝对地址（server 模式下全部留空）----
   apiOrigin: process.env.API_ORIGIN || '',

@@ -41,8 +41,20 @@ run('\n[2/6] 应用前端改动记录补丁...', 'patch.js');
 console.log('\n[3/6] 注入运行时配置...');
 const tplPath = path.join(SRC, 'core', 'app-config.js');
 let cfgTpl = fs.readFileSync(tplPath, 'utf8');
+// local 模式前置校验：三套绝对地址缺一则终止，避免运行时 API/WS 打到 capacitor://localhost
+if (CONFIG.mode === 'local') {
+  const missing = ['apiOrigin', 'classroomApiOrigin', 'classroomWsOrigin']
+    .filter((k) => !CONFIG[k]);
+  if (missing.length) {
+    console.error('[local 模式] 缺少必需的环境变量：' + missing.join(', '));
+    console.error('  请设置 API_ORIGIN / CLASSROOM_API_ORIGIN / CLASSROOM_WS_ORIGIN 后重新构建。');
+    console.error('  或改用 server 模式（默认）。详见 LOCAL-MODE.md。');
+    process.exit(1);
+  }
+}
 const runtimeConfig = {
   env: CONFIG.env,
+  mode: CONFIG.mode || 'server',
   frontendOrigin: CONFIG.frontendOrigin || '',
   apiOrigin: CONFIG.apiOrigin || '',
   classroomApiOrigin: CONFIG.classroomApiOrigin || '',
@@ -67,6 +79,7 @@ const copyMap = {
   'core/app-permissions.js': 'app-permissions.js',
   'core/role-router.js': 'role-router.js',
   'core/verify.js': 'verify.js',
+  'core/ops-lite.js': 'ops-lite.js',
   'styles/app.css': 'app.css'
 };
 Object.entries(copyMap).forEach(([from, to]) => {
@@ -92,7 +105,7 @@ const INJECT = MARKER + '\n'
 const PAGES = ['login.html', 'student.html', 'teacher.html', 'classroom.html', 'classroom-prep.html'];
 
 // 启动页 + 统一入口页覆盖（新工程自有页面，不参与注入，避免重复引用）
-const OWN_PAGES = ['index.html', 'my-classroom.html', 'verify.html'];
+const OWN_PAGES = ['index.html', 'my-classroom.html', 'verify.html', 'ops.html'];
 OWN_PAGES.forEach((page) => {
   const src = path.join(SRC, 'pages', page);
   if (fs.existsSync(src)) {
@@ -139,7 +152,9 @@ fs.writeFileSync(
 );
 
 console.log('\n构建完成。');
-console.log('  运行模式:', CONFIG.frontendOrigin ? 'server（加载 ' + CONFIG.frontendOrigin + '）' : 'local（本地 www）');
+console.log('  运行模式:', CONFIG.mode === 'local'
+  ? 'local（本地 www + 绝对 API/WS 基址）'
+  : 'server（加载 ' + CONFIG.frontendOrigin + '）');
 console.log('  产物目录:', WWW);
 console.log('\n后端地址三套（server 模式留空走同源代理）：');
 console.log('  ① apiOrigin         =', CONFIG.apiOrigin || '(同源)');

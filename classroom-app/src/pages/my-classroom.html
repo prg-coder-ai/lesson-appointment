@@ -75,12 +75,14 @@
         platform_admin: {
           title: '课堂巡课与运维',
           desc: '查看进行中的课堂、强制结束异常课堂（后端权限兜底，前端不越权展示）。',
-          target: 'teacher.html'
+          target: 'teacher.html',
+          ops: true
         },
         admin: {
           title: '课堂运营管理',
           desc: '临时建课、加学员、巡课、强制结课、发通知等轻运营能力。',
-          target: 'admin.html'
+          target: 'admin.html',
+          ops: true
         }
       };
       var v = views[info.role] || { title: '课堂', desc: '未识别的角色。', target: 'login.html' };
@@ -90,6 +92,7 @@
           '<h2>' + v.title + '</h2>' +
           '<p>' + v.desc + '</p>' +
           '<a class="mc-btn" href="' + v.target + '">进入工作台</a>' +
+          (v.ops ? ' <a class="mc-btn" href="ops.html">轻运营（巡课/强结/分发）</a>' : '') +
         '</div>' +
         '<div class="mc-card">' +
           '<h2>按课次号进入</h2>' +

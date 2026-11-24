@@ -61,6 +61,17 @@
 - **目标**：`classroom-admin.js`（**仅记录，不改**）
 - **原因**：`forceEnd` 的 `ctx.role !== 'admin'` 是纯前端判断可绕过。独立 App 保留后端 `accessGuard` 作为最终边界即可。
 
+### FP-008 · 轻运营端点已登记（无需新增 patch） `P2` `resolved`
+
+- **目标**：无（端点已存在于 `shared/apiPaths.js`，无需改原前端）
+- **背景**：P2 轻运营三件套（巡课/强结/发通知）所需端点均已在 `shared/apiPaths.js` 登记：
+  `CLASSROOM_ADMIN_CLASSROOMS:366`、`CLASSROOM_ADMIN_END:374`、`MSG_SEND:166`、
+  `CLASSROOM_STATUS:340`、`CLASSROOM_MEMBERS:343`、`USER_BRIEFS:120`。
+- **动作**：新工程 `src/core/ops-lite.js` 直接引用 `window.ApiPaths.ENDPOINTS` 常量，
+  不新增字面量端点。仅 `api.js:1233-1238` 的 `monitorClassrooms` / `remoteEndClass`
+  字面量仍未单独登记（与 FP-003 同类，同路径登记名已存在，功能不受影响）。
+- **边界**：只做三件套，未纳入 `ops.js` 的报表/对账/审核/契约联调五个重后台 tab。
+
 ## 审计
 
 运行 `node classroom-app/scripts/patch.js --check` 可在不写文件的前提下校验所有 active 补丁锚点是否仍有效。构建日志会打印每条补丁的应用/跳过/失败状态。

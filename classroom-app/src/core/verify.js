@@ -100,9 +100,11 @@
   // ---------- 4) 关键资源可达 ----------
   function checkResources() {
     var urls = ['index.html', 'my-classroom.html', 'login.html', 'student.html', 'teacher.html',
-      'classroom.html', 'classroom-prep.html', 'app.css', 'app-config.js', 'app-bridge.js',
-      'app-entry-guard.js', 'app-permissions.js', 'role-router.js',
-      'js/classroom/classroom-main.js', 'js/classroom/classroom-prep.js', 'js/public/api.js'];
+      'classroom.html', 'classroom-prep.html', 'ops.html', 'verify.html',
+      'app.css', 'app-config.js', 'app-bridge.js',
+      'app-entry-guard.js', 'app-permissions.js', 'role-router.js', 'ops-lite.js',
+      'js/classroom/classroom-main.js', 'js/classroom/classroom-prep.js', 'js/public/api.js',
+      'js/shared-domain-bridge.js', 'js/public/utility_request.js'];
     return Promise.all(urls.map(function (u) {
       return fetch(u, { method: 'GET', cache: 'no-store' }).then(function (r) {
         add('资源', u, r.ok, 'HTTP ' + r.status);
