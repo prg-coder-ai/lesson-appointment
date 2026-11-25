@@ -1,0 +1,248 @@
+# ==============================================================================
+# 前端容器站点配置（模板）
+#
+# 这份文件是**模板**：构建时烤进镜像 /opt/nginx/default.conf.template，
+# 容器启动时由 docker-entrypoint.d/00-preflight.sh 用白名单 envsubst 渲染到
+# /etc/nginx/conf.d/default.conf，然后 nginx -t 通过才启动。
+#
+# 三个占位符：${BOOKING_UPSTREAM} / ${MSG_UPSTREAM} / ${CLASSROOM_UPSTREAM}
+#
+# ★ 关键设计：占位符渲染成**字面量地址**，而不是 nginx 变量
+#     渲染后 → proxy_pass http://127.0.0.1:8081;
+#     而不是 → set $up "..."; proxy_pass $up;
+#
+#   为什么这点重要（云托管那份配置就是变量形式，不能照抄）：
+#     ① 变量形式的 proxy_pass 要求配置里有 resolver，缺了**每个请求** 502，
+#        而 `nginx -t` 查不出来（这是请求期行为）。云托管为此专门写了
+#        00-resolver.sh 从 /etc/resolv.conf 生成 resolver，取不到就 exit 1。
+#        本机上游就是 127.0.0.1，静态可得，没必要引入这个依赖。
+#     ② 变量形式下 proxy_set_header 若没显式写，Host 默认取 $proxy_host，
+#        即变量解析出的「主机:端口」；字面量形式默认也是 $proxy_host，但我们
+#        在 proxy_params 里显式写了 `Host $http_host`，语义固定，不随形式变化。
+#
+# ★ 第二个关键设计：所有 API location 一律用 `^~`
+#
+#   nginx 的优先级是：`=` 精确 > `^~` 前缀(命中即止) > 正则 > 普通前缀(最长)。
+#   下面有一条静态资源正则 `~* \.(js|css|...|mp4|...)$`。若 API 前缀写成普通
+#   `location /api/v1/files/`，那么 GET /api/v1/files/xxx.mp4 会**先命中正则**，
+#   变成「在静态根下找这个文件」→ 404。表现是「课件/录播的视频打不开，其他都正常」，
+#   而且换个后缀（.png 也一样在正则表里）同样中招。
+#   云托管那份 default.conf.template 里 `^~` 出现 0 次 —— 它就是踩这个坑的，
+#   别把这处「优化」抄过来。
+#
+# ★ 第三个关键设计：没有 limit_req
+#   限流 zone（limit_req_zone）只能定义在 http{} 上下文。容器内自带一套会让
+#   限流口径分成两处（宿主机一份、容器一份），很难对齐。本方案里容器只做
+#   「静态托管 + 反代」，限流/安全头/TLS 全部留在宿主机 nginx —— 那一层本来
+#   就为这个目的配好并跑通过了（deploy/nginx/booking.conf）。
+# ==============================================================================
+
+server {
+    listen       8080;
+    server_name  _;
+
+    root   /var/www/frontend;
+    index  login.html;
+
+    charset utf-8;
+
+    # 上传课件、教师头像都走这个容器反代。nginx 默认 1m，超过直接 413，
+    # 而前端只看得到「上传失败」，没有任何可用信息。
+    client_max_body_size 20m;
+
+    # 反代超时：SSE 与 WebSocket 在各自的 location 里单独放宽，这里只给普通接口
+    proxy_connect_timeout 10s;
+    proxy_send_timeout    120s;
+    proxy_read_timeout    120s;
+
+    # --------------------------------------------------------------------------
+    # 健康检查：只证明「本容器的 nginx 活着且配置已生效」，不探上游。
+    # 打上游的话，后端一宕容器就被 docker 判不健康 → 反复重启 → 静态站点一起没了，
+    # 用户看到的是白屏而不是「服务维护中」。
+    # --------------------------------------------------------------------------
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    # ==========================================================================
+    # 一、课堂服务 classroom-service :8092
+    #     清单与 doc-develop/90-tools/dev-proxy.js#toClassroomService 逐条对齐。
+    #     漏一条 = 那条接口走到 8081 → 主服务没有该映射 → SecurityConfig denyAll
+    #     → 403「无权限访问该资源」。看起来像权限问题，实际是分流漏了。
+    # ==========================================================================
+
+    # 无子段的端点必须单独用 `=`
+    #   POST /api/v1/admin/classrooms（创建临时课堂）路径恰好等于前缀去尾斜杠，
+    #   永远匹配不到带尾斜杠的 `^~ /api/v1/admin/classrooms/`。
+    #   dev-proxy.js 里对同一处有注释，nginx 侧对应这一行。
+    location = /api/v1/admin/classrooms {
+        include /opt/nginx/proxy_params;
+        proxy_pass ${CLASSROOM_UPSTREAM};
+    }
+
+    location ^~ /api/v1/admin/classrooms/ { include /opt/nginx/proxy_params; proxy_pass ${CLASSROOM_UPSTREAM}; }
+    location ^~ /api/v1/admin/monitor/    { include /opt/nginx/proxy_params; proxy_pass ${CLASSROOM_UPSTREAM}; }
+    location ^~ /api/v1/admin/reports/    { include /opt/nginx/proxy_params; proxy_pass ${CLASSROOM_UPSTREAM}; }
+    location ^~ /api/v1/admin/reconcile/  { include /opt/nginx/proxy_params; proxy_pass ${CLASSROOM_UPSTREAM}; }
+    location ^~ /api/v1/admin/audit/      { include /opt/nginx/proxy_params; proxy_pass ${CLASSROOM_UPSTREAM}; }
+    location ^~ /api/v1/admin/contract/   { include /opt/nginx/proxy_params; proxy_pass ${CLASSROOM_UPSTREAM}; }
+    location ^~ /api/v1/admin/exports/    { include /opt/nginx/proxy_params; proxy_pass ${CLASSROOM_UPSTREAM}; }
+    location ^~ /api/v1/classrooms/       { include /opt/nginx/proxy_params; proxy_pass ${CLASSROOM_UPSTREAM}; }
+    location ^~ /api/v1/attendance/       { include /opt/nginx/proxy_params; proxy_pass ${CLASSROOM_UPSTREAM}; }
+    location ^~ /api/v1/recordings/       { include /opt/nginx/proxy_params; proxy_pass ${CLASSROOM_UPSTREAM}; }
+    location ^~ /api/v1/uploads/          { include /opt/nginx/proxy_params; proxy_pass ${CLASSROOM_UPSTREAM}; }
+    location ^~ /api/v1/files/            { include /opt/nginx/proxy_params; proxy_pass ${CLASSROOM_UPSTREAM}; }
+    location ^~ /api/v1/rtc/              { include /opt/nginx/proxy_params; proxy_pass ${CLASSROOM_UPSTREAM}; }
+
+    # ★ 复数 schedules 归课堂（排期事件接收 / 对账）；
+    #   单数 /api/v1/schedule（detail / class-instances / listByTeacher）归 booking，
+    #   由下面的 `^~ /api/v1/` 兜到 8081。别为了「整齐」把这两条合并 —— 合并后
+    #   排期查询会整片打到课堂服务，全站 404。
+    location ^~ /api/v1/schedules/ {
+        include /opt/nginx/proxy_params;
+        proxy_pass ${CLASSROOM_UPSTREAM};
+    }
+
+    # 课堂 WebSocket（在线态/信令）。走长连接，超时要放到 1 小时。
+    # Connection 用字面量 "upgrade"：本 location 只承载 WS，不需要按 $http_upgrade
+    # 做 map 区分（那样还得在 http 上下文加 map，多一处失败面）。
+    location ^~ /ws/classrooms/ {
+        proxy_pass ${CLASSROOM_UPSTREAM};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade    $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host              $http_host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $lesson_fwd_proto;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+
+    # 课堂回调（下课收尾回执等）留在主服务 8081，不在课堂服务。
+    # 这条容易被「/api/v1/classroom 开头都是课堂服务的」直觉放错。
+    location ^~ /api/v1/classroom-callback/ {
+        include /opt/nginx/proxy_params;
+        proxy_pass ${BOOKING_UPSTREAM};
+    }
+
+    # ==========================================================================
+    # 二、消息服务 message-service :8090
+    #     清单与 dev-proxy.js#toMessageService 逐条对齐。
+    # ==========================================================================
+
+    # SSE 长连接：必须关缓冲，否则消息「有但几十秒后才出现」。
+    #   Connection '' 清空（HTTP/1.1 下 keep-alive 会把事件攒在一个流里，浏览器
+    #   收不到逐条事件）；proxy_cache off 防中间缓存；read_timeout 放到 1 小时。
+    location ^~ /api/v1/sse {
+        include /opt/nginx/proxy_params;
+        proxy_pass ${MSG_UPSTREAM};
+        proxy_set_header Connection '';
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 3600s;
+        chunked_transfer_encoding on;
+    }
+
+    # 前缀 /api/v1/message 同时覆盖 messages / message-categories / message-templates
+    # （三者都以 /api/v1/message 开头），不需要三条。
+    location ^~ /api/v1/message   { include /opt/nginx/proxy_params; proxy_pass ${MSG_UPSTREAM}; }
+    location ^~ /api/v1/sensitive { include /opt/nginx/proxy_params; proxy_pass ${MSG_UPSTREAM}; }
+
+    # 用户简要信息（发件人/收件人姓名）在消息服务里，注意是带尾斜杠的 users/
+    location ^~ /api/v1/users/    { include /opt/nginx/proxy_params; proxy_pass ${MSG_UPSTREAM}; }
+
+    # 消息服务联通性探针（运维用，前端不调）
+    location = /msg-health {
+        access_log off;
+        include /opt/nginx/proxy_params;
+        proxy_pass ${MSG_UPSTREAM}/api/v1/system/info;
+    }
+
+    # ==========================================================================
+    # 三、主服务 booking-api :8081（兜底）
+    # ==========================================================================
+
+    location ^~ /actuator/ {
+        include /opt/nginx/proxy_params;
+        proxy_pass ${BOOKING_UPSTREAM};
+    }
+
+    # 注意用 ^~：否则 /api/v1/ 下任何以 .js/.png/.mp4 结尾的路径都会被下面的
+    # 静态正则抢走。这是本文件里最重要的一条 ^~。
+    location ^~ /api/v1/ {
+        include /opt/nginx/proxy_params;
+        proxy_pass ${BOOKING_UPSTREAM};
+    }
+
+    # ==========================================================================
+    # 四、静态资源
+    # ==========================================================================
+
+    # 缓存控制一律用 expires，不用 add_header Cache-Control：
+    #   nginx 的 add_header 是**覆盖式继承** —— 某个 location 里只要出现一条
+    #   add_header，server 级那组安全头就整组不再下发到这个 location 的响应。
+    #   js/css/html 恰恰是安全头审计最常查的对象，用 expires 才能两者兼得。
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?|ttf|eot|otf|mp4|webm|webp)$ {
+        expires 7d;
+        try_files $uri =404;
+        access_log off;
+    }
+
+    # 本项目是**多页应用**（login / admin / teacher / student / platform_admin…），
+    # 不做 SPA 的 index.html 回退：
+    #   路径不对就该 404。回退会让错链静默变成首页，误点一个拼错的地址还能"正常"
+    #   打开，排查时极难发现；静态资源缺失也会被替换成 HTML（200 + text/html），
+    #   浏览器控制台只报语法错误，完全看不出是 404。
+    #
+    # 注意：宿主机 deploy/nginx/booking.conf 这里是 `try_files $uri $uri/ /login.html`
+    # （带 SPA 兜底），与本文件口径不同。那份是 80/443 入口层的历史写法，容器这层
+    # 是内层，严格 404 才有诊断价值 —— 若两层都兜底，404 会被兜两次，永远查不出来。
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    # HTML 每次回源校验：多页应用的 html 一改就要立刻生效，缓存 7d 会让用户
+    # 在新版本上线后仍然拿到旧页面（而 js 是新 hash 的，出现白屏）。
+    location ~* \.html$ {
+        expires -1;
+    }
+
+    # 版本信息与小程序远程配置：必须 no-cache，否则改了看不到
+    location = /build-info.json {
+        expires -1;
+    }
+
+    # 小程序 onLaunch 拉这个文件取上游地址（免重新发版）。
+    # 这个文件不在 dist 里，是部署时挂进来的（见 docker-compose 的 volumes），
+    # 所以既要 no-cache，也要允许不存在时 404（不挂就是 404，小程序回落 env）。
+    location = /app-config.json {
+        expires -1;
+    }
+
+    # ==========================================================================
+    # 五、gzip
+    # ==========================================================================
+    gzip on;
+    # 不要压缩 text/event-stream —— 压缩会引入缓冲，SSE 立刻变「卡」。
+    gzip_types text/plain text/css application/json application/javascript
+               application/xml text/xml application/xml+rss image/svg+xml;
+    gzip_min_length 1024;
+    gzip_comp_level 6;
+    gzip_vary on;
+    gzip_disable "msie6";
+
+    # ==========================================================================
+    # 六、安全响应头（默认关闭，见理由）
+    #
+    # 本容器是被宿主机 nginx(443) 反代的内层，安全头由宿主机那份 server 块统一下发
+    # （deploy/nginx/booking.conf 第 44-49 行有 6 条 + HSTS）。两层都加会让响应里
+    # 出现两条同名头，X-Frame-Options 这类「取第一个」的字段行为取决于浏览器实现。
+    #
+    # 若把本容器**直接**暴露给浏览器（不经过宿主机 nginx，见文档「方案 A」），
+    # 取消下面 include 的注释即可。
+    # ==========================================================================
+    # include /opt/nginx/security-headers.conf;
+}

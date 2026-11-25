@@ -1,0 +1,60 @@
+ #============================================================
+# classroom-service（在线课堂）环境变量模板
+# 用法：sudo cp booking.env.template /etc/lesson/booking.env
+#       sudo chmod 600 /etc/lesson/classroom.env && sudo chown lesson:lesson /etc/lesson/classroom.env
+# systemd 单元用 EnvironmentFile=/etc/lesson/classroom.env 注入
+# ------------------------------------------------------------
+# 密钥配对关系（务必与 message.env 逐字符一致）：
+#   JWT_SECRET     → jwt.secret      api 签发+校验；classroom 仅校验（共享密钥域）
+#   CRYPTO_AESKEY  → crypto.aes-key  AES-256-GCM 字段加解密；两服务共用classroom 库，须互通
+#   CRYPTO_HMACKEY → crypto.hmac-key HMAC-SHA256 搜索索引；同上须互通
+#   前端（dist）不持有任何密钥，仅转发 token。
+# ============================================================
+
+#DB_USERNAME=lesson
+#DB_PASSWORD=txlessontx@dB
+#MYSQL_HOST=127.0.0.1
+#SPRING_DATASOURCE_URL=jdbc:mysql://127.0.0.1:3306/classroom?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+#PublicKeyRetrieval=true
+
+# ≥64 字符的随机串；若接续本地已有环境，直接粘贴本地现有值，不要重新生成
+#JWT_SECRET=Qd7HHD+dhwh7jiT8jE8IaCGERVLQbseSrgsvTcXt/y1DV8U9oVzYSoLyK+ozkrirK3B5PgjF+090EuQZ66zOhg==
+# 32 字节随机数 Base64（44 字符带 =）；与 message.env 必须相同
+#CRYPTO_AESKEY=3BE1dwhwkPcdLIGKFjsVDnc6IrfnHM2UPD8mqJKKZ6Q=
+# 32 字节随机数 Base64；与 message.env 必须相同
+#CRYPTO_HMACKEY=y/BEEX0oExg7h4eCt9GhlKNh4qvoYEo4hSIrzZTJHC4=
+
+JAVA_OPTS=-Xms256m -Xmx512m -Dfile.encoding=UTF-8
+
+#redis 
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+# ===== 回调预约系统的地址 =====
+# 同机部署就是本机 8081；不要填公网域名，否则回调绕出去一圈还可能被安全组拦掉。
+BOOKING_API_URL=http://127.0.0.1:8081 
+
+
+# ===== 对象存储（讲稿 / 作品 / 录制）=====
+# local = 本机磁盘（内置、真实可用）；s3 / oss 需先实现 ObjectStorage 接口。
+# ⚠️ DB 里只存对象 key，真实字节在这个目录 —— **备份必须库 + 目录一起做**，
+#    只回库不回文件 = 记录都在、点开全 404。
+STORAGE_TYPE=local
+STORAGE_LOCAL_ROOT=/opt/lesson/data/oss
+# 对外访问前缀；留空则输出相对路径 /api/v1/files/...（走同源反代，推荐留空）
+# STORAGE_PUBLIC_BASE_URL=
+INSTANCE_CODE=
+
+# 日志落盘位置。三个服务各用一个子目录，否则 logback 会写进同一目录、
+# 排障时分不清堆栈属于谁。详见 booking.env.template 的 LOG_PATH 说明与
+# deploy/logrotate/lesson 里"两套滚动引擎不可交叉"的说明。
+LOG_PATH=/var/log/lesson/classroom
+# 显式声明监听端口（与 jar 内 application.properties 的 server.port=8092 一致）。
+# 作用：个别环境若导出了 SERVER_PORT/SERVER__PORT 之类变量，用本文件的值兜底。
+# Spring 把 SERVER_PORT 映射为 server.port。
+SERVER_PORT=8092
+# 只监听回环地址（Spring 宽松绑定 → server.address）：8092 由同机 nginx 反代
+# （/api/v1/classrooms、/ws/classrooms 等），不对公网/内网开放。
+# ⚠️ 课堂独立部署到另一台机器时，改成内网 IP，否则主服务（8081）与 nginx 都连不上它；
+#    那种情况下 BOOKING_API_URL 也要相应改成主服务的内网地址。
+SERVER_ADDRESS=127.0.0.1
+

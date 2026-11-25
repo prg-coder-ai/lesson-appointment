@@ -11,7 +11,9 @@
  *   ⑤ 产物里手工插入源文件没有的键 → 判红（跨域误挂）
  *   ⑥ 删掉 notExposed 豁免登记 → 判红（未登记遗漏）
  *   ⑦ notExposed 加一条与事实矛盾的登记 → 判红（死登记，防登记表腐化）
- *   ⑧ 还原后回到 exit 0，且生成器/产物/源文件/登记表 md5 逐字节还原（零污染）
+ *   ⑧ frontend/js 裸用 ENDPOINTS（桥接顶层 const 不在全局）→ 判红（2026-11-22 事故）
+ *   ⑨ 还原后回到 exit 0
+ *   ⑩ 生成器/产物/源文件/登记表/前端脚本 md5 逐字节还原（零污染）
  *
  * 运行：node tests/check_shared_bridge_exports_guard.js
  * ⚠️ 不用 spawnSync：本机 node 子进程一律 EBUSY，会让基线就假红。
@@ -31,8 +33,9 @@ const BRIDGE = path.join(ROOT, 'frontend/js/shared-domain-bridge.js');
 const MSG_DOMAIN = path.join(ROOT, 'shared/domain/message.js');
 const TERM_DOMAIN = path.join(ROOT, 'shared/domain/term.js');
 const REGISTRY = path.join(ROOT, 'shared/domain/bridge-exports.json');
+const LOG_BROWSER = path.join(ROOT, 'frontend/js/logBrowser.js');
 
-const WATCHED = [GEN, BRIDGE, MSG_DOMAIN, TERM_DOMAIN, REGISTRY];
+const WATCHED = [GEN, BRIDGE, MSG_DOMAIN, TERM_DOMAIN, REGISTRY, LOG_BROWSER];
 
 const results = [];
 function expect(name, ok, detail) {
@@ -272,15 +275,37 @@ function writeJson(f, o) {
     );
   }
 
-  // ───── ⑧ 还原后回归绿 + 零污染 ─────
+  // ───── ⑧ 前端脚本裸引桥接顶层常量（2026-11-22 真实事故：logBrowser 空白）─────
+  {
+    const restore = backup(LOG_BROWSER);
+    let out = '';
+    let code = null;
+    try {
+      // 复现事故写法：EP.LOGS_DATES → ENDPOINTS.LOGS_DATES（EP 是 window.ApiPaths.ENDPOINTS 的别名）
+      const src = readText(LOG_BROWSER).replace('EP.LOGS_DATES', 'ENDPOINTS.LOGS_DATES');
+      writeText(LOG_BROWSER, src);
+      const r = await runGuard();
+      code = r.code;
+      out = r.out;
+    } finally {
+      restore();
+    }
+    expect(
+      '⑧ frontend/js 裸用 ENDPOINTS → 判红（IIFE 内 const 不在全局）',
+      code !== 0 && out.includes('裸用了 ENDPOINTS'),
+      `exit=${code}\n${out}`
+    );
+  }
+
+  // ───── ⑨ 还原后回归绿 + 零污染 ─────
   {
     const r = await runGuard();
-    expect('⑧ 还原后基线回到 exit 0', r.code === 0, `exit=${r.code}\n${r.out}`);
+    expect('⑨ 还原后基线回到 exit 0', r.code === 0, `exit=${r.code}\n${r.out}`);
   }
   {
     const polluted = WATCHED.filter((f) => md5(f) !== snapshots.get(f));
     expect(
-      '⑨ 源码零污染（生成器/产物/源文件/登记表 md5 逐字节还原）',
+      '⑩ 源码零污染（生成器/产物/源文件/登记表/前端脚本 md5 逐字节还原）',
       polluted.length === 0,
       polluted.map((f) => path.relative(ROOT, f)).join('\n')
     );

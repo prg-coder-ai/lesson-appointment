@@ -141,11 +141,16 @@ function refreshPlatformCache(rows) {
 
 /* ---------- 新增用户 ---------- */
 let __puTenantOptions = null; // 租户下拉缓存
+// ⚠ 2026-11-22：此缓存曾导致「新增租户后在新增用户弹窗里看不到」。
+//   原因是 openPlatformAddUser 传的是 false，缓存一旦建立就永不刷新；
+//   平台端是 template 渲染的单页，切菜单不重载页面，所以缓存能存活整个会话。
+//   两条约束：① 打开弹窗必须 force=true 重新拉；② 请求失败**不得**缓存空数组，
+//   否则一次 token 过期/网络抖动就会让它永久停在「只有 -- 选择租户 --」。
 function loadTenantOptions(force) {
   if (__puTenantOptions && !force) return Promise.resolve(__puTenantOptions);
   return request({ url: '/tenant/list', method: 'get' })
     .then(list => { __puTenantOptions = list || []; return __puTenantOptions; })
-    .catch(() => { __puTenantOptions = []; return __puTenantOptions; });
+    .catch(() => { __puTenantOptions = null; return []; }); // 失败不缓存，下次可重试
 }
 function openPlatformAddUser() {
   let modal = document.getElementById('platformUserModal');
@@ -177,8 +182,15 @@ function openPlatformAddUser() {
         <button type="button" class="btn btn-cancel" onclick="closePlatformUserModal()">取消</button>
       </div>
     </form>`;
-  // 加载租户下拉
-  loadTenantOptions(false).then(() => fillTenantSelect());
+  // 加载租户下拉：**每次打开都强制刷新**（force=true）。
+  // 不能复用缓存——新增租户后本页不重载，缓存里就没有新租户。
+  loadTenantOptions(true).then(list => {
+    fillTenantSelect();
+    if (!list || !list.length) {
+      const sel = document.getElementById('puAddTenant');
+      if (sel) sel.innerHTML = '<option value="">未获取到租户列表，请关闭后重试</option>';
+    }
+  });
   puAddRoleChanged();
 }
 function fillTenantSelect() {

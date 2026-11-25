@@ -18,6 +18,11 @@
       <view class="gi-glyph">💳</view>
       <view class="gi-text">我的课时</view>
     </view>
+    <!-- 在线课堂（2026-11-21）：受租户级课堂开关控制；小程序内只做查看与进入引导 -->
+    <view wx:if="{{classroomOn}}" class="grid-item" bindtap="goClassroom">
+      <view class="gi-glyph">🎓</view>
+      <view class="gi-text">我的课堂</view>
+    </view>
     <view class="grid-item" bindtap="goAppointment">
       <view class="gi-glyph">📚</view>
       <view class="gi-text">今日{{terms.course}}</view>

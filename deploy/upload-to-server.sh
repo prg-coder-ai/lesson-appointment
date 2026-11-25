@@ -89,12 +89,36 @@ scp "$ROOT/deploy/classroom.service"       "$SERVER:/etc/systemd/system/classroo
 scp "$ROOT/deploy/booking.env.template"    "$SERVER:/opt/lesson/booking.env.template"
 scp "$ROOT/deploy/message.env.template"    "$SERVER:/opt/lesson/message.env.template"
 scp "$ROOT/deploy/classroom.env.template"  "$SERVER:/opt/lesson/classroom.env.template"
+# keys.env 是三个服务的共用密钥（2026-11-21 起）。只传模板，真实值在服务器上填。
+scp "$ROOT/deploy/keys.env.template"       "$SERVER:/opt/lesson/keys.env.template"
 
 echo "==> 5/8 Nginx 配置 + 备份脚本 + logrotate"
 scp "$ROOT/deploy/nginx/booking.conf"     "$SERVER:/etc/nginx/sites-available/booking"
 scp "$ROOT/deploy/nginx/booking-ip.conf"  "$SERVER:/etc/nginx/sites-available/booking-ip"
+# HTTPS 版（2026-11-22 新增）。**只上传、绝不自动 ln -s 启用**：
+# 它引用的证书路径在没签发证书前不存在，一旦被 enabled，nginx -t 直接失败 → 整站起不来。
+# 启用时机与步骤见维护手册 3.8（先 certbot 签证书，再替换域名占位，再启用本份并摘掉 booking-ip）。
+scp "$ROOT/deploy/nginx/booking-https.conf" "$SERVER:/etc/nginx/sites-available/booking-https"
+echo "    提示：booking-https 已上传但未启用；启用前必须先有证书，否则 nginx -t 会失败（见 3.8）"
+# 纯 IP 自签两种形态（2026-11-22 新增）：仅 HTTPS / HTTP+HTTPS 双栈。
+# 同样**只上传不启用** —— 证书没生成前 enabled 会 nginx -t 失败。
+# 落地清单见 doc-develop/04-部署与运维/纯IP环境HTTPS自签配置清单-*.md
+scp "$ROOT/deploy/nginx/booking-ip-https.conf" "$SERVER:/etc/nginx/sites-available/booking-ip-https"
+scp "$ROOT/deploy/nginx/booking-ip-dual.conf"  "$SERVER:/etc/nginx/sites-available/booking-ip-dual"
+# 自签证书生成脚本：拷到 /opt/lesson/nginx/ 便于在服务器上直接跑（需 root）
+ssh "$SERVER" 'mkdir -p /opt/lesson/nginx'
+scp "$ROOT/deploy/nginx/gen-selfsigned-cert.sh" "$SERVER:/opt/lesson/nginx/gen-selfsigned-cert.sh"
+ssh "$SERVER" 'chmod +x /opt/lesson/nginx/gen-selfsigned-cert.sh'
+# 形态切换脚本：五份站点只能启用一份，手工 ln -sfn 极易启错（2026-11-22 事故：
+# 错启域名版 booking-https，nginx -t 报 cannot load certificate .../your.domain.com/fullchain.pem）
+scp "$ROOT/deploy/nginx/switch-site.sh" "$SERVER:/opt/lesson/nginx/switch-site.sh"
+ssh "$SERVER" 'chmod +x /opt/lesson/nginx/switch-site.sh'
+echo "    提示：booking-ip-https / booking-ip-dual 已上传但未启用；先 sudo bash /opt/lesson/nginx/gen-selfsigned-cert.sh <公网IP>"
 # 等保 P0-3：限流 zone 定义（limit_req_zone 必须在 http{} 上下文，放不进 sites-available，
-# 单独走 conf.d）。漏传这个文件 → nginx -t 报 unknown limit_req_zone → 整站起不来。
+# 单独走 conf.d）。漏传这个文件 → nginx -t 失败，整站起不来。
+# 报错文本有两种，都指向「定义没生效」：
+#   zero size shared memory zone "api_zone"   ← 不带文件行号，最难查（2026-11-21 生产遇到）
+#   unknown limit_req_zone "api_zone"          ← 带文件行号
 scp "$ROOT/deploy/nginx/conf.d/00-limit-req-zone.conf" "$SERVER:/etc/nginx/conf.d/00-limit-req-zone.conf"
 # proxy_params：两份站点配置共 22 处 include /etc/nginx/proxy_params。
 # Debian/Ubuntu 的 nginx-common 自带；CentOS / Anolis / Rocky 没有 → nginx -t 直接失败，
@@ -129,7 +153,8 @@ ssh "$SERVER" 'for p in "api/v1/system/info:8081 主服务" "api/v1/message/syst
 echo
 echo "上传完成。接下来在服务器上执行："
 echo "  sudo chmod +x /opt/lesson/backup.sh /opt/lesson/healthcheck.sh"
-echo "  sudo cp /opt/lesson/booking.env.template   /etc/lesson/booking.env    # 再填真实密钥（AES_KEY / HMAC_KEY，不是 CRYPTO_AESKEY）"
+echo "  sudo cp /opt/lesson/keys.env.template      /etc/lesson/keys.env       # ★ 先填这个：三服务共用密钥（JWT_SECRET / AES_KEY / HMAC_KEY）"
+echo "  sudo cp /opt/lesson/booking.env.template   /etc/lesson/booking.env    # 只填 DB / LOG_PATH 等私有项（密钥已迁出到 keys.env）"
 echo "  sudo cp /opt/lesson/message.env.template   /etc/lesson/message.env"
 echo "  sudo cp /opt/lesson/classroom.env.template /etc/lesson/classroom.env  # 另需填 REDIS_* / STORAGE_LOCAL_ROOT"
 echo "  sudo chmod 600 /etc/lesson/*.env && sudo chown lesson:lesson /etc/lesson/*.env"

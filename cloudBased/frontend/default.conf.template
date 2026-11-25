@@ -88,7 +88,7 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+    add_header Permissions-Policy "geolocation=(), microphone=(self), camera=(self)" always;
 
     # ---------- 通用代理参数（对所有后端起效）----------
     proxy_http_version 1.1;
@@ -216,7 +216,7 @@ server {
         add_header X-Content-Type-Options "nosniff" always;
         add_header X-XSS-Protection "1; mode=block" always;
         add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-        add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+        add_header Permissions-Policy "geolocation=(), microphone=(self), camera=(self)" always;
     }
 
     # 📤 分片上传（讲稿/作业大文件 init/part/complete）

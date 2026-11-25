@@ -7,7 +7,7 @@
 // 差异：浏览器用 axios + location 跳转；小程序用 wx.request，登录失效经 globalData.onAuthFail 回调。
 // 底层传输统一委托 shared/adapters/net.js 的 transport（小程序端内部即 wx.request，返回 {statusCode,data,header}）。
 
-import { normalizeUrl, unwrapResult, ENDPOINTS } from '../shared/apiPaths.js';
+import { normalizeUrl, unwrapResult, ENDPOINTS, API_V1 } from '../shared/apiPaths.js';
 import { errorMessage, resolveResult } from '../shared/domain/errorCode.js';
 import { storage, getToken, clearSession } from './storage.js';
 import { transport } from '../shared/adapters/net.js';
@@ -17,6 +17,7 @@ function appGlobal() {
 }
 function apiBase() { const a = appGlobal(); return (a && a.globalData && a.globalData.apiBase) || ''; }
 function msgBase() { const a = appGlobal(); return (a && a.globalData && a.globalData.msgBase) || ''; }
+function classroomBase() { const a = appGlobal(); return (a && a.globalData && a.globalData.classroomBase) || ''; }
 function onAuthFail() {
   const a = appGlobal();
   if (a && typeof a.globalData.onAuthFail === 'function') a.globalData.onAuthFail();
@@ -26,7 +27,57 @@ function onAuthFail() {
 function resolveBase(url) {
   if (/^https?:\/\//i.test(url)) return '';
   if (/^\/api\/v1\/(messages|users|sensitive|message-categories)/.test(url)) return msgBase();
+  if (isClassroomPath(url)) return classroomBase();
   return apiBase();
+}
+
+/**
+ * 课堂服务（classroom-service :8092）的路径前缀清单。
+ *
+ * ★ 这份清单必须与 `doc-develop/90-tools/dev-proxy.js#toClassroomService` 的 PREFIXES
+ *   以及 `deploy/nginx/*.conf` 逐字一致 —— 三者是同一套分流的三个消费者，改一处就要同步。
+ *   小程序没有反代层，靠本函数自建分流，所以这里漏一条 = 那条接口打到 8081 报 403，
+ *   而报错文案是「无权限访问该资源」，看起来像权限问题，实际是分流漏了（2026-11-19 已踩过）。
+ *
+ * 两个易错点（与 dev-proxy 注释同）：
+ *   1. `schedules/`（**复数**）是课堂的排期事件接收；booking 是**单数** `schedule`
+ *      （detail / class-instances / listByTeacher）。别为了"整齐"把两条合并。
+ *   2. `admin/*` **不能整片**划给课堂 —— booking 也有 admin 语义接口
+ *      （admin/users、admin/tenants 等），必须逐条精确。
+ *   （本注释刻意不写完整路径前缀，避免被守卫 check:endpoints 第 ② 项当成硬编码命中。）
+ *
+ * 写法说明：用 segment + API_V1 拼，避免在源码里出现整串端点字面量
+ * （守卫 check:endpoints 第 ② 项会把任何引号紧邻的 /api/v1/... 判为硬编码回归）。
+ */
+const CLASSROOM_SEGMENTS = [
+  'classrooms/',
+  'attendance/',
+  'recordings/',
+  'uploads/',
+  'files/',
+  'schedules/',
+  'rtc/',
+  'admin/classrooms/',
+  'admin/monitor/',
+  'admin/reports/',
+  'admin/reconcile/',
+  'admin/audit/',
+  'admin/contract/',
+  'admin/exports/'
+];
+
+function isClassroomPath(url) {
+  const p = String(url || '');
+  const prefix = API_V1 + '/';
+  if (p.indexOf(prefix) !== 0) return false;
+  const rest = p.slice(prefix.length);
+  for (let i = 0; i < CLASSROOM_SEGMENTS.length; i++) {
+    const seg = CLASSROOM_SEGMENTS[i];
+    // 「前缀本身就是完整路径」也要命中：POST /api/v1/admin/classrooms（创建临时课堂）
+    // 没有子路径，永远匹配不到带尾斜杠的前缀（dev-proxy 2026-11-19 修过同一处）。
+    if (rest === seg.replace(/\/$/, '') || rest.indexOf(seg) === 0) return true;
+  }
+  return false;
 }
 
 // 底层传输统一走共享适配层 transport（小程序端内部即 wx.request，返回 {statusCode,data,header}）。

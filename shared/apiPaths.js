@@ -332,6 +332,23 @@ export const ENDPOINTS = {
     `/api/v1/classrooms/${encodeURIComponent(scheduleId || '')}/submissions/file`,
   CLASSROOM_MATERIAL_FILE: (scheduleId) =>
     `/api/v1/classrooms/${encodeURIComponent(scheduleId || '')}/materials/file`,
+
+  // ---- 只读三件套（2026-11-21 补：小程序「我的课堂」用；Web 侧原先各自硬编码）----
+  // 课堂状态：走 ClassroomAccessGuard（管理员/本课教师/名单内成员可读）。
+  // ★「加入课堂」的校验也用它，**不要**用 POST /enter —— enter 有副作用
+  //   （建 membership 行 + 签到 + 回流预约侧），校验只要只读能力即可。
+  CLASSROOM_STATUS: (scheduleId) =>
+    `/api/v1/classrooms/${encodeURIComponent(scheduleId || '')}/status`,
+  // 成员名单（Membership：userId/role/displayName/kicked）。发上课通知时要按它挑 role=student 且未踢的人。
+  CLASSROOM_MEMBERS: (scheduleId) =>
+    `/api/v1/classrooms/${encodeURIComponent(scheduleId || '')}/members`,
+  // 讲稿列表（只读）。注意课前查常被拒：名单在**首次进入课堂**时才建立，见 my-classroom-core.js 注释。
+  CLASSROOM_MATERIALS: (scheduleId) =>
+    `/api/v1/classrooms/${encodeURIComponent(scheduleId || '')}/materials`,
+  // 回放地址：返回签名 URL（对象存储），取不到时通常表示该课次无录制。
+  CLASSROOM_PLAYBACK: (scheduleId) =>
+    `/api/v1/recordings/${encodeURIComponent(scheduleId || '')}/playback`,
+
   // 录制接口的**根**：调用方在其后拼 `/start` 或 `/{recordingId}/stop`
   // （见 classroom-record.js#_api，两种动作共用一个根，故这里只给根）。
   CLASSROOM_RECORDING: (scheduleId) =>

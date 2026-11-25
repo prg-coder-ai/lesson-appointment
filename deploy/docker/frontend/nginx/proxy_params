@@ -1,0 +1,31 @@
+# ==============================================================================
+# 反代公共头（容器内版）—— 被 default.conf.template 里每个 proxy_pass 段 include
+#
+# 与宿主机 deploy/nginx/proxy_params 的差别只有一处，但差别很关键：
+#   X-Forwarded-Proto 用 $lesson_fwd_proto，不是 $scheme。
+#
+# 因为这是**第二层**反代：浏览器 → 宿主机 nginx(443, https) → 本容器(8080, http)。
+# 宿主机已经把真实协议写进 X-Forwarded-Proto: https 传过来。容器里若沿用
+# `$scheme`，它取到的是容器自身连接的协议 http，会把上层的 https 覆盖成 http ——
+# Spring（server.forward-headers-strategy=framework）据此生成绝对链接与重定向，
+# 结果全是 http://…，浏览器按混合内容拦掉，表现是「http 环境好好的，https 上
+# 登录后跳转白屏」，而 nginx 日志里全是 200。
+#
+# $lesson_fwd_proto 由 00-proxy-map.conf 的 map 求得：上层传了就用上层的，
+# 没传（容器被直接访问）才回落到 $scheme。
+#
+# 其余头的作用同宿主机版：Host 用于生成绝对链接与微信回调域校验；
+# X-Real-IP / X-Forwarded-For 是后端 ClientIpResolver 的真实 IP 来源，缺了以后
+# 登录防刷、审计日志、限流全部退化成「全是同一个 IP」，而且不报任何错。
+# ==============================================================================
+proxy_http_version 1.1;
+
+# $http_host 而非 $host：$host 会丢掉非默认端口，带端口的访问（如 :8080 直连调试）
+# 会让后端生成的绝对链接少一段端口，跳转 404。
+proxy_set_header Host              $http_host;
+proxy_set_header X-Real-IP         $remote_addr;
+proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Proto $lesson_fwd_proto;
+
+# 不写 Connection：SSE location 要单独清空它（proxy_set_header Connection ''），
+# 写在这里会被继承下去，把 SSE 变成「连上但不推」。

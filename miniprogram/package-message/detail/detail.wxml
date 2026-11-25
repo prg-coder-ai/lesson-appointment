@@ -71,6 +71,15 @@
         <text class="content">{{msg.content || '（无正文内容）'}}</text>
       </view>
 
+      <!-- 消息内一键入口（2026-11-21）：payload.url 已过白名单（shared/domain/message.js#safeJumpUrl）。
+           小程序不能直接开浏览器，故动作是「复制链接」，文案上说明要粘到电脑上打开。 -->
+      <view wx:if="{{msg.jump && msg.jump.url}}" class="card jump-card">
+        <view class="jump-tip">{{msg.jump.type === 'classroom_join' ? '在线课堂需在电脑浏览器中使用，点下方按钮复制链接' : '点下方按钮复制链接'}}</view>
+        <button class="btn jump-btn" bindtap="onCopyJump">
+          {{msg.jump.type === 'classroom_join' ? '复制课堂链接' : '复制链接'}}
+        </button>
+      </view>
+
       <view class="actions">
         <block wx:if="{{from === 'trash'}}">
           <button class="btn btn-restore" bindtap="onRestore">恢复</button>

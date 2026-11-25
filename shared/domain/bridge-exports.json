@@ -21,7 +21,8 @@
     { "file": "datetime.js", "global": "DatetimeDomain" },
     { "file": "errorCode.js", "global": "ErrorCodeDomain" },
     { "file": "message.js", "global": "MessageDomain" },
-    { "file": "lessonLedger.js", "global": "LessonLedgerDomain" }
+    { "file": "lessonLedger.js", "global": "LessonLedgerDomain" },
+    { "file": "classroom.js", "global": "ClassroomDomain" }
   ],
 
   "_notExposed_note": [

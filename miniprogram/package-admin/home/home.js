@@ -9,6 +9,7 @@ import { getCurrentTenant } from '../../core/tenant.js';
 import { getUnreadCount } from '../../core/message.js';
 import { captureAttribution, reportAttributionOnce } from '../../core/acquisition.js';
 import { withTerms, getTermMap, registerTermUpdate, unregisterTermUpdate } from '../../core/term.js';
+import { classroomVisible, ensureClassroomConfig } from '../../core/classroom.js';
 
 // 菜单文案：含行业词（课程/教师/学生）的用 { t: 词根, s: 后缀 } 表达，运行时按当前行业词表解析；
 // 纯文案项保持字符串。t 取值见 shared/domain/term.js 的 TERM_DICT 词根（course/teacher/student…）。
@@ -24,6 +25,13 @@ const TENANT_GROUPS = [
   { title: '排期与预订', items: [
     { text: { t: 'course', s: '排期' }, page: '/package-admin/schedule/schedule' },
     { text: '预订审核', page: '/package-admin/booking-audit/booking-audit' }
+  ] },
+  // 在线课堂（2026-11-21）：对应 admin.html 的「课堂监控」+ 课堂运营台的「发上课通知」。
+  // 整组按租户课堂开关显隐（见 groupsForRole 里的 classroomVisible 过滤）。
+  // ★ 小程序不放「进入课堂」：课堂本体依赖浏览器的摄像头/麦克风能力，小程序没有。
+  { title: '在线课堂', classroomOnly: true, items: [
+    { text: '课堂监视', page: '/package-classroom/monitor/monitor' },
+    { text: '课堂链接分发', page: '/package-classroom/distribute/distribute' }
   ] },
   { title: '预约检视', items: [
     { text: '上课通知', page: '/package-admin/lesson-notice/lesson-notice' }
@@ -84,11 +92,17 @@ function resolveText(spec, terms) {
 
 // 用当前行业词表解析整棵菜单（组标题 + 各入口文本），供 setData 渲染。
 // groups 入参区分角色：平台管理员用 PLATFORM_GROUPS，其余用 TENANT_GROUPS。
+// classroomOnly 的组按课堂开关过滤 —— 判据是 classroomVisible()（**不是** hasClassroom）：
+// 后者在「配置还没取到」时也返回 false，会把刚开通租户的入口误隐藏，且隐藏后用户点不到、
+// 无从恢复（Web 端 2026-11-13 踩过这个坑）。
 function buildGroups(groups, terms) {
-  return groups.map(g => ({
-    title: resolveText(g.title, terms),
-    items: g.items.map(it => ({ text: resolveText(it.text, terms), page: it.page || '', soon: !!it.soon }))
-  }));
+  const showClassroom = classroomVisible();
+  return groups
+    .filter(g => !g.classroomOnly || showClassroom)
+    .map(g => ({
+      title: resolveText(g.title, terms),
+      items: g.items.map(it => ({ text: resolveText(it.text, terms), page: it.page || '', soon: !!it.soon }))
+    }));
 }
 
 // 按角色选取菜单：平台管理员展示参考 web platform_admin.html 的平台级菜单，
@@ -116,6 +130,11 @@ Page(withTerms({
     this.__groupsListener = () => this.setData({ groups: groupsForRole(u.role, getTermMap()) });
     registerTermUpdate(this.__groupsListener);
     this.loadTenantName(u);
+    // 课堂开关核对：首屏若还没取到配置，「在线课堂」组按"先显示"策略出现（宁可见一次也不无声消失）；
+    // 核对结果到达后重算一次 —— 确实未开通就收回去，开通了就保持。
+    ensureClassroomConfig().then(() => {
+      this.setData({ groups: groupsForRole(u.role, getTermMap()) });
+    }).catch(() => {});
   },
   onShow() {
     const u = this.data.user;
