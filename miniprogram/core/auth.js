@@ -26,6 +26,7 @@ export async function login({ tenantCode, account, password, role, ...rest }) {
   });
   if (!res || !res.token) throw new Error((res && (res.message || res.msg)) || '登录失败');
   setSession(res);
+  clearClassroomCache();
   if (tenantCode) storage.set(BOUND_TENANT_KEY, tenantCode);
   // 术语/行业词表为"增强"数据：只在已登录后拉取，且失败绝不可阻断登录与跳转
   // （此前 loadTermMap 调 term/map 若返回 401，会触发 request 清登录态并 reLaunch 回登录页，
@@ -59,6 +60,24 @@ export function getCurrentUser() {
 
 export function getBoundTenantCode() {
   return storage.get(BOUND_TENANT_KEY) || '';
+}
+
+/**
+ * 登录成功 / 注册成功后清掉课堂开关缓存。
+ *
+ * 为什么必须清：课堂开关是**按租户**配的。A 租户开了课堂、B 租户没开，同一台手机换租户登录后，
+ * 若沿用旧缓存，要么看到本不该有的入口、要么看不到本该有的；而缓存有 48h 有效期，
+ * 用户完全无从自查（Web 端当年就栽在「禁用一次 → 菜单永远回不来」上）。
+ *
+ * 用动态 import 而不是静态 import：core/classroom.js 需要本模块的 getBoundTenantCode，
+ * 静态互相 import 会形成环，在小程序打包器下行为不确定。清理是"尽力而为"，
+ * 失败也只影响一次菜单显隐（classroomVisible 会在未核对时先显示），故吞掉异常。
+ */
+function clearClassroomCache() {
+  Promise.resolve()
+    .then(() => import('./classroom.js'))
+    .then((m) => { if (m && typeof m.clearClassroomConfig === 'function') m.clearClassroomConfig(); })
+    .catch(() => { /* ignore */ });
 }
 
 // 页面入口守卫：无登录态则跳登录页，返回 user 或 null
@@ -127,6 +146,7 @@ export async function wechatSilentLogin() {
     });
     if (!res || !res.token) return null;
     setSession(res);
+    clearClassroomCache();
     try {
       await loadTermMap();
       await syncIndustryFromTenant(res.tenantCode);
@@ -187,6 +207,7 @@ export async function wechatRegister({ tenantCode, role } = {}) {
       };
     }
     setSession(res);
+    clearClassroomCache();
     try {
       await loadTermMap();
       await syncIndustryFromTenant(res.tenantCode);

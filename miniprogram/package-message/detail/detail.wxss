@@ -41,3 +41,17 @@
 
 /* 接收台账：只看未读切换 */
 .rec-toggle { margin-left: auto; font-size: 24rpx; color: #1677ff; padding: 4rpx 12rpx; }
+
+/* 消息内一键入口（上课通知的课堂链接）：小程序不能开浏览器，做成「复制 + 说明」 */
+.jump-card { padding: 24rpx 28rpx; }
+.jump-tip { font-size: 24rpx; color: #6b7587; line-height: 1.6; margin-bottom: 16rpx; }
+.jump-btn {
+  width: 100%;
+  flex: none;
+  background: #1677ff;
+  color: #fff;
+  border: none;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  padding: 18rpx 0;
+}

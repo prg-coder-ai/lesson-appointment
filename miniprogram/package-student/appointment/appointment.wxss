@@ -20,3 +20,8 @@
 .it-status.s-s-cancelling, .it-status.s-t-cancelling { color: #c0871b; background: #fff3e0; }
 .it-sub { font-size: 26rpx; color: #667; margin-top: 8rpx; }
 .it-time { font-size: 24rpx; color: #889; margin-top: 6rpx; }
+
+/* 在线课堂按钮（2026-11-21）：课次维度的进入课堂/课程回看 */
+.it-ops { display: flex; justify-content: flex-end; gap: 14rpx; margin-top: 16rpx; padding-top: 14rpx; border-top: 1rpx solid #f0f2f6; }
+.op { font-size: 24rpx; color: #475467; border: 1rpx solid #e4e7ec; border-radius: 8rpx; padding: 8rpx 20rpx; }
+.op.primary { color: #fff; background: #1677ff; border-color: #1677ff; }

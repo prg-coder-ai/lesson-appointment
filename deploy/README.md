@@ -17,7 +17,9 @@
 | `message-service.service` | `/etc/systemd/system/message-service.service` | |
 | `classroom.service` | `/etc/systemd/system/classroom-service.service` | 注意**文件名不带 -service**，单元名是 `classroom-service`（新增 2026-10-30） |
 | `sql/00-create-databases.sql` | `/opt/lesson/sql/` | 新环境**第 0 步**：建三库 + 建 `lesson` 账号并授权。三个库的 collation 与现网逐库对齐，别统一 |
-| `nginx/booking.conf` / `booking-ip.conf` | `/etc/nginx/sites-available/{booking,booking-ip}` | HTTPS 版 / 纯 IP 版；首次部署默认启用后者（无证书时启用前者会因证书缺失起不来） |
+| `nginx/booking.conf` / `booking-ip.conf` / `booking-https.conf` / `booking-ip-https.conf` / `booking-ip-dual.conf` | `/etc/nginx/sites-available/{booking,booking-ip,booking-https,booking-ip-https,booking-ip-dual}` | 示例域名版 / 纯 IP 版 / **域名 HTTPS 版** / **纯 IP 自签仅 HTTPS** / **纯 IP 自签 HTTP+HTTPS 双栈**。五份**同一时间只启用一份**（`sites-available` 里可全留，只需摘 `sites-enabled` 的链接）；分流 location 逐字一致，`check:proxy` 五份一起校验；启用步骤见维护手册 **3.8** 与《纯IP环境HTTPS自签配置清单》 |
+| `nginx/gen-selfsigned-cert.sh` | `/opt/lesson/nginx/` | 纯 IP 环境的自签证书生成（两级 CA + 叶子证书，SAN 写 IP）。`sudo bash gen-selfsigned-cert.sh <公网IP>` |
+| `nginx/switch-site.sh` | `/opt/lesson/nginx/` | **安全的形态切换**：`http` / `https-ip` / `dual` / `https-domain`。切换前校验证书存在性与 SAN、拒绝带 `your.domain.com` 占位符的文件，`nginx -t` 失败自动回滚到切换前的状态 |
 | `nginx/conf.d/00-limit-req-zone.conf` | `/etc/nginx/conf.d/` | 限流 zone 必须放 `http{}` 上下文；漏传 → `nginx -t` 报 unknown limit_req_zone |
 | `nginx/proxy_params` | `/etc/nginx/proxy_params`（**仅当目标不存在时**） | 两份站点配置各 23 处（共 46 处） `include` 它；Debian 由 nginx-common 自带，CentOS/Anolis 没有 → 缺了 `nginx -t` 直接失败 |
 | `logrotate/lesson` | `/etc/logrotate.d/lesson` | 接管 systemd `append:` 日志的滚动（含 classroom.log）；漏装则永不滚动，写满撑爆磁盘 |
@@ -58,8 +60,12 @@ DDL 的权威位置是**本目录下的 `sql/`**（`deploy/sql/{schema,seed,patc
 - 密钥变量名必须是 `AES_KEY` / `HMAC_KEY`（不是 `CRYPTO_AESKEY`）。
   机理与对照实验见 `tools/check-secret-env-guard.mjs` 头部注释；
   改完跑 `npm run check:secret-env`（当前覆盖 3 个 properties + 3 个 env 模板）。
-- 三份 env 的 `JWT_SECRET` / `AES_KEY` / `HMAC_KEY` 必须**逐字符一致**，
-  否则消息/课堂 401、跨服务解密失败。
+- **`JWT_SECRET` / `AES_KEY` / `HMAC_KEY` / `DB_USERNAME` / `DB_PASSWORD` 只在 `keys.env` 定义一份**（密钥 2026-11-21 起；数据库凭据 2026-11-22 起 —— 三服务连同一 MySQL 账号，分散写就是「查库卡 30s / Access denied」的成因，见维护手册 §6.7）。
+  三份 `xxx.env` 里这三个键已注释掉，**不要再打开**：systemd 的 `EnvironmentFile` 是
+  「后加载覆盖先加载」，而三个 unit 里 `keys.env` 排在各 `xxx.env` 之前，
+  任何一处残留都会静默覆盖它，重新变回「三处各自维护」——
+  那正是 2026-11-21 message-service 401 事故的形态（登录成功即被踢，booking 却正常）。
+- `keys.env`（真实值）**不入库**（`.gitignore` 已排除 `deploy/keys.env`）；入库的只有 `keys.env.template`。
 - 模板里只写 `CHANGE_ME`，**不要**写真实密钥（守卫会拦）。
 - 三份 env 都必须有 `SERVER_PORT`（与 jar 内 `server.port` 一致）与 `SERVER_ADDRESS=127.0.0.1`：
   前者挡住服务器上残留的 `SERVER_PORT` 环境变量把服务顶到别的端口（表现是 nginx 全站 502、

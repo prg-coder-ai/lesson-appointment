@@ -15,26 +15,43 @@
 //
 // ★ 远程配置文件：前端站点根目录 app-config.json（cloudBased/frontend/dist/），
 //   nginx 对它 expires -1 强制回源校验。修改后端地址只需更新该文件并重新部署前端。
+//
+// ★ classroomBase（2026-11-21 新增，在线课堂 = classroom-service :8092）：
+//   与 apiBase/msgBase 最大的不同是 —— 小程序**没有同源反向代理**：
+//   Web 端靠 nginx / dev-proxy 把 /api/v1/{classrooms,recordings,admin/monitor,...}
+//   分流到 8092，小程序只能直连，因此这条地址必须
+//     ① 从手机可达（不能是 127.0.0.1，见 core/classroom.js 文件头 ②）；
+//     ② 加进微信公众平台「request 合法域名」（必须 https 且不带端口）。
+//   本地 develop / rmt 直连端口没有这个问题；trial / release 走云托管公网域名。
 const ENV = {
   develop: {
     apiBase: 'http://127.0.0.1:8081',   // 业务端 api（本地 Spring Boot）
     msgBase: 'http://127.0.0.1:8090',   // message-service（本地）
+    classroomBase: 'http://127.0.0.1:8092', // classroom-service（本地）
     webBase: ''                         // 本地无前端站点 → 跳过远程配置，直接用上面的值 http://152.136.254.127:8090
   },
   rmt: { //使用服务器地址 测试
     apiBase: 'http://152.136.254.127:8081',   // 业务端 api（本地 Spring Boot）
     msgBase: 'http://152.136.254.127:8090',   // message-service（本地）
+    classroomBase: 'http://152.136.254.127:8092', // classroom-service
     webBase: ''                         // 本地无前端站点 → 跳过远程配置，直接用上面的值 http://152.136.254.127:8090
   },
   trial: {
     apiBase: 'https://api-329614-8-1475810246.sh.run.tcloudbase.com',
     msgBase: 'https://message-service-329614-8-1475810246.sh.run.tcloudbase.com',
+    // ⚠ 下面这条是按 message-service 同规则推出来的，**未在云托管控制台核实**。
+    //   首次部署 classroom-service 后：控制台 → 服务 → 服务设置 → 公网访问，复制实际域名替换本行，
+    //   并同步加入微信「request 合法域名」。写错的表现是课堂相关接口全部连不上，
+    //   而首页/登录/消息都正常（因为那三条走的是 apiBase/msgBase）。
+    classroomBase: 'https://classroom-service-329614-8-1475810246.sh.run.tcloudbase.com',
     webBase: 'https://api-329614-8-1475810246.sh.run.tcloudbase.com'
   },
   release: {
     // 正式版与体验版当前同源；若正式环境单独部署，在此替换为正式域名
     apiBase: 'https://api-329614-8-1475810246.sh.run.tcloudbase.com',
     msgBase: 'https://message-service-329614-8-1475810246.sh.run.tcloudbase.com',
+    // ⚠ 同 trial：未核实，首次部署后按控制台实际值替换
+    classroomBase: 'https://classroom-service-329614-8-1475810246.sh.run.tcloudbase.com',
     webBase: 'https://api-329614-8-1475810246.sh.run.tcloudbase.com'
   }
 };

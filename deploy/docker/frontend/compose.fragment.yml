@@ -1,0 +1,72 @@
+# ==============================================================================
+# 前端服务定义 —— 片段，合并进 deploy/docker/docker-compose.yml 的 services: 下
+#
+#   # 1) 把下面 frontend: 整段（去掉本注释块）粘到 docker-compose.yml 的 services: 里
+#   # 2) .env 里补一行 FRONTEND_TAG=<tag>
+#   docker compose --env-file .env up -d --no-deps frontend
+#
+# 为什么不直接改主 compose 文件：后端三个服务的编排已经跑通，前端容器化是一个
+# **独立可回退**的选项（随时可以回到 /var/www/frontend 软链方案）。放进片段里，
+# 想用就粘，不想用就不粘，避免"改 compose 顺手把后端也动了"。
+#
+# 前提：宿主机的 80/443 仍由 nginx 掌管，本容器只监听 127.0.0.1:8080。
+#      宿主机 nginx 的 server 块里要把 root 那两行换成反代（见文档 4.3）。
+# ==============================================================================
+
+  frontend:
+    image: "lesson/frontend:${FRONTEND_TAG:?FRONTEND_TAG-not-set}"
+
+    restart: unless-stopped
+
+    # ★ 必须是 host 网络。桥接网络下容器内 127.0.0.1 指向容器自己，三个上游
+    #   （8081/8090/8092）全部失效 —— 症状是 docker ps 显示 Up、页面能打开、
+    #   接口全 502，而日志里只有 upstream refused 一句话。
+    #   host 网络下 127.0.0.1 就是宿主机回环，与后端容器共用一个网络栈。
+    network_mode: host
+
+    # 只降权，不改身份：nginx 官方镜像的 master 需要 root（要 chown 缓存目录、
+    # 切 worker 到 nginx 用户）。cap_drop ALL 之后只补四条必须的能力。
+    # 若启动报 "mkdir() /var/cache/nginx/client_temp failed (13: Permission denied)"，
+    # 说明这个基础镜像版本需要额外能力，把 cap_drop/cap_add 整段删掉即可 ——
+    # 安全性由「只监听回环 + 不挂宿主敏感目录」保证，不靠 cap 限制。
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+
+    security_opt:
+      - no-new-privileges:true
+
+    environment:
+      # 三个上游都写在这里，不写进镜像。换端口/换机器只改这里，不重建镜像。
+      # 服务默认只监听回环，所以必须是 127.0.0.1，不要写 0.0.0.0 或容器名。
+      BOOKING_UPSTREAM: ${BOOKING_UPSTREAM:-http://127.0.0.1:8081}
+      MSG_UPSTREAM: ${MSG_UPSTREAM:-http://127.0.0.1:8090}
+      CLASSROOM_UPSTREAM: ${CLASSROOM_UPSTREAM:-http://127.0.0.1:8092}
+      TZ: Asia/Shanghai
+
+    volumes:
+      # ★ 挂**目录**，不是挂文件。
+      #   写成 `-v /var/www/app-config.json:/var/www/frontend/app-config.json`
+      #   时，若宿主机那个路径不存在，docker 会建一个同名**目录**顶上，
+      #   请求 /app-config.json 变成 403，而报错只说 permission denied。
+      #   挂目录后由 00-preflight.sh 判断「有就拷、没有就跳过」，两种状态都干净。
+      - ${APP_CONFIG_DIR:-/var/www/app-config}:/app-config:ro
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+    healthcheck:
+      # 探本容器的 /healthz，**不探上游**：后端宕机不该让前端被反复重启，
+      # 那样连静态页都没了，用户看到白屏而不是「服务维护中」。
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 3s
+      start_period: 10s
+      retries: 3

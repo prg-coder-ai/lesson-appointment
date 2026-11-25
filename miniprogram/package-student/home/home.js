@@ -4,10 +4,13 @@ import { withTerms, term } from '../../core/term.js';
 import { getUnreadCount } from '../../core/message.js';
 import { captureAttribution, reportAttributionOnce } from '../../core/acquisition.js';
 import { getCurrentTenant } from '../../core/tenant.js';
+import { classroomVisible, ensureClassroomConfig } from '../../core/classroom.js';
 
 Page(withTerms({
   data: {
-    user: {}, roleText: '', industryText: '', active: 'home', greeting: '', unreadCount: 0, tenantName: ''
+    user: {}, roleText: '', industryText: '', active: 'home', greeting: '', unreadCount: 0, tenantName: '',
+    // 在线课堂入口显隐（租户级开关）。undefined 语义见 core/classroom.js#classroomVisible
+    classroomOn: false
   },
   onLoad(options) {
     captureAttribution(options); // 先抓取渠道归因，即便被重定向到登录页也不丢
@@ -22,12 +25,26 @@ Page(withTerms({
     });
     this.loadTenantName(u);
     this.applyTitle();
+    this.syncClassroomEntry();
   },
   onShow() {
     const u = this.data.user;
     if (u && u.userId) getUnreadCount(u.userId).then(n => this.setData({ unreadCount: n })).catch(() => {});
     this.loadTenantName(u);
     this.applyTitle();
+    this.syncClassroomEntry();
+  },
+  /**
+   * 同步「我的课堂」入口显隐。
+   * 先按本地缓存给一次（未核对时 classroomVisible 返回 true → 入口先显示），
+   * 再向后端核对一次收敛 —— 顺序反过来会让网络慢的用户永远看不到入口。
+   */
+  syncClassroomEntry() {
+    this.setData({ classroomOn: classroomVisible() });
+    ensureClassroomConfig().then(() => {
+      const on = classroomVisible();
+      if (this.data.classroomOn !== on) this.setData({ classroomOn: on });
+    }).catch(() => {});
   },
   // 导航栏标题随行业变：学生端 / 客户端 / 来访者端 / 学员端
   applyTitle() {
@@ -46,6 +63,7 @@ Page(withTerms({
   goMyLesson() { wx.navigateTo({ url: '/package-student/my-lesson/my-lesson' }); },
   goAppointment() { wx.navigateTo({ url: '/package-student/appointment/appointment' }); },
   goTeacherList() { wx.navigateTo({ url: '/package-student/teacher-list/teacher-list' }); },
+  goClassroom() { wx.navigateTo({ url: '/package-classroom/my/my' }); },
   goMessage() { wx.navigateTo({ url: '/package-message/inbox/inbox' }); },
   goMine() { wx.navigateTo({ url: '/pages/mine/mine' }); },
   // 分享带邀请人：好友打开后由 captureAttribution 抓取，形成获客闭环

@@ -1,0 +1,46 @@
+<view class="page">
+
+  <view class="topbar">
+    <view class="tb-title">我的课堂</view>
+    <text class="tb-tip">小程序仅查看与入口，上课请用电脑浏览器</text>
+  </view>
+
+  <view wx:if="{{fatal}}" class="fatal">{{fatal}}</view>
+
+  <view wx:if="{{loading}}" class="tip">加载中…</view>
+  <view wx:elif="{{!groups.length}}" class="empty">
+    <view class="empty-glyph">🎓</view>
+    <view>{{role === 'teacher' ? '暂无排期' : '暂无可用课堂'}}</view>
+    <view class="empty-sub">课堂由排期产生：有排期后这里会出现每个课次。</view>
+  </view>
+
+  <block wx:else>
+    <view class="group" wx:for="{{groups}}" wx:key="scheduleId" wx:for-item="g">
+      <view class="g-head">
+        <text class="g-name">{{g.courseName}}</text>
+        <text class="g-sub">{{g.sub}}</text>
+      </view>
+
+      <view class="ins" wx:for="{{g.instances}}" wx:key="key" wx:for-item="it">
+        <view class="ins-line">
+          <text class="ins-title">{{it.title}}</text>
+          <text class="ins-state tone-{{it.tone}}">{{it.stateText}}</text>
+        </view>
+        <view class="ins-time">{{it.timeText}}</view>
+        <view class="ins-ops">
+          <text class="op ghost" data-key="{{it.key}}" bindtap="onCopyLink">复制链接</text>
+          <text
+            wx:for="{{it.actions}}" wx:key="action" wx:for-item="a"
+            class="op {{a.action === 'enter' ? 'primary' : ''}}"
+            data-action="{{a.action}}" data-key="{{it.key}}" data-name="{{g.courseName}}"
+            bindtap="onAction">{{a.label}}</text>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <view class="footnote">
+    点「进入课堂」会提示在电脑上打开，并复制课堂链接。课堂需要摄像头、麦克风与屏幕共享，
+    这些能力只有浏览器具备，小程序无法替代。
+  </view>
+</view>

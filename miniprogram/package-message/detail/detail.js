@@ -14,7 +14,9 @@ import {
   categoryText, priorityCode, priorityText, senderTypeText, resolveSender,
   getMessageRecipients, getUserBriefs, recipientStateText,
   messageStatusText, getLedgerInbound, getLedgerRecipients,
-  getTenantList, tenantText
+  getTenantList, tenantText,
+  // 消息内跳转（2026-11-21）：payload.url 已过白名单校验，url 为空表示不可跳
+  messageJumpAction
 } from '../../core/message.js';
 import { confirm } from '../../core/ui.js';
 
@@ -96,7 +98,12 @@ Page({
         // 只有平台管理员需要也才有权限取 → 先留空，见 loadSenderTenant（空则不渲染那一行）
         senderTenantId: d.senderTenantId || 0,
         senderTenantText: '',
-        time: fmtTime(d.sendTime || d.createTime)
+        time: fmtTime(d.sendTime || d.createTime),
+        // 消息内一键入口（如上课通知的 classroom_join）：payload 由服务端解密后下发，
+        // url 必须再过白名单（safeJumpUrl），不合法就当作没有 —— 见 shared/domain/message.js。
+        // 小程序不能直接打开外部浏览器（web-view 也要业务域名），所以这里的动作是「复制链接」，
+        // 与 Web 版直接 href 跳转不同，文案上也讲清楚。
+        jump: messageJumpAction(d.payload)
       };
       const unread = !d.isRead;
       const starred = !!d.isStarred;
@@ -237,6 +244,32 @@ Page({
     this.setData({ ledgerOnlyUnread: next });
     this.loadRecipients(this.data.mid, 1);
   },
+  /**
+   * 消息内一键入口（如上课通知的课堂链接）。
+   *
+   * 小程序不支持直接打开外部浏览器，所以这里退一步做「复制链接 + 说明」：
+   * 复制后用户粘贴到电脑浏览器即可进入课堂（课堂本体依赖摄像头/麦克风，只能在那里跑）。
+   * 这也解释了为什么按钮文案是「复制课堂链接」而不是 Web 端的「进入课堂」——
+   * 让用户点之前就知道会发生什么，比点了没反应强。
+   */
+  onCopyJump() {
+    const jump = this.data.msg && this.data.msg.jump;
+    if (!jump || !jump.url) return;
+    wx.setClipboardData({
+      data: jump.url,
+      success: () => {
+        if (jump.type === 'classroom_join') {
+          wx.showModal({
+            title: '课堂链接已复制',
+            content: '在线课堂需要摄像头、麦克风和屏幕共享，请在电脑浏览器中粘贴打开。',
+            showCancel: false
+          });
+        }
+      },
+      fail: () => wx.showToast({ title: '复制失败，请长按正文手动复制', icon: 'none' })
+    });
+  },
+
   async onToggleStar() {
     const next = !this.data.starred;
     try {

@@ -23,6 +23,16 @@
       </view>
       <view class="it-sub">{{item.sub}}</view>
       <view class="it-time" wx:if="{{item.time}}">🕒 {{item.time}}</view>
+      <!-- 在线课堂（2026-11-21）：按课次阶段给按钮；小程序内「进入课堂」= 说明 + 复制链接 -->
+      <view class="it-ops" wx:if="{{item.classroom && item.classroom.actions.length}}">
+        <text
+          wx:for="{{item.classroom.actions}}" wx:key="action" wx:for-item="a"
+          class="op {{a.action === 'enter' ? 'primary' : ''}}"
+          data-action="{{a.action}}"
+          data-key="{{item.classroom.key}}"
+          data-name="{{item.title}}"
+          bindtap="onClassroom">{{a.label}}</text>
+      </view>
     </view>
   </view>
 

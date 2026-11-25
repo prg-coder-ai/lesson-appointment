@@ -1,0 +1,89 @@
+<view class="page">
+
+  <view class="topbar">
+    <view class="tb-title">课堂链接分发</view>
+    <text class="tb-btn" bindtap="onRefresh">刷新课堂</text>
+  </view>
+
+  <view class="intro">
+    给这间课堂名单里的学生发一条「上课通知」，正文里带课堂链接，学生在电脑浏览器打开即可上课。
+    小程序本身不能上课（需要摄像头与麦克风）。
+  </view>
+
+  <!-- 选课堂 -->
+  <view class="card">
+    <view class="row">
+      <text class="rk">课堂</text>
+      <picker wx:if="{{labels.length}}" class="rp" mode="selector" range="{{labels}}" value="{{pickIndex}}" bindchange="onPick">
+        <view class="pick-value">
+          {{pickIndex >= 0 ? labels[pickIndex] : '请选择课堂'}}
+        </view>
+      </picker>
+      <text wx:else class="pick-empty">{{loading ? '加载中…' : '暂无可发通知的课堂'}}</text>
+    </view>
+
+    <block wx:if="{{selected}}">
+      <view class="row">
+        <text class="rk">状态</text>
+        <text class="rv"><text class="tag tone-{{selected.tone}}">{{selected.stateText}}</text></text>
+      </view>
+      <view class="row">
+        <text class="rk">时间</text>
+        <text class="rv">{{selected.timeText}}</text>
+      </view>
+      <view class="row">
+        <text class="rk">课堂号</text>
+        <text class="rv mono">{{selected.scheduleId}}</text>
+      </view>
+    </block>
+  </view>
+
+  <!-- 内容 -->
+  <view class="card">
+    <view class="row col">
+      <text class="rk">标题</text>
+      <input class="ri" placeholder="留空自动生成：上课通知：课程名" value="{{title}}" bindinput="onTitle" />
+    </view>
+    <view class="row col">
+      <text class="rk">正文</text>
+      <textarea class="rt" placeholder="留空自动生成（含课程名 / 时间 / 课堂号 / 课堂链接）"
+                value="{{content}}" bindinput="onContent" maxlength="-1" auto-height />
+    </view>
+
+    <view class="switches">
+      <label class="sw">
+        <switch checked="{{withLink}}" bindchange="onToggleLink" color="#1677ff" />
+        <text class="sw-text">附带「进入课堂」按钮（Web 收件箱可一键打开）</text>
+      </label>
+      <label class="sw">
+        <switch checked="{{high}}" bindchange="onToggleHigh" color="#1677ff" />
+        <text class="sw-text">高优先级</text>
+      </label>
+    </view>
+
+    <button class="send {{sending || !selected ? 'send-disabled' : ''}}" loading="{{sending}}" bindtap="onSend">
+      {{sending ? '发送中…' : '发送通知'}}
+    </button>
+    <view class="hint">只发给名单里 role=student 且未被移出的人。名单在「首次进入课堂」时建立，为空时需先加学员。</view>
+  </view>
+
+  <!-- 发送结果 -->
+  <view wx:if="{{result}}" class="card result">
+    <view class="res-title">已发送 {{result.count}} 人</view>
+    <view class="res-line" wx:if="{{result.messageId}}">messageId：{{result.messageId}}</view>
+    <view class="res-line">收件人：{{result.names}}</view>
+    <view class="res-link" wx:if="{{result.link}}">
+      <textarea class="rl" value="{{result.link}}" disabled auto-height />
+      <button class="copy-btn" bindtap="onCopyResult">复制课堂链接</button>
+    </view>
+    <view class="res-note">
+      {{result.withLink
+        ? '学生在 Web「消息中心」打开这条通知，正文下方有「进入课堂」按钮；在小程序里打开则是「复制课堂链接」按钮。'
+        : '本次未附带按钮：学生只能看到正文里的链接，需要自己复制到浏览器打开。'}}
+    </view>
+  </view>
+
+  <view class="footnote">
+    课堂本体在浏览器里运行，小程序只负责把链接送到学生手上。
+  </view>
+</view>

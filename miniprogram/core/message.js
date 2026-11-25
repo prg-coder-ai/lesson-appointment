@@ -10,7 +10,8 @@ import {
   categoryText, priorityCode, priorityText, senderTypeText,
   setCategoryDict, getCategoryDict, categoryListFromTree, collectCategoryCodes,
   messageStatusText, deliveryStatusText, recipientStateText,
-  setTenantDict, getTenantDict, tenantText
+  setTenantDict, getTenantDict, tenantText,
+  safeJumpUrl, messageJumpAction
 } from '../shared/domain/message.js';
 
 // 未读总数（Result<Long> → number）
@@ -99,7 +100,11 @@ export {
   categoryText, priorityCode, priorityText, senderTypeText,
   setCategoryDict, getCategoryDict, categoryListFromTree, collectCategoryCodes,
   messageStatusText, deliveryStatusText, recipientStateText,
-  setTenantDict, getTenantDict, tenantText
+  setTenantDict, getTenantDict, tenantText,
+  // 消息内跳转（2026-11-21）：payload.url 白名单 + 动作解析。
+  // Web 收件箱早就按它渲染「进入课堂」按钮，小程序原来完全没处理 payload，
+  // 表现为「管理员发了带链接的通知，学生点开只有一段纯文字」。
+  safeJumpUrl, messageJumpAction
 };
 
 /**

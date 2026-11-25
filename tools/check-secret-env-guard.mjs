@@ -28,6 +28,25 @@ const TPL = [path.join(ROOT, 'deploy/booking.env.template'),
              path.join(ROOT, 'deploy/classroom.env.template')];   // 2026-10-30 补：课堂模板
 
 /**
+ * 共用密钥文件（2026-11-21 新增）。
+ *
+ * 此前 JWT_SECRET / AES_KEY / HMAC_KEY 在三份 xxx.env 里各写一遍，靠人工保证逐字符一致。
+ * 2026-11-21 线上事故就是这套做法的必然结果：只有 message.env 那份 JWT_SECRET 与另外两份不同，
+ * 表现为「登录成功后立刻被 401 踢回登录页」，而 booking 返回 200、classroom 也能过验签。
+ * 现在改为单一权威来源 /etc/lesson/keys.env，三个 systemd 单元都先加载它。
+ *
+ * 因此本守卫的口径变了：
+ *   · 共用键必须在 keys.env.template 里有定义；
+ *   · 三份 xxx.env 里**必须没有**（systemd「后加载覆盖先加载」，残留一个就把 keys.env 冲掉）。
+ * 这两条缺一不可——只查前者会漏掉"残留覆盖"这个更阴的失效方式。
+ */
+const KEYS_TPL = path.join(ROOT, 'deploy/keys.env.template');
+const SHARED_ENV_NAMES = new Set(['JWT_SECRET', 'AES_KEY', 'HMAC_KEY',
+                                    // 2026-11-22 补：DB 凭据三服务共用同一 MySQL 账号，
+                                    // 分散在三份 xxx.env 里正是「Access denied / 卡 30s」的成因
+                                    'DB_USERNAME', 'DB_PASSWORD']);
+
+/**
  * 必须走 env 注入的密钥：[键名, 说明, 适用的 env 模板下标集合]
  * 适用范围很重要：微信配置是 api 专属（message / classroom 的 properties 与 Java 代码里都没有 wechat），
  * 不能要求其它 env 模板里也出现 WECHAT_* —— 那是"为满足守卫而加无用配置"。
@@ -62,6 +81,11 @@ const SECRET_KEYS = [
   // secret 是凭证级，与 miniapp.secret 同规格管理。
   ['wechat.open.appid',     '开放平台网站应用 appid（PC 扫码登录，api 专属）', [0]],
   ['wechat.open.secret',    '开放平台网站应用 appsecret（api 专属）', [0]],
+  // 2026-11-22 补：数据库凭据。三个服务连同一个 MySQL 实例、同一个账号，
+  // 属于「共用凭据」，口径与密钥完全一致 —— 唯一定义处是 keys.env.template，
+  // 三份 xxx.env 里必须没有。事故形态见 keys.env.template 的数据库凭据段。
+  ['spring.datasource.username', 'MySQL 账号（三服务共用，host 形态见 keys.env.template）', [0, 1, 2]],
+  ['spring.datasource.password', 'MySQL 密码（不一致即 Access denied 或卡 30s 池超时）',      [0, 1, 2]],
 ];
 
 const problems = [];
@@ -102,6 +126,13 @@ if (skipped) {
     return set;
   });
 
+  // 共用密钥文件的键集：单独建，不并进上面三个（合并会让"某份 xxx.env 漏了"被掩盖）
+  const keysTplSet = new Set();
+  for (const l of readLines(KEYS_TPL)) {
+    const m = /^\s*([A-Z][A-Z0-9_]*)=/.exec(l);
+    if (m) keysTplSet.add(m[1]);
+  }
+
   let checked = 0;
   for (const pf of propFiles) {
     const name = pf.includes('message-service') ? 'message-service'
@@ -129,18 +160,34 @@ if (skipped) {
                       `若确实要"生产强制注入"，需同时确认启动脚本一定会注入`);
       }
 
-      // ③ 该密钥所属的每个 env 模板都必须各自含有同名占位（字面相等，不做松散匹配）
-      for (const i of tplScope) {
-        if (tplKeySets[i].has(envName)) continue;
-        const near = [...tplKeySets[i]].filter(k => k.replace(/_/g, '') === envName.replace(/_/g, ''));
-        problems.push(`[${name}] ${key} 读的是 \${${envName}:}，但 ${path.basename(TPL[i])} 里没有 ` +
-                      `${envName}= 这一行${near.length ? `（该文件里像是 ${near.join(', ')} —— \${} 占位只按"词根一致"命中，名字必须逐字相同）` : ''}`);
+      // ③ 占位名必须在"正确的那个文件"里有定义
+      if (SHARED_ENV_NAMES.has(envName)) {
+        // ③-a 共用键：唯一定义处是 keys.env.template
+        if (!keysTplSet.has(envName)) {
+          problems.push(`[${name}] ${key} 读的是 \${${envName}:}，但 keys.env.template 里没有 ${envName}= 这一行`);
+        }
+        // ③-b 反向：三份 xxx.env 里不得残留（systemd 后加载覆盖先加载，残留即静默覆盖 keys.env）
+        for (let i = 0; i < TPL.length; i++) {
+          if (tplKeySets[i].has(envName)) {
+            problems.push(`${path.basename(TPL[i])} 里仍有生效的 ${envName}= —— ` +
+                          `该键已于 2026-11-21 迁到 keys.env，残留会按「后加载覆盖」把 keys.env 的值冲掉` +
+                          `（这正是 message-service 401 事故的成因）`);
+          }
+        }
+      } else {
+        // ③-c 服务专属键（WECHAT_*）：仍要求各自模板逐字含有
+        for (const i of tplScope) {
+          if (tplKeySets[i].has(envName)) continue;
+          const near = [...tplKeySets[i]].filter(k => k.replace(/_/g, '') === envName.replace(/_/g, ''));
+          problems.push(`[${name}] ${key} 读的是 \${${envName}:}，但 ${path.basename(TPL[i])} 里没有 ` +
+                        `${envName}= 这一行${near.length ? `（该文件里像是 ${near.join(', ')} —— \${} 占位只按"词根一致"命中，名字必须逐字相同）` : ''}`);
+        }
       }
     }
   }
 
-  // ④ 模板里不得带真值密钥
-  for (const tp of TPL) {
+  // ④ 模板里不得带真值密钥（keys.env.template 同样只许写 CHANGE_ME）
+  for (const tp of [...TPL, KEYS_TPL]) {
     for (const l of readLines(tp)) {
       const m = /^\s*([A-Z][A-Z0-9_]*)=(.*)$/.exec(l);
       if (!m) continue;
@@ -155,7 +202,7 @@ if (skipped) {
     }
   }
 
-  console.log(`check:secret-env —— 检查 ${checked} 处密钥注入（${propFiles.length} 个 properties + ${TPL.length} 个 env 模板）`);
+  console.log(`check:secret-env —— 检查 ${checked} 处密钥注入（${propFiles.length} 个 properties + ${TPL.length} 个服务 env + keys.env）`);
   if (problems.length) {
     console.error(`❌ 密钥注入通道有 ${problems.length} 处问题：`);
     for (const p of problems) console.error(`   · ${p}`);

@@ -4,9 +4,14 @@ import { term, withTerms } from '../../core/term.js';
 import { getUnreadCount } from '../../core/message.js';
 import { captureAttribution, reportAttributionOnce } from '../../core/acquisition.js';
 import { getCurrentTenant } from '../../core/tenant.js';
+import { classroomVisible, ensureClassroomConfig } from '../../core/classroom.js';
 
 Page(withTerms({
-  data: { user: {}, roleText: '', active: 'home', greeting: '', unreadCount: 0, tenantName: '' },
+  data: {
+    user: {}, roleText: '', active: 'home', greeting: '', unreadCount: 0, tenantName: '',
+    // 在线课堂入口显隐（租户级开关，见 core/classroom.js#classroomVisible）
+    classroomOn: false
+  },
   onLoad(options) {
     captureAttribution(options); // 先抓取渠道归因，即便被重定向到登录页也不丢
     const u = requireAuth();
@@ -17,6 +22,18 @@ Page(withTerms({
     this.setData({ user: u, roleText: roleLabel(u.role), active: 'home', greeting });
     this.loadTenantName(u);
     this.applyTitle();
+    this.syncClassroomEntry();
+  },
+  /**
+   * 同步「我的课堂」入口显隐：先按本地缓存给一次（未核对时先显示），
+   * 再向后端核对一次收敛 —— 顺序反过来会让网络慢的用户永远看不到入口。
+   */
+  syncClassroomEntry() {
+    this.setData({ classroomOn: classroomVisible() });
+    ensureClassroomConfig().then(() => {
+      const on = classroomVisible();
+      if (this.data.classroomOn !== on) this.setData({ classroomOn: on });
+    }).catch(() => {});
   },
   // 导航栏标题接行业词（教师端 / 律师端 / 咨询师端 / 教练端）。
   // 标题**需要**随行业变，故保留运行时 wx.setNavigationBarTitle；json 的 navigationBarTitleText 仅作首帧兜底。
@@ -28,6 +45,7 @@ Page(withTerms({
     const u = this.data.user;
     if (u && u.userId) getUnreadCount(u.userId).then(n => this.setData({ unreadCount: n })).catch(() => {});
     this.loadTenantName(u);
+    if (u && u.userId) this.syncClassroomEntry();
     this.applyTitle();
   },
   // 取当前租户的公司名称（orgName）替换顶部的租户编码展示；缺省回退 tenantCode
@@ -45,6 +63,7 @@ Page(withTerms({
   goSchedule() { wx.navigateTo({ url: '/package-teacher/schedule/schedule' }); },
   goAppointment() { wx.navigateTo({ url: '/package-teacher/appointment/appointment' }); },
   goMyBooking() { wx.navigateTo({ url: '/package-teacher/booking/booking' }); },
+  goClassroom() { wx.navigateTo({ url: '/package-classroom/my/my' }); },
   goMessage() { wx.navigateTo({ url: '/package-message/inbox/inbox' }); },
   // 个人中心入口同上，已从工作台隐藏（底部导航「我的」即此页）
   goMine() { wx.navigateTo({ url: '/pages/mine/mine' }); },
