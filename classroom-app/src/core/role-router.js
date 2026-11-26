@@ -2,9 +2,8 @@
  * 三角色统一入口分流（classic script，IIFE 自包含）
  * ==================================================================
  * 独立 App 用统一「我的课堂」页，按登录态 role 决定展示哪份列表：
- *   teacher / platform_admin → 教师工作台（排期 → 开课）
- *   student                  → 学生工作台（预约 / 课堂号 → 加入）
- *   admin                    → 运营台（巡课 / 强制结课）
+ *   teacher / platform_admin / admin → 教师工作台（排期 → 开课）
+ *   student                          → 学生工作台（预约 / 课堂号 → 加入）
  *
  * ★ P1 增强：深链构建
  *   - classroomDeepLink(scheduleId)      → 统一进课堂（课堂页按登录态取 role）
@@ -22,7 +21,9 @@
     teacher: 'teacher.html',
     platform_admin: 'teacher.html',
     student: 'student.html',
-    admin: 'admin.html'
+    // 2026-11-26 用户拍板：App 端无 platform 登录；admin 走教师工作台。
+    // www 不同步 admin.html，原值会让租户管理员登录后落到 404（见 FP-009）。
+    admin: 'teacher.html'
   };
   var ROLE_LABEL = {
     teacher: '教师', platform_admin: '平台管理员', student: '学生', admin: '管理员'

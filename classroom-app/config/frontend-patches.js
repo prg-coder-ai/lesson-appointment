@@ -137,6 +137,55 @@ const PATCHES = [
       '独立 App 保留后端 accessGuard 作为最终边界即可；前端加固列为上游 P1。',
     docRef: '方案 §6.3 / 附录A classroom-admin.js:64',
     verify: '上游加固后非 admin 不应看到强制结束按钮'
+  },
+  {
+    id: 'FP-009',
+    title: '租户管理员登录后走教师工作台（App 无 admin.html / 无 platform 登录）',
+    target: 'js/public/api.js',
+    mode: 'rewrite',
+    priority: 'P0',
+    status: 'active',
+    anchor: "window.location.href = pageUrl('admin.html', null, true, user);",
+    replacement: "window.location.href = pageUrl('teacher.html', null, false, user); // [FP-009] 课堂 App 无 admin.html，admin 走教师工作台",
+    reason:
+      'redirectToUserPage() 按角色跳页：admin 原指向 admin.html，但 classroom-app/www 只同步了 ' +
+      'teacher.html / student.html（管理页属原 frontend，未进 App 产物），登录后会落到 404。' +
+      '2026-11-26 用户拍板：classroom-app 端没有 platform 登录，admin 走 teacher。' +
+      '第三个参数 true 是「跨子域管理端用绝对地址」，App 无此场景，改为 false 与 ' +
+      'teacher/student 分支统一走相对路径。platform_admin 分支按约定不动（App 端无此登录）。',
+    docRef: 'LOCAL-MODE.md §三 / 用户 2026-11-26 22:57 决策',
+    verify: "www/js/public/api.js 的 case 'admin' 应指向 teacher.html，且不再出现 pageUrl('admin.html'"
+  },
+  {
+    id: 'FP-010a',
+    title: 'token 验证成功后的角色跳转：admin 走 teacher（FP-009 配套）',
+    target: 'js/public/api.js',
+    mode: 'rewrite',
+    priority: 'P0',
+    status: 'active',
+    anchor: "window.location.href = pageUrl('admin.html', null, true, { role: role });",
+    replacement: "window.location.href = pageUrl('teacher.html', null, false, { role: role }); // [FP-010a] 同 FP-009",
+    reason:
+      'api.js 里另有一处「重新调 /auth/login 验证 token 后按角色跳主页」的分支（非 redirectToUserPage）。' +
+      '只修登录跳转会留半截：刷新页面 / 会话恢复时 admin 仍会跳到不存在的 admin.html。' +
+      '与 FP-009 同规则收敛，absolute 同步改 false。',
+    docRef: '同 FP-009',
+    verify: "www/js/public/api.js 不应再出现 pageUrl('admin.html', null, true, { role: role })"
+  },
+  {
+    id: 'FP-010b',
+    title: 'goBack 兜底返回：admin 走 teacher（FP-009 配套）',
+    target: 'js/public/api.js',
+    mode: 'rewrite',
+    priority: 'P1',
+    status: 'active',
+    anchor: "window.location.href = pageUrl('admin.html', null, true);",
+    replacement: "window.location.href = pageUrl('teacher.html', null, false); // [FP-010b] 同 FP-009",
+    reason:
+      'goBack() 在 from / document.referrer 都缺失时兜底回 admin.html；当前 www 内暂无调用点，' +
+      '但与「admin 走 teacher」规则保持一致，避免后续接入时又引入 404。',
+    docRef: '同 FP-009',
+    verify: "www/js/public/api.js 不应再出现 pageUrl('admin.html', null, true);"
   }
 ];
 

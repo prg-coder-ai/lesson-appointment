@@ -67,6 +67,25 @@ node scripts/serve.js 8098
 # 浏览器打开 http://localhost:8098/verify.html
 ```
 
+**2026-11-26 起，8098 预览服务器自带同源反代**（复用 `desktop/server.js` 的 `createAppServer`，分流清单只有 `resolveUpstream` 一份，由仓库根 `npm run check:proxy` 守着）：
+
+| 路径 | 上游 |
+|---|---|
+| `/api/v1/*` 普通业务（含登录） | booking `127.0.0.1:8081` |
+| `/api/v1/message` 等 | message `127.0.0.1:8090` |
+| 课堂 API + `/ws/*` WebSocket | classroom `127.0.0.1:8092` |
+
+因此 **server 模式的 `www/` 不必改构建模式，就能在 8098 上直接登录、进课堂**。早期版本是纯静态且「找不到就回落 `index.html` 返回 200」，登录请求会拿到一整页 HTML，表现为「状态区显示 HTML 页面数据且不跳转」（已修）；静态缺失现在返回干净 404，与生产 nginx 同语义。
+
+上游可用环境变量改指 dev-proxy 或线上域名（缺省直连本地明文三服务）：
+
+```bash
+BOOKING_UPSTREAM=http://127.0.0.1:8081 \
+MESSAGE_UPSTREAM=http://127.0.0.1:8090 \
+CLASSROOM_UPSTREAM=http://127.0.0.1:8092 \
+node scripts/serve.js 8098
+```
+
 local 模式下应看到：
 - `运行时 · 三套地址模式一致` → 显示 `local 模式：api=... / classApi=...`
 - `运行时 · 课堂 API 双基址覆盖生效` → 绿色，值为 `classroomApiOrigin`
@@ -82,6 +101,8 @@ APP_MODE=local API_ORIGIN=https://a CLASSROOM_API_ORIGIN=https://b/api/v1 CLASSR
 2. **回环地址归一**：`isLoopbackBase`（feature-flags.js）把 `127.0.0.1/localhost/::1` 归一为空串，**隐含假设"同源代理存在"**——server 模式成立，local 模式失效。这也是双基址必须注入的根因。
 3. **音视频异常先查 Permissions-Policy，不是证书**：`camera=()` 空 allowlist 连页面自身都禁；自签 HTTPS 下 Chromium 的 `getUserMedia` 按设计是放行的。全仓已有 `check:headers` 守卫（6 文件 8 处）。
 4. **Android 混内容**：`allowMixedContent: false`，local 模式所有资源必须 HTTPS/WSS，否则 WebView 拦截。
+5. **管理员角色跳转（已按 FP-009 修正）**：`login.html` 成功后调 `redirectToUserPage()`（frontend 原版函数），原 `admin` → `admin.html`、`platform_admin` → `platform_admin.html`，但 `www/` 只有 `teacher.html` / `student.html` / `my-classroom.html`。2026-11-26 用户拍板「**App 端没有 platform 登录，admin 走 teacher**」：构建期补丁 FP-009 / FP-010a / FP-010b 把 `api.js` 里 3 处 `pageUrl('admin.html', ...)` 统一改为 `pageUrl('teacher.html', null, false, ...)`（登录跳转 / token 验证跳转 / goBack 兜底），App 自有 `role-router.js` 的 `ROLE_TARGET.admin` 同步改为 `teacher.html`。`platform_admin` 分支按约定**保持不动**（App 端无此登录；真出现仍会落到 404）。登录页下拉里的「平台管理员」选项也仍保留，如需从 UI 移除需另加补丁。
+6. **prod server 产物的 `frontendOrigin` 是占位域名**：`www/app-config.js` 默认 `https://your-domain.com`，本地 8098 预览时分享链接/深链的绝对地址会指向占位域名；登录与普通 API 走同源 `/api/v1`，不受影响。需要正确绝对地址时用 `APP_ENV=dev FRONTEND_ORIGIN=http://... node scripts/build.js` 重建 `www/`。
 
 ## 四、切回 server 模式
 

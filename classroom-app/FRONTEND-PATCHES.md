@@ -72,6 +72,23 @@
   字面量仍未单独登记（与 FP-003 同类，同路径登记名已存在，功能不受影响）。
 - **边界**：只做三件套，未纳入 `ops.js` 的报表/对账/审核/契约联调五个重后台 tab。
 
+### FP-009 · 租户管理员登录后走教师工作台 `P0` `active`（2026-11-26）
+
+- **目标**：`js/public/api.js` 的 `redirectToUserPage()`（www 副本）
+- **原文**：`window.location.href = pageUrl('admin.html', null, true, user);`
+- **改为**：`window.location.href = pageUrl('teacher.html', null, false, user); // [FP-009] ...`
+- **原因**：`www/` 只同步了 `teacher.html` / `student.html`，管理页属原 frontend 未进 App 产物，原值会让 `admin` 登录后落到 404。用户 22:57 拍板：**classroom-app 端没有 platform 登录，`admin` 走 teacher**。第三个参数 `true`（跨子域管理端绝对地址）在 App 无此场景，改 `false` 与其他角色分支统一走相对路径。
+- **三个落点（FP-009 / FP-010a / FP-010b）**：`api.js` 里共有 3 处 `pageUrl('admin.html', ...)`，全部收敛到 `teacher.html`：
+
+  | 补丁 | 位置 | 场景 |
+  |---|---|---|
+  | FP-009 | `redirectToUserPage()` 的 `case 'admin'` | 密码登录成功后跳主页 |
+  | FP-010a | token 验证 `.then` 的 `role === 'admin'` 分支 | 刷新 / 会话恢复后跳主页 |
+  | FP-010b | `goBack()` 的兜底分支 | 无 `from` 且无 referrer 时返回 |
+
+- **边界**：`platform_admin` 分支**不动**（App 端无此登录）；`src/core/role-router.js` 的 `ROLE_TARGET.admin` 同步改为 `teacher.html`（App 自有文件，不走补丁）。
+- **验证**：`node scripts/patch.js --check` 通过；`www/js/public/api.js` 不再出现 `pageUrl('admin.html'` 的跳转；`www/role-router.js` 的 `admin` 同为 `teacher.html`；原 `frontend/` 无改动。
+
 ## 审计
 
 运行 `node classroom-app/scripts/patch.js --check` 可在不写文件的前提下校验所有 active 补丁锚点是否仍有效。构建日志会打印每条补丁的应用/跳过/失败状态。
