@@ -42,6 +42,7 @@
     "check:ddl-align": "node tools/check-ddl-entity-align.mjs",
     "test:ddl-align-guard": "node --experimental-vm-modules tests/check_ddl_entity_align_guard.js",
     "check:proxy": "node tools/check-proxy-routes.mjs",
+    "check:app-www": "node doc-develop/90-tools/check-app-www.js",
     "check:headers": "node tools/check-headers.mjs",
     "test:headers-guard": "node tests/check_headers_guard.js",
     "check:props": "node tools/check-properties-value.mjs",
