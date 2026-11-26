@@ -10,6 +10,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "hooks:install": "git config core.hooksPath tools/git-hooks && git config --get core.hooksPath",
     "check:shared-sync": "node tools/check-miniprogram-shared-sync.js",
+    "check:classroom-link:block": "node frontend/tools/check-classroom-link.js --block-only",
     "check:bridge-exports": "node tools/check-shared-bridge-exports.mjs",
     "test:bridge-exports-guard": "node tests/check_shared_bridge_exports_guard.js",
     "check:endpoints": "node tools/check-endpoints-refs.mjs",

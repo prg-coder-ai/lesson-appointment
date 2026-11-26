@@ -845,6 +845,225 @@ function maskEmail(email) {
   window.resolveTenantCode = resolveTenantCode;
   window.pageUrl = pageUrl;
 
+  // ============================================================
+  // 课堂深链构造器（唯一实现）
+  //
+  // 为什么放在 api.js 而不是独立文件：classroom-app/scripts/sync.js 的 PUBLIC_JS
+  // 白名单第一项就是 api.js —— local 模式（打包上真机）里 student/teacher/admin/
+  // classroom-ops 四个宿主页都能无条件拿到它，加载顺序天然正确，且不需要在任何
+  // HTML 里加 script 标签。新文件若漏进白名单，会表现为「浏览器和 server 模式全好、
+  // 真机全空指针」，这是最难在上线前发现的那类事故。
+  //
+  // 不变式：
+  //   href()         恒相对 './x.html?...' → 结构性不出壳（不依赖任何环境检测）
+  //   shareUrl()     恒绝对字符串，无有效基址返回 ''（fail-closed，绝不降级相对）
+  //   shareUrlSafe() 返回 { url, insecure } → 落库/外发通道必须用它并检查 insecure
+  //   签名里没有 role；参数白名单化，role/token/tenantId/userId 一律丢弃
+  //
+  // ⚠️ 本段必须整体位于 IIFE 内：api.js 是扁平脚本，顶层已有多条 const/let，
+  //    新增顶层声明一旦与同页其他文件的 var/function 撞名，就是解析期 SyntaxError，
+  //    整个 api.js 一个函数都不注册、全站 40+ 文件一起失效。
+  //    反向同样禁止：不许把整个 api.js 包进 IIFE（其全局函数被 40+ 文件直接调用）。
+  // ============================================================
+  // [CLS-LINK-BEGIN] 课堂深链构造器 —— 本区间必须整体位于 IIFE 内
+  (function () {
+    'use strict';
+
+    var TARGET = {
+      classroom: 'classroom.html',
+      prep: 'classroom-prep.html',
+      replay: 'replay.html',
+      entry: 'index.html'
+    };
+    // 深链路径必须是根目录下单段 *.html（由 messages-inbox.js 的 safeJumpUrl 与
+    // shared/domain/message.js 的白名单反推：多段路径会让「进入课堂」按钮渲染不出来）
+    var SEG_RE = /^[A-Za-z0-9_-]+\.html$/;
+    // 公开站点基址：只接受 http(s) + host[:port]，不含 path、不含 ..
+    var HOST_RE = /^https?:\/\/[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?(?::\d{2,5})?$/;
+    var WEAK_RE = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/i;
+    var KEY_RE = /^[A-Za-z0-9_-]{4,64}(~\d{1,2})?$/;   // 第 2 课次起为 <id>~N
+
+    /** 目标页文件名；含 '/' 一律判非法，不产出坏链接 */
+    function fileOf(spec) {
+      var f = TARGET[(spec && spec.target) || 'classroom'];
+      return (f && SEG_RE.test(f)) ? f : '';
+    }
+
+    /** 排期/课次键校验：实测库内 schedule_id 全为 32 位 hex，另有 <id>~N 形态 */
+    function keyOf(spec) {
+      var k = String((spec && spec.key) == null ? '' : spec.key).trim();
+      return KEY_RE.test(k) ? k : '';
+    }
+
+    /** 参数白名单：只放行展示元数据（客户端传参不可信）；不含 tCode —— 由 pageUrl 统一附加 */
+    function paramsOf(spec) {
+      var s = spec || {}, p = { scheduleId: keyOf(s) };
+      if (s.mode) p.mode = s.mode;
+      if (s.src) p.src = s.src;
+      if (s.intent) p.intent = s.intent;
+      var m = s.meta || {};
+      ['start', 'end', 'state', 'idx', 'total'].forEach(function (k) {
+        if (m[k] !== undefined && m[k] !== null && String(m[k]) !== '') p[k] = m[k];
+      });
+      return p;
+    }
+
+    /** 站内相对地址：跑在 https 还是 capacitor:// 都留在当前 WebView 内 */
+    function href(spec) {
+      var file = fileOf(spec), key = keyOf(spec);
+      if (!file || !key) return '';
+      var params = paramsOf(spec);
+      if (typeof pageUrl === 'function') return pageUrl(file, params);   // 同作用域；tCode 由它附加
+      // 兜底：pageUrl 异常时手拼，保持同域同路径语义
+      var qs = Object.keys(params).map(function (k) {
+        return encodeURIComponent(k) + '=' + encodeURIComponent(String(params[k]));
+      }).join('&');
+      var tCode = (typeof resolveTenantCode === 'function') ? resolveTenantCode() : '';
+      if (tCode) qs += (qs ? '&' : '') + 'tCode=' + encodeURIComponent(tCode);
+      return './' + file + (qs ? '?' + qs : '');
+    }
+
+    /** 唯一对外基址。无效候选（空 / 非 http(s) / 含 path / capacitor:）跳过，继续下一段 */
+    function publicWebOrigin() {
+      var cands = [window.PUBLIC_WEB_ORIGIN,
+                   (window.APP_CONFIG || {}).publicWebOrigin,
+                   window.FRONTEND_ORIGIN,
+                   (window.location || {}).origin];
+      for (var i = 0; i < cands.length; i++) {
+        var s = String(cands[i] == null ? '' : cands[i]).trim().replace(/\/+$/, '');
+        if (!s || /^capacitor:/i.test(s) || !HOST_RE.test(s)) continue;
+        return s;
+      }
+      return '';
+    }
+
+    /** insecure = 三条件取或：目标非 https / 目标为 localhost·回环·私网 / 来源页自身非 https */
+    function isInsecure(origin) {
+      if (!/^https:\/\//i.test(origin)) return true;
+      if (WEAK_RE.test(origin)) return true;
+      var selfOrigin = String((window.location || {}).origin || '');
+      return !!(selfOrigin && !/^https:\/\//i.test(selfOrigin));
+    }
+
+    /** 内部唯一构造：无基址 → { url:'', insecure:false }（绝不降级为相对路径） */
+    function buildShare(spec) {
+      var rel = href(spec);
+      if (!rel) return { url: '', insecure: false };
+      var origin = publicWebOrigin();
+      if (!origin) return { url: '', insecure: false };
+      return { url: origin + '/' + rel.replace(/^\.\//, ''), insecure: isInsecure(origin) };
+    }
+
+    /** 可分享绝对地址（字符串）。仅限即时 UI：渲染到页面、写进只读 input 让用户手动复制 */
+    function shareUrl(spec) { return buildShare(spec).url; }
+
+    /** 落库/外发专用：payload、通知正文必须用这个并检查 insecure */
+    function shareUrlSafe(spec) { return buildShare(spec); }
+
+    /** 站内跳转：只用于「本页去哪」 */
+    function open(spec) {
+      var h = href(spec);
+      if (h) window.location.href = h;
+      return h;
+    }
+
+    /** 仅控制「用 App 打开」类按钮显隐，不参与 href/shareUrl 构造 */
+    function isInApp() {
+      if (window.APP_CONFIG) return true;
+      if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function'
+          && window.Capacitor.isNativePlatform()) return true;
+      return /^capacitor:/i.test(String((window.location || {}).protocol || ''));
+    }
+
+    function enabled() {
+      return (typeof window.hasClassroom === 'function') ? !!window.hasClassroom() : true;
+    }
+
+    /** 回放（录制列表页）是唯一合法出壳例外：App 内用系统浏览器打开绝对地址 */
+    function openReplay(key) {
+      var spec = { target: 'replay', key: key }, rel = href(spec);
+      if (!rel) return Promise.resolve({ ok: false, reason: 'no-key', url: '' });
+      if (!isInApp()) {
+        window.location.href = rel;
+        return Promise.resolve({ ok: true, mode: 'same-origin', url: rel });
+      }
+      var share = buildShare(spec);
+      if (!share.url) {   // 未注入公开基址：留在壳内，不开空白页
+        window.location.href = rel;
+        return Promise.resolve({ ok: true, mode: 'in-app-relative', url: rel, degraded: true, reason: 'no-public-origin' });
+      }
+      var B = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) || null;
+      var viaWindowOpen = function (why) {
+        try { window.open(share.url, '_blank'); } catch (e) { window.location.href = rel; }
+        return { ok: true, mode: 'window-open', url: share.url, insecure: share.insecure, degraded: true, reason: why };
+      };
+      if (B && typeof B.open === 'function') {
+        try {
+          var p = B.open({ url: share.url });
+          if (p && typeof p.then === 'function') {
+            return p.then(
+              function () { return { ok: true, mode: 'browser-plugin', url: share.url, insecure: share.insecure }; },
+              function (e) { return viaWindowOpen('browser-open-failed:' + ((e && e.message) || e)); }
+            );
+          }
+          return Promise.resolve({ ok: true, mode: 'browser-plugin', url: share.url, insecure: share.insecure });
+        } catch (e) { return Promise.resolve(viaWindowOpen('browser-open-threw')); }
+      }
+      return Promise.resolve(viaWindowOpen('browser-plugin-absent'));
+    }
+
+    /** 兼容解析：裸号 / 裸复合键 / 旧相对 / 旧绝对 / 新 https 深链 */
+    function parse(raw) {
+      var out = { key: '', target: 'classroom', tCode: '', error: '' };
+      var s = String(raw == null ? '' : raw).trim().replace(/^[<"'\s]+|[>"'\s]+$/g, '');
+      if (!s) { out.error = '请先粘贴课堂链接或输入课堂号'; return out; }
+      if (!(/^[a-z][a-z0-9+.-]*:/i.test(s) || s.indexOf('?') >= 0 || s.indexOf('#') >= 0)) {
+        out.key = s;   // 裸号 / 裸复合键
+      } else {
+        s = s.replace(/[\r\n\t ]/g, '');   // 兼容 IM 折行；key/tCode 本身不含空白
+        var q = {}, qi = s.indexOf('?');
+        if (qi >= 0) {
+          s.slice(qi + 1).split('#')[0].split('&').forEach(function (pair) {
+            if (!pair) return;
+            var i = pair.indexOf('='), k = i < 0 ? pair : pair.slice(0, i), v = i < 0 ? '' : pair.slice(i + 1);
+            try { q[decodeURIComponent(k)] = decodeURIComponent(v); } catch (e) { q[k] = v; }
+          });
+        }
+        out.key = q.scheduleId || q.sid || q.classroomId || '';
+        out.tCode = q.tCode || q.tenantCode || '';
+        if (q.intent === 'prep' || /classroom-prep\.html/i.test(s)) out.target = 'prep';
+        if (!out.key) { out.error = '这条链接里没有课堂号（缺 scheduleId 参数），请向老师要完整链接'; return out; }
+      }
+      if (!KEY_RE.test(out.key)) {
+        out.key = '';
+        out.error = '课堂号格式不对：应为 32 位左右的字母数字（多课次形如 xxx~2）';
+      }
+      return out;
+    }
+
+    /** 唯一全局入口，替代 4 处重复定义；HTML 的 onclick="enterClassroom(...)" 零改动 */
+    function enterClassroom(key) {
+      if (!key) { alert('缺少排期信息'); return; }
+      if (!href({ target: 'classroom', key: key })) { alert('课堂号非法或页面脚本异常，请刷新页面重试'); return; }
+      open({ target: 'classroom', key: key });
+    }
+
+    window.ClassroomLink = {
+      href: href,
+      shareUrl: shareUrl,
+      shareUrlSafe: shareUrlSafe,
+      open: open,
+      openReplay: openReplay,
+      parse: parse,
+      isInApp: isInApp,
+      enabled: enabled,
+      publicWebOrigin: publicWebOrigin
+    };
+    window.enterClassroom = enterClassroom;
+    window.openReplayPage = function (key) { return openReplay(key); };
+  })();
+  // [CLS-LINK-END]
+
   /**
    * 校验「角色 ↔ 租户编码」是否匹配
    *
