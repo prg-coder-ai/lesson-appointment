@@ -30,7 +30,7 @@ CLS_JAR="$(ls -1 "$ROOT"/deploy/jars/classroom-service-*.jar 2>/dev/null | head 
 [ -n "$BOOKING_JAR" ] || { echo "找不到 booking 产物，请先跑 bash deploy/build-backends.sh"; exit 1; }
 [ -n "$MSG_JAR" ]     || { echo "找不到 message-service 产物，请先跑 bash deploy/build-backends.sh"; exit 1; }
 
-echo "==> 1/8 三个 jar（课堂可选）"
+echo "==> 1/9 三个 jar（课堂可选）"
 echo "    booking   <- $BOOKING_JAR"
 echo "    message   <- $MSG_JAR"
 scp "$BOOKING_JAR" "$SERVER:/opt/lesson/booking_api.jar.new"
@@ -51,10 +51,36 @@ if [ -d "$ROOT/deploy/dist" ]; then
     echo "⚠ frontend/dist 比 deploy/dist 新，建议先跑：node deploy/collect-artifacts.js --only dist"
   fi
 fi
-echo "==> 2/8 前端 dist（内容，不含 dist 这一层；来源 $DIST_DIR）"
+echo "==> 2/9 前端 dist（内容，不含 dist 这一层；来源 $DIST_DIR）"
 rsync -av --delete "$DIST_DIR/" "$SERVER:/var/www/frontend/"
 
-echo "==> 3/8 SQL 初始化脚本（三库；源目录是 deploy/sql/{schema,seed,patch}）"
+# ------------------------------------------------------------
+# 课堂 App（classroom-app/www）—— 2026-11-26 新增
+#
+# 为什么必须传：frontend 侧所有「进入课堂」入口都收敛到 ClassroomLink，
+#   产出相对地址 ./launch.html?scheduleId=…，而 launch.html 只存在于
+#   classroom-app/www。nginx 的「课堂 App 静态承接」块把它指向
+#   /var/www/classroom-app —— 这个目录不传，线上所有「进入课堂」都会 404。
+#
+# 它和 frontend/dist 是两份独立产物：
+#   frontend     → node frontend/build.js           → /var/www/frontend
+#   classroom-app→ node classroom-app/scripts/build.js → /var/www/classroom-app
+# 后者内含 App 专属补丁（见 classroom-app/config/frontend-patches.js），
+# 不能用 frontend/dist 的 classroom.html 顶替。
+#
+# 缺产物只告警不中断：与课堂服务 jar 一样属可选，不阻断预约/消息上线。
+# ------------------------------------------------------------
+APP_WWW_DIR="$ROOT/classroom-app/www"
+if [ -f "$APP_WWW_DIR/launch.html" ]; then
+  echo "==> 3/9 课堂 App www（内容，不含 www 这一层；来源 classroom-app/www）"
+  ssh "$SERVER" 'mkdir -p /var/www/classroom-app' || echo "   ⚠ 远程建目录失败，后续 rsync 可能报错"
+  rsync -av --delete "$APP_WWW_DIR/" "$SERVER:/var/www/classroom-app/"
+else
+  echo "==> 3/9 课堂 App www —— 未构建，跳过"
+  echo "     ⚠ 线上「进入课堂」会 404：先跑 node classroom-app/scripts/build.js 再传"
+fi
+
+echo "==> 4/9 SQL 初始化脚本（三库；源目录是 deploy/sql/{schema,seed,patch}）"
 # 2026-11-18 目录整合：DDL 从 api/sql/ 迁入 deploy/sql/。旧脚本里的 api/beforeRun/sql/
 #    早已不存在，`set -e` 下 rsync 源缺失会中断整个上传流程。这里统一指向 deploy/sql/，
 #    并用 [ -d ] 保护，缺目录只告警不中断。
@@ -82,7 +108,7 @@ else
   echo "   ⚠ 缺少目录 api/classroom-service/sql，跳过课堂 SQL"
 fi
 
-echo "==> 4/8 systemd 单元 + env 模板（三个服务）"
+echo "==> 5/9 systemd 单元 + env 模板（三个服务）"
 scp "$ROOT/deploy/booking.service"         "$SERVER:/etc/systemd/system/booking.service"
 scp "$ROOT/deploy/message-service.service" "$SERVER:/etc/systemd/system/message-service.service"
 scp "$ROOT/deploy/classroom.service"       "$SERVER:/etc/systemd/system/classroom-service.service"
@@ -92,7 +118,7 @@ scp "$ROOT/deploy/classroom.env.template"  "$SERVER:/opt/lesson/classroom.env.te
 # keys.env 是三个服务的共用密钥（2026-11-21 起）。只传模板，真实值在服务器上填。
 scp "$ROOT/deploy/keys.env.template"       "$SERVER:/opt/lesson/keys.env.template"
 
-echo "==> 5/8 Nginx 配置 + 备份脚本 + logrotate"
+echo "==> 6/9 Nginx 配置 + 备份脚本 + logrotate"
 scp "$ROOT/deploy/nginx/booking.conf"     "$SERVER:/etc/nginx/sites-available/booking"
 scp "$ROOT/deploy/nginx/booking-ip.conf"  "$SERVER:/etc/nginx/sites-available/booking-ip"
 # HTTPS 版（2026-11-22 新增）。**只上传、绝不自动 ln -s 启用**：
@@ -135,18 +161,18 @@ scp "$ROOT/deploy/backup.sh"              "$SERVER:/opt/lesson/backup.sh"
 scp "$ROOT/deploy/logrotate/lesson"       "$SERVER:/etc/logrotate.d/lesson"
 scp "$ROOT/deploy/healthcheck.sh"         "$SERVER:/opt/lesson/healthcheck.sh"
 
-echo "==> 6/8 日志目录 + 课堂存储目录 + logrotate 生效校验"
+echo "==> 7/9 日志目录 + 课堂存储目录 + logrotate 生效校验"
 # 目录不建 → systemd 因 append: 打不开文件而启动失败；logrotate 不校验 → 真滚动那天才发现没生效。
 # 课堂的 STORAGE_LOCAL_ROOT 默认 /opt/lesson/data/oss，属主必须是 lesson 才写得进讲稿/录制。
 ssh "$SERVER" 'sudo mkdir -p /var/log/lesson/api /var/log/lesson/message /var/log/lesson/classroom /opt/lesson/data/oss && sudo chown -R lesson:lesson /var/log/lesson /opt/lesson/data && sudo chmod 644 /etc/logrotate.d/lesson && sudo logrotate -d /etc/logrotate.d/lesson >/dev/null && echo "   logrotate 配置校验通过"' \
   || echo "⚠ logrotate 配置校验失败，请登录服务器手动执行：sudo logrotate -d /etc/logrotate.d/lesson"
 
-echo "==> 7/8 启用软链并平滑重载 Nginx（默认仅启用纯 HTTP 的 booking-ip；无域名/无证书切勿启用 booking.conf 的 443 SSL 块，否则 nginx 因证书缺失起不来）"
+echo "==> 8/9 启用软链并平滑重载 Nginx（默认仅启用纯 HTTP 的 booking-ip；无域名/无证书切勿启用 booking.conf 的 443 SSL 块，否则 nginx 因证书缺失起不来）"
 ssh "$SERVER" 'rm -f /etc/nginx/sites-enabled/booking /etc/nginx/sites-enabled/default && ln -sf /etc/nginx/sites-available/booking-ip /etc/nginx/sites-enabled/booking-ip && sudo nginx -t && sudo systemctl reload nginx' \
   || echo "⚠ 自动 reload nginx 失败，请登录服务器手动执行：sudo nginx -t && sudo systemctl reload nginx"
 echo "   （有域名+证书后启用 HTTPS 版：sudo ln -sf /etc/nginx/sites-available/booking /etc/nginx/sites-enabled/booking && sudo systemctl reload nginx）"
 
-echo "==> 8/8 分流自检（三服务：8081 主 / 8090 消息 / 8092 课堂）"
+echo "==> 9/9 分流自检（三服务：8081 主 / 8090 消息 / 8092 课堂）"
 ssh "$SERVER" 'for p in "api/v1/system/info:8081 主服务" "api/v1/message/system/info:8090 消息" "api/v1/rtc/providers:8092 课堂"; do url=${p%%:*}; echo -n "   $url -> "; curl -s -o /dev/null -w "%{http_code}\n" "http://127.0.0.1/$url"; done' \
   || echo "   ⚠ 自检失败（后端可能还没启动，属正常；重启后端后再跑一次）"
 

@@ -150,5 +150,95 @@ for (const file of NGINX_FILES) {
   if (!bad) ok(`${file}: 课堂 location 与 dev 代理清单一致，且所有端点可达`);
 }
 
+/* -------------------------------------------------------------------------
+ * ④ 课堂 App 静态承接块：五份齐备 + 逐字一致 + 回落不兜登录页
+ *
+ * 为什么加（2026-11-26）：frontend 侧所有「进入课堂」入口都收敛到
+ * ClassroomLink，产出相对地址 ./launch.html?scheduleId=…，而 launch.html
+ * 只存在于 classroom-app/www。只要某份 conf 漏了这组 location，该站点
+ * 「进入课堂」就整片 404（近日课程/我的课程/课次列表/我的课堂四个入口同时挂）。
+ *
+ * 更隐蔽的是**回落链路**：本文件的 location 若兜 /login.html，线上访问
+ * /launch.html 会返回 200 + 登录页内容，参数全丢 —— 看着像"没登录"，
+ * 比 404 难查得多。所以这里断言回落必须是 `try_files $uri =404`。
+ * ------------------------------------------------------------------------- */
+const WWW_BLOCK_ANCHOR = '课堂 App 静态承接';
+const WWW_REQUIRED = [
+  [/location\s+~\s+\^\/\([^)]*launch[^)]*\)\\\.html\$/m, '页面正则 location（含 launch.html）'],
+  [/location\s+~\s+\^\/\(app-\[a-z-\]\+\\\.js/, '根级脚本样式 location（app-*.js 等）'],
+  [/location\s+\^~\s+\/js\/classroom\//, '课堂本体 JS location（/js/classroom/）'],
+  [/location\s+=\s+\/css\/classroom\.css/, '课堂样式精确 location（/css/classroom.css）'],
+  [/location\s+@fe_static\s*\{/, '回落 named location（@fe_static）'],
+];
+
+/** 抽出每处承接块：锚点行首 → @fe_static 块的大括号收尾 */
+function extractWwwBlocks(src) {
+  const out = [];
+  let pos = 0;
+  for (;;) {
+    const i = src.indexOf(WWW_BLOCK_ANCHOR, pos);
+    if (i < 0) break;
+    const lineStart = src.lastIndexOf('\n', i) + 1;
+    const fe = src.indexOf('location @fe_static', i);
+    if (fe < 0) { out.push(''); pos = i + WWW_BLOCK_ANCHOR.length; continue; }
+    let depth = 0;
+    let end = -1;
+    for (let k = src.indexOf('{', fe); k < src.length; k++) {
+      if (src[k] === '{') depth++;
+      else if (src[k] === '}') { depth--; if (depth === 0) { end = k; break; } }
+    }
+    out.push(end < 0 ? '' : src.slice(lineStart, end + 1));
+    pos = i + WWW_BLOCK_ANCHOR.length;
+  }
+  return out;
+}
+
+/** 行首空白归一化：五份 conf 缩进可能不同，语义相同即可 */
+function normalizeBlock(b) {
+  return b.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).join('\n');
+}
+
+const wwwBlocks = [];
+for (const file of NGINX_FILES) {
+  const src = fs.readFileSync(path.join(ROOT, file), 'utf8');
+  const blocks = extractWwwBlocks(src);
+  if (!blocks.length) {
+    fail(`${file}: 缺少「${WWW_BLOCK_ANCHOR}」块 —— 该站点「进入课堂」会 404 或落到登录页`);
+    continue;
+  }
+  let bad = 0;
+  blocks.forEach((b, idx) => {
+    const tag = `${file}#${idx + 1}`;
+    if (!b) { fail(`${tag}: 承接块结构不完整（找不到 @fe_static 收尾）`); bad++; return; }
+    for (const [re, label] of WWW_REQUIRED) {
+      if (!re.test(b)) { fail(`${tag}: 承接块缺少${label}`); bad++; }
+    }
+    if (/try_files\s+\$uri\s+\/login\.html/.test(b)) {
+      fail(`${tag}: 承接块回落兜 /login\.html —— 会把「App 未部署」伪装成「未登录」，`
+         + '必须写成 try_files $uri =404');
+      bad++;
+    }
+    wwwBlocks.push({ tag, hash: normalizeBlock(b) });
+  });
+  if (!bad) ok(`${file}: 课堂 App 承接块 ${blocks.length} 份齐备`);
+}
+
+// 五份（booking-ip-dual 有两处）必须逐字一致：同一时间只启用一份，
+// 不一致就等于"换一份 conf 行为就变"，而这种漂移不会在本地暴露。
+if (wwwBlocks.length) {
+  const uniq = new Set(wwwBlocks.map((x) => x.hash));
+  if (uniq.size > 1) {
+    const groups = new Map();
+    for (const it of wwwBlocks) {
+      if (!groups.has(it.hash)) groups.set(it.hash, []);
+      groups.get(it.hash).push(it.tag);
+    }
+    fail(`课堂 App 承接块在 ${uniq.size} 种版本间不一致，切 conf 时行为会漂移：`
+       + Array.from(groups.values()).map((g) => g.join(' + ')).join('  vs  '));
+  } else {
+    ok(`课堂 App 承接块 ${wwwBlocks.length} 处逐字一致`);
+  }
+}
+
 console.log(failed ? `\n共 ${failed} 处不一致` : '\n✓ 分流规则一致：前端课堂端点全部可达，dev 与 nginx 清单对齐');
 process.exit(failed ? 1 : 0);
