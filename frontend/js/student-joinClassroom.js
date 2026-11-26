@@ -7,7 +7,7 @@
  * 没有可粘贴的地方 —— 本页就是那个「粘贴口」。
  *
  * 流程：解析（链接或裸课堂号）→ 校验（GET /classrooms/{sid}/status，走 ClassroomAccessGuard）
- *       → 通过则跳 classroom.html?scheduleId=...
+ *       → 通过则经 ClassroomLink 跳课堂页
  *
  * 为什么校验用 /status 而不是方案里写的 POST /enter：
  *   enter 有副作用（membership.join 建名单行 + attendance.checkIn 签到 + 回调预约侧
@@ -57,20 +57,6 @@
     });
   }
 
-  /** 与全站一致的跳转规则：pageUrl 会自动带 tCode，否则多租户下课堂页守卫会把学生踢回登录页 */
-  function pageUrlOf(name, params) {
-    if (typeof window.pageUrl === 'function') {
-      return params ? window.pageUrl(name, params) : window.pageUrl(name);
-    }
-    var qs = '';
-    if (params) {
-      qs = '?' + Object.keys(params).map(function (k) {
-        return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
-      }).join('&');
-    }
-    return './' + name + qs;
-  }
-
   /** 当前登录态的租户码（用于发现「链接属于别家机构」这种点开也进不去的情况） */
   function myTenantCode() {
     try {
@@ -81,53 +67,22 @@
     }
   }
 
-  /* 课堂号允许的形态：普通 id（数字/字母/-/_）、多课次复合键 "<排期id>~<N>"。
-     刻意不接受 ".", "/" 等字符——scheduleId 会被拼进 URL 路径，注入不该有机会。 */
-  var SCHEDULE_ID_RE = /^[A-Za-z0-9_-]{4,64}(~\d{1,2})?$/;
-
   /**
-   * 解析用户输入。
-   * @returns {{scheduleId:string, tCode:string, role:string, error:string}|null}
-   *   支持：完整 URL、相对链接（classroom.html?scheduleId=...）、裸课堂号、裸复合键。
+   * 解析用户输入（委托唯一构造器 ClassroomLink.parse，解析规则全站只有一处）。
+   * 支持：裸课堂号、多课次复合键、旧相对/旧绝对链接、新 https 深链、带折行的粘贴。
+   * @returns {{scheduleId:string, tCode:string, kind:string, error:string}}
    */
   function parseTarget(raw) {
-    var s = String(raw === null || raw === undefined ? '' : raw).trim();
-    if (!s) return { scheduleId: '', error: '请先粘贴课堂链接或输入课堂号' };
-    // 从聊天软件粘贴时常带首尾的引号/尖括号
-    s = s.replace(/^[<"'\s]+|[>"'\s]+$/g, '');
-
-    var sid = '';
-    var tCode = '';
-    var role = '';
-
-    var looksLikeUrl = /^https?:\/\//i.test(s) || s.indexOf('?') >= 0 || s.indexOf('#') >= 0;
-    if (looksLikeUrl) {
-      var u = null;
-      try { u = new URL(s, window.location.href); } catch (e) { u = null; }
-      if (u) {
-        var q = u.searchParams;
-        sid = q.get('scheduleId') || q.get('sid') || q.get('classroomId') || '';
-        tCode = q.get('tCode') || q.get('tenantCode') || '';
-        role = q.get('role') || '';
-      }
-      if (!sid) {
-        var m = /[?&#](?:scheduleId|sid|classroomId)=([^&#]+)/i.exec(s);
-        if (m) {
-          try { sid = decodeURIComponent(m[1]); } catch (e2) { sid = m[1]; }
-        }
-      }
-      if (!sid) {
-        return { scheduleId: '', error: '这条链接里没有课堂号（缺 scheduleId 参数），请向老师要完整链接' };
-      }
-    } else {
-      sid = s;
+    if (!window.ClassroomLink || typeof window.ClassroomLink.parse !== 'function') {
+      return { scheduleId: '', tCode: '', kind: 'classroom', error: '页面脚本未就绪，请刷新后重试' };
     }
-
-    sid = String(sid).trim();
-    if (!SCHEDULE_ID_RE.test(sid)) {
-      return { scheduleId: '', error: '课堂号格式不对：应为 32 位左右的字母数字（多课次形如 xxx~2）' };
-    }
-    return { scheduleId: sid, tCode: tCode, role: role, error: '' };
+    var r = window.ClassroomLink.parse(raw);
+    return {
+      scheduleId: r.key || '',
+      tCode: r.tCode || '',
+      kind: r.target || 'classroom',
+      error: r.error || ''
+    };
   }
 
   /** 错误对象 → 可读文案。业务失败 reject 的是 Result 对象（含 code/message），网络失败是 Error/字符串 */
@@ -231,7 +186,8 @@
         btn.disabled = true;
         btn.textContent = '正在进入…';
         // 真正的 enter 在课堂页里发（会写名单 + 签到），这里只负责跳转
-        window.location.href = pageUrlOf('classroom.html', { scheduleId: sid });
+
+        window.ClassroomLink.open({ target: 'classroom', key: sid });
       });
     }
   }
@@ -275,7 +231,7 @@
       + '  </div>'
       + '  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'
       + '    <input type="text" id="stu-join-input" autocomplete="off" spellcheck="false"'
-      + '           placeholder="粘贴链接（classroom.html?scheduleId=...）或课堂号"'
+      + '           placeholder="粘贴老师发的课堂链接，或直接输入课堂号"'
       + '           style="flex:1;min-width:280px;padding:8px 12px;border:1px solid #d0d5dd;border-radius:6px;font-size:13px;">'
       + '    <button class="btn btn-primary" type="button" id="stu-join-check">查找课堂</button>'
       + '  </div>'
