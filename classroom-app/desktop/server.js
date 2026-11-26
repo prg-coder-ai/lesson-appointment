@@ -254,7 +254,74 @@ function createAppServer(opts) {
   return { server, upstreamOf, wwwDir: WWW };
 }
 
-module.exports = { createAppServer, resolveUpstream, MSG_PREFIXES, CLS_PREFIXES, WS_PREFIXES };
+/* ---------- 监听端口选择（固定端口优先，冲突则顺延）----------
+ *
+ * ★ 为什么必须固定端口（2026-11-26）
+ * Chromium 的 localStorage / sessionStorage 按 **origin（scheme + host + port）** 隔离。
+ * 原来桌面壳用 `listen(0)` 由系统分配空闲端口，页面 origin 每次启动都不同
+ * （11010 → 29778 → …），等于每次启动都是**全新的空存储**，直接导致：
+ *   ① token 丢失 → 每次打开都要重新登录；
+ *   ② eclassroomConfig 丢失 → 今日课程的课堂按钮首次渲染时被判成“未开通课堂”而不显示
+ *      （见 my-classroom-core.js buildEntryButtons 的 enabled 判断）。
+ * 固定后存储跨启动保留，两个症状一起消失。
+ */
+const DEFAULT_LISTEN_PORT = 18080;
+
+/**
+ * 基准端口：环境变量 CLASSROOM_APP_PORT > config.json 的 listenPort > 默认 18080
+ * @param {object} env process.env
+ * @param {object} cfg 桌面端 config.json 内容
+ */
+function resolveBasePort(env, cfg) {
+  const fromEnv = Number((env && env.CLASSROOM_APP_PORT) || '');
+  if (Number.isFinite(fromEnv) && fromEnv > 0) return fromEnv;
+  const fromCfg = Number((cfg && cfg.listenPort) || '');
+  if (Number.isFinite(fromCfg) && fromCfg > 0) return fromCfg;
+  return DEFAULT_LISTEN_PORT;
+}
+
+/**
+ * 从 base 起顺延找可用端口，返回实际监听端口。
+ *
+ * 用 error 事件重试而不是"先探测再 listen"：探测与真正 listen 之间仍有竞态，
+ * 直接试才是准的。Node 的 server 在 EADDRINUSE 后可以再次 listen。
+ *
+ * @param {import('http').Server} server
+ * @param {number} base 基准端口
+ * @param {number} maxTries 最多尝试多少个连续端口
+ * @param {(from:number,to:number)=>void} [onWarn] 顺延时回调（换端口会重置本地存储）
+ */
+function listenWithFallback(server, base, maxTries, onWarn) {
+  const tries = Number(maxTries) > 0 ? Number(maxTries) : 1;
+  return new Promise((resolve, reject) => {
+    const attempt = (left) => {
+      const port = base + (tries - left);
+      const onError = (e) => {
+        server.removeListener('listening', onListening);
+        if (e && e.code === 'EADDRINUSE' && left > 1) {
+          if (typeof onWarn === 'function') onWarn(port, port + 1);
+          attempt(left - 1);
+          return;
+        }
+        reject(e);
+      };
+      const onListening = () => {
+        server.removeListener('error', onError);
+        resolve(server.address().port);
+      };
+      server.once('error', onError);
+      server.once('listening', onListening);
+      server.listen(port, '127.0.0.1');
+    };
+    attempt(tries);
+  });
+}
+
+module.exports = {
+  createAppServer, resolveUpstream,
+  resolveBasePort, listenWithFallback,
+  MSG_PREFIXES, CLS_PREFIXES, WS_PREFIXES,
+};
 
 /* ---------- 单跑入口：node server.js [端口] ----------
  * 不启 Electron，直接把同一套静态+代理跑起来，方便：

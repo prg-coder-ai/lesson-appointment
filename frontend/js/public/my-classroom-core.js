@@ -326,7 +326,20 @@
     if (!isClassroomEligible(status)) return '';
 
     // 教室未开通时不误导用户点进去（页面里 hasClassroom 未定义时按开通处理，交给课堂服务判定）
-    var enabled = (typeof window.hasClassroom === 'function') ? window.hasClassroom() : true;
+    //
+    // 【2026-11-26 补充兜底】「配置尚未与本标签页核对过」时必须先放行，不能当成未开通。
+    //   hasClassroom() 读的是 localStorage 快照，页面首次加载时它可能还是空的
+    //   （新会话 / 刚登录 / 换了 origin），此时返回 false 会把整行课堂按钮隐掉 ——
+    //   表现就是「进入今日课程看不到课堂准备、进入课堂，切一次菜单才回来」。
+    //   这与 applyMenuVisibility() 在 2026-11-13 修过的是同一个坑（那边注释写的是
+    //   “原实现只看 hasClassroom()…… 入口被永久隐藏”），当时只修了菜单，漏了行内按钮。
+    //   桌面端尤其明显：它的页面 origin 曾每次启动都不同，等于每次都是全新会话。
+    var enabled = true;
+    if (typeof window.hasClassroom === 'function') {
+      var verified = (typeof window.hasClassroomConfigVerified === 'function')
+        ? window.hasClassroomConfigVerified() : true;
+      enabled = !verified || window.hasClassroom();
+    }
     if (!enabled && !o.ignoreSwitch) return '';
 
     // meta 为 encodeURIComponent(JSON) 串，供「课前准备」按钮携带课次时间等展示元数据；

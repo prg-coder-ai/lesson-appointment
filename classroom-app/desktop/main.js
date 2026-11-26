@@ -39,7 +39,7 @@ const { app, BrowserWindow, shell, session, dialog } = electronApi;
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { createAppServer } = require('./server');
+const { createAppServer, resolveBasePort, listenWithFallback } = require('./server');
 
 /**
  * 绿色版数据目录 —— 必须在 app ready 之前设置。
@@ -101,6 +101,14 @@ let mainWindow = null;
 let appServer = null;
 let listenPort = 0;
 
+/* ───────── 监听端口 ─────────
+ * reason 与实现都在 server.js 的 resolveBasePort / listenWithFallback 里
+ * （放那里是为了能被 tools/check 或单测直接 require，可验证顺延分支）。
+ * 一句话：origin 必须跨启动稳定，否则 localStorage 每次都是空的 ——
+ * token 丢（每次要重登）+ eclassroomConfig 丢（课堂按钮首次渲染不出来）。
+ */
+const LISTEN_PORT_MAX_TRIES = 20;
+
 function createWindow() {
   const w = CFG.window || {};
   mainWindow = new BrowserWindow({
@@ -149,13 +157,12 @@ app.whenReady().then(async () => {
   try {
     const made = createAppServer({ wwwDir: resolveWww(), config: CFG });
     appServer = made.server;
-    await new Promise((resolve, reject) => {
-      appServer.once('error', reject);
-      appServer.listen(0, '127.0.0.1', () => {   // 0 = 由系统分配空闲端口，避免固定端口冲突
-        listenPort = appServer.address().port;
-        resolve();
-      });
-    });
+    // 固定端口（冲突顺延），保证 origin 跨启动不变 → localStorage 保留登录态与课堂配置
+    listenPort = await listenWithFallback(
+      appServer, resolveBasePort(process.env, CFG), LISTEN_PORT_MAX_TRIES,
+      (from, to) => console.warn('[classroom-desktop] 端口 ' + from + ' 被占用，顺延到 ' + to
+        + '（换端口会重置本地存储，可能需要重新登录）')
+    );
     console.log('[classroom-desktop] serving ' + made.wwwDir + ' on http://127.0.0.1:' + listenPort);
     createWindow();
   } catch (e) {
