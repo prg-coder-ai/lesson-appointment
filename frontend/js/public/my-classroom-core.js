@@ -180,11 +180,11 @@
     }
   }
 
-  /** 进入课堂页（key 为课次标识） */
+  /** 进入课堂页（key 为课次标识）—— 走课堂 App 统一入口页，由它按登录态分流 */
   function enterClassroom(key) {
     if (!key) { toast('缺少课次标识'); return; }
     if (!window.ClassroomLink) { toast('页面脚本未就绪，请刷新后重试'); return; }
-    window.ClassroomLink.open({ target: 'classroom', key: key });
+    window.ClassroomLink.open({ target: 'entry', key: key, intent: 'classroom' });
   }
 
   /** 课程回看（课堂回放页；无录制时该页自己会提示，不必先探一次） */

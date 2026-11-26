@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>云课堂 · 正在进入</title>
+  <style>
+    html,body{margin:0;height:100%;background:#f5f7fa;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;color:#1f2937}
+    .boot{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:14px;padding:0 24px;text-align:center}
+    .spinner{width:34px;height:34px;border:3px solid #d1d5db;border-top-color:#1f6feb;border-radius:50%;animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .msg{font-size:14px;color:#6b7280}
+    .err{color:#b91c1c;font-size:13px;line-height:1.7}
+  </style>
+</head>
+<body>
+<!--
+  课堂 App 统一入口页（网页侧深链落地页）
+  ============================================================================
+  为什么需要这一页：classroom-app/www 与 frontend 有 6 个同名页
+  （classroom.html / classroom-prep.html / index.html / login.html /
+   student.html / teacher.html），同源同根部署时 /index.html 会命中前端站点首页，
+  深链参数被丢掉。launch.html 是 www 独有的路径，能确定由课堂 App 承接。
+
+  职责单一：只做「解析参数 + 按登录态分流」，不取业务数据、不渲染列表。
+  落地目标全部是已存在且可被同源访问的页面：
+    已登录 + intent=prep      → classroom-prep.html?scheduleId=…[&mode=student]
+    已登录 + 其他             → classroom.html?scheduleId=…
+    未登录                    → login.html?redirect=<当前 URL，含 scheduleId 与 tCode>&tCode=…
+    无 scheduleId             → my-classroom.html（我的课堂列表，自行选课次）
+
+  纯内联实现，不依赖任何外部脚本：即使 www 只部署了课堂相关页也能工作。
+-->
+  <div class="boot">
+    <div class="spinner"></div>
+    <div class="msg" id="boot-msg">正在进入课堂…</div>
+    <div class="err" id="boot-err"></div>
+  </div>
+  <script>
+  (function () {
+    'use strict';
+
+    var KEY_RE = /^[A-Za-z0-9_-]{4,64}(~\d{1,2})?$/;   // 与 frontend 构造器同口径
+
+    var msgEl = document.getElementById('boot-msg');
+    var errEl = document.getElementById('boot-err');
+
+    function q(name) {
+      try { return new URLSearchParams(window.location.search).get(name) || ''; }
+      catch (e) { return ''; }
+    }
+
+    function currentUser() {
+      var keys = ['currentUser', 'userInfo', 'user'];
+      for (var i = 0; i < keys.length; i++) {
+        try {
+          var raw = window.localStorage.getItem(keys[i]);
+          if (!raw) continue;
+          var u = JSON.parse(raw);
+          if (u && typeof u === 'object') return u;
+        } catch (e) { /* 单个键损坏不影响其余 */ }
+      }
+      return null;
+    }
+
+    function token() {
+      try { return window.localStorage.getItem('token') || ''; } catch (e) { return ''; }
+    }
+
+    /**
+     * 登录页回跳。
+     * login.html 认的是 redirect= 参数（getUrlRedirectTarget 会做同源 + .html 校验），
+     * 不是 back=；另外 tCode 要单独带一份——login.html 只从自己的 search 里读 tCode
+     * 来锁定机构输入框，塞进 redirect 里的 tCode 它读不到，会导致多租户下锁错机构。
+     */
+    function toLogin() {
+      var self = 'launch.html' + window.location.search + window.location.hash;
+      var url = 'login.html?redirect=' + encodeURIComponent(self);
+      var tCode = q('tCode');
+      if (tCode) url += '&tCode=' + encodeURIComponent(tCode);
+      window.location.replace(url);
+    }
+
+    function fail(text, manualHref) {
+      if (msgEl) msgEl.textContent = '无法直接进入课堂';
+      if (!errEl) return;
+      errEl.innerHTML = '';
+      var p = document.createElement('div');
+      p.textContent = text;
+      errEl.appendChild(p);
+      if (manualHref) {
+        var a = document.createElement('a');
+        a.href = manualHref;
+        a.textContent = '点这里手动进入';
+        a.style.cssText = 'display:inline-block;margin-top:8px;color:#1f6feb';
+        errEl.appendChild(a);
+      }
+    }
+
+    function go() {
+      var sid = q('scheduleId');
+      var intent = (q('intent') || 'classroom').toLowerCase();
+      var tCode = q('tCode');
+
+      // 无课次键 → 交给「我的课堂」让用户自己选（而不是报错卡住）
+      if (!sid) {
+        window.location.replace('my-classroom.html' + (tCode ? '?tCode=' + encodeURIComponent(tCode) : ''));
+        return;
+      }
+
+      // 课次键形态不对 → 不猜，给出可操作的提示
+      if (!KEY_RE.test(sid)) {
+        fail('课堂号格式不正确：应为 32 位左右的字母数字（多课次形如 xxx~2）。请回到上一页重新点击，或向老师索取完整链接。', '');
+        return;
+      }
+
+      var user = currentUser();
+      if (!user || !token()) { toLogin(); return; }
+
+      var role = String(user.role || '').toLowerCase();
+      var enc = encodeURIComponent(sid);
+      var target;
+
+      if (intent === 'prep') {
+        // 学生课前检测需带 mode=student（与 classroom-prep.js 的读取口径一致）
+        target = 'classroom-prep.html?scheduleId=' + enc + (role === 'student' ? '&mode=student' : '');
+      } else {
+        target = 'classroom.html?scheduleId=' + enc;
+      }
+
+      // 兜底：若浏览器阻止跳转，用户至少能看到一个可点的链接（不影响正常跳转）
+      if (errEl) {
+        errEl.innerHTML = '';
+        var a = document.createElement('a');
+        a.href = target;
+        a.textContent = '若未自动跳转，点这里进入';
+        a.style.cssText = 'display:inline-block;margin-top:6px;color:#1f6feb';
+        errEl.appendChild(a);
+      }
+      window.location.replace(target);
+    }
+
+    // 让首屏 UI 先渲染出来，再执行跳转
+    setTimeout(go, 30);
+  })();
+  </script>
+</body>
+</html>

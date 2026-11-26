@@ -187,7 +187,7 @@
         btn.textContent = '正在进入…';
         // 真正的 enter 在课堂页里发（会写名单 + 签到），这里只负责跳转
 
-        window.ClassroomLink.open({ target: 'classroom', key: sid });
+        window.ClassroomLink.open({ target: 'entry', key: sid, intent: 'classroom' });
       });
     }
   }

@@ -105,7 +105,7 @@ const INJECT = MARKER + '\n'
 const PAGES = ['login.html', 'student.html', 'teacher.html', 'classroom.html', 'classroom-prep.html'];
 
 // 启动页 + 统一入口页覆盖（新工程自有页面，不参与注入，避免重复引用）
-const OWN_PAGES = ['index.html', 'my-classroom.html', 'verify.html', 'ops.html'];
+const OWN_PAGES = ['index.html', 'my-classroom.html', 'verify.html', 'ops.html', 'launch.html'];
 OWN_PAGES.forEach((page) => {
   const src = path.join(SRC, 'pages', page);
   if (fs.existsSync(src)) {

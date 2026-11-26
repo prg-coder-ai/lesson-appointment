@@ -391,10 +391,11 @@
         (warn ? ' warn' : '') + '">' + v + '</div></div>';
     },
 
-    /** 进入课堂：与全站入口同一跳转语义（相对地址与 tCode 由构造器负责） */
+    /** 进入课堂：与全站入口同一跳转语义（相对地址与 tCode 由构造器负责）
+     *  指向课堂 App 统一入口页，由它按登录态分流，运营台不再自己判断角色 */
     _enterClassroom: function (scheduleId) {
       if (!scheduleId) { this.toast('缺少排期信息'); return; }
-      window.ClassroomLink.open({ target: 'classroom', key: scheduleId });
+      window.ClassroomLink.open({ target: 'entry', key: scheduleId, intent: 'classroom' });
     },
 
     // ---------------- 应急建课 / 加学员 / 强制结束（B1~B3，2026-11-19） ----------------
@@ -417,12 +418,12 @@
      *  无有效公开基址时返回 '' —— 调用方必须 fail-closed，不得降级为相对路径：
      *  相对值一旦被复制出去或写进 payload，就是一条不可召回的坏链。 */
     _classroomLink: function (scheduleId) {
-      return window.ClassroomLink.shareUrl({ target: 'classroom', key: scheduleId, src: 'ops' });
+      return window.ClassroomLink.shareUrl({ target: 'entry', key: scheduleId, src: 'ops', intent: 'classroom' });
     },
 
     /** 落库/外发专用：返回 { url, insecure }。payload 与通知正文必须用它并检查 insecure */
     _linkShare: function (scheduleId) {
-      return window.ClassroomLink.shareUrlSafe({ target: 'classroom', key: scheduleId, src: 'ops' });
+      return window.ClassroomLink.shareUrlSafe({ target: 'entry', key: scheduleId, src: 'ops', intent: 'classroom' });
     },
 
     /** 复制到剪贴板：clipboard API 不可用（非 HTTPS / 老浏览器）时退回 execCommand */

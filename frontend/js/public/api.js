@@ -873,7 +873,12 @@ function maskEmail(email) {
       classroom: 'classroom.html',
       prep: 'classroom-prep.html',
       replay: 'replay.html',
-      entry: 'index.html'
+      // 课堂 App 的统一入口页（网页侧独有，不与 frontend 任何页面同路径）。
+      // ★ 为什么不是 index.html：classroom-app/www 与 frontend 有 6 个同名页
+      //   （classroom.html / classroom-prep.html / index.html / login.html /
+      //    student.html / teacher.html）。同源同根部署时 /index.html 命中 frontend
+      //   站点首页，深链参数会被丢掉；只有 www 独有的路径才能确定由 App 承接。
+      entry: 'launch.html'
     };
     // 深链路径必须是根目录下单段 *.html（由 messages-inbox.js 的 safeJumpUrl 与
     // shared/domain/message.js 的白名单反推：多段路径会让「进入课堂」按钮渲染不出来）
@@ -1041,11 +1046,15 @@ function maskEmail(email) {
       return out;
     }
 
-    /** 唯一全局入口，替代 4 处重复定义；HTML 的 onclick="enterClassroom(...)" 零改动 */
+    /**
+     * 唯一全局入口，替代 4 处重复定义；HTML 的 onclick="enterClassroom(...)" 零改动
+     * 走课堂 App 的统一入口页 launch.html（intent=classroom），由它按登录态决定
+     * 进课堂、课前准备还是先登录回跳——与 App 内「我的课堂」分流逻辑一致。
+     */
     function enterClassroom(key) {
       if (!key) { alert('缺少排期信息'); return; }
-      if (!href({ target: 'classroom', key: key })) { alert('课堂号非法或页面脚本异常，请刷新页面重试'); return; }
-      open({ target: 'classroom', key: key });
+      if (!href({ target: 'entry', key: key, intent: 'classroom' })) { alert('课堂号非法或页面脚本异常，请刷新页面重试'); return; }
+      open({ target: 'entry', key: key, intent: 'classroom' });
     }
 
     window.ClassroomLink = {
