@@ -453,11 +453,3 @@ async function getMyEndDatetime() {
   } 
 }
 //TBD :增加排期、删除排期--参照admin的排期页面
-// 进入课堂：跳转到课堂页面
-function enterClassroom(scheduleId) {
-  if (!scheduleId) { alert('缺少排期信息'); return; }
-  window.location.href = (typeof window.pageUrl === 'function')
-    ? window.pageUrl('classroom.html', { scheduleId: scheduleId })
-    : './classroom.html?scheduleId=' + encodeURIComponent(scheduleId);
-}
-window.enterClassroom = enterClassroom;

@@ -290,7 +290,6 @@ async function loadAndRenderBooking_student(){
   window.formACourseCard   = formACourseCard  ;
   window.getAppointmentsByBookingId   = getAppointmentsByBookingId;// defined in dataFunction.js 
   window.switchResultTab   = switchResultTab;
-  window.enterClassroom = enterClassroom;
 
   // teacher「查看排期」排期结果卡片：对单个日期整次课次批量「申请改期 / 取消改期」，成功后就地刷新预览卡片
    
@@ -588,13 +587,6 @@ function localsearchAppoint_student() {
     }
   }
 
-  // 进入课堂：跳转到课堂页面
-  function enterClassroom(scheduleId) {
-    if (!scheduleId) { alert('缺少排期信息'); return; }
-    window.location.href = (typeof window.pageUrl === 'function')
-      ? window.pageUrl('classroom.html', { scheduleId: scheduleId })
-      : './classroom.html?scheduleId=' + encodeURIComponent(scheduleId);
-  }
  
 
 
