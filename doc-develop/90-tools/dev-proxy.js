@@ -269,8 +269,7 @@ function synthesizeBuildInfo() {
   };
 }
 
-function serveStatic(req, res, root, urlPath) {
-  const rel = urlPath === '/' ? '/index.html' : urlPath;
+function serveStatic(req, res, root, urlPath) {  const rel = urlPath === '/' ? '/index.html' : urlPath;
   const resolved = path.normalize(path.join(root, rel));
   // 防目录穿越
   if (resolved !== root && !resolved.startsWith(root + path.sep)) {
@@ -367,8 +366,63 @@ function lanAddresses() {
  *                                 局域网另一台电脑要用摄像头/麦克风时必须开（安全上下文要求）。
  * @returns {Promise<http.Server>}
  */
+/**
+ * 课堂 App 产物目录（classroom-app/www）——「同源同根部署」的本地模拟。
+ *
+ * <p><b>为什么需要</b>：课堂页已按 classroom-app 重做，生产上由 nginx 把
+ * /launch.html、/classroom.html、/classroom-prep.html 这些路径指向 www 产物；
+ * 本地若只伺服 frontend，点「进入课堂」会 404，链路根本没法验收。
+ *
+ * <p><b>只接管 www 独有的资源，不劫持主站页面</b>：www 与 frontend 有 6 个同名页
+ * （classroom.html / classroom-prep.html / index.html / login.html / student.html /
+ * teacher.html）。index.html / login.html / student.html / teacher.html 必须继续由
+ * frontend 提供（它们是主站页面），所以这里用**显式白名单**而不是整目录切换。
+ *
+ * <p><b>存在才接管，缺则回落 frontend</b>：www 是构建产物，可能只同步了部分文件
+ * （如 css/common.css 就缺失）。某个资源在 www 不存在时回落到 frontend，避免 404
+ * 打断页面加载——验证阶段要的是"能点通"，不是"www 完整性审计"。
+ *
+ * <p>开关：命令行 --app-www[=路径] 或环境变量 APP_WWW。不传则不启用，行为与改造前完全一致。
+ */
+function resolveAppWww(o) {
+  let p = o.appWww || process.env.APP_WWW || '';
+  if (!p) {
+    const flag = process.argv.slice(2).find((a) => a === '--app-www' || a.startsWith('--app-www='));
+    if (flag) p = flag.indexOf('=') > 0 ? flag.slice(flag.indexOf('=') + 1) : path.resolve(__dirname, '../../classroom-app/www');
+  }
+  if (!p) return '';
+  const abs = path.resolve(p);
+  if (!fs.existsSync(path.join(abs, 'launch.html'))) {
+    console.warn(`  ⚠ --app-www 指向的目录没有 launch.html，已忽略：${abs}`);
+    console.warn('    先构建课堂 App：cd classroom-app && node scripts/sync.js && node scripts/build.js');
+    return '';
+  }
+  return abs;
+}
+
+// www 独有 / 需要「用 App 版」的路径白名单
+const APP_WWW_PAGES = new Set([
+  'launch.html',        // 课堂入口页（www 独有）
+  'classroom.html',     // 课堂本体（与 frontend 同名，验证时要用 App 版即补丁版）
+  'classroom-prep.html',// 课前检测（同上）
+  'my-classroom.html',  // 我的课堂（www 独有）
+  'ops.html',           // 轻运营台（www 独有）
+  'verify.html'         // 设备自检（www 独有）
+]);
+
+function toAppWww(urlPath) {
+  const name = urlPath.replace(/^\//, '');
+  if (name.indexOf('/') < 0) return APP_WWW_PAGES.has(name);
+  if (urlPath.startsWith('/js/classroom/')) return true;                    // 课堂本体 JS（含补丁）
+  if (/^\/(app-[a-z-]+\.js|role-router\.js|ops-lite\.js|verify\.js|app\.css)$/.test(urlPath)) return true;
+  if (urlPath === '/css/classroom.css') return true;
+  return false;
+}
+
 function startProxy(o) {
   const root = path.resolve(o.root);
+  // 课堂 App 产物（同源同根部署的本地模拟）；未传 --app-www / APP_WWW 时为空，行为不变
+  const appWww = resolveAppWww(o);
   // 上游目标：默认 http（本地/裸 IP），传 apiProtocol:'https' 即支持云托管
   const apiTarget = normalizeTarget({
     protocol: o.apiProtocol,
@@ -405,6 +459,10 @@ function startProxy(o) {
         return proxy(req, res, classroomTarget, 'classroom');
       }
       return proxy(req, res, apiTarget, 'booking');
+    }
+    // 课堂 App 产物优先：www 里存在就用 www 的，缺则回落 frontend（见 resolveAppWww 注释）
+    if (appWww && toAppWww(urlPath) && fs.existsSync(path.join(appWww, urlPath))) {
+      return serveStatic(req, res, appWww, urlPath);
     }
     return serveStatic(req, res, root, urlPath);
   };
@@ -491,6 +549,12 @@ function startProxy(o) {
       console.log(`   静态根目录 :  ${root}`);
       console.log(`   资源模式   :  ${isDist ? 'dist 构建产物（需先 npm run build / maven prepare-package）'
         : '源码目录，未打包 —— 改完 js/html 直接刷新浏览器即生效'}`);
+      if (appWww) {
+        console.log(`   课堂 App   :  /launch.html、/classroom*.html、/my-classroom.html、/js/classroom/* ->  ${appWww}`);
+        console.log('                 （www 存在则用 www，缺失回落静态根；模拟生产同源同根部署）');
+      } else {
+        console.log('   课堂 App   :  未启用（加 --app-www 后 /launch.html 才可访问）');
+      }
       console.log('   ' + '-'.repeat(58));
       const fmt = (t) => `${t.protocol}://${t.host}${(t.port === 80 || t.port === 443) ? '' : ':' + t.port}`;
       console.log(`   普通 API   :  /api/v1/*                    ->  ${fmt(apiTarget)}`);
