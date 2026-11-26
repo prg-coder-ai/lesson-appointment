@@ -49,18 +49,18 @@ api/node_modules
 logs/spring-boot-app.log
 logs/spring-boot-app.log
 logs/spring-boot-app.log
-# ========== deploy/（部署资产单一事实源，2026-11-18 目录整合�=========
-# 历史上部署模板放�api/beforeRun/、DDL 放在 api/sql/，两者已分别合并�
-#   deploy/          （env 模板 / systemd 单元 / 部署说明�
-#   deploy/sql/      （schema / seed / patch，见 deploy/sql/README.md�
-# 旧目录已删除，禁止整目录排除 deploy/ —�env 模板等必须入库，否则
-# check:secret-env 守卫�deploy/upload-to-server.sh 在干净克隆上全部失真�
-# 仅构建产物（deploy/dist/、deploy/jars/）与含密钥的 deploy-keys.txt 在下面单独排除�
+# ========== deploy/（部署资产单一事实源，2026-11-18 目录整合�=========
+# 历史上部署模板放�api/beforeRun/、DDL 放在 api/sql/，两者已分别合并�
+#   deploy/          （env 模板 / systemd 单元 / 部署说明�
+#   deploy/sql/      （schema / seed / patch，见 deploy/sql/README.md�
+# 旧目录已删除，禁止整目录排除 deploy/ —�env 模板等必须入库，否则
+# check:secret-env 守卫�deploy/upload-to-server.sh 在干净克隆上全部失真�
+# 仅构建产物（deploy/dist/、deploy/jars/）与含密钥的 deploy-keys.txt 在下面单独排除�
 
-# ========== 运行日志与临时输出（统一规则�026-09-09 整理�=========
-# 说明：上面历史遗留的重复条目（如 logs/spring-boot-app.log、api/logs 等）保留不动�
-#       避免误伤；以下为统一兜底规则，覆盖所有模块产生的日志与构建输出�
-# 覆盖：Spring Boot 运行日志、Maven 构建日志、前端构建日志、JVM 崩溃转储�
+# ========== 运行日志与临时输出（统一规则�026-09-09 整理�=========
+# 说明：上面历史遗留的重复条目（如 logs/spring-boot-app.log、api/logs 等）保留不动�
+#       避免误伤；以下为统一兜底规则，覆盖所有模块产生的日志与构建输出�
+# 覆盖：Spring Boot 运行日志、Maven 构建日志、前端构建日志、JVM 崩溃转储�
 *.log
 *.log.gz
 *.log.*.gz
@@ -70,50 +70,50 @@ api/message-service/logs/
 doc-develop/logs/
 hs_err_pid*.log
 replay_pid*.log
-# miniprogram-itest 的「被测系统」暂存目录：�logic.mjs / login-flow.mjs 每次运行 cpSync 生成�
-# 不得入库（曾�_sut_login 漏配而把 26 个生成文件提交进去，导致每次跑测试都产生 diff 噪声）�
+# miniprogram-itest 的「被测系统」暂存目录：�logic.mjs / login-flow.mjs 每次运行 cpSync 生成�
+# 不得入库（曾�_sut_login 漏配而把 26 个生成文件提交进去，导致每次跑测试都产生 diff 噪声）�
 tests/miniprogram-itest/_sut*
 
-# 本机巡检凭据：deploy/healthcheck-local.sh 会自�source它�
-# 内含数据库明文密码，绝不入库（模板见 .healthcheck.local.env.example）�
+# 本机巡检凭据：deploy/healthcheck-local.sh 会自�source它�
+# 内含数据库明文密码，绝不入库（模板见 .healthcheck.local.env.example）�
 .healthcheck.local.env
 .workbuddy/healthcheck-local.log
-# cloudBased/web 是纯暂存目录：dist/、构建时拷进来的 Dockerfile �nginx.conf.template�
-# 以及 web.zip 都堆在这里。源文件已迁�deploy/nginx/cloudbase-web/ 受版本控制，
-# �cloudBased/scripts/build-all.* �docker build 前拷入（别再往这里放需要入库的东西）�
+# cloudBased/web 是纯暂存目录：dist/、构建时拷进来的 Dockerfile �nginx.conf.template�
+# 以及 web.zip 都堆在这里。源文件已迁�deploy/nginx/cloudbase-web/ 受版本控制，
+# �cloudBased/scripts/build-all.* �docker build 前拷入（别再往这里放需要入库的东西）�
 cloudBased/web
 cloudBased/api/booking-api-2.2.0.jar
 cloudBased/message-service/message-service-1.1.0.jar
 cloudBased/web.zip
-# cloudBased/env 下的 .env*.example �README.txt 曾入库，已全�untrack（本地文件保留）�
-# 变量清单与取值格式见部署手册（应�云托管环境变量一节）�
+# cloudBased/env 下的 .env*.example �README.txt 曾入库，已全�untrack（本地文件保留）�
+# 变量清单与取值格式见部署手册（应�云托管环境变量一节）�
 cloudBased/env
 cloudBased/api.zip
 cloudBased/api/target/booking-api-2.2.0.jar
 cloudBased/message-service.zip
 cloudBased/message-service/target/message-service-1.1.0.jar
 api/classroom-service/target
-# SQL 语义映射的中间产物：�gen_upsert_sys_term.py 生成，内容是 GBK/UTF-8 混淆的乱码，
-# 且全仓无任何脚本读取��不入库（需要时本地重新生成）�
+# SQL 语义映射的中间产物：�gen_upsert_sys_term.py 生成，内容是 GBK/UTF-8 混淆的乱码，
+# 且全仓无任何脚本读取��不入库（需要时本地重新生成）�
 deploy/sql/schema/_semmap.tsv
 cloudBased/*.zip
 cloudBased/api/target/*.jar
 cloudBased/message-service/target/message-service-1.1.0.jar
 
 # 构建产物统一收口目录（deploy/collect-artifacts.js 生成）：
-#   deploy/dist/  = frontend/dist 的镜像，deploy/jars/ = 三个后端 jar 的最新版�
-# �frontend/dist、各 target/ 一样属于构建输出，绝不入库；上传用 deploy/upload-to-server.sh�
+#   deploy/dist/  = frontend/dist 的镜像，deploy/jars/ = 三个后端 jar 的最新版�
+# �frontend/dist、各 target/ 一样属于构建输出，绝不入库；上传用 deploy/upload-to-server.sh�
 deploy/dist/
 deploy/jars/
 cloudBased/frontend/dist
 
-# IDE / 编辑器个人配�
-# .arts/settings.json �VS Code Java 扩展生成的个人环境偏�
-# （updateBuildConfiguration、search.exclude 之类），跟项目逻辑无关，各人机器上值不同�
-# 注：gitignore 对已跟踪文件无效，需配合 git rm --cached .arts/settings.json 才真正退出索引�
+# IDE / 编辑器个人配�
+# .arts/settings.json �VS Code Java 扩展生成的个人环境偏�
+# （updateBuildConfiguration、search.exclude 之类），跟项目逻辑无关，各人机器上值不同�
+# 注：gitignore 对已跟踪文件无效，需配合 git rm --cached .arts/settings.json 才真正退出索引�
 .arts/
 
-# 合并工具产生的备份文�
+# 合并工具产生的备份文�
 *.orig
 node_modules
 __pycache__/
@@ -122,20 +122,26 @@ deploy/deploy-keys.txt
 # 部署密钥文件（含 AES_KEY/HMAC_KEY/JWT_SECRET），任何目录下都不得入库
 # 原规则只写了 deploy/ 前缀，cloudBased/deploy-keys.txt 一直裸奔在未跟踪列表里
 **/deploy-keys.txt
+# 实际环境变量文件（含历史真实 DB_PASSWORD/JWT_SECRET），不得入库；
+# 需要模板就用 classroom.env.template
+deploy/classroom.env2
+deploy/*.env2
+# 注：以上两条只对未跟踪文件生效。已跟踪的文件必须 git rm --cached 才停止跟踪，
+# 否则忽略规则形同虚设（deploy-keys.txt 就是这么被跟踪了半个月的）。
 data/oss/material
 data/oss/
 
-# 本地开�HTTPS 自签证书（含私钥 ca.key/dev.key，绝不入库）
-# 生成命令�doc-develop/90-tools/dev-proxy.js �resolveTls()
+# 本地开�HTTPS 自签证书（含私钥 ca.key/dev.key，绝不入库）
+# 生成命令�doc-develop/90-tools/dev-proxy.js �resolveTls()
 doc-develop/certs/
 
 api/classroom-service/data/oss/material
 
-# 课堂服务�Maven 构建产物�026-11-20�
-# 规则早就写了，但一直没生效 —�git �*已跟�*文件不应�ignore�
+# 课堂服务�Maven 构建产物�026-11-20�
+# 规则早就写了，但一直没生效 —�git �*已跟�*文件不应�ignore�
 # 其中 classes/META-INF/build-info.properties 每次 mvn 编译都会重写 build.timestamp
-# �build.version，于是常年挂�git status 里、被顺手提交进仓库�
-# �git rm --cached 把它移出索引（工作区文件保留，编译照常生成），本规则自此生效�
+# �build.version，于是常年挂�git status 里、被顺手提交进仓库�
+# �git rm --cached 把它移出索引（工作区文件保留，编译照常生成），本规则自此生效�
 api/classroom-service/target/
 
 # Frontend image build context: build.sh copies frontend/dist here (~5MB)
