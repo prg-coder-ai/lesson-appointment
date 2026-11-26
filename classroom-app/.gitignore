@@ -12,7 +12,12 @@ android/
 ios/
 
 # 桌面端（Electron）构建产物
+#   release/ = electron-builder 输出目录（directories.output）
+#   out/ 和 dist/ = 早期试打目录，形态相同，一并忽略
+#   ⚠ desktop/build/ 是 buildResources（图标等），属源文件，**不要**忽略
 desktop/dist/
+desktop/out/
+desktop/release/
 
 # 依赖
 node_modules/

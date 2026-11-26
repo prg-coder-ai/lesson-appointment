@@ -19,7 +19,7 @@
     "appId": "com.lessonappointment.classroom.desktop",
     "productName": "云课堂",
     "directories": {
-      "output": "dist",
+      "output": "release",
       "buildResources": "build"
     },
     "files": [
@@ -35,15 +35,10 @@
       }
     ],
     "win": {
+      "artifactName": "${productName}-绿色版-${version}-${arch}.${ext}",
       "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "portable", "arch": ["x64"] }
+        { "target": "zip", "arch": ["x64"] }
       ]
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true
     },
     "mac": {
       "target": ["dmg"],

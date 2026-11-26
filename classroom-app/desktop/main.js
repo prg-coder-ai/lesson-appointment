@@ -37,8 +37,47 @@ if (!electronApi || typeof electronApi.app === 'undefined') {
 
 const { app, BrowserWindow, shell, session, dialog } = electronApi;
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { createAppServer } = require('./server');
+
+/**
+ * 绿色版数据目录 —— 必须在 app ready 之前设置。
+ *
+ * 目标：登录态（localStorage/token）、缓存全部落在 exe 同级的 data/ 下，
+ * 拷走文件夹 = 带走全部状态，删掉文件夹 = 不留痕。
+ *
+ * 只对「解压目录版」（zip / win-unpacked）接管，判断依据两条：
+ *   ① exe 同级存在 resources/app.asar —— 说明是打好的包，不是开发态
+ *   ② exe 不在系统临时目录 —— 排除 portable 单文件（它每次启动把 273MB
+ *      解压到 %TEMP% 再运行，进程的 execPath 在 temp 里，数据放那里会被清掉）
+ *
+ * 实测记录（2026-11-26）：portable 版**拿不到** PORTABLE_EXECUTABLE_DIR，
+ * 数据默认落到 %APPDATA%\classroom-desktop，绿色语义不成立。所以最终产物
+ * 只保留 zip 目录版，portable 已从 win.target 移除。
+ */
+function pickGreenDataDir() {
+  try {
+    const exeDir = path.dirname(process.execPath);
+    if (!fs.existsSync(path.join(exeDir, 'resources', 'app.asar'))) return '';   // 开发态
+    const tmp = os.tmpdir().toLowerCase();
+    if (exeDir.toLowerCase().startsWith(tmp)) return '';                          // portable 解压态
+    return path.join(exeDir, 'data');
+  } catch (e) {
+    return '';
+  }
+}
+
+const greenDataDir = pickGreenDataDir();
+if (greenDataDir) {
+  try {
+    fs.mkdirSync(greenDataDir, { recursive: true });
+    app.setPath('userData', greenDataDir);
+    console.log('[classroom-desktop] 绿色版数据目录：' + greenDataDir);
+  } catch (e) {
+    console.warn('[classroom-desktop] 数据目录设置失败，回退默认：' + e.message);
+  }
+}
 
 /* ══════════════════ 路径解析（开发态 / 打包后） ══════════════════ */
 function configPath() {
