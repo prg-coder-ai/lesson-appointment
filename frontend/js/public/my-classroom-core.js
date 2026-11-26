@@ -183,19 +183,23 @@
   /** 进入课堂页（key 为课次标识） */
   function enterClassroom(key) {
     if (!key) { toast('缺少课次标识'); return; }
-    window.location.href = pageUrl('classroom.html', { scheduleId: key });
+    if (!window.ClassroomLink) { toast('页面脚本未就绪，请刷新后重试'); return; }
+    window.ClassroomLink.open({ target: 'classroom', key: key });
   }
 
   /** 课程回看（课堂回放页；无录制时该页自己会提示，不必先探一次） */
   function openReplay(key) {
     if (!key) { toast('缺少课次标识'); return; }
-    window.location.href = pageUrl('replay.html', { scheduleId: key });
+    if (!window.ClassroomLink) { toast('页面脚本未就绪，请刷新后重试'); return; }
+    // 回放是录制列表页（管理面），App 内由构造器出壳到系统浏览器；浏览器内同源跳转
+    window.ClassroomLink.openReplay(key);
   }
 
   /** 教师课前准备页（讲稿 + 名单 + 开课入口） */
   function openPrep(key) {
     if (!key) { toast('缺少课次标识'); return; }
-    window.location.href = pageUrl('classroom-prep.html', { scheduleId: key });
+    if (!window.ClassroomLink) { toast('页面脚本未就绪，请刷新后重试'); return; }
+    window.ClassroomLink.open({ target: 'prep', key: key });
   }
 
   /**
@@ -209,14 +213,18 @@
   function openStudentPrep(key, ins) {
     if (!key) { toast('缺少课次标识'); return; }
     var o = ins || {};
-    window.location.href = pageUrl('classroom-prep.html', {
-      scheduleId: key,
+    if (!window.ClassroomLink) { toast('页面脚本未就绪，请刷新后重试'); return; }
+    window.ClassroomLink.open({
+      target: 'prep',
+      key: key,
       mode: 'student',
-      start: o.startTime || '',
-      end: o.endTime || '',
-      state: o.state || '',
-      idx: o.classIndex || '',
-      total: o.classCount || ''
+      meta: {
+        start: o.startTime || '',
+        end: o.endTime || '',
+        state: o.state || '',
+        idx: o.classIndex || '',
+        total: o.classCount || ''
+      }
     });
   }
 
