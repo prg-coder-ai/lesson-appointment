@@ -412,9 +412,13 @@ const APP_WWW_PAGES = new Set([
 
 function toAppWww(urlPath) {
   const name = urlPath.replace(/^\//, '');
-  if (name.indexOf('/') < 0) return APP_WWW_PAGES.has(name);
-  if (urlPath.startsWith('/js/classroom/')) return true;                    // 课堂本体 JS（含补丁）
+  // ★ 这里不能对「根目录文件」提前 return false：www 的课堂页会在根目录引用
+  //   app-entry-guard.js / app-permissions.js / app-config.js / app-bridge.js /
+  //   role-router.js / app.css，它们和页面同级。提前 return 会让下面这条正则
+  //   永远执行不到，表现为课堂页加载时这批脚本全 404（2026-11-26 实际踩过）。
+  if (name.indexOf('/') < 0 && APP_WWW_PAGES.has(name)) return true;
   if (/^\/(app-[a-z-]+\.js|role-router\.js|ops-lite\.js|verify\.js|app\.css)$/.test(urlPath)) return true;
+  if (urlPath.startsWith('/js/classroom/')) return true;                    // 课堂本体 JS（含补丁）
   if (urlPath === '/css/classroom.css') return true;
   return false;
 }
