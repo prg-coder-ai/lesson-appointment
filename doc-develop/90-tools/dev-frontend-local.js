@@ -34,6 +34,10 @@
  *                    （https 或 localhost）里放行 getUserMedia，http://192.168.x.x 会被直接禁掉。
  *                  给 tests/ 里硬编码 http://localhost:8080 的脚本用：DEV_TLS=0。
  *                  缺证书时启动直接报错并打印生成命令（不静默退回 http）。
+ *   APP_WWW        课堂 App 产物目录，默认 ../../classroom-app/www（**默认启用**）。
+ *                  别名：--app-www[=路径]。设 0 / off 关闭，退回 frontend 原生页。
+ *                  /launch.html 是 web 侧「进入课堂」的唯一落地页，只在 www 里，
+ *                  关掉后所有入口 404 —— 除对照验证外不要关。
  *   NO_PROBE=1     跳过启动前连通性检查
  */
 'use strict';
@@ -45,6 +49,27 @@ const ROOT = path.resolve(
   __dirname,
   process.env.FRONTEND_ROOT || (DIST ? '../../frontend/dist' : '../../frontend')
 );
+
+/**
+ * 课堂 App 产物目录（同源同根部署的本地模拟）—— **默认启用**（2026-11-26）
+ *
+ * ★ 为什么必须默认开：frontend 侧所有「进入课堂」入口都已收敛到
+ *   ClassroomLink.open({ target:'entry' })，产出相对地址 ./launch.html?scheduleId=…
+ *   而 launch.html 只存在于 classroom-app/www，frontend 目录下没有同名页。
+ *   代理不接管 /launch.html 时，请求落到 frontend 静态根 → **404**，
+ *   表现为「近日课程 / 我的课程 / 课次列表 / 我的课堂」四个入口全点不通
+ *   （2026-11-26 实测踩过；此前只修了 toAppWww 的提前 return bug，
+ *    但开关本身没打开，所以课堂页资源通了、入口页仍 404）。
+ *
+ * 关闭方式（仅在需要对照 frontend 原生 classroom.html 时用）：
+ *   APP_WWW=0 node dev-frontend-local.js
+ * 目录不存在（www 未构建）时 resolveAppWww 会 warn 并自动忽略，不影响其它页面。
+ */
+const APP_WWW_ENV = String(process.env.APP_WWW == null ? '' : process.env.APP_WWW).trim();
+const APP_WWW_OFF = APP_WWW_ENV === '0' || APP_WWW_ENV.toLowerCase() === 'off';
+const APP_WWW = APP_WWW_OFF
+  ? ''
+  : path.resolve(__dirname, APP_WWW_ENV || '../../classroom-app/www');
 const LISTEN_PORT = parseInt(process.env.DEV_PORT || '8080', 10);
 const API_HOST = process.env.API_HOST || '127.0.0.1';
 const BOOKING_PORT = parseInt(process.env.BOOKING_PORT || '8081', 10);
@@ -65,6 +90,8 @@ startProxy({
   msgPort: MSG_PORT,
   // 0 表示显式关闭课堂路由（不传 classroomPort 时引擎行为与改造前一致）
   classroomPort: CLASSROOM_PORT > 0 ? CLASSROOM_PORT : undefined,
+  // 课堂 App 产物目录：接管 /launch.html 等 www 独有路径（默认 classroom-app/www）
+  appWww: APP_WWW,
   tls: DEV_TLS,
   probe: process.env.NO_PROBE !== '1',
   onProbe({ okBooking, okMsg, okClassroom }) {
