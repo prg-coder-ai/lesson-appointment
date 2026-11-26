@@ -15,7 +15,27 @@
  * 静态服务与 API/WS 分流全在 server.js，可用 node 单独验证。
  */
 'use strict';
-const { app, BrowserWindow, shell, session, dialog } = require('electron');
+const electronApi = require('electron');
+
+/**
+ * 启动前置断言 —— 防的是一类很难自己看出来的失败：
+ * 某些编辑器/IDE 内置终端会注入 `ELECTRON_RUN_AS_NODE=1`，此时 electron.exe
+ * 会退化成纯 Node 运行，`require('electron')` 只返回一个路径字符串、没有 app 对象。
+ * 原本的报错是 "Cannot read properties of undefined (reading 'whenReady')"，
+ * 完全指不到真正原因，所以这里提前拦一道并说清怎么修。
+ */
+if (!electronApi || typeof electronApi.app === 'undefined') {
+  console.error('');
+  console.error('✗ 没有在 Electron 运行时里启动（require(\'electron\') 没拿到 app 对象）。');
+  console.error('  最常见原因：环境变量 ELECTRON_RUN_AS_NODE=1 —— 它会让 electron.exe 退化成纯 Node。');
+  console.error('  · Windows 临时清掉：      set ELECTRON_RUN_AS_NODE=  &&  npm start');
+  console.error('  · PowerShell 临时清掉：   $env:ELECTRON_RUN_AS_NODE=\'\'; npm start');
+  console.error('  · 确认用的是本地 electron：npx electron --version 应输出 v33.x（不是 v20.x）');
+  console.error('');
+  process.exit(1);
+}
+
+const { app, BrowserWindow, shell, session, dialog } = electronApi;
 const fs = require('fs');
 const path = require('path');
 const { createAppServer } = require('./server');

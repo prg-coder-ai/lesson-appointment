@@ -185,3 +185,33 @@ function createAppServer(opts) {
 }
 
 module.exports = { createAppServer, MSG_PREFIXES, CLS_PREFIXES };
+
+/* ---------- 单跑入口：node server.js [端口] ----------
+ * 不启 Electron，直接把同一套静态+代理跑起来，方便：
+ *   · 用浏览器验证页面渲染（无需装 GUI）
+ *   · 对比「桌面壳里的表现」与「纯浏览器里的表现」是否一致
+ * 端口默认 8096，可用 DESKTOP_PORT 或第一个位置参数覆盖。
+ */
+if (require.main === module) {
+  const port = parseInt(process.argv[2] || process.env.DESKTOP_PORT || '8096', 10);
+  const cfgFile = path.join(__dirname, 'config.json');
+  const cfg = JSON.parse(fs.readFileSync(cfgFile, 'utf8'));
+  const made = createAppServer({ wwwDir: path.resolve(__dirname, '../www'), config: cfg });
+  made.server.listen(port, '127.0.0.1', () => {
+    const u = cfg.upstream || {};
+    const fmt = (x) => x && x.host ? (x.protocol || 'https') + '://' + x.host + ':' + (x.port || 443) : '(未配置)';
+    console.log('');
+    console.log('  云课堂桌面版 · 内置 server 单跑');
+    console.log('  ' + '-'.repeat(56));
+    console.log('  页面地址   :  http://127.0.0.1:' + port + '/' + (cfg.startPage || 'launch.html'));
+    console.log('  静态根     :  ' + made.wwwDir);
+    console.log('  api 上游   :  ' + fmt(u.api));
+    console.log('  消息 上游  :  ' + fmt(u.message));
+    console.log('  课堂 上游  :  ' + fmt(u.classroom));
+    console.log('  ' + '-'.repeat(56));
+    console.log('  这个地址就是桌面窗口加载的那个地址，表现应与 Electron 内一致。');
+    console.log('  Ctrl+C 停止');
+    console.log('');
+  });
+}
+

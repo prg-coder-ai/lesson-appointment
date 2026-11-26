@@ -1,6 +1,7 @@
 {
   "_说明": "桌面版运行配置。改这里不用重新打包（安装版读取 resources/config.json）。",
-  "_upstream说明": "三个上游对应三个后端服务；host/port/protocol 按部署实际填。留空表示该服务不可用（相关功能报错，其余页面正常）。",
+  "_upstream说明": "三个上游对应三个后端服务。当前指向本地 dev 代理 8080（它已经把 /api 分流到 8081/8090/8092，且是自签 HTTPS，代理层已允许）。上线时改成线上域名：protocol=https, host=your-domain.com, port=443。",
+  "appName": "云课堂",
   "startPage": "launch.html",
   "window": {
     "width": 1280,
@@ -11,18 +12,18 @@
   "upstream": {
     "api": {
       "protocol": "https",
-      "host": "your-domain.com",
-      "port": 443
+      "host": "127.0.0.1",
+      "port": 8080
     },
     "message": {
       "protocol": "https",
-      "host": "your-domain.com",
-      "port": 443
+      "host": "127.0.0.1",
+      "port": 8080
     },
     "classroom": {
       "protocol": "https",
-      "host": "your-domain.com",
-      "port": 443
+      "host": "127.0.0.1",
+      "port": 8080
     }
   }
 }
