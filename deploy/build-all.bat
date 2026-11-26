@@ -1,27 +1,37 @@
 @echo off
 rem ============================================================================
-rem build-all.bat - 微信云托管 · 本地预打包一键脚本（Windows cmd）
+rem build-all.bat - 小程序项目组 · 预约系统一键构建脚本（Windows cmd）
 rem
-rem Windows cmd 版唯一入口；与 cloudBased\scripts\build-all.sh / .ps1 参数一致：
-rem   build-all.bat                                   完整构建（后端 + 前端 + 镜像）
-rem   build-all.bat --skip-frontend --skip-docker     只改了 Java 时用
+rem 覆盖范围（当前 3 后端 + 2 前端）：
+rem   后端：api（booking-api）/ message-service / classroom-service
+rem   前端：frontend（web 站点，出 dist）/ classroom-app（课堂 App，出 www）
+rem
+rem 用法：
+rem   build-all.bat                                   全量构建（3 后端 + 2 前端 + 收口 + 镜像）
+rem   build-all.bat --skip-docker                     只出 jar 与前端产物
+rem   build-all.bat --skip-backend --skip-frontend    只出收口
+rem   build-all.bat --skip-web                        跳 frontend，仍构建 classroom-app
+rem   build-all.bat --skip-app                        跳 classroom-app，仍构建 frontend
 rem   build-all.bat --env-id myenv01 --docker-push    构建并推送到云托管仓库
 rem
 rem 参数：
-rem   --skip-frontend   跳过前端 node build.js
-rem   --skip-backend    跳过 Maven 打包
+rem   --skip-backend    跳过 Maven 构建（3 个后端全跳）
+rem   --skip-frontend   跳过两个前端（= --skip-web + --skip-app）
+rem   --skip-web        只跳 frontend（web 站点 dist）
+rem   --skip-app        只跳 classroom-app（课堂 App www）
 rem   --skip-docker     跳过 docker build
 rem   --docker-push     推送镜像到云托管仓库（需与 --env-id 同用）
-rem   --env-id <ENV_ID> 云托管环境 ID，用于镜像 tag 命名
+rem   --env-id <ENV_ID> 云托管环境 ID，用于镜像 tag 区分
 rem
-rem 前置：mvn / node / docker 需在 PATH 中
-rem 说明：本文件以 GBK + CRLF 保存，请勿另存为 UTF-8 或 LF，否则 cmd 解析会错乱
+rem 前件：mvn / node / docker 都在 PATH 里
+rem 说明：本文件用 GBK + CRLF 保存，避免设为 UTF-8 后 cmd 显示乱码
 rem ============================================================================
 
 setlocal enabledelayedexpansion
 
 rem ---------------------------------------------------------------- 参数解析
 set "SKIP_FE=0"
+set "SKIP_APP=0"
 set "SKIP_BE=0"
 set "SKIP_DOCKER=0"
 set "DOCKER_PUSH=0"
@@ -29,13 +39,15 @@ set "ENV_ID="
 
 :parse
 if "%~1"=="" goto :args_done
-if /i "%~1"=="--skip-frontend" ( set "SKIP_FE=1" & shift & goto :parse )
+if /i "%~1"=="--skip-frontend" ( set "SKIP_FE=1" & set "SKIP_APP=1" & shift & goto :parse )
+if /i "%~1"=="--skip-web"      ( set "SKIP_FE=1" & shift & goto :parse )
+if /i "%~1"=="--skip-app"      ( set "SKIP_APP=1" & shift & goto :parse )
 if /i "%~1"=="--skip-backend"  ( set "SKIP_BE=1" & shift & goto :parse )
 if /i "%~1"=="--skip-docker"   ( set "SKIP_DOCKER=1" & shift & goto :parse )
 if /i "%~1"=="--docker-push"   ( set "DOCKER_PUSH=1" & shift & goto :parse )
 if /i "%~1"=="--env-id" (
     if "%~2"=="" (
-        set "ERRMSG=--env-id 后面需要一个环境 ID"
+        set "ERRMSG=--env-id 后面需要跟一个环境 ID"
         goto :die
     )
     set "ENV_ID=%~2"
@@ -51,8 +63,12 @@ goto :usage
 
 :usage
 echo.
-echo   用法：build-all.bat [--skip-frontend] [--skip-backend] [--skip-docker]
+echo   用法：build-all.bat [--skip-backend] [--skip-frontend] [--skip-web] [--skip-app] [--skip-docker]
 echo                      [--docker-push --env-id ^<ENV_ID^>]
+echo.
+echo   --skip-frontend  跳过两个前端（= --skip-web + --skip-app）
+echo   --skip-web       只跳 frontend（web 站点 dist）
+echo   --skip-app       只跳 classroom-app（课堂 App www）
 echo.
 pause
 exit /b 1
@@ -60,12 +76,12 @@ exit /b 1
 :args_done
 
 rem ---------------------------------------------------------------- 路径推导
-rem %~dp0 是脚本所在目录（带尾反斜杠），上一级即项目根，deploy\ 与 api\ 是兄弟目录
-rem 注意：本文件在 deploy\ 只有一层，项目根用 ..；早期同源副本曾放在
-rem       cloudBased\scripts\（两层深，用 ..\..），已删除，勿再从该处拷贝覆盖。
+rem %~dp0 是脚本所在目录（结尾带反斜杠）；上一层就是项目根（deploy\ 与 api\ 并列的目录）
+rem 注意：本文件在 deploy\ 只有一层，项目根是 ..；若从同源仓库的
+rem       cloudBased\scripts\ 另存过来，必须改成 ..\..，否则删不掉旧副本会从此处运行。
 pushd "%~dp0.." >nul 2>nul
 if errorlevel 1 (
-    set "ERRMSG=无法进入项目根目录（%~dp0..）"
+    set "ERRMSG=无法进入项目根目录：%~dp0.."
     goto :die
 )
 set "PROJECT_ROOT=%CD%"
@@ -73,40 +89,50 @@ popd
 
 set "API_DIR=%PROJECT_ROOT%\api"
 set "MSG_DIR=%API_DIR%\message-service"
+set "CLS_DIR=%API_DIR%\classroom-service"
 set "FE_DIR=%PROJECT_ROOT%\frontend"
+set "APP_DIR=%PROJECT_ROOT%\classroom-app"
 set "CLOUD_API=%PROJECT_ROOT%\cloudBased\api"
 set "CLOUD_MSG=%PROJECT_ROOT%\cloudBased\message-service"
+set "CLOUD_CLS=%PROJECT_ROOT%\cloudBased\classroom-service"
 set "CLOUD_WEB=%PROJECT_ROOT%\cloudBased\frontend"
 
 if not exist "%API_DIR%\pom.xml" (
-    set "ERRMSG=项目结构异常，找不到 %API_DIR%\pom.xml"
+    set "ERRMSG=项目结构异常：找不到 %API_DIR%\pom.xml"
     goto :die
 )
+
+rem 版本号集中在这里：升级 pom 版本时同步改这三处
+set "VER_API=2.2.0"
+set "VER_MSG=1.1.0"
+set "VER_CLS=1.0.0"
 
 echo.
 echo ============================================================
 echo   项目根：%PROJECT_ROOT%
-echo   跳过：后端=%SKIP_BE% 前端=%SKIP_FE% 镜像=%SKIP_DOCKER% 推送=%DOCKER_PUSH%
+echo   后端=%SKIP_BE%  web=%SKIP_FE%  app=%SKIP_APP%  镜像=%SKIP_DOCKER%  推送=%DOCKER_PUSH%
+echo   后端 3 个：booking-api %VER_API% / message-service %VER_MSG% / classroom-service %VER_CLS%
+echo   前端 2 个：frontend（dist） / classroom-app（www）
 echo ============================================================
 
 rem ============================================================================
-rem Step 1 - Maven 打包
+rem Step 1 - Maven 构建（3 个后端）
 rem ============================================================================
 if "%SKIP_BE%"=="1" goto :skip_backend
 
-call :step "Step 1 - Maven 打包后端服务"
+call :step "Step 1 - Maven 构建后端服务（3 个）"
 
-echo   [1/3] api（booking-api-2.2.0.jar）...
+echo   [1/3] api（booking-api-%VER_API%.jar）...
 pushd "%API_DIR%"
 call mvn clean package -DskipTests -q
 set "RC=!errorlevel!"
 popd
 if not "!RC!"=="0" (
-    set "ERRMSG=api Maven 构建失败（exit !RC!）。单独跑一次 mvn -f api\pom.xml package -DskipTests 看详细日志"
+    set "ERRMSG=api Maven 构建失败（exit !RC!），可单独执行 mvn -f api\pom.xml package -DskipTests 看详细日志"
     goto :die
 )
 
-echo   [1/3] message-service（message-service-1.1.0.jar）...
+echo   [2/3] message-service（message-service-%VER_MSG%.jar）...
 pushd "%MSG_DIR%"
 call mvn clean package -DskipTests -q
 set "RC=!errorlevel!"
@@ -116,52 +142,79 @@ if not "!RC!"=="0" (
     goto :die
 )
 
-rem 两个服务的落点故意不同，别"统一"：
-rem   api/Dockerfile             -> COPY booking-api-2.2.0.jar            （上下文根目录）
-rem   message-service/Dockerfile -> COPY target/message-service-1.1.0.jar
-rem 曾经 api 也往 target\ 拷，而 Dockerfile 读的是根目录那份，镜像里装的是仓库遗留的
-rem 旧 jar，改代码不生效，排查时极易误判。
-if not exist "%CLOUD_API%" mkdir "%CLOUD_API%"
-if not exist "%CLOUD_MSG%\target" mkdir "%CLOUD_MSG%\target"
-
-copy /y "%API_DIR%\target\booking-api-2.2.0.jar"     "%CLOUD_API%\booking-api-2.2.0.jar" >nul
-if errorlevel 1 (
-    set "ERRMSG=复制 api jar 失败：%API_DIR%\target\booking-api-2.2.0.jar"
+echo   [3/3] classroom-service（classroom-service-%VER_CLS%.jar）...
+if not exist "%CLS_DIR%\pom.xml" (
+    set "ERRMSG=找不到 %CLS_DIR%\pom.xml，classroom-service 未就位。只构建两个后端请用 --skip-backend 后手工处理，或确认分支已包含课堂服务"
     goto :die
 )
-copy /y "%MSG_DIR%\target\message-service-1.1.0.jar" "%CLOUD_MSG%\target\message-service-1.1.0.jar" >nul
+pushd "%CLS_DIR%"
+call mvn clean package -DskipTests -q
+set "RC=!errorlevel!"
+popd
+if not "!RC!"=="0" (
+    set "ERRMSG=classroom-service Maven 构建失败（exit !RC!）"
+    goto :die
+)
+
+rem 三个服务的 Dockerfile 对 jar 位置要求不同，不要"统一"：
+rem   api/Dockerfile                      -> COPY booking-api-2.2.0.jar             （上下文根目录那份）
+rem   message-service/Dockerfile          -> COPY target/message-service-1.1.0.jar
+rem   classroom-service/Dockerfile        -> COPY classroom-service-1.0.0.jar      （上下文根目录那份）
+rem 所以 api 也留 target\ 下那份，Dockerfile 引的是根目录那份，装错会跑起旧 jar 而不报错。
+if not exist "%CLOUD_API%" mkdir "%CLOUD_API%"
+if not exist "%CLOUD_MSG%\target" mkdir "%CLOUD_MSG%\target"
+if not exist "%CLOUD_CLS%" mkdir "%CLOUD_CLS%"
+
+copy /y "%API_DIR%\target\booking-api-%VER_API%.jar"        "%CLOUD_API%\booking-api-%VER_API%.jar" >nul
+if errorlevel 1 (
+    set "ERRMSG=复制 api jar 失败：%API_DIR%\target\booking-api-%VER_API%.jar"
+    goto :die
+)
+copy /y "%MSG_DIR%\target\message-service-%VER_MSG%.jar"    "%CLOUD_MSG%\target\message-service-%VER_MSG%.jar" >nul
 if errorlevel 1 (
     set "ERRMSG=复制 message-service jar 失败"
     goto :die
 )
+copy /y "%CLS_DIR%\target\classroom-service-%VER_CLS%.jar"  "%CLOUD_CLS%\classroom-service-%VER_CLS%.jar" >nul
+if errorlevel 1 (
+    set "ERRMSG=复制 classroom-service jar 失败"
+    goto :die
+)
 
-call :ok "后端打包完成"
+call :ok "后端构建完成（3 个 jar 已就位 cloudBased\）"
 goto :step2
 
 :skip_backend
-call :warn "跳过 Maven 打包（--skip-backend）"
+call :warn "跳过 Maven 构建（--skip-backend）"
 
 rem ============================================================================
-rem Step 2 - 前端构建
+rem Step 2 - 前端构建（2 个）
 rem ============================================================================
 :step2
-if "%SKIP_FE%"=="1" goto :skip_frontend
+if "%SKIP_FE%"=="1" if "%SKIP_APP%"=="1" goto :skip_frontend
 
-call :step "Step 2 - 前端构建（node build.js）"
+call :step "Step 2 - 前端构建（frontend + classroom-app）"
 
+rem ---- 2a) frontend（web 站点）----
+if "%SKIP_FE%"=="1" (
+    call :warn "跳过 frontend 构建（--skip-web / --skip-frontend）"
+    goto :step2b
+)
+
+echo   [1/2] frontend -> dist\ ...
 pushd "%FE_DIR%"
 call node build.js
 set "RC=!errorlevel!"
 popd
 if not "!RC!"=="0" (
-    set "ERRMSG=前端构建失败（exit !RC!）。常见原因：缺 node_modules，先在该目录跑 npm install"
+    set "ERRMSG=frontend 构建失败（exit !RC!），常见原因：缺 node_modules，在该目录跑 npm install"
     goto :die
 )
 
-rem app-config.json 是部署侧手工维护的「小程序远程配置」，不在 frontend\ 源码树里，
-rem build.js 不会产出它。如果直接 rmdir 再整体覆盖，控制台里配好的上游地址就没了，
-rem 小程序会静默回落到 env.js 内置默认值 —— 表面正常、实际远程配置失效，很难发现。
-rem 所以复制前先备份，复制后还原。
+rem app-config.json 是部署侧手工维护的"小程序自动建站"配置，存在 frontend\ 源码里，
+rem build.js 不生成它。若直接 rmdir 后整体覆盖，后台配好的租户地址就没了，
+rem 小程序会静默回退到 env.js 里的默认值 —— 线上多租户自动建站失效，且难发现。
+rem 所以覆盖前先备份，复制后原样还原。
 set "APPCFG_BAK="
 if exist "%CLOUD_WEB%\dist\app-config.json" (
     set "APPCFG_BAK=%TEMP%\booking-app-config.bak"
@@ -183,8 +236,44 @@ if defined APPCFG_BAK (
         call :ok "已还原 app-config.json"
     )
 )
+call :ok "frontend 构建完成（dist 已收口 cloudBased\frontend）"
 
-call :ok "前端构建完成"
+rem ---- 2b) classroom-app（课堂 App 的 Web 资源）----
+:step2b
+if "%SKIP_APP%"=="1" (
+    call :warn "跳过 classroom-app 构建（--skip-app / --skip-frontend）"
+    goto :step2done
+)
+
+echo   [2/2] classroom-app -> www\ ...
+if not exist "%APP_DIR%\package.json" (
+    set "ERRMSG=找不到 %APP_DIR%\package.json"
+    goto :die
+)
+
+rem classroom-app\scripts\build.js 流水线：sync（抽取前端资源）-> patch（只打 www 副本）
+rem   -> 渲染 app-config.js（三套地址）-> 复制适配层 -> 注入脚本引用 -> 生成 capacitor.config.json
+rem 默认 APP_MODE=server（WebView 加载线上前端，三套地址留空走同源代理）。
+rem 要出 local 模式离线包：先 set APP_MODE=local 并配齐 API_ORIGIN / CLASSROOM_API_ORIGIN /
+rem   CLASSROOM_WS_ORIGIN 三个绝对地址，再跑本脚本（否则 build.js 会直接终止）。
+pushd "%APP_DIR%"
+call node scripts\build.js
+set "RC=!errorlevel!"
+popd
+if not "!RC!"=="0" (
+    set "ERRMSG=classroom-app 构建失败（exit !RC!），若提示缺三套地址说明误设了 APP_MODE=local"
+    goto :die
+)
+
+if not exist "%APP_DIR%\www\index.html" (
+    set "ERRMSG=classroom-app 构建结束但未见 www\index.html，检查 scripts\build.js 输出"
+    goto :die
+)
+call :ok "classroom-app 构建完成（www\ 已就位，App 打包源）"
+echo        说明：www\ 打入 App 安装包，不参与服务器部署，故不收口到 deploy\dist。
+echo        本地预览：node classroom-app\scripts\serve.js 8098
+
+:step2done
 goto :step25
 
 :skip_frontend
@@ -215,15 +304,15 @@ if errorlevel 1 (
     set "ERRMSG=产物收口失败（node deploy\collect-artifacts.js --only !ONLY_PARTS!）"
     goto :die
 )
-call :ok "deploy\dist\ 与 deploy\jars\ 已更新"
+call :ok "deploy\dist\ 与 deploy\jars\ 已更新（jars 含 3 个后端；www 不入此目录）"
 
 rem ============================================================================
-rem Step 3 - Docker 镜像
+rem Step 3 - Docker 构建（3 个后端镜像 + 1 个 web 镜像）
 rem ============================================================================
 :step3
 if "%SKIP_DOCKER%"=="1" goto :skip_docker
 
-call :step "Step 3 - Docker 镜像构建"
+call :step "Step 3 - Docker 镜像构建（3 后端 + web）"
 
 where docker >nul 2>nul
 if errorlevel 1 (
@@ -231,29 +320,44 @@ if errorlevel 1 (
     goto :die
 )
 
-echo   [2/3] booking-api:2.2.0 ...
+echo   [1/4] booking-api:%VER_API% ...
 pushd "%CLOUD_API%"
-call docker build -t booking-api:2.2.0 .
+call docker build -t booking-api:%VER_API% .
 set "RC=!errorlevel!"
 popd
 if not "!RC!"=="0" (
     set "ERRMSG=api docker build 失败。若卡在 apt-get，检查网络或构建参数 APT_MIRROR"
     goto :die
 )
-call :ok "booking-api:2.2.0"
+call :ok "booking-api:%VER_API%"
 
-echo   [2/3] booking-message-service:1.1.0 ...
+echo   [2/4] booking-message-service:%VER_MSG% ...
 pushd "%CLOUD_MSG%"
-call docker build -t booking-message-service:1.1.0 .
+call docker build -t booking-message-service:%VER_MSG% .
 set "RC=!errorlevel!"
 popd
 if not "!RC!"=="0" (
     set "ERRMSG=message-service docker build 失败"
     goto :die
 )
-call :ok "booking-message-service:1.1.0"
+call :ok "booking-message-service:%VER_MSG%"
 
-rem 构建上下文 = cloudBased\frontend（Dockerfile 里的 COPY dist 依赖同目录的 dist\）
+echo   [3/4] booking-classroom-service:%VER_CLS% ...
+if not exist "%CLOUD_CLS%\Dockerfile" (
+    set "ERRMSG=缺少 %CLOUD_CLS%\Dockerfile"
+    goto :die
+)
+pushd "%CLOUD_CLS%"
+call docker build -t booking-classroom-service:%VER_CLS% .
+set "RC=!errorlevel!"
+popd
+if not "!RC!"=="0" (
+    set "ERRMSG=classroom-service docker build 失败"
+    goto :die
+)
+call :ok "booking-classroom-service:%VER_CLS%"
+
+rem web 镜像的上下文 = cloudBased\frontend，Dockerfile 中 COPY dist 指向同目录的 dist\
 if not exist "%CLOUD_WEB%\Dockerfile" (
     set "ERRMSG=缺少 %CLOUD_WEB%\Dockerfile"
     goto :die
@@ -263,12 +367,11 @@ if not exist "%CLOUD_WEB%\default.conf.template" (
     goto :die
 )
 if not exist "%CLOUD_WEB%\dist" (
-    set "ERRMSG=缺少 %CLOUD_WEB%\dist，请先跑前端构建（不要加 --skip-frontend）"
+    set "ERRMSG=缺少 %CLOUD_WEB%\dist\. 先构建前端，或去掉 --skip-frontend"
     goto :die
 )
-call :ok "web 构建上下文就绪：cloudBased\frontend"
 
-echo   [3/3] booking-web:latest（上游走运行时环境变量，构建不需 --build-arg）...
+echo   [4/4] booking-web:latest（运行期需 --build-arg 注入上游地址）...
 pushd "%CLOUD_WEB%"
 call docker build -t booking-web:latest .
 set "RC=!errorlevel!"
@@ -278,7 +381,7 @@ if not "!RC!"=="0" (
     goto :die
 )
 call :ok "booking-web:latest"
-call :warn "别忘了在云托管控制台配 API_UPSTREAM / MSG_UPSTREAM 环境变量，缺失会导致容器启动失败"
+call :warn "部署到云托管控制台时 API_UPSTREAM / MSG_UPSTREAM 不填会导致反向代理失效"
 
 if "%DOCKER_PUSH%"=="1" goto :do_push
 goto :summary
@@ -291,18 +394,24 @@ if not defined ENV_ID (
 )
 set "REGISTRY=ccr.ccs.tencentyun.com/cb-!ENV_ID!"
 
-call docker tag booking-api:2.2.0             "!REGISTRY!/api:2.2.0"
-call docker tag booking-message-service:1.1.0 "!REGISTRY!/message-service:1.1.0"
-call docker tag booking-web:latest            "!REGISTRY!/web:latest"
+call docker tag booking-api:%VER_API%                 "!REGISTRY!/api:%VER_API%"
+call docker tag booking-message-service:%VER_MSG%     "!REGISTRY!/message-service:%VER_MSG%"
+call docker tag booking-classroom-service:%VER_CLS%   "!REGISTRY!/classroom-service:%VER_CLS%"
+call docker tag booking-web:latest                    "!REGISTRY!/web:latest"
 
-call docker push "!REGISTRY!/api:2.2.0"
+call docker push "!REGISTRY!/api:%VER_API%"
 if errorlevel 1 (
-    set "ERRMSG=api push 失败（先 docker login ccr.ccs.tencentyun.com）"
+    set "ERRMSG=api push 失败，先 docker login ccr.ccs.tencentyun.com"
     goto :die
 )
-call docker push "!REGISTRY!/message-service:1.1.0"
+call docker push "!REGISTRY!/message-service:%VER_MSG%"
 if errorlevel 1 (
     set "ERRMSG=message-service push 失败"
+    goto :die
+)
+call docker push "!REGISTRY!/classroom-service:%VER_CLS%"
+if errorlevel 1 (
+    set "ERRMSG=classroom-service push 失败"
     goto :die
 )
 call docker push "!REGISTRY!/web:latest"
@@ -310,7 +419,7 @@ if errorlevel 1 (
     set "ERRMSG=web push 失败"
     goto :die
 )
-call :ok "镜像已推送到 !REGISTRY!"
+call :ok "四个镜像已推送到 !REGISTRY!"
 goto :summary
 
 :skip_docker
@@ -321,15 +430,19 @@ rem 汇总
 rem ============================================================================
 :summary
 call :step "构建产物清单"
-echo   后端 jar：cloudBased\api\booking-api-2.2.0.jar（Dockerfile 读根目录）
-echo             cloudBased\message-service\target\message-service-1.1.0.jar
-echo   前端 dist：cloudBased\frontend\dist\
-echo   统一收口：deploy\jars\ 与 deploy\dist\
+echo   后端 jar（3 个）：cloudBased\api\booking-api-%VER_API%.jar
+echo                    cloudBased\message-service\target\message-service-%VER_MSG%.jar
+echo                    cloudBased\classroom-service\classroom-service-%VER_CLS%.jar
+echo   前端 web：       cloudBased\frontend\dist\
+echo   前端 app：       classroom-app\www\（打入 App 安装包，需 cap sync 后真机验证）
+echo   统一收口：       deploy\jars\（3 个 jar）  与  deploy\dist\（web 站点）
 echo.
 echo   下一步：
-echo     方式 A - 控制台「上传代码包 / Dockerfile」
-echo     方式 B - 流水线：授权代码源 + container.config.json
-if defined ENV_ID echo     方式 C - 已推镜像：ccr.ccs.tencentyun.com/cb-!ENV_ID!/^<服务^>:^<tag^>
+echo     方式 A - 云托管控制台上传 jar / Dockerfile
+echo     方式 B - 流水线（授权代码源 + container.config.json）
+echo     方式 C - 镜像推送：ccr.ccs.tencentyun.com/cb-^<env^>/^<service^>:^<tag^>
+echo     方式 D - 本机起服务：deploy\run-all.bat（3 后端 + web 代理 + App 预览）
+if defined ENV_ID echo   方式 C 目标：ccr.ccs.tencentyun.com/cb-!ENV_ID!/
 
 echo.
 call :ok "全部完成"
@@ -362,7 +475,7 @@ exit /b 1
 rem ---------------------------------------------------------------- 收尾
 :done
 echo.
-rem 双击运行时窗口会立刻关闭，这里等一下；在 cmd 里手动调用则不阻塞
+rem 双击运行时窗口会随进程关闭，这里等一下，方便看输出
 echo %CMDCMDLINE% | findstr /i /c:"%~nx0" >nul
 if not errorlevel 1 pause
 endlocal

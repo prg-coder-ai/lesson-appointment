@@ -1,12 +1,18 @@
 @echo off
 rem ============================================================================
-rem run-all.bat - start the local dev stack in four separate terminals
+rem run-all.bat - start the local dev stack in five separate terminals
 rem   booking 8081 / message-service 8090 / classroom 8092 / dev proxy 8080
+rem   classroom-app preview 8098
 rem
-rem The four launchers (run-api / run-msg / run-clas / run-lcl) live in
-rem doc-develop\90-tools\ (moved there on 2026-11-18). Paths are resolved
+rem The four backend/proxy launchers (run-api / run-msg / run-clas / run-lcl) live
+rem in doc-develop\90-tools\ (moved there on 2026-11-18). Paths are resolved
 rem relative to this script, so moving the repository no longer breaks them.
 rem Each window is kept open so errors stay visible if a service exits.
+rem
+rem FIVE WINDOWS (2026-11-26): classroom-app is the second frontend - a static
+rem Capacitor web bundle under classroom-app\www. It depends on no backend, so it
+rem is started last and silently skipped when www has not been built yet.
+rem   * Build it first with: node classroom-app\scripts\build.js
 rem
 rem STARTUP GATE (2026-11-15): run-lcl.bat is started only after all three
 rem backend TCP ports are LISTENING. dev-frontend-local.js probes those same
@@ -32,6 +38,7 @@ pushd "%~dp0.." >nul 2>nul
 set "PRJ=%CD%"
 popd >nul 2>nul
 set "LAUNCH=%PRJ%\doc-develop\90-tools\"
+set "APP_DIR=%PRJ%\classroom-app"
 set "BACKEND_PORTS=8081 8090 8092"
 if not defined WAIT_TIMEOUT set "WAIT_TIMEOUT=180"
 if not defined POLL_SECONDS set "POLL_SECONDS=2"
@@ -52,6 +59,15 @@ for %%F in (run-api.bat run-msg.bat run-clas.bat run-lcl.bat) do (
 
 if not exist "%PRJ%\api\target\booking-api-2.2.0.jar" (
     echo   [WARN] api\target\booking-api-2.2.0.jar not found - build first if booking fails
+)
+
+rem classroom-app preview serves classroom-app\www; without it the window would
+rem open on an empty directory, so probe up front and warn (non-fatal).
+set "APP_WWW=0"
+if exist "%APP_DIR%\www\index.html" set "APP_WWW=1"
+if "%APP_WWW%"=="0" (
+    echo   [WARN] classroom-app\www not built - App preview window will be skipped
+    echo          build it with: node classroom-app\scripts\build.js
 )
 
 rem /D sets cwd so java -jar writes ./logs into the project, not the launcher dir.
@@ -148,11 +164,34 @@ if "%RC%"=="1" (
     set "SKIPPED=!SKIPPED! frontend:8080"
 )
 
+goto START_APP
+
+rem ----------------------------------------------------------------------------
+rem classroom-app preview (8098) - the second frontend.
+rem Pure static file server over classroom-app\www: no backend dependency and no
+rem proxy rules. Started last so the flow above is untouched when the App bundle
+rem has not been built (APP_WWW=0 skips straight to the summary).
+rem ----------------------------------------------------------------------------
+:START_APP
+if "%APP_WWW%"=="0" goto SUMMARY
+call :portListening 8098
+if errorlevel 1 (set "RC=1") else (set "RC=0")
+if "%FORCE_START%"=="1" set "RC=1"
+if "%RC%"=="1" (
+    start "classroom-app 8098" /D "%APP_DIR%" cmd /k node scripts\serve.js 8098
+    set "STARTED=!STARTED! classroom-app:8098"
+) else (
+    echo   [skip] :8098 already LISTENING - classroom-app window not started.
+    set "SKIPPED=!SKIPPED! classroom-app:8098"
+)
+
+:SUMMARY
 echo.
 echo   Startup complete.
 if defined STARTED echo     started:!STARTED!
 if defined SKIPPED echo     skipped, port already LISTENING:!SKIPPED!
-echo   Open http://127.0.0.1:8080/
+echo   Open http://127.0.0.1:8080/     - web site (via dev proxy)
+echo        http://127.0.0.1:8098/     - classroom App bundle preview
 echo   Stop: close each window, or press Ctrl+C in it.
 echo   classroom-service also needs local Redis db2.
 echo   Tip: FORCE_START=1 opens every window even when a port is taken.
