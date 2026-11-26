@@ -391,12 +391,10 @@
         (warn ? ' warn' : '') + '">' + v + '</div></div>';
     },
 
-    /** 进入课堂：与预定审核 enterClassroom 同一跳转语义，pageUrl 存在时带上 base */
+    /** 进入课堂：与全站入口同一跳转语义（相对地址与 tCode 由构造器负责） */
     _enterClassroom: function (scheduleId) {
       if (!scheduleId) { this.toast('缺少排期信息'); return; }
-      window.location.href = (typeof window.pageUrl === 'function')
-        ? window.pageUrl('classroom.html', { scheduleId: scheduleId })
-        : './classroom.html?scheduleId=' + encodeURIComponent(scheduleId);
+      window.ClassroomLink.open({ target: 'classroom', key: scheduleId });
     },
 
     // ---------------- 应急建课 / 加学员 / 强制结束（B1~B3，2026-11-19） ----------------
@@ -415,20 +413,16 @@
       if (e && !e.value) e.value = fmt(new Date(now.getTime() + 60 * 60000));
     },
 
-    /** 拼课堂页绝对链接；经 pageUrl 走同一套规则（会自动带 tCode，多租户下登录页才不会锁错机构） */
-    _classroomLink: function (scheduleId, extra) {
-      var params = { scheduleId: scheduleId };
-      if (extra) {
-        Object.keys(extra).forEach(function (k) { params[k] = extra[k]; });
-      }
-      var rel = (typeof window.pageUrl === 'function')
-        ? window.pageUrl('classroom.html', params)
-        : ('./classroom.html?scheduleId=' + encodeURIComponent(scheduleId));
-      try {
-        return new URL(rel, window.location.href).href;
-      } catch (err) {
-        return rel;
-      }
+    /** 即时 UI 用的绝对链接（字符串）：写进只读输入框、复制按钮。
+     *  无有效公开基址时返回 '' —— 调用方必须 fail-closed，不得降级为相对路径：
+     *  相对值一旦被复制出去或写进 payload，就是一条不可召回的坏链。 */
+    _classroomLink: function (scheduleId) {
+      return window.ClassroomLink.shareUrl({ target: 'classroom', key: scheduleId, src: 'ops' });
+    },
+
+    /** 落库/外发专用：返回 { url, insecure }。payload 与通知正文必须用它并检查 insecure */
+    _linkShare: function (scheduleId) {
+      return window.ClassroomLink.shareUrlSafe({ target: 'classroom', key: scheduleId, src: 'ops' });
     },
 
     /** 复制到剪贴板：clipboard API 不可用（非 HTTPS / 老浏览器）时退回 execCommand */
@@ -508,19 +502,19 @@
       if (!el) return;
       var sid = d.scheduleId || '';
       if (!sid) { el.innerHTML = ''; return; }
-      var studentLink = this._classroomLink(sid);
-      var teacherLink = this._classroomLink(sid, { role: 'teacher' });
+      // 课堂链接不再按角色分：role 参数已废弃，课堂页只认登录身份
+      var classroomLink = this._classroomLink(sid);
       el.innerHTML = '<div style="margin-top:10px;padding:10px 12px;background:#f6f8fa;border:1px solid #e5e7eb;border-radius:6px;font-size:13px">'
         + '<div><b>课堂号</b>：<code>' + this.esc(sid) + '</code>'
         + ' <b>状态</b>：' + this.esc(d.status || '-')
         + (d.studentCount ? ' <b>学生</b>：' + d.studentCount + ' 人' : '') + '</div>'
         + '<div style="margin-top:4px"><b>时间</b>：' + this.fmtTime(d.startTime) + ' ~ ' + this.fmtTime(d.endTime) + '</div>'
-        + '<div style="margin-top:8px"><b>学生链接</b>：'
-        + '<input type="text" readonly value="' + this.esc(studentLink) + '" style="width:66%"> '
-        + '<button class="btn small" data-tmp-copy="' + this.esc(studentLink) + '">复制</button></div>'
-        + '<div style="margin-top:4px"><b>管理员代开课</b>：'
-        + '<input type="text" readonly value="' + this.esc(teacherLink) + '" style="width:66%"> '
-        + '<button class="btn small" data-tmp-copy="' + this.esc(teacherLink) + '">复制</button></div>'
+        + '<div style="margin-top:8px"><b>课堂链接</b>：'
+        + (classroomLink
+          ? '<input type="text" readonly value="' + this.esc(classroomLink) + '" style="width:66%"> '
+            + '<button class="btn small" data-tmp-copy="' + this.esc(classroomLink) + '">复制</button>'
+          : '<span style="color:#b42318;font-size:12.5px">未配置公开站点地址，无法生成可分享链接；请用正式 https 域名打开运营台</span>')
+        + '</div>'
         // 建完课最常见的下一步就是「把链接发给学生」，这里直接把人送到发通知面板，省一次翻找
         + '<div style="margin-top:8px">'
         + '<button class="btn small" data-tmp-notice="' + this.esc(sid) + '" '
@@ -695,10 +689,19 @@
           priority: high ? 'HIGH' : 'MEDIUM'
         };
         if (withLink) {
+          // 闸门：只有「绝对 + 非内网」的链接才允许落库外发。相对路径或私网地址发出去就是坏链，
+          // 收件人点开必失败，且事后无法召回。
+          var share = self._linkShare(sid);
+          if (!share.url) {
+            throw { message: '未配置公开站点地址，无法发送带链接的通知（可取消勾选「附带链接」后重发）' };
+          }
+          if (share.insecure) {
+            throw { message: '当前为 http / 内网环境，链接不可对外发送；请用 https 正式域名打开运营台后重试' };
+          }
           body.payload = {
             type: 'classroom_join',
             scheduleId: sid,
-            url: self._classroomLink(sid)
+            url: share.url
           };
         }
         // 平台管理员代别家租户发通知：不带 targetTenantId 会落成平台租户(0)，
@@ -728,7 +731,7 @@
     _renderNoticeResult: function (sid, students, d, withLink) {
       var box = document.getElementById('ntc-result');
       if (!box) return;
-      var link = this._classroomLink(sid);
+      var link = this._linkShare(sid).url;
       var names = students.map(function (m) {
         return m.displayName || m.userId;
       }).slice(0, 12).join('、') + (students.length > 12 ? ' 等 ' + students.length + ' 人' : '');
@@ -886,13 +889,13 @@
                 var ratio = c.memberCount ? (c.onlineCount + '/' + c.memberCount) : (c.onlineCount + '/-');
                 // 进入课堂（2026-11-15）：活跃课堂均有对应 scheduleId，管理端可直接旁听。
                 // 本页未加载全局 enterClassroom，故走 data-enter 事件委托（同对账表 data-resolve 模式）。
-                // 操作列（2026-11-19 扩）：进入课堂 / 复制学生链接 / 加学员 / 强制结束。
-                // 链接由 _classroomLink 统一拼（带 tCode），避免手抄或漏参数进不去。
+                // 操作列（2026-11-19 扩）：进入课堂 / 复制课堂链接 / 加学员 / 强制结束。
+                // 链接由构造器统一生成（带 tCode）；课堂链接不分角色，课堂页只认登录身份。
                 var sid = c.scheduleId ? self.esc(c.scheduleId) : '';
                 var ops = '-';
                 if (sid) {
                   ops = '<button class="btn small" data-enter="' + sid + '">进入课堂</button>'
-                    + ' <button class="btn small" data-copy="' + sid + '">复制学生链接</button>'
+                    + ' <button class="btn small" data-copy="' + sid + '">复制课堂链接</button>'
                     + ' <button class="btn small" data-mem="' + sid + '">加学员</button>'
                     + ' <button class="btn small" data-notice="' + sid + '">发通知</button>';
                   if (c.status === 'LIVE' || c.status === 'PAUSED') {
@@ -917,7 +920,9 @@
               Array.prototype.forEach.call(document.querySelectorAll('#monitor-table [data-copy]'), function (btn) {
                 btn.addEventListener('click', function () {
                   var id = btn.getAttribute('data-copy');
-                  self._copyText(self._classroomLink(id), '学生链接已复制');
+                  var share = self._classroomLink(id);
+                  if (!share) { self.toast('未配置公开站点地址，无法复制课堂链接'); return; }
+                  self._copyText(share, '课堂链接已复制');
                 });
               });
               Array.prototype.forEach.call(document.querySelectorAll('#monitor-table [data-mem]'), function (btn) {
