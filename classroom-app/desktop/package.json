@@ -19,7 +19,7 @@
     "appId": "com.lessonappointment.classroom.desktop",
     "productName": "云课堂",
     "directories": {
-      "output": "release",
+      "output": "dist",
       "buildResources": "build"
     },
     "files": [
@@ -35,7 +35,8 @@
       }
     ],
     "win": {
-      "artifactName": "${productName}-绿色版-${version}-${arch}.${ext}",
+      "executableName": "eclassroom",
+      "artifactName": "eClassroom-1.0.${ext}",
       "target": [
         { "target": "zip", "arch": ["x64"] }
       ]
