@@ -2631,11 +2631,3 @@ async function hasBookingForScheduleId(scheduleId) {
   * 结论：只要元素还在DOM树中，display:none不会影响JS用value/innerText等API访问或修改其内容。
   * */
 
-// 进入课堂：跳转到课堂页面
-function enterClassroom(scheduleId) {
-  if (!scheduleId) { alert('缺少排期信息'); return; }
-  window.location.href = (typeof window.pageUrl === 'function')
-    ? window.pageUrl('classroom.html', { scheduleId: scheduleId })
-    : './classroom.html?scheduleId=' + encodeURIComponent(scheduleId);
-}
-window.enterClassroom = enterClassroom;

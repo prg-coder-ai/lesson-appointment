@@ -9,7 +9,6 @@ window.renderBookingCards  = renderBookingCards ;
 window.cancelBooking   = cancelBooking ; 
 window.validBooking   = validBooking ; 
 window.deleteBookingByFrozen = deleteBookingByFrozen;
-window.enterClassroom = enterClassroom;
 
  async function renderBookingCards(){
      assignLoadobjectListFunction( getBookingListByPage);//
@@ -376,12 +375,4 @@ async function validCancelBooking(bookingid){
         document.getElementById('booking-status-select').value = '';
         Pagination.pageNum = 1;
         getBookingListByPage();
-      }
-
-      // 进入课堂：跳转到课堂页面
-      function enterClassroom(scheduleId) {
-        if (!scheduleId) { alert('缺少排期信息'); return; }
-        window.location.href = (typeof window.pageUrl === 'function')
-          ? window.pageUrl('classroom.html', { scheduleId: scheduleId })
-          : './classroom.html?scheduleId=' + encodeURIComponent(scheduleId);
       }
