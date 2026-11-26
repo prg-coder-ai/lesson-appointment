@@ -17,9 +17,8 @@ ios/
 #   ⚠ desktop/build/ 是 buildResources（图标等），属源文件，**不要**忽略
 desktop/dist/
 desktop/out/
-desktop/release/
-# release-fix：打包时 release/ 被运行中的 exe 占用了 app.asar 时的备用输出目录
-desktop/release-fix/
+desktop/release*/
+
 
 # 依赖
 node_modules/
