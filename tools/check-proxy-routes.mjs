@@ -240,5 +240,56 @@ if (wwwBlocks.length) {
   }
 }
 
+/* ---------- ⑤ 桌面端（Electron）分流清单 ---------- */
+/**
+ * 分流清单实际有**三处**：dev-proxy（本地浏览器）、nginx（生产）、desktop/server.js（exe）。
+ * ①②③④ 只守住了前两处，桌面端一直漏在外面 —— 2026-11-26 就因为它的清单少了 /ws/，
+ * 导致 exe 里进课堂永远「连接中断，正在重连…」：proxyWs 拿不到上游就直接 socket.destroy()，
+ * 而 WS 分支的错误是静默的，连日志都没有。
+ *
+ * 最难发现的是它在浏览器和生产上**都正常**（dev-proxy 用 startsWith('/ws/') 判定，
+ * nginx 有 location /ws/classrooms/），所以第一反应都会去查网络/证书/后端。
+ *
+ * 复用 server.js 导出的 resolveUpstream（同一份实现），不在守卫里抄第二份清单。
+ */
+try {
+  const desktop = require(path.join(ROOT, 'classroom-app/desktop/server.js'));
+  const resolveUpstream = desktop.resolveUpstream;
+  if (typeof resolveUpstream !== 'function') {
+    fail('desktop/server.js 未导出 resolveUpstream —— 守卫无法校验桌面端分流（请保持该导出）');
+  } else {
+    // 用带 tag 的假上游，便于把"判错了哪个上游"讲清楚
+    const UP = { api: { tag: 'api' }, message: { tag: 'message' }, classroom: { tag: 'classroom' } };
+    const miss = [];
+    for (const it of classroomPaths) {
+      const hit = resolveUpstream(it.path, UP);
+      if (!hit || hit.tag !== 'classroom') miss.push(`${it.name} ${it.path} → ${hit ? hit.tag : '静态文件'}`);
+    }
+    if (miss.length) {
+      fail(`desktop/server.js 有 ${miss.length} 个课堂端点没判到 classroom 上游（exe 里这些接口会失败）：\n      `
+        + miss.slice(0, 8).join('\n      '));
+    } else {
+      ok(`desktop/server.js: ${classroomPaths.length} 个课堂端点均判到 classroom 上游`);
+    }
+
+    // WS 三通道：路径不在 /api 下，是最容易被漏的一条（漏了就是本轮那个故障）
+    const wsMiss = ['heartbeat', 'signal', 'whiteboard']
+      .map((ch) => `/ws/classrooms/abc/${ch}?access_token=t&traceId=x`)
+      .filter((p) => {
+        const hit = resolveUpstream(p, UP);
+        return !hit || hit.tag !== 'classroom';
+      });
+    if (wsMiss.length) {
+      fail('desktop/server.js 未把课堂 WS 判到 classroom 上游：' + wsMiss.join('、')
+        + '\n      后果：exe 里课堂一直「连接中断，正在重连…」（socket 被直接销毁且无日志），'
+        + '\n      而浏览器与生产正常，极易误判成网络/证书/后端问题');
+    } else {
+      ok('desktop/server.js: WS 三通道（heartbeat/signal/whiteboard）均判到 classroom 上游');
+    }
+  }
+} catch (e) {
+  fail('无法加载 classroom-app/desktop/server.js：' + e.message);
+}
+
 console.log(failed ? `\n共 ${failed} 处不一致` : '\n✓ 分流规则一致：前端课堂端点全部可达，dev 与 nginx 清单对齐');
 process.exit(failed ? 1 : 0);

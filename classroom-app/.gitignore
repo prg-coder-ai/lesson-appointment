@@ -18,6 +18,8 @@ ios/
 desktop/dist/
 desktop/out/
 desktop/release/
+# release-fix：打包时 release/ 被运行中的 exe 占用了 app.asar 时的备用输出目录
+desktop/release-fix/
 
 # 依赖
 node_modules/

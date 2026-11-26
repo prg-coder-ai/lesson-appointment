@@ -64,6 +64,30 @@ const MIME = {
 };
 
 /**
+ * 路径 → 上游服务（纯函数，模块级）。
+ *
+ * 之所以提到模块级并导出，而不是留在 createAppServer 闭包里：
+ * 分流清单是「三处必须一致」的东西（dev-proxy / nginx / 这里的 server.js），
+ * 前两者有 tools/check-proxy-routes.mjs 守着，只有本文件漏在外面 ——
+ * 2026-11-26 就因为漏了 /ws/ 导致 exe 里课堂一直「连接中断，正在重连…」，
+ * 而浏览器与生产都正常。导出后守卫可以直接调这份实现，不必再抄一份清单。
+ *
+ * @param {string} rawPath 含 query 的请求路径
+ * @param {object} UP      config.upstream（{api,message,classroom}）
+ * @returns {object|null}  命中的上游配置；null 表示非 API，走静态文件
+ */
+function resolveUpstream(rawPath, UP) {
+  const p = String(rawPath || '').split('?')[0];
+  if (p === '/api/v1/admin/classrooms') return UP.classroom || null;   // 无尾斜杠的精确端点
+  for (const x of MSG_PREFIXES) if (p === x || p.startsWith(x)) return UP.message || null;
+  // WS 必须在 /api 兜底之前判：/ws/... 不带 /api 前缀，落到兜底会走错上游或返回 null
+  for (const x of WS_PREFIXES) if (p.startsWith(x)) return UP.classroom || null;
+  for (const x of CLS_PREFIXES) if (p.startsWith(x)) return UP.classroom || null;
+  if (p.startsWith('/api/') || p.startsWith('/actuator/')) return UP.api || null;
+  return null;
+}
+
+/**
  * @param {{wwwDir:string, config:object}} opts
  * @returns {{server:http.Server, upstreamOf:Function, wwwDir:string}}
  */
@@ -79,14 +103,7 @@ function createAppServer(opts) {
 
   /** 路径 → 上游；返回 null 表示非 API，走静态 */
   function upstreamOf(rawPath) {
-    const p = String(rawPath || '').split('?')[0];
-    if (p === '/api/v1/admin/classrooms') return UP.classroom || null;   // 无尾斜杠的精确端点
-    for (const x of MSG_PREFIXES) if (p === x || p.startsWith(x)) return UP.message || null;
-    // WS 必须在 /api 之前判（虽然不冲突，但放前面更直白：它走的是 upgrade 通道）
-    for (const x of WS_PREFIXES) if (p.startsWith(x)) return UP.classroom || null;
-    for (const x of CLS_PREFIXES) if (p.startsWith(x)) return UP.classroom || null;
-    if (p.startsWith('/api/') || p.startsWith('/actuator/')) return UP.api || null;
-    return null;
+    return resolveUpstream(rawPath, UP);
   }
 
   function upstreamOpts(up) {
@@ -237,7 +254,7 @@ function createAppServer(opts) {
   return { server, upstreamOf, wwwDir: WWW };
 }
 
-module.exports = { createAppServer, MSG_PREFIXES, CLS_PREFIXES };
+module.exports = { createAppServer, resolveUpstream, MSG_PREFIXES, CLS_PREFIXES, WS_PREFIXES };
 
 /* ---------- 单跑入口：node server.js [端口] ----------
  * 不启 Electron，直接把同一套静态+代理跑起来，方便：
