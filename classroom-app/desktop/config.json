@@ -1,0 +1,28 @@
+{
+  "_说明": "桌面版运行配置。改这里不用重新打包（安装版读取 resources/config.json）。",
+  "_upstream说明": "三个上游对应三个后端服务；host/port/protocol 按部署实际填。留空表示该服务不可用（相关功能报错，其余页面正常）。",
+  "startPage": "launch.html",
+  "window": {
+    "width": 1280,
+    "height": 800,
+    "minWidth": 960,
+    "minHeight": 640
+  },
+  "upstream": {
+    "api": {
+      "protocol": "https",
+      "host": "your-domain.com",
+      "port": 443
+    },
+    "message": {
+      "protocol": "https",
+      "host": "your-domain.com",
+      "port": 443
+    },
+    "classroom": {
+      "protocol": "https",
+      "host": "your-domain.com",
+      "port": 443
+    }
+  }
+}

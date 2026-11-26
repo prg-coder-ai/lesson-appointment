@@ -12,7 +12,11 @@
     "cap:sync": "cap sync",
     "dev:web": "node scripts/serve.js",
     "verify:web": "node scripts/serve.js 8098",
-    "build:local": "APP_MODE=local node scripts/build.js"
+    "build:local": "APP_MODE=local node scripts/build.js",
+    "native:android": "node scripts/build-native.cjs android",
+    "native:android:release": "node scripts/build-native.cjs android --release",
+    "native:ios": "node scripts/build-native.cjs ios",
+    "native:desktop": "node scripts/build-native.cjs desktop"
   },
   "dependencies": {
     "@capacitor/core": "^6.1.0",

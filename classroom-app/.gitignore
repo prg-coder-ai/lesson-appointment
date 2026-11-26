@@ -3,8 +3,16 @@ www/
 capacitor.config.json
 
 # Capacitor 原生工程（由 npx cap add 生成，体积大）
+#   注意：android/ 里有两处手工改动会被 "重新 cap add" 冲掉 ——
+#   ① gradle-wrapper.properties 升到 8.7（JDK 21 下 8.2.1 跑不起来）
+#   ② variables.gradle 保持 Capacitor 默认（无需改）
+#   所以这两处的修正由 scripts/build-native.cjs 每次构建前自动补齐，
+#   不要依赖"记得手工改"。
 android/
 ios/
+
+# 桌面端（Electron）构建产物
+desktop/dist/
 
 # 依赖
 node_modules/

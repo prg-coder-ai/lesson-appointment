@@ -1,0 +1,57 @@
+{
+  "name": "classroom-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "云课堂桌面版（Windows / macOS / Linux）—— Electron 套壳 classroom-app/www，内置同源反向代理，后端零改动",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "start:dev": "cross-env CLASSROOM_DESKTOP_DEV=1 electron .",
+    "pack:win": "electron-builder --win --x64",
+    "pack:mac": "electron-builder --mac",
+    "pack:linux": "electron-builder --linux"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.lessonappointment.classroom.desktop",
+    "productName": "云课堂",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "server.js",
+      "config.json",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../www",
+        "to": "www"
+      }
+    ],
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    },
+    "mac": {
+      "target": ["dmg"],
+      "category": "public.app-category.education"
+    },
+    "linux": {
+      "target": ["AppImage"],
+      "category": "Education"
+    }
+  }
+}
