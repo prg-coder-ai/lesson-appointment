@@ -124,23 +124,65 @@ function createAppServer(opts) {
     }
     const o = upstreamOpts(up);
     const mod = o.isHttps ? https : http;
-    const preq = mod.request({
-      protocol: o.isHttps ? 'https:' : 'http:',
-      hostname: o.host,
-      port: o.port,
-      method: req.method,
-      path: req.url,
-      headers: Object.assign({}, req.headers, { host: o.hostHeader }),
-      rejectUnauthorized: false,   // 允许内网自签证书
-    }, (pres) => {
-      res.writeHead(pres.statusCode || 502, pres.headers);
-      pres.pipe(res);
+    const method = req.method || 'GET';
+    const rawUrl = req.url || '';
+    const urlForLog = rawUrl.length > 96 ? rawUrl.slice(0, 96) + '…' : rawUrl;
+    // 无请求体才允许重试（body 是流，重放不了）
+    const hasBody = !!(req.headers['content-length'] && req.headers['content-length'] !== '0')
+      || !!req.headers['transfer-encoding'];
+    const retryable = !hasBody && (method === 'GET' || method === 'HEAD' || method === 'OPTIONS');
+
+    let current = null;
+    let clientAborted = false;
+
+    const forward = (triesLeft) => {
+      const preq = mod.request({
+        protocol: o.isHttps ? 'https:' : 'http:',
+        hostname: o.host,
+        port: o.port,
+        method,
+        path: rawUrl,
+        headers: Object.assign({}, req.headers, { host: o.hostHeader }),
+        rejectUnauthorized: false,   // 允许内网自签证书
+      }, (pres) => {
+        res.writeHead(pres.statusCode || 502, pres.headers);
+        pres.pipe(res);
+      });
+      current = preq;
+
+      preq.on('error', (e) => {
+        const code = e.code || '';
+        // 客户端先断开（关窗口 / 切页 / 取消上传）：销毁上游时的 ECONNRESET 不是故障
+        if (clientAborted || req.destroyed) {
+          if (process.env.DESKTOP_VERBOSE) {
+            console.log(`[upstream aborted] ${method} ${urlForLog} ${code}`);
+          }
+          return;
+        }
+        // 残留 keep-alive 连接被对端关闭：无 body 请求重试一次
+        if (retryable && triesLeft > 0 && (code === 'ECONNRESET' || code === 'EPIPE')) {
+          console.warn(`[upstream retry] ${method} ${urlForLog} -> ${code}`);
+          forward(triesLeft - 1);
+          return;
+        }
+        console.error(`[upstream error] ${method} ${urlForLog} -> ${o.host}:${o.port} ${code} ${e.message}`);
+        if (!res.headersSent) {
+          res.writeHead(502, { 'Content-Type': 'text/plain; charset=utf-8' });
+          res.end('上游错误：' + e.message);
+        } else {
+          res.destroy();
+        }
+      });
+
+      if (hasBody) req.pipe(preq); else preq.end();
+    };
+
+    res.on('close', () => {
+      if (!res.writableFinished) clientAborted = true;
+      if (current) current.destroy();
     });
-    preq.on('error', (e) => {
-      if (!res.headersSent) res.writeHead(502, { 'Content-Type': 'text/plain; charset=utf-8' });
-      res.end('上游错误：' + e.message);
-    });
-    req.pipe(preq);
+
+    forward(1);
   }
 
   function proxyWs(req, socket, head) {

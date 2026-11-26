@@ -226,27 +226,73 @@ function proxy(req, res, targetRaw, label) {
     // 校验证书链。本地调试若遇自签/代理 MITM 才临时改成 false，别默认关掉。
     options.rejectUnauthorized = true;
   }
-  const p = mod.request(options, (pres) => {
-    const outHeaders = { ...pres.headers };
-    const ct = pres.headers['content-type'] || '';
-    // SSE 不缓冲，保证实时推送
-    if (ct.includes('text/event-stream')) {
-      outHeaders['Cache-Control'] = 'no-cache';
-      outHeaders['X-Accel-Buffering'] = 'no';
-    }
-    res.writeHead(pres.statusCode, outHeaders);
-    pres.pipe(res);
+  const method = req.method || 'GET';
+  const rawUrl = req.url || '';
+  const urlForLog = rawUrl.length > 96 ? rawUrl.slice(0, 96) + '…' : rawUrl;
+  // 只有「无请求体」的方法才允许重试：body 是流，重放不了
+  const hasBody = !!(req.headers['content-length'] && req.headers['content-length'] !== '0')
+    || !!req.headers['transfer-encoding'];
+  const retryable = !hasBody && (method === 'GET' || method === 'HEAD' || method === 'OPTIONS');
+
+  let current = null;
+  let clientAborted = false;
+
+  const forward = (triesLeft) => {
+    const p = mod.request(options, (pres) => {
+      const outHeaders = { ...pres.headers };
+      const ct = pres.headers['content-type'] || '';
+      // SSE 不缓冲，保证实时推送
+      if (ct.includes('text/event-stream')) {
+        outHeaders['Cache-Control'] = 'no-cache';
+        outHeaders['X-Accel-Buffering'] = 'no';
+      }
+      res.writeHead(pres.statusCode, outHeaders);
+      pres.pipe(res);
+    });
+    current = p;
+
+    p.on('error', (e) => {
+      const code = e.code || '';
+      // ① 客户端先断开（关课堂页 / 取消上传 / SSE 关流）：下面 res.on('close')
+      //    会主动 destroy 上游，销毁过程本身会回吐 ECONNRESET，这不是故障。
+      //    以前不分情况一律打「代理失败」，把正常中断报成了错误。
+      if (clientAborted || req.destroyed) {
+        if (process.env.DEV_PROXY_VERBOSE) {
+          console.log(`  [上游中断·客户端已断开] ${label} ${method} ${urlForLog}  ${code}`);
+        }
+        return;
+      }
+      // ② 残留 keep-alive 连接被对端关闭：Node 复用已死 socket，写入时报
+      //    ECONNRESET / EPIPE。无 body 的请求重放安全，重试一次即可
+      //    （本地回环新建连接代价可忽略，比让页面吃 502 划算）。
+      if (retryable && triesLeft > 0 && (code === 'ECONNRESET' || code === 'EPIPE')) {
+        console.warn(`  [代理重试] ${label} ${method} ${urlForLog} → ${code}，重发一次`);
+        forward(triesLeft - 1);
+        return;
+      }
+      // ③ 真失败：必须带方法 + URL。只有 host:port 时无法判断是哪个请求挂了，
+      //    每次都要靠猜（2026-11-26 排查 classroom ECONNRESET 就卡在这一步）。
+      console.error(`  [代理失败] ${label} ${method} ${urlForLog} -> ${targetHost}:${targetPort}  ${code} ${e.message}`);
+      if (!res.headersSent) {
+        res.writeHead(502, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end(`Bad Gateway: ${label} (${targetHost}:${targetPort}) 不可达 —— ${e.message}`);
+      } else {
+        // 头已发出，无法再改状态码，只能掐断连接让客户端知道不完整
+        res.destroy();
+      }
+    });
+
+    // 有 body 必须流式转发；无 body 直接 end（也避免 GET 上多余的 pipe）
+    if (hasBody) req.pipe(p); else p.end();
+  };
+
+  // 客户端中断时（如关闭 SSE 页面、切走课堂页）及时销毁上游连接
+  res.on('close', () => {
+    if (!res.writableFinished) clientAborted = true;
+    if (current) current.destroy();
   });
-  p.on('error', (e) => {
-    console.error(`  [代理失败] ${label} -> ${targetHost}:${targetPort}  ${e.code || ''} ${e.message}`);
-    if (!res.headersSent) {
-      res.writeHead(502, { 'Content-Type': 'text/plain; charset=utf-8' });
-    }
-    res.end(`Bad Gateway: ${label} (${targetHost}:${targetPort}) 不可达 —— ${e.message}`);
-  });
-  // 客户端中断时（如关闭 SSE 页面）及时销毁上游连接
-  res.on('close', () => p.destroy());
-  req.pipe(p);
+
+  forward(1);
 }
 
 /**
