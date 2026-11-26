@@ -26,6 +26,15 @@ const path = require('path');
 
 /* ---------- 分流清单（与 dev-proxy.js / nginx 保持一致）---------- */
 const MSG_PREFIXES = ['/api/v1/message', '/api/v1/sse', '/api/v1/users/', '/api/v1/sensitive'];
+// 课堂 WebSocket 三通道（heartbeat / signal / whiteboard）：
+//   /ws/classrooms/<scheduleId>/<channel>?access_token=…&traceId=…
+// ★ 这条路径不在 /api 下，2026-11-26 首次做桌面端时漏了，后果很重：
+//   upstreamOf 返回 null → proxyWs 第一行就 socket.destroy()，WS 永远建不起来，
+//   课堂页一直显示「连接中断，正在重连…」。而浏览器访问 8080 是正常的
+//   （dev-proxy 用 urlPath.startsWith('/ws/') 判定），生产 nginx 也有
+//   /ws/classrooms/ 的 location —— 所以这个坑只出现在 exe 里，极易误判成网络问题。
+//   判定口径与 dev-proxy 保持一致：所有 /ws/ 都归课堂上游。
+const WS_PREFIXES = ['/ws/'];
 const CLS_PREFIXES = [
   '/api/v1/classrooms/',
   '/api/v1/attendance/',
@@ -73,6 +82,8 @@ function createAppServer(opts) {
     const p = String(rawPath || '').split('?')[0];
     if (p === '/api/v1/admin/classrooms') return UP.classroom || null;   // 无尾斜杠的精确端点
     for (const x of MSG_PREFIXES) if (p === x || p.startsWith(x)) return UP.message || null;
+    // WS 必须在 /api 之前判（虽然不冲突，但放前面更直白：它走的是 upgrade 通道）
+    for (const x of WS_PREFIXES) if (p.startsWith(x)) return UP.classroom || null;
     for (const x of CLS_PREFIXES) if (p.startsWith(x)) return UP.classroom || null;
     if (p.startsWith('/api/') || p.startsWith('/actuator/')) return UP.api || null;
     return null;
