@@ -27,3 +27,51 @@ html.app-no-display-capture [data-action="screen-share"],
 html.app-no-display-capture [data-action="record"],
 html.app-no-display-capture #btn-record,
 html.app-no-display-capture #btn-screen-share { display: none !important; }
+
+/* ══════════════════════════════════════════════════════════════════════
+ * App 端菜单裁剪（2026-11-26）
+ *
+ * 隐藏原因不是"功能归属分类"，而是这些入口在 App 内点开**必然失败**。
+ * 判定方式是机检（菜单 key → 跳转目标 / 渲染函数 → 是否在 www 内），结果分两类：
+ *
+ *   A 类：跳转目标页面在 www 里根本不存在 → 点了 404
+ *     teacher_showcase（浏览师资）→ student-landing.html
+ *     my_promo（我的推广）       → promo.html
+ *     legal_view（协议与政策）   → legal.html
+ *
+ *   B 类：渲染函数定义在 www 未打包的 js 里 → ReferenceError，内容区空白
+ *     booking（课程预订）       → renderStudentBookingCards            js/student-bookingCards.js
+ *     my_booking（我的预订）    → renderStudentBookingBrowserCards      js/student-bookingBrowserCards.js
+ *     my_lesson（我的课时）     → renderMyLessonPage                    js/student-lessonBalance.js
+ *     profile（个人中心，学生） → renderStudentProfile                  js/student-profile.js
+ *     my_course（我的课程）     → renderTeacherCourseAndScheduleBrowserCards
+ *     booking_manage（预订管理）→ renderStudentBookingBrowserCards
+ *     profile（个人中心，教师） → renderTeacherProfile
+ *
+ * 保留可见（App 内自足）：today_course / course_notice / messages /
+ * my_classroom / join_classroom / student_review。
+ *
+ * ★ 想让某项在 App 里真正可用，正确做法是把依赖的 js 纳入 scripts/build.js 的
+ *   复制清单（白名单），而不是删掉下面这行 CSS —— 删了只会退回"点了白屏"。
+ * ★ 这里只隐藏、不删 DOM：页面脚本仍在 querySelectorAll('.menu-item')，
+ *   删节点会让 index/active 计算与默认选中逻辑错位。
+ * ══════════════════════════════════════════════════════════════════════ */
+.menu-item[key="teacher_showcase"],
+.menu-item[key="my_promo"],
+.menu-item[key="legal_view"],
+.menu-item[key="booking"],
+.menu-item[key="my_booking"],
+.menu-item[key="my_lesson"],
+.menu-item[key="profile"],
+.menu-item[key="my_course"],
+.menu-item[key="booking_manage"] {
+  display: none !important;
+}
+
+/* 分组标题跟随：教师端「课程管理」「预订课程」两组各只有一个菜单项，
+ * 项目隐藏后标题会变成孤儿。用相邻兄弟选择器一并收掉。
+ * 不支持 :has() 的旧 WebView 最坏只是留两个空标题，不影响功能。 */
+.menu-group-title:has(+ .menu-item[key="my_course"]),
+.menu-group-title:has(+ .menu-item[key="booking_manage"]) {
+  display: none !important;
+}
