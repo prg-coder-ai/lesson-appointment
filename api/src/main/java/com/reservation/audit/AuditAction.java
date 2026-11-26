@@ -58,7 +58,12 @@ public enum AuditAction {
 
     // 通知规则（上课通知的时间点配置）
     NOTIFY_RULE_UPDATE("修改通知规则"),
-    NOTIFY_RULE_DELETE("删除通知规则");
+    NOTIFY_RULE_DELETE("删除通知规则"),
+
+    // 课堂 App 安装包（系统配置 → 课堂 App 包管理）
+    APP_PACKAGE_UPLOAD("上传课堂App安装包"),
+    APP_PACKAGE_DOWNLOAD("下载课堂App安装包"),
+    APP_PACKAGE_STATUS("课堂App安装包上下架");
 
     private final String label;
     AuditAction(String label) { this.label = label; }

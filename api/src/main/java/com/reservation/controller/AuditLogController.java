@@ -17,7 +17,9 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 审计日志浏览接口（仅管理员可访问）
@@ -91,6 +93,24 @@ public class AuditLogController {
         permissionCheck.checkAdmin(token);
         return Result.ok(Arrays.stream(AuditAction.values())
             .map(Enum::name).toList());
+    }
+
+    /**
+     * 操作类型 → 中文文案映射（2026-11-26，供审计页下拉/列表/详情展示）。
+     *
+     * <p>为什么不改 {@code /actions} 的返回结构：它返回的是 {@code List<String>}
+     * （枚举名），既是下拉选项也是筛选参数取值，改结构会波及既有调用方。
+     * 这里另开一个只读端点，中文文案仍只在 {@link AuditAction#getLabel()} 一处维护，
+     * 前端不必再抄一份会漂移的映射表；新增动作（如课堂 App 安装包三个）自动带上中文。
+     */
+    @GetMapping("/action-labels")
+    public Result<Map<String, String>> actionLabels(@RequestHeader("Authorization") String token) {
+        permissionCheck.checkAdmin(token);
+        Map<String, String> labels = new LinkedHashMap<>();
+        for (AuditAction a : AuditAction.values()) {
+            labels.put(a.name(), a.getLabel());
+        }
+        return Result.ok(labels);
     }
 
     /** 与 audit_log.created_at 的列精度对齐（datetime(0)，秒级）。 */

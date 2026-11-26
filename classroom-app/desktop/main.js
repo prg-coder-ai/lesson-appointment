@@ -35,11 +35,12 @@ if (!electronApi || typeof electronApi.app === 'undefined') {
   process.exit(1);
 }
 
-const { app, BrowserWindow, shell, session, dialog } = electronApi;
+const { app, BrowserWindow, ipcMain, nativeImage, shell, session, dialog } = electronApi;
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { createAppServer, resolveBasePort, listenWithFallback } = require('./server');
+const { badgeImage } = require('./badge-icon');
 
 /**
  * 绿色版数据目录 —— 必须在 app ready 之前设置。
@@ -109,6 +110,33 @@ let listenPort = 0;
  */
 const LISTEN_PORT_MAX_TRIES = 20;
 
+/* ───────── 任务栏未读角标 ─────────
+ * 页面（app-unread.js）算出未读数后经 preload → 这里，落到两处：
+ *   · Windows / Linux：`win.setOverlayIcon()` —— 窗口图标右下角的小红点数字。
+ *     `app.setBadgeCount()` 在 Windows 上**不支持**（仅 macOS / Linux Dock），
+ *     所以必须走 overlay 这条路，这也是要自绘 PNG 的原因（见 badge-icon.js）。
+ *   · macOS：`app.setBadgeCount()` 才是原生 Dock 角标，两个都调，各取所长。
+ *
+ * 容错：所有调用都包 try/catch —— 角标失败绝不能影响业务页面的任何功能，
+ * 最坏情况就是「没有数字」，而不是白窗或崩溃。
+ */
+ipcMain.on('unread:set', (event, count) => {
+  const n = Math.max(0, Math.min(9999, Math.floor(Number(count) || 0)));
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      const img = n > 0 ? nativeImage.createFromBuffer(badgeImage(n)) : null;
+      mainWindow.setOverlayIcon(img && !img.isEmpty() ? img : null, n > 0 ? n + ' 条未读消息' : '');
+    }
+  } catch (e) {
+    console.warn('[classroom-desktop] 任务栏角标（overlay）设置失败：' + e.message);
+  }
+  try {
+    app.setBadgeCount(n);       // macOS/Linux 生效；Windows 上是 no-op
+  } catch (e) {
+    /* Windows 下不支持，忽略 */
+  }
+});
+
 function createWindow() {
   const w = CFG.window || {};
   mainWindow = new BrowserWindow({
@@ -125,6 +153,8 @@ function createWindow() {
       contextIsolation: true,
       sandbox: true,
       spellcheck: false,
+      // 唯一的例外通道：只用于把未读消息数推到任务栏角标（见 preload.js）
+      preload: path.join(__dirname, 'preload.js'),
     },
   });
 

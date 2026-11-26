@@ -77,6 +77,8 @@ const copyMap = {
   'core/app-bridge.js': 'app-bridge.js',
   'core/app-entry-guard.js': 'app-entry-guard.js',
   'core/app-permissions.js': 'app-permissions.js',
+  'core/app-env.js': 'app-env.js',
+  'core/app-unread.js': 'app-unread.js',
   'core/role-router.js': 'role-router.js',
   'core/verify.js': 'verify.js',
   'core/ops-lite.js': 'ops-lite.js',
@@ -99,6 +101,8 @@ const INJECT = MARKER + '\n'
   + '  <link rel="stylesheet" href="app.css">\n'
   + '  <script src="app-config.js"></script>\n'
   + '  <script src="app-bridge.js"></script>\n'
+  + '  <script src="app-env.js"></script>\n'
+  + '  <script src="app-unread.js"></script>\n'
   + '  <script src="role-router.js"></script>\n';
 
 // 启动页用新工程自己的版本；课堂页的 app-entry-guard 由 patch.js 单独注入。
@@ -131,7 +135,15 @@ const capConfig = {
   appId: CONFIG.appId,
   appName: CONFIG.appName,
   webDir: CONFIG.webDir,
-  ...(CONFIG.frontendOrigin ? { server: { url: CONFIG.frontendOrigin, androidScheme: 'https' } } : {}),
+  ...(CONFIG.frontendOrigin ? {
+    server: {
+      url: CONFIG.frontendOrigin,
+      androidScheme: 'https',
+      // 源站是 http（内网调试）时必须显式声明，否则 Android 9+ 拦明文流量，
+      // 表现为 WebView 白屏/网络错误，且日志里看不出原因。
+      ...(/^http:\/\//i.test(CONFIG.frontendOrigin) ? { cleartext: true } : {})
+    }
+  } : {}),
   android: {
     allowMixedContent: false,
     webContentsDebuggingEnabled: CONFIG.webviewDebugging

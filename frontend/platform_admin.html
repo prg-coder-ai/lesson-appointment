@@ -95,6 +95,12 @@
           <i class="fa fa-tags"></i>
           <span>消息分类管理</span>
         </div>
+        <!-- 课堂 App 安装包（2026-11-26）：平台管理员是全局角色，不按单个租户开关隐藏，
+             故不加 data-module="classroom"；租户端（admin/teacher/student）才与「我的课堂」同显隐。 -->
+        <div class="menu-item" key="app_package">
+          <i class="fa fa-laptop"></i>
+          <span>课堂 App 包管理</span>
+        </div>
          <div class="menu-item" key="sensitive_words">
           <i class="fa fa-shield-alt"></i>
           <span>敏感词管理</span>
@@ -241,6 +247,14 @@
           dynamicContentCenter.innerHTML = '<div class="card"><div class="card-body">消息分类模块未加载（admin-messageCategory.js）。</div></div>';
         }
         break;
+      // 系统配置：课堂 App 安装包管理（2026-11-26），与租户端共用 admin-appPackage.js
+      case "app_package":
+        if (typeof window.renderAppPackagePage === 'function') {
+          window.renderAppPackagePage();
+        } else if (dynamicContentCenter) {
+          dynamicContentCenter.innerHTML = '<div class="card"><div class="card-body">课堂 App 包管理模块未加载（admin-appPackage.js）。</div></div>';
+        }
+        break;
       // 系统日志 / 审计日志：与 admin.html 一致，跳转到独立页面浏览。
       // 带 from 参数，使日志页的「返回」按钮能回到平台管理端而不是 admin.html。
       case "sys_log":
@@ -370,6 +384,8 @@
   <script src="js/messages-inbox.js"></script>
   <script src="js/sensitiveWords.js"></script>
   <script src="js/admin-messageCategory.js"></script>
+  <!-- 系统配置 → 课堂 App 安装包管理（2026-11-26） -->
+  <script src="js/admin-appPackage.js"></script>
   <script src="js/admin-messageManage.js"></script>
   <script src="js/platform-promo-stats.js"></script>
  

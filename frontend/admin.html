@@ -185,6 +185,11 @@
           <i class="fa fa-tags"></i>
           <span>消息分类管理</span>
         </div>
+        <!-- 课堂 App 安装包（2026-11-26）：data-module="classroom" 让显隐与「我的课堂」同一判据 -->
+        <div class="menu-item" key="app_package" data-module="classroom">
+          <i class="fa fa-laptop"></i>
+          <span>课堂 App 包管理</span>
+        </div>
         <div class="menu-item" key="my_promo">
           <i class="fa fa-bullhorn"></i>
           <span>我的推广</span>
@@ -416,6 +421,13 @@
           if (typeof renderMessageCategoryPage === 'function') renderMessageCategoryPage();//admin-messageCategory.js
           else if (dynamicContentCenter) dynamicContentCenter.innerHTML = '<div class="card"><div class="card-body">消息分类模块未加载（admin-messageCategory.js）。</div></div>';
           break;
+        // ===== 系统配置：课堂 App 安装包管理与下载（2026-11-26）=====
+        // 同一份 js 按角色切视图：管理员见上传/上下架，师生只见下载。
+        // 菜单带 data-module="classroom"，显隐由 feature-flags 按 /eclassroom/config 控制。
+        case "app_package":
+          if (typeof window.renderAppPackagePage === 'function') window.renderAppPackagePage();
+          else if (dynamicContentCenter) dynamicContentCenter.innerHTML = '<div class="card"><div class="card-body">课堂 App 包管理模块未加载（admin-appPackage.js）。</div></div>';
+          break;
         // ===== 我的推广（2026-10-13 二期）：跳转独立业绩页 promo.html =====
         case "my_promo":
           window.location.href = (typeof window.pageUrl === 'function') ? window.pageUrl('promo.html') : 'promo.html';
@@ -632,6 +644,8 @@
     <!-- 系统配置 → 通知规则（上课提醒时间点）；同样依赖 registerPageRefresh -->
     <script src="js/admin-notify-rule.js"></script>
     <script src="js/admin-messageCategory.js"></script>
+    <!-- 系统配置 → 课堂 App 安装包管理与下载（2026-11-26）；与师生端共用一份 js，按角色切视图 -->
+    <script src="js/admin-appPackage.js"></script>
     <script src="js/admin-messageManage.js"></script>
     <script src="js/admin-promo-stats.js"></script>
     <script src="js/tenant-legal.js"></script>

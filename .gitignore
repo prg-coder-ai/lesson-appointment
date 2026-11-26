@@ -153,3 +153,10 @@ cloudBased/classroom-service/classroom-service-1.0.0.jar
 # server-side key instance file: holds real JWT_SECRET / AES_KEY / HMAC_KEY.
 # never commit. copy deploy/keys.env.template instead.
 deploy/keys.env
+deliver/eClassroom-1.0-android-20261126-1858.apk
+# 课堂 App 多端构建产物：单个 zip/exe 100MB+，只作本地交付，绝不入库。
+# 源码（desktop/*.js、www 由 scripts/build.js 生成）已受版本控制，产物可由一条命令重建。
+classroom-app/desktop/dist/
+classroom-app/desktop/dist-rebuild/
+deliver/*.zip
+deliver/*.apk

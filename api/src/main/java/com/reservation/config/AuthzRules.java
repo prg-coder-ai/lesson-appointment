@@ -271,6 +271,9 @@ public final class AuthzRules {
         r.add(new Rule(HttpMethod.GET, "/api/v1/audit-logs", PLATFORM_OR_TENANT_ADMIN, "新增：审计日志（管理面）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/audit-logs/{logId}", PLATFORM_OR_TENANT_ADMIN, "新增：审计日志详情"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/audit-logs/actions", PLATFORM_OR_TENANT_ADMIN, "新增：审计动作枚举（渲染筛选项）"));
+        // 精确路径：虽然上方有 /{logId} 规则，Spring MVC 会优先命中字面量端点，
+        // 但守卫按字符串精确比对，这里必须单独声明，否则 check:authz 判"未声明"。
+        r.add(new Rule(HttpMethod.GET, "/api/v1/audit-logs/action-labels", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin 审计动作中文文案映射（唯一事实源 AuditAction.label）"));
 
         // 物理清理：原零检查，任何登录用户（含学生）都能触发不可逆删除
         r.add(new Rule(HttpMethod.POST, "/api/v1/data-maintain/purge/template", PLATFORM_OR_TENANT_ADMIN, "新增·关键：原零检查，物理删除"));
@@ -450,6 +453,19 @@ public final class AuthzRules {
         r.add(new Rule(HttpMethod.GET, "/api/v1/lesson/balance", ALL_ROLES, "新增：我的课时账户"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/lesson/flows", ALL_ROLES, "新增：我的课时流水（分页）"));
         r.add(new Rule(HttpMethod.GET, "/api/v1/lesson/students/{studentId}/balance", TEACHER_OR_ADMIN, "新增：查指定学生课时账户与最近流水"));
+
+        // ==================== 八、课堂 App 安装包（2026-11-26）====================
+        // 系统配置 → 课堂 App 包管理。与「我的课堂」同显隐（前端按 /eclassroom/config enabled 控制菜单），
+        // 后端这里只做角色层：管理视角（list/upload/status）限管理员，下载视角（available/platforms/
+        // download）所有登录角色可进，归属（平台包 vs 本租户包）由 AppPackageService 显式条件控制。
+        // 方法体另有 permissionCheck 二次兜底，与全仓「两层并存」口径一致。
+        r.add(new Rule(HttpMethod.GET, "/api/v1/app-package/list", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin 管理视角列表（平台看全部/租户看平台包+本租户包）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/app-package/available", ALL_ROLES, "≡checkAnyLogin 下载视角列表（仅上架）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/app-package/platforms", ALL_ROLES, "≡checkAnyLogin 目标平台下拉清单"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/app-package/upload", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin 上传安装包（平台包 tenant_id=0 / 租户包归本租户）"));
+        r.add(new Rule(HttpMethod.POST, "/api/v1/app-package/status", PLATFORM_OR_TENANT_ADMIN, "≡checkAdmin 上架/下架（不物理删除，审计留痕）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/app-package/download/{id}", ALL_ROLES, "≡checkAnyLogin 下载安装包（写审计，流式返回）"));
+        r.add(new Rule(HttpMethod.GET, "/api/v1/app-package/storage", PLATFORM_ONLY, "≡checkPlatformAdmin 存储目录（排障用）"));
 
         return List.copyOf(r);
     }

@@ -28,6 +28,11 @@ public class MyBatisPlusConfig {
             "sys_metric_sample",
             "sys_metric_hourly",
             "sys_system_config",
+            // 课堂 App 安装包表：同一张表里既有「平台行(tenant_id=0)」又有「租户专属行」，
+            // 租户插件会无条件拼 tenant_id = ?，把平台行一起过滤掉（= 平台上传的包租户看不到）。
+            // 隔离改由 AppPackageService 显式条件控制：tenant_id IN (0, 当前租户)。
+            // 与 sys_term（三级词表）同一套路。
+            "sys_app_package",
             "sys_platform_admin",
             "sys_dict",
             "user_refresh_token",

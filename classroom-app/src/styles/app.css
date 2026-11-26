@@ -75,3 +75,69 @@ html.app-no-display-capture #btn-screen-share { display: none !important; }
 .menu-group-title:has(+ .menu-item[key="booking_manage"]) {
   display: none !important;
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+ * 运行环境标识（app-env.js 注入到标题栏）
+ *
+ * 同一个 www 产物会跑在 5 种壳里，界面上原本看不出区别，
+ * 用户报障时常说不清自己是在浏览器还是桌面壳里 —— 这枚徽标就是回答这个的。
+ * 颜色按环境区分（不是为了好看，是为了扫一眼就能认出来）。
+ * ══════════════════════════════════════════════════════════════════════ */
+.app-env-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  margin-left: 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: .3px;
+  white-space: nowrap;
+  vertical-align: middle;
+  background: rgba(100, 116, 139, .12);
+  color: #475569;
+  border: 1px solid rgba(100, 116, 139, .28);
+  user-select: none;
+}
+.app-env-chip.app-env-desktop { background: rgba(22, 163, 74, .10); color: #15803d; border-color: rgba(22, 163, 74, .28); }
+.app-env-chip.app-env-imac    { background: rgba(124, 58, 237, .10); color: #6d28d9; border-color: rgba(124, 58, 237, .28); }
+.app-env-chip.app-env-ios     { background: rgba(2, 132, 199, .10);  color: #0369a1; border-color: rgba(2, 132, 199, .28); }
+.app-env-chip.app-env-android { background: rgba(34, 197, 94, .12);  color: #15803d; border-color: rgba(34, 197, 94, .30); }
+
+/* 窄屏（手机）上徽标会挤掉「退出登录」按钮，缩到最小仍有辨识度 */
+@media (max-width: 480px) {
+  .app-env-chip { font-size: 10px; height: 18px; padding: 0 6px; margin-left: 6px; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ * 未读消息角标（app-unread.js 注入到「消息中心」菜单项）
+ *
+ * 元素 id 沿用 messages-inbox.js 里既有的 #msg-unread-badge ——
+ * 那边只负责往这个元素里写数字，本文件负责把元素造出来，两边共用不会重复。
+ * ══════════════════════════════════════════════════════════════════════ */
+.menu-item[key="messages"] { position: relative; }
+
+.menu-unread-badge {
+  display: none;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: auto;          /* 靠右对齐，与菜单文字分开 */
+  border-radius: 9px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  box-sizing: border-box;
+}
+/* 侧边栏若为纵向排列（菜单项内文字 + 图标），角标用绝对定位贴右上角 */
+.sidebar .menu-item[key="messages"] .menu-unread-badge {
+  margin-left: 6px;
+  flex: 0 0 auto;
+}
+.menu-item[key="messages"].has-unread span:first-of-type { font-weight: 700; }
+

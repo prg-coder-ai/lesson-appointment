@@ -415,7 +415,22 @@ export const ENDPOINTS = {
     `/api/v1/logs/search?keyword=${encodeURIComponent(keyword || '')}`
     + `&level=${encodeURIComponent(level || '')}`
     + `&date=${encodeURIComponent(date || '')}`
-    + `&maxResults=${encodeURIComponent(String(maxResults == null ? 500 : maxResults))}`
+    + `&maxResults=${encodeURIComponent(String(maxResults == null ? 500 : maxResults))}`,
+
+  // ── 课堂 App 安装包（系统配置 → 课堂 App 包管理，2026-11-26）──────────
+  // 平台/租户管理员：list / upload / status；教师/学生：available / platforms / download。
+  // 归属（平台包 tenant_id=0 全租户可见、租户包仅本租户）由后端 AppPackageService 判定，
+  // 前端不传 tenantId，避免被伪造。download 返回二进制流，不能用 window.request 解包。
+  APP_PACKAGE_LIST: '/api/v1/app-package/list',
+  APP_PACKAGE_AVAILABLE: '/api/v1/app-package/available',
+  APP_PACKAGE_PLATFORMS: '/api/v1/app-package/platforms',
+  APP_PACKAGE_UPLOAD: '/api/v1/app-package/upload',
+  APP_PACKAGE_STATUS: '/api/v1/app-package/status',
+  APP_PACKAGE_DOWNLOAD: (id) => `/api/v1/app-package/download/${encodeURIComponent(id || '')}`,
+
+  // 审计日志：操作类型 → 中文文案（唯一事实源在后端 AuditAction.label）。
+  // 供 auditLog.js 的下拉/表格/详情展示中文；筛选参数仍传英文枚举名。
+  AUDIT_LOG_ACTION_LABELS: '/api/v1/audit-logs/action-labels'
 };
 
 // ── 后端程序探测目标（「数据维护 → 后台信息」Tab 与平台端「后端信息」页共用）──

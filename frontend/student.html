@@ -67,6 +67,11 @@
         <i class="fas fa-video"></i>
         <span>我的课堂</span>
       </div>
+      <!-- 课堂 App 安装包下载（2026-11-26）：显隐与「我的课堂」同判据 -->
+      <div class="menu-item" key="app_package" data-module="classroom">
+        <i class="fa fa-download"></i>
+        <span>课堂 App 下载</span>
+      </div>
       <!-- 加入课堂（C3，2026-11-19）：临时课堂没有排期/预约，「我的课堂」列不出来，
            学生只能靠管理员发的链接进。这里给一个粘贴口：粘贴链接或课堂号 → 校验名单 → 进课堂。 -->
       <div class="menu-item" key="join_classroom" data-module="classroom">
@@ -627,6 +632,16 @@
               + '课堂页面脚本未加载（js/student-myClassroom.js），请刷新页面重试。</div></div>';
           }
           break;
+        // ===== 课堂 App 安装包下载（2026-11-26）=====
+        // 与管理员端共用 admin-appPackage.js，按角色只渲染「已上架 + 下载」视图。
+        case 'app_package':
+          if (typeof window.renderAppPackagePage === 'function') {
+            window.renderAppPackagePage();
+          } else {
+            dynamicContentCenter.innerHTML = '<div class="card"><div class="empty-tip">'
+              + '课堂 App 下载模块未加载（js/admin-appPackage.js），请刷新页面重试。</div></div>';
+          }
+          break;
 
         // ===== 加入课堂（C3，2026-11-19）=====
         // 与「我的课堂」互补：我的课堂是排期驱动（booking → scheduleId），临时课堂没有排期，
@@ -696,6 +711,8 @@
   <script src="js/student-bookingBrowserCards.js"></script>
   <script src="js/public/my-classroom-core.js"></script>
   <script src="js/student-myClassroom.js"></script>
+  <!-- 课堂 App 安装包下载（2026-11-26）：与管理员端共用一份 js，按角色切视图 -->
+  <script src="js/admin-appPackage.js"></script>
   <!-- 加入课堂（C3，2026-11-19）：必须在 api.js 之后，它用 window.ClassroomAPI.getClassroomStatus -->
   <script src="js/student-joinClassroom.js"></script>
   <script src="js/student-lessonBalance.js"></script>

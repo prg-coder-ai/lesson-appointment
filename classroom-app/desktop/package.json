@@ -25,6 +25,8 @@
     "files": [
       "main.js",
       "server.js",
+      "preload.js",
+      "badge-icon.js",
       "config.json",
       "package.json"
     ],
