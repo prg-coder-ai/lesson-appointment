@@ -385,16 +385,32 @@ function lanAddresses() {
  * <p>开关：命令行 --app-www[=路径] 或环境变量 APP_WWW。不传则不启用，行为与改造前完全一致。
  */
 function resolveAppWww(o) {
-  let p = o.appWww || process.env.APP_WWW || '';
+  // 优先级：显式 appWww > APP_WWW 环境变量 > --app-www[=路径] > **默认 classroom-app/www**
+  //
+  // ★ 默认必须打开（2026-11-26 定）：frontend 侧所有「进入课堂」入口都收敛到
+  //   ClassroomLink，产出相对地址 ./launch.html?scheduleId=…，而 launch.html
+  //   只存在于 classroom-app/www，frontend 下没有同名页。不接管 → 四个入口
+  //   （近日课程/我的课程/课次列表/我的课堂）同时 404。
+  //   这个默认值放在引擎里而不是各入口脚本里：仓库有 3 个 startProxy 调用方
+  //   （local / local-src / remote），默认值写三份必然漂移 —— 事实上第一次
+  //   只改了 local 那一份，用户起的是另一个脚本，现象就是"改了没生效"。
+  //
+  // 关闭方式：APP_WWW=0 或 APP_WWW=off，或调用方传 appWww:false。
+  if (o.appWww === false) return '';
+  const envVal = String(process.env.APP_WWW == null ? '' : process.env.APP_WWW).trim();
+  if (envVal === '0' || envVal.toLowerCase() === 'off') return '';
+
+  let p = (o.appWww != null && o.appWww !== '') ? String(o.appWww) : envVal;
   if (!p) {
     const flag = process.argv.slice(2).find((a) => a === '--app-www' || a.startsWith('--app-www='));
-    if (flag) p = flag.indexOf('=') > 0 ? flag.slice(flag.indexOf('=') + 1) : path.resolve(__dirname, '../../classroom-app/www');
+    if (flag && flag.indexOf('=') > 0) p = flag.slice(flag.indexOf('=') + 1);
   }
-  if (!p) return '';
+  if (!p) p = path.resolve(__dirname, '../../classroom-app/www');
   const abs = path.resolve(p);
   if (!fs.existsSync(path.join(abs, 'launch.html'))) {
-    console.warn(`  ⚠ --app-www 指向的目录没有 launch.html，已忽略：${abs}`);
-    console.warn('    先构建课堂 App：cd classroom-app && node scripts/sync.js && node scripts/build.js');
+    console.warn(`  ⚠ 课堂 App 目录没有 launch.html，已忽略：${abs}`);
+    console.warn('    /launch.html 不可访问，「进入课堂」会 404。先构建：');
+    console.warn('    node classroom-app/scripts/build.js');
     return '';
   }
   return abs;

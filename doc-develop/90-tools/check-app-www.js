@@ -160,7 +160,9 @@ const DEP_PAGES = ['classroom.html', 'classroom-prep.html', 'my-classroom.html']
     console.log('        "课堂 App : /launch.html ... -> <路径>"  = 已接管');
     console.log('        "课堂 App : 未启用（加 --app-www 后...）" = 开关没开');
     console.log('   2) 确认 classroom-app/www/launch.html 存在（node classroom-app/scripts/build.js）');
-    console.log('   3) 改过 dev-frontend-local.js 后**必须重启**代理，它只在启动时读一次配置\n');
+    console.log('   3) 配置只在启动时读一次 —— 改完必须重启代理；');
+    console.log('      local / local-src / remote 三个入口共用同一个默认值');
+    console.log('      （dev-proxy.js 的 resolveAppWww），起哪个都该生效\n');
   }
   process.exit(1);
 })();
