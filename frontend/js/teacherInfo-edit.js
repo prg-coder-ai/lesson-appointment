@@ -562,8 +562,8 @@ async function handlePhotoSelect(fileInput, previewImgId, base64InputId, urlInpu
   if (!file.type.startsWith('image/')) { alert('请选择图片文件'); fileInput.value = ''; return; }
 
   // 原图过大直接拒绝（压缩只是保险，给个明确提示更友好）
-  if (file.size > 10 * 1024 * 1024) {
-    alert('图片源文件不能超过 10MB（压缩后自动控制在 300KB 以内）');
+  if (file.size > 40 * 1024 * 1024) {
+    alert('图片源文件不能超过 40MB（压缩后自动控制在 300KB 以内）');
     fileInput.value = '';
     return;
   }
@@ -619,8 +619,8 @@ async function handleCertPhotoSelect(fileInput) {
   if (!file) return;
   if (!file.type.startsWith('image/')) { alert('请选择图片文件'); fileInput.value = ''; return; }
 
-  if (file.size > 10 * 1024 * 1024) {
-    alert('图片源文件不能超过 10MB（压缩后自动控制在 500KB 以内）');
+  if (file.size > 40 * 1024 * 1024) {
+    alert('图片源文件不能超过 40MB（压缩后自动控制在 500KB 以内）');
     fileInput.value = '';
     return;
   }

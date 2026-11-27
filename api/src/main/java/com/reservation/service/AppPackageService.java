@@ -50,8 +50,8 @@ public class AppPackageService {
     @Value("${app.package.dir:${user.home}/classroom-packages}")
     private String packageDir;
 
-    /** 业务层单包上限（字节），默认 150MB —— 桌面绿色包约 108MB，要容得下 */
-    @Value("${app.package.max-size:157286400}")
+    /** 业务层单包上限（字节），默认 400MB —— 2026-11-27 由 150MB 放宽，容器层 450MB 同步 */
+    @Value("${app.package.max-size:419430400}")
     private long maxBytes;
 
     private static final List<String> PLATFORMS = List.of("windows", "android", "ios", "macos");

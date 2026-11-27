@@ -86,7 +86,11 @@ const CLASSROOM_JS = [
 const EXTRA_JS = [
   'js/admin-AppointmentNotes.js',
   'js/messages-inbox.js',
-  'js/shared-domain-bridge.js'
+  'js/shared-domain-bridge.js',
+  // 课堂 App 安装包下载（teacher.html / student.html 菜单 key="app_package" 共用）。
+  // 依赖 window.ApiPaths.ENDPOINTS（shared-domain-bridge.js，head 中先加载）与 window.request；
+  // 端点走 EP.*，不硬编码路径。漏此项会让页面脚本 404，switch 分支落到「模块未加载」兜底提示。
+  'js/admin-appPackage.js'
 ];
 
 // CSS

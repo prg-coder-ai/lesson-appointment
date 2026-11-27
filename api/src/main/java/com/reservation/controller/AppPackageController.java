@@ -141,7 +141,7 @@ public class AppPackageController {
     /**
      * 下载安装包（流式，支持大文件）。
      *
-     * <p>返回 {@link ResponseEntity} 而不是 {@code Result}：包体最大 150MB，
+     * <p>返回 {@link ResponseEntity} 而不是 {@code Result}：包体最大 400MB，
      * 塞进 JSON 里 base64 会膨胀 33% 且无法断点续传。审计仍走 {@code @Audit}。
      * 文件名用 RFC 5987 的 {@code filename*} 传，中文名不会乱码。
      */

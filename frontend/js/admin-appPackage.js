@@ -24,7 +24,7 @@
     var ADMIN_ROLES = ['admin', 'platform_admin'];
     var PF_LABEL = { windows: 'Windows', android: 'Android', ios: 'iOS', macos: 'macOS' };
     var FALLBACK_PLATFORMS = ['windows', 'android', 'ios', 'macos'];
-    var MAX_BYTES = 150 * 1024 * 1024;   // 与 AppPackageService.maxBytes 一致，前端先挡一道
+    var MAX_BYTES = 400 * 1024 * 1024;   // 与 AppPackageService.maxBytes 一致，前端先挡一道（2026-11-27 由 150MB 放宽）
 
     var state = { rows: [], platforms: [], filter: '', uploading: false };
 
@@ -188,7 +188,7 @@
         return '<div style="background:#f8fafc;border:1px solid #e3e8ee;border-radius:8px;padding:14px 16px;margin-bottom:16px;">'
             + '  <div style="font-weight:600;margin-bottom:10px;"><i class="fa fa-upload"></i> 上传安装包</div>'
             + '  <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">'
-            + '    <div><label style="display:block;font-size:12px;color:#5a6472;margin-bottom:4px;">文件（≤150MB）</label>'
+            + '    <div><label style="display:block;font-size:12px;color:#5a6472;margin-bottom:4px;">文件（≤400MB）</label>'
             + '      <input type="file" id="apkg-file" style="font-size:13px;"></div>'
             + '    <div><label style="display:block;font-size:12px;color:#5a6472;margin-bottom:4px;">目标平台</label>'
             + '      <select id="apkg-platform" style="min-width:120px;">' + platformOptions('windows') + '</select></div>'
@@ -263,7 +263,7 @@
         }
         var f = fileEl.files[0];
         if (f.size > MAX_BYTES) {
-            setMsg('文件超过 150MB 上限（当前 ' + sizeText(f.size) + '），请压缩或分包后再上传。', false);
+            setMsg('文件超过 400MB 上限（当前 ' + sizeText(f.size) + '），请压缩或分包后再上传。', false);
             return;
         }
         var fd = new FormData();
@@ -277,8 +277,8 @@
         if (btn) { btn.disabled = true; btn.textContent = '上传中…'; }
         setMsg('正在上传并计算 SHA-256，大文件可能需要几分钟，请勿关闭页面…', true);
         try {
-            // 大文件必须放宽超时：全局 request 默认 15s，150MB 上传必然超时
-            await request({ url: EP.APP_PACKAGE_UPLOAD, method: 'post', data: fd, timeout: 300000 });
+            // 大文件必须放宽超时：全局 request 默认 15s，400MB 上传必然超时
+            await request({ url: EP.APP_PACKAGE_UPLOAD, method: 'post', data: fd, timeout: 600000 });
             if (fileEl) fileEl.value = '';
             if (vEl) vEl.value = '';
             if (rEl) rEl.value = '';

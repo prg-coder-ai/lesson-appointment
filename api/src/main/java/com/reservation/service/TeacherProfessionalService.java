@@ -62,8 +62,8 @@ public class TeacherProfessionalService {
     @Value("${teacher.upload.path:${user.home}/teacher-uploads}")
     private String uploadBaseDir;
 
-    /** 单张上传图片业务上限（字节，默认 5MB）。容器上限放宽到 20MB，超限由本方法返回 413 友好提示。 */
-    @Value("${teacher.upload.max-size:5242880}")
+    /** 通用业务层单张图片上限（字节，默认 40MB）。容器层 450MB 是全局值（为安装包放宽），本方法自己的 413 闸才是业务上限。 */
+    @Value("${teacher.upload.max-size:41943040}")
     private long uploadMaxBytes;
 
     /**
@@ -433,7 +433,7 @@ public class TeacherProfessionalService {
         if (!"photo".equals(fileType) && !"cert".equals(fileType)) {
             return Result.fail(400, "fileType 必须为 photo（头像）或 cert（证书）");
         }
-        // 体积校验：业务上限 5MB，超限明确拒绝（413），避免把大文件写进磁盘/CDN 引发下游问题。
+        // 体积校验：通用业务层上限 40MB，超限明确拒绝（413），避免把大文件写进磁盘/CDN 引发下游问题。
         // 容器层已放至 20MB，所以 5~20MB 区间能在此处拿到友好提示而非裸 500。
         if (file.getSize() > uploadMaxBytes) {
             return Result.fail(413, "图片过大（约 " + (file.getSize() / 1024 / 1024)
