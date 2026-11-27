@@ -179,7 +179,7 @@
          默认（不写 -P）= 带 Swagger，开发/联调照旧；
          mvn -Pprod package = 摘掉。原理：Maven 的 activeByDefault 会被同 pom 内任一 -P
          激活的 profile 顶掉，所以 -Pprod 一激活，swagger 这个 profile 自动失效。
-         发布镜像见 cloudBased/message-service/Dockerfile 的构建命令。 -->
+         发布镜像见 deploy/docker/Dockerfile.cloudbase-message 的构建命令。 -->
     <profiles>
         <profile>
             <id>swagger</id>

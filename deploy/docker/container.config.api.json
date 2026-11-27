@@ -1,7 +1,7 @@
 {
   "_comment": "api 服务 container.config.json —— 用于微信云托管流水线部署时定义规格。containerPort 必须与 Dockerfile EXPOSE 和 application.properties server.port 三者一致（8081）",
   "containerPort": 8081,
-  "dockerfilePath": "Dockerfile",
+  "dockerfilePath": "Dockerfile.cloudbase-api",
   "buildDir": "",
   "minNum": 1,
   "maxNum": 10,

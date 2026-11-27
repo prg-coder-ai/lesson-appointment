@@ -9,7 +9,7 @@
 #   4. 校验密钥长度/解码字节数，并拒绝等保 strict-mode 禁止的仓库示例默认值
 #
 # ★ 幂等设计（很重要）：
-#   已存在的 cloudBased/env/cloud.env.* 中的密钥会被**原样复用**，不会重新生成。
+#   已存在的 deploy/docker/env/cloud.env.* 中的密钥会被**原样复用**，不会重新生成。
 #   因为：
 #     · 换 JWT_SECRET → 所有已签发 token 立即失效，全员被踢下线
 #     · 换 AES_KEY    → 库里已加密字段全部解不开
@@ -17,15 +17,15 @@
 #   确需轮换时显式加 -Force，并在维护窗口内执行。
 #
 # 用法（在项目根目录执行）：
-#   ./cloudBased/scripts/gen-cloud-env.ps1 `
+#   ./deploy/scripts/gen-cloud-env.ps1 `
 #       -MySqlHost mysql.<envid>.svc.cluster.local `
 #       -DbUser lesson -DbPassword '<真实库密码>' `
 #       -CorsOrigins "https://www.yourdomain.com,https://*.tcloudbase.com"
 #
 #   仅轮换密钥（慎用）：
-#   ./cloudBased/scripts/gen-cloud-env.ps1 -Force -DbUser lesson -DbPassword '<真实库密码>'
+#   ./deploy/scripts/gen-cloud-env.ps1 -Force -DbUser lesson -DbPassword '<真实库密码>'
 #
-# 产物（全部落在 cloudBased/env/，该目录已 gitignore，不会入库）：
+# 产物（全部落在 deploy/docker/env/，该目录已 gitignore，不会入库）：
 #   cloud.env.api               api 服务 .env（docker run --env-file / systemd EnvironmentFile）
 #   cloud.env.message           message-service 服务 .env
 #   container.config.api.env.json                  api 的 envParams（粘进 container.config.json）
@@ -59,7 +59,7 @@ $ErrorActionPreference = "Stop"
 
 # ---------- 路径 ----------
 $PROJECT_ROOT = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$ENV_DIR      = Join-Path $PROJECT_ROOT "cloudBased\env"
+$ENV_DIR      = Join-Path $PROJECT_ROOT "deploy\docker\env"
 
 # ---------- 输出辅助 ----------
 function Step($m) { Write-Host "`n▶ $m" -ForegroundColor Cyan }
@@ -194,7 +194,7 @@ $wxSecret = if ($WechatSecret) { $WechatSecret } else { "CHANGE_ME" }
 # ==============================================================================
 $commonHeader = @"
 # ==============================================================================
-# 由 cloudBased/scripts/gen-cloud-env.ps1 生成 —— 本文件含明文密钥，切勿入库
+# 由 deploy/scripts/gen-cloud-env.ps1 生成 —— 本文件含明文密钥，切勿入库
 # 生成时间：$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
 #
 # ★ JWT_SECRET / AES_KEY / HMAC_KEY 三项必须与另一服务的同名字段**逐字符一致**：
@@ -291,7 +291,7 @@ Write-Host @"
        更稳妥的做法是把密钥交给流水线的变量/密钥管理，运行时注入。
 
   方式 C — 本地 docker 联调
-    docker run --env-file cloudBased/env/cloud.env.api -p 8081:8081 booking-api:2.2.0
+    docker run --env-file deploy/docker/env/cloud.env.api -p 8081:8081 booking-api:2.2.1
 
   验证（部署后执行，替换 <api-host>）：
     # 1) 健康检查（匿名可访问）

@@ -56,7 +56,7 @@ if (process.env.SKIP_HEADERS === '1') {
 /** 本次事故涉及、必须纳入校验的目录与后缀 */
 const SCAN_TARGETS = [
   { dir: 'deploy/nginx', ext: '.conf', label: 'nginx 站点配置' },
-  { dir: 'cloudBased/frontend', ext: '.template', label: '云托管前端 nginx 模板' },
+  { dir: 'deploy/docker', ext: '.template', label: '云托管前端 nginx 模板' },
 ];
 
 /** 需要自查的功能（geolocation 故意不在列：项目不定位，保持禁用） */

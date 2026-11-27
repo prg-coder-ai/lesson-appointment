@@ -283,7 +283,7 @@ function runSharedSyncCheck() {
   console.log('=== frontend build done ->', DIST, '===');
 
   // 【2026-11-05】构建完成后把 dist 镜像到 deploy/dist/，让「上传/分发」有唯一取件点。
-  // 走 deploy/collect-artifacts.js 的同一份实现（后端打包脚本与 cloudBased/build-all.sh 也调它）。
+  // 走 deploy/collect-artifacts.js 的同一份实现（后端打包脚本与 deploy/docker/build-all.sh 也调它）。
   // SKIP_DEPLOY_COPY=1 可跳过：只做本地源码联调、或 CI 自己安排收口时用。
   if (process.env.SKIP_DEPLOY_COPY === '1') {
     console.log('[collect] skipped (SKIP_DEPLOY_COPY=1)');

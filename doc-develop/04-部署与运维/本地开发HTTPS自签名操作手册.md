@@ -20,7 +20,7 @@
 | 形态 | 当前协议 | 是否需要处理 |
 |---|---|---|
 | 公网服务器 `deploy/nginx/booking.conf` | **本来就是 HTTPS**：80 → 301 跳 https、certbot 证书、HSTS + 6 个安全响应头 | 不需要 |
-| 微信云托管 `cloudBased/frontend` | **对外就是 HTTPS**：云托管分发的 `*.sh.run.tcloudbase.com` 自带证书；容器内 nginx 反代内网 http 属于正常设计 | 不需要 |
+| 微信云托管 `deploy/docker/frontend` | **对外就是 HTTPS**：云托管分发的 `*.sh.run.tcloudbase.com` 自带证书；容器内 nginx 反代内网 http 属于正常设计 | 不需要 |
 | 本地 `doc-develop/90-tools/dev-proxy.js` | 已切 HTTPS（`https.createServer` 监听 8080，自签证书） | **本手册处理的就是这个** |
 
 ---

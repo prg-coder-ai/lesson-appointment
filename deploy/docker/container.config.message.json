@@ -1,7 +1,7 @@
 {
   "_comment": "message-service 服务 container.config.json —— containerPort 必须与 Dockerfile EXPOSE 和 application.properties server.port 三者一致（8090）",
   "containerPort": 8090,
-  "dockerfilePath": "Dockerfile",
+  "dockerfilePath": "Dockerfile.cloudbase-message",
   "buildDir": "",
   "minNum": 1,
   "maxNum": 10,

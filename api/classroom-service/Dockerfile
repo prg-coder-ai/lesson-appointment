@@ -1,7 +1,7 @@
 # ==============================================================================
 # classroom-service 镜像（多阶段构建，产物自包含）
 #
-# 与 cloudBased/classroom-service/Dockerfile 的区别：那个是「先在本机构建 jar，
+# 与 deploy/docker/Dockerfile.cloudbase-classroom 的区别：那个是「先在本机构建 jar，
 # 再 COPY 进去」的发布流程；这里是「一条 docker build 从源码出镜像」，
 # 用于 CI 与本地验证。两者共用同一份 application.properties 与端口 8092。
 #

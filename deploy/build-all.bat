@@ -107,7 +107,7 @@ exit /b 1
 rem ---------------------------------------------------------------- 路径推导
 rem %~dp0 是脚本所在目录（结尾带反斜杠）；上一层就是项目根（deploy\ 与 api\ 并列的目录）
 rem 注意：本文件在 deploy\ 只有一层，项目根是 ..；若从同源仓库的
-rem       cloudBased\scripts\ 另存过来，必须改成 ..\..，否则删不掉旧副本会从此处运行。
+rem       deploy\scripts\ 另存过来，必须改成 ..\..，否则删不掉旧副本会从此处运行。
 pushd "%~dp0.." >nul 2>nul
 if errorlevel 1 (
     set "ERRMSG=无法进入项目根目录：%~dp0.."
@@ -121,10 +121,8 @@ set "MSG_DIR=%API_DIR%\message-service"
 set "CLS_DIR=%API_DIR%\classroom-service"
 set "FE_DIR=%PROJECT_ROOT%\frontend"
 set "APP_DIR=%PROJECT_ROOT%\classroom-app"
-set "CLOUD_API=%PROJECT_ROOT%\cloudBased\api"
-set "CLOUD_MSG=%PROJECT_ROOT%\cloudBased\message-service"
-set "CLOUD_CLS=%PROJECT_ROOT%\cloudBased\classroom-service"
-set "CLOUD_WEB=%PROJECT_ROOT%\cloudBased\frontend"
+rem 2026-11-27 merged: single cloudbase build context = deploy\docker (was deploy\docker\*)
+set "DOCKER_DIR=%PROJECT_ROOT%\deploy\docker"
 
 if not exist "%API_DIR%\pom.xml" (
     set "ERRMSG=项目结构异常：找不到 %API_DIR%\pom.xml"
@@ -190,27 +188,27 @@ rem   api/Dockerfile                      -> COPY booking-api-2.2.1.jar         
 rem   message-service/Dockerfile          -> COPY target/message-service-1.1.0.jar
 rem   classroom-service/Dockerfile        -> COPY classroom-service-1.0.0.jar      （上下文根目录那份）
 rem 所以 api 也留 target\ 下那份，Dockerfile 引的是根目录那份，装错会跑起旧 jar 而不报错。
-if not exist "%CLOUD_API%" mkdir "%CLOUD_API%"
-if not exist "%CLOUD_MSG%\target" mkdir "%CLOUD_MSG%\target"
-if not exist "%CLOUD_CLS%" mkdir "%CLOUD_CLS%"
+if not exist "%DOCKER_DIR%" mkdir "%DOCKER_DIR%"
+if not exist "%DOCKER_DIR%\target" mkdir "%DOCKER_DIR%\target"
+if not exist "%DOCKER_DIR%" mkdir "%DOCKER_DIR%"
 
-copy /y "%API_DIR%\target\booking-api-%VER_API%.jar"        "%CLOUD_API%\booking-api-%VER_API%.jar" >nul
+copy /y "%API_DIR%\target\booking-api-%VER_API%.jar"        "%DOCKER_DIR%\booking-api-%VER_API%.jar" >nul
 if errorlevel 1 (
     set "ERRMSG=复制 api jar 失败：%API_DIR%\target\booking-api-%VER_API%.jar"
     goto :die
 )
-copy /y "%MSG_DIR%\target\message-service-%VER_MSG%.jar"    "%CLOUD_MSG%\target\message-service-%VER_MSG%.jar" >nul
+copy /y "%MSG_DIR%\target\message-service-%VER_MSG%.jar"    "%DOCKER_DIR%\target\message-service-%VER_MSG%.jar" >nul
 if errorlevel 1 (
     set "ERRMSG=复制 message-service jar 失败"
     goto :die
 )
-copy /y "%CLS_DIR%\target\classroom-service-%VER_CLS%.jar"  "%CLOUD_CLS%\classroom-service-%VER_CLS%.jar" >nul
+copy /y "%CLS_DIR%\target\classroom-service-%VER_CLS%.jar"  "%DOCKER_DIR%\classroom-service-%VER_CLS%.jar" >nul
 if errorlevel 1 (
     set "ERRMSG=复制 classroom-service jar 失败"
     goto :die
 )
 
-call :ok "后端构建完成（3 个 jar 已就位 cloudBased\）"
+call :ok "后端构建完成（3 个 jar 已就位 deploy\docker\）"
 goto :step2
 
 :skip_backend
@@ -245,27 +243,27 @@ rem build.js 不生成它。若直接 rmdir 后整体覆盖，后台配好的租户地址就没了，
 rem 小程序会静默回退到 env.js 里的默认值 —— 线上多租户自动建站失效，且难发现。
 rem 所以覆盖前先备份，复制后原样还原。
 set "APPCFG_BAK="
-if exist "%CLOUD_WEB%\dist\app-config.json" (
+if exist "%DOCKER_DIR%\dist\app-config.json" (
     set "APPCFG_BAK=%TEMP%\booking-app-config.bak"
-    copy /y "%CLOUD_WEB%\dist\app-config.json" "!APPCFG_BAK!" >nul
+    copy /y "%DOCKER_DIR%\dist\app-config.json" "!APPCFG_BAK!" >nul
 )
 
-if exist "%CLOUD_WEB%\dist" rmdir /s /q "%CLOUD_WEB%\dist"
-if not exist "%CLOUD_WEB%" mkdir "%CLOUD_WEB%"
-xcopy "%FE_DIR%\dist" "%CLOUD_WEB%\dist\" /e /i /q /y >nul
+if exist "%DOCKER_DIR%\dist" rmdir /s /q "%DOCKER_DIR%\dist"
+if not exist "%DOCKER_DIR%" mkdir "%DOCKER_DIR%"
+xcopy "%FE_DIR%\dist" "%DOCKER_DIR%\dist\" /e /i /q /y >nul
 if errorlevel 1 (
-    set "ERRMSG=复制前端 dist 到 cloudBased\frontend 失败"
+    set "ERRMSG=复制前端 dist 到 deploy\docker 失败"
     goto :die
 )
 
 if defined APPCFG_BAK (
     if exist "!APPCFG_BAK!" (
-        copy /y "!APPCFG_BAK!" "%CLOUD_WEB%\dist\app-config.json" >nul
+        copy /y "!APPCFG_BAK!" "%DOCKER_DIR%\dist\app-config.json" >nul
         del /q "!APPCFG_BAK!" >nul 2>nul
         call :ok "已还原 app-config.json"
     )
 )
-call :ok "frontend 构建完成（dist 已收口 cloudBased\frontend）"
+call :ok "frontend 构建完成（dist 已收口 deploy\docker）"
 
 rem ---- 2b) classroom-app（课堂 App 的 Web 资源）----
 :step2b
@@ -452,10 +450,8 @@ if errorlevel 1 (
 )
 
 echo   [1/4] booking-api:%VER_API% ...
-pushd "%CLOUD_API%"
-call docker build -t booking-api:%VER_API% .
+call docker build -f "%DOCKER_DIR%\Dockerfile.cloudbase-api" -t booking-api:%VER_API% "%DOCKER_DIR%"
 set "RC=!errorlevel!"
-popd
 if not "!RC!"=="0" (
     set "ERRMSG=api docker build 失败。若卡在 apt-get，检查网络或构建参数 APT_MIRROR"
     goto :die
@@ -463,10 +459,8 @@ if not "!RC!"=="0" (
 call :ok "booking-api:%VER_API%"
 
 echo   [2/4] booking-message-service:%VER_MSG% ...
-pushd "%CLOUD_MSG%"
-call docker build -t booking-message-service:%VER_MSG% .
+call docker build -f "%DOCKER_DIR%\Dockerfile.cloudbase-message" -t booking-message-service:%VER_MSG% "%DOCKER_DIR%"
 set "RC=!errorlevel!"
-popd
 if not "!RC!"=="0" (
     set "ERRMSG=message-service docker build 失败"
     goto :die
@@ -474,39 +468,35 @@ if not "!RC!"=="0" (
 call :ok "booking-message-service:%VER_MSG%"
 
 echo   [3/4] booking-classroom-service:%VER_CLS% ...
-if not exist "%CLOUD_CLS%\Dockerfile" (
-    set "ERRMSG=缺少 %CLOUD_CLS%\Dockerfile"
+if not exist "%DOCKER_DIR%\Dockerfile.cloudbase-classroom" (
+    set "ERRMSG=缺少 %DOCKER_DIR%\Dockerfile.cloudbase-classroom"
     goto :die
 )
-pushd "%CLOUD_CLS%"
-call docker build -t booking-classroom-service:%VER_CLS% .
+call docker build -f "%DOCKER_DIR%\Dockerfile.cloudbase-classroom" -t booking-classroom-service:%VER_CLS% "%DOCKER_DIR%"
 set "RC=!errorlevel!"
-popd
 if not "!RC!"=="0" (
     set "ERRMSG=classroom-service docker build 失败"
     goto :die
 )
 call :ok "booking-classroom-service:%VER_CLS%"
 
-rem web 镜像的上下文 = cloudBased\frontend，Dockerfile 中 COPY dist 指向同目录的 dist\
-if not exist "%CLOUD_WEB%\Dockerfile" (
-    set "ERRMSG=缺少 %CLOUD_WEB%\Dockerfile"
+rem web 镜像的上下文 = deploy\docker，Dockerfile 中 COPY dist 指向同目录的 dist\
+if not exist "%DOCKER_DIR%\Dockerfile.cloudbase-frontend" (
+    set "ERRMSG=缺少 %DOCKER_DIR%\Dockerfile.cloudbase-frontend"
     goto :die
 )
-if not exist "%CLOUD_WEB%\default.conf.template" (
-    set "ERRMSG=缺少 %CLOUD_WEB%\default.conf.template"
+if not exist "%DOCKER_DIR%\default.conf.template" (
+    set "ERRMSG=缺少 %DOCKER_DIR%\default.conf.template"
     goto :die
 )
-if not exist "%CLOUD_WEB%\dist" (
-    set "ERRMSG=缺少 %CLOUD_WEB%\dist\. 先构建前端，或去掉 --skip-frontend"
+if not exist "%DOCKER_DIR%\dist" (
+    set "ERRMSG=缺少 %DOCKER_DIR%\dist\. 先构建前端，或去掉 --skip-frontend"
     goto :die
 )
 
 echo   [4/4] booking-web:latest（运行期需 --build-arg 注入上游地址）...
-pushd "%CLOUD_WEB%"
-call docker build -t booking-web:latest .
+call docker build -f "%DOCKER_DIR%\Dockerfile.cloudbase-frontend" -t booking-web:latest "%DOCKER_DIR%"
 set "RC=!errorlevel!"
-popd
 if not "!RC!"=="0" (
     set "ERRMSG=web docker build 失败"
     goto :die
@@ -561,10 +551,10 @@ rem 汇总
 rem ============================================================================
 :summary
 call :step "构建产物清单"
-echo   后端 jar（3 个）：cloudBased\api\booking-api-%VER_API%.jar
-echo                    cloudBased\message-service\target\message-service-%VER_MSG%.jar
-echo                    cloudBased\classroom-service\classroom-service-%VER_CLS%.jar
-echo   前端 web：       cloudBased\frontend\dist\
+echo   后端 jar（3 个）：deploy\docker\booking-api-%VER_API%.jar
+echo                    deploy\docker\target\message-service-%VER_MSG%.jar
+echo                    deploy\docker\classroom-service-%VER_CLS%.jar
+echo   前端 web：       deploy\docker\dist\
 echo   前端 app：       classroom-app\www\（打入 App 安装包，需 cap sync 后真机验证）
 echo   统一收口：       deploy\jars\（3 个 jar）  与  deploy\dist\（web 站点）
 echo   多端安装包：     deliver\eClassroom-1.0-^<时间戳^>.exe（自解压，双击解压到同目录）

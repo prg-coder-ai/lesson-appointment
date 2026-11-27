@@ -3,10 +3,10 @@
 # build-all.sh —�微信云托�· 本地预打包一键脚本（Linux / macOS / Git Bash�
 #
 # 用法�
-#   chmod +x cloudBased/scripts/build-all.sh
-#   ./cloudBased/scripts/build-all.sh
-#   ./cloudBased/scripts/build-all.sh --skip-frontend --skip-docker   # Java 改动时跳过前�
-#   ./cloudBased/scripts/build-all.sh --env-id myenv01 --docker-push  # 推到云托管镜像仓�
+#   chmod +x deploy/scripts/build-all.sh
+#   ./deploy/scripts/build-all.sh
+#   ./deploy/scripts/build-all.sh --skip-frontend --skip-docker   # Java 改动时跳过前�
+#   ./deploy/scripts/build-all.sh --env-id myenv01 --docker-push  # 推到云托管镜像仓�
 #
 # 参数�
 #   --skip-frontend    跳过前端 node build.js
@@ -23,13 +23,11 @@ API_DIR="$PROJECT_ROOT/api"
 MSG_DIR="$API_DIR/message-service"
 CLS_DIR="$API_DIR/classroom-service"
 FE_DIR="$PROJECT_ROOT/frontend"
-CLOUD_API="$PROJECT_ROOT/cloudBased/api"
-CLOUD_MSG="$PROJECT_ROOT/cloudBased/message-service"
-CLOUD_CLS="$PROJECT_ROOT/cloudBased/classroom-service"
-CLOUD_WEB="$PROJECT_ROOT/cloudBased/frontend"
-# web 的构建上下文就是 cloudBased/frontend 本身（Dockerfile + default.conf.template + dist
+# 2026-11-27 merged: single cloudbase build context = deploy/docker
+DOCKER_DIR="$PROJECT_ROOT/deploy/docker"
+# web 的构建上下文就是 deploy/docker 本身（Dockerfile + default.conf.template + dist
 # 都在这个目录里，COPY dist 依赖它）。原先那套「源文件�deploy/nginx/cloudbase-web�
-# 再拷进暂存目�cloudBased/web」已废弃 —�那套�listen 80 的老镜像（与云托管
+# 再拷进暂存目�deploy/docker」已废弃 —�那套�listen 80 的老镜像（与云托管
 # containerPort 8080 不一致，上线即全�502），2026-11-08 连同源文件一起删除�
 
 SKIP_FE=0; SKIP_BE=0; SKIP_DOCKER=0; DOCKER_PUSH=0; ENV_ID=""
@@ -70,10 +68,10 @@ if [ $SKIP_BE -eq 0 ]; then
     #   classroom-service/Dockerfile �COPY target/classroom-service-1.0.0.jar
     # 之前 api 也往 target/ 拷，�Dockerfile 读的是根目录那份，导致镜像里装的�
     # 仓库里遗留的�jar（改了代码却不生效，排查时极易误判成"代码没编译进�）�
-    mkdir -p "$CLOUD_API" "$CLOUD_MSG/target" "$CLOUD_CLS/target"
-    cp "$API_DIR/target/booking-api-2.2.1.jar"     "$CLOUD_API/"
-    cp "$MSG_DIR/target/message-service-1.1.0.jar" "$CLOUD_MSG/target/"
-    cp "$CLS_DIR/target/classroom-service-1.0.0.jar" "$CLOUD_CLS/target/"
+    mkdir -p "$DOCKER_DIR" "$DOCKER_DIR/target"
+    cp "$API_DIR/target/booking-api-2.2.1.jar"     "$DOCKER_DIR/"
+    cp "$MSG_DIR/target/message-service-1.1.0.jar" "$DOCKER_DIR/target/"
+    cp "$CLS_DIR/target/classroom-service-1.0.0.jar" "$DOCKER_DIR/"
 
     ok "后端打包完成"
 else
@@ -88,8 +86,8 @@ if [ $SKIP_FE -eq 0 ]; then
 
     (cd "$FE_DIR" && node build.js) || fail "前端构建失败"
 
-    rm -rf "$CLOUD_WEB/dist"
-    cp -r "$FE_DIR/dist" "$CLOUD_WEB/"
+    rm -rf "$DOCKER_DIR/dist"
+    cp -r "$FE_DIR/dist" "$DOCKER_DIR/"
 
     ok "前端构建完成"
 else
@@ -119,16 +117,13 @@ if [ $SKIP_DOCKER -eq 0 ]; then
     command -v docker >/dev/null 2>&1 || fail "未检测到 docker"
 
     echo "  🐳 booking-api:2.2.1 ..."
-    (cd "$CLOUD_API" && docker build -t "booking-api:2.2.1" .) || fail "api docker build 失败"
-    ok "booking-api:2.2.1"
+    docker build -f "$DOCKER_DIR/Dockerfile.cloudbase-api" -t "booking-api:2.2.1" "$DOCKER_DIR" || fail "api docker build 失败"    ok "booking-api:2.2.1"
 
     echo "  🐳 booking-message-service:1.1.0 ..."
-    (cd "$CLOUD_MSG" && docker build -t "booking-message-service:1.1.0" .) || fail "message-service docker build 失败"
-    ok "booking-message-service:1.1.0"
+    docker build -f "$DOCKER_DIR/Dockerfile.cloudbase-message" -t "booking-message-service:1.1.0" "$DOCKER_DIR" || fail "message-service docker build 失败"    ok "booking-message-service:1.1.0"
 
     echo "  🐳 classroom-service:1.0.0 ..."
-    (cd "$CLOUD_CLS" && docker build -t "classroom-service:1.0.0" .) || fail "classroom-service docker build 失败"
-    ok "classroom-service:1.0.0"
+    docker build -f "$DOCKER_DIR/Dockerfile.cloudbase-classroom" -t "classroom-service:1.0.0" "$DOCKER_DIR" || fail "classroom-service docker build 失败"    ok "classroom-service:1.0.0"
 
     # web 的上游地址**不再进镜�*：API_UPSTREAM / MSG_UPSTREAM / CLASSROOM_UPSTREAM 一律走
     # **运行时环境变�*，由容器启动脚本渲染 nginx 配置。所以这里不�--build-arg�
@@ -141,16 +136,15 @@ if [ $SKIP_DOCKER -eq 0 ]; then
     #   （内网域名从「内网访问」复制，带端�8081/8090/8092；公网兜底则 https 不带端口�
     # �绝不可用 <服务�.<envid>.svc.cluster.local —�微信云托管无�DNS 记录（实�NXDOMAIN�
 
-    # 构建上下�= cloudBased/frontend（Dockerfile 里的 COPY dist 依赖同目录的 dist/）�
+    # 构建上下�= deploy/docker（Dockerfile 里的 COPY dist 依赖同目录的 dist/）�
     # 缺文件就在这一步炸，别等到 docker build �Dockerfile not found�
-    [ -f "$CLOUD_WEB/Dockerfile" ]            || fail "缺少 $CLOUD_WEB/Dockerfile"
-    [ -f "$CLOUD_WEB/default.conf.template" ] || fail "缺少 $CLOUD_WEB/default.conf.template"
-    [ -d "$CLOUD_WEB/dist" ]                  || fail "缺少 $CLOUD_WEB/dist（先跑前端构建，别加 --skip-frontend�
-    ok "web 构建上下文就绪：cloudBased/frontend"
+    [ -f "$DOCKER_DIR/Dockerfile.cloudbase-frontend" ]            || fail "缺少 $DOCKER_DIR/Dockerfile.cloudbase-frontend"
+    [ -f "$DOCKER_DIR/default.conf.template" ] || fail "缺少 $DOCKER_DIR/default.conf.template"
+    [ -d "$DOCKER_DIR/dist" ]                  || fail "缺少 $DOCKER_DIR/dist（先跑前端构建，别加 --skip-frontend�
+    ok "web 构建上下文就绪：deploy/docker"
 
     echo "  🐳 booking-web:latest  (上游走运行时环境变量，构建不需 --build-arg) ..."
-    (cd "$CLOUD_WEB" && docker build -t "booking-web:latest" .) || fail "web docker build 失败"
-    ok "booking-web:latest"
+    docker build -f "$DOCKER_DIR/Dockerfile.cloudbase-frontend" -t "booking-web:latest" "$DOCKER_DIR" || fail "web docker build 失败"    ok "booking-web:latest"
     warn "别忘了在云托管控制台�API_UPSTREAM / MSG_UPSTREAM / CLASSROOM_UPSTREAM 环境变量，缺失会导致容器启动失败"
 
     if [ $DOCKER_PUSH -eq 1 ]; then
@@ -177,10 +171,10 @@ fi
 # 汇�
 # ==============================================================================
 step "构建产物清单"
-echo "  后端 jar：cloudBased/api/target/booking-api-2.2.1.jar"
-echo "            cloudBased/message-service/target/message-service-1.1.0.jar"
-echo "            cloudBased/classroom-service/target/classroom-service-1.0.0.jar"
-echo "  前端 dist：cloudBased/web/dist/"
+echo "  后端 jar：deploy/docker/booking-api-2.2.1.jar"
+echo "            deploy/docker/target/message-service-1.1.0.jar"
+echo "            deploy/docker/classroom-service-1.0.0.jar"
+echo "  前端 dist：deploy/docker/dist/"
 echo "  统一收口：deploy/jars/（三�jar，取最新版本） + deploy/dist/（镜�frontend/dist�
 echo "            �deploy/upload-to-server.sh 优先从这里取件（两者均不入库）"
 echo ""

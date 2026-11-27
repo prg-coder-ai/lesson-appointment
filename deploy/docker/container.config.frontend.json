@@ -6,7 +6,7 @@
     "MSG_UPSTREAM": "http://message-service-xxxxxxxx.<region>.internal-run.tcloudbase.com:8090"
   },
   "containerPort": 8080,
-  "dockerfilePath": "Dockerfile",
+  "dockerfilePath": "Dockerfile.cloudbase-frontend",
   "buildDir": "",
   "minNum": 1,
   "maxNum": 10,

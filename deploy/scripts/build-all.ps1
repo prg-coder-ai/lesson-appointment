@@ -6,7 +6,7 @@
 # 用法：
 #   1. PowerShell 5 / 7：在项目根目录执行
 #      Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass   # 首次可能需要
-#      ./cloudBased/scripts/build-all.ps1
+#      ./deploy/scripts/build-all.ps1
 #   2. 参数：
 #      -SkipFrontend    跳过前端构建（前端没改动时）
 #      -SkipBackend     跳过 Maven 打包（Java 没改动时）
@@ -15,12 +15,12 @@
 #      -EnvId           云托管环境 ID（用于 docker tag 命名）
 #
 # 产物：
-#   cloudBased/api/target/booking-api-2.2.0.jar
-#   cloudBased/message-service/target/message-service-1.1.0.jar
-#   cloudBased/web/dist/...
+#   deploy/docker/booking-api-2.2.1.jar
+#   deploy/docker/target/message-service-1.1.0.jar
+#   deploy/docker/dist/...
 #
 # 镜像（若执行 docker build）：
-#   booking-api:2.2.0          booking-message-service:1.1.0          booking-web:latest
+#   booking-api:2.2.1          booking-message-service:1.1.0          booking-web:latest
 # ==============================================================================
 
 param(
@@ -34,18 +34,16 @@ param(
 $ErrorActionPreference = "Stop"
 
 # ---------- 路径 ----------
-$PROJECT_ROOT = Split-Path -Parent $PSScriptRoot
+$PROJECT_ROOT = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $API_DIR      = Join-Path $PROJECT_ROOT "api"
 $MSG_DIR      = Join-Path $API_DIR "message-service"
 $CLS_DIR      = Join-Path $API_DIR "classroom-service"
 $FE_DIR       = Join-Path $PROJECT_ROOT "frontend"
-$CLOUD_API    = Join-Path $PROJECT_ROOT "cloudBased\api"
-$CLOUD_MSG    = Join-Path $PROJECT_ROOT "cloudBased\message-service"
-$CLOUD_CLS    = Join-Path $PROJECT_ROOT "cloudBased\classroom-service"
-$CLOUD_WEB    = Join-Path $PROJECT_ROOT "cloudBased\frontend"
-# web 的构建上下文就是 cloudBased\frontend 本身（Dockerfile + default.conf.template + dist
+# 2026-11-27 merged: single cloudbase build context = deploy\docker
+$DOCKER_DIR   = Join-Path $PROJECT_ROOT "deploy\docker"
+# web 的构建上下文就是 deploy\docker 本身（Dockerfile + default.conf.template + dist
 # 都在这个目录里，COPY dist 依赖它）。原先「源文件放 deploy\nginx\cloudbase-web、再拷进
-# 暂存目录 cloudBased\web」那套已废弃：它是 listen 80 的老镜像，与云托管 containerPort
+# 暂存目录 deploy\docker」那套已废弃：它是 listen 80 的老镜像，与云托管 containerPort
 # 8080 不一致，上线即全站 502，2026-11-08 连同源文件一并删除。
 
 # ---------- 颜色输出 ----------
@@ -61,7 +59,7 @@ if (-not $SkipBackend) {
     Step "Step 1 — Maven 打包后端服务"
 
     # 1a. api
-    Write-Host "  📦 api (booking-api-2.2.0.jar) ..." -ForegroundColor Gray
+    Write-Host "  📦 api (booking-api-2.2.1.jar) ..." -ForegroundColor Gray
     Push-Location $API_DIR
     try {
         mvn clean package -DskipTests -q 2>&1 | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
@@ -84,11 +82,11 @@ if (-not $SkipBackend) {
         if ($LASTEXITCODE -ne 0) { Fail "classroom-service Maven 构建失败" }
     } finally { Pop-Location }
 
-    # 1d. 拷贝到 cloudBased 对应目录
-    New-Item -ItemType Directory -Force -Path "$CLOUD_API\target", "$CLOUD_MSG\target", "$CLOUD_CLS\target" | Out-Null
-    Copy-Item "$API_DIR\target\booking-api-2.2.0.jar"          "$CLOUD_API\target\"          -Force
-    Copy-Item "$MSG_DIR\target\message-service-1.1.0.jar"      "$CLOUD_MSG\target\"          -Force
-    Copy-Item "$CLS_DIR\target\classroom-service-1.0.0.jar"    "$CLOUD_CLS\target\"          -Force
+    # 1d. 拷贝到 deploy/docker 对应目录
+    New-Item -ItemType Directory -Force -Path "$DOCKER_DIR", "$DOCKER_DIR\target" | Out-Null
+    Copy-Item "$API_DIR\target\booking-api-2.2.1.jar"          "$DOCKER_DIR\"          -Force
+    Copy-Item "$MSG_DIR\target\message-service-1.1.0.jar"      "$DOCKER_DIR\target\"          -Force
+    Copy-Item "$CLS_DIR\target\classroom-service-1.0.0.jar"    "$DOCKER_DIR\"          -Force
 
     Ok "后端打包完成，jar 已就位"
 } else {
@@ -106,9 +104,9 @@ if (-not $SkipFrontend) {
         if ($LASTEXITCODE -ne 0) { Fail "前端构建失败" }
     } finally { Pop-Location }
 
-    # 拷贝 dist 到 cloudBased/web
-    if (Test-Path "$CLOUD_WEB\dist") { Remove-Item -Recurse -Force "$CLOUD_WEB\dist" }
-    Copy-Item -Recurse "$FE_DIR\dist" "$CLOUD_WEB\"
+    # 拷贝 dist 到 deploy/docker/web
+    if (Test-Path "$DOCKER_DIR\dist") { Remove-Item -Recurse -Force "$DOCKER_DIR\dist" }
+    Copy-Item -Recurse "$FE_DIR\dist" "$DOCKER_DIR\"
 
     Ok "前端构建完成，dist 已就位"
 } else {
@@ -125,23 +123,20 @@ if (-not $SkipDocker) {
     if (-not $docker) { Fail "未检测到 docker，请先安装并启动 Docker Desktop" }
 
     # 3a. api
-    Write-Host "  🐳 booking-api:2.2.0 ..." -ForegroundColor Gray
-    Push-Location $CLOUD_API
-    try { docker build -t "booking-api:2.2.0" . } finally { Pop-Location }
+    Write-Host "  🐳 booking-api:2.2.1 ..." -ForegroundColor Gray
+        docker build -f "$DOCKER_DIR\Dockerfile.cloudbase-api" -t "booking-api:2.2.1" "$DOCKER_DIR"
     if ($LASTEXITCODE -ne 0) { Fail "api docker build 失败" }
-    Ok "booking-api:2.2.0"
+    Ok "booking-api:2.2.1"
 
     # 3b. message-service
     Write-Host "  🐳 booking-message-service:1.1.0 ..." -ForegroundColor Gray
-    Push-Location $CLOUD_MSG
-    try { docker build -t "booking-message-service:1.1.0" . } finally { Pop-Location }
+        docker build -f "$DOCKER_DIR\Dockerfile.cloudbase-message" -t "booking-message-service:1.1.0" "$DOCKER_DIR"
     if ($LASTEXITCODE -ne 0) { Fail "message-service docker build 失败" }
     Ok "booking-message-service:1.1.0"
 
     # 3b-2. classroom-service
     Write-Host "  🐳 classroom-service:1.0.0 ..." -ForegroundColor Gray
-    Push-Location $CLOUD_CLS
-    try { docker build -t "classroom-service:1.0.0" . } finally { Pop-Location }
+        docker build -f "$DOCKER_DIR\Dockerfile.cloudbase-classroom" -t "classroom-service:1.0.0" "$DOCKER_DIR"
     if ($LASTEXITCODE -ne 0) { Fail "classroom-service docker build 失败" }
     Ok "classroom-service:1.0.0"
 
@@ -154,18 +149,15 @@ if (-not $SkipDocker) {
     #   CLASSROOM_UPSTREAM = http://classroom-service-xxxxxxxx.<region>.internal-run.tcloudbase.com:8092
     # ❌ 绝不可用 <服务名>.<envid>.svc.cluster.local —— 微信云托管无此 DNS 记录（实测 NXDOMAIN）
 
-    # 构建上下文 = cloudBased\frontend（Dockerfile 的 COPY dist 依赖同目录的 dist\）
-    foreach ($f in @("Dockerfile", "default.conf.template")) {
-        if (-not (Test-Path "$CLOUD_WEB\$f")) { Fail "缺少 $CLOUD_WEB\$f" }
+    # 构建上下文 = deploy\docker（Dockerfile 的 COPY dist 依赖同目录的 dist\）
+    foreach ($f in @("Dockerfile.cloudbase-frontend", "default.conf.template")) {
+        if (-not (Test-Path "$DOCKER_DIR\$f")) { Fail "缺少 $DOCKER_DIR\$f" }
     }
-    if (-not (Test-Path "$CLOUD_WEB\dist")) { Fail "缺少 $CLOUD_WEB\dist（先跑前端构建，别加 -SkipFrontend）" }
-    Ok "web 构建上下文就绪：cloudBased\frontend"
+    if (-not (Test-Path "$DOCKER_DIR\dist")) { Fail "缺少 $DOCKER_DIR\dist（先跑前端构建，别加 -SkipFrontend）" }
+    Ok "web 构建上下文就绪：deploy\docker"
 
     Write-Host "  🐳 booking-web:latest  (上游走运行时环境变量，构建不需 --build-arg) ..." -ForegroundColor Gray
-    Push-Location $CLOUD_WEB
-    try {
-        docker build -t "booking-web:latest" .
-    } finally { Pop-Location }
+        docker build -f "$DOCKER_DIR\Dockerfile.cloudbase-frontend" -t "booking-web:latest" "$DOCKER_DIR"
     if ($LASTEXITCODE -ne 0) { Fail "web docker build 失败" }
     Ok "booking-web:latest"
     Warn "别忘了在云托管控制台配 API_UPSTREAM / MSG_UPSTREAM / CLASSROOM_UPSTREAM 环境变量，缺失会导致容器启动失败"
@@ -176,12 +168,12 @@ if (-not $SkipDocker) {
         if (-not $EnvId) { Fail "推送需要 -EnvId <云托管环境ID> 来拼接仓库地址" }
 
         $registryPrefix = "ccr.ccs.tencentyun.com/cb-$EnvId"
-        docker tag "booking-api:2.2.0"              "$registryPrefix/api:2.2.0"
+        docker tag "booking-api:2.2.1"              "$registryPrefix/api:2.2.1"
         docker tag "booking-message-service:1.1.0"  "$registryPrefix/message-service:1.1.0"
         docker tag "classroom-service:1.0.0"        "$registryPrefix/classroom-service:1.0.0"
         docker tag "booking-web:latest"             "$registryPrefix/web:latest"
 
-        docker push "$registryPrefix/api:2.2.0"            ; if ($LASTEXITCODE -ne 0) { Fail "api push 失败" }
+        docker push "$registryPrefix/api:2.2.1"            ; if ($LASTEXITCODE -ne 0) { Fail "api push 失败" }
         docker push "$registryPrefix/message-service:1.1.0"; if ($LASTEXITCODE -ne 0) { Fail "message-service push 失败" }
         docker push "$registryPrefix/classroom-service:1.0.0"; if ($LASTEXITCODE -ne 0) { Fail "classroom-service push 失败" }
         docker push "$registryPrefix/web:latest"           ; if ($LASTEXITCODE -ne 0) { Fail "web push 失败" }
@@ -197,14 +189,14 @@ if (-not $SkipDocker) {
 Step "构建产物清单"
 Write-Host ""
 Write-Host "  后端 jar：" -NoNewline -ForegroundColor White
-Write-Host "  cloudBased/api/target/booking-api-2.2.0.jar" -ForegroundColor Gray
-Write-Host "              cloudBased/message-service/target/message-service-1.1.0.jar" -ForegroundColor Gray
-Write-Host "              cloudBased/classroom-service/target/classroom-service-1.0.0.jar" -ForegroundColor Gray
+Write-Host "  deploy/docker/booking-api-2.2.1.jar" -ForegroundColor Gray
+Write-Host "              deploy/docker/target/message-service-1.1.0.jar" -ForegroundColor Gray
+Write-Host "              deploy/docker/classroom-service-1.0.0.jar" -ForegroundColor Gray
 Write-Host "  前端 dist：" -NoNewline -ForegroundColor White
-Write-Host "  cloudBased/web/dist/" -ForegroundColor Gray
+Write-Host "  deploy/docker/dist/" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  下一步（部署到云托管）：" -ForegroundColor Yellow
-Write-Host "    方式 A — 控制台「上传代码包 / Dockerfile」：直接把 cloudBased/ 推上去"
+Write-Host "    方式 A — 控制台「上传代码包 / Dockerfile」：直接把 deploy/docker/ 推上去"
 Write-Host "    方式 B — 流水线（GitHub/Gitee）：授权代码源 → 每个服务放对应 Dockerfile + container.config.json"
 Write-Host "    方式 C — 已执行 docker push：控制台「上传镜像」填 $registryPrefix/<服务>:<tag>"
 Write-Host ""

@@ -13,7 +13,7 @@
 //   - 微信 request 合法域名只接受 https 且不带端口
 //   - webBase 域名必须加入「request 合法域名」白名单（方案二起小程序会真的向它发请求）
 //
-// ★ 远程配置文件：前端站点根目录 app-config.json（cloudBased/frontend/dist/），
+// ★ 远程配置文件：前端站点根目录 app-config.json（deploy/docker/dist/），
 //   nginx 对它 expires -1 强制回源校验。修改后端地址只需更新该文件并重新部署前端。
 //
 // ★ classroomBase（2026-11-21 新增，在线课堂 = classroom-service :8092）：

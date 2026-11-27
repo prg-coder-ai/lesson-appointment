@@ -78,34 +78,34 @@ tests/miniprogram-itest/_sut*
 # 内含数据库明文密码，绝不入库（模板见 .healthcheck.local.env.example）�
 .healthcheck.local.env
 .workbuddy/healthcheck-local.log
-# cloudBased/web 是纯暂存目录：dist/、构建时拷进来的 Dockerfile �nginx.conf.template�
+# deploy/docker/web 是纯暂存目录：dist/、构建时拷进来的 Dockerfile �nginx.conf.template�
 # 以及 web.zip 都堆在这里。源文件已迁�deploy/nginx/cloudbase-web/ 受版本控制，
-# �cloudBased/scripts/build-all.* �docker build 前拷入（别再往这里放需要入库的东西）�
-cloudBased/web
-cloudBased/api/booking-api-*.jar
-cloudBased/message-service/message-service-1.1.0.jar
-cloudBased/web.zip
-# cloudBased/env 下的 .env*.example �README.txt 曾入库，已全�untrack（本地文件保留）�
+# �deploy/scripts/build-all.* �docker build 前拷入（别再往这里放需要入库的东西）�
+deploy/docker/web
+deploy/docker/booking-api-*.jar
+deploy/docker/message-service-1.1.0.jar
+deploy/docker/web.zip
+# deploy/docker/env 下的 .env*.example �README.txt 曾入库，已全�untrack（本地文件保留）�
 # 变量清单与取值格式见部署手册（应�云托管环境变量一节）�
-cloudBased/env
-cloudBased/api.zip
-cloudBased/api/target/booking-api-*.jar
-cloudBased/message-service.zip
-cloudBased/message-service/target/message-service-1.1.0.jar
+deploy/docker/env
+deploy/docker/api.zip
+deploy/docker/target/booking-api-*.jar
+deploy/docker/message-service.zip
+deploy/docker/target/message-service-1.1.0.jar
 api/classroom-service/target
 # SQL 语义映射的中间产物：�gen_upsert_sys_term.py 生成，内容是 GBK/UTF-8 混淆的乱码，
 # 且全仓无任何脚本读取��不入库（需要时本地重新生成）�
 deploy/sql/schema/_semmap.tsv
-cloudBased/*.zip
-cloudBased/api/target/*.jar
-cloudBased/message-service/target/message-service-1.1.0.jar
+deploy/docker/*.zip
+deploy/docker/target/*.jar
+deploy/docker/target/message-service-1.1.0.jar
 
 # 构建产物统一收口目录（deploy/collect-artifacts.js 生成）：
 #   deploy/dist/  = frontend/dist 的镜像，deploy/jars/ = 三个后端 jar 的最新版�
 # �frontend/dist、各 target/ 一样属于构建输出，绝不入库；上传用 deploy/upload-to-server.sh�
 deploy/dist/
 deploy/jars/
-cloudBased/frontend/dist
+deploy/docker/dist
 
 # IDE / 编辑器个人配�
 # .arts/settings.json �VS Code Java 扩展生成的个人环境偏�
@@ -120,7 +120,7 @@ __pycache__/
 *.pyc
 deploy/deploy-keys.txt
 # 部署密钥文件（含 AES_KEY/HMAC_KEY/JWT_SECRET），任何目录下都不得入库
-# 原规则只写了 deploy/ 前缀，cloudBased/deploy-keys.txt 一直裸奔在未跟踪列表里
+# 原规则只写了 deploy/ 前缀，deploy/docker/deploy-keys.txt 一直裸奔在未跟踪列表里
 **/deploy-keys.txt
 # 实际环境变量文件（含历史真实 DB_PASSWORD/JWT_SECRET），不得入库；
 # 需要模板就用 classroom.env.template
@@ -148,7 +148,7 @@ api/classroom-service/target/
 # Trailing slash matters, otherwise the rule matches a plain file named dist
 deploy/docker/frontend/dist/
 deploy/docker/frontend/.build-tag
-cloudBased/classroom-service/classroom-service-1.0.0.jar
+deploy/docker/classroom-service-1.0.0.jar
 
 # server-side key instance file: holds real JWT_SECRET / AES_KEY / HMAC_KEY.
 # never commit. copy deploy/keys.env.template instead.
@@ -170,3 +170,12 @@ deliver/*.exe
 
 # 自解压 EXE 运行后的解包目录（Electron 运行时 + 本地缓存），纯本地残留，绝不入库
 deliver/eClassroom-*/
+# 2026-11-27 merged: cloudBased/ -> deploy/; ignore leftover local build artifacts
+cloudBased/
+# cloudbase unified build context runtime artifacts (generated, never commit)
+deploy/docker/env/
+deploy/docker/dist/
+deploy/docker/target/
+deploy/docker/booking-api-*.jar
+deploy/docker/message-service-*.jar
+deploy/docker/classroom-service-*.jar

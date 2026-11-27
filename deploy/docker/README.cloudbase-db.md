@@ -39,7 +39,7 @@
 
 ### 2.1 现有 schema 脚本位置
 
-所有 schema 脚本**都已在项目根目录**，迁移时直接拿过来执行，**cloudBased 不重复维护**，避免两份：
+所有 schema 脚本**都已在项目根目录**，迁移时直接拿过来执行，**deploy/docker 不重复维护**，避免两份：
 
 ```
 deploy/sql/schema/20261014-legal-doc.sql          ← 协议/隐私政策两张表
@@ -83,7 +83,7 @@ SELECT DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME FROM information_schem
 | 位置 | 当前本地值 | 云托管必须改为 | 改动位置 |
 |------|-----------|---------------|---------|
 | 容器 TZ | — | `Asia/Shanghai` | Dockerfile 里 ENV TZ |
-| JDBC serverTimezone | `UTC` | `Asia/Shanghai` | cloudBased/*/application-cloud.properties 覆盖 |
+| JDBC serverTimezone | `UTC` | `Asia/Shanghai` | deploy/docker/*/application-cloud.properties 覆盖 |
 | MySQL 全局时区 | 本地 MySQL 可能 Asia/Shanghai | `Asia/Shanghai` | 云托管内建 MySQL 默认 UTC，需在 JDBC URL 里用 `serverTimezone=Asia/Shanghai` 兜底即可（不需要改数据库全局时区） |
 
 ### 为什么必须改？

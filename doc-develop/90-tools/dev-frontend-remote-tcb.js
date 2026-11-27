@@ -28,7 +28,7 @@
  *   这次不联调课堂：CLASSROOM_PORT=0（关掉课堂路由，少一个探活项与一条告警）。
  *
  * ── 为什么不做成第二个代理实现 ──────────────────────────────────────────────
- * 分流规则必须**只有一份**。本项目已经在 dev-proxy.js / nginx 样例 / cloudBased 之间
+ * 分流规则必须**只有一份**。本项目已经在 dev-proxy.js / nginx 样例 / deploy/docker 之间
  * 对齐过三轮，再抄一份就是第四份（改一处忘三处的经典来源）。当前唯一真相源是
  * dev-proxy.js 里的 toMessageService() / toClassroomService()：
  *   /api/v1/{message*,sensitive,sse,users/}                      → 消息服务
@@ -55,7 +55,7 @@
  * ── 与 nginx 方案的分工 ─────────────────────────────────────────────────────
  *   dev-frontend-remote-tcb.js  本机开发联调（Node 单进程，零依赖，改 js 刷新即生效）
  *   nginx-代理远端API-样例.conf 自建服务器 / 长期运行（gzip、缓存、静态托管、TLS 终止）
- *   cloudBased/frontend/        云托管 web 容器内的那份 nginx（运行时 envsubst 渲染上游）
+ *   deploy/docker/        云托管 web 容器内的那份 nginx（运行时 envsubst 渲染上游）
  * 三者分流口径保持一致；差别只在静态资源缓存与压缩由谁来做。
  *
  *   特别说明：自建服务器若用「单入口 nginx 分流」（这是 2026-10-30 定下的形态），

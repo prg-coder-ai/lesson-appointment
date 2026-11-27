@@ -10,7 +10,7 @@
 #   本目录是构建上下文（`COPY dist /var/www/frontend`）。若把上下文设成仓库根，
 #   docker 要把整个仓库（含 node_modules、target、各份 dist）打成 tar 传进 daemon，
 #   几百 MB 起步，且必须新增一份仓库级 .dockerignore —— 那会影响后端镜像的构建。
-#   只拷 dist（约 5MB）最省事，也和 cloudBased/frontend 的做法一致。
+#   只拷 dist（约 5MB）最省事，也和 deploy/docker/frontend 的做法一致。
 #
 # 产物 tag：<dist 构建时间>-<git sha>，例如 lesson/frontend:202611210403-9d7221b
 #   · 前半段来自 dist/build-info.json 的 buildTime（**内容**是哪批）；

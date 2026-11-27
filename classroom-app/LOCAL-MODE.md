@@ -48,7 +48,7 @@ APP_CORS_ORIGIN_PATTERNS=...,capacitor://localhost,http://localhost,https://loca
 ```
 
 > ⚠️ 只改仓库配置 ≠ 改服务器。云端要在控制台改环境变量并重启实例；
-> nginx 侧若设了 `proxy_set_header Origin ""`，同源语义下无需动 CORS（`cloudBased/frontend/default.conf.template:117` 有说明）。
+> nginx 侧若设了 `proxy_set_header Origin ""`，同源语义下无需动 CORS（`deploy/docker/default.conf.template:117` 有说明）。
 
 ### 3) WS 特殊注意
 

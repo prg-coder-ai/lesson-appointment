@@ -7,9 +7,9 @@
 | `Dockerfile` | nginx:1.27-alpine + 拷入 dist + 构建期 envsubst 生成 nginx.conf |
 | `nginx.conf.template` | 前端静态托管 + `/api/v1/*` 双上游反代（booking / message-service） |
 
-## 为什么放在这里，而不是 `cloudBased/web/`
+## 为什么放在这里，而不是 `deploy/docker/`
 
-`cloudBased/web` 是**纯暂存目录**（已在 `.gitignore` 里整目录忽略），里面堆着：
+`deploy/docker/web` 是**纯暂存目录**（已在 `.gitignore` 里整目录忽略），里面堆着：
 
 - `dist/` —— 前端构建产物（每次 build 覆盖）
 - `Dockerfile` / `nginx.conf.template` —— 构建前从本目录**拷进去**的源文件
@@ -21,19 +21,19 @@
 
 ```bash
 # 全量（含前端 build + 三个镜像）
-node cloudBased/scripts/build-all.sh --env-id <云托管环境ID>
+node deploy/scripts/build-all.sh --env-id <云托管环境ID>
 
 # 或 Windows
-powershell -File cloudBased/scripts/build-all.ps1 -EnvId <云托管环境ID>
+powershell -File deploy/scripts/build-all.ps1 -EnvId <云托管环境ID>
 ```
 
 脚本在 Step 3c 会先
 
 ```
-cp deploy/nginx/cloudbase-web/{Dockerfile,nginx.conf.template}  cloudBased/web/
+cp deploy/nginx/cloudbase-web/{Dockerfile,nginx.conf.template}  deploy/docker/
 ```
 
-再在 `cloudBased/web`（构建上下文）里执行 `docker build`，并传入两个上游：
+再在 `deploy/docker/web`（构建上下文）里执行 `docker build`，并传入两个上游：
 
 ```
 --build-arg API_UPSTREAM=http://api.<envid>.svc.cluster.local:8081
@@ -43,8 +43,8 @@ cp deploy/nginx/cloudbase-web/{Dockerfile,nginx.conf.template}  cloudBased/web/
 ## 手工构建时（务必先拷）
 
 ```bash
-cp deploy/nginx/cloudbase-web/Dockerfile deploy/nginx/cloudbase-web/nginx.conf.template cloudBased/web/
-cd cloudBased/web
+cp deploy/nginx/cloudbase-web/Dockerfile deploy/nginx/cloudbase-web/nginx.conf.template deploy/docker/
+cd deploy/docker/web
 docker build \
   --build-arg API_UPSTREAM=http://api.<envid>.svc.cluster.local:8081 \
   --build-arg MSG_UPSTREAM=http://message-service.<envid>.svc.cluster.local:8090 \

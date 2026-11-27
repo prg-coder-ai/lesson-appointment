@@ -1,0 +1,31 @@
+# ==============================================================================
+# 云托管镜像统一构建上下文：deploy/docker/
+# 由原 deploy/docker/ 下 5 份 .dockerignore 合并（2026-11-27 深度合并）。
+# ★ 不要忽略 jar / target/*.jar / dist/ / *.template / *.sh：
+#   Dockerfile.cloudbase-* 的 COPY 都相对本上下文根，忽略会让镜像构建静默失败。
+# ==============================================================================
+.git/
+.gitignore
+.idea/
+.vscode/
+*.iml
+*.log
+*.tmp
+*.bak
+*.orig
+.DS_Store
+Thumbs.db
+dump/
+logs/
+# 本地 Docker（deploy/docker 原有那套）不进云托管上下文
+frontend/
+docker-compose.yml
+env.example
+install-docker.sh
+release.sh
+switch.sh
+rollback.sh
+build-images.sh
+verify.sh
+check-config.mjs
+README.md

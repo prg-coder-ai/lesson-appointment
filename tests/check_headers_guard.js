@@ -35,7 +35,7 @@ const GUARD = path.join(ROOT, 'tools/check-headers.mjs');
 
 const NGINX_IP = path.join(ROOT, 'deploy/nginx/booking-ip.conf');
 const NGINX_DUAL = path.join(ROOT, 'deploy/nginx/booking-ip-dual.conf');
-const CLOUD_TPL = path.join(ROOT, 'cloudBased/frontend/default.conf.template');
+const CLOUD_TPL = path.join(ROOT, 'deploy/docker/default.conf.template');
 
 /** 当前正确值（8 处统一） */
 const GOOD = 'add_header Permissions-Policy "geolocation=(), microphone=(self), camera=(self)" always;';

@@ -2,7 +2,7 @@
 rem ============================================================================
 rem build-all.bat - 微信云托管 · 本地预打包一键脚本（Windows cmd）
 rem
-rem Windows cmd 版唯一入口；与 cloudBased\scripts\build-all.sh / .ps1 参数一致：
+rem Windows cmd 版唯一入口；与 deploy\scripts\build-all.sh / .ps1 参数一致：
 rem   build-all.bat                                   完整构建（后端 + 前端 + 镜像）
 rem   build-all.bat --skip-frontend --skip-docker     只改了 Java 时用
 rem   build-all.bat --env-id myenv01 --docker-push    构建并推送到云托管仓库
@@ -75,9 +75,8 @@ popd
 set "API_DIR=%PROJECT_ROOT%\api"
 set "MSG_DIR=%API_DIR%\message-service"
 set "FE_DIR=%PROJECT_ROOT%\frontend"
-set "CLOUD_API=%PROJECT_ROOT%\cloudBased\api"
-set "CLOUD_MSG=%PROJECT_ROOT%\cloudBased\message-service"
-set "CLOUD_WEB=%PROJECT_ROOT%\cloudBased\frontend"
+rem 2026-11-27 merged: single cloudbase build context = deploy\docker (was deploy\docker\*)
+set "DOCKER_DIR=%PROJECT_ROOT%\deploy\docker"
 
 if not exist "%API_DIR%\pom.xml" (
     set "ERRMSG=项目结构异常，找不到 %API_DIR%\pom.xml"
@@ -122,15 +121,15 @@ rem   api/Dockerfile             -> COPY booking-api-2.2.1.jar            （上下
 rem   message-service/Dockerfile -> COPY target/message-service-1.1.0.jar
 rem 曾经 api 也往 target\ 拷，而 Dockerfile 读的是根目录那份，镜像里装的是仓库遗留的
 rem 旧 jar，改代码不生效，排查时极易误判。
-if not exist "%CLOUD_API%" mkdir "%CLOUD_API%"
-if not exist "%CLOUD_MSG%\target" mkdir "%CLOUD_MSG%\target"
+if not exist "%DOCKER_DIR%" mkdir "%DOCKER_DIR%"
+if not exist "%DOCKER_DIR%\target" mkdir "%DOCKER_DIR%\target"
 
-copy /y "%API_DIR%\target\booking-api-2.2.1.jar"     "%CLOUD_API%\booking-api-2.2.1.jar" >nul
+copy /y "%API_DIR%\target\booking-api-2.2.1.jar"     "%DOCKER_DIR%\booking-api-2.2.1.jar" >nul
 if errorlevel 1 (
     set "ERRMSG=复制 api jar 失败：%API_DIR%\target\booking-api-2.2.1.jar"
     goto :die
 )
-copy /y "%MSG_DIR%\target\message-service-1.1.0.jar" "%CLOUD_MSG%\target\message-service-1.1.0.jar" >nul
+copy /y "%MSG_DIR%\target\message-service-1.1.0.jar" "%DOCKER_DIR%\target\message-service-1.1.0.jar" >nul
 if errorlevel 1 (
     set "ERRMSG=复制 message-service jar 失败"
     goto :die
@@ -164,22 +163,22 @@ rem build.js 不会产出它。如果直接 rmdir 再整体覆盖，控制台里配好的上游地址就没了
 rem 小程序会静默回落到 env.js 内置默认值 —— 表面正常、实际远程配置失效，很难发现。
 rem 所以复制前先备份，复制后还原。
 set "APPCFG_BAK="
-if exist "%CLOUD_WEB%\dist\app-config.json" (
+if exist "%DOCKER_DIR%\dist\app-config.json" (
     set "APPCFG_BAK=%TEMP%\booking-app-config.bak"
-    copy /y "%CLOUD_WEB%\dist\app-config.json" "!APPCFG_BAK!" >nul
+    copy /y "%DOCKER_DIR%\dist\app-config.json" "!APPCFG_BAK!" >nul
 )
 
-if exist "%CLOUD_WEB%\dist" rmdir /s /q "%CLOUD_WEB%\dist"
-if not exist "%CLOUD_WEB%" mkdir "%CLOUD_WEB%"
-xcopy "%FE_DIR%\dist" "%CLOUD_WEB%\dist\" /e /i /q /y >nul
+if exist "%DOCKER_DIR%\dist" rmdir /s /q "%DOCKER_DIR%\dist"
+if not exist "%DOCKER_DIR%" mkdir "%DOCKER_DIR%"
+xcopy "%FE_DIR%\dist" "%DOCKER_DIR%\dist\" /e /i /q /y >nul
 if errorlevel 1 (
-    set "ERRMSG=复制前端 dist 到 cloudBased\frontend 失败"
+    set "ERRMSG=复制前端 dist 到 deploy\docker 失败"
     goto :die
 )
 
 if defined APPCFG_BAK (
     if exist "!APPCFG_BAK!" (
-        copy /y "!APPCFG_BAK!" "%CLOUD_WEB%\dist\app-config.json" >nul
+        copy /y "!APPCFG_BAK!" "%DOCKER_DIR%\dist\app-config.json" >nul
         del /q "!APPCFG_BAK!" >nul 2>nul
         call :ok "已还原 app-config.json"
     )
@@ -233,10 +232,8 @@ if errorlevel 1 (
 )
 
 echo   [2/3] booking-api:2.2.1 ...
-pushd "%CLOUD_API%"
-call docker build -t booking-api:2.2.1 .
+call docker build -f "%DOCKER_DIR%\Dockerfile.cloudbase-api" -t booking-api:2.2.1 "%DOCKER_DIR%"
 set "RC=!errorlevel!"
-popd
 if not "!RC!"=="0" (
     set "ERRMSG=api docker build 失败。若卡在 apt-get，检查网络或构建参数 APT_MIRROR"
     goto :die
@@ -244,36 +241,32 @@ if not "!RC!"=="0" (
 call :ok "booking-api:2.2.1"
 
 echo   [2/3] booking-message-service:1.1.0 ...
-pushd "%CLOUD_MSG%"
-call docker build -t booking-message-service:1.1.0 .
+call docker build -f "%DOCKER_DIR%\Dockerfile.cloudbase-message" -t booking-message-service:1.1.0 "%DOCKER_DIR%"
 set "RC=!errorlevel!"
-popd
 if not "!RC!"=="0" (
     set "ERRMSG=message-service docker build 失败"
     goto :die
 )
 call :ok "booking-message-service:1.1.0"
 
-rem 构建上下文 = cloudBased\frontend（Dockerfile 里的 COPY dist 依赖同目录的 dist\）
-if not exist "%CLOUD_WEB%\Dockerfile" (
-    set "ERRMSG=缺少 %CLOUD_WEB%\Dockerfile"
+rem 构建上下文 = deploy\docker（Dockerfile 里的 COPY dist 依赖同目录的 dist\）
+if not exist "%DOCKER_DIR%\Dockerfile.cloudbase-frontend" (
+    set "ERRMSG=缺少 %DOCKER_DIR%\Dockerfile.cloudbase-frontend"
     goto :die
 )
-if not exist "%CLOUD_WEB%\default.conf.template" (
-    set "ERRMSG=缺少 %CLOUD_WEB%\default.conf.template"
+if not exist "%DOCKER_DIR%\default.conf.template" (
+    set "ERRMSG=缺少 %DOCKER_DIR%\default.conf.template"
     goto :die
 )
-if not exist "%CLOUD_WEB%\dist" (
-    set "ERRMSG=缺少 %CLOUD_WEB%\dist，请先跑前端构建（不要加 --skip-frontend）"
+if not exist "%DOCKER_DIR%\dist" (
+    set "ERRMSG=缺少 %DOCKER_DIR%\dist，请先跑前端构建（不要加 --skip-frontend）"
     goto :die
 )
-call :ok "web 构建上下文就绪：cloudBased\frontend"
+call :ok "web 构建上下文就绪：deploy\docker"
 
 echo   [3/3] booking-web:latest（上游走运行时环境变量，构建不需 --build-arg）...
-pushd "%CLOUD_WEB%"
-call docker build -t booking-web:latest .
+call docker build -f "%DOCKER_DIR%\Dockerfile.cloudbase-frontend" -t booking-web:latest "%DOCKER_DIR%"
 set "RC=!errorlevel!"
-popd
 if not "!RC!"=="0" (
     set "ERRMSG=web docker build 失败"
     goto :die
@@ -322,9 +315,9 @@ rem 汇总
 rem ============================================================================
 :summary
 call :step "构建产物清单"
-echo   后端 jar：cloudBased\api\booking-api-2.2.1.jar（Dockerfile 读根目录）
-echo             cloudBased\message-service\target\message-service-1.1.0.jar
-echo   前端 dist：cloudBased\frontend\dist\
+echo   后端 jar：deploy\docker\booking-api-2.2.1.jar（Dockerfile 读根目录）
+echo             deploy\docker\target\message-service-1.1.0.jar
+echo   前端 dist：deploy\docker\dist\
 echo   统一收口：deploy\jars\ 与 deploy\dist\
 echo.
 echo   下一步：
