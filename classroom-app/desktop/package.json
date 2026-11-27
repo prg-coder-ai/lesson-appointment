@@ -8,6 +8,8 @@
     "start": "electron .",
     "start:dev": "cross-env CLASSROOM_DESKTOP_DEV=1 electron .",
     "pack:win": "electron-builder --win --x64",
+    "pack:sfx": "node scripts/pack-sfx.cjs",
+    "pack:sfx:rebuild": "node scripts/pack-sfx.cjs --rebuild",
     "pack:mac": "electron-builder --mac",
     "pack:linux": "electron-builder --linux"
   },

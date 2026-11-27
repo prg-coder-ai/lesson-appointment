@@ -158,5 +158,7 @@ deliver/eClassroom-1.0-android-20261126-1858.apk
 # 源码（desktop/*.js、www 由 scripts/build.js 生成）已受版本控制，产物可由一条命令重建。
 classroom-app/desktop/dist/
 classroom-app/desktop/dist-rebuild/
+classroom-app/desktop/dist-sfx/
 deliver/*.zip
 deliver/*.apk
+deliver/*.exe
