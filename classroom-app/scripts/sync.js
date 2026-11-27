@@ -79,6 +79,8 @@ const CLASSROOM_JS = [
   'js/classroom/classroom-teacher.js',
   'js/classroom/classroom-student.js',
   'js/classroom/classroom-admin.js',
+  // 屏幕共享（2026-11-27）：独立共享轨 + 配置面板， classroom.html 与本模块配套
+  'js/classroom/classroom-screenshare.js',
   'js/classroom/classroom-main.js'
 ];
 

@@ -33,6 +33,12 @@
         var rtc = window.ClassroomRTC;
         html += this._btn('ctrl-mic', 'fas fa-microphone', '麦克风', !!(rtc && rtc.micEnabled));
         html += this._btn('ctrl-cam', 'fas fa-video', '摄像头', !!(rtc && rtc.camEnabled));
+        // 屏幕共享（2026-11-27）：独立共享画面，范围与系统声音在弹窗里选。
+        // 渲染时即按能力隐藏（web 不支持 / iOS WebView），避免先显示再隐藏闪一下。
+        var ss = window.ClassroomScreenShare;
+        if (!ss || ss.supported()) {
+          html += this._btn('ctrl-share', 'fas fa-desktop', '屏幕共享', !!(ss && ss.sharing));
+        }
       }
       html += this._btn('ctrl-whiteboard', 'fas fa-chalkboard', '白板', false);
       html += this._btn('ctrl-material', 'fas fa-file-lines', '讲稿', false);
@@ -78,7 +84,7 @@
     applyGate: function (allowed, status) {
       this.gateAllowed = !!allowed;
       var tip = (status === 'PAUSED') ? '课堂已暂停，暂不能发布' : '课堂未开始/已结束，暂不能发布';
-      ['ctrl-mic', 'ctrl-cam', 'ctrl-hand', 'ctrl-upload'].forEach(function (id) {
+      ['ctrl-mic', 'ctrl-cam', 'ctrl-share', 'ctrl-hand', 'ctrl-upload'].forEach(function (id) {
         var el = document.getElementById(id);
         if (!el) return;
         el.disabled = !allowed;
@@ -90,6 +96,11 @@
       var pauseEl = document.getElementById('ctrl-pause');
       if (liveEl) liveEl.classList.toggle('active', status === 'LIVE');
       if (pauseEl) pauseEl.classList.toggle('active', status === 'PAUSED');
+      // 暂停/非 LIVE 时共享必须停掉：服务端 publish guard 会拒新信令，
+      // 但已建立的媒体轨不走信令闸，只能由前端主动停轨（双层门禁的媒体层）。
+      if (!allowed && window.ClassroomScreenShare && window.ClassroomScreenShare.sharing) {
+        window.ClassroomScreenShare.stop(true);
+      }
     },
 
     _applyCurrentGate: function () {
@@ -150,6 +161,18 @@
         var on = window.ClassroomRTC.camEnabled;
         var now = window.ClassroomRTC.setCamEnabled(!on);
         cam.classList.toggle('active', now);
+      });
+
+      var share = $('ctrl-share');
+      if (share) share.addEventListener('click', function () {
+        if (!window.ClassroomScreenShare) return;
+        // 共享中再点 = 停止（不弹面板）；未共享则弹配置面板选范围与系统声音
+        if (window.ClassroomScreenShare.sharing) {
+          window.ClassroomScreenShare.stop();
+        } else {
+          if (!self._gateAllowed()) return;
+          window.ClassroomScreenShare.openPanel();
+        }
       });
 
       var wb = $('ctrl-whiteboard');

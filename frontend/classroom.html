@@ -121,6 +121,39 @@
 
     <!-- 底部控制栏 -->
     <footer id="classroom-controls"></footer>
+
+    <!-- 屏幕共享配置（2026-11-27）：范围提示 + 系统声音开关 -->
+    <div id="screen-share-modal" class="ss-modal hidden">
+      <div class="ss-backdrop"></div>
+      <div class="ss-box">
+        <div class="ss-title">屏幕共享设置 <button id="ss-close" class="ss-close" type="button">×</button></div>
+        <div class="ss-body">
+          <p class="ss-hint-title">共享范围</p>
+          <div class="ss-scopes">
+            <button type="button" id="ss-scope-desktop" class="ss-scope active" onclick="window.ClassroomScreenShare.setScope('desktop')">
+              <i class="fas fa-desktop"></i><span>桌面</span><small>整个屏幕</small>
+            </button>
+            <button type="button" id="ss-scope-window" class="ss-scope" onclick="window.ClassroomScreenShare.setScope('window')">
+              <i class="fas fa-window-maximize"></i><span>应用窗口</span><small>单个程序</small>
+            </button>
+            <button type="button" id="ss-scope-region" class="ss-scope" onclick="window.ClassroomScreenShare.setScope('region')">
+              <i class="fas fa-crop-alt"></i><span>区域范围</span><small>部分画面</small>
+            </button>
+          </div>
+          <label class="ss-audio-row">
+            <input type="checkbox" id="ss-audio" onchange="window.ClassroomScreenShare.setAudio(this.checked)">
+            <span>同时发送系统声音</span>
+            <small>共享标签页通常可带声；整屏/窗口以浏览器实际支持为准</small>
+          </label>
+          <p id="ss-hint" class="ss-hint">桌面：在下一步弹出的系统选择器里选择整个屏幕。</p>
+          <div class="ss-actions">
+            <button type="button" id="ss-start" class="ss-btn ss-btn-primary" onclick="window.ClassroomScreenShare.start()">开始共享</button>
+            <button type="button" id="ss-stop" class="ss-btn" style="display:none;" onclick="window.ClassroomScreenShare.stop()">停止共享</button>
+            <button type="button" class="ss-btn" onclick="window.ClassroomScreenShare.closePanel()">取消</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- 我的出勤弹窗（F2-07） -->
@@ -236,6 +269,8 @@
   <script src="js/classroom/rtc/engine-mesh.js"></script>
   <script src="js/classroom/rtc/engine-sdk.js"></script>
   <script src="js/classroom/classroom-rtc.js"></script>
+  <!-- 屏幕共享：依赖 ClassroomRTC 门面与 RtcTiles，须早于 controls（按钮绑定要读它） -->
+  <script src="js/classroom/classroom-screenshare.js"></script>
   <script src="js/classroom/classroom-record.js"></script>
   <script src="js/classroom/classroom-whiteboard.js"></script>
   <script src="js/classroom/classroom-material.js"></script>

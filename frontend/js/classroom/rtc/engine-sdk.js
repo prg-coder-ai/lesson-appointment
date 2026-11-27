@@ -309,12 +309,68 @@
     return this.camOn;
   };
 
+  /* ---------------- 屏幕共享（2026-11-27） ----------------
+     SFU 下不需要 addTrack / SDP 重协商——各家 SDK 都有自己的屏幕分享 API。
+     对端识别统一靠 screen-state 信令 + 独立格子，本引擎只负责发布/停止屏幕轨。
+     返回 Promise<boolean>；不支持的 SDK 返回 false，由调用方提示降级。 */
+
+  SdkRtcEngine.prototype.startScreenShare = function (withAudio) {
+    var self = this;
+    var type = String(this.cfg.sdkType || '').toLowerCase();
+    try {
+      if (type === 'livekit' && this._room && this._room.localParticipant) {
+        return Promise.resolve(this._room.localParticipant.setScreenShareEnabled(true, { audio: !!withAudio }))
+          .then(function () { return true; }, function () { return false; });
+      }
+      if (type === 'agora' && window.AgoraRTC && this._client) {
+        return window.AgoraRTC.createScreenVideoTrack({ withAudio: !!withAudio })
+          .then(function (trackOrPair) {
+            // Agora 6.x：withAudio=true 返回 [videoTrack, audioTrack]；false 返回单轨
+            var tracks = Array.isArray(trackOrPair) ? trackOrPair : [trackOrPair];
+            self._screenTracks = tracks;
+            return self._client.publish(tracks);
+          })
+          .then(function () { return true; }, function () { return false; });
+      }
+      if (type === 'trtc' && this._trtc) {
+        var trtc = this._trtc;
+        return Promise.resolve(trtc.startScreenShare({
+          view: document.getElementById('vt-local-video'),
+          systemAudio: !!withAudio
+        })).then(function () { return true; }, function () { return false; });
+      }
+    } catch (e) {
+      console.warn('[RTC] startScreenShare failed', e);
+    }
+    return Promise.resolve(false);
+  };
+
+  SdkRtcEngine.prototype.stopScreenShare = function () {
+    var self = this;
+    var type = String(this.cfg.sdkType || '').toLowerCase();
+    try {
+      if (type === 'livekit' && this._room && this._room.localParticipant) {
+        this._room.localParticipant.setScreenShareEnabled(false);
+      } else if (type === 'agora' && this._client) {
+        (this._screenTracks || []).forEach(function (t) {
+          try { self._client.unpublish(t); t.close && t.close(); } catch (e) {}
+        });
+        this._screenTracks = null;
+      } else if (type === 'trtc' && this._trtc) {
+        this._trtc.stopScreenShare();
+      }
+    } catch (e) {
+      console.warn('[RTC] stopScreenShare failed', e);
+    }
+  };
+
   SdkRtcEngine.prototype.isJoined = function () {
     return this.joined;
   };
 
   SdkRtcEngine.prototype.leave = function () {
     var type = String(this.cfg.sdkType || '').toLowerCase();
+    try { if (this.stopScreenShare) this.stopScreenShare(); } catch (e) { /* noop */ }
     try {
       if (type === 'livekit' && this._room) {
         this._room.disconnect();

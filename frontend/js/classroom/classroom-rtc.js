@@ -99,6 +99,11 @@
           self.setMicEnabledDirect(false);
           self.setCamEnabled(false, true);
         }
+        // 引擎就绪后刷新屏幕共享模块的引擎引用（init 早于本异步 join 时拿不到 engine）。
+        // 若引擎是重建的，refreshEngine 会顺带停掉旧引擎上的共享轨，避免轨泄漏。
+        if (window.ClassroomScreenShare && typeof window.ClassroomScreenShare.refreshEngine === 'function') {
+          try { window.ClassroomScreenShare.refreshEngine(); } catch (e) { /* console only */ }
+        }
         // 采集结果会改变控制栏按钮的可用态，重渲染一次
         if (window.ClassroomControls && typeof window.ClassroomControls.render === 'function') {
           try { window.ClassroomControls.render(); } catch (e) { /* console only */ }
@@ -291,6 +296,11 @@
     },
 
     leave: function () {
+      // 先停屏幕共享：它持有独立的 getDisplayMedia 流，不随 localStream 一起被 stop，
+      // 漏掉会导致浏览器标签上的「共享中」指示灯一直亮着。
+      if (window.ClassroomScreenShare && window.ClassroomScreenShare.sharing) {
+        try { window.ClassroomScreenShare.stop(true); } catch (e) { /* console only */ }
+      }
       if (this.engine) {
         try { this.engine.leave(); } catch (e) { console.warn('[RTC] leave failed', e); }
         this.engine = null;

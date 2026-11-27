@@ -869,6 +869,54 @@ html, body {
 /* 拖动中：全局禁选，避免拖着拖着把标题文字选中 */
 body.cl-panel-dragging { user-select: none; -webkit-user-select: none; }
 
+/* ---------- 屏幕共享（2026-11-27） ----------
+   共享画面是独立格子，与摄像头格子并存；用虚线边框区分，避免误认成某人的摄像头。 */
+.video-tile.is-screenshare { outline: 2px dashed #d29922; }
+.video-tile.is-screenshare .vt-label { background: rgba(210,153,34,.85); color: #1f1f1f; font-weight: 600; }
+.video-tile.is-screenshare .vt-avatar i { font-size: 30px; }
+
+/* 屏幕共享配置弹窗 */
+.ss-modal { position: fixed; inset: 0; z-index: 9100; display: flex; align-items: center; justify-content: center; }
+.ss-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.55); }
+.ss-box {
+  position: relative; width: 460px; max-width: 94vw; background: #22272e;
+  border: 1px solid #30363d; border-radius: 10px; padding: 18px; color: #e8eaed;
+  box-shadow: 0 12px 40px rgba(0,0,0,.45);
+}
+.ss-title { display: flex; align-items: center; justify-content: space-between; font-size: 15px; font-weight: 600; margin-bottom: 14px; }
+.ss-close { background: none; border: none; color: #8b949e; font-size: 20px; cursor: pointer; line-height: 1; }
+.ss-close:hover { color: #fff; }
+.ss-hint-title { font-size: 13px; color: #9da7b3; margin: 0 0 8px; }
+.ss-scopes { display: flex; gap: 8px; }
+.ss-scope {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 12px 6px; background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+  color: #c9d1d9; cursor: pointer; font-size: 13px;
+}
+.ss-scope i { font-size: 20px; }
+.ss-scope small { font-size: 11px; color: #8b949e; }
+.ss-scope:hover { border-color: #58a6ff; }
+.ss-scope.active { border-color: #1f6feb; background: rgba(31,111,235,.18); color: #fff; }
+.ss-scope.active small { color: #b6c8e0; }
+.ss-audio-row {
+  display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 4px 8px;
+  margin: 14px 0 8px; padding: 10px 12px; background: #0d1117;
+  border: 1px solid #30363d; border-radius: 8px; font-size: 13px; cursor: pointer;
+}
+.ss-audio-row small { grid-column: 2; font-size: 11px; color: #8b949e; }
+.ss-hint { font-size: 11px; color: #8b949e; margin: 6px 0 14px; line-height: 1.6; }
+.ss-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.ss-btn {
+  padding: 7px 16px; border: 1px solid #30363d; border-radius: 6px;
+  background: #21262d; color: #e8eaed; font-size: 13px; cursor: pointer;
+}
+.ss-btn:hover { border-color: #58a6ff; }
+.ss-btn-primary { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+.ss-btn-primary:hover { background: #388bfd; }
+
+/* Web/移动端不支持采集时隐藏共享按钮（与 app-permissions.js 的 app-no-display-capture 一致） */
+.app-no-display-capture #ctrl-share { display: none !important; }
+
 /* 响应式：窄屏收起右侧栏 */
 @media (max-width: 900px) {
   #classroom-main { grid-template-columns: 160px 1fr; }

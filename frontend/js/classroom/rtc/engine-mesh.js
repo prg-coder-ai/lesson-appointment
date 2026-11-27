@@ -239,6 +239,14 @@
     pc.ontrack = function (e) {
       var stream = (e.streams && e.streams[0]) ? e.streams[0] : null;
       if (!stream) return;
+      // 屏幕共享流走独立格子，不与摄像头画面互相覆盖。
+      // 每条流都先问模块一次；模块返回 true=已按屏幕流接管（本分支结束），
+      // false=普通摄像头流，模块会顺手记下其 stream.id 作为后续识别的排除项。
+      if (window.ClassroomScreenShare && typeof window.ClassroomScreenShare.onTrack === 'function') {
+        try {
+          if (window.ClassroomScreenShare.onTrack(stream, peerId)) return;
+        } catch (e2) { console.warn('[RTC] screen ontrack failed', e2); }
+      }
       self.remoteStreams[peerId] = stream;
       window.RtcTiles.remote(peerId, name, role);
       var video = document.getElementById('vt-video-' + peerId);

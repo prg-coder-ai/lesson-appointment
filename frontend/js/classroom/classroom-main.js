@@ -294,6 +294,8 @@
 
     _initModules: function (ctx) {
       if (window.ClassroomRTC) window.ClassroomRTC.init(ctx);
+      // 屏幕共享模块需在 RTC 之后初始化（拿到门面引用），在 Controls 之前（按钮渲染读它的能力态）
+      if (window.ClassroomScreenShare) window.ClassroomScreenShare.init(ctx);
       if (window.ClassroomRecord) window.ClassroomRecord.init(ctx);
       if (window.ClassroomWhiteboard) window.ClassroomWhiteboard.init(ctx);
       if (window.ClassroomMaterial) window.ClassroomMaterial.init(ctx);
