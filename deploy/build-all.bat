@@ -330,15 +330,34 @@ if not defined STAMP (
 )
 
 rem ---- 2c-1) Windows 自解压 EXE（prod/www 同源模式，已实机验证） ----
-echo   [1/2] Windows 自解压 EXE ...
-pushd "%APP_DIR%\desktop"
-call npm run pack:sfx
+rem 注意：pack:sfx 默认复用旧 win-unpacked，源码更新后会打进旧内容；必须先重建 prod/www 再强制 --rebuild。
+rem 先保存 APK 参数，EXE 用 prod/www，APK 段再恢复（避免 dev 源站污染 EXE）。
+set "_APK_ENV=%APP_ENV%"
+set "_APK_ORIGIN=%FRONTEND_ORIGIN%"
+set "APP_ENV="
+set "FRONTEND_ORIGIN="
+echo   [1/2] Windows 自解压 EXE（prod/www + 强制 rebuild）...
+pushd "%APP_DIR%"
+call node scripts\build.js
 set "RC=!errorlevel!"
 popd
 if not "!RC!"=="0" (
-    set "ERRMSG=Windows 自解压 EXE 打包失败（exit !RC!），确认 electron-builder 缓存里有 NSIS"
+    set "ERRMSG=EXE 前置构建（prod/www）失败：exit !RC!"
     goto :die
 )
+pushd "%APP_DIR%\desktop"
+rem 用带时间戳的独立输出目录，绕开旧 dist-sfx/win-unpacked/resources/app.asar 的残留句柄锁（EBUSY）
+set "SFX_OUT_DIR=%APP_DIR%\desktop\dist-sfx-!STAMP!"
+call npm run pack:sfx:rebuild
+set "RC=!errorlevel!"
+set "SFX_OUT_DIR="
+popd
+if not "!RC!"=="0" (
+    set "ERRMSG=Windows 自解压 EXE 打包失败（exit !RC!），确认 electron-builder 缓存里有 NSIS；若报 app.asar EBUSY 可换时间戳重试"
+    goto :die
+)
+set "APP_ENV=%_APK_ENV%"
+set "FRONTEND_ORIGIN=%_APK_ORIGIN%"
 call :ok "Windows 自解压 EXE：deliver\eClassroom-1.0-!STAMP!.exe"
 
 rem ---- 2c-2) Android APK（源站由 APP_ENV / FRONTEND_ORIGIN 指定） ----

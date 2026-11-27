@@ -159,6 +159,7 @@ deliver/eClassroom-1.0-android-20261126-1858.apk
 classroom-app/desktop/dist/
 classroom-app/desktop/dist-rebuild/
 classroom-app/desktop/dist-sfx/
+classroom-app/desktop/dist-sfx-*/
 deliver/*.zip
 deliver/*.apk
 deliver/*.exe

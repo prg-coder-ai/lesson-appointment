@@ -29,7 +29,11 @@ const { spawnSync } = require('child_process');
 const DESKTOP = path.resolve(__dirname, '..');
 const APP_DIR = path.resolve(DESKTOP, '..');
 const REPO = path.resolve(APP_DIR, '..');
-const OUT_DIR = path.join(DESKTOP, 'dist-sfx');
+// 输出目录可用 SFX_OUT_DIR 环境变量覆盖：旧 dist-sfx/win-unpacked/resources/app.asar
+// 被残留句柄锁住时（11-26/11-27 实测 EBUSY），换一个目录即可继续打包，不必强删用户文件。
+const OUT_DIR = process.env.SFX_OUT_DIR
+  ? path.resolve(process.env.SFX_OUT_DIR)
+  : path.join(DESKTOP, 'dist-sfx');
 const UNPACKED = path.join(OUT_DIR, 'win-unpacked');
 const DELIVER = path.join(REPO, 'deliver');
 
