@@ -3,7 +3,7 @@
 # 服务器侧「前后版本切换」唯一入口 —— 切换 + 健康检查 + 失败自动回滚
 #
 # 用法（服务器上，root/sudo）：
-#   sudo bash switch.sh booking   2.2.0-a1b2c3d
+#   sudo bash switch.sh booking   2.2.1-a1b2c3d
 #   sudo bash switch.sh message   1.1.0-a1b2c3d
 #   sudo bash switch.sh classroom 1.0.0-a1b2c3d
 #   sudo bash switch.sh frontend  20261120-2230        # 对应 /var/www/releases/<id>

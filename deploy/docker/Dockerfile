@@ -11,9 +11,9 @@
 #   每次构建都要打包发给 daemon。deploy/jars 里只有三个 jar，138MB 封顶。
 #   构建命令见 deploy/docker/build-images.sh，手工等价于：
 #     docker build -f deploy/docker/Dockerfile \
-#       --build-arg JAR_FILE=booking-api-2.2.0.jar \
+#       --build-arg JAR_FILE=booking-api-2.2.1.jar \
 #       --build-arg SERVICE_PORT=8081 \
-#       -t lesson/booking-api:2.2.0-abc1234 \
+#       -t lesson/booking-api:2.2.1-abc1234 \
 #       deploy/jars
 #
 # ★ 为什么保留信任库阶段（不是所有服务都要调外网 TLS）

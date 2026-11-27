@@ -55,7 +55,7 @@ fail() { echo -e "  \033[31m�$1\033[0m"; exit 1; }
 if [ $SKIP_BE -eq 0 ]; then
     step "Step 1 �Maven 打包后端服务"
 
-    echo "  📦 api (booking-api-2.2.0.jar) ..."
+    echo "  📦 api (booking-api-2.2.1.jar) ..."
     (cd "$API_DIR" && mvn clean package -DskipTests -q) || fail "api Maven 构建失败"
 
     echo "  📦 message-service (message-service-1.1.0.jar) ..."
@@ -65,13 +65,13 @@ if [ $SKIP_BE -eq 0 ]; then
     (cd "$CLS_DIR" && mvn clean package -DskipTests -q) || fail "classroom-service Maven 构建失败"
 
     # �三个服务的落�*故意不同**，别"统一"成同一个路径：
-    #   api/Dockerfile               �COPY booking-api-2.2.0.jar            （构建上下文根目录）
+    #   api/Dockerfile               �COPY booking-api-2.2.1.jar            （构建上下文根目录）
     #   message-service/Dockerfile   �COPY target/message-service-1.1.0.jar
     #   classroom-service/Dockerfile �COPY target/classroom-service-1.0.0.jar
     # 之前 api 也往 target/ 拷，�Dockerfile 读的是根目录那份，导致镜像里装的�
     # 仓库里遗留的�jar（改了代码却不生效，排查时极易误判成"代码没编译进�）�
     mkdir -p "$CLOUD_API" "$CLOUD_MSG/target" "$CLOUD_CLS/target"
-    cp "$API_DIR/target/booking-api-2.2.0.jar"     "$CLOUD_API/"
+    cp "$API_DIR/target/booking-api-2.2.1.jar"     "$CLOUD_API/"
     cp "$MSG_DIR/target/message-service-1.1.0.jar" "$CLOUD_MSG/target/"
     cp "$CLS_DIR/target/classroom-service-1.0.0.jar" "$CLOUD_CLS/target/"
 
@@ -118,9 +118,9 @@ if [ $SKIP_DOCKER -eq 0 ]; then
 
     command -v docker >/dev/null 2>&1 || fail "未检测到 docker"
 
-    echo "  🐳 booking-api:2.2.0 ..."
-    (cd "$CLOUD_API" && docker build -t "booking-api:2.2.0" .) || fail "api docker build 失败"
-    ok "booking-api:2.2.0"
+    echo "  🐳 booking-api:2.2.1 ..."
+    (cd "$CLOUD_API" && docker build -t "booking-api:2.2.1" .) || fail "api docker build 失败"
+    ok "booking-api:2.2.1"
 
     echo "  🐳 booking-message-service:1.1.0 ..."
     (cd "$CLOUD_MSG" && docker build -t "booking-message-service:1.1.0" .) || fail "message-service docker build 失败"
@@ -158,12 +158,12 @@ if [ $SKIP_DOCKER -eq 0 ]; then
         [ -n "$ENV_ID" ] || fail "推送需�--env-id"
 
         REGISTRY="ccr.ccs.tencentyun.com/cb-$ENV_ID"
-        docker tag "booking-api:2.2.0"              "$REGISTRY/api:2.2.0"
+        docker tag "booking-api:2.2.1"              "$REGISTRY/api:2.2.1"
         docker tag "booking-message-service:1.1.0"  "$REGISTRY/message-service:1.1.0"
         docker tag "classroom-service:1.0.0"        "$REGISTRY/classroom-service:1.0.0"
         docker tag "booking-web:latest"             "$REGISTRY/web:latest"
 
-        docker push "$REGISTRY/api:2.2.0"            || fail "api push 失败"
+        docker push "$REGISTRY/api:2.2.1"            || fail "api push 失败"
         docker push "$REGISTRY/message-service:1.1.0"|| fail "message-service push 失败"
         docker push "$REGISTRY/classroom-service:1.0.0" || fail "classroom-service push 失败"
         docker push "$REGISTRY/web:latest"           || fail "web push 失败"
@@ -177,7 +177,7 @@ fi
 # 汇�
 # ==============================================================================
 step "构建产物清单"
-echo "  后端 jar：cloudBased/api/target/booking-api-2.2.0.jar"
+echo "  后端 jar：cloudBased/api/target/booking-api-2.2.1.jar"
 echo "            cloudBased/message-service/target/message-service-1.1.0.jar"
 echo "            cloudBased/classroom-service/target/classroom-service-1.0.0.jar"
 echo "  前端 dist：cloudBased/web/dist/"

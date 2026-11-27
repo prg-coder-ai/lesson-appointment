@@ -4,7 +4,7 @@
 #
 # 用法（服务器上，root/sudo）：
 #   sudo bash rollback.sh booking            # 回到该服务「上一次成功切换前」的版本
-#   sudo bash rollback.sh booking 2.2.0-a1b2c3d   # 回到指定版本
+#   sudo bash rollback.sh booking 2.2.1-a1b2c3d   # 回到指定版本
 #   sudo bash rollback.sh frontend
 #
 # ★ 镜像必须还在本机。发布脚本从不 docker rmi 旧镜像，就是为了让回滚随时可用；

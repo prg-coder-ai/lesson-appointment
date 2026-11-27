@@ -99,7 +99,7 @@ RUN mkdir -p /app/logs && chown -R appuser:appuser /app/logs
 WORKDIR /app
 
 # ---------- 复制 jar 并赋权给 appuser ----------
-COPY --chown=appuser:appuser booking-api-2.2.0.jar app.jar
+COPY --chown=appuser:appuser booking-api-2.2.1.jar app.jar
 
 # ---------- 信任库（阶段 1 的产物）----------
 # 放 /app 下而不是 $JAVA_HOME，避免污染 JDK 目录，也让 appuser 只读访问即可

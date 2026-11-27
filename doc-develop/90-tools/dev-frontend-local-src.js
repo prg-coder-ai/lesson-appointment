@@ -19,7 +19,7 @@
  *   java -jar api/target/booking-api-*.jar                    --server.port=8081
  *   java -jar api/message-service/target/message-service-*.jar --server.port=8090
  *   java -jar api/classroom-service/target/classroom-service-*.jar --server.port=8092
- *         ^ jar 名带版本号且会变（当前 booking-api-2.2.0 / message-service-1.1.0），
+ *         ^ jar 名带版本号且会变（当前 booking-api-2.2.1 / message-service-1.1.0），
  *           这里一律用通配，别照抄某个版本号；壳会自己展开成真实文件。
  *         ^ 必须显式带端口：沙箱环境变量 SERVER__PORT 会被 Spring Boot 宽松绑定
  *           映射成 server.port，覆盖 jar 内配置，导致绑到别的端口。

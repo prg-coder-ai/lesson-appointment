@@ -82,14 +82,14 @@ tests/miniprogram-itest/_sut*
 # 以及 web.zip 都堆在这里。源文件已迁�deploy/nginx/cloudbase-web/ 受版本控制，
 # �cloudBased/scripts/build-all.* �docker build 前拷入（别再往这里放需要入库的东西）�
 cloudBased/web
-cloudBased/api/booking-api-2.2.0.jar
+cloudBased/api/booking-api-*.jar
 cloudBased/message-service/message-service-1.1.0.jar
 cloudBased/web.zip
 # cloudBased/env 下的 .env*.example �README.txt 曾入库，已全�untrack（本地文件保留）�
 # 变量清单与取值格式见部署手册（应�云托管环境变量一节）�
 cloudBased/env
 cloudBased/api.zip
-cloudBased/api/target/booking-api-2.2.0.jar
+cloudBased/api/target/booking-api-*.jar
 cloudBased/message-service.zip
 cloudBased/message-service/target/message-service-1.1.0.jar
 api/classroom-service/target
@@ -167,3 +167,6 @@ deliver/*.exe
 2026-11-24-23-15-29/out2/
 2026-11-24-23-15-29/out3/
 2026-11-24-23-15-29/vendor/ffmpeg-core.wasm
+
+# 自解压 EXE 运行后的解包目录（Electron 运行时 + 本地缓存），纯本地残留，绝不入库
+deliver/eClassroom-*/

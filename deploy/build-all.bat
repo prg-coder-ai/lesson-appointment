@@ -132,7 +132,7 @@ if not exist "%API_DIR%\pom.xml" (
 )
 
 rem 版本号集中在这里：升级 pom 版本时同步改这三处
-set "VER_API=2.2.0"
+set "VER_API=2.2.1"
 set "VER_MSG=1.1.0"
 set "VER_CLS=1.0.0"
 
@@ -186,7 +186,7 @@ if not "!RC!"=="0" (
 )
 
 rem 三个服务的 Dockerfile 对 jar 位置要求不同，不要"统一"：
-rem   api/Dockerfile                      -> COPY booking-api-2.2.0.jar             （上下文根目录那份）
+rem   api/Dockerfile                      -> COPY booking-api-2.2.1.jar             （上下文根目录那份）
 rem   message-service/Dockerfile          -> COPY target/message-service-1.1.0.jar
 rem   classroom-service/Dockerfile        -> COPY classroom-service-1.0.0.jar      （上下文根目录那份）
 rem 所以 api 也留 target\ 下那份，Dockerfile 引的是根目录那份，装错会跑起旧 jar 而不报错。
@@ -348,7 +348,8 @@ if not "!RC!"=="0" (
 pushd "%APP_DIR%\desktop"
 rem 用带时间戳的独立输出目录，绕开旧 dist-sfx/win-unpacked/resources/app.asar 的残留句柄锁（EBUSY）
 set "SFX_OUT_DIR=%APP_DIR%\desktop\dist-sfx-!STAMP!"
-call npm run pack:sfx:rebuild
+rem 直接调 node，绕开系统 npm（node25 + npm11.6.2 的 fs-minipass 会崩；node 本身正常）
+call node scripts\pack-sfx.cjs --rebuild
 set "RC=!errorlevel!"
 set "SFX_OUT_DIR="
 popd
@@ -370,7 +371,8 @@ if not "!RC!"=="0" (
     set "ERRMSG=APK 前置构建（dev/www）失败：exit !RC!"
     goto :die
 )
-call npm run native:android
+rem 直接调 node，同上理由绕开系统 npm
+call node scripts\build-native.cjs android
 set "RC=!errorlevel!"
 popd
 if not "!RC!"=="0" (

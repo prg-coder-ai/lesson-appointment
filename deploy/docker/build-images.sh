@@ -8,8 +8,8 @@
 #   前置于 bash deploy/build-backends.sh（先出 jar，再出镜像）
 #
 # 产物 tag：<pom 版本>-<git short sha>[-dirty]
-#   例：booking-api-2.2.0.jar + a1b2c3d → lesson/booking-api:2.2.0-a1b2c3d
-#   ★ tag 里带 sha 是回滚能力的地基：同一个 2.2.0 被改三次也分得清是哪次，
+#   例：booking-api-2.2.1.jar + a1b2c3d → lesson/booking-api:2.2.1-a1b2c3d
+#   ★ tag 里带 sha 是回滚能力的地基：同一个 2.2.1 被改三次也分得清是哪次，
 #     反过来"版本号 + 时间戳"在跨机器/跨人发布时无法回答"线上跑的是哪次提交"。
 # ==============================================================================
 set -euo pipefail
@@ -35,7 +35,7 @@ pick() {  # pick <glob-prefix>  → 输出 jar 文件名（按版本号排序取
   ls -1v "$JARS/$pattern" 2>/dev/null | tail -1
 }
 
-VERSION_OF() {  # 从 jar 文件名剥版本：booking-api-2.2.0.jar → 2.2.0
+VERSION_OF() {  # 从 jar 文件名剥版本：booking-api-2.2.1.jar → 2.2.1
   local f; f="$(basename "$1")"
   f="${f%.jar}"
   echo "${f##*-}"

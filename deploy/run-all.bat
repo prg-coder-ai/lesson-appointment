@@ -57,8 +57,8 @@ for %%F in (run-api.bat run-msg.bat run-clas.bat run-lcl.bat) do (
     )
 )
 
-if not exist "%PRJ%\api\target\booking-api-2.2.0.jar" (
-    echo   [WARN] api\target\booking-api-2.2.0.jar not found - build first if booking fails
+if not exist "%PRJ%\api\target\booking-api-2.2.1.jar" (
+    echo   [WARN] api\target\booking-api-2.2.1.jar not found - build first if booking fails
 )
 
 rem classroom-app preview serves classroom-app\www; without it the window would
