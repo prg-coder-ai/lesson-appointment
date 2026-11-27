@@ -1,0 +1,50 @@
+{
+  "name": "screen-region-recorder",
+  "version": "1.0.0",
+  "description": "屏幕区域录制器 - 指定窗口、拖框选区、定时与分段录制",
+  "main": "main.js",
+  "author": "lantian",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win portable",
+    "dist:dir": "electron-builder --win --dir"
+  },
+  "devDependencies": {
+    "electron": "^45.5.0",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "com.lantian.screenrecorder",
+    "productName": "ScreenRegionRecorder",
+    "asar": true,
+    "compression": "maximum",
+    "electronLanguages": ["zh-CN", "en-US"],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "screen-region-recorder.html",
+      "main.js",
+      "preload.js",
+      "package.json",
+      "vendor/**/*",
+      "!node_modules/**/*",
+      "!dist/**/*",
+      "!**/*.map"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "portable": {
+      "artifactName": "屏幕区域录制器-${version}-绿色版.exe",
+      "requestExecutionLevel": "user"
+    }
+  }
+}

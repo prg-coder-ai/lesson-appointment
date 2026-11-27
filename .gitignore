@@ -162,3 +162,7 @@ classroom-app/desktop/dist-sfx/
 deliver/*.zip
 deliver/*.apk
 deliver/*.exe
+2026-11-24-23-15-29/dist/
+2026-11-24-23-15-29/out2/
+2026-11-24-23-15-29/out3/
+2026-11-24-23-15-29/vendor/ffmpeg-core.wasm
